@@ -35,6 +35,7 @@ const { evaluateSetup } = require("../../utils/setup/proposal");
 const { validatePlacement, placeSlots } = require("../../utils/setup/manual");
 const { DEFAULT_WEIGHTS, MAX_WEIGHT } = require("../../utils/setup/score");
 const { rulesForEvent } = require("../events/mainVersion");
+const { signupCharacters, characterStatus } = require("../../utils/setup/model");
 const { str } = require("../../utils/text");
 const { approvedSetupOf, pingTextOf, benchAndPool, confirmationsFor, setupSummary } = require("./setupCore");
 const { suggestSearch } = require("./raidSearch");
@@ -107,7 +108,8 @@ function lineupSignature(setup) {
         .map((g) => `${g.index}:${(g.slots || []).map((s) => `${s.userId}/${String(s.character || "").toLowerCase()}/${s.spec}/${s.role}`).join(",")}`)
         .sort();
     // #517: the bench is an explicit, posted list — moving somebody onto it or off it is a change
-    const bench = benchAndPool(setup).bench.map((b) => String(b.userId)).sort();
+    // with the character that waits there (#293): the orga may switch it, and a posted bench names it
+    const bench = benchAndPool(setup).bench.map((b) => `${String(b.userId)}/${String(b.character || "").toLowerCase()}`).sort();
     return bench.length ? `${groups.join("|")}|bench:${bench.join(",")}` : groups.join("|");
 }
 
@@ -218,7 +220,9 @@ function ownEvent(eventId) {
  */
 function keptAsPlaced(result, prev) {
     const lockedBefore = new Set((prev.groups || []).flatMap((g) => (g.slots || []).filter((s) => s.locked).map((s) => String(s.userId))));
-    const unlock = (s) => (lockedBefore.has(String(s.userId)) ? s : { ...s, locked: false, reasons: (s.reasons || []).filter((r) => r !== "Von der Orga fixiert") });
+    // nor the orga's pick of a further character (reasons.characterChoiceReason) — they only stood fixed for the run
+    const byOrga = (r) => r === "Von der Orga fixiert" || r.endsWith("(von der Orga gewählt)");
+    const unlock = (s) => (lockedBefore.has(String(s.userId)) ? s : { ...s, locked: false, reasons: (s.reasons || []).filter((r) => !byOrga(r)) });
     const groups = (result.groups || []).map((g) => ({ ...g, slots: (g.slots || []).map(unlock) }));
     return { ...result, groups: inPlacedOrder(groups, prev.groups) };
 }
@@ -281,7 +285,8 @@ function saveEventSetup(eventId, body = {}, { userId = "", now = Date.now() } = 
     }
     const input = collectSetupInput([event.id], { now });
     if (!input) return fail("not_found", "Event nicht gefunden.");
-    const checked = validatePlacement(body, { event, signups: input.signups });
+    // `previous`: a character the stored setup already shows passes even when the signup changed since (manual.js)
+    const checked = validatePlacement(body, { event, signups: input.signups, previous: prev });
     if (checked.error) return fail("invalid", checked.error);
     const options = mergeOptions(body, prev && prev.options);
     let result;
@@ -531,6 +536,51 @@ function addUnplacedSignups(decorated, signups, table, names) {
 }
 
 /**
+ * Every character a raider signed up with (#293), decorated like a slot: the
+ * order is theirs (`priority` 0 = the choice, then "kann auch mit"), each with
+ * its own status (#320). Only for somebody with more than one — the editor
+ * lists them under the raider in "Angemeldet" and offers "Charakter wechseln".
+ */
+function signedCharacters(signup, table) {
+    if (!signup || signup.status === "absence") return [];
+    const list = signupCharacters(signup)
+        .map((c, priority) => {
+            const spec = table.specs.get(str(c.spec)) || null;
+            const cls = table.classes.get(spec && spec.classId) || null;
+            return {
+                character: str(c.character),
+                spec: str(c.spec),
+                role: (spec && spec.role) || "",
+                status: characterStatus(c, signup.status) || "",
+                priority,
+                classId: (cls && cls.id) || "",
+                classColor: (cls && cls.color) || "",
+                classLabel: (cls && cls.label) || "",
+                specLabel: (spec && spec.label) || "",
+                specIcon: (spec && spec.icon) || (cls && cls.icon) || "",
+            };
+        })
+        .filter((c) => c.character && c.spec);
+    return list.length > 1 ? list : [];
+}
+
+/** The editor's lineup with `characters` on everybody who signed up with several. */
+function withCharacters(lineup, signups, table) {
+    if (!lineup) return lineup;
+    const byUser = new Map((signups || []).filter((s) => s && s.userId).map((s) => [String(s.userId), s]));
+    const add = (p) => {
+        const characters = signedCharacters(byUser.get(String(p.userId)), table);
+        return characters.length ? { ...p, characters } : p;
+    };
+    return {
+        ...lineup,
+        groups: lineup.groups.map((g) => ({ ...g, slots: g.slots.map(add) })),
+        bench: lineup.bench.map(add),
+        pool: (lineup.pool || []).map(add),
+    };
+}
+
+/**
  * The editor's start before anything is stored: no proposal needed — every
  * group empty, everybody who signed up in the pool ("Angemeldet"), valued like a
  * hand-made lineup so the counts read "0 von 3". Version 0 and `blank: true`:
@@ -583,7 +633,7 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
     const groupCount = Math.max(1, Math.ceil((Number(event.size) || 0) / 5));
     return {
         ...head,
-        setup: setup ? withBuffInfoAll(addUnplacedSignups(decorateLineup(withSetupDefaults(setup, event.size), table, names), signups, table, names), table) : null,
+        setup: setup ? withCharacters(withBuffInfoAll(addUnplacedSignups(decorateLineup(withSetupDefaults(setup, event.size), table, names), signups, table, names), table), signups, table) : null,
         // per raider: attendance and how sure the character link is — only on the page load, the client keeps it across moves
         ...(attendance ? { attendance } : {}),
         groupCount,

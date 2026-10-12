@@ -88,6 +88,15 @@
         "benchSignup": "Sub",
         "benchSignupTip": "Signed up as a substitute (bench)"
     },
+    "chars": {
+        "first": "The raider's first choice",
+        "also": "Can also come with – choice {n}",
+        "signed": "Signed up",
+        "lineAria": "{character} · {spec} (choice {n}) – drag or click to place exactly this character",
+        "switch": "Switch character",
+        "switchSub": "Another character the raider signed up with. The place stays and is locked, so a new proposal does not undo it.",
+        "switchTo": "Play {character} ({spec})"
+    },
     "summary": {
         "aria": "Summary",
         "statTip": "{label}: {value}",
@@ -350,6 +359,7 @@
     },
     "moves": {
         "respecBench": "Someone on the bench has no place yet – drag them into a group first, then pick the spec.",
+        "switchPool": "Not in the setup yet – drag the character you want from “Signed up” instead.",
         "notInSetup": "Raider not in the setup.",
         "targetNotInSetup": "Target not in the setup.",
         "groupFull": "Group {group} is full — drag onto a raider to swap.",

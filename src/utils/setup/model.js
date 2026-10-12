@@ -375,8 +375,9 @@ function addFixedSpecOption(f, cand, event, ctx, warnings) {
     const wanted = str(f.spec);
     const info = ctx.specInfo.get(wanted);
     const signup = ctx.byUser.get(cand.userId).find((s) => s.eventIdx === event.idx);
-    // the named character of that class (#293), else the signup's own
-    const entry = signup && signupCharacters(signup).find((c) => (ctx.specInfo.get(str(c.spec)) || {}).classId === info.classId);
+    // the named character of that class (#293) — the one the place names first — else the signup's own
+    const ofClass = signup ? signupCharacters(signup).filter((c) => (ctx.specInfo.get(str(c.spec)) || {}).classId === info.classId) : [];
+    const entry = ofClass.find((c) => characterKeyOf(c.character) === characterKeyOf(f.character)) || ofClass[0];
     const pChar = profileCharacter(ctx.profiles.get(cand.userId), (entry && entry.character) || (signup && signup.character), info.classId);
     const gear = gearOf(pChar, wanted);
     if (gear === "none") warnings.push(`${cand.name || cand.userId}: ${info.label} laut Profil ohne brauchbares Gear, aber fixiert.`);
@@ -424,7 +425,8 @@ function fixedGroup(f, event, lockedPerGroup, warnings) {
 /** A candidate's `fixed` state for one fixed place, or null when a hard rule refuses it. */
 function fixedPlace(f, cand, ctx, locked, warnings) {
     // #517: the bench is the orga's explicit list; `locked` only says whether the editor shows the lock
-    if (f.bench === true) return { bench: true, locked: f.locked !== false };
+    // `character`: which of the named characters (#293) waits there — reasons.benchEntryOf shows it
+    if (f.bench === true) return { bench: true, locked: f.locked !== false, ...(str(f.character) ? { character: str(f.character) } : {}) };
     const events = ctx.events;
     const event = f.eventId ? ctx.eventById.get(str(f.eventId)) : (events.length === 1 ? events[0] : null);
     if (!event) {

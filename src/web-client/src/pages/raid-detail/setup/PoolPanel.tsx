@@ -1,10 +1,15 @@
-import { useState } from "react";
-import type { SetupPerson } from "../../../api";
+import { useState, type KeyboardEvent } from "react";
+import type { SetupCharacter, SetupPerson } from "../../../api";
 import { useT } from "../../../i18n";
 import { ChevronDownIcon, SearchIcon } from "../../../components/ui/icons";
-import { Slot, type Interaction } from "./Board";
+import { asCharacter, fitsRole, leadIn } from "../../../lib/signups/setupEditor";
+import { wowIconUrl } from "../../../lib/wow/wowIcon";
+import { specLabel } from "../../../lib/wow/wowNames";
+import { classColorProps } from "../../../components/character/ClassSpec";
+import SpecTile from "../SpecTile";
+import { CharacterNumber, Slot, type Interaction } from "./Board";
 import { useZone } from "./useZone";
-import { matchesQuery } from "./setupText";
+import { matchesQuery, statusLabel } from "./setupText";
 
 // "Angemeldet" (#517): everybody signed up who is neither in a group nor on the
 // bench — where the setup starts from, since the editor no longer needs a
@@ -15,12 +20,92 @@ import { matchesQuery } from "./setupText";
 // folded away by its arrow — and folded by itself while a raider of it is picked,
 // so the free places to tap stay in view. The whole panel is a drop zone: a raider
 // dropped here leaves the setup again. Never posted.
+//
+// Several characters (#293): a person is ONE card — one seat, counted once in the
+// head — with every character they signed up with: the one leading the card on
+// the line, the others as quiet lines under it, each with its order number and
+// draggable on its own (a drag or pick takes exactly that character). A person
+// stands in every role block one of their characters fits, led there by that
+// character — like the signup message's "same number" rule.
 
 const SECTIONS = ["tank", "healer", "melee", "ranged"] as const;
 type Filter = "all" | "tank" | "healer" | "dps";
 
 const inFilter = (p: SetupPerson, filter: Filter) => filter === "all"
-    || (filter === "dps" ? p.role === "melee" || p.role === "ranged" : p.role === filter);
+    || (filter === "dps" ? fitsRole(p, "melee") || fitsRole(p, "ranged") : fitsRole(p, filter));
+
+/** The role blocks a filter shows. */
+const blocksOf = (filter: Filter) => SECTIONS.filter((role) => filter === "all" || (filter === "dps" ? role === "melee" || role === "ranged" : role === filter));
+
+/**
+ * A further character of a person in "Angemeldet" (#293): quiet (not bold), with its
+ * spec icon, its order number and its own status dot where it differs from the card's
+ * line. A line of its own to drag or pick — a move takes exactly this character.
+ */
+function CharacterLine({ p, c, ui, leadStatus }: { p: SetupPerson; c: SetupCharacter; ui: Interaction; leadStatus: string }) {
+    const t = useT();
+    const color = classColorProps(c.classColor);
+    const held = ui.held?.[p.userId];
+    const movable = ui.editable && !held;
+    const selected = ui.selected === p.userId && (ui.selectedCharacter || "") === c.character;
+    const spec = specLabel(c.spec, c.specLabel || c.spec);
+    const differs = (c.status || "signed") !== (leadStatus || "signed");
+    const status = statusLabel(c.status) || t("setup.chars.signed");
+    const pick = () => (held ? ui.onHeld?.(p.userId) : ui.onPick(p.userId, c.character));
+    const keyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        pick();
+    };
+    return (
+        <div
+            className={`se-alt${selected ? " se-picked" : ""}${ui.dragging === p.userId ? " se-dragging" : ""}`}
+            role={ui.editable ? "button" : undefined}
+            tabIndex={ui.editable ? 0 : undefined}
+            aria-pressed={ui.editable ? selected : undefined}
+            aria-label={t("setup.chars.lineAria", { character: c.character, spec, n: c.priority + 1 })}
+            data-user={p.userId}
+            data-character={c.character}
+            draggable={movable}
+            onMouseEnter={() => ui.onInspect(p.userId)}
+            onClick={ui.editable ? pick : undefined}
+            onKeyDown={movable ? keyDown : undefined}
+            onDragStart={movable ? (e) => { e.stopPropagation(); e.dataTransfer.setData("text/plain", p.userId); e.dataTransfer.effectAllowed = "move"; setTimeout(() => ui.onDrag(p.userId, c.character), 0); } : undefined}
+            onDragEnd={ui.editable ? () => ui.onDrag(null) : undefined}
+        >
+            <CharacterNumber order={c.priority + 1} />
+            <SpecTile iconUrl={c.specIcon ? wowIconUrl(c.specIcon, 36) : undefined} classColor={c.classColor} size="sm" />
+            <span className="se-alt-text">
+                <span className={`se-alt-name ${color.className || ""}`} style={color.style}>{c.character}</span>
+                <span className="se-alt-spec">{spec}</span>
+            </span>
+            {differs && <span className={`rd-sig rd-sig-${c.status || "signed"} se-alt-sig${c.status && c.status !== "signed" ? "" : " se-sig-signed"}`} role="img" aria-label={status} data-tip={status} />}
+        </div>
+    );
+}
+
+/**
+ * One person in a role block: their leading character on the line (as they stand,
+ * or the character that fits this block), their other characters under it.
+ */
+function PoolCard({ p, lead, ui }: { p: SetupPerson; lead: SetupCharacter | undefined; ui: Interaction }) {
+    const characters = p.characters || [];
+    if (characters.length < 2) return <Slot p={p} ui={ui} inPool />;
+    const standing = characters.find((c) => c.character.toLowerCase() === p.character.toLowerCase());
+    const leading = lead || standing;
+    // `as` only when the line is not the character they stand as: a drag of the plain line keeps the default
+    const as = lead && lead !== standing ? lead.character : undefined;
+    const shown = lead && as ? asCharacter(p, lead) : p;
+    const others = characters.filter((c) => c !== leading);
+    return (
+        <div className="se-pp-person">
+            <Slot p={shown} ui={ui} inPool as={as} order={leading ? leading.priority + 1 : undefined} />
+            <div className="se-alts">
+                {others.map((c) => <CharacterLine key={c.character} p={p} c={c} ui={ui} leadStatus={shown.status || ""} />)}
+            </div>
+        </div>
+    );
+}
 
 export function PoolPanel({ pool, ui, absent = 0 }: { pool: SetupPerson[]; ui: Interaction; absent?: number }) {
     const t = useT();
@@ -30,13 +115,14 @@ export function PoolPanel({ pool, ui, absent = 0 }: { pool: SetupPerson[]; ui: I
     const zone = useZone({ pool: true }, ui);
     const canTake = ui.editable && !!ui.selected && !pool.some((p) => p.userId === ui.selected);
     const picking = !!ui.selected && pool.some((p) => p.userId === ui.selected);
+    // persons, not characters: somebody with a tank and a healer counts once in "Alle" and once per role chip
     const count = (f: Filter) => pool.filter((p) => inFilter(p, f)).length;
     const shown = pool.filter((p) => inFilter(p, filter) && matchesQuery(p, query));
-    // a role nobody signed up for in the group is no section; anything unknown goes with the ranged
-    const sections = SECTIONS.map((role) => ({
-        role,
-        people: shown.filter((p) => (role === "ranged" ? !["tank", "healer", "melee"].includes(p.role) : p.role === role)),
-    })).filter((s) => s.people.length);
+    // a person stands in every block one of their characters fits, led there by that character;
+    // a role nobody signed up for is no section; anything unknown goes with the ranged
+    const sections = blocksOf(filter)
+        .map((role) => ({ role, people: shown.map((p) => ({ p, lead: leadIn(p, role) })).filter((x) => x.lead !== null) }))
+        .filter((s) => s.people.length);
     const filters: Filter[] = ["all", "tank", "healer", "dps"];
     return (
         <section
@@ -79,10 +165,10 @@ export function PoolPanel({ pool, ui, absent = 0 }: { pool: SetupPerson[]; ui: I
                 )}
                 <div className="se-pp-sections">
                     {sections.map((s) => (
-                        <div key={s.role} className="se-pp-sec">
+                        <div key={s.role} className="se-pp-sec" role="group" aria-label={t(`setup.poolPanel.sections.${s.role}`)}>
                             <div className="se-pp-sec-head">{t(`setup.poolPanel.sections.${s.role}`)} <small>{s.people.length}</small></div>
                             <div className="se-pp-grid">
-                                {s.people.map((p) => <Slot key={p.userId} p={p} ui={ui} inPool />)}
+                                {s.people.map(({ p, lead }) => <PoolCard key={p.userId} p={p} lead={lead || undefined} ui={ui} />)}
                             </div>
                         </div>
                     ))}
