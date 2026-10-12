@@ -6,8 +6,10 @@
 // ("nicht verknüpft") cannot be confirmed — "Verknüpfen" picks the profile
 // character (CharacterPicker.tsx, in this dialog instead of a second one), the
 // server redraws the card and "Bestätigen" works. A linked one can be linked anew.
+// A name without a profile to pick (a raider without a Discord account, #806)
+// gets "Im Spiel geprüft" for the name itself above the search.
 import { useState } from "react";
-import { getGuildBankRequests, linkGuildBankRequest, type ApiError, type GuildBankCharacterChoice, type GuildBankRequest } from "../../api";
+import { getGuildBankRequests, linkGuildBankRequest, verifyGuildBankRequest, type ApiError, type GuildBankCharacterChoice, type GuildBankRequest } from "../../api";
 import { Badge, Button, IconButton, Modal, WowIcon } from "../../components/ui";
 import { LinkIcon } from "../../components/ui/icons";
 import { ItemIcon } from "../../components/loot/LootBadges";
@@ -80,6 +82,21 @@ export default function RequestsDialog({ bankKey, canWrite = false, onClose }: {
         }
     };
 
+    // "Im Spiel geprüft" for the request's own name (#806): linked without a profile
+    const verify = async (request: GuildBankRequest) => {
+        setBusy(true);
+        try {
+            const r = await verifyGuildBankRequest(bankKey, request.id);
+            list.setData((d) => (d ? { requests: d.requests.map((x) => (x.id === r.request.id ? r.request : x)) } : d));
+            toast(t("guildbank.link.currentChecked", { name: recipientName(request) }), "ok");
+            setLinking(null);
+        } catch (err) {
+            toast((err as ApiError).message, "err");
+        } finally {
+            setBusy(false);
+        }
+    };
+
     return (
         <Modal
             open
@@ -99,7 +116,8 @@ export default function RequestsDialog({ bankKey, canWrite = false, onClose }: {
                     initialQuery={linking.characterName || linking.userName}
                     busy={busy}
                     onPick={(choice) => { void link(linking, choice); }}
-                    intro={<LinkIntro what={t("guildbank.requests.amountItem", { amount: linking.amount, item: linking.item })} current={recipientName(linking)} />}
+                    intro={<LinkIntro what={t("guildbank.requests.amountItem", { amount: linking.amount, item: linking.item })} current={recipientName(linking)} busy={busy}
+                        onVerify={!linking.linked && linking.characterName ? () => { void verify(linking); } : undefined} />}
                 />
             ) : (
                 <>

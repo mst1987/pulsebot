@@ -112,6 +112,7 @@ const RULES = [
     [/^Diese Anfrage ist noch nicht vorgemerkt\.$/, "This request has not been confirmed yet."],
     [/^Diese Anfrage ist schon vorgemerkt\.$/, "This request has already been confirmed."],
     [/^Diese Anfrage ist schon ausgegeben\.$/, "This request has already been handed out."],
+    [/^Die Anfrage nennt keinen Charakter – erst verknüpfen\.$/, "The request names no character – link one first."],
 ];
 
 /**

@@ -108,7 +108,10 @@ a.gb-name:hover { text-decoration: underline; }
 .gb-req-unlinked { border-color: color-mix(in srgb, var(--high) 45%, var(--line-soft)); }
 .gb-req-link, .gb-wl-who { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
 .gb-link { display: flex; flex-direction: column; gap: 12px; }
-.gb-link-intro { display: flex; flex-direction: column; gap: 2px; margin: 0; font-size: 15px; color: var(--text); }
+.gb-link-intro { display: flex; flex-direction: column; gap: 6px; margin: 0; font-size: 15px; color: var(--text); }
+.gb-link-intro > p { display: flex; flex-direction: column; gap: 2px; margin: 0; }
+.gb-link-intro > .gb-link-checks { align-items: center; padding-left: 0; }
+.gb-link-intro > .gb-link-confirm { margin-left: 0; }
 .gb-link-hits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: min(460px, 55vh); overflow: auto; }
 .gb-link-hit {
     display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 8px;

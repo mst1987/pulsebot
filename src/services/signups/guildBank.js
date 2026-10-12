@@ -22,10 +22,16 @@
 //     Confirming needs a **linked** character (services/guildbank/linking.js):
 //     the request's raider and a **confirmed** character of their profile (seen
 //     in a log or the loot, answered by the armory, or checked in game by the
-//     orga) — the addon mails to that name. An unlinked card shows a warning
-//     ("Kein verknüpfter Charakter" / "Charakter nicht bestätigt") and a
-//     disabled "Bestätigen"; the orga links (or confirms) it in the web
-//     (linkRequest), which redraws it.
+//     orga) — the addon mails to that name. The recipient's own evidence
+//     counts too (#806, linking.recipientEvidence): a name seen in a log or
+//     the loot, or one the orga vouched for — a raider without a Discord
+//     account has no profile at all. An unlinked card shows a warning
+//     ("Kein verknüpfter Charakter" / "Charakter nicht bestätigt") and, with
+//     a character name, "Geprüft & bestätigen" (checkAndConfirm: the orga
+//     checked the name in game) instead of "Bestätigen"; the orga can also
+//     link it in the web (linkRequest) or vouch for the name there
+//     (checkRequestRecipient), which redraws it. A confirmation is the orga's
+//     word for the recipient: it stays when the confirmation is released.
 //   - free text (no bank data): what was typed, open → done | rejected.
 //
 // Stored in stores/guildBankStore.js, cards built by utils/signup/guildBankPost.js;
@@ -51,8 +57,8 @@ const logger = require("../../logger");
 
 const NOT_SET_UP = "Die Gildenbank ist gerade nicht eingerichtet.";
 const NOT_OFFERED = "Diesen Gegenstand gibt es gerade nicht in der Gildenbank.";
-const NOT_LINKED = "Erst einen Charakter verknüpfen – im Web unter Gildenbank.";
-const NOT_VERIFIED = "Der Charakter ist nicht bestätigt – im Web unter Gildenbank prüfen (Arsenal oder im Spiel) oder anders verknüpfen.";
+const NOT_LINKED = "Erst einen Charakter verknüpfen – im Web unter Gildenbank, oder den Namen im Spiel prüfen und „Geprüft & bestätigen“ drücken.";
+const NOT_VERIFIED = "Der Charakter ist nicht bestätigt – im Spiel prüfen und „Geprüft & bestätigen“ drücken, oder im Web unter Gildenbank prüfen (Arsenal) bzw. anders verknüpfen.";
 // the web's link step (orga only, never shown to a raider in Discord)
 const LINK_GONE = "Diese Anfrage wartet nicht mehr.";
 const LINK_NO_CHARACTER = "Diesen Charakter gibt es im Profil nicht.";
@@ -323,6 +329,38 @@ async function confirmRequest(id, { by = "", byName = "" } = {}, { config, now =
     return finish(store.confirmRequest(id, { by, byName }, { now }), { config: cfg });
 }
 
+/**
+ * "Geprüft & bestätigen" on the orga card (#806): the clicking member vouches
+ * for the request's recipient (it exists in game — guildBankStore.checkRecipient)
+ * and confirms it, for a request that is not linked otherwise (a raider without
+ * a Discord account, a profile character nobody confirmed). A request without
+ * a character name has nothing to vouch for and is refused like confirmRequest.
+ */
+async function checkAndConfirm(id, { by = "", byName = "" } = {}, { config, now = Date.now() } = {}) {
+    const request = store.getRequest(id);
+    if (request && request.status === "open" && request.itemId && str(request.characterName) && !(request.recipientCheckedAt > 0)) {
+        store.checkRecipient(id, { by, byName }, { now });
+    }
+    return confirmRequest(id, { by, byName }, { config, now });
+}
+
+/**
+ * The orga vouches in the web for a pending request's recipient (#806, "Im
+ * Spiel geprüft" for the request's own name): the addon may mail to it without
+ * a raider profile behind it. The card is redrawn — "Bestätigen" works now.
+ * Returns `{ request }` (with `linked`) or `{ error, code }` ("not_found" | "invalid").
+ */
+async function checkRequestRecipient(id, { bankKey = "", by = "", byName = "" } = {}, { config, now = Date.now() } = {}) {
+    const request = store.getRequest(id);
+    if (!request || request.bankKey !== str(bankKey) || !store.PENDING_STATUSES.includes(request.status)) {
+        return { error: LINK_GONE, code: "not_found" };
+    }
+    const result = store.checkRecipient(id, { by, byName }, { now });
+    if (result.error) return { error: result.error, code: "invalid" };
+    await redrawPost(result.request, { config: config || settingsStore.getConfig() });
+    return { request: linking.withLinked(result.request) };
+}
+
 /** The orga takes a confirmation back: open again, nothing set aside. No DM. */
 async function releaseRequest(id, { config } = {}) {
     const cfg = config || settingsStore.getConfig();
@@ -448,5 +486,6 @@ function advanceWaitlist({ bankKey = "", itemId = 0, config, now = Date.now() } 
 
 module.exports = {
     NOT_SET_UP, NOT_OFFERED, NOT_LINKED, NOT_VERIFIED, guildBankChannelId, postFor, offerFor, charactersFor, createRequest, createStockRequest, splitAmount,
-    resolveRequest, confirmRequest, releaseRequest, handOutRequest, redrawPost, pendingForBank, handedOutForBank, linkRequest, advanceWaitlist,
+    resolveRequest, confirmRequest, checkAndConfirm, checkRequestRecipient, releaseRequest, handOutRequest, redrawPost, pendingForBank, handedOutForBank,
+    linkRequest, advanceWaitlist,
 };

@@ -97,7 +97,7 @@
         "relinkTip": "Goes to {name} now. Pick another character from a raider profile.",
         "notLinked": "not linked",
         "notLinkedTip": "The character is not in the raider's profile. The mail would go to a name that may not exist – link it first, then confirm.",
-        "notLinkedTipNoRaider": "Just the name, no raider profile: no DM, and it can only be confirmed once it is linked.",
+        "notLinkedTipNoRaider": "Just the name, no raider profile: no DM. It can be confirmed once the name is checked in game (under “Link”, or with the check-and-confirm button on the Discord card) or a profile character is linked.",
         "kicker": "Guild bank",
         "title": "Link a character",
         "search": "Search character or raider",
@@ -137,7 +137,10 @@
         "gameCheckTitle": "Found {name} in game?",
         "gameCheckText": "Only confirm when you found the character in game, e.g. with /who.",
         "gameCheckAction": "Yes, found it",
-        "gameChecked": "{name} is confirmed."
+        "gameChecked": "{name} is confirmed.",
+        "currentCheckHint": "No matching profile (e.g. no Discord account)? Check the name itself:",
+        "currentCheck": "{name} checked in game",
+        "currentChecked": "{name} is checked in game – the request can be confirmed."
     },
     "handedOut": {
         "hint": "What went out once it was ticked off – in Discord, in game or by mail. Kept for 90 days.",

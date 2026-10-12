@@ -97,7 +97,7 @@
         "relinkTip": "Geht jetzt an {name}. Einen anderen Charakter aus einem Raider-Profil wählen.",
         "notLinked": "nicht verknüpft",
         "notLinkedTip": "Der Charakter steht nicht im Profil des Raiders. Die Post ginge an einen Namen, den es vielleicht nicht gibt – darum erst verknüpfen, dann bestätigen.",
-        "notLinkedTipNoRaider": "Nur der Name, kein Raider-Profil dazu: keine DM, und bestätigen geht erst nach dem Verknüpfen.",
+        "notLinkedTipNoRaider": "Nur der Name, kein Raider-Profil dazu: keine DM. Bestätigen geht, sobald der Name im Spiel geprüft ist (unter „Verknüpfen“ oder auf der Discord-Karte „Geprüft & bestätigen“) oder ein Profil-Charakter verknüpft ist.",
         "kicker": "Gildenbank",
         "title": "Charakter verknüpfen",
         "search": "Charakter oder Raider suchen",
@@ -137,7 +137,10 @@
         "gameCheckTitle": "{name} im Spiel gefunden?",
         "gameCheckText": "Nur bestätigen, wenn du den Charakter im Spiel gefunden hast, z. B. per /who.",
         "gameCheckAction": "Ja, gefunden",
-        "gameChecked": "{name} ist bestätigt."
+        "gameChecked": "{name} ist bestätigt.",
+        "currentCheckHint": "Kein passendes Profil (z. B. ohne Discord-Konto)? Den Namen selbst prüfen:",
+        "currentCheck": "{name} im Spiel geprüft",
+        "currentChecked": "{name} ist im Spiel geprüft – die Anfrage kann bestätigt werden."
     },
     "handedOut": {
         "hint": "Was rausging, sobald es abgehakt wurde – im Discord, im Spiel oder per Post. 90 Tage lang.",

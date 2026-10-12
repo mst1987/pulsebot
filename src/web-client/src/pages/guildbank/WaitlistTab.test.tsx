@@ -24,6 +24,7 @@ vi.mock("../../api", async (orig) => ({
     importGuildBankWaitlist: vi.fn(),
     searchGuildBankCharacters: vi.fn(),
     linkGuildBankRequest: vi.fn(),
+    verifyGuildBankRequest: vi.fn(),
 }));
 
 const KEY = "tbc:spineshatter:die gilde";
@@ -238,6 +239,35 @@ describe("guild bank waiting list", () => {
         await waitFor(() => expect(screen.queryByText("nicht verknüpft")).toBeNull());
     });
 
+    it("#806: an entry without a profile is checked in game by its own name, after asking once more", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.searchGuildBankCharacters).mockResolvedValue({ characters: [] });
+        vi.mocked(api.verifyGuildBankRequest).mockImplementation(async () => {
+            vi.mocked(api.getGuildBankWaitlist).mockResolvedValue({ entries: ENTRIES.map((e) => (e.id === "w2" ? { ...e, linked: true, linkProblem: "" as const } : e)) });
+            return { request: {} as never };
+        });
+        renderPage(<GuildBankPage />, { route: "/guildbank" });
+        await openTab(user);
+        await user.click(screen.getByRole("button", { name: "Verknüpfen: Whapap" }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByText("Kein passendes Profil (z. B. ohne Discord-Konto)? Den Namen selbst prüfen:")).toBeInTheDocument();
+        await user.click(within(dialog).getByRole("button", { name: "Whapap im Spiel geprüft" }));
+        expect(api.verifyGuildBankRequest).not.toHaveBeenCalled();
+        await user.click(within(dialog).getByRole("button", { name: "Ja, gefunden" }));
+        expect(api.verifyGuildBankRequest).toHaveBeenCalledWith(KEY, "w2");
+        expect(await screen.findByText("Whapap-Spineshatter ist im Spiel geprüft – die Anfrage kann bestätigt werden.")).toBeInTheDocument();
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+        await waitFor(() => expect(screen.queryByText("nicht verknüpft")).toBeNull());
+    });
+
+    it("#806: a linked entry's dialog offers no check of its own name", async () => {
+        const user = userEvent.setup();
+        renderPage(<GuildBankPage />, { route: "/guildbank" });
+        await openTab(user);
+        await user.click(screen.getByRole("button", { name: "Anders verknüpfen: Anna" }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).queryByRole("button", { name: /im Spiel geprüft$/ })).toBeNull();
+    });
     it("picks one of several raiders of an ambiguous import line, or searches one for a name nobody has", async () => {
         const user = userEvent.setup();
         vi.mocked(api.previewGuildBankWaitlist).mockResolvedValue({

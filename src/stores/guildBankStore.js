@@ -25,7 +25,14 @@
 //               picked; realm and faction default to the bank's),
 //               handedOutBy, handedOutByName, handedOutAt,
 //               handoutVia: "" | "discord" (the orga's button) | "manual" |
-//               "mail" (the addon's hand-out list, #634) }
+//               "mail" (the addon's hand-out list, #634),
+//               recipientCheckedBy, recipientCheckedByName, recipientCheckedAt
+//               (#806: the orga vouched for this recipient — confirmed the
+//               request, or checked the name in game; services/guildbank/
+//               linking.js counts it as evidence. Kept when a confirmation is
+//               released, cleared when the recipient changes, setRecipient.
+//               A request confirmed before #806 has no such field: read as
+//               checked by whoever confirmed it, recipientCheckOf) }
 //
 // Status flow of a request from the stock (#633/#634, waiting list #775):
 //
@@ -80,7 +87,22 @@ const useFile = store.useFile;
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
+/**
+ * Who vouched for a stored request's recipient (#806): its own fields, or —
+ * a request confirmed before they existed — whoever confirmed it. The orga's
+ * confirmation was its word for that recipient under the rules of the day;
+ * #782/#792 must not take it back, or the addon's list drops it silently.
+ */
+function recipientCheckOf(r) {
+    if (r.recipientCheckedAt !== undefined) {
+        return { by: str(r.recipientCheckedBy), byName: str(r.recipientCheckedByName), at: Number(r.recipientCheckedAt) || 0 };
+    }
+    if (r.status === "confirmed") return { by: str(r.handledBy), byName: str(r.handledByName), at: Number(r.handledAt) || 1 };
+    return { by: "", byName: "", at: 0 };
+}
+
 function complete(r) {
+    const checked = recipientCheckOf(r);
     return {
         id: str(r.id),
         userId: str(r.userId),
@@ -112,8 +134,14 @@ function complete(r) {
         fromWaitlist: r.fromWaitlist === true,
         addedBy: str(r.addedBy),
         addedByName: str(r.addedByName),
+        recipientCheckedBy: checked.by,
+        recipientCheckedByName: checked.byName,
+        recipientCheckedAt: checked.at,
     };
 }
+
+/** The fields of a vouch for the recipient (`at` 0 = none). */
+const checkFields = (by, byName, at) => ({ recipientCheckedBy: str(by), recipientCheckedByName: str(byName), recipientCheckedAt: Number(at) || 0 });
 
 /** The amount as typed ("12", " 3 ") as a whole number in range, or 0. */
 function parseAmount(raw) {
@@ -314,7 +342,26 @@ function setRecipient(id, { userId = "", userName = "", characterName = "", real
     const hit = data.requests.find((r) => r.id === str(id));
     if (!hit) return { error: "Anfrage nicht gefunden." };
     if (!PENDING_STATUSES.includes(hit.status || "open")) return { error: "Diese Anfrage ist schon erledigt.", request: complete(hit) };
-    Object.assign(hit, { userId: str(userId), userName: str(userName) || name, characterName: name, realm: str(realm).slice(0, 60) });
+    // a new recipient: whatever the orga vouched for was the old one (#806)
+    Object.assign(hit, { userId: str(userId), userName: str(userName) || name, characterName: name, realm: str(realm).slice(0, 60) }, checkFields("", "", 0));
+    store.write(data);
+    return { request: complete(hit) };
+}
+
+/**
+ * The orga vouches for a pending request's recipient (#806): it checked the
+ * name in game ("Im Spiel geprüft" in the web, "Geprüft & bestätigen" on the
+ * card) — the addon may mail to it although no raider profile confirms it
+ * (a raider without a Discord account has none). Returns `{ request }` or
+ * `{ error, request? }` (German).
+ */
+function checkRecipient(id, { by = "", byName = "" } = {}, { now = Date.now() } = {}) {
+    const data = store.read();
+    const hit = data.requests.find((r) => r.id === str(id));
+    if (!hit) return { error: "Anfrage nicht gefunden." };
+    if (!PENDING_STATUSES.includes(hit.status || "open")) return { error: "Diese Anfrage ist schon erledigt.", request: complete(hit) };
+    if (!str(hit.characterName)) return { error: "Die Anfrage nennt keinen Charakter – erst verknüpfen.", request: complete(hit) };
+    Object.assign(hit, checkFields(by, byName, now));
     store.write(data);
     return { request: complete(hit) };
 }
@@ -377,14 +424,27 @@ function transition(id, from, to, patch) {
     return { request: complete(hit) };
 }
 
-/** Confirm an open request of the stock: its amount is set aside until the hand-out. */
+/**
+ * Confirm an open request of the stock: its amount is set aside until the
+ * hand-out. The confirmation is the orga's word for the recipient (#806): an
+ * earlier check stays, else the confirming member vouches for it.
+ */
 function confirmRequest(id, { by = "", byName = "" } = {}, { now = Date.now() } = {}) {
-    return transition(id, "open", "confirmed", { handledBy: str(by), handledByName: str(byName), handledAt: now, reason: "" });
+    const current = getRequest(id);
+    const check = current && current.recipientCheckedAt > 0
+        ? checkFields(current.recipientCheckedBy, current.recipientCheckedByName, current.recipientCheckedAt)
+        : checkFields(by, byName, now);
+    return transition(id, "open", "confirmed", { handledBy: str(by), handledByName: str(byName), handledAt: now, reason: "", ...check });
 }
 
-/** Take a confirmation back: the request is open again, nothing set aside. */
+/**
+ * Take a confirmation back: the request is open again, nothing set aside. The
+ * vouch for its recipient stays (#806) — "Bestätigen" works again at once.
+ */
 function releaseRequest(id) {
-    return transition(id, "confirmed", "open", { handledBy: "", handledByName: "", handledAt: 0 });
+    const current = getRequest(id);
+    const check = current ? checkFields(current.recipientCheckedBy, current.recipientCheckedByName, current.recipientCheckedAt) : {};
+    return transition(id, "confirmed", "open", { handledBy: "", handledByName: "", handledAt: 0, ...check });
 }
 
 /**
@@ -448,7 +508,7 @@ function renamePendingItem({ bankKeys = [], itemId = 0, name = "" } = {}) {
 
 module.exports = {
     STATUSES, PENDING_STATUSES, HANDOUT_VIAS, ITEM_MAX, PURPOSE_MAX, REASON_MAX, AMOUNT_MIN, AMOUNT_MAX, MAX_OPEN, MAX_WAITING, KEEP_DAYS,
-    parseAmount, checkInput, listRequests, getRequest, addRequest, setMessage, setRecipient, resolveRequest,
+    parseAmount, checkInput, listRequests, getRequest, addRequest, setMessage, setRecipient, checkRecipient, resolveRequest,
     confirmRequest, releaseRequest, handOutRequest, removeRequest, prune, renamePendingItem,
     openCount, waitingCount, waitingQueue, addWaiting, promoteWaiting, moveWaiting, removeWaiting,
     useFile,
