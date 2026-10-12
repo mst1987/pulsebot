@@ -108,7 +108,7 @@ function fixedFromSetup(event, { keepPlaced = false } = {}) {
     }
     // #517: the whole explicit bench stays on the bench — a new proposal never undoes the orga's choice
     for (const b of benchAndPool(setup).bench) {
-        if (b.userId) out.push({ userId: String(b.userId), bench: true, locked: !!b.locked });
+        if (b.userId) out.push({ userId: String(b.userId), bench: true, locked: !!b.locked, ...(b.character ? { character: String(b.character) } : {}) });
     }
     return out;
 }

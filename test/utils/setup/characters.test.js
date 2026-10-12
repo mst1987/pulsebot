@@ -155,3 +155,71 @@ describe("setup proposal with several characters per raider (#293)", () => {
         expect(placed(valued).find((s) => s.userId === "zibbo")).toMatchObject({ character: "Zibbowar", role: "tank" });
     });
 });
+
+// The editor places any of a raider's signed characters by name (the "Angemeldet"
+// lines, "Charakter wechseln") — one seat per person stays the rule.
+describe("placing a named character by hand (#293, setup editor)", () => {
+    const three = (extra = {}) => su("zibbo", "Priest-Holy", {
+        eventId: "ev",
+        character: "Zibbo",
+        characters: [
+            { character: "Zibbo", spec: "Priest-Holy" },
+            { character: "Zibbowar", spec: "Warrior-Protection", status: "late" },
+            { character: "Zibboshadow", spec: "Priest-Shadow" },
+        ],
+        ...extra,
+    });
+    const signups = () => [three(), su("t1", "Warrior-Protection", { eventId: "ev" }), su("h1", "Paladin-Holy", { eventId: "ev" })];
+    const ctx = (previous = null) => ({ event: event(), signups: signups(), previous });
+    const one = (s) => ({ groups: [{ index: 1, slots: [s] }], bench: [] });
+
+    it("accepts the second and the third character with their own spec — also a second one of the same class", () => {
+        const war = validatePlacement(one({ userId: "zibbo", character: "Zibbowar", spec: "Warrior-Protection", role: "tank" }), ctx());
+        expect(war.error).toBeUndefined();
+        expect(war.value.groups[0].slots[0]).toMatchObject({ character: "Zibbowar", spec: "Warrior-Protection", role: "tank" });
+        const shadow = validatePlacement(one({ userId: "zibbo", character: "zibboshadow", spec: "Priest-Shadow" }), ctx());
+        expect(shadow.value.groups[0].slots[0]).toMatchObject({ character: "Zibboshadow", spec: "Priest-Shadow", role: "ranged" });
+    });
+
+    it("refuses a character the raider did not sign up with — unless the stored setup already shows it (a stale slot)", () => {
+        expect(validatePlacement(one({ userId: "zibbo", character: "Fremdling", spec: "Priest-Holy" }), ctx()).error)
+            .toBe("Zibbo: Fremdling ist nicht unter den angemeldeten Charakteren (Zibbo / Zibbowar / Zibboshadow).");
+        expect(validatePlacement({ groups: [], bench: [{ userId: "zibbo", character: "Fremdling" }] }, ctx()).error)
+            .toBe("Zibbo: Fremdling ist nicht unter den angemeldeten Charakteren (Zibbo / Zibbowar / Zibboshadow).");
+        // the raider changed their signup since the setup was stored: corrected, not refused
+        const stored = { groups: [{ index: 1, slots: [{ userId: "zibbo", character: "Altname", spec: "Priest-Holy" }] }], bench: [] };
+        const stale = validatePlacement(one({ userId: "zibbo", character: "Altname", spec: "Priest-Holy" }), ctx(stored));
+        expect(stale.error).toBeUndefined();
+        expect(stale.value.groups[0].slots[0].character).toBe("Zibbo");
+    });
+
+    it("keeps one seat per person: two of their characters at once are refused", () => {
+        const out = validatePlacement({
+            groups: [{ index: 1, slots: [{ userId: "zibbo", character: "Zibbo", spec: "Priest-Holy" }, { userId: "zibbo", character: "Zibbowar", spec: "Warrior-Protection" }] }],
+            bench: [],
+        }, ctx());
+        expect(out.error).toBe("Zibbo steht zweimal im Setup.");
+        expect(validatePlacement({ groups: [one({ userId: "zibbo", character: "Zibbo" }).groups[0]], bench: [{ userId: "zibbo", character: "Zibbowar" }] }, ctx()).error)
+            .toBe("Zibbo steht zweimal im Setup.");
+    });
+
+    it("says the orga picked a further character it fixed, and keeps the proposal's reason otherwise", () => {
+        const input = { events: [event()], signups: signups() };
+        const locked = evaluateSetup(input, validatePlacement(one({ userId: "zibbo", character: "Zibbowar", spec: "Warrior-Protection", locked: true }), ctx()).value);
+        const z = placed(locked).find((s) => s.userId === "zibbo");
+        expect(z).toMatchObject({ character: "Zibbowar", role: "tank", status: "late" });
+        expect(z.reasons).toEqual(expect.arrayContaining(["Von der Orga fixiert", "Mit Zibbowar als Tank (von der Orga gewählt)"]));
+        const loose = evaluateSetup(input, validatePlacement(one({ userId: "zibbo", character: "Zibbowar", spec: "Warrior-Protection" }), ctx()).value);
+        expect(placed(loose).find((s) => s.userId === "zibbo").reasons[0]).toMatch(/^Mit Zibbowar als Tank statt Zibbo \(/);
+    });
+
+    it("keeps the character the orga put on the bench, and the first one when none is named", () => {
+        const input = { events: [event()], signups: signups() };
+        const named = validatePlacement({ groups: [], bench: [{ userId: "zibbo", character: "zibbowar" }] }, ctx());
+        expect(named.value.bench).toEqual([{ userId: "zibbo", character: "Zibbowar", locked: false }]);
+        expect(evaluateSetup(input, named.value).bench.find((b) => b.userId === "zibbo")).toMatchObject({ character: "Zibbowar", spec: "Warrior-Protection" });
+        const plain = validatePlacement({ groups: [], bench: [{ userId: "zibbo" }] }, ctx());
+        expect(plain.value.bench).toEqual([{ userId: "zibbo", locked: false }]);
+        expect(evaluateSetup(input, plain.value).bench.find((b) => b.userId === "zibbo")).toMatchObject({ character: "Zibbo", spec: "Priest-Holy" });
+    });
+});

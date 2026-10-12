@@ -8,7 +8,11 @@
 //   - the same raider twice (in two groups, or in a group and on the bench),
 //   - a raider without a signup, or one who signed off,
 //   - a spec of another class than the one the raider signed up with, or a
-//     role that spec cannot play.
+//     role that spec cannot play,
+//   - a character the raider did not sign up with (any of the signed ones may
+//     play — the person still takes one seat). A name the stored setup already
+//     shows for them is let through and corrected to a signed one: the raider
+//     may have changed their signup since, and that must not block every save.
 // What is *not* refused is whatever only makes the setup worse — too few
 // healers, a missing buff: that is the checks' business, and the orga may know
 // better. The same line the proposal draws (see docs/setup.md, "Setup-Vorschlag").
@@ -45,12 +49,79 @@ function placeSlots(slots) {
     return out.sort((a, b) => a.pos - b.pos);
 }
 
+/** Every character the stored setup shows per raider (lower case) — groups, bench and pool. */
+function shownCharacters(setup) {
+    const out = new Map();
+    if (!setup || typeof setup !== "object") return out;
+    const add = (x) => {
+        if (!x || !x.userId || !str(x.character)) return;
+        const id = str(x.userId);
+        if (!out.has(id)) out.set(id, new Set());
+        out.get(id).add(str(x.character).toLowerCase());
+    };
+    for (const g of Array.isArray(setup.groups) ? setup.groups : []) for (const s of (g && g.slots) || []) add(s);
+    for (const b of Array.isArray(setup.bench) ? setup.bench : []) add(b);
+    for (const b of Array.isArray(setup.pool) ? setup.pool : []) add(b);
+    return out;
+}
+
 /**
- * @param {object} raw     `{ groups: [{ index, slots: [{ userId, spec?, role?, locked? }] }], bench: [{ userId, locked? }] }`
- * @param {object} ctx     `{ event: { size, versionId }, signups: signupStore rows of the event }`
+ * A German error when `character` is none of the raider's signed characters, else "".
+ * No name = the first fitting one; a name the stored setup already showed passes (a stale slot).
+ */
+function foreignCharacter(userId, character, named, shownBefore) {
+    const wanted = str(character).toLowerCase();
+    if (!wanted || !named.length) return "";
+    if (named.some((c) => c.character.toLowerCase() === wanted)) return "";
+    if ((shownBefore.get(userId) || new Set()).has(wanted)) return "";
+    return `${str(character)} ist nicht unter den angemeldeten Charakteren (${named.map((c) => c.character).join(" / ")}).`;
+}
+
+/**
+ * One group slot checked against the raider's signup: a spec of the class of one
+ * of the named characters (#293), a character they signed up with, a role the
+ * spec can play. `{ slot }` or `{ error }`.
+ */
+function slotOf(s, { userId, signup, specs, name, shownBefore }) {
+    const specKey = str(s.spec) || str(signup.spec);
+    const spec = specs.get(specKey);
+    if (!spec) return { error: `${name}: unbekannte Spezialisierung „${specKey}“.` };
+    // Any of the named characters (#293) may be placed — on a spec of its class.
+    const named = signupCharacters(signup)
+        .map((c) => ({ character: str(c.character), info: specs.get(str(c.spec)) }))
+        .filter((c) => c.info);
+    const ofClass = named.filter((c) => c.info.classId === spec.classId);
+    if (named.length && !ofClass.length) {
+        const classes = [...new Set(named.map((c) => c.info.classId))].join("/");
+        return { error: `${name} ist als ${classes} angemeldet, nicht als ${spec.classId}.` };
+    }
+    const foreign = foreignCharacter(userId, s.character, named, shownBefore);
+    if (foreign) return { error: `${name}: ${foreign}` };
+    const wanted = str(s.character).toLowerCase();
+    const pick = ofClass.find((c) => c.character.toLowerCase() === wanted) || ofClass[0];
+    const character = pick ? pick.character : str(s.character);
+    let role = str(s.role) || spec.role;
+    if (!ROLES.includes(role)) return { error: `${name}: unbekannte Rolle „${role}“.` };
+    const fits = role === spec.role || (role === "tank" && spec.canTank) || (role === "healer" && spec.canHeal);
+    if (!fits) role = spec.role;
+    return { slot: { userId, character, spec: spec.key, role, locked: s.locked === true, pos: s.pos } };
+}
+
+/** One bench entry: which of the named characters waits there (#293) — a signed one, else the proposal's pick. `{ entry }` or `{ error }`. */
+function benchOf(b, { userId, signup, name, shownBefore }) {
+    const named = signupCharacters(signup).map((c) => ({ character: str(c.character) })).filter((c) => c.character);
+    const foreign = foreignCharacter(userId, b.character, named, shownBefore);
+    if (foreign) return { error: `${name}: ${foreign}` };
+    const pick = named.find((c) => c.character.toLowerCase() === str(b.character).toLowerCase());
+    return { entry: { userId, ...(pick ? { character: pick.character } : {}), locked: b.locked === true } };
+}
+
+/**
+ * @param {object} raw     `{ groups: [{ index, slots: [{ userId, character?, spec?, role?, locked? }] }], bench: [{ userId, character?, locked? }] }`
+ * @param {object} ctx     `{ event: { size, versionId }, signups: signupStore rows of the event, previous?: the stored setup }`
  * @returns {{ value?: { groups: object[], bench: object[] }, error?: string }}
  */
-function validatePlacement(raw, { event, signups } = {}) {
+function validatePlacement(raw, { event, signups, previous = null } = {}) {
     const rules = rulesForEvent(event);
     const size = Math.max(0, Number(event && event.size) || 0);
     const groupCount = Math.max(1, Math.ceil(size / GROUP_SIZE));
@@ -59,6 +130,7 @@ function validatePlacement(raw, { event, signups } = {}) {
     const signupOf = new Map((Array.isArray(signups) ? signups : []).map((s) => [str(s.userId), s]));
     const input = raw && typeof raw === "object" ? raw : {};
     const seen = new Set();
+    const shownBefore = shownCharacters(previous);
     const label = (userId) => {
         const s = signupOf.get(userId);
         return (s && s.character) || userId;
@@ -90,26 +162,9 @@ function validatePlacement(raw, { event, signups } = {}) {
             const userId = str(s && s.userId);
             const hit = signed(userId);
             if (hit.error) return { error: hit.error };
-            const specKey = str(s.spec) || str(hit.signup.spec);
-            const spec = specs.get(specKey);
-            if (!spec) return { error: `${label(userId)}: unbekannte Spezialisierung „${specKey}“.` };
-            // Any of the named characters (#293) may be placed — on a spec of its class.
-            const named = signupCharacters(hit.signup)
-                .map((c) => ({ character: str(c.character), info: specs.get(str(c.spec)) }))
-                .filter((c) => c.info);
-            const ofClass = named.filter((c) => c.info.classId === spec.classId);
-            if (named.length && !ofClass.length) {
-                const classes = [...new Set(named.map((c) => c.info.classId))].join("/");
-                return { error: `${label(userId)} ist als ${classes} angemeldet, nicht als ${spec.classId}.` };
-            }
-            const wanted = str(s.character).toLowerCase();
-            const pick = ofClass.find((c) => c.character.toLowerCase() === wanted) || ofClass[0];
-            const character = pick ? pick.character : str(s.character);
-            let role = str(s.role) || spec.role;
-            if (!ROLES.includes(role)) return { error: `${label(userId)}: unbekannte Rolle „${role}“.` };
-            const fits = role === spec.role || (role === "tank" && spec.canTank) || (role === "healer" && spec.canHeal);
-            if (!fits) role = spec.role;
-            slots.push({ userId, character, spec: spec.key, role, locked: s.locked === true, pos: s.pos });
+            const checked = slotOf(s, { userId, signup: hit.signup, specs, name: label(userId), shownBefore });
+            if (checked.error) return { error: checked.error };
+            slots.push(checked.slot);
         }
         if (slots.length > GROUP_SIZE) return { error: `Gruppe ${index} hat mehr als ${GROUP_SIZE} Plätze.` };
         placed += slots.length;
@@ -122,7 +177,9 @@ function validatePlacement(raw, { event, signups } = {}) {
         const userId = str(b && b.userId);
         const hit = signed(userId);
         if (hit.error) return { error: hit.error };
-        bench.push({ userId, locked: b.locked === true });
+        const checked = benchOf(b, { userId, signup: hit.signup, name: label(userId), shownBefore });
+        if (checked.error) return { error: checked.error };
+        bench.push(checked.entry);
     }
     groups.sort((a, b) => a.index - b.index);
     return { value: { groups, bench } };
