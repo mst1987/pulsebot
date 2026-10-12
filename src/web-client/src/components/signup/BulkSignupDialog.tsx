@@ -99,7 +99,7 @@ export default function BulkSignupDialog({ rows, profile, classes, onClose, onDo
                             {rows.map((r) => <Badge key={r.id} tip={r.title} tipSub={formatEventTime(r.startTime)}>{r.title}</Badge>)}
                         </div>
                         <SignupCharacterPicks profile={profile} classes={classes} picks={picks} onChange={setPicks} disabled={absent} max={limit.max} />
-                        {limit.mixed && !absent && <p className="an-note" data-bulk-limit>{t("signups.bulk.limitMin", { max: limit.max })}</p>}
+                        {limit.mixed && !absent && <div className="hint" data-bulk-limit>{t("signups.bulk.limitMin", { max: limit.max })}</div>}
                         <div className="field">
                             <label>{t("signups.statusForAll")}</label>
                             <div className="seg an-status" role="radiogroup" aria-label={t("signups.statusForAll")}>
