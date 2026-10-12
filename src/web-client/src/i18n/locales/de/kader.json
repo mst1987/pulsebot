@@ -759,6 +759,10 @@
             "one": "{count} Abend",
             "other": "{count} Abende"
         },
+        "groupOwn": "Version des Kaders",
+        "groupOther": "zählt die {version}-Abende",
+        "archived": "archiviert",
+        "nightsLater": "zählt nach Wahl",
         "noCategories": "Auf diesem Server gibt es noch keine Raid-Kategorie. Sie erscheint, sobald ein Raid in einer Discord-Kategorie angelegt ist.",
         "nightTip": "{date} · {category}"
     },

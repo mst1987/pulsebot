@@ -4,16 +4,18 @@
 // account dialog, the pick itself as a checklist (the Kader's settings) and as
 // a small menu in the head of the Pool's attendance column. The pick is saved
 // on the Kader, so every lead sees the same numbers; without one every value is
-// "—" and the head asks for it — there is no silent fallback.
+// "—" and the head asks for it — there is no silent fallback. The pick may hold
+// categories of another game version (a Forever Kader weighs its players' TBC
+// nights): they are named with their version ("TBC · Mo Raider") everywhere.
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { updateKader, type KaderPlayer, type KaderView } from "../../api";
+import { updateKader, type KaderPlayer, type KaderRaidCategory, type KaderView } from "../../api";
 import Popover from "../../components/ui/Popover";
 import { AlertIcon, CheckIcon, ChevronDownIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
 import { formatDayMonth } from "../../lib/format";
 import { belowStartPlacement } from "../../lib/ui/popoverPosition";
 import { statusOf, verdictText } from "../../lib/roster/attendanceStatus";
-import { attendanceCategoriesOf, attendanceOf, attPartsText, attText, categoryLabel, togglePick } from "../../lib/kader/model";
+import { attendanceCategoriesOf, attendanceOf, attPartsText, attText, categoryGroups, categoryLabel, togglePick, type KaderCategoryGroup } from "../../lib/kader/model";
 import { useKader } from "./kaderContext";
 
 const belowStart = belowStartPlacement();
@@ -88,11 +90,27 @@ export function AttendanceNights({ player }: { player: KaderPlayer }) {
     );
 }
 
+/** The head of one version's categories in the pick: the version's dot and name, whose version it is, "archiviert". */
+function GroupHead({ group }: { group: KaderCategoryGroup }) {
+    const t = useT();
+    return (
+        <span className="kp-catgroup-head" aria-hidden="true">
+            <i className={`ver-dot ver-${group.versionId}`} />
+            <b>{group.label}</b>
+            <span className="kp-sub kp-ellipsis">{t(group.own ? "kader.att.groupOwn" : "kader.att.groupOther", { version: group.label })}</span>
+            {group.hidden && <span className="kp-catgroup-badge">{t("kader.att.archived")}</span>}
+        </span>
+    );
+}
+
 /**
- * The server's raid categories to tick: the name (with the game version while
- * the categories play different ones) and how many nights each counts. As
- * `menu` its rows are menu items (the column head), else checkboxes (the
- * settings). Reads only its props: the settings dialog renders it too.
+ * The server's raid categories to tick, grouped by the game version they play
+ * (the Kader's own first, then the other versions, hidden ones marked
+ * "archiviert" - attendance is the one place a Kader reads across versions),
+ * each with how many nights it counts. A server whose categories all play the
+ * Kader's version shows the plain list. As `menu` its rows are menu items (the
+ * column head), else checkboxes (the settings). Reads only its props: the
+ * settings dialog renders it too.
  */
 export function CategoryChecklist({ view, picked, onToggle, disabled = false, menu = false }: {
     view: KaderView;
@@ -103,19 +121,30 @@ export function CategoryChecklist({ view, picked, onToggle, disabled = false, me
 }) {
     const t = useT();
     if (!view.raidCategories.length) return <p className="kp-hint">{t("kader.att.noCategories")}</p>;
+    const groups = categoryGroups(view);
+    const headed = groups.length > 1 || !groups[0].own;
+    const row = (c: KaderRaidCategory) => {
+        const on = picked.includes(c.id);
+        return (
+            <button key={c.id} type="button" role={menu ? "menuitemcheckbox" : "checkbox"} aria-checked={on} disabled={disabled}
+                className={`kp-catopt${on ? " kp-on" : ""}`} onClick={() => onToggle(c.id)}>
+                <span className={`kp-check${on ? " kp-on" : ""}`} aria-hidden="true">{on && <CheckIcon />}</span>
+                <span className="kp-grow kp-ellipsis">{c.name}</span>
+                <span className="kp-sub">{c.nights === null ? t("kader.att.nightsLater") : t("kader.att.nights", { count: c.nights })}</span>
+            </button>
+        );
+    };
     return (
         <div className="kp-catlist" role={menu ? undefined : "group"} aria-label={menu ? undefined : t("kader.att.menuTitle")}>
-            {view.raidCategories.map((c) => {
-                const on = picked.includes(c.id);
-                return (
-                    <button key={c.id} type="button" role={menu ? "menuitemcheckbox" : "checkbox"} aria-checked={on} disabled={disabled}
-                        className={`kp-catopt${on ? " kp-on" : ""}`} onClick={() => onToggle(c.id)}>
-                        <span className={`kp-check${on ? " kp-on" : ""}`} aria-hidden="true">{on && <CheckIcon />}</span>
-                        <span className="kp-grow kp-ellipsis">{categoryLabel(view, c)}</span>
-                        <span className="kp-sub">{t("kader.att.nights", { count: c.nights })}</span>
-                    </button>
-                );
-            })}
+            {headed
+                ? groups.map((g) => (
+                    <div key={g.versionId} className={`kp-catgroup${g.hidden ? " kp-catgroup-hidden" : ""}`} role="group"
+                        aria-label={g.hidden ? `${g.label} (${t("kader.att.archived")})` : g.label}>
+                        <GroupHead group={g} />
+                        {g.categories.map(row)}
+                    </div>
+                ))
+                : view.raidCategories.map(row)}
         </div>
     );
 }

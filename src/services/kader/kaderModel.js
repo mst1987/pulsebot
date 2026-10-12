@@ -634,9 +634,9 @@ function createKader(planner, input, ctx) {
  * Name, leads and the raid categories attendance counts in. A category id the
  * server does not know as a raid category (`ctx.raidCategoryIds`, see
  * kaderSource.listRaidCategories) is left out without an error; an empty list
- * is a valid pick ("no category yet"). A category of another game version than
- * the Kader's (`ctx.otherVersionCategories`: id -> { name, versionId }) is
- * refused (400) when it is new in the pick.
+ * is a valid pick ("no category yet"). The categories may play any game
+ * version, a hidden one included (docs/game-versions.md, "Streng getrennt":
+ * attendance is the deliberate exception).
  */
 function updateKader(planner, input, ctx) {
     return withKader(planner, input.kaderId, (kader) => {
@@ -649,16 +649,10 @@ function updateKader(planner, input, ctx) {
         }
         if (input.attendanceCategories !== undefined) {
             if (!Array.isArray(input.attendanceCategories)) throw invalid("Die Raid-Kategorien kommen als Liste.");
+            // the raid categories of every game version, hidden ones too: attendance is the
+            // one place a Kader reads across versions (a Forever Kader weighs its players'
+            // TBC nights) - only reading, nothing is written into the other version
             const known = ctx.raidCategoryIds instanceof Set ? ctx.raidCategoryIds : new Set();
-            // #741: a category of another version than the Kader's is refused when it is
-            // picked new; one stored before (when the picker offered every version) just drops out
-            const others = ctx.otherVersionCategories instanceof Map ? ctx.otherVersionCategories : new Map();
-            const had = new Set(kader.attendanceCategories || []);
-            const wrong = input.attendanceCategories.map((id) => str(id).trim()).find((id) => others.has(id) && !had.has(id));
-            if (wrong) {
-                const c = others.get(wrong);
-                throw invalid(`Die Raid-Kategorie „${c.name || wrong}“ spielt ${versionLabel(c.versionId)}, der Kader ${versionLabel(kaderVersion(kader.versionId))} – sie zählt hier nicht.`);
-            }
             kader.attendanceCategories = categoryIds(input.attendanceCategories.filter((id) => known.has(str(id).trim())));
         }
     });

@@ -81,8 +81,10 @@ function diffAgainst(char, profileChar, classes) {
 
 /**
  * A player's attendance per raid category, `{ [categoryId]: { attended,
- * counted, nights } }`; null when no category counted a night for the account
- * (no character known, no raid yet): the page shows "—".
+ * counted, versionId, nights } }` - each category counted in the version it
+ * plays (a Forever Kader may count TBC nights, docs/game-versions.md); null
+ * when no category counted a night for the account (no character known, no
+ * raid yet): the page shows "—".
  */
 function attendanceView(a) {
     if (!a || !a.byCategory) return null;
@@ -92,6 +94,7 @@ function attendanceView(a) {
         out[id] = {
             attended: c.attended,
             counted: c.counted,
+            ...(c.versionId ? { versionId: c.versionId } : {}),
             nights: c.nights.map(({ date, title, attended, reason }) => ({ date, title, attended, reason })),
         };
     }

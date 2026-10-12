@@ -24,7 +24,7 @@ import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { useFollowVersion } from "../../hooks/useFollowVersion";
 import { usePersistedState } from "../../lib/ui/persistedState";
-import { byId } from "../../lib/kader/model";
+import { attendanceUnloaded, byId } from "../../lib/kader/model";
 import { liveToast } from "../../lib/kader/live";
 import { useToast } from "../../components/shell/Jobs";
 import RaidLoader from "../../components/ui/RaidLoader";
@@ -152,6 +152,18 @@ export default function KaderPage() {
             refreshing.current = false;
         }
     }, [kaderId, version, setData]);
+
+    // A picked category of a version the view has not counted (another lead's pick, or the own one: a
+    // TBC category for a Forever Kader) - the whole view again, once per pick, with its nights counted.
+    const askedFor = useRef("");
+    useEffect(() => {
+        if (!view || !view.kader || !attendanceUnloaded(view, view.kader)) return;
+        const key = `${view.kader.id}:${view.kader.attendanceCategories.join(",")}`;
+        if (askedFor.current === key) return;
+        askedFor.current = key;
+        // nothing fetched (another refetch on its way, a failed request): the next change of the view asks again
+        void refetch(true).then((next) => { if (!next) askedFor.current = ""; });
+    }, [view, refetch]);
 
     const onMoved = useCallback(async (live: KaderLive) => {
         const current = viewRef.current;

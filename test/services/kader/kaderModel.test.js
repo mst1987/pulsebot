@@ -127,6 +127,22 @@ describe("services/kader/kaderModel", () => {
             expect(refusal(() => model.updateKader(planner, { kaderId, attendanceCategories: "c-mo" }, withCats)).status).toBe(400);
         });
 
+        it("keeps a raid category of another game version in the pick (attendance reads across versions)", () => {
+            const { planner, kaderId } = withKader();
+            expect(model.kaderVersion(planner.kaders[0].versionId)).toBe("forever");
+            // c-tbc plays TBC, c-old a hidden version: the server's list holds them all, none is refused
+            const withCats = { ...ctx, raidCategoryIds: new Set(["c-mo", "c-tbc", "c-old"]) };
+            let next = model.updateKader(planner, { kaderId, attendanceCategories: ["c-tbc", "c-mo", "c-old"] }, withCats);
+            expect(next.kaders[0].attendanceCategories).toEqual(["c-tbc", "c-mo", "c-old"]);
+            // a later save keeps them (no silent drop of a stored category of another version)
+            next = model.updateKader(next, { kaderId, name: "Umbenannt", attendanceCategories: ["c-tbc", "c-mo", "c-old"] }, withCats);
+            expect(next.kaders[0]).toMatchObject({ name: "Umbenannt", attendanceCategories: ["c-tbc", "c-mo", "c-old"] });
+            // at most LIMITS.attendanceCategories
+            const many = Array.from({ length: 25 }, (_, i) => `c${i}`);
+            const big = model.updateKader(planner, { kaderId, attendanceCategories: many }, { ...ctx, raidCategoryIds: new Set(many) });
+            expect(big.kaders[0].attendanceCategories).toHaveLength(model.LIMITS.attendanceCategories);
+        });
+
         it("repairs a stored pick on read and gives an old Kader an empty one", () => {
             const many = Array.from({ length: 30 }, (_, i) => `c${i}`);
             const out = model.normalizePlanner({ v: 2, kaders: [

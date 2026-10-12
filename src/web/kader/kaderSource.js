@@ -163,16 +163,18 @@ function sourceLogChars(index) {
  * The raid categories of the server a Kader can count attendance in: every
  * Discord category the admin marked for events (config.categoryIds) and every
  * category a raid of this server ran in, with the name Discord gives it (or the
- * one remembered, categoryNames.js) and the game version it plays. An id no
- * name is known for is left out. In Discord's order. Only active categories
- * (#744): a deactivated or closed one is history, not something to plan for.
- * Only categories of a shown version (#563); with `versionId` only those that
- * play it (#741: a Kader counts attendance in the categories of its version).
+ * one remembered, categoryNames.js), the game version it plays and whether that
+ * version is hidden (#563). An id no name is known for is left out. In
+ * Discord's order. Only active categories (#744): a deactivated or closed one
+ * is history, not something to plan for. Only categories of a shown version,
+ * unless `includeHidden` (the Kaderplaner's attendance pick: a hidden version's
+ * nights are still a reliability signal, the page marks them "archiviert");
+ * with `versionId` only those that play it.
  * @param {string} guildId
- * @param {{ versionId?: string }} [opts]
- * @returns {{ id: string, name: string, versionId: string, versionLabel: string }[]}
+ * @param {{ versionId?: string, includeHidden?: boolean }} [opts]
+ * @returns {{ id: string, name: string, versionId: string, versionLabel: string, hidden: boolean }[]}
  */
-function listRaidCategories(guildId, { versionId: only = "" } = {}) {
+function listRaidCategories(guildId, { versionId: only = "", includeHidden = false } = {}) {
     const config = getConfig();
     const ids = new Set((config.categoryIds || []).map((id) => String(id).trim()).filter(Boolean));
     for (const ev of listStoredEvents(guildId)) if (ev && ev.categoryId) ids.add(String(ev.categoryId));
@@ -181,9 +183,30 @@ function listRaidCategories(guildId, { versionId: only = "" } = {}) {
         .map((c) => {
             const versionId = mainVersionFor({ categoryId: c.id, config });
             const rules = rulesFor(versionId);
-            return { id: c.id, name: c.name, versionId, versionLabel: rules ? rules.short || rules.label : versionId };
+            return { id: c.id, name: c.name, versionId, versionLabel: rules ? rules.short || rules.label : versionId, hidden: !isVersionVisible(versionId, config) };
         })
-        .filter((c) => (!only || c.versionId === only) && isVersionVisible(c.versionId, config));
+        .filter((c) => (!only || c.versionId === only) && (includeHidden || !c.hidden));
+}
+
+/**
+ * The categories in the order the attendance pick shows them: grouped by game
+ * version - the Kader's own version first, then the other shown versions, then
+ * the hidden ones, each in the order its first category comes - and in
+ * Discord's order inside a version.
+ * @template {{ versionId: string, hidden: boolean }} T
+ * @param {T[]} categories
+ * @param {string} ownVersion
+ * @returns {T[]}
+ */
+function groupByVersion(categories, ownVersion) {
+    const order = [];
+    for (const c of categories) if (!order.includes(c.versionId)) order.push(c.versionId);
+    const rank = (v) => {
+        if (v === ownVersion) return 0;
+        return categories.some((c) => c.versionId === v && c.hidden) ? 2 : 1;
+    };
+    const versions = order.map((v, i) => ({ v, i })).sort((a, b) => rank(a.v) - rank(b.v) || a.i - b.i).map((x) => x.v);
+    return versions.flatMap((v) => categories.filter((c) => c.versionId === v));
 }
 
 /**
@@ -228,18 +251,24 @@ function nightOf(r) {
 
 /**
  * Attendance per Discord account in each raid category: the category's last
- * RAID_WINDOW nights with evidence (rosterAttendance.js) of the Kader's game
- * version (#740) - nights of another version never count. An account carries only the categories that counted a
- * night for it; one without any is left out (the page shows "—").
- * @returns {{ userId: string, byCategory: Object<string, { attended: number, counted: number, nights: object[] }> }[]}
+ * RAID_WINDOW nights with evidence (rosterAttendance.js) of the game version
+ * the category plays (#740), counted with that version's context - a TBC
+ * category counts its TBC nights against the TBC characters, also for a
+ * Forever Kader (the one deliberate reading across versions,
+ * docs/game-versions.md). A category whose version has no context here is
+ * skipped. An account carries only the categories that counted a night for
+ * it; one without any is left out (the page shows "—").
+ * @param {Map<string, object>} contexts  versionId -> buildAttendanceContext()
+ * @returns {{ userId: string, byCategory: Object<string, { attended: number, counted: number, versionId: string, nights: object[] }> }[]}
  */
-function sourceAttendance(ctx, categories, accounts) {
+function sourceAttendance(contexts, categories, accounts) {
     const byUser = new Map(accounts.map((a) => [a.userId, {}]));
-    for (const { id } of categories) {
-        if (!(ctx.raidsByCategory.get(id) || []).length) continue;
+    for (const { id, versionId } of categories) {
+        const ctx = contexts.get(versionId);
+        if (!ctx || !(ctx.raidsByCategory.get(id) || []).length) continue;
         for (const [userId, result] of attendanceForAccounts(ctx, id, accounts, { nights: true })) {
             if (!result.total || !byUser.has(userId)) continue;
-            byUser.get(userId)[id] = { attended: result.attended, counted: result.total, nights: (result.raids || []).map(nightOf) };
+            byUser.get(userId)[id] = { attended: result.attended, counted: result.total, versionId, nights: (result.raids || []).map(nightOf) };
         }
     }
     return [...byUser]
@@ -257,10 +286,26 @@ function sourceRoles(guildId, members) {
 }
 
 /**
- * Everything the planner reads from the bot, for one server and version.
- * @param {{ guildId: string, versionId?: string, now?: number }} opts  `now` in ms
+ * The attendance contexts the planner needs: one for its own version (the
+ * nights of its categories in the pick) and one for every other version a
+ * picked category plays - never one for a version nobody picked.
+ * @returns {Map<string, object>} versionId -> buildAttendanceContext()
  */
-async function loadKaderSource({ guildId = "", versionId = plannerVersion(), now = Date.now() } = {}) {
+function attendanceContexts(guildId, categories, { versionId, picked, now }) {
+    const versions = new Set([versionId]);
+    for (const c of categories) if (picked.has(c.id)) versions.add(c.versionId);
+    return new Map([...versions].map((v) => [v, buildAttendanceContext(guildId, { now: Math.floor(now / 1000), versionId: v })]));
+}
+
+/**
+ * Everything the planner reads from the bot, for one server and version.
+ * The raid categories are those of every version (`hidden` marks one of a
+ * hidden version), the Kader's own first; `nights` is null for a category
+ * whose version no Kader picked yet (`attendanceCategoryIds`: the picks of
+ * the Kader of this version) - its attendance is counted once it is picked.
+ * @param {{ guildId: string, versionId?: string, now?: number, attendanceCategoryIds?: string[] }} opts  `now` in ms
+ */
+async function loadKaderSource({ guildId = "", versionId = plannerVersion(), now = Date.now(), attendanceCategoryIds = [] } = {}) {
     const rules = rulesFor(versionId);
     if (!rules) throw new Error(`unknown version ${versionId}`);
     const mainVersionId = mainVersionFor();
@@ -286,10 +331,13 @@ async function loadKaderSource({ guildId = "", versionId = plannerVersion(), now
     let raidCategories = [];
     let attendance = [];
     try {
-        const categories = listRaidCategories(guildId, { versionId });
-        const ctx = buildAttendanceContext(guildId, { now: Math.floor(now / 1000), versionId });
-        raidCategories = categories.map((c) => ({ ...c, nights: (ctx.raidsByCategory.get(c.id) || []).length }));
-        attendance = sourceAttendance(ctx, categories, attendanceAccounts(index));
+        const categories = groupByVersion(listRaidCategories(guildId, { includeHidden: true }), versionId);
+        const contexts = attendanceContexts(guildId, categories, { versionId, picked: new Set(attendanceCategoryIds.map(String)), now });
+        raidCategories = categories.map((c) => {
+            const ctx = contexts.get(c.versionId);
+            return { ...c, nights: ctx ? (ctx.raidsByCategory.get(c.id) || []).length : null };
+        });
+        attendance = sourceAttendance(contexts, categories, attendanceAccounts(index));
     } catch (e) {
         warnings.push(`Anwesenheit nicht verfügbar: ${(e && e.message) || e}`);
     }
@@ -317,4 +365,4 @@ function loadKaderRules(versionId = plannerVersion()) {
     return { versionId, classes: sourceClasses(rules) };
 }
 
-module.exports = { loadKaderSource, loadKaderRules, listRaidCategories, plannerVersion, PREFERRED_VERSION };
+module.exports = { loadKaderSource, loadKaderRules, listRaidCategories, groupByVersion, plannerVersion, PREFERRED_VERSION };
