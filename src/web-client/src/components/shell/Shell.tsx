@@ -6,7 +6,7 @@ import GuildSwitcher from "./GuildSwitcher";
 import ContentSwitch from "./ContentSwitch";
 import ContentVersionProvider from "./ContentVersionProvider";
 import { ViewAsBanner, ViewAsButton } from "./ViewAs";
-import { CrestIcon, BurgerIcon, LogoutIcon, BookIcon } from "../ui/icons";
+import { BrandIcon, BurgerIcon, LogoutIcon, BookIcon } from "../ui/icons";
 import WowIcon from "../ui/WowIcon";
 import RaidLoader from "../ui/RaidLoader";
 import ChunkErrorBoundary from "./ChunkErrorBoundary";
@@ -157,7 +157,7 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                         click like a nav item, so on a phone the page shows. The
                         crest stays a line icon: it is the brand, not a game thing. */}
                     <Link className="brand" to="/" aria-label={t("shell.toHome")} onClick={() => setMenuOpen(false)}>
-                        <div className="crest"><CrestIcon /></div>
+                        <div className="crest"><BrandIcon /></div>
                         <div>
                             <div className="brand-name">EventHelper</div>
                             {/* Not "Gilden-Admin": most people in here are members

@@ -7,7 +7,7 @@ import { formatTime } from "../lib/format";
 import { useDraftState } from "../lib/ui/persistedState";
 import { useCollectionEditor } from "../lib/ui/collectionEditor";
 import { useTableSort, type Dir } from "../lib/ui/tableSort";
-import { TrashIcon, CrestIcon, ChevronDownIcon } from "../components/ui/icons";
+import { TrashIcon, BrandIcon, ChevronDownIcon } from "../components/ui/icons";
 import { useToast } from "../components/shell/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
 import { Button, IconButton } from "../components/ui/Button";
@@ -74,7 +74,7 @@ function DiscordPreview({ title, body }: { title: string; body: string }) {
     return (
         <div className="dc-msg" aria-label={t("notifyTemplates.preview.aria")}>
             <div className="dc-author">
-                <span className="dc-avatar"><CrestIcon /></span>
+                <span className="dc-avatar"><BrandIcon /></span>
                 <div>
                     <b>EventHelper</b> <span className="dc-app">{t("notifyTemplates.preview.app")}</span>
                     <div className="dc-time">{tParts("notifyTemplates.preview.today", { time: now })}</div>
