@@ -153,7 +153,10 @@ describe("GET /api/signups", () => {
         mockGroups[0].events[0].versionId = "";
         mockConfig = { categoryVersion: { "cat-kara": "forever" } };
         const data = json(await call(route.getSignups, ANNA, { query: "version=forever" })).data;
-        expect(data.profile.characters.map((c) => [c.name, c.versionId])).toEqual([["Nerathil", "tbc"], ["Devi Res", "forever"]]);
+        // only the characters of the page's version (#741): no TBC character for a Forever raid
+        expect(data.profile.characters.map((c) => [c.name, c.versionId])).toEqual([["Devi Res", "forever"]]);
+        const tbc = json(await call(route.getSignups, ANNA, { query: "version=tbc" })).data;
+        expect(tbc.profile.characters.map((c) => [c.name, c.versionId])).toEqual([["Nerathil", "tbc"]]);
         // an event without a version plays its category's (the dialog filters by it)
         expect(data.events[0].versionId).toBe("forever");
         expect(data.versions).toEqual(expect.arrayContaining([{ id: "forever", label: "WoW Forever", short: "Forever" }]));
@@ -215,6 +218,16 @@ describe("PUT /api/signups", () => {
         expect(json(res).error.code).toBe("archived");
         expect(mockSignups.has(`eh-kara/${ANNA.id}`)).toBe(false);
         mockConfig = {};
+    });
+
+    // Nobody signs up with a TBC character for a Forever raid - the server says no, not only the dialog.
+    it("weist einen Charakter einer anderen Spielversion mit 400 character_version ab", async () => {
+        mockEvents.set("eh-kara", { ...ownEvent, versionId: "forever" });
+        const res = await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane", status: "signed" } });
+        expect(status(res)).toBe(400);
+        expect(json(res).error.code).toBe("character_version");
+        expect(json(res).error.message).toMatch(/Nerathil gehört zu TBC Anniversary/);
+        expect(mockSignups.has(`eh-kara/${ANNA.id}`)).toBe(false);
     });
 
     it("schreibt nur die eigene Anmeldung, auch wenn der Body ein anderes Konto nennt", async () => {

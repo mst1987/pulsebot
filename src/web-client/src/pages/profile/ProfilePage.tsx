@@ -14,8 +14,9 @@ import "../../styles/profile.css";
 import { AvoidPart, type Fold, FoldPart, NoteField, RaidPicker, WishPicker } from "./ProfileParts";
 import { CharacterCard, CharChip, FirstCharacter } from "./CharacterCard";
 import { CalendarPart } from "./CalendarPart";
-import { charactersOfVersion, groupByVersion, moveInVersion } from "../../lib/roster/characterVersions";
+import { charactersOfVersion, groupByVersion, moveInVersion, versionOf } from "../../lib/roster/characterVersions";
 import { useContentVersion } from "../../hooks/useContentVersion";
+import { useFollowVersion } from "../../hooks/useFollowVersion";
 
 export default function ProfilePage() {
     const content = useContentVersion();
@@ -35,9 +36,22 @@ export default function ProfilePage() {
     const setCal = calendar.setData;
 
     const profile = data?.profile || null;
-    // the main version's first character, else the first at all (there is no main — only the raider's order)
-    const selectedKey = params.get("char") || charactersOfVersion(profile?.characters || [], data?.mainVersion || "")[0]?.key || profile?.characters[0]?.key || "";
-    const selected = profile?.characters.find((c) => c.key === selectedKey) || profile?.characters[0] || null;
+    // One version at a time (#741): the page shows the characters of the menu's
+    // version only - Forever characters under Forever, TBC characters under TBC.
+    // Without a menu version (outside the shell) every version, grouped.
+    const shownVersion = content.version || "";
+    const shownChars = charactersOfVersion(profile?.characters || [], shownVersion);
+    // A link to a character of another version (?char=) switches the menu to its
+    // version; switching the menu away again leaves the character.
+    const linked = profile?.characters.find((c) => c.key === params.get("char")) || null;
+    useFollowVersion(linked ? versionOf(linked) : "", () => {
+        const next = new URLSearchParams(params);
+        next.delete("char");
+        setParams(next, { replace: true });
+    });
+    // the shown version's (else the main version's) first character - there is no main, only the raider's order
+    const firstOfVersion = charactersOfVersion(shownChars, shownVersion ? "" : data?.mainVersion || "")[0] || shownChars[0] || null;
+    const selected = (linked && shownChars.includes(linked) ? linked : null) || firstOfVersion;
     // A character's class from its own version's rule set (#543), the main version's as a fallback.
     const classOf = (c: ProfileCharacter) => ((c.versionId && data?.classesByVersion?.[c.versionId]) || data?.classes || []).find((x) => x.id === c.className);
 
@@ -76,7 +90,7 @@ export default function ProfilePage() {
         }
     };
 
-    const first = charactersOfVersion(profile.characters, data.mainVersion || "")[0] || profile.characters[0];
+    const first = firstOfVersion;
     const headClass = first ? classOf(first) : undefined;
 
     /** One place forward / back inside its version, saved as the raider's whole order (optimistic). */
@@ -89,9 +103,12 @@ export default function ProfilePage() {
         return { forward: to(-1), back: to(1) };
     };
     // Grouped by game version, the main version first (#543) — one group needs no heading.
-    // Other versions hidden (#563): only the main version's characters are shown (nothing is removed).
-    const groups = groupByVersion(profile.characters, data.versions || [], data.mainVersion || "")
+    // The menu's version only (#741); other versions hidden (#563): only the main version's (nothing is removed).
+    const groups = groupByVersion(shownChars, data.versions || [], data.mainVersion || "")
         .filter((g) => !content.hidden || !content.mainVersion || g.id === content.mainVersion);
+    // A new character is one of the shown version: the add dialog offers no other while a version is shown.
+    const addVersions = shownVersion && (data.versions || []).some((v) => v.id === shownVersion)
+        ? (data.versions || []).filter((v) => v.id === shownVersion) : data.versions;
     const labelOf = (versionId: string) => groups.find((g) => g.id === versionId)?.label || versionId;
 
     return (
@@ -99,15 +116,15 @@ export default function ProfilePage() {
             <PageHead
                 icon={headClass ? headClass.icon : "achievement_character_human_male"}
                 tone="profile"
-                kicker={`Discord · ${user.name} · ${t("profile.characters", { count: profile.characters.length })}`}
+                kicker={`Discord · ${user.name} · ${t("profile.characters", { count: shownChars.length })}`}
                 title={t("profile.title")}
                 meta={profile.updatedAt ? <Badge>{t("profile.changed", { date: formatDate(profile.updatedAt) })}</Badge> : <Badge tone="accent">{t("profile.new")}</Badge>}
-                action={profile.characters.length > 0 && (
+                action={shownChars.length > 0 && (
                     <Button icon="inv_misc_grouplooking" onClick={() => setAdding("log")}>{t("profile.addCharacter")}</Button>
                 )}
             />
 
-            {profile.characters.length === 0 ? (
+            {shownChars.length === 0 ? (
                 <FirstCharacter onPick={setAdding} />
             ) : (
                 <>
@@ -240,9 +257,9 @@ export default function ProfilePage() {
                 way={adding}
                 onClose={() => setAdding(null)}
                 classes={data.classes}
-                versions={data.versions}
+                versions={addVersions}
                 classesByVersion={data.classesByVersion}
-                defaultVersion={data.mainVersion}
+                defaultVersion={shownVersion || data.mainVersion}
                 suggestionFor={(versionId) => specSuggestion((data.specHistory || []).filter((h) => (h.versionId || "tbc") === versionId))}
                 onAdded={(next, key) => {
                     setProfile(next);

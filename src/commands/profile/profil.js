@@ -10,7 +10,10 @@
 // order) — the other characters are switched on the web page.
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, SlashCommandBuilder } = require("discord.js");
 const profiles = require("../../stores/raiderProfileStore");
-const { mainVersionFor } = require("../../services/events/mainVersion");
+const { mainVersionFor, visibleRows } = require("../../services/events/mainVersion");
+const { versionShort } = require("../../services/events/versionTag");
+const { LEGACY_VERSION } = require("../../config/gameVersions");
+const { getConfig } = require("../../stores/settingsStore");
 const { publicBaseUrl } = require("../../utils/publicUrl");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr, specLabel } = require("../../utils/i18n/botText");
@@ -28,19 +31,28 @@ function profileUrl() {
     return `${publicBaseUrl()}/profile`;
 }
 
-/** The embed text of a profile, in the reader's language. Pure. */
-function summaryLines(profile, lang = "de") {
+/**
+ * The embed text of a profile, in the reader's language. Only the characters
+ * of the versions shown (#563: a hidden version's stay in the profile, unlisted);
+ * with more than one version each line names its version (#741: Forever
+ * characters are Forever's, TBC characters TBC's).
+ */
+function summaryLines(profile, lang = "de", { config } = {}) {
     const lines = [];
-    if (!profile.characters.length) {
+    const versionOf = (c) => c.versionId || LEGACY_VERSION;
+    const shown = visibleRows(profile.characters, versionOf, config);
+    const tagged = new Set(shown.map(versionOf)).size > 1;
+    if (!shown.length) {
         lines.push(tr(lang, "No character yet."));
     }
-    for (const c of profile.characters) {
+    for (const c of shown) {
         const specs = c.specs
             .map((s) => `${specLabel(lang, profiles.specInfo(s.key), s.key)} (${GEAR_LABELS[s.gear] ? tr(lang, GEAR_LABELS[s.gear]) : s.gear})`)
             .join(", ");
         const roles = profiles.characterRoles(profile, c);
         const also = [roles.canOfftank ? tr(lang, "off-tank") : "", roles.canHeal ? tr(lang, "heal") : ""].filter(Boolean).join(", ");
-        lines.push(`**${c.name}** — ${specs || tr(lang, "no specs")}${also ? ` · ${tr(lang, "can {roles}", { roles: also })}` : ""}`);
+        const tag = tagged ? `\`${versionShort(versionOf(c))}\` ` : "";
+        lines.push(`${tag}**${c.name}** — ${specs || tr(lang, "no specs")}${also ? ` · ${tr(lang, "can {roles}", { roles: also })}` : ""}`);
     }
     lines.push("");
     const days = profile.availability.length ? profile.availability.map((d) => (DAY_LABELS[d] ? tr(lang, DAY_LABELS[d]) : d)).join(" · ") : tr(lang, "not given");
@@ -72,7 +84,7 @@ function buttons(profile, lang) {
 function message(profile, lang) {
     const embed = new EmbedBuilder()
         .setTitle(tr(lang, "My profile"))
-        .setDescription(summaryLines(profile, lang).join("\n"))
+        .setDescription(summaryLines(profile, lang, { config: getConfig() }).join("\n"))
         .setColor(0x38bdf8);
     return { embeds: [embed], components: [buttons(profile, lang)] };
 }

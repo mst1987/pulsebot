@@ -70,4 +70,40 @@ describe("web/loot/councilTargets", () => {
         expect(head.roster.lootSystem).toBe("softres");
         expect(councilHead({ guildId: "g1", user: ADMIN, opts: { categoryId: "cC" }, config: CONFIG }).target).toBe("category");
     });
+
+    // The picker offers only what plays the page's version (#741/#563): no TBC
+    // roster or category in the Forever council, and the other way round.
+    describe("with the page's version", () => {
+        const VERSIONED = {
+            categoryIds: ["cA", "cB", "cC", "cD"], categoryLootSystem: { cA: "lootcouncil", cB: "softres", cC: "lootcouncil" },
+            mainVersion: "forever", categoryVersion: { cA: "tbc", cB: "tbc", cC: "forever", cD: "forever" },
+        };
+        let fo;
+        beforeEach(() => {
+            fo = rosterStore.createRoster({ name: "Fo-Roster", guildId: "g1", categoryId: "cC", versionId: "forever", lootSystem: "lootcouncil" });
+        });
+
+        it("lists only the Forever rosters and categories in the Forever council", () => {
+            const head = councilHead({ guildId: "g1", user: ADMIN, opts: { charVersion: "forever" }, config: VERSIONED });
+            expect(head.rosters.map((r) => r.name)).toEqual(["Fo-Roster"]);
+            expect(head.rosters[0]).toMatchObject({ id: fo.id, categoryName: "Montag" });
+            expect(head.categories.map((c) => c.id)).toEqual(["cD"]);
+            expect(head.dropped).toBeNull();
+        });
+
+        it("lists only the TBC ones in the TBC council", () => {
+            const head = councilHead({ guildId: "g1", user: ADMIN, opts: { charVersion: "tbc" }, config: VERSIONED });
+            expect(head.rosters.map((r) => r.name)).toEqual(["Mi-Roster", "PuG"]);
+            expect(head.categories).toEqual([]);
+        });
+
+        it("filters councilRosters by version and passes a dropped pick on", () => {
+            expect(councilRosters("g1", VERSIONED, { versionId: "forever" }).map((r) => r.name)).toEqual(["Fo-Roster"]);
+            const dropped = { kind: "roster", id: mi.id, versionId: "tbc" };
+            const head = councilHead({ guildId: "g1", user: ADMIN, opts: { charVersion: "forever", droppedPick: dropped }, config: VERSIONED });
+            expect(head.dropped).toEqual(dropped);
+            expect(head.target).toBe("all");
+            expect(head.rosters.map((r) => r.id)).not.toContain(mi.id);
+        });
+    });
 });

@@ -405,7 +405,8 @@ describe("POST /api/lootcouncil/sim", () => {
 
     it("refuses a version without simulation data (#745), read from the category like the page", async () => {
         getConfig.mockReturnValue({ mainVersion: "tbc", categoryVersion: { c9: "forever" } });
-        mockBody = { id: "job", subjects: [{ key: "a", specKey: "b" }], category: "c9" };
+        // The page sends its menu version with the category (#741: a Forever category is picked only in the Forever menu).
+        mockBody = { id: "job", subjects: [{ key: "a", specKey: "b" }], category: "c9", version: "forever" };
         let res = await call(postLootCouncilSim, "/api/lootcouncil/sim");
         expect(status(res)).toBe(409);
         expectError(res, "no_sim_data", "Für diese Spielversion gibt es keine Simulation.");
@@ -741,5 +742,42 @@ describe("POST /api/lootcouncil/loggear", () => {
         mockBody = { character: "Alpha" };
         loadLogGear.mockRejectedValueOnce(new Error("disk full"));
         await expect(call(postLogGear, "/api/lootcouncil/loggear")).rejects.toThrow("disk full");
+    });
+});
+
+// The user's report: in the Forever council, "Council für" still offered
+// "Montagsraid · TBC Montag" and "PUG Raids" (TBC). The menu's version comes
+// first (#741/#563): another version's category is no pick and no option.
+describe("GET /api/lootcouncil keeps to the menu's version", () => {
+    const CONFIG = { categoryIds: ["tbcCat", "foreverCat"], mainVersion: "forever", categoryVersion: { tbcCat: "tbc", foreverCat: "forever" } };
+    beforeEach(() => {
+        getConfig.mockReturnValue(CONFIG);
+        discord.listCategories.mockReturnValue([{ id: "tbcCat", name: "PUG Raids" }, { id: "foreverCat", name: "Forever Mittwoch" }]);
+    });
+
+    it("drops a stored TBC category pick: the Forever council of every Forever category, and names the pick", async () => {
+        const data = body(await call(getLootCouncil, "/api/lootcouncil", "?category=tbcCat&version=forever"));
+        expect(lc.councilRoster).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "", rosterId: "", versionId: "forever", charVersion: "forever" }));
+        expect(data.council.dropped).toEqual({ kind: "category", id: "tbcCat", versionId: "tbc" });
+        expect(data.council.target).toBe("all");
+        expect(data.council.categories.map((c) => c.id)).toEqual(["foreverCat"]);
+        expect(data.options.categories).toEqual([{ id: "foreverCat", name: "Forever Mittwoch" }]);
+        expect(data.versionId).toBe("forever");
+    });
+
+    it("keeps a pick of the menu's version", async () => {
+        const data = body(await call(getLootCouncil, "/api/lootcouncil", "?category=tbcCat&version=tbc"));
+        expect(lc.councilRoster).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "tbcCat", versionId: "tbc", charVersion: "tbc" }));
+        expect(data.council.dropped).toBeNull();
+        expect(data.council.target).toBe("category");
+        expect(data.options.categories.map((c) => c.id)).toEqual(["tbcCat"]);
+    });
+
+    it("drops the TBC pick while other versions are hidden, whatever the url asks", async () => {
+        getConfig.mockReturnValue({ ...CONFIG, hideOtherVersions: true });
+        const data = body(await call(getLootCouncil, "/api/lootcouncil", "?category=tbcCat&version=tbc"));
+        expect(lc.councilRoster).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "", charVersion: "forever" }));
+        expect(data.council.dropped).toEqual({ kind: "category", id: "tbcCat", versionId: "tbc" });
+        expect(data.council.categories.map((c) => c.id)).toEqual(["foreverCat"]);
     });
 });

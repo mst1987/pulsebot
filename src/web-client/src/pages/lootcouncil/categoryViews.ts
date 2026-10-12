@@ -62,13 +62,15 @@ export function useCategoryViews<V extends FilterFields>({ view, setView, canWri
 
     useEffect(() => {
         let live = true;
-        getCouncilViews()
+        // Only the targets of the menu's version (#741): a stale pick of another
+        // version finds no profile, so its view is never written with this version.
+        getCouncilViews(version)
             .then((v) => { if (live) setViews(v); })
             // Without them the page still works - with the browser's filters only.
             .catch(() => undefined)
             .finally(() => { if (live) setReady(true); });
         return () => { live = false; };
-    }, [round]);
+    }, [round, version]);
 
     // A save still waiting when the page closes goes out right away.
     useEffect(() => () => {

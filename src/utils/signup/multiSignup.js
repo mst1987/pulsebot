@@ -271,18 +271,22 @@ const labelled = (label, description, component) => ({
  * @returns {object|null} plain modal JSON, null without characters
  */
 function buildCharacterModal(token, session, page, events, profile, { emojis = {}, lang = "de" } = {}) {
-    const options = characterOptions(profile);
+    const byEvent = new Map(events.map((e) => [e.id, e]));
+    // Only characters of the chosen raids' game version (#543, #741): a TBC
+    // character is never offered for a Forever raid. "all" lists the characters
+    // of the chosen raids' versions (one: raidsForButton asks which first).
+    const chosen = (session.selected || []).map((id) => byEvent.get(id)).filter(Boolean);
+    const versions = [...new Set(chosen.map((e) => versionOfEvent(e)))];
+    const options = versions.length ? versions.flatMap((v) => characterOptions(profile, v)) : characterOptions(profile);
     if (!options.length) return null;
     const max = Math.min(MAX_CHARACTERS, options.length);
     const hint = tr(lang, "Topmost pick = 1st choice, the others = “can also come with”");
     // Discord hands the picks back without their click order: remember the listed order.
     session.orders = session.orders || {};
-    const byEvent = new Map(events.map((e) => [e.id, e]));
-    // Per raid only the characters of its game version (#543) — "all" lists every one, the save skips what does not fit.
+    // Per raid only the characters of its game version (#543) - never another version's as a stand-in.
     const optionsFor = (eventId) => {
         const event = eventId ? byEvent.get(eventId) : null;
-        const own = event ? characterOptions(profile, versionOfEvent(event)) : [];
-        return own.length ? own : options;
+        return event ? characterOptions(profile, versionOfEvent(event)) : options;
     };
     const select = (field, eventId) => {
         const own = optionsFor(eventId);
@@ -309,11 +313,14 @@ function buildCharacterModal(token, session, page, events, profile, { emojis = {
     const components = ids.map((id, i) => {
         const event = byId.get(id) || { id, title: id };
         const list = select(`r${i}`, id);
+        // no character of this raid's version: no select (Discord takes none without options) = skipped
+        if (!list.length) return null;
         return labelled(`${plain(event.title) || "Raid"} · ${shortDate(event.startTime, lang)}`.trim(), session.mode === "one" ? hint : `${hint} · ${tr(lang, "empty = skip")}`, {
             type: 3, custom_id: `r${i}`, min_values: session.mode === "one" ? 1 : 0, max_values: Math.min(max, list.length), required: session.mode === "one",
             options: list,
         });
-    });
+    }).filter(Boolean);
+    if (!components.length || (session.mode === "one" && components.length < ids.length)) return null;
     return {
         custom_id: multiId(token, "m", page),
         title: `${tr(lang, "Which characters?")}${pages > 1 ? ` (${page + 1}/${pages})` : ""}`.slice(0, 45),

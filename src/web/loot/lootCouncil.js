@@ -22,7 +22,7 @@ const { countsAsLoot } = require("../../utils/loot/lootReasons");
 const { getCategoryAssignments } = require("../../stores/raiderCharactersStore");
 const { excludedKeys, plannedRoles } = require("../../stores/councilStore");
 const { versionLinks } = require("../../services/events/versionSettings");
-const { buildVersionContext, versionsOfCharacter, versionChoices } = require("../../services/characters/characterVersions");
+const { buildVersionContext, eventVersion, versionsOfCharacter, versionChoices } = require("../../services/characters/characterVersions");
 const { mainVersionFor } = require("../../services/events/mainVersion");
 const { characterKey, characterKeyOf } = require("../../utils/loot/lootImport");
 const { rosterCandidates } = require("./councilRosterSource");
@@ -542,15 +542,21 @@ function judgedRoles() {
  * who only ever won something on Thursday belongs in the Monday list with
  * zero items, not out of it. Who is on the list at all is decided in
  * councilRoster.
+ *
+ * `inVersion(item)` (optional) narrows what counts to the council's version
+ * (#741): a TBC item never counts in the Forever council, not even in "Alle
+ * Raid-Kategorien" or in a category switched from TBC to Forever. `seen`
+ * keeps the items before that cut - they still tell which versions a
+ * character belongs to (derivedVersions).
  */
-function lootByCharacter(allLoot, categoryId, contentFilter) {
+function lootByCharacter(allLoot, categoryId, contentFilter, inVersion = null) {
     const loot = new Map();
     for (const it of allLoot) {
         const key = it.characterKey;
         if (!key) continue;
         // The name is taken before the category cut, so a raider whose items
         // all belong to another raid is still shown by name rather than by key.
-        if (!loot.has(key)) loot.set(key, { all: [], filtered: [], other: 0, character: it.character });
+        if (!loot.has(key)) loot.set(key, { all: [], seen: [], filtered: [], other: 0, character: it.character });
         const bucket = loot.get(key);
         if (categoryId && it.categoryId !== categoryId) continue;
         // An off-spec roll, a shard or a bank item did nothing for this raider's
@@ -559,9 +565,11 @@ function lootByCharacter(allLoot, categoryId, contentFilter) {
         // who got one real upgrade. They are tallied separately (`other`) rather
         // than dropped silently, so the page can say they exist.
         if (!countsAsLoot(it.reason)) {
-            bucket.other += 1;
+            if (!inVersion || inVersion(it)) bucket.other += 1;
             continue;
         }
+        bucket.seen.push(it);
+        if (inVersion && !inVersion(it)) continue;
         bucket.all.push(it);
         if (!contentFilter || contentFilter.has(it.contentId)) bucket.filtered.push(it);
     }
@@ -872,7 +880,14 @@ function councilRoster(opts = {}) {
 
     const allLoot = listAll();
     const bisTier = content.bis ? (opts.bisTier || currentTier(allLoot)) : "";
-    const loot = lootByCharacter(allLoot, categoryId, contentFilter);
+    // Every candidate's game version (#545), read once — cheap (no network),
+    // so it is always known: the version filter's own choices come from it
+    // (every version a candidate of this category has, plus the main one),
+    // and the same values decide who the charVersion filter keeps.
+    const versionCtx = buildVersionContext({ config: opts.config });
+    // Only the loot of the council's version counts (#741): the item's raid's stored version (#737).
+    const inVersion = charVersion ? (it) => eventVersion(versionCtx, it.eventId) === charVersion : null;
+    const loot = lootByCharacter(allLoot, categoryId, contentFilter, inVersion);
 
     // A category with a roster (#667): the roster IS the candidate list —
     // Stamm and Probe, Ersatz with `showBench`, every assigned character. Its
@@ -898,11 +913,6 @@ function councilRoster(opts = {}) {
 
     // One read of the version's links for every row (#542): the category's version, else the main one.
     const links = versionLinks(opts.versionId);
-    // Every candidate's game version (#545), read once — cheap (no network),
-    // so it is always known: the version filter's own choices come from it
-    // (every version a candidate of this category has, plus the main one),
-    // and the same values decide who the charVersion filter keeps.
-    const versionCtx = buildVersionContext({ config: opts.config });
     const mainVersion = opts.mainVersion || mainVersionFor({ config: opts.config });
     // How items and the need parts weigh (#668): the profile of the roster or
     // category (#676, services/loot/councilProfiles.js), else the default
@@ -1012,7 +1022,7 @@ function derivedVersions(key, { info, loot, versionCtx }) {
     const bucket = loot.get(key);
     return versionsOfCharacter(versionCtx, {
         name: known.character || (bucket && bucket.character) || key,
-        items: (bucket && bucket.all) || [],
+        items: (bucket && bucket.seen) || [],
         categoryIds: known.categoryIds || [],
     });
 }

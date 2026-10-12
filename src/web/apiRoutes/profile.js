@@ -121,7 +121,12 @@ const postProfileCharacter = withUser({ csrf: true, body: true }, async ({ user,
     const name = String(body.name || "").trim();
     if (!name) return apiError(res, 400, "bad_request", "Bitte einen Charakternamen angeben.");
     const source = profiles.CHARACTER_SOURCES.includes(body.source) ? body.source : "manual";
-    const versionId = knownVersion(body.versionId) || mainVersionFor({ config: getConfig() });
+    const config = getConfig();
+    const versionId = knownVersion(body.versionId) || mainVersionFor({ config });
+    // Other versions hidden (#563): no new character of one (the dialog offers none either).
+    if (!isVersionVisible(versionId, config)) {
+        return apiError(res, 400, "version_hidden", `${rulesFor(versionId).label} ist ausgeblendet (Einstellungen → Spielversion) – lege den Charakter in ${rulesFor(mainVersionFor({ config })).label} an.`);
+    }
     const input = { name, realm: String(body.realm || "").trim(), source, className: body.className, specs: [], versionId };
     let armory = null;
 

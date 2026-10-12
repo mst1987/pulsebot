@@ -47,7 +47,8 @@ const getSignups = withUser({}, async ({ user, req, res, url }) => {
         events: rows.filter((e) => versionOfEvent(e, { config }) === versionId),
         version: versionId,
         eventVersion: linked ? versionOfEvent(linked, { config }) : "",
-        profile: profileForSignup(profile),
+        // only the characters of the page's version (#741), like its raids
+        profile: profileForSignup(profile, { versionId }),
         // Class colour and icon for the character picker (#541): per version,
         // the dialog takes the list of the event's version; `classes` is the
         // main version's, for a row without one (Raid-Helper).
