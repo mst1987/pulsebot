@@ -26,6 +26,7 @@ const stockStore = require("../../stores/guildBankStockStore");
 const profiles = require("../../stores/raiderProfileStore");
 const stockView = require("./stockView");
 const linking = require("./linking");
+const { seenIndex } = require("../characters/characterEvidence");
 const guildBank = require("../signups/guildBank");
 const { serverOfToken } = require("./guildBankStock");
 
@@ -53,7 +54,7 @@ function characterOf(request, bank) {
     if (!name) return null;
     let classFile = "";
     try {
-        const c = linking.linkedCharacter(request) || profiles.findCharacter(profiles.getProfile(request.userId), name, bank.gameVersion);
+        const c = linking.linkedCharacter(request, { gameVersion: bank.gameVersion || "" }) || profiles.findCharacter(profiles.getProfile(request.userId), name, bank.gameVersion);
         classFile = c ? classFileOf(c.className) : "";
     } catch {
         // a broken profile never costs the hand-out its recipient
@@ -121,7 +122,9 @@ function handoutList({ token = {}, bankKey = "", now = Date.now() } = {}) {
     const confirmed = store.listRequests({ status: "confirmed" }).filter((r) => r.itemId > 0 && r.bankKey);
     const banks = banksFor(token, bankKey).map((bank) => {
         const own = confirmed.filter((r) => r.bankKey === bank.key);
-        const linked = own.filter((r) => linking.isLinked(r));
+        // a confirmed request whose character is no (longer a) confirmed one stays out (linking.linkState)
+        const index = seenIndex();
+        const linked = own.filter((r) => linking.isLinked(r, { gameVersion: bank.gameVersion || "", index }));
         return {
             key: bank.key,
             gameVersion: bank.gameVersion,

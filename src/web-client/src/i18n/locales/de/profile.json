@@ -74,6 +74,8 @@
         "claimedChip": "Auch eingetragen von: {names}. Die Orga klärt das.",
         "claimedCard": "Auch eingetragen von: {names}. Die Orga sieht das im Roster und klärt es.",
         "claimedBy": "vergeben an {name}",
+        "unverified": "nicht bestätigt",
+        "unverifiedTip": "Kein Log, kein Loot und keine Armory-Antwort kennt diesen Charakter – die Gildenbank kann ihm nichts schicken. Leg ihn über „Armory“ noch einmal an (die Armory muss ihn kennen) oder nimm den richtigen aus „Aus Logs“. Sonst die Orga bitten, ihn im Spiel zu prüfen.",
         "otherAccount": "anderes Konto",
         "unknown": "unbekannt",
         "level": "Stufe {level}",

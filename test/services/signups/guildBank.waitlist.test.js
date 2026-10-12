@@ -138,7 +138,7 @@ describe("services/signups/guildBank — waiting list", () => {
         expect(store.getRequest(open.id).status).toBe("open");
         expect(discord.editPayload).toHaveBeenCalledTimes(1);
         // the orga links the raider's character in the web: card redrawn, confirming works, the raider gets the DM
-        profiles.addCharacter("u7", { name: "Whapap", className: "Mage", realm: "Spineshatter", specs: [{ key: "Mage-Frost", gear: "ready" }] }, { name: "Wha" });
+        profiles.addCharacter("u7", { source: "log", name: "Whapap", className: "Mage", realm: "Spineshatter", specs: [{ key: "Mage-Frost", gear: "ready" }] }, { name: "Wha" });
         discord.editPayload.mockClear();
         const linked = await guildBank.linkRequest(open.id, { bankKey: KEY, userId: "u7", characterKey: "whapap" });
         expect(linked.request).toMatchObject({ userId: "u7", userName: "Wha", characterName: "Whapap", realm: "Spineshatter", linked: true });

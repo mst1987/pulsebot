@@ -34,7 +34,7 @@ function RequestRow({ request, canWrite, onLink }: { request: GuildBankRequest; 
                 {request.purpose && <span className="gb-req-sub">{t("guildbank.requests.purpose", { purpose: request.purpose })}</span>}
                 {!request.linked && (
                     <span className="gb-req-link">
-                        <NotLinkedBadge noRaider={!request.userId} />
+                        <NotLinkedBadge noRaider={!request.userId} problem={request.linkProblem} />
                         {canWrite && (
                             <Button size="sm" variant="ghost" icon={<LinkIcon />} onClick={() => onLink(request)} aria-label={`${t("guildbank.link.button")}: ${what}`}>
                                 {t("guildbank.link.button")}

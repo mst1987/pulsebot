@@ -16,6 +16,7 @@ const { blizzardFor } = require("../../services/events/versionSettings");
 const { mainVersionFor } = require("../../services/events/mainVersion");
 const profiles = require("../../stores/raiderProfileStore");
 const { specEvidence, logIndex } = require("./profileLogs");
+const { characterEvidence, seenIndex } = require("../../services/characters/characterEvidence");
 
 /** A spec entry with what the rule set says about it and what the logs say. */
 function specView(character, spec, index) {
@@ -55,7 +56,7 @@ function effectiveRoles(profile) {
  * The API shape of a profile. `forOrga` adds who wished for this raider and
  * which wishes are mutual; without it no other profile's wishes are touched.
  */
-function profileView(profile, { forOrga = false, index = logIndex(), all = profiles.listProfiles() } = {}) {
+function profileView(profile, { forOrga = false, index = logIndex(), all = profiles.listProfiles(), seen = seenIndex() } = {}) {
     const byId = new Map(all.map((p) => [p.userId, p]));
     // another raider is named by their first character of the main game version
     const preferVersion = mainVersionFor({ config: getConfig() });
@@ -71,6 +72,8 @@ function profileView(profile, { forOrga = false, index = logIndex(), all = profi
             source: c.source,
             armory: c.armory,
             armoryUrl: armoryUrlFor(c.name, c.versionId),
+            // does it exist in game (log, loot, armory, orga)? An unconfirmed one gets no guild bank mail
+            evidence: characterEvidence(c, { index: seen }),
             specs: c.specs.map((s) => specView(c, s, index)),
             canOfftank: roles.canOfftank,
             canHeal: roles.canHeal,

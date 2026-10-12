@@ -7,8 +7,9 @@
 // (WaitlistAddDialog.tsx, WaitlistImportDialog.tsx) opened from the filter
 // line; this tab reads the list again when they are done (`reloadToken`).
 // An entry whose character is no character of its raider's profile is marked
-// "nicht verknüpft" — when it moves up, the orga cannot confirm it until it is
-// linked: "Verknüpfen" opens the character search (CharacterPicker.tsx), a
+// "nicht verknüpft", one whose profile character nobody has confirmed (no log,
+// loot, armory or orga check) "Charakter nicht bestätigt" — when it moves up,
+// the orga cannot confirm it until it is linked (or the character confirmed): "Verknüpfen" opens the character search (CharacterPicker.tsx), a
 // linked entry can be linked anew with the small chain button.
 // Reading takes "raids", every change "raids" write — without it only the list.
 import { useState } from "react";
@@ -53,7 +54,7 @@ function EntryRow({ entry, first, last, canWrite, busy, onMove, onRemove, onLink
             <div className="gb-req-text">
                 <span className="gb-req-title">
                     {name}
-                    {!entry.linked && <NotLinkedBadge noRaider={!entry.userId} />}
+                    {!entry.linked && <NotLinkedBadge noRaider={!entry.userId} problem={entry.linkProblem} />}
                     {!entry.linked && canWrite && (
                         <Button size="sm" variant="ghost" icon={<LinkIcon />} disabled={busy} onClick={() => onLink(entry)}
                             aria-label={`${t("guildbank.link.button")}: ${name}`}>

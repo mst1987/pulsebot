@@ -3,7 +3,7 @@ import type { GameClass, GearLevel, ProfileCharacter, ProfileData, ProfileSpec }
 import { Badge, Button, IconButton, PartHead, Segment, WowIcon } from "../../components/ui";
 import { classColorProps } from "../../components/character/ClassSpec";
 import { type AddWay } from "../../components/character/AddCharacterDialog";
-import { ChevronLeftIcon, ChevronRightIcon, ExternalIcon, TrashIcon, XIcon } from "../../components/ui/icons";
+import { ChevronLeftIcon, ChevronRightIcon, ExternalIcon, TrashIcon, WarnIcon, XIcon } from "../../components/ui/icons";
 import { classLabel, roleLabel, specLabel } from "../../lib/wow/wowNames";
 import { tOr, useT } from "../../i18n";
 
@@ -87,6 +87,11 @@ export function CharacterCard({ character, cls, data, onMove, onSpecs, onRoles, 
                 crumb={crumb}
                 action={(
                     <>
+                        {character.evidence && !character.evidence.verified && (
+                            <Badge tone="mid" icon={<WarnIcon />} tip={t("profile.char.unverified")} tipSub={t("profile.char.unverifiedTip")}>
+                                {t("profile.char.unverified")}
+                            </Badge>
+                        )}
                         {character.claimedBy.length > 0 && (
                             <Badge tone="mid" tip={t("profile.char.claimed")} tipSub={t("profile.char.claimedCard", { names: character.claimedBy.map((c) => c.name || t("profile.char.unknown")).join(", ") })}>
                                 {t("profile.char.claimedBy", { name: character.claimedBy[0].name || t("profile.char.otherAccount") })}

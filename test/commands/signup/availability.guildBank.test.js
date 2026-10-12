@@ -96,8 +96,8 @@ describe("Gildenbank aus dem Bestand", () => {
         expect(modal.custom_id).toBe(`availability:mbi:cat1:${RUBY}`);
         expect(modal.components).toHaveLength(3);
 
-        profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
-        profiles.addCharacter(ANNA, { name: "Zibbowar", className: "Warrior", specs: [{ key: "Warrior-Protection", gear: "ready" }] });
+        profiles.addCharacter(ANNA, { source: "log", name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+        profiles.addCharacter(ANNA, { source: "log", name: "Zibbowar", className: "Warrior", specs: [{ key: "Warrior-Protection", gear: "ready" }] });
         const two = pickItem([String(RUBY)]);
         await command.execute(two);
         expect(two.showModal.mock.calls[0][0].components[3].component.options.map((o) => [o.value, o.default])).toEqual([["zibbo", true], ["zibbowar", false]]);
@@ -112,8 +112,8 @@ describe("Gildenbank aus dem Bestand", () => {
     });
 
     it("Absenden prüft gegen den Bestand, postet an die Orga und nennt den Empfänger", async () => {
-        profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
-        profiles.addCharacter(ANNA, { name: "Zibbowar", className: "Warrior", specs: [{ key: "Warrior-Protection", gear: "ready" }] });
+        profiles.addCharacter(ANNA, { source: "log", name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+        profiles.addCharacter(ANNA, { source: "log", name: "Zibbowar", className: "Warrior", specs: [{ key: "Warrior-Protection", gear: "ready" }] });
         const sent = submit(`availability:mbi:cat1:${RUBY}`, { amount: "3", purpose: "Gruul" }, "zibbowar");
         await command.execute(sent);
         expect(sent.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
@@ -125,7 +125,7 @@ describe("Gildenbank aus dem Bestand", () => {
     });
 
     it("ohne Charakterwahl im Formular und ohne Wofür-Feld: der erste Charakter, kein Zweck", async () => {
-        profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+        profiles.addCharacter(ANNA, { source: "log", name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
         const sent = click(`availability:mbi:cat1:${RUBY}`, { modal: true });
         sent.fields.getTextInputValue = jest.fn((id) => {
             if (id === "amount") return "1";
@@ -133,6 +133,16 @@ describe("Gildenbank aus dem Bestand", () => {
         });
         await command.execute(sent);
         expect(bankStore.listRequests()).toEqual([expect.objectContaining({ amount: 1, purpose: "", characterName: "Zibbo" })]);
+    });
+
+    it("ein nur eingetippter Charakter: die Anfrage geht raus, mit dem Hinweis, ihn über die Logs oder das Arsenal anzulegen", async () => {
+        profiles.addCharacter(ANNA, { name: "Gentle", className: "Druid" });
+        const sent = submit(`availability:mbi:cat1:${RUBY}`, { amount: "1" });
+        await command.execute(sent);
+        const answer = answerOf(sent.editReply.mock.calls[0][0]);
+        expect(answer.description).toBe("**1× Bold Living Ruby**\nAn: Gentle-Spineshatter\n\n⚠️ Dein Charakter ist noch nicht bestätigt – füg ihn in deinem Profil "
+            + "über die Logs oder das Arsenal hinzu, sonst kann die Orga nicht ausgeben.");
+        expect(bankStore.listRequests()).toEqual([expect.objectContaining({ characterName: "Gentle", status: "open" })]);
     });
 
     it("ein Bestand, der beim Absenden weg ist, und eine leere Wahl", async () => {

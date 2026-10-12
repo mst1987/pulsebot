@@ -4,27 +4,91 @@
 // linking.js). The search runs over the raider profiles' characters of the
 // bank's version only (GET /api/guildbank/characters, #741), prefilled with the
 // name the request has now. A hit shows the spec (else class) icon, the
-// character-realm in its class colour and the raider; a click picks it. Used as
-// a dialog of its own (LinkCharacterDialog) and inline in the requests and
-// import dialogs (no dialog on top of a dialog).
-import { useEffect, useState, type ReactNode } from "react";
-import { searchGuildBankCharacters, type ApiError, type GuildBankCharacterChoice } from "../../api";
+// character-realm in its class colour, the raider and its evidence as a small
+// badge ("aus Logs", "Loot", "Arsenal", "von Orga geprüft"); a click picks it.
+// A character nobody has confirmed (typed by the raider at a signup — "Gentle"
+// for the real "Gentleowl") stands greyed out as "nicht bestätigt" and cannot
+// be picked; two steps confirm it on the spot: "Im Arsenal prüfen" (the armory
+// answers → confirmed) and "Im Spiel geprüft" (the orga found it, after a
+// short confirmation inside the row). The confirmed ones of the raider the name points at
+// come first (the server's order). Used as a dialog of its own
+// (LinkCharacterDialog) and inline in the requests and import dialogs (no
+// dialog on top of a dialog).
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+    checkGuildBankCharacterArmory, searchGuildBankCharacters, verifyGuildBankCharacter,
+    type ApiError, type GuildBankCharacterChoice, type GuildBankEvidence, type GuildBankLinkProblem,
+} from "../../api";
 import { classColorProps } from "../../components/character/ClassSpec";
 import { Badge, Button, Field, Modal, WowIcon } from "../../components/ui";
-import { LinkIcon, WarnIcon } from "../../components/ui/icons";
+import { CheckIcon, LinkIcon, SearchIcon, WarnIcon } from "../../components/ui/icons";
+import { useToast } from "../../components/shell/Jobs";
 import { classLabel } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 import { recipientName } from "./bankView";
 
 const SEARCH_DELAY_MS = 250;
 
-/** One hit: icon, "Name-Realm" big in its class colour, the raider and the class small. */
-function Hit({ choice, busy, onPick }: { choice: GuildBankCharacterChoice; busy: boolean; onPick: (c: GuildBankCharacterChoice) => void }) {
+/** The small badge of where a character's evidence comes from, or "nicht bestätigt". */
+export function EvidenceBadge({ evidence }: { evidence: GuildBankEvidence }) {
+    const t = useT();
+    if (!evidence) {
+        return <Badge size="sm" tone="mid" tip={t("guildbank.link.unverified")} tipSub={t("guildbank.link.unverifiedTip")}>{t("guildbank.link.unverified")}</Badge>;
+    }
+    return (
+        <Badge size="sm" tone="ok" icon={<CheckIcon />} tip={t(`guildbank.link.evidence.${evidence}`)} tipSub={t(`guildbank.link.evidenceTip.${evidence}`)}>
+            {t(`guildbank.link.evidence.${evidence}`)}
+        </Badge>
+    );
+}
+
+/** What a check of a hit left to say: the armory knew it or knew nothing (an error is a toast). */
+type CheckNote = { tone: "ok" | "warn"; text: string };
+
+/**
+ * "Im Spiel geprüft" asks once more, inside the row (no dialog on top of the
+ * dialog): only confirm a character found in game, e.g. per /who.
+ */
+function GameCheck({ name, busy, onYes, onNo }: { name: string; busy: boolean; onYes: () => void; onNo: () => void }) {
+    const t = useT();
+    const ref = useRef<HTMLSpanElement>(null);
+    // the last hit's question would sit below the list's fold
+    useEffect(() => { ref.current?.scrollIntoView?.({ block: "nearest" }); }, []);
+    return (
+        <span ref={ref} className="gb-link-confirm" role="group" aria-label={t("guildbank.link.gameCheckTitle", { name })}>
+            <b>{t("guildbank.link.gameCheckTitle", { name })}</b>
+            <span className="gb-req-sub">{t("guildbank.link.gameCheckText")}</span>
+            <span className="gb-link-checks">
+                <Button size="sm" icon={<CheckIcon />} disabled={busy} onClick={onYes}>{t("guildbank.link.gameCheckAction")}</Button>
+                <Button size="sm" variant="ghost" disabled={busy} onClick={onNo}>{t("common.cancel")}</Button>
+            </span>
+        </span>
+    );
+}
+
+/**
+ * One hit: icon, "Name-Realm" big in its class colour, the evidence, the raider
+ * and the class small. Unconfirmed: greyed out, not pickable, with the two checks.
+ */
+function Hit({ choice, busy, checking, note, asking, onPick, onArmory, onAsk, onVerify, onCancel }: {
+    choice: GuildBankCharacterChoice;
+    busy: boolean;
+    checking: boolean;
+    note?: CheckNote;
+    /** "Im Spiel geprüft" was clicked: the row asks once more. */
+    asking: boolean;
+    onPick: (c: GuildBankCharacterChoice) => void;
+    onArmory: (c: GuildBankCharacterChoice) => void;
+    onAsk: (c: GuildBankCharacterChoice) => void;
+    onVerify: (c: GuildBankCharacterChoice) => void;
+    onCancel: () => void;
+}) {
     const t = useT();
     const name = recipientName(choice);
+    const confirmed = choice.verified;
     return (
-        <li>
-            <button type="button" className="gb-link-hit" disabled={busy} onClick={() => onPick(choice)}
+        <li className={`gb-link-row${confirmed ? "" : " gb-link-unverified"}`}>
+            <button type="button" className="gb-link-hit" disabled={busy || !confirmed} onClick={() => onPick(choice)}
                 aria-label={t("guildbank.link.pickAria", { name, raider: choice.userName })}>
                 {choice.icon ? <WowIcon name={choice.icon} size={28} /> : <span className="gb-link-noicon" aria-hidden="true" />}
                 <span className="gb-req-text">
@@ -32,12 +96,30 @@ function Hit({ choice, busy, onPick }: { choice: GuildBankCharacterChoice; busy:
                     <span className="gb-req-sub">
                         {[t("guildbank.link.raider", { name: choice.userName }), classLabel(choice.className, choice.className)].filter(Boolean).join(" · ")}
                     </span>
-                </span>            </button>
+                </span>
+                <EvidenceBadge evidence={choice.evidence || ""} />
+            </button>
+            {!confirmed && !asking && (
+                <span className="gb-link-checks">
+                    <Button size="sm" variant="ghost" icon={<SearchIcon />} disabled={busy || checking} onClick={() => onArmory(choice)}
+                        aria-label={`${t("guildbank.link.armoryCheck")}: ${name}`}>
+                        {checking ? t("guildbank.link.armoryChecking") : t("guildbank.link.armoryCheck")}
+                    </Button>
+                    <Button size="sm" variant="ghost" icon={<CheckIcon />} disabled={busy || checking} onClick={() => onAsk(choice)}
+                        aria-label={`${t("guildbank.link.gameCheck")}: ${name}`}>
+                        {t("guildbank.link.gameCheck")}
+                    </Button>
+                </span>
+            )}
+            {!confirmed && asking && <GameCheck name={name} busy={busy || checking} onYes={() => onVerify(choice)} onNo={onCancel} />}
+            {note && <span className={`gb-link-note gb-link-note-${note.tone}`} role="status">{note.text}</span>}
         </li>
     );
 }
 
-/** The search and its hits; `onPick` gets the chosen character. */
+const keyOf = (c: { userId: string; characterKey: string }) => `${c.userId}:${c.characterKey}`;
+
+/** The search and its hits; `onPick` gets the chosen (confirmed) character. */
 export function CharacterPicker({ bankKey, initialQuery, busy = false, onPick, intro }: {
     bankKey: string;
     initialQuery: string;
@@ -47,9 +129,13 @@ export function CharacterPicker({ bankKey, initialQuery, busy = false, onPick, i
     intro?: ReactNode;
 }) {
     const t = useT();
+    const toast = useToast();
     const [text, setText] = useState(initialQuery);
+    const [asking, setAsking] = useState("");
     const [hits, setHits] = useState<GuildBankCharacterChoice[] | null>(null);
     const [error, setError] = useState("");
+    const [checking, setChecking] = useState("");
+    const [notes, setNotes] = useState<Record<string, CheckNote>>({});
     const value = text.trim();
 
     useEffect(() => {
@@ -63,6 +149,39 @@ export function CharacterPicker({ bankKey, initialQuery, busy = false, onPick, i
         return () => { stale = true; window.clearTimeout(timer); };
     }, [bankKey, value]);
 
+    // a check answered: the hit shows its new evidence (pickable when confirmed) and what there is to say
+    const settle = (choice: GuildBankCharacterChoice, note?: CheckNote) => {
+        setHits((all) => (all ? all.map((c) => (keyOf(c) === keyOf(choice) ? choice : c)) : all));
+        setNotes((all) => {
+            const next = { ...all };
+            if (note) next[keyOf(choice)] = note;
+            else delete next[keyOf(choice)];
+            return next;
+        });
+    };
+    const check = async (choice: GuildBankCharacterChoice, run: () => Promise<{ choice: GuildBankCharacterChoice; note?: CheckNote }>) => {
+        setChecking(keyOf(choice));
+        try {
+            const r = await run();
+            settle(r.choice, r.note);
+        } catch (err) {
+            toast((err as ApiError).message, "err");
+        } finally {
+            setChecking("");
+        }
+    };
+    const armory = (choice: GuildBankCharacterChoice) => check(choice, async () => {
+        const r = await checkGuildBankCharacterArmory(bankKey, { userId: choice.userId, characterKey: choice.characterKey });
+        return r.found
+            ? { choice: r.choice, note: { tone: "ok" as const, text: t("guildbank.link.armoryFound", { name: recipientName(r.choice) }) } }
+            : { choice: r.choice, note: { tone: "warn" as const, text: t("guildbank.link.armoryMissing") } };
+    });
+    const verify = (choice: GuildBankCharacterChoice) => check(choice, async () => {
+        const r = await verifyGuildBankCharacter(bankKey, { userId: choice.userId, characterKey: choice.characterKey });
+        setAsking("");
+        return { choice: r.choice, note: { tone: "ok" as const, text: t("guildbank.link.gameChecked", { name: recipientName(r.choice) }) } };
+    });
+
     return (
         <div className="gb-link">
             {intro}
@@ -75,7 +194,11 @@ export function CharacterPicker({ bankKey, initialQuery, busy = false, onPick, i
                 {hits && !hits.length && <div className="empty">{t("guildbank.link.noHits")}</div>}
                 {hits && hits.length > 0 && (
                     <ul className="gb-link-hits" aria-label={t("guildbank.link.hits")}>
-                        {hits.map((c) => <Hit key={`${c.userId}:${c.characterKey}`} choice={c} busy={busy} onPick={onPick} />)}
+                        {hits.map((c) => (
+                            <Hit key={keyOf(c)} choice={c} busy={busy} checking={checking === keyOf(c)} note={notes[keyOf(c)]} asking={asking === keyOf(c)}
+                                onPick={onPick} onArmory={(x) => { void armory(x); }} onAsk={(x) => setAsking(keyOf(x))}
+                                onVerify={(x) => { void verify(x); }} onCancel={() => setAsking("")} />
+                        ))}
                     </ul>
                 )}
             </div>
@@ -86,10 +209,19 @@ export function CharacterPicker({ bankKey, initialQuery, busy = false, onPick, i
 /**
  * "nicht verknüpft": the request names no character of its raider's profile —
  * the orga cannot confirm it, the addon would not mail it. Without a raider at
- * all (imported by name) the tip says so too.
+ * all (imported by name) the tip says so too. `problem` "unverified": the
+ * character is in the profile, but nobody has confirmed it exists — "Charakter
+ * nicht bestätigt".
  */
-export function NotLinkedBadge({ noRaider = false }: { noRaider?: boolean }) {
+export function NotLinkedBadge({ noRaider = false, problem = "none" }: { noRaider?: boolean; problem?: GuildBankLinkProblem }) {
     const t = useT();
+    if (problem === "unverified") {
+        return (
+            <Badge size="sm" tone="bad" icon={<WarnIcon />} tip={t("guildbank.link.notVerified")} tipSub={t("guildbank.link.notVerifiedTip")}>
+                {t("guildbank.link.notVerified")}
+            </Badge>
+        );
+    }
     return (
         <Badge size="sm" tone="bad" icon={<WarnIcon />} tip={t("guildbank.link.notLinked")}
             tipSub={t(noRaider ? "guildbank.link.notLinkedTipNoRaider" : "guildbank.link.notLinkedTip")}>
@@ -127,7 +259,7 @@ export default function LinkCharacterDialog({ bankKey, what, current, busy, onPi
             tone="bank"
             kicker={t("guildbank.link.kicker")}
             title={t("guildbank.link.title")}
-            width={560}
+            width={600}
             initialFocus="#gb-link-query"
             footer={<Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>}
         >

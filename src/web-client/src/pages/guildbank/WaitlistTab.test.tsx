@@ -47,7 +47,7 @@ function row(over: Partial<GuildBankImportRow>): GuildBankImportRow {
 
 const WHAPAP: GuildBankCharacterChoice = {
     userId: "u7", userName: "Wha", characterKey: "whapap", characterName: "Whapap", realm: "Spineshatter", className: "Mage",
-    versionId: "tbc", icon: "spell_frost_frostbolt02", classColor: "#69CCF0", specKey: "Mage-Frost",
+    versionId: "tbc", icon: "spell_frost_frostbolt02", classColor: "#69CCF0", specKey: "Mage-Frost", verified: true, evidence: "log",
 };
 
 async function openTab(user: ReturnType<typeof userEvent.setup>) {
@@ -268,6 +268,40 @@ describe("guild bank waiting list", () => {
         expect(api.importGuildBankWaitlist).toHaveBeenCalledWith(KEY, "Josh\tBold Living Ruby\nWhappy\tBold Living Ruby", {
             1: { userId: "u-b", characterKey: "josh" }, 2: { userId: "u7", characterKey: "whapap" },
         });
+    });
+
+    it("marks an entry whose character nobody confirmed apart from an unlinked one", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getGuildBankWaitlist).mockResolvedValue({ entries: [
+            entry({ id: "w1", userId: "u3", userName: "Gentle", characterName: "Gentle", linked: false, linkProblem: "unverified" }),
+            entry({ id: "w2", userId: "", userName: "Whapap", characterName: "Whapap", position: 2, linked: false, linkProblem: "none" }),
+        ] });
+        renderPage(<GuildBankPage />, { route: "/guildbank" });
+        const queue = await openTab(user);
+        expect(within(queue).getByText("Charakter nicht bestätigt")).toBeInTheDocument();
+        expect(within(queue).getByText("nicht verknüpft")).toBeInTheDocument();
+        expect(within(queue).getByRole("button", { name: "Verknüpfen: Gentle" })).toBeInTheDocument();
+    });
+
+    it("offers the confirmed characters of the raider for an unconfirmed import name, as chips", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.previewGuildBankWaitlist).mockResolvedValue({
+            rows: [row({ line: 1, name: "Gentle", unverified: true, candidates: [
+                { userId: "u3", userName: "Gentle", characterKey: "gentleowl", characterName: "Gentleowl", realm: "", className: "Druid" },
+                { userId: "u3", userName: "Gentle", characterKey: "gentletwowl", characterName: "Gentletwowl", realm: "", className: "Priest" },
+            ] })],
+        });
+        vi.mocked(api.importGuildBankWaitlist).mockResolvedValue({ added: 1, skipped: 0, unlinked: 0, entries: ENTRIES });
+        renderPage(<GuildBankPage />, { route: "/guildbank" });
+        const dialog = await openDialog(user, "Import");
+        await user.click(within(dialog).getByRole("textbox", { name: "Zeilen einfügen" }));
+        await user.paste("Gentle\tBold Living Ruby");
+        await user.click(within(dialog).getByRole("button", { name: "Vorschau" }));
+        expect(await within(dialog).findByText("„Gentle“ ist nicht bestätigt – meinst du:")).toBeInTheDocument();
+        await user.click(within(dialog).getByRole("button", { name: "Gentletwowl · Priester" }));
+        expect(within(dialog).getByText("Gentletwowl (Gentle)")).toBeInTheDocument();
+        await user.click(within(dialog).getByRole("button", { name: "1 Eintrag importieren" }));
+        expect(api.importGuildBankWaitlist).toHaveBeenCalledWith(KEY, "Gentle\tBold Living Ruby", { 1: { userId: "u3", characterKey: "gentletwowl" } });
     });
 
     it("lets a reader look but not change", async () => {

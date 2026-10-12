@@ -1,33 +1,47 @@
 // Linked characters of guild bank requests: the addon mails a hand-out to the
 // request's `characterName`-`realm`, so a name that belongs to nobody sends the
-// mail into the void. A request is **linked** when it has a raider (`userId`)
-// and its character (+ realm, when both sides name one) is a character in that
-// raider's profile — checked now, every time: a character the raider deleted or
-// renamed in "Mein Profil" makes the request unlinked again.
+// mail into the void. A request is **linked** when it has a raider (`userId`),
+// its character (+ realm, when both sides name one) is a character in that
+// raider's profile, AND that character is **confirmed** — it exists in game:
+// seen in a log or the loot export, answered by the armory, or checked by the
+// orga (services/characters/characterEvidence.js). A raider types any name at
+// the signup ("Gentle" for the real "Gentleowl"); such a typed character alone
+// links nothing. Checked now, every time: a character the raider deleted or
+// renamed in "Mein Profil" makes the request unlinked again, a character
+// confirmed later links it.
 //
-//   linkedCharacter   the profile character a request points at, or null
-//   isLinked          whether there is one (the orga card's "Bestätigen", the
-//                     addon's hand-out list, the web's "nicht verknüpft")
-//   characterChoices  the profile characters of the bank's version as the web's
-//                     link dialog offers them, searched by character or raider
-//                     name — also a name a typo or two away, since the search
-//                     starts with the name from the sheet ("Whappap" finds
-//                     "Whapap")
-//   resolveChoice     a picked `userId` + `characterKey` as the request's new
-//                     recipient fields, or null when the profile has no such character
-//   versionError      a pick of another game version than the bank's: why it
-//                     cannot be the bank's recipient (German), else ""
+//   linkedCharacter    the profile character a request points at, or null
+//   linkState          `{ linked, linkProblem: "" | "none" | "unverified", character, via }`
+//   isLinked           linkState's `linked` (the orga card's "Bestätigen", the
+//                      addon's hand-out list, the web's "nicht verknüpft" /
+//                      "Charakter nicht bestätigt")
+//   characterChoices   the profile characters of the bank's version as the web's
+//                      link dialog offers them, each with its evidence: the
+//                      confirmed ones first, the raider the name points at
+//                      next, then the exact name, names containing it, near
+//                      misses ("Whappap" finds "Whapap")
+//   suggestedCharacters the confirmed characters a name from a sheet may mean
+//                      when it is no confirmed character itself: its raider's
+//                      other ones and the names it starts ("Gentle" →
+//                      "Gentleowl", "Gentletwowl")
+//   resolveChoice      a picked `userId` + `characterKey` as the request's new
+//                      recipient fields, or null when the profile has no such character
+//   versionError       a pick of another game version than the bank's: why it
+//                      cannot be the bank's recipient (German), else ""
+//   pickError          versionError, else why an unconfirmed pick cannot be linked
 //
 // The version decides (#741): a bank of one version only ever gets the
 // characters of that version — Forever bank = Forever characters, TBC bank =
-// TBC characters. A character without a stored version counts as TBC
-// (raiderProfileStore.characterVersion).
+// TBC characters — and only evidence of that version counts. A character
+// without a stored version counts as TBC (raiderProfileStore.characterVersion).
 //
 // Names are compared like the waiting list's import (foldName: no case, no
 // accents), realms also without spaces, apostrophes and dashes ("Spine shatter"
 // = "Spineshatter"). Pure reads of stores/raiderProfileStore.js; writing the
 // link is services/signups/guildBank.linkRequest (it redraws the orga card).
 const profiles = require("../../stores/raiderProfileStore");
+const stockStore = require("../../stores/guildBankStockStore");
+const { characterEvidence, seenIndex } = require("../characters/characterEvidence");
 const { CLASSES } = require("../../config/gameVersions/classes");
 const { versionShort } = require("./stockView");
 
@@ -35,6 +49,8 @@ const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
 /** How many characters the link dialog lists at most. */
 const CHOICES_MAX = 30;
+/** How many characters the import suggests for one name at most. */
+const SUGGEST_MAX = 6;
 
 /** A name as it is compared: no case, no accents, no outer spaces ("Alîna" → "alina"). */
 function foldName(name) {
@@ -71,15 +87,37 @@ function profileOf(userId) {
     }
 }
 
+/** The game version a profile character plays (one without a stored version is TBC). */
+const versionOfCharacter = (character) => profiles.characterVersion(character && character.versionId);
+
+/** Whether a profile character plays `gameVersion`; every character does for "" (no version to keep to). */
+function playsVersion(character, gameVersion) {
+    const id = str(gameVersion);
+    return !id || versionOfCharacter(character) === id;
+}
+
+/** The game version of the bank a request belongs to, "" when it names none (or the bank is gone). */
+function bankVersionOf(request) {
+    const key = str(request && request.bankKey);
+    if (!key) return "";
+    try {
+        const bank = stockStore.listBanks().find((b) => b.key === key);
+        return bank ? str(bank.gameVersion) : "";
+    } catch {
+        return "";
+    }
+}
+
 /**
  * The profile character a request points at: its raider's character of the
  * request's name — and realm, when the request and the character both name
- * one. Null without a raider, without a name, or when the profile has no such
- * character (any more).
+ * one; of several (a TBC and a Forever "Devi") the one of `gameVersion`. Null
+ * without a raider, without a name, or when the profile has no such character
+ * (any more).
  * @param {{ userId?: string, characterName?: string, realm?: string }} request
- * @param {{ profile?: object|null }} [o] the raider's profile when the caller has it already
+ * @param {{ profile?: object|null, gameVersion?: string }} [o] the raider's profile when the caller has it already
  */
-function linkedCharacter(request, { profile } = {}) {
+function linkedCharacter(request, { profile, gameVersion = "" } = {}) {
     if (!request) return null;
     const userId = str(request.userId);
     const name = foldName(request.characterName);
@@ -87,17 +125,41 @@ function linkedCharacter(request, { profile } = {}) {
     const p = profile === undefined ? profileOf(userId) : profile;
     const characters = p && Array.isArray(p.characters) ? p.characters : [];
     const realm = foldRealm(request.realm);
-    return characters.find((c) => foldName(c.name) === name && (!realm || !str(c.realm) || foldRealm(c.realm) === realm)) || null;
+    const hits = characters.filter((c) => foldName(c.name) === name && (!realm || !str(c.realm) || foldRealm(c.realm) === realm));
+    return hits.find((c) => playsVersion(c, gameVersion)) || hits[0] || null;
 }
 
-/** Whether a request's recipient is a character of its raider's profile. */
+/**
+ * Whether a request may go out and, when not, why — `{ linked, linkProblem,
+ * character, via }`:
+ *   linked true              its character is a profile character with evidence
+ *                            (`via`, characterEvidence) of the bank's version
+ *   linkProblem "none"       no profile character at all (or no raider)
+ *   linkProblem "unverified" a profile character nobody has confirmed — typed
+ *                            by the raider, never seen in a log, the loot or
+ *                            the armory, not checked by the orga ("Gentle")
+ * `gameVersion` defaults to the request's bank's.
+ * @param {object} request
+ * @param {{ profile?: object|null, gameVersion?: string, index?: Map<string, string> }} [o]
+ */
+function linkState(request, { profile, gameVersion, index } = {}) {
+    const version = gameVersion === undefined ? bankVersionOf(request) : str(gameVersion);
+    const character = linkedCharacter(request, { profile, gameVersion: version });
+    if (!character) return { linked: false, linkProblem: "none", character: null, via: "" };
+    const evidence = characterEvidence(character, { gameVersion: version, index });
+    if (!evidence.verified) return { linked: false, linkProblem: "unverified", character, via: "" };
+    return { linked: true, linkProblem: "", character, via: evidence.via };
+}
+
+/** Whether a request's recipient is a confirmed character of its raider's profile (linkState). */
 function isLinked(request, o) {
-    return !!linkedCharacter(request, o);
+    return linkState(request, o).linked;
 }
 
-/** A request with `linked` added — the shape the web lists. */
-function withLinked(request) {
-    return { ...request, linked: isLinked(request) };
+/** A request with `linked` and `linkProblem` added — the shape the web lists. */
+function withLinked(request, o) {
+    const state = linkState(request, o);
+    return { ...request, linked: state.linked, linkProblem: state.linkProblem };
 }
 
 const CLASS_BY_ID = new Map(CLASSES.map((c) => [c.id, c]));
@@ -113,17 +175,8 @@ function lookOf(character) {
     };
 }
 
-/** The game version a profile character plays (one without a stored version is TBC). */
-const versionOfCharacter = (character) => profiles.characterVersion(character && character.versionId);
-
-/** Whether a profile character plays `gameVersion`; every character does for "" (no version to keep to). */
-function playsVersion(character, gameVersion) {
-    const id = str(gameVersion);
-    return !id || versionOfCharacter(character) === id;
-}
-
-/** One profile character as the link dialog offers it. */
-function choiceOf(profile, character) {
+/** One profile character as the link dialog offers it, with its evidence (`verified`, `evidence` = the via). */
+function choiceOf(profile, character, evidence = { verified: false, via: "" }) {
     return {
         userId: profile.userId,
         userName: profile.name || character.name,
@@ -133,33 +186,56 @@ function choiceOf(profile, character) {
         className: character.className,
         versionId: versionOfCharacter(character),
         ...lookOf(character),
+        verified: !!evidence.verified,
+        evidence: evidence.via || "",
     };
+}
+
+/**
+ * The raiders a name points at: whose profile is called so, or who has an
+ * unconfirmed character of exactly that name (of `gameVersion`) — "Gentle"
+ * typed at a signup. Their other characters are the likely real ones.
+ */
+function ownersOf(list, key, gameVersion, index) {
+    if (!key) return new Set();
+    const typed = (c) => foldName(c.name) === key && playsVersion(c, gameVersion) && !characterEvidence(c, { gameVersion, index }).verified;
+    return new Set(list
+        .filter((p) => foldName(p.name) === key || (p.characters || []).some(typed))
+        .map((p) => p.userId));
 }
 
 /**
  * The characters of the raider profiles a request of a bank of `gameVersion`
  * can be linked to — only that version's, never one of another (#741; "" =
  * every version) — matching `query` in the character's or the raider's name
- * (folded; empty = all), or a character name within typoLimit of it. Exact
- * name first, then the names that contain the query (before the near misses),
- * then names that start with the query, then by name.
- * @param {{ query?: string, gameVersion?: string, limit?: number, list?: object[] }} [o]
+ * (folded; empty = all), a character name within typoLimit of it, or any
+ * character of a raider the name points at (ownersOf). Each with its evidence;
+ * the order: confirmed first, then the raider the name points at, the exact
+ * name, names containing the query before the near misses, names starting
+ * with it, then by name.
+ * @param {{ query?: string, gameVersion?: string, limit?: number, list?: object[], index?: Map<string, string> }} [o]
  */
-function characterChoices({ query = "", gameVersion = "", limit = CHOICES_MAX, list } = {}) {
+function characterChoices({ query = "", gameVersion = "", limit = CHOICES_MAX, list, index } = {}) {
     const q = foldName(query);
     const limitTypos = typoLimit(q);
+    const seen = index || seenIndex();
+    const pool = list || profiles.listProfiles();
+    const owners = ownersOf(pool, q, gameVersion, seen);
     const all = [];
-    for (const p of list || profiles.listProfiles()) {
+    for (const p of pool) {
+        const own = owners.has(p.userId);
         for (const c of p.characters || []) {
             if (!playsVersion(c, gameVersion)) continue;
             const name = foldName(c.name);
-            const hit = !q || name.includes(q) || foldName(p.name).includes(q);
+            const hit = !q || own || name.includes(q) || foldName(p.name).includes(q);
             const near = !hit && limitTypos > 0 && Math.abs(name.length - q.length) <= limitTypos && levenshtein(name, q) <= limitTypos;
             if (!hit && !near) continue;
-            all.push({ choice: choiceOf(p, c), name, near });
+            all.push({ choice: choiceOf(p, c, characterEvidence(c, { gameVersion, index: seen })), name, near, own });
         }
     }
-    const rank = ({ name, near }) => [name === q ? 0 : 1, near ? 1 : 0, q && name.startsWith(q) ? 0 : 1];
+    const rank = ({ choice, name, near, own }) => [
+        choice.verified ? 0 : 1, own ? 0 : 1, name === q ? 0 : 1, near ? 1 : 0, q && name.startsWith(q) ? 0 : 1,
+    ];
     all.sort((a, b) => {
         const ra = rank(a);
         const rb = rank(b);
@@ -167,6 +243,39 @@ function characterChoices({ query = "", gameVersion = "", limit = CHOICES_MAX, l
         return a.choice.characterName.localeCompare(b.choice.characterName) || a.choice.userName.localeCompare(b.choice.userName);
     });
     return all.slice(0, Math.max(1, Math.min(CHOICES_MAX, Number(limit) || CHOICES_MAX))).map((x) => x.choice);
+}
+
+/**
+ * The confirmed characters of `gameVersion` a name (from a sheet) may mean
+ * when it is no confirmed character itself: the other characters of the
+ * raider(s) the name points at (ownersOf — the raider of the unconfirmed
+ * "Gentle"), then characters whose name starts with it ("Gentle" →
+ * "Gentleowl"). Never the unconfirmed ones. In the import's candidate shape
+ * `{ userId, userName, characterKey, characterName, realm, className }`.
+ * @param {string} name
+ * @param {{ gameVersion?: string, list?: object[], index?: Map<string, string>, max?: number }} [o]
+ */
+function suggestedCharacters(name, { gameVersion = "", list, index, max = SUGGEST_MAX } = {}) {
+    const key = foldName(name);
+    if (!key) return [];
+    const seen = index || seenIndex();
+    const pool = list || profiles.listProfiles();
+    const owners = ownersOf(pool, key, gameVersion, seen);
+    const out = [];
+    for (const p of pool) {
+        const own = owners.has(p.userId);
+        for (const c of p.characters || []) {
+            if (!playsVersion(c, gameVersion)) continue;
+            const folded = foldName(c.name);
+            if (!own && !(folded.startsWith(key) && folded !== key)) continue;
+            if (!characterEvidence(c, { gameVersion, index: seen }).verified) continue;
+            out.push({ own, p, c });
+        }
+    }
+    out.sort((a, b) => (Number(b.own) - Number(a.own)) || a.c.name.localeCompare(b.c.name));
+    return out.slice(0, max).map(({ p, c }) => ({
+        userId: p.userId, userName: p.name || c.name, characterKey: c.key, characterName: c.name, realm: c.realm || "", className: c.className || "",
+    }));
 }
 
 /**
@@ -191,6 +300,13 @@ function pickedCharacter(userId, characterKey) {
     return c ? { uid, profile: p, character: c } : null;
 }
 
+/** A picked character as the link dialog shows it (with its evidence for `gameVersion`), or null. */
+function choiceFor(userId, characterKey, gameVersion = "") {
+    const found = pickedCharacter(userId, characterKey);
+    if (!found) return null;
+    return choiceOf(found.profile, found.character, characterEvidence(found.character, { gameVersion }));
+}
+
 /**
  * Why a picked profile character cannot be the recipient of a bank of
  * `gameVersion` (#741): it plays another version — German, for the orga.
@@ -205,7 +321,20 @@ function versionError(userId, characterKey, gameVersion) {
     return `${found.character.name} ist ein ${own}-Charakter – diese Gildenbank ist für ${bank}. Bitte einen ${bank}-Charakter wählen.`;
 }
 
+/**
+ * Why a picked profile character cannot be linked to a request of a bank of
+ * `gameVersion`: versionError, else it is not confirmed (characterEvidence) —
+ * German, "" when it can (or there is no such character).
+ */
+function pickError(userId, characterKey, gameVersion) {
+    const version = versionError(userId, characterKey, gameVersion);
+    if (version) return version;
+    const found = pickedCharacter(userId, characterKey);
+    if (!found || characterEvidence(found.character, { gameVersion }).verified) return "";
+    return `${found.character.name} ist nicht bestätigt – erst im Arsenal oder im Spiel prüfen, dann verknüpfen.`;
+}
+
 module.exports = {
-    CHOICES_MAX, foldName, foldRealm, levenshtein, typoLimit, linkedCharacter, isLinked, withLinked, characterChoices, resolveChoice,
-    playsVersion, versionError,
+    CHOICES_MAX, SUGGEST_MAX, foldName, foldRealm, levenshtein, typoLimit, linkedCharacter, linkState, isLinked, withLinked,
+    characterChoices, suggestedCharacters, resolveChoice, choiceFor, playsVersion, versionError, pickError,
 };

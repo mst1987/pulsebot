@@ -3,9 +3,12 @@
 // Warteliste tab; answers the new list.
 //
 // A name that matches no profile character, or several raiders' characters,
-// would land "nicht verknüpft" — the orga could not confirm it later. In the
-// preview such a row gets its own pick: the candidates as toggle chips when
-// the name is ambiguous, else "Verknüpfen" opens the character search
+// would land "nicht verknüpft" — the orga could not confirm it later. So would
+// a name that is only a profile character nobody has confirmed ("Gentle",
+// typed at a signup): it is never linked on its own. In the preview such a
+// row gets its own pick: the candidates as toggle chips — the raiders'
+// characters of an ambiguous name, else the confirmed characters the name may
+// mean ("Gentleowl", "Gentletwowl") — and "Verknüpfen" opens the character search
 // (CharacterPicker.tsx, inside this dialog). The picks travel with the import
 // (`links`, line → character); a row without one is imported as the character
 // alone and stays marked "nicht verknüpft".
@@ -50,14 +53,16 @@ function Who({ row, pick, onPick, onSearch, onClear }: {
         <span className="gb-req-sub gb-wl-who">
             <NotLinkedBadge noRaider />
             {row.ambiguous && <span>{t("guildbank.waitlist.ambiguousPick")}</span>}
+            {!row.ambiguous && row.unverified && <span>{t("guildbank.waitlist.unverifiedPick", { name: row.name })}</span>}
+            {!row.ambiguous && !row.unverified && candidates.length > 0 && <span>{t("guildbank.waitlist.suggestedPick")}</span>}
             {candidates.map((c) => (
                 <Chip key={`${c.userId}:${c.characterKey}`} pressed={false}
                     onClick={() => onPick({ userId: c.userId, characterKey: c.characterKey, label: t("guildbank.link.pickLabel", { name: c.characterName, raider: c.userName }) })}>
-                    {c.userName} · {classLabel(c.className, c.className)}
+                    {row.ambiguous ? c.userName : c.characterName} · {classLabel(c.className, c.className)}
                 </Chip>
             ))}
             <Button size="sm" variant="ghost" icon={<LinkIcon />} onClick={onSearch} aria-label={`${t("guildbank.link.button")}: ${row.name}`}>
-                {t(row.ambiguous ? "guildbank.link.searchOther" : "guildbank.link.button")}
+                {t(candidates.length ? "guildbank.link.searchOther" : "guildbank.link.button")}
             </Button>
         </span>
     );

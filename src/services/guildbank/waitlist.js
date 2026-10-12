@@ -21,12 +21,16 @@
 // The orga keeps the list in the web (apiRoutes/guildBank.js, "Warteliste"):
 // add an entry, move it up or down, remove it, or import lines pasted from a
 // sheet ("Name<Tab>Item<Tab>Anzahl", also ; or ,). A name is matched to a
-// raider by the characters of the bank's game version in the raider profiles
-// (#741; no case, no accents — "alina" finds "Alîna"), a picked character of
-// another version is refused; an unmatched name is imported as a character alone
-// (`userId: ""`, no DM, not linked — linking.js) unless the orga picked a
-// profile character for its line (`links`; an ambiguous name lists its
-// `candidates`). An unknown item is never imported. A typo in the item
+// raider by the **confirmed** characters of the bank's game version in the
+// raider profiles (#741; no case, no accents — "alina" finds "Alîna"; confirmed:
+// services/characters/characterEvidence.js), a picked character of another
+// version or an unconfirmed one is refused; an unmatched name is imported as a
+// character alone (`userId: ""`, no DM, not linked — linking.js) unless the
+// orga picked a profile character for its line (`links`). An ambiguous name
+// lists its `candidates`; so does a name that is only an unconfirmed
+// character ("Gentle", typed at a signup) or none at all: the confirmed
+// characters it may mean (linking.suggestedCharacters — the same raider's,
+// names it starts: "Gentleowl", "Gentletwowl"), never linked on their own. An unknown item is never imported. A typo in the item
 // name is forgiven (, findItem): the one item within two letters (and a
 // fifth of the name) is taken, the preview marks the row `fuzzy`.
 const store = require("../../stores/guildBankStore");
@@ -34,6 +38,7 @@ const stockStore = require("../../stores/guildBankStockStore");
 const profiles = require("../../stores/raiderProfileStore");
 const stockView = require("./stockView");
 const linking = require("./linking");
+const { characterEvidence, seenIndex } = require("../characters/characterEvidence");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -96,10 +101,13 @@ function promoteBank(bankKey, { itemId = 0, now = Date.now() } = {}) {
  */
 function listForBank(bankKey) {
     const places = new Map();
+    const bank = stockStore.getBank(bankKey);
+    const o = { gameVersion: bank ? bank.gameVersion || "" : "", index: seenIndex() };
     return store.waitingQueue(bankKey).map((r) => {
         const place = (places.get(r.itemId) || 0) + 1;
         places.set(r.itemId, place);
-        return { ...r, position: place, linked: linking.isLinked(r) };
+        const state = linking.linkState(r, o);
+        return { ...r, position: place, linked: state.linked, linkProblem: state.linkProblem };
     });
 }
 
@@ -192,28 +200,40 @@ function matchItem(itemText, items) {
 }
 
 /**
- * The raider whose profile has a character of that name — only a character of
- * the bank's game version (#741: a TBC "Devi" never answers for a Forever
- * bank; "" = any version). `{ userId, userName, characterKey, characterName,
- * realm, className }`, or `{ ambiguous: true, candidates }` (each such a hit)
- * when characters of several raiders carry the name, or null — then the name
- * is taken as a character alone (not linked).
+ * The raider whose profile has a **confirmed** character of that name — only a
+ * character of the bank's game version (#741: a TBC "Devi" never answers for a
+ * Forever bank; "" = any version). `{ userId, userName, characterKey,
+ * characterName, realm, className }`, or `{ ambiguous: true, candidates }`
+ * (each such a hit) when confirmed characters of several raiders carry the
+ * name. No confirmed one: `{ suggested: true, unverified, candidates }` when
+ * the name is an unconfirmed character (`unverified`) or the start of
+ * confirmed ones — `candidates` = linking.suggestedCharacters, nothing
+ * linked — else null: the name is taken as a character alone (not linked).
  */
-function matchCharacter(name, gameVersion = "", list = profiles.listProfiles()) {
+function matchCharacter(name, gameVersion = "", list = profiles.listProfiles(), index = seenIndex()) {
     const key = foldName(name);
     if (!key) return null;
-    const all = [];
+    const confirmed = [];
+    let unverified = false;
     for (const p of list) {
         const c = (p.characters || []).find((ch) => foldName(ch.name) === key && linking.playsVersion(ch, gameVersion));
-        if (c) {
-            all.push({
-                userId: p.userId, userName: p.name || c.name, characterKey: c.key, characterName: c.name, realm: c.realm || "", className: c.className || "",
-            });
+        if (!c) continue;
+        if (!characterEvidence(c, { gameVersion, index }).verified) {
+            unverified = true;
+            continue;
         }
+        confirmed.push({
+            userId: p.userId, userName: p.name || c.name, characterKey: c.key, characterName: c.name, realm: c.realm || "", className: c.className || "",
+        });
     }
-    if (all.length > 1) return { ambiguous: true, candidates: all };
-    return all[0] || null;
+    if (confirmed.length > 1) return { ambiguous: true, candidates: confirmed };
+    if (confirmed.length) return confirmed[0];
+    const candidates = linking.suggestedCharacters(name, { gameVersion, list, index });
+    return unverified || candidates.length ? { suggested: true, unverified, candidates } : null;
 }
+
+/** A match that is one raider's confirmed character (not ambiguous, not only suggestions). */
+const isHit = (match) => !!(match && !match.ambiguous && !match.suggested);
 
 /** A row's own pick in the import (`links[line] = { userId, characterKey }`), or null when the row has none. */
 function pickOf(links, line) {
@@ -231,13 +251,14 @@ function pickedMatch(links, line) {
 
 /**
  * Why the import's picks cannot go to this bank: the first pick of a character
- * of another game version (#741), with its line — German, "" when all fit.
+ * of another game version (#741) or one nobody has confirmed (linking.pickError),
+ * with its line — German, "" when all fit.
  */
 function picksVersionError(bank, links) {
     if (!links || typeof links !== "object") return "";
     for (const line of Object.keys(links).sort((a, b) => Number(a) - Number(b))) {
         const pick = pickOf(links, line);
-        const error = pick ? linking.versionError(pick.userId, pick.characterKey, bank.gameVersion) : "";
+        const error = pick ? linking.pickError(pick.userId, pick.characterKey, bank.gameVersion) : "";
         if (error) return `Zeile ${line}: ${error}`;
     }
     return "";
@@ -259,6 +280,7 @@ function previewImport(bankKey, text, { links = null } = {}) {
     const versionError = picksVersionError(bank, links);
     if (versionError) return { error: versionError };
     const list = profiles.listProfiles();
+    const index = seenIndex();
     const rows = parseImport(text).map((row) => {
         const found = row.error ? { item: null, fuzzy: false } : findItem(row.itemText, bank.items);
         const raw = found.item;
@@ -267,8 +289,8 @@ function previewImport(bankKey, text, { links = null } = {}) {
         if (!row.error && !item) itemError = "Unbekannter Gegenstand.";
         else if (item && !stockView.isRequestable(item)) itemError = "Nicht ausgebbar.";
         const picked = row.error ? null : pickedMatch(links, row.line);
-        const match = row.error || picked ? null : matchCharacter(row.name, bank.gameVersion, list);
-        const hit = picked || (match && !match.ambiguous ? match : null);
+        const match = row.error || picked ? null : matchCharacter(row.name, bank.gameVersion, list, index);
+        const hit = picked || (isHit(match) ? match : null);
         return {
             ...row,
             item: item ? { itemId: item.itemId, name: item.name || `Item ${item.itemId}`, iconUrl: item.iconUrl || "" } : null,
@@ -277,7 +299,9 @@ function previewImport(bankKey, text, { links = null } = {}) {
             match: hit,
             picked: !!picked,
             ambiguous: !!(match && match.ambiguous),
-            candidates: match && match.ambiguous ? match.candidates : [],
+            // the name is a character nobody has confirmed: its candidates are what it may mean
+            unverified: !!(match && match.unverified),
+            candidates: match && !isHit(match) ? match.candidates : [],
             linked: !!hit,
             ok: !row.error && !itemError,
         };
@@ -325,7 +349,7 @@ function importLines(bankKey, text, { by = "", byName = "", links = null, now = 
         if (result.request) added.push(result.request);
         else skipped += 1;
     });
-    return { added, skipped, unlinked: added.filter((r) => !linking.isLinked(r)).length };
+    return { added, skipped, unlinked: added.filter((r) => !linking.isLinked(r, { gameVersion: bank.gameVersion || "" })).length };
 }
 
 /**
@@ -338,7 +362,7 @@ function addEntry(bankKey, { name = "", userId = "", characterKey = "", itemId =
     if (!bank) return { error: "Gildenbank nicht gefunden." };
     const picked = userId || characterKey ? pickedMatch({ 1: { userId, characterKey } }, 1) : null;
     if ((userId || characterKey) && !picked) return { error: "Diesen Charakter gibt es im Profil nicht." };
-    const versionError = picked ? linking.versionError(userId, characterKey, bank.gameVersion) : "";
+    const versionError = picked ? linking.pickError(userId, characterKey, bank.gameVersion) : "";
     if (versionError) return { error: versionError };
     if (!picked && !str(name)) return { error: "Bitte einen Namen angeben." };
     const item = stockView.stockItem(bank.key, itemId);
@@ -346,7 +370,7 @@ function addEntry(bankKey, { name = "", userId = "", characterKey = "", itemId =
     const n = store.parseAmount(amount);
     if (!n) return { error: `Die Menge muss eine ganze Zahl von ${store.AMOUNT_MIN} bis ${store.AMOUNT_MAX} sein.` };
     const match = picked || matchCharacter(name, bank.gameVersion);
-    return store.addWaiting(entryFor(bank, item, { name, match: match && !match.ambiguous ? match : null, amount: n, by, byName }), { now });
+    return store.addWaiting(entryFor(bank, item, { name, match: isHit(match) ? match : null, amount: n, by, byName }), { now });
 }
 
 module.exports = {

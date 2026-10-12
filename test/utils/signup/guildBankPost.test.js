@@ -192,6 +192,14 @@ describe("utils/signup/guildBankPost — a request without a linked character", 
         expect(cardButtons(payload).map((b) => [b.label, !!b.disabled])).toEqual([["Bestätigen", true], ["Ablehnen …", false]]);
     });
 
+    it("an unconfirmed character: the card names that reason instead", () => {
+        const payload = post.orgaPayload(UNLINKED, { linked: false, linkProblem: "unverified" });
+        expect(cardText(payload)).toContain(post.NOT_VERIFIED_LINE);
+        expect(cardText(payload)).toContain("Charakter nicht bestätigt");
+        expect(cardText(payload)).not.toContain(post.NOT_LINKED_LINE);
+        expect(cardButtons(payload)[0]).toMatchObject({ label: "Bestätigen", disabled: true });
+    });
+
     it("confirmed (from before the rule): the warning, the buttons stay; handed out: no warning", () => {
         const confirmed = post.orgaPayload({ ...UNLINKED, status: "confirmed", handledByName: "Arthas" }, { linked: false });
         expect(cardText(confirmed)).toContain("Kein verknüpfter Charakter");

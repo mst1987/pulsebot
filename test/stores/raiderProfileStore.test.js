@@ -188,6 +188,38 @@ describe("stores/raiderProfileStore", () => {
         expect(store.getProfile(B).characters).toHaveLength(1);
     });
 
+    it("hält fest, dass die Orga einen Charakter im Spiel gefunden hat – nur gesetzt, nur am eigenen Charakter", () => {
+        store.addCharacter(A, { name: "Gentle", className: "Druid" }, { name: "Gentle" });
+        expect(store.getProfile(A).characters[0]).not.toHaveProperty("verifiedAt");
+        const done = store.verifyCharacter(A, "gentle", { by: "9", byName: "Orga" }, { now: 1234 });
+        expect(done.character).toMatchObject({ key: "gentle", verifiedBy: "9", verifiedByName: "Orga", verifiedAt: 1234 });
+        expect(store.getProfile(A).characters[0]).toMatchObject({ verifiedBy: "9", verifiedByName: "Orga", verifiedAt: 1234 });
+        expect(store.verifyCharacter(A, "nobody", { by: "9" })).toBeNull();
+        expect(store.verifyCharacter(B, "gentle", { by: "9" })).toBeNull();
+        // a later save or a refresh keeps it
+        store.addCharacter(A, { name: "Gentle", className: "Druid", specs: [{ key: "Druid-Restoration" }] });
+        expect(store.getProfile(A).characters[0].verifiedAt).toBe(1234);
+        // a broken stored value is dropped
+        expect(store.normalizeProfile({ characters: [{ name: "X", className: "Mage", verifiedAt: "nope", verifiedBy: "9" }] }).characters[0]).not.toHaveProperty("verifiedBy");
+    });
+
+    it("speichert die Antwort des Arsenals am Charakter, nur mit Level", () => {
+        store.addCharacter(A, { name: "Armo", className: "Mage" });
+        expect(store.setCharacterArmory(A, "armo", { level: null, guild: "G" })).toBeNull();
+        expect(store.getProfile(A).characters[0].armory).toBeNull();
+        const saved = store.setCharacterArmory(A, "armo", { level: 70, guild: "Die Gilde" }, { now: 55 });
+        expect(saved.character.armory).toEqual({ level: 70, guild: "Die Gilde", fetchedAt: 55 });
+        expect(store.setCharacterArmory(A, "nobody", { level: 70 })).toBeNull();
+    });
+
+    it("übernimmt die Quelle Logs oder Arsenal für einen eingetippten Charakter, nie umgekehrt", () => {
+        store.addCharacter(A, { name: "Gentle", className: "Druid" });
+        expect(store.addCharacter(A, { name: "Gentle", className: "Druid", source: "log" }).character.source).toBe("log");
+        expect(store.addCharacter(A, { name: "Gentle", className: "Druid", source: "manual" }).character.source).toBe("log");
+        store.addCharacter(A, { name: "Armo", className: "Mage" });
+        expect(store.addCharacter(A, { name: "Armo", className: "Mage", source: "armory" }).character.source).toBe("armory");
+    });
+
     it("meldet doppelt beanspruchte Charaktere, statt sie abzulehnen", () => {
         store.addCharacter(A, { name: "Nerathil", className: "Mage" }, { name: "Anna" });
         const second = store.addCharacter(B, { name: "Nerathil-Thunderstrike", className: "Mage" }, { name: "Bert" });

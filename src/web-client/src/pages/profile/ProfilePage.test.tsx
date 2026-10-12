@@ -382,6 +382,17 @@ describe("ProfilePage – the selected character", () => {
         await user.click(screen.getByRole("tab", { name: /Tanky/ }));
         expect(screen.getByText(t("profile.char.claimedBy", { name: t("profile.char.otherAccount") }))).toBeInTheDocument();
     });
+
+    it("marks a character no log, loot or armory knows as not confirmed, with how to change that", async () => {
+        const typed = character({ ...FROSTI, evidence: { verified: false, via: "" } });
+        const logged = character({ ...BORKA, evidence: { verified: true, via: "log" } });
+        const { user } = setup(profile({ characters: [logged, typed] }));
+        await renderProfile();
+        expect(screen.queryByText("nicht bestätigt")).not.toBeInTheDocument();
+        await user.click(screen.getByRole("tab", { name: /Frosti/ }));
+        const badge = screen.getByText("nicht bestätigt");
+        expect(badge).toHaveAttribute("data-tip-sub", t("profile.char.unverifiedTip"));
+    });
 });
 
 describe("ProfilePage – wishes and „Nicht mit X raiden“", () => {

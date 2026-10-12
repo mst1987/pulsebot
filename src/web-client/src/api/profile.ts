@@ -33,6 +33,11 @@ export type ProfileCharacter = {
     source: "log" | "armory" | "manual";
     armory: { level: number | null; guild: string; fetchedAt: number } | null;
     armoryUrl: string;
+    /**
+     * Does it exist in game — seen in a log or the loot, answered by the armory, or
+     * checked by the orga. Unconfirmed: the guild bank cannot mail to it.
+     */
+    evidence?: { verified: boolean; via: "" | "log" | "loot" | "armory" | "orga" };
     specs: ProfileSpec[];
     /** "Kann offtanken / heilen" of this character — its own word, else what its specs allow. */
     canOfftank: boolean;

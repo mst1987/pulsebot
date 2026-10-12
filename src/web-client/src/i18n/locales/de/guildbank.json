@@ -112,7 +112,32 @@
         "pickLabel": "{name} ({raider})",
         "unpick": "Auswahl entfernen",
         "searchOther": "Andere suchen",
-        "done": "Verknüpft mit {name} ({raider})."
+        "done": "Verknüpft mit {name} ({raider}).",
+        "notVerified": "Charakter nicht bestätigt",
+        "notVerifiedTip": "Der Charakter steht im Profil, aber kein Log, kein Loot und keine Arsenal-Antwort kennt ihn – vielleicht gibt es ihn so gar nicht. Unter „Verknüpfen“ im Arsenal oder im Spiel prüfen, oder einen anderen Charakter wählen.",
+        "evidence": {
+            "log": "aus Logs",
+            "loot": "Loot",
+            "armory": "Arsenal",
+            "orga": "von Orga geprüft"
+        },
+        "evidenceTip": {
+            "log": "In einem ausgewerteten Warcraft-Logs-Bericht gesehen (oder aus den Logs ins Profil übernommen).",
+            "loot": "Im Loot-Export aufgetaucht.",
+            "armory": "Das Arsenal kennt den Charakter.",
+            "orga": "Die Orga hat ihn im Spiel gefunden."
+        },
+        "unverified": "nicht bestätigt",
+        "unverifiedTip": "Kein Log, kein Loot und keine Arsenal-Antwort kennt diesen Charakter. Erst prüfen, dann verknüpfen.",
+        "armoryCheck": "Im Arsenal prüfen",
+        "armoryChecking": "Frage das Arsenal …",
+        "armoryFound": "Das Arsenal kennt {name} – bestätigt.",
+        "armoryMissing": "Arsenal kennt den Charakter nicht oder ist gerade nicht erreichbar – im Spiel per /who prüfen.",
+        "gameCheck": "Im Spiel geprüft",
+        "gameCheckTitle": "{name} im Spiel gefunden?",
+        "gameCheckText": "Nur bestätigen, wenn du den Charakter im Spiel gefunden hast, z. B. per /who.",
+        "gameCheckAction": "Ja, gefunden",
+        "gameChecked": "{name} ist bestätigt."
     },
     "handedOut": {
         "hint": "Was rausging, sobald es abgehakt wurde – im Discord, im Spiel oder per Post. 90 Tage lang.",
@@ -172,6 +197,8 @@
         "matched": "Raider: {name}",
         "unmatched": "nur Charakter",
         "ambiguous": "mehrdeutig – nur Charakter",
+        "unverifiedPick": "„{name}“ ist nicht bestätigt – meinst du:",
+        "suggestedPick": "Meinst du:",
         "ambiguousPick": "Mehrere Raider – wer?",
         "imported": "{added} importiert, {skipped} übersprungen.",
         "importedUnlinked": "{added} importiert, {skipped} übersprungen, {unlinked} nicht verknüpft.",

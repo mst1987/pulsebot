@@ -78,8 +78,8 @@ beforeEach(() => {
     settingsStore.getConfig.mockReturnValue(CONFIG);
     seed();
     // the recipients are characters of the raiders' profiles: only linked requests reach the addon
-    profiles.addCharacter("u1", { name: "Zibbo", className: "Priest", realm: "Spineshatter", specs: [{ key: "Priest-Holy", gear: "ready" }] });
-    profiles.addCharacter("u2", { name: "Zibbo", className: "Mage", realm: "Spineshatter", specs: [{ key: "Mage-Frost", gear: "ready" }] });
+    profiles.addCharacter("u1", { source: "log", name: "Zibbo", className: "Priest", realm: "Spineshatter", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+    profiles.addCharacter("u2", { source: "log", name: "Zibbo", className: "Mage", realm: "Spineshatter", specs: [{ key: "Mage-Frost", gear: "ready" }] });
     jest.spyOn(console, "warn").mockImplementation(() => {});
 });
 afterEach(() => console.warn.mockRestore());
@@ -130,6 +130,19 @@ describe("handoutList", () => {
         expect(bank.unlinked).toBe(0);
     });
 
+    it("leaves out a confirmed request whose character nobody has confirmed — until the orga checks it in game", () => {
+        // "Gentle" was typed at a signup: no log, no loot, no armory
+        profiles.addCharacter("u3", { name: "Gentle", className: "Druid" }, { name: "Gentle" });
+        const typed = confirmed({ userId: "u3", userName: "Gentle", characterName: "Gentle" });
+        let [bank] = handouts.handoutList().banks;
+        expect(bank.handouts).toEqual([]);
+        expect(bank.unlinked).toBe(1);
+        profiles.verifyCharacter("u3", "gentle", { by: "o1", byName: "Arthas" });
+        [bank] = handouts.handoutList().banks;
+        expect(bank.handouts.map((h) => [h.id, h.character.name])).toEqual([[typed.id, "Gentle"]]);
+        expect(bank.unlinked).toBe(0);
+    });
+
     it("leaves out a confirmed request without a linked character and counts it (no name, a stranger, a character gone)", () => {
         const none = confirmed({ characterName: "" });
         const stranger = confirmed({ characterName: "Fremd" });
@@ -151,7 +164,7 @@ describe("handoutList", () => {
     });
 
     it("takes the bank's realm and the profile's class for a character without a realm", () => {
-        profiles.addCharacter("u3", { name: "Ohnerealm", className: "Mage", specs: [{ key: "Mage-Fire", gear: "ready" }] });
+        profiles.addCharacter("u3", { source: "log", name: "Ohnerealm", className: "Mage", specs: [{ key: "Mage-Fire", gear: "ready" }] });
         confirmed({ userId: "u3", characterName: "Ohnerealm", realm: "", faction: "" });
         const [h] = handouts.handoutList().banks[0].handouts;
         expect(h.character).toEqual({ name: "Ohnerealm", realm: "Spineshatter", faction: "Alliance", classFile: "MAGE" });

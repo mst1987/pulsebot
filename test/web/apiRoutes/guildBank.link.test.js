@@ -81,8 +81,8 @@ beforeEach(() => {
     stockStore.setItemMeta("tbc", SPINAL, { name: "Crimson Spinal", icon: "inv_spinal" }, { source: "wowhead" });
     // all of it kept back: nothing is free, the waiting list stays
     stockStore.setItemSettings(KEY, SPINAL, { status: "give", reserve: 2 });
-    profiles.addCharacter("u7", { name: "Whapap", className: "Mage", realm: "Spineshatter", specs: [{ key: "Mage-Frost", gear: "ready" }] }, { name: "Wha" });
-    profiles.addCharacter("u8", { name: "Skerra", className: "Rogue" }, { name: "Sk" });
+    profiles.addCharacter("u7", { source: "log", name: "Whapap", className: "Mage", realm: "Spineshatter", specs: [{ key: "Mage-Frost", gear: "ready" }] }, { name: "Wha" });
+    profiles.addCharacter("u8", { source: "log", name: "Skerra", className: "Rogue" }, { name: "Sk" });
 });
 
 describe("apiRoutes/guildBank — linking and the hand-out history", () => {
@@ -147,7 +147,7 @@ describe("apiRoutes/guildBank — linking and the hand-out history", () => {
 
     // #741: TBC bank = TBC characters — a Forever character is neither offered nor taken
     it("offers and takes only characters of the bank's version", async () => {
-        profiles.addCharacter("u7", { name: "Whapforever", className: "Mage" }, { versionId: "forever" });
+        profiles.addCharacter("u7", { source: "log", name: "Whapforever", className: "Mage" }, { versionId: "forever" });
         const forever = profiles.getProfile("u7").characters.find((c) => c.name === "Whapforever");
         let res = await call(searchGuildBankCharacters, { url: q("characters", { key: KEY, q: "wha" }) });
         expect(body(res).characters.map((c) => c.characterName)).toEqual(["Whapap"]);

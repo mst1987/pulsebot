@@ -280,6 +280,8 @@
   "GET /api/guildbank/requests",
   "GET /api/guildbank/handedout",
   "GET /api/guildbank/characters",
+  "POST /api/guildbank/characters/armory",
+  "POST /api/guildbank/characters/verify",
   "POST /api/guildbank/request/link",
   "GET /api/guildbank/waitlist",
   "POST /api/guildbank/waitlist/add",
