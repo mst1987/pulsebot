@@ -4,6 +4,8 @@
 //   event-new:t:<state>  raid template event-new:b:<state>  back to step 1 (from an error)
 //   event-new:k:<state>  channel mode  event-new:x:<state>  cancel
 //   event-new:r:<state>  duplicated event / existing channel
+//   event-new:i:<state>  channel icon (select)   event-new:j:<state>  icon button (duplicate mode: the state
+//                                                carries the next choice)
 //
 // Each one redraws the message with the new state in every customId. "Weiter"
 // is not here: it has to open a modal, see eventCreateModal.js.

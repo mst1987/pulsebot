@@ -37,6 +37,9 @@ const { signupSourceFor } = require("./eventSources");
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
 const { eventGuildId } = require("../discord/guildRoles");
 const { createEvent } = require("./eventCreate");
+const { templateVersionProblem } = require("./categoryEras");
+const icon = require("./eventIcon");
+const archiveStore = require("../../stores/channelArchiveStore");
 const { MIN_DURATION, MAX_DURATION } = require("../../stores/eventStore");
 const { instanceById } = require("../../config/gameVersions");
 const { WEEKDAYS } = require("../../utils/channelNames");
@@ -46,6 +49,8 @@ const { isSnowflake } = require("../../utils/ids");
 
 const STEP_PREFIX = "event-new";
 const FORM_PREFIX = "event-form";
+/** "Kanal umbenennen …" under the confirmation: event-rename:<channelId> (eventChannelRename.js). */
+const RENAME_PREFIX = "event-rename";
 const CUSTOM_ID_MAX = 100;
 const MAX_OPTIONS = 25;
 const { TIMEZONE } = require("../../config/timezone");
@@ -77,12 +82,14 @@ function cleanState(raw = {}) {
         ref: REF_ID.test(s(raw.ref || "")) ? s(raw.ref) : "",
         // "Beim Anlegen ankündigen" (#306): "" = as the category has it, "1"/"0" = decided here.
         ann: raw.ann === "1" || raw.ann === "0" ? raw.ann : "",
+        // "Kanal-Icon" (eventIcon.js): a short code, resolved again against the current options on every use.
+        ico: icon.cleanIcon(raw.ico),
     };
 }
 
 function encodeState(state) {
     const c = cleanState(state);
-    return [c.cat, c.tpl, c.mode, c.src, c.ref, c.ann].join(":");
+    return [c.cat, c.tpl, c.mode, c.src, c.ref, c.ann, c.ico].join(":");
 }
 
 function stepId(field, state) {
@@ -98,11 +105,11 @@ function parseCustomId(customId) {
     const parts = String(customId || "").split(":");
     const prefix = parts[0];
     if (prefix === STEP_PREFIX) {
-        const [, field = "", cat, tpl, mode, src, ref, ann] = parts;
-        return { prefix, field, state: cleanState({ cat, tpl, mode, src, ref, ann }), token: "" };
+        const [, field = "", cat, tpl, mode, src, ref, ann, ico] = parts;
+        return { prefix, field, state: cleanState({ cat, tpl, mode, src, ref, ann, ico }), token: "" };
     }
-    const [, cat, tpl, mode, src, ref, ann, token = ""] = parts;
-    return { prefix, field: "", state: cleanState({ cat, tpl, mode, src, ref, ann }), token: /^[a-f0-9]{8}$/.test(token) ? token : "" };
+    const [, cat, tpl, mode, src, ref, ann, ico, token = ""] = parts;
+    return { prefix, field: "", state: cleanState({ cat, tpl, mode, src, ref, ann, ico }), token: /^[a-f0-9]{8}$/.test(token) ? token : "" };
 }
 
 // ---- what there is to choose from ----
@@ -124,17 +131,24 @@ function eventCategories(guildId) {
     return list.filter((c) => isSnowflake(c.id)).slice(0, MAX_OPTIONS);
 }
 
-/** Templates that make sense for a source: a size for EventHelper, a Raid-Helper link for Raid-Helper. */
-function templatesFor(src) {
+/**
+ * Templates that make sense for a source (a size for EventHelper, a Raid-Helper link for Raid-Helper)
+ * and for the category: only those of the game version it plays — the rule createEvent enforces
+ * (categoryEras.templateVersionProblem), so nothing is offered that would be refused with
+ * 409 template_version_mismatch.
+ */
+function templatesFor(src, cat = "") {
+    const config = getConfig();
     return listRaidTemplates()
         .filter((t) => TEMPLATE_ID.test(t.id))
+        .filter((t) => !templateVersionProblem({ template: t, categoryId: cat, config }))
         .filter((t) => (src === "r" ? !!t.raidhelperTemplateId : !!(t.size || (t.instanceIds || []).length)))
         .slice(0, MAX_OPTIONS);
 }
 
 /** The template chosen, else the category's default, else the first that fits the source. */
 function fitTemplate(state) {
-    const templates = templatesFor(state.src);
+    const templates = templatesFor(state.src, state.cat);
     if (templates.some((t) => t.id === state.tpl)) return state;
     const preferred = (getConfig().categoryRaidTemplate || {})[state.cat];
     const pick = templates.find((t) => t.id === preferred) || templates[0];
@@ -144,7 +158,7 @@ function fitTemplate(state) {
 /** A category chosen: its source and default template are proposed again. */
 function withCategory(state, cat) {
     const src = signupSourceFor(cat) === "eventhelper" ? "e" : "r";
-    return fitTemplate({ ...state, cat, src, tpl: "", ref: "" });
+    return fitTemplate({ ...state, cat, src, tpl: "", ref: "", ico: "" });
 }
 
 /** Where /event anlegen starts: the category of the channel it was typed in, if it is one. */
@@ -183,6 +197,22 @@ function channelNamingFor(guildId, state, template, date = "") {
         guildId, categoryId: state.cat, date,
         instanceIds: (template && template.instanceIds) || [],
         fromEventId: state.mode === "d" ? state.ref : "",
+    });
+}
+
+/** The options of the "Kanal-Icon" select for a naming result; the emojis of the category's channels come from the live list. */
+function iconsFor(guildId, state, template, naming) {
+    let channels;
+    try {
+        channels = discord.listAllChannels(guildId) || [];
+    } catch {
+        channels = [];
+    }
+    return icon.iconOptions({
+        derivedName: (naming && naming.name) || "",
+        raidLabel: instancesLabel(template),
+        instanceIds: (template && template.instanceIds) || [],
+        categoryNames: channels.filter((c) => String(c.parentId || "") === state.cat).map((c) => String(c.name || "")),
     });
 }
 
@@ -251,7 +281,7 @@ async function stepMessage(guildId, rawState) {
     state = fitTemplate(state);
 
     const category = categories.find((c) => c.id === state.cat);
-    const templates = templatesFor(state.src);
+    const templates = templatesFor(state.src, state.cat);
     const template = templates.find((t) => t.id === state.tpl) || null;
 
     let candidates = [];
@@ -261,13 +291,21 @@ async function stepMessage(guildId, rawState) {
     }
 
     let channelLine;
-    if (state.mode === "n") channelLine = (await channelNamingFor(guildId, state, template)).step;
-    else if (state.mode === "d") {
+    let icons = null; // the "Kanal-Icon" options, only where a channel is created
+    let naming = null;
+    if (state.mode === "n") {
+        naming = await channelNamingFor(guildId, state, template);
+        channelLine = naming.step;
+    } else if (state.mode === "d") {
         const source = candidates.find((ev) => ev.id === state.ref);
+        if (source) naming = await channelNamingFor(guildId, state, template);
         channelLine = source
-            ? `Kanal von **${clip(source.title, 60)}** duplizieren · Name ${(await channelNamingFor(guildId, state, template)).step.replace(/^neu /, "")}`
+            ? `Kanal von **${clip(source.title, 60)}** duplizieren · Name ${naming.step.replace(/^neu /, "")}`
             : "kein Event in dieser Kategorie zum Duplizieren";
     } else channelLine = state.ref ? `<#${state.ref}>` : "Kanal unten wählen";
+    if (naming) icons = iconsFor(guildId, state, template, naming);
+    const iconChoice = icons ? icon.resolveIcon(icons.options, state.ico) : null;
+    if (iconChoice && iconChoice.code !== state.ico) state = { ...state, ico: iconChoice.code };
 
     const announce = announceFor(state);
     const templateLine = template
@@ -280,6 +318,11 @@ async function stepMessage(guildId, rawState) {
         `**Kanal:** ${channelLine}`,
         `**Anmeldung über:** ${SOURCE_LABELS[state.src]}`,
     ];
+    if (iconChoice) {
+        // The previous channel's name with the pick applied: what the icon does to the name, the date is filled in later.
+        const preview = icon.applyIcon(naming.fromChannel || naming.name, iconChoice.code, icons);
+        lines.push(`**Kanal-Icon:** ${[iconChoice.emoji, iconChoice.label].filter(Boolean).join(" ")}${preview ? ` · \`${clip(preview, 60)}\`` : ""}`);
+    }
     if (state.src === "e") lines.push(`**Ankündigung:** ${announceLine(announce)}`);
 
     const components = [
@@ -298,6 +341,17 @@ async function stepMessage(guildId, rawState) {
         type: 3, custom_id: stepId("k", state), placeholder: "Kanal",
         options: MODES.map((m) => option(MODE_LABELS[m], m, m === state.mode)),
     }));
+    // A message holds five rows: with "Kanal-Icon" as a select only while the duplicate mode's
+    // event select does not need its row (then a button cycles through the same options).
+    if (icons && state.mode === "n") {
+        components.push(row({
+            type: 3, custom_id: stepId("i", state), placeholder: "Kanal-Icon",
+            options: icons.options.map((o) => ({
+                label: clip(o.label, 100), value: o.code || "w", default: o.code === iconChoice.code,
+                ...(o.emoji ? { emoji: { name: o.emoji } } : {}),
+            })),
+        }));
+    }
     if (state.mode === "d" && candidates.length) {
         components.push(row({
             type: 3, custom_id: stepId("r", state), placeholder: "Event, dessen Kanal kopiert wird",
@@ -316,6 +370,11 @@ async function stepMessage(guildId, rawState) {
         button(formId(state), "Weiter", 1, !ready),
         button(stepId("s", state), `Anmeldung über ${SOURCE_LABELS[other]}`),
         ...(state.src === "e" ? [button(stepId("a", state), announce.enabled ? "Ankündigung: an" : "Ankündigung: aus")] : []),
+        ...(icons && state.mode === "d" ? [button(
+            // the customId already carries the *next* choice; "j" applies nothing but the state
+            stepId("j", { ...state, ico: icon.nextIcon(icons.options, state.ico) }),
+            `Icon: ${iconChoice.emoji || iconChoice.label}`,
+        )] : []),
         button(stepId("x", state), "Abbrechen"),
     ));
 
@@ -338,10 +397,12 @@ function applyStep(state, field, value = "") {
     const v = String(value || "");
     switch (field) {
         case "c": return withCategory(state, isSnowflake(v) ? v : "");
-        case "t": return { ...state, tpl: TEMPLATE_ID.test(v) ? v : "" };
+        // the suggestions "Passt zu <Raid>" belong to the template: its icon pick is over
+        case "t": return { ...state, tpl: TEMPLATE_ID.test(v) ? v : "", ico: "" };
+        case "i": return { ...state, ico: icon.cleanIcon(v) };
         case "k": return { ...state, mode: MODES.includes(v) ? v : "n", ref: "" };
         case "r": return { ...state, ref: REF_ID.test(v) ? v : "" };
-        case "s": return fitTemplate({ ...state, src: state.src === "e" ? "r" : "e" });
+        case "s": return fitTemplate({ ...state, src: state.src === "e" ? "r" : "e", ico: "" });
         case "a": return { ...state, ann: announceFor(state).enabled ? "0" : "1" };
         default: return state;
     }
@@ -376,6 +437,16 @@ function parseComposition(value) {
     return { size, tank, healer, durationMinutes };
 }
 
+/** The start time the category's quick-create remembers ("19:30", Kanäle → Schnell anlegen), "" without one. */
+function rememberedTime(guildId, cat) {
+    if (!guildId || !cat) return "";
+    try {
+        return parseClockTime((((archiveStore.getChannelConfig(guildId) || {}).schemas || {})[cat] || {}).time);
+    } catch {
+        return "";
+    }
+}
+
 /** The "Größe/T/H/Dauer" a template proposes ("25/3/6/240"), "" without a size. */
 function compositionOf(template) {
     if (!template || !template.size) return "";
@@ -389,7 +460,7 @@ function compositionOf(template) {
  * submit, with what was typed. The composition field only exists for an
  * EventHelper event: Raid-Helper has no place to keep it.
  */
-function formModal(state, { values = null } = {}) {
+function formModal(state, { values = null, guildId = "" } = {}) {
     const template = state.tpl ? getRaidTemplate(state.tpl) : null;
     const label = instancesLabel(template) || (template && template.name) || "Event";
     const v = values || {};
@@ -403,7 +474,7 @@ function formModal(state, { values = null } = {}) {
     const rows = [
         input("title", "Titel", TextInputStyle.Short, { value: v.title !== undefined ? v.title : label === "Event" ? "" : label, max: 100 }),
         input("date", "Datum", TextInputStyle.Short, { value: v.date, placeholder: "24.09.2026 oder 24.09.", max: 10 }),
-        input("time", "Uhrzeit", TextInputStyle.Short, { value: v.time, placeholder: "19:30", max: 5 }),
+        input("time", "Uhrzeit", TextInputStyle.Short, { value: v.time !== undefined ? v.time : rememberedTime(guildId, state.cat), placeholder: "19:30", max: 5 }),
     ];
     if (state.src !== "r") {
         rows.push(input("comp", "Größe/T/H/Dauer (Dauer optional, Min.)", TextInputStyle.Short, {
@@ -504,6 +575,11 @@ async function buildBody(guildId, rawState, values, { userId, now = Date.now() }
                     tank: comp.tank, healer: comp.healer,
                     melee: (tplComp.melee && tplComp.melee.min) || 0, ranged: (tplComp.ranged && tplComp.ranged.min) || 0,
                 };
+                // The modal only carries the minimums; the template's maxima (#261) travel along, as
+                // the web dialog sends them — capped at the size the field names.
+                const max = (range) => (range && Number.isFinite(Number(range.max)) && range.max !== null ? Math.min(Number(range.max), comp.size) : null);
+                const compositionMax = { melee: max(tplComp.melee), ranged: max(tplComp.ranged) };
+                if (compositionMax.melee !== null || compositionMax.ranged !== null) body.compositionMax = compositionMax;
             }
         }
     }
@@ -516,8 +592,10 @@ async function buildBody(guildId, rawState, values, { userId, now = Date.now() }
     } else {
         if (state.mode === "d" && !state.ref) return fail("Kein Event gewählt, dessen Kanal dupliziert wird.");
         naming = await channelNamingFor(guildId, state, template, date);
-        const { name } = naming;
-        if (!name) return fail("Aus dem letzten Kanal und dem Namensschema der Kategorie ergibt sich kein Kanalname.");
+        if (!naming.name) return fail("Aus dem letzten Kanal und dem Namensschema der Kategorie ergibt sich kein Kanalname.");
+        // The icon pick, resolved again against what the category has now.
+        const name = icon.applyIcon(naming.name, state.ico, iconsFor(guildId, state, template, naming));
+        naming = { ...naming, name };
         if (channels.some((c) => String(c.name).toLowerCase() === name)) {
             return fail(`Einen Kanal **${name}** gibt es schon (${namingLine(naming)}).`);
         }
@@ -560,10 +638,12 @@ function successMessage(guildId, state, { body, startTime, naming }, result) {
     links.push({ type: 2, style: 5, label: "Im Web bearbeiten", url: webUrl(detail) });
     if (eventId) links.push({ type: 2, style: 5, label: "Ankündigung pingen", url: webUrl(`${detail}&tab=actions`) });
     // A link without PUBLIC_BASE_URL is relative, and Discord refuses the whole message for one.
-    const usable = links.filter((l) => /^https?:\/\//.test(l.url));
+    const buttons = links.filter((l) => /^https?:\/\//.test(l.url));
+    // A channel made here (new or duplicated) can be renamed right away; a chosen one is not ours to rename.
+    if (channelUrl && state.mode !== "e") buttons.push(button(`${RENAME_PREFIX}:${channelId}`, "Kanal umbenennen …"));
     return {
         embeds: [{ title: clip(`Event angelegt · ${body.title}`, 256), description: lines.join("\n"), color: COLOR_OK }],
-        components: usable.length ? [row(...usable)] : [],
+        components: buttons.length ? [row(...buttons)] : [],
     };
 }
 
@@ -590,7 +670,7 @@ async function submitForm(guildId, rawState, values, { userId, now = Date.now() 
 }
 
 module.exports = {
-    STEP_PREFIX, FORM_PREFIX, parseCustomId, guildFor, initialState, applyStep, stepMessage, parseComposition, formModal, readForm,
+    STEP_PREFIX, FORM_PREFIX, RENAME_PREFIX, eventCategories, parseCustomId, guildFor, initialState, applyStep, stepMessage, parseComposition, formModal, readForm,
     getDraft, submitForm,
     // only for the tests (#424): not part of the module's API
     _internal: {

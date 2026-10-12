@@ -1,6 +1,22 @@
 // Inline SVGs ported 1:1 from src/web/renderAdmin.js (CREST_SVG, BURGER_SVG,
 // NAV_ICONS) and src/web/render.js (theme toggle SUN/MOON), as JSX components.
 
+/** The EventHelper mark (logo canvas Oct 2026, "Kalender mit Haken"): the
+ * calendar of the events with the check of a sign-up. Drawn on the accent
+ * gradient of `.crest`; the same lines as public/favicon.svg, the sync tool's
+ * icon and the addon's in game. */
+export function BrandIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+            <path d="M8 2.5V7M16 2.5V7M3.5 9.5h17" />
+            <path d="m8.5 14.5 2.5 2.5 4.5-4.5" />
+        </svg>
+    );
+}
+
+/** A shield with a check: "in the roster" in the squad planner. Until Oct 2026
+ * it was also the brand mark (now BrandIcon). */
 export function CrestIcon() {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
