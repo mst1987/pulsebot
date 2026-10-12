@@ -16,7 +16,7 @@ const { canManageRosterLive } = require("../../services/roster/rosterAccess");
 const rosterMembers = require("../../services/roster/rosterMembers");
 const { searchMembers } = require("../../services/roster/rosterMemberSearch");
 const { activeRoster } = require("../roster/activeRoster");
-const { knownVersion, mainVersionFor } = require("../../services/events/mainVersion");
+const { resolveVersionQuery } = require("../../services/events/mainVersion");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 
@@ -103,7 +103,7 @@ const getRosterMemberSearch = withUser({}, async ({ req, query, res }) => {
         if (!roster) return refuse(res, "not_found");
         scope = { guildId: roster.guildId, versionId: roster.versionId, members: roster.members };
     } else {
-        scope = { guildId: activeGuildFor(req), versionId: knownVersion(query.get("version")) || mainVersionFor(), members: {} };
+        scope = { guildId: activeGuildFor(req), versionId: resolveVersionQuery(query.get("version")).versionId, members: {} };
     }
     const found = await searchMembers({ ...scope, query: str(query.get("q")) });
     if (found.error) return refuse(res, found.error);

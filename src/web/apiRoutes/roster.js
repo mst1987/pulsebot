@@ -123,8 +123,10 @@ function isOwnCharacter(user, name) {
 const getRosterChar = withUser({}, async ({ req, res, user, url }) => {
     const name = String(url.searchParams.get("name") || "").trim();
     const guildId = activeGuildFor(req);
+    // The page's version (#741); a hidden version (#563) is answered as the main one. Nothing asked = every version, as before.
     const version = String(url.searchParams.get("version") || "").trim();
-    const facts = name ? rosterCharacter(guildId, name, { versionId: knownVersion(version) }) : null;
+    const versionId = knownVersion(version) ? versionFilter(url).versionId : "";
+    const facts = name ? rosterCharacter(guildId, name, { versionId }) : null;
     const ids = String(url.searchParams.get("items") || "")
         .split(",")
         .map((s) => Number(s.trim()))

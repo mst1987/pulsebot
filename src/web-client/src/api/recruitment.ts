@@ -85,8 +85,10 @@ export type RecruitmentData = {
     mainVersion: string;
 };
 
-export function getRecruitmentData(params: { view?: string; edit?: string; editpost?: string } = {}): Promise<RecruitmentData> {
+/** `version`: the lists of that game version only (the menu's content version, #741); an opened editor's entry stays. */
+export function getRecruitmentData(params: { view?: string; edit?: string; editpost?: string; version?: string } = {}): Promise<RecruitmentData> {
     const qs = new URLSearchParams();
+    if (params.version) qs.set("version", params.version);
     if (params.view) qs.set("view", params.view);
     if (params.edit) qs.set("edit", params.edit);
     if (params.editpost) qs.set("editpost", params.editpost);

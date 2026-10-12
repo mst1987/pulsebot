@@ -67,7 +67,9 @@ export default function HistoryCharPage() {
     // The second answer follows the first (it needs the worn items) and is
     // best-effort: the page stands without role, attendance and BiS facts.
     const itemIds = useMemo(() => (character.data?.gear || []).map((g) => g.itemId).filter((id): id is number => !!id), [character.data]);
-    const rosterData = useApi(() => getRosterChar(name, itemIds), [name, itemIds], { enabled: !!character.data });
+    // In the version the character page shows (#741), so the attendance is that version's alone.
+    const charVersion = character.data?.versionId || "";
+    const rosterData = useApi(() => getRosterChar(name, itemIds, charVersion), [name, itemIds, charVersion], { enabled: !!character.data });
     const roster = rosterData.error ? null : rosterData.data;
 
     // A wrongly assigned award usually shows up here — on the raider who did not

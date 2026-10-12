@@ -130,6 +130,28 @@ describe("opening", () => {
         expect(lastPayload(here.reply).embeds[0].title).toBe("SSC + TK verwalten");
     });
 
+    it("leaves the events of a hidden version out of the autocomplete (#563)", async () => {
+        const start = Math.floor(Date.now() / 1000) + 8 * 86400;
+        const forever = eventStore.createEvent({
+            guildId: GUILD, channelId: CHANNEL, channelName: "do-ony", categoryId: "100000000000000001",
+            title: "Ony", startTime: start, versionId: "forever", instanceIds: ["forever-ony"], size: 40,
+        }).event;
+        const configSpy = jest.spyOn(require("../../../src/stores/configStore"), "getConfig");
+        try {
+            const choices = async () => {
+                const i = interaction({ commandName: "event", focused: { name: "event", value: "" } });
+                await eventCommand.autocomplete(i);
+                return lastPayload(i.respond).map((c) => c.value);
+            };
+            configSpy.mockReturnValue({ mainVersion: "tbc" });
+            expect(await choices()).toEqual([event.id, forever.id]);
+            configSpy.mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+            expect(await choices()).toEqual([event.id]);
+        } finally {
+            configSpy.mockRestore();
+        }
+    });
+
     it("suggests the server's events in the autocomplete", async () => {
         const i = interaction({ commandName: "event", focused: { name: "event", value: "ssc" } });
         await eventCommand.autocomplete(i);

@@ -15,6 +15,7 @@ const { openPayload } = require("../../services/events/eventManageBot");
 const { listEvents } = require("../../stores/eventStore");
 const { whenLabel } = require("../../services/events/eventManage");
 const { respondChoices } = require("../../utils/discord/botLookup");
+const { visibleRows, versionOfEvent } = require("../../services/events/mainVersion");
 
 // Events that started more than a day ago are no longer offered.
 const LOOKBACK_SECONDS = 24 * 3600;
@@ -58,7 +59,8 @@ module.exports = {
     async autocomplete(interaction) {
         const guildId = String(interaction.guildId || (interaction.guild && interaction.guild.id) || "");
         const since = Math.floor(Date.now() / 1000) - LOOKBACK_SECONDS;
-        const events = guildId ? listEvents(guildId, { sinceSeconds: since }).sort((a, b) => a.startTime - b.startTime) : [];
+        // Other versions hidden (#563): their events are archive, nothing to manage from here.
+        const events = guildId ? visibleRows(listEvents(guildId, { sinceSeconds: since }), (e) => versionOfEvent(e)).sort((a, b) => a.startTime - b.startTime) : [];
         return respondChoices(interaction, events.map((e) => ({
             name: `${e.title} · ${whenLabel(e.startTime)}${e.status === "cancelled" ? " · abgesagt" : ""}`,
             value: e.id,

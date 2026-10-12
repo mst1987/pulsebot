@@ -125,6 +125,46 @@ describe("/loot", () => {
         });
     });
 
+    describe("one game version (#741)", () => {
+        const configStore = require("../../../src/stores/configStore");
+        let configSpy;
+        beforeEach(() => {
+            configSpy = jest.spyOn(configStore, "getConfig").mockReturnValue({ mainVersion: "tbc", categoryVersion: { fcat: "forever" } });
+        });
+        afterEach(() => configSpy.mockRestore());
+
+        it("/loot ich names and links only the characters that play the command's version", async () => {
+            charactersForUser.mockReturnValue([{ character: "Anna", categoryIds: ["tcat"] }, { character: "Fenja", categoryIds: ["fcat"] }]);
+            const forever = mockInteraction({ options: { __subcommand: "ich", version: "forever" } });
+            await command.execute(forever);
+            expect(embed(forever).description).toContain("Fenja");
+            expect(embed(forever).description).not.toContain("Anna");
+            expect(button(forever).url).toMatch(/name=Fenja$/);
+
+            const tbc = mockInteraction({ options: { __subcommand: "ich" } });
+            await command.execute(tbc);
+            expect(embed(tbc).description).toContain("Anna");
+            expect(embed(tbc).description).not.toContain("Fenja");
+        });
+
+        it("/loot ich says nothing is assigned when no character plays the version", async () => {
+            charactersForUser.mockReturnValue([{ character: "Anna", categoryIds: ["tcat"] }]);
+            const i = mockInteraction({ options: { __subcommand: "ich", version: "forever" } });
+            await command.execute(i);
+            expect(embed(i).description).toContain("kein Charakter zugeordnet");
+        });
+
+        it("/loot raider suggests only the characters of the version", async () => {
+            annotatedCharacters.mockReturnValue([
+                { character: "Anna", items: [], categoryIds: ["tcat"] },
+                { character: "Fenja", items: [], categoryIds: ["fcat"] },
+            ]);
+            const i = mockInteraction({ focused: { name: "name", value: "" }, options: { version: "forever" } });
+            await command.autocomplete(i);
+            expect(i.respond).toHaveBeenCalledWith([{ name: "Fenja", value: "Fenja" }]);
+        });
+    });
+
     describe("autocomplete", () => {
         it("suggests looted items by id, capped at 25", async () => {
             itemCatalog.mockReturnValue(Array.from({ length: 40 }, (_, n) => ({ itemId: n + 1, itemName: `Cowl ${n}` })));

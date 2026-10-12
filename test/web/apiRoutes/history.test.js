@@ -281,6 +281,7 @@ const lootEventMatch = require("../../../src/web/loot/lootEventMatch");
 const reportList = require("../../../src/services/logcheck/reportList");
 const charGear = require("../../../src/services/characters/charGear");
 const { emptyAccess } = require("../../../src/config/permissions");
+const raidEventStore = require("../../../src/stores/raidEventStore");
 const { post, get } = routerClient(require("../../../src/web/apiRoutes/history"));
 
 describe("web/apiRoutes/history", () => {
@@ -1264,6 +1265,172 @@ describe("web/apiRoutes/history", () => {
             const res = await get("/api/history/char", { name: "Anna" });
 
             expect(json(res).data.gearError).toBe("Blizzard-API nicht erreichbar (Netzwerkfehler).");
+        });
+    });
+
+    // One game version per page (#741): the raids "fe" is a Forever one, "te" a TBC one (stored versions of the snapshots).
+    describe("one game version per page (#741)", () => {
+        const admin = { id: "1", name: "Admin", isAdmin: true };
+        const STORED = { fe: "forever", te: "tbc" };
+        // Anna raided TBC only, Fenja Forever only, Both played both.
+        const chars = [
+            { character: "Anna", className: "Paladin", items: [{ eventId: "te" }], categoryIds: [] },
+            { character: "Fenja", className: "Mage", items: [{ eventId: "fe" }], categoryIds: [] },
+            { character: "Both", className: "Rogue", items: [{ eventId: "te" }, { eventId: "fe" }], categoryIds: [] },
+        ];
+
+        beforeEach(() => {
+            auth.getUser.mockReturnValue(admin);
+            auth.checkCsrf.mockReturnValue(true);
+            raidEventStore.versionOfRaidEvent = jest.fn((id) => STORED[id] || "");
+            characterInfo.annotatedCharacters.mockReturnValue(chars);
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc" });
+        });
+        afterEach(() => {
+            delete raidEventStore.versionOfRaidEvent;
+            characterInfo.annotatedCharacters.mockReturnValue([]);
+            settingsStore.getConfig.mockReturnValue({});
+            activeGuildFor.mockReturnValue("");
+            discord.listCategories.mockReturnValue([]);
+        });
+
+        describe("GET /api/history", () => {
+            it("answers the raids, loot buckets and characters of the asked version only, the picker keeps every version", async () => {
+                raidEventGroups.loadEventGroups.mockResolvedValue({
+                    groups: [{ categoryId: "cat1", events: [
+                        { id: "te", title: "Kara", startTime: 100, versionId: "tbc" },
+                        { id: "fe", title: "Ony", startTime: 200, versionId: "forever" },
+                    ] }],
+                    error: null,
+                });
+                dashboardData.annotateUpcomingExtras.mockImplementation((rows) => rows);
+                dashboardData.loadRecentEvents.mockResolvedValue({ events: [{ id: "te", versionId: "tbc" }, { id: "fe", versionId: "forever" }], error: null });
+                lootStore.eventsWithLoot.mockReturnValue([{ eventId: "te", label: "Kara" }, { eventId: "fe", label: "Ony" }]);
+                try {
+                    const forever = json(await get("/api/history", { version: "forever" })).data;
+                    expect(forever.events.map((e) => e.id)).toEqual(["fe"]);
+                    expect(forever.upcomingRaids.events.map((e) => e.id)).toEqual(["fe"]);
+                    expect(forever.pastRaids.events.map((e) => e.id)).toEqual(["fe"]);
+                    expect(forever.lootEvents.map((e) => e.eventId)).toEqual(["fe"]);
+                    expect(forever.chars.map((c) => c.character)).toEqual(["Fenja", "Both"]);
+                    expect(forever.versions.map((v) => v.id)).toEqual(["tbc", "forever"]);
+
+                    const tbc = json(await get("/api/history")).data;
+                    expect(tbc.events.map((e) => e.id)).toEqual(["te"]);
+                    expect(tbc.pastRaids.events.map((e) => e.id)).toEqual(["te"]);
+                    expect(tbc.lootEvents.map((e) => e.eventId)).toEqual(["te"]);
+                    expect(tbc.chars.map((c) => c.character)).toEqual(["Anna", "Both"]);
+                } finally {
+                    dashboardData.annotateUpcomingExtras.mockReset();
+                    raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
+                    dashboardData.loadRecentEvents.mockResolvedValue({ events: [], error: null });
+                    lootStore.eventsWithLoot.mockReturnValue([]);
+                }
+            });
+
+            it("answers the main version while the others are hidden, whatever is asked (#563)", async () => {
+                settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+                lootStore.eventsWithLoot.mockReturnValue([{ eventId: "te", label: "Kara" }, { eventId: "fe", label: "Ony" }]);
+                try {
+                    const data = json(await get("/api/history", { version: "forever" })).data;
+                    expect(data.lootEvents.map((e) => e.eventId)).toEqual(["te"]);
+                    expect(data.chars.map((c) => c.character)).toEqual(["Anna", "Both"]);
+                } finally {
+                    lootStore.eventsWithLoot.mockReturnValue([]);
+                }
+            });
+        });
+
+        describe("GET /api/history/loot-picker", () => {
+            it("offers the characters of the event's version", async () => {
+                const forever = json(await get("/api/history/loot-picker", { event: "fe" })).data;
+                expect(forever.characters.map((c) => c.character)).toEqual(["Fenja", "Both"]);
+                const tbc = json(await get("/api/history/loot-picker", { event: "te" })).data;
+                expect(tbc.characters.map((c) => c.character)).toEqual(["Anna", "Both"]);
+            });
+
+            it("takes the page's version for an event with no stored one (a hand-made bucket)", async () => {
+                const data = json(await get("/api/history/loot-picker", { event: "manual-x", version: "forever" })).data;
+                expect(data.characters.map((c) => c.character)).toEqual(["Fenja", "Both"]);
+            });
+        });
+
+        describe("POST /api/history/loot-add", () => {
+            const entry = { event: "fe", itemId: 30095, character: "Anna", boss: "Leotheras the Blind", response: "Mainspec", awardedAt: 5000 };
+            beforeEach(() => {
+                lootStore.addImport.mockReturnValue({ added: 1, skipped: 0 });
+                raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [{ categoryId: "cat1", events: [{ id: "fe", title: "Ony" }, { id: "te", title: "Kara" }] }] });
+            });
+            afterEach(() => raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null }));
+
+            it("refuses a known character that does not play the event's version", async () => {
+                const res = await post("/api/history/loot-add", entry);
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(json(res).error.code).toBe("wrong_version");
+                expect(json(res).error.message).toContain("Anna");
+                expect(lootStore.addImport).not.toHaveBeenCalled();
+            });
+
+            it("files it for a character of that version, and for a name nobody knows yet (a trial)", async () => {
+                expect((await post("/api/history/loot-add", { ...entry, character: "Fenja" })).writeHead).toHaveBeenCalledWith(201, expect.any(Object));
+                expect((await post("/api/history/loot-add", { ...entry, character: "Neuling" })).writeHead).toHaveBeenCalledWith(201, expect.any(Object));
+                expect((await post("/api/history/loot-add", { ...entry, event: "te" })).writeHead).toHaveBeenCalledWith(201, expect.any(Object));
+            });
+        });
+
+        describe("POST /api/history/import", () => {
+            it("matches the date among the raids of the import's version only", async () => {
+                lootImport.parseLoot.mockReturnValue([{ itemName: "Sword" }]);
+                lootImport.detectImportDate.mockReturnValue(1234);
+                raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [{ categoryId: "cat1", events: [
+                    { id: "te", title: "Kara", versionId: "tbc" }, { id: "fe", title: "Ony", versionId: "forever" },
+                ] }] });
+                lootStore.addImport.mockReturnValue({ added: 1, skipped: 0 });
+                try {
+                    await post("/api/history/import", { data: "text", event: "__auto__", version: "forever" });
+                    expect(lootEventMatch.bestDayMatch).toHaveBeenLastCalledWith(1234, [expect.objectContaining({ id: "fe" })]);
+                    // nothing known about the version: as before, every raid
+                    await post("/api/history/import", { data: "text", event: "__auto__" });
+                    expect(lootEventMatch.bestDayMatch).toHaveBeenLastCalledWith(1234, [expect.objectContaining({ id: "te" }), expect.objectContaining({ id: "fe" })]);
+                    // others hidden: the main version
+                    settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+                    await post("/api/history/import", { data: "text", event: "__auto__", version: "forever" });
+                    expect(lootEventMatch.bestDayMatch).toHaveBeenLastCalledWith(1234, [expect.objectContaining({ id: "te" })]);
+                } finally {
+                    lootImport.detectImportDate.mockReturnValue(null);
+                    raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
+                }
+            });
+
+            it("refuses a category of a hidden version (#563)", async () => {
+                settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true, categoryVersion: { catF: "forever" } });
+                lootImport.parseLoot.mockReturnValue([{ itemName: "Sword" }]);
+                const hiddenCat = await post("/api/history/import", { data: "text", event: "__manual__", manualLabel: "x", categoryId: "catF" });
+                expect(hiddenCat.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(json(hiddenCat).error.code).toBe("bad_category");
+                lootStore.addImport.mockReturnValue({ added: 1, skipped: 0 });
+                const shownCat = await post("/api/history/import", { data: "text", event: "__manual__", manualLabel: "x", categoryId: "catT" });
+                expect(shownCat.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
+            });
+        });
+
+        describe("GET /api/history/char", () => {
+            beforeEach(() => {
+                lootStore.listByCharacter.mockReturnValue([{ eventId: "te" }, { eventId: "fe" }]);
+                charGear._resetForTests();
+            });
+            afterEach(() => lootStore.listByCharacter.mockReturnValue([]));
+
+            it("takes the asked version of a character that plays both", async () => {
+                const data = json(await get("/api/history/char", { name: "Both", version: "forever" })).data;
+                expect(data).toMatchObject({ versionId: "forever", versionIds: ["tbc", "forever"] });
+            });
+
+            it("does not serve a hidden version: the main one is asked (#563)", async () => {
+                settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+                const data = json(await get("/api/history/char", { name: "Both", version: "forever" })).data;
+                expect(data.versionId).toBe("tbc");
+            });
         });
     });
 });

@@ -258,7 +258,8 @@ const deleteTemplate = withUser({ write: "raidplan", csrf: true, body: true }, a
 });
 
 function profileList() {
-    const profiles = profileStore.listProfiles();
+    // Other versions hidden (#563): their tactic profiles stay out.
+    const profiles = visibleRows(profileStore.listProfiles(), (p) => p.versionId);
     return { profiles, categories: profileStore.categories(profiles) };
 }
 
@@ -301,10 +302,11 @@ function catalogAnswer() {
     const visible = new Set(visibleVersions());
     const shown = (e) => !Array.isArray(e.versions) || !e.versions.length || e.versions.some((v) => visible.has(v));
     const view = catalog.catalogView();
+    const hidden = catalog.hiddenEntries();
     return {
         mobs: view.mobs.filter(shown),
         spells: view.spells.filter(shown),
-        hidden: catalog.hiddenEntries(),
+        hidden: { mobs: hidden.mobs.filter(shown), spells: hidden.spells.filter(shown) },
         kinds: catalog.KINDS,
         iconChoices: mobIconChoices(),
         classes: catalog.CLASS_IDS,

@@ -28,6 +28,18 @@ describe("GET /api/game-versions", () => {
         expect(classic.raidBuffs.length).toBeGreaterThan(0);
     });
 
+    it("names the versions a picker may offer: all, or only the main one while the others are hidden (#563), the rule sets stay complete", async () => {
+        requireAdmin.mockReturnValue({ id: "1", isAdmin: true });
+        const res = mockRes();
+        await getGameVersions({}, res);
+        expect(payload(res).visible).toEqual(["tbc", "classic", "forever"]);
+        mockConfig = { mainVersion: "forever", hideOtherVersions: true };
+        const hidden = mockRes();
+        await getGameVersions({}, hidden);
+        expect(payload(hidden).visible).toEqual(["forever"]);
+        expect(payload(hidden).versions.map((v) => v.id)).toEqual(["tbc", "classic", "forever"]);
+    });
+
     it("names the main version from the settings, the category's own when asked for one (#541)", async () => {
         requireAdmin.mockReturnValue({ id: "1", isAdmin: true });
         mockConfig = { mainVersion: "forever", categoryVersion: { c1: "tbc" } };
