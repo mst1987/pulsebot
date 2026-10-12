@@ -186,6 +186,19 @@ describe("services/events/orgaHub start / nudge", () => {
         expect(hub.scheduleRefresh()).toBeNull();
     });
 
+    it("forgets a deleted hub's fingerprint, so the next redraw posts it anew", async () => {
+        discord.postPayload.mockResolvedValue(posted("m1", "c1"));
+        await hub.postHub({ categoryId: "cat1", channelId: "c1" });
+        expect(hub.onHubMessageDeleted("other")).toBe(false);
+        expect(hub.onHubMessageDeleted("")).toBe(false);
+        expect(hub.onHubMessageDeleted("m1", { delayMs: 10 })).toBe(true);
+        expect(store.getHub("cat1").hash).toBe("");
+        discord.editPayload.mockRejectedValue(Object.assign(new Error("Unknown Message"), { code: 10008 }));
+        discord.postPayload.mockResolvedValue(posted("m2", "c1"));
+        await jest.advanceTimersByTimeAsync(20);
+        expect(store.getHub("cat1").messageId).toBe("m2");
+    });
+
     it("sweeps after the first delay and redraws a few seconds after a change", async () => {
         discord.postPayload.mockResolvedValue(posted());
         await hub.postHub({ categoryId: "cat1", channelId: "c1" });

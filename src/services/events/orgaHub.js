@@ -13,8 +13,9 @@
 //   - a nudge a few seconds after an own event or a signup changed
 //     (eventStore.onEventsChanged, signupStore.onSignupsChanged): an event
 //     created, moved or cancelled, a setup saved, approved or posted, a signup.
-// A hub whose message is gone (deleted in Discord) is posted anew into its
-// channel; one whose channel is gone is logged once and left.
+// A hub whose message is gone (deleted in Discord: linkWatch.js tells
+// onHubMessageDeleted at once) is posted anew into its channel; one whose
+// channel is gone is logged once and left.
 //
 // Only own EventHelper events: a store read, never a Raid-Helper request.
 const crypto = require("crypto");
@@ -207,6 +208,20 @@ function scheduleRefresh({ delayMs = NUDGE_MS } = {}) {
     return nudgeTimer;
 }
 
+/**
+ * A hub's message was deleted in Discord (services/discord/linkWatch.js): its
+ * fingerprint is forgotten, so the next redraw finds it stale, its edit hits
+ * "Unknown Message" and it is posted anew. Returns whether it was a hub.
+ */
+function onHubMessageDeleted(messageId, { delayMs = NUDGE_MS } = {}) {
+    const id = str(messageId);
+    const hub = id ? store.listHubs().find((h) => h.messageId === id) : null;
+    if (!hub) return false;
+    store.markHubDrawn(hub.categoryId, "");
+    scheduleRefresh({ delayMs });
+    return true;
+}
+
 let stopFn = null;
 
 /**
@@ -244,5 +259,5 @@ function stopOrgaHubs() {
 }
 
 module.exports = {
-    hubRaids, currentPayload, payloadHash, postHub, removeHub, refreshHubs, scheduleRefresh, startOrgaHubs, stopOrgaHubs, WEEKS,
+    hubRaids, currentPayload, payloadHash, postHub, removeHub, refreshHubs, scheduleRefresh, onHubMessageDeleted, startOrgaHubs, stopOrgaHubs, WEEKS,
 };

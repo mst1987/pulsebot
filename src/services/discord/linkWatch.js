@@ -10,7 +10,7 @@
 //   message deleted  → an own event's signup message is posted anew (the
 //                      sweep would not: its hash still matches), a posted
 //                      setup is marked as not posted, a raid overview message
-//                      is posted anew by its sync.
+//                      is posted anew by its sync, an Orga-Zentrale by its redraw.
 //
 // MESSAGE_DELETE comes in as a raw gateway packet: the client has no
 // Partials.Message (#430), so a message it did not cache (every message after
@@ -87,7 +87,9 @@ function onMessageDelete({ channelId, messageId }, { now = Date.now() } = {}) {
     }
     const overview = isOverviewMessage(id);
     if (overview || redrawn.length) scheduleOverviews();
-    return { redrawn, setupCleared, overview, channelId: String(channelId || "") };
+    // an Orga-Zentrale's message: posted anew by its redraw (lazily, like the overviews)
+    const orgaHub = require("../events/orgaHub").onHubMessageDeleted(id, { delayMs: REDRAW_DELAY_MS });
+    return { redrawn, setupCleared, overview, orgaHub, channelId: String(channelId || "") };
 }
 
 /** Hook both into the bot client (bot.js). */
