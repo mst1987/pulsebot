@@ -179,6 +179,8 @@ export type PersonalRaid = {
     specIcon: string;
     /** the approved setup's group, or the bench; null = no approved setup or not placed */
     placement: { group?: number; bench?: boolean; character?: string } | null;
+    /** an approved setup exists (with `placement` null: the raider was not placed) */
+    setupApproved?: boolean;
     /** signup deadline in seconds; 0 = none */
     deadline: number;
     deadlinePassed: boolean;

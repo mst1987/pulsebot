@@ -167,6 +167,8 @@ describe("GET /api/signups", () => {
         mockEvents.set("eh-kara", { ...ownEvent, setup: { status: "draft", groups: [{ index: 3, slots: [{ ...slot, reasons: ["x"] }] }], bench: [], approved: null } });
         let data = json(await call(route.getSignups, ANNA)).data;
         expect(data.events[0].placement).toBeNull();
+        // a draft is no setup yet: "Noch kein Setup", not "Nicht aufgestellt"
+        expect(data.events[0].setupApproved).toBe(false);
         expect(JSON.stringify(data)).not.toContain("\"index\":3");
 
         // a changed draft after an approval: the member keeps the approved group
@@ -176,6 +178,16 @@ describe("GET /api/signups", () => {
         } });
         data = json(await call(route.getSignups, ANNA)).data;
         expect(data.events[0].placement).toEqual({ group: 2, character: "Nerathil", spec: "Mage-Arcane", role: "ranged" });
+        expect(data.events[0].setupApproved).toBe(true);
+
+        // an approved setup without the member: no placement, but the setup stands ("Nicht aufgestellt")
+        mockEvents.set("eh-kara", { ...ownEvent, setup: {
+            status: "approved", groups: [], bench: [],
+            approved: { version: 1, groups: [{ index: 1, slots: [{ ...slot, userId: "someone-else" }] }], bench: [] },
+        } });
+        data = json(await call(route.getSignups, ANNA)).data;
+        expect(data.events[0].placement).toBeNull();
+        expect(data.events[0].setupApproved).toBe(true);
     });
 
     it("zeigt den eigenen Raid-Helper-Status", async () => {

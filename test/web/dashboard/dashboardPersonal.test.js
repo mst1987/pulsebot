@@ -56,7 +56,9 @@ describe("upcomingRow", () => {
     it("leaves the status empty without a signup, and a draft plan without token", () => {
         getPlan.mockReturnValue({ status: "draft", publicToken: "tok" });
         const row = upcomingRow({ id: "rh-1", source: "raidhelper", title: "Hyjal", startTime: 100, mine: null });
-        expect(row).toMatchObject({ status: "", placement: null, planToken: "", softresUrl: "", source: "raidhelper" });
+        expect(row).toMatchObject({ status: "", placement: null, setupApproved: false, planToken: "", softresUrl: "", source: "raidhelper" });
+        // an approved setup without the raider: the client says "Nicht aufgestellt"
+        expect(upcomingRow({ id: "eh-2", title: "x", mine: { status: "signed" }, placement: null, setupApproved: true })).toMatchObject({ placement: null, setupApproved: true });
         // a Raid-Helper row names the spec as specName
         expect(upcomingRow({ id: "rh-2", title: "x", mine: { status: "tentative", specName: "Holy1" } })).toMatchObject({ status: "tentative", spec: "Holy1" });
     });
