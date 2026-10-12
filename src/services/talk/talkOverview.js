@@ -498,6 +498,8 @@ function stopTalkOverview() {
 module.exports = {
     SELECT_ID, ALL_BUTTON_ID, MULTI_BUTTON_ID, RAIDHELPER_CREATE_DELAY_MS, CHANNEL_MISSING, currentPayload, syncOverview, overviewStatus,
     scheduleOverviewSync, startTalkOverview, stopTalkOverview,
+    // the counter the category overviews (events/raidOverview.js) show as well
+    attendingCount, fillText,
     // only for the tests (#424): not part of the module's API
     _internal: {
         overviewLinks, formatStart, buildOverviewMessage, payloadHash,

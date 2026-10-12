@@ -164,7 +164,7 @@ function withEraName(row, { config } = {}) {
 function planFields(ev) {
     return {
         versionId: ev.versionId, instanceIds: ev.instanceIds, size: ev.size,
-        composition: ev.composition, signupDeadline: ev.signupDeadline,
+        composition: ev.composition, signupDeadline: ev.signupDeadline, overflow: ev.overflow,
         // #305: how long the raid takes and where it meets (a voice channel).
         durationMinutes: ev.durationMinutes, voiceChannelId: ev.voiceChannelId || "",
         // #307: colour and picture of the event message, so the edit dialog
