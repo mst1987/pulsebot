@@ -29,6 +29,7 @@
 // pauses between channels, tolerates any failure and notes the server as done
 // only when it went through every channel.
 const store = require("../../stores/raidOverviewStore");
+const { isRaidSibling } = require("../../utils/raidGroup");
 const eventStore = require("../../stores/eventStore");
 const signupStore = require("../../stores/signupStore");
 const settingsStore = require("../../stores/settingsStore");
@@ -82,7 +83,8 @@ async function currentContent(categoryId, guildId, { config, now = Date.now(), c
     if (error) return { error };
     const cat = str(categoryId);
     const group = (groups || []).find((g) => str(g.categoryId) === cat);
-    const events = visibleRows((group && group.events) || [], (e) => versionOfEvent(e, { config: cfg }), cfg);
+    // a further raid of a raid group (#811) is no raid of its own for the raiders — its first raid stands for the evening
+    const events = visibleRows(((group && group.events) || []).filter((e) => !isRaidSibling(e)), (e) => versionOfEvent(e, { config: cfg }), cfg);
     const lang = categoryLang(cat, cfg);
     const weekStrip = visualOn(cfg, "overviewWeekStrip");
     const build = (lastChange, { pictures = weekStrip } = {}) => raidOverviewPayload({

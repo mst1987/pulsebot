@@ -284,23 +284,38 @@ function complete(e) {
             archived: !!e.cancel.archived,
         } : null,
         log: Array.isArray(e.log) ? e.log : [],
+        // Raid group (#811, utils/raidGroup.js): the primary's id on every raid of the group
+        // ("" = none) and the raid's place in it (1 = the primary the raiders sign up at).
+        raidGroupId: e.raidGroupId ? String(e.raidGroupId) : "",
+        raidGroupIndex: e.raidGroupId ? Math.max(1, Number(e.raidGroupIndex) || 1) : 0,
         createdBy: e.createdBy || "",
         createdAt: Number(e.createdAt) || 0,
         updatedAt: Number(e.updatedAt) || 0,
     };
 }
 
+/** A further raid of a raid group (#811): its group id is another event's. */
+const isSiblingRecord = (e) => !!(e && e.raidGroupId && String(e.raidGroupId) !== String(e.id));
+
 /**
  * The guild's own events, newest start first.
+ *
+ * The further raids of a raid group (#811) are left out unless `siblings: true`:
+ * they have no signup and no message of their own and share the night with the
+ * group's first raid — every reader that counts signups or nights, or offers a
+ * signup, sees the group once. The setup, the raid list, log matching and
+ * attendance ask for them.
  * @param {string} guildId  "" = every guild
- * @param {{ sinceSeconds?: number, untilSeconds?: number }} [opts] start-time bounds, inclusive
+ * @param {{ sinceSeconds?: number, untilSeconds?: number, siblings?: boolean }} [opts] start-time bounds, inclusive
  */
 function listEvents(guildId, opts = {}) {
     const gid = str(guildId);
     const since = Number(opts.sinceSeconds) || 0;
     const until = Number(opts.untilSeconds) || 0;
+    const siblings = opts.siblings === true;
     return peekAll()
         .filter((e) => e && e.id && (!gid || e.guildId === gid))
+        .filter((e) => siblings || !isSiblingRecord(e))
         .filter((e) => (!since || (Number(e.startTime) || 0) >= since) && (!until || (Number(e.startTime) || 0) <= until))
         .map(handOut)
         .sort((a, b) => b.startTime - a.startTime);
@@ -355,6 +370,8 @@ function createEvent(input = {}) {
         lockAtLimit: normalizeLockAtLimit(input),
         emojiStyle: emojiStyleOf(input.emojiStyle),
         raidTemplateId: str(input.raidTemplateId),
+        raidGroupId: str(input.raidGroupId),
+        raidGroupIndex: int(input.raidGroupIndex),
         createdBy: str(input.createdBy),
         createdAt: now,
         updatedAt: now,
@@ -582,6 +599,21 @@ function setEventAnnounced(id, at = Date.now()) {
     return complete(events[idx]);
 }
 
+/**
+ * Put an event into a raid group (#811) or take it out (`raidGroupId` ""):
+ * `{ raidGroupId, raidGroupIndex }`. Apart from updateEvent(): no planning field.
+ * Returns the event or null.
+ */
+function setEventRaidGroup(id, { raidGroupId = "", raidGroupIndex = 0 } = {}) {
+    const events = readAll();
+    const idx = events.findIndex((e) => e && e.id === str(id));
+    if (idx < 0) return null;
+    const group = str(raidGroupId);
+    events[idx] = { ...events[idx], raidGroupId: group, raidGroupIndex: group ? Math.max(1, int(raidGroupIndex) || 1) : 0, updatedAt: Date.now() };
+    writeAll(events);
+    return complete(events[idx]);
+}
+
 /** Delete an own event. Returns true when one was removed. */
 function deleteEvent(id) {
     const events = readAll();
@@ -670,7 +702,7 @@ if (typeof versionHook === "function") {
 
 module.exports = {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft, setEventState,
-    appendEventLog, setEventSetupPost, setEventSetupPingText, setEventExtraRole, EXTRA_ROLES, setEventDiscordEvent, setEventAnnounced,
+    appendEventLog, setEventRaidGroup, setEventSetupPost, setEventSetupPingText, setEventExtraRole, EXTRA_ROLES, setEventDiscordEvent, setEventAnnounced,
     normalizePlan, isOwnEventId, migrateOverflowModes, onEventsChanged, useFile: store.useFile, eventEndTime, plannedEndOrDefault, durationOf, MIN_DURATION, MAX_DURATION,
     // only for the tests (#424): not part of the module's API
     _internal: {

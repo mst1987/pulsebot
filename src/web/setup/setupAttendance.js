@@ -16,6 +16,7 @@ const { benchHistory } = require("../../services/setup/setupInput");
 const settingsStore = require("../../stores/settingsStore");
 const { categoryAttendanceFor } = require("../../stores/configSchema");
 const { versionOfEvent } = require("../../services/events/mainVersion");
+const { signupEventIdOf } = require("../../utils/raidGroup");
 
 /** "Druid-Feral" -> "Druid". */
 const classOfSpec = (spec) => String(spec || "").split("-")[0];
@@ -95,7 +96,8 @@ function setupAttendance(events, { now = Date.now() } = {}) {
     const profiles = new Map(profileStore.listProfiles().map((p) => [String(p.userId), p]));
     const byCategory = new Map();
     for (const event of list) {
-        for (const s of signupStore.listSignups(event.id)) {
+        // a raid of a group (#811): the signups of its first raid
+        for (const s of signupStore.listSignups(signupEventIdOf(event))) {
             if (!s || !s.userId || s.status === "absence") continue;
             const perCategory = byCategory.get(event.categoryId) || new Map();
             if (!perCategory.has(String(s.userId))) perCategory.set(String(s.userId), s);

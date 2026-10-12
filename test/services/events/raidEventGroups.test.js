@@ -402,7 +402,7 @@ describe("services/events/raidEventGroups", () => {
 
         it("passes the lookback on to the own store", async () => {
             await loadEventGroups("g1", { sinceSeconds: 4242 });
-            expect(eventStore.listEvents).toHaveBeenCalledWith("g1", { sinceSeconds: 4242 });
+            expect(eventStore.listEvents).toHaveBeenCalledWith("g1", { sinceSeconds: 4242, siblings: true });
         });
     });
 });

@@ -63,6 +63,8 @@ const {
 } = require("../discord/appEmojis");
 const { str, clip } = require("../../utils/text");
 const { approvedSetupOf, benchPosted, confirmationsFor, confirmButtonRow, inviteButtonRow, pingButtonRow } = require("./setupCore");
+const { groupSummary } = require("../events/raidGroup");
+const { raidIndexOf } = require("../../utils/raidGroup");
 const { callSetupPing, refreshSetupPing } = require("./setupPing");
 const { eventVersionTag } = require("../events/versionTag");
 const { setupImageSvg } = require("./setupImage");
@@ -162,7 +164,7 @@ const GRID_COLUMNS = 3;
  *   posted bench) as a drawn picture instead of fields - the payload then carries
  *   `images: [{ name, svg }]` for discordImage.withImages.
  */
-function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, bench: withBench = false, lang = "de", image = false } = {}) {
+function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, bench: withBench = false, lang = "de", image = false, raidOf = null } = {}) {
     if (!event || !approved || !Array.isArray(approved.groups)) return null;
     const cancelled = event.status === "cancelled";
     const plainTitle = `Setup · ${event.title || "Raid"}`;
@@ -185,7 +187,8 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, b
     // A blank line before the groups, so the header does not run straight into
     // "Group 1" — a bare empty line is trimmed off by Discord same as leading
     // whitespace, so it needs the same zero-width-space anchor.
-    const descLines = [when, totals].filter(Boolean);
+    // a raid of a group (#811): "Raid 2 of 2" — the setups of one evening stand side by side in the channel
+    const descLines = [raidOfText(raidOf, lang), when, totals].filter(Boolean);
     if (descLines.length) descLines.push("\u200b");
     const description = descLines.join("\n");
     const groups = approved.groups.filter((g) => (g.slots || []).length).sort((a, b) => a.index - b.index);
@@ -239,6 +242,17 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, b
     // command file), Call invites and Ping everyone the orga's alone (accessOf
     // "event") — merging the row changes nothing about that.
     return { content: "", embeds: [embed], components: [setupButtons(event, lang)] };
+}
+
+/** "**Raid 2 of 2**" for a raid of a group (#811), "" otherwise. */
+function raidOfText(raidOf, lang) {
+    return raidOf && raidOf.count > 1 ? `**${tr(lang, "Raid {index} of {count}", { index: raidOf.index, count: raidOf.count })}**` : "";
+}
+
+/** Where the event stands in its raid group (#811): `{ index, count }`, null outside one. */
+function raidOfEvent(event) {
+    const group = groupSummary(event);
+    return group ? { index: raidIndexOf(event), count: group.count } : null;
 }
 
 /** The marked message of a cancelled event: no groups, no buttons. */
@@ -328,13 +342,13 @@ function fairnessOn(event) {
 /**
  * The DM for one raider in their language — pure.
  */
-function buildSetupDm(event, placement, { messageUrl = "", reasons = [], fairness = false, lang = "de" } = {}) {
+function buildSetupDm(event, placement, { messageUrl = "", reasons = [], fairness = false, lang = "de", raidOf = null } = {}) {
     const start = Number(event.startTime) || 0;
     const name = [escapeMd(placement.character), specLabel(placement.spec, lang)].filter(Boolean).join(" · ");
     const who = name ? ` (${name})` : "";
     const facts = start ? [[tr(lang, "Start"), `<t:${start}:d> <t:${start}:t>`]] : [];
     const buttons = messageUrl ? [new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "Go to the setup")).setURL(messageUrl)] : [];
-    const base = { kind: "raid", color: embedColor(event), kicker: [tr(lang, "Setup for {title}", { title: escapeMd(event.title || "Raid") }), eventVersionTag(event)].filter(Boolean).join(" · "), facts, buttons };
+    const base = { kind: "raid", color: embedColor(event), kicker: [tr(lang, "Setup for {title}", { title: escapeMd(event.title || "Raid") }), raidOf && raidOf.count > 1 ? tr(lang, "Raid {index} of {count}", { index: raidOf.index, count: raidOf.count }) : "", eventVersionTag(event)].filter(Boolean).join(" · "), facts, buttons };
     if (placement.bench) {
         const text = [fairness
             ? tr(lang, "This time on the **bench**{who} – next time you have priority.", { who })
@@ -388,10 +402,11 @@ async function sendSetupDms(eventId, { config = getConfig(), delayMs = DM_DELAY_
         const fairness = fairnessOn(event);
         if (event.setupPost && event.setupPost.messageId) await linkCheck.checkMessage(event.guildId, event.setupPost.channelId, event.setupPost.messageId);
         const messageUrl = messageUrlOf(event);
+        const raidOf = raidOfEvent(event);
         for (let i = 0; i < todo.length; i++) {
             const p = todo[i];
             if (i && delayMs > 0) await sleep(delayMs);
-            const payload = buildSetupDm(event, p, { messageUrl, fairness, reasons: p.bench ? benchReasons(event, p.userId) : [], lang: langOf(p.userId, { config }) });
+            const payload = buildSetupDm(event, p, { messageUrl, fairness, reasons: p.bench ? benchReasons(event, p.userId) : [], lang: langOf(p.userId, { config }), raidOf });
             let result;
             try {
                 result = await discord.sendDirectMessage(p.userId, payload);
@@ -427,6 +442,7 @@ async function payloadFor(event, approved) {
     await loadAppEmojis(discord.getClient());
     const build = (image) => buildSetupMessage(event, approved, {
         emojis: appEmojiMap(), confirmations: confirmationsFor(event, approved), bench: benchPosted(event), lang: eventLang(event), image,
+        raidOf: raidOfEvent(event),
     });
     const key = `setup:${event.id}`;
     try {

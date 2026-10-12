@@ -90,6 +90,33 @@ function candidatesFor(log, events, opts = {}) {
 }
 
 /**
+ * The raid number a log's title names — "Zul'Aman 2", "ZA #2", "Raid 2 Kara" —
+ * or 0. Only 1–9: a raid group never has more raids.
+ */
+function raidNumberOf(title) {
+    const text = String(title || "");
+    const m = text.match(/\braid\s*#?\s*([1-9])\b/i) || text.match(/(?:^|[\s#(-])#?([1-9])\s*\)?\s*$/);
+    return m ? Number(m[1]) : 0;
+}
+
+/**
+ * The raids of a raid group (#811) start together, so time and category can
+ * never tell them apart — their logs land as "ambiguous" and the matching offers
+ * every raid of the group. One sign decides it: the log's title names the raid's
+ * number ("Zul'Aman 2" → Raid 2). Returns that candidate, null when the top
+ * candidates are no group or the title names none of them.
+ */
+function siblingPick(log, candidates) {
+    const [best, second] = candidates || [];
+    const group = best && best.event && best.event.raidGroupId;
+    if (!group || !second || !second.event || second.event.raidGroupId !== group) return null;
+    const number = raidNumberOf(log && log.title);
+    if (!number) return null;
+    const hits = candidates.filter((c) => c.event && c.event.raidGroupId === group && Number(c.event.raidGroupIndex) === number);
+    return hits.length === 1 ? hits[0] : null;
+}
+
+/**
  * The single best event for a log, plus whether that pick is safe to apply
  * automatically.
  * @returns {{match: object|null, candidates: object[], ambiguous: boolean}}
@@ -101,6 +128,15 @@ function bestMatch(log, events, opts = {}) {
     const candidates = candidatesFor(log, events, opts);
     if (!candidates.length) return { match: null, candidates, ambiguous: false };
     const { ambiguousMs } = windowFrom(opts);
+    // a raid group (#811): the title's raid number picks among raids that start together;
+    // only another raid outside the group can still make it a coin flip
+    const picked = siblingPick(log, candidates);
+    if (picked) {
+        const other = candidates.find((c) => c.event.raidGroupId !== picked.event.raidGroupId);
+        const close = other && other.sameCategory === picked.sameCategory
+            && Math.abs(Math.abs(other.diffMs) - Math.abs(picked.diffMs)) < ambiguousMs;
+        return { match: picked, candidates: [picked, ...candidates.filter((c) => c !== picked)], ambiguous: !!close };
+    }
     const [best, second] = candidates;
     let ambiguous = false;
     if (second) {
@@ -136,6 +172,8 @@ function annotateMatches(logs, events, opts = {}) {
             diffMs: c.diffMs,
             sameCategory: c.sameCategory,
             versionId: c.event.versionId || "",
+            // #811: which raid of a raid group ("Raid 2"), 0 outside one
+            raidGroupIndex: c.event.raidGroupId ? Number(c.event.raidGroupIndex) || 0 : 0,
         }));
         log.matchAmbiguous = ambiguous;
     }
@@ -159,6 +197,6 @@ function autoMatches(logs, events, opts = {}) {
 }
 
 module.exports = {
-    candidatesFor, bestMatch, autoMatches, annotateMatches, isLinked, eventStartMs,
+    candidatesFor, bestMatch, autoMatches, annotateMatches, isLinked, eventStartMs, siblingPick, raidNumberOf,
     HOUR_MS, DEFAULT_BEFORE_MS, DEFAULT_AFTER_MS, DEFAULT_AMBIGUOUS_MS,
 };

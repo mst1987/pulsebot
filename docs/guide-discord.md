@@ -50,6 +50,7 @@ Technik: [setup.md](setup.md)
 - Nach der Freigabe erscheint es als eigene Nachricht im Event-Kanal (die Gruppen, die Bank nur wenn die Orga sie mitpostet) und optional als **DM** ("Du bist in Gruppe 2 als Heiler"; "Diesmal Bank – nächstes Mal Vorrang" nur, wenn die Bank mitgepostet wird).
 - Wer angemeldet ist, aber nicht im Setup steht, bekommt keine Nachricht und keine DM — die Orga wählt im Setup aus allen Anmeldungen.
 - Der Button **"Invite callen"** an der Setup-Nachricht ist nur für die Orga und pingt die eigene Gruppe zum Einladen.
+- **Mehrere Raids an einem Abend:** Ist ein Raid überbucht, macht die Orga einen zweiten daraus. Du meldest dich trotzdem nur **einmal** an, an der bekannten Anmelde-Nachricht (sie zeigt dann „2 Raids · 20 Plätze“). Jeder Raid bekommt seine eigene Setup-Nachricht mit „Raid 1 von 2“ bzw. „Raid 2 von 2“ — schau, in welcher du stehst; die DM nennt es auch.
 - `/show-mysetups` — die eigenen freigegebenen Setups über mehrere Raids hinweg.
 - `/show-allsetups` — alle aktuell freigegebenen Setups.
 

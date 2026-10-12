@@ -40,6 +40,9 @@ const { str } = require("../../utils/text");
 const { approvedSetupOf, pingTextOf, benchAndPool, confirmationsFor, setupSummary } = require("./setupCore");
 const { suggestSearch } = require("./raidSearch");
 const { eventLang } = require("../discord/botLanguage");
+const signupStore = require("../../stores/signupStore");
+const { inRaidGroup, signupEventIdOf } = require("../../utils/raidGroup");
+const { groupEvents, placedElsewhere, groupSummary } = require("../events/raidGroup");
 
 
 function fail(code, error) {
@@ -237,6 +240,7 @@ function keptAsPlaced(result, prev) {
 function proposeEventSetup(eventId, body = {}, { userId = "", now = Date.now() } = {}) {
     const { event, failed } = ownEvent(eventId);
     if (failed) return failed;
+    if (inRaidGroup(event) && groupEvents(event).length > 1) return proposeGroupSetup(event, body, { userId, now });
     const options = mergeOptions(body, event.setup && event.setup.options);
     const keepPlaced = body.keep === "placed" && !!event.setup;
     const proposed = proposeSetup([event.id], runOptions(options, { now, keepPlaced }));
@@ -245,6 +249,41 @@ function proposeEventSetup(eventId, body = {}, { userId = "", now = Date.now() }
     const setup = nextSetup(event.setup, result, { origin: "proposal", options, userId, now });
     // A proposal that lands on the approved lineup again leaves the approval standing.
     return storeSetup(event, setup, { userId, now });
+}
+
+/**
+ * A raid group (#811): the proposal ("Neu vorschlagen", "Freie Plätze füllen")
+ * runs over every raid of the group at once — proposeSetup() with all their ids,
+ * the raids run in parallel and share the raiders of the first raid's signup, so
+ * nobody gets two seats. Each raid stores its own part (groups, checks); the
+ * explicit bench stays with the raid whose setup had it, the pool is shared.
+ * Answers the asked raid's result plus `others` (the other raids' results, each
+ * maybe `live`).
+ */
+function proposeGroupSetup(event, body, { userId, now }) {
+    const raids = groupEvents(event);
+    const options = mergeOptions(body, event.setup && event.setup.options);
+    const keepPlaced = body.keep === "placed";
+    const proposed = proposeSetup(raids.map((e) => e.id), runOptions(options, { now, keepPlaced }));
+    if (!proposed) return fail("not_found", "Event nicht gefunden.");
+    const benchOwner = new Map();
+    for (const e of raids) for (const b of benchAndPool(e.setup || {}).bench) benchOwner.set(String(b.userId), e.id);
+    const results = raids.map((e) => {
+        const part = (proposed.events || []).find((x) => x.eventId === e.id) || { groups: [], checks: proposed.checks };
+        let result = {
+            ...proposed,
+            groups: part.groups,
+            checks: { ...part.checks, avoid: proposed.checks && proposed.checks.avoid },
+            bench: (proposed.bench || []).filter((b) => benchOwner.get(String(b.userId)) === e.id),
+            pool: proposed.pool || [],
+        };
+        if (keepPlaced && e.setup) result = keptAsPlaced(result, e.setup);
+        const own = e.id === event.id ? options : mergeOptions(body, e.setup && e.setup.options);
+        const setup = nextSetup(e.setup, result, { origin: "proposal", options: own, userId, now });
+        return { id: e.id, stored: storeSetup(e, setup, { userId, now }) };
+    });
+    const mine = results.find((r) => r.id === event.id).stored;
+    return { ...mine, others: results.filter((r) => r.id !== event.id).map((r) => r.stored) };
 }
 
 /**
@@ -270,6 +309,25 @@ function inPlacedOrder(groups, placed) {
 }
 
 /**
+ * The sentence why a lineup may not be saved in a raid of a group (#811):
+ * somebody in it already stands in another raid of the group (group or bench).
+ * "" when nobody does — outside a group always.
+ */
+function takenElsewhere(event, placement) {
+    if (!inRaidGroup(event)) return "";
+    const elsewhere = placedElsewhere(event);
+    if (!elsewhere.size) return "";
+    const people = [
+        ...(placement.groups || []).flatMap((g) => g.slots || []),
+        ...(placement.bench || []),
+    ];
+    const hit = people.find((p) => elsewhere.has(String(p.userId)));
+    if (!hit) return "";
+    const where = elsewhere.get(String(hit.userId));
+    return `${hit.character || hit.userId} steht schon in ${where.title} – jede Person hat in der Raid-Gruppe nur einen Platz.`;
+}
+
+/**
  * The orga's own lineup: validated, valued like a proposal and stored. A change
  * of who stands where turns an approved setup back into a draft
  * ("geändert seit Freigabe"); a lock or a weight alone does not.
@@ -288,6 +346,9 @@ function saveEventSetup(eventId, body = {}, { userId = "", now = Date.now() } = 
     // `previous`: a character the stored setup already shows passes even when the signup changed since (manual.js)
     const checked = validatePlacement(body, { event, signups: input.signups, previous: prev });
     if (checked.error) return fail("invalid", checked.error);
+    // a raid group (#811): one seat per person across all its raids
+    const taken = takenElsewhere(event, checked.value);
+    if (taken) return fail("taken", taken);
     const options = mergeOptions(body, prev && prev.options);
     let result;
     try {
@@ -535,6 +596,12 @@ function addUnplacedSignups(decorated, signups, table, names) {
     return extra.length ? { ...decorated, pool: [...(decorated.pool || []), ...extra] } : decorated;
 }
 
+/** The lineup without the pool entries another raid of the group already holds (#811). */
+function withoutElsewhere(lineup, elsewhere) {
+    if (!lineup || !elsewhere || !elsewhere.size) return lineup;
+    return { ...lineup, pool: (lineup.pool || []).filter((p) => !elsewhere.has(String(p.userId))) };
+}
+
 /**
  * Every character a raider signed up with (#293), decorated like a slot: the
  * order is theirs (`priority` 0 = the choice, then "kann auch mit"), each with
@@ -626,14 +693,21 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
         },
         canWrite,
         approved,
+        // the raids of the event's group (#811): the editor's tabs "Raid 1 | Raid 2", null outside a group
+        raidGroup: groupSummary(event),
     };
     if (!canWrite) return head;
     // nothing stored yet: the empty start the orga drags into (no proposal needed)
     const setup = event.setup || (blank ? blankSetup(event) : null);
     const groupCount = Math.max(1, Math.ceil((Number(event.size) || 0) / 5));
+    // a raid group (#811): the pool "Angemeldet" is shared — whoever stands in another raid of the group is not in it
+    const elsewhere = placedElsewhere(event);
+    const lineup = setup ? withoutElsewhere(addUnplacedSignups(decorateLineup(withSetupDefaults(setup, event.size), table, names), signups, table, names), elsewhere) : null;
     return {
         ...head,
-        setup: setup ? withCharacters(withBuffInfoAll(addUnplacedSignups(decorateLineup(withSetupDefaults(setup, event.size), table, names), signups, table, names), table), signups, table) : null,
+        setup: lineup ? withCharacters(withBuffInfoAll(lineup, table), signups, table) : null,
+        // how many signed-up raiders the other raids of the group hold (they are left out of "Angemeldet")
+        placedElsewhere: elsewhere.size,
         // per raider: attendance and how sure the character link is — only on the page load, the client keeps it across moves
         ...(attendance ? { attendance } : {}),
         groupCount,
@@ -653,8 +727,138 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
     };
 }
 
+// ---- a raid group: moving between its raids ---------------------------------
+
+/** A stored setup as the placement saveEventSetup() takes (who stands where, locks, places). */
+function placementOf(setup) {
+    if (!setup) return { groups: [], bench: [] };
+    return {
+        groups: (setup.groups || []).map((g) => ({
+            index: g.index,
+            slots: (g.slots || []).map((s) => ({ userId: str(s.userId), character: s.character || "", spec: s.spec || "", role: s.role || "", locked: s.locked === true, ...(s.pos ? { pos: s.pos } : {}) })),
+        })),
+        bench: benchAndPool(setup).bench.map((b) => ({ userId: str(b.userId), ...(b.character ? { character: b.character } : {}), locked: b.locked === true })),
+    };
+}
+
+/** Where a person stands in a placement: their slot (with the group) or bench entry, null when in neither. */
+function findIn(placement, userId) {
+    for (const g of placement.groups) {
+        const slot = g.slots.find((s) => s.userId === userId);
+        if (slot) return { slot, group: g.index };
+    }
+    const bench = placement.bench.find((b) => b.userId === userId);
+    return bench ? { bench } : null;
+}
+
+/** The first group of a raid with a free place, 0 when the raid is full. */
+function freeGroup(placement, size) {
+    const groupCount = Math.max(1, Math.ceil((Number(size) || 0) / 5));
+    const placed = placement.groups.reduce((n, g) => n + g.slots.length, 0);
+    if (placed >= (Number(size) || 0)) return 0;
+    for (let index = 1; index <= groupCount; index++) {
+        const g = placement.groups.find((x) => Number(x.index) === index);
+        if (!g || g.slots.length < 5) return index;
+    }
+    return 0;
+}
+
+/**
+ * What a person plays when they come out of "Angemeldet" into a raid: the named
+ * character (#293), else their first — spec and role from the signup.
+ */
+function playedFromSignup(signup, character, table) {
+    const list = signupCharacters(signup).filter((c) => c && c.character && c.spec);
+    const want = str(character).toLowerCase();
+    const pick = (want && list.find((c) => str(c.character).toLowerCase() === want)) || list[0];
+    if (!pick) return null;
+    const spec = table.specs.get(str(pick.spec));
+    return { character: str(pick.character), spec: str(pick.spec), role: (spec && spec.role) || "" };
+}
+
+/** The target raid of a move inside the event's group, or a failure. */
+function moveTarget(event, target) {
+    const to = eventStore.getEvent(str(target));
+    if (!to || to.id === event.id || !inRaidGroup(event) || signupEventIdOf(to) !== signupEventIdOf(event)) {
+        return { failed: fail("invalid", "Das Ziel ist kein anderer Raid dieser Raid-Gruppe.") };
+    }
+    if (to.status === "cancelled") return { failed: fail("cancelled", `${to.title} ist abgesagt.`) };
+    return { to };
+}
+
+/**
+ * What the moved raider plays in the other raid: from a group place as they
+ * stand, off the bench as the character waiting there (or the named one), out of
+ * the shared pool as the named character or their first. A failure for somebody
+ * who is not signed up or already stands in a raid.
+ */
+function movedPlay(event, to, here, uid, character, table) {
+    const signup = () => signupStore.getSignup(signupEventIdOf(event), uid);
+    if (here && here.slot) return { played: { character: here.slot.character, spec: here.slot.spec, role: here.slot.role } };
+    if (here) return { played: playedFromSignup(signup(), character || here.bench.character, table) };
+    const own = signup();
+    if (!own || own.status === "absence") return { failed: fail("invalid", "Dieser Raider ist nicht angemeldet.") };
+    const elsewhere = placedElsewhere(event).get(uid);
+    if (elsewhere) return { failed: fail(elsewhere.eventId === to.id ? "invalid" : "taken", `Steht schon in ${elsewhere.title}.`) };
+    return { played: playedFromSignup(own, character, table) };
+}
+
+/** A placement with one more raider at the end of group `group`. */
+function withAdded(placement, group, slot) {
+    const groups = placement.groups.some((g) => Number(g.index) === group)
+        ? placement.groups.map((g) => (Number(g.index) === group ? { ...g, slots: [...g.slots, slot] } : g))
+        : [...placement.groups, { index: group, slots: [slot] }];
+    return { groups, bench: placement.bench };
+}
+
+/** A placement without one raider (group place or bench). */
+function withoutRaider(placement, uid) {
+    return {
+        groups: placement.groups.map((g) => ({ ...g, slots: g.slots.filter((s) => s.userId !== uid) })),
+        bench: placement.bench.filter((b) => b.userId !== uid),
+    };
+}
+
+const versionOf = (event) => (event.setup ? event.setup.version : undefined);
+
+/**
+ * Move one raider from this raid (a group place, the bench or the shared pool)
+ * into another raid of the same group (#811): onto that raid's first free group
+ * place, as they stand (character, spec, role) — out of the pool as the named
+ * `character` or their first. Both raids are saved through saveEventSetup (this
+ * one first, so the one-seat rule never trips over the move itself); a failed
+ * second save puts the raider back. Answers this raid's result plus `target`
+ * (the other raid's).
+ */
+function moveToRaid(eventId, { target, userId: raider, character = "" } = {}, { userId = "", now = Date.now() } = {}) {
+    const { event, failed } = ownEvent(eventId);
+    if (failed) return failed;
+    const { to, failed: noTarget } = moveTarget(event, target);
+    if (noTarget) return noTarget;
+    const uid = str(raider);
+    const fromPlacement = placementOf(event.setup);
+    const here = findIn(fromPlacement, uid);
+    const { played, failed: notMoved } = movedPlay(event, to, here, uid, character, specTable(event.versionId));
+    if (notMoved) return notMoved;
+    if (!played || !played.spec) return fail("invalid", "Für diesen Raider ist kein Charakter angemeldet.");
+    const toPlacement = placementOf(to.setup);
+    const group = freeGroup(toPlacement, to.size);
+    if (!group) return fail("full", `${to.title} ist voll – erst dort einen Platz freimachen.`);
+    const fromResult = here ? saveEventSetup(event.id, { ...withoutRaider(fromPlacement, uid), version: versionOf(event) }, { userId, now }) : null;
+    if (fromResult && fromResult.error) return fromResult;
+    const toResult = saveEventSetup(to.id, { ...withAdded(toPlacement, group, { userId: uid, ...played, locked: false }), version: versionOf(to) }, { userId, now });
+    if (toResult.error) {
+        // put the raider back where they stood, best effort
+        if (here) saveEventSetup(event.id, { ...fromPlacement }, { userId, now });
+        return toResult;
+    }
+    const fresh = eventStore.getEvent(event.id) || event;
+    const mine = fromResult || { setup: fresh.setup, event: fresh };
+    return { ...mine, target: toResult, moved: { userId: uid, character: played.character, to: to.id, title: to.title, group } };
+}
+
 module.exports = {
-    proposeEventSetup, saveEventSetup, approveEventSetup, storeExplanation, approvedPlacementFor, raidHelperSlots, setupSummary, editorView,
+    proposeEventSetup, saveEventSetup, moveToRaid, approveEventSetup, storeExplanation, approvedPlacementFor, raidHelperSlots, setupSummary, editorView,
     avoidPairCount,
     // only for the tests (#424): not part of the module's API
     _internal: {

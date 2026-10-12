@@ -31,6 +31,7 @@ const { listStoredEvents } = require("../events/eventSources");
 const { versionOfEvent } = require("../events/mainVersion");
 const { buildSetupProposal } = require("../../utils/setup/proposal");
 const { benchAndPool } = require("./setupCore");
+const { signupEventIdOf } = require("../../utils/raidGroup");
 
 // How many earlier nights per category go into the fairness history.
 const HISTORY_NIGHTS = 10;
@@ -70,7 +71,8 @@ function benchHistory(events, { guildId, now }) {
     const before = Math.min(...events.map((e) => e.startTime || Infinity));
     const inScope = (e) => !ids.has(String(e.id)) && (!categories.size || categories.has(e.categoryId)) && (Number(e.startTime) || 0) < before;
 
-    const approved = eventStore.listEvents(guildId)
+    // the further raids of a group (#811) ran that night too, each with its own approved setup
+    const approved = eventStore.listEvents(guildId, { siblings: true })
         .filter(inScope)
         .map((e) => ({ e, lineup: approvedLineup(e.setup) }))
         .filter((x) => x.lineup)
@@ -152,7 +154,10 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false } = 
     const guildId = events[0].guildId;
     const config = settingsStore.getConfig();
 
-    const signups = events.flatMap((e) => signupStore.listSignups(e.id).map((s) => ({ ...s, eventId: e.id })));
+    // A raid group (#811): every raid takes the signups of the group's first raid — the raiders
+    // signed up there once — so each of them can be placed in any raid, and the proposal's hard
+    // rule "each raider at most once across all events" keeps it to one seat.
+    const signups = events.flatMap((e) => signupStore.listSignups(signupEventIdOf(e)).map((s) => ({ ...s, eventId: e.id })));
     const userIds = new Set(signups.map((s) => String(s.userId)));
     const profiles = profileStore.listProfiles().filter((p) => userIds.has(p.userId));
 

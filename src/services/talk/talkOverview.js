@@ -24,6 +24,7 @@
 // language is hashed with the payload, so a change of it redraws every entry
 // on the next sync (languageChange.js schedules one at once).
 const crypto = require("crypto");
+const { isRaidSibling } = require("../../utils/raidGroup");
 const { shortWhen, serverDateTime } = require("../../utils/time");
 const { tr, dateLocale } = require("../../utils/i18n/botText");
 const { serverLang } = require("../discord/botLanguage");
@@ -179,6 +180,8 @@ function upcomingGroups(groups, { now = Date.now(), categoryIds = [], lang = "de
         const perVersion = new Map();
         for (const e of g.events || []) {
             if (!e || !e.id || (Number(e.startTime) || 0) < nowSec) continue;
+            // a further raid of a raid group (#811): the raiders know the evening by its first raid
+            if (isRaidSibling(e)) continue;
             const versionId = versionOfEvent({ ...e, categoryId: e.categoryId || g.categoryId }, { config });
             if (!isVersionVisible(versionId, config)) continue;
             if (!perVersion.has(versionId)) perVersion.set(versionId, []);

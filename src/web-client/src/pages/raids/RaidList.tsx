@@ -1,10 +1,11 @@
-import { useState, type MouseEvent, type ReactNode } from "react";
+import { Fragment, useState, type MouseEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import type { PastRaid, UpcomingRaid } from "../../api";
+import type { PastRaid, RaidListBase, UpcomingRaid } from "../../api";
 import { useTableSort, type Dir } from "../../lib/ui/tableSort";
 import { eventPostUrl, raidplanUrl } from "../../lib/discord/discordLinks";
 import { relativeDayLabel } from "../../lib/format";
 import { eventDay, monthBands, weekBands, type TimeBand } from "../../lib/raids/raidTime";
+import { withRaidGroups } from "../../lib/raids/raidGroups";
 import RaidIcon from "../../components/raid/RaidIcon";
 import WowIcon from "../../components/ui/WowIcon";
 import Badge from "../../components/ui/Badge";
@@ -19,6 +20,8 @@ import { useT } from "../../i18n";
 // Signals instead of text: signups as a bar against the raid size, logs and loot
 // as badges whose tooltips carry the names, links as icon buttons. The whole row
 // opens the event's detail page.
+// A raid group (#811): the further raids of an evening stand indented under the
+// first raid ("Zul'Aman · 2 Raids"), whose bar counts every place of the group.
 
 type SortKey = "time";
 const SORT_DEFAULTS: Record<SortKey, Dir> = { time: "asc" };
@@ -62,11 +65,15 @@ function SortHead({ dir, onSort }: { dir: Dir; onSort: () => void }) {
     );
 }
 
-function EventTitle({ ev }: { ev: { id: string; title: string; channelName: string; categoryName: string } }) {
+function EventTitle({ ev, raids = 0 }: { ev: { id: string; title: string; channelName: string; categoryName: string }; raids?: number }) {
     const t = useT();
     return (
         <div className="re-ev">
-            <Link className="re-title" to={detailHref(ev.id)}>{ev.title || t("raids.list.untitled")}</Link>
+            <span className="re-title-line">
+                <Link className="re-title" to={detailHref(ev.id)}>{ev.title || t("raids.list.untitled")}</Link>
+                {/* a raid group (#811): "Zul'Aman · 2 Raids" */}
+                {raids > 1 && <Badge tone="accent" size="sm" tip={t("raids.list.groupRaidsTip", { count: raids })} tipSub={t("raids.list.groupRaidsSub")}>{t("raids.list.groupRaids", { count: raids })}</Badge>}
+            </span>
             <div className="re-sub">
                 {ev.channelName && <span className="re-chan">#{ev.channelName}</span>}
                 {ev.channelName && ev.categoryName && <span aria-hidden="true">·</span>}
@@ -107,7 +114,7 @@ export function UpcomingRaidList({ events, guildId, canWrite, onRepeat, emptyMes
     const { dir, onSort, apply } = useTableSort<SortKey>("raid-list-upcoming-sort", SORT_DEFAULTS, "time", "asc");
     const open = useRowOpen();
     if (!events.length) return <div className="glist re-glist"><div className="re-empty">{emptyMessage}</div></div>;
-    const bands = weekBands(apply(events, (ev) => ev.startTime || 0));
+    const bands = weekBands(apply(withRaidGroups(events), (ev) => ev.startTime || 0));
 
     return (
         <div className="glist re-glist re-up" role="table" aria-label={t("raids.list.upcomingAria")}>
@@ -123,17 +130,21 @@ export function UpcomingRaidList({ events, guildId, canWrite, onRepeat, emptyMes
                     <Band band={band} />
                     {band.rows.map((ev) => {
                         const { day, time } = eventDay(ev.startTime);
+                        const further = ev.groupRaids || [];
+                        // a raid group (#811): one signup for every raid — the bar measures against all their places
+                        const places = ev.raidSize + further.reduce((n, r) => n + (r.raidSize || 0), 0);
                         return (
-                            <div key={ev.id} className="re-row" role="row" onClick={open(ev.id)}>
+                            <Fragment key={ev.id}>
+                            <div className="re-row" role="row" onClick={open(ev.id)}>
                                 <RaidIcon contentIds={ev.contentIds} sources={ev.contentSources} />
-                                <EventTitle ev={ev} />
+                                <EventTitle ev={ev} raids={further.length ? further.length + 1 : 0} />
                                 <div className="re-when"><b>{day}</b><span>{time} · {relativeDayLabel(ev.startTime)}</span></div>
                                 <span
                                     className="re-bar"
-                                    data-tip={t("raids.list.seatsOf", { count: ev.signupCount, size: ev.raidSize })}
+                                    data-tip={t("raids.list.seatsOf", { count: ev.signupCount, size: places })}
                                     data-tip-sub={ev.raidSizeKnown ? t("raids.list.sizeKnown") : t("raids.list.sizeDefault")}
                                 >
-                                    <Bar value={ev.signupCount} max={ev.raidSize} tone={signupTone(ev.signupCount, ev.raidSize)} label={`${ev.signupCount} / ${ev.raidSize}`} />
+                                    <Bar value={ev.signupCount} max={places} tone={signupTone(ev.signupCount, places)} label={`${ev.signupCount} / ${places}`} />
                                 </span>
                                 <div className="re-acts">
                                     {ev.channelState === "missing" && <Badge tone="bad" tip={t("raids.list.channelMissing")} tipSub={t("raids.list.channelMissingSub")}>{t("raids.list.channelMissing")}</Badge>}
@@ -148,10 +159,31 @@ export function UpcomingRaidList({ events, guildId, canWrite, onRepeat, emptyMes
                                     <DetailLink id={ev.id} />
                                 </div>
                             </div>
+                            {further.map((r) => <FurtherRaidRow key={r.id} raid={r} head={ev.title} onOpen={open(r.id)} />)}
+                            </Fragment>
                         );
                     })}
                 </div>
             ))}
+        </div>
+    );
+}
+
+/** A further raid of a group (#811) under its first raid: "Raid 2 · Zul'Aman 2", the signup is the first raid's. */
+function FurtherRaidRow({ raid, head, onOpen, children }: { raid: RaidListBase; head: string; onOpen: (e: MouseEvent<HTMLDivElement>) => void; children?: ReactNode }) {
+    const t = useT();
+    return (
+        <div className="re-row re-subrow" role="row" onClick={onOpen}>
+            <span className="re-subrow-mark" aria-hidden="true">↳</span>
+            <div className="re-ev">
+                <span className="re-title-line">
+                    <Badge size="sm">{t("raids.list.groupRaid", { index: raid.raidGroupIndex || 2 })}</Badge>
+                    <Link className="re-title" to={detailHref(raid.id)}>{raid.title || t("raids.list.untitled")}</Link>
+                </span>
+            </div>
+            <div className="re-when" />
+            {children || <span className="re-subrow-note">{t("raids.list.groupShared", { title: head })}</span>}
+            <div className="re-acts"><DetailLink id={raid.id} /></div>
         </div>
     );
 }
@@ -217,7 +249,7 @@ export function PastRaidList({ events, emptyMessage }: { events: PastRaid[]; emp
     // newest month open, every older one closed.
     const [toggled, setToggled] = useState<Record<string, boolean>>({});
     if (!events.length) return <div className="glist re-glist"><div className="re-empty">{emptyMessage}</div></div>;
-    const bands = monthBands(apply(events, (ev) => ev.startTime || 0));
+    const bands = monthBands(apply(withRaidGroups(events), (ev) => ev.startTime || 0));
     const newest = bands.reduce((best, b) => (b.key > best ? b.key : best), "");
 
     return (
@@ -240,10 +272,12 @@ export function PastRaidList({ events, emptyMessage }: { events: PastRaid[]; emp
                         />
                         {isOpen && band.rows.map((ev) => {
                             const { day, time } = eventDay(ev.startTime);
+                            const further = ev.groupRaids || [];
                             return (
-                                <div key={ev.id} className="re-row" role="row" onClick={open(ev.id)}>
+                                <Fragment key={ev.id}>
+                                <div className="re-row" role="row" onClick={open(ev.id)}>
                                     <RaidIcon contentIds={ev.contentIds} sources={ev.contentSources} />
-                                    <EventTitle ev={ev} />
+                                    <EventTitle ev={ev} raids={further.length ? further.length + 1 : 0} />
                                     <div className="re-when"><b>{day}</b><span>{time}</span></div>
                                     <div className="re-badges"><LogBadges ev={ev} /></div>
                                     <div className="re-badges"><LootBadge ev={ev} /></div>
@@ -252,6 +286,22 @@ export function PastRaidList({ events, emptyMessage }: { events: PastRaid[]; emp
                                         <DetailLink id={ev.id} />
                                     </div>
                                 </div>
+                                {further.map((r) => (
+                                    <div key={r.id} className="re-row re-subrow re-subrow-past" role="row" onClick={open(r.id)}>
+                                        <span className="re-subrow-mark" aria-hidden="true">↳</span>
+                                        <div className="re-ev">
+                                            <span className="re-title-line">
+                                                <Badge size="sm">{t("raids.list.groupRaid", { index: r.raidGroupIndex || 2 })}</Badge>
+                                                <Link className="re-title" to={detailHref(r.id)}>{r.title || t("raids.list.untitled")}</Link>
+                                            </span>
+                                        </div>
+                                        <div className="re-when" />
+                                        <div className="re-badges"><LogBadges ev={r} /></div>
+                                        <div className="re-badges"><LootBadge ev={r} /></div>
+                                        <div className="re-acts"><DetailLink id={r.id} /></div>
+                                    </div>
+                                ))}
+                                </Fragment>
                             );
                         })}
                     </div>

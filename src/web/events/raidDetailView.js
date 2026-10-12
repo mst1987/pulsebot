@@ -42,6 +42,8 @@ const discord = require("../../services/discord/discord");
 const { listSignups } = require("../../stores/signupStore");
 const { eventSignupList } = require("../signups/signupView");
 const { getEvent } = require("../../stores/eventStore");
+const { signupEventIdOf } = require("../../utils/raidGroup");
+const { groupSummary } = require("../../services/events/raidGroup");
 const raidplanStore = require("../../stores/raidplanStore");
 const { raidplanPostState } = require("../../services/raidplan/raidplanPost");
 const linkCheck = require("../../services/discord/linkCheck");
@@ -203,7 +205,8 @@ async function ownEventPart(guildId, found, eventId, stored = isOwn(found) ? get
     if (!isOwn(found)) return { ownSignups: null, ownSetup: null, ownSetupPost: null };
     const ownSetupPost = setupPostState(eventId, stored);
     const ownSetup = setupSummary(stored);
-    const rows = listSignups(eventId);
+    // a further raid of a raid group (#811) shows the signups of the group's first raid — the raiders signed up there once
+    const rows = listSignups(stored ? signupEventIdOf(stored) : eventId);
     const names = rows.length ? await discord.resolveUserNames(guildId, rows.map((s) => s.userId)) : {};
     // who of the orga is in the setup editor right now (only the names; the editor itself polls for more)
     const ownSetupEditors = setupPresence.editorsOf(eventId).map((p) => p.name);
@@ -367,6 +370,8 @@ async function buildRaidDetail({ guildId, eventId, planPost = true }) {
         attendance: attendanceInfo.attendance,
         ownSignups: own.ownSignups,
         ownSetup: own.ownSetup,
+        // the raids of the event's raid group (#811): the head links them, null outside a group
+        raidGroup: stored ? groupSummary(stored) : null,
         ownSetupPost: own.ownSetupPost,
         // only an own event: who of the orga is in its setup editor right now
         ownSetupEditors: own.ownSetupEditors,

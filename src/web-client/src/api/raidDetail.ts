@@ -5,6 +5,7 @@ import type { Role, PingTarget, PingTargetInfo, ItemSearchResult, Raidsheet } fr
 import type { NotifyTemplate } from "./notifyTemplates";
 import type { LootItem } from "./history";
 import type { EventSignupEntry } from "./signups";
+import type { RaidGroup } from "./setup";
 
 /** Role bucket of a raidplan spec — mirrors roleOf() in src/utils/setupView.js. */
 export type SetupRole = "tank" | "healer" | "melee" | "ranged" | "dps";
@@ -212,6 +213,8 @@ export type RaidDetailData = {
     ownSignups?: EventSignupEntry[] | null;
     /** An own event's setup state (#263): counts only, the lineup comes from GET /api/raids/setup. */
     ownSetup?: { status: "draft" | "approved"; changedSinceApproval: boolean; version: number; placed: number; size: number; bench: number; ok: boolean; approvedAt: number } | null;
+    /** The raids of the event's raid group (#811) — the head links them; null outside a group. */
+    raidGroup?: RaidGroup | null;
     /** Wo die freigegebene Setup-Nachricht steht (#290), soweit die Leiste sie nennt. */
     ownSetupPost?: { channelId: string; messageId: string; version: number; dms: { total: number; sent: number; failed: number } | null } | null;
     attendanceRoleIds: string[];

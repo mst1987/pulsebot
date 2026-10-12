@@ -10,6 +10,8 @@ module.exports = {
     "The raid assignments are not shared right now.": "Die Raid-Einteilung ist gerade nicht freigegeben.",
     // the signup message
     "{count} signed up": "{count} angemeldet",
+    // a raid group (#811): one signup for several raids of the evening
+    "**{count} raids** · {places} places": "**{count} Raids** · {places} Plätze",
     "+{count} more": "+{count} weitere",
     "**Cancelled**": "**Abgesagt**",
     "**Signups closed**": "**Anmeldung geschlossen**",
