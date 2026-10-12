@@ -24,6 +24,20 @@ export type SetupAttendance = {
     benchNights?: number;
 };
 
+/** One character a raider signed up with (#293), decorated like a slot; `priority` 0 = their choice, then "kann auch mit"; its own status (#320). */
+export type SetupCharacter = {
+    character: string;
+    spec: string;
+    role: GameRole | "";
+    status: SignupStatus | "";
+    priority: number;
+    classId: string;
+    classColor: string;
+    classLabel: string;
+    specLabel: string;
+    specIcon: string;
+};
+
 /** A raider in a group or on the bench, decorated for the page. */
 export type SetupPerson = {
     userId: string;
@@ -44,6 +58,8 @@ export type SetupPerson = {
     brings?: SetupBuff[];
     /** Per other group index: how many would profit from what they bring there — drives the drag glow. */
     fit?: Record<string, number>;
+    /** Every character they signed up with, in their order — only for somebody with more than one (#293). */
+    characters?: SetupCharacter[];
     name: string;
     classColor: string;
     classLabel: string;
@@ -268,7 +284,8 @@ export type SetupPlacementInput = {
     version: number;
     /** `character`: which of the raider's named characters (#293) plays the spec. */
     groups: { index: number; slots: { userId: string; character?: string; spec: string; role: string; locked: boolean; pos?: number }[] }[];
-    bench: { userId: string; locked: boolean }[];
+    /** `character`: which of the raider's named characters waits on the bench (#293). */
+    bench: { userId: string; character?: string; locked: boolean }[];
     fairness?: boolean;
     wishes?: boolean;
     avoid?: boolean;

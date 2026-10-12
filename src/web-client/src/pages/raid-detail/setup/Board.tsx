@@ -17,6 +17,8 @@ const showsRole = (role: string | undefined) => role === "tank" || role === "hea
 export type Interaction = {
     editable: boolean;
     selected: string | null;
+    /** The character picked with `selected` (#293: a "kann auch mit" line in "Angemeldet"); empty = as they stand. */
+    selectedCharacter?: string | null;
     dragging: string | null;
     /** Attendance by user id, for the tooltips. */
     attendance: Record<string, SetupAttendance>;
@@ -24,9 +26,10 @@ export type Interaction = {
     suggest: number | null;
     /** The pointer or focus reached a raider — the docked panel shows them. */
     onInspect: (userId: string) => void;
-    onPick: (userId: string) => void;
+    /** `character`: which of the raider's characters the pick is for (#293) — empty = as they stand. */
+    onPick: (userId: string, character?: string) => void;
     onDrop: (target: SetupTarget, userId?: string) => void;
-    onDrag: (userId: string | null) => void;
+    onDrag: (userId: string | null, character?: string) => void;
     /** raiders marked as an extra tank / healer, by user id */
     extraRoles: Record<string, string[]>;
     /** "Anmeldung bearbeiten" (#521): a right click opens it (the button sits in the raider panel); missing = read-only. */
@@ -43,18 +46,30 @@ export type Interaction = {
     onHeld?: (userId: string) => void;
 };
 
+/** A raider's order number for one of their characters (#293): 1 = their choice, 2 and 3 = "kann auch mit". */
+export function CharacterNumber({ order }: { order: number }) {
+    const t = useT();
+    return (
+        <span className="se-char-no" data-tip={order <= 1 ? t("setup.chars.first") : t("setup.chars.also", { n: order })}>
+            {order}
+        </span>
+    );
+}
+
 /**
  * One raider line — nothing on it to click but the line itself (pick, drag,
  * right click): fixing, the check and "Anmeldung bearbeiten" are buttons in the
  * raider panel (SlotTip), so they can never sit under the name or the mark.
  * `inPool` (#517): signed up, not in the setup, a "Bank" signup marked.
  * `inGroup`: a place in a group — only there a Confirm/Cancel is drawn (green resp. red, the mark as a big icon behind the line).
+ * `as` (#293): the character this line stands for when it is not the one the raider stands as — a drag or pick takes it.
+ * `order`: their order number (1 = their choice, 2/3 = "kann auch mit"), drawn for somebody with several characters.
  */
-export function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerson; ui: Interaction; inPool?: boolean; inGroup?: boolean }) {
+export function Slot({ p, ui, inPool = false, inGroup = false, as, order }: { p: SetupPerson; ui: Interaction; inPool?: boolean; inGroup?: boolean; as?: string; order?: number }) {
     const t = useT();
     const status = statusLabel(p.status);
     const color = classColorProps(p.classColor);
-    const selected = ui.selected === p.userId;
+    const selected = ui.selected === p.userId && (ui.selectedCharacter || "") === (as || "");
     const confirmation = inGroup ? (ui.confirmations || {})[p.userId] : undefined;
     // another orga member holds this raider: drawn in their colour, nobody else takes them meanwhile
     const held = ui.held?.[p.userId];
@@ -65,7 +80,7 @@ export function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerso
     const keyDown = (e: KeyboardEvent<HTMLDivElement>) => {
         if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            ui.onPick(p.userId);
+            ui.onPick(p.userId, as);
         }
     };
     const drop = (e: DragEvent<HTMLDivElement>) => {
@@ -85,10 +100,10 @@ export function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerso
             data-user={p.userId}
             onMouseEnter={inspect}
             onFocus={inspect}
-            onClick={ui.editable ? () => (held ? ui.onHeld?.(p.userId) : ui.onPick(p.userId)) : undefined}
+            onClick={ui.editable ? () => (held ? ui.onHeld?.(p.userId) : ui.onPick(p.userId, as)) : undefined}
             onKeyDown={movable ? keyDown : undefined}
             // the dimmed look is set a tick later: changing the dragged element inside dragstart makes Chrome cancel the drag
-            onDragStart={movable ? (e) => { inspect(); e.dataTransfer.setData("text/plain", p.userId); e.dataTransfer.effectAllowed = "move"; setTimeout(() => ui.onDrag(p.userId), 0); } : undefined}
+            onDragStart={movable ? (e) => { inspect(); e.dataTransfer.setData("text/plain", p.userId); e.dataTransfer.effectAllowed = "move"; setTimeout(() => ui.onDrag(p.userId, as), 0); } : undefined}
             onDragEnd={ui.editable ? () => ui.onDrag(null) : undefined}
             onDragOver={ui.editable ? (e) => e.preventDefault() : undefined}
             onDrop={ui.editable ? drop : undefined}
@@ -106,6 +121,8 @@ export function Slot({ p, ui, inPool = false, inGroup = false }: { p: SetupPerso
             <span className="se-slot-text">
                 <span className={`se-name ${color.className || ""}`} style={color.style}>{p.character}</span>
                 <span className="se-sub">
+                    {/* their order number (#293), first: which of their characters this is */}
+                    {order !== undefined && <CharacterNumber order={order} />}
                     {/* first, so a long spec text never cuts it off (#517) */}
                     {inPool && p.status === "bench" && <span className="se-extra se-extra-lead" data-tip={t("setup.pool.benchSignupTip")}>{t("setup.pool.benchSignup")}</span>}
                     {/* the role only where the spec does not say it on its own: tank and healer, never melee/ranged.

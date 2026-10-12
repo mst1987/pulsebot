@@ -17,9 +17,9 @@
 // server. Posting carries the bench only with "Bench mitposten" ticked.
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { approveRaidSetup, getRaidSetup, pingSetup, previewSetupPing, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput, type SetupActivity, type SetupPresenceAction, type StoredSetup } from "../../../api";
+import { approveRaidSetup, getRaidSetup, pingSetup, previewSetupPing, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput, type SetupActivity, type SetupCharacter, type SetupPresenceAction, type StoredSetup } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
-import { applyLocal, moveRaider, peopleOf, publishHint, resizeLineup, respecRaider, setupState, suggestGroup, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE, type SetupTarget } from "../../../lib/signups/setupEditor";
+import { applyLocal, moveRaider, peopleOf, publishHint, resizeLineup, respecRaider, setupState, suggestGroup, switchCharacter, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE, type CharacterChoice, type SetupTarget } from "../../../lib/signups/setupEditor";
 import { useT } from "../../../i18n";
 import { Button, IconButton } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
@@ -51,6 +51,10 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const [busy, setBusy] = useState(false);
     const [selected, setSelected] = useState<string | null>(null);
     const [dragging, setDragging] = useState<string | null>(null);
+    // Several characters (#293): the character a drag or pick in "Angemeldet" is for — a
+    // "kann auch mit" line — so the move takes exactly that one. Empty = as they stand.
+    const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
+    const choice = useRef<{ userId: string; character: string } | null>(null);
     // the dialogs: the rare tools under "Mehr", and the summary line's "Details"
     const [dialog, setDialog] = useState<"weights" | "explain" | "search" | "size" | "ping" | "details" | "fill" | null>(null);
     const [posting, setPosting] = useState(false);
@@ -233,31 +237,64 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         if (result.input) save(result.input);
     };
 
-    const move = (target: SetupTarget, userId?: string) => {
+    /** "Charakter wechseln" (#293): the raider plays another character they signed up with — place kept, locked, saved like any move. */
+    const switchTo = (userId: string, c: SetupCharacter) => {
+        const shown = current.current;
+        if (!shown?.setup) return;
+        const result = switchCharacter(toInput(shown.setup), userId, c);
+        if ("error" in result && result.error) return jobs.notify(result.error, "err");
+        if (result.input) save(result.input);
+    };
+
+    /**
+     * `targetCharacter`: a click on a "kann auch mit" line of somebody in "Angemeldet" while
+     * another raider is picked — the swap brings in that character.
+     */
+    const move = (target: SetupTarget, userId?: string, targetCharacter?: string) => {
         const who = userId || selected;
+        const picked: CharacterChoice = {};
+        if (who && choice.current && choice.current.userId === who) picked[who] = choice.current.character;
+        if (targetCharacter && "userId" in target) picked[target.userId] = targetCharacter;
+        choice.current = null;
         setSelected(null);
+        setSelectedCharacter(null);
         setDragging(null);
         const shown = current.current;
         if (!who || !shown?.setup) return;
-        const result = moveRaider(toInput(shown.setup), who, target, peopleOf(shown.setup), shown.event.size || 0);
+        const result = moveRaider(toInput(shown.setup), who, target, peopleOf(shown.setup), shown.event.size || 0, picked);
         if ("error" in result && result.error) return jobs.notify(result.error, "err");
         const redo = (fresh: StoredSetup) => {
-            const again = moveRaider(toInput(fresh), who, target, peopleOf(fresh), shown.event.size || 0);
+            const again = moveRaider(toInput(fresh), who, target, peopleOf(fresh), shown.event.size || 0, picked);
             return "input" in again && again.input ? again.input : null;
         };
         if (result.input) save(result.input, {}, {}, redo);
     };
 
-    const pick = (userId: string) => {
+    const pick = (userId: string, character?: string) => {
         if (!selected) {
             setPinned(userId);
+            choice.current = character ? { userId, character } : null;
+            setSelectedCharacter(character || null);
             return setSelected(userId);
         }
         if (selected === userId) {
+            // another of the same raider's lines: the pick moves to that character
+            if ((character || "") !== (selectedCharacter || "")) {
+                choice.current = character ? { userId, character } : null;
+                return setSelectedCharacter(character || null);
+            }
             setPinned(null);
+            choice.current = null;
+            setSelectedCharacter(null);
             return setSelected(null);
         }
-        move({ userId });
+        move({ userId }, undefined, character);
+    };
+
+    /** A drag starts (with the character of the line, #293) or ends. */
+    const drag = (userId: string | null, character?: string) => {
+        setDragging(userId);
+        if (userId) choice.current = character ? { userId, character } : null;
     };
 
     /** A panel action on the raider shown: done, the pick is dropped (no swap on the next click), the panel stays. */
@@ -529,7 +566,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         const h = held[userId];
         if (h) jobs.notify(t(h.kind === "edit" ? "setup.live.editsMsg" : "setup.live.holdsMsg", { name: h.name, character: characters.get(userId) || "?" }));
     };
-    const ui: Interaction = { held, flash, onHeld, editable: !busy, selected, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: () => undefined, onPick: pick, onDrop: move, onDrag: setDragging, onEdit: setEditing, confirmations, pinned: shownId };
+    const ui: Interaction = { held, flash, onHeld, editable: !busy, selected, selectedCharacter, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: () => undefined, onPick: pick, onDrop: move, onDrag: drag, onEdit: setEditing, confirmations, pinned: shownId };
     const closeDrawer = () => {
         setPinned(null);
         setSelected(null);
@@ -713,6 +750,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                         extra={(data.extraRoles || {})[inspectedPerson.userId] || []}
                         onExtra={inspectedIsBench ? undefined : (role, on) => void toggleExtra(inspectedPerson.userId, role, on)}
                         onSpec={busy || inspectedIsBench ? undefined : (key) => respec(inspectedPerson.userId, key)}
+                        onCharacter={busy || inspectedInPool ? undefined : (c) => switchTo(inspectedPerson.userId, c)}
                         actions={actions} pinned={selected === shownId}
                     />
                 </div>

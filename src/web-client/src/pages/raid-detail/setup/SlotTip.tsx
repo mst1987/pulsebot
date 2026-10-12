@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { SetupAttendance, SetupConfirmation, SetupPerson } from "../../../api";
+import type { SetupAttendance, SetupCharacter, SetupConfirmation, SetupPerson } from "../../../api";
 import { tipReasons } from "../../../lib/signups/setupEditor";
 import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { roleLabel, specLabel } from "../../../lib/wow/wowNames";
@@ -120,12 +120,16 @@ function ActionRow({ a }: { a: SlotActions }) {
  * attendance in detail. It shows the raider clicked last (`pinned`), whatever
  * the pointer touches on its way, so the actions stay put.
  */
-export function SlotTip({ p, attendance, extra, onSpec, onExtra, actions = {}, pinned = false }: {
+export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, actions = {}, pinned = false }: {
     p: SetupPerson; attendance: SetupAttendance | undefined | null; extra: string[];
     onSpec?: (specKey: string) => void; onExtra?: (role: "tank" | "healer", on: boolean) => void;
+    /** "Charakter wechseln" (#293): play another character they signed up with — groups and bench, not "Angemeldet". */
+    onCharacter?: (c: SetupCharacter) => void;
     actions?: SlotActions; pinned?: boolean;
 }) {
     const t = useT();
+    // the other characters they signed up with, in their order
+    const otherCharacters = (p.characters || []).filter((c) => c.character.toLowerCase() !== p.character.toLowerCase());
     // the roles this raider could take on besides the one in the setup: a tank or a healer spec of the class
     const extraOffers = ((["tank", "healer"] as const).filter((r) => r !== p.role && (p.classSpecs || []).some((sp) => sp.role === r)));
     const color = classColorProps(p.classColor);
@@ -181,6 +185,32 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, actions = {}, p
                 )}
             </div>
             <div className="se-tip-col">
+                {onCharacter && otherCharacters.length > 0 && (
+                    <div className="se-tip-body">
+                        <span className="se-tip-k" data-tip={t("setup.chars.switch")} data-tip-sub={t("setup.chars.switchSub")}>{t("setup.chars.switch")}</span>
+                        <div className="se-tip-chars">
+                            {otherCharacters.map((c) => {
+                                const spec = specLabel(c.spec, c.specLabel || c.spec);
+                                const cc = classColorProps(c.classColor);
+                                return (
+                                    <button
+                                        key={c.character} type="button" className="se-tip-char"
+                                        aria-label={t("setup.chars.switchTo", { character: c.character, spec })}
+                                        data-tip={t("setup.chars.switchTo", { character: c.character, spec })}
+                                        data-tip-sub={c.priority > 0 ? t("setup.chars.also", { n: c.priority + 1 }) : t("setup.chars.first")}
+                                        onClick={() => onCharacter(c)}
+                                    >
+                                        <SpecTile iconUrl={c.specIcon ? wowIconUrl(c.specIcon, 36) : undefined} classColor={c.classColor} />
+                                        <span className="se-tip-char-text">
+                                            <span className={cc.className || undefined} style={cc.style}>{c.character}</span>
+                                            <small>{[spec, c.role ? roleLabel(c.role) : "", statusLabel(c.status)].filter(Boolean).join(" · ")}</small>
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
                 {onSpec && (p.classSpecs || []).length > 1 && (
                     <div className="se-tip-body">
                         <span className="se-tip-k" data-tip={t("setup.person.tip.playsAs")} data-tip-sub={t("setup.person.tip.playsAsSub")}>{t("setup.person.tip.playsAs")}</span>

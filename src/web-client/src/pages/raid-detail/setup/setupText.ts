@@ -104,9 +104,10 @@ export function agoText(at: number, now: number): string {
     return t("setup.live.minutesAgo", { count: Math.round(s / 60) });
 }
 
-/** Who the search finds: the character, the Discord name, the spec. */
+/** Who the search finds: the character, the Discord name, the spec — and every other character they signed up with (#293) and its spec. */
 export function matchesQuery(p: SetupPerson, query: string): boolean {
     const q = query.trim().toLowerCase();
     if (!q) return true;
-    return [p.character, p.name, specText(p)].some((x) => String(x || "").toLowerCase().includes(q));
+    const others = (p.characters || []).flatMap((c) => [c.character, specLabel(c.spec, c.specLabel || c.spec)]);
+    return [p.character, p.name, specText(p), ...others].some((x) => String(x || "").toLowerCase().includes(q));
 }

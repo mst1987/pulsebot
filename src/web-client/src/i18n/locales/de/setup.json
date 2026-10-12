@@ -88,6 +88,15 @@
         "benchSignup": "Ersatz",
         "benchSignupTip": "Hat sich als Ersatz (Bank) angemeldet"
     },
+    "chars": {
+        "first": "1. Wahl des Raiders",
+        "also": "Kann auch mit – {n}. Wahl",
+        "signed": "Dabei",
+        "lineAria": "{character} · {spec} ({n}. Wahl) – ziehen oder anklicken, um genau diesen Charakter einzuteilen",
+        "switch": "Charakter wechseln",
+        "switchSub": "Ein anderer Charakter, mit dem sich der Raider angemeldet hat. Der Platz bleibt, er wird gesperrt, damit ein neuer Vorschlag ihn nicht zurücksetzt.",
+        "switchTo": "Mit {character} ({spec}) spielen"
+    },
     "summary": {
         "aria": "Zusammenfassung",
         "statTip": "{label}: {value}",
@@ -350,6 +359,7 @@
     },
     "moves": {
         "respecBench": "Wer auf der Bank steht, hat noch keinen Platz – erst in eine Gruppe ziehen, dann die Spec wählen.",
+        "switchPool": "Noch nicht im Setup – zieh stattdessen den gewünschten Charakter aus „Angemeldet“.",
         "notInSetup": "Raider nicht im Setup.",
         "targetNotInSetup": "Ziel nicht im Setup.",
         "groupFull": "Gruppe {group} ist voll – auf einen Raider ziehen, um zu tauschen.",
