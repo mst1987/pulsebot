@@ -24,6 +24,9 @@ export type RaidListBase = {
     softres: { url: string } | null;
     /** The game version this raid plays (#545): its own, else its category's. */
     versionId: string;
+    /** A raid group (#811): the first raid's id on every raid of it, and the raid's place (1 = the first). */
+    raidGroupId?: string;
+    raidGroupIndex?: number;
 };
 export type UpcomingRaid = RaidListBase & {
     signupCount: number;

@@ -47,7 +47,7 @@ import StepBar from "./StepBar";
 import RosterTab from "./RosterTab";
 import LootTab from "./LootTab";
 import LogsTab from "./LogsTab";
-import SetupEditor from "./setup/SetupEditor";
+import SetupTab from "./setup/SetupTab";
 import useEvaluate from "./useEvaluate";
 import NotifyModal from "./modals/NotifyModal";
 import SheetModal from "./modals/SheetModal";
@@ -322,7 +322,7 @@ export default function RaidDetailPage() {
             </div>
 
             {shown === "roster" && <RosterTab ctx={ctx} />}
-            {shown === "setup" && <SetupEditor ctx={ctx} />}
+            {shown === "setup" && <SetupTab ctx={ctx} />}
             {shown === "loot" && <LootTab ctx={ctx} />}
             {shown === "logs" && <LogsTab ctx={ctx} evaluator={evaluator} />}
             {shown === "plan" && <Suspense fallback={<RaidLoader />}><RaidplanTab ctx={ctx} /></Suspense>}
