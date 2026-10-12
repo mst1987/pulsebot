@@ -40,7 +40,7 @@ function RaidTab({ raid, current, moving, editable, onSwitch, onMove }: {
     return (
         <button
             type="button" role="tab" aria-selected={current}
-            className={`se-raidtab${current ? " current" : ""}${target ? " se-raidtab-target" : ""}${over ? " over" : ""}`}
+            className={`se-raidtab${current ? " se-current" : ""}${target ? " se-raidtab-target" : ""}${over ? " se-over" : ""}`}
             data-tip={t("setup.raidGroup.tabTip", { title: raid.title, placed: raid.placed, size: raid.size })}
             data-tip-sub={raid.index === 1 ? `${t("setup.raidGroup.primaryTip")} ${t("setup.raidGroup.tabSub")}` : t("setup.raidGroup.tabSub")}
             onClick={() => (target ? onMove(raid.id) : onSwitch(raid.id))}
