@@ -139,6 +139,8 @@
         "title": "Raidplan freigeben",
         "text": "Freigegeben ist der Plan für jeden mit dem Link lesbar, ohne Anmeldung. Wer sich anmeldet, sieht seinen Token hervorgehoben.",
         "publish": "Freigeben",
+        "post": "In den Kanal posten",
+        "repost": "Im Kanal aktualisieren",
         "unpublish": "Freigabe zurücknehmen",
         "link": "Link",
         "copy": "Link kopieren",

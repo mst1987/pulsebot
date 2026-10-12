@@ -139,6 +139,8 @@
         "title": "Publish the raid plan",
         "text": "Once published, anyone with the link can read the plan without logging in. Whoever logs in sees their own token highlighted.",
         "publish": "Publish",
+        "post": "Post to the channel",
+        "repost": "Update in the channel",
         "unpublish": "Withdraw",
         "link": "Link",
         "copy": "Copy link",
