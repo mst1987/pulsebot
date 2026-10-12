@@ -969,11 +969,16 @@ describe("web/apiRoutes/settings", () => {
             });
 
             it("passes attendance settings per category whole, defaults filled in", async () => {
-                readJsonBody.mockResolvedValue({ categoryAttendance: { pug: { show: false, window: "8" }, " ": { show: false }, guild: { window: 3 } } });
+                // any whole number from 1 to 50 is kept, anything else becomes the default 11
+                readJsonBody.mockResolvedValue({ categoryAttendance: {
+                    pug: { show: false, window: "8" }, " ": { show: false }, guild: { window: 3 }, many: { window: 51 }, zero: { window: 0 },
+                } });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryAttendance: {
                     pug: { show: false, window: 8, absences: true },
-                    guild: { show: true, window: 11, absences: true },
+                    guild: { show: true, window: 3, absences: true },
+                    many: { show: true, window: 11, absences: true },
+                    zero: { show: true, window: 11, absences: true },
                 } });
             });
 

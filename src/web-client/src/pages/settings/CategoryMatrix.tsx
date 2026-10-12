@@ -221,7 +221,7 @@ export default function CategoryMatrix(props: CategorySettings & {
                 {isOpen && (
                     <CategoryDetail
                         cat={cat} s={props} roles={roleOptions} summary={summary}
-                        tab={tabs[cat.id] || "signup"} onTab={(tab) => setTabs((prev) => ({ ...prev, [cat.id]: tab }))}
+                        tab={tabs[cat.id] || "raider"} onTab={(tab) => setTabs((prev) => ({ ...prev, [cat.id]: tab }))}
                         onAssign={() => setAssigning(cat)}
                     />
                 )}

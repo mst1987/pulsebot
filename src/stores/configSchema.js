@@ -472,17 +472,20 @@ function normalizeCategoryLanguagePatch(raw) {
     return out;
 }
 
-// How many of a category's last raids its attendance quota counts (the setup tooltip and "Meine Anwesenheit").
-const ATTENDANCE_WINDOWS = [4, 8, 11, 16];
+// How many of a category's last raids its attendance quota counts (the setup tooltip and "Meine Anwesenheit"):
+// any whole number in this range, typed or stepped in the category's settings.
+const ATTENDANCE_WINDOW_MIN = 1;
+const ATTENDANCE_WINDOW_MAX = 50;
 const ATTENDANCE_DEFAULT_WINDOW = 11;
 
 /** One category's attendance settings with every default filled in. */
 function attendanceSettings(raw) {
     const src = raw && typeof raw === "object" ? raw : {};
     const window = Number(src.window);
+    const valid = Number.isInteger(window) && window >= ATTENDANCE_WINDOW_MIN && window <= ATTENDANCE_WINDOW_MAX;
     return {
         show: src.show !== false,
-        window: ATTENDANCE_WINDOWS.includes(window) ? window : ATTENDANCE_DEFAULT_WINDOW,
+        window: valid ? window : ATTENDANCE_DEFAULT_WINDOW,
         absences: src.absences !== false,
     };
 }
@@ -773,7 +776,7 @@ module.exports = {
     normalizeConfig, normalizeDiscordServers, normalizeEventGuilds, normalizeEventGuildEntry,
     normalizeRoleSync, normalizeCategoryRaidTemplate, normalizeCategoryReminders, normalizeTopItems,
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryLanguagePatch,
-    normalizeCategoryAttendance, attendanceSettings, categoryAttendanceFor, ATTENDANCE_WINDOWS, ATTENDANCE_DEFAULT_WINDOW, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
+    normalizeCategoryAttendance, attendanceSettings, categoryAttendanceFor, ATTENDANCE_WINDOW_MIN, ATTENDANCE_WINDOW_MAX, ATTENDANCE_DEFAULT_WINDOW, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,
     normalizeRaidhelperRetirement, normalizeVersionLaunch, VERSION_LAUNCH_MANUAL, normalizeCategorySheets, normalizeCategoryPlanning, normalizeCategoryRoles,
     normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings, normalizeBotLanguage,

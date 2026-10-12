@@ -380,7 +380,7 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 .cat-name > span:first-child { overflow-wrap: anywhere; }
 .cat-off { grid-column: 3 / -1; font-family: var(--font-mono); font-size: 12px; }
 .cat-row .badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-/* The open card (design "B · Tabs in der Karte"): a tab bar under the row, then one row per setting. */
+/* The open card (design "A · Sechs Tabs, jede Einstellung eine Karte"): a tab bar under the row, a line on what the tab covers, then one card per setting. */
 .cat-detail { border-left: 3px solid var(--accent); border-bottom: 1px solid var(--line); background: var(--panel); }
 .cat-tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 0 14px; border-bottom: 1px solid var(--line); background: var(--accent-soft); }
 .cat-tab {
@@ -395,18 +395,43 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
     background: var(--panel2); color: var(--muted); border: 1px solid var(--line);
 }
 .cat-tab.is-active .cat-tab-count { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
-.cat-tabpanel { padding: 0 16px 0 17px; }
-.cat-field-wrap + .cat-field-wrap { border-top: 1px solid var(--line-soft); }
-/* name | control | what it does */
-.cat-field { display: grid; grid-template-columns: 170px minmax(0, 1.5fr) minmax(0, 1fr); gap: 8px 22px; align-items: start; padding: 14px 0; }
-.cat-field-label { padding-top: 7px; min-width: 0; font-size: 14px; font-weight: 700; line-height: 1.35; }
+.cat-tab-icon { display: inline-flex; }
+.cat-tab-icon svg { width: 15px; height: 15px; }
+.cat-tabpanel { display: flex; flex-direction: column; gap: 10px; padding: 16px 16px 18px 17px; background: var(--bg); }
+.cat-tab-intro { margin: 0 0 2px; font-size: 13.5px; line-height: 1.5; color: var(--muted); }
+/* every setting a card of its own: name + one line | control */
+.cat-field-wrap { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.cat-field { display: grid; grid-template-columns: minmax(180px, 260px) minmax(0, 1fr); gap: 8px 24px; align-items: start; padding: 16px 18px; }
+.cat-field-head { min-width: 0; }
+.cat-field-label { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 32px; font-size: 14.5px; font-weight: 700; line-height: 1.35; }
 .cat-field-label > label { margin: 0; font: inherit; color: inherit; }
+.cat-field-more.ibtn { width: 24px; height: 24px; min-width: 24px; border-radius: 999px; color: var(--muted); }
+.cat-field-more.ibtn svg { width: 14px; height: 14px; }
 .cat-field-control { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
 .cat-field-control > select, .cat-field-control > .rch-summary, .cat-field-control > .sheet-field, .cat-field-control > .cat-panel,
-.cat-field-control > .cat-note-channel, .cat-field-control > .cat-panel-state { align-self: stretch; }
+.cat-field-control > .cat-note-channel, .cat-field-control > .cat-panel-state, .cat-field-control > .cat-subfields { align-self: stretch; }
 .cat-field-control > .seg { flex-wrap: wrap; max-width: 100%; }
 .cat-field-control > .switch { margin-top: 5px; }
-.cat-field-sub { padding-top: 6px; font-size: 12.5px; line-height: 1.5; color: var(--muted); min-width: 0; }
+.cat-field-sub { margin-top: 2px; font-size: 12.5px; line-height: 1.5; color: var(--muted); min-width: 0; }
+/* several settings in one card (Anwesenheit), each on its own line */
+.cat-subfields { display: flex; flex-direction: column; }
+.cat-subfield { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; padding: 12px 0; border-top: 1px solid var(--line-soft); }
+.cat-subfield:first-child { border-top: 0; padding-top: 0; }
+.cat-subfield:last-child { padding-bottom: 0; }
+.cat-subfield .cat-field-label { font-size: 13.5px; font-weight: 600; min-height: 26px; }
+.cat-subfield-control { display: flex; align-items: center; }
+/* the quota: − / number / + and "letzte Raids" */
+.cat-quota { display: flex; align-items: center; gap: 10px; }
+.cat-stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); background: var(--panel2); border-radius: var(--ctl-radius); overflow: hidden; }
+.cat-stepper button { display: grid; place-items: center; width: 38px; height: 38px; border: 0; background: transparent; color: var(--text); cursor: pointer; }
+.cat-stepper button:hover:not(:disabled) { background: var(--accent-soft); }
+.cat-stepper button:disabled { color: var(--muted); opacity: .5; cursor: not-allowed; }
+.cat-stepper button svg { width: 16px; height: 16px; }
+.cat-detail .cat-stepper input {
+    width: 56px; height: 38px; padding: 0; border: 0; border-radius: 0; background: var(--bg); text-align: center; font: 700 16px var(--font-mono); -moz-appearance: textfield;
+}
+.cat-stepper input::-webkit-outer-spin-button, .cat-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cat-quota > .note { margin: 0; }
 /* #335: the channel of "Vielleicht/Absage" under its segment — one quiet line. */
 .cat-note-channel { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .cat-note-channel > select { flex: 1; min-width: 0; font-size: 13px; }
@@ -432,9 +457,8 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 .rch-name { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 760px) {
-    /* the three columns of a setting stack */
-    .cat-field { grid-template-columns: minmax(0, 1fr); gap: 6px; }
-    .cat-field-label, .cat-field-sub { padding-top: 0; }
+    /* a setting's name and its control stack */
+    .cat-field { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px; }
     .rch-row { grid-template-columns: 1fr; gap: 4px; }
 }
 /* phone: no sideways scrolling - a category's row wraps its pills under its name */
@@ -447,7 +471,7 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
     .cat-row > .cat-off { flex: 1 1 100%; }
     .cat-tabs { padding: 0 6px; }
     .cat-tab { padding: 10px 9px 8px; }
-    .cat-tabpanel { padding: 0 12px 0 13px; }
+    .cat-tabpanel { padding: 12px 10px 14px 11px; }
 }
 
 /* ---- save bar: sticks to the bottom while the panel scrolls ---- */
