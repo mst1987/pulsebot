@@ -3,7 +3,7 @@ import { t } from "../../i18n";
 import { CAT, kader, kaderView, RAID_CATEGORIES, U, ME } from "../../pages/kader/kader.fixture";
 import {
     attPartsText, attText, attendanceCategoriesOf, attendanceOf, byId, canMove, categoryLabel, className, countStates, dayOf, daysSince, entriesIn,
-    historyText, mainPick, nameOf, playerName, roleCounts, rolesOf, searchText, specName, specRole, stampOf, togglePick, versionsDiffer, wishLabel,
+    historyText, mainPick, nameOf, playerName, roleCounts, rolesOf, searchText, specName, specRole, stampOf, togglePick, otherVersion, categoryGroups, attendanceUnloaded, wishLabel,
     wishOptions, MOVES, STATES,
 } from "./model";
 
@@ -103,12 +103,42 @@ describe("lib/kader/model", () => {
         expect(togglePick(view, undefined, CAT.pug)).toEqual([CAT.pug]);
     });
 
-    it("names a category with its game version only while the categories play different ones", () => {
-        expect(versionsDiffer(view)).toBe(false);
-        expect(categoryLabel(view, RAID_CATEGORIES[0])).toBe("Mo Raid");
-        const mixed = kaderView({ raidCategories: [...RAID_CATEGORIES, { id: "c-fv", name: "Forever Raid", versionId: "forever", versionLabel: "Forever", nights: 0 }] });
-        expect(versionsDiffer(mixed)).toBe(true);
-        expect(categoryLabel(mixed, RAID_CATEGORIES[0])).toBe("Mo Raid · TBC");
+    describe("categories of another game version (attendance reads across versions)", () => {
+        const TBC = { id: "c-tbc", name: "Mo Raider", versionId: "tbc", versionLabel: "TBC", hidden: false, nights: 11 };
+        const OLD = { id: "c-old", name: "Alt", versionId: "classic", versionLabel: "Classic", hidden: true, nights: null };
+        const mixed = kaderView({ raidCategories: [...RAID_CATEGORIES, TBC, OLD] });
+
+        it("names a category of the Kader's version plainly, one of another version with its version first", () => {
+            expect(otherVersion(view, RAID_CATEGORIES[0])).toBe(false);
+            expect(categoryLabel(view, RAID_CATEGORIES[0])).toBe("Mo Raid");
+            expect(otherVersion(mixed, TBC)).toBe(true);
+            expect(categoryLabel(mixed, TBC)).toBe("TBC · Mo Raider");
+            expect(categoryLabel(mixed, RAID_CATEGORIES[0])).toBe("Mo Raid");
+        });
+
+        it("groups the categories by version in the server's order, the Kader's own first", () => {
+            expect(categoryGroups(view).map((g) => [g.versionId, g.own, g.categories.length])).toEqual([["forever", true, 3]]);
+            expect(categoryGroups(mixed).map((g) => [g.versionId, g.label, g.own, g.hidden, g.categories.map((c) => c.id)])).toEqual([
+                ["forever", "Forever", true, false, [CAT.mo, CAT.do, CAT.pug]],
+                ["tbc", "TBC", false, false, ["c-tbc"]],
+                ["classic", "Classic", false, true, ["c-old"]],
+            ]);
+        });
+
+        it("sums a TBC category's share with its version in the name", () => {
+            const tank = players.get(U.tank);
+            const withTbc = { ...tank!, attendance: { ...(tank!.attendance || {}), "c-tbc": { attended: 10, counted: 11, versionId: "tbc", nights: [{ date: "2026-12-01", title: "Kara", attended: true, reason: null }] } } };
+            const att = attendanceOf(mixed, kader({ attendanceCategories: ["c-tbc"] }), withTbc);
+            expect(att).toMatchObject({ attended: 10, counted: 11, pct: 91 });
+            expect(attPartsText(att)).toBe("TBC · Mo Raider 10/11");
+            expect(att!.nights[0].category).toBe("TBC · Mo Raider");
+        });
+
+        it("knows when a picked category's version is not counted yet", () => {
+            expect(attendanceUnloaded(mixed, kader({ attendanceCategories: [CAT.mo, "c-tbc"] }))).toBe(false);
+            expect(attendanceUnloaded(mixed, kader({ attendanceCategories: [CAT.mo, "c-old"] }))).toBe(true);
+            expect(attendanceUnloaded(mixed, null)).toBe(false);
+        });
     });
 
     it("lists the Discord roles a player holds that the server knows", () => {

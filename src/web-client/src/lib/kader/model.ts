@@ -160,14 +160,40 @@ export type AttendancePart = { id: string; name: string; attended: number; count
 /** A player's attendance summed over the Kader's raid categories, with every counted night (newest first). */
 export type AttendanceSum = { attended: number; counted: number; pct: number; parts: AttendancePart[]; nights: (KaderNight & { category: string })[] };
 
-/** Whether the server's raid categories play more than one game version — then each names its version. */
-export function versionsDiffer(view: KaderView): boolean {
-    return new Set(view.raidCategories.map((c) => c.versionId)).size > 1;
+/** Whether a raid category plays another game version than the planner's (the Kader's) - its nights are that version's. */
+export function otherVersion(view: KaderView, category: KaderRaidCategory): boolean {
+    return !!category.versionId && category.versionId !== view.versionId;
 }
 
-/** "Mo Raid", or "Mo Raid · TBC" while the categories play different versions. */
+/** "Mo Raid" for a category of the Kader's version, "TBC · Mo Raider" for one of another version. */
 export function categoryLabel(view: KaderView, category: KaderRaidCategory): string {
-    return versionsDiffer(view) && category.versionLabel ? `${category.name} · ${category.versionLabel}` : category.name;
+    return otherVersion(view, category) && category.versionLabel ? `${category.versionLabel} · ${category.name}` : category.name;
+}
+
+/** The raid categories of one game version in the pick: the Kader's own version first (the server's order). */
+export type KaderCategoryGroup = { versionId: string; label: string; own: boolean; hidden: boolean; categories: KaderRaidCategory[] };
+
+/** The server's raid categories grouped by the version they play, in the server's order (own version, shown, hidden). */
+export function categoryGroups(view: KaderView): KaderCategoryGroup[] {
+    const groups: KaderCategoryGroup[] = [];
+    for (const c of view.raidCategories) {
+        let group = groups.find((g) => g.versionId === c.versionId);
+        if (!group) {
+            group = { versionId: c.versionId, label: c.versionLabel || c.versionId, own: c.versionId === view.versionId, hidden: !!c.hidden, categories: [] };
+            groups.push(group);
+        }
+        group.categories.push(c);
+    }
+    return groups;
+}
+
+/**
+ * Whether the Kader picked a category whose version the loaded view has not
+ * counted yet (`nights` null: no Kader had picked that version when the view
+ * was read) - the page then fetches the whole view again.
+ */
+export function attendanceUnloaded(view: KaderView, kader: KaderData | null): boolean {
+    return !!kader && attendanceCategoriesOf(view, kader).some((c) => c.nights === null);
 }
 
 /** The raid categories a Kader's attendance counts in, in the server's order; an id the server no longer knows is left out. */
