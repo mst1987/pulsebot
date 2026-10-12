@@ -8,8 +8,8 @@ import { ExternalIcon, SendIcon } from "../../components/ui/icons";
 import { formatDate } from "../../lib/format";
 import { useT } from "../../i18n";
 
-// "Orga-Zentrale" of one raid category (Einstellungen → Kategorien → Setup &
-// Planung): the Discord message for the orga — the category's raids of the next
+// "Orga-Zentrale" of one raid category (Einstellungen → Kategorien → Discord-
+// Zentralen): the Discord message for the orga — the category's raids of the next
 // four weeks, where each one stands, and a "Raid anlegen" button. Posted and
 // removed at once through its own API, never through the page's draft and save
 // bar; posting again replaces the old message. Who sees the channel is the
@@ -59,7 +59,8 @@ export default function OrgaHubRow({ categoryId, categoryName, hubs }: { categor
     };
 
     return (
-        <CategoryField htmlFor={`catorga-${categoryId}`} label={t("settings.categories.orgaHub")} sub={t("settings.categories.orgaHubSub")}>
+        <CategoryField htmlFor={`catorga-${categoryId}`} label={t("settings.categories.orgaHub")}
+            sub={t("settings.categories.orgaHubShort")} more={t("settings.categories.orgaHubSub")}>
             {hubs.channels.length ? (
                 <div className="cat-panel">
                     <select id={`catorga-${categoryId}`} value={channelId} aria-label={t("settings.categories.orgaHubChannelAria", { name: categoryName })}

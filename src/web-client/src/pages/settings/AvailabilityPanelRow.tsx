@@ -90,7 +90,8 @@ export default function AvailabilityPanelRow({ categoryId, categoryName, panels 
     };
 
     return (
-        <CategoryField htmlFor={`catpanel-${categoryId}`} label={t("settings.categories.panel")} sub={t("settings.categories.panelSub")}>
+        <CategoryField htmlFor={`catpanel-${categoryId}`} label={t("settings.categories.panel")}
+            sub={t("settings.categories.panelShort")} more={t("settings.categories.panelSub")}>
             {panels.channels.length ? (
                 <div className="cat-panel">
                     <select id={`catpanel-${categoryId}`} value={channelId} aria-label={t("settings.categories.panelChannelAria", { name: categoryName })}

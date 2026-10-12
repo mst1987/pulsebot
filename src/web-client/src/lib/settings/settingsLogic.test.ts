@@ -175,7 +175,12 @@ describe("save bar change list", () => {
             "Hyjal & BT · Anwesenheit ausgeblendet", "Hyjal & BT · Quote über 8 Raids", "Hyjal & BT · nicht in Abwesenheiten",
         ]);
         expect(logic.draftChanges(base(), { ...base(), categoryAttendance: { c1: { show: true, window: 11, absences: true } } }, names)).toEqual([]);
-        expect(logic.attendanceOf({ c1: { window: 5 } }, "c1")).toEqual({ show: true, window: 11, absences: true });
+        // any whole number from 1 to 50 counts; anything else is the default 11
+        expect(logic.attendanceOf({ c1: { window: 5 } }, "c1")).toEqual({ show: true, window: 5, absences: true });
+        expect(logic.attendanceOf({ c1: { window: 50 } }, "c1").window).toBe(50);
+        for (const bad of [0, 51, 7.5, Number.NaN]) expect(logic.attendanceOf({ c1: { window: bad } }, "c1").window).toBe(11);
+        expect(logic.validAttendanceWindow(1)).toBe(true);
+        expect(logic.validAttendanceWindow(0)).toBe(false);
     });
 
     it("names the Discord-Event switch and the voice channel per category (#305)", () => {

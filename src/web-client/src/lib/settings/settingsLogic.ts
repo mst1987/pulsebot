@@ -209,7 +209,7 @@ export function noteChannelPick(channels: { id: string; name: string }[], defaul
 }
 
 /** The tabs of a category's open card (Einstellungen → Kategorien), in their order. */
-export const CATEGORY_TABS = ["signup", "message", "plan", "loot"] as const;
+export const CATEGORY_TABS = ["raider", "events", "message", "hubs", "plan", "loot"] as const;
 export type CategoryTab = (typeof CATEGORY_TABS)[number];
 
 /**
@@ -228,16 +228,22 @@ export function planningLabel(mode: string): string {
     return t(mode === "sheet" ? "settings.planning.sheet" : "settings.planning.raidplan");
 }
 
-/** How many last raids a category's attendance quota may count (src/stores/configSchema.js, ATTENDANCE_WINDOWS). */
-export const ATTENDANCE_WINDOWS = [4, 8, 11, 16];
+/** How many last raids a category's attendance quota may count: any whole number in this range (src/stores/configSchema.js, ATTENDANCE_WINDOW_MIN/MAX). */
+export const ATTENDANCE_WINDOW = { min: 1, max: 50, default: 11 };
 export type CategoryAttendance = { show: boolean; window: number; absences: boolean };
+
+/** Whether `n` is a quota window the server keeps. */
+export function validAttendanceWindow(n: number): boolean {
+    return Number.isInteger(n) && n >= ATTENDANCE_WINDOW.min && n <= ATTENDANCE_WINDOW.max;
+}
 
 /** One category's attendance settings with the defaults filled in: shown, over the last 11 raids, in the overview. */
 export function attendanceOf(map: Record<string, Partial<CategoryAttendance>> | undefined, id: string): CategoryAttendance {
     const entry = (map || {})[id] || {};
+    const window = Number(entry.window);
     return {
         show: entry.show !== false,
-        window: ATTENDANCE_WINDOWS.includes(Number(entry.window)) ? Number(entry.window) : 11,
+        window: validAttendanceWindow(window) ? window : ATTENDANCE_WINDOW.default,
         absences: entry.absences !== false,
     };
 }
