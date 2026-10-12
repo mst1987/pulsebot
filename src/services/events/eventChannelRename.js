@@ -9,6 +9,9 @@
 // Access: the router has already checked the rule of /event (accessOf); on top
 // of that the rename needs `channels` write — the area that gates renaming in
 // the web (PATCH /api/channels) — so the button gives nobody more than the menu.
+// That right is a role lookup at Discord, too slow to sit in front of the modal (it must
+// open within three seconds): the button opens the modal, the *submit* acknowledges and
+// then checks the right, and nothing is renamed without it.
 
 const { ActionRowBuilder, MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
 const { card } = require("../../utils/discord/card");
@@ -59,15 +62,23 @@ function renameModal(channel) {
  */
 async function handleRename(interaction, guildId) {
     const channelId = channelIdOf(interaction.customId);
-    const refuse = (title, kind = "error") => interaction.reply(card({ kind, title, ephemeral: true }));
+    const denied = "Zum Umbenennen von Kanälen fehlt dir das Recht „Kanäle“ (Schreiben).";
 
-    if (!(await userMayAny(interaction.user.id, ["channels"], "write"))) {
-        return refuse("Zum Umbenennen von Kanälen fehlt dir das Recht „Kanäle“ (Schreiben).", "warn");
+    if (!interaction.isModalSubmit()) {
+        // The button has to answer with the modal within three seconds, and the right is a role lookup
+        // at Discord (userMayAny) — so the modal opens first and the *submit* checks the right before
+        // anything is renamed. Nobody gains anything by seeing the modal.
+        const found = renamable(guildId, channelId);
+        if (found.error) return interaction.reply(card({ kind: "error", title: found.error, ephemeral: true }));
+        return interaction.showModal(renameModal(found.channel));
     }
+
+    // Acknowledge first, then check; every refusal is an edit of that reply.
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const refuse = (title, kind = "error") => interaction.editReply(card({ kind, title }));
+    if (!(await userMayAny(interaction.user.id, ["channels"], "write"))) return refuse(denied, "warn");
     const found = renamable(guildId, channelId);
     if (found.error) return refuse(found.error);
-
-    if (!interaction.isModalSubmit()) return interaction.showModal(renameModal(found.channel));
 
     const name = normalizeChannelName(interaction.fields.getTextInputValue(FIELD));
     if (!name) return refuse("Daraus ergibt sich kein gültiger Kanalname.");
@@ -75,7 +86,6 @@ async function handleRename(interaction, guildId) {
     const taken = (discord.listAllChannels(guildId) || []).some((c) => String(c.id) !== channelId && String(c.name).toLowerCase() === name);
     if (taken) return refuse(`Einen Kanal **${clip(name, 80)}** gibt es schon.`, "warn");
 
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     try {
         const edited = await discordChannels.editChannel(channelId, { name });
         return interaction.editReply(card({ kind: "ok", title: "Kanal umbenannt", text: `<#${channelId}> heißt jetzt \`${clip(edited.name || name, 100)}\`.` }));

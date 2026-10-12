@@ -6,6 +6,7 @@ jest.mock("../../../src/services/events/eventDraft", () => ({
     guildFor: (i) => (i.guildId === "g1" ? { guildId: "g1" } : { error: "Events legst du auf dem Event-Server an." }),
     initialState: (guildId, categoryId) => ({ cat: categoryId }),
     stepMessage: (...args) => mockStepMessage(...args),
+    clearNamePattern: jest.fn(),
 }));
 jest.mock("../../../src/services/discord/userAccess", () => ({ resolveAccess: jest.fn() }));
 jest.mock("../../../src/services/roster/categoryRoster", () => ({ currentRoster: jest.fn((cat) => (cat === "cat1" ? { id: "r1", guildId: "g1", managers: { userIds: ["mgr"], roleIds: [] } } : null)) }));
@@ -47,7 +48,7 @@ describe("services/events/orgaHubBot", () => {
         const i = interaction("orga:new:cat1");
         await button.execute(i);
         expect(i.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
-        expect(mockStepMessage).toHaveBeenCalledWith("g1", { cat: "cat1" });
+        expect(mockStepMessage).toHaveBeenCalledWith("g1", { cat: "cat1" }, { userId: "u1" });
         expect(i.editReply).toHaveBeenCalledWith({ embeds: [{ title: "Neues Event" }], components: [] });
     });
 

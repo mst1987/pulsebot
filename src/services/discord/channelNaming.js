@@ -25,7 +25,7 @@ const { loadEventGroups, eventLookbackSince } = require("../events/raidEventGrou
 const { raidContentIds } = require("../events/raidListing");
 const { instanceById } = require("../../config/gameVersions");
 const {
-    DEFAULT_SCHEMA, normalizeChannelName, renderChannelName, derivePatternFromName, applyPattern, patternParts,
+    DEFAULT_SCHEMA, normalizeChannelName, renderChannelName, derivePatternFromName, applyPattern, patternText, patternParts,
     prefixOf, describeReplaced, listParts, placementFor,
 } = require("../../utils/channelNames");
 
@@ -244,6 +244,8 @@ function describeResult(ctx, date, raid = "") {
         name,
         source: ctx.source,
         schema: ctx.source === "previous" ? "" : `${ctx.prefix}${ctx.schema}`,
+        // The same rule as text with placeholders, what "Kanalname anpassen" starts from (eventDraft.js).
+        patternText: ctx.source === "previous" ? patternText(ctx.pattern, { raid }) : `${ctx.prefix}${ctx.schema}`,
         ...describeNaming(ctx, replaced, date),
         step: stepLine(ctx),
         fromChannel: ctx.fromChannel,
