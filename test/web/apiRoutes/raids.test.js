@@ -408,6 +408,31 @@ describe("web/apiRoutes/raids", () => {
             expect(await shown("")).toEqual([["old", "tbc"]]);
         });
 
+        it("offers only the categories and raid templates of the shown version (#741)", async () => {
+            auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", categoryVersion: { cat2: "forever" } });
+            settingsStore.listRaidTemplates.mockReturnValue([
+                { id: "t-tbc", name: "Kara", versionId: "tbc" },
+                { id: "t-forever", name: "Barrow Deeps", versionId: "forever" },
+            ]);
+            discord.listTextChannels.mockReturnValue([]);
+            discord.listCategories.mockReturnValue([{ id: "cat1", name: "TBC Raids" }, { id: "cat2", name: "Forever Raids" }]);
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
+            const shown = async (version) => {
+                const res = mockRes();
+                await handle("/api/raids/new", { method: "GET" }, res, new URL(`http://x/api/raids/new?version=${version}`));
+                const d = json(res).data;
+                return [d.categories.map((c) => c.id), d.raidTemplates.map((t) => t.id), d.templates.map((t) => t.id)];
+            };
+            expect(await shown("forever")).toEqual([["cat2"], ["t-forever"], ["t-forever"]]);
+            expect(await shown("tbc")).toEqual([["cat1"], ["t-tbc"], ["t-tbc"]]);
+            // other versions hidden: the main version whatever is asked (#563)
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", categoryVersion: { cat2: "forever" }, hideOtherVersions: true });
+            expect(await shown("forever")).toEqual([["cat1"], ["t-tbc"], ["t-tbc"]]);
+            discord.listCategories.mockReturnValue([]);
+        });
+
         it("names the main version and the categories that play another one (#541)", async () => {
             auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
             activeGuildFor.mockReturnValue("guild-1");

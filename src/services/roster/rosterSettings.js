@@ -36,7 +36,7 @@
 const rosterStore = require("../../stores/rosterStore");
 const councilProfilesStore = require("../../stores/councilProfilesStore");
 const settingsStore = require("../../stores/settingsStore");
-const { knownVersion } = require("../events/mainVersion");
+const { knownVersion, isVersionVisible } = require("../events/mainVersion");
 const { mirrorCategoryRoles } = require("./categoryRoles");
 const { normalizeLootSystem, rosterLootSystem } = require("../loot/lootSystem");
 
@@ -179,10 +179,13 @@ function adminOnlyChanges(fields, current) {
 /**
  * Change a roster's settings (POST /api/rosters/update). `isAdmin`: a full
  * admin; anyone else must already be known as a manager of this roster (the
- * route asks rosterAccess.canManageRosterLive before).
+ * route asks rosterAccess.canManageRosterLive before). `kaderFits(kaderId,
+ * versionId)`: whether a Kader plays that game version - a link (new, or kept
+ * while the version changes) to a Kader of another one is `version_mismatch`
+ * (#741); a new version that is hidden (#563) is `version_hidden`.
  * @returns {{ ok: true, roster: object, trimmedChars: number } | { ok: false, code: string }}
  */
-function updateRosterSettings(rosterId, raw, { isAdmin = false, actor = "", knownRoleIds = null, kaderKnown = null, config = null, saveConfig = null } = {}) {
+function updateRosterSettings(rosterId, raw, { isAdmin = false, actor = "", knownRoleIds = null, kaderKnown = null, kaderFits = null, config = null, saveConfig = null } = {}) {
     const current = rosterStore.getRoster(rosterId);
     if (!current) return { ok: false, code: "not_found" };
     // a closed roster (#739) is read only - only a full admin may still delete it
@@ -196,6 +199,11 @@ function updateRosterSettings(rosterId, raw, { isAdmin = false, actor = "", know
     const systemChanged = loot.systemChanged;
     const kaderId = clean.fields.kaderId;
     if (kaderId && kaderId !== current.kaderId && typeof kaderKnown === "function" && !kaderKnown(kaderId)) return { ok: false, code: "kader_not_found" };
+    // #741: the linked Kader plays the roster's version (after this change); #563: no move to a hidden version
+    const versionId = clean.fields.versionId !== undefined ? clean.fields.versionId : current.versionId;
+    const linked = kaderId !== undefined ? kaderId : current.kaderId;
+    if (linked && (kaderId !== undefined || clean.fields.versionId !== undefined) && typeof kaderFits === "function" && !kaderFits(linked, versionId)) return { ok: false, code: "version_mismatch" };
+    if (clean.fields.versionId !== undefined && clean.fields.versionId !== current.versionId && !isVersionVisible(clean.fields.versionId, config || settingsStore.getConfig())) return { ok: false, code: "version_hidden" };
     // switching "mehrere Charaktere" off keeps each member's first character only (the store cuts the rest)
     const trimmedChars = clean.fields.allowMultipleChars === false && current.allowMultipleChars
         ? Object.values(current.members).filter((m) => m.chars.length > 1).length

@@ -158,6 +158,8 @@ describe("runSeries", () => {
         expect(createEvent).toHaveBeenCalledTimes(1);
         expect(createEvent.mock.calls[0][0]).toEqual({
             guildId: "g1",
+            // a hidden version pauses no series (#563)
+            allowHidden: true,
             user: { id: "u1" },
             body: {
                 title: "SSC + TK 25er", date: "2026-09-16", time: "19:30",

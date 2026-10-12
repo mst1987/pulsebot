@@ -249,9 +249,10 @@ describe("web/kader/kaderSource", () => {
                 { id: "c2", name: "Do Raid", versionId: "forever", versionLabel: "Forever" },
             ]);
             expect(listKnownCategories).toHaveBeenCalledWith("g1");
-            // a night without a signup or a log is not counted yet
+            // a night without a signup or a log is not counted yet; a Forever Kader counts in the Forever category only (#741)
             const out = await loadSource({ now: NOW });
-            expect(out.raidCategories.map((c) => [c.id, c.nights])).toEqual([["c1", 0], ["c2", 0]]);
+            expect(out.raidCategories.map((c) => [c.id, c.nights])).toEqual([["c2", 0]]);
+            expect(listRaidCategories("g1", { versionId: "tbc" }).map((c) => c.id)).toEqual(["c1"]);
         });
 
         it("leaves out a deactivated category, even with raids (#744)", () => {
@@ -266,7 +267,19 @@ describe("web/kader/kaderSource", () => {
             expect(listRaidCategories("g1").map((c) => c.id)).toEqual(["c1"]);
         });
 
+        it("offers only the categories of the asked version, never one of a hidden version (#741, #563)", () => {
+            getConfig.mockReturnValue({ categoryIds: ["c1", "c2"], categoryVersion: { c2: "forever" } });
+            listStoredEvents.mockReturnValue([]);
+            expect(listRaidCategories("g1", { versionId: "forever" }).map((c) => c.id)).toEqual(["c2"]);
+            expect(listRaidCategories("g1", { versionId: "tbc" }).map((c) => c.id)).toEqual(["c1"]);
+            getConfig.mockReturnValue({ categoryIds: ["c1", "c2"], categoryVersion: { c2: "forever" }, hideOtherVersions: true });
+            expect(listRaidCategories("g1").map((c) => c.id)).toEqual(["c1"]);
+            expect(listRaidCategories("g1", { versionId: "forever" })).toEqual([]);
+        });
+
         it("counts every account per category over that category's nights of the Kader's version only, newest first (#740)", async () => {
+            // both categories play Forever now; c1 played TBC before (its night e3)
+            getConfig.mockReturnValue({ categoryIds: [], categoryVersion: { c1: "forever", c2: "forever" } });
             listStoredEvents.mockReturnValue(EVENTS);
             const out = await loadSource({ now: NOW });
             // Forever: the TBC night e3 of c1 counts nowhere
@@ -297,6 +310,7 @@ describe("web/kader/kaderSource", () => {
         it("counts an account the orga assigned a character to, without a profile", async () => {
             raiderCharacters.listAllAssignments.mockReturnValue({ c1: { [U4]: "Kael" } });
             logIndex.mockReturnValue(new Map([["kael", { character: "Kael", className: "Rogue", specKey: "Rogue-Combat" }]]));
+            getConfig.mockReturnValue({ categoryIds: [], categoryVersion: { c1: "forever" } });
             listStoredEvents.mockReturnValue([{ id: "e1", categoryId: "c1", versionId: "forever", title: "Kara", startTime: NOW_SEC - DAY, signUps: [{ userId: U4, status: "signed" }] }]);
             const out = await loadSource({ now: NOW });
             expect(out.attendance.find((a) => a.userId === U4).byCategory).toEqual({

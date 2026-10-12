@@ -9,7 +9,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import RosterFormDialog from "./RosterFormDialog";
-import { renderPage } from "../../test/render";
+import { renderPage, twoVersions } from "../../test/render";
+import { CONTENT_VERSION_KEY } from "../../lib/app/contentVersion";
 import { switchLang } from "../../test/i18n";
 import { detail, member, options, rosterHead, settings } from "./rosters.fixture";
 
@@ -54,6 +55,23 @@ beforeEach(() => {
     vi.mocked(api.updateRoster).mockResolvedValue({ roster: { id: "raid-mo-do-abc", name: "Neu", categoryId: "cat1", versionId: "tbc", guildId: "g1" }, trimmedChars: 0 });
 });
 afterEach(() => switchLang("de"));
+
+describe("RosterFormDialog — the game version it works in (#741)", () => {
+    afterEach(() => localStorage.removeItem(CONTENT_VERSION_KEY));
+
+    it("asks for the options of the shown version when creating, of the roster's own in the settings", async () => {
+        localStorage.setItem(CONTENT_VERSION_KEY, "forever");
+        vi.mocked(api.getRosterOptions).mockResolvedValue(options());
+        const props = { onClose: vi.fn(), onSaved: vi.fn() };
+        const view = renderPage(<RosterFormDialog mode="create" {...props} />, { content: twoVersions() });
+        await waitFor(() => expect(api.getRosterOptions).toHaveBeenCalledWith("forever"));
+        view.unmount();
+        const data = detail([member("Thorgrim")], { canManage: true, isAdmin: true, settings: settings(), roster: rosterHead() });
+        expect(data.roster.versionId).toBe("tbc");
+        renderPage(<RosterFormDialog mode="settings" data={data} {...props} />, { content: twoVersions() });
+        await waitFor(() => expect(api.getRosterOptions).toHaveBeenLastCalledWith("tbc"));
+    });
+});
 
 describe("RosterFormDialog — create", () => {
     it("starts from the category: name, title, places from its raid template", async () => {

@@ -8,13 +8,20 @@
 //   linkedCharacter   the profile character a request points at, or null
 //   isLinked          whether there is one (the orga card's "Bestätigen", the
 //                     addon's hand-out list, the web's "nicht verknüpft")
-//   characterChoices  every profile character as the web's link dialog offers
-//                     it (the bank's version first), searched by character or
-//                     raider name — also a name a typo or two away, since the
-//                     search starts with the name from the sheet ("Whappap"
-//                     finds "Whapap")
+//   characterChoices  the profile characters of the bank's version as the web's
+//                     link dialog offers them, searched by character or raider
+//                     name — also a name a typo or two away, since the search
+//                     starts with the name from the sheet ("Whappap" finds
+//                     "Whapap")
 //   resolveChoice     a picked `userId` + `characterKey` as the request's new
 //                     recipient fields, or null when the profile has no such character
+//   versionError      a pick of another game version than the bank's: why it
+//                     cannot be the bank's recipient (German), else ""
+//
+// The version decides (#741): a bank of one version only ever gets the
+// characters of that version — Forever bank = Forever characters, TBC bank =
+// TBC characters. A character without a stored version counts as TBC
+// (raiderProfileStore.characterVersion).
 //
 // Names are compared like the waiting list's import (foldName: no case, no
 // accents), realms also without spaces, apostrophes and dashes ("Spine shatter"
@@ -22,6 +29,7 @@
 // link is services/signups/guildBank.linkRequest (it redraws the orga card).
 const profiles = require("../../stores/raiderProfileStore");
 const { CLASSES } = require("../../config/gameVersions/classes");
+const { versionShort } = require("./stockView");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -105,8 +113,17 @@ function lookOf(character) {
     };
 }
 
+/** The game version a profile character plays (one without a stored version is TBC). */
+const versionOfCharacter = (character) => profiles.characterVersion(character && character.versionId);
+
+/** Whether a profile character plays `gameVersion`; every character does for "" (no version to keep to). */
+function playsVersion(character, gameVersion) {
+    const id = str(gameVersion);
+    return !id || versionOfCharacter(character) === id;
+}
+
 /** One profile character as the link dialog offers it. */
-function choiceOf(profile, character, gameVersion) {
+function choiceOf(profile, character) {
     return {
         userId: profile.userId,
         userName: profile.name || character.name,
@@ -114,18 +131,18 @@ function choiceOf(profile, character, gameVersion) {
         characterName: character.name,
         realm: character.realm || "",
         className: character.className,
-        versionId: character.versionId || "",
-        ownVersion: !gameVersion || character.versionId === gameVersion,
+        versionId: versionOfCharacter(character),
         ...lookOf(character),
     };
 }
 
 /**
- * The characters of every raider profile a request can be linked to, matching
- * `query` in the character's or the raider's name (folded; empty = all), or a
- * character name within typoLimit of it. Exact name first, then the names that
- * contain the query (before the near misses), then the bank's version
- * (`gameVersion`), then names that start with the query, then by name.
+ * The characters of the raider profiles a request of a bank of `gameVersion`
+ * can be linked to — only that version's, never one of another (#741; "" =
+ * every version) — matching `query` in the character's or the raider's name
+ * (folded; empty = all), or a character name within typoLimit of it. Exact
+ * name first, then the names that contain the query (before the near misses),
+ * then names that start with the query, then by name.
  * @param {{ query?: string, gameVersion?: string, limit?: number, list?: object[] }} [o]
  */
 function characterChoices({ query = "", gameVersion = "", limit = CHOICES_MAX, list } = {}) {
@@ -134,14 +151,15 @@ function characterChoices({ query = "", gameVersion = "", limit = CHOICES_MAX, l
     const all = [];
     for (const p of list || profiles.listProfiles()) {
         for (const c of p.characters || []) {
+            if (!playsVersion(c, gameVersion)) continue;
             const name = foldName(c.name);
             const hit = !q || name.includes(q) || foldName(p.name).includes(q);
             const near = !hit && limitTypos > 0 && Math.abs(name.length - q.length) <= limitTypos && levenshtein(name, q) <= limitTypos;
             if (!hit && !near) continue;
-            all.push({ choice: choiceOf(p, c, gameVersion), name, near });
+            all.push({ choice: choiceOf(p, c), name, near });
         }
     }
-    const rank = ({ choice, name, near }) => [name === q ? 0 : 1, near ? 1 : 0, choice.ownVersion ? 0 : 1, q && name.startsWith(q) ? 0 : 1];
+    const rank = ({ name, near }) => [name === q ? 0 : 1, near ? 1 : 0, q && name.startsWith(q) ? 0 : 1];
     all.sort((a, b) => {
         const ra = rank(a);
         const rb = rank(b);
@@ -157,13 +175,37 @@ function characterChoices({ query = "", gameVersion = "", limit = CHOICES_MAX, l
  * profile has no character with this key.
  */
 function resolveChoice(userId, characterKey) {
+    const found = pickedCharacter(userId, characterKey);
+    if (!found) return null;
+    const { uid, profile: p, character: c } = found;
+    return { userId: uid, userName: p.name || c.name, characterName: c.name, realm: c.realm || "" };
+}
+
+/** The raider's profile character with this key: `{ uid, profile, character }`, or null. */
+function pickedCharacter(userId, characterKey) {
     const uid = str(userId);
     const key = str(characterKey);
     if (!uid || !key) return null;
     const p = profileOf(uid);
     const c = p && (p.characters || []).find((ch) => ch.key === key);
-    if (!c) return null;
-    return { userId: uid, userName: p.name || c.name, characterName: c.name, realm: c.realm || "" };
+    return c ? { uid, profile: p, character: c } : null;
 }
 
-module.exports = { CHOICES_MAX, foldName, foldRealm, levenshtein, typoLimit, linkedCharacter, isLinked, withLinked, characterChoices, resolveChoice };
+/**
+ * Why a picked profile character cannot be the recipient of a bank of
+ * `gameVersion` (#741): it plays another version — German, for the orga.
+ * "" when it plays the bank's version, when there is no such character (the
+ * caller says that in its own words) or no version to keep to.
+ */
+function versionError(userId, characterKey, gameVersion) {
+    const found = pickedCharacter(userId, characterKey);
+    if (!found || playsVersion(found.character, gameVersion)) return "";
+    const own = versionShort(versionOfCharacter(found.character));
+    const bank = versionShort(gameVersion);
+    return `${found.character.name} ist ein ${own}-Charakter – diese Gildenbank ist für ${bank}. Bitte einen ${bank}-Charakter wählen.`;
+}
+
+module.exports = {
+    CHOICES_MAX, foldName, foldRealm, levenshtein, typoLimit, linkedCharacter, isLinked, withLinked, characterChoices, resolveChoice,
+    playsVersion, versionError,
+};

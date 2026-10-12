@@ -26,8 +26,8 @@ const { raidContentIds } = require("./raidListing");
 const { getConfig, getRaidTemplate } = require("../../stores/settingsStore");
 const { getChannelConfig } = require("../../stores/channelArchiveStore");
 const channelNaming = require("../discord/channelNaming");
-const { instanceById } = require("../../config/gameVersions");
-const { mainVersionFor } = require("./mainVersion");
+const { instanceById, rulesFor } = require("../../config/gameVersions");
+const { mainVersionFor, isVersionVisible } = require("./mainVersion");
 const { templateVersionProblem } = require("./categoryEras");
 const { emojiStyleOf } = require("../discord/appEmojis");
 const { normalizeOverflow, normalizeLockAtLimit } = require("../../utils/signup/capacity");
@@ -483,12 +483,14 @@ function followAvailability(id, before, patch) {
  * signupDeadlineHours, fairness, wishes, autoSuggest }. Missing planning
  * fields come from the raid template, then the rule set; missing instances are
  * read from the title. A cloned or new channel without a name is named by the
- * category's schema.
+ * category's schema. An event of a hidden game version (#563: its plan's or
+ * its category's) is refused with 409 `version_hidden` before anything is
+ * created, unless `allowHidden` (the series sweep).
  *
- * @param {{ guildId: string, user?: { id: string }, body: object }} input
+ * @param {{ guildId: string, user?: { id: string }, body: object, allowHidden?: boolean }} input
  * @returns {Promise<{ status: number, body: object } | { error: { status: number, code: string, message: string } }>}
  */
-async function createEvent({ guildId, user, body = {} }) {
+async function createEvent({ guildId, user, body = {}, allowHidden = false }) {
     // validation
     const date = toRaidHelperDate(body.date);
     if (!date) return fail(400, "invalid_date", "Ungültiges Datum.");
@@ -510,6 +512,10 @@ async function createEvent({ guildId, user, body = {} }) {
         if (own.error) return own;
         ({ plan, startTime } = own);
     }
+    if (!allowHidden) {
+        const hidden = hiddenVersionOf(categoryId, plan);
+        if (hidden) return fail(409, "version_hidden", `${hidden} ist ausgeblendet (Einstellungen → Spielversion) – kein Event angelegt.`);
+    }
 
     // Discord: the channel, only now that everything was checked
     const channel = await makeChannel({ guildId, categoryId, body, request, sourceChannel, instanceIds: plan ? plan.instanceIds : body.instanceIds });
@@ -529,6 +535,22 @@ async function createEvent({ guildId, user, body = {} }) {
             ...namingBody(channel.naming, channel.channelName),
         },
     };
+}
+
+/**
+ * The label of a hidden game version (#563) a new event would play - its
+ * plan's, else its category's - or that its category plays; "" while both are
+ * shown. A hidden version is archive: nothing new is created in it, from the
+ * web or from Discord (the series sweep passes `allowHidden`).
+ */
+function hiddenVersionOf(categoryId, plan) {
+    const config = getConfig();
+    const category = mainVersionFor({ categoryId, config });
+    const own = (plan && plan.versionId) || category;
+    const hidden = [own, category].find((id) => !isVersionVisible(id, config));
+    if (!hidden) return "";
+    const rules = rulesFor(hidden);
+    return rules ? rules.short || rules.label : hidden;
 }
 
 /** Where a created channel's name and design came from, for the caller's confirmation (#285). */

@@ -19,7 +19,8 @@ const { userCan } = require("../../config/permissions");
 const rosterStore = require("../../stores/rosterStore");
 const { getConfig } = require("../../stores/settingsStore");
 const { canManageRosterLive } = require("../../services/roster/rosterAccess");
-const { createRosterWithSource, kaderExists } = require("../../services/roster/rosterCreate");
+const { createRosterWithSource, kaderExists, kaderFitsVersion } = require("../../services/roster/rosterCreate");
+const { resolveVersionQuery } = require("../../services/events/mainVersion");
 const { updateRosterSettings } = require("../../services/roster/rosterSettings");
 const { rosterOptions, serverRoles } = require("../../services/roster/rosterOptions");
 const { rosterComposition } = require("../../services/roster/rosterComposition");
@@ -34,7 +35,13 @@ const STATUS_OF_CODE = {
     category_taken: 409, kader_taken: 409, roster_closed: 409,
 };
 
-const refuse = (res, code) => apiError(res, STATUS_OF_CODE[code] || 400, code, `Roster: ${code}`);
+// The refusals of the game version (#741, #563) in words; the client says every code in its own language.
+const MESSAGE_OF_CODE = {
+    version_mismatch: "Kader, Kategorie und Roster müssen dieselbe Spielversion spielen.",
+    version_hidden: "Diese Spielversion ist ausgeblendet – ein Roster bekommt eine sichtbare Spielversion.",
+};
+
+const refuse = (res, code) => apiError(res, STATUS_OF_CODE[code] || 400, code, MESSAGE_OF_CODE[code] || `Roster: ${code}`);
 
 /** The role ids of a server when the bot can see it (to refuse unknown ones), else null. */
 function knownRoleIds(guildId) {
@@ -48,9 +55,13 @@ function knownRoleIds(guildId) {
  * versions: [{ id, label, short }], defaultVersion, roles: [{ id, name, color, position, manageable }],
  * canManageRoles, online, kaders: [{ id, name, inRoster, candidates }] (only with `kader` read),
  * templateSlots: { [categoryId]: { total, tank, healer, bench, templateId, templateName } }, isAdmin }.
+ * `?version=<id>`: the version the dialog works in (#741, `resolveVersionQuery`: the page's
+ * content version, the main version while others are hidden) - only its categories and Kader.
  */
-const getRosterOptions = withUser({}, async ({ user, req, res }) => {
-    const options = rosterOptions({ guildId: activeGuildFor(req), config: getConfig(), canSeeKader: userCan(user, "kader", "read") });
+const getRosterOptions = withUser({}, async ({ user, req, res, query }) => {
+    const config = getConfig();
+    const { versionId } = resolveVersionQuery(query && query.get("version"), { config });
+    const options = rosterOptions({ guildId: activeGuildFor(req), config, canSeeKader: userCan(user, "kader", "read"), versionId });
     // #676: the Loot-Council profiles to pick from (names only) and whether "Profile verwalten" may link to the council
     return ok(res, { ...options, isAdmin: user.isAdmin === true, canOpenCouncil: userCan(user, "lootcouncil", "read") });
 });
@@ -89,6 +100,7 @@ const postRosterUpdate = withUser({ write: "roster", csrf: true, body: true }, a
     // rosterId is no settings field - cleanSettings ignores it like any unknown field
     const result = updateRosterSettings(roster.id, body, {
         isAdmin, actor: str(user.id), knownRoleIds: knownRoleIds(roster.guildId), kaderKnown: (id) => kaderExists(roster.guildId, id),
+        kaderFits: (id, versionId) => kaderFitsVersion(roster.guildId, id, versionId),
         config: getConfig(),
     });
     if (!result.ok) return refuse(res, result.code);

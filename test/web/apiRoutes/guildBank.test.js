@@ -85,7 +85,7 @@ describe("apiRoutes/guildBank", () => {
         it("answers no bank for a server without one", async () => {
             record("Fremd", "g2");
             const res = await call(getGuildBank);
-            expect(body(res)).toEqual({ banks: [], bank: null });
+            expect(body(res)).toEqual({ banks: [], bank: null, otherVersions: [] });
             expect(queueLookups).not.toHaveBeenCalled();
         });
 
@@ -104,14 +104,45 @@ describe("apiRoutes/guildBank", () => {
             expect(queueLookups).toHaveBeenCalledWith("tbc", expect.arrayContaining([22854, 21877]));
         });
 
-        it("picks the bank by key, else by the content version, else the first", async () => {
+        // #741: the version decides — never a bank of another version
+        it("shows only the content version's banks (by key among them, else the first), no bank when it has none", async () => {
+            const tbc = record("Alpha", "g1");
+            const tbc2 = record("Beta", "g1");
+            const forever = record("Alpha", "g1", { project: "forever" });
+            let data = body(await call(getGuildBank, { url: "http://x/api/guildbank?version=forever" }));
+            expect([data.bank.key, data.banks.map((b) => b.key), data.otherVersions]).toEqual([forever.key, [forever.key], ["TBC"]]);
+            // a key of another version's bank does not switch the version
+            data = body(await call(getGuildBank, { url: `http://x/api/guildbank?version=forever&key=${encodeURIComponent(tbc.key)}` }));
+            expect(data.bank.key).toBe(forever.key);
+            data = body(await call(getGuildBank, { url: `http://x/api/guildbank?version=tbc&key=${encodeURIComponent(tbc2.key)}` }));
+            expect([data.bank.key, data.banks.length, data.otherVersions]).toEqual([tbc2.key, 2, ["Forever"]]);
+            // no version asked: the main version (TBC here)
+            expect(body(await call(getGuildBank)).banks.map((b) => b.gameVersion)).toEqual(["tbc", "tbc"]);
+            data = body(await call(getGuildBank, { url: "http://x/api/guildbank?version=classic" }));
+            expect([data.bank, data.banks, [...data.otherVersions].sort()]).toEqual([null, [], ["Forever", "TBC"]]);
+        });
+
+        // #563: while other versions are hidden, the page shows the main version's bank only, whatever it asks
+        it("never shows or names a bank of a hidden version, and refuses writes to it (409)", async () => {
             const tbc = record("Alpha", "g1");
             const forever = record("Alpha", "g1", { project: "forever" });
-            expect(body(await call(getGuildBank, { url: "http://x/api/guildbank?version=forever" })).bank.key).toBe(forever.key);
-            expect(body(await call(getGuildBank, { url: `http://x/api/guildbank?version=forever&key=${encodeURIComponent(tbc.key)}` })).bank.key).toBe(tbc.key);
-            const data = body(await call(getGuildBank, { url: "http://x/api/guildbank?version=classic" }));
-            expect(data.banks).toHaveLength(2);
-            expect([tbc.key, forever.key]).toContain(data.bank.key);
+            const { getConfig } = require("../../../src/stores/settingsStore");
+            const base = getConfig();
+            getConfig.mockReturnValue({ ...base, mainVersion: "forever", hideOtherVersions: true });
+            try {
+                const data = body(await call(getGuildBank, { url: `http://x/api/guildbank?version=tbc&key=${encodeURIComponent(tbc.key)}` }));
+                expect([data.bank.key, data.banks.map((b) => b.key), data.otherVersions]).toEqual([forever.key, [forever.key], []]);
+                let res = await call(postGuildBankItem, { payload: { key: tbc.key, itemId: 22854, status: "give" } });
+                expect([status(res), body(res).error]).toEqual([409, { code: "version_hidden", message: "Diese Gildenbank gehört zu einer ausgeblendeten Spielversion und ist nur noch lesbar." }]);
+                res = await call(postGuildBankTab, { payload: { key: tbc.key, index: 1, hidden: true } });
+                expect(status(res)).toBe(409);
+                expect(store.getBank(tbc.key).items.find((i) => i.itemId === 22854).status).toBe("new");
+                // the shown version's bank stays writable
+                res = await call(postGuildBankItem, { payload: { key: forever.key, itemId: 22854, status: "give" } });
+                expect(status(res)).toBe(200);
+            } finally {
+                getConfig.mockReturnValue(base);
+            }
         });
     });
 

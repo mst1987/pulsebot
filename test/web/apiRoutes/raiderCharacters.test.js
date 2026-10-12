@@ -62,6 +62,7 @@ jest.mock("../../../src/utils/loot/lootImport", () => {
         // the loot-add endpoint is tested for — a stub would test the stub.
         characterKey: actual.characterKey,
         characterKeyOf: actual.characterKeyOf,
+        nameKeyOf: actual.nameKeyOf,
         splitPlayer: actual.splitPlayer,
         buildManualItem: actual.buildManualItem,
         LootParseError,
@@ -106,6 +107,9 @@ const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const discord = require("../../../src/services/discord/discord");
 const characterStore = require("../../../src/stores/characterStore");
 const raiderCharactersStore = require("../../../src/stores/raiderCharactersStore");
+const raiderProfileStore = require("../../../src/stores/raiderProfileStore");
+// no raider profile unless a test names some (characterVersions reads them for the version of a name)
+const listProfiles = jest.spyOn(raiderProfileStore, "listProfiles").mockReturnValue([]);
 const { post, get } = routerClient(require("../../../src/web/apiRoutes/raiderCharacters"));
 
 describe("web/apiRoutes/raiderCharacters", () => {
@@ -145,6 +149,22 @@ describe("web/apiRoutes/raiderCharacters", () => {
                     knownCharacters: ["Elesham", "Mage"],
                 },
             });
+        });
+
+        it("offers only the known characters of the version the category plays (#741)", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: {}, categoryVersion: { cat2: "forever" } });
+            // Elesham is a TBC character, Aldric a Forever one; Mage no profile knows (= the category's version)
+            listProfiles.mockReturnValue([
+                { userId: "u1", characters: [{ name: "Elesham", versionId: "tbc" }, { name: "Aldric Sturmwind", versionId: "forever" }] },
+            ]);
+            characterStore.listCharacters.mockReturnValue([{ character: "Aldric Sturmwind" }, { character: "Elesham" }, { character: "Mage" }]);
+            try {
+                expect(json(await get("/api/raider-characters", { category: "cat1" })).data.knownCharacters).toEqual(["Elesham", "Mage"]);
+                expect(json(await get("/api/raider-characters", { category: "cat2" })).data.knownCharacters).toEqual(["Aldric Sturmwind", "Mage"]);
+            } finally {
+                listProfiles.mockReturnValue([]);
+            }
         });
 
         it("skips the member lookup when the category has no roles assigned yet", async () => {

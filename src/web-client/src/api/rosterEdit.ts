@@ -127,8 +127,9 @@ export type RosterOptions = {
 };
 
 /** What the create dialog and the settings offer for the active server. */
-export function getRosterOptions(): Promise<RosterOptions> {
-    return get("/api/rosters/options");
+export function getRosterOptions(version = ""): Promise<RosterOptions> {
+    // `version`: the game version the dialog works in (#741) - only its categories and Kader
+    return get(`/api/rosters/options${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 export type RosterSlots = { total: number; tank: number; healer: number; bench: number };

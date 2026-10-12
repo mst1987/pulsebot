@@ -1,8 +1,8 @@
 // "Verknüpfen": pick the raider profile character a guild bank request goes to.
 // The addon mails a hand-out to the request's character, so a name nobody plays
 // loses the mail — only a linked request can be confirmed (services/guildbank/
-// linking.js). The search runs over the characters of every raider profile
-// (GET /api/guildbank/characters, the bank's version first), prefilled with the
+// linking.js). The search runs over the raider profiles' characters of the
+// bank's version only (GET /api/guildbank/characters, #741), prefilled with the
 // name the request has now. A hit shows the spec (else class) icon, the
 // character-realm in its class colour and the raider; a click picks it. Used as
 // a dialog of its own (LinkCharacterDialog) and inline in the requests and
@@ -32,9 +32,7 @@ function Hit({ choice, busy, onPick }: { choice: GuildBankCharacterChoice; busy:
                     <span className="gb-req-sub">
                         {[t("guildbank.link.raider", { name: choice.userName }), classLabel(choice.className, choice.className)].filter(Boolean).join(" · ")}
                     </span>
-                </span>
-                {!choice.ownVersion && <Badge size="sm" tip={t("guildbank.link.otherVersionTip")}>{t("guildbank.link.otherVersion")}</Badge>}
-            </button>
+                </span>            </button>
         </li>
     );
 }

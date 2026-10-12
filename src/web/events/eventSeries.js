@@ -295,6 +295,8 @@ async function runSeries({ now = Date.now(), config = getConfig(), onlyCategoryI
                 try {
                     result = await createEvent({
                         guildId,
+                        // a series runs on while its version is hidden (#563 hides, it pauses nothing)
+                        allowHidden: true,
                         user: leader ? { id: leader } : null,
                         body: {
                             title,

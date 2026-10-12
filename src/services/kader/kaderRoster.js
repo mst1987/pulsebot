@@ -22,7 +22,7 @@ function activeCharacter(assignment) {
 }
 
 /**
- * The players of one Kader a roster may take: `{ id, name, players: [{ userId,
+ * The players of one Kader a roster may take: `{ id, name, versionId, players: [{ userId,
  * state, decision: { className, spec } | null, characterName }] }`, only the
  * states of ROSTER_STATES; null for an unknown Kader.
  * @param {string} guildId  the server whose planner holds the Kader
@@ -43,14 +43,16 @@ function rosterPlayers(guildId, kaderId) {
             characterName: active ? str(active.name) : "",
         });
     }
-    return { id: kader.id, name: kader.name, players };
+    return { id: kader.id, name: kader.name, versionId: kader.versionId, players };
 }
 
 /**
  * The Kader of a server for the "Roster anlegen" dialog and the roster link:
- * `[{ id, name, inRoster, candidates, attendanceCategories }]` - counts only
- * (`inRoster` = state roster, `candidates` = every state a roster takes) and
- * the raid categories the Kader counts attendance in (ids, no person in them).
+ * `[{ id, name, versionId, inRoster, candidates, attendanceCategories }]` -
+ * its game version (#741: a roster of another version is no match), counts
+ * only (`inRoster` = state roster, `candidates` = every state a roster takes)
+ * and the raid categories the Kader counts attendance in (ids, no person in them).
+ * The planner is read normalized, so `versionId` is always a known version.
  */
 function kaderSummaries(guildId) {
     return kaderStore.readPlanner(guildId).kaders.map((k) => {
@@ -58,6 +60,7 @@ function kaderSummaries(guildId) {
         return {
             id: k.id,
             name: k.name,
+            versionId: k.versionId,
             inRoster: states.filter((s) => s === "roster").length,
             candidates: states.filter((s) => ROSTER_STATES.includes(s)).length,
             attendanceCategories: [...(k.attendanceCategories || [])].map(str),

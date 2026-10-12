@@ -1,6 +1,7 @@
 // The filter line under the tabs, like the Loot-Council's: the category as a
 // button with a small box, the search, and the formula behind "Verfügbar".
-// With several banks on the server (TBC and Forever) a select picks one.
+// With several banks of the shown version on the server (two guilds) a select
+// picks one — never a bank of another version (#741).
 import { useRef, useState, type ReactNode } from "react";
 import type { GuildBankSummary } from "../../api";
 import { SearchBox } from "../../components/loot/LootFilters";

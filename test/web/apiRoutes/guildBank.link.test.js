@@ -102,7 +102,7 @@ describe("apiRoutes/guildBank — linking and the hand-out history", () => {
     it("searches the profile characters for the link dialog (write only, the active server's bank)", async () => {
         let res = await call(searchGuildBankCharacters, { url: q("characters", { key: KEY, q: "wha" }) });
         expect(status(res)).toBe(200);
-        expect(body(res).characters).toEqual([expect.objectContaining({ userId: "u7", characterKey: "whapap", characterName: "Whapap", userName: "Wha", ownVersion: true })]);
+        expect(body(res).characters).toEqual([expect.objectContaining({ userId: "u7", characterKey: "whapap", characterName: "Whapap", userName: "Wha", versionId: "tbc" })]);
         res = await call(searchGuildBankCharacters, { url: q("characters", { key: KEY }) });
         expect(body(res).characters.map((c) => c.characterName)).toEqual(["Skerra", "Whapap"]);
         res = await call(searchGuildBankCharacters, { url: q("characters", { key: "nope" }) });
@@ -143,6 +143,57 @@ describe("apiRoutes/guildBank — linking and the hand-out history", () => {
         res = await call(linkGuildBankRequest, { payload: { key: KEY, id: entry.id, userId: "u7", characterKey: "whapap" } });
         expect(status(res)).toBe(403);
         expect(requests.getRequest(entry.id).userId).toBe("");
+    });
+
+    // #741: TBC bank = TBC characters — a Forever character is neither offered nor taken
+    it("offers and takes only characters of the bank's version", async () => {
+        profiles.addCharacter("u7", { name: "Whapforever", className: "Mage" }, { versionId: "forever" });
+        const forever = profiles.getProfile("u7").characters.find((c) => c.name === "Whapforever");
+        let res = await call(searchGuildBankCharacters, { url: q("characters", { key: KEY, q: "wha" }) });
+        expect(body(res).characters.map((c) => c.characterName)).toEqual(["Whapap"]);
+
+        const entry = imported();
+        const pick = { userId: "u7", characterKey: forever.key };
+        const message = "Whapforever ist ein Forever-Charakter – diese Gildenbank ist für TBC. Bitte einen TBC-Charakter wählen.";
+        res = await call(linkGuildBankRequest, { payload: { key: KEY, id: entry.id, ...pick } });
+        expect([status(res), body(res).error.code, body(res).error.message]).toEqual([400, "invalid", message]);
+        expect(requests.getRequest(entry.id).userId).toBe("");
+
+        res = await call(addGuildBankWaiting, { payload: { key: KEY, ...pick, itemId: SPINAL, amount: 1 } });
+        expect([status(res), body(res).error.message]).toEqual([400, message]);
+
+        const text = "Whapap\tCrimson Spinal\t1";
+        res = await call(previewGuildBankWaitlist, { payload: { key: KEY, text, links: { 1: pick } } });
+        expect([status(res), body(res).error.message]).toEqual([400, `Zeile 1: ${message}`]);
+        res = await call(importGuildBankWaitlist, { payload: { key: KEY, text, links: { 1: pick } } });
+        expect([status(res), body(res).error.message]).toEqual([400, `Zeile 1: ${message}`]);
+        expect(requests.listRequests()).toHaveLength(1);
+    });
+
+    // #563: a bank of a hidden version is read only
+    it("refuses every write to a bank of a hidden version with 409 version_hidden", async () => {
+        const { getConfig } = require("../../../src/stores/settingsStore");
+        const entry = imported();
+        getConfig.mockReturnValue({ guildId: "g1", mainVersion: "forever", hideOtherVersions: true, discordServers: { eventGuilds: [{ guildId: "g1" }], guildBankChannelId: "900000" } });
+        try {
+            const writes = [
+                [linkGuildBankRequest, { key: KEY, id: entry.id, userId: "u7", characterKey: "whapap" }],
+                [addGuildBankWaiting, { key: KEY, userId: "u8", characterKey: "skerra", itemId: SPINAL, amount: 1 }],
+                [previewGuildBankWaitlist, { key: KEY, text: "Whapap\tCrimson Spinal\t1" }],
+                [importGuildBankWaitlist, { key: KEY, text: "Whapap\tCrimson Spinal\t1" }],
+            ];
+            for (const [handler, payload] of writes) {
+                const res = await call(handler, { payload });
+                expect([status(res), body(res).error.code]).toEqual([409, "version_hidden"]);
+            }
+            expect(requests.listRequests()).toHaveLength(1);
+            // reading stays possible, the page itself shows no bank of the hidden version
+            expect(status(await call(getGuildBankWaitlist, { url: q("waitlist", { key: KEY }) }))).toBe(200);
+            expect(body(await call(getGuildBank, { url: "http://x/api/guildbank?version=tbc" }))).toEqual({ banks: [], bank: null, otherVersions: [] });
+        } finally {
+            getConfig.mockReset();
+            getConfig.mockReturnValue({ guildId: "g1", discordServers: { eventGuilds: [{ guildId: "g1" }], guildBankChannelId: "900000" } });
+        }
     });
 
     it("the import takes the orga's picks per line and says how many land unlinked", async () => {

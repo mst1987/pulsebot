@@ -66,7 +66,10 @@ beforeAll(() => {
     profileFile = tempStoreFile("kader-route-profiles.json");
     fs.writeFileSync(profileFile, JSON.stringify({ profiles: { [U1]: {
         name: "Aldric",
-        characters: [{ name: "Aldric Sturmwind", versionId: "forever", className: "Warrior", specs: [{ key: "Warrior-Protection", gear: "ready" }, { key: "Warrior-Fury", gear: "none" }] }],
+        characters: [
+            { name: "Aldric Sturmwind", versionId: "forever", className: "Warrior", specs: [{ key: "Warrior-Protection", gear: "ready" }, { key: "Warrior-Fury", gear: "none" }] },
+            { name: "Devi", versionId: "tbc", className: "Priest", specs: [{ key: "Priest-Holy", gear: "usable" }] },
+        ],
         availability: ["mi"],
         wishes: [U2], avoidEnabled: true, avoid: [U3], note: "PRIVATE-NOTE",
     } } }));
@@ -195,6 +198,50 @@ describe("web/apiRoutes/kader", () => {
         });
     });
 
+    describe("one game version per Kader (#741: Forever = Forever characters)", () => {
+        const configStore = require("../../../src/stores/configStore");
+        const devi = { id: "d1", name: "Devi", nameStyle: "nick", className: "Priest", specs: [{ spec: "Priest-Holy", main: true }], onlineKey: "devi" };
+        const aldric = { id: "a1", name: "Aldric Sturmwind", nameStyle: "forever", className: "Warrior", specs: [], onlineKey: "forever~aldric sturmwind" };
+        afterEach(() => configStore.useFile(null));
+
+        it("offers only the profile characters of the Kader's version to assign", async () => {
+            const { kaderId } = await kaderWithPlayers();
+            const forever = body(await get("/api/kader", { kader: kaderId, version: "forever" }));
+            expect(forever.players.find((p) => p.userId === U1).pickable.map((c) => c.name)).toEqual(["Aldric Sturmwind"]);
+            const tbc = body(await post("/api/kader/kaders", { name: "TBC-Kader", versionId: "tbc" }));
+            // the named Kader decides the version the planner reads, whatever the page shows
+            const view = body(await get("/api/kader", { kader: tbc.kaderId, version: "forever" }));
+            expect(view.versionId).toBe("tbc");
+            expect(view.players.find((p) => p.userId === U1).pickable.map((c) => c.name)).toEqual(["Devi"]);
+        });
+
+        it("refuses a profile character of another version in the planner's character data", async () => {
+            const { kaderId } = await kaderWithPlayers();
+            let res = await put("/api/kader/assignments", { kaderId, userId: U1, characters: [devi], activeCharacterId: "d1" });
+            expect(status(res)).toBe(400);
+            expect(body(res).error.message).toBe("Devi ist ein TBC-Charakter – hier zählen nur Charaktere aus Forever.");
+            expect(kaderStore.readPlanner("g1").assignments[U1]).toBeUndefined();
+            // a Forever profile character and one typed by hand are fine
+            res = await put("/api/kader/assignments", { kaderId, userId: U1, characters: [aldric, { id: "h1", name: "Hand Name", nameStyle: "forever", className: "Mage", specs: [] }], activeCharacterId: "a1" });
+            expect(status(res)).toBe(200);
+            // in a TBC Kader it is the other way round
+            const tbc = body(await post("/api/kader/kaders", { name: "TBC-Kader", versionId: "tbc" }));
+            expect(status(await put("/api/kader/assignments", { kaderId: tbc.kaderId, userId: U1, characters: [devi], activeCharacterId: "d1" }))).toBe(200);
+            expect(status(await put("/api/kader/assignments", { kaderId: tbc.kaderId, userId: U1, characters: [aldric], activeCharacterId: "a1" }))).toBe(400);
+        });
+
+        it("creates no Kader of a hidden version (#563)", async () => {
+            const file = tempStoreFile("kader-route-hidden.json");
+            fs.writeFileSync(file, JSON.stringify({ mainVersion: "tbc", hideOtherVersions: true }));
+            configStore.useFile(file);
+            const res = await post("/api/kader/kaders", { name: "Forever", versionId: "forever" });
+            expect(status(res)).toBe(400);
+            expect(body(res).error.code).toBe("version_hidden");
+            // without a pick the planner's own version (Forever, hidden here) gives way to the main version
+            expect(body(await post("/api/kader/kaders", { name: "Ohne" })).kader.versionId).toBe("tbc");
+        });
+    });
+
     describe("the raid categories attendance counts in", () => {
         const past = (days) => Math.floor(Date.now() / 1000) - days * 86400;
         const configStore = require("../../../src/stores/configStore");
@@ -202,7 +249,7 @@ describe("web/apiRoutes/kader", () => {
         // Only active categories count (#744): both raid categories are marked for events.
         beforeAll(() => {
             const file = tempStoreFile("kader-route-config.json");
-            fs.writeFileSync(file, JSON.stringify({ categoryIds: ["c-mo", "c-do"] }));
+            fs.writeFileSync(file, JSON.stringify({ categoryIds: ["c-mo", "c-do", "c-tbc"], categoryVersion: { "c-mo": "forever", "c-do": "forever" } }));
             configStore.useFile(file);
         });
         afterAll(() => configStore.useFile(null));
@@ -212,6 +259,7 @@ describe("web/apiRoutes/kader", () => {
                 { id: "e1", guildId: "g1", categoryId: "c-mo", categoryName: "Mo Raid", versionId: "forever", title: "Kara", startTime: past(3), signUps: [{ userId: U1, status: "signed" }] },
                 { id: "e2", guildId: "g1", categoryId: "c-do", categoryName: "Do Raid", versionId: "forever", title: "Gruul", startTime: past(6), signUps: [{ userId: U1, status: "absence" }] },
                 { id: "e3", guildId: "g1", categoryId: "c-mo", categoryName: "Mo Raid", versionId: "forever", title: "Kara", startTime: past(10), signUps: [{ userId: U1, status: "signed" }] },
+                { id: "e4", guildId: "g1", categoryId: "c-tbc", categoryName: "TBC Raid", versionId: "tbc", title: "Kara", startTime: past(4), signUps: [{ userId: U1, status: "signed" }] },
             ]);
         });
 
@@ -240,6 +288,28 @@ describe("web/apiRoutes/kader", () => {
             auth.getUser.mockReturnValue(ADMIN);
             res = await put("/api/kader/kaders", { kaderId, attendanceCategories: "c-mo" });
             expect(status(res)).toBe(400);
+        });
+
+        it("offers and counts only the categories of the Kader's version, refusing a new pick of another (#741)", async () => {
+            const { kaderId } = await kaderWithPlayers();
+            // the TBC category is no raid category of a Forever Kader
+            expect(body(await get("/api/kader", { kader: kaderId })).raidCategories.map((c) => c.id)).toEqual(["c-mo", "c-do"]);
+            const res = await put("/api/kader/kaders", { kaderId, attendanceCategories: ["c-mo", "c-tbc"] });
+            expect(status(res)).toBe(400);
+            expect(body(res).error.message).toContain("TBC Raid");
+            expect(kaderStore.readPlanner("g1").kaders[0].attendanceCategories).toEqual([]);
+            // one stored before (when the picker offered every version) drops out with the next save
+            const planner = kaderStore.readPlanner("g1");
+            planner.kaders[0].attendanceCategories = ["c-mo", "c-tbc"];
+            kaderStore.writePlanner("g1", planner);
+            const kept = await put("/api/kader/kaders", { kaderId, attendanceCategories: ["c-mo", "c-tbc", "c-do"] });
+            expect(status(kept)).toBe(200);
+            expect(body(kept).kader.attendanceCategories).toEqual(["c-mo", "c-do"]);
+            // a TBC Kader sees the TBC category and its TBC night only
+            const tbc = body(await post("/api/kader/kaders", { name: "TBC-Kader", versionId: "tbc" }));
+            const view = body(await get("/api/kader", { kader: tbc.kaderId, version: "tbc" }));
+            expect(view.versionId).toBe("tbc");
+            expect(view.raidCategories.map((c) => [c.id, c.nights])).toEqual([["c-tbc", 1]]);
         });
     });
 

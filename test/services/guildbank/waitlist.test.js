@@ -233,4 +233,22 @@ describe("services/guildbank/waitlist — linking in the import and the list", (
         expect(added.request).toMatchObject({ userId: "u-c", characterName: "Ragemain", amount: 2 });
         expect(waitlist.addEntry(KEY, { userId: "u-c", characterKey: "nope", itemId: SPINAL, amount: 1 })).toEqual({ error: "Diesen Charakter gibt es im Profil nicht." });
     });
+
+    // #741: a TBC bank only ever matches or takes TBC characters
+    it("matches and takes only characters of the bank's version; a name of another version's character stays a bare name", () => {
+        profiles.addCharacter("u-f", { name: "Devi", className: "Mage" }, { name: "Fio", versionId: "forever" });
+        const devi = profiles.getProfile("u-f").characters.find((c) => c.name === "Devi");
+        expect(waitlist.matchCharacter("Devi", "tbc")).toBeNull();
+        expect(waitlist.matchCharacter("Devi", "forever")).toMatchObject({ userId: "u-f", characterName: "Devi" });
+        expect(waitlist.matchCharacter("Devi")).toMatchObject({ userId: "u-f" });
+        // typed: imported unlinked under the name; picked: refused
+        expect(waitlist.addEntry(KEY, { name: "Devi", itemId: SPINAL, amount: 1 }).request).toMatchObject({ userId: "", characterName: "Devi" });
+        expect(waitlist.addEntry(KEY, { userId: "u-f", characterKey: devi.key, itemId: SPINAL, amount: 1 })).toEqual({
+            error: "Devi ist ein Forever-Charakter – diese Gildenbank ist für TBC. Bitte einen TBC-Charakter wählen.",
+        });
+        const text = "Devi\tCrimson Spinal\t1\nDevi\tCrimson Spinal\t2";
+        expect(waitlist.previewImport(KEY, text).rows.map((r) => [r.ok, r.linked])).toEqual([[true, false], [true, false]]);
+        const refused = waitlist.importLines(KEY, text, { links: { 2: { userId: "u-f", characterKey: devi.key } } });
+        expect(refused).toEqual({ error: "Zeile 2: Devi ist ein Forever-Charakter – diese Gildenbank ist für TBC. Bitte einen TBC-Charakter wählen." });
+    });
 });

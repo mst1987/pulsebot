@@ -47,7 +47,7 @@ function row(over: Partial<GuildBankImportRow>): GuildBankImportRow {
 
 const WHAPAP: GuildBankCharacterChoice = {
     userId: "u7", userName: "Wha", characterKey: "whapap", characterName: "Whapap", realm: "Spineshatter", className: "Mage",
-    versionId: "tbc", ownVersion: true, icon: "spell_frost_frostbolt02", classColor: "#69CCF0", specKey: "Mage-Frost",
+    versionId: "tbc", icon: "spell_frost_frostbolt02", classColor: "#69CCF0", specKey: "Mage-Frost",
 };
 
 async function openTab(user: ReturnType<typeof userEvent.setup>) {

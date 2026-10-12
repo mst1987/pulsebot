@@ -60,16 +60,35 @@ describe("services/guildbank/linking — linkedCharacter / isLinked", () => {
 });
 
 describe("services/guildbank/linking — characterChoices / resolveChoice", () => {
-    it("lists every profile character, the exact name first, then the bank's version, with icon and class colour", () => {
+    // #741: TBC bank = TBC characters, Forever bank = Forever characters
+    it("lists only the bank's version's characters, with icon and class colour", () => {
         const all = linking.characterChoices({ gameVersion: "tbc" });
-        expect(all.map((c) => c.characterName)).toEqual(["Alîna", "Zibbo", "Zibbowar", "Devi Res"]);
+        expect(all.map((c) => c.characterName)).toEqual(["Alîna", "Zibbo", "Zibbowar"]);
         expect(all[0]).toEqual({
             userId: "u1", userName: "Anna", characterKey: "alîna", characterName: "Alîna", realm: "Spineshatter", className: "Priest",
-            versionId: "tbc", ownVersion: true, icon: "spell_holy_guardianspirit", classColor: expect.stringMatching(/^#/), specKey: "Priest-Holy",
+            versionId: "tbc", icon: "spell_holy_guardianspirit", classColor: expect.stringMatching(/^#/), specKey: "Priest-Holy",
         });
         // no spec: the class icon
         expect(all.find((c) => c.characterName === "Zibbowar").icon).toBe("classicon_warrior");
-        expect(all.find((c) => c.characterName === "Devi Res").ownVersion).toBe(false);
+        expect(linking.characterChoices({ gameVersion: "forever" }).map((c) => [c.characterName, c.versionId])).toEqual([["Devi Res", "forever"]]);
+        expect(linking.characterChoices({ query: "devi", gameVersion: "tbc" })).toEqual([]);
+        // a character stored without a version counts as TBC
+        const legacy = { userId: "u5", name: "Old", characters: [{ key: "oldie", name: "Oldie", className: "Warrior" }] };
+        expect(linking.characterChoices({ gameVersion: "tbc", list: [legacy] }).map((c) => c.versionId)).toEqual(["tbc"]);
+        expect(linking.characterChoices({ gameVersion: "forever", list: [legacy] })).toEqual([]);
+        // no version to keep to: every character
+        expect(linking.characterChoices()).toHaveLength(4);
+    });
+
+    it("names a pick of another version than the bank's, nothing for a fitting or unknown one", () => {
+        const devi = profiles.getProfile("u1").characters.find((c) => c.name === "Devi Res");
+        expect(linking.versionError("u1", devi.key, "tbc")).toBe("Devi Res ist ein Forever-Charakter – diese Gildenbank ist für TBC. Bitte einen TBC-Charakter wählen.");
+        expect(linking.versionError("u1", "zibbowar", "forever")).toBe("Zibbowar ist ein TBC-Charakter – diese Gildenbank ist für Forever. Bitte einen Forever-Charakter wählen.");
+        expect(linking.versionError("u1", devi.key, "forever")).toBe("");
+        expect(linking.versionError("u1", "zibbowar", "tbc")).toBe("");
+        expect(linking.versionError("u1", "zibbowar", "")).toBe("");
+        expect(linking.versionError("u1", "nobody", "tbc")).toBe("");
+        expect(linking.versionError("", "", "tbc")).toBe("");
     });
 
     it("searches character and raider names without case and accents, the exact hit first", () => {
