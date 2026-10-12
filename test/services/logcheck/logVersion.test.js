@@ -51,6 +51,45 @@ const config = {
 
 beforeEach(() => mockWclCtor.mockClear());
 
+describe("services/logcheck/logVersion — the list a log without a raid is in", () => {
+    const unlinked = (extra) => ({ kind: "log", eventId: "", hostVersionId: "", ...extra });
+
+    it("lists a log of SSC, TK and Gruul under TBC only — read from Warcraft Logs or from its title", () => {
+        const read = unlinked({ raids: [{ contentId: "tk" }, { contentId: "gruul" }, { contentId: "ssc" }] });
+        expect(lv.listedVersions(read, { config })).toEqual(["tbc"]);
+        expect(lv.inVersionList(read, "tbc", { config })).toBe(true);
+        expect(lv.inVersionList(read, "forever", { config })).toBe(false);
+        const titled = unlinked({ title: "SSC + TK 23er Raid" });
+        expect(lv.inVersionList(titled, "tbc", { config })).toBe(true);
+        expect(lv.inVersionList(titled, "forever", { config })).toBe(false);
+    });
+
+    it("takes the host's version first", () => {
+        const forever = unlinked({ hostVersionId: "forever", raids: [{ contentId: "hyjal" }] });
+        expect(lv.listedVersions(forever, { config })).toEqual(["forever"]);
+        expect(lv.inVersionList(forever, "tbc", { config })).toBe(false);
+    });
+
+    it("lets a pinned category decide between the versions a raid allows, never against the raid", () => {
+        const hyjal = unlinked({ raids: [{ contentId: "hyjal" }] });
+        expect(lv.listedVersions(hyjal, { config })).toEqual(["tbc", "forever"]);
+        expect(lv.listedVersions({ ...hyjal, categoryId: "catF" }, { config })).toEqual(["forever"]);
+        // an SSC log stays TBC's, whatever channel it was posted in
+        expect(lv.listedVersions(unlinked({ raids: [{ contentId: "ssc" }], categoryId: "catF" }), { config })).toEqual(["tbc"]);
+        // a category that is not pinned (it plays the main version) tells nothing
+        expect(lv.listedVersions({ ...hyjal, categoryId: "catT" }, { config })).toEqual(["tbc", "forever"]);
+        expect(lv.listedVersions(unlinked({ categoryId: "catF" }), { config })).toEqual(["forever"]);
+    });
+
+    it("keeps a log nothing tells about in every version", () => {
+        for (const log of [unlinked({}), unlinked({ title: "Mittwoch" }), unlinked({ raids: [{ contentId: "ssc" }, { contentId: "mc" }] })]) {
+            expect(lv.listedVersions(log, { config })).toEqual([]);
+            expect(lv.inVersionList(log, "tbc", { config })).toBe(true);
+            expect(lv.inVersionList(log, "forever", { config })).toBe(true);
+        }
+    });
+});
+
 describe("services/logcheck/logVersion — host to version", () => {
     it("finds the version whose Warcraft-Logs site is the host", () => {
         expect(lv.versionOfHost("fresh.warcraftlogs.com", { config })).toBe("tbc");
@@ -189,6 +228,18 @@ describe("services/logcheck/logVersion — what the log check reads", () => {
         expect(lv.linkConflict(freshLog, { versionId: "tbc" }, { config })).toBe("");
         expect(lv.linkConflict({ hostVersionId: "" }, { versionId: "forever" }, { config })).toBe("");
         expect(lv.linkConflict(freshLog, {}, { config })).toBe("");
+    });
+
+    it("refuses to link a log of a TBC-only raid to a Forever raid, also without a host", () => {
+        const ssc = { title: "SSC + TK", raids: [{ contentId: "ssc" }, { contentId: "tk" }] };
+        expect(lv.linkConflict(ssc, { versionId: "forever" }, { config }))
+            .toBe("Dieses Log ist von TBC Anniversary, der Raid von WoW Forever. Ein Log gehört nur zu einem Raid seiner Version.");
+        expect(lv.linkConflict(ssc, { versionId: "tbc" }, { config })).toBe("");
+        // Hyjal is TBC's and Forever's: both raids are fine, a Classic one is not
+        const hyjal = { raids: [{ contentId: "hyjal" }] };
+        expect(lv.linkConflict(hyjal, { versionId: "forever" }, { config })).toBe("");
+        expect(lv.linkConflict(hyjal, { versionId: "classic" }, { config }))
+            .toBe("Dieses Log ist von TBC Anniversary oder WoW Forever, der Raid von Classic Era. Ein Log gehört nur zu einem Raid seiner Version.");
     });
 
     it("words the refusal for orga in German", () => {

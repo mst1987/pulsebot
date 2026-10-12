@@ -104,7 +104,35 @@ function contentsOf(versionId) {
     return rules ? rules.instances.map((i) => ({ id: i.id, label: i.name, short: i.short })) : [];
 }
 
+// Which versions a raid could be from: its own, plus every other version that
+// knows a raid of the same name or one of the same bosses. TBC's SSC is TBC
+// only; TBC's Hyjal is also Forever's, Forever's Onyxia also Classic's. Read
+// once per id, the rule sets do not change at run time.
+const VERSIONS_OF_CONTENT = new Map();
+
+/**
+ * Every version a raid could be from, its own first; [] for an unknown id. A
+ * log of a raid only one version has belongs to that version (logVersion.js).
+ * @param {string} contentId
+ * @returns {string[]} version ids
+ */
+function versionsOfContent(contentId) {
+    const id = String(contentId || "");
+    if (VERSIONS_OF_CONTENT.has(id)) return VERSIONS_OF_CONTENT.get(id);
+    const inst = gameVersions.instanceById(id);
+    let versions = [];
+    if (inst) {
+        const bosses = [...(inst.bosses || []), ...(inst.finalBossNames || []), ...(inst.bossHints || [])];
+        const zones = [String(inst.name || "").replace(/s*(.*?)s*/g, " ").trim(), ...(inst.zoneNames || [])].filter(Boolean);
+        const others = gameVersions.VERSIONS.map((v) => v.id).filter((v) => v !== inst.versionId
+            && (bosses.some((b) => contentForBoss(b, { versionId: v })) || zones.some((z) => contentForInstance(z, { versionId: v }))));
+        versions = [inst.versionId, ...others];
+    }
+    VERSIONS_OF_CONTENT.set(id, versions);
+    return versions;
+}
+
 module.exports = {
     contentsForText, contentForInstance, contentForBoss, contentForLoot, sourceForItem,
-    content, iconOf, contentsOf,
+    content, iconOf, contentsOf, versionsOfContent,
 };

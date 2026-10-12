@@ -3,7 +3,7 @@
 // unit-testable; the server route feeds it the list plus the ?sort/?dir/?page
 // query params.
 
-const { reportLink, recordVersion } = require("./logVersion");
+const { reportLink, recordVersion, knownLogVersion } = require("./logVersion");
 
 const DEFAULT_PAGE_SIZE = 15;
 
@@ -180,8 +180,10 @@ function claRowFromLog(log, report) {
         reportId: l.reportId || "",
         wclUrl: l.link || wclLinkOf(l, l.host),
         // the log's game version (#746); hostVersionId feeds the raid match (logEventMatch)
+        // and the version list (logVersion.listedVersions) — read from the stored log,
+        // never from wclUrl, which for a log without a link is built on the TBC site
         versionId: recordVersion(l),
-        hostVersionId: l.hostVersionId,
+        hostVersionId: knownLogVersion(l),
         postedAt: logPostedAt(l),
         source: l.messageId ? "channel" : "link",
         guildId: l.guildId || "",

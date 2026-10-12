@@ -81,6 +81,25 @@ describe("config/raidContent", () => {
         });
     });
 
+    describe("versionsOfContent — which versions a raid could be from", () => {
+        it("knows SSC, TK, Gruul and Magtheridon as TBC only", () => {
+            for (const id of ["ssc", "tk", "gruul", "mag", "kara", "bt"]) expect(raidContent.versionsOfContent(id)).toEqual(["tbc"]);
+        });
+
+        it("names every version a raid of the same name or bosses exists in, its own first", () => {
+            expect(raidContent.versionsOfContent("hyjal")).toEqual(["tbc", "forever"]);
+            expect(raidContent.versionsOfContent("forever-hyjal")).toEqual(["forever", "tbc"]);
+            expect(raidContent.versionsOfContent("forever-ony")).toEqual(["forever", "classic"]);
+            expect(raidContent.versionsOfContent("mc")).toEqual(["classic"]);
+            expect(raidContent.versionsOfContent("forever-barrow")).toEqual(["forever"]);
+        });
+
+        it("knows no version for an unknown id", () => {
+            expect(raidContent.versionsOfContent("nope")).toEqual([]);
+            expect(raidContent.versionsOfContent("")).toEqual([]);
+        });
+    });
+
     it("gives every instance of every version an icon", () => {
         for (const v of VERSIONS) {
             for (const i of v.instances) {
