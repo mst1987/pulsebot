@@ -164,6 +164,21 @@ describe("eventDraft — Kanal-Icon", () => {
         expect(new Set(opts.map((o) => o.value)).size).toBe(opts.length);
     });
 
+    it("gives every option one emoji only, a lead of several goes into the description", async () => {
+        // the PuG category's real names start with two emojis: two in emoji.name made Discord refuse the step
+        discord.listAllChannels.mockReturnValue([
+            { id: "305", name: "🏔️👑》hyjal-bt-18-oct", parentId: CAT_EH },
+            { id: "306", name: "🌴》za-24-oct", parentId: CAT_EH },
+        ]);
+        loadEventGroups.mockResolvedValue({ groups: [{ categoryId: CAT_EH, events: [
+            { id: "eh-new2", title: "Hyjal + BT", instanceIds: ["hyjal", "bt"], channelId: "305", startTime: Date.UTC(2026, 9, 18, 17, 0) / 1000 },
+        ] }] });
+        const [select] = await iconRow(state());
+        const graphemes = (s) => Array.from(new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(s)).length;
+        for (const o of select.options.filter((x) => x.emoji)) expect(graphemes(o.emoji.name)).toBe(1);
+        expect(select.options[0]).toMatchObject({ label: "Wie zuletzt", emoji: { name: "🏔️" }, description: "🏔️👑" });
+    });
+
     it("does not offer the select where no channel is created", async () => {
         expect(await iconRow(state({ mode: "e" }))).toBeUndefined();
     });
