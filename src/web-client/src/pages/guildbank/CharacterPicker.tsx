@@ -17,10 +17,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
     checkGuildBankCharacterArmory, searchGuildBankCharacters, verifyGuildBankCharacter,
-    type ApiError, type GuildBankCharacterChoice, type GuildBankEvidence, type GuildBankLinkProblem,
+    type ApiError, type GuildBankCharacterChoice, type GuildBankEvidence, type GuildBankKnownName, type GuildBankLinkProblem,
 } from "../../api";
 import { classColorProps } from "../../components/character/ClassSpec";
-import { Badge, Button, Field, Modal, WowIcon } from "../../components/ui";
+import { Badge, Button, Field, Modal, Switch, WowIcon } from "../../components/ui";
 import { CheckIcon, LinkIcon, SearchIcon, WarnIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { classLabel } from "../../lib/wow/wowNames";
@@ -119,12 +119,76 @@ function Hit({ choice, busy, checking, note, asking, onPick, onArmory, onAsk, on
 
 const keyOf = (c: { userId: string; characterKey: string }) => `${c.userId}:${c.characterKey}`;
 
-/** The search and its hits; `onPick` gets the chosen (confirmed) character. */
-export function CharacterPicker({ bankKey, initialQuery, busy = false, onPick, intro }: {
+/** A name taken as the recipient (#809): known (`checked` false) or checked in game by the orga. */
+export type NamePick = { characterName: string; realm: string; checked: boolean; addToProfile: boolean };
+
+/**
+ * #809: the names the bank knows without a profile (earlier hand-outs, logs,
+ * loot) — each can be taken at once — and the typed name itself, taken after
+ * "Im Spiel geprüft". `raiderName` offers "ins Profil übernehmen".
+ */
+function OtherNames({ names, typed, busy, raiderName, onTake }: {
+    names: GuildBankKnownName[];
+    typed: string;
+    busy: boolean;
+    raiderName?: string;
+    onTake: (pick: NamePick) => void;
+}) {
+    const t = useT();
+    const [asking, setAsking] = useState(false);
+    const [toProfile, setToProfile] = useState(false);
+    const known = names.some((n) => n.name.toLowerCase() === typed.toLowerCase());
+    const take = (characterName: string, realm: string, checked: boolean) => onTake({ characterName, realm, checked, addToProfile: !!raiderName && toProfile });
+    return (
+        <section className="gb-link-names" aria-label={t("guildbank.link.otherNames")}>
+            <b>{t("guildbank.link.otherNames")}</b>
+            {names.length > 0 && (
+                <ul className="gb-link-hits">
+                    {names.map((n) => {
+                        const label = n.realm ? `${n.name}-${n.realm.replace(/\s+/g, "")}` : n.name;
+                        return (
+                            <li key={`${n.name}:${n.realm}`} className="gb-link-row">
+                                <button type="button" className="gb-link-hit" disabled={busy} onClick={() => take(n.name, n.realm, false)}
+                                    aria-label={t("guildbank.link.takeName", { name: label })}>
+                                    <span className="gb-link-noicon" aria-hidden="true" />
+                                    <span className="gb-req-text"><span className="gb-link-name">{label}</span></span>
+                                    <Badge size="sm" tone="ok" icon={<CheckIcon />} tip={t(`guildbank.link.nameVia.${n.via}`)}>{t(`guildbank.link.nameVia.${n.via}`)}</Badge>
+                                </button>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+            {typed && !known && !asking && (
+                <span className="gb-link-checks gb-link-free">
+                    <span className="gb-req-sub">{t("guildbank.link.freeHint", { name: typed })}</span>
+                    <Button size="sm" variant="ghost" icon={<CheckIcon />} disabled={busy} onClick={() => setAsking(true)}
+                        aria-label={t("guildbank.link.takeTyped", { name: typed })}>
+                        {t("guildbank.link.gameCheck")}
+                    </Button>
+                </span>
+            )}
+            {typed && !known && asking && <GameCheck name={typed} busy={busy} onYes={() => take(typed, "", true)} onNo={() => setAsking(false)} />}
+            {raiderName && (
+                <Switch className="gb-link-profile" checked={toProfile} onChange={setToProfile} label={t("guildbank.link.addToProfile", { raider: raiderName })} />
+            )}
+        </section>
+    );
+}
+
+/**
+ * The search and its hits; `onPick` gets the chosen (confirmed) character.
+ * With `onTakeName` (#809) also the known names without a profile and the
+ * typed name (OtherNames).
+ */
+export function CharacterPicker({ bankKey, initialQuery, busy = false, onPick, onTakeName, raiderName, intro }: {
     bankKey: string;
     initialQuery: string;
     busy?: boolean;
     onPick: (choice: GuildBankCharacterChoice) => void;
+    onTakeName?: (pick: NamePick) => void;
+    /** The request's raider (a Discord account): offers "ins Profil übernehmen". */
+    raiderName?: string;
     /** What is linked (shown above the search). */
     intro?: ReactNode;
 }) {
@@ -133,6 +197,7 @@ export function CharacterPicker({ bankKey, initialQuery, busy = false, onPick, i
     const [text, setText] = useState(initialQuery);
     const [asking, setAsking] = useState("");
     const [hits, setHits] = useState<GuildBankCharacterChoice[] | null>(null);
+    const [names, setNames] = useState<GuildBankKnownName[]>([]);
     const [error, setError] = useState("");
     const [checking, setChecking] = useState("");
     const [notes, setNotes] = useState<Record<string, CheckNote>>({});
@@ -143,7 +208,7 @@ export function CharacterPicker({ bankKey, initialQuery, busy = false, onPick, i
         setError("");
         const timer = window.setTimeout(() => {
             searchGuildBankCharacters(bankKey, value)
-                .then((r) => { if (!stale) setHits(r.characters); })
+                .then((r) => { if (!stale) { setHits(r.characters); setNames(r.names || []); } })
                 .catch((err: ApiError) => { if (!stale) setError(err.message); });
         }, SEARCH_DELAY_MS);
         return () => { stale = true; window.clearTimeout(timer); };
@@ -202,6 +267,10 @@ export function CharacterPicker({ bankKey, initialQuery, busy = false, onPick, i
                     </ul>
                 )}
             </div>
+            {onTakeName && hits !== null && (
+                <OtherNames names={names} busy={busy} raiderName={raiderName} onTake={onTakeName}
+                    typed={hits.some((c) => c.characterName.toLowerCase() === value.toLowerCase()) ? "" : value} />
+            )}
         </div>
     );
 }
@@ -260,13 +329,15 @@ export function LinkIntro({ what, current, busy = false, onVerify }: { what: str
 }
 
 /** The picker as a dialog of its own (the waiting-list tab); `onVerify` as in LinkIntro. */
-export default function LinkCharacterDialog({ bankKey, what, current, busy, onPick, onVerify, onClose }: {
+export default function LinkCharacterDialog({ bankKey, what, current, busy, onPick, onVerify, onTakeName, raiderName, onClose }: {
     bankKey: string;
     what: string;
     current: string;
     busy: boolean;
     onPick: (choice: GuildBankCharacterChoice) => void;
     onVerify?: () => void;
+    onTakeName?: (pick: NamePick) => void;
+    raiderName?: string;
     onClose: () => void;
 }) {
     const t = useT();
@@ -282,7 +353,8 @@ export default function LinkCharacterDialog({ bankKey, what, current, busy, onPi
             initialFocus="#gb-link-query"
             footer={<Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>}
         >
-            <CharacterPicker bankKey={bankKey} initialQuery={current} busy={busy} onPick={onPick} intro={<LinkIntro what={what} current={current} busy={busy} onVerify={onVerify} />} />
+            <CharacterPicker bankKey={bankKey} initialQuery={current} busy={busy} onPick={onPick} onTakeName={onTakeName} raiderName={raiderName}
+                intro={<LinkIntro what={what} current={current} busy={busy} onVerify={onVerify} />} />
         </Modal>
     );
 }

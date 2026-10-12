@@ -51,7 +51,9 @@ const { mainVersionFor } = require("../events/mainVersion");
 const stockView = require("../guildbank/stockView");
 const waitlist = require("../guildbank/waitlist");
 const linking = require("../guildbank/linking");
-const { seenIndex } = require("../characters/characterEvidence");
+const { seenIndex, characterEvidence } = require("../characters/characterEvidence");
+const characterStore = require("../../stores/characterStore");
+const { validateCharacterName } = require("../../utils/signup/characterNames");
 const post = require("../../utils/signup/guildBankPost");
 const logger = require("../../logger");
 
@@ -361,6 +363,84 @@ async function checkRequestRecipient(id, { bankKey = "", by = "", byName = "" } 
     return { request: linking.withLinked(result.request) };
 }
 
+/**
+ * Put a character the orga named into the raider's profile (#809, "ins Profil
+ * übernehmen"): class from the class cache (logs, loot) or the caller, the
+ * orga's check as its evidence. It goes first among the raider's characters of
+ * the version only when the first one there now is an unconfirmed typed name
+ * (the "Gentle" a raider typed at a signup) — never past a real main.
+ * Returns "added" | "noClass" | "noProfile" or a German error.
+ */
+function addToProfile(userId, { name, realm, versionId, className = "", by = "", byName = "", checked = false }) {
+    if (!profiles.getProfile(userId)) return "noProfile";
+    const known = characterStore.getCharacter(name);
+    const cls = str(className) || str(known && known.className);
+    if (!cls) return "noClass";
+    const added = profiles.addCharacter(userId, { name, realm, className: cls, source: "manual" }, { versionId });
+    if (added.error) return added.error;
+    const key = added.character.key;
+    if (checked) profiles.verifyCharacter(userId, key, { by, byName });
+    const first = profiles.charactersOfVersion(profiles.getProfile(userId), versionId)[0];
+    if (first && first.key !== key && !characterEvidence(first, { gameVersion: versionId }).verified) profiles.moveCharacterFirst(userId, key);
+    return "added";
+}
+
+/**
+ * The orga gives a pending request from the stock another character name
+ * (#809): "Charakter ändern …" on the card (`checked` — the orga vouches with
+ * the modal) or a free / suggested name in the web. The name follows the
+ * game's rule of the bank's version (utils/signup/characterNames.js), the
+ * realm defaults to the bank's. A name without evidence (no profile
+ * character, no log, loot or earlier hand-out of this bank) needs `checked`.
+ * The raider and the DMs stay; `addToProfile` also puts the name into the
+ * raider's profile (addToProfile). The card is redrawn at once.
+ * Returns `{ request, profile }` (`request` with `linked`; `profile` "" |
+ * "added" | "noClass" | "noProfile" | an error) or `{ error, code }`.
+ */
+async function reassignRequest(id, {
+    bankKey = "", characterName = "", realm = "", by = "", byName = "", checked = false, addToProfile: toProfile = false, className = "",
+} = {}, { config, now = Date.now() } = {}) {
+    const request = store.getRequest(id);
+    if (!request || !request.itemId || (bankKey && request.bankKey !== str(bankKey)) || !store.PENDING_STATUSES.includes(request.status)) {
+        return { error: LINK_GONE, code: "not_found" };
+    }
+    const bank = stockStore.getBank(request.bankKey);
+    const versionId = bank ? str(bank.gameVersion) : "";
+    const valid = validateCharacterName(characterName, { versionId });
+    if (valid.error) return { error: valid.error, code: "invalid" };
+    const target = { ...request, characterName: valid.name, realm: str(realm) || (bank && bank.realm) || request.realm || "", recipientCheckedAt: 0 };
+    if (!checked && !linking.linkState(target, { gameVersion: versionId }).linked) {
+        return { error: `${valid.name} ist nirgends belegt – erst im Spiel prüfen („Im Spiel geprüft“).`, code: "invalid" };
+    }
+    const result = store.setRecipientName(request.id, { characterName: valid.name, realm: target.realm, by, byName, checked }, { now });
+    if (result.error) return { error: result.error, code: "invalid" };
+    let profile = "";
+    if (toProfile && request.userId) {
+        profile = addToProfile(request.userId, { name: valid.name, realm: target.realm, versionId, className, by, byName, checked });
+    }
+    const cfg = config || settingsStore.getConfig();
+    await redrawPost(result.request, { config: cfg });
+    return { request: linking.withLinked(result.request), profile };
+}
+
+/**
+ * Draw every posted card of a waiting-for-the-orga request from the stock
+ * (open, confirmed) again — at start, so a card drawn by an older version of
+ * the bot (a disabled "Bestätigen" from before #806/#809) shows today's
+ * buttons. One after another, best-effort. Returns how many were edited.
+ */
+async function redrawPendingCards({ config } = {}) {
+    let edited = 0;
+    try {
+        const cfg = config || settingsStore.getConfig();
+        const pending = store.listRequests().filter((r) => r.itemId && (r.status === "open" || r.status === "confirmed") && r.messageId);
+        for (const r of pending) if (await redrawPost(r, { config: cfg })) edited += 1;
+    } catch (e) {
+        logger.warn(`[guildBank] Karten nicht neu gezeichnet: ${(e && e.message) || e}`);
+    }
+    return edited;
+}
+
 /** The orga takes a confirmation back: open again, nothing set aside. No DM. */
 async function releaseRequest(id, { config } = {}) {
     const cfg = config || settingsStore.getConfig();
@@ -486,6 +566,6 @@ function advanceWaitlist({ bankKey = "", itemId = 0, config, now = Date.now() } 
 
 module.exports = {
     NOT_SET_UP, NOT_OFFERED, NOT_LINKED, NOT_VERIFIED, guildBankChannelId, postFor, offerFor, charactersFor, createRequest, createStockRequest, splitAmount,
-    resolveRequest, confirmRequest, checkAndConfirm, checkRequestRecipient, releaseRequest, handOutRequest, redrawPost, pendingForBank, handedOutForBank,
+    resolveRequest, confirmRequest, checkAndConfirm, checkRequestRecipient, reassignRequest, redrawPendingCards, releaseRequest, handOutRequest, redrawPost, pendingForBank, handedOutForBank,
     linkRequest, advanceWaitlist,
 };

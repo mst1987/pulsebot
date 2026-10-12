@@ -20,6 +20,7 @@ vi.mock("../../api", async (orig) => ({
     searchGuildBankCharacters: vi.fn(),
     linkGuildBankRequest: vi.fn(),
     verifyGuildBankRequest: vi.fn(),
+    reassignGuildBankRequest: vi.fn(),
 }));
 
 const KEY = "tbc:spineshatter:die gilde";
@@ -200,6 +201,56 @@ describe("guild bank page", () => {
         expect(await screen.findByText("Skerra-Thunderstrike ist im Spiel geprüft – die Anfrage kann bestätigt werden.")).toBeInTheDocument();
         const list = await screen.findByRole("list", { name: "Anfragen" });
         expect(within(list).queryByText("nicht verknüpft")).toBeNull();
+    });
+    it("#809: sends Gentle's request to Gentletwowl, a name the bank already mailed, and puts it into his profile", async () => {
+        const user = userEvent.setup();
+        const open = {
+            id: "r4", itemId: 2, item: "Pyrestone", iconUrl: "", amount: 1, userId: "u3", userName: "Gentle", characterName: "Gentle",
+            realm: "Thunderstrike", purpose: "", status: "open" as const, createdAt: Date.UTC(2026, 9, 12, 18), handledByName: "", handledAt: 0,
+            linked: false, linkProblem: "unverified" as const,
+        };
+        vi.mocked(api.getGuildBankRequests).mockResolvedValue({ requests: [open] });
+        vi.mocked(api.searchGuildBankCharacters).mockImplementation(async (_key, q) => ({
+            characters: [],
+            names: q.toLowerCase().startsWith("gentle") ? [{ name: "Gentletwowl", realm: "Thunderstrike", via: "bank" as const }] : [],
+        }));
+        vi.mocked(api.reassignGuildBankRequest).mockResolvedValue({ request: { ...open, characterName: "Gentletwowl", linked: true, linkProblem: "" }, profile: "added" });
+        renderPage(<GuildBankPage />, { route: "/guildbank" });
+        await user.click(await screen.findByRole("button", { name: "Anfragen" }));
+        await user.click(await screen.findByRole("button", { name: "Verknüpfen: 1× Pyrestone" }));
+        const others = await screen.findByRole("region", { name: "Andere Namen (ohne Raider-Profil)" });
+        expect(within(others).getByText("schon Gildenbank-Post bekommen")).toBeInTheDocument();
+        await user.click(within(others).getByRole("switch", { name: /Auch ins Profil von Gentle übernehmen/ }));
+        await user.click(within(others).getByRole("button", { name: "Gentletwowl-Thunderstrike als Empfänger übernehmen" }));
+        expect(api.reassignGuildBankRequest).toHaveBeenCalledWith(KEY, "r4", { characterName: "Gentletwowl", realm: "Thunderstrike", checked: false, addToProfile: true });
+        expect(await screen.findByText("Geht jetzt an Gentletwowl-Thunderstrike. Im Profil von Gentle eingetragen.")).toBeInTheDocument();
+        const list = await screen.findByRole("list", { name: "Anfragen" });
+        expect(within(list).queryByText("Charakter nicht bestätigt")).toBeNull();
+    });
+
+    it("#809: any other name only after 'Im Spiel geprüft' — no profile checkbox without a Discord account", async () => {
+        const user = userEvent.setup();
+        const open = {
+            id: "r5", itemId: 2, item: "Crimson Spinel", iconUrl: "", amount: 1, userId: "", userName: "Skera", characterName: "Skera",
+            realm: "Thunderstrike", purpose: "", status: "open" as const, createdAt: Date.UTC(2026, 9, 11, 18), handledByName: "", handledAt: 0,
+            linked: false, linkProblem: "none" as const,
+        };
+        vi.mocked(api.getGuildBankRequests).mockResolvedValue({ requests: [open] });
+        vi.mocked(api.searchGuildBankCharacters).mockResolvedValue({ characters: [], names: [] });
+        vi.mocked(api.reassignGuildBankRequest).mockResolvedValue({ request: { ...open, characterName: "Skerra", linked: true, linkProblem: "" }, profile: "" });
+        renderPage(<GuildBankPage />, { route: "/guildbank" });
+        await user.click(await screen.findByRole("button", { name: "Anfragen" }));
+        await user.click(await screen.findByRole("button", { name: "Verknüpfen: 1× Crimson Spinel" }));
+        const search = screen.getByRole("textbox", { name: "Charakter oder Raider suchen" });
+        await user.clear(search);
+        await user.type(search, "Skerra");
+        const others = await screen.findByRole("region", { name: "Andere Namen (ohne Raider-Profil)" });
+        expect(within(others).queryByRole("switch")).toBeNull();
+        await user.click(await within(others).findByRole("button", { name: "Skerra im Spiel geprüft – als Empfänger übernehmen" }));
+        expect(api.reassignGuildBankRequest).not.toHaveBeenCalled();
+        await user.click(within(others).getByRole("button", { name: "Ja, gefunden" }));
+        expect(api.reassignGuildBankRequest).toHaveBeenCalledWith(KEY, "r5", { characterName: "Skerra", realm: "", checked: true, addToProfile: false });
+        expect(await screen.findByText("Geht jetzt an Skerra-Thunderstrike.")).toBeInTheDocument();
     });
     it("says so when no request waits", async () => {
         const user = userEvent.setup();

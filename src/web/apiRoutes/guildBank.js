@@ -16,7 +16,8 @@
 //   POST /api/guildbank/tab                 { key, index, hidden } — hide or show a whole bank tab
 //   GET  /api/guildbank/requests?key=       the bank's open and confirmed requests (the "Anfragen" dialog)
 //   GET  /api/guildbank/handedout?key=      the bank's handed-out requests, newest first (the "Ausgegeben" tab)
-//   GET  /api/guildbank/characters?key=&q=  the raider profiles' characters to link a request to, each with its
+//   GET  /api/guildbank/characters?key=&q=  the raider profiles' characters to link a request to (+ `names`: known names
+//                                        without a profile, #809, knownNames.js), each character with its
 //                                           evidence (`verified`, `evidence`: log | loot | armory | orga) (write)
 //   POST /api/guildbank/characters/armory   { key, userId, characterKey } — "Im Arsenal prüfen": the armory of the
 //                                           character's version; an answer is stored on the profile character
@@ -28,6 +29,9 @@
 //   POST /api/guildbank/request/verify      { key, id } — "Im Spiel geprüft" for a pending request's own recipient
 //                                           name (#806): the orga vouches for it, linked without a profile
 //                                           (a raider without a Discord account), card redrawn
+//   POST /api/guildbank/request/recipient   { key, id, characterName, realm?, checked?, addToProfile?, className? } —
+//                                           #809: the request goes to that name (a known one, or checked in game),
+//                                           the raider stays; optionally into the raider's profile
 //   GET  /api/guildbank/waitlist?key=       the bank's waiting list (#775, the "Warteliste" dialog)
 //   POST /api/guildbank/waitlist/add        { key, name, itemId, amount } — an entry at the end of the item's list
 //   POST /api/guildbank/waitlist/move       { key, id, direction: "up" | "down" }
@@ -62,7 +66,8 @@ const stock = require("../../services/guildbank/guildBankStock");
 const view = require("../../services/guildbank/stockView");
 const { queueLookups } = require("../../services/guildbank/itemMeta");
 const { queueItemEmojiSync } = require("../../services/guildbank/itemEmojis");
-const { pendingForBank, handedOutForBank, linkRequest, checkRequestRecipient, advanceWaitlist } = require("../../services/signups/guildBank");
+const { pendingForBank, handedOutForBank, linkRequest, checkRequestRecipient, reassignRequest, advanceWaitlist } = require("../../services/signups/guildBank");
+const { knownNames } = require("../../services/guildbank/knownNames");
 const linking = require("../../services/guildbank/linking");
 const waitlist = require("../../services/guildbank/waitlist");
 const addItem = require("../../services/guildbank/addItem");
@@ -200,7 +205,12 @@ const getGuildBankHandedOut = withUser(async ({ req, res, query }) => {
 const searchGuildBankCharacters = withUser({ write: "raids" }, async ({ req, res, query }) => {
     const bank = view.bankOfServer(q.str(query, "key", { max: 200 }), activeGuildFor(req));
     if (!bank) return sendFailure(res, NOT_FOUND);
-    ok(res, { characters: linking.characterChoices({ query: q.str(query, "q", { max: 60 }), gameVersion: bank.gameVersion }) });
+    const text = q.str(query, "q", { max: 60 });
+    ok(res, {
+        characters: linking.characterChoices({ query: text, gameVersion: bank.gameVersion }),
+        // #809: names the bank knows without a profile (earlier hand-outs, logs, loot)
+        names: knownNames(bank.key, { query: text, gameVersion: bank.gameVersion }),
+    });
 });
 
 const NO_CHARACTER = { code: "not_found", error: "Diesen Charakter gibt es im Profil nicht." };
@@ -286,8 +296,32 @@ const verifyGuildBankRequest = withUser({ write: "raids", csrf: true, body: true
     ok(res, { request: requestRow(result.request, items) });
 });
 
-/** Move the waiting list up now; the cards and DMs follow in the background (never awaited, never throws). */
-function moveUp(bankKey, itemId = 0) {
+/**
+ * POST /api/guildbank/request/recipient — body: { key, id, characterName, realm?,
+ * checked?, addToProfile?, className? } (#809): a pending request goes to that
+ * character name — a known name (`names` of /characters) or any name the orga
+ * checked in game (`checked`); the raider stays. `addToProfile` also puts it
+ * into the raider's profile. `{ request, profile }`.
+ */
+const reassignGuildBankRequest = withUser({ write: "raids", csrf: true, body: true }, async ({ req, body, res, user }) => {
+    const { bank, failure } = writableBank(q.str(body, "key", { max: 200 }), req);
+    if (failure) return sendBankFailure(res, failure);
+    const result = await reassignRequest(q.str(body, "id", { max: 40 }), {
+        bankKey: bank.key,
+        characterName: q.str(body, "characterName", { max: 40 }),
+        realm: q.str(body, "realm", { max: 60 }),
+        checked: body.checked === true,
+        addToProfile: body.addToProfile === true,
+        className: q.str(body, "className", { max: 20 }),
+        by: String(user.id || ""),
+        byName: String(user.name || user.username || ""),
+    });
+    if (result.error) return sendFailure(res, { code: result.code || "invalid", error: result.error });
+    const items = new Map(bank.items.map((it) => [it.itemId, it]));
+    ok(res, { request: requestRow(result.request, items), profile: result.profile || "" });
+});
+
+/** Move the waiting list up now; the cards and DMs follow in the background (never awaited, never throws). */function moveUp(bankKey, itemId = 0) {
     advanceWaitlist({ bankKey, itemId }).catch(() => {});
 }
 
@@ -439,6 +473,7 @@ const routes = [
     { method: "POST", path: "/api/guildbank/characters/verify", handler: verifyGuildBankCharacter, area: "raids" },
     { method: "POST", path: "/api/guildbank/request/link", handler: linkGuildBankRequest, area: "raids" },
     { method: "POST", path: "/api/guildbank/request/verify", handler: verifyGuildBankRequest, area: "raids" },
+    { method: "POST", path: "/api/guildbank/request/recipient", handler: reassignGuildBankRequest, area: "raids" },
     { method: "GET", path: "/api/guildbank/waitlist", handler: getGuildBankWaitlist, area: "raids" },
     { method: "POST", path: "/api/guildbank/waitlist/add", handler: addGuildBankWaiting, area: "raids" },
     { method: "POST", path: "/api/guildbank/waitlist/move", handler: moveGuildBankWaiting, area: "raids" },
@@ -453,6 +488,6 @@ const routes = [
 module.exports = {
     getGuildBank, postGuildBankItem, addGuildBankItem, searchGuildBankItems, postGuildBankTab, getGuildBankRequests, getGuildBanks, assignGuildBank, deleteGuildBank,
     getGuildBankHandedOut, searchGuildBankCharacters, checkGuildBankCharacterArmory, verifyGuildBankCharacter, linkGuildBankRequest,
-    verifyGuildBankRequest, getGuildBankWaitlist, addGuildBankWaiting, moveGuildBankWaiting, removeGuildBankWaiting, previewGuildBankWaitlist, importGuildBankWaitlist,
+    verifyGuildBankRequest, reassignGuildBankRequest, getGuildBankWaitlist, addGuildBankWaiting, moveGuildBankWaiting, removeGuildBankWaiting, previewGuildBankWaitlist, importGuildBankWaitlist,
     routes,
 };

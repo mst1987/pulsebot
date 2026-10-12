@@ -112,6 +112,9 @@ a.gb-name:hover { text-decoration: underline; }
 .gb-link-intro > p { display: flex; flex-direction: column; gap: 2px; margin: 0; }
 .gb-link-intro > .gb-link-checks { align-items: center; padding-left: 0; }
 .gb-link-intro > .gb-link-confirm { margin-left: 0; }
+.gb-link-names { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.gb-link-names > .gb-link-checks, .gb-link-names > .gb-link-confirm { align-items: center; padding-left: 0; margin-left: 0; }
+.gb-link-profile { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
 .gb-link-hits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: min(460px, 55vh); overflow: auto; }
 .gb-link-hit {
     display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 8px;

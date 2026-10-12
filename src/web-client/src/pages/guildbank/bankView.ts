@@ -207,3 +207,16 @@ export function wholeNumber(text: string): number | null {
     const v = text.trim();
     return /^\d{1,7}$/.test(v) ? Number(v) : null;
 }
+
+/**
+ * What "ins Profil übernehmen" did (#809), as a sentence for the toast: added,
+ * the class is unknown (the orga adds it in the profile by hand), no profile,
+ * or the server's own reason; "" when it was not asked for.
+ */
+export function profileNote(profile: string, raider: string): string {
+    if (!profile) return "";
+    if (profile === "added") return t("guildbank.link.profileAdded", { raider });
+    if (profile === "noClass") return t("guildbank.link.profileNoClass", { raider });
+    if (profile === "noProfile") return t("guildbank.link.profileMissing", { raider });
+    return t("guildbank.link.profileError", { reason: profile });
+}

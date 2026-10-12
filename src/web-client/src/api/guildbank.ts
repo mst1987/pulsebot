@@ -293,9 +293,33 @@ export function verifyGuildBankCharacter(key: string, pick: { userId: string; ch
     return send<{ choice: GuildBankCharacterChoice }>("POST", "/api/guildbank/characters/verify", { key, ...pick });
 }
 
-/** The profile characters of the bank's version to link a request to (`q`: character or raider name). */
-export function searchGuildBankCharacters(key: string, q: string): Promise<{ characters: GuildBankCharacterChoice[] }> {
-    return get<{ characters: GuildBankCharacterChoice[] }>(`/api/guildbank/characters?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}`);
+/**
+ * A name the bank knows without a raider profile (#809): it already got a hand-out of this bank
+ * ("bank"), or a log / the loot export saw it. Such a name can be taken as a recipient directly.
+ */
+export type GuildBankKnownName = { name: string; realm: string; via: "bank" | "log" | "loot" };
+
+/**
+ * The profile characters of the bank's version to link a request to (`q`: character or raider name),
+ * plus the known names without a profile (`names`, #809).
+ */
+export function searchGuildBankCharacters(key: string, q: string): Promise<{ characters: GuildBankCharacterChoice[]; names?: GuildBankKnownName[] }> {
+    return get<{ characters: GuildBankCharacterChoice[]; names?: GuildBankKnownName[] }>(`/api/guildbank/characters?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}`);
+}
+
+/** What happened to "ins Profil übernehmen": added, the class is unknown, no profile — or an error text. */
+export type GuildBankProfileResult = "" | "added" | "noClass" | "noProfile" | string;
+
+/**
+ * A pending request goes to another character name (#809): a known name, or any name the orga checked
+ * in game (`checked`); the raider stays. `addToProfile` also puts it into the raider's profile.
+ */
+export function reassignGuildBankRequest(
+    key: string,
+    id: string,
+    pick: { characterName: string; realm?: string; checked?: boolean; addToProfile?: boolean },
+): Promise<{ request: GuildBankRequest; profile: GuildBankProfileResult }> {
+    return send<{ request: GuildBankRequest; profile: GuildBankProfileResult }>("POST", "/api/guildbank/request/recipient", { key, id, ...pick });
 }
 
 /** Link a waiting, open or confirmed request to a profile character: it becomes the raider and the recipient. */

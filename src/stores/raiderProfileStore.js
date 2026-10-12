@@ -410,6 +410,25 @@ function verifyCharacter(userId, key, { by = "", byName = "" } = {}, { now = Dat
     return updateCharacter(userId, key, (c) => ({ ...c, verifiedBy: String(by || ""), verifiedByName: String(byName || ""), verifiedAt: now }));
 }
 
+/**
+ * Put a character first among the characters of its game version (#809, the
+ * guild bank's "ins Profil übernehmen"): the first of a version is what a new
+ * request goes to by default. The other versions keep their places.
+ * `{ profile, character }`, or null for an unknown character.
+ */
+function moveCharacterFirst(userId, key) {
+    const current = getProfile(userId);
+    const k = characterKeyOf(key);
+    const character = current && current.characters.find((c) => c.key === k);
+    if (!character) return null;
+    const version = characterVersion(character.versionId);
+    const rest = current.characters.filter((c) => c !== character);
+    const at = rest.findIndex((c) => characterVersion(c.versionId) === version);
+    const characters = at === -1 ? [...rest, character] : [...rest.slice(0, at), character, ...rest.slice(at)];
+    const profile = store(userId, { ...current, characters });
+    return { profile, character: profile.characters.find((c) => c.key === k) || null };
+}
+
 /** Take a character out of the raider's own profile. True when one was removed. */
 function removeCharacter(userId, key) {
     const current = getProfile(userId);
@@ -599,7 +618,7 @@ module.exports = {
     GEAR_LEVELS, WEEKDAYS, CHARACTER_SOURCES, MAX_CHARACTERS, MAX_WISHES, MAX_AVOID, MAX_NOTE,
     characterKey: characterKeyOf, nameKey: nameKeyOf, characterVersion, charactersOfVersion, findCharacter, migrateCharacterVersions, migrateCharacterOrder,
     normalizeClass, specInfo, normalizeProfile, specRoles, characterRoles, classCan,
-    getProfile, hasProfile, listProfiles, saveProfile, addCharacter, removeCharacter, setCharacterArmory, verifyCharacter,
+    getProfile, hasProfile, listProfiles, saveProfile, addCharacter, removeCharacter, setCharacterArmory, verifyCharacter, moveCharacterFirst,
     claimsFor, characterClaims, firstCharacter, searchRaiders, raiderRef, reset, useFile,
     PROFILES_FILE,
 };

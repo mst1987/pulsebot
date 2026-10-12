@@ -9,7 +9,7 @@
 // A name without a profile to pick (a raider without a Discord account, #806)
 // gets "Im Spiel geprüft" for the name itself above the search.
 import { useState } from "react";
-import { getGuildBankRequests, linkGuildBankRequest, verifyGuildBankRequest, type ApiError, type GuildBankCharacterChoice, type GuildBankRequest } from "../../api";
+import { getGuildBankRequests, linkGuildBankRequest, reassignGuildBankRequest, verifyGuildBankRequest, type ApiError, type GuildBankCharacterChoice, type GuildBankRequest } from "../../api";
 import { Badge, Button, IconButton, Modal, WowIcon } from "../../components/ui";
 import { LinkIcon } from "../../components/ui/icons";
 import { ItemIcon } from "../../components/loot/LootBadges";
@@ -17,8 +17,8 @@ import { useToast } from "../../components/shell/Jobs";
 import { useApi } from "../../hooks/useApi";
 import { formatDateTime } from "../../lib/format";
 import { useT } from "../../i18n";
-import { REQUESTS_ICON, recipientName } from "./bankView";
-import { CharacterPicker, LinkIntro, NotLinkedBadge } from "./CharacterPicker";
+import { REQUESTS_ICON, profileNote, recipientName } from "./bankView";
+import { CharacterPicker, LinkIntro, NotLinkedBadge, type NamePick } from "./CharacterPicker";
 
 function RequestRow({ request, canWrite, onLink }: { request: GuildBankRequest; canWrite: boolean; onLink: (r: GuildBankRequest) => void }) {
     const t = useT();
@@ -97,6 +97,21 @@ export default function RequestsDialog({ bankKey, canWrite = false, onClose }: {
         }
     };
 
+    // #809: another character name — known, or checked in game — the raider stays
+    const takeName = async (request: GuildBankRequest, pick: NamePick) => {
+        setBusy(true);
+        try {
+            const r = await reassignGuildBankRequest(bankKey, request.id, pick);
+            list.setData((d) => (d ? { requests: d.requests.map((x) => (x.id === r.request.id ? r.request : x)) } : d));
+            toast([t("guildbank.link.taken", { name: recipientName(r.request) }), profileNote(r.profile, request.userName)].filter(Boolean).join(" "), "ok");
+            setLinking(null);
+        } catch (err) {
+            toast((err as ApiError).message, "err");
+        } finally {
+            setBusy(false);
+        }
+    };
+
     return (
         <Modal
             open
@@ -116,6 +131,8 @@ export default function RequestsDialog({ bankKey, canWrite = false, onClose }: {
                     initialQuery={linking.characterName || linking.userName}
                     busy={busy}
                     onPick={(choice) => { void link(linking, choice); }}
+                    onTakeName={(pick) => { void takeName(linking, pick); }}
+                    raiderName={linking.userId ? linking.userName || linking.userId : undefined}
                     intro={<LinkIntro what={t("guildbank.requests.amountItem", { amount: linking.amount, item: linking.item })} current={recipientName(linking)} busy={busy}
                         onVerify={!linking.linked && linking.characterName ? () => { void verify(linking); } : undefined} />}
                 />

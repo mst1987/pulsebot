@@ -251,6 +251,7 @@
     "/api/guildbank/characters/verify": "raids",
     "/api/guildbank/request/link": "raids",
     "/api/guildbank/request/verify": "raids",
+    "/api/guildbank/request/recipient": "raids",
     "/api/guildbank/waitlist": "raids",
     "/api/guildbank/waitlist/add": "raids",
     "/api/guildbank/waitlist/move": "raids",

@@ -140,7 +140,22 @@
         "gameChecked": "{name} ist bestätigt.",
         "currentCheckHint": "Kein passendes Profil (z. B. ohne Discord-Konto)? Den Namen selbst prüfen:",
         "currentCheck": "{name} im Spiel geprüft",
-        "currentChecked": "{name} ist im Spiel geprüft – die Anfrage kann bestätigt werden."
+        "currentChecked": "{name} ist im Spiel geprüft – die Anfrage kann bestätigt werden.",
+        "otherNames": "Andere Namen (ohne Raider-Profil)",
+        "takeName": "{name} als Empfänger übernehmen",
+        "takeTyped": "{name} im Spiel geprüft – als Empfänger übernehmen",
+        "freeHint": "„{name}“ steht in keinem Profil und keiner Ausgabe. Im Spiel gefunden?",
+        "nameVia": {
+            "bank": "schon Gildenbank-Post bekommen",
+            "log": "aus Logs",
+            "loot": "Loot"
+        },
+        "addToProfile": "Auch ins Profil von {raider} übernehmen (künftige Anfragen gehen dann an diesen Charakter)",
+        "taken": "Geht jetzt an {name}.",
+        "profileAdded": "Im Profil von {raider} eingetragen.",
+        "profileNoClass": "Nicht ins Profil von {raider} übernommen: Klasse unbekannt – dort von Hand anlegen.",
+        "profileMissing": "{raider} hat noch kein Profil – nicht übernommen.",
+        "profileError": "Nicht ins Profil übernommen: {reason}"
     },
     "handedOut": {
         "hint": "Was rausging, sobald es abgehakt wurde – im Discord, im Spiel oder per Post. 90 Tage lang.",

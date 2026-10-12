@@ -90,6 +90,7 @@ describe("utils/signup/guildBankPost", () => {
             expect(section.accessory.media.url).toBe("https://wow.zamimg.com/images/wow/icons/large/inv_jewelcrafting_livingruby_03.jpg");
             expect(cardButtons(payload).map((b) => [b.custom_id, b.label, b.style])).toEqual([
                 ["guildbank:confirm:abc123", "Bestätigen", ButtonStyle.Success],
+                ["guildbank:rename:abc123", "Charakter ändern …", ButtonStyle.Secondary],
                 ["guildbank:reject:abc123", "Ablehnen …", ButtonStyle.Secondary],
             ]);
             expect(cardColor(payload)).toBe(post.COLOR_OPEN);
@@ -103,6 +104,7 @@ describe("utils/signup/guildBankPost", () => {
             expect(cardButtons(payload).map((b) => [b.custom_id, b.label])).toEqual([
                 ["guildbank:handout:abc123", "Ausgegeben"],
                 ["guildbank:release:abc123", "Vormerkung lösen"],
+                ["guildbank:rename:abc123", "Charakter ändern …"],
             ]);
         });
 
@@ -189,14 +191,14 @@ describe("utils/signup/guildBankPost — a request without a linked character", 
     it("open with a name (#806): the warning, and Geprüft & bestätigen instead of a dead Bestätigen; Ablehnen stays", () => {
         const payload = post.orgaPayload(UNLINKED, { linked: false });
         expect(cardText(payload)).toContain(post.NOT_LINKED_LINE);
-        expect(cardButtons(payload).map((b) => [b.label, !!b.disabled])).toEqual([["Geprüft & bestätigen", false], ["Ablehnen …", false]]);
+        expect(cardButtons(payload).map((b) => [b.label, !!b.disabled])).toEqual([["Geprüft & bestätigen", false], ["Charakter ändern …", false], ["Ablehnen …", false]]);
         expect(cardButtons(payload)[0].custom_id).toBe(`guildbank:vouch:${UNLINKED.id}`);
     });
 
     it("open without any character name: nothing to vouch for, Bestätigen stays disabled", () => {
         const payload = post.orgaPayload({ ...UNLINKED, characterName: "", realm: "" }, { linked: false });
         expect(cardText(payload)).toContain(post.NO_CHARACTER_LINE);
-        expect(cardButtons(payload).map((b) => [b.label, !!b.disabled])).toEqual([["Bestätigen", true], ["Ablehnen …", false]]);
+        expect(cardButtons(payload).map((b) => [b.label, !!b.disabled])).toEqual([["Bestätigen", true], ["Charakter ändern …", false], ["Ablehnen …", false]]);
     });
 
     it("an unconfirmed character: the card names that reason instead", () => {
@@ -210,7 +212,7 @@ describe("utils/signup/guildBankPost — a request without a linked character", 
     it("confirmed (from before the rule): the warning, the buttons stay; handed out: no warning", () => {
         const confirmed = post.orgaPayload({ ...UNLINKED, status: "confirmed", handledByName: "Arthas" }, { linked: false });
         expect(cardText(confirmed)).toContain("Kein verknüpfter Charakter");
-        expect(cardButtons(confirmed).map((b) => b.label)).toEqual(["Ausgegeben", "Vormerkung lösen"]);
+        expect(cardButtons(confirmed).map((b) => b.label)).toEqual(["Ausgegeben", "Vormerkung lösen", "Charakter ändern …"]);
         expect(cardText(post.orgaPayload({ ...UNLINKED, status: "handedOut" }, { linked: false }))).not.toContain("Kein verknüpfter Charakter");
     });
 
