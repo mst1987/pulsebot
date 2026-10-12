@@ -10,9 +10,7 @@ const eventSources = require("../../../src/services/events/eventSources");
 const {
     getCategoryEvents,
     getChannelsFromCategories,
-    showAllEvents,
 } = require("../../../src/utils/raidhelper/channelEvents");
-const { formatTimestampToDateString } = require("../../../src/utils/time");
 const { mockInteraction, makeCollection } = require("../../helpers/mockInteraction.js");
 
 const channels = [
@@ -75,16 +73,5 @@ describe("utils/raidhelper/channelEvents", () => {
         } finally {
             spy.mockRestore();
         }
-    });
-
-    it("showAllEvents lists the events of the category", async () => {
-        mockRh.getAllEvents.mockResolvedValue([
-            { id: "rh-1", title: "Karazhan", channelId: "c1", leaderId: "u1", startTime: 1700000000 },
-        ]);
-        const interaction = mockInteraction({ channels });
-        const text = await showAllEvents(interaction, "cat-1");
-        expect(text).toBe(
-            `**Karazhan** <t:1700000000:R> \n<#c1> by <@u1>\n${formatTimestampToDateString(1700000000 * 1000)} Uhr`
-        );
     });
 });

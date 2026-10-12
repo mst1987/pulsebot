@@ -60,6 +60,12 @@ async function runSync() {
         return { ok: false, error: message };
     }
     try {
+        // the category overviews list Raid-Helper raids from this list (required late: the overview pulls in half the bot)
+        require("./raidOverview").scheduleRefresh();
+    } catch (e) {
+        logger.warn(`overview nudge failed: ${e.message}`);
+    }
+    try {
         await scanAllGuilds({ probeSetups: true });
     } catch (e) {
         logger.warn(`snapshot scan failed: ${e.message}`);

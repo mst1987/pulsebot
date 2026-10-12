@@ -1,10 +1,10 @@
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
 jest.mock("../../../src/utils/discord/reply.js");
-jest.mock("../../../src/utils/raidhelper/channelEvents.js");
+jest.mock("../../../src/services/events/raidOverview.js");
 
 const reply = require("../../../src/utils/discord/reply.js");
-const channelEvents = require("../../../src/utils/raidhelper/channelEvents.js");
+const raidOverview = require("../../../src/services/events/raidOverview.js");
 const createOverview = require("../../../src/commands/setup/createOverview.js");
 
 const ADMIN_ID = "233598324022837249";
@@ -12,7 +12,7 @@ const ADMIN_ID = "233598324022837249";
 describe("commands/setup/createOverview", () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        channelEvents.showAllEvents.mockResolvedValue("formatted raids");
+        raidOverview.postOverview.mockResolvedValue({ overview: {}, edited: false, url: "https://discord.com/channels/g/c/m" });
     });
 
     it("exports the correct command contract", () => {
@@ -37,10 +37,10 @@ describe("commands/setup/createOverview", () => {
 
         expect(reply.botReply).toHaveBeenCalledTimes(1);
         expect(reply.botReply.mock.calls[0][1]).toBe("Fehler");
-        expect(channelEvents.showAllEvents).not.toHaveBeenCalled();
+        expect(raidOverview.postOverview).not.toHaveBeenCalled();
     });
 
-    it("renders the overview with buttons for an admin", async () => {
+    it("posts the self-updating overview of the channel's category and tells the admin where", async () => {
         const interaction = mockInteraction({
             userId: ADMIN_ID,
             channel: { id: "c1", parent: { id: "cat-1", name: "GDKP Raids" } },
@@ -48,13 +48,24 @@ describe("commands/setup/createOverview", () => {
 
         await createOverview.execute(interaction, {});
 
-        expect(channelEvents.showAllEvents).toHaveBeenCalledWith(interaction, "cat-1");
-        expect(reply.botReply).toHaveBeenCalledTimes(1);
-        const call = reply.botReply.mock.calls[0];
-        expect(call[1]).toBe("GDKP Raids");
-        expect(call[2]).toBe("formatted raids");
-        // components row is the 6th arg
-        expect(Array.isArray(call[5])).toBe(true);
-        expect(call[5]).toHaveLength(1);
+        expect(raidOverview.postOverview).toHaveBeenCalledWith({ guildId: "guild-1", channelId: "c1", categoryId: "cat-1" });
+        expect(interaction.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+        const answer = interaction.editReply.mock.calls[0][0].content;
+        expect(answer).toContain("gepostet");
+        expect(answer).toContain("https://discord.com/channels/g/c/m");
+    });
+
+    it("says when it redrew the overview that was already there", async () => {
+        raidOverview.postOverview.mockResolvedValue({ edited: true });
+        const interaction = mockInteraction({ channel: { id: "c1", parent: { id: "cat-1" } } });
+        await createOverview.execute(interaction, {});
+        expect(interaction.editReply.mock.calls[0][0].content).toContain("neu gezeichnet");
+    });
+
+    it("reports a failure instead of staying silent", async () => {
+        raidOverview.postOverview.mockResolvedValue({ error: "Missing Access" });
+        const interaction = mockInteraction({ channel: { id: "c1", parent: { id: "cat-1" } } });
+        await createOverview.execute(interaction, {});
+        expect(interaction.editReply.mock.calls[0][0].content).toContain("Missing Access");
     });
 });

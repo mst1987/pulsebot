@@ -53,7 +53,7 @@ const DISCORD_GROUPS = [
         "<code>/event anlegen</code> — neues Event per geführtem Dialog.",
         "<code>/event verwalten [Event]</code> bzw. Rechtsklick „Event verwalten“ — bearbeiten, verschieben, Anmeldung öffnen/schließen, Raider ein-/austragen, Fehlende pingen, Setup öffnen, absagen, löschen.",
         "<code>/fillsetup [Setup-ID]</code> — Setup ins Setup-Sheet übernehmen (das freigegebene Setup des Kanals oder ein Raid-Helper-Raidplan).",
-        "<code>/createoverview</code>, <code>/update-events</code> — ältere Befehle, durch die Talk-Übersicht ersetzt.",
+        "<code>/createoverview</code> — postet die Raid-Übersicht der Kategorie (nach Raid-ID gruppiert, ohne Knöpfe), sie aktualisiert sich selbst; <code>/update-events</code> zeichnet sie sofort neu.",
     ] },
     { cat: "auto", title: "Was der Bot automatisch macht", items: [
         "<strong>Talk-Server-Übersicht:</strong> aktualisiert sich selbst, listet alle kommenden Raids mit Anmelde-Buttons.",

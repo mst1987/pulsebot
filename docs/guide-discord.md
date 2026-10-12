@@ -73,7 +73,8 @@ Technik: [events.md](events.md)
 - `/event verwalten [Event]` bzw. Rechtsklick **"Event verwalten"** auf die Event-Nachricht — bearbeiten, verschieben, Anmeldung öffnen/schließen, Raider ein-/austragen, Fehlende pingen, Setup öffnen, absagen/zurücknehmen, löschen.
 - **"Fehlende pingen"** direkt an der Event-Nachricht (nur bei Raids, deren Kategorie Raider-Rollen hat): zeigt dir erst nur für dich, wer mit Raider-Rolle noch nicht reagiert hat (Anzahl, die ersten 25 Namen), dann **Jetzt pingen** oder **Abbrechen**. Gepingt wird im Event-Kanal; zweimal kurz hintereinander geht nicht. Raider sehen den Knopf auch, dürfen ihn aber nicht benutzen.
 - `/fillsetup [Setup-ID]` — Setup ins Setup-Sheet übernehmen (das freigegebene Setup des Kanals oder ein Raid-Helper-Raidplan).
-- `/createoverview`, `/update-events` — ältere Befehle, inzwischen durch die automatische Talk-Server-Übersicht ersetzt.
+- `/createoverview` — (Orga) postet die **Raid-Übersicht** der Kategorie in den Kanal: die kommenden Raids nach Raid-ID gruppiert (Mittwoch bis Dienstag; „Diese ID“, „Nächste ID“), je Raid Datum, Titel, Uhrzeit, Kanal, Leiter und wie viele angemeldet sind. Sie hat keine Knöpfe und **aktualisiert sich selbst** (bei Änderungen an Raids und Anmeldungen und alle paar Minuten); unten steht, wann sie sich zuletzt geändert hat. Dieselbe Übersicht im selben Kanal wird neu gezeichnet statt doppelt gepostet. Löschst du die Nachricht, bleibt sie weg. Ältere Übersichten mit Knöpfen übernimmt der Bot von selbst.
+- `/update-events` — zeichnet die Übersicht(en) der Kategorie sofort neu (der Knopf „Update Events“ alter Übersichten macht aus der alten Nachricht die neue).
 
 ## Was der Bot sonst noch automatisch macht
 

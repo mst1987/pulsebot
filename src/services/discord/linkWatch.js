@@ -89,7 +89,9 @@ function onMessageDelete({ channelId, messageId }, { now = Date.now() } = {}) {
     if (overview || redrawn.length) scheduleOverviews();
     // an Orga-Zentrale's message: posted anew by its redraw (lazily, like the overviews)
     const orgaHub = require("../events/orgaHub").onHubMessageDeleted(id, { delayMs: REDRAW_DELAY_MS });
-    return { redrawn, setupCleared, overview, orgaHub, channelId: String(channelId || "") };
+    // a category's raid overview (/createoverview): placed by hand, so forgotten, not posted again
+    const raidOverview = require("../events/raidOverview").onOverviewMessageDeleted(id);
+    return { redrawn, setupCleared, overview, orgaHub, raidOverview, channelId: String(channelId || "") };
 }
 
 /** Hook both into the bot client (bot.js). */

@@ -1,8 +1,7 @@
 // The events of a Discord category, from both sources — Raid-Helper's and the
-// EventHelper's own (services/events/eventSources.js) — for the legacy setup commands.
+// EventHelper's own (services/events/eventSources.js) — for the legacy setup commands (the raid overview itself reads loadEventGroups, services/events/raidOverview.js).
 const { createRaidhelperClient } = require("./client");
 const { ownUpcomingRaw } = require("../../services/events/eventSources");
-const { formatTimestampToDateString } = require("../time");
 const { visibleRows, versionOfEvent } = require("../../services/events/mainVersion");
 
 /** The ids of the text channels below the given categories. */
@@ -44,24 +43,7 @@ async function getCategoryEvents(interaction, categoryId) {
     ], (event) => versionOfEvent(event)).sort((eventA, eventB) => eventA.startTime - eventB.startTime);
 }
 
-/** The events of a category as the text of /update-events. */
-async function showAllEvents(interaction, categoryId) {
-    const categoryEvents = await getCategoryEvents(interaction, categoryId);
-
-    return categoryEvents
-        .map(
-            (channel) =>
-                `**${channel.title}** <t:${Math.round(
-                    Number(channel.startTime)
-                )}:R> \n<#${channel.channelId}> by <@${
-                    channel.leaderId
-                }>\n${formatTimestampToDateString(channel.startTime * 1000)} Uhr`
-        )
-        .join("\n\n");
-}
-
 module.exports = {
     getCategoryEvents,
     getChannelsFromCategories,
-    showAllEvents,
 };
