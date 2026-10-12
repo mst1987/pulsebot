@@ -52,7 +52,9 @@
             "name_too_long": "The name is too long (40 characters at most).",
             "admin_only": "Only admins create rosters.",
             "kader_taken": "This roster is already linked to another Kader.",
-            "not_found": "This roster no longer exists."
+            "not_found": "This roster no longer exists.",
+            "version_mismatch": "This roster or category plays another game version than the Kader.",
+            "version_hidden": "This Kader's game version is hidden."
         },
         "linkButton": "Link an existing roster",
         "linkTip": "Link this Kader to a roster that already exists",

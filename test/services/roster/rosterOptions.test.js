@@ -101,8 +101,16 @@ describe("services/roster/rosterOptions", () => {
         const opts = rosterOptions({ guildId: "g1", config: {}, canSeeKader: true });
         expect(opts).toEqual(expect.objectContaining({
             guildId: "g1", defaultVersion: "tbc", canManageRoles: true, online: true,
-            kaders: [{ id: "k1", name: "K", inRoster: 1, candidates: 1, attendanceCategories: [], rosterId: null, rosterName: "" }],
+            kaders: [{ id: "k1", name: "K", versionId: "forever", inRoster: 1, candidates: 1, attendanceCategories: [], rosterId: null, rosterName: "" }],
         }));
+        // the dialog of one version (#741): only its Kader; a hidden version offers nothing (#563)
+        expect(rosterOptions({ guildId: "g1", config: {}, canSeeKader: true, versionId: "tbc" })).toEqual(expect.objectContaining({ kaders: [], defaultVersion: "tbc" }));
+        expect(rosterOptions({ guildId: "g1", config: {}, canSeeKader: true, versionId: "forever" }).kaders.map((k) => k.id)).toEqual(["k1"]);
+        expect(rosterOptions({ guildId: "g1", config: { hideOtherVersions: true }, canSeeKader: true }).kaders).toEqual([]);
+        const split = { categoryIds: ["700000000000000001", "700000000000000002"], categoryVersion: { "700000000000000001": "forever" } };
+        expect(rosterOptions({ guildId: "g1", config: split, versionId: "forever" }).categories.map((c) => c.id)).toEqual(["700000000000000001"]);
+        expect(rosterOptions({ guildId: "g1", config: split, versionId: "tbc" }).categories.map((c) => c.id)).toEqual(["700000000000000002"]);
+        expect(rosterOptions({ guildId: "g1", config: { ...split, hideOtherVersions: true } }).categories.map((c) => c.id)).toEqual(["700000000000000002"]);
         expect(opts.versions.map((v) => v.id)).toEqual(expect.arrayContaining(["tbc", "forever"]));
         expect(rosterOptions({ guildId: "g1", canSeeKader: false }).kaders).toEqual([]);
         const none = rosterOptions({});

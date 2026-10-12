@@ -10,7 +10,7 @@ const { decorateTemplate } = require("../../services/events/raidTemplates");
 const eventStore = require("../../stores/eventStore");
 const { getChannelConfig } = require("../../stores/channelArchiveStore");
 const { publicVersions } = require("../../config/gameVersions");
-const { mainVersionFor, versionOfEvent, resolveVersionQuery, visibleVersions, visibleRows } = require("../../services/events/mainVersion");
+const { mainVersionFor, versionOfEvent, resolveVersionQuery, visibleVersions, knownVersion } = require("../../services/events/mainVersion");
 const { versionChoices } = require("../../services/characters/characterVersions");
 const { DEFAULT_SCHEMA } = require("../../utils/channelNames");
 const { deriveChannelName } = require("../../services/discord/channelNaming");
@@ -164,11 +164,15 @@ const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
     const config = getConfig();
     // Other versions hidden (#563): their events, templates, categories and rule sets are not offered.
     const visible = new Set(visibleVersions(config));
-    const categoryShown = (id) => visible.has(mainVersionFor({ categoryId: id, config }));
     // The raids to repeat are those of the version the page shows (#741, `?version=`):
     // each by its own stored version, not by what its category plays today — an
     // old TBC raid of a category that moved on to Forever stays a TBC raid.
     const { versionId: shownVersion } = resolveVersionQuery(url && url.searchParams.get("version"), { config });
+    const editEvent = editEventFor(url, guildId);
+    // The dialog is one of the shown version (#741): only the categories that play
+    // it and its raid templates. The category of the event being edited stays,
+    // whatever it plays now (a raid keeps its version, #737).
+    const categoryShown = (id) => (editEvent && editEvent.categoryId === id) || mainVersionFor({ categoryId: id, config }) === shownVersion;
     const reusableEvents = groups.flatMap((g) => g.events.map((ev) => {
         const versionId = versionOfEvent({ id: ev.id, versionId: ev.versionId, categoryId: g.categoryId }, { config });
         return {
@@ -180,7 +184,7 @@ const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
             contentIds: raidContentIds({ title: ev.title, categoryName: g.categoryName, channelName: ev.channelName, instanceIds: ev.instanceIds, versionId }).contentIds,
         };
     })).filter((ev) => ev.versionId === shownVersion);
-    const templates = visibleRows(listRaidTemplates(), (t) => t.versionId, config);
+    const templates = listRaidTemplates().filter((t) => (knownVersion(t.versionId) || mainVersionFor({ config })) === shownVersion);
     const categoryDefaults = config.categoryRaidTemplate || {};
     // The default template per category, as the Raid-Helper template id the
     // create form sends — a category whose default links none has no entry.
@@ -188,7 +192,6 @@ const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
     const categoryTemplates = Object.fromEntries(Object.entries(categoryDefaults)
         .map(([catId, tplId]) => [catId, rhById.get(tplId) || ""])
         .filter(([, rhId]) => rhId));
-    const editEvent = editEventFor(url, guildId);
     const channels = safeList(() => discord.listTextChannels(guildId));
     const channelId = (config.raidDefaults || {}).channelId || "";
     const defaultChannel = channels.find((c) => c.id === channelId);

@@ -32,7 +32,8 @@ const { AppError } = require("../../web/http/apiResult");
 const { isProfane, validateCharacterName } = require("../../utils/signup/characterNames");
 const { newId } = require("../../utils/ids");
 const { migrateLegacyPlanner, charOfAssignments, PLANNER_VERSION } = require("./kaderMigration");
-const { rulesFor } = require("../../config/gameVersions");
+const { rulesFor, LEGACY_VERSION } = require("../../config/gameVersions");
+const { characterKeyOf, nameKeyOf } = require("../../utils/loot/lootImport");
 
 /** A Kader's game version (#741): a known one, else the planner's own (PLANNER_VERSION, Forever). */
 function kaderVersion(id) {
@@ -482,8 +483,37 @@ function cleanName(raw, style = "forever") {
     return checked.name;
 }
 
+/** The short label of a version for a message ("Forever", "TBC"), the id when no rule set knows it. */
+function versionLabel(id) {
+    const rules = rulesFor(id);
+    return rules ? rules.short || rules.label || id : str(id);
+}
+
+/**
+ * Whether a profile character key belongs to a game version: a key of another
+ * version than TBC carries it ("forever~aldric sturmwind"), a TBC key is the
+ * bare name (utils/loot/lootImport characterKeyOf).
+ */
+function keyInVersion(key, versionId) {
+    const clean = str(key).trim().toLowerCase();
+    return !clean || characterKeyOf(nameKeyOf(clean), versionId) === clean;
+}
+
+/** The version a profile character key names: the prefix before "~", else TBC (a bare key). */
+function versionOfKey(key) {
+    const clean = str(key).trim().toLowerCase();
+    const at = clean.indexOf("~");
+    return at === -1 ? LEGACY_VERSION : clean.slice(0, at);
+}
+
 function cleanCharacter(input, ctx) {
     const nameStyle = input.nameStyle === "nick" ? "nick" : "forever";
+    // A profile character of another game version than the planner's (#741:
+    // Forever plans with Forever characters only) is refused; one typed by hand
+    // (no onlineKey) belongs to the planner's version.
+    if (input.onlineKey && ctx.versionId && !keyInVersion(input.onlineKey, ctx.versionId)) {
+        throw invalid(`${str(input.name).trim() || "Der Charakter"} ist ein ${versionLabel(versionOfKey(input.onlineKey))}-Charakter – hier zählen nur Charaktere aus ${versionLabel(ctx.versionId)}.`);
+    }
     const name = cleanName(input.name, nameStyle);
     const cls = classOf(ctx, input.className);
     const seen = new Set();
@@ -604,7 +634,9 @@ function createKader(planner, input, ctx) {
  * Name, leads and the raid categories attendance counts in. A category id the
  * server does not know as a raid category (`ctx.raidCategoryIds`, see
  * kaderSource.listRaidCategories) is left out without an error; an empty list
- * is a valid pick ("no category yet").
+ * is a valid pick ("no category yet"). A category of another game version than
+ * the Kader's (`ctx.otherVersionCategories`: id -> { name, versionId }) is
+ * refused (400) when it is new in the pick.
  */
 function updateKader(planner, input, ctx) {
     return withKader(planner, input.kaderId, (kader) => {
@@ -618,6 +650,15 @@ function updateKader(planner, input, ctx) {
         if (input.attendanceCategories !== undefined) {
             if (!Array.isArray(input.attendanceCategories)) throw invalid("Die Raid-Kategorien kommen als Liste.");
             const known = ctx.raidCategoryIds instanceof Set ? ctx.raidCategoryIds : new Set();
+            // #741: a category of another version than the Kader's is refused when it is
+            // picked new; one stored before (when the picker offered every version) just drops out
+            const others = ctx.otherVersionCategories instanceof Map ? ctx.otherVersionCategories : new Map();
+            const had = new Set(kader.attendanceCategories || []);
+            const wrong = input.attendanceCategories.map((id) => str(id).trim()).find((id) => others.has(id) && !had.has(id));
+            if (wrong) {
+                const c = others.get(wrong);
+                throw invalid(`Die Raid-Kategorie „${c.name || wrong}“ spielt ${versionLabel(c.versionId)}, der Kader ${versionLabel(kaderVersion(kader.versionId))} – sie zählt hier nicht.`);
+            }
             kader.attendanceCategories = categoryIds(input.attendanceCategories.filter((id) => known.has(str(id).trim())));
         }
     });

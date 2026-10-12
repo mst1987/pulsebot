@@ -80,16 +80,21 @@ describe("web/kader/kaderView", () => {
         expect(planned).toMatchObject({ className: "Mage", spec: "Mage-Frost", source: "planner" });
     });
 
-    it("offers every profile character and the log-linked one to assign (`pickable`)", () => {
+    it("offers the profile characters of the planner's version and the log-linked one to assign (`pickable`, #741)", () => {
         const src = source();
         src.profiles[0].allCharacters = [
             { key: "forever~aldric sturmwind", name: "Aldric Sturmwind", className: "Warrior", versionId: "forever", canTank: false, canHeal: false, specs: [{ spec: "Warrior-Fury", gear: "usable" }, { spec: "Warrior-Arms", gear: "none" }] },
-            { key: "tbc~devi", name: "Devi", className: "Priest", versionId: "tbc", canTank: false, canHeal: true, specs: [] },
+            { key: "devi", name: "Devi", className: "Priest", versionId: "tbc", canTank: false, canHeal: true, specs: [] },
+            { key: "forever~brann eisen", name: "Brann Eisen", className: "Priest", versionId: "forever", canTank: false, canHeal: true, specs: [] },
         ];
         const view = buildKaderView({ source: src, planner: planner(), kaderId: "k1" });
         const byId = new Map(view.players.map((p) => [p.userId, p]));
-        // in the raider's order, no "main" on any of them
-        expect(byId.get(U.a).pickable.map((c) => [c.name, c.versionId])).toEqual([["Aldric Sturmwind", "forever"], ["Devi", "tbc"]]);
+        // in the raider's order, no "main" on any of them; Forever plans with Forever characters only
+        expect(src.versionId).toBe("forever");
+        expect(byId.get(U.a).pickable.map((c) => [c.name, c.versionId])).toEqual([["Aldric Sturmwind", "forever"], ["Brann Eisen", "forever"]]);
+        // a TBC planner offers the TBC one
+        const tbc = buildKaderView({ source: { ...src, versionId: "tbc" }, planner: planner(), kaderId: "k1" });
+        expect(tbc.players.find((p) => p.userId === U.a).pickable.map((c) => c.name)).toEqual(["Devi"]);
         expect(byId.get(U.a).pickable.some((c) => "main" in c)).toBe(false);
         expect(byId.get(U.a).pickable[0].specs).toEqual([{ spec: "Warrior-Fury", main: true, gear: "usable" }, { spec: "Warrior-Arms", main: false, gear: "none" }]);
         expect(byId.get(U.d).pickable).toEqual([expect.objectContaining({ name: "Kael", source: "logs", specs: [{ spec: "Priest-Shadow", main: true, gear: "none" }] })]);

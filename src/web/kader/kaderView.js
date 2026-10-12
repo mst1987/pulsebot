@@ -133,9 +133,14 @@ function prefillOf({ assignment, profile, logChar }) {
     return null;
 }
 
-/** What the account dialog offers to assign: every profile character of any version, plus the log-linked one. */
-function pickableOf(profile, logChar) {
-    const out = (profile ? profile.allCharacters || [] : []).map((c) => ({
+/**
+ * What the account dialog offers to assign: the profile characters of the
+ * planner's version (the Kader's, #741 - Forever plans with Forever
+ * characters only), plus the log-linked one (logs know no version).
+ */
+function pickableOf(profile, logChar, versionId = "") {
+    const all = profile ? profile.allCharacters || [] : [];
+    const out = all.filter((c) => !versionId || c.versionId === versionId).map((c) => ({
         key: c.key,
         name: c.name,
         className: c.className,
@@ -151,7 +156,7 @@ function pickableOf(profile, logChar) {
     return out;
 }
 
-function buildPlayer({ userId, displayName, member, profile, logChar, attendance, assignment, manual, classes }) {
+function buildPlayer({ userId, displayName, member, profile, logChar, attendance, assignment, manual, classes, versionId }) {
     const profileChars = profile ? profile.characters : [];
     const chars = assignment
         ? assignment.characters.map((c) => ({
@@ -183,7 +188,7 @@ function buildPlayer({ userId, displayName, member, profile, logChar, attendance
             ? { character: profileMain.name, className: profileMain.className, mainSpec: profileDesc.mainSpec, logSpecs: [...profileMain.logSpecs] }
             : null,
         prefill: prefillOf({ assignment, profile, logChar }),
-        pickable: pickableOf(profile, logChar),
+        pickable: pickableOf(profile, logChar, versionId),
         availability: profile ? [...profile.availability] : [],
         attendance: attendanceView(attendance),
         // the revision of the planner's character data and who changed it (the account dialog's conflict check)
@@ -262,6 +267,7 @@ function buildKaderView({ source, planner, kaderId = "", versionId = "" }) {
         assignment: planner.assignments[userId] || null,
         manual: manual.has(userId),
         classes,
+        versionId: source.versionId || "",
     }));
 
     // the import dialog's candidates: every member, with what they would be prefilled with
@@ -315,6 +321,8 @@ function mutationContext({ source, planner, actor = "", now = new Date().toISOSt
     return {
         now,
         actor,
+        // the game version the planner works in for this change (#741): a profile character of another one is refused
+        versionId: source.versionId || "",
         classes: indexClasses(source.classes),
         // the rule set's party buffs: the auto-assign reads who spreads and who supports from them (#751)
         partyBuffs: (source.buffs && source.buffs.party) || [],
@@ -329,7 +337,7 @@ function mutationContext({ source, planner, actor = "", now = new Date().toISOSt
 
 /** The context of a change inside one Kader: the rule set's classes, who acts and when. */
 function lightContext({ rules, actor = "", now = new Date().toISOString() }) {
-    return { now, actor, classes: indexClasses(rules.classes), memberIds: new Set(), knownIds: new Set() };
+    return { now, actor, versionId: rules.versionId || "", classes: indexClasses(rules.classes), memberIds: new Set(), knownIds: new Set() };
 }
 
 module.exports = { buildKaderView, kaderPayload, mutationContext, lightContext, prefillOf, diffAgainst, describe, stateCounts, rateOver };

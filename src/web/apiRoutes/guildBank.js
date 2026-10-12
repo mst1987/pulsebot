@@ -3,9 +3,11 @@
 // goes to the one event server, or waits for an assignment when there are
 // several; until then nobody can request from it.
 //
-//   GET  /api/guildbank                     the banks of the active server and the one shown
-//                                           (?key= one of them, else ?version= the content
-//                                           switch's, else the first) with its items
+//   GET  /api/guildbank                     the active server's banks of the content switch's
+//                                           version (?version=, #741) and the one shown (?key=
+//                                           one of them, else the first) with its items; never a
+//                                           bank of another version — `bank: null` and
+//                                           `otherVersions` (short names) when this one has none
 //   POST /api/guildbank/item                { key, itemId, status?, reserve?, maxPerRequest?, category? }
 //   POST /api/guildbank/item/add            { key, query | itemId } — create an item by hand: id, Wowhead link
 //                                           or name; stock 0, status "give"; { item, created }, or 400 "ambiguous"
@@ -28,7 +30,9 @@
 //   POST /api/settings/guild-banks/delete   { key } — forget a bank with its settings
 //
 // The page's routes only ever touch a bank of the active server: another
-// server's bank answers 404 like an unknown one. A changed item status (and a
+// server's bank answers 404 like an unknown one, a write to a bank of a hidden
+// version (#563) 409 "version_hidden" (read only), and a character of another
+// version than the bank's is never linked (#741, 400). A changed item status (and a
 // forgotten bank) queues the item emojis' sync (services/guildbank/itemEmojis.js)
 // in the background — the answer never waits for Discord. So does the waiting
 // list's move-up (services/signups/guildBank.advanceWaitlist): every change to
@@ -36,10 +40,11 @@
 // DMs afterwards; the answer already shows the list after the move.
 const { ok } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
-const { sendFailure } = require("../http/apiResult");
+const { sendFailure, HTTP_BY_CODE } = require("../http/apiResult");
 const { q } = require("../http/apiParams");
 const { activeGuildFor } = require("../http/activeGuild");
-const { resolveVersionQuery } = require("../../services/events/mainVersion");
+const { resolveVersionQuery, isVersionVisible } = require("../../services/events/mainVersion");
+const { getConfig } = require("../../stores/settingsStore");
 const stockStore = require("../../stores/guildBankStockStore");
 const stock = require("../../services/guildbank/guildBankStock");
 const view = require("../../services/guildbank/stockView");
@@ -53,23 +58,50 @@ const requestStore = require("../../stores/guildBankStore");
 const { iconUrl } = require("../../utils/loot/wowhead");
 
 const NOT_FOUND = { code: "not_found", error: "Gildenbank nicht gefunden." };
+const VERSION_HIDDEN = {
+    code: "version_hidden",
+    error: "Diese Gildenbank gehört zu einer ausgeblendeten Spielversion und ist nur noch lesbar.",
+};
 
-/** GET /api/guildbank */
+/** A bank failure with its status: a hidden version's bank is a conflict (409), the rest as usual. */
+function sendBankFailure(res, failure) {
+    return sendFailure(res, failure, { ...HTTP_BY_CODE, version_hidden: 409 });
+}
+
+/**
+ * The bank `key` of the active server a write may change: `{ bank }`, or
+ * `{ failure }` — another server's (or no) bank is NOT_FOUND, a bank of a
+ * hidden version (#563, "Andere Versionen ausblenden") VERSION_HIDDEN: read
+ * only, like an archived raid.
+ */
+function writableBank(key, req) {
+    const bank = view.bankOfServer(key, activeGuildFor(req));
+    if (!bank) return { failure: NOT_FOUND };
+    return isVersionVisible(bank.gameVersion, getConfig()) ? { bank } : { failure: VERSION_HIDDEN };
+}
+
+/**
+ * GET /api/guildbank — the page's version decides (#741): only the banks of
+ * that version, `bank: null` when it has none (`otherVersions` names the
+ * versions that do, for the page's hint).
+ */
 const getGuildBank = withUser(async ({ req, res, query }) => {
     const guildId = activeGuildFor(req);
-    const { versionId } = resolveVersionQuery(query.get("version"));
-    const { banks, bank } = view.stockForServer(guildId, { key: q.str(query, "key", { max: 200 }), versionId });
+    const config = getConfig();
+    const { versionId } = resolveVersionQuery(query.get("version"), { config });
+    const { banks, bank, otherVersions } = view.stockForServer(guildId, { key: q.str(query, "key", { max: 200 }), versionId, config });
     // Items still without a current Wowhead answer (a lookup failed, the bot
     // restarted, German names stored before) are asked again in the
     // background — at most once per item within itemMeta's retry pause.
     if (bank) queueLookups(bank.gameVersion, stockStore.itemsWithoutWowheadMeta(bank.key));
-    ok(res, { banks, bank });
+    ok(res, { banks, bank, otherVersions });
 });
 
 /** POST /api/guildbank/item — what the orga decided for one item. */
 const postGuildBankItem = withUser({ write: "raids", csrf: true, body: true }, async ({ req, body, res }) => {
     const key = q.str(body, "key", { max: 200 });
-    if (!view.bankOfServer(key, activeGuildFor(req))) return sendFailure(res, NOT_FOUND);
+    const { failure } = writableBank(key, req);
+    if (failure) return sendBankFailure(res, failure);
     const patch = {};
     for (const field of ["status", "reserve", "maxPerRequest", "category"]) {
         if (body[field] !== undefined) patch[field] = field === "status" || field === "category" ? q.str(body, field) : body[field];
@@ -86,7 +118,8 @@ const postGuildBankItem = withUser({ write: "raids", csrf: true, body: true }, a
 /** POST /api/guildbank/item/add — an item the bank does not hold (yet), created by hand and offered at once. */
 const addGuildBankItem = withUser({ write: "raids", csrf: true, body: true }, async ({ req, body, res }) => {
     const key = q.str(body, "key", { max: 200 });
-    if (!view.bankOfServer(key, activeGuildFor(req))) return sendFailure(res, NOT_FOUND);
+    const { failure } = writableBank(key, req);
+    if (failure) return sendBankFailure(res, failure);
     const result = await addItem.addByHand(key, { itemId: q.int(body, "itemId", { fallback: 0 }), query: q.str(body, "query", { max: 300 }) });
     if (result.error) return sendFailure(res, { code: result.choices ? "ambiguous" : "invalid", error: result.error });
     queueItemEmojiSync();
@@ -142,7 +175,7 @@ const getGuildBankHandedOut = withUser(async ({ req, res, query }) => {
     ok(res, { requests: handedOutForBank(bank.key).map((r) => handedOutRow(r, items)) });
 });
 
-/** GET /api/guildbank/characters?key=&q= — the profile characters to link a request to, the bank's version first. */
+/** GET /api/guildbank/characters?key=&q= — the profile characters of the bank's version to link a request to. */
 const searchGuildBankCharacters = withUser({ write: "raids" }, async ({ req, res, query }) => {
     const bank = view.bankOfServer(q.str(query, "key", { max: 200 }), activeGuildFor(req));
     if (!bank) return sendFailure(res, NOT_FOUND);
@@ -151,11 +184,15 @@ const searchGuildBankCharacters = withUser({ write: "raids" }, async ({ req, res
 
 /** POST /api/guildbank/request/link — body: { key, id, userId, characterKey }; a pending request of this bank gets that recipient. */
 const linkGuildBankRequest = withUser({ write: "raids", csrf: true, body: true }, async ({ req, body, res }) => {
-    const bank = view.bankOfServer(q.str(body, "key", { max: 200 }), activeGuildFor(req));
-    if (!bank) return sendFailure(res, NOT_FOUND);
-    const result = await linkRequest(q.str(body, "id", { max: 40 }), {
-        bankKey: bank.key, userId: q.str(body, "userId", { max: 40 }), characterKey: q.str(body, "characterKey", { max: 80 }),
-    });
+    const key = q.str(body, "key", { max: 200 });
+    const { bank, failure } = writableBank(key, req);
+    if (failure) return sendBankFailure(res, failure);
+    const userId = q.str(body, "userId", { max: 40 });
+    const characterKey = q.str(body, "characterKey", { max: 80 });
+    // only a character of the bank's version (#741): Forever bank = Forever characters
+    const versionError = linking.versionError(userId, characterKey, bank.gameVersion);
+    if (versionError) return sendFailure(res, { code: "invalid", error: versionError });
+    const result = await linkRequest(q.str(body, "id", { max: 40 }), { bankKey: bank.key, userId, characterKey });
     if (result.error) return sendFailure(res, { code: result.code || "invalid", error: result.error });
     const items = new Map(bank.items.map((it) => [it.itemId, it]));
     ok(res, { request: requestRow(result.request, items) });
@@ -193,8 +230,8 @@ const getGuildBankWaitlist = withUser(async ({ req, res, query }) => {
 function waitlistWrite(fn) {
     return withUser({ write: "raids", csrf: true, body: true }, async ({ req, body, res, user }) => {
         const key = q.str(body, "key", { max: 200 });
-        const bank = view.bankOfServer(key, activeGuildFor(req));
-        if (!bank) return sendFailure(res, NOT_FOUND);
+        const { bank, failure } = writableBank(key, req);
+        if (failure) return sendBankFailure(res, failure);
         const result = fn({ bank, body, by: String(user.id || ""), byName: String(user.name || user.username || "") });
         if (result && result.error) return sendFailure(res, { code: result.code || "invalid", error: result.error });
         moveUp(bank.key);
@@ -252,9 +289,12 @@ function linksOf(body) {
 
 /** POST /api/guildbank/waitlist/preview — body: { key, text, links? }; stores nothing. */
 const previewGuildBankWaitlist = withUser({ write: "raids", csrf: true, body: true }, async ({ req, body, res }) => {
-    const bank = view.bankOfServer(q.str(body, "key", { max: 200 }), activeGuildFor(req));
-    if (!bank) return sendFailure(res, NOT_FOUND);
-    ok(res, waitlist.previewImport(bank.key, q.str(body, "text", { max: IMPORT_TEXT_MAX }), { links: linksOf(body) }));
+    const key = q.str(body, "key", { max: 200 });
+    const { failure } = writableBank(key, req);
+    if (failure) return sendBankFailure(res, failure);
+    const preview = waitlist.previewImport(key, q.str(body, "text", { max: IMPORT_TEXT_MAX }), { links: linksOf(body) });
+    if (preview.error) return sendFailure(res, { code: "invalid", error: preview.error });
+    ok(res, preview);
 });
 
 /** POST /api/guildbank/waitlist/import — body: { key, text, links? }; the lines the preview marks ok, at the end of their lists. */
@@ -266,7 +306,8 @@ const importGuildBankWaitlist = waitlistWrite(({ bank, body, by, byName }) => {
 /** POST /api/guildbank/tab — hide or show a whole bank tab. */
 const postGuildBankTab = withUser({ write: "raids", csrf: true, body: true }, async ({ req, body, res }) => {
     const key = q.str(body, "key", { max: 200 });
-    if (!view.bankOfServer(key, activeGuildFor(req))) return sendFailure(res, NOT_FOUND);
+    const { failure } = writableBank(key, req);
+    if (failure) return sendBankFailure(res, failure);
     const result = stockStore.setTabHidden(key, q.int(body, "index", { fallback: 0 }), q.bool(body, "hidden"));
     if (result.error) return sendFailure(res, { code: "invalid", error: result.error });
     moveUp(key);

@@ -52,7 +52,9 @@
             "name_too_long": "Der Name ist zu lang (höchstens 40 Zeichen).",
             "admin_only": "Roster anlegen dürfen nur Admins.",
             "kader_taken": "Dieses Roster ist schon mit einem anderen Kader verknüpft.",
-            "not_found": "Dieses Roster gibt es nicht mehr."
+            "not_found": "Dieses Roster gibt es nicht mehr.",
+            "version_mismatch": "Dieses Roster oder diese Kategorie spielt eine andere Spielversion als der Kader.",
+            "version_hidden": "Die Spielversion dieses Kaders ist ausgeblendet."
         },
         "linkButton": "Mit bestehendem Roster verknüpfen",
         "linkTip": "Diesen Kader mit einem Roster verknüpfen, das es schon gibt",

@@ -116,21 +116,25 @@ function lootProfileOptions() {
 }
 
 /**
- * Everything the dialog needs.
- * @param {{ guildId: string, config?: object, canSeeKader?: boolean }} opts
+ * Everything the dialog needs. `versionId`: the game version the dialog works
+ * in (#741, the page's `?version=`) - only the categories that play it and the
+ * Kader of it are offered, and a new roster starts in it; "" = every shown
+ * version. Categories and Kader of a hidden version (#563) are never offered.
+ * @param {{ guildId: string, config?: object, canSeeKader?: boolean, versionId?: string }} opts
  */
-function rosterOptions({ guildId = "", config = {}, canSeeKader = false } = {}) {
-    const categories = rosterCategories(guildId, config);
+function rosterOptions({ guildId = "", config = {}, canSeeKader = false, versionId = "" } = {}) {
     const visible = new Set(visibleVersions(config));
+    const offered = (id) => visible.has(id) && (!versionId || id === versionId);
+    const categories = rosterCategories(guildId, config).filter((c) => offered(c.versionId));
     return {
         guildId,
         categories,
         versions: publicVersions().filter((v) => visible.has(v.id)).map((v) => ({ id: v.id, label: v.label, short: v.short })),
-        defaultVersion: mainVersionFor({ config }),
+        defaultVersion: versionId || mainVersionFor({ config }),
         roles: serverRoles(guildId),
         canManageRoles: guildId ? canManageRoles(guildId) : false,
         online: !!(guildId && discord.isOnline() && discord.getGuild(guildId)),
-        kaders: canSeeKader ? kaderOptions(guildId) : [],
+        kaders: canSeeKader ? kaderOptions(guildId).filter((k) => offered(k.versionId)) : [],
         templateSlots: templateSlots(categories, config),
         lootSystems: [...LOOT_SYSTEMS],
         lootProfiles: lootProfileOptions(),

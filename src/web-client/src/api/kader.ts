@@ -447,8 +447,9 @@ export function syncKaderRoster(kaderId: string): Promise<{ rosterId: string; ad
 /** The raid categories a new roster can belong to (GET /api/rosters/options, full admins): those without a roster. */
 export type KaderRosterCategory = { id: string; name: string; rosterId: string | null };
 
-export function getKaderRosterCategories(): Promise<{ categories: KaderRosterCategory[] }> {
-    return get<{ categories: KaderRosterCategory[] }>("/api/rosters/options");
+export function getKaderRosterCategories(version = ""): Promise<{ categories: KaderRosterCategory[] }> {
+    // `version`: the Kader's game version (#741) - only the categories that play it
+    return get<{ categories: KaderRosterCategory[] }>(`/api/rosters/options${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 /** "Roster anlegen" from a Kader (POST /api/rosters/create, source "kader", full admins). */

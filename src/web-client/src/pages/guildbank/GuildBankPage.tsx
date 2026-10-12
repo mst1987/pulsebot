@@ -8,8 +8,9 @@
 //   Ausgeblendet  shows up nowhere
 //   Neu           came with the last scan, still to be sorted
 //
-// The bank shown is the active server's: the one of the topbar's content
-// version, else the first; with several a select in the filter line picks
+// The bank shown is the active server's of the topbar's content version — never
+// one of another version (#741; none = the empty page names the versions that
+// have one); with several of the version a select in the filter line picks
 // one. "Verfügbar" is Bestand - Vorgemerkt - Reserve, computed by the server
 // (services/guildbank/stockView.js) — the request form uses the same number.
 // Reading takes "raids", every change "raids" write. Every offered item has a
@@ -51,15 +52,20 @@ import "../../styles/guildbank.css";
 
 const BANK_ICON = "achievement_guildperk_mobilebanking";
 
-/** No bank on this server yet: what brings one in, and where it is assigned. */
-function EmptyBank({ canSettings }: { canSettings: boolean }) {
+/**
+ * No bank of this version on this server yet (#741: never another version's):
+ * what brings one in, where it is assigned — and which other versions have
+ * one (`others`, switched in the top bar).
+ */
+function EmptyBank({ canSettings, version, others }: { canSettings: boolean; version: string; others: string[] }) {
     const t = useT();
     return (
         <>
             <PageHead icon={BANK_ICON} tone="bank" title={t("guildbank.title")} />
             <div className="gb-empty empty">
                 <WowIcon name={BANK_ICON} size={48} />
-                <h2>{t("guildbank.empty.title")}</h2>
+                <h2>{others.length > 0 && version ? t("guildbank.empty.versionTitle", { version }) : t("guildbank.empty.title")}</h2>
+                {others.length > 0 && <p>{t("guildbank.empty.otherVersions", { versions: others.join(", ") })}</p>}
                 <p>{t("guildbank.empty.text")}</p>
                 <p>{t("guildbank.empty.assign")}</p>
                 {canSettings && (
@@ -75,7 +81,7 @@ export default function GuildBankPage() {
     const toast = useToast();
     const { user } = useOutletContext<ShellContext>();
     const canWrite = canAccess(user, "raids", "write");
-    const { version } = useContentVersion();
+    const { version, mainVersion, versions } = useContentVersion();
     // A bank picked by hand counts while the content version stays the same;
     // switching the version follows the version again.
     const [picked, setPicked] = useState({ key: "", version });
@@ -106,7 +112,10 @@ export default function GuildBankPage() {
 
     if (page.error && !page.data) return <div className="empty">{page.error.message}</div>;
     if (!page.data) return <RaidLoader text={t("guildbank.page.loading")} />;
-    if (!bank) return <EmptyBank canSettings={canAccess(user, "settings")} />;
+    if (!bank) {
+        const shown = versions.find((v) => v.id === (version || mainVersion));
+        return <EmptyBank canSettings={canAccess(user, "settings")} version={shown?.short || ""} others={page.data.otherVersions || []} />;
+    }
 
     const counts = tabCounts(items);
     const hiddenTabs = bank.tabs.filter((x) => x.hidden).length;

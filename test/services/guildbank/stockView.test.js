@@ -66,8 +66,37 @@ describe("services/guildbank/stockView", () => {
 
     it("shows nothing for a server without banks or without an id", () => {
         record("Alpha", "g2");
-        expect(view.stockForServer("g1")).toEqual({ banks: [], bank: null });
-        expect(view.stockForServer("")).toEqual({ banks: [], bank: null });
+        expect(view.stockForServer("g1")).toEqual({ banks: [], bank: null, otherVersions: [] });
+        expect(view.stockForServer("")).toEqual({ banks: [], bank: null, otherVersions: [] });
+    });
+
+    // #741: the version decides — Forever page = Forever bank, never another version's
+    it("shows only the asked version's banks, no bank (with the other versions named) when it has none", () => {
+        const tbc = record("Alpha", "g1");
+        const tbc2 = record("Beta", "g1");
+        const forever = record("Alpha", "g1", "forever");
+        let shown = view.stockForServer("g1", { versionId: "forever" });
+        expect([shown.bank.key, shown.banks.map((b) => b.key), shown.otherVersions]).toEqual([forever.key, [forever.key], ["TBC"]]);
+        // a key of another version's bank does not pull that bank in
+        shown = view.stockForServer("g1", { versionId: "forever", key: tbc.key });
+        expect(shown.bank.key).toBe(forever.key);
+        shown = view.stockForServer("g1", { versionId: "tbc", key: tbc2.key });
+        expect([shown.bank.key, shown.banks.map((b) => b.key).sort()]).toEqual([tbc2.key, [tbc.key, tbc2.key].sort()]);
+        shown = view.stockForServer("g1", { versionId: "classic" });
+        expect([shown.bank, shown.banks, shown.otherVersions.sort()]).toEqual([null, [], ["Forever", "TBC"]]);
+        expect(view.offerForServer("g1", { versionId: "classic" })).toEqual({ bank: null, groups: [] });
+    });
+
+    it("never lists a bank of a hidden version (#563)", () => {
+        record("Alpha", "g1");
+        const forever = record("Alpha", "g1", "forever");
+        const config = { mainVersion: "forever", hideOtherVersions: true };
+        const shown = view.stockForServer("g1", { versionId: "forever", config });
+        expect([shown.bank.key, shown.banks.length, shown.otherVersions]).toEqual([forever.key, 1, []]);
+        // (the route never asks for a hidden version: resolveVersionQuery answers the main one)
+        expect(view.stockForServer("g1", { versionId: "tbc", config })).toEqual({ banks: [], bank: null, otherVersions: ["Forever"] });
+        // without a version: every visible bank
+        expect(view.stockForServer("g1", { config }).banks.map((b) => b.key)).toEqual([forever.key]);
     });
 
     it("adds reserved and available to every item of the bank shown", () => {

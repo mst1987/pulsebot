@@ -116,6 +116,13 @@ interview note and a comment with a marker and asserts neither reaches the roste
   `kaderView.kadersShown`); a change inside a Kader answers the list of its version; a new Kader takes the version
   the page shows. A link to a Kader of another version opens it and switches the menu to its version
   (`hooks/useFollowVersion`); switching the menu away goes back to the overview at `/kader`.
+- **The planner reads in the Kader's version** ("Forever = Forever-Charaktere"): `GET /api/kader` and every write
+  load `loadKaderSource({ versionId })` with the version of the Kader they name (`kader` / `kaderId`), else the
+  shown one (GET) or the planner's own (writes) — classes, profile characters, raid categories and attendance of
+  that version. A new Kader of a hidden version is refused (400 `version_hidden`); without a pick it gets the
+  planner's version, the main version while that one is hidden. The planner's own character data
+  (`assignments`) is still per server, not per version: a profile character of another version (its `onlineKey`)
+  is refused there (400), a character typed by hand counts as one of the Kader's version.
 - Server: the **active guild** of the session (`activeGuildFor(req)`): its members and roles, its events for
   attendance, and the planner is stored under its id.
 
@@ -127,9 +134,11 @@ of the Kader joins must not pull everybody down, a Thursday Kader only cares for
 - **The server's raid categories** (`kaderSource.listRaidCategories`): every Discord category marked for events
   (`config.categoryIds`) and every category a raid of this server ran in, named live or from the remembered names
   (`categoryNames.js`), with the game version it plays (`mainVersionFor`) and how many nights it counts. An id
-  without a known name is left out. The view model sends them as `raidCategories` in Discord's order.
+  without a known name is left out. The view model sends them as `raidCategories` in Discord's order — only the
+  categories that play the Kader's version and are shown (#741, #563). `PUT /api/kader/kaders` refuses a newly
+  picked category of another version (400); one stored before drops out with the next save.
 - **Per account and category** (`sourceAttendance`): the category's last 11 nights with evidence
-  (`rosterAttendance.attendanceForAccounts`, `RAID_WINDOW`), whatever version they were played in; the account's
+  (`rosterAttendance.attendanceForAccounts`, `RAID_WINDOW`) of the Kader's version (#740); the account's
   characters are the profile's of every version plus the characters assigned per category. `player.attendance` is
   `{ [categoryId]: { attended, counted, nights } }`, only the categories that counted a night; `null` without any.
   A night carries its attendance code `status` (#677, docs/roster-profile.md "Anwesenheit: Status je Abend"): a bench
@@ -324,8 +333,8 @@ members, discordRoles, names, kaders, kader, warnings, sharedRev }`
   `{ userId, displayName, avatarUrl, onServer, roleIds, hasProfile, manual, hasOverride, characters,
   activeCharacterId, differs, profile, prefill, pickable, availability, attendance, rev, changedBy }` — `attendance` per raid
   category, `rev`/`changedBy` the revision of the planner's character data and who saved it (0/"" without any).
-- **pickable**: what the account dialog offers to assign, "Aus dem Profil zuweisen": every profile character of any game
-  version `{ key, name, className, versionId, canTank, canHeal, specs, source: "profile" }` (the raider's order, no main) plus the log-linked one
+- **pickable**: what the account dialog offers to assign, "Aus dem Profil zuweisen": the profile characters of the Kader's game
+  version (#741; `allCharacters` still carries every version, `kaderView.pickableOf` filters) `{ key, name, className, versionId, canTank, canHeal, specs, source: "profile" }` (the raider's order, no main) plus the log-linked one
   (`source: "logs"`). Same whitelisted fields as the rest of the profile (source: `allCharacters`); a pick fills a new
   planner character (Forever: first + last name, other versions: nickname) the lead can still edit.
 - **prefill**: the character a player is prefilled with — `{ name, className, spec, source: planner|profile|logs,

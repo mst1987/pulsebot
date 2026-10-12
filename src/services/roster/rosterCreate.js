@@ -38,7 +38,7 @@ const rosterStore = require("../../stores/rosterStore");
 const raiderProfileStore = require("../../stores/raiderProfileStore");
 const discord = require("../discord/discord");
 const { listKnownCategories } = require("../discord/categoryNames");
-const { mainVersionFor, knownVersion } = require("../events/mainVersion");
+const { mainVersionFor, knownVersion, isVersionVisible } = require("../events/mainVersion");
 const { buildAttendanceContext } = require("../characters/rosterAttendance");
 const { nameKeyOf } = require("../../utils/loot/lootImport");
 const { rosterPlayers, kaderSummaries } = require("../kader/kaderRoster");
@@ -50,8 +50,8 @@ const SOURCES = ["role", "kader", "raids", "none"];
 const RAIDS_BACK = 4;
 const STATUS_OF_KADER_STATE = { roster: "core", bench: "bench", tentative: "trial" };
 const PRESENT = ["signed", "late"];
-// The Kaderplaner plans for WoW Forever (web/kader/kaderSource.plannerVersion): a roster from a Kader
-// without a category plays that version when the rule set exists (#658); a category's version wins.
+// A roster from a Kader plays the Kader's version (#741, kaderRoster.rosterPlayers `versionId`); a
+// category must play it too. A Kader without a known version is the planner's own: Forever (#658).
 const KADER_VERSION = "forever";
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
@@ -144,6 +144,17 @@ function addHolders(roster, userIds, actor, initial) {
     }
 }
 
+/**
+ * Whether a roster of `versionId` (in `categoryId`, may be null) fits a Kader:
+ * the Kader's own version (#741), and a category that plays it.
+ */
+function kaderVersionFits(kader, versionId, categoryId, config) {
+    const own = knownVersion(kader.versionId) || knownVersion(KADER_VERSION);
+    if (!own) return true;
+    if (versionId !== own) return false;
+    return !categoryId || mainVersionFor({ categoryId, config }) === own;
+}
+
 /** The input checked: `{ data, source, kader }` for rosterStore.createRoster, or `{ code }`. */
 function prepare(input, { guildId, config, knownRoleIds }) {
     const raw = isMap(input) ? { ...input } : {};
@@ -164,12 +175,17 @@ function prepare(input, { guildId, config, knownRoleIds }) {
     }
     const name = fields.name || categoryName(guildId, categoryId) || (kader ? kader.name : "");
     if (!name) return { code: "invalid_name" };
+    const versionId = fields.versionId || (kader && knownVersion(kader.versionId)) || mainVersionFor({ categoryId: categoryId || "", config });
+    // #741: a roster from a Kader plays the Kader's version - a category or a pick of another one is no match
+    if (kader && !kaderVersionFits(kader, versionId, categoryId, config)) return { code: "version_mismatch" };
+    // #563: no new roster for a hidden version
+    if (!isVersionVisible(versionId, config)) return { code: "version_hidden" };
     const data = {
         ...fields,
         guildId,
         name: name.slice(0, rosterStore.LIMITS.name),
         categoryId,
-        versionId: fields.versionId || (kader && !categoryId && knownVersion(KADER_VERSION)) || mainVersionFor({ categoryId: categoryId || "", config }),
+        versionId,
         source: kader ? { kind: "kader", kaderId: kader.id } : { kind: "manual" },
     };
     // one roster per category and version (#739): another version's roster is no conflict
@@ -218,10 +234,22 @@ function rosterOfKader(guildId, kaderId) {
     return rosterStore.rosterForKader(str(kaderId), str(guildId));
 }
 
+/** Whether a roster plays the game version of a Kader (`kaderSummaries` row, #741). */
+function rosterFitsKader(roster, kader) {
+    const own = knownVersion(kader && kader.versionId) || knownVersion(KADER_VERSION);
+    return !own || !roster || roster.versionId === own;
+}
+
 /** Whether the server's planner has this Kader (names only, through kaderRoster.js). */
 function kaderExists(guildId, kaderId) {
     const id = str(kaderId);
     return !!id && kaderSummaries(str(guildId)).some((k) => k.id === id);
+}
+
+/** Whether a Kader of the server plays `versionId` (#741); an unknown Kader fits nothing. */
+function kaderFitsVersion(guildId, kaderId, versionId) {
+    const kader = kaderSummaries(str(guildId)).find((k) => k.id === str(kaderId));
+    return !!kader && rosterFitsKader({ versionId: str(versionId) }, kader);
 }
 
 /**
@@ -229,13 +257,14 @@ function kaderExists(guildId, kaderId) {
  * "Mit bestehendem Roster verknüpfen": `[{ id, name, categoryId, members,
  * linkedKaderId, suggested }]` - `suggested` = its category is one the Kader
  * counts attendance in (`attendanceCategories`) and no other Kader holds it;
- * suggested first.
+ * suggested first. Only rosters of the Kader's game version (#741).
  */
 function kaderLinkChoices(guildId, kaderId) {
     const id = str(kaderId);
     const kader = kaderSummaries(str(guildId)).find((k) => k.id === id);
     const cats = new Set((kader && kader.attendanceCategories) || []);
     return rosterStore.listRosters(str(guildId))
+        .filter((r) => !kader || rosterFitsKader(r, kader))
         .map((r) => ({
             id: r.id,
             name: r.name,
@@ -252,14 +281,17 @@ function kaderLinkChoices(guildId, kaderId) {
  * ""): the Kader's previous roster is unlinked first, then the new one takes
  * `kaderId` (a history line on both). Nothing of the Kader is copied.
  * @returns {{ ok: true, roster: object|null } | { ok: false, code: string }}
- *   codes: "kader_not_found", "not_found" (no such roster on that server), "kader_taken"
+ *   codes: "kader_not_found", "not_found" (no such roster on that server), "kader_taken",
+ *   "version_mismatch" (the roster plays another game version than the Kader, #741)
  */
 function linkRosterToKader(kaderId, rosterId, { guildId = "", actor = "" } = {}) {
     const id = str(kaderId);
-    if (!kaderExists(guildId, id)) return { ok: false, code: "kader_not_found" };
+    const kader = kaderSummaries(str(guildId)).find((k) => k.id === id);
+    if (!id || !kader) return { ok: false, code: "kader_not_found" };
     const target = str(rosterId) ? rosterStore.getRoster(str(rosterId)) : null;
     if (str(rosterId) && (!target || (str(guildId) && target.guildId !== str(guildId)))) return { ok: false, code: "not_found" };
     if (target && target.kaderId && target.kaderId !== id) return { ok: false, code: "kader_taken" };
+    if (target && !rosterFitsKader(target, kader)) return { ok: false, code: "version_mismatch" };
     const previous = rosterOfKader(guildId, id);
     try {
         if (previous && (!target || previous.id !== target.id)) rosterStore.updateRoster(previous.id, { kaderId: null }, { actor });
@@ -333,6 +365,6 @@ function createRosterFromKader(kaderId, opts = {}) {
 
 module.exports = {
     createRosterWithSource, createRosterFromKader, kaderChoices, presentInRaids, kaderCharacter, categoryName,
-    rosterOfKader, kaderRosterState, syncRosterFromKader, kaderExists, kaderLinkChoices, linkRosterToKader,
+    rosterOfKader, kaderRosterState, syncRosterFromKader, kaderExists, kaderLinkChoices, linkRosterToKader, rosterFitsKader, kaderFitsVersion,
     SOURCES, RAIDS_BACK, STATUS_OF_KADER_STATE,
 };

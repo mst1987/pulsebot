@@ -21,8 +21,9 @@
 // The orga keeps the list in the web (apiRoutes/guildBank.js, "Warteliste"):
 // add an entry, move it up or down, remove it, or import lines pasted from a
 // sheet ("Name<Tab>Item<Tab>Anzahl", also ; or ,). A name is matched to a
-// raider by the characters in the raider profiles (no case, no accents —
-// "alina" finds "Alîna"); an unmatched name is imported as a character alone
+// raider by the characters of the bank's game version in the raider profiles
+// (#741; no case, no accents — "alina" finds "Alîna"), a picked character of
+// another version is refused; an unmatched name is imported as a character alone
 // (`userId: ""`, no DM, not linked — linking.js) unless the orga picked a
 // profile character for its line (`links`; an ambiguous name lists its
 // `candidates`). An unknown item is never imported. A typo in the item
@@ -191,39 +192,55 @@ function matchItem(itemText, items) {
 }
 
 /**
- * The raider whose profile has a character of that name: a character of the
- * bank's game version first, then any. `{ userId, userName, characterKey,
- * characterName, realm, className }`, or `{ ambiguous: true, candidates }`
- * (each such a hit) when characters of several raiders carry the name, or null.
+ * The raider whose profile has a character of that name — only a character of
+ * the bank's game version (#741: a TBC "Devi" never answers for a Forever
+ * bank; "" = any version). `{ userId, userName, characterKey, characterName,
+ * realm, className }`, or `{ ambiguous: true, candidates }` (each such a hit)
+ * when characters of several raiders carry the name, or null — then the name
+ * is taken as a character alone (not linked).
  */
 function matchCharacter(name, gameVersion = "", list = profiles.listProfiles()) {
     const key = foldName(name);
     if (!key) return null;
-    const hits = (versionOnly) => {
-        const found = [];
-        for (const p of list) {
-            const c = (p.characters || []).find((ch) => foldName(ch.name) === key
-                && (!versionOnly || profiles.charactersOfVersion({ characters: [ch] }, gameVersion).length));
-            if (c) {
-                found.push({
-                    userId: p.userId, userName: p.name || c.name, characterKey: c.key, characterName: c.name, realm: c.realm || "", className: c.className || "",
-                });
-            }
+    const all = [];
+    for (const p of list) {
+        const c = (p.characters || []).find((ch) => foldName(ch.name) === key && linking.playsVersion(ch, gameVersion));
+        if (c) {
+            all.push({
+                userId: p.userId, userName: p.name || c.name, characterKey: c.key, characterName: c.name, realm: c.realm || "", className: c.className || "",
+            });
         }
-        return found;
-    };
-    const found = gameVersion ? hits(true) : [];
-    const all = found.length ? found : hits(false);
+    }
     if (all.length > 1) return { ambiguous: true, candidates: all };
     return all[0] || null;
 }
 
-/** A row's own pick in the import (`links[line] = { userId, characterKey }`) as a match, or null when it names no profile character. */
-function pickedMatch(links, line) {
+/** A row's own pick in the import (`links[line] = { userId, characterKey }`), or null when the row has none. */
+function pickOf(links, line) {
     const pick = links && typeof links === "object" ? links[line] || links[String(line)] : null;
-    if (!pick || typeof pick !== "object") return null;
+    return pick && typeof pick === "object" ? pick : null;
+}
+
+/** A row's own pick in the import as a match, or null when it names no profile character. */
+function pickedMatch(links, line) {
+    const pick = pickOf(links, line);
+    if (!pick) return null;
     const choice = linking.resolveChoice(pick.userId, pick.characterKey);
     return choice ? { ...choice, characterKey: str(pick.characterKey) } : null;
+}
+
+/**
+ * Why the import's picks cannot go to this bank: the first pick of a character
+ * of another game version (#741), with its line — German, "" when all fit.
+ */
+function picksVersionError(bank, links) {
+    if (!links || typeof links !== "object") return "";
+    for (const line of Object.keys(links).sort((a, b) => Number(a) - Number(b))) {
+        const pick = pickOf(links, line);
+        const error = pick ? linking.versionError(pick.userId, pick.characterKey, bank.gameVersion) : "";
+        if (error) return `Zeile ${line}: ${error}`;
+    }
+    return "";
 }
 
 /**
@@ -233,11 +250,14 @@ function pickedMatch(links, line) {
  * not linked). An ambiguous name lists its `candidates`; the orga's own pick
  * of a row (`links[line] = { userId, characterKey }`, linking.resolveChoice)
  * wins over the name (`picked`). `linked` = the row lands linked to a profile
- * character; `ok` = the row will be imported.
+ * character; `ok` = the row will be imported. A pick of a character of another
+ * game version than the bank's answers `{ error }` (German) instead (#741).
  */
 function previewImport(bankKey, text, { links = null } = {}) {
     const bank = stockStore.getBank(bankKey);
     if (!bank) return { rows: [] };
+    const versionError = picksVersionError(bank, links);
+    if (versionError) return { error: versionError };
     const list = profiles.listProfiles();
     const rows = parseImport(text).map((row) => {
         const found = row.error ? { item: null, fuzzy: false } : findItem(row.itemText, bank.items);
@@ -288,7 +308,9 @@ function entryFor(bank, item, { name, match, amount, by, byName }) {
 function importLines(bankKey, text, { by = "", byName = "", links = null, now = Date.now() } = {}) {
     const bank = stockStore.getBank(bankKey);
     if (!bank) return { error: "Gildenbank nicht gefunden." };
-    const { rows } = previewImport(bankKey, text, { links });
+    const preview = previewImport(bankKey, text, { links });
+    if (preview.error) return { error: preview.error };
+    const { rows } = preview;
     if (!rows.length) return { error: "Keine Zeile zum Importieren." };
     const added = [];
     let skipped = 0;
@@ -316,6 +338,8 @@ function addEntry(bankKey, { name = "", userId = "", characterKey = "", itemId =
     if (!bank) return { error: "Gildenbank nicht gefunden." };
     const picked = userId || characterKey ? pickedMatch({ 1: { userId, characterKey } }, 1) : null;
     if ((userId || characterKey) && !picked) return { error: "Diesen Charakter gibt es im Profil nicht." };
+    const versionError = picked ? linking.versionError(userId, characterKey, bank.gameVersion) : "";
+    if (versionError) return { error: versionError };
     if (!picked && !str(name)) return { error: "Bitte einen Namen angeben." };
     const item = stockView.stockItem(bank.key, itemId);
     if (!item || !stockView.isRequestable(item)) return { error: "Diesen Gegenstand gibt die Bank nicht aus." };

@@ -14,7 +14,7 @@
 // (test/web/kader/kaderSource.test.js scans the payload for them).
 const { rulesFor } = require("../../config/gameVersions");
 const { buildClasses } = require("../../config/gameVersions/classes");
-const { mainVersionFor } = require("../../services/events/mainVersion");
+const { mainVersionFor, isVersionVisible } = require("../../services/events/mainVersion");
 const { listStoredEvents } = require("../../services/events/eventSources");
 const { isCategoryActive } = require("../../services/events/categoryLifecycle");
 const { buildAttendanceContext, attendanceForAccounts } = require("../../services/characters/rosterAttendance");
@@ -166,9 +166,13 @@ function sourceLogChars(index) {
  * one remembered, categoryNames.js) and the game version it plays. An id no
  * name is known for is left out. In Discord's order. Only active categories
  * (#744): a deactivated or closed one is history, not something to plan for.
+ * Only categories of a shown version (#563); with `versionId` only those that
+ * play it (#741: a Kader counts attendance in the categories of its version).
+ * @param {string} guildId
+ * @param {{ versionId?: string }} [opts]
  * @returns {{ id: string, name: string, versionId: string, versionLabel: string }[]}
  */
-function listRaidCategories(guildId) {
+function listRaidCategories(guildId, { versionId: only = "" } = {}) {
     const config = getConfig();
     const ids = new Set((config.categoryIds || []).map((id) => String(id).trim()).filter(Boolean));
     for (const ev of listStoredEvents(guildId)) if (ev && ev.categoryId) ids.add(String(ev.categoryId));
@@ -178,7 +182,8 @@ function listRaidCategories(guildId) {
             const versionId = mainVersionFor({ categoryId: c.id, config });
             const rules = rulesFor(versionId);
             return { id: c.id, name: c.name, versionId, versionLabel: rules ? rules.short || rules.label : versionId };
-        });
+        })
+        .filter((c) => (!only || c.versionId === only) && isVersionVisible(c.versionId, config));
 }
 
 /**
@@ -281,7 +286,7 @@ async function loadKaderSource({ guildId = "", versionId = plannerVersion(), now
     let raidCategories = [];
     let attendance = [];
     try {
-        const categories = listRaidCategories(guildId);
+        const categories = listRaidCategories(guildId, { versionId });
         const ctx = buildAttendanceContext(guildId, { now: Math.floor(now / 1000), versionId });
         raidCategories = categories.map((c) => ({ ...c, nights: (ctx.raidsByCategory.get(c.id) || []).length }));
         attendance = sourceAttendance(ctx, categories, attendanceAccounts(index));

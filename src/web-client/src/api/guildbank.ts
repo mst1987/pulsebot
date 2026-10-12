@@ -90,9 +90,16 @@ export type GuildBank = {
     items: GuildBankItem[];
 };
 
-export type GuildBankPageData = { banks: GuildBankSummary[]; bank: GuildBank | null };
+export type GuildBankPageData = {
+    /** The active server's banks of the asked version only (#741). */
+    banks: GuildBankSummary[];
+    /** null when the version has no bank on this server — never one of another version. */
+    bank: GuildBank | null;
+    /** Short names of the other (visible) versions this server has a bank of — the empty page's hint. */
+    otherVersions?: string[];
+};
 
-/** The banks of the active server and the one shown: `key`, else the content version's, else the first. */
+/** The active server's banks of `version` and the one shown: `key` among them, else the first. */
 export function getGuildBank({ key = "", version = "" }: { key?: string; version?: string } = {}): Promise<GuildBankPageData> {
     const params = new URLSearchParams();
     if (key) params.set("key", key);
@@ -252,16 +259,15 @@ export type GuildBankCharacterChoice = {
     characterName: string;
     realm: string;
     className: string;
+    /** Always the bank's game version: the server offers no other (#741). */
     versionId: string;
-    /** Of the bank's game version. */
-    ownVersion: boolean;
     /** WoW icon name: the first spec's, else the class's. */
     icon: string;
     classColor: string;
     specKey: string;
 };
 
-/** The profile characters to link a request to, the bank's version first (`q`: character or raider name). */
+/** The profile characters of the bank's version to link a request to (`q`: character or raider name). */
 export function searchGuildBankCharacters(key: string, q: string): Promise<{ characters: GuildBankCharacterChoice[] }> {
     return get<{ characters: GuildBankCharacterChoice[] }>(`/api/guildbank/characters?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}`);
 }

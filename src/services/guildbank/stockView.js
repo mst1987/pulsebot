@@ -20,6 +20,7 @@ const stockStore = require("../../stores/guildBankStockStore");
 const { reservedByItem, handedOutSince, pendingByItem, reservedRequestCount, handedOutRequestCount } = require("./reservations");
 const { wowheadPathFor } = require("./itemMeta");
 const { featureOn } = require("../events/versionCapabilities");
+const { visibleRows } = require("../events/mainVersion");
 const { rulesFor } = require("../../config/gameVersions");
 const { classLabel, subclassLabel } = require("../../config/itemClassLabels");
 
@@ -107,19 +108,24 @@ function summary(bank) {
 }
 
 /**
- * The banks of a Discord server and the one the page shows: the one asked for
- * by `key`, else the first of the content version `versionId`, else the first.
+ * The banks of a Discord server for one game version and the one the page
+ * shows (#741, the version decides): `banks` = the server's banks of
+ * `versionId` ("" = of every visible version), `bank` = the one of them asked
+ * for by `key`, else the first — never a bank of another version, so a version
+ * without a bank answers `bank: null`. A bank of a hidden version (#563,
+ * mainVersion.visibleRows) is never listed. `otherVersions` = the short names
+ * of the other visible versions the server has a bank of (the page's hint
+ * "no bank for this version").
  * @param {string} guildId
- * @param {{ key?: string, versionId?: string }} [opts]
- * @returns {{ banks: object[], bank: object|null }}
+ * @param {{ key?: string, versionId?: string, config?: object }} [opts]
+ * @returns {{ banks: object[], bank: object|null, otherVersions: string[] }}
  */
-function stockForServer(guildId, { key = "", versionId = "" } = {}) {
-    const all = stockStore.listForServer(guildId);
-    const chosen = all.find((b) => key && b.key === key)
-        || all.find((b) => versionId && b.gameVersion === versionId)
-        || all[0]
-        || null;
-    if (!chosen) return { banks: [], bank: null };
+function stockForServer(guildId, { key = "", versionId = "", config } = {}) {
+    const visible = visibleRows(stockStore.listForServer(guildId), (b) => b.gameVersion, config);
+    const own = versionId ? visible.filter((b) => b.gameVersion === versionId) : visible;
+    const otherVersions = [...new Set(visible.filter((b) => !own.includes(b)).map((b) => versionShort(b.gameVersion)))];
+    const chosen = own.find((b) => key && b.key === key) || own[0] || null;
+    if (!chosen) return { banks: [], bank: null, otherVersions };
     const reserved = reservedByItem(chosen.key);
     const out = handedOutSince(chosen.key, chosen.scannedAt);
     const hidden = hiddenTabsOf(chosen);
@@ -133,7 +139,7 @@ function stockForServer(guildId, { key = "", versionId = "" } = {}) {
         handedOutRequests: handedOutRequestCount(chosen.key),
         items: chosen.items.map((it) => withAvailability(it, reserved, hidden, out, pending)),
     };
-    return { banks: all.map(summary), bank };
+    return { banks: own.map(summary), bank, otherVersions };
 }
 
 /** One item of a bank with reserved/available/group, or null. */
@@ -159,13 +165,13 @@ const isRequestable = (item) => !!item && item.status === "give" && !item.tabHid
 
 /**
  * What a raider of a Discord server may ask for: the server's bank of
- * `versionId` (else its first, like the page) and its requestable items in
- * groups — by group name, the items without a group last, each group by item
- * name. `{ bank: null, groups: [] }` without a bank.
+ * `versionId` (like the page: never one of another version, #741) and its
+ * requestable items in groups — by group name, the items without a group
+ * last, each group by item name. `{ bank: null, groups: [] }` without a bank.
  * @returns {{ bank: object|null, groups: { name: string, items: object[] }[] }}
  */
-function offerForServer(guildId, { versionId = "" } = {}) {
-    const { bank } = stockForServer(guildId, { versionId });
+function offerForServer(guildId, { versionId = "", config } = {}) {
+    const { bank } = stockForServer(guildId, { versionId, config });
     if (!bank) return { bank: null, groups: [] };
     const byGroup = new Map();
     for (const item of bank.items.filter(isRequestable)) {

@@ -115,6 +115,23 @@ describe("services/events/eventCreate", () => {
         expect(eventStore.getEvent(tbc.body.id)).toMatchObject({ versionId: "tbc", instanceIds: ["kara"], size: 10 });
     });
 
+    it("creates nothing in a hidden version (#563): neither the plan's nor the category's, unless the series asks", async () => {
+        getConfig.mockReturnValue({ categorySignupSource: { "cat-eh": "eventhelper" }, mainVersion: "tbc", hideOtherVersions: true, categoryVersion: { "cat-eh": "forever" } });
+        let result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2" }) });
+        expect(result.error).toMatchObject({ status: 409, code: "version_hidden" });
+        expect(result.error.message).toContain("Forever ist ausgeblendet");
+        // a TBC plan in the Forever category: the category is hidden all the same
+        result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", versionId: "tbc" }) });
+        expect(result.error).toMatchObject({ code: "version_hidden" });
+        expect(eventStore.listEvents("g1")).toEqual([]);
+        expect(discord.duplicateChannel).not.toHaveBeenCalled();
+        result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2" }), allowHidden: true });
+        expect(result.status).toBe(201);
+        // a shown version is created as before
+        getConfig.mockReturnValue({ categorySignupSource: { "cat-eh": "eventhelper" }, mainVersion: "tbc", hideOtherVersions: true });
+        expect((await createEvent({ guildId: "g1", user, body: body({ channelId: "c2" }) })).status).toBe(201);
+    });
+
     it("accepts the planning fields for an EventHelper event", async () => {
         const result = await createEvent({ guildId: "g1", user, body: body({
             channelId: "c2", versionId: "tbc", instanceIds: ["gruul", "mag"], size: 25,

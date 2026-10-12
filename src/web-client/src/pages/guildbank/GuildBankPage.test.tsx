@@ -164,7 +164,7 @@ describe("guild bank page", () => {
         vi.mocked(api.searchGuildBankCharacters).mockResolvedValue({
             characters: [{
                 userId: "u2", userName: "Bo", characterKey: "bobo", characterName: "Bobo", realm: "", className: "Druid",
-                versionId: "tbc", ownVersion: true, icon: "", classColor: "", specKey: "",
+                versionId: "tbc", icon: "", classColor: "", specKey: "",
             }],
         });
         vi.mocked(api.linkGuildBankRequest).mockResolvedValue({ request: { ...open, characterName: "Bobo", realm: "Spineshatter", linked: true } });
@@ -202,19 +202,29 @@ describe("guild bank page", () => {
         expect(screen.getByRole("link", { name: "Zur Zuordnung" })).toHaveAttribute("href", "/settings?section=verbindungen");
     });
 
-    it("asks for the content version's bank and offers a select with several banks", async () => {
+    // #741: the version decides — no bank of this version is no bank, the hint names the versions that have one
+    it("says the shown version has no bank and names the versions that do", async () => {
+        localStorage.removeItem("eh-content-version");
+        vi.mocked(api.getGuildBank).mockResolvedValue({ banks: [], bank: null, otherVersions: ["Forever"] });
+        renderPage(<GuildBankPage />, { route: "/guildbank", content: twoVersions() });
+        expect(await screen.findByRole("heading", { name: "Noch keine Gildenbank für TBC" })).toBeInTheDocument();
+        expect(screen.getByText("Dieser Server hat eine Gildenbank für Forever – oben in der Kopfleiste die Version umschalten.")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Zur Zuordnung" })).toBeInTheDocument();
+    });
+
+    it("asks for the content version's bank and offers a select with several banks of it", async () => {
         const user = userEvent.setup();
         localStorage.removeItem("eh-content-version");
         const banks = [
             { key: KEY, gameVersion: "tbc", versionShort: "TBC", realm: "Spineshatter", guild: "Die Gilde", scannedAt: 1 },
-            { key: "forever:x:die gilde", gameVersion: "forever", versionShort: "Forever", realm: "X", guild: "Die Gilde", scannedAt: 1 },
+            { key: "tbc:spineshatter:zweite gilde", gameVersion: "tbc", versionShort: "TBC", realm: "Spineshatter", guild: "Zweite Gilde", scannedAt: 1 },
         ];
         vi.mocked(api.getGuildBank).mockResolvedValue(bankData({}, banks));
         renderPage(<GuildBankPage />, { route: "/guildbank", content: twoVersions() });
         expect(await screen.findByRole("heading", { name: "Gildenbank" })).toBeInTheDocument();
         expect(api.getGuildBank).toHaveBeenLastCalledWith({ key: "", version: "tbc" });
-        await user.selectOptions(screen.getByLabelText("Gildenbank wählen"), "forever:x:die gilde");
-        await waitFor(() => expect(api.getGuildBank).toHaveBeenLastCalledWith({ key: "forever:x:die gilde", version: "tbc" }));
+        await user.selectOptions(screen.getByLabelText("Gildenbank wählen"), "tbc:spineshatter:zweite gilde");
+        await waitFor(() => expect(api.getGuildBank).toHaveBeenLastCalledWith({ key: "tbc:spineshatter:zweite gilde", version: "tbc" }));
         await user.click(within(screen.getByRole("radiogroup", { name: t(CONTENT_ARIA) })).getByRole("radio", { name: /Forever/ }));
         await waitFor(() => expect(api.getGuildBank).toHaveBeenLastCalledWith({ key: "", version: "forever" }));
     });

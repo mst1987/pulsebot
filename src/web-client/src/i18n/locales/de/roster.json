@@ -474,7 +474,9 @@
         "invalid_spec": "Dieser Spec passt nicht zur Klasse des Charakters.",
         "kader_taken": "Dieser Kader ist schon mit einem anderen Roster verknüpft.",
         "invalid_loot_system": "Unbekanntes Lootsystem.",
-        "unknown_profile": "Dieses Loot-Council-Profil gibt es nicht."
+        "unknown_profile": "Dieses Loot-Council-Profil gibt es nicht.",
+        "version_mismatch": "Kader, Kategorie und Roster müssen dieselbe Spielversion spielen.",
+        "version_hidden": "Diese Spielversion ist ausgeblendet – ein Roster bekommt eine sichtbare Spielversion."
     },
     "sync": {
         "loading": "Lade den Abgleich …",

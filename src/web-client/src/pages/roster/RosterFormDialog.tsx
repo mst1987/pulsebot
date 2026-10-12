@@ -19,6 +19,7 @@ import {
     type RosterDetail, type RosterInitial, type RosterOptions, type RosterSettingsPatch, type RosterSlots, type RosterSource, type StoredRoster,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import { useT } from "../../i18n";
 import { AsyncView, Button, Field, Modal, Segment, Switch, WowIcon, buttonClass, useConfirm } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
@@ -415,7 +416,10 @@ export default function RosterFormDialog({ mode, data, presetCategory = "", onCl
     onSaved: (rosterId: string) => void;
 }) {
     const t = useT();
-    const state = useApi(() => getRosterOptions(), []);
+    // the dialog works in one game version (#741): the roster's own, a new one the shown version
+    const { version } = useContentVersion();
+    const dialogVersion = data?.roster.versionId || version;
+    const state = useApi(() => getRosterOptions(dialogVersion), [dialogVersion]);
     return (
         <AsyncView
             state={state}
