@@ -98,12 +98,47 @@ function matchReason(entry, { userName, assigned }) {
     return name.includes(char) || char.startsWith(name.slice(0, 4)) ? "name" : "";
 }
 
+/** Edits (insert, delete, replace) between two strings — Levenshtein, short names only. */
+function editDistance(a, b) {
+    const row = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+        let prev = row[0];
+        row[0] = i;
+        for (let j = 1; j <= b.length; j++) {
+            const keep = row[j];
+            row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+            prev = keep;
+        }
+    }
+    return row[b.length];
+}
+
+/**
+ * How close a logged name is to a name typed with a typo ("Nerathli" for
+ * "Nerathil"): the number of edits, or -1 when it is too far to be a typo — at
+ * most one edit per four letters (at least one), or the one name starting with
+ * the other ("Gent" / "Gentle").
+ */
+function typoDistance(typed, logged) {
+    const a = letters(typed);
+    const b = letters(logged);
+    if (a.length < 2 || b.length < 2 || a === b) return a === b && a ? 0 : -1;
+    if (a.length >= 3 && b.length >= 3 && (a.startsWith(b) || b.startsWith(a))) return Math.abs(a.length - b.length);
+    const d = editDistance(a, b);
+    return d <= Math.max(1, Math.floor(Math.max(a.length, b.length) / 4)) ? d : -1;
+}
+
 /**
  * Characters from the logs the raider could take over. Excludes the ones
  * already in the profile; each carries `claimedBy` (other accounts) and a
  * `match` reason. `query` narrows by name.
+ *
+ * `near` ({ name, className }) — a character being set right ("Bearbeiten" ›
+ * aus den Logs): the logged names that look like a typo of its name come
+ * first, marked `match: "similar"`, the closest and the same class first. The
+ * character itself is not excluded then: its own name may be the logged one.
  */
-function logSuggestions(user, { query = "", index = logIndex() } = {}) {
+function logSuggestions(user, { query = "", near = null, index = logIndex() } = {}) {
     const userId = String((user && user.id) || "");
     const own = profiles.getProfile(userId);
     const ownKeys = new Set(((own && own.characters) || []).map((c) => c.key));
@@ -121,24 +156,34 @@ function logSuggestions(user, { query = "", index = logIndex() } = {}) {
             claims.get(c.key).push({ userId: p.userId, name: p.name });
         }
     }
-    const rank = { assigned: 0, name: 1, "": 2 };
+    const rank = { similar: 0, assigned: 1, name: 2, "": 3 };
+    const nearKey = near ? profiles.characterKey(near.name) : "";
+    const distanceOf = (e) => (near ? typoDistance(near.name, e.character) : -1);
+    const sameClass = (e) => (near && near.className === e.className ? 0 : 1);
     return [...index.values()]
-        .filter((e) => e.className && !ownKeys.has(e.key))
+        .filter((e) => e.className && (!ownKeys.has(e.key) || e.key === nearKey))
         .filter((e) => !q || e.key.includes(q))
-        .map((e) => ({
-            character: e.character,
-            className: e.className,
-            specKey: e.specKey,
-            reports: e.reports,
-            lastSeen: e.lastSeen,
-            match: matchReason(e, ctx),
-            claimedBy: claims.get(e.key) || [],
-        }))
+        .map((e) => {
+            const distance = distanceOf(e);
+            return {
+                character: e.character,
+                className: e.className,
+                specKey: e.specKey,
+                reports: e.reports,
+                lastSeen: e.lastSeen,
+                match: distance >= 0 ? "similar" : matchReason(e, ctx),
+                claimedBy: claims.get(e.key) || [],
+                distance,
+                same: sameClass(e),
+            };
+        })
         .sort((a, b) => (rank[a.match] - rank[b.match])
+            || (a.match === "similar" ? (a.distance - b.distance) || (a.same - b.same) : 0)
             || (a.claimedBy.length - b.claimedBy.length)
             || (b.lastSeen - a.lastSeen)
             || a.character.localeCompare(b.character))
-        .slice(0, MAX_SUGGESTIONS);
+        .slice(0, MAX_SUGGESTIONS)
+        .map(({ distance: _d, same: _s, ...rest }) => rest);
 }
 
-module.exports = { logIndex, specEvidence, logSuggestions, matchReason, MAX_REPORTS, MAX_SUGGESTIONS };
+module.exports = { logIndex, specEvidence, logSuggestions, matchReason, typoDistance, MAX_REPORTS, MAX_SUGGESTIONS };

@@ -84,7 +84,9 @@
         "remove": "Charakter entfernen",
         "noSpec": "Noch kein Spec – füge hinzu, was du spielen kannst.",
         "removeSpec": "Spec entfernen",
-        "addSpec": "Spec hinzufügen"
+        "addSpec": "Spec hinzufügen",
+        "edit": "Bearbeiten",
+        "editSub": "Name, Realm, Klasse und Specs ändern – oder den richtigen Charakter aus den Logs wählen."
     },
     "logs": {
         "seen": "laut Logs",
@@ -187,6 +189,86 @@
         "matchName": "Name passt",
         "claimed": "vergeben",
         "claimedSub": "Eingetragen von: {names}. Du kannst ihn trotzdem übernehmen – die Orga klärt das.",
-        "thatsMe": "Das bin ich"
+        "thatsMe": "Das bin ich",
+        "matchSimilar": "ähnlich geschrieben"
+    },
+    "edit": {
+        "title": "{name} bearbeiten",
+        "kickerOf": "Charakter von {owner}",
+        "save": "Speichern",
+        "wayAria": "Wie bearbeiten",
+        "wayLog": "Aus den Logs wählen",
+        "wayManual": "Von Hand ändern",
+        "logHint": "Wähle den Charakter, wie er in den Logs heißt – ähnlich geschriebene Namen stehen oben. Name und Klasse kommen dann aus dem Log.",
+        "pick": "Das ist er",
+        "nameHint": "So, wie der Charakter im Spiel heißt.",
+        "classHint": "Eine andere Klasse fängt mit neuen Specs an.",
+        "renameHint": "Ein neuer Name ersetzt „{from}“ auch in Roster, Anmeldungen, Gildenbank-Anfragen und Anwesenheiten.",
+        "saved": "Gespeichert.",
+        "renamed": "{from} heißt jetzt {to}.",
+        "renamedWith": "{from} heißt jetzt {to} – mitgenommen: {what}.",
+        "moved": {
+            "rosters": {
+                "one": "{count} Roster",
+                "other": "{count} Roster"
+            },
+            "signups": {
+                "one": "{count} Anmeldung",
+                "other": "{count} Anmeldungen"
+            },
+            "assignments": {
+                "one": "{count} Kategorie-Zuordnung",
+                "other": "{count} Kategorie-Zuordnungen"
+            },
+            "guildBank": {
+                "one": "{count} Gildenbank-Anfrage",
+                "other": "{count} Gildenbank-Anfragen"
+            },
+            "availability": {
+                "one": "{count} Anwesenheit",
+                "other": "{count} Anwesenheiten"
+            }
+        },
+        "noHit": "Kein passender Charakter in den Logs – ändere den Namen von Hand."
+    },
+    "tabs": {
+        "aria": "Ansicht",
+        "own": "Mein Profil",
+        "all": "Alle Charaktere"
+    },
+    "all": {
+        "loading": "Lade alle Charaktere …",
+        "loadError": "Die Charaktere ließen sich nicht laden: {message}",
+        "search": "Charakter, Raider oder Realm suchen",
+        "versionAria": "Spielversion",
+        "allVersions": "Alle",
+        "onlyUnverified": {
+            "one": "nur ungeprüfte ({count})",
+            "other": "nur ungeprüfte ({count})"
+        },
+        "count": {
+            "one": "{count} Charakter",
+            "other": "{count} Charaktere"
+        },
+        "colCharacter": "Charakter",
+        "colOwner": "Raider",
+        "colClass": "Klasse",
+        "colSpecs": "Specs",
+        "colVersion": "Version",
+        "colStatus": "Status",
+        "noSpec": "keine Spec",
+        "claimed": "doppelt",
+        "via": {
+            "log": "laut Logs",
+            "loot": "laut Loot",
+            "armory": "laut Arsenal",
+            "orga": "von der Orga geprüft",
+            "manual": "geprüft"
+        },
+        "editSub": "{name} umbenennen oder einem Charakter aus den Logs zuordnen.",
+        "removeTitle": "{name} aus dem Profil von {owner} nehmen?",
+        "removeText": "Der Charakter verschwindet aus dem Profil. Logs, Loot und vergangene Anmeldungen bleiben.",
+        "noHit": "Kein Charakter passt zur Suche.",
+        "none": "Noch hat kein Raider einen Charakter im Profil."
     }
 }

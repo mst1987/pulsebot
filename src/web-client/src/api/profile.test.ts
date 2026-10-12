@@ -40,6 +40,34 @@ describe("api/profile.ts", () => {
         ]);
     });
 
+    it("edits an own character through /api/profile/characters, by hand or from the logs, typos asked with ?near=", async () => {
+        await profile.getLogCharacters("", "gentle");
+        await profile.editProfileCharacter("gentle", { name: "Blattwerk" });
+        await profile.editProfileCharacter("gentle", { fromLog: "Gentlê" });
+        expect(vi.mocked(get).mock.calls.map((c) => c[0])).toEqual(["/api/profile/log-characters?q=&near=gentle"]);
+        expect(vi.mocked(send).mock.calls).toEqual([
+            ["POST", "/api/profile/characters", { edit: "gentle", name: "Blattwerk" }],
+            ["POST", "/api/profile/characters", { edit: "gentle", fromLog: "Gentlê" }],
+        ]);
+    });
+
+    it("the orga's list: reads every character and a raider's log names, edits, saves and removes for that raider", async () => {
+        await profile.getAllCharacters();
+        await profile.getLogCharactersOf("u1", "forever~bo res", "b o");
+        await profile.editCharacterOf("u1", "gentle", { fromLog: "Gentlê" });
+        await profile.saveCharacterOf("u1", "gentle", { canHeal: true });
+        await profile.removeCharacterOf("u1", "gentle");
+        expect(vi.mocked(get).mock.calls.map((c) => c[0])).toEqual([
+            "/api/characters",
+            "/api/characters/log-suggestions?userId=u1&key=forever~bo%20res&q=b%20o",
+        ]);
+        expect(vi.mocked(send).mock.calls).toEqual([
+            ["POST", "/api/characters/edit", { userId: "u1", key: "gentle", fromLog: "Gentlê" }],
+            ["POST", "/api/characters/save", { userId: "u1", key: "gentle", canHeal: true }],
+            ["POST", "/api/characters/remove", { userId: "u1", key: "gentle" }],
+        ]);
+    });
+
     it("lists, creates and revokes calendar links through the one calendar endpoint, never asking for a secret back", async () => {
         await profile.getCalendarTokens();
         await profile.createCalendarToken();

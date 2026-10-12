@@ -84,7 +84,9 @@
         "remove": "Remove character",
         "noSpec": "No spec yet – add what you can play.",
         "removeSpec": "Remove spec",
-        "addSpec": "Add spec"
+        "addSpec": "Add spec",
+        "edit": "Edit",
+        "editSub": "Change name, realm, class and specs – or pick the right character from the logs."
     },
     "logs": {
         "seen": "per logs",
@@ -187,6 +189,86 @@
         "matchName": "name matches",
         "claimed": "claimed",
         "claimedSub": "Added by: {names}. You can take it anyway – the orga sorts it out.",
-        "thatsMe": "That's me"
+        "thatsMe": "That's me",
+        "matchSimilar": "similar spelling"
+    },
+    "edit": {
+        "title": "Edit {name}",
+        "kickerOf": "Character of {owner}",
+        "save": "Save",
+        "wayAria": "How to edit",
+        "wayLog": "Pick from the logs",
+        "wayManual": "Change by hand",
+        "logHint": "Pick the character as it is named in the logs – similarly spelled names come first. Name and class are then taken from the log.",
+        "pick": "That's the one",
+        "nameHint": "As the character is named in game.",
+        "classHint": "Another class starts with new specs.",
+        "renameHint": "A new name also replaces \"{from}\" in rosters, signups, guild bank requests and attendance entries.",
+        "saved": "Saved.",
+        "renamed": "{from} is now {to}.",
+        "renamedWith": "{from} is now {to} – taken along: {what}.",
+        "moved": {
+            "rosters": {
+                "one": "{count} roster",
+                "other": "{count} rosters"
+            },
+            "signups": {
+                "one": "{count} signup",
+                "other": "{count} signups"
+            },
+            "assignments": {
+                "one": "{count} category assignment",
+                "other": "{count} category assignments"
+            },
+            "guildBank": {
+                "one": "{count} guild bank request",
+                "other": "{count} guild bank requests"
+            },
+            "availability": {
+                "one": "{count} attendance entry",
+                "other": "{count} attendance entries"
+            }
+        },
+        "noHit": "No matching character in the logs – change the name by hand."
+    },
+    "tabs": {
+        "aria": "View",
+        "own": "My profile",
+        "all": "All characters"
+    },
+    "all": {
+        "loading": "Loading all characters …",
+        "loadError": "The characters could not be loaded: {message}",
+        "search": "Search character, raider or realm",
+        "versionAria": "Game version",
+        "allVersions": "All",
+        "onlyUnverified": {
+            "one": "unverified only ({count})",
+            "other": "unverified only ({count})"
+        },
+        "count": {
+            "one": "{count} character",
+            "other": "{count} characters"
+        },
+        "colCharacter": "Character",
+        "colOwner": "Raider",
+        "colClass": "Class",
+        "colSpecs": "Specs",
+        "colVersion": "Version",
+        "colStatus": "Status",
+        "noSpec": "no spec",
+        "claimed": "claimed twice",
+        "via": {
+            "log": "per logs",
+            "loot": "per loot",
+            "armory": "per armory",
+            "orga": "checked by the orga",
+            "manual": "verified"
+        },
+        "editSub": "Rename {name} or link it to a character from the logs.",
+        "removeTitle": "Take {name} out of {owner}'s profile?",
+        "removeText": "The character leaves the profile. Logs, loot and past signups stay.",
+        "noHit": "No character matches the search.",
+        "none": "No raider has a character in their profile yet."
     }
 }

@@ -120,6 +120,30 @@ function removeEntry(id) {
 }
 
 /**
+ * A raider's character got another name (raiderProfileStore.editCharacter): his
+ * attendance entries with it sign the raids up with the new name from now on.
+ * `nameKey` is the old name in lower case without realm, `versionId` the
+ * character's game version (an entry of another version keeps its name).
+ * @returns {number} how many entries changed
+ */
+function renameCharacter(userId, nameKey, toName, { versionId = "" } = {}) {
+    const uid = str(userId);
+    const from = str(nameKey).toLowerCase();
+    const name = str(toName);
+    if (!uid || !from || !name) return 0;
+    const data = store.read();
+    let changed = 0;
+    for (const e of data.entries) {
+        if (str(e.userId) !== uid || !str(e.character) || str(e.character).toLowerCase().split("-")[0] !== from) continue;
+        if (versionId && str(e.versionId) && str(e.versionId) !== versionId) continue;
+        e.character = name;
+        changed += 1;
+    }
+    if (changed) store.write(data);
+    return changed;
+}
+
+/**
  * Note that an entry was applied to a raid (successfully or not). Returns
  * false when it already was — the caller then leaves the raid alone.
  */
@@ -247,7 +271,7 @@ function removePanel(categoryId) {
 
 module.exports = {
     KINDS, MAX_ENTRIES, COMMENT_MAX,
-    listEntries, getEntry, addEntry, removeEntry, markApplied, prune, entryProblem,
+    listEntries, getEntry, addEntry, removeEntry, renameCharacter, markApplied, prune, entryProblem,
     listPanels, getPanel, setPanel, markPanelDrawn, removePanel, useFile,
     MAX_LINKS, LINK_LABEL_MAX, checkLinks, getLinks, listLinks, setLinks,
 };

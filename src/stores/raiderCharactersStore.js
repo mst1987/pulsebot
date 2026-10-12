@@ -221,7 +221,29 @@ function charactersForUser(userId) {
     return [...byKey.values()];
 }
 
+/**
+ * A raider's character got another name (raiderProfileStore.editCharacter):
+ * the categories still in raider-characters.json (no roster) that assign it to
+ * him name the new one. A category with a roster follows through the roster
+ * (rosterStore.renameMemberChar). @returns {number} how many categories changed
+ */
+function renameUserCharacter(userId, fromKey, toName) {
+    const uid = String(userId || "").trim();
+    const from = characterKeyOf(fromKey);
+    const name = String(toName || "").trim();
+    if (!uid || !from || !name) return 0;
+    const all = store.read();
+    let changed = 0;
+    for (const map of Object.values(all)) {
+        if (!isMap(map) || !map[uid] || characterKeyOf(map[uid]) !== from) continue;
+        map[uid] = name;
+        changed += 1;
+    }
+    if (changed) store.write(all);
+    return changed;
+}
+
 module.exports = {
     getCategoryAssignments, listAllAssignments, setCategoryAssignments, resolveAssignmentProfiles, charactersForUser,
-    readLegacyAssignments, RAIDER_CHARACTERS_FILE, useFile: store.useFile,
+    renameUserCharacter, readLegacyAssignments, RAIDER_CHARACTERS_FILE, useFile: store.useFile,
 };
