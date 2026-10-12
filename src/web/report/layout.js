@@ -56,6 +56,7 @@ ${body}
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script>/* set theme before first paint to avoid a flash */
 (function(){try{var t=localStorage.getItem("eh-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();
 </script>
