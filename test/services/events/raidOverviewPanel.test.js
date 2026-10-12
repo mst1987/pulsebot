@@ -1,7 +1,7 @@
 // The raid overview message of a category (services/events/raidOverviewPanel.js): pure.
 const { DateTime } = require("luxon");
-const { raidOverviewPayload, payloadHash, groupByRaidId, fillLine, MAX_IDS, MAX_RAIDS } = require("../../../src/services/events/raidOverviewPanel");
-const { cardText, cardButtons } = require("../../helpers/cardText");
+const { raidOverviewPayload, payloadHash, groupByRaidId, fillLine, fillBar, raidPicture, MAX_IDS, MAX_RAIDS, MAX_COMPONENTS } = require("../../../src/services/events/raidOverviewPanel");
+const { cardText, cardButtons, nodes } = require("../../helpers/cardText");
 
 const at = (iso) => Math.floor(DateTime.fromISO(iso, { zone: "Europe/Berlin" }).toSeconds());
 // Wednesday 14 Oct 2026, 12:00 - the running ID is 14.10. - 20.10.
@@ -30,9 +30,9 @@ describe("services/events/raidOverviewPanel", () => {
         expect(text).toContain("**Next ID** · Wed 21.10. – Tue 27.10.");
         expect(text).toContain("**ID** · Wed 28.10. – Tue 03.11.");
         // the per-raid lines
-        expect(text).toContain(`Sat 17.10. · **Raid a** · <t:${at("2026-10-17T20:00:00")}:t> · <t:${at("2026-10-17T20:00:00")}:R>`);
+        expect(text).toContain(`**Sat 17.10.** · **Raid a** · <t:${at("2026-10-17T20:00:00")}:t> · <t:${at("2026-10-17T20:00:00")}:R>`);
         expect(text).toContain("<#ch-a> · led by <@lead-a>");
-        expect(text).toContain("-# 17 / 25 signed up");
+        expect(text).toContain("🟩🟩🟩▫️▫️ 17 / 25 signed up");
         expect(cardButtons(payload)).toEqual([]);
     });
 
@@ -118,9 +118,107 @@ describe("services/events/raidOverviewPanel", () => {
             const events = Array.from({ length: 40 }, (_, i) => raid(`r${i}`, DateTime.fromISO("2026-10-14T18:00:00", { zone: "Europe/Berlin" }).plus({ days: i % 20, minutes: i }).toISO(), { title: "T".repeat(180) }));
             const payload = build(events);
             const count = (node) => 1 + (node.components || []).reduce((n, c) => n + count(c), 0);
-            expect(count(payload.components[0])).toBeLessThanOrEqual(40);
+            expect(count(payload.components[0])).toBeLessThanOrEqual(MAX_COMPONENTS);
             expect(texts(payload).length).toBeLessThan(4000);
             expect(texts(payload)).toMatch(/\+\d+ more raids/);
+        });
+    });
+
+    describe("zone picture", () => {
+        const sections = (payload) => nodes(payload).filter((n) => n.type === 9);
+        const ART = "https://render.worldofwarcraft.com/eu/zones/gruuls-lair-small.jpg";
+
+        it("puts the zone art of the instances into a Section's thumbnail", () => {
+            const payload = build([raid("a", "2026-10-17T20:00:00", { instanceIds: ["gruul"] })]);
+            const [section] = sections(payload);
+            expect(section.accessory.type).toBe(11);
+            expect(section.accessory.media.url).toBe(ART);
+            expect(section.components[0].content).toContain("**Raid a**");
+        });
+
+        it("prefers the event's own image", () => {
+            const own = "https://example.com/own.png";
+            const event = raid("a", "2026-10-17T20:00:00", { instanceIds: ["gruul"], image: { url: own, mode: "banner" } });
+            expect(raidPicture(event)).toBe(own);
+            expect(sections(build([event]))[0].accessory.media.url).toBe(own);
+        });
+
+        it("ignores an own image that is not https and falls back to the zone art", () => {
+            const event = raid("a", "2026-10-17T20:00:00", { instanceIds: ["gruul"], image: { url: "http://example.com/x.png" } });
+            expect(raidPicture(event)).toBe(ART);
+        });
+
+        it("reads the instances from the title of a Raid-Helper row", () => {
+            const payload = build([raid("a", "2026-10-17T20:00:00", { title: "Gruul", size: 0 })]);
+            expect(sections(payload)).toHaveLength(1);
+            expect(sections(payload)[0].accessory.media.url).toBe(ART);
+        });
+
+        it("is a plain text display without any picture", () => {
+            const payload = build([raid("a", "2026-10-17T20:00:00", { title: "Movie night" })]);
+            expect(sections(payload)).toHaveLength(0);
+            expect(texts(payload)).toContain("**Movie night**");
+        });
+
+        it("stays within 40 components with a picture on every raid", () => {
+            const events = Array.from({ length: 20 }, (_, i) => raid("r" + i, DateTime.fromISO("2026-10-14T18:00:00", { zone: "Europe/Berlin" }).plus({ hours: 5 * i }).toISO(), { instanceIds: ["gruul"] }));
+            const payload = build(events);
+            expect(1 + nodes(payload).length).toBeLessThanOrEqual(MAX_COMPONENTS + 1);
+            expect(sections(payload).length).toBeGreaterThan(5);
+            expect(texts(payload)).toMatch(/\+\d+ more raids/);
+        });
+    });
+
+    describe("fill bar", () => {
+        const ids = { g: "1", o: "2", n: "3", e: "4" };
+        const emojis = {};
+        for (const k of Object.keys(ids)) emojis["eh_ui_bar" + k] = { id: ids[k], name: "eh_ui_bar" + k };
+        const e = (k) => "<:eh_ui_bar" + k + ":" + ids[k] + ">";
+        const bar = (counts, size = 25) => fillBar({ size }, counts, emojis);
+
+        it("is all empty with nobody signed up", () => {
+            expect(bar(0)).toBe(e("e").repeat(5));
+        });
+
+        it("is grey while under a third (at least one segment once somebody is in)", () => {
+            expect(bar(1)).toBe(e("n") + e("e").repeat(4));
+            expect(bar(8)).toBe(e("n").repeat(2) + e("e").repeat(3));
+        });
+
+        it("is green in between", () => {
+            expect(bar(13)).toBe(e("g").repeat(3) + e("e").repeat(2));
+            expect(bar(24)).toBe(e("g").repeat(5));
+        });
+
+        it("is orange when full", () => {
+            expect(bar(25)).toBe(e("o").repeat(5));
+            expect(bar(30)).toBe(e("o").repeat(5));
+        });
+
+        it("has no bar without a size, and falls back to unicode without the emojis", () => {
+            expect(fillBar({}, 4, emojis)).toBe("");
+            expect(fillBar({ size: 25 }, 25, {})).toBe("🟧🟧🟧🟧🟧");
+            expect(fillBar({ size: 25 }, 13, {})).toBe("🟩🟩🟩▫️▫️");
+            expect(fillBar({ size: 25 }, 1, {})).toBe("⬜▫️▫️▫️▫️");
+        });
+
+        it("goes before the fill line, and the small icons before time, leader and ID", () => {
+            const icons = { ...emojis, eh_ui_time: { id: "5", name: "eh_ui_time" }, eh_ui_leader: { id: "6", name: "eh_ui_leader" }, eh_ui_date: { id: "7", name: "eh_ui_date" } };
+            const text = texts(build([raid("a", "2026-10-17T20:00:00", { signUps: Array.from({ length: 13 }, (_, i) => ({ userId: "u" + i })) })], { emojis: icons }));
+            expect(text).toContain("-# " + e("g").repeat(3) + e("e").repeat(2) + " 13 / 25 signed up");
+            expect(text).toContain("<:eh_ui_time:5> <t:");
+            expect(text).toContain("<:eh_ui_leader:6> led by <@lead-a>");
+            expect(text).toContain("<:eh_ui_date:7> **This ID**");
+        });
+
+        it("gives Raid-Helper rows just the count", () => {
+            const text = texts(build([raid("a", "2026-10-17T20:00:00", { size: 0, signUps: [{ userId: "u" }] })], { emojis }));
+            expect(text).toContain("-# 1 signed up");
+        });
+
+        it("changes the hash with the emojis, so a later upload redraws the message", () => {
+            const events = [raid("a", "2026-10-17T20:00:00")];
+            expect(payloadHash(build(events, { emojis }), "en")).not.toBe(payloadHash(build(events, { emojis: {} }), "en"));
         });
     });
 
