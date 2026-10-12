@@ -54,11 +54,12 @@ function resolveIcon(options, code) {
 }
 
 /** The name with the chosen icon; "Wie zuletzt" leaves it as derived. */
-function applyIcon(name, code, { options, separator }) {
+function applyIcon(name, code, { options, separator }, { raw = false } = {}) {
     const choice = resolveIcon(options, code);
     if (choice.code === "") return name;
     const next = choice.code === ICON_NONE ? stripLeadEmoji(name) : setLeadEmoji(name, choice.emoji, separator);
-    return normalizeChannelName(next) || name;
+    // `raw`: a pattern with {placeholders} — normalising would strip the braces.
+    return raw ? next || name : normalizeChannelName(next) || name;
 }
 
 /** The next code after `code` in the list (the cycling button of the duplicate mode). */

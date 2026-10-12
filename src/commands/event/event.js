@@ -10,7 +10,7 @@
 // "Event verwalten" (eventManageContext.js) opens the same message.
 const { MessageFlags, SlashCommandBuilder } = require("discord.js");
 const { card } = require("../../utils/discord/card");
-const { guildFor, initialState, stepMessage } = require("../../services/events/eventDraft");
+const { guildFor, initialState, stepMessage, clearNamePattern } =require("../../services/events/eventDraft");
 const { openPayload } = require("../../services/events/eventManageBot");
 const { listEvents } = require("../../stores/eventStore");
 const { whenLabel } = require("../../services/events/eventManage");
@@ -38,8 +38,15 @@ module.exports = {
             : "";
         if (sub !== "anlegen" && sub !== "verwalten") return interaction.reply(card({ kind: "error", title: "Diese Aktion gibt es nicht.", ephemeral: true }));
 
+        // "anlegen" lists the category's events (slow): it acknowledges before anything else.
+        if (sub === "anlegen") await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
         const { guildId, error } = guildFor(interaction);
-        if (error) return interaction.reply(card({ kind: "error", title: error, ephemeral: true }));
+        if (error) {
+            return sub === "anlegen"
+                ? interaction.editReply(card({ kind: "error", title: error }))
+                : interaction.reply(card({ kind: "error", title: error, ephemeral: true }));
+        }
 
         if (sub === "verwalten") {
             const eventId = typeof interaction.options.getString === "function" ? String(interaction.options.getString("event") || "").trim() : "";
@@ -49,10 +56,11 @@ module.exports = {
             return interaction.reply({ ...opened.payload, flags: (Number(opened.payload.flags) || 0) | MessageFlags.Ephemeral });
         }
 
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         const channel = interaction.channel || {};
         const parentId = String(channel.parentId || (channel.parent && channel.parent.id) || "");
-        const { payload } = await stepMessage(guildId, initialState(guildId, parentId));
+        const userId = String((interaction.user && interaction.user.id) || "");
+        clearNamePattern(userId); // a new flow starts with the derived name
+        const { payload } = await stepMessage(guildId, initialState(guildId, parentId), { userId });
         return interaction.editReply(payload);
     },
     /** `event` of /event verwalten: the server's EventHelper events from yesterday on, soonest first. */

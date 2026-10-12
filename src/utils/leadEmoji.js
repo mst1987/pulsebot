@@ -59,7 +59,8 @@ function stripLeadEmoji(name) {
     const text = String(name || "");
     const lead = leadEmojiOf(text);
     if (!lead) return text;
-    return text.slice(lead.length).replace(/^[^\p{L}\p{N}]*/u, "");
+    // "{" stays: a pattern ("{raid}-{dd}") starts its placeholder there, a real name has no braces
+    return text.slice(lead.length).replace(/^[^\p{L}\p{N}{]*/u, "");
 }
 
 /**

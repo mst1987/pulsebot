@@ -19,6 +19,7 @@ const softresDetect = require("./services/loot/softresDetect.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/roleSync.js");
 const rosterRoleSync = require("./services/roster/rosterRoleSync.js");
 const { guardInteraction } = require("./services/discord/botAccess.js");
+const { trackAck } = require("./services/discord/ackTiming.js");
 const { runMode } = require("./config/runMode.js");
 const { ensureAppEmojis } = require("./services/discord/appEmojiSync.js");
 const { queueItemEmojiSync } = require("./services/guildbank/itemEmojis.js");
@@ -197,9 +198,13 @@ async function handleInteraction(interaction) {
 
     logger.debug(`Command: ${command.name}`);
 
+    // Times the way to the acknowledgement and warns when it was slow (services/discord/ackTiming.js).
+    const ack = trackAck(interaction, { name: command.name });
     try {
         // Who may run it is decided here, once, for every command, button and modal (services/discord/botAccess.js).
-        if (!(await guardInteraction(interaction, command, client.commands))) return;
+        const allowed = await guardInteraction(interaction, command, client.commands);
+        ack.guardDone();
+        if (!allowed) return;
         await command.execute(interaction, client);
     } catch (error) {
         console.error(`Error executing ${command.name}:`, error);
@@ -216,6 +221,8 @@ async function handleInteraction(interaction) {
         } catch (replyError) {
             console.error("Failed to send error response:", replyError.message);
         }
+    } finally {
+        ack.finish();
     }
 }
 
