@@ -23,6 +23,8 @@ const COLOR_OVERRIDES = {
     confirmed: "#3BA55D", declined: "#ED4245",
     // the Orga-Zentrale's raid statuses: grey (signup, cancelled), orange (open, changed), blue (draft), green (approved, posted)
     orgaopen: "#E0A33A", orgadraft: "#4F9CF9", orgaapproved: "#3BA55D", orgaposted: "#3BA55D", orgachanged: "#E0A33A",
+    // the fill bar of the raid overview: green, orange, grey (own colour so it differs from the empty outline)
+    barg: "#3BA55D", baro: "#E0A33A", barn: "#8E9297", bare: "#5A5E66",
 };
 
 // 24 × 24 line drawings (stroke only, unless an element says otherwise).
@@ -93,6 +95,11 @@ const ICONS = {
     orgachanged: '<path d="M12 4v10.5" stroke-width="3.6"/><circle cx="12" cy="19.6" r="2" fill="COLOR" stroke="none"/>',
     // a cross, grey — cancelled
     orgacancelled: '<path d="M7 7l10 10M17 7 7 17"/>',
+    // The fill bar of the raid overview: one rounded segment, filled (green / orange / grey) or only outlined (empty).
+    barg: '<rect x="1.5" y="6" width="21" height="12" rx="3" fill="COLOR"/>',
+    baro: '<rect x="1.5" y="6" width="21" height="12" rx="3" fill="COLOR"/>',
+    barn: '<rect x="1.5" y="6" width="21" height="12" rx="3" fill="COLOR"/>',
+    bare: '<rect x="2.5" y="7" width="19" height="10" rx="2.5"/>',
 };
 
 /** The SVG source of one icon. */

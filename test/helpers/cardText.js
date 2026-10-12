@@ -37,4 +37,4 @@ function cardColor(payload) {
     return c ? c.accent_color : undefined;
 }
 
-module.exports = { cardText, cardButtons, cardControls, cardColor };
+module.exports = { nodes, cardText, cardButtons, cardControls, cardColor };
