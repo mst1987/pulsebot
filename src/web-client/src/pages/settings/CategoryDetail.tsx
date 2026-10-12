@@ -12,6 +12,7 @@ import Segment from "../../components/ui/Segment";
 import WowIcon from "../../components/ui/WowIcon";
 import CategoryField from "./CategoryField";
 import AvailabilityPanelRow, { type AvailabilityPanels } from "./AvailabilityPanelRow";
+import OrgaHubRow, { type OrgaHubs } from "./OrgaHubRow";
 import { CheckMark } from "../../components/ui/icons";
 
 // The expanded card of one raid category (Einstellungen → Kategorien), design
@@ -34,6 +35,8 @@ export type { CategoryTab };
 /** Everything configured per category, as CategoryMatrix receives it (see there for each field). */
 export type CategorySettings = {
     availabilityPanels?: AvailabilityPanels;
+    /** The Orga-Zentrale per category; missing = no row (an older caller, or the list failed to load). */
+    orgaHubs?: OrgaHubs;
     categorySignupNotes?: Record<string, string>;
     onSignupNotes?: (categoryId: string, mode: string) => void;
     categorySignupNoteChannel?: Record<string, string>;
@@ -327,6 +330,7 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
     function planFields(): Field[] {
         const out: Field[] = [];
         const { raidTemplates, onSetupDms, onPlanning } = s;
+        if (s.orgaHubs) out.push({ key: "orgaHub", node: <OrgaHubRow categoryId={cat.id} categoryName={name} hubs={s.orgaHubs} /> });
         if (raidTemplates) {
             out.push({ key: "template", node: (
                 <CategoryField label={t("settings.categories.template")} htmlFor={`cattpl-${cat.id}`} sub={t("settings.categories.templateSub")}>

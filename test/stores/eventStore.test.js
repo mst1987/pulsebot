@@ -323,3 +323,26 @@ describe("cache", () => {
         expect(Object.isFrozen(getEvent(event.id).instanceIds)).toBe(false);
     });
 });
+
+describe("onEventsChanged", () => {
+    const { onEventsChanged } = require("../../src/stores/eventStore");
+    beforeEach(() => fs.__store.clear());
+
+    it("tells every listener after each write until it unsubscribes, and survives a failing one", () => {
+        const seen = jest.fn();
+        const off = onEventsChanged(seen);
+        const offBroken = onEventsChanged(() => {
+            throw new Error("boom");
+        });
+        const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+        const { event } = createEvent(base({ instanceIds: ["kara"] }));
+        updateEvent(event.id, { title: "Neu" });
+        expect(seen).toHaveBeenCalledTimes(2);
+        expect(spy).toHaveBeenCalledWith("[eventStore] listener failed:", "boom");
+        off();
+        offBroken();
+        deleteEvent(event.id);
+        expect(seen).toHaveBeenCalledTimes(2);
+        spy.mockRestore();
+    });
+});

@@ -1,6 +1,7 @@
 [
   "DELETE /api/availability",
   "DELETE /api/availability/panel",
+  "DELETE /api/orga-hub",
   "DELETE /api/raid-templates",
   "DELETE /api/raidplan/catalog/mobs",
   "DELETE /api/raidplan/catalog/spells",
@@ -41,6 +42,7 @@
   "GET /api/lootcouncil/profiles",
   "GET /api/lootcouncil/profile",
   "GET /api/notify-templates",
+  "GET /api/orga-hubs",
   "GET /api/profile",
   "GET /api/profile/calendar",
   "GET /api/profile/log-characters",
@@ -154,6 +156,7 @@
   "POST /api/lootcouncil/profiles/delete",
   "POST /api/notify-templates",
   "POST /api/notify-templates/delete",
+  "POST /api/orga-hub",
   "POST /api/profile/calendar",
   "POST /api/profile/characters",
   "POST /api/raid-templates",

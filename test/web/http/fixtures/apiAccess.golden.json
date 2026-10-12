@@ -233,6 +233,8 @@
     "/api/availability/preview": "signup",
     "/api/availability/panels": "settings",
     "/api/availability/panel": "settings",
+    "/api/orga-hubs": "settings",
+    "/api/orga-hub": "settings",
     "/api/availability/links": "settings",
     "/api/settings/guild-banks": "settings",
     "/api/settings/guild-banks/assign": "settings",

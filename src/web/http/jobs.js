@@ -26,6 +26,7 @@ const talkOverview = require("../../services/talk/talkOverview");
 const eventSeries = require("../events/eventSeries");
 const applicationState = require("../../utils/recruitment/applicationState");
 const availabilityPanel = require("../../services/signups/availabilityPanel");
+const orgaHub = require("../../services/events/orgaHub");
 const softresDetect = require("../../services/loot/softresDetect");
 const guildBankItemMeta = require("../../services/guildbank/itemMeta");
 const systemMonitor = require("../../services/system/systemMonitor");
@@ -64,6 +65,8 @@ const JOBS = [
     { name: "applicationState", start: () => applicationState.start(), stop: () => applicationState.stop() },
     // Once after the start: redraw the absence/attendance panels whose text a deploy changed.
     { name: "availabilityPanels", start: () => availabilityPanel.startPanelRefresh(), stop: () => availabilityPanel.stopPanelRefresh() },
+    // The Orga-Zentrale per raid category: redrawn on every change of an own event or a signup, and swept every 5 minutes.
+    { name: "orgaHubs", start: () => orgaHub.startOrgaHubs(), stop: () => orgaHub.stopOrgaHubs() },
     // Once after the start: guild bank items without a current name (none yet, or the
     // German ones stored before the names turned English) are looked up again.
     { name: "guildBankItemMeta", start: () => guildBankItemMeta.startMetaRefresh(), stop: () => guildBankItemMeta.stopMetaRefresh() },

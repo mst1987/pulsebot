@@ -4,6 +4,7 @@
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 jest.mock("../../../src/services/talk/talkOverview", () => ({ scheduleOverviewSync: jest.fn() }));
 jest.mock("../../../src/services/events/eventMessage", () => ({ redrawEventMessage: jest.fn(async () => null) }));
+jest.mock("../../../src/services/events/orgaHub", () => ({ onHubMessageDeleted: jest.fn((id) => id === "hub-msg") }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ discordServers: { eventGuilds: [{ guildId: "g1" }] } })) }));
 
 const fs = require("fs");
@@ -85,6 +86,13 @@ describe("services/discord/linkWatch", () => {
         expect(linkWatch.onMessageDelete({ channelId: "x", messageId: "m-other" })).toMatchObject({ overview: false, redrawn: [] });
         expect(scheduleOverviewSync).toHaveBeenCalledTimes(1);
         expect(linkWatch.onMessageDelete({ channelId: "x", messageId: "" })).toEqual({ redrawn: [], setupCleared: [], overview: false });
+    });
+
+    it("hands a deleted Orga-Zentrale message to its redraw", () => {
+        const { onHubMessageDeleted } = require("../../../src/services/events/orgaHub");
+        expect(linkWatch.onMessageDelete({ channelId: "o", messageId: "hub-msg" })).toMatchObject({ orgaHub: true });
+        expect(onHubMessageDeleted).toHaveBeenCalledWith("hub-msg", { delayMs: linkWatch.REDRAW_DELAY_MS });
+        expect(linkWatch.onMessageDelete({ channelId: "o", messageId: "m-other" })).toMatchObject({ orgaHub: false });
     });
 
     it("hooks channelDelete and the raw MESSAGE_DELETE(_BULK) packets into the client", () => {

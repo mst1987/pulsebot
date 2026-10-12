@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from "react";
-import { getSettings, updateSettings, getIngestTokens, getAvailabilityPanels, type ApiError, type AvailabilityLink, type AvailabilityPanel } from "../../api";
+import {
+    getSettings, updateSettings, getIngestTokens, getAvailabilityPanels, getOrgaHubs, type ApiError, type AvailabilityLink, type AvailabilityPanel, type OrgaHub,
+} from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { usePersistedSearchParam } from "../../lib/ui/persistedState";
 import RolePermissionsEditor from "./RolePermissions";
@@ -91,6 +93,11 @@ export default function SettingsPage() {
         delete rest[categoryId];
         return { ...cur, links: links.length ? { ...rest, [categoryId]: links } : rest };
     });
+    // The Orga-Zentrale per category: posted and removed at once like the panels.
+    const hubsData = useApi(() => getOrgaHubs().then((r) => r.hubs || []), [], { enabled: !!data });
+    const setHub = (categoryId: string, hub: OrgaHub | null) => hubsData.setData((cur) => (cur ? [
+        ...cur.filter((h) => h.categoryId !== categoryId), ...(hub ? [hub] : []),
+    ] : cur));
     // #738: the category whose version switch waits for the confirmation dialog.
     const [switching, setSwitching] = useState<{ id: string; versionId: string } | null>(null);
     // #744: a save that deactivates categories first shows what pauses; a category
@@ -399,6 +406,11 @@ export default function SettingsPage() {
                         channels: data.noteChannels ? data.noteChannels.channels : [],
                         onChange: setPanel,
                         onLinks: setLinks,
+                    } : undefined}
+                    orgaHubs={hubsData.data ? {
+                        hubs: hubsData.data,
+                        channels: data.noteChannels ? data.noteChannels.channels : [],
+                        onChange: setHub,
                     } : undefined}
                     icon={activeSection.icon}
                     crumb={activeCrumb}

@@ -11,6 +11,7 @@
 const { plural } = require("../../utils/text");
 const { accountCount } = require("../../utils/signup/capacity");
 const { TIMEZONE } = require("../../config/timezone");
+const { setupPhase } = require("../../services/setup/setupCore");
 
 const LOOT_TOOL_LABELS = { gargul: "Gargul", rclc: "RCLootcouncil", manual: "Manuell" };
 const SECTION_LABELS = { cla: "CLA", rpb: "RPB" };
@@ -522,17 +523,18 @@ function approvalStep(d, now) {
     const s = d.ownSetup || null;
     const post = d.ownSetupPost || null;
     const step = { id: "approval", label: "Freigabe", icon: "inv_misc_note_02", value: "—", unit: "", note: "", fill: null };
-    if (!s || !s.placed) {
+    // where the setup stands: one reading with the Orga-Zentrale (services/setup/setupCore.js setupPhase)
+    const phase = setupPhase(s, post);
+    if (phase === "none") {
         // Ohne Setup gibt es nichts freizugeben — übersprungen, nicht offen.
         if (setupSkipped(d, now)) {
             return { ...step, state: "skipped", note: "ohne Setup", hint: "Ohne Setup gibt es nichts freizugeben. Raider sehen ihre Anmeldung, aber keine Gruppen.", action: null };
         }
         return { ...step, state: "todo", hint: "Erst ein Entwurf, dann die Freigabe. Bis dahin sehen Raider kein Setup — weder im Web noch in Discord.", action: null };
     }
-    const approved = s.status === "approved" && !s.changedSinceApproval;
-    const posted = !!(post && post.messageId);
-    const outdated = approved && posted && Number(post.version) < Number(s.version || 0);
-    if (approved) {
+    const outdated = phase === "outdated";
+    const posted = outdated || phase === "posted";
+    if (posted || phase === "approved") {
         const notes = [posted ? "gepostet" : "nicht gepostet", dmNote(post)].filter(Boolean);
         const dms = dmNote(post) ? ` ${dmNote(post)} sind raus.` : "";
         return {
@@ -553,8 +555,8 @@ function approvalStep(d, now) {
     }
     return {
         ...step, state: "open", value: String(s.placed), unit: "im Entwurf",
-        note: s.changedSinceApproval ? "geändert seit dem Posten" : "Entwurf",
-        hint: s.changedSinceApproval
+        note: phase === "changed" ? "geändert seit dem Posten" : "Entwurf",
+        hint: phase === "changed"
             ? "Die Raider sehen noch den zuletzt geposteten Stand. Erst „Setup posten“ macht die Änderung sichtbar."
             : "Der Entwurf steht, gepostet ist er nicht — Raider sehen noch nichts. Im Editor prüfen und „Setup posten“ (das gibt ihn zugleich frei).",
         action: deed("approve", "Setup posten", "inv_misc_note_02", { tab: "setup" }),

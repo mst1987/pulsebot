@@ -41,6 +41,51 @@ function benchAndPool(setup) {
     return { bench: bench.filter((b) => b.locked), pool: bench.filter((b) => !b.locked).map((b) => ({ ...b, locked: false })) };
 }
 
+// ---- where a setup stands --------------------------------------------------------
+
+/**
+ * What the raid detail's progress step and the Orga-Zentrale need of an own
+ * event's setup — counts and state, no names. null without a setup.
+ */
+function setupSummary(event) {
+    const setup = event && event.setup;
+    if (!setup) return null;
+    const placed = (setup.groups || []).reduce((n, g) => n + (g.slots || []).length, 0);
+    const { bench, pool } = benchAndPool(setup);
+    return {
+        status: setup.status === "approved" ? "approved" : "draft",
+        changedSinceApproval: !!setup.changedSinceApproval,
+        version: setup.version || 0,
+        placed,
+        size: Number(event.size) || 0,
+        bench: bench.length,
+        pool: pool.length,
+        ok: !!(setup.checks && setup.checks.ok),
+        approvedAt: setup.approvedAt || (setup.approved && setup.approved.approvedAt) || 0,
+    };
+}
+
+/**
+ * The one reading of where a setup stands, shared by the raid detail's
+ * Freigabe step (web/events/raidDetailSteps.js) and the Orga-Zentrale
+ * (services/events/orgaStatus.js), so the two can never disagree:
+ *   "none"      nobody placed (no setup, or an empty one)
+ *   "draft"     placed, never approved
+ *   "changed"   approved once, the draft differs from that approval
+ *   "approved"  approved, not posted to the channel
+ *   "outdated"  approved and posted, but the message shows an older state
+ *   "posted"    approved and posted as it stands
+ * @param {ReturnType<typeof setupSummary>} summary
+ * @param {{ messageId?: string, version?: number } | null} [post] the event's `setupPost`
+ */
+function setupPhase(summary, post) {
+    if (!summary || !summary.placed) return "none";
+    if (summary.changedSinceApproval) return "changed";
+    if (summary.status !== "approved") return "draft";
+    if (!(post && post.messageId)) return "approved";
+    return Number(post.version) < Number(summary.version || 0) ? "outdated" : "posted";
+}
+
 /**
  * Whether the setup message and its DMs carry the bench (#517): the orga's last
  * choice when posting ("Bench mitposten"), off by default. The pool is never posted.
@@ -119,7 +164,7 @@ function pingButtonRow(eventId, lang = "de") {
 }
 
 module.exports = {
-    approvedSetupOf, benchAndPool, benchPosted,
+    approvedSetupOf, benchAndPool, benchPosted, setupSummary, setupPhase,
     PING_TEXT, PING_TEXT_MAX, pingTextOf,
     CONFIRM_STATUSES, confirmationsFor,
     CONFIRM_PREFIX, INVITE_PREFIX, PING_PREFIX, confirmId, inviteId, pingId,
