@@ -133,26 +133,42 @@ of the Kader joins must not pull everybody down, a Thursday Kader only cares for
 
 - **The server's raid categories** (`kaderSource.listRaidCategories`): every Discord category marked for events
   (`config.categoryIds`) and every category a raid of this server ran in, named live or from the remembered names
-  (`categoryNames.js`), with the game version it plays (`mainVersionFor`) and how many nights it counts. An id
-  without a known name is left out. The view model sends them as `raidCategories` in Discord's order — only the
-  categories that play the Kader's version and are shown (#741, #563). `PUT /api/kader/kaders` refuses a newly
-  picked category of another version (400); one stored before drops out with the next save.
+  (`categoryNames.js`), with the game version it plays (`mainVersionFor`), whether that version is hidden and how
+  many nights it counts. An id without a known name is left out. The view model sends them as `raidCategories`:
+  **every version** (`includeHidden: true`), grouped by version (`groupByVersion`) — the Kader's own first, then the
+  other shown versions, then the hidden ones, Discord's order inside a version.
+- **Other versions — the deliberate exception** (docs/game-versions.md, "Streng getrennt"): a Forever Kader recruits
+  players who raid in TBC today, their TBC nights are the reliability signal. So a Kader may pick categories of any
+  version, a hidden one included (marked "archiviert": its history still says something). Reading only — nothing is
+  written into the other version; characters, `pickable` and the roster link stay strictly separated.
+  `PUT /api/kader/kaders` accepts every category of `listRaidCategories(…, { includeHidden: true })`.
 - **Per account and category** (`sourceAttendance`): the category's last 11 nights with evidence
-  (`rosterAttendance.attendanceForAccounts`, `RAID_WINDOW`) of the Kader's version (#740); the account's
-  characters are the profile's of every version plus the characters assigned per category. `player.attendance` is
-  `{ [categoryId]: { attended, counted, nights } }`, only the categories that counted a night; `null` without any.
+  (`rosterAttendance.attendanceForAccounts`, `RAID_WINDOW`) **of the version the category plays** (#740), counted with
+  that version's context — a TBC category counts its TBC nights against the TBC characters. The account's characters
+  are the profile's of every version plus the characters assigned per category. `player.attendance` is
+  `{ [categoryId]: { attended, counted, versionId, nights } }`, only the categories that counted a night; `null` without any.
+- **Contexts only for versions picked** (`attendanceContexts`): one `buildAttendanceContext` for the Kader's own
+  version and one per other version a Kader of this version picked (the route's `sourceFor` hands
+  `attendanceCategoryIds` in) — a category of a version nobody picked comes with `nights: null` ("zählt nach Wahl")
+  and no attendance. Once such a category is picked, the page fetches the whole view again
+  (`lib/kader/model.ts attendanceUnloaded`, an effect in `KaderPage.tsx`, once per pick — also for another lead's pick
+  seen live).
   A night carries its attendance code `status` (#677, docs/roster-profile.md "Anwesenheit: Status je Abend"): a bench
   night counts as attended, the orga's overrides win; the account dialog colours each night by it and words it
   (`attendanceStatus.ts verdictText`).
 - **The sum is the page's** (`lib/kader/model.ts` `attendanceOf`): attended and counted nights added up over the
-  picked categories, each category's share for the tooltip ("Mo Raid 9/11 · Do Raid 7/10"), the nights newest
-  first with their category — so a new pick needs no second request. "Automatisch verteilen" sums the same way on
+  picked categories, each category's share for the tooltip ("Mo Raid 9/11 · TBC · Mo Raider 10/11"), the nights
+  newest first with their category — so a new pick of a counted version needs no second request. A category of
+  another version is named with its version first everywhere (`categoryLabel`: "TBC · Mo Raider"). "Automatisch verteilen" sums the same way on
   the server (`kaderView.rateOver` via `ctx.rateOf(userId, categoryIds)`).
 - **No pick, no number**: a Kader without a category shows "—" everywhere, a hint above the Pool table and a
   warning-coloured "Kategorien wählen" in the column head — there is no silent fallback to all categories. Existing
   Kader start with `[]` (normalised on read). A picked id the server no longer knows counts for nothing.
 - **Where it is picked**: in the Kader's settings (a checklist, saved with the dialog) and in the head of the
-  Pool's attendance column (a menu, every tick saved at once for the whole Kader). `PUT /api/kader/kaders` keeps only
+  Pool's attendance column (a menu, every tick saved at once for the whole Kader). Both group the categories by
+  version (`categoryGroups`, `CategoryChecklist`): a head per version with its dot (`--ver-*`), "Version des Kaders"
+  or "zählt die TBC-Abende", "archiviert" for a hidden version; a server whose categories all play the Kader's version
+  shows the plain list. `PUT /api/kader/kaders` keeps only
   ids of the server's raid categories (`ctx.raidCategoryIds`); an empty list is a valid pick.
 - **Where it shows**: Pool (value, tooltip with the shares, sortable), the Vorläufig drawer (the value with the
   shares written out), the account dialog (one square per night with date and category, "letzte n Raidabende · x da,
@@ -327,8 +343,9 @@ members, discordRoles, names, kaders, kader, warnings, sharedRev }`
 
 - **buffs**: each with `label` (German) and `labelEn` (the rule set's English name — the totem's or the spell's,
   "Windfury Totem"); the setup hints take the one of the menu language (`lib/kader/setup.ts` `buffLabel`).
-- **raidCategories**: `{ id, name, versionId, versionLabel, nights }` (see "Attendance per raid category"); a
-  category's name carries its version only while the categories play different ones ("Mo Raid · TBC").
+- **raidCategories**: `{ id, name, versionId, versionLabel, hidden, nights }` — every version, the Kader's own first,
+  `nights` null for a version no Kader of this version picked (see "Attendance per raid category"); a category of
+  another version than the Kader's is named with its version first ("TBC · Mo Raider").
 - **players**: everybody the planner knows on this server (profiles of the version, accounts, everybody in a Kader):
   `{ userId, displayName, avatarUrl, onServer, roleIds, hasProfile, manual, hasOverride, characters,
   activeCharacterId, differs, profile, prefill, pickable, availability, attendance, rev, changedBy }` — `attendance` per raid

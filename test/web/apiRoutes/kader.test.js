@@ -266,9 +266,12 @@ describe("web/apiRoutes/kader", () => {
         it("hands out the server's raid categories and each account's attendance per category", async () => {
             const { kaderId } = await kaderWithPlayers();
             const view = body(await get("/api/kader", { kader: kaderId }));
-            expect(view.raidCategories.map((c) => [c.id, c.name, c.nights])).toEqual([["c-mo", "Mo Raid", 2], ["c-do", "Do Raid", 1]]);
+            // the Kader's own version first; a category of another version uncounted (null) until a Kader picks it
+            expect(view.raidCategories.map((c) => [c.id, c.name, c.nights])).toEqual([["c-mo", "Mo Raid", 2], ["c-do", "Do Raid", 1], ["c-tbc", "TBC Raid", null]]);
+            expect(view.raidCategories[0]).toEqual({ id: "c-mo", name: "Mo Raid", versionId: "forever", versionLabel: "Forever", hidden: false, nights: 2 });
             const aldric = view.players.find((p) => p.userId === U1);
-            expect(aldric.attendance["c-mo"]).toMatchObject({ attended: 2, counted: 2 });
+            expect(aldric.attendance["c-mo"]).toMatchObject({ attended: 2, counted: 2, versionId: "forever" });
+            expect(aldric.attendance["c-tbc"]).toBeUndefined();
             expect(aldric.attendance["c-do"]).toMatchObject({ attended: 0, counted: 1, nights: [expect.objectContaining({ title: "Gruul", reason: "abgemeldet" })] });
             // a new Kader counts in no category until a lead picks one
             expect(view.kader.attendanceCategories).toEqual([]);
@@ -290,26 +293,45 @@ describe("web/apiRoutes/kader", () => {
             expect(status(res)).toBe(400);
         });
 
-        it("offers and counts only the categories of the Kader's version, refusing a new pick of another (#741)", async () => {
+        it("lets a Forever Kader count the attendance of a TBC category, read in TBC (the attendance exception)", async () => {
             const { kaderId } = await kaderWithPlayers();
-            // the TBC category is no raid category of a Forever Kader
-            expect(body(await get("/api/kader", { kader: kaderId })).raidCategories.map((c) => c.id)).toEqual(["c-mo", "c-do"]);
             const res = await put("/api/kader/kaders", { kaderId, attendanceCategories: ["c-mo", "c-tbc"] });
-            expect(status(res)).toBe(400);
-            expect(body(res).error.message).toContain("TBC Raid");
-            expect(kaderStore.readPlanner("g1").kaders[0].attendanceCategories).toEqual([]);
-            // one stored before (when the picker offered every version) drops out with the next save
-            const planner = kaderStore.readPlanner("g1");
-            planner.kaders[0].attendanceCategories = ["c-mo", "c-tbc"];
-            kaderStore.writePlanner("g1", planner);
-            const kept = await put("/api/kader/kaders", { kaderId, attendanceCategories: ["c-mo", "c-tbc", "c-do"] });
-            expect(status(kept)).toBe(200);
-            expect(body(kept).kader.attendanceCategories).toEqual(["c-mo", "c-do"]);
-            // a TBC Kader sees the TBC category and its TBC night only
+            expect(status(res)).toBe(200);
+            expect(body(res).kader.attendanceCategories).toEqual(["c-mo", "c-tbc"]);
+            expect(kaderStore.readPlanner("g1").kaders[0].attendanceCategories).toEqual(["c-mo", "c-tbc"]);
+            // now picked, the TBC category is counted: its TBC night, nothing of the Forever nights
+            const view = body(await get("/api/kader", { kader: kaderId }));
+            expect(view.versionId).toBe("forever");
+            expect(view.raidCategories.map((c) => [c.id, c.versionId, c.nights])).toEqual([["c-mo", "forever", 2], ["c-do", "forever", 1], ["c-tbc", "tbc", 1]]);
+            const aldric = view.players.find((p) => p.userId === U1);
+            expect(aldric.attendance["c-tbc"]).toEqual({ attended: 1, counted: 1, versionId: "tbc", nights: [expect.objectContaining({ title: "Kara", attended: true })] });
+            // the strict separation stays everywhere else: the characters to assign are Forever ones
+            expect(aldric.pickable.map((c) => c.name)).toEqual(["Aldric Sturmwind"]);
+            // a TBC Kader sees its own categories first and the Forever ones after them
             const tbc = body(await post("/api/kader/kaders", { name: "TBC-Kader", versionId: "tbc" }));
-            const view = body(await get("/api/kader", { kader: tbc.kaderId, version: "tbc" }));
-            expect(view.versionId).toBe("tbc");
-            expect(view.raidCategories.map((c) => [c.id, c.nights])).toEqual([["c-tbc", 1]]);
+            const tbcView = body(await get("/api/kader", { kader: tbc.kaderId, version: "tbc" }));
+            expect(tbcView.versionId).toBe("tbc");
+            expect(tbcView.raidCategories.map((c) => [c.id, c.nights])).toEqual([["c-tbc", 1], ["c-mo", null], ["c-do", null]]);
+        });
+
+        it("offers and keeps a category of a hidden version, marked hidden (#563)", async () => {
+            const file = tempStoreFile("kader-route-config-hidden.json");
+            fs.writeFileSync(file, JSON.stringify({ categoryIds: ["c-mo", "c-do", "c-tbc"], categoryVersion: { "c-mo": "forever", "c-do": "forever", "c-tbc": "tbc" }, mainVersion: "forever", hideOtherVersions: true }));
+            configStore.useFile(file);
+            try {
+                const { kaderId } = await kaderWithPlayers();
+                const before = body(await get("/api/kader", { kader: kaderId }));
+                expect(before.raidCategories.map((c) => [c.id, c.hidden])).toEqual([["c-mo", false], ["c-do", false], ["c-tbc", true]]);
+                const res = await put("/api/kader/kaders", { kaderId, attendanceCategories: ["c-tbc"] });
+                expect(status(res)).toBe(200);
+                expect(body(res).kader.attendanceCategories).toEqual(["c-tbc"]);
+                const view = body(await get("/api/kader", { kader: kaderId }));
+                expect(view.players.find((p) => p.userId === U1).attendance["c-tbc"]).toMatchObject({ counted: 1, versionId: "tbc" });
+            } finally {
+                const back = tempStoreFile("kader-route-config-back.json");
+                fs.writeFileSync(back, JSON.stringify({ categoryIds: ["c-mo", "c-do", "c-tbc"], categoryVersion: { "c-mo": "forever", "c-do": "forever" } }));
+                configStore.useFile(back);
+            }
         });
     });
 

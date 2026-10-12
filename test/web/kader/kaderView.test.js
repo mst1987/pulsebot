@@ -117,6 +117,23 @@ describe("web/kader/kaderView", () => {
         expect(view.mainVersion).toEqual({ id: "tbc", label: "TBC" });
     });
 
+    it("passes the version a category plays with its attendance, and categories of every version with their flags", () => {
+        const view = buildKaderView({
+            source: source({
+                raidCategories: [
+                    { id: "c-mo", name: "Mo Raid", versionId: "forever", versionLabel: "Forever", hidden: false, nights: 4 },
+                    { id: "c-tbc", name: "Mo Raider", versionId: "tbc", versionLabel: "TBC", hidden: false, nights: 11 },
+                    { id: "c-old", name: "Alt", versionId: "classic", versionLabel: "Classic", hidden: true, nights: null },
+                ],
+                attendance: [{ userId: U.a, byCategory: { "c-tbc": { attended: 9, counted: 11, versionId: "tbc", nights: [] } } }],
+            }),
+            planner: planner(),
+            kaderId: "k1",
+        });
+        expect(view.raidCategories.map((c) => [c.id, c.versionId, c.hidden, c.nights])).toEqual([["c-mo", "forever", false, 4], ["c-tbc", "tbc", false, 11], ["c-old", "classic", true, null]]);
+        expect(view.players.find((p) => p.userId === U.a).attendance).toEqual({ "c-tbc": { attended: 9, counted: 11, versionId: "tbc", nights: [] } });
+    });
+
     it("sums attendance over the picked categories only", () => {
         const by = { mo: { attended: 9, counted: 11 }, do: { attended: 7, counted: 10 } };
         expect(rateOver(by, ["mo", "do"])).toBeCloseTo(16 / 21);

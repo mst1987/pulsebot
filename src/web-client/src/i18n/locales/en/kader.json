@@ -759,6 +759,10 @@
             "one": "{count} night",
             "other": "{count} nights"
         },
+        "groupOwn": "the squad's version",
+        "groupOther": "counts the {version} nights",
+        "archived": "archived",
+        "nightsLater": "counted once picked",
         "noCategories": "This server has no raid category yet. One shows up as soon as a raid is created in a Discord category.",
         "nightTip": "{date} · {category}"
     },

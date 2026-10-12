@@ -16,9 +16,9 @@ export const ME = "u1";
 export const NOW = "2026-09-30T18:00:00.000Z";
 export const CAT = { mo: "c-mo", do: "c-do", pug: "c-pug" };
 export const RAID_CATEGORIES: KaderRaidCategory[] = [
-    { id: CAT.mo, name: "Mo Raid", versionId: "tbc", versionLabel: "TBC", nights: 11 },
-    { id: CAT.do, name: "Do Raid", versionId: "tbc", versionLabel: "TBC", nights: 10 },
-    { id: CAT.pug, name: "PUG", versionId: "tbc", versionLabel: "TBC", nights: 4 },
+    { id: CAT.mo, name: "Mo Raid", versionId: "forever", versionLabel: "Forever", hidden: false, nights: 11 },
+    { id: CAT.do, name: "Do Raid", versionId: "forever", versionLabel: "Forever", hidden: false, nights: 10 },
+    { id: CAT.pug, name: "PUG", versionId: "forever", versionLabel: "Forever", hidden: false, nights: 4 },
 ];
 
 /** One category's share: `attended` of `counted` nights, the nights themselves optional. */

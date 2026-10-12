@@ -52,15 +52,20 @@ export type KaderCharacter = {
 /** One counted night; status = the attendance code (#677, present/bench count), reason the server's German word. */
 export type KaderNight = { date: string; title: string; attended: boolean; status?: AttendanceStatus; reason: string | null };
 /** One raid category's last nights for an account (rosterAttendance.js: the last 11 with a signup or a log). */
-export type KaderCategoryAttendance = { attended: number; counted: number; nights: KaderNight[] };
+export type KaderCategoryAttendance = { attended: number; counted: number; /** the version the category plays (its nights are that version's) */ versionId?: string; nights: KaderNight[] };
 /**
  * A player's attendance per raid category id — only the categories that counted
  * a night for the account; null when none did. The page sums the Kader's pick
  * (lib/kader/model.ts attendanceOf).
  */
 export type KaderAttendance = Record<string, KaderCategoryAttendance> | null;
-/** A raid category of the server: a Discord category with raid events, the game version it plays, the nights it counts. */
-export type KaderRaidCategory = { id: string; name: string; versionId: string; versionLabel: string; nights: number };
+/**
+ * A raid category of the server: a Discord category with raid events, the game
+ * version it plays (any version: a Forever Kader may count its players' TBC
+ * nights), whether that version is hidden ("archiviert"), the nights it counts -
+ * null while no Kader picked a category of that version (counted once picked).
+ */
+export type KaderRaidCategory = { id: string; name: string; versionId: string; versionLabel: string; hidden?: boolean; nights: number | null };
 
 /** The character a player is prefilled with, and where it comes from ("fehlt" when null). */
 export type KaderPrefill = { name: string; className: string; spec: string; source: "planner" | "profile" | "logs"; versionId: string } | null;
