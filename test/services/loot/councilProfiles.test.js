@@ -6,7 +6,7 @@ const fs = require("fs");
 const rosterStore = require("../../../src/stores/rosterStore");
 const profilesStore = require("../../../src/stores/councilProfilesStore");
 const {
-    resolveProfile, profileHead, weightsFor, viewFor, profileInUse, profileUsage, rosterOfTarget,
+    resolveProfile, profileHead, weightsFor, viewFor, profileInUse, profileUsage, profileShownIn, rosterOfTarget,
 } = require("../../../src/services/loot/councilProfiles");
 
 const CONFIG = { categoryLootSystem: { cA: "lootcouncil", cB: "softres" } };
@@ -74,5 +74,49 @@ describe("services/loot/councilProfiles usage", () => {
         const free = profilesStore.createProfile({ name: "Frei" });
         expect(profileInUse(free.id)).toBe(false);
         expect(profileInUse("")).toBe(false);
+    });
+});
+
+// The profile tab shows one version (#741/#563): usage and list per version.
+describe("services/loot/councilProfiles per version", () => {
+    const VERSIONED = {
+        categoryLootSystem: { cA: "lootcouncil", cF: "lootcouncil" },
+        mainVersion: "forever", categoryVersion: { cA: "tbc", cF: "forever", cG: "forever", cT: "tbc" },
+    };
+    let tbcOnly;
+    let foreverOnly;
+    beforeEach(() => {
+        tbcOnly = profilesStore.createProfile({ name: "TBC Montag" });
+        foreverOnly = profilesStore.createProfile({ name: "Forever Mittwoch" });
+        rosterStore.createRoster({ name: "Montagsraid", guildId: "g1", categoryId: "cA", versionId: "tbc", lootProfileId: tbcOnly.id });
+        rosterStore.createRoster({ name: "Forever", guildId: "g1", categoryId: "cF", versionId: "forever", lootProfileId: foreverOnly.id });
+        profilesStore.setCategoryProfile("cT", tbcOnly.id);
+        profilesStore.setCategoryProfile("cG", foreverOnly.id);
+    });
+
+    it("names only rosters and categories of the version", () => {
+        const forever = profileUsage({ config: VERSIONED, guildId: "g1", versionId: "forever" });
+        expect(forever.get(foreverOnly.id)).toMatchObject({ rosters: [{ name: "Forever" }], categories: ["cG"] });
+        expect(forever.get(tbcOnly.id)).toBeUndefined();
+        const tbc = profileUsage({ config: VERSIONED, guildId: "g1", versionId: "tbc" });
+        expect(tbc.get(tbcOnly.id)).toMatchObject({ rosters: [{ name: "Montagsraid" }], categories: ["cT"] });
+        expect(tbc.get(foreverOnly.id)).toBeUndefined();
+        // without a version: every one, as before
+        const all = profileUsage({ config: VERSIONED, guildId: "g1" });
+        expect(all.get(tbcOnly.id).rosters).toHaveLength(1);
+        expect(all.get(foreverOnly.id).rosters).toHaveLength(1);
+    });
+
+    it("lists the default, the version's own and unused profiles - not another version's", () => {
+        const allUsage = profileUsage({ config: VERSIONED, guildId: "g1" });
+        const shown = (versionId) => profilesStore.listProfiles()
+            .filter((p) => profileShownIn(p, versionId, { usage: profileUsage({ config: VERSIONED, guildId: "g1", versionId }), allUsage }))
+            .map((p) => p.name);
+        // "Main T6" and "PuG" of the outer beforeEach are used by nobody: they belong to no version yet
+        expect(shown("forever")).toEqual(expect.arrayContaining(["Standard", "Forever Mittwoch", "Main T6", "PuG"]));
+        expect(shown("forever")).not.toContain("TBC Montag");
+        expect(shown("tbc")).toEqual(expect.arrayContaining(["Standard", "TBC Montag"]));
+        expect(shown("tbc")).not.toContain("Forever Mittwoch");
+        expect(profileShownIn(tbcOnly, "", { usage: new Map(), allUsage })).toBe(true);
     });
 });

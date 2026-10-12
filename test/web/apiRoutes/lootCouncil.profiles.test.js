@@ -172,3 +172,52 @@ describe("views per profile", () => {
         expect([status(res), code(res)]).toEqual([400, "bad_request"]);
     });
 });
+
+// One version per page (#741/#563): the views' targets and the profile tab list
+// only what plays the menu's version - "Montagsraid" (TBC) is nothing to pick
+// or edit in the Forever council.
+describe("per version (?version=)", () => {
+    let tbcProfile;
+    let monday;
+    let wednesday;
+    beforeEach(() => {
+        configStore.saveConfig({
+            categoryIds: ["cA", "cB"], categoryLootSystem: { cA: "lootcouncil", cB: "lootcouncil" },
+            mainVersion: "forever", categoryVersion: { cA: "tbc", cB: "forever" }, hideOtherVersions: false,
+        });
+        tbcProfile = councilProfilesStore.createProfile({ name: "TBC Montag" });
+        monday = rosterStore.createRoster({ name: "Montagsraid", guildId: "g1", categoryId: "cA", versionId: "tbc", lootProfileId: tbcProfile.id });
+        wednesday = rosterStore.createRoster({ name: "Forever Mittwoch", guildId: "g1", categoryId: "cB", versionId: "forever" });
+    });
+
+    it("GET /views: only rosters and categories of the version are targets", async () => {
+        const forever = body(await call(getViews, "?version=forever"));
+        expect(Object.keys(forever.targets).sort()).toEqual(["category:cB", `roster:${wednesday.id}`].sort());
+        expect(forever.councilRosters).toEqual([wednesday.id]);
+        expect(forever.councilCategories).toEqual(["cB"]);
+        expect(forever.versionId).toBe("forever");
+        const tbc = body(await call(getViews, "?version=tbc"));
+        expect(tbc.targets[`roster:${monday.id}`]).toBe(tbcProfile.id);
+        expect(tbc.targets[`roster:${wednesday.id}`]).toBeUndefined();
+        expect(tbc.councilCategories).toEqual(["cA"]);
+        // nothing asked: the main version
+        expect(body(await call(getViews)).versionId).toBe("forever");
+    });
+
+    it("GET /views: a hidden version is never answered, whatever the url asks", async () => {
+        configStore.saveConfig({ ...configStore.getConfig(), hideOtherVersions: true });
+        const data = body(await call(getViews, "?version=tbc"));
+        expect(data.versionId).toBe("forever");
+        expect(data.targets[`roster:${monday.id}`]).toBeUndefined();
+    });
+
+    it("GET /profiles: a profile only TBC rosters use is not listed under Forever", async () => {
+        const forever = body(await call(getProfiles, "?version=forever"));
+        expect(forever.profiles.map((p) => p.name)).toEqual(["Standard"]);
+        expect(forever.profiles[0].rosters.map((r) => r.name)).toEqual(["Forever Mittwoch"]);
+        const tbc = body(await call(getProfiles, "?version=tbc"));
+        expect(tbc.profiles.map((p) => p.name)).toEqual(["Standard", "TBC Montag"]);
+        expect(tbc.profiles.find((p) => p.name === "TBC Montag").rosters.map((r) => r.name)).toEqual(["Montagsraid"]);
+        expect(tbc.profiles.find((p) => p.name === "Standard").rosters).toEqual([]);
+    });
+});

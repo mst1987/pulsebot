@@ -45,8 +45,8 @@ const { characterMap } = require("../../stores/characterStore");
 const { specFor, ROLES } = require("../../config/councilSpecs");
 const engine = require("../../utils/wowsims/engine");
 const { getConfig } = require("../../stores/settingsStore");
-const { mainVersionFor } = require("../../services/events/mainVersion");
-const { councilOptsFromQuery, categoryOptions } = require("../loot/councilQuery");
+const { mainVersionFor, resolveVersionQuery } = require("../../services/events/mainVersion");
+const { councilOptsFromQuery, pageCouncilOpts, categoryOptions, pickVersion } = require("../loot/councilQuery");
 const { buildCouncilView, councilCategoryIds } = require("../loot/councilView");
 const { councilHead, councilRosters } = require("../loot/councilTargets");
 const { councilContent: councilContentFor, featureState } = require("../../services/events/versionCapabilities");
@@ -65,8 +65,9 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
 
     const guildId = activeGuildFor(req);
     // The version the council looks at, the character filter and the rest of the
-    // query: see councilQuery.js.
-    const opts = councilOptsFromQuery(url.searchParams, { guildId });
+    // query: see councilQuery.js. A roster or category of another version than
+    // the menu's is dropped there (#741/#563) and named in `council.dropped`.
+    const opts = pageCouncilOpts(url.searchParams, { guildId });
     const { role, tierIds, contentIds, categoryId, bisTier, versionId, config, mainVersion, charVersion } = opts;
     // Roster plus the armory step for boss-specific pieces: councilView.js,
     // shared with the sync tool's endpoint so the game sees the same numbers.
@@ -120,7 +121,7 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
         gaps: focus || !content.bis ? [] : bisGaps(rows, { contentIds: contentFilter }),
         focus,
         content: contentView,
-        options: { ...filterOptions(contentView), categories: categoryOptions(guildId) },
+        options: { ...filterOptions(contentView), categories: categoryOptions(guildId, { versionId: charVersion, config }) },
         // Who the page works for (#676): the roster picker, the roster with its
         // profile and linked Kader, and which links the caller may follow.
         council: councilHead({ guildId, user, opts, config }),
@@ -179,7 +180,7 @@ const postLootCouncilSim = withUser({ write: "lootcouncil", csrf: true, body: tr
     if (!id) return apiError(res, 400, "bad_request", "Job-Id fehlt.");
     const scope = new URLSearchParams();
     for (const key of ["roster", "category", "version"]) if (body[key]) scope.set(key, String(body[key]).trim());
-    const { versionId, config } = councilOptsFromQuery(scope, { guildId: activeGuildFor(req) });
+    const { versionId, config } = pageCouncilOpts(scope, { guildId: activeGuildFor(req) });
     const sim = featureState(versionId, "simulation", { config });
     if (!sim.on) {
         return sim.reason === "disabled"
@@ -249,26 +250,36 @@ const postRole = withUser({ write: "lootcouncil", csrf: true, body: true }, asyn
  * Tiers, Raids, BiS-Liste, Version) und welches Profil für welches Roster bzw.
  * welche Kategorie gilt (`targets`: "roster:<id>" / "category:<id>" → Profil-Id).
  * Mit genau dieser Ansicht rechnet auch das Addon im Spiel (GET /api/ingest/council).
+ *
+ * `?version=` (#741/#563): nur Roster und Kategorien dieser Version sind Ziele -
+ * eine alte Auswahl einer anderen Version findet so kein Profil, und die Seite
+ * schreibt die Version des Menüs nie in das Profil eines TBC-Rosters.
  */
-const getViews = withUser({}, async ({ user, req, res }) => {
+const getViews = withUser({}, async ({ user, req, res, url }) => {
     if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
     const guildId = activeGuildFor(req);
     const config = getConfig();
+    const { versionId } = resolveVersionQuery(url.searchParams.get("version"), { config });
     const views = {};
     for (const p of councilProfilesStore.listProfiles()) {
         const { role, tiers, contents, bisTier, version } = p.view;
         views[p.id] = { role, tiers, contents, bisTier, version };
     }
     const targets = {};
-    for (const r of rosterStore.listRosters(guildId)) targets[`roster:${r.id}`] = councilProfiles.resolveProfile({ rosterId: r.id }).profile.id;
-    for (const c of categoryOptions(guildId)) targets[`category:${c.id}`] = councilProfiles.resolveProfile({ categoryId: c.id }).profile.id;
+    for (const r of rosterStore.listRosters(guildId)) {
+        if (pickVersion({ roster: r }) === versionId) targets[`roster:${r.id}`] = councilProfiles.resolveProfile({ rosterId: r.id }).profile.id;
+    }
+    const categories = categoryOptions(guildId, { versionId, config });
+    for (const c of categories) targets[`category:${c.id}`] = councilProfiles.resolveProfile({ categoryId: c.id }).profile.id;
+    const inVersion = new Set(categories.map((c) => c.id));
     ok(res, {
         views,
         targets,
         defaultId: councilProfilesStore.defaultProfileId(),
         defaults: { ...VIEW_DEFAULTS, tiers: [], contents: [] },
-        councilCategories: councilCategoryIds(config),
-        councilRosters: councilRosters(guildId, config).map((r) => r.id),
+        councilCategories: councilCategoryIds(config).filter((id) => inVersion.has(id)),
+        councilRosters: councilRosters(guildId, config, { versionId }).map((r) => r.id),
+        versionId,
     });
 });
 
@@ -348,16 +359,24 @@ function profileAnswer(profile) {
  * system that still name it), `categories` (categories without roster that
  * keep it) and `inUse` (named by a roster or category - such a profile cannot
  * be deleted; the default never can).
+ *
+ * `?version=` (#741/#563): the usage names only rosters and categories of that
+ * version, and a profile only rosters or categories of other versions use is
+ * not listed (councilProfiles.profileShownIn: the default and unused ones always are).
  */
-const getProfiles = withUser({}, async ({ user, req, res }) => {
+const getProfiles = withUser({}, async ({ user, req, res, url }) => {
     if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
     const guildId = activeGuildFor(req);
-    const usage = councilProfiles.profileUsage({ config: getConfig(), guildId });
+    const config = getConfig();
+    const { versionId } = resolveVersionQuery(url.searchParams.get("version"), { config });
+    const allUsage = councilProfiles.profileUsage({ config, guildId });
+    const usage = councilProfiles.profileUsage({ config, guildId, versionId });
     const catName = new Map(categoryOptions(guildId).map((c) => [c.id, c.name]));
     const defaultId = councilProfilesStore.defaultProfileId();
     ok(res, {
         defaultId,
-        profiles: councilProfilesStore.listProfiles().map((p) => {
+        versionId,
+        profiles: councilProfilesStore.listProfiles().filter((p) => councilProfiles.profileShownIn(p, versionId, { usage, allUsage })).map((p) => {
             const u = usage.get(p.id) || { rosters: [], otherRosters: [], categories: [] };
             return {
                 ...councilProfiles.profileHead(p),

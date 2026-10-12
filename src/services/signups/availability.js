@@ -29,9 +29,9 @@ const settingsStore = require("../../stores/settingsStore");
 const discord = require("../discord/discord");
 const linkCheck = require("../discord/linkCheck");
 const { submitSignup, signupWindow, checkRaiderRole } = require("./signupService");
-const { versionOfEvent } = require("../events/mainVersion");
+const { versionOfEvent, mainVersionFor, isVersionVisible } = require("../events/mainVersion");
 const { archiveOf } = require("../events/eventArchive");
-const { spec: specOf } = require("../../config/gameVersions");
+const { spec: specOf, rulesFor, LEGACY_VERSION } = require("../../config/gameVersions");
 const { TIMEZONE } = require("../../config/timezone");
 const { tr, serviceText, specLabel, dateLocale } = require("../../utils/i18n/botText");
 const { langOf, eventLang } = require("../discord/botLanguage");
@@ -98,6 +98,21 @@ function raidsInRange(scope, { now = Date.now(), config } = {}) {
 }
 
 /**
+ * Why a character cannot stand for an attendance entry: it belongs to another
+ * version than the category plays, or to a version hidden in the settings
+ * (#741/#563) - the entry would cover no raid. "" when it fits. The sentence is
+ * the signup's (botEnglish knows it).
+ */
+function presenceVersionProblem(character, categoryId, { config } = {}) {
+    const cfg = config || settingsStore.getConfig();
+    const own = character.versionId || LEGACY_VERSION;
+    const wanted = categoryId ? mainVersionFor({ categoryId, config: cfg }) : (isVersionVisible(own, cfg) ? own : mainVersionFor({ config: cfg }));
+    if (own === wanted) return "";
+    const label = (id) => (rulesFor(id) && rulesFor(id).label) || id;
+    return `${character.name} gehört zu ${label(own)} – lege einen ${label(wanted)}-Charakter im Profil an.`;
+}
+
+/**
  * Check what is being entered against the calendar and the profile, and fill
  * in the attendance's game version. Returns `{ value }` or `{ error }` (German,
  * the bot translates through botEnglish).
@@ -121,6 +136,10 @@ function checkInput(userId, input = {}, { now = Date.now() } = {}) {
         const character = (profile.characters || []).find((c) => c.key === str(input.character))
             || (profile.characters || []).find((c) => profiles.nameKey(c.name) === profiles.nameKey(input.character));
         if (!character) return { error: "Dieser Charakter steht nicht in deinem Profil." };
+        // The character's version is the attendance's (#741): a category plays one
+        // version, and a version hidden in the settings takes no new entry.
+        const versionProblem = presenceVersionProblem(character, value.categoryId);
+        if (versionProblem) return { error: versionProblem };
         const spec = (character.specs || []).find((s) => s.key === str(input.spec));
         if (!spec) return { error: "Diese Spec hat der Charakter im Profil nicht." };
         value.character = character.name;

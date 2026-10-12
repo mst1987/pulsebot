@@ -461,8 +461,9 @@ export type CouncilProfileData = {
     limits: CouncilWeightLimits;
 };
 
-export function getCouncilProfiles(): Promise<CouncilProfiles> {
-    return get<CouncilProfiles>("/api/lootcouncil/profiles");
+/** The profiles of the content version (#741): usage only of its rosters and categories, none only another version uses. */
+export function getCouncilProfiles(version = ""): Promise<CouncilProfiles> {
+    return get<CouncilProfiles>(`/api/lootcouncil/profiles${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 export function getCouncilProfile(id: string): Promise<CouncilProfileData> {
@@ -498,6 +499,11 @@ export type CouncilHead = {
     rosters: { id: string; name: string; categoryId: string; categoryName: string; profileId: string; profileName: string }[];
     /** Raid categories without roster (the fallback group). */
     categories: { id: string; name: string; profileId: string; profileName: string }[];
+    /**
+     * The pick asked for that plays another version than the menu's (#741/#563):
+     * the server answered with "Alle Raid-Kategorien" of the menu's version instead.
+     */
+    dropped?: { kind: "roster" | "category"; id: string; versionId: string } | null;
     canOpenRoster: boolean;
     canOpenKader: boolean;
     canEditProfile: boolean;
@@ -655,8 +661,9 @@ export type CouncilViews = {
     councilRosters: string[];
 };
 
-export function getCouncilViews(): Promise<CouncilViews> {
-    return get<CouncilViews>("/api/lootcouncil/views");
+/** The stored views; `targets` only for rosters and categories of the content version (#741). */
+export function getCouncilViews(version = ""): Promise<CouncilViews> {
+    return get<CouncilViews>(`/api/lootcouncil/views${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 /** Store a profile's view (#676). */

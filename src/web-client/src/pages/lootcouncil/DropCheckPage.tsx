@@ -44,12 +44,13 @@ export default function DropCheckPage() {
     // The same filters the council page is set to — read, never written here:
     // the browser's, or the picked roster's / category's profile view (categoryViews.ts).
     const [localView] = usePersistedState<FilterView>(VIEW_KEY, FILTER_DEFAULT);
+    // The menu's content switch decides which version's council is checked (#748), like on the council page.
+    // A picked roster or category of another version is dropped by the server (#741): the version's whole council.
+    const { version: contentVersion } = useContentVersion();
     const { filters: view, ready: viewsReady } = useCategoryViews({
-        view: localView, setView: () => undefined, canWrite: false, version: "", mainVersion: "", onError: () => undefined,
+        view: localView, setView: () => undefined, canWrite: false, version: contentVersion, mainVersion: "", onError: () => undefined,
     });
     const [focus, setFocus] = useState<CouncilFocus | null>(null);
-    // The menu's content switch decides which version's council is checked (#748), like on the council page.
-    const { version: contentVersion } = useContentVersion();
     const [simAvailable, setSimAvailable] = useState(false);
     // The council's version has no item table (#748): the drop check says so instead of looking items up.
     const [noItemTable, setNoItemTable] = useState(false);

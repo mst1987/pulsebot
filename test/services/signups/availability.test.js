@@ -98,6 +98,24 @@ describe("checkInput", () => {
         expect(availability.checkInput(ANNA, { kind: "presence", from: today, character: "Nerathil", spec: "Mage-Fire" }, { now: NOW }).error)
             .toBe("Diese Spec hat der Charakter im Profil nicht.");
     });
+
+    // A TBC character never stands for a Forever category (#741), nor for a hidden version (#563).
+    it("lehnt einen Charakter ab, dessen Version die Kategorie nicht spielt oder ausgeblendet ist", () => {
+        profiles.addCharacter(ANNA, { name: "Devi Res", className: "Priest", specs: ["Priest-Shadow"], versionId: "forever" }, { name: "Anna" });
+        mockConfig = { botLanguage: "en", mainVersion: "tbc", categoryVersion: { cat1: "forever", cat2: "tbc" } };
+        expect(availability.checkInput(ANNA, { kind: "presence", from: today, categoryId: "cat1", character: "Nerathil", spec: "Mage-Arcane" }, { now: NOW }).error)
+            .toBe("Nerathil gehört zu TBC Anniversary – lege einen WoW Forever-Charakter im Profil an.");
+        expect(availability.checkInput(ANNA, { kind: "presence", from: today, categoryId: "cat1", character: "Devi Res", spec: "Priest-Shadow" }, { now: NOW }).value)
+            .toMatchObject({ character: "Devi Res", versionId: "forever" });
+        // every category: the character's own version, while it is shown
+        expect(availability.checkInput(ANNA, { kind: "presence", from: today, character: "Devi Res", spec: "Priest-Shadow" }, { now: NOW }).value)
+            .toMatchObject({ versionId: "forever" });
+        mockConfig = { botLanguage: "en", mainVersion: "tbc", hideOtherVersions: true };
+        expect(availability.checkInput(ANNA, { kind: "presence", from: today, character: "Devi Res", spec: "Priest-Shadow" }, { now: NOW }).error)
+            .toBe("Devi Res gehört zu WoW Forever – lege einen TBC Anniversary-Charakter im Profil an.");
+        // an absence names no character: untouched
+        expect(availability.checkInput(ANNA, { kind: "absence", from: today, categoryId: "cat1" }, { now: NOW }).value).toBeTruthy();
+    });
 });
 
 describe("raidsInRange", () => {

@@ -52,6 +52,7 @@ import { CompareTab } from "./CompareTab";
 import { ProfilesTab } from "./ProfilesTab";
 import { CouncilHead } from "./CouncilHead";
 import { pickValue } from "./profiles";
+import { useDroppedPick } from "./droppedPick";
 import { NeedWeightsProvider } from "./needWeights";
 
 const VIEW_DEFAULT: View = {
@@ -79,8 +80,11 @@ export default function LootCouncilPage() {
     const [params, setParams] = useSearchParams();
     const linkedRoster = params.get("roster") || "";
     const linkedTab = params.get("tab") || "";
+    // The roster a link opened - a roster of another version follows into it (droppedPick.ts).
+    const linkedRef = useRef("");
     useEffect(() => {
         if (!linkedRoster && linkedTab !== "profiles") return;
+        if (linkedRoster) linkedRef.current = linkedRoster;
         setLocalView({
             ...localView,
             ...(linkedRoster ? { roster: linkedRoster, category: "" } : {}),
@@ -169,6 +173,10 @@ export default function LootCouncilPage() {
     // old results no longer describe what is on screen.
     useEffect(() => { setSim(null); }, [view.role, view.tiers, view.contents, view.category, view.roster, view.bisTier, view.bench, contentVersion, setSim]);
 
+    // A pick of another version (#741/#563): follow a link into it, else back to "Alle Raid-Kategorien".
+    const dropped = data && data.council && data.council.dropped && pickValue(view) === `${data.council.dropped.kind}:${data.council.dropped.id}`
+        ? data.council.dropped : null;
+    useDroppedPick(dropped, linkedRef.current, () => patch({ roster: "", category: "" }));
 
     const roster = useMemo(() => (data ? data.roster : []), [data]);
     const gaps = data ? data.gaps : [];

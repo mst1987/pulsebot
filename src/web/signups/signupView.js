@@ -22,12 +22,18 @@ const CLASS_COLORS = new Map(VERSIONS.flatMap((v) => v.classes.map((c) => [c.id,
 
 const linkCheck = require("../../services/discord/linkCheck");
 
-/** A profile's characters as the signup dialog picks from them. */
-function profileForSignup(profile) {
+/**
+ * A profile's characters as the signup dialog picks from them. With `versionId`
+ * only the characters of that version (#741: the page lists the raids of one
+ * version, a TBC character is nothing to pick for a Forever raid - the save
+ * refuses it anyway, signupService `character_version`).
+ */
+function profileForSignup(profile, { versionId = "" } = {}) {
     const p = profile || { characters: [] };
     const roles = profileRoles(p);
+    const chars = versionId ? p.characters.filter((c) => (c.versionId || LEGACY_VERSION) === versionId) : p.characters;
     return {
-        characters: p.characters.map((c) => ({
+        characters: chars.map((c) => ({
             key: c.key,
             name: c.name,
             // The dialog offers only the characters of the event's game version (#543).

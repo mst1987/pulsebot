@@ -387,6 +387,16 @@ describe("Charaktere je Spielversion (#543)", () => {
         expect(store.getProfile(ANNA.id).characters.map((c) => c.key)).toEqual(["devi", "forever~devi res", "forever~devi rew"]);
     });
 
+    it("legt keinen Charakter einer ausgeblendeten Version an (#563)", async () => {
+        mockMainVersion = { mainVersion: "forever", hideOtherVersions: true };
+        const res = await call(route.postProfileCharacter, ANNA, { json: { source: "manual", name: "Devi", className: "Priest", specs: ["Priest-Holy"], versionId: "tbc" } });
+        expect(status(res)).toBe(400);
+        expect(json(res).error.code).toBe("version_hidden");
+        expect(store.getProfile(ANNA.id).characters).toEqual([]);
+        const ok = await call(route.postProfileCharacter, ANNA, { json: { source: "manual", name: "Devi Res", className: "Priest", specs: [], versionId: "forever" } });
+        expect(status(ok)).toBe(200);
+    });
+
     it("prueft den Namen nach der Regel der Version: TBC ohne, Forever mit Nachnamen", async () => {
         const res = await call(route.postProfileCharacter, ANNA, { json: { source: "manual", name: "Devi Res", className: "Priest", specs: [], versionId: "tbc" } });
         expect(status(res)).toBe(400);

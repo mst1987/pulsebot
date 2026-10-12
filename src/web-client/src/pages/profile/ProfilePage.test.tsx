@@ -9,7 +9,7 @@ import * as api from "../../api";
 import type { CalendarTokens, GameClass, GameSpec, ProfileCharacter, ProfileData, ProfilePatch, RaiderProfile, RaiderRef } from "../../api";
 import { t } from "../../i18n";
 import { switchLang } from "../../test/i18n";
-import { renderPage } from "../../test/render";
+import { renderPage, twoVersions } from "../../test/render";
 import ProfilePage from "./ProfilePage";
 
 vi.mock("../../api", async (orig) => ({
@@ -181,6 +181,42 @@ describe("Charaktere je Spielversion (#543)", () => {
         await renderProfile();
         expect(document.querySelectorAll(".pf-chip-group")).toHaveLength(1);
         expect(screen.queryByText(t("profile.versionGroup", { version: "TBC" }))).not.toBeInTheDocument();
+    });
+
+    // One version per page (#741): Forever = Forever characters, TBC = TBC characters.
+    describe("mit dem Content-Umschalter", () => {
+        const content = (version: "forever" | "tbc") => twoVersions({ mainVersion: version, versions: version === "forever" ? [VERSIONS[0], VERSIONS[1]] : [VERSIONS[1], VERSIONS[0]] });
+        const load = () => {
+            setup(profile({ characters: [BORKA, FROSTI, DEVI] }));
+            vi.mocked(api.getProfile).mockResolvedValue({
+                ...profileData(profile({ characters: [BORKA, FROSTI, DEVI] })), mainVersion: "forever", versions: VERSIONS,
+                classesByVersion: { tbc: [DRUID, MAGE], forever: [MAGE] },
+            });
+        };
+
+        it("zeigt unter Forever nur die Forever-Charaktere", async () => {
+            load();
+            renderPage(<ProfilePage />, { route: "/profile", content: content("forever") });
+            expect(await screen.findByRole("tab", { name: /Devi Res/ })).toBeInTheDocument();
+            expect(screen.queryByRole("tab", { name: /Borka/ })).not.toBeInTheDocument();
+            expect(screen.queryByRole("tab", { name: /Frosti/ })).not.toBeInTheDocument();
+            expect(document.querySelectorAll(".pf-chip-group")).toHaveLength(1);
+        });
+
+        it("zeigt unter TBC nur die TBC-Charaktere", async () => {
+            load();
+            renderPage(<ProfilePage />, { route: "/profile", content: content("tbc") });
+            expect(await screen.findByRole("tab", { name: /Borka/ })).toBeInTheDocument();
+            expect(screen.getByRole("tab", { name: /Frosti/ })).toBeInTheDocument();
+            expect(screen.queryByRole("tab", { name: /Devi Res/ })).not.toBeInTheDocument();
+        });
+
+        it("folgt einem Link auf einen Charakter der anderen Version", async () => {
+            load();
+            renderPage(<ProfilePage />, { route: "/profile?char=forever~devi res", content: content("tbc") });
+            expect(await screen.findByRole("tab", { name: /Devi Res/ })).toBeInTheDocument();
+            await waitFor(() => expect(screen.queryByRole("tab", { name: /Borka/ })).not.toBeInTheDocument());
+        });
     });
 });
 
