@@ -34,6 +34,17 @@
 // The picture stays with the signup message — two copies of the same boss icon
 // under each other would only take room.
 //
+// With `config.discordVisuals.setupImage` (a test, on unless switched off) the
+// groups and the posted bench are a drawn picture in the embed (setupImage.js,
+// design "F"), not fields: the header (date, role totals), the comp link and the
+// buttons stay as they are, the confirm marks are drawn into the picture. No text
+// copy of the names stays below it - the picture is what the orga wants to judge,
+// and the switch brings the fields back. The picture is the embed's image, not a
+// Components V2 media gallery: a message once posted as V2 can never become an
+// embed again, and switching the test off must give back today's message. The PNG
+// goes with the post or edit as the message's file and replaces the old one
+// (discordImage.withImages); a picture that cannot be rendered leaves the fields.
+//
 // Nothing here throws at a caller: Discord errors come back as `{ code, error }`
 // and are stored, so an offline bot never fails an approval.
 const { ButtonBuilder, ButtonStyle } = require("discord.js");
@@ -54,6 +65,9 @@ const { str, clip } = require("../../utils/text");
 const { approvedSetupOf, benchPosted, confirmationsFor, confirmButtonRow, inviteButtonRow, pingButtonRow } = require("./setupCore");
 const { callSetupPing, refreshSetupPing } = require("./setupPing");
 const { eventVersionTag } = require("../events/versionTag");
+const { setupImageSvg } = require("./setupImage");
+const { visualOn, withImages } = require("../discord/discordImage");
+const logger = require("../../logger").child("setupMessage");
 
 const LIMITS = { title: 256, description: 4096, fields: 25, fieldValue: 1024, total: 6000 };
 const CANCELLED_COLOR = 0xe0524f;
@@ -130,6 +144,9 @@ function roleCounts(approved) {
     return counts;
 }
 
+/** The file name of the drawn setup in its message (referenced by the embed image). */
+const SETUP_IMAGE = "setup.png";
+
 /** Inline fields per row in a Discord embed (desktop): the group grid of the setup message. */
 const GRID_COLUMNS = 3;
 
@@ -141,27 +158,18 @@ const GRID_COLUMNS = 3;
  * @param {{ emojis?: object, confirmations?: object, lang?: string }} opts `emojis`: name → { id, name,
  *   animated }; none = text. `confirmations`: userId → "confirmed" | "declined" (who stands
  *   in a group — setupCore.confirmationsFor; an answer stays through later changes).
- *   `lang`: the server language ("de" | "en", German by default).
+ *   `lang`: the server language ("de" | "en", German by default). `image`: the groups (and the
+ *   posted bench) as a drawn picture instead of fields - the payload then carries
+ *   `images: [{ name, svg }]` for discordImage.withImages.
  */
-function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, bench: withBench = false, lang = "de" } = {}) {
+function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, bench: withBench = false, lang = "de", image = false } = {}) {
     if (!event || !approved || !Array.isArray(approved.groups)) return null;
     const cancelled = event.status === "cancelled";
     const plainTitle = `Setup · ${event.title || "Raid"}`;
     const title = clip(cancelled ? tr(lang, "Cancelled: {title}", { title: plainTitle }) : plainTitle, LIMITS.title);
     const start = Number(event.startTime) || 0;
 
-    if (cancelled) {
-        const reason = (event.cancel && event.cancel.reason) || "";
-        return {
-            content: "",
-            embeds: [{
-                title,
-                color: CANCELLED_COLOR,
-                description: `${[emojiText(emojis, uiEmojiName("absence")), tr(lang, "**Cancelled**")].filter(Boolean).join(" ")}${reason ? ` – ${escapeMd(clip(reason, 300))}` : ""}\n${tr(lang, "The setup is off.")}`,
-            }],
-            components: [],
-        };
-    }
+    if (cancelled) return cancelledMessage(event, title, { emojis, lang });
 
     const counts = roleCounts(approved);
     const totals = ROLE_ORDER
@@ -188,6 +196,9 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, b
     // Only with a real PUBLIC_BASE_URL (#537, linkCheck).
     const compUrl = linkCheck.webTarget("comp", event.id);
     const link = compUrl ? `[${tr(lang, "View the comp")}](${compUrl})` : "";
+
+    const picture = image ? setupImageSvg(approved, { confirmations, bench: withBench, lang }) : null;
+    if (picture) return pictureMessage(event, approved, { title, description, link, svg: picture.svg, lang });
 
     // Tried in order until the embed fits: icons everywhere, a plain bench, plain groups too.
     const variants = [{ groupIcons: true, benchIcons: true }, { groupIcons: true, benchIcons: false }, { groupIcons: false, benchIcons: false }];
@@ -227,11 +238,44 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, b
     // Confirm/Cancel are every raider's own (accessOf "event-signup" in the
     // command file), Call invites and Ping everyone the orga's alone (accessOf
     // "event") — merging the row changes nothing about that.
-    const buttons = {
+    return { content: "", embeds: [embed], components: [setupButtons(event, lang)] };
+}
+
+/** The marked message of a cancelled event: no groups, no buttons. */
+function cancelledMessage(event, title, { emojis, lang }) {
+    const reason = (event.cancel && event.cancel.reason) || "";
+    return {
+        content: "",
+        embeds: [{
+            title,
+            color: CANCELLED_COLOR,
+            description: `${[emojiText(emojis, uiEmojiName("absence")), tr(lang, "**Cancelled**")].filter(Boolean).join(" ")}${reason ? ` – ${escapeMd(clip(reason, 300))}` : ""}\n${tr(lang, "The setup is off.")}`,
+        }],
+        components: [],
+    };
+}
+
+/** The setup message with the drawn groups as its embed image (design "F"): header, comp link, footer, buttons. */
+function pictureMessage(event, approved, { title, description, link, svg, lang }) {
+    const embed = {
+        title,
+        color: embedColor(event),
+        description: clip(description, LIMITS.description),
+        fields: link ? [{ name: "​", value: link, inline: false }] : [],
+        image: { url: `attachment://${SETUP_IMAGE}` },
+        footer: { text: tr(lang, "Approved setup · version {version}", { version: approved.version || 1 }) },
+    };
+    if (!embed.description) delete embed.description;
+    if (approved.approvedAt) embed.timestamp = new Date(Number(approved.approvedAt)).toISOString();
+    return { content: "", embeds: [embed], components: [setupButtons(event, lang)], images: [{ name: SETUP_IMAGE, svg }] };
+}
+
+/** Confirm, Cancel, Call invites, Ping everyone - the one row under the setup message. */
+function setupButtons(event, lang) {
+    return {
         type: 1,
         components: [...confirmButtonRow(event.id, lang).components, ...inviteButtonRow(event.id, lang).components, ...pingButtonRow(event.id, lang).components],
     };
-    return { content: "", embeds: [embed], components: [buttons] };
 }
 
 // ---- DMs --------------------------------------------------------------------
@@ -375,11 +419,22 @@ async function sendSetupDms(eventId, { config = getConfig(), delayMs = DM_DELAY_
 
 const isUnknownMessage = (e) => !!(e && (e.code === 10008 || /unknown message/i.test(e.message || "")));
 
+/**
+ * The message for discord.js: with the drawn setup rendered into its file while the switch
+ * is on - or, when the picture cannot be rendered, the fields as before.
+ */
 async function payloadFor(event, approved) {
     await loadAppEmojis(discord.getClient());
-    return buildSetupMessage(event, approved, {
-        emojis: appEmojiMap(), confirmations: confirmationsFor(event, approved), bench: benchPosted(event), lang: eventLang(event),
+    const build = (image) => buildSetupMessage(event, approved, {
+        emojis: appEmojiMap(), confirmations: confirmationsFor(event, approved), bench: benchPosted(event), lang: eventLang(event), image,
     });
+    const key = `setup:${event.id}`;
+    try {
+        return withImages(build(visualOn(getConfig(), "setupImage")), { key });
+    } catch (e) {
+        logger.warn(`${key}: picture not rendered, fields instead: ${(e && e.message) || e}`);
+        return withImages(build(false));
+    }
 }
 
 /**
@@ -603,7 +658,7 @@ function _resetForTests() {
 }
 
 module.exports = {
-    LIMITS, DM_DELAY_MS,
+    LIMITS, DM_DELAY_MS, SETUP_IMAGE,
     buildSetupMessage, buildSetupDm, embedLength, placementsOf, placementSignature, dmsEnabled, benchReasons,
     postOrEditSetupMessage, sendSetupDms, publishSetup, refreshSetupMessage, refreshLiveSetup,
     editSetupMessageQueued, scheduleSetupEdit, MARK_EDIT_DELAY_MS, publishView, refreshSetupMessages, _resetForTests,

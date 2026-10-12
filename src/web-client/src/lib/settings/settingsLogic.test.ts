@@ -82,6 +82,15 @@ describe("save bar change list", () => {
         expect(logic.draftChanges(saved, { ...base(), orgaRoleIds: ["raidlead"] }, names)).toEqual([]);
     });
 
+    it("names a switched picture of the bot messages; a missing switch counts as on", () => {
+        const draft = { ...base(), discordVisuals: { overviewWeekStrip: false, setupImage: true, eventCover: true } };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Bilder in Bot-Nachrichten · Raid-Übersicht mit Wochenleiste aus"]);
+        expect(logic.draftChanges({ ...base(), discordVisuals: { setupImage: false } }, { ...base(), discordVisuals: logic.discordVisualsOf(undefined) }, names))
+            .toEqual(["Bilder in Bot-Nachrichten · Setup als Grafik an"]);
+        expect(logic.draftChanges(base(), { ...base(), discordVisuals: logic.discordVisualsOf({}) }, names)).toEqual([]);
+        expect(logic.discordVisualsOf({ eventCover: false })).toEqual({ overviewWeekStrip: true, setupImage: true, eventCover: false });
+    });
+
     it("names a changed planning per category: the picked mode, else the fixed sheet's default", () => {
         const draft = base();
         draft.categoryPlanning = { c1: "sheet" };

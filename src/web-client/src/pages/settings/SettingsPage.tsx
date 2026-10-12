@@ -37,6 +37,7 @@ import type { CategoryCloseResult, MissingCategory } from "../../api";
 import { categoryVersionsToSave, isVersionSwitch, savedCategoryVersion, switchFixesToSend } from "../../lib/settings/categoryVersions";
 import HideOtherVersionsCard from "./HideOtherVersionsCard";
 import BotLanguageCard from "./BotLanguageCard";
+import DiscordVisualsCard from "./DiscordVisualsCard";
 import VersionFeaturesCard from "./VersionFeaturesCard";
 import VersionLaunchCard from "./VersionLaunchCard";
 import { withDisabled } from "../../lib/settings/versionFeatures";
@@ -237,6 +238,8 @@ export default function SettingsPage() {
                 // #563: only the main version everywhere while it is on.
                 hideOtherVersions: draft.hideOtherVersions,
                 botLanguage: draft.botLanguage,
+                // the drawn pictures (a test): every switch, merged on the server
+                discordVisuals: draft.discordVisuals,
                 // #542: every version's block, merged per field on the server; a wrong value comes back as 400 with its field.
                 // #761: with each version's features switched off, sent whole.
                 versionSettings: withDisabled(draft.versionSettings, draft.versionDisabled),
@@ -474,6 +477,7 @@ export default function SettingsPage() {
                 <>
                     {head(activeSection)}
                     <BotLanguageCard value={draft.botLanguage} onChange={(botLanguage) => patch({ botLanguage })} />
+                    <DiscordVisualsCard value={draft.discordVisuals} onChange={(discordVisuals) => patch({ discordVisuals })} />
                     <ModuleCard>
                         <div className="set-field">
                             <FieldLabel htmlFor="set-raid-channel" tip={t("settings.page.raidChannel")} tipSub={t("settings.page.raidChannelSub")}>{t("settings.page.raidChannel")}</FieldLabel>

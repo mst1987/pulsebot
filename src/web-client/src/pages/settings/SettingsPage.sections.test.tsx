@@ -285,6 +285,38 @@ describe("the save bar", () => {
         expect(within(group).getByRole("radio", { name: "Deutsch" })).toHaveAttribute("aria-checked", "true");
     });
 
+    it("shows the picture switches of the bot messages (on unless saved off) and sends them on save", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({ discordVisuals: { setupImage: false } }) }));
+        renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+
+        const strip = await screen.findByRole("switch", { name: "Raid-Übersicht mit Wochenleiste" });
+        expect(strip).toBeChecked();
+        expect(screen.getByRole("switch", { name: "Setup als Grafik" })).not.toBeChecked();
+        expect(screen.getByRole("switch", { name: "Titelbild des Discord-Events" })).toBeChecked();
+
+        await user.click(strip);
+        expect(screen.getByText("1 ungespeicherte Änderung")).toBeInTheDocument();
+        expect(screen.getByText("Bilder in Bot-Nachrichten · Raid-Übersicht mit Wochenleiste aus")).toBeInTheDocument();
+
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({
+            discordVisuals: { overviewWeekStrip: false, setupImage: false, eventCover: true },
+        });
+    });
+
+    it("names the picture switches in English", async () => {
+        await switchLang("en");
+        try {
+            renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+            expect(await screen.findByRole("switch", { name: "Setup as a graphic" })).toBeChecked();
+            expect(screen.getByText("Pictures in bot messages")).toBeInTheDocument();
+        } finally {
+            await switchLang("de");
+        }
+    });
+
     it("leaves the access fields out for a limited settings user, whom the server would refuse", async () => {
         const user = userEvent.setup();
         vi.mocked(api.getSettings).mockResolvedValue(limited());

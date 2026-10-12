@@ -107,7 +107,7 @@ A rough map without file lists (`ls` is always current); each row names the doc 
 | `src/commands/<area>/` | One module per command or component; `loader.js` collects them for bot and `npm run register` | docs/bot-commands.md |
 | `src/classes/` | External API clients (Raid-Helper, Warcraft Logs, Blizzard, Google) | docs/bot-commands.md |
 | `src/config/` | Env, defaults, constants, generated data (never by hand), `gameVersions/`, permissions | docs/raid-templates.md |
-| `src/utils/` | Domain logic without HTTP, one folder per area (`signup/`, `setup/`, `raidhelper/`, `loot/`, `logcheck/`, `recruitment/`, `discord/`, `time/`, `wowsims/`) plus a few flat helpers | docs/bot-commands.md, docs/logcheck.md, docs/setup.md |
+| `src/utils/` | Domain logic without HTTP, one folder per area (`signup/`, `setup/`, `raidhelper/`, `loot/`, `logcheck/`, `recruitment/`, `discord/`, `time/`, `wowsims/`, `image/`) plus a few flat helpers | docs/bot-commands.md, docs/logcheck.md, docs/setup.md |
 | `src/stores/` | The JSON stores (`*Store.js` on `jsonStore.js`), `configStore`/`configSchema`, the `settingsStore` facade | docs/data-storage.md |
 | `src/services/<area>/` | Domain logic commands, utils and web share (`events/`, `signups/`, `setup/`, `raidplan/`, `discord/`, `loot/`, `characters/`, `logcheck/`, `talk/`) | docs/web-admin.md |
 | `src/web/` | HTTP only: `http/` (server, router, auth, jobs), `apiRoutes/`, `report/` + `pages/` (SSR), per area what only the web reads (`events/`, `loot/`, …). `commands/` and `utils/` never require from here (`test/docs/layering.test.js`) | docs/web-admin.md |

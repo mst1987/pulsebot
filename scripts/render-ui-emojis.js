@@ -6,8 +6,9 @@
 //
 // Raid-Helper's look: thin, single-colour line icons in a light grey that reads
 // on Discord's dark and light theme — no colourful unicode emojis. The PNGs are
-// checked in; the bot never rasterises anything at runtime, so @resvg/resvg-js
-// is only a devDependency. Change an icon here, re-run, commit the PNG — and
+// checked in; the bot never rasterises these at runtime (it does draw the
+// pictures of services/discord/discordImage.js with the same @resvg/resvg-js,
+// which is why that is a runtime dependency now). Change an icon here, re-run, commit the PNG — and
 // note that the bot never replaces an existing emoji: give a redrawn icon to
 // the application by deleting the old one in the developer portal first.
 const fs = require("fs");

@@ -240,4 +240,58 @@ describe("services/events/raidOverviewPanel", () => {
             expect(payloadHash(a, "en")).not.toBe(payloadHash(a, "de"));
         });
     });
+
+    describe("the week strip as a picture (design D, a test)", () => {
+        const events = () => [
+            raid("a", "2026-10-17T20:00:00", { instanceIds: ["kara"], size: 10 }),
+            raid("b", "2026-10-22T20:00:00", { instanceIds: ["ssc"] }),
+        ];
+
+        it("puts each ID's picture above its raids in place of the title line, and hands the SVGs along", () => {
+            const payload = build(events(), { weekStrip: true });
+            const galleries = nodes(payload).filter((n) => n.type === 12);
+            expect(galleries).toHaveLength(2);
+            expect(galleries[0].items[0].media.url).toBe("attachment://raid-id-1.png");
+            expect(galleries[1].items[0].media.url).toBe("attachment://raid-id-2.png");
+            expect(galleries[0].items[0].description).toContain("This ID · Wed 14.10. – Tue 20.10.");
+            expect(galleries[0].items[0].description).toContain("KARA 0/10");
+            expect(payload.images.map((i) => i.name)).toEqual(["raid-id-1.png", "raid-id-2.png"]);
+            expect(payload.images[0].svg).toContain(">KARA<");
+            expect(payload.images[1].svg).toContain(">NEXT ID<");
+            const text = texts(payload);
+            // the title lines are in the picture now; the raid lines stay
+            expect(text).not.toContain("**This ID**");
+            expect(text).toContain("<#ch-a> · led by <@lead-a>");
+            expect(text).toContain("<#ch-b>");
+        });
+
+        it("is the text form without the switch: no gallery, no images, the same hash as before", () => {
+            const off = build(events());
+            expect(nodes(off).some((n) => n.type === 12)).toBe(false);
+            expect(off.images).toBeUndefined();
+            expect(payloadHash(off, "en")).toBe(payloadHash(build(events(), { weekStrip: false }), "en"));
+            expect(payloadHash(off, "en")).not.toBe(payloadHash(build(events(), { weekStrip: true }), "en"));
+        });
+
+        it("keeps the picture and the hash when only the footer time changes, changes the hash when only the picture does", () => {
+            const a = build(events(), { weekStrip: true });
+            const b = build(events(), { weekStrip: true, lastChange: 1760000000 });
+            expect(b.images).toEqual(a.images);
+            expect(payloadHash(a, "en")).toBe(payloadHash(build(events(), { weekStrip: true }), "en"));
+            // same components, another picture (today's mark moved on): another hash
+            const c = { ...a, images: [{ ...a.images[0], svg: `${a.images[0].svg} ` }, a.images[1]] };
+            expect(payloadHash(c, "en")).not.toBe(payloadHash(a, "en"));
+            // the next day the running ID's picture changes - and with it the hash
+            const tomorrow = build(events(), { weekStrip: true, now: NOW + 86400000 });
+            expect(tomorrow.images[0].svg).not.toBe(a.images[0].svg);
+            expect(payloadHash(tomorrow, "en")).not.toBe(payloadHash(a, "en"));
+        });
+
+        it("stays within Discord's 40 components with pictures on", () => {
+            const many = Array.from({ length: 30 }, (_, i) => raid(`r${i}`, `2026-10-${String(15 + (i % 14)).padStart(2, "0")}T20:00:00`));
+            const payload = build(many, { weekStrip: true });
+            expect(nodes(payload).length).toBeLessThanOrEqual(MAX_COMPONENTS);
+            expect(payload.images.length).toBeLessThanOrEqual(MAX_IDS);
+        });
+    });
 });

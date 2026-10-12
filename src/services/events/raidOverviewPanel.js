@@ -25,8 +25,8 @@
 // message is that of the payload built without it (payloadHash).
 const crypto = require("crypto");
 const {
-    ContainerBuilder, MessageFlags, SectionBuilder, SeparatorBuilder, SeparatorSpacingSize, TextDisplayBuilder,
-    ThumbnailBuilder,
+    ContainerBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, MessageFlags, SectionBuilder, SeparatorBuilder,
+    SeparatorSpacingSize, TextDisplayBuilder, ThumbnailBuilder,
 } = require("discord.js");
 const { DateTime } = require("luxon");
 const { embedAccentColor } = require("../../config/variables");
@@ -37,6 +37,7 @@ const { plainCategoryName } = require("../../utils/signup/availabilityDialog");
 const { emojiText, uiEmojiName, appEmojiMap } = require("../discord/appEmojis");
 const { lookOf, ruleSetLook, usableUrl } = require("./embedLook");
 const { raidContentIds } = require("./raidListing");
+const { raidWeekStripSvg } = require("./raidWeekStrip");
 
 const MAX_IDS = 3;
 const MAX_RAIDS = 15;
@@ -172,9 +173,11 @@ function groupByRaidId(events, now) {
  * @param {(event: object) => number} o.attending how many accounts are coming (talkOverview's attendingCount)
  * @param {object} [o.emojis] name -> app emoji (appEmojis.appEmojiMap()); missing ones fall back to unicode / nothing
  * @param {number} [o.lastChange] unix seconds for the footer; 0 leaves the time out (what the hash is taken over)
- * @returns {{ flags: number, components: object[], embeds: [], content: "" }} API JSON
+ * @param {boolean} [o.weekStrip] draw each ID's week as a picture above its raids (raidWeekStrip.js); the
+ *   payload then carries `images: [{ name, svg }]` for services/discord/discordImage.js `withImages`
+ * @returns {{ flags: number, components: object[], embeds: [], content: "", images?: object[] }} API JSON
  */
-function raidOverviewPayload({ categoryName = "", events = [], now = Date.now(), lang = "de", attending, lastChange = 0, emojis = appEmojiMap() } = {}) {
+function raidOverviewPayload({ categoryName = "", events = [], now = Date.now(), lang = "de", attending, lastChange = 0, emojis = appEmojiMap(), weekStrip = false } = {}) {
     const c = new ContainerBuilder().setAccentColor(embedAccentColor);
     const heading = `## ${plainCategoryName(categoryName) || tr(lang, "Raids")}`;
     c.addTextDisplayComponents(text(heading));
@@ -185,6 +188,7 @@ function raidOverviewPayload({ categoryName = "", events = [], now = Date.now(),
     const total = groups.reduce((n, g) => n + g.events.length, 0);
     let shown = 0;
     let listedIds = 0;
+    const images = [];
     if (!groups.length) {
         const none = tr(lang, "No raids are planned right now. New raids show up here by themselves.");
         c.addTextDisplayComponents(text(none));
@@ -203,13 +207,26 @@ function raidOverviewPayload({ categoryName = "", events = [], now = Date.now(),
             const rowCost = picture ? 3 : 1;
             if (used + length + block.length + 2 > TEXT_BUDGET - 80) break;
             if (components + cost + rowCost > MAX_COMPONENTS) break;
-            rows.push({ block, picture });
+            rows.push({ block, picture, event });
             length += block.length + 2;
             cost += rowCost;
         }
         if (!rows.length) break;
         c.addSeparatorComponents(line());
-        c.addTextDisplayComponents(text(title));
+        if (weekStrip) {
+            // The picture carries the ID's title and range, so it takes the title line's place (same component count).
+            const name = `raid-id-${listedIds + 1}.png`;
+            const strip = raidWeekStripSvg({
+                id: group.id, events: rows.map((r) => r.event), title: idTitle(group.id, now, lang), range: rangeLabel(group.id, lang),
+                now, lang, attending,
+            });
+            images.push({ name, svg: strip.svg });
+            c.addMediaGalleryComponents(new MediaGalleryBuilder().addItems(
+                new MediaGalleryItemBuilder().setURL(`attachment://${name}`).setDescription(strip.alt),
+            ));
+        } else {
+            c.addTextDisplayComponents(text(title));
+        }
         for (const { block, picture } of rows) {
             if (picture) {
                 c.addSectionComponents(new SectionBuilder()
@@ -233,12 +250,18 @@ function raidOverviewPayload({ categoryName = "", events = [], now = Date.now(),
         : tr(lang, "Updates itself"));
     c.addSeparatorComponents(line());
     c.addTextDisplayComponents(text(footer.map((f) => `-# ${f}`).join("\n")));
-    return { flags: MessageFlags.IsComponentsV2, components: [c.toJSON()], embeds: [], content: "" };
+    const payload = { flags: MessageFlags.IsComponentsV2, components: [c.toJSON()], embeds: [], content: "" };
+    if (images.length) payload.images = images;
+    return payload;
 }
 
-/** The fingerprint of an overview: its components built without the "last change" time. */
+/**
+ * The fingerprint of an overview: its components built without the "last change" time, and the
+ * pictures' SVGs (an image can change while its text does not - today's mark moves on).
+ */
 function payloadHash(payload, lang = "") {
-    return crypto.createHash("sha1").update(`${lang}|${JSON.stringify(payload.components)}`).digest("hex").slice(0, 16);
+    const pictures = (payload.images || []).map((img) => img.svg).join("|");
+    return crypto.createHash("sha1").update(`${lang}|${JSON.stringify(payload.components)}${pictures ? `|${pictures}` : ""}`).digest("hex").slice(0, 16);
 }
 
 module.exports = { raidOverviewPayload, payloadHash, groupByRaidId, rangeLabel, dayLabel, fillLine, fillBar, raidPicture, MAX_IDS, MAX_RAIDS, MAX_COMPONENTS };
