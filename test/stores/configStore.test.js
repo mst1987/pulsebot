@@ -231,3 +231,19 @@ describe("stores/configStore dropCategoryEntries (#744)", () => {
         expect(configStore.getConfig().categoryIds).toEqual(["700000000000000001"]);
     });
 });
+
+describe("stores/configStore discordVisuals (drawn pictures, a test)", () => {
+    it("has every picture on by default and keeps only booleans of the known switches", () => {
+        expect(configStore.getConfig().discordVisuals).toEqual({ overviewWeekStrip: true, setupImage: true, eventCover: true });
+        writeFile({ discordVisuals: { overviewWeekStrip: false, setupImage: "no", other: false } });
+        expect(configStore.getConfig().discordVisuals).toEqual({ overviewWeekStrip: false, setupImage: true, eventCover: true });
+    });
+
+    it("merges a saved switch over the stored ones", () => {
+        writeFile({ discordVisuals: { overviewWeekStrip: false } });
+        const saved = configStore.saveConfig({ discordVisuals: { setupImage: false } });
+        expect(saved.discordVisuals).toEqual({ overviewWeekStrip: false, setupImage: false, eventCover: true });
+        expect(configStore.saveConfig({ discordVisuals: { overviewWeekStrip: true } }).discordVisuals)
+            .toEqual({ overviewWeekStrip: true, setupImage: false, eventCover: true });
+    });
+});

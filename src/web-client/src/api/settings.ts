@@ -26,6 +26,9 @@ export type BlizzardConfig = {
     clientSecret?: string;
 };
 
+/** The switches of the drawn pictures in bot messages (Einstellungen → Raid-Standardwerte). */
+export type DiscordVisuals = { overviewWeekStrip: boolean; setupImage: boolean; eventCover: boolean };
+
 export type AdminConfig = {
     adminRoleIds: string[];
     // Per-role area rights; only sent to (and savable by) full admins.
@@ -71,6 +74,8 @@ export type AdminConfig = {
     hideOtherVersions?: boolean;
     /** Language of the bot's public messages and default for every raider; missing = "de". */
     botLanguage?: "de" | "en";
+    /** The drawn pictures in bot messages (a test); missing switch = on. */
+    discordVisuals?: Partial<DiscordVisuals>;
     /**
      * Settings per game version (#542): armory realm, armory/WCL templates,
      * Wowhead path, softres edition, default raidsheet. Every known version is

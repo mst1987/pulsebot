@@ -406,6 +406,15 @@ describe("web/apiRoutes/settings", () => {
                 rosterStore.deleteRoster(roster.id);
             });
 
+            it("forwards the picture switches as booleans, known keys only", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                await patch("/api/settings", { discordVisuals: { overviewWeekStrip: false, setupImage: "yes", eventCover: true, other: false } });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ discordVisuals: { overviewWeekStrip: false, eventCover: true } });
+                await patch("/api/settings", { discordVisuals: null, officerRoleId: "x" });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ officerRoleId: "x" });
+            });
+
             it("forwards the main version and the category map (#541)", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);

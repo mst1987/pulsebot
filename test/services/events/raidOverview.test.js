@@ -5,6 +5,7 @@ const mockEventListeners = new Set();
 const mockSignupListeners = new Set();
 let mockGroups = [];
 let mockGroupsError = null;
+let mockVisuals = { overviewWeekStrip: false };
 
 jest.mock("../../../src/services/discord/discord", () => ({
     postPayload: jest.fn(),
@@ -19,7 +20,7 @@ jest.mock("../../../src/services/events/raidEventGroups", () => ({
 jest.mock("../../../src/services/signups/availabilityPanel", () => ({ categoryNameFor: jest.fn(() => "Fallback Name") }));
 jest.mock("../../../src/services/talk/talkOverview", () => ({ attendingCount: (e) => (e.signUps || []).length }));
 jest.mock("../../../src/stores/settingsStore", () => ({
-    getConfig: () => ({ discordServers: { eventGuilds: [{ guildId: "g1" }, { guildId: "g2" }] }, categoryLanguage: { cat1: "en" } }),
+    getConfig: () => ({ discordServers: { eventGuilds: [{ guildId: "g1" }, { guildId: "g2" }] }, categoryLanguage: { cat1: "en" }, discordVisuals: mockVisuals }),
 }));
 jest.mock("../../../src/stores/eventStore", () => ({
     onEventsChanged: (fn) => {
@@ -37,6 +38,11 @@ jest.mock("../../../src/services/events/mainVersion", () => ({
     versionOfEvent: (e) => e.versionId || "tbc",
     visibleRows: (rows, versionOf) => rows.filter((r) => versionOf(r) !== "hidden"),
 }));
+// the real resvg, wrapped so a test can count renders or make one fail
+jest.mock("@resvg/resvg-js", () => {
+    const actual = jest.requireActual("@resvg/resvg-js");
+    return { Resvg: jest.fn((svg, opts) => new actual.Resvg(svg, opts)) };
+});
 jest.mock("../../../src/logger", () => {
     const log = { warn: jest.fn(), debug: jest.fn(), info: jest.fn(), error: jest.fn() };
     return { ...log, child: () => log };
@@ -65,6 +71,7 @@ beforeEach(() => {
     store.useFile(tempStoreFile("raid-overviews.json"));
     mockGroups = [{ categoryId: "cat1", categoryName: "🔥 PUG Raids", events: [raid("a"), raid("b", { startTime: NOW_SEC + 9 * DAY })] }];
     mockGroupsError = null;
+    mockVisuals = { overviewWeekStrip: false };
     discord.isOnline.mockReturnValue(true);
 });
 
@@ -359,6 +366,71 @@ describe("services/events/raidOverview", () => {
             stop();
             expect(mockEventListeners.size).toBe(0);
             expect(mockSignupListeners.size).toBe(0);
+        });
+    });
+
+    describe("the week strip as a picture (a test)", () => {
+        const { Resvg } = require("@resvg/resvg-js");
+        const { clearImageCache } = require("../../../src/services/discord/discordImage");
+        const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+
+        beforeEach(() => {
+            mockVisuals = { overviewWeekStrip: true };
+            clearImageCache();
+        });
+
+        it("posts the picture as the message's file, referenced by its media gallery", async () => {
+            discord.postPayload.mockResolvedValue(posted());
+            await overview.postOverview({ guildId: "g1", channelId: "c1", categoryId: "cat1", now: NOW });
+            const payload = discord.postPayload.mock.calls[0][1];
+            expect(payload.images).toBeUndefined();
+            expect(payload.attachments).toEqual([]);
+            expect(payload.files.map((f) => f.name)).toEqual(["raid-id-1.png", "raid-id-2.png"]);
+            expect(payload.files[0].attachment.subarray(0, 4).equals(PNG)).toBe(true);
+            expect(JSON.stringify(payload.components)).toContain("attachment://raid-id-1.png");
+        });
+
+        it("replaces the old file on an edit, renders only when the content changed, drops the picture when switched off", async () => {
+            tracked();
+            discord.editPayload.mockResolvedValue({});
+            Resvg.mockClear();
+            expect(await overview.refreshOverviews({ now: NOW })).toMatchObject({ edited: 1 });
+            const first = discord.editPayload.mock.calls[0][2];
+            expect(first.attachments).toEqual([]);
+            expect(first.files).toHaveLength(2);
+            expect(Resvg).toHaveBeenCalledTimes(2);
+            // nothing changed: no edit, no render
+            expect(await overview.refreshOverviews({ now: NOW })).toMatchObject({ edited: 0, unchanged: 1 });
+            expect(Resvg).toHaveBeenCalledTimes(2);
+            // a full redraw of the same content takes the PNGs from the cache
+            await overview.refreshOverviews({ now: NOW, onlyStale: false });
+            expect(Resvg).toHaveBeenCalledTimes(2);
+            expect(discord.editPayload.mock.calls[1][2].files[0].attachment).toBe(first.files[0].attachment);
+            // switched off: the next sweep redraws the text form and removes the files
+            mockVisuals = { overviewWeekStrip: false };
+            expect(await overview.refreshOverviews({ now: NOW })).toMatchObject({ edited: 1 });
+            const off = discord.editPayload.mock.calls[2][2];
+            expect(off.files).toEqual([]);
+            expect(off.attachments).toEqual([]);
+            expect(JSON.stringify(off.components)).not.toContain("attachment://");
+        });
+
+        it("falls back to the text form when the picture cannot be rendered, and says so once", async () => {
+            tracked();
+            discord.editPayload.mockResolvedValue({});
+            Resvg.mockImplementation(() => {
+                throw new Error("no resvg binary");
+            });
+            try {
+                await overview.refreshOverviews({ now: NOW, onlyStale: false });
+                await overview.refreshOverviews({ now: NOW, onlyStale: false });
+            } finally {
+                Resvg.mockImplementation((svg, opts) => new (jest.requireActual("@resvg/resvg-js").Resvg)(svg, opts));
+            }
+            const payload = discord.editPayload.mock.calls[0][2];
+            expect(payload.files).toEqual([]);
+            expect(cardText(payload)).toContain("This ID");
+            expect(logger.warn.mock.calls.filter(([m]) => /picture not rendered/.test(m))).toHaveLength(1);
         });
     });
 });

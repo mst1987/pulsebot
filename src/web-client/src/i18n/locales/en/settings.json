@@ -222,7 +222,10 @@
         "versionSettings": "Links and armory · {value}",
         "versionFeatures": "Features per version · {value}",
         "planning": "{name} · planning → {value}",
-        "botLanguage": "Bot language: {value}"
+        "botLanguage": "Bot language: {value}",
+        "discordVisuals": "Pictures in bot messages · {name} {state}",
+        "on": "on",
+        "off": "off"
     },
     "lootTool": {
         "none": "none"
@@ -1373,5 +1376,15 @@
         "keep": "What stays: raids, loot, logs and the category's version and name – everything stays readable under its version.",
         "confirm": "Close",
         "done": "{name} closed"
+    },
+    "discordVisuals": {
+        "label": "Pictures in bot messages",
+        "text": "Test: the bot draws parts of its messages as a picture. Off = the text form as before, from the message's next update.",
+        "overviewWeekStrip": "Raid overview with week strip",
+        "overviewWeekStripTip": "Test: each ID's week as a picture above its raids in the raid overview (/createoverview).",
+        "setupImage": "Setup as a graphic",
+        "setupImageTip": "Test: the groups of the posted setup as a picture instead of a list; confirm marks in the picture, the buttons stay.",
+        "eventCover": "Cover of the Discord event",
+        "eventCoverTip": "Test: a raid's Discord server event gets the raid's picture as its cover (the event's own picture, else the zone art)."
     }
 }

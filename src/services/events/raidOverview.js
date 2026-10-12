@@ -15,6 +15,12 @@
 // central cached sync, never a request of its own. A message deleted in Discord
 // ("Unknown Message") is forgotten, not posted again: the orga placed it by hand.
 //
+// With `config.discordVisuals.overviewWeekStrip` (on unless switched off) each ID
+// opens with its week drawn as a picture (raidWeekStrip.js): the PNG is rendered
+// only when the content hash changed (it covers the SVG) and goes with the edit as
+// the message's file, replacing the old one (discordImage.withImages). A picture
+// that cannot be rendered leaves the message in its text form.
+//
 // Overviews posted before the bot remembered them (the old `/createoverview`
 // text with its buttons, or the card `update-events` made of it) are found once
 // per event server (adoptExisting): the recent messages of every text channel
@@ -34,6 +40,7 @@ const { visibleRows, versionOfEvent } = require("./mainVersion");
 const { attendingCount } = require("../talk/talkOverview");
 const { raidOverviewPayload, payloadHash } = require("./raidOverviewPanel");
 const { categoryNameFor } = require("../signups/availabilityPanel");
+const { visualOn, withImages } = require("../discord/discordImage");
 const logger = require("../../logger").child("raidOverview");
 
 const FIRST_DELAY_MS = 60 * 1000;
@@ -77,16 +84,36 @@ async function currentContent(categoryId, guildId, { config, now = Date.now(), c
     const group = (groups || []).find((g) => str(g.categoryId) === cat);
     const events = visibleRows((group && group.events) || [], (e) => versionOfEvent(e, { config: cfg }), cfg);
     const lang = categoryLang(cat, cfg);
-    const build = (lastChange) => raidOverviewPayload({
+    const weekStrip = visualOn(cfg, "overviewWeekStrip");
+    const build = (lastChange, { pictures = weekStrip } = {}) => raidOverviewPayload({
         categoryName: (group && group.categoryName) || categoryNameFor(cat, { config: cfg }) || "",
         events,
         now,
         lang,
         attending: attendingCount,
         lastChange,
+        weekStrip: pictures,
     });
     const payload = build(0);
     return { payload, hash: payloadHash(payload, lang), lang, build };
+}
+
+// Overviews whose picture could not be rendered and were said so once.
+const renderWarned = new Set();
+
+/**
+ * The payload of an overview for discord.js: its pictures rendered into files (cached per
+ * message), or - when that fails - the text form without pictures.
+ */
+function renderedPayload(content, lastChange, key) {
+    const payload = content.build(lastChange);
+    try {
+        return withImages(payload, { key });
+    } catch (e) {
+        if (!renderWarned.has(key)) logger.warn(`${key}: picture not rendered, text only: ${(e && e.message) || e}`);
+        renderWarned.add(key);
+        return withImages(content.build(lastChange, { pictures: false }));
+    }
 }
 
 /**
@@ -103,11 +130,10 @@ async function postOverview({ guildId, channelId, categoryId, config, now = Date
     const content = await currentContent(cat, gid, { config, now });
     if (content.error) return { error: content.error };
     const lastChange = Math.floor(now / 1000);
-    const payload = content.build(lastChange);
     const earlier = store.findInChannel(channel, cat);
     if (earlier) {
         try {
-            const edited = await discord.editPayload(channel, earlier.messageId, payload);
+            const edited = await discord.editPayload(channel, earlier.messageId, renderedPayload(content, lastChange, `overview:${earlier.messageId}`));
             const overview = store.setOverview({ ...earlier, guildId: gid || earlier.guildId, hash: content.hash, lastChange });
             return { overview, url: edited.url, edited: true };
         } catch (e) {
@@ -117,7 +143,7 @@ async function postOverview({ guildId, channelId, categoryId, config, now = Date
     }
     let posted;
     try {
-        posted = await discord.postPayload(channel, payload);
+        posted = await discord.postPayload(channel, renderedPayload(content, lastChange, `overview:${channel}:${cat}`));
     } catch (e) {
         return { error: (e && e.message) || String(e) };
     }
@@ -162,7 +188,7 @@ async function refreshOverviews({ config, onlyStale = true, messageId = "", now 
                 continue;
             }
             const lastChange = Math.floor(now / 1000);
-            await discord.editPayload(overview.channelId, overview.messageId, content.build(lastChange));
+            await discord.editPayload(overview.channelId, overview.messageId, renderedPayload(content, lastChange, `overview:${overview.messageId}`));
             store.markDrawn(overview.messageId, content.hash, lastChange);
             out.edited += 1;
             warned.delete(overview.messageId);

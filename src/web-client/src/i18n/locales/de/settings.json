@@ -222,7 +222,10 @@
         "versionSettings": "Links und Armory · {value}",
         "versionFeatures": "Funktionen je Version · {value}",
         "planning": "{name} · Planung → {value}",
-        "botLanguage": "Bot-Sprache: {value}"
+        "botLanguage": "Bot-Sprache: {value}",
+        "discordVisuals": "Bilder in Bot-Nachrichten · {name} {state}",
+        "on": "an",
+        "off": "aus"
     },
     "lootTool": {
         "none": "keins"
@@ -1373,5 +1376,15 @@
         "keep": "Es bleiben: Raids, Loot, Logs sowie Version und Name der Kategorie – alles bleibt unter seiner Version lesbar.",
         "confirm": "Abschließen",
         "done": "{name} abgeschlossen"
+    },
+    "discordVisuals": {
+        "label": "Bilder in Bot-Nachrichten",
+        "text": "Test: der Bot zeichnet Teile seiner Nachrichten als Bild. Aus = die bisherige Textform, ab der nächsten Aktualisierung der Nachricht.",
+        "overviewWeekStrip": "Raid-Übersicht mit Wochenleiste",
+        "overviewWeekStripTip": "Test: die Woche jeder ID als Bild über ihren Raids in der Raid-Übersicht (/createoverview).",
+        "setupImage": "Setup als Grafik",
+        "setupImageTip": "Test: die Gruppen des geposteten Setups als Bild statt als Liste; Bestätigen-Haken im Bild, Knöpfe bleiben.",
+        "eventCover": "Titelbild des Discord-Events",
+        "eventCoverTip": "Test: das Discord-Server-Event eines Raids bekommt das Bild des Raids als Titelbild (eigenes Event-Bild, sonst die Zonengrafik)."
     }
 }

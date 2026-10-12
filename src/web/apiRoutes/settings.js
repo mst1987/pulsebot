@@ -5,7 +5,7 @@ const { activeGuildFor } = require("../http/activeGuild");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates, getRaidTemplate,
 } = require("../../stores/settingsStore");
-const { normalizeCategoryLanguagePatch, attendanceSettings, normalizeCategoryVersion } = require("../../stores/configSchema");
+const { normalizeCategoryLanguagePatch, attendanceSettings, normalizeCategoryVersion, DISCORD_VISUALS_DEFAULT } = require("../../stores/configSchema");
 const { switchPreview, versionSwitches, applySeriesFix, notifyCategoryVersionSwitch } = require("../../services/events/categorySwitch");
 const categoryLifecycle = require("../../services/events/categoryLifecycle");
 const {
@@ -532,6 +532,12 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     }
     if (body.hideOtherVersions !== undefined) partial.hideOtherVersions = body.hideOtherVersions === true;
     if (body.botLanguage !== undefined) partial.botLanguage = String(body.botLanguage || "").trim();
+    // The drawn pictures in bot messages (a test): only the known switches, as booleans, merged by the store.
+    if (body.discordVisuals !== undefined && body.discordVisuals && typeof body.discordVisuals === "object") {
+        partial.discordVisuals = Object.fromEntries(Object.keys(DISCORD_VISUALS_DEFAULT)
+            .filter((key) => typeof body.discordVisuals[key] === "boolean")
+            .map((key) => [key, body.discordVisuals[key]]));
+    }
     // Per version (#542): only the versions and fields sent, merged by the store.
     if (body.versionSettings !== undefined) {
         const patch = versionSettingsPatch(body.versionSettings);

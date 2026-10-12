@@ -97,6 +97,15 @@ export function permissionChanges(before: GrantMap, after: GrantMap, ownerName: 
 
 // ---- the save bar: what differs between the saved config and the draft ----
 
+/** The drawn pictures in bot messages, in the order the settings show them. */
+export const DISCORD_VISUAL_KEYS = ["overviewWeekStrip", "setupImage", "eventCover"] as const;
+export type DiscordVisualKey = (typeof DISCORD_VISUAL_KEYS)[number];
+
+/** Every switch as a boolean: missing = on (the server's default). */
+export function discordVisualsOf(raw: Partial<Record<DiscordVisualKey, boolean>> | undefined): Record<DiscordVisualKey, boolean> {
+    return Object.fromEntries(DISCORD_VISUAL_KEYS.map((key) => [key, (raw || {})[key] !== false])) as Record<DiscordVisualKey, boolean>;
+}
+
 export type DraftShape = {
     adminRoleIds: string[];
     rolePermissions: GrantMap;
@@ -141,6 +150,8 @@ export type DraftShape = {
     /** "Andere Versionen ausblenden" (#563): only the main version everywhere. */
     hideOtherVersions?: boolean;
     botLanguage?: "de" | "en";
+    /** The drawn pictures in bot messages (a test); missing switch = on. */
+    discordVisuals?: Partial<Record<DiscordVisualKey, boolean>>;
     /** Settings per version (#542): version id → { field → value }. */
     versionSettings?: Record<string, Record<string, string>>;
     /** The features switched off per version (#761). */
@@ -385,6 +396,14 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
     }
     if (!!saved.hideOtherVersions !== !!draft.hideOtherVersions) {
         out.push(t(draft.hideOtherVersions ? "settings.changes.hideOtherOn" : "settings.changes.hideOtherOff"));
+    }
+    // The drawn pictures in bot messages (a test): one line per switch that changed.
+    for (const key of DISCORD_VISUAL_KEYS) {
+        const was = (saved.discordVisuals || {})[key] !== false;
+        const is = (draft.discordVisuals || {})[key] !== false;
+        if (was !== is) {
+            out.push(t("settings.changes.discordVisuals", { name: t(`settings.discordVisuals.${key}`), state: t(is ? "settings.changes.on" : "settings.changes.off") }));
+        }
     }
     if ((saved.botLanguage || "de") !== (draft.botLanguage || "de")) {
         out.push(t("settings.changes.botLanguage", { value: t(draft.botLanguage === "en" ? "settings.botLanguage.en" : "settings.botLanguage.de") }));

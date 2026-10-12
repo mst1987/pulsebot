@@ -2,7 +2,7 @@ import type { AdminConfig, RolePermissions, Access, TopItem, EventSource, Planni
 import { type CategorySheet } from "./CategoryMatrix";
 import { blockOf, type VersionSettingsBlock } from "../../lib/settings/versionLinks";
 import { disabledFromConfig } from "../../lib/settings/versionFeatures";
-import type { CategoryAttendance } from "../../lib/settings/settingsLogic";
+import { discordVisualsOf, type CategoryAttendance, type DiscordVisualKey } from "../../lib/settings/settingsLogic";
 import type { SwitchFix } from "../../lib/settings/categoryVersions";
 
 export const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
@@ -58,6 +58,8 @@ export type Draft = {
     hideOtherVersions: boolean;
     /** Language of the bot's public messages (default for every raider). */
     botLanguage: "de" | "en";
+    /** The drawn pictures in bot messages (a test), every switch as a boolean. */
+    discordVisuals: Record<DiscordVisualKey, boolean>;
     /** Settings per game version (#542), every version the server sent. */
     versionSettings: Record<string, VersionSettingsBlock>;
     /** The features switched off per version (#761, "Funktionen je Version"), sent inside versionSettings. */
@@ -105,6 +107,7 @@ export function toDraft(config: AdminConfig): Draft {
         categorySwitchFixes: {},
         hideOtherVersions: config.hideOtherVersions === true,
         botLanguage: config.botLanguage === "en" ? "en" : "de",
+        discordVisuals: discordVisualsOf(config.discordVisuals),
         versionSettings: Object.fromEntries(Object.entries(config.versionSettings || {}).map(([id, block]) => [id, blockOf(block)])),
         versionDisabled: disabledFromConfig(config.versionSettings),
         topItems: config.topItems || [],

@@ -21,6 +21,11 @@ jest.mock("../../../src/stores/eventStore", () => ({
         return JSON.parse(JSON.stringify(e));
     }),
 }));
+// the real resvg, wrapped so a test can make a render fail
+jest.mock("@resvg/resvg-js", () => {
+    const actual = jest.requireActual("@resvg/resvg-js");
+    return { Resvg: jest.fn((svg, opts) => new actual.Resvg(svg, opts)) };
+});
 let mockConfig = {};
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), sendDirectMessage: jest.fn(), postMissingPing: jest.fn(async () => ({ url: "https://discord.example/ping" })), editPingMessages: jest.fn(async (c, ids) => ({ messageIds: ids })) }));
@@ -97,7 +102,7 @@ function fakeChannel({ fetchError } = {}) {
 
 beforeEach(() => {
     mockEvents.clear();
-    mockConfig = {};
+    mockConfig = { discordVisuals: { setupImage: false } };
     jest.clearAllMocks();
     appEmojis.resetAppEmojis();
     sm._resetForTests();
@@ -659,5 +664,87 @@ describe("eventStore.setEventSetupPost", () => {
         fakeChannel();
         await sm.postOrEditSetupMessage("eh-1");
         expect(eventStore.setEventSetupPost).toHaveBeenCalledWith("eh-1", expect.objectContaining({ messageId: "m-new" }));
+    });
+});
+
+describe("the setup as a picture (design F, a test)", () => {
+    const { Resvg } = require("@resvg/resvg-js");
+    const { clearImageCache } = require("../../../src/services/discord/discordImage");
+    const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+
+    beforeEach(() => {
+        mockConfig = { discordVisuals: { setupImage: true } };
+        clearImageCache();
+    });
+
+    it("draws the groups into the embed image instead of fields; header, comp link, footer and buttons stay", () => {
+        const payload = sm.buildSetupMessage(seed(), approved(), { emojis, confirmations: { 1: "confirmed" }, image: true });
+        const [embed] = payload.embeds;
+        expect(embed.image).toEqual({ url: "attachment://setup.png" });
+        expect(embed.fields.map((f) => f.value)).toEqual(["[View the comp](https://eh.example/e/eh-1/comp)"]);
+        expect(embed.description).toContain("<t:");
+        expect(embed.footer.text).toBe("Approved setup · version 2");
+        expect(embed.timestamp).toBe(new Date(1700000000000).toISOString());
+        expect(payload.components).toEqual(sm.buildSetupMessage(seed(), approved(), { emojis }).components);
+        expect(payload.images).toHaveLength(1);
+        expect(payload.images[0].name).toBe(sm.SETUP_IMAGE);
+        expect(payload.images[0].svg).toContain(">Brokk<");
+        expect(payload.images[0].svg).toContain(">GROUP 1<");
+        expect(JSON.stringify(embed)).not.toContain("Brokk");
+    });
+
+    it("keeps the fields without the switch, for a cancelled event and for a lineup without people", () => {
+        expect(sm.buildSetupMessage(seed(), approved(), { emojis }).images).toBeUndefined();
+        expect(sm.buildSetupMessage(seed({ status: "cancelled" }), approved(), { image: true }).images).toBeUndefined();
+        const empty = { ...approved(), groups: [{ index: 1, slots: [] }] };
+        expect(sm.buildSetupMessage(seed(), empty, { image: true }).images).toBeUndefined();
+    });
+
+    it("draws the bench only when it is posted", () => {
+        expect(sm.buildSetupMessage(seed(), approved(), { image: true }).images[0].svg).not.toContain("Thalia");
+        expect(sm.buildSetupMessage(seed(), approved(), { image: true, bench: true }).images[0].svg).toContain(">Thalia<");
+    });
+
+    it("posts the picture as the message's file and replaces it on an edit", async () => {
+        seed();
+        const { channel, message } = fakeChannel();
+        await sm.postOrEditSetupMessage("eh-1", { now: 5 });
+        const sent = channel.send.mock.calls[0][0];
+        expect(sent.images).toBeUndefined();
+        expect(sent.attachments).toEqual([]);
+        expect(sent.files).toHaveLength(1);
+        expect(sent.files[0].name).toBe("setup.png");
+        expect(sent.files[0].attachment.subarray(0, 4).equals(PNG)).toBe(true);
+        expect(sent.embeds[0].image.url).toBe("attachment://setup.png");
+        expect(await sm.postOrEditSetupMessage("eh-1", { now: 6 })).toEqual({ action: "edited" });
+        const edited = message.edit.mock.calls[0][0];
+        expect(edited.attachments).toEqual([]);
+        expect(edited.files.map((f) => f.name)).toEqual(["setup.png"]);
+        // the same lineup again: the PNG comes from the cache
+        expect(edited.files[0].attachment).toBe(sent.files[0].attachment);
+    });
+
+    it("switched off, the next edit brings the fields back and drops the picture", async () => {
+        seed({ setupPost: { channelId: "c1", messageId: "m1", version: 1 } });
+        const { message } = fakeChannel();
+        mockConfig = { discordVisuals: { setupImage: false } };
+        await sm.postOrEditSetupMessage("eh-1");
+        const edited = message.edit.mock.calls[0][0];
+        expect(edited.files).toEqual([]);
+        expect(edited.attachments).toEqual([]);
+        expect(edited.embeds[0].image).toBeUndefined();
+        expect(edited.embeds[0].fields[0].name).toBe("Group 1");
+    });
+
+    it("posts the fields when the picture cannot be rendered", async () => {
+        seed();
+        const { channel } = fakeChannel();
+        Resvg.mockImplementationOnce(() => {
+            throw new Error("no resvg binary");
+        });
+        expect(await sm.postOrEditSetupMessage("eh-1")).toEqual({ action: "posted" });
+        const sent = channel.send.mock.calls[0][0];
+        expect(sent.files).toEqual([]);
+        expect(sent.embeds[0].fields[0].name).toBe("Group 1");
     });
 });

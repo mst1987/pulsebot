@@ -11,6 +11,8 @@ module.exports = {
     "The setup is off.": "Das Setup fällt aus.",
     "View the comp": "Comp ansehen",
     "Group {index}": "Gruppe {index}",
+    // the drawn setup (setupImage.js)
+    "Bench": "Bank",
     "Approved setup · version {version}": "Freigegebenes Setup · Version {version}",
     // the DMs (one card each)
     "Setup for {title}": "Setup für {title}",

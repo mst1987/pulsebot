@@ -18,6 +18,9 @@ const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { versionSettingsOf, normalizeVersionSettings, versionsWithDefaults } = require("./versionSettingsSchema");
 const { normalizeBackupSettings } = require("../services/backup/backupConfig");
 
+/** The pictures of `config.discordVisuals`, each on by default. */
+const DISCORD_VISUALS_DEFAULT = Object.freeze({ overviewWeekStrip: true, setupImage: true, eventCover: true });
+
 // General bot config editable from the admin menu (kept out of .env on purpose).
 // Defaults come from config/variables (env / historical hard-codes); values saved
 // from the admin menu override them and take effect without a bot restart.
@@ -199,6 +202,12 @@ const CONFIG_DEFAULTS = {
     // overview, panels, announcements) and the fallback for every raider who
     // chose none (userPrefsStore): "de" | "en". Einstellungen -> Discord-Server.
     botLanguage: "de",
+    // Drawn pictures in bot messages (a test, Oct 2026; Einstellungen -> Raid-Standardwerte
+    // -> "Bilder in Bot-Nachrichten"): the raid overview's week strip
+    // (services/events/raidWeekStrip.js), the setup as a graphic (services/setup/setupImage.js)
+    // and the raid's picture as the cover of the Discord server event (discordEventCover.js).
+    // On unless switched off; off, the message is drawn as before at its next redraw.
+    discordVisuals: { ...DISCORD_VISUALS_DEFAULT },
     // The items the guild considers a "big" drop: [{ id, name, iconUrl, quality }],
     // picked from the Wowhead search in Einstellungen → Loot. Imported loot is
     // matched against these ids for the dashboard's "Latest Loot" card
@@ -266,7 +275,12 @@ function normalizeCategoryRaidTemplate(raw) {
     return out;
 }
 
-/** A version id a rule set knows, else the default (#541). */
+/** `{ overviewWeekStrip, setupImage, eventCover }` as booleans: a picture is on unless stored as false; unknown keys are dropped. */
+function normalizeDiscordVisuals(raw) {
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    return Object.fromEntries(Object.keys(DISCORD_VISUALS_DEFAULT).map((key) => [key, src[key] !== false]));
+}
+
 /** "de" | "en"; anything else is the default, German. */
 function normalizeBotLanguage(raw) {
     const lang = String(raw || "").trim().toLowerCase();
@@ -764,6 +778,7 @@ function normalizeConfig(raw) {
         hideOtherVersions: stored.hideOtherVersions === true,
         versionLaunch: normalizeVersionLaunch(stored.versionLaunch),
         botLanguage: normalizeBotLanguage(stored.botLanguage),
+        discordVisuals: normalizeDiscordVisuals(stored.discordVisuals),
         topItems: normalizeTopItems(stored.topItems),
         roleSync: normalizeRoleSync(stored.roleSync),
         categoryReminders: normalizeCategoryReminders(stored.categoryReminders),
@@ -780,4 +795,5 @@ module.exports = {
     normalizeCategorySignupNotes, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,
     normalizeRaidhelperRetirement, normalizeVersionLaunch, VERSION_LAUNCH_MANUAL, normalizeCategorySheets, normalizeCategoryPlanning, normalizeCategoryRoles,
     normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings, normalizeBotLanguage,
+    normalizeDiscordVisuals, DISCORD_VISUALS_DEFAULT,
 };
