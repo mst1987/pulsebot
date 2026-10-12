@@ -39,6 +39,7 @@ const { eventGuildId } = require("../discord/guildRoles");
 const { createEvent } = require("./eventCreate");
 const { templateVersionProblem } = require("./categoryEras");
 const icon = require("./eventIcon");
+const { firstEmojiOf } = require("../../utils/leadEmoji");
 const archiveStore = require("../../stores/channelArchiveStore");
 const { MIN_DURATION, MAX_DURATION } = require("../../stores/eventStore");
 const { instanceById } = require("../../config/gameVersions");
@@ -346,10 +347,16 @@ async function stepMessage(guildId, rawState) {
     if (icons && state.mode === "n") {
         components.push(row({
             type: 3, custom_id: stepId("i", state), placeholder: "Kanal-Icon",
-            options: icons.options.map((o) => ({
-                label: clip(o.label, 100), value: o.code || "w", default: o.code === iconChoice.code,
-                ...(o.emoji ? { emoji: { name: o.emoji } } : {}),
-            })),
+            options: icons.options.map((o) => {
+                // One emoji per option or Discord refuses the message: a lead of several
+                // ("🏔️👑") shows its first as the icon and the whole lead as the description.
+                const first = firstEmojiOf(o.emoji);
+                return {
+                    label: clip(o.label, 100), value: o.code || "w", default: o.code === iconChoice.code,
+                    ...(first ? { emoji: { name: first } } : {}),
+                    ...(first && first !== o.emoji ? { description: clip(o.emoji, 100) } : {}),
+                };
+            }),
         }));
     }
     if (state.mode === "d" && candidates.length) {
