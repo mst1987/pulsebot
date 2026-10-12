@@ -24,6 +24,7 @@ const { LEGACY_VERSION, VERSIONS } = require("../../config/gameVersions");
 const { knownVersion, versionOfEvent, mainVersionFor } = require("../events/mainVersion");
 const { versionLinks, versionLabel } = require("../events/versionSettings");
 const { versionOfLog } = require("../events/storedVersion");
+const { contentsForText, versionsOfContent } = require("../../config/raidContent");
 
 const capabilities = require("../events/versionCapabilities");
 
@@ -137,21 +138,94 @@ function reportLink({ host, reportId, versionId } = {}, { config } = {}) {
 
 /**
  * Why a log may not be linked to a raid: "" when it may, else the German
- * reason — the log's host names another version than the raid plays. A log of
- * unknown version may go to any raid.
+ * reason — the log's host names another version than the raid plays, or its
+ * raids exist only in other versions (an SSC log is TBC's). A log of unknown
+ * version may go to any raid.
  */
 function linkConflict(log, event, { config } = {}) {
-    const logVersion = knownLogVersion(log, { config });
     const eventVersion = knownVersion(event && event.versionId);
-    if (!logVersion || !eventVersion || logVersion === eventVersion) return "";
-    return `Dieses Log ist von ${versionLabel(logVersion)}, der Raid von ${versionLabel(eventVersion)}. Ein Log gehört nur zu einem Raid seiner Version.`;
+    if (!eventVersion) return "";
+    const host = knownLogVersion(log, { config });
+    const logVersions = host ? [host] : contentVersions(log);
+    if (!logVersions.length || logVersions.includes(eventVersion)) return "";
+    return `Dieses Log ist von ${logVersions.map(versionLabel).join(" oder ")}, der Raid von ${versionLabel(eventVersion)}. Ein Log gehört nur zu einem Raid seiner Version.`;
+}
+
+/**
+ * The version a log's channel category is pinned to (config.categoryVersion),
+ * "" when it is not — unlike categoryVersion no fallback to the main version,
+ * which says nothing about the log. The config store is required late (as in
+ * mainVersion.js), one that cannot be read counts as "nothing pinned".
+ */
+function pinnedCategoryVersion(log, { config } = {}) {
+    const cat = str(log && log.categoryId);
+    if (!cat) return "";
+    let cfg = config;
+    if (!cfg) {
+        try {
+            cfg = require("../../stores/configStore").getConfig() || {};
+        } catch {
+            cfg = {};
+        }
+    }
+    const map = cfg.categoryVersion && typeof cfg.categoryVersion === "object" ? cfg.categoryVersion : {};
+    return knownVersion(map[cat]);
+}
+
+/**
+ * The raids a log covers: the ones read from Warcraft Logs (`raids`), else the
+ * ones its title names in any version ("SSC + TK" → ssc, tk).
+ */
+function contentIdsOf(record) {
+    const r = record || {};
+    const read = (Array.isArray(r.raids) ? r.raids : []).map((x) => str(x && x.contentId)).filter(Boolean);
+    if (read.length) return read;
+    const title = str(r.title);
+    if (!title) return [];
+    return [...new Set(VERSIONS.flatMap((v) => contentsForText(title, { versionId: v.id })))];
+}
+
+/**
+ * The versions all raids of a log can be from: SSC and TK only TBC, Hyjal TBC
+ * and Forever (raidContent.versionsOfContent). [] when no raid is known or the
+ * raids share no version.
+ */
+function contentVersions(record) {
+    let common = null;
+    for (const id of contentIdsOf(record)) {
+        const versions = versionsOfContent(id);
+        if (versions.length) common = common ? common.filter((v) => versions.includes(v)) : versions;
+    }
+    return common || [];
+}
+
+/**
+ * The versions a log without a raid is listed in, [] for every version:
+ *   1. the version its link's host names (knownLogVersion);
+ *   2. the version of its raids when only one version has them (SSC, TK, Gruul: TBC);
+ *   3. its channel category's pinned version, when its raids allow that version;
+ *   4. the versions its raids allow (Hyjal: TBC and Forever);
+ *   5. nothing known: every version — it waits for its raid there.
+ * @param {object} record  a stored log, or a log row of the list (raids, title, categoryId, host)
+ * @param {{ config?: object }} [opts]
+ * @returns {string[]}
+ */
+function listedVersions(record, { config } = {}) {
+    const host = knownLogVersion(record, { config });
+    if (host) return [host];
+    const byContent = contentVersions(record);
+    if (byContent.length === 1) return byContent;
+    const cat = pinnedCategoryVersion(record, { config });
+    if (cat && (!byContent.length || byContent.includes(cat))) return [cat];
+    return byContent;
 }
 
 /**
  * Whether a log or a report belongs in one version's list (#741, the web shows
  * one version at a time):
- *   - a log without a raid: in every version, as "nicht zugeordnet" — it waits
- *     for its raid, and whoever looks at either version may link it;
+ *   - a log without a raid: in the versions it can be from (listedVersions — a
+ *     log of SSC is no Forever log), in every version when nothing tells; it
+ *     waits for its raid there as "nicht zugeordnet";
  *   - a log with a raid: only in the version of that raid (its stored version,
  *     storedVersion.versionOfLog; the version stamped at linking when the raid
  *     is no longer stored);
@@ -160,12 +234,16 @@ function linkConflict(log, event, { config } = {}) {
  * @param {{ kind?: string, eventId?: string, versionId?: string }} record  a stored log, or a row
  *   of the log list (reportList.js: kind "log" or "report")
  * @param {string} versionId
+ * @param {{ config?: object }} [opts]
  */
-function inVersionList(record, versionId) {
+function inVersionList(record, versionId, { config } = {}) {
     if (!versionId) return true;
     const r = record || {};
     const eventId = str(r.eventId);
-    if (!eventId && r.kind !== "report") return true;
+    if (!eventId && r.kind !== "report") {
+        const listed = listedVersions(r, { config });
+        return !listed.length || listed.includes(versionId);
+    }
     return ((eventId && versionOfLog(r)) || recordVersion(r)) === versionId;
 }
 
@@ -181,5 +259,5 @@ function unsupportedMessage(versionId, opts) {
 
 module.exports = {
     versionOfHost, linkVersion, resolveReportVersion, recordVersion, knownLogVersion, categoryVersion,
-    logcheckCapability, logcheckSupported, wclApiSite, wclClientFor, reportLink, linkConflict, unsupportedMessage, inVersionList,
+    logcheckCapability, logcheckSupported, wclApiSite, wclClientFor, reportLink, linkConflict, unsupportedMessage, inVersionList, listedVersions,
 };

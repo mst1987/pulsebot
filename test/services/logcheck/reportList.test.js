@@ -233,4 +233,12 @@ describe("prepareClaList — the Log-Auswertung's one list", () => {
     it("marks a log that was never posted in a channel as a link", () => {
         expect(claRowFromLog({ id: "x", reportId: "Q", link: "https://w/reports/Q" }, null)).toMatchObject({ source: "link", wclUrl: "https://w/reports/Q" });
     });
+
+    it("reads the host version from the stored log, never from the link built for one without", () => {
+        // no link stored: wclUrl is built on TBC's site, which must not make the log TBC's
+        const row = claRowFromLog({ id: "x", reportId: "Q" }, null);
+        expect(row.wclUrl).toMatch(/\/reports\/Q$/);
+        expect(row.hostVersionId).toBe("");
+        expect(claRowFromLog({ id: "y", reportId: "Q", hostVersionId: "forever" }, null).hostVersionId).toBe("forever");
+    });
 });

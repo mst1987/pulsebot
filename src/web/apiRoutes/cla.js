@@ -56,6 +56,8 @@ function eventsOfVersion(events, versionId) {
 const getClaData = withUser({}, async ({ req, res, query }) => {
     const guildId = activeGuildFor(req);
     const versionId = shownVersion(query);
+    const config = getConfig();
+    const inVersion = (record) => inVersionList(record, versionId, { config });
     const allLogs = listLogs();
     const logs = guildId ? allLogs.filter((l) => !l.guildId || l.guildId === guildId) : allLogs;
     // which analyses already ran, normalised for legacy entries
@@ -69,7 +71,7 @@ const getClaData = withUser({}, async ({ req, res, query }) => {
     };
     const reports = listReports();
     const { page, filter, counts } = prepareClaList(logs, reports, listQuery, {
-        allLogs, inVersion: (row) => inVersionList(row, versionId),
+        allLogs, inVersion,
     });
 
     // Title and boss count of the logs on this page, read from WCL once, then
@@ -103,9 +105,9 @@ const getClaData = withUser({}, async ({ req, res, query }) => {
         filter,
         page,
         counts,
-        autoMatchCount: matchEvents.error ? 0 : autoMatches(logs.filter((l) => !l.eventId), matchEvents.events).length,
+        autoMatchCount: matchEvents.error ? 0 : autoMatches(logs.filter((l) => !l.eventId && inVersion(l)), matchEvents.events).length,
         matchEventsError: matchEvents.error,
-        logChannelsConfigured: (getConfig().logChannelIds || []).length > 0,
+        logChannelsConfigured: (config.logChannelIds || []).length > 0,
         activeGuildId: guildId,
         version: versionId,
     });
@@ -376,11 +378,15 @@ const autoMatchLogs = withUser({ csrf: true }, async ({ req, res, query }) => {
     const guildId = activeGuildFor(req);
     const { events: all, error: loadError } = await loadMatchableEvents(guildId);
     if (loadError) return error(res, 400, "events_unavailable", loadError);
-    const events = eventsOfVersion(all, shownVersion(query));
+    const versionId = shownVersion(query);
+    const events = eventsOfVersion(all, versionId);
     // copies with their channel's category: it ranks the candidates and its
-    // version breaks a tie for a log of unknown version (#746)
+    // version breaks a tie for a log of unknown version (#746). Only the logs
+    // this version's list shows — an SSC log is never matched to a Forever raid.
+    const config = getConfig();
     const logs = annotateLogCategories((guildId ? listLogs().filter((l) => !l.guildId || l.guildId === guildId) : listLogs())
-        .filter((l) => !l.eventId).map((l) => ({ ...l })), discord.getChannelCategoryMap(guildId));
+        .filter((l) => !l.eventId).map((l) => ({ ...l })), discord.getChannelCategoryMap(guildId))
+        .filter((l) => inVersionList(l, versionId, { config }));
     const matches = autoMatches(logs, events);
     for (const m of matches) linkLogEvent(m.log.id, eventLinkFields(m.event, "auto"));
     const rest = logs.length - matches.length;

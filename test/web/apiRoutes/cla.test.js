@@ -338,6 +338,27 @@ describe("web/apiRoutes/cla", () => {
             expect(json(await get("/api/cla", { version: "all" })).data.version).toBe("tbc");
         });
 
+        it("keeps an unlinked log of a TBC-only raid out of Forever's list and auto-assign", async () => {
+            activeGuildFor.mockReturnValue("guild-1");
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc" });
+            logStore.listLogs.mockReturnValue([
+                { id: "ssc-tk", guildId: "guild-1", title: "SSC + TK", raids: [{ contentId: "ssc" }, { contentId: "tk" }], postedAt: 3 },
+                { id: "titled", guildId: "guild-1", title: "Gruul / Magtheridon", postedAt: 2 },
+                { id: "waiting", guildId: "guild-1", postedAt: 1 },
+            ]);
+            const forever = json(await get("/api/cla", { version: "forever" })).data;
+            expect(forever.page.items.map((r) => r.id)).toEqual(["waiting"]);
+            expect(logEventMatch.autoMatches.mock.lastCall[0].map((l) => l.id)).toEqual(["waiting"]);
+            const tbc = json(await get("/api/cla", { version: "tbc" })).data;
+            expect(tbc.page.items.map((r) => r.id)).toEqual(["ssc-tk", "titled", "waiting"]);
+
+            logEventMatch.autoMatches.mockClear();
+            auth.checkCsrf.mockReturnValue(true);
+            const req = jsonRequest("POST", "/api/cla/log-automatch", {}, { "x-csrf-token": "tok" });
+            await handle("/api/cla/log-automatch", req, mockRes(), urlFor("/api/cla/log-automatch", { version: "forever" }));
+            expect(logEventMatch.autoMatches.mock.lastCall[0].map((l) => l.id)).toEqual(["waiting"]);
+        });
+
         it("offers only the raids of the shown version as candidates and for auto-assign (#741)", async () => {
             activeGuildFor.mockReturnValue("guild-1");
             const config = { mainVersion: "tbc", categoryVersion: { "cat-forever": "forever" } };
