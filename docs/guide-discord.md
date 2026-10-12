@@ -69,7 +69,7 @@ Diese Befehle antworten privat (nur für dich sichtbar) und verlinken meist auf 
 
 Technik: [events.md](events.md)
 
-- `/event anlegen` — neues Event per geführtem Dialog (Kategorie, Vorlage, Kanal, Termin).
+- `/event anlegen` — neues Event per geführtem Dialog (Kategorie, Vorlage, Kanal, Termin). Die Vorlagen passen zur Spielversion der Kategorie, die Uhrzeit ist mit der gemerkten Zeit der Kategorie vorbelegt, und die Spannen der Vorlage (z. B. Nahkampf 4 bis 8) kommen mit. Wird ein Kanal angelegt, wählst du ein **Kanal-Icon** (Wie zuletzt · Passt zum Raid · In dieser Kategorie · Kein Icon); unter der Bestätigung benennt **Kanal umbenennen …** den neuen Kanal um (dafür brauchst du das Recht „Kanäle“ im Web).
 - `/event verwalten [Event]` bzw. Rechtsklick **"Event verwalten"** auf die Event-Nachricht — bearbeiten, verschieben, Anmeldung öffnen/schließen, Raider ein-/austragen, Fehlende pingen, Setup öffnen, absagen/zurücknehmen, löschen.
 - **"Fehlende pingen"** direkt an der Event-Nachricht (nur bei Raids, deren Kategorie Raider-Rollen hat): zeigt dir erst nur für dich, wer mit Raider-Rolle noch nicht reagiert hat (Anzahl, die ersten 25 Namen), dann **Jetzt pingen** oder **Abbrechen**. Gepingt wird im Event-Kanal; zweimal kurz hintereinander geht nicht. Raider sehen den Knopf auch, dürfen ihn aber nicht benutzen.
 - `/fillsetup [Setup-ID]` — Setup ins Setup-Sheet übernehmen (das freigegebene Setup des Kanals oder ein Raid-Helper-Raidplan).

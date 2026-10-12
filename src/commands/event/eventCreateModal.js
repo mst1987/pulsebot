@@ -24,7 +24,7 @@ module.exports = {
         if (!interaction.isModalSubmit()) {
             if (error) return interaction.reply(card({ kind: "error", title: error, ephemeral: true }));
             const values = token ? getDraft(token, interaction.user.id) : null;
-            return interaction.showModal(formModal(state, { values }));
+            return interaction.showModal(formModal(state, { values, guildId }));
         }
 
         await interaction.deferUpdate();
