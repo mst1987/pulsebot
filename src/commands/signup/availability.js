@@ -23,6 +23,7 @@ const settingsStore = require("../../stores/settingsStore");
 const availability = require("../../services/signups/availability");
 const organizer = require("../../services/signups/organizer");
 const guildBank = require("../../services/signups/guildBank");
+const linking = require("../../services/guildbank/linking");
 const { requestModal, requestSummary, waitingSummary } = require("../../utils/signup/guildBankPost");
 const { pickPayload, itemModal, itemIdOfModal } = require("../../utils/signup/guildBankPick");
 const { categoryNameFor } = require("../../services/signups/availabilityPanel");
@@ -186,6 +187,10 @@ async function onGuildBankItemModal(interaction, categoryId, config, lang) {
     // no character of the bank's version: nothing to mail to, the orga cannot confirm it yet
     const stored = result.request || result.waiting;
     if (stored && !stored.characterName) parts.push(`⚠️ ${tr(lang, "Add a character in your profile, otherwise the orga cannot hand it out.")}`);
+    // a character typed at a signup that no log, loot or armory knows: the mail could go nowhere
+    else if (stored && linking.linkState(stored).linkProblem === "unverified") {
+        parts.push(`⚠️ ${tr(lang, "Your character is not confirmed yet – add it in your profile from the logs or the armory, otherwise the orga cannot hand it out.")}`);
+    }
     return interaction.editReply(answerPayload(parts.join("\n\n"), { lang }));
 }
 

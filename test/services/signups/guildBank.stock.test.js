@@ -59,7 +59,7 @@ beforeEach(() => {
     settingsStore.getConfig.mockReturnValue(CONFIG);
     seedBank();
     // the raider's character: requests are linked, so the orga may confirm them
-    profiles.addCharacter("u1", { name: "Zibbo", className: "Priest", realm: "Spineshatter", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+    profiles.addCharacter("u1", { source: "log", name: "Zibbo", className: "Priest", realm: "Spineshatter", specs: [{ key: "Priest-Holy", gear: "ready" }] });
     jest.spyOn(console, "warn").mockImplementation(() => {});
 });
 afterEach(() => console.warn.mockRestore());
@@ -77,8 +77,8 @@ describe("services/signups/guildBank — requests from the stock", () => {
     });
 
     it("stores the item, the recipient (the raider's first character of the bank's version) and posts the card", async () => {
-        profiles.addCharacter("u1", { name: "Zibbowar", className: "Warrior", specs: [{ key: "Warrior-Protection", gear: "ready" }] });
-        profiles.addCharacter("u1", { name: "Devi Res", className: "Mage", specs: [{ key: "Mage-Frost", gear: "ready" }] }, { versionId: "forever" });
+        profiles.addCharacter("u1", { source: "log", name: "Zibbowar", className: "Warrior", specs: [{ key: "Warrior-Protection", gear: "ready" }] });
+        profiles.addCharacter("u1", { source: "log", name: "Devi Res", className: "Mage", specs: [{ key: "Mage-Frost", gear: "ready" }] }, { versionId: "forever" });
         const bank = stockStore.getBank(KEY);
         expect(guildBank.charactersFor("u1", bank).map((c) => c.name)).toEqual(["Zibbo", "Zibbowar"]);
         expect(guildBank.charactersFor("u1", null)).toEqual([]);
@@ -205,9 +205,33 @@ describe("services/signups/guildBank — linked characters and the hand-out hist
         expect(guildBank.pendingForBank(KEY)).toEqual([expect.objectContaining({ id: request.id, linked: false })]);
     });
 
+    it("a character the raider only typed: the card says it is not confirmed, confirming is refused with that reason", async () => {
+        profiles.reset();
+        profiles.addCharacter("u1", { name: "Gentle", className: "Druid" }, { name: "Gentle" });
+        const { request } = await ask();
+        expect(request.characterName).toBe("Gentle");
+        const card = discord.postPayload.mock.calls[0][1];
+        expect(cardText(card)).toContain("Charakter nicht bestätigt");
+        expect(cardText(card)).not.toContain("Kein verknüpfter Charakter");
+        expect(cardButtons(card)[0]).toMatchObject({ label: "Bestätigen", disabled: true });
+        expect(await guildBank.confirmRequest(request.id, { byName: "A" })).toMatchObject({
+            error: guildBank.NOT_VERIFIED, notLinked: true, linkProblem: "unverified",
+        });
+        expect(store.getRequest(request.id).status).toBe("open");
+        expect(guildBank.pendingForBank(KEY)).toEqual([expect.objectContaining({ id: request.id, linked: false, linkProblem: "unverified" })]);
+        // a raider's unconfirmed character cannot be picked in the web either
+        profiles.addCharacter("u2", { name: "Bertie", className: "Mage" }, { name: "Bert" });
+        expect(await guildBank.linkRequest(request.id, { bankKey: KEY, userId: "u2", characterKey: "bertie" })).toEqual({
+            error: "Bertie ist nicht bestätigt – erst im Arsenal oder im Spiel prüfen, dann verknüpfen.", code: "invalid",
+        });
+        // the orga found "Gentle" in game: confirming works
+        profiles.verifyCharacter("u1", "gentle", { by: "o1", byName: "Arthas" });
+        expect(await guildBank.confirmRequest(request.id, { byName: "A" })).toMatchObject({ request: { status: "confirmed" } });
+    });
+
     it("links a pending request to a profile character, redraws the card; refuses another bank, a handled one and an unknown character", async () => {
         const { request } = await ask();
-        profiles.addCharacter("u2", { name: "Bertie", className: "Mage" }, { name: "Bert" });
+        profiles.addCharacter("u2", { source: "log", name: "Bertie", className: "Mage" }, { name: "Bert" });
         discord.editPayload.mockClear();
         const linked = await guildBank.linkRequest(request.id, { bankKey: KEY, userId: "u2", characterKey: "bertie" });
         // no realm of its own: the bank's

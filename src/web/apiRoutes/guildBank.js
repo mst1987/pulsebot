@@ -16,9 +16,15 @@
 //   POST /api/guildbank/tab                 { key, index, hidden } — hide or show a whole bank tab
 //   GET  /api/guildbank/requests?key=       the bank's open and confirmed requests (the "Anfragen" dialog)
 //   GET  /api/guildbank/handedout?key=      the bank's handed-out requests, newest first (the "Ausgegeben" tab)
-//   GET  /api/guildbank/characters?key=&q=  the raider profiles' characters to link a request to (write)
+//   GET  /api/guildbank/characters?key=&q=  the raider profiles' characters to link a request to, each with its
+//                                           evidence (`verified`, `evidence`: log | loot | armory | orga) (write)
+//   POST /api/guildbank/characters/armory   { key, userId, characterKey } — "Im Arsenal prüfen": the armory of the
+//                                           character's version; an answer is stored on the profile character
+//                                           (confirmed) — { found, choice }
+//   POST /api/guildbank/characters/verify   { key, userId, characterKey } — "Im Spiel geprüft": the orga confirms
+//                                           the character (verifiedBy/At) — { choice }
 //   POST /api/guildbank/request/link        { key, id, userId, characterKey } — a pending request's recipient
-//                                           becomes that profile character (linked, card redrawn)
+//                                           becomes that confirmed profile character (linked, card redrawn)
 //   GET  /api/guildbank/waitlist?key=       the bank's waiting list (#775, the "Warteliste" dialog)
 //   POST /api/guildbank/waitlist/add        { key, name, itemId, amount } — an entry at the end of the item's list
 //   POST /api/guildbank/waitlist/move       { key, id, direction: "up" | "down" }
@@ -32,7 +38,10 @@
 // The page's routes only ever touch a bank of the active server: another
 // server's bank answers 404 like an unknown one, a write to a bank of a hidden
 // version (#563) 409 "version_hidden" (read only), and a character of another
-// version than the bank's is never linked (#741, 400). A changed item status (and a
+// version than the bank's — or one nobody has confirmed (services/characters/
+// characterEvidence.js) — is never linked (#741, 400). Requests and waiting
+// entries carry `linked` and `linkProblem` ("none" = no profile character,
+// "unverified" = a profile character without evidence). A changed item status (and a
 // forgotten bank) queues the item emojis' sync (services/guildbank/itemEmojis.js)
 // in the background — the answer never waits for Discord. So does the waiting
 // list's move-up (services/signups/guildBank.advanceWaitlist): every change to
@@ -56,6 +65,8 @@ const waitlist = require("../../services/guildbank/waitlist");
 const addItem = require("../../services/guildbank/addItem");
 const requestStore = require("../../stores/guildBankStore");
 const { iconUrl } = require("../../utils/loot/wowhead");
+const profiles = require("../../stores/raiderProfileStore");
+const { lookupArmory } = require("../characters/profileView");
 
 const NOT_FOUND = { code: "not_found", error: "Gildenbank nicht gefunden." };
 const VERSION_HIDDEN = {
@@ -135,6 +146,13 @@ const searchGuildBankItems = withUser({}, async ({ req, res, query }) => {
     ok(res, { items: await addItem.search(bank.gameVersion, q.str(query, "q", { max: 80 })) });
 });
 
+/** `linked` and `linkProblem` of a request — what the service added, else read now (linking.linkState). */
+function linkOf(r) {
+    if (r.linked !== undefined) return { linked: !!r.linked, linkProblem: r.linked ? "" : r.linkProblem || "none" };
+    const state = linking.linkState(r);
+    return { linked: state.linked, linkProblem: state.linkProblem };
+}
+
 /** One request as the page's "Anfragen" dialog lists it. */
 function requestRow(r, items) {
     const item = items.get(r.itemId);
@@ -143,7 +161,7 @@ function requestRow(r, items) {
         id: r.id, itemId: r.itemId, item: (item && item.name) || r.item, iconUrl: iconUrl(icon), amount: r.amount,
         userId: r.userId, userName: r.userName, characterName: r.characterName, realm: r.realm, purpose: r.purpose,
         status: r.status, createdAt: r.createdAt, handledByName: r.handledByName, handledAt: r.handledAt,
-        linked: r.linked === undefined ? linking.isLinked(r) : r.linked,
+        ...linkOf(r),
     };
 }
 
@@ -182,6 +200,57 @@ const searchGuildBankCharacters = withUser({ write: "raids" }, async ({ req, res
     ok(res, { characters: linking.characterChoices({ query: q.str(query, "q", { max: 60 }), gameVersion: bank.gameVersion }) });
 });
 
+const NO_CHARACTER = { code: "not_found", error: "Diesen Charakter gibt es im Profil nicht." };
+
+/**
+ * The profile character a body names, for a check of the bank `key` of the
+ * active server: `{ bank, character, userId, characterKey }`, or `{ failure }`
+ * — another server's bank and an unknown character 404, a character of another
+ * version than the bank's 400 (#741).
+ */
+function characterToCheck(body, req) {
+    const { bank, failure } = writableBank(q.str(body, "key", { max: 200 }), req);
+    if (failure) return { failure };
+    const userId = q.str(body, "userId", { max: 40 });
+    const characterKey = q.str(body, "characterKey", { max: 80 });
+    const profile = userId ? profiles.getProfile(userId) : null;
+    const character = profile && profile.characters.find((c) => c.key === characterKey);
+    if (!character) return { failure: NO_CHARACTER };
+    const versionError = linking.versionError(userId, characterKey, bank.gameVersion);
+    if (versionError) return { failure: { code: "invalid", error: versionError } };
+    return { bank, character, userId, characterKey };
+}
+
+/**
+ * POST /api/guildbank/characters/armory — body: { key, userId, characterKey };
+ * "Im Arsenal prüfen": asks the armory of the character's version (realm: the
+ * character's, else the bank's). An answer with a level is stored on the
+ * profile character, which is confirmed from then on. `{ found, choice }` —
+ * `found: false` when the armory does not know it or is not reachable.
+ */
+const checkGuildBankCharacterArmory = withUser({ write: "raids", csrf: true, body: true }, async ({ req, body, res }) => {
+    const target = characterToCheck(body, req);
+    if (target.failure) return sendBankFailure(res, target.failure);
+    const { bank, character, userId, characterKey } = target;
+    const answer = await lookupArmory(character.name, character.realm || bank.realm || "", character.versionId);
+    const found = !!(answer.fetched && answer.level);
+    if (found) profiles.setCharacterArmory(userId, characterKey, { level: answer.level, guild: answer.guild });
+    ok(res, { found, choice: linking.choiceFor(userId, characterKey, bank.gameVersion) });
+});
+
+/**
+ * POST /api/guildbank/characters/verify — body: { key, userId, characterKey };
+ * "Im Spiel geprüft": the orga found the character in game (e.g. per /who) —
+ * stored with who and when, the character is confirmed. `{ choice }`.
+ */
+const verifyGuildBankCharacter = withUser({ write: "raids", csrf: true, body: true }, async ({ req, body, res, user }) => {
+    const target = characterToCheck(body, req);
+    if (target.failure) return sendBankFailure(res, target.failure);
+    const { bank, userId, characterKey } = target;
+    profiles.verifyCharacter(userId, characterKey, { by: String(user.id || ""), byName: String(user.name || user.username || "") });
+    ok(res, { choice: linking.choiceFor(userId, characterKey, bank.gameVersion) });
+});
+
 /** POST /api/guildbank/request/link — body: { key, id, userId, characterKey }; a pending request of this bank gets that recipient. */
 const linkGuildBankRequest = withUser({ write: "raids", csrf: true, body: true }, async ({ req, body, res }) => {
     const key = q.str(body, "key", { max: 200 });
@@ -189,9 +258,9 @@ const linkGuildBankRequest = withUser({ write: "raids", csrf: true, body: true }
     if (failure) return sendBankFailure(res, failure);
     const userId = q.str(body, "userId", { max: 40 });
     const characterKey = q.str(body, "characterKey", { max: 80 });
-    // only a character of the bank's version (#741): Forever bank = Forever characters
-    const versionError = linking.versionError(userId, characterKey, bank.gameVersion);
-    if (versionError) return sendFailure(res, { code: "invalid", error: versionError });
+    // only a confirmed character of the bank's version (#741): Forever bank = Forever characters
+    const refused = linking.pickError(userId, characterKey, bank.gameVersion);
+    if (refused) return sendFailure(res, { code: "invalid", error: refused });
     const result = await linkRequest(q.str(body, "id", { max: 40 }), { bankKey: bank.key, userId, characterKey });
     if (result.error) return sendFailure(res, { code: result.code || "invalid", error: result.error });
     const items = new Map(bank.items.map((it) => [it.itemId, it]));
@@ -209,7 +278,7 @@ function waitingRow(r, items) {
     return {
         id: r.id, itemId: r.itemId, item: (item && item.name) || r.item, iconUrl: iconUrl((item && item.icon) || r.icon), amount: r.amount,
         userId: r.userId, userName: r.userName, characterName: r.characterName, realm: r.realm, purpose: r.purpose,
-        createdAt: r.createdAt, position: r.position, addedByName: r.addedByName, linked: !!r.linked,
+        createdAt: r.createdAt, position: r.position, addedByName: r.addedByName, ...linkOf(r),
     };
 }
 
@@ -347,6 +416,8 @@ const routes = [
     { method: "GET", path: "/api/guildbank/requests", handler: getGuildBankRequests, area: "raids" },
     { method: "GET", path: "/api/guildbank/handedout", handler: getGuildBankHandedOut, area: "raids" },
     { method: "GET", path: "/api/guildbank/characters", handler: searchGuildBankCharacters, area: "raids" },
+    { method: "POST", path: "/api/guildbank/characters/armory", handler: checkGuildBankCharacterArmory, area: "raids" },
+    { method: "POST", path: "/api/guildbank/characters/verify", handler: verifyGuildBankCharacter, area: "raids" },
     { method: "POST", path: "/api/guildbank/request/link", handler: linkGuildBankRequest, area: "raids" },
     { method: "GET", path: "/api/guildbank/waitlist", handler: getGuildBankWaitlist, area: "raids" },
     { method: "POST", path: "/api/guildbank/waitlist/add", handler: addGuildBankWaiting, area: "raids" },
@@ -361,7 +432,7 @@ const routes = [
 
 module.exports = {
     getGuildBank, postGuildBankItem, addGuildBankItem, searchGuildBankItems, postGuildBankTab, getGuildBankRequests, getGuildBanks, assignGuildBank, deleteGuildBank,
-    getGuildBankHandedOut, searchGuildBankCharacters, linkGuildBankRequest,
+    getGuildBankHandedOut, searchGuildBankCharacters, checkGuildBankCharacterArmory, verifyGuildBankCharacter, linkGuildBankRequest,
     getGuildBankWaitlist, addGuildBankWaiting, moveGuildBankWaiting, removeGuildBankWaiting, previewGuildBankWaitlist, importGuildBankWaitlist,
     routes,
 };

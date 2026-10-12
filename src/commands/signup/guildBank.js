@@ -67,6 +67,8 @@ function doneCard(result, dm) {
 function refusedCard(result) {
     if (!result.request) return card({ kind: "warn", title: GONE });
     // the addon would mail to a name nobody plays: the orga links a profile character first
+    // a profile character nobody confirmed (typed at a signup) — check it in the web first
+    if (result.notLinked && result.linkProblem === "unverified") return card({ kind: "warn", title: "Charakter nicht bestätigt", text: result.error });
     if (result.notLinked) return card({ kind: "warn", title: "Kein verknüpfter Charakter", text: result.error });
     if (result.available !== undefined) return card({ kind: "warn", title: "Nicht genug verfügbar", text: result.error });
     return card({ kind: "warn", title: result.error });

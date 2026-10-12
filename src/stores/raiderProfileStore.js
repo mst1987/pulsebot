@@ -20,6 +20,12 @@
 // "Devi" are three characters. A character stored before versions is TBC
 // (`LEGACY_VERSION`) — migrateCharacterVersions() writes that down once at start.
 //
+// Whether a character exists in game is not this store's word: a raider types
+// any name. services/characters/characterEvidence.js decides from the logs, the
+// loot export, an armory answer (`armory.fetchedAt` + `armory.level`,
+// setCharacterArmory) or the orga's check in game (`verifiedBy`,
+// `verifiedByName`, `verifiedAt` — verifyCharacter; only stored once set).
+//
 // Stored under data/settings/raider-profiles.json like the other stores.
 
 const { settingsPath } = require("../config/paths");
@@ -138,11 +144,8 @@ function normalizeCharacter(raw) {
     const key = characterKeyOf(name, versionId);
     const className = normalizeClass(raw.className);
     if (!key || !className || !classInVersion(className, versionId)) return null;
-    const armory = raw.armory && typeof raw.armory === "object" ? {
-        level: Number(raw.armory.level) || null,
-        guild: cleanText(raw.armory.guild, 48),
-        fetchedAt: Number(raw.armory.fetchedAt) || 0,
-    } : null;
+    const armory = normalizeArmory(raw.armory);
+    const verifiedAt = Number(raw.verifiedAt) || 0;
     return {
         key,
         name,
@@ -156,6 +159,18 @@ function normalizeCharacter(raw) {
         canHeal: tristate(raw.canHeal),
         armory,
         addedAt: Number(raw.addedAt) || Date.now(),
+        // the orga found the character in game (verifyCharacter) — kept only once set
+        ...(verifiedAt > 0 ? { verifiedBy: cleanText(raw.verifiedBy, 40), verifiedByName: cleanText(raw.verifiedByName, 64), verifiedAt } : {}),
+    };
+}
+
+/** What the armory answered for a character (level, guild, when), null for nothing. */
+function normalizeArmory(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    return {
+        level: Number(raw.level) || null,
+        guild: cleanText(raw.guild, 48),
+        fetchedAt: Number(raw.fetchedAt) || 0,
     };
 }
 
@@ -348,6 +363,8 @@ function addCharacter(userId, data = {}, { name = "", versionId = "" } = {}) {
             // A class change makes the old specs meaningless; otherwise merge.
             specs: c.className === clean.className ? mergeSpecs(c.specs, clean.specs) : clean.specs,
             armory: clean.armory || c.armory,
+            // a typed character taken over again from the logs or the armory carries that source from now on
+            source: c.source === "manual" && clean.source !== "manual" ? clean.source : c.source,
         } : c));
     } else {
         if (countInVersion(current.characters, version) >= MAX_CHARACTERS) {
@@ -364,6 +381,33 @@ function mergeSpecs(have, add) {
     const out = [...have];
     for (const s of add) if (!out.some((h) => h.key === s.key)) out.push(s);
     return out;
+}
+
+/** Change one character of a profile (`fn(character)` → the new one); `{ profile, character }` or null when there is no such character. */
+function updateCharacter(userId, key, fn) {
+    const current = getProfile(userId);
+    const k = characterKeyOf(key);
+    if (!current || !k || !current.characters.some((c) => c.key === k)) return null;
+    const profile = store(userId, { ...current, characters: current.characters.map((c) => (c.key === k ? fn(c) : c)) });
+    return { profile, character: profile.characters.find((c) => c.key === k) || null };
+}
+
+/**
+ * The armory answered for a character (the guild bank's "Im Arsenal prüfen"):
+ * level and guild with the time of the answer — the character exists in game.
+ * `{ profile, character }`, or null for an unknown character or no level.
+ */
+function setCharacterArmory(userId, key, { level = null, guild = "" } = {}, { now = Date.now() } = {}) {
+    if (!(Number(level) > 0)) return null;
+    return updateCharacter(userId, key, (c) => ({ ...c, armory: { level: Number(level), guild, fetchedAt: now } }));
+}
+
+/**
+ * The orga found the character in game (e.g. per /who) — the guild bank's "Im
+ * Spiel geprüft". `{ profile, character }`, or null for an unknown character.
+ */
+function verifyCharacter(userId, key, { by = "", byName = "" } = {}, { now = Date.now() } = {}) {
+    return updateCharacter(userId, key, (c) => ({ ...c, verifiedBy: String(by || ""), verifiedByName: String(byName || ""), verifiedAt: now }));
 }
 
 /** Take a character out of the raider's own profile. True when one was removed. */
@@ -555,7 +599,7 @@ module.exports = {
     GEAR_LEVELS, WEEKDAYS, CHARACTER_SOURCES, MAX_CHARACTERS, MAX_WISHES, MAX_AVOID, MAX_NOTE,
     characterKey: characterKeyOf, nameKey: nameKeyOf, characterVersion, charactersOfVersion, findCharacter, migrateCharacterVersions, migrateCharacterOrder,
     normalizeClass, specInfo, normalizeProfile, specRoles, characterRoles, classCan,
-    getProfile, hasProfile, listProfiles, saveProfile, addCharacter, removeCharacter,
+    getProfile, hasProfile, listProfiles, saveProfile, addCharacter, removeCharacter, setCharacterArmory, verifyCharacter,
     claimsFor, characterClaims, firstCharacter, searchRaiders, raiderRef, reset, useFile,
     PROFILES_FILE,
 };

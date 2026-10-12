@@ -18,7 +18,9 @@
 // shows the name instead of the raider ("ohne Discord-Konto, keine DM").
 // A request from the stock without a linked character (services/guildbank/
 // linking.js) shows "⚠ Kein verknüpfter Charakter – Post erst nach Verknüpfen
-// im Web" and its "Bestätigen" stays disabled until the orga links it.
+// im Web" — or, when its character is a profile character nobody has
+// confirmed, "⚠ Charakter nicht bestätigt – im Web prüfen" — and its
+// "Bestätigen" stays disabled until the orga links (or confirms) it.
 //
 // What the raider reads is in their language (tr); the orga card and the orga's
 // modal are orga texts and stay German.
@@ -199,6 +201,8 @@ function stockFacts(request, stock) {
 
 /** The orga card's warning for a request from the stock without a linked character. German (orga text). */
 const NOT_LINKED_LINE = "⚠ **Kein verknüpfter Charakter** – Post erst nach Verknüpfen im Web (Gildenbank)";
+/** The same for a profile character no log, loot, armory or orga has confirmed (linking.linkState "unverified"). */
+const NOT_VERIFIED_LINE = "⚠ **Charakter nicht bestätigt** – im Web prüfen (Gildenbank: Arsenal oder im Spiel)";
 
 /** The card's buttons for the request's status; "Bestätigen" disabled while the character is not linked. */
 function orgaButtons(request, { linked = true } = {}) {
@@ -223,11 +227,12 @@ function orgaButtons(request, { linked = true } = {}) {
  * text); `<@id>` shows the raider's name and pings nobody (discord.postPayload
  * allows no mentions).
  * @param {object} request a guildBankStore request
- * @param {{ categoryName?: string, stock?: object|null, linked?: boolean }} [o] the organizer's category name; the item as
+ * @param {{ categoryName?: string, stock?: object|null, linked?: boolean, linkProblem?: string }} [o] the organizer's category name; the item as
  *   stockView.stockItem reads it now (count, reserved, available, group, icon), null when unknown; `linked`
- *   false = the request's character is no profile character (linking.isLinked): warning, "Bestätigen" disabled
+ *   false = the request's character is no confirmed profile character (linking.linkState): warning, "Bestätigen" disabled;
+ *   `linkProblem` "unverified" names that reason (a profile character nobody confirmed)
  */
-function orgaPayload(request, { categoryName = "", stock = null, linked = true } = {}) {
+function orgaPayload(request, { categoryName = "", stock = null, linked = true, linkProblem = "" } = {}) {
     const created = seconds(request.createdAt);
     const fromStock = !!request.itemId;
     const group = fromStock ? str((stock && stock.group) || request.group) : "";
@@ -237,7 +242,7 @@ function orgaPayload(request, { categoryName = "", stock = null, linked = true }
     if (str(request.purpose)) text.push(`Wofür: ${plain(request.purpose)}`);
     const to = recipientName(request);
     if (to) text.push(`An: ${plain(to)}`);
-    if (fromStock && !linked && (request.status === "open" || request.status === "confirmed")) text.push(NOT_LINKED_LINE);
+    if (fromStock && !linked && (request.status === "open" || request.status === "confirmed")) text.push(linkProblem === "unverified" ? NOT_VERIFIED_LINE : NOT_LINKED_LINE);
     const status = request.status === "open" ? "offen" : statusLine(request);
     const icon = fromStock ? iconUrl(str((stock && stock.icon) || request.icon)) : "";
     return card({
@@ -271,6 +276,6 @@ function parseOrgaId(customId) {
 }
 
 module.exports = {
-    PREFIX, COLOR_OPEN, COLOR_CONFIRMED, COLOR_DONE, COLOR_REJECTED, NOT_LINKED_LINE, guildBankChannelId, plain, amountItem, recipientName,
+    PREFIX, COLOR_OPEN, COLOR_CONFIRMED, COLOR_DONE, COLOR_REJECTED, NOT_LINKED_LINE, NOT_VERIFIED_LINE, guildBankChannelId, plain, amountItem, recipientName,
     requestModal, requestSummary, waitingSummary, movedUpCard, decisionCard, statusLine, stockFacts, orgaPayload, rejectModal, parseOrgaId,
 };

@@ -120,6 +120,9 @@ export function setGuildBankTabHidden(key: string, index: number, hidden: boolea
     return send<{ tabs: GuildBankTab[] }>("POST", "/api/guildbank/tab", { key, index, hidden });
 }
 
+/** Why a request is not linked: no profile character, or a profile character nobody confirmed (no log, loot, armory, orga check). */
+export type GuildBankLinkProblem = "" | "none" | "unverified";
+
 /** A raider's request from the stock that still waits: open (for the orga) or confirmed (for the hand-out in game). */
 export type GuildBankRequest = {
     id: string;
@@ -138,8 +141,10 @@ export type GuildBankRequest = {
     /** Who confirmed it. */
     handledByName: string;
     handledAt: number;
-    /** The recipient is a character of the raider's profile: only then may the orga confirm it, only then does the addon mail it. */
+    /** The recipient is a confirmed character of the raider's profile: only then may the orga confirm it, only then does the addon mail it. */
     linked: boolean;
+    /** Why not: no profile character ("none") or one nobody confirmed ("unverified"); "" when linked. */
+    linkProblem?: GuildBankLinkProblem;
 };
 
 /** The bank's open and confirmed requests (the "Anfragen" dialog), open first. */
@@ -164,8 +169,10 @@ export type GuildBankWaitingEntry = {
     position: number;
     /** The orga member who added or imported it ("" = the raider in Discord). */
     addedByName: string;
-    /** Its character is a character of the raider's profile (else it cannot be confirmed when it moves up). */
+    /** Its character is a confirmed character of the raider's profile (else it cannot be confirmed when it moves up). */
     linked: boolean;
+    /** Why not: no profile character ("none") or one nobody confirmed ("unverified"); "" when linked. */
+    linkProblem?: GuildBankLinkProblem;
 };
 
 export type GuildBankWaitlist = { entries: GuildBankWaitingEntry[] };
@@ -219,9 +226,11 @@ export type GuildBankImportRow = {
     itemError: string;
     /** The raider the name belongs to (or the orga picked); null = imported as the character alone, not linked. */
     match: { userId: string; userName: string; characterName: string; realm: string; characterKey?: string; className?: string } | null;
-    /** Characters of several raiders carry the name. */
+    /** Confirmed characters of several raiders carry the name. */
     ambiguous: boolean;
-    /** The raiders' characters of that name when it is ambiguous — one of them can be picked. */
+    /** The name is only a profile character nobody confirmed (typed at a signup): `candidates` are what it may mean. */
+    unverified?: boolean;
+    /** Ambiguous: the raiders' characters of that name; otherwise the confirmed characters the name may mean (the same raider's, names it starts) — one of them can be picked. */
     candidates?: { userId: string; userName: string; characterKey: string; characterName: string; realm: string; className: string }[];
     /** The row lands linked to a profile character. */
     linked?: boolean;
@@ -265,7 +274,24 @@ export type GuildBankCharacterChoice = {
     icon: string;
     classColor: string;
     specKey: string;
+    /** It exists in game: seen in a log or the loot, answered by the armory, or checked by the orga. Only a confirmed one can be picked. */
+    verified: boolean;
+    /** Where the evidence comes from ("" = unconfirmed). */
+    evidence: GuildBankEvidence;
 };
+
+/** Where the evidence that a character exists comes from. */
+export type GuildBankEvidence = "" | "log" | "loot" | "armory" | "orga";
+
+/** "Im Arsenal prüfen": the armory of the character's version; an answer confirms it (`found`). */
+export function checkGuildBankCharacterArmory(key: string, pick: { userId: string; characterKey: string }): Promise<{ found: boolean; choice: GuildBankCharacterChoice }> {
+    return send<{ found: boolean; choice: GuildBankCharacterChoice }>("POST", "/api/guildbank/characters/armory", { key, ...pick });
+}
+
+/** "Im Spiel geprüft": the orga found the character in game — it is confirmed. */
+export function verifyGuildBankCharacter(key: string, pick: { userId: string; characterKey: string }): Promise<{ choice: GuildBankCharacterChoice }> {
+    return send<{ choice: GuildBankCharacterChoice }>("POST", "/api/guildbank/characters/verify", { key, ...pick });
+}
 
 /** The profile characters of the bank's version to link a request to (`q`: character or raider name). */
 export function searchGuildBankCharacters(key: string, q: string): Promise<{ characters: GuildBankCharacterChoice[] }> {

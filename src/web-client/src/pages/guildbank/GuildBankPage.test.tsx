@@ -164,7 +164,7 @@ describe("guild bank page", () => {
         vi.mocked(api.searchGuildBankCharacters).mockResolvedValue({
             characters: [{
                 userId: "u2", userName: "Bo", characterKey: "bobo", characterName: "Bobo", realm: "", className: "Druid",
-                versionId: "tbc", icon: "", classColor: "", specKey: "",
+                versionId: "tbc", icon: "", classColor: "", specKey: "", verified: true, evidence: "loot",
             }],
         });
         vi.mocked(api.linkGuildBankRequest).mockResolvedValue({ request: { ...open, characterName: "Bobo", realm: "Spineshatter", linked: true } });

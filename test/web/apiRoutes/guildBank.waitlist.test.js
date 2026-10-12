@@ -86,7 +86,7 @@ describe("apiRoutes/guildBank — waiting list", () => {
     });
 
     it("previews pasted lines without storing, then imports them in order", async () => {
-        profiles.addCharacter("u-alina", { name: "Alina", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+        profiles.addCharacter("u-alina", { source: "log", name: "Alina", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
         const text = "Whapap\tCrimson Spinal\t1\nAlîna\tCrimson Spinal\t2\nJosh\tDragon Egg\t1";
         const preview = body(await call(previewGuildBankWaitlist, { payload: { key: KEY, text } }));
         expect(preview.rows.map((r) => [r.name, r.ok, r.match && r.match.userId])).toEqual([["Whapap", true, null], ["Alîna", true, "u-alina"], ["Josh", false, null]]);

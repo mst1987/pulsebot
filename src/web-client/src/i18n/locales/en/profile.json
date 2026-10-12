@@ -74,6 +74,8 @@
         "claimedChip": "Also added by: {names}. The orga sorts it out.",
         "claimedCard": "Also added by: {names}. The orga sees this in the roster and sorts it out.",
         "claimedBy": "claimed by {name}",
+        "unverified": "not confirmed",
+        "unverifiedTip": "No log, no loot and no armory answer knows this character – the guild bank cannot mail to it. Add it once more via “Armory” (the armory has to know it) or take the right one from the logs. Otherwise ask the orga to check it in game.",
         "otherAccount": "another account",
         "unknown": "unknown",
         "level": "Level {level}",

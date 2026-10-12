@@ -20,9 +20,12 @@
 //     list move up to open requests: a card "aus der Warteliste" and a DM.
 //       waiting → open → confirmed → handedOut, open → rejected, confirmed → open
 //     Confirming needs a **linked** character (services/guildbank/linking.js):
-//     the request's raider and a character of their profile — the addon mails
-//     to that name. An unlinked card shows a warning and a disabled
-//     "Bestätigen"; the orga links it in the web (linkRequest), which redraws it.
+//     the request's raider and a **confirmed** character of their profile (seen
+//     in a log or the loot, answered by the armory, or checked in game by the
+//     orga) — the addon mails to that name. An unlinked card shows a warning
+//     ("Kein verknüpfter Charakter" / "Charakter nicht bestätigt") and a
+//     disabled "Bestätigen"; the orga links (or confirms) it in the web
+//     (linkRequest), which redraws it.
 //   - free text (no bank data): what was typed, open → done | rejected.
 //
 // Stored in stores/guildBankStore.js, cards built by utils/signup/guildBankPost.js;
@@ -42,12 +45,14 @@ const { mainVersionFor } = require("../events/mainVersion");
 const stockView = require("../guildbank/stockView");
 const waitlist = require("../guildbank/waitlist");
 const linking = require("../guildbank/linking");
+const { seenIndex } = require("../characters/characterEvidence");
 const post = require("../../utils/signup/guildBankPost");
 const logger = require("../../logger");
 
 const NOT_SET_UP = "Die Gildenbank ist gerade nicht eingerichtet.";
 const NOT_OFFERED = "Diesen Gegenstand gibt es gerade nicht in der Gildenbank.";
 const NOT_LINKED = "Erst einen Charakter verknüpfen – im Web unter Gildenbank.";
+const NOT_VERIFIED = "Der Charakter ist nicht bestätigt – im Web unter Gildenbank prüfen (Arsenal oder im Spiel) oder anders verknüpfen.";
 // the web's link step (orga only, never shown to a raider in Discord)
 const LINK_GONE = "Diese Anfrage wartet nicht mehr.";
 const LINK_NO_CHARACTER = "Diesen Charakter gibt es im Profil nicht.";
@@ -69,8 +74,8 @@ function postFor(request, { config } = {}) {
     }
     const stock = request.itemId && request.bankKey ? stockView.stockItem(request.bankKey, request.itemId) : null;
     // only a request from the stock goes to a character in game (the addon's mail)
-    const linked = !request.itemId || linking.isLinked(request);
-    return post.orgaPayload(request, { categoryName, stock, linked });
+    const state = request.itemId ? linking.linkState(request) : { linked: true, linkProblem: "" };
+    return post.orgaPayload(request, { categoryName, stock, linked: state.linked, linkProblem: state.linkProblem });
 }
 
 /**
@@ -293,18 +298,19 @@ async function resolveRequest(id, { by = "", byName = "", status, reason = "" } 
 
 /**
  * The orga confirms an open request from the stock: the amount is set aside.
- * Only a request with a linked character (linking.isLinked) — else
- * `{ error: NOT_LINKED, request, notLinked: true }`, the card is redrawn and
- * nothing changes. Checked against "Verfügbar" again — another confirmation
+ * Only a request with a linked character (linking.linkState) — else
+ * `{ error: NOT_LINKED | NOT_VERIFIED, request, notLinked: true, linkProblem }`,
+ * the card is redrawn and nothing changes. Checked against "Verfügbar" again — another confirmation
  * may have taken it meanwhile; then `{ error, request, available }`.
  * @returns {Promise<{ request: object, posted: boolean, dm: boolean } | { error: string, request?: object, available?: number, notLinked?: boolean }>}
  */
 async function confirmRequest(id, { by = "", byName = "" } = {}, { config, now = Date.now() } = {}) {
     const cfg = config || settingsStore.getConfig();
     const request = store.getRequest(id);
-    if (request && request.status === "open" && request.itemId && !linking.isLinked(request)) {
+    const state = request && request.status === "open" && request.itemId ? linking.linkState(request) : null;
+    if (state && !state.linked) {
         await redrawPost(request, { config: cfg });
-        return { error: NOT_LINKED, request, notLinked: true };
+        return { error: state.linkProblem === "unverified" ? NOT_VERIFIED : NOT_LINKED, request, notLinked: true, linkProblem: state.linkProblem };
     }
     if (request && request.status === "open" && request.itemId) {
         const item = stockView.stockItem(request.bankKey, request.itemId);
@@ -344,9 +350,11 @@ async function handOutRequest(id, { by = "", byName = "", via = "discord" } = {}
 function pendingForBank(bankKey) {
     const key = str(bankKey);
     if (!key) return [];
+    const bank = stockStore.getBank(key);
+    const o = { gameVersion: bank ? bank.gameVersion || "" : "", index: seenIndex() };
     return store.listRequests()
         .filter((r) => r.bankKey === key && r.itemId && (r.status === "open" || r.status === "confirmed"))
-        .map(linking.withLinked);
+        .map((r) => linking.withLinked(r, o));
 }
 
 /** The handed-out requests from one bank's stock (the web page's "Ausgegeben"), newest hand-out first — kept 90 days (store.prune). */
@@ -362,8 +370,9 @@ function handedOutForBank(bankKey) {
  * The orga links a pending request (waiting, open, confirmed) of a bank to a
  * profile character in the web: `userId` + `characterKey` (linking.resolveChoice)
  * become the request's raider and recipient (realm: the character's, else the
- * bank's). A posted card is redrawn — "Bestätigen" works now. Returns
- * `{ request }` (with `linked`) or `{ error, code }` ("not_found" | "invalid").
+ * bank's). Only a confirmed character of the bank's version (linking.pickError).
+ * A posted card is redrawn — "Bestätigen" works now. Returns `{ request }`
+ * (with `linked`) or `{ error, code }` ("not_found" | "invalid").
  */
 async function linkRequest(id, { bankKey = "", userId = "", characterKey = "" } = {}, { config } = {}) {
     const request = store.getRequest(id);
@@ -373,6 +382,8 @@ async function linkRequest(id, { bankKey = "", userId = "", characterKey = "" } 
     const choice = linking.resolveChoice(userId, characterKey);
     if (!choice) return { error: LINK_NO_CHARACTER, code: "invalid" };
     const bank = stockStore.getBank(request.bankKey);
+    const refused = linking.pickError(userId, characterKey, bank ? bank.gameVersion : "");
+    if (refused) return { error: refused, code: "invalid" };
     const result = store.setRecipient(request.id, { ...choice, realm: choice.realm || (bank && bank.realm) || "" });
     if (result.error) return { error: result.error, code: "invalid" };
     await redrawPost(result.request, { config: config || settingsStore.getConfig() });
@@ -436,6 +447,6 @@ function advanceWaitlist({ bankKey = "", itemId = 0, config, now = Date.now() } 
 }
 
 module.exports = {
-    NOT_SET_UP, NOT_OFFERED, NOT_LINKED, guildBankChannelId, postFor, offerFor, charactersFor, createRequest, createStockRequest, splitAmount,
+    NOT_SET_UP, NOT_OFFERED, NOT_LINKED, NOT_VERIFIED, guildBankChannelId, postFor, offerFor, charactersFor, createRequest, createStockRequest, splitAmount,
     resolveRequest, confirmRequest, releaseRequest, handOutRequest, redrawPost, pendingForBank, handedOutForBank, linkRequest, advanceWaitlist,
 };

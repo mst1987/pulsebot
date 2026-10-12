@@ -245,6 +245,8 @@
     "/api/guildbank/requests": "raids",
     "/api/guildbank/handedout": "raids",
     "/api/guildbank/characters": "raids",
+    "/api/guildbank/characters/armory": "raids",
+    "/api/guildbank/characters/verify": "raids",
     "/api/guildbank/request/link": "raids",
     "/api/guildbank/waitlist": "raids",
     "/api/guildbank/waitlist/add": "raids",

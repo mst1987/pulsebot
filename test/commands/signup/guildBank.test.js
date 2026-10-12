@@ -154,6 +154,15 @@ describe("guildbank (Orga-Knöpfe)", () => {
             expect(said(i.editReply)).toBe("## Kein verknüpfter Charakter\nErst einen Charakter verknüpfen – im Web unter Gildenbank.");
         });
 
+        it("Bestätigen mit einem unbestätigten Charakter: der Grund steht im Titel", async () => {
+            guildBank.confirmRequest.mockResolvedValueOnce({
+                error: "Der Charakter ist nicht bestätigt – im Web prüfen.", request: { id: open.id, status: "open" }, notLinked: true, linkProblem: "unverified",
+            });
+            const i = click(`guildbank:confirm:${open.id}`);
+            await command.execute(i);
+            expect(said(i.editReply)).toBe("## Charakter nicht bestätigt\nDer Charakter ist nicht bestätigt – im Web prüfen.");
+        });
+
         it("Ausgegeben beendet die Vormerkung über den Knopf, Vormerkung lösen ohne DM", async () => {
             const out = click(`guildbank:handout:${open.id}`);
             await command.execute(out);

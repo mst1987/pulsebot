@@ -112,7 +112,32 @@
         "pickLabel": "{name} ({raider})",
         "unpick": "Remove the pick",
         "searchOther": "Search others",
-        "done": "Linked to {name} ({raider})."
+        "done": "Linked to {name} ({raider}).",
+        "notVerified": "character not confirmed",
+        "notVerifiedTip": "The character is in the profile, but no log, no loot and no armory answer knows it – it may not exist like this. Check it in the armory or in game under “Link”, or pick another character.",
+        "evidence": {
+            "log": "from logs",
+            "loot": "loot",
+            "armory": "armory",
+            "orga": "checked by the orga"
+        },
+        "evidenceTip": {
+            "log": "Seen in an evaluated Warcraft Logs report (or taken over from the logs into the profile).",
+            "loot": "Showed up in the loot export.",
+            "armory": "The armory knows the character.",
+            "orga": "The orga found it in game."
+        },
+        "unverified": "not confirmed",
+        "unverifiedTip": "No log, no loot and no armory answer knows this character. Check it first, then link it.",
+        "armoryCheck": "Check in the armory",
+        "armoryChecking": "Asking the armory …",
+        "armoryFound": "The armory knows {name} – confirmed.",
+        "armoryMissing": "The armory does not know the character or cannot be reached right now – check in game with /who.",
+        "gameCheck": "Checked in game",
+        "gameCheckTitle": "Found {name} in game?",
+        "gameCheckText": "Only confirm when you found the character in game, e.g. with /who.",
+        "gameCheckAction": "Yes, found it",
+        "gameChecked": "{name} is confirmed."
     },
     "handedOut": {
         "hint": "What went out once it was ticked off – in Discord, in game or by mail. Kept for 90 days.",
@@ -172,6 +197,8 @@
         "matched": "Raider: {name}",
         "unmatched": "character only",
         "ambiguous": "ambiguous – character only",
+        "unverifiedPick": "“{name}” is not confirmed – did you mean:",
+        "suggestedPick": "Did you mean:",
         "ambiguousPick": "Several raiders – who?",
         "imported": "{added} imported, {skipped} skipped.",
         "importedUnlinked": "{added} imported, {skipped} skipped, {unlinked} not linked.",
