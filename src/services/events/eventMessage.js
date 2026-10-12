@@ -94,6 +94,8 @@ const { tr, specLabel, classLabel, normalizeLang } = require("../../utils/i18n/b
 const { eventLang } = require("../discord/botLanguage");
 const { hasExpected } = require("../roster/expectedRaiders");
 const { eventVersionTag } = require("./versionTag");
+const { isRaidSibling, signupEventIdOf } = require("../../utils/raidGroup");
+const { groupSummary } = require("./raidGroup");
 
 /**
  * The head's "Signed up" line (#520): the single Discord accounts, number in
@@ -561,7 +563,7 @@ function phaseLine(event, phase, head, lang) {
  */
 function buildEventMessage(event, signups, {
     emojis = {}, now = Date.now(), icsUrl = "", raidArt = false, titleSize = "normal", compUrl = "", srUrl = "", lang = "de",
-    pingMissing = false,
+    pingMissing = false, raidGroup = null,
 } = {}) {
     const list = (signups || []).filter((s) => s && s.userId).map(migrateSignup);
     const c = rosterCounts(list);
@@ -602,6 +604,8 @@ function buildEventMessage(event, signups, {
         column([
             // "28 signed up" names itself — no label in front, with or without the icon (#520)
             headLine("signups", "", signedUpValue(c.accounts, lang)),
+            // a raid group (#811): one signup for every raid of the evening — "2 raids · 20 places"
+            ...(raidGroup && raidGroup.count > 1 ? [tr(lang, "**{count} raids** · {places} places", { count: raidGroup.count, places: raidGroup.places })] : []),
             headLine("time", word(lang, "time"), start ? `<t:${start}:t>` : "–"),
         ]),
         // an empty first line without a deadline keeps the countdown beside date and time
@@ -713,6 +717,7 @@ async function buildPayload(event, lang) {
         srUrl: (softres && softres.url) || "",
         lang,
         pingMissing: hasRaiderRoles(event),
+        raidGroup: groupSummary(event),
     });
 }
 
@@ -729,8 +734,11 @@ async function postPayload(event, { payload, lang }) {
  * @returns {Promise<{ channelId: string, messageId: string }>}
  */
 async function postEventMessage(eventId) {
-    const event = getEvent(eventId);
-    if (!event) throw new Error("Event nicht gefunden.");
+    const asked = getEvent(eventId);
+    if (!asked) throw new Error("Event nicht gefunden.");
+    // a further raid of a raid group (#811) has no message of its own: its group's first raid's stands for it
+    if (isRaidSibling(asked)) return refreshEventMessage(signupEventIdOf(asked));
+    const event = asked;
     return postPayload(event, await payloadFor(event));
 }
 
@@ -741,7 +749,10 @@ async function postEventMessage(eventId) {
  * @returns {Promise<{ channelId: string, messageId: string, reposted: boolean, unchanged?: true }|null>} null for an unknown event
  */
 async function refreshEventMessage(eventId) {
-    const event = getEvent(eventId);
+    const asked = getEvent(eventId);
+    if (!asked) return null;
+    // a further raid of a raid group (#811) has no message of its own: the first raid's shows the group
+    const event = isRaidSibling(asked) ? getEvent(signupEventIdOf(asked)) : asked;
     if (!event) return null;
     // The channel is gone (#537): nothing to edit, nowhere to post — the
     // dashboard asks the orga to create it anew (eventManage.recreateChannel).

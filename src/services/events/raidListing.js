@@ -134,8 +134,18 @@ function upcomingRows(groups) {
             // The game version this raid plays (#545): its own (own events), else
             // what the category plays — a Raid-Helper event carries none.
             versionId,
+            ...raidGroupFields(ev),
         };
     }));
+}
+
+/**
+ * A raid group (#811): the first raid's id on every raid of it and the raid's
+ * place — the list shows the further raids under the first ("Zul'Aman · 2 Raids").
+ * Nothing outside a group.
+ */
+function raidGroupFields(ev) {
+    return ev && ev.raidGroupId ? { raidGroupId: String(ev.raidGroupId), raidGroupIndex: Number(ev.raidGroupIndex) || 1 } : {};
 }
 
 /**
@@ -150,7 +160,8 @@ async function loadPastRaids(guildId, opts = {}) {
     if (!guildId) return { events: [], error: null };
     const { error: scanError } = await scanRaidEvents(guildId);
     await autoLinkLogs(guildId);
-    const stored = listStoredEvents(guildId);
+    // the further raids of a raid group too (#811): each has its own logs and loot
+    const stored = listStoredEvents(guildId, { siblings: true });
     const logs = listLogs()
         .filter((l) => !l.guildId || l.guildId === guildId)
         .map((l) => ({ ...l, postedAt: logPostedAt(l) }));
@@ -191,6 +202,7 @@ async function loadPastRaids(guildId, opts = {}) {
             lootCount: loot.length,
             softres: softresOf(ev.id),
             versionId,
+            ...raidGroupFields(stored.find((s) => s.id === ev.id) || ev),
         };
     });
     return { events, error: stored.length ? null : scanError };

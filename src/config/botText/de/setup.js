@@ -14,6 +14,8 @@ module.exports = {
     // the drawn setup (setupImage.js)
     "Bench": "Bank",
     "Approved setup · version {version}": "Freigegebenes Setup · Version {version}",
+    // a raid of a raid group (#811): the setup message and the DM say which of the evening's raids
+    "Raid {index} of {count}": "Raid {index} von {count}",
     // the DMs (one card each)
     "Setup for {title}": "Setup für {title}",
     "Group {group} as {role}": "Gruppe {group} als {role}",

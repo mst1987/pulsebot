@@ -14,6 +14,7 @@ const { getConfig } = require("../../stores/settingsStore");
 const { ALIASES } = require("../../config/classlist");
 const { categoryNameAt } = require("./categoryEras");
 const { visibleRows, versionOfEvent } = require("./mainVersion");
+const { signupEventIdOf, raidIndexOf } = require("../../utils/raidGroup");
 
 const SOURCES = ["raidhelper", "eventhelper"];
 const DEFAULT_SOURCE = "raidhelper";
@@ -172,13 +173,16 @@ function planFields(ev) {
         color: ev.color || "", image: ev.image || { mode: "thumbnail", url: "" },
         // #288: readers skip or mark a cancelled event (reminders, talk overview).
         status: ev.status || "active", signupsClosed: !!ev.signupsClosed,
+        // #811: a raid group — the first raid's id on every raid of it ("" = none) and the raid's place
+        raidGroupId: ev.raidGroupId || "", raidGroupIndex: ev.raidGroupId ? raidIndexOf(ev) : 0,
     };
 }
 
 /** An own event as a row of loadEventGroups()'s groups. */
 function toEventGroupShape(ev, { catMap, signUps } = {}) {
     const place = placement(ev, catMap);
-    const rows = signUps || ownSignUps(ev.id);
+    // a further raid of a raid group (#811) shares the first raid's signups
+    const rows = signUps || ownSignUps(signupEventIdOf(ev));
     return {
         id: ev.id,
         source: "eventhelper",
@@ -213,6 +217,9 @@ function toMatchableShape(ev, { catMap, config } = {}) {
         categoryId: place.categoryId,
         categoryName: place.categoryName,
         versionId: ev.versionId || "",
+        // #811: the raids of one group start together — the log matching tells them apart (logEventMatch.siblingPick)
+        raidGroupId: ev.raidGroupId || "",
+        raidGroupIndex: ev.raidGroupId ? raidIndexOf(ev) : 0,
     }, { config });
 }
 
@@ -266,7 +273,8 @@ function toRaidHelperShape(ev) {
 function ownEventGroupRows(guildId, { sinceSeconds, catMap, now = Date.now() } = {}) {
     if (!guildId) return [];
     const lower = sinceSeconds || Math.floor(now / 1000);
-    return listEvents(guildId, { sinceSeconds: lower }).map((ev) => {
+    // the further raids of a raid group too (#811): the raid list shows them under the first raid
+    return listEvents(guildId, { sinceSeconds: lower, siblings: true }).map((ev) => {
         const row = toEventGroupShape(ev, { catMap });
         const { _categoryName, ...clean } = row;
         return { categoryId: clean.categoryId, categoryName: _categoryName, row: clean };
@@ -282,7 +290,8 @@ function ownMatchableEvents(guildId, fromSeconds, { catMap, now = Date.now(), un
     if (!guildId) return [];
     const config = erasConfig();
     const until = Number.isFinite(Number(untilSeconds)) && Number(untilSeconds) > 0 ? Math.floor(untilSeconds) : Math.floor(now / 1000);
-    return listEvents(guildId, { sinceSeconds: fromSeconds, untilSeconds: until })
+    // a log of a further raid of a raid group (#811) belongs to that raid
+    return listEvents(guildId, { sinceSeconds: fromSeconds, untilSeconds: until, siblings: true })
         .map((ev) => toMatchableShape(ev, { catMap, config }));
 }
 
@@ -313,10 +322,11 @@ function ownSignedUpEvents(userId, { now = Date.now() } = {}) {
  * snapshot (raidEventStore.js, which only holds raids that already took place)
  * plus the own events that already started. The drop-in for listRaidEvents().
  */
-function listStoredEvents(guildId, { now = Date.now() } = {}) {
+function listStoredEvents(guildId, { now = Date.now(), siblings = false } = {}) {
     const config = erasConfig();
     const rh = listRaidEvents(guildId).map((e) => withEraName({ source: "raidhelper", ...e }, { config }));
-    const own = listEvents(guildId, { untilSeconds: Math.floor(now / 1000) }).map((ev) => toStoredShape(ev, { config }));
+    // without the further raids of a raid group (#811) unless asked: a night of a group counts once
+    const own = listEvents(guildId, { untilSeconds: Math.floor(now / 1000), siblings }).map((ev) => toStoredShape(ev, { config }));
     return [...rh, ...own].sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
 }
 

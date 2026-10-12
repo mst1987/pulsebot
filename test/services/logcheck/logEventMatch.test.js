@@ -149,7 +149,7 @@ describe("services/logcheck/logEventMatch", () => {
             expect(items[0].matchAmbiguous).toBe(false);
             expect(items[0].candidates).toEqual([{
                 eventId: "e1", title: "SSC/TK", startTime: secs(START),
-                categoryName: "Raids", diffMs: 30 * 60 * 1000, sameCategory: false, versionId: "",
+                categoryName: "Raids", diffMs: 30 * 60 * 1000, sameCategory: false, versionId: "", raidGroupIndex: 0,
             }]);
         });
 

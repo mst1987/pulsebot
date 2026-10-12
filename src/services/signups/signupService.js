@@ -49,6 +49,8 @@ const { archiveOf } = require("../events/eventArchive");
 const { normalizeOverflow, accountCount } = require("../../utils/signup/capacity");
 const { expectedRoleIds } = require("../roster/categoryRoles");
 const { rosterOfCategory } = require("../roster/categoryRoster");
+const { isRaidSibling, signupEventIdOf } = require("../../utils/raidGroup");
+const { groupPlaces } = require("../events/raidGroup");
 
 // Statuses a member may still pick once the deadline has passed.
 const AFTER_DEADLINE = ["absence", "late"];
@@ -257,7 +259,8 @@ function benched(value) {
  */
 function applyOverflow(event, value, { previous = null, byOrga = false, signups = null, userId = "" } = {}) {
     const keep = { value, waitlisted: false, notice: "" };
-    const size = Number(event && event.size) || 0;
+    // a raid group (#811): the seats of all its raids together
+    const size = groupPlaces(event);
     const mode = overflowOf(event);
     if (mode === "none" || byOrga || !size || !ATTENDING.includes(String(value.status)) || holdsSeat(previous)) return keep;
     const taken = seatsTaken(signups || signupStore.listSignups(event.id), userId);
@@ -279,7 +282,7 @@ function applyOverflow(event, value, { previous = null, byOrga = false, signups 
  * @returns {{ locked: boolean, event: object }}
  */
 function lockIfFull(event, { now = Date.now() } = {}) {
-    const size = Number(event && event.size) || 0;
+    const size = event ? groupPlaces(event) : 0;
     if (!event || !event.lockAtLimit || event.signupsClosed || isCancelled(event) || !size) return { locked: false, event };
     const taken = rosterCounts(signupStore.listSignups(event.id)).attending;
     if (taken < size) return { locked: false, event };
@@ -535,8 +538,11 @@ async function submitSignup(eventId, userId, input = {}, { byOrga = false, offPr
     if (!isOwnEventId(eventId)) {
         return fail("raidhelper", "Für dieses Event meldest du dich über Raid-Helper im Discord an.");
     }
-    const event = getEvent(eventId);
-    if (!event) return fail("not_found", "Event nicht gefunden.");
+    const asked = getEvent(eventId);
+    if (!asked) return fail("not_found", "Event nicht gefunden.");
+    // A further raid of a raid group (#811) has no signup of its own: the raiders sign up at the
+    // group's first raid, whichever raid a link or a button named.
+    const event = isRaidSibling(asked) ? (getEvent(signupEventIdOf(asked)) || asked) : asked;
     // An event of a hidden game version is an archive (#563): readable, never changed.
     const archive = archiveOf(event, { config });
     if (archive) return fail("archived", `Dieser Raid ist archiviert (${archive.label} ist ausgeblendet) – Anmeldungen sind geschlossen.`);

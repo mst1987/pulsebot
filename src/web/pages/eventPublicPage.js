@@ -33,6 +33,8 @@ const { ROLE_LABELS, ROLE_LABELS_EN } = require("../../config/gameVersions/class
 const { str, clip } = require("../../utils/text");
 const { tr, specLabel, classLabel, normalizeLang, dateLocale } = require("../../utils/i18n/botText");
 const { serverLang, eventLang } = require("../../services/discord/botLanguage");
+const { signupEventIdOf, raidIndexOf } = require("../../utils/raidGroup");
+const { groupSummary } = require("../../services/events/raidGroup");
 
 // Every key the public payload may carry, at every level. The test walks the
 // view against this list — a new personal field cannot slip in unnoticed.
@@ -41,6 +43,8 @@ const VIEW_KEYS = [
     "signupDeadline", "size", "status", "phase", "cancelReason", "signupsClosed",
     "icsUrl", "signupUrl", "versionId",
     "raids", "counts", "classes", "other", "setup",
+    // a raid group (#811): which raid this is and the links to the others
+    "group", "count", "url", "current",
     // raids[]
     "label", "icon",
     // counts
@@ -109,7 +113,7 @@ function member(entry, table, lang = "de") {
  * @param {{ now?: number, lang?: string }} [opts] `lang`: the labels' language (the server language, German by default)
  * @returns {object|null} null without an event
  */
-function publicEventView(event, signups, { now = Date.now(), lang = "de" } = {}) {
+function publicEventView(event, signups, { now = Date.now(), lang = "de", group = null } = {}) {
     if (!event || !event.id) return null;
     const list = (signups || []).filter((s) => s && s.userId);
     const entries = rosterEntries(list);
@@ -165,7 +169,9 @@ function publicEventView(event, signups, { now = Date.now(), lang = "de" } = {})
         cancelReason: clip(str(event.cancel && event.cancel.reason), 300),
         phase,
         icsUrl: `/r/cal/${encodeURIComponent(event.id)}.ics`,
-        signupUrl: `/signups?event=${encodeURIComponent(event.id)}`,
+        // a raid of a group (#811): the raiders sign up at its first raid
+        signupUrl: `/signups?event=${encodeURIComponent(signupEventIdOf(event))}`,
+        group: groupView(event, group),
         raids: (event.instanceIds || []).map((id) => {
             const inst = instance(event.versionId, id);
             return { id: str(id), label: (inst && (inst.short || inst.name)) || str(id), icon: (inst && inst.icon) || "" };
@@ -185,6 +191,31 @@ function publicEventView(event, signups, { now = Date.now(), lang = "de" } = {})
         other,
         setup,
     };
+}
+
+/**
+ * A raid group (#811) on the public page: which raid this is and the public
+ * pages of the evening's other raids — titles and links only. null outside a group.
+ */
+function groupView(event, group) {
+    if (!group || !Array.isArray(group.raids) || group.raids.length < 2) return null;
+    return {
+        index: raidIndexOf(event),
+        count: group.raids.length,
+        raids: group.raids.map((r) => ({
+            id: str(r.id), title: str(r.title), index: Number(r.index) || 0,
+            url: `/e/${encodeURIComponent(r.id)}`, current: String(r.id) === String(event.id),
+        })),
+    };
+}
+
+/** The line "Raid 2 of 2 · Zul'Aman · Zul'Aman 2" with the other raids linked, "" outside a group. */
+function groupHtml(view, lang) {
+    if (!view.group) return "";
+    const links = view.group.raids.map((r) => (r.current
+        ? `<span class="ev-badge medium">${esc(r.title)}</span>`
+        : `<a class="ev-badge" href="${esc(r.url)}">${esc(r.title)}</a>`)).join("");
+    return `<div class="ev-badges ev-group"><span class="ev-kicker">${esc(tr(lang, "Raid {index} of {count}", { index: view.group.index, count: view.group.count }))}</span>${links}</div>`;
 }
 
 // ---- rendering --------------------------------------------------------------
@@ -223,7 +254,10 @@ const PAGE_STYLE = `
   .ev-list li img { width:18px; height:18px; border-radius:3px; flex:0 0 auto; }
   .ev-list li b { font-weight:700; }
   .ev-list li span { color:var(--muted); font-size:12.5px; margin-left:auto; }
-  .ev-foot { color:var(--muted); font-size:12.5px; margin:28px 0 0; }`;
+  .ev-foot { color:var(--muted); font-size:12.5px; margin:28px 0 0; }
+  .ev-group { margin-top:10px; }
+  .ev-group a.ev-badge { text-decoration:none; color:var(--text); }
+  .ev-group a.ev-badge:hover { border-color:var(--accent); }`;
 
 // "Mi., 24. Sept. 2026, 19:30" / "Wed 24 Sep 2026, 19:30" — in server time (Europe/Berlin), 24 h.
 const fmtDate = (seconds, lang = "de") => {
@@ -310,6 +344,7 @@ function renderPublicEventBody(view, { lang = "de" } = {}) {
       <div class="ev-kicker">${esc(word(lang, "guildRaid"))}</div>
       <h1 class="ev-title">${esc(view.title)}</h1>
       <div class="ev-badges">${badges}</div>
+      ${groupHtml(view, lang)}
     </div>
     ${cancelled}
     <div class="ev-facts">${factsHtml(view, lang)}</div>
@@ -347,7 +382,8 @@ function renderEventPage(eventId, { now = Date.now(), lang: wanted = "" } = {}) 
     // the event's language (its category's), unless the caller asks for one
     const lang = wanted || (event ? eventLang(event) : serverLang());
     if (!event) return null;
-    return renderPublicEventPage(publicEventView(event, listSignups(event.id), { now, lang }), { lang });
+    // a raid of a group (#811): the signups of its first raid, and the links to the evening's other raids
+    return renderPublicEventPage(publicEventView(event, listSignups(signupEventIdOf(event)), { now, lang, group: groupSummary(event) }), { lang });
 }
 
 module.exports = { VIEW_KEYS, publicEventView, renderPublicEventBody, renderPublicEventPage, renderEventPage };

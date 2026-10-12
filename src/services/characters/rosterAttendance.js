@@ -25,6 +25,10 @@
 //   - tentative and not placed (or no setup known)          -> "tentative": neutral,
 //     the night is shown but counts neither for nor against the quota (Oct 2026)
 //   - no signup and not in the log                          -> "noSignup"
+// A raid group (#811 — "Zul'Aman" and "Zul'Aman 2" from one signup) is ONE night:
+// the further raids are no nights of their own, their logs, setups and overrides
+// count for the first raid's night — present in the log of any raid of the group,
+// placed or benched in any of their setups.
 //   - no log and no raider assigned to the character        -> not counted at all:
 //     without a Discord account behind the name there is nothing to compare.
 // "present" and "bench" count for the quota (`attended`), "tentative" not at all
@@ -63,6 +67,7 @@ const availabilityStore = require("../../stores/availabilityStore");
 const overridesStore = require("../../stores/attendanceOverridesStore");
 const { benchAndPool } = require("../setup/setupCore");
 const { listAllAssignments } = require("../../stores/raiderCharactersStore");
+const { isRaidSibling, signupEventIdOf } = require("../../utils/raidGroup");
 
 /** How many raid nights of a category attendance looks back over. */
 const RAID_WINDOW = 11;
@@ -152,6 +157,17 @@ function setupPlaces(setup) {
     }
     const bench = snapshot ? (Array.isArray(snapshot.bench) ? snapshot.bench : []) : benchAndPool(setup).bench;
     return { placed, bench: new Set(bench.filter((b) => b && b.userId && !placed.has(String(b.userId))).map((b) => String(b.userId))) };
+}
+
+/**
+ * The places of a raid group's night (#811): who stood in a group of ANY of its
+ * raids, and who sat on the bench of any of them without standing in a group anywhere.
+ */
+function groupPlaces(setups) {
+    const parts = (setups || []).map(setupPlaces);
+    const placed = new Set(parts.flatMap((p) => [...p.placed]));
+    const bench = new Set(parts.flatMap((p) => [...p.bench]).filter((id) => !placed.has(id)));
+    return { placed, bench };
 }
 
 /** fn(), or `fallback` when it throws: the extra sources (setups, absences, overrides) are best-effort. */
@@ -268,21 +284,33 @@ function buildAttendanceContext(guildId, opts = {}) {
     const reports = listReports().slice(0, maxReports).map(condenseReport);
     const reportById = new Map(reports.map((r) => [String(r.id), r]));
 
-    // event id -> the evaluations of its logs
+    // #677: the setups of own events (who stood on the bench), the absence entries (vacation) and the orga's overrides
+    // #811: the further raids of a raid group too — their night is the first raid's
+    const ownEvents = attempt(() => eventStore.listEvents(guildId, { siblings: true }), []) || [];
+    const setupById = new Map(ownEvents
+        .filter((e) => e && e.id && e.setup)
+        .map((e) => [String(e.id), e.setup]));
+    // further raid id -> its group's first raid; first raid id -> its further raids
+    const nightOf = new Map();
+    const siblingsOf = new Map();
+    for (const e of ownEvents) {
+        if (!e || !isRaidSibling(e)) continue;
+        const head = signupEventIdOf(e);
+        nightOf.set(String(e.id), head);
+        siblingsOf.set(head, [...(siblingsOf.get(head) || []), String(e.id)]);
+    }
+
+    // event id -> the evaluations of its logs (a further raid's count for its group's night, #811)
     const reportsByEvent = new Map();
     for (const log of listLogs()) {
         if (!log || !log.eventId || !log.reportRefId) continue;
         const rep = reportById.get(String(log.reportRefId));
         if (!rep) continue;
-        const list = reportsByEvent.get(String(log.eventId)) || [];
+        const night = nightOf.get(String(log.eventId)) || String(log.eventId);
+        const list = reportsByEvent.get(night) || [];
         list.push(rep);
-        reportsByEvent.set(String(log.eventId), list);
+        reportsByEvent.set(night, list);
     }
-
-    // #677: the setups of own events (who stood on the bench), the absence entries (vacation) and the orga's overrides
-    const setupById = new Map(attempt(() => eventStore.listEvents(guildId), [])
-        .filter((e) => e && e.id && e.setup)
-        .map((e) => [String(e.id), e.setup]));
     const absences = attempt(() => availabilityStore.listEntries(), []).filter((e) => e && e.kind === "absence" && e.userId);
     const overrides = attempt(() => overridesStore.listOverrides(), {});
 
@@ -300,7 +328,10 @@ function buildAttendanceContext(guildId, opts = {}) {
         const signUps = Array.isArray(ev.signUps) ? ev.signUps : [];
         if (!logs.length && !signUps.length) continue;
         const list = raidsByCategory.get(ev.categoryId) || [];
-        const places = setupPlaces(setupById.get(String(ev.id)));
+        const siblings = siblingsOf.get(String(ev.id)) || [];
+        const places = siblings.length
+            ? groupPlaces([setupById.get(String(ev.id)), ...siblings.map((id) => setupById.get(id))])
+            : setupPlaces(setupById.get(String(ev.id)));
         list.push({
             id: String(ev.id), title: ev.title || "", startTime: ev.startTime, signUps, logs,
             // the night's stored version (#737): its zones and title are named with that version's content
@@ -309,7 +340,8 @@ function buildAttendanceContext(guildId, opts = {}) {
             // who stood in a group: a tentative who did was expected, one who did not was not
             placed: places.placed,
             vacation: vacationIds(absences, ev),
-            overrides: overrides[String(ev.id)] || {},
+            // an override set on a further raid of the group still counts for the night (#811)
+            overrides: Object.assign({}, ...siblings.map((id) => overrides[id] || {}), overrides[String(ev.id)] || {}),
         });
         raidsByCategory.set(ev.categoryId, list);
     }

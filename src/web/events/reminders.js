@@ -33,6 +33,7 @@ const guildRoles = require("../../services/discord/guildRoles");
 const reminderStore = require("../../stores/reminderStore");
 const eventStore = require("../../stores/eventStore");
 const { proposeSetup } = require("../../services/setup/setupInput");
+const { inRaidGroup } = require("../../utils/raidGroup");
 const { deliverUserPing } = require("../../services/discord/pingDelivery");
 const { loadEventGroups } = require("../../services/events/raidEventGroups");
 const { getConfig } = require("../../stores/settingsStore");
@@ -199,6 +200,8 @@ function hasLineup(setup) {
 /** Whether an own event is due for its automatic setup proposal now. */
 function autoSuggestDue(event, sent = {}, now = Date.now()) {
     if (!event || !event.autoSuggest || hasLineup(event.setup) || sent[AUTO_SUGGEST] || event.status === "cancelled") return false;
+    // a raid group (#811): the orga is splitting the raiders over its raids by hand — no proposal of one raid alone
+    if (inRaidGroup(event)) return false;
     const deadlineMs = toMs(event.signupDeadline);
     const startMs = toMs(event.startTime);
     return !!deadlineMs && now >= deadlineMs && (!startMs || now < startMs);

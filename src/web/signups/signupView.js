@@ -4,6 +4,7 @@
 // plus local store reads, so the rules — who sees which category, what a row carries — can be tested
 // without Discord or Raid-Helper.
 const profiles = require("../../stores/raiderProfileStore");
+const { isRaidSibling } = require("../../utils/raidGroup");
 const { getEvent } = require("../../stores/eventStore");
 // categoryVisible lives in the service: the same raider-role rule guards saving a signup (submitSignup).
 const { categoryVisible, rosterOnlyAccess, profileRoles, roleCounts, signupWindow, allowedStatuses, wishPartnersSignedUp } = require("../../services/signups/signupService");
@@ -100,6 +101,8 @@ function memberEventRows(groups, { userId, guildId = "", config = {}, roleIds = 
     const byId = new Map((groups || []).flatMap((g) => (g.events || []).map((e) => [e.id, e])));
     return upcomingRows(groups)
         .map((row) => ({ row, ev: byId.get(row.id) || {} }))
+        // a further raid of a raid group (#811) has no signup of its own — the raiders sign up at the first raid
+        .filter(({ ev }) => !isRaidSibling(ev))
         .filter(({ row, ev }) => {
             const signUps = ev.signUps || [];
             const mine = signUps.some((s) => String(s.userId) === uid);

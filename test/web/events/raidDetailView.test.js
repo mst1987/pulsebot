@@ -106,7 +106,7 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         expect(Object.keys(body)).toEqual([
             "event", "planning", "setupFromSnapshot", "categoryName", "guildId", "eventsWarning", "notifyTemplates", "roles", "pingTargets",
             "raidsheets", "matchedSheetId", "setup", "setupError", "tankCandidates", "eventSheet", "sheetLink", "raidplanPost", "eventSoftres",
-            "softresCatalogue", "softresEdition", "softresOff", "versionId", "wowheadPath", "archived", "softresSuggested", "attendance", "ownSignups", "ownSetup", "ownSetupPost",
+            "softresCatalogue", "softresEdition", "softresOff", "versionId", "wowheadPath", "archived", "softresSuggested", "attendance", "ownSignups", "ownSetup", "raidGroup", "ownSetupPost",
             "ownSetupEditors", "attendanceRoleIds", "attendanceSource", "membersError", "signupTarget", "lootItems", "lootTool", "lootSystem", "eventLogs", "unlinkedLogs",
             "progress", "steps", "playerSummaries",
         ]);

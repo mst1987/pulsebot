@@ -21,6 +21,12 @@
 //                                              and what the orga may change it to (#521)
 //   PUT  /api/raids/setup/signup              raids write: change it — status, character,
 //                                              spec — as the orga; the setup follows
+//   POST /api/raids/setup/move-raid           raids write: a raider into another raid of the
+//                                              event's raid group (#811)
+//   POST /api/raids/setup/raid-add            raids write: "Weiteren Raid hinzufügen" — a further
+//                                              raid of the group, same evening, shared signup (#811)
+//   POST /api/raids/setup/raid-remove         raids write: dissolve a further raid without an
+//                                              approved setup; its raiders fall back into the pool
 //
 // The area gate (apiAccess.js) decides read vs. write by method; the GET of the
 // editor additionally asks whether the caller may write, because a draft is
@@ -46,6 +52,8 @@ const { explainSetup } = require("../../utils/setup/explainText");
 const setupSignup = require("../../services/setup/setupSignup");
 const setupConfirm = require("../../services/setup/setupConfirm");
 const setupPresence = require("../../services/setup/setupPresence");
+const raidGroup = require("../../services/events/raidGroup");
+const { signupEventIdOf } = require("../../utils/raidGroup");
 
 // A write on an event setup: an archived event (a hidden game version, #563) is read only.
 const BY_EVENT = (body) => body.event;
@@ -54,8 +62,11 @@ const EXPLAIN_SECTION = "setup-explain";
 
 const canWrite = (user) => userCan(user, "raids", "write");
 
+/** The signups that count for an event: a raid of a group (#811) reads its first raid's. */
+const signupsOf = (event) => listSignups(signupEventIdOf(event));
+
 async function namesFor(event) {
-    const ids = listSignups(event.id).map((s) => s.userId);
+    const ids = signupsOf(event).map((s) => s.userId);
     if (!ids.length) return {};
     try {
         return await discord.resolveUserNames(event.guildId, ids);
@@ -80,7 +91,7 @@ function safeAttendance(event) {
  */
 async function view(event, user, { names = true } = {}) {
     const write = canWrite(user);
-    const signups = write ? listSignups(event.id) : [];
+    const signups = write ? signupsOf(event) : [];
     // Re-read: posting and the DM run write to the event while the request runs.
     const fresh = getEvent(event.id) || event;
     const out = setupEditor.editorView(fresh, {
@@ -137,8 +148,8 @@ const getSetup = withUser({}, async ({ user, res, url }) => {
 });
 
 /** The characters of an event's signups, by user id — names a raider who left the lineup in the activity. */
-function charactersOf(eventId) {
-    return Object.fromEntries(listSignups(eventId).map((s) => [String(s.userId), s.character || ""]));
+function charactersOf(event) {
+    return Object.fromEntries(signupsOf(event).map((s) => [String(s.userId), s.character || ""]));
 }
 
 /** Who did it, for the other editors' activity line. */
@@ -199,7 +210,9 @@ const postPropose = withUser({ write: "raids", csrf: true, body: true, archived:
         const count = placedCount(result.setup) - (body.keep === "placed" ? placedCount(before.setup) : 0);
         setupPresence.recordNote(before.id, body.keep === "placed" ? "fill" : "propose", { ...actor(user), count: Math.max(0, count) });
     }
-    const failed = await followLive(result, user);
+    let failed = await followLive(result, user);
+    // a raid group (#811): the proposal ran over every raid — each posted one follows
+    for (const other of (result && result.others) || []) failed = (await followLive(other, user)) || failed;
     const done = body.keep === "placed" ? "Freie Plätze gefüllt." : "Neuer Vorschlag erstellt.";
     const message = result.live ? `${done} Die gepostete Setup-Nachricht zeigt es schon.` : done;
     await answer(res, result, user, { message: failed ? `${done} ${failed}` : message });
@@ -211,7 +224,7 @@ const putSetup = withUser({ write: "raids", csrf: true, body: true, archived: BY
     if (!before) return;
     const result = setupEditor.saveEventSetup(String(body.event).trim(), body, { userId: user.id });
     // the other editors see who moved whom
-    if (!result.error) setupPresence.recordMoves(before.id, before.setup, result.setup, { ...actor(user), names: charactersOf(before.id) });
+    if (!result.error) setupPresence.recordMoves(before.id, before.setup, result.setup, { ...actor(user), names: charactersOf(before) });
     // a move answers quietly; only a failed edit of the posted message is said
     const failed = await followLive(result, user);
     await answer(res, result, user, failed ? { message: failed } : {});
@@ -325,7 +338,7 @@ const postExtraRole = withUser({ write: "raids", csrf: true, body: true, archive
     const userId = String(body.userId || "").trim();
     if (!EXTRA_ROLES.includes(body.role)) return error(res, 400, "bad_role", "Nur Tank oder Heiler.");
     // only somebody who signed up (or is in the setup) can be marked
-    const known = listSignups(event.id).some((x) => x.userId === userId) || JSON.stringify(event.setup || {}).includes(`"userId":"${userId}"`);
+    const known = signupsOf(event).some((x) => x.userId === userId) || JSON.stringify(event.setup || {}).includes(`"userId":"${userId}"`);
     if (!userId || !known) return error(res, 404, "unknown_raider", "Dieser Raider ist nicht angemeldet.");
     const updated = setEventExtraRole(event.id, userId, body.role, body.on === true);
     await answer(res, { event: updated }, user);
@@ -376,7 +389,7 @@ const postExplain = withUser({ write: "raids", csrf: true, body: true }, async (
     const started = startJob(event.id, EXPLAIN_SECTION, async () => {
         const fresh = getEvent(event.id);
         if (!fresh || !fresh.setup) return { ok: false, error: "Setup nicht mehr vorhanden." };
-        const signups = listSignups(fresh.id);
+        const signups = signupsOf(fresh);
         const decorated = setupEditor.editorView(fresh, { canWrite: true, signups }).setup;
         const { text, model } = await explainSetup(decorated, { event: fresh, signups }, { apiKey: settings.apiKey, model: settings.model || undefined });
         setupEditor.storeExplanation(fresh.id, { text, model, version: fresh.setup.version });
@@ -395,6 +408,60 @@ const getExplain = withUser({ write: "raids" }, async ({ res, url }) => {
         explanation: (event.setup && event.setup.explanation) || null,
         version: (event.setup && event.setup.version) || 0,
     });
+});
+
+/** The event message of a raid group's first raid: its counts ("2 Raids · 20 Plätze") follow a new or dissolved raid. */
+function refreshGroupMessage(primary) {
+    if (!primary || !primary.message) return;
+    refreshEventMessage(primary.id).catch((e) => console.error(`[setup] event message ${primary.id}:`, e.message));
+}
+
+/**
+ * POST /api/raids/setup/move-raid — body `{ event, target, userId, character? }`: a raider of
+ * this raid (group place, bench or the shared pool) into the first free place of another raid of
+ * its raid group (#811). Answers this raid's editor payload; both raids follow live when posted.
+ */
+const postMoveRaid = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+    const before = eventOf(res, body.event);
+    if (!before) return;
+    const result = setupEditor.moveToRaid(before.id, { target: body.target, userId: body.userId, character: body.character }, { userId: user.id });
+    if (result.error) return sendFailure(res, result);
+    setupPresence.recordMoves(before.id, before.setup, result.setup, { ...actor(user), names: charactersOf(before) });
+    let failed = await followLive(result, user);
+    failed = (await followLive(result.target, user)) || failed;
+    const moved = result.moved;
+    const text = `${moved.character || "Raider"} → ${moved.title} (Gruppe ${moved.group}).`;
+    await answer(res, result, user, { message: failed ? `${text} ${failed}` : text });
+});
+
+/**
+ * POST /api/raids/setup/raid-add — body `{ event, title? }`: "Weiteren Raid hinzufügen" (#811).
+ * Answers `{ event: <new raid id>, raidGroup, message }`; the editor then switches to the new tab.
+ */
+const postRaidAdd = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
+    const event = eventOf(res, body.event);
+    if (!event) return;
+    const guildId = activeGuildFor(req);
+    if (guildId && event.guildId && event.guildId !== String(guildId)) return error(res, 404, "not_found", "Event nicht gefunden.");
+    const result = raidGroup.addRaid(event.id, { title: typeof body.title === "string" ? body.title : "", user });
+    if (result.error) return error(res, result.status || 400, result.code || "failed", result.error);
+    refreshGroupMessage(result.primary);
+    ok(res, { event: result.event.id, title: result.event.title, raidGroup: raidGroup.groupSummary(result.event), message: `${result.event.title} angelegt – zieh Angemeldete hinüber oder lass „Freie Plätze füllen“ verteilen.` });
+});
+
+/**
+ * POST /api/raids/setup/raid-remove — body `{ event }` (the further raid): dissolve it (#811) —
+ * only without an approved setup; its raiders fall back into the shared pool "Angemeldet".
+ * Answers `{ event: <primary id>, raidGroup, message }`.
+ */
+const postRaidRemove = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+    const event = eventOf(res, body.event);
+    if (!event) return;
+    const result = raidGroup.dissolveRaid(event.id, { user });
+    if (result.error) return error(res, result.status || 400, result.code || "failed", result.error);
+    refreshGroupMessage(result.primary);
+    const back = result.placed ? ` ${result.placed} zurück in „Angemeldet“.` : "";
+    ok(res, { event: result.primary.id, raidGroup: raidGroup.groupSummary(result.primary), message: `${result.removed.title} aufgelöst.${back}` });
 });
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
@@ -416,6 +483,9 @@ const routes = [
     { method: "POST", path: "/api/raids/setup/search", handler: postSearchMessage, area: "raids" },
     { method: "POST", path: "/api/raids/setup/explain", handler: postExplain, area: "raids" },
     { method: "GET", path: "/api/raids/setup/explain", handler: getExplain, area: "raids" },
+    { method: "POST", path: "/api/raids/setup/move-raid", handler: postMoveRaid, area: "raids" },
+    { method: "POST", path: "/api/raids/setup/raid-add", handler: postRaidAdd, area: "raids" },
+    { method: "POST", path: "/api/raids/setup/raid-remove", handler: postRaidRemove, area: "raids" },
 ];
 
-module.exports = { getSetup, postPresence, postPropose, putSetup, postApprove, postPublish, postPingText, postPing, postConfirm, postConfirmAll, postExtraRole, getSignupEdit, putSignupEdit, postSearchMessage, postSearchText, postExplain, getExplain, EXPLAIN_SECTION, routes };
+module.exports = { getSetup, postPresence, postPropose, putSetup, postApprove, postPublish, postPingText, postPing, postConfirm, postConfirmAll, postExtraRole, getSignupEdit, putSignupEdit, postSearchMessage, postSearchText, postExplain, getExplain, postMoveRaid, postRaidAdd, postRaidRemove, EXPLAIN_SECTION, routes };
