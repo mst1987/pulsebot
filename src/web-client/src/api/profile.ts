@@ -115,7 +115,8 @@ export type LogCharacterSuggestion = {
     specKey: string;
     reports: number;
     lastSeen: number;
-    match: "assigned" | "name" | "";
+    /** Why it is suggested; "similar" = looks like a typo of the character being set right. */
+    match: "similar" | "assigned" | "name" | "";
     claimedBy: { userId: string; name: string }[];
 };
 
@@ -141,8 +142,9 @@ export function saveProfile(patch: ProfilePatch): Promise<{ profile: RaiderProfi
     return send("PUT", "/api/profile", patch);
 }
 
-export function getLogCharacters(q = ""): Promise<{ characters: LogCharacterSuggestion[] }> {
-    return get(`/api/profile/log-characters?q=${encodeURIComponent(q)}`);
+/** `near` = an own character's key being set right: the logged names that look like a typo of it come first. */
+export function getLogCharacters(q = "", near = ""): Promise<{ characters: LogCharacterSuggestion[] }> {
+    return get(`/api/profile/log-characters?q=${encodeURIComponent(q)}${near ? `&near=${encodeURIComponent(near)}` : ""}`);
 }
 
 export function addProfileCharacter(input: AddCharacterInput): Promise<{
@@ -155,6 +157,58 @@ export function addProfileCharacter(input: AddCharacterInput): Promise<{
 
 export function removeProfileCharacter(key: string): Promise<{ removed: boolean; profile: RaiderProfile }> {
     return send("POST", "/api/profile/characters", { remove: key });
+}
+
+/**
+ * Who a character is — what an edit may change; a field left out stays. `specs`
+ * are spec keys, each keeps its gear. `fromLog` = the logged character of that
+ * name instead (name and class from the logs, it counts as "aus den Logs").
+ */
+export type CharacterEditInput = { name?: string; realm?: string; className?: string; specs?: string[]; fromLog?: string };
+
+/** What an edit moved along with a new name (rosters, signups, …) — counts per place; null when the name stayed. */
+export type CharacterEditMoved = { rosters: number; assignments: number; signups: number; guildBank: number; availability: number } | null;
+
+export type CharacterRename = { fromKey: string; toKey: string; fromName: string; toName: string; versionId: string } | null;
+
+export function editProfileCharacter(key: string, input: CharacterEditInput): Promise<{
+    character: ProfileCharacter;
+    renamed: CharacterRename;
+    moved: CharacterEditMoved;
+    profile: RaiderProfile;
+}> {
+    return send("POST", "/api/profile/characters", { edit: key, ...input });
+}
+
+// ---- Alle Charaktere — the orga's tab on the profile page (src/web/apiRoutes/characters.js) ----
+
+/** One raider in the orga's list: the account and its characters. */
+export type CharacterOwner = { userId: string; name: string; characters: ProfileCharacter[] };
+
+export function getAllCharacters(): Promise<{ raiders: CharacterOwner[] }> {
+    return get("/api/characters");
+}
+
+/** The logged characters a raider could be, the typos of character `key` first. */
+export function getLogCharactersOf(userId: string, key: string, q = ""): Promise<{ characters: LogCharacterSuggestion[] }> {
+    return get(`/api/characters/log-suggestions?userId=${encodeURIComponent(userId)}&key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}`);
+}
+
+export function editCharacterOf(userId: string, key: string, input: CharacterEditInput): Promise<{
+    key: string;
+    renamed: CharacterRename;
+    moved: CharacterEditMoved;
+    raider: CharacterOwner;
+}> {
+    return send("POST", "/api/characters/edit", { userId, key, ...input });
+}
+
+export function saveCharacterOf(userId: string, key: string, patch: { specs?: { key: string; gear: GearLevel }[]; canOfftank?: boolean; canHeal?: boolean }): Promise<{ raider: CharacterOwner }> {
+    return send("POST", "/api/characters/save", { userId, key, ...patch });
+}
+
+export function removeCharacterOf(userId: string, key: string): Promise<{ removed: boolean; raider: CharacterOwner }> {
+    return send("POST", "/api/characters/remove", { userId, key });
 }
 
 export function searchRaiders(q: string): Promise<{ raiders: RaiderRef[] }> {

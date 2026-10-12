@@ -112,6 +112,12 @@ describe("stores/configStore saveConfig", () => {
         expect(saved.guildId).toBe("1100000000000000001");
         expect(saved.categorySignupNoteChannel).toEqual({ a: "1300000000000000002" });
     });
+
+    it("merges the characters per signup per category; 8 sets a category back to the default", () => {
+        configStore.saveConfig({ categorySignupCharacters: { a: 3, b: 2 } });
+        expect(configStore.saveConfig({ categorySignupCharacters: { a: 8, c: 5 } }).categorySignupCharacters).toEqual({ b: 2, c: 5 });
+        expect(configStore.getConfig().categorySignupCharacters).toEqual({ b: 2, c: 5 });
+    });
 });
 
 describe("stores/configStore resolveEventSheetLink", () => {

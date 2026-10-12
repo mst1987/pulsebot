@@ -3,7 +3,7 @@ import type { GameClass, GearLevel, ProfileCharacter, ProfileData, ProfileSpec }
 import { Badge, Button, IconButton, PartHead, Segment, WowIcon } from "../../components/ui";
 import { classColorProps } from "../../components/character/ClassSpec";
 import { type AddWay } from "../../components/character/AddCharacterDialog";
-import { ChevronLeftIcon, ChevronRightIcon, ExternalIcon, TrashIcon, WarnIcon, XIcon } from "../../components/ui/icons";
+import { ChevronLeftIcon, ChevronRightIcon, EditIcon, ExternalIcon, TrashIcon, WarnIcon, XIcon } from "../../components/ui/icons";
 import { classLabel, roleLabel, specLabel } from "../../lib/wow/wowNames";
 import { tOr, useT } from "../../i18n";
 
@@ -48,7 +48,7 @@ export function CharChip({ character, cls, active, onClick }: { character: Profi
     );
 }
 
-export function CharacterCard({ character, cls, data, onMove, onSpecs, onRoles, onRemove, versionLabel = "" }: {
+export function CharacterCard({ character, cls, data, onMove, onSpecs, onRoles, onRemove, onEdit, versionLabel = "" }: {
     character: ProfileCharacter;
     cls?: GameClass;
     /** The character's game version, shown only when the profile has more than one (#543). */
@@ -62,6 +62,8 @@ export function CharacterCard({ character, cls, data, onMove, onSpecs, onRoles, 
     onSpecs: (specs: ProfileSpec[]) => void;
     onRoles: (field: RoleField, value: boolean) => void;
     onRemove: () => void;
+    /** Opens "Charakter bearbeiten" (name, realm, class, specs); missing = no pencil. */
+    onEdit?: () => void;
 }) {
     const t = useT();
     const [picking, setPicking] = useState(false);
@@ -103,6 +105,7 @@ export function CharacterCard({ character, cls, data, onMove, onSpecs, onRoles, 
                                 <IconButton icon={<ChevronRightIcon />} size="sm" tip={t("profile.char.moveBack")} tipSub={t("profile.char.orderSub")} disabled={!onMove.back} onClick={() => onMove.back?.()} />
                             </span>
                         )}
+                        {onEdit && <IconButton icon={<EditIcon />} size="sm" tip={t("profile.char.edit")} tipSub={t("profile.char.editSub")} onClick={onEdit} />}
                         {character.armoryUrl && (
                             <a className="ibtn sm" href={character.armoryUrl} target="_blank" rel="noreferrer" aria-label={t("profile.char.armory")} data-tip={t("profile.char.openArmory")}>
                                 <ExternalIcon />

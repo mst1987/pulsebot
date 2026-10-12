@@ -80,7 +80,7 @@ const {
     appEmojiMap, loadAppEmojis, emojiText, emojiOption,
     specEmojiName, classEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName, tileEmojiName, roleEmojiName, emojiStyleOf,
 } = require("../discord/appEmojis");
-const { migrateSignup } = require("../signups/signupCharacters");
+const { migrateSignup, maxCharactersFor } = require("../signups/signupCharacters");
 // The calendar link under the message (#308) — the route that serves it is
 // public, like the report pages.
 const { icsUrlFor } = require("./icsFeed");
@@ -492,7 +492,10 @@ function buttonRows(event, phase, now = Date.now(), { pingMissing = false } = {}
  * differ per viewer — so the own characters open ephemerally (eventPick.js).
  */
 function pickSelect(event, emojis, lang = "de") {
-    const mine = { label: tr(lang, "My characters …"), value: PICK_MINE, description: tr(lang, "from your profile – up to 3 at once") };
+    // how many at once: the category's limit (Einstellungen › Kategorien, default 8)
+    const max = maxCharactersFor(event, getConfig());
+    const description = max > 1 ? tr(lang, "from your profile – up to {max} at once", { max }) : tr(lang, "from your profile");
+    const mine = { label: tr(lang, "My characters …"), value: PICK_MINE, description };
     const mineEmoji = emojiOption(emojis, uiEmojiName("signups"));
     if (mineEmoji) mine.emoji = mineEmoji;
     const classes = classesOf(event).map((c) => {

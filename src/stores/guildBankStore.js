@@ -372,6 +372,31 @@ function setRecipientName(id, { characterName = "", realm = "", by = "", byName 
 }
 
 /**
+ * A raider's character got another name (raiderProfileStore.editCharacter): his
+ * pending requests (waiting, open, confirmed) for it go to the new name and
+ * realm. Handled ones keep theirs — that is who got it. A vouch for the old
+ * name does not carry over (#806), the same as setRecipientName without
+ * `checked`. `nameKey` is the old name in lower case without realm.
+ * @returns {number} how many requests changed
+ */
+function renameRecipient(userId, nameKey, { characterName = "", realm = "" } = {}) {
+    const uid = str(userId);
+    const from = str(nameKey).toLowerCase();
+    const name = str(characterName).replace(/\s+/g, " ").slice(0, CHARACTER_MAX);
+    if (!uid || !from || !name) return 0;
+    const data = store.read();
+    let changed = 0;
+    for (const r of data.requests) {
+        if (str(r.userId) !== uid || !PENDING_STATUSES.includes(r.status || "open")) continue;
+        if (str(r.characterName).toLowerCase().split("-")[0] !== from) continue;
+        Object.assign(r, { characterName: name, ...(str(realm) ? { realm: str(realm).slice(0, 60) } : {}) }, checkFields("", "", 0));
+        changed += 1;
+    }
+    if (changed) store.write(data);
+    return changed;
+}
+
+/**
  * The orga vouches for a pending request's recipient (#806): it checked the
  * name in game ("Im Spiel geprüft" in the web, "Geprüft & bestätigen" on the
  * card) — the addon may mail to it although no raider profile confirms it
@@ -531,7 +556,7 @@ function renamePendingItem({ bankKeys = [], itemId = 0, name = "" } = {}) {
 
 module.exports = {
     STATUSES, PENDING_STATUSES, HANDOUT_VIAS, ITEM_MAX, PURPOSE_MAX, REASON_MAX, AMOUNT_MIN, AMOUNT_MAX, MAX_OPEN, MAX_WAITING, KEEP_DAYS,
-    parseAmount, checkInput, listRequests, getRequest, addRequest, setMessage, setRecipient, setRecipientName, checkRecipient, resolveRequest,
+    parseAmount, checkInput, listRequests, getRequest, addRequest, setMessage, setRecipient, setRecipientName, renameRecipient, checkRecipient, resolveRequest,
     confirmRequest, releaseRequest, handOutRequest, removeRequest, prune, renamePendingItem,
     openCount, waitingCount, waitingQueue, addWaiting, promoteWaiting, moveWaiting, removeWaiting,
     useFile,

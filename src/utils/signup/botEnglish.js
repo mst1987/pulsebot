@@ -20,6 +20,8 @@ const RULES = [
     [/^Der Raid hat schon begonnen – Anmeldungen sind geschlossen\.$/, "The raid has already started – signups are closed."],
     [/^Die Anmeldung ist geschlossen – du kannst dich nur noch abmelden\.$/, "Signups are closed – you can only sign off now."],
     [/^Der Anmeldeschluss ist vorbei – du kannst dich nur noch abmelden oder „Spät“ angeben\.$/, "The signup deadline has passed – you can only sign off or sign up as “Late” now."],
+    [/^Höchstens (\d+) Charaktere je Anmeldung in dieser Kategorie\.$/, "At most $1 characters per signup in this category."],
+    [/^mehr als (\d+) Charaktere je Anmeldung in dieser Kategorie$/, "more than $1 characters per signup in this category"],
     [/^Höchstens (\d+) Charaktere je Anmeldung\.$/, "At most $1 characters per signup."],
     [/^Höchstens (\d+) Charaktere\.$/, "At most $1 characters."],
     [/^Dieser Charakter steht nicht in deinem Profil\.$/, "This character is not in your profile."],

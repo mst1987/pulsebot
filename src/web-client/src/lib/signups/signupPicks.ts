@@ -12,10 +12,27 @@
 //
 // Written to be strippable like setupEditor.ts (src/web-client/src/pages/SignupsPage.test.tsx
 // runs it for real): `import type`, `export type` and one-line signatures only.
-import type { OwnSignup, SignupProfile, SignupProfileCharacter, SignupStatus } from "../../api";
+import type { OwnSignup, OwnSignupRow, SignupProfile, SignupProfileCharacter, SignupStatus } from "../../api";
 
-/** The same limit as the server's (signupCharacters.MAX_CHARACTERS). */
-export const MAX_CHARACTERS = 3;
+/**
+ * The most any category allows (signupCharacters.MAX_CHARACTERS, also the
+ * default). A raid's own limit comes with its row (`maxCharacters`, the
+ * category's setting) — rowMaxCharacters() reads it.
+ */
+export const MAX_CHARACTERS = 8;
+
+/** One raid's limit: its row's `maxCharacters` (1..8), else the default. */
+export function rowMaxCharacters(row: Pick<OwnSignupRow, "maxCharacters"> | null | undefined): number {
+    const n = Math.round(Number(row && row.maxCharacters));
+    return Number.isFinite(n) && n >= 1 ? Math.min(MAX_CHARACTERS, n) : MAX_CHARACTERS;
+}
+
+/** Several raids at once share one choice: the lowest limit among them — and whether their limits differ (the dialog says so). */
+export function bulkMaxCharacters(rows: Pick<OwnSignupRow, "maxCharacters">[]): { max: number; mixed: boolean } {
+    const limits = rows.map(rowMaxCharacters);
+    const max = limits.length ? Math.min(...limits) : MAX_CHARACTERS;
+    return { max, mixed: limits.some((n) => n !== max) };
+}
 
 export type CharacterPick = { characterKey: string; spec: string; status?: SignupStatus };
 
@@ -46,14 +63,14 @@ export function initialPicks(profile: SignupProfile, mine: OwnSignup | null, sta
     return first ? [{ characterKey: first.key, spec: firstSpec(first), status }] : [];
 }
 
-/** Whether another character can be added: under the limit and one left that is not picked. */
-export function canAddPick(profile: SignupProfile, picks: CharacterPick[]): boolean {
-    return picks.length < MAX_CHARACTERS && profile.characters.some((c) => c.specs.length && !picks.some((p) => p.characterKey === c.key));
+/** Whether another character can be added: under the raid's limit (`max`, default 8) and one left that is not picked. */
+export function canAddPick(profile: SignupProfile, picks: CharacterPick[], max: number = MAX_CHARACTERS): boolean {
+    return picks.length < max && profile.characters.some((c) => c.specs.length && !picks.some((p) => p.characterKey === c.key));
 }
 
-/** Add the next character that is not picked yet, with its first geared spec and the first pick's status. */
-export function addPick(profile: SignupProfile, picks: CharacterPick[]): CharacterPick[] {
-    const next = picks.length < MAX_CHARACTERS ? profile.characters.find((c) => c.specs.length && !picks.some((p) => p.characterKey === c.key)) : undefined;
+/** Add the next character that is not picked yet (under the limit `max`), with its first geared spec and the first pick's status. */
+export function addPick(profile: SignupProfile, picks: CharacterPick[], max: number = MAX_CHARACTERS): CharacterPick[] {
+    const next = picks.length < max ? profile.characters.find((c) => c.specs.length && !picks.some((p) => p.characterKey === c.key)) : undefined;
     if (!next) return picks;
     return [...picks, { characterKey: next.key, spec: firstSpec(next), status: picks[0]?.status }];
 }

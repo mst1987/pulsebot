@@ -232,8 +232,12 @@ describe("signing raiders up and off as the orga", () => {
         expect(signupStore.getSignup(event.id, RAIDER).characters.map((c) => [c.character, c.spec])).toEqual([["Thorwald", "Warrior-Protection"], ["Heilbert", "Priest-Holy"]]);
         await manage.addRaider({ guildId: "g1", eventId: event.id, userId: RAIDER, character: "Thorwald", spec: "Warrior-Protection", status: "late", user: ORGA });
         expect(signupStore.getSignup(event.id, RAIDER)).toMatchObject({ status: "late", characters: [expect.anything(), expect.objectContaining({ character: "Heilbert" })] });
-        const tooMany = ["A", "B", "C"].map((c) => ({ character: c, spec: "Mage-Frost" }));
-        expect((await manage.addRaider({ guildId: "g1", eventId: event.id, userId: RAIDER, character: "Thorwald", spec: "Warrior-Protection", alternates: tooMany, user: ORGA })).error.code).toBe("characters");
+        // the category allows three: four are refused before anything lands in the profile, naming the limit
+        settings.getConfig.mockReturnValue({ categorySignupCharacters: { cat: 3 } });
+        const tooMany = ["Aaa", "Bbb", "Ccc"].map((c) => ({ character: c, spec: "Mage-Frost" }));
+        const refused = await manage.addRaider({ guildId: "g1", eventId: event.id, userId: RAIDER, character: "Thorwald", spec: "Warrior-Protection", alternates: tooMany, user: ORGA });
+        expect(refused.error).toMatchObject({ code: "characters", message: "Höchstens 3 Charaktere je Anmeldung in dieser Kategorie." });
+        expect(profiles.getProfile(RAIDER).characters.map((c) => c.name)).not.toContain("Aaa");
     });
 
     it("signs a raider off entirely and logs it", async () => {

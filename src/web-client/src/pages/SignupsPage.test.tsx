@@ -273,6 +273,29 @@ describe("several raids at once on the page (#293)", () => {
         expect(screen.getByRole("link", { name: t("signups.page.noCharLink") })).toHaveAttribute("href", "/profile");
     });
 
+    it("takes the lowest limit of the chosen raids for the shared characters and says so", async () => {
+        const user = userEvent.setup();
+        await show(signupsData({ events: [{ ...KARA, maxCharacters: 1 }, { ...SSC, maxCharacters: 5 }] }));
+        await user.click(check("Kara Freitag")!);
+        await user.click(check("SSC Donnerstag")!);
+        await user.click(within(toolbar()!).getByRole("button", { name: t("signups.bulkTitle") }));
+        const dialog = screen.getByRole("dialog");
+        expect(within(dialog).getByText(t("signups.bulk.limitMin", { max: 1 }))).toBeInTheDocument();
+        // one character per signup in Kara: no "+ Kann auch mit …" although the profile has a second one
+        expect(within(dialog).queryByRole("button", { name: (n) => n.startsWith(t("signups.picks.add")) })).not.toBeInTheDocument();
+    });
+
+    it("offers the shared limit without a note when every chosen raid allows the same", async () => {
+        const user = userEvent.setup();
+        await show(signupsData({ events: [KARA, SSC] }));
+        await user.click(check("Kara Freitag")!);
+        await user.click(check("SSC Donnerstag")!);
+        await user.click(within(toolbar()!).getByRole("button", { name: t("signups.bulkTitle") }));
+        const dialog = screen.getByRole("dialog");
+        expect(within(dialog).queryByText(t("signups.bulk.limitMin", { max: 8 }))).not.toBeInTheDocument();
+        expect(within(dialog).getByRole("button", { name: (n) => n.startsWith(t("signups.picks.add")) })).toHaveTextContent(t("signups.picks.upTo", { max: 8 }));
+    });
+
     it("asks once for characters and status and lists every raid's result with the reason", async () => {
         const user = userEvent.setup();
         const results: BulkSignupResult[] = [

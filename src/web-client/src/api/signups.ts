@@ -85,6 +85,8 @@ export type OwnSignupRow = SignupEventBase & {
     wishes: boolean;
     /** The category's message with "Vielleicht" / "Absagen" (src/web/signupNotes.js); missing = optional. */
     noteMode?: "required" | "optional" | "none";
+    /** How many own characters one signup may name here: the category's setting, 1..8 (missing = 8). */
+    maxCharacters?: number;
     /** The member's own wish partners who already signed up. */
     wishPartners: { userId: string; name: string }[];
     mine: OwnSignup | null;

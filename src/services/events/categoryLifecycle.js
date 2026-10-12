@@ -44,7 +44,7 @@ const { kadersCountingCategory, dropAttendanceCategory } = require("../kader/kad
 const SETTINGS_KEYS = [
     "categoryRoles", "categoryLootTool", "categoryLootSystem", "categorySignupSource", "categorySetupDms", "categoryLanguage",
     "categoryAttendance", "categoryDiscordEvent", "categoryVoiceChannel", "categoryMessageLook", "categoryAnnounce", "categorySignupNotes",
-    "categorySignupNoteChannel", "categorySheets", "categoryPlanning", "categoryRaidTemplate", "categoryReminders",
+    "categorySignupNoteChannel", "categorySignupCharacters", "categorySheets", "categoryPlanning", "categoryRaidTemplate", "categoryReminders",
 ];
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();

@@ -429,6 +429,78 @@ function moveCharacterFirst(userId, key) {
     return { profile, character: profile.characters.find((c) => c.key === k) || null };
 }
 
+/**
+ * Change who a character is: its name, realm, class and — with a class — its
+ * specs (the profile's "Bearbeiten", the orga's character list). Mostly a name
+ * that was never a real character ("Gentle" for a druid) set right.
+ * `data`: { name?, realm?, className?, specs?, source? } — what is left out stays.
+ * `source: "log"` = the name was picked from the logs (the caller looked it up):
+ * it skips the name rule — a logged name is real — and the character counts
+ * as "aus den Logs" from then on.
+ *
+ * - A new name must pass utils/signup/characterNames.js and must not be another
+ *   character of the same profile. A new name means a new key (the version
+ *   stays); what spoke for the old name does not speak for the new one — the
+ *   armory answer, the orga's "im Spiel geprüft", "aus den Logs" — and goes.
+ *   Only the spelling ("gentle" → "Gentle") keeps the key and all of that.
+ * - Another realm drops the armory answer (it was for the old realm).
+ * - Another class keeps only the specs given (of the new class), and the two
+ *   switches go back to "not set" — a mage's "kann heilen" means nothing for a
+ *   priest. `specs` alone (same class) replaces the specs, keeping each one's gear.
+ *
+ * Returns `{ profile, character, renamed }` — `renamed` = { fromKey, toKey,
+ * fromName, toName, versionId } when the name changed, else null; the caller
+ * moves what hangs on the old name (services/characters/characterEdit.js) — or
+ * `{ error, code }`: "not_found" | "bad_name" | "taken" | "bad_class".
+ */
+function editCharacter(userId, key, data = {}) {
+    const current = getProfile(userId);
+    const k = characterKeyOf(key);
+    const c = current && k ? current.characters.find((x) => x.key === k) : null;
+    if (!c) return { error: "Diesen Charakter gibt es im Profil nicht.", code: "not_found" };
+    const version = characterVersion(c.versionId);
+    const fromLog = data.source === "log";
+    let name = c.name;
+    if (data.name !== undefined && cleanText(data.name, MAX_NAME * 2 + 1) !== c.name) {
+        const typed = splitPlayer(String(data.name || "")).character;
+        const checked = fromLog ? { name: cleanText(typed, MAX_NAME) } : validateCharacterName(typed, { versionId: version });
+        if (checked.error || !checked.name) return { error: checked.error || "Bitte einen Namen angeben.", code: "bad_name" };
+        name = checked.name;
+    }
+    const toKey = characterKeyOf(name, version);
+    if (toKey !== c.key && current.characters.some((x) => x.key === toKey)) {
+        return { error: `${name} steht schon in diesem Profil.`, code: "taken" };
+    }
+    const className = data.className !== undefined ? normalizeClass(data.className) : c.className;
+    if (!className || !classInVersion(className, version)) return { error: "Diese Klasse gibt es in der Spielversion des Charakters nicht.", code: "bad_class" };
+    const realm = data.realm !== undefined ? cleanText(data.realm, 32) : c.realm;
+    const keyChanged = toKey !== c.key;
+    const classChanged = className !== c.className;
+    const gearOf = new Map(c.specs.map((s) => [s.key, s.gear]));
+    const specs = Array.isArray(data.specs)
+        ? normalizeSpecs(data.specs.map((s) => {
+            const sk = String((s && (s.key || s)) || "");
+            return { key: sk, gear: (s && s.gear) || gearOf.get(sk) || "usable" };
+        }), className)
+        : (classChanged ? [] : c.specs);
+    const next = {
+        ...c,
+        name,
+        realm,
+        className,
+        specs,
+        ...(classChanged ? { canOfftank: null, canHeal: null } : {}),
+        ...(keyChanged || realm !== c.realm ? { armory: null } : {}),
+        // the old name's proof: the logs saw it, the orga found it — not this one
+        ...(keyChanged ? { source: c.source === "log" ? "manual" : c.source, verifiedAt: 0, verifiedBy: "", verifiedByName: "" } : {}),
+        ...(fromLog ? { source: "log" } : {}),
+    };
+    const profile = store(userId, { ...current, characters: current.characters.map((x) => (x.key === c.key ? next : x)) });
+    const character = profile.characters.find((x) => x.key === toKey) || null;
+    const renamed = name !== c.name ? { fromKey: c.key, toKey, fromName: c.name, toName: name, versionId: version } : null;
+    return { profile, character, renamed };
+}
+
 /** Take a character out of the raider's own profile. True when one was removed. */
 function removeCharacter(userId, key) {
     const current = getProfile(userId);
@@ -618,7 +690,7 @@ module.exports = {
     GEAR_LEVELS, WEEKDAYS, CHARACTER_SOURCES, MAX_CHARACTERS, MAX_WISHES, MAX_AVOID, MAX_NOTE,
     characterKey: characterKeyOf, nameKey: nameKeyOf, characterVersion, charactersOfVersion, findCharacter, migrateCharacterVersions, migrateCharacterOrder,
     normalizeClass, specInfo, normalizeProfile, specRoles, characterRoles, classCan,
-    getProfile, hasProfile, listProfiles, saveProfile, addCharacter, removeCharacter, setCharacterArmory, verifyCharacter, moveCharacterFirst,
+    getProfile, hasProfile, listProfiles, saveProfile, addCharacter, editCharacter, removeCharacter, setCharacterArmory, verifyCharacter, moveCharacterFirst,
     claimsFor, characterClaims, firstCharacter, searchRaiders, raiderRef, reset, useFile,
     PROFILES_FILE,
 };

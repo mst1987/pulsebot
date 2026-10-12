@@ -27,6 +27,10 @@
 //     events on the page (categoryVisible). Roles that cannot be read let the
 //     signup through, an existing own signup may still be changed or withdrawn,
 //     the orga is exempt;
+//   * a signup names at most as many own characters as its category allows
+//     (`characters`, signupCharacters.maxCharactersFor: 1..8, default 8); one
+//     stored before the limit dropped keeps its characters and may lose some,
+//     but takes no new one beyond the limit;
 //   * "Anmeldung nur für das Roster" (#658): where the category's roster has
 //     `signupOnly`, the roster replaces the role rule — only members with status
 //     core, trial or bench take a new signup (`roster_only`; paused members do
@@ -36,7 +40,13 @@
 // the event message (eventMessage.js) and feeds every other listener.
 const { getEvent, isOwnEventId, setEventState, appendEventLog } = require("../../stores/eventStore");
 const signupStore = require("../../stores/signupStore");
-const { MAX_CHARACTERS, migrateSignup, characterStatus } = require("./signupCharacters");
+const characterRules = require("./signupCharacters");
+const { MAX_CHARACTERS, migrateSignup, characterStatus, exceedsCharacterLimit, characterLimitError } = characterRules;
+
+/** signupCharacters.maxCharactersFor with the settings store's config when none is handed in. */
+const maxCharactersFor = (target, config) => characterRules.maxCharactersFor(target, config || settingsStore.getConfig());
+/** signupCharacters.pickLimitFor, the same way. */
+const pickLimitFor = (target, previous, config) => characterRules.pickLimitFor(target, previous, config || settingsStore.getConfig());
 const profiles = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
 const discord = require("../discord/discord");
@@ -386,12 +396,12 @@ function specAllowed(character, specKey, offProfile) {
  * Check a signup without saving it.
  * @param {object} event   an eventStore event (source "eventhelper")
  * @param {object} input   { character, spec, status, canAlso?, comment }
- * @param {object} ctx     { profile, previous?, byOrga?, offProfile?, now? } — `offProfile` (the orga in the setup
+ * @param {object} ctx     { profile, previous?, byOrga?, offProfile?, now?, config? } — `offProfile` (the orga in the setup
  *                         editor, #521): a spec of the character's class the profile lacks, and the signup's own
  *                         characters without a profile, are taken
  * @returns {{ value?: object, error?: string, code?: string }}
  */
-function validateSignup(event, input = {}, { profile, previous = null, byOrga = false, offProfile = false, now = Date.now() } = {}) {
+function validateSignup(event, input = {}, { profile, previous = null, byOrga = false, offProfile = false, now = Date.now(), config } = {}) {
     if (!event) return fail("not_found", "Event nicht gefunden.");
     if (event.source !== "eventhelper" || !isOwnEventId(event.id)) {
         return fail("raidhelper", "Für dieses Event meldest du dich über Raid-Helper im Discord an.");
@@ -424,9 +434,10 @@ function validateSignup(event, input = {}, { profile, previous = null, byOrga = 
             : !AFTER_DEADLINE.includes(status);
         if (refused) return fail("deadline", "Der Anmeldeschluss ist vorbei – du kannst dich nur noch abmelden oder „Spät“ angeben.");
     }
-    if (entries.length > MAX_CHARACTERS) {
-        return fail("characters", `Höchstens ${MAX_CHARACTERS} Charaktere je Anmeldung.`);
-    }
+    // The category's limit (default 8); a signup from before a lower limit keeps what it has.
+    const maxCharacters = maxCharactersFor(event, config);
+    // Signing off is never refused.
+    if (status !== "absence" && exceedsCharacterLimit(entries, prev, maxCharacters)) return fail("characters", characterLimitError(maxCharacters));
     const resolved = [];
     const seen = new Set();
     for (const [i, entry] of entries.entries()) {
@@ -551,7 +562,7 @@ async function submitSignup(eventId, userId, input = {}, { byOrga = false, offPr
     // `roleCheck: false`: an absence entered at a category's panel (availability.js) - saying "I am away" needs no raider role
     const access = roleCheck ? await checkRaiderRole(event, uid, { byOrga, previous, roleIds, config }) : { ok: true };
     if (access.error) return access;
-    const checked = validateSignup(event, input, { profile, previous, byOrga, offProfile: byOrga && offProfile, now });
+    const checked = validateSignup(event, input, { profile, previous, byOrga, offProfile: byOrga && offProfile, now, config });
     if (checked.error) return checked;
     const overflow = applyOverflow(event, checked.value, { previous, byOrga, userId: uid });
     if (overflow.error) return overflow;
@@ -599,11 +610,35 @@ function fitCharactersToEvent(event, characters, profile) {
 }
 
 /**
+ * Cut a raid's fitting characters down to its category's limit (in place): the
+ * first `max` distinct characters stay — a further spec of one of them too —,
+ * every other one moves to `skipped` with the limit as the reason. A list the
+ * stored signup already holds whole stays as it is (exceedsCharacterLimit).
+ */
+function limitCharacters(fit, previous, max) {
+    if (!exceedsCharacterLimit(fit.characters, previous, max)) return fit;
+    const kept = [];
+    const names = new Set();
+    for (const c of fit.characters) {
+        const key = profiles.nameKey(c.character);
+        if (names.has(key) || names.size < max) {
+            names.add(key);
+            kept.push(c);
+        } else {
+            fit.skipped.push({ ...c, reason: `mehr als ${max} Charaktere je Anmeldung in dieser Kategorie` });
+        }
+    }
+    fit.characters = kept;
+    return fit;
+}
+
+/**
  * Sign one user up for several own events at once (#293) — the bot's
  * "Für alle Raids" / "Mehrere Raids" and the web's "Für alle gewählten". Every
  * event runs the full submitSignup (raider role, deadline, start, profile), so
  * one refused raid never stops the others. Characters that do not fit a raid
- * are skipped there with a reason; a raid left without any is skipped as a
+ * are skipped there with a reason — and so are those beyond the raid's limit
+ * (its category's, maxCharactersFor); a raid left without any is skipped as a
  * whole. The comment and "kann auch" of an existing signup are kept.
  *
  * @param {string} userId
@@ -639,6 +674,10 @@ async function submitSignups(userId, entries, { byOrga = false, now = Date.now()
             results.push({ ...base, ok: false, skipped: fit.skipped, code: "no_character", error });
             continue;
         }
+        const previous = signupStore.getSignup(event.id, uid);
+        // Each raid takes as many characters as its category allows: the first ones
+        // in priority order, the rest is skipped there with the limit as the reason.
+        if (status !== "absence") limitCharacters(fit, previous, maxCharactersFor(event, cfg));
         let roleIds;
         const needsRoles = expectedRoleIds(event.categoryId, cfg, { versionId: versionOfEvent(event, { config: cfg }) }).length > 0;
         if (needsRoles && !byOrga) {
@@ -646,7 +685,6 @@ async function submitSignups(userId, entries, { byOrga = false, now = Date.now()
             if (!roleCache.has(guild)) roleCache.set(guild, await discord.memberRoleIds(guild, uid));
             roleIds = roleCache.get(guild);
         }
-        const previous = signupStore.getSignup(event.id, uid);
         const result = await submitSignup(event.id, uid, {
             characters: fit.characters,
             status,
@@ -674,7 +712,7 @@ function httpStatusFor(code) {
 
 module.exports = {
     categoryVisible, checkRaiderRole, rosterOnlyAccess, rosterCounts, roleCounts, signupWindow, allowedStatuses, findCharacter, profileRoles, defaultCanAlso,
-    wishPartnersSignedUp, submitSignup, submitSignups, httpStatusFor, MAX_CHARACTERS,
+    wishPartnersSignedUp, submitSignup, submitSignups, httpStatusFor, MAX_CHARACTERS, maxCharactersFor, pickLimitFor, exceedsCharacterLimit, characterLimitError,
     // only for the tests (#424): not part of the module's API
     _internal: {
         categoryRoleAllowed, validateSignup,

@@ -31,7 +31,7 @@ const WAYS: { value: AddWay; key: string; icon: string }[] = [
     { value: "manual", key: "profile.add.wayManual", icon: "inv_scroll_03" },
 ];
 
-const MATCH_KEY: Record<string, string> = { assigned: "profile.add.matchAssigned", name: "profile.add.matchName" };
+const MATCH_KEY: Record<string, string> = { similar: "profile.add.matchSimilar", assigned: "profile.add.matchAssigned", name: "profile.add.matchName" };
 
 /** Letters per name part, as utils/signup/characterNames.js checks it. */
 const NAME_PART_MAX = 12;
@@ -234,8 +234,20 @@ export default function AddCharacterDialog({
     );
 }
 
-/** Suggestions from the logs, the likely ones first, filtered by a name search. */
-function LogList({ classes, busy, onPick }: { classes: GameClass[]; busy: boolean; onPick: (c: LogCharacterSuggestion) => void }) {
+/**
+ * Suggestions from the logs, the likely ones first, filtered by a name search.
+ * `load` asks another list (a character being set right, EditCharacterDialog:
+ * the typos of it first); `pickLabel` names the button.
+ */
+export function LogList({ classes, busy, onPick, load = getLogCharacters, pickLabel = "", emptyText = "" }: {
+    classes: GameClass[];
+    busy: boolean;
+    onPick: (c: LogCharacterSuggestion) => void;
+    load?: (q: string) => Promise<{ characters: LogCharacterSuggestion[] }>;
+    pickLabel?: string;
+    /** What an empty list says (the add dialog points to armory and "von Hand"). */
+    emptyText?: string;
+}) {
     const t = useT();
     const [q, setQ] = useState("");
     const [list, setList] = useState<LogCharacterSuggestion[] | null>(null);
@@ -244,9 +256,10 @@ function LogList({ classes, busy, onPick }: { classes: GameClass[]; busy: boolea
     useEffect(() => {
         window.clearTimeout(timer.current);
         timer.current = window.setTimeout(() => {
-            getLogCharacters(q).then((r) => setList(r.characters)).catch(() => setList([]));
+            load(q).then((r) => setList(r.characters)).catch(() => setList([]));
         }, q ? 250 : 0);
         return () => window.clearTimeout(timer.current);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- `load` is a new closure on every render of the caller
     }, [q]);
 
     const specLabel = (key: string) => {
@@ -262,7 +275,7 @@ function LogList({ classes, busy, onPick }: { classes: GameClass[]; busy: boolea
                 <input className="inp-sm" placeholder={t("profile.add.search")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t("profile.add.searchAria")} />
             </div>
             {list === null && <RaidLoader compact text={t("profile.add.searching")} />}
-            {list && list.length === 0 && <p className="pf-muted">{t("profile.add.noHit")}</p>}
+            {list && list.length === 0 && <p className="pf-muted">{emptyText || t("profile.add.noHit")}</p>}
             {list && list.map((c) => {
                 const cls = classes.find((x) => x.id === c.className);
                 const color = classColorProps(cls?.color);
@@ -281,7 +294,7 @@ function LogList({ classes, busy, onPick }: { classes: GameClass[]; busy: boolea
                                 {t("profile.add.claimed")}
                             </Badge>
                         )}
-                        <Button size="sm" variant="ghost" disabled={busy} onClick={() => onPick(c)}>{t("profile.add.thatsMe")}</Button>
+                        <Button size="sm" variant="ghost" disabled={busy} onClick={() => onPick(c)}>{pickLabel || t("profile.add.thatsMe")}</Button>
                     </div>
                 );
             })}

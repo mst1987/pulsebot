@@ -352,8 +352,11 @@ async function addRaider({ guildId, eventId, userId, character, spec, alternates
     const info = profiles.specInfo(spec);
     if (!info) return fail(400, "spec", "Bitte eine Spezialisierung wählen.");
     const extra = Array.isArray(alternates) ? alternates.filter((a) => a && str(a.character)) : null;
-    if (extra && extra.length + 1 > signupService.MAX_CHARACTERS) {
-        return fail(400, "characters", `Höchstens ${signupService.MAX_CHARACTERS} Charaktere je Anmeldung.`);
+    // The category's limit, checked before anything lands in the profile (the service checks again).
+    const maxCharacters = signupService.maxCharactersFor(found.event);
+    const requested = [{ character: name }, ...(extra || []).map((a) => ({ character: str(a.character) }))];
+    if (extra && signupService.exceedsCharacterLimit(requested, signupStore.getSignup(found.event.id, uid), maxCharacters)) {
+        return fail(400, "characters", signupService.characterLimitError(maxCharacters));
     }
 
     let profileChanged = false;

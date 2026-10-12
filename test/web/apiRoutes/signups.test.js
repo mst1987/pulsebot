@@ -324,6 +324,12 @@ describe("PUT /api/signups", () => {
         expect(json(res).data.events.find((e) => e.id === "eh-kara").noteMode).toBe("none");
     });
 
+    it("sagt dem Dialog je Raid, wie viele Charaktere eine Anmeldung nennen darf (Standard 8)", async () => {
+        expect(json(await call(route.getSignups, ANNA)).data.events.find((e) => e.id === "eh-kara").maxCharacters).toBe(8);
+        mockConfig = { categorySignupCharacters: { "cat-kara": 3 } };
+        expect(json(await call(route.getSignups, ANNA)).data.events.find((e) => e.id === "eh-kara").maxCharacters).toBe(3);
+    });
+
     it("nimmt mehrere eigene Charaktere in Reihenfolge an (#293)", async () => {
         profiles.addCharacter(ANNA.id, { name: "Nerasol", className: "Priest", specs: ["Priest-Holy"] }, { name: "Anna" });
         const res = await call(route.putSignup, ANNA, { json: {

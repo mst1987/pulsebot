@@ -225,7 +225,8 @@
         "botLanguage": "Bot-Sprache: {value}",
         "discordVisuals": "Bilder in Bot-Nachrichten · {name} {state}",
         "on": "an",
-        "off": "aus"
+        "off": "aus",
+        "signupCharacters": "{name} · Charaktere je Anmeldung → {count}"
     },
     "lootTool": {
         "none": "keins"
@@ -893,11 +894,18 @@
         "tabsIntro": {
             "raider": "Wer zu dieser Kategorie gehört – und wie seine Anwesenheit gezählt wird.",
             "events": "Was beim Anlegen eines neuen Events dieser Kategorie passiert.",
-            "message": "Wie die Anmelde-Nachricht im Kanal aussieht und was ihre Knöpfe fragen.",
+            "message": "Wie die Anmeldung aussieht – die Nachricht im Kanal, was ihre Knöpfe fragen und wie viele Charaktere sie nimmt.",
             "hubs": "Die festen Discord-Nachrichten dieser Kategorie – eine für die Raider, eine für die Orga.",
             "plan": "Womit eingeteilt wird und wer nach der Freigabe Bescheid bekommt.",
             "loot": "Wie Loot in dieser Kategorie verteilt und importiert wird."
-        }
+        },
+        "signupChars": "Charaktere je Anmeldung",
+        "signupCharsShort": "Wie viele Charaktere ein Raider bei einer Anmeldung angeben darf — der erste zählt, die weiteren sind „kann auch mit“.",
+        "signupCharsSub": "Gilt überall: im Anmelde-Dialog im Web, an der Anmelde-Nachricht im Discord und bei „Mehrere Raids“. 1 bis 8, Standard: 8. Wer schon mit mehr Charakteren angemeldet ist, behält sie – er kann welche herausnehmen, aber keine dazunehmen.",
+        "signupCharsAria": "Charaktere je Anmeldung {name}",
+        "signupCharsLess": "Ein Charakter weniger",
+        "signupCharsMore": "Ein Charakter mehr",
+        "signupCharsUnit": "Charaktere"
     },
     "botCommands": {
         "mode": {
