@@ -437,6 +437,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                 dirty={dirty} hasApprovedSetup={view.hasApprovedSetup} busy={saving}
                 sections={view.bosses.filter((b) => !b.defaults && (boardCount(draft, b.key) > 0 || !sheetIncluded(draft, b.key)))} draft={draft} onSheet={setSheet}
                 onPublish={(p) => publish(p)} onRotate={() => publish(true, true)}
+                onPost={() => { setModal(""); openPost(); }} posted={!!ctx.data.raidplanPost?.messageId}
             />
         </div>
     );
