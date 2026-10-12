@@ -35,7 +35,7 @@ const eventStore = require("../../stores/eventStore");
 const { getSignup } = require("../../stores/signupStore");
 const { versionOfEvent, isVersionVisible } = require("../../services/events/mainVersion");
 const { VERSIONS } = require("../../config/gameVersions");
-const { migrateSignup, MAX_CHARACTERS } = require("../../services/signups/signupCharacters");
+const { migrateSignup, pickLimitFor } = require("../../services/signups/signupCharacters");
 const profiles = require("../../stores/raiderProfileStore");
 const guildRoles = require("../../services/discord/guildRoles");
 const { getConfig } = require("../../stores/settingsStore");
@@ -279,7 +279,11 @@ function buildCharacterModal(token, session, page, events, profile, { emojis = {
     const versions = [...new Set(chosen.map((e) => versionOfEvent(e)))];
     const options = versions.length ? versions.flatMap((v) => characterOptions(profile, v)) : characterOptions(profile);
     if (!options.length) return null;
-    const max = Math.min(MAX_CHARACTERS, options.length);
+    // Each raid's category allows its own number of characters (signupCharacters.maxCharactersFor,
+    // default 8); "all" shares one select, so the lowest limit of the chosen raids holds there.
+    const config = getConfig();
+    const limitOf = (event) => pickLimitFor(event, getSignup(event.id, session.userId), config);
+    const max = Math.min(chosen.length ? Math.min(...chosen.map(limitOf)) : pickLimitFor("", null, config), options.length);
     const hint = tr(lang, "Topmost pick = 1st choice, the others = “can also come with”");
     // Discord hands the picks back without their click order: remember the listed order.
     session.orders = session.orders || {};
@@ -316,7 +320,7 @@ function buildCharacterModal(token, session, page, events, profile, { emojis = {
         // no character of this raid's version: no select (Discord takes none without options) = skipped
         if (!list.length) return null;
         return labelled(`${plain(event.title) || "Raid"} · ${shortDate(event.startTime, lang)}`.trim(), session.mode === "one" ? hint : `${hint} · ${tr(lang, "empty = skip")}`, {
-            type: 3, custom_id: `r${i}`, min_values: session.mode === "one" ? 1 : 0, max_values: Math.min(max, list.length), required: session.mode === "one",
+            type: 3, custom_id: `r${i}`, min_values: session.mode === "one" ? 1 : 0, max_values: Math.min(byId.has(id) ? limitOf(event) : max, list.length), required: session.mode === "one",
             options: list,
         });
     }).filter(Boolean);

@@ -218,6 +218,17 @@ describe("save bar change list", () => {
         expect(logic.announceMode({ enabled: true, target: "" })).toBe("event");
     });
 
+    it("names the characters per signup, missing = 8, clamped into 1..8", () => {
+        expect(logic.draftChanges(base(), { ...base(), categorySignupCharacters: { c1: 8 } }, names)).toEqual([]);
+        expect(logic.draftChanges(base(), { ...base(), categorySignupCharacters: { c1: 3 } }, names))
+            .toEqual(["Hyjal & BT · Charaktere je Anmeldung → 3"]);
+        expect(logic.signupCharactersOf(undefined, "c1")).toBe(8);
+        expect(logic.signupCharactersOf({ c1: 20 }, "c1")).toBe(8);
+        expect(logic.signupCharactersOf({ c1: 0 }, "c1")).toBe(1);
+        expect(logic.validSignupCharacters(9)).toBe(false);
+        expect(logic.validSignupCharacters(1)).toBe(true);
+    });
+
     it("names the message mode with Vielleicht/Absage, missing = optional", () => {
         expect(logic.draftChanges(base(), { ...base(), categorySignupNotes: { c1: "optional" } }, names)).toEqual([]);
         expect(logic.draftChanges(base(), { ...base(), categorySignupNotes: { c1: "required" } }, names))

@@ -126,6 +126,22 @@ describe("commands/signup/eventButton", () => {
             expect(stored()).toMatchObject({ status: "signed", character: "Zibbo", spec: "Priest-Holy" });
         });
 
+        it("offers as many characters as the event's category allows", async () => {
+            twoCharacters();
+            profiles.addCharacter(ANNA, { name: "Zibbomage", className: "Mage", specs: [{ key: "Mage-Frost", gear: "ready" }] });
+            mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-1" }));
+            mocks.access.config = { botLanguage: "en", categorySignupCharacters: { "cat-1": 2 } };
+            const limited = click("join");
+            await command.execute(limited);
+            expect(selectOf(replyOf(limited))).toMatchObject({ max_values: 2 });
+            expect(replyOf(limited).embeds[0].description).toContain("up to 2 characters");
+            mocks.access.config = { botLanguage: "en" };
+            const open = click("join");
+            await command.execute(open);
+            // default 8, capped by the three options there are
+            expect(selectOf(replyOf(open))).toMatchObject({ max_values: 3 });
+        });
+
         it("offers several characters as a multi-select and saves them in listed order", async () => {
             twoCharacters();
             const i = click("join");
@@ -202,7 +218,9 @@ describe("commands/signup/eventButton", () => {
             expect(stored()).toMatchObject({ status: "bench", character: "Zibbo" });
         });
 
-        it("adds a further character to an existing signup, up to three", async () => {
+        it("adds a further character to an existing signup, up to the category's limit", async () => {
+            mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-1" }));
+            mocks.access.config = { botLanguage: "en", categorySignupCharacters: { "cat-1": 3 } };
             twoCharacters();
             await command.execute(withComponent(mockInteraction({ customId: "event-btn:eh-kara:pick:s", userId: ANNA, values: ["zibbo|Priest-Holy"] }), null));
             const classBtn = click("class");

@@ -129,6 +129,9 @@ export type AdminConfig = {
     categorySignupNotes?: Record<string, string>;
     // Where a category's messages go instead of discordServers.signupNoteChannelId (#335).
     categorySignupNoteChannel?: Record<string, string>;
+    // How many own characters one signup may name per category (1..8); a
+    // category without an entry allows 8 (signupCharacters.maxCharactersFor).
+    categorySignupCharacters?: Record<string, number>;
     // A fixed Google Sheet per category, keyed by category id. A raid in that
     // category links this sheet unless the app made it a copy of its own.
     categorySheets: Record<string, { url: string; name: string }>;

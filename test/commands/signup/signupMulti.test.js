@@ -91,6 +91,30 @@ describe("talk overview buttons (#293)", () => {
         expect(modal.components[0].description).toContain("Topmost pick = 1st choice");
     });
 
+    it("offers per raid as many characters as its category allows; „alle“ the lowest limit of the chosen raids", () => {
+        characters();
+        profiles.addCharacter(ANNA, { name: "Zibbomage", className: "Mage", specs: [{ key: "Mage-Frost", gear: "ready" }] });
+        profiles.addCharacter(ANNA, { name: "Zibborog", className: "Rogue", specs: [{ key: "Rogue-Combat", gear: "ready" }] });
+        raids(2, (n) => ({ categoryId: n === 1 ? "cat-a" : "cat-b" }));
+        mocks.access.config = { botLanguage: "en", categorySignupCharacters: { "cat-a": 2 } };
+        const events = [mocks.events.get("eh-r1"), mocks.events.get("eh-r2")];
+        const profile = profiles.getProfile(ANNA);
+        const token = multi.createSession(ANNA, { mode: "multi", eventIds: ["eh-r1", "eh-r2"] });
+        const session = multi.getSession(token, ANNA);
+        session.selected = ["eh-r1", "eh-r2"];
+        const perRaid = multi.buildCharacterModal(token, session, 0, events, profile, { lang: "en" });
+        // cat-a allows 2, cat-b nothing set = the default 8, capped by the 4 options
+        expect(perRaid.components.map((c) => c.component.max_values)).toEqual([2, 4]);
+        const allToken = multi.createSession(ANNA, { mode: "all", eventIds: ["eh-r1", "eh-r2"] });
+        const allModal = multi.buildCharacterModal(allToken, multi.getSession(allToken, ANNA), 0, events, profile, { lang: "en" });
+        expect(allModal.components[0].component.max_values).toBe(2);
+        // a signup stored before the limit dropped may pick its characters again
+        mocks.signups.set(`eh-r1/${ANNA}`, { userId: ANNA, status: "signed", characters: [
+            { character: "Zibbo", spec: "Priest-Holy" }, { character: "Zibbowar", spec: "Warrior-Protection" }, { character: "Zibbomage", spec: "Mage-Frost" },
+        ] });
+        expect(multi.buildCharacterModal(token, session, 0, events, profile, { lang: "en" }).components[0].component.max_values).toBe(3);
+    });
+
     it("without characters or raids answers only the member, with where to go", async () => {
         raids(1);
         const none = mockInteraction({ customId: "talk-signup-all", userId: ANNA });

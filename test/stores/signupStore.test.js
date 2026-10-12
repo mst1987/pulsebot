@@ -61,8 +61,10 @@ describe("stores/signupStore", () => {
             ],
         });
         expect(normalizeSignup({ characters: [{ character: "A", spec: "Mage-Frost" }, { character: "B", spec: "Bogus" }] }).error).toBe("Unbekannte Spezialisierung „Bogus“.");
-        const four = ["A", "B", "C", "D"].map((character) => ({ character, spec: "Mage-Frost" }));
-        expect(normalizeSignup({ characters: four }).error).toBe("Höchstens 3 Charaktere je Anmeldung.");
+        // the store's guard is the most any category allows (8); the category's own limit is the service's
+        const eight = ["A", "B", "C", "D", "E", "F", "G", "H"].map((character) => ({ character, spec: "Mage-Frost" }));
+        expect(normalizeSignup({ characters: eight }).value.characters).toHaveLength(8);
+        expect(normalizeSignup({ characters: [...eight, { character: "I", spec: "Mage-Frost" }] }).error).toBe("Höchstens 8 Charaktere je Anmeldung.");
         expect(normalizeSignup({ characters: [] }).error).toBe("Für eine Anmeldung fehlt die Spezialisierung.");
     });
 

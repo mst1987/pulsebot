@@ -14,7 +14,7 @@ const { signupStatus } = require("../../utils/attendance");
 const { accountCount } = require("../../utils/signup/capacity");
 const { approvedPlacementFor } = require("../../services/setup/setupEditor");
 const { approvedSetupOf } = require("../../services/setup/setupCore");
-const { migrateSignup } = require("../../services/signups/signupCharacters");
+const { migrateSignup, maxCharactersFor } = require("../../services/signups/signupCharacters");
 const { noteMode } = require("../../services/signups/signupNotes");
 
 // A class has one colour in every version; all of them, so a class only one
@@ -159,6 +159,9 @@ function memberEventRows(groups, { userId, guildId = "", config = {}, roleIds = 
                 wishes: !!stored.wishes,
                 // Whether "Vielleicht" / "Absagen" ask for a message: required | optional | none.
                 noteMode: noteMode(stored.categoryId || row.categoryId, config),
+                // How many own characters one signup may name here (the category's setting, default 8):
+                // the dialog offers "+ Kann auch mit …" up to it; the bulk dialog takes the lowest of its raids.
+                maxCharacters: maxCharactersFor(stored.categoryId || row.categoryId, config),
                 wishPartners: wishPartnersSignedUp(profile, signUps.filter((s) => String(s.userId) !== uid)),
                 mine: signupSummary(own),
                 // Where the *approved* setup puts the member (#263) — a draft is never shown.

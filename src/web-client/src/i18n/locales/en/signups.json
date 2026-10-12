@@ -122,7 +122,8 @@
         "waitlisted": "Waiting list",
         "saved": "saved",
         "notSaved": "not saved",
-        "absent": "signed off"
+        "absent": "signed off",
+        "limitMin": "At most {max} characters – that many every one of the chosen raids takes (the categories allow different numbers)."
     },
     "picks": {
         "characters": "Characters",
@@ -142,7 +143,9 @@
         "add": "+ Can also come with …",
         "upTo": "(up to {max})",
         "hint": "1 = your choice, the others “can also come with”. The organisers put you in with exactly one.",
-        "hintStatus": " The status applies per character."
+        "hintStatus": " The status applies per character.",
+        "limitReached": "At most {max} characters per signup in this category.",
+        "overLimit": "This category now takes at most {max} characters per signup. Yours stay – you can take some out, but not add any."
     },
     "specPicker": {
         "removeAria": "Remove {name}",

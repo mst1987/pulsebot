@@ -2,7 +2,7 @@ import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { EventSource, PlanningMode, Role } from "../../api";
 import {
     signupNoteMode, noteChannelPick, signupNoteLabel, messageLook, titleSizeLabel, lootSystemLabel, lootToolLabel, planningOf, planningLabel, attendanceOf,
-    validAttendanceWindow, TITLE_SIZES, CATEGORY_TABS, ATTENDANCE_WINDOW, type CategoryAttendance, type CategoryRow, type CategoryTab, type RaiderCharSummary,
+    validAttendanceWindow, signupCharactersOf, validSignupCharacters, TITLE_SIZES, CATEGORY_TABS, ATTENDANCE_WINDOW, SIGNUP_CHARACTERS, type CategoryAttendance, type CategoryRow, type CategoryTab, type RaiderCharSummary,
 } from "../../lib/settings/settingsLogic";
 import { tParts, t as translate, useT } from "../../i18n";
 import { Button } from "../../components/ui/Button";
@@ -45,6 +45,10 @@ export type CategorySettings = {
     categorySignupNoteChannel?: Record<string, string>;
     noteChannels?: { defaultId: string; channels: { id: string; name: string; category?: string }[] };
     onSignupNoteChannel?: (categoryId: string, channelId: string) => void;
+    /** Characters per signup (1..8); missing = 8. */
+    categorySignupCharacters?: Record<string, number>;
+    /** Missing = no "Charaktere je Anmeldung" card (an older caller). */
+    onSignupCharacters?: (categoryId: string, count: number) => void;
     raidTemplates?: CategoryRaidTemplates;
     categoryRoles: Record<string, string[]>;
     categoryLootTool: Record<string, string>;
@@ -138,34 +142,49 @@ function Toggle({ checked, onChange, ariaLabel }: { checked: boolean; onChange: 
     );
 }
 
+/** What a stepper counts: its range, the check of a typed number and its labels (i18n keys). */
+type StepperKind = { min: number; max: number; valid: (n: number) => boolean; less: string; more: string; unit: string };
+
+// Over how many last raids the attendance quota counts (1..50).
+const QUOTA_STEPS: StepperKind = {
+    min: ATTENDANCE_WINDOW.min, max: ATTENDANCE_WINDOW.max, valid: validAttendanceWindow,
+    less: "settings.categories.attendanceWindowLess", more: "settings.categories.attendanceWindowMore", unit: "settings.categories.attendanceWindowUnit",
+};
+
+// How many characters one signup may name (1..8).
+const SIGNUP_CHAR_STEPS: StepperKind = {
+    min: SIGNUP_CHARACTERS.min, max: SIGNUP_CHARACTERS.max, valid: validSignupCharacters,
+    less: "settings.categories.signupCharsLess", more: "settings.categories.signupCharsMore", unit: "settings.categories.signupCharsUnit",
+};
+
 /**
- * Over how many last raids the quota counts: − / + and the number itself, typed
- * freely from 1 to 50. A half-typed number ("" or "0" on the way to "5") stays in
- * the field and is only handed over once it is valid; leaving the field shows the
- * value that counts again.
+ * A number with − / + beside it, typed freely within its range (`kind`: the
+ * attendance quota by default, 1 to 50). A half-typed number ("" or "0" on the
+ * way to "5") stays in the field and is only handed over once it is valid;
+ * leaving the field shows the value that counts again.
  */
-function QuotaStepper({ id, value, ariaLabel, onChange }: { id: string; value: number; ariaLabel: string; onChange: (n: number) => void }) {
+function QuotaStepper({ id, value, ariaLabel, onChange, kind = QUOTA_STEPS }: { id: string; value: number; ariaLabel: string; onChange: (n: number) => void; kind?: StepperKind }) {
     const t = useT();
     const [typing, setTyping] = useState<string | null>(null);
     const step = (by: number) => {
         setTyping(null);
-        onChange(Math.min(ATTENDANCE_WINDOW.max, Math.max(ATTENDANCE_WINDOW.min, value + by)));
+        onChange(Math.min(kind.max, Math.max(kind.min, value + by)));
     };
     return (
         <div className="cat-quota">
             <div className="cat-stepper" role="group" aria-label={ariaLabel}>
-                <button type="button" aria-label={t("settings.categories.attendanceWindowLess")} disabled={value <= ATTENDANCE_WINDOW.min} onClick={() => step(-1)}><MinusIcon /></button>
-                <input id={id} type="number" inputMode="numeric" min={ATTENDANCE_WINDOW.min} max={ATTENDANCE_WINDOW.max} step={1}
+                <button type="button" aria-label={t(kind.less)} disabled={value <= kind.min} onClick={() => step(-1)}><MinusIcon /></button>
+                <input id={id} type="number" inputMode="numeric" min={kind.min} max={kind.max} step={1}
                     value={typing ?? String(value)} aria-label={ariaLabel}
                     onChange={(e) => {
                         const text = e.target.value;
                         setTyping(text);
-                        if (text !== "" && validAttendanceWindow(Number(text))) onChange(Number(text));
+                        if (text !== "" && kind.valid(Number(text))) onChange(Number(text));
                     }}
                     onBlur={() => setTyping(null)} />
-                <button type="button" aria-label={t("settings.categories.attendanceWindowMore")} disabled={value >= ATTENDANCE_WINDOW.max} onClick={() => step(1)}><PlusIcon /></button>
+                <button type="button" aria-label={t(kind.more)} disabled={value >= kind.max} onClick={() => step(1)}><PlusIcon /></button>
             </div>
-            <span className="note">{t("settings.categories.attendanceWindowUnit")}</span>
+            <span className="note">{t(kind.unit)}</span>
         </div>
     );
 }
@@ -359,7 +378,7 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
     // How the signup message in the channel looks, and what its buttons ask.
     function messageFields(): Field[] {
         const out: Field[] = [];
-        const { onMessageLook, onLanguage, onSignupNotes } = s;
+        const { onMessageLook, onLanguage, onSignupNotes, onSignupCharacters } = s;
         if (onLanguage) {
             out.push({ key: "language", node: (
                 <CategoryField label={t("settings.categories.language")} sub={t("settings.categories.languageShort")} more={t("settings.categories.languageSub")}>
@@ -378,6 +397,16 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
             out.push({ key: "titleSize", node: (
                 <CategoryField label={t("settings.categories.titleSize")} sub={t("settings.categories.titleSizeShort")} more={t("settings.categories.titleSizeSub")}>
                     <Segment ariaLabel={t("settings.categories.titleSizeAria", { name })} value={look.titleSize} onChange={(v) => onMessageLook(cat.id, { ...look, titleSize: v })} options={titleSizes()} />
+                </CategoryField>
+            ) });
+        }
+        if (onSignupCharacters) {
+            // How many characters one signup may name — in the web, at the message and for "Mehrere Raids".
+            out.push({ key: "signupChars", node: (
+                <CategoryField label={t("settings.categories.signupChars")} htmlFor={`catchars-${cat.id}`}
+                    sub={t("settings.categories.signupCharsShort")} more={t("settings.categories.signupCharsSub")}>
+                    <QuotaStepper id={`catchars-${cat.id}`} kind={SIGNUP_CHAR_STEPS} value={signupCharactersOf(s.categorySignupCharacters, cat.id)}
+                        ariaLabel={t("settings.categories.signupCharsAria", { name })} onChange={(n) => onSignupCharacters(cat.id, n)} />
                 </CategoryField>
             ) });
         }

@@ -18,7 +18,8 @@ module.exports = {
     "The signup deadline has passed – only “Late” or Absence now.": "Der Anmeldeschluss ist vorbei – nur noch „Spät“ oder Absagen.",
     "Cancelled: {title}": "Abgesagt: {title}",
     "My characters …": "Meine Charaktere …",
-    "from your profile – up to 3 at once": "aus deinem Profil – bis zu 3 auf einmal",
+    "from your profile – up to {max} at once": "aus deinem Profil – bis zu {max} auf einmal",
+    "from your profile": "aus deinem Profil",
     "Sign up – pick a character or class …": "Anmelden – Charakter oder Klasse wählen …",
     // the orga's button at the end of the status row (services/events/missingPingBot.js)
     "Ping missing": "Fehlende pingen",

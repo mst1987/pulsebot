@@ -205,7 +205,7 @@ describe("mehrere Charaktere je Anmeldung (#293)", () => {
         expect(res.signup.canAlso).not.toContain("healer");
     });
 
-    it("prüft jeden Charakter gegen das Profil, zählt einen doppelten nur einmal und nimmt höchstens drei", async () => {
+    it("prüft jeden Charakter gegen das Profil, zählt einen doppelten nur einmal und nimmt höchstens so viele, wie die Kategorie erlaubt", async () => {
         profiles.addCharacter(BERT, { name: "Ysolde", className: "Mage", specs: ["Mage-Frost"] }, { name: "Bert" });
         expect(await service.submitSignup("eh-kara", ANNA, { characters: [...both, { character: "Ysolde", spec: "Mage-Frost" }] }, { now: NOW }))
             .toMatchObject({ code: "character", error: "Ysolde steht nicht in deinem Profil." });
@@ -216,7 +216,48 @@ describe("mehrere Charaktere je Anmeldung (#293)", () => {
         profiles.addCharacter(ANNA, { name: "Brokk", className: "Warrior", specs: ["Warrior-Protection"] }, { name: "Anna" });
         profiles.addCharacter(ANNA, { name: "Zul", className: "Rogue", specs: ["Rogue-Combat"] }, { name: "Anna" });
         const four = [...both, { character: "Brokk", spec: "Warrior-Protection" }, { character: "Zul", spec: "Rogue-Combat" }];
-        expect(await service.submitSignup("eh-kara", ANNA, { characters: four }, { now: NOW })).toMatchObject({ code: "characters" });
+        // default: up to 8 per signup
+        expect((await service.submitSignup("eh-kara", ANNA, { characters: four }, { now: NOW })).signup.characters).toHaveLength(4);
+        mockSignups.clear();
+        // the category allows three: the fourth is refused, and the refusal names the limit
+        mockEvents.set("eh-kara", event({ categoryId: "cat1" }));
+        mockConfig = { categorySignupCharacters: { cat1: 3 } };
+        expect(await service.submitSignup("eh-kara", ANNA, { characters: four }, { now: NOW }))
+            .toMatchObject({ code: "characters", error: "Höchstens 3 Charaktere je Anmeldung in dieser Kategorie." });
+        expect((await service.submitSignup("eh-kara", ANNA, { characters: four.slice(0, 3) }, { now: NOW })).signup.characters).toHaveLength(3);
+    });
+
+    it("nimmt bis zu acht Charaktere, wenn die Kategorie nichts einstellt", async () => {
+        const classes = [["Mage", "Mage-Frost"], ["Warrior", "Warrior-Protection"], ["Rogue", "Rogue-Combat"], ["Hunter", "Hunter-BeastMastery"],
+            ["Warlock", "Warlock-Destruction"], ["Druid", "Druid-Balance"], ["Paladin", "Paladin-Holy"]];
+        const names = ["Aa", "Bb", "Cc", "Dd", "Ee", "Ff", "Gg"];
+        classes.forEach(([className, spec], i) => profiles.addCharacter(ANNA, { name: names[i], className, specs: [spec] }, { name: "Anna" }));
+        const eight = [both[0], ...classes.map(([, spec], i) => ({ character: names[i], spec }))];
+        expect((await service.submitSignup("eh-kara", ANNA, { characters: eight }, { now: NOW })).signup.characters).toHaveLength(8);
+        expect(service.maxCharactersFor("eh-kara-category", {})).toBe(8);
+    });
+
+    it("lässt eine Anmeldung von vor einem gesenkten Limit stehen: weniger geht, ein neuer Charakter darüber nicht", async () => {
+        profiles.addCharacter(ANNA, { name: "Brokk", className: "Warrior", specs: ["Warrior-Protection"] }, { name: "Anna" });
+        profiles.addCharacter(ANNA, { name: "Zul", className: "Rogue", specs: ["Rogue-Combat"] }, { name: "Anna" });
+        const three = [...both, { character: "Brokk", spec: "Warrior-Protection" }];
+        mockEvents.set("eh-kara", event({ categoryId: "cat1" }));
+        await service.submitSignup("eh-kara", ANNA, { characters: three }, { now: NOW });
+        mockConfig = { categorySignupCharacters: { cat1: 2 } };
+        // nothing is cut: the status button (one character sent, the others kept) still saves all three
+        const kept = await service.submitSignup("eh-kara", ANNA, { character: "Nerasol", spec: "Priest-Holy", status: "late" }, { now: NOW });
+        expect(kept.signup.characters.map((c) => c.character)).toEqual(["Nerasol", "Nerathil", "Brokk"]);
+        // the same three again (reordered) is fine
+        expect((await service.submitSignup("eh-kara", ANNA, { characters: [three[2], three[0], three[1]] }, { now: NOW })).error).toBeUndefined();
+        // swapping one for a new character, or adding one, is not
+        expect(await service.submitSignup("eh-kara", ANNA, { characters: [...both, { character: "Zul", spec: "Rogue-Combat" }] }, { now: NOW }))
+            .toMatchObject({ code: "characters", error: "Höchstens 2 Charaktere je Anmeldung in dieser Kategorie." });
+        expect(await service.submitSignup("eh-kara", ANNA, { characters: [...three, { character: "Zul", spec: "Rogue-Combat" }] }, { now: NOW }))
+            .toMatchObject({ code: "characters" });
+        // removing one is
+        expect((await service.submitSignup("eh-kara", ANNA, { characters: [three[0], three[2]] }, { now: NOW })).signup.characters).toHaveLength(2);
+        // signing off is never refused
+        expect((await service.submitSignup("eh-kara", ANNA, { characters: [...three, { character: "Zul", spec: "Rogue-Combat" }], status: "absence" }, { now: NOW })).error).toBeUndefined();
     });
 
     it("behält die „kann auch mit“-Charaktere, wenn ein Frontend nur einen Charakter schickt", async () => {
@@ -340,6 +381,20 @@ describe("submitSignups (#293)", () => {
             ["Nerathil", "Klasse passt nicht zu diesem Raid"],
         ]);
         expect(results[1]).toMatchObject({ ok: false, code: "no_character", error: "Kein Charakter gewählt" });
+    });
+
+    it("nimmt je Raid so viele Charaktere, wie seine Kategorie erlaubt, und nennt den Rest mit dem Limit", async () => {
+        mockEvents.set("eh-kara", event({ categoryId: "cat1" }));
+        mockConfig = { categorySignupCharacters: { cat1: 1 } };
+        const results = await service.submitSignups(ANNA, [
+            { eventId: "eh-kara", characters: chars, status: "signed" },
+            { eventId: "eh-ssc", characters: chars, status: "signed" },
+        ], { now: NOW });
+        expect(results.every((r) => r.ok)).toBe(true);
+        expect(results[0].signup.characters.map((c) => c.character)).toEqual(["Nerasol"]);
+        expect(results[0].skipped).toEqual([{ character: "Nerathil", spec: "Mage-Fire", reason: "mehr als 1 Charaktere je Anmeldung in dieser Kategorie" }]);
+        expect(results[1].signup.characters.map((c) => c.character)).toEqual(["Nerasol", "Nerathil"]);
+        expect(results[1].skipped).toEqual([]);
     });
 
     it("liest die Rollen je Server nur einmal und behält Kommentar und „kann auch“", async () => {

@@ -5,7 +5,7 @@ const { versionOfEvent } = require("../../services/events/mainVersion");
 const { archivedNotice } = require("../../services/events/eventArchive");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
-const { submitSignup, checkRaiderRole } = require("../../services/signups/signupService");
+const { submitSignup, checkRaiderRole, maxCharactersFor } = require("../../services/signups/signupService");
 const { BUTTON_PREFIX } = require("../../services/events/eventMessage");
 const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
 const { characterOptions } = require("../../utils/signup/joinPicker");
@@ -15,8 +15,7 @@ const {
     buildCharacterPicker, buildClassPicker, buildSpecPicker, buildNameModal, buildNoteModal, statusWord,
 } = require("../../utils/signup/signupButtons");
 const { answerPayload, answerUpdate } = require("../../utils/signup/signupReply");
-const { noteMode, MIN_NOTE } = require("../../services/signups/signupNotes");
-const { asEphemeral } = require("../../utils/discord/card");
+const { noteMode, MIN_NOTE } = require("../../services/signups/signupNotes");const { asEphemeral } = require("../../utils/discord/card");
 
 // The signup buttons under an EventHelper event message and every step after
 // them — see utils/signup/signupButtons.js for the flow and the customIds. Every answer
@@ -188,7 +187,7 @@ async function onName(interaction, event, status, specKey) {
         source: "manual",
     }, { name: displayName(interaction), versionId });
     if (added.error) return done(interaction, `⚠️ ${added.error}`, event);
-    const next = withAddedCharacter(getSignup(event.id, uid), { character: added.character.name, spec: info.key, status }, lang);
+    const next = withAddedCharacter(getSignup(event.id, uid), { character: added.character.name, spec: info.key, status }, lang, maxCharactersFor(event));
     if (next.error) return done(interaction, `⚠️ ${next.error}`, event);
     const note = takeNote(event.id, uid, next.status);
     return save(interaction, event, { characters: next.characters, status: next.status, ...note }, { update: true });

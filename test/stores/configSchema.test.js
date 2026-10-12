@@ -80,6 +80,8 @@ const afterEras = (config) => ({ ...config, categoryEras: {} });
 const afterLaunch = (config) => ({ ...config, versionLaunch: {} });
 // Oct 2026 adds the drawn pictures in bot messages (a test), every one on by default.
 const afterVisuals = (config) => ({ ...config, discordVisuals: { overviewWeekStrip: true, setupImage: true, eventCover: true } });
+// Oct 2026 adds the characters per signup per category (empty: every category allows the default 8).
+const afterSignupCharacters = (config) => ({ ...config, categorySignupCharacters: {} });
 // #738: the start pins every active category to the version it plays (the main version) -
 // only for a stored file (a missing one is never written).
 function afterCategoryVersions(config, stored) {
@@ -88,7 +90,7 @@ function afterCategoryVersions(config, stored) {
     for (const id of Array.isArray(stored.categoryIds) ? stored.categoryIds : []) if (!map[id]) map[id] = config.mainVersion;
     return { ...config, categoryVersion: map };
 }
-const schemaOnly = frozen.map((g) => ({ ...g, config: afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))) }));
+const schemaOnly = frozen.map((g) => ({ ...g, config: afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))) }));
 const golden = schemaOnly.map((g, i) => ({ ...g, config: afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config) }));
 const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)"));
 

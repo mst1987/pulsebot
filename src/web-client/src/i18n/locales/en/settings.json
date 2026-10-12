@@ -225,7 +225,8 @@
         "botLanguage": "Bot language: {value}",
         "discordVisuals": "Pictures in bot messages · {name} {state}",
         "on": "on",
-        "off": "off"
+        "off": "off",
+        "signupCharacters": "{name} · characters per signup → {count}"
     },
     "lootTool": {
         "none": "none"
@@ -893,11 +894,18 @@
         "tabsIntro": {
             "raider": "Who belongs to this category – and how their attendance is counted.",
             "events": "What happens when a new event of this category is created.",
-            "message": "How the signup message looks in the channel and what its buttons ask.",
+            "message": "How signing up looks – the message in the channel, what its buttons ask and how many characters it takes.",
             "hubs": "This category's standing Discord messages – one for the raiders, one for the orga.",
             "plan": "What the raids are assigned with and who hears about it after the release.",
             "loot": "How loot is handed out and imported in this category."
-        }
+        },
+        "signupChars": "Characters per signup",
+        "signupCharsShort": "How many characters a raider may name in one signup — the first counts, the others are “can also come with”.",
+        "signupCharsSub": "Applies everywhere: the signup dialog on the web, the signup message in Discord and “Several raids”. 1 to 8, default: 8. Whoever is already signed up with more characters keeps them – they can take some out, but not add any.",
+        "signupCharsAria": "Characters per signup {name}",
+        "signupCharsLess": "One character less",
+        "signupCharsMore": "One character more",
+        "signupCharsUnit": "characters"
     },
     "botCommands": {
         "mode": {

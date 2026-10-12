@@ -122,7 +122,8 @@
         "waitlisted": "Warteliste",
         "saved": "gespeichert",
         "notSaved": "nicht gespeichert",
-        "absent": "abgemeldet"
+        "absent": "abgemeldet",
+        "limitMin": "Höchstens {max} Charaktere – so viele nimmt jeder der gewählten Raids (die Kategorien erlauben unterschiedlich viele)."
     },
     "picks": {
         "characters": "Charaktere",
@@ -142,7 +143,9 @@
         "add": "+ Kann auch mit …",
         "upTo": "(bis {max})",
         "hint": "1 = deine Wahl, die weiteren „kann auch mit“. Die Orga stellt dich mit genau einem auf.",
-        "hintStatus": " Der Status gilt je Charakter."
+        "hintStatus": " Der Status gilt je Charakter.",
+        "limitReached": "Höchstens {max} Charaktere je Anmeldung in dieser Kategorie.",
+        "overLimit": "Diese Kategorie nimmt jetzt höchstens {max} Charaktere je Anmeldung. Deine bleiben – du kannst welche herausnehmen, aber keine dazunehmen."
     },
     "specPicker": {
         "removeAria": "{name} entfernen",

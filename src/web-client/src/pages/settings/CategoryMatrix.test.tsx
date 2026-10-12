@@ -23,7 +23,10 @@ vi.mock("../../api", async (orig) => ({
 
 const noop = () => undefined;
 
-function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage, attendance, onAttendance, missing, onCloseCategory, closeBlocked, roles, categoryRoles, hubs }: {
+function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage, attendance, onAttendance, missing, onCloseCategory, closeBlocked, roles, categoryRoles, hubs, signupChars, onSignupCharacters }: {
+    /** Characters per signup per category; with onSignupCharacters the card is offered. */
+    signupChars?: Record<string, number>;
+    onSignupCharacters?: (id: string, count: number) => void;
     missing?: api.MissingCategory[];
     onCloseCategory?: (c: api.MissingCategory) => void;
     closeBlocked?: boolean;
@@ -61,6 +64,8 @@ function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, langu
             onLootSystem={noop}
             onSignupSource={noop}
             onSignupNotes={noop}
+            categorySignupCharacters={signupChars}
+            onSignupCharacters={onSignupCharacters}
             onSetupDms={noop}
             onAnnounce={noop}
             onDiscordEvent={noop}
@@ -289,6 +294,38 @@ describe("CategoryMatrix: the open card's tabs", () => {
         await openCard({ attendance: { c1: { show: false } }, onAttendance: noop });
         expect(screen.getByRole("checkbox", { name: t("settings.categories.attendanceAria", { name: "Raids Mittwoch" }) })).not.toBeChecked();
         expect(screen.queryByRole("spinbutton", { name: t("settings.categories.attendanceWindowAria", { name: "Raids Mittwoch" }) })).toBeNull();
+    });
+
+    it("sets the characters per signup in the message tab: 8 by default, − / + within 1..8", async () => {
+        const onSignupCharacters = vi.fn();
+        const user = await openCard({ onSignupCharacters });
+        await user.click(tab("message"));
+        const name = "Raids Mittwoch";
+        const input = screen.getByRole("spinbutton", { name: t("settings.categories.signupCharsAria", { name }) });
+        const card = input.closest("[data-field]") as HTMLElement;
+        expect(card).toHaveAttribute("data-field", "signupChars");
+        expect(within(card).getByText(t("settings.categories.signupChars"))).toBeInTheDocument();
+        expect(within(card).getByText(t("settings.categories.signupCharsShort"))).toBeInTheDocument();
+        expect(input).toHaveValue(8);
+        // 8 is the most there is
+        expect(screen.getByRole("button", { name: t("settings.categories.signupCharsMore") })).toBeDisabled();
+        await user.click(screen.getByRole("button", { name: t("settings.categories.signupCharsLess") }));
+        expect(onSignupCharacters).toHaveBeenLastCalledWith("c1", 7);
+        onSignupCharacters.mockClear();
+        await user.clear(input);
+        await user.type(input, "9");
+        expect(onSignupCharacters).not.toHaveBeenCalled();
+        await user.clear(input);
+        await user.type(input, "3");
+        expect(onSignupCharacters).toHaveBeenLastCalledWith("c1", 3);
+    });
+
+    it("shows a category's own number and stops − at 1", async () => {
+        const user = await openCard({ signupChars: { c1: 1 }, onSignupCharacters: noop });
+        await user.click(tab("message"));
+        expect(screen.getByRole("spinbutton", { name: t("settings.categories.signupCharsAria", { name: "Raids Mittwoch" }) })).toHaveValue(1);
+        expect(screen.getByRole("button", { name: t("settings.categories.signupCharsLess") })).toBeDisabled();
+        expect(tab("message")).toHaveTextContent(`${label("message")}4`);
     });
 
     it("words the tabs in English", async () => {

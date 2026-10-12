@@ -8,7 +8,7 @@ const { tr } = require("../../utils/i18n/botText");
 // The public signup select under an EventHelper event message (#303):
 //
 //   event-pick:<eventId>   value "mine"     → the member's own characters · specs (multi-select,
-//                                             up to 3) with the classes below — or a direct signup
+//                                             up to the category's limit, default 8) with the classes below — or a direct signup
 //                                             with the only fitting character
 //                          value <classId>  → the spec select → the name modal
 //

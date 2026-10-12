@@ -98,7 +98,10 @@ function getSignup(eventId, userId) {
  * character without `status` takes the signup's, the signup's status becomes
  * the first character's — an absence stores no per-character status); without it the
  * single `character`/`spec` is the one entry. The same character twice counts
- * once (its first spec); more than MAX_CHARACTERS are refused.
+ * once (its first spec); more than MAX_CHARACTERS (8, the most any category
+ * allows) are refused. The category's own limit is the service's
+ * (signupCharacters.maxCharactersFor): this store does not read events, and a
+ * signup from before a lowered limit must still save as it is.
  * @returns {{ value?: object, error?: string }}
  */
 function normalizeSignup(input = {}, { versionId = DEFAULT_VERSION } = {}) {

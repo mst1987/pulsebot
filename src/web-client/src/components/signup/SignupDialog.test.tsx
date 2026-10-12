@@ -315,3 +315,47 @@ describe("SignupDialog je Spielversion (#543)", () => {
         expect(screen.getByRole("link", { name: t("signups.dialog.noCharLink") })).toBeInTheDocument();
     });
 });
+
+describe("SignupDialog — characters per signup, per category", () => {
+    // ten characters with a geared spec: more than any category allows
+    const big = {
+        ...PROFILE,
+        characters: Array.from({ length: 10 }, (_, i) => ({
+            ...PROFILE.characters[1], key: `char${i}`, name: `Char${i}`, main: i === 0,
+        })),
+    };
+    const open = (row: OwnSignupRow) => renderPage(<SignupDialog row={row} profile={big} classes={CLASSES} onClose={vi.fn()} onSaved={vi.fn()} />);
+    const lines = () => screen.getAllByRole("combobox", { name: (n) => n.startsWith(t("signups.picks.characterAria", { n: "" }).trim()) });
+
+    it("offers „+ Kann auch mit …“ up to the category's limit and then says it is reached", async () => {
+        const user = userEvent.setup();
+        open(ownRow({ maxCharacters: 3 }));
+        expect(addButton()).toHaveTextContent(t("signups.picks.upTo", { max: 3 }));
+        await user.click(addButton());
+        await user.click(addButton());
+        expect(lines()).toHaveLength(3);
+        expect(screen.queryByRole("button", { name: startsWithAdd })).not.toBeInTheDocument();
+        expect(screen.getByText(t("signups.picks.limitReached", { max: 3 }))).toBeInTheDocument();
+    });
+
+    it("allows 8 where the category sets nothing", async () => {
+        const user = userEvent.setup();
+        open(ownRow());
+        expect(addButton()).toHaveTextContent(t("signups.picks.upTo", { max: 8 }));
+        for (let i = 0; i < 7; i++) await user.click(addButton());
+        expect(lines()).toHaveLength(8);
+        expect(screen.queryByRole("button", { name: startsWithAdd })).not.toBeInTheDocument();
+    });
+
+    it("keeps a signup from before a lowered limit whole: lines can go, none can be added", async () => {
+        const user = userEvent.setup();
+        const chars = [0, 1, 2].map((i) => ({ ...signup().characters[0], character: `Char${i}`, spec: "Warrior-Protection" }));
+        open(ownRow({ maxCharacters: 2, mine: signup({ characters: chars, character: "Char0", spec: "Warrior-Protection" }) }));
+        expect(lines()).toHaveLength(3);
+        expect(screen.getByText(t("signups.picks.overLimit", { max: 2 }))).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: startsWithAdd })).not.toBeInTheDocument();
+        await user.click(screen.getAllByRole("button", { name: t("signups.picks.remove") })[2]);
+        expect(lines()).toHaveLength(2);
+        expect(screen.queryByText(t("signups.picks.overLimit", { max: 2 }))).not.toBeInTheDocument();
+    });
+});

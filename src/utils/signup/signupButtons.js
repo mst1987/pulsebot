@@ -19,7 +19,7 @@
 // posts it to the orga's channel.
 //
 // Steps (the status rides along as the dialog's code s/t/l/b):
-//   event-btn:<eventId>:pick:<code>          own characters · specs, up to MAX_CHARACTERS — saves
+//   event-btn:<eventId>:pick:<code>          own characters · specs, up to the category's limit — saves
 //   event-btn:<eventId>:other:<code>         "Other class …" → the class select
 //   event-btn:<eventId>:cls:<code>           class select → spec select
 //   event-btn:<eventId>:spec:<code>          spec select → name modal
@@ -36,7 +36,7 @@
 const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
 const { migrateSignup, MAX_CHARACTERS } = require("../../services/signups/signupCharacters");
 const profiles = require("../../stores/raiderProfileStore");
-const { allowedStatuses, signupWindow } = require("../../services/signups/signupService");
+const { allowedStatuses, signupWindow, pickLimitFor } = require("../../services/signups/signupService");
 const { emojiOption, emojiText, specEmojiName, classEmojiName, uiEmojiName, statusEmojiName } = require("../../services/discord/appEmojis");
 const { BUTTON_PREFIX } = require("../../services/events/eventMessage");
 const { STATUS_CODES, STATUS_BY_CODE, statusState, gearText, classesFor, buildCharacterModal } = require("./signupDialog");
@@ -154,7 +154,9 @@ function savedEmbed(event, signup, profile, { emojis = {}, notice = "", lang = "
 
 /**
  * The characters for "Anmelden" on an existing signup: the picks in their
- * listed order, each with the given status.
+ * listed order, each with the given status. The select already caps them at
+ * the category's limit (and the service refuses more), so only the hard
+ * maximum is cut here.
  */
 function picksWithStatus(picks, status) {
     return picks.slice(0, MAX_CHARACTERS).map((p) => ({ character: p.character, spec: p.spec, status }));
@@ -173,17 +175,18 @@ function firstCharacterTo(signup, status) {
 /**
  * A character added through the class way: appended to an existing signup
  * (replacing the same character's entry in place), or the only one of a new
- * signup. `{ error }` when the signup is already full.
+ * signup. `{ error }` when the signup already has as many characters as its
+ * category allows (`max`, signupCharacters.maxCharactersFor).
  */
-function withAddedCharacter(signup, entry, lang = "de") {
+function withAddedCharacter(signup, entry, lang = "de", max = MAX_CHARACTERS) {
     const s = signup ? migrateSignup(signup) : null;
     if (!s || s.status === "absence" || !(s.characters || []).length) return { characters: [entry], status: entry.status };
     const key = profiles.nameKey(entry.character);
     const list = s.characters.map((c) => ({ character: c.character, spec: c.spec, status: c.status }));
     const at = list.findIndex((c) => profiles.nameKey(c.character) === key);
     if (at >= 0) list[at] = entry;
-    else if (list.length >= MAX_CHARACTERS) {
-        return { error: tr(lang, "You are already signed up with {max} characters – pick again under “My characters …”.", { max: MAX_CHARACTERS }) };
+    else if (list.length >= max) {
+        return { error: tr(lang, "You are already signed up with {max} characters – pick again under “My characters …”.", { max: list.length }) };
     } else list.push(entry);
     return { characters: list, status: list[0].status };
 }
@@ -262,7 +265,8 @@ function classSelect(event, status, emojis, placeholder, lang) {
 }
 
 /**
- * Step: pick own characters (up to MAX_CHARACTERS), the classes below them for
+ * Step: pick own characters (up to the category's limit — pickLimitFor: as
+ * many as a signup from before a lowered limit already has), the classes below them for
  * a new character (#303). Only the member sees it — an embed reads clearer
  * than plain content here (#356), so the lines go into its description.
  * @returns {{ embeds: object[], components: object[] }}
@@ -270,9 +274,10 @@ function classSelect(event, status, emojis, placeholder, lang) {
 function buildCharacterPicker(event, userId, status, { emojis = {}, notice = "", lang = "de" } = {}) {
     const profile = profiles.getProfile(userId) || { characters: [] };
     const options = pickOptions(profile, userId, event.id, { emojis, versionId: versionOfEvent(event), lang });
-    const max = Math.min(MAX_CHARACTERS, options.length);
+    const stored = getSignup(event.id, userId);
+    const max = Math.min(pickLimitFor(event, stored), options.length);
     const lines = [headLine(event, status, lang)];
-    const mine = migrateSignup(getSignup(event.id, userId));
+    const mine = migrateSignup(stored);
     if (mine && mine.status !== "absence" && (mine.characters || []).length) {
         const list = mine.characters.map((c) => `${characterText(profile, c, emojis, lang)} (${statusWord(lang, c.status)})`).join(", ");
         lines.push(tr(lang, "So far: {list}", { list }));

@@ -13,7 +13,7 @@ import {
     CAN_ALSO, ROLE_ORDER, SIGNUP_STATUS, SIGNUP_STATUS_ORDER, defaultCanAlso, roleCountText, signedUpLabel,
 } from "../../lib/signups/status";
 import {
-    commonStatus, initialPicks, picksToInput, setAllStatuses, signupStatusOf, type CharacterPick,
+    commonStatus, initialPicks, picksToInput, rowMaxCharacters, setAllStatuses, signupStatusOf, type CharacterPick,
 } from "../../lib/signups/signupPicks";
 import { useT } from "../../i18n";
 
@@ -170,7 +170,7 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
                 ) : (
                     <SignupCharacterPicks
                         profile={profile} classes={classes} picks={picks} onChange={changePicks} disabled={absent}
-                        statuses allowedStatuses={row.allowedStatuses}
+                        statuses allowedStatuses={row.allowedStatuses} max={rowMaxCharacters(row)}
                     />
                 )}
 
