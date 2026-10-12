@@ -1,3 +1,4 @@
+import { Send } from "lucide-react";
 import { Button, Modal, useConfirm } from "../../ui";
 import type { RaidplanBoard, RaidplanBoss } from "../../../api";
 import { sheetIncluded, sheetKeysFor } from "../../../lib/raidplan";
@@ -8,9 +9,10 @@ import { useT } from "../../../i18n";
  * "Freigeben & teilen": publishes the saved plan under a link anyone can read
  * without logging in, takes it back, or replaces the link (the old one then
  * stops working). The link is minted on the first publish and stays while the
- * plan is withdrawn — it just does not answer then.
+ * plan is withdrawn — it just does not answer then. "In den Kanal posten" hands
+ * over to the page's post dialog (#502), the same one the strip's "Mehr" menu opens.
  */
-export default function ShareModal({ open, onClose, published, publicPath, dirty, hasApprovedSetup, busy, onPublish, onRotate, sections, draft, onSheet }: {
+export default function ShareModal({ open, onClose, published, publicPath, dirty, hasApprovedSetup, busy, onPublish, onRotate, onPost, posted, sections, draft, onSheet }: {
     open: boolean;
     onClose: () => void;
     published: boolean;
@@ -20,6 +22,9 @@ export default function ShareModal({ open, onClose, published, publicPath, dirty
     busy: boolean;
     onPublish: (published: boolean) => void;
     onRotate: () => void;
+    /** opens the post dialog; posted: a message is in the channel already, posting again updates it */
+    onPost: () => void;
+    posted: boolean;
     /** the sections that hold something, and the draft they are switched in or out in */
     sections: RaidplanBoss[];
     draft: Record<string, Partial<RaidplanBoard>>;
@@ -55,9 +60,18 @@ export default function ShareModal({ open, onClose, published, publicPath, dirty
     return (
         <Modal
             open={open} onClose={onClose} icon="inv_misc_note_02" title={t("raidBoard.share.title")} width={520}
-            footer={published
-                ? <Button variant="ghost" onClick={() => onPublish(false)} disabled={busy}>{t("raidBoard.share.unpublish")}</Button>
-                : <Button onClick={() => onPublish(true)} disabled={busy}>{t("raidBoard.share.publish")}</Button>}
+            footer={(
+                <>
+                    {published && <Button variant="ghost" onClick={() => onPublish(false)} disabled={busy}>{t("raidBoard.share.unpublish")}</Button>}
+                    <Button
+                        variant={published ? undefined : "ghost"} icon={<Send size={15} aria-hidden="true" />} onClick={onPost} disabled={busy}
+                        data-tip={dirty ? t("raidBoard.bar.postLinkUnsaved") : t("raidBoard.bar.postLinkSub")}
+                    >
+                        {posted ? t("raidBoard.share.repost") : t("raidBoard.share.post")}
+                    </Button>
+                    {!published && <Button onClick={() => onPublish(true)} disabled={busy}>{t("raidBoard.share.publish")}</Button>}
+                </>
+            )}
         >
             <p className="rp-muted">{t("raidBoard.share.text")}</p>
             {dirty && <p className="rp-warn">{t("raidBoard.share.unsavedHint")}</p>}
