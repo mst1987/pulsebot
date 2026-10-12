@@ -1,10 +1,15 @@
+const fs = require("fs");
 const store = require("../../src/stores/guildBankStore");
 const { tempStoreFile } = require("../helpers/tempStore");
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = 1_800_000_000_000;
 
-beforeAll(() => store.useFile(tempStoreFile("guild-bank.json")));
+let FILE;
+beforeAll(() => {
+    FILE = tempStoreFile("guild-bank.json");
+    store.useFile(FILE);
+});
 afterAll(() => store.useFile(null));
 beforeEach(() => {
     for (const r of store.listRequests()) store.removeRequest(r.id);
@@ -275,5 +280,76 @@ describe("stores/guildBankStore — setRecipient (linking a character)", () => {
         expect(store.setRecipient("nope", { userId: "u2", characterName: "X" })).toEqual({ error: "Anfrage nicht gefunden." });
         expect(store.setRecipient(r.id, { userId: "", characterName: "X" })).toEqual({ error: "Kein Raider und kein Charakter." });
         expect(store.setRecipient(r.id, { userId: "u2", characterName: " " })).toEqual({ error: "Kein Raider und kein Charakter." });
+    });
+});
+
+describe("stores/guildBankStore — the orga's vouch for the recipient (#806)", () => {
+    beforeEach(() => {
+        for (const r of store.listRequests()) store.removeRequest(r.id);
+    });
+
+    /** Strip the vouch fields from the stored file: a request written before #806. */
+    function asBefore806(id) {
+        const data = JSON.parse(fs.readFileSync(FILE, "utf8"));
+        for (const r of data.requests) {
+            if (r.id !== id) continue;
+            delete r.recipientCheckedBy;
+            delete r.recipientCheckedByName;
+            delete r.recipientCheckedAt;
+        }
+        fs.writeFileSync(FILE, JSON.stringify(data));
+    }
+
+    it("a new request carries no vouch; confirming vouches with the confirming member", () => {
+        const r = add({ bankKey: "k", itemId: 5, characterName: "Zibbo" }).request;
+        expect(r).toMatchObject({ recipientCheckedBy: "", recipientCheckedByName: "", recipientCheckedAt: 0 });
+        const confirmed = store.confirmRequest(r.id, { by: "o1", byName: "Arthas" }, { now: NOW + 5 }).request;
+        expect(confirmed).toMatchObject({ status: "confirmed", recipientCheckedBy: "o1", recipientCheckedByName: "Arthas", recipientCheckedAt: NOW + 5 });
+    });
+
+    it("keeps the vouch through a release and an earlier check through a confirmation", () => {
+        const r = add({ bankKey: "k", itemId: 5, characterName: "Zibbo" }).request;
+        store.checkRecipient(r.id, { by: "o2", byName: "Jaina" }, { now: NOW + 1 });
+        store.confirmRequest(r.id, { by: "o1", byName: "Arthas" }, { now: NOW + 2 });
+        const released = store.releaseRequest(r.id).request;
+        expect(released).toMatchObject({ status: "open", handledBy: "", handledAt: 0, recipientCheckedBy: "o2", recipientCheckedByName: "Jaina", recipientCheckedAt: NOW + 1 });
+    });
+
+    it("reads a request confirmed before #806 as vouched by whoever confirmed it — and keeps that through a release", () => {
+        // imported by name (no Discord account), moved up, confirmed
+        const w = store.addWaiting({ characterName: "Skerra", item: "Spinel", amount: 1, bankKey: "k", itemId: 5, addedBy: "o1" }).request;
+        const r = store.promoteWaiting(w.id, 1, { now: NOW }).request;
+        store.confirmRequest(r.id, { by: "o1", byName: "Arthas" }, { now: NOW + 3 });
+        asBefore806(r.id);
+        expect(store.getRequest(r.id)).toMatchObject({ status: "confirmed", recipientCheckedBy: "o1", recipientCheckedByName: "Arthas", recipientCheckedAt: NOW + 3 });
+        store.releaseRequest(r.id);
+        expect(store.getRequest(r.id)).toMatchObject({ status: "open", recipientCheckedBy: "o1", recipientCheckedAt: NOW + 3 });
+        // an open request from before #806 was never vouched for
+        const open = add({ bankKey: "k", itemId: 5, characterName: "Bert" }).request;
+        asBefore806(open.id);
+        expect(store.getRequest(open.id).recipientCheckedAt).toBe(0);
+    });
+
+    it("a waiting entry's vouch moves up with it, in full and in part", () => {
+        const w = store.addWaiting({ characterName: "Skerra", item: "Spinel", amount: 3, bankKey: "k", itemId: 5, addedBy: "o1" }).request;
+        store.checkRecipient(w.id, { by: "o1", byName: "Arthas" }, { now: NOW });
+        const part = store.promoteWaiting(w.id, 1, { now: NOW + 1 });
+        expect(part.request).toMatchObject({ status: "open", userId: "", recipientCheckedAt: NOW });
+        expect(part.rest).toMatchObject({ status: "waiting", recipientCheckedAt: NOW });
+    });
+
+    it("a new recipient clears the vouch", () => {
+        const r = add({ bankKey: "k", itemId: 5, characterName: "Zibbo" }).request;
+        store.confirmRequest(r.id, { by: "o1", byName: "Arthas" });
+        expect(store.setRecipient(r.id, { userId: "u2", characterName: "Bertie" }).request).toMatchObject({ recipientCheckedBy: "", recipientCheckedAt: 0 });
+    });
+
+    it("refuses a vouch for a handled, an unknown or a nameless request", () => {
+        const nameless = add({ bankKey: "k", itemId: 5, characterName: "" }).request;
+        expect(store.checkRecipient(nameless.id, { by: "o1" })).toMatchObject({ error: "Die Anfrage nennt keinen Charakter – erst verknüpfen.", request: { id: nameless.id } });
+        expect(store.checkRecipient("nope", { by: "o1" })).toEqual({ error: "Anfrage nicht gefunden." });
+        const done = add({ bankKey: "k", itemId: 5, characterName: "Zibbo" }).request;
+        store.resolveRequest(done.id, { status: "rejected" });
+        expect(store.checkRecipient(done.id, { by: "o1" })).toMatchObject({ error: "Diese Anfrage ist schon erledigt." });
     });
 });

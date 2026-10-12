@@ -230,24 +230,43 @@ export function NotLinkedBadge({ noRaider = false, problem = "none" }: { noRaide
     );
 }
 
-/** The line above the search: what gets linked ("2× Crimson Spinel · bisher: Whapap"). */
-export function LinkIntro({ what, current }: { what: string; current: string }) {
+/**
+ * The line above the search: what gets linked ("2× Crimson Spinel · bisher: Whapap").
+ * With `onVerify` (#806, a request that is not linked but names a character — a
+ * raider without a Discord account has no profile to pick from): "Im Spiel
+ * geprüft" for that name, asked once more in the line itself.
+ */
+export function LinkIntro({ what, current, busy = false, onVerify }: { what: string; current: string; busy?: boolean; onVerify?: () => void }) {
     const t = useT();
+    const [asking, setAsking] = useState(false);
     return (
-        <p className="gb-link-intro">
-            <b>{what}</b>
-            {current && <span className="gb-req-sub">{t("guildbank.link.current", { name: current })}</span>}
-        </p>
+        <div className="gb-link-intro">
+            <p>
+                <b>{what}</b>
+                {current && <span className="gb-req-sub">{t("guildbank.link.current", { name: current })}</span>}
+            </p>
+            {current && onVerify && !asking && (
+                <span className="gb-link-checks">
+                    <span className="gb-req-sub">{t("guildbank.link.currentCheckHint")}</span>
+                    <Button size="sm" variant="ghost" icon={<CheckIcon />} disabled={busy} onClick={() => setAsking(true)}
+                        aria-label={t("guildbank.link.currentCheck", { name: current })}>
+                        {t("guildbank.link.gameCheck")}
+                    </Button>
+                </span>
+            )}
+            {current && onVerify && asking && <GameCheck name={current} busy={busy} onYes={onVerify} onNo={() => setAsking(false)} />}
+        </div>
     );
 }
 
-/** The picker as a dialog of its own (the waiting-list tab). */
-export default function LinkCharacterDialog({ bankKey, what, current, busy, onPick, onClose }: {
+/** The picker as a dialog of its own (the waiting-list tab); `onVerify` as in LinkIntro. */
+export default function LinkCharacterDialog({ bankKey, what, current, busy, onPick, onVerify, onClose }: {
     bankKey: string;
     what: string;
     current: string;
     busy: boolean;
     onPick: (choice: GuildBankCharacterChoice) => void;
+    onVerify?: () => void;
     onClose: () => void;
 }) {
     const t = useT();
@@ -263,7 +282,7 @@ export default function LinkCharacterDialog({ bankKey, what, current, busy, onPi
             initialFocus="#gb-link-query"
             footer={<Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>}
         >
-            <CharacterPicker bankKey={bankKey} initialQuery={current} busy={busy} onPick={onPick} intro={<LinkIntro what={what} current={current} />} />
+            <CharacterPicker bankKey={bankKey} initialQuery={current} busy={busy} onPick={onPick} intro={<LinkIntro what={what} current={current} busy={busy} onVerify={onVerify} />} />
         </Modal>
     );
 }

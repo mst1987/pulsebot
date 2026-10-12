@@ -14,7 +14,7 @@
 // Reading takes "raids", every change "raids" write — without it only the list.
 import { useState } from "react";
 import {
-    getGuildBankWaitlist, linkGuildBankRequest, moveGuildBankWaiting, removeGuildBankWaiting,
+    getGuildBankWaitlist, linkGuildBankRequest, moveGuildBankWaiting, removeGuildBankWaiting, verifyGuildBankRequest,
     type ApiError, type GuildBankCharacterChoice, type GuildBankItem, type GuildBankWaitingEntry, type GuildBankWaitlist,
 } from "../../api";
 import { Badge, Button, IconButton, useConfirm } from "../../components/ui";
@@ -160,6 +160,20 @@ export default function WaitlistTab({ bankKey, items, canWrite, category, search
             setBusyId("");
         }
     };
+    // "Im Spiel geprüft" for the entry's own name (#806): linked without a raider profile
+    const verify = async (entry: GuildBankWaitingEntry) => {
+        setBusyId(entry.id);
+        try {
+            await verifyGuildBankRequest(bankKey, entry.id);
+            toast(t("guildbank.link.currentChecked", { name: recipientName(entry) }), "ok");
+            setLinking(null);
+            await list.reload();
+        } catch (err) {
+            toast((err as ApiError).message, "err");
+        } finally {
+            setBusyId("");
+        }
+    };
     const remove = async (entry: GuildBankWaitingEntry) => {
         const ok = await ask({
             title: t("guildbank.waitlist.removeTitle"),
@@ -190,6 +204,7 @@ export default function WaitlistTab({ bankKey, items, canWrite, category, search
                     current={linking.characterName || waitingName(linking)}
                     busy={busyId === linking.id}
                     onPick={(choice) => { void link(linking, choice); }}
+                    onVerify={!linking.linked && linking.characterName ? () => { void verify(linking); } : undefined}
                     onClose={() => setLinking(null)}
                 />
             )}

@@ -286,6 +286,7 @@
   "POST /api/guildbank/characters/armory",
   "POST /api/guildbank/characters/verify",
   "POST /api/guildbank/request/link",
+  "POST /api/guildbank/request/verify",
   "GET /api/guildbank/waitlist",
   "POST /api/guildbank/waitlist/add",
   "POST /api/guildbank/waitlist/move",

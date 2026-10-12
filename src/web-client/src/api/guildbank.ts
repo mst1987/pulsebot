@@ -303,6 +303,14 @@ export function linkGuildBankRequest(key: string, id: string, pick: { userId: st
     return send<{ request: GuildBankRequest }>("POST", "/api/guildbank/request/link", { key, id, ...pick });
 }
 
+/**
+ * "Im Spiel geprüft" for a pending request's own recipient name (#806): the orga found it in game,
+ * the request counts as linked without a raider profile (a raider without a Discord account has none).
+ */
+export function verifyGuildBankRequest(key: string, id: string): Promise<{ request: GuildBankRequest }> {
+    return send<{ request: GuildBankRequest }>("POST", "/api/guildbank/request/verify", { key, id });
+}
+
 /** How a request was handed out: the orga's button in Discord, ticked off in game, or mailed from the mailbox (addon). */
 export type GuildBankHandoutVia = "" | "discord" | "manual" | "mail";
 

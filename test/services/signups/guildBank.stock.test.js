@@ -199,7 +199,8 @@ describe("services/signups/guildBank — linked characters and the hand-out hist
         const { request } = await ask();
         expect(request.characterName).toBe("");
         const card = discord.postPayload.mock.calls[0][1];
-        expect(cardText(card)).toContain("Kein verknüpfter Charakter");
+        // no name at all: nothing to vouch for (#806)
+        expect(cardText(card)).toContain("Kein Charakter");
         expect(cardButtons(card)[0]).toMatchObject({ label: "Bestätigen", disabled: true });
         expect(await guildBank.confirmRequest(request.id, { byName: "A" })).toMatchObject({ error: guildBank.NOT_LINKED, notLinked: true });
         expect(guildBank.pendingForBank(KEY)).toEqual([expect.objectContaining({ id: request.id, linked: false })]);
@@ -213,7 +214,8 @@ describe("services/signups/guildBank — linked characters and the hand-out hist
         const card = discord.postPayload.mock.calls[0][1];
         expect(cardText(card)).toContain("Charakter nicht bestätigt");
         expect(cardText(card)).not.toContain("Kein verknüpfter Charakter");
-        expect(cardButtons(card)[0]).toMatchObject({ label: "Bestätigen", disabled: true });
+        // a name to vouch for (#806): the card offers the orga's own check instead of a dead button
+        expect(cardButtons(card)[0]).toMatchObject({ label: "Geprüft & bestätigen" });
         expect(await guildBank.confirmRequest(request.id, { byName: "A" })).toMatchObject({
             error: guildBank.NOT_VERIFIED, notLinked: true, linkProblem: "unverified",
         });

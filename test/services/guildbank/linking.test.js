@@ -132,6 +132,37 @@ describe("services/guildbank/linking — confirmed characters only", () => {
     });
 });
 
+describe("services/guildbank/linking — the recipient's own evidence (#806)", () => {
+    it("links a name without a raider profile (no Discord account) when the logs or the loot of the bank's version saw it", () => {
+        const reports = require("../../../src/stores/reportStore");
+        reports.listReports.mockReturnValue([{ id: "r1", versionId: "tbc" }]);
+        reports.getReportRoster.mockReturnValue({ roster: [{ name: "Skerra" }] });
+        resetCache();
+        expect(linking.linkState({ userId: "", characterName: "skerra", realm: "Thunderstrike" }, { gameVersion: "tbc" }))
+            .toMatchObject({ linked: true, linkProblem: "", via: "log", character: null });
+        // a Forever bank needs a Forever log of the name
+        expect(linking.linkState({ userId: "", characterName: "Skerra" }, { gameVersion: "forever" })).toMatchObject({ linked: false, linkProblem: "none" });
+        characterStore.listCharacters.mockReturnValue([{ key: "lootling", character: "Lootling", source: "export" }]);
+        resetCache();
+        expect(linking.linkState({ userId: "", characterName: "Lootling" }, { gameVersion: "" })).toMatchObject({ linked: true, via: "loot" });
+        reports.listReports.mockReturnValue([]);
+        reports.getReportRoster.mockReturnValue(null);
+    });
+
+    it("links a name the orga vouched for — with or without a profile, also an unconfirmed profile character", () => {
+        expect(linking.linkState({ userId: "", characterName: "Skerra" })).toMatchObject({ linked: false, linkProblem: "none" });
+        expect(linking.linkState({ userId: "", characterName: "Skerra", recipientCheckedAt: 5 })).toMatchObject({ linked: true, via: "orga" });
+        addGentle();
+        expect(linking.linkState({ userId: "u3", characterName: "Gentle", recipientCheckedAt: 5 })).toMatchObject({ linked: true, via: "orga", character: { name: "Gentle" } });
+        // a vouch without a name vouches for nothing
+        expect(linking.linkState({ userId: "", characterName: "", recipientCheckedAt: 5 })).toMatchObject({ linked: false, linkProblem: "none" });
+        expect(linking.recipientEvidence(null)).toEqual({ verified: false, via: "" });
+    });
+
+    it("a confirmed profile character still wins with its own evidence", () => {
+        expect(linking.linkState({ userId: "u2", characterName: "Zibbo", recipientCheckedAt: 5 })).toMatchObject({ linked: true, via: "log" });
+    });
+});
 describe("services/guildbank/linking — characterChoices / resolveChoice", () => {
     // #741: TBC bank = TBC characters, Forever bank = Forever characters
     it("lists only the bank's version's characters, with icon, class colour and evidence", () => {

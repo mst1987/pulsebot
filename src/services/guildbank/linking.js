@@ -10,6 +10,14 @@
 // renamed in "Mein Profil" makes the request unlinked again, a character
 // confirmed later links it.
 //
+// The recipient's own evidence links a request, too (#806, recipientEvidence):
+// a raider without a Discord account has no profile, the orga imports them by
+// name — such a name counts when it was seen in a log of the bank's version
+// or the loot export, or when the orga vouched for it (confirmed the request,
+// or "Im Spiel geprüft" / "Geprüft & bestätigen", guildBankStore
+// recipientCheckedAt). A confirmation the orga gave stays the orga's word: the
+// addon's list never drops it later because a newer rule would not link it.
+//
 //   linkedCharacter    the profile character a request points at, or null
 //   linkState          `{ linked, linkProblem: "" | "none" | "unverified", character, via }`
 //   isLinked           linkState's `linked` (the orga card's "Bestätigen", the
@@ -133,7 +141,9 @@ function linkedCharacter(request, { profile, gameVersion = "" } = {}) {
  * Whether a request may go out and, when not, why — `{ linked, linkProblem,
  * character, via }`:
  *   linked true              its character is a profile character with evidence
- *                            (`via`, characterEvidence) of the bank's version
+ *                            (`via`, characterEvidence) of the bank's version —
+ *                            or its recipient has its own (recipientEvidence:
+ *                            "orga", "log", "loot"; `character` may be null)
  *   linkProblem "none"       no profile character at all (or no raider)
  *   linkProblem "unverified" a profile character nobody has confirmed — typed
  *                            by the raider, never seen in a log, the loot or
@@ -145,10 +155,31 @@ function linkedCharacter(request, { profile, gameVersion = "" } = {}) {
 function linkState(request, { profile, gameVersion, index } = {}) {
     const version = gameVersion === undefined ? bankVersionOf(request) : str(gameVersion);
     const character = linkedCharacter(request, { profile, gameVersion: version });
-    if (!character) return { linked: false, linkProblem: "none", character: null, via: "" };
-    const evidence = characterEvidence(character, { gameVersion: version, index });
-    if (!evidence.verified) return { linked: false, linkProblem: "unverified", character, via: "" };
-    return { linked: true, linkProblem: "", character, via: evidence.via };
+    const evidence = character ? characterEvidence(character, { gameVersion: version, index }) : { verified: false, via: "" };
+    if (evidence.verified) return { linked: true, linkProblem: "", character, via: evidence.via };
+    // no (confirmed) profile character: the recipient's own evidence (#806)
+    const own = recipientEvidence(request, { gameVersion: version, index });
+    if (own.verified) return { linked: true, linkProblem: "", character, via: own.via };
+    return { linked: false, linkProblem: character ? "unverified" : "none", character, via: "" };
+}
+
+/**
+ * The evidence of a request's recipient by its own name (#806) — for a raider
+ * without a Discord account (no profile at all) and for a name the orga stands
+ * for: `{ verified, via }` with `via` "orga" (the orga vouched for it:
+ * confirmed the request or checked the name in game, guildBankStore
+ * recipientCheckedAt), else "log" / "loot" (the name was seen in a log of the
+ * bank's version or the loot export, characterEvidence's index). No name = none.
+ * @param {object} request
+ * @param {{ gameVersion?: string, index?: Map<string, string> }} [o]
+ */
+function recipientEvidence(request, { gameVersion = "", index } = {}) {
+    const none = { verified: false, via: "" };
+    const name = str(request && request.characterName);
+    if (!name) return none;
+    if (Number(request.recipientCheckedAt) > 0) return { verified: true, via: "orga" };
+    const seen = (index || seenIndex()).get(profiles.characterKey(name, profiles.characterVersion(gameVersion))) || "";
+    return seen ? { verified: true, via: seen } : none;
 }
 
 /** Whether a request's recipient is a confirmed character of its raider's profile (linkState). */
@@ -335,6 +366,6 @@ function pickError(userId, characterKey, gameVersion) {
 }
 
 module.exports = {
-    CHOICES_MAX, SUGGEST_MAX, foldName, foldRealm, levenshtein, typoLimit, linkedCharacter, linkState, isLinked, withLinked,
+    CHOICES_MAX, SUGGEST_MAX, foldName, foldRealm, levenshtein, typoLimit, linkedCharacter, linkState, recipientEvidence, isLinked, withLinked,
     characterChoices, suggestedCharacters, resolveChoice, choiceFor, playsVersion, versionError, pickError,
 };

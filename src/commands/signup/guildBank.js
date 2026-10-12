@@ -6,6 +6,9 @@
 //                            checking "Verfügbar" again, the raider gets a DM; only with a linked
 //                            character (services/guildbank/linking.js), else "Erst einen Charakter
 //                            verknüpfen – im Web unter Gildenbank."
+//   guildbank:vouch:<id>     "Geprüft & bestätigen" — instead of "Bestätigen" while the request is not
+//                            linked but names a character: the clicking member vouches for the name
+//                            (checked in game) and the request is confirmed (#806)
 //   guildbank:handout:<id>   "Ausgegeben" — a confirmed request was handed out in game, DM
 //   guildbank:release:<id>   "Vormerkung lösen" — a confirmed request is open again, no DM
 //   guildbank:reject:<id>    "Ablehnen …" — opens the decline modal
@@ -30,7 +33,7 @@ const { PREFIX, parseOrgaId, rejectModal, plain } = require("../../utils/signup/
 const NO_RIGHTS = "Das darf nur die Orga mit Raid-Rechten.";
 const GONE = "Diese Anfrage gibt es nicht mehr.";
 const HANDLED = "Diese Anfrage ist schon erledigt.";
-const ACTIONS = ["done", "reject", "mreject", "confirm", "handout", "release"];
+const ACTIONS = ["done", "reject", "mreject", "confirm", "vouch", "handout", "release"];
 
 /** The clicking member's name as the orga reads it. */
 function displayName(interaction) {
@@ -107,6 +110,8 @@ module.exports = {
         const by = { by: interaction.user.id, byName: displayName(interaction) };
         if (action === "done") return run(interaction, () => guildBank.resolveRequest(id, { ...by, status: "done", reason: "" }));
         if (action === "confirm") return run(interaction, () => guildBank.confirmRequest(id, by));
+        // the orga checked the name in game: it vouches for the recipient and confirms (#806)
+        if (action === "vouch") return run(interaction, () => guildBank.checkAndConfirm(id, by));
         if (action === "handout") return run(interaction, () => guildBank.handOutRequest(id, { ...by, via: "discord" }));
         if (action === "release") return run(interaction, () => guildBank.releaseRequest(id), { dm: false });
         let reason = "";
