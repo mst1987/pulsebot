@@ -28,7 +28,7 @@ const requests = require("../../../src/stores/guildBankStore");
 const profiles = require("../../../src/stores/raiderProfileStore");
 const { parseGuildBankScan, GB_FORMAT } = require("../../../src/utils/guildbank/guildBankScan");
 const {
-    linkGuildBankRequest, searchGuildBankCharacters, getGuildBankHandedOut, getGuildBankRequests, getGuildBankWaitlist, importGuildBankWaitlist,
+    linkGuildBankRequest, verifyGuildBankRequest, searchGuildBankCharacters, getGuildBankHandedOut, getGuildBankRequests, getGuildBankWaitlist, importGuildBankWaitlist,
     previewGuildBankWaitlist, addGuildBankWaiting, getGuildBank,
 } = require("../../../src/web/apiRoutes/guildBank");
 const { AREA_BY_PATH } = require("../../../src/web/http/apiAccess");
@@ -87,7 +87,7 @@ beforeEach(() => {
 
 describe("apiRoutes/guildBank — linking and the hand-out history", () => {
     it("gates the new routes under raids", () => {
-        for (const path of ["/api/guildbank/handedout", "/api/guildbank/characters", "/api/guildbank/request/link"]) expect(AREA_BY_PATH[path]).toBe("raids");
+        for (const path of ["/api/guildbank/handedout", "/api/guildbank/characters", "/api/guildbank/request/link", "/api/guildbank/request/verify"]) expect(AREA_BY_PATH[path]).toBe("raids");
     });
 
     it("the waiting list and the requests say whether an entry is linked", async () => {
@@ -127,6 +127,26 @@ describe("apiRoutes/guildBank — linking and the hand-out history", () => {
         expect(discord.editPayload).toHaveBeenCalledWith("900000", "m9", expect.anything());
     });
 
+    it("#806: 'Im Spiel geprüft' for an entry's own name links it without a profile, redraws an open card; refuses a stranger bank, a reader", async () => {
+        const entry = imported();
+        let res = await call(verifyGuildBankRequest, { payload: { key: KEY, id: entry.id } });
+        expect(status(res)).toBe(200);
+        expect(body(res).request).toMatchObject({ id: entry.id, userId: "", characterName: "Whapap", linked: true, linkProblem: "" });
+        expect(requests.getRequest(entry.id)).toMatchObject({ recipientCheckedBy: "1", recipientCheckedByName: "Orga" });
+        expect(discord.editPayload).not.toHaveBeenCalled();
+        requests.promoteWaiting(entry.id, 1);
+        requests.setMessage(entry.id, { channelId: "900000", messageId: "m9" });
+        res = await call(verifyGuildBankRequest, { payload: { key: KEY, id: entry.id } });
+        expect(status(res)).toBe(200);
+        expect(discord.editPayload).toHaveBeenCalledWith("900000", "m9", expect.anything());
+        res = await call(verifyGuildBankRequest, { payload: { key: "nope", id: entry.id } });
+        expect(status(res)).toBe(404);
+        res = await call(verifyGuildBankRequest, { payload: { key: KEY, id: "nope" } });
+        expect(status(res)).toBe(404);
+        mockUser = { id: "2", name: "Leser", areas: { raids: "read" } };
+        res = await call(verifyGuildBankRequest, { payload: { key: KEY, id: entry.id } });
+        expect(status(res)).toBe(403);
+    });
     it("refuses another server's bank, an unknown request, a character the profile does not have and a reader", async () => {
         const entry = imported();
         let res = await call(linkGuildBankRequest, { payload: { key: "nope", id: entry.id, userId: "u7", characterKey: "whapap" } });

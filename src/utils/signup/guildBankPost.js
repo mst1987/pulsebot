@@ -8,6 +8,8 @@
 //   availability:mb:<categoryId>   the submitted free-text modal (commands/signup/availability.js)
 //   guildbank:done:<id>            "Erledigt" under a free-text request (commands/signup/guildBank.js)
 //   guildbank:confirm:<id>         "Bestätigen" under a request from the stock: sets the amount aside
+//   guildbank:vouch:<id>           "Geprüft & bestätigen" instead, while the request is not linked but
+//                                  names a character: the orga vouches for the name and confirms (#806)
 //   guildbank:handout:<id>         "Ausgegeben" under a confirmed request
 //   guildbank:release:<id>         "Vormerkung lösen": confirmed → open again
 //   guildbank:reject:<id>          "Ablehnen …" → rejectModal
@@ -19,8 +21,10 @@
 // A request from the stock without a linked character (services/guildbank/
 // linking.js) shows "⚠ Kein verknüpfter Charakter – Post erst nach Verknüpfen
 // im Web" — or, when its character is a profile character nobody has
-// confirmed, "⚠ Charakter nicht bestätigt – im Web prüfen" — and its
-// "Bestätigen" stays disabled until the orga links (or confirms) it.
+// confirmed, "⚠ Charakter nicht bestätigt" — and offers "Geprüft & bestätigen"
+// instead of "Bestätigen" (#806: the orga checked the name in game). Without
+// any character name ("⚠ Kein Charakter") "Bestätigen" stays disabled until
+// the orga links one in the web.
 //
 // What the raider reads is in their language (tr); the orga card and the orga's
 // modal are orga texts and stay German.
@@ -200,11 +204,17 @@ function stockFacts(request, stock) {
 }
 
 /** The orga card's warning for a request from the stock without a linked character. German (orga text). */
-const NOT_LINKED_LINE = "⚠ **Kein verknüpfter Charakter** – Post erst nach Verknüpfen im Web (Gildenbank)";
+const NOT_LINKED_LINE = "⚠ **Kein verknüpfter Charakter** – Namen im Spiel prüfen, dann „Geprüft & bestätigen“ (oder im Web verknüpfen)";
 /** The same for a profile character no log, loot, armory or orga has confirmed (linking.linkState "unverified"). */
-const NOT_VERIFIED_LINE = "⚠ **Charakter nicht bestätigt** – im Web prüfen (Gildenbank: Arsenal oder im Spiel)";
+const NOT_VERIFIED_LINE = "⚠ **Charakter nicht bestätigt** – im Spiel prüfen, dann „Geprüft & bestätigen“ (oder im Web: Arsenal)";
+/** The same without any character name: nothing to mail to, only the web can link one. */
+const NO_CHARACTER_LINE = "⚠ **Kein Charakter** – Post erst nach Verknüpfen im Web (Gildenbank)";
 
-/** The card's buttons for the request's status; "Bestätigen" disabled while the character is not linked. */
+/**
+ * The card's buttons for the request's status. Not linked (#806): "Geprüft &
+ * bestätigen" while the request names a character (the click vouches for it),
+ * else "Bestätigen" disabled.
+ */
 function orgaButtons(request, { linked = true } = {}) {
     const id = request.id;
     const button = (action, label, style, emoji) => {
@@ -213,6 +223,8 @@ function orgaButtons(request, { linked = true } = {}) {
     };
     const reject = button("reject", "Ablehnen …", ButtonStyle.Secondary);
     if (!request.itemId) return request.status === "open" ? [button("done", "Erledigt", ButtonStyle.Success, "✅"), reject] : [];
+    // not linked, but a name to mail to: the orga checks it in game and vouches for it with the click (#806)
+    if (request.status === "open" && !linked && str(request.characterName)) return [button("vouch", "Geprüft & bestätigen", ButtonStyle.Success, "✅"), reject];
     if (request.status === "open") return [button("confirm", "Bestätigen", ButtonStyle.Success, "✅").setDisabled(!linked), reject];
     if (request.status === "confirmed") {
         return [button("handout", "Ausgegeben", ButtonStyle.Secondary), button("release", "Vormerkung lösen", ButtonStyle.Secondary)];
@@ -242,7 +254,9 @@ function orgaPayload(request, { categoryName = "", stock = null, linked = true, 
     if (str(request.purpose)) text.push(`Wofür: ${plain(request.purpose)}`);
     const to = recipientName(request);
     if (to) text.push(`An: ${plain(to)}`);
-    if (fromStock && !linked && (request.status === "open" || request.status === "confirmed")) text.push(linkProblem === "unverified" ? NOT_VERIFIED_LINE : NOT_LINKED_LINE);
+    if (fromStock && !linked && (request.status === "open" || request.status === "confirmed")) {
+        text.push(!to ? NO_CHARACTER_LINE : linkProblem === "unverified" ? NOT_VERIFIED_LINE : NOT_LINKED_LINE);
+    }
     const status = request.status === "open" ? "offen" : statusLine(request);
     const icon = fromStock ? iconUrl(str((stock && stock.icon) || request.icon)) : "";
     return card({
@@ -276,6 +290,6 @@ function parseOrgaId(customId) {
 }
 
 module.exports = {
-    PREFIX, COLOR_OPEN, COLOR_CONFIRMED, COLOR_DONE, COLOR_REJECTED, NOT_LINKED_LINE, NOT_VERIFIED_LINE, guildBankChannelId, plain, amountItem, recipientName,
+    PREFIX, COLOR_OPEN, COLOR_CONFIRMED, COLOR_DONE, COLOR_REJECTED, NOT_LINKED_LINE, NOT_VERIFIED_LINE, NO_CHARACTER_LINE, guildBankChannelId, plain, amountItem, recipientName,
     requestModal, requestSummary, waitingSummary, movedUpCard, decisionCard, statusLine, stockFacts, orgaPayload, rejectModal, parseOrgaId,
 };

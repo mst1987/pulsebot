@@ -127,7 +127,8 @@ describe("services/signups/guildBank — waiting list", () => {
         const card = discord.postPayload.mock.calls[0][1];
         expect(cardText(card)).toContain("**Whapap** · ohne Discord-Konto, keine DM");
         expect(cardText(card)).toContain("Kein verknüpfter Charakter");
-        expect(cardButtons(card).find((b) => b.label === "Bestätigen").disabled).toBe(true);
+        // no dead Bestätigen: the orga can vouch for the name on the card (#806)
+        expect(cardButtons(card).map((b) => b.label)).toEqual(["Geprüft & bestätigen", "Ablehnen …"]);
         expect(discord.sendDirectMessage).not.toHaveBeenCalled();
         const open = store.listRequests({ status: "open" })[0];
         expect(open).toMatchObject({ userId: "", characterName: "Whapap", fromWaitlist: true });
@@ -150,6 +151,60 @@ describe("services/signups/guildBank — waiting list", () => {
         expect(discord.sendDirectMessage.mock.calls[0][0]).toBe("u7");
     });
 
+    it("#806: an entry without a Discord account is confirmed with 'Geprüft & bestätigen', reaches the addon, and stays confirmable after a release", async () => {
+        const handouts = require("../../../src/services/guildbank/handouts");
+        waitlist.importLines(KEY, "Skerra\tCrimson Spinal\t1", { by: "o1", byName: "Orga" });
+        scan(1);
+        await guildBank.advanceWaitlist({ bankKey: KEY });
+        const open = store.listRequests({ status: "open" })[0];
+        expect(open).toMatchObject({ userId: "", characterName: "Skerra", realm: "Spineshatter", fromWaitlist: true, recipientCheckedAt: 0 });
+        expect(handouts.handoutList().banks[0].handouts).toEqual([]);
+        // the orga checked "Skerra" in game and clicks "Geprüft & bestätigen" on the card
+        discord.editPayload.mockClear();
+        const done = await guildBank.checkAndConfirm(open.id, { by: "o1", byName: "Arthas" });
+        expect(done).toMatchObject({ request: { status: "confirmed", recipientCheckedBy: "o1", recipientCheckedByName: "Arthas" }, dm: false });
+        expect(discord.sendDirectMessage).not.toHaveBeenCalled();
+        const card = discord.editPayload.mock.calls[0][2];
+        expect(cardText(card)).toContain("**Skerra** · ohne Discord-Konto, keine DM");
+        expect(cardText(card)).not.toContain("Kein verknüpfter Charakter");
+        expect(cardButtons(card).map((b) => b.label)).toEqual(["Ausgegeben", "Vormerkung lösen"]);
+        // the addon gets it, to Skerra-Spineshatter
+        const [bank] = handouts.handoutList().banks;
+        expect(bank.handouts.map((h) => [h.id, h.character.name, h.character.realm])).toEqual([[open.id, "Skerra", "Spineshatter"]]);
+        expect(bank.unlinked).toBe(0);
+        // released (e.g. it did not go out): open again, and "Bestätigen" works at once — no second check
+        discord.editPayload.mockClear();
+        await guildBank.releaseRequest(open.id);
+        const reopened = discord.editPayload.mock.calls[0][2];
+        expect(cardText(reopened)).not.toContain("Kein verknüpfter Charakter");
+        expect(cardButtons(reopened).map((b) => [b.label, !!b.disabled])).toEqual([["Bestätigen", false], ["Ablehnen …", false]]);
+        expect(await guildBank.confirmRequest(open.id, { by: "o2", byName: "Jaina" })).toMatchObject({ request: { status: "confirmed" } });
+    });
+
+    it("#806: the web vouches for an entry's own name; another bank, a handled request and a nameless one are refused", async () => {
+        const entry = waitlist.importLines(KEY, "Skerra\tCrimson Spinal\t1", { by: "o1", byName: "Orga" }).added[0];
+        expect(waitlist.listForBank(KEY)[0]).toMatchObject({ linked: false, linkProblem: "none" });
+        expect(await guildBank.checkRequestRecipient(entry.id, { bankKey: "other", by: "o1" })).toMatchObject({ code: "not_found" });
+        expect(await guildBank.checkRequestRecipient("nope", { bankKey: KEY, by: "o1" })).toMatchObject({ code: "not_found" });
+        const checked = await guildBank.checkRequestRecipient(entry.id, { bankKey: KEY, by: "o1", byName: "Arthas" });
+        expect(checked.request).toMatchObject({ id: entry.id, linked: true, linkProblem: "", recipientCheckedByName: "Arthas" });
+        expect(waitlist.listForBank(KEY)[0]).toMatchObject({ linked: true });
+        // it moves up linked: the card offers "Bestätigen" straight away
+        scan(1);
+        await guildBank.advanceWaitlist({ bankKey: KEY });
+        expect(cardButtons(discord.postPayload.mock.calls[0][1]).map((b) => [b.label, !!b.disabled])).toEqual([["Bestätigen", false], ["Ablehnen …", false]]);
+        // a request without any name has nothing to vouch for
+        const nameless = store.addWaiting({ userId: "u9", item: "Crimson Spinal", amount: 1, bankKey: KEY, itemId: SPINAL, addedBy: "o1" }).request;
+        expect(await guildBank.checkRequestRecipient(nameless.id, { bankKey: KEY, by: "o1" })).toMatchObject({ code: "invalid", error: "Die Anfrage nennt keinen Charakter – erst verknüpfen." });
+    });
+
+    it("#806: 'Geprüft & bestätigen' on a request without a name is refused like Bestätigen", async () => {
+        const nameless = store.addWaiting({ userId: "u9", item: "Crimson Spinal", amount: 1, bankKey: KEY, itemId: SPINAL, addedBy: "o1" }).request;
+        scan(1);
+        await guildBank.advanceWaitlist({ bankKey: KEY });
+        expect(await guildBank.checkAndConfirm(nameless.id, { by: "o1", byName: "Arthas" })).toMatchObject({ error: guildBank.NOT_LINKED, notLinked: true });
+        expect(store.getRequest(nameless.id)).toMatchObject({ status: "open", recipientCheckedAt: 0 });
+    });
     it("posts a moved-up card again on the next run when the channel was not reachable", async () => {
         await ask("u1", 1);
         scan(1);

@@ -186,9 +186,16 @@ describe("utils/signup/guildBankPost — a request without a linked character", 
         ...REQUEST, item: "Crimson Spinel", amount: 1, bankKey: "tbc:x:y", itemId: 32227, userId: "", characterName: "Whapap", realm: "Spineshatter",
     };
 
-    it("open: the warning in the text and Bestätigen disabled, Ablehnen stays", () => {
+    it("open with a name (#806): the warning, and Geprüft & bestätigen instead of a dead Bestätigen; Ablehnen stays", () => {
         const payload = post.orgaPayload(UNLINKED, { linked: false });
         expect(cardText(payload)).toContain(post.NOT_LINKED_LINE);
+        expect(cardButtons(payload).map((b) => [b.label, !!b.disabled])).toEqual([["Geprüft & bestätigen", false], ["Ablehnen …", false]]);
+        expect(cardButtons(payload)[0].custom_id).toBe(`guildbank:vouch:${UNLINKED.id}`);
+    });
+
+    it("open without any character name: nothing to vouch for, Bestätigen stays disabled", () => {
+        const payload = post.orgaPayload({ ...UNLINKED, characterName: "", realm: "" }, { linked: false });
+        expect(cardText(payload)).toContain(post.NO_CHARACTER_LINE);
         expect(cardButtons(payload).map((b) => [b.label, !!b.disabled])).toEqual([["Bestätigen", true], ["Ablehnen …", false]]);
     });
 
@@ -197,7 +204,7 @@ describe("utils/signup/guildBankPost — a request without a linked character", 
         expect(cardText(payload)).toContain(post.NOT_VERIFIED_LINE);
         expect(cardText(payload)).toContain("Charakter nicht bestätigt");
         expect(cardText(payload)).not.toContain(post.NOT_LINKED_LINE);
-        expect(cardButtons(payload)[0]).toMatchObject({ label: "Bestätigen", disabled: true });
+        expect(cardButtons(payload)[0]).toMatchObject({ label: "Geprüft & bestätigen" });
     });
 
     it("confirmed (from before the rule): the warning, the buttons stay; handed out: no warning", () => {

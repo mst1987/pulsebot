@@ -130,39 +130,42 @@ describe("handoutList", () => {
         expect(bank.unlinked).toBe(0);
     });
 
-    it("leaves out a confirmed request whose character nobody has confirmed — until the orga checks it in game", () => {
-        // "Gentle" was typed at a signup: no log, no loot, no armory
+    it("keeps a request the orga confirmed although its profile character is unconfirmed — the confirmation vouches for it (#806)", () => {
+        // "Gentle" was typed at a signup: no log, no loot, no armory — but the orga confirmed the request
         profiles.addCharacter("u3", { name: "Gentle", className: "Druid" }, { name: "Gentle" });
         const typed = confirmed({ userId: "u3", userName: "Gentle", characterName: "Gentle" });
-        let [bank] = handouts.handoutList().banks;
-        expect(bank.handouts).toEqual([]);
-        expect(bank.unlinked).toBe(1);
-        profiles.verifyCharacter("u3", "gentle", { by: "o1", byName: "Arthas" });
-        [bank] = handouts.handoutList().banks;
+        const [bank] = handouts.handoutList().banks;
         expect(bank.handouts.map((h) => [h.id, h.character.name])).toEqual([[typed.id, "Gentle"]]);
         expect(bank.unlinked).toBe(0);
     });
 
-    it("leaves out a confirmed request without a linked character and counts it (no name, a stranger, a character gone)", () => {
-        const none = confirmed({ characterName: "" });
+    it("keeps confirmed requests of a stranger, of an entry without a Discord account and of a character that left the profile (#806)", () => {
         const stranger = confirmed({ characterName: "Fremd" });
-        // imported by name alone (no Discord account), moved up and confirmed before linking was required
+        // imported by name alone (no Discord account), moved up and confirmed
         const waiting = store.addWaiting({ characterName: "Whapap", item: "Rubin", amount: 1, bankKey: KEY, itemId: RUBY, addedBy: "o1" }).request;
-        const imported = store.confirmRequest(store.promoteWaiting(waiting.id, 1).request.id, { by: "o1", byName: "Arthas" }).request;
-        let [bank] = handouts.handoutList().banks;
-        expect(bank.handouts).toEqual([]);
-        expect(bank.unlinked).toBe(3);
-        // a linked one is listed; its character leaving the profile takes it off the list again
-        const ok = confirmed();
-        [bank] = handouts.handoutList().banks;
-        expect(bank.handouts.map((h) => h.id)).toEqual([ok.id]);
+        const imported = store.confirmRequest(store.promoteWaiting(waiting.id, 1).request.id, { by: "o1", byName: "Arthas" }, { now: 1791060000000 }).request;
+        const ok = confirmed({}, { at: 1791070000000 });
         profiles.removeCharacter("u1", "zibbo");
-        [bank] = handouts.handoutList().banks;
-        expect(bank.handouts).toEqual([]);
-        expect(bank.unlinked).toBe(4);
-        expect([none, stranger, imported].every(Boolean)).toBe(true);
+        const [bank] = handouts.handoutList().banks;
+        expect(bank.handouts.map((h) => h.id)).toEqual([stranger.id, imported.id, ok.id]);
+        expect(bank.handouts[1].character).toEqual({ name: "Whapap", realm: "Spineshatter", faction: "Alliance", classFile: "" });
+        expect(bank.unlinked).toBe(0);
     });
 
+    it("leaves out a confirmed request without a name, and one whose recipient changed to a name nobody vouched for", () => {
+        confirmed({ characterName: "" });
+        const moved = confirmed();
+        profiles.addCharacter("u3", { name: "Gentle", className: "Druid" }, { name: "Gentle" });
+        store.setRecipient(moved.id, { userId: "u3", userName: "Gentle", characterName: "Gentle", realm: "Spineshatter" });
+        let [bank] = handouts.handoutList().banks;
+        expect(bank.handouts).toEqual([]);
+        expect(bank.unlinked).toBe(2);
+        // the orga checks the new name in game: listed again
+        store.checkRecipient(moved.id, { by: "o1", byName: "Arthas" });
+        [bank] = handouts.handoutList().banks;
+        expect(bank.handouts.map((h) => h.id)).toEqual([moved.id]);
+        expect(bank.unlinked).toBe(1);
+    });
     it("takes the bank's realm and the profile's class for a character without a realm", () => {
         profiles.addCharacter("u3", { source: "log", name: "Ohnerealm", className: "Mage", specs: [{ key: "Mage-Fire", gear: "ready" }] });
         confirmed({ userId: "u3", characterName: "Ohnerealm", realm: "", faction: "" });

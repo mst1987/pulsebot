@@ -19,6 +19,7 @@ vi.mock("../../api", async (orig) => ({
     getGuildBankRequests: vi.fn(),
     searchGuildBankCharacters: vi.fn(),
     linkGuildBankRequest: vi.fn(),
+    verifyGuildBankRequest: vi.fn(),
 }));
 
 const KEY = "tbc:spineshatter:die gilde";
@@ -180,6 +181,26 @@ describe("guild bank page", () => {
         expect(within(list).queryByText("nicht verknüpft")).toBeNull();
     });
 
+    it("#806: checks the name of a request without a Discord account in game inside the 'Anfragen' dialog", async () => {
+        const user = userEvent.setup();
+        const open = {
+            id: "r3", itemId: 2, item: "Crimson Spinel", iconUrl: "", amount: 1, userId: "", userName: "Skerra", characterName: "Skerra",
+            realm: "Thunderstrike", purpose: "", status: "open" as const, createdAt: Date.UTC(2026, 9, 11, 18), handledByName: "", handledAt: 0,
+            linked: false, linkProblem: "none" as const,
+        };
+        vi.mocked(api.getGuildBankRequests).mockResolvedValue({ requests: [open] });
+        vi.mocked(api.searchGuildBankCharacters).mockResolvedValue({ characters: [] });
+        vi.mocked(api.verifyGuildBankRequest).mockResolvedValue({ request: { ...open, linked: true, linkProblem: "" } });
+        renderPage(<GuildBankPage />, { route: "/guildbank" });
+        await user.click(await screen.findByRole("button", { name: "Anfragen" }));
+        await user.click(await screen.findByRole("button", { name: "Verknüpfen: 1× Crimson Spinel" }));
+        await user.click(screen.getByRole("button", { name: "Skerra-Thunderstrike im Spiel geprüft" }));
+        await user.click(screen.getByRole("button", { name: "Ja, gefunden" }));
+        expect(api.verifyGuildBankRequest).toHaveBeenCalledWith(KEY, "r3");
+        expect(await screen.findByText("Skerra-Thunderstrike ist im Spiel geprüft – die Anfrage kann bestätigt werden.")).toBeInTheDocument();
+        const list = await screen.findByRole("list", { name: "Anfragen" });
+        expect(within(list).queryByText("nicht verknüpft")).toBeNull();
+    });
     it("says so when no request waits", async () => {
         const user = userEvent.setup();
         vi.mocked(api.getGuildBankRequests).mockResolvedValue({ requests: [] });

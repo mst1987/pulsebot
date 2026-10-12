@@ -16,6 +16,7 @@ jest.mock("../../../src/services/signups/guildBank", () => ({
     resolveRequest: jest.fn(async () => ({ request: { status: "done", userName: "Anna" }, posted: true, dm: true })),
     redrawPost: jest.fn(async () => true),
     confirmRequest: jest.fn(async () => ({ request: { status: "confirmed", userName: "Anna" }, posted: true, dm: true })),
+    checkAndConfirm: jest.fn(async () => ({ request: { status: "confirmed", userId: "", userName: "Skerra", characterName: "Skerra" }, posted: true, dm: false })),
     handOutRequest: jest.fn(async () => ({ request: { status: "handedOut", userName: "Anna" }, posted: true, dm: true })),
     releaseRequest: jest.fn(async () => ({ request: { status: "open", userName: "Anna" }, posted: false, dm: false })),
 }));
@@ -66,6 +67,14 @@ describe("guildbank (Orga-Knöpfe)", () => {
         expect(cardColor(i.editReply.mock.calls[0][0])).toBe(KIND_COLORS.ok);
     });
 
+    it("Geprüft & bestätigen (#806): bürgt für den Namen und bestätigt – ohne Discord-Konto keine DM", async () => {
+        const i = click(`guildbank:vouch:${open.id}`);
+        i.member = { displayName: "Arthas" };
+        await command.execute(i);
+        expect(guildBank.checkAndConfirm).toHaveBeenCalledWith(open.id, { by: ORGA, byName: "Arthas" });
+        expect(guildBank.confirmRequest).not.toHaveBeenCalled();
+        expect(said(i.editReply)).toBe("## Vorgemerkt\nSkerra hat kein Discord-Konto – keine DM.");
+    });
     it("sagt, wenn die DM nicht ankam oder der Post nicht aktualisiert wurde", async () => {
         guildBank.resolveRequest.mockResolvedValueOnce({ request: { status: "rejected", userName: "" }, posted: false, dm: false });
         const i = click(`guildbank:done:${open.id}`);
