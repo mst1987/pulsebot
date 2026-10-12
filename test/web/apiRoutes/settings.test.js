@@ -962,6 +962,19 @@ describe("web/apiRoutes/settings", () => {
             });
         });
 
+        describe("characters per signup per category", () => {
+            beforeEach(() => {
+                settingsStore.getConfig.mockReturnValue({});
+                settingsStore.saveConfig.mockImplementation((partial) => ({ ...partial }));
+            });
+
+            it("keeps 1..8 per category (clamped, 8 = back to the default), drops what is no number", async () => {
+                readJsonBody.mockResolvedValue({ categorySignupCharacters: { pug: 3, guild: "8", many: 25, zero: 0, bad: "x", " ": 2 } });
+                await updateSettings({ headers: {} }, mockRes());
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categorySignupCharacters: { pug: 3, guild: 8, many: 8, zero: 1 } });
+            });
+        });
+
         describe("the language of a category's posts", () => {
             const languageChange = require("../../../src/services/discord/languageChange");
             beforeEach(() => {

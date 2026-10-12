@@ -15,7 +15,7 @@ const { normalizeCategoryMessageLook } = require("../services/events/embedLook")
 const {
     normalizeConfig, normalizeDiscordServers, normalizeRaidhelperRetirement, normalizeVersionLaunch, normalizeCategorySignupSource,
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryAttendance, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
-    normalizeCategorySignupNotes, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeCategoryPlanning, normalizeTopItems,
+    normalizeCategorySignupNotes, normalizeCategorySignupCharacters, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeCategoryPlanning, normalizeTopItems,
     normalizeRoleSync, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings, normalizeBotLanguage,
     normalizeDiscordVisuals,
 } = require("./configSchema");
@@ -94,6 +94,7 @@ function resolveEventSheetLink(eventSheet, categoryId) {
  * - categoryVoiceChannel (#305), categorySignupNoteChannel (#335): "" = back to the default;
  * - categoryMessageLook: merged per category, one back at the defaults drops out;
  * - categoryAnnounce (#306), categorySignupNotes ("optional" drops out);
+ * - categorySignupCharacters: 8 (the default) drops the category again;
  * - categorySheets: an emptied url drops the sheet;
  * - categoryPlanning: raid plan or sheet, a category not sent keeps its mode.
  */
@@ -109,6 +110,7 @@ const MERGED_CATEGORY_MAPS = [
     ["categoryAnnounce", normalizeCategoryAnnounce],
     ["categorySignupNotes", normalizeCategorySignupNotes],
     ["categorySignupNoteChannel", normalizeCategoryVoiceChannel],
+    ["categorySignupCharacters", normalizeCategorySignupCharacters],
     ["categorySheets", normalizeCategorySheets],
     ["categoryPlanning", normalizeCategoryPlanning],
 ];

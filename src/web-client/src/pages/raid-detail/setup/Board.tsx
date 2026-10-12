@@ -46,7 +46,7 @@ export type Interaction = {
     onHeld?: (userId: string) => void;
 };
 
-/** A raider's order number for one of their characters (#293): 1 = their choice, 2 and 3 = "kann auch mit". */
+/** A raider's order number for one of their characters (#293): 1 = their choice, 2 and up (as many as the category allows, at most 8) = "kann auch mit". */
 export function CharacterNumber({ order }: { order: number }) {
     const t = useT();
     return (
@@ -63,7 +63,7 @@ export function CharacterNumber({ order }: { order: number }) {
  * `inPool` (#517): signed up, not in the setup, a "Bank" signup marked.
  * `inGroup`: a place in a group — only there a Confirm/Cancel is drawn (green resp. red, the mark as a big icon behind the line).
  * `as` (#293): the character this line stands for when it is not the one the raider stands as — a drag or pick takes it.
- * `order`: their order number (1 = their choice, 2/3 = "kann auch mit"), drawn for somebody with several characters.
+ * `order`: their order number (1 = their choice, 2 and up = "kann auch mit"), drawn for somebody with several characters.
  */
 export function Slot({ p, ui, inPool = false, inGroup = false, as, order }: { p: SetupPerson; ui: Interaction; inPool?: boolean; inGroup?: boolean; as?: string; order?: number }) {
     const t = useT();

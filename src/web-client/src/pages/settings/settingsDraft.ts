@@ -44,6 +44,8 @@ export type Draft = {
     categorySignupNotes: Record<string, string>;
     /** Where those messages go (#335); missing = the default channel. */
     categorySignupNoteChannel: Record<string, string>;
+    /** Characters per signup (1..8); missing = 8, a category set back to 8 is sent as 8 (the server drops it). */
+    categorySignupCharacters: Record<string, number>;
     categorySheets: Record<string, CategorySheet>;
     /** Raid plan or sheet per category; only picked modes (see settingsLogic's planningOf). */
     categoryPlanning: Record<string, PlanningMode>;
@@ -94,6 +96,7 @@ export function toDraft(config: AdminConfig): Draft {
         categoryAnnounce: config.categoryAnnounce || {},
         categorySignupNotes: config.categorySignupNotes || {},
         categorySignupNoteChannel: config.categorySignupNoteChannel || {},
+        categorySignupCharacters: config.categorySignupCharacters || {},
         categorySheets: config.categorySheets || {},
         categoryPlanning: config.categoryPlanning || {},
         categoryRaidTemplate: config.categoryRaidTemplate || {},

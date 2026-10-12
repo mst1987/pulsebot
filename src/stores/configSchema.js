@@ -13,6 +13,7 @@ const { normalizeBotCommandAccess } = require("../config/botCommands");
 const { normalizeCategoryLootSystem } = require("../services/loot/lootSystem");
 const { normalizeCategoryMessageLook } = require("../services/events/embedLook");
 const { normalizeCategoryPlanning } = require("../services/events/planning");
+const { normalizeCategorySignupCharacters } = require("../services/signups/signupCharacters");
 const { isSnowflake } = require("../utils/ids");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { versionSettingsOf, normalizeVersionSettings, versionsWithDefaults } = require("./versionSettingsSchema");
@@ -160,6 +161,11 @@ const CONFIG_DEFAULTS = {
     // Where a category's messages go instead (#335): { [categoryId]: channelId }.
     // Missing = discordServers.signupNoteChannelId, the default for every category.
     categorySignupNoteChannel: {},
+    // How many own characters one signup may name per raid category (the first
+    // counts, the others "kann auch mit"): { [categoryId]: 1..7 }. A category
+    // without an entry allows 8 — the default and the most there is, so 8 is not
+    // stored (signupCharacters.maxCharactersFor is the one reader).
+    categorySignupCharacters: {},
     // A fixed, guild-owned Google Sheet per Discord category:
     // { [categoryId]: { url, name } }. When one is set, a raid in that category
     // links this sheet instead of needing its own copy. A copy the app actually
@@ -769,6 +775,7 @@ function normalizeConfig(raw) {
         categoryAnnounce: normalizeCategoryAnnounce(stored.categoryAnnounce),
         categorySignupNotes: normalizeCategorySignupNotes(stored.categorySignupNotes),
         categorySignupNoteChannel: normalizeCategoryVoiceChannel(stored.categorySignupNoteChannel),
+        categorySignupCharacters: normalizeCategorySignupCharacters(stored.categorySignupCharacters),
         categorySheets: normalizeCategorySheets(stored.categorySheets),
         categoryPlanning: normalizeCategoryPlanning(stored.categoryPlanning),
         categoryRaidTemplate: normalizeCategoryRaidTemplate(stored.categoryRaidTemplate),
@@ -792,7 +799,7 @@ module.exports = {
     normalizeRoleSync, normalizeCategoryRaidTemplate, normalizeCategoryReminders, normalizeTopItems,
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryLanguagePatch,
     normalizeCategoryAttendance, attendanceSettings, categoryAttendanceFor, ATTENDANCE_WINDOW_MIN, ATTENDANCE_WINDOW_MAX, ATTENDANCE_DEFAULT_WINDOW, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
-    normalizeCategorySignupNotes, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,
+    normalizeCategorySignupNotes, normalizeCategorySignupCharacters, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,
     normalizeRaidhelperRetirement, normalizeVersionLaunch, VERSION_LAUNCH_MANUAL, normalizeCategorySheets, normalizeCategoryPlanning, normalizeCategoryRoles,
     normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings, normalizeBotLanguage,
     normalizeDiscordVisuals, DISCORD_VISUALS_DEFAULT,

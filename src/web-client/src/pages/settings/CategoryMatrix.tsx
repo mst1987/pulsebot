@@ -4,7 +4,7 @@ import { usePersistedState } from "../../lib/ui/persistedState";
 import { raiderRoleOptions } from "../../lib/settings/categoryLifecycle";
 import { Button } from "../../components/ui/Button";
 import {
-    categoryRows, splitCategoryRows, summarizeRaiderChars, signupNoteMode, planningOf,
+    categoryRows, splitCategoryRows, summarizeRaiderChars, signupNoteMode, signupCharactersOf, planningOf, SIGNUP_CHARACTERS,
     type CategoryRow, type RaiderCharSummary,
 } from "../../lib/settings/settingsLogic";
 import { tParts, useT } from "../../i18n";
@@ -49,7 +49,7 @@ export default function CategoryMatrix(props: CategorySettings & {
         categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySignupSource = {}, signupSourceDefault = "raidhelper",
         categorySetupDms = {}, categoryLanguage = {}, categoryAttendance = {}, categoryAnnounce = {}, categorySheets, categoryPlanning = {}, savedCategoryRoles,
         categoryDiscordEvent = {}, categoryVoiceChannel = {}, categoryLootSystem = {}, categorySignupNotes = {}, categorySignupNoteChannel = {},
-        missing = [], onCloseCategory, closeBlocked = false,
+        categorySignupCharacters = {}, missing = [], onCloseCategory, closeBlocked = false,
         onToggleCategory, icon, crumb,
     } = props;
     const missingById = new Map(missing.map((m) => [m.categoryId, m]));
@@ -77,6 +77,7 @@ export default function CategoryMatrix(props: CategorySettings & {
         ...Object.keys(categoryAnnounce).filter((id) => categoryAnnounce[id] && categoryAnnounce[id].enabled),
         ...Object.keys(categorySignupNotes).filter((id) => signupNoteMode(categorySignupNotes, id) !== "optional"),
         ...Object.keys(categorySignupNoteChannel).filter((id) => categorySignupNoteChannel[id]),
+        ...Object.keys(categorySignupCharacters).filter((id) => signupCharactersOf(categorySignupCharacters, id) !== SIGNUP_CHARACTERS.default),
         ...Object.keys(categorySheets),
         ...Object.keys(categoryPlanning),
         // a series or a Loot-Council profile entry is enough to be listed as deleted in Discord (#744)

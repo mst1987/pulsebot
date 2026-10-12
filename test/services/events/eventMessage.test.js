@@ -387,6 +387,8 @@ describe("services/events/eventMessage", () => {
         const [[select], buttons] = payload.components.map((r) => r.components);
         expect(select).toMatchObject({ type: 3, custom_id: "event-pick:eh-1", min_values: 1, max_values: 1 });
         expect(select.options[0]).toMatchObject({ label: "My characters …", value: "mine", emoji: { name: "eh_ui_signups" } });
+        // how many at once: the category's limit (nothing set here = the default 8)
+        expect(select.options[0].description).toBe("from your profile – up to 8 at once");
         expect(select.options.slice(1).map((o) => o.value)).toEqual(["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"]);
         expect(select.options[1].emoji.name).toBe("eh_class_warrior");
         expect(select.options.length).toBeLessThanOrEqual(25);

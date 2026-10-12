@@ -8,6 +8,17 @@ import { requireBackend } from "../../test/backend";
 describe("SignupDialog", () => {
     it("sends every picked character in priority order (#293)", () => {
         expect(picksLib.MAX_CHARACTERS).toBe(requireBackend("services/signups/signupCharacters").MAX_CHARACTERS);
+        expect(picksLib.MAX_CHARACTERS).toBe(8);
+    });
+
+    it("reads a raid's limit from its row and takes the lowest for several raids", () => {
+        expect(picksLib.rowMaxCharacters({ maxCharacters: 3 })).toBe(3);
+        expect(picksLib.rowMaxCharacters({})).toBe(8);
+        expect(picksLib.rowMaxCharacters({ maxCharacters: 40 })).toBe(8);
+        expect(picksLib.rowMaxCharacters(null)).toBe(8);
+        expect(picksLib.bulkMaxCharacters([{ maxCharacters: 5 }, {}, { maxCharacters: 2 }])).toEqual({ max: 2, mixed: true });
+        expect(picksLib.bulkMaxCharacters([{ maxCharacters: 4 }, { maxCharacters: 4 }])).toEqual({ max: 4, mixed: false });
+        expect(picksLib.bulkMaxCharacters([])).toEqual({ max: 8, mixed: false });
     });
 });
 
@@ -36,13 +47,18 @@ describe("character picks (lib/signups/signupPicks.ts, #293)", () => {
         expect(picksLib.initialPicks(profile, { characters: [], character: "Zibbowar", spec: "Warrior-Protection" } as unknown as Mine)).toEqual([{ characterKey: "zibbowar", spec: "Warrior-Protection" }]);
     });
 
-    it("adds up to three characters, never one twice, and reorders them", () => {
+    it("adds up to the raid's limit, never one twice, and reorders them", () => {
         let picks = picksLib.initialPicks(profile, null);
-        picks = picksLib.addPick(profile, picks);
-        picks = picksLib.addPick(profile, picks);
+        picks = picksLib.addPick(profile, picks, 3);
+        picks = picksLib.addPick(profile, picks, 3);
         expect(picks.map((p) => p.characterKey)).toEqual(["zibbo", "zibbowar", "alt"]);
-        expect(picksLib.canAddPick(profile, picks)).toBe(false);
-        expect(picksLib.addPick(profile, picks)).toBe(picks);
+        expect(picksLib.canAddPick(profile, picks, 3)).toBe(false);
+        expect(picksLib.addPick(profile, picks, 3)).toBe(picks);
+        // without a limit the default 8 holds: the fourth geared character still fits, then none is left
+        expect(picksLib.canAddPick(profile, picks)).toBe(true);
+        const four = picksLib.addPick(profile, picks);
+        expect(four.map((p) => p.characterKey)).toEqual(["zibbo", "zibbowar", "alt", "twink"]);
+        expect(picksLib.canAddPick(profile, four)).toBe(false);
         picks = picksLib.movePick(picks, 2, -1);
         expect(picks.map((p) => p.characterKey)).toEqual(["zibbo", "alt", "zibbowar"]);
         expect(picksLib.movePick(picks, 0, -1)).toBe(picks);

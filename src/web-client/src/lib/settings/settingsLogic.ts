@@ -139,6 +139,8 @@ export type DraftShape = {
     categorySignupNotes?: Record<string, string>;
     /** Where those messages go (#335); missing = the default channel. */
     categorySignupNoteChannel?: Record<string, string>;
+    /** Characters per signup (1..8); missing = 8. */
+    categorySignupCharacters?: Record<string, number>;
     categorySheets: Record<string, { url: string; name: string }>;
     /** Raid plan or sheet per category; only picked modes. */
     categoryPlanning?: Record<string, string>;
@@ -239,6 +241,21 @@ export function planningLabel(mode: string): string {
     return t(mode === "sheet" ? "settings.planning.sheet" : "settings.planning.raidplan");
 }
 
+/** How many own characters one signup may name per category (src/services/signups/signupCharacters.js): 1 to 8, default 8. */
+export const SIGNUP_CHARACTERS = { min: 1, max: 8, default: 8 };
+
+/** Whether `n` is a number of characters per signup the server keeps. */
+export function validSignupCharacters(n: number): boolean {
+    return Number.isInteger(n) && n >= SIGNUP_CHARACTERS.min && n <= SIGNUP_CHARACTERS.max;
+}
+
+/** A category's characters per signup: its own setting, else the default 8 (signupCharacters.maxCharactersFor). */
+export function signupCharactersOf(map: Record<string, number> | undefined, categoryId: string): number {
+    const n = Math.round(Number((map || {})[categoryId]));
+    if (!Number.isFinite(n) || (map || {})[categoryId] === undefined) return SIGNUP_CHARACTERS.default;
+    return Math.min(SIGNUP_CHARACTERS.max, Math.max(SIGNUP_CHARACTERS.min, n));
+}
+
 /** How many last raids a category's attendance quota may count: any whole number in this range (src/stores/configSchema.js, ATTENDANCE_WINDOW_MIN/MAX). */
 export const ATTENDANCE_WINDOW = { min: 1, max: 50, default: 11 };
 export type CategoryAttendance = { show: boolean; window: number; absences: boolean };
@@ -327,6 +344,7 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         ...Object.keys(saved.categoryAnnounce || {}), ...Object.keys(draft.categoryAnnounce || {}),
         ...Object.keys(saved.categorySignupNotes || {}), ...Object.keys(draft.categorySignupNotes || {}),
         ...Object.keys(saved.categorySignupNoteChannel || {}), ...Object.keys(draft.categorySignupNoteChannel || {}),
+        ...Object.keys(saved.categorySignupCharacters || {}), ...Object.keys(draft.categorySignupCharacters || {}),
         ...Object.keys(saved.categorySheets || {}), ...Object.keys(draft.categorySheets || {}),
         ...Object.keys(saved.categoryPlanning || {}), ...Object.keys(draft.categoryPlanning || {}),
     ])];
@@ -372,6 +390,9 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const noteChWas = (saved.categorySignupNoteChannel || {})[id] || "";
         const noteChIs = (draft.categorySignupNoteChannel || {})[id] || "";
         if (noteChWas !== noteChIs) out.push(t(noteChIs ? "settings.changes.noteChannelSet" : "settings.changes.noteChannelDefault", { name }));
+        const charsWas = signupCharactersOf(saved.categorySignupCharacters, id);
+        const charsIs = signupCharactersOf(draft.categorySignupCharacters, id);
+        if (charsWas !== charsIs) out.push(t("settings.changes.signupCharacters", { name, count: charsIs }));
         const planWas = planningOf(id, saved.categoryPlanning, saved.categorySheets);
         const planIs = planningOf(id, draft.categoryPlanning, draft.categorySheets);
         if (planWas !== planIs) out.push(t("settings.changes.planning", { name, value: planningLabel(planIs) }));

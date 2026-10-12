@@ -31,6 +31,7 @@ const { capabilityMatrix } = require("../../services/events/versionCapabilities"
 const { isVersionFeature, normalizeDisabled } = require("../../config/versionFeatures");
 const { mainVersionFor } = require("../../services/events/mainVersion");
 const { normalizeCategoryPlanning } = require("../../services/events/planning");
+const { normalizeCategorySignupCharacters } = require("../../services/signups/signupCharacters");
 const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../services/events/contentVersions");
 // Makes Excel read the umlauts of an archive CSV as UTF-8.
 const BOM = String.fromCharCode(0xfeff);
@@ -514,6 +515,11 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (body.categorySignupNotes !== undefined) partial.categorySignupNotes = normalizeCategorySignupNotesPatch(body.categorySignupNotes);
     // The channel of those messages per category (#335): same contract as the voice channel.
     if (body.categorySignupNoteChannel !== undefined) partial.categorySignupNoteChannel = normalizeCategoryVoiceChannel(body.categorySignupNoteChannel);
+    // Characters per signup per category (1..8, clamped): the 8 stays in the patch
+    // so the store's merge sets the category back to the default and drops it.
+    if (body.categorySignupCharacters !== undefined) {
+        partial.categorySignupCharacters = normalizeCategorySignupCharacters(body.categorySignupCharacters, { keepDefault: true });
+    }
     if (body.categorySheets !== undefined) partial.categorySheets = normalizeCategorySheets(body.categorySheets);
     // Raid plan or sheet per category: merged by the store, an unknown mode drops out.
     if (body.categoryPlanning !== undefined) partial.categoryPlanning = normalizeCategoryPlanning(body.categoryPlanning);

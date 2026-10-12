@@ -13,7 +13,10 @@ import { useT } from "../../i18n";
 
 // The characters of a signup (#293): one line per character · spec, numbered —
 // the first is the choice, the others "kann auch mit" — with arrows to reorder
-// and a way to add up to three. The orga's setup takes exactly one of them.
+// and a way to add up to as many as the raid's category allows (`max`, 1..8,
+// default 8). The orga's setup takes exactly one of them. A signup stored
+// before the category's limit dropped keeps its lines: they can be removed or
+// reordered, "+ Kann auch mit …" is gone and one line says why.
 //
 // With more than one character every line also carries its own status (#320) —
 // a small coloured dot with a compact select, so "Spät" on the first character
@@ -22,7 +25,7 @@ import { useT } from "../../i18n";
 // stays the one that sets them all. `statuses={false}` (the default, and what
 // the bulk dialog wants) leaves the dots out entirely.
 
-export default function SignupCharacterPicks({ profile, classes, picks, onChange, disabled = false, statuses = false, allowedStatuses = [] }: {
+export default function SignupCharacterPicks({ profile, classes, picks, onChange, disabled = false, statuses = false, allowedStatuses = [], max = MAX_CHARACTERS }: {
     profile: SignupProfile;
     classes: SignupClass[];
     picks: CharacterPick[];
@@ -32,9 +35,14 @@ export default function SignupCharacterPicks({ profile, classes, picks, onChange
     statuses?: boolean;
     /** What the event's phase still allows; a character may always keep the status it has. */
     allowedStatuses?: SignupStatus[];
+    /** How many characters the raid takes (its category's setting, rowMaxCharacters); default 8. */
+    max?: number;
 }) {
     const t = useT();
     const showStatus = statuses && !disabled && picks.length > 1;
+    const canAdd = canAddPick(profile, picks, max);
+    // the limit is reached while the profile still has more to offer: say why the "+" is gone
+    const atLimit = !canAdd && picks.length >= max && profile.characters.some((c) => c.specs.length && !picks.some((p) => p.characterKey === c.key));
     return (
         <div className="field">
             <label>{t("signups.picks.characters")}</label>
@@ -93,11 +101,13 @@ export default function SignupCharacterPicks({ profile, classes, picks, onChange
                     );
                 })}
             </ol>
-            {canAddPick(profile, picks) && !disabled && (
-                <button type="button" className="an-add" onClick={() => onChange(addPick(profile, picks))}>
-                    {t("signups.picks.add")} <span className="an-opt">{t("signups.picks.upTo", { max: MAX_CHARACTERS })}</span>
+            {canAdd && !disabled && (
+                <button type="button" className="an-add" onClick={() => onChange(addPick(profile, picks, max))}>
+                    {t("signups.picks.add")} <span className="an-opt">{t("signups.picks.upTo", { max })}</span>
                 </button>
             )}
+            {!disabled && picks.length > max && <div className="hint" data-picks-limit>{t("signups.picks.overLimit", { max })}</div>}
+            {!disabled && atLimit && picks.length === max && max > 1 && <div className="hint" data-picks-limit>{t("signups.picks.limitReached", { max })}</div>}
             {picks.length > 1 && (
                 <div className="hint">
                     {t("signups.picks.hint")}

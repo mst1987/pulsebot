@@ -227,6 +227,8 @@ export default function SettingsPage() {
                 categorySignupNotes: draft.categorySignupNotes,
                 // Merged on the server like the voice channel: "" = back to the default (#335).
                 categorySignupNoteChannel: draft.categorySignupNoteChannel,
+                // Merged on the server: 8 (the default) drops the entry again.
+                categorySignupCharacters: draft.categorySignupCharacters,
                 // Sent whole: a category set back to "keine" is left out.
                 categoryRaidTemplate: Object.fromEntries(Object.entries(draft.categoryRaidTemplate).filter(([, id]) => id)),
                 // #541/#738: sent whole as well; every active category with its version
@@ -379,6 +381,8 @@ export default function SettingsPage() {
                     categorySignupNoteChannel={draft.categorySignupNoteChannel}
                     noteChannels={data.noteChannels}
                     onSignupNoteChannel={(id, channelId) => patch({ categorySignupNoteChannel: { ...draft.categorySignupNoteChannel, [id]: channelId } })}
+                    categorySignupCharacters={draft.categorySignupCharacters}
+                    onSignupCharacters={(id, count) => patch({ categorySignupCharacters: { ...draft.categorySignupCharacters, [id]: count } })}
                     categorySheets={draft.categorySheets}
                     categoryPlanning={draft.categoryPlanning}
                     onPlanning={(id, mode) => patch({ categoryPlanning: { ...draft.categoryPlanning, [id]: mode } })}
