@@ -1,9 +1,9 @@
 // The raid plan tab's "Einteilungen posten" (#502): in the strip's "Mehr" menu
-// beside "Freigeben", only with write; it opens the page's dialog
+// beside "Freigeben" and in the share dialog's footer, only with write; it opens the page's dialog
 // (after reading the page's data again), and a post that published the plan
 // turns the tab's badge to "Freigegeben" without a reload of the plan.
 import { useMemo, useState } from "react";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "../../api/client";
@@ -68,6 +68,27 @@ describe("RaidplanTab: Einteilungen posten", () => {
         await user.click(post);
         expect(c.onChanged).toHaveBeenCalledWith("");
         expect(c.openModal).toHaveBeenCalledWith("raidplan");
+    });
+
+    it("sits in the share dialog too and hands over to the page's dialog", async () => {
+        const user = userEvent.setup();
+        const c = ctx();
+        renderPage(<RaidplanTab ctx={c} />);
+        await user.click(await screen.findByRole("button", { name: t("raidBoard.views.publish") }));
+        const dlg = (await screen.findByText(t("raidBoard.share.title"))).closest("dialog")!;
+        await user.click(within(dlg).getByRole("button", { name: t("raidBoard.share.post") }));
+        expect(c.onChanged).toHaveBeenCalledWith("");
+        expect(c.openModal).toHaveBeenCalledWith("raidplan");
+        expect(screen.queryByText(t("raidBoard.share.title"))).not.toBeInTheDocument();
+    });
+
+    it("says 'aktualisieren' in the share dialog once a message is in the channel", async () => {
+        const user = userEvent.setup();
+        const posted: RaidplanPostState = { filled: true, published: false, publicPath: "", channelId: "ch1", messageId: "m1", message: "", postedAt: 1 };
+        renderPage(<RaidplanTab ctx={ctx(posted)} />);
+        await user.click(await screen.findByRole("button", { name: t("raidBoard.views.publish") }));
+        const dlg = (await screen.findByText(t("raidBoard.share.title"))).closest("dialog")!;
+        expect(within(dlg).getByRole("button", { name: t("raidBoard.share.repost") })).toBeInTheDocument();
     });
 
     it("is not there for a reader", async () => {
