@@ -13,6 +13,7 @@ const { versionOfEvent } = require("../../services/events/mainVersion");
 const { signupStatus } = require("../../utils/attendance");
 const { accountCount } = require("../../utils/signup/capacity");
 const { approvedPlacementFor } = require("../../services/setup/setupEditor");
+const { approvedSetupOf } = require("../../services/setup/setupCore");
 const { migrateSignup } = require("../../services/signups/signupCharacters");
 const { noteMode } = require("../../services/signups/signupNotes");
 
@@ -162,6 +163,8 @@ function memberEventRows(groups, { userId, guildId = "", config = {}, roleIds = 
                 mine: signupSummary(own),
                 // Where the *approved* setup puts the member (#263) — a draft is never shown.
                 placement: approvedPlacementFor(stored, uid),
+                // whether an approved setup exists at all: with it, no placement means "not placed", not "no setup yet"
+                setupApproved: !!approvedSetupOf(stored),
                 // "Anmeldung nur für das Roster" (#658): true when this member may not sign up (no roster member
                 // with status core / trial / bench, no own signup, not the orga) - the dialog says so up front
                 // (the roster of the raid's version, #739)

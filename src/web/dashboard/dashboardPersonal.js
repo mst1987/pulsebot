@@ -59,6 +59,8 @@ function upcomingRow(row) {
         specIcon: mine ? str(mine.specIcon) : "",
         // the approved setup's group ({ group }) or bench ({ bench: true }); null = no approved setup / not placed
         placement: row.placement || null,
+        // an approved setup exists: a signup without a placement was not placed ("Nicht aufgestellt")
+        setupApproved: !!row.setupApproved,
         deadline: Number(row.deadline) || 0,
         deadlinePassed: !!row.deadlinePassed,
         signupsClosed: !!row.signupsClosed,

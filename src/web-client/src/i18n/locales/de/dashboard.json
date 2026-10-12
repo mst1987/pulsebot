@@ -166,7 +166,9 @@
         "rosterOnly": "Nur Roster",
         "rosterOnlyTip": "Für diesen Raid melden sich nur Mitglieder des Rosters an.",
         "status": {
-            "signed": "Dabei",
+            "signed": "Angemeldet",
+            "placed": "Im Setup",
+            "notPlaced": "Nicht aufgestellt",
             "late": "Später",
             "tentative": "Vielleicht",
             "bench": "Bank",
@@ -187,6 +189,8 @@
         "setup": {
             "none": "Noch kein Setup",
             "noneSub": "Die Raidleitung stellt es noch auf.",
+            "notPlaced": "Nicht aufgestellt",
+            "notPlacedSub": "Das Setup steht, du bist diesmal nicht drin.",
             "bench": "Bank",
             "group": "Gruppe {group}"
         },

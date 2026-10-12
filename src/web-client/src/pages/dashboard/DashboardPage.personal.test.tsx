@@ -192,13 +192,41 @@ describe("Übersicht for a raider", () => {
         try {
             await show(dashboard({ personal: personal({ upcoming: [raid, myRaid({ id: "eh-2", specKey: "Rogue-Combat", spec: "Kampf", specIcon: "ability_backstab" })] }) }));
             expect(screen.queryByText(/Kampf/)).not.toBeInTheDocument();
-            const badge = screen.getByText(`${t("dashboard.personal.status.signed")} · Combat`);
+            // placed in group 2 of the approved setup: "In the setup", not just "Signed up"
+            const badge = screen.getByText(`${t("dashboard.personal.status.placed")} · Combat`);
             expect(badge.closest(".badge")!.querySelector("img")!.getAttribute("src")).toContain("ability_backstab");
             const box = screen.getByText("Schleich · Combat").closest(".ov-me-spec")!;
             expect(box.querySelector("img")!.getAttribute("src")).toContain("ability_backstab");
         } finally {
             await switchLang("de");
         }
+    });
+
+    it("says signed up until the setup is approved, then in the setup, on the bench or not placed", async () => {
+        const after = (over: Partial<PersonalRaid>) => myRaid({ id: "eh-x", title: "Kara", ...over });
+        const badgeOf = async (over: Partial<PersonalRaid>) => {
+            const view = await show(dashboard({ personal: personal({ upcoming: [myRaid({ placement: null }), after(over)] }) }));
+            const card = screen.getByText(t("dashboard.personal.list.title")).closest("section")!;
+            const text = within(card).getByText("Kara").closest(".ov-row")!.querySelector(".badge")!.textContent;
+            view.unmount();
+            return text;
+        };
+        expect(await badgeOf({ placement: null })).toBe(`${t("dashboard.personal.status.signed")} · Holy`);
+        expect(await badgeOf({ placement: null, setupApproved: false, status: "tentative" })).toBe(`${t("dashboard.personal.status.tentative")} · Holy`);
+        expect(await badgeOf({ placement: { group: 3 }, setupApproved: true })).toBe(`${t("dashboard.personal.status.placed")} · Holy`);
+        expect(await badgeOf({ placement: { bench: true }, setupApproved: true })).toBe(`${t("dashboard.personal.status.bench")} · Holy`);
+        expect(await badgeOf({ placement: null, setupApproved: true })).toBe(`${t("dashboard.personal.status.notPlaced")} · Holy`);
+        expect(await badgeOf({ placement: null, setupApproved: true, status: "absence" })).toBe(t("dashboard.personal.status.absence"));
+    });
+
+    it("tells the next raid when the approved setup left the raider out", async () => {
+        await show(dashboard({ personal: personal({ upcoming: [myRaid({ placement: null, setupApproved: true })] }) }));
+        const card = screen.getByText(t("dashboard.personal.next.title")).closest("section")!;
+        // the signup box still says what they did: signed up
+        expect(within(card).getByText(t("dashboard.personal.status.signed"))).toBeInTheDocument();
+        expect(within(card).getByText(t("dashboard.personal.setup.notPlaced"))).toBeInTheDocument();
+        expect(within(card).getByText(t("dashboard.personal.setup.notPlacedSub"))).toBeInTheDocument();
+        expect(within(card).queryByText(t("dashboard.personal.setup.none"))).not.toBeInTheDocument();
     });
 
     it("says so when no raid is coming up", async () => {
@@ -225,7 +253,7 @@ describe("Übersicht for the orga", () => {
         // compact: one line with the title and the status, no fields
         const card = screen.getByText(t("dashboard.personal.next.title")).closest("section")!;
         expect(within(card).getByText("Hyjal+BT+Gruul")).toBeInTheDocument();
-        expect(within(card).getByText(`${t("dashboard.personal.status.signed")} · Holy`)).toBeInTheDocument();
+        expect(within(card).getByText(`${t("dashboard.personal.status.placed")} · Holy`)).toBeInTheDocument();
         expect(within(card).queryByText(t("dashboard.personal.box.setup"))).not.toBeInTheDocument();
         // the orga block and its figures; no raider tiles
         expect(screen.getByText(t("dashboard.next.title"))).toBeInTheDocument();
