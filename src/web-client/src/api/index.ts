@@ -29,6 +29,7 @@ export * from "./addonRelease";
 export * from "./profile";
 export * from "./signups";
 export * from "./availability";
+export * from "./orgaHub";
 export * from "./setup";
 export * from "./raidplan";
 export * from "./kader";

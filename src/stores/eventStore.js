@@ -59,8 +59,25 @@ function peekAll() {
 /** A stored event as readers get it: a copy of its own, every field present. */
 const handOut = (e) => complete(structuredClone(e));
 
+// Who wants to know that an own event changed (the Orga-Zentrale, services/events/orgaHub.js):
+// told after every write — created, edited, moved, cancelled, a setup saved or posted.
+const listeners = new Set();
+
 function writeAll(events) {
     store.write({ events });
+    for (const fn of listeners) {
+        try {
+            fn();
+        } catch (e) {
+            console.error("[eventStore] listener failed:", e.message);
+        }
+    }
+}
+
+/** Subscribe to changes of the own events (any write). Returns the unsubscribe function. */
+function onEventsChanged(fn) {
+    listeners.add(fn);
+    return () => listeners.delete(fn);
 }
 
 function newId() {
@@ -654,7 +671,7 @@ if (typeof versionHook === "function") {
 module.exports = {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft, setEventState,
     appendEventLog, setEventSetupPost, setEventSetupPingText, setEventExtraRole, EXTRA_ROLES, setEventDiscordEvent, setEventAnnounced,
-    normalizePlan, isOwnEventId, migrateOverflowModes, useFile: store.useFile, eventEndTime, plannedEndOrDefault, durationOf, MIN_DURATION, MAX_DURATION,
+    normalizePlan, isOwnEventId, migrateOverflowModes, onEventsChanged, useFile: store.useFile, eventEndTime, plannedEndOrDefault, durationOf, MIN_DURATION, MAX_DURATION,
     // only for the tests (#424): not part of the module's API
     _internal: {
         EVENTS_FILE,

@@ -36,7 +36,7 @@ const { validatePlacement, placeSlots } = require("../../utils/setup/manual");
 const { DEFAULT_WEIGHTS, MAX_WEIGHT } = require("../../utils/setup/score");
 const { rulesForEvent } = require("../events/mainVersion");
 const { str } = require("../../utils/text");
-const { approvedSetupOf, pingTextOf, benchAndPool, confirmationsFor } = require("./setupCore");
+const { approvedSetupOf, pingTextOf, benchAndPool, confirmationsFor, setupSummary } = require("./setupCore");
 const { suggestSearch } = require("./raidSearch");
 const { eventLang } = require("../discord/botLanguage");
 
@@ -359,24 +359,6 @@ function raidHelperSlots(event) {
         groupNumber: g.index,
         slotNumber: i + 1,
     })));
-}
-
-/** What the raid detail's progress step needs — counts and state, no names. */
-function setupSummary(event) {
-    const setup = event && event.setup;
-    if (!setup) return null;
-    const placed = (setup.groups || []).reduce((n, g) => n + (g.slots || []).length, 0);
-    return {
-        status: setup.status === "approved" ? "approved" : "draft",
-        changedSinceApproval: !!setup.changedSinceApproval,
-        version: setup.version || 0,
-        placed,
-        size: Number(event.size) || 0,
-        bench: benchAndPool(setup).bench.length,
-        pool: benchAndPool(setup).pool.length,
-        ok: !!(setup.checks && setup.checks.ok),
-        approvedAt: setup.approvedAt || (setup.approved && setup.approved.approvedAt) || 0,
-    };
 }
 
 // ---- the editor's view ------------------------------------------------------

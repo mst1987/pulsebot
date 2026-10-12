@@ -57,6 +57,9 @@ const UI_ICONS = [
     "tank", "healer", "melee", "swords", "ranged",
     // the voice channel and the raid's end in the message head (#305)
     "voice", "end",
+    // the raid statuses of the Orga-Zentrale (services/events/orgaStatus.js): each its own
+    // shape AND colour (COLOR_OVERRIDES of scripts/render-ui-emojis.js), so they read apart at a glance
+    "orgasignup", "orgaopen", "orgadraft", "orgaapproved", "orgaposted", "orgachanged", "orgacancelled",
 ];
 
 // The letter tiles of the message's title line, like Raid-Helper's: one emoji
