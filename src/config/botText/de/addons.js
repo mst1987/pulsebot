@@ -14,6 +14,7 @@ module.exports = {
     "{count} more addons are on the download page.": "{count} weitere Addons stehen auf der Download-Seite.",
     "Subscribe to updates": "Updates abonnieren",
     "There are no addons for this channel's game version.": "Für die Spielversion dieses Kanals gibt es keine Addons.",
+    "There are no addons for {version} here.": "Für {version} gibt es hier keine Addons.",
     "before {version}": "vorher {version}",
     "is here": "ist da",
     "To the centre": "Zur Zentrale",

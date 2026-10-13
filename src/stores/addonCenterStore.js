@@ -7,6 +7,7 @@
 // `data/settings/addon-center.json` =
 //   {
 //     channelId, roleId, announce,          the settings (Einstellungen → Module → Addons)
+//     versionId,                            the game version the centre shows ("" = that of the channel's category)
 //     center: { guildId, channelId, messageId, url, postedAt, postedBy, hash } | null,
 //     checkedAt,                            the last version check (ms)
 //     seen: { [addonId]: { version, previous, newSince, notifiedAt } },
@@ -20,6 +21,7 @@
 // never deleted in Discord, the list only says what was posted.
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
+const { rulesFor } = require("../config/gameVersions");
 
 /** The posted update messages remembered (the messages themselves stay in Discord). */
 const MAX_UPDATES = 50;
@@ -27,6 +29,8 @@ const MAX_UPDATES = 50;
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const num = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : 0);
 const SNOWFLAKE = /^\d{5,25}$/;
+/** A game version id some rule set knows, else "" (= automatic). */
+const knownVersionId = (v) => (str(v) && rulesFor(str(v)) ? str(v) : "");
 const snowflake = (v) => (SNOWFLAKE.test(str(v)) ? str(v) : "");
 
 function normalizeCenter(raw) {
@@ -60,7 +64,7 @@ function normalizeUpdates(raw) {
         .slice(-MAX_UPDATES);
 }
 
-const DEFAULTS = () => ({ channelId: "", roleId: "", announce: true, center: null, checkedAt: 0, seen: {}, updates: [] });
+const DEFAULTS = () => ({ channelId: "", roleId: "", announce: true, versionId: "", center: null, checkedAt: 0, seen: {}, updates: [] });
 
 const store = createJsonStore({
     file: settingsPath("addon-center.json"),
@@ -71,6 +75,7 @@ const store = createJsonStore({
             channelId: snowflake(d.channelId),
             roleId: snowflake(d.roleId),
             announce: d.announce !== false,
+            versionId: knownVersionId(d.versionId),
             center: normalizeCenter(d.center),
             checkedAt: num(d.checkedAt),
             seen: normalizeSeen(d.seen),
@@ -82,10 +87,10 @@ const store = createJsonStore({
 /** Tests point the store at a file of their own; null = the default again. */
 const useFile = store.useFile;
 
-/** `{ channelId, roleId, announce }`. */
+/** `{ channelId, roleId, announce, versionId }`. */
 function getSettings() {
     const d = store.read();
-    return { channelId: d.channelId, roleId: d.roleId, announce: d.announce };
+    return { channelId: d.channelId, roleId: d.roleId, announce: d.announce, versionId: d.versionId };
 }
 
 /**
@@ -101,9 +106,14 @@ function setSettings(patch = {}) {
         if (value && !SNOWFLAKE.test(value)) return { error: key === "channelId" ? "Ungültiger Kanal." : "Ungültige Rolle." };
         d[key] = value;
     }
+    if (p.versionId !== undefined) {
+        const value = str(p.versionId);
+        if (value && !knownVersionId(value)) return { error: "Ungültige Spielversion." };
+        d.versionId = value;
+    }
     if (p.announce !== undefined) d.announce = p.announce !== false;
     store.write(d);
-    return { settings: { channelId: d.channelId, roleId: d.roleId, announce: d.announce } };
+    return { settings: { channelId: d.channelId, roleId: d.roleId, announce: d.announce, versionId: d.versionId } };
 }
 
 /** The posted centre, or null. */

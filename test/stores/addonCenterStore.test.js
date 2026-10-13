@@ -13,7 +13,7 @@ afterAll(() => store.useFile(null));
 
 describe("stores/addonCenterStore", () => {
     it("starts empty: no channel, no role, announcing on, nothing posted", () => {
-        expect(store.getSettings()).toEqual({ channelId: "", roleId: "", announce: true });
+        expect(store.getSettings()).toEqual({ channelId: "", roleId: "", announce: true, versionId: "" });
         expect(store.getCenter()).toBeNull();
         expect(store.getCheckedAt()).toBe(0);
         expect(store.getSeen()).toEqual({});
@@ -21,12 +21,30 @@ describe("stores/addonCenterStore", () => {
     });
 
     it("saves only the settings it gets and refuses an id that is no Discord id", () => {
-        expect(store.setSettings({ channelId: "123456789012345678" })).toEqual({ settings: { channelId: "123456789012345678", roleId: "", announce: true } });
-        expect(store.setSettings({ roleId: "223456789012345678", announce: false }).settings).toEqual({ channelId: "123456789012345678", roleId: "223456789012345678", announce: false });
+        expect(store.setSettings({ channelId: "123456789012345678" })).toEqual({ settings: { channelId: "123456789012345678", roleId: "", announce: true, versionId: "" } });
+        expect(store.setSettings({ roleId: "223456789012345678", announce: false }).settings).toEqual({ channelId: "123456789012345678", roleId: "223456789012345678", announce: false, versionId: "" });
         expect(store.setSettings({ channelId: "#general" })).toEqual({ error: "Ungültiger Kanal." });
         expect(store.setSettings({ roleId: "abc" })).toEqual({ error: "Ungültige Rolle." });
         expect(store.setSettings({ roleId: "" }).settings.roleId).toBe("");
         expect(store.getSettings().channelId).toBe("123456789012345678");
+    });
+
+    it("keeps the game version: \"\" = automatic, a known id is saved, an unknown one refused; old data and junk count as automatic", () => {
+        expect(store.setSettings({ versionId: "tbc" }).settings.versionId).toBe("tbc");
+        expect(store.getSettings().versionId).toBe("tbc");
+        expect(store.setSettings({ versionId: "nope" })).toEqual({ error: "Ungültige Spielversion." });
+        expect(store.getSettings().versionId).toBe("tbc");
+        expect(store.setSettings({ announce: false }).settings.versionId).toBe("tbc");
+        expect(store.setSettings({ versionId: "" }).settings.versionId).toBe("");
+        fs.writeFileSync(file, JSON.stringify({ channelId: "123456789012345678", versionId: "forever" }));
+        store.useFile(file);
+        expect(store.getSettings().versionId).toBe("forever");
+        fs.writeFileSync(file, JSON.stringify({ channelId: "123456789012345678" }));
+        store.useFile(file);
+        expect(store.getSettings().versionId).toBe("");
+        fs.writeFileSync(file, JSON.stringify({ versionId: "gone" }));
+        store.useFile(file);
+        expect(store.getSettings().versionId).toBe("");
     });
 
     it("remembers the centre, its fingerprint and forgets it again", () => {
@@ -58,7 +76,7 @@ describe("stores/addonCenterStore", () => {
     it("reads a damaged file as its defaults and drops broken entries", () => {
         fs.writeFileSync(file, JSON.stringify({ channelId: "nope", announce: false, center: { channelId: "c" }, seen: { a: { version: "1" }, b: null, c: { version: "" } }, updates: [{ addonId: "a" }, null] }));
         store.useFile(file);
-        expect(store.getSettings()).toEqual({ channelId: "", roleId: "", announce: false });
+        expect(store.getSettings()).toEqual({ channelId: "", roleId: "", announce: false, versionId: "" });
         expect(store.getCenter()).toBeNull();
         expect(Object.keys(store.getSeen())).toEqual(["a"]);
         expect(store.listUpdates()).toEqual([]);

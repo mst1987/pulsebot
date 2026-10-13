@@ -119,11 +119,12 @@ function downloadButton(addonId, lang) {
  *   the addons of the channel's version, in order (`files` = the release files the addon offers)
  * @param {boolean} [o.subscribe] show "Updates abonnieren" (an update role is set)
  * @param {string} [o.lang]
+ * @param {string} [o.versionLabel] the game version shown (named in the empty state)
  * @param {object} [o.emojis] the bot's application emojis (appEmojis.appEmojiMap())
  * @param {number} [o.now]
  * @returns {{ payload: object, shown: number, dropped: number }}
  */
-function centerPayload({ entries = [], subscribe = false, lang = "de", emojis = {}, now = Date.now() } = {}) {
+function centerPayload({ entries = [], subscribe = false, lang = "de", emojis = {}, now = Date.now(), versionLabel = "" } = {}) {
     const headText = [
         `## ${tr(lang, "Addon download centre")}`,
         tr(lang, "Click **Download** – the file comes only for you. Unpack it into `Interface\\AddOns`."),
@@ -184,7 +185,9 @@ function centerPayload({ entries = [], subscribe = false, lang = "de", emojis = 
     }
     if (!lines.length) {
         components.push(new ContainerBuilder().setAccentColor(COLOR_CENTER)
-            .addTextDisplayComponents(text(tr(lang, "There are no addons for this channel's game version."))).toJSON());
+            .addTextDisplayComponents(text(versionLabel
+                ? tr(lang, "There are no addons for {version} here.", { version: versionLabel })
+                : tr(lang, "There are no addons for this channel's game version."))).toJSON());
     }
     return {
         payload: { flags: MessageFlags.IsComponentsV2, components, content: "", embeds: [] },

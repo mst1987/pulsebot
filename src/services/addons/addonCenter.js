@@ -21,9 +21,10 @@ const store = require("../../stores/addonCenterStore");
 const { getConfig } = require("../../stores/configStore");
 const discord = require("../discord/discord");
 const { appEmojiMap } = require("../discord/appEmojis");
+const { versionLabel } = require("../events/versionSettings");
 const { serverLang } = require("../discord/botLanguage");
 const { categoryIdOfChannel } = require("../events/commandVersion");
-const { mainVersionFor, isVersionVisible } = require("../events/mainVersion");
+const { mainVersionFor, isVersionVisible, knownVersion } = require("../events/mainVersion");
 const { enabledAddons, releaseFor } = require("./addonReleases");
 const { assetMatches } = require("./addonConfig");
 const { centerPayload, updatePayload } = require("./addonCenterPanel");
@@ -54,13 +55,23 @@ function compareVersions(a, b) {
 }
 
 /** The game version of a channel: its category's (as /addons reads it), a hidden one falls back to the main version. */
-function channelVersion(channelId, config) {
+function categoryVersion(channelId, config) {
     const client = discord.getClient();
     const cache = client && client.channels && client.channels.cache;
     const channel = cache && typeof cache.get === "function" ? cache.get(str(channelId)) : null;
     const categoryId = channel ? categoryIdOfChannel(channel, channel.guild) : "";
     const wanted = mainVersionFor({ categoryId, config });
     return isVersionVisible(wanted, config) ? wanted : mainVersionFor({ config });
+}
+
+/**
+ * The game version the centre shows: the one picked in the settings (versionId),
+ * while it is known and visible, else that of the channel's category.
+ */
+function channelVersion(channelId, config) {
+    const picked = store.getSettings().versionId;
+    if (picked && knownVersion(picked) === picked && isVersionVisible(picked, config)) return picked;
+    return categoryVersion(channelId, config);
 }
 
 /** The addons the centre shows for a version: enabled, not orga-only, of that version. */
@@ -100,7 +111,7 @@ async function currentPayload({ channelId, config, now = Date.now() } = {}) {
     const settings = store.getSettings();
     const versionId = channelVersion(channelId, cfg);
     const entries = await centerEntries(cfg, versionId, { now });
-    const built = centerPayload({ entries, subscribe: !!settings.roleId, lang: serverLang(cfg), emojis: appEmojiMap(), now });
+    const built = centerPayload({ entries, subscribe: !!settings.roleId, lang: serverLang(cfg), emojis: appEmojiMap(), now, versionLabel: versionLabel(versionId) });
     if (built.dropped) log.warn(`${built.dropped} addon(s) do not fit into the centre (Discord allows 40 components); they are on the download page`);
     return { ...built, versionId, entries };
 }
@@ -325,7 +336,15 @@ async function saveSettings(patch = {}, { by = "", config, now = Date.now() } = 
         if (moved.error) return { settings: saved.settings, center: store.getCenter(), error: moved.error };
         return { settings: saved.settings, center: moved.center };
     }
-    if (saved.settings.roleId !== before.roleId) await refreshCenter({ config, force: true, now });
+    if (saved.settings.versionId !== before.versionId) {
+        // another game version shows other addons: their versions are only remembered, never announced
+        try {
+            rememberVersions(await centerEntries(config || getConfig(), channelVersion(center.channelId, config || getConfig()), { now }));
+        } catch (e) {
+            log.warn(`versions of the new game version not remembered: ${str(e && e.message) || e}`);
+        }
+    }
+    if (saved.settings.roleId !== before.roleId || saved.settings.versionId !== before.versionId) await refreshCenter({ config, force: true, now });
     return { settings: saved.settings, center: store.getCenter() };
 }
 
@@ -358,7 +377,7 @@ function stopAddonCenter() {
 }
 
 module.exports = {
-    FIRST_DELAY_MS, CHECK_MS, compareVersions, channelVersion, centerAddons, centerEntries, currentPayload, payloadHash,
+    FIRST_DELAY_MS, CHECK_MS, compareVersions, channelVersion, categoryVersion, centerAddons, centerEntries, currentPayload, payloadHash,
     postCenter, removeCenter, refreshCenter, checkVersions, runCheck, scheduleRefresh, onCenterMessageDeleted, saveSettings,
     startAddonCenter, stopAddonCenter,
 };

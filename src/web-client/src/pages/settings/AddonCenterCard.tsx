@@ -88,6 +88,15 @@ export default function AddonCenterCard() {
                         <FieldLabel htmlFor="dlp-center-role" tip={t("addon.center.role")} tipSub={t("addon.center.roleSub")}>{t("addon.center.role")}</FieldLabel>
                         <RolePicker id="dlp-center-role" value={settings.roleId} roles={roles} onChange={(roleId) => { void save({ roleId }); }} />
                     </div>
+                    <div className="set-field">
+                        <FieldLabel htmlFor="dlp-center-version" tip={t("addon.center.version")} tipSub={t("addon.center.versionSub")}>{t("addon.center.version")}</FieldLabel>
+                        <select id="dlp-center-version" value={settings.versionId} disabled={busy === "save"} onChange={(e) => { void save({ versionId: e.target.value }); }}>
+                            <option value="">
+                                {data.autoVersion ? t("addon.center.versionAuto", { version: data.autoVersion.label }) : t("addon.center.versionAutoNoChannel")}
+                            </option>
+                            {data.versions.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+                        </select>
+                    </div>
                 </div>
                 <Switch checked={settings.announce} disabled={busy === "save"} onChange={(announce) => { void save({ announce }); }}
                     label={t("addon.center.announce")} tip={t("addon.center.announceSub")} />

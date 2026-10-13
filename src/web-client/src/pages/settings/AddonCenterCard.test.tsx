@@ -22,7 +22,7 @@ const CHECKED_AT = Date.UTC(2026, 9, 13, 16, 15);
 
 function view(over: Partial<AddonCenterView> = {}): AddonCenterView {
     return {
-        settings: { channelId: "", roleId: "", announce: true },
+        settings: { channelId: "", roleId: "", announce: true, versionId: "" },
         center: null,
         checkedAt: 0,
         online: true,
@@ -31,11 +31,14 @@ function view(over: Partial<AddonCenterView> = {}): AddonCenterView {
             { id: "c2", name: "talk", guildId: "g2", category: "WoW Forever" },
         ],
         roles: { g1: [{ id: "r1", name: "Addon-Updates" }], g2: [{ id: "r2", name: "Talk-Updates" }] },
+        versions: [{ id: "tbc", label: "TBC Anniversary" }, { id: "classic", label: "Classic" }, { id: "forever", label: "WoW Forever" }],
+        autoVersion: null,
         ...over,
     };
 }
 const posted = (over: Partial<AddonCenterView> = {}) => view({
-    settings: { channelId: "c1", roleId: "r1", announce: true },
+    settings: { channelId: "c1", roleId: "r1", announce: true, versionId: "" },
+    autoVersion: { id: "tbc", label: "TBC Anniversary" },
     center: { channelId: "c1", postedAt: POSTED_AT, url: "https://discord.com/channels/g1/c1/m1" },
     checkedAt: CHECKED_AT,
     ...over,
@@ -43,12 +46,13 @@ const posted = (over: Partial<AddonCenterView> = {}) => view({
 
 const channel = () => screen.getByRole("combobox", { name: t("addon.center.channel") });
 const role = () => screen.getByRole("combobox", { name: t("addon.center.role") });
+const version = () => screen.getByRole("combobox", { name: t("addon.center.version") });
 
 beforeEach(() => {
     vi.mocked(api.getAddonCenter).mockResolvedValue(view());
     vi.mocked(api.saveAddonCenter).mockImplementation(async (patch) => view({ settings: { ...view().settings, ...patch } }));
     vi.mocked(api.postAddonCenter).mockResolvedValue(posted());
-    vi.mocked(api.removeAddonCenter).mockResolvedValue(view({ settings: { channelId: "c1", roleId: "r1", announce: true } }));
+    vi.mocked(api.removeAddonCenter).mockResolvedValue(view({ settings: { channelId: "c1", roleId: "r1", announce: true, versionId: "" } }));
 });
 
 describe("AddonCenterCard", () => {
@@ -87,9 +91,30 @@ describe("AddonCenterCard", () => {
         expect(api.saveAddonCenter).toHaveBeenLastCalledWith({ channelId: "c2", roleId: "" });
     });
 
+    it("offers the game versions with an automatic first entry that names the category's version, and saves a pick at once", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getAddonCenter).mockResolvedValue(posted());
+        renderPage(<AddonCenterCard />);
+        await screen.findByRole("heading", { name: t("addon.center.title") });
+        expect(version()).toHaveValue("");
+        expect(screen.getByRole("option", { name: "Automatisch (TBC Anniversary)" })).toBeInTheDocument();
+        expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(expect.arrayContaining(["TBC Anniversary", "Classic", "WoW Forever"]));
+        await user.selectOptions(version(), "forever");
+        expect(api.saveAddonCenter).toHaveBeenLastCalledWith({ versionId: "forever" });
+        expect(await screen.findByText(t("addon.center.saved"))).toBeInTheDocument();
+        await waitFor(() => expect(version()).toHaveValue("forever"));
+        await user.selectOptions(version(), "");
+        expect(api.saveAddonCenter).toHaveBeenLastCalledWith({ versionId: "" });
+    });
+
+    it("says \"from the category\" while no channel is picked", async () => {
+        renderPage(<AddonCenterCard />);
+        expect(await screen.findByRole("option", { name: t("addon.center.versionAutoNoChannel") })).toBeInTheDocument();
+    });
+
     it("posts the centre and then shows when, the last check, a link to it, post again and remove", async () => {
         const user = userEvent.setup();
-        vi.mocked(api.getAddonCenter).mockResolvedValue(view({ settings: { channelId: "c1", roleId: "", announce: true } }));
+        vi.mocked(api.getAddonCenter).mockResolvedValue(view({ settings: { channelId: "c1", roleId: "", announce: true, versionId: "" } }));
         renderPage(<AddonCenterCard />);
         await user.click(await screen.findByRole("button", { name: t("addon.center.post") }));
         expect(api.postAddonCenter).toHaveBeenCalled();

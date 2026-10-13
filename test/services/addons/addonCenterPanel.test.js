@@ -76,6 +76,11 @@ describe("addonCenterPanel centerPayload", () => {
         expect(texts(payload)[1]).toBe("Für die Spielversion dieses Kanals gibt es keine Addons.");
     });
 
+    it("names the game version in the empty state when it is known", () => {
+        const { payload } = panel.centerPayload({ entries: [], now: NOW, versionLabel: "TBC Anniversary" });
+        expect(texts(payload)[1]).toBe("Für TBC Anniversary gibt es hier keine Addons.");
+    });
+
     it("stays within 40 components: the addons that do not fit are left out with a line in the head", () => {
         const many = Array.from({ length: 12 }, (_, i) => entry(`addon${i}`));
         const { payload, shown, dropped } = panel.centerPayload({ entries: many, subscribe: true, now: NOW });
