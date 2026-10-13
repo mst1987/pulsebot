@@ -52,5 +52,8 @@ module.exports = {
         "Dein Charakter ist noch nicht bestätigt – füg ihn in deinem Profil über die Logs oder das Arsenal hinzu, sonst kann die Orga nicht ausgeben.",
     "Your turn on the waiting list": "Du bist dran",
     "It is in the guild bank now – the orga will confirm it shortly.": "Der Gegenstand ist jetzt in der Gildenbank – die Orga bestätigt gleich.",
-    "{count} more stay on the waiting list for you – you are first in line.": "{count} weitere bleiben für dich auf der Warteliste – du bist als Nächstes dran.",
+    // the list goes round in portions: the rest is back at the end
+    "{count} more are back at the end of the waiting list for you – you are no. {position}.": "{count} weitere stehen für dich wieder hinten auf der Warteliste – du bist Nr. {position}.",
+    "{count} more are back at the end of the waiting list for you.": "{count} weitere stehen für dich wieder hinten auf der Warteliste.",
+    "Handed out in turns: {count} per round.": "Ausgabe reihum: je {count} pro Runde.",
 };

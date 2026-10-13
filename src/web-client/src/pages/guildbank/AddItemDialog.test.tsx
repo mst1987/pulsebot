@@ -12,6 +12,7 @@ import { bankData, bankItem } from "./guildBank.fixture";
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
     getGuildBank: vi.fn(),
+    getGuildBankRequests: vi.fn(),
     searchGuildBankItems: vi.fn(),
     addGuildBankItem: vi.fn(),
 }));
@@ -26,6 +27,7 @@ async function openDialog(user: ReturnType<typeof userEvent.setup>) {
 
 beforeEach(() => {
     localStorage.clear();
+    vi.mocked(api.getGuildBankRequests).mockResolvedValue({ requests: [] });
     vi.mocked(api.getGuildBank).mockResolvedValue(bankData());
     vi.mocked(api.addGuildBankItem).mockResolvedValue({ item: SPINEL, created: true });
     vi.mocked(api.searchGuildBankItems).mockResolvedValue({
@@ -80,7 +82,7 @@ describe("guild bank: add an item by hand", () => {
 
     it("gives a reader no button", async () => {
         renderPage(<GuildBankPage />, { route: "/guildbank", user: adminUser({ isAdmin: false, access: { raids: { read: true, write: false } } }) });
-        await screen.findByRole("button", { name: "Anfragen" });
+        await screen.findByRole("tab", { name: /^Anfragen/ });
         expect(screen.queryByRole("button", { name: "Gegenstand hinzufügen" })).toBeNull();
     });
 });

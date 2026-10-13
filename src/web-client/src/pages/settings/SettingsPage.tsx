@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import {
-    getSettings, updateSettings, getIngestTokens, getAvailabilityPanels, getOrgaHubs, type ApiError, type AvailabilityLink, type AvailabilityPanel, type OrgaHub,
+    getSettings, updateSettings, getIngestTokens, getAvailabilityPanels, getOrgaHubs, type ApiError, type AvailabilityLink, type AvailabilityPanel, type OrgaHub, type OrgaLink,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { usePersistedSearchParam } from "../../lib/ui/persistedState";
@@ -95,10 +95,18 @@ export default function SettingsPage() {
         return { ...cur, links: links.length ? { ...rest, [categoryId]: links } : rest };
     });
     // The Orga-Zentrale per category: posted and removed at once like the panels.
-    const hubsData = useApi(() => getOrgaHubs().then((r) => r.hubs || []), [], { enabled: !!data });
-    const setHub = (categoryId: string, hub: OrgaHub | null) => hubsData.setData((cur) => (cur ? [
-        ...cur.filter((h) => h.categoryId !== categoryId), ...(hub ? [hub] : []),
-    ] : cur));
+    // Its link buttons come with it and are saved the same way.
+    const hubsData = useApi(() => getOrgaHubs().then((r) => ({ hubs: r.hubs || [], links: r.links || {}, maxLinks: r.maxLinks || 5 })), [], { enabled: !!data });
+    const setHub = (categoryId: string, hub: OrgaHub | null) => hubsData.setData((cur) => (cur ? {
+        ...cur,
+        hubs: [...cur.hubs.filter((h) => h.categoryId !== categoryId), ...(hub ? [hub] : [])],
+    } : cur));
+    const setOrgaLinks = (categoryId: string, links: OrgaLink[]) => hubsData.setData((cur) => {
+        if (!cur) return cur;
+        const rest = { ...cur.links };
+        delete rest[categoryId];
+        return { ...cur, links: links.length ? { ...rest, [categoryId]: links } : rest };
+    });
     // #738: the category whose version switch waits for the confirmation dialog.
     const [switching, setSwitching] = useState<{ id: string; versionId: string } | null>(null);
     // #744: a save that deactivates categories first shows what pauses; a category
@@ -415,9 +423,12 @@ export default function SettingsPage() {
                         onLinks: setLinks,
                     } : undefined}
                     orgaHubs={hubsData.data ? {
-                        hubs: hubsData.data,
+                        hubs: hubsData.data.hubs,
+                        links: hubsData.data.links,
+                        maxLinks: hubsData.data.maxLinks,
                         channels: data.noteChannels ? data.noteChannels.channels : [],
                         onChange: setHub,
+                        onLinks: setOrgaLinks,
                     } : undefined}
                     icon={activeSection.icon}
                     crumb={activeCrumb}

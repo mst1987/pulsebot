@@ -14,6 +14,7 @@ import type { GuildBankHandedOut } from "../../api";
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
     getGuildBank: vi.fn(),
+    getGuildBankRequests: vi.fn(),
     getGuildBankHandedOut: vi.fn(),
 }));
 
@@ -41,6 +42,7 @@ async function openTab(user: ReturnType<typeof userEvent.setup>) {
 
 beforeEach(() => {
     localStorage.clear();
+    vi.mocked(api.getGuildBankRequests).mockResolvedValue({ requests: [] });
     vi.mocked(api.getGuildBank).mockResolvedValue(bankData({
         handedOutRequests: 3,
         items: [bankItem({ itemId: 1 }), bankItem({ itemId: 3, name: "Flask of Relentless Assault", group: "Fläschchen" })],
@@ -52,7 +54,7 @@ describe("guild bank: handed out", () => {
     it("has a tab after \"Warteliste\" with the count of the kept hand-outs", async () => {
         renderPage(<GuildBankPage />, { route: "/guildbank" });
         const tabs = await screen.findAllByRole("tab");
-        expect(tabs.map((tab) => tab.textContent)).toEqual(["Ausgebbar 2", "Warteliste 0", "Ausgegeben 3", "Nur Bestand 0", "Ausgeblendet 0", "Neu 0"]);
+        expect(tabs.map((tab) => tab.textContent)).toEqual(["Ausgebbar 2", "Warteliste 0", "Anfragen 0", "Ausgegeben 3", "Nur Bestand 0", "Ausgeblendet 0", "Neu 0"]);
     });
 
     it("groups the hand-outs by day, newest first: to whom big, how, by whom, from the waiting list", async () => {

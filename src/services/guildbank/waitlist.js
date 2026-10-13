@@ -9,10 +9,14 @@
 //             requests of the item — an open request is promised already, so a
 //             second scan never hands the same amount out twice. 0 for an item
 //             that is not requestable (not "give", or only in hidden tabs).
-//   allocate  the pure core: the queue in order and what is free → who gets
-//             how much. The first gets as much as is free up to what they
-//             asked for; only when they are served in full does the next get
-//             anything. A part leaves the rest waiting at the same place.
+//   portion   the item's share per turn (guildBankStockStore `portion`, default
+//             PORTION_DEFAULT = 2, the orga sets 1–99 per item).
+//   allocate  the pure core: the queue in order, what is free and the portion
+//             → who gets how much, **in turns**: the first gets at most one
+//             portion, whoever wants more goes to the end of the line with the
+//             rest, the next is on — round and round while anything is free.
+//             Crimson Spinel came in slowly and a 15× order held the whole line
+//             for weeks; in turns everybody gets something.
 //   promote   allocate + guildBankStore.promoteWaiting: the entries move up to
 //             open requests (`fromWaitlist`), synchronously — two triggers at
 //             once never share out the same amount. Posting the orga card and
@@ -46,26 +50,49 @@ const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const IMPORT_MAX_LINES = 200;
 
 /**
- * Who of a queue gets how much of `free` — strictly in order: the first as
- * much as they asked for (or what is free), the next only when the first is
- * served in full.
+ * Who of a queue gets how much of `free` — in turns: the first in line gets
+ * at most `portion` (and never more than is free); whoever still wants more
+ * goes to the end of the line with the rest, and the next is on. A part
+ * smaller than the portion (only 1 was free) sends the rest to the end too.
+ * The line goes round as long as anything is free, so one entry may get
+ * several portions in one run (only when everybody before it had their
+ * turn) — they add up to one amount, one open request per entry and run.
+ *
+ *   free 4, portion 2, [A 15, B 2, C 1] → A 2 (13 to the end), B 2 (done);
+ *   the list is then [C 1, A 13].
+ *
+ * The result is in the order of each entry's last turn: applied in this order
+ * (guildBankStore.promoteWaiting puts each rest behind the highest rank), the
+ * rests line up at the end exactly as the turns went round.
  * @param {{ id: string, amount: number }[]} queue first in line first
  * @param {number} free
- * @returns {{ id: string, amount: number, full: boolean }[]}
+ * @param {number} [portion] at most this much per turn (stockStore.portionOf; invalid = PORTION_DEFAULT)
+ * @returns {{ id: string, amount: number, rest: number, full: boolean }[]}
  */
-function allocate(queue, free) {
+function allocate(queue, free, portion = stockStore.PORTION_DEFAULT) {
     let left = Math.max(0, Math.floor(Number(free) || 0));
-    const out = [];
-    for (const entry of queue || []) {
-        if (left <= 0) break;
-        const want = Math.max(0, Math.floor(Number(entry.amount) || 0));
-        if (!want) continue;
-        const take = Math.min(want, left);
-        out.push({ id: entry.id, amount: take, full: take === want });
+    const share = Math.floor(Number(portion) || 0) > 0 ? Math.floor(Number(portion)) : stockStore.PORTION_DEFAULT;
+    const line = (queue || [])
+        .map((entry) => ({ id: entry.id, want: Math.max(0, Math.floor(Number(entry.amount) || 0)) }))
+        .filter((entry) => entry.want > 0);
+    const wanted = new Map(line.map((entry) => [entry.id, entry.want]));
+    const got = new Map();
+    let turn = 0;
+    while (left > 0 && line.length) {
+        const entry = line.shift();
+        const take = Math.min(share, entry.want, left);
         left -= take;
-        if (take < want) break;
+        entry.want -= take;
+        turn += 1;
+        got.set(entry.id, { amount: ((got.get(entry.id) || {}).amount || 0) + take, turn });
+        if (entry.want > 0) line.push(entry);
     }
-    return out;
+    return [...got.entries()]
+        .sort((a, b) => a[1].turn - b[1].turn)
+        .map(([id, { amount }]) => {
+            const rest = wanted.get(id) - amount;
+            return { id, amount, rest, full: rest === 0 };
+        });
 }
 
 /** What a new request or the waiting list may still get of an item now (0 when it is not requestable). */
@@ -74,19 +101,28 @@ function freeOf(bankKey, itemId) {
     return item && stockView.isRequestable(item) ? item.free : 0;
 }
 
+/** The portion per turn of an item (its own, else the default). */
+function portionFor(bankKey, itemId) {
+    const item = stockView.stockItem(bankKey, itemId);
+    return stockStore.portionOf(item);
+}
+
 /**
- * Move the first of one item's waiting list up as far as the stock goes.
- * Returns what moved: `[{ request (now open), rest (still waiting or null) }]`.
+ * Move one item's waiting list up in turns as far as the stock goes (allocate
+ * with the item's portion). Returns what moved: `[{ request (now open), rest
+ * (still waiting — at the end of the list — or null), restPosition (its place
+ * now, 1 = next; 0 without a rest) }]`.
  */
 function promoteItem(bankKey, itemId, { now = Date.now() } = {}) {
     const queue = store.waitingQueue(bankKey, itemId);
     if (!queue.length) return [];
     const moved = [];
-    for (const { id, amount } of allocate(queue, freeOf(bankKey, itemId))) {
+    for (const { id, amount } of allocate(queue, freeOf(bankKey, itemId), portionFor(bankKey, itemId))) {
         const result = store.promoteWaiting(id, amount, { now });
         if (result.request) moved.push(result);
     }
-    return moved;
+    // the places only once every rest stands where it belongs
+    return moved.map((m) => ({ ...m, restPosition: m.rest ? positionOf(m.rest) : 0 }));
 }
 
 /** promoteItem for every item of a bank that has a waiting list (or only `itemId`). */

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { postOrgaHub, removeOrgaHub, type ApiError, type OrgaHub } from "../../api";
+import { postOrgaHub, removeOrgaHub, type ApiError, type OrgaHub, type OrgaLink } from "../../api";
+import OrgaLinksEditor from "./OrgaLinksEditor";
 import { useToast } from "../../components/shell/Jobs";
 import { Button, buttonClass } from "../../components/ui/Button";
 import { useConfirm } from "../../components/ui/Modal";
@@ -10,7 +11,8 @@ import { useT } from "../../i18n";
 
 // "Orga-Zentrale" of one raid category (Einstellungen → Kategorien → Discord-
 // Zentralen): the Discord message for the orga — the category's raids of the next
-// four weeks, where each one stands, and a "Raid anlegen" button. Posted and
+// four weeks, where each one stands, a "Raid anlegen" button and the orga's
+// links (OrgaLinksEditor). Posted and
 // removed at once through its own API, never through the page's draft and save
 // bar; posting again replaces the old message. Who sees the channel is the
 // channel's business in Discord.
@@ -21,6 +23,11 @@ export type OrgaHubs = {
     channels: { id: string; name: string; category?: string }[];
     /** A hub was posted (or moved) or removed (null). */
     onChange: (categoryId: string, hub: OrgaHub | null) => void;
+    /** The orga links per category id and how many one category may have. */
+    links: Record<string, OrgaLink[]>;
+    maxLinks: number;
+    /** A category's links were saved (as the server kept them). */
+    onLinks: (categoryId: string, links: OrgaLink[]) => void;
 };
 
 export default function OrgaHubRow({ categoryId, categoryName, hubs }: { categoryId: string; categoryName: string; hubs: OrgaHubs }) {
@@ -84,6 +91,7 @@ export default function OrgaHubRow({ categoryId, categoryName, hubs }: { categor
                     <Button variant="ghost" size="sm" disabled={busy} onClick={remove}>{t("common.remove")}</Button>
                 </div>
             )}
+            <OrgaLinksEditor categoryId={categoryId} links={hubs.links[categoryId] || []} maxLinks={hubs.maxLinks} onSaved={hubs.onLinks} />
         </CategoryField>
     );
 }

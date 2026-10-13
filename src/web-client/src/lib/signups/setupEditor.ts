@@ -426,9 +426,20 @@ export function suggestGroup(person: SetupPerson, groups: SetupEditorGroup[]): n
     return best;
 }
 
-/** The reasons the tooltip lists: the attendance line is drawn on its own row for everyone, so the reason of the same name is dropped. */
+/**
+ * The proposal's reasons that only name the signup state (src/utils/setup/reasons.js' STATUS_REASON, German
+ * whatever the page language): the panel shows the state as its field in the app's one word ("Vielleicht",
+ * "Spät", "Bank"), so these would only repeat it in other words. Matched, never shown — a pattern, not a
+ * string, since this is the server's data and not a text of the page (test/web-client/conventions/i18n.test.js).
+ */
+const STATUS_REASON = /^(Kommt sp.ter|Nur „Vielleicht“ angemeldet|Als Ersatz angemeldet)$/;
+
+/**
+ * The reasons the tooltip lists: the attendance line is drawn on its own row for everyone, so the reason of
+ * the same name is dropped — and so is a reason that only names the signup state (its field says it).
+ */
 export function tipReasons(reasons: string[] | undefined): string[] {
-    return (reasons || []).filter((r) => !r.startsWith("Anwesenheit "));
+    return (reasons || []).filter((r) => !r.startsWith("Anwesenheit ") && !STATUS_REASON.test(r));
 }
 
 function personFrom(people: Map<string, SetupPerson>, userId: string, locked: boolean): SetupPerson {
