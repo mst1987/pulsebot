@@ -86,15 +86,19 @@ async function releaseFor(addon, { config, now = Date.now(), force = false } = {
     return answerOf(entry, { failed: !!entry.failedAt });
 }
 
-/** The enabled addons of the config, optionally only those for one game version. */
-function enabledAddons(config, versionId = "") {
+/**
+ * The enabled addons of the config, optionally only those for one game version.
+ * Addons marked `orgaOnly` are left out unless the caller is `orga` (a full
+ * admin or an orga role, permissions.userIsOrga): hidden is the safe default.
+ */
+function enabledAddons(config, versionId = "", { orga = false } = {}) {
     const list = Array.isArray(config && config.addonDownloads) ? config.addonDownloads : [];
-    return list.filter((a) => a && a.enabled !== false && (!versionId || (a.versions || []).includes(versionId)));
+    return list.filter((a) => a && a.enabled !== false && (orga || !a.orgaOnly) && (!versionId || (a.versions || []).includes(versionId)));
 }
 
 /** The game versions with at least one enabled addon, in the rule sets' order - for the empty page's hint. */
-function addonVersions(config) {
-    return VERSION_IDS.filter((id) => enabledAddons(config, id).length > 0);
+function addonVersions(config, { orga = false } = {}) {
+    return VERSION_IDS.filter((id) => enabledAddons(config, id, { orga }).length > 0);
 }
 
 /** "zip" | "exe" | "file" — what the page says about installing a file. */
@@ -135,6 +139,7 @@ function addonCard(addon, result, { canManage = false } = {}) {
         stale: !!result.stale,
         errorCode: result.errorCode || "",
         fetchedAt: result.fetchedAt || 0,
+        orgaOnly: !!addon.orgaOnly,
         ...(canManage ? { repo: addon.repo, private: !!addon.private } : {}),
         release: release ? {
             version: release.version,
@@ -147,8 +152,8 @@ function addonCard(addon, result, { canManage = false } = {}) {
 }
 
 /** Every card for a game version, the releases looked up side by side. */
-async function addonCards(config, versionId, { canManage = false, now } = {}) {
-    const addons = enabledAddons(config, versionId);
+async function addonCards(config, versionId, { canManage = false, orga = false, now } = {}) {
+    const addons = enabledAddons(config, versionId, { orga });
     const results = await Promise.all(addons.map((a) => releaseFor(a, { config, now })));
     return addons.map((a, i) => addonCard(a, results[i], { canManage }));
 }
@@ -158,9 +163,11 @@ async function addonCards(config, versionId, { canManage = false, now } = {}) {
  * and the one offered file of that name, plus the token to fetch it with.
  * `{ addon, asset, token }` or `{ status, code, message }`.
  */
-async function resolveDownload(config, addonId, fileName, { now } = {}) {
-    const addon = enabledAddons(config).find((a) => a.id === String(addonId || ""));
+async function resolveDownload(config, addonId, fileName, { now, orga = false } = {}) {
+    const addon = enabledAddons(config, "", { orga: true }).find((a) => a.id === String(addonId || ""));
     if (!addon) return { status: 404, code: "unknown_addon", message: "Dieses Addon gibt es nicht." };
+    // before anything is asked of GitHub: an orga-only addon is for the orga
+    if (addon.orgaOnly && !orga) return { status: 403, code: "orga_only", message: "Dieses Addon ist nur für die Orga." };
     const result = await releaseFor(addon, { config, now });
     if (result.state === "token_missing") return { status: 503, code: "unavailable", message: "Dieses Addon ist gerade nicht verfügbar." };
     if (!result.release) {

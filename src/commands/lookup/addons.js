@@ -6,6 +6,8 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { getConfig } = require("../../stores/configStore");
 const { addVersionOption, versionOfCommand, versionNote } = require("../../services/events/commandVersion");
+const { userIsOrga } = require("../../config/permissions");
+const { resolveAccess } = require("../../services/discord/userAccess");
 const { enabledAddons, releaseFor } = require("../../services/addons/addonReleases");
 const { webUrl, lookupReply, deferLookup, discordTime, clip } = require("../../utils/discord/botLookup");
 
@@ -57,7 +59,10 @@ module.exports = {
         await deferLookup(interaction);
         const config = getConfig();
         const { versionId } = versionOfCommand(interaction, { config });
-        const addons = enabledAddons(config, versionId);
+        // orga-only addons only for the orga; a failed role lookup falls back to the base access (= not orga)
+        const hasOrgaOnly = enabledAddons(config, versionId, { orga: true }).some((a) => a.orgaOnly);
+        const orga = hasOrgaOnly && userIsOrga(await resolveAccess(interaction.user.id));
+        const addons = enabledAddons(config, versionId, { orga });
         const results = await Promise.all(addons.map((addon) => releaseFor(addon, { config })));
         const { embed, link } = addonsCard(addons.map((addon, i) => ({ addon, result: results[i] })), versionId);
         return lookupReply(interaction, embed, link);

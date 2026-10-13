@@ -19,6 +19,11 @@ describe("the default addons", () => {
         expect(DEFAULT_ADDONS.find((a) => a.id === "eventhelper-sync").assets).toEqual(["EventHelperSync.exe", "EventHelperSync-*.zip"]);
     });
 
+    it("mark only the sync tool as orga-only", () => {
+        expect(DEFAULT_ADDONS.filter((a) => a.orgaOnly).map((a) => a.id)).toEqual(["eventhelper-sync"]);
+        expect(DEFAULT_ADDONS.every((a) => typeof a.orgaOnly === "boolean")).toBe(true);
+    });
+
     it("survive their own normaliser unchanged", () => {
         expect(normalizeAddonList(defaultAddons())).toEqual(defaultAddons());
     });
@@ -146,5 +151,27 @@ describe("storedAddonList", () => {
     it("keeps a stored list with entries as it is, single addons removed", () => {
         expect(storedAddonList({ addonDownloads: [one] }).map((a) => a.id)).toEqual(["a"]);
         expect(storedAddonList({ addonDownloads: [one], addonDownloadsCustomized: true }).map((a) => a.id)).toEqual(["a"]);
+    });
+});
+
+describe("orgaOnly", () => {
+    const { storedAddonList } = require("../../../src/services/addons/addonConfig");
+    const stored = (over) => ({ name: "X", repo: "x/x", ...over });
+
+    it("is taken as an explicit true or false", () => {
+        expect(normalizeAddon(stored({ id: "x", orgaOnly: true })).orgaOnly).toBe(true);
+        expect(normalizeAddon(stored({ id: "eventhelper-sync", orgaOnly: false })).orgaOnly).toBe(false);
+    });
+
+    it("of an entry stored before the flag follows the default entry with the same id, else false", () => {
+        expect(normalizeAddon(stored({ id: "eventhelper-sync" })).orgaOnly).toBe(true);
+        expect(normalizeAddon(stored({ id: "levelhelper" })).orgaOnly).toBe(false);
+        expect(normalizeAddon(stored({ id: "my-own" })).orgaOnly).toBe(false);
+        expect(normalizeAddon(stored({ id: "my-own", orgaOnly: "yes" })).orgaOnly).toBe(false);
+    });
+
+    it("makes a stored sync entry without the flag orga-only when the config is read", () => {
+        const list = storedAddonList({ addonDownloads: [stored({ id: "eventhelper-sync", name: "EventHelper Sync" })] });
+        expect(list[0].orgaOnly).toBe(true);
     });
 });

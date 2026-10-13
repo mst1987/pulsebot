@@ -15,11 +15,11 @@ vi.mock("../../api", async (orig) => ({
 
 const LEVELHELPER: api.AddonSetting = {
     id: "levelhelper", name: "LevelHelper", description: "Leveling-Helfer.", repo: "mst1987/levelhelper", private: true,
-    assets: ["LevelHelper-*.zip"], versions: ["forever"], install: "", icon: "inv_misc_map02", enabled: true,
+    assets: ["LevelHelper-*.zip"], versions: ["forever"], install: "", icon: "inv_misc_map02", enabled: true, orgaOnly: false,
 };
 const SYNC: api.AddonSetting = {
     id: "eventhelper-sync", name: "EventHelper Sync", description: "", repo: "mst1987/eventhelper-addon", private: false,
-    assets: [], versions: ["tbc", "forever"], install: "", icon: "inv_gizmo_01", enabled: false,
+    assets: [], versions: ["tbc", "forever"], install: "", icon: "inv_gizmo_01", enabled: false, orgaOnly: true,
 };
 
 function data(over: Partial<api.AdminConfig> = {}): api.SettingsData {
@@ -95,6 +95,22 @@ describe("AddonsSection", () => {
         const sent = vi.mocked(api.updateSettings).mock.calls[0][0].addonDownloads!;
         expect(sent[0]).toMatchObject({ id: "levelhelper", name: "Level Helper" });
         expect(sent).toHaveLength(2);
+    });
+
+    it("shows the orga-only mark in the list and saves the toggle \"Nur Orga\"", async () => {
+        const user = userEvent.setup();
+        renderPage(<AddonsSection data={data()} onConfig={vi.fn()} />, { route: "/settings?section=addons" });
+        expect(within(rowOf("EventHelper Sync")).getByText(/nur Orga/)).toBeInTheDocument();
+        expect(within(rowOf("LevelHelper")).queryByText(/nur Orga/)).toBeNull();
+        await user.click(within(rowOf("LevelHelper")).getByRole("button", { name: "Bearbeiten" }));
+        const toggle = screen.getByRole("switch", { name: "Nur Orga" });
+        expect(toggle).not.toBeChecked();
+        await user.click(toggle);
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+        const sent = vi.mocked(api.updateSettings).mock.calls[0][0].addonDownloads!;
+        expect(sent[0]).toMatchObject({ id: "levelhelper", orgaOnly: true });
+        expect(sent[1]).toMatchObject({ id: "eventhelper-sync", orgaOnly: true });
     });
 
     it("removes an addon after asking", async () => {

@@ -108,17 +108,20 @@ describe("cards", () => {
     it("lists the enabled addons of a version", () => {
         const cfg = config();
         cfg.addonDownloads.find((a) => a.id === "professionkit").enabled = false;
-        expect(enabledAddons(cfg, "forever").map((a) => a.id)).toEqual(["levelhelper", "aurakit", "macrohelper", "eventhelper-sync"]);
-        expect(enabledAddons(cfg, "tbc").map((a) => a.id)).toEqual(["eventhelper-sync"]);
+        expect(enabledAddons(cfg, "forever").map((a) => a.id)).toEqual(["levelhelper", "aurakit", "macrohelper"]);
+        expect(enabledAddons(cfg, "forever", { orga: true }).map((a) => a.id)).toEqual(["levelhelper", "aurakit", "macrohelper", "eventhelper-sync"]);
+        expect(enabledAddons(cfg, "tbc")).toEqual([]);
+        expect(enabledAddons(cfg, "tbc", { orga: true }).map((a) => a.id)).toEqual(["eventhelper-sync"]);
         expect(enabledAddons(cfg, "classic")).toEqual([]);
         expect(enabledAddons({}, "tbc")).toEqual([]);
     });
 
     it("names the versions with at least one enabled addon", () => {
         const cfg = config();
-        expect(addonVersions(cfg)).toEqual(["tbc", "forever"]);
-        cfg.addonDownloads.find((a) => a.id === "eventhelper-sync").enabled = false;
+        expect(addonVersions(cfg, { orga: true })).toEqual(["tbc", "forever"]);
         expect(addonVersions(cfg)).toEqual(["forever"]);
+        cfg.addonDownloads.find((a) => a.id === "eventhelper-sync").enabled = false;
+        expect(addonVersions(cfg, { orga: true })).toEqual(["forever"]);
         expect(addonVersions({})).toEqual([]);
     });
 
@@ -126,8 +129,10 @@ describe("cards", () => {
         fetchLatestRelease.mockImplementation(async ({ repo }) => (repo === "mst1987/eventhelper-addon"
             ? release("1.14.0", ["EventHelperSync.exe", "EventHelperSync-1.14.0.zip", "source.tar.gz"])
             : release("0.3.0", ["LevelHelper-0.3.0.zip"])));
-        const cards = await addonCards(config(), "tbc");
+        expect(await addonCards(config(), "tbc")).toEqual([]);
+        const cards = await addonCards(config(), "tbc", { orga: true });
         expect(cards.map((c) => c.id)).toEqual(["eventhelper-sync"]);
+        expect(cards[0].orgaOnly).toBe(true);
         expect(cards[0].release.assets).toEqual([
             { name: "EventHelperSync.exe", size: 100, sha256: "", kind: "exe", url: "/api/addons/download?addon=eventhelper-sync&asset=EventHelperSync.exe" },
             { name: "EventHelperSync-1.14.0.zip", size: 200, sha256: "", kind: "zip", url: "/api/addons/download?addon=eventhelper-sync&asset=EventHelperSync-1.14.0.zip" },
@@ -143,6 +148,16 @@ describe("cards", () => {
     it("knows the kinds of files and builds the download path", () => {
         expect([kindOf("a.ZIP"), kindOf("b.exe"), kindOf("c.tar.gz"), kindOf("")]).toEqual(["zip", "exe", "file", "file"]);
         expect(downloadPath("a b", "x&y.zip")).toBe("/api/addons/download?addon=a%20b&asset=x%26y.zip");
+    });
+});
+
+describe("resolveDownload and orga-only", () => {
+    it("refuses an orga-only addon to anyone but the orga, before GitHub is asked", async () => {
+        fetchLatestRelease.mockClear();
+        expect(await resolveDownload(config(), "eventhelper-sync", "EventHelperSync.exe")).toMatchObject({ status: 403, code: "orga_only" });
+        expect(fetchLatestRelease).not.toHaveBeenCalled();
+        fetchLatestRelease.mockResolvedValue(release("1.14.0", ["EventHelperSync.exe"]));
+        expect(await resolveDownload(config(), "eventhelper-sync", "EventHelperSync.exe", { orga: true })).toMatchObject({ asset: { name: "EventHelperSync.exe" } });
     });
 });
 

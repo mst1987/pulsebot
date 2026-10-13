@@ -23,6 +23,7 @@ const { get, handle, urlFor } = routerClient(route);
 
 const TOKEN = "github_pat_SECRET_TOKEN";
 const ADMIN = { id: "1", name: "Admin", isAdmin: true };
+const orga = { id: "8", name: "Orga", isAdmin: false, isOrga: true, access: { ...emptyAccess(), signup: { read: true, write: false } } };
 const member = (area = "signup") => ({ id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), [area]: { read: true, write: false } } });
 const release = (version, names) => ({
     version, tag: `v${version}`, name: "", publishedAt: "2026-10-12T10:00:00Z", notes: "",
@@ -201,5 +202,61 @@ describe("helpers", () => {
     it("writes a safe Content-Disposition for any name", () => {
         expect(route.dispositionOf("Ä \"x\".zip")).toBe("attachment; filename=\"_ _x_.zip\"; filename*=UTF-8''%C3%84%20%22x%22.zip");
         expect(route.contentTypeOf("a.bin")).toBe("application/octet-stream");
+    });
+});
+
+describe("orga-only addons", () => {
+    const ids = (data) => data.addons.map((a) => a.id);
+
+    it("show up for an admin and the orga, marked", async () => {
+        for (const user of [ADMIN, orga]) {
+            mockUser = user;
+            const data = body(await get("/api/addons", { version: "tbc" }));
+            expect(data.addons).toHaveLength(1);
+            expect(data.addons[0]).toMatchObject({ id: "eventhelper-sync", orgaOnly: true });
+        }
+        mockUser = orga;
+        const forever = body(await get("/api/addons", { version: "forever" }));
+        expect(forever.addons.find((a) => a.id === "levelhelper").orgaOnly).toBe(false);
+    });
+
+    it("are absent for a raider, also from the version hint", async () => {
+        mockUser = member();
+        const forever = body(await get("/api/addons", { version: "forever" }));
+        expect(ids(forever)).toEqual(["levelhelper", "professionkit", "aurakit", "macrohelper"]);
+        const tbc = body(await get("/api/addons", { version: "tbc" }));
+        expect(tbc.addons).toEqual([]);
+        expect(tbc.addonVersions.map((v) => v.id)).toEqual(["forever"]);
+        expect(JSON.stringify(tbc)).not.toMatch(/eventhelper-sync|EventHelper Sync/);
+    });
+
+    it("follow an explicit false in the settings, for the raider too", async () => {
+        mockConfig = { ...mockConfig, addonDownloads: defaultAddons().map((a) => ({ ...a, orgaOnly: false })) };
+        mockUser = member();
+        expect(ids(body(await get("/api/addons", { version: "tbc" })))).toEqual(["eventhelper-sync"]);
+    });
+
+    it("refuse a raider's download with 403 orga_only, before the limit and before GitHub, and log it", async () => {
+        mockUser = member();
+        const res = await download({ addon: "eventhelper-sync", asset: "EventHelperSync.exe" });
+        expect(statusOf(res)).toBe(403);
+        expect(res.text()).toContain("orga_only");
+        expect(fetchLatestRelease).not.toHaveBeenCalled();
+        expect(openAssetStream).not.toHaveBeenCalled();
+        expect(logs.join("\n")).toMatch(/download refused \(orga only\): eventhelper-sync\/EventHelperSync.exe by Bob \(7\)/);
+        // no download was counted: the whole quota is still there
+        mockUser = member();
+        for (let i = 0; i < LIMIT; i++) {
+            expect(statusOf(await download({ addon: "levelhelper", asset: "LevelHelper-0.3.0.zip" }))).toBe(200);
+        }
+    });
+
+    it("let the orga and an admin download", async () => {
+        for (const user of [orga, ADMIN]) {
+            mockUser = user;
+            const res = await download({ addon: "eventhelper-sync", asset: "EventHelperSync.exe" });
+            expect(statusOf(res)).toBe(200);
+            expect(res.text()).toBe("PK-bytes");
+        }
     });
 });

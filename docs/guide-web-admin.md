@@ -334,7 +334,7 @@ Technik: [addons.md](addons.md)
 - Je Addon eine Karte: Icon, Name, Version und Datum („v0.3.0 · 12.10.2026“), Kurzbeschreibung, ein Download-Knopf je Datei mit Größe, „Was ist neu?“ zum Aufklappen und die Installation (Zip nach `<WoW>\_classic_beta_\Interface\AddOns\` bzw. `_anniversary_` für TBC entpacken; die exe starten, Windows fragt evtl. nach).
 - Die Dateien laufen über den EventHelper, nicht direkt über GitHub: nur nach dem Login, höchstens 30 Downloads pro Stunde und Person.
 - „Noch kein Release“: das Addon hat noch keine Version veröffentlicht. „Gerade nicht verfügbar“: GitHub ist nicht erreichbar oder der Zugang fehlt; ist GitHub nur kurz weg, zeigt die Seite die zuletzt bekannte Version mit Hinweis.
-- Admins sehen zusätzlich, wenn der GitHub-Token fehlt oder abgelehnt wird, mit dem Weg zu Einstellungen → Verbindungen → GitHub. Welche Addons angeboten werden, steht unter Einstellungen → Module → Addons.
+- Admins sehen zusätzlich, wenn der GitHub-Token fehlt oder abgelehnt wird, mit dem Weg zu Einstellungen → Verbindungen → GitHub. Welche Addons angeboten werden, steht unter Einstellungen → Module → Addons. Mit dem Schalter „Nur Orga“ je Addon laden nur Admins und Orga-Rollen es herunter (der EventHelper Sync ist ab Werk so eingestellt); alle anderen sehen die Karte gar nicht, die Orga sieht sie mit dem Chip „Orga“.
 ## Log-Auswertung (CLA/RPB)
 
 Technik: [logcheck.md](logcheck.md)

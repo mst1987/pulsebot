@@ -16,6 +16,8 @@
     },
     "admin": {
         "badge": "Admins only",
+        "orga": "Orga",
+        "orgaTip": "Only admins and orga roles see and download it.",
         "tokenMissing": "The GitHub token for the private repo {repo} is missing. Members see \"Not available right now\".",
         "tokenBanner": "The GitHub token for the private addons is missing.",
         "toSettings": "Set up the token",
@@ -53,6 +55,9 @@
         "private": "Private repo",
         "privateSub": "Needs the GitHub token. Without it members see \"Not available right now\".",
         "privateShort": "private",
+        "orgaOnly": "Orga only",
+        "orgaOnlySub": "Only admins and orga roles see and download it.",
+        "orgaOnlyShort": "orga only",
         "enabled": "Show on the page",
         "enabledSub": "Switched off, the addon stays in the list; the page and /addons do not show it.",
         "status": "Status",

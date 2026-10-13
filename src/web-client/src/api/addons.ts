@@ -54,6 +54,8 @@ export type AddonCard = {
     /** Full admins only. */
     repo?: string;
     private?: boolean;
+    /** Only admins and orga roles get this card (the server leaves it out for everyone else). */
+    orgaOnly: boolean;
     release: AddonReleaseInfo | null;
 };
 
@@ -91,4 +93,6 @@ export type AddonSetting = {
     install: string;
     icon: string;
     enabled: boolean;
+    /** Only admins and orga roles see and download it. */
+    orgaOnly: boolean;
 };
