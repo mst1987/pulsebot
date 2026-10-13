@@ -112,9 +112,9 @@ Form (innerhalb von `{ "data": … }`, gekürzt — ein Raider, drei Item-Klasse
 }
 ```
 
-## Download-Seite „Sync-Tool & Addon“ (`/addon`)
+## Download von Sync-Tool und Addon (`/addon`)
 
-Die Seite bietet immer das neueste Release des öffentlichen Repos `mst1987/eventhelper-addon` an: `EventHelperSync.exe` (Sync-Tool) und `EventHelperSync-<version>.zip` (Addon), dazu Version, Datum, „Was ist neu?“ (Release-Seite) und kurze Installationshinweise. `GET /api/addon-release` (`apiRoutes/addonRelease.js`) fragt über `classes/addonRelease.js` `releases/latest` bei GitHub ab (ohne Token, `User-Agent` gesetzt) und reduziert auf `{ version, tag, url, publishedAt, exe, zip }` (je Datei `{ name, url, size }`). **Die Antwort ist eine Stunde im Speicher gecacht** (wie `deployStatus.js`): ein Seitenaufruf trifft GitHub nie, parallele Aufrufe teilen sich eine Anfrage, bei einem Fehler wird der letzte gute Stand weiter geliefert, ein Fehlschlag wird fünf Minuten lang nicht erneut versucht. Ohne Treffer und ohne Cache ist `release: null` und die Seite zeigt einen Link auf die Releases bei GitHub (`fallbackUrl`). Die Downloads sind GitHubs eigene `browser_download_url`-Links - die 70 MB der exe laufen nie über unseren Server. Bereich `history` (lesen): wer Loot importiert, richtet auch das Sync-Tool ein; Menüeintrag in der Gruppe System, versionsneutral.
+Die frühere Seite „Sync-Tool & Addon“ ist seit #818 in der Seite **Addons** aufgegangen (gleiche Adresse `/addon`): EventHelper Sync ist dort eine Karte neben LevelHelper und ProfessionKit, mit `EventHelperSync.exe` und `EventHelperSync-<version>.zip` aus `mst1987/eventhelper-addon`. Die Downloads laufen jetzt über den Server (`/api/addons/download`), der Bereich `history` öffnet die Seite weiterhin. Technik: [addons.md](addons.md).
 ## Gildenbank-Scans (`/api/ingest/guildbank`)
 
 The same addon scans the guild bank when someone opens it (eventhelper-addon#16), and the sync tool uploads each new scan once (#631, epic #635). Stored in `src/stores/guildBankStockStore.js` (`data/settings/guild-bank-stock.json`, see docs/data-storage.md); the stock page (#632), requests against the stock (#633) and the handout list (#634) build on it.

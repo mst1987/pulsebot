@@ -117,7 +117,7 @@ const MERGED_CATEGORY_MAPS = [
 
 // Blocks a PATCH sends only partly: the fields sent are merged over the stored
 // block (a secret left out stays — the credentials' "omit = keep").
-const MERGED_BLOCKS = ["raidDefaults", "blizzard", "anthropic", "warcraftlogsV2", "github", "categoryLootTool"];
+const MERGED_FIELDS = ["raidDefaults", "blizzard", "anthropic", "warcraftlogsV2", "github", "categoryLootTool"];
 
 /**
  * Small blocks merged per field before they are normalised: the drawn pictures
@@ -143,7 +143,7 @@ function mergeBlock(next, current, sent, key, normalize) {
 function saveConfig(partial) {
     const current = getConfig();
     const next = { ...current, ...partial };
-    for (const key of MERGED_BLOCKS) {
+    for (const key of MERGED_FIELDS) {
         if (partial[key]) next[key] = { ...current[key], ...partial[key] };
     }
     if (partial.discordServers) {
