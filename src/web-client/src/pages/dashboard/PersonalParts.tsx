@@ -16,6 +16,7 @@ import { PartHead } from "../../components/ui/PartHead";
 import { buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import WowIcon from "../../components/ui/WowIcon";
+import PugBadge from "../../components/signup/PugBadge";
 import { specLabel } from "../../lib/wow/wowNames";
 import { bossesWithMine } from "../../lib/raidplan/bossMine";
 import { rosterMap } from "../../lib/raidplan/players";
@@ -173,6 +174,7 @@ export function MyNextRaid({ raid, compact = false }: { raid: PersonalRaid | nul
                 {head}
                 <div className="ov-me-line">
                     <span className="ov-me-line-t">{raid.title}</span>
+                    <PugBadge open={raid.openToAll} />
                     <MyStatus raid={raid} />
                     {raid.placement && <Badge>{setupText(raid, t)}</Badge>}
                     {raid.softresUrl && <a className="badge" href={raid.softresUrl} target="_blank" rel="noreferrer">{t("dashboard.personal.softres.open")}</a>}
@@ -189,7 +191,12 @@ export function MyNextRaid({ raid, compact = false }: { raid: PersonalRaid | nul
                 <div className="ov-next-top">
                     <WowIcon name={raid.icon} size={56} className="ov-boss56" />
                     <div className="ov-next-text">
-                        {raid.categoryName && <span className="ov-cat">{raid.categoryName}</span>}
+                        {(raid.categoryName || raid.openToAll) && (
+                            <span className="ov-cat-line">
+                                {raid.categoryName && <span className="ov-cat">{raid.categoryName}</span>}
+                                <PugBadge open={raid.openToAll} />
+                            </span>
+                        )}
                         <span className="ov-next-title">{raid.title}</span>
                         <div className="ov-next-when">{raidWhen(raid.startTime)}</div>
                     </div>
@@ -236,7 +243,7 @@ export function MyRaids({ raids }: { raids: PersonalRaid[] }) {
                                 <div key={r.id} className={`ov-row${canSignUp(r) ? " ov-row-open" : ""}`}>
                                     <WowIcon name={r.icon} size={36} className="ov-ico36" />
                                     <span className="grow">
-                                        <span className="t1">{r.title}</span>
+                                        <span className="t1">{r.title}<PugBadge open={r.openToAll} /></span>
                                         <span className="t2">{[r.categoryName, dayDate(r.startTime * 1000), deadline].filter(Boolean).join(" · ")}</span>
                                     </span>
                                     <MyStatus raid={r} />

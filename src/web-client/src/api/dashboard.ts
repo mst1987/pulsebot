@@ -187,6 +187,8 @@ export type PersonalRaid = {
     signupsClosed: boolean;
     cancelled: boolean;
     rosterOnly: boolean;
+    /** no raider role, no roster-only signup: open to everyone, a PuG raid (the "PuG" badge) */
+    openToAll?: boolean;
     softresUrl: string;
     /** a published raid plan's token (/p/<token>); "" = none published */
     planToken: string;
@@ -207,8 +209,11 @@ export type PersonalNight = {
 };
 
 export type DashboardPersonal = {
+    /** the raids the raider may sign up for, plus the ones they signed up for (src/services/signups/signupAccess.js) */
     upcoming: PersonalRaid[];
     upcomingError: string | null;
+    /** the raider's Discord roles could not be read: raids with a raider role may be missing */
+    upcomingRolesUnknown?: boolean;
     attendance: {
         attended: number;
         total: number;

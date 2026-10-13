@@ -371,6 +371,34 @@ describe("Warteliste in der Sammelanmeldung (#306)", () => {
 });
 
 // One game version at a time (#741): the page asks for the menu's version and loads again on a switch.
+describe("SignupsPage: which raids (only the ones one may sign up for)", () => {
+    it("marks a raid open to everyone as PuG, a raid with raider roles not", async () => {
+        await show(signupsData({ events: [ownRow({ openToAll: true }), { ...GRUUL, openToAll: false }] }));
+        const pug = within(rowOf(KARA.title)).getByText(t("signups.pug.label"));
+        expect(pug).toHaveAttribute("data-tip", t("signups.pug.tip"));
+        expect(within(rowOf(GRUUL.title)).queryByText(t("signups.pug.label"))).not.toBeInTheDocument();
+    });
+
+    it("says quietly when the Discord roles could not be read", async () => {
+        await show(signupsData({ events: [KARA], rolesUnknown: true }));
+        expect(screen.getByRole("note")).toHaveTextContent(t("signups.rolesUnknown"));
+    });
+
+    it("offers the orga \"Alle Kategorien\" and loads every raid with it", async () => {
+        const user = userEvent.setup();
+        await show(signupsData({ events: [KARA], canShowAll: true, scope: "mine" }));
+        expect(api.getSignups).toHaveBeenLastCalledWith("", "", false);
+        await user.click(screen.getByRole("switch", { name: t("signups.page.showAll") }));
+        await waitFor(() => expect(api.getSignups).toHaveBeenLastCalledWith("", "", true));
+    });
+
+    it("shows no switch to a raider", async () => {
+        await show(signupsData({ events: [KARA] }));
+        expect(screen.queryByRole("switch", { name: t("signups.page.showAll") })).not.toBeInTheDocument();
+        expect(screen.queryByRole("note")).not.toBeInTheDocument();
+    });
+});
+
 describe("SignupsPage per game version", () => {
     it("asks for the shown version, loads again on a switch, and follows the version of a linked raid", async () => {
         const user = userEvent.setup();
@@ -378,9 +406,9 @@ describe("SignupsPage per game version", () => {
         vi.mocked(api.getSignups).mockResolvedValue(signupsData({ events: [KARA] }));
         renderPage(<SignupsPage />, { route: "/signups", content: twoVersions() });
         await screen.findByRole("heading", { name: t("signups.page.title") });
-        expect(api.getSignups).toHaveBeenLastCalledWith("tbc", "");
+        expect(api.getSignups).toHaveBeenLastCalledWith("tbc", "", false);
         await user.click(within(screen.getAllByRole("radiogroup", { name: t(CONTENT_ARIA) })[0]).getByRole("radio", { name: "Forever" }));
-        await waitFor(() => expect(api.getSignups).toHaveBeenLastCalledWith("forever", ""));
+        await waitFor(() => expect(api.getSignups).toHaveBeenLastCalledWith("forever", "", false));
         localStorage.clear();
     });
 
@@ -389,7 +417,7 @@ describe("SignupsPage per game version", () => {
         vi.mocked(api.getSignups).mockImplementation(async (version = "") => signupsData({ events: version === "forever" ? [KARA] : [], eventVersion: "forever" }));
         renderPage(<SignupsPage />, { route: `/signups?event=${KARA.id}`, content: twoVersions() });
         expect(await screen.findByText(t("shell.followVersion.switched", { version: "Forever" }))).toBeInTheDocument();
-        await waitFor(() => expect(api.getSignups).toHaveBeenLastCalledWith("forever", KARA.id));
+        await waitFor(() => expect(api.getSignups).toHaveBeenLastCalledWith("forever", KARA.id, false));
         localStorage.clear();
     });
 });

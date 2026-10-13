@@ -23,10 +23,10 @@
 //     possible), and the orga is bound by neither; with `event.lockAtLimit` a
 //     raid that just filled up closes its signup;
 //   * a category with raider roles (`config.categoryRoles`) takes new signups only
-//     from holders of one of them (`raider_role`) — the rule that also hides such
-//     events on the page (categoryVisible). Roles that cannot be read let the
-//     signup through, an existing own signup may still be changed or withdrawn,
-//     the orga is exempt;
+//     from holders of one of them (`raider_role`) — signupAccess.js, the rule the
+//     raider's lists of raids use too (they show only what takes a signup).
+//     Roles that cannot be read let the signup through, an existing own signup
+//     may still be changed or withdrawn, the orga is exempt;
 //   * a signup names at most as many own characters as its category allows
 //     (`characters`, signupCharacters.maxCharactersFor: 1..8, default 8); one
 //     stored before the limit dropped keeps its characters and may lose some,
@@ -58,7 +58,7 @@ const { versionOfEvent } = require("../events/mainVersion");
 const { archiveOf } = require("../events/eventArchive");
 const { normalizeOverflow, accountCount } = require("../../utils/signup/capacity");
 const { expectedRoleIds } = require("../roster/categoryRoles");
-const { rosterOfCategory } = require("../roster/categoryRoster");
+const { accessRule, signupAccess, rosterOnlyAccess } = require("./signupAccess");
 const { isRaidSibling, signupEventIdOf } = require("../../utils/raidGroup");
 const { groupPlaces } = require("../events/raidGroup");
 
@@ -303,71 +303,33 @@ function lockIfFull(event, { now = Date.now() } = {}) {
 
 const RAIDER_ROLE_ERROR = "Für diesen Raid brauchst du eine Raider-Rolle.";
 const ROSTER_ONLY_ERROR = "Für diesen Raid melden sich nur Mitglieder des Rosters an (Stamm, Probe oder Ersatz). Frag die Raidleitung.";
-// Who may sign up where the roster says "Anmeldung nur für das Roster" (#658): pause is out.
-const ROSTER_SIGNUP_STATUSES = ["core", "trial", "bench"];
 
 /**
- * "Anmeldung nur für das Roster" (#658, `roster.signupOnly`): null when the
- * category's roster does not ask for it (or there is no roster) - then the
- * raider-role rule applies -, else whether the user is a member with status
- * core, trial or bench (a paused member is not). The roster is the one of the
- * raid's version (`versionId`, #739; none = the version the category plays now).
- * @returns {boolean|null}
- */
-function rosterOnlyAccess(categoryId, userId, { versionId = "" } = {}) {
-    const roster = rosterOfCategory(categoryId, { versionId });
-    if (!roster || !roster.signupOnly) return null;
-    const member = roster.members[String(userId || "")];
-    return !!member && ROSTER_SIGNUP_STATUSES.includes(member.status);
-}
-
-/**
- * Whether a member's roles let them into a category with raider roles
- * (`config.categoryRoles`). No roles on the category, or roles that cannot be
- * read (`roleIds` null/undefined), let everyone in — an event post in Discord is
- * no secret, a missing raid is a real loss. `versionId`: the raid's (#739).
- */
-function categoryRoleAllowed(categoryId, { config = {}, roleIds = null, versionId = "" } = {}) {
-    const roles = expectedRoleIds(categoryId, config, { versionId });
-    if (!roles.length || !Array.isArray(roleIds)) return true;
-    return roles.some((r) => roleIds.map(String).includes(r));
-}
-
-/**
- * Whether a member sees a category's events on the "Anmeldungen" page. Only the
- * event categories count (`config.categoryIds`, when any are set); a category
- * with raider roles is for the holders of one of them (categoryRoleAllowed).
- * The orga sees everything.
- */
-function categoryVisible(categoryId, { config = {}, roleIds = null, orga = false } = {}) {
-    if (orga) return true;
-    const cats = Array.isArray(config.categoryIds) ? config.categoryIds.map(String) : [];
-    if (cats.length && !cats.includes(String(categoryId || ""))) return false;
-    return categoryRoleAllowed(categoryId, { config, roleIds });
-}
-
-/**
- * The raider-role rule for one member and one own event. Reads the config and
- * the member's roles on the event's server (discord.memberRoleIds: one member
- * fetch, no privileged intent) unless the caller hands them in. The orga
- * (`byOrga`) and a member who already has a signup for the event always pass.
- * @returns {Promise<{ ok: true } | { code: "raider_role", error: string }>}
+ * The raider-role rule for one member and one own event — signupAccess.js
+ * says who may sign up (the same rule the raider's lists of raids use, so a
+ * raid listed is a raid that takes the signup). Reads the config and the
+ * member's roles on the event's server (discord.memberRoleIds: one member
+ * fetch, no privileged intent) only when the category asks for roles, unless
+ * the caller hands them in. The orga (`byOrga`) and a member who already has
+ * a signup for the event always pass; roles that cannot be read let the
+ * signup through — a Discord hiccup never refuses a raider.
+ * @returns {Promise<{ ok: true } | { code: "raider_role"|"roster_only", error: string }>}
  */
 async function checkRaiderRole(event, userId, { byOrga = false, previous, roleIds, config } = {}) {
     if (byOrga || !event) return { ok: true };
     const cfg = config || settingsStore.getConfig();
     const uid = String(userId || "");
-    // the roster of the raid's version (#739)
+    // the roster and the roles of the raid's version (#739)
     const versionId = versionOfEvent(event, { config: cfg });
-    const only = rosterOnlyAccess(event.categoryId, uid, { versionId });
-    const roles = only === null ? expectedRoleIds(event.categoryId, cfg, { versionId }) : [];
-    if (only === null && !roles.length) return { ok: true };
+    const { rule } = accessRule(event.categoryId, { config: cfg, versionId });
+    if (rule === "open") return { ok: true };
     const prev = previous === undefined ? signupStore.getSignup(event.id, uid) : previous;
     if (prev) return { ok: true };
-    // "Anmeldung nur für das Roster" (#658): the roster decides, not the Discord role
-    if (only !== null) return only ? { ok: true } : fail("roster_only", ROSTER_ONLY_ERROR);
-    const ids = roleIds !== undefined ? roleIds : await discord.memberRoleIds(event.guildId || cfg.guildId, uid);
-    return categoryRoleAllowed(event.categoryId, { config: cfg, roleIds: ids, versionId }) ? { ok: true } : fail("raider_role", RAIDER_ROLE_ERROR);
+    // "Anmeldung nur für das Roster" (#658): the roster decides, no Discord role is read
+    const ids = rule === "roles" ? (roleIds !== undefined ? roleIds : await discord.memberRoleIds(event.guildId || cfg.guildId, uid)) : null;
+    const access = signupAccess(event.categoryId, { userId: uid, roleIds: ids, config: cfg, versionId });
+    if (access.allowed !== false) return { ok: true };
+    return access.code === "roster_only" ? fail("roster_only", ROSTER_ONLY_ERROR) : fail("raider_role", RAIDER_ROLE_ERROR);
 }
 
 /**
@@ -711,10 +673,10 @@ function httpStatusFor(code) {
 }
 
 module.exports = {
-    categoryVisible, checkRaiderRole, rosterOnlyAccess, rosterCounts, roleCounts, signupWindow, allowedStatuses, findCharacter, profileRoles, defaultCanAlso,
+    checkRaiderRole, rosterOnlyAccess, rosterCounts, roleCounts, signupWindow, allowedStatuses, findCharacter, profileRoles, defaultCanAlso,
     wishPartnersSignedUp, submitSignup, submitSignups, httpStatusFor, MAX_CHARACTERS, maxCharactersFor, pickLimitFor, exceedsCharacterLimit, characterLimitError,
     // only for the tests (#424): not part of the module's API
     _internal: {
-        categoryRoleAllowed, validateSignup,
+        validateSignup,
     },
 };

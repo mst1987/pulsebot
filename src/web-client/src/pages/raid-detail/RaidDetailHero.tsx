@@ -22,6 +22,7 @@ import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
 import WowIcon from "../../components/ui/WowIcon";
 import { useT } from "../../i18n";
+import PugBadge from "../../components/signup/PugBadge";
 
 function StepCell({ step, onOpen }: { step: RaidStep; onOpen: (step: RaidStep) => void }) {
     const t = useT();
@@ -117,7 +118,7 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                         <span className="hero-time-unit">{t("raidDetail.hero.timeUnit")}</span>
                         {relDay && <><span className="rd-dot" aria-hidden="true">·</span><Badge tone={ev.isPast ? undefined : "accent"}>{relDay}</Badge></>}
                         {/* the dot travels with the category, so a wrapped line never ends in "·" */}
-                        {data.categoryName && <span className="rd-hero-cat"><span className="rd-dot" aria-hidden="true">·</span>{data.categoryName}</span>}
+                        {data.categoryName && <span className="rd-hero-cat"><span className="rd-dot" aria-hidden="true">·</span>{data.categoryName}<PugBadge open={data.openToAll} /></span>}
                         {loot && ls && (
                             <span
                                 className="rd-hero-cat" data-tip={t("raidDetail.hero.lootTip", { label: loot })}

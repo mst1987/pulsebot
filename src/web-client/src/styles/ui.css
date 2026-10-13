@@ -93,6 +93,8 @@
 .badge svg { width: 12px; height: 12px; }
 .badge[data-tip] { cursor: default; }
 .badge.sm { font-size: 11px; padding: 0 6px; }
+/* "PuG" beside a raid open to everyone (components/signup/PugBadge.tsx): a small mark after a title or a category */
+.pug-badge { margin-left: 8px; vertical-align: 2px; font-weight: 700; letter-spacing: .02em; }
 /* the small x of a removable badge or chip (ui/Badge onRemove, ui/Chip) */
 .badge-x { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 2px; padding: 0; border: 0; border-radius: 4px; background: none; color: inherit; opacity: .7; cursor: pointer; }
 .badge-x svg { width: 10px; height: 10px; }

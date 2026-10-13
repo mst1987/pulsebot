@@ -38,6 +38,8 @@
 .an-text { min-width: 0; line-height: 1.25; }
 .an-title { font-weight: 800; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .an-sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+/* the Discord roles could not be read: a quiet line above the list */
+.an-note { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
 .an-bar { display: inline-flex; }
 .an-state, .an-act { display: flex; align-items: center; justify-content: flex-end; }
 .an-status-badge { cursor: pointer; font-size: 12.5px; }

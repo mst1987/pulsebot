@@ -7,7 +7,8 @@ import {
 import { useApi } from "../hooks/useApi";
 import { useContentVersion } from "../hooks/useContentVersion";
 import { useFollowVersion } from "../hooks/useFollowVersion";
-import { Badge, Bar, Button, IconButton, PageHead, RaidLoader, WowIcon } from "../components/ui";
+import { Badge, Bar, Button, IconButton, PageHead, RaidLoader, Switch, WowIcon } from "../components/ui";
+import PugBadge from "../components/signup/PugBadge";
 import RaidIcon from "../components/raid/RaidIcon";
 import SignupDialog from "../components/signup/SignupDialog";
 import BulkSignupDialog from "../components/signup/BulkSignupDialog";
@@ -36,7 +37,9 @@ export default function SignupsPage() {
     // The raid a link opened (the Discord post's button): its version comes back with the
     // list, and a raid of another version switches the menu to it.
     const linkedEvent = useRef(params.get("event") || "");
-    const signups = useApi(() => getSignups(version, linkedEvent.current), [version]);
+    // "Alle Kategorien" (the orga only, canShowAll): every raid, not only the ones one may sign up for
+    const [showAll, setShowAll] = useState(false);
+    const signups = useApi(() => getSignups(version, linkedEvent.current, showAll), [version, showAll]);
     const { data, setData } = signups;
     useFollowVersion(data?.eventVersion, () => { linkedEvent.current = ""; });
     // Several raids at once (#293): the picked own raids, and the raids the open bulk
@@ -94,6 +97,9 @@ export default function SignupsPage() {
                 tone="signups"
                 kicker={`${user.name} · ${t("signups.page.upcoming", { count })}`}
                 title={t("signups.page.title")}
+                action={data.canShowAll && (
+                    <Switch checked={data.scope === "all"} onChange={setShowAll} label={t("signups.page.showAll")} tipHead={t("signups.page.showAllTip")} tip={t("signups.page.showAllTipSub")} />
+                )}
                 meta={noCharacter && (
                     <Link className="badge mid" to="/profile" data-tip={t("signups.page.noCharTip")} data-tip-sub={t("signups.page.noCharTipSub")}>
                         {t("signups.page.noCharLink")}
@@ -102,6 +108,7 @@ export default function SignupsPage() {
             />
 
             {data.error && <div className="flash flash-err">{t("signups.page.raidHelperError", { error: data.error })}</div>}
+            {data.rolesUnknown && <p className="an-note" role="note">{t("signups.rolesUnknown")}</p>}
 
             <AvailabilitySection onChanged={() => { void signups.reload(); }} />
 
@@ -211,7 +218,7 @@ function SignupRow({ row, onOpen, selectable, selected, onToggle }: {
                 {row.instanceIcon ? <WowIcon name={row.instanceIcon} size={44} /> : <RaidIcon contentIds={row.contentIds} sources={row.contentSources} />}
             </span>
             <div className="an-text">
-                <div className="an-title">{row.title}</div>
+                <div className="an-title">{row.title}<PugBadge open={row.openToAll} /></div>
                 <div className="an-sub">{rowSubline(row)}</div>
             </div>
             <span className="an-bar" data-tip={barTip} data-tip-sub={barSub}>

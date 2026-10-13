@@ -65,12 +65,11 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
     // a raider role may hold any area, reading or even changing raids makes nobody orga
     const orga = userIsOrga(user);
     const raidsWrite = userCanAny(user, ["raids"], "write");
-    // whoever reads the raids sees every category in "Für dich", the others only their own (memberEventRows)
-    const seesAllRaids = userCanAny(user, ["raids"], "read");
     const [next, recentEvents, personal] = await Promise.all([
         orga ? loadNextRaids(guildId, 2, { versionId }) : { raids: [], error: null },
         orga ? loadRecentEvents(guildId, 5, { versionId }) : { events: [], error: null },
-        userCanAny(user, ["signup"], "read") ? loadPersonal(guildId, user, { orga: seesAllRaids, config, versionId }) : null,
+        // "Für dich" is personal for everybody, the orga too: the raids one may sign up for (or did) - the orga block shows them all
+        userCanAny(user, ["signup"], "read") ? loadPersonal(guildId, user, { config, versionId }) : null,
     ]);
     const report = orga || userCanAny(user, ["cla"], "read") ? loadLatestReport({ versionId }) : null;
     const lastRaid = recentEvents.events[0];
