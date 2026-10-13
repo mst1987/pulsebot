@@ -96,8 +96,7 @@ describe("the setup editor: bench and pool \"Angemeldet\" (#517)", () => {
         const pool = screen.getByRole("region", { name: t("setup.pool.aria") });
         expect(within(pool).getByText("Fluch")).toBeInTheDocument();
         // the bench signup is a labelled square field on the card, not a dot
-        expect(within(slot("Fluch")).getByText(t("setup.sig.short.bench"))).toBeInTheDocument();
-        expect(within(slot("Fluch")).getByText(t("setup.sig.short.bench")).closest(".se-sig")).toHaveAttribute("data-tip", t("setup.person.status.bench"));
+        expect(within(slot("Fluch")).getByText(t("signups.status.bench")).closest(".se-sig")).toHaveClass("se-sigv-bench");
         // fixing is the drawer's: a pool raider has nothing to fix, a bench raider has
         const user = userEvent.setup();
         await user.click(slot("Fluch"));

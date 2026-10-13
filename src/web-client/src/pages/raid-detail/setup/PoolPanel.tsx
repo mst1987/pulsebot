@@ -10,7 +10,7 @@ import SpecTile from "../SpecTile";
 import { CharacterNumber, SigBadge, SigIcon, Slot, type Interaction } from "./Board";
 import { peekHandlers } from "./peek";
 import { useZone } from "./useZone";
-import { MARKED_STATUSES, markedStatus, matchesQuery, statusRank, type MarkedStatus } from "./setupText";
+import { MARKED_STATUSES, markedStatus, matchesQuery, statusLabel, statusRank, type MarkedStatus } from "./setupText";
 
 // "Angemeldet" (#517): everybody signed up who is neither in a group nor on the
 // bench — where the setup starts from, since the editor no longer needs a
@@ -192,7 +192,7 @@ export function PoolPanel({ pool, ui, absent = 0 }: { pool: SetupPerson[]; ui: I
                             {statusChips.length > 0 && (
                                 <div className="se-pp-filters se-pp-stfilters" role="group" aria-label={t("setup.poolPanel.statusFilter")}>
                                     {statusChips.map((s) => {
-                                        const label = t(`setup.sig.short.${s}`);
+                                        const label = statusLabel(s);
                                         return (
                                             <button
                                                 key={s} type="button" className={`se-pp-chip se-pp-stchip se-sigv-${s}${status === s ? " is-on" : ""}`} aria-pressed={status === s}
@@ -216,7 +216,7 @@ export function PoolPanel({ pool, ui, absent = 0 }: { pool: SetupPerson[]; ui: I
                                 {s.people.map(({ p, lead, st }, i) => {
                                     // a thin divider with the state's name where late / tentative / bench begin
                                     const starts = !!st && (i === 0 || s.people[i - 1].st !== st);
-                                    const label = st ? t("setup.poolPanel.statusHead", { status: t(`setup.sig.short.${st}`), count: s.people.filter((x) => x.st === st).length }) : "";
+                                    const label = st ? t("setup.poolPanel.statusHead", { status: statusLabel(st), count: s.people.filter((x) => x.st === st).length }) : "";
                                     return (
                                         <Fragment key={p.userId}>
                                             {starts && (

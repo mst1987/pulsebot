@@ -2,13 +2,21 @@ import type { SetupActivity, SetupAttendance, SetupPerson } from "../../../api";
 import { specLabel } from "../../../lib/wow/wowNames";
 import { t } from "../../../i18n";
 import { formatWith } from "../../../lib/format";
+import { SIGNUP_STATUS } from "../../../lib/signups/status";
 
-/** The signup states a slot shows a marker for, in the active language. */
+/**
+ * The word of a marked signup state (late, tentative, bench) — the app's one
+ * vocabulary (lib/signups/status.ts, the signup page and Discord): "Spät",
+ * "Vielleicht", "Bank" / "Late", "Tentative", "Bench"; "" for a plain signup.
+ */
 export function statusLabel(status: string | undefined): string {
-    if (status === "late") return t("setup.person.status.late");
-    if (status === "tentative") return t("setup.person.status.tentative");
-    if (status === "bench") return t("setup.person.status.bench");
-    return "";
+    const marked = markedStatus(status);
+    return marked ? SIGNUP_STATUS[marked].label : "";
+}
+
+/** The word of any signup state, a plain one included ("Angemeldet" / "Signed up"). */
+export function statusWord(status: string | undefined): string {
+    return SIGNUP_STATUS[markedStatus(status) || "signed"].label;
 }
 
 /** The signup states that are not a plain "dabei" — they get a labelled badge on the line. */

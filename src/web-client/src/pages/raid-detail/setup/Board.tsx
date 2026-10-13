@@ -10,23 +10,25 @@ import WowIcon from "../../../components/ui/WowIcon";
 import { BenchIcon, CheckIcon, ClockIcon, LockIcon, SignedIcon, TentativeIcon, XIcon } from "../../../components/ui/icons";
 import { classColorProps } from "../../../components/character/ClassSpec";
 import SpecTile from "../SpecTile";
-import { markedStatus, specText, statusLabel } from "./setupText";
+import { markedStatus, specText, statusWord } from "./setupText";
 
 /** Melee and ranged go without saying on a raider's line (the spec tells it); tank and healer are named. */
 const showsRole = (role: string | undefined) => role === "tank" || role === "healer";
 
 /**
- * A signup state as a square field in its --sig-* colour, with its icon and a short
- * word ("Vorläufig", "Spät", "Bank"); the long text is the tooltip. `small`: the icon
- * alone (a further character's line, the compact view) — then the long text is its name.
+ * A signup state as a square field in its --sig-* colour, with its icon and the app's
+ * one word for it ("Vielleicht", "Spät", "Bank" — setupText.statusWord, the signup
+ * page's vocabulary). `small`: the icon alone (a further character's line, the compact
+ * view) — then the word is its name. No tooltip of its own: the raider's peek beside
+ * the line names the state already, a second box over it would only repeat it.
  */
 export function SigBadge({ status, small = false, className = "" }: { status: string | undefined; small?: boolean; className?: string }) {
-    const t = useT();
+    useT(); // redrawn in the new language
     const s = markedStatus(status) || "signed";
-    const long = statusLabel(s) || t("setup.chars.signed");
+    const word = statusWord(s);
     const cls = `se-sig se-sigv-${s}${small ? " se-sig-sm" : ""}${className ? ` ${className}` : ""}`;
-    if (small) return <span className={cls} role="img" aria-label={long} data-tip={long}><SigIcon status={s} /></span>;
-    return <span className={cls} data-tip={long}><SigIcon status={s} /><span>{t(`setup.sig.short.${s}`)}</span></span>;
+    if (small) return <span className={cls} role="img" aria-label={word}><SigIcon status={s} /></span>;
+    return <span className={cls}><SigIcon status={s} /><span>{word}</span></span>;
 }
 
 /** The icon of a signup state: a clock for late, the question mark for tentative, the bench, the check for a plain signup. */

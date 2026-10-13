@@ -127,7 +127,29 @@ describe("the peek: a raider's info on hover and focus", () => {
         await user.hover(line);
         const peek = await findPeek();
         expect(within(peek).getByText("Zibbowar")).toBeInTheDocument();
-        expect(within(peek).getByText(t("setup.person.status.late"))).toBeInTheDocument();
+        expect(within(peek).getByText(t("signups.status.late"))).toBeInTheDocument();
+    });
+
+    it("names a tentative signup with the one word of the app — line, peek and pool alike — and drops the reason that only repeats it", async () => {
+        const user = userEvent.setup();
+        const BORK = person("u-bork", "Bork", { status: "tentative", reasons: ["Nur „Vielleicht“ angemeldet", "Bringt Arkane Brillanz"] });
+        page = editorData({}, { pool: [BORK] });
+        await show();
+        const word = t("signups.status.tentative");
+        expect(word).toBe("Vielleicht");
+        // the line's field, the status chip and the divider
+        expect(within(slot("Bork")).getByText(word)).toBeInTheDocument();
+        const pool = screen.getByRole("region", { name: t("setup.pool.aria") });
+        expect(within(within(pool).getByRole("group", { name: t("setup.poolPanel.statusFilter") })).getByRole("button", { name: new RegExp(`^${word}`) })).toBeInTheDocument();
+        expect(within(pool).getByRole("separator")).toHaveTextContent(`${word} · 1`);
+        // the field has no tooltip of its own: the peek says it
+        expect(within(slot("Bork")).getByText(word).closest(".se-sig")).not.toHaveAttribute("data-tip");
+        await user.hover(slot("Bork"));
+        const peek = await findPeek();
+        expect(within(peek).getByText(word).closest(".se-sig")).toHaveClass("se-sigv-tentative");
+        expect(within(peek).getByText("Bringt Arkane Brillanz")).toBeInTheDocument();
+        expect(within(peek).queryByText("Nur „Vielleicht“ angemeldet")).not.toBeInTheDocument();
+        expect(peek.textContent).not.toMatch(/Vorläufig/);
     });
 
     it("reads in English", async () => {

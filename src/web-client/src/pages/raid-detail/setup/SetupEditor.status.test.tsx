@@ -65,21 +65,21 @@ const line = (character: string, inside: HTMLElement = document.body) => {
 };
 /** The names of a block's leading lines, top to bottom. */
 const order = (el: HTMLElement) => [...el.querySelectorAll(".se-slot .se-name")].map((n) => n.textContent);
-const statusChip = (s: string) => within(within(pool()).getByRole("group", { name: t("setup.poolPanel.statusFilter") })).getByRole("button", { name: new RegExp(`^${t(`setup.sig.short.${s}`)}`) });
+const statusChip = (s: string) => within(within(pool()).getByRole("group", { name: t("setup.poolPanel.statusFilter") })).getByRole("button", { name: new RegExp(`^${t(`signups.status.${s}`)}`) });
 
 describe("signup states at a glance", () => {
     it("marks late, tentative and bench with a labelled square field on the card — a plain signup with none", async () => {
         await show();
         for (const [character, status] of [["Bork", "tentative"], ["Cid", "late"], ["Dax", "bench"]] as const) {
-            const badge = within(line(character, pool())).getByText(t(`setup.sig.short.${status}`)).closest<HTMLElement>(".se-sig")!;
+            const badge = within(line(character, pool())).getByText(t(`signups.status.${status}`)).closest<HTMLElement>(".se-sig")!;
             expect(badge).toHaveClass(`se-sigv-${status}`);
-            // the long wording in the tooltip
-            expect(badge).toHaveAttribute("data-tip", t(`setup.person.status.${status}`));
+            // no tooltip of its own: the peek beside the line names the state
+            expect(badge).not.toHaveAttribute("data-tip");
             expect(line(character, pool())).toHaveClass("se-has-sig");
         }
-        expect(t("setup.sig.short.tentative")).toBe("Vorläufig");
-        expect(t("setup.sig.short.late")).toBe("Spät");
-        expect(t("setup.sig.short.bench")).toBe("Bank");
+        expect(t("signups.status.tentative")).toBe("Vielleicht");
+        expect(t("signups.status.late")).toBe("Spät");
+        expect(t("signups.status.bench")).toBe("Bank");
         expect(line("Aal", pool()).querySelector(".se-sig")).toBeNull();
         expect(line("Aal", pool())).not.toHaveClass("se-has-sig");
         // no dot any more
@@ -88,7 +88,7 @@ describe("signup states at a glance", () => {
 
     it("shows the same field on a placed raider who signed up tentative", async () => {
         await show();
-        expect(within(line("Ignis", group(1))).getByText(t("setup.sig.short.tentative"))).toBeInTheDocument();
+        expect(within(line("Ignis", group(1))).getByText(t("signups.status.tentative"))).toBeInTheDocument();
         expect(line("Bruno", group(1)).querySelector(".se-sig")).toBeNull();
     });
 
@@ -98,7 +98,7 @@ describe("signup states at a glance", () => {
         const dividers = within(block("healer")).getAllByRole("separator");
         expect(dividers.map((d) => d.getAttribute("aria-label"))).toEqual([
             t("setup.poolPanel.statusHead", { status: "Spät", count: 1 }),
-            t("setup.poolPanel.statusHead", { status: "Vorläufig", count: 1 }),
+            t("setup.poolPanel.statusHead", { status: "Vielleicht", count: 1 }),
             t("setup.poolPanel.statusHead", { status: "Bank", count: 1 }),
         ]);
         expect(dividers[0]).toHaveTextContent("Spät · 1");
@@ -111,11 +111,11 @@ describe("signup states at a glance", () => {
         await show();
         // healer block: Zibbo leads (signed), Zibbowar under him is late
         const healerAlt = block("healer").querySelector<HTMLElement>(".se-alt[data-character=\"Zibbowar\"]")!;
-        expect(within(healerAlt).getByRole("img", { name: t("setup.person.status.late") })).toBeInTheDocument();
+        expect(within(healerAlt).getByRole("img", { name: t("signups.status.late") })).toBeInTheDocument();
         // tank block: Zibbowar leads with the full field, Zibbo under him is a plain signup — that differs too
-        expect(within(line("Zibbowar", block("tank"))).getByText(t("setup.sig.short.late"))).toBeInTheDocument();
+        expect(within(line("Zibbowar", block("tank"))).getByText(t("signups.status.late"))).toBeInTheDocument();
         const tankAlt = block("tank").querySelector<HTMLElement>(".se-alt[data-character=\"Zibbo\"]")!;
-        expect(within(tankAlt).getByRole("img", { name: t("setup.chars.signed") })).toBeInTheDocument();
+        expect(within(tankAlt).getByRole("img", { name: t("signups.status.signed") })).toBeInTheDocument();
     });
 
     it("filters by state with chips beside the role chips — counted by person, a second click shows everybody again", async () => {

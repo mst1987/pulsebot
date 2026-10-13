@@ -1,5 +1,4 @@
 {
-    "sig": { "short": { "signed": "Dabei", "late": "Spät", "tentative": "Vorläufig", "bench": "Bank" } },
     "extra": {
         "tip": "Extra-{role}: spielt bei manchen Bossen {role}",
         "short": { "tank": "+Tank", "healer": "+Heiler" }
@@ -30,19 +29,14 @@
             "pinned": "ausgewählt",
             "pinnedSub": "Das Panel bleibt bei diesem Raider, bis du die Auswahl löst – Esc oder noch einmal auf ihn klicken."
         },
-        "offSpec": "Zweitspec",
-        "status": {
-            "late": "Kommt später",
-            "tentative": "Vielleicht",
-            "bench": "Als Ersatz angemeldet"
-        }
+        "offSpec": "Zweitspec"
     },
     "weights": {
         "requiredBuffs": { "label": "Pflicht-Buffs", "tip": "Buffs, die die Raid-Vorlage verlangt." },
         "mainSpec": { "label": "Hauptspec", "tip": "Raider auf der Spec, mit der sie sich angemeldet haben." },
         "preferredCharacter": { "label": "Wunsch-Charakter", "tip": "Wer mehrere Charaktere angibt, kommt mit dem ersten mit – ein „kann auch mit“-Charakter kostet so viel." },
         "fairness": { "label": "Fairness", "tip": "Wer zuletzt oder oft auf der Bank saß, kommt eher mit. Nur wenn Fairness an ist." },
-        "status": { "label": "Anmeldestatus", "tip": "„Dabei“ vor „Kommt später“ vor „Vielleicht“." },
+        "status": { "label": "Anmeldestatus", "tip": "„Angemeldet“ vor „Spät“ vor „Vielleicht“." },
         "partyBuffs": { "label": "Gruppen-Buffs", "tip": "Totems, Auren, Schreie in der Gruppe, die sie brauchen." },
         "wishes": { "label": "Wünsche", "tip": "„Gerne zusammen mit“ in einer Gruppe. Nur wenn Wünsche an sind." },
         "avoid": { "label": "Nicht zusammen", "tip": "Abzug, wenn ein „nicht zusammen“-Paar in derselben Gruppe steht (bei parallelen Raids: im selben Raid). Nur wenn „nicht zusammen“ an ist." },
@@ -92,7 +86,6 @@
     "chars": {
         "first": "1. Wahl des Raiders",
         "also": "Kann auch mit – {n}. Wahl",
-        "signed": "Dabei",
         "lineAria": "{character} · {spec} ({n}. Wahl) – ziehen oder anklicken, um genau diesen Charakter einzuteilen",
         "switch": "Charakter wechseln",
         "switchSub": "Ein anderer Charakter, mit dem sich der Raider angemeldet hat. Der Platz bleibt, er wird gesperrt, damit ein neuer Vorschlag ihn nicht zurücksetzt.",

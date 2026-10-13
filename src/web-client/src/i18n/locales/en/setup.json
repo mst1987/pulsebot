@@ -1,5 +1,4 @@
 {
-    "sig": { "short": { "signed": "Signed", "late": "Late", "tentative": "Tentative", "bench": "Bench" } },
     "extra": {
         "tip": "Extra {role}: plays {role} on some bosses",
         "short": { "tank": "+Tank", "healer": "+Healer" }
@@ -30,19 +29,14 @@
             "pinned": "selected",
             "pinnedSub": "The panel stays with this raider until you release the selection — Esc or click them again."
         },
-        "offSpec": "Off-spec",
-        "status": {
-            "late": "Coming late",
-            "tentative": "Tentative",
-            "bench": "Signed up as bench"
-        }
+        "offSpec": "Off-spec"
     },
     "weights": {
         "requiredBuffs": { "label": "Required buffs", "tip": "Buffs the raid template asks for." },
         "mainSpec": { "label": "Main spec", "tip": "Raiders on the spec they signed up with." },
         "preferredCharacter": { "label": "Preferred character", "tip": "Whoever lists several characters comes along with the first — a \"can also bring\" character costs this much." },
         "fairness": { "label": "Fairness", "tip": "Whoever sat on the bench last or often is more likely to come along. Only when fairness is on." },
-        "status": { "label": "Signup status", "tip": "\"In\" before \"Coming late\" before \"Tentative\"." },
+        "status": { "label": "Signup status", "tip": "\"Signed up\" before \"Late\" before \"Tentative\"." },
         "partyBuffs": { "label": "Party buffs", "tip": "Totems, auras and shouts in the group that need them." },
         "wishes": { "label": "Wishes", "tip": "\"Happy to be with\" in one group. Only when wishes are on." },
         "avoid": { "label": "Not together", "tip": "Penalty when a \"not together\" pair stands in the same group (parallel raids: in the same raid). Only when \"not together\" is on." },
@@ -92,7 +86,6 @@
     "chars": {
         "first": "The raider's first choice",
         "also": "Can also come with – choice {n}",
-        "signed": "Signed up",
         "lineAria": "{character} · {spec} (choice {n}) – drag or click to place exactly this character",
         "switch": "Switch character",
         "switchSub": "Another character the raider signed up with. The place stays and is locked, so a new proposal does not undo it.",

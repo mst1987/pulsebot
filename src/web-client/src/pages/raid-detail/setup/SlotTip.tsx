@@ -9,6 +9,7 @@ import { BenchIcon, CheckIcon, EditIcon, LockIcon, SignedIcon, UnlockIcon, XIcon
 import { classColorProps } from "../../../components/character/ClassSpec";
 import SpecTile from "../SpecTile";
 import { attendanceTone, benchText, specText, statusLabel } from "./setupText";
+import { SigBadge } from "./Board";
 
 /** The header's attendance — the important number: big percentage, how sure the character link is (check = confirmed, "Auto" = guessed) and a bar. */
 function AttendanceHead({ a }: { a: SetupAttendance | undefined }) {
@@ -138,7 +139,8 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, ac
     const color = classColorProps(p.classColor);
     const status = statusLabel(p.status);
     const brings = p.brings || [];
-    const reasons = [...new Set(tipReasons(p.reasons))].filter((r) => r !== status);
+    // the state is the field in the header — a reason that only names it is dropped (tipReasons)
+    const reasons = [...new Set(tipReasons(p.reasons))];
     return (
         <aside
             className={`se-tip${pinned ? " se-tip-pinned" : ""}${peek ? " se-tip-peek" : ""}`}
@@ -154,7 +156,8 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, ac
                     <span className="se-tip-sub">
                         <span>{[specText(p), p.role ? roleLabel(p.role) : "", p.main === false ? t("setup.person.offSpec") : ""].filter(Boolean).join(" · ")}</span>
                         {p.name && <span>@{p.name}</span>}
-                        {status && <span className={`se-tip-status se-st-${p.status}`}>{status}</span>}
+                        {/* the same field and word as on the line ("Vielleicht", "Spät", "Bank") */}
+                        {status && <SigBadge status={p.status} />}
                     </span>
                     <ActionRow a={actions} />
                 </div>

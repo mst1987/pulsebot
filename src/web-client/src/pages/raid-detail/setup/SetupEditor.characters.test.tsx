@@ -78,7 +78,7 @@ describe("Angemeldet: one card per person with every signed character", () => {
         expect(war).toHaveTextContent("2");
         expect(line("Zibbomage", healers)).toHaveTextContent("3");
         // "Spät" differs from the card's line: its own dot
-        expect(within(war).getByRole("img", { name: t("setup.person.status.late") })).toBeInTheDocument();
+        expect(within(war).getByRole("img", { name: t("signups.status.late") })).toBeInTheDocument();
         expect(within(line("Zibbomage", healers)).queryByRole("img")).not.toBeInTheDocument();
     });
 
