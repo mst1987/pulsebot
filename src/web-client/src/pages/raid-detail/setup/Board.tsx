@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type DragEvent, type KeyboardEvent } from "react";
+import { useState, type CSSProperties, type DragEvent, type KeyboardEvent, type ReactNode } from "react";
 import { useZone } from "./useZone";
 import { peekHandlers } from "./peek";
 import type { SetupAttendance, SetupConfirmation, SetupEditorData, SetupEditorGroup, SetupPerson } from "../../../api";
@@ -262,6 +262,15 @@ export function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs
 }
 
 /**
+ * The grid of the group cards. `count` (the number of groups) caps its width at that many cards of
+ * --se-group-max, so a 10er's two groups are wide cards and a 25er still shows five side by side;
+ * every head in a row is as tall as the tallest, so all places start on one line (setup-editor.css).
+ */
+export function GroupGrid({ count, children }: { count: number; children: ReactNode }) {
+    return <div className="se-groups" style={{ "--se-n": Math.max(1, count) } as CSSProperties}>{children}</div>;
+}
+
+/**
  * The bench (#354) as ONE row under the groups: its name and count, then its
  * raiders side by side — never a real group: no roles, no buffs, and dropping
  * anywhere on the row just means "onto the bench". Picked somebody? A
@@ -304,9 +313,9 @@ export function ReadOnly({ data }: { data: SetupEditorData }) {
     return (
         <div className="se-layout se-readonly">
             <div className="se-main">
-                <div className="se-groups">
+                <GroupGrid count={groupCount}>
                     {withAllGroups(approved.groups, groupCount).map((g) => <GroupCard key={g.index} group={g} buffs={[]} ui={ui} />)}
-                </div>
+                </GroupGrid>
                 <BenchCard bench={approved.bench} ui={ui} />
             </div>
         </div>

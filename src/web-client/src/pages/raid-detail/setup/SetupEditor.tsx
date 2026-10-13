@@ -45,7 +45,7 @@ import { LockIcon, XIcon } from "../../../components/ui/icons";
 import type { RaidCtx } from "../meta";
 import "../../../styles/setup-editor.css";
 import { clock, readCompact, storeCompact } from "./setupText";
-import { BenchCard, GroupCard, type Interaction, ReadOnly } from "./Board";
+import { BenchCard, GroupCard, GroupGrid, type Interaction, ReadOnly } from "./Board";
 import { PoolPanel } from "./PoolPanel";
 import { ActivityFeed, PresenceChip } from "./LiveParts";
 import { presenceColor, usePresence } from "./usePresence";
@@ -878,11 +878,11 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                 <div className={`se-layout${poolCount > 0 ? " se-with-pool" : ""}`}>
                     {/* the groups right under the bar, the bench as a row under them, then one summary line — "Angemeldet" (#517) beside them */}
                     <div className="se-main">
-                        <div className="se-groups">
+                        <GroupGrid count={groups.length}>
                             {groups.map((g) => (
                                 <GroupCard key={g.index} group={g} ui={ui} buffs={partyBuffs.filter((b) => b.groups.includes(g.index))} />
                             ))}
-                        </div>
+                        </GroupGrid>
                         <BenchCard bench={setup.bench} ui={ui} />
                         <SummaryLine data={data} setup={setup} onDetails={() => setDialog("details")} />
                         <ActivityFeed activity={presence.activity} />

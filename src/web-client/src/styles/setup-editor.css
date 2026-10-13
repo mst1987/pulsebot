@@ -69,10 +69,24 @@
 /* the setup (groups, bench under a divider) across the full width: five groups side by side where the screen allows */
 .se-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
 .se-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.se-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr)); gap: 10px; }
+/* The width (Oct 2026, "Gruppen breiter"): auto-fit drops the columns no group stands in, so the groups there are grow,
+   and the grid is never wider than --se-n (the number of groups, set by the page) cards of --se-group-max — a 10er's two
+   cards come out 300 px instead of keeping the width of five; a 25er still has five side by side. (A fixed maximum
+   inside minmax() would not do: auto-fit counts its columns by the maximum, so five 300 px columns would not fit.)
+   The height ("die Gruppen sollen nicht unterschiedlich hoch anfangen"): each card spans two rows of this grid and takes
+   them as its own (subgrid) — head and places — so every head in a row is as tall as the tallest one (the group whose
+   buffs wrap) and every group's places start on the same line. No row gap here: the cards keep their distance below
+   with a margin, so the two rows of one card sit flush. */
+.se-groups {
+    --se-n: 5; --se-group-max: 300px; --se-gap: 10px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(188px, 1fr)); column-gap: var(--se-gap); row-gap: 0; margin-bottom: calc(-1 * var(--se-gap));
+    max-width: calc(var(--se-n) * var(--se-group-max) + (var(--se-n) - 1) * var(--se-gap));
+}
 
 /* a group card, and every bench chunk (#354), share one look */
 .se-group { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; transition: border-color .12s ease, box-shadow .12s ease; }
+/* one column that may shrink below its content (minmax(0, …)): a long spec line is cut with "…" inside the card, as before */
+.se-groups > .se-group { display: grid; grid-row: span 2; grid-template-rows: subgrid; grid-template-columns: minmax(0, 1fr); row-gap: 0; margin-bottom: var(--se-gap); }
 .se-group.se-target { border-style: dashed; border-color: var(--accent); }
 .se-group.se-over { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 /* while somebody is dragged: the group where what they bring helps most breathes softly */
@@ -339,7 +353,7 @@
 @container se-stage (min-width: 1080px) {
     .se-layout.se-with-pool { grid-template-columns: minmax(0, 1fr) clamp(280px, 24%, 360px); }
     /* five groups still side by side next to the column: a little narrower cards while it stands there */
-    .se-with-pool .se-groups { grid-template-columns: repeat(auto-fill, minmax(164px, 1fr)); }
+    .se-with-pool .se-groups { grid-template-columns: repeat(auto-fit, minmax(164px, 1fr)); }
     .se-with-pool .se-poolpanel { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
 }
 /* narrow: docked at the bottom of the window — one row to scroll sideways, folded by its arrow, and folded by
@@ -409,7 +423,7 @@
 
 /* compact view (off by default, a switch in the bar): one-line raiders on narrower cards — for small screens or a very full raid.
    The spec line is in the raider panel. */
-.se-compact .se-groups { grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 8px; }
+.se-compact .se-groups { --se-gap: 8px; --se-group-max: 260px; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); }
 .se-compact { --se-row: 32px; }
 .se-compact .se-slots { gap: 3px; padding: 4px; min-height: 30px; }
 .se-compact .se-slot { gap: 6px; padding: 0 5px 0 3px; }
