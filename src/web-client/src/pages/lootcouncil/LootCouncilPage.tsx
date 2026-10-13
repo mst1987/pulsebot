@@ -36,8 +36,9 @@ import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/ui/persistedState";
 import { useTableSort } from "../../lib/ui/tableSort";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { Button, PageHead, useConfirm } from "../../components/ui";
-import { CANDIDATE_SORT, ROSTER_SORT, VIEW_KEY, councilContent, dropHref, roleLabel, useCouncilSim, type CandidateSortKey, type RosterSortKey } from "./council";
+import { BackButton, Button, PageHead, useConfirm } from "../../components/ui";
+import { CANDIDATE_SORT, ROSTER_SORT, VIEW_KEY, councilContent, councilHref, dropHref, roleLabel, useCouncilSim, type CandidateSortKey, type RosterSortKey } from "./council";
+import CouncilOverview from "./CouncilOverview";
 import { WowheadPathProvider } from "../../lib/settings/versionLinks";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import FilterBar from "./FilterBar";
@@ -60,7 +61,20 @@ const VIEW_DEFAULT: View = {
     listTier: "t6", listOff: [], listFocus: 0, cmpOff: [],
 };
 
+/** What in the url makes it the council of a pick; plain /lootcouncil is the tile overview. */
+const COUNCIL_PARAMS = ["roster", "category", "raider", "tab"];
+
+/**
+ * The entry (Oct 2026): plain /lootcouncil shows the tiles of every roster and category that
+ * runs as Loot-Council (CouncilOverview.tsx); a tile, a link with `?roster=` / `?category=`,
+ * a raider's link or `?tab=profiles` opens the council itself.
+ */
 export default function LootCouncilPage() {
+    const [params] = useSearchParams();
+    return COUNCIL_PARAMS.some((key) => params.has(key)) ? <CouncilPage /> : <CouncilOverview />;
+}
+
+function CouncilPage() {
     // The game version of the raiders shown (#563): the menu's content switch.
     const { version: contentVersion, mainVersion } = useContentVersion();
     const { user } = useOutletContext<ShellContext>();
@@ -74,32 +88,45 @@ export default function LootCouncilPage() {
     const [localView, setLocalView] = usePersistedState<View>(VIEW_KEY, VIEW_DEFAULT);
     // A picked category brings its own filters from the server (they drive the
     // in-game council too): lootcouncil/categoryViews.ts.
-    // A link can preselect the council (#676): ?roster=<id> (the Kaderplaner's
-    // "Zum Loot-Council", the roster settings' "Profile verwalten") and
-    // ?tab=profiles. Taken over into the view once, then dropped from the url.
+    // The pick lives in the url (Oct 2026): ?roster=<id> or ?category=<id> - a tile of the
+    // overview, the Kaderplaner's "Zum Loot-Council", the roster settings' "Profile verwalten"
+    // (with ?tab=profiles, taken over once). A raider's link (?raider=) carries no pick: the
+    // last one is put back into the url, so closing the details stays in this council.
     const [params, setParams] = useSearchParams();
-    const linkedRoster = params.get("roster") || "";
+    const urlRoster = params.get("roster") || "";
+    const urlCategory = urlRoster ? "" : (params.get("category") || "");
     const linkedTab = params.get("tab") || "";
+    const pick = urlRoster || urlCategory
+        ? { roster: urlRoster, category: urlCategory }
+        : { roster: localView.roster || "", category: localView.roster ? "" : localView.category };
     // The roster a link opened - a roster of another version follows into it (droppedPick.ts).
+    // A stored pick the page put back into the url itself is no link: a stale one is forgotten.
     const linkedRef = useRef("");
+    const restoredRef = useRef("");
     useEffect(() => {
-        if (!linkedRoster && linkedTab !== "profiles") return;
-        if (linkedRoster) linkedRef.current = linkedRoster;
-        setLocalView({
-            ...localView,
-            ...(linkedRoster ? { roster: linkedRoster, category: "" } : {}),
-            ...(linkedTab === "profiles" ? { tab: "profiles" } : {}),
-        });
-        setParams((prev) => {
-            const next = new URLSearchParams(prev);
-            next.delete("roster");
-            next.delete("tab");
-            return next;
-        }, { replace: true });
+        if (urlRoster && urlRoster !== restoredRef.current) linkedRef.current = urlRoster;
+        const tabPatch = linkedTab === "profiles" ? { tab: "profiles" as const } : {};
+        if (localView.roster !== pick.roster || localView.category !== pick.category || linkedTab === "profiles") {
+            setLocalView({ ...localView, ...pick, ...tabPatch });
+        }
+        const pickMissing = (pick.roster && !urlRoster) || (pick.category && !urlCategory);
+        // `tab` leaves the url only with a pick taking its place - else the url would be the overview's
+        if (pickMissing || (linkedTab && (pick.roster || pick.category))) {
+            if (pick.roster && !urlRoster) restoredRef.current = pick.roster;
+            setParams((prev) => {
+                const next = new URLSearchParams(prev);
+                if (pick.roster) next.set("roster", pick.roster);
+                else if (pick.category) next.set("category", pick.category);
+                next.delete("tab");
+                return next;
+            }, { replace: true });
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [linkedRoster, linkedTab]);
+    }, [urlRoster, urlCategory, linkedTab]);
+    /** Another council: a new url (the effect above takes it into the view), the raider's details closed. */
+    const pickCouncil = (fields: { roster: string; category: string }) => navigate(councilHref(fields));
     const { filters: view, patch, ready: viewsReady, reachesGame, profileId, reload: reloadViews } = useCategoryViews({
-        view: localView,
+        view: { ...localView, ...pick },
         setView: setLocalView,
         canWrite,
         version: contentVersion,
@@ -173,10 +200,16 @@ export default function LootCouncilPage() {
     // old results no longer describe what is on screen.
     useEffect(() => { setSim(null); }, [view.role, view.tiers, view.contents, view.category, view.roster, view.bisTier, view.bench, contentVersion, setSim]);
 
-    // A pick of another version (#741/#563): follow a link into it, else back to "Alle Raid-Kategorien".
+    // A pick of another version (#741/#563): follow a link into it, else forget it and back to the overview.
     const dropped = data && data.council && data.council.dropped && pickValue(view) === `${data.council.dropped.kind}:${data.council.dropped.id}`
         ? data.council.dropped : null;
-    useDroppedPick(dropped, linkedRef.current, () => patch({ roster: "", category: "" }));
+    // Leaves for the overview one render later, once the forgotten pick is stored (usePersistedState writes in an effect).
+    const [toOverview, setToOverview] = useState(false);
+    useDroppedPick(dropped, linkedRef.current, () => {
+        setLocalView({ ...localView, roster: "", category: "" });
+        setToOverview(true);
+    });
+    useEffect(() => { if (toOverview) navigate("/lootcouncil", { replace: true }); }, [toOverview, navigate]);
 
     const roster = useMemo(() => (data ? data.roster : []), [data]);
     const gaps = data ? data.gaps : [];
@@ -368,6 +401,7 @@ export default function LootCouncilPage() {
     return (
         <WowheadPathProvider path={data.wowheadPath}>
         <NeedWeightsProvider weights={data.weights}>
+            <div className="lc-back-row"><BackButton to="/lootcouncil" label={t("lootcouncil.overview.back")} size="sm" /></div>
             <PageHead
                 icon="inv_misc_coin_02"
                 tone="lootcouncil"
@@ -381,7 +415,7 @@ export default function LootCouncilPage() {
                 <CouncilHead
                     head={data.council}
                     value={pickValue(view)}
-                    onPick={(fields) => patch(fields)}
+                    onPick={pickCouncil}
                     onProfiles={() => patch({ tab: "profiles" })}
                 />
             ) : null}

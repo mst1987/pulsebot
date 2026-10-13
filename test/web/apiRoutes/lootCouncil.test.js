@@ -75,7 +75,7 @@ const discord = require("../../../src/services/discord/discord");
 const { getConfig } = require("../../../src/stores/settingsStore");
 const routesModule = require("../../../src/web/apiRoutes/lootCouncil");
 const {
-    getLootCouncil, postLootCouncilSim, getLootCouncilSim, getItemSearch, getBisLists,
+    getLootCouncil, getOverview, postLootCouncilSim, getLootCouncilSim, getItemSearch, getBisLists,
     postExclude, postRole, getExport, postArmoryRefresh, postLogGear, getViews, postView, routes,
 } = routesModule;
 const { mockRes, status, body, json } = require("../../helpers/http");
@@ -120,6 +120,7 @@ describe("the route table", () => {
     it("registers every loot council route in the lootcouncil area", () => {
         expect(routes.map((r) => `${r.method} ${r.path}`)).toEqual([
             "GET /api/lootcouncil",
+            "GET /api/lootcouncil/overview",
             "GET /api/lootcouncil/export",
             "POST /api/lootcouncil/exclude",
             "GET /api/lootcouncil/item-search",
@@ -145,6 +146,7 @@ describe("the route table", () => {
 describe("read access on the GET handlers", () => {
     const readers = [
         ["GET /api/lootcouncil", () => getLootCouncil],
+        ["GET /api/lootcouncil/overview", () => getOverview],
         ["GET /api/lootcouncil/export", () => getExport],
         ["GET /api/lootcouncil/item-search", () => getItemSearch],
         ["GET /api/lootcouncil/bislists", () => getBisLists],
@@ -749,7 +751,10 @@ describe("POST /api/lootcouncil/loggear", () => {
 // "Montagsraid · TBC Montag" and "PUG Raids" (TBC). The menu's version comes
 // first (#741/#563): another version's category is no pick and no option.
 describe("GET /api/lootcouncil keeps to the menu's version", () => {
-    const CONFIG = { categoryIds: ["tbcCat", "foreverCat"], mainVersion: "forever", categoryVersion: { tbcCat: "tbc", foreverCat: "forever" } };
+    const CONFIG = {
+        categoryIds: ["tbcCat", "foreverCat"], mainVersion: "forever", categoryVersion: { tbcCat: "tbc", foreverCat: "forever" },
+        categoryLootSystem: { tbcCat: "lootcouncil", foreverCat: "lootcouncil" },
+    };
     beforeEach(() => {
         getConfig.mockReturnValue(CONFIG);
         discord.listCategories.mockReturnValue([{ id: "tbcCat", name: "PUG Raids" }, { id: "foreverCat", name: "Forever Mittwoch" }]);
@@ -779,5 +784,28 @@ describe("GET /api/lootcouncil keeps to the menu's version", () => {
         expect(lc.councilRoster).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "", charVersion: "forever" }));
         expect(data.council.dropped).toEqual({ kind: "category", id: "tbcCat", versionId: "tbc" });
         expect(data.council.categories.map((c) => c.id)).toEqual(["foreverCat"]);
+    });
+});
+
+// The page's entry (Oct 2026): tiles of the menu's version, only what runs as Loot-Council.
+describe("GET /api/lootcouncil/overview", () => {
+    const CONFIG = {
+        categoryIds: ["tbcCat", "foreverCat", "softresCat"], mainVersion: "forever",
+        categoryVersion: { tbcCat: "tbc", foreverCat: "forever", softresCat: "forever" },
+        categoryLootSystem: { tbcCat: "lootcouncil", foreverCat: "lootcouncil", softresCat: "softres" },
+    };
+    beforeEach(() => {
+        getConfig.mockReturnValue(CONFIG);
+        discord.listCategories.mockReturnValue([{ id: "tbcCat", name: "PUG Raids" }, { id: "foreverCat", name: "Forever Mittwoch" }, { id: "softresCat", name: "Forever Sonntag" }]);
+    });
+
+    it("answers the Loot-Council tiles of the menu's version, without building a council", async () => {
+        const data = body(await call(getOverview, "/api/lootcouncil/overview", "?version=forever"));
+        expect(data.versionId).toBe("forever");
+        expect(data.tiles.map((t) => `${t.kind}:${t.id}`)).toEqual(["category:foreverCat"]);
+        expect(data.tiles[0]).toMatchObject({ name: "Forever Mittwoch", versionId: "forever", profileName: "Standard", members: null });
+        expect(lc.councilRoster).not.toHaveBeenCalled();
+        const tbc = body(await call(getOverview, "/api/lootcouncil/overview", "?version=tbc"));
+        expect(tbc.tiles.map((t) => t.id)).toEqual(["tbcCat"]);
     });
 });

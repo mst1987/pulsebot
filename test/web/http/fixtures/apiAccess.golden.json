@@ -66,6 +66,7 @@
     "/api/signups": "signup",
     "/api/signups/bulk": "signup",
     "/api/lootcouncil": "lootcouncil",
+    "/api/lootcouncil/overview": "lootcouncil",
     "/api/lootcouncil/sim": "lootcouncil",
     "/api/lootcouncil/views": "lootcouncil",
     "/api/lootcouncil/view": "lootcouncil",

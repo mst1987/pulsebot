@@ -725,5 +725,23 @@
             "profile_limit": "No more than 50 profiles.",
             "not_found": "This profile no longer exists."
         }
+    },
+    "overview": {
+        "kicker": "{count} raids with loot council",
+        "cardsAria": "Raids with loot council",
+        "back": "To the overview",
+        "loading": "Loading the raids with loot council …",
+        "inRoster": "In the roster",
+        "persons": "people",
+        "bench": "plus {count} on the bench",
+        "noRoster": "No roster – every signup counts",
+        "nextRaid": "Next raid",
+        "noRaid": "No raid planned",
+        "noCategory": "no category",
+        "withoutRoster": "Category without roster",
+        "profileTip": "The loot council profile: weighting and view of this council",
+        "open": "Open council",
+        "empty": "No raid uses loot council yet.",
+        "emptyHint": "Set the loot system in the roster settings – or, for a category without roster, under Settings → Categories. Raids on Softres or GDKP are not shown here."
     }
 }

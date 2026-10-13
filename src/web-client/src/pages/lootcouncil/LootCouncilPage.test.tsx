@@ -27,7 +27,7 @@ beforeEach(() => {
 
 describe("loot council page (German)", () => {
     it("heads the raider tab with its ordering rule and the drop check", async () => {
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         expect(await screen.findByText("Wer am längsten nichts bekommen hat, steht oben.")).toBeInTheDocument();
         expect(screen.getByRole("heading", { name: "Loot-Council" })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: /Drop prüfen/ })).toBeInTheDocument();
@@ -45,7 +45,7 @@ describe("loot council page (German)", () => {
         localStorage.removeItem("eh-content-version");
         const user = userEvent.setup();
         vi.mocked(api.getLootCouncil).mockResolvedValue(councilData({ version: "tbc", mainVersion: "tbc" }));
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil", content: twoVersions() });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster", content: twoVersions() });
         expect(await screen.findByText("Wer am längsten nichts bekommen hat, steht oben.")).toBeInTheDocument();
         expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ version: "tbc" }));
         expect(screen.queryByRole("radiogroup", { name: "Spielversion" })).not.toBeInTheDocument();
@@ -61,7 +61,7 @@ describe("loot council page (English)", () => {
     afterEach(() => switchLang("de"));
 
     it("shows the head, the tabs and the raider list in English", async () => {
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         expect(await screen.findByText("Whoever has gone longest without loot is on top.")).toBeInTheDocument();
         expect(screen.getByRole("heading", { name: "Loot council" })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: /Check drop/ })).toBeInTheDocument();
@@ -72,7 +72,7 @@ describe("loot council page (English)", () => {
     });
 
     it("translates the open BiS items tab", async () => {
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         await userEvent.click(await screen.findByRole("button", { name: /Open BiS items/ }));
         expect(screen.getByText("What is still missing?")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Simulate all BiS items (1)" })).toBeInTheDocument();
@@ -80,7 +80,7 @@ describe("loot council page (English)", () => {
     });
 
     it("translates the BiS lists and the loot comparison", async () => {
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         await userEvent.click(await screen.findByRole("button", { name: "BiS lists" }));
         expect(await screen.findByText("Look up an item")).toBeInTheDocument();
         expect(screen.getByPlaceholderText("Item name, e.g. Skull of Gul'dan")).toBeInTheDocument();
