@@ -17,7 +17,7 @@ const {
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryAttendance, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupCharacters, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeCategoryPlanning, normalizeTopItems,
     normalizeRoleSync, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings, normalizeBotLanguage,
-    normalizeDiscordVisuals,
+    normalizeDiscordVisuals, normalizeDungeonRecords,
 } = require("./configSchema");
 const { planningOf } = require("../services/events/planning");
 const { normalizeBackupSettings } = require("../services/backup/backupConfig");
@@ -116,6 +116,21 @@ const MERGED_CATEGORY_MAPS = [
 ];
 
 /**
+ * Small blocks merged per field before they are normalised: the drawn pictures
+ * (a switch sent alone leaves the others as they are) and the dungeon record
+ * post (the switch sent alone keeps the channel).
+ */
+const MERGED_BLOCKS = [
+    ["discordVisuals", normalizeDiscordVisuals],
+    ["dungeonRecords", normalizeDungeonRecords],
+];
+
+/** `next[key]` = the stored block with the sent fields over it, normalised; nothing sent leaves it alone. */
+function mergeBlock(next, current, sent, key, normalize) {
+    if (sent && typeof sent === "object") next[key] = normalize({ ...current[key], ...sent });
+}
+
+/**
  * Merge and persist a partial config update. Returns the config as every other
  * reader sees it — read back through getConfig(), so a value that only takes its
  * final shape there (a cleared guildId falling back to the default) is what the
@@ -148,10 +163,7 @@ function saveConfig(partial) {
     // whole (a category back on the main version is left out), like the templates.
     if (partial.mainVersion !== undefined) next.mainVersion = normalizeMainVersion(partial.mainVersion);
     if (partial.botLanguage !== undefined) next.botLanguage = normalizeBotLanguage(partial.botLanguage);
-    // Merged per picture: a switch sent alone leaves the others as they are.
-    if (partial.discordVisuals && typeof partial.discordVisuals === "object") {
-        next.discordVisuals = normalizeDiscordVisuals({ ...current.discordVisuals, ...partial.discordVisuals });
-    }
+    for (const [key, normalize] of MERGED_BLOCKS) mergeBlock(next, current, partial[key], key, normalize);
     if (partial.categoryVersion !== undefined) next.categoryVersion = normalizeCategoryVersion(partial.categoryVersion);
     // #738: the section history is replaced whole (the settings route appends a section on a switch).
     if (partial.categoryEras !== undefined) next.categoryEras = normalizeCategoryEras(partial.categoryEras);

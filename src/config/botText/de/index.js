@@ -13,6 +13,7 @@ const AREAS = [
     require("./raidOverview"),
     require("./guildBank"),
     require("./logcheck"),
+    require("./dungeons"),
 ];
 
 const merged = {};

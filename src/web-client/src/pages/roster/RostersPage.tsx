@@ -6,7 +6,7 @@
 // admins), the head's primary button opens the same dialog without category.
 // The character list that used to live here is "Alle Charaktere" (/roster/chars).
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import { getRosters, type RosterHead, type RosterOverview } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
@@ -14,6 +14,8 @@ import { tParts, useT } from "../../i18n";
 import { Badge, Button, IconTile, PageHead, WowIcon, buttonClass } from "../../components/ui";
 import { PlusIcon } from "../../components/ui/icons";
 import RaidLoader from "../../components/ui/RaidLoader";
+import { MenuRailPage } from "../../components/ui/SectionRail";
+import type { ShellContext } from "../../components/shell/Shell";
 import { rolePluralLabel } from "../../lib/wow/wowNames";
 import { ROLE_ICONS, dpsTarget } from "../../lib/roster/rosters";
 import { attendanceTone } from "../../lib/roster/rosterView";
@@ -140,7 +142,13 @@ function EmptyCategoryCard({ category, onCreate }: { category: RosterOverview["c
     );
 }
 
+/** The overview inside the Roster family's rail (Roster, Dungeon-Bestzeiten — menu.json). */
 export default function RostersPage() {
+    const { user } = useOutletContext<ShellContext>();
+    return <MenuRailPage user={user} parent="roster"><RosterOverviewPage /></MenuRailPage>;
+}
+
+function RosterOverviewPage() {
     const t = useT();
     // The rosters of the menu's content version (#741); a switch loads again.
     const { version } = useContentVersion();

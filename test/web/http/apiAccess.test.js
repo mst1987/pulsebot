@@ -183,7 +183,7 @@ describe("web/http/apiAccess", () => {
         // That exemption must stay this deliberate, tiny set, not a hole a
         // future route slips into by accident.
         it("exempts nothing but the loot-sync ingest endpoints from the session gate", () => {
-            expect([...TOKEN_AUTH]).toEqual(["/api/ingest/loot", "/api/ingest/raids", "/api/ingest/council", "/api/ingest/guildbank", "/api/ingest/guildbank/handouts"]);
+            expect([...TOKEN_AUTH]).toEqual(["/api/ingest/loot", "/api/ingest/raids", "/api/ingest/council", "/api/ingest/guildbank", "/api/ingest/guildbank/handouts", "/api/ingest/levelhelper"]);
         });
 
         // The guild bank assignment is a setting, not part of the token's reach.

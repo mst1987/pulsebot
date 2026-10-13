@@ -38,6 +38,7 @@ import { categoryVersionsToSave, isVersionSwitch, savedCategoryVersion, switchFi
 import HideOtherVersionsCard from "./HideOtherVersionsCard";
 import BotLanguageCard from "./BotLanguageCard";
 import DiscordVisualsCard from "./DiscordVisualsCard";
+import DungeonRecordsCard from "./DungeonRecordsCard";
 import VersionFeaturesCard from "./VersionFeaturesCard";
 import VersionLaunchCard from "./VersionLaunchCard";
 import { withDisabled } from "../../lib/settings/versionFeatures";
@@ -250,6 +251,8 @@ export default function SettingsPage() {
                 botLanguage: draft.botLanguage,
                 // the drawn pictures (a test): every switch, merged on the server
                 discordVisuals: draft.discordVisuals,
+                // the dungeon record post: both fields, merged on the server
+                dungeonRecords: draft.dungeonRecords,
                 // #542: every version's block, merged per field on the server; a wrong value comes back as 400 with its field.
                 // #761: with each version's features switched off, sent whole.
                 versionSettings: withDisabled(draft.versionSettings, draft.versionDisabled),
@@ -543,6 +546,13 @@ export default function SettingsPage() {
                             <RolePicker id="set-officer" value={draft.officerRoleId} roles={data.roles} onChange={(officerRoleId) => patch({ officerRoleId })} placeholder={t("settings.page.noPing")} />
                         </div>
                     </ModuleCard>
+                </>
+            );
+
+            case "dungeons": return (
+                <>
+                    {head(activeSection)}
+                    <DungeonRecordsCard value={draft.dungeonRecords} channels={channels} onChange={(dungeonRecords) => patch({ dungeonRecords })} />
                 </>
             );
 

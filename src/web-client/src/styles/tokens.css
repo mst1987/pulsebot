@@ -95,6 +95,8 @@
     /* WoW item quality; on the light theme epic and uncommon get a darker shade */
     --q-uncommon: #1eff00; --q-rare: #0070dd; --q-epic: #a335ee; --q-legendary: #ff8000;
     --q-uncommon-light: #178a00; --q-epic-light: #7b1fc4;
+    /* Dungeon-Bestzeiten: the three medals of the LevelHelper addon, as small square fields */
+    --medal-gold: #e2b53b; --medal-silver: #c4ccd6; --medal-bronze: #c57f4a;
     /* loot council: a worn item without enchant, the third need step */
     --worn-alert: #e5484d; --lc-need-3: #5badde;
     /* Mein Profil: one colour per weekday, and its darker shade for text on light */
@@ -199,6 +201,7 @@
         --orga-teal: #0f8f82;
         --archive-ink: #7a5208; --archive-text: #6b5424; --archive-bg: rgba(154, 108, 18, .08); --archive-line: rgba(154, 108, 18, .35);
         --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
+        --medal-gold: #b88a12; --medal-silver: #8792a0; --medal-bronze: #a5622f;
         /* role group areas (#559): the board stays a dark picture, only the badge's shadow is softer on a light page */
         --rp-area-badge-bg: rgba(18, 22, 26, .92); --rp-area-badge-ink: #f1f3f8; --rp-area-badge-shadow: rgba(0, 0, 0, .3); --rp-area-calm-fill: .33; --rp-area-line: .6;
     }
@@ -253,6 +256,7 @@
     --orga-teal: #0f8f82;
     --archive-ink: #7a5208; --archive-text: #6b5424; --archive-bg: rgba(154, 108, 18, .08); --archive-line: rgba(154, 108, 18, .35);
         --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
+        --medal-gold: #b88a12; --medal-silver: #8792a0; --medal-bronze: #a5622f;
         /* role group areas (#559): the board stays a dark picture, only the badge's shadow is softer on a light page */
         --rp-area-badge-bg: rgba(18, 22, 26, .92); --rp-area-badge-ink: #f1f3f8; --rp-area-badge-shadow: rgba(0, 0, 0, .3); --rp-area-calm-fill: .33; --rp-area-line: .6;
 }

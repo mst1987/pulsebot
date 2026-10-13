@@ -1,0 +1,66 @@
+{
+    "title": "Dungeon-Bestzeiten",
+    "loading": "Lade Dungeon-Bestzeiten",
+    "kicker": "{version} · Stand {date}",
+    "meta": {
+        "runs": { "one": "{count} Lauf", "other": "{count} Läufe" },
+        "runsTip": "Gruppenläufe aus dem Addon LevelHelper, jeder Lauf einmal, auch wenn ihn mehrere Spieler hochgeladen haben",
+        "dungeons": { "one": "{count} Dungeon", "other": "{count} Dungeons" },
+        "players": { "one": "{count} Spieler", "other": "{count} Spieler" }
+    },
+    "tabs": {
+        "dungeons": "Je Dungeon",
+        "overall": "Gesamtwertung",
+        "points": "Erfolgspunkte"
+    },
+    "pick": "Dungeon",
+    "facts": {
+        "best": "Bestzeit {time}",
+        "goldRuns": { "one": "{count} Lauf mit Gold", "other": "{count} Läufe mit Gold" }
+    },
+    "none": {
+        "dungeons": "Für diese Version ist noch kein Gruppenlauf gespeichert.",
+        "points": "Für diese Version sind noch keine Erfolgspunkte gespeichert."
+    },
+    "empty": {
+        "title": "Noch keine Dungeon-Läufe",
+        "versionTitle": "Noch keine Dungeon-Läufe für {version}",
+        "text": "Die Zeiten kommen aus dem Addon LevelHelper: Das Sync-Tool lädt die Gruppenläufe und Erfolgspunkte hoch, sobald es läuft.",
+        "otherVersions": "Daten gibt es für: {versions} (oben umschalten)."
+    },
+    "medal": {
+        "gold": "Gold",
+        "silver": "Silber",
+        "bronze": "Bronze",
+        "none": "keine",
+        "noneTip": "Ohne Medaille: langsamer als die Bronze-Zeit des Addons"
+    },
+    "col": {
+        "rank": "Platz",
+        "time": "Zeit",
+        "medal": "Medaille",
+        "group": "Gruppe",
+        "date": "Datum",
+        "player": "Spieler",
+        "goldDungeons": "Dungeons mit Gold",
+        "runs": "Läufe",
+        "character": "Charakter",
+        "level": "Stufe",
+        "points": "Erfolgspunkte",
+        "achievements": "Erfolge",
+        "golds": "Gold-Medaillen",
+        "read": "Stand"
+    },
+    "rank": "{rank}.",
+    "overall": {
+        "rankTip": "Reihenfolge: Gold, dann Silber, dann Bronze",
+        "dungeons": { "one": "{count} Dungeon", "other": "{count} Dungeons" },
+        "runs": { "one": "{count} Lauf", "other": "{count} Läufe" }
+    },
+    "points": {
+        "level": "Stufe {level}",
+        "pointsWord": "Punkte",
+        "achievements": { "one": "{count} Erfolg", "other": "{count} Erfolge" },
+        "readTip": "Wann das Addon die Punkte zuletzt gelesen hat"
+    }
+}
