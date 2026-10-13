@@ -37,7 +37,7 @@ describe("loot council page without content data", () => {
         vi.mocked(api.getLootCouncil).mockResolvedValue(councilData({
             content: NONE, gaps: [], sim: { available: false, version: "", hint: "" }, versionId: "forever",
         }));
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         expect(await screen.findByText("Anna")).toBeInTheDocument();
         expect(screen.getByText(/Für diese Spielversion gibt es noch keine BiS-Listen und keine Simulation/)).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: /Offene BiS-Items/ })).not.toBeInTheDocument();
@@ -48,7 +48,7 @@ describe("loot council page without content data", () => {
     it("opens the Raider tab although a BiS tab was stored", async () => {
         localStorage.setItem("lootcouncil.view", JSON.stringify({ tab: "bislists" }));
         vi.mocked(api.getLootCouncil).mockResolvedValue(councilData({ content: NONE, gaps: [] }));
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         expect(await screen.findByText("Anna")).toBeInTheDocument();
         expect(api.getBisLists).not.toHaveBeenCalled();
     });
@@ -56,7 +56,7 @@ describe("loot council page without content data", () => {
     it("keeps the filter free of tiers, the BiS list and the simulation line", async () => {
         const user = userEvent.setup();
         vi.mocked(api.getLootCouncil).mockResolvedValue(councilData({ content: NONE, gaps: [] }));
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         await user.click(await screen.findByRole("button", { name: /Filter/ }));
         expect(screen.queryByText("BiS-Liste")).not.toBeInTheDocument();
         expect(screen.queryByText("Simulation")).not.toBeInTheDocument();
@@ -65,7 +65,7 @@ describe("loot council page without content data", () => {
 
     it("shows nothing of this for TBC", async () => {
         vi.mocked(api.getLootCouncil).mockResolvedValue(councilData());
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         expect(await screen.findByRole("button", { name: /Offene BiS-Items/ })).toBeInTheDocument();
         expect(screen.queryByText(/noch keine BiS-Listen/)).not.toBeInTheDocument();
     });

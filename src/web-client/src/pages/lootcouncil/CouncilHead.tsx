@@ -1,6 +1,6 @@
 // Who the council works for (#676): ONE picker - the rosters with loot system
-// Loot-Council first, the raid categories without roster as the fallback,
-// "Alle Raid-Kategorien" on top - and next to it what that pick means: its
+// Loot-Council first, the raid categories without roster on Loot-Council as the
+// fallback (the overview's tiles, Oct 2026) - and next to it what that pick means: its
 // Loot-Council profile (weighting and view) and, for a roster, the linked
 // Kader, with "Zum Roster" / "Zum Kader" for whoever may open them.
 import { Link } from "react-router-dom";
@@ -28,7 +28,8 @@ export function CouncilHead({ head, value, onPick, onProfiles }: {
             <div className="lc-head-pick">
                 <label className="kicker" htmlFor="lc-head-pick">{t("lootcouncil.head.pick")}</label>
                 <select id="lc-head-pick" className="lc-sel lc-head-sel" value={value} onChange={(e) => onPick(pickFields(e.target.value))}>
-                    <option value="">{t("lootcouncil.filter.allCategories")}</option>
+                    {/* every raid with a council is a tile of the overview - "all" is only left for a link without a pick */}
+                    {value === "" ? <option value="">{t("lootcouncil.filter.allCategories")}</option> : null}
                     {!known ? <option value={value}>{t("lootcouncil.head.unknownPick")}</option> : null}
                     {head.rosters.length ? (
                         <optgroup label={t("lootcouncil.head.rosters")}>

@@ -635,6 +635,30 @@ export function getLootCouncil(filter: CouncilFilter = {}): Promise<LootCouncilD
 }
 
 /**
+ * One tile of the council's entry (Oct 2026): a roster with loot system Loot-Council, or a
+ * category without roster on Loot-Council. `members` only for a roster (in it = core + trial).
+ */
+export type CouncilOverviewTile = {
+    kind: "roster" | "category";
+    id: string;
+    name: string;
+    categoryId: string;
+    categoryName: string;
+    versionId: string;
+    versionLabel: string;
+    profileName: string;
+    members: { roster: number; bench: number; pause: number } | null;
+    nextRaid: { id: string; title: string; startTime: number } | null;
+};
+
+export type CouncilOverview = { versionId: string; tiles: CouncilOverviewTile[] };
+
+/** The tiles of the council's entry, of the menu's version — cheap, no council is built (GET /api/lootcouncil/overview). */
+export function getLootCouncilOverview(version?: string): Promise<CouncilOverview> {
+    return get<CouncilOverview>(`/api/lootcouncil/overview${version ? `?version=${encodeURIComponent(version)}` : ""}`);
+}
+
+/**
  * The council's filters, stored on the server per Loot-Council profile (#676) —
  * the in-game addon gets its council with exactly these (GET /api/ingest/council).
  * `role` "" = every role, `version` "" = the main version.

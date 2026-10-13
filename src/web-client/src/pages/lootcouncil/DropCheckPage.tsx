@@ -22,7 +22,7 @@ import { useTableSort } from "../../lib/ui/tableSort";
 import { refreshWowheadLinks } from "../../lib/wow/wowheadTooltips";
 import { itemQualityProps } from "../../lib/wow/itemQuality";
 import {
-    CANDIDATE_SORT, FILTER_DEFAULT, VIEW_KEY, WOWHEAD, dropHref, pickVerdict, raiderHref, useCouncilSim, waitedTip,
+    CANDIDATE_SORT, FILTER_DEFAULT, VIEW_KEY, WOWHEAD, councilHref, dropHref, pickVerdict, raiderHref, useCouncilSim, waitedTip,
     type CandidateSortKey, type FilterView } from "./council";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { WowheadPathProvider } from "../../lib/settings/versionLinks";
@@ -187,7 +187,7 @@ export default function DropCheckPage() {
         <WowheadPathProvider path={wowheadPath}>
         <NeedWeightsProvider weights={weights}>
             <div className="page-head lc-drophead">
-                <Button variant="ghost" size="sm" icon={<ChevronLeftIcon />} onClick={() => navigate("/lootcouncil")}>{t("lootcouncil.drop.back")}</Button>
+                <Button variant="ghost" size="sm" icon={<ChevronLeftIcon />} onClick={() => navigate(councilHref({ roster: view.roster || "", category: view.category }))}>{t("lootcouncil.drop.back")}</Button>
                 <div className="ph-text">
                     <div className="kicker">{t("lootcouncil.drop.kicker")}</div>
                     <h1>{t("lootcouncil.drop.title")}</h1>

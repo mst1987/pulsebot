@@ -215,7 +215,7 @@ describe("loot council — the raider dialog", () => {
     });
 
     it("asks before setting a raider aside from the details", () => {
-        expect(fn(page, "LootCouncilPage")).toMatch(/const excludeFromDialog = async \(character: string\) => \{\s*const ok = await ask\(\{/);
+        expect(fn(page, "CouncilPage")).toMatch(/const excludeFromDialog = async \(character: string\) => \{\s*const ok = await ask\(\{/);
     });
 });
 

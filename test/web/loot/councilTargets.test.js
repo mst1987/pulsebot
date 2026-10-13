@@ -13,9 +13,10 @@ const fs = require("fs");
 const rosterStore = require("../../../src/stores/rosterStore");
 const profilesStore = require("../../../src/stores/councilProfilesStore");
 const { kaderChoices } = require("../../../src/services/roster/rosterCreate");
-const { councilHead, councilRosters } = require("../../../src/web/loot/councilTargets");
+const eventStore = require("../../../src/stores/eventStore");
+const { councilHead, councilRosters, councilCategories, councilOverview } = require("../../../src/web/loot/councilTargets");
 
-const CONFIG = { categoryIds: ["cA", "cB", "cC"], categoryLootSystem: { cA: "lootcouncil", cB: "softres" } };
+const CONFIG = { categoryIds: ["cA", "cB", "cC"], categoryLootSystem: { cA: "lootcouncil", cB: "softres", cC: "lootcouncil" } };
 const ADMIN = { id: "1", isAdmin: true };
 const COUNCIL = { id: "2", isAdmin: false, access: { lootcouncil: { read: true, write: false } } };
 
@@ -43,6 +44,48 @@ describe("web/loot/councilTargets", () => {
             { id: solo.id, name: "PuG", categoryId: "", categoryName: "", profileId: "standard", profileName: "Standard" },
         ]);
         expect(head.categories).toEqual([{ id: "cC", name: "Montag", profileId: "standard", profileName: "Standard" }]);
+    });
+
+    it("offers no category without roster that runs on another loot system - but keeps one picked through a link", () => {
+        const softres = { ...CONFIG, categoryLootSystem: { cA: "lootcouncil", cB: "softres", cC: "softres" } };
+        expect(councilCategories("g1", softres)).toEqual([]);
+        expect(councilHead({ guildId: "g1", user: ADMIN, opts: {}, config: softres }).categories).toEqual([]);
+        const linked = councilHead({ guildId: "g1", user: ADMIN, opts: { categoryId: "cC" }, config: softres });
+        expect(linked.categories.map((c) => c.id)).toEqual(["cC"]);
+        // the RCLootcouncil addon means Loot-Council while nobody picked a system
+        expect(councilCategories("g1", { categoryIds: ["cC"], categoryLootTool: { cC: "rclc" } }).map((c) => c.id)).toEqual(["cC"]);
+    });
+
+    describe("councilOverview: the page's tiles", () => {
+        const NOW = Date.UTC(2026, 9, 13, 12);
+        const at = (days) => Math.floor(NOW / 1000) + days * 86400;
+
+        it("gives a tile per Loot-Council roster and per Loot-Council category without roster - rosters first, by name", () => {
+            rosterStore.upsertMember(mi.id, "u1", { status: "core" });
+            rosterStore.upsertMember(mi.id, "u2", { status: "trial" });
+            rosterStore.upsertMember(mi.id, "u3", { status: "bench" });
+            eventStore.createEvent({ guildId: "g1", categoryId: "cA", channelId: "c", title: "Später", startTime: at(9) });
+            eventStore.createEvent({ guildId: "g1", categoryId: "cA", channelId: "c", title: "Mittwoch", startTime: at(2) });
+            eventStore.createEvent({ guildId: "g1", categoryId: "cA", channelId: "c", title: "Gestern", startTime: at(-1) });
+            const { tiles } = councilOverview({ guildId: "g1", config: CONFIG, now: NOW });
+            expect(tiles.map((t) => `${t.kind}:${t.name}`)).toEqual(["roster:Mi-Roster", "roster:PuG", "category:Montag"]);
+            expect(tiles[0]).toMatchObject({
+                id: mi.id, categoryId: "cA", categoryName: "Mittwoch", versionId: "tbc", profileName: "Main T6",
+                members: { roster: 2, bench: 1, pause: 0 }, nextRaid: { title: "Mittwoch", startTime: at(2) },
+            });
+            expect(tiles[0].versionLabel).toBeTruthy();
+            // a roster without category has no raid to name
+            expect(tiles[1]).toMatchObject({ categoryId: "", categoryName: "", nextRaid: null, members: { roster: 0, bench: 0, pause: 0 } });
+            expect(tiles[2]).toMatchObject({ id: "cC", categoryName: "Montag", members: null, nextRaid: null });
+        });
+
+        it("skips a cancelled raid and shows nothing on Softres", () => {
+            const cancelled = eventStore.createEvent({ guildId: "g1", categoryId: "cC", channelId: "c", title: "Abgesagt", startTime: at(1) }).event;
+            eventStore.setEventState(cancelled.id, { status: "cancelled" });
+            const { tiles } = councilOverview({ guildId: "g1", config: CONFIG, now: NOW });
+            expect(tiles.find((t) => t.id === "cC").nextRaid).toBeNull();
+            expect(tiles.map((t) => t.name)).not.toContain("So-Roster");
+        });
     });
 
     it("names the roster, its profile and the linked Kader for a full admin", () => {
@@ -75,7 +118,7 @@ describe("web/loot/councilTargets", () => {
     // roster or category in the Forever council, and the other way round.
     describe("with the page's version", () => {
         const VERSIONED = {
-            categoryIds: ["cA", "cB", "cC", "cD"], categoryLootSystem: { cA: "lootcouncil", cB: "softres", cC: "lootcouncil" },
+            categoryIds: ["cA", "cB", "cC", "cD"], categoryLootSystem: { cA: "lootcouncil", cB: "softres", cC: "lootcouncil", cD: "lootcouncil" },
             mainVersion: "forever", categoryVersion: { cA: "tbc", cB: "tbc", cC: "forever", cD: "forever" },
         };
         let fo;

@@ -725,5 +725,23 @@
             "profile_limit": "Mehr als 50 Profile gehen nicht.",
             "not_found": "Das Profil gibt es nicht mehr."
         }
+    },
+    "overview": {
+        "kicker": "{count} Raids mit Loot-Council",
+        "cardsAria": "Raids mit Loot-Council",
+        "back": "Zur Übersicht",
+        "loading": "Lade die Raids mit Loot-Council …",
+        "inRoster": "Im Roster",
+        "persons": "Personen",
+        "bench": "dazu {count} auf der Bank",
+        "noRoster": "Kein Roster – alle Anmeldungen zählen",
+        "nextRaid": "Nächster Raid",
+        "noRaid": "Kein Raid geplant",
+        "noCategory": "ohne Kategorie",
+        "withoutRoster": "Kategorie ohne Roster",
+        "profileTip": "Das Loot-Council-Profil: Gewichtung und Ansicht dieses Councils",
+        "open": "Council öffnen",
+        "empty": "Noch kein Raid nutzt Loot-Council.",
+        "emptyHint": "Das Loot-System stellst du in den Roster-Einstellungen ein – oder für eine Kategorie ohne Roster unter Einstellungen → Kategorien. Raids mit Softres oder GDKP erscheinen hier nicht."
     }
 }

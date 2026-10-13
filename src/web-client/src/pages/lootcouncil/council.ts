@@ -62,6 +62,16 @@ export const WOWHEAD = (id: number, path: string = LEGACY_WOWHEAD_PATH) => wowhe
  */
 export const raiderHref = (character: string) => `/lootcouncil?raider=${encodeURIComponent(character)}`;
 
+/**
+ * The council of one pick (Oct 2026: the pick lives in the url, plain /lootcouncil is the tile
+ * overview): `?roster=<id>`, else `?category=<id>`, else the overview.
+ */
+export function councilHref(pick: { roster?: string; category?: string }): string {
+    if (pick.roster) return `/lootcouncil?roster=${encodeURIComponent(pick.roster)}`;
+    if (pick.category) return `/lootcouncil?category=${encodeURIComponent(pick.category)}`;
+    return "/lootcouncil";
+}
+
 /** The drop check for one item — its own route, so a drop can be shared as a link. */
 export const dropHref = (itemId?: number) => (itemId ? `/lootcouncil/drop/${itemId}` : "/lootcouncil/drop");
 

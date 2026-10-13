@@ -48,7 +48,7 @@ const { getConfig } = require("../../stores/settingsStore");
 const { mainVersionFor, resolveVersionQuery } = require("../../services/events/mainVersion");
 const { councilOptsFromQuery, pageCouncilOpts, categoryOptions, pickVersion } = require("../loot/councilQuery");
 const { buildCouncilView, councilCategoryIds } = require("../loot/councilView");
-const { councilHead, councilRosters } = require("../loot/councilTargets");
+const { councilHead, councilRosters, councilOverview } = require("../loot/councilTargets");
 const { councilContent: councilContentFor, featureState } = require("../../services/events/versionCapabilities");
 const { knownVersion } = require("../../services/events/mainVersion");
 const { versionLinks } = require("../../services/events/versionSettings");
@@ -60,6 +60,19 @@ const { versionLinks } = require("../../services/events/versionSettings");
  * candidates and profile), role, tiers, contents, category, bisTier, bench
  * (Ersatz from the roster as candidates), item (candidates for one item)
  */
+/**
+ * GET /api/lootcouncil/overview?version= — the page's entry (Oct 2026): one tile per
+ * roster with loot system Loot-Council and per category without roster on
+ * Loot-Council, of the menu's version (councilTargets.councilOverview). No gear,
+ * no needs - a tile opens the council itself (GET /api/lootcouncil).
+ */
+const getOverview = withUser({}, async ({ user, req, res, url }) => {
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
+    const config = getConfig();
+    const { versionId } = resolveVersionQuery(url.searchParams.get("version"), { config });
+    ok(res, { versionId, ...councilOverview({ guildId: activeGuildFor(req), config, versionId }) });
+});
+
 const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
 
@@ -635,6 +648,7 @@ const getLootCouncilSim = withUser({}, async ({ user, res, url }) => {
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "GET", path: "/api/lootcouncil", handler: getLootCouncil, area: "lootcouncil" },
+    { method: "GET", path: "/api/lootcouncil/overview", handler: getOverview, area: "lootcouncil" },
     { method: "GET", path: "/api/lootcouncil/export", handler: getExport, area: "lootcouncil" },
     { method: "POST", path: "/api/lootcouncil/exclude", handler: postExclude, area: "lootcouncil" },
     { method: "GET", path: "/api/lootcouncil/item-search", handler: getItemSearch, area: "lootcouncil" },
@@ -654,7 +668,7 @@ const routes = [
 ];
 
 module.exports = {
-    getLootCouncil, postLootCouncilSim, getLootCouncilSim,
+    getLootCouncil, getOverview, postLootCouncilSim, getLootCouncilSim,
     getItemSearch, getBisLists, postExclude, postRole, getExport, postArmoryRefresh, postLogGear,
     getViews, postView, getProfiles, getProfile, postProfileCreate, postProfileUpdate, postProfileDelete,
     routes,

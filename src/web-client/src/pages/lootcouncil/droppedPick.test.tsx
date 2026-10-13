@@ -1,7 +1,8 @@
 // A council pick of another version (#741/#563): the server answers with "Alle
 // Raid-Kategorien" of the menu's version and names the pick; the page forgets a
-// stale pick and follows a link into the roster's version when the menu offers it.
-import { screen, waitFor } from "@testing-library/react";
+// stale pick (back to the overview's tiles, Oct 2026) and follows a link into the
+// roster's version when the menu offers it.
+import { waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { LootCouncilData } from "../../api";
@@ -17,6 +18,7 @@ vi.mock("../../api", async (orig) => ({
     getBisLists: vi.fn(),
     searchCouncilItems: vi.fn(),
     getCouncilViews: vi.fn(),
+    getLootCouncilOverview: vi.fn(async () => ({ versionId: "forever", tiles: [] })),
 }));
 
 const TBC_ROSTER = { kind: "roster" as const, id: "montag", versionId: "tbc" };
@@ -51,15 +53,17 @@ beforeEach(() => {
 });
 
 describe("the council page with a pick of another version", () => {
-    it("forgets a stored TBC roster in the Forever menu and asks again for the whole Forever council", async () => {
+    it("forgets a stored TBC roster in the Forever menu and goes back to the Forever overview", async () => {
         localStorage.setItem(`eh-${VIEW_KEY}`, JSON.stringify({ roster: "montag", category: "" }));
         vi.mocked(api.getLootCouncil).mockImplementation(async (filter) => (filter && filter.roster ? droppedData() : councilData()));
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil", content: FOREVER_MAIN });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster", content: FOREVER_MAIN });
         await waitFor(() => expect(api.getLootCouncil).toHaveBeenCalledWith(expect.objectContaining({ roster: "montag", version: "forever" })));
-        await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ roster: "", category: "", version: "forever" })));
-        expect(await screen.findByLabelText("Council für")).toHaveValue("");
         // the views are asked for the menu's version: a TBC roster has no target there
         expect(api.getCouncilViews).toHaveBeenCalledWith("forever");
+        // the pick is forgotten and the page is the tiles of the Forever councils
+        await waitFor(() => expect(api.getLootCouncilOverview).toHaveBeenCalledWith("forever"));
+        expect(JSON.parse(localStorage.getItem(`eh-${VIEW_KEY}`) || "{}")).toMatchObject({ roster: "", category: "" });
+        expect(api.getLootCouncil).not.toHaveBeenCalledWith(expect.objectContaining({ roster: "", category: "" }));
     });
 
     it("follows a link to a TBC roster into TBC when the menu offers it", async () => {
@@ -71,7 +75,7 @@ describe("the council page with a pick of another version", () => {
     it("forgets a link to a roster of a hidden version", async () => {
         vi.mocked(api.getLootCouncil).mockImplementation(async (filter) => (filter && filter.roster ? droppedData() : councilData()));
         renderPage(<LootCouncilPage />, { route: "/lootcouncil?roster=montag", content: { ...FOREVER_MAIN, hideOtherVersions: true, versions: [FOREVER_MAIN.versions[0]] } });
-        await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ roster: "", version: "forever" })));
+        await waitFor(() => expect(api.getLootCouncilOverview).toHaveBeenCalledWith("forever"));
         expect(api.getLootCouncil).not.toHaveBeenCalledWith(expect.objectContaining({ version: "tbc" }));
     });
 });
