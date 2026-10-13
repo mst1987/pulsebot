@@ -3,7 +3,10 @@
     "loading": "Looking for the newest versions …",
     "version": "v{version}",
     "news": "What's new?",
-    "empty": "There are no addons to download for {version} right now.",
+    "empty": "There are no addons here for {version}.",
+    "emptyElsewhere": "Addons exist for: {versions}. Switch the version in the bar at the top.",
+    "loadError": "The addons could not be loaded right now.",
+    "retry": "Try again",
     "limit": "Downloads only after login, at most {count} downloads per hour.",
     "state": {
         "noRelease": "No release yet. As soon as there is one, it shows up here.",
@@ -16,6 +19,7 @@
         "tokenMissing": "The GitHub token for the private repo {repo} is missing. Members see \"Not available right now\".",
         "tokenBanner": "The GitHub token for the private addons is missing.",
         "toSettings": "Set up the token",
+        "toAddonSettings": "Set up addons",
         "error": {
             "unauthorized": "GitHub refuses the token: invalid or expired.",
             "forbidden": "The GitHub token has no access to this repo.",
@@ -62,6 +66,12 @@
         "deleteAsk": "Remove {name}?",
         "deleteText": "The page \"Addons\" no longer offers it. The repo on GitHub stays as it is.",
         "tokenHint": "Private addons need the GitHub token.",
-        "toConnections": "To the connections"
+        "toConnections": "To the connections",
+        "restore": "Restore defaults",
+        "restoreTip": "Resets the list to the three own addons: LevelHelper, ProfessionKit and EventHelper Sync.",
+        "restoreAsk": "Restore the default addons?",
+        "restoreText": "The list is replaced by the three own addons (LevelHelper, ProfessionKit, EventHelper Sync). Own entries and changes are lost. The GitHub token stays.",
+        "restoreAction": "Restore",
+        "restored": "Default addons restored."
     }
 }

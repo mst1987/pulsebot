@@ -106,6 +106,32 @@ describe("AddonsSection", () => {
         await user.click(within(dialog).getByRole("button", { name: /Löschen/ }));
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
         expect(vi.mocked(api.updateSettings).mock.calls[0][0].addonDownloads!.map((a) => a.id)).toEqual(["levelhelper"]);
+        // the list goes alone: the server refuses it next to any other setting
+        expect(Object.keys(vi.mocked(api.updateSettings).mock.calls[0][0])).toEqual(["addonDownloads"]);
+    });
+
+    it("restores the default addons after asking", async () => {
+        const user = userEvent.setup();
+        const onConfig = vi.fn();
+        renderPage(<AddonsSection data={data({ addonDownloads: [] })} onConfig={onConfig} />, { route: "/settings?section=addons" });
+        expect(screen.getByText("Noch keine Addons. Die Seite „Addons“ bleibt leer.")).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Standard wiederherstellen" }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByText("Standard-Addons wiederherstellen?")).toBeInTheDocument();
+        await user.click(within(dialog).getByRole("button", { name: /Wiederherstellen/ }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledWith({ addonDownloadsReset: true }));
+        expect(onConfig).toHaveBeenCalled();
+        expect(await screen.findByText("Standard-Addons wiederhergestellt.")).toBeInTheDocument();
+    });
+
+    it("leaves the list alone when the restore is cancelled", async () => {
+        const user = userEvent.setup();
+        renderPage(<AddonsSection data={data()} onConfig={vi.fn()} />, { route: "/settings?section=addons" });
+        await user.click(screen.getByRole("button", { name: "Standard wiederherstellen" }));
+        const dialog = await screen.findByRole("dialog");
+        await user.click(within(dialog).getByRole("button", { name: "Abbrechen" }));
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+        expect(api.updateSettings).not.toHaveBeenCalled();
     });
 
     it("speaks English", async () => {

@@ -605,14 +605,62 @@ describe("web/apiRoutes/settings", () => {
                     { name: "LevelHelper", repo: "https://github.com/mst1987/levelhelper", versions: ["forever", "x"], assets: "LevelHelper-*.zip" },
                     { name: "", repo: "a/b" },
                 ] });
+                // an edit: the list and the edit mark, so an emptied list may stay empty
                 expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ addonDownloads: [expect.objectContaining({
                     id: "levelhelper", repo: "mst1987/levelhelper", versions: ["forever"], assets: ["LevelHelper-*.zip"], enabled: true,
-                })] });
+                })], addonDownloadsCustomized: true });
                 expect(settingsStore.saveConfig.mock.calls.at(-1)[0].addonDownloads).toHaveLength(1);
                 settingsStore.saveConfig.mockClear();
                 const res = await patch("/api/settings", { addonDownloads: "nope" });
                 expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            it("lets an admin empty the addon list on purpose, the last addon removed", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                await patch("/api/settings", { addonDownloads: [] });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ addonDownloads: [], addonDownloadsCustomized: true });
+            });
+
+            it("never wipes the addon list from a save that carries it along with other settings", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                let res = await patch("/api/settings", { github: { token: "github_pat_NEW" }, addonDownloads: [] });
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(json(res).error.code).toBe("invalid_addons");
+                res = await patch("/api/settings", { officerRoleId: "o", addonDownloads: [] });
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            it("refuses a list of which no entry is an addon instead of storing it empty", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                const res = await patch("/api/settings", { addonDownloads: [{ name: "", repo: "" }, { id: "x" }] });
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            it("saves the GitHub token without touching the addon list", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                await patch("/api/settings", { github: { token: "github_pat_NEW" } });
+                const sent = settingsStore.saveConfig.mock.calls.at(-1)[0];
+                expect(sent).toEqual({ github: { token: "github_pat_NEW" } });
+                expect(sent).not.toHaveProperty("addonDownloads");
+            });
+
+            it("restores the default addons on \"Standard wiederherstellen\" and clears the edit mark", async () => {
+                const { defaultAddons } = require("../../../src/services/addons/addonConfig");
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                await patch("/api/settings", { addonDownloadsReset: true });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ addonDownloads: defaultAddons(), addonDownloadsCustomized: false });
+                settingsStore.saveConfig.mockClear();
+                // the edit mark cannot be set from outside
+                await patch("/api/settings", { addonDownloadsCustomized: true });
+                expect(settingsStore.saveConfig.mock.calls.at(-1)[0]).toEqual({});
             });
 
             it("keeps the GitHub token and the addon list from a non-admin settings user", async () => {
@@ -629,6 +677,8 @@ describe("web/apiRoutes/settings", () => {
                 let res = await patch("/api/settings", { github: { token: "mine" } });
                 expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
                 res = await patch("/api/settings", { addonDownloads: [] });
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                res = await patch("/api/settings", { addonDownloadsReset: true });
                 expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });

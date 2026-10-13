@@ -13,7 +13,7 @@
 // which reads exactly like "no release yet".
 const crypto = require("crypto");
 const { fetchLatestRelease } = require("../../classes/githubReleases");
-const { assetMatches } = require("./addonConfig");
+const { assetMatches, VERSION_IDS } = require("./addonConfig");
 
 const CACHE_MS = 10 * 60 * 1000;
 const RETRY_MS = 2 * 60 * 1000;
@@ -90,6 +90,11 @@ async function releaseFor(addon, { config, now = Date.now(), force = false } = {
 function enabledAddons(config, versionId = "") {
     const list = Array.isArray(config && config.addonDownloads) ? config.addonDownloads : [];
     return list.filter((a) => a && a.enabled !== false && (!versionId || (a.versions || []).includes(versionId)));
+}
+
+/** The game versions with at least one enabled addon, in the rule sets' order - for the empty page's hint. */
+function addonVersions(config) {
+    return VERSION_IDS.filter((id) => enabledAddons(config, id).length > 0);
 }
 
 /** "zip" | "exe" | "file" — what the page says about installing a file. */
@@ -174,6 +179,6 @@ function resetAddonReleaseCache() {
 }
 
 module.exports = {
-    releaseFor, enabledAddons, addonCard, addonCards, resolveDownload, offeredAssets, kindOf, downloadPath,
+    releaseFor, enabledAddons, addonVersions, addonCard, addonCards, resolveDownload, offeredAssets, kindOf, downloadPath,
     tokenOf, tokenFingerprint, resetAddonReleaseCache, CACHE_MS, RETRY_MS,
 };

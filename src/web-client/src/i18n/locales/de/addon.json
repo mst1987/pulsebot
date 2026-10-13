@@ -3,7 +3,10 @@
     "loading": "Suche die neuesten Versionen …",
     "version": "v{version}",
     "news": "Was ist neu?",
-    "empty": "Für {version} gibt es gerade keine Addons zum Herunterladen.",
+    "empty": "Für {version} gibt es hier keine Addons.",
+    "emptyElsewhere": "Addons gibt es für: {versions}. Die Version wechselst du oben in der Leiste.",
+    "loadError": "Die Addons konnten gerade nicht geladen werden.",
+    "retry": "Erneut versuchen",
     "limit": "Herunterladen nur nach dem Login, höchstens {count} Downloads pro Stunde.",
     "state": {
         "noRelease": "Noch kein Release. Sobald es eins gibt, steht es hier.",
@@ -16,6 +19,7 @@
         "tokenMissing": "Für das private Repo {repo} fehlt der GitHub-Token. Mitglieder sehen „Gerade nicht verfügbar“.",
         "tokenBanner": "Für die privaten Addons fehlt der GitHub-Token.",
         "toSettings": "Token einrichten",
+        "toAddonSettings": "Addons einrichten",
         "error": {
             "unauthorized": "GitHub lehnt den Token ab: ungültig oder abgelaufen.",
             "forbidden": "Der GitHub-Token hat keinen Zugriff auf dieses Repo.",
@@ -62,6 +66,12 @@
         "deleteAsk": "{name} entfernen?",
         "deleteText": "Die Seite „Addons“ bietet es danach nicht mehr an. Das Repo auf GitHub bleibt, wie es ist.",
         "tokenHint": "Private Addons brauchen den GitHub-Token.",
-        "toConnections": "Zu den Verbindungen"
+        "toConnections": "Zu den Verbindungen",
+        "restore": "Standard wiederherstellen",
+        "restoreTip": "Setzt die Liste auf die drei eigenen Addons zurück: LevelHelper, ProfessionKit und EventHelper Sync.",
+        "restoreAsk": "Standard-Addons wiederherstellen?",
+        "restoreText": "Die Liste wird durch die drei eigenen Addons ersetzt (LevelHelper, ProfessionKit, EventHelper Sync). Eigene Einträge und Änderungen gehen dabei verloren. Der GitHub-Token bleibt.",
+        "restoreAction": "Wiederherstellen",
+        "restored": "Standard-Addons wiederhergestellt."
     }
 }

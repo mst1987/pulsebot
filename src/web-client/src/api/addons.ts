@@ -67,6 +67,8 @@ export type AddonsData = {
     /** Downloads per hour and account. */
     downloadLimit: number;
     addons: AddonCard[];
+    /** The game versions that have addons at all - the hint on an empty page. */
+    addonVersions?: { id: string; label: string }[];
 };
 
 /** The addons of a game version ("" = the server's main version). */

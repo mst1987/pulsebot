@@ -25,7 +25,7 @@ const {
     AREAS, normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,
 } = require("../../config/permissions");
 const { normalizeBotCommandAccess } = require("../../config/botCommands");
-const { normalizeAddonList } = require("../../services/addons/addonConfig");
+const { normalizeAddonList, defaultAddons } = require("../../services/addons/addonConfig");
 const { VERSIONS } = require("../../config/gameVersions");
 const versionSettings = require("../../services/events/versionSettings");
 const { capabilityMatrix } = require("../../services/events/versionCapabilities");
@@ -184,7 +184,9 @@ const CREDENTIAL_KEYS = ["anthropic", "warcraftlogsV2", "github"];
 
 // The addon downloads (#818): which repos the server fetches files from with
 // the GitHub token and hands to every member — guarded like the token itself.
-const ADDON_KEYS = ["addonDownloads"];
+// `addonDownloadsReset` is no config key, only the body's "Standard
+// wiederherstellen"; the edit mark is set by the server alone.
+const ADDON_KEYS = ["addonDownloads", "addonDownloadsCustomized", "addonDownloadsReset"];
 
 // Which Discord server is the event server and which the talk server (#251).
 // Full-admin only: the event server is where the admin-role check runs, so
@@ -444,6 +446,28 @@ function versionSettingsPatch(raw) {
 }
 
 /**
+ * The addon list of a PATCH (#818). Einstellungen -> Module -> Addons is the
+ * only sender and saves it on its own: the list sent whole (an edit, so the
+ * edit mark goes with it and an emptied list stays empty), or
+ * `addonDownloadsReset: true` for "Standard wiederherstellen" (the defaults,
+ * mark cleared). A body that carries the list along with anything else is no
+ * edit of it and is refused, as is a list of which no entry survives the
+ * normaliser - neither may ever wipe the page "Addons". No list = nothing.
+ * @returns {{ partial: object } | { error: string }}
+ */
+function addonListPatch(body) {
+    const reset = body.addonDownloadsReset === true;
+    if (body.addonDownloads === undefined && !reset) return { partial: {} };
+    const others = Object.keys(body).filter((k) => !ADDON_KEYS.includes(k));
+    if (others.length) return { error: "Die Addon-Liste wird nur für sich gespeichert, nicht zusammen mit anderen Einstellungen." };
+    if (reset) return { partial: { addonDownloads: defaultAddons(), addonDownloadsCustomized: false } };
+    if (!Array.isArray(body.addonDownloads)) return { error: "addonDownloads muss eine Liste sein." };
+    const list = normalizeAddonList(body.addonDownloads);
+    if (body.addonDownloads.length && !list.length) return { error: "Kein Eintrag der Liste ist ein gültiges Addon (Name und Repo fehlen)." };
+    return { partial: { addonDownloads: list, addonDownloadsCustomized: true } };
+}
+
+/**
  * PATCH /api/settings — merge-updates the admin config. Only keys present in
  * the body are changed (saveConfig() itself merges raidDefaults/blizzard).
  * blizzard.clientSecret: omit to keep the stored secret, send "" to clear it,
@@ -509,11 +533,10 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (body.github !== undefined && body.github && typeof body.github === "object" && body.github.token !== undefined) {
         partial.github = { token: String(body.github.token || "").trim() };
     }
-    // The addon list (#818): sent whole, normalised (unusable entries dropped), replaces the stored one.
-    if (body.addonDownloads !== undefined) {
-        if (!Array.isArray(body.addonDownloads)) return error(res, 400, "invalid_addons", "addonDownloads muss eine Liste sein.");
-        partial.addonDownloads = normalizeAddonList(body.addonDownloads);
-    }
+    // The addon list (#818): only its own section sends it, alone (addonListPatch).
+    const addons = addonListPatch(body);
+    if (addons.error) return error(res, 400, "invalid_addons", addons.error);
+    Object.assign(partial, addons.partial);
     if (body.categoryLootTool !== undefined) partial.categoryLootTool = normalizeCategoryLootTool(body.categoryLootTool);
     if (body.categoryLootSystem !== undefined) partial.categoryLootSystem = normalizeCategoryLootSystemPatch(body.categoryLootSystem);
     if (body.categorySignupSource !== undefined) partial.categorySignupSource = normalizeCategorySignupSource(body.categorySignupSource);

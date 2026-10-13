@@ -20,9 +20,11 @@ import "../../styles/addon.css";
 
 // Einstellungen → Module → Addons (#818): the addons of the page "Addons" —
 // one row each, one editor at a time (docs/web-admin.md, "Editing a
-// collection"). The list is saved whole (PATCH /api/settings { addonDownloads }),
-// full admins only like the GitHub token it is fetched with. The token itself
-// lives under Verbindungen; this section only says whether it is set.
+// collection"). The list is saved whole and alone (PATCH /api/settings
+// { addonDownloads } - the server refuses it next to anything else, so no other
+// save can ever wipe it), full admins only like the GitHub token it is fetched
+// with. "Standard wiederherstellen" sends { addonDownloadsReset: true }. The
+// token itself lives under Verbindungen; this section only says whether it is set.
 
 type Version = { id: string; label: string; short: string };
 
@@ -58,24 +60,24 @@ function AddonForm({ addon, versions, onSave, onCancel }: {
     return (
         <form className="set-card set-form" onSubmit={submit}>
             <div className="set-grid">
-                <Field className="set-field" htmlFor="ad-name" label={t("addon.settings.name")}>
-                    <input id="ad-name" type="text" value={value.name} onChange={(e) => set({ name: e.target.value })} placeholder="LevelHelper" required />
+                <Field className="set-field" htmlFor="dlp-name" label={t("addon.settings.name")}>
+                    <input id="dlp-name" type="text" value={value.name} onChange={(e) => set({ name: e.target.value })} placeholder="LevelHelper" required />
                 </Field>
-                <Field className="set-field" htmlFor="ad-repo" label={t("addon.settings.repo")} tip={t("addon.settings.repo")} tipSub={t("addon.settings.repoSub")}>
-                    <input id="ad-repo" type="text" className="mono" value={value.repo} onChange={(e) => set({ repo: e.target.value })} placeholder="mst1987/levelhelper" required />
+                <Field className="set-field" htmlFor="dlp-repo" label={t("addon.settings.repo")} tip={t("addon.settings.repo")} tipSub={t("addon.settings.repoSub")}>
+                    <input id="dlp-repo" type="text" className="mono" value={value.repo} onChange={(e) => set({ repo: e.target.value })} placeholder="mst1987/levelhelper" required />
                 </Field>
             </div>
-            <Field className="set-field" htmlFor="ad-desc" label={t("addon.settings.description")}>
-                <textarea id="ad-desc" rows={2} value={value.description} onChange={(e) => set({ description: e.target.value })} placeholder={t("addon.settings.descriptionPlaceholder")} />
+            <Field className="set-field" htmlFor="dlp-desc" label={t("addon.settings.description")}>
+                <textarea id="dlp-desc" rows={2} value={value.description} onChange={(e) => set({ description: e.target.value })} placeholder={t("addon.settings.descriptionPlaceholder")} />
             </Field>
             <div className="set-grid">
-                <Field className="set-field" htmlFor="ad-assets" label={t("addon.settings.assets")} tip={t("addon.settings.assets")} tipSub={t("addon.settings.assetsSub")}>
-                    <input id="ad-assets" type="text" className="mono" value={assets} onChange={(e) => setAssets(e.target.value)} placeholder="LevelHelper-*.zip" />
+                <Field className="set-field" htmlFor="dlp-assets" label={t("addon.settings.assets")} tip={t("addon.settings.assets")} tipSub={t("addon.settings.assetsSub")}>
+                    <input id="dlp-assets" type="text" className="mono" value={assets} onChange={(e) => setAssets(e.target.value)} placeholder="LevelHelper-*.zip" />
                 </Field>
-                <Field className="set-field" htmlFor="ad-icon" label={t("addon.settings.icon")} tip={t("addon.settings.icon")} tipSub={t("addon.settings.iconSub")}>
-                    <span className="ad-icon-field">
+                <Field className="set-field" htmlFor="dlp-icon" label={t("addon.settings.icon")} tip={t("addon.settings.icon")} tipSub={t("addon.settings.iconSub")}>
+                    <span className="dlp-icon-field">
                         <WowIcon name={value.icon || "inv_misc_questionmark"} size={28} />
-                        <input id="ad-icon" type="text" className="mono" value={value.icon} onChange={(e) => set({ icon: e.target.value })} placeholder="inv_gizmo_01" />
+                        <input id="dlp-icon" type="text" className="mono" value={value.icon} onChange={(e) => set({ icon: e.target.value })} placeholder="inv_gizmo_01" />
                     </span>
                 </Field>
             </div>
@@ -89,8 +91,8 @@ function AddonForm({ addon, versions, onSave, onCancel }: {
                     ))}
                 </div>
             </div>
-            <Field className="set-field" htmlFor="ad-install" label={t("addon.settings.install")} tip={t("addon.settings.install")} tipSub={t("addon.settings.installSub")}>
-                <textarea id="ad-install" rows={2} value={value.install} onChange={(e) => set({ install: e.target.value })} />
+            <Field className="set-field" htmlFor="dlp-install" label={t("addon.settings.install")} tip={t("addon.settings.install")} tipSub={t("addon.settings.installSub")}>
+                <textarea id="dlp-install" rows={2} value={value.install} onChange={(e) => set({ install: e.target.value })} />
             </Field>
             <div className="set-grid">
                 <Switch checked={value.private} onChange={(v) => set({ private: v })} label={t("addon.settings.private")} tip={t("addon.settings.privateSub")} />
@@ -150,10 +152,23 @@ export default function AddonsSection({ data, onConfig }: {
         await save(list.filter((a) => a.id !== addon.id), t("addon.settings.deleted", { name: addon.name }));
     };
 
+    // "Standard wiederherstellen": the server puts its default list back (sent alone, like every save here).
+    const restore = async () => {
+        if (!(await ask({ title: t("addon.settings.restoreAsk"), text: t("addon.settings.restoreText"), action: t("addon.settings.restoreAction"), tone: "danger" }))) return;
+        try {
+            const { config } = await updateSettings({ addonDownloadsReset: true });
+            onConfig(config);
+            editor.close();
+            toast(t("addon.settings.restored"));
+        } catch (err) {
+            toast((err as ApiError).message, "err");
+        }
+    };
+
     return (
         <>
             {needsToken && !tokenSet && (
-                <div className="conn-status mid ad-token-hint">
+                <div className="conn-status mid dlp-token-hint">
                     <Badge tone="mid" icon={<WarnIcon />}>{t("settings.state.tokenMissing")}</Badge>
                     <span>{t("addon.settings.tokenHint")}</span>
                     <Link className={buttonClass("ghost", "sm")} to="/settings?section=verbindungen">{t("addon.settings.toConnections")}</Link>
@@ -184,7 +199,7 @@ export default function AddonsSection({ data, onConfig }: {
                             <tbody>
                                 {sorted.map((a) => (
                                     <tr key={a.id}>
-                                        <td><span className="ad-name-cell"><WowIcon name={a.icon} size={22} /><strong>{a.name}</strong></span></td>
+                                        <td><span className="dlp-name-cell"><WowIcon name={a.icon} size={22} /><strong>{a.name}</strong></span></td>
                                         <td className="small mono">{a.repo}{a.private ? ` · ${t("addon.settings.privateShort")}` : ""}</td>
                                         <td className="small">{a.versions.length ? a.versions.map(labelOf).join(", ") : t("addon.settings.noVersion")}</td>
                                         <td className="small mono">{a.assets.length ? a.assets.join(", ") : t("addon.settings.allFiles")}</td>
@@ -202,6 +217,11 @@ export default function AddonsSection({ data, onConfig }: {
                     </div>
                 ) : <div className="empty">{t("addon.settings.empty")}</div>}
             </ListSection>
+            <div className="dlp-restore">
+                <Button variant="ghost" size="sm" data-tip={t("addon.settings.restore")} data-tip-sub={t("addon.settings.restoreTip")} onClick={() => { void restore(); }}>
+                    {t("addon.settings.restore")}
+                </Button>
+            </div>
         </>
     );
 }

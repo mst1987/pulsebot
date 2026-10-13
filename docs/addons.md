@@ -15,13 +15,26 @@ Die Gilde lädt die eigenen Addons im Web herunter: **LevelHelper** (`mst1987/le
 | `src/web/apiRoutes/addons.js` | `GET /api/addons?version=` und `GET /api/addons/download?addon=<id>&asset=<datei>` (Parameter in der Query, wie jede `/api`-Route). |
 | `src/commands/lookup/addons.js` | `/addons [version]`: ephemere Karte mit Name, Version, Datum und Kurzbeschreibung je Addon und dem Knopf „Zur Download-Seite“. Nie ein Datei-Link: ein weitergeleiteter Link würde den Login umgehen. |
 | `src/web-client/src/pages/addon/AddonPage.tsx` | Die Seite, `lib/addons/addonInstall.ts` (Addon-Ordner je Version, Release-Notizen als reiner Text), `styles/addon.css`. |
-| `src/web-client/src/pages/settings/AddonsSection.tsx` | Einstellungen → Module → Addons (Liste, ein Editor zur Zeit, speichert die ganze Liste). |
+| `src/web-client/src/pages/settings/AddonsSection.tsx` | Einstellungen → Module → Addons (Liste, ein Editor zur Zeit, speichert die ganze Liste, „Standard wiederherstellen“). |
 
 ## Wer darf was
 
 - **Seite und Download:** Bereich `signup` (die Basisberechtigung jedes Mitglieds, „Profil & Anmeldung“) oder `history` (wer die alte Seite „Sync-Tool & Addon“ öffnen durfte). Ohne Login 401, ohne einen der beiden Bereiche 403 — der Download ist ein normaler `GET` mit der Sitzung, also ein `<a href download>`.
 - **Admin-Hinweise:** nur Voll-Admins bekommen `repo`, `private` und `tokenSet` in der Antwort und sehen auf der Karte, dass der Token fehlt oder abgelehnt wird; alle anderen lesen nur „Gerade nicht verfügbar“.
 - **Einstellungen:** `github` steht in `CREDENTIAL_KEYS`, `addonDownloads` in `ADDON_KEYS` (`apiRoutes/settings.js`) — beide nur für Voll-Admins (`FULL_ADMIN_KEYS`). `publicConfig()` macht aus dem Token `{ hasToken }`; `PATCH { github: { token } }` folgt dem Vertrag der anderen Geheimnisse (weglassen = behalten, `""` = löschen). Die Karte „GitHub (Addons)“ unter Verbindungen ist der Ort dafür; ohne Token zählt sie als „nicht eingerichtet“.
+
+## Die Addon-Liste wird nie aus Versehen leer
+
+- **Nur eine Bearbeitung ersetzt sie.** `PATCH /api/settings` nimmt `addonDownloads` nur **allein** an (`addonListPatch()` in `apiRoutes/settings.js`): neben irgendeiner anderen Einstellung ist es 400 `invalid_addons`, ebenso eine Liste, von der der Normalisierer nichts übrig lässt. Fehlt das Feld, bleibt die Liste, wie sie ist (der Token-Save schickt nur `{ github: { token } }`). Eine angenommene Liste setzt `addonDownloadsCustomized: true`.
+- **Der Store verlangt das Kennzeichen.** `saveConfig()` ersetzt die Liste nur, wenn `addonDownloadsCustomized` mitkommt; eine mitgeschleppte Liste ohne es wird ignoriert.
+- **Selbstheilung.** `storedAddonList()` (`addonConfig.js`): nie gespeichert = Standardliste; eine **leere** Liste gilt nur mit `addonDownloadsCustomized: true` (ein Admin hat das letzte Addon entfernt), sonst liest sie sich wieder als die Standardliste. Einzelne Addons entfernen bleibt möglich.
+- **„Standard wiederherstellen“** (Einstellungen → Module → Addons, mit Rückfrage) schickt `{ addonDownloadsReset: true }`: der Server schreibt `defaultAddons()` und löscht das Kennzeichen.
+
+## Leere Seite gibt es nicht
+
+- Keine Addons für die Version: „Für <Version> gibt es hier keine Addons.“, dazu die Versionen, die welche haben (`addonVersions` der Antwort, z. B. auf Classic), und für Voll-Admins der Knopf „Addons einrichten“ (`/settings?section=addons`).
+- Fehler der Anfrage: Meldung mit „Erneut versuchen“ (`useApi().reload`).
+- **Klassen nie mit `ad-` beginnen.** Die Seite hieß zuerst `ad-grid`/`ad-card`; EasyList (Standardliste von uBlock Origin, AdBlock Plus, Brave …) blendet genau `.ad-card` und `.ad-grid` aus. Mit Werbeblocker blieben Kopf und Fußzeile, alle Karten fehlten ohne jede Meldung. Das Präfix ist jetzt `dlp-` (download page); `test/web-client/conventions/adBlockClasses.test.js` verbietet `ad-`, `ads-`, `advert…`, `sponsor…` im ganzen Client.
 
 ## Download über den Server
 
@@ -39,4 +52,4 @@ Fine-grained Personal Access Token auf github.com (Settings → Developer settin
 
 ## Tests
 
-`test/classes/githubReleases.test.js`, `test/services/addons/*.test.js`, `test/web/apiRoutes/addons.test.js` (Router, Bereiche, Stream, Limit, kein Token in Antwort und Log), `test/web/apiRoutes/settings.test.js` (Maskierung, Vertrag, nur Voll-Admins), `test/commands/lookup/addons.test.js`; im Client `pages/addon/AddonPage.test.tsx` und `pages/settings/AddonsSection.test.tsx`.
+`test/classes/githubReleases.test.js`, `test/services/addons/*.test.js`, `test/web/apiRoutes/addons.test.js` (Router, Bereiche, Stream, Limit, kein Token in Antwort und Log), `test/web/apiRoutes/settings.test.js` (Maskierung, Vertrag, nur Voll-Admins, Liste nur allein, Wiederherstellen), `test/stores/configStore.test.js` (Selbstheilung, kein Löschen durch fremde Saves), `test/web-client/conventions/adBlockClasses.test.js`, `test/commands/lookup/addons.test.js`; im Client `pages/addon/AddonPage.test.tsx` und `pages/settings/AddonsSection.test.tsx`.
