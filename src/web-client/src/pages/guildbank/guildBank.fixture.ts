@@ -4,7 +4,7 @@ import type { GuildBank, GuildBankItem, GuildBankPageData } from "../../api";
 export function bankItem(over: Partial<GuildBankItem> = {}): GuildBankItem {
     return {
         itemId: 1, count: 10, tabs: { 2: 10 }, totalCount: 10, allTabs: { 2: 10 }, tabHidden: false,
-        status: "give", reserve: 0, maxPerRequest: 0, category: "", firstSeenAt: 1,
+        status: "give", reserve: 0, maxPerRequest: 0, portion: 2, category: "", firstSeenAt: 1,
         name: "Bold Living Ruby", icon: "inv_jewelcrafting_livingruby_03", iconUrl: "https://example.test/ruby.jpg",
         quality: 3, classId: 3, subclassId: 0, className: "Gems", subclassName: "Red", metaSource: "wowhead",
         reserved: 0, handedOut: 0, available: 10, open: 0, free: 10, waiting: 0, waitingAmount: 0, emojiId: "", group: "Edelsteine", autoGroup: "Edelsteine",

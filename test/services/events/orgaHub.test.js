@@ -132,6 +132,41 @@ describe("services/events/orgaHub postHub / removeHub", () => {
     });
 });
 
+describe("services/events/orgaHub saveLinks", () => {
+    const A = { label: "WCL", url: "https://www.warcraftlogs.com/guild/x" };
+
+    beforeEach(() => {
+        for (const cat of ["cat1", "cat7"]) store.setLinks(cat, []);
+    });
+
+    it("shows the links in the hub's payload", () => {
+        store.setLinks("cat1", [A]);
+        const p = hub.currentPayload("cat1", {}, { now: NOW });
+        expect(JSON.stringify(p)).toContain(A.url);
+        expect(JSON.stringify(hub.currentPayload("cat2", {}, { now: NOW }))).not.toContain(A.url);
+    });
+
+    it("saves and redraws that category's posted hub at once", async () => {
+        discord.postPayload.mockResolvedValue(posted("m1", "c1"));
+        await hub.postHub({ categoryId: "cat1", channelId: "c1", now: NOW });
+        discord.editPayload.mockResolvedValue(posted());
+        expect(await hub.saveLinks("cat1", [A])).toEqual({ links: [A] });
+        expect(discord.editPayload).toHaveBeenCalledTimes(1);
+        expect(JSON.stringify(discord.editPayload.mock.calls[0][2])).toContain(A.url);
+        expect(store.getLinks("cat1")).toEqual([A]);
+        // the new fingerprint is remembered, so the sweep leaves it alone
+        expect(await hub.refreshHubs()).toMatchObject({ edited: 0, unchanged: 1 });
+    });
+
+    it("refuses bad links without saving or redrawing, and saves for a category without a hub", async () => {
+        expect(await hub.saveLinks("cat1", [{ label: "X", url: "ftp://x" }])).toEqual({ error: expect.stringContaining("https://") });
+        expect(discord.editPayload).not.toHaveBeenCalled();
+        expect(store.getLinks("cat1")).toEqual([]);
+        expect(await hub.saveLinks("cat7", [A])).toEqual({ links: [A] });
+        expect(discord.editPayload).not.toHaveBeenCalled();
+    });
+});
+
 describe("services/events/orgaHub refreshHubs", () => {
     beforeEach(() => {
         discord.postPayload.mockResolvedValue(posted("m1", "c1"));

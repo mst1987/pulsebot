@@ -158,6 +158,18 @@ describe("apiRoutes/guildBank", () => {
             expect(queueItemEmojiSync).toHaveBeenCalledTimes(1);
         });
 
+        it("sets the waiting list's portion per turn (default 2) and refuses one out of range", async () => {
+            const bank = record("Alpha", "g1");
+            let res = await call(postGuildBankItem, { payload: { key: bank.key, itemId: 22854, status: "give" } });
+            expect(body(res).item.portion).toBe(2);
+            res = await call(postGuildBankItem, { payload: { key: bank.key, itemId: 22854, portion: 4 } });
+            expect([status(res), body(res).item.portion]).toEqual([200, 4]);
+            res = await call(postGuildBankItem, { payload: { key: bank.key, itemId: 22854, portion: 0 } });
+            expect(body(res).item.portion).toBe(2);
+            res = await call(postGuildBankItem, { payload: { key: bank.key, itemId: 22854, portion: 100 } });
+            expect([status(res), body(res).error.message]).toEqual([400, "Die Portion pro Runde muss eine ganze Zahl von 1 bis 99 sein."]);
+        });
+
         it("refuses wrong values, an empty change, unknown items and another server's bank", async () => {
             const bank = record("Alpha", "g1");
             const other = record("Beta", "g2");
@@ -188,7 +200,7 @@ describe("apiRoutes/guildBank", () => {
             store.setItemMeta("tbc", 22854, { name: "Flask", icon: "inv_flask" }, { source: "wowhead" });
             writeRequests([
                 { id: "r1", userId: "u1", userName: "Anna", item: "alt", amount: 2, status: "confirmed", bankKey: bank.key, itemId: 22854, createdAt: 1, characterName: "Zibbo", realm: "Spineshatter", handledByName: "Arthas" },
-                { id: "r2", userId: "u2", userName: "Bo", item: "Gone", icon: "inv_gone", amount: 1, status: "open", bankKey: bank.key, itemId: 99, createdAt: 2 },
+                { id: "r2", userId: "u2", userName: "Bo", item: "Gone", icon: "inv_gone", amount: 1, status: "open", bankKey: bank.key, itemId: 99, createdAt: 2, fromWaitlist: true },
                 { id: "r3", userId: "u3", item: "x", amount: 1, status: "handedOut", bankKey: bank.key, itemId: 22854 },
                 { id: "r4", userId: "u4", item: "x", amount: 1, status: "open", bankKey: "other", itemId: 22854 },
                 { id: "r5", userId: "u5", item: "Freitext", amount: 1, status: "open" },
@@ -196,10 +208,10 @@ describe("apiRoutes/guildBank", () => {
             const res = await call(getGuildBankRequests, { url: `http://x/api/guildbank/requests?key=${encodeURIComponent(bank.key)}` });
             expect(status(res)).toBe(200);
             expect(body(res).requests).toEqual([
-                expect.objectContaining({ id: "r2", item: "Gone", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_gone.jpg", status: "open", userName: "Bo" }),
+                expect.objectContaining({ id: "r2", item: "Gone", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_gone.jpg", status: "open", userName: "Bo", fromWaitlist: true }),
                 expect.objectContaining({
                     id: "r1", item: "Flask", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_flask.jpg", amount: 2, status: "confirmed",
-                    characterName: "Zibbo", realm: "Spineshatter", handledByName: "Arthas",
+                    characterName: "Zibbo", realm: "Spineshatter", handledByName: "Arthas", fromWaitlist: false,
                 }),
             ]);
         });

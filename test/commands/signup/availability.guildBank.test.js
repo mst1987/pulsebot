@@ -168,7 +168,7 @@ describe("Gildenbank aus dem Bestand", () => {
         const answer = answerOf(left.editReply.mock.calls[0][0]);
         expect(answer.title).toBe("✅ Request sent – the orga will get back to you by DM.");
         // no character of the bank's version in the profile: the hint that the orga cannot hand it out
-        expect(answer.description).toBe("**2× Bold Living Ruby**\n\n⏳ On the waiting list: **1× Bold Living Ruby** – you are no. 1.\nYou get a DM as soon as it is your turn."
+        expect(answer.description).toBe("**2× Bold Living Ruby**\n\n⏳ On the waiting list: **1× Bold Living Ruby** – you are no. 1.\nYou get a DM as soon as it is your turn. Handed out in turns: 2 per round."
             + "\n\n⚠️ Add a character in your profile, otherwise the orga cannot hand it out.");
         expect(discord.postPayload).toHaveBeenCalledTimes(1);
         expect(bankStore.listRequests().map((r) => [r.status, r.amount])).toEqual([["open", 2], ["waiting", 1]]);
@@ -180,7 +180,7 @@ describe("Gildenbank aus dem Bestand", () => {
         await command.execute(first);
         const answer = answerOf(first.editReply.mock.calls[0][0]);
         expect(answer.title).toBe("⏳ Auf der Warteliste: 2× Bold Living Ruby – du bist Nr. 1.");
-        expect(answer.description).toBe("Du bekommst eine DM, sobald du dran bist.\n\n⚠️ Leg in deinem Profil einen Charakter an, sonst kann die Orga nicht ausgeben.");
+        expect(answer.description).toBe("Du bekommst eine DM, sobald du dran bist. Ausgabe reihum: je 2 pro Runde.\n\n⚠️ Leg in deinem Profil einen Charakter an, sonst kann die Orga nicht ausgeben.");
         expect(discord.postPayload).not.toHaveBeenCalled();
         const pick = click("availability:b:cat1");
         await command.execute(pick);

@@ -18,7 +18,8 @@
 //   guildbank:mreject:<id>         the submitted decline modal
 //
 // A request that moved up from the waiting list (#775) is a normal open card
-// with "aus der Warteliste" in its note; one imported by character name alone
+// with "aus der Warteliste" in its note (and the rest that waits again: "Rest
+// 13 wartet (Platz 9)" — the list goes round in portions); one imported by character name alone
 // shows the name instead of the raider ("ohne Discord-Konto, keine DM").
 // A request from the stock without a linked character (services/guildbank/
 // linking.js) shows "⚠ Kein verknüpfter Charakter – Post erst nach Verknüpfen
@@ -116,22 +117,36 @@ function requestSummary(request, lang = "de") {
 /**
  * The answer line of a request that went on the waiting list (#775), in the
  * raider's language: "On the waiting list: **2× Crimson Spinal** – you are
- * no. 4." plus when they hear from the bot.
+ * no. 4." plus when they hear from the bot — and, with `portion`, how the
+ * list shares out ("Handed out in turns: 2 per round.").
  */
-function waitingSummary(request, position, lang = "de") {
+function waitingSummary(request, position, lang = "de", { portion = 0 } = {}) {
     const line = position > 0
         ? tr(lang, "On the waiting list: {item} – you are no. {position}.", { item: `**${amountItem(request)}**`, position })
         : tr(lang, "On the waiting list: {item}.", { item: `**${amountItem(request)}**` });
-    return `${line}\n${tr(lang, "You get a DM as soon as it is your turn.")}`;
+    const turns = portion > 0 ? ` ${turnsText(portion, lang)}` : "";
+    return `${line}\n${tr(lang, "You get a DM as soon as it is your turn.")}${turns}`;
+}
+
+/** "Handed out in turns: 2 per round." — how the waiting list shares an item out (the item's portion). */
+function turnsText(portion, lang = "de") {
+    return tr(lang, "Handed out in turns: {count} per round.", { count: Number(portion) || 0 });
 }
 
 /**
  * The DM when a waiting-list entry moved up to a request (#775): "Your turn" —
  * the item is in the bank, the orga confirms it next. `rest` = what still
- * waits for the raider (a part moved up), they stay first in line.
+ * waits for the raider (they got one portion or more, not all): it is back at
+ * the end of the list, at `position` (1 = next; 0 = not known).
  */
-function movedUpCard(request, lang = "de", { rest = 0 } = {}) {
+function movedUpCard(request, lang = "de", { rest = 0, position = 0 } = {}) {
     const to = recipientName(request);
+    let restLine = "";
+    if (rest > 0) {
+        restLine = position > 0
+            ? tr(lang, "{count} more are back at the end of the waiting list for you – you are no. {position}.", { count: rest, position })
+            : tr(lang, "{count} more are back at the end of the waiting list for you.", { count: rest });
+    }
     return card({
         color: COLOR_OPEN,
         kicker: tr(lang, "Guild bank"),
@@ -139,7 +154,7 @@ function movedUpCard(request, lang = "de", { rest = 0 } = {}) {
         text: [
             `**${amountItem(request)}**`,
             tr(lang, "It is in the guild bank now – the orga will confirm it shortly."),
-            rest > 0 ? tr(lang, "{count} more stay on the waiting list for you – you are first in line.", { count: rest }) : "",
+            restLine,
             to ? tr(lang, "To: {character}", { character: plain(to) }) : "",
         ].filter(Boolean).join("\n"),
     });
@@ -282,9 +297,10 @@ function orgaButtons(request, { linked = true, short = false } = {}) {
  * @param {{ categoryName?: string, stock?: object|null, linked?: boolean, linkProblem?: string }} [o] the organizer's category name; the item as
  *   stockView.stockItem reads it now (count, reserved, available, group, icon), null when unknown; `linked`
  *   false = the request's character is no confirmed profile character (linking.linkState): warning, "Bestätigen" disabled;
- *   `linkProblem` "unverified" names that reason (a profile character nobody confirmed)
+ *   `linkProblem` "unverified" names that reason (a profile character nobody confirmed); `rest` = what the
+ *   recipient of a request that moved up still waits for (`{ amount, position }`, guildBank.restWaiting), null = nothing
  */
-function orgaPayload(request, { categoryName = "", stock = null, linked = true, linkProblem = "" } = {}) {
+function orgaPayload(request, { categoryName = "", stock = null, linked = true, linkProblem = "", rest = null } = {}) {
     const created = seconds(request.createdAt);
     const fromStock = !!request.itemId;
     const group = fromStock ? str((stock && stock.group) || request.group) : "";
@@ -306,8 +322,17 @@ function orgaPayload(request, { categoryName = "", stock = null, linked = true, 
         thumbnail: icon,
         facts: stockFacts(request, stock),
         buttons: orgaButtons(request, { linked: !fromStock || linked, short }),
-        note: [plainCategoryName(categoryName), request.fromWaitlist ? "aus der Warteliste" : "", status].filter(Boolean).join(" · "),
+        note: [plainCategoryName(categoryName), waitlistNote(request, rest), status].filter(Boolean).join(" · "),
     });
+}
+
+/** "aus der Warteliste", with the rest that waits again: "aus der Warteliste · Rest 13 wartet (Platz 9)". German (orga text). */
+function waitlistNote(request, rest) {
+    if (!request.fromWaitlist) return "";
+    const amount = rest ? Number(rest.amount) || 0 : 0;
+    if (!amount) return "aus der Warteliste";
+    const place = Number(rest.position) || 0;
+    return `aus der Warteliste · Rest ${amount} wartet${place ? ` (Platz ${place})` : ""}`;
 }
 
 /** The orga's decline modal: an optional reason the raider sees. German (orga text). */
@@ -352,5 +377,5 @@ function parseOrgaId(customId) {
 
 module.exports = {
     PREFIX, COLOR_OPEN, COLOR_CONFIRMED, COLOR_DONE, COLOR_REJECTED, NOT_LINKED_LINE, NOT_VERIFIED_LINE, NO_CHARACTER_LINE, guildBankChannelId, plain, amountItem, recipientName,
-    requestModal, requestSummary, waitingSummary, movedUpCard, decisionCard, statusLine, stockFacts, orgaPayload, rejectModal, renameModal, shortLine, isShort, parseOrgaId,
+    requestModal, requestSummary, waitingSummary, turnsText, movedUpCard, waitlistNote, decisionCard, statusLine, stockFacts, orgaPayload, rejectModal, renameModal, shortLine, isShort, parseOrgaId,
 };

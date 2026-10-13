@@ -845,6 +845,8 @@
         "orgaHubRemoved": "Orga hub removed.",
         "orgaHubRemoveTitle": "Remove orga hub?",
         "orgaHubRemoveText": "The message in Discord is deleted. The raids themselves stay as they are.",
+        "orgaLinks": "Orga hub links",
+        "orgaLinksSub": "Buttons below “Create raid”, e.g. the WCL guild or raid sheet – for the orga only. Also editable in Discord through “Links …” on the orga hub.",
         "links": "Links in the organizer",
         "linksSub": "Buttons such as the WCL invite, info sheet or tactics – shown at the bottom of the panel.",
         "linkLabel": "Text",

@@ -25,6 +25,8 @@ export type GuildBankItem = {
     reserve: number;
     /** 0 = no limit. */
     maxPerRequest: number;
+    /** The waiting list's share per turn (1–99, the default 2 when the orga set none): whoever is on gets at most this much, the rest queues again. */
+    portion: number;
     /** The orga's own group, "" = Wowhead's. */
     category: string;
     firstSeenAt: number;
@@ -108,7 +110,7 @@ export function getGuildBank({ key = "", version = "" }: { key?: string; version
     return get<GuildBankPageData>(`/api/guildbank${qs ? `?${qs}` : ""}`);
 }
 
-export type GuildBankItemPatch = Partial<{ status: Exclude<GuildBankStatus, "new">; reserve: number; maxPerRequest: number; category: string }>;
+export type GuildBankItemPatch = Partial<{ status: Exclude<GuildBankStatus, "new">; reserve: number; maxPerRequest: number; portion: number; category: string }>;
 
 /** Change what the orga decided for one item; answers the item with its new numbers. */
 export function setGuildBankItem(key: string, itemId: number, patch: GuildBankItemPatch): Promise<{ item: GuildBankItem }> {
@@ -141,13 +143,15 @@ export type GuildBankRequest = {
     /** Who confirmed it. */
     handledByName: string;
     handledAt: number;
+    /** It came from the waiting list (an entry moved up as an open request). */
+    fromWaitlist: boolean;
     /** The recipient is a confirmed character of the raider's profile: only then may the orga confirm it, only then does the addon mail it. */
     linked: boolean;
     /** Why not: no profile character ("none") or one nobody confirmed ("unverified"); "" when linked. */
     linkProblem?: GuildBankLinkProblem;
 };
 
-/** The bank's open and confirmed requests (the "Anfragen" dialog), open first. */
+/** The bank's open and confirmed requests (the "Anfragen" tab and the item list's "Vorgemerkt" popover), open first. */
 export function getGuildBankRequests(key: string): Promise<{ requests: GuildBankRequest[] }> {
     return get<{ requests: GuildBankRequest[] }>(`/api/guildbank/requests?key=${encodeURIComponent(key)}`);
 }

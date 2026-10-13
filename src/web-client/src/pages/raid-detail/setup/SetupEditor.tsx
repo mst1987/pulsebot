@@ -1,32 +1,39 @@
 // Tab "Setup" of an own event (#263): the proposal, the orga's changes, the
-// approval. Kept calm on purpose — ONE toolbar line (the setup's one state,
-// "Tanks 3 von 3 · … · 23 von 25 bestätigt", "Mehr ▾", "Alle bestätigen" and the
-// one primary button: "Setup posten" until it is out, then "Alle pingen"), the
-// group cards right under it with one compact line per raider, the bench and
-// "Angemeldet" as rows, and one summary line (buffs, fairness, wishes, "nicht
-// zusammen" — asked once, counts only, never names) whose "Details" opens the
-// tiles and switches. Everything rarer sits under "Mehr": proposing anew, the
-// group count, the ping text, the switches, the weights, Claude's explanation.
-// A click on a raider opens their details in a side drawer.
+// approval. Kept calm on purpose — ONE bar: the setup's one state and its counts
+// as square fields that wrap but are never cut ("Tanks 1/2", "Heiler 1/2",
+// "DD 6/6", "8/10 Plätze", "7/8 bestätigt"), then "Mehr ▾", ONE secondary action
+// ("Freie Plätze füllen", or "Alle bestätigen" once it is out) and the one primary
+// button as a split button: "Setup posten" until it is out, then "Alle pingen" —
+// its chevron holds the switches "Bank mitposten" / "DMs an Spieler", their state
+// written beside it ("mit DMs · ohne Bank"). Then the group cards with one compact
+// line per raider, the bench and "Angemeldet" as rows, and one summary line
+// (buffs, fairness, wishes, "nicht zusammen" — asked once, counts only, never
+// names) whose "Details" opens the tiles and switches. Everything rarer sits
+// under "Mehr": proposing anew, the group count, the ping text, the switches,
+// the weights, Claude's explanation.
+//
+// A raider's info: resting the mouse on a line (or focusing it) shows it beside
+// the line after a moment (the peek, peek.ts — read only, gone at a drag); a click
+// pins it in the side drawer with the actions.
 //
 // Moving: drag a raider onto a group, onto the bench, back into "Angemeldet"
 // (the pool of who signed up and is neither placed nor benched, #517) or onto
 // another raider (swap — inside one group that reorders it; every group always
 // shows its five places). Without a mouse: activate a raider (click, Enter),
 // then the target. Every move is saved at once and comes back valued by the
-// server. Posting carries the bench only with "Bench mitposten" ticked.
+// server. Posting carries the bench only with "Bank mitposten" on.
 //
 // A raid group (#811): an overbooked raid gets further raids ("Weiteren Raid
-// hinzufügen" — in the bar while more signed up than there are places, else
-// under "Mehr"). The editor then shows the tabs "Raid 1 | Raid 2" (RaidTabs.tsx):
+// hinzufügen" — a calm line under the bar while more signed up than there are
+// places, else under "Mehr"). The editor then shows the tabs "Raid 1 | Raid 2" (RaidTabs.tsx):
 // one raid at a time, ONE shared pool "Angemeldet" (whoever stands in another
 // raid is not in it), a raider dragged onto a tab goes into that raid. Proposal
 // and "Freie Plätze füllen" run over every raid; approving and posting stay per raid.
 
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { addGroupRaid, moveToGroupRaid, removeGroupRaid, approveRaidSetup, getRaidSetup, pingSetup, previewSetupPing, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput, type SetupActivity, type SetupCharacter, type SetupPresenceAction, type StoredSetup } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
-import { applyLocal, moveRaider, peopleOf, publishHint, resizeLineup, respecRaider, setupState, suggestGroup, switchCharacter, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE, type CharacterChoice, type SetupTarget } from "../../../lib/signups/setupEditor";
+import { applyLocal, asCharacter, moveRaider, peopleOf, publishHint, resizeLineup, respecRaider, setupState, suggestGroup, switchCharacter, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE, type CharacterChoice, type SetupTarget } from "../../../lib/signups/setupEditor";
 import { useT } from "../../../i18n";
 import { Button, IconButton } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
@@ -42,12 +49,14 @@ import { BenchCard, GroupCard, type Interaction, ReadOnly } from "./Board";
 import { PoolPanel } from "./PoolPanel";
 import { ActivityFeed, PresenceChip } from "./LiveParts";
 import { presenceColor, usePresence } from "./usePresence";
-import { MoreMenu, PingTextField, SizeControl, StatusBadge, type MoreItem } from "./Controls";
+import { BarCounts, MoreMenu, PingTextField, PostSplit, SizeControl, StatusBadge, type BarCount, type MoreItem } from "./Controls";
+import { PEEK_DELAY_MS } from "./peek";
+import Popover from "../../../components/ui/Popover";
+import { besidePlacement } from "../../../lib/ui/popoverPosition";
 import { Summary, SummaryLine } from "./Summary";
 import { roleFigures, summaryOptions } from "./summaryFigures";
 import { SlotTip, type SlotActions } from "./SlotTip";
 import { EditorDialog, ExplainModal, FillModal, WeightsModal } from "./SetupModals";
-import Switch from "../../../components/ui/Switch";
 import { SearchModal } from "./SearchModal";
 import { SignupEditModal } from "./SignupEditModal";
 import { AddRaidModal, RaidTabs } from "./RaidTabs";
@@ -99,16 +108,34 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     // that one. Esc or its close button lets go.
     const [pinned, setPinned] = useState<string | null>(null);
 
+    // The peek (peek.ts): the raider whose line the mouse rests on or the focus is on —
+    // their info beside the line, PEEK_DELAY_MS later, so passing over draws nothing.
+    // Gone when the pointer or focus leaves, at a drag, a pick or Esc.
+    const [peek, setPeek] = useState<{ userId: string; character?: string; el: HTMLElement } | null>(null);
+    const peekTimer = useRef<number | undefined>(undefined);
+    const peekAt = (userId: string, el?: HTMLElement | null, character?: string) => {
+        window.clearTimeout(peekTimer.current);
+        if (!el) return;
+        peekTimer.current = window.setTimeout(() => setPeek({ userId, character, el }), PEEK_DELAY_MS);
+    };
+    const unpeek = () => {
+        window.clearTimeout(peekTimer.current);
+        setPeek(null);
+    };
+    useEffect(() => () => window.clearTimeout(peekTimer.current), []);
+
     useEffect(() => {
-        if (!selected && !pinned) return undefined;
+        if (!selected && !pinned && !peek) return undefined;
         const esc = (e: globalThis.KeyboardEvent) => {
             if (e.key !== "Escape") return;
             setSelected(null);
             setPinned(null);
+            window.clearTimeout(peekTimer.current);
+            setPeek(null);
         };
         document.addEventListener("keydown", esc);
         return () => document.removeEventListener("keydown", esc);
-    }, [selected, pinned]);
+    }, [selected, pinned, peek]);
 
     const setup = data?.setup || null;
 
@@ -355,6 +382,8 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     };
 
     const pick = (userId: string, character?: string) => {
+        // a click pins the drawer — the peek beside the line gives way
+        unpeek();
         if (!selected) {
             setPinned(userId);
             choice.current = character ? { userId, character } : null;
@@ -377,6 +406,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
 
     /** A drag starts (with the character of the line, #293) or ends. */
     const drag = (userId: string | null, character?: string) => {
+        unpeek();
         setDragging(userId);
         if (userId) choice.current = character ? { userId, character } : null;
     };
@@ -641,7 +671,6 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     const inspectedInPool = !!inspectedPerson && (setup.pool || []).some((b) => b.userId === inspectedPerson.userId);
     const inspectedInGroup = !!inspectedPerson && setup.groups.some((g) => g.slots.some((s) => s.userId === inspectedPerson.userId));
     const confirmations = data.confirmations || {};
-    // hovering a raider no longer opens anything — a click does (the drawer)
     // what the others hold right now, by raider — ringed in their colour, not to be taken meanwhile
     const held: NonNullable<Interaction["held"]> = {};
     for (const e of presence.editors) if (e.action) held[e.action.userId] = { name: e.name, color: presenceColor(e.userId), kind: e.action.kind };
@@ -650,11 +679,16 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         const h = held[userId];
         if (h) jobs.notify(t(h.kind === "edit" ? "setup.live.editsMsg" : "setup.live.holdsMsg", { name: h.name, character: characters.get(userId) || "?" }));
     };
-    const ui: Interaction = { held, flash, onHeld, editable: !busy, selected, selectedCharacter, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: () => undefined, onPick: pick, onDrop: move, onDrag: drag, onEdit: setEditing, confirmations, pinned: shownId };
+    const ui: Interaction = { held, flash, onHeld, editable: !busy, selected, selectedCharacter, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: peekAt, onLeave: unpeek, onPick: pick, onDrop: move, onDrag: drag, onEdit: setEditing, confirmations, pinned: shownId };
     const closeDrawer = () => {
         setPinned(null);
         setSelected(null);
     };
+    // the peek: the raider under the pointer or focus — not during a drag, not the one the drawer already shows,
+    // and only while their line is still on the page (a move redraws it)
+    const peekBase = peek && !dragging && peek.userId !== shownId && peek.el.isConnected ? peopleOf(setup).get(peek.userId) : undefined;
+    const peekChar = peekBase && peek?.character ? (peekBase.characters || []).find((c) => c.character === peek.character) : undefined;
+    const peekPerson = peekBase && peekChar ? asCharacter(peekBase, peekChar) : peekBase;
     // the actions on the raider shown (SlotTip) — the check only for a group place of a posted (= approved) setup
     const actions: SlotActions = inspectedPerson && !busy ? {
         confirmation: inspectedInGroup ? confirmations[inspectedPerson.userId] : undefined,
@@ -744,30 +778,34 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         { id: "weights", label: t("setup.summary.weights"), sub: t("setup.editor.weightsSub"), icon: "inv_misc_gear_01", disabled: busy, onSelect: () => setDialog("weights") },
     ];
 
-    const figures = roleFigures(setup);
-    const counts: ReactNode[] = figures.map((f) => (
-        <span
-            key={f.key} className={f.ok ? undefined : "se-off"}
-            data-tip={f.target ? t("setup.summary.statTipTarget", { label: f.label, value: f.value, target: f.target }) : t("setup.summary.statTip", { label: f.label, value: f.value })}
-            data-tip-sub={f.tip}
-        >
-            {f.label} <b>{f.target ? (/^\d+$/.test(f.target) ? t("setup.bar.ofTarget", { value: f.value, target: f.target }) : t("setup.bar.withTarget", { value: f.value, target: f.target })) : f.value}</b>
-        </span>
-    ));
-    if (!size.ok) {
-        counts.push(
-            <span key="places" className="se-off" data-tip={t("setup.editor.placesTip")} data-tip-sub={t("setup.editor.placesSub", { count: size.count, size: size.size, bench: setup.bench.length })}>
-                <b>{t("setup.bar.places", { count: size.count, size: size.size })}</b>
-            </span>,
-        );
+    // the counts as square fields, toned by their check — compact ("Tanks 1/2"), each with its word, never cut
+    const counts: BarCount[] = roleFigures(setup).map((f) => ({
+        key: f.key,
+        tone: f.ok ? "ok" : f.value === 0 ? "bad" : "mid",
+        text: <>{f.label} <b>{f.target ? `${f.value}/${f.target}` : f.value}</b></>,
+        tip: f.target ? t("setup.summary.statTipTarget", { label: f.label, value: f.value, target: f.target }) : t("setup.summary.statTip", { label: f.label, value: f.value }),
+        tipSub: f.tip,
+    }));
+    if (size.size) {
+        counts.push({
+            key: "places", tone: size.ok ? "ok" : size.count === 0 ? "bad" : "mid",
+            text: <b>{t("setup.bar.placesChip", { count: size.count, size: size.size })}</b>,
+            tip: t("setup.bar.places", { count: size.count, size: size.size }),
+            tipSub: t("setup.editor.placesSub", { count: size.count, size: size.size, bench: setup.bench.length }),
+        });
     }
     if (approved && placed > 0) {
-        counts.push(
-            <span key="confirmed" className="se-counts-ok" data-tip={t("setup.bar.confirmedTip")} data-tip-sub={t("setup.bar.confirmedSub")}>
-                <b>{t("setup.bar.confirmed", { count: confirmed, total: placed })}</b>
-            </span>,
-        );
+        counts.push({
+            key: "confirmed", tone: confirmed >= placed ? "ok" : "plain",
+            text: <b>{t("setup.bar.confirmedChip", { count: confirmed, total: placed })}</b>,
+            tip: t("setup.bar.confirmed", { count: confirmed, total: placed }), tipSub: t("setup.bar.confirmedSub"),
+        });
     }
+    // the split button's menu: what posting sends along — the state stays written beside it
+    const postOptions = !cancelled && data.publish ? {
+        bench: postBench, dms: postDms, disabled: busy, onBench: setBenchChoice, onDms: setDmsChoice,
+        dmsTip: postDms === !!data.publish.dmsDefault ? t("setup.postOptions.dmsSub") : t("setup.postOptions.dmsSubOwn"),
+    } : undefined;
 
     return (
         <div className={`se-editor${compact ? " se-compact" : ""}`}>
@@ -780,23 +818,21 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                     onMove={(id, userId) => void moveRaid(id, userId)}
                 />
             )}
-            {/* ONE toolbar line: the state, the counts, then "Mehr", "Alle bestätigen" and the one primary button */}
+            {/* ONE bar: the state and the counts (wrapping, never cut), then "Mehr", one secondary action and the split primary */}
             <div className="se-bar">
-                <StatusBadge setup={setup} publish={data.publish} />
-                <PresenceChip editors={presence.editors} names={characters} />
-                {/* while a raider is picked the counts make room for where to click next */}
-                {selected
-                    ? <span className="se-bar-pick">{t("setup.editor.pickTarget")}</span>
-                    : (
-                        <span className="se-counts">
-                            {counts.map((c, i) => <Fragment key={i}>{i > 0 && <span className="se-counts-dot" aria-hidden="true">·</span>}{c}</Fragment>)}
-                        </span>
+                <div className="se-bar-info">
+                    <StatusBadge setup={setup} publish={data.publish} />
+                    <PresenceChip editors={presence.editors} names={characters} />
+                    {/* while a raider is picked the counts make room for where to click next */}
+                    {selected
+                        ? <span className="se-bar-pick">{t("setup.editor.pickTarget")}</span>
+                        : <BarCounts counts={counts} />}
+                    {lockedCount > 0 && (
+                        <Badge tone="accent" icon={<LockIcon />} tip={t("setup.editor.lockedTip")} tipSub={t("setup.editor.lockedSub")}>
+                            {t("setup.editor.locked", { count: lockedCount })}
+                        </Badge>
                     )}
-                {lockedCount > 0 && (
-                    <Badge tone="accent" icon={<LockIcon />} tip={t("setup.editor.lockedTip")} tipSub={t("setup.editor.lockedSub")}>
-                        {t("setup.editor.locked", { count: lockedCount })}
-                    </Badge>
-                )}
+                </div>
                 <div className="se-bar-act">
                     <MoreMenu items={more} />
                     {canFill && (
@@ -808,15 +844,6 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                             {placed === 0 ? t("setup.fill.auto") : t("setup.fill.free")}
                         </Button>
                     )}
-                    {overbooked && (
-                        <Button
-                            variant="ghost" size="sm" icon="achievement_guildperk_everybodysfriend" running={grouping} disabled={busy || grouping}
-                            data-tip={t("setup.raidGroup.add")} data-tip-sub={t("setup.raidGroup.addOverbooked", { signed, places: groupPlaces })}
-                            onClick={() => setDialog("addRaid")}
-                        >
-                            {t("setup.raidGroup.add")}
-                        </Button>
-                    )}
                     {approved && unanswered > 0 && (
                         <Button
                             variant="ghost" size="sm" icon="achievement_guildperk_everybodysfriend" disabled={busy}
@@ -826,20 +853,25 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                             {t("setup.editor.confirmAll")}
                         </Button>
                     )}
-                    {/* what posting sends along — visible, no detour through "Mehr" */}
-                    {!cancelled && data.publish && (
-                        <div className="se-postopts" role="group" aria-label={t("setup.postOptions.aria")}>
-                            <Switch className="se-postopt" checked={postBench} disabled={busy} label={t("setup.postOptions.bench")} tip={t("setup.postOptions.benchSub")} onChange={setBenchChoice} />
-                            <Switch
-                                className="se-postopt" checked={postDms} disabled={busy} label={t("setup.postOptions.dms")}
-                                tip={postDms === !!data.publish.dmsDefault ? t("setup.postOptions.dmsSub") : t("setup.postOptions.dmsSubOwn")}
-                                onChange={setDmsChoice}
-                            />
-                        </div>
-                    )}
-                    {primary}
+                    {/* the one primary button; its chevron holds what posting sends along, the state written beside it */}
+                    {primary && <PostSplit button={primary} options={postOptions} />}
                 </div>
             </div>
+            {/* overbooked: a calm line under the bar, the way out inside it (#811) */}
+            {overbooked && (
+                <div className="se-overbooked" role="status">
+                    <WowIcon name="achievement_guildperk_everybodysfriend" size={22} />
+                    <span className="se-overbooked-text">{t("setup.raidGroup.overbookedHint", { count: signed, places: groupPlaces })}</span>
+                    <span className="se-overbooked-sep" aria-hidden="true">—</span>
+                    <Button
+                        variant="ghost" size="sm" running={grouping} disabled={busy || grouping}
+                        data-tip={t("setup.raidGroup.add")} data-tip-sub={t("setup.raidGroup.addOverbooked", { signed, places: groupPlaces })}
+                        onClick={() => setDialog("addRaid")}
+                    >
+                        {t("setup.raidGroup.add")}
+                    </Button>
+                </div>
+            )}
 
             {/* a container of its own: the side column for "Angemeldet" or, where too narrow, its dock at the bottom (setup-editor.css) */}
             <div className="se-stage">
@@ -875,6 +907,16 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                         actions={actions} pinned={selected === shownId}
                     />
                 </div>
+            )}
+
+            {/* the peek: the raider under the pointer or focus, read only, beside the line — never over it, never in a drag's way */}
+            {peek && peekPerson && (
+                <Popover anchor={peek.el} place={besidePlacement()} dismiss={false} onClose={unpeek} className="se-peek" role="tooltip">
+                    <SlotTip
+                        p={peekPerson} attendance={data.attendance ? data.attendance[peekPerson.userId] : undefined}
+                        extra={(data.extraRoles || {})[peekPerson.userId] || []} peek
+                    />
+                </Popover>
             )}
 
             <EditorDialog open={dialog === "size"} onClose={() => setDialog(null)} icon="achievement_guildperk_everybodysfriend" title={t("setup.more.size")}>

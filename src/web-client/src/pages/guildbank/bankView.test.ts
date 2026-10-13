@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-    availableTone, filterWaitlist, groupItems, groupNames, groupWaitlist, isDirectItemInput, itemName, itemsInTab, listedItems, tabCounts, tabLine, waitingName, waitingTotal, waitlistItems, wholeNumber, dayLabel, filterHandedOut, groupHandedOutByDay, itemTabOf, recipientName,
+    availableTone, filterWaitlist, groupItems, groupNames, groupWaitlist, isDirectItemInput, itemName, itemsInTab, listedItems, tabCounts, tabLine, waitingName, waitingTotal, waitlistItems, wholeNumber, validPortion, PORTION_MAX, dayLabel, filterHandedOut, groupHandedOutByDay, itemTabOf, recipientName,
 } from "./bankView";
 import type { GuildBankHandedOut, GuildBankWaitingEntry } from "../../api";
 import { bankData, bankItem } from "./guildBank.fixture";
@@ -60,6 +60,10 @@ describe("guild bank page rules", () => {
 
     it("reads whole numbers from 0 only", () => {
         expect([wholeNumber(" 12 "), wholeNumber("0"), wholeNumber("-1"), wholeNumber("1.5"), wholeNumber("")]).toEqual([12, 0, null, null, null]);
+    });
+
+    it("takes a portion per turn from 1 to 99", () => {
+        expect([1, 2, PORTION_MAX, 0, 100, 1.5, Number.NaN].map(validPortion)).toEqual([true, true, true, false, false, false, false]);
     });
 
     describe("the waiting list (#775)", () => {

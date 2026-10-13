@@ -3,6 +3,7 @@
 //
 //   Ausgebbar     raiders may request it (Discord form, #633)
 //   Warteliste    who waits for an offered item, in order (#775)
+//   Anfragen      open and set-aside requests with their recipient (RequestsTab.tsx)
 //   Ausgegeben    what went to whom once it was ticked off (HandedOutTab.tsx)
 //   Nur Bestand   visible, not requestable
 //   Ausgeblendet  shows up nowhere
@@ -22,7 +23,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
-    addGuildBankItem, canAccess, getGuildBank, setGuildBankItem, setGuildBankTabHidden,
+    addGuildBankItem, canAccess, getGuildBank, getGuildBankRequests, setGuildBankItem, setGuildBankTabHidden,
     type ApiError, type GuildBankItem, type GuildBankItemPatch, type GuildBankPageData, type GuildBankTab,
 } from "../../api";
 import type { ShellContext } from "../../components/shell/Shell";
@@ -35,14 +36,14 @@ import { usePersistedState } from "../../lib/ui/persistedState";
 import { formatDateTime, formatMoney } from "../../lib/format";
 import { refreshWowheadLinks } from "../../lib/wow/wowheadTooltips";
 import { tParts, useT } from "../../i18n";
-import { BANK_TABS, REQUESTS_ICON, isPageTab, itemName, itemTabOf, groupItems, groupNames, tabCounts, waitingTotal, type PageTab } from "./bankView";
+import { BANK_TABS, isPageTab, itemName, itemTabOf, groupItems, groupNames, reservedByItem, tabCounts, waitingTotal, type PageTab } from "./bankView";
 import HandedOutTab from "./HandedOutTab";
 import AddItemDialog from "./AddItemDialog";
 import BankFilterLine from "./BankFilterLine";
 import BankList from "./BankList";
 import ItemSettingsDialog from "./ItemSettingsDialog";
 import BankTabsDialog from "./BankTabsDialog";
-import RequestsDialog from "./RequestsDialog";
+import RequestsTab from "./RequestsTab";
 import WaitlistAddDialog from "./WaitlistAddDialog";
 import WaitlistImportDialog from "./WaitlistImportDialog";
 import WaitlistTab from "./WaitlistTab";
@@ -93,7 +94,6 @@ export default function GuildBankPage() {
     const [search, setSearch] = useState("");
     const [editing, setEditing] = useState<GuildBankItem | null>(null);
     const [bankTabsOpen, setBankTabsOpen] = useState(false);
-    const [requestsOpen, setRequestsOpen] = useState(false);
     const [waitAdd, setWaitAdd] = useState(false);
     const [waitImport, setWaitImport] = useState(false);
     const [waitToken, setWaitToken] = useState(0);
@@ -103,6 +103,9 @@ export default function GuildBankPage() {
     const [busyTab, setBusyTab] = useState(0);
 
     const bank = page.data?.bank || null;
+    // The bank's open and set-aside requests, read once: the "Anfragen" tab, its count and the "Vorgemerkt" popover of the item list share them.
+    const requests = useApi(() => getGuildBankRequests(bank ? bank.key : ""), [bank ? bank.key : "", waitToken], { enabled: !!bank });
+    const reservedBy = useMemo(() => reservedByItem(requests.data?.requests || []), [requests.data]);
     const items = useMemo(() => bank?.items || [], [bank]);
     const categories = useMemo(() => groupNames(items), [items]);
     // a category the list no longer has (its last item was re-sorted) filters nothing
@@ -120,13 +123,20 @@ export default function GuildBankPage() {
     const counts = tabCounts(items);
     const hiddenTabs = bank.tabs.filter((x) => x.hidden).length;
     const waiting = waitingTotal(items);
-    const tabCount = { ...counts, wait: waiting, out: bank.handedOutRequests || 0 };
+    const tabCount = { ...counts, wait: waiting, req: requests.data ? requests.data.requests.length : 0, out: bank.handedOutRequests || 0 };
     // entries came in by hand or by import: the list and the item numbers are read again
     const waitDone = () => {
         setWaitAdd(false);
         setWaitImport(false);
         setWaitToken((n) => n + 1);
         void page.reload();
+    };
+
+    // "Alle im Tab Anfragen" of a Vorgemerkt popover: the tab, filtered by that item
+    const showRequestsOf = (item: GuildBankItem) => {
+        setTab("req");
+        setCategory("");
+        setSearch(itemName(item));
     };
 
     const replaceItem = (item: GuildBankItem) => page.setData((d) => (d && d.bank
@@ -196,7 +206,9 @@ export default function GuildBankPage() {
                             {tParts("guildbank.page.tabsCount", { count: bank.tabs.length })}
                         </Badge>
                         {bank.reservedRequests > 0 && (
-                            <Badge tone="mid" tip={t("guildbank.page.reservedTip")}>{tParts("guildbank.page.reserved", { count: bank.reservedRequests })}</Badge>
+                            <button type="button" className="gb-badge-link" onClick={() => setTab("req")}>
+                                <Badge tone="mid" tip={t("guildbank.page.reservedTip")}>{tParts("guildbank.page.reserved", { count: bank.reservedRequests })}</Badge>
+                            </button>
                         )}
                         {waiting > 0 && (
                             <button type="button" className="gb-badge-link" onClick={() => setTab("wait")}>
@@ -208,7 +220,6 @@ export default function GuildBankPage() {
                 action={(
                     <>
                         {canWrite && <Button variant="ghost" icon={<PlusIcon />} onClick={() => setAddOpen(true)}>{t("guildbank.add.button")}</Button>}
-                        <Button variant="ghost" icon={REQUESTS_ICON} onClick={() => setRequestsOpen(true)}>{t("guildbank.requests.button")}</Button>
                         <Button variant="ghost" icon={<RowsIcon />} onClick={() => setBankTabsOpen(true)}>{t("guildbank.page.bankTabs")}</Button>
                     </>
                 )}
@@ -239,7 +250,7 @@ export default function GuildBankPage() {
                 banks={page.data.banks}
                 bankKey={bank.key}
                 onBank={(k) => setPicked({ key: k, version })}
-                searchPlaceholder={tab === "wait" || tab === "out" ? t("guildbank.filter.searchWait") : undefined}
+                searchPlaceholder={tab === "wait" || tab === "req" || tab === "out" ? t("guildbank.filter.searchWait") : undefined}
                 showFormula={tab !== "out"}
                 actions={tab === "wait" && canWrite ? (
                     <>
@@ -261,6 +272,16 @@ export default function GuildBankPage() {
                     reloadToken={waitToken}
                     onChanged={() => { void page.reload(); }}
                 />
+            ) : tab === "req" ? (
+                <RequestsTab
+                    bankKey={bank.key}
+                    list={requests}
+                    items={items}
+                    canWrite={canWrite}
+                    category={activeCategory}
+                    search={search}
+                    onChanged={() => { void page.reload(); }}
+                />
             ) : tab === "out" ? (
                 <HandedOutTab bankKey={bank.key} items={items} category={activeCategory} search={search} reloadToken={waitToken} />
             ) : (
@@ -270,6 +291,8 @@ export default function GuildBankPage() {
                     wowheadPath={bank.wowheadPath}
                     canWrite={canWrite}
                     busyId={busyItem}
+                    reservedBy={reservedBy}
+                    onShowRequests={showRequestsOf}
                     onStatus={(item, status) => { void saveItem(item, { status }); }}
                     onSettings={setEditing}
                 />
@@ -285,14 +308,6 @@ export default function GuildBankPage() {
             )}
             {addOpen && (
                 <AddItemDialog bankKey={bank.key} saving={adding} onClose={() => setAddOpen(false)} onAdd={(input) => { void addItem(input); }} />
-            )}
-            {requestsOpen && (
-                <RequestsDialog
-                    bankKey={bank.key}
-                    canWrite={canWrite}
-                    // the orga may have confirmed, handed out or linked meanwhile: read the numbers and the lists again
-                    onClose={() => { setRequestsOpen(false); setWaitToken((n) => n + 1); void page.reload(); }}
-                />
             )}
             {waitAdd && canWrite && <WaitlistAddDialog bankKey={bank.key} items={items} onClose={() => setWaitAdd(false)} onDone={waitDone} />}
             {waitImport && canWrite && <WaitlistImportDialog bankKey={bank.key} onClose={() => setWaitImport(false)} onDone={waitDone} />}

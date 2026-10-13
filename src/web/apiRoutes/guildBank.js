@@ -8,13 +8,14 @@
 //                                           one of them, else the first) with its items; never a
 //                                           bank of another version — `bank: null` and
 //                                           `otherVersions` (short names) when this one has none
-//   POST /api/guildbank/item                { key, itemId, status?, reserve?, maxPerRequest?, category? }
+//   POST /api/guildbank/item                { key, itemId, status?, reserve?, maxPerRequest?, portion?, category? }
+//                                           (portion: the waiting list's share per turn, 1–99, 0 = default 2)
 //   POST /api/guildbank/item/add            { key, query | itemId } — create an item by hand: id, Wowhead link
 //                                           or name; stock 0, status "give"; { item, created }, or 400 "ambiguous"
 //                                           when a name fits several items (the dialog picks from /item/search)
 //   GET  /api/guildbank/item/search?key=&q= Wowhead's items for a name on the bank's version, { items }
 //   POST /api/guildbank/tab                 { key, index, hidden } — hide or show a whole bank tab
-//   GET  /api/guildbank/requests?key=       the bank's open and confirmed requests (the "Anfragen" dialog)
+//   GET  /api/guildbank/requests?key=       the bank's open and confirmed requests (the "Anfragen" tab, the item list's "Vorgemerkt" popover)
 //   GET  /api/guildbank/handedout?key=      the bank's handed-out requests, newest first (the "Ausgegeben" tab)
 //   GET  /api/guildbank/characters?key=&q=  the raider profiles' characters to link a request to (+ `names`: known names
 //                                        without a profile, #809, knownNames.js), each character with its
@@ -122,14 +123,14 @@ const postGuildBankItem = withUser({ write: "raids", csrf: true, body: true }, a
     const { failure } = writableBank(key, req);
     if (failure) return sendBankFailure(res, failure);
     const patch = {};
-    for (const field of ["status", "reserve", "maxPerRequest", "category"]) {
+    for (const field of ["status", "reserve", "maxPerRequest", "portion", "category"]) {
         if (body[field] !== undefined) patch[field] = field === "status" || field === "category" ? q.str(body, field) : body[field];
     }
     if (!Object.keys(patch).length) return sendFailure(res, { code: "invalid", error: "Nichts zu ändern." });
     const result = stockStore.setItemSettings(key, q.int(body, "itemId", { fallback: 0 }), patch);
     if (result.error) return sendFailure(res, { code: "invalid", error: result.error });
     if (patch.status !== undefined) queueItemEmojiSync();
-    // a new status or reserve may free stock for the waiting list
+    // a new status or reserve may free stock for the waiting list (a new portion shares it differently)
     moveUp(key, q.int(body, "itemId", { fallback: 0 }));
     ok(res, { item: view.itemForPage(key, result.item) });
 });
@@ -161,14 +162,14 @@ function linkOf(r) {
     return { linked: state.linked, linkProblem: state.linkProblem };
 }
 
-/** One request as the page's "Anfragen" dialog lists it. */
+/** One request as the page's "Anfragen" tab lists it. */
 function requestRow(r, items) {
     const item = items.get(r.itemId);
     const icon = (item && item.icon) || r.icon;
     return {
         id: r.id, itemId: r.itemId, item: (item && item.name) || r.item, iconUrl: iconUrl(icon), amount: r.amount,
         userId: r.userId, userName: r.userName, characterName: r.characterName, realm: r.realm, purpose: r.purpose,
-        status: r.status, createdAt: r.createdAt, handledByName: r.handledByName, handledAt: r.handledAt,
+        status: r.status, createdAt: r.createdAt, handledByName: r.handledByName, handledAt: r.handledAt, fromWaitlist: r.fromWaitlist === true,
         ...linkOf(r),
     };
 }

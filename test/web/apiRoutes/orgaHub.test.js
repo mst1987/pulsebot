@@ -2,7 +2,7 @@
 // list, post and remove a category's hub, gated by the area `settings`.
 let mockUser = null;
 jest.mock("../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true }));
-jest.mock("../../../src/services/events/orgaHub", () => ({ postHub: jest.fn(), removeHub: jest.fn() }));
+jest.mock("../../../src/services/events/orgaHub", () => ({ postHub: jest.fn(), removeHub: jest.fn(), saveLinks: jest.fn() }));
 
 const orgaHub = require("../../../src/services/events/orgaHub");
 const store = require("../../../src/stores/orgaHubStore");
@@ -55,6 +55,38 @@ describe("apiRoutes/orgaHub", () => {
         expect(body(ok)).toEqual({ categoryId: "cat1" });
         expect(orgaHub.removeHub).toHaveBeenCalledWith("cat1");
         expect(status(await request("DELETE", "/api/orga-hub", { categoryId: "cat1" }))).toBe(404);
+    });
+
+    it("lists every category's orga links with the limit next to the hubs", async () => {
+        store.setLinks("cat1", [{ label: "WCL", url: "https://wcl.example/x" }]);
+        const res = await get("/api/orga-hubs");
+        expect(body(res).links).toEqual({ cat1: [{ label: "WCL", url: "https://wcl.example/x" }] });
+        expect(body(res).maxLinks).toBe(5);
+        store.setLinks("cat1", []);
+    });
+
+    it("replaces a category's links through the hub service (which redraws)", async () => {
+        const links = [{ label: "WCL", url: "https://wcl.example/x" }];
+        orgaHub.saveLinks.mockResolvedValue({ links });
+        const res = await request("PUT", "/api/orga-hub/links", { categoryId: "cat1", links });
+        expect(status(res)).toBe(200);
+        expect(orgaHub.saveLinks).toHaveBeenCalledWith("cat1", links);
+        expect(body(res)).toEqual({ categoryId: "cat1", links });
+    });
+
+    it("answers refused links with 400", async () => {
+        orgaHub.saveLinks.mockResolvedValue({ error: "„X“ braucht eine Adresse mit https://." });
+        const res = await request("PUT", "/api/orga-hub/links", { categoryId: "cat1", links: [{ label: "X", url: "ftp://x" }] });
+        expect(status(res)).toBe(400);
+        expect(body(res).error.message).toContain("https://");
+    });
+
+    it("lets only settings writers change the links", async () => {
+        mockUser = withSettings(false);
+        expect(status(await request("PUT", "/api/orga-hub/links", { categoryId: "cat1", links: [] }))).toBe(403);
+        mockUser = { id: "8", isAdmin: false, access: emptyAccess() };
+        expect(status(await request("PUT", "/api/orga-hub/links", { categoryId: "cat1", links: [] }))).toBe(403);
+        expect(orgaHub.saveLinks).not.toHaveBeenCalled();
     });
 
     it("opens for settings: reading with read, posting only with write", async () => {

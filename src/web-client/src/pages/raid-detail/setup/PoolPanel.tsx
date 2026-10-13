@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from "react";
+import { Fragment, useState, type KeyboardEvent } from "react";
 import type { SetupCharacter, SetupPerson } from "../../../api";
 import { useT } from "../../../i18n";
 import { ChevronDownIcon, SearchIcon } from "../../../components/ui/icons";
@@ -7,9 +7,10 @@ import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { specLabel } from "../../../lib/wow/wowNames";
 import { classColorProps } from "../../../components/character/ClassSpec";
 import SpecTile from "../SpecTile";
-import { CharacterNumber, Slot, type Interaction } from "./Board";
+import { CharacterNumber, SigBadge, SigIcon, Slot, type Interaction } from "./Board";
+import { peekHandlers } from "./peek";
 import { useZone } from "./useZone";
-import { matchesQuery, statusLabel } from "./setupText";
+import { MARKED_STATUSES, markedStatus, matchesQuery, statusLabel, statusRank, type MarkedStatus } from "./setupText";
 
 // "Angemeldet" (#517): everybody signed up who is neither in a group nor on the
 // bench — where the setup starts from, since the editor no longer needs a
@@ -27,6 +28,11 @@ import { matchesQuery, statusLabel } from "./setupText";
 // draggable on its own (a drag or pick takes exactly that character). A person
 // stands in every role block one of their characters fits, led there by that
 // character — like the signup message's "same number" rule.
+//
+// Signup states at a glance: a late, tentative or bench signup carries a labelled
+// square field in its colour on the card (Board.tsx' SigBadge); inside each role
+// block the plain signups come first, then late, tentative, bench, each after a
+// thin divider with its name; status chips beside the role chips show only one state.
 
 const SECTIONS = ["tank", "healer", "melee", "ranged"] as const;
 type Filter = "all" | "tank" | "healer" | "dps";
@@ -34,13 +40,23 @@ type Filter = "all" | "tank" | "healer" | "dps";
 const inFilter = (p: SetupPerson, filter: Filter) => filter === "all"
     || (filter === "dps" ? fitsRole(p, "melee") || fitsRole(p, "ranged") : fitsRole(p, filter));
 
+/** Whether a person signed up with this state — as they stand or with any of their characters. */
+const hasStatus = (p: SetupPerson, status: MarkedStatus | null) => !status
+    || markedStatus(p.status) === status || (p.characters || []).some((c) => markedStatus(c.status) === status);
+
 /** The role blocks a filter shows. */
 const blocksOf = (filter: Filter) => SECTIONS.filter((role) => filter === "all" || (filter === "dps" ? role === "melee" || role === "ranged" : role === filter));
 
+/** The state of the line that leads a person's card in a block: that character's, or theirs as they stand. */
+function lineStatus(p: SetupPerson, lead: SetupCharacter | null | undefined): string {
+    if (lead && lead.character.toLowerCase() !== p.character.toLowerCase()) return lead.status || "signed";
+    return p.status || "signed";
+}
+
 /**
  * A further character of a person in "Angemeldet" (#293): quiet (not bold), with its
- * spec icon, its order number and its own status dot where it differs from the card's
- * line. A line of its own to drag or pick — a move takes exactly this character.
+ * spec icon, its order number and a small state field where its state differs from the
+ * card's line. A line of its own to drag or pick — a move takes exactly this character.
  */
 function CharacterLine({ p, c, ui, leadStatus }: { p: SetupPerson; c: SetupCharacter; ui: Interaction; leadStatus: string }) {
     const t = useT();
@@ -49,8 +65,7 @@ function CharacterLine({ p, c, ui, leadStatus }: { p: SetupPerson; c: SetupChara
     const movable = ui.editable && !held;
     const selected = ui.selected === p.userId && (ui.selectedCharacter || "") === c.character;
     const spec = specLabel(c.spec, c.specLabel || c.spec);
-    const differs = (c.status || "signed") !== (leadStatus || "signed");
-    const status = statusLabel(c.status) || t("setup.chars.signed");
+    const differs = (markedStatus(c.status) || "signed") !== (markedStatus(leadStatus) || "signed");
     const pick = () => (held ? ui.onHeld?.(p.userId) : ui.onPick(p.userId, c.character));
     const keyDown = (e: KeyboardEvent<HTMLDivElement>) => {
         if (e.key !== "Enter" && e.key !== " ") return;
@@ -67,10 +82,10 @@ function CharacterLine({ p, c, ui, leadStatus }: { p: SetupPerson; c: SetupChara
             data-user={p.userId}
             data-character={c.character}
             draggable={movable}
-            onMouseEnter={() => ui.onInspect(p.userId)}
+            {...peekHandlers(ui, p.userId, c.character)}
             onClick={ui.editable ? pick : undefined}
             onKeyDown={movable ? keyDown : undefined}
-            onDragStart={movable ? (e) => { e.stopPropagation(); e.dataTransfer.setData("text/plain", p.userId); e.dataTransfer.effectAllowed = "move"; setTimeout(() => ui.onDrag(p.userId, c.character), 0); } : undefined}
+            onDragStart={movable ? (e) => { e.stopPropagation(); ui.onLeave?.(); e.dataTransfer.setData("text/plain", p.userId); e.dataTransfer.effectAllowed = "move"; setTimeout(() => ui.onDrag(p.userId, c.character), 0); } : undefined}
             onDragEnd={ui.editable ? () => ui.onDrag(null) : undefined}
         >
             <CharacterNumber order={c.priority + 1} />
@@ -79,7 +94,7 @@ function CharacterLine({ p, c, ui, leadStatus }: { p: SetupPerson; c: SetupChara
                 <span className={`se-alt-name ${color.className || ""}`} style={color.style}>{c.character}</span>
                 <span className="se-alt-spec">{spec}</span>
             </span>
-            {differs && <span className={`rd-sig rd-sig-${c.status || "signed"} se-alt-sig${c.status && c.status !== "signed" ? "" : " se-sig-signed"}`} role="img" aria-label={status} data-tip={status} />}
+            {differs && <SigBadge status={c.status} small />}
         </div>
     );
 }
@@ -111,17 +126,29 @@ export function PoolPanel({ pool, ui, absent = 0 }: { pool: SetupPerson[]; ui: I
     const t = useT();
     const [query, setQuery] = useState("");
     const [filter, setFilter] = useState<Filter>("all");
+    const [status, setStatus] = useState<MarkedStatus | null>(null);
     const [collapsed, setCollapsed] = useState(false);
     const zone = useZone({ pool: true }, ui);
     const canTake = ui.editable && !!ui.selected && !pool.some((p) => p.userId === ui.selected);
     const picking = !!ui.selected && pool.some((p) => p.userId === ui.selected);
     // persons, not characters: somebody with a tank and a healer counts once in "Alle" and once per role chip
     const count = (f: Filter) => pool.filter((p) => inFilter(p, f)).length;
-    const shown = pool.filter((p) => inFilter(p, filter) && matchesQuery(p, query));
+    const statusCount = (s: MarkedStatus) => pool.filter((p) => hasStatus(p, s)).length;
+    // a state chip only while somebody signed up so; a chip switched on stays (its count may drop to 0 after a move)
+    const statusChips = MARKED_STATUSES.filter((s) => statusCount(s) > 0 || status === s);
+    const shown = pool.filter((p) => inFilter(p, filter) && hasStatus(p, status) && matchesQuery(p, query));
     // a person stands in every block one of their characters fits, led there by that character;
-    // a role nobody signed up for is no section; anything unknown goes with the ranged
+    // a role nobody signed up for is no section; anything unknown goes with the ranged.
+    // Inside a block: plain signups first, then late, tentative, bench (stable, the server's order within each)
     const sections = blocksOf(filter)
-        .map((role) => ({ role, people: shown.map((p) => ({ p, lead: leadIn(p, role) })).filter((x) => x.lead !== null) }))
+        .map((role) => ({
+            role,
+            people: shown
+                .map((p) => ({ p, lead: leadIn(p, role) }))
+                .filter((x) => x.lead !== null)
+                .map((x) => ({ ...x, st: markedStatus(lineStatus(x.p, x.lead)) }))
+                .sort((a, b) => statusRank(a.st) - statusRank(b.st)),
+        }))
         .filter((s) => s.people.length);
     const filters: Filter[] = ["all", "tank", "healer", "dps"];
     return (
@@ -154,12 +181,30 @@ export function PoolPanel({ pool, ui, absent = 0 }: { pool: SetupPerson[]; ui: I
                             <SearchIcon />
                             <input type="search" value={query} placeholder={t("setup.poolPanel.search")} aria-label={t("setup.poolPanel.search")} onChange={(e) => setQuery(e.target.value)} />
                         </label>
-                        <div className="se-pp-filters" role="group" aria-label={t("setup.poolPanel.filter")}>
-                            {filters.map((f) => (
-                                <button key={f} type="button" className={`se-pp-chip${filter === f ? " is-on" : ""}`} aria-pressed={filter === f} onClick={() => setFilter(f)}>
-                                    {t(`setup.poolPanel.filters.${f}`)} <small>{count(f)}</small>
-                                </button>
-                            ))}
+                        <div className="se-pp-filterrow">
+                            <div className="se-pp-filters" role="group" aria-label={t("setup.poolPanel.filter")}>
+                                {filters.map((f) => (
+                                    <button key={f} type="button" className={`se-pp-chip${filter === f ? " is-on" : ""}`} aria-pressed={filter === f} onClick={() => setFilter(f)}>
+                                        {t(`setup.poolPanel.filters.${f}`)} <small>{count(f)}</small>
+                                    </button>
+                                ))}
+                            </div>
+                            {statusChips.length > 0 && (
+                                <div className="se-pp-filters se-pp-stfilters" role="group" aria-label={t("setup.poolPanel.statusFilter")}>
+                                    {statusChips.map((s) => {
+                                        const label = statusLabel(s);
+                                        return (
+                                            <button
+                                                key={s} type="button" className={`se-pp-chip se-pp-stchip se-sigv-${s}${status === s ? " is-on" : ""}`} aria-pressed={status === s}
+                                                data-tip={t("setup.poolPanel.statusChipTip", { status: label })} data-tip-sub={t("setup.poolPanel.statusChipSub")}
+                                                onClick={() => setStatus((cur) => (cur === s ? null : s))}
+                                            >
+                                                <SigIcon status={s} />{label} <small>{statusCount(s)}</small>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -168,7 +213,21 @@ export function PoolPanel({ pool, ui, absent = 0 }: { pool: SetupPerson[]; ui: I
                         <div key={s.role} className="se-pp-sec" role="group" aria-label={t(`setup.poolPanel.sections.${s.role}`)}>
                             <div className="se-pp-sec-head">{t(`setup.poolPanel.sections.${s.role}`)} <small>{s.people.length}</small></div>
                             <div className="se-pp-grid">
-                                {s.people.map(({ p, lead }) => <PoolCard key={p.userId} p={p} lead={lead || undefined} ui={ui} />)}
+                                {s.people.map(({ p, lead, st }, i) => {
+                                    // a thin divider with the state's name where late / tentative / bench begin
+                                    const starts = !!st && (i === 0 || s.people[i - 1].st !== st);
+                                    const label = st ? t("setup.poolPanel.statusHead", { status: statusLabel(st), count: s.people.filter((x) => x.st === st).length }) : "";
+                                    return (
+                                        <Fragment key={p.userId}>
+                                            {starts && (
+                                                <div className={`se-pp-divider se-sigv-${st}`} role="separator" aria-label={label}>
+                                                    <SigIcon status={st} /><span>{label}</span>
+                                                </div>
+                                            )}
+                                            <PoolCard p={p} lead={lead || undefined} ui={ui} />
+                                        </Fragment>
+                                    );
+                                })}
                             </div>
                         </div>
                     ))}
