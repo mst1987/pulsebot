@@ -24,6 +24,7 @@ import { formatDate, formatDateTime, formatSize } from "../../lib/format";
 import { addonFolder, plainNotes } from "../../lib/addons/addonInstall";
 import { useT } from "../../i18n";
 import "../../styles/addon.css";
+import "../../styles/orga-mark.css";
 
 const ICON = "inv_gizmo_01";
 const SETTINGS_LINK = "/settings?section=verbindungen";
@@ -81,6 +82,9 @@ function AddonCardView({ addon, versionId, canManage }: { addon: AddonCard; vers
                 <WowIcon name={addon.icon} size={40} />
                 <div>
                     <h2>{addon.name}</h2>
+                    {addon.orgaOnly && (
+                        <span className="orga-chip-lbl" data-tip={t("addon.admin.orga")} data-tip-sub={t("addon.admin.orgaTip")}>{t("addon.admin.orga")}</span>
+                    )}
                     {release && (
                         <div className="dlp-version muted">
                             {t("addon.version", { version: release.version })}{date ? ` · ${date}` : ""}

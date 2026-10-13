@@ -32,7 +32,7 @@ type AddonSortKey = "name" | "repo" | "versions" | "assets" | "status";
 const ADDON_SORT_DEFAULTS: Record<AddonSortKey, Dir> = { name: "asc", repo: "asc", versions: "asc", assets: "asc", status: "desc" };
 
 const EMPTY: AddonSetting = {
-    id: "", name: "", description: "", repo: "", private: false, assets: [], versions: [], install: "", icon: "", enabled: true,
+    id: "", name: "", description: "", repo: "", private: false, assets: [], versions: [], install: "", icon: "", enabled: true, orgaOnly: false,
 };
 
 function AddonForm({ addon, versions, onSave, onCancel }: {
@@ -96,6 +96,7 @@ function AddonForm({ addon, versions, onSave, onCancel }: {
             </Field>
             <div className="set-grid">
                 <Switch checked={value.private} onChange={(v) => set({ private: v })} label={t("addon.settings.private")} tip={t("addon.settings.privateSub")} />
+                <Switch checked={value.orgaOnly} onChange={(v) => set({ orgaOnly: v })} label={t("addon.settings.orgaOnly")} tip={t("addon.settings.orgaOnlySub")} />
                 <Switch checked={value.enabled} onChange={(v) => set({ enabled: v })} label={t("addon.settings.enabled")} tip={t("addon.settings.enabledSub")} />
             </div>
             <div className="row-actions">
@@ -200,7 +201,7 @@ export default function AddonsSection({ data, onConfig }: {
                                 {sorted.map((a) => (
                                     <tr key={a.id}>
                                         <td><span className="dlp-name-cell"><WowIcon name={a.icon} size={22} /><strong>{a.name}</strong></span></td>
-                                        <td className="small mono">{a.repo}{a.private ? ` · ${t("addon.settings.privateShort")}` : ""}</td>
+                                        <td className="small mono">{a.repo}{a.private ? ` · ${t("addon.settings.privateShort")}` : ""}{a.orgaOnly ? ` · ${t("addon.settings.orgaOnlyShort")}` : ""}</td>
                                         <td className="small">{a.versions.length ? a.versions.map(labelOf).join(", ") : t("addon.settings.noVersion")}</td>
                                         <td className="small mono">{a.assets.length ? a.assets.join(", ") : t("addon.settings.allFiles")}</td>
                                         <td>

@@ -24,7 +24,7 @@ const file = (name: string, size: number, kind: api.AddonFile["kind"]): api.Addo
 
 const levelhelper: api.AddonCard = {
     id: "levelhelper", name: "LevelHelper", description: "Leveling-Helfer für WoW Forever.", icon: "inv_misc_map02",
-    versions: ["forever"], install: "", state: "ok", stale: false, errorCode: "", fetchedAt: Date.parse("2026-10-12T10:00:00Z"),
+    versions: ["forever"], install: "", state: "ok", stale: false, errorCode: "", fetchedAt: Date.parse("2026-10-12T10:00:00Z"), orgaOnly: false,
     release: {
         version: "0.3.0", tag: "v0.3.0", publishedAt: "2026-10-12T10:00:00Z",
         notes: "## Neu\n- **Duo-Modus** mit Partner-Anzeige\n- [Doku](https://example.org)",
@@ -33,7 +33,7 @@ const levelhelper: api.AddonCard = {
 };
 const sync: api.AddonCard = {
     id: "eventhelper-sync", name: "EventHelper Sync", description: "Sync-Tool und Addon.", icon: "inv_gizmo_01",
-    versions: ["tbc", "forever"], install: "Im Sync-Tool den Token eintragen.", state: "ok", stale: false, errorCode: "", fetchedAt: 1,
+    versions: ["tbc", "forever"], install: "Im Sync-Tool den Token eintragen.", state: "ok", stale: false, errorCode: "", fetchedAt: 1, orgaOnly: true,
     release: {
         version: "1.14.0", tag: "v1.14.0", publishedAt: "2026-10-10T12:00:00Z", notes: "",
         assets: [file("EventHelperSync.exe", 73_400_320, "exe"), file("EventHelperSync-1.14.0.zip", 90_000, "zip")],
@@ -41,7 +41,7 @@ const sync: api.AddonCard = {
 };
 const professionkit: api.AddonCard = {
     id: "professionkit", name: "ProfessionKit", description: "Berufe-Guide.", icon: "trade_blacksmithing",
-    versions: ["forever"], install: "", state: "no_release", stale: false, errorCode: "", fetchedAt: 1, release: null,
+    versions: ["forever"], install: "", state: "no_release", stale: false, errorCode: "", fetchedAt: 1, orgaOnly: false, release: null,
 };
 
 const data = (addons: api.AddonCard[], over: Partial<api.AddonsData> = {}): api.AddonsData => ({
@@ -62,6 +62,16 @@ describe("page Addons", () => {
         expect(screen.getByRole("heading", { name: "EventHelper Sync" })).toBeInTheDocument();
         expect(screen.getByText("v0.3.0 · 12.10.2026")).toBeInTheDocument();
         expect(screen.getByText("Leveling-Helfer für WoW Forever.")).toBeInTheDocument();
+    });
+
+    it("marks an orga-only card with the chip Orga, and only that one", async () => {
+        renderPage(<AddonPage />, { route: "/addon" });
+        await screen.findByRole("heading", { name: "EventHelper Sync" });
+        const chips = document.querySelectorAll(".orga-chip-lbl");
+        expect(chips).toHaveLength(1);
+        expect(chips[0].textContent).toBe("Orga");
+        expect(chips[0].closest("section")).toHaveAttribute("data-addon", "eventhelper-sync");
+        expect(chips[0]).toHaveAttribute("data-tip-sub", "Nur Admins und Orga-Rollen sehen und laden es.");
     });
 
     it("links every download to the server route, with the file name and its size", async () => {

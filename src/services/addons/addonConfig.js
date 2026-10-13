@@ -38,6 +38,7 @@ const DEFAULT_ADDONS = Object.freeze([
         install: "",
         icon: "inv_misc_map02",
         enabled: true,
+        orgaOnly: false,
     }),
     Object.freeze({
         id: "professionkit",
@@ -50,6 +51,7 @@ const DEFAULT_ADDONS = Object.freeze([
         install: "",
         icon: "trade_blacksmithing",
         enabled: true,
+        orgaOnly: false,
     }),
     Object.freeze({
         id: "aurakit",
@@ -62,6 +64,7 @@ const DEFAULT_ADDONS = Object.freeze([
         install: "",
         icon: "spell_holy_auraoflight",
         enabled: true,
+        orgaOnly: false,
     }),
     Object.freeze({
         id: "macrohelper",
@@ -74,6 +77,7 @@ const DEFAULT_ADDONS = Object.freeze([
         install: "",
         icon: "inv_misc_book_09",
         enabled: true,
+        orgaOnly: false,
     }),
     Object.freeze({
         id: "eventhelper-sync",
@@ -86,6 +90,7 @@ const DEFAULT_ADDONS = Object.freeze([
         install: "Im Sync-Tool die Serveradresse und den API-Token der Orga eintragen. Ab Version 1.14.0 aktualisiert sich das Sync-Tool selbst und spielt das Addon über „Installieren“ ein.",
         icon: "inv_gizmo_01",
         enabled: true,
+        orgaOnly: true,
     }),
 ]);
 
@@ -138,6 +143,17 @@ function normalizeVersions(raw) {
 }
 
 /**
+ * Whether only the orga may see and load the addon. An explicit true/false
+ * wins; an entry stored before the flag existed takes the default of the
+ * DEFAULT_ADDONS entry with the same id, else false.
+ */
+function orgaOnlyOf(raw, id) {
+    if (typeof raw === "boolean") return raw;
+    const known = DEFAULT_ADDONS.find((a) => a.id === id);
+    return !!(known && known.orgaOnly);
+}
+
+/**
  * One stored or submitted entry in its final shape, or null when it cannot be
  * one (no usable repo, no name). The id comes from the entry, else its name.
  */
@@ -160,6 +176,7 @@ function normalizeAddon(raw) {
         install: text(raw.install, 600),
         icon: normalizeIcon(raw.icon),
         enabled: raw.enabled !== false,
+        orgaOnly: orgaOnlyOf(raw.orgaOnly, id),
     };
 }
 
