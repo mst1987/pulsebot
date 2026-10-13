@@ -5,7 +5,7 @@
 // approving, posting and pinging, the "nicht zusammen" question. The API is
 // mocked at its transport (api/client), so every test also pins the request
 // that is sent. The raider drawer, "Suche" and the extra roles: SetupEditor.panel.test.tsx.
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "../../../api/client";
@@ -205,6 +205,18 @@ describe("the setup editor: the empty start and filling", () => {
         await user.click(toggle);
         expect(pool).toHaveClass("se-pp-collapsed");
         expect(within(pool).getByRole("button", { name: t("setup.poolPanel.expand") })).toHaveAttribute("aria-expanded", "false");
+    });
+});
+
+describe("the setup editor: the group grid", () => {
+    it("hands the grid its number of groups, so a small raid's cards come out wide (setup-editor.css)", async () => {
+        await show(editorData());
+        expect(group(1).parentElement).toHaveClass("se-groups");
+        expect(group(1).parentElement).toHaveStyle({ "--se-n": "5" });
+        cleanup();
+        await show(editorData({ event: { ...editorData().event, size: 10 }, groupCount: 2 }));
+        expect(group(1).parentElement).toHaveStyle({ "--se-n": "2" });
+        expect(screen.queryByRole("region", { name: t("setup.group.title", { index: 3 }) })).not.toBeInTheDocument();
     });
 });
 

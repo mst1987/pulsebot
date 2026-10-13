@@ -45,6 +45,15 @@ describe("setup editor conventions", () => {
         expect(css).toMatch(/\.se-sumline \{ display: flex;/);
     });
 
+    it("widens a small raid's groups and starts every group's places on one line (checked in Chrome at 390–1440 px)", () => {
+        // the columns no group stands in drop out; the grid is never wider than --se-n cards of --se-group-max
+        expect(css).toMatch(/\.se-groups \{[^}]*repeat\(auto-fit, minmax\(188px, 1fr\)\)/);
+        expect(css).toMatch(/\.se-groups \{[^}]*max-width: calc\(var\(--se-n\) \* var\(--se-group-max\)/);
+        expect(editor).toContain("\"--se-n\": Math.max(1, count)");
+        // each card takes two rows of the grid as its own: every head in a row as tall as the tallest (wrapped buffs)
+        expect(css).toMatch(/\.se-groups > \.se-group \{[^}]*grid-row: span 2;[^}]*grid-template-rows: subgrid;[^}]*grid-template-columns: minmax\(0, 1fr\)/);
+    });
+
     it("opens the raider panel as a drawer that scrolls itself, one column, compact enough for the worst case", () => {
         expect(css).toMatch(/\.se-drawer \{\s*position: fixed;[^}]*width: min\(440px, calc\(100vw - 32px\)\)/);
         expect(css).toMatch(/\.se-drawer > \.se-tip \{[^}]*overflow-y: auto/);
