@@ -87,7 +87,8 @@ describe("GET /api/addons", () => {
         expect(status(res)).toBe(200);
         const data = body(res);
         expect(data.versionId).toBe("forever");
-        expect(data.addons.map((a) => [a.id, a.state])).toEqual([["levelhelper", "ok"], ["professionkit", "no_release"], ["eventhelper-sync", "ok"]]);
+        expect(data.addons.map((a) => [a.id, a.state])).toEqual([["levelhelper", "ok"], ["professionkit", "no_release"],
+            ["aurakit", "no_release"], ["macrohelper", "no_release"], ["eventhelper-sync", "ok"]]);
         expect(data.addons[0].release.assets[0].url).toBe("/api/addons/download?addon=levelhelper&asset=LevelHelper-0.3.0.zip");
         expect(data.downloadLimit).toBe(LIMIT);
         const text = JSON.stringify(data);

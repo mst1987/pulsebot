@@ -6,12 +6,16 @@ const {
 } = require("../../../src/services/addons/addonConfig");
 
 describe("the default addons", () => {
-    it("are the three own addons, the two private ones for Forever", () => {
+    it("are the five own addons, the four private ones for Forever", () => {
         expect(DEFAULT_ADDONS.map((a) => [a.id, a.repo, a.private, a.versions])).toEqual([
             ["levelhelper", "mst1987/levelhelper", true, ["forever"]],
             ["professionkit", "mst1987/professionkit", true, ["forever"]],
+            ["aurakit", "mst1987/aurakit", true, ["forever"]],
+            ["macrohelper", "mst1987/macrohelper", true, ["forever"]],
             ["eventhelper-sync", "mst1987/eventhelper-addon", false, ["tbc", "forever"]],
         ]);
+        expect(DEFAULT_ADDONS.find((a) => a.id === "aurakit").assets).toEqual(["AuraKit-*.zip"]);
+        expect(DEFAULT_ADDONS.find((a) => a.id === "macrohelper").assets).toEqual(["MacroHelper-*.zip"]);
         expect(DEFAULT_ADDONS.find((a) => a.id === "eventhelper-sync").assets).toEqual(["EventHelperSync.exe", "EventHelperSync-*.zip"]);
     });
 

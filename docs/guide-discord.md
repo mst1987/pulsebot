@@ -67,7 +67,7 @@ Diese Befehle antworten privat (nur für dich sichtbar) und verlinken meist auf 
 - `/loot ich · item · raider` — eigene Loot-Historie, Historie zu einem Item, oder zu einem Spieler.
 - `/council <Item>` — Loot-Council-Infos zu einem Item (Orga).
 - `/bestzeiten [dungeon]` — Dungeon-Bestzeiten der Gilde aus dem Addon LevelHelper: mit Dungeon die fünf schnellsten Gruppenläufe, ohne die Gesamtwertung nach Medaillen.
-- `/addons [version]` — die Addons der Gilde (LevelHelper, ProfessionKit, EventHelper Sync) mit neuester Version und einem Knopf zur Download-Seite im Web. Die Dateien selbst gibt es nur im Web nach dem Login, nie als Link in Discord.
+- `/addons [version]` — die Addons der Gilde (LevelHelper, ProfessionKit, AuraKit, MacroHelper, EventHelper Sync) mit neuester Version und einem Knopf zur Download-Seite im Web. Die Dateien selbst gibt es nur im Web nach dem Login, nie als Link in Discord.
 - `/kanal umbenennen · archivieren · anlegen` — Kanalverwaltung direkt aus Discord (Orga).
 
 ## Event-Verwaltung (nur Orga)

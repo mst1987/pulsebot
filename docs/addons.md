@@ -2,7 +2,7 @@
 
 Endnutzer-Sicht: siehe [guide-web-admin.md#addons](guide-web-admin.md#addons) und [guide-discord.md](guide-discord.md) (`/addons`).
 
-Die Gilde lädt die eigenen Addons im Web herunter: **LevelHelper** (`mst1987/levelhelper`, privat), **ProfessionKit** (`mst1987/professionkit`, privat) und **EventHelper Sync** (`mst1987/eventhelper-addon`, öffentlich: Sync-Tool `EventHelperSync.exe` und Addon `EventHelperSync-<version>.zip`). Jedes Addon kommt als GitHub-Release; die Seite zeigt immer das neueste (`/releases/latest`).
+Die Gilde lädt die eigenen Addons im Web herunter: **LevelHelper** (`mst1987/levelhelper`, privat), **ProfessionKit** (`mst1987/professionkit`, privat), **AuraKit** (`mst1987/aurakit`, privat), **MacroHelper** (`mst1987/macrohelper`, privat) und **EventHelper Sync** (`mst1987/eventhelper-addon`, öffentlich: Sync-Tool `EventHelperSync.exe` und Addon `EventHelperSync-<version>.zip`). Jedes Addon kommt als GitHub-Release; die Seite zeigt immer das neueste (`/releases/latest`).
 
 ## Bausteine
 
@@ -48,7 +48,7 @@ Die Seite schickt die Version des Content-Umschalters (`?version=`), der Server 
 
 ## Einrichten: GitHub-Token
 
-Fine-grained Personal Access Token auf github.com (Settings → Developer settings → Personal access tokens → Fine-grained tokens): Resource owner `mst1987`, Repository access „Only select repositories“ mit `levelhelper`, `professionkit` (und optional `eventhelper-addon`), Permissions → Repository permissions → **Contents: Read-only** (Metadata: Read-only kommt automatisch), sonst nichts. Ablaufdatum setzen und den Token unter Einstellungen → Verbindungen → GitHub (Addons) eintragen. Ein abgelaufener Token zeigt Admins „GitHub lehnt den Token ab“.
+Fine-grained Personal Access Token auf github.com (Settings → Developer settings → Personal access tokens → Fine-grained tokens): Resource owner `mst1987`, Repository access „Only select repositories“ mit `levelhelper`, `professionkit`, `aurakit`, `macrohelper` (und optional `eventhelper-addon`), Permissions → Repository permissions → **Contents: Read-only** (Metadata: Read-only kommt automatisch), sonst nichts. Ablaufdatum setzen und den Token unter Einstellungen → Verbindungen → GitHub (Addons) eintragen. Ein abgelaufener Token zeigt Admins „GitHub lehnt den Token ab“.
 
 ## Tests
 

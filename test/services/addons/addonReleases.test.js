@@ -107,8 +107,8 @@ describe("releaseFor", () => {
 describe("cards", () => {
     it("lists the enabled addons of a version", () => {
         const cfg = config();
-        cfg.addonDownloads[1].enabled = false;
-        expect(enabledAddons(cfg, "forever").map((a) => a.id)).toEqual(["levelhelper", "eventhelper-sync"]);
+        cfg.addonDownloads.find((a) => a.id === "professionkit").enabled = false;
+        expect(enabledAddons(cfg, "forever").map((a) => a.id)).toEqual(["levelhelper", "aurakit", "macrohelper", "eventhelper-sync"]);
         expect(enabledAddons(cfg, "tbc").map((a) => a.id)).toEqual(["eventhelper-sync"]);
         expect(enabledAddons(cfg, "classic")).toEqual([]);
         expect(enabledAddons({}, "tbc")).toEqual([]);
@@ -117,7 +117,7 @@ describe("cards", () => {
     it("names the versions with at least one enabled addon", () => {
         const cfg = config();
         expect(addonVersions(cfg)).toEqual(["tbc", "forever"]);
-        cfg.addonDownloads[2].enabled = false;
+        cfg.addonDownloads.find((a) => a.id === "eventhelper-sync").enabled = false;
         expect(addonVersions(cfg)).toEqual(["forever"]);
         expect(addonVersions({})).toEqual([]);
     });
