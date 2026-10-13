@@ -218,13 +218,15 @@ describe("stores/guildBankStore", () => {
             expect(store.getRequest(request.id)).toMatchObject({ characterName: "Alîna" });
         });
 
-        it("moves an entry up: all of it turns open, a part leaves the rest at the same place", () => {
+        it("moves an entry up: all of it turns open, a part sends the rest to the end of the list", () => {
             const a = wait().request;
             const b = wait({ userId: "u2", amount: 1 }, NOW + 1).request;
             const part = store.promoteWaiting(a.id, 2, { now: NOW + 5 });
             expect(part.request).toMatchObject({ status: "open", amount: 2, fromWaitlist: true, queueRank: 0, createdAt: NOW + 5, userId: "u1" });
             expect(part.request.id).not.toBe(a.id);
-            expect(part.rest).toMatchObject({ id: a.id, status: "waiting", amount: 1, queueRank: 1, createdAt: NOW });
+            // behind Bert (rank 2) now — the turn passes on
+            expect(part.rest).toMatchObject({ id: a.id, status: "waiting", amount: 1, queueRank: 3, createdAt: NOW });
+            expect(store.waitingQueue(KEY).map((r) => r.id)).toEqual([b.id, a.id]);
             const all = store.promoteWaiting(a.id, 5, { now: NOW + 6 });
             expect(all).toEqual({ request: expect.objectContaining({ id: a.id, status: "open", amount: 1, fromWaitlist: true }), rest: null });
             expect(store.promoteWaiting(a.id, 1)).toEqual({ error: "Kein Eintrag der Warteliste." });

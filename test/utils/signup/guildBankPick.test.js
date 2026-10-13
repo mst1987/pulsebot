@@ -78,6 +78,9 @@ describe("utils/signup/guildBankPick", () => {
         // somebody waits already: both numbers, and the request will wait behind them
         expect(pick.itemModal({ item: item({ maxPerRequest: 0, waiting: 3, free: 2 }), lang: "en" }).components[0].content)
             .toBe("**Bold Living Ruby** · Available: 2 · Waiting list: 3 ahead of you\n-# Others are waiting already – your request goes on the waiting list.");
+        // the item's portion: how the waiting list shares out
+        expect(pick.itemModal({ item: item({ maxPerRequest: 0, waiting: 3, free: 0, portion: 2 }), lang: "de" }).components[0].content)
+            .toBe("**Bold Living Ruby** · Verfügbar: 0 · Warteliste: 3 vor dir\n-# Es warten schon andere – deine Anfrage kommt auf die Warteliste. Ausgabe reihum: je 2 pro Runde.");
         expect(pick.availabilityText(item({ waiting: 2 }), "en")).toBe("Waiting list: 2 ahead of you · max. 5 per request");
         expect(pick.availabilityText(item({ free: 4 }), "en")).toBe("Available: 4 · max. 5 per request");
     });

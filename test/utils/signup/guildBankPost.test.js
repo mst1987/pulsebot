@@ -157,24 +157,33 @@ describe("utils/signup/guildBankPost", () => {
         it("tells the raider their place, in their language", () => {
             expect(post.waitingSummary(STOCK, 4, "de")).toBe("Auf der Warteliste: **2× Crimson Spinal** – du bist Nr. 4.\nDu bekommst eine DM, sobald du dran bist.");
             expect(post.waitingSummary(STOCK, 0, "en")).toBe("On the waiting list: **2× Crimson Spinal**.\nYou get a DM as soon as it is your turn.");
+            // how the list shares out: the item's portion
+            expect(post.waitingSummary(STOCK, 4, "de", { portion: 2 })).toBe("Auf der Warteliste: **2× Crimson Spinal** – du bist Nr. 4.\nDu bekommst eine DM, sobald du dran bist. Ausgabe reihum: je 2 pro Runde.");
+            expect(post.turnsText(3, "en")).toBe("Handed out in turns: 3 per round.");
         });
 
-        it("DMs 'Your turn' with what still waits", () => {
-            const de = cardText(post.movedUpCard(STOCK, "de", { rest: 1 }));
+        it("DMs 'Your turn' with the rest that is back at the end of the list", () => {
+            const de = cardText(post.movedUpCard(STOCK, "de", { rest: 13, position: 9 }));
             expect(de).toContain("## Du bist dran");
             expect(de).toContain("Der Gegenstand ist jetzt in der Gildenbank – die Orga bestätigt gleich.");
-            expect(de).toContain("1 weitere bleiben für dich auf der Warteliste");
+            expect(de).toContain("13 weitere stehen für dich wieder hinten auf der Warteliste – du bist Nr. 9.");
             expect(de).toContain("An: Zibbo-Spineshatter");
+            expect(cardText(post.movedUpCard(STOCK, "en", { rest: 1 }))).toContain("1 more are back at the end of the waiting list for you.");
             const en = cardText(post.movedUpCard({ ...STOCK, characterName: "" }, "en"));
             expect(en).toContain("## Your turn on the waiting list");
-            expect(en).not.toContain("first in line");
+            expect(en).not.toContain("waiting list for you");
         });
 
-        it("marks a moved-up card and names a character without a Discord account", () => {
+        it("marks a moved-up card (with the rest that waits again) and names a character without a Discord account", () => {
             const card = post.orgaPayload({ ...STOCK, fromWaitlist: true, userId: "", characterName: "Alîna" }, { categoryName: "TBC Montag" });
             expect(cardText(card)).toContain("**Alîna** · ohne Discord-Konto, keine DM");
             expect(cardText(card)).toContain("-# TBC Montag · aus der Warteliste · offen");
             expect(cardText(post.orgaPayload({ ...STOCK }))).not.toContain("aus der Warteliste");
+            const rest = post.orgaPayload({ ...STOCK, fromWaitlist: true }, { rest: { amount: 13, position: 9 } });
+            expect(cardText(rest)).toContain("-# aus der Warteliste · Rest 13 wartet (Platz 9) · offen");
+            expect(post.waitlistNote({ fromWaitlist: true }, { amount: 2, position: 0 })).toBe("aus der Warteliste · Rest 2 wartet");
+            expect(post.waitlistNote({ fromWaitlist: true }, { amount: 0 })).toBe("aus der Warteliste");
+            expect(post.waitlistNote({ fromWaitlist: false }, { amount: 2 })).toBe("");
         });
     });
 

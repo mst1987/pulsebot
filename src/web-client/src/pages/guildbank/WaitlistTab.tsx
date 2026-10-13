@@ -1,7 +1,9 @@
 // The "Warteliste" tab of the guild bank (#775), next to "Ausgebbar": every
 // offered item has one list per bank — whoever asked first is served first,
-// and when stock comes free the first move up on their own as open requests
-// (card in the orga channel, DM). The tab lists the queues per item: place,
+// in turns: when stock comes free, the first move up on their own as open
+// requests (card in the orga channel, DM), each at most the item's portion
+// ("reihum je 2" in the item's head); a rest stands in line again at the
+// end. The tab lists the queues per item: place,
 // raider or character, amount, since when; forward / back / remove for the
 // orga. Adding one entry and the sheet import are dialogs of their own
 // (WaitlistAddDialog.tsx, WaitlistImportDialog.tsx) opened from the filter
@@ -100,6 +102,9 @@ function ItemQueue({ group, item, canWrite, busyId, ...actions }: RowActions & {
                 <span className="gb-wl-item">{group.item}</span>
                 <Badge size="sm">{t("guildbank.waitlist.entries", { count: group.entries.length })}</Badge>
                 <Badge size="sm" tone={availableTone(free)}>{t("guildbank.waitlist.free", { count: free })}</Badge>
+                {item && item.portion > 0 && (
+                    <Badge size="sm" tip={t("guildbank.waitlist.portionTip", { count: item.portion })}>{t("guildbank.waitlist.portion", { count: item.portion })}</Badge>
+                )}
             </header>
             <ol className="gb-wl-list">
                 {group.entries.map((e, i) => (

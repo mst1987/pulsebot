@@ -11,6 +11,8 @@
 //   open       the open (not yet confirmed) requests of the item — promised, not set aside (#775)
 //   free       max(0, available - open) — what a new request or the waiting list may still get
 //   waiting    how many waiting-list entries wait for the item, waitingAmount their amounts
+//   portion    the waiting list's share per turn (the item's own 1–99, else
+//              guildBankStockStore.PORTION_DEFAULT = 2; the store's item view)
 //   group      the line the item is listed under: the orga's own category,
 //              else Wowhead's class (gems, recipes) or subclass (consumables,
 //              trade goods: "Fläschchen", "Stoff") — German labels by id
