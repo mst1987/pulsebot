@@ -5,15 +5,20 @@
 // item's settings behind a small button. Numbers that only matter for a
 // requestable item (set aside, reserve, available) read "–" elsewhere. An
 // item somebody waits for says so under its name ("3 warten", #775).
-import { Fragment } from "react";
-import type { GuildBankItem, GuildBankStatus, GuildBankTab } from "../../api";
+import { Fragment, useEffect, useRef, useState } from "react";
+import type { GuildBankItem, GuildBankRequest, GuildBankStatus, GuildBankTab } from "../../api";
 import { Badge, IconButton, Segment } from "../../components/ui";
+import Popover from "../../components/ui/Popover";
+import { panelPlacement } from "../../lib/ui/popoverPosition";
 import { ItemIcon } from "../../components/loot/LootBadges";
 import { EyeIcon, EyeOffIcon, GiftIcon, SlidersIcon } from "../../components/ui/icons";
 import { itemQualityProps } from "../../lib/wow/itemQuality";
 import { wowheadItemUrl } from "../../lib/wow/wowheadItems";
 import { tParts, useT } from "../../i18n";
-import { availableTone, itemName, tabLine, type ItemGroup } from "./bankView";
+import { availableTone, itemName, recipientName, tabLine, type ItemGroup } from "./bankView";
+
+/** How many recipients the popover of a "Vorgemerkt" number lists before "+N weitere". */
+const MAX_RECIPIENTS = 6;
 
 type SettableStatus = Exclude<GuildBankStatus, "new">;
 
@@ -46,14 +51,83 @@ function ItemCell({ item, tabs, wowheadPath }: { item: GuildBankItem; tabs: Guil
     );
 }
 
-function Row({ item, tabs, wowheadPath, canWrite, busy, onStatus, onSettings }: {
+/**
+ * The "Vorgemerkt" number. With set-aside requests behind it, it is a button:
+ * a click (Enter, Space) opens a small panel with who it is set aside for
+ * ("1× an Zibbi-Thunderstrike (Zibbo)"), at most MAX_RECIPIENTS, then
+ * "+N weitere" and the link to the "Anfragen" tab filtered by the item. The
+ * requests come from the one answer the page loaded (GuildBankPage.tsx), so
+ * no row asks the server. The focus moves into the panel (it sits at the end
+ * of <body>, out of the tab order otherwise) and back to the number on close.
+ */
+function ReservedCell({ item, requests, onShowRequests }: { item: GuildBankItem; requests: GuildBankRequest[]; onShowRequests: (item: GuildBankItem) => void }) {
+    const t = useT();
+    const [open, setOpen] = useState(false);
+    const trigger = useRef<HTMLButtonElement>(null);
+    const box = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (open) box.current?.focus();
+    }, [open]);
+    const close = () => {
+        setOpen(false);
+        trigger.current?.focus();
+    };
+    if (!item.reserved || !requests.length) return <span className="lc-num gb-num muted" role="cell">{item.reserved}</span>;
+    const shown = requests.slice(0, MAX_RECIPIENTS);
+    const more = requests.length - shown.length;
+    return (
+        <span className="gb-reserved-cell" role="cell">
+            <button
+                ref={trigger}
+                type="button"
+                className="lc-num gb-num gb-reserved-btn"
+                aria-haspopup="dialog"
+                aria-expanded={open}
+                aria-label={t("guildbank.list.reservedFor", { count: item.reserved, name: itemName(item) })}
+                onClick={() => setOpen((o) => !o)}
+            >
+                {item.reserved}
+            </button>
+            {open && (
+                <Popover
+                    anchor={trigger}
+                    boxRef={box}
+                    place={panelPlacement(320, 360)}
+                    onClose={close}
+                    className="gb-reserved-pop"
+                    role="dialog"
+                    aria-label={t("guildbank.list.reservedPopTitle", { name: itemName(item) })}
+                    tabIndex={-1}
+                >
+                    <div className="gb-reserved-head">{t("guildbank.list.reservedPopTitle", { name: itemName(item) })}</div>
+                    <ul className="gb-reserved-list">
+                        {shown.map((r) => (
+                            <li key={r.id}>
+                                <b>{t("guildbank.list.reservedFor1", { amount: r.amount, name: recipientName(r) || r.userName || "–" })}</b>
+                                {r.userName && r.userName !== r.characterName && <span className="muted"> ({r.userName})</span>}
+                            </li>
+                        ))}
+                    </ul>
+                    {more > 0 && <div className="gb-reserved-more">{t("guildbank.list.reservedMore", { count: more })}</div>}
+                    <button type="button" className="gb-reserved-all" onClick={() => { setOpen(false); onShowRequests(item); }}>
+                        {t("guildbank.list.reservedAll")}
+                    </button>
+                </Popover>
+            )}
+        </span>
+    );
+}
+
+function Row({ item, tabs, wowheadPath, canWrite, busy, reservedFor, onStatus, onSettings, onShowRequests }: {
     item: GuildBankItem;
     tabs: GuildBankTab[];
     wowheadPath: string;
     canWrite: boolean;
     busy: boolean;
+    reservedFor: GuildBankRequest[];
     onStatus: (item: GuildBankItem, status: SettableStatus) => void;
     onSettings: (item: GuildBankItem) => void;
+    onShowRequests: (item: GuildBankItem) => void;
 }) {
     const t = useT();
     const give = item.status === "give";
@@ -62,7 +136,7 @@ function Row({ item, tabs, wowheadPath, canWrite, busy, onStatus, onSettings }: 
         <div className="gb-row" role="row">
             <ItemCell item={item} tabs={tabs} wowheadPath={wowheadPath} />
             <span className="lc-num gb-num" role="cell">{item.count}</span>
-            {give ? <span className="lc-num gb-num muted" role="cell">{item.reserved}</span> : dash}
+            {give ? <ReservedCell item={item} requests={reservedFor} onShowRequests={onShowRequests} /> : dash}
             {give ? <span className="lc-num gb-num muted" role="cell">{item.reserve}</span> : dash}
             <span className="gb-end" role="cell">
                 {give
@@ -100,15 +174,19 @@ function Row({ item, tabs, wowheadPath, canWrite, busy, onStatus, onSettings }: 
     );
 }
 
-export default function BankList({ groups, tabs, wowheadPath, canWrite, busyId, onStatus, onSettings }: {
+export default function BankList({ groups, tabs, wowheadPath, canWrite, busyId, reservedBy, onStatus, onSettings, onShowRequests }: {
     groups: ItemGroup[];
     tabs: GuildBankTab[];
     wowheadPath: string;
     canWrite: boolean;
     /** The item a change is being saved for: its switch waits. */
     busyId: number;
+    /** The set-aside requests per item id: who the "Vorgemerkt" number is for. */
+    reservedBy: Map<number, GuildBankRequest[]>;
     onStatus: (item: GuildBankItem, status: SettableStatus) => void;
     onSettings: (item: GuildBankItem) => void;
+    /** "Alle im Tab Anfragen": the page switches to that tab, filtered by the item. */
+    onShowRequests: (item: GuildBankItem) => void;
 }) {
     const t = useT();
     return (
@@ -137,8 +215,10 @@ export default function BankList({ groups, tabs, wowheadPath, canWrite, busyId, 
                                 wowheadPath={wowheadPath}
                                 canWrite={canWrite}
                                 busy={busyId === it.itemId}
+                                reservedFor={reservedBy.get(it.itemId) || []}
                                 onStatus={onStatus}
                                 onSettings={onSettings}
+                                onShowRequests={onShowRequests}
                             />
                         ))}
                     </Fragment>

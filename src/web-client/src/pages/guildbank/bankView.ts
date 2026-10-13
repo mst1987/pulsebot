@@ -2,7 +2,7 @@
 // they are grouped and sorted, the tone of "Verfügbar" and the bank-tab line
 // under an item's name. The numbers themselves (reserved, available, group)
 // come from the server (src/services/guildbank/stockView.js).
-import type { GuildBankHandedOut, GuildBankItem, GuildBankStatus, GuildBankTab, GuildBankWaitingEntry } from "../../api";
+import type { GuildBankHandedOut, GuildBankItem, GuildBankRequest, GuildBankStatus, GuildBankTab, GuildBankWaitingEntry } from "../../api";
 import { locale, t } from "../../i18n";
 import { formatWith, isoDay } from "../../lib/format";
 
@@ -10,21 +10,18 @@ import { formatWith, isoDay } from "../../lib/format";
  * The page's tabs, in the order of the design: what raiders see first; "wait"
  * is the waiting list (#775) and "out" what was handed out — no item status.
  */
-export type PageTab = GuildBankStatus | "wait" | "out";
-export const BANK_TABS: PageTab[] = ["give", "wait", "out", "show", "hide", "new"];
+export type PageTab = GuildBankStatus | "wait" | "req" | "out";
+export const BANK_TABS: PageTab[] = ["give", "wait", "req", "out", "show", "hide", "new"];
 
-/** The item status whose items a tab lists ("wait" and "out" filter by the offered ones). */
+/** The item status whose items a tab lists ("wait", "req" and "out" filter by the offered ones; "req" = the open and set-aside requests). */
 export function itemTabOf(tab: PageTab): GuildBankStatus {
-    return tab === "wait" || tab === "out" ? "give" : tab;
+    return tab === "wait" || tab === "req" || tab === "out" ? "give" : tab;
 }
 
 /** A stored tab id that is none of the page's tabs falls back to the first. */
 export function isPageTab(value: string): value is PageTab {
     return (BANK_TABS as string[]).includes(value);
 }
-
-/** The WoW icon of the "Anfragen" button and dialog (#633). */
-export const REQUESTS_ICON = "inv_misc_bag_10";
 
 export type BankFilter = { tab: GuildBankStatus; category: string; search: string };
 
@@ -219,4 +216,46 @@ export function profileNote(profile: string, raider: string): string {
     if (profile === "noClass") return t("guildbank.link.profileNoClass", { raider });
     if (profile === "noProfile") return t("guildbank.link.profileMissing", { raider });
     return t("guildbank.link.profileError", { reason: profile });
+}
+
+/** The requests the filter line lets through: the item's category and a search in the item, the character or the raider. */
+export function filterRequests(
+    list: GuildBankRequest[],
+    items: Map<number, GuildBankItem>,
+    filter: { category: string; search: string },
+): GuildBankRequest[] {
+    const needle = filter.search.trim().toLocaleLowerCase(locale());
+    return list.filter((r) => {
+        const item = items.get(r.itemId);
+        if (filter.category && (!item || groupName(item) !== filter.category)) return false;
+        if (!needle) return true;
+        return [r.item, r.characterName, r.userName].some((s) => (s || "").toLocaleLowerCase(locale()).includes(needle));
+    });
+}
+
+/** Set-aside requests first (they wait for the hand-out in game), then the open ones (they wait for the orga); each oldest first. */
+export function groupRequestsByStatus(list: GuildBankRequest[]): { status: GuildBankRequest["status"]; requests: GuildBankRequest[] }[] {
+    return (["confirmed", "open"] as const)
+        .map((status) => ({ status, requests: list.filter((r) => r.status === status).sort((a, b) => a.createdAt - b.createdAt) }))
+        .filter((g) => g.requests.length > 0);
+}
+
+/** The set-aside ("Vorgemerkt") requests per item id, oldest first: who the number in the item list is for. */
+export function reservedByItem(list: GuildBankRequest[]): Map<number, GuildBankRequest[]> {
+    const out = new Map<number, GuildBankRequest[]>();
+    for (const r of [...list].sort((a, b) => a.createdAt - b.createdAt)) {
+        if (r.status !== "confirmed") continue;
+        out.set(r.itemId, [...(out.get(r.itemId) || []), r]);
+    }
+    return out;
+}
+
+/** "gerade eben", "vor 5 Min.", "vor 3 Std.", "vor 2 Tagen". */
+export function agoLabel(at: number, now: number = Date.now()): string {
+    const min = Math.floor((now - at) / 60000);
+    if (min < 1) return t("guildbank.requests.agoNow");
+    if (min < 60) return t("guildbank.requests.agoMinutes", { count: min });
+    const hours = Math.floor(min / 60);
+    if (hours < 48) return t("guildbank.requests.agoHours", { count: hours });
+    return t("guildbank.requests.agoDays", { count: Math.floor(hours / 24) });
 }

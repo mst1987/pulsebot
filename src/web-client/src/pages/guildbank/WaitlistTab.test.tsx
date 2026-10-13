@@ -16,6 +16,7 @@ import type { GuildBankCharacterChoice, GuildBankImportRow, GuildBankWaitingEntr
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
     getGuildBank: vi.fn(),
+    getGuildBankRequests: vi.fn(),
     getGuildBankWaitlist: vi.fn(),
     addGuildBankWaiting: vi.fn(),
     moveGuildBankWaiting: vi.fn(),
@@ -65,6 +66,7 @@ async function openDialog(user: ReturnType<typeof userEvent.setup>, button: stri
 
 beforeEach(() => {
     localStorage.clear();
+    vi.mocked(api.getGuildBankRequests).mockResolvedValue({ requests: [] });
     vi.mocked(api.getGuildBank).mockResolvedValue(bankData({
         items: [
             bankItem({ itemId: 1, available: 0, free: 0, waiting: 2, waitingAmount: 3 }),
@@ -89,7 +91,7 @@ describe("guild bank waiting list", () => {
     it("has a tab next to \"Ausgebbar\" that counts who waits, and no head button any more", async () => {
         renderPage(<GuildBankPage />, { route: "/guildbank" });
         const tabs = await screen.findAllByRole("tab");
-        expect(tabs.map((tab) => tab.textContent)).toEqual(["Ausgebbar 3", "Warteliste 3", "Ausgegeben 0", "Nur Bestand 1", "Ausgeblendet 0", "Neu 0"]);
+        expect(tabs.map((tab) => tab.textContent)).toEqual(["Ausgebbar 3", "Warteliste 3", "Anfragen 0", "Ausgegeben 0", "Nur Bestand 1", "Ausgeblendet 0", "Neu 0"]);
         expect(screen.queryByRole("button", { name: "Warteliste" })).toBeNull();
     });
 
