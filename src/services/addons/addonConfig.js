@@ -154,6 +154,20 @@ function normalizeAddonList(raw) {
     return out;
 }
 
+/**
+ * The list config.json holds, as every reader gets it. Never stored = the
+ * defaults. An empty list counts only when an admin emptied it on purpose
+ * (`addonDownloadsCustomized`, set by an edit in Einstellungen -> Module ->
+ * Addons): an empty list without that mark was never meant and reads as the
+ * defaults again, so the page "Addons" heals itself.
+ */
+function storedAddonList(stored) {
+    const src = stored && typeof stored === "object" ? stored : {};
+    if (src.addonDownloads === undefined) return defaultAddons();
+    const list = normalizeAddonList(src.addonDownloads);
+    return list.length || src.addonDownloadsCustomized === true ? list : defaultAddons();
+}
+
 /** The GitHub credential block: `{ token }`, a string, nothing else. */
 function normalizeGithub(raw) {
     const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
@@ -175,6 +189,6 @@ function assetMatches(addon, fileName) {
 
 module.exports = {
     DEFAULT_ADDONS, DEFAULT_ICON, MAX_ADDONS, MAX_PATTERNS, VERSION_IDS,
-    defaultAddons, normalizeAddon, normalizeAddonList, normalizeGithub, normalizeIcon, normalizeRepo,
+    defaultAddons, normalizeAddon, normalizeAddonList, storedAddonList, normalizeGithub, normalizeIcon, normalizeRepo,
     normalizePatterns, normalizeVersions, slugify, patternRegex, assetMatches,
 };

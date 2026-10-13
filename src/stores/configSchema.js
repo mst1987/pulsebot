@@ -18,7 +18,7 @@ const { isSnowflake } = require("../utils/ids");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { versionSettingsOf, normalizeVersionSettings, versionsWithDefaults } = require("./versionSettingsSchema");
 const { normalizeBackupSettings } = require("../services/backup/backupConfig");
-const { defaultAddons, normalizeAddonList, normalizeGithub } = require("../services/addons/addonConfig");
+const { defaultAddons, storedAddonList, normalizeGithub } = require("../services/addons/addonConfig");
 
 /** The pictures of `config.discordVisuals`, each on by default. */
 const DISCORD_VISUALS_DEFAULT = Object.freeze({ overviewWeekStrip: true, setupImage: true, eventCover: true });
@@ -239,6 +239,10 @@ const CONFIG_DEFAULTS = {
     // [{ id, name, description, repo, private, assets, versions, install, icon,
     // enabled }] - services/addons/addonConfig.js. Default: the three own addons.
     addonDownloads: defaultAddons(),
+    // Whether an admin edited that list by hand: an edit in Einstellungen -> Module ->
+    // Addons sets it, "Standard wiederherstellen" clears it. Only then does an empty
+    // list stay empty; without it an empty list reads as the defaults (storedAddonList).
+    addonDownloadsCustomized: false,
     // Role sync between the two servers (#264): [{ eventRoleId, talkRoleId,
     // direction }] with direction "toTalk" | "toEvent" | "both". The sync only
     // ever ADDS roles (src/services/discord/roleSync.js); a role lost on one side stays on
@@ -782,8 +786,9 @@ function normalizeConfig(raw) {
         anthropic: { ...CONFIG_DEFAULTS.anthropic, ...(stored.anthropic || {}) },
         warcraftlogsV2: { ...CONFIG_DEFAULTS.warcraftlogsV2, ...(stored.warcraftlogsV2 || {}) },
         github: normalizeGithub(stored.github),
-        // never stored = the defaults; a stored list (also an emptied one) wins
-        addonDownloads: stored.addonDownloads === undefined ? defaultAddons() : normalizeAddonList(stored.addonDownloads),
+        // never stored = the defaults; a stored list wins, an empty one only when an admin emptied it
+        addonDownloads: storedAddonList(stored),
+        addonDownloadsCustomized: stored.addonDownloadsCustomized === true,
         categoryLootTool: (stored.categoryLootTool && typeof stored.categoryLootTool === "object")
             ? stored.categoryLootTool : { ...CONFIG_DEFAULTS.categoryLootTool },
         categoryLootSystem: normalizeCategoryLootSystem(stored.categoryLootSystem),

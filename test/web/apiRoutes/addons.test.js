@@ -100,6 +100,14 @@ describe("GET /api/addons", () => {
         expect(data.addons.map((a) => a.id)).toEqual(["eventhelper-sync"]);
     });
 
+    it("answers no cards for Classic, but names the versions that have addons", async () => {
+        const data = body(await get("/api/addons", { version: "classic" }));
+        expect(data.versionId).toBe("classic");
+        expect(data.addons).toEqual([]);
+        expect(data.addonVersions.map((v) => v.id)).toEqual(["tbc", "forever"]);
+        expect(data.addonVersions.every((v) => v.label && v.label !== v.id)).toBe(true);
+    });
+
     it("falls back to the main version, and to it alone while the others are hidden", async () => {
         expect(body(await get("/api/addons")).versionId).toBe("forever");
         mockConfig = { ...mockConfig, hideOtherVersions: true };

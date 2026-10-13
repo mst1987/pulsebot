@@ -263,3 +263,52 @@ describe("stores/configStore dungeonRecords (Neue Gildenrekorde posten)", () => 
         expect(configStore.saveConfig({ dungeonRecords: { channelId: "nope" } }).dungeonRecords).toEqual({ post: true, channelId: "" });
     });
 });
+
+describe("stores/configStore addon list (#818): never wiped by accident", () => {
+    const { defaultAddons } = require("../../src/services/addons/addonConfig");
+    const ids = (config) => config.addonDownloads.map((a) => a.id);
+    const DEFAULT_IDS = ["levelhelper", "professionkit", "eventhelper-sync"];
+
+    it("heals a stored empty list nobody emptied on purpose: the defaults again", () => {
+        writeFile({ addonDownloads: [] });
+        expect(ids(configStore.getConfig())).toEqual(DEFAULT_IDS);
+        expect(configStore.getConfig().addonDownloadsCustomized).toBe(false);
+    });
+
+    it("keeps a list an admin emptied on purpose empty", () => {
+        writeFile({ addonDownloads: [], addonDownloadsCustomized: true });
+        expect(configStore.getConfig().addonDownloads).toEqual([]);
+    });
+
+    it("keeps the list through the GitHub token save and every other save", () => {
+        writeFile({ addonDownloads: [{ id: "mine", name: "Mine", repo: "me/mine" }], addonDownloadsCustomized: true });
+        configStore.saveConfig({ github: { token: "github_pat_NEW" } });
+        configStore.saveConfig({ officerRoleId: "o" });
+        expect(ids(configStore.getConfig())).toEqual(["mine"]);
+        expect(configStore.getConfig().github.token).toBe("github_pat_NEW");
+    });
+
+    it("ignores a list carried along without the edit mark - an unrelated save cannot wipe it", () => {
+        configStore.saveConfig({ addonDownloads: [], officerRoleId: "o" });
+        expect(ids(configStore.getConfig())).toEqual(DEFAULT_IDS);
+        expect(configStore.getConfig().officerRoleId).toBe("o");
+    });
+
+    it("takes an edit (list with the mark), removing single addons and all of them", () => {
+        const [, professionkit, sync] = defaultAddons();
+        configStore.saveConfig({ addonDownloads: [professionkit, sync], addonDownloadsCustomized: true });
+        expect(ids(configStore.getConfig())).toEqual(["professionkit", "eventhelper-sync"]);
+        configStore.saveConfig({ addonDownloads: [], addonDownloadsCustomized: true });
+        expect(configStore.getConfig().addonDownloads).toEqual([]);
+        // an unrelated save afterwards keeps the deliberate empty list
+        configStore.saveConfig({ github: { token: "t" } });
+        expect(configStore.getConfig().addonDownloads).toEqual([]);
+    });
+
+    it("restores the defaults and clears the mark", () => {
+        configStore.saveConfig({ addonDownloads: [], addonDownloadsCustomized: true });
+        configStore.saveConfig({ addonDownloads: defaultAddons(), addonDownloadsCustomized: false });
+        expect(ids(configStore.getConfig())).toEqual(DEFAULT_IDS);
+        expect(configStore.getConfig().addonDownloadsCustomized).toBe(false);
+    });
+});

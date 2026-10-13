@@ -93,8 +93,9 @@ function afterCategoryVersions(config, stored) {
     for (const id of Array.isArray(stored.categoryIds) ? stored.categoryIds : []) if (!map[id]) map[id] = config.mainVersion;
     return { ...config, categoryVersion: map };
 }
-// #818 adds the GitHub token (none) and the addons of the page "Addons" (the three own addons by default).
-const afterAddons = (config) => ({ ...config, github: { token: "" }, addonDownloads: defaultAddons() });
+// #818 adds the GitHub token (none) and the addons of the page "Addons" (the three own addons by default,
+// not edited by an admin: an empty list without that mark reads as the defaults again).
+const afterAddons = (config) => ({ ...config, github: { token: "" }, addonDownloads: defaultAddons(), addonDownloadsCustomized: false });
 const schemaOnly = frozen.map((g) => ({ ...g, config: afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))))) }));
 const golden = schemaOnly.map((g, i) => ({ ...g, config: afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config) }));
 const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)"));

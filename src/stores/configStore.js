@@ -143,6 +143,12 @@ function mergeBlock(next, current, sent, key, normalize) {
 function saveConfig(partial) {
     const current = getConfig();
     const next = { ...current, ...partial };
+    // The addon list (#818) is replaced only by an edit of it, which says so with
+    // `addonDownloadsCustomized`; a save that just carries a list along (an
+    // unrelated one) leaves the stored list as it is - it can never wipe the page.
+    if (partial.addonDownloads !== undefined && typeof partial.addonDownloadsCustomized !== "boolean") {
+        next.addonDownloads = current.addonDownloads;
+    }
     for (const key of MERGED_FIELDS) {
         if (partial[key]) next[key] = { ...current[key], ...partial[key] };
     }

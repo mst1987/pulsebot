@@ -5,7 +5,7 @@ jest.mock("../../../src/classes/githubReleases", () => ({ fetchLatestRelease: je
 
 const { fetchLatestRelease } = require("../../../src/classes/githubReleases");
 const {
-    releaseFor, addonCards, addonCard, resolveDownload, enabledAddons, kindOf, downloadPath, tokenFingerprint,
+    releaseFor, addonCards, addonCard, resolveDownload, enabledAddons, addonVersions, kindOf, downloadPath, tokenFingerprint,
     resetAddonReleaseCache, CACHE_MS, RETRY_MS,
 } = require("../../../src/services/addons/addonReleases");
 const { defaultAddons } = require("../../../src/services/addons/addonConfig");
@@ -112,6 +112,14 @@ describe("cards", () => {
         expect(enabledAddons(cfg, "tbc").map((a) => a.id)).toEqual(["eventhelper-sync"]);
         expect(enabledAddons(cfg, "classic")).toEqual([]);
         expect(enabledAddons({}, "tbc")).toEqual([]);
+    });
+
+    it("names the versions with at least one enabled addon", () => {
+        const cfg = config();
+        expect(addonVersions(cfg)).toEqual(["tbc", "forever"]);
+        cfg.addonDownloads[2].enabled = false;
+        expect(addonVersions(cfg)).toEqual(["forever"]);
+        expect(addonVersions({})).toEqual([]);
     });
 
     it("offers only the files of the patterns, each with the server's download link", async () => {

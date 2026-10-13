@@ -123,3 +123,24 @@ describe("assetMatches", () => {
         expect(assetMatches({ assets: [] }, "anything.bin")).toBe(true);
     });
 });
+
+describe("storedAddonList", () => {
+    const { storedAddonList } = require("../../../src/services/addons/addonConfig");
+    const one = { id: "a", name: "A", repo: "x/a" };
+
+    it("reads a missing list as the defaults", () => {
+        expect(storedAddonList({})).toEqual(defaultAddons());
+        expect(storedAddonList(null)).toEqual(defaultAddons());
+    });
+
+    it("heals an empty list without the edit mark, keeps one an admin emptied", () => {
+        expect(storedAddonList({ addonDownloads: [] })).toEqual(defaultAddons());
+        expect(storedAddonList({ addonDownloads: [{ name: "", repo: "" }] })).toEqual(defaultAddons());
+        expect(storedAddonList({ addonDownloads: [], addonDownloadsCustomized: true })).toEqual([]);
+    });
+
+    it("keeps a stored list with entries as it is, single addons removed", () => {
+        expect(storedAddonList({ addonDownloads: [one] }).map((a) => a.id)).toEqual(["a"]);
+        expect(storedAddonList({ addonDownloads: [one], addonDownloadsCustomized: true }).map((a) => a.id)).toEqual(["a"]);
+    });
+});
