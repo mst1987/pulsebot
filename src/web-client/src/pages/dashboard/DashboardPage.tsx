@@ -462,6 +462,7 @@ export default function DashboardPage() {
                                     <MyNextRaid raid={me.upcoming[0] || null} compact={data.orga} />
                                     <MyRaids raids={me.upcoming.slice(1, data.orga ? 3 : undefined)} />
                                 </div>
+                                {me.upcomingRolesUnknown && <p className="ov-note ov-roles-note" role="note">{t("signups.rolesUnknown")}</p>}
                                 {!data.orga && <PersonalTiles personal={me} />}
                             </>
                         )}

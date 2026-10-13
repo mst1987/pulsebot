@@ -180,6 +180,8 @@ export type RaidDetailData = {
     /** An event of a hidden game version (#563): the page opens as a read-only archive; null/missing = a normal event. */
     archived?: { versionId: string; label: string; short: string } | null;
     categoryName: string;
+    /** No raider role, no roster-only signup: open to everyone, a PuG raid (the head's "PuG" badge). */
+    openToAll?: boolean;
     /** Raid plan or sheet, after the category's choice; missing (an older server) = both are offered. */
     planning?: PlanningMode;
     guildId: string;

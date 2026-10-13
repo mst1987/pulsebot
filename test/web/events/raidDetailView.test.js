@@ -104,7 +104,7 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         raidhelperDisabled.mockReturnValue(true);
         const { body } = await buildRaidDetail({ guildId: "g1", eventId: "rh1" });
         expect(Object.keys(body)).toEqual([
-            "event", "planning", "setupFromSnapshot", "categoryName", "guildId", "eventsWarning", "notifyTemplates", "roles", "pingTargets",
+            "event", "planning", "setupFromSnapshot", "categoryName", "openToAll", "guildId", "eventsWarning", "notifyTemplates", "roles", "pingTargets",
             "raidsheets", "matchedSheetId", "setup", "setupError", "tankCandidates", "eventSheet", "sheetLink", "raidplanPost", "eventSoftres",
             "softresCatalogue", "softresEdition", "softresOff", "versionId", "wowheadPath", "archived", "softresSuggested", "attendance", "ownSignups", "ownSetup", "raidGroup", "ownSetupPost",
             "ownSetupEditors", "attendanceRoleIds", "attendanceSource", "membersError", "signupTarget", "lootItems", "lootTool", "lootSystem", "eventLogs", "unlinkedLogs",
@@ -120,6 +120,8 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         expect(body.attendance.responded.map((m) => m.id)).toEqual(["u1"]);
         expect(body.attendance.missing.map((m) => m.id)).toEqual(["u9"]);
         expect(body.attendanceRoleIds).toEqual(["r1"]);
+        // a category with raider roles is no PuG raid
+        expect(body.openToAll).toBe(false);
         expect(body.signupTarget).toBe(2);
         expect(body.matchedSheetId).toBe("sheet-kara");
         expect(body.softresEdition).toBe("tbc");

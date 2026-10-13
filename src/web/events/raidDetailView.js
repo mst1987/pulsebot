@@ -53,6 +53,7 @@ const { pingTargetInfo } = require("../../services/discord/pingDelivery");
 const { planningOf } = require("../../services/events/planning");
 const { featureState, sheetOffered } = require("../../services/events/versionCapabilities");
 const { expectedRoleIds } = require("../../services/roster/categoryRoles");
+const { openToAll } = require("../../services/signups/signupAccess");
 const { expectedRosterIds, listExpectedMembers } = require("../../services/roster/expectedRaiders");
 
 /**
@@ -338,6 +339,8 @@ async function buildRaidDetail({ guildId, eventId, planPost = true }) {
         planning,
         setupFromSnapshot: setupInfo.setupFromSnapshot,
         categoryName: found.e.categoryName || found.g.categoryName,
+        // no raider role, no roster-only signup: open to everyone, a PuG raid (the head's "PuG" badge)
+        openToAll: openToAll(found.g.categoryId, { config, versionId: version.versionId }),
         guildId,
         eventsWarning: stale ? (groupsError || "Raid-Helper aktuell nicht erreichbar — zeige zwischengespeicherte Event-Daten.") : null,
         notifyTemplates: listNotify(),

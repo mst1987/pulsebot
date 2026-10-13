@@ -65,6 +65,8 @@ export type SignupEventBase = {
     accounts: number;
     /** The event's post (own: the bot's message) or its channel in Discord. */
     discordUrl: string;
+    /** No raider role, no roster-only signup: open to everyone, a PuG raid (the "PuG" badge). */
+    openToAll?: boolean;
 };
 
 export type RaidHelperSignupRow = SignupEventBase & {
@@ -94,6 +96,8 @@ export type OwnSignupRow = SignupEventBase & {
     placement?: SetupPlacement | null;
     /** "Anmeldung nur für das Roster" (#658): true when the member is no roster member with status core, trial or bench. */
     rosterOnly?: boolean;
+    /** The member lacks the category's raider role — only "Alle Kategorien" lists such a raid. */
+    roleMissing?: boolean;
 };
 
 export type SignupEventRow = RaidHelperSignupRow | OwnSignupRow;
@@ -121,6 +125,12 @@ export type SignupsData = {
     version?: string;
     /** The version of the raid `event` named (#741): a link from Discord switches the menu to it; "" = none. */
     eventVersion?: string;
+    /** "mine" = the raids one may sign up for (or did); "all" = every raid (the orga's "Alle Kategorien"). */
+    scope?: "mine" | "all";
+    /** The caller may switch to "all" (the orga). */
+    canShowAll?: boolean;
+    /** The caller's Discord roles could not be read: raids with a raider role may be missing. */
+    rolesUnknown?: boolean;
     error: string | null;
 };
 
@@ -165,12 +175,14 @@ export type EventSignupEntry = OwnSignup & { userId: string; name: string; at: n
 /**
  * `version`: the menu's content version (#741) — only its raids; "" = the
  * server's main version. `eventId`: a raid a link names — its version comes back
- * as `eventVersion`.
+ * as `eventVersion`. `all`: every raid, not only the ones one may sign up for —
+ * the server honours it for the orga only.
  */
-export function getSignups(version = "", eventId = ""): Promise<SignupsData> {
+export function getSignups(version = "", eventId = "", all = false): Promise<SignupsData> {
     const q = new URLSearchParams();
     if (version) q.set("version", version);
     if (eventId) q.set("event", eventId);
+    if (all) q.set("scope", "all");
     const qs = q.toString();
     return get<SignupsData>(`/api/signups${qs ? `?${qs}` : ""}`);
 }

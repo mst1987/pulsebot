@@ -86,7 +86,9 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
     const noteMissing = noteMode === "required" && comment.trim().length < 2;
     // "Anmeldung nur für das Roster" (#658): no roster member with status core, trial or bench — the server refuses too
     const rosterOnly = !!row.rosterOnly;
-    const canSubmit = !busy && !closed && !rosterOnly && !noteMissing && (absent || (!!character && !!spec));
+    // the category's raider role is missing (only "Alle Kategorien" lists such a raid) — the server refuses too
+    const roleMissing = !!row.roleMissing;
+    const canSubmit = !busy && !closed && !rosterOnly && !roleMissing && !noteMissing && (absent || (!!character && !!spec));
     // What the segment shows as chosen: the status every character shares, "" when they differ (#320).
     const shared = absent ? "absence" : commonStatus(picks, status);
     const pickStatus = (s: SignupStatus) => {
@@ -121,7 +123,7 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
             else toast(absent ? t("signups.dialog.toastAbsent", { title: row.title }) : t("signups.dialog.toastSaved", { title: row.title, status: SIGNUP_STATUS[signupStatusOf(picks, status)].label }));
         } catch (e) {
             const err = e as ApiError;
-            toast(err.code === "roster_only" ? t("signups.dialog.rosterOnly") : err.message, "err");
+            toast(err.code === "roster_only" ? t("signups.dialog.rosterOnly") : err.code === "raider_role" ? t("signups.dialog.roleMissing") : err.message, "err");
         } finally {
             setBusy(false);
         }
@@ -145,7 +147,7 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
             width={720}
             hint={rosterOnly
                 ? t("signups.dialog.rosterOnly")
-                : closed
+                : roleMissing ? t("signups.dialog.roleMissing") : closed
                     ? t("signups.dialog.started")
                     : row.deadlinePassed ? t("signups.dialog.deadlineHint") : undefined}
             footer={(

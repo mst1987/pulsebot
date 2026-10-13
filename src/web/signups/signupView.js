@@ -1,13 +1,20 @@
 // What the "Anmeldungen" page (#256) and the raid detail's roster tab get to see
 // of events and signups. Built from data the callers already loaded (the event
 // groups of eventSources/raidEventGroups, the profiles, resolved Discord names)
-// plus local store reads, so the rules — who sees which category, what a row carries — can be tested
+// plus local store reads, so the rules — who sees which raid, what a row carries — can be tested
 // without Discord or Raid-Helper.
+//
+// Who sees which raid (memberEventList): the raids the member may sign up for
+// (signupAccess.canSignUp — the very rule the save checks) plus the ones they
+// are already signed up for. For everybody, the orga included: "Für dich" and
+// "Anmeldungen" are personal; the orga sees every raid on the raid pages, and
+// the "Anmeldungen" page offers it "Alle Kategorien" (`all`).
 const profiles = require("../../stores/raiderProfileStore");
 const { isRaidSibling } = require("../../utils/raidGroup");
 const { getEvent } = require("../../stores/eventStore");
-// categoryVisible lives in the service: the same raider-role rule guards saving a signup (submitSignup).
-const { categoryVisible, rosterOnlyAccess, profileRoles, roleCounts, signupWindow, allowedStatuses, wishPartnersSignedUp } = require("../../services/signups/signupService");
+const { profileRoles, roleCounts, signupWindow, allowedStatuses, wishPartnersSignedUp } = require("../../services/signups/signupService");
+// "darf sich anmelden": the same rule guards saving a signup (checkRaiderRole)
+const { signupAccess, inEventCategories } = require("../../services/signups/signupAccess");
 const { upcomingRows } = require("../../services/events/raidListing");
 const { instanceById, VERSIONS, LEGACY_VERSION } = require("../../config/gameVersions");
 const { versionOfEvent } = require("../../services/events/mainVersion");
@@ -91,26 +98,48 @@ function signupSummary(raw) {
 }
 
 /**
- * The page's rows: every upcoming event of both sources the member may see,
- * soonest first, with their own status. An own event carries what the dialog
- * needs (window, role counts, allowed statuses, wish partners); a Raid-Helper
- * event only its link into Discord.
+ * The raider's rows: every upcoming event of both sources the member may sign
+ * up for or already signed up for, soonest first, with their own status. An
+ * own event carries what the dialog needs (window, role counts, allowed
+ * statuses, wish partners); a Raid-Helper event only its link into Discord.
+ * Every row says whether its category is open to everyone (`openToAll`, the
+ * "PuG" badge).
+ *
+ * `roleIds`: the member's roles (viewerRoles.js); null = not readable - then
+ * only the raids that need no role show, and `rolesUnknown` says some may be
+ * missing. `viewAs`: "Ansicht als Rolle" - the roles decide alone (the
+ * admin's own signups make nothing visible, a roster counts its role holders).
+ * `all`: every raid, the orga's "Alle Kategorien". `byOrga`: the save exempts
+ * the caller (`raids` write), so no row of theirs is marked as locked.
+ * @returns {{ rows: object[], rolesUnknown: boolean }}
  */
-function memberEventRows(groups, { userId, guildId = "", config = {}, roleIds = null, orga = false, profile = null, now = Date.now() } = {}) {
+function memberEventList(groups, { userId, guildId = "", config = {}, roleIds = null, all = false, byOrga = false, viewAs = false, profile = null, now = Date.now() } = {}) {
     const uid = String(userId || "");
     const byId = new Map((groups || []).flatMap((g) => (g.events || []).map((e) => [e.id, e])));
-    return upcomingRows(groups)
+    let rolesUnknown = false;
+    const rows = upcomingRows(groups)
         .map((row) => ({ row, ev: byId.get(row.id) || {} }))
         // a further raid of a raid group (#811) has no signup of its own — the raiders sign up at the first raid
         .filter(({ ev }) => !isRaidSibling(ev))
-        .filter(({ row, ev }) => {
-            const signUps = ev.signUps || [];
-            const mine = signUps.some((s) => String(s.userId) === uid);
-            return mine || categoryVisible(row.categoryId, { config, roleIds, orga });
-        })
         .filter(({ row }) => (row.startTime || 0) * 1000 > now - 6 * 3600 * 1000)
-        .sort((a, b) => (a.row.startTime || 0) - (b.row.startTime || 0))
         .map(({ row, ev }) => {
+            const source = row.source || "raidhelper";
+            // the raid's version decides the roster and the roles (#739)
+            const stored = source === "eventhelper" ? (getEvent(row.id) || {}) : {};
+            const versionId = versionOfEvent({ ...stored, ...ev, categoryId: stored.categoryId || row.categoryId }, { config });
+            const access = signupAccess(stored.categoryId || row.categoryId, { userId: uid, roleIds, config, versionId, rosterByRoles: viewAs });
+            return { row, ev, access };
+        })
+        .filter(({ row, ev, access }) => {
+            if (all) return true;
+            const mine = !viewAs && (ev.signUps || []).some((s) => String(s.userId) === uid);
+            if (mine) return true;
+            if (!inEventCategories(row.categoryId, config)) return false;
+            if (access.allowed === null) rolesUnknown = true;
+            return access.allowed === true;
+        })
+        .sort((a, b) => (a.row.startTime || 0) - (b.row.startTime || 0))
+        .map(({ row, ev, access }) => {
             const source = row.source || "raidhelper";
             const signUps = ev.signUps || [];
             const attending = signUps.filter((s) => ["signed", "late"].includes(signupStatus(s))).length;
@@ -132,6 +161,8 @@ function memberEventRows(groups, { userId, guildId = "", config = {}, roleIds = 
                 attending,
                 accounts,
                 discordUrl: linkCheck.channelLink(guildId, row.channelId),
+                // no raider role, no roster-only signup: open to everyone, a PuG raid
+                openToAll: access.rule === "open",
             };
             if (source !== "eventhelper") {
                 return {
@@ -172,11 +203,19 @@ function memberEventRows(groups, { userId, guildId = "", config = {}, roleIds = 
                 // whether an approved setup exists at all: with it, no placement means "not placed", not "no setup yet"
                 setupApproved: !!approvedSetupOf(stored),
                 // "Anmeldung nur für das Roster" (#658): true when this member may not sign up (no roster member
-                // with status core / trial / bench, no own signup, not the orga) - the dialog says so up front
-                // (the roster of the raid's version, #739)
-                rosterOnly: !orga && !own && rosterOnlyAccess(stored.categoryId || row.categoryId, uid, { versionId: versionOfEvent(event, { config }) }) === false,
+                // with status core / trial / bench, no own signup, not exempt) - the dialog says so up front
+                // (the roster of the raid's version, #739). Only "Alle Kategorien" lists such a raid at all.
+                rosterOnly: !byOrga && !own && access.code === "roster_only",
+                // the same for a category whose raider role the member lacks
+                roleMissing: !byOrga && !own && access.code === "raider_role",
             };
         });
+    return { rows, rolesUnknown };
+}
+
+/** memberEventList's rows alone. */
+function memberEventRows(groups, opts = {}) {
+    return memberEventList(groups, opts).rows;
 }
 
 /**
@@ -196,4 +235,4 @@ function eventSignupList(signups, names = {}) {
         .sort((a, b) => (ROLE_RANK[a.role] ?? 4) - (ROLE_RANK[b.role] ?? 4) || a.at - b.at);
 }
 
-module.exports = { categoryVisible, profileForSignup, signupSummary, memberEventRows, eventSignupList };
+module.exports = { profileForSignup, signupSummary, memberEventList, memberEventRows, eventSignupList };

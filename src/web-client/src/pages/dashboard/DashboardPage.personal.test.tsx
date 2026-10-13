@@ -229,6 +229,29 @@ describe("Übersicht for a raider", () => {
         expect(within(card).queryByText(t("dashboard.personal.setup.none"))).not.toBeInTheDocument();
     });
 
+    it("marks the raids open to everyone as PuG - the next one and in the list - and no other", async () => {
+        await show(dashboard({ personal: personal({ upcoming: [
+            myRaid({ openToAll: true }),
+            myRaid({ id: "eh-2", title: "BT&Hyjal&Gruul", categoryName: "Pulse Montag", status: "", placement: null, openToAll: false }),
+            myRaid({ id: "eh-4", title: "Kara", categoryName: "PUG Raids", status: "", placement: null, openToAll: true }),
+        ] }) }));
+        const next = screen.getByText(t("dashboard.personal.next.title")).closest("section")!;
+        expect(within(next).getByText(t("signups.pug.label"))).toHaveAttribute("data-tip", t("signups.pug.tip"));
+        const list = screen.getByText(t("dashboard.personal.list.title")).closest("section")!;
+        const rows = [...list.querySelectorAll<HTMLElement>(".ov-row")];
+        expect(rows.map((r) => !!within(r).queryByText(t("signups.pug.label")))).toEqual([false, true]);
+    });
+
+    it("says quietly when the Discord roles could not be read, and only then", async () => {
+        await show(dashboard({ personal: personal({ upcomingRolesUnknown: true }) }));
+        expect(screen.getByRole("note")).toHaveTextContent(t("signups.rolesUnknown"));
+    });
+
+    it("has no roles note while the roles were read", async () => {
+        await show(dashboard());
+        expect(screen.queryByText(t("signups.rolesUnknown"))).not.toBeInTheDocument();
+    });
+
     it("says so when no raid is coming up", async () => {
         await show(dashboard({ personal: personal({ upcoming: [] }) }));
         expect(screen.getByText(t("dashboard.personal.next.empty"))).toBeInTheDocument();

@@ -326,7 +326,7 @@ describe("web/apiRoutes/dashboard", () => {
 
             const data = json(await get("/api/dashboard")).data;
 
-            expect(loadPersonal).toHaveBeenCalledWith("guild-1", raider, expect.objectContaining({ orga: false, versionId: "tbc" }));
+            expect(loadPersonal).toHaveBeenCalledWith("guild-1", raider, expect.objectContaining({ versionId: "tbc" }));
             expect(data.orga).toBe(false);
             expect(data.personal).toMatchObject({ upcoming: [], recent: [] });
             expect(dashboardData.loadNextRaids).not.toHaveBeenCalled();
@@ -355,8 +355,8 @@ describe("web/apiRoutes/dashboard", () => {
             expect(data.nextRaid).toBeNull();
             expect(data.areas).toBeNull();
             expect(data.tasks).toEqual([]);
-            // reading the raids still opens every category in "Für dich"
-            expect(loadPersonal).toHaveBeenCalledWith("guild-1", reader, expect.objectContaining({ orga: true }));
+            // reading the raids opens no category in "Für dich": it lists what one may sign up for (dashboard.forYou.test.js)
+            expect(loadPersonal).toHaveBeenCalledWith("guild-1", reader, expect.not.objectContaining({ orga: expect.anything() }));
         });
 
         it("keeps the orga block from a raider role even with the right to change raids - an area is no orga rank", async () => {

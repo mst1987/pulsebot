@@ -518,12 +518,19 @@ describe("Raider-Rollen der Kategorie", () => {
         });
     });
 
-    it("categoryVisible nutzt dieselbe Regel", () => {
-        const config = { categoryIds: ["a", "b"], categoryRoles: { a: ["r1"] } };
-        expect(service.categoryVisible("a", { config, roleIds: ["r2"] })).toBe(false);
-        expect(service._internal.categoryRoleAllowed("a", { config, roleIds: ["r2"] })).toBe(false);
-        expect(service.categoryVisible("a", { config, roleIds: ["r2"], orga: true })).toBe(true);
-        expect(service.categoryVisible("b", { config, roleIds: [] })).toBe(true);
+    it("nutzt dieselbe Regel wie die Raid-Listen (signupAccess.canSignUp)", async () => {
+        const { canSignUp } = require("../../../src/services/signups/signupAccess");
+        withRoles();
+        const config = { categoryRoles: { "cat-t5": ["role-t5"] } };
+        const ev = mockEvents.get("eh-kara");
+        for (const roles of [["role-t5"], ["role-x"], []]) {
+            const saved = await service.checkRaiderRole(ev, ANNA, { roleIds: roles, config, previous: null });
+            expect(!!saved.ok).toBe(canSignUp(ev.categoryId, { userId: ANNA, roleIds: roles, config }));
+        }
+        // roles that cannot be read: the save lets the raider through, a list does not vouch for the raid
+        expect(await service.checkRaiderRole(ev, ANNA, { roleIds: null, config, previous: null })).toEqual({ ok: true });
+        expect(canSignUp(ev.categoryId, { userId: ANNA, roleIds: null, config })).toBe(false);
+        expect(service.categoryVisible).toBeUndefined();
     });
 });
 
