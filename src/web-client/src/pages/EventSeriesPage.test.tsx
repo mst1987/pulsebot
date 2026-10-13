@@ -78,6 +78,16 @@ describe("the series page", () => {
         expect(within(dialog).getByText("Nächste 4 Termine")).toBeInTheDocument();
         expect(await within(dialog).findByText("überspringen")).toBeInTheDocument();
     });
+
+    it("gives the fields the shared control look and skips a date with a switch, not a checkbox", async () => {
+        renderPage(<EventSeriesPage />, { route: "/raids/series?edit=c1" });
+        const dialog = await screen.findByRole("dialog");
+        for (const name of ["Uhrzeit", "Tage vorher anlegen", "Titel"]) {
+            expect(within(dialog).getByLabelText(name)).toHaveClass("inp-sm");
+        }
+        expect(await within(dialog).findByRole("switch", { name: "überspringen" })).not.toBeChecked();
+        expect(within(dialog).queryByRole("checkbox")).toBeNull();
+    });
 });
 
 describe("the series page in English", () => {
