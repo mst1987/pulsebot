@@ -215,6 +215,10 @@ const CONFIG_DEFAULTS = {
     // and the raid's picture as the cover of the Discord server event (discordEventCover.js).
     // On unless switched off; off, the message is drawn as before at its next redraw.
     discordVisuals: { ...DISCORD_VISUALS_DEFAULT },
+    // "Neue Gildenrekorde posten" (Einstellungen -> Dungeon-Bestzeiten): a gold
+    // run of the LevelHelper addon that is now the fastest of its dungeon goes
+    // into `channelId` as a card (services/dungeons/dungeonRecords.js). Off by default.
+    dungeonRecords: { post: false, channelId: "" },
     // The items the guild considers a "big" drop: [{ id, name, iconUrl, quality }],
     // picked from the Wowhead search in Einstellungen → Loot. Imported loot is
     // matched against these ids for the dashboard's "Latest Loot" card
@@ -294,6 +298,13 @@ function normalizeCategoryRaidTemplate(raw) {
 function normalizeDiscordVisuals(raw) {
     const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
     return Object.fromEntries(Object.keys(DISCORD_VISUALS_DEFAULT).map((key) => [key, src[key] !== false]));
+}
+
+/** `{ post, channelId }`: post only a literal true, the channel only a snowflake. */
+function normalizeDungeonRecords(raw) {
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const channelId = String(src.channelId === undefined || src.channelId === null ? "" : src.channelId).trim();
+    return { post: src.post === true, channelId: /^\d{17,20}$/.test(channelId) ? channelId : "" };
 }
 
 /** "de" | "en"; anything else is the default, German. */
@@ -798,6 +809,7 @@ function normalizeConfig(raw) {
         versionLaunch: normalizeVersionLaunch(stored.versionLaunch),
         botLanguage: normalizeBotLanguage(stored.botLanguage),
         discordVisuals: normalizeDiscordVisuals(stored.discordVisuals),
+        dungeonRecords: normalizeDungeonRecords(stored.dungeonRecords),
         topItems: normalizeTopItems(stored.topItems),
         roleSync: normalizeRoleSync(stored.roleSync),
         categoryReminders: normalizeCategoryReminders(stored.categoryReminders),
@@ -814,5 +826,5 @@ module.exports = {
     normalizeCategorySignupNotes, normalizeCategorySignupCharacters, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,
     normalizeRaidhelperRetirement, normalizeVersionLaunch, VERSION_LAUNCH_MANUAL, normalizeCategorySheets, normalizeCategoryPlanning, normalizeCategoryRoles,
     normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings, normalizeBotLanguage,
-    normalizeDiscordVisuals, DISCORD_VISUALS_DEFAULT,
+    normalizeDiscordVisuals, DISCORD_VISUALS_DEFAULT, normalizeDungeonRecords,
 };

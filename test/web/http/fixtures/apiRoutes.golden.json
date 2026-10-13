@@ -274,6 +274,7 @@
   "POST /api/kader/accounts",
   "POST /api/kader/accounts/remove",
   "PUT /api/availability/links",
+  "PUT /api/orga-hub/links",
   "PUT /api/kader/assignments",
   "POST /api/kader/assignments/reset",
   "GET /api/kader/roster",
@@ -306,6 +307,8 @@
   "POST /api/ingest/guildbank",
   "GET /api/ingest/guildbank/handouts",
   "POST /api/ingest/guildbank/handouts",
+  "POST /api/ingest/levelhelper",
+  "GET /api/dungeons",
   "GET /api/system/status",
   "GET /api/system/backup",
   "POST /api/system/backup/snapshot"

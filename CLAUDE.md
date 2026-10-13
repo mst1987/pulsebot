@@ -139,6 +139,7 @@ Dieses Dokument ist der Einstieg und bleibt kurz: hier steht nur, was *jeder* Ag
 | [docs/loot-council.md](docs/loot-council.md) | Loot-Council: Bedarf, Gear-Quellen, BiS-Listen, Simulation, Seitenaufbau |
 | [docs/logcheck.md](docs/logcheck.md) | Kampfverlauf, Analyzer, Empfehlungen, die Report-Seiten und der Wächter gegen unfertige Raids |
 | [docs/loot-import.md](docs/loot-import.md) | Loot-Import (Gargul/RCLootcouncil), Addon-Sync und Inbox, Vergabegrund und Raid-Inhalt |
+| [docs/dungeon-leaderboard.md](docs/dungeon-leaderboard.md) | Dungeon-Bestzeiten aus dem Addon LevelHelper: Upload `/api/ingest/levelhelper`, Zusammenführen, Seite, `/bestzeiten`, Rekord-Post |
 | [docs/raidhelper-retirement.md](docs/raidhelper-retirement.md) | Umstieg von Raid-Helper: Standardquelle, Checkliste, Schalter, Spec-Historie |
 | [docs/known-issues.md](docs/known-issues.md) | Bekannte Fallstricke, die schon einmal Zeit gekostet haben |
 | [docs/testing.md](docs/testing.md) | Test-Helfer und Fabriken (`test/helpers/`, `test/factories/`), was `test/setup/` jeder Suite mitgibt, Mock-Konvention und Coverage-Schwellen |

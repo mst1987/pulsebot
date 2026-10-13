@@ -1,5 +1,6 @@
-// What "Raid anlegen" on the Orga-Zentrale answers (customId `orga:new:<categoryId>`,
-// commands/event/orgaHubButton.js; the hub itself is services/events/orgaHub.js).
+// What the buttons of the Orga-Zentrale answer (commands/event/orgaHubButton.js; the
+// hub itself is services/events/orgaHub.js). "Links ..." and its follow-ups are
+// orgaHubLinks.js; the rest of this head is "Raid anlegen" (`orga:new:<categoryId>`).
 //
 // It opens the create flow of /event anlegen (eventDraft.js) as an ephemeral
 // message, with the hub's category already chosen. Who may: whoever may run
@@ -15,7 +16,9 @@ const { resolveAccess } = require("../discord/userAccess");
 const { isRosterOrga } = require("../roster/rosterAccess");
 const { currentRoster } = require("../roster/categoryRoster");
 
-const DENIED = "Dafür fehlt dir das Recht.";
+const links = require("./orgaHubLinks");
+
+const DENIED = links.DENIED;
 
 /** `{ action, categoryId }` of a customId `orga:<action>:<categoryId>`. */
 function parseCustomId(customId) {
@@ -44,4 +47,11 @@ async function openCreateFlow(interaction, guildId) {
     return interaction.editReply(payload);
 }
 
-module.exports = { openCreateFlow, isCategoryOrga, parseCustomId, DENIED };
+/** Every `orga:` customId: "Raid anlegen" or one of the links' (orgaHubLinks.js). */
+async function handleOrga(interaction, guildId) {
+    const { action } = parseCustomId(interaction.customId);
+    if (links.LINK_ACTIONS.includes(action)) return links.handleLinkAction(interaction, guildId, isCategoryOrga);
+    return openCreateFlow(interaction, guildId);
+}
+
+module.exports = { handleOrga, openCreateFlow, isCategoryOrga, parseCustomId, DENIED };

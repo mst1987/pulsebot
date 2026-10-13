@@ -253,3 +253,13 @@ describe("stores/configStore discordVisuals (drawn pictures, a test)", () => {
             .toEqual({ overviewWeekStrip: true, setupImage: false, eventCover: true });
     });
 });
+
+describe("stores/configStore dungeonRecords (Neue Gildenrekorde posten)", () => {
+    it("is off by default and merges a saved field over the stored ones", () => {
+        writeFile({});
+        expect(configStore.getConfig().dungeonRecords).toEqual({ post: false, channelId: "" });
+        configStore.saveConfig({ dungeonRecords: { channelId: "123456789012345678" } });
+        expect(configStore.saveConfig({ dungeonRecords: { post: true } }).dungeonRecords).toEqual({ post: true, channelId: "123456789012345678" });
+        expect(configStore.saveConfig({ dungeonRecords: { channelId: "nope" } }).dungeonRecords).toEqual({ post: true, channelId: "" });
+    });
+});

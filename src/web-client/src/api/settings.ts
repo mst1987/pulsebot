@@ -77,6 +77,8 @@ export type AdminConfig = {
     botLanguage?: "de" | "en";
     /** The drawn pictures in bot messages (a test); missing switch = on. */
     discordVisuals?: Partial<DiscordVisuals>;
+    /** "Neue Gildenrekorde posten" (Einstellungen → Dungeon-Bestzeiten); missing = off. */
+    dungeonRecords?: { post: boolean; channelId: string };
     /**
      * Settings per game version (#542): armory realm, armory/WCL templates,
      * Wowhead path, softres edition, default raidsheet. Every known version is

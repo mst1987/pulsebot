@@ -1,6 +1,7 @@
 // POST /api/ingest/loot — the main endpoint the loot-sync companion tool talks to
 // (plus /api/ingest/raids for its raid list, /api/ingest/guildbank for guild
-// bank scans and /api/ingest/guildbank/handouts for the in-game hand-out list).
+// bank scans, /api/ingest/guildbank/handouts for the in-game hand-out list and
+// /api/ingest/levelhelper for the LevelHelper addon's dungeon runs).
 //
 // Unlike every other /api/* route this one has no Discord session behind it: the
 // uploader runs unattended on a raidleader's PC and authenticates with a bearer
@@ -34,6 +35,9 @@ const { queueItemEmojiSync } = require("../../services/guildbank/itemEmojis");
 const { GuildBankParseError } = require("../../utils/guildbank/guildBankScan");
 const { handoutList, reportHandouts, HandoutReportError } = require("../../services/guildbank/handouts");
 const { advanceWaitlist } = require("../../services/signups/guildBank");
+const { ingestLevelHelper } = require("../../services/dungeons/dungeonRuns");
+const { postNewRecords } = require("../../services/dungeons/dungeonRecords");
+const { LevelHelperParseError } = require("../../utils/dungeons/levelHelperUpload");
 
 /** The token behind the request, or null after sending the 401. */
 function requireToken(req, res) {
@@ -424,6 +428,31 @@ async function ingestHandoutReport(req, res) {
     ok(res, result);
 }
 
+/**
+ * POST /api/ingest/levelhelper — the dungeon runs and achievement points of the
+ * LevelHelper addon (format "levelhelper-runs" v1, utils/dungeons/levelHelperUpload.js),
+ * same bearer-token auth as the loot upload. Anything that does not fit refuses
+ * the whole request (400, the message names the field); the same run reported
+ * again merges (services/dungeons/dungeonRuns.js). Answer:
+ * `{ ok: true, versionId, runs: { added, merged, skipped }, characters: { updated } }`.
+ * A new guild record is posted after the answer, when the setting is on.
+ */
+async function ingestLevelHelperRuns(req, res) {
+    const token = requireToken(req, res);
+    if (!token) return;
+    const body = await readJsonBody(req);
+    let result;
+    try {
+        result = ingestLevelHelper(body, { tokenName: token.name });
+    } catch (e) {
+        if (e instanceof LevelHelperParseError) return error(res, 400, "parse_failed", e.message);
+        throw e;
+    }
+    touchToken(token.id);
+    ok(res, { ok: true, versionId: result.versionId, runs: result.runs, characters: result.characters });
+    if (result.touched.length) postNewRecords({ versionId: result.versionId, touched: result.touched }).catch(() => {});
+}
+
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "POST", path: "/api/ingest/loot", handler: ingestLoot, auth: "token" },
@@ -432,6 +461,10 @@ const routes = [
     { method: "POST", path: "/api/ingest/guildbank", handler: ingestGuildBank, auth: "token" },
     { method: "GET", path: "/api/ingest/guildbank/handouts", handler: ingestHandoutList, auth: "token" },
     { method: "POST", path: "/api/ingest/guildbank/handouts", handler: ingestHandoutReport, auth: "token" },
+    { method: "POST", path: "/api/ingest/levelhelper", handler: ingestLevelHelperRuns, auth: "token" },
 ];
 
-module.exports = { ingestLoot, ingestRaidStatus, ingestCouncil, ingestGuildBank, ingestHandoutList, ingestHandoutReport, computeRaidStatus, routes };
+module.exports = {
+    ingestLoot, ingestRaidStatus, ingestCouncil, ingestGuildBank, ingestHandoutList, ingestHandoutReport, ingestLevelHelperRuns,
+    computeRaidStatus, routes,
+};

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { SetupEditorData, StoredSetup } from "../../../api";
 import { pingTextToSave, publishHint, setupState, GROUP_SIZE } from "../../../lib/signups/setupEditor";
 import { belowEndPlacement } from "../../../lib/ui/popoverPosition";
@@ -6,6 +6,7 @@ import { useT } from "../../../i18n";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import Popover from "../../../components/ui/Popover";
+import Switch from "../../../components/ui/Switch";
 import WowIcon from "../../../components/ui/WowIcon";
 import { ChevronDownIcon } from "../../../components/ui/icons";
 import { clock, dateTime, MAX_RAID_SIZE } from "./setupText";
@@ -16,7 +17,7 @@ export type MoreItem = { id: string; label: string; sub: string; icon: string; o
 /**
  * "Mehr ▾" in the bar: everything that is not the evening's one action — propose
  * anew, the group count, the ping text, the switches (fairness, wishes, "nicht
- * zusammen", bench in the post), the compact view, search, the AI explanation,
+ * zusammen"), the compact view, search, the AI explanation,
  * the weights. "sep" draws a line between kinds. Portalled like "Event verwalten".
  */
 export function MoreMenu({ items }: { items: (MoreItem | "sep")[] }) {
@@ -51,6 +52,63 @@ export function MoreMenu({ items }: { items: (MoreItem | "sep")[] }) {
                 </Popover>
             )}
         </div>
+    );
+}
+
+/**
+ * The bar's ONE primary button as a split button (#setup-bar): the action itself
+ * ("Setup posten", or "Alle pingen" once it is out) and a chevron whose menu holds
+ * what posting sends along — the switches "Bank mitposten" and "DMs an Spieler".
+ * Their state stays visible beside the button ("mit DMs · ohne Bank"), so nothing
+ * hides in the menu. `options` missing (no channel to post to, cancelled): the
+ * button alone.
+ */
+export function PostSplit({ button, options }: {
+    button: ReactNode;
+    options?: { bench: boolean; dms: boolean; disabled: boolean; dmsTip: string; onBench: (on: boolean) => void; onDms: (on: boolean) => void };
+}) {
+    const t = useT();
+    const [open, setOpen] = useState(false);
+    const anchor = useRef<HTMLDivElement>(null);
+    if (!options) return <>{button}</>;
+    const state = [options.dms ? t("setup.postOptions.withDms") : t("setup.postOptions.withoutDms"), options.bench ? t("setup.postOptions.withBench") : t("setup.postOptions.withoutBench")].join(" · ");
+    return (
+        <div className="se-post">
+            <span className="se-post-state" data-tip={t("setup.postOptions.menu")} data-tip-sub={t("setup.postOptions.menuSub")}>{state}</span>
+            <div className="split se-post-split" ref={anchor}>
+                {button}
+                <button
+                    type="button" className="btn-caret se-post-caret" aria-haspopup="true" aria-expanded={open}
+                    aria-label={t("setup.postOptions.menu")}
+                    data-tip={open ? undefined : t("setup.postOptions.menu")} data-tip-sub={open ? undefined : t("setup.postOptions.menuSub")}
+                    onClick={() => setOpen((o) => !o)}
+                >
+                    <ChevronDownIcon />
+                </button>
+            </div>
+            {open && (
+                <Popover anchor={anchor} place={belowEndPlacement()} follow="reposition" onClose={() => setOpen(false)} className="se-post-pop" role="group" aria-label={t("setup.postOptions.aria")}>
+                    <span className="se-post-head">{t("setup.postOptions.head")}</span>
+                    <Switch className="se-postopt" checked={options.bench} disabled={options.disabled} label={t("setup.postOptions.bench")} tip={t("setup.postOptions.benchSub")} onChange={options.onBench} />
+                    <Switch className="se-postopt" checked={options.dms} disabled={options.disabled} label={t("setup.postOptions.dms")} tip={options.dmsTip} onChange={options.onDms} />
+                </Popover>
+            )}
+        </div>
+    );
+}
+
+/** One count of the bar as a square field ("Tanks 1/2", "8/10 Plätze"), toned by its check: green met, amber short, red nothing yet. */
+export type BarCount = { key: string; text: ReactNode; tone: "ok" | "mid" | "bad" | "plain"; tip: string; tipSub?: string };
+
+/** The bar's counts: square fields that wrap as a whole, never cut off. */
+export function BarCounts({ counts }: { counts: BarCount[] }) {
+    const t = useT();
+    return (
+        <span className="se-counts" role="list" aria-label={t("setup.bar.countsAria")}>
+            {counts.map((c) => (
+                <span key={c.key} role="listitem" className={`se-count-chip se-tone-${c.tone}`} data-tip={c.tip} data-tip-sub={c.tipSub}>{c.text}</span>
+            ))}
+        </span>
     );
 }
 

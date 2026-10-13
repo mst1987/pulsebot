@@ -2,6 +2,7 @@
   "areaByPath": {
     "/api/dashboard": ["dashboard", "signup"],
     "/api/dashboard/next-raid": "dashboard",
+    "/api/dungeons": ["roster", "signup"],
     "/api/version": "settings",
     "/api/channels": "channels",
     "/api/channels/duplicate": "channels",
@@ -243,6 +244,7 @@
     "/api/availability/panel": "settings",
     "/api/orga-hubs": "settings",
     "/api/orga-hub": "settings",
+    "/api/orga-hub/links": "settings",
     "/api/availability/links": "settings",
     "/api/settings/guild-banks": "settings",
     "/api/settings/guild-banks/assign": "settings",
@@ -284,7 +286,8 @@
     "/api/ingest/raids",
     "/api/ingest/council",
     "/api/ingest/guildbank",
-    "/api/ingest/guildbank/handouts"
+    "/api/ingest/guildbank/handouts",
+    "/api/ingest/levelhelper"
   ],
   "adminOnly": [
     "/api/system/backup",

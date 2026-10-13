@@ -87,18 +87,18 @@ describe("services/signups/guildBank — waiting list", () => {
         expect(discord.postPayload).toHaveBeenCalledTimes(1);
     });
 
-    it("keeps strict order: while somebody waits, a new request waits in full and the first moves up", async () => {
+    it("a new request waits in full while somebody waits; the list moves up in turns, a rest goes to the end", async () => {
         await ask("u1", 3);
         // stock arrived without anybody moving the list up yet
         scan(2);
         const late = await ask("u2", 1);
-        expect(late).toMatchObject({ request: null, position: 2 });
-        // u1 got the 2 there were, 1 still waits for u1 — first in line
-        expect(statuses()).toEqual([["u1", "open", 2], ["u1", "waiting", 1], ["u2", "waiting", 1]]);
-        expect(waitlist.listForBank(KEY).map((r) => [r.userId, r.position])).toEqual([["u1", 1], ["u2", 2]]);
+        // u1 got one portion (2), the 1 left of it stands behind u2 now
+        expect(late).toMatchObject({ request: null, position: 1, portion: 2 });
+        expect(statuses()).toEqual([["u1", "open", 2], ["u2", "waiting", 1], ["u1", "waiting", 1]]);
+        expect(waitlist.listForBank(KEY).map((r) => [r.userId, r.position])).toEqual([["u2", 1], ["u1", 2]]);
     });
 
-    it("moves up on a new scan: the orga card says 'aus der Warteliste', the raider gets 'Du bist dran'", async () => {
+    it("moves up on a new scan: the orga card says 'aus der Warteliste' with the rest, the raider gets 'Du bist dran'", async () => {
         await ask("u1", 3);
         await ask("u2", 1);
         scan(2);
@@ -107,17 +107,40 @@ describe("services/signups/guildBank — waiting list", () => {
         expect(run.posted).toBe(1);
         const card = discord.postPayload.mock.calls[0][1];
         expect(cardText(card)).toContain("## 2× Crimson Spinal");
-        expect(cardText(card)).toContain("aus der Warteliste · offen");
+        expect(cardText(card)).toContain("aus der Warteliste · Rest 1 wartet (Platz 2) · offen");
         expect(cardButtons(card).map((b) => b.label)).toEqual(["Bestätigen", "Charakter ändern …", "Ablehnen …"]);
         const [to, dm] = discord.sendDirectMessage.mock.calls[0];
         expect(to).toBe("u1");
         expect(cardText(dm)).toContain("## Du bist dran");
-        expect(cardText(dm)).toContain("1 weitere bleiben für dich auf der Warteliste – du bist als Nächstes dran.");
+        expect(cardText(dm)).toContain("1 weitere stehen für dich wieder hinten auf der Warteliste – du bist Nr. 2.");
         // the same scan again: nothing is handed out twice
         scan(2);
         discord.postPayload.mockClear();
         expect((await guildBank.advanceWaitlist({})).moved).toEqual([]);
         expect(discord.postPayload).not.toHaveBeenCalled();
+    });
+
+    it("the live list (1, 1, 15, 2, 1, 1, 8, 3, 3, 1, 12) and 5 come in: 1, 1, 2 and 1 — the two rests to the end", async () => {
+        [1, 1, 15, 2, 1, 1, 8, 3, 3, 1, 12].forEach((amount, i) => {
+            store.addWaiting({ userId: `u${i + 1}`, bankKey: KEY, itemId: SPINAL, item: "Crimson Spinal", amount }, { now: 1000 + i });
+        });
+        scan(5);
+        const run = await guildBank.advanceWaitlist({ bankKey: KEY });
+        expect(run.moved.map((m) => [m.request.userId, m.request.amount, m.rest && m.rest.amount, m.restPosition]))
+            .toEqual([["u1", 1, null, 0], ["u2", 1, null, 0], ["u3", 2, 13, 8], ["u4", 1, 1, 9]]);
+        expect(waitlist.listForBank(KEY).map((r) => `${r.userId}:${r.amount}`)).toEqual(["u5:1", "u6:1", "u7:8", "u8:3", "u9:3", "u10:1", "u11:12", "u3:13", "u4:1"]);
+        // four cards, one per raider; the 15er's says where its rest stands
+        expect(discord.postPayload).toHaveBeenCalledTimes(4);
+        const texts = discord.postPayload.mock.calls.map((c) => cardText(c[1]));
+        expect(texts.filter((t) => t.includes("aus der Warteliste · Rest 13 wartet (Platz 8) · offen"))).toHaveLength(1);
+        expect(texts.filter((t) => t.includes("aus der Warteliste · offen"))).toHaveLength(2);
+        const dm = discord.sendDirectMessage.mock.calls.find((c) => c[0] === "u3")[1];
+        expect(cardText(dm)).toContain("13 weitere stehen für dich wieder hinten auf der Warteliste – du bist Nr. 8.");
+        // a portion of its own: 5 per turn — the next 5 all go to u5, u6 and u7 (1, 1, 3)
+        stockStore.setItemSettings(KEY, SPINAL, { portion: 5 });
+        scan(10);
+        const next = await guildBank.advanceWaitlist({ bankKey: KEY });
+        expect(next.moved.map((m) => [m.request.userId, m.request.amount])).toEqual([["u5", 1], ["u6", 1], ["u7", 3]]);
     });
 
     it("an entry imported without a Discord account moves up unlinked: no DM, no confirming until the orga links it", async () => {

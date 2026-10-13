@@ -2,7 +2,7 @@
 // Components V2 container with the heading, the summary, the two buttons and
 // one section per raid — within Discord's 40 components.
 const { MessageFlags } = require("discord.js");
-const { orgaHubPayload, statusIcon, newRaidId, MAX_RAIDS, COLOR_ORGA } = require("../../../src/services/events/orgaHubPanel");
+const { orgaHubPayload, statusIcon, newRaidId, linksId, raidCapacity, MAX_RAIDS, COMPONENT_LIMIT, COLOR_ORGA } =require("../../../src/services/events/orgaHubPanel");
 
 const raid = (i, over = {}) => ({
     title: `Raid ${i}`, startTime: 1800000000 + i * 86400, channelId: `c${i}`, status: "draft", label: "Setup in Arbeit",
@@ -61,7 +61,60 @@ describe("services/events/orgaHubPanel", () => {
     it("shows a raid as plain text without a public address, and no web button", () => {
         const p = orgaHubPayload({ raids: [raid(1, { url: "" })], total: 1 });
         expect(all(p.components).some((c) => c.type === 9)).toBe(false);
-        expect(buttons(p).map((b) => b.label)).toEqual(["Raid anlegen"]);
+        expect(buttons(p).map((b) => b.label)).toEqual(["Raid anlegen", "Links …"]);
+    });
+
+    describe("orga links", () => {
+        const link = (i) => ({ label: `Link ${i}`, url: `https://example.org/${i}` });
+        const rows = (p) => all(p.components).filter((c) => c.type === 1);
+
+        it("has only the \"Links …\" button next to \"Raid anlegen\" while there are no links", () => {
+            const p = orgaHubPayload({ categoryId: "cat1", webUrl: "https://eh.example/raids" });
+            expect(rows(p)).toHaveLength(1);
+            expect(buttons(p).map((b) => [b.label, b.style, b.custom_id || b.url])).toEqual([
+                ["Raid anlegen", 1, "orga:new:cat1"],
+                ["Alle Raids im Web", 5, "https://eh.example/raids"],
+                ["Links …", 2, "orga:links:cat1"],
+            ]);
+            expect(linksId("cat1")).toBe("orga:links:cat1");
+        });
+
+        it("draws the links as link buttons in a row of their own below", () => {
+            const p = orgaHubPayload({ categoryId: "cat1", links: [link(1), link(2)] });
+            expect(rows(p)).toHaveLength(2);
+            expect(rows(p)[1].components).toEqual([
+                expect.objectContaining({ label: "Link 1", url: "https://example.org/1", style: 5 }),
+                expect.objectContaining({ label: "Link 2", url: "https://example.org/2", style: 5 }),
+            ]);
+        });
+
+        it("fits Discord's 40 components in the worst case: 5 links, many raids, the summary", () => {
+            const raids = Array.from({ length: 13 }, (_, i) => raid(i + 1));
+            const p = orgaHubPayload({
+                categoryId: "cat1", raids, total: 13, webUrl: "https://eh.example/raids", links: [1, 2, 3, 4, 5].map(link),
+                counts: [{ status: "open", label: "5 Setup offen" }, { status: "draft", label: "8 in Arbeit" }],
+            });
+            expect(all(p.components).length).toBeLessThanOrEqual(COMPONENT_LIMIT);
+            expect(all(p.components).filter((c) => c.type === 9)).toHaveLength(raidCapacity(5));
+            expect(raidCapacity(5)).toBe(8);
+            const foot = texts(p)[texts(p).length - 1];
+            expect(foot).toContain("-# 5 weitere Raids stehen im Web");
+            expect(foot).toContain("höchstens 8 Raids");
+        });
+
+        it("keeps room for ten raids without links and shrinks with every link row", () => {
+            expect(raidCapacity(0)).toBe(MAX_RAIDS);
+            expect([1, 2, 3, 4, 5].map(raidCapacity)).toEqual([9, 9, 9, 8, 8]);
+            for (let n = 0; n <= 5; n++) {
+                const p = orgaHubPayload({ categoryId: "c", raids: Array.from({ length: 12 }, (_, i) => raid(i)), total: 12, webUrl: "https://eh.example/raids", links: Array.from({ length: n }, (_, i) => link(i)) });
+                expect(all(p.components).length).toBeLessThanOrEqual(COMPONENT_LIMIT);
+            }
+        });
+
+        it("ignores a sixth link and rows without label or address", () => {
+            const p = orgaHubPayload({ categoryId: "c", links: [1, 2, 3, 4, 5, 6].map(link).concat([{ label: "", url: "" }]) });
+            expect(rows(p)[1].components).toHaveLength(5);
+        });
     });
 
     it("says so when no raid is planned", () => {

@@ -90,7 +90,7 @@ function clientSources(dir = "", ext = /\.tsx?$/, options = {}) {
 // flat building blocks joined ui/ (only they count here, the kit has scans of
 // its own), and a page that got its folder counts with just its former files.
 const SPLIT_FOLDERS = [
-    "pages/recruitment", "pages/cla", "pages/history", "pages/profile", "pages/settings", "pages/roster", "pages/kader", "pages/guildbank", "pages/absences",
+    "pages/recruitment", "pages/cla", "pages/history", "pages/profile", "pages/settings", "pages/roster", "pages/kader", "pages/guildbank", "pages/absences", "pages/dungeons",
     "pages/raids", "pages/dashboard", "pages/system",
     "components/loot", "components/settings", "components/signup", "components/roster", "components/raid-create",
     "components/shell", "components/raid", "components/character",

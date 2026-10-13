@@ -415,6 +415,15 @@ describe("web/apiRoutes/settings", () => {
                 expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ officerRoleId: "x" });
             });
 
+            it("forwards the dungeon record setting, its two fields only", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                await patch("/api/settings", { dungeonRecords: { post: true, channelId: " 123456789012345678 ", other: 1 } });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ dungeonRecords: { post: true, channelId: "123456789012345678" } });
+                await patch("/api/settings", { dungeonRecords: { post: "yes" } });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ dungeonRecords: {} });
+            });
+
             it("forwards the main version and the category map (#541)", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);

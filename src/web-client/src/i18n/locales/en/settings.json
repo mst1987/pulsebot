@@ -52,6 +52,10 @@
             "label": "Recruitment",
             "crumb": "Modules · applications"
         },
+        "dungeons": {
+            "label": "Dungeon best times",
+            "crumb": "Modules · guild records from the LevelHelper addon"
+        },
         "addons": {
             "label": "Addons",
             "crumb": "Modules · addon downloads"
@@ -230,7 +234,10 @@
         "discordVisuals": "Pictures in bot messages · {name} {state}",
         "on": "on",
         "off": "off",
-        "signupCharacters": "{name} · characters per signup → {count}"
+        "signupCharacters": "{name} · characters per signup → {count}",
+        "dungeonRecordsOn": "Post guild records: on",
+        "dungeonRecordsOff": "Post guild records: off",
+        "dungeonRecordsChannel": "Channel for guild records"
     },
     "lootTool": {
         "none": "none"
@@ -856,6 +863,8 @@
         "orgaHubRemoved": "Orga hub removed.",
         "orgaHubRemoveTitle": "Remove orga hub?",
         "orgaHubRemoveText": "The message in Discord is deleted. The raids themselves stay as they are.",
+        "orgaLinks": "Orga hub links",
+        "orgaLinksSub": "Buttons below “Create raid”, e.g. the WCL guild or raid sheet – for the orga only. Also editable in Discord through “Links …” on the orga hub.",
         "links": "Links in the organizer",
         "linksSub": "Buttons such as the WCL invite, info sheet or tactics – shown at the bottom of the panel.",
         "linkLabel": "Text",
@@ -1412,5 +1421,12 @@
         "setupImageTip": "Test: the groups of the posted setup as a picture instead of a list; confirm marks in the picture, the buttons stay.",
         "eventCover": "Cover of the Discord event",
         "eventCoverTip": "Test: a raid's Discord server event gets the raid's picture as its cover (the event's own picture, else the zone art)."
+    },
+    "dungeonRecords": {
+        "post": "Post new guild records",
+        "postTip": "A gold run that is now the fastest of its dungeon goes into the channel as a card. Only runs of the last three days, at most three per upload.",
+        "channel": "Channel for guild records",
+        "channelSub": "The bot posts every new guild record here, in the bot language.",
+        "noChannel": "Without a channel nothing is posted."
     }
 }

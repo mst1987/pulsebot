@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import {
-    getSettings, updateSettings, getIngestTokens, getAvailabilityPanels, getOrgaHubs, type ApiError, type AvailabilityLink, type AvailabilityPanel, type OrgaHub,
+    getSettings, updateSettings, getIngestTokens, getAvailabilityPanels, getOrgaHubs, type ApiError, type AvailabilityLink, type AvailabilityPanel, type OrgaHub, type OrgaLink,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { usePersistedSearchParam } from "../../lib/ui/persistedState";
@@ -39,6 +39,7 @@ import { categoryVersionsToSave, isVersionSwitch, savedCategoryVersion, switchFi
 import HideOtherVersionsCard from "./HideOtherVersionsCard";
 import BotLanguageCard from "./BotLanguageCard";
 import DiscordVisualsCard from "./DiscordVisualsCard";
+import DungeonRecordsCard from "./DungeonRecordsCard";
 import VersionFeaturesCard from "./VersionFeaturesCard";
 import VersionLaunchCard from "./VersionLaunchCard";
 import { withDisabled } from "../../lib/settings/versionFeatures";
@@ -96,10 +97,18 @@ export default function SettingsPage() {
         return { ...cur, links: links.length ? { ...rest, [categoryId]: links } : rest };
     });
     // The Orga-Zentrale per category: posted and removed at once like the panels.
-    const hubsData = useApi(() => getOrgaHubs().then((r) => r.hubs || []), [], { enabled: !!data });
-    const setHub = (categoryId: string, hub: OrgaHub | null) => hubsData.setData((cur) => (cur ? [
-        ...cur.filter((h) => h.categoryId !== categoryId), ...(hub ? [hub] : []),
-    ] : cur));
+    // Its link buttons come with it and are saved the same way.
+    const hubsData = useApi(() => getOrgaHubs().then((r) => ({ hubs: r.hubs || [], links: r.links || {}, maxLinks: r.maxLinks || 5 })), [], { enabled: !!data });
+    const setHub = (categoryId: string, hub: OrgaHub | null) => hubsData.setData((cur) => (cur ? {
+        ...cur,
+        hubs: [...cur.hubs.filter((h) => h.categoryId !== categoryId), ...(hub ? [hub] : [])],
+    } : cur));
+    const setOrgaLinks = (categoryId: string, links: OrgaLink[]) => hubsData.setData((cur) => {
+        if (!cur) return cur;
+        const rest = { ...cur.links };
+        delete rest[categoryId];
+        return { ...cur, links: links.length ? { ...rest, [categoryId]: links } : rest };
+    });
     // #738: the category whose version switch waits for the confirmation dialog.
     const [switching, setSwitching] = useState<{ id: string; versionId: string } | null>(null);
     // #744: a save that deactivates categories first shows what pauses; a category
@@ -243,6 +252,8 @@ export default function SettingsPage() {
                 botLanguage: draft.botLanguage,
                 // the drawn pictures (a test): every switch, merged on the server
                 discordVisuals: draft.discordVisuals,
+                // the dungeon record post: both fields, merged on the server
+                dungeonRecords: draft.dungeonRecords,
                 // #542: every version's block, merged per field on the server; a wrong value comes back as 400 with its field.
                 // #761: with each version's features switched off, sent whole.
                 versionSettings: withDisabled(draft.versionSettings, draft.versionDisabled),
@@ -416,9 +427,12 @@ export default function SettingsPage() {
                         onLinks: setLinks,
                     } : undefined}
                     orgaHubs={hubsData.data ? {
-                        hubs: hubsData.data,
+                        hubs: hubsData.data.hubs,
+                        links: hubsData.data.links,
+                        maxLinks: hubsData.data.maxLinks,
                         channels: data.noteChannels ? data.noteChannels.channels : [],
                         onChange: setHub,
+                        onLinks: setOrgaLinks,
                     } : undefined}
                     icon={activeSection.icon}
                     crumb={activeCrumb}
@@ -540,6 +554,13 @@ export default function SettingsPage() {
                 <>
                     {head(activeSection, undefined, sectionLabel(activeSection), t("addon.settings.sectionSub"))}
                     <AddonsSection data={data} onConfig={(config) => setData({ ...data, config })} />
+                </>
+            );
+
+            case "dungeons": return (
+                <>
+                    {head(activeSection)}
+                    <DungeonRecordsCard value={draft.dungeonRecords} channels={channels} onChange={(dungeonRecords) => patch({ dungeonRecords })} />
                 </>
             );
 

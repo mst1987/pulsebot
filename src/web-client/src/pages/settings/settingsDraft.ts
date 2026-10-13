@@ -62,6 +62,8 @@ export type Draft = {
     botLanguage: "de" | "en";
     /** The drawn pictures in bot messages (a test), every switch as a boolean. */
     discordVisuals: Record<DiscordVisualKey, boolean>;
+    /** "Neue Gildenrekorde posten" (Dungeon-Bestzeiten): off by default. */
+    dungeonRecords: { post: boolean; channelId: string };
     /** Settings per game version (#542), every version the server sent. */
     versionSettings: Record<string, VersionSettingsBlock>;
     /** The features switched off per version (#761, "Funktionen je Version"), sent inside versionSettings. */
@@ -111,6 +113,7 @@ export function toDraft(config: AdminConfig): Draft {
         hideOtherVersions: config.hideOtherVersions === true,
         botLanguage: config.botLanguage === "en" ? "en" : "de",
         discordVisuals: discordVisualsOf(config.discordVisuals),
+        dungeonRecords: { post: config.dungeonRecords?.post === true, channelId: config.dungeonRecords?.channelId || "" },
         versionSettings: Object.fromEntries(Object.entries(config.versionSettings || {}).map(([id, block]) => [id, blockOf(block)])),
         versionDisabled: disabledFromConfig(config.versionSettings),
         topItems: config.topItems || [],

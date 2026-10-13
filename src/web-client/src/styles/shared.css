@@ -286,7 +286,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 :root { --page-narrow: 1200px; }
 .content { padding: 24px; max-width: 1440px; width: 100%; min-width: 0; }
 .ov-page, .re-page, .rt-page, .sr-page, .an-page, .pf-page, .rc-page, .kn-page,
-.la-page, .hc-page, .sy-page,
+.la-page, .hc-page, .sy-page, .dg-page,
 .settings-panel:not([data-section="berechtigungen"]):not([data-section="kategorien"]) {
     max-width: var(--page-narrow);
 }

@@ -154,6 +154,8 @@ export type DraftShape = {
     botLanguage?: "de" | "en";
     /** The drawn pictures in bot messages (a test); missing switch = on. */
     discordVisuals?: Partial<Record<DiscordVisualKey, boolean>>;
+    /** "Neue Gildenrekorde posten" (Dungeon-Bestzeiten); missing = off. */
+    dungeonRecords?: { post?: boolean; channelId?: string };
     /** Settings per version (#542): version id → { field → value }. */
     versionSettings?: Record<string, Record<string, string>>;
     /** The features switched off per version (#761). */
@@ -426,6 +428,11 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
             out.push(t("settings.changes.discordVisuals", { name: t(`settings.discordVisuals.${key}`), state: t(is ? "settings.changes.on" : "settings.changes.off") }));
         }
     }
+    // The dungeon record post: the switch, and the channel while it is on.
+    const recWas = saved.dungeonRecords || {};
+    const recIs = draft.dungeonRecords || {};
+    if (!!recWas.post !== !!recIs.post) out.push(t(recIs.post ? "settings.changes.dungeonRecordsOn" : "settings.changes.dungeonRecordsOff"));
+    if (recIs.post && (recWas.channelId || "") !== (recIs.channelId || "")) out.push(t("settings.changes.dungeonRecordsChannel"));
     if ((saved.botLanguage || "de") !== (draft.botLanguage || "de")) {
         out.push(t("settings.changes.botLanguage", { value: t(draft.botLanguage === "en" ? "settings.botLanguage.en" : "settings.botLanguage.de") }));
     }
