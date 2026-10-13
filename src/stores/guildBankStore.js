@@ -12,7 +12,8 @@
 //               "done" | "rejected" | "confirmed" | "handedOut", reason (why it
 //               was declined), createdAt, handledBy (user id), handledByName, handledAt,
 //               queueRank (a waiting entry's place in its item's queue: lowest
-//               first; 0 for every other status), fromWaitlist (an open request
+//               first; a rest that got its portion goes behind the highest;
+//               0 for every other status), fromWaitlist (an open request
 //               that moved up from the waiting list), addedBy, addedByName (the
 //               orga member who added or imported a waiting entry; "" = the raider),
 //               channelId, messageId (the post in the orga channel),
@@ -42,9 +43,10 @@
 //
 // One waiting list per bank and item (bankKey + itemId), whatever category the
 // request came from, ordered by queueRank. promoteWaiting moves an entry up
-// (services/guildbank/waitlist.js decides who and how much): all of it turns
-// the entry into an open request; a part becomes a new open request and the
-// rest stays waiting with the same rank — nobody is passed over.
+// (services/guildbank/waitlist.js decides who and how much — in turns, at
+// most the item's portion each): all of it turns the entry into an open
+// request; a part becomes a new open request and the rest goes to the end of
+// the list (a new highest rank), so one big order never blocks the others.
 // A free-text request (no itemId) goes open -> done | rejected as before.
 // "confirmed" sets the amount aside (services/guildbank/reservations.js);
 // handledBy/handledAt name who confirmed (or declined / marked done).
@@ -277,9 +279,11 @@ function addWaiting(input = {}, { now = Date.now() } = {}) {
 /**
  * Move a waiting entry up: `amount` of it becomes an open request
  * (`fromWaitlist`, created now). All of it: the entry itself turns open; a
- * part: a new open request, the rest keeps waiting at the same place.
- * Never limited by MAX_OPEN. Returns `{ request (the open one), rest (the
- * entry still waiting, or null) }` or `{ error }`.
+ * part: a new open request, and the rest goes to the **end** of its item's
+ * list (a new highest queueRank — the turn passes on, services/guildbank/
+ * waitlist.js allocate). Several parts in one run: call it in the order the
+ * rests should line up. Never limited by MAX_OPEN. Returns `{ request (the
+ * open one), rest (the entry still waiting, or null) }` or `{ error }`.
  */
 function promoteWaiting(id, amount, { now = Date.now() } = {}) {
     const data = store.read();
@@ -293,7 +297,11 @@ function promoteWaiting(id, amount, { now = Date.now() } = {}) {
         store.write(data);
         return { request: complete(hit), rest: null };
     }
+    const last = data.requests
+        .filter((r) => r.status === "waiting" && sameItem(r, hit.bankKey, hit.itemId))
+        .reduce((max, r) => Math.max(max, Number(r.queueRank) || 0), 0);
     hit.amount = total - take;
+    hit.queueRank = last + 1;
     const request = complete({ ...complete(hit), id: newId(), amount: take, status: "open", queueRank: 0, fromWaitlist: true, createdAt: now });
     data.requests.push(request);
     store.write(data);

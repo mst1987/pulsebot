@@ -16,8 +16,9 @@
 //     The orga confirms (the amount is set aside — checked again, someone may
 //     have been faster), takes the confirmation back, or marks it handed out;
 //     or declines it. When stock comes free (advanceWaitlist: a scan, a
-//     decline, a released confirmation, the orga's changes), the first of the
-//     list move up to open requests: a card "aus der Warteliste" and a DM.
+//     decline, a released confirmation, the orga's changes), the list moves up
+//     in turns — at most the item's portion each, a rest goes to the end of
+//     the list — to open requests: a card "aus der Warteliste" and a DM.
 //       waiting → open → confirmed → handedOut, open → rejected, confirmed → open
 //     Confirming needs a **linked** character (services/guildbank/linking.js):
 //     the request's raider and a **confirmed** character of their profile (seen
@@ -72,6 +73,21 @@ function guildBankChannelId(config = settingsStore.getConfig()) {
     return post.guildBankChannelId(config);
 }
 
+/**
+ * What the recipient of a request that moved up still waits for of the same
+ * item (the rest that went to the end of the list): `{ amount, position }` —
+ * the same raider (or, without a Discord account, the same character name);
+ * `position` = the first such entry's place (1 = next). Null when nothing waits.
+ */
+function restWaiting(request) {
+    if (!request || !request.fromWaitlist || !request.itemId || !store.PENDING_STATUSES.includes(request.status)) return null;
+    const same = (r) => (request.userId ? r.userId === request.userId : !r.userId && str(r.characterName).toLowerCase() === str(request.characterName).toLowerCase());
+    const queue = store.waitingQueue(request.bankKey, request.itemId);
+    const mine = queue.filter(same);
+    if (!mine.length) return null;
+    return { amount: mine.reduce((sum, r) => sum + r.amount, 0), position: queue.indexOf(mine[0]) + 1 };
+}
+
 /** The orga card of a request as it should look now (a stock request with the stock's numbers). */
 function postFor(request, { config } = {}) {
     let categoryName = "";
@@ -83,7 +99,7 @@ function postFor(request, { config } = {}) {
     const stock = request.itemId && request.bankKey ? stockView.stockItem(request.bankKey, request.itemId) : null;
     // only a request from the stock goes to a character in game (the addon's mail)
     const state = request.itemId ? linking.linkState(request) : { linked: true, linkProblem: "" };
-    return post.orgaPayload(request, { categoryName, stock, linked: state.linked, linkProblem: state.linkProblem });
+    return post.orgaPayload(request, { categoryName, stock, linked: state.linked, linkProblem: state.linkProblem, rest: restWaiting(request) });
 }
 
 /**
@@ -200,8 +216,9 @@ function stockRequestBase(userId, input, { bank, item }, { userName, categoryId 
  * @param {string} userId
  * @param {{ bankKey: string, itemId: number, amount: string|number, purpose?: string, characterKey?: string }} input
  * @param {{ userName?: string, categoryId?: string, config?: object, now?: number }} [o]
- * @returns {Promise<{ request: object|null, waiting: object|null, position: number } | { error: string }>}
- *   `request` the open part, `waiting` the waiting part with its `position` (1 = next)
+ * @returns {Promise<{ request: object|null, waiting: object|null, position: number, portion: number } | { error: string }>}
+ *   `request` the open part, `waiting` the waiting part with its `position` (1 = next),
+ *   `portion` the item's share per turn on the waiting list (the raider's answer names it)
  */
 async function createStockRequest(userId, input = {}, { userName = "", categoryId = "", config, now = Date.now() } = {}) {
     const cfg = config || settingsStore.getConfig();
@@ -224,7 +241,8 @@ async function createStockRequest(userId, input = {}, { userName = "", categoryI
         if (added.error) logger.warn(`[guildBank] Wartelisten-Eintrag von ${userId} nicht gespeichert: ${added.error}`);
         else waiting = added.request;
     }
-    if (!waiting) return { request, waiting: null, position: 0 };
+    const portion = stockStore.portionOf(item);
+    if (!waiting) return { request, waiting: null, position: 0, portion };
     // strict order: if anything is free while people wait, the list goes first
     await advanceWaitlist({ bankKey: bank.key, itemId: item.itemId, config: cfg, now });
     const still = store.getRequest(waiting.id);
@@ -234,6 +252,7 @@ async function createStockRequest(userId, input = {}, { userName = "", categoryI
         request: request || (still && still.status === "open" ? still : null),
         waiting: stillWaiting ? still : null,
         position: stillWaiting ? waitlist.positionOf(still) : 0,
+        portion,
     };
 }
 
@@ -552,8 +571,9 @@ function advanceWaitlist({ bankKey = "", itemId = 0, config, now = Date.now() } 
         for (const request of unposted) {
             if (await postMovedUp(request, { channelId, config: cfg })) posted += 1;
         }
-        for (const { request, rest } of moved) {
-            await notifyRaider(request, { config: cfg, build: (r, lang) => post.movedUpCard(r, lang, { rest: rest ? rest.amount : 0 }) });
+        for (const { request, rest, restPosition } of moved) {
+            const more = { rest: rest ? rest.amount : 0, position: restPosition || 0 };
+            await notifyRaider(request, { config: cfg, build: (r, lang) => post.movedUpCard(r, lang, more) });
         }
         return { moved, posted };
     }).catch((e) => {
@@ -565,7 +585,7 @@ function advanceWaitlist({ bankKey = "", itemId = 0, config, now = Date.now() } 
 }
 
 module.exports = {
-    NOT_SET_UP, NOT_OFFERED, NOT_LINKED, NOT_VERIFIED, guildBankChannelId, postFor, offerFor, charactersFor, createRequest, createStockRequest, splitAmount,
+    NOT_SET_UP, NOT_OFFERED, NOT_LINKED, NOT_VERIFIED, guildBankChannelId, postFor, restWaiting, offerFor, charactersFor, createRequest, createStockRequest, splitAmount,
     resolveRequest, confirmRequest, checkAndConfirm, checkRequestRecipient, reassignRequest, redrawPendingCards, releaseRequest, handOutRequest, redrawPost, pendingForBank, handedOutForBank,
     linkRequest, advanceWaitlist,
 };

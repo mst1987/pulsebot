@@ -21,6 +21,8 @@
 //            items: { [itemId]: itemSettings } }
 //
 //   itemSettings = { status: "new" | "hide" | "show" | "give", reserve, maxPerRequest (0 = no limit),
+//                    portion (the waiting list's share per turn, 1–99; 0 = the
+//                    default PORTION_DEFAULT — item views carry the effective value),
 //                    category (the orga's own group, "" = none), firstSeenAt,
 //                    name, icon, quality, classId, subclassId, className, subclassName,
 //                    metaSource: "" | "local" | "wowhead", metaAt, metaVersion,
@@ -44,6 +46,13 @@ const STATUSES = ["new", "hide", "show", "give"];
 const SETTABLE_STATUSES = ["hide", "show", "give"];
 const RESERVE_MAX = 1_000_000;
 const MAX_PER_REQUEST_MAX = 9999;
+/**
+ * How much one entry of the waiting list gets per turn when stock comes free
+ * (services/guildbank/waitlist.js allocate): the item's own portion, else
+ * this. Whoever wants more goes to the end of the list with the rest.
+ */
+const PORTION_DEFAULT = 2;
+const PORTION_MAX = 99;
 const CATEGORY_MAX = 40;
 const META_SOURCES = ["", "local", "wowhead"];
 /**
@@ -78,6 +87,7 @@ function completeItem(raw) {
         status: STATUSES.includes(r.status) ? r.status : "new",
         reserve: Math.max(0, Math.floor(num(r.reserve))),
         maxPerRequest: Math.max(0, Math.floor(num(r.maxPerRequest))),
+        portion: Math.min(PORTION_MAX, Math.max(0, Math.floor(num(r.portion)))),
         category: str(r.category, CATEGORY_MAX),
         firstSeenAt: num(r.firstSeenAt),
         name: str(r.name),
@@ -123,7 +133,13 @@ function tabsOf(bank, scan) {
         .sort((a, b) => a.index - b.index);
 }
 
-/** One item as the readers get it: stock of the last scan + the orga's settings (+ its emoji's id). */
+/** The portion per turn an item's settings mean: its own (1–99), else PORTION_DEFAULT. */
+function portionOf(settings) {
+    const n = Math.floor(num(settings && settings.portion));
+    return n > 0 ? Math.min(PORTION_MAX, n) : PORTION_DEFAULT;
+}
+
+/** One item as the readers get it: stock of the last scan + the orga's settings (+ its emoji's id); portion is the effective one. */
 function itemView(itemId, settings, scan, emojis) {
     const stock = obj(scan.items[itemId]);
     const tabs = {};
@@ -135,6 +151,7 @@ function itemView(itemId, settings, scan, emojis) {
         count: num(stock.count),
         tabs,
         ...settings,
+        portion: portionOf(settings),
         iconUrl: iconUrl(settings.icon),
         emojiId: str(obj(obj(emojis)[String(Number(itemId))]).id, 30),
     };
@@ -284,8 +301,9 @@ function wholeNumber(v, min, max) {
 
 /**
  * Change what the orga decided for one item: `{ status, reserve, maxPerRequest,
- * category }`, each optional. Returns `{ item }` (the item view) or `{ error }`
- * (German); nothing is written when one field is wrong.
+ * portion, category }`, each optional. A portion of PORTION_DEFAULT (or 0) is
+ * stored as 0 — the item follows the default. Returns `{ item }` (the item
+ * view) or `{ error }` (German); nothing is written when one field is wrong.
  */
 function setItemSettings(key, itemId, patch = {}) {
     const data = store.read();
@@ -309,6 +327,11 @@ function setItemSettings(key, itemId, patch = {}) {
         const n = wholeNumber(p.maxPerRequest, 0, MAX_PER_REQUEST_MAX);
         if (n === null) return { error: `Die Höchstmenge muss eine ganze Zahl von 0 bis ${MAX_PER_REQUEST_MAX} sein (0 = ohne Grenze).` };
         next.maxPerRequest = n;
+    }
+    if (p.portion !== undefined) {
+        const n = wholeNumber(p.portion, 0, PORTION_MAX);
+        if (n === null) return { error: `Die Portion pro Runde muss eine ganze Zahl von 1 bis ${PORTION_MAX} sein.` };
+        next.portion = n === PORTION_DEFAULT ? 0 : n;
     }
     if (p.category !== undefined) next.category = str(p.category, CATEGORY_MAX).replace(/\s+/g, " ");
     items[id] = next;
@@ -481,7 +504,7 @@ function setItemEmoji(itemId, emoji) {
 }
 
 module.exports = {
-    STATUSES, SETTABLE_STATUSES, RESERVE_MAX, MAX_PER_REQUEST_MAX, CATEGORY_MAX, META_VERSION,
+    STATUSES, SETTABLE_STATUSES, RESERVE_MAX, MAX_PER_REQUEST_MAX, PORTION_DEFAULT, PORTION_MAX, CATEGORY_MAX, META_VERSION, portionOf,
     recordScan, getBank, listBanks, listForServer, assignBank, removeBank,
     setItemSettings, addItem, setTabHidden, knownMeta, setItemMeta, itemsWithoutWowheadMeta, banksWithItem,
     offeredIcons, itemEmojis, setItemEmoji,
