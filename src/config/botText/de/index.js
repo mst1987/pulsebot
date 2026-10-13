@@ -14,6 +14,7 @@ const AREAS = [
     require("./guildBank"),
     require("./logcheck"),
     require("./dungeons"),
+    require("./addons"),
 ];
 
 const merged = {};

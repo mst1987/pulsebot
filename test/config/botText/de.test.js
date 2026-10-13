@@ -46,6 +46,7 @@ const AREAS = {
     "guildBank.js": require("../../../src/config/botText/de/guildBank"),
     "logcheck.js": require("../../../src/config/botText/de/logcheck"),
     "dungeons.js": require("../../../src/config/botText/de/dungeons"),
+    "addons.js": require("../../../src/config/botText/de/addons"),
 };
 
 describe("config/botText/de", () => {

@@ -16,6 +16,7 @@ import { splitList } from "./settingsDraft";
 import { useTableSort, type Dir } from "../../lib/ui/tableSort";
 import { SortTh } from "../../components/ui/SortTh";
 import { useT } from "../../i18n";
+import AddonCenterCard from "./AddonCenterCard";
 import "../../styles/addon.css";
 
 // Einstellungen → Module → Addons (#818): the addons of the page "Addons" —
@@ -25,6 +26,7 @@ import "../../styles/addon.css";
 // save can ever wipe it), full admins only like the GitHub token it is fetched
 // with. "Standard wiederherstellen" sends { addonDownloadsReset: true }. The
 // token itself lives under Verbindungen; this section only says whether it is set.
+// Under the list: the download centre in Discord (AddonCenterCard, its own route).
 
 type Version = { id: string; label: string; short: string };
 
@@ -223,6 +225,7 @@ export default function AddonsSection({ data, onConfig }: {
                     {t("addon.settings.restore")}
                 </Button>
             </div>
+            <AddonCenterCard />
         </>
     );
 }

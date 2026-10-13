@@ -11,6 +11,8 @@ import AddonsSection from "./AddonsSection";
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
     updateSettings: vi.fn(),
+    // the download centre under the list loads on its own (AddonCenterCard.test.tsx)
+    getAddonCenter: vi.fn(() => new Promise(() => {})),
 }));
 
 const LEVELHELPER: api.AddonSetting = {

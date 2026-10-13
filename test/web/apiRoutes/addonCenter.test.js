@@ -1,0 +1,117 @@
+// The addon download centre's API (src/web/apiRoutes/addonCenter.js) through the real router:
+// full admins only, the settings saved at once, post and remove.
+let mockUser = null;
+jest.mock("../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true }));
+jest.mock("../../../src/services/addons/addonCenter", () => ({ saveSettings: jest.fn(), postCenter: jest.fn(), removeCenter: jest.fn() }));
+jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => ({ mainVersion: "forever", categoryVersion: { "cat-tbc": "tbc" } }) }));
+jest.mock("../../../src/services/discord/guildRoles", () => ({ configuredGuildIds: jest.fn(() => ["g1"]) }));
+jest.mock("../../../src/services/discord/discord", () => ({
+    isOnline: () => true,
+    listGuilds: () => [{ id: "g1", name: "Gilde" }, { id: "g2", name: "Talk" }],
+    listTextChannels: jest.fn((guildId) => (guildId === "g1"
+        ? [{ id: "c1", name: "addon-downloads", category: "Allgemein", parentId: "" }, { id: "c2", name: "tbc-chat", category: "TBC", parentId: "cat-tbc" }]
+        : [{ id: "c9", name: "talk", category: "", parentId: "" }])),
+    listRoles: jest.fn((guildId) => [{ id: `r-${guildId}`, name: "Addon-Updates", color: "", managed: false }]),
+}));
+
+const addonCenter = require("../../../src/services/addons/addonCenter");
+const guildRoles = require("../../../src/services/discord/guildRoles");
+const store = require("../../../src/stores/addonCenterStore");
+const route = require("../../../src/web/apiRoutes/addonCenter");
+const { emptyAccess } = require("../../../src/config/permissions");
+const { tempStoreFile } = require("../../helpers/tempStore");
+const { routerClient, status, body } = require("../../helpers/http");
+
+const { get, post, request } = routerClient(route);
+const ADMIN = { id: "1", name: "Admin", isAdmin: true };
+const SETTINGS_USER = { id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), settings: { read: true, write: true } } };
+
+beforeAll(() => store.useFile(tempStoreFile("addon-center.json")));
+afterAll(() => store.useFile(null));
+beforeEach(() => {
+    jest.clearAllMocks();
+    store.useFile(tempStoreFile("addon-center.json"));
+    mockUser = ADMIN;
+    guildRoles.configuredGuildIds.mockReturnValue(["g1"]);
+});
+
+describe("apiRoutes/addonCenter", () => {
+    it("shows the settings, the posted centre, the last check, the channels with their game version and the roles", async () => {
+        store.setSettings({ channelId: "123456789012345678", roleId: "223456789012345678" });
+        store.setCenter({ guildId: "g1", channelId: "123456789012345678", messageId: "m1", url: "https://discord.com/channels/g1/123456789012345678/m1" }, { now: 5 });
+        store.setCheckedAt(9);
+        const res = await get("/api/addon-center");
+        expect(status(res)).toBe(200);
+        expect(body(res)).toEqual({
+            settings: { channelId: "123456789012345678", roleId: "223456789012345678", announce: true },
+            center: { channelId: "123456789012345678", postedAt: 5, url: "https://discord.com/channels/g1/123456789012345678/m1" },
+            checkedAt: 9,
+            online: true,
+            channels: [
+                { id: "c1", name: "addon-downloads", guildId: "g1", category: "WoW Forever" },
+                { id: "c2", name: "tbc-chat", guildId: "g1", category: "TBC Anniversary" },
+            ],
+            roles: { g1: [{ id: "r-g1", name: "Addon-Updates", color: "", managed: false }] },
+        });
+    });
+
+    it("names the server next to the version when there are two", async () => {
+        guildRoles.configuredGuildIds.mockReturnValue(["g1", "g2"]);
+        const res = await get("/api/addon-center");
+        expect(body(res).channels.map((c) => c.category)).toEqual(["Gilde · WoW Forever", "Gilde · TBC Anniversary", "Talk · WoW Forever"]);
+        expect(Object.keys(body(res).roles)).toEqual(["g1", "g2"]);
+    });
+
+    it("is for full admins only, even with write access to the settings", async () => {
+        mockUser = SETTINGS_USER;
+        expect(status(await get("/api/addon-center"))).toBe(403);
+        expect(status(await request("PUT", "/api/addon-center", { channelId: "1" }))).toBe(403);
+        expect(status(await post("/api/addon-center", {}))).toBe(403);
+        expect(status(await request("DELETE", "/api/addon-center", {}))).toBe(403);
+        expect(addonCenter.saveSettings).not.toHaveBeenCalled();
+        mockUser = null;
+        expect(status(await get("/api/addon-center"))).toBe(401);
+    });
+
+    it("saves the settings at once: only the fields sent, the switch as a boolean", async () => {
+        addonCenter.saveSettings.mockResolvedValue({ settings: {}, center: null });
+        const res = await request("PUT", "/api/addon-center", { channelId: "123456789012345678", roleId: null, announce: "yes", other: 1 });
+        expect(status(res)).toBe(200);
+        expect(addonCenter.saveSettings).toHaveBeenCalledWith({ channelId: "123456789012345678", roleId: "", announce: false }, { by: "1" });
+        expect(body(res).settings).toEqual({ channelId: "", roleId: "", announce: true });
+    });
+
+    it("answers a refused setting with 400 and a failed move as a warning next to the saved settings", async () => {
+        addonCenter.saveSettings.mockResolvedValueOnce({ error: "Ungültiger Kanal." });
+        const bad = await request("PUT", "/api/addon-center", { channelId: "x" });
+        expect(status(bad)).toBe(400);
+        addonCenter.saveSettings.mockResolvedValueOnce({ settings: {}, center: null, error: "Die Downloadzentrale konnte nicht gepostet werden: Missing Access" });
+        const moved = await request("PUT", "/api/addon-center", { channelId: "123456789012345678" });
+        expect(status(moved)).toBe(200);
+        expect(body(moved).warning).toMatch(/Missing Access/);
+    });
+
+    it("posts the centre and answers the new view; a refusal is 400", async () => {
+        addonCenter.postCenter.mockResolvedValueOnce({ center: {} });
+        const res = await post("/api/addon-center", {});
+        expect(status(res)).toBe(200);
+        expect(addonCenter.postCenter).toHaveBeenCalledWith({ by: "1" });
+        addonCenter.postCenter.mockResolvedValueOnce({ error: "Kein Kanal gewählt." });
+        const refused = await post("/api/addon-center", {});
+        expect(status(refused)).toBe(400);
+    });
+
+    it("removes the centre, 404 when none is posted", async () => {
+        addonCenter.removeCenter.mockResolvedValueOnce({ messageId: "m1" }).mockResolvedValueOnce(null);
+        expect(status(await request("DELETE", "/api/addon-center", {}))).toBe(200);
+        expect(status(await request("DELETE", "/api/addon-center", {}))).toBe(404);
+    });
+
+    it("an unreachable Discord leaves the lists empty instead of failing", async () => {
+        guildRoles.configuredGuildIds.mockImplementation(() => { throw new Error("offline"); });
+        const res = await get("/api/addon-center");
+        expect(status(res)).toBe(200);
+        expect(body(res).channels).toEqual([]);
+        expect(body(res).roles).toEqual({});
+    });
+});
