@@ -66,11 +66,11 @@ function ReservedCell({ item, requests, onShowRequests }: { item: GuildBankItem;
     const trigger = useRef<HTMLButtonElement>(null);
     const box = useRef<HTMLDivElement>(null);
     useEffect(() => {
-        if (open) box.current?.focus();
+        if (open) box.current?.focus({ preventScroll: true });
     }, [open]);
     const close = () => {
         setOpen(false);
-        trigger.current?.focus();
+        trigger.current?.focus({ preventScroll: true });
     };
     if (!item.reserved || !requests.length) return <span className="lc-num gb-num muted" role="cell">{item.reserved}</span>;
     const shown = requests.slice(0, MAX_RECIPIENTS);
