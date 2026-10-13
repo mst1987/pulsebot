@@ -18,6 +18,7 @@ import Badge from "../components/ui/Badge";
 import RaidLoader from "../components/ui/RaidLoader";
 import NamingBadge from "../components/channels/NamingBadge";
 import { SwitchRow } from "../components/raid/RaidFields";
+import Switch from "../components/ui/Switch";
 import { PenIcon, RefreshIcon, WarnIcon } from "../components/ui/icons";
 import "../styles/series.css";
 
@@ -60,10 +61,8 @@ function DateRow({ o, draft, canWrite, onSkip, onRetry }: {
             </div>
             {retry && <Button size="sm" variant="ghost" onClick={() => onRetry(o.date)}>{t("series.date.retry")}</Button>}
             {skippable && onSkip && (
-                <label className="sr-skip" data-tip={t("series.date.skipTip")} data-tip-sub={t("series.date.skipSub")}>
-                    <input type="checkbox" checked={draft.skipDates.includes(o.date)} onChange={() => onSkip(o.date)} disabled={!canWrite} />
-                    {t("series.date.skip")}
-                </label>
+                <Switch className="sr-skip" label={t("series.date.skip")} tipHead={t("series.date.skipTip")} tip={t("series.date.skipSub")}
+                    checked={draft.skipDates.includes(o.date)} onChange={() => onSkip(o.date)} disabled={!canWrite} />
             )}
         </li>
     );
@@ -177,11 +176,11 @@ function SeriesModal({ category, data, canWrite, onChanged, onClose }: {
             <div className="sr-grid">
                 <div className="sr-field">
                     <label className="sr-label" htmlFor="sr-time">{t("series.modal.time")}</label>
-                    <input id="sr-time" type="time" value={draft.time} onChange={(e) => patch({ time: e.target.value })} disabled={!canWrite} />
+                    <input id="sr-time" className="inp-sm" type="time" value={draft.time} onChange={(e) => patch({ time: e.target.value })} disabled={!canWrite} />
                 </div>
                 <div className="sr-field">
                     <label className="sr-label" htmlFor="sr-before" data-tip={t("series.modal.daysBefore")} data-tip-sub={t("series.modal.daysBeforeSub")}>{t("series.modal.daysBefore")}</label>
-                    <input id="sr-before" type="number" min={data.limits.minDaysBefore} max={data.limits.maxDaysBefore} value={draft.daysBefore}
+                    <input id="sr-before" className="inp-sm" type="number" min={data.limits.minDaysBefore} max={data.limits.maxDaysBefore} value={draft.daysBefore}
                         onChange={(e) => patch({ daysBefore: Number(e.target.value) })} disabled={!canWrite} />
                 </div>
                 <div className="sr-field">
@@ -194,7 +193,7 @@ function SeriesModal({ category, data, canWrite, onChanged, onClose }: {
             </div>
             <div className="sr-field">
                 <label className="sr-label" htmlFor="sr-title" data-tip={t("series.modal.title")} data-tip-sub={t("series.modal.titleSub")}>{t("series.modal.title")}</label>
-                <input id="sr-title" type="text" value={draft.title} placeholder={(preview && preview.template && preview.template.name) || t("series.modal.titlePlaceholder")}
+                <input id="sr-title" className="inp-sm" type="text" value={draft.title} placeholder={(preview && preview.template && preview.template.name) || t("series.modal.titlePlaceholder")}
                     onChange={(e) => patch({ title: e.target.value })} disabled={!canWrite} />
             </div>
 
