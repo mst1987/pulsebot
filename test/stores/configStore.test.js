@@ -267,7 +267,7 @@ describe("stores/configStore dungeonRecords (Neue Gildenrekorde posten)", () => 
 describe("stores/configStore addon list (#818): never wiped by accident", () => {
     const { defaultAddons } = require("../../src/services/addons/addonConfig");
     const ids = (config) => config.addonDownloads.map((a) => a.id);
-    const DEFAULT_IDS = ["levelhelper", "professionkit", "eventhelper-sync"];
+    const DEFAULT_IDS = ["levelhelper", "professionkit", "aurakit", "macrohelper", "eventhelper-sync"];
 
     it("heals a stored empty list nobody emptied on purpose: the defaults again", () => {
         writeFile({ addonDownloads: [] });
@@ -295,7 +295,9 @@ describe("stores/configStore addon list (#818): never wiped by accident", () => 
     });
 
     it("takes an edit (list with the mark), removing single addons and all of them", () => {
-        const [, professionkit, sync] = defaultAddons();
+        const byId = (id) => defaultAddons().find((a) => a.id === id);
+        const professionkit = byId("professionkit");
+        const sync = byId("eventhelper-sync");
         configStore.saveConfig({ addonDownloads: [professionkit, sync], addonDownloadsCustomized: true });
         expect(ids(configStore.getConfig())).toEqual(["professionkit", "eventhelper-sync"]);
         configStore.saveConfig({ addonDownloads: [], addonDownloadsCustomized: true });
