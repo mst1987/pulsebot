@@ -24,6 +24,7 @@
         "data:cla": "node scripts/build-cla-data.js",
         "data:loot": "node scripts/fetch-tbc-loot.js && node scripts/fetch-tbc-loot-names.js",
         "data:icons": "node scripts/fetch-boss-icons.js && node scripts/fetch-mob-icons.js",
+        "data:spec-icons": "node scripts/fetch-spec-icons.js",
         "setup:wowsimcli": "node scripts/fetch-wowsimcli.js",
         "dev:seed": "node scripts/seed-test-raid.js",
         "check:main": "node scripts/check-main-clean.js",

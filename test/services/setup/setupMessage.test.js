@@ -283,7 +283,7 @@ describe("postOrEditSetupMessage", () => {
     it("posts the first time and remembers where", async () => {
         seed();
         const { channel } = fakeChannel();
-        expect(await sm.postOrEditSetupMessage("eh-1", { userId: "orga", now: 5 })).toEqual({ action: "posted" });
+        expect(await sm.postOrEditSetupMessage("eh-1", { userId: "orga", now: 5 })).toEqual({ action: "posted", url: "" });
         expect(channel.send).toHaveBeenCalledTimes(1);
         expect(mockEvents.get("eh-1").setupPost).toMatchObject({ channelId: "c1", messageId: "m-new", version: 2, postedAt: 5, postedBy: "orga" });
     });
@@ -300,7 +300,7 @@ describe("postOrEditSetupMessage", () => {
     it("posts anew when the message was deleted in Discord", async () => {
         seed({ setupPost: { channelId: "c1", messageId: "gone", version: 1 } });
         const { channel } = fakeChannel({ fetchError: Object.assign(new Error("Unknown Message"), { code: 10008 }) });
-        expect(await sm.postOrEditSetupMessage("eh-1")).toEqual({ action: "posted" });
+        expect(await sm.postOrEditSetupMessage("eh-1")).toEqual({ action: "posted", url: "" });
         expect(channel.send).toHaveBeenCalledTimes(1);
     });
 
@@ -563,7 +563,7 @@ describe("DMs", () => {
         fakeChannel();
         discord.sendDirectMessage.mockResolvedValue({ ok: true });
         const off = await sm.publishSetup("eh-1", { config: {}, delayMs: 0, bench: true });
-        expect(off.post).toEqual({ action: "posted" });
+        expect(off.post).toEqual({ action: "posted", url: "" });
         // "Bench mitposten" is remembered on the event and used by the next run (#517)
         expect(mockEvents.get("eh-1").setupPost.bench).toBe(true);
         expect(off.dms).toBeNull();
@@ -575,26 +575,127 @@ describe("DMs", () => {
         expect(cardButtons(discord.sendDirectMessage.mock.calls[0][1])[0].url).toBe("https://discord.com/channels/g1/c1/m-new");
     });
 
-    it("pings everyone placed on the first post, never on a later edit (#354's follow-up)", async () => {
+    it("pings everyone placed with the first post itself, never on a later edit (#354's follow-up)", async () => {
         const { PING_TEXT } = require("../../../src/services/setup/setupCore");
         seed();
-        fakeChannel();
+        const { channel, sentEdit } = pingChannel();
         await sm.publishSetup("eh-1", { config: {}, delayMs: 0, userId: "orga-x" });
-        expect(discord.postMissingPing).toHaveBeenCalledTimes(1);
-        expect(discord.postMissingPing).toHaveBeenCalledWith("c1", ["1", "2", "3", "4"], PING_TEXT);
-
-        discord.postMissingPing.mockClear();
-        await sm.publishSetup("eh-1", { config: {}, delayMs: 0, userId: "orga-x" });
+        // the new message's content is what notifies them
+        const first = channel.send.mock.calls[0][0];
+        expect(first.content).toBe(`<@1> <@2> <@3> <@4>\n${PING_TEXT}`);
+        expect(first.allowedMentions).toEqual({ users: ["1", "2", "3", "4"] });
+        // then the mentions move into the embed, the content goes
+        const moved = sentEdit.mock.calls[0][0];
+        expect(moved.content).toBe("");
+        expect(moved.allowedMentions).toBeUndefined();
+        expect(moved.embeds[0].description).toContain(`${PING_TEXT}\n<@1> <@2> <@3> <@4>`);
         expect(discord.postMissingPing).not.toHaveBeenCalled();
+        expect(mockEvents.get("eh-1").setupPost.ping).toEqual({ inMessage: true, userIds: ["1", "2", "3", "4"], text: PING_TEXT, by: "orga-x" });
+        expect(eventStore.appendEventLog).toHaveBeenCalledWith("eh-1", { action: "setupPing", by: "orga-x", byName: "", detail: "4 Raider gepingt" });
+
+        await sm.publishSetup("eh-1", { config: {}, delayMs: 0, userId: "orga-x" });
+        expect(channel.send).toHaveBeenCalledTimes(1);
     });
 
     it("uses the event's own ping text once one is set", async () => {
         const { saveSetupPingText } = require("../../../src/services/setup/setupPing");
         seed();
-        fakeChannel();
+        const { channel } = pingChannel();
         saveSetupPingText("eh-1", "Los geht's!");
         await sm.publishSetup("eh-1", { config: {}, delayMs: 0 });
-        expect(discord.postMissingPing).toHaveBeenCalledWith("c1", ["1", "2", "3", "4"], "Los geht's!");
+        expect(channel.send.mock.calls[0][0].content).toBe("<@1> <@2> <@3> <@4>\nLos geht's!");
+    });
+
+    it("posts without a ping when nobody but the approver stands in a group", async () => {
+        seed();
+        const event = mockEvents.get("eh-1");
+        event.setup.approved.groups = [{ index: 1, slots: [p("orga", "Solo", "Mage-Fire", "ranged")] }];
+        const { channel, sentEdit } = pingChannel();
+        await sm.publishSetup("eh-1", { config: {}, delayMs: 0, userId: "orga" });
+        expect(channel.send.mock.calls[0][0].content).toBe("");
+        expect(sentEdit).not.toHaveBeenCalled();
+        expect(mockEvents.get("eh-1").setupPost.ping).toBeUndefined();
+    });
+});
+
+/** A channel whose post answers a message that can be edited (the ping moving into the embed). */
+function pingChannel() {
+    const { channel, message } = fakeChannel();
+    const sentEdit = jest.fn(async () => {});
+    channel.send.mockImplementation(async (payload) => ({ id: "m-new", channelId: "c1", url: "https://discord.com/channels/g1/c1/m-new", payload, edit: sentEdit }));
+    return { channel, message, sentEdit };
+}
+
+describe("callSetupPing (Ping everyone): the setup posted anew with the ping", () => {
+    const { PING_TEXT } = require("../../../src/services/setup/setupCore");
+
+    it("posts the setup anew with the mentions, deletes the old one, names them in the embed and logs it", async () => {
+        seed({ setupPost: { channelId: "c1", messageId: "m1", version: 2, postedAt: 1 } });
+        const { channel, message, sentEdit } = pingChannel();
+        message.delete = jest.fn(async () => {});
+        const result = await sm.callSetupPing({ guildId: "g1", eventId: "eh-1", userId: "1", byName: "Brokk" });
+        expect(result).toEqual({ message: "3 Raider aus dem Setup gepingt.", count: 3, url: "https://discord.com/channels/g1/c1/m-new" });
+        // the caller is never pinged
+        expect(channel.send.mock.calls[0][0].content).toBe(`<@2> <@3> <@4>\n${PING_TEXT}`);
+        expect(channel.messages.fetch).toHaveBeenCalledWith("m1");
+        expect(message.delete).toHaveBeenCalledTimes(1);
+        expect(sentEdit.mock.calls[0][0].embeds[0].description).toContain("<@2> <@3> <@4>");
+        expect(mockEvents.get("eh-1").setupPost).toMatchObject({ messageId: "m-new", ping: { inMessage: true, userIds: ["2", "3", "4"], by: "1" } });
+        expect(eventStore.appendEventLog).toHaveBeenCalledWith("eh-1", { action: "setupPing", by: "1", byName: "Brokk", detail: "3 Raider gepingt" });
+    });
+
+    it("pings with the given text instead of the stored one", async () => {
+        seed({ setupPingText: "Gespeichert" });
+        const { channel } = pingChannel();
+        await sm.callSetupPing({ guildId: "g1", eventId: "eh-1", userId: "1", text: "Frisch getippt" });
+        expect(channel.send.mock.calls[0][0].content).toBe("<@2> <@3> <@4>\nFrisch getippt");
+    });
+
+    it("deletes a ping card of the time before along with the old message", async () => {
+        seed({ setupPost: { channelId: "c1", messageId: "m1", version: 2, ping: { channelId: "c1", messageIds: ["m1"], userIds: ["2"], by: "1", text: "Go" } } });
+        const { message } = pingChannel();
+        message.delete = jest.fn(async () => {});
+        await sm.callSetupPing({ guildId: "g1", eventId: "eh-1", userId: "1" });
+        // the old setup message and the old card (both "m1" in this fake channel)
+        expect(message.delete).toHaveBeenCalledTimes(2);
+        expect(mockEvents.get("eh-1").setupPost.ping.messageIds).toBeUndefined();
+    });
+
+    it("keeps naming who is placed now on every later edit — an edit, it pings nobody", async () => {
+        seed({ setupPost: { channelId: "c1", messageId: "m1", version: 2, ping: { inMessage: true, userIds: ["2"], by: "1", text: "Go" } } });
+        const { message } = fakeChannel();
+        await sm.refreshLiveSetup("eh-1", { userId: "orga" });
+        const edited = message.edit.mock.calls[0][0];
+        expect(edited.content).toBe("");
+        expect(edited.allowedMentions).toBeUndefined();
+        expect(edited.embeds[0].description).toContain("Go\n<@2> <@3> <@4>");
+        expect(discord.editPingMessages).not.toHaveBeenCalled();
+    });
+
+    it("refuses another server's event or an unknown one, and says so when Discord refuses", async () => {
+        seed();
+        const { channel } = pingChannel();
+        expect((await sm.callSetupPing({ guildId: "other", eventId: "eh-1", userId: "1" })).error.code).toBe("not_found");
+        expect((await sm.callSetupPing({ guildId: "g1", eventId: "eh-404", userId: "1" })).error.code).toBe("not_found");
+        expect(channel.send).not.toHaveBeenCalled();
+
+        channel.send.mockRejectedValueOnce(new Error("Missing Access"));
+        const result = await sm.callSetupPing({ guildId: "g1", eventId: "eh-1", userId: "1" });
+        expect(result.error).toMatchObject({ code: "post_failed", message: "Konnte nicht posten: Missing Access" });
+        expect(eventStore.appendEventLog).not.toHaveBeenCalled();
+
+        seed({ channelId: "" });
+        expect((await sm.callSetupPing({ guildId: "g1", eventId: "eh-1", userId: "1" })).error.code).toBe("no_channel");
+    });
+
+    it("keeps the content ping under Discord's 2000 characters, allowing exactly whom it names", () => {
+        const many = Array.from({ length: 120 }, (_, i) => `1000000000000000${String(i).padStart(3, "0")}`);
+        const msg = sm.buildSetupMessage(seed(), approved(), { ping: { userIds: many, text: "Go" }, pingInContent: true });
+        expect(msg.content.length).toBeLessThanOrEqual(2000);
+        expect(msg.content.endsWith("\nGo")).toBe(true);
+        const named = msg.content.match(/<@(\d+)>/g).map((m) => m.slice(2, -1));
+        expect(msg.allowedMentions.users).toEqual(named);
+        expect(named.length).toBeLessThanOrEqual(100);
     });
 });
 
@@ -742,7 +843,7 @@ describe("the setup as a picture (design F, a test)", () => {
         Resvg.mockImplementationOnce(() => {
             throw new Error("no resvg binary");
         });
-        expect(await sm.postOrEditSetupMessage("eh-1")).toEqual({ action: "posted" });
+        expect(await sm.postOrEditSetupMessage("eh-1")).toEqual({ action: "posted", url: "" });
         const sent = channel.send.mock.calls[0][0];
         expect(sent.files).toEqual([]);
         expect(sent.embeds[0].fields[0].name).toBe("Group 1");

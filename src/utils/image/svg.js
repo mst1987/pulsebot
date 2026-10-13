@@ -70,10 +70,25 @@ function rect(x, y, w, h, { r = 0, fill = "none", stroke = "", strokeWidth = 0, 
     return `<rect ${attrs}/>`;
 }
 
+/**
+ * A raster image (a data URI) filling the box. `r` rounds its corners through a clip path, which
+ * needs an `id` unique in the document.
+ */
+function image(href, x, y, w, h, { r = 0, id = "", opacity = 1 } = {}) {
+    const box = `x="${num(x)}" y="${num(y)}" width="${num(w)}" height="${num(h)}"`;
+    const clip = r && id ? `<clipPath id="${esc(id)}"><rect ${box} rx="${num(r)}"/></clipPath>` : "";
+    const attrs = [
+        `href="${esc(href)}"`, box, "preserveAspectRatio=\"xMidYMid slice\"",
+        clip ? `clip-path="url(#${esc(id)})"` : "",
+        opacity !== 1 ? `opacity="${num(opacity)}"` : "",
+    ].filter(Boolean).join(" ");
+    return `${clip}<image ${attrs}/>`;
+}
+
 /** The whole document: size, background and the font every text uses. */
 function svgDocument(width, height, body, { background = PALETTE.background } = {}) {
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${num(width)}" height="${num(height)}" viewBox="0 0 ${num(width)} ${num(height)}" font-family="${FONT_FAMILY}">`
         + `${rect(0, 0, width, height, { fill: background })}${body}</svg>`;
 }
 
-module.exports = { PALETTE, esc, num, text, rect, svgDocument };
+module.exports = { PALETTE, esc, num, text, rect, image, svgDocument };
