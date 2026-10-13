@@ -31,7 +31,7 @@ describe("services/setup/setupImage", () => {
         expect(out.svg).toContain("fill=\"#C79C6E\" font-weight=\"700\">Brokk<");
         expect(out.svg).toContain("fill=\"#FFFFFF\" font-weight=\"700\">Zibbo<");
         // two panels side by side
-        expect(out.width).toBe(2 * 24 + 2 * 260 + 16);
+        expect(out.width).toBe(2 * 24 + 2 * 270 + 16);
     });
 
     it("shows each raider's spec icon, no spec text", () => {
@@ -55,31 +55,41 @@ describe("services/setup/setupImage", () => {
 
     it("escapes names and cuts a long one to its panel", () => {
         const { svg } = setupImageSvg(approved(), { lang: "en" });
-        expect(svg).toContain("&lt;b&gt;&amp;Kalümbra");
+        // escaped, and cut before the answer's circle
+        expect(svg).toContain(">&lt;b&gt;&amp;Kalüm…<");
         expect(svg).not.toContain("<b>");
         expect(svg).toMatch(/>Averyvery[^<]*…</);
         expect(svg).not.toContain("Averyveryverylongcharactername");
     });
 
-    it("draws the answer as a badge on the icon: green tick, red cross with the raider dimmed, nothing while unanswered", () => {
+    it("draws the answer as a circle on the right: confirmed tinted green, declined greyed out, an empty ring while open", () => {
         const { svg } = setupImageSvg(approved(), { lang: "en", confirmations: { 1: "confirmed", 2: "declined" } });
-        expect(svg).toContain(`fill="${PALETTE.green}"`);
-        expect(svg).toContain(`fill="${PALETTE.red}"`);
-        expect(svg).toMatch(/opacity="0.45">Zibbo</);
-        expect(svg).not.toMatch(/opacity="0.45">Brokk</);
+        // confirmed: a green circle and the row tinted green
+        expect(count(svg, `<circle cx="266" cy="98" r="13" fill="${PALETTE.green}"/>`)).toBe(1);
+        expect(svg).toContain(`fill="${PALETTE.green}" opacity="0.13"`);
+        // declined: a red circle, icon and name greyed out
+        expect(count(svg, `r="13" fill="${PALETTE.red}"`)).toBe(1);
+        expect(svg).toMatch(/opacity="0.4">Zibbo</);
+        expect(svg).not.toMatch(/opacity="0.4">Brokk</);
+        // the two who have not answered: an empty grey ring each
+        expect(count(svg, `fill="none" stroke="${PALETTE.line}" stroke-width="3"`)).toBe(2);
         const none = setupImageSvg(approved(), { lang: "en" }).svg;
         expect(none).not.toContain(`fill="${PALETTE.green}"`);
-        expect(none).not.toContain("opacity=\"0.45\"");
+        expect(count(none, `fill="none" stroke="${PALETTE.line}" stroke-width="3"`)).toBe(4);
     });
 
-    it("adds the bench as the last panel only when it is posted, in the language, without badges", () => {
+    it("adds the bench as the last panel only when it is posted, in the language, set apart and without answers", () => {
         expect(setupImageSvg(approved(), { lang: "en" }).svg).not.toContain("Thalia");
         const de = setupImageSvg(approved(), { lang: "de", bench: true }).svg;
         expect(de).toContain(">BANK (1)<");
         expect(de).toContain(">GRUPPE 1<");
-        expect(de).toContain(">Thalia<");
+        // a dashed outline without fill, the name faded
+        expect(de).toContain("fill=\"none\" stroke=\"#9aa0b4\" stroke-width=\"2\" stroke-dasharray=\"8 6\"");
+        expect(de).toMatch(/opacity="0.7">Thalia</);
         const benched = setupImageSvg(approved(), { lang: "en", bench: true, confirmations: { 5: "confirmed" } }).svg;
         expect(benched).not.toContain(`fill="${PALETTE.green}"`);
+        // four rings for the four in groups, none for the bench
+        expect(count(benched, `fill="none" stroke="${PALETTE.line}" stroke-width="3"`)).toBe(4);
         const many = { ...approved(), bench: Array.from({ length: 12 }, (_, i) => p(`b${i}`, `Bench${i}`, "Mage-Fire", "ranged")) };
         const svg = setupImageSvg(many, { lang: "en", bench: true }).svg;
         expect(svg).toContain(">BENCH (12)<");
@@ -92,7 +102,7 @@ describe("services/setup/setupImage", () => {
         expect([1, 2, 3, 4, 5, 6, 7, 9].map(columnsFor)).toEqual([1, 2, 3, 2, 3, 3, 4, 4]);
         const fiveGroups = { groups: [1, 2, 3, 4, 5].map((i) => group(i, [p(`${i}`, `N${i}`, "Druid-Feral", "tank")])) };
         const out = setupImageSvg(fiveGroups);
-        expect(out.width).toBe(2 * 24 + 3 * 260 + 2 * 16);
+        expect(out.width).toBe(2 * 24 + 3 * 270 + 2 * 16);
         expect(out.height).toBeGreaterThan(2 * 100);
     });
 
