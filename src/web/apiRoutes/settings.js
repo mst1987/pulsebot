@@ -25,6 +25,7 @@ const {
     AREAS, normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,
 } = require("../../config/permissions");
 const { normalizeBotCommandAccess } = require("../../config/botCommands");
+const { normalizeAddonList } = require("../../services/addons/addonConfig");
 const { VERSIONS } = require("../../config/gameVersions");
 const versionSettings = require("../../services/events/versionSettings");
 const { capabilityMatrix } = require("../../services/events/versionCapabilities");
@@ -178,7 +179,12 @@ const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess", "userPermi
 // only as well: a limited settings user neither sees whether one is set nor
 // can replace it with their own. The client mirrors this with `adminOnly` on
 // the section (src/web-client/src/lib/settings/settingsSections.ts).
-const CREDENTIAL_KEYS = ["anthropic", "warcraftlogsV2"];
+// The GitHub token (#818) reads the private addon repos.
+const CREDENTIAL_KEYS = ["anthropic", "warcraftlogsV2", "github"];
+
+// The addon downloads (#818): which repos the server fetches files from with
+// the GitHub token and hands to every member — guarded like the token itself.
+const ADDON_KEYS = ["addonDownloads"];
 
 // Which Discord server is the event server and which the talk server (#251).
 // Full-admin only: the event server is where the admin-role check runs, so
@@ -191,7 +197,7 @@ const GUILD_KEYS = ["discordServers"];
 const ROLE_SYNC_KEYS = ["roleSync"];
 
 // Everything a non-admin settings user may neither read nor write.
-const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS];
+const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS, ...ADDON_KEYS];
 
 const DISCORD_SERVER_FIELDS = ["talkGuildId", "talkPingChannelId", "signupNoteChannelId", "guildBankChannelId"];
 
@@ -391,6 +397,9 @@ function publicConfig(config) {
         const wclV2 = config.warcraftlogsV2 || {};
         out.warcraftlogsV2 = { clientId: wclV2.clientId || "", hasClientSecret: !!wclV2.clientSecret };
     }
+    if (config.github !== undefined) {
+        out.github = { hasToken: !!(config.github && config.github.token) };
+    }
     return out;
 }
 
@@ -495,6 +504,15 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         partial.warcraftlogsV2 = {};
         if (body.warcraftlogsV2.clientId !== undefined) partial.warcraftlogsV2.clientId = String(body.warcraftlogsV2.clientId || "").trim();
         if (body.warcraftlogsV2.clientSecret !== undefined) partial.warcraftlogsV2.clientSecret = String(body.warcraftlogsV2.clientSecret || "").trim();
+    }
+    // github.token (#818): the same contract — omit = keep, "" = clear.
+    if (body.github !== undefined && body.github && typeof body.github === "object" && body.github.token !== undefined) {
+        partial.github = { token: String(body.github.token || "").trim() };
+    }
+    // The addon list (#818): sent whole, normalised (unusable entries dropped), replaces the stored one.
+    if (body.addonDownloads !== undefined) {
+        if (!Array.isArray(body.addonDownloads)) return error(res, 400, "invalid_addons", "addonDownloads muss eine Liste sein.");
+        partial.addonDownloads = normalizeAddonList(body.addonDownloads);
     }
     if (body.categoryLootTool !== undefined) partial.categoryLootTool = normalizeCategoryLootTool(body.categoryLootTool);
     if (body.categoryLootSystem !== undefined) partial.categoryLootSystem = normalizeCategoryLootSystemPatch(body.categoryLootSystem);
@@ -825,6 +843,6 @@ module.exports = {
     getSettings, updateSettings, getItemSearch, getArchiveExport, getCategorySwitch, saveRaidsheetHandler, deleteRaidsheetHandler,
     getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers,
     getRoleSync, getReminders,
-    publicConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, FULL_ADMIN_KEYS,
+    publicConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, ADDON_KEYS, FULL_ADMIN_KEYS,
     routes,
 };

@@ -20,7 +20,7 @@ const MODULES = [
     "session", "dashboard", "version", "channels", "settings", "talkOverview", "raidhelperRetirement", "versionLaunch",
     "ingest", "kader", "botCommands", "raiderCharacters", "roster", "rosters", "rosterRoles", "rosterMembers", "rosterAdmin", "profile", "characters", "signups", "lootCouncil",
     "raids", "raidDetail", "setup", "raidplan", "eventManage", "eventSeries", "gameVersions",
-    "notifyTemplates", "raidTemplates", "recruitment", "history", "cla", "availability", "orgaHub", "attendance", "guildBank", "addonRelease", "system",
+    "notifyTemplates", "raidTemplates", "recruitment", "history", "cla", "availability", "orgaHub", "attendance", "guildBank", "addons", "system",
 ];
 
 const METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);

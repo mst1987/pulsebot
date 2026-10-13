@@ -7,6 +7,7 @@ import type { TextChannel } from "./recruitment";
 import type { BotAccessRule } from "./botCommands";
 import type { VersionSettingsBlock } from "../lib/settings/versionLinks";
 import type { CapabilityMatrix } from "../lib/settings/versionFeatures";
+import type { AddonSetting } from "./addons";
 
 /**
  * `color`: the role's Discord colour as hex, "" when it has none. `managed`: a
@@ -92,6 +93,11 @@ export type AdminConfig = {
     // of the fight timeline. Same contract as above: the secret never comes
     // back. Read: { clientId, hasClientSecret }. Write: { clientId, clientSecret? }.
     warcraftlogsV2?: { clientId: string; hasClientSecret?: boolean; clientSecret?: string };
+    // GitHub token for the private addon repos (#818), full admins only. Same
+    // contract: the token never comes back. Read: { hasToken }. Write: { token }.
+    github?: { hasToken?: boolean; token?: string };
+    // The addons of the page "Addons" (#818), full admins only; sent whole.
+    addonDownloads?: AddonSetting[];
     // Which loot addon a Discord category raids with ("gargul" | "rclc" | ""),
     // keyed by category id — preselects the parser on the loot import and tells
     // the raid-detail loot tab which export to ask for.

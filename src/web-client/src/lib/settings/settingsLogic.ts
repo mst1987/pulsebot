@@ -460,13 +460,14 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
 
 // ---- connections: one status card and one self-saving modal each ----
 
-export type ConnectionId = "discord" | "battlenet" | "wcl" | "anthropic" | "lootsync";
+export type ConnectionId = "discord" | "battlenet" | "wcl" | "anthropic" | "github" | "lootsync";
 export type ConnectionState = { tone: "ok" | "mid" | "accent" | ""; label: string; missing: boolean };
 
 export type ConnectionInputs = {
     blizzard?: { clientId?: string; hasClientSecret?: boolean };
     anthropic?: { hasApiKey?: boolean };
     warcraftlogsV2?: { clientId?: string; hasClientSecret?: boolean };
+    github?: { hasToken?: boolean };
     botOnline?: boolean;
     /** null = not known (not loaded, or not a full admin). */
     tokenCount?: number | null;
@@ -489,6 +490,11 @@ export function connectionState(id: ConnectionId, input: ConnectionInputs): Conn
         return input.anthropic && input.anthropic.hasApiKey
             ? { tone: "ok", label: t("settings.state.keyStored"), missing: false }
             : { tone: "mid", label: t("settings.state.keyMissing"), missing: true };
+    }
+    if (id === "github") {
+        return input.github && input.github.hasToken
+            ? { tone: "ok", label: t("settings.state.tokenStored"), missing: false }
+            : { tone: "mid", label: t("settings.state.tokenMissing"), missing: true };
     }
     if (input.tokenCount === null || input.tokenCount === undefined) return { tone: "", label: t("settings.state.tokens"), missing: false };
     if (input.tokenCount === 0) return { tone: "mid", label: t("settings.state.noToken"), missing: true };
@@ -515,11 +521,13 @@ export function connectionPatch(id: ConnectionId, fields: Record<string, string>
     if (id === "wcl") {
         return { warcraftlogsV2: { clientId: v("clientId"), ...(secret !== undefined ? { clientSecret: secret } : {}) } };
     }
+    // #818: only the token; nothing to send when it stays as it is.
+    if (id === "github") return secret !== undefined ? { github: { token: secret } } : {};
     return {};
 }
 
 export type SettingsLike = {
-    config: { blizzard?: ConnectionInputs["blizzard"]; anthropic?: ConnectionInputs["anthropic"]; warcraftlogsV2?: ConnectionInputs["warcraftlogsV2"] };
+    config: { blizzard?: ConnectionInputs["blizzard"]; anthropic?: ConnectionInputs["anthropic"]; warcraftlogsV2?: ConnectionInputs["warcraftlogsV2"]; github?: ConnectionInputs["github"] };
     bot?: { online: boolean };
 };
 
@@ -529,6 +537,7 @@ export function connectionInputs(data: SettingsLike, tokens: unknown[] | null): 
         blizzard: data.config.blizzard,
         anthropic: data.config.anthropic,
         warcraftlogsV2: data.config.warcraftlogsV2,
+        github: data.config.github,
         botOnline: !!(data.bot && data.bot.online),
         tokenCount: tokens ? tokens.length : null,
     };
@@ -536,7 +545,7 @@ export function connectionInputs(data: SettingsLike, tokens: unknown[] | null): 
 
 /** The connections a user sees — a limited settings user only gets Battle.net (the rest are FULL_ADMIN_KEYS or admin-only ids). */
 export function visibleConnections(canManageAccess: boolean): ConnectionId[] {
-    return canManageAccess ? ["discord", "battlenet", "wcl", "anthropic", "lootsync"] : ["battlenet"];
+    return canManageAccess ? ["discord", "battlenet", "wcl", "anthropic", "github", "lootsync"] : ["battlenet"];
 }
 
 /** The sidebar badge of "Verbindungen": how many visible connections are not set up. */

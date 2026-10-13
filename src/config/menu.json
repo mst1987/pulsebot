@@ -14,7 +14,7 @@
     { "id": "recruitment", "label": "Recruitment", "href": "/recruitment", "group": "Gilde", "areas": ["recruitment"], "wowIcon": "inv_misc_grouplooking" },
     { "id": "bank", "label": "Gildenbank", "href": "/guildbank", "group": "Gilde", "areas": ["raids"], "wowIcon": "achievement_guildperk_mobilebanking" },
     { "id": "channels", "label": "Kanäle", "href": "/channels", "group": "System", "areas": ["channels"], "neutral": true, "wowIcon": "inv_letter_15" },
-    { "id": "addon", "label": "Sync-Tool & Addon", "href": "/addon", "group": "System", "areas": ["history"], "neutral": true, "area": "system", "wowIcon": "inv_gizmo_01" },
+    { "id": "addon", "label": "Addons", "href": "/addon", "group": "System", "areas": ["signup", "history"], "area": "system", "wowIcon": "inv_gizmo_01" },
     { "id": "settings", "label": "Einstellungen", "href": "/settings", "group": "System", "areas": ["settings"], "neutral": true, "wowIcon": "trade_engineering" },
     { "id": "system", "label": "Systemstatus", "href": "/system", "group": "System", "areas": [], "adminOnly": true, "neutral": true, "wowIcon": "inv_gizmo_02" }
 ]

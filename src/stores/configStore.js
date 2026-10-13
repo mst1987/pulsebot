@@ -115,6 +115,10 @@ const MERGED_CATEGORY_MAPS = [
     ["categoryPlanning", normalizeCategoryPlanning],
 ];
 
+// Blocks a PATCH sends only partly: the fields sent are merged over the stored
+// block (a secret left out stays — the credentials' "omit = keep").
+const MERGED_BLOCKS = ["raidDefaults", "blizzard", "anthropic", "warcraftlogsV2", "github", "categoryLootTool"];
+
 /**
  * Merge and persist a partial config update. Returns the config as every other
  * reader sees it — read back through getConfig(), so a value that only takes its
@@ -124,9 +128,9 @@ const MERGED_CATEGORY_MAPS = [
 function saveConfig(partial) {
     const current = getConfig();
     const next = { ...current, ...partial };
-    if (partial.raidDefaults) next.raidDefaults = { ...current.raidDefaults, ...partial.raidDefaults };
-    if (partial.blizzard) next.blizzard = { ...current.blizzard, ...partial.blizzard };
-    if (partial.anthropic) next.anthropic = { ...current.anthropic, ...partial.anthropic };
+    for (const key of MERGED_BLOCKS) {
+        if (partial[key]) next[key] = { ...current[key], ...partial[key] };
+    }
     if (partial.discordServers) {
         next.discordServers = normalizeDiscordServers({ ...current.discordServers, ...partial.discordServers });
         // Keep the fallback key in step, so clearing every event server later
@@ -134,8 +138,6 @@ function saveConfig(partial) {
         const first = next.discordServers.eventGuilds[0];
         if (first) next.guildId = first.guildId;
     }
-    if (partial.warcraftlogsV2) next.warcraftlogsV2 = { ...current.warcraftlogsV2, ...partial.warcraftlogsV2 };
-    if (partial.categoryLootTool) next.categoryLootTool = { ...current.categoryLootTool, ...partial.categoryLootTool };
     if (partial.raidhelperRetirement !== undefined) next.raidhelperRetirement = normalizeRaidhelperRetirement(partial.raidhelperRetirement);
     // #745: replaced whole — the route sends the marks of every version.
     if (partial.versionLaunch !== undefined) next.versionLaunch = normalizeVersionLaunch(partial.versionLaunch);

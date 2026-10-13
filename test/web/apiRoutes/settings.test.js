@@ -566,6 +566,64 @@ describe("web/apiRoutes/settings", () => {
                 expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ warcraftlogsV2: { clientSecret: "" } });
             });
 
+            // #818: the GitHub token of the addon downloads follows the same contract.
+            it("masks the GitHub token and forwards it only when sent (omit = keep, \"\" = clear)", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                settingsStore.getConfig.mockReturnValue({ guildId: "g1", github: { token: "github_pat_SECRET" } });
+                const read = mockRes();
+                await handle("/api/settings", { method: "GET" }, read);
+                expect(json(read).data.config.github).toEqual({ hasToken: true });
+                expect(JSON.stringify(json(read))).not.toContain("github_pat_SECRET");
+
+                settingsStore.saveConfig.mockReturnValue({ guildId: "g1", github: { token: "github_pat_NEW" } });
+                const res = await patch("/api/settings", { github: { token: " github_pat_NEW " } });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ github: { token: "github_pat_NEW" } });
+                expect(json(res).data.config.github).toEqual({ hasToken: true });
+                expect(JSON.stringify(json(res))).not.toContain("github_pat_NEW");
+
+                await patch("/api/settings", { github: { token: "" } });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ github: { token: "" } });
+                settingsStore.saveConfig.mockClear();
+                await patch("/api/settings", { github: {}, officerRoleId: "o" });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ officerRoleId: "o" });
+            });
+
+            it("saves the addon list whole, normalised, and refuses anything but a list", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                await patch("/api/settings", { addonDownloads: [
+                    { name: "LevelHelper", repo: "https://github.com/mst1987/levelhelper", versions: ["forever", "x"], assets: "LevelHelper-*.zip" },
+                    { name: "", repo: "a/b" },
+                ] });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ addonDownloads: [expect.objectContaining({
+                    id: "levelhelper", repo: "mst1987/levelhelper", versions: ["forever"], assets: ["LevelHelper-*.zip"], enabled: true,
+                })] });
+                expect(settingsStore.saveConfig.mock.calls.at(-1)[0].addonDownloads).toHaveLength(1);
+                settingsStore.saveConfig.mockClear();
+                const res = await patch("/api/settings", { addonDownloads: "nope" });
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            it("keeps the GitHub token and the addon list from a non-admin settings user", async () => {
+                auth.getUser.mockReturnValue({
+                    id: "7", name: "Bob", isAdmin: false,
+                    access: { ...emptyAccess(), settings: { read: true, write: true } },
+                });
+                auth.checkCsrf.mockReturnValue(true);
+                settingsStore.getConfig.mockReturnValue({ guildId: "g1", github: { token: "github_pat_SECRET" }, addonDownloads: [{ id: "a" }] });
+                const read = mockRes();
+                await handle("/api/settings", { method: "GET" }, read);
+                expect(json(read).data.config).not.toHaveProperty("github");
+                expect(json(read).data.config).not.toHaveProperty("addonDownloads");
+                let res = await patch("/api/settings", { github: { token: "mine" } });
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                res = await patch("/api/settings", { addonDownloads: [] });
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
             it("stores the loot tool per category, dropping anything but the two known tools", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);

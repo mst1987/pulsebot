@@ -109,6 +109,16 @@ function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
             ],
         },
         {
+            // #818: the private addon repos of the page "Addons"
+            id: "github", title: t("settings.connections.githubTitle"), icon: "inv_gizmo_01", adminOnly: true,
+            tip: t("settings.connections.githubTip"),
+            tipSub: t("settings.connections.githubSub"),
+            rows: [
+                [t("settings.connections.token"), c.github?.hasToken ? t("settings.connections.tokenSet") : t("settings.connections.tokenNotSet")],
+                [t("settings.connections.effect"), c.github?.hasToken ? t("settings.connections.githubOn") : t("settings.connections.githubOff")],
+            ],
+        },
+        {
             id: "lootsync", title: t("settings.connections.lootSyncTitle"), icon: "inv_misc_punchcards_blue", adminOnly: true,
             tip: t("settings.connections.lootSyncTip"),
             tipSub: t("settings.connections.lootSyncSub"),
@@ -247,6 +257,15 @@ function fieldsOf(id: Exclude<ConnectionId, "lootsync">): FieldsDef {
             secret: { key: "clientSecret", label: secretLabel, tip: secretLabel, tipSub: t("settings.connections.wclSecretSub") },
         };
     }
+    if (id === "github") {
+        return {
+            title: t("settings.connections.githubTitle"),
+            missingText: t("settings.connections.githubMissing"),
+            link: ["https://github.com/settings/personal-access-tokens/new", t("settings.connections.githubLink")],
+            fields: [],
+            secret: { key: "token", label: t("settings.connections.token"), tip: t("settings.connections.githubTokenTip"), tipSub: t("settings.connections.githubTokenSub") },
+        };
+    }
     const model = t("settings.connections.model");
     return {
         title: t("settings.connections.aiTip"),
@@ -274,6 +293,7 @@ function hasStoredSecret(id: ConnectionId, config: AdminConfig): boolean {
     if (id === "battlenet") return !!config.blizzard.hasClientSecret;
     if (id === "wcl") return !!config.warcraftlogsV2?.hasClientSecret;
     if (id === "anthropic") return !!config.anthropic?.hasApiKey;
+    if (id === "github") return !!config.github?.hasToken;
     return false;
 }
 

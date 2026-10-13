@@ -1,34 +1,67 @@
 {
-    "title": "Sync tool & addon",
-    "loading": "Looking for the newest version …",
-    "version": "Version {version}",
-    "published": "released on {date}",
+    "title": "Addons",
+    "loading": "Looking for the newest versions …",
+    "version": "v{version}",
     "news": "What's new?",
-    "missing": "This release has no such file. Check the release page.",
-    "exe": {
-        "title": "Sync tool",
-        "text": "Windows program that sends the loot from the game to EventHelper.",
-        "button": "Download EventHelperSync.exe"
+    "empty": "There are no addons to download for {version} right now.",
+    "limit": "Downloads only after login, at most {count} downloads per hour.",
+    "state": {
+        "noRelease": "No release yet. As soon as there is one, it shows up here.",
+        "unavailable": "Not available right now. Please check back later.",
+        "noFiles": "The newest release has no matching file.",
+        "stale": "GitHub cannot be reached right now. Showing the state of {time}."
     },
-    "zip": {
-        "title": "WoW addon",
-        "text": "The in-game addon: collects loot and guild bank.",
-        "button": "Download addon (.zip)"
+    "admin": {
+        "badge": "Admins only",
+        "tokenMissing": "The GitHub token for the private repo {repo} is missing. Members see \"Not available right now\".",
+        "tokenBanner": "The GitHub token for the private addons is missing.",
+        "toSettings": "Set up the token",
+        "error": {
+            "unauthorized": "GitHub refuses the token: invalid or expired.",
+            "forbidden": "The GitHub token has no access to this repo.",
+            "rate_limited": "GitHub limit reached. It works again in a few minutes.",
+            "unreachable": "GitHub cannot be reached right now."
+        }
     },
     "install": {
-        "title": "First installation",
-        "zipTitle": "Addon (zip)",
-        "zip1": "Unzip it. The folder \"EventHelperSync\" goes into \"<WoW>/_anniversary_/Interface/AddOns/\" (TBC Anniversary) or \"<WoW>/_classic_beta_/Interface/AddOns/\" (WoW Forever).",
-        "zip2": "Start the game, or type \"/reload\" in game.",
-        "zip3": "Check in the addon menu that \"EventHelperSync\" is enabled.",
-        "exeTitle": "Sync tool (exe)",
-        "exe1": "Start EventHelperSync.exe with a double click.",
-        "exe2": "Enter the server address and API token. You create the token under Settings → Loot sync.",
-        "update": "From version 1.14.0 the sync tool updates itself and installs the addon with the \"Install\" button. You only need this page for the first installation."
+        "title": "Installation",
+        "zip": "Unpack the zip into {folder}, then start the game or type /reload in game.",
+        "exe": "Start the exe. Windows may ask the first time: \"More info\", then \"Run anyway\"."
     },
-    "fallback": {
-        "title": "The newest version could not be loaded right now",
-        "text": "GitHub is not reachable at the moment. You find the downloads on the release page itself.",
-        "open": "Open the release page"
+    "settings": {
+        "sectionSub": "Which addons the page \"Addons\" offers: repo on GitHub, release files, game versions. Private repos need the GitHub token under Connections.",
+        "note": "Members download through the EventHelper, never directly from GitHub.",
+        "new": "Add addon",
+        "editTitle": "Edit {name}",
+        "empty": "No addons yet. The page \"Addons\" stays empty.",
+        "name": "Name",
+        "repo": "Repo",
+        "repoSub": "On GitHub as owner/name, for example mst1987/levelhelper. The page always shows the newest release.",
+        "description": "Short description",
+        "descriptionPlaceholder": "One sentence on what the addon is for.",
+        "assets": "Files",
+        "assetsSub": "Which files of the release are offered, separated by commas. * stands for any characters, for example LevelHelper-*.zip. Empty = every file.",
+        "icon": "Icon",
+        "iconSub": "Name of a WoW icon (for example inv_gizmo_01) or the address of an icon on wow.zamimg.com.",
+        "versions": "Game versions",
+        "install": "Install note",
+        "installSub": "Shown below the standard steps (unpack the zip, start the exe). Leave empty when those are enough.",
+        "private": "Private repo",
+        "privateSub": "Needs the GitHub token. Without it members see \"Not available right now\".",
+        "privateShort": "private",
+        "enabled": "Show on the page",
+        "enabledSub": "Switched off, the addon stays in the list; the page and /addons do not show it.",
+        "status": "Status",
+        "on": "Visible",
+        "off": "Hidden",
+        "noVersion": "no version",
+        "allFiles": "every file",
+        "saved": "{name} saved.",
+        "created": "{name} added.",
+        "deleted": "{name} removed.",
+        "deleteAsk": "Remove {name}?",
+        "deleteText": "The page \"Addons\" no longer offers it. The repo on GitHub stays as it is.",
+        "tokenHint": "Private addons need the GitHub token.",
+        "toConnections": "To the connections"
     }
 }
