@@ -18,6 +18,7 @@ const { isSnowflake } = require("../utils/ids");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { versionSettingsOf, normalizeVersionSettings, versionsWithDefaults } = require("./versionSettingsSchema");
 const { normalizeBackupSettings } = require("../services/backup/backupConfig");
+const { defaultAddons, normalizeAddonList, normalizeGithub } = require("../services/addons/addonConfig");
 
 /** The pictures of `config.discordVisuals`, each on by default. */
 const DISCORD_VISUALS_DEFAULT = Object.freeze({ overviewWeekStrip: true, setupImage: true, eventCover: true });
@@ -230,6 +231,14 @@ const CONFIG_DEFAULTS = {
     // Logs): the raid DPS/HPS and boss-health curves of the fight timeline.
     // Empty = the report has no such curves; the v1 key in .env does the rest.
     warcraftlogsV2: { clientId: "", clientSecret: "" },
+    // GitHub (Einstellungen -> Verbindungen -> GitHub, #818): a fine-grained token
+    // with read-only "Contents" on the addon repos, for the private ones among
+    // the addon downloads. Never sent to the browser (publicConfig: hasToken).
+    github: { token: "" },
+    // The addons of the page "Addons" (#818, Einstellungen -> Module -> Addons):
+    // [{ id, name, description, repo, private, assets, versions, install, icon,
+    // enabled }] - services/addons/addonConfig.js. Default: the three own addons.
+    addonDownloads: defaultAddons(),
     // Role sync between the two servers (#264): [{ eventRoleId, talkRoleId,
     // direction }] with direction "toTalk" | "toEvent" | "both". The sync only
     // ever ADDS roles (src/services/discord/roleSync.js); a role lost on one side stays on
@@ -772,6 +781,9 @@ function normalizeConfig(raw) {
         versionSettings: versionSettingsOf(stored),
         anthropic: { ...CONFIG_DEFAULTS.anthropic, ...(stored.anthropic || {}) },
         warcraftlogsV2: { ...CONFIG_DEFAULTS.warcraftlogsV2, ...(stored.warcraftlogsV2 || {}) },
+        github: normalizeGithub(stored.github),
+        // never stored = the defaults; a stored list (also an emptied one) wins
+        addonDownloads: stored.addonDownloads === undefined ? defaultAddons() : normalizeAddonList(stored.addonDownloads),
         categoryLootTool: (stored.categoryLootTool && typeof stored.categoryLootTool === "object")
             ? stored.categoryLootTool : { ...CONFIG_DEFAULTS.categoryLootTool },
         categoryLootSystem: normalizeCategoryLootSystem(stored.categoryLootSystem),

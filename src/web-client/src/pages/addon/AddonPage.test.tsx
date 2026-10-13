@@ -1,88 +1,175 @@
-// The download page against a mocked API: version and date, both download
-// links (GitHub's own), the release page link, the install hints, a release
-// missing an asset, and the fallback when nothing could be loaded.
+// The page "Addons" (#818) against a mocked API: one card per addon of the
+// menu's version, download buttons that point at the server's route (never at
+// GitHub), "Was ist neu?", the install steps, and the states (no release,
+// GitHub unreachable with the cached release, missing token for admins and
+// for members).
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import { switchLang } from "../../test/i18n";
-import { renderPage } from "../../test/render";
+import { adminUser, renderPage, twoVersions } from "../../test/render";
 import { formatSize } from "../../lib/format";
+import { addonFolder, plainNotes } from "../../lib/addons/addonInstall";
 import AddonPage from "./AddonPage";
 
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
-    getAddonRelease: vi.fn(),
+    getAddons: vi.fn(),
 }));
 
-const FALLBACK = "https://github.com/mst1987/eventhelper-addon/releases/latest";
-const release: api.AddonRelease = {
-    version: "1.14.0",
-    tag: "v1.14.0",
-    url: "https://github.com/mst1987/eventhelper-addon/releases/tag/v1.14.0",
-    publishedAt: "2026-10-10T12:00:00Z",
-    exe: { name: "EventHelperSync.exe", url: "https://github.com/dl/EventHelperSync.exe", size: 73_400_320 },
-    zip: { name: "EventHelperSync-1.14.0.zip", url: "https://github.com/dl/EventHelperSync-1.14.0.zip", size: 90_000 },
+const file = (name: string, size: number, kind: api.AddonFile["kind"]): api.AddonFile => ({
+    name, size, kind, sha256: "ab".repeat(32), url: `/api/addons/download?addon=x&asset=${encodeURIComponent(name)}`,
+});
+
+const levelhelper: api.AddonCard = {
+    id: "levelhelper", name: "LevelHelper", description: "Leveling-Helfer für WoW Forever.", icon: "inv_misc_map02",
+    versions: ["forever"], install: "", state: "ok", stale: false, errorCode: "", fetchedAt: Date.parse("2026-10-12T10:00:00Z"),
+    release: {
+        version: "0.3.0", tag: "v0.3.0", publishedAt: "2026-10-12T10:00:00Z",
+        notes: "## Neu\n- **Duo-Modus** mit Partner-Anzeige\n- [Doku](https://example.org)",
+        assets: [file("LevelHelper-0.3.0.zip", 389_120, "zip")],
+    },
+};
+const sync: api.AddonCard = {
+    id: "eventhelper-sync", name: "EventHelper Sync", description: "Sync-Tool und Addon.", icon: "inv_gizmo_01",
+    versions: ["tbc", "forever"], install: "Im Sync-Tool den Token eintragen.", state: "ok", stale: false, errorCode: "", fetchedAt: 1,
+    release: {
+        version: "1.14.0", tag: "v1.14.0", publishedAt: "2026-10-10T12:00:00Z", notes: "",
+        assets: [file("EventHelperSync.exe", 73_400_320, "exe"), file("EventHelperSync-1.14.0.zip", 90_000, "zip")],
+    },
+};
+const professionkit: api.AddonCard = {
+    id: "professionkit", name: "ProfessionKit", description: "Berufe-Guide.", icon: "trade_blacksmithing",
+    versions: ["forever"], install: "", state: "no_release", stale: false, errorCode: "", fetchedAt: 1, release: null,
 };
 
+const data = (addons: api.AddonCard[], over: Partial<api.AddonsData> = {}): api.AddonsData => ({
+    versionId: "forever", mainVersion: "forever", canManage: false, downloadLimit: 30, addons, ...over,
+});
+
 beforeEach(() => {
-    vi.mocked(api.getAddonRelease).mockResolvedValue({ release, fallbackUrl: FALLBACK });
+    vi.mocked(api.getAddons).mockResolvedValue(data([levelhelper, professionkit, sync]));
 });
 afterEach(() => switchLang("de"));
 
-describe("addon download page", () => {
-    it("shows version and date, links both files straight to GitHub and the release page", async () => {
+describe("page Addons", () => {
+    it("shows one card per addon with version, date and the description", async () => {
         renderPage(<AddonPage />, { route: "/addon" });
-        expect(await screen.findByRole("heading", { name: "Sync-Tool & Addon" })).toBeInTheDocument();
-        expect(screen.getByText("Version 1.14.0")).toBeInTheDocument();
-        expect(screen.getByText(/veröffentlicht am/)).toBeInTheDocument();
-        const exe = screen.getByRole("link", { name: "EventHelperSync.exe herunterladen" });
-        expect(exe).toHaveAttribute("href", release.exe!.url);
-        expect(screen.getByText("EventHelperSync.exe · 70 MB")).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: "Addon herunterladen (.zip)" })).toHaveAttribute("href", release.zip!.url);
-        expect(screen.getByRole("link", { name: "Was ist neu?" })).toHaveAttribute("href", release.url);
+        expect(await screen.findByRole("heading", { name: "Addons", level: 1 })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "LevelHelper" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "ProfessionKit" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "EventHelper Sync" })).toBeInTheDocument();
+        expect(screen.getByText("v0.3.0 · 12.10.2026")).toBeInTheDocument();
+        expect(screen.getByText("Leveling-Helfer für WoW Forever.")).toBeInTheDocument();
     });
 
-    it("explains the first installation", async () => {
+    it("links every download to the server route, with the file name and its size", async () => {
         renderPage(<AddonPage />, { route: "/addon" });
-        expect(await screen.findByText("Erste Installation")).toBeInTheDocument();
-        expect(screen.getByText(/_anniversary_\/Interface\/AddOns/)).toBeInTheDocument();
-        expect(screen.getByText(/Einstellungen → Loot-Sync/)).toBeInTheDocument();
-        expect(screen.getByText(/Ab Version 1.14.0 aktualisiert sich das Sync-Tool selbst/)).toBeInTheDocument();
+        const zip = await screen.findByRole("link", { name: "LevelHelper-0.3.0.zip · 380 KB" });
+        expect(zip).toHaveAttribute("href", levelhelper.release!.assets[0].url);
+        expect(zip.getAttribute("href")).toMatch(/^\/api\/addons\/download\?/);
+        expect(zip).toHaveAttribute("download", "LevelHelper-0.3.0.zip");
+        expect(screen.getByRole("link", { name: "EventHelperSync.exe · 70 MB" })).toBeInTheDocument();
+        for (const link of screen.getAllByRole("link")) expect(link.getAttribute("href") || "").not.toMatch(/github/i);
     });
 
-    it("says so when a release lacks one of the files", async () => {
-        vi.mocked(api.getAddonRelease).mockResolvedValue({ release: { ...release, exe: null }, fallbackUrl: FALLBACK });
-        renderPage(<AddonPage />, { route: "/addon" });
-        expect(await screen.findByText(/gibt es diese Datei nicht/)).toBeInTheDocument();
-        expect(screen.queryByRole("link", { name: /EventHelperSync.exe herunterladen/ })).toBeNull();
-        expect(screen.getByRole("link", { name: "Addon herunterladen (.zip)" })).toBeInTheDocument();
+    it("asks the server for the menu's game version", async () => {
+        localStorage.removeItem("eh-content-version");
+        renderPage(<AddonPage />, { route: "/addon", content: twoVersions() });
+        await screen.findByRole("heading", { name: "LevelHelper" });
+        expect(api.getAddons).toHaveBeenCalledWith("tbc");
     });
 
-    it("offers the releases page when no release could be loaded", async () => {
-        vi.mocked(api.getAddonRelease).mockResolvedValue({ release: null, fallbackUrl: FALLBACK });
+    it("folds the release notes open as plain text", async () => {
+        const user = userEvent.setup();
         renderPage(<AddonPage />, { route: "/addon" });
-        expect(await screen.findByText("Die neueste Version konnte gerade nicht geladen werden")).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: "Zur Release-Seite" })).toHaveAttribute("href", FALLBACK);
+        const toggle = await screen.findByRole("button", { name: /Was ist neu\?/ });
+        expect(screen.queryByText(/Duo-Modus/)).toBeNull();
+        await user.click(toggle);
+        expect(screen.getByText(/• Duo-Modus mit Partner-Anzeige/)).toBeInTheDocument();
+        // only the card with notes has the toggle
+        expect(screen.getAllByRole("button", { name: /Was ist neu\?/ })).toHaveLength(1);
+    });
+
+    it("explains the installation per kind of file, with the version's folder and the admin's note", async () => {
+        renderPage(<AddonPage />, { route: "/addon" });
+        await screen.findByRole("heading", { name: "LevelHelper" });
+        expect(screen.getAllByText(/_classic_beta_\\Interface\\AddOns\\/).length).toBeGreaterThan(0);
+        expect(screen.getByText(/Die exe starten/)).toBeInTheDocument();
+        expect(screen.getByText("Im Sync-Tool den Token eintragen.")).toBeInTheDocument();
+    });
+
+    it("says when there is no release yet", async () => {
+        renderPage(<AddonPage />, { route: "/addon" });
+        expect(await screen.findByText(/Noch kein Release/)).toBeInTheDocument();
+    });
+
+    it("keeps the cached release with a hint when GitHub cannot be reached", async () => {
+        vi.mocked(api.getAddons).mockResolvedValue(data([{ ...levelhelper, stale: true, errorCode: "unreachable" }]));
+        renderPage(<AddonPage />, { route: "/addon" });
+        expect(await screen.findByText(/GitHub ist gerade nicht erreichbar/)).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: /LevelHelper-0.3.0.zip/ })).toBeInTheDocument();
+    });
+
+    it("tells a member only that the addon is not available when the token is missing", async () => {
+        vi.mocked(api.getAddons).mockResolvedValue(data([{ ...levelhelper, state: "token_missing", release: null }]));
+        renderPage(<AddonPage />, { route: "/addon", user: adminUser({ isAdmin: false }) });
+        expect(await screen.findByText(/Gerade nicht verfügbar/)).toBeInTheDocument();
+        expect(screen.queryByText(/GitHub-Token/)).toBeNull();
+        expect(screen.queryByRole("link", { name: "Token einrichten" })).toBeNull();
+    });
+
+    it("shows an admin how to set the missing token", async () => {
+        vi.mocked(api.getAddons).mockResolvedValue(data(
+            [{ ...levelhelper, state: "token_missing", release: null, repo: "mst1987/levelhelper", private: true }],
+            { canManage: true, tokenSet: false },
+        ));
+        renderPage(<AddonPage />, { route: "/addon" });
+        expect(await screen.findByText(/private Repo mst1987\/levelhelper fehlt der GitHub-Token/)).toBeInTheDocument();
+        expect(screen.getAllByRole("link", { name: "Token einrichten" })[0]).toHaveAttribute("href", "/settings?section=verbindungen");
+    });
+
+    it("names the version when it has no addons", async () => {
+        vi.mocked(api.getAddons).mockResolvedValue(data([], { versionId: "tbc" }));
+        renderPage(<AddonPage />, { route: "/addon", content: twoVersions() });
+        expect(await screen.findByText("Für WoW TBC gibt es gerade keine Addons zum Herunterladen.")).toBeInTheDocument();
     });
 
     it("shows the request error", async () => {
-        vi.mocked(api.getAddonRelease).mockRejectedValue(Object.assign(new Error("Kein Zugriff"), { status: 403 }));
+        vi.mocked(api.getAddons).mockRejectedValue(Object.assign(new Error("Kein Zugriff"), { status: 403 }));
         renderPage(<AddonPage />, { route: "/addon" });
         expect(await screen.findByText("Kein Zugriff")).toBeInTheDocument();
     });
 
     it("speaks English", async () => {
-        switchLang("en");
+        await switchLang("en");
         renderPage(<AddonPage />, { route: "/addon" });
-        expect(await screen.findByRole("link", { name: "Download addon (.zip)" })).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: "What's new?" })).toBeInTheDocument();
+        expect(await screen.findByRole("button", { name: /What's new\?/ })).toBeInTheDocument();
+        expect(screen.getByText(/No release yet/)).toBeInTheDocument();
     });
 });
 
 describe("formatSize", () => {
-    it("rounds to megabytes and leaves an unknown size empty", () => {
+    it("rounds to megabytes, below one megabyte to kilobytes, and leaves an unknown size empty", () => {
         expect(formatSize(73_400_320)).toBe("70 MB");
         expect(formatSize(1_572_864)).toMatch(/^1[.,]5 MB$/);
+        expect(formatSize(389_120)).toBe("380 KB");
+        expect(formatSize(100)).toBe("1 KB");
         expect(formatSize(0)).toBe("");
+    });
+});
+
+describe("addon install helpers", () => {
+    it("knows the addon folder of each version", () => {
+        expect(addonFolder("forever")).toBe("<WoW>\\_classic_beta_\\Interface\\AddOns\\");
+        expect(addonFolder("tbc")).toBe("<WoW>\\_anniversary_\\Interface\\AddOns\\");
+        expect(addonFolder("unknown")).toContain("_classic_beta_");
+    });
+
+    it("turns Markdown notes into plain text", () => {
+        expect(plainNotes("## Neu\r\n\r\n\r\n* **fett** und `code`\n- [Link](https://x.y)")).toBe("Neu\n\n• fett und code\n• Link");
+        expect(plainNotes("<script>x</script>")).toBe("<script>x</script>");
+        expect(plainNotes("")).toBe("");
     });
 });

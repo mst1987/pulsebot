@@ -22,6 +22,7 @@ const { migrateSettings } = require("../../src/stores/settingsMigration");
 const cases = require("../fixtures/configSchema/cases.json");
 const frozen = require("../fixtures/configSchema/golden.json");
 const defaults = require("../../src/config/defaults");
+const { defaultAddons } = require("../../src/services/addons/addonConfig");
 
 // #542 moved the Battle.net realm (region, realm slug, namespace) out of
 // `blizzard` into the TBC block of `versionSettings`, next to the armory/WCL
@@ -92,7 +93,9 @@ function afterCategoryVersions(config, stored) {
     for (const id of Array.isArray(stored.categoryIds) ? stored.categoryIds : []) if (!map[id]) map[id] = config.mainVersion;
     return { ...config, categoryVersion: map };
 }
-const schemaOnly = frozen.map((g) => ({ ...g, config: afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))) }));
+// #818 adds the GitHub token (none) and the addons of the page "Addons" (the three own addons by default).
+const afterAddons = (config) => ({ ...config, github: { token: "" }, addonDownloads: defaultAddons() });
+const schemaOnly = frozen.map((g) => ({ ...g, config: afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))))) }));
 const golden = schemaOnly.map((g, i) => ({ ...g, config: afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config) }));
 const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)"));
 

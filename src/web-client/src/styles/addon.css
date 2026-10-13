@@ -1,29 +1,47 @@
-/* ── Sync-Tool & Addon (pages/addon/AddonPage.tsx) ──────────
-   Two big download cards and a short install hint. Tokens only. */
+/* ── Addons (pages/addon/AddonPage.tsx, #818) ──────────
+   One card per addon: head, description, download buttons, "Was ist neu?",
+   the install steps. Plus the few pieces of Einstellungen → Addons
+   (pages/settings/AddonsSection.tsx). Tokens only. */
 
-.ad-version { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; margin-bottom: 20px; }
-.ad-version-num { font-size: 26px; font-weight: 700; color: var(--text); }
-.ad-version .muted, .ad-card .muted, .ad-install .muted { color: var(--muted); }
-.ad-news { margin-left: auto; font-weight: 600; color: var(--accent); }
-
-.ad-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.ad-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; }
 .ad-card {
-    display: flex; flex-direction: column; gap: 14px; padding: 20px;
-    border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
+    display: flex; flex-direction: column; gap: 12px; padding: 20px; min-width: 0;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
 }
 .ad-card-head { display: flex; align-items: center; gap: 14px; }
 .ad-card-head h2 { margin: 0 0 2px; font-size: 19px; }
-.ad-card-head p { margin: 0; font-size: 14px; }
-.ad-card-head .wi { width: 40px; height: 40px; border-radius: 8px; }
-.ad-download { align-self: flex-start; font-size: 16px; padding: 12px 22px; text-decoration: none; }
-.ad-file { font-size: 13px; font-family: var(--font-mono); word-break: break-all; }
+.ad-card-head .wi { width: 40px; height: 40px; border-radius: 8px; flex: 0 0 auto; }
+.ad-version { font-size: 14px; }
+.ad-card .muted, .ad-foot { color: var(--muted); }
+.ad-desc { margin: 0; font-size: 14.5px; line-height: 1.45; }
 
-.ad-install { padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel2); }
-.ad-install h2 { margin: 0 0 12px; font-size: 17px; }
-.ad-install h3 { margin: 0 0 6px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
-.ad-install-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-.ad-install ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14.5px; }
-.ad-install code { font-family: var(--font-mono); font-size: 13px; padding: 1px 5px; border-radius: 4px; background: var(--panel); border: 1px solid var(--line); }
-.ad-install p { margin: 14px 0 0; font-size: 14px; }
+.ad-files { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.ad-download { max-width: 100%; text-decoration: none; overflow-wrap: anywhere; text-align: left; }
 
-.ad-fallback { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.ad-stale { margin: 0; padding: 8px 10px; border-radius: 8px; font-size: 13.5px; background: var(--medium-bg); color: var(--text); }
+.ad-state { margin: 0; font-size: 14px; }
+.ad-admin {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 12px; border-radius: 8px;
+    background: var(--medium-bg); border: 1px solid color-mix(in srgb, var(--medium) 35%, transparent);
+}
+.ad-banner { margin-bottom: 16px; }
+
+.ad-news { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.ad-notes {
+    width: 100%; max-height: 320px; overflow: auto; padding: 10px 12px; border-radius: 8px;
+    background: var(--panel2); border: 1px solid var(--line); font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+.ad-install { padding-top: 10px; border-top: 1px solid var(--line); }
+.ad-install h3 { margin: 0 0 6px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.ad-install ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; overflow-wrap: anywhere; }
+
+.ad-foot { margin: 16px 0 0; font-size: 13px; }
+.ad-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+/* Einstellungen → Addons */
+.ad-token-hint { margin-bottom: 14px; flex-wrap: wrap; }
+.ad-icon-field { display: flex; align-items: center; gap: 8px; }
+.ad-icon-field .wi { width: 28px; height: 28px; border-radius: 6px; flex: 0 0 auto; }
+.ad-name-cell { display: inline-flex; align-items: center; gap: 8px; }
+.ad-name-cell .wi { border-radius: 4px; }

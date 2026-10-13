@@ -48,6 +48,8 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     { id: "logs", group: "modules", icon: "inv_misc_pocketwatch_01" },
     { id: "recruitment", group: "modules", icon: "inv_misc_grouplooking" },
     { id: "dungeons", group: "modules", icon: "spell_holy_borrowedtime" },
+    // #818: the addons of the page "Addons" - saved on its own, full admins only (ADDON_KEYS)
+    { id: "addons", group: "modules", icon: "inv_gizmo_01", adminOnly: true, standalone: true },
 ];
 
 /** Sidebar entry and the part head's title, in the active language. */

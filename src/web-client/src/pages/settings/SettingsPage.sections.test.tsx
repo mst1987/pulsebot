@@ -179,10 +179,10 @@ describe("the sections", () => {
         for (const s of SETTINGS_SECTIONS) {
             expect({ id: s.id, icon: !!entry(sectionLabel(s)).querySelector(`img[src*="/${s.icon}.jpg"]`) }).toEqual({ id: s.id, icon: true });
         }
-        // Bot online, but Battle.net, Warcraft Logs, the AI key and a loot-sync token missing.
-        await waitFor(() => expect(within(entry("Verbindungen")).getByText("4")).toBeInTheDocument());
-        expect(entry("Verbindungen")).toHaveAttribute("data-tip-sub", "4 Verbindungen nicht eingerichtet");
-        expect(entry("Verbindungen")).toHaveAccessibleName("Verbindungen · 4 Verbindungen nicht eingerichtet");
+        // Bot online, but Battle.net, Warcraft Logs, the AI key, the GitHub token (#818) and a loot-sync token missing.
+        await waitFor(() => expect(within(entry("Verbindungen")).getByText("5")).toBeInTheDocument());
+        expect(entry("Verbindungen")).toHaveAttribute("data-tip-sub", "5 Verbindungen nicht eingerichtet");
+        expect(entry("Verbindungen")).toHaveAccessibleName("Verbindungen · 5 Verbindungen nicht eingerichtet");
         expect(within(entry("Kategorien")).getByText("1")).toBeInTheDocument();
         expect(entry("Kategorien")).toHaveAttribute("data-tip-sub", "1 aktive Raid-Kategorien");
         expect(entry("Raid-Standardwerte").querySelector(".badge")).toBeNull();
