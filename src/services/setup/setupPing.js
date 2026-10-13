@@ -2,7 +2,10 @@
 // setup — a plain heads-up that the setup is posted, not an invite
 // instruction like "Invite callen" (inviteCall.js, groups 1–5 only). Every
 // group counts here, the bench never does: nobody is confirmed for a spot
-// there. One service for the button under the setup message (setupPingBot.js).
+// there. Here: who is pinged with what (setupPingPlan) and the orga's text; the
+// ping itself is part of the setup message since Oct 2026 (setupMessage.js
+// callSetupPing, "Ping 3" of the design canvas). refreshSetupPing keeps a ping
+// card of the time before - posted under the message as one of its own - true.
 //
 // Only own events: their setup is ours (setupEditor.js); a Raid-Helper event's
 // raid plan lives at Raid-Helper.
@@ -36,41 +39,13 @@ function setupPingPlan(event, userId, { text } = {}) {
 }
 
 /**
- * Post the ping into the event channel and log it on the event.
- * @param {{ guildId: string, eventId: string, userId: string, byName?: string, text?: string }} p
- * @returns {Promise<{ message: string, count: number, url?: string } | { error: object }>}
- */
-async function callSetupPing({ guildId, eventId, userId, byName = "", text } = {}) {
-    const event = eventStore.getEvent(eventId);
-    if (!event || (guildId && event.guildId && event.guildId !== String(guildId))) {
-        return fail(404, "not_found", "Event nicht gefunden.");
-    }
-    const plan = setupPingPlan(event, userId, { text });
-    if (plan.error) return plan;
-    if (!event.channelId) return fail(400, "no_channel", "Das Event hat keinen Kanal.");
-    let posted;
-    try {
-        posted = await discord.postMissingPing(event.channelId, plan.userIds, plan.text);
-    } catch (e) {
-        return fail(502, "post_failed", `Konnte nicht posten: ${e.message}`);
-    }
-    const count = plan.userIds.length;
-    eventStore.appendEventLog(event.id, { action: "setupPing", by: String(userId || ""), byName, detail: `${count} Raider gepingt` });
-    // the last ping is remembered, so a later change of the setup can keep its list true (refreshSetupPing)
-    if (posted && posted.channelId) {
-        eventStore.setEventSetupPost(event.id, {
-            ping: { channelId: String(posted.channelId), messageIds: posted.messageIds || [String(posted.messageId)], userIds: plan.userIds, by: String(userId || ""), text: plan.text },
-        });
-    }
-    return { message: `${count} Raider aus dem Setup gepingt.`, count, url: posted && posted.url };
-}
-
-/**
- * After a live change of the setup: the last ping's message is edited to the
+ * After a live change of the setup: a ping card of the time before (its own
+ * message under the setup, `setupPost.ping.messageIds`) is edited to the
  * people placed now (setupPingPlan, the pinger left out as before). Nobody is
  * notified by an edit — newcomers are named, not pinged; who left the setup
- * disappears from the list. Nothing to do without a remembered ping, for a
- * cancelled event or when the list is the same.
+ * disappears from the list. Nothing to do without such a card (a ping in the
+ * setup message follows with the message), for a cancelled event or when the
+ * list is the same.
  * @returns {Promise<{ edited?: boolean, skipped?: string, error?: string }>}
  */
 async function refreshSetupPing(eventId) {
@@ -89,4 +64,4 @@ async function refreshSetupPing(eventId) {
     }
 }
 
-module.exports = { saveSetupPingText, setupPingPlan, callSetupPing, refreshSetupPing };
+module.exports = { saveSetupPingText, setupPingPlan, refreshSetupPing };

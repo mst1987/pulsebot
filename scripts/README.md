@@ -20,6 +20,7 @@ lassen.
 | `build-rpb-data.js` | RPB-Referenzdaten (Konfig-Sheet, Validierung, Spell-Haste, Spell-Icons) aus `data-sources/rpb/` | `rpbData.json` (fehlende Icons fragt es bei Wowhead nach und merkt sie in `data-sources/rpb/spell-icons.json`) | `data:rpb` | nein |
 | `check-main-clean.js` | Meldet alles, was den Haupt-Checkout verschmutzt; auch vom Stop-Hook benutzt | Zeilen + Exit-Code 1, still bei sauberem Stand | `check:main` | ja (`test/claude-hooks/`) |
 | `fetch-boss-icons.js` | Boss-Icons von Warcraft Logs für die Boss-Tabs der Report-Seite (braucht `WARCRAFTLOGS_API_KEY`) | `src/web-client/public/bosses/*.jpg`, `bossIcons.json` | `data:icons` | nein |
+| `fetch-spec-icons.js` | Spec- und Klassen-Icons (wow.zamimg.com, dieselben wie die Spec-Emojis) für das gezeichnete Setup-Bild; vorhandene bleiben ohne `--force` | `assets/specs/*.jpg` | `data:spec-icons` | nein (dass jedes Icon da ist: `test/utils/image/specIcons.test.js`) |
 | `fetch-mob-icons.js` | Portraits und Platzhalter-Icons für die Mobs des Raidplan-Katalogs | `src/web-client/public/mobs/*.png`, `mobIcons.json` | `data:icons` | nein (PNG-Codec: ja) |
 | `fetch-tbc-loot.js` | Loot-Tabelle Item → Raid/Boss aus AtlasLootClassic | `tbcRaidLoot.json` (gelesen von `tbcContent.js`) | `data:loot` | nein |
 | `fetch-tbc-loot-names.js` | Name, Icon und Qualität jedes Items der Loot-Tabelle (nach `fetch-tbc-loot.js`) | `tbcLootNames.json` | `data:loot` | nein |

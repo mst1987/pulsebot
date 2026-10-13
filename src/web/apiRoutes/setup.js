@@ -43,7 +43,7 @@ const setupEditor = require("../../services/setup/setupEditor");
 const profiles = require("../../stores/raiderProfileStore");
 const { refreshEventMessage } = require("../../services/events/eventMessage");
 const setupMessage = require("../../services/setup/setupMessage");
-const { saveSetupPingText, setupPingPlan, callSetupPing } = require("../../services/setup/setupPing");
+const { saveSetupPingText, setupPingPlan } = require("../../services/setup/setupPing");
 const { activeGuildFor } = require("../http/activeGuild");
 const { setupAttendance } = require("../setup/setupAttendance");
 const { postSearch, textForNeeds } = require("../../services/setup/raidSearch");
@@ -326,7 +326,7 @@ const postPing = withUser({ write: "raids", csrf: true, body: true, archived: BY
         if (plan.error) return sendResult(res, plan);
         return ok(res, { count: plan.userIds.length, text: plan.text });
     }
-    const result = await callSetupPing({ guildId, eventId: event.id, userId: user.id, byName: user.name || "" });
+    const result = await setupMessage.callSetupPing({ guildId, eventId: event.id, userId: user.id, byName: user.name || "" });
     if (result.error) return sendResult(res, result);
     ok(res, { message: result.message, count: result.count, url: result.url || "" });
 });

@@ -1,7 +1,8 @@
 // POST /api/raids/setup/ping — the setup editor's "Alle pingen": everybody in the
 // posted setup, in the event channel, with the stored ping text. A dry run answers
-// how many and with what (the question before); the service itself is
-// src/services/setup/setupPing.js (the Discord button uses the same one).
+// how many and with what (the question before); the plan is
+// src/services/setup/setupPing.js, the ping setupMessage.callSetupPing (the
+// Discord button uses the same one).
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({
     user: { id: "u-lead", name: "Nerathil", isAdmin: true },
     fullAdmin: { id: "u-lead", isAdmin: true },
@@ -15,13 +16,17 @@ jest.mock("../../../src/stores/eventStore", () => ({
 jest.mock("../../../src/services/setup/setupPing", () => ({
     ...jest.requireActual("../../../src/services/setup/setupPing"),
     setupPingPlan: jest.fn(),
+}));
+jest.mock("../../../src/services/setup/setupMessage", () => ({
+    ...jest.requireActual("../../../src/services/setup/setupMessage"),
     callSetupPing: jest.fn(),
 }));
 
 const { readJsonBody } = require("../../../src/web/http/apiBody");
 const { requireCsrf } = require("../../../src/web/http/apiMiddleware");
 const { getEvent } = require("../../../src/stores/eventStore");
-const { setupPingPlan, callSetupPing } = require("../../../src/services/setup/setupPing");
+const { setupPingPlan } = require("../../../src/services/setup/setupPing");
+const { callSetupPing } = require("../../../src/services/setup/setupMessage");
 const { postPing, routes } = require("../../../src/web/apiRoutes/setup");
 
 const { mockRes, status, json } = require("../../helpers/http");

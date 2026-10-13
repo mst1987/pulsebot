@@ -1,5 +1,5 @@
 // The SVG pieces of the drawn bot pictures (utils/image/svg.js): pure strings.
-const { PALETTE, esc, num, text, rect, svgDocument } = require("../../../src/utils/image/svg");
+const { PALETTE, esc, num, text, rect, image, svgDocument } = require("../../../src/utils/image/svg");
 
 describe("utils/image/svg", () => {
     it("escapes markup and drops characters XML does not allow", () => {
@@ -35,6 +35,18 @@ describe("utils/image/svg", () => {
         expect(bordered).toContain("x=\"1\" y=\"1\" width=\"8\" height=\"18\"");
         expect(bordered).toContain("stroke=\"#f00\" stroke-width=\"2\"");
         expect(rect(0, 0, 1, 1, { opacity: 0.2 })).toContain("opacity=\"0.2\"");
+    });
+
+    it("draws a raster image, its corners rounded through a clip path of its own id", () => {
+        const plain = image("data:image/jpeg;base64,AAA", 1, 2, 30, 30);
+        expect(plain).toBe("<image href=\"data:image/jpeg;base64,AAA\" x=\"1\" y=\"2\" width=\"30\" height=\"30\" preserveAspectRatio=\"xMidYMid slice\"/>");
+        const rounded = image("x", 0, 0, 10, 10, { r: 3, id: "i1", opacity: 0.5 });
+        expect(rounded).toContain("<clipPath id=\"i1\"><rect x=\"0\" y=\"0\" width=\"10\" height=\"10\" rx=\"3\"/></clipPath>");
+        expect(rounded).toContain("clip-path=\"url(#i1)\"");
+        expect(rounded).toContain("opacity=\"0.5\"");
+        // no id, no clip: a clip path without a unique id would round the wrong image
+        expect(image("x", 0, 0, 10, 10, { r: 3 })).not.toContain("clipPath");
+        expect(image("\"><script>", 0, 0, 1, 1)).toContain("href=\"&quot;&gt;&lt;script&gt;\"");
     });
 
     it("wraps a body into a document with the bundled font and a background", () => {

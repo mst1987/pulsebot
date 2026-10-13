@@ -4,31 +4,38 @@
 // renders it.
 //
 //   GROUP 1            GROUP 2            GROUP 3
-//   ■ Zibbo        ✓   ■ Kalu             ■ Thrall      ✗
-//   ■ …                ■ …                ■ …
+//   [▣] Zibbo          [▣] Kalu           [▣] Thrall
+//     ✓                                     ✗
 //   GROUP 4            GROUP 5            BENCH (2)
 //
 // One panel per group, three to a row (two for two or four panels, four from seven on);
-// a raider is a row with a small square in their class colour, the character name in it
-// and the spec beside it while there is room; the confirm mark on the right (green tick,
-// red cross, nothing while unanswered - the same answers the text showed as emojis). The
-// bench - only when it is posted - is the last panel. Names are cut with "…" to their
-// panel; buffs are not drawn (the approved snapshot carries none).
+// a raider is a row with their spec icon (the class icon without a spec, a square in the
+// class colour without either - assets/specs/, utils/image/specIcons.js) and the character
+// name in their class colour - no spec text, the icon says it (design canvas "Setup-Post
+// mit Spec-Icons", variant C, Oct 2026). The answer sits on the icon as a badge, the way
+// the setup editor on the web shows it: a green tick, a red cross with icon and name
+// dimmed, nothing while unanswered. The bench - only when it is posted - is the last panel,
+// without badges. Names are cut with "…" to their panel; buffs are not drawn (the
+// approved snapshot carries none).
 const { buildClasses } = require("../../config/gameVersions/classes");
-const { tr, specLabel: specLabelIn } = require("../../utils/i18n/botText");
-const { PALETTE, text, rect, svgDocument } = require("../../utils/image/svg");
-const { textWidth } = require("../../utils/image/fontMetrics");
+const { tr } = require("../../utils/i18n/botText");
+const { PALETTE, text, rect, image, svgDocument } = require("../../utils/image/svg");
+const { specIconDataUri } = require("../../utils/image/specIcons");
 
 const PAD = 24;
 const GAP = 16;
-const PANEL_W = 320;
+const PANEL_W = 260;
 const HEAD_H = 50;
-const ROW_H = 44;
+const ROW_H = 48;
 const PANEL_BOTTOM = 12;
 /** More names than this in the bench panel are summed up as "+n". */
 const BENCH_ROWS = 8;
 const NAME_SIZE = 24;
-const SPEC_SIZE = 16;
+const ICON = 34;
+const ICON_X = 14;
+const NAME_X = 64;
+/** A declined raider's icon and name. */
+const DIMMED = 0.45;
 
 const CLASSES = buildClasses();
 const CLASS_BY_ID = new Map(CLASSES.map((c) => [c.id, c]));
@@ -48,35 +55,32 @@ function columnsFor(count) {
     return count >= 7 ? 4 : 3;
 }
 
-/** A tick or a cross, 18 px, centred on (cx, cy). */
-function mark(status, cx, cy) {
+/** The answer as a badge centred on (cx, cy): a white tick on green, a white cross on red, nothing while unanswered. */
+function badge(status, cx, cy) {
+    if (status !== "confirmed" && status !== "declined") return "";
+    const ring = `<circle cx="${cx}" cy="${cy}" r="11" fill="${PALETTE.panel}"/>`
+        + `<circle cx="${cx}" cy="${cy}" r="8.5" fill="${status === "confirmed" ? PALETTE.green : PALETTE.red}"/>`;
     if (status === "confirmed") {
-        return `<path d="M${cx - 8} ${cy}l5.5 5.5L${cx + 8} ${cy - 7}" fill="none" stroke="${PALETTE.green}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>`;
+        return `${ring}<path d="M${cx - 4} ${cy}l2.8 2.8L${cx + 4.2} ${cy - 3.5}" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`;
     }
-    if (status === "declined") {
-        return `<path d="M${cx - 6.5} ${cy - 6.5}l13 13M${cx + 6.5} ${cy - 6.5}l-13 13" fill="none" stroke="${PALETTE.red}" stroke-width="3.2" stroke-linecap="round"/>`;
-    }
-    return "";
+    return `${ring}<path d="M${cx - 3.2} ${cy - 3.2}l6.4 6.4M${cx + 3.2} ${cy - 3.2}l-6.4 6.4" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>`;
 }
 
-/** One raider row: class square, name, spec while there is room, the mark. */
-function personRow(p, x, y, width, { lang, status = "", withMark = true }) {
+/** One raider row: spec icon (with the answer's badge), the name in the class colour. `clipId` names the icon's clip path. */
+function personRow(p, x, y, width, { status = "", withMark = true, clipId = "" }) {
     const out = [];
     const color = classColor(p);
     const mid = y + ROW_H / 2;
-    out.push(rect(x + 16, mid - 8, 16, 16, { r: 4, fill: color }));
-    const nameX = x + 44;
-    const markW = withMark ? 42 : 18;
-    const room = width - (nameX - x) - markW;
+    const ix = x + ICON_X;
+    const iy = mid - ICON / 2;
+    const opacity = withMark && status === "declined" ? DIMMED : 1;
+    const href = specIconDataUri(p && p.spec, p && p.classId);
+    out.push(href
+        ? image(href, ix, iy, ICON, ICON, { r: 6, id: clipId, opacity })
+        : rect(ix + 7, iy + 7, ICON - 14, ICON - 14, { r: 5, fill: color, opacity }));
+    if (withMark) out.push(badge(status, ix + ICON - 2, iy + ICON - 2));
     const name = String((p && p.character) || "").trim() || "Raider";
-    const spec = specLabelIn(lang, SPEC_BY_KEY.get(p && p.spec), "");
-    const nameW = textWidth(name, NAME_SIZE, { bold: true });
-    const specW = spec ? textWidth(spec, SPEC_SIZE) : 0;
-    out.push(text(nameX, mid + NAME_SIZE * 0.36, name, { size: NAME_SIZE, bold: true, fill: color, maxWidth: room }));
-    if (spec && nameW + 12 + specW <= room) {
-        out.push(text(x + width - markW, mid + SPEC_SIZE * 0.36, spec, { size: SPEC_SIZE, fill: PALETTE.muted, anchor: "end" }));
-    }
-    if (withMark) out.push(mark(status, x + width - 20, mid));
+    out.push(text(x + NAME_X, mid + NAME_SIZE * 0.36, name, { size: NAME_SIZE, bold: true, fill: color, maxWidth: width - NAME_X - 16, opacity }));
     return out.join("");
 }
 
@@ -118,6 +122,7 @@ function setupImageSvg(approved, { confirmations = {}, bench = false, lang = "de
     const width = 2 * PAD + cols * PANEL_W + (cols - 1) * GAP;
 
     const parts = [];
+    let clips = 0;
     let y = PAD;
     for (const line of rowsOfPanels) {
         const lines = Math.max(...line.map((p) => p.people.length + (p.more ? 1 : 0)));
@@ -128,11 +133,11 @@ function setupImageSvg(approved, { confirmations = {}, bench = false, lang = "de
                 const top = y + HEAD_H + k * ROW_H;
                 const divider = k ? rect(x + 16, top, PANEL_W - 32, 1, { fill: PALETTE.line }) : "";
                 const status = confirmations[String(person.userId)] || "";
-                return divider + personRow(person, x, top, PANEL_W, { lang, status, withMark: p.withMark });
+                return divider + personRow(person, x, top, PANEL_W, { status, withMark: p.withMark, clipId: `icon${clips++}` });
             });
             if (p.more) {
                 const top = y + HEAD_H + p.people.length * ROW_H;
-                rows.push(text(x + 44, top + ROW_H / 2 + 7, tr(lang, "+{count} more", { count: p.more }), { size: 19, fill: PALETTE.muted }));
+                rows.push(text(x + NAME_X, top + ROW_H / 2 + 7, tr(lang, "+{count} more", { count: p.more }), { size: 19, fill: PALETTE.muted }));
             }
             parts.push(panel(x, y, height, p.head, rows.join("")));
         });
