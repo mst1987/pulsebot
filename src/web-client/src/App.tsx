@@ -245,8 +245,8 @@ function MenuApp() {
                                 <Route path="guildbank" element={<Guard user={user} areas={["raids"]}><GuildBankPage /></Guard>} />
                                 {/* The Kaderplaner (area "kader"): one Kader at a time, /kader opens the one used last. */}
                                 <Route path="kader/:kaderId?/:sub?" element={<Guard user={user} areas={["kader"]}><KaderPage /></Guard>} />
-                                {/* Sync-Tool & Addon: the download page, read with "history" (the people who import loot). */}
-                                <Route path="addon" element={<Guard user={user} areas={["history"]}><AddonPage /></Guard>} />
+                                {/* Addons (#818): the download page of the own addons, for every member ("signup") and the loot importers ("history"). */}
+                                <Route path="addon" element={<Guard user={user} areas={["signup", "history"]}><AddonPage /></Guard>} />
                                 {/* Systemstatus: full admins only, no area opens it (docs/system-status.md). */}
                                 <Route path="system" element={<AdminGuard user={user}><SystemPage /></AdminGuard>} />
                                 {/* Inside the shell on purpose: a mistyped path should still

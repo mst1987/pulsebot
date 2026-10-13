@@ -495,6 +495,6 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 .gv-hide-warn p { margin: 0; font-size: 13.5px; line-height: 1.55; }
 .gv-hide-warn-icon { width: 18px; height: 18px; flex: 0 0 auto; color: var(--archive-ink); }
 .gv-hide-export { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
-.gv-hide-export-icon { width: 16px; height: 16px; flex: 0 0 auto; }
+.gv-hide-export .btn svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .gv-hide-preview { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
 .gv-hide-bar { display: flex; align-items: center; min-height: 52px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); }

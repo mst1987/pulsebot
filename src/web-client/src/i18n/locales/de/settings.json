@@ -55,6 +55,10 @@
         "dungeons": {
             "label": "Dungeon-Bestzeiten",
             "crumb": "Module · Gildenrekorde aus dem Addon LevelHelper"
+        },
+        "addons": {
+            "label": "Addons",
+            "crumb": "Module · Downloads der Addons"
         }
     },
     "page": {
@@ -286,7 +290,9 @@
         "rightsMissing": {
             "one": "{count} Recht fehlt",
             "other": "{count} Rechte fehlen"
-        }
+        },
+        "tokenStored": "Token hinterlegt",
+        "tokenMissing": "Token fehlt"
     },
     "overlap": {
         "unknown": "Überschneidung unbekannt",
@@ -630,7 +636,19 @@
         "secretNone": "noch kein Secret hinterlegt",
         "keep": "Behalten",
         "secretNote": "Wird nie wieder angezeigt, nur ersetzt oder gelöscht.",
-        "realmNotSet": "je Spielversion (Hauptversion ohne Realm)"
+        "realmNotSet": "je Spielversion (Hauptversion ohne Realm)",
+        "githubTitle": "GitHub (Addons)",
+        "githubTip": "GitHub-Token für die Addon-Downloads",
+        "githubSub": "Liest die Releases der privaten Addon-Repos (LevelHelper, ProfessionKit). Öffentliche Repos gehen auch ohne. Der Token verlässt den Server nie, die Mitglieder laden über den EventHelper.",
+        "token": "Token",
+        "tokenSet": "gesetzt",
+        "tokenNotSet": "nicht gesetzt",
+        "githubOn": "Private Addons ladbar",
+        "githubOff": "Nur öffentliche Addons",
+        "githubMissing": "Ohne Token zeigt die Seite „Addons“ die privaten Addons als „gerade nicht verfügbar“.",
+        "githubLink": "Token anlegen auf github.com",
+        "githubTokenTip": "Fine-grained Personal Access Token",
+        "githubTokenSub": "Auf github.com unter Settings → Developer settings → Fine-grained tokens anlegen: Repository access „Only select repositories“ mit den Addon-Repos, Permissions → Repository → Contents: „Read-only“. Sonst nichts."
     },
     "tokens": {
         "revokeAsk": "Token „{name}“ zurückziehen?",

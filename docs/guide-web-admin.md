@@ -321,15 +321,17 @@ Unter **Roster** (Icon-Leiste) bzw. für Mitglieder als eigener Menüpunkt: die 
 - **Erfolgspunkte:** Charaktere nach Erfolgspunkten.
 - Alle Tabellen lassen sich per Klick auf die Spalte sortieren. Ein neuer Gildenrekord kann automatisch in einen Kanal gepostet werden (Einstellungen → Dungeon-Bestzeiten, standardmäßig aus).
 
-## Sync-Tool & Addon
+## Addons
 
-Technik: [loot-import.md](loot-import.md)
+Technik: [addons.md](addons.md)
 
-*Bereich "history" — lesen reicht; Menü: System*
+*Bereich "signup" oder "history" — lesen reicht; Menü: System → Addons (`/addon`)*
 
-- Hier lädst du die neueste Version vom **Sync-Tool** (`EventHelperSync.exe`, Windows) und vom **WoW-Addon** (zip) herunter. Die Seite zeigt Version und Datum, zwei große Download-Knöpfe und den Link „Was ist neu?“ zur Release-Seite.
-- Die Dateien kommen direkt von GitHub. Die Versionsabfrage wird gemerkt (etwa eine Stunde); ist GitHub gerade nicht erreichbar, bietet die Seite einen Link auf die Release-Seite an.
-- Installation (nur beim ersten Mal): Zip entpacken, den Ordner `EventHelperSync` nach `<WoW>/_anniversary_/Interface/AddOns/` (TBC Anniversary) oder `<WoW>/_classic_beta_/Interface/AddOns/` (WoW Forever) legen, im Spiel `/reload`. Die exe per Doppelklick starten und Serveradresse und API-Token eintragen (Token: Einstellungen → Loot-Sync). Ab Version 1.14.0 aktualisiert sich das Sync-Tool selbst und installiert das Addon über „Installieren“.
+- Hier lädst du die Addons der Gilde herunter: **LevelHelper**, **ProfessionKit** und **EventHelper Sync** (Sync-Tool `EventHelperSync.exe` und Addon als zip). Die Seite zeigt nur die Addons der Spielversion, die oben im Menü gewählt ist.
+- Je Addon eine Karte: Icon, Name, Version und Datum („v0.3.0 · 12.10.2026“), Kurzbeschreibung, ein Download-Knopf je Datei mit Größe, „Was ist neu?“ zum Aufklappen und die Installation (Zip nach `<WoW>\_classic_beta_\Interface\AddOns\` bzw. `_anniversary_` für TBC entpacken; die exe starten, Windows fragt evtl. nach).
+- Die Dateien laufen über den EventHelper, nicht direkt über GitHub: nur nach dem Login, höchstens 30 Downloads pro Stunde und Person.
+- „Noch kein Release“: das Addon hat noch keine Version veröffentlicht. „Gerade nicht verfügbar“: GitHub ist nicht erreichbar oder der Zugang fehlt; ist GitHub nur kurz weg, zeigt die Seite die zuletzt bekannte Version mit Hinweis.
+- Admins sehen zusätzlich, wenn der GitHub-Token fehlt oder abgelehnt wird, mit dem Weg zu Einstellungen → Verbindungen → GitHub. Welche Addons angeboten werden, steht unter Einstellungen → Module → Addons.
 ## Log-Auswertung (CLA/RPB)
 
 Technik: [logcheck.md](logcheck.md)

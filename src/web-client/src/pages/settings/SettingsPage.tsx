@@ -11,6 +11,7 @@ import { useToast } from "../../components/shell/Jobs";
 import SectionRail, { RailLayout } from "../../components/ui/SectionRail";
 import CategoryMatrix from "./CategoryMatrix";
 import ConnectionsSection from "./SettingsConnections";
+import AddonsSection from "./AddonsSection";
 import DiscordServersSection from "./SettingsDiscordServers";
 import { ChannelPicker, RolePicker } from "../../components/settings/settingsUi";
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
@@ -546,6 +547,13 @@ export default function SettingsPage() {
                             <RolePicker id="set-officer" value={draft.officerRoleId} roles={data.roles} onChange={(officerRoleId) => patch({ officerRoleId })} placeholder={t("settings.page.noPing")} />
                         </div>
                     </ModuleCard>
+                </>
+            );
+
+            case "addons": return (
+                <>
+                    {head(activeSection, undefined, sectionLabel(activeSection), t("addon.settings.sectionSub"))}
+                    <AddonsSection data={data} onConfig={(config) => setData({ ...data, config })} />
                 </>
             );
 

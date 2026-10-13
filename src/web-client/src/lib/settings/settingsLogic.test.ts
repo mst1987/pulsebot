@@ -309,6 +309,16 @@ describe("connection cards", () => {
         });
         expect(logic.connectionPatch("battlenet", {}, "").blizzard.clientSecret).toBe("");
     });
+
+    it("has a GitHub card for the addon downloads (#818): only the token, full admins only", () => {
+        expect(logic.connectionState("github", { github: { hasToken: true } })).toEqual({ tone: "ok", label: "Token hinterlegt", missing: false });
+        expect(logic.connectionState("github", {})).toEqual({ tone: "mid", label: "Token fehlt", missing: true });
+        expect(logic.connectionPatch("github", {}, " t ".trim())).toEqual({ github: { token: "t" } });
+        expect(logic.connectionPatch("github", {}, "")).toEqual({ github: { token: "" } });
+        expect(logic.connectionPatch("github", {}, undefined)).toEqual({});
+        expect(logic.visibleConnections(true)).toContain("github");
+        expect(logic.visibleConnections(false)).not.toContain("github");
+    });
 });
 
 describe("Discord-Server cards (#251, #361)", () => {

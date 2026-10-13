@@ -35,7 +35,7 @@ describe("one menu for both front ends", () => {
                 // a sub entry keeps its parent's colour (the raid plan pages under Raid-Events,
                 // Dungeon-Bestzeiten under Roster)
                 ...(entry.sub ? { area: parentOf(entry).id, sub: true } : {}),
-                // the download page (Sync-Tool & Addon) is a System tool and wears the System colour
+                // the download page (Addons, #818, where the sync tool page was) wears the System colour
                 ...(entry.id === "addon" ? { area: "system" } : {}),
                 // an adminOnly entry (Systemstatus) belongs to no area: full admins only
                 ...(entry.adminOnly ? { adminOnly: true } : {}),
