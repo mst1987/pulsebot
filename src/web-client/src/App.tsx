@@ -37,6 +37,7 @@ const HistoryCharPage = lazyWithReload(() => import("./pages/history/HistoryChar
 const RostersPage = lazyWithReload(() => import("./pages/roster/RostersPage"));
 const RosterDetailPage = lazyWithReload(() => import("./pages/roster/RosterDetailPage"));
 const RosterCharsPage = lazyWithReload(() => import("./pages/roster/RosterCharsPage"));
+const DungeonsPage = lazyWithReload(() => import("./pages/dungeons/DungeonsPage"));
 const AbsencesPage = lazyWithReload(() => import("./pages/absences/AbsencesPage"));
 const ProfilePage = lazyWithReload(() => import("./pages/profile/ProfilePage"));
 const SignupsPage = lazyWithReload(() => import("./pages/SignupsPage"));
@@ -232,6 +233,8 @@ function MenuApp() {
                                 <Route path="roster" element={<Guard user={user} areas={["roster"]}><RostersPage /></Guard>} />
                                 <Route path="roster/r/:rosterId/:tab?" element={<Guard user={user} areas={["roster"]}><RosterDetailPage /></Guard>} />
                                 <Route path="roster/chars" element={<Guard user={user} areas={["roster"]}><RosterCharsPage /></Guard>} />
+                                {/* Dungeon-Bestzeiten: a page of the Roster family, readable by every member (base access "signup") */}
+                                <Route path="roster/dungeons" element={<Guard user={user} areas={["roster", "signup"]}><DungeonsPage /></Guard>} />
                                 {/* Same character page, reached from the roster — the page keeps
                                     its back-link pointing at wherever it was opened from. */}
                                 <Route path="roster/char" element={<Guard user={user} areas={["roster"]}><HistoryCharPage /></Guard>} />

@@ -305,6 +305,8 @@
   "POST /api/ingest/guildbank",
   "GET /api/ingest/guildbank/handouts",
   "POST /api/ingest/guildbank/handouts",
+  "POST /api/ingest/levelhelper",
+  "GET /api/dungeons",
   "GET /api/system/status",
   "GET /api/system/backup",
   "POST /api/system/backup/snapshot"

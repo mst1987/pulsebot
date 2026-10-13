@@ -51,6 +51,10 @@
         "recruitment": {
             "label": "Recruitment",
             "crumb": "Module · Bewerbungen"
+        },
+        "dungeons": {
+            "label": "Dungeon-Bestzeiten",
+            "crumb": "Module · Gildenrekorde aus dem Addon LevelHelper"
         }
     },
     "page": {
@@ -226,7 +230,10 @@
         "discordVisuals": "Bilder in Bot-Nachrichten · {name} {state}",
         "on": "an",
         "off": "aus",
-        "signupCharacters": "{name} · Charaktere je Anmeldung → {count}"
+        "signupCharacters": "{name} · Charaktere je Anmeldung → {count}",
+        "dungeonRecordsOn": "Gildenrekorde posten: an",
+        "dungeonRecordsOff": "Gildenrekorde posten: aus",
+        "dungeonRecordsChannel": "Kanal für Gildenrekorde"
     },
     "lootTool": {
         "none": "keins"
@@ -1394,5 +1401,12 @@
         "setupImageTip": "Test: die Gruppen des geposteten Setups als Bild statt als Liste; Bestätigen-Haken im Bild, Knöpfe bleiben.",
         "eventCover": "Titelbild des Discord-Events",
         "eventCoverTip": "Test: das Discord-Server-Event eines Raids bekommt das Bild des Raids als Titelbild (eigenes Event-Bild, sonst die Zonengrafik)."
+    },
+    "dungeonRecords": {
+        "post": "Neue Gildenrekorde posten",
+        "postTip": "Ein Gold-Lauf, der jetzt der schnellste seines Dungeons ist, kommt als Karte in den Kanal. Nur Läufe der letzten drei Tage, höchstens drei je Upload.",
+        "channel": "Kanal für Gildenrekorde",
+        "channelSub": "Hier postet der Bot jeden neuen Gildenrekord, in der Bot-Sprache.",
+        "noChannel": "Ohne Kanal wird nichts gepostet."
     }
 }

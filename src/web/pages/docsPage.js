@@ -47,6 +47,7 @@ const DISCORD_GROUPS = [
         "<code>/report</code> — Liste der Log-Auswertungen.",
         "<code>/loot ich · item · raider</code> — eigene/Item-/Spieler-Loot-Historie.",
         "<code>/council &lt;Item&gt;</code> — Loot-Council-Infos zu einem Item (Orga).",
+        "<code>/bestzeiten [dungeon]</code> — Dungeon-Bestzeiten der Gilde (LevelHelper), ohne Dungeon die Gesamtwertung.",
         "<code>/kanal umbenennen · archivieren · anlegen</code> — Kanalverwaltung (Orga).",
     ] },
     { cat: "raids", title: "Event-Verwaltung", badge: "Orga", items: [
@@ -102,6 +103,7 @@ const WEB_GROUPS = [
     { cat: "roster", title: "Roster", badge: "Bereich: roster", items: [
         "Alle bekannten Charaktere je Raid-Kategorie mit Anwesenheit.",
         "Charaktere ausblenden (ohne Daten zu löschen), z. B. bei Guild-Austritt.",
+        "Dungeon-Bestzeiten (auch für Mitglieder): die schnellsten Gruppenläufe je Dungeon aus dem Addon LevelHelper, Gesamtwertung nach Medaillen, Erfolgspunkte.",
     ] },
     { cat: "lootcouncil", title: "Loot-Council", badge: "Bereich: lootcouncil", items: [
         "Rangliste je Raider nach Bedarf (Drought, Loot-Anteil, BiS-Abstand).",

@@ -65,6 +65,7 @@ Diese Befehle antworten privat (nur für dich sichtbar) und verlinken meist auf 
 - `/report` — Liste der vorhandenen Log-Auswertungen.
 - `/loot ich · item · raider` — eigene Loot-Historie, Historie zu einem Item, oder zu einem Spieler.
 - `/council <Item>` — Loot-Council-Infos zu einem Item (Orga).
+- `/bestzeiten [dungeon]` — Dungeon-Bestzeiten der Gilde aus dem Addon LevelHelper: mit Dungeon die fünf schnellsten Gruppenläufe, ohne die Gesamtwertung nach Medaillen.
 - `/kanal umbenennen · archivieren · anlegen` — Kanalverwaltung direkt aus Discord (Orga).
 
 ## Event-Verwaltung (nur Orga)

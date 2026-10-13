@@ -309,6 +309,15 @@ Technik: [loot-import.md](loot-import.md)
 - **Warteliste** als Reiter neben Ausgebbar: Jeder ausgebbare Gegenstand hat eine (je Bank). Wer zuerst fragt, kommt zuerst dran; der Kopf zeigt „N warten“, jede Zeile „3 warten“. Der Reiter zeigt je Gegenstand die Liste (Platz, Raider oder Charakter, Menge, seit wann; mit Schreibrecht nach vorne/hinten und entfernen; die Filterzeile sucht nach Gegenstand oder Spieler; ein Klick auf „N warten“ im Kopf springt hierher). Rechts in der Filterzeile öffnen zwei Knöpfe je einen kleinen Dialog: **Eintrag anlegen** (Name, Gegenstand, Menge mit -/+) und **Import**: Zeilen „Name, Gegenstand, Anzahl“ direkt aus Google Sheets einfügen (Tab, auch ; oder ,), dann *Vorschau* — sie zeigt, ob der Gegenstand gefunden und der Name einem Raider-Charakter zugeordnet wurde (ohne Groß-/Kleinschreibung und Akzente); zugeordnet wird nur ein bestätigter Charakter; nicht zugeordnete oder mehrdeutige Namen lassen sich in der Vorschau gleich verknüpfen (bei mehreren Raidern einen der Vorschläge antippen, sonst *Verknüpfen* für die Suche); ist der Name nur ein unbestätigter Charakter („Gentle“), schlägt die Vorschau die bestätigten Charaktere desselben Raiders und Namen, die so anfangen, als Chips vor („„Gentle“ ist nicht bestätigt – meinst du: Gentleowl, Gentletwowl“); ohne Auswahl kommen sie nur mit Charakternamen rein (keine DM, Badge „nicht verknüpft“), unbekannte Gegenstände (rot) gar nicht; ein kleiner Tippfehler im Gegenstandsnamen (z. B. „Crimson Spinal“) wird erkannt und in der Vorschau als „erkannt als …“ angezeigt. Neue Einträge stehen hinten, in der Reihenfolge der Zeilen. Wird etwas frei (Scan, Ablehnen, Vormerkung lösen, Reserve gesenkt …), rücken die Ersten von selbst als offene Anfrage nach.
 - Gehören mehrere Banken zum Server (z. B. TBC und Forever), folgt die Seite dem Content-Umschalter; eine Auswahl in der Filterzeile wechselt die Bank. Welche Bank zu welchem Server gehört, steht unter Einstellungen → Verbindungen → *Gildenbanken* (mit nur einem Event-Server ordnet sich eine neue Bank selbst zu).
 
+## Dungeon-Bestzeiten
+
+Unter **Roster** (Icon-Leiste) bzw. für Mitglieder als eigener Menüpunkt: die Gruppenläufe aus dem Addon LevelHelper, die das Sync-Tool hochlädt, immer für die oben gewählte Spielversion.
+
+- **Je Dungeon:** Dungeon wählen, die zehn schnellsten Läufe mit Zeit, Medaille, Gruppe (in Klassenfarben) und Datum.
+- **Gesamtwertung:** Spieler nach Gold, Silber und Bronze, dazu die Dungeons mit Gold.
+- **Erfolgspunkte:** Charaktere nach Erfolgspunkten.
+- Alle Tabellen lassen sich per Klick auf die Spalte sortieren. Ein neuer Gildenrekord kann automatisch in einen Kanal gepostet werden (Einstellungen → Dungeon-Bestzeiten, standardmäßig aus).
+
 ## Sync-Tool & Addon
 
 Technik: [loot-import.md](loot-import.md)

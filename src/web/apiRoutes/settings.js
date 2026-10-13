@@ -544,6 +544,12 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
             .filter((key) => typeof body.discordVisuals[key] === "boolean")
             .map((key) => [key, body.discordVisuals[key]]));
     }
+    // Dungeon records (Einstellungen -> Dungeon-Bestzeiten): only the two fields, merged and checked by the store.
+    if (body.dungeonRecords !== undefined && body.dungeonRecords && typeof body.dungeonRecords === "object") {
+        partial.dungeonRecords = {};
+        if (typeof body.dungeonRecords.post === "boolean") partial.dungeonRecords.post = body.dungeonRecords.post;
+        if (body.dungeonRecords.channelId !== undefined) partial.dungeonRecords.channelId = String(body.dungeonRecords.channelId || "").trim();
+    }
     // Per version (#542): only the versions and fields sent, merged by the store.
     if (body.versionSettings !== undefined) {
         const patch = versionSettingsPatch(body.versionSettings);

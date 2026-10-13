@@ -17,6 +17,11 @@ function topLevelRoutes() {
     return [...new Set(["/", ...paths])];
 }
 
+/** The top-level entry a sub entry lies under. */
+function parentOf(entry) {
+    return MENU.find((o) => !o.sub && o.href !== "/" && entry.href.startsWith(`${o.href}/`)) || {};
+}
+
 describe("one menu for both front ends", () => {
     it("has an entry for every top-level route and a route for every entry", () => {
         // sub entries (the raid plan's templates and catalog under Raid-Events) are routes below a top-level route
@@ -27,8 +32,9 @@ describe("one menu for both front ends", () => {
     it("gives every entry an id, a label, a group, its areas and a WoW icon", () => {
         for (const entry of MENU) {
             expect(entry).toEqual({
-                // a sub entry keeps its parent's colour (the raid plan pages under Raid-Events)
-                ...(entry.sub ? { area: "raids", sub: true } : {}),
+                // a sub entry keeps its parent's colour (the raid plan pages under Raid-Events,
+                // Dungeon-Bestzeiten under Roster)
+                ...(entry.sub ? { area: parentOf(entry).id, sub: true } : {}),
                 // the download page (Sync-Tool & Addon) is a System tool and wears the System colour
                 ...(entry.id === "addon" ? { area: "system" } : {}),
                 // an adminOnly entry (Systemstatus) belongs to no area: full admins only
@@ -70,7 +76,9 @@ describe("one menu for both front ends", () => {
 
     it("uses the icons of the approved design", () => {
         const icons = Object.fromEntries(MENU.filter((e) => !e.sub).map((e) => [e.id, e.wowIcon]));
-        expect(Object.fromEntries(MENU.filter((e) => e.sub).map((e) => [e.id, e.wowIcon]))).toEqual({ planTemplates: "inv_misc_map02", planCatalog: "inv_misc_book_11" });
+        expect(Object.fromEntries(MENU.filter((e) => e.sub).map((e) => [e.id, e.wowIcon]))).toEqual({
+            planTemplates: "inv_misc_map02", planCatalog: "inv_misc_book_11", dungeons: "spell_holy_borrowedtime",
+        });
         expect(icons).toEqual({
             home: "inv_misc_map_01",
             profile: "achievement_character_human_male",

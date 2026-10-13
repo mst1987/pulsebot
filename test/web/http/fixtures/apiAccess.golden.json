@@ -2,6 +2,7 @@
   "areaByPath": {
     "/api/dashboard": ["dashboard", "signup"],
     "/api/dashboard/next-raid": "dashboard",
+    "/api/dungeons": ["roster", "signup"],
     "/api/version": "settings",
     "/api/channels": "channels",
     "/api/channels/duplicate": "channels",
@@ -283,7 +284,8 @@
     "/api/ingest/raids",
     "/api/ingest/council",
     "/api/ingest/guildbank",
-    "/api/ingest/guildbank/handouts"
+    "/api/ingest/guildbank/handouts",
+    "/api/ingest/levelhelper"
   ],
   "adminOnly": [
     "/api/system/backup",

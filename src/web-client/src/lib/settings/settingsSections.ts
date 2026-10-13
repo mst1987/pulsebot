@@ -47,6 +47,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     { id: "topitems", group: "modules", icon: "inv_misc_bag_10" },
     { id: "logs", group: "modules", icon: "inv_misc_pocketwatch_01" },
     { id: "recruitment", group: "modules", icon: "inv_misc_grouplooking" },
+    { id: "dungeons", group: "modules", icon: "spell_holy_borrowedtime" },
 ];
 
 /** Sidebar entry and the part head's title, in the active language. */
