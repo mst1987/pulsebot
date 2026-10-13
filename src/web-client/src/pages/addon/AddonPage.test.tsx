@@ -133,13 +133,47 @@ describe("page Addons", () => {
     it("names the version when it has no addons", async () => {
         vi.mocked(api.getAddons).mockResolvedValue(data([], { versionId: "tbc" }));
         renderPage(<AddonPage />, { route: "/addon", content: twoVersions() });
-        expect(await screen.findByText("Für WoW TBC gibt es gerade keine Addons zum Herunterladen.")).toBeInTheDocument();
+        expect(await screen.findByText("Für WoW TBC gibt es hier keine Addons.")).toBeInTheDocument();
     });
 
-    it("shows the request error", async () => {
-        vi.mocked(api.getAddons).mockRejectedValue(Object.assign(new Error("Kein Zugriff"), { status: 403 }));
+    it("tells a member on Classic which versions have addons, without the admin's way to the settings", async () => {
+        vi.mocked(api.getAddons).mockResolvedValue(data([], {
+            versionId: "classic",
+            addonVersions: [{ id: "tbc", label: "WoW TBC" }, { id: "forever", label: "WoW Forever" }],
+        }));
+        const content = { ...twoVersions(), versions: [...twoVersions().versions, { id: "classic", label: "WoW Classic", short: "Classic" }] };
+        renderPage(<AddonPage />, { route: "/addon", content, user: adminUser({ isAdmin: false }) });
+        expect(await screen.findByText("Für WoW Classic gibt es hier keine Addons.")).toBeInTheDocument();
+        expect(screen.getByText(/Addons gibt es für: WoW TBC, WoW Forever\./)).toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: "Addons einrichten" })).toBeNull();
+    });
+
+    it("shows an admin the way to Einstellungen -> Module -> Addons on an empty page", async () => {
+        vi.mocked(api.getAddons).mockResolvedValue(data([], { versionId: "forever", canManage: true, tokenSet: true, addonVersions: [] }));
+        renderPage(<AddonPage />, { route: "/addon" });
+        expect(await screen.findByText(/gibt es hier keine Addons/)).toBeInTheDocument();
+        expect(screen.queryByText(/Addons gibt es für/)).toBeNull();
+        expect(screen.getByRole("link", { name: "Addons einrichten" })).toHaveAttribute("href", "/settings?section=addons");
+    });
+
+    it("never leaves the page blank: the cards carry no class an ad blocker hides", async () => {
+        const { container } = renderPage(<AddonPage />, { route: "/addon" });
+        await screen.findByRole("heading", { name: "LevelHelper" });
+        const classes = [...container.querySelectorAll("[class]")].flatMap((el) => [...el.classList]);
+        expect(classes.filter((c) => /^ads?-/.test(c))).toEqual([]);
+        expect(container.querySelectorAll(".dlp-card")).toHaveLength(3);
+    });
+
+    it("shows the request error with a way to try again", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getAddons).mockRejectedValueOnce(Object.assign(new Error("Kein Zugriff"), { status: 403 }));
         renderPage(<AddonPage />, { route: "/addon" });
         expect(await screen.findByText("Kein Zugriff")).toBeInTheDocument();
+        expect(screen.getByRole("alert")).toHaveTextContent("Die Addons konnten gerade nicht geladen werden.");
+        await user.click(screen.getByRole("button", { name: "Erneut versuchen" }));
+        expect(await screen.findByRole("heading", { name: "LevelHelper" })).toBeInTheDocument();
+        expect(api.getAddons).toHaveBeenCalledTimes(2);
+        expect(screen.queryByRole("alert")).toBeNull();
     });
 
     it("speaks English", async () => {

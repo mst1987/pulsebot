@@ -8,10 +8,15 @@
 // Read with "signup" (every member) or "history" (the loot importers, who had
 // the old "Sync-Tool & Addon" page here). A full admin also gets the setup
 // hints: a missing or refused GitHub token, with the way to Einstellungen.
+//
+// Never a blank page: no addons for the version says so (with the versions
+// that have some, and for an admin the way to Einstellungen → Module →
+// Addons), a failed request says so with "Erneut versuchen". The classes are
+// "dlp-", never "ad-": ad blockers hide .ad-card/.ad-grid (styles/addon.css).
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { getAddons, type AddonCard, type AddonFile, type AddonsData } from "../../api";
-import { AsyncView, Badge, Expand, PageHead, RaidLoader, WowIcon, buttonClass } from "../../components/ui";
+import { getAddons, type AddonCard, type AddonFile, type AddonsData, type ApiError } from "../../api";
+import { AsyncView, Badge, Button, Expand, PageHead, RaidLoader, WowIcon, buttonClass } from "../../components/ui";
 import { DownloadIcon, WarnIcon } from "../../components/ui/icons";
 import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
@@ -22,6 +27,7 @@ import "../../styles/addon.css";
 
 const ICON = "inv_gizmo_01";
 const SETTINGS_LINK = "/settings?section=verbindungen";
+const ADDON_SETTINGS_LINK = "/settings?section=addons";
 
 /** "LevelHelper-0.3.0.zip · 380 KB" */
 function fileLabel(file: AddonFile): string {
@@ -32,13 +38,13 @@ function fileLabel(file: AddonFile): string {
 /** Why there is nothing to download, in the words of who is reading. */
 function StateNote({ addon, canManage }: { addon: AddonCard; canManage: boolean }) {
     const t = useT();
-    if (addon.state === "no_release") return <p className="ad-state muted">{t("addon.state.noRelease")}</p>;
-    if (!canManage) return <p className="ad-state muted">{t("addon.state.unavailable")}</p>;
+    if (addon.state === "no_release") return <p className="dlp-state muted">{t("addon.state.noRelease")}</p>;
+    if (!canManage) return <p className="dlp-state muted">{t("addon.state.unavailable")}</p>;
     const text = addon.state === "token_missing"
         ? t("addon.admin.tokenMissing", { repo: addon.repo || "" })
         : t(`addon.admin.error.${addon.errorCode || "unreachable"}`);
     return (
-        <div className="ad-state ad-admin">
+        <div className="dlp-state dlp-admin">
             <Badge tone="mid" icon={<WarnIcon />}>{t("addon.admin.badge")}</Badge>
             <span>{text}</span>
             <Link className={buttonClass("ghost", "sm")} to={SETTINGS_LINK}>{t("addon.admin.toSettings")}</Link>
@@ -56,7 +62,7 @@ function InstallGuide({ addon, versionId }: { addon: AddonCard; versionId: strin
     if (addon.install) steps.push(addon.install);
     if (!steps.length) return null;
     return (
-        <div className="ad-install">
+        <div className="dlp-install">
             <h3>{t("addon.install.title")}</h3>
             <ol>{steps.map((s) => <li key={s}>{s}</li>)}</ol>
         </div>
@@ -70,28 +76,28 @@ function AddonCardView({ addon, versionId, canManage }: { addon: AddonCard; vers
     const date = release && release.publishedAt ? formatDate(Date.parse(release.publishedAt)) : "";
     const notes = release ? plainNotes(release.notes) : "";
     return (
-        <section className="ad-card" data-addon={addon.id}>
-            <div className="ad-card-head">
+        <section className="dlp-card" data-addon={addon.id}>
+            <div className="dlp-card-head">
                 <WowIcon name={addon.icon} size={40} />
                 <div>
                     <h2>{addon.name}</h2>
                     {release && (
-                        <div className="ad-version muted">
+                        <div className="dlp-version muted">
                             {t("addon.version", { version: release.version })}{date ? ` · ${date}` : ""}
                         </div>
                     )}
                 </div>
             </div>
-            {addon.description && <p className="ad-desc">{addon.description}</p>}
+            {addon.description && <p className="dlp-desc">{addon.description}</p>}
             {addon.stale && release && (
-                <p className="ad-stale">{t("addon.state.stale", { time: formatDateTime(addon.fetchedAt) })}</p>
+                <p className="dlp-stale">{t("addon.state.stale", { time: formatDateTime(addon.fetchedAt) })}</p>
             )}
             {release && release.assets.length ? (
-                <div className="ad-files">
+                <div className="dlp-files">
                     {release.assets.map((file) => (
                         <a
                             key={file.name}
-                            className={buttonClass("primary", "md", true, "ad-download")}
+                            className={buttonClass("primary", "md", true, "dlp-download")}
                             href={file.url}
                             download={file.name}
                             data-tip={file.sha256 ? "SHA-256" : undefined}
@@ -102,14 +108,14 @@ function AddonCardView({ addon, versionId, canManage }: { addon: AddonCard; vers
                     ))}
                 </div>
             ) : release ? (
-                <p className="ad-state muted">{t("addon.state.noFiles")}</p>
+                <p className="dlp-state muted">{t("addon.state.noFiles")}</p>
             ) : (
                 <StateNote addon={addon} canManage={canManage} />
             )}
             {notes && (
-                <div className="ad-news">
+                <div className="dlp-news">
                     <Expand open={open} onToggle={() => setOpen(!open)} label={t("addon.news")} />
-                    {open && <div className="ad-notes">{notes}</div>}
+                    {open && <div className="dlp-notes">{notes}</div>}
                 </div>
             )}
             {release && <InstallGuide addon={addon} versionId={versionId} />}
@@ -117,32 +123,55 @@ function AddonCardView({ addon, versionId, canManage }: { addon: AddonCard; vers
     );
 }
 
+/** No addon for this version: says so, names the versions that have some, and shows an admin where to set them up. */
+function EmptyState({ data, versionLabel }: { data: AddonsData; versionLabel: string }) {
+    const t = useT();
+    const elsewhere = (data.addonVersions || []).filter((v) => v.id !== data.versionId);
+    return (
+        <div className="empty dlp-empty">
+            <WowIcon name={ICON} size={48} />
+            <p>{t("addon.empty", { version: versionLabel })}</p>
+            {elsewhere.length > 0 && (
+                <p className="muted">{t("addon.emptyElsewhere", { versions: elsewhere.map((v) => v.label).join(", ") })}</p>
+            )}
+            {data.canManage && (
+                <Link className={buttonClass("ghost", "sm")} to={ADDON_SETTINGS_LINK}>{t("addon.admin.toAddonSettings")}</Link>
+            )}
+        </div>
+    );
+}
+
+/** The request failed: what went wrong, and a way to ask again. */
+function ErrorState({ error, onRetry }: { error: ApiError; onRetry: () => void }) {
+    const t = useT();
+    return (
+        <div className="empty dlp-error" role="alert">
+            <p>{t("addon.loadError")}</p>
+            {error.message && <p className="muted">{error.message}</p>}
+            <Button variant="ghost" size="sm" onClick={onRetry}>{t("addon.retry")}</Button>
+        </div>
+    );
+}
+
 function Content({ data, versionLabel }: { data: AddonsData; versionLabel: string }) {
     const t = useT();
-    if (!data.addons.length) {
-        return (
-            <div className="empty ad-empty">
-                <WowIcon name={ICON} size={48} />
-                <p>{t("addon.empty", { version: versionLabel })}</p>
-            </div>
-        );
-    }
+    if (!data.addons.length) return <EmptyState data={data} versionLabel={versionLabel} />;
     const tokenMissing = data.canManage && data.tokenSet === false && data.addons.some((a) => a.state === "token_missing");
     return (
         <>
             {tokenMissing && (
-                <div className="ad-state ad-admin ad-banner">
+                <div className="dlp-state dlp-admin dlp-banner">
                     <Badge tone="mid" icon={<WarnIcon />}>{t("addon.admin.badge")}</Badge>
                     <span>{t("addon.admin.tokenBanner")}</span>
                     <Link className={buttonClass("ghost", "sm")} to={SETTINGS_LINK}>{t("addon.admin.toSettings")}</Link>
                 </div>
             )}
-            <div className="ad-grid">
+            <div className="dlp-grid">
                 {data.addons.map((addon) => (
                     <AddonCardView key={addon.id} addon={addon} versionId={data.versionId} canManage={data.canManage} />
                 ))}
             </div>
-            <p className="ad-foot muted">{t("addon.limit", { count: data.downloadLimit })}</p>
+            <p className="dlp-foot muted">{t("addon.limit", { count: data.downloadLimit })}</p>
         </>
     );
 }
@@ -156,7 +185,11 @@ export default function AddonPage() {
     return (
         <>
             <PageHead icon={ICON} tone="system" title={t("addon.title")} />
-            <AsyncView state={page} loading={<RaidLoader text={t("addon.loading")} />}>
+            <AsyncView
+                state={page}
+                loading={<RaidLoader text={t("addon.loading")} />}
+                error={(err) => <ErrorState error={err} onRetry={() => { void page.reload(); }} />}
+            >
                 {(data) => <Content data={data} versionLabel={versionLabel} />}
             </AsyncView>
         </>

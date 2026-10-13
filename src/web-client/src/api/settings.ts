@@ -98,8 +98,13 @@ export type AdminConfig = {
     // GitHub token for the private addon repos (#818), full admins only. Same
     // contract: the token never comes back. Read: { hasToken }. Write: { token }.
     github?: { hasToken?: boolean; token?: string };
-    // The addons of the page "Addons" (#818), full admins only; sent whole.
+    // The addons of the page "Addons" (#818), full admins only; sent whole and
+    // alone (Einstellungen → Module → Addons is the only sender).
     addonDownloads?: AddonSetting[];
+    // Read: whether an admin edited that list (only then may it stay empty).
+    addonDownloadsCustomized?: boolean;
+    // Write only: "Standard wiederherstellen" - the default addons again, sent alone.
+    addonDownloadsReset?: boolean;
     // Which loot addon a Discord category raids with ("gargul" | "rclc" | ""),
     // keyed by category id — preselects the parser on the loot import and tells
     // the raid-detail loot tab which export to ask for.

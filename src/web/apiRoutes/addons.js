@@ -16,7 +16,8 @@ const { withUser } = require("../http/apiHandler");
 const { q } = require("../http/apiParams");
 const { getConfig } = require("../../stores/configStore");
 const { resolveVersionQuery } = require("../../services/events/mainVersion");
-const { addonCards, resolveDownload, tokenOf } = require("../../services/addons/addonReleases");
+const { VERSIONS } = require("../../config/gameVersions");
+const { addonCards, addonVersions, resolveDownload, tokenOf } = require("../../services/addons/addonReleases");
 const { openAssetStream } = require("../../classes/githubReleases");
 const { takeDownload, LIMIT } = require("../../services/addons/downloadLimit");
 const log = require("../../logger").child("addons");
@@ -55,6 +56,8 @@ const getAddons = withUser({}, async ({ user, query, res }) => {
         ...(canManage ? { tokenSet: !!tokenOf(config) } : {}),
         downloadLimit: LIMIT,
         addons,
+        // the versions that do have addons, for the hint on an empty page (e.g. Classic)
+        addonVersions: addonVersions(config).map((id) => ({ id, label: (VERSIONS.find((v) => v.id === id) || { label: id }).label })),
     });
 });
 
