@@ -86,6 +86,54 @@ describe("addonCenter channelVersion", () => {
     });
 });
 
+describe("addonCenter game version setting", () => {
+    it("a picked version wins over the category; empty, unknown or hidden falls back to the category", () => {
+        mockConfig.categoryVersion = { "cat-tbc": "tbc" };
+        mockChannels.x = { id: "x", parentId: "cat-tbc", isThread: () => false };
+        expect(center.channelVersion("x", mockConfig)).toBe("tbc");
+        store.setSettings({ versionId: "forever" });
+        expect(center.channelVersion("x", mockConfig)).toBe("forever");
+        store.setSettings({ versionId: "classic" });
+        expect(center.channelVersion(CH, mockConfig)).toBe("classic");
+        // a hidden version (only the main one is shown) falls back
+        expect(center.channelVersion("x", { ...mockConfig, hideOtherVersions: true })).toBe("forever");
+        store.setSettings({ versionId: "" });
+        expect(center.channelVersion("x", mockConfig)).toBe("tbc");
+    });
+
+    it("names the version in the empty state", async () => {
+        store.setSettings({ versionId: "classic" });
+        const built = await center.currentPayload({ channelId: CH, config: mockConfig, now: NOW });
+        expect(built.versionId).toBe("classic");
+        expect(JSON.stringify(built.payload)).toContain("Für Classic Era gibt es hier keine Addons.");
+    });
+
+    it("a changed version redraws a posted centre and only remembers the versions of the addons now shown", async () => {
+        const tbcAddon = { ...defaultAddons()[0], id: "tbcaddon", name: "TbcAddon", versions: ["tbc"], assets: ["Tbc-*.zip"] };
+        mockConfig.addonDownloads = [...defaultAddons(), tbcAddon];
+        mockReleases.tbcaddon = ok("1.0.0", { assets: [{ id: 9, name: "Tbc-1.0.0.zip", size: 1 }] });
+        await center.postCenter({ now: NOW });
+        expect(store.getSeen().tbcaddon).toBeUndefined();
+        const res = await center.saveSettings({ versionId: "tbc" }, { config: mockConfig, now: NOW });
+        expect(res.settings.versionId).toBe("tbc");
+        expect(discord.editPayload).toHaveBeenCalledTimes(1);
+        expect(JSON.stringify(discord.editPayload.mock.calls[0][2])).toContain("addonhub:dl:tbcaddon");
+        expect(store.getSeen().tbcaddon).toEqual({ version: "1.0.0", previous: "", newSince: 0, notifiedAt: 0 });
+        expect(mockSend).not.toHaveBeenCalled();
+        // the same setting again changes nothing
+        discord.editPayload.mockClear();
+        await center.saveSettings({ versionId: "tbc" }, { config: mockConfig, now: NOW });
+        expect(discord.editPayload).not.toHaveBeenCalled();
+        expect(await center.saveSettings({ versionId: "nope" })).toEqual({ error: "Ungültige Spielversion." });
+    });
+
+    it("the version check follows the picked version", async () => {
+        await center.postCenter({ now: NOW });
+        store.setSettings({ versionId: "classic" });
+        expect(await center.checkVersions({ config: mockConfig, now: NOW })).toEqual({ remembered: [], updated: [], announced: [] });
+    });
+});
+
 describe("addonCenter postCenter / removeCenter", () => {
     it("posts the centre with the channel's addons only (no orga-only, no other version) and remembers it", async () => {
         const res = await center.postCenter({ by: "1", now: NOW });
@@ -262,7 +310,7 @@ describe("addonCenter onCenterMessageDeleted", () => {
 describe("addonCenter saveSettings", () => {
     it("only saves while no centre is posted", async () => {
         const res = await center.saveSettings({ roleId: "" });
-        expect(res).toEqual({ settings: { channelId: CH, roleId: "", announce: true }, center: null });
+        expect(res).toEqual({ settings: { channelId: CH, roleId: "", announce: true, versionId: "" }, center: null });
         expect(discord.postPayload).not.toHaveBeenCalled();
         expect(await center.saveSettings({ channelId: "bad" })).toEqual({ error: "Ungültiger Kanal." });
     });

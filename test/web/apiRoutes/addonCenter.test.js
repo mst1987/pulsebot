@@ -9,7 +9,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
     isOnline: () => true,
     listGuilds: () => [{ id: "g1", name: "Gilde" }, { id: "g2", name: "Talk" }],
     listTextChannels: jest.fn((guildId) => (guildId === "g1"
-        ? [{ id: "c1", name: "addon-downloads", category: "Allgemein", parentId: "" }, { id: "c2", name: "tbc-chat", category: "TBC", parentId: "cat-tbc" }]
+        ? [{ id: "111111111111111111", name: "addon-downloads", category: "Allgemein", parentId: "" }, { id: "222222222222222222", name: "tbc-chat", category: "TBC", parentId: "cat-tbc" }]
         : [{ id: "c9", name: "talk", category: "", parentId: "" }])),
     listRoles: jest.fn((guildId) => [{ id: `r-${guildId}`, name: "Addon-Updates", color: "", managed: false }]),
 }));
@@ -43,16 +43,39 @@ describe("apiRoutes/addonCenter", () => {
         const res = await get("/api/addon-center");
         expect(status(res)).toBe(200);
         expect(body(res)).toEqual({
-            settings: { channelId: "123456789012345678", roleId: "223456789012345678", announce: true },
+            settings: { channelId: "123456789012345678", roleId: "223456789012345678", announce: true, versionId: "" },
             center: { channelId: "123456789012345678", postedAt: 5, url: "https://discord.com/channels/g1/123456789012345678/m1" },
             checkedAt: 9,
             online: true,
             channels: [
-                { id: "c1", name: "addon-downloads", guildId: "g1", category: "WoW Forever" },
-                { id: "c2", name: "tbc-chat", guildId: "g1", category: "TBC Anniversary" },
+                { id: "111111111111111111", name: "addon-downloads", guildId: "g1", category: "WoW Forever" },
+                { id: "222222222222222222", name: "tbc-chat", guildId: "g1", category: "TBC Anniversary" },
             ],
             roles: { g1: [{ id: "r-g1", name: "Addon-Updates", color: "", managed: false }] },
+            versions: [{ id: "tbc", label: "TBC Anniversary" }, { id: "classic", label: "Classic Era" }, { id: "forever", label: "WoW Forever" }],
+            autoVersion: null,
         });
+    });
+
+    it("names the version \"automatic\" means for the chosen channel (its category's), none without a channel", async () => {
+        expect(body(await get("/api/addon-center")).autoVersion).toBeNull();
+        store.setSettings({ channelId: "222222222222222222" });
+        expect(body(await get("/api/addon-center")).autoVersion).toEqual({ id: "tbc", label: "TBC Anniversary" });
+        store.setSettings({ channelId: "111111111111111111", versionId: "classic" });
+        const view = body(await get("/api/addon-center"));
+        expect(view.settings.versionId).toBe("classic");
+        expect(view.autoVersion).toEqual({ id: "forever", label: "WoW Forever" });
+    });
+
+    it("hands the game version on and answers an unknown one with 400", async () => {
+        addonCenter.saveSettings.mockResolvedValueOnce({ settings: {}, center: null });
+        expect(status(await request("PUT", "/api/addon-center", { versionId: "tbc" }))).toBe(200);
+        expect(addonCenter.saveSettings).toHaveBeenLastCalledWith({ versionId: "tbc" }, { by: "1" });
+        addonCenter.saveSettings.mockResolvedValueOnce({ settings: {}, center: null });
+        await request("PUT", "/api/addon-center", { versionId: null });
+        expect(addonCenter.saveSettings).toHaveBeenLastCalledWith({ versionId: "" }, { by: "1" });
+        addonCenter.saveSettings.mockResolvedValueOnce({ error: "Ungültige Spielversion." });
+        expect(status(await request("PUT", "/api/addon-center", { versionId: "nope" }))).toBe(400);
     });
 
     it("names the server next to the version when there are two", async () => {
@@ -78,7 +101,7 @@ describe("apiRoutes/addonCenter", () => {
         const res = await request("PUT", "/api/addon-center", { channelId: "123456789012345678", roleId: null, announce: "yes", other: 1 });
         expect(status(res)).toBe(200);
         expect(addonCenter.saveSettings).toHaveBeenCalledWith({ channelId: "123456789012345678", roleId: "", announce: false }, { by: "1" });
-        expect(body(res).settings).toEqual({ channelId: "", roleId: "", announce: true });
+        expect(body(res).settings).toEqual({ channelId: "", roleId: "", announce: true, versionId: "" });
     });
 
     it("answers a refused setting with 400 and a failed move as a warning next to the saved settings", async () => {

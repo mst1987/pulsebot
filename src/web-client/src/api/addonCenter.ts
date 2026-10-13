@@ -6,7 +6,11 @@ import type { Role } from "./settings";
 // download button; the bot announces new versions there. Full admins only; every
 // change is saved at once (no save bar) and answers the whole view again.
 
-export type AddonCenterSettings = { channelId: string; roleId: string; announce: boolean };
+/** `versionId` "" = automatic: the game version of the channel's category. */
+export type AddonCenterSettings = { channelId: string; roleId: string; announce: boolean; versionId: string };
+
+/** A game version the centre can show. */
+export type AddonCenterVersion = { id: string; label: string };
 
 /** The posted message: where, since when, its link ("" while Discord has not confirmed it). */
 export type AddonCenterPost = { channelId: string; postedAt: number; url: string };
@@ -29,6 +33,10 @@ export type AddonCenterView = {
     channels: AddonCenterChannel[];
     /** The roles per server id: the update role lives on the centre's server. */
     roles: Record<string, Role[]>;
+    /** The game versions to pick from (the visible ones). */
+    versions: AddonCenterVersion[];
+    /** What "automatic" means for the chosen channel, null without a channel. */
+    autoVersion: AddonCenterVersion | null;
     /** The settings were saved, but moving the centre failed (why). */
     warning?: string;
 };
