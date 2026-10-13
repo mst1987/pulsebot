@@ -320,8 +320,14 @@ describe("the raider tooltip and the drag glow", () => {
     });
 
     it("drops the proposal's attendance reason — the tooltip has its own attendance row for everyone", () => {
-        expect(lib.tipReasons(["Von der Orga fixiert", "Anwesenheit 82 %", "Kommt später"])).toEqual(["Von der Orga fixiert", "Kommt später"]);
+        expect(lib.tipReasons(["Von der Orga fixiert", "Anwesenheit 82 %", "Gr. 1 wegen Totem"])).toEqual(["Von der Orga fixiert", "Gr. 1 wegen Totem"]);
         expect(lib.tipReasons(undefined)).toEqual([]);
+    });
+
+    it("drops a reason that only names the signup state — the panel shows it as its field, in the app's one word", () => {
+        expect(lib.tipReasons(["Kommt später", "Nur „Vielleicht“ angemeldet", "Als Ersatz angemeldet", "Von der Orga fixiert"])).toEqual(["Von der Orga fixiert"]);
+        // a sentence that says more stays
+        expect(lib.tipReasons(["Als Ersatz angemeldet – aufgestellt, weil sonst ein Platz frei bliebe"])).toHaveLength(1);
     });
 
     describe("im Setup als — a raider who plays several specs (the third tank, an extra healer)", () => {

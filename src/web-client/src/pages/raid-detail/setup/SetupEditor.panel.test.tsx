@@ -76,7 +76,7 @@ describe("the raider panel", () => {
         const user = userEvent.setup();
         const { container } = await show(withDruid({ attendance: { [MAGE.userId]: ATTENDANCE, [TANK.userId]: { ...ATTENDANCE, pct: 40, link: "auto" } } }));
         expect(screen.queryByRole("complementary", { name: t("setup.person.tip.aria") })).not.toBeInTheDocument();
-        // hovering opens nothing
+        // hovering opens no drawer — only the read-only peek beside the line (SetupEditor.peek.test.tsx)
         await user.hover(slot("Ignis"));
         expect(screen.queryByRole("complementary", { name: t("setup.person.tip.aria") })).not.toBeInTheDocument();
 

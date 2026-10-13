@@ -5,6 +5,8 @@
     },
     "person": {
         "tip": {
+            "peekAria": "Kurzinfo zum Raider",
+            "peekHint": "Klick: auswählen, verschieben, bearbeiten",
             "attendance": "Anwesenheit",
             "attendanceNone": "noch keine Raids gezählt",
             "attendanceDetails": "Details",
@@ -27,19 +29,14 @@
             "pinned": "ausgewählt",
             "pinnedSub": "Das Panel bleibt bei diesem Raider, bis du die Auswahl löst – Esc oder noch einmal auf ihn klicken."
         },
-        "offSpec": "Zweitspec",
-        "status": {
-            "late": "Kommt später",
-            "tentative": "Vielleicht",
-            "bench": "Als Ersatz angemeldet"
-        }
+        "offSpec": "Zweitspec"
     },
     "weights": {
         "requiredBuffs": { "label": "Pflicht-Buffs", "tip": "Buffs, die die Raid-Vorlage verlangt." },
         "mainSpec": { "label": "Hauptspec", "tip": "Raider auf der Spec, mit der sie sich angemeldet haben." },
         "preferredCharacter": { "label": "Wunsch-Charakter", "tip": "Wer mehrere Charaktere angibt, kommt mit dem ersten mit – ein „kann auch mit“-Charakter kostet so viel." },
         "fairness": { "label": "Fairness", "tip": "Wer zuletzt oder oft auf der Bank saß, kommt eher mit. Nur wenn Fairness an ist." },
-        "status": { "label": "Anmeldestatus", "tip": "„Dabei“ vor „Kommt später“ vor „Vielleicht“." },
+        "status": { "label": "Anmeldestatus", "tip": "„Angemeldet“ vor „Spät“ vor „Vielleicht“." },
         "partyBuffs": { "label": "Gruppen-Buffs", "tip": "Totems, Auren, Schreie in der Gruppe, die sie brauchen." },
         "wishes": { "label": "Wünsche", "tip": "„Gerne zusammen mit“ in einer Gruppe. Nur wenn Wünsche an sind." },
         "avoid": { "label": "Nicht zusammen", "tip": "Abzug, wenn ein „nicht zusammen“-Paar in derselben Gruppe steht (bei parallelen Raids: im selben Raid). Nur wenn „nicht zusammen“ an ist." },
@@ -84,14 +81,11 @@
         "empty": "Alle Angemeldeten stehen im Setup.",
         "aria": "Angemeldet, nicht im Setup",
         "title": "Angemeldet",
-        "tip": "Angemeldet, aber weder eingeplant noch auf der Bank. Wird nie gepostet. Ziehe Leute von hier in eine Gruppe oder auf die Bank.",
-        "benchSignup": "Ersatz",
-        "benchSignupTip": "Hat sich als Ersatz (Bank) angemeldet"
+        "tip": "Angemeldet, aber weder eingeplant noch auf der Bank. Wird nie gepostet. Ziehe Leute von hier in eine Gruppe oder auf die Bank."
     },
     "chars": {
         "first": "1. Wahl des Raiders",
         "also": "Kann auch mit – {n}. Wahl",
-        "signed": "Dabei",
         "lineAria": "{character} · {spec} ({n}. Wahl) – ziehen oder anklicken, um genau diesen Charakter einzuteilen",
         "switch": "Charakter wechseln",
         "switchSub": "Ein anderer Charakter, mit dem sich der Raider angemeldet hat. Der Platz bleibt, er wird gesperrt, damit ein neuer Vorschlag ihn nicht zurücksetzt.",
@@ -209,6 +203,9 @@
         "dmsRunning": "DMs laufen"
     },
     "bar": {
+        "placesChip": "{count}/{size} Plätze",
+        "confirmedChip": "{count}/{total} bestätigt",
+        "countsAria": "Rollen und Plätze",
         "ofTarget": "{value} von {target}",
         "withTarget": "{value} (Soll {target})",
         "places": "{count} von {size} Plätzen",
@@ -249,6 +246,10 @@
         "kicker": "Raider"
     },
     "poolPanel": {
+        "statusFilter": "Nach Status filtern",
+        "statusChipTip": "Nur „{status}“ zeigen",
+        "statusChipSub": "Ein Klick zeigt nur diese Anmeldungen, ein zweiter wieder alle. Lässt sich mit den Rollen kombinieren.",
+        "statusHead": "{status} · {count}",
         "notPlaced": "noch nicht eingeteilt",
         "search": "Raider oder Spec suchen",
         "filter": "Nach Rolle filtern",
@@ -274,6 +275,13 @@
         "go": "Füllen"
     },
     "postOptions": {
+        "menu": "Post-Optionen",
+        "menuSub": "Was beim Posten mitgeht: die Bank und die DMs an die Spieler.",
+        "head": "Beim Posten",
+        "withDms": "mit DMs",
+        "withoutDms": "ohne DMs",
+        "withBench": "mit Bank",
+        "withoutBench": "ohne Bank",
         "aria": "Was mit dem Setup gepostet wird",
         "bench": "Bank mitposten",
         "benchSub": "An: Die Bank steht in der Setup-Nachricht, und die Bank-Spieler bekommen eine DM. Aus: Die Bank bleibt intern. Gilt beim nächsten „Setup posten“ und wird für diesen Raid gemerkt.",
@@ -416,6 +424,7 @@
         "failed": "Anmeldung nicht gespeichert."
     },
     "raidGroup": {
+        "overbookedHint": { "one": "{count} Anmeldung für {places} Plätze", "other": "{count} Anmeldungen für {places} Plätze" },
         "aria": "Raids dieser Gruppe",
         "tab": "Raid {index}",
         "tabTip": "{title} · {placed} von {size} eingeteilt",

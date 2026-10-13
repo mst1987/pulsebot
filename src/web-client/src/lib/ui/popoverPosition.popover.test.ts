@@ -60,6 +60,31 @@ describe("tipPositionRight", () => {
     });
 });
 
+describe("besidePosition", () => {
+    const box = { width: 340, height: 300 };
+
+    it("puts the box right of the anchor, top edges aligned", () => {
+        expect(lib.besidePosition(rect(300, 200, 180, 46), box, VIEW)).toEqual({ left: 490, top: 200 });
+    });
+
+    it("goes left of the anchor when there is no room on the right", () => {
+        expect(lib.besidePosition(rect(1300, 200, 180, 46), box, VIEW)).toEqual({ left: 950, top: 200 });
+    });
+
+    it("stays inside the viewport at the bottom and the top", () => {
+        expect(lib.besidePosition(rect(300, 800, 180, 46), box, VIEW).top).toBe(592);
+        expect(lib.besidePosition(rect(300, 200, 180, 46), { width: 340, height: 2000 }, VIEW).top).toBe(8);
+    });
+
+    it("falls back to the box above or below with room on neither side (a phone)", () => {
+        const phone = { width: 390, height: 800 };
+        const a = rect(20, 400, 350, 46);
+        expect(lib.besidePosition(a, box, phone)).toEqual(lib.tipPosition(a, box, phone, 10));
+        expect(lib.besidePlacement()(a, box, phone)).toEqual(lib.tipPosition(a, box, phone, 10));
+        expect(lib.besidePlacement()(null, box, phone)).toEqual({});
+    });
+});
+
 describe("belowEndPosition", () => {
     it("puts a menu under its button, right edges aligned", () => {
         expect(lib.belowEndPosition(rect(1000, 100, 200, 40), VIEW)).toEqual({ top: 146, right: 400 });

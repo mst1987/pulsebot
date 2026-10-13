@@ -44,6 +44,19 @@ export function tipPositionRight(anchor: Rect, box: Size, viewport: Size, gap = 
     return { left, top: Math.max(VIEWPORT_MARGIN, Math.min(top, viewport.height - box.height - VIEWPORT_MARGIN)) };
 }
 
+/**
+ * A peek beside its anchor — the setup editor's raider info on hover: right of
+ * the anchor, else left of it, top aligned and kept inside the viewport; with
+ * room on neither side (a phone) the box above or below (tipPosition). Never
+ * over the anchor itself, so the line under the pointer stays draggable.
+ */
+export function besidePosition(anchor: Rect, box: Size, viewport: Size, gap = 10): { left: number; top: number } {
+    const top = Math.max(VIEWPORT_MARGIN, Math.min(anchor.top, viewport.height - box.height - VIEWPORT_MARGIN));
+    if (anchor.right + gap + box.width <= viewport.width - VIEWPORT_MARGIN) return { left: anchor.right + gap, top };
+    if (anchor.left - gap - box.width >= VIEWPORT_MARGIN) return { left: anchor.left - gap - box.width, top };
+    return tipPosition(anchor, box, viewport, gap);
+}
+
 /** A menu under its button, its right edge on the button's right edge. */
 export function belowEndPosition(anchor: Rect, viewport: Size, gap = 6): { top: number; right: number } {
     return { top: anchor.bottom + gap, right: Math.max(VIEWPORT_MARGIN, viewport.width - anchor.right) };
@@ -78,6 +91,11 @@ export function panelPosition(anchor: Rect, viewport: Size, width = 340, maxHeig
 /** Placement: a tooltip over the anchor (see tipPosition). */
 export function tipPlacement(gap = 9): Placement {
     return (anchor, box, viewport) => (anchor ? tipPosition(anchor, box, viewport, gap) : {});
+}
+
+/** Placement: a peek beside the anchor, right or left of it (see besidePosition). */
+export function besidePlacement(gap = 10): Placement {
+    return (anchor, box, viewport) => (anchor ? besidePosition(anchor, box, viewport, gap) : {});
 }
 
 /** Placement: a menu under its button, right-aligned (see belowEndPosition). */
