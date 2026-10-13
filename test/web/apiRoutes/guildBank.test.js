@@ -158,6 +158,18 @@ describe("apiRoutes/guildBank", () => {
             expect(queueItemEmojiSync).toHaveBeenCalledTimes(1);
         });
 
+        it("sets the waiting list's portion per turn (default 2) and refuses one out of range", async () => {
+            const bank = record("Alpha", "g1");
+            let res = await call(postGuildBankItem, { payload: { key: bank.key, itemId: 22854, status: "give" } });
+            expect(body(res).item.portion).toBe(2);
+            res = await call(postGuildBankItem, { payload: { key: bank.key, itemId: 22854, portion: 4 } });
+            expect([status(res), body(res).item.portion]).toEqual([200, 4]);
+            res = await call(postGuildBankItem, { payload: { key: bank.key, itemId: 22854, portion: 0 } });
+            expect(body(res).item.portion).toBe(2);
+            res = await call(postGuildBankItem, { payload: { key: bank.key, itemId: 22854, portion: 100 } });
+            expect([status(res), body(res).error.message]).toEqual([400, "Die Portion pro Runde muss eine ganze Zahl von 1 bis 99 sein."]);
+        });
+
         it("refuses wrong values, an empty change, unknown items and another server's bank", async () => {
             const bank = record("Alpha", "g1");
             const other = record("Beta", "g2");

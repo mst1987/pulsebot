@@ -129,6 +129,25 @@ describe("stores/guildBankStockStore", () => {
             .toMatchObject({ status: "show", maxPerRequest: 0 });
     });
 
+    it("keeps the waiting list's portion per item: 1–99, the default 2 when none is set", () => {
+        store.recordScan(scan(), { now: NOW });
+        // no setting: the default, read as the effective value
+        expect(store.getBank(KEY).items.find((i) => i.itemId === 22854).portion).toBe(store.PORTION_DEFAULT);
+        expect(store.PORTION_DEFAULT).toBe(2);
+        expect(store.setItemSettings(KEY, 22854, { portion: "5" }).item.portion).toBe(5);
+        expect(store.setItemSettings(KEY, 22854, { portion: 99 }).item.portion).toBe(99);
+        expect(store.setItemSettings(KEY, 22854, { portion: 100 }).error).toBe("Die Portion pro Runde muss eine ganze Zahl von 1 bis 99 sein.");
+        expect(store.setItemSettings(KEY, 22854, { portion: "1.5" }).error).toMatch(/Portion/);
+        expect(store.getBank(KEY).items.find((i) => i.itemId === 22854).portion).toBe(99);
+        // the default (or 0) is stored as "follows the default", over a new scan too
+        expect(store.setItemSettings(KEY, 22854, { portion: 2 }).item.portion).toBe(2);
+        expect(store.setItemSettings(KEY, 22854, { portion: 1 }).item.portion).toBe(1);
+        expect(store.setItemSettings(KEY, 22854, { portion: 0 }).item.portion).toBe(2);
+        store.recordScan(scan({ scannedAt: 1791003600 }), { now: NOW + 1 });
+        expect(store.getBank(KEY).items.find((i) => i.itemId === 22854).portion).toBe(2);
+        expect([store.portionOf({ portion: 7 }), store.portionOf({ portion: 0 }), store.portionOf(null), store.portionOf({ portion: 500 })]).toEqual([7, 2, 2, 99]);
+    });
+
     it("hides a whole tab, also one that is gone from the bank", () => {
         store.recordScan(scan(), { now: NOW });
         expect(store.setTabHidden(KEY, 2, true).bank.tabs.find((t) => t.index === 2).hidden).toBe(true);

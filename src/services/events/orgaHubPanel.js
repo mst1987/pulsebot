@@ -5,8 +5,11 @@
 // One Components V2 container in the orga's turquoise:
 //   heading       "Orga-Zentrale · <Kategorie>", "<n> Raids in den nächsten 4 Wochen"
 //   summary       the counts by status with their icons ("1 Setup offen · 1 geändert …")
-//   buttons       "Raid anlegen" (orga:new:<categoryId>, commands/event/orgaHubButton.js)
-//                 and the link "Alle Raids im Web"
+//   buttons       "Raid anlegen" (orga:new:<categoryId>, commands/event/orgaHubButton.js),
+//                 the link "Alle Raids im Web" and "Links ..." (orga:links:<categoryId>:
+//                 the orga manages the links in Discord, services/events/orgaHubLinks.js)
+//   links         the category's orga links as link buttons in a row of their own
+//                 (none = no row), stores/orgaHubStore.js
 //   one section per raid, soonest first, at most MAX_RAIDS:
 //                 **title** / date · countdown · channel / status icon, label, detail
 //                 with a link button into the web on the right (none for a cancelled raid)
@@ -15,7 +18,9 @@
 // Orga texts stay German (CLAUDE.md, "Language"). Dates are Discord timestamps,
 // so every reader sees their own time zone and "in 3 Tagen" counts down by
 // itself. Discord allows 40 components per message: 6 for the head, 3 per raid
-// (section, text, button) and 2 for the foot stay under it with ten raids.
+// (section, text, button) and 2 for the foot stay under it with ten raids; the
+// links row (1 row + 1 per link) takes room away from the raids (raidCapacity),
+// so the message always fits.
 const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SectionBuilder, SeparatorBuilder,
     SeparatorSpacingSize, TextDisplayBuilder,
@@ -27,6 +32,12 @@ const { plainCategoryName } = require("../../utils/signup/availabilityDialog");
 const COLOR_ORGA = 0x35d6c4;
 /** Raids listed in the message; the rest is in the web. */
 const MAX_RAIDS = 10;
+/** Discord's limit of components in one message, nested ones and the container included. */
+const COMPONENT_LIMIT = 40;
+/** Container, heading text, buttons row with its three buttons, divider (head); divider, footer text (foot). */
+const FIXED_COMPONENTS = 1 + 1 + 1 + 3 + 1 + 2;
+/** Section + text + button of one raid. */
+const COMPONENTS_PER_RAID = 3;
 /** The customId prefix of "Raid anlegen" (commands/event/orgaHubButton.js). */
 const NEW_RAID_PREFIX = "orga";
 
@@ -39,6 +50,14 @@ const text = (content) => new TextDisplayBuilder().setContent(content);
 const line = () => new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large);
 const linkButton = (label, url) => new ButtonBuilder().setLabel(label).setStyle(ButtonStyle.Link).setURL(url);
 const newRaidId = (categoryId) => `${NEW_RAID_PREFIX}:new:${categoryId}`;
+const linksId = (categoryId) => `${NEW_RAID_PREFIX}:links:${categoryId}`;
+
+/** How many raids fit next to `linkCount` link buttons (never more than MAX_RAIDS). */
+function raidCapacity(linkCount = 0) {
+    const links = Math.max(0, Number(linkCount) || 0);
+    const used = FIXED_COMPONENTS + (links ? 1 + links : 0);
+    return Math.max(0, Math.min(MAX_RAIDS, Math.floor((COMPONENT_LIMIT - used) / COMPONENTS_PER_RAID)));
+}
 
 /** The status icon: the bot's application emoji, else its unicode stand-in. */
 function statusIcon(emojis, status) {
@@ -72,12 +91,13 @@ function raidLines(raid, emojis) {
  *   the category's raids in the next weeks, soonest first (`url` = the button into the web, "" for none)
  * @param {{ status: string, label: string }[]} [o.counts] the summary (orgaStatus.statusCounts)
  * @param {number} [o.total] how many active raids the weeks hold (the heading counts these)
+ * @param {{ label: string, url: string }[]} [o.links] the orga links (stores/orgaHubStore.js), at most five
  * @param {string} [o.webUrl] "Alle Raids im Web", "" when no public address is set
  * @param {number} [o.weeks] how far ahead it looks
  * @param {object} [o.emojis] the bot's application emojis by name (appEmojis.appEmojiMap())
  * @returns {{ flags: number, components: object[], embeds: [], content: "" }} API JSON
  */
-function orgaHubPayload({ categoryId = "", categoryName = "", raids = [], counts = [], total = 0, webUrl = "", weeks = 4, emojis = {} } = {}) {
+function orgaHubPayload({ categoryId = "", categoryName = "", raids = [], counts = [], links = [], total = 0, webUrl = "", weeks = 4, emojis = {} } = {}) {
     const category = plainCategoryName(categoryName);
     const c = new ContainerBuilder().setAccentColor(COLOR_ORGA);
     const n = Math.max(0, Number(total) || 0);
@@ -88,9 +108,13 @@ function orgaHubPayload({ categoryId = "", categoryName = "", raids = [], counts
 
     const buttons = [new ButtonBuilder().setCustomId(newRaidId(categoryId)).setLabel("Raid anlegen").setStyle(ButtonStyle.Primary)];
     if (webUrl) buttons.push(linkButton("Alle Raids im Web", webUrl));
+    buttons.push(new ButtonBuilder().setCustomId(linksId(categoryId)).setLabel("Links …").setStyle(ButtonStyle.Secondary));
     c.addActionRowComponents(new ActionRowBuilder().addComponents(buttons));
+    const shownLinks = (links || []).filter((l) => l && l.label && l.url).slice(0, 5);
+    if (shownLinks.length) c.addActionRowComponents(new ActionRowBuilder().addComponents(shownLinks.map((l) => linkButton(l.label, l.url))));
 
-    const shown = (raids || []).slice(0, MAX_RAIDS);
+    const cap = raidCapacity(shownLinks.length);
+    const shown = (raids || []).slice(0, cap);
     c.addSeparatorComponents(line());
     if (!shown.length) c.addTextDisplayComponents(text("Noch kein Raid geplant. „Raid anlegen“ legt den nächsten an."));
     for (const raid of shown) {
@@ -106,10 +130,10 @@ function orgaHubPayload({ categoryId = "", categoryName = "", raids = [], counts
     c.addSeparatorComponents(line());
     const foot = [
         more > 0 ? `${more} weitere ${more === 1 ? "Raid steht" : "Raids stehen"} im Web` : "",
-        `Aktualisiert sich selbst · vergangene Raids fallen raus · höchstens ${MAX_RAIDS} Raids, der Rest steht im Web`,
+        `Aktualisiert sich selbst · vergangene Raids fallen raus · höchstens ${cap} Raids, der Rest steht im Web`,
     ].filter(Boolean).join("\n-# ");
     c.addTextDisplayComponents(text(`-# ${foot}`));
     return { flags: MessageFlags.IsComponentsV2, components: [c.toJSON()], embeds: [], content: "" };
 }
 
-module.exports = { orgaHubPayload, statusIcon, newRaidId, MAX_RAIDS, NEW_RAID_PREFIX, COLOR_ORGA, FALLBACK_ICONS };
+module.exports = { orgaHubPayload, statusIcon, newRaidId, linksId, raidCapacity, MAX_RAIDS, COMPONENT_LIMIT, NEW_RAID_PREFIX, COLOR_ORGA, FALLBACK_ICONS };

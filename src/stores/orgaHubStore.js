@@ -1,9 +1,13 @@
 // The "Orga-Zentrale" messages (services/events/orgaHub.js): one per raid
 // category at most, posted by the orga into a channel only the orga sees.
 //
-// `data/settings/orga-hubs.json` = { hubs: [hub] }
+// `data/settings/orga-hubs.json` = { hubs: [hub], links: { [categoryId]: [{ label, url }] } }
 //
-//   hub = { categoryId, guildId, channelId, messageId, postedAt, postedBy, hash }
+//   hub   = { categoryId, guildId, channelId, messageId, postedAt, postedBy, hash }
+//   links = the link buttons below the hub's "Raid anlegen" row (WCL invite,
+//           raid sheet ...), at most MAX_LINKS per category, checked like the
+//           raider organizer's (availabilityStore.checkLinks); kept apart from
+//           the hub so posting anew keeps them
 //
 // `hash` is the fingerprint of what the message shows (orgaHub.payloadHash),
 // so the sweep redraws only a hub whose content changed. Kept apart from the
@@ -11,12 +15,14 @@
 // and a save of the settings page must never race it.
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
+const { checkLinks, MAX_LINKS, LINK_LABEL_MAX } = require("./availabilityStore");
 
 const store = createJsonStore({
     file: settingsPath("orga-hubs.json"),
-    defaults: () => ({ hubs: [] }),
+    defaults: () => ({ hubs: [], links: {} }),
     normalize: (data) => ({
         hubs: Array.isArray(data && data.hubs) ? data.hubs.filter((h) => h && h.categoryId && h.channelId && h.messageId) : [],
+        links: data && data.links && typeof data.links === "object" && !Array.isArray(data.links) ? data.links : {},
     }),
 });
 
@@ -73,4 +79,42 @@ function removeHub(categoryId) {
     return { ...hit };
 }
 
-module.exports = { listHubs, getHub, setHub, markHubDrawn, removeHub, useFile };
+/** A category's orga links, in their order. */
+function getLinks(categoryId) {
+    const list = store.read().links[str(categoryId)];
+    return Array.isArray(list) ? list.map((l) => ({ label: str(l && l.label), url: str(l && l.url) })).filter((l) => l.label && l.url) : [];
+}
+
+/** Every category's orga links: `{ [categoryId]: [{ label, url }] }`. */
+function listLinks() {
+    const out = {};
+    for (const categoryId of Object.keys(store.read().links)) {
+        const list = getLinks(categoryId);
+        if (list.length) out[categoryId] = list;
+    }
+    return out;
+}
+
+/**
+ * Replace a category's orga links (checked by availabilityStore.checkLinks, plus: no
+ * address twice); an empty list removes them. `{ links }` or `{ error }` (German).
+ */
+function setLinks(categoryId, list) {
+    const cat = str(categoryId);
+    if (!cat) return { error: "Keine Kategorie gewählt." };
+    const checked = checkLinks(list);
+    if (checked.error) return checked;
+    const seen = new Set();
+    for (const l of checked.value) {
+        const key = l.url.toLowerCase();
+        if (seen.has(key)) return { error: `Die Adresse von „${l.label}“ steht schon in der Liste.` };
+        seen.add(key);
+    }
+    const data = store.read();
+    if (checked.value.length) data.links[cat] = checked.value;
+    else delete data.links[cat];
+    store.write(data);
+    return { links: checked.value.map((l) => ({ ...l })) };
+}
+
+module.exports = { MAX_LINKS, LINK_LABEL_MAX, getLinks, listLinks, setLinks, listHubs, getHub, setHub, markHubDrawn, removeHub, useFile };

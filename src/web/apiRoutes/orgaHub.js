@@ -3,9 +3,10 @@
 // category in a channel only the orga sees. Gated like the raider's Raid-Zentrale
 // (apiRoutes/availability.js panels): area `settings`.
 //
-// GET    /api/orga-hubs   area settings — the posted hubs
+// GET    /api/orga-hubs   area settings — the posted hubs, every category's orga links ({ [categoryId]: [{ label, url }] }) and maxLinks
 // POST   /api/orga-hub    area settings — post (or move) a category's hub; body { categoryId, channelId }
 // DELETE /api/orga-hub    area settings — take it down; body { categoryId }
+// PUT    /api/orga-hub/links  area settings — replace them and redraw the hub; body { categoryId, links }
 const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const orgaHubStore = require("../../stores/orgaHubStore");
@@ -25,7 +26,7 @@ function hubView(hub) {
 
 /** GET /api/orga-hubs — the posted hubs. */
 const getHubs = withUser({}, async ({ res }) => {
-    ok(res, { hubs: orgaHubStore.listHubs().map(hubView) });
+    ok(res, { hubs: orgaHubStore.listHubs().map(hubView), links: orgaHubStore.listLinks(), maxLinks: orgaHubStore.MAX_LINKS });
 });
 
 /** POST /api/orga-hub — post (or move) a category's hub. */
@@ -43,11 +44,19 @@ const deleteHub = withUser({ csrf: true, body: true }, async ({ body, res }) => 
     ok(res, { categoryId: removed.categoryId });
 });
 
+/** PUT /api/orga-hub/links — replace the category's orga links and redraw its hub; body { categoryId, links }. */
+const putLinks = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+    const result = await orgaHub.saveLinks(str(body.categoryId), body.links);
+    if (result.error) return apiError(res, 400, "bad_request", result.error);
+    ok(res, { categoryId: str(body.categoryId), links: result.links });
+});
+
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "GET", path: "/api/orga-hubs", handler: getHubs, area: "settings" },
     { method: "POST", path: "/api/orga-hub", handler: postHub, area: "settings" },
     { method: "DELETE", path: "/api/orga-hub", handler: deleteHub, area: "settings" },
+    { method: "PUT", path: "/api/orga-hub/links", handler: putLinks, area: "settings" },
 ];
 
 module.exports = { routes };
