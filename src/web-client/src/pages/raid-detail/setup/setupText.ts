@@ -11,6 +11,21 @@ export function statusLabel(status: string | undefined): string {
     return "";
 }
 
+/** The signup states that are not a plain "dabei" — they get a labelled badge on the line. */
+export const MARKED_STATUSES = ["late", "tentative", "bench"] as const;
+export type MarkedStatus = typeof MARKED_STATUSES[number];
+
+/** The state a line is marked with: late, tentative or bench — "" for a plain signup. */
+export function markedStatus(status: string | undefined): MarkedStatus | "" {
+    return (MARKED_STATUSES as readonly string[]).includes(status || "") ? status as MarkedStatus : "";
+}
+
+/** The order inside a role block of "Angemeldet": signed first, then late, tentative, bench. */
+export function statusRank(status: string | undefined): number {
+    const marked = markedStatus(status);
+    return marked ? MARKED_STATUSES.indexOf(marked) + 1 : 0;
+}
+
 /** A raider's spec in the active language — the server's label as fallback. */
 export const specText = (p: SetupPerson) => specLabel(p.spec, p.specLabel || p.spec);
 

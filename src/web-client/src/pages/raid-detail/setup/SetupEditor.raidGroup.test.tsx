@@ -1,7 +1,7 @@
 // A raid group (#811) in the setup editor: the tabs "Raid 1 | Raid 2" over the
 // editor (a click switches, a raider dropped on a tab — or picked, then the tab
-// clicked — goes into that raid), "Weiteren Raid hinzufügen" (in the bar while
-// overbooked, else under "Mehr", with the title "<Titel> 2" to edit) and
+// clicked — goes into that raid), "Weiteren Raid hinzufügen" (a calm line under
+// the bar while overbooked, else under "Mehr", with the title "<Titel> 2" to edit) and
 // dissolving a further raid. The API is mocked at its transport.
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -105,11 +105,17 @@ describe("the tabs of a raid group", () => {
 });
 
 describe("Weiteren Raid hinzufügen", () => {
-    it("sits in the bar while more signed up than there are places, asks for the title (\"<Titel> 2\") and switches to the new raid", async () => {
+    it("stands in a calm line under the bar while more signed up than there are places, asks for the title (\"<Titel> 2\") and switches to the new raid", async () => {
         const onSwitchRaid = vi.fn();
         const user = userEvent.setup();
         await show(editorData({ signupCount: 30 }), { onSwitchRaid });
-        await user.click(screen.getByRole("button", { name: t("setup.raidGroup.add") }));
+        // not in the bar's actions and not under "Mehr": the hint line says why, the button sits in it
+        const hint = document.querySelector<HTMLElement>(".se-overbooked")!;
+        expect(hint).toHaveAttribute("role", "status");
+        expect(hint).toHaveTextContent(t("setup.raidGroup.overbookedHint", { count: 30, places: 25 }));
+        expect(t("setup.raidGroup.overbookedHint", { count: 30, places: 25 })).toBe("30 Anmeldungen für 25 Plätze");
+        expect(within(document.querySelector<HTMLElement>(".se-bar")!).queryByRole("button", { name: t("setup.raidGroup.add") })).not.toBeInTheDocument();
+        await user.click(within(hint).getByRole("button", { name: t("setup.raidGroup.add") }));
         const input = screen.getByLabelText(t("setup.raidGroup.titleLabel"));
         expect(input).toHaveValue("Karazhan Donnerstag 2");
         await user.clear(input);
@@ -124,6 +130,7 @@ describe("Weiteren Raid hinzufügen", () => {
         const user = userEvent.setup();
         await show(editorData({ signupCount: 4 }));
         expect(screen.queryByRole("button", { name: t("setup.raidGroup.add") })).not.toBeInTheDocument();
+        expect(document.querySelector(".se-overbooked")).toBeNull();
         await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
         expect(screen.getByRole("menuitem", { name: new RegExp(t("setup.raidGroup.add")) })).toBeInTheDocument();
     });

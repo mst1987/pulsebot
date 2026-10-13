@@ -1,10 +1,13 @@
 {
+    "sig": { "short": { "signed": "Signed", "late": "Late", "tentative": "Tentative", "bench": "Bench" } },
     "extra": {
         "tip": "Extra {role}: plays {role} on some bosses",
         "short": { "tank": "+Tank", "healer": "+Healer" }
     },
     "person": {
         "tip": {
+            "peekAria": "Raider info",
+            "peekHint": "Click to select, move, edit",
             "attendance": "Attendance",
             "attendanceNone": "no raids counted yet",
             "attendanceDetails": "Details",
@@ -84,9 +87,7 @@
         "empty": "Everybody signed up is in the setup.",
         "aria": "Signed up, not in the setup",
         "title": "Signed up",
-        "tip": "Signed up, but neither placed nor on the bench. Never posted. Drag people from here into a group or onto the bench.",
-        "benchSignup": "Sub",
-        "benchSignupTip": "Signed up as a substitute (bench)"
+        "tip": "Signed up, but neither placed nor on the bench. Never posted. Drag people from here into a group or onto the bench."
     },
     "chars": {
         "first": "The raider's first choice",
@@ -209,6 +210,9 @@
         "dmsRunning": "sending DMs"
     },
     "bar": {
+        "placesChip": "{count}/{size} places",
+        "confirmedChip": "{count}/{total} confirmed",
+        "countsAria": "Roles and places",
         "ofTarget": "{value} of {target}",
         "withTarget": "{value} (target {target})",
         "places": "{count} of {size} places",
@@ -249,6 +253,10 @@
         "kicker": "Raider"
     },
     "poolPanel": {
+        "statusFilter": "Filter by status",
+        "statusChipTip": "Show only \"{status}\"",
+        "statusChipSub": "One click shows only these signups, a second one everybody again. Combines with the roles.",
+        "statusHead": "{status} · {count}",
         "notPlaced": "not placed yet",
         "search": "Search raider or spec",
         "filter": "Filter by role",
@@ -274,6 +282,13 @@
         "go": "Fill"
     },
     "postOptions": {
+        "menu": "Post options",
+        "menuSub": "What goes along with the post: the bench and the DMs to the players.",
+        "head": "When posting",
+        "withDms": "with DMs",
+        "withoutDms": "no DMs",
+        "withBench": "with bench",
+        "withoutBench": "no bench",
         "aria": "What is posted with the setup",
         "bench": "Post the bench",
         "benchSub": "On: the bench is in the setup message and the bench players get a DM. Off: the bench stays internal. Applies to the next \"Post setup\" and is remembered for this raid.",
@@ -416,6 +431,7 @@
         "failed": "Signup not saved."
     },
     "raidGroup": {
+        "overbookedHint": { "one": "{count} signup for {places} places", "other": "{count} signups for {places} places" },
         "aria": "Raids of this group",
         "tab": "Raid {index}",
         "tabTip": "{title} · {placed} of {size} placed",

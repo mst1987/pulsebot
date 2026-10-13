@@ -1,18 +1,42 @@
 import { useState, type CSSProperties, type DragEvent, type KeyboardEvent } from "react";
 import { useZone } from "./useZone";
+import { peekHandlers } from "./peek";
 import type { SetupAttendance, SetupConfirmation, SetupEditorData, SetupEditorGroup, SetupPerson } from "../../../api";
 import { placeGrid, withAllGroups, GROUP_SIZE, type SetupTarget } from "../../../lib/signups/setupEditor";
 import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { roleLabel } from "../../../lib/wow/wowNames";
 import { useT } from "../../../i18n";
 import WowIcon from "../../../components/ui/WowIcon";
-import { CheckIcon, LockIcon, XIcon } from "../../../components/ui/icons";
+import { BenchIcon, CheckIcon, ClockIcon, LockIcon, SignedIcon, TentativeIcon, XIcon } from "../../../components/ui/icons";
 import { classColorProps } from "../../../components/character/ClassSpec";
 import SpecTile from "../SpecTile";
-import { specText, statusLabel } from "./setupText";
+import { markedStatus, specText, statusLabel } from "./setupText";
 
 /** Melee and ranged go without saying on a raider's line (the spec tells it); tank and healer are named. */
 const showsRole = (role: string | undefined) => role === "tank" || role === "healer";
+
+/**
+ * A signup state as a square field in its --sig-* colour, with its icon and a short
+ * word ("Vorläufig", "Spät", "Bank"); the long text is the tooltip. `small`: the icon
+ * alone (a further character's line, the compact view) — then the long text is its name.
+ */
+export function SigBadge({ status, small = false, className = "" }: { status: string | undefined; small?: boolean; className?: string }) {
+    const t = useT();
+    const s = markedStatus(status) || "signed";
+    const long = statusLabel(s) || t("setup.chars.signed");
+    const cls = `se-sig se-sigv-${s}${small ? " se-sig-sm" : ""}${className ? ` ${className}` : ""}`;
+    if (small) return <span className={cls} role="img" aria-label={long} data-tip={long}><SigIcon status={s} /></span>;
+    return <span className={cls} data-tip={long}><SigIcon status={s} /><span>{t(`setup.sig.short.${s}`)}</span></span>;
+}
+
+/** The icon of a signup state: a clock for late, the question mark for tentative, the bench, the check for a plain signup. */
+export function SigIcon({ status }: { status: string | undefined }) {
+    const s = markedStatus(status);
+    if (s === "late") return <ClockIcon />;
+    if (s === "tentative") return <TentativeIcon />;
+    if (s === "bench") return <BenchIcon />;
+    return <SignedIcon />;
+}
 
 export type Interaction = {
     editable: boolean;
@@ -24,8 +48,14 @@ export type Interaction = {
     attendance: Record<string, SetupAttendance>;
     /** The group that suits the raider being dragged or picked — glows softly. */
     suggest: number | null;
-    /** The pointer or focus reached a raider — the docked panel shows them. */
-    onInspect: (userId: string) => void;
+    /**
+     * The pointer rests on a raider or the focus reached them (`el`: their line;
+     * `character`: a further character's line, #293) — their info shows beside it
+     * after a short delay (the peek). Not for a touch, never during a drag.
+     */
+    onInspect: (userId: string, el?: HTMLElement | null, character?: string) => void;
+    /** The pointer or focus left the raider's line — the peek goes. */
+    onLeave?: () => void;
     /** `character`: which of the raider's characters the pick is for (#293) — empty = as they stand. */
     onPick: (userId: string, character?: string) => void;
     onDrop: (target: SetupTarget, userId?: string) => void;
@@ -67,7 +97,8 @@ export function CharacterNumber({ order }: { order: number }) {
  */
 export function Slot({ p, ui, inPool = false, inGroup = false, as, order }: { p: SetupPerson; ui: Interaction; inPool?: boolean; inGroup?: boolean; as?: string; order?: number }) {
     const t = useT();
-    const status = statusLabel(p.status);
+    // late, tentative or bench: a labelled square field on the line (#setup-bar), not a dot
+    const sig = markedStatus(p.status);
     const color = classColorProps(p.classColor);
     const selected = ui.selected === p.userId && (ui.selectedCharacter || "") === (as || "");
     const confirmation = inGroup ? (ui.confirmations || {})[p.userId] : undefined;
@@ -76,7 +107,6 @@ export function Slot({ p, ui, inPool = false, inGroup = false, as, order }: { p:
     const flash = held ? undefined : ui.flash?.[p.userId];
     const movable = ui.editable && !held;
     const who = held || flash;
-    const inspect = () => ui.onInspect(p.userId);
     const keyDown = (e: KeyboardEvent<HTMLDivElement>) => {
         if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
@@ -91,19 +121,20 @@ export function Slot({ p, ui, inPool = false, inGroup = false, as, order }: { p:
     };
     return (
         <div
-            className={`se-slot${selected ? " se-picked" : ""}${!selected && ui.pinned === p.userId ? " se-pinned" : ""}${p.locked ? " se-locked" : ""}${ui.dragging === p.userId ? " se-dragging" : ""}${confirmation ? ` se-${confirmation}` : ""}${held ? " se-held" : ""}${flash ? " se-flash" : ""}`}
+            className={`se-slot${selected ? " se-picked" : ""}${!selected && ui.pinned === p.userId ? " se-pinned" : ""}${p.locked ? " se-locked" : ""}${ui.dragging === p.userId ? " se-dragging" : ""}${confirmation ? ` se-${confirmation}` : ""}${held ? " se-held" : ""}${flash ? " se-flash" : ""}${sig ? ` se-has-sig se-sigv-${sig}` : ""}`}
             style={who ? ({ "--se-who": who.color } as CSSProperties) : undefined}
             role={ui.editable ? "button" : undefined}
             tabIndex={ui.editable ? 0 : undefined}
             aria-pressed={ui.editable ? selected : undefined}
             draggable={movable}
             data-user={p.userId}
-            onMouseEnter={inspect}
-            onFocus={inspect}
+            // the raider's info beside the line while the mouse rests on it or the focus is here (peek.ts)
+            {...peekHandlers(ui, p.userId, as)}
             onClick={ui.editable ? () => (held ? ui.onHeld?.(p.userId) : ui.onPick(p.userId, as)) : undefined}
             onKeyDown={movable ? keyDown : undefined}
-            // the dimmed look is set a tick later: changing the dragged element inside dragstart makes Chrome cancel the drag
-            onDragStart={movable ? (e) => { inspect(); e.dataTransfer.setData("text/plain", p.userId); e.dataTransfer.effectAllowed = "move"; setTimeout(() => ui.onDrag(p.userId, as), 0); } : undefined}
+            // the dimmed look is set a tick later: changing the dragged element inside dragstart makes Chrome cancel the drag;
+            // the peek goes at once, so it never covers where the raider is dropped
+            onDragStart={movable ? (e) => { ui.onLeave?.(); e.dataTransfer.setData("text/plain", p.userId); e.dataTransfer.effectAllowed = "move"; setTimeout(() => ui.onDrag(p.userId, as), 0); } : undefined}
             onDragEnd={ui.editable ? () => ui.onDrag(null) : undefined}
             onDragOver={ui.editable ? (e) => e.preventDefault() : undefined}
             onDrop={ui.editable ? drop : undefined}
@@ -123,8 +154,8 @@ export function Slot({ p, ui, inPool = false, inGroup = false, as, order }: { p:
                 <span className="se-sub">
                     {/* their order number (#293), first: which of their characters this is */}
                     {order !== undefined && <CharacterNumber order={order} />}
-                    {/* first, so a long spec text never cuts it off (#517) */}
-                    {inPool && p.status === "bench" && <span className="se-extra se-extra-lead" data-tip={t("setup.pool.benchSignupTip")}>{t("setup.pool.benchSignup")}</span>}
+                    {/* the signup state first, so a long spec text never cuts it off (#517) */}
+                    {sig && <SigBadge status={sig} />}
                     {/* the role only where the spec does not say it on its own: tank and healer, never melee/ranged.
                         An off-spec is tinted — the role where it is shown, else the spec; "Zweitspec" itself is in the tooltip */}
                     {showsRole(p.role)
@@ -135,7 +166,8 @@ export function Slot({ p, ui, inPool = false, inGroup = false, as, order }: { p:
                     ))}
                 </span>
             </span>
-            {status && <span className={`rd-sig rd-sig-${p.status}`} aria-label={status} />}
+            {/* the compact view hides the spec line: there the state is a small field at the line's end */}
+            {sig && <SigBadge status={sig} small className="se-sig-end" />}
             {/* a fixed place only shows it — the panel's button changes it */}
             {p.locked && !inPool && <span className="se-lock-mark" role="img" aria-label={t("setup.slot.locked")}><LockIcon /></span>}
             {/* who holds or just moved this raider */}
