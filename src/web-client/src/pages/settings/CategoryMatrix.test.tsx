@@ -77,7 +77,7 @@ function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, langu
             onAttendance={onAttendance}
             onSheet={onSheet}
             availabilityPanels={hubs ? { panels: [], channels: [], links: {}, maxLinks: 5, onChange: noop, onLinks: noop } : undefined}
-            orgaHubs={hubs ? { hubs: [], channels: [], onChange: noop } : undefined}
+            orgaHubs={hubs ? { hubs: [], channels: [], onChange: noop, links: {}, maxLinks: 5, onLinks: noop } : undefined}
             raidTemplates={{ options: [], value: {}, onChange: noop }}
             icon="inv_banner_03"
             crumb="Raid-Kategorien"

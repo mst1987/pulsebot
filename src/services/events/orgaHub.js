@@ -84,6 +84,7 @@ function currentPayload(categoryId, cfg, { now = Date.now() } = {}) {
         categoryName: categoryNameFor(categoryId, { config: cfg }),
         raids,
         counts: statusCounts(raids.map((r) => r.status)),
+        links: store.getLinks(categoryId),
         total: active.length,
         webUrl: webLink("/raids"),
         weeks: WEEKS,
@@ -123,6 +124,18 @@ async function removeHub(categoryId) {
     const hub = store.removeHub(categoryId);
     if (hub) await discord.deleteMessage(hub.channelId, hub.messageId);
     return hub;
+}
+
+/**
+ * Replace a category's orga links and redraw its hub at once (the web's editor and
+ * the Discord handlers, orgaHubLinks.js, both come through here).
+ * @returns {Promise<{ links?: object[], error?: string }>}
+ */
+async function saveLinks(categoryId, list, { config } = {}) {
+    const result = store.setLinks(categoryId, list);
+    if (result.error) return result;
+    await refreshHubs({ categoryId: str(categoryId), config });
+    return result;
 }
 
 const isUnknownMessage = (e) => !!(e && (e.code === 10008 || /unknown message/i.test((e && e.message) || "")));
@@ -259,5 +272,5 @@ function stopOrgaHubs() {
 }
 
 module.exports = {
-    hubRaids, currentPayload, payloadHash, postHub, removeHub, refreshHubs, scheduleRefresh, onHubMessageDeleted, startOrgaHubs, stopOrgaHubs, WEEKS,
+    hubRaids, currentPayload, payloadHash, postHub, removeHub, saveLinks, refreshHubs, scheduleRefresh, onHubMessageDeleted, startOrgaHubs, stopOrgaHubs, WEEKS,
 };
