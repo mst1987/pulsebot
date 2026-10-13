@@ -205,6 +205,15 @@ export function wholeNumber(text: string): number | null {
     return /^\d{1,7}$/.test(v) ? Number(v) : null;
 }
 
+/** The range of an item's portion per turn on the waiting list (guildBankStockStore PORTION_MAX; the default is 2). */
+export const PORTION_MIN = 1;
+export const PORTION_MAX = 99;
+
+/** Whether a typed portion counts: a whole number from 1 to 99. */
+export function validPortion(n: number): boolean {
+    return Number.isInteger(n) && n >= PORTION_MIN && n <= PORTION_MAX;
+}
+
 /**
  * What "ins Profil übernehmen" did (#809), as a sentence for the toast: added,
  * the class is unknown (the orga adds it in the profile by hand), no profile,

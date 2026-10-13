@@ -25,6 +25,8 @@ export type GuildBankItem = {
     reserve: number;
     /** 0 = no limit. */
     maxPerRequest: number;
+    /** The waiting list's share per turn (1–99, the default 2 when the orga set none): whoever is on gets at most this much, the rest queues again. */
+    portion: number;
     /** The orga's own group, "" = Wowhead's. */
     category: string;
     firstSeenAt: number;
@@ -108,7 +110,7 @@ export function getGuildBank({ key = "", version = "" }: { key?: string; version
     return get<GuildBankPageData>(`/api/guildbank${qs ? `?${qs}` : ""}`);
 }
 
-export type GuildBankItemPatch = Partial<{ status: Exclude<GuildBankStatus, "new">; reserve: number; maxPerRequest: number; category: string }>;
+export type GuildBankItemPatch = Partial<{ status: Exclude<GuildBankStatus, "new">; reserve: number; maxPerRequest: number; portion: number; category: string }>;
 
 /** Change what the orga decided for one item; answers the item with its new numbers. */
 export function setGuildBankItem(key: string, itemId: number, patch: GuildBankItemPatch): Promise<{ item: GuildBankItem }> {

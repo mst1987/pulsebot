@@ -98,8 +98,21 @@ describe("guild bank page", () => {
         await user.clear(max);
         await user.type(max, "5");
         await user.type(screen.getByRole("textbox", { name: "Kategorie" }), " Raid ");
+        // the portion per turn on the waiting list: 2 by default, − / + (never below 1)
+        const portion = screen.getByRole("spinbutton", { name: "Portion pro Runde" });
+        expect(portion).toHaveValue(2);
+        expect(screen.getByText("Wer drankommt, bekommt höchstens so viele; der Rest stellt sich wieder hinten an.")).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Eine mehr pro Runde" }));
+        await user.click(screen.getByRole("button", { name: "Eine mehr pro Runde" }));
+        expect(portion).toHaveValue(4);
+        await user.click(screen.getByRole("button", { name: "Eine weniger pro Runde" }));
+        await user.clear(portion);
+        await user.type(portion, "0");
+        expect(portion).toHaveValue(0);
+        await user.tab();
+        expect(portion).toHaveValue(3);
         await user.click(screen.getByRole("button", { name: "Speichern" }));
-        expect(api.setGuildBankItem).toHaveBeenCalledWith(KEY, 1, { reserve: 2, maxPerRequest: 5, category: "Raid" });
+        expect(api.setGuildBankItem).toHaveBeenCalledWith(KEY, 1, { reserve: 2, maxPerRequest: 5, portion: 3, category: "Raid" });
         await waitFor(() => expect(screen.queryByRole("textbox", { name: "Höchstmenge pro Anfrage" })).toBeNull());
     });
 

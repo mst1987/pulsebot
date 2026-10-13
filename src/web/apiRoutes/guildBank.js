@@ -8,7 +8,8 @@
 //                                           one of them, else the first) with its items; never a
 //                                           bank of another version — `bank: null` and
 //                                           `otherVersions` (short names) when this one has none
-//   POST /api/guildbank/item                { key, itemId, status?, reserve?, maxPerRequest?, category? }
+//   POST /api/guildbank/item                { key, itemId, status?, reserve?, maxPerRequest?, portion?, category? }
+//                                           (portion: the waiting list's share per turn, 1–99, 0 = default 2)
 //   POST /api/guildbank/item/add            { key, query | itemId } — create an item by hand: id, Wowhead link
 //                                           or name; stock 0, status "give"; { item, created }, or 400 "ambiguous"
 //                                           when a name fits several items (the dialog picks from /item/search)
@@ -122,14 +123,14 @@ const postGuildBankItem = withUser({ write: "raids", csrf: true, body: true }, a
     const { failure } = writableBank(key, req);
     if (failure) return sendBankFailure(res, failure);
     const patch = {};
-    for (const field of ["status", "reserve", "maxPerRequest", "category"]) {
+    for (const field of ["status", "reserve", "maxPerRequest", "portion", "category"]) {
         if (body[field] !== undefined) patch[field] = field === "status" || field === "category" ? q.str(body, field) : body[field];
     }
     if (!Object.keys(patch).length) return sendFailure(res, { code: "invalid", error: "Nichts zu ändern." });
     const result = stockStore.setItemSettings(key, q.int(body, "itemId", { fallback: 0 }), patch);
     if (result.error) return sendFailure(res, { code: "invalid", error: result.error });
     if (patch.status !== undefined) queueItemEmojiSync();
-    // a new status or reserve may free stock for the waiting list
+    // a new status or reserve may free stock for the waiting list (a new portion shares it differently)
     moveUp(key, q.int(body, "itemId", { fallback: 0 }));
     ok(res, { item: view.itemForPage(key, result.item) });
 });

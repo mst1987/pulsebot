@@ -10,8 +10,9 @@
 //      ahead of you" while somebody waits — (+ "max. N per request"), its
 //      application emoji (services/guildbank/itemEmojis.js; none yet = no emoji).
 //   2. Picking an item → itemModal "Guild bank request": the item as text
-//      ("**Name** · Available: N · Waiting list: N ahead of you · max. N" and
-//      what happens to more than is free), "How many?", "What for?
+//      ("**Name** · Available: N · Waiting list: N ahead of you · max. N",
+//      what happens to more than is free and how the waiting list shares out:
+//      "Handed out in turns: 2 per round."), "How many?", "What for?
 //      (optional)" and — only with more than one character of the bank's game
 //      version — "To which character?", the first one preselected (the
 //      raider's own order decides, there is no main).
@@ -128,6 +129,12 @@ function pickPayload({ categoryId = "", bank, groups = [], lang = "de" } = {}) {
     });
 }
 
+/** " Handed out in turns: 2 per round." — the item's portion on the waiting list; "" for an item view without one. */
+function turnsHint(item, lang) {
+    const portion = Number(item && item.portion) || 0;
+    return portion > 0 ? ` ${tr(lang, "Handed out in turns: {count} per round.", { count: portion })}` : "";
+}
+
 /** A modal field: label + one component (Discord's Label component, type 18). */
 const labelled = (label, component) => ({ type: 18, label: String(label).slice(0, 45), component });
 
@@ -148,7 +155,7 @@ function itemModal({ categoryId = "", item, characters = [], lang = "de" } = {})
                 `**${str(item.name) || `Item ${item.itemId}`}** · ${availabilityText(item, lang, { perRequest: false, both: true })}`,
                 `-# ${Number(item.waiting) > 0
                     ? tr(lang, "Others are waiting already – your request goes on the waiting list.")
-                    : tr(lang, "What is not available now goes on the waiting list – you get a DM when it is your turn.")}`,
+                    : tr(lang, "What is not available now goes on the waiting list – you get a DM when it is your turn.")}${turnsHint(item, lang)}`,
             ].join("\n"),
         },
         labelled(tr(lang, "How many?"), {

@@ -1,5 +1,5 @@
-// The guild bank's waiting list (#775): the pure allocation (strict order,
-// parts, nothing twice), the move-up against the stock with the open requests
+// The guild bank's waiting list (#775): the pure allocation (in turns of the
+// item's portion, a rest to the end, nothing twice), the move-up against the stock with the open requests
 // taken off, and the orga's import from a pasted sheet (tab, ; or ,, names
 // without case and accents, unknown items). Real stores on temp files.
 const store = require("../../../src/stores/guildBankStore");
@@ -69,31 +69,84 @@ beforeEach(() => {
 });
 
 describe("services/guildbank/waitlist — allocate", () => {
-    it("serves strictly in order: the first in full before the next gets anything", () => {
-        const queue = [{ id: "a", amount: 3 }, { id: "b", amount: 1 }, { id: "c", amount: 2 }];
-        expect(waitlist.allocate(queue, 0)).toEqual([]);
-        expect(waitlist.allocate(queue, 2)).toEqual([{ id: "a", amount: 2, full: false }]);
-        expect(waitlist.allocate(queue, 3)).toEqual([{ id: "a", amount: 3, full: true }]);
-        expect(waitlist.allocate(queue, 5)).toEqual([{ id: "a", amount: 3, full: true }, { id: "b", amount: 1, full: true }, { id: "c", amount: 1, full: false }]);
-        expect(waitlist.allocate(queue, 99)).toHaveLength(3);
-        expect(waitlist.allocate([{ id: "x", amount: 0 }, { id: "y", amount: 1 }], 1)).toEqual([{ id: "y", amount: 1, full: true }]);
+    const q = (...amounts) => amounts.map((amount, i) => ({ id: String.fromCharCode(97 + i), amount }));
+
+    it("serves in turns of one portion; whoever wants more goes to the end with the rest", () => {
+        // the user's example: free 4, portion 2, [A 15, B 2, C 1] → A 2 (13 to the end), B 2 — then [C 1, A 13]
+        expect(waitlist.allocate(q(15, 2, 1), 4, 2)).toEqual([
+            { id: "a", amount: 2, rest: 13, full: false },
+            { id: "b", amount: 2, rest: 0, full: true },
+        ]);
+        // free 1, portion 2, [A 3, B 1] → A 1, the rest of 2 to the end: [B 1, A 2]
+        expect(waitlist.allocate(q(3, 1), 1, 2)).toEqual([{ id: "a", amount: 1, rest: 2, full: false }]);
+    });
+
+    it("goes round while anything is free: one entry's portions add up to one amount", () => {
+        // A 2, B 2, A 2, B 2 → 4 each, both rests to the end in the order of their last turn
+        expect(waitlist.allocate(q(5, 5), 8, 2)).toEqual([
+            { id: "a", amount: 4, rest: 1, full: false },
+            { id: "b", amount: 4, rest: 1, full: false },
+        ]);
+        // alone in line: all of it, portion by portion, in one amount
+        expect(waitlist.allocate(q(7), 5, 2)).toEqual([{ id: "a", amount: 5, rest: 2, full: false }]);
+        expect(waitlist.allocate(q(7), 99, 2)).toEqual([{ id: "a", amount: 7, rest: 0, full: true }]);
+        // the order of the last turns: B is done in round one, A and C go round again
+        expect(waitlist.allocate(q(3, 1, 4), 8, 2).map((m) => [m.id, m.amount, m.rest])).toEqual([["b", 1, 0], ["a", 3, 0], ["c", 4, 0]]);
+        // C's rest got its last turn before A's last one: C then A
+        expect(waitlist.allocate(q(3, 1, 4), 6, 2).map((m) => [m.id, m.amount, m.rest])).toEqual([["b", 1, 0], ["c", 2, 2], ["a", 3, 0]]);
+    });
+
+    it("a portion as big as the order, many small ones, nothing free and odd input", () => {
+        // portion ≥ amount: everybody in full, in order, as far as it goes
+        expect(waitlist.allocate(q(3, 1, 2), 5, 10)).toEqual([
+            { id: "a", amount: 3, rest: 0, full: true },
+            { id: "b", amount: 1, rest: 0, full: true },
+            { id: "c", amount: 1, rest: 1, full: false },
+        ]);
+        // many small ones: one each, front to back
+        expect(waitlist.allocate(q(1, 1, 1, 1, 1, 1), 4, 2).map((m) => m.id)).toEqual(["a", "b", "c", "d"]);
+        expect(waitlist.allocate(q(3, 1, 2), 0, 2)).toEqual([]);
+        expect(waitlist.allocate([{ id: "x", amount: 0 }, { id: "y", amount: 1 }], 1, 2)).toEqual([{ id: "y", amount: 1, rest: 0, full: true }]);
         expect(waitlist.allocate(null, "zwei")).toEqual([]);
+        // no or a broken portion: the default (2)
+        expect(waitlist.allocate(q(5, 5), 4)).toEqual([{ id: "a", amount: 2, rest: 3, full: false }, { id: "b", amount: 2, rest: 3, full: false }]);
+        expect(waitlist.allocate(q(5, 5), 4, "x")[0].amount).toBe(stockStore.PORTION_DEFAULT);
+        expect(waitlist.allocate(q(5), 4, 1)).toEqual([{ id: "a", amount: 4, rest: 1, full: false }]);
+    });
+
+    it("the live list: 1, 1, 15, 2, 1, 1, 8, 3, 3, 1, 12 and 5 come in", () => {
+        const queue = q(1, 1, 15, 2, 1, 1, 8, 3, 3, 1, 12);
+        expect(waitlist.allocate(queue, 5, 2).map((m) => [m.id, m.amount, m.rest])).toEqual([["a", 1, 0], ["b", 1, 0], ["c", 2, 13], ["d", 1, 1]]);
     });
 });
 
 describe("services/guildbank/waitlist — moving up", () => {
-    it("moves the first up as far as the stock goes; a part keeps the rest first in line", () => {
-        const a = wait({ amount: 3 }, NOW);
-        const b = wait({ userId: "u2", userName: "Bert", amount: 1 }, NOW + 1);
+    it("moves up in turns of the item's portion; a rest goes to the end of the list", () => {
+        const a = wait({ amount: 15 }, NOW);
+        const b = wait({ userId: "u2", userName: "Bert", amount: 2 }, NOW + 1);
+        const c = wait({ userId: "u3", userName: "Cleo", amount: 1 }, NOW + 2);
         expect(waitlist.promoteItem(KEY, SPINAL)).toEqual([]);
-        rescan({ spinal: 2 });
+        rescan({ spinal: 4 });
         const moved = waitlist.promoteItem(KEY, SPINAL, { now: NOW + 10 });
-        expect(moved).toHaveLength(1);
-        expect(moved[0].request).toMatchObject({ status: "open", amount: 2, fromWaitlist: true, userId: "u1", createdAt: NOW + 10 });
-        expect(moved[0].rest).toMatchObject({ id: a.id, status: "waiting", amount: 1, queueRank: 1 });
-        // Bert gets nothing while Anna is not served in full
-        expect(waitlist.listForBank(KEY).map((r) => [r.id, r.amount, r.position])).toEqual([[a.id, 1, 1], [b.id, 1, 2]]);
+        expect(moved.map((m) => [m.request.userId, m.request.amount, m.rest && m.rest.amount, m.restPosition])).toEqual([["u1", 2, 13, 2], ["u2", 2, null, 0]]);
+        expect(moved[0].request).toMatchObject({ status: "open", fromWaitlist: true, createdAt: NOW + 10 });
+        expect(moved[1].request.id).toBe(b.id);
+        // Cleo is first now, Anna's 13 behind her
+        expect(waitlist.listForBank(KEY).map((r) => [r.id, r.amount, r.position])).toEqual([[c.id, 1, 1], [a.id, 13, 2]]);
         expect(waitlist.freeOf(KEY, SPINAL)).toBe(0);
+    });
+
+    it("takes the item's own portion: 1 per turn, or 5", () => {
+        wait({ amount: 3 }, NOW);
+        wait({ userId: "u2", amount: 3 }, NOW + 1);
+        stockStore.setItemSettings(KEY, SPINAL, { portion: 1 });
+        rescan({ spinal: 3 });
+        expect(waitlist.promoteItem(KEY, SPINAL).map((m) => [m.request.userId, m.request.amount, m.rest && m.rest.amount])).toEqual([["u2", 1, 2], ["u1", 2, 1]]);
+        expect(waitlist.listForBank(KEY).map((r) => [r.userId, r.amount])).toEqual([["u2", 2], ["u1", 1]]);
+        stockStore.setItemSettings(KEY, SPINAL, { portion: 5 });
+        rescan({ spinal: 6 }, 1792000001);
+        // 3 open already: 3 free, u2 first with all of theirs, then u1
+        expect(waitlist.promoteItem(KEY, SPINAL).map((m) => [m.request.userId, m.request.amount, m.rest])).toEqual([["u2", 2, null], ["u1", 1, null]]);
     });
 
     it("never hands the same stock out twice: a second scan with open requests moves nobody up", () => {

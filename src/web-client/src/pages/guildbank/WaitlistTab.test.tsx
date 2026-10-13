@@ -137,7 +137,11 @@ describe("guild bank waiting list", () => {
         expect(within(rows[1]).getByText(/eingetragen von Arthas/)).toBeInTheDocument();
         expect(within(ruby).getByText("2 Einträge")).toBeInTheDocument();
         expect(within(ruby).getByText("Verfügbar 0")).toBeInTheDocument();
-        expect(within(dialog).getByRole("region", { name: "Flask of Relentless Assault" })).toBeInTheDocument();
+        // how the list shares out: the item's portion per turn
+        expect(within(ruby).getByText("reihum je 2")).toBeInTheDocument();
+        expect(screen.getByText(/reihum in Portionen; ein Rest stellt sich wieder hinten an/)).toBeInTheDocument();
+        const flask = within(dialog).getByRole("region", { name: "Flask of Relentless Assault" });
+        expect(within(flask).getByText("reihum je 2")).toBeInTheDocument();
         // the first cannot move forward, the last not back
         expect(within(rows[0]).getByRole("button", { name: "Nach vorne: Anna" })).toBeDisabled();
         expect(within(rows[1]).getByRole("button", { name: "Nach hinten: Whapap" })).toBeDisabled();
