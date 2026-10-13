@@ -15,7 +15,7 @@
 //                                           when a name fits several items (the dialog picks from /item/search)
 //   GET  /api/guildbank/item/search?key=&q= Wowhead's items for a name on the bank's version, { items }
 //   POST /api/guildbank/tab                 { key, index, hidden } — hide or show a whole bank tab
-//   GET  /api/guildbank/requests?key=       the bank's open and confirmed requests (the "Anfragen" dialog)
+//   GET  /api/guildbank/requests?key=       the bank's open and confirmed requests (the "Anfragen" tab, the item list's "Vorgemerkt" popover)
 //   GET  /api/guildbank/handedout?key=      the bank's handed-out requests, newest first (the "Ausgegeben" tab)
 //   GET  /api/guildbank/characters?key=&q=  the raider profiles' characters to link a request to (+ `names`: known names
 //                                        without a profile, #809, knownNames.js), each character with its
@@ -162,14 +162,14 @@ function linkOf(r) {
     return { linked: state.linked, linkProblem: state.linkProblem };
 }
 
-/** One request as the page's "Anfragen" dialog lists it. */
+/** One request as the page's "Anfragen" tab lists it. */
 function requestRow(r, items) {
     const item = items.get(r.itemId);
     const icon = (item && item.icon) || r.icon;
     return {
         id: r.id, itemId: r.itemId, item: (item && item.name) || r.item, iconUrl: iconUrl(icon), amount: r.amount,
         userId: r.userId, userName: r.userName, characterName: r.characterName, realm: r.realm, purpose: r.purpose,
-        status: r.status, createdAt: r.createdAt, handledByName: r.handledByName, handledAt: r.handledAt,
+        status: r.status, createdAt: r.createdAt, handledByName: r.handledByName, handledAt: r.handledAt, fromWaitlist: r.fromWaitlist === true,
         ...linkOf(r),
     };
 }

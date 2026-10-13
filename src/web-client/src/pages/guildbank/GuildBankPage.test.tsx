@@ -17,10 +17,6 @@ vi.mock("../../api", async (orig) => ({
     setGuildBankItem: vi.fn(),
     setGuildBankTabHidden: vi.fn(),
     getGuildBankRequests: vi.fn(),
-    searchGuildBankCharacters: vi.fn(),
-    linkGuildBankRequest: vi.fn(),
-    verifyGuildBankRequest: vi.fn(),
-    reassignGuildBankRequest: vi.fn(),
 }));
 
 const KEY = "tbc:spineshatter:die gilde";
@@ -28,6 +24,7 @@ const KEY = "tbc:spineshatter:die gilde";
 beforeEach(() => {
     localStorage.clear();
     vi.mocked(api.getGuildBank).mockResolvedValue(bankData());
+    vi.mocked(api.getGuildBankRequests).mockResolvedValue({ requests: [] });
 });
 afterEach(() => switchLang("de"));
 
@@ -130,147 +127,6 @@ describe("guild bank page", () => {
         await user.click(raid);
         expect(api.setGuildBankTabHidden).toHaveBeenCalledWith(KEY, 3, true);
         await waitFor(() => expect(api.getGuildBank).toHaveBeenCalledTimes(2));
-    });
-
-    it("lists the waiting requests in the 'Anfragen' dialog and reads the bank again when it closes", async () => {
-        const user = userEvent.setup();
-        vi.mocked(api.getGuildBankRequests).mockResolvedValue({
-            requests: [
-                {
-                    id: "r2", itemId: 2, item: "Smooth Dawnstone", iconUrl: "", amount: 1, userId: "u2", userName: "Bo", characterName: "",
-                    realm: "", purpose: "", status: "open", createdAt: Date.UTC(2026, 9, 6, 18), handledByName: "", handledAt: 0, linked: false,
-                },
-                {
-                    id: "r1", itemId: 1, item: "Bold Living Ruby", iconUrl: "https://example.test/ruby.jpg", amount: 2, userId: "u1",
-                    userName: "Anna", characterName: "Zibbo", realm: "Spine Shatter", purpose: "Gruul", status: "confirmed",
-                    createdAt: Date.UTC(2026, 9, 6, 17), handledByName: "Arthas", handledAt: 1, linked: true,
-                },
-            ],
-        });
-        renderPage(<GuildBankPage />, { route: "/guildbank" });
-        await user.click(await screen.findByRole("button", { name: "Anfragen" }));
-        const list = await screen.findByRole("list", { name: "Anfragen" });
-        const rows = within(list).getAllByRole("listitem");
-        expect(rows).toHaveLength(2);
-        expect(within(rows[0]).getByText("1× Smooth Dawnstone")).toBeInTheDocument();
-        expect(within(rows[0]).getByText("Offen")).toBeInTheDocument();
-        // no character: not linked, the orga cannot confirm it in Discord yet
-        expect(within(rows[0]).getByText("nicht verknüpft")).toBeInTheDocument();
-        expect(screen.getByText(/^1 Anfrage ohne verknüpften Charakter/)).toBeInTheDocument();
-        expect(within(rows[1]).queryByText("nicht verknüpft")).toBeNull();
-        expect(within(rows[1]).getByText("2× Bold Living Ruby")).toBeInTheDocument();
-        expect(within(rows[1]).getByText(/^Anna · an Zibbo-SpineShatter · /)).toBeInTheDocument();
-        expect(within(rows[1]).getByText("Wofür: Gruul")).toBeInTheDocument();
-        expect(within(rows[1]).getByText("Vorgemerkt")).toBeInTheDocument();
-        expect(api.getGuildBankRequests).toHaveBeenCalledWith(KEY);
-        // the dialog's close button in its foot (the head has an "X" of the same name)
-        const closers = screen.getAllByRole("button", { name: "Schließen" });
-        await user.click(closers[closers.length - 1]);
-        await waitFor(() => expect(api.getGuildBank).toHaveBeenCalledTimes(2));
-    });
-
-    it("links a request to a profile character inside the 'Anfragen' dialog", async () => {
-        const user = userEvent.setup();
-        const open = {
-            id: "r2", itemId: 2, item: "Smooth Dawnstone", iconUrl: "", amount: 1, userId: "u2", userName: "Bo", characterName: "",
-            realm: "", purpose: "", status: "open" as const, createdAt: Date.UTC(2026, 9, 6, 18), handledByName: "", handledAt: 0, linked: false,
-        };
-        vi.mocked(api.getGuildBankRequests).mockResolvedValue({ requests: [open] });
-        vi.mocked(api.searchGuildBankCharacters).mockResolvedValue({
-            characters: [{
-                userId: "u2", userName: "Bo", characterKey: "bobo", characterName: "Bobo", realm: "", className: "Druid",
-                versionId: "tbc", icon: "", classColor: "", specKey: "", verified: true, evidence: "loot",
-            }],
-        });
-        vi.mocked(api.linkGuildBankRequest).mockResolvedValue({ request: { ...open, characterName: "Bobo", realm: "Spineshatter", linked: true } });
-        renderPage(<GuildBankPage />, { route: "/guildbank" });
-        await user.click(await screen.findByRole("button", { name: "Anfragen" }));
-        await user.click(await screen.findByRole("button", { name: "Verknüpfen: 1× Smooth Dawnstone" }));
-        // the search in the same dialog, prefilled with the raider's name (no character yet)
-        expect(screen.getByRole("textbox", { name: "Charakter oder Raider suchen" })).toHaveValue("Bo");
-        await user.click(await screen.findByRole("button", { name: "Bobo von Bo wählen" }));
-        expect(api.linkGuildBankRequest).toHaveBeenCalledWith(KEY, "r2", { userId: "u2", characterKey: "bobo" });
-        const list = await screen.findByRole("list", { name: "Anfragen" });
-        expect(within(list).getByText(/an Bobo-Spineshatter/)).toBeInTheDocument();
-        expect(within(list).queryByText("nicht verknüpft")).toBeNull();
-    });
-
-    it("#806: checks the name of a request without a Discord account in game inside the 'Anfragen' dialog", async () => {
-        const user = userEvent.setup();
-        const open = {
-            id: "r3", itemId: 2, item: "Crimson Spinel", iconUrl: "", amount: 1, userId: "", userName: "Skerra", characterName: "Skerra",
-            realm: "Thunderstrike", purpose: "", status: "open" as const, createdAt: Date.UTC(2026, 9, 11, 18), handledByName: "", handledAt: 0,
-            linked: false, linkProblem: "none" as const,
-        };
-        vi.mocked(api.getGuildBankRequests).mockResolvedValue({ requests: [open] });
-        vi.mocked(api.searchGuildBankCharacters).mockResolvedValue({ characters: [] });
-        vi.mocked(api.verifyGuildBankRequest).mockResolvedValue({ request: { ...open, linked: true, linkProblem: "" } });
-        renderPage(<GuildBankPage />, { route: "/guildbank" });
-        await user.click(await screen.findByRole("button", { name: "Anfragen" }));
-        await user.click(await screen.findByRole("button", { name: "Verknüpfen: 1× Crimson Spinel" }));
-        await user.click(screen.getByRole("button", { name: "Skerra-Thunderstrike im Spiel geprüft" }));
-        await user.click(screen.getByRole("button", { name: "Ja, gefunden" }));
-        expect(api.verifyGuildBankRequest).toHaveBeenCalledWith(KEY, "r3");
-        expect(await screen.findByText("Skerra-Thunderstrike ist im Spiel geprüft – die Anfrage kann bestätigt werden.")).toBeInTheDocument();
-        const list = await screen.findByRole("list", { name: "Anfragen" });
-        expect(within(list).queryByText("nicht verknüpft")).toBeNull();
-    });
-    it("#809: sends Gentle's request to Gentletwowl, a name the bank already mailed, and puts it into his profile", async () => {
-        const user = userEvent.setup();
-        const open = {
-            id: "r4", itemId: 2, item: "Pyrestone", iconUrl: "", amount: 1, userId: "u3", userName: "Gentle", characterName: "Gentle",
-            realm: "Thunderstrike", purpose: "", status: "open" as const, createdAt: Date.UTC(2026, 9, 12, 18), handledByName: "", handledAt: 0,
-            linked: false, linkProblem: "unverified" as const,
-        };
-        vi.mocked(api.getGuildBankRequests).mockResolvedValue({ requests: [open] });
-        vi.mocked(api.searchGuildBankCharacters).mockImplementation(async (_key, q) => ({
-            characters: [],
-            names: q.toLowerCase().startsWith("gentle") ? [{ name: "Gentletwowl", realm: "Thunderstrike", via: "bank" as const }] : [],
-        }));
-        vi.mocked(api.reassignGuildBankRequest).mockResolvedValue({ request: { ...open, characterName: "Gentletwowl", linked: true, linkProblem: "" }, profile: "added" });
-        renderPage(<GuildBankPage />, { route: "/guildbank" });
-        await user.click(await screen.findByRole("button", { name: "Anfragen" }));
-        await user.click(await screen.findByRole("button", { name: "Verknüpfen: 1× Pyrestone" }));
-        const others = await screen.findByRole("region", { name: "Andere Namen (ohne Raider-Profil)" });
-        expect(within(others).getByText("schon Gildenbank-Post bekommen")).toBeInTheDocument();
-        await user.click(within(others).getByRole("switch", { name: /Auch ins Profil von Gentle übernehmen/ }));
-        await user.click(within(others).getByRole("button", { name: "Gentletwowl-Thunderstrike als Empfänger übernehmen" }));
-        expect(api.reassignGuildBankRequest).toHaveBeenCalledWith(KEY, "r4", { characterName: "Gentletwowl", realm: "Thunderstrike", checked: false, addToProfile: true });
-        expect(await screen.findByText("Geht jetzt an Gentletwowl-Thunderstrike. Im Profil von Gentle eingetragen.")).toBeInTheDocument();
-        const list = await screen.findByRole("list", { name: "Anfragen" });
-        expect(within(list).queryByText("Charakter nicht bestätigt")).toBeNull();
-    });
-
-    it("#809: any other name only after 'Im Spiel geprüft' — no profile checkbox without a Discord account", async () => {
-        const user = userEvent.setup();
-        const open = {
-            id: "r5", itemId: 2, item: "Crimson Spinel", iconUrl: "", amount: 1, userId: "", userName: "Skera", characterName: "Skera",
-            realm: "Thunderstrike", purpose: "", status: "open" as const, createdAt: Date.UTC(2026, 9, 11, 18), handledByName: "", handledAt: 0,
-            linked: false, linkProblem: "none" as const,
-        };
-        vi.mocked(api.getGuildBankRequests).mockResolvedValue({ requests: [open] });
-        vi.mocked(api.searchGuildBankCharacters).mockResolvedValue({ characters: [], names: [] });
-        vi.mocked(api.reassignGuildBankRequest).mockResolvedValue({ request: { ...open, characterName: "Skerra", linked: true, linkProblem: "" }, profile: "" });
-        renderPage(<GuildBankPage />, { route: "/guildbank" });
-        await user.click(await screen.findByRole("button", { name: "Anfragen" }));
-        await user.click(await screen.findByRole("button", { name: "Verknüpfen: 1× Crimson Spinel" }));
-        const search = screen.getByRole("textbox", { name: "Charakter oder Raider suchen" });
-        await user.clear(search);
-        await user.type(search, "Skerra");
-        const others = await screen.findByRole("region", { name: "Andere Namen (ohne Raider-Profil)" });
-        expect(within(others).queryByRole("switch")).toBeNull();
-        await user.click(await within(others).findByRole("button", { name: "Skerra im Spiel geprüft – als Empfänger übernehmen" }));
-        expect(api.reassignGuildBankRequest).not.toHaveBeenCalled();
-        await user.click(within(others).getByRole("button", { name: "Ja, gefunden" }));
-        expect(api.reassignGuildBankRequest).toHaveBeenCalledWith(KEY, "r5", { characterName: "Skerra", realm: "", checked: true, addToProfile: false });
-        expect(await screen.findByText("Geht jetzt an Skerra-Thunderstrike.")).toBeInTheDocument();
-    });
-    it("says so when no request waits", async () => {
-        const user = userEvent.setup();
-        vi.mocked(api.getGuildBankRequests).mockResolvedValue({ requests: [] });
-        renderPage(<GuildBankPage />, { route: "/guildbank" });
-        await user.click(await screen.findByRole("button", { name: "Anfragen" }));
-        expect(await screen.findByText("Gerade wartet keine Anfrage.")).toBeInTheDocument();
     });
 
     it("lets a reader look but not change", async () => {

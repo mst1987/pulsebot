@@ -143,13 +143,15 @@ export type GuildBankRequest = {
     /** Who confirmed it. */
     handledByName: string;
     handledAt: number;
+    /** It came from the waiting list (an entry moved up as an open request). */
+    fromWaitlist: boolean;
     /** The recipient is a confirmed character of the raider's profile: only then may the orga confirm it, only then does the addon mail it. */
     linked: boolean;
     /** Why not: no profile character ("none") or one nobody confirmed ("unverified"); "" when linked. */
     linkProblem?: GuildBankLinkProblem;
 };
 
-/** The bank's open and confirmed requests (the "Anfragen" dialog), open first. */
+/** The bank's open and confirmed requests (the "Anfragen" tab and the item list's "Vorgemerkt" popover), open first. */
 export function getGuildBankRequests(key: string): Promise<{ requests: GuildBankRequest[] }> {
     return get<{ requests: GuildBankRequest[] }>(`/api/guildbank/requests?key=${encodeURIComponent(key)}`);
 }
