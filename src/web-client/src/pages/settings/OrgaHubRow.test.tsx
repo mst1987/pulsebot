@@ -20,7 +20,7 @@ const HUB: OrgaHub = { categoryId: "c1", channelId: "ch2", postedAt: Date.UTC(20
 
 function show(hubs: OrgaHub[] = [], channels = CHANNELS) {
     const onChange = vi.fn();
-    renderPage(<OrgaHubRow categoryId="c1" categoryName="T4" hubs={{ hubs, channels, onChange }} />);
+    renderPage(<OrgaHubRow categoryId="c1" categoryName="T4" hubs={{ hubs, channels, onChange, links: {}, maxLinks: 5, onLinks: vi.fn() }} />);
     return { onChange };
 }
 

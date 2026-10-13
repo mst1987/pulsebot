@@ -838,6 +838,8 @@
         "orgaHubRemoved": "Orga-Zentrale entfernt.",
         "orgaHubRemoveTitle": "Orga-Zentrale entfernen?",
         "orgaHubRemoveText": "Die Nachricht in Discord wird gelöscht. Die Raids selbst bleiben, wie sie sind.",
+        "orgaLinks": "Links der Orga-Zentrale",
+        "orgaLinksSub": "Knöpfe unter „Raid anlegen“, z. B. WCL-Gilde oder Raid-Sheet – nur für die Orga. In Discord über „Links …“ in der Orga-Zentrale ebenfalls änderbar.",
         "links": "Links im Organizer",
         "linksSub": "Knöpfe wie WCL-Einladung, Info-Sheet oder Taktiken – erscheinen unten im Panel.",
         "linkLabel": "Text",

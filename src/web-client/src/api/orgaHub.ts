@@ -7,8 +7,16 @@ import { get, send } from "./client";
 
 export type OrgaHub = { categoryId: string; channelId: string; postedAt: number; url: string };
 
-export function getOrgaHubs(): Promise<{ hubs: OrgaHub[] }> {
+/** One link button below "Raid anlegen" (at most `maxLinks` per category). */
+export type OrgaLink = { label: string; url: string };
+
+export function getOrgaHubs(): Promise<{ hubs: OrgaHub[]; links?: Record<string, OrgaLink[]>; maxLinks?: number }> {
     return get("/api/orga-hubs");
+}
+
+/** Replace a category's orga links (its posted hub is redrawn at once); empty rows are dropped. */
+export function saveOrgaLinks(categoryId: string, links: OrgaLink[]): Promise<{ categoryId: string; links: OrgaLink[] }> {
+    return send("PUT", "/api/orga-hub/links", { categoryId, links });
 }
 
 export function postOrgaHub(categoryId: string, channelId: string): Promise<{ hub: OrgaHub }> {
