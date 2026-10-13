@@ -50,6 +50,10 @@
 /* Einstellungen → Addons */
 .dlp-token-hint { margin-bottom: 14px; flex-wrap: wrap; }
 .dlp-restore { display: flex; justify-content: flex-end; margin-top: 12px; }
+/* "Downloadzentrale im Discord" under the list (AddonCenterCard, design board 4) */
+.dlp-center { margin-top: 16px; display: flex; flex-direction: column; gap: 14px; }
+.dlp-center .list-head-text h2 { font-size: 18px; }
+.dlp-center-actions { margin-top: 0; padding-top: 14px; border-top: 1px solid var(--line); }
 .dlp-icon-field { display: flex; align-items: center; gap: 8px; }
 .dlp-icon-field .wi { width: 28px; height: 28px; border-radius: 6px; flex: 0 0 auto; }
 .dlp-name-cell { display: inline-flex; align-items: center; gap: 8px; }

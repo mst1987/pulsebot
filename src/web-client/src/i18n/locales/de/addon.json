@@ -78,5 +78,28 @@
         "restoreText": "Die Liste wird durch die drei eigenen Addons ersetzt (LevelHelper, ProfessionKit, EventHelper Sync). Eigene Einträge und Änderungen gehen dabei verloren. Der GitHub-Token bleibt.",
         "restoreAction": "Wiederherstellen",
         "restored": "Standard-Addons wiederhergestellt."
+    },
+    "center": {
+        "title": "Downloadzentrale im Discord",
+        "note": "Eine Nachricht im Kanal: jedes Addon mit Download-Knopf. Neue Versionen meldet der Bot dort.",
+        "channel": "Kanal für die Zentrale",
+        "channelSub": "Dort steht die Nachricht mit allen Addons und ihren Download-Knöpfen; neue Versionen meldet der Bot im selben Kanal. Die Kategorie des Kanals bestimmt die Spielversion: nur deren Addons stehen in der Zentrale.",
+        "role": "Abo-Rolle für Update-Pings",
+        "roleSub": "Optional. Mitglieder holen sie sich selbst über „Updates abonnieren“ in der Zentrale und werden bei neuen Versionen gepingt. Ohne Rolle gibt es den Knopf nicht und niemand wird gepingt.",
+        "announce": "Neue Versionen im Kanal melden",
+        "announceSub": "Bei einer neuen Version postet der Bot eine Meldung mit den Neuerungen in den Kanal. Aus: nur die Zentrale zeigt die neue Version mit „NEU“.",
+        "post": "Posten",
+        "repost": "Neu posten",
+        "postedState": "gepostet {date} · zuletzt geprüft {time}",
+        "postedNever": "gepostet {date} · noch nicht geprüft",
+        "pickChannel": "Erst einen Kanal wählen, dann posten.",
+        "offline": "Der Bot ist gerade nicht mit Discord verbunden.",
+        "view": "Ansehen",
+        "saved": "Gespeichert.",
+        "posted": "Downloadzentrale gepostet.",
+        "removeAsk": "Downloadzentrale entfernen?",
+        "removeText": "Die Nachricht im Kanal wird gelöscht. Update-Meldungen, die schon im Kanal stehen, bleiben.",
+        "removed": "Downloadzentrale entfernt.",
+        "loadError": "Die Einstellungen der Downloadzentrale konnten nicht geladen werden."
     }
 }

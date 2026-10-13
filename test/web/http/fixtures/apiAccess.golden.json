@@ -291,6 +291,10 @@
     "/api/ingest/levelhelper"
   ],
   "adminOnly": [
+    "/api/addon-center",
+    "/api/addon-center",
+    "/api/addon-center",
+    "/api/addon-center",
     "/api/system/backup",
     "/api/system/backup/snapshot",
     "/api/system/status"

@@ -28,6 +28,7 @@ const applicationState = require("../../utils/recruitment/applicationState");
 const availabilityPanel = require("../../services/signups/availabilityPanel");
 const orgaHub = require("../../services/events/orgaHub");
 const raidOverview = require("../../services/events/raidOverview");
+const addonCenter = require("../../services/addons/addonCenter");
 const softresDetect = require("../../services/loot/softresDetect");
 const guildBankItemMeta = require("../../services/guildbank/itemMeta");
 const systemMonitor = require("../../services/system/systemMonitor");
@@ -70,6 +71,9 @@ const JOBS = [
     { name: "orgaHubs", start: () => orgaHub.startOrgaHubs(), stop: () => orgaHub.stopOrgaHubs() },
     // The raid overviews /createoverview posted per category: redrawn on every change and swept every 5 minutes; old ones are adopted once.
     { name: "raidOverviews", start: () => raidOverview.startRaidOverviews(), stop: () => raidOverview.stopRaidOverviews() },
+    // The addon download centre in Discord (docs/addons.md): new versions checked every 15 minutes, announced and
+    // marked "NEU", the centre redrawn or posted anew; nothing until a centre is posted.
+    { name: "addonCenter", start: () => addonCenter.startAddonCenter(), stop: () => addonCenter.stopAddonCenter() },
     // Once after the start: guild bank items without a current name (none yet, or the
     // German ones stored before the names turned English) are looked up again.
     { name: "guildBankItemMeta", start: () => guildBankItemMeta.startMetaRefresh(), stop: () => guildBankItemMeta.stopMetaRefresh() },

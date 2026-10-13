@@ -2,6 +2,7 @@
 const appEmojis = require("../../../src/services/discord/appEmojis");
 const { buildClasses, ROLES } = require("../../../src/config/gameVersions/classes");
 const { SIGNUP_STATUSES } = require("../../../src/utils/attendance");
+const { DEFAULT_ADDONS } = require("../../../src/services/addons/addonConfig");
 
 describe("services/discord/appEmojis", () => {
     beforeEach(() => appEmojis.resetAppEmojis());
@@ -16,6 +17,10 @@ describe("services/discord/appEmojis", () => {
         expect(appEmojis.roleUiEmojiName("nonsense")).toBe("");
         expect(appEmojis.statusEmojiName("absence")).toBe("eh_ui_absence");
         expect(appEmojis.uiEmojiName("leader")).toBe("eh_ui_leader");
+        // the addon download centre: one WoW icon per default addon
+        expect(appEmojis.addonEmojiName("eventhelper-sync")).toBe("eh_addon_eventhelpersync");
+        expect(appEmojis.addonEmojiName("")).toBe("");
+        expect(appEmojis.emojiCatalog().find((e) => e.name === "eh_addon_levelhelper")).toMatchObject({ icon: "inv_misc_map02", url: expect.stringContaining("inv_misc_map02.jpg") });
     });
 
     it("names the letter tiles and role icons per emoji style — plain has none of its own", () => {
@@ -44,13 +49,13 @@ describe("services/discord/appEmojis", () => {
         expect(appEmojis.tileEmojiName("H", "neon")).toBe("eh_ta_h");
     });
 
-    it("has one valid, unique emoji per spec, class, role, UI icon, tile and styled role", () => {
+    it("has one valid, unique emoji per spec, class, default addon, role, UI icon, tile and styled role", () => {
         const catalog = appEmojis.emojiCatalog();
         const classes = buildClasses();
         const specs = classes.reduce((n, c) => n + c.specs.length, 0);
         const styled = Object.values(appEmojis.EMOJI_STYLES).filter(Boolean).length;
         const perStyle = Object.keys(appEmojis.TITLE_TILES).length + ROLES.length;
-        expect(catalog).toHaveLength(specs + classes.length + appEmojis.UI_ICONS.length + styled * perStyle);
+        expect(catalog).toHaveLength(specs + classes.length + DEFAULT_ADDONS.length + appEmojis.UI_ICONS.length + styled * perStyle);
         expect(new Set(catalog.map((e) => e.name)).size).toBe(catalog.length);
         for (const e of catalog) {
             expect(appEmojis.validEmojiName(e.name)).toBe(true);
