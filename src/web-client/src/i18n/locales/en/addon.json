@@ -81,17 +81,13 @@
     },
     "center": {
         "title": "Download centre in Discord",
-        "note": "One message in the channel: every addon with a download button. The bot announces new versions there.",
+        "note": "One message in the channel: every addon with a download button and a patch notes link. The bot does not announce new versions in the channel; the message only marks them as \"NEW\".",
         "channel": "Channel of the centre",
-        "channelSub": "The message with every addon and its download button lives there; the bot announces new versions in the same channel. The channel's category decides the game version (unless one is picked under \"Game version\"): only its addons are in the centre.",
+        "channelSub": "The message with every addon and its download button lives there. The channel's category decides the game version (unless one is picked under \"Game version\"): only its addons are in the centre.",
         "version": "Game version",
         "versionSub": "Which addons the centre shows. Automatic takes the game version of the channel's category.",
         "versionAuto": "Automatic ({version})",
         "versionAutoNoChannel": "Automatic (from the category)",
-        "role": "Subscription role for update pings",
-        "roleSub": "Optional. Members take it themselves with \"Subscribe to updates\" in the centre and are pinged on new versions. Without a role there is no such button and nobody is pinged.",
-        "announce": "Announce new versions in the channel",
-        "announceSub": "On a new version the bot posts a message with what is new into the channel. Off: only the centre shows the new version as \"NEW\".",
         "post": "Post",
         "repost": "Post again",
         "postedState": "posted {date} · last checked {time}",
@@ -102,7 +98,7 @@
         "saved": "Saved.",
         "posted": "Download centre posted.",
         "removeAsk": "Remove the download centre?",
-        "removeText": "The message in the channel is deleted. Update announcements already in the channel stay.",
+        "removeText": "The message in the channel is deleted. Older update announcements still in the channel stay.",
         "removed": "Download centre removed.",
         "loadError": "The settings of the download centre could not be loaded."
     }

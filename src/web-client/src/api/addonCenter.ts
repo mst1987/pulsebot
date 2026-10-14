@@ -1,13 +1,12 @@
 import { get, send } from "./client";
-import type { Role } from "./settings";
 
 // ---- Addon-Downloadzentrale im Discord (src/web/apiRoutes/addonCenter.js) ----
 // One bot message in a channel: every addon of the channel's game version with a
-// download button; the bot announces new versions there. Full admins only; every
+// download button and a patch notes link (nothing is announced). Full admins only; every
 // change is saved at once (no save bar) and answers the whole view again.
 
 /** `versionId` "" = automatic: the game version of the channel's category. */
-export type AddonCenterSettings = { channelId: string; roleId: string; announce: boolean; versionId: string };
+export type AddonCenterSettings = { channelId: string; versionId: string };
 
 /** A game version the centre can show. */
 export type AddonCenterVersion = { id: string; label: string };
@@ -31,8 +30,6 @@ export type AddonCenterView = {
     /** Whether the bot is connected to Discord. */
     online: boolean;
     channels: AddonCenterChannel[];
-    /** The roles per server id: the update role lives on the centre's server. */
-    roles: Record<string, Role[]>;
     /** The game versions to pick from (the visible ones). */
     versions: AddonCenterVersion[];
     /** What "automatic" means for the chosen channel, null without a channel. */

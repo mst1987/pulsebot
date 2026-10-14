@@ -9,7 +9,7 @@
    and nothing between. test/web-client/conventions/adBlockClasses.test.js. */
 
 .dlp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; }
-.dlp-card {
+.dlp-card { scroll-margin-top: 16px;
     display: flex; flex-direction: column; gap: 12px; padding: 20px; min-width: 0;
     border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
 }

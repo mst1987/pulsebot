@@ -3,31 +3,29 @@
 // and redraws, services/addons/addonCenterBot.js answers the buttons.
 //
 // The centre (Board 1), ONE Components V2 message:
-//   head container (accent #8a7cff)  "## Addon-Downloadzentrale", how it works, "-# Neue
-//                                    Versionen werden hier gemeldet."; "Updates abonnieren"
-//                                    as the section's button when an update role is set
+//   head container (accent #8a7cff)  "## Addon-Downloadzentrale" and how it works
 //   one container per addon          in the addon's colour: "### <emoji> Name [NEU]", the
-//                                    short description, "-# Version 0.3.0 · 12.10.2026" and
+//                                    short description, "-# Version 0.3.0 · 12.10.2026 ·
+//                                    Patchnotes" (the link opens the addon's card on the web
+//                                    page "Addons", where its release notes are) and
 //                                    "Herunterladen" as the section's button — without a
 //                                    release a short note instead of the button
-// The update message (Board 3): the role ping as its first line (only that role may
-// ping), then a container in the addon's colour: "### Name 0.3.0 ist da", "-# vorher
-// 0.2.0 · 14.10.2026", the release notes as bullets, a divider, "Herunterladen" and
-// the link "Zur Zentrale".
+// Nothing is announced when a new version appears (no update message, no ping): the
+// centre only shows "NEU" and the newest version.
 //
 // Discord allows 40 components per message (nested ones included) and 4000
-// characters of text: the head takes 2 or 4, an addon 4 (container, section, text,
+// characters of text: the head takes 2, an addon 4 (container, section, text,
 // button) or 2 (container, text); addons that do not fit are left out with a line
 // in the head (the caller logs it), descriptions are cut to share the text budget.
 // Public texts go through tr() in the server's language (docs/bot-commands.md).
 const {
-    ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SectionBuilder, SeparatorBuilder,
-    SeparatorSpacingSize, TextDisplayBuilder,
+    ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SectionBuilder, TextDisplayBuilder,
 } = require("discord.js");
 const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
 const { tr } = require("../../utils/i18n/botText");
 const { emojiText, addonEmojiName } = require("../discord/appEmojis");
+const { webUrl } = require("../../utils/discord/botLookup");
 
 /** The customId prefix of every button of the centre (commands/lookup/addonCenterButton.js). */
 const CENTER_PREFIX = "addonhub";
@@ -35,9 +33,6 @@ const COMPONENT_LIMIT = 40;
 const TEXT_LIMIT = 4000;
 /** How long an addon carries "NEU" after a new version. */
 const NEW_MS = 7 * 24 * 60 * 60 * 1000;
-/** Release notes: at most this many bullets of at most this many characters. */
-const MAX_BULLETS = 6;
-const BULLET_MAX = 160;
 const DESCRIPTION_MAX = 300;
 
 /** The centre's own colour (the bot's accent) and the addons' colours of the design. */
@@ -54,8 +49,9 @@ const FALLBACK_COLORS = Object.freeze([0x60a5fa, 0xfbbf24, 0xc084fc, 0x2dd4bf, 0
 
 const downloadId = (addonId) => `${CENTER_PREFIX}:dl:${addonId}`;
 const fileId = (addonId, assetId) => `${CENTER_PREFIX}:file:${addonId}:${assetId}`;
-const SUBSCRIBE_ID = `${CENTER_PREFIX}:sub`;
-const UNSUBSCRIBE_ID = `${CENTER_PREFIX}:unsub`;
+
+/** The card of an addon on the web page "Addons" (anchor `addon-<id>`), where its release notes are. */
+const patchNotesUrl = (addonId) => `${webUrl("/addon")}#addon-${encodeURIComponent(str(addonId))}`;
 
 const str = (v) => String(v === undefined || v === null ? "" : v);
 const text = (content) => new TextDisplayBuilder().setContent(content);
@@ -117,20 +113,18 @@ function downloadButton(addonId, lang) {
  * @param {object} o
  * @param {{ addon: object, state: string, release: object|null, files: object[], newSince: number }[]} o.entries
  *   the addons of the channel's version, in order (`files` = the release files the addon offers)
- * @param {boolean} [o.subscribe] show "Updates abonnieren" (an update role is set)
  * @param {string} [o.lang]
  * @param {string} [o.versionLabel] the game version shown (named in the empty state)
  * @param {object} [o.emojis] the bot's application emojis (appEmojis.appEmojiMap())
  * @param {number} [o.now]
  * @returns {{ payload: object, shown: number, dropped: number }}
  */
-function centerPayload({ entries = [], subscribe = false, lang = "de", emojis = {}, now = Date.now(), versionLabel = "" } = {}) {
+function centerPayload({ entries = [], lang = "de", emojis = {}, now = Date.now(), versionLabel = "" } = {}) {
     const headText = [
         `## ${tr(lang, "Addon download centre")}`,
         tr(lang, "Click **Download** – the file comes only for you. Unpack it into `Interface\\AddOns`."),
-        `-# ${tr(lang, "New versions are announced here.")}`,
     ].join("\n");
-    const headCost = subscribe ? 4 : 2;
+    const headCost = 2;
     const costOf = (e) => (hasFiles(e) ? 4 : 2);
 
     // what fits: everything, else as many as fit next to the line that says some are missing
@@ -154,7 +148,7 @@ function centerPayload({ entries = [], subscribe = false, lang = "de", emojis = 
         return {
             e,
             head: headingOf(e.addon, { emojis, lang, fresh }),
-            sub: `-# ${hasFiles(e) ? version : [version, stateNote(e, lang)].filter(Boolean).join(" · ")}`,
+            sub: `-# ${[version, hasFiles(e) ? "" : stateNote(e, lang), e.release ? `[${tr(lang, "Patch notes")}](${patchNotesUrl(e.addon.id)})` : ""].filter(Boolean).join(" · ")}`,
             desc: escapeMd(cut(e.addon.description, DESCRIPTION_MAX)),
         };
     });
@@ -165,12 +159,7 @@ function centerPayload({ entries = [], subscribe = false, lang = "de", emojis = 
 
     const head = new ContainerBuilder().setAccentColor(COLOR_CENTER);
     const headContent = more ? `${headText}\n${more}` : headText;
-    if (subscribe) {
-        head.addSectionComponents(new SectionBuilder().addTextDisplayComponents(text(headContent))
-            .setButtonAccessory(new ButtonBuilder().setCustomId(SUBSCRIBE_ID).setLabel(tr(lang, "Subscribe to updates")).setEmoji("🔔").setStyle(ButtonStyle.Secondary)));
-    } else {
-        head.addTextDisplayComponents(text(headContent));
-    }
+    head.addTextDisplayComponents(text(headContent));
     const components = [head.toJSON()];
 
     for (const l of lines) {
@@ -196,62 +185,6 @@ function centerPayload({ entries = [], subscribe = false, lang = "de", emojis = 
     };
 }
 
-/**
- * The release notes as at most MAX_BULLETS short lines: the list items when there
- * are any, else the plain lines. Headings, links and emphasis are flattened and
- * the rest escaped, so nothing in a note can format or ping.
- */
-function noteBullets(notes) {
-    const rows = str(notes).replace(/\r\n?/g, "\n").split("\n").map((l) => l.trim()).filter(Boolean);
-    const items = rows.filter((l) => /^([-*+]|\d+[.)])\s+/.test(l));
-    const picked = (items.length ? items : rows.filter((l) => !/^#/.test(l) && !/^[-=]{3,}$/.test(l)))
-        .map((l) => l.replace(/^([-*+]|\d+[.)])\s+/, "")
-            .replace(/^#+\s*/, "")
-            .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
-            .replace(/(\*\*|__|~~|`)/g, "")
-            .replace(/<[^>]*>/g, "")
-            .trim())
-        .filter(Boolean);
-    return picked.slice(0, MAX_BULLETS).map((l) => cut(escapeMd(l), BULLET_MAX));
-}
-
-/**
- * The update message of one addon's new version (Board 3).
- * @param {object} o
- * @param {object} o.addon
- * @param {{ version: string, publishedAt: string, notes: string }} o.release
- * @param {string} [o.previous] the version before ("" = unknown)
- * @param {string} [o.roleId] the update role pinged in the first line ("" = no ping)
- * @param {string} [o.centerUrl] "Zur Zentrale" ("" = no link)
- * @param {boolean} [o.download] offer "Herunterladen" (the release has a matching file)
- * @returns {object} the message payload, with allowedMentions for the role only
- */
-function updatePayload({ addon, release, previous = "", roleId = "", centerUrl = "", download = true, lang = "de", emojis = {} } = {}) {
-    const components = [];
-    if (roleId) components.push(text(`<@&${roleId}>`).toJSON());
-    const c = new ContainerBuilder().setAccentColor(addonColor(addon.id));
-    const sub = [previous ? tr(lang, "before {version}", { version: previous }) : "", dateText(release.publishedAt)].filter(Boolean).join(" · ");
-    const head = headingOf(addon, { emojis, lang, fresh: false, suffix: ` ${escapeMd(cut(release.version, 40))} ${tr(lang, "is here")}` });
-    c.addTextDisplayComponents(text(sub ? `${head}\n-# ${sub}` : head));
-    const bullets = noteBullets(release.notes);
-    if (bullets.length) c.addTextDisplayComponents(text(bullets.map((b) => `- ${b}`).join("\n")));
-    const buttons = [];
-    if (download) buttons.push(downloadButton(addon.id, lang));
-    if (centerUrl) buttons.push(new ButtonBuilder().setLabel(tr(lang, "To the centre")).setStyle(ButtonStyle.Link).setURL(centerUrl));
-    if (buttons.length) {
-        c.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-        c.addActionRowComponents(new ActionRowBuilder().addComponents(buttons));
-    }
-    components.push(c.toJSON());
-    return {
-        flags: MessageFlags.IsComponentsV2,
-        components,
-        content: "",
-        embeds: [],
-        allowedMentions: roleId ? { parse: [], roles: [roleId] } : { parse: [] },
-    };
-}
-
 /** `{ action, addonId, assetId }` of a customId of the centre. */
 function parseCenterId(customId) {
     const [, action = "", addonId = "", assetId = ""] = str(customId).split(":");
@@ -259,6 +192,6 @@ function parseCenterId(customId) {
 }
 
 module.exports = {
-    CENTER_PREFIX, COMPONENT_LIMIT, TEXT_LIMIT, NEW_MS, COLOR_CENTER, ADDON_COLORS, SUBSCRIBE_ID, UNSUBSCRIBE_ID,
-    centerPayload, updatePayload, noteBullets, addonColor, dateText, isNew, downloadId, fileId, parseCenterId, escapeMd,
+    CENTER_PREFIX, COMPONENT_LIMIT, TEXT_LIMIT, NEW_MS, COLOR_CENTER, ADDON_COLORS, patchNotesUrl,
+    centerPayload, addonColor, dateText, isNew, downloadId, fileId, parseCenterId, escapeMd,
 };

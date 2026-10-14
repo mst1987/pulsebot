@@ -81,17 +81,13 @@
     },
     "center": {
         "title": "Downloadzentrale im Discord",
-        "note": "Eine Nachricht im Kanal: jedes Addon mit Download-Knopf. Neue Versionen meldet der Bot dort.",
+        "note": "Eine Nachricht im Kanal: jedes Addon mit Download-Knopf und Link zu den Patchnotes. Der Bot meldet neue Versionen nicht im Kanal, die Nachricht zeigt sie nur mit „NEU“.",
         "channel": "Kanal für die Zentrale",
-        "channelSub": "Dort steht die Nachricht mit allen Addons und ihren Download-Knöpfen; neue Versionen meldet der Bot im selben Kanal. Die Kategorie des Kanals bestimmt die Spielversion (außer unter „Spielversion“ ist eine gewählt): nur deren Addons stehen in der Zentrale.",
+        "channelSub": "Dort steht die Nachricht mit allen Addons und ihren Download-Knöpfen. Die Kategorie des Kanals bestimmt die Spielversion (außer unter „Spielversion“ ist eine gewählt): nur deren Addons stehen in der Zentrale.",
         "version": "Spielversion",
         "versionSub": "Welche Addons die Zentrale zeigt. Automatisch nimmt die Spielversion der Kategorie des Kanals.",
         "versionAuto": "Automatisch ({version})",
         "versionAutoNoChannel": "Automatisch (aus der Kategorie)",
-        "role": "Abo-Rolle für Update-Pings",
-        "roleSub": "Optional. Mitglieder holen sie sich selbst über „Updates abonnieren“ in der Zentrale und werden bei neuen Versionen gepingt. Ohne Rolle gibt es den Knopf nicht und niemand wird gepingt.",
-        "announce": "Neue Versionen im Kanal melden",
-        "announceSub": "Bei einer neuen Version postet der Bot eine Meldung mit den Neuerungen in den Kanal. Aus: nur die Zentrale zeigt die neue Version mit „NEU“.",
         "post": "Posten",
         "repost": "Neu posten",
         "postedState": "gepostet {date} · zuletzt geprüft {time}",
@@ -102,7 +98,7 @@
         "saved": "Gespeichert.",
         "posted": "Downloadzentrale gepostet.",
         "removeAsk": "Downloadzentrale entfernen?",
-        "removeText": "Die Nachricht im Kanal wird gelöscht. Update-Meldungen, die schon im Kanal stehen, bleiben.",
+        "removeText": "Die Nachricht im Kanal wird gelöscht. Update-Meldungen aus früherer Zeit, die noch im Kanal stehen, bleiben.",
         "removed": "Downloadzentrale entfernt.",
         "loadError": "Die Einstellungen der Downloadzentrale konnten nicht geladen werden."
     }

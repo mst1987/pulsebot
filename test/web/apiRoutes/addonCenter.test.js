@@ -11,7 +11,6 @@ jest.mock("../../../src/services/discord/discord", () => ({
     listTextChannels: jest.fn((guildId) => (guildId === "g1"
         ? [{ id: "111111111111111111", name: "addon-downloads", category: "Allgemein", parentId: "" }, { id: "222222222222222222", name: "tbc-chat", category: "TBC", parentId: "cat-tbc" }]
         : [{ id: "c9", name: "talk", category: "", parentId: "" }])),
-    listRoles: jest.fn((guildId) => [{ id: `r-${guildId}`, name: "Addon-Updates", color: "", managed: false }]),
 }));
 
 const addonCenter = require("../../../src/services/addons/addonCenter");
@@ -36,14 +35,14 @@ beforeEach(() => {
 });
 
 describe("apiRoutes/addonCenter", () => {
-    it("shows the settings, the posted centre, the last check, the channels with their game version and the roles", async () => {
-        store.setSettings({ channelId: "123456789012345678", roleId: "223456789012345678" });
+    it("shows the settings, the posted centre, the last check, the channels with their game version", async () => {
+        store.setSettings({ channelId: "123456789012345678" });
         store.setCenter({ guildId: "g1", channelId: "123456789012345678", messageId: "m1", url: "https://discord.com/channels/g1/123456789012345678/m1" }, { now: 5 });
         store.setCheckedAt(9);
         const res = await get("/api/addon-center");
         expect(status(res)).toBe(200);
         expect(body(res)).toEqual({
-            settings: { channelId: "123456789012345678", roleId: "223456789012345678", announce: true, versionId: "" },
+            settings: { channelId: "123456789012345678", versionId: "" },
             center: { channelId: "123456789012345678", postedAt: 5, url: "https://discord.com/channels/g1/123456789012345678/m1" },
             checkedAt: 9,
             online: true,
@@ -51,7 +50,6 @@ describe("apiRoutes/addonCenter", () => {
                 { id: "111111111111111111", name: "addon-downloads", guildId: "g1", category: "WoW Forever" },
                 { id: "222222222222222222", name: "tbc-chat", guildId: "g1", category: "TBC Anniversary" },
             ],
-            roles: { g1: [{ id: "r-g1", name: "Addon-Updates", color: "", managed: false }] },
             versions: [{ id: "tbc", label: "TBC Anniversary" }, { id: "classic", label: "Classic Era" }, { id: "forever", label: "WoW Forever" }],
             autoVersion: null,
         });
@@ -82,7 +80,6 @@ describe("apiRoutes/addonCenter", () => {
         guildRoles.configuredGuildIds.mockReturnValue(["g1", "g2"]);
         const res = await get("/api/addon-center");
         expect(body(res).channels.map((c) => c.category)).toEqual(["Gilde · WoW Forever", "Gilde · TBC Anniversary", "Talk · WoW Forever"]);
-        expect(Object.keys(body(res).roles)).toEqual(["g1", "g2"]);
     });
 
     it("is for full admins only, even with write access to the settings", async () => {
@@ -96,12 +93,13 @@ describe("apiRoutes/addonCenter", () => {
         expect(status(await get("/api/addon-center"))).toBe(401);
     });
 
-    it("saves the settings at once: only the fields sent, the switch as a boolean", async () => {
+    it("saves the settings at once: only the fields sent; the old roleId/announce are not passed on", async () => {
         addonCenter.saveSettings.mockResolvedValue({ settings: {}, center: null });
-        const res = await request("PUT", "/api/addon-center", { channelId: "123456789012345678", roleId: null, announce: "yes", other: 1 });
+        const res = await request("PUT", "/api/addon-center", { channelId: "123456789012345678", roleId: "223456789012345678", announce: true, other: 1 });
         expect(status(res)).toBe(200);
-        expect(addonCenter.saveSettings).toHaveBeenCalledWith({ channelId: "123456789012345678", roleId: "", announce: false }, { by: "1" });
-        expect(body(res).settings).toEqual({ channelId: "", roleId: "", announce: true, versionId: "" });
+        expect(addonCenter.saveSettings).toHaveBeenCalledWith({ channelId: "123456789012345678" }, { by: "1" });
+        expect(body(res)).not.toHaveProperty("roles");
+        expect(body(res).settings).toEqual({ channelId: "", versionId: "" });
     });
 
     it("answers a refused setting with 400 and a failed move as a warning next to the saved settings", async () => {
@@ -135,6 +133,5 @@ describe("apiRoutes/addonCenter", () => {
         const res = await get("/api/addon-center");
         expect(status(res)).toBe(200);
         expect(body(res).channels).toEqual([]);
-        expect(body(res).roles).toEqual({});
     });
 });
