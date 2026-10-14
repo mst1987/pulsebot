@@ -27,6 +27,12 @@ export type RaidListBase = {
     /** A raid group (#811): the first raid's id on every raid of it, and the raid's place (1 = the first). */
     raidGroupId?: string;
     raidGroupIndex?: number;
+    /** Cancelled in Event verwalten (#288); a Raid-Helper raid never is. Same names as the signup view. */
+    cancelled?: boolean;
+    cancelReason?: string;
+    /** When (ms) and by whom — 0 / "" when unknown. */
+    cancelledAt?: number;
+    cancelledByName?: string;
 };
 export type UpcomingRaid = RaidListBase & {
     signupCount: number;

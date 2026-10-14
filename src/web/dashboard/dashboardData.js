@@ -1,7 +1,7 @@
 // Data assembly shared by the dashboard's SSR route (server.js) and its JSON
 // counterpart (apiRouter.js) — moved out of server.js so both can require it
 // without a circular dependency (server.js requires apiRouter.js).
-const { listStoredEvents, ownUpcomingRaw } = require("../../services/events/eventSources");
+const { listStoredEvents, ownUpcomingRaw, cancelFields } = require("../../services/events/eventSources");
 const { scanRaidEvents } = require("../../services/events/raidEventScan");
 const { listByEvent: listLootByEvent } = require("../../stores/lootStore");
 const { getEventSheet } = require("../../stores/eventSheetStore");
@@ -138,6 +138,8 @@ async function loadNextRaids(guildId, count = 2, { versionId = "" } = {}) {
             sheet: sheetFor(ev.id, categoryId),
             softres: softresList && softresList.url ? { url: softresList.url } : null,
             lootSystem: lootSystemOf(ev.id, categoryId),
+            // Event verwalten (#288): a cancelled raid says so instead of passing for the next one
+            ...cancelFields(ev),
         });
     }
     return { raids, error: raids.length ? null : error };

@@ -106,6 +106,9 @@ export type DashboardRaid = {
     sheet: DashboardSheet;
     softres: { url: string } | null;
     lootSystem?: LootSystem;
+    /** Cancelled in Event verwalten (#288), with the reason. */
+    cancelled?: boolean;
+    cancelReason?: string;
 };
 
 export type DashboardTaskTone = "ok" | "mid" | "bad" | "accent";

@@ -124,6 +124,7 @@ function NextRaidCard({ raid, following, error, guildId, onDetails }: {
                                 <Link className="ov-next-title" to={raidDetailHref(raid.id)}>{raid.title}</Link>
                                 <div className="ov-next-when">{raidWhen(raid.startTime)}{raid.channelName ? ` · #${raid.channelName}` : ""}</div>
                             </div>
+                            {raid.cancelled && <Badge tone="bad" tip={t("dashboard.next.cancelled")} tipSub={raid.cancelReason || t("dashboard.next.cancelledSub")}>{t("dashboard.next.cancelled")}</Badge>}
                             <Badge tone="accent" className="ov-next-rel">{relativeDayLabel(raid.startTime)}</Badge>
                         </div>
                         <div className="ov-roles">

@@ -25,6 +25,8 @@
     },
     "next": {
         "title": "Next raid",
+        "cancelled": "Cancelled",
+        "cancelledSub": "The organisers cancelled this raid.",
         "crumb": "Raid events",
         "details": "Details",
         "openTip": "Open raid",

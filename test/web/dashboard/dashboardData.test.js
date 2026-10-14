@@ -284,6 +284,24 @@ describe("web/dashboard/dashboardData loadNextRaids", () => {
         }
     });
 
+    it("marks a cancelled own raid with its reason, a Raid-Helper raid never (#288)", async () => {
+        const eventStore = require("../../../src/stores/eventStore");
+        const future = Math.floor(Date.now() / 1000) + 86400;
+        rh.getAllEvents.mockResolvedValue([{ id: "e1", title: "Black Temple", channelId: "c1", startTime: future + 100, signUps: [] }]);
+        rh.getSetup.mockResolvedValue({ setup: [] });
+        eventStore.listEvents.mockReturnValue([{
+            id: "eh-1", source: "eventhelper", guildId: "g1", categoryId: "cat2", channelId: "c9", title: "Kara", startTime: future,
+            versionId: "tbc", instanceIds: ["kara"], size: 10, status: "cancelled", cancel: { reason: "Tank fehlt", at: 5, by: "u1", byName: "Anna", archived: false },
+        }]);
+        try {
+            const { raids } = await loadNextRaids("g1", 2);
+            expect(raids[0]).toMatchObject({ id: "eh-1", cancelled: true, cancelReason: "Tank fehlt", cancelledByName: "Anna" });
+            expect(raids[1]).toMatchObject({ id: "e1", cancelled: false, cancelReason: "" });
+        } finally {
+            eventStore.listEvents.mockReturnValue([]);
+        }
+    });
+
     it("filters by game version (#545): an own event's own, a Raid-Helper one falls back to TBC", async () => {
         const eventStore = require("../../../src/stores/eventStore");
         const future = Math.floor(Date.now() / 1000) + 86400;

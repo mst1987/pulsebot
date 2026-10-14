@@ -221,6 +221,8 @@ describe("web/apiRoutes/raids", () => {
                         contentIds: ["kara"], contentSources: ["title"], raidSize: 10, raidSizeKnown: true,
                         // only the public link — the edit url is the softres admin key
                         softres: { url: "https://softres.it/raid/x" },
+                        // a Raid-Helper event knows no cancellation
+                        cancelled: false, cancelReason: "", cancelledAt: 0, cancelledByName: "",
                         // no category override in the (mocked, empty) config: the main version, "tbc".
                         versionId: "tbc",
                     }],
