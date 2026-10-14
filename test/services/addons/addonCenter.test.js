@@ -26,6 +26,7 @@ const { defaultAddons } = require("../../../src/services/addons/addonConfig");
 let mockConfig = {};
 jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
 
+const fs = require("fs");
 const discord = require("../../../src/services/discord/discord");
 const store = require("../../../src/stores/addonCenterStore");
 const center = require("../../../src/services/addons/addonCenter");
@@ -64,7 +65,7 @@ beforeEach(() => {
     discord.editPayload.mockResolvedValue(posted());
     mockSend.mockResolvedValue({ id: "u1" });
     mockFetchMessage.mockResolvedValue({ id: "m1" });
-    store.setSettings({ channelId: CH, roleId: ROLE, announce: true });
+    store.setSettings({ channelId: CH });
 });
 
 describe("addonCenter compareVersions", () => {
@@ -130,7 +131,7 @@ describe("addonCenter game version setting", () => {
     it("the version check follows the picked version", async () => {
         await center.postCenter({ now: NOW });
         store.setSettings({ versionId: "classic" });
-        expect(await center.checkVersions({ config: mockConfig, now: NOW })).toEqual({ remembered: [], updated: [], announced: [] });
+        expect(await center.checkVersions({ config: mockConfig, now: NOW })).toEqual({ remembered: [], updated: [] });
     });
 });
 
@@ -196,44 +197,34 @@ describe("addonCenter runCheck (the job)", () => {
         store.setCenter({ guildId: "g1", channelId: CH, messageId: "m1", url: posted().url, hash: "old" }, { now: NOW });
         const res = await center.runCheck({ now: NOW });
         expect(res.remembered.sort()).toEqual(["levelhelper", "professionkit"]);
-        expect(res.announced).toEqual([]);
         expect(mockSend).not.toHaveBeenCalled();
         expect(store.getCheckedAt()).toBe(NOW);
     });
 
-    it("a new version: NEU in the centre (edited) and an update message pinging the role", async () => {
+    it("a new version: NEU in the centre (edited), but nothing is posted and nobody is pinged", async () => {
         await center.postCenter({ now: NOW });
         mockReleases.professionkit = releaseOf("professionkit", "0.3.0");
         const res = await center.runCheck({ now: NOW + 1000 });
-        expect(res).toMatchObject({ updated: ["professionkit"], announced: ["professionkit"], center: "edited" });
-        const update = mockSend.mock.calls[0][0];
-        expect(update.allowedMentions).toEqual({ parse: [], roles: [ROLE] });
-        expect(update.components[0].content).toBe(`<@&${ROLE}>`);
-        expect(JSON.stringify(update)).toContain("ProfessionKit 0.3.0 ist da");
-        expect(JSON.stringify(update)).toContain("vorher 0.2.0");
-        expect(JSON.stringify(update)).toContain(posted().url);
+        expect(res).toEqual({ remembered: [], updated: ["professionkit"], center: "edited" });
+        expect(mockSend).not.toHaveBeenCalled();
+        expect(discord.postPayload).toHaveBeenCalledTimes(1);
         expect(JSON.stringify(discord.editPayload.mock.calls[0][2])).toContain("### ProfessionKit `NEU`");
-        expect(store.getSeen().professionkit).toEqual({ version: "0.3.0", previous: "0.2.0", newSince: NOW + 1000, notifiedAt: NOW + 1000 });
-        expect(store.listUpdates()).toEqual([{ addonId: "professionkit", version: "0.3.0", guildId: "g1", channelId: CH, messageId: "u1", postedAt: NOW + 1000 }]);
+        expect(store.getSeen().professionkit).toEqual({ version: "0.3.0", previous: "0.2.0", newSince: NOW + 1000, notifiedAt: 0 });
         // the next check finds nothing new and leaves the message alone
         const again = await center.runCheck({ now: NOW + 2000 });
         expect(again).toMatchObject({ updated: [], center: "unchanged" });
-        expect(mockSend).toHaveBeenCalledTimes(1);
+        expect(mockSend).not.toHaveBeenCalled();
     });
 
-    it("with the switch off only the centre changes; without a role nobody is pinged", async () => {
-        await center.postCenter({ now: NOW });
-        store.setSettings({ announce: false });
+    it("old settings keys (announce, roleId) have no effect: still no post, no ping", async () => {
+        fs.writeFileSync(file, JSON.stringify({ channelId: CH, roleId: ROLE, announce: true, center: { channelId: CH, messageId: "m1", guildId: "g1", url: posted().url }, seen: { levelhelper: { version: "0.3.0" } } }));
+        store.useFile(null);
+        store.useFile(file);
         mockReleases.levelhelper = releaseOf("levelhelper", "0.4.0");
         const res = await center.runCheck({ now: NOW + 1 });
-        expect(res).toMatchObject({ updated: ["levelhelper"], announced: [], center: "edited" });
+        expect(res.updated).toEqual(["levelhelper"]);
         expect(mockSend).not.toHaveBeenCalled();
-
-        store.setSettings({ announce: true, roleId: "" });
-        mockReleases.levelhelper = releaseOf("levelhelper", "0.5.0");
-        await center.runCheck({ now: NOW + 2 });
-        expect(mockSend.mock.calls[0][0].allowedMentions).toEqual({ parse: [] });
-        expect(JSON.stringify(mockSend.mock.calls[0][0])).not.toContain("<@&");
+        expect(JSON.stringify(discord.editPayload.mock.calls)).not.toContain(ROLE);
     });
 
     it("an older 'latest' is taken over quietly", async () => {
@@ -244,16 +235,6 @@ describe("addonCenter runCheck (the job)", () => {
         expect(store.getSeen().levelhelper).toMatchObject({ version: "0.2.9", newSince: 0 });
     });
 
-    it("a failed update post is logged, the check goes on", async () => {
-        await center.postCenter({ now: NOW });
-        mockReleases.levelhelper = releaseOf("levelhelper", "0.4.0");
-        mockSend.mockRejectedValue(new Error("Missing Permissions"));
-        const res = await center.runCheck({ now: NOW + 1 });
-        expect(res.announced).toEqual([]);
-        expect(res.updated).toEqual(["levelhelper"]);
-        expect(mockLog.warn).toHaveBeenCalledWith(expect.stringContaining("Missing Permissions"));
-    });
-
     it("after a restart it goes on with the stored centre and versions", async () => {
         await center.postCenter({ now: NOW });
         // a new process: the store reads its file again, the centre and the versions come back from it
@@ -262,7 +243,7 @@ describe("addonCenter runCheck (the job)", () => {
         expect(store.getCenter()).toMatchObject({ messageId: "m1" });
         mockReleases.professionkit = releaseOf("professionkit", "0.3.0");
         const res = await center.runCheck({ now: NOW + 5 });
-        expect(res.announced).toEqual(["professionkit"]);
+        expect(res.updated).toEqual(["professionkit"]);
         expect(discord.editPayload).toHaveBeenCalledWith(CH, "m1", expect.any(Object));
     });
 
@@ -309,8 +290,8 @@ describe("addonCenter onCenterMessageDeleted", () => {
 
 describe("addonCenter saveSettings", () => {
     it("only saves while no centre is posted", async () => {
-        const res = await center.saveSettings({ roleId: "" });
-        expect(res).toEqual({ settings: { channelId: CH, roleId: "", announce: true, versionId: "" }, center: null });
+        const res = await center.saveSettings({});
+        expect(res).toEqual({ settings: { channelId: CH, versionId: "" }, center: null });
         expect(discord.postPayload).not.toHaveBeenCalled();
         expect(await center.saveSettings({ channelId: "bad" })).toEqual({ error: "Ungültiger Kanal." });
     });
@@ -334,12 +315,6 @@ describe("addonCenter saveSettings", () => {
         const res = await center.saveSettings({ channelId: "" });
         expect(res.center).toBeNull();
         expect(store.getCenter()).toBeNull();
-    });
-
-    it("another role redraws the centre (the subscribe button comes and goes)", async () => {
-        await center.postCenter({ now: NOW });
-        await center.saveSettings({ roleId: "" });
-        expect(JSON.stringify(discord.editPayload.mock.calls[0][2])).not.toContain("addonhub:sub");
     });
 });
 

@@ -7,16 +7,15 @@ import { useToast } from "../../components/shell/Jobs";
 import { useConfirm } from "../../components/ui/Modal";
 import { Button, buttonClass } from "../../components/ui/Button";
 import { FieldLabel } from "../../components/ui/Field";
-import Switch from "../../components/ui/Switch";
-import { ChannelPicker, RolePicker } from "../../components/settings/settingsUi";
+import { ChannelPicker } from "../../components/settings/settingsUi";
 import { ExternalIcon, SendIcon } from "../../components/ui/icons";
 import { formatDate, formatTime } from "../../lib/format";
 import { useT } from "../../i18n";
 
 // Einstellungen → Module → Addons, under the list: "Downloadzentrale im Discord"
 // (design board 4). One bot message in a channel with every addon of the channel's
-// game version and a download button; the bot announces new versions there
-// (services/addons/addonCenter.js). Like the rest of the section it saves itself —
+// game version, a download button and a patch notes link each (nothing is
+// announced; services/addons/addonCenter.js). Like the rest of the section it saves itself —
 // every pick at once through its own route (/api/addon-center), never the page's
 // draft or PATCH /api/settings, so the addon list's guards stay untouched. Posting,
 // "Neu posten" and "Entfernen" follow the Orga-Zentrale's row (OrgaHubRow).
@@ -35,9 +34,6 @@ export default function AddonCenterCard() {
     }
     const data: AddonCenterView = view.data;
     const { settings, center } = data;
-    const guildOf = (channelId: string) => (data.channels.find((c) => c.id === channelId) || { guildId: "" }).guildId;
-    const guildId = guildOf(settings.channelId) || Object.keys(data.roles)[0] || "";
-    const roles = data.roles[guildId] || [];
 
     const run = async (kind: Busy, call: () => Promise<AddonCenterView>, done: string) => {
         setBusy(kind);
@@ -54,12 +50,6 @@ export default function AddonCenterCard() {
     };
 
     const save = (patch: Partial<AddonCenterSettings>) => run("save", () => saveAddonCenter(patch), t("addon.center.saved"));
-
-    // another server's channel: the role of the old one cannot ping there
-    const pickChannel = (channelId: string) => {
-        const sameServer = guildOf(channelId) === guildOf(settings.channelId);
-        void save(sameServer || !settings.roleId ? { channelId } : { channelId, roleId: "" });
-    };
 
     const remove = async () => {
         if (!(await ask({ title: t("addon.center.removeAsk"), text: t("addon.center.removeText"), action: t("common.remove") }))) return;
@@ -82,11 +72,7 @@ export default function AddonCenterCard() {
                 <div className="set-grid">
                     <div className="set-field">
                         <FieldLabel htmlFor="dlp-center-channel" tip={t("addon.center.channel")} tipSub={t("addon.center.channelSub")}>{t("addon.center.channel")}</FieldLabel>
-                        <ChannelPicker id="dlp-center-channel" value={settings.channelId} channels={data.channels} onChange={pickChannel} />
-                    </div>
-                    <div className="set-field">
-                        <FieldLabel htmlFor="dlp-center-role" tip={t("addon.center.role")} tipSub={t("addon.center.roleSub")}>{t("addon.center.role")}</FieldLabel>
-                        <RolePicker id="dlp-center-role" value={settings.roleId} roles={roles} onChange={(roleId) => { void save({ roleId }); }} />
+                        <ChannelPicker id="dlp-center-channel" value={settings.channelId} channels={data.channels} onChange={(channelId) => { void save({ channelId }); }} />
                     </div>
                     <div className="set-field">
                         <FieldLabel htmlFor="dlp-center-version" tip={t("addon.center.version")} tipSub={t("addon.center.versionSub")}>{t("addon.center.version")}</FieldLabel>
@@ -98,8 +84,6 @@ export default function AddonCenterCard() {
                         </select>
                     </div>
                 </div>
-                <Switch checked={settings.announce} disabled={busy === "save"} onChange={(announce) => { void save({ announce }); }}
-                    label={t("addon.center.announce")} tip={t("addon.center.announceSub")} />
                 <div className="cat-panel-state dlp-center-actions">
                     <Button size="sm" icon={<SendIcon />} disabled={!settings.channelId || !data.online || busy !== ""} running={busy === "post"}
                         onClick={() => { void run("post", postAddonCenter, t("addon.center.posted")); }}>

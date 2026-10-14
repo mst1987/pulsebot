@@ -1,7 +1,7 @@
 // The addon download centre in Discord (design "Addon-Downloadzentrale", Okt 2026):
 // ONE bot message in a channel the admin picks (Einstellungen → Module → Addons)
-// with every addon of the channel's game version and a "Herunterladen" button
-// each; a click sends the file to the clicking member alone
+// with every addon of the channel's game version, a "Herunterladen" button
+// and a "Patchnotes" link (to the web page) each; a click sends the file to the clicking member alone
 // (services/addons/addonCenterBot.js). The builders are addonCenterPanel.js, the
 // settings and what was posted stores/addonCenterStore.js.
 //
@@ -9,9 +9,8 @@
 // start) asks the release cache (addonReleases.releaseFor, 10 minutes) for each
 // addon of the centre and compares the newest version with the one it knows:
 //   - none known yet (first check, a new addon): only remembered, nothing posted;
-//   - a newer one: "NEU" for seven days in the centre, and — when "Neue Versionen
-//     im Kanal melden" is on — an update message into the same channel, pinging
-//     the update role (none set = no ping). Old update messages stay.
+//   - a newer one: "NEU" for seven days in the centre. Nothing is announced: no
+//     update message into the channel, no ping (the centre's redraw is all there is).
 // Then the centre is redrawn when what it shows changed (its `hash`), and posted
 // anew when its message is gone (deleted in Discord: linkWatch.js tells
 // onCenterMessageDeleted at once; while the bot was away, the next check finds it).
@@ -27,7 +26,7 @@ const { categoryIdOfChannel } = require("../events/commandVersion");
 const { mainVersionFor, isVersionVisible, knownVersion } = require("../events/mainVersion");
 const { enabledAddons, releaseFor } = require("./addonReleases");
 const { assetMatches } = require("./addonConfig");
-const { centerPayload, updatePayload } = require("./addonCenterPanel");
+const { centerPayload } = require("./addonCenterPanel");
 const log = require("../../logger").child("addonCenter");
 
 const FIRST_DELAY_MS = 60 * 1000;
@@ -108,10 +107,9 @@ function payloadHash(payload) {
 /** The centre as it should look now, for the channel it lives in. */
 async function currentPayload({ channelId, config, now = Date.now() } = {}) {
     const cfg = config || getConfig();
-    const settings = store.getSettings();
     const versionId = channelVersion(channelId, cfg);
     const entries = await centerEntries(cfg, versionId, { now });
-    const built = centerPayload({ entries, subscribe: !!settings.roleId, lang: serverLang(cfg), emojis: appEmojiMap(), now, versionLabel: versionLabel(versionId) });
+    const built = centerPayload({ entries, lang: serverLang(cfg), emojis: appEmojiMap(), now, versionLabel: versionLabel(versionId) });
     if (built.dropped) log.warn(`${built.dropped} addon(s) do not fit into the centre (Discord allows 40 components); they are on the download page`);
     return { ...built, versionId, entries };
 }
@@ -208,33 +206,14 @@ async function refreshCenter({ config, force = false, now = Date.now() } = {}) {
     }
 }
 
-/** Post the update message of one addon's new version into the centre's channel (pinging the update role). */
-async function postUpdate({ addon, release, previous, files, settings, center, config, now }) {
-    const payload = updatePayload({
-        addon,
-        release,
-        previous,
-        roleId: settings.roleId,
-        centerUrl: center && center.url ? center.url : "",
-        download: files.length > 0,
-        lang: serverLang(config),
-        emojis: appEmojiMap(),
-    });
-    const channel = await discord.fetchTextChannel(settings.channelId);
-    const posted = await channel.send(payload);
-    store.addUpdate({ addonId: addon.id, version: release.version, guildId: channel.guildId, channelId: channel.id, messageId: posted.id }, { now });
-    log.info(`update posted: ${addon.id} ${previous || "?"} -> ${release.version} in ${channel.id}${settings.roleId ? " (role ping)" : ""}`);
-}
-
 /**
  * Compare each addon's newest version with the known one (see the head comment).
- * @returns {Promise<{ remembered: string[], updated: string[], announced: string[] }>}
+ * @returns {Promise<{ remembered: string[], updated: string[] }>}
  */
 async function checkVersions({ config, now = Date.now() } = {}) {
     const cfg = config || getConfig();
-    const settings = store.getSettings();
     const center = store.getCenter();
-    const out = { remembered: [], updated: [], announced: [] };
+    const out = { remembered: [], updated: [] };
     if (!center) return out;
     const entries = await centerEntries(cfg, channelVersion(center.channelId, cfg), { now });
     const seen = store.getSeen();
@@ -249,20 +228,12 @@ async function checkVersions({ config, now = Date.now() } = {}) {
         }
         if (known.version === version) continue;
         if (compareVersions(version, known.version) < 0) {
-            // an older "latest" (a release withdrawn): taken over quietly, never announced
+            // an older "latest" (a release withdrawn): taken over quietly
             store.setSeen(e.addon.id, { version, previous: known.version, newSince: 0, notifiedAt: 0 });
             continue;
         }
         store.setSeen(e.addon.id, { version, previous: known.version, newSince: now, notifiedAt: 0 });
         out.updated.push(e.addon.id);
-        if (!settings.announce) continue;
-        try {
-            await postUpdate({ addon: e.addon, release: e.release, previous: known.version, files: e.files, settings, center, config: cfg, now });
-            store.setSeen(e.addon.id, { version, previous: known.version, newSince: now, notifiedAt: now });
-            out.announced.push(e.addon.id);
-        } catch (err) {
-            log.warn(`update of ${e.addon.id} ${version} not posted: ${str(err && err.message) || err}`);
-        }
     }
     return out;
 }
@@ -275,7 +246,7 @@ function runCheck({ config, now = Date.now() } = {}) {
     if (running) return running;
     running = (async () => {
         if (!store.getCenter() || !discord.isOnline()) return { skipped: true };
-        let versions = { remembered: [], updated: [], announced: [] };
+        let versions = { remembered: [], updated: [] };
         try {
             versions = await checkVersions({ config, now });
         } catch (e) {
@@ -318,7 +289,7 @@ function onCenterMessageDeleted(messageId, { delayMs = REDRAW_DELAY_MS } = {}) {
 /**
  * Save the settings of Einstellungen → Module → Addons and follow them in Discord:
  * another channel moves the posted centre there (the old message is deleted), a
- * changed role or switch redraws it ("Updates abonnieren" shows only with a role).
+ * changed game version redraws it.
  * @returns {Promise<{ settings?: object, center?: object|null, error?: string }>}
  */
 async function saveSettings(patch = {}, { by = "", config, now = Date.now() } = {}) {
@@ -337,14 +308,14 @@ async function saveSettings(patch = {}, { by = "", config, now = Date.now() } = 
         return { settings: saved.settings, center: moved.center };
     }
     if (saved.settings.versionId !== before.versionId) {
-        // another game version shows other addons: their versions are only remembered, never announced
+        // another game version shows other addons: their versions are only remembered
         try {
             rememberVersions(await centerEntries(config || getConfig(), channelVersion(center.channelId, config || getConfig()), { now }));
         } catch (e) {
             log.warn(`versions of the new game version not remembered: ${str(e && e.message) || e}`);
         }
     }
-    if (saved.settings.roleId !== before.roleId || saved.settings.versionId !== before.versionId) await refreshCenter({ config, force: true, now });
+    if (saved.settings.versionId !== before.versionId) await refreshCenter({ config, force: true, now });
     return { settings: saved.settings, center: store.getCenter() };
 }
 

@@ -13,8 +13,8 @@
 // that have some, and for an admin the way to Einstellungen → Module →
 // Addons), a failed request says so with "Erneut versuchen". The classes are
 // "dlp-", never "ad-": ad blockers hide .ad-card/.ad-grid (styles/addon.css).
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { getAddons, type AddonCard, type AddonFile, type AddonsData, type ApiError } from "../../api";
 import { AsyncView, Badge, Button, Expand, PageHead, RaidLoader, WowIcon, buttonClass } from "../../components/ui";
 import { DownloadIcon, WarnIcon } from "../../components/ui/icons";
@@ -72,12 +72,21 @@ function InstallGuide({ addon, versionId }: { addon: AddonCard; versionId: strin
 
 function AddonCardView({ addon, versionId, canManage }: { addon: AddonCard; versionId: string; canManage: boolean }) {
     const t = useT();
-    const [open, setOpen] = useState(false);
+    // the Discord centre links here (`#addon-<id>`): open this card's notes and scroll to it
+    const { hash } = useLocation();
+    const linked = hash === `#addon-${addon.id}`;
+    const [open, setOpen] = useState(linked);
+    const card = useRef<HTMLElement>(null);
+    useEffect(() => {
+        if (!linked) return;
+        setOpen(true);
+        if (card.current && typeof card.current.scrollIntoView === "function") card.current.scrollIntoView({ block: "start" });
+    }, [linked]);
     const release = addon.release;
     const date = release && release.publishedAt ? formatDate(Date.parse(release.publishedAt)) : "";
     const notes = release ? plainNotes(release.notes) : "";
     return (
-        <section className="dlp-card" data-addon={addon.id}>
+        <section className="dlp-card" id={`addon-${addon.id}`} data-addon={addon.id} ref={card}>
             <div className="dlp-card-head">
                 <WowIcon name={addon.icon} size={40} />
                 <div>

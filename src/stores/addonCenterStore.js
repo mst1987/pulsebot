@@ -6,25 +6,22 @@
 //
 // `data/settings/addon-center.json` =
 //   {
-//     channelId, roleId, announce,          the settings (Einstellungen → Module → Addons)
+//     channelId,                            the setting (Einstellungen → Module → Addons)
 //     versionId,                            the game version the centre shows ("" = that of the channel's category)
 //     center: { guildId, channelId, messageId, url, postedAt, postedBy, hash } | null,
 //     checkedAt,                            the last version check (ms)
-//     seen: { [addonId]: { version, previous, newSince, notifiedAt } },
-//     updates: [{ addonId, version, guildId, channelId, messageId, postedAt }]
+//     seen: { [addonId]: { version, previous, newSince, notifiedAt } }
 //   }
 //
+// Older files may still carry `roleId`, `announce` and `updates` (the update
+// messages, removed): they are ignored and dropped on the next write.
+//
 // `seen` is the version the bot knows per addon: the first check only fills it
-// (nothing is announced), a later different version sets `newSince` (the "NEU"
-// mark of the centre, seven days) and, when announced, `notifiedAt`. `updates`
-// lists the posted update messages (newest last, at most MAX_UPDATES); they are
-// never deleted in Discord, the list only says what was posted.
+// (nothing is shown as new), a later different version sets `newSince` (the "NEU"
+// mark of the centre, seven days). Nothing is announced in the channel.
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { rulesFor } = require("../config/gameVersions");
-
-/** The posted update messages remembered (the messages themselves stay in Discord). */
-const MAX_UPDATES = 50;
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const num = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : 0);
@@ -57,14 +54,7 @@ function normalizeSeen(raw) {
     return out;
 }
 
-function normalizeUpdates(raw) {
-    return (Array.isArray(raw) ? raw : [])
-        .filter((u) => u && str(u.addonId) && str(u.messageId))
-        .map((u) => ({ addonId: str(u.addonId), version: str(u.version), guildId: str(u.guildId), channelId: str(u.channelId), messageId: str(u.messageId), postedAt: num(u.postedAt) }))
-        .slice(-MAX_UPDATES);
-}
-
-const DEFAULTS = () => ({ channelId: "", roleId: "", announce: true, versionId: "", center: null, checkedAt: 0, seen: {}, updates: [] });
+const DEFAULTS = () => ({ channelId: "", versionId: "", center: null, checkedAt: 0, seen: {} });
 
 const store = createJsonStore({
     file: settingsPath("addon-center.json"),
@@ -73,13 +63,10 @@ const store = createJsonStore({
         const d = data && typeof data === "object" && !Array.isArray(data) ? data : {};
         return {
             channelId: snowflake(d.channelId),
-            roleId: snowflake(d.roleId),
-            announce: d.announce !== false,
             versionId: knownVersionId(d.versionId),
             center: normalizeCenter(d.center),
             checkedAt: num(d.checkedAt),
             seen: normalizeSeen(d.seen),
-            updates: normalizeUpdates(d.updates),
         };
     },
 });
@@ -87,33 +74,31 @@ const store = createJsonStore({
 /** Tests point the store at a file of their own; null = the default again. */
 const useFile = store.useFile;
 
-/** `{ channelId, roleId, announce, versionId }`. */
+/** `{ channelId, versionId }`. */
 function getSettings() {
     const d = store.read();
-    return { channelId: d.channelId, roleId: d.roleId, announce: d.announce, versionId: d.versionId };
+    return { channelId: d.channelId, versionId: d.versionId };
 }
 
 /**
- * Change the settings; only the fields given. An id that is no Discord id is
- * refused (`{ error }`), "" clears it. Returns `{ settings }` or `{ error }`.
+ * Change the settings; only the fields given. A channel id that is no Discord id is
+ * refused (`{ error }`), "" clears it. The old keys `roleId` and `announce` are ignored. Returns `{ settings }` or `{ error }`.
  */
 function setSettings(patch = {}) {
     const p = patch && typeof patch === "object" ? patch : {};
     const d = store.read();
-    for (const key of ["channelId", "roleId"]) {
-        if (p[key] === undefined) continue;
-        const value = str(p[key]);
-        if (value && !SNOWFLAKE.test(value)) return { error: key === "channelId" ? "Ungültiger Kanal." : "Ungültige Rolle." };
-        d[key] = value;
+    if (p.channelId !== undefined) {
+        const value = str(p.channelId);
+        if (value && !SNOWFLAKE.test(value)) return { error: "Ungültiger Kanal." };
+        d.channelId = value;
     }
     if (p.versionId !== undefined) {
         const value = str(p.versionId);
         if (value && !knownVersionId(value)) return { error: "Ungültige Spielversion." };
         d.versionId = value;
     }
-    if (p.announce !== undefined) d.announce = p.announce !== false;
     store.write(d);
-    return { settings: { channelId: d.channelId, roleId: d.roleId, announce: d.announce, versionId: d.versionId } };
+    return { settings: { channelId: d.channelId, versionId: d.versionId } };
 }
 
 /** The posted centre, or null. */
@@ -175,20 +160,7 @@ function setSeen(addonId, entry) {
     return { ...clean };
 }
 
-/** Every update message posted (newest last). */
-function listUpdates() {
-    return store.read().updates.map((u) => ({ ...u }));
-}
-
-/** Remember one posted update message. */
-function addUpdate(update = {}, { now = Date.now() } = {}) {
-    const d = store.read();
-    d.updates = normalizeUpdates([...d.updates, { ...update, postedAt: update.postedAt || now }]);
-    store.write(d);
-    return d.updates[d.updates.length - 1] ? { ...d.updates[d.updates.length - 1] } : null;
-}
-
 module.exports = {
-    MAX_UPDATES, useFile, getSettings, setSettings, getCenter, setCenter, markCenterDrawn, clearCenter,
-    getCheckedAt, setCheckedAt, getSeen, setSeen, listUpdates, addUpdate,
+    useFile, getSettings, setSettings, getCenter, setCenter, markCenterDrawn, clearCenter,
+    getCheckedAt, setCheckedAt, getSeen, setSeen,
 };
