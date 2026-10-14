@@ -242,3 +242,10 @@ describe("myReportPayload", () => {
         expect(embedOf(myReportPayload({ lang: "en" })).description).toContain("No evaluation with one of your characters yet.");
     });
 });
+
+describe("Emoji der Link-Knöpfe", () => {
+    it("setzt das Emoji vor den Namen, nur wo eines gesetzt ist", () => {
+        const payload = organizerPayload({ categoryId: "cat1", links: [{ label: "WCL", url: "https://wcl.example/a", emoji: "📊" }, { label: "Sheet", url: "https://sheet.example" }] });
+        expect(linkButtons(payload).map((b) => b.emoji)).toEqual([{ name: "📊", animated: false }, undefined]);
+    });
+});

@@ -195,6 +195,16 @@ describe("Links des Organizers", () => {
         expect(panel.refreshPanels).toHaveBeenCalledWith({ categoryId: "cat1" });
     });
 
+    it("PUT links speichert das Emoji eines Links und lehnt ein ungültiges mit 400 ab", async () => {
+        const ok = await call("PUT", "/api/availability/links", ORGA, { json: { categoryId: "cat1", links: [{ label: "WCL", url: wcl.url, emoji: " 📊 " }] } });
+        expect(status(ok)).toBe(200);
+        expect(json(ok).data.links).toEqual([{ ...wcl, emoji: "📊" }]);
+        const bad = await call("PUT", "/api/availability/links", ORGA, { json: { categoryId: "cat1", links: [{ label: "WCL", url: wcl.url, emoji: "wcl" }] } });
+        expect(status(bad)).toBe(400);
+        expect(json(bad).error.message).toContain("kein einzelnes Emoji");
+        expect(store.getLinks("cat1")).toEqual([{ ...wcl, emoji: "📊" }]);
+    });
+
     it("PUT links mit leerer Liste entfernt die Links", async () => {
         store.setLinks("cat1", [wcl]);
         const res = await call("PUT", "/api/availability/links", ORGA, { json: { categoryId: "cat1", links: [] } });

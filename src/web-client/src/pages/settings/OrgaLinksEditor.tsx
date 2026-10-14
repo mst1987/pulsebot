@@ -1,18 +1,16 @@
 import { useState } from "react";
 import { saveOrgaLinks, type ApiError, type OrgaLink } from "../../api";
 import { useToast } from "../../components/shell/Jobs";
-import { Button, IconButton } from "../../components/ui/Button";
-import { PlusIcon, TrashIcon } from "../../components/ui/icons";
+import { Button } from "../../components/ui/Button";
+import { PlusIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
+import LinkRow from "./LinkRow";
+import { cleanLinks } from "../../lib/discord/buttonEmoji";
 
 // The links of one category's Orga-Zentrale (the buttons below "Raid anlegen"),
 // edited like the raider organizer's links in AvailabilityPanelRow: a row per
 // link, saved with its own button. The orga can change the same list in
 // Discord ("Links …" on the hub); a save here redraws a posted hub at once.
-
-/** Keep an input from being sent with stray blanks and drop rows nobody filled in. */
-const cleaned = (rows: OrgaLink[]): OrgaLink[] =>
-    rows.map((r) => ({ label: r.label.trim(), url: r.url.trim() })).filter((r) => r.label || r.url);
 
 export default function OrgaLinksEditor({ categoryId, links, maxLinks, onSaved }: {
     categoryId: string;
@@ -30,7 +28,7 @@ export default function OrgaLinksEditor({ categoryId, links, maxLinks, onSaved }
     const save = async () => {
         setSaving(true);
         try {
-            const res = await saveOrgaLinks(categoryId, cleaned(rows));
+            const res = await saveOrgaLinks(categoryId, cleanLinks(rows));
             setRows(res.links.map((l) => ({ ...l })));
             onSaved(categoryId, res.links);
             toast(t("settings.categories.linksSaved"));
@@ -46,14 +44,8 @@ export default function OrgaLinksEditor({ categoryId, links, maxLinks, onSaved }
             <strong id={`catorgalinks-${categoryId}`}>{t("settings.categories.orgaLinks")}</strong>
             <span className="note">{t("settings.categories.orgaLinksSub")}</span>
             {rows.map((row, i) => (
-                <div className="cat-link-row" key={i} role="group" aria-labelledby={`catorgalinks-${categoryId}`}>
-                    <input type="text" value={row.label} maxLength={40} placeholder={t("settings.categories.linkLabel")}
-                        aria-label={t("settings.categories.linkLabelAria", { n: i + 1 })} onChange={(e) => setRow(i, { label: e.target.value })} />
-                    <input type="url" value={row.url} placeholder="https://…"
-                        aria-label={t("settings.categories.linkUrlAria", { n: i + 1 })} onChange={(e) => setRow(i, { url: e.target.value })} />
-                    <IconButton icon={<TrashIcon />} tip={t("settings.categories.linkRemove", { n: i + 1 })} size="sm" tone="danger"
-                        onClick={() => setRows(rows.filter((_, at) => at !== i))} />
-                </div>
+                <LinkRow key={i} row={row} n={i + 1} groupId={`catorgalinks-${categoryId}`}
+                    onChange={(patch) => setRow(i, patch)} onRemove={() => setRows(rows.filter((_, at) => at !== i))} />
             ))}
             <div className="cat-links-actions">
                 <Button variant="ghost" size="sm" icon={<PlusIcon />} disabled={rows.length >= maxLinks}

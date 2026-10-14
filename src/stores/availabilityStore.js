@@ -13,7 +13,7 @@
 //             { at, ok, error? } } — every raid it was applied to once, so a
 //             raid is never touched twice), createdBy, createdAt }
 //   panel = { categoryId, guildId, channelId, messageId, postedAt, postedBy, hash }
-//   links = { [categoryId]: [{ label, url }] } — the link buttons of a
+//   links = { [categoryId]: [{ label, url, emoji? }] } — the link buttons of a
 //           category's raider organizer (WCL invite, info sheet …), at most
 //           MAX_LINKS, kept apart from the panel so posting anew keeps them
 //
@@ -22,6 +22,7 @@
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { newId } = require("../utils/ids");
+const { checkButtonEmoji, parseButtonEmoji } = require("../utils/discord/buttonEmoji");
 
 const KINDS = ["absence", "presence"];
 const COMMENT_MAX = 100;
@@ -220,21 +221,32 @@ function markPanelDrawn(categoryId, hash) {
  */
 function checkLinks(list) {
     const rows = (Array.isArray(list) ? list : [])
-        .map((l) => ({ label: str(l && l.label), url: str(l && l.url) }))
+        .map((l) => ({ label: str(l && l.label), url: str(l && l.url), emoji: str(l && l.emoji) }))
         .filter((l) => l.label || l.url);
     if (rows.length > MAX_LINKS) return { error: `Höchstens ${MAX_LINKS} Links je Kategorie.` };
     for (const l of rows) {
         if (!l.label) return { error: `Der Link „${l.url}“ braucht einen Text.` };
         if ([...l.label].length > LINK_LABEL_MAX) return { error: `„${l.label}“ ist zu lang (höchstens ${LINK_LABEL_MAX} Zeichen).` };
         if (!/^https?:\/\/[^\s<>()]+$/i.test(l.url)) return { error: `„${l.label}“ braucht eine Adresse mit https://.` };
+        const emoji = checkButtonEmoji(l.emoji);
+        if (emoji.error) return { error: `Link „${l.label}“: ${emoji.error}` };
     }
-    return { value: rows };
+    return { value: rows.map(withEmoji) };
+}
+
+/** A link as stored: `emoji` only when there is one, so old links keep their shape. */
+const withEmoji = (l) => (l.emoji ? { label: l.label, url: l.url, emoji: l.emoji } : { label: l.label, url: l.url });
+
+/** Stored links read back: blank rows dropped, an unreadable emoji left out. */
+function readLinks(list) {
+    return (Array.isArray(list) ? list : [])
+        .map((l) => withEmoji({ label: str(l && l.label), url: str(l && l.url), emoji: parseButtonEmoji(str(l && l.emoji)) ? str(l.emoji) : "" }))
+        .filter((l) => l.label && l.url);
 }
 
 /** A category's links, in their order. */
 function getLinks(categoryId) {
-    const list = store.read().links[str(categoryId)];
-    return Array.isArray(list) ? list.map((l) => ({ label: str(l.label), url: str(l.url) })).filter((l) => l.label && l.url) : [];
+    return readLinks(store.read().links[str(categoryId)]);
 }
 
 /** Every category's links: `{ [categoryId]: [{ label, url }] }`. */
@@ -273,5 +285,5 @@ module.exports = {
     KINDS, MAX_ENTRIES, COMMENT_MAX,
     listEntries, getEntry, addEntry, removeEntry, renameCharacter, markApplied, prune, entryProblem,
     listPanels, getPanel, setPanel, markPanelDrawn, removePanel, useFile,
-    MAX_LINKS, LINK_LABEL_MAX, checkLinks, getLinks, listLinks, setLinks,
+    MAX_LINKS, LINK_LABEL_MAX, checkLinks, readLinks, getLinks, listLinks, setLinks,
 };

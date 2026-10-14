@@ -26,6 +26,7 @@ const {
     SeparatorSpacingSize, TextDisplayBuilder,
 } = require("discord.js");
 const { emojiText, uiEmojiName } = require("../discord/appEmojis");
+const { linkButton } = require("../../utils/discord/buttonEmoji");
 const { plainCategoryName } = require("../../utils/signup/availabilityDialog");
 
 /** The web's orga colour (--orga-teal). */
@@ -48,7 +49,6 @@ const FALLBACK_ICONS = {
 
 const text = (content) => new TextDisplayBuilder().setContent(content);
 const line = () => new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large);
-const linkButton = (label, url) => new ButtonBuilder().setLabel(label).setStyle(ButtonStyle.Link).setURL(url);
 const newRaidId = (categoryId) => `${NEW_RAID_PREFIX}:new:${categoryId}`;
 const linksId = (categoryId) => `${NEW_RAID_PREFIX}:links:${categoryId}`;
 
@@ -111,7 +111,7 @@ function orgaHubPayload({ categoryId = "", categoryName = "", raids = [], counts
     buttons.push(new ButtonBuilder().setCustomId(linksId(categoryId)).setLabel("Links …").setStyle(ButtonStyle.Secondary));
     c.addActionRowComponents(new ActionRowBuilder().addComponents(buttons));
     const shownLinks = (links || []).filter((l) => l && l.label && l.url).slice(0, 5);
-    if (shownLinks.length) c.addActionRowComponents(new ActionRowBuilder().addComponents(shownLinks.map((l) => linkButton(l.label, l.url))));
+    if (shownLinks.length) c.addActionRowComponents(new ActionRowBuilder().addComponents(shownLinks.map((l) => linkButton(l.label, l.url, l.emoji))));
 
     const cap = raidCapacity(shownLinks.length);
     const shown = (raids || []).slice(0, cap);

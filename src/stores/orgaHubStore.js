@@ -1,7 +1,7 @@
 // The "Orga-Zentrale" messages (services/events/orgaHub.js): one per raid
 // category at most, posted by the orga into a channel only the orga sees.
 //
-// `data/settings/orga-hubs.json` = { hubs: [hub], links: { [categoryId]: [{ label, url }] } }
+// `data/settings/orga-hubs.json` = { hubs: [hub], links: { [categoryId]: [{ label, url, emoji? }] } }
 //
 //   hub   = { categoryId, guildId, channelId, messageId, postedAt, postedBy, hash }
 //   links = the link buttons below the hub's "Raid anlegen" row (WCL invite,
@@ -15,7 +15,7 @@
 // and a save of the settings page must never race it.
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
-const { checkLinks, MAX_LINKS, LINK_LABEL_MAX } = require("./availabilityStore");
+const { checkLinks, readLinks, MAX_LINKS, LINK_LABEL_MAX } = require("./availabilityStore");
 
 const store = createJsonStore({
     file: settingsPath("orga-hubs.json"),
@@ -82,7 +82,7 @@ function removeHub(categoryId) {
 /** A category's orga links, in their order. */
 function getLinks(categoryId) {
     const list = store.read().links[str(categoryId)];
-    return Array.isArray(list) ? list.map((l) => ({ label: str(l && l.label), url: str(l && l.url) })).filter((l) => l.label && l.url) : [];
+    return Array.isArray(list) ? readLinks(list) : [];
 }
 
 /** Every category's orga links: `{ [categoryId]: [{ label, url }] }`. */

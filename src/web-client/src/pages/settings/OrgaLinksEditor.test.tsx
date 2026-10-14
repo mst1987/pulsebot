@@ -62,6 +62,15 @@ describe("OrgaLinksEditor", () => {
         expect(await screen.findByText(t("settings.categories.linksSaved"))).toBeInTheDocument();
     });
 
+    it("sends the emoji of a link and keeps it after the save", async () => {
+        const user = userEvent.setup();
+        show([WCL]);
+        await user.type(screen.getByLabelText(t("settings.categories.linkEmojiAria", { n: 1 })), "📊");
+        await user.click(saveButton());
+        expect(api.saveOrgaLinks).toHaveBeenCalledWith("c1", [{ ...WCL, emoji: "📊" }]);
+        expect(screen.getByLabelText(t("settings.categories.linkEmojiAria", { n: 1 }))).toHaveValue("📊");
+    });
+
     it("shows the server's refusal and keeps the rows", async () => {
         const user = userEvent.setup();
         vi.mocked(api.saveOrgaLinks).mockRejectedValue({ code: "bad_request", message: "Die Adresse von „A“ steht schon in der Liste." });

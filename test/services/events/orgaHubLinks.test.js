@@ -131,9 +131,10 @@ describe("orga:ladd — add a link", () => {
         const modal = i.showModal.mock.calls[0][0].toJSON();
         expect(modal.custom_id).toBe("orga:ladd:cat1");
         const fields = modal.components.map((r) => r.components[0]);
-        expect(fields.map((f) => f.custom_id)).toEqual(["label", "url"]);
+        expect(fields.map((f) => f.custom_id)).toEqual(["label", "url", "emoji"]);
         expect(fields[0].max_length).toBe(store.LINK_LABEL_MAX);
-        expect(fields.every((f) => f.required && !f.value)).toBe(true);
+        expect(fields.every((f) => !f.value)).toBe(true);
+        expect(fields.map((f) => f.required)).toEqual([true, true, false]);
     });
 
     it("does not open it for a category without a hub on this server", async () => {
@@ -260,5 +261,32 @@ describe("customIds", () => {
         for (const c of cardControls(links.linksCard(cat))) expect(c.custom_id.length).toBeLessThanOrEqual(100);
         expect(card).toBeTruthy();
         expect(links.linkModal(cat, { prefill: A, index: 4 }).toJSON().custom_id.length).toBeLessThanOrEqual(100);
+    });
+});
+
+describe("Emoji im Modal", () => {
+    it("zeigt ein optionales Emoji-Feld, vorbelegt beim Bearbeiten", () => {
+        const fields = (m) => m.toJSON().components.map((r) => r.components[0]);
+        const added = fields(links.linkModal("cat1"));
+        expect(added.map((f) => f.custom_id)).toEqual(["label", "url", "emoji"]);
+        expect(added[2].required).toBe(false);
+        expect(fields(links.linkModal("cat1", { prefill: { ...A, emoji: "📊" }, index: 0 }))[2].value).toBe("📊");
+    });
+
+    it("speichert das getippte Emoji, ohne Eingabe bleibt der Link wie früher", async () => {
+        const i = interaction("orga:ladd:cat1", { kind: "modal", fields: { label: "WCL", url: A.url, emoji: " 📊 " } });
+        await button.execute(i);
+        expect(store.getLinks("cat1")).toEqual([{ ...A, emoji: "📊" }]);
+        expect(cardText(lastCard(i))).toContain("1. 📊 **WCL**");
+        const j = interaction("orga:ladd:cat1", { kind: "modal", fields: { label: "Sheet", url: B.url } });
+        await button.execute(j);
+        expect(orgaHub.saveLinks).toHaveBeenLastCalledWith("cat1", [{ ...A, emoji: "📊" }, B]);
+    });
+
+    it("meldet ein ungültiges Emoji im Karten-Hinweis und speichert nichts", async () => {
+        const i = interaction("orga:ladd:cat1", { kind: "modal", fields: { label: "WCL", url: A.url, emoji: "xx" } });
+        await button.execute(i);
+        expect(cardText(lastCard(i))).toContain("kein einzelnes Emoji");
+        expect(store.getLinks("cat1")).toEqual([]);
     });
 });
