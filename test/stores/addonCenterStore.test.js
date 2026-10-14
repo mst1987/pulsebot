@@ -1,5 +1,5 @@
 // The addon download centre's store (src/stores/addonCenterStore.js): settings,
-// the posted centre, the known versions and the posted update messages.
+// the posted centre and the known versions (update messages are gone).
 const store = require("../../src/stores/addonCenterStore");
 const { tempStoreFile } = require("../helpers/tempStore");
 const fs = require("fs");
@@ -12,20 +12,18 @@ beforeEach(() => {
 afterAll(() => store.useFile(null));
 
 describe("stores/addonCenterStore", () => {
-    it("starts empty: no channel, no role, announcing on, nothing posted", () => {
-        expect(store.getSettings()).toEqual({ channelId: "", roleId: "", announce: true, versionId: "" });
+    it("starts empty: no channel, nothing posted", () => {
+        expect(store.getSettings()).toEqual({ channelId: "", versionId: "" });
         expect(store.getCenter()).toBeNull();
         expect(store.getCheckedAt()).toBe(0);
         expect(store.getSeen()).toEqual({});
-        expect(store.listUpdates()).toEqual([]);
     });
 
-    it("saves only the settings it gets and refuses an id that is no Discord id", () => {
-        expect(store.setSettings({ channelId: "123456789012345678" })).toEqual({ settings: { channelId: "123456789012345678", roleId: "", announce: true, versionId: "" } });
-        expect(store.setSettings({ roleId: "223456789012345678", announce: false }).settings).toEqual({ channelId: "123456789012345678", roleId: "223456789012345678", announce: false, versionId: "" });
+    it("saves only the settings it gets and refuses a channel that is no Discord id; the old role/announce keys do nothing", () => {
+        expect(store.setSettings({ channelId: "123456789012345678" })).toEqual({ settings: { channelId: "123456789012345678", versionId: "" } });
+        expect(store.setSettings({ roleId: "223456789012345678", announce: false }).settings).toEqual({ channelId: "123456789012345678", versionId: "" });
         expect(store.setSettings({ channelId: "#general" })).toEqual({ error: "Ungültiger Kanal." });
-        expect(store.setSettings({ roleId: "abc" })).toEqual({ error: "Ungültige Rolle." });
-        expect(store.setSettings({ roleId: "" }).settings.roleId).toBe("");
+        expect(store.setSettings({ roleId: "abc" }).error).toBeUndefined();
         expect(store.getSettings().channelId).toBe("123456789012345678");
     });
 
@@ -34,7 +32,7 @@ describe("stores/addonCenterStore", () => {
         expect(store.getSettings().versionId).toBe("tbc");
         expect(store.setSettings({ versionId: "nope" })).toEqual({ error: "Ungültige Spielversion." });
         expect(store.getSettings().versionId).toBe("tbc");
-        expect(store.setSettings({ announce: false }).settings.versionId).toBe("tbc");
+        expect(store.setSettings({ channelId: "123456789012345678" }).settings.versionId).toBe("tbc");
         expect(store.setSettings({ versionId: "" }).settings.versionId).toBe("");
         fs.writeFileSync(file, JSON.stringify({ channelId: "123456789012345678", versionId: "forever" }));
         store.useFile(file);
@@ -66,19 +64,19 @@ describe("stores/addonCenterStore", () => {
         expect(store.getCheckedAt()).toBe(77);
     });
 
-    it("lists the posted update messages, at most MAX_UPDATES of them", () => {
-        for (let i = 0; i < store.MAX_UPDATES + 3; i += 1) store.addUpdate({ addonId: "a", version: `1.${i}`, channelId: "c", messageId: `m${i}` }, { now: i + 1 });
-        const list = store.listUpdates();
-        expect(list).toHaveLength(store.MAX_UPDATES);
-        expect(list[list.length - 1]).toEqual({ addonId: "a", version: `1.${store.MAX_UPDATES + 2}`, guildId: "", channelId: "c", messageId: `m${store.MAX_UPDATES + 2}`, postedAt: store.MAX_UPDATES + 3 });
+    it("drops the old keys (roleId, announce, updates) on the next write", () => {
+        fs.writeFileSync(file, JSON.stringify({ channelId: "123456789012345678", roleId: "223456789012345678", announce: true, updates: [{ addonId: "a", messageId: "m" }] }));
+        store.useFile(file);
+        expect(store.getSettings()).toEqual({ channelId: "123456789012345678", versionId: "" });
+        store.setCheckedAt(5);
+        expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({ channelId: "123456789012345678", versionId: "", center: null, checkedAt: 5, seen: {} });
     });
 
     it("reads a damaged file as its defaults and drops broken entries", () => {
-        fs.writeFileSync(file, JSON.stringify({ channelId: "nope", announce: false, center: { channelId: "c" }, seen: { a: { version: "1" }, b: null, c: { version: "" } }, updates: [{ addonId: "a" }, null] }));
+        fs.writeFileSync(file, JSON.stringify({ channelId: "nope", announce: false, center: { channelId: "c" }, seen: { a: { version: "1" }, b: null, c: { version: "" } } }));
         store.useFile(file);
-        expect(store.getSettings()).toEqual({ channelId: "", roleId: "", announce: false, versionId: "" });
+        expect(store.getSettings()).toEqual({ channelId: "", versionId: "" });
         expect(store.getCenter()).toBeNull();
         expect(Object.keys(store.getSeen())).toEqual(["a"]);
-        expect(store.listUpdates()).toEqual([]);
     });
 });

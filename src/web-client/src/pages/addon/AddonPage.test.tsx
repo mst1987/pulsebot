@@ -74,6 +74,15 @@ describe("page Addons", () => {
         expect(chips[0]).toHaveAttribute("data-tip-sub", "Nur Admins und Orga-Rollen sehen und laden es.");
     });
 
+    it("gives each card an anchor (#addon-<id>) and opens the notes of the card the Discord centre links to", async () => {
+        renderPage(<AddonPage />, { route: "/addon#addon-levelhelper" });
+        const card = (await screen.findByRole("heading", { name: "LevelHelper" })).closest("section");
+        expect(card).toHaveAttribute("id", "addon-levelhelper");
+        expect(screen.getByRole("heading", { name: "ProfessionKit" }).closest("section")).toHaveAttribute("id", "addon-professionkit");
+        // the linked card shows its patch notes without a click
+        expect(await screen.findByText(/• Duo-Modus mit Partner-Anzeige/)).toBeInTheDocument();
+    });
+
     it("links every download to the server route, with the file name and its size", async () => {
         renderPage(<AddonPage />, { route: "/addon" });
         const zip = await screen.findByRole("link", { name: "LevelHelper-0.3.0.zip · 380 KB" });

@@ -1,9 +1,9 @@
 // The buttons of the addon download centre (src/services/addons/addonCenterBot.js):
 // download with the web's rights, orga-only, the limit, Discord's upload size and
-// GitHub failures; the subscribe toggle. GitHub and the access lookup are mocked,
+// GitHub failures. GitHub and the access lookup are mocked,
 // the release cache and the download limit are real.
 const { Readable } = require("stream");
-const { ComponentType, MessageFlags, PermissionsBitField } = require("discord.js");
+const { ComponentType, MessageFlags } = require("discord.js");
 
 const mockLog = { warn: jest.fn(), info: jest.fn(), debug: jest.fn(), error: jest.fn() };
 let mockAccess = {};
@@ -32,7 +32,6 @@ const { emptyAccess } = require("../../../src/config/permissions");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
 const TOKEN = "github_pat_SECRET";
-const ROLE = "200000000000000002";
 const member = { ...emptyAccess(), signup: { read: true, write: true } };
 
 const release = (assets) => ({ version: "0.3.0", tag: "v0.3.0", publishedAt: "2026-10-12T09:00:00Z", notes: "", assets });
@@ -200,108 +199,13 @@ describe("addonCenterBot uploadLimitOf", () => {
     });
 });
 
-describe("addonCenterBot subscription", () => {
-    /** A server where the bot may (or may not) hand out the role, and a member with or without it. */
-    function server({ has = false, manage = true, rolePos = 1, botPos = 5, managed = false, addFails = false } = {}) {
-        const roles = new Map(has ? [[ROLE, {}]] : []);
-        const m = {
-            displayName: "Tester",
-            roles: {
-                cache: roles,
-                add: jest.fn(async () => { if (addFails) throw new Error("Missing Permissions"); roles.set(ROLE, {}); }),
-                remove: jest.fn(async () => { roles.delete(ROLE); }),
-            },
-        };
-        const role = { id: ROLE, name: "Addon-Updates", position: rolePos, managed };
-        const guild = {
-            id: "g1",
-            roles: { cache: new Map([[ROLE, role]]), fetch: jest.fn(async () => null) },
-            members: {
-                fetch: jest.fn(async () => m),
-                me: { permissions: new PermissionsBitField(manage ? PermissionsBitField.Flags.ManageRoles : 0n), roles: { highest: { position: botPos } } },
-            },
-        };
-        return { guild, member: m };
-    }
-
-    beforeEach(() => store.setSettings({ roleId: ROLE }));
-
-    it("gives the role and says so, with 'Abo beenden'", async () => {
-        const { guild, member: m } = server();
-        const i = click("addonhub:sub", { guild, member: m });
-        await bot.handleCenter(i);
-        expect(i.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
-        expect(m.roles.add).toHaveBeenCalledWith(ROLE, expect.any(String));
-        const p = answer(i);
-        expect(textOf(p)).toBe(`✅ Abonniert: Bei neuen Versionen pingt dich <@&${ROLE}>.`);
-        expect(p.allowedMentions).toEqual({ parse: [] });
-        expect(buttonsOf(p).map((b) => [b.label, b.custom_id])).toEqual([["Abo beenden", "addonhub:unsub"]]);
-    });
-
-    it("the subscribe button takes the role away from who has it; 'Abo beenden' replaces the confirmation", async () => {
-        const { guild, member: m } = server({ has: true });
-        const again = click("addonhub:sub", { guild, member: m });
-        await bot.handleCenter(again);
-        expect(m.roles.remove).toHaveBeenCalled();
-        expect(textOf(answer(again))).toBe("🔕 Abo beendet – keine Update-Pings mehr. Die Meldungen stehen weiter im Kanal.");
-
-        const second = server({ has: true });
-        const off = click("addonhub:unsub", { guild: second.guild, member: second.member });
-        await bot.handleCenter(off);
-        expect(off.deferUpdate).toHaveBeenCalled();
-        expect(off.deferReply).not.toHaveBeenCalled();
-        expect(second.member.roles.remove).toHaveBeenCalled();
-        expect(textOf(answer(off))).toMatch(/^🔕 Abo beendet/);
-    });
-
-    it("fetches the member when the interaction carries only its raw form", async () => {
-        const { guild, member: m } = server();
-        const i = click("addonhub:sub", { guild, member: { roles: ["x"] } });
-        await bot.handleCenter(i);
-        expect(guild.members.fetch).toHaveBeenCalledWith("u1");
-        expect(m.roles.add).toHaveBeenCalled();
-    });
-
-    it("without an update role there is nothing to subscribe to", async () => {
-        store.setSettings({ roleId: "" });
-        const { guild, member: m } = server();
-        const i = click("addonhub:sub", { guild, member: m });
-        await bot.handleCenter(i);
-        expect(textOf(answer(i))).toBe("❌ Es gibt keine Rolle für Update-Pings.");
-        expect(m.roles.add).not.toHaveBeenCalled();
-    });
-
-    it.each([
-        ["no Manage Roles", { manage: false }, "Manage Roles"],
-        ["the role above the bot", { rolePos: 9 }, "above the bot"],
-        ["a managed role", { managed: true }, "integration"],
-    ])("a role the bot may not hand out (%s): a clear line for the member, a warning in the log", async (_name, opts, reason) => {
-        const { guild, member: m } = server(opts);
-        const i = click("addonhub:sub", { guild, member: m });
-        await bot.handleCenter(i);
-        expect(textOf(answer(i))).toBe("❌ Abonnieren klappt gerade nicht. Sag bitte der Orga Bescheid.");
-        expect(m.roles.add).not.toHaveBeenCalled();
-        expect(mockLog.warn).toHaveBeenCalledWith(expect.stringContaining(reason));
-    });
-
-    it("Discord refusing the change, a missing role or member: the same line, logged", async () => {
-        const failing = server({ addFails: true });
-        const i = click("addonhub:sub", { guild: failing.guild, member: failing.member });
-        await bot.handleCenter(i);
-        expect(textOf(answer(i))).toMatch(/^❌ Abonnieren klappt gerade nicht/);
-        expect(mockLog.warn).toHaveBeenCalledWith(expect.stringContaining("Missing Permissions"));
-
-        const gone = server();
-        gone.guild.roles.cache = new Map();
-        const j = click("addonhub:sub", { guild: gone.guild, member: gone.member });
-        await bot.handleCenter(j);
-        expect(textOf(answer(j))).toMatch(/^❌ Abonnieren klappt gerade nicht/);
-
-        const away = server();
-        away.guild.members.fetch.mockRejectedValue(new Error("Unknown Member"));
-        const k = click("addonhub:sub", { guild: away.guild, member: null });
-        await bot.handleCenter(k);
-        expect(textOf(answer(k))).toMatch(/^❌ Abonnieren klappt gerade nicht/);
+describe("addonCenterBot buttons", () => {
+    it("the subscribe buttons are gone: an old addonhub:sub / addonhub:unsub is answered, never acted on", async () => {
+        for (const id of ["addonhub:sub", "addonhub:unsub"]) {
+            const i = click(id);
+            await bot.handleCenter(i);
+            expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral }));
+        }
     });
 
     it("an unknown button of the centre is answered, not left hanging", async () => {

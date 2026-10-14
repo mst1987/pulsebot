@@ -5,10 +5,11 @@
 // addon list's guards.
 //
 // GET    /api/addon-center   settings, the posted centre, the last check, the channels (with
-//                            the game version their category plays), the roles per server, the
-//                            selectable game versions and the one "automatic" means for the channel
-// PUT    /api/addon-center   body { channelId?, roleId?, announce?, versionId? } — saved at once; another
-//                            channel moves a posted centre there, another role or game version redraws it
+//                            the game version their category plays), the selectable game versions and
+//                            the one "automatic" means for the channel
+// PUT    /api/addon-center   body { channelId?, versionId? } — saved at once; another channel moves a
+//                            posted centre there, another game version redraws it (the old keys
+//                            roleId/announce are ignored: nothing is announced any more)
 // POST   /api/addon-center   post the centre (again: the old message is deleted)
 // DELETE /api/addon-center   take it down
 const { ok, error: apiError } = require("../http/apiResponse");
@@ -79,17 +80,6 @@ function autoVersionOf(config, channelId) {
     return null;
 }
 
-/** The roles of every configured server (the update role lives on the centre's server). */
-function rolesOf(config) {
-    const out = {};
-    try {
-        for (const guildId of guildRoles.configuredGuildIds(config)) out[guildId] = discord.listRoles(guildId) || [];
-    } catch (e) {
-        console.warn("addon centre roles failed:", e.message);
-    }
-    return out;
-}
-
 function view() {
     const config = getConfig();
     const settings = store.getSettings();
@@ -99,7 +89,6 @@ function view() {
         checkedAt: store.getCheckedAt(),
         online: discord.isOnline(),
         channels: channelsOf(config),
-        roles: rolesOf(config),
         versions: versionsOf(config),
         autoVersion: autoVersionOf(config, settings.channelId),
     };
@@ -113,8 +102,7 @@ const getCenter = withUser({ full: true }, async ({ res }) => {
 /** PUT /api/addon-center — the settings, saved at once. */
 const putSettings = withUser({ full: true, csrf: true, body: true }, async ({ user, body, res }) => {
     const patch = {};
-    for (const key of ["channelId", "roleId", "versionId"]) if (body[key] !== undefined) patch[key] = String(body[key] === null ? "" : body[key]);
-    if (body.announce !== undefined) patch.announce = body.announce === true;
+    for (const key of ["channelId", "versionId"]) if (body[key] !== undefined) patch[key] = String(body[key] === null ? "" : body[key]);
     const result = await addonCenter.saveSettings(patch, { by: user.id });
     if (result.error && !result.settings) return apiError(res, 400, "bad_request", result.error);
     ok(res, { ...view(), ...(result.error ? { warning: result.error } : {}) });
@@ -142,4 +130,4 @@ const routes = [
     { method: "DELETE", path: "/api/addon-center", handler: deleteCenter, adminOnly: true },
 ];
 
-module.exports = { routes, channelsOf, rolesOf, versionsOf, autoVersionOf };
+module.exports = { routes, channelsOf, versionsOf, autoVersionOf };
