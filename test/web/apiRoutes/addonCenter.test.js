@@ -8,6 +8,7 @@ jest.mock("../../../src/services/discord/guildRoles", () => ({ configuredGuildId
 jest.mock("../../../src/services/discord/discord", () => ({
     isOnline: () => true,
     listGuilds: () => [{ id: "g1", name: "Gilde" }, { id: "g2", name: "Talk" }],
+    listRoles: jest.fn((guildId) => (guildId === "g1" ? [{ id: "r1", name: "Addon-Updates" }] : [])),
     listTextChannels: jest.fn((guildId) => (guildId === "g1"
         ? [{ id: "111111111111111111", name: "addon-downloads", category: "Allgemein", parentId: "" }, { id: "222222222222222222", name: "tbc-chat", category: "TBC", parentId: "cat-tbc" }]
         : [{ id: "c9", name: "talk", category: "", parentId: "" }])),
@@ -42,7 +43,7 @@ describe("apiRoutes/addonCenter", () => {
         const res = await get("/api/addon-center");
         expect(status(res)).toBe(200);
         expect(body(res)).toEqual({
-            settings: { channelId: "123456789012345678", versionId: "" },
+            settings: { channelId: "123456789012345678", roleId: "", versionId: "" },
             center: { channelId: "123456789012345678", postedAt: 5, url: "https://discord.com/channels/g1/123456789012345678/m1" },
             checkedAt: 9,
             online: true,
@@ -50,6 +51,7 @@ describe("apiRoutes/addonCenter", () => {
                 { id: "111111111111111111", name: "addon-downloads", guildId: "g1", category: "WoW Forever" },
                 { id: "222222222222222222", name: "tbc-chat", guildId: "g1", category: "TBC Anniversary" },
             ],
+            roles: { g1: [{ id: "r1", name: "Addon-Updates" }] },
             versions: [{ id: "tbc", label: "TBC Anniversary" }, { id: "classic", label: "Classic Era" }, { id: "forever", label: "WoW Forever" }],
             autoVersion: null,
         });
@@ -93,19 +95,23 @@ describe("apiRoutes/addonCenter", () => {
         expect(status(await get("/api/addon-center"))).toBe(401);
     });
 
-    it("saves the settings at once: only the fields sent; the old roleId/announce are not passed on", async () => {
+    it("saves the settings at once: only the fields sent (channel, role, version); the old announce is not passed on", async () => {
         addonCenter.saveSettings.mockResolvedValue({ settings: {}, center: null });
         const res = await request("PUT", "/api/addon-center", { channelId: "123456789012345678", roleId: "223456789012345678", announce: true, other: 1 });
         expect(status(res)).toBe(200);
-        expect(addonCenter.saveSettings).toHaveBeenCalledWith({ channelId: "123456789012345678" }, { by: "1" });
-        expect(body(res)).not.toHaveProperty("roles");
-        expect(body(res).settings).toEqual({ channelId: "", versionId: "" });
+        expect(addonCenter.saveSettings).toHaveBeenCalledWith({ channelId: "123456789012345678", roleId: "223456789012345678" }, { by: "1" });
+        expect(body(res).roles).toEqual({ g1: [{ id: "r1", name: "Addon-Updates" }] });
+        expect(body(res).settings).toEqual({ channelId: "", roleId: "", versionId: "" });
     });
 
     it("answers a refused setting with 400 and a failed move as a warning next to the saved settings", async () => {
         addonCenter.saveSettings.mockResolvedValueOnce({ error: "Ungültiger Kanal." });
         const bad = await request("PUT", "/api/addon-center", { channelId: "x" });
         expect(status(bad)).toBe(400);
+        addonCenter.saveSettings.mockResolvedValueOnce({ error: "Ungültige Rolle." });
+        const badRole = await request("PUT", "/api/addon-center", { roleId: "abc" });
+        expect(status(badRole)).toBe(400);
+        expect(body(badRole).error.message || body(badRole).message || JSON.stringify(body(badRole))).toMatch(/Ungültige Rolle/);
         addonCenter.saveSettings.mockResolvedValueOnce({ settings: {}, center: null, error: "Die Downloadzentrale konnte nicht gepostet werden: Missing Access" });
         const moved = await request("PUT", "/api/addon-center", { channelId: "123456789012345678" });
         expect(status(moved)).toBe(200);

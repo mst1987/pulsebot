@@ -81,7 +81,7 @@
     },
     "center": {
         "title": "Download centre in Discord",
-        "note": "One message in the channel: every addon with a download button and a patch notes link. The bot does not announce new versions in the channel; the message only marks them as \"NEW\".",
+        "note": "One message in the channel: every addon with a download button and a patch notes link. On a new version the bot briefly pings the chosen role in the channel; the message marks it as \"NEW\".",
         "channel": "Channel of the centre",
         "channelSub": "The message with every addon and its download button lives there. The channel's category decides the game version (unless one is picked under \"Game version\"): only its addons are in the centre.",
         "version": "Game version",
@@ -98,6 +98,8 @@
         "saved": "Saved.",
         "posted": "Download centre posted.",
         "removeAsk": "Remove the download centre?",
+        "role": "Role for update pings",
+        "roleSub": "Optional. On a new version the bot posts a short message that pings this role (no patch notes, with a link to the web page). It is deleted after 12 hours or by the next ping. Without a role there is no ping.",
         "removeText": "The message in the channel is deleted. Older update announcements still in the channel stay.",
         "removed": "Download centre removed.",
         "loadError": "The settings of the download centre could not be loaded."
