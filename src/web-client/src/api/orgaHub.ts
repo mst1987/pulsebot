@@ -8,7 +8,7 @@ import { get, send } from "./client";
 export type OrgaHub = { categoryId: string; channelId: string; postedAt: number; url: string };
 
 /** One link button below "Raid anlegen" (at most `maxLinks` per category). */
-export type OrgaLink = { label: string; url: string };
+export type OrgaLink = { label: string; url: string; /** One emoji or a custom "<:name:id>"; none = no emoji. */ emoji?: string };
 
 export function getOrgaHubs(): Promise<{ hubs: OrgaHub[]; links?: Record<string, OrgaLink[]>; maxLinks?: number }> {
     return get("/api/orga-hubs");

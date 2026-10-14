@@ -4,7 +4,7 @@
 //
 //   button  orga:links:<cat>              "Links ..." on the hub: an ephemeral card with
 //                                         the current links and the controls below
-//   button  orga:ladd:<cat>               "Link hinzufuegen": opens a modal (Name, Adresse);
+//   button  orga:ladd:<cat>               "Link hinzufuegen": opens a modal (Name, Adresse, optional Emoji);
 //   modal   orga:ladd:<cat>               its submit saves the link
 //   select  orga:ledit:<cat>              "Link bearbeiten ...": opens the modal prefilled;
 //   modal   orga:lsave:<cat>:<i>:<hash>   its submit replaces that link
@@ -39,7 +39,9 @@ const URL_MAX = 512;
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const id = (action, categoryId, ...rest) => [NEW_RAID_PREFIX, action, categoryId, ...rest].join(":");
-const hashOf = (link) => crypto.createHash("sha1").update(`${link.label}\n${link.url}`).digest("hex").slice(0, 8);
+const hashOf = (link) => crypto.createHash("sha1").update(`${link.label}\n${link.url}\n${link.emoji || ""}`).digest("hex").slice(0, 8);
+/** Room for a custom emoji's text `<a:name:id>` (32 + 25 + 5). */
+const EMOJI_MAX = 64;
 const escapeMd = (s) => String(s || "").replace(/([\\*_~`|>[\]])/g, "\\$1");
 
 /** `{ action, categoryId, index, hash }` of `orga:<action>:<categoryId>[:<index>:<hash>]`. */
@@ -69,7 +71,7 @@ function linksCard(categoryId, { config, note = "", kind = "info" } = {}) {
     const links = store.getLinks(categoryId);
     const name = plainCategoryName(categoryNameFor(categoryId, { config }));
     const lines = links.length
-        ? links.map((l, i) => `${i + 1}. **${escapeMd(l.label)}** · <${l.url}>`)
+        ? links.map((l, i) => `${i + 1}. ${l.emoji ? `${l.emoji} ` : ""}**${escapeMd(l.label)}** · <${l.url}>`)
         : ["Noch keine Links. Sie erscheinen als Knöpfe unter „Raid anlegen“."];
     const full = links.length >= store.MAX_LINKS;
     const option = (l, i) => ({ label: clip(l.label, 100), value: `${i}:${hashOf(l)}`, description: clip(l.url, 100) });
@@ -97,9 +99,9 @@ function linksCard(categoryId, { config, note = "", kind = "info" } = {}) {
 
 /** The modal for a new link (`prefill` = an existing one, `index`/`hash` address it on submit). */
 function linkModal(categoryId, { prefill = null, index = -1 } = {}) {
-    const input = (customId, label, max, value, placeholder) => {
+    const input = (customId, label, max, value, placeholder, required = true) => {
         const field = new TextInputBuilder().setCustomId(customId).setLabel(label).setStyle(TextInputStyle.Short)
-            .setRequired(true).setMaxLength(max).setPlaceholder(placeholder);
+            .setRequired(required).setMaxLength(max).setPlaceholder(placeholder);
         if (value) field.setValue(String(value).slice(0, max));
         return new ActionRowBuilder().addComponents(field);
     };
@@ -109,6 +111,7 @@ function linkModal(categoryId, { prefill = null, index = -1 } = {}) {
         .addComponents(
             input("label", "Name (steht auf dem Knopf)", store.LINK_LABEL_MAX, prefill && prefill.label, "z. B. Warcraft-Logs-Gilde"),
             input("url", "Adresse (https://…)", URL_MAX, prefill && prefill.url, "https://"),
+            input("emoji", "Emoji vor dem Namen (leer = keins)", EMOJI_MAX, prefill && prefill.emoji, "z. B. 📊", false),
         );
 }
 
@@ -119,6 +122,13 @@ const typed = (interaction, field) => {
         return "";
     }
 };
+
+/** The link the modal was filled in with; `emoji` only when one was typed. */
+function typedLink(interaction) {
+    const link = { label: typed(interaction, "label"), url: typed(interaction, "url") };
+    const emoji = typed(interaction, "emoji");
+    return emoji ? { ...link, emoji } : link;
+}
 
 /** Save `list`, redraw the hub and answer with the card (the error line on top when it was refused). */
 async function saveAndAnswer(interaction, categoryId, list, done) {
@@ -160,13 +170,13 @@ async function handleLinkAction(interaction, guildId, isCategoryOrga) {
     if (action === ACTIONS.show) return interaction.editReply(linksCard(categoryId));
 
     if (action === ACTIONS.add) {
-        const link = { label: typed(interaction, "label"), url: typed(interaction, "url") };
+        const link = typedLink(interaction);
         return saveAndAnswer(interaction, categoryId, [...links, link], `Link „${escapeMd(link.label)}“ hinzugefügt.`);
     }
     if (action === ACTIONS.save) {
         const old = linkAt(categoryId, index, hash);
         if (!old) return interaction.editReply(linksCard(categoryId, { note: "⚠️ Die Links haben sich geändert – bitte noch einmal.", kind: "warn" }));
-        const link = { label: typed(interaction, "label"), url: typed(interaction, "url") };
+        const link = typedLink(interaction);
         return saveAndAnswer(interaction, categoryId, links.map((l, i) => (i === index ? link : l)), `Link „${escapeMd(link.label)}“ gespeichert.`);
     }
     // ACTIONS.del

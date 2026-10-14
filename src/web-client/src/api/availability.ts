@@ -108,7 +108,7 @@ export function deleteAvailability(id: string): Promise<{ id: string }> {
 }
 
 /** One link button of a category's raider organizer in Discord. */
-export type AvailabilityLink = { label: string; url: string };
+export type AvailabilityLink = { label: string; url: string; /** One emoji or a custom "<:name:id>"; none = no emoji. */ emoji?: string };
 
 export type AvailabilityPanelsData = {
     panels: AvailabilityPanel[];

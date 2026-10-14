@@ -870,6 +870,8 @@
         "linkLabel": "Text",
         "linkLabelAria": "Text von Link {n}",
         "linkUrlAria": "Adresse von Link {n}",
+        "linkEmojiAria": "Emoji von Link {n}",
+        "linkEmojiPick": "Emoji wählen",
         "linkRemove": "Link {n} entfernen",
         "linkAdd": "Link hinzufügen",
         "linksSave": "Links speichern",

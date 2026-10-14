@@ -149,3 +149,19 @@ describe("Links des Organizers", () => {
         expect(store.getLinks("cat1")[0].label).toBe("WCL");
     });
 });
+
+describe("Emoji der Links", () => {
+    it("behält ein gültiges Emoji, lässt bei alten Links das Feld weg und lehnt Ungültiges ab", () => {
+        const url = "https://x.example";
+        expect(store.checkLinks([{ label: "WCL", url, emoji: " 📊 " }, { label: "Alt", url }])).toEqual({ value: [{ label: "WCL", url, emoji: "📊" }, { label: "Alt", url }] });
+        expect(store.checkLinks([{ label: "Eigenes", url, emoji: "<:wcl:123456789012345678>" }]).value[0].emoji).toBe("<:wcl:123456789012345678>");
+        expect(store.checkLinks([{ label: "Bad", url, emoji: "ab" }]).error).toBe("Link „Bad“: „ab“ ist kein einzelnes Emoji. Erlaubt ist ein Emoji oder ein eigenes Discord-Emoji wie <:name:123456789012345678>.");
+    });
+
+    it("speichert und liest das Emoji und lässt ein unlesbares beim Lesen weg", () => {
+        store.setLinks("catE", [{ label: "WCL", url: "https://x.example", emoji: "🧙" }]);
+        expect(store.getLinks("catE")).toEqual([{ label: "WCL", url: "https://x.example", emoji: "🧙" }]);
+        expect(store.readLinks([{ label: "A", url: "https://a.example", emoji: "kaputt" }, { label: "B", url: "https://b.example" }])).toEqual([{ label: "A", url: "https://a.example" }, { label: "B", url: "https://b.example" }]);
+        store.setLinks("catE", []);
+    });
+});

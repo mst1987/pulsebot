@@ -142,3 +142,15 @@ describe("services/events/orgaHubPanel", () => {
         expect(newRaidId("cat9")).toBe("orga:new:cat9");
     });
 });
+
+describe("Emoji der Orga-Links", () => {
+    it("zeichnet das Emoji eines Links in den Knopf, auch ein eigenes Discord-Emoji", () => {
+        const p = orgaHubPayload({ categoryId: "c", links: [
+            { label: "A", url: "https://a.example", emoji: "🧙" },
+            { label: "B", url: "https://b.example", emoji: "<a:xx:123456789012345678>" },
+            { label: "C", url: "https://c.example" },
+        ] });
+        const linkBtns = buttons(p).filter((b) => b.style === 5 && ["A", "B", "C"].includes(b.label));
+        expect(linkBtns.map((b) => b.emoji)).toEqual([{ name: "🧙", animated: false }, { id: "123456789012345678", name: "xx", animated: true }, undefined]);
+    });
+});

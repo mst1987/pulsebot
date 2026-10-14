@@ -21,6 +21,7 @@ const {
     SeparatorSpacingSize, TextDisplayBuilder,
 } = require("discord.js");
 const { tr } = require("../i18n/botText");
+const { linkButton } = require("../discord/buttonEmoji");
 const { buildEmbed } = require("../discord/reply");
 const { panelButtons, plainCategoryName } = require("./availabilityDialog");
 const { emojiText, specEmojiName, uiEmojiName, statusEmojiName } = require("../../services/discord/appEmojis");
@@ -40,7 +41,6 @@ const text = (content) => new TextDisplayBuilder().setContent(content);
 // a line with the large gap between two areas; a gap without a line between a text and its buttons
 const line = () => new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large);
 const gap = (size = SeparatorSpacingSize.Small) => new SeparatorBuilder().setDivider(false).setSpacing(size);
-const linkButton = (label, url) => new ButtonBuilder().setLabel(label).setStyle(ButtonStyle.Link).setURL(url);
 
 /** A section: text on the left, one button on the right. */
 function section(content, button) {
@@ -59,7 +59,7 @@ function shortWhen(seconds) {
  * @param {string} [o.categoryName] Discord's name, decoration and all
  * @param {string} [o.lang]
  * @param {{ startTime: number, attending: number } | null} [o.nextRaid] the next own raid of the category
- * @param {{ label: string, url: string }[]} [o.links] the category's links (Einstellungen → Kategorien)
+ * @param {{ label: string, url: string, emoji?: string }[]} [o.links] the category's links (Einstellungen → Kategorien)
  * @param {object} [o.emojis] the bot's application emojis by name (appEmojis.appEmojiMap())
  * @param {boolean} [o.guildBank] whether the guild bank area shows (a guild bank channel is set)
  * @returns {{ flags: number, components: object[], embeds: [] }} API JSON; `embeds: []` clears an old embed panel on edit
@@ -106,7 +106,7 @@ function organizerPayload({ categoryId = "", categoryName = "", lang = "de", nex
         c.addSeparatorComponents(line());
         c.addTextDisplayComponents(text(`🔗 **${tr(lang, "Links")}**`));
         c.addSeparatorComponents(gap());
-        c.addActionRowComponents(new ActionRowBuilder().addComponents(usable.map((l) => linkButton(l.label, l.url))));
+        c.addActionRowComponents(new ActionRowBuilder().addComponents(usable.map((l) => linkButton(l.label, l.url, l.emoji))));
     }
 
     c.addSeparatorComponents(gap(SeparatorSpacingSize.Large));
