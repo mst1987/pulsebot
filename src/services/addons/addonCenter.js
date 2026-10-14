@@ -9,8 +9,11 @@
 // start) asks the release cache (addonReleases.releaseFor, 10 minutes) for each
 // addon of the centre and compares the newest version with the one it knows:
 //   - none known yet (first check, a new addon): only remembered, nothing posted;
-//   - a newer one: "NEU" for seven days in the centre. Nothing is announced: no
-//     update message into the channel, no ping (the centre's redraw is all there is).
+//   - a newer one (of the centre's game version): "NEU" for seven days in the centre and,
+//     when a role is set, ONE short message in the centre's channel that pings it (all
+//     addons updated in the same check in it, no patch notes, a link to the web page
+//     instead). The ping is deleted when the next one comes and 12 hours after it was
+//     posted at the latest (PING_TTL_MS; expirePing, every round, also without a centre).
 // Then the centre is redrawn when what it shows changed (its `hash`), and posted
 // anew when its message is gone (deleted in Discord: linkWatch.js tells
 // onCenterMessageDeleted at once; while the bot was away, the next check finds it).
@@ -26,13 +29,16 @@ const { categoryIdOfChannel } = require("../events/commandVersion");
 const { mainVersionFor, isVersionVisible, knownVersion } = require("../events/mainVersion");
 const { enabledAddons, releaseFor } = require("./addonReleases");
 const { assetMatches } = require("./addonConfig");
-const { centerPayload } = require("./addonCenterPanel");
+const { centerPayload, patchNotesUrl, escapeMd } = require("./addonCenterPanel");
+const { tr } = require("../../utils/i18n/botText");
 const log = require("../../logger").child("addonCenter");
 
 const FIRST_DELAY_MS = 60 * 1000;
 const CHECK_MS = 15 * 60 * 1000;
 /** After a deletion in Discord the centre comes back this soon. */
 const REDRAW_DELAY_MS = 5 * 1000;
+/** An update ping is deleted this long after it was posted. */
+const PING_TTL_MS = 12 * 60 * 60 * 1000;
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const isUnknownMessage = (e) => !!(e && (e.code === 10008 || /unknown message/i.test(str(e && e.message))));
@@ -206,15 +212,70 @@ async function refreshCenter({ config, force = false, now = Date.now() } = {}) {
     }
 }
 
+/** The text of the ping: the role, each addon with its version and a link to its patch notes on the web page. */
+function pingContent(roleId, updates, lang) {
+    const items = updates.map((u) => `**${escapeMd(u.name)} ${escapeMd(u.version)}** ([${tr(lang, "Patch notes")}](<${patchNotesUrl(u.id)}>))`);
+    return items.length === 1
+        ? tr(lang, "{role} {item} is here.", { role: `<@&${roleId}>`, item: items[0] })
+        : tr(lang, "{role} New versions: {items}", { role: `<@&${roleId}>`, items: items.join(" · ") });
+}
+
+/** Delete the stored ping message (an already deleted one is fine) and forget it. */
+async function dropPing() {
+    const ping = store.clearPing();
+    if (ping) await discord.deleteMessage(ping.channelId, ping.messageId);
+    return ping;
+}
+
+/**
+ * Delete the ping once it is PING_TTL_MS old. Never throws.
+ * @returns {Promise<boolean>} whether one was deleted
+ */
+async function expirePing({ now = Date.now() } = {}) {
+    try {
+        const ping = store.getPing();
+        if (!ping || now - ping.postedAt < PING_TTL_MS) return false;
+        if (!discord.isOnline()) return false;
+        await dropPing();
+        return true;
+    } catch (e) {
+        log.warn(`update ping not deleted: ${str(e && e.message) || e}`);
+        return false;
+    }
+}
+
+/**
+ * Ping the role about the addons updated in this check: the earlier ping goes first, one message
+ * for all of them. Nothing without a role. Never throws.
+ * @returns {Promise<boolean>} whether a ping was posted
+ */
+async function postUpdatePing(updates, { config, now = Date.now() } = {}) {
+    const { roleId, channelId } = store.getSettings();
+    const center = store.getCenter();
+    const target = (center && center.channelId) || channelId;
+    if (!roleId || !target || !updates.length || !discord.isOnline()) return false;
+    try {
+        await dropPing();
+        const posted = await discord.postRolePing(target, roleId, pingContent(roleId, updates, serverLang(config || getConfig())));
+        store.setPing({ channelId: posted.channelId, messageId: posted.messageId }, { now });
+        log.info(`update ping for ${updates.map((u) => `${u.id} ${u.version}`).join(", ")} posted in ${posted.channelId}`);
+        return true;
+    } catch (e) {
+        log.warn(`update ping not posted: ${str(e && e.message) || e}`);
+        return false;
+    }
+}
+
 /**
  * Compare each addon's newest version with the known one (see the head comment).
- * @returns {Promise<{ remembered: string[], updated: string[] }>}
+ * @returns {Promise<{ remembered: string[], updated: string[], pinged: boolean }>}
  */
 async function checkVersions({ config, now = Date.now() } = {}) {
     const cfg = config || getConfig();
     const center = store.getCenter();
-    const out = { remembered: [], updated: [] };
+    const out = { remembered: [], updated: [], pinged: false };
     if (!center) return out;
+    const updates = [];
     const entries = await centerEntries(cfg, channelVersion(center.channelId, cfg), { now });
     const seen = store.getSeen();
     for (const e of entries) {
@@ -234,7 +295,9 @@ async function checkVersions({ config, now = Date.now() } = {}) {
         }
         store.setSeen(e.addon.id, { version, previous: known.version, newSince: now, notifiedAt: 0 });
         out.updated.push(e.addon.id);
+        updates.push({ id: e.addon.id, name: e.addon.name, version });
     }
+    if (updates.length) out.pinged = await postUpdatePing(updates, { config: cfg, now });
     return out;
 }
 
@@ -245,8 +308,9 @@ let running = null;
 function runCheck({ config, now = Date.now() } = {}) {
     if (running) return running;
     running = (async () => {
+        await expirePing({ now });
         if (!store.getCenter() || !discord.isOnline()) return { skipped: true };
-        let versions = { remembered: [], updated: [] };
+        let versions = { remembered: [], updated: [], pinged: false };
         try {
             versions = await checkVersions({ config, now });
         } catch (e) {
@@ -348,7 +412,7 @@ function stopAddonCenter() {
 }
 
 module.exports = {
-    FIRST_DELAY_MS, CHECK_MS, compareVersions, channelVersion, categoryVersion, centerAddons, centerEntries, currentPayload, payloadHash,
+    FIRST_DELAY_MS, CHECK_MS, PING_TTL_MS, pingContent, expirePing, compareVersions, channelVersion, categoryVersion, centerAddons, centerEntries, currentPayload, payloadHash,
     postCenter, removeCenter, refreshCenter, checkVersions, runCheck, scheduleRefresh, onCenterMessageDeleted, saveSettings,
     startAddonCenter, stopAddonCenter,
 };

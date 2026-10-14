@@ -4,7 +4,7 @@
 // holder of the client: everything else (auth included) reads it via getClient().
 
 const {
-    ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionsBitField,
+    ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags, PermissionsBitField,
 } = require("discord.js");
 const { embedAccentColor } = require("../../config/variables");
 const { DateTime } = require("luxon");
@@ -446,6 +446,17 @@ async function postNotice(channelId, payload) {
 async function postPayload(channelId, payload) {
     const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
     const posted = await channel.send({ ...payload, allowedMentions: { parse: [] } });
+    return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url };
+}
+
+/**
+ * Post a plain text message that pings exactly one role (`allowedMentions` limited to it);
+ * link previews are suppressed.
+ * @returns {Promise<{ guildId, channelId, messageId, url }>}
+ */
+async function postRolePing(channelId, roleId, content) {
+    const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
+    const posted = await channel.send({ content, allowedMentions: { parse: [], roles: [String(roleId)] }, flags: MessageFlags.SuppressEmbeds });
     return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url };
 }
 
@@ -1173,5 +1184,5 @@ module.exports = {
     listApplications, parseApplicationEmbed,
     postLogButton, finishLogButton, LOG_EVAL_PREFIX,
     LOG_SECTIONS, logButtonRow, logButtonEmbed, logButtonPayload, logDayText,
-    postLink, editLink, postPayload, editPayload,
+    postLink, editLink, postPayload, postRolePing, editPayload,
 };

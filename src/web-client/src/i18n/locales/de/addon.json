@@ -81,7 +81,7 @@
     },
     "center": {
         "title": "Downloadzentrale im Discord",
-        "note": "Eine Nachricht im Kanal: jedes Addon mit Download-Knopf und Link zu den Patchnotes. Der Bot meldet neue Versionen nicht im Kanal, die Nachricht zeigt sie nur mit „NEU“.",
+        "note": "Eine Nachricht im Kanal: jedes Addon mit Download-Knopf und Link zu den Patchnotes. Bei einer neuen Version pingt der Bot die gewählte Rolle kurz im Kanal; die Nachricht zeigt sie mit „NEU“.",
         "channel": "Kanal für die Zentrale",
         "channelSub": "Dort steht die Nachricht mit allen Addons und ihren Download-Knöpfen. Die Kategorie des Kanals bestimmt die Spielversion (außer unter „Spielversion“ ist eine gewählt): nur deren Addons stehen in der Zentrale.",
         "version": "Spielversion",
@@ -98,6 +98,8 @@
         "saved": "Gespeichert.",
         "posted": "Downloadzentrale gepostet.",
         "removeAsk": "Downloadzentrale entfernen?",
+        "role": "Rolle für Update-Pings",
+        "roleSub": "Optional. Bei einer neuen Version postet der Bot eine kurze Nachricht, die diese Rolle pingt (ohne Patchnotes, mit Link zur Web-Seite). Sie wird nach 12 Stunden oder mit dem nächsten Ping gelöscht. Ohne Rolle gibt es keinen Ping.",
         "removeText": "Die Nachricht im Kanal wird gelöscht. Update-Meldungen aus früherer Zeit, die noch im Kanal stehen, bleiben.",
         "removed": "Downloadzentrale entfernt.",
         "loadError": "Die Einstellungen der Downloadzentrale konnten nicht geladen werden."

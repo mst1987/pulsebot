@@ -14,6 +14,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
     postPayload: jest.fn(),
     editPayload: jest.fn(),
     deleteMessage: jest.fn(async () => true),
+    postRolePing: jest.fn(),
     fetchTextChannel: jest.fn(async (id) => ({ id, guildId: "g1", send: mockSend, messages: { fetch: mockFetchMessage } })),
 }));
 jest.mock("../../../src/services/addons/addonReleases", () => ({
@@ -63,6 +64,7 @@ beforeEach(() => {
     mockReleases = { levelhelper: releaseOf("levelhelper", "0.3.0"), professionkit: releaseOf("professionkit", "0.2.0") };
     discord.postPayload.mockResolvedValue(posted());
     discord.editPayload.mockResolvedValue(posted());
+    discord.postRolePing.mockResolvedValue({ guildId: "g1", channelId: CH, messageId: "p1", url: "u" });
     mockSend.mockResolvedValue({ id: "u1" });
     mockFetchMessage.mockResolvedValue({ id: "m1" });
     store.setSettings({ channelId: CH });
@@ -131,7 +133,7 @@ describe("addonCenter game version setting", () => {
     it("the version check follows the picked version", async () => {
         await center.postCenter({ now: NOW });
         store.setSettings({ versionId: "classic" });
-        expect(await center.checkVersions({ config: mockConfig, now: NOW })).toEqual({ remembered: [], updated: [] });
+        expect(await center.checkVersions({ config: mockConfig, now: NOW })).toEqual({ remembered: [], updated: [], pinged: false });
     });
 });
 
@@ -201,12 +203,14 @@ describe("addonCenter runCheck (the job)", () => {
         expect(store.getCheckedAt()).toBe(NOW);
     });
 
-    it("a new version: NEU in the centre (edited), but nothing is posted and nobody is pinged", async () => {
+    it("a new version without a role: NEU in the centre (edited), but nothing is posted and nobody is pinged", async () => {
         await center.postCenter({ now: NOW });
         mockReleases.professionkit = releaseOf("professionkit", "0.3.0");
         const res = await center.runCheck({ now: NOW + 1000 });
-        expect(res).toEqual({ remembered: [], updated: ["professionkit"], center: "edited" });
+        expect(res).toEqual({ remembered: [], updated: ["professionkit"], pinged: false, center: "edited" });
         expect(mockSend).not.toHaveBeenCalled();
+        expect(discord.postRolePing).not.toHaveBeenCalled();
+        expect(store.getPing()).toBeNull();
         expect(discord.postPayload).toHaveBeenCalledTimes(1);
         expect(JSON.stringify(discord.editPayload.mock.calls[0][2])).toContain("### ProfessionKit `NEU`");
         expect(store.getSeen().professionkit).toEqual({ version: "0.3.0", previous: "0.2.0", newSince: NOW + 1000, notifiedAt: 0 });
@@ -216,15 +220,129 @@ describe("addonCenter runCheck (the job)", () => {
         expect(mockSend).not.toHaveBeenCalled();
     });
 
-    it("old settings keys (announce, roleId) have no effect: still no post, no ping", async () => {
-        fs.writeFileSync(file, JSON.stringify({ channelId: CH, roleId: ROLE, announce: true, center: { channelId: CH, messageId: "m1", guildId: "g1", url: posted().url }, seen: { levelhelper: { version: "0.3.0" } } }));
+    it("the old key announce has no effect: without a role there is no ping, with one there is (stored role survives a restart)", async () => {
+        fs.writeFileSync(file, JSON.stringify({ channelId: CH, announce: false, center: { channelId: CH, messageId: "m1", guildId: "g1", url: posted().url }, seen: { levelhelper: { version: "0.3.0" } } }));
         store.useFile(null);
         store.useFile(file);
         mockReleases.levelhelper = releaseOf("levelhelper", "0.4.0");
-        const res = await center.runCheck({ now: NOW + 1 });
-        expect(res.updated).toEqual(["levelhelper"]);
-        expect(mockSend).not.toHaveBeenCalled();
-        expect(JSON.stringify(discord.editPayload.mock.calls)).not.toContain(ROLE);
+        await center.runCheck({ now: NOW + 1 });
+        expect(discord.postRolePing).not.toHaveBeenCalled();
+        store.setSettings({ roleId: ROLE });
+        store.useFile(null);
+        store.useFile(file);
+        mockReleases.levelhelper = releaseOf("levelhelper", "0.5.0");
+        await center.runCheck({ now: NOW + 2 });
+        expect(discord.postRolePing).toHaveBeenCalledTimes(1);
+    });
+
+    describe("update ping", () => {
+        const WEB = /\[Patchnotes\]\(<https?:\/\/[^>]*\/addon#addon-levelhelper>\)/;
+
+        async function posted0() {
+            store.setSettings({ roleId: ROLE });
+            await center.postCenter({ now: NOW });
+        }
+
+        it("a new version pings the role: one short message with the role, the version and the patch notes link, no notes", async () => {
+            await posted0();
+            mockReleases.levelhelper = releaseOf("levelhelper", "0.5.0");
+            const res = await center.runCheck({ now: NOW + 1000 });
+            expect(res).toMatchObject({ updated: ["levelhelper"], pinged: true });
+            expect(discord.postRolePing).toHaveBeenCalledTimes(1);
+            const [channelId, roleId, content] = discord.postRolePing.mock.calls[0];
+            expect(channelId).toBe(CH);
+            expect(roleId).toBe(ROLE);
+            expect(content).toContain(`<@&${ROLE}>`);
+            expect(content).toContain("**LevelHelper 0.5.0** (");
+            expect(content).toContain("ist da.");
+            expect(content).toMatch(WEB);
+            expect(content).not.toContain("Neu");
+            expect(store.getPing()).toEqual({ channelId: CH, messageId: "p1", postedAt: NOW + 1000 });
+        });
+
+        it("several addons updated in one check: ONE message naming all of them", async () => {
+            await posted0();
+            mockReleases.levelhelper = releaseOf("levelhelper", "0.5.0");
+            mockReleases.professionkit = releaseOf("professionkit", "0.3.0");
+            await center.runCheck({ now: NOW + 1000 });
+            expect(discord.postRolePing).toHaveBeenCalledTimes(1);
+            const content = discord.postRolePing.mock.calls[0][2];
+            expect(content.match(/<@&/g)).toHaveLength(1);
+            expect(content).toContain("Neue Versionen:");
+            expect(content).toContain("**LevelHelper 0.5.0**");
+            expect(content).toContain("**ProfessionKit 0.3.0**");
+        });
+
+        it("a new ping deletes the previous one first", async () => {
+            await posted0();
+            mockReleases.levelhelper = releaseOf("levelhelper", "0.5.0");
+            await center.runCheck({ now: NOW + 1000 });
+            discord.postRolePing.mockResolvedValueOnce({ guildId: "g1", channelId: CH, messageId: "p2", url: "u" });
+            mockReleases.levelhelper = releaseOf("levelhelper", "0.6.0");
+            await center.runCheck({ now: NOW + 2000 });
+            expect(discord.deleteMessage).toHaveBeenCalledWith(CH, "p1");
+            expect(discord.deleteMessage.mock.invocationCallOrder[0]).toBeLessThan(discord.postRolePing.mock.invocationCallOrder[1]);
+            expect(store.getPing()).toMatchObject({ messageId: "p2", postedAt: NOW + 2000 });
+        });
+
+        it("no ping without a role, for first sight, an older latest and another game version", async () => {
+            await center.postCenter({ now: NOW });
+            mockReleases.levelhelper = releaseOf("levelhelper", "0.5.0");
+            await center.runCheck({ now: NOW + 1 });
+            store.setSettings({ roleId: ROLE });
+            mockReleases.levelhelper = releaseOf("levelhelper", "0.4.0");
+            await center.runCheck({ now: NOW + 2 });
+            store.setSeen("professionkit", { version: "", previous: "" });
+            store.setSettings({ versionId: "classic" });
+            mockReleases.professionkit = releaseOf("professionkit", "0.9.0");
+            await center.runCheck({ now: NOW + 3 });
+            expect(discord.postRolePing).not.toHaveBeenCalled();
+            // first sight: a fresh store only remembers
+            store.useFile(tempStoreFile("addon-center.json"));
+            store.setSettings({ channelId: CH, roleId: ROLE });
+            store.setCenter({ guildId: "g1", channelId: CH, messageId: "m1", url: posted().url, hash: "old" }, { now: NOW });
+            await center.runCheck({ now: NOW + 4 });
+            expect(discord.postRolePing).not.toHaveBeenCalled();
+        });
+
+        it("a failing post is logged and never breaks the check", async () => {
+            await posted0();
+            mockReleases.levelhelper = releaseOf("levelhelper", "0.5.0");
+            discord.postRolePing.mockRejectedValueOnce(new Error("Missing Permissions"));
+            const res = await center.runCheck({ now: NOW + 1000 });
+            expect(res).toMatchObject({ updated: ["levelhelper"], pinged: false });
+            expect(store.getPing()).toBeNull();
+            expect(mockLog.warn).toHaveBeenCalled();
+        });
+
+        it("the job deletes the ping 12 hours after it was posted (not before), also without a centre", async () => {
+            await posted0();
+            mockReleases.levelhelper = releaseOf("levelhelper", "0.5.0");
+            await center.runCheck({ now: NOW });
+            discord.deleteMessage.mockClear();
+            await center.runCheck({ now: NOW + center.PING_TTL_MS - 1 });
+            expect(discord.deleteMessage).not.toHaveBeenCalledWith(CH, "p1");
+            expect(store.getPing()).not.toBeNull();
+            store.clearCenter();
+            expect(await center.runCheck({ now: NOW + center.PING_TTL_MS })).toEqual({ skipped: true });
+            expect(discord.deleteMessage).toHaveBeenCalledWith(CH, "p1");
+            expect(store.getPing()).toBeNull();
+        });
+
+        it("an already deleted ping message is fine: the entry is cleared anyway", async () => {
+            store.setPing({ channelId: CH, messageId: "gone" }, { now: NOW });
+            discord.deleteMessage.mockResolvedValueOnce(false);
+            expect(await center.expirePing({ now: NOW + center.PING_TTL_MS })).toBe(true);
+            expect(store.getPing()).toBeNull();
+            expect(await center.expirePing({ now: NOW + center.PING_TTL_MS })).toBe(false);
+        });
+
+        it("keeps the ping while the bot is offline and never throws", async () => {
+            store.setPing({ channelId: CH, messageId: "p1" }, { now: NOW });
+            mockOnline = false;
+            expect(await center.expirePing({ now: NOW + center.PING_TTL_MS })).toBe(false);
+            expect(store.getPing()).not.toBeNull();
+        });
     });
 
     it("an older 'latest' is taken over quietly", async () => {
@@ -291,7 +409,7 @@ describe("addonCenter onCenterMessageDeleted", () => {
 describe("addonCenter saveSettings", () => {
     it("only saves while no centre is posted", async () => {
         const res = await center.saveSettings({});
-        expect(res).toEqual({ settings: { channelId: CH, versionId: "" }, center: null });
+        expect(res).toEqual({ settings: { channelId: CH, roleId: "", versionId: "" }, center: null });
         expect(discord.postPayload).not.toHaveBeenCalled();
         expect(await center.saveSettings({ channelId: "bad" })).toEqual({ error: "Ungültiger Kanal." });
     });
