@@ -25,6 +25,8 @@
     },
     "next": {
         "title": "Nächster Raid",
+        "cancelled": "Abgesagt",
+        "cancelledSub": "Die Orga hat diesen Raid abgesagt.",
         "crumb": "Raid-Events",
         "details": "Details",
         "openTip": "Raid öffnen",

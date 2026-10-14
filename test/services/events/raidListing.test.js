@@ -6,6 +6,7 @@ jest.mock("../../../src/stores/eventSoftresStore", () => ({ getEventSoftres: jes
 jest.mock("../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
 jest.mock("../../../src/services/logcheck/reportList", () => ({ logPostedAt: jest.fn((l) => l.postedAt || 0) }));
 
+const { cancelFields } = require("../../../src/services/events/eventSources");
 const { raidContentIds, raidSize, upcomingRows, loadPastRaids } = require("../../../src/services/events/raidListing");
 const { listRaidEvents } = require("../../../src/stores/raidEventStore");
 const { scanRaidEvents } = require("../../../src/services/events/raidEventScan");
@@ -117,6 +118,39 @@ describe("services/events/raidListing", () => {
             ]);
             expect(rows[0].versionId).toBe("forever");
             expect(rows[1].versionId).toBe("tbc");
+        });
+    });
+
+    describe("cancelled raids (Event verwalten, #288)", () => {
+        const cancelled = { id: "eh-1", source: "eventhelper", title: "Hyjal", status: "cancelled", cancel: { reason: "Tank fehlt", at: 1700000000000, by: "u1", byName: "Anna", archived: false } };
+
+        it("marks a cancelled own event with its reason and author", () => {
+            expect(cancelFields(cancelled)).toEqual({ cancelled: true, cancelReason: "Tank fehlt", cancelledAt: 1700000000000, cancelledByName: "Anna" });
+        });
+
+        it("leaves an active own event and a Raid-Helper event unmarked", () => {
+            const none = { cancelled: false, cancelReason: "", cancelledAt: 0, cancelledByName: "" };
+            expect(cancelFields({ id: "eh-2", source: "eventhelper", status: "active", cancel: null })).toEqual(none);
+            expect(cancelFields({ id: "111", source: "raidhelper", status: "cancelled", cancel: cancelled.cancel })).toEqual(none);
+            expect(cancelFields(null)).toEqual(none);
+        });
+
+        it("rides on the coming rows next to the raid group fields", () => {
+            const rows = upcomingRows([{ categoryId: "c1", categoryName: "PUG", events: [
+                { ...cancelled, raidGroupId: "eh-1", raidGroupIndex: 1 },
+                { id: "eh-3", source: "eventhelper", title: "Kara", status: "active" },
+                { id: "222", title: "Kara" },
+            ] }]);
+            expect(rows[0]).toMatchObject({ id: "eh-1", cancelled: true, cancelReason: "Tank fehlt", cancelledByName: "Anna", raidGroupId: "eh-1" });
+            expect(rows[1]).toMatchObject({ cancelled: false, cancelReason: "" });
+            expect(rows[2]).toMatchObject({ cancelled: false });
+        });
+
+        it("rides on the past rows too (false for a Raid-Helper raid)", async () => {
+            const now = Date.UTC(2026, 8, 14, 12);
+            listRaidEvents.mockReturnValue([{ id: "p", title: "Kara", startTime: Math.floor(Date.UTC(2026, 8, 9, 18) / 1000) }]);
+            const { events } = await loadPastRaids("g1", { now });
+            expect(events[0]).toMatchObject({ id: "p", cancelled: false, cancelReason: "" });
         });
     });
 

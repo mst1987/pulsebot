@@ -90,6 +90,13 @@ describe("services/events/eventSources", () => {
         expect(sources.ownEventGroupRows("")).toEqual([]);
     });
 
+    it("hands the cancellation (status + reason) on in the stored shape", () => {
+        const cancel = { reason: "Tank fehlt", at: 5, by: "u1", byName: "Anna", archived: false };
+        eventStore.listEvents.mockReturnValue([ownEvent({ startTime: 1800, status: "cancelled", cancel })]);
+        const [stored] = sources.listStoredEvents("g1", { now: 2000 * 1000 });
+        expect(stored).toMatchObject({ status: "cancelled", cancel });
+    });
+
     it("merges stored events of both sources, newest first, own ones only once started", () => {
         listRaidEvents.mockReturnValue([{ id: "111", guildId: "g1", startTime: 1500, signUps: [], categoryId: "cat1" }]);
         eventStore.listEvents.mockReturnValue([ownEvent({ startTime: 1800 })]);

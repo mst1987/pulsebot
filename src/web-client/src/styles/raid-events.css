@@ -256,3 +256,10 @@ a.re-title:hover { color: var(--accent); text-decoration: none; }
 .re-subrow-mark { justify-self: center; color: var(--muted); font-size: 16px; }
 .re-subrow .re-title { font-size: 14px; font-weight: 600; }
 .re-subrow-note { font-size: 12.5px; color: var(--muted); }
+
+/* a cancelled raid (Event verwalten, #288): dimmed, the title struck through; the badge and the reason stay at full strength */
+.re-row.is-cancelled .raid-ic, .re-row.is-cancelled .re-when, .re-row.is-cancelled .re-sub, .re-row.is-cancelled .re-badges { opacity: .55; }
+.re-row.is-cancelled .re-title { color: var(--muted); text-decoration: line-through; }
+.re-cancel-note { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 12.5px; color: var(--muted); }
+.re-cancel-note b { font-size: 13px; color: var(--high); }
+.re-cancel-note span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

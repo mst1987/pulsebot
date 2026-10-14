@@ -6,7 +6,7 @@
 // tooltip shows. Derived on every read, never stored.
 const { contentsForText } = require("../../config/raidContent");
 const { instanceById, VERSIONS } = require("../../config/gameVersions");
-const { listStoredEvents } = require("./eventSources");
+const { listStoredEvents, cancelFields } = require("./eventSources");
 const { scanRaidEvents } = require("./raidEventScan");
 const { autoLinkLogs } = require("../logcheck/logAutoLink");
 const { listByEvent: listLootByEvent } = require("../../stores/lootStore");
@@ -131,6 +131,7 @@ function upcomingRows(groups) {
             raidSize: size.size,
             raidSizeKnown: size.known,
             softres: softresOf(ev.id),
+            ...cancelFields(ev),
             // The game version this raid plays (#545): its own (own events), else
             // what the category plays — a Raid-Helper event carries none.
             versionId,
@@ -201,6 +202,7 @@ async function loadPastRaids(guildId, opts = {}) {
             pendingLogCount: ev.pendingLogs.length,
             lootCount: loot.length,
             softres: softresOf(ev.id),
+            ...cancelFields(ev),
             versionId,
             ...raidGroupFields(stored.find((s) => s.id === ev.id) || ev),
         };

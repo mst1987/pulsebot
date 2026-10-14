@@ -173,8 +173,26 @@ function planFields(ev) {
         color: ev.color || "", image: ev.image || { mode: "thumbnail", url: "" },
         // #288: readers skip or mark a cancelled event (reminders, talk overview).
         status: ev.status || "active", signupsClosed: !!ev.signupsClosed,
+        // the cancellation's reason and author, for the lists that mark a cancelled raid
+        cancel: ev.cancel || null,
         // #811: a raid group — the first raid's id on every raid of it ("" = none) and the raid's place
         raidGroupId: ev.raidGroupId || "", raidGroupIndex: ev.raidGroupId ? raidIndexOf(ev) : 0,
+    };
+}
+
+/**
+ * A cancelled own event (Event verwalten, #288) as the list marks it: the flag,
+ * the reason and who cancelled when (ms). Raid-Helper events know no cancellation.
+ * Same names as the signup view (`cancelled`, `cancelReason`).
+ */
+function cancelFields(ev) {
+    const cancelled = !!ev && ev.source === "eventhelper" && ev.status === "cancelled";
+    const cancel = (cancelled && ev.cancel) || {};
+    return {
+        cancelled,
+        cancelReason: cancel.reason || "",
+        cancelledAt: Number(cancel.at) || 0,
+        cancelledByName: cancel.byName || "",
     };
 }
 
@@ -362,5 +380,5 @@ module.exports = {
     specNameFor, specKeyFromRaidHelper, signupSourceFor, defaultSignupSource, sourceOfEventId,
     toSignUpShape, ownSignUps, toEventGroupShape, toMatchableShape, toStoredShape, toRaidHelperShape,
     ownEventGroupRows, ownMatchableEvents, ownUpcomingRaw, ownSignedUpEvents, ownEventInChannel, listStoredEvents, getStoredEvent,
-    withEraName,
+    withEraName, cancelFields,
 };
