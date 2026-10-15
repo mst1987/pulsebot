@@ -1,6 +1,17 @@
 // Where a setup stands (services/setup/setupCore.js setupSummary/setupPhase): the
 // one reading the raid detail's Freigabe step and the Orga-Zentrale share.
-const { setupSummary, setupPhase } = require("../../../src/services/setup/setupCore");
+// Plus who in the groups has not answered yet ("Ping unconfirmed").
+const { setupSummary, setupPhase, unansweredOf } = require("../../../src/services/setup/setupCore");
+
+describe("services/setup/setupCore unansweredOf", () => {
+    const approved = { groups: [{ index: 1, slots: [{ userId: "a" }, { userId: "b" }] }, { index: 2, slots: [{ userId: "b" }, { userId: "c" }, { userId: "" }] }] };
+
+    it("lists everybody placed without an answer, once each, in group order", () => {
+        expect(unansweredOf(approved, { a: "confirmed", c: "declined" })).toEqual(["b"]);
+        expect(unansweredOf(approved)).toEqual(["a", "b", "c"]);
+        expect(unansweredOf(null)).toEqual([]);
+    });
+});
 
 const setup = (over = {}) => ({
     status: "draft", version: 2, changedSinceApproval: false,

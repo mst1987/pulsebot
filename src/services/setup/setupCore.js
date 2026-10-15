@@ -18,6 +18,7 @@ const BUTTON_LABELS = {
     cancel: { de: "Absagen", en: "Cancel" },
     invite: { de: "Invites callen", en: "Call invites" },
     ping: { de: "Alle pingen", en: "Ping everyone" },
+    pingOpen: { de: "Unbestätigte pingen", en: "Ping unconfirmed" },
 };
 const buttonLabel = (lang, key) => BUTTON_LABELS[key][normalizeLang(lang)];
 
@@ -106,6 +107,9 @@ function pingTextOf(event, lang = "de") {
     return (event && event.setupPingText) || tr(lang, PING_TEXT);
 }
 
+/** "Ping unconfirmed"'s line — a reminder, never the orga's stored text for everybody. */
+const PING_OPEN_TEXT = "⏳ Please confirm or cancel your spot in the setup.";
+
 // ---- Confirm / Cancel ---------------------------------------------------------
 
 const CONFIRM_STATUSES = ["confirmed", "declined"];
@@ -128,6 +132,12 @@ function confirmationsFor(event, approved) {
     return out;
 }
 
+/** Everybody placed in a group without an answer yet (neither confirmed nor cancelled), once each, in group order. */
+function unansweredOf(approved, confirmations = {}) {
+    const placed = ((approved && approved.groups) || []).flatMap((g) => (g.slots || []).map((s) => String(s.userId || "")));
+    return [...new Set(placed)].filter((id) => id && !CONFIRM_STATUSES.includes(confirmations[id]));
+}
+
 // ---- the button row under the setup message -------------------------------------
 
 const CONFIRM_PREFIX = "setup-confirm";
@@ -136,7 +146,8 @@ const PING_PREFIX = "setup-ping";
 
 const confirmId = (field, eventId) => `${CONFIRM_PREFIX}:${field}:${eventId}`;
 const inviteId = (field, eventId) => `${INVITE_PREFIX}:${field}:${eventId}`;
-const pingId = (eventId) => `${PING_PREFIX}:${eventId}`;
+// `open`: "Ping unconfirmed" — only who has not answered yet
+const pingId = (eventId, open = false) => `${PING_PREFIX}:${eventId}${open ? ":open" : ""}`;
 
 /** Confirm / Cancel (setupConfirmBot.js) — every raider reads it, so it is in the server language. */
 function confirmButtonRow(eventId, lang = "de") {
@@ -158,15 +169,24 @@ function inviteButtonRow(eventId, lang = "de") {
     return { type: 1, components: [{ type: 2, style: 2, custom_id: inviteId("p", eventId), label: buttonLabel(lang, "invite"), emoji: { name: "📣" } }] };
 }
 
-/** "Ping everyone" (setupPingBot.js), beside "Call invites". */
-function pingButtonRow(eventId, lang = "de") {
-    return { type: 1, components: [{ type: 2, style: 2, custom_id: pingId(eventId), label: buttonLabel(lang, "ping") }] };
+/**
+ * "Ping everyone" (setupPingBot.js), beside "Call invites" — and with `open`
+ * "Ping unconfirmed" after it, only while somebody in a group has not answered.
+ */
+function pingButtonRow(eventId, lang = "de", { open = false } = {}) {
+    return {
+        type: 1,
+        components: [
+            { type: 2, style: 2, custom_id: pingId(eventId), label: buttonLabel(lang, "ping") },
+            ...(open ? [{ type: 2, style: 2, custom_id: pingId(eventId, true), label: buttonLabel(lang, "pingOpen") }] : []),
+        ],
+    };
 }
 
 module.exports = {
     approvedSetupOf, benchAndPool, benchPosted, setupSummary, setupPhase,
-    PING_TEXT, PING_TEXT_MAX, pingTextOf,
-    CONFIRM_STATUSES, confirmationsFor,
+    PING_TEXT, PING_OPEN_TEXT, PING_TEXT_MAX, pingTextOf,
+    CONFIRM_STATUSES, confirmationsFor, unansweredOf,
     CONFIRM_PREFIX, INVITE_PREFIX, PING_PREFIX, confirmId, inviteId, pingId,
     confirmButtonRow, inviteButtonRow, pingButtonRow,
 };
