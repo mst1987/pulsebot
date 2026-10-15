@@ -102,7 +102,7 @@ Specialised subagents come from the **claude-crew** marketplace (`mst1987/claude
 
 | Agent | When |
 |---|---|
-| `core:scout` | Before an implementation: affected files, existing building blocks, overlap with parallel work |
+| `core:scout` | Only for several or unclearly located tasks: affected files, building blocks, overlap |
 | `core:wow-researcher` | Before game data (items, bosses, specs, buffs) goes into code, generated data or texts |
 | `eventhelper:event-expert` | Events, sign-ups, setup, roster planner, guild bank, game versions |
 | `eventhelper:web-expert` | Web client, API permissions, raid plan, loot views — clarity first |
@@ -110,13 +110,15 @@ Specialised subagents come from the **claude-crew** marketplace (`mst1987/claude
 | `eventhelper:logcheck-analyst` | Warcraft Logs, analyzers, golden master |
 | `addons:wow-api-expert` / `addons:ingame-tester` | Lua changes in the sync addon / in-game test guide and BugSack evaluation |
 | `core:implementer` | Implementation spanning several domains or without a matching domain agent |
-| `core:reviewer` | After every implementation, before the PR |
-| `core:pr-agent` | Merge `origin/main`, open the PR, watch CI, merge on green checks — **a merge deploys** |
+| `core:reviewer` | After logic changes, before the PR |
+| `core:pr-agent` | PR series (merge `origin/main`, PR, CI, merge on green — **a merge deploys**); a single PR is done by the main session |
 | `core:ui-tester` | After visible web changes, against the worktree's test instance (puppeteer) |
 | `core:designer` | Every design proposal, as a canvas |
 | `core:live-diagnostics` | Production trouble, strictly read-only (write commands go to the user) |
 
 - Do **not** pass a `model` parameter when calling them — each agent's model is set in its frontmatter.
+- **Chain by size** (global CLAUDE.md): small tasks the main session does itself, medium ones one domain agent, only large ones the full chain — every call pays the full start context.
+- "Which agents are there?" means these claude-crew subagents (list them, or type `@agent-`). `npm run agents` is something else: the overview of running agent **worktrees**.
 - Agents have no channel to the user: questions come back as open points in their report, and the main session asks.
 - Everything project-specific an agent needs (commands, ports, merge policy, pitfalls) lives in the skill `.claude/skills/projektprofil/SKILL.md`, preloaded into every agent — change it there, not in agent prompts. Domain knowledge still goes to `docs/`.
 - The plugin's guard hook adds to the hooks above: it blocks non-ASCII in Bash lines, `git stash`, test runs cut with head/tail and — via `.claude/crew.json` (`hauptcheckoutGuard`) — every Edit/Write in the main checkout; git-ignored files (`.env.dev`, `data/`) stay editable, as with `guardMainCheckout.js`.
