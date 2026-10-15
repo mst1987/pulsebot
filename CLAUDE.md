@@ -96,6 +96,26 @@ The web server boots **independently of the Discord gateway** (`src/bot.js` `sta
 - **The menu needs the React client built first.** Everything outside `/api`, `/auth`, `/health` and the `/r/` report pages is served from `src/web-client/dist/` (see "Web Admin" in docs/web-admin.md) — run `cd src/web-client && npm install && npm run build` once per fresh worktree before starting the backend, or run `npm run dev` inside `src/web-client/` (its own Vite dev server, proxying `/api` to the backend port) for live-reloading frontend work. A missing/stale `dist/` means the menu 404s outright — there is no server-rendered fallback anymore.
 - **After the change:** report the port/URL you used to verify it, and stop the instance when done (it is only for review, never left running in production).
 
+## Agent team (claude-crew)
+
+Specialised subagents come from the **claude-crew** marketplace (`mst1987/claude-crew`, locally `D:\programming\claude-crew`), enabled in `.claude/settings.json`. The **main session conducts**: it cuts the task, picks the agent, checks the result and is the only one that talks to the user.
+
+| Agent | When |
+|---|---|
+| `core:scout` | Before an implementation: affected files, existing building blocks, overlap with parallel work |
+| `core:wow-researcher` | Before game data (items, bosses, specs, buffs) goes into code, generated data or texts |
+| `core:implementer` | Implementation up to the commit in its own worktree (until the `eventhelper` plugin brings domain agents) |
+| `core:reviewer` | After every implementation, before the PR |
+| `core:pr-agent` | Merge `origin/main`, open the PR, watch CI, merge on green checks — **a merge deploys** |
+| `core:ui-tester` | After visible web changes, against the worktree's test instance (puppeteer) |
+| `core:designer` | Every design proposal, as a canvas |
+| `core:live-diagnostics` | Production trouble, strictly read-only (write commands go to the user) |
+
+- Do **not** pass a `model` parameter when calling them — each agent's model is set in its frontmatter.
+- Agents have no channel to the user: questions come back as open points in their report, and the main session asks.
+- Everything project-specific an agent needs (commands, ports, merge policy, pitfalls) lives in the skill `.claude/skills/projektprofil/SKILL.md`, preloaded into every agent — change it there, not in agent prompts. Domain knowledge still goes to `docs/`.
+- The plugin's guard hook adds to the hooks above: it blocks non-ASCII in Bash lines, `git stash`, test runs cut with head/tail and — via `.claude/crew.json` (`hauptcheckoutGuard`) — every Edit/Write in the main checkout, git-ignored files included.
+
 ## Architecture
 
 A rough map without file lists (`ls` is always current); each row names the doc that explains it.
