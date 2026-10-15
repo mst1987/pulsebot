@@ -52,7 +52,7 @@ function knownRoleIds(guildId) {
 /**
  * GET /api/rosters/options — what the create dialog and the settings offer for
  * the active server: { guildId, categories: [{ id, name, versionId, rosterId, rosterName }],
- * versions: [{ id, label, short }], defaultVersion, roles: [{ id, name, color, position, manageable }],
+ * versions: [{ id, label, short, icon }], defaultVersion, roles: [{ id, name, color, position, manageable }],
  * canManageRoles, online, kaders: [{ id, name, inRoster, candidates }] (only with `kader` read),
  * templateSlots: { [categoryId]: { total, tank, healer, bench, templateId, templateName } }, isAdmin }.
  * `?version=<id>`: the version the dialog works in (#741, `resolveVersionQuery`: the page's
