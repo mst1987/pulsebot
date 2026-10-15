@@ -327,7 +327,7 @@ describe("web/report/render", () => {
             expect(html).toContain("<details class=\"vcard raider-card\" id=\"raider-Bob\" data-name=\"Bob\" data-role=\"dps\"");
             expect(html).not.toContain("data-role=\"dps\" data-open=\"0\" data-report=\"abc123def456\" style=\"--cc:#69CCF0\" open");
             expect(html).toContain("classicon_mage.jpg");
-            expect(html).toContain("inv_shield_06.jpg\" alt=\"\">1 Gear-Problem</span>");
+            expect(html).toMatch(/<span class="badge (?:bad|mid) has-minis"[^>]*><span class="minis"><img class="mini"[^>]*><\/span>1 Gear-Problem<\/span>/);
             // nothing stands out about Bob: one badge in the ok tone
             const bob = html.slice(html.indexOf("id=\"raider-Bob\""), html.indexOf("</summary>", html.indexOf("id=\"raider-Bob\"")));
             expect(bob).toContain("<div class=\"vcard-chips\"><span class=\"badge ok\">");

@@ -1,6 +1,6 @@
 // The findings on the report page (src/web/report/recommendations.js): review
 // rights, one finding row, the raid's list and the "Alle senden" box.
-const { IMPACT_LABEL, IMPACT_TONE, canReview, recItem, renderKeyFindings, renderSendBox } = require("../../../src/web/report/recommendations");
+const { IMPACT_LABEL, IMPACT_TONE, canReview, recItem, recBlock, renderKeyFindings, renderSendBox } = require("../../../src/web/report/recommendations");
 
 const item = (over = {}) => ({ key: "k1", impact: "high", title: "Flask fehlt", text: "Regeltext", approved: null, custom: "", evidence: [], ...over });
 
@@ -18,6 +18,48 @@ describe("web/report/recommendations", () => {
             expect(canReview({ access: { cla: { read: true } } })).toBe(false);
             expect(canReview({ access: {} })).toBe(false);
             expect(canReview({})).toBe(false);
+        });
+    });
+
+    describe("recBlock", () => {
+        it("gives a reviewer the open block: items, the text as it goes out, labelled verdicts", () => {
+            const html = recBlock(item({ evidence: [{ label: "Hood", value: "keine Verzauberung" }] }), "Sedroc", true, { itemsHtml: "<div class=\"rec-item\">X</div>", sub: "1 Item vor dem nächsten Raid nachbessern" });
+            expect(html).toContain("<div class=\"rec rec-block rec-high rec-state-open\" data-key=\"k1\">");
+            expect(html).toContain("<span class=\"badge bad\">hoch</span><b class=\"rec-title\">Flask fehlt</b><span class=\"rec-sub\">1 Item vor dem nächsten Raid nachbessern</span><span class=\"rec-status\"></span>");
+            // the items replace the evidence badges
+            expect(html).toContain("<div class=\"rec-items\"><div class=\"rec-item\">X</div></div>");
+            expect(html).not.toContain("ev-b");
+            expect(html).toContain("<span class=\"kicker\">Geht so an Sedroc</span><p><span class=\"rec-source rule\">Regel</span><span class=\"rec-body\">Regeltext</span></p>");
+            expect(html).toContain("<div class=\"rec-acts rec-review\" data-scope=\"player\" data-player=\"Sedroc\" data-key=\"k1\">");
+            expect(html).toContain("class=\"btn btn-ghost btn-sm rec-yes\" data-review=\"approve\" aria-pressed=\"false\"");
+            expect(html).toContain("<span class=\"lbl\">Freigeben</span>");
+            expect(html).toContain("class=\"btn btn-ghost btn-sm rec-no\" data-review=\"reject\" aria-pressed=\"false\"");
+            expect(html).toContain("Text ändern</button>");
+            expect(html).not.toContain("data-review=\"rule\"");
+            expect(html).toContain("<div class=\"rec-edit\" hidden><textarea class=\"rec-text\"");
+        });
+
+        it("marks the active verdict and offers the rule text behind Claude's or the own words", () => {
+            const ai = recBlock(item({ approved: true, ai: "KI-Text" }), "A", true);
+            expect(ai).toContain("rec-state-approved");
+            expect(ai).toContain("class=\"btn btn-ghost btn-sm rec-yes ok\" data-review=\"approve\" aria-pressed=\"true\"");
+            expect(ai).toContain("<span class=\"lbl\">Freigegeben</span>");
+            expect(ai).toContain("<p data-tip=\"Regeltext\" data-tip-sub=\"Regeltext\"><span class=\"rec-source\" data-tip=\"Von Claude formuliert\"");
+            expect(ai).toContain("<span class=\"rec-body\">KI-Text</span>");
+            expect(ai).toContain("data-review=\"rule\"");
+            expect(ai).toContain("<p class=\"rec-rule\" hidden><span class=\"rec-source rule\">Regel</span>Regeltext</p>");
+            const own = recBlock(item({ approved: false, custom: "Mein <Text>" }), "A", true);
+            expect(own).toContain("rec-state-rejected");
+            expect(own).toContain("class=\"btn btn-ghost btn-sm rec-no bad\" data-review=\"reject\" aria-pressed=\"true\"");
+            expect(own).toContain("<span class=\"rec-source own\">Eigener Text</span><span class=\"rec-body\">Mein &lt;Text&gt;</span>");
+        });
+
+        it("shows a raider their approved point without verdicts, the evidence as badges", () => {
+            const html = recBlock(item({ approved: true, evidence: [{ label: "Boss", value: "Gruul" }] }), "A", false);
+            expect(html).toContain("<span class=\"kicker\">Von der Raidleitung</span>");
+            expect(html).toContain("<div class=\"badges\"><span class=\"badge ev-b\" data-tip=\"Boss\" data-tip-sub=\"Gruul\">Boss <b>Gruul</b></span></div>");
+            expect(html).not.toContain("data-review");
+            expect(html).not.toContain("rec-status");
         });
     });
 

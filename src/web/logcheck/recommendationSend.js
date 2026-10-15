@@ -45,6 +45,9 @@ function approvedPerPlayer(report) {
 
 const IMPACT_MARK = { high: "🔴", medium: "🟠", low: "🟢" };
 
+/** The characters of a point's text that fit into the DM; the send dialog's preview cuts at the same place. */
+const DM_TEXT_MAX = 300;
+
 /**
  * The DM for one raider: one card with a block per approved point (the raid
  * lead's own wording wins over the generated one) and the link to their page as a button.
@@ -55,7 +58,7 @@ function buildRaiderMessage(report, player, items) {
     // the raid lead's words, else Claude's phrasing, else the rule's text
     const fields = items.slice(0, 10).map((item) => ({
         name: `${IMPACT_MARK[item.impact] || "•"} ${item.title}`.slice(0, 256),
-        value: String(item.custom || item.ai || item.text || "–").slice(0, 300),
+        value: String(item.custom || item.ai || item.text || "–").slice(0, DM_TEXT_MAX),
     }));
     if (items.length > 10) fields.push({ name: "…", value: `und ${items.length - 10} weitere Punkte auf deiner Seite.` });
     return card({
@@ -120,4 +123,4 @@ function sendStatus(report, assignments) {
     });
 }
 
-module.exports = { characterOwners, approvedPerPlayer, buildRaiderMessage, sendApproved, sendStatus, sentSignature };
+module.exports = { characterOwners, approvedPerPlayer, buildRaiderMessage, sendApproved, sendStatus, sentSignature, IMPACT_MARK, DM_TEXT_MAX };

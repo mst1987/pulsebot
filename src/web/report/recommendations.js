@@ -72,6 +72,49 @@ function recItem(item, scope, player, reviewer, opts = {}) {
     </details>`;
 }
 
+/** Where a point's text comes from, as a small tag before it: the raid lead's own words, Claude or the rule. */
+function sourceTag(item) {
+    if (item.custom) return "<span class=\"rec-source own\">Eigener Text</span>";
+    if (item.ai) return "<span class=\"rec-source\" data-tip=\"Von Claude formuliert\" data-tip-sub=\"Der Regeltext dahinter steht im Tooltip des Textes.\">KI</span>";
+    return "<span class=\"rec-source rule\">Regel</span>";
+}
+
+/**
+ * One finding of a raider as an open block (Raider-Karte, Entwurf A): impact,
+ * title and a short line under it; the items of a gear finding as lines with
+ * icon, slot and problem (`opts.itemsHtml`), otherwise the evidence as badges;
+ * the text as it goes out ("Geht so an …"); for a reviewer the three verdicts
+ * as labelled buttons, the active one filled. Clicking it again takes it back.
+ * The class names the page script relies on (rec, rec-review, rec-body,
+ * rec-edit, rec-rule, rec-status, data-review) are the same as in recItem.
+ * @param {object} opts  { itemsHtml, sub }
+ */
+function recBlock(item, player, reviewer, opts = {}) {
+    const state = item.approved === true ? "approved" : item.approved === false ? "rejected" : "open";
+    const text = item.custom || item.ai || item.text;
+    const hasRule = !!(item.ai || item.custom) && item.text;
+    const evidence = opts.itemsHtml
+        ? `<div class="rec-items">${opts.itemsHtml}</div>`
+        : (item.evidence || []).length ? `<div class="badges">${evidenceBadges(item, 6)}</div>` : "";
+    const lead = reviewer ? `Geht so an ${player}` : "Von der Raidleitung";
+    const acts = reviewer
+        ? `<div class="rec-acts rec-review" data-scope="player" data-player="${esc(player || "")}" data-key="${esc(item.key)}">
+          <button type="button" class="btn btn-ghost btn-sm rec-yes${state === "approved" ? " ok" : ""}" data-review="approve" aria-pressed="${state === "approved"}" data-tip="Geht erst nach der Freigabe an den Raider">${LINE.check}<span class="lbl">${state === "approved" ? "Freigegeben" : "Freigeben"}</span></button>
+          <button type="button" class="btn btn-ghost btn-sm rec-no${state === "rejected" ? " bad" : ""}" data-review="reject" aria-pressed="${state === "rejected"}" data-tip="Bleibt im Report, geht aber nicht raus">${LINE.ban}<span class="lbl">Nicht senden</span></button>
+          <button type="button" class="btn btn-ghost btn-sm rec-plain" data-review="edit" data-tip="Eine eigene Formulierung geht vor dem KI- und dem Regeltext">${LINE.pencil}Text ändern</button>
+          ${hasRule ? `<button type="button" class="btn btn-ghost btn-sm rec-plain" data-review="rule">${LINE.undo}Regeltext zeigen</button>` : ""}
+          <span class="rec-undo">Noch ein Klick nimmt die Entscheidung zurück</span>
+        </div>
+        <div class="rec-edit" hidden><textarea class="rec-text" rows="3" placeholder="Eigene Formulierung (leer = Vorschlag so lassen)">${esc(item.custom || "")}</textarea><div class="row-btns"><button type="button" class="btn btn-sm" data-review="save">Text speichern</button></div></div>`
+        : "";
+    return `<div class="rec rec-block rec-${esc(item.impact)} rec-state-${state}" data-key="${esc(item.key)}">
+      <div class="rec-head">${badge(IMPACT_LABEL[item.impact] || item.impact, IMPACT_TONE[item.impact] || "")}<b class="rec-title">${esc(item.title)}</b>${opts.sub ? `<span class="rec-sub">${esc(opts.sub)}</span>` : ""}${reviewer ? "<span class=\"rec-status\"></span>" : ""}</div>
+      ${evidence}
+      <div class="rec-say"><span class="kicker">${esc(lead)}</span><p${item.ai && !item.custom ? ` data-tip="Regeltext" data-tip-sub="${esc(item.text)}"` : ""}>${sourceTag(item)}<span class="rec-body">${esc(text)}</span></p>${reviewer && hasRule ? `<p class="rec-rule" hidden><span class="rec-source rule">Regel</span>${esc(item.text)}</p>` : ""}</div>
+      ${acts}
+    </div>`;
+}
+
 const KEY_SHOWN = 5;
 
 const IMPACT_RANK = { high: 0, medium: 1, low: 2 };
@@ -137,5 +180,5 @@ function renderSendBox(report) {
 }
 
 module.exports = {
-    IMPACT_LABEL, canReview, IMPACT_TONE, recItem, renderKeyFindings, renderSendBox,
+    IMPACT_LABEL, canReview, IMPACT_TONE, recItem, recBlock, renderKeyFindings, renderSendBox,
 };

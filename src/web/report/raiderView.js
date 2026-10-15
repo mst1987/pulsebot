@@ -10,7 +10,9 @@ const { CONS_HOW } = require("./panels/consumables");
 const { potionCells } = require("./panels/potions");
 const { INFERRED_HOW } = require("./panels/buffs");
 const { playerFights, renderPlayerTimeline } = require("./bossView");
-const { IMPACT_LABEL, IMPACT_TONE, recItem } = require("./recommendations");
+const { IMPACT_LABEL, IMPACT_TONE, recBlock } = require("./recommendations");
+const { QUALITY_COLOR, wowheadItemUrl, gearItemsOf, itemCount, itemRows, miniIcons } = require("./recItems");
+const { IMPACT_MARK, DM_TEXT_MAX } = require("../logcheck/recommendationSend");
 const { abilityIcon } = require("./panels/damage");
 const { RPB_ACTIVITY_HOW, spellTiles } = require("./panels/rpb");
 const { ROLE_LABEL } = require("./context");
@@ -236,10 +238,24 @@ function raiderErr(ctx, p) {
     };
 }
 
+/** A raider's gear issues as items for the finding, the dialog and the card head. */
+function gearItemsFor(ctx, p) {
+    const issues = (ctx.gearByName.get(p.name) || {}).issues || p.issues || [];
+    return gearItemsOf(p, issues);
+}
+
+/** The items of a point, when it is the gear finding and the report knows them; otherwise "". */
+function pointItemsHtml(ctx, p, it) {
+    if (it.key !== "gear") return "";
+    const list = gearItemsFor(ctx, p);
+    return list.length ? itemRows(list) : "";
+}
+
 /**
- * The send dialog of one raider (SendeFenster): head badges, the approved
- * points with their text choice (KI / Regel / Eigener), the DM preview in the
- * Discord look with the mapping state, save and send.
+ * The send dialog of one raider (SendeFenster, Entwurf E): the mapping and the
+ * last send in the head; left the approved points with their items and the
+ * text choice (KI / Regel / Eigener); right the DM as the raider gets it, with
+ * the same title, greeting and the same 300 characters per point the bot sends.
  */
 function sendDialog(ctx, p, i, items) {
     const { report } = ctx;
@@ -252,23 +268,28 @@ function sendDialog(ctx, p, i, items) {
         const mode = it.custom ? "custom" : it.ai ? "ai" : "rule";
         const text = it.custom || it.ai || it.text || "";
         const segBtn = (m, label) => `<button type="button" class="seg-btn${mode === m ? " active" : ""}" data-txt="${m}">${label}</button>`;
-        return `<div class="send-item${j === 0 ? " on" : ""}" data-key="${esc(it.key)}" data-title="${esc(it.title)}" data-ai="${esc(it.ai || "")}" data-rule="${esc(it.text || "")}" data-custom="${esc(it.custom || "")}" data-mode="${mode}">
-          <div class="send-item-head">${badge(IMPACT_LABEL[it.impact] || it.impact, IMPACT_TONE[it.impact] || "")}<b>${esc(it.title)}</b><nav class="seg sm" data-tip="Welcher Text geht raus?" data-tip-sub="${esc(PRECEDENCE)}">${it.ai ? segBtn("ai", `${hicon("inv_scroll_03", "")}KI`) : ""}${segBtn("rule", "Regel")}${segBtn("custom", `${LINE.pencil}Eigener`)}</nav></div>
-          <textarea class="send-text" rows="3"${mode === "custom" ? "" : " readonly"}>${esc(text)}</textarea>
+        const itemsHtml = pointItemsHtml(ctx, p, it);
+        return `<div class="send-item${j === 0 ? " on" : ""}" data-key="${esc(it.key)}" data-title="${esc(`${IMPACT_MARK[it.impact] || "•"} ${it.title}`)}" data-ai="${esc(it.ai || "")}" data-rule="${esc(it.text || "")}" data-custom="${esc(it.custom || "")}" data-mode="${mode}">
+          <div class="send-item-head">${badge(IMPACT_LABEL[it.impact] || it.impact, IMPACT_TONE[it.impact] || "")}<b>${esc(it.title)}</b></div>
+          ${itemsHtml ? `<div class="rec-items">${itemsHtml}</div>` : ""}
+          <div class="send-choice"><span class="kicker">Welcher Text?</span><nav class="seg sm" data-tip="Welcher Text geht raus?" data-tip-sub="${esc(PRECEDENCE)}">${it.ai ? segBtn("ai", `${hicon("inv_scroll_03", "")}KI`) : ""}${segBtn("rule", "Regel")}${segBtn("custom", `${LINE.pencil}Eigener`)}</nav></div>
+          <textarea class="send-text" rows="3" aria-label="${esc(`Text zu ${it.title}`)}"${mode === "custom" ? "" : " readonly"}>${esc(text)}</textarea>
         </div>`;
     }).join("");
     const preview = approved.map((it) => {
         const text = it.custom || it.ai || it.text || "";
-        return `<div><b>${esc(it.title)}</b><br>${esc(text.length > 160 ? `${text.slice(0, 160)} …` : text)}</div>`;
+        return `<div><b>${esc(`${IMPACT_MARK[it.impact] || "•"} ${it.title}`)}</b><br>${esc(text.length > DM_TEXT_MAX ? `${text.slice(0, DM_TEXT_MAX)} …` : text)}</div>`;
     }).join("");
     const link = `/r/${esc(report.id)}${idx >= 0 ? `/p/${idx}` : ""}`;
     const color = classColorOf(p.type) || "var(--text)";
+    const date = report.date ? ` vom ${String(report.date).split(",")[0]}` : "";
+    const openNote = open ? `<span class="badge mid" data-tip="${esc(open === 1 ? "Der noch offene Punkt wird nicht gesendet." : `Die ${open} noch offenen Punkte werden nicht gesendet.`)}">${open} offen · wird nicht gesendet</span>` : "";
     return `<dialog class="dlg send" id="send-${i}" data-report="${esc(report.id)}" data-player="${esc(p.name)}">
-      <div class="dlg-head">${tile("inv_letter_15", "")}<div class="dlg-main"><div class="dlg-title">An <span class="cn" style="--cc:${esc(color)}">${esc(p.name)}</span> senden</div><div class="kicker">${esc(p.name)} › Empfehlungen › Versand · Discord-DM</div></div>${badge(`${approved.length} freigegeben`, approved.length ? "ok" : "")}${open ? `<span class="badge mid" data-tip="${esc(open === 1 ? "Der noch offene Punkt wird nicht gesendet." : `Die ${open} noch offenen Punkte werden nicht gesendet.`)}">${open} offen · wird nicht gesendet</span>` : ""}${dlgClose()}</div>
+      <div class="dlg-head">${tile("inv_letter_15", "")}<div class="dlg-main"><div class="dlg-title">An <span class="cn" style="--cc:${esc(color)}">${esc(p.name)}</span> senden</div><div class="kicker">Discord-DM · ${plural(approved.length, "Punkt", "Punkte")} freigegeben</div></div><div class="badges send-state"><span class="badge map-badge">Zuordnung wird geprüft …</span>${sent ? badge(`gesendet ${formatGermanDateTime(sent.at)}`, "") : badge("noch nie gesendet", "")}${openNote}</div>${dlgClose()}</div>
       <div class="send-grid">
-        <div class="send-items">${blocks || "<div class=\"rec-empty\">Noch nichts freigegeben.</div>"}</div>
-        <div class="send-preview"><div class="kicker">So kommt es an</div><div class="dm"><div class="dm-head"><span class="crest">${ICONS.crest}</span><b>EventHelper</b>${badge("BOT", "accent")}</div><b>${esc(report.title || "Raid")} · Deine Auswertung</b><span class="mute">${approved.length} Punkt${approved.length === 1 ? "" : "e"} von der Raidleitung geprüft</span><div class="dm-items">${preview}</div><a href="${link}" target="_blank" rel="noopener">Report ansehen${LINE.external}</a></div>
-        <div class="badges"><span class="badge map-badge">Zuordnung wird geprüft …</span>${sent ? badge(`gesendet ${formatGermanDateTime(sent.at)}`, "") : badge("noch nie gesendet", "")}</div></div>
+        <div class="send-items"><div class="kicker">Was rausgeht</div>${blocks || "<div class=\"rec-empty\">Noch nichts freigegeben.</div>"}</div>
+        <div class="send-preview"><div class="kicker">So kommt es bei ${esc(p.name)} an</div><div class="dm"><div class="dm-head"><span class="crest">${ICONS.crest}</span><b>EventHelper</b>${badge("BOT", "accent")}</div><b>Deine Auswertung: ${esc(report.title || "Raid")}</b><span class="dm-hello">Hallo ${esc(p.name)}, hier sind die Punkte aus dem Log${esc(date)}, die die Raidleitung für dich freigegeben hat.</span><div class="dm-items">${preview}</div><a href="${link}" target="_blank" rel="noopener">Zu deiner Auswertung${LINE.external}</a></div>
+        <span class="note">Item-Namen kommen als Text an, ohne Icons.</span></div>
       </div>
       <div class="dlg-foot"><span class="note send-out">Ein unveränderter Satz wird nie zweimal geschickt.</span><div class="btns"><button type="button" class="btn btn-ghost btn-sm" data-close>Abbrechen</button><button type="button" class="btn btn-ghost btn-sm" data-sendact="save">Nur speichern</button><button type="button" class="btn btn-sm" data-sendact="send"${approved.length ? "" : " disabled"}>${hicon("inv_letter_15", "")}Per Bot senden</button></div></div>
     </dialog>`;
@@ -303,8 +324,12 @@ function raiderFindings(ctx, p, raidWideBuffs) {
     const add = (tone, talk, text, icon, tip, sub) => out.push({ tone, talk, html: `<span class="badge${tone ? ` ${tone}` : ""}"${tip ? ` data-tip="${esc(tip)}"` : ""}${sub ? ` data-tip-sub="${esc(sub)}"` : ""}>${hicon(icon, "")}${esc(text)}</span>` });
     if (mech && mech.avoidableDeaths) add("bad", true, `${mech.avoidableDeaths} vermeidbare${mech.avoidableDeaths === 1 ? "r Tod" : " Tode"}`, "ability_creature_cursed_05", "Tode durch eine Mechanik, der man ausweichen kann");
     if (issues.length) {
+        // the items themselves instead of a shield: each icon has its own tooltip
         const high = issues.filter((x) => x.severity === "high").length;
-        add(high ? "bad" : "mid", high >= TALK_GEAR_HIGH || issues.length >= TALK_GEAR, plural(issues.length, "Gear-Problem", "Gear-Probleme"), "inv_shield_06", "Gear-Probleme: Verzauberungen, Sockel, Meta-Gem", "Aus der Ausrüstung, die das Log beim Pull gesehen hat.");
+        const tone = high ? "bad" : "mid";
+        const minis = miniIcons(gearItemsOf(p, issues));
+        out.push({ tone, talk: high >= TALK_GEAR_HIGH || issues.length >= TALK_GEAR,
+            html: `<span class="badge ${tone}${minis ? " has-minis" : ""}" data-tip="Gear-Probleme: Verzauberungen, Sockel, Meta-Gem" data-tip-sub="Aus der Ausrüstung, die das Log beim Pull gesehen hat. Ein Icon zeigt, was am Item fehlt.">${minis || hicon("inv_shield_06", "")}${esc(plural(issues.length, "Gear-Problem", "Gear-Probleme"))}</span>` });
     }
     if (heal && heal.manaLowFights) add("bad", true, `${heal.manaLowFights}× unter 10 % Mana`, "inv_potion_137", "Kämpfe, in denen das Mana unter 10 % fiel");
     if (cons && cons.buffed < 90) add(cons.buffed < 50 ? "bad" : "mid", cons.buffed < 50, `Consumables ${cons.buffed} %`, "inv_alchemy_endlessflask_05", "Anteil der Boss-Kämpfe mit Flask oder beiden Elixieren", "Ab 90 % grün, unter 50 % rot.");
@@ -315,7 +340,7 @@ function raiderFindings(ctx, p, raidWideBuffs) {
     const dips = ctx.report.fightSeries && (ctx.report.fightSeries.players || []).find((x) => x && x.name === name);
     if (dips && Number.isFinite(dips.dipPct) && dips.dipPct >= 25) add(dips.dipPct >= 40 ? "bad" : "mid", dips.dipPct >= 40, `${dips.dipPct} % Einbrüche`, "spell_nature_bloodlust", `Anteil der Kampfzeit, in der ${dips.measure === "hps" ? "HPS" : "DPS"} unter der Hälfte des eigenen Schnitts lag`, `Bis zum eigenen Tod, über ${plural(dips.fights || 0, "Kampf", "Kämpfe")}. Ab 25 % gelb, ab 40 % rot.`);
     // the review state is no finding: neutral, after the findings
-    if (open) add("", false, plural(open, "Empfehlung offen", "Empfehlungen offen"), "inv_misc_note_01", "Befunde, die noch niemand freigegeben oder verworfen hat");
+    if (open) out.push({ tone: "", talk: false, html: `<span class="badge pending" data-tip="Befunde, die noch niemand freigegeben oder verworfen hat"><span class="dot" aria-hidden="true"></span>${esc(plural(open, "Punkt zu prüfen", "Punkte zu prüfen"))}</span>` });
     if (!ctx.reviewer && items.length) add("accent", false, plural(items.length, "Empfehlung", "Empfehlungen"), "inv_misc_note_01", "Freigegebene Empfehlungen für diesen Raider");
     const rank = { bad: 0, mid: 1, accent: 2, "": 3 };
     return out.map((b, j) => ({ ...b, j })).sort((a, b) => (b.talk ? 1 : 0) - (a.talk ? 1 : 0) || rank[a.tone] - rank[b.tone] || a.j - b.j);
@@ -350,15 +375,31 @@ function raidWideBuffGap(ctx) {
     return list.length >= 5 && lacking * 4 >= list.length * 3 ? { lacking, of: list.length } : null;
 }
 
+/** One point of a raider as an open block; the gear finding shows its items ("2 Items vor dem nächsten Raid nachbessern"). */
+function recPoint(ctx, p, it) {
+    if (it.key !== "gear") return recBlock(it, p.name, ctx.reviewer);
+    const list = gearItemsFor(ctx, p);
+    if (!list.length) return recBlock(it, p.name, ctx.reviewer);
+    const n = itemCount(list);
+    return recBlock(it, p.name, ctx.reviewer, { itemsHtml: itemRows(list), sub: `${plural(n, "Item", "Items")} vor dem nächsten Raid nachbessern` });
+}
+
+/** "1 von 3 Punkten geprüft": how far the review of a raider's points is. */
+function reviewProgress(decided, total) {
+    return `${decided} von ${plural(total, "Punkt", "Punkten")} geprüft`;
+}
+
 /** The four sections of a raider (Empfehlungen · Vorbereitung · Leistung · Fehler), only those with data: [{ key, label, icon, count, tone, badge, html }] plus their dialogs. */
-function raiderSections(ctx, p, i, items, opts = {}) {
+function raiderSections(ctx, p, i, items) {
     const name = p.name;
     const recP = ctx.recByName.get(name);
     const open = items.filter((x) => x.approved === null).length;
     const secs = [];
     if (recP && (items.length || ctx.reviewer)) {
-        secs.push({ key: "recs", label: "Empfehlungen", icon: "inv_misc_note_01", count: `${items.length}${open ? ` · ${open} offen` : ""}`, tone: open ? "mid" : "ok",
-            html: items.length ? `<div class="rlist rec-list">${items.map((it, j) => recItem(it, "player", name, ctx.reviewer, { open: opts.openFirst && j === 0 })).join("")}</div>` : "<div class=\"rlist\"><div class=\"rec-empty\">Nichts auszusetzen – weiter so.</div></div>" });
+        const approved = items.filter((x) => x.approved === true).length;
+        const count = !ctx.reviewer ? String(items.length) : open ? `${open} offen` : approved ? `${approved} freigegeben` : String(items.length);
+        secs.push({ key: "recs", label: "Empfehlungen", icon: "inv_misc_note_01", count, tone: open ? "mid" : "ok",
+            html: items.length ? `<div class="rec-blocks">${items.map((it) => recPoint(ctx, p, it)).join("")}</div>` : "<div class=\"rlist\"><div class=\"rec-empty\">Nichts auszusetzen – weiter so.</div></div>" });
     }
     const prep = raiderPrep(ctx, p, i);
     secs.push({ key: "prep", label: "Vorbereitung", icon: "trade_alchemy", crumb: "Gear · Consumables · Buffs", ...prep });
@@ -405,7 +446,12 @@ function raiderCard(ctx, p, i, opts = {}) {
     let sendDlg = "";
     if (reviewer && recP) {
         const sent = ctx.sent[name];
-        foot = `<div class="raider-foot"><span class="note">${approved} freigegeben · ${open} offen · zuletzt gesendet: ${sent ? esc(formatGermanDateTime(sent.at)) : "nie"}</span><span class="rec-send-result" hidden></span><div class="btns"><button type="button" class="btn btn-run btn-sm" data-phrase="player" data-tip="Claude formuliert die Befunde dieses Raiders in Klartext" data-tip-sub="Deine Freigabe bleibt nötig; der Regeltext bleibt erhalten.">${hicon("inv_scroll_03", "")}KI-Formulierung</button><button type="button" class="btn btn-sm" data-dialog="send-${i}"${approved ? "" : " disabled"}>${hicon("inv_letter_15", "")}Vorschau &amp; senden</button></div></div>`;
+        const decided = items.length - open;
+        const pct = items.length ? Math.round((decided / items.length) * 100) : 0;
+        const progress = items.length
+            ? `<div class="rf-progress" data-total="${items.length}"><b class="rf-count">${esc(reviewProgress(decided, items.length))}</b><span class="rf-bar" aria-hidden="true"><i style="width:${pct}%"></i></span></div>`
+            : "";
+        foot = `<div class="raider-foot">${progress}<span class="note">Zuletzt gesendet: ${sent ? esc(formatGermanDateTime(sent.at)) : "nie"}</span><span class="rec-send-result" hidden></span><div class="btns"><button type="button" class="btn btn-run btn-sm" data-phrase="player" data-tip="Claude formuliert die Befunde dieses Raiders in Klartext" data-tip-sub="Deine Freigabe bleibt nötig; der Regeltext bleibt erhalten.">${hicon("inv_scroll_03", "")}KI-Formulierung</button><button type="button" class="btn btn-sm" data-dialog="send-${i}"${approved ? "" : " disabled"}>${hicon("inv_letter_15", "")}Vorschau &amp; senden</button></div></div>`;
         sendDlg = sendDialog(ctx, p, i, items);
     }
     const meta = [p.type, ROLE_LABEL[role], fights.length ? plural(fights.length, "Kampf", "Kämpfe") : ""].filter(Boolean).join(" · ");
@@ -417,7 +463,7 @@ function raiderCard(ctx, p, i, opts = {}) {
     ].filter(Boolean).join("");
     return `<details class="vcard raider-card" id="raider-${esc(name)}" data-name="${esc(name)}" data-role="${role}" data-open="${reviewer ? open : approved}" data-report="${esc(report.id)}" style="--cc:${esc(color)}"${opts.open ? " open" : ""}>
       <summary><img class="vcard-icon" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}"><div class="vcard-main"><div class="vcard-title cn">${esc(name)}</div><div class="vcard-sub">${esc(meta)}</div></div><div class="vcard-chips">${raiderBadges(ctx, p, opts.findings || [])}</div>${expBtn()}</summary>
-      <div class="vcard-body">${links ? `<div class="raider-links">${links}</div>` : ""}<nav class="secs">${buttons}</nav>${panels}${foot}</div>
+      <div class="vcard-body"><div class="secs-row"><nav class="secs">${buttons}</nav>${links ? `<div class="raider-links">${links}</div>` : ""}</div>${panels}${foot}</div>
     </details>${timelineDialog}${dialogs}${sendDlg}`;
 }
 
@@ -460,17 +506,6 @@ function renderRaiderView(ctx, openName) {
     const btn = (key, label, icon, extra, active) => `<button type="button" class="seg-btn${active ? " active" : ""}" data-rolefilter="${key}">${icon ? hicon(icon, "") : ""}${label}${extra || ""}</button>`;
     return `<div class="view-bar"><div class="raider-tools"><label class="field">${LINE.search}<input type="search" id="raiderSearch" placeholder="Raider suchen…" aria-label="Raider suchen"></label><nav class="seg sm">${btn("all", "Alle", "", "", true)}${btn("tank", "Tank", "inv_shield_06")}${btn("healer", "Heiler", "spell_holy_flashheal")}${btn("dps", "DPS", "ability_dualwield")}${btn("open", ctx.reviewer ? "Offen" : "Empfehlungen", "inv_misc_note_01", ` <span class="n${withOpen ? " mid" : ""}">${withOpen}</span>`)}</nav></div>${ibtn(LINE.expandAll, "Alle auf- oder zuklappen", "Betrifft die Karten, die Suche und Filter gerade zeigen.", "data-cards=\"toggle\"")}</div>
     ${cards}<div class="raider-empty" id="raiderEmpty" hidden>Kein Raider passt zu Suche und Filter.</div>`;
-}
-
-const QUALITY_COLOR = { 0: "#9d9d9d", 1: "#ffffff", 2: "#1eff00", 3: "#0070dd", 4: "#a335ee", 5: "#ff8000" };
-
-// Wowhead item link with enchant + gems so the tooltip shows the authoritative TBC data.
-function wowheadItemUrl(it) {
-    const params = [];
-    if (it.enchant && it.enchant.enchantId) params.push(`ench=${encodeURIComponent(it.enchant.enchantId)}`);
-    const gemIds = (it.gems || []).map((g) => g.id).filter(Boolean);
-    if (gemIds.length) params.push(`gems=${gemIds.join(":")}`);
-    return esc(wowheadItemLink(it.itemId, params));
 }
 
 // one equipment slot in the paperdoll (side = "left"/"right"/"bottom" controls alignment)
