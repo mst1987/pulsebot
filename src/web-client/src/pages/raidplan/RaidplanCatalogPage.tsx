@@ -10,6 +10,7 @@ import { MenuRailPage } from "../../components/ui/SectionRail";
 import { useToast } from "../../components/shell/Jobs";
 import { Modal, useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
+import { SaveIcon } from "../../components/ui/icons";
 import PageHead from "../../components/ui/PageHead";
 import Badge from "../../components/ui/Badge";
 import RaidLoader from "../../components/ui/RaidLoader";
@@ -228,7 +229,7 @@ function EntryModal({ which, data, known, initial, onClose, onSave }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("raidBoard.profile.cancel")}</Button>
-                    <Button disabled={!(f.name || "").trim() || chosen.length === 0} running={busy} onClick={async () => { setBusy(true); try { await onSave({ ...f, name: (f.name || "").trim() }); } finally { setBusy(false); } }}>{t("raidBoard.profile.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} disabled={!(f.name || "").trim() || chosen.length === 0} running={busy} onClick={async () => { setBusy(true); try { await onSave({ ...f, name: (f.name || "").trim() }); } finally { setBusy(false); } }}>{t("raidBoard.profile.save")}</Button>
                 </>
             )}
         >
