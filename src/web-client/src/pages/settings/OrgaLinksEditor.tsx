@@ -2,7 +2,7 @@ import { useState } from "react";
 import { saveOrgaLinks, type ApiError, type OrgaLink } from "../../api";
 import { useToast } from "../../components/shell/Jobs";
 import { Button } from "../../components/ui/Button";
-import { PlusIcon } from "../../components/ui/icons";
+import { PlusIcon, SaveIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
 import LinkRow from "./LinkRow";
 import { cleanLinks } from "../../lib/discord/buttonEmoji";
@@ -50,7 +50,7 @@ export default function OrgaLinksEditor({ categoryId, links, maxLinks, onSaved }
             <div className="cat-links-actions">
                 <Button variant="ghost" size="sm" icon={<PlusIcon />} disabled={rows.length >= maxLinks}
                     onClick={() => setRows([...rows, { label: "", url: "" }])}>{t("settings.categories.linkAdd")}</Button>
-                <Button size="sm" running={saving} onClick={save}>{t("settings.categories.linksSave")}</Button>
+                <Button variant="go" size="sm" icon={<SaveIcon />} running={saving} onClick={save}>{t("settings.categories.linksSave")}</Button>
             </div>
         </div>
     );

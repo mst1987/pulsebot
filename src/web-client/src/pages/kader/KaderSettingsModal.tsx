@@ -76,7 +76,7 @@ export default function KaderSettingsModal({ mode, view, me = "", onClose, run, 
                 <>
                     {kader && <Button variant="danger" icon={<TrashIcon />} className="kp-footleft" onClick={() => void remove()}>{t("kader.settings.delete")}</Button>}
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon={mode === "create" ? <PlusIcon /> : <SaveIcon />} disabled={!ready} onClick={() => void submit()}>
+                    <Button variant={mode === "create" ? "primary" : "go"} icon={mode === "create" ? <PlusIcon /> : <SaveIcon />} disabled={!ready} onClick={() => void submit()}>
                         {mode === "create" ? t("kader.settings.create") : t("common.save")}
                     </Button>
                 </>

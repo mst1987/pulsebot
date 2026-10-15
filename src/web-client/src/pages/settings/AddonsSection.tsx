@@ -11,7 +11,7 @@ import Switch from "../../components/ui/Switch";
 import Chip from "../../components/ui/Chip";
 import Badge from "../../components/ui/Badge";
 import WowIcon from "../../components/ui/WowIcon";
-import { CheckMark, PenIcon, TrashIcon, WarnIcon } from "../../components/ui/icons";
+import { CheckMark, PenIcon, TrashIcon, WarnIcon, SaveIcon } from "../../components/ui/icons";
 import { splitList } from "./settingsDraft";
 import { useTableSort, type Dir } from "../../lib/ui/tableSort";
 import { SortTh } from "../../components/ui/SortTh";
@@ -102,7 +102,7 @@ function AddonForm({ addon, versions, onSave, onCancel }: {
                 <Switch checked={value.enabled} onChange={(v) => set({ enabled: v })} label={t("addon.settings.enabled")} tip={t("addon.settings.enabledSub")} />
             </div>
             <div className="row-actions">
-                <Button type="submit" disabled={busy}>{busy ? t("settings.saving") : t("common.save")}</Button>
+                <Button type="submit" variant="go" icon={<SaveIcon />} disabled={busy}>{busy ? t("settings.saving") : t("common.save")}</Button>
                 <Button variant="ghost" disabled={busy} onClick={onCancel}>{t("common.cancel")}</Button>
             </div>
         </form>

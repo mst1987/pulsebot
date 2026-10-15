@@ -59,7 +59,7 @@ function GameCheck({ name, busy, onYes, onNo }: { name: string; busy: boolean; o
             <b>{t("guildbank.link.gameCheckTitle", { name })}</b>
             <span className="gb-req-sub">{t("guildbank.link.gameCheckText")}</span>
             <span className="gb-link-checks">
-                <Button size="sm" icon={<CheckIcon />} disabled={busy} onClick={onYes}>{t("guildbank.link.gameCheckAction")}</Button>
+                <Button variant="go" size="sm" icon={<CheckIcon />} disabled={busy} onClick={onYes}>{t("guildbank.link.gameCheckAction")}</Button>
                 <Button size="sm" variant="ghost" disabled={busy} onClick={onNo}>{t("common.cancel")}</Button>
             </span>
         </span>

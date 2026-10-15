@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import IconTile, { type TileTone } from "./IconTile";
 import { Button, IconButton } from "./Button";
-import { TrashIcon, XIcon } from "./icons";
+import { CheckIcon, TrashIcon, XIcon } from "./icons";
 import { t } from "../../i18n";
 import { useBackdropClose } from "../../hooks/useBackdropClose";
 
@@ -89,7 +89,8 @@ export type ConfirmOptions = {
     /** Label of the confirming button, e.g. "Löschen". */
     action?: string;
     /** "danger" for destructive actions (trash icon, red button), "run" to start a job. */
-    tone?: "danger" | "run" | "primary";
+    /** The confirming button's meaning (Button variants): danger deletes, go commits something positive, run starts a job. */
+    tone?: "danger" | "run" | "primary" | "go";
     /** A WoW icon name or line icon for the head tile. */
     icon?: string | ReactNode;
     cancelLabel?: string;
@@ -142,7 +143,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 open={!!current}
                 onClose={() => answer(false)}
                 icon={current?.icon ?? (tone === "danger" ? <TrashIcon /> : undefined)}
-                tone={tone === "danger" ? "bad" : tone === "run" ? "mid" : undefined}
+                tone={tone === "danger" ? "bad" : tone === "run" ? "mid" : tone === "go" ? "ok" : undefined}
                 title={current?.title || ""}
                 width={460}
                 // The destructive button is never preselected.
@@ -154,7 +155,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                         </Button>
                         <Button
                             variant={tone}
-                            icon={tone === "danger" ? <TrashIcon /> : tone === "run" ? "spell_holy_borrowedtime" : undefined}
+                            icon={tone === "danger" ? <TrashIcon /> : tone === "run" ? "spell_holy_borrowedtime" : tone === "go" ? <CheckIcon /> : undefined}
                             onClick={() => answer(true)}
                         >
                             {current.action || t("common.ok")}

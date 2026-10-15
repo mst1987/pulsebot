@@ -67,7 +67,7 @@ export default function MyAttendance({ userId = "", onBack }: {
                 <div className="ab-own-head">
                     <h3>{other ? t("absences.mine.entriesOf", { name }) : t("absences.mine.entries")}</h3>
                     {own && (
-                        <Button size="sm" variant="ghost" icon={<AbsenceIcon />} onClick={() => setDialog(true)}>
+                        <Button size="sm" variant="no" icon={<AbsenceIcon />} onClick={() => setDialog(true)}>
                             {other ? t("absences.drawer.enterFor", { name }) : t("absences.enter")}
                         </Button>
                     )}

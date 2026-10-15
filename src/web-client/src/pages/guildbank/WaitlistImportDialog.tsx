@@ -18,7 +18,7 @@ import {
     type ApiError, type GuildBankCharacterChoice, type GuildBankImportLinks, type GuildBankImportRow, type GuildBankWaitlist,
 } from "../../api";
 import { Button, Chip, Field, Modal, WowIcon } from "../../components/ui";
-import { LinkIcon } from "../../components/ui/icons";
+import { LinkIcon, CheckIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { useDraftState } from "../../lib/ui/persistedState";
 import { classLabel } from "../../lib/wow/wowNames";
@@ -174,7 +174,7 @@ export default function WaitlistImportDialog({ bankKey, onClose, onDone }: {
                 {unlinked > 0 && <p className="gb-hint gb-wl-unlinked">{t("guildbank.waitlist.unlinkedHint", { count: unlinked })}</p>}
                 <div className="gb-wl-submit">
                     <Button variant="ghost" onClick={() => setRows(null)} disabled={busy}>{t("guildbank.waitlist.back")}</Button>
-                    <Button onClick={() => { void run(); }} disabled={busy || !ok}>{t("guildbank.waitlist.run", { count: ok })}</Button>
+                    <Button icon={<CheckIcon />} onClick={() => { void run(); }} disabled={busy || !ok}>{t("guildbank.waitlist.run", { count: ok })}</Button>
                 </div>
             </>
         );

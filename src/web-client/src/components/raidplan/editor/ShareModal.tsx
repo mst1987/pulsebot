@@ -1,5 +1,6 @@
 import { Send } from "lucide-react";
 import { Button, Modal, useConfirm } from "../../ui";
+import { CheckIcon, CopyIcon } from "../../ui/icons";
 import type { RaidplanBoard, RaidplanBoss } from "../../../api";
 import { sheetIncluded, sheetKeysFor } from "../../../lib/raidplan";
 import { useToast } from "../../shell/Jobs";
@@ -62,14 +63,14 @@ export default function ShareModal({ open, onClose, published, publicPath, dirty
             open={open} onClose={onClose} icon="inv_misc_note_02" title={t("raidBoard.share.title")} width={520}
             footer={(
                 <>
-                    {published && <Button variant="ghost" onClick={() => onPublish(false)} disabled={busy}>{t("raidBoard.share.unpublish")}</Button>}
+                    {published && <Button variant="no" onClick={() => onPublish(false)} disabled={busy}>{t("raidBoard.share.unpublish")}</Button>}
                     <Button
                         variant={published ? undefined : "ghost"} icon={<Send size={15} aria-hidden="true" />} onClick={onPost} disabled={busy}
                         data-tip={dirty ? t("raidBoard.bar.postLinkUnsaved") : t("raidBoard.bar.postLinkSub")}
                     >
                         {posted ? t("raidBoard.share.repost") : t("raidBoard.share.post")}
                     </Button>
-                    {!published && <Button onClick={() => onPublish(true)} disabled={busy}>{t("raidBoard.share.publish")}</Button>}
+                    {!published && <Button variant="go" icon={<CheckIcon />} onClick={() => onPublish(true)} disabled={busy}>{t("raidBoard.share.publish")}</Button>}
                 </>
             )}
         >
@@ -102,7 +103,7 @@ export default function ShareModal({ open, onClose, published, publicPath, dirty
                     <span className="rp-kicker">{t("raidBoard.share.link")}</span>
                     <div className="rp-share-line">
                         <input readOnly value={url} onFocus={(e) => e.currentTarget.select()} aria-label={t("raidBoard.share.link")} />
-                        <Button variant="ghost" size="sm" onClick={copy}>{t("raidBoard.share.copy")}</Button>
+                        <Button variant="ghost" size="sm" icon={<CopyIcon />} onClick={copy}>{t("raidBoard.share.copy")}</Button>
                     </div>
                     <div className="rp-share-line">
                         {published && <a className="mlink" href={publicPath} target="_blank" rel="noreferrer">{t("raidBoard.share.open")}</a>}

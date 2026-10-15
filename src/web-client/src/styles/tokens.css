@@ -14,7 +14,7 @@
     --text: #e6e6e6; --muted: #9aa0aa; --line: #2c313b; --line-soft: #23272f;
     --high: #e0524f; --high-bg: rgba(224, 82, 79, .16);
     --medium: #e0a23a; --medium-bg: rgba(224, 162, 58, .16);
-    --good: #7fd17f; --good-bg: rgba(120, 200, 120, .16);
+    --good: #7fd17f; --good-bg: rgba(120, 200, 120, .16); --go: #7fd17f; --go-ink: #10240f;
     --accent: #8a7cff; --accent-2: #35d6c4; --accent-soft: rgba(138, 124, 255, .16); --accent-ink: #130f26;
     --font-mono: ui-monospace, "Cascadia Code", Consolas, "SFMono-Regular", Menlo, monospace;
     /* ---- control metrics: one height for everything that shares a line ---- */
@@ -156,7 +156,7 @@
         --text: #1b1e27; --muted: #5b616e; --line: #dde1eb; --line-soft: #e8ebf2;
         --high: #cf3b37; --high-bg: rgba(207, 59, 55, .12);
         --medium: #9a6c12; --medium-bg: rgba(154, 108, 18, .14);
-        --good: #2b9440; --good-bg: rgba(43, 148, 64, .12);
+        --good: #2b9440; --good-bg: rgba(43, 148, 64, .12); --go: #23802f; --go-ink: #fff;
         --accent: #6a4fe0; --accent-2: #0f8f82; --accent-soft: rgba(106, 79, 224, .10); --accent-ink: #ffffff;
         --ctl-arrow: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b616e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
         --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a4fe0' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
@@ -211,7 +211,7 @@
     --text: #1b1e27; --muted: #5b616e; --line: #dde1eb; --line-soft: #e8ebf2;
     --high: #cf3b37; --high-bg: rgba(207, 59, 55, .12);
     --medium: #9a6c12; --medium-bg: rgba(154, 108, 18, .14);
-    --good: #2b9440; --good-bg: rgba(43, 148, 64, .12);
+    --good: #2b9440; --good-bg: rgba(43, 148, 64, .12); --go: #23802f; --go-ink: #fff;
     --accent: #6a4fe0; --accent-2: #0f8f82; --accent-soft: rgba(106, 79, 224, .10); --accent-ink: #ffffff;
     --ctl-arrow: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b616e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a4fe0' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");

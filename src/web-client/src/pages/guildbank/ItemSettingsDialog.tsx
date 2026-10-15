@@ -6,7 +6,7 @@
 import { useState } from "react";
 import type { GuildBankItem, GuildBankItemPatch } from "../../api";
 import { Button, Field, Modal } from "../../components/ui";
-import { MinusIcon, PlusIcon } from "../../components/ui/icons";
+import { MinusIcon, PlusIcon, SaveIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
 import { itemName, PORTION_MAX, PORTION_MIN, validPortion, wholeNumber } from "./bankView";
 
@@ -72,7 +72,7 @@ export default function ItemSettingsDialog({ item, saving, onClose, onSave }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button onClick={save} disabled={invalid || saving}>{saving ? t("common.saving") : t("common.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} onClick={save} disabled={invalid || saving}>{saving ? t("common.saving") : t("common.save")}</Button>
                 </>
             )}
         >

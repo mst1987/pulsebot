@@ -13,7 +13,7 @@ import PartHead from "../../components/ui/PartHead";
 import RaidLoader from "../../components/ui/RaidLoader";
 import Segment from "../../components/ui/Segment";
 import Field, { FieldLabel } from "../../components/ui/Field";
-import { PenIcon } from "../../components/ui/icons";
+import { PenIcon, SaveIcon } from "../../components/ui/icons";
 
 // Einstellungen → Verbindungen → Discord-Server, part "Erinnerungen" (#264).
 // One line per raid category: its name, what is set as one short line, and a
@@ -141,7 +141,7 @@ function ReminderModal({ name, rule, data, onClose, onSave }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
-                    <Button onClick={submit} disabled={busy}>{busy ? t("settings.saving") : t("common.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} onClick={submit} disabled={busy}>{busy ? t("settings.saving") : t("common.save")}</Button>
                 </>
             )}
         >

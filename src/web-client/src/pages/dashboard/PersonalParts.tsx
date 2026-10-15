@@ -62,7 +62,7 @@ export function MyStatus({ raid }: { raid: PersonalRaid }) {
     const t = useT();
     if (raid.cancelled) return <Badge tone="bad">{t("dashboard.personal.status.cancelled")}</Badge>;
     if (!raid.status) {
-        if (canSignUp(raid)) return <Link className={buttonClass("primary", "sm")} to={signupHref(raid.id)}>{t("dashboard.personal.signUp")}</Link>;
+        if (canSignUp(raid)) return <Link className={buttonClass("go", "sm")} to={signupHref(raid.id)}>{t("dashboard.personal.signUp")}</Link>;
         return <Badge tip={t(raid.rosterOnly ? "dashboard.personal.rosterOnlyTip" : "dashboard.personal.closedTip")}>{t(raid.rosterOnly ? "dashboard.personal.rosterOnly" : "dashboard.personal.closed")}</Badge>;
     }
     const shown = shownStatus(raid);

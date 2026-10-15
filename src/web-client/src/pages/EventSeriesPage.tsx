@@ -19,7 +19,7 @@ import RaidLoader from "../components/ui/RaidLoader";
 import NamingBadge from "../components/channels/NamingBadge";
 import { SwitchRow } from "../components/raid/RaidFields";
 import Switch from "../components/ui/Switch";
-import { PenIcon, RefreshIcon, WarnIcon } from "../components/ui/icons";
+import { PenIcon, RefreshIcon, SaveIcon, TrashIcon, WarnIcon } from "../components/ui/icons";
 import "../styles/series.css";
 
 // Wiederkehrende Events (#289): one compact line per event category —
@@ -142,11 +142,11 @@ function SeriesModal({ category, data, canWrite, onChanged, onClose }: {
             kicker={t("series.modal.kicker")}
             title={category.name || t("series.row.unknownCategory")}
             width={720}
-            hint={category.series && canWrite ? <Button variant="danger" size="sm" onClick={remove}>{t("common.delete")}</Button> : undefined}
+            hint={category.series && canWrite ? <Button variant="danger" size="sm" icon={<TrashIcon />} onClick={remove}>{t("common.delete")}</Button> : undefined}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    {canWrite && <Button running={saving} disabled={!!problem || !preview} onClick={save} data-tip={problem || undefined}>{t("common.save")}</Button>}
+                    {canWrite && <Button variant="go" icon={<SaveIcon />} running={saving} disabled={!!problem || !preview} onClick={save} data-tip={problem || undefined}>{t("common.save")}</Button>}
                 </>
             )}
         >

@@ -5,7 +5,7 @@ import { useToast } from "../../components/shell/Jobs";
 import { Button, buttonClass } from "../../components/ui/Button";
 import { useConfirm } from "../../components/ui/Modal";
 import CategoryField from "./CategoryField";
-import { ExternalIcon, SendIcon } from "../../components/ui/icons";
+import { ExternalIcon, SendIcon, TrashIcon } from "../../components/ui/icons";
 import { formatDate } from "../../lib/format";
 import { useT } from "../../i18n";
 
@@ -88,7 +88,7 @@ export default function OrgaHubRow({ categoryId, categoryName, hubs }: { categor
                             <ExternalIcon /> {t("settings.categories.panelView")}
                         </a>
                     )}
-                    <Button variant="ghost" size="sm" disabled={busy} onClick={remove}>{t("common.remove")}</Button>
+                    <Button variant="danger" size="sm" icon={<TrashIcon />} disabled={busy} onClick={remove}>{t("common.remove")}</Button>
                 </div>
             )}
             <OrgaLinksEditor categoryId={categoryId} links={hubs.links[categoryId] || []} maxLinks={hubs.maxLinks} onSaved={hubs.onLinks} />

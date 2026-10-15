@@ -280,7 +280,7 @@ function Editor({ question, onSaved, onDeleted }: { question: KaderQuestion | nu
             {canWrite && (
                 <div className="kp-qeditor-foot">
                     {question ? <Button variant="danger" icon={<TrashIcon />} onClick={() => void remove()}>{t("kader.questions.delete")}</Button> : <span />}
-                    <Button icon={question ? <SaveIcon /> : <PlusIcon />} disabled={!ready || !!conflict} onClick={() => void save()}>{question ? t("common.save") : t("kader.questions.create")}</Button>
+                    <Button variant={question ? "go" : "primary"} icon={question ? <SaveIcon /> : <PlusIcon />} disabled={!ready || !!conflict} onClick={() => void save()}>{question ? t("common.save") : t("kader.questions.create")}</Button>
                 </div>
             )}
         </section>

@@ -77,7 +77,7 @@ export default function WaitlistAddDialog({ bankKey, items, onClose, onDone }: {
                             <Stepper value={amount} onChange={setAmount} label={t("guildbank.waitlist.count")} />
                         </Field>
                         <div className="gb-wide gb-wl-submit">
-                            <Button type="submit" disabled={saving || !name.trim() || !itemId}>{t("guildbank.waitlist.add")}</Button>
+                            <Button type="submit" icon={<PlusIcon />} disabled={saving || !name.trim() || !itemId}>{t("guildbank.waitlist.add")}</Button>
                         </div>
                     </form>
                 )}

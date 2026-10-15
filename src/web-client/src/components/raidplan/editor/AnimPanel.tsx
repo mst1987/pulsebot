@@ -113,7 +113,7 @@ export default function AnimPanel({ board, scene, frame, canWrite, edit, onFrame
                 </label>
                 {canWrite && (
                     <button
-                        type="button" className={buttonClass("ghost", "sm", true, "rp-anim-del")}
+                        type="button" className={buttonClass("danger", "sm", true, "rp-anim-del")}
                         onClick={async () => {
                             if (!(await ask({ title: t("raidBoard.anim.deleteSceneAsk"), text: scene.title, action: t("raidBoard.anim.yesDelete"), tone: "danger" }))) return;
                             edit((b) => removeScene(b, scene.id));

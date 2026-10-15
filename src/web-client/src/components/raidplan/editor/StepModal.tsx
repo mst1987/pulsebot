@@ -142,9 +142,9 @@ export default function StepModal({ step, index, bossName, board, roster, player
             hint={t("raidBoard.steps.hint")}
             footer={(
                 <>
-                    {onRemove && <Button variant="ghost" className="rp-amb-remove" icon={<Trash2 size={16} />} onClick={onRemove}>{t("raidBoard.steps.remove")}</Button>}
+                    {onRemove && <Button variant="danger" className="rp-amb-remove" icon={<Trash2 size={16} />} onClick={onRemove}>{t("raidBoard.steps.remove")}</Button>}
                     <Button variant="ghost" onClick={onClose}>{t("raidBoard.am.cancel")}</Button>
-                    <Button icon={<Check size={16} />} onClick={done}>{t("raidBoard.am.done")}</Button>
+                    <Button variant="go" icon={<Check size={16} />} onClick={done}>{t("raidBoard.am.done")}</Button>
                 </>
             )}
         >
