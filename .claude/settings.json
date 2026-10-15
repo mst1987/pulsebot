@@ -56,5 +56,16 @@
                 ]
             }
         ]
+    },
+    "extraKnownMarketplaces": {
+        "claude-crew": {
+            "source": {
+                "source": "directory",
+                "path": "D:\\programming\\claude-crew"
+            }
+        }
+    },
+    "enabledPlugins": {
+        "core@claude-crew": true
     }
 }
