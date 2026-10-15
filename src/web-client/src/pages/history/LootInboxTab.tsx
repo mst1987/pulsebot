@@ -227,7 +227,7 @@ export function InboxSessionCard({ session, events, categories, onDone }: {
             </div>
 
             <div className="hl-session-foot">
-                <Button icon="inv_misc_bag_10" onClick={accept} disabled={!!busy || !eventId} running={busy === "accept"}>{t("common.apply")}</Button>
+                <Button variant="go" icon="inv_misc_bag_10" onClick={accept} disabled={!!busy || !eventId} running={busy === "accept"}>{t("common.apply")}</Button>
                 <Button variant="ghost" onClick={() => setLootOpen(true)}>{t("history.shared.viewLoot")}</Button>
                 {disabledReason && <span className="muted">{disabledReason}</span>}
                 <IconButton
@@ -245,7 +245,7 @@ export function InboxSessionCard({ session, events, categories, onDone }: {
                 tone="history"
                 kicker={sessionSpan(session)}
                 title={t("history.inboxCard.modalTitle", { title, count: session.itemCount })}
-                footer={<Button onClick={() => setLootOpen(false)}>{t("common.close")}</Button>}
+                footer={<Button variant="ghost" onClick={() => setLootOpen(false)}>{t("common.close")}</Button>}
             >
                 <LootTable items={session.items} />
             </Modal>

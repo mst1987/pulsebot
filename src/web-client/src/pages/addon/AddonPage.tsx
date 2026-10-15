@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { getAddons, type AddonCard, type AddonFile, type AddonsData, type ApiError } from "../../api";
 import { AsyncView, Badge, Button, Expand, PageHead, RaidLoader, WowIcon, buttonClass } from "../../components/ui";
-import { DownloadIcon, WarnIcon } from "../../components/ui/icons";
+import { DownloadIcon, WarnIcon, RefreshIcon } from "../../components/ui/icons";
 import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { formatDate, formatDateTime, formatSize } from "../../lib/format";
@@ -161,7 +161,7 @@ function ErrorState({ error, onRetry }: { error: ApiError; onRetry: () => void }
         <div className="empty dlp-error" role="alert">
             <p>{t("addon.loadError")}</p>
             {error.message && <p className="muted">{error.message}</p>}
-            <Button variant="ghost" size="sm" onClick={onRetry}>{t("addon.retry")}</Button>
+            <Button variant="ghost" size="sm" icon={<RefreshIcon />} onClick={onRetry}>{t("addon.retry")}</Button>
         </div>
     );
 }

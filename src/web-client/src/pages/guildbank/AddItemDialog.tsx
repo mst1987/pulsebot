@@ -9,6 +9,7 @@ import { Button, Field, Modal } from "../../components/ui";
 import { ItemIcon } from "../../components/loot/LootBadges";
 import { useT } from "../../i18n";
 import { isDirectItemInput } from "./bankView";
+import { PlusIcon } from "../../components/ui/icons";
 
 const SEARCH_DELAY_MS = 350;
 
@@ -64,7 +65,7 @@ export default function AddItemDialog({ bankKey, saving, onClose, onAdd }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button onClick={submit} disabled={saving || !(direct || (hits && hits.length === 1))}>
+                    <Button icon={<PlusIcon />} onClick={submit} disabled={saving || !(direct || (hits && hits.length === 1))}>
                         {saving ? t("common.saving") : t("guildbank.add.submit")}
                     </Button>
                 </>

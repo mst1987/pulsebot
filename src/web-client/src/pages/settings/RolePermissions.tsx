@@ -426,7 +426,7 @@ function AddOwnerModal({ mode, roles, taken, takenUsers, onClose, onAddRole, onA
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button disabled={!canAdd} onClick={() => (kind === "role" ? onAddRole(roleId) : onAddUser(trimmed))}>{t("common.add")}</Button>
+                    <Button icon={<PlusIcon />} disabled={!canAdd} onClick={() => (kind === "role" ? onAddRole(roleId) : onAddUser(trimmed))}>{t("common.add")}</Button>
                 </>
             )}
         >

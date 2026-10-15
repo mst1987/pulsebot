@@ -6,6 +6,7 @@ import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { tParts, useT } from "../../i18n";
+import { SaveIcon } from "../../components/ui/icons";
 
 // Raider → Charakter for exactly one category (see raiderCharactersStore.js):
 // which character a raider plays on that raid day. Overrides the automatic
@@ -62,7 +63,7 @@ export default function RaiderCharactersModal({ categoryId, categoryName, onClos
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose} disabled={saving}>{t("common.cancel")}</Button>
-                    <Button onClick={save} disabled={saving || !info || !info.members.length}>{saving ? t("settings.saving") : t("common.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} onClick={save} disabled={saving || !info || !info.members.length}>{saving ? t("settings.saving") : t("common.save")}</Button>
                 </>
             )}
         >

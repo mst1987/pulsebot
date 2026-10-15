@@ -6,7 +6,7 @@ import {
 import { DIRECTION_LABEL, directionText, driftBadge, roleSyncPatch, withRoleRule, type RoleSyncDirection } from "../../lib/settings/settingsLogic";
 import { tParts, t as translate, useT } from "../../i18n";
 import { useToast } from "../../components/shell/Jobs";
-import { PenIcon, PlusIcon, TrashIcon, WarnIcon } from "../../components/ui/icons";
+import { PenIcon, PlusIcon, TrashIcon, WarnIcon, SaveIcon } from "../../components/ui/icons";
 import { Modal, useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
@@ -205,7 +205,7 @@ function RoleRuleModal({ data, index, onClose, onSave }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
-                    <Button onClick={submit} disabled={busy || !rule.eventRoleId || !rule.talkRoleId}>{busy ? t("settings.saving") : t("common.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} onClick={submit} disabled={busy || !rule.eventRoleId || !rule.talkRoleId}>{busy ? t("settings.saving") : t("common.save")}</Button>
                 </>
             )}
         >

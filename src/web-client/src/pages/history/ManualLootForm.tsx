@@ -21,6 +21,7 @@ import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import { useDismiss } from "../../hooks/useDismiss";
 import { tParts, useT } from "../../i18n";
+import { PlusIcon } from "../../components/ui/icons";
 
 // Bosses that are not an encounter, in the order tbcContent.js files them.
 const TRASH = "Trash";
@@ -261,7 +262,7 @@ export default function ManualLootForm({ eventId, eventTitle = "", defaultAwarde
                 footer={(
                     <>
                         <Button variant="ghost" onClick={() => setOpen(false)}>{t("common.close")}</Button>
-                        <Button type="submit" form={formId} disabled={busy || !item || !character.trim()} running={busy}>{t("history.manual.add")}</Button>
+                        <Button type="submit" form={formId} icon={<PlusIcon />} disabled={busy || !item || !character.trim()} running={busy}>{t("history.manual.add")}</Button>
                     </>
                 )}
             >

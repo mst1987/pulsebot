@@ -13,7 +13,7 @@ import { Button, IconButton, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
 import PartHead from "../../components/ui/PartHead";
-import { CheckIcon, CheckMark, CopyIcon, ExternalIcon, PenIcon, TrashIcon, WarnIcon } from "../../components/ui/icons";
+import { CheckIcon, CheckMark, CopyIcon, ExternalIcon, PenIcon, TrashIcon, WarnIcon, SaveIcon } from "../../components/ui/icons";
 import { AdminOnlyBadge } from "../../components/settings/settingsUi";
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import RaidLoader from "../../components/ui/RaidLoader";
@@ -360,7 +360,7 @@ function ConnectionModal({ id, card, data, onClose, onSaved }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
-                    <Button onClick={save} disabled={busy}>{busy ? t("settings.saving") : t("common.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} onClick={save} disabled={busy}>{busy ? t("settings.saving") : t("common.save")}</Button>
                 </>
             )}
         >
@@ -387,7 +387,7 @@ function ConnectionModal({ id, card, data, onClose, onSaved }: {
                                 onChange={(e) => setSecretValue(e.target.value)}
                             />
                             {stored && (
-                                <Button variant="ghost" size="sm" icon={clearSecret ? undefined : <TrashIcon />} onClick={() => { setClearSecret(!clearSecret); setSecretValue(""); }}>
+                                <Button variant={clearSecret ? "ghost" : "danger"} size="sm" icon={clearSecret ? undefined : <TrashIcon />} onClick={() => { setClearSecret(!clearSecret); setSecretValue(""); }}>
                                     {clearSecret ? t("settings.connections.keep") : t("common.delete")}
                                 </Button>
                             )}
