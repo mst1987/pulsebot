@@ -175,6 +175,7 @@ function publicVersions() {
         id: v.id,
         label: v.label,
         short: v.short,
+        icon: v.icon || "",
         roles: ROLES.map((id) => ({ id, label: ROLE_LABELS[id] })),
         classes: v.classes,
         instances: v.instances.map((i) => ({

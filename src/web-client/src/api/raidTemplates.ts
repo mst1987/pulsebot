@@ -111,6 +111,8 @@ export type GameVersion = {
     id: "tbc" | "classic" | "forever" | string;
     label: string;
     short: string;
+    /** The version's WoW icon (zamimg name), "" when it has none. */
+    icon?: string;
     roles: { id: GameRole; label: string }[];
     classes: GameClass[];
     instances: GameInstance[];

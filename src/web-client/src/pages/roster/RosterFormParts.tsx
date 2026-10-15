@@ -1,23 +1,25 @@
-// Pieces of the roster form (#657, RosterFormDialog.tsx): Discord roles as
-// toggle chips (a role the bot cannot give is greyed out with the reason), the
+// Pieces of the roster form (#657, RosterFormDialog.tsx): Discord roles picked
+// from a dropdown (a role the bot cannot give is greyed out with the reason), the
 // manager accounts picked through the member search, and the source of the
 // first members as four option cards.
 import { useEffect, useState, type CSSProperties } from "react";
 import { searchRosterMembers, type RosterOptionRole, type RosterOptions, type RosterSource } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { useT } from "../../i18n";
-import { Chip, WowIcon } from "../../components/ui";
-import { CheckIcon, SearchIcon } from "../../components/ui/icons";
+import { Button, Chip, WowIcon } from "../../components/ui";
+import { PlusIcon, SearchIcon } from "../../components/ui/icons";
 import { errorText } from "../../lib/roster/rosterEdit";
 
-const FILTER_FROM = 12;
+const roleDot = (r: RosterOptionRole) => <i className="rn-chip-dot" style={{ "--rc": r.color || "var(--muted)" } as CSSProperties} aria-hidden="true" />;
 
 /**
- * Discord roles as toggle chips, in the server's order (highest first). `multi`
- * keeps the order of picking (the first is the roster's main role); single
- * picks one or none. `requireManageable` greys out a role the bot cannot give.
+ * Discord roles picked from a dropdown instead of a wall of chips. `multi`: the
+ * picked roles are removable chips (in the order of picking - the first is the
+ * roster's main role) and a dropdown + "Hinzufügen" adds one more; single: one
+ * dropdown with `noneLabel` as the empty choice. The dropdown lists the server's
+ * order (highest first); `requireManageable` greys out a role the bot cannot give.
  */
-export function RoleChips({ roles, value, onChange, multi = true, requireManageable = true, disabled = false, disabledTip, exclude = [], label, noneLabel }: {
+export function RoleSelect({ roles, value, onChange, multi = true, requireManageable = true, disabled = false, disabledTip, exclude = [], label, noneLabel }: {
     roles: RosterOptionRole[];
     value: string[];
     onChange: (next: string[]) => void;
@@ -30,50 +32,63 @@ export function RoleChips({ roles, value, onChange, multi = true, requireManagea
     noneLabel?: string;
 }) {
     const t = useT();
-    const [q, setQ] = useState("");
-    const list = roles
-        .filter((r) => !exclude.includes(r.id))
-        .filter((r) => !q.trim() || r.name.toLowerCase().includes(q.trim().toLowerCase()) || value.includes(r.id))
+    const [pick, setPick] = useState("");
+    const byId = new Map(roles.map((r) => [r.id, r]));
+    const offered = roles
+        .filter((r) => !exclude.includes(r.id) && !(multi && value.includes(r.id)))
         .sort((a, b) => b.position - a.position);
-    const toggle = (id: string) => {
-        if (value.includes(id)) onChange(value.filter((v) => v !== id));
-        else onChange(multi ? [...value, id] : [id]);
+    const blocked = (r: RosterOptionRole) => requireManageable && !r.manageable;
+    const optionText = (r: RosterOptionRole) => `@${r.name}${blocked(r) ? ` – ${t("roster.form.roleBlocked")}` : ""}`;
+
+    if (!multi) {
+        const current = value[0] || "";
+        const known = !current || roles.some((r) => r.id === current);
+        return (
+            <select className="rn-role-select" value={current} disabled={disabled} aria-label={label} data-tip={disabled ? disabledTip : undefined} onChange={(e) => onChange(e.target.value ? [e.target.value] : [])}>
+                <option value="">{noneLabel || "—"}</option>
+                {!known && <option value={current}>{t("roster.form.roleGone")}</option>}
+                {offered.map((r) => <option key={r.id} value={r.id} disabled={blocked(r) && r.id !== current}>{optionText(r)}</option>)}
+            </select>
+        );
+    }
+
+    const add = () => {
+        if (!pick) return;
+        onChange([...value, pick]);
+        setPick("");
     };
     return (
         <div className="rn-chip-block" role="group" aria-label={label}>
-            {roles.length > FILTER_FROM && (
-                <span className="rn-find rn-chip-filter">
-                    <SearchIcon />
-                    <input type="search" value={q} aria-label={t("roster.form.roleFilter", { label })} placeholder={t("roster.form.roleFilter", { label })} onChange={(e) => setQ(e.target.value)} />
-                </span>
-            )}
             <div className="chip-row rn-chips">
-                {noneLabel && (
-                    <Chip pressed={!value.length} tone={!value.length ? "accent" : undefined} disabled={disabled} tip={disabled ? disabledTip : undefined} onClick={() => onChange([])}>
-                        {noneLabel}
-                    </Chip>
-                )}
-                {list.map((r) => {
-                    const on = value.includes(r.id);
-                    const blocked = requireManageable && !r.manageable && !on;
-                    const pos = multi && on && value.length > 1 ? value.indexOf(r.id) : -1;
+                {value.map((id, i) => {
+                    const r = byId.get(id);
+                    const name = r ? `@${r.name}` : t("roster.form.roleGone");
+                    const main = i === 0 && value.length > 1;
                     return (
                         <Chip
-                            key={r.id}
-                            pressed={on}
-                            tone={on ? "accent" : undefined}
-                            icon={on ? <CheckIcon /> : <i className="rn-chip-dot" style={{ "--rc": r.color || "var(--muted)" } as CSSProperties} aria-hidden="true" />}
-                            disabled={disabled || blocked}
-                            tip={disabled ? disabledTip : blocked ? t("roster.form.roleBlocked") : pos === 0 ? t("roster.form.mainRole") : undefined}
-                            tipSub={blocked && !disabled ? t("roster.form.roleBlockedSub") : undefined}
-                            onClick={() => toggle(r.id)}
+                            key={id}
+                            tone="accent"
+                            icon={r ? roleDot(r) : undefined}
+                            tip={main ? t("roster.form.mainRole") : undefined}
+                            onRemove={disabled ? undefined : () => onChange(value.filter((v) => v !== id))}
+                            removeLabel={t("roster.form.removeRole", { name })}
                         >
-                            @{r.name}{pos === 0 ? ` · ${t("roster.form.main")}` : ""}
+                            {name}{main ? ` · ${t("roster.form.main")}` : ""}
                         </Chip>
                     );
                 })}
-                {!list.length && <span className="rn-sub">{t("roster.form.noRoles")}</span>}
+                {!value.length && <span className="rn-sub">{t("roster.form.noRolePicked")}</span>}
             </div>
+            {disabled ? (disabledTip ? <p className="rn-sub">{disabledTip}</p> : null) : (
+                <div className="rn-role-add">
+                    <select className="rn-role-select" value={pick} aria-label={t("roster.form.rolePick", { label })} onChange={(e) => setPick(e.target.value)}>
+                        <option value="">{offered.length ? t("roster.form.rolePickPlaceholder") : t("roster.form.noRoles")}</option>
+                        {offered.map((r) => <option key={r.id} value={r.id} disabled={blocked(r)}>{optionText(r)}</option>)}
+                    </select>
+                    <Button variant="ghost" size="sm" icon={<PlusIcon />} disabled={!pick} onClick={add}>{t("common.add")}</Button>
+                </div>
+            )}
+            {!disabled && offered.some(blocked) && <p className="rn-sub">{t("roster.form.roleBlockedHint")}</p>}
         </div>
     );
 }

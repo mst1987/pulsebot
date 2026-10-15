@@ -128,6 +128,8 @@ module.exports = {
     id: "classic",
     label: "Classic Era",
     short: "Classic",
+    // The version's WoW icon; see tbc.js.
+    icon: "expansionicon_classic",
     // The version's colour in the web admin (#742, dark theme); see tbc.js. A neutral grey-blue.
     color: "#9fb0c8",
     // The raid plan's assignment types this version has not (#751, services/raidplan/raidplanConstants.js):

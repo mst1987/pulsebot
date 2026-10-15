@@ -268,5 +268,11 @@ describe("config/gameVersions", () => {
             expect(versions[0].roles.map((r) => r.id)).toEqual(ROLES);
             expect(JSON.parse(JSON.stringify(versions))).toEqual(versions);
         });
+
+        it("gives every version a WoW icon of its own", () => {
+            const icons = gv.publicVersions().map((v) => v.icon);
+            expect(icons.every((i) => /^[a-z0-9_]+$/.test(i))).toBe(true);
+            expect(new Set(icons).size).toBe(icons.length);
+        });
     });
 });
