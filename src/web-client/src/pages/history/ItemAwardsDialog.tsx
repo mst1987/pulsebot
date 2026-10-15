@@ -99,7 +99,7 @@ export function ItemAwardsDialog({ item, contents, tiers, reasons, canEdit, onCl
                             <ExternalIcon />{t("history.shared.wowhead")}
                         </a>
                     )}
-                    <Button onClick={close}>{t("common.close")}</Button>
+                    <Button variant="ghost" onClick={close}>{t("common.close")}</Button>
                 </>
             )}
         >
@@ -228,7 +228,7 @@ export function RaiderReasonDialog({ raider, bucket, contents, onClose }: {
             footer={raider && (
                 <>
                     <Link className={buttonClass("ghost")} to={`/history/char?name=${encodeURIComponent(raider.character)}`}>{t("history.shared.lootHistory")}</Link>
-                    <Button onClick={onClose}>{t("common.close")}</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>
                 </>
             )}
         >

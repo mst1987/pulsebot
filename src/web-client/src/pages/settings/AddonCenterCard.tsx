@@ -8,7 +8,7 @@ import { useConfirm } from "../../components/ui/Modal";
 import { Button, buttonClass } from "../../components/ui/Button";
 import { FieldLabel } from "../../components/ui/Field";
 import { ChannelPicker, RolePicker } from "../../components/settings/settingsUi";
-import { ExternalIcon, SendIcon } from "../../components/ui/icons";
+import { ExternalIcon, SendIcon, TrashIcon } from "../../components/ui/icons";
 import { formatDate, formatTime } from "../../lib/format";
 import { useT } from "../../i18n";
 
@@ -110,7 +110,7 @@ export default function AddonCenterCard() {
                         </a>
                     )}
                     {center && (
-                        <Button variant="ghost" size="sm" disabled={busy !== ""} running={busy === "remove"} onClick={() => { void remove(); }}>
+                        <Button variant="danger" size="sm" icon={<TrashIcon />} disabled={busy !== ""} running={busy === "remove"} onClick={() => { void remove(); }}>
                             {t("common.remove")}
                         </Button>
                     )}

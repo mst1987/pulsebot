@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import type { ChannelsData } from "../../api";
 import { Badge, Button, IconButton, Modal } from "../ui";
-import { TrashIcon } from "../ui/icons";
+import { TrashIcon, SaveIcon } from "../ui/icons";
 import { ChannelTypeIcon } from "./channelBits";
 import { archivedLabel, BULK_DELETE_WORD } from "../../lib/discord/channels";
 import { tParts, useT } from "../../i18n";
@@ -163,7 +163,7 @@ export function ArchiveSettingsDialog({ data, onClose, onSave }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button type="submit" form="kn-arch" disabled={!categoryId}>{t("common.save")}</Button>
+                    <Button type="submit" form="kn-arch" variant="go" icon={<SaveIcon />} disabled={!categoryId}>{t("common.save")}</Button>
                 </>
             )}
         >

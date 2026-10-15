@@ -18,7 +18,7 @@ import PartHead from "../../components/ui/PartHead";
 import Segment from "../../components/ui/Segment";
 import Switch from "../../components/ui/Switch";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { LockIcon, PenIcon, XIcon } from "../../components/ui/icons";
+import { LockIcon, PenIcon, XIcon, SaveIcon } from "../../components/ui/icons";
 import { FieldLabel } from "../../components/ui/Field";
 import { assignableRoles } from "../../lib/settings/assignableRoles";
 
@@ -235,7 +235,7 @@ function CommandModal({ command, groupLabel, groupIcon, groupSize, rule, roles, 
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button disabled={!ruleValid(draft) || saving} running={saving} onClick={() => onSave(draft, wholeGroup)}>{t("common.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} disabled={!ruleValid(draft) || saving} running={saving} onClick={() => onSave(draft, wholeGroup)}>{t("common.save")}</Button>
                 </>
             )}
         >

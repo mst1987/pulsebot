@@ -6,7 +6,7 @@ import { useConfirm } from "../../components/ui/Modal";
 import CategoryField from "./CategoryField";
 import LinkRow from "./LinkRow";
 import { cleanLinks } from "../../lib/discord/buttonEmoji";
-import { ExternalIcon, PlusIcon, SendIcon } from "../../components/ui/icons";
+import { ExternalIcon, PlusIcon, SendIcon, TrashIcon, SaveIcon } from "../../components/ui/icons";
 import { formatDate } from "../../lib/format";
 import { useT } from "../../i18n";
 
@@ -110,7 +110,7 @@ export default function AvailabilityPanelRow({ categoryId, categoryName, panels 
                             <ExternalIcon /> {t("settings.categories.panelView")}
                         </a>
                     )}
-                    <Button variant="ghost" size="sm" disabled={busy} onClick={remove}>{t("common.remove")}</Button>
+                    <Button variant="danger" size="sm" icon={<TrashIcon />} disabled={busy} onClick={remove}>{t("common.remove")}</Button>
                 </div>
             )}
             <div className="cat-links">
@@ -123,7 +123,7 @@ export default function AvailabilityPanelRow({ categoryId, categoryName, panels 
                 <div className="cat-links-actions">
                     <Button variant="ghost" size="sm" icon={<PlusIcon />} disabled={rows.length >= panels.maxLinks}
                         onClick={() => setRows([...rows, { label: "", url: "" }])}>{t("settings.categories.linkAdd")}</Button>
-                    <Button size="sm" running={savingLinks} onClick={saveLinks}>{t("settings.categories.linksSave")}</Button>
+                    <Button variant="go" size="sm" icon={<SaveIcon />} running={savingLinks} onClick={saveLinks}>{t("settings.categories.linksSave")}</Button>
                 </div>
             </div>
         </CategoryField>
