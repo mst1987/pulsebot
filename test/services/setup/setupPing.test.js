@@ -45,7 +45,8 @@ const eventStore = require("../../../src/stores/eventStore");
 const discord = require("../../../src/services/discord/discord");
 const { callSetupPing } = require("../../../src/services/setup/setupMessage");
 const { setupPingPlan, saveSetupPingText, refreshSetupPing } = require("../../../src/services/setup/setupPing");
-const { pingTextOf, PING_TEXT, pingButtonRow } = require("../../../src/services/setup/setupCore");
+const { pingTextOf, PING_TEXT, PING_OPEN_TEXT, pingButtonRow } = require("../../../src/services/setup/setupCore");
+const botLanguage = require("../../../src/services/discord/botLanguage");
 const bot = require("../../../src/services/setup/setupPingBot");
 const command = require("../../../src/commands/event/setupPingButton");
 
@@ -104,6 +105,16 @@ describe("setupPingPlan", () => {
         event.setup.status = "draft";
         event.setup.groups = [{ index: 1, slots: [slot("u-draft", "Entwurf")] }];
         expect(setupPingPlan(event, "u-lead").userIds).toEqual(["u2", "u3", "u8"]);
+    });
+
+    it("with `open` only who has neither confirmed nor cancelled, a reminder as the default text", () => {
+        const event = raid({ setupPingText: "Eigener Text", setupPost: { confirmations: { u3: { status: "declined" }, "u-x": { status: "confirmed" } } } });
+        const plan = setupPingPlan(event, "u-lead", { open: true });
+        expect(plan).toEqual({ userIds: ["u2", "u8"], text: PING_OPEN_TEXT, open: true });
+        expect(setupPingPlan(event, "u-lead", { open: true, text: "Los!" }).text).toBe("Los!");
+        // the German reminder in the German server language
+        botLanguage.eventLang.mockReturnValueOnce("de");
+        expect(setupPingPlan(event, "u-lead", { open: true }).text).toBe("⏳ Bitte bestätige oder sag deinen Platz im Setup ab.");
     });
 
     it.each([
@@ -173,8 +184,36 @@ describe("the Discord button + modal (setupPingBot)", () => {
     });
 
     it("ignores ids that are no own event", () => {
-        expect(bot.parsePingId("setup-ping:../../x")).toEqual({ eventId: "" });
-        expect(pingButtonRow("eh-abc123").components[0].custom_id).toBe("setup-ping:eh-abc123");
+        expect(bot.parsePingId("setup-ping:../../x")).toEqual({ eventId: "", open: false });
+        expect(bot.parsePingId("setup-ping:eh-abc123:open")).toEqual({ eventId: "eh-abc123", open: true });
+        expect(pingButtonRow("eh-abc123").components.map((b) => b.custom_id)).toEqual(["setup-ping:eh-abc123"]);
+        expect(pingButtonRow("eh-abc123", "de", { open: true }).components.map((b) => b.custom_id)).toEqual(["setup-ping:eh-abc123", "setup-ping:eh-abc123:open"]);
+    });
+
+    it("\"Unbestätigte pingen\": the modal names how many it reaches and holds the reminder, not the saved text", async () => {
+        raid({ setupPingText: "Mein Text", setupPost: { confirmations: { u2: { status: "confirmed" } } } });
+        const interaction = click("setup-ping:eh-abc123:open");
+        await command.execute(interaction);
+        const modal = interaction.showModal.mock.calls[0][0].toJSON();
+        expect(modal.custom_id).toBe("setup-ping:eh-abc123:open");
+        expect(modal.title).toBe("Unbestätigte pingen (2)");
+        expect(modal.components[0].components[0].value).toBe(PING_OPEN_TEXT);
+    });
+
+    it("\"Unbestätigte pingen\": pings with the typed text but never saves it as the setup's own", async () => {
+        raid();
+        const interaction = submit("setup-ping:eh-abc123:open", "Bitte bestätigen!");
+        await command.execute(interaction);
+        expect(eventStore.setEventSetupPingText).not.toHaveBeenCalled();
+        expect(callSetupPing).toHaveBeenCalledWith({ guildId: "g1", eventId: "eh-abc123", userId: "u-lead", text: "Bitte bestätigen!", byName: "Nerathil", open: true });
+    });
+
+    it("\"Unbestätigte pingen\": refuses the click once everybody has answered", async () => {
+        raid({ setupPost: { confirmations: { u2: { status: "confirmed" }, u3: { status: "declined" }, u8: { status: "confirmed" } } } });
+        const interaction = click("setup-ping:eh-abc123:open");
+        await command.execute(interaction);
+        expect(interaction.showModal).not.toHaveBeenCalled();
+        expect(cardText(interaction.reply.mock.calls[0][0])).toMatch(/Alle im Setup haben schon bestätigt oder abgesagt/);
     });
 });
 

@@ -140,7 +140,7 @@ describe("buildSetupMessage", () => {
         expect(embed.fields.at(-1).value).toBe("[View the comp](https://eh.example/e/eh-1/comp)");
         expect(embed.footer.text).toContain("version 2");
         // one row: Confirm/Cancel for every placed raider (setupConfirmBot.js),
-        // then Call invites and Ping everyone for the orga alone (inviteCallBot.js, setupPingBot.js)
+        // then Call invites and both pings for the orga alone (inviteCallBot.js, setupPingBot.js)
         expect(msg.components).toEqual([{
             type: 1,
             components: [
@@ -148,8 +148,20 @@ describe("buildSetupMessage", () => {
                 { type: 2, style: 4, custom_id: "setup-confirm:n:eh-1", label: "Cancel" },
                 { type: 2, style: 2, custom_id: "invite-call:p:eh-1", label: "Call invites", emoji: { name: "📣" } },
                 { type: 2, style: 2, custom_id: "setup-ping:eh-1", label: "Ping everyone" },
+                { type: 2, style: 2, custom_id: "setup-ping:eh-1:open", label: "Ping unconfirmed" },
             ],
         }]);
+    });
+
+    it("offers \"Ping unconfirmed\" only while somebody in a group has not answered — the bench never counts", () => {
+        const event = seed();
+        const labels = (confirmations, opts = {}) => sm.buildSetupMessage(event, event.setup.approved, { emojis, confirmations, ...opts })
+            .components[0].components.map((b) => b.label);
+        expect(labels({ 1: "confirmed", 2: "declined", 3: "confirmed" })).toContain("Ping unconfirmed");
+        expect(labels({ 1: "confirmed", 2: "declined", 3: "confirmed", 4: "confirmed" })).toEqual(["Confirm", "Cancel", "Call invites", "Ping everyone"]);
+        // the drawn setup carries the same row
+        expect(labels({ 1: "confirmed", 2: "declined", 3: "confirmed", 4: "confirmed" }, { image: true, bench: true })).toHaveLength(4);
+        expect(labels({}, { image: true })).toHaveLength(5);
     });
 
     it.each([5, 6, 7, 8])("keeps every one of %i groups in its column: three inline fields per row, empty ones fill the last", (count) => {
@@ -473,7 +485,7 @@ describe("DMs", () => {
         expect(embed.description).toContain("Heiler 1");
         expect(embed.footer.text).toBe("Freigegebenes Setup · Version 2");
         expect(embed.fields.some((f) => f.value.includes("[Comp ansehen]("))).toBe(true);
-        expect(msg.components[0].components.map((b) => b.label)).toEqual(["Bestätigen", "Absagen", "Invites callen", "Alle pingen"]);
+        expect(msg.components[0].components.map((b) => b.label)).toEqual(["Bestätigen", "Absagen", "Invites callen", "Alle pingen", "Unbestätigte pingen"]);
         const cancelled = smRaw.buildSetupMessage({ ...event, status: "cancelled" }, event.setup.approved, {}).embeds[0];
         expect(cancelled.title).toBe("Abgesagt: Setup · Kara Donnerstag");
         expect(cancelled.description).toContain("Das Setup fällt aus.");
@@ -670,6 +682,40 @@ describe("callSetupPing (Ping everyone): the setup posted anew with the ping", (
         expect(edited.allowedMentions).toBeUndefined();
         expect(edited.embeds[0].description).toContain("Go\n<@2> <@3> <@4>");
         expect(discord.editPingMessages).not.toHaveBeenCalled();
+    });
+
+    it("\"Ping unconfirmed\" pings only who has not answered, with the reminder, and the list shrinks as they answer", async () => {
+        const { PING_OPEN_TEXT } = require("../../../src/services/setup/setupCore");
+        seed({ setupPingText: "Gespeichert", setupPost: { channelId: "c1", messageId: "m1", version: 2, confirmations: { 2: { status: "confirmed" }, 3: { status: "declined" } } } });
+        const { channel, message, sentEdit } = pingChannel();
+        message.delete = jest.fn(async () => {});
+        const result = await sm.callSetupPing({ guildId: "g1", eventId: "eh-1", userId: "1", byName: "Brokk", open: true });
+        expect(result).toMatchObject({ message: "1 Raider ohne Antwort gepingt.", count: 1 });
+        // never the stored text for everybody, never who answered, never the caller
+        expect(channel.send.mock.calls[0][0].content).toBe(`<@4>\n${PING_OPEN_TEXT}`);
+        expect(channel.send.mock.calls[0][0].allowedMentions).toEqual({ users: ["4"] });
+        expect(sentEdit.mock.calls[0][0].embeds[0].description).toContain(`${PING_OPEN_TEXT}\n<@4>`);
+        expect(mockEvents.get("eh-1").setupPost.ping).toEqual({ inMessage: true, userIds: ["4"], text: PING_OPEN_TEXT, by: "1", open: true });
+        expect(eventStore.appendEventLog).toHaveBeenCalledWith("eh-1", { action: "setupPing", by: "1", byName: "Brokk", detail: "1 Raider ohne Antwort gepingt" });
+
+        // Kael confirms: the next edit no longer names anybody; the button stays while Brokk (the pinger) has not answered
+        const buttonIds = () => message.edit.mock.calls.at(-1)[0].components[0].components.map((b) => b.custom_id);
+        mockEvents.get("eh-1").setupPost.confirmations["4"] = { status: "confirmed" };
+        await sm.editSetupMessageQueued("eh-1");
+        expect(message.edit.mock.calls.at(-1)[0].embeds[0].description).not.toContain(PING_OPEN_TEXT);
+        expect(buttonIds()).toContain("setup-ping:eh-1:open");
+        // everybody answered: the button goes
+        mockEvents.get("eh-1").setupPost.confirmations["1"] = { status: "confirmed" };
+        await sm.editSetupMessageQueued("eh-1");
+        expect(buttonIds()).not.toContain("setup-ping:eh-1:open");
+    });
+
+    it("refuses \"Ping unconfirmed\" when everybody has answered", async () => {
+        seed({ setupPost: { channelId: "c1", messageId: "m1", version: 2, confirmations: { 2: { status: "confirmed" }, 3: { status: "declined" }, 4: { status: "confirmed" } } } });
+        const { channel } = pingChannel();
+        const result = await sm.callSetupPing({ guildId: "g1", eventId: "eh-1", userId: "1", open: true });
+        expect(result.error.code).toBe("nobody_open");
+        expect(channel.send).not.toHaveBeenCalled();
     });
 
     it("refuses another server's event or an unknown one, and says so when Discord refuses", async () => {
