@@ -136,7 +136,7 @@ function setup(p: RaiderProfile = profile(), calendar: CalendarTokens = NO_TOKEN
 const tabRow = () => screen.getByRole("tablist", { name: t("profile.tabs.aria") });
 /** The names of the character tabs, in order (Meine Infos and the orga's tab left out). */
 const charTabs = () => within(tabRow()).getAllByRole("tab").map((x) => x.textContent || "")
-    .filter((x) => x !== t("profile.tabs.info") && !x.startsWith(t("profile.tabs.all")));
+    .filter((x) => x && x !== t("profile.tabs.info") && !x.startsWith(t("profile.tabs.all")));
 
 async function renderProfile(route = "/profile") {
     renderPage(<ProfilePage />, { route });
@@ -156,7 +156,8 @@ describe("Reiter statt Chips", () => {
         expect(tabs[0]).toHaveAttribute("aria-selected", "true");
         expect(charTabs()).toEqual(["Borka", "Frosti"]);
         expect(tabs[tabs.length - 1]).toHaveAccessibleName(t("profile.tabs.all"));
-        expect(within(tabRow()).getByRole("button", { name: t("profile.addCharacter") })).toBeInTheDocument();
+        expect(within(tabRow()).getByRole("tab", { name: t("profile.addCharacter"), selected: false })).toBeInTheDocument();
+        expect(tabs[tabs.length - 1]).toHaveAttribute("data-tip-sub", t("profile.tabs.allTip"));
         // Meine Infos: the person's parts, no character card
         expect(screen.getByText(t("profile.fold.attendance"))).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: t("profile.char.edit") })).not.toBeInTheDocument();
@@ -405,31 +406,63 @@ describe("Charakter-Reiter – Roster, Loot, Bestzeiten", () => {
         },
     };
 
-    it("shows roster status, loot and - with LevelHelper data - the dungeon block, each folded to one line", async () => {
+    it("opens the loot when there is some, and shows roster status and - with LevelHelper data - the dungeon block as one line each", async () => {
         const { user } = setup();
         vi.mocked(api.getProfileRaiding).mockResolvedValue(RAIDING);
         await renderProfile("/profile?char=borka");
 
-        expect(await screen.findByText(`${t("roster.status.trial")} · SSC Mittwoch`)).toBeInTheDocument();
-        expect(screen.getByText(new RegExp(t("profile.loot.sum", { count: 7, date: "X" }).split("X")[0]))).toBeInTheDocument();
+        // the loot is open from the start: icon framed in its quality, Wowhead link, the reason badge
+        const item = await screen.findByRole("link", { name: "Helm of the Vanquished Hero" });
+        expect(item).toHaveAttribute("href", "https://www.wowhead.com/tbc/item=30236");
+        expect(item.closest("li")?.querySelector("img.item-ico")).toHaveAttribute("src", "https://example.org/helm.jpg");
+        expect(screen.getByText("BiS")).toHaveClass("rbadge");
+        expect(screen.getByRole("link", { name: t("profile.loot.history", { count: 7 }) })).toHaveAttribute("href", "/history/char?name=Borka");
+        expect(expandButtons().filter((b) => b.getAttribute("aria-expanded") === "true").map((b) => b.getAttribute("aria-label"))).toEqual([t("profile.fold.loot")]);
+
+        expect(screen.getByText(`${t("roster.status.trial")} · SSC Mittwoch`)).toBeInTheDocument();
         expect(screen.getByText(t("profile.fold.dungeons"))).toBeInTheDocument();
         expect(screen.getByText(/1\.240 Erfolgspunkte/)).toBeInTheDocument();
 
         await openFold(user, "roster");
         expect(screen.getByText(t("profile.roster.thisChar"), { exact: false })).toBeInTheDocument();
         expect(screen.getByText(t("profile.roster.readOnly"))).toBeInTheDocument();
-
-        await openFold(user, "loot");
-        const item = screen.getByRole("link", { name: "Helm of the Vanquished Hero" });
-        expect(item).toHaveAttribute("href", "https://www.wowhead.com/tbc/item=30236");
-        expect(screen.getByText("BiS")).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: t("profile.loot.history", { count: 7 }) })).toHaveAttribute("href", "/history/char?name=Borka");
+        // folded now, the loot shows its line
+        expect(screen.getByText(new RegExp(t("profile.loot.sum", { count: 7, date: "X" }).split("X")[0]))).toBeInTheDocument();
 
         await openFold(user, "dungeons");
         expect(screen.getByText(t("profile.dungeons.pointsRank", { rank: 4, count: 31 }))).toBeInTheDocument();
         expect(screen.getByText("The Deadmines")).toBeInTheDocument();
         expect(screen.getByText("14:32")).toBeInTheDocument();
         expect(screen.getByText(new RegExp(t("profile.dungeons.record")))).toBeInTheDocument();
+    });
+
+    it("never shows the old answer while it reloads for another version: loading, then the new version's data", async () => {
+        const VERSIONS = [
+            { id: "tbc", label: "TBC Anniversary", short: "TBC", lastName: false },
+            { id: "forever", label: "WoW Forever", short: "Forever", lastName: true },
+        ];
+        const DEVI = character({ key: "forever~devi res", name: "Devi Res", versionId: "forever", className: "Mage" });
+        setup(profile({ characters: [BORKA, DEVI] }));
+        vi.mocked(api.getProfile).mockResolvedValue({ ...profileData(profile({ characters: [BORKA, DEVI] })), mainVersion: "tbc", versions: VERSIONS });
+        let answer: (r: ProfileRaiding) => void = () => undefined;
+        vi.mocked(api.getProfileRaiding).mockImplementation((version) => (version === "forever"
+            ? new Promise<ProfileRaiding>((resolve) => { answer = resolve; })
+            : Promise.resolve(RAIDING)));
+        renderPage(<ProfilePage />, { route: "/profile?char=borka", content: twoVersions() });
+        expect(await screen.findByText(`${t("roster.status.trial")} · SSC Mittwoch`)).toBeInTheDocument();
+
+        // a link to the Forever character switches the menu; the TBC answer must not show under Forever
+        const user = userEvent.setup();
+        await user.click(screen.getAllByRole("radio", { name: "Forever" })[0]);
+        await waitFor(() => expect(api.getProfileRaiding).toHaveBeenCalledWith("forever"));
+        await user.click(await screen.findByRole("tab", { name: /Devi Res/ }));
+        expect(screen.queryByText(`${t("roster.status.trial")} · SSC Mittwoch`)).not.toBeInTheDocument();
+        expect(screen.queryByText(t("profile.loot.none"))).not.toBeInTheDocument();
+        expect(screen.getAllByText(t("profile.fold.loading")).length).toBeGreaterThan(0);
+
+        answer({ versionId: "forever", rosters: [], characters: { "forever~devi res": { loot: { count: 0, lastAt: 0, items: [] }, dungeons: null } } });
+        expect(await screen.findByText(t("profile.loot.none"))).toBeInTheDocument();
+        expect(screen.getByText(t("profile.roster.none"))).toBeInTheDocument();
     });
 
     it("shows no dungeon block at all without LevelHelper data (TBC), and calm empty lines for roster and loot", async () => {
@@ -703,7 +736,7 @@ describe("ProfilePage – adding a character", () => {
         const { user } = setup();
         await renderProfile();
 
-        await user.click(screen.getByRole("button", { name: t("profile.addCharacter") }));
+        await user.click(screen.getByRole("tab", { name: t("profile.addCharacter") }));
         const dialog = await findDialog(t("profile.add.title"));
         expect(within(dialog).getByRole("radio", { name: t("profile.add.wayLog") })).toHaveAttribute("aria-checked", "true");
     });

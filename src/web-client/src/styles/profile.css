@@ -30,6 +30,13 @@
 .pf-tab-add { padding: 9px 12px; color: var(--accent); }
 .pf-tab-add svg { width: 16px; height: 16px; }
 .pf-tab-all { margin-left: auto; }
+/* The character's name in its class colour. On a light page the shared mix (55 %, shared.css
+   .class-colored) leaves priest white and rogue yellow below 3:1; in the tabs and the "⋯" list it
+   goes darker still - 40 % keeps every class at 4.5:1 or more on the panel, the hue stays. */
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) :is(.pf-tab, .pf-tabmenu-item) .pf-tab-name { color: color-mix(in srgb, var(--cc, var(--text)) 40%, var(--ink-shade)); }
+}
+:root[data-theme="light"] :is(.pf-tab, .pf-tabmenu-item) .pf-tab-name { color: color-mix(in srgb, var(--cc, var(--text)) 40%, var(--ink-shade)); }
 .pf-tab-warn {
     width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center;
     background: var(--medium-bg); color: var(--medium); font: 800 11px/1 var(--font-mono);
@@ -74,7 +81,8 @@
 /* ---- two columns, equal weight: Meine Infos and a character's tab ---- */
 .pf-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
 .pf-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-@media (max-width: 900px) { .pf-grid { grid-template-columns: minmax(0, 1fr); } }
+/* two columns only where the card keeps its head on one line and "Kann Offtank" unbroken (the menu takes ~250 px) */
+@media (max-width: 1279px) { .pf-grid { grid-template-columns: minmax(0, 1fr); } }
 /* Meine Infos: folds in small groups, each with its kicker */
 .pf-group { display: flex; flex-direction: column; gap: 8px; }
 .pf-group-label { padding-left: 2px; }
@@ -170,15 +178,16 @@
 .pf-loot { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .pf-loot-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line-soft); }
 .pf-loot-row:last-child { border-bottom: 0; }
-.pf-loot-ico { width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--iqb, var(--line)); flex: 0 0 auto; background: var(--panel2); object-fit: cover; }
 .pf-loot-main { flex: 1; min-width: 0; display: grid; gap: 2px; }
 .pf-loot-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pf-loot-main .pf-muted { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.pf-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+/* the medals need more room than the points: three words with their counts on one line */
+.pf-tiles { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 10px; }
 .pf-tile { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); min-width: 0; }
 .pf-big { font: 800 28px/1 var(--font-mono); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-.pf-medals { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.pf-medals { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+.pf-medal-count { white-space: nowrap; }
 .pf-medal-count { display: inline-flex; align-items: center; gap: 6px; }
 @media (max-width: 520px) { .pf-tiles { grid-template-columns: minmax(0, 1fr); } }
 /* a medal: a small square in its colour, then the word (as on the dungeon page) */
@@ -189,7 +198,8 @@
 .pf-medal[data-medal="bronze"] { --medal-c: var(--medal-bronze); }
 .pf-medal.pf-medal-none { color: var(--muted); font-weight: 600; }
 .pf-runs { display: flex; flex-direction: column; }
-.pf-run { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+/* medal, dungeon name and time on one line (the first baseline), the place and date below the name */
+.pf-run { display: flex; align-items: first baseline; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
 .pf-run:last-child { border-bottom: 0; }
 .pf-run .pf-medal { min-width: 64px; }
 .pf-run-main { flex: 1; min-width: 0; display: grid; gap: 2px; }

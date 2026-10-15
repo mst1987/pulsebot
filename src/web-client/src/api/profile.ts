@@ -246,13 +246,13 @@ export type ProfileDungeons = {
     /** Achievement points, null when the addon reported runs but no reading of the character. */
     points: number | null;
     pointsRank: number | null;
-    /** How many characters of the version have points. */
+    /** How many characters of the version the addon has a points reading of — the field `pointsRank` is a place in. */
     characters: number;
     medals: { gold: number; silver: number; bronze: number };
     runs: number;
     dungeons: number;
+    /** Its fastest run per dungeon; `place` among all runs of that dungeon, ranked as the dungeon page does. */
     best: { dungeon: string; seconds: number; medal: "gold" | "silver" | "bronze" | null; place: number; runsOfDungeon: number; finishedAt: number; others: number }[];
-    readAt: number;
 };
 
 export type ProfileRaiding = {

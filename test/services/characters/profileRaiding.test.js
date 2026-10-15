@@ -112,6 +112,32 @@ describe("profileRaiding", () => {
     });
 });
 
+describe("dungeon runs: who counts, which place", () => {
+    const devi = { key: "forever:g:g1", versionId: "forever", guid: "g1", name: "Devi Res", realm: "Forever", class: "MAGE", points: 10, at: 1 };
+
+    it("does not count a run of somebody else with the same name but another guid", () => {
+        dungeonRuns.update(() => ({
+            runs: [run(), run({ id: "dr_2", members: [{ guid: "g7", name: "Devi Res", class: "MAGE" }] })],
+            characters: [devi],
+        }));
+        const d = profileRaiding(ME, "forever").characters["forever~devi res"].dungeons;
+        expect(d.runs).toBe(1);
+        expect(d.medals.gold).toBe(1);
+    });
+
+    it("ranks a tie like the dungeon page: the same time, the earlier start first", () => {
+        dungeonRuns.update(() => ({
+            runs: [
+                run({ id: "dr_a", seconds: 1800, start: 1791600000, members: [{ guid: "g9", name: "Bob", class: "WARRIOR" }] }),
+                run({ id: "dr_b", seconds: 1800, start: 1791700000 }),
+            ],
+            characters: [devi],
+        }));
+        const [best] = profileRaiding(ME, "forever").characters["forever~devi res"].dungeons.best;
+        expect(best).toMatchObject({ dungeon: "The Deadmines", place: 2, runsOfDungeon: 2 });
+    });
+});
+
 describe("storedCharacterOf", () => {
     const stored = [{ key: "a", name: "Devi Res", realm: "Forever" }, { key: "b", name: "Devi Res", realm: "Other" }];
     it("matches name and realm, a missing realm on either side matches any", () => {

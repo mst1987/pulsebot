@@ -242,6 +242,8 @@
         "info": "My Infos",
         "infoTip": "What belongs to you, not to a character: attendance, weekdays, wishes, note, calendar",
         "all": "All characters",
+        "allTip": "Every character of every raider – for the orga only.",
+        "addTip": "Add another character of this game version – from the logs, via the armory or by hand.",
         "orga": "Orga",
         "more": "Show all tabs",
         "noSpec": "no spec yet"
@@ -289,7 +291,6 @@
         "badge": "LevelHelper",
         "badgeTip": "From the LevelHelper addon",
         "badgeSub": "The sync tool uploads runs and achievement points. Matched by name and realm.",
-        "readAt": "as of {date}",
         "points": "Achievement points",
         "pointsSum": "{points} achievement points",
         "pointsRank": "Place {rank} of {count}",

@@ -23,8 +23,8 @@ const profiles = require("../../stores/raiderProfileStore");
 const rosterStore = require("../../stores/rosterStore");
 const lootStore = require("../../stores/lootStore");
 const dungeonRuns = require("../../stores/dungeonRunStore");
-const { characterTable } = require("../dungeons/dungeonBoard");
-const { buildVersionContext, eventVersion } = require("./characterVersions");
+const { characterTable, dungeonTables } = require("../dungeons/dungeonBoard");
+const { eventVersion } = require("./characterVersions");
 const { spec: specOfVersion, LEGACY_VERSION } = require("../../config/gameVersions");
 
 /** How many loot rows the tab lists; the history page has the rest. */
@@ -81,11 +81,25 @@ function storedCharacterOf(character, stored) {
 const memberIs = (m, guid, name) => (guid && m.guid ? m.guid === guid : lower(m.name) === name);
 
 /**
+ * Every run's place in its dungeon, exactly as the dungeon page ranks them
+ * (dungeonBoard.dungeonTables: fastest first, the same time - the earlier
+ * start first): run id -> { place, runsOfDungeon }.
+ */
+function placesOf(runs) {
+    const places = new Map();
+    for (const table of dungeonTables(runs, { limit: runs.length })) {
+        for (const r of table.runs) places.set(r.id, { place: r.rank, runsOfDungeon: table.runCount });
+    }
+    return places;
+}
+
+/**
  * The dungeon block of one character, or null without any LevelHelper data
  * for it. Medals count every run it was in; the runs listed are its fastest
- * per dungeon, each with its place among all runs of that dungeon.
+ * per dungeon (its best place there), each with that place among all runs of
+ * the dungeon.
  */
-function dungeonsOf(character, { runs, stored, ranked }) {
+function dungeonsOf(character, { runs, stored, ranked, places }) {
     const own = storedCharacterOf(character, stored);
     const name = own ? lower(own.name) : lower(character.name);
     const guid = own ? own.guid : "";
@@ -95,26 +109,23 @@ function dungeonsOf(character, { runs, stored, ranked }) {
     const medals = { gold: 0, silver: 0, bronze: 0 };
     for (const r of mine) if (r.medal) medals[r.medal] += 1;
 
+    const placeOf = (r) => places.get(r.id) || { place: 0, runsOfDungeon: 0 };
     const bestPerDungeon = new Map();
     for (const r of mine) {
         const best = bestPerDungeon.get(r.dungeon);
-        if (!best || r.seconds < best.seconds || (r.seconds === best.seconds && r.start < best.start)) bestPerDungeon.set(r.dungeon, r);
+        if (!best || placeOf(r).place < placeOf(best).place) bestPerDungeon.set(r.dungeon, r);
     }
     const best = [...bestPerDungeon.values()]
-        .sort((a, b) => a.seconds - b.seconds || a.dungeon.localeCompare(b.dungeon, "en"))
+        .sort((a, b) => a.seconds - b.seconds || a.start - b.start || a.dungeon.localeCompare(b.dungeon, "en"))
         .slice(0, RUNS_SHOWN)
-        .map((r) => {
-            const ofDungeon = runs.filter((x) => x.dungeon === r.dungeon);
-            return {
-                dungeon: r.dungeon,
-                seconds: r.seconds,
-                medal: r.medal,
-                place: 1 + ofDungeon.filter((x) => x.seconds < r.seconds).length,
-                runsOfDungeon: ofDungeon.length,
-                finishedAt: r.at > 0 ? Math.round(r.at * 1000) : 0,
-                others: Math.max(0, r.members.length - 1),
-            };
-        });
+        .map((r) => ({
+            dungeon: r.dungeon,
+            seconds: r.seconds,
+            medal: r.medal,
+            ...placeOf(r),
+            finishedAt: r.at > 0 ? Math.round(r.at * 1000) : 0,
+            others: Math.max(0, r.members.length - 1),
+        }));
 
     const row = own ? ranked.find((c) => c.key === own.key) : null;
     return {
@@ -125,7 +136,6 @@ function dungeonsOf(character, { runs, stored, ranked }) {
         runs: mine.length,
         dungeons: bestPerDungeon.size,
         best,
-        readAt: Math.max(row ? row.readAt || 0 : 0, ...mine.map((r) => (r.updatedAt || r.receivedAt || 0))),
     };
 }
 
@@ -134,23 +144,24 @@ function dungeonsOf(character, { runs, stored, ranked }) {
  * of `versionId` - see the head of this file.
  * @param {string} userId
  * @param {string} versionId  a known version (the route resolves it)
- * @param {{ config?: object }} [opts]
  */
-function profileRaiding(userId, versionId, { config } = {}) {
+function profileRaiding(userId, versionId) {
     const profile = profiles.getProfile(String(userId || ""));
     const chars = (profile.characters || []).filter((c) => versionOf(c) === versionId);
-    const ctx = buildVersionContext({ config });
+    // the raid of a loot row decides its version (the stored one, #737), read once per raid - as /loot does
+    const ctx = { eventCache: new Map() };
     const runs = dungeonRuns.listRuns(versionId);
     const stored = dungeonRuns.listCharacters(versionId);
     const ranked = characterTable(stored);
+    const places = placesOf(runs);
     const characters = {};
     for (const c of chars) {
         characters[c.key] = {
             loot: lootOf(c, versionId, ctx),
-            dungeons: runs.length || stored.length ? dungeonsOf(c, { runs, stored, ranked }) : null,
+            dungeons: runs.length || stored.length ? dungeonsOf(c, { runs, stored, ranked, places }) : null,
         };
     }
     return { versionId, rosters: rosterMemberships(userId, versionId), characters };
 }
 
-module.exports = { profileRaiding, rosterMemberships, lootOf, dungeonsOf, storedCharacterOf, LOOT_SHOWN, RUNS_SHOWN };
+module.exports = { profileRaiding, rosterMemberships, lootOf, dungeonsOf, placesOf, storedCharacterOf, LOOT_SHOWN, RUNS_SHOWN };

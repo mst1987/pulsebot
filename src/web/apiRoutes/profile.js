@@ -215,7 +215,7 @@ const postProfileCharacter = withUser({ csrf: true, body: true }, async ({ user,
 const getProfileRaiding = withUser({}, async ({ user, res, url }) => {
     const config = getConfig();
     const { versionId } = resolveVersionQuery(url.searchParams.get("version"), { config });
-    ok(res, profileRaiding(user.id, versionId, { config }));
+    ok(res, profileRaiding(user.id, versionId));
 });
 
 /** GET /api/profile/raiders?q= — raiders with a profile, names only, for the wish picker. */

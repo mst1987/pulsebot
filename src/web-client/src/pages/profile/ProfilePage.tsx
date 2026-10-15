@@ -43,7 +43,8 @@ export default function ProfilePage() {
     const { data, setData } = profileData;
     const [params, setParams] = useSearchParams();
     const [infoFold, setInfoFold] = useState<Fold>("days");
-    const [charFold, setCharFold] = useState<Fold>("");
+    // null = not touched on this character yet: then its loot is open when it has some (rendered below)
+    const [charFold, setCharFold] = useState<Fold | null>(null);
     const [adding, setAdding] = useState<AddWay | null>(null);
     const [editing, setEditing] = useState<ProfileCharacter | null>(null);
     // "Alle Charaktere" (?view=all): the orga's tab — every raider's characters, editable with write access to the roster area.
@@ -80,6 +81,9 @@ export default function ProfilePage() {
         if (tab.kind === "info") setInfoSeen(true);
         if (tab.kind === "char") setCharSeen(true);
     }, [tab.kind]);
+    // another character starts with its own default folds again
+    const selectedKey = selected?.key || "";
+    useEffect(() => { setCharFold(null); }, [selectedKey]);
     const attendance = useApi(() => getRaiderAttendance("", shownVersion), [shownVersion], { enabled: infoSeen });
     const shownKeys = shownChars.map((c) => c.key).join("|");
     const raiding = useApi(() => getProfileRaiding(shownVersion), [shownVersion, shownKeys], { enabled: charSeen });
@@ -150,12 +154,19 @@ export default function ProfilePage() {
         ? (data.versions || []).filter((v) => v.id === shownVersion) : data.versions;
     const labelOf = (versionId: string) => groups.find((g) => g.id === versionId)?.label || versionId;
 
+    // The raiding answer only while it is the current one: during a reload (another version, a character
+    // added or renamed) the old answer is not shown - no TBC roster under Forever, no "Noch kein Loot" for
+    // a character the old answer did not know yet.
+    const raidingNow = !raiding.loading && raiding.data && (!shownVersion || raiding.data.versionId === shownVersion) ? raiding.data : null;
     /** A part of the raiding answer, as the folds read it: the data, or that it is loading / failed. */
     function raidingOf<T>(pick: (r: NonNullable<typeof raiding.data>) => T): Loaded<T> {
-        if (raiding.data) return pick(raiding.data);
-        return raiding.error ? "failed" : "loading";
+        if (raidingNow) return pick(raidingNow);
+        return raiding.error && !raiding.loading ? "failed" : "loading";
     }
-    const dungeons = selected ? raiding.data?.characters[selected.key]?.dungeons || null : null;
+    const charRaiding = selected ? raidingNow?.characters[selected.key] : undefined;
+    const dungeons = charRaiding?.dungeons || null;
+    // the loot is open when there is some, until the raider opens or closes a part of this character
+    const shownCharFold: Fold = charFold ?? (charRaiding && charRaiding.loot.count > 0 ? "loot" : "");
 
     return (
         <div className="pf-page">
@@ -216,19 +227,19 @@ export default function ProfilePage() {
                             onRemove={() => removeChar(selected)}
                             onEdit={() => setEditing(selected)}
                         />
-                        <RosterPart charKey={selected.key} rosters={raidingOf((r) => r.rosters)} fold={charFold} onFold={setCharFold} />
+                        <RosterPart charKey={selected.key} rosters={raidingOf((r) => r.rosters)} fold={shownCharFold} onFold={setCharFold} />
                         {/* Part 2: the professions (Berufe) go here, under the roster. */}
                     </div>
                     <div className="pf-col">
                         <LootPart
                             name={selected.name}
                             loot={raidingOf((r) => r.characters[selected.key]?.loot || { count: 0, lastAt: 0, items: [] })}
-                            fold={charFold}
+                            fold={shownCharFold}
                             onFold={setCharFold}
                             historyLink={canAccessAny(user, ["history", "loot"])}
                         />
                         {/* Only with LevelHelper data for this character (WoW Forever): no block, no empty state otherwise. */}
-                        {dungeons && <DungeonPart dungeons={dungeons} fold={charFold} onFold={setCharFold} />}
+                        {dungeons && <DungeonPart dungeons={dungeons} fold={shownCharFold} onFold={setCharFold} />}
                         {/* Part 2: the wish items (Wunsch-Items, loot-council categories only) go here. */}
                     </div>
                 </div>

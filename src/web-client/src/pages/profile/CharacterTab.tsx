@@ -1,10 +1,11 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { ProfileDungeons, ProfileLoot, ProfileRosterMembership } from "../../api";
 import { Badge, buttonClass, WowIcon } from "../../components/ui";
-import { reasonToneClass } from "../../components/loot/LootBadges";
+import { ItemIcon } from "../../components/loot/LootBadges";
+import { LootResponseBadge } from "../../components/loot/LootTable";
 import { formatDayDate } from "../../lib/format";
-import { itemQualityColor, itemQualityProps } from "../../lib/wow/itemQuality";
+import { itemQualityProps } from "../../lib/wow/itemQuality";
 import { locale, useT } from "../../i18n";
 import { formatSeconds } from "../dungeons/dungeonView";
 import { type Fold, FoldPart } from "./ProfileParts";
@@ -23,7 +24,7 @@ const isReady = <T,>(v: Loaded<T>): v is T => v !== "loading" && v !== "failed";
 /** 1240 -> "1.240" / "1,240". */
 const num = (n: number) => n.toLocaleString(locale());
 
-const dateOf =(iso: string | null) => (iso ? formatDayDate(Date.parse(iso)) : "");
+const dateOf = (iso: string | null) => (iso ? formatDayDate(Date.parse(iso)) : "");
 
 function useStateLine() {
     const t = useT();
@@ -98,22 +99,16 @@ export function LootPart({ name, loot, fold, onFold, historyLink }: {
                         {loot.items.map((it, i) => {
                             const label = it.itemName || t("profile.loot.itemFallback", { id: it.itemId });
                             const where = [it.boss, it.eventLabel, it.awardedAt ? formatDayDate(it.awardedAt) : ""].filter(Boolean).join(" · ");
-                            // the award reason as the history writes it: the loot tool's word, coloured by its bucket
-                            const reason = it.response || it.reasonLabel || (it.offspec ? "Off Spec" : "Main Spec");
-                            const frame = itemQualityColor(it.itemQuality);
-                            const icoStyle = frame ? ({ "--iqb": frame } as CSSProperties) : undefined;
                             return (
                                 <li key={`${it.itemId}-${it.awardedAt}-${i}`} className="pf-loot-row">
-                                    {it.itemIconUrl
-                                        ? <img className="pf-loot-ico" src={it.itemIconUrl} alt="" loading="lazy" style={icoStyle} />
-                                        : <span className="pf-loot-ico" style={icoStyle} />}
+                                    <ItemIcon url={it.itemIconUrl} quality={it.itemQuality} />
                                     <span className="pf-loot-main">
                                         {it.itemLink
                                             ? <a {...itemQualityProps(it.itemQuality, "pf-loot-name")} href={it.itemLink} target="_blank" rel="noopener noreferrer">{label}</a>
                                             : <span {...itemQualityProps(it.itemQuality, "pf-loot-name")}>{label}</span>}
                                         {where && <span className="pf-muted">{where}</span>}
                                     </span>
-                                    <span className={reasonToneClass(it.reasonTone)} data-tip={it.reasonLabel && it.reasonLabel !== reason ? it.reasonLabel : undefined}>{reason}</span>
+                                    <LootResponseBadge response={it.response} offspec={it.offspec} reasonLabel={it.reasonLabel} reasonTone={it.reasonTone} />
                                 </li>
                             );
                         })}

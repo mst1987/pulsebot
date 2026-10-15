@@ -242,6 +242,8 @@
         "info": "Meine Infos",
         "infoTip": "Was zu dir gehört, nicht zu einem Charakter: Anwesenheit, Wochentage, Wünsche, Notiz, Kalender",
         "all": "Alle Charaktere",
+        "allTip": "Alle Charaktere aller Raider – nur für die Orga.",
+        "addTip": "Einen weiteren Charakter dieser Spielversion anlegen – aus den Logs, über die Armory oder von Hand.",
         "orga": "Orga",
         "more": "Alle Reiter zeigen",
         "noSpec": "noch kein Spec"
@@ -289,7 +291,6 @@
         "badge": "LevelHelper",
         "badgeTip": "Aus dem Addon LevelHelper",
         "badgeSub": "Das Sync-Tool lädt Läufe und Erfolgspunkte hoch. Zugeordnet über Name und Realm.",
-        "readAt": "Stand {date}",
         "points": "Erfolgspunkte",
         "pointsSum": "{points} Erfolgspunkte",
         "pointsRank": "Platz {rank} von {count}",

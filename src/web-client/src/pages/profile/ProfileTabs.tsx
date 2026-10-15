@@ -4,7 +4,7 @@ import { Badge, WowIcon } from "../../components/ui";
 import Popover from "../../components/ui/Popover";
 import { classColorProps } from "../../components/character/ClassSpec";
 import { MoreIcon, PlusIcon } from "../../components/ui/icons";
-import { belowEndPlacement } from "../../lib/ui/popoverPosition";
+import { belowEndPosition, type Placement } from "../../lib/ui/popoverPosition";
 import { classLabel, specLabel } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 
@@ -20,6 +20,19 @@ export type ProfileTab = { kind: "info" } | { kind: "char"; key: string } | { ki
 export const MORE_FROM = 6;
 
 const INFO_ICON = "inv_misc_note_01";
+
+/**
+ * Room the "⋯" list leaves free at the foot of the screen: the toasts sit there
+ * (styles/feedback.css .toast-wrap, bottom 20 px) - "Du bist jetzt in Forever"
+ * after a link to a character must not cover the list's last entries.
+ */
+const TOAST_ROOM = 96;
+
+/** The "⋯" list under its button, right-aligned, scrolling above the toast strip. */
+const MENU_PLACEMENT: Placement = (anchor, _box, viewport) => {
+    if (!anchor) return {};
+    return { ...belowEndPosition(anchor, viewport), maxHeight: Math.max(160, viewport.height - anchor.bottom - TOAST_ROOM) };
+};
 
 /** The icon a character's tab shows: its first spec's, else its class's. */
 function tabIcon(c: ProfileCharacter, cls?: GameClass): string {
@@ -38,7 +51,8 @@ function CharTabLabel({ character, cls }: { character: ProfileCharacter; cls?: G
     return (
         <>
             <WowIcon name={tabIcon(character, cls)} size={22} />
-            <span className={color.className} style={color.style}>{character.name}</span>
+            {/* pf-tab-name: in light mode darker than the shared class colour (contrast >= 4.5:1, styles/profile.css) */}
+            <span className={["pf-tab-name", color.className].filter(Boolean).join(" ")} style={color.style}>{character.name}</span>
             {character.claimedBy.length > 0 && (
                 <span className="pf-tab-warn" data-tip={t("profile.char.claimed")} data-tip-sub={t("profile.char.claimedChip", { names: character.claimedBy.map((c) => c.name || t("profile.char.unknown")).join(", ") })}>!</span>
             )}
@@ -94,13 +108,16 @@ export function ProfileTabs({ characters, classOf, current, orga, onSelect, onAd
                         </button>
                     );
                 })}
+                {/* a tab of the row that is never selected: it opens the add dialog */}
                 {onAdd && (
-                    <button type="button" className="tab-btn pf-tab pf-tab-add" aria-label={t("profile.addCharacter")} data-tip={t("profile.addCharacter")} onClick={onAdd}>
+                    <button type="button" role="tab" aria-selected={false} className="tab-btn pf-tab pf-tab-add" aria-label={t("profile.addCharacter")}
+                        data-tip={t("profile.addCharacter")} data-tip-sub={t("profile.tabs.addTip")} onClick={onAdd}>
                         <PlusIcon />
                     </button>
                 )}
                 {orga && (
-                    <button type="button" role="tab" aria-selected={is({ kind: "all" })} aria-label={t("profile.tabs.all")} className={`tab-btn pf-tab pf-tab-all${is({ kind: "all" }) ? " active" : ""}`} onClick={() => onSelect({ kind: "all" })}>
+                    <button type="button" role="tab" aria-selected={is({ kind: "all" })} aria-label={t("profile.tabs.all")} className={`tab-btn pf-tab pf-tab-all${is({ kind: "all" }) ? " active" : ""}`}
+                        data-tip={t("profile.tabs.all")} data-tip-sub={t("profile.tabs.allTip")} onClick={() => onSelect({ kind: "all" })}>
                         {t("profile.tabs.all")}
                         <Badge size="sm">{t("profile.tabs.orga")}</Badge>
                     </button>
@@ -114,7 +131,7 @@ export function ProfileTabs({ characters, classOf, current, orga, onSelect, onAd
                 </button>
             )}
             {menu && (
-                <Popover anchor={moreRef} place={belowEndPlacement()} onClose={() => setMenu(false)} className="pf-tabmenu" role="menu" aria-label={t("profile.tabs.more")}>
+                <Popover anchor={moreRef} place={MENU_PLACEMENT}onClose={() => setMenu(false)} className="pf-tabmenu" role="menu" aria-label={t("profile.tabs.more")}>
                     {tabs.map(({ tab, id }) => {
                         const c = tab.kind === "char" ? characters.find((x) => x.key === tab.key) : undefined;
                         return (
