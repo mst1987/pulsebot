@@ -74,7 +74,7 @@ export default function MoveModal({ ctx, open, onClose }: { ctx: RaidCtx; open: 
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button type="submit" form="em-move-form" icon="inv_misc_pocketwatch_02" running={busy} disabled={!plan || loading}>{t("raidManage.move.confirm")}</Button>
+                    <Button type="submit" variant="go" form="em-move-form" icon="inv_misc_pocketwatch_02" running={busy} disabled={!plan || loading}>{t("raidManage.move.confirm")}</Button>
                 </>
             )}
         >

@@ -32,7 +32,7 @@ import Badge from "../../components/ui/Badge";
 import IconTile, { type TileTone } from "../../components/ui/IconTile";
 import WowIcon from "../../components/ui/WowIcon";
 import { useContentVersion } from "../../hooks/useContentVersion";
-import { ChevronRightIcon } from "../../components/ui/icons";
+import { CheckIcon, ChevronRightIcon } from "../../components/ui/icons";
 import TopLootList from "../../components/loot/TopLootList";
 import RaidDetailsModal from "./RaidDetailsModal";
 import { RoleBar, IconLink } from "./OverviewParts";
@@ -217,7 +217,7 @@ function TrialActions({ action, onDone }: { action: Extract<DashboardTaskAction,
     };
     return (
         <span className="ov-task-btns">
-            <Button size="sm" variant="ghost" running={busy === "adopt"} disabled={!!busy} onClick={() => run("adopt")}>{t("dashboard.tasks.trial.adopt")}</Button>
+            <Button size="sm" variant="go" icon={<CheckIcon />} running={busy === "adopt"} disabled={!!busy} onClick={() => run("adopt")}>{t("dashboard.tasks.trial.adopt")}</Button>
             <Button size="sm" variant="ghost" running={busy === "extend"} disabled={!!busy} onClick={() => run("extend")}>{t("dashboard.tasks.trial.extend")}</Button>
         </span>
     );

@@ -32,8 +32,8 @@ export default function AvailabilitySection({ onChanged }: { onChanged: () => vo
                 <span className="an-av-label tipped" tabIndex={0} data-tip={t("signups.availability.title")} data-tip-sub={t("signups.availability.tipSub")}>
                     {t("signups.availability.title")}
                 </span>
-                <Button size="sm" variant="ghost" icon={<AbsenceIcon />} onClick={() => setDialog("absence")}>{t("signups.availability.addAbsence")}</Button>
-                <Button size="sm" variant="ghost" icon={<SignedIcon />} onClick={() => setDialog("presence")}>{t("signups.availability.addPresence")}</Button>
+                <Button size="sm" variant="no" icon={<AbsenceIcon />} onClick={() => setDialog("absence")}>{t("signups.availability.addAbsence")}</Button>
+                <Button size="sm" variant="yes" icon={<SignedIcon />} onClick={() => setDialog("presence")}>{t("signups.availability.addPresence")}</Button>
             </div>
             {data.entries.length > 0 && (
                 <ul className="an-av-list">

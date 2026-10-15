@@ -6,6 +6,7 @@ import { getRaidplanLink, setRaidplanLink, type ApiError } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
+import { CheckIcon } from "../../../components/ui/icons";
 import { useToast } from "../../../components/shell/Jobs";
 import { linkSizes, linkStart } from "../../../lib/raids/eventManage";
 import { useT } from "../../../i18n";
@@ -66,7 +67,7 @@ export default function RaidplanLinkModal({ ctx, open, onClose, onDone }: { ctx:
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button type="submit" form="em-rplink-form" variant="primary" running={busy} disabled={!view || chosen.length === 0}>{t("raidDetail.raidplanLink.confirm")}</Button>
+                    <Button type="submit" form="em-rplink-form" variant="go" icon={<CheckIcon />} running={busy} disabled={!view || chosen.length === 0}>{t("raidDetail.raidplanLink.confirm")}</Button>
                 </>
             )}
         >

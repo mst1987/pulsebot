@@ -66,7 +66,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", use
     const back = stepAt > 0 ? <Button variant="ghost" onClick={() => setStep(steps[stepAt - 1])}>{t("raidCreate.footer.back")}</Button> : undefined;
     const next = steps[stepAt + 1];
     const footer = step === "check" || !next
-        ? <>{cancel}<Button icon="inv_misc_note_05" running={saving} disabled={!ctx || !!problem} onClick={submit}>{editing ? t("common.save") : t("raidCreate.footer.create")}</Button></>
+        ? <>{cancel}<Button variant={editing ? "go" : "primary"} icon="inv_misc_note_05" running={saving} disabled={!ctx || !!problem} onClick={submit}>{editing ? t("common.save") : t("raidCreate.footer.create")}</Button></>
         : <>{cancel}<Button disabled={!ctx || !readyAt(step)} onClick={() => setStep(next)}>{t("raidCreate.footer.next", { step: stepLabel(next) })} <ChevronRightIcon /></Button></>;
 
     return (

@@ -9,6 +9,7 @@ import { deleteRaid, getManageInfo, type ApiError } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
+import { TrashIcon } from "../../../components/ui/icons";
 import { SwitchRow } from "../../../components/raid/RaidFields";
 import { useToast } from "../../../components/shell/Jobs";
 import { deleteLines, deleteReady, deleteSummary } from "../../../lib/raids/eventManage";
@@ -63,7 +64,7 @@ export default function DeleteModal({ ctx, open, onClose }: { ctx: RaidCtx; open
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button type="submit" form="em-delete-form" variant="danger" running={busy} disabled={!deleteReady(d, confirmed)}>{t("raidManage.delete.confirm")}</Button>
+                    <Button type="submit" form="em-delete-form" variant="danger" icon={<TrashIcon />} running={busy} disabled={!deleteReady(d, confirmed)}>{t("raidManage.delete.confirm")}</Button>
                 </>
             )}
         >

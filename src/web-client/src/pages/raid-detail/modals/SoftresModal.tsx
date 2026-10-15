@@ -15,7 +15,7 @@ import Badge from "../../../components/ui/Badge";
 import Segment from "../../../components/ui/Segment";
 import WowIcon from "../../../components/ui/WowIcon";
 import ItemSearchPicker from "../../../components/loot/ItemSearchPicker";
-import { ExternalIcon, XIcon } from "../../../components/ui/icons";
+import { ExternalIcon, SaveIcon, XIcon } from "../../../components/ui/icons";
 import { useToast } from "../../../components/shell/Jobs";
 import { useT } from "../../../i18n";
 import { INSTANCE_ICONS, type RaidCtx } from "../meta";
@@ -130,7 +130,7 @@ export default function SoftresModal({ ctx, open, onClose }: { ctx: RaidCtx; ope
         <>
             <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
             {mode === "create" && <Button type="submit" form="rd-softres-form" icon="inv_misc_ticket_tarot_madness" running={busy} disabled={!selected.size}>{t("raidModals.softres.create")}</Button>}
-            {mode === "link" && <Button type="submit" form="rd-softres-form" running={busy}>{t("raidModals.softres.saveLink")}</Button>}
+            {mode === "link" && <Button type="submit" variant="go" icon={<SaveIcon />} form="rd-softres-form" running={busy}>{t("raidModals.softres.saveLink")}</Button>}
             {mode === "post" && <Button type="submit" form="rd-softres-form" icon="inv_letter_15" running={busy}>{posted ? t("raidModals.shared.updateMessage") : t("raidModals.softres.postChannel")}</Button>}
         </>
     );
