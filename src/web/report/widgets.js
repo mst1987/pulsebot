@@ -198,7 +198,7 @@ function detailDialog(id, icon, tone, title, crumb, bodyHtml, footNote) {
     return `<dialog class="dlg detail" id="dlg-${esc(id)}">
       <div class="dlg-head">${tile(icon, tone)}<div class="dlg-main"><div class="dlg-title">${title}</div>${crumb ? `<div class="kicker">${esc(crumb)}</div>` : ""}</div>${dlgClose()}</div>
       <div class="dlg-body">${bodyHtml}</div>
-      <div class="dlg-foot"><span class="note">${footNote ? esc(footNote) : ""}</span><div class="btns"><button type="button" class="btn btn-sm" data-close>Schließen</button></div></div>
+      <div class="dlg-foot"><span class="note">${footNote ? esc(footNote) : ""}</span><div class="btns"><button type="button" class="btn btn-ghost btn-sm" data-close>Schließen</button></div></div>
     </dialog>`;
 }
 

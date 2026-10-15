@@ -125,7 +125,7 @@ function playerFightTable(ctx, p) {
         return `<dialog class="dlg chart" id="dlg-pf-${r.bi}">
           <div class="dlg-head">${icon ? `<img class="vcard-icon" src="${esc(icon)}" alt="">` : ""}<div class="dlg-main"><div class="dlg-title">${hicon("inv_misc_pocketwatch_01", "")}${esc(r.b.name)} · ${esc(name)}</div><div class="vcard-meta">${plural(r.b.fights.length, "Try", "Tries")} · ${PX_PER_SEC} px pro Sekunde, seitlich scrollen</div></div>${dlgClose()}</div>
           <div class="dlg-body">${tryPills(r.b, ns)}${sections}</div>
-          <div class="dlg-foot"><span class="note">Tode als senkrechte Striche in Klassenfarbe · Tabellenansicht unter jeder Grafik aufklappbar</span><div class="btns"><button type="button" class="btn btn-sm" data-close>Schließen</button></div></div>
+          <div class="dlg-foot"><span class="note">Tode als senkrechte Striche in Klassenfarbe · Tabellenansicht unter jeder Grafik aufklappbar</span><div class="btns"><button type="button" class="btn btn-ghost btn-sm" data-close>Schließen</button></div></div>
         </dialog>`;
     }).join("");
     const seg = flagged && flagged < rows.length

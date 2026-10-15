@@ -29,7 +29,7 @@ describe("web/report/render — send box", () => {
         expect(html).toContain("<div class=\"rec-send\" data-report=\"abc123def456\">");
         expect(html).toContain("1 Raider mit freigegebenen Punkten</span>");
         expect(html).toContain("1 bereits angeschrieben</span>");
-        expect(html).toMatch(/<button type="button" class="btn btn-sm" data-send="all"><img class="hicon"[^>]*>Freigegebenes per DM senden<\/button>/);
+        expect(html).toMatch(/<button type="button" class="btn btn-go btn-sm" data-send="all"><img class="hicon"[^>]*>Freigegebenes per DM senden<\/button>/);
         expect(html).toContain("data-send=\"status\"");
         expect(html).toMatch(/class="btn btn-run btn-sm" data-phrase="all"/);
         expect(html).toContain("<script src=\"/r-assets/report.js?v=");

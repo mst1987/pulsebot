@@ -291,7 +291,7 @@ function sendDialog(ctx, p, i, items) {
         <div class="send-preview"><div class="kicker">So kommt es bei ${esc(p.name)} an</div><div class="dm"><div class="dm-head"><span class="crest">${ICONS.crest}</span><b>EventHelper</b>${badge("BOT", "accent")}</div><b>Deine Auswertung: ${esc(report.title || "Raid")}</b><span class="dm-hello">Hallo ${esc(p.name)}, hier sind die Punkte aus dem Log${esc(date)}, die die Raidleitung für dich freigegeben hat.</span><div class="dm-items">${preview}</div><a href="${link}" target="_blank" rel="noopener">Zu deiner Auswertung${LINE.external}</a></div>
         <span class="note">Item-Namen kommen als Text an, ohne Icons.</span></div>
       </div>
-      <div class="dlg-foot"><span class="note send-out">Ein unveränderter Satz wird nie zweimal geschickt.</span><div class="btns"><button type="button" class="btn btn-ghost btn-sm" data-close>Abbrechen</button><button type="button" class="btn btn-ghost btn-sm" data-sendact="save">Nur speichern</button><button type="button" class="btn btn-sm" data-sendact="send"${approved.length ? "" : " disabled"}>${hicon("inv_letter_15", "")}Per Bot senden</button></div></div>
+      <div class="dlg-foot"><span class="note send-out">Ein unveränderter Satz wird nie zweimal geschickt.</span><div class="btns"><button type="button" class="btn btn-ghost btn-sm" data-close>Abbrechen</button><button type="button" class="btn btn-ghost btn-sm" data-sendact="save">Nur speichern</button><button type="button" class="btn btn-go btn-sm" data-sendact="send"${approved.length ? "" : " disabled"}>${hicon("inv_letter_15", "")}Per Bot senden</button></div></div>
     </dialog>`;
 }
 
@@ -435,7 +435,7 @@ function raiderCard(ctx, p, i, opts = {}) {
         timelineDialog = `<dialog class="dlg chart" id="dlg-rt-${i}">
           <div class="dlg-head"><img class="vcard-icon" src="${esc(classIconUrl(p.type))}" alt=""><div class="dlg-main"><div class="dlg-title">${hicon("inv_misc_pocketwatch_01", "")}Kampfverlauf · ${esc(name)}</div><div class="vcard-meta">${plural(fights.length, "Kampf", "Kämpfe")} · ${PX_PER_SEC} px pro Sekunde, seitlich scrollen</div></div>${dlgClose()}</div>
           <div class="dlg-body">${renderPlayerTimeline(report.timeline, name, ns)}</div>
-          <div class="dlg-foot"><span class="note">Tode als senkrechte Striche in Klassenfarbe · Tabellenansicht unter jeder Grafik aufklappbar</span><div class="btns">${ctx.linkFor(name) ? `<a class="btn btn-ghost btn-sm" href="${esc(ctx.linkFor(name))}">Spielerseite${LINE.external}</a>` : ""}<button type="button" class="btn btn-sm" data-close>Schließen</button></div></div>
+          <div class="dlg-foot"><span class="note">Tode als senkrechte Striche in Klassenfarbe · Tabellenansicht unter jeder Grafik aufklappbar</span><div class="btns">${ctx.linkFor(name) ? `<a class="btn btn-ghost btn-sm" href="${esc(ctx.linkFor(name))}">Spielerseite${LINE.external}</a>` : ""}<button type="button" class="btn btn-ghost btn-sm" data-close>Schließen</button></div></div>
         </dialog>`;
     }
     const secId = (k) => `rc${i}-${k}`;

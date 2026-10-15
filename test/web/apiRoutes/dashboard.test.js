@@ -318,7 +318,7 @@ describe("web/apiRoutes/dashboard", () => {
             const raider = { id: "7", name: "Rai", isAdmin: false, access: { signup: { read: true, write: true } } };
             auth.getUser.mockReturnValue(raider);
             activeGuildFor.mockReturnValue("guild-1");
-            dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "BT", generatedAt: 5, problems: 3, open: 7 });
+            dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "BT", generatedAt: 5, problems: 3, gearRaiders: 7 });
             dashboardData.loadInbox.mockReturnValue([{ id: "s1", items: [1] }]);
             dashboardData.loadNextRaids.mockClear();
             dashboardData.loadRecentEvents.mockClear();
@@ -343,7 +343,7 @@ describe("web/apiRoutes/dashboard", () => {
             activeGuildFor.mockReturnValue("guild-1");
             dashboardData.loadNextRaids.mockClear();
             dashboardData.loadRecentEvents.mockClear();
-            dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "BT", generatedAt: 5, problems: 3, open: 7 });
+            dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "BT", generatedAt: 5, problems: 3, gearRaiders: 7 });
             dashboardData.loadInbox.mockReturnValue([{ id: "s1", items: [1] }]);
             loadPersonal.mockClear();
 
@@ -374,7 +374,7 @@ describe("web/apiRoutes/dashboard", () => {
             activeGuildFor.mockReturnValue("guild-1");
             dashboardData.loadNextRaids.mockResolvedValue({ raids: [{ id: "n1", title: "BT", startTime: 2000, sheet: null, planning: "sheet" }], error: null });
             dashboardData.loadRecentEvents.mockResolvedValue({ events: [{ id: "e1", title: "Hyjal", startTime: 1000, pendingLogCount: 2, logs: [] }], error: null });
-            dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "BT", generatedAt: 5, problems: 3, open: 7 });
+            dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "BT", generatedAt: 5, problems: 3, gearRaiders: 7 });
             dashboardData.loadInbox.mockReturnValue([{ id: "s1", items: [1] }]);
 
             const data = json(await get("/api/dashboard")).data;
@@ -406,7 +406,7 @@ describe("web/apiRoutes/dashboard", () => {
             dashboardData.loadRecentEvents.mockResolvedValue({
                 events: [{ id: "e1", title: "Hyjal", startTime: 1000, pendingLogCount: 2, logs: [] }], error: null,
             });
-            dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "Black Temple", generatedAt: 5, problems: 3, open: 7 });
+            dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "Black Temple", generatedAt: 5, problems: 3, gearRaiders: 7 });
             dashboardData.loadInbox.mockReturnValue([{ id: "s1", items: [1, 2] }]);
             dashboardData.loadRosterFigures.mockReturnValue({ total: 27, withoutDiscord: 2 });
             dashboardData.loadNewLoot.mockReturnValue({ count: 3, since: 1000000 });
@@ -422,9 +422,9 @@ describe("web/apiRoutes/dashboard", () => {
             expect(data.kicker).toEqual({ guild: "Pulse", realm: "Thunderstrike EU" });
             expect(data.nextRaid).toEqual(next);
             expect(data.followingRaid).toEqual(after);
-            expect(data.tasks.map((t) => t.id)).toEqual(["sheet", "recommendations", "logs", "inbox"]);
+            expect(data.tasks.map((t) => t.id)).toEqual(["sheet", "gear", "logs", "inbox"]);
             expect(data.areas).toEqual({
-                lastReport: { id: "r1", zone: "Black Temple", generatedAt: 5, problems: 3, open: 7 },
+                lastReport: { id: "r1", zone: "Black Temple", generatedAt: 5, problems: 3, gearRaiders: 7 },
                 newLoot: { count: 3, since: 1000000 },
                 roster: { total: 27, withoutDiscord: 2 },
             });

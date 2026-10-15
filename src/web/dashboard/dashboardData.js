@@ -23,14 +23,13 @@ const { getChannelConfig, listArchived, archiveHint } = require("../../stores/ch
 const { buildRoster } = require("../characters/roster");
 const { rosterStats } = require("../characters/rosterStats");
 const { resolveAssignmentProfiles } = require("../../stores/raiderCharactersStore");
-const { applyReview } = require("../../utils/logcheck/recommendations");
 const softres = require("../../utils/loot/softres");
 const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
 } = require("../../utils/attendance");
 const {
     zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, isAttending,
-    lastReportArea, openRecommendations, newLootSince,
+    lastReportArea, newLootSince,
 } = require("./dashboardOverview");
 const { getEvent, listEvents } = require("../../stores/eventStore");
 const linkCheck = require("../../services/discord/linkCheck");
@@ -215,21 +214,15 @@ async function loadNextRaidDetails(guildId, eventId) {
 }
 
 /**
- * The newest evaluation as the "Letzte Auswertung" tile needs it, plus how many
- * of its recommendations are still unreviewed (the "Empfehlungen prüfen" task).
- * Reads one report file; null when there is none or it cannot be read.
+ * The newest evaluation as the "Letzte Auswertung" tile and the "Gear-Probleme"
+ * task need it. Reads one report file; null when there is none or it cannot be read.
  * @param {{ versionId?: string }} [opts] the newest report of that game version (#741, "" = of any)
  */
 function loadLatestReport({ versionId = "" } = {}) {
     try {
         const summary = listReports().find((r) => !versionId || recordVersion(r) === versionId);
         if (!summary) return null;
-        const report = getReport(summary.id);
-        const area = lastReportArea(summary, report);
-        const reviewed = report && report.recommendations
-            ? applyReview(report.recommendations, report.recommendationReview)
-            : null;
-        return { ...area, open: openRecommendations(reviewed) };
+        return lastReportArea(summary, getReport(summary.id));
     } catch (e) {
         console.error("dashboard latest report failed:", e.message);
         return null;

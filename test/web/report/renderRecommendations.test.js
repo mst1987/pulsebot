@@ -59,9 +59,9 @@ describe("web/report/render — Empfehlungen for a reviewer", () => {
         expect(html).toContain("class=\"rec rec-block rec-low rec-state-rejected\" data-key=\"consumables.food\"");
         expect(html).toContain("<span class=\"sub\">1 Punkt für den ganzen Raid · 1 offen · 0 freigegeben</span>"); // only the raid finding is still open
         // the active verdict is a filled, pressed button with its label
-        expect(html).toContain("<button type=\"button\" class=\"btn btn-ghost btn-sm rec-yes ok\" data-review=\"approve\" aria-pressed=\"true\"");
+        expect(html).toContain("<button type=\"button\" class=\"btn btn-sm btn-yes rec-yes ok\" data-review=\"approve\" aria-pressed=\"true\"");
         expect(html).toContain("<span class=\"lbl\">Freigegeben</span>");
-        expect(html).toContain("<button type=\"button\" class=\"btn btn-ghost btn-sm rec-no bad\" data-review=\"reject\" aria-pressed=\"true\"");
+        expect(html).toContain("<button type=\"button\" class=\"btn btn-sm btn-no rec-no bad\" data-review=\"reject\" aria-pressed=\"true\"");
         expect(html).toContain("<textarea class=\"rec-text\" rows=\"3\" placeholder=\"Eigene Formulierung (leer = Vorschlag so lassen)\">Bitte vor dem Raid verzaubern.</textarea>");
         expect(html).toContain("data-review=\"rule\"");
     });

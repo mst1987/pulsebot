@@ -152,7 +152,10 @@ describe("web/report/render — report page: head and views", () => {
         expect(recs).toMatch(/<button type="button" class="btn" data-dialog="dlg-rs-send"><img[^>]*inv_letter_15\.jpg" alt="">Empfehlungen senden …<\/button>/);
         expect(recs).toContain("<details class=\"rec rrow-d rec-high rec-state-open\" data-key=\"raid.debuff.misery\">");
         expect(recs).toMatch(/<summary class="rrow"><span><span class="badge bad">hoch<\/span><\/span><span class="t rec-title" data-tip="Misery: Ø 0 %, fehlte in 1 Kampf">Misery: Ø 0 %, fehlte in 1 Kampf<\/span><span class="ev"><span class="badge ev-b" data-tip="Boss" data-tip-sub="High King Maulgar">Boss <b>High King Maulgar<\/b><\/span><\/span><span class="st"><span class="badge rec-state mid">offen<\/span><\/span><span class="acts rec-review"/);
-        expect(recs.match(/class="ibtn"[^>]*data-review="(?:approve|reject|edit)"/g)).toHaveLength(6); // three per finding
+        expect(recs.match(/class="ibtn(?: yes| no)?"[^>]*data-review="(?:approve|reject|edit)"/g)).toHaveLength(6); // three per finding
+        // the verdicts carry their meaning even while not chosen: green approve, red reject
+        expect(recs.match(/class="ibtn yes"[^>]*data-review="approve"/g)).toHaveLength(2);
+        expect(recs.match(/class="ibtn no"[^>]*data-review="reject"/g)).toHaveLength(2);
         expect(recs).toContain("<dialog class=\"dlg detail\" id=\"dlg-rs-send\">");
         // two findings: nothing to fold
         expect(recs).not.toContain("key-more");
