@@ -276,7 +276,7 @@ function ProfileForm({ row, data, options, canWrite, onStored, onCopied, onDelet
                         <Button variant="ghost" size="sm" onClick={() => setNaming("rename")}>{t("lootcouncil.profiles.rename")}</Button>
                         <Button variant="ghost" size="sm" onClick={() => setNaming("copy")}>{t("lootcouncil.profiles.copy")}</Button>
                         <span data-tip={deleteTip}>
-                            <Button variant="ghost" size="sm" icon={<TrashIcon />} disabled={row.inUse} onClick={() => void remove()}>{t("lootcouncil.profiles.delete")}</Button>
+                            <Button variant="danger" size="sm" icon={<TrashIcon />} disabled={row.inUse} onClick={() => void remove()}>{t("lootcouncil.profiles.delete")}</Button>
                         </span>
                     </div>
                 ) : null}
@@ -336,7 +336,7 @@ function ProfileForm({ row, data, options, canWrite, onStored, onCopied, onDelet
                         <Button variant="ghost" onClick={toDefaults}>{t("lootcouncil.weights.reset")}</Button>
                         <span className="lc-grow" />
                         {dirty ? <span className="lc-muted">{t("lootcouncil.weights.unsaved")}</span> : null}
-                        <Button icon="inv_misc_note_01" running={saving} disabled={!dirty} onClick={save}>{t("lootcouncil.weights.save")}</Button>
+                        <Button variant="go" icon="inv_misc_note_01" running={saving} disabled={!dirty} onClick={save}>{t("lootcouncil.weights.save")}</Button>
                     </div>
                 ) : null}
             </div>

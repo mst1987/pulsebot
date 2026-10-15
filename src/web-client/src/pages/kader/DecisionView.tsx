@@ -19,7 +19,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { addKaderComment, deleteKaderComment, setKaderState, setKaderVote, type KaderEntry, type KaderState, type KaderVote, type KaderWish } from "../../api";
 import { Button, IconButton, Segment } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
-import { BenchIcon, CheckIcon, CommentIcon, EditIcon, SendIcon, TentativeIcon, XIcon } from "../../components/ui/icons";
+import { BenchIcon, CheckIcon, CommentIcon, EditIcon, SendIcon, TentativeIcon, XIcon, TrashIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { useT } from "../../i18n";
 import { relativeDayLabel } from "../../lib/format";
@@ -189,7 +189,7 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
                             <b className={`kp-author kp-hue-${leadIndex(c.by)}`}>{nameOf(view, c.by)}</b>
                             <span className="kp-muted">· {relativeDayLabel(Math.floor(Date.parse(c.at) / 1000))}</span>
                             <span className="kp-grow" />
-                            {canWrite && c.by === me && <IconButton icon={<XIcon />} size="sm" tip={t("kader.decide.deleteComment")} onClick={() => void removeComment(c.id)} />}
+                            {canWrite && c.by === me && <IconButton icon={<TrashIcon />} size="sm" tone="danger" tip={t("kader.decide.deleteComment")} onClick={() => void removeComment(c.id)} />}
                         </div>
                         <p>{c.text}</p>
                     </div>
@@ -208,11 +208,11 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
                         ? <WishPicker entry={entry} value={choice} wide label={t("kader.decide.decisionAria")} onChange={(pick) => setPickedSpec(pick.spec)} />
                         : <span className="kp-hint">{t("kader.interview.noWishes")}</span>}
                     {entry.state === "roster" ? (
-                        <Button className="kp-wide" icon={<EditIcon />} disabled={!picked || same} onClick={() => void moveTo("roster", picked ? picked.pick : undefined)}>
+                        <Button variant="go" className="kp-wide" icon={<EditIcon />} disabled={!picked || same} onClick={() => void moveTo("roster", picked ? picked.pick : undefined)}>
                             {t("kader.decide.changeDecision")}
                         </Button>
                     ) : (
-                        <Button className="kp-wide" icon={<CheckIcon />} disabled={!picked} onClick={() => void moveTo("roster", picked ? picked.pick : undefined)}>
+                        <Button variant="go" className="kp-wide" icon={<CheckIcon />} disabled={!picked} onClick={() => void moveTo("roster", picked ? picked.pick : undefined)}>
                             {t("kader.decide.toRoster")}
                         </Button>
                     )}

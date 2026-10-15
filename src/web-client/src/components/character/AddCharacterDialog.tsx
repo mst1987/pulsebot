@@ -5,7 +5,7 @@ import {
 } from "../../api";
 import { Badge, Button, Modal, RaidLoader, Segment, WowIcon } from "../ui";
 import { classColorProps } from "./ClassSpec";
-import { SearchIcon } from "../ui/icons";
+import { SearchIcon, LinkIcon, PlusIcon } from "../ui/icons";
 import { formatDate } from "../../lib/format";
 import type { CharacterSuggestion } from "../../lib/settings/raidhelperRetirement";
 import { classLabel, specLabel as specName } from "../../lib/wow/wowNames";
@@ -137,6 +137,7 @@ export default function AddCharacterDialog({
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
                     <Button
+                        icon={addWay === "armory" ? <LinkIcon /> : <PlusIcon />}
                         running={busy}
                         disabled={!canSubmit}
                         onClick={() => submit(addWay === "armory"
