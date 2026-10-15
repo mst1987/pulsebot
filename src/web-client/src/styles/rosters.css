@@ -216,12 +216,14 @@ dialog.rn-dlg .dlg-body > .rn-notice { margin: 14px 0 6px; }
 .rn-chip-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--rc, var(--muted)); }
 /* Roles from a dropdown + "Hinzufügen" instead of a wall of chips */
 .rn-role-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.rn-role-select { flex: 1 1 240px; max-width: 420px; min-width: 0; }
+/* the single dropdown sits in a flex column: it keeps its own height, never a flex-basis as height */
+.rn-role-select { flex: none; align-self: flex-start; width: 100%; max-width: 420px; min-width: 0; }
+.rn-role-add .rn-role-select { flex: 1 1 240px; width: auto; align-self: auto; }
 .rn-version { display: inline-flex; align-items: center; gap: 8px; }
 /* The form's steps (Roster anlegen / Einstellungen): a numbered bar on top, one step below */
 dialog.rn-dlg-steps .dlg-body { min-height: 440px; }
 .rn-steps { list-style: none; margin: 14px 0 2px; padding: 0; display: flex; gap: 6px; flex-wrap: wrap; }
-.rn-steps li { flex: 1 1 0; min-width: 0; }
+.rn-steps li { flex: 1 1 auto; min-width: 0; }
 .rn-stepbtn { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; border-radius: var(--ctl-radius); }
 .rn-stepbtn:hover { border-color: var(--accent); color: var(--text); }
 .rn-stepbtn.is-on { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
@@ -229,14 +231,16 @@ dialog.rn-dlg-steps .dlg-body { min-height: 440px; }
 .rn-stepbtn-no svg { width: 13px; height: 13px; }
 .rn-stepbtn.is-on .rn-stepbtn-no { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
 .rn-stepbtn-done .rn-stepbtn-no { border-color: var(--good); color: var(--good); }
-.rn-stepbtn-bad .rn-stepbtn-no { border-color: var(--high); color: var(--high); }
+.rn-stepbtn.rn-stepbtn-bad .rn-stepbtn-no { border-color: var(--high); background: transparent; color: var(--high); }
 .rn-stepbtn-lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 640px) {
     /* phone: only the current step keeps its name, the others are their number */
     .rn-steps li { flex: none; }
     .rn-steps li:has(.is-on) { flex: 1 1 0; }
+    .rn-stepbtn { padding: 7px 8px; }
     .rn-stepbtn:not(.is-on) .rn-stepbtn-lbl { display: none; }
-    dialog.rn-dlg-steps .dlg-body { min-height: 0; }
+    /* a steady height on the phone too, so the footer does not jump between the steps */
+    dialog.rn-dlg-steps .dlg-body { min-height: min(480px, 62vh); }
 }
 .rn-field-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .rn-targets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }

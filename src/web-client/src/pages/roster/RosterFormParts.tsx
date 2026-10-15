@@ -85,7 +85,7 @@ export function RoleSelect({ roles, value, onChange, multi = true, requireManage
                         <option value="">{offered.length ? t("roster.form.rolePickPlaceholder") : t("roster.form.noRoles")}</option>
                         {offered.map((r) => <option key={r.id} value={r.id} disabled={blocked(r)}>{optionText(r)}</option>)}
                     </select>
-                    <Button variant="ghost" size="sm" icon={<PlusIcon />} disabled={!pick} onClick={add}>{t("roster.form.roleAdd")}</Button>
+                    <Button variant="ghost" size="sm" icon={<PlusIcon />} disabled={!pick} onClick={add}>{t("common.add")}</Button>
                 </div>
             )}
             {!disabled && offered.some(blocked) && <p className="rn-sub">{t("roster.form.roleBlockedHint")}</p>}

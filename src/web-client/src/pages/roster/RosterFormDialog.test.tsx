@@ -33,9 +33,12 @@ const dialog = (): HTMLElement => {
 
 type Scope = ReturnType<typeof within>;
 
+/** A step's button in the step bar; its name is the step's name plus its state ("– erledigt", "– Hier fehlt …"). */
+const stepButton = (d: Scope, name: string) => within(d.getByRole("list", { name: /Schritte|Steps/ })).getByRole("button", { name: new RegExp(`^${name}( –|$)`) });
+
 /** Jumps to a step through the step bar. */
 async function step(d: Scope, name: string) {
-    await userEvent.click(within(d.getByRole("list", { name: /Schritte|Steps/ })).getByRole("button", { name }));
+    await userEvent.click(stepButton(d, name));
 }
 
 /** Adds a role through the dropdown + "Hinzufügen" of the role group `label`. */
@@ -119,7 +122,7 @@ describe("RosterFormDialog — create", () => {
         const d = within(await waitFor(() => dialog()));
         expect(await d.findByLabelText("Name des Rosters")).toBeInTheDocument();
         expect(d.queryByText("Wer kommt zuerst hinein?")).not.toBeInTheDocument();
-        expect(d.getByRole("button", { name: "Name" })).toHaveAttribute("aria-current", "step");
+        expect(stepButton(d, "Name")).toHaveAttribute("aria-current", "step");
         await userEvent.click(d.getByRole("button", { name: "Weiter" }));
         expect(d.queryByLabelText("Name des Rosters")).not.toBeInTheDocument();
         expect(d.getByRole("group", { name: "Discord-Rolle des Rosters" })).toBeInTheDocument();
@@ -141,8 +144,23 @@ describe("RosterFormDialog — create", () => {
         const d = within(await waitFor(() => dialog()));
         expect(await d.findByLabelText("Name des Rosters")).toHaveValue("");
         expect(d.getByRole("button", { name: "Weiter" })).toBeDisabled();
+        expect(stepButton(d, "Name")).toHaveAccessibleName("Name – Hier fehlt noch etwas");
         await userEvent.type(d.getByLabelText("Name des Rosters"), "Forever");
         expect(d.getByRole("button", { name: "Weiter" })).toBeEnabled();
+        expect(stepButton(d, "Name")).toHaveAccessibleName("Name");
+    });
+
+    it("ticks only the steps really opened, not the ones a jump skipped", async () => {
+        create();
+        const d = within(await waitFor(() => dialog()));
+        await d.findByLabelText("Name des Rosters");
+        await step(d, "Mitglieder");
+        expect(stepButton(d, "Name")).toHaveAccessibleName("Name – erledigt");
+        expect(stepButton(d, "Rollen")).toHaveAccessibleName("Rollen");
+        expect(stepButton(d, "Manager")).toHaveAccessibleName("Manager");
+        // "Alle mit der Rolle" without a role: the step says something is missing
+        expect(stepButton(d, "Mitglieder")).toHaveAccessibleName("Mitglieder – Hier fehlt noch etwas");
+        expect(stepButton(d, "Mitglieder")).toHaveClass("rn-stepbtn-bad");
     });
 
     it("picks roles from the dropdown, greys out one the bot cannot give and makes the first the main role", async () => {
@@ -172,6 +190,8 @@ describe("RosterFormDialog — create", () => {
         expect(d.getByRole("button", { name: "Roster anlegen" })).toBeDisabled();
         await step(d, "Rollen");
         await addRole(d, "Discord-Rolle des Rosters", "role-kara");
+        // a role of the roster is no trial role
+        expect(within(d.getByRole("combobox", { name: "Probe-Rolle (optional)" })).queryByRole("option", { name: "@Kara-Team" })).not.toBeInTheDocument();
         await userEvent.selectOptions(d.getByRole("combobox", { name: "Probe-Rolle (optional)" }), "role-trial");
         await step(d, "Manager");
         await userEvent.type(d.getByRole("searchbox", { name: "Konto suchen" }), "lun");
@@ -236,6 +256,20 @@ describe("RosterFormDialog — settings", () => {
         await addRole(d, "Per Discord-Rolle", "role-lead");
         await userEvent.click(d.getByRole("button", { name: "Speichern" }));
         expect(api.updateRoster).toHaveBeenCalledWith("raid-mo-do-abc", { managers: { roleIds: ["role-lead"], userIds: ["u-marc"] } });
+    });
+
+    it("shows a stored role the server no longer has as unknown, still removable", async () => {
+        vi.mocked(api.getRosterOptions).mockResolvedValue(options());
+        const data = detail([member("Thorgrim")], { canManage: true, isAdmin: true, settings: settings({ roleIds: ["role-main", "role-gone"] }), roster: rosterHead() });
+        renderPage(<RosterFormDialog mode="settings" data={data} onClose={vi.fn()} onSaved={vi.fn()} />);
+        const d = within(await waitFor(() => dialog()));
+        await d.findByText("Raid Mo / Do einstellen");
+        await step(d, "Rollen");
+        const roles = within(d.getByRole("group", { name: "Discord-Rolle des Rosters" }));
+        expect(roles.getByText("Unbekannte Rolle")).toBeInTheDocument();
+        await userEvent.click(roles.getByRole("button", { name: "Unbekannte Rolle entfernen" }));
+        await userEvent.click(d.getByRole("button", { name: "Speichern" }));
+        expect(api.updateRoster).toHaveBeenCalledWith("raid-mo-do-abc", { roleIds: ["role-main"] });
     });
 
     it("deletes only after the question, which says the Discord roles stay", async () => {

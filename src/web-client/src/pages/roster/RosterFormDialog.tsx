@@ -160,11 +160,14 @@ function StepBar({ steps, current, onPick, passed, bad }: {
                 const wrong = bad(id);
                 const done = !wrong && passed(i);
                 const cls = ["rn-stepbtn", i === current ? "is-on" : "", done ? "rn-stepbtn-done" : "", wrong ? "rn-stepbtn-bad" : ""].filter(Boolean).join(" ");
+                const name = t(`roster.form.steps.${id}`);
+                // the state is in the accessible name too: the symbol is aria-hidden and a data-tip is not read out
+                const spoken = wrong ? `${name} – ${t("roster.form.stepBad")}` : done ? `${name} – ${t("roster.form.stepDone")}` : name;
                 return (
                     <li key={id}>
-                        <button type="button" className={cls} aria-current={i === current ? "step" : undefined} aria-label={t(`roster.form.steps.${id}`)} data-tip={wrong ? t("roster.form.stepBad") : undefined} onClick={() => onPick(i)}>
+                        <button type="button" className={cls} aria-current={i === current ? "step" : undefined} aria-label={spoken} data-tip={wrong ? t("roster.form.stepBad") : name} onClick={() => onPick(i)}>
                             <span className="rn-stepbtn-no" aria-hidden="true">{wrong ? "!" : done ? <CheckIcon /> : i + 1}</span>
-                            <span className="rn-stepbtn-lbl">{t(`roster.form.steps.${id}`)}</span>
+                            <span className="rn-stepbtn-lbl">{name}</span>
                         </button>
                     </li>
                 );
@@ -297,13 +300,14 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
     const nothing = !create && !Object.keys(patch).length;
     const steps: StepId[] = ["basics", "roles", "managers", "slots", ...(create ? ["source" as const] : data ? ["loot" as const] : [])];
     const [step, setStep] = useState(0);
-    const [seen, setSeen] = useState(0);
+    // the steps really opened: only they get the check (create) or the "!" - a jump does not tick the ones skipped
+    const [visited, setVisited] = useState<number[]>([0]);
     const stepId = steps[step];
     const last = step === steps.length - 1;
     const stepBad = (id: StepId) => (id === "basics" && (nameBad || pairTaken)) || (id === "slots" && slotsBad) || (id === "source" && sourceBad);
     const goTo = (i: number) => {
         setStep(i);
-        setSeen((s) => Math.max(s, i));
+        setVisited((v) => (v.includes(i) ? v : [...v, i]));
     };
 
     const pickCategory = (id: string) => {
@@ -371,12 +375,12 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
             kicker={create ? t("roster.form.kickerNew") : t("roster.form.kickerSettings")}
             title={create ? (category ? t("roster.form.titleFor", { name: category.name }) : t("roster.form.title")) : t("roster.form.settingsTitle", { name: data?.roster.name || "" })}
             width={720}
-            className="rn-dlg rn-dlg-steps"
+            className={done ? "rn-dlg" : "rn-dlg rn-dlg-steps"}
             footer={footer}
         >
             {done ? <CreatedSummary roster={done.roster} initial={done.initial} /> : (
                 <>
-                    <StepBar steps={steps} current={step} onPick={goTo} passed={(i) => create && i < seen && i !== step} bad={(id) => steps.indexOf(id) <= seen && stepBad(id)} />
+                    <StepBar steps={steps} current={step} onPick={goTo} passed={(i) => create && visited.includes(i) && i !== step} bad={(id) => visited.includes(steps.indexOf(id)) && stepBad(id)} />
 
                     {stepId === "basics" && <section className="rn-dlg-sec">
                         <h3 className="rn-lbl">{t("roster.form.basics")}</h3>

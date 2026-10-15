@@ -675,7 +675,6 @@
         "rolesHint": "The first role picked is the main role: whoever joins the roster gets it; whoever gets it in Discord is in the roster.",
         "rolePick": "{label}: pick a role",
         "rolePickPlaceholder": "Pick a role …",
-        "roleAdd": "Add",
         "removeRole": "Remove {name}",
         "roleGone": "Unknown role",
         "noRolePicked": "No role picked yet.",
@@ -741,6 +740,7 @@
         "next": "Next",
         "stepsLabel": "Steps",
         "stepBad": "Something is still missing here",
+        "stepDone": "done",
         "steps": {
             "basics": "Name",
             "roles": "Roles",

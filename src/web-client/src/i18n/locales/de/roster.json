@@ -675,7 +675,6 @@
         "rolesHint": "Die erste gewählte Rolle ist die Hauptrolle: wer ins Roster kommt, bekommt sie; wer sie im Discord bekommt, steht im Roster.",
         "rolePick": "{label}: Rolle wählen",
         "rolePickPlaceholder": "Rolle wählen …",
-        "roleAdd": "Hinzufügen",
         "removeRole": "{name} entfernen",
         "roleGone": "Unbekannte Rolle",
         "noRolePicked": "Noch keine Rolle gewählt.",
@@ -741,6 +740,7 @@
         "next": "Weiter",
         "stepsLabel": "Schritte",
         "stepBad": "Hier fehlt noch etwas",
+        "stepDone": "erledigt",
         "steps": {
             "basics": "Name",
             "roles": "Rollen",
