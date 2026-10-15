@@ -114,7 +114,7 @@ Specialised subagents come from the **claude-crew** marketplace (`mst1987/claude
 - Do **not** pass a `model` parameter when calling them — each agent's model is set in its frontmatter.
 - Agents have no channel to the user: questions come back as open points in their report, and the main session asks.
 - Everything project-specific an agent needs (commands, ports, merge policy, pitfalls) lives in the skill `.claude/skills/projektprofil/SKILL.md`, preloaded into every agent — change it there, not in agent prompts. Domain knowledge still goes to `docs/`.
-- The plugin's guard hook adds to the hooks above: it blocks non-ASCII in Bash lines, `git stash`, test runs cut with head/tail and — via `.claude/crew.json` (`hauptcheckoutGuard`) — every Edit/Write in the main checkout, git-ignored files included.
+- The plugin's guard hook adds to the hooks above: it blocks non-ASCII in Bash lines, `git stash`, test runs cut with head/tail and — via `.claude/crew.json` (`hauptcheckoutGuard`) — every Edit/Write in the main checkout; git-ignored files (`.env.dev`, `data/`) stay editable, as with `guardMainCheckout.js`.
 
 ## Architecture
 
