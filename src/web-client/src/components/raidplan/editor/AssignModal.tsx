@@ -614,12 +614,12 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
             hint={t("raidBoard.amb.hint")}
             footer={(
                 <>
-                    {onRemove && <Button variant="ghost" className="rp-amb-remove" icon={<Trash2 size={16} />} onClick={onRemove}>{t("raidBoard.amb.removeRow")}</Button>}
+                    {onRemove && <Button variant="danger" className="rp-amb-remove" icon={<Trash2 size={16} />} onClick={onRemove}>{t("raidBoard.amb.removeRow")}</Button>}
                     {AUTO_TANK_TYPES.indexOf(type) < 0 && (
                         <Switch className="rp-check rp-amb-onmap" tipHead={t("raidBoard.auto.onMapTip")} checked={!!row.onMap} onChange={(on) => set((b) => setRowOnMap(b, rowId, on))} label={<><MapPin size={15} aria-hidden="true" />{t("raidBoard.auto.onMap")}</>} />
                     )}
                     <Button variant="ghost" onClick={onClose}>{t("raidBoard.am.cancel")}</Button>
-                    <Button icon={<Check size={16} />} onClick={done}>{t("raidBoard.am.done")}</Button>
+                    <Button variant="go" icon={<Check size={16} />} onClick={done}>{t("raidBoard.am.done")}</Button>
                 </>
             )}
         >
