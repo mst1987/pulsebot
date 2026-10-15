@@ -6,8 +6,9 @@ description: Projektprofil EventHelper / PulseBot für das Agenten-Team claude-c
 # Projektprofil EventHelper / PulseBot
 
 Wegweiser mit den Werten, die ein Agent sofort braucht. Ausführlich: `CLAUDE.md` (Workflow, Tests,
-Konventionen) und das Bereichswissen in `docs/` (Index in `CLAUDE.md`). Neues Bereichswissen gehört
-nach `docs/`, nicht hierher und nicht in `CLAUDE.md`.
+Konventionen), die pfadgebundenen Regeln in `.claude/rules/` (laden beim Lesen passender Dateien) und
+das Bereichswissen in `docs/` (Index in `CLAUDE.md`). Neues Bereichswissen gehört nach `docs/`,
+dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAUDE.md`.
 
 ## Repo
 
@@ -50,7 +51,7 @@ nach `docs/`, nicht hierher und nicht in `CLAUDE.md`.
   (Ratchet in `ci.yml`, nur senken), `npm run lint:css` (Stylelint: Farben nur in `tokens.css`).
 - Wächter: `test/docs/testMirror.test.js` (jedes Backend-Modul von einem Test geladen),
   `test/docs/layering.test.js`, `test/docs/claudeMd.test.js` (Doku-Index, Pfad-Wächter, CLAUDE.md
-  ≤ 400 Zeilen/40 KB), `test/web/noCycles.test.js`, `test/web-client/conventions/` (Quelltext-Scans),
+  ≤ 180 Zeilen/12 KB, `paths:`-Frontmatter der Regeln), `test/web/noCycles.test.js`, `test/web-client/conventions/` (Quelltext-Scans),
   `test/claude-hooks/` (Hooks). `test/setup/noNetwork.js` lässt jeden echten Netzaufruf scheitern.
 - Stores in Tests über `tempStoreFile()` (`test/helpers/tempStore.js`) oder `memoryFs.js`, nie
   `os.tmpdir()`. Discord/API-Clients immer gemockt (`test/helpers/`).
@@ -141,7 +142,8 @@ nach `docs/`, nicht hierher und nicht in `CLAUDE.md`.
    `src/web/` (`layering`); kein echter Netzaufruf in Tests.
 10. Bot-Texte für Raider über `tr()` + deutschen Katalog; Client-Texte in `de` **und** `en`.
 11. Farben nur als Token, kein Gold, keine Einzel-Checkbox, jede Zahl mit Wort.
-12. Kein Bereichswissen in `CLAUDE.md` (Größengrenze) → `docs/`; neue `docs/`-Datei in den Index.
+12. Kein Bereichswissen in `CLAUDE.md` (Größengrenze) → `docs/` bzw. `.claude/rules/`; neue
+    `docs/`-Datei in den Index.
 13. Branch-Name ohne „token"/„secret"; vor jedem Nach-Push PR-Status prüfen.
 14. Kein `git stash` und kein `git add -A` neben parallelen Agenten; PowerShell-`[IO.File]` nur mit
     absoluten Pfaden (relativ schreibt in den Hauptcheckout).
