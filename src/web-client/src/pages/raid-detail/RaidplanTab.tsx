@@ -167,7 +167,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const fillBoard = useCallback((b: RaidplanBoard) => ensureBesetzung(b, besetzung, roster), [besetzung, roster]);
     const followSections = useMemo(() => (view ? view.bosses.filter((b) => !b.general && !b.defaults).map((b) => ({ key: b.key, name: b.name })) : []), [view]);
     const tankOrder = useTankOrderFollow({
-        draft, selected, version: view ? view.plan.version : 0, sections: followSections, fill: fillBoard, editAll: histEditAll, roster, canWrite: !!view && view.canWrite,
+        draft, selected, version: view ? view.plan.version : 0, sections: followSections, fill: fillBoard, editAll: histEditAll, roster, besetzung, canWrite: !!view && view.canWrite,
     });
     const choose = (key: string) => {
         tankOrder.leaving(key);

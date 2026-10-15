@@ -68,6 +68,37 @@ describe("general tank (spec role, never the class alone)", () => {
     });
 });
 
+describe("who stands in a role slot plays that role on the boss (feral druid in Tank 3)", () => {
+    // "wenn ich 2x einen Druid einweise als Tank, nimmt er immer 2x denselben": the cat was put into Tank 3 by hand, no flex role
+    const setup = [P("war", "Warrior", "tank"), P("bear", "Druid", "tank"), P("cat", "Druid", "melee"), P("prot", "Paladin", "tank")];
+    const slot = (kind, n, userId) => ({ kind, n, userId });
+    const slots = [slot("tank", 1, "war"), slot("tank", 2, "bear"), slot("tank", 3, "cat"), slot("dps", 1, "prot")];
+    it("slotRoles: a tank / healer slot sets the role, a DPS slot takes a tank out, melee / ranged slots name their kind", () => {
+        expect(cr.slotRoles(slots, setup, {})).toEqual({ war: "tank", bear: "tank", cat: "tank", prot: "dps" });
+        // the cat is melee already (nothing to add), a melee in a ranged slot is ranged there, a flex melee in a DPS slot stays one, nobody unknown
+        expect(cr.slotRoles([slot("melee", 1, "cat"), slot("dps", 2, "war"), slot("tank", 1, "ghost")], setup, { war: "melee" })).toEqual({ war: "melee" });
+        expect(cr.slotRoles([slot("ranged", 1, "cat")], setup, {})).toEqual({ cat: "ranged" });
+        expect(cr.slotRoles([], setup, { cat: "tank" })).toEqual({ cat: "tank" });
+    });
+    it("two Tank (Druide) rows take the bear and the cat in Tank 3, not the bear twice", () => {
+        const rows = [row("a", "tank", ["class:Druid:1:tank"]), row("b", "tank", ["class:Druid:2:tank"])];
+        expect(cr.expandClassRefs(rows, slots, setup, {}).map((a) => a.assignees[0])).toEqual(["user:bear", "user:cat"]);
+        // a priority row ("Druide", count 1) twice: the same
+        const prio = [row("a", "tank", [], [], { classPriority: ["Druid"], count: 1 }), row("b", "tank", [], [], { classPriority: ["Druid"], count: 1 })];
+        expect(cr.expandClassRefs(prio, slots, setup, {}).map((a) => a.assignees[0])).toEqual(["user:bear", "user:cat"]);
+        // without the slot the cat is no tank: the second place stays open (as before)
+        expect(cr.expandClassRefs(rows, slots.slice(0, 2), setup, {}).map((a) => a.assignees[0])).toEqual(["user:bear", "class:Druid:2:tank"]);
+    });
+    it("a tank put into a DPS slot is no Tank (Paladin) on this boss", () => {
+        expect(cr.expandClassRefs([row("a", "tank", ["class:Paladin:1:tank"])], slots, setup, {})[0].assignees).toEqual(["class:Paladin:1:tank"]);
+    });
+    it("the server resolves alike", () => {
+        const rows = [row("a", "tank", ["class:Druid:1:tank"]), row("b", "tank", [], [], { classPriority: ["Druid"], count: 1 }), row("c", "tank", ["class:Any:1:tank"]), row("d", "tank", ["class:Paladin:1:tank"])];
+        expect(cr.expandClassRefs(rows, slots, setup, {})).toEqual(server.expandClassRefs(rows, slots, setup, {}));
+        expect(server.slotRoles(slots, setup, {})).toEqual(cr.slotRoles(slots, setup, {}));
+    });
+});
+
 describe("the client and the server resolve alike (twins)", () => {
     const roster = [P("h1", "Hunter", "ranged"), P("h2", "Hunter", "ranged"), P("w1", "Warrior", "tank"), P("w2", "Warrior", "melee"), P("p1", "Paladin", "tank"), P("p2", "Paladin", "melee"), P("pr", "Priest", "healer"), P("d1", "Druid", "tank")];
     const cases = [

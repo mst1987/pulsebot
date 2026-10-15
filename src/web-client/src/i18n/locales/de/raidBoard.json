@@ -842,9 +842,9 @@
         "facingHint": "Tank → Boss folgt automatisch in jedem Boss: der Keil des Boss-Icons zeigt zum platzierten Tank. Allgemein hat keine Map; Tank → Boss gehört hierher, in den Standard."
     },
     "tankOrder": {
-        "title": "Tank-Reihenfolge auch für die anderen Bosse?",
-        "text": "Im Standard stehen die Tanks jetzt so: {tanks}. Bei {count} Abschnitten ist die Reihenfolge noch anders ({bosses}). Sollen sie die Reihenfolge des Standards übernehmen? Es tauschen nur die Tanks, die dort schon eingeteilt sind; Strg+Z macht es rückgängig.",
-        "textOne": "Im Standard stehen die Tanks jetzt so: {tanks}. Bei {bosses} ist die Reihenfolge noch anders. Soll er die Reihenfolge des Standards übernehmen? Es tauschen nur die Tanks, die dort schon eingeteilt sind; Strg+Z macht es rückgängig.",
+        "title": "Tanks auch für die anderen Bosse?",
+        "text": "Im Standard tanken jetzt: {tanks}. Bei {count} Abschnitten sind die Tanks noch anders ({bosses}). Sollen sie die Tanks des Standards übernehmen (Anzahl, wer, Reihenfolge)? Wer dort woanders eingeteilt ist, tauscht den Platz; wer dort bewusst eine andere Rolle spielt, bleibt. Strg+Z macht es rückgängig.",
+        "textOne": "Im Standard tanken jetzt: {tanks}. Bei {bosses} sind die Tanks noch anders. Soll er die Tanks des Standards übernehmen (Anzahl, wer, Reihenfolge)? Wer dort woanders eingeteilt ist, tauscht den Platz; wer dort bewusst eine andere Rolle spielt, bleibt. Strg+Z macht es rückgängig.",
         "action": "Für alle übernehmen",
         "cancel": "Nur im Standard"
     },

@@ -540,6 +540,25 @@ const impliedRole = (type) => (type === "heal" ? "healer" : type === "tank" || t
 const roleFits = (filter, role) => (!filter ? true : filter === "dps" ? role !== "tank" && role !== "healer" : role === filter);
 
 /**
+ * The roles of a board as the class references read them: the flex roles, and on top who stands in a role slot of the Besetzung plays
+ * that role on this boss - a feral druid put into "Tank 3" by hand tanks here (no flex role is stored for that), a tank put into a DPS
+ * slot does not. Client twin: lib/raidplan/classRefs.ts slotRoles.
+ */
+function slotRoles(slots, roster, roles) {
+    const out = { ...(roles || {}) };
+    const byId = new Map((roster || []).map((p) => [p.userId, p]));
+    for (const s of slots || []) {
+        const p = s.userId ? byId.get(s.userId) : null;
+        if (!p) continue;
+        const now = out[p.userId] || p.role;
+        if (s.kind === "tank" || s.kind === "healer") out[p.userId] = s.kind;
+        else if ((s.kind === "melee" || s.kind === "ranged") && now !== s.kind) out[p.userId] = s.kind;
+        else if (s.kind === "dps" && (now === "tank" || now === "healer")) out[p.userId] = "dps";
+    }
+    return out;
+}
+
+/**
  * The raiders a class reference can mean, in setup order: the players of the class whose spec role (a flex role on this boss wins)
  * passes the role filter — the reference's own role, else the one the task implies. "Any" = every raider of that role; without
  * any role it means nobody (the class alone would be a guess).
@@ -657,9 +676,11 @@ function boardContext(list, slots, roles = {}) {
  * "Hunter missing"), never a player of another class or role. `allowMulti` on the row lets it repeat a raider instead.
  * Same length and order as the input, so a chip can be matched to its reference by index.
  */
-function expandClassRefs(assignments, slots, roster, roles = {}) {
+function expandClassRefs(assignments, slots, roster, flexRoles = {}) {
     const list = assignments || [];
     if (!list.some((a) => a.assignees.some((r) => r.startsWith("class:")) || a.targets.some((t) => t.kind === "class") || classPriorityOf(a).length > 0)) return list;
+    // who stands in a tank / healer slot of this boss plays that role here, flex role or not
+    const roles = slotRoles(slots, roster, flexRoles);
     const byId = new Map(roster.map((p) => [p.userId, p]));
     const used = {};
     const usedAt = {};
@@ -796,7 +817,7 @@ module.exports = {
     cleanAssignments, reidAssignments, expandClassRefs, targetsToAssignments, suggest,
     // only for the tests (#424): not part of the module's API
     // the ranking of candidates (#501): twin of lib/raidplan/classRefs.ts
-    PREFERRED_ROLES, RANK_POINTS, playerRole, scoreCandidate, rankCandidates, withoutMisfits, boardContext,
+    PREFERRED_ROLES, RANK_POINTS, playerRole, scoreCandidate, rankCandidates, withoutMisfits, boardContext, slotRoles,
     _internal: {
         impliedRole, mobInstance, renumberClassRefs, classesFor, rowCount, classPriorityOf, MAX_COUNT,
     },

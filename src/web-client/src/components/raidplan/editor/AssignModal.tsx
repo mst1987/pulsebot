@@ -8,7 +8,7 @@ import RoleGlyph from "../RoleGlyph";
 import { PlayerName, TokenIcon } from "../PlanBoard";
 import { type FlyItem } from "../../../lib/raidplan/flyout";
 import { ROLE_REFS, CLASS_IDS, classIdsOf, classIconOf, classPlaceNameFor, classRefLabelFor, classesForType, iconForTask, moveAssignee, patchAssignment, quickTexts, resolveAssignee, resolveTarget, toggleAssignee, toggleTarget, type AssignCtx } from "../../../lib/raidplan/assign";
-import { ANY, ANY_SPEC, CLASS_COLOR, PREFERRED_ROLES, TANK_CLASSES, TANK_SPEC_CLASSES, TANK_TYPES, boardContext, candidatesOf, rankCandidates, defaultClassRole, effectiveRole, storedRole, classGroups, expandClassRefs, impliedRole, isClassRef, parseClassRef, pickKey, refsOfClass, setClassCount, setClassRole, MAX_COUNT, classPriorityOf, hasPriority, movePriorityClass, rowCount, setPriority, setRowCount, toPriority, togglePriorityClass } from "../../../lib/raidplan/classRefs";
+import { ANY, ANY_SPEC, CLASS_COLOR, PREFERRED_ROLES, TANK_CLASSES, TANK_SPEC_CLASSES, TANK_TYPES, boardContext, candidatesOf, rankCandidates, defaultClassRole, effectiveRole, storedRole, classGroups, expandClassRefs, impliedRole, isClassRef, parseClassRef, pickKey, refsOfClass, setClassCount, setClassRole, MAX_COUNT, classPriorityOf, hasPriority, movePriorityClass, rowCount, setPriority, slotRoles, setRowCount, toPriority, togglePriorityClass } from "../../../lib/raidplan/classRefs";
 import { BAR_SLOTS, CLASS_ROLE_CHOICES, PEOPLE_TABS, categoriesFor, chosenCounts, chosenKeys, classCount, filterPeople, nextSlot, peopleEntries, peopleGroups, previewLines, previewText, type PeopleEntry } from "../../../lib/raidplan/assignModal";
 import { bindClassesToSlots, effectiveClasses, slotClassesOfRow } from "../../../lib/raidplan/rosterAssign";
 import { AUTO_TANK_TYPES, mobCountOf, mobIconsOf, mobInstanceOf, setMobCount, setMobInstance, setRowOnMap } from "../../../lib/raidplan/autoPlace";
@@ -84,8 +84,10 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
     });
     const byId = useMemo(() => players || new Map(roster.map((p) => [p.userId, p])), [players, roster]);
     const filledAll = useMemo(() => expandClassRefs(tmp.assignments, tmp.slots, roster, tmp.roles), [tmp.assignments, tmp.slots, roster, tmp.roles]);
+    // the roles as the class references read them: who stands in a tank slot tanks here (a feral druid in "Tank 3")
+    const rolesHere = useMemo(() => slotRoles(tmp.slots, roster, tmp.roles), [tmp.slots, roster, tmp.roles]);
     // what the ranking knows of the OTHER rows (who tanks, who has how many tasks): the candidates of a class show in its order (#501)
-    const rankCtx = useMemo(() => boardContext(filledAll.filter((a) => a.id !== rowId), tmp.slots, tmp.roles), [filledAll, rowId, tmp.slots, tmp.roles]);
+    const rankCtx = useMemo(() => boardContext(filledAll.filter((a) => a.id !== rowId), tmp.slots, rolesHere), [filledAll, rowId, tmp.slots, rolesHere]);
     const row = tmp.assignments.find((a) => a.id === rowId);
     if (!row) return null;
     const spells = spellOptions(row);
@@ -300,7 +302,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
                 const res = target ? filled.targets[idx] : null;
                 const now = target ? (res && res.kind === "player" ? res.ref : "") : ((filled.assignees[idx] || "").indexOf("user:") === 0 ? filled.assignees[idx].slice(5) : "");
                 const manual = (row.picks || {})[key] || "";
-                const pool = target ? candidatesOf(ref, type, roster, tmp.roles) : rankCandidates(row, candidatesOf(ref, type, roster, tmp.roles), rankCtx);
+                const pool = target ? candidatesOf(ref, type, roster, rolesHere) : rankCandidates(row, candidatesOf(ref, type, roster, rolesHere), rankCtx);
                 const q = parseClassRef(ref) || { classId: "", role: "" };
                 return (
                     <div key={ref} className="rp-amb-resline">
@@ -355,7 +357,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
                 <div className="rp-amb-grid rp-amb-grid-class">
                     {CLASS_IDS.map((c) => {
                         const pos = list.indexOf(c);
-                        const n = classCount(roster, c, countRole(c), tmp.roles);
+                        const n = classCount(roster, c, countRole(c), rolesHere);
                         const none = roster.length > 0 && n === 0;
                         const label = t(`wow.class.${c}`);
                         return (
@@ -447,7 +449,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
                                     <button key={c} type="button" className={`rp-amb-tile rp-amb-class${on ? " is-on" : ""}`} aria-pressed={on} style={{ ["--cc" as string]: CLASS_COLOR[c] }} onClick={() => setCount(c, "tank", on ? 0 : 1, false)}>
                                         {c !== ANY && <Shield size={14} aria-hidden="true" className="rp-amb-shield" />}<ClassRefIcon classId={c} role={"tank"} size={20} />
                                         <span className="rp-amb-cname">{c === ANY ? t("raidBoard.class.anyTank") : t(`wow.class.${c}`)}</span>
-                                        {roster.length > 0 && <span className="rp-amb-cnt" data-tip={t("raidBoard.amb.classCountTip")}>{classCount(roster, c, "tank", tmp.roles)}</span>}
+                                        {roster.length > 0 && <span className="rp-amb-cnt" data-tip={t("raidBoard.amb.classCountTip")}>{classCount(roster, c, "tank", rolesHere)}</span>}
                                         {on && <Check size={14} className="rp-amb-check" aria-hidden="true" />}
                                     </button>
                                 );
@@ -459,7 +461,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
                 <div className={`rp-amb-grid rp-amb-grid-class${impliedTank ? " is-six" : ""}`}>
                     {classTiles.map((c) => {
                         const on = groups.some((g) => g.classId === c && !(tankRow && g.role === "tank"));
-                        const n = classCount(roster, c, countRole(c), tmp.roles);
+                        const n = classCount(roster, c, countRole(c), rolesHere);
                         const none = roster.length > 0 && n === 0;
                         const label = impliedTank ? t("raidBoard.class.classTank", { cls: t(`wow.class.${c}`) }) : t(`wow.class.${c}`);
                         return (

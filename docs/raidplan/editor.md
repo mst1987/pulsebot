@@ -305,7 +305,11 @@ the icons that are imported end up in the bundle, about 10 KB), as inline SVG co
   `special`: `TANK_TYPES`) offer "Beliebiger Tank", "Tank (Krieger)" (`class:Warrior:n:tank`), "Tank
   (Paladin)", "Tank (Druide)" in their own block of the row dialog (right column) with the same count chips.
   The pool is the setup's tanks (flex role on the boss counts): a retribution paladin or feral druid is never
-  a "Tank (Paladin/Druide)". Several tank rows go round the tanks; a named class is served before "Any", so
+  a "Tank (Paladin/Druide)" - unless he stands in a tank slot of that boss's Besetzung: who stands in a role
+  slot plays that role there (`slotRoles`, both twins, applied in `expandClassRefs` and the row dialog's
+  candidates and counts; a tank put into a DPS slot is no tank there). Putting somebody into a slot by hand
+  (`assignSlot`) stores no flex role, so before Oct 2026 a cat druid in "Tank 3" was no "Tank (Druide) 2" and a
+  priority row took the bear twice. Several tank rows go round the tanks; a named class is served before "Any", so
   "any tank" never takes the one warrior tank a "Tank (Krieger)" row needs.
 - **Migration.** `renumberClassRefs` runs at the start of `cleanAssignments` (every save, template save and
   template apply): a reference whose number an earlier one of the same task, class and role already has gets
