@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import type { CollectionEditor } from "../../lib/ui/collectionEditor";
 import { useT } from "../../i18n";
+import { Button } from "./Button";
+import { ArrowLeftIcon, PlusIcon } from "./icons";
 
 // The two halves of a "list of things you can edit" section, so all of them
 // look and behave the same: a heading row carrying the section's title and its
@@ -28,7 +30,7 @@ export function ListHeader({ title, note, newLabel, onNew }: {
                 {title && <h2>{title}</h2>}
                 {note && <p className="note">{note}</p>}
             </div>
-            <button className="btn" type="button" onClick={onNew}>{newLabel}</button>
+            <Button icon={<PlusIcon />} onClick={onNew}>{newLabel}</Button>
         </div>
     );
 }
@@ -46,7 +48,7 @@ export function EditorPanel({ title, backLabel, onClose, children }: {
         <>
             <div className="list-head">
                 <div className="list-head-text"><h2>{title}</h2></div>
-                <button className="btn btn-ghost" type="button" onClick={onClose}>← {backLabel ?? t("list.back")}</button>
+                <Button variant="ghost" icon={<ArrowLeftIcon />} onClick={onClose}>{backLabel ?? t("list.back")}</Button>
             </div>
             {children}
         </>

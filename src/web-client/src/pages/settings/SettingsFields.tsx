@@ -2,7 +2,7 @@ import { useState } from "react";
 import { searchSettingsItems, type TopItem, type TextChannel } from "../../api";
 import ItemSearchPicker from "../../components/loot/ItemSearchPicker";
 import { itemQualityProps } from "../../lib/wow/itemQuality";
-import { XIcon } from "../../components/ui/icons";
+import { XIcon, PlusIcon } from "../../components/ui/icons";
 import { ChannelPicker } from "../../components/settings/settingsUi";
 import { FieldLabel } from "../../components/ui/Field";
 import Chip from "../../components/ui/Chip";
@@ -77,7 +77,7 @@ export function ChannelListField({ ids, channels, onChange }: {
                 <div className="inline-add">
                     <input type="text" className="mono" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={t("settings.ui.channelIdPlaceholder")}
                         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(typed); setTyped(""); } }} />
-                    <Button variant="ghost" onClick={() => { add(typed); setTyped(""); }} disabled={!typed.trim()}>{t("common.add")}</Button>
+                    <Button variant="ghost" icon={<PlusIcon />} onClick={() => { add(typed); setTyped(""); }} disabled={!typed.trim()}>{t("common.add")}</Button>
                 </div>
             )}
         </>

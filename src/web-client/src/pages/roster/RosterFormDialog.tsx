@@ -23,7 +23,7 @@ import { useContentVersion } from "../../hooks/useContentVersion";
 import { useT } from "../../i18n";
 import { AsyncView, Button, Field, Modal, Segment, Switch, WowIcon, buttonClass, useConfirm } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { TrashIcon } from "../../components/ui/icons";
+import { TrashIcon, PlusIcon, SaveIcon } from "../../components/ui/icons";
 import { errorText, roleCodeText } from "../../lib/roster/rosterEdit";
 import { ROLE_ICONS } from "../../lib/roster/rosters";
 import { Notice, Stepper } from "./RosterParts";
@@ -304,7 +304,7 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
         <>
             {!create && admin && <Button variant="danger" icon={<TrashIcon />} className="rn-foot-left" running={busy === "delete"} onClick={remove}>{t("roster.form.delete")}</Button>}
             <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-            <Button disabled={slotsBad || sourceBad || nameBad || nothing || pairTaken} running={busy === "save"} onClick={submit}>{create ? t("roster.form.create") : t("roster.form.save")}</Button>
+            <Button variant={create ? "primary" : "go"} icon={create ? <PlusIcon /> : <SaveIcon />} disabled={slotsBad || sourceBad || nameBad || nothing || pairTaken} running={busy === "save"} onClick={submit}>{create ? t("roster.form.create") : t("roster.form.save")}</Button>
         </>
     );
 

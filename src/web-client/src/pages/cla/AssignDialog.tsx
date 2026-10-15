@@ -47,7 +47,7 @@ export function AssignDialog({ row, onClose, onAssign, onUnlink }: {
                         <Button variant="danger" icon={<TrashIcon />} className="la-foot-left" onClick={() => onUnlink(row)}>{t("cla.assign.unlink")}</Button>
                     )}
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon="inv_misc_note_02" disabled={!picked || picked === row.eventId} onClick={() => onAssign(row, picked)}>{t("cla.assign.submit")}</Button>
+                    <Button variant="go" icon="inv_misc_note_02" disabled={!picked || picked === row.eventId} onClick={() => onAssign(row, picked)}>{t("cla.assign.submit")}</Button>
                 </>
             )}
         >

@@ -444,7 +444,7 @@ export default function RaiderDialog({
 
                 <div className="dlg-foot lc-dlg-foot">
                     {canWrite ? (
-                        <Button variant="danger" size="sm" icon={<AbsenceIcon />} running={busy.has(`exclude:${r.character}`)} onClick={() => onExclude(r.character)}>
+                        <Button variant="no" size="sm" icon={<AbsenceIcon />} running={busy.has(`exclude:${r.character}`)} onClick={() => onExclude(r.character)}>
                             {t("lootcouncil.page.excludeAction")}
                         </Button>
                     ) : null}

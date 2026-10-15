@@ -150,7 +150,7 @@ function OrgaViews({ user, view, patch, viewSwitch, onAttendance }: {
             <Head lead={t("absences.lead")}>
                 {viewSwitch}
                 {data.canEdit && (
-                    <Button icon={<AbsenceIcon />} disabled={!canEnter} onClick={() => enter(null)}>{t("absences.enter")}</Button>
+                    <Button variant="no" icon={<AbsenceIcon />} disabled={!canEnter} onClick={() => enter(null)}>{t("absences.enter")}</Button>
                 )}
             </Head>
 

@@ -5,7 +5,7 @@ import Badge from "../ui/Badge";
 import Segment from "../ui/Segment";
 import CompositionEditor from "../raid/CompositionEditor";
 import { AppearanceFields, BuffPicker, InstancePicker, OverflowField, RoleRanges, SizePicker, SwitchRow } from "../raid/RaidFields";
-import { CheckIcon } from "../ui/icons";
+import { CheckIcon, SaveIcon } from "../ui/icons";
 import type { TemplateMode } from "./createHelpers";
 import type { RaidCreateForm } from "./useRaidCreateForm";
 
@@ -47,7 +47,7 @@ export function RaidStep({ f }: { f: RaidCreateForm }) {
                     )}
                     <span className="re-tpl-acts">
                         <Button variant="ghost" size="sm" onClick={() => template.setOpen(false)}>{t("common.cancel")}</Button>
-                        <Button size="sm" running={template.saving} disabled={!!problem || (template.mode === "new" && !template.name.trim())} onClick={template.save}>{t("common.save")}</Button>
+                        <Button size="sm" variant="go" icon={<SaveIcon />} running={template.saving} disabled={!!problem || (template.mode === "new" && !template.name.trim())} onClick={template.save}>{t("common.save")}</Button>
                     </span>
                 </div>
             )}

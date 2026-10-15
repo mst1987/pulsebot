@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { setRaidLootSystem, type ApiError, type LootSystemKey } from "../../../api";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
+import { SaveIcon } from "../../../components/ui/icons";
 import Segment from "../../../components/ui/Segment";
 import { SwitchRow } from "../../../components/raid/RaidFields";
 import { useToast } from "../../../components/shell/Jobs";
@@ -71,7 +72,7 @@ export default function LootSystemModal({ ctx, open, onClose }: { ctx: RaidCtx; 
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button onClick={save} running={busy}>{t("common.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} onClick={save} running={busy}>{t("common.save")}</Button>
                 </>
             )}
         >

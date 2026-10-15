@@ -24,7 +24,7 @@ import { InfoTip } from "../../components/ui/Field";
 import Switch from "../../components/ui/Switch";
 import RoleGlyph from "../../components/raidplan/RoleGlyph";
 import CompositionEditor from "../../components/raid/CompositionEditor";
-import { MinusIcon, PlusIcon } from "../../components/ui/icons";
+import { MinusIcon, PlusIcon, SaveIcon } from "../../components/ui/icons";
 import { InstancePicker, SizePicker } from "../../components/raid/RaidFields";
 import PlanBoard from "../../components/raidplan/PlanBoard";
 import { formatDate } from "../../lib/format";
@@ -221,7 +221,7 @@ function TemplateList({ templates, version, versionOf, guilds, canWrite, isNew, 
             <PageHead
                 icon="inv_misc_map02" tone="raids" kicker={t("planTemplates.kicker")} title={t("planTemplates.title")}
                 meta={<Badge count>{templates.length}</Badge>}
-                action={canWrite ? <Button onClick={onNew}>{t("planTemplates.new")}</Button> : undefined}
+                action={canWrite ? <Button icon={<PlusIcon />} onClick={onNew}>{t("planTemplates.new")}</Button> : undefined}
             />
             <p className="rp-muted">{t("planTemplates.intro")}</p>
 
@@ -230,7 +230,7 @@ function TemplateList({ templates, version, versionOf, guilds, canWrite, isNew, 
                     <WowIcon name="inv_misc_map02" size={40} />
                     <strong>{version ? t("planTemplates.noneOfVersion", { version: version.short }) : t("planTemplates.emptyTitle")}</strong>
                     <p className="rp-muted">{t("planTemplates.empty")}</p>
-                    {canWrite && <Button onClick={onNew}>{t("planTemplates.new")}</Button>}
+                    {canWrite && <Button icon={<PlusIcon />} onClick={onNew}>{t("planTemplates.new")}</Button>}
                 </div>
             ) : (
                 <>
@@ -394,7 +394,7 @@ export function FieldsModal({ title, initial, version, guilds, onClose, onSave }
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("raidBoard.profile.cancel")}</Button>
-                    <Button disabled={!ok} running={busy} onClick={async () => { setBusy(true); try { await onSave({ ...f, name: f.name.trim() }); } finally { setBusy(false); } }}>{t("raidBoard.profile.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} disabled={!ok} running={busy} onClick={async () => { setBusy(true); try { await onSave({ ...f, name: f.name.trim() }); } finally { setBusy(false); } }}>{t("raidBoard.profile.save")}</Button>
                 </>
             )}
         >

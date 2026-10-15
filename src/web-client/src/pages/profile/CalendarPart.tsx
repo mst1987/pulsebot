@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createCalendarToken, revokeCalendarToken, type ApiError, type CalendarToken, type CalendarTokens } from "../../api";
 import { Badge, Button, IconButton, RaidLoader, useConfirm } from "../../components/ui";
 import { useToast } from "../../components/shell/Jobs";
-import { TrashIcon, CopyIcon, CheckIcon } from "../../components/ui/icons";
+import { TrashIcon, CopyIcon, CheckIcon, PlusIcon } from "../../components/ui/icons";
 import { formatDate } from "../../lib/format";
 import { useT } from "../../i18n";
 
@@ -88,7 +88,7 @@ export function CalendarPart({ data, onChange }: {
                             {token.lastUsedAt ? t("profile.cal.lastUsed", { date: formatDate(token.lastUsedAt) }) : t("profile.cal.neverUsed")}
                         </span>
                     </span>
-                    <IconButton icon={<TrashIcon />} tip={t("profile.cal.revoke")} onClick={() => revoke(token)} />
+                    <IconButton icon={<TrashIcon />} tone="danger" tip={t("profile.cal.revoke")} onClick={() => revoke(token)} />
                 </div>
             ))}
 
@@ -96,7 +96,7 @@ export function CalendarPart({ data, onChange }: {
                 ? <p className="pf-muted pf-err">{t("profile.cal.noBaseUrl")}</p>
                 : (
                     <Button
-                        variant="ghost"
+                        icon={<PlusIcon />}
                         onClick={create}
                         disabled={busy || data.tokens.length >= data.max}
                     >

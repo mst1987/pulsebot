@@ -8,6 +8,7 @@ import MoreMenu from "./MoreMenu";
 import NamingBadge from "./NamingBadge";
 import { bulkChanges, KEEP, placeholderHint, SLOWMODE_OPTIONS, slowmodeLabel } from "../../lib/discord/channels";
 import { tParts, useT } from "../../i18n";
+import { CheckIcon } from "../ui/icons";
 
 // Several channels at once (issue #259): the bar that appears at the bottom as
 // soon as something is selected, the "only what you change" edit dialog behind
@@ -98,7 +99,7 @@ export function BulkEditDialog({ channels, data, focus, onClose, onApply }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button type="submit" form="kn-bulk" disabled={!n}>{t("common.apply")}</Button>
+                    <Button type="submit" form="kn-bulk" variant="go" icon={<CheckIcon />} disabled={!n}>{t("common.apply")}</Button>
                 </>
             )}
         >
@@ -179,7 +180,7 @@ export function RenameSchemaDialog({ channels, data, onClose, onApply }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button disabled={!todo.length} onClick={() => onApply(todo)}>{tParts("channels.bulk.renameSubmit", { count: todo.length })}</Button>
+                    <Button variant="go" icon={<CheckIcon />} disabled={!todo.length} onClick={() => onApply(todo)}>{tParts("channels.bulk.renameSubmit", { count: todo.length })}</Button>
                 </>
             )}
         >

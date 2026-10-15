@@ -222,7 +222,7 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
             footer={canWrite ? (
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon={<SaveIcon />} disabled={busy || !allValid || !!conflict} onClick={() => void save()}>{t("common.apply")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} disabled={busy || !allValid || !!conflict} onClick={() => void save()}>{t("common.apply")}</Button>
                 </>
             ) : <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}
         >

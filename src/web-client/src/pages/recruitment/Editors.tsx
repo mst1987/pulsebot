@@ -2,7 +2,7 @@ import { useState } from "react";
 import { saveRecruitmentTemplate, updateRecruitmentPost, type ApiError, type RecruitmentData, type RecruitmentTemplate, type RecruitmentPost } from "../../api";
 import { useDraftState } from "../../lib/ui/persistedState";
 import { messageLink } from "../../lib/discord/discordLinks";
-import { ExternalIcon } from "../../components/ui/icons";
+import { ExternalIcon, SaveIcon, PlusIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
@@ -62,7 +62,7 @@ export function TemplateEditor({ data, template, postedIn, onSaved, onClose }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={cancel}>{t("common.cancel")}</Button>
-                    <Button type="submit" form="rc-template-form" running={busy}>{template ? t("common.save") : t("recruitment.editor.createTemplate")}</Button>
+                    <Button type="submit" form="rc-template-form" variant={template ? "go" : "primary"} icon={template ? <SaveIcon /> : <PlusIcon />} running={busy}>{template ? t("common.save") : t("recruitment.editor.createTemplate")}</Button>
                 </>
             )}
         >
@@ -135,7 +135,7 @@ export function PostEditor({ data, post, templateName, onSaved, onClose }: {
                 <>
                     <Button variant="ghost" icon={<ExternalIcon />} onClick={() => openExternal(messageLink(post.guildId, post.channelId, post.messageId))}>{t("recruitment.posts.openInDiscord")}</Button>
                     <Button variant="ghost" onClick={() => { clearDraft(); onClose(); }}>{t("common.cancel")}</Button>
-                    <Button type="submit" form="rc-post-form" running={busy}>{t("recruitment.editor.saveAndUpdate")}</Button>
+                    <Button type="submit" form="rc-post-form" variant="go" icon={<SaveIcon />} running={busy}>{t("recruitment.editor.saveAndUpdate")}</Button>
                 </>
             )}
         >

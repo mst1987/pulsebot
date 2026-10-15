@@ -44,6 +44,7 @@ import VersionFeaturesCard from "./VersionFeaturesCard";
 import VersionLaunchCard from "./VersionLaunchCard";
 import { withDisabled } from "../../lib/settings/versionFeatures";
 import { useContentVersion } from "../../hooks/useContentVersion";
+import { XIcon, SaveIcon } from "../../components/ui/icons";
 
 /** A module's fields on the panel card, each hint moved into its label's tooltip. */
 function ModuleCard({ children }: { children: ReactNode }) {
@@ -604,8 +605,8 @@ export default function SettingsPage() {
                             {changes.slice(0, 2).join(", ")}{changes.length > 2 ? ` +${changes.length - 2}` : ""}
                         </span>
                         <span className="grow" />
-                        <Button variant="ghost" onClick={() => setDraft(toDraft(data.config))} disabled={saving}>{t("common.discard")}</Button>
-                        <Button onClick={submit} disabled={saving}>{saving ? t("settings.saving") : t("common.save")}</Button>
+                        <Button variant="no" icon={<XIcon />} onClick={() => setDraft(toDraft(data.config))} disabled={saving}>{t("common.discard")}</Button>
+                        <Button variant="go" icon={<SaveIcon />} onClick={submit} disabled={saving}>{saving ? t("settings.saving") : t("common.save")}</Button>
                     </div>
                 )}
                 {deactivating && (
