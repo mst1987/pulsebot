@@ -3,9 +3,12 @@ import WowIcon from "./WowIcon";
 import { classIconName } from "../../lib/roster/rosterView";
 import { classLabel } from "../../lib/wow/wowNames";
 import { t } from "../../i18n";
-import { RAID_CONTENTS } from "../../lib/wow/raidIcons";
+import { pickBoss, type LoaderBoss } from "../../lib/wow/loaderBosses";
+import { useContentVersion } from "../../hooks/useContentVersion";
+import { readLastVersion } from "../../lib/app/contentVersion";
 
-// The one loading state of the menu: four classes going at a TBC raid boss.
+// The one loading state of the menu: four classes going at a raid boss of the
+// game version the menu shows (no Lady Vashj in the Forever part).
 // "Lade…" in grey said nothing and looked like a dead page; this says the same
 // thing in the game's own vocabulary, and it is the SAME everywhere — the page
 // bodies, the overlay of a long operation and the Loot-Council all render this.
@@ -31,20 +34,6 @@ const CLASSES = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "M
 /** How many of them fight. Four fits next to the boss at phone width too. */
 const PARTY_SIZE = 4;
 
-// One end boss per raid, with the icon the rest of the menu already uses for
-// that raid (lib/wow/raidIcons.ts — those names are checked against the CDN).
-const BOSSES: { key: string; label: string }[] = [
-    { key: "kara", label: "Malchezaar" },
-    { key: "gruul", label: "Gruul" },
-    { key: "mag", label: "Magtheridon" },
-    { key: "ssc", label: "Lady Vashj" },
-    { key: "tk", label: "Kael'thas" },
-    { key: "za", label: "Zul'jin" },
-    { key: "hyjal", label: "Archimonde" },
-    { key: "bt", label: "Illidan" },
-    { key: "swp", label: "Kil'jaeden" },
-];
-
 function pickParty(): string[] {
     const pool = [...CLASSES];
     const party: string[] = [];
@@ -59,7 +48,7 @@ export const CHAIN_MS = 1500;
 /** One full beat of all the animations (1.1 s and 1.4 s) — the phase is taken modulo this. */
 const BEAT_MS = 15400;
 
-type Scene = { party: string[]; boss: { key: string; label: string } };
+type Scene = { version: string; party: string[]; boss: LoaderBoss };
 
 // The wait in progress: its scene, its last caption, how many loaders show it, when the last one left.
 let scene: Scene | null = null;
@@ -67,12 +56,17 @@ let caption = "";
 let shown = 0;
 let lastLeft = 0;
 
-/** The scene for a loader mounting now, and whether it opens a new wait. */
-function sceneNow(now: number): { scene: Scene; fresh: boolean } {
-    if (scene && (shown > 0 || now - lastLeft <= CHAIN_MS)) return { scene, fresh: false };
-    scene = { party: pickParty(), boss: BOSSES[Math.floor(Math.random() * BOSSES.length)] };
-    caption = "";
-    return { scene, fresh: true };
+/**
+ * The scene for a loader mounting now, and whether it opens a new wait. A wait
+ * that turns out to be of another version (the switch in the top bar, or the
+ * session arriving after a reload) keeps its party and draws a boss of that version.
+ */
+function sceneNow(now: number, version: string): { scene: Scene; fresh: boolean } {
+    const chained = scene !== null && (shown > 0 || now - lastLeft <= CHAIN_MS);
+    if (scene && chained && scene.version === version) return { scene, fresh: false };
+    scene = { version, party: scene && chained ? scene.party : pickParty(), boss: pickBoss(version) };
+    if (!chained) caption = "";
+    return { scene, fresh: !chained };
 }
 
 /** Forget the wait in progress (tests). */
@@ -93,10 +87,12 @@ export default function RaidLoader({ text, compact = false }: {
     /** Smaller, for a loading state inside a card instead of a whole page. */
     compact?: boolean;
 }) {
+    // before the shell knows the version (login, shell code): the one shown last in this browser
+    const { version } = useContentVersion();
     // decided once per mount: the wait's scene, its line, and where in the beat the animation stands
     const [{ party, boss, fresh, phase, line }] = useState(() => {
         const now = Date.now();
-        const pick = sceneNow(now);
+        const pick = sceneNow(now, version || readLastVersion());
         if (text) caption = text;
         return { ...pick.scene, fresh: pick.fresh, phase: -(now % BEAT_MS), line: text || caption || t("common.loading") };
     });
@@ -139,7 +135,7 @@ export default function RaidLoader({ text, compact = false }: {
                 <span className="rl-unit rl-boss">
                     <span className="rl-name">{boss.label}</span>
                     <span className="rl-icon">
-                        <WowIcon name={RAID_CONTENTS[boss.key].icon} size={compact ? 38 : 52} />
+                        <WowIcon name={boss.icon} size={compact ? 38 : 52} />
                     </span>
                 </span>
             </div>

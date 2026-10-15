@@ -2,7 +2,8 @@
 // switch is there at all, what the browser remembers, and the settings' warning list.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-    CONTENT_VERSION_KEY, canSwitch, followStep, otherUpcoming, readStoredVersion, resolveContentVersion, versionRef, writeStoredVersion,
+    CONTENT_VERSION_KEY, LAST_VERSION_KEY, canSwitch, followStep, otherUpcoming, readLastVersion, readStoredVersion, resolveContentVersion,
+    versionRef, writeLastVersion, writeStoredVersion,
 } from "./contentVersion";
 import type { ContentInfo } from "../../api/session";
 
@@ -51,6 +52,25 @@ describe("the remembered pick", () => {
         vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("blocked"); });
         expect(readStoredVersion()).toBe("");
         expect(() => writeStoredVersion("tbc", INFO)).not.toThrow();
+    });
+});
+
+describe("the version shown last", () => {
+    it("keeps the resolved version, main version included, and ignores nothing", () => {
+        expect(readLastVersion()).toBe("");
+        writeLastVersion("forever");
+        expect(localStorage.getItem(LAST_VERSION_KEY)).toBe("forever");
+        writeLastVersion("");
+        expect(readLastVersion()).toBe("forever");
+        writeLastVersion("tbc");
+        expect(readLastVersion()).toBe("tbc");
+    });
+
+    it("survives a store that throws", () => {
+        vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("blocked"); });
+        vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("blocked"); });
+        expect(readLastVersion()).toBe("");
+        expect(() => writeLastVersion("tbc")).not.toThrow();
     });
 });
 

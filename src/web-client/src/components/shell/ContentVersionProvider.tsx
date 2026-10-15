@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getSession, type ContentInfo } from "../../api/session";
 import { ContentVersionContext, type ContentVersionState } from "../../hooks/useContentVersion";
-import { EMPTY_CONTENT, readStoredVersion, resolveContentVersion, writeStoredVersion } from "../../lib/app/contentVersion";
+import { EMPTY_CONTENT, readStoredVersion, resolveContentVersion, writeLastVersion, writeStoredVersion } from "../../lib/app/contentVersion";
 import { applyVersionColors, markVersion } from "../../lib/app/versionColor";
 
 // Holds the global content version (#563) for everything inside the shell:
@@ -30,6 +30,8 @@ export default function ContentVersionProvider({ content, neutral = false, child
 
     const version = resolveContentVersion(picked, info);
     useEffect(() => { applyVersionColors(document.documentElement, info.versions); }, [info.versions]);
+    // the loading scene of the next reload draws before the session is there (RaidLoader)
+    useEffect(() => { writeLastVersion(version); }, [version]);
     useEffect(() => {
         markVersion(document.documentElement, neutral || !version ? null : version);
         return () => markVersion(document.documentElement, null);
