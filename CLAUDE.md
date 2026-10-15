@@ -104,7 +104,12 @@ Specialised subagents come from the **claude-crew** marketplace (`mst1987/claude
 |---|---|
 | `core:scout` | Before an implementation: affected files, existing building blocks, overlap with parallel work |
 | `core:wow-researcher` | Before game data (items, bosses, specs, buffs) goes into code, generated data or texts |
-| `core:implementer` | Implementation up to the commit in its own worktree (until the `eventhelper` plugin brings domain agents) |
+| `eventhelper:event-expert` | Events, sign-ups, setup, roster planner, guild bank, game versions |
+| `eventhelper:web-expert` | Web client, API permissions, raid plan, loot views — clarity first |
+| `eventhelper:discord-expert` | Slash commands, interactions, embeds, bot texts; live test on the dev Discord |
+| `eventhelper:logcheck-analyst` | Warcraft Logs, analyzers, golden master |
+| `addons:wow-api-expert` / `addons:ingame-tester` | Lua changes in the sync addon / in-game test guide and BugSack evaluation |
+| `core:implementer` | Implementation spanning several domains or without a matching domain agent |
 | `core:reviewer` | After every implementation, before the PR |
 | `core:pr-agent` | Merge `origin/main`, open the PR, watch CI, merge on green checks — **a merge deploys** |
 | `core:ui-tester` | After visible web changes, against the worktree's test instance (puppeteer) |

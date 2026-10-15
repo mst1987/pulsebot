@@ -66,6 +66,8 @@
         }
     },
     "enabledPlugins": {
-        "core@claude-crew": true
+        "core@claude-crew": true,
+        "eventhelper@claude-crew": true,
+        "addons@claude-crew": true
     }
 }

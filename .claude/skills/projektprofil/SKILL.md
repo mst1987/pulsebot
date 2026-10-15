@@ -149,6 +149,7 @@ nach `docs/`, nicht hierher und nicht in `CLAUDE.md`.
 
 ## Fach-Agenten
 
-- Geplant: Plugin `eventhelper` von claude-crew (event-expert, web-expert, discord-expert,
-  logcheck-analyst) und Plugin `addons` für das Sync-Addon (`eventhelper-addon`). Bis sie stehen,
-  setzt `core:implementer` mit diesem Profil um.
+- Aktiv: Plugin `eventhelper` von claude-crew — `event-expert`, `web-expert`, `discord-expert`,
+  `logcheck-analyst` — und Plugin `addons` für das Sync-Addon (`eventhelper-addon`) —
+  `wow-api-expert`, `ingame-tester`, `addon-release`. Fach-Agenten haben Vorrang vor
+  `core:implementer`, der nur Aufgaben über mehrere Fachgebiete übernimmt.
