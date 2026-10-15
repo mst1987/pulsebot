@@ -842,9 +842,9 @@
         "facingHint": "Tank -> boss follows automatically in every boss: the wedge of the boss icon points at the placed tank. General has no map; put tank -> boss here, in the Standard."
     },
     "tankOrder": {
-        "title": "Tank order for the other bosses too?",
-        "text": "The Standard now has the tanks in this order: {tanks}. {count} sections still have a different order ({bosses}). Should they take over the Standard's order? Only the tanks already assigned there change places; Ctrl+Z undoes it.",
-        "textOne": "The Standard now has the tanks in this order: {tanks}. {bosses} still has a different order. Should it take over the Standard's order? Only the tanks already assigned there change places; Ctrl+Z undoes it.",
+        "title": "Same tanks for the other bosses?",
+        "text": "The Standard's tanks are now: {tanks}. {count} sections still have other tanks ({bosses}). Should they take over the Standard's tanks (number, who, order)? Whoever stands in another slot there swaps places; whoever plays another role there on purpose stays. Ctrl+Z undoes it.",
+        "textOne": "The Standard's tanks are now: {tanks}. {bosses} still has other tanks. Should it take over the Standard's tanks (number, who, order)? Whoever stands in another slot there swaps places; whoever plays another role there on purpose stays. Ctrl+Z undoes it.",
         "action": "Apply to all",
         "cancel": "Standard only"
     },

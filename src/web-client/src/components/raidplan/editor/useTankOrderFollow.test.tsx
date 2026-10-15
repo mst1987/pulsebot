@@ -10,6 +10,8 @@ import { boardOf, ensureBesetzung } from "../../../lib/raidplan";
 import { DEFAULTS_KEY } from "../../../lib/raidplan/inherit";
 import { assignOrSwap } from "../../../lib/raidplan/rosterAssign";
 import { roleOrder } from "../../../lib/raidplan/tankOrder";
+import { setCount } from "../../../lib/raidplan/besetzung";
+import { assignSlot } from "../../../lib/raidplan/players";
 import { useDraftHistory } from "./useDraftHistory";
 import { useTankOrderFollow } from "./useTankOrderFollow";
 
@@ -17,9 +19,11 @@ const BES: Besetzung = { size: 10, counts: { tank: 2, healer: 2, dps: 6, melee: 
 const player = (userId: string, character: string, role: string): RaidplanPlayer => ({
     userId, character, classId: "Warrior", className: "Warrior", classColor: "", spec: "", specLabel: "", role, iconUrl: "", group: 1,
 });
-const ROSTER = [player("t1", "Bollwerk", "tank"), player("t2", "Eisenhaut", "tank"), player("h1", "Lichtblick", "healer")];
+const ROSTER = [player("t1", "Bollwerk", "tank"), player("t2", "Eisenhaut", "tank"), player("h1", "Lichtblick", "healer"), player("c1", "Fauchzahn", "melee")];
 const SECTIONS = [{ key: "bt/supremus", name: "Supremus" }, { key: "bt/akama", name: "Shade of Akama" }, { key: "bt/trash", name: "Trash" }];
 const fill = (b: RaidplanBoard) => ensureBesetzung(b, BES, ROSTER);
+/** a third tank slot in the Standard, the cat druid put into it by hand (the Besetzung chip, no flex role) */
+const thirdTank = (b: RaidplanBoard) => { const f = fill(setCount(fill(b), BES, "tank", 3, ROSTER)); return assignSlot(f, f.slots.find((s) => s.kind === "tank" && s.n === 3)!.id, "c1"); };
 /** Tank 1 <-> Tank 2, as "Besetzung zuweisen" does it */
 const swapTanks = (b: RaidplanBoard) => { const f = fill(b); return assignOrSwap(f, f.slots.find((s) => s.kind === "tank" && s.n === 1)!.id, "t2"); };
 
@@ -28,6 +32,7 @@ let api: {
     draft: Bosses;
     select: (k: string) => void;
     swapStandard: () => void;
+    thirdTank: () => void;
     save: () => Promise<Bosses | null>;
     undo: () => void;
     saved: () => void;
@@ -39,11 +44,12 @@ function Harness({ initial = {}, canWrite = true }: { initial?: Bosses; canWrite
     const [version, setVersion] = useState(1);
     const [ready, setReady] = useState(false);
     if (!ready) { h.reset(initial); setReady(true); }
-    const follow = useTankOrderFollow({ draft: h.draft, selected, version, sections: SECTIONS, fill, editAll: h.editAll, roster: ROSTER, canWrite });
+    const follow = useTankOrderFollow({ draft: h.draft, selected, version, sections: SECTIONS, fill, editAll: h.editAll, roster: ROSTER, besetzung: BES, canWrite });
     api = {
         draft: h.draft,
         select: (k) => { follow.leaving(k); setSelected(k); },
         swapStandard: () => h.edit(DEFAULTS_KEY, swapTanks),
+        thirdTank: () => h.edit(DEFAULTS_KEY, thirdTank),
         save: () => follow.beforeSave(),
         undo: h.undo,
         saved: () => setVersion((v) => v + 1),
@@ -64,14 +70,30 @@ describe("the Standard's tank order for the other bosses", () => {
         expect(tanksOf(DEFAULTS_KEY)).toEqual(["t2", "t1"]);
         expect(dialog()).toBeNull(); // not while still working in the Standard
         act(() => api!.select("bt/supremus"));
-        expect(await screen.findByText("Tank-Reihenfolge auch für die anderen Bosse?")).toBeInTheDocument();
-        expect(screen.getByText(/1\. Eisenhaut, 2\. Bollwerk/)).toHaveTextContent("Bei 3 Abschnitten ist die Reihenfolge noch anders (Supremus, Shade of Akama, Trash)");
+        expect(await screen.findByText("Tanks auch für die anderen Bosse?")).toBeInTheDocument();
+        expect(screen.getByText(/1\. Eisenhaut, 2\. Bollwerk/)).toHaveTextContent("Bei 3 Abschnitten sind die Tanks noch anders (Supremus, Shade of Akama, Trash)");
         fireEvent.click(screen.getByRole("button", { name: "Für alle übernehmen" }));
         await act(async () => {});
         for (const s of SECTIONS) expect(tanksOf(s.key)).toEqual(["t2", "t1"]);
         act(() => api!.undo());
         for (const s of SECTIONS) expect(tanksOf(s.key)).toEqual(["t1", "t2"]);
         expect(tanksOf(DEFAULTS_KEY)).toEqual(["t2", "t1"]);
+    });
+
+    it("a third tank in the Standard (2 -> 3, the cat druid by hand): every boss gets the slot and him, from his DPS slot", async () => {
+        // "wenn ich in allgemein von 2 auf 3 Tanks ändere und auf alles übernehmen will, tut er das nicht"
+        setup();
+        act(() => api!.thirdTank());
+        expect(tanksOf(DEFAULTS_KEY)).toEqual(["t1", "t2", "c1"]);
+        act(() => api!.select("bt/akama"));
+        expect(await screen.findByText(/3\. Fauchzahn/)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Für alle übernehmen" }));
+        await act(async () => {});
+        for (const s of SECTIONS) {
+            const b = fill(boardOf(api!.draft, s.key));
+            expect(roleOrder(b)).toEqual(["t1", "t2", "c1"]);
+            expect(b.slots.filter((x) => x.userId === "c1").map((x) => x.kind)).toEqual(["tank"]);
+        }
     });
 
     it("leaves the bosses as they are on 'Nur im Standard' and does not ask again for the same change", async () => {
