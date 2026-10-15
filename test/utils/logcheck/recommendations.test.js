@@ -94,6 +94,19 @@ describe("logcheck/recommendations — player rules", () => {
         expect(farin.items.find((i) => i.key === "activity.low").impact).toBe("high");
     });
 
+    it("says a problem an item has twice once, counted", () => {
+        const r = fullReport();
+        r.players[0].issues = [
+            { itemName: "Bracers", label: "leerer Sockel", severity: "medium" },
+            { itemName: "Bracers", label: "leerer Sockel", severity: "medium" },
+            { itemName: "Hood", label: "keine Verzauberung", severity: "high" },
+        ];
+        const gear = buildRecommendations(r).players.find((p) => p.name === "Farin").items.find((i) => i.key === "gear");
+        expect(gear.title).toBe("3 Gear-Probleme");
+        expect(gear.text).toBe("Gear vor dem Raid fertig machen: Bracers: 2× leerer Sockel · Hood: keine Verzauberung.");
+        expect(gear.evidence).toEqual([{ label: "Bracers", value: "2× leerer Sockel" }, { label: "Hood", value: "keine Verzauberung" }]);
+    });
+
     it("addresses a debuff to its provider class and knows when the raider was the only one", () => {
         const coe = farin.items.find((i) => i.key === "debuff.coe");
         expect(coe.text).toContain("Du warst der einzige Warlock");

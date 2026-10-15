@@ -91,8 +91,9 @@ describe("web/report/playerPage", () => {
             expect(html).toContain("Vorschau &amp; senden</button>");
             expect(html).toContain("<div class=\"raider-foot\" data-report=\"abc123def456\" data-name=\"Elun\"><span class=\"note\">2 freigegeben · 1 offen · zuletzt gesendet: ");
             expect(html).toContain("<dialog class=\"dlg send\" id=\"send-1\"");
-            // the first point opens with its text
-            expect(html).toMatch(/<details class="rec rrow-d rec-high rec-state-approved" data-key="healers\.mana" open>/);
+            // every point is an open block with its text and the labelled verdicts
+            expect(html).toContain("<div class=\"rec rec-block rec-high rec-state-approved\" data-key=\"healers.mana\">");
+            expect(html).toContain("<span class=\"lbl\">Freigegeben</span>");
             expect(kpis(html)).toEqual([
                 ["Overheal", "21 %", "300k Heilung"],
                 ["Tode", "0", undefined],

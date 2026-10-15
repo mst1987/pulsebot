@@ -814,3 +814,74 @@
 .vcard-sub { color:var(--muted); font-size:13px; margin-top:2px; }
 .raider-links { display:flex; gap:8px; flex-wrap:wrap; padding:12px 0 0; }
 @media (max-width:860px) { .topic-grid { grid-template-columns:1fr; } .bfacts { gap:16px; } .boss-table th:nth-child(5), .boss-table td:nth-child(5), .boss-table th:nth-child(6), .boss-table td:nth-child(6), .boss-table th:nth-child(7), .boss-table td:nth-child(7) { display:none; } }
+/* ---- a raider's points as open blocks (Raider-Karte, Entwurf A): items with icons, the text as it goes out, labelled verdicts ---- */
+.secs-row { display:flex; align-items:flex-end; gap:8px 16px; flex-wrap:wrap; }
+.secs-row .secs { flex:1 1 auto; }
+.secs-row .raider-links { padding:14px 0 0; }
+.rec-blocks { display:flex; flex-direction:column; gap:12px; }
+.rec-block { display:flex; flex-direction:column; gap:12px; padding:14px 16px; border:1px solid var(--line); border-radius:10px; background:var(--panel2); }
+.rec-block.rec-state-approved { border-color:color-mix(in srgb, var(--good) 45%, var(--line)); }
+.rec-block.rec-state-rejected { opacity:.62; }
+.rec-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.rec-head .rec-title { font-size:16px; font-weight:700; }
+.rec-head .rec-sub { color:var(--muted); font-size:13px; }
+.rec-head .rec-status { margin-left:auto; }
+.rec-items { display:flex; flex-direction:column; gap:6px; }
+.rec-item { display:flex; align-items:center; gap:12px; padding:8px 10px; border-radius:8px; background:var(--panel); border:1px solid var(--line-soft); }
+.ri-icon { position:relative; flex:0 0 auto; width:38px; height:38px; display:block; }
+.ri-icon img, .ri-icon .ri-none { width:38px; height:38px; border-radius:6px; border:2px solid var(--q); box-sizing:border-box; display:block; background:var(--panel3); }
+.ri-mark { position:absolute; right:-6px; bottom:-6px; width:18px; height:18px; border-radius:50%; display:grid; place-items:center; font:700 11px/1 var(--font-mono); border:2px solid var(--panel); }
+.ri-mark.bad { background:var(--high); color:#fff; }
+.ri-mark.mid { background:var(--medium); color:#1b1405; }
+.ri-main { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.ri-name { color:var(--q); font-weight:600; font-size:14.5px; text-decoration:none; overflow-wrap:anywhere; }
+a.ri-name:hover { text-decoration:underline; }
+.ri-slot { color:var(--muted); font-size:12px; }
+.ri-prob { flex:0 0 auto; display:inline-flex; align-items:center; gap:7px; padding:4px 10px 4px 5px; border-radius:6px; font-size:13px; font-weight:600; }
+.ri-prob img { width:20px; height:20px; border-radius:4px; display:block; }
+.ri-prob.bad { background:var(--high-bg); color:var(--high); }
+.ri-prob.mid { background:var(--medium-bg); color:var(--medium); }
+.ri-sock { width:16px; height:16px; margin:0 2px; border-radius:50%; border:2px dashed currentColor; box-sizing:border-box; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .ri-name { color:color-mix(in srgb, var(--q) 70%, #000); } }
+:root[data-theme="light"] .ri-name { color:color-mix(in srgb, var(--q) 70%, #000); }
+.rec-say { display:flex; flex-direction:column; gap:5px; padding:10px 12px; border-radius:8px; background:var(--panel); }
+.rec-say .kicker { margin:0; }
+.rec-say p { margin:0; font-size:14px; line-height:1.5; }
+.rec-say .rec-rule { color:var(--muted); }
+.rec-source.rule { background:var(--panel3); color:var(--muted); }
+.rec-source.own { background:var(--good-bg); color:var(--good); }
+.rec-acts { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.rec-acts .btn { min-height:38px; }
+.rec-acts .rec-yes.ok { background:var(--good); color:#0d1a08; border-color:var(--good); }
+.rec-acts .rec-no.bad { background:var(--high-bg); color:var(--high); border-color:var(--high); }
+.rec-acts .rec-plain { background:transparent; border-color:transparent; color:var(--muted); }
+.rec-acts .rec-plain:hover { color:var(--text); }
+.rec-undo { color:var(--muted); font-size:12.5px; margin-left:4px; }
+.rec-block.rec-state-open .rec-undo { display:none; }
+.rec-block .rec-edit { display:flex; flex-direction:column; gap:6px; }
+.rec-block .rec-text { width:100%; border-radius:8px; }
+.rec-block .row-btns { display:flex; gap:8px; }
+/* the card head: item icons inside the gear badge, the open points as a quiet amber chip */
+.badge.has-minis { padding-left:4px; }
+.minis { display:inline-flex; }
+.minis .mini { width:18px; height:18px; border-radius:4px; border:1px solid var(--q); box-sizing:border-box; display:block; background:var(--panel3); }
+.minis .mini + .mini { margin-left:-5px; }
+.badge.pending { background:var(--medium-bg); color:var(--medium); border-color:transparent; }
+.badge.pending .dot { width:7px; height:7px; border-radius:50%; background:currentColor; }
+/* the foot: review progress instead of "x freigegeben · y offen" */
+.rf-progress { display:flex; flex-direction:column; gap:5px; }
+.rf-count { font-size:14px; }
+.rf-bar { display:block; width:150px; height:6px; border-radius:3px; background:var(--panel3); overflow:hidden; }
+.rf-bar i { display:block; height:100%; background:var(--good); transition:width .2s; }
+.raider-foot .note { margin:0 auto 0 0; }
+/* the send dialog (Entwurf E): state in the head, items left, the DM as it arrives right */
+dialog.dlg.send { max-width:min(1000px, 96vw); width:min(1000px, 96vw); }
+.send-grid { grid-template-columns:minmax(0,1fr) 400px; }
+.send-items .kicker, .send-preview > .kicker { margin:0; }
+.send-state { flex:0 1 auto; justify-content:flex-end; }
+.send-choice { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.send-choice .kicker { margin:0; }
+.send-item .rec-item { background:var(--panel2); }
+.dm-hello { color:var(--muted); }
+.dm-items > div { overflow-wrap:anywhere; }
+@media (max-width:760px) { .send-grid { grid-template-columns:1fr; } .rec-item { flex-wrap:wrap; } .ri-prob { margin-left:50px; } .secs-row .raider-links { padding-top:8px; } }

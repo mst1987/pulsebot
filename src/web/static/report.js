@@ -71,9 +71,14 @@
         return x.name + ": " + x.approved + " Punkte · " + mappingLabel(x) + sent;
     }
 
-    /** A point's text in the DM preview, cut after 160 characters. */
+    /** A point's text in the DM preview, cut where the bot cuts it (300 characters, DM_TEXT_MAX). */
     function previewText(text) {
-        return text.length > 160 ? text.slice(0, 160) + " …" : text;
+        return text.length > 300 ? text.slice(0, 300) + " …" : text;
+    }
+
+    /** "1 von 3 Punkten geprüft" in a raider card's foot. */
+    function progressText(decided, total) {
+        return decided + " von " + total + " " + (total === 1 ? "Punkt" : "Punkten") + " geprüft";
     }
 
     /** What the send dialog says after "Per Bot senden"; `force` offers "Trotzdem erneut senden". */
@@ -126,7 +131,7 @@
     var helpers = {
         csrfFrom: csrfFrom, errorText: errorText, reportIdOf: reportIdOf, reviewState: reviewState, reviewBody: reviewBody,
         phraseBody: phraseBody, phraseDoneText: phraseDoneText, mappingLabel: mappingLabel, statusLine: statusLine,
-        previewText: previewText, sendResult: sendResult, viewTarget: viewTarget, cardVisible: cardVisible, rowVisible: rowVisible,
+        previewText: previewText, progressText: progressText, sendResult: sendResult, viewTarget: viewTarget, cardVisible: cardVisible, rowVisible: rowVisible,
         STATE_LABEL: STATE_LABEL, STATE_TONE: STATE_TONE,
     };
     if (typeof module !== "undefined" && module.exports) module.exports = helpers;
@@ -492,6 +497,23 @@
         var rj = box.querySelector("[data-review=reject]");
         if (ap) ap.classList.toggle("ok", s === "approved");
         if (rj) rj.classList.toggle("bad", s === "rejected");
+        // the labelled buttons of a raider's point: the label and the pressed state follow
+        if (ap) ap.setAttribute("aria-pressed", String(s === "approved"));
+        if (rj) rj.setAttribute("aria-pressed", String(s === "rejected"));
+        var apl = ap && ap.querySelector(".lbl");
+        if (apl) apl.textContent = s === "approved" ? "Freigegeben" : "Freigeben";
+        updateProgress(li.closest(".raider-card"));
+    }
+    /** The foot of a raider card: "n von m Punkten geprüft" and the bar, after a verdict. */
+    function updateProgress(card) {
+        var box = card && card.querySelector(".rf-progress");
+        if (!box) return;
+        var all = card.querySelectorAll(".rec-block");
+        var decided = card.querySelectorAll(".rec-block.rec-state-approved, .rec-block.rec-state-rejected").length;
+        var count = box.querySelector(".rf-count");
+        var bar = box.querySelector(".rf-bar i");
+        if (count) count.textContent = progressText(decided, all.length);
+        if (bar) bar.style.width = (all.length ? Math.round((decided / all.length) * 100) : 0) + "%";
     }
     document.addEventListener("click", function (e) {
         var b = e.target.closest("[data-review]");
@@ -536,6 +558,11 @@
                 if (a === "save") {
                     var p = li.querySelector(".rec-body");
                     if (p && body.text) p.textContent = body.text;
+                    var tag = li.querySelector(".rec-say .rec-source");
+                    if (tag && body.text) {
+                        tag.textContent = "Eigener Text";
+                        tag.className = "rec-source own";
+                    }
                 } else {
                     markState(li, box, reviewState(body.approved));
                 }

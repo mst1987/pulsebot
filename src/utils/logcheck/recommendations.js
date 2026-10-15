@@ -29,18 +29,31 @@ function finding(key, impact, title, text, evidence = []) {
 
 // ---- player rules -------------------------------------------------------
 
+/** The issues of one item with the same problem as one entry ("2× leerer Sockel"), in their order. */
+function groupedIssues(issues) {
+    const groups = new Map();
+    for (const i of issues) {
+        const key = `${i.itemName || i.slot || "?"}|${i.label}`;
+        const g = groups.get(key);
+        if (g) g.count++;
+        else groups.set(key, { item: i.itemName || i.slot || "?", name: i.itemName || "", label: i.label, count: 1 });
+    }
+    return [...groups.values()].map((g) => ({ item: g.item, name: g.name, value: g.count > 1 ? `${g.count}× ${g.label}` : g.label }));
+}
+
 function gearRules(report, name) {
     const p = (report.players || []).find((x) => x.name === name);
     const issues = (p && p.issues) || [];
     if (!issues.length) return [];
     const high = issues.filter((i) => i.severity === "high");
-    const list = issues.slice(0, 4).map((i) => `${i.itemName || i.slot || "?"}: ${i.label}`);
+    const grouped = groupedIssues(issues);
+    const list = grouped.slice(0, 4).map((g) => `${g.item}: ${g.value}`);
     return [finding(
         "gear",
         high.length ? "high" : "medium",
         `${issues.length} Gear-${issues.length === 1 ? "Problem" : "Probleme"}`,
-        `Gear vor dem Raid fertig machen: ${list.join(" · ")}${issues.length > 4 ? ` und ${issues.length - 4} weitere` : ""}.`,
-        issues.map((i) => ({ label: i.itemName || "", value: i.label })),
+        `Gear vor dem Raid fertig machen: ${list.join(" · ")}${grouped.length > 4 ? ` und ${grouped.length - 4} weitere` : ""}.`,
+        grouped.map((g) => ({ label: g.name, value: g.value })),
     )];
 }
 

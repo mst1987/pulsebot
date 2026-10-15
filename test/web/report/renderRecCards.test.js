@@ -32,8 +32,8 @@ describe("web/report/render — foldable raider cards", () => {
         const html = renderReportPage(report({ raid: {}, players: { Farin: { gear: { approved: true } } } }), admin);
         expect(html.match(/<details class="vcard raider-card"/g)).toHaveLength(2);
         expect(html).not.toMatch(/<details class="vcard raider-card"[^>]*\sopen>/);
-        // the open count is a neutral badge with words, no tone
-        expect(head(html, "Farin")).toContain("<span class=\"badge\" data-tip=\"Befunde, die noch niemand freigegeben oder verworfen hat\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_misc_note_01.jpg\" alt=\"\">1 Empfehlung offen</span>");
+        // the open count is a quiet amber chip with words; it does not move the raider into a group
+        expect(head(html, "Farin")).toContain("<span class=\"badge pending\" data-tip=\"Befunde, die noch niemand freigegeben oder verworfen hat\"><span class=\"dot\" aria-hidden=\"true\"></span>1 Punkt zu prüfen</span>");
         expect(head(html, "Farin")).toContain("<div class=\"vcard-sub\">Warlock · DPS</div>");
         // nothing stands out: exactly one badge, in the ok tone (the role is plain text in the sub line now)
         expect(head(html, "Dorn")).toContain("<span class=\"badge ok\">");

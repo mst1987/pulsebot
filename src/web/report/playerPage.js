@@ -163,7 +163,7 @@ function renderPlayerPageIn(report, idx, user) {
     const open = items.filter((x) => x.approved === null).length;
     const approved = items.filter((x) => x.approved === true).length;
     const fights = playerFights(report.timeline, name);
-    const { secs, dialogs } = raiderSections(ctx, p, idx, items, { openFirst: true });
+    const { secs, dialogs } = raiderSections(ctx, p, idx, items);
 
     const roleIcon = { tank: "inv_shield_06", healer: "spell_holy_flashheal", dps: "ability_dualwield" }[role];
     const meta = [
