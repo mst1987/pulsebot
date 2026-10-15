@@ -10,6 +10,7 @@ import {
 import { useApi } from "../../../hooks/useApi";
 import { Modal, useConfirm } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
+import { TrashIcon } from "../../../components/ui/icons";
 import Badge from "../../../components/ui/Badge";
 import Segment from "../../../components/ui/Segment";
 import WowIcon from "../../../components/ui/WowIcon";
@@ -102,9 +103,9 @@ export default function RaiderModal({ ctx, open, onClose }: { ctx: RaidCtx; open
             hint={raider && charKey === NEW ? t("raidManage.raider.hintNewChar") : t("raidManage.raider.hintDefault")}
             footer={(
                 <>
-                    {raider?.signup && <Button variant="ghost" onClick={remove} className="em-remove">{t("raidManage.raider.remove")}</Button>}
+                    {raider?.signup && <Button variant="danger" icon={<TrashIcon />} onClick={remove} className="em-remove">{t("raidManage.raider.remove")}</Button>}
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button type="submit" form="em-raider-form" icon="inv_misc_groupneedmore" running={busy} disabled={!raiderInputOk(userId, characterName, spec)}>
+                    <Button type="submit" variant="go" form="em-raider-form" icon="inv_misc_groupneedmore" running={busy} disabled={!raiderInputOk(userId, characterName, spec)}>
                         {raider?.signup ? t("raidManage.raider.change") : t("raidManage.raider.add")}
                     </Button>
                 </>

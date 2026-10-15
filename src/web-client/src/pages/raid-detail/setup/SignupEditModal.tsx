@@ -14,6 +14,7 @@ import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { roleLabel, specLabel } from "../../../lib/wow/wowNames";
 import { useT } from "../../../i18n";
 import { Button } from "../../../components/ui/Button";
+import { SaveIcon } from "../../../components/ui/icons";
 import Field from "../../../components/ui/Field";
 import { Modal } from "../../../components/ui/Modal";
 import Segment from "../../../components/ui/Segment";
@@ -117,7 +118,7 @@ export function SignupEditModal({ eventId, person, onClose, onSave }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button running={saving} disabled={!start || !pick || !pickChanged(start, pick)} onClick={save}>{t("common.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} running={saving} disabled={!start || !pick || !pickChanged(start, pick)} onClick={save}>{t("common.save")}</Button>
                 </>
             )}
         >

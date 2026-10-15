@@ -4,7 +4,7 @@ import {
     type ApiError, type BulkSignupResult, type OwnSignupRow, type SignupClass, type SignupProfile, type SignupStatus,
 } from "../../api";
 import { Badge, Button, Modal } from "../ui";
-import { CheckIcon } from "../ui/icons";
+import { CheckIcon, XIcon } from "../ui/icons";
 import { useToast } from "../shell/Jobs";
 import SignupCharacterPicks from "./SignupCharacterPicks";
 import { formatEventTime } from "../../lib/format";
@@ -78,11 +78,11 @@ export default function BulkSignupDialog({ rows, profile, classes, onClose, onDo
             width={720}
             hint={results ? undefined : t("signups.bulk.hint")}
             footer={results ? (
-                <Button onClick={onClose}>{t("common.close")}</Button>
+                <Button variant="ghost" icon={<XIcon />} onClick={onClose}>{t("common.close")}</Button>
             ) : (
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon={<CheckIcon />} disabled={!canSubmit} running={busy} onClick={submit} variant={absent ? "danger" : "primary"}>
+                    <Button icon={<CheckIcon />} disabled={!canSubmit} running={busy} onClick={submit} variant={absent ? "no" : "go"}>
                         {absent ? t("signups.bulk.signOffAll", { count: rows.length }) : t("signups.bulk.signUpAll", { count: rows.length })}
                     </Button>
                 </>

@@ -82,7 +82,7 @@ export function HintCard({ hint, canEdit, onOpen, onEnter }: {
                 </div>
             </div>
             {canEdit && (
-                <Button variant="ghost" size="sm" icon={<AbsenceIcon />} onClick={() => onEnter(hint)}>{t("absences.hint.enter")}</Button>
+                <Button variant="no" size="sm" icon={<AbsenceIcon />} onClick={() => onEnter(hint)}>{t("absences.hint.enter")}</Button>
             )}
         </section>
     );

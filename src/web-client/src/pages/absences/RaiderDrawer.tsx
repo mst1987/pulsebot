@@ -61,7 +61,7 @@ export default function RaiderDrawer({ userId, onClose, onEnter, onChanged, onAt
             {data && (
                 <div className="ab-drawer-foot">
                     {data.canEdit && (
-                        <Button icon={<AbsenceIcon />} onClick={() => onEnter(data)}>
+                        <Button variant="no" icon={<AbsenceIcon />} onClick={() => onEnter(data)}>
                             {t("absences.drawer.enterFor", { name: displayName(data) })}
                         </Button>
                     )}

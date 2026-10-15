@@ -195,7 +195,7 @@ describe("the dialogs", () => {
         const confirm = within(dialog()).getByRole("button", { name: t("raidManage.cancel.confirm") });
         await waitFor(() => expect(within(dialog()).getByText(t("raidManage.archive.none"))).toBeInTheDocument());
         expect(confirm).toBeDisabled();
-        expect(confirm.className).toMatch(/danger/);
+        expect(confirm.className).toMatch(/btn-no/);
         expect(within(dialog()).getByText(cancelSummary(2, true, false))).toBeInTheDocument();
         expect(within(dialog()).getByText("2").closest("[data-tip-sub]")).toHaveAttribute("data-tip-sub", "Anna, ben");
         await user.type(within(dialog()).getByRole("textbox"), "Zu wenige Heiler");
