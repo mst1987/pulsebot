@@ -3,6 +3,14 @@
    council parts that the history and the drop check use too. Loaded after
    feedback.css. */
 
+/* An item icon framed in its quality colour (components/loot/LootBadges.tsx
+   ItemIcon): the history, the guild bank and "Mein Profil" all show it, so it
+   lives here and not in history-loot.css (which keeps only the hand-drawn icon
+   of its latest-loot table). */
+.item-ico { width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--iqb, var(--line)); flex: 0 0 auto; background: var(--panel2); object-fit: cover; }
+.item-ico.lg { width: 40px; height: 40px; border-radius: 8px; }
+.item-ico.md { width: 34px; height: 34px; }
+
 /* ===== Hover panels: a count that opens its detail list on hover =====
    Used by the Charaktere tab's Items column and the Roster's Loot/Gear-Issues
    columns. The panel is portalled to <body> and positioned from JS (see

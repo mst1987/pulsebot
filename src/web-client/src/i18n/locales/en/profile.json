@@ -53,7 +53,13 @@
         "calendarActive": {
             "one": "{count} link active",
             "other": "{count} links active"
-        }
+        },
+        "attendance": "Your attendance",
+        "roster": "In the roster",
+        "loot": "Loot",
+        "dungeons": "Dungeon best times",
+        "loading": "loading",
+        "loadError": "could not be loaded"
     },
     "first": {
         "title": "No character yet",
@@ -233,8 +239,81 @@
     },
     "tabs": {
         "aria": "View",
-        "own": "My profile",
-        "all": "All characters"
+        "info": "My Infos",
+        "infoTip": "What belongs to you, not to a character: attendance, weekdays, wishes, note, calendar",
+        "all": "All characters",
+        "allTip": "Every character of every raider – for the orga only.",
+        "addTip": "Add another character of this game version – from the logs, via the armory or by hand.",
+        "orga": "Orga",
+        "more": "Show all tabs",
+        "noSpec": "no spec yet"
+    },
+    "info": {
+        "groupRaiding": "Raiding · for every character of the version",
+        "groupLinks": "Links",
+        "groupPrefs": "Preferences"
+    },
+    "attendance": {
+        "none": "no raid counted yet",
+        "sum": {
+            "one": "{pct} % · {attended} of {count} raid · {name}",
+            "other": "{pct} % · {attended} of {count} raids · {name}"
+        },
+        "more": {
+            "one": "+ {count} more category",
+            "other": "+ {count} more categories"
+        },
+        "open": "Open attendance"
+    },
+    "roster": {
+        "sumOther": "in the roster with another character",
+        "none": "With this character you are in no roster of this version.",
+        "since": "since {date}",
+        "trialUntil": "trial until {date}",
+        "thisChar": "with this character",
+        "otherChar": "with {names}",
+        "spec": "counts as {spec}",
+        "readOnly": "The orga sets the status – shown here for reference."
+    },
+    "loot": {
+        "sum": {
+            "one": "{count} item · last {date}",
+            "other": "{count} items · last {date}"
+        },
+        "none": "No loot for this character yet.",
+        "history": {
+            "one": "{count} item in the history",
+            "other": "All {count} items in the history"
+        },
+        "itemFallback": "Item {id}"
+    },
+    "dungeons": {
+        "badge": "LevelHelper",
+        "badgeTip": "From the LevelHelper addon",
+        "badgeSub": "The sync tool uploads runs and achievement points. Matched by name and realm.",
+        "points": "Achievement points",
+        "pointsSum": "{points} achievement points",
+        "pointsRank": "Place {rank} of {count}",
+        "pointsNone": "not read yet",
+        "medals": "Medals",
+        "medal": "{count} {medal}",
+        "runs": {
+            "one": "{count} run",
+            "other": "{count} runs"
+        },
+        "fromRuns": {
+            "one": "from {count} run",
+            "other": "from {count} runs"
+        },
+        "fastest": "Your fastest runs",
+        "record": "Guild record",
+        "place": "Place {place} in the guild",
+        "solo": "solo",
+        "withOthers": {
+            "one": "with {count} other",
+            "other": "with {count} others"
+        },
+        "open": "Open best times"
     },
     "all": {
         "loading": "Loading all characters …",

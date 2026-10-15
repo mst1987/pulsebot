@@ -21,14 +21,16 @@
 //   armory           region, realm or namespace missing in the version's settings
 //   wowheadLinks     no Wowhead path in the version's settings
 //   raidplanCatalog  no mob or spell of the catalog belongs to the version
+//   dungeonTimes     the rule set has no `dungeonTimes` (no LevelHelper addon for its client)
 //
 // The readers: the log check (logVersion.logcheckSupported and its refusal), the
 // loot council (councilContent: route, view, /council), the raid sheet
 // (sheetOffered / sheetVersionRefusal: the raid detail's planning, POST
 // /api/raids/fill, /fillsetup), softres (the raid detail, POST /api/raids/softres),
 // the armory (versionSettings.blizzardFor), the Wowhead links (versionSettings.
-// versionLinks, the guild bank's links) and the raid plan catalog (catalogEnabled:
-// the plan's catalog and the assignment suggestions). Einstellungen → Spielversion
+// versionLinks, the guild bank's links), the raid plan catalog (catalogEnabled:
+// the plan's catalog and the assignment suggestions) and the dungeon times of the
+// profile (services/characters/profileRaiding.js). Einstellungen → Spielversion
 // shows the matrix (capabilityMatrix, GET /api/settings).
 //
 // Deliberately low in the require graph (test/web/noCycles.test.js): data, the
@@ -51,6 +53,7 @@ const FEATURE_NAMES = Object.freeze({
     armory: "Armory-Abruf",
     wowheadLinks: "Wowhead-Links",
     raidplanCatalog: "Raidplan-Katalog",
+    dungeonTimes: "Dungeon-Bestzeiten",
 });
 
 // A rule set without `councilContent` has none of the council's content data.
@@ -159,6 +162,8 @@ const POSSIBLE = {
     wowheadLinks: (id, config) => (blockOf(id, config).wowheadPath
         ? YES : no("no_wowhead_path", `Für ${labelOf(id)} ist kein Wowhead-Pfad eingetragen.`)),
     raidplanCatalog: (id) => (catalogHasEntries(id) ? YES : no("no_catalog_entries", `Der Raidplan-Katalog hat keine Einträge für ${labelOf(id)}.`)),
+    dungeonTimes: (id) => (rulesFor(id) && rulesFor(id).dungeonTimes
+        ? YES : no("no_dungeon_times", `Für ${labelOf(id)} gibt es keine Dungeon-Bestzeiten (kein LevelHelper).`)),
 };
 
 /** The German hint of a feature switched off for a version. */
@@ -176,7 +181,7 @@ function disabledMessage(versionId, feature) {
  *   `reason` "" when on, "disabled" when switched off, else why it is not possible
  *   ("unknown_version", "no_rules", "rules_not_ready", "no_site", "no_bis_data", "no_sim_data",
  *   "no_sheet_layout", "no_softres_edition", "armory_not_configured", "no_wowhead_path",
- *   "no_catalog_entries", "unknown_feature"); `message` the German text for it; `also` further reasons
+ *   "no_catalog_entries", "no_dungeon_times", "unknown_feature"); `message` the German text for it; `also` further reasons
  *   the matrix names beside it (logcheck: rules not ready and no Warcraft-Logs site)
  */
 function featureState(versionId, feature, { config } = {}) {
