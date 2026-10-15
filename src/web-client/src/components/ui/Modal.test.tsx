@@ -79,6 +79,18 @@ describe("useConfirm — the page's own dialog instead of window.confirm", () =>
         expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 
+    it("colours the confirming button by its meaning: red for a delete", async () => {
+        const { dialog } = await askOnce();
+        expect(within(dialog).getByRole("button", { name: "Löschen" })).toHaveClass("btn-danger");
+    });
+
+    it("confirms a positive step with a green button and a tick", async () => {
+        const { dialog } = await askOnce({ title: "Übernehmen?", action: "Übernehmen", tone: "go" });
+        const btn = within(dialog).getByRole("button", { name: "Übernehmen" });
+        expect(btn).toHaveClass("btn-go");
+        expect(btn.querySelector("svg")).not.toBeNull();
+    });
+
     it("never preselects the destructive button: the focus is on Abbrechen", async () => {
         const { dialog } = await askOnce();
         expect(within(dialog).getByRole("button", { name: t("common.cancel") })).toHaveFocus();
