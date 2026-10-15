@@ -28,8 +28,9 @@
 // (sheetOffered / sheetVersionRefusal: the raid detail's planning, POST
 // /api/raids/fill, /fillsetup), softres (the raid detail, POST /api/raids/softres),
 // the armory (versionSettings.blizzardFor), the Wowhead links (versionSettings.
-// versionLinks, the guild bank's links) and the raid plan catalog (catalogEnabled:
-// the plan's catalog and the assignment suggestions). Einstellungen → Spielversion
+// versionLinks, the guild bank's links), the raid plan catalog (catalogEnabled:
+// the plan's catalog and the assignment suggestions) and the dungeon times of the
+// profile (services/characters/profileRaiding.js). Einstellungen → Spielversion
 // shows the matrix (capabilityMatrix, GET /api/settings).
 //
 // Deliberately low in the require graph (test/web/noCycles.test.js): data, the
