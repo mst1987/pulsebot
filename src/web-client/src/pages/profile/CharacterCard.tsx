@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { GameClass, GearLevel, ProfileCharacter, ProfileData, ProfileSpec } from "../../api";
-import { Badge, Button, IconButton, PartHead, Segment, WowIcon } from "../../components/ui";
-import { classColorProps } from "../../components/character/ClassSpec";
+import { Badge, Button, buttonClass, IconButton, PartHead, Segment, WowIcon } from "../../components/ui";
 import { type AddWay } from "../../components/character/AddCharacterDialog";
 import { ChevronLeftIcon, ChevronRightIcon, EditIcon, ExternalIcon, TrashIcon, WarnIcon, XIcon } from "../../components/ui/icons";
 import { classLabel, roleLabel, specLabel } from "../../lib/wow/wowNames";
@@ -30,21 +29,6 @@ export function FirstCharacter({ onPick }: { onPick: (way: AddWay) => void }) {
                 ))}
             </div>
         </div>
-    );
-}
-
-export function CharChip({ character, cls, active, onClick }: { character: ProfileCharacter; cls?: GameClass; active: boolean; onClick: () => void }) {
-    const t = useT();
-    const color = classColorProps(cls?.color);
-    const claimed = character.claimedBy.length > 0;
-    return (
-        <button type="button" role="tab" aria-selected={active} className={`pf-chip${active ? " is-active" : ""}`} onClick={onClick}>
-            {cls && <WowIcon name={cls.icon} size={22} />}
-            <span className={color.className} style={color.style}>{character.name}</span>
-            {claimed && (
-                <span className="pf-chip-warn" data-tip={t("profile.char.claimed")} data-tip-sub={t("profile.char.claimedChip", { names: character.claimedBy.map((c) => c.name || t("profile.char.unknown")).join(", ") })}>!</span>
-            )}
-        </button>
     );
 }
 
@@ -106,9 +90,12 @@ export function CharacterCard({ character, cls, data, onMove, onSpecs, onRoles, 
                             </span>
                         )}
                         {onEdit && <IconButton icon={<EditIcon />} size="sm" tip={t("profile.char.edit")} tipSub={t("profile.char.editSub")} onClick={onEdit} />}
+                        {/* the one way to the gear: a labelled button (on a phone its icon alone, styles/profile.css) */}
                         {character.armoryUrl && (
-                            <a className="ibtn sm" href={character.armoryUrl} target="_blank" rel="noreferrer" aria-label={t("profile.char.armory")} data-tip={t("profile.char.openArmory")}>
+                            <a className={buttonClass("ghost", "sm", true, "pf-armory")} href={character.armoryUrl} target="_blank" rel="noreferrer"
+                                aria-label={t("profile.char.openArmory")} data-tip={t("profile.char.openArmory")}>
                                 <ExternalIcon />
+                                <span className="pf-armory-label">{t("profile.char.armory")}</span>
                             </a>
                         )}
                         <IconButton icon={<TrashIcon />} tip={t("profile.char.remove")} size="sm" tone="danger" onClick={onRemove} />

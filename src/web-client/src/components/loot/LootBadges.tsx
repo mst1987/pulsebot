@@ -196,11 +196,11 @@ export function StackBar({ parts, size, tip, tipSub }: {
     );
 }
 
-/** An item icon framed in its quality colour. */
+/** An item icon framed in its quality colour (.item-ico in the shared loot.css: history, guild bank, profile). */
 export function ItemIcon({ url, quality, size }: { url?: string; quality?: number | null; size?: "md" | "lg" }) {
     const color = itemQualityColor(quality);
     const style = color ? ({ "--iqb": color } as React.CSSProperties) : undefined;
-    const cls = ["hl-ico", size || ""].filter(Boolean).join(" ");
+    const cls = ["item-ico", size || ""].filter(Boolean).join(" ");
     return url
         ? <img className={cls} src={url} alt="" loading="lazy" style={style} />
         : <span className={cls} style={style} />;

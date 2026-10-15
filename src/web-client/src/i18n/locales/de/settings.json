@@ -1177,7 +1177,8 @@
             "softres": "Softres",
             "armory": "Armory-Abruf",
             "wowheadLinks": "Wowhead-Links",
-            "raidplanCatalog": "Raidplan-Katalog"
+            "raidplanCatalog": "Raidplan-Katalog",
+            "dungeonTimes": "Dungeon-Bestzeiten"
         },
         "featureSub": {
             "logcheck": "Auswertung von Warcraft-Logs-Berichten.",
@@ -1187,7 +1188,8 @@
             "softres": "Softres-Liste auf der Raid-Seite anlegen.",
             "armory": "Ausrüstung und Charakterdaten von Battle.net abrufen.",
             "wowheadLinks": "Links auf Wowhead für Items und Zauber.",
-            "raidplanCatalog": "Mobs und Zauber des Katalogs im Raidplan."
+            "raidplanCatalog": "Mobs und Zauber des Katalogs im Raidplan.",
+            "dungeonTimes": "Dungeon-Bestzeiten aus dem Addon LevelHelper je Charakter in „Mein Profil“."
         },
         "reason": {
             "disabled": "Für {version} ausgeschaltet.",
@@ -1202,7 +1204,8 @@
             "no_softres_edition": "Keine Softres-Edition für {version} eingetragen.",
             "armory_not_configured": "Armory für {version} nicht eingerichtet (Region, Realm, Namespace).",
             "no_wowhead_path": "Kein Wowhead-Pfad für {version} eingetragen.",
-            "no_catalog_entries": "Keine Katalog-Einträge für {version}."
+            "no_catalog_entries": "Keine Katalog-Einträge für {version}.",
+            "no_dungeon_times": "Keine Dungeon-Bestzeiten für {version} (kein LevelHelper)."
         }
     },
     "versionLaunch": {

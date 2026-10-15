@@ -12,12 +12,13 @@
 //   armory           the Battle.net armory lookup (region, realm, namespace set)
 //   wowheadLinks     links to Wowhead (a Wowhead path in the version's settings)
 //   raidplanCatalog  the raid plan's catalog of mobs and spells (entries of the version)
+//   dungeonTimes     dungeon best times from the LevelHelper addon (`dungeonTimes` in the rule set)
 //
 // The setting is `config.versionSettings[<versionId>].disabled`: the features
 // switched off for that version. Missing or empty = every possible feature on,
 // so no migration is needed.
 const VERSION_FEATURES = Object.freeze([
-    "logcheck", "lootCouncilBis", "simulation", "raidSheet", "softres", "armory", "wowheadLinks", "raidplanCatalog",
+    "logcheck", "lootCouncilBis", "simulation", "raidSheet", "softres", "armory", "wowheadLinks", "raidplanCatalog", "dungeonTimes",
 ]);
 
 /** Whether `id` names a feature of the matrix. */

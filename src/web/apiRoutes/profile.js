@@ -15,7 +15,8 @@ const calendarTokens = require("../../stores/calendarTokenStore");
 const calendarFeed = require("../pages/calendarFeed");
 const { userIcsUrl } = require("../../services/events/icsFeed");
 const { rulesFor, VERSIONS } = require("../../config/gameVersions");
-const { mainVersionFor, knownVersion, isVersionVisible } = require("../../services/events/mainVersion");
+const { mainVersionFor, knownVersion, isVersionVisible, resolveVersionQuery } = require("../../services/events/mainVersion");
+const { profileRaiding } = require("../../services/characters/profileRaiding");
 const { getConfig } = require("../../stores/settingsStore");
 const { userIsOrga } = require("../../config/permissions");
 const { ROLE_LABELS } = require("../../config/gameVersions/classes");
@@ -203,6 +204,20 @@ const postProfileCharacter = withUser({ csrf: true, body: true }, async ({ user,
     });
 });
 
+/**
+ * GET /api/profile/raiding?version= — the character tabs of "Mein Profil": the
+ * caller's own roster memberships, and per own character of that one game
+ * version its loot and LevelHelper dungeon data
+ * (services/characters/profileRaiding.js). Stores only, no network; nothing
+ * names another account. Without `version` (or with other versions hidden)
+ * the main version.
+ */
+const getProfileRaiding = withUser({}, async ({ user, res, url }) => {
+    const config = getConfig();
+    const { versionId } = resolveVersionQuery(url.searchParams.get("version"), { config });
+    ok(res, profileRaiding(user.id, versionId, { config }));
+});
+
 /** GET /api/profile/raiders?q= — raiders with a profile, names only, for the wish picker. */
 const getRaiderSearch = withUser({}, async ({ user, res, url }) => {
     const q = String(url.searchParams.get("q") || "").slice(0, 32);
@@ -271,11 +286,12 @@ const routes = [
     { method: "GET", path: "/api/profile/calendar", handler: getCalendarTokens, area: "signup" },
     { method: "POST", path: "/api/profile/calendar", handler: postCalendarToken, area: "signup" },
     { method: "GET", path: "/api/profile/raiders", handler: getRaiderSearch, area: "signup" },
+    { method: "GET", path: "/api/profile/raiding", handler: getProfileRaiding, area: "signup" },
     { method: "GET", path: "/api/profile/user", handler: getUserProfile, area: "roster" },
 ];
 
 module.exports = {
-    getProfile, putProfile, getLogCharacters, postProfileCharacter, getRaiderSearch, getUserProfile, getCharacterClaims,
+    getProfile, putProfile, getLogCharacters, postProfileCharacter, getRaiderSearch, getProfileRaiding, getUserProfile, getCharacterClaims,
     getCalendarTokens, postCalendarToken,
     pageContext, editInput, nearOf,
     routes,

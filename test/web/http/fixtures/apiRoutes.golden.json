@@ -65,6 +65,7 @@
   "GET /api/profile/calendar",
   "GET /api/profile/log-characters",
   "GET /api/profile/raiders",
+  "GET /api/profile/raiding",
   "GET /api/profile/user",
   "GET /api/raid-templates",
   "GET /api/raider-characters",

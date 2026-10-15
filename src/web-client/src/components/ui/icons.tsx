@@ -388,6 +388,17 @@ export function MinusIcon({ strokeWidth = 2.2 }: { strokeWidth?: number }) {
     );
 }
 
+/** Three dots: "more" - the full list behind a row that does not fit (the profile's tabs on a phone). */
+export function MoreIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="5" cy="12" r="2" />
+            <circle cx="12" cy="12" r="2" />
+            <circle cx="19" cy="12" r="2" />
+        </svg>
+    );
+}
+
 /** A circled "i": an explanation sits in the tooltip (the loot filters, the addon inbox). */
 export function InfoIcon() {
     return (

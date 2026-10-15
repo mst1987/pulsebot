@@ -32,7 +32,7 @@ describe("ProfilePage conventions", () => {
         // WowIcon's size only picks the image; the shared `.wi` rule draws it at
         // 18 px unless the page's CSS says otherwise — the UI review found all
         // spec, role and "first character" icons shrunk to 18 px.
-        const owners = { "pf-way": page, "pf-spec": page, "pf-role": page, "pf-chip": page, "pf-logrow": dialog, "pf-class": dialog };
+        const owners = { "pf-way": page, "pf-spec": page, "pf-role": page, "pf-tab": page, "pf-tabmenu-item": page, "pf-roster-spec": page, "pf-logrow": dialog, "pf-class": dialog };
         for (const [scope, source] of Object.entries(owners)) {
             expect(source).toContain(scope);
             expect(css).toMatch(new RegExp(`\\.${scope} \\.wi[^{]*\\{ width: \\d{2}px; height: \\d{2}px; \\}`));

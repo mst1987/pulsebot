@@ -25,7 +25,7 @@ const SHARED_FILES = ["tokens.css", "base.css", "shared.css", "feedback.css", "l
 // [file, stylesheet, why the page-level miss is not a real one]
 const ALLOWED = [
     ["components/character/ClassSpec.tsx", "styles/roster-character.css", "only ClassSpecIdentity uses spec-ident-*, and only the roster renders it"],
-    ["components/loot/LootBadges.tsx", "styles/history-loot.css", "only ItemIcon/StackBar use hl-ico/hl-stack, rendered by the history pages alone"],
+    ["components/loot/LootBadges.tsx", "styles/history-loot.css", "only StackBar uses hl-stack, rendered by the history pages alone (ItemIcon's item-ico is in the shared loot.css)"],
 ];
 
 const rel = (abs) => path.relative(CLIENT, abs).split(path.sep).join("/");
