@@ -1,5 +1,7 @@
 import { get, send } from "./client";
 import type { GameRole, GameClass } from "./raidTemplates";
+import type { CharLootPreview } from "./history";
+import type { RosterStatus } from "./roster";
 
 // ---- Mein Profil (#255, src/web/apiRoutes/profile.js) ----
 
@@ -217,6 +219,52 @@ export function searchRaiders(q: string): Promise<{ raiders: RaiderRef[] }> {
 
 export function getCharacterClaims(): Promise<{ claims: CharacterClaim[] }> {
     return get("/api/roster/character-claims");
+}
+
+// ---- The character tabs: roster, loot, dungeons (src/services/characters/profileRaiding.js) ----
+
+/** The raider's own membership in an open roster of the shown version. */
+export type ProfileRosterMembership = {
+    id: string;
+    name: string;
+    categoryId: string;
+    status: RosterStatus;
+    /** ISO date, "" unknown. */
+    since: string;
+    trialUntil: string | null;
+    /** The profile keys of the characters this roster lists for the raider. */
+    chars: string[];
+    charNames: Record<string, string>;
+    /** The orga's spec for the first character, null = "automatisch". */
+    spec: { key: string; label: string; icon: string } | null;
+};
+
+export type ProfileLoot = { count: number; lastAt: number; items: (CharLootPreview & { boss: string })[] };
+
+/** LevelHelper data of one character (WoW Forever); the tab shows no block without it. */
+export type ProfileDungeons = {
+    /** Achievement points, null when the addon reported runs but no reading of the character. */
+    points: number | null;
+    pointsRank: number | null;
+    /** How many characters of the version have points. */
+    characters: number;
+    medals: { gold: number; silver: number; bronze: number };
+    runs: number;
+    dungeons: number;
+    best: { dungeon: string; seconds: number; medal: "gold" | "silver" | "bronze" | null; place: number; runsOfDungeon: number; finishedAt: number; others: number }[];
+    readAt: number;
+};
+
+export type ProfileRaiding = {
+    versionId: string;
+    rosters: ProfileRosterMembership[];
+    /** By profile character key, only the shown version's characters. */
+    characters: Record<string, { loot: ProfileLoot; dungeons: ProfileDungeons | null }>;
+};
+
+/** The own characters' roster status, loot and dungeon data of one version ("" = the server's main version). */
+export function getProfileRaiding(version = ""): Promise<ProfileRaiding> {
+    return get(version ? `/api/profile/raiding?version=${encodeURIComponent(version)}` : "/api/profile/raiding");
 }
 
 // ---- Kalender-Abo (#312) ----

@@ -6,13 +6,13 @@ import { XIcon, SearchIcon } from "../../components/ui/icons";
 import { instanceName } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 
-// "Mein Profil" (#255): the raider's own page. Deliberately calm — the
-// characters on top, the selected character's specs as the one big thing, and
-// everything else (when, which raids, with whom, a note) folded in a side column
-// that shows one line per part until it is opened. Every change saves itself;
-// there is no form to submit.
+// "Mein Profil" (#255): the raider's own page. Deliberately calm — one tab
+// "Meine Infos" for what belongs to the person (when, which raids, with whom, a
+// note, the calendar, the attendance), one tab per character (its card, then
+// roster, loot and dungeon runs), every part folded to one line until it is
+// opened. Every change saves itself; there is no form to submit.
 
-export type Fold = "days" | "raids" | "wishes" | "avoid" | "note" | "calendar" | "";
+export type Fold = "attendance" | "days" | "raids" | "wishes" | "avoid" | "note" | "calendar" | "roster" | "loot" | "dungeons" | "";
 
 /**
  * "Nicht mit X raiden": off until the raider switches it on — past a question

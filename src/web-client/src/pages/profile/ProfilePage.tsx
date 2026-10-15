@@ -1,29 +1,37 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import type { ShellContext } from "../../components/shell/Shell";
 import {
-    canAccess, editProfileCharacter, getLogCharacters, getProfile, saveProfile, removeProfileCharacter, getCalendarTokens,
+    canAccess, canAccessAny, editProfileCharacter, getLogCharacters, getProfile, getProfileRaiding, getRaiderAttendance, saveProfile,
+    removeProfileCharacter, getCalendarTokens,
     type ApiError, type ProfileCharacter, type ProfilePatch, type RaiderProfile,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
-import { Badge, Button, PageHead, RaidLoader, useConfirm } from "../../components/ui";
+import { Badge, PageHead, RaidLoader, useConfirm } from "../../components/ui";
 import { useToast } from "../../components/shell/Jobs";
 import AddCharacterDialog, { type AddWay } from "../../components/character/AddCharacterDialog";
 import EditCharacterDialog from "../../components/character/EditCharacterDialog";
 import { isOrga } from "../../lib/app/orgaArea";
 import { editToast } from "../../lib/profile/allCharacters";
 import AllCharactersTab from "./AllCharactersTab";
-import { EyeOffIcon } from "../../components/ui/icons";
 import { formatDate } from "../../lib/format";
 import { specSuggestion } from "../../lib/settings/raidhelperRetirement";
-import { tOr, useT } from "../../i18n";
+import { useT } from "../../i18n";
 import "../../styles/profile.css";
-import { AvoidPart, type Fold, FoldPart, NoteField, RaidPicker, WishPicker } from "./ProfileParts";
-import { CharacterCard, CharChip, FirstCharacter } from "./CharacterCard";
-import { CalendarPart } from "./CalendarPart";
+import type { Fold } from "./ProfileParts";
+import { CharacterCard, FirstCharacter } from "./CharacterCard";
+import { InfoTab } from "./InfoTab";
+import { DungeonPart, LootPart, RosterPart, type Loaded } from "./CharacterTab";
+import { ProfileTabs, type ProfileTab } from "./ProfileTabs";
 import { charactersOfVersion, groupByVersion, moveInVersion, versionOf } from "../../lib/roster/characterVersions";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { useFollowVersion } from "../../hooks/useFollowVersion";
+
+// "Mein Profil": tabs instead of character chips — [Meine Infos] first (what
+// belongs to the person), then one tab per character of the menu's version in
+// the raider's own order (no main), [+], and "Alle Charaktere" for the orga.
+// The tab is in the URL: none = Meine Infos, `?char=<key>` a character,
+// `?view=all` the orga's list — so every tab is a link.
 
 export default function ProfilePage() {
     const content = useContentVersion();
@@ -34,18 +42,12 @@ export default function ProfilePage() {
     const profileData = useApi(() => getProfile(), []);
     const { data, setData } = profileData;
     const [params, setParams] = useSearchParams();
-    const [fold, setFold] = useState<Fold>("days");
+    const [infoFold, setInfoFold] = useState<Fold>("days");
+    const [charFold, setCharFold] = useState<Fold>("");
     const [adding, setAdding] = useState<AddWay | null>(null);
     const [editing, setEditing] = useState<ProfileCharacter | null>(null);
     // "Alle Charaktere" (?view=all): the orga's tab — every raider's characters, editable with write access to the roster area.
     const orga = isOrga(user) && canAccess(user, "roster");
-    const view = orga && params.get("view") === "all" ? "all" : "own";
-    const setView = (next: "own" | "all") => {
-        const p = new URLSearchParams(params);
-        if (next === "all") p.set("view", "all");
-        else p.delete("view");
-        setParams(p, { replace: true });
-    };
     // Kalender-Abo (#312) — its own small payload, so the profile request stays
     // what it was; a failed load leaves the fold at "loading", as before.
     const calendar = useApi(() => getCalendarTokens(), []);
@@ -66,9 +68,22 @@ export default function ProfilePage() {
         next.delete("char");
         setParams(next, { replace: true });
     });
-    // the shown version's (else the main version's) first character - there is no main, only the raider's order
-    const firstOfVersion = charactersOfVersion(shownChars, shownVersion ? "" : data?.mainVersion || "")[0] || shownChars[0] || null;
-    const selected = (linked && shownChars.includes(linked) ? linked : null) || firstOfVersion;
+    const selected = linked && shownChars.includes(linked) ? linked : null;
+    const tab: ProfileTab = orga && params.get("view") === "all" ? { kind: "all" }
+        : selected ? { kind: "char", key: selected.key } : { kind: "info" };
+
+    // What the tabs read besides the profile, each asked for once its tab was open (and again for another version):
+    // "Meine Infos" the attendance, a character's tab the roster, loot and dungeon runs.
+    const [infoSeen, setInfoSeen] = useState(false);
+    const [charSeen, setCharSeen] = useState(false);
+    useEffect(() => {
+        if (tab.kind === "info") setInfoSeen(true);
+        if (tab.kind === "char") setCharSeen(true);
+    }, [tab.kind]);
+    const attendance = useApi(() => getRaiderAttendance("", shownVersion), [shownVersion], { enabled: infoSeen });
+    const shownKeys = shownChars.map((c) => c.key).join("|");
+    const raiding = useApi(() => getProfileRaiding(shownVersion), [shownVersion, shownKeys], { enabled: charSeen });
+
     // A character's class from its own version's rule set (#543), the main version's as a fallback.
     const classesOf = (c: ProfileCharacter) => (c.versionId && data?.classesByVersion?.[c.versionId]) || data?.classes || [];
     const classOf = (c: ProfileCharacter) => classesOf(c).find((x) => x.id === c.className);
@@ -92,42 +107,55 @@ export default function ProfilePage() {
         }
     };
 
-    const selectChar = (key: string) => {
-        const next = new URLSearchParams(params);
-        next.set("char", key);
-        setParams(next, { replace: true });
+    const selectTab = (next: ProfileTab) => {
+        const p = new URLSearchParams(params);
+        p.delete("char");
+        p.delete("view");
+        if (next.kind === "char") p.set("char", next.key);
+        if (next.kind === "all") p.set("view", "all");
+        setParams(p, { replace: true });
     };
+    const selectChar = (key: string) => selectTab({ kind: "char", key });
 
     const removeChar = async (c: ProfileCharacter) => {
         if (!(await ask({ title: t("profile.remove.title", { name: c.name }), text: t("profile.remove.text"), action: t("profile.remove.action") }))) return;
         try {
             const res = await removeProfileCharacter(c.key);
             setProfile(res.profile);
+            selectTab({ kind: "info" });
         } catch (e) {
             toast((e as ApiError).message, "err");
         }
     };
 
-    const first = firstOfVersion;
+    // the shown version's (else the main version's) first character - there is no main, only the raider's order
+    const first = charactersOfVersion(shownChars, shownVersion ? "" : data.mainVersion || "")[0] || shownChars[0] || null;
     const headClass = first ? classOf(first) : undefined;
 
     /** One place forward / back inside its version, saved as the raider's whole order (optimistic). */
     const moveOf = (c: ProfileCharacter) => {
         const to = (dir: -1 | 1) => {
             const next = moveInVersion(profile.characters, c.key, dir);
-            // the moved character stays the one shown — the default selection is the first, which may now be another
-            return next ? () => { selectChar(c.key); void patch({ order: next.map((x) => x.key) }, { characters: next }); } : undefined;
+            return next ? () => { void patch({ order: next.map((x) => x.key) }, { characters: next }); } : undefined;
         };
         return { forward: to(-1), back: to(1) };
     };
-    // Grouped by game version, the main version first (#543) — one group needs no heading.
-    // The menu's version only (#741); other versions hidden (#563): only the main version's (nothing is removed).
+    // Grouped by game version, the main version first (#543) — under the shell one version, so one group.
+    // Other versions hidden (#563): only the main version's (nothing is removed).
     const groups = groupByVersion(shownChars, data.versions || [], data.mainVersion || "")
         .filter((g) => !content.hidden || !content.mainVersion || g.id === content.mainVersion);
+    const tabChars = groups.flatMap((g) => g.characters);
     // A new character is one of the shown version: the add dialog offers no other while a version is shown.
     const addVersions = shownVersion && (data.versions || []).some((v) => v.id === shownVersion)
         ? (data.versions || []).filter((v) => v.id === shownVersion) : data.versions;
     const labelOf = (versionId: string) => groups.find((g) => g.id === versionId)?.label || versionId;
+
+    /** A part of the raiding answer, as the folds read it: the data, or that it is loading / failed. */
+    function raidingOf<T>(pick: (r: NonNullable<typeof raiding.data>) => T): Loaded<T> {
+        if (raiding.data) return pick(raiding.data);
+        return raiding.error ? "failed" : "loading";
+    }
+    const dungeons = selected ? raiding.data?.characters[selected.key]?.dungeons || null : null;
 
     return (
         <div className="pf-page">
@@ -137,151 +165,73 @@ export default function ProfilePage() {
                 kicker={`Discord · ${user.name} · ${t("profile.characters", { count: shownChars.length })}`}
                 title={t("profile.title")}
                 meta={profile.updatedAt ? <Badge>{t("profile.changed", { date: formatDate(profile.updatedAt) })}</Badge> : <Badge tone="accent">{t("profile.new")}</Badge>}
-                action={view === "own" && shownChars.length > 0 && (
-                    <Button icon="inv_misc_grouplooking" onClick={() => setAdding("log")}>{t("profile.addCharacter")}</Button>
-                )}
             />
 
-            {orga && (
-                <div className="tabs pf-tabs" role="tablist" aria-label={t("profile.tabs.aria")}>
-                    {(["own", "all"] as const).map((id) => (
-                        <button key={id} type="button" role="tab" aria-selected={view === id} className={`tab-btn${view === id ? " active" : ""}`} onClick={() => setView(id)}>
-                            {t(`profile.tabs.${id}`)}
-                        </button>
-                    ))}
-                </div>
+            <ProfileTabs
+                characters={tabChars}
+                classOf={classOf}
+                current={tab}
+                orga={orga}
+                onSelect={selectTab}
+                onAdd={() => setAdding("log")}
+            />
+
+            {tab.kind === "all" && <AllCharactersTab data={data} canWrite={canAccess(user, "roster", "write")} />}
+
+            {tab.kind === "info" && (
+                <>
+                    {shownChars.length === 0 && <FirstCharacter onPick={setAdding} />}
+                    <InfoTab
+                        data={data}
+                        profile={profile}
+                        fold={infoFold}
+                        onFold={setInfoFold}
+                        patch={patch}
+                        ask={ask}
+                        calendar={cal}
+                        onCalendar={setCal}
+                        attendance={attendance.data}
+                        attendanceFailed={!!attendance.error && !attendance.data}
+                    />
+                </>
             )}
 
-            {view === "all" ? (
-                <AllCharactersTab data={data} canWrite={canAccess(user, "roster", "write")} />
-            ) : shownChars.length === 0 ? (
-                <FirstCharacter onPick={setAdding} />
-            ) : (
-                <>
-                    <div className="pf-chip-groups">
-                        {groups.map((g) => (
-                            <div key={g.id} className="pf-chip-group" data-version={g.id}>
-                                {groups.length > 1 && <span className="kicker pf-chip-group-label">{t("profile.versionGroup", { version: g.label })}</span>}
-                                <div className="pf-chips" role="tablist" aria-label={groups.length > 1 ? t("profile.versionGroup", { version: g.label }) : t("profile.charactersAria")}>
-                                    {g.characters.map((c) => (
-                                        <CharChip key={c.key} character={c} cls={classOf(c)} active={c.key === selected?.key} onClick={() => selectChar(c.key)} />
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="pf-grid">
-                        <div className="pf-col">
-                            {selected && (
-                                <CharacterCard
-                                    character={selected}
-                                    cls={classOf(selected)}
-                                    versionLabel={groups.length > 1 ? labelOf(selected.versionId) : ""}
-                                    data={data}
-                                    onMove={moveOf(selected)}
-                                    onSpecs={(specs) => patch(
-                                        { characters: [{ key: selected.key, specs: specs.map((s) => ({ key: s.key, gear: s.gear })) }] },
-                                        { characters: profile.characters.map((c) => (c.key === selected.key ? { ...c, specs } : c)) },
-                                    )}
-                                    onRoles={(field, value) => patch(
-                                        { characters: [{ key: selected.key, [field]: value }] },
-                                        { characters: profile.characters.map((c) => (c.key === selected.key ? { ...c, [field]: value } : c)) },
-                                    )}
-                                    onRemove={() => removeChar(selected)}
-                                    onEdit={() => setEditing(selected)}
-                                />
+            {tab.kind === "char" && selected && (
+                <div className="pf-grid pf-grid-even">
+                    <div className="pf-col">
+                        <CharacterCard
+                            character={selected}
+                            cls={classOf(selected)}
+                            versionLabel={groups.length > 1 ? labelOf(selected.versionId) : ""}
+                            data={data}
+                            onMove={moveOf(selected)}
+                            onSpecs={(specs) => patch(
+                                { characters: [{ key: selected.key, specs: specs.map((s) => ({ key: s.key, gear: s.gear })) }] },
+                                { characters: profile.characters.map((c) => (c.key === selected.key ? { ...c, specs } : c)) },
                             )}
-                        </div>
-
-                        <div className="pf-col pf-side">
-                            <FoldPart
-                                id="days" open={fold} onOpen={setFold} title={t("profile.fold.days")}
-                                summary={profile.availability.length
-                                    ? (
-                                        <span className="pf-day-sum">
-                                            {data.weekdays.filter((d) => profile.availability.includes(d.id)).map((d) => (
-                                                <span key={d.id} className="pf-day-tag" data-day={d.id}>{tOr(`profile.weekday.${d.id}`, d.label)}</span>
-                                            ))}
-                                        </span>
-                                    )
-                                    : t("profile.fold.daysNone")}
-                            >
-                                <div className="pf-days">
-                                    {data.weekdays.map((d) => {
-                                        const on = profile.availability.includes(d.id);
-                                        const next = on ? profile.availability.filter((x) => x !== d.id) : [...profile.availability, d.id];
-                                        return (
-                                            <button key={d.id} type="button" data-day={d.id} className={`pf-day${on ? " is-on" : ""}`} aria-pressed={on}
-                                                onClick={() => patch({ availability: next }, { availability: next })}>
-                                                {tOr(`profile.weekday.${d.id}`, d.label)}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </FoldPart>
-
-                            <FoldPart
-                                id="raids" open={fold} onOpen={setFold} title={t("profile.fold.raids")}
-                                summary={profile.preferredRaids.length ? t("profile.fold.raidsChosen", { count: profile.preferredRaids.length }) : t("profile.fold.raidsNone")}
-                            >
-                                <RaidPicker data={data} value={profile.preferredRaids} onChange={(next) => patch({ preferredRaids: next }, { preferredRaids: next })} />
-                            </FoldPart>
-
-                            <FoldPart
-                                id="wishes" open={fold} onOpen={setFold} title={t("profile.fold.wishes")}
-                                summary={profile.wishes.length ? profile.wishes.map((w) => w.character || w.name).join(", ") : t("profile.fold.wishesNone")}
-                                badge={<Badge icon={<EyeOffIcon />} tip={t("profile.fold.orgaOnlyTip")} tipSub={t("profile.fold.orgaOnlySub")}>{t("profile.fold.orgaOnly")}</Badge>}
-                            >
-                                <WishPicker
-                                    wishes={profile.wishes}
-                                    max={data.limits.wishes}
-                                    classes={data.classes}
-                                    exclude={profile.avoid}
-                                    hint={t("profile.wishes.hint")}
-                                    onChange={(next) => patch({ wishes: next.map((w) => w.userId) }, { wishes: next })}
-                                />
-                            </FoldPart>
-
-                            <FoldPart
-                                id="avoid" open={fold} onOpen={setFold} title={t("profile.fold.avoid")}
-                                summary={!profile.avoidEnabled
-                                    ? t("profile.fold.avoidOff")
-                                    : profile.avoid.length ? profile.avoid.map((w) => w.character || w.name).join(", ") : t("profile.fold.avoidNone")}
-                                badge={<Badge icon={<EyeOffIcon />} tip={t("profile.fold.orgaOnlyTip")} tipSub={t("profile.avoid.orgaOnlySub")}>{t("profile.fold.orgaOnly")}</Badge>}
-                            >
-                                <AvoidPart
-                                    profile={profile}
-                                    max={data.limits.avoid}
-                                    classes={data.classes}
-                                    onEnable={async (on) => {
-                                        if (on && !(await ask({
-                                            title: t("profile.avoid.confirmTitle"),
-                                            text: t("profile.avoid.confirmText"),
-                                            action: t("profile.avoid.confirmAction"),
-                                        }))) return;
-                                        patch({ avoidEnabled: on }, { avoidEnabled: on, avoid: on ? profile.avoid : [] });
-                                    }}
-                                    onChange={(next) => patch({ avoid: next.map((w) => w.userId) }, { avoid: next })}
-                                />
-                            </FoldPart>
-
-                            <FoldPart
-                                id="note" open={fold} onOpen={setFold} title={t("profile.fold.note")}
-                                summary={profile.note ? profile.note : t("profile.fold.noteNone")}
-                            >
-                                <NoteField value={profile.note} max={data.limits.note} onSave={(note) => patch({ note }, { note })} />
-                            </FoldPart>
-
-                            <FoldPart
-                                id="calendar" open={fold} onOpen={setFold} title={t("profile.fold.calendar")}
-                                summary={!cal ? t("profile.fold.calendarLoading") : cal.tokens.length === 0 ? t("profile.fold.calendarNone") : t("profile.fold.calendarActive", { count: cal.tokens.length })}
-                            >
-                                <CalendarPart data={cal} onChange={setCal} />
-                            </FoldPart>
-                        </div>
+                            onRoles={(field, value) => patch(
+                                { characters: [{ key: selected.key, [field]: value }] },
+                                { characters: profile.characters.map((c) => (c.key === selected.key ? { ...c, [field]: value } : c)) },
+                            )}
+                            onRemove={() => removeChar(selected)}
+                            onEdit={() => setEditing(selected)}
+                        />
+                        <RosterPart charKey={selected.key} rosters={raidingOf((r) => r.rosters)} fold={charFold} onFold={setCharFold} />
+                        {/* Part 2: the professions (Berufe) go here, under the roster. */}
                     </div>
-                </>
+                    <div className="pf-col">
+                        <LootPart
+                            name={selected.name}
+                            loot={raidingOf((r) => r.characters[selected.key]?.loot || { count: 0, lastAt: 0, items: [] })}
+                            fold={charFold}
+                            onFold={setCharFold}
+                            historyLink={canAccessAny(user, ["history", "loot"])}
+                        />
+                        {/* Only with LevelHelper data for this character (WoW Forever): no block, no empty state otherwise. */}
+                        {dungeons && <DungeonPart dungeons={dungeons} fold={charFold} onFold={setCharFold} />}
+                        {/* Part 2: the wish items (Wunsch-Items, loot-council categories only) go here. */}
+                    </div>
+                </div>
             )}
 
             <AddCharacterDialog

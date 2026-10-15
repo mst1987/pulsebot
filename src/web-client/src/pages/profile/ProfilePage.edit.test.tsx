@@ -16,6 +16,8 @@ vi.mock("../../api", async (orig) => ({
     getLogCharacters: vi.fn(),
     editProfileCharacter: vi.fn(),
     getAllCharacters: vi.fn(),
+    getRaiderAttendance: vi.fn(),
+    getProfileRaiding: vi.fn(),
 }));
 
 function spec(classId: string, id: string, label: string, role: GameSpec["role"]): GameSpec {
@@ -51,6 +53,8 @@ beforeEach(() => {
     vi.mocked(api.getCalendarTokens).mockResolvedValue({ tokens: [], max: 3, configured: true });
     vi.mocked(api.getLogCharacters).mockResolvedValue({ characters: [] });
     vi.mocked(api.getAllCharacters).mockResolvedValue({ raiders: [] });
+    vi.mocked(api.getRaiderAttendance).mockResolvedValue({ userId: "u1", name: "Anna", own: true, orga: false, categories: [] });
+    vi.mocked(api.getProfileRaiding).mockResolvedValue({ versionId: "tbc", rosters: [], characters: {} });
 });
 
 describe("ProfilePage: bearbeiten und Orga-Tab", () => {
@@ -61,7 +65,7 @@ describe("ProfilePage: bearbeiten und Orga-Tab", () => {
             character: renamed, renamed: { fromKey: "gentle", toKey: "blattwerk", fromName: "Gentle", toName: "Blattwerk", versionId: "tbc" },
             moved: { rosters: 0, assignments: 0, signups: 1, guildBank: 0, availability: 0 }, profile: profile([renamed]),
         });
-        renderPage(<ProfilePage />, { user: RAIDER });
+        renderPage(<ProfilePage />, { user: RAIDER, route: "/profile?char=gentle" });
         await user.click(await screen.findByRole("button", { name: t("profile.char.edit") }));
         // the typos of this character are asked for
         expect(api.getLogCharacters).toHaveBeenCalledWith("", "gentle");
@@ -77,7 +81,7 @@ describe("ProfilePage: bearbeiten und Orga-Tab", () => {
 
     it("ein Raider sieht keinen Tab „Alle Charaktere“", async () => {
         renderPage(<ProfilePage />, { user: RAIDER });
-        await screen.findByRole("button", { name: t("profile.char.edit") });
+        await screen.findByRole("tab", { name: t("profile.tabs.info") });
         expect(screen.queryByRole("tab", { name: t("profile.tabs.all") })).toBeNull();
     });
 
