@@ -32,7 +32,7 @@ function useStateLine() {
 }
 
 /** "Im Roster": the status per roster of the version, this character's or another of the raider's. */
-export function RosterPart({ charKey, rosters, fold, onFold }: { charKey: string; rosters: Loaded<ProfileRosterMembership[]>; fold: Fold; onFold: (f: Fold) => void }) {
+export function RosterPart({ charKey, rosters, fold, onFold }: { charKey: string; rosters: Loaded<ProfileRosterMembership[]>; fold: Fold[]; onFold: (id: Fold) => void }) {
     const t = useT();
     const stateLine = useStateLine();
     const list = isReady(rosters) ? rosters : [];
@@ -42,7 +42,7 @@ export function RosterPart({ charKey, rosters, fold, onFold }: { charKey: string
         : own.length ? own.map((r) => `${t(`roster.status.${r.status}`)} · ${r.name}`).join(", ")
             : others.length ? t("profile.roster.sumOther") : t("profile.roster.none");
     return (
-        <FoldPart id="roster" open={fold} onOpen={onFold} title={t("profile.fold.roster")} summary={summary}>
+        <FoldPart id="roster" open={fold} onToggle={onFold} title={t("profile.fold.roster")} summary={summary}>
             {!isReady(rosters) ? <p className="pf-muted">{stateLine(rosters)}</p> : list.length === 0 ? <p className="pf-muted">{t("profile.roster.none")}</p> : (
                 <>
                     {[...own, ...others].map((r) => {
@@ -82,8 +82,8 @@ export function RosterPart({ charKey, rosters, fold, onFold }: { charKey: string
 export function LootPart({ name, loot, fold, onFold, historyLink }: {
     name: string;
     loot: Loaded<ProfileLoot>;
-    fold: Fold;
-    onFold: (f: Fold) => void;
+    fold: Fold[];
+    onFold: (id: Fold) => void;
     /** Whether the caller may open the loot history (areas history or loot). */
     historyLink: boolean;
 }) {
@@ -92,7 +92,7 @@ export function LootPart({ name, loot, fold, onFold, historyLink }: {
     const summary = !isReady(loot) ? stateLine(loot)
         : loot.count ? t("profile.loot.sum", { count: loot.count, date: formatDayDate(loot.lastAt) }) : t("profile.loot.none");
     return (
-        <FoldPart id="loot" open={fold} onOpen={onFold} title={t("profile.fold.loot")} summary={summary}>
+        <FoldPart id="loot" open={fold} onToggle={onFold} title={t("profile.fold.loot")} summary={summary}>
             {!isReady(loot) ? <p className="pf-muted">{stateLine(loot)}</p> : !loot.count ? <p className="pf-muted">{t("profile.loot.none")}</p> : (
                 <>
                     <ul className="pf-loot">
@@ -144,7 +144,7 @@ function Tile({ label, children }: { label: string; children: ReactNode }) {
  * their place, medals, the fastest run per dungeon. The caller renders it only
  * when there is data (`dungeons` not null): no empty state, no block in TBC.
  */
-export function DungeonPart({ dungeons, fold, onFold }: { dungeons: ProfileDungeons; fold: Fold; onFold: (f: Fold) => void }) {
+export function DungeonPart({ dungeons, fold, onFold }: { dungeons: ProfileDungeons; fold: Fold[]; onFold: (id: Fold) => void }) {
     const t = useT();
     const summary = [
         dungeons.points !== null ? t("profile.dungeons.pointsSum", { points: num(dungeons.points) }) : "",
@@ -153,7 +153,7 @@ export function DungeonPart({ dungeons, fold, onFold }: { dungeons: ProfileDunge
     ].filter(Boolean).join(" · ");
     return (
         <FoldPart
-            id="dungeons" open={fold} onOpen={onFold} title={t("profile.fold.dungeons")} summary={summary}
+            id="dungeons" open={fold} onToggle={onFold} title={t("profile.fold.dungeons")} summary={summary}
             badge={<Badge tip={t("profile.dungeons.badgeTip")} tipSub={t("profile.dungeons.badgeSub")}>{t("profile.dungeons.badge")}</Badge>}
         >
             <div className="pf-tiles">

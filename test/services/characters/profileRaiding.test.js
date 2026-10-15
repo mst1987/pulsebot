@@ -50,7 +50,7 @@ describe("profileRaiding", () => {
     it("answers only the characters of the version asked for, by key", () => {
         expect(Object.keys(profileRaiding(ME, "forever").characters)).toEqual(["forever~devi res", "forever~devi rew"]);
         expect(Object.keys(profileRaiding(ME, "tbc").characters)).toEqual(["borka"]);
-        expect(profileRaiding(ME, "classic")).toEqual({ versionId: "classic", rosters: [], characters: {} });
+        expect(profileRaiding(ME, "classic")).toEqual({ versionId: "classic", dungeonTimes: false, rosters: [], characters: {} });
     });
 
     it("lists the own memberships of the version's open rosters, never another raider's or a closed one", () => {
@@ -88,6 +88,20 @@ describe("profileRaiding", () => {
         dungeonRuns.update(() => ({ runs: [run()], characters: [] }));
         expect(profileRaiding(ME, "tbc").characters.borka.dungeons).toBeNull();
         expect(profileRaiding(ME, "forever").characters["forever~devi rew"].dungeons).toBeNull();
+    });
+
+    it("ties the dungeon block to the feature „dungeonTimes“: only Forever has it, and switched off there is none", () => {
+        dungeonRuns.update(() => ({ runs: [run(), run({ id: "dr_t", versionId: "tbc", members: [{ guid: "", name: "Borka", class: "DRUID" }] })], characters: [] }));
+        // TBC data in the store counts for nothing: TBC's rule set has no dungeon best times
+        expect(profileRaiding(ME, "tbc", { config: {} })).toMatchObject({ dungeonTimes: false, characters: { borka: { dungeons: null } } });
+        expect(profileRaiding(ME, "forever", { config: {} })).toMatchObject({ dungeonTimes: true, characters: { "forever~devi res": { dungeons: { runs: 1 } } } });
+        const off = { versionSettings: { forever: { disabled: ["dungeonTimes"] } } };
+        expect(profileRaiding(ME, "forever", { config: off })).toMatchObject({ dungeonTimes: false, characters: { "forever~devi res": { dungeons: null } } });
+    });
+
+    it("compares names in any case and with doubled spaces", () => {
+        dungeonRuns.update(() => ({ runs: [run({ members: [{ guid: "", name: "devi  RES", class: "MAGE" }] })], characters: [] }));
+        expect(profileRaiding(ME, "forever", { config: {} }).characters["forever~devi res"].dungeons).toMatchObject({ runs: 1 });
     });
 
     it("gives points with their rank, medals and the fastest run per dungeon with its place", () => {

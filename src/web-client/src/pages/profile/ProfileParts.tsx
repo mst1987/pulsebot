@@ -53,26 +53,26 @@ export function AvoidPart({ profile, max, classes, onEnable, onChange }: {
     );
 }
 
-/** One foldable part of the side column: title and a one-line summary, the body only when open. */
-export function FoldPart({ id, open, onOpen, title, summary, badge, children }: {
+/** One foldable part: title and a one-line summary, the body only when open. `open` = the parts open now (lib/profile/folds.ts). */
+export function FoldPart({ id, open, onToggle, title, summary, badge, children }: {
     id: Exclude<Fold, "">;
-    open: Fold;
-    onOpen: (f: Fold) => void;
+    open: Fold[];
+    onToggle: (id: Fold) => void;
     title: string;
     summary: ReactNode;
     badge?: ReactNode;
     children: ReactNode;
 }) {
-    const isOpen = open === id;
+    const isOpen = open.includes(id);
     return (
         <section className={`pf-fold${isOpen ? " is-open" : ""}`}>
             <div className="pf-fold-head">
-                <button type="button" className="pf-fold-title" onClick={() => onOpen(isOpen ? "" : id)}>
+                <button type="button" className="pf-fold-title" onClick={() => onToggle(id)}>
                     <span className="pf-fold-name">{title}</span>
                     {!isOpen && <span className="pf-fold-sum">{summary}</span>}
                 </button>
                 {badge}
-                <Expand open={isOpen} onToggle={() => onOpen(isOpen ? "" : id)} label={title} showLabel={false} />
+                <Expand open={isOpen} onToggle={() => onToggle(id)} label={title} showLabel={false} />
             </div>
             {isOpen && <div className="pf-fold-body">{children}</div>}
         </section>

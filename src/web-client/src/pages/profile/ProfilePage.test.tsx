@@ -94,7 +94,7 @@ function profileData(p: RaiderProfile = profile()): ProfileData {
 
 const NO_TOKENS: CalendarTokens = { tokens: [], max: 3, configured: true };
 const NO_ATTENDANCE: RaiderAttendanceData = { userId: "u1", name: "Admin", own: true, orga: false, categories: [] };
-const NO_RAIDING: ProfileRaiding = { versionId: "tbc", rosters: [], characters: {} };
+const NO_RAIDING: ProfileRaiding = { versionId: "tbc", dungeonTimes: false, rosters: [], characters: {} };
 
 /** What the server answers to a PUT: the patch applied (characters by key). */
 function applyPatch(p: RaiderProfile, patch: ProfilePatch): RaiderProfile {
@@ -309,7 +309,7 @@ describe("ProfilePage – loading", () => {
 });
 
 describe("Meine Infos – folded parts", () => {
-    it("has the seven parts in their groups, only „Wann ich kann“ open at first, and opening one closes the other", async () => {
+    it("has the seven parts in their groups, the attendance and „Wann ich kann“ open at first, and opening one closes the others", async () => {
         const { user } = setup();
         await renderProfile();
 
@@ -318,7 +318,7 @@ describe("Meine Infos – folded parts", () => {
         expect(toggles.map((b) => b.getAttribute("aria-label"))).toEqual(
             ["attendance", "calendar", "days", "raids", "wishes", "avoid", "note"].map((k) => t(`profile.fold.${k}`)),
         );
-        expect(toggles.filter((b) => b.getAttribute("aria-expanded") === "true")).toEqual([toggles[2]]);
+        expect(toggles.filter((b) => b.getAttribute("aria-expanded") === "true")).toEqual([toggles[0], toggles[2]]);
         expect(screen.getByRole("button", { name: t("profile.weekday.mo"), pressed: false })).toBeInTheDocument();
         // closed parts show their one-line summary
         expect(screen.getByText(t("profile.fold.raidsNone"))).toBeInTheDocument();
@@ -352,7 +352,7 @@ describe("Meine Infos – folded parts", () => {
         expect(tags.map((tag) => tag.getAttribute("data-day"))).toEqual(["mo", "mi"]);
     });
 
-    it("folds the attendance to one line with its quota, and opens to the counted nights", async () => {
+    it("opens the attendance with its quota and the counted nights, folded it is one line", async () => {
         const { user } = setup();
         vi.mocked(api.getRaiderAttendance).mockResolvedValue({
             ...NO_ATTENDANCE,
@@ -365,13 +365,15 @@ describe("Meine Infos – folded parts", () => {
             ],
         });
         await renderProfile();
-        expect(await screen.findByText(t("profile.attendance.sum", { pct: 80, attended: 4, count: 5, name: "SSC/TK" }))).toBeInTheDocument();
-        await openFold(user, "attendance");
-        expect(screen.getByText(t("absences.mine.pct", { pct: 80 }))).toBeInTheDocument();
+        expect(await screen.findByText(t("absences.mine.pct", { pct: 80 }))).toBeInTheDocument();
         expect(screen.getAllByRole("listitem").filter((li) => li.classList.contains("pf-att-night"))).toHaveLength(5);
         // a category without counted raids says so calmly
         expect(screen.getByText(t("absences.mine.noRaids"))).toBeInTheDocument();
         expect(screen.getByRole("link", { name: t("profile.attendance.open") })).toHaveAttribute("href", "/absences");
+        // closing it leaves „Wann ich kann“ open and shows the one line
+        await openFold(user, "attendance");
+        expect(screen.getByText(t("profile.attendance.sum", { pct: 80, attended: 4, count: 5, name: "SSC/TK" }))).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: t("profile.weekday.mo") })).toBeInTheDocument();
     });
 
     it("says calmly that no raid is counted yet", async () => {
@@ -382,8 +384,10 @@ describe("Meine Infos – folded parts", () => {
 });
 
 describe("Charakter-Reiter – Roster, Loot, Bestzeiten", () => {
+    // a version with dungeon best times (the server says so; only Forever has them)
     const RAIDING: ProfileRaiding = {
         versionId: "tbc",
+        dungeonTimes: true,
         rosters: [
             { id: "r1", name: "SSC Mittwoch", categoryId: "c1", status: "trial", since: "2026-09-12T00:00:00.000Z", trialUntil: "2026-10-30T00:00:00.000Z", chars: ["borka"], charNames: { borka: "Borka" }, spec: null },
         ],
@@ -398,7 +402,7 @@ describe("Charakter-Reiter – Roster, Loot, Bestzeiten", () => {
                     }],
                 },
                 dungeons: {
-                    points: 1240, pointsRank: 4, characters: 31, medals: { gold: 3, silver: 5, bronze: 2 }, runs: 14, dungeons: 3, readAt: 0,
+                    points: 1240, pointsRank: 4, characters: 31, medals: { gold: 3, silver: 5, bronze: 2 }, runs: 14, dungeons: 3,
                     best: [{ dungeon: "The Deadmines", seconds: 872, medal: "gold", place: 1, runsOfDungeon: 9, finishedAt: Date.UTC(2026, 9, 7), others: 4 }],
                 },
             },
@@ -406,7 +410,7 @@ describe("Charakter-Reiter – Roster, Loot, Bestzeiten", () => {
         },
     };
 
-    it("opens the loot when there is some, and shows roster status and - with LevelHelper data - the dungeon block as one line each", async () => {
+    it("opens the roster and - when there is some - the loot, the dungeon block (LevelHelper data) as one line", async () => {
         const { user } = setup();
         vi.mocked(api.getProfileRaiding).mockResolvedValue(RAIDING);
         await renderProfile("/profile?char=borka");
@@ -417,19 +421,22 @@ describe("Charakter-Reiter – Roster, Loot, Bestzeiten", () => {
         expect(item.closest("li")?.querySelector("img.item-ico")).toHaveAttribute("src", "https://example.org/helm.jpg");
         expect(screen.getByText("BiS")).toHaveClass("rbadge");
         expect(screen.getByRole("link", { name: t("profile.loot.history", { count: 7 }) })).toHaveAttribute("href", "/history/char?name=Borka");
-        expect(expandButtons().filter((b) => b.getAttribute("aria-expanded") === "true").map((b) => b.getAttribute("aria-label"))).toEqual([t("profile.fold.loot")]);
+        expect(expandButtons().filter((b) => b.getAttribute("aria-expanded") === "true").map((b) => b.getAttribute("aria-label"))).toEqual([t("profile.fold.roster"), t("profile.fold.loot")]);
 
-        expect(screen.getByText(`${t("roster.status.trial")} · SSC Mittwoch`)).toBeInTheDocument();
+        // the roster open: status, this character, who sets it
+        expect(screen.getByText(t("profile.roster.thisChar"), { exact: false })).toBeInTheDocument();
+        expect(screen.getByText(t("profile.roster.readOnly"))).toBeInTheDocument();
         expect(screen.getByText(t("profile.fold.dungeons"))).toBeInTheDocument();
         expect(screen.getByText(/1\.240 Erfolgspunkte/)).toBeInTheDocument();
 
+        // closing the roster keeps the loot open; folded, the roster is one line
         await openFold(user, "roster");
-        expect(screen.getByText(t("profile.roster.thisChar"), { exact: false })).toBeInTheDocument();
-        expect(screen.getByText(t("profile.roster.readOnly"))).toBeInTheDocument();
-        // folded now, the loot shows its line
-        expect(screen.getByText(new RegExp(t("profile.loot.sum", { count: 7, date: "X" }).split("X")[0]))).toBeInTheDocument();
+        expect(screen.getByText(`${t("roster.status.trial")} · SSC Mittwoch`)).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Helm of the Vanquished Hero" })).toBeInTheDocument();
 
+        // opening the dungeons closes the loot: its one line
         await openFold(user, "dungeons");
+        expect(screen.getByText(new RegExp(t("profile.loot.sum", { count: 7, date: "X" }).split("X")[0]))).toBeInTheDocument();
         expect(screen.getByText(t("profile.dungeons.pointsRank", { rank: 4, count: 31 }))).toBeInTheDocument();
         expect(screen.getByText("The Deadmines")).toBeInTheDocument();
         expect(screen.getByText("14:32")).toBeInTheDocument();
@@ -449,20 +456,28 @@ describe("Charakter-Reiter – Roster, Loot, Bestzeiten", () => {
             ? new Promise<ProfileRaiding>((resolve) => { answer = resolve; })
             : Promise.resolve(RAIDING)));
         renderPage(<ProfilePage />, { route: "/profile?char=borka", content: twoVersions() });
-        expect(await screen.findByText(`${t("roster.status.trial")} · SSC Mittwoch`)).toBeInTheDocument();
+        expect(await screen.findByText("SSC Mittwoch")).toBeInTheDocument();
 
         // a link to the Forever character switches the menu; the TBC answer must not show under Forever
         const user = userEvent.setup();
         await user.click(screen.getAllByRole("radio", { name: "Forever" })[0]);
         await waitFor(() => expect(api.getProfileRaiding).toHaveBeenCalledWith("forever"));
         await user.click(await screen.findByRole("tab", { name: /Devi Res/ }));
-        expect(screen.queryByText(`${t("roster.status.trial")} · SSC Mittwoch`)).not.toBeInTheDocument();
+        expect(screen.queryByText("SSC Mittwoch")).not.toBeInTheDocument();
         expect(screen.queryByText(t("profile.loot.none"))).not.toBeInTheDocument();
         expect(screen.getAllByText(t("profile.fold.loading")).length).toBeGreaterThan(0);
 
-        answer({ versionId: "forever", rosters: [], characters: { "forever~devi res": { loot: { count: 0, lastAt: 0, items: [] }, dungeons: null } } });
+        answer({ versionId: "forever", dungeonTimes: true, rosters: [], characters: { "forever~devi res": { loot: { count: 0, lastAt: 0, items: [] }, dungeons: null } } });
         expect(await screen.findByText(t("profile.loot.none"))).toBeInTheDocument();
-        expect(screen.getByText(t("profile.roster.none"))).toBeInTheDocument();
+        expect(screen.getAllByText(t("profile.roster.none")).length).toBeGreaterThan(0);
+    });
+
+    it("shows no dungeon block while the version has no dungeon best times, even with data for the character", async () => {
+        setup();
+        vi.mocked(api.getProfileRaiding).mockResolvedValue({ ...RAIDING, dungeonTimes: false });
+        await renderProfile("/profile?char=borka");
+        expect(await screen.findByText(t("profile.roster.readOnly"))).toBeInTheDocument();
+        expect(screen.queryByText(t("profile.fold.dungeons"))).not.toBeInTheDocument();
     });
 
     it("shows no dungeon block at all without LevelHelper data (TBC), and calm empty lines for roster and loot", async () => {
@@ -470,7 +485,7 @@ describe("Charakter-Reiter – Roster, Loot, Bestzeiten", () => {
         vi.mocked(api.getProfileRaiding).mockResolvedValue(RAIDING);
         await renderProfile("/profile?char=frosti");
         // Frosti is not the roster's character - the raider is in it with Borka
-        expect(await screen.findByText(t("profile.roster.sumOther"))).toBeInTheDocument();
+        expect(await screen.findByText(t("profile.roster.otherChar", { names: "Borka" }), { exact: false })).toBeInTheDocument();
         expect(screen.getByText(t("profile.loot.none"))).toBeInTheDocument();
         expect(screen.queryByText(t("profile.fold.dungeons"))).not.toBeInTheDocument();
         expect(document.querySelector(".pf-medal")).toBeNull();
@@ -730,6 +745,17 @@ describe("ProfilePage – adding a character", () => {
         await user.click(screen.getByRole("button", { name: new RegExp(t("profile.first.armoryTitle")) }));
         const dialog = await findDialog(t("profile.add.title"));
         expect(within(dialog).getByRole("radio", { name: t("profile.add.wayArmory") })).toHaveAttribute("aria-checked", "true");
+    });
+
+    it("has the head button „Charakter hinzufügen“ beside the [+] tab, coloured for what it does", async () => {
+        const { user } = setup();
+        await renderProfile();
+        const head = screen.getByRole("button", { name: t("profile.addCharacter") });
+        expect(head).toHaveClass("btn-go");
+        expect(head.querySelector("svg")).not.toBeNull();
+        await user.click(head);
+        const dialog = await findDialog(t("profile.add.title"));
+        expect(within(dialog).getByRole("radio", { name: t("profile.add.wayLog") })).toHaveAttribute("aria-checked", "true");
     });
 
     it("opens the dialog on „Aus Logs“ from the [+] tab", async () => {

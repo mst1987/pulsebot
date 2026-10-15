@@ -7,7 +7,8 @@ import {
     type ApiError, type ProfileCharacter, type ProfilePatch, type RaiderProfile,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
-import { Badge, PageHead, RaidLoader, useConfirm } from "../../components/ui";
+import { Badge, Button, PageHead, RaidLoader, useConfirm } from "../../components/ui";
+import { PlusIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import AddCharacterDialog, { type AddWay } from "../../components/character/AddCharacterDialog";
 import EditCharacterDialog from "../../components/character/EditCharacterDialog";
@@ -19,6 +20,7 @@ import { specSuggestion } from "../../lib/settings/raidhelperRetirement";
 import { useT } from "../../i18n";
 import "../../styles/profile.css";
 import type { Fold } from "./ProfileParts";
+import { toggleFold } from "../../lib/profile/folds";
 import { CharacterCard, FirstCharacter } from "./CharacterCard";
 import { InfoTab } from "./InfoTab";
 import { DungeonPart, LootPart, RosterPart, type Loaded } from "./CharacterTab";
@@ -42,9 +44,10 @@ export default function ProfilePage() {
     const profileData = useApi(() => getProfile(), []);
     const { data, setData } = profileData;
     const [params, setParams] = useSearchParams();
-    const [infoFold, setInfoFold] = useState<Fold>("days");
-    // null = not touched on this character yet: then its loot is open when it has some (rendered below)
-    const [charFold, setCharFold] = useState<Fold | null>(null);
+    // The open parts of a tab; null = the raider has not opened or closed one there yet, then the defaults:
+    // Meine Infos the attendance and the weekdays, a character the roster and - when it has some - the loot.
+    const [infoFold, setInfoFold] = useState<Fold[] | null>(null);
+    const [charFold, setCharFold] = useState<Fold[] | null>(null);
     const [adding, setAdding] = useState<AddWay | null>(null);
     const [editing, setEditing] = useState<ProfileCharacter | null>(null);
     // "Alle Charaktere" (?view=all): the orga's tab — every raider's characters, editable with write access to the roster area.
@@ -164,9 +167,12 @@ export default function ProfilePage() {
         return raiding.error && !raiding.loading ? "failed" : "loading";
     }
     const charRaiding = selected ? raidingNow?.characters[selected.key] : undefined;
-    const dungeons = charRaiding?.dungeons || null;
-    // the loot is open when there is some, until the raider opens or closes a part of this character
-    const shownCharFold: Fold = charFold ?? (charRaiding && charRaiding.loot.count > 0 ? "loot" : "");
+    // only where the version has dungeon best times (feature "dungeonTimes") and the addon reported this character
+    const dungeons = raidingNow?.dungeonTimes ? charRaiding?.dungeons || null : null;
+    const shownInfoFold: Fold[] = infoFold ?? ["attendance", "days"];
+    const shownCharFold: Fold[] = charFold ?? (charRaiding && charRaiding.loot.count > 0 ? ["roster", "loot"] : ["roster"]);
+    const toggleInfo = (id: Fold) => setInfoFold(toggleFold(shownInfoFold, id));
+    const toggleChar = (id: Fold) => setCharFold(toggleFold(shownCharFold, id));
 
     return (
         <div className="pf-page">
@@ -176,6 +182,9 @@ export default function ProfilePage() {
                 kicker={`Discord · ${user.name} · ${t("profile.characters", { count: shownChars.length })}`}
                 title={t("profile.title")}
                 meta={profile.updatedAt ? <Badge>{t("profile.changed", { date: formatDate(profile.updatedAt) })}</Badge> : <Badge tone="accent">{t("profile.new")}</Badge>}
+                action={tab.kind !== "all" && shownChars.length > 0 && (
+                    <Button variant="go" icon={<PlusIcon />} onClick={() => setAdding("log")}>{t("profile.addCharacter")}</Button>
+                )}
             />
 
             <ProfileTabs
@@ -195,8 +204,8 @@ export default function ProfilePage() {
                     <InfoTab
                         data={data}
                         profile={profile}
-                        fold={infoFold}
-                        onFold={setInfoFold}
+                        fold={shownInfoFold}
+                        onFold={toggleInfo}
                         patch={patch}
                         ask={ask}
                         calendar={cal}
@@ -227,7 +236,7 @@ export default function ProfilePage() {
                             onRemove={() => removeChar(selected)}
                             onEdit={() => setEditing(selected)}
                         />
-                        <RosterPart charKey={selected.key} rosters={raidingOf((r) => r.rosters)} fold={shownCharFold} onFold={setCharFold} />
+                        <RosterPart charKey={selected.key} rosters={raidingOf((r) => r.rosters)} fold={shownCharFold} onFold={toggleChar} />
                         {/* Part 2: the professions (Berufe) go here, under the roster. */}
                     </div>
                     <div className="pf-col">
@@ -235,11 +244,11 @@ export default function ProfilePage() {
                             name={selected.name}
                             loot={raidingOf((r) => r.characters[selected.key]?.loot || { count: 0, lastAt: 0, items: [] })}
                             fold={shownCharFold}
-                            onFold={setCharFold}
+                            onFold={toggleChar}
                             historyLink={canAccessAny(user, ["history", "loot"])}
                         />
                         {/* Only with LevelHelper data for this character (WoW Forever): no block, no empty state otherwise. */}
-                        {dungeons && <DungeonPart dungeons={dungeons} fold={shownCharFold} onFold={setCharFold} />}
+                        {dungeons && <DungeonPart dungeons={dungeons} fold={shownCharFold} onFold={toggleChar} />}
                         {/* Part 2: the wish items (Wunsch-Items, loot-council categories only) go here. */}
                     </div>
                 </div>

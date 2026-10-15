@@ -14,9 +14,12 @@
 //                           (dungeonRunStore, by name and realm) - achievement
 //                           points with the rank among the version's characters,
 //                           medals and the fastest run per dungeon; null when
-//                           the addon never reported the character, so the
-//                           page shows no block at all (TBC and Classic have no
-//                           such data, WoW Forever does)
+//                           the version does not have the feature
+//                           "dungeonTimes" (only WoW Forever's rule set has it,
+//                           and it can be switched off) or the addon never
+//                           reported the character - then the page shows no
+//                           block at all. `dungeonTimes` says whether the
+//                           feature is on.
 //
 // The route is GET /api/profile/raiding (apiRoutes/profile.js, area `signup`).
 const profiles = require("../../stores/raiderProfileStore");
@@ -25,6 +28,7 @@ const lootStore = require("../../stores/lootStore");
 const dungeonRuns = require("../../stores/dungeonRunStore");
 const { characterTable, dungeonTables } = require("../dungeons/dungeonBoard");
 const { eventVersion } = require("./characterVersions");
+const { featureOn } = require("../events/versionCapabilities");
 const { spec: specOfVersion, LEGACY_VERSION } = require("../../config/gameVersions");
 
 /** How many loot rows the tab lists; the history page has the rest. */
@@ -32,7 +36,8 @@ const LOOT_SHOWN = 5;
 /** How many of the fastest runs the tab lists. */
 const RUNS_SHOWN = 3;
 
-const lower = (v) => String(v || "").trim().toLowerCase();
+/** A name as names are compared here: any case, inner whitespace runs as one space ("Devi  Res" = "devi res"). */
+const lower = (v) => String(v || "").trim().replace(/\s+/g, " ").toLowerCase();
 const versionOf = (c) => c.versionId || LEGACY_VERSION;
 
 /** The caller's memberships in the open rosters of `versionId`, roster name order. */
@@ -144,14 +149,17 @@ function dungeonsOf(character, { runs, stored, ranked, places }) {
  * of `versionId` - see the head of this file.
  * @param {string} userId
  * @param {string} versionId  a known version (the route resolves it)
+ * @param {{ config?: object }} [opts]  the settings the feature "dungeonTimes" is read from
  */
-function profileRaiding(userId, versionId) {
+function profileRaiding(userId, versionId, { config } = {}) {
     const profile = profiles.getProfile(String(userId || ""));
     const chars = (profile.characters || []).filter((c) => versionOf(c) === versionId);
     // the raid of a loot row decides its version (the stored one, #737), read once per raid - as /loot does
     const ctx = { eventCache: new Map() };
-    const runs = dungeonRuns.listRuns(versionId);
-    const stored = dungeonRuns.listCharacters(versionId);
+    // dungeon best times only where the version has them (feature "dungeonTimes": the rule set, not switched off)
+    const dungeonTimes = featureOn(versionId, "dungeonTimes", { config });
+    const runs = dungeonTimes ? dungeonRuns.listRuns(versionId) : [];
+    const stored = dungeonTimes ? dungeonRuns.listCharacters(versionId) : [];
     const ranked = characterTable(stored);
     const places = placesOf(runs);
     const characters = {};
@@ -161,7 +169,7 @@ function profileRaiding(userId, versionId) {
             dungeons: runs.length || stored.length ? dungeonsOf(c, { runs, stored, ranked, places }) : null,
         };
     }
-    return { versionId, rosters: rosterMemberships(userId, versionId), characters };
+    return { versionId, dungeonTimes, rosters: rosterMemberships(userId, versionId), characters };
 }
 
 module.exports = { profileRaiding, rosterMemberships, lootOf, dungeonsOf, placesOf, storedCharacterOf, LOOT_SHOWN, RUNS_SHOWN };

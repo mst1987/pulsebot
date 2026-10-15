@@ -32,11 +32,14 @@ const states = (versionId, cfg) => Object.fromEntries(
 );
 
 describe("services/events/versionCapabilities — the matrix", () => {
-    it("has TBC do everything", () => {
-        expect(states("tbc", config())).toEqual(Object.fromEntries(VERSION_FEATURES.map((f) => [f, "an"])));
+    it("has TBC do everything but the dungeon best times (no LevelHelper on its client)", () => {
+        expect(states("tbc", config())).toEqual({
+            ...Object.fromEntries(VERSION_FEATURES.map((f) => [f, "an"])),
+            dungeonTimes: "nicht möglich (no_dungeon_times)",
+        });
     });
 
-    it("has Forever do only the Wowhead links today, each other feature with its reason", () => {
+    it("has Forever do only the Wowhead links and the dungeon best times today, each other feature with its reason", () => {
         expect(states("forever", config())).toEqual({
             logcheck: "nicht möglich (rules_not_ready)",
             lootCouncilBis: "nicht möglich (no_bis_data)",
@@ -46,6 +49,7 @@ describe("services/events/versionCapabilities — the matrix", () => {
             armory: "nicht möglich (armory_not_configured)",
             wowheadLinks: "an",
             raidplanCatalog: "nicht möglich (no_catalog_entries)",
+            dungeonTimes: "an",
         });
         const logcheck = caps.featureState("forever", "logcheck", { config: config() });
         expect(logcheck.message).toBe("Die Logcheck-Regeln für WoW Forever sind noch nicht fertig.");
@@ -70,11 +74,14 @@ describe("services/events/versionCapabilities — the matrix", () => {
     });
 
     it("turns a switched-off feature into one that is off with its own hint", () => {
-        for (const f of VERSION_FEATURES) {
+        // every feature TBC can have (the dungeon best times are Forever's, see below)
+        for (const f of VERSION_FEATURES.filter((x) => x !== "dungeonTimes")) {
             const s = caps.featureState("tbc", f, { config: OFF });
             expect(s).toMatchObject({ possible: true, enabled: false, on: false, reason: "disabled" });
             expect(s.message).toMatch(/ist für TBC Anniversary ausgeschaltet \(Einstellungen → Spielversion\)\.$/);
         }
+        expect(caps.featureState("forever", "dungeonTimes", { config: config({}, { disabled: ["dungeonTimes"] }) }))
+            .toMatchObject({ possible: true, enabled: false, on: false, reason: "disabled" });
         // a feature that is not possible keeps its own reason, switched off or not
         const off = caps.featureState("forever", "raidSheet", { config: config({}, { disabled: ["raidSheet"] }) });
         expect(off).toMatchObject({ possible: false, enabled: false, reason: "no_sheet_layout" });

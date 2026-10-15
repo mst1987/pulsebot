@@ -3,7 +3,7 @@ const { VERSION_FEATURES, isVersionFeature, normalizeDisabled } = require("../..
 
 describe("config/versionFeatures", () => {
     it("lists the eight features in the matrix order", () => {
-        expect(VERSION_FEATURES).toEqual(["logcheck", "lootCouncilBis", "simulation", "raidSheet", "softres", "armory", "wowheadLinks", "raidplanCatalog"]);
+        expect(VERSION_FEATURES).toEqual(["logcheck", "lootCouncilBis", "simulation", "raidSheet", "softres", "armory", "wowheadLinks", "raidplanCatalog", "dungeonTimes"]);
         expect(Object.isFrozen(VERSION_FEATURES)).toBe(true);
     });
 

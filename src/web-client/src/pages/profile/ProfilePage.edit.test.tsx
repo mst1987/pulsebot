@@ -54,7 +54,7 @@ beforeEach(() => {
     vi.mocked(api.getLogCharacters).mockResolvedValue({ characters: [] });
     vi.mocked(api.getAllCharacters).mockResolvedValue({ raiders: [] });
     vi.mocked(api.getRaiderAttendance).mockResolvedValue({ userId: "u1", name: "Anna", own: true, orga: false, categories: [] });
-    vi.mocked(api.getProfileRaiding).mockResolvedValue({ versionId: "tbc", rosters: [], characters: {} });
+    vi.mocked(api.getProfileRaiding).mockResolvedValue({ versionId: "tbc", dungeonTimes: false, rosters: [], characters: {} });
 });
 
 describe("ProfilePage: bearbeiten und Orga-Tab", () => {

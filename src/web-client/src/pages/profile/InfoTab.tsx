@@ -67,8 +67,8 @@ function AttendanceCategoryRow({ cat, userId, name }: { cat: AttendanceCategory;
 export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onCalendar, attendance, attendanceFailed }: {
     data: ProfileData;
     profile: RaiderProfile;
-    fold: Fold;
-    onFold: (f: Fold) => void;
+    fold: Fold[];
+    onFold: (id: Fold) => void;
     patch: (change: ProfilePatch, optimistic?: Partial<RaiderProfile>) => Promise<void>;
     ask: ConfirmFn;
     calendar: CalendarTokens | null;
@@ -83,7 +83,7 @@ export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onC
         <div className="pf-grid pf-grid-even">
             <div className="pf-col">
                 <Group label={t("profile.info.groupRaiding")}>
-                    <FoldPart id="attendance" open={fold} onOpen={onFold} title={t("profile.fold.attendance")}
+                    <FoldPart id="attendance" open={fold} onToggle={onFold} title={t("profile.fold.attendance")}
                         summary={attendanceSummary(attendance, attendanceFailed, t)}>
                         {attendance && attendance.categories.length > 0
                             ? attendance.categories.map((c) => <AttendanceCategoryRow key={c.id} cat={c} userId={attendance.userId} name={attendance.name || profile.name} />)
@@ -93,7 +93,7 @@ export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onC
                 </Group>
                 <Group label={t("profile.info.groupLinks")}>
                     <FoldPart
-                        id="calendar" open={fold} onOpen={onFold} title={t("profile.fold.calendar")}
+                        id="calendar" open={fold} onToggle={onFold} title={t("profile.fold.calendar")}
                         summary={!cal ? t("profile.fold.calendarLoading") : cal.tokens.length === 0 ? t("profile.fold.calendarNone") : t("profile.fold.calendarActive", { count: cal.tokens.length })}
                     >
                         <CalendarPart data={cal} onChange={onCalendar} />
@@ -105,7 +105,7 @@ export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onC
                 <Group label={t("profile.info.groupPrefs")}>
                     {/* Part 2 adds the hours per weekday inside this fold. */}
                     <FoldPart
-                        id="days" open={fold} onOpen={onFold} title={t("profile.fold.days")}
+                        id="days" open={fold} onToggle={onFold} title={t("profile.fold.days")}
                         summary={profile.availability.length
                             ? (
                                 <span className="pf-day-sum">
@@ -131,14 +131,14 @@ export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onC
                     </FoldPart>
 
                     <FoldPart
-                        id="raids" open={fold} onOpen={onFold} title={t("profile.fold.raids")}
+                        id="raids" open={fold} onToggle={onFold} title={t("profile.fold.raids")}
                         summary={profile.preferredRaids.length ? t("profile.fold.raidsChosen", { count: profile.preferredRaids.length }) : t("profile.fold.raidsNone")}
                     >
                         <RaidPicker data={data} value={profile.preferredRaids} onChange={(next) => patch({ preferredRaids: next }, { preferredRaids: next })} />
                     </FoldPart>
 
                     <FoldPart
-                        id="wishes" open={fold} onOpen={onFold} title={t("profile.fold.wishes")}
+                        id="wishes" open={fold} onToggle={onFold} title={t("profile.fold.wishes")}
                         summary={profile.wishes.length ? profile.wishes.map((w) => w.character || w.name).join(", ") : t("profile.fold.wishesNone")}
                         badge={<Badge icon={<EyeOffIcon />} tip={t("profile.fold.orgaOnlyTip")} tipSub={t("profile.fold.orgaOnlySub")}>{t("profile.fold.orgaOnly")}</Badge>}
                     >
@@ -153,7 +153,7 @@ export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onC
                     </FoldPart>
 
                     <FoldPart
-                        id="avoid" open={fold} onOpen={onFold} title={t("profile.fold.avoid")}
+                        id="avoid" open={fold} onToggle={onFold} title={t("profile.fold.avoid")}
                         summary={!profile.avoidEnabled
                             ? t("profile.fold.avoidOff")
                             : profile.avoid.length ? profile.avoid.map((w) => w.character || w.name).join(", ") : t("profile.fold.avoidNone")}
@@ -176,7 +176,7 @@ export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onC
                     </FoldPart>
 
                     <FoldPart
-                        id="note" open={fold} onOpen={onFold} title={t("profile.fold.note")}
+                        id="note" open={fold} onToggle={onFold} title={t("profile.fold.note")}
                         summary={profile.note ? profile.note : t("profile.fold.noteNone")}
                     >
                         <NoteField value={profile.note} max={data.limits.note} onSave={(note) => patch({ note }, { note })} />

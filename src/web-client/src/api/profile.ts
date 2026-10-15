@@ -257,6 +257,8 @@ export type ProfileDungeons = {
 
 export type ProfileRaiding = {
     versionId: string;
+    /** Whether the version has dungeon best times (feature "dungeonTimes", WoW Forever) - without, no character has a dungeon block. */
+    dungeonTimes: boolean;
     rosters: ProfileRosterMembership[];
     /** By profile character key, only the shown version's characters. */
     characters: Record<string, { loot: ProfileLoot; dungeons: ProfileDungeons | null }>;

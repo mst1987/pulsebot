@@ -73,6 +73,14 @@ describe("GET /api/profile/raiding", () => {
         expect(data.rosters).toEqual([]);
         expect(Object.keys(data.characters)).toEqual(["borka"]);
         expect(data.characters.borka).toMatchObject({ loot: { count: 1 }, dungeons: null });
+        expect(data.dungeonTimes).toBe(false);
+    });
+
+    it("sends no dungeon data while the feature „Dungeon-Bestzeiten“ is switched off for the version", async () => {
+        getConfig.mockReturnValue({ mainVersion: "forever", versionSettings: { forever: { disabled: ["dungeonTimes"] } } });
+        const data = body(await get("/api/profile/raiding"));
+        expect(data.dungeonTimes).toBe(false);
+        expect(data.characters["forever~devi res"].dungeons).toBeNull();
     });
 
     it("answers only the main version while the other versions are hidden", async () => {
