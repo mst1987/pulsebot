@@ -12,7 +12,7 @@
   --text:#e6e6e6; --muted:#9aa0aa; --line:#2c313b; --line-soft:#23272f;
   --high:#e0524f; --high-bg:rgba(224,82,79,.16);
   --medium:#e0a23a; --medium-bg:rgba(224,162,58,.16);
-  --good:#7fd17f; --good-bg:rgba(120,200,120,.16);
+  --good:#7fd17f; --good-bg:rgba(120,200,120,.16); --go:#7fd17f; --go-ink:#0d1a08;
   --accent:#8a7cff; --accent-2:#35d6c4; --accent-soft:rgba(138,124,255,.16); --accent-ink:#130f26;
   --portrait-1:#1a1d24; --portrait-2:#14161b;
   --font-mono: ui-monospace, "Cascadia Code", Consolas, "SFMono-Regular", Menlo, monospace;
@@ -40,7 +40,7 @@
     --text:#1b1e27; --muted:#5b616e; --line:#dde1eb; --line-soft:#e8ebf2;
     --high:#cf3b37; --high-bg:rgba(207,59,55,.12);
     --medium:#9a6c12; --medium-bg:rgba(154,108,18,.14);
-    --good:#2b9440; --good-bg:rgba(43,148,64,.12);
+    --good:#2b9440; --good-bg:rgba(43,148,64,.12); --go:#23802f; --go-ink:#ffffff;
     --accent:#6a4fe0; --accent-2:#0f8f82; --accent-soft:rgba(106,79,224,.10); --accent-ink:#ffffff;
     --portrait-1:#e9edf4; --portrait-2:#dce2ec;
     --area-recruitment:#1f9d6c; --area-recruitment-soft:rgba(31,157,108,.12);
@@ -65,7 +65,7 @@
   --text:#1b1e27; --muted:#5b616e; --line:#dde1eb; --line-soft:#e8ebf2;
   --high:#cf3b37; --high-bg:rgba(207,59,55,.12);
   --medium:#9a6c12; --medium-bg:rgba(154,108,18,.14);
-  --good:#2b9440; --good-bg:rgba(43,148,64,.12);
+  --good:#2b9440; --good-bg:rgba(43,148,64,.12); --go:#23802f; --go-ink:#ffffff;
   --accent:#6a4fe0; --accent-2:#0f8f82; --accent-soft:rgba(106,79,224,.10); --accent-ink:#ffffff;
   --portrait-1:#e9edf4; --portrait-2:#dce2ec;
   --area-recruitment:#1f9d6c; --area-recruitment-soft:rgba(31,157,108,.12);
@@ -543,8 +543,23 @@ dialog.dlg.chart { max-width:min(1400px, 96vw); width:min(1400px, 96vw); }
 
 /* ---- report page, design #226: area groups with metric cards, detail dialogs, one-line findings,
    icon buttons, the four-section raider card and the focused player page. Tokens only, light + dark. ---- */
-/* buttons: .btn-run starts a job, .ibtn is the square icon button */
+/* buttons: .btn-run starts a job, .ibtn is the square icon button.
+   What a button does shows in its colour, the same everywhere on these pages:
+   .btn       the next step (version accent): open the send dialog, "Empfehlungen senden …"
+   .btn-go    do it / positive, filled green: Per Bot senden, Text speichern
+   .btn-yes   a positive verdict, green even while not chosen; .ok = chosen (filled)
+   .btn-no    a negative verdict, red even while not chosen; .bad = chosen (filled)
+   .btn-ghost neutral: cancel, close, open, links
+   .ibtn.yes / .ibtn.no the same verdicts as icon buttons (raid rows) */
 .btn .hicon, .btn-ghost .hicon { width:18px; height:18px; margin:0; border-radius:4px; }
+.btn-go { background:var(--go); color:var(--go-ink); }
+.btn-go:hover { box-shadow:0 4px 22px -6px var(--go); }
+.btn-yes { background:var(--good-bg); color:var(--good); border:1px solid color-mix(in srgb, var(--good) 45%, transparent); }
+.btn-yes:hover { filter:none; background:color-mix(in srgb, var(--good) 24%, transparent); border-color:var(--good); box-shadow:none; }
+.btn-yes.ok { background:var(--go); color:var(--go-ink); border-color:var(--go); }
+.btn-no { background:transparent; color:var(--high); border:1px solid color-mix(in srgb, var(--high) 45%, transparent); }
+.btn-no:hover { filter:none; background:var(--high-bg); border-color:var(--high); box-shadow:none; }
+.btn-no.bad { background:var(--high); color:#fff; border-color:var(--high); }
 .btn svg { width:15px; height:15px; flex:0 0 auto; }
 .btn:disabled { opacity:.5; cursor:default; filter:none; transform:none; box-shadow:none; }
 .btn-run { background:var(--panel2); color:var(--text); border:1px solid color-mix(in srgb, var(--accent-2) 55%, transparent); }
@@ -554,8 +569,12 @@ dialog.dlg.chart { max-width:min(1400px, 96vw); width:min(1400px, 96vw); }
 .ibtn svg { width:16px; height:16px; display:block; }
 .ibtn .hicon { width:22px; height:22px; margin:0; border-radius:4px; }
 .ibtn:hover { border-color:var(--accent); color:var(--text); }
-.ibtn.ok { color:var(--good); border-color:color-mix(in srgb, var(--good) 45%, transparent); background:var(--good-bg); }
-.ibtn.bad { color:var(--high); border-color:color-mix(in srgb, var(--high) 45%, transparent); background:var(--high-bg); }
+.ibtn.yes { color:var(--good); border-color:color-mix(in srgb, var(--good) 35%, var(--line)); }
+.ibtn.no { color:var(--high); border-color:color-mix(in srgb, var(--high) 35%, var(--line)); }
+.ibtn.yes:hover { border-color:var(--good); color:var(--good); background:var(--good-bg); }
+.ibtn.no:hover { border-color:var(--high); color:var(--high); background:var(--high-bg); }
+.ibtn.ok { color:var(--go-ink); border-color:var(--go); background:var(--go); }
+.ibtn.bad { color:#fff; border-color:var(--high); background:var(--high); }
 .mute { color:var(--muted); }
 .mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
 .cn { color:var(--cc, var(--text)); font-weight:700; }
@@ -860,8 +879,6 @@ a.ri-name:hover { text-decoration:underline; }
 .rec-source.own { background:var(--good-bg); color:var(--good); }
 .rec-acts { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .rec-acts .btn { min-height:38px; }
-.rec-acts .rec-yes.ok { background:var(--good); color:#0d1a08; border-color:var(--good); }
-.rec-acts .rec-no.bad { background:var(--high-bg); color:var(--high); border-color:var(--high); }
 .rec-acts .rec-plain { background:transparent; border-color:transparent; color:var(--muted); }
 .rec-acts .rec-plain:hover { color:var(--text); }
 .rec-undo { color:var(--muted); font-size:12.5px; margin-left:4px; }

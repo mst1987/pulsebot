@@ -31,9 +31,9 @@ describe("web/report/recommendations", () => {
             expect(html).not.toContain("ev-b");
             expect(html).toContain("<span class=\"kicker\">Geht so an Sedroc</span><p><span class=\"rec-source rule\">Regel</span><span class=\"rec-body\">Regeltext</span></p>");
             expect(html).toContain("<div class=\"rec-acts rec-review\" data-scope=\"player\" data-player=\"Sedroc\" data-key=\"k1\">");
-            expect(html).toContain("class=\"btn btn-ghost btn-sm rec-yes\" data-review=\"approve\" aria-pressed=\"false\"");
+            expect(html).toContain("class=\"btn btn-sm btn-yes rec-yes\" data-review=\"approve\" aria-pressed=\"false\"");
             expect(html).toContain("<span class=\"lbl\">Freigeben</span>");
-            expect(html).toContain("class=\"btn btn-ghost btn-sm rec-no\" data-review=\"reject\" aria-pressed=\"false\"");
+            expect(html).toContain("class=\"btn btn-sm btn-no rec-no\" data-review=\"reject\" aria-pressed=\"false\"");
             expect(html).toContain("Text ändern</button>");
             expect(html).not.toContain("data-review=\"rule\"");
             expect(html).toContain("<div class=\"rec-edit\" hidden><textarea class=\"rec-text\"");
@@ -42,7 +42,7 @@ describe("web/report/recommendations", () => {
         it("marks the active verdict and offers the rule text behind Claude's or the own words", () => {
             const ai = recBlock(item({ approved: true, ai: "KI-Text" }), "A", true);
             expect(ai).toContain("rec-state-approved");
-            expect(ai).toContain("class=\"btn btn-ghost btn-sm rec-yes ok\" data-review=\"approve\" aria-pressed=\"true\"");
+            expect(ai).toContain("class=\"btn btn-sm btn-yes rec-yes ok\" data-review=\"approve\" aria-pressed=\"true\"");
             expect(ai).toContain("<span class=\"lbl\">Freigegeben</span>");
             expect(ai).toContain("<p data-tip=\"Regeltext\" data-tip-sub=\"Regeltext\"><span class=\"rec-source\" data-tip=\"Von Claude formuliert\"");
             expect(ai).toContain("<span class=\"rec-body\">KI-Text</span>");
@@ -50,7 +50,7 @@ describe("web/report/recommendations", () => {
             expect(ai).toContain("<p class=\"rec-rule\" hidden><span class=\"rec-source rule\">Regel</span>Regeltext</p>");
             const own = recBlock(item({ approved: false, custom: "Mein <Text>" }), "A", true);
             expect(own).toContain("rec-state-rejected");
-            expect(own).toContain("class=\"btn btn-ghost btn-sm rec-no bad\" data-review=\"reject\" aria-pressed=\"true\"");
+            expect(own).toContain("class=\"btn btn-sm btn-no rec-no bad\" data-review=\"reject\" aria-pressed=\"true\"");
             expect(own).toContain("<span class=\"rec-source own\">Eigener Text</span><span class=\"rec-body\">Mein &lt;Text&gt;</span>");
         });
 
@@ -84,14 +84,14 @@ describe("web/report/recommendations", () => {
             const html = recItem(item({ approved: true }), "player", "Elun", true, { open: true });
             expect(html).toContain("rec-state-approved\" data-key=\"k1\" open>");
             expect(html).toContain("<span class=\"acts rec-review\" data-scope=\"player\" data-player=\"Elun\" data-key=\"k1\">");
-            expect(html).toContain("class=\"ibtn ok\" data-tip=\"Freigeben\"");
-            expect(html).toContain("class=\"ibtn\" data-tip=\"Nicht senden\"");
+            expect(html).toContain("class=\"ibtn yes ok\" data-tip=\"Freigeben\"");
+            expect(html).toContain("class=\"ibtn no\" data-tip=\"Nicht senden\"");
             expect(html).toContain("data-review=\"edit\"");
             expect(html).toContain("Eigenen Text schreiben");
             expect(html).toContain("<textarea class=\"rec-text\" rows=\"3\" placeholder=\"Eigene Formulierung (leer = Vorschlag so lassen)\"></textarea>");
             // plain rule text: nothing to switch back to
             expect(html).not.toContain("Regeltext zeigen");
-            expect(recItem(item({ approved: false }), "raid", "", true)).toContain("class=\"ibtn bad\" data-tip=\"Nicht senden\"");
+            expect(recItem(item({ approved: false }), "raid", "", true)).toContain("class=\"ibtn no bad\" data-tip=\"Nicht senden\"");
             expect(recItem(item(), "raid", "", true)).toContain("<span class=\"badge rec-state mid\">offen</span>");
         });
 

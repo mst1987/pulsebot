@@ -448,14 +448,15 @@ describe("web/dashboard/dashboardData loadNextRaidDetails", () => {
 });
 
 describe("web/dashboard/dashboardData area loaders", () => {
-    it("reads the newest report with its open recommendations", () => {
+    it("reads the newest report with how many raiders have gear problems", () => {
         reportStore.listReports.mockReturnValue([{ id: "r2", zone: "Black Temple", generatedAt: 9 }, { id: "r1" }]);
         reportStore.getReport.mockReturnValue({
             players: [{ issues: [1] }],
             recommendations: { raid: [{ key: "a" }], players: [{ name: "X", items: [{ key: "b" }, { key: "c" }] }] },
             recommendationReview: { raid: {}, players: { X: { b: { approved: true } } } },
         });
-        expect(loadLatestReport()).toMatchObject({ id: "r2", zone: "Black Temple", problems: 1, open: 2 });
+        expect(loadLatestReport()).toMatchObject({ id: "r2", zone: "Black Temple", problems: 1, gearRaiders: 1 });
+        expect(loadLatestReport()).not.toHaveProperty("open");
         expect(reportStore.getReport).toHaveBeenCalledWith("r2");
     });
 
