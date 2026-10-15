@@ -240,7 +240,7 @@ dialog.rn-dlg-steps .dlg-body { min-height: 440px; }
     .rn-stepbtn { padding: 7px 8px; }
     .rn-stepbtn:not(.is-on) .rn-stepbtn-lbl { display: none; }
     /* a steady height on the phone too, so the footer does not jump between the steps */
-    dialog.rn-dlg-steps .dlg-body { min-height: min(480px, 62vh); }
+    dialog.rn-dlg-steps .dlg-body { min-height: min(570px, 66vh); }
 }
 .rn-field-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .rn-targets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
