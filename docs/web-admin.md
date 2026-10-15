@@ -153,6 +153,22 @@ Das Menü spricht Deutsch und Englisch, pro Nutzer umschaltbar; umgeschaltet wir
 - **Stand (Phase 2 abgeschlossen, #440):** das ganze Menü ist übersetzt. Phase 1 brachte Shell/Menü, Login, Übersicht, Raid-Liste, Raid-Detail mit Cockpit, allen Tabs/Dialogen/Verwalten und Setup-Editor, Event anlegen/bearbeiten, Anmeldungen und „Mein Profil“; Phase 2 Kanäle, Einstellungen, Historie & Loot (samt Inbox und Charakter-Seite), Loot-Council mit Drop-Check, Roster, Recruitment, Log-Auswertung (CLA), Serien, Aufruf- und Raid-Vorlagen. Deutsch bleibt Standard und Rückfall; offen sind nur Texte, die der Server fertig schickt.
 - **Phase 2 (offen):** Loot-Council, Roster, Historie & Loot, Log-Auswertung, Recruitment, Kanäle, Einstellungen, Raid-/Aufruf-Vorlagen und Serien; alle **Texte, die der Server fertig schickt** — API-Fehlermeldungen und Toasts (`message`), die Texte der Fortschrittsleiste/Schritte von Raid-Helper-Events, Kanalnamen-Herkunft (`naming.label`), Gruppen-Labels des Raidplans, Instanznamen außerhalb von TBC/Classic — und die Report-Seiten (`src/web/report/`). Für Server-Texte braucht es entweder feste Ids/Codes, die der Client übersetzt, oder die Sprache des Kontos im Request.
 
+## Buttons: the colour says what happens (`components/ui/Button.tsx`, `styles/base.css`, `styles/ui.css`)
+
+Okt 2026: one look per meaning on every page, so a button reads before it is hovered (the report pages follow the same rules in `static/report.css`, see docs/logcheck.md).
+
+| Variant | Looks | For |
+|---|---|---|
+| `primary` (`.btn`) | filled, version accent | the main action / next step of a section: create, open, post, a wizard's "Weiter" |
+| `go` (`.btn-go`) | filled green (`--go`/`--go-ink`) | commit something positive: Speichern, Bestätigen, Freigeben, Anmelden, Übernehmen |
+| `yes` (`.btn-yes`) | green outline, filled with `pressed` | the positive one of a pair of choices (Anwesenheit eintragen beside Abwesenheit eintragen, Zusagen) |
+| `no` (`.btn-no`) | red outline, filled with `pressed` | say no without destroying anything: Abwesenheit, Absagen, Ablehnen, Abmelden, Nicht senden |
+| `danger` (`.btn-danger`) | red tint, filled on hover | destroys: Löschen, Entfernen, Zurücksetzen — always behind `useConfirm()` |
+| `ghost` (`.btn-ghost`) | grey | neutral: Abbrechen, Schließen, Zurück, Details, filters, navigation, links |
+| `run` (`.btn-run`) | accent outline | starts a job (Auswerten, KI-Formulierung) |
+
+`IconButton` takes the same meanings as `tone`: `danger` (a bin is red before the hover), `yes` / `no` (verdict ticks), and `pressed` fills a chosen `yes`/`no`. A button that does something carries a leading icon from `components/ui/icons.tsx` (or a WoW icon for a game meaning): `PlusIcon` creates, `SaveIcon` saves, `TrashIcon` deletes, `EditIcon`/`PenIcon` edits, `SendIcon` posts, `RefreshIcon` refreshes, `CopyIcon` copies, `DownloadIcon` downloads, `CheckIcon` confirms, `XIcon` closes/cancels, `ExternalIcon` behind a link that leaves the page; a plain "Abbrechen" may stay without one.
+
 ## The menu and the icon rail (`components/shell/Shell.tsx`, `components/ui/SectionRail.tsx`)
 
 The sidebar draws `src/config/menu.json` (the SSR chrome of the report pages, `src/web/report/adminChrome.js`, draws the same top-level list). It is **short and flat** (design "C · Schmale Icon-Leiste", replacing the fold-out menu of #588): one line per entry, no chevrons, no children. A page with sub sections carries them itself, in a narrow **icon rail** left of its content:

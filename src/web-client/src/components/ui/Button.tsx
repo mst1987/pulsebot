@@ -5,15 +5,18 @@ import { t } from "../../i18n";
 import { useDismiss } from "../../hooks/useDismiss";
 
 // One button system for the whole menu (see the "Bausteine" artboard of the
-// Grundgerüst canvas). The variants are a hierarchy, not a palette:
-//   primary — the one main action of a section,
-//   ghost   — every secondary action beside it,
-//   run     — starts a job (spinner on the button, progress in the toast),
-//   danger  — destructive, always behind useConfirm().
+// Grundgerüst canvas). What a button does shows in its colour (styles/base.css):
+//   primary — the main action / next step of a section (version accent): create, open, post,
+//   go      — commit something positive, filled green: save, confirm, approve, sign up,
+//   yes     — a positive choice beside a negative one, green outline (`pressed` fills it),
+//   no      — say no without destroying anything, red outline: decline, absent, reject,
+//   danger  — destructive (delete, remove, reset), always behind useConfirm(),
+//   ghost   — neutral: cancel, close, back, details, filters, navigation,
+//   run     — starts a job (spinner on the button, progress in the toast).
 // A leading icon is a WoW icon when the action has a game meaning, otherwise a
 // line icon from ../icons passed as a node.
 
-export type ButtonVariant = "primary" | "ghost" | "run" | "danger";
+export type ButtonVariant = "primary" | "ghost" | "run" | "danger" | "go" | "yes" | "no";
 
 type NativeButton = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children">;
 
@@ -33,13 +36,15 @@ function iconNode(icon: string | ReactNode | undefined, size: "md" | "sm") {
     return typeof icon === "string" ? <WowIcon name={icon} size={size === "sm" ? 18 : 22} /> : icon;
 }
 
-export function Button({ variant = "primary", size = "md", icon, running = false, className = "", type = "button", disabled, children, ...rest }: NativeButton & {
+export function Button({ variant = "primary", size = "md", icon, running = false, pressed, className = "", type = "button", disabled, children, ...rest }: NativeButton & {
     variant?: ButtonVariant;
     size?: "md" | "sm";
     /** A WoW icon name, or a line icon node. */
     icon?: string | ReactNode;
     /** A `run` button whose job is going: spinner instead of the icon, inert. */
     running?: boolean;
+    /** A `yes`/`no` choice that is the current one: filled, and aria-pressed for screen readers. */
+    pressed?: boolean;
     children: ReactNode;
 }) {
     return (
@@ -49,6 +54,7 @@ export function Button({ variant = "primary", size = "md", icon, running = false
             className={buttonClass(variant, size, !!icon || running, `${running ? "is-running" : ""} ${className}`.trim())}
             disabled={disabled || running}
             aria-busy={running || undefined}
+            aria-pressed={pressed === undefined ? rest["aria-pressed"] : pressed}
         >
             {running ? <span className="btn-spin" aria-hidden="true" /> : iconNode(icon, size)}
             {children}
@@ -59,19 +65,23 @@ export function Button({ variant = "primary", size = "md", icon, running = false
 /**
  * A square icon-only button. `tip` is required: an icon alone says nothing to
  * someone who has not clicked it yet, and it is also the button's accessible name.
+ * `tone` gives it the meaning colour before any hover: danger (red, deletes),
+ * yes (green, approve/confirm), no (red, reject/decline); `pressed` fills yes/no.
  */
-export function IconButton({ icon, tip, tipSub, size = "md", tone, className = "", type = "button", ...rest }: Omit<NativeButton, "title"> & {
+export function IconButton({ icon, tip, tipSub, size = "md", tone, pressed, className = "", type = "button", ...rest }: Omit<NativeButton, "title"> & {
     icon: string | ReactNode;
     tip: string;
     tipSub?: string;
     size?: "md" | "sm";
-    tone?: "danger";
+    tone?: "danger" | "yes" | "no";
+    pressed?: boolean;
 }) {
     return (
         <button
             {...rest}
             type={type}
             className={["ibtn", size === "sm" ? "sm" : "", tone || "", className].filter(Boolean).join(" ")}
+            aria-pressed={pressed === undefined ? rest["aria-pressed"] : pressed}
             aria-label={rest["aria-label"] || tip}
             data-tip={tip}
             data-tip-sub={tipSub}

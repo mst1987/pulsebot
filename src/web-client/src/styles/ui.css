@@ -30,7 +30,13 @@
 .ibtn.sm .wi { width: 20px; height: 20px; }
 .ibtn:hover:not(:disabled) { color: var(--text); border-color: var(--accent); background: var(--panel3); }
 .ibtn:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.ibtn.danger:hover:not(:disabled) { color: var(--high); border-color: var(--high); background: var(--high-bg); }
+/* tones, as on .btn: the meaning shows before the hover — a bin is red, an approve tick green */
+.ibtn.danger, .ibtn.no { color: color-mix(in srgb, var(--high) 80%, var(--muted)); }
+.ibtn.yes { color: var(--good); }
+.ibtn.danger:hover:not(:disabled), .ibtn.no:hover:not(:disabled) { color: var(--high); border-color: var(--high); background: var(--high-bg); }
+.ibtn.yes:hover:not(:disabled) { color: var(--good); border-color: var(--good); background: var(--good-bg); }
+.ibtn.yes[aria-pressed="true"] { color: var(--go-ink); border-color: var(--go); background: var(--go); }
+.ibtn.no[aria-pressed="true"] { color: var(--on-fill); border-color: var(--high); background: var(--high); }
 .ibtn:disabled { opacity: .45; cursor: default; }
 
 /* ---- split button: main action + chevron menu ---- */
