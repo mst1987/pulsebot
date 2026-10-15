@@ -126,7 +126,7 @@ function NameModal({ initial, onSave, onClose }: { initial: string; onSave: (nam
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon={<SaveIcon />} disabled={!ok} onClick={() => onSave(name.trim())}>{t("common.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} disabled={!ok} onClick={() => onSave(name.trim())}>{t("common.save")}</Button>
                 </>
             )}
         >
@@ -304,7 +304,7 @@ export default function SetupsView() {
                 width={560}
                 className="kp-dialog"
                 hint={t("kader.setups.textHint")}
-                footer={<Button onClick={() => setText(null)}>{t("common.close")}</Button>}
+                footer={<Button variant="ghost" onClick={() => setText(null)}>{t("common.close")}</Button>}
             >
                 <textarea className="kp-textarea" readOnly rows={14} aria-label={t("kader.setups.textTitle")} value={text || ""} onFocus={(e) => e.currentTarget.select()} />
             </Modal>

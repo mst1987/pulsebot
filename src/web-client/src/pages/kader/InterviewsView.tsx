@@ -332,7 +332,7 @@ function InterviewPanel({ userId, entry, next, onGo }: { userId: string; entry: 
                     {canWrite && !done && (
                         <>
                             <Button variant="ghost" icon={<SaveIcon />} onClick={() => void saveNext()}>{next ? t("kader.interview.saveNext") : t("common.save")}</Button>
-                            <Button icon={<CheckIcon />} disabled={!complete} onClick={() => void finish()}>{t("kader.interview.complete")}</Button>
+                            <Button variant="go" icon={<CheckIcon />} disabled={!complete} onClick={() => void finish()}>{t("kader.interview.complete")}</Button>
                         </>
                     )}
                 </span>

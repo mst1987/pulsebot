@@ -21,7 +21,7 @@ import {
 } from "../../api";
 import { Button, Field, Modal, Switch, buttonClass } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
-import { PlusIcon } from "../../components/ui/icons";
+import { PlusIcon, LinkIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { useApi } from "../../hooks/useApi";
 import { useT } from "../../i18n";
@@ -161,7 +161,7 @@ function LinkRosterModal({ state, onClose, onLinked }: { state: KaderRosterState
                 <>
                     {state.roster && <Button variant="ghost" className="kp-foot-left" disabled={busy} onClick={() => void unlink()}>{t("kader.roster.unlink")}</Button>}
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button disabled={!rosterId || rosterId === state.roster?.id || !!picked?.linkedKaderId} running={busy} onClick={() => void send(rosterId)}>{t("kader.roster.link")}</Button>
+                    <Button variant="go" icon={<LinkIcon />} disabled={!rosterId || rosterId === state.roster?.id || !!picked?.linkedKaderId} running={busy} onClick={() => void send(rosterId)}>{t("kader.roster.link")}</Button>
                 </>
             )}
         >
