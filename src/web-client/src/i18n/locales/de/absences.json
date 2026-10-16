@@ -149,9 +149,15 @@
         "loading": "Anwesenheit wird geladen",
         "back": "Zurück zur Übersicht",
         "of": "Anwesenheit von {name}",
-        "entries": "Meine Abwesenheiten",
-        "entriesOf": "Abwesenheiten von {name}",
-        "noEntries": "Keine Abwesenheit eingetragen.",
+        "entries": "Meine Einträge",
+        "entriesOf": "Einträge von {name}",
+        "noEntries": "Nichts eingetragen.",
+        "entry": {
+            "absent": "Abwesend",
+            "absentIn": "Abwesend bei",
+            "present": "Anwesend",
+            "presentOnly": "Nur dabei bei"
+        },
         "noCategories": "Du hast dich noch für keinen Raid einer Kategorie angemeldet – sobald du dabei bist, steht hier deine Anwesenheit.",
         "noCategoriesOf": "{name} hat sich noch für keinen Raid einer Kategorie angemeldet.",
         "noRaids": "Noch keine Raids gezählt.",
