@@ -210,7 +210,10 @@ describe("the orga of a category (a manager of its roster)", () => {
             "POST /api/raidplan/link": () => api.post("/api/raidplan/link", { event: RH_FOREIGN, enabled: true }),
             "POST /api/raids/post-raidplan": () => detail.post("/api/raids/post-raidplan", { event: f }),
         };
-        const scoped = [...route.routes, ...detailRoute.routes].filter((r) => r.handler.orgaScoped).map((r) => `${r.method} ${r.path}`);
+        // raidDetail.js also holds the signup part's routes (#727, covered in eventManage.categoryOrga.test.js)
+        const otherPart = new Set(["POST /api/raids/invite-call", "POST /api/raids/notify", "POST /api/raids/ping-missing"]);
+        const scoped = [...route.routes, ...detailRoute.routes].filter((r) => r.handler.orgaScoped).map((r) => `${r.method} ${r.path}`)
+            .filter((key) => !otherPart.has(key));
         expect(Object.keys(calls).sort()).toEqual([...scoped].sort());
         for (const [key, send] of Object.entries(calls)) {
             const r = await send();
