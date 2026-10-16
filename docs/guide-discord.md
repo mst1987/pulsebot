@@ -1,6 +1,6 @@
 # Discord-Guide für Raider
 
-Diese Seite ist für alle, die den Bot **im Discord als Raider** benutzen — nicht für Entwickler. Sie beschreibt, was jeder Befehl und jede Nachricht des Bots tut. Für die Web-Oberfläche siehe [docs/guide-web-admin.md](guide-web-admin.md).
+Dieser Guide ist für alle, die den Bot **im Discord als Raider** benutzen — nicht für Entwickler. Er beschreibt, was jeder Befehl und jede Nachricht des Bots tut. Für die Web-Oberfläche siehe den [Web-Admin-Guide](guide-web-admin.md).
 
 ## Sprache
 
@@ -94,7 +94,7 @@ Technik: [discord-servers.md](discord-servers.md), [raidhelper-retirement.md](ra
 - Optional ein **natives Discord-Event** (Kalendereintrag) pro Raid.
 - Farbige **App-Emojis** für Klassen, Specs und Status in allen Bot-Nachrichten.
 
-### Neue Spielversion
+## Neue Spielversion
 
 Technik: [game-versions.md](game-versions.md)
 
@@ -106,6 +106,6 @@ Startet die Gilde eine neue Spielversion (z. B. WoW Forever neben TBC), laufen b
 - **Anwesenheit je Version:** `/anwesenheit` zählt die Version der Kategorie des Kanals; mit der Option `version` fragst du eine andere. In der neuen Version steht anfangs „Noch keine Raids gezählt“. Eingetragene Abwesenheiten gelten für alle Versionen.
 - **Talk-Übersicht und Erinnerungen** zeigen die Raids aller Versionen, nach Version gruppiert. Blendet die Orga eine Version aus, verschwinden ihre Raids dort, und alte Anmelde-Buttons antworten mit „This raid is archived“.
 
-### Umstieg von Raid-Helper
+## Umstieg von Raid-Helper
 
 Neue Raid-Kategorien laufen standardmäßig über die eigene Anmeldung des Bots. Ältere Kategorien bleiben auf Raid-Helper, bis die Orga sie umstellt. Für Raider ändert sich dabei nur die Optik — eigene Anmelde-/Setup-Nachricht des Bots statt eines Raid-Helper-Posts. Details für die Orga: [docs/raidhelper-retirement.md](raidhelper-retirement.md).
