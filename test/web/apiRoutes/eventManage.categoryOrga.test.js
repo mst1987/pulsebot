@@ -26,7 +26,8 @@ jest.mock("../../../src/stores/settingsStore", () => ({
 // "role-mgr"; cat1 has a Forever roster prepared already (open, not current yet) managed by "fmgr".
 // cat2 has no roster.
 jest.mock("../../../src/stores/rosterStore", () => {
-    const roster = (id, categoryId, versionId, userIds, roleIds = []) => ({ id, categoryId, versionId, guildId: "g1", managers: { userIds, roleIds }, members: {} });
+    // every roster's raider role is "r-raider" (the roles a category orga may ping in the Anmelde-Aufruf)
+    const roster = (id, categoryId, versionId, userIds, roleIds = []) => ({ id, categoryId, versionId, guildId: "g1", managers: { userIds, roleIds }, roleIds: ["r-raider"], members: {} });
     const rosters = {
         "cat1:tbc": roster("r1", "cat1", "tbc", ["mgr"], ["role-mgr"]),
         "cat1:forever": roster("r1f", "cat1", "forever", ["fmgr"]),
@@ -164,6 +165,18 @@ describe("the orga of a category (a manager of its roster)", () => {
         expect(discord.postAnnouncement).toHaveBeenCalledWith("c-kara", expect.objectContaining({ id: "tpl" }), ["r-raider"]);
     });
 
+    it("pings only the raider roles of the raid's category: any other role refuses the whole call", async () => {
+        for (const roleIds of [["r-other"], ["r-raider", "r-other"], ["role-mgr"]]) {
+            const r = await detailApi.post("/api/raids/notify", { event: own.id, templateId: "tpl", roleIds, target: "event" });
+            expect([roleIds, status(r), code(r)]).toEqual([roleIds, 400, "role_not_allowed"]);
+        }
+        expect(discord.postAnnouncement).not.toHaveBeenCalled();
+        // the own role and no role at all are fine
+        expect(status(await detailApi.post("/api/raids/notify", { event: own.id, templateId: "tpl", roleIds: ["r-raider"], target: "event" }))).toBe(200);
+        expect(status(await detailApi.post("/api/raids/notify", { event: own.id, templateId: "tpl", target: "event" }))).toBe(200);
+        expect(discord.postAnnouncement.mock.calls.map((c) => c[2])).toEqual([["r-raider"], []]);
+    });
+
     it("is the orga by a manager role on the roster's server as well", async () => {
         mockUser = { ...MANAGER, id: "someone" };
         mockMemberRoleIds.mockResolvedValue(["role-mgr"]);
@@ -235,6 +248,10 @@ describe("the global orga and everybody else", () => {
             }
         }
         expect(discord.postAnnouncement).toHaveBeenCalledWith("c-elsewhere", expect.anything(), []);
+        // any role of the server, as before
+        const r = await detailApi.post("/api/raids/notify", { event: own.id, templateId: "tpl", channelId: "c-elsewhere", roleIds: ["r-other"], target: "event" });
+        expect(status(r)).toBe(200);
+        expect(discord.postAnnouncement).toHaveBeenLastCalledWith("c-elsewhere", expect.anything(), ["r-other"]);
         // no roster was asked for the global orga
         expect(mockMemberRoleIds).not.toHaveBeenCalled();
     });

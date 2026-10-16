@@ -46,6 +46,7 @@ const { postRaidplanLink } = require("../../services/raidplan/raidplanPost");
 const { userCan } = require("../../config/permissions");
 const { raidViewer } = require("../../services/signups/eventVisibility");
 const { isGlobalRaidOrga } = require("../events/raidOrgaAccess");
+const { expectedRoleIds } = require("../../services/roster/categoryRoles");
 
 // Every action of this file is the orga's (permissions.userIsOrga) as well as its area's write right:
 // raider roles may hold `raids` write and are still no orga. Posting the raid plan's link is the
@@ -122,30 +123,42 @@ async function planningBlock(req, eventId, action, categoryId) {
 /**
  * POST /api/raids/notify — post an Anmelde-Aufruf into the event channel, pinging the chosen roles. Body: { event, templateId, channelId, roleIds }.
  * The orga of the raid's category (#727) posts into that raid's own channel only: the channel is the
- * server's record of the event, a `channelId` in the body does not count for them.
+ * server's record of the event, a `channelId` in the body does not count for them; and they ping only the
+ * raider roles of the raid's category (categoryRoles.expectedRoleIds), any other role id is 400 "role_not_allowed".
  */
 const postNotify = withUser(SIGNUP_ORGA, async ({ user, body, req, res }) => {
     const template = getNotify(q.str(body, "templateId"));
     const eventId = q.str(body, "event");
     let channelId = q.str(body, "channelId");
+    const roleIds = (Array.isArray(body.roleIds) ? body.roleIds : []).map((id) => String(id || "").trim()).filter(Boolean);
     let lookup = null;
     if (!isGlobalRaidOrga(user)) {
         lookup = await resolveEventForPost(req, eventId);
         if (!lookup.found) return error(res, lookup.code === "not_found" ? 404 : 400, lookup.code || "not_found", lookup.errorMessage || "Event nicht gefunden.");
         channelId = String(lookup.found.channelId || "");
+        // ... and pings only the raider roles of the raid's category (in the raid's version): a role
+        // outside them is refused as a whole - the dialog offers every role of the server, so a
+        // silently shortened ping would reach other people than the ones picked
+        const allowed = new Set(expectedRoleIds(lookup.categoryId, getConfig(), {
+            versionId: versionOfEvent({ ...lookup.found, categoryId: lookup.categoryId }, { config: getConfig() }),
+        }));
+        const foreign = roleIds.filter((id) => !allowed.has(id));
+        if (foreign.length) {
+            return error(res, 400, "role_not_allowed", "Du kannst nur die Raider-Rollen der Kategorie dieses Raids pingen.");
+        }
     }
     const target = normalizePingTarget(body.target);
     if (!template || (target !== "talk" && !channelId)) return error(res, 400, "missing_fields", "Vorlage oder Channel fehlt.");
     try {
         if (target === "event") {
-            await discord.postAnnouncement(channelId, template, body.roleIds || []);
+            await discord.postAnnouncement(channelId, template, roleIds);
             return ok(res, { message: "Anmelde-Aufruf gepostet." });
         }
         // The DM fallback names the raid, so the event is resolved server-side;
         // a failed lookup only costs the DM its title.
         const { found } = lookup || (eventId ? await resolveEventForPost(req, eventId) : { found: null });
         const result = await deliverAnnouncement({
-            target, event: found, channelId, template, roleIds: body.roleIds || [], guildId: activeGuildFor(req),
+            target, event: found, channelId, template, roleIds, guildId: activeGuildFor(req),
         });
         ok(res, { message: `Anmelde-Aufruf gepostet (${TARGET_LABELS[target]})${dmSummary(result.dm)}.`, delivery: result });
     } catch (e) {
