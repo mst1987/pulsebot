@@ -15,6 +15,12 @@ export type AddonCenterVersion = { id: string; label: string };
 /** The posted message: where, since when, its link ("" while Discord has not confirmed it). */
 export type AddonCenterPost = { channelId: string; postedAt: number; url: string };
 
+/**
+ * A role of the server; `privileged`: it carries bot rights (admin, orga, area grants) or
+ * Discord permissions — nobody may take it with "Updates abonnieren", so the centre hides the button.
+ */
+export type AddonCenterRole = Role & { privileged?: boolean };
+
 export type AddonCenterChannel = {
     id: string;
     name: string;
@@ -32,7 +38,7 @@ export type AddonCenterView = {
     online: boolean;
     channels: AddonCenterChannel[];
     /** The roles per server id: the update role lives on the centre's server. */
-    roles: Record<string, Role[]>;
+    roles: Record<string, AddonCenterRole[]>;
     /** The game versions to pick from (the visible ones). */
     versions: AddonCenterVersion[];
     /** What "automatic" means for the chosen channel, null without a channel. */

@@ -30,6 +30,7 @@ const { mainVersionFor, isVersionVisible, knownVersion } = require("../events/ma
 const { enabledAddons, releaseFor } = require("./addonReleases");
 const { assetMatches } = require("./addonConfig");
 const { centerPayload, patchNotesUrl, escapeMd } = require("./addonCenterPanel");
+const { privilegedReason } = require("./updateRole");
 const { tr } = require("../../utils/i18n/botText");
 const log = require("../../logger").child("addonCenter");
 
@@ -110,12 +111,28 @@ function payloadHash(payload) {
     return crypto.createHash("sha1").update(JSON.stringify(payload.components)).digest("hex").slice(0, 16);
 }
 
+/**
+ * Whether the centre offers "Updates abonnieren": only with an update role that carries
+ * no rights (updateRole.js) — the bot rights from the config always, the Discord
+ * permissions when the role is in the cache of the channel's server.
+ */
+function offersSubscribe(channelId, config) {
+    const { roleId } = store.getSettings();
+    if (!roleId) return false;
+    const client = discord.getClient();
+    const cache = client && client.channels && client.channels.cache;
+    const channel = cache && typeof cache.get === "function" ? cache.get(str(channelId)) : null;
+    const roles = channel && channel.guild && channel.guild.roles ? channel.guild.roles.cache : null;
+    const role = roles && typeof roles.get === "function" ? roles.get(roleId) || null : null;
+    return !privilegedReason(config, roleId, role);
+}
+
 /** The centre as it should look now, for the channel it lives in. */
 async function currentPayload({ channelId, config, now = Date.now() } = {}) {
     const cfg = config || getConfig();
     const versionId = channelVersion(channelId, cfg);
     const entries = await centerEntries(cfg, versionId, { now });
-    const subscribe = !!store.getSettings().roleId;
+    const subscribe = offersSubscribe(channelId, cfg);
     const built = centerPayload({ entries, subscribe, lang: serverLang(cfg), emojis: appEmojiMap(), now, versionLabel: versionLabel(versionId) });
     if (built.dropped) log.warn(`${built.dropped} addon(s) do not fit into the centre (Discord allows 40 components); they are on the download page`);
     return { ...built, versionId, entries };
@@ -354,7 +371,8 @@ function onCenterMessageDeleted(messageId, { delayMs = REDRAW_DELAY_MS } = {}) {
 /**
  * Save the settings of Einstellungen → Module → Addons and follow them in Discord:
  * another channel moves the posted centre there (the old message is deleted), a
- * changed game version or role redraws it ("Updates abonnieren" shows only with a role).
+ * changed game version redraws it, a changed role when "Updates abonnieren" comes or goes
+ * (it shows only with a role that carries no rights).
  * @returns {Promise<{ settings?: object, center?: object|null, error?: string }>}
  */
 async function saveSettings(patch = {}, { by = "", config, now = Date.now() } = {}) {
@@ -380,7 +398,9 @@ async function saveSettings(patch = {}, { by = "", config, now = Date.now() } = 
             log.warn(`versions of the new game version not remembered: ${str(e && e.message) || e}`);
         }
     }
-    if (saved.settings.versionId !== before.versionId || saved.settings.roleId !== before.roleId) await refreshCenter({ config, force: true, now });
+    if (saved.settings.versionId !== before.versionId) await refreshCenter({ config, force: true, now });
+    // another role: the fingerprint covers the button, so only a change in it is drawn
+    else if (saved.settings.roleId !== before.roleId) await refreshCenter({ config, now });
     return { settings: saved.settings, center: store.getCenter() };
 }
 

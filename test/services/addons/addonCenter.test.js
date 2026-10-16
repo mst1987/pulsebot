@@ -451,6 +451,39 @@ describe("addonCenter saveSettings", () => {
         expect(discord.editPayload).toHaveBeenCalledTimes(2);
         expect(JSON.stringify(discord.editPayload.mock.calls[1][2])).not.toContain("addonhub:sub");
     });
+
+    it("another plain role leaves the centre alone (the button stays, the fingerprint is the same)", async () => {
+        store.setSettings({ roleId: ROLE });
+        await center.postCenter({ now: NOW });
+        await center.saveSettings({ roleId: "200000000000000003" }, { now: NOW });
+        expect(discord.editPayload).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ["a full-admin role", () => ({ adminRoleIds: [ROLE] })],
+        ["an orga role", () => ({ orgaRoleIds: [ROLE] })],
+        ["a role with area grants", () => ({ rolePermissions: { [ROLE]: { signup: { read: true } } } })],
+    ])("hides 'Updates abonnieren' for %s (still pinged), and a switch to it takes the button away", async (_name, cfg) => {
+        mockConfig = { ...mockConfig, ...cfg() };
+        store.setSettings({ roleId: ROLE });
+        await center.postCenter({ now: NOW });
+        expect(JSON.stringify(discord.postPayload.mock.calls[0][1])).not.toContain("addonhub:sub");
+
+        await center.saveSettings({ roleId: "200000000000000003" }, { now: NOW });
+        expect(JSON.stringify(discord.editPayload.mock.calls[0][2])).toContain("addonhub:sub");
+        await center.saveSettings({ roleId: ROLE }, { now: NOW });
+        expect(JSON.stringify(discord.editPayload.mock.calls[1][2])).not.toContain("addonhub:sub");
+    });
+
+    it("hides the button for a role that carries Discord permissions (read from the channel's server)", async () => {
+        const roles = new Map([[ROLE, { id: ROLE, permissions: { bitfield: 8n } }], ["200000000000000003", { id: "200000000000000003", permissions: { bitfield: 0n } }]]);
+        mockChannels[CH] = { ...mockChannels[CH], guild: { roles: { cache: roles } } };
+        store.setSettings({ roleId: ROLE });
+        await center.postCenter({ now: NOW });
+        expect(JSON.stringify(discord.postPayload.mock.calls[0][1])).not.toContain("addonhub:sub");
+        await center.saveSettings({ roleId: "200000000000000003" }, { now: NOW });
+        expect(JSON.stringify(discord.editPayload.mock.calls[0][2])).toContain("addonhub:sub");
+    });
 });
 
 describe("addonCenter startAddonCenter", () => {

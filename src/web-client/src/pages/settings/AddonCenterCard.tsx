@@ -37,6 +37,8 @@ export default function AddonCenterCard() {
     const guildOf = (channelId: string) => (data.channels.find((c) => c.id === channelId) || { guildId: "" }).guildId;
     const guildId = guildOf(settings.channelId) || Object.keys(data.roles)[0] || "";
     const roles = data.roles[guildId] || [];
+    // a role with bot rights or Discord permissions: the centre hides "Updates abonnieren" for it
+    const privileged = !!settings.roleId && Object.values(data.roles).some((list) => list.some((r) => r.id === settings.roleId && r.privileged));
 
     const run = async (kind: Busy, call: () => Promise<AddonCenterView>, done: string) => {
         setBusy(kind);
@@ -86,6 +88,7 @@ export default function AddonCenterCard() {
                     <div className="set-field">
                         <FieldLabel htmlFor="dlp-center-role" tip={t("addon.center.role")} tipSub={t("addon.center.roleSub")}>{t("addon.center.role")}</FieldLabel>
                         <RolePicker id="dlp-center-role" value={settings.roleId} roles={roles} onChange={(roleId) => { void save({ roleId }); }} />
+                        {privileged && <div className="field-error" role="alert">{t("addon.center.rolePrivileged")}</div>}
                     </div>
                     <div className="set-field">
                         <FieldLabel htmlFor="dlp-center-version" tip={t("addon.center.version")} tipSub={t("addon.center.versionSub")}>{t("addon.center.version")}</FieldLabel>

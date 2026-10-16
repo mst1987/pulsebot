@@ -10,9 +10,11 @@
 //                                     set): the update role on or off for the clicker
 //   addonhub:unsub                    "Abo beenden" under the confirmation
 //
-// The bot may hand out the role only with Manage Roles, when the role sits below its
-// highest role and belongs to no integration; otherwise (and when the role is gone)
-// the member gets one clear line and the log a warning saying why.
+// The button never touches a role with rights (bot rights or Discord permissions,
+// updateRole.js), in neither direction. Otherwise the bot may hand out the role only
+// with Manage Roles, when the role sits below its highest role and belongs to no
+// integration; else (and when the role is gone) the member gets one clear line and
+// the log a warning saying why.
 //
 // A download is checked like the web's (apiRoutes/addons.js): the areas "signup" or
 // "history", an orga-only addon only for the orga (userAccess.resolveAccess, a failed
@@ -36,6 +38,7 @@ const { openAssetStream } = require("../../classes/githubReleases");
 const { publicBaseUrl } = require("../../utils/publicUrl");
 const { tr } = require("../../utils/i18n/botText");
 const { parseCenterId, fileId, UNSUBSCRIBE_ID } = require("./addonCenterPanel");
+const { privilegedReason } = require("./updateRole");
 const log = require("../../logger").child("addons");
 
 /** The areas whose holders may download (the web's rule). */
@@ -220,13 +223,34 @@ const unsubscribedPayload = (lang) => notice("🔕", tr(lang, "Subscription ende
 /** Discord's "Unknown Role": the role was deleted. */
 const isUnknownRole = (e) => !!(e && (e.code === 10011 || /unknown role/i.test(str(e && e.message))));
 
-/** Why the bot may not hand out the role, "" when it may: its right, the role's place, a managed role. */
-function roleProblem(guild, role) {
-    const me = guild && guild.members ? guild.members.me : null;
+/** The bot as a member of the guild; fetched when it is not cached. */
+async function botMember(guild) {
+    const members = guild && guild.members;
+    if (!members) return null;
+    if (members.me) return members.me;
+    if (typeof members.fetchMe !== "function") return null;
+    try {
+        return await members.fetchMe();
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Why the role must not be toggled by the button, "" when it may: a role with rights
+ * (bot rights or Discord permissions, updateRole.js — refused in both directions), then
+ * what Discord's `role.editable` checks, each with its own reason for the log: the bot's
+ * Manage Roles, a managed role, the role's place below the bot's highest role.
+ */
+async function roleProblem(guild, role, config = {}) {
+    const privileged = privilegedReason(config, role.id, role);
+    if (privileged) return privileged;
+    const me = await botMember(guild);
     if (!me || !me.permissions || !me.permissions.has(PermissionsBitField.Flags.ManageRoles)) return "missing Manage Roles";
     if (role.managed) return "the role belongs to an integration";
     const top = me.roles && me.roles.highest ? Number(me.roles.highest.position) : 0;
-    if (Number(role.position) >= top) return "the role is above the bot's highest role";
+    const editable = typeof role.editable === "boolean" ? role.editable : Number(role.position) < top;
+    if (!editable) return "the role is above the bot's highest role";
     return "";
 }
 
@@ -265,7 +289,7 @@ async function subscription(interaction, action) {
         log.warn(`subscription: member ${whoOf(interaction)} not found on ${guild.id}: ${str(e && e.message) || e}`);
         return interaction.editReply(sorry);
     }
-    const problem = roleProblem(guild, role);
+    const problem = await roleProblem(guild, role, getConfig());
     if (problem) {
         log.warn(`subscription: cannot hand out @${role.name} (${roleId}): ${problem}`);
         return interaction.editReply(sorry);

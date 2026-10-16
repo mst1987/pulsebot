@@ -148,6 +148,8 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
 14. Kein `git stash` und kein `git add -A` neben parallelen Agenten; PowerShell-`[IO.File]` nur mit
     absoluten Pfaden (relativ schreibt in den Hauptcheckout).
 15. Kein hartkodiertes Discord-ID/API-Key in Commands/Utils — über `src/config/` oder Settings-Store.
+16. Selbstvergabe einer Rolle per Knopf: Rolle darf keine Bot-Rechte (adminRoleIds, orgaRoleIds,
+    rolePermissions) und keine Discord-Berechtigungen tragen (`services/addons/updateRole.js`).
 
 ## Fach-Agenten
 

@@ -99,7 +99,8 @@
         "posted": "Downloadzentrale gepostet.",
         "removeAsk": "Downloadzentrale entfernen?",
         "role": "Rolle für Update-Pings",
-        "roleSub": "Optional. Bei einer neuen Version postet der Bot eine kurze Nachricht, die diese Rolle pingt (ohne Patchnotes, mit Link zur Web-Seite). Sie wird nach 12 Stunden oder mit dem nächsten Ping gelöscht. Mit Rolle zeigt die Zentrale „Updates abonnieren“: Damit holen sich Mitglieder die Rolle selbst oder geben sie wieder ab (der Bot braucht „Rollen verwalten“ und muss über der Rolle stehen). Ohne Rolle gibt es keinen Ping und keinen Knopf.",
+        "rolePrivileged": "Diese Rolle trägt Rechte (Admin, Orga, Bereiche unter Berechtigungen oder Discord-Berechtigungen). Sie wird gepingt, aber „Updates abonnieren“ fehlt in der Zentrale – sonst könnte sich jeder diese Rechte holen. Nimm eine eigene Rolle ohne Rechte.",
+        "roleSub": "Optional. Bei einer neuen Version postet der Bot eine kurze Nachricht, die diese Rolle pingt (ohne Patchnotes, mit Link zur Web-Seite). Sie wird nach 12 Stunden oder mit dem nächsten Ping gelöscht. Mit Rolle zeigt die Zentrale „Updates abonnieren“: Damit holen sich Mitglieder die Rolle selbst oder geben sie wieder ab (der Bot braucht „Rollen verwalten“ und muss über der Rolle stehen; die Rolle darf keine Rechte tragen). Ohne Rolle gibt es keinen Ping und keinen Knopf.",
         "removeText": "Die Nachricht im Kanal wird gelöscht. Update-Meldungen aus früherer Zeit, die noch im Kanal stehen, bleiben.",
         "removed": "Downloadzentrale entfernt.",
         "loadError": "Die Einstellungen der Downloadzentrale konnten nicht geladen werden."

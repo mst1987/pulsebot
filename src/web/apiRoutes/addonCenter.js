@@ -22,6 +22,7 @@ const guildRoles = require("../../services/discord/guildRoles");
 const linkCheck = require("../../services/discord/linkCheck");
 const { mainVersionFor, isVersionVisible, visibleVersions } = require("../../services/events/mainVersion");
 const { versionLabel } = require("../../services/events/versionSettings");
+const { privilegedReason } = require("../../services/addons/updateRole");
 
 function centerView(center) {
     if (!center) return null;
@@ -58,11 +59,22 @@ function channelsOf(config) {
     }
 }
 
-/** The roles of every configured server (the update role lives on the centre's server). */
+/**
+ * The roles of every configured server (the update role lives on the centre's server),
+ * each with `privileged`: it carries bot rights or Discord permissions, so the centre
+ * hides "Updates abonnieren" for it and the card warns (services/addons/updateRole.js).
+ */
 function rolesOf(config) {
     const out = {};
     try {
-        for (const guildId of guildRoles.configuredGuildIds(config)) out[guildId] = discord.listRoles(guildId) || [];
+        for (const guildId of guildRoles.configuredGuildIds(config)) {
+            const guild = typeof discord.getGuild === "function" ? discord.getGuild(guildId) : null;
+            const cache = guild && guild.roles ? guild.roles.cache : null;
+            out[guildId] = (discord.listRoles(guildId) || []).map((r) => {
+                const role = cache && typeof cache.get === "function" ? cache.get(r.id) || null : null;
+                return { ...r, privileged: !!privilegedReason(config, r.id, role) };
+            });
+        }
     } catch (e) {
         console.warn("addon centre roles failed:", e.message);
     }

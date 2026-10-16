@@ -203,7 +203,7 @@ describe("addonCenterBot uploadLimitOf", () => {
 
 describe("addonCenterBot subscription", () => {
     /** A server where the bot may (or may not) hand out the role, and a member with or without it. */
-    function server({ has = false, manage = true, rolePos = 1, botPos = 5, managed = false, addFails = false } = {}) {
+    function server({ has = false, manage = true, rolePos = 1, botPos = 5, managed = false, addFails = false, perms = 0n, editable } = {}) {
         const roles = new Map(has ? [[ROLE, {}]] : []);
         const m = {
             displayName: "Tester",
@@ -213,7 +213,7 @@ describe("addonCenterBot subscription", () => {
                 remove: jest.fn(async () => { roles.delete(ROLE); }),
             },
         };
-        const role = { id: ROLE, name: "Addon-Updates", position: rolePos, managed };
+        const role = { id: ROLE, name: "Addon-Updates", position: rolePos, managed, permissions: new PermissionsBitField(perms), ...(editable === undefined ? {} : { editable }) };
         const guild = {
             id: "g1",
             roles: { cache: new Map([[ROLE, role]]), fetch: jest.fn(async () => null) },
@@ -307,6 +307,8 @@ describe("addonCenterBot subscription", () => {
         ["the role above the bot", { rolePos: 9 }, "above the bot's highest role"],
         ["the role level with the bot", { rolePos: 5 }, "above the bot's highest role"],
         ["a managed role", { managed: true }, "integration"],
+        ["Discord says it is not editable", { editable: false }, "above the bot's highest role"],
+        ["a role with Discord permissions", { perms: PermissionsBitField.Flags.MentionEveryone }, "carries Discord permissions"],
     ])("a role the bot may not hand out (%s): a clear line for the member, a warning in the log", async (_name, opts, reason) => {
         const { guild, member: m } = server(opts);
         const i = click("addonhub:sub", { guild, member: m });
@@ -360,10 +362,48 @@ describe("addonCenterBot subscription", () => {
         expect(mockLog.warn).toHaveBeenCalledWith(expect.stringContaining("Unknown Member"));
     });
 
-    it("roleProblem: '' when the bot may hand the role out", () => {
+    it.each([
+        ["a full-admin role", () => ({ adminRoleIds: [ROLE] }), "full-admin"],
+        ["an orga role", () => ({ orgaRoleIds: [ROLE] }), "orga role"],
+        ["a role with area grants", () => ({ rolePermissions: { [ROLE]: { settings: { read: true, write: true } } } }), "Berechtigungen"],
+    ])("never touches a role with bot rights (%s): neither gives nor takes it, a clear line, a warning", async (_name, cfg, reason) => {
+        mockConfig = { ...mockConfig, ...cfg() };
+        for (const [id, has] of [["addonhub:sub", false], ["addonhub:sub", true], ["addonhub:unsub", true]]) {
+            mockLog.warn.mockClear();
+            const { guild, member: m } = server({ has });
+            const i = click(id, { guild, member: m });
+            await bot.handleCenter(i);
+            expect(textOf(answer(i))).toBe(SORRY);
+            expect(m.roles.add).not.toHaveBeenCalled();
+            expect(m.roles.remove).not.toHaveBeenCalled();
+            expect(mockLog.warn).toHaveBeenCalledWith(expect.stringContaining(reason));
+        }
+    });
+
+    it("fetches the bot's own member when it is not cached before judging Manage Roles", async () => {
+        const { guild, member: m } = server();
+        const me = guild.members.me;
+        guild.members.me = null;
+        guild.members.fetchMe = jest.fn(async () => me);
+        const i = click("addonhub:sub", { guild, member: m });
+        await bot.handleCenter(i);
+        expect(guild.members.fetchMe).toHaveBeenCalled();
+        expect(m.roles.add).toHaveBeenCalled();
+
+        const failing = server();
+        failing.guild.members.me = null;
+        failing.guild.members.fetchMe = jest.fn(async () => { throw new Error("Unknown Member"); });
+        const j = click("addonhub:sub", { guild: failing.guild, member: failing.member });
+        await bot.handleCenter(j);
+        expect(textOf(answer(j))).toBe(SORRY);
+        expect(mockLog.warn).toHaveBeenCalledWith(expect.stringContaining("missing Manage Roles"));
+    });
+
+    it("roleProblem: '' when the bot may hand the role out", async () => {
         const { guild } = server();
-        expect(bot.roleProblem(guild, { position: 1, managed: false })).toBe("");
-        expect(bot.roleProblem({ members: {} }, { position: 1 })).toBe("missing Manage Roles");
+        expect(await bot.roleProblem(guild, { id: ROLE, position: 1, managed: false })).toBe("");
+        expect(await bot.roleProblem(guild, { id: ROLE, position: 1, editable: true })).toBe("");
+        expect(await bot.roleProblem({ members: {} }, { id: ROLE, position: 1 })).toBe("missing Manage Roles");
     });
 });
 
