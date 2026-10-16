@@ -10,7 +10,10 @@ logs/
 coverage/
 test/
 scripts/data-sources/
-docs/
+docs/*
+# The help page /docs reads these two (src/web/pages/docsPage.js, Dockerfile).
+!docs/guide-discord.md
+!docs/guide-web-admin.md
 bin/
 src/web-client/dist
 src/web-client/dist.*
