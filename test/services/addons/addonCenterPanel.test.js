@@ -40,11 +40,22 @@ describe("addonCenterPanel centerPayload", () => {
         ]);
     });
 
-    it("has no subscribe button and no promise of announcements", () => {
+    it("has no subscribe button without an update role and no promise of announcements", () => {
         const { payload } = panel.centerPayload({ entries: [entry("aurakit")], now: NOW });
         expect(buttons(payload).map((b) => b.custom_id)).toEqual(["addonhub:dl:aurakit"]);
         expect(payload.components[0].components[0].type).toBe(ComponentType.TextDisplay);
         expect(JSON.stringify(payload)).not.toMatch(/addonhub:(sub|unsub)|gemeldet|abonnier/i);
+    });
+
+    it("puts 'Updates abonnieren' into the head as the section's button while an update role is set", () => {
+        const { payload } = panel.centerPayload({ entries: [entry("aurakit")], subscribe: true, now: NOW });
+        const head = payload.components[0];
+        expect(head.components.map((c) => c.type)).toEqual([ComponentType.Section]);
+        expect(head.components[0].accessory).toMatchObject({ custom_id: "addonhub:sub", label: "Updates abonnieren", style: ButtonStyle.Secondary });
+        expect(texts(payload)[0]).toMatch(/^## Addon-Downloadzentrale\n/);
+        expect(buttons(payload).map((b) => b.custom_id)).toEqual(["addonhub:sub", "addonhub:dl:aurakit"]);
+        expect(panel.parseCenterId(panel.SUBSCRIBE_ID).action).toBe("sub");
+        expect(panel.parseCenterId(panel.UNSUBSCRIBE_ID).action).toBe("unsub");
     });
 
     it("links the patch notes of each addon with a release to its card on the web page, not to GitHub", () => {
@@ -99,6 +110,12 @@ describe("addonCenterPanel centerPayload", () => {
         expect(shown + dropped).toBe(12);
         expect(dropped).toBe(3);
         expect(texts(payload)[0]).toContain("-# 3 weitere Addons stehen auf der Download-Seite.");
+
+        // the subscribe button costs two more (section, button): one addon fewer fits
+        const withButton = panel.centerPayload({ entries: many, subscribe: true, now: NOW });
+        expect(all(withButton.payload.components).length).toBeLessThanOrEqual(40);
+        expect(withButton.dropped).toBe(4);
+        expect(texts(withButton.payload)[0]).toContain("-# 4 weitere Addons stehen auf der Download-Seite.");
     });
 
     it("keeps all text under 4000 characters and escapes names and descriptions", () => {
@@ -114,6 +131,8 @@ describe("addonCenterPanel centerPayload", () => {
         expect(texts(payload)[1]).toContain("`NEW`");
         expect(buttons(payload).map((b) => b.label)).toEqual(["Download"]);
         expect(texts(payload)[1]).toContain("[Patch notes](");
+        const subscribed = panel.centerPayload({ entries: [entry("levelhelper")], subscribe: true, lang: "en", now: NOW }).payload;
+        expect(buttons(subscribed).map((b) => b.label)).toEqual(["Subscribe to updates", "Download"]);
     });
 
     it("draws the addon's application emoji when the bot has one", () => {
