@@ -157,6 +157,20 @@
     background: color-mix(in srgb, var(--day) 18%, transparent);
 }
 
+/* ---- "Ab wann" per chosen weekday (part 2): the day, the hour as − value +, × back to the whole evening ---- */
+.pf-times { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.pf-time-row { display: flex; align-items: center; gap: 10px; }
+.pf-time-row .pf-day-tag { min-width: 30px; text-align: center; }
+/* a number with − and + (no free typing): the hours here, a profession's skill on a character's tab */
+.pf-step { display: inline-flex; align-items: center; gap: 4px; }
+.pf-step-value { min-width: 96px; text-align: center; font: 700 13px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* ---- a character's professions (part 2): chosen ones as rows, the rest as chips to add ---- */
+.pf-prof { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 0; border-bottom: 1px solid var(--line-soft); }
+.pf-prof .wi { width: 26px; height: 26px; border-radius: 5px; }
+.pf-prof-name { flex: 1; min-width: 100px; font-size: 15px; }
+.pf-prof-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+
 /* ---- Meine Infos › Deine Anwesenheit: per category the quota large, the nights as status fields ---- */
 .pf-att { display: flex; flex-direction: column; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line-soft); }
 .pf-att:last-of-type { border-bottom: 0; }

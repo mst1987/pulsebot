@@ -59,7 +59,44 @@
         "loot": "Loot",
         "dungeons": "Dungeon-Bestzeiten",
         "loading": "wird geladen",
-        "loadError": "ließ sich nicht laden"
+        "loadError": "ließ sich nicht laden",
+        "professions": "Berufe",
+        "wishItems": "Wunsch-Items"
+    },
+    "days": {
+        "tagFrom": "{day} ab {time}",
+        "timesKicker": "Ab wann · in Viertelstunden · leer = ganzer Abend",
+        "fromAria": "Ab wann am {day}",
+        "from": "ab {time}",
+        "wholeEvening": "ganzer Abend",
+        "earlier": "Früher",
+        "later": "Später",
+        "clear": "Ganzer Abend",
+        "clearSub": "Die Uhrzeit für {day} entfernen – dann gilt der ganze Abend."
+    },
+    "prof": {
+        "none": "Wenn du magst – nichts muss.",
+        "withSkill": "{name} {skill}",
+        "free": "freiwillig",
+        "freeTip": "Freiwillig",
+        "freeSub": "Nur eine Info für die Orga, z. B. für Verzauberungen oder Tränke. Nichts muss.",
+        "invite": "Wenn du magst, trag bis zu {max} Hauptberufe ein. Nichts muss.",
+        "skillAria": "Fertigkeit {name}",
+        "skill": "{skill} von {max}",
+        "less": "Weniger",
+        "more": "Mehr",
+        "remove": "{name} entfernen",
+        "pickAria": "Hauptberuf für {name} wählen"
+    },
+    "wishItems": {
+        "count": "{count} von {max}",
+        "none": "Wenn du magst – nichts muss.",
+        "orgaOnlySub": "Deine Wunsch-Items sehen nur du und die Orga – andere Raider nie.",
+        "invite": "Wenn du magst, trag bis zu {max} Items ein, die du dir wünschst. Nichts muss.",
+        "remove": "{name} entfernen",
+        "search": "Item suchen …",
+        "full": "{max} Items eingetragen – nimm eins heraus, um ein anderes einzutragen.",
+        "hint": "Ein Wunsch, keine Zusage – die Orga sieht ihn beim Loot-Council."
     },
     "first": {
         "title": "Noch kein Charakter",
@@ -335,6 +372,15 @@
         "colSpecs": "Specs",
         "colVersion": "Version",
         "colStatus": "Status",
+        "colWish": "Wunsch-Items",
+        "wishTip": {
+            "one": "{count} Wunsch-Item – nur die Orga sieht es",
+            "other": "{count} Wunsch-Items – nur die Orga sieht sie"
+        },
+        "wishCount": {
+            "one": "{count} Item",
+            "other": "{count} Items"
+        },
         "noSpec": "keine Spec",
         "claimed": "doppelt",
         "via": {

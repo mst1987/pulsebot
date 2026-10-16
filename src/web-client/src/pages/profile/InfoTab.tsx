@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { AttendanceCategory, CalendarTokens, ProfileData, ProfilePatch, RaiderAttendanceData, RaiderProfile } from "../../api";
-import { Badge, buttonClass, type ConfirmFn } from "../../components/ui";
+import { Badge, buttonClass, IconButton, type ConfirmFn } from "../../components/ui";
 import AttendanceCell from "../../components/roster/AttendanceCell";
-import { EyeOffIcon } from "../../components/ui/icons";
+import { EyeOffIcon, XIcon } from "../../components/ui/icons";
 import { nightsInOrder } from "../../lib/roster/absences";
+import { stepTime, withDayTime } from "../../lib/profile/dayTimes";
 import { tOr, useT } from "../../i18n";
-import { AvoidPart, type Fold, FoldPart, NoteField, RaidPicker, WishPicker } from "./ProfileParts";
+import { AvoidPart, type Fold, FoldPart, NoteField, RaidPicker, Stepper, WishPicker } from "./ProfileParts";
 import { CalendarPart } from "./CalendarPart";
 
 // The tab "Meine Infos": what belongs to the person, not to a character — in
@@ -64,6 +65,47 @@ function AttendanceCategoryRow({ cat, userId, name }: { cat: AttendanceCategory;
     );
 }
 
+/**
+ * "Ab wann" per chosen weekday (part 2): an optional hour in quarter hours, − and +;
+ * empty = the whole evening, × takes the hour away again. Only info for the orga.
+ */
+function DayTimes({ days, times, step, onChange }: {
+    days: { id: string; label: string }[];
+    times: Record<string, string>;
+    step: number;
+    onChange: (next: Record<string, string>) => void;
+}) {
+    const t = useT();
+    return (
+        <div className="pf-times">
+            <span className="kicker">{t("profile.days.timesKicker")}</span>
+            {days.map((d) => {
+                const day = tOr(`profile.weekday.${d.id}`, d.label);
+                const from = times[d.id] || "";
+                const less = stepTime(from, -1, step);
+                const more = stepTime(from, 1, step);
+                return (
+                    <div key={d.id} className="pf-time-row">
+                        <span className="pf-day-tag" data-day={d.id}>{day}</span>
+                        <Stepper
+                            label={t("profile.days.fromAria", { day })}
+                            value={from ? t("profile.days.from", { time: from }) : t("profile.days.wholeEvening")}
+                            lessTip={t("profile.days.earlier")}
+                            moreTip={t("profile.days.later")}
+                            onLess={less ? () => onChange(withDayTime(times, d.id, less)) : undefined}
+                            onMore={more ? () => onChange(withDayTime(times, d.id, more)) : undefined}
+                        />
+                        {from && (
+                            <IconButton size="sm" icon={<XIcon />} tip={t("profile.days.clear")} tipSub={t("profile.days.clearSub", { day })}
+                                onClick={() => onChange(withDayTime(times, d.id, ""))} />
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onCalendar, attendance, attendanceFailed }: {
     data: ProfileData;
     profile: RaiderProfile;
@@ -79,6 +121,7 @@ export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onC
 }) {
     const t = useT();
     const cal = calendar;
+    const times = profile.availabilityFrom || {};
     return (
         <div className="pf-grid pf-grid-even">
             <div className="pf-col">
@@ -103,15 +146,16 @@ export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onC
 
             <div className="pf-col">
                 <Group label={t("profile.info.groupPrefs")}>
-                    {/* Part 2 adds the hours per weekday inside this fold. */}
                     <FoldPart
                         id="days" open={fold} onToggle={onFold} title={t("profile.fold.days")}
                         summary={profile.availability.length
                             ? (
                                 <span className="pf-day-sum">
-                                    {data.weekdays.filter((d) => profile.availability.includes(d.id)).map((d) => (
-                                        <span key={d.id} className="pf-day-tag" data-day={d.id}>{tOr(`profile.weekday.${d.id}`, d.label)}</span>
-                                    ))}
+                                    {data.weekdays.filter((d) => profile.availability.includes(d.id)).map((d) => {
+                                        const day = tOr(`profile.weekday.${d.id}`, d.label);
+                                        const from = times[d.id];
+                                        return <span key={d.id} className="pf-day-tag" data-day={d.id}>{from ? t("profile.days.tagFrom", { day, time: from }) : day}</span>;
+                                    })}
                                 </span>
                             )
                             : t("profile.fold.daysNone")}
@@ -128,6 +172,14 @@ export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onC
                                 );
                             })}
                         </div>
+                        {profile.availability.length > 0 && (
+                            <DayTimes
+                                days={data.weekdays.filter((d) => profile.availability.includes(d.id))}
+                                times={times}
+                                step={data.limits.timeStep || 15}
+                                onChange={(next) => patch({ availabilityFrom: next }, { availabilityFrom: next })}
+                            />
+                        )}
                     </FoldPart>
 
                     <FoldPart

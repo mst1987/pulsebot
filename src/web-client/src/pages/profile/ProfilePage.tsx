@@ -24,6 +24,7 @@ import { toggleFold } from "../../lib/profile/folds";
 import { CharacterCard, FirstCharacter } from "./CharacterCard";
 import { InfoTab } from "./InfoTab";
 import { DungeonPart, LootPart, RosterPart, type Loaded } from "./CharacterTab";
+import { ProfessionsPart, WishItemsPart } from "./CharacterExtras";
 import { ProfileTabs, type ProfileTab } from "./ProfileTabs";
 import { charactersOfVersion, groupByVersion, moveInVersion, versionOf } from "../../lib/roster/characterVersions";
 import { useContentVersion } from "../../hooks/useContentVersion";
@@ -173,6 +174,7 @@ export default function ProfilePage() {
     const shownCharFold: Fold[] = charFold ?? (charRaiding && charRaiding.loot.count > 0 ? ["roster", "loot"] : ["roster"]);
     const toggleInfo = (id: Fold) => setInfoFold(toggleFold(shownInfoFold, id));
     const toggleChar = (id: Fold) => setCharFold(toggleFold(shownCharFold, id));
+    const professionList = selected ? data.professionsByVersion?.[versionOf(selected)] : undefined;
 
     return (
         <div className="pf-page">
@@ -237,7 +239,21 @@ export default function ProfilePage() {
                             onEdit={() => setEditing(selected)}
                         />
                         <RosterPart charKey={selected.key} rosters={raidingOf((r) => r.rosters)} fold={shownCharFold} onFold={toggleChar} />
-                        {/* Part 2: the professions (Berufe) go here, under the roster. */}
+                        {/* Berufe: freely given, only for a version whose rule set lists its main professions */}
+                        {professionList && professionList.professions.length > 0 && (
+                            <ProfessionsPart
+                                name={selected.name}
+                                list={professionList}
+                                chosen={selected.professions || []}
+                                max={data.limits.professions || 2}
+                                fold={shownCharFold}
+                                onFold={toggleChar}
+                                onChange={(next) => patch(
+                                    { characters: [{ key: selected.key, professions: next }] },
+                                    { characters: profile.characters.map((c) => (c.key === selected.key ? { ...c, professions: next } : c)) },
+                                )}
+                            />
+                        )}
                     </div>
                     <div className="pf-col">
                         <LootPart
@@ -249,7 +265,21 @@ export default function ProfilePage() {
                         />
                         {/* Only with LevelHelper data for this character (WoW Forever): no block, no empty state otherwise. */}
                         {dungeons && <DungeonPart dungeons={dungeons} fold={shownCharFold} onFold={toggleChar} />}
-                        {/* Part 2: the wish items (Wunsch-Items, loot-council categories only) go here. */}
+                        {/* Wunsch-Items: freely given, only for a character of a Loot-Council roster; only the raider and the orga read them */}
+                        {charRaiding?.lootCouncil && (
+                            <WishItemsPart
+                                versionId={versionOf(selected)}
+                                items={selected.wishItems || []}
+                                max={data.limits.wishItems || 10}
+                                fold={shownCharFold}
+                                onFold={toggleChar}
+                                onChange={(ids) => patch(
+                                    { characters: [{ key: selected.key, wishItems: ids }] },
+                                    // a taken-out item goes at once; a new one comes with the server's answer (looked up on Wowhead)
+                                    { characters: profile.characters.map((c) => (c.key === selected.key ? { ...c, wishItems: (c.wishItems || []).filter((w) => ids.includes(w.itemId)) } : c)) },
+                                )}
+                            />
+                        )}
                     </div>
                 </div>
             )}

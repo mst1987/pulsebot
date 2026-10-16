@@ -29,6 +29,7 @@ const dungeonRuns = require("../../stores/dungeonRunStore");
 const { characterTable, dungeonTables } = require("../dungeons/dungeonBoard");
 const { eventVersion } = require("./characterVersions");
 const { featureOn } = require("../events/versionCapabilities");
+const { wishItemsAllowed } = require("./wishItems");
 const { spec: specOfVersion, LEGACY_VERSION } = require("../../config/gameVersions");
 
 /** How many loot rows the tab lists; the history page has the rest. */
@@ -166,6 +167,8 @@ function profileRaiding(userId, versionId, { config } = {}) {
     for (const c of chars) {
         characters[c.key] = {
             loot: lootOf(c, versionId, ctx),
+            // the category runs as Loot-Council: the character may keep wish items (services/characters/wishItems.js)
+            lootCouncil: wishItemsAllowed(userId, c, { config }),
             dungeons: runs.length || stored.length ? dungeonsOf(c, { runs, stored, ranked, places }) : null,
         };
     }

@@ -135,6 +135,8 @@ function sourceProfile(profile, versionId, index) {
             };
         }),
         availability: [...(profile.availability || [])],
+        // "ab HH:MM" per chosen weekday (Mein Profil); a day without = the whole evening
+        availabilityFrom: { ...(profile.availabilityFrom || {}) },
         other: otherMain && otherMain.className
             ? { name: otherMain.name, className: otherMain.className, spec: ((otherMain.specs || [])[0] || {}).key || (logSpecsOf(otherMain, index)[0] || ""), versionId: profiles.characterVersion(otherMain.versionId) }
             : null,

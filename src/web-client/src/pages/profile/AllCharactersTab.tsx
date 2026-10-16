@@ -9,7 +9,7 @@ import DataTable, { type Column } from "../../components/ui/DataTable";
 import { useToast } from "../../components/shell/Jobs";
 import { classColorProps } from "../../components/character/ClassSpec";
 import EditCharacterDialog from "../../components/character/EditCharacterDialog";
-import { CheckMark, EditIcon, SearchIcon, WarnIcon } from "../../components/ui/icons";
+import { CheckMark, EditIcon, EyeOffIcon, SearchIcon, WarnIcon } from "../../components/ui/icons";
 import { usePersistedState } from "../../lib/ui/persistedState";
 import { useTableSort } from "../../lib/ui/tableSort";
 import { characterRows, editToast, filterRows, replaceRaider, unverified, type CharacterFilter, type CharacterRow } from "../../lib/profile/allCharacters";
@@ -24,7 +24,7 @@ import { CharacterCard } from "./CharacterCard";
 // picking the logged character (src/web/apiRoutes/characters.js).
 // Without write access to the roster area the list only reads.
 
-type SortKey = "name" | "owner" | "cls" | "status";
+type SortKey = "name" | "owner" | "cls" | "status" | "wish";
 
 const FILTER_DEFAULT: CharacterFilter = { search: "", version: "", onlyUnverified: false };
 
@@ -34,7 +34,7 @@ export default function AllCharactersTab({ data, canWrite }: { data: ProfileData
     const ask = useConfirm();
     const list = useApi(() => getAllCharacters(), []);
     const [filter, setFilter] = usePersistedState<CharacterFilter>("profile-all-filter", FILTER_DEFAULT);
-    const sort = useTableSort<SortKey>("profile-all-sort", { name: "asc", owner: "asc", cls: "asc", status: "asc" }, "name");
+    const sort = useTableSort<SortKey>("profile-all-sort", { name: "asc", owner: "asc", cls: "asc", status: "asc", wish: "desc" }, "name");
     const [open, setOpen] = useState<{ userId: string; key: string } | null>(null);
     const [editing, setEditing] = useState<{ userId: string; key: string } | null>(null);
 
@@ -116,6 +116,16 @@ export default function AllCharactersTab({ data, canWrite }: { data: ProfileData
         },
         ...(versions.length > 1 ? [{ id: "version", label: t("profile.all.colVersion"), cell: (r: CharacterRow) => (data.versions || []).find((v) => v.id === (r.character.versionId || "tbc"))?.short || r.character.versionId } as Column<CharacterRow, SortKey>] : []),
         { id: "status", label: t("profile.all.colStatus"), sortKey: "status", cell: ({ character: c }) => status(c) },
+        // the raider's wish items (Loot-Council rosters) - only the orga reads this list
+        {
+            id: "wish", label: t("profile.all.colWish"), sortKey: "wish",
+            cell: ({ character: c }) => {
+                const wishes = c.wishItems || [];
+                return wishes.length
+                    ? <Badge icon={<EyeOffIcon />} tip={t("profile.all.wishTip", { count: wishes.length })} tipSub={wishes.map((w) => w.name).join("\n")}>{t("profile.all.wishCount", { count: wishes.length })}</Badge>
+                    : <span className="note">–</span>;
+            },
+        },
         ...(canWrite ? [{
             id: "actions", actions: true,
             cell: (r: CharacterRow) => (
@@ -129,6 +139,7 @@ export default function AllCharactersTab({ data, canWrite }: { data: ProfileData
         if (key === "owner") return (r.owner || "").toLowerCase();
         if (key === "cls") return r.character.className.toLowerCase();
         if (key === "status") return statusRank(r.character);
+        if (key === "wish") return (r.character.wishItems || []).length;
         return r.character.name.toLowerCase();
     };
 

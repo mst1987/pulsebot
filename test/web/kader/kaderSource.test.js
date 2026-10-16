@@ -215,7 +215,7 @@ describe("web/kader/kaderSource", () => {
             }
             expect(text).not.toContain("GEHEIME-NOTIZ");
             expect(text).not.toContain(U3);
-            expect(Object.keys(out.profiles[0]).sort()).toEqual(["allCharacters", "availability", "characters", "displayName", "other", "userId"]);
+            expect(Object.keys(out.profiles[0]).sort()).toEqual(["allCharacters", "availability", "availabilityFrom", "characters", "displayName", "other", "userId"]);
         });
     });
 

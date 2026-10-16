@@ -14,9 +14,10 @@ const { profileView, lookupArmory } = require("../characters/profileView");
 const calendarTokens = require("../../stores/calendarTokenStore");
 const calendarFeed = require("../pages/calendarFeed");
 const { userIcsUrl } = require("../../services/events/icsFeed");
-const { rulesFor, VERSIONS } = require("../../config/gameVersions");
+const { rulesFor, professionsOf, VERSIONS } = require("../../config/gameVersions");
 const { mainVersionFor, knownVersion, isVersionVisible, resolveVersionQuery } = require("../../services/events/mainVersion");
 const { profileRaiding } = require("../../services/characters/profileRaiding");
+const { wishItemsAllowed, resolveWishItems, searchWishItems } = require("../../services/characters/wishItems");
 const { getConfig } = require("../../stores/settingsStore");
 const { userIsOrga } = require("../../config/permissions");
 const { ROLE_LABELS } = require("../../config/gameVersions/classes");
@@ -55,7 +56,12 @@ function pageContext({ versionId, config = getConfig() } = {}) {
         })),
         weekdays: profiles.WEEKDAYS.map((id) => ({ id, label: WEEKDAY_LABELS[id] })),
         gearLevels: profiles.GEAR_LEVELS.map((id) => ({ id, label: GEAR_LABELS[id] })),
-        limits: { characters: profiles.MAX_CHARACTERS, wishes: profiles.MAX_WISHES, avoid: profiles.MAX_AVOID, note: profiles.MAX_NOTE },
+        limits: {
+            characters: profiles.MAX_CHARACTERS, wishes: profiles.MAX_WISHES, avoid: profiles.MAX_AVOID, note: profiles.MAX_NOTE,
+            professions: profiles.MAX_PROFESSIONS, wishItems: profiles.MAX_WISH_ITEMS, timeStep: profiles.TIME_STEP_MINUTES,
+        },
+        // Part 2: each version's main professions and highest skill (rule set; none yet = no "Berufe" part).
+        professionsByVersion: Object.fromEntries(VERSIONS.map((v) => [v.id, professionsOf(v.id)])),
     };
 }
 
@@ -106,6 +112,33 @@ const getProfile = withUser({}, async ({ user, res }) => {
 });
 
 /**
+ * Resolve the `wishItems` of the character edits in place (services/characters/wishItems.js):
+ * refused for a character that is not in a Loot-Council roster of its version
+ * (403 `not_loot_council`), more than MAX_WISH_ITEMS (400), or an item its
+ * version's Wowhead does not know (400 `unknown_item` / `no_wowhead`).
+ * @returns {Promise<null | { status: number, code: string, error: string }>}
+ */
+async function withWishItems(userId, edits) {
+    const profile = profiles.getProfile(userId);
+    const config = getConfig();
+    for (const edit of edits) {
+        if (!edit || !Array.isArray(edit.wishItems)) continue;
+        const character = profiles.findCharacter(profile, String(edit.key || ""));
+        if (!character) { delete edit.wishItems; continue; }
+        if (edit.wishItems.length > profiles.MAX_WISH_ITEMS) {
+            return { status: 400, code: "too_many", error: `Höchstens ${profiles.MAX_WISH_ITEMS} Wunsch-Items je Charakter.` };
+        }
+        if (edit.wishItems.length && !wishItemsAllowed(userId, character, { config })) {
+            return { status: 403, code: "not_loot_council", error: "Wunsch-Items gibt es nur für Charaktere in einem Loot-Council-Roster." };
+        }
+        const resolved = await resolveWishItems(character, edit.wishItems, { config });
+        if (resolved.error) return { status: 400, code: resolved.code, error: resolved.error };
+        edit.wishItems = resolved.items;
+    }
+    return null;
+}
+
+/**
  * PUT /api/profile — save the caller's own edits (availability, raids, wishes,
  * avoid list, note; specs/gear/off-tank/heal of existing characters, `order` — the
  * characters' keys in the raider's order, there is no main). The
@@ -114,13 +147,18 @@ const getProfile = withUser({}, async ({ user, res }) => {
  */
 const putProfile = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
     const patch = {};
-    for (const key of ["availability", "preferredRaids", "wishes", "avoidEnabled", "avoid", "note", "characters", "order"]) {
+    for (const key of ["availability", "availabilityFrom", "preferredRaids", "wishes", "avoidEnabled", "avoid", "note", "characters", "order"]) {
         if (body[key] !== undefined) patch[key] = body[key];
     }
     // A wish (or an avoid) only for someone who has a profile — an id nobody can resolve is a typo.
     const known = new Set(profiles.listProfiles().map((p) => p.userId));
     for (const key of ["wishes", "avoid"]) {
         if (Array.isArray(patch[key])) patch[key] = patch[key].map(String).filter((id) => known.has(id));
+    }
+    // Wish items (part 2): only for a character of a Loot-Council roster, only items of its version (Wowhead).
+    if (Array.isArray(patch.characters)) {
+        const failure = await withWishItems(user.id, patch.characters);
+        if (failure) return apiError(res, failure.status, failure.code, failure.error);
     }
     profiles.saveProfile(user.id, patch, { name: user.name });
     ok(res, { profile: ownView(user) });
@@ -218,6 +256,17 @@ const getProfileRaiding = withUser({}, async ({ user, res, url }) => {
     ok(res, profileRaiding(user.id, versionId, { config }));
 });
 
+/**
+ * GET /api/profile/item-search?q=&version= — Wowhead's items for a name on the
+ * version's section, for a character's wish items (the same suggestions the
+ * guild bank and softres use). Nothing without a Wowhead path for the version.
+ */
+const getItemSearch = withUser({}, async ({ res, url }) => {
+    const config = getConfig();
+    const { versionId } = resolveVersionQuery(url.searchParams.get("version"), { config });
+    ok(res, { items: await searchWishItems(versionId, url.searchParams.get("q") || "", { config }) });
+});
+
 /** GET /api/profile/raiders?q= — raiders with a profile, names only, for the wish picker. */
 const getRaiderSearch = withUser({}, async ({ user, res, url }) => {
     const q = String(url.searchParams.get("q") || "").slice(0, 32);
@@ -287,11 +336,12 @@ const routes = [
     { method: "POST", path: "/api/profile/calendar", handler: postCalendarToken, area: "signup" },
     { method: "GET", path: "/api/profile/raiders", handler: getRaiderSearch, area: "signup" },
     { method: "GET", path: "/api/profile/raiding", handler: getProfileRaiding, area: "signup" },
+    { method: "GET", path: "/api/profile/item-search", handler: getItemSearch, area: "signup" },
     { method: "GET", path: "/api/profile/user", handler: getUserProfile, area: "roster" },
 ];
 
 module.exports = {
-    getProfile, putProfile, getLogCharacters, postProfileCharacter, getRaiderSearch, getProfileRaiding, getUserProfile, getCharacterClaims,
+    getProfile, putProfile, getLogCharacters, postProfileCharacter, getRaiderSearch, getProfileRaiding, getItemSearch, getUserProfile, getCharacterClaims,
     getCalendarTokens, postCalendarToken,
     pageContext, editInput, nearOf,
     routes,

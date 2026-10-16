@@ -71,7 +71,11 @@ function draftOf(player: KaderPlayer): { chars: KaderCharacterInput[]; active: s
 function ProfilePanel({ player }: { player: KaderPlayer }) {
     const t = useT();
     const { view } = useKader();
-    const days = DAYS.filter((d) => player.availability.includes(d)).map((d) => t(`kader.day.${d}`));
+    // "Mi ab 19:30" where the raider named an hour in their profile, else the day alone (= the whole evening)
+    const days = DAYS.filter((d) => player.availability.includes(d)).map((d) => {
+        const from = player.availabilityFrom?.[d];
+        return from ? t("kader.account.dayFrom", { day: t(`kader.day.${d}`), time: from }) : t(`kader.day.${d}`);
+    });
     const p = player.profile;
     return (
         <aside className="kp-profile">

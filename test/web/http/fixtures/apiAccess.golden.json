@@ -57,6 +57,7 @@
     "/api/profile/characters": "signup",
     "/api/profile/raiders": "signup",
     "/api/profile/raiding": "signup",
+    "/api/profile/item-search": "signup",
     "/api/profile/calendar": "signup",
     "/api/profile/user": "roster",
     "/api/characters": "roster",
