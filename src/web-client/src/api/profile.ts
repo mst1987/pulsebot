@@ -2,6 +2,7 @@ import { get, send } from "./client";
 import type { GameRole, GameClass } from "./raidTemplates";
 import type { CharLootPreview } from "./history";
 import type { RosterStatus } from "./roster";
+import type { ItemSearchResult } from "./settings";
 
 // ---- Mein Profil (#255, src/web/apiRoutes/profile.js) ----
 
@@ -49,7 +50,18 @@ export type ProfileCharacter = {
     possible: { canOfftank: boolean; canHeal: boolean };
     /** Other accounts that added the same character. */
     claimedBy: { userId: string; name: string }[];
+    /** Part 2, freely given: main professions of its version (at most two; skill null = none kept). */
+    professions?: ProfileProfession[];
+    /** Part 2: wish items (at most ten, Loot-Council rosters only) - only the raider and the orga read them. */
+    wishItems?: ProfileWishItem[];
 };
+
+export type ProfileProfession = { id: string; skill: number | null };
+
+export type ProfileWishItem = { itemId: number; name: string; icon: string; iconUrl: string; quality: number | null; link: string };
+
+/** A version's main professions from its rule set; empty = the version has no list (yet). */
+export type ProfessionList = { professions: { id: string; label: string; labelEn: string; icon: string }[]; skillMax: number | null };
 
 export type RaiderProfile = {
     userId: string;
@@ -60,6 +72,8 @@ export type RaiderProfile = {
     canHeal: boolean;
     suggested: { canOfftank: boolean; canHeal: boolean };
     availability: string[];
+    /** "ab HH:MM" per chosen weekday (quarter hours); a day without = the whole evening. Info for the orga. */
+    availabilityFrom?: Record<string, string>;
     preferredRaids: string[];
     /** For the owner: whom they wished for — never whether it is mutual. */
     wishes: (RaiderRef & { mutual?: boolean })[];
@@ -94,19 +108,27 @@ export type ProfileData = {
     raidGroups: ProfileRaidGroup[];
     weekdays: { id: string; label: string }[];
     gearLevels: { id: GearLevel; label: string }[];
-    limits: { characters: number; wishes: number; avoid: number; note: number };
+    limits: { characters: number; wishes: number; avoid: number; note: number; professions?: number; wishItems?: number; timeStep?: number };
+    /** Each version's main professions (part 2); a version without = no "Berufe" part. */
+    professionsByVersion?: Record<string, ProfessionList>;
 };
 
 export type ProfileVersion = { id: string; label: string; short: string; lastName: boolean };
 
 export type ProfilePatch = {
     availability?: string[];
+    availabilityFrom?: Record<string, string>;
     preferredRaids?: string[];
     wishes?: string[];
     avoidEnabled?: boolean;
     avoid?: string[];
     note?: string;
-    characters?: { key: string; specs?: { key: string; gear: GearLevel }[]; canOfftank?: boolean; canHeal?: boolean }[];
+    characters?: {
+        key: string; specs?: { key: string; gear: GearLevel }[]; canOfftank?: boolean; canHeal?: boolean;
+        professions?: ProfileProfession[];
+        /** Item ids: new ones are looked up on the version's Wowhead by the server. */
+        wishItems?: number[];
+    }[];
     /** The characters' keys in the raider's order — the first of a version is the one suggested for it (there is no main). */
     order?: string[];
 };
@@ -261,8 +283,15 @@ export type ProfileRaiding = {
     dungeonTimes: boolean;
     rosters: ProfileRosterMembership[];
     /** By profile character key, only the shown version's characters. */
-    characters: Record<string, { loot: ProfileLoot; dungeons: ProfileDungeons | null }>;
+    characters: Record<string, { loot: ProfileLoot; dungeons: ProfileDungeons | null; lootCouncil?: boolean }>;
 };
+
+/** Wowhead's items for a name on a version's section - the wish items picker ("" = the main version). */
+export function searchProfileItems(q: string, version = ""): Promise<{ items: ItemSearchResult[] }> {
+    const query = new URLSearchParams({ q });
+    if (version) query.set("version", version);
+    return get(`/api/profile/item-search?${query.toString()}`);
+}
 
 /** The own characters' roster status, loot and dungeon data of one version ("" = the server's main version). */
 export function getProfileRaiding(version = ""): Promise<ProfileRaiding> {

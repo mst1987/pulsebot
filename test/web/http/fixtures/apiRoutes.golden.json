@@ -63,6 +63,7 @@
   "GET /api/orga-hubs",
   "GET /api/profile",
   "GET /api/profile/calendar",
+  "GET /api/profile/item-search",
   "GET /api/profile/log-characters",
   "GET /api/profile/raiders",
   "GET /api/profile/raiding",

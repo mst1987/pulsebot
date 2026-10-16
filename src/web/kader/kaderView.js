@@ -193,6 +193,7 @@ function buildPlayer({ userId, displayName, member, profile, logChar, attendance
         prefill: prefillOf({ assignment, profile, logChar }),
         pickable: pickableOf(profile, logChar, versionId),
         availability: profile ? [...profile.availability] : [],
+        availabilityFrom: profile ? { ...(profile.availabilityFrom || {}) } : {},
         attendance: attendanceView(attendance),
         // the revision of the planner's character data and who changed it (the account dialog's conflict check)
         rev: assignment && assignment.rev ? assignment.rev : 0,

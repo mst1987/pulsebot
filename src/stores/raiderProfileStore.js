@@ -32,7 +32,8 @@ const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { splitPlayer, characterKeyOf, nameKeyOf } = require("../utils/loot/lootImport");
 const { CLASSES, buildClasses } = require("../config/gameVersions/classes");
-const { instanceById, rulesFor, LEGACY_VERSION } = require("../config/gameVersions");
+const gameVersions = require("../config/gameVersions");
+const { instanceById, rulesFor, LEGACY_VERSION } = gameVersions;
 const { validateCharacterName, NAME_MAX } = require("../utils/signup/characterNames");
 const { isSnowflake } = require("../utils/ids");
 
@@ -51,6 +52,11 @@ const MAX_AVOID = 10;
 const MAX_NOTE = 500;
 // Forever's "Vorname Nachname": 12 + 1 + 12 (utils/signup/characterNames.js).
 const MAX_NAME = NAME_MAX;
+// Per character, freely given (Mein Profil, part 2): main professions and wish items.
+const MAX_PROFESSIONS = 2;
+const MAX_WISH_ITEMS = 10;
+// "ab HH:MM" per chosen weekday, in quarter hours ("Wann ich kann"); missing = the whole evening.
+const TIME_STEP_MINUTES = 15;
 
 const SPEC_BY_KEY = new Map();
 // What a class can step in as at all — a mage never tanks nor heals, whatever a switch says.
@@ -137,6 +143,71 @@ function normalizeSpecs(raw, className) {
     return out;
 }
 
+/** "19:30" on a quarter hour (00:00 to 23:45), else "". */
+function normalizeTime(raw) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(raw || "").trim());
+    if (!m) return "";
+    const h = Number(m[1]);
+    const min = Number(m[2]);
+    if (h > 23 || min > 59 || min % TIME_STEP_MINUTES !== 0) return "";
+    return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
+
+/** `{ [weekday]: "HH:MM" }` for chosen weekdays only - a day not chosen keeps no time. */
+function normalizeTimes(raw, days) {
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const out = {};
+    for (const d of days) {
+        const time = normalizeTime(src[d]);
+        if (time) out[d] = time;
+    }
+    return out;
+}
+
+/**
+ * A character's main professions: at most two of its version's list
+ * (gameVersions.professionsOf), each with a skill 0..skillMax - or no skill
+ * when the rule set names no maximum. A version without a list keeps none.
+ */
+function normalizeProfessions(raw, versionId) {
+    const { professions, skillMax } = gameVersions.professionsOf(versionId);
+    const known = new Set(professions.map((p) => p.id));
+    const out = [];
+    for (const entry of Array.isArray(raw) ? raw : []) {
+        const id = String((entry && (entry.id || entry)) || "").trim();
+        if (!known.has(id) || out.some((p) => p.id === id)) continue;
+        const n = Math.round(Number(entry && entry.skill));
+        const skill = skillMax && Number.isFinite(n) && entry && entry.skill !== null && entry.skill !== undefined
+            ? Math.max(0, Math.min(skillMax, n)) : null;
+        out.push({ id, skill });
+        if (out.length >= MAX_PROFESSIONS) break;
+    }
+    return out;
+}
+
+/**
+ * A character's wish items: at most ten, each a Wowhead item of its version
+ * `{ itemId, name, icon, quality }` (the route resolves new ones on Wowhead;
+ * the store only keeps the shape). Each item once.
+ */
+function normalizeWishItems(raw) {
+    const out = [];
+    for (const entry of Array.isArray(raw) ? raw : []) {
+        const itemId = Number(entry && entry.itemId);
+        if (!Number.isInteger(itemId) || itemId <= 0 || itemId > 9999999 || out.some((w) => w.itemId === itemId)) continue;
+        const icon = String((entry && entry.icon) || "").trim().toLowerCase();
+        const quality = Number(entry && entry.quality);
+        out.push({
+            itemId,
+            name: cleanText(entry.name, 120),
+            icon: /^[a-z0-9_-]{1,80}$/.test(icon) ? icon : "",
+            quality: Number.isInteger(quality) && quality >= 0 && quality <= 8 ? quality : null,
+        });
+        if (out.length >= MAX_WISH_ITEMS) break;
+    }
+    return out;
+}
+
 function normalizeCharacter(raw) {
     if (!raw || typeof raw !== "object") return null;
     const name = cleanText(splitPlayer(raw.name || raw.character || "").character, MAX_NAME);
@@ -158,6 +229,9 @@ function normalizeCharacter(raw) {
         canOfftank: tristate(raw.canOfftank),
         canHeal: tristate(raw.canHeal),
         armory,
+        // Mein Profil, part 2 - freely given: main professions of its version, wish items (only the orga reads them)
+        professions: normalizeProfessions(raw.professions, versionId),
+        wishItems: normalizeWishItems(raw.wishItems),
         addedAt: Number(raw.addedAt) || Date.now(),
         // the orga found the character in game (verifyCharacter) — kept only once set
         ...(verifiedAt > 0 ? { verifiedBy: cleanText(raw.verifiedBy, 40), verifiedByName: cleanText(raw.verifiedByName, 64), verifiedAt } : {}),
@@ -253,6 +327,8 @@ function normalizeProfile(raw, userId = "") {
         canOfftank: tristate(src.canOfftank),
         canHeal: tristate(src.canHeal),
         availability,
+        // "ab HH:MM" per chosen weekday (quarter hours); a day without = the whole evening. Info for the orga only.
+        availabilityFrom: normalizeTimes(src.availabilityFrom, availability),
         preferredRaids,
         wishes,
         avoidEnabled,
@@ -290,9 +366,11 @@ function store(userId, profile) {
 // The fields a raider edits with one save. Characters are added and removed on
 // their own (addCharacter/removeCharacter); a save only changes what is known
 // about the ones already there — specs, gear, their order.
-const EDITABLE = ["canOfftank", "canHeal", "availability", "preferredRaids", "wishes", "avoidEnabled", "avoid", "note"];
+const EDITABLE = ["canOfftank", "canHeal", "availability", "availabilityFrom", "preferredRaids", "wishes", "avoidEnabled", "avoid", "note"];
 // What a save may change about a character that is already there, besides specs.
 const CHARACTER_EDITABLE = ["canOfftank", "canHeal"];
+// ... and the freely given lists of a character (normalized against its version on store).
+const CHARACTER_LISTS = ["professions", "wishItems"];
 
 /**
  * Save the raider's own edits. `patch.characters` may carry `{ key, specs, canOfftank, canHeal }`
@@ -319,6 +397,9 @@ function saveProfile(userId, patch = {}, { name = "" } = {}) {
             for (const field of CHARACTER_EDITABLE) {
                 // a class that cannot never stores a "yes"
                 if (edit && edit[field] !== undefined) next[field] = edit[field] === true && !classCan(c.className)[field] ? null : edit[field];
+            }
+            for (const field of CHARACTER_LISTS) {
+                if (edit && Array.isArray(edit[field])) next[field] = edit[field];
             }
             return next;
         });
@@ -687,7 +768,8 @@ function reset() {
 }
 
 module.exports = {
-    GEAR_LEVELS, WEEKDAYS, CHARACTER_SOURCES, MAX_CHARACTERS, MAX_WISHES, MAX_AVOID, MAX_NOTE,
+    GEAR_LEVELS, WEEKDAYS, CHARACTER_SOURCES, MAX_CHARACTERS, MAX_WISHES, MAX_AVOID, MAX_NOTE, MAX_PROFESSIONS, MAX_WISH_ITEMS, TIME_STEP_MINUTES,
+    normalizeTime, normalizeProfessions, normalizeWishItems,
     characterKey: characterKeyOf, nameKey: nameKeyOf, characterVersion, charactersOfVersion, findCharacter, migrateCharacterVersions, migrateCharacterOrder,
     normalizeClass, specInfo, normalizeProfile, specRoles, characterRoles, classCan,
     getProfile, hasProfile, listProfiles, saveProfile, addCharacter, editCharacter, removeCharacter, setCharacterArmory, verifyCharacter, moveCharacterFirst,

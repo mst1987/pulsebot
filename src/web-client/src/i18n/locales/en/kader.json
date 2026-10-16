@@ -674,6 +674,7 @@
         "profileSays": "Profile says",
         "logs": "Per logs",
         "days": "Available",
+        "dayFrom": "{day} from {time}",
         "differs": "Differs from the profile: {what}. The roster planner's assignment applies here, the profile is never overwritten.",
         "differsNone": "If your assignment differs from the profile, a note shows up here; nothing is overwritten."
     },

@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import type { ShellContext } from "../../components/shell/Shell";
 import {
     canAccess, canAccessAny, editProfileCharacter, getLogCharacters, getProfile, getProfileRaiding, getRaiderAttendance, saveProfile,
     removeProfileCharacter, getCalendarTokens,
-    type ApiError, type ProfileCharacter, type ProfilePatch, type RaiderProfile,
+    type ApiError, type ProfileCharacter, type ProfilePatch, type ProfileWishItem, type RaiderProfile,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { Badge, Button, PageHead, RaidLoader, useConfirm } from "../../components/ui";
@@ -24,6 +24,7 @@ import { toggleFold } from "../../lib/profile/folds";
 import { CharacterCard, FirstCharacter } from "./CharacterCard";
 import { InfoTab } from "./InfoTab";
 import { DungeonPart, LootPart, RosterPart, type Loaded } from "./CharacterTab";
+import { ProfessionsPart, WishItemsPart } from "./CharacterExtras";
 import { ProfileTabs, type ProfileTab } from "./ProfileTabs";
 import { charactersOfVersion, groupByVersion, moveInVersion, versionOf } from "../../lib/roster/characterVersions";
 import { useContentVersion } from "../../hooks/useContentVersion";
@@ -50,6 +51,8 @@ export default function ProfilePage() {
     const [charFold, setCharFold] = useState<Fold[] | null>(null);
     const [adding, setAdding] = useState<AddWay | null>(null);
     const [editing, setEditing] = useState<ProfileCharacter | null>(null);
+    // the wish item saves of this page, one after the other (saveWishItems)
+    const wishQueue = useRef({ chain: Promise.resolve(), pending: 0 });
     // "Alle Charaktere" (?view=all): the orga's tab — every raider's characters, editable with write access to the roster area.
     const orga = isOrga(user) && canAccess(user, "roster");
     // Kalender-Abo (#312) — its own small payload, so the profile request stays
@@ -99,19 +102,54 @@ export default function ProfilePage() {
     if (!data || !profile) return <RaidLoader text={t("profile.loading")} />;
 
     const setProfile = (next: RaiderProfile) => setData((d) => (d ? { ...d, profile: next, isNew: false } : d));
+    /**
+     * Take `next` from another save (a profession, a weekday …) - while wish item saves are still under way the
+     * wish items the page shows stay (they are not confirmed yet; the wish queue's own answer settles them).
+     */
+    const setProfileKeepingWishes = (next: RaiderProfile) => setData((d) => {
+        if (!d) return d;
+        if (!wishQueue.current.pending) return { ...d, profile: next, isNew: false };
+        const shown = new Map(d.profile.characters.map((c) => [c.key, c.wishItems]));
+        const characters = next.characters.map((c) => (shown.has(c.key) ? { ...c, wishItems: shown.get(c.key) } : c));
+        return { ...d, profile: { ...next, characters }, isNew: false };
+    });
 
     // Optimistic: the page shows the change at once and takes the server's
     // answer (normalized) when it comes back; a failure puts the old state back.
     const patch = async (change: ProfilePatch, optimistic?: Partial<RaiderProfile>) => {
         const before = profile;
-        if (optimistic) setProfile({ ...profile, ...optimistic });
+        if (optimistic) setProfileKeepingWishes({ ...profile, ...optimistic });
         try {
             const res = await saveProfile(change);
-            setProfile(res.profile);
+            setProfileKeepingWishes(res.profile);
         } catch (e) {
-            setProfile(before);
+            setProfileKeepingWishes(before);
             toast((e as ApiError).message, "err");
         }
+    };
+
+    /**
+     * A character's wish items: the new list shows at once (a found item with what the search knew of it), the
+     * saves go out one after the other - each built on what the page shows, so two picks (or a pick and a ×)
+     * before the first answer both count - and only the last answer is taken (the server's list then wins).
+     * A failure loads the profile again.
+     */
+    const saveWishItems = (key: string, next: ProfileWishItem[]) => {
+        setData((d) => (d ? { ...d, profile: { ...d.profile, characters: d.profile.characters.map((c) => (c.key === key ? { ...c, wishItems: next } : c)) } } : d));
+        const queue = wishQueue.current;
+        queue.pending += 1;
+        queue.chain = queue.chain.then(async () => {
+            try {
+                const res = await saveProfile({ characters: [{ key, wishItems: next.map((w) => w.itemId) }] });
+                queue.pending -= 1;
+                if (!queue.pending) setProfile(res.profile);
+            } catch (e) {
+                queue.pending -= 1;
+                const err = e as ApiError;
+                toast(err.code === "wowhead_unavailable" ? t("profile.wishItems.wowheadDown") : err.message, "err");
+                if (!queue.pending) void profileData.reload();
+            }
+        });
     };
 
     const selectTab = (next: ProfileTab) => {
@@ -173,6 +211,7 @@ export default function ProfilePage() {
     const shownCharFold: Fold[] = charFold ?? (charRaiding && charRaiding.loot.count > 0 ? ["roster", "loot"] : ["roster"]);
     const toggleInfo = (id: Fold) => setInfoFold(toggleFold(shownInfoFold, id));
     const toggleChar = (id: Fold) => setCharFold(toggleFold(shownCharFold, id));
+    const professionList = selected ? data.professionsByVersion?.[versionOf(selected)] : undefined;
 
     return (
         <div className="pf-page">
@@ -237,7 +276,21 @@ export default function ProfilePage() {
                             onEdit={() => setEditing(selected)}
                         />
                         <RosterPart charKey={selected.key} rosters={raidingOf((r) => r.rosters)} fold={shownCharFold} onFold={toggleChar} />
-                        {/* Part 2: the professions (Berufe) go here, under the roster. */}
+                        {/* Berufe: freely given, only for a version whose rule set lists its main professions */}
+                        {professionList && professionList.professions.length > 0 && (
+                            <ProfessionsPart
+                                name={selected.name}
+                                list={professionList}
+                                chosen={selected.professions || []}
+                                max={data.limits.professions || 2}
+                                fold={shownCharFold}
+                                onFold={toggleChar}
+                                onChange={(next) => patch(
+                                    { characters: [{ key: selected.key, professions: next }] },
+                                    { characters: profile.characters.map((c) => (c.key === selected.key ? { ...c, professions: next } : c)) },
+                                )}
+                            />
+                        )}
                     </div>
                     <div className="pf-col">
                         <LootPart
@@ -249,7 +302,20 @@ export default function ProfilePage() {
                         />
                         {/* Only with LevelHelper data for this character (WoW Forever): no block, no empty state otherwise. */}
                         {dungeons && <DungeonPart dungeons={dungeons} fold={shownCharFold} onFold={toggleChar} />}
-                        {/* Part 2: the wish items (Wunsch-Items, loot-council categories only) go here. */}
+                        {/* Wunsch-Items: freely given, new ones only in a Loot-Council roster; items kept after leaving it
+                            stay to read and take out. Only the raider and the orga read them. */}
+                        {(charRaiding?.lootCouncil || (selected.wishItems || []).length > 0) && (
+                            <WishItemsPart
+                                versionId={versionOf(selected)}
+                                items={selected.wishItems || []}
+                                max={data.limits.wishItems || 10}
+                                canAdd={!!charRaiding?.lootCouncil}
+                                rosterKnown={!!raidingNow}
+                                fold={shownCharFold}
+                                onFold={toggleChar}
+                                onChange={(next) => saveWishItems(selected.key, next)}
+                            />
+                        )}
                     </div>
                 </div>
             )}

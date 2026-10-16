@@ -67,13 +67,14 @@ export function Button({ variant = "primary", size = "md", icon, running = false
  * someone who has not clicked it yet, and it is also the button's accessible name.
  * `tone` gives it the meaning colour before any hover: danger (red, deletes),
  * yes (green, approve/confirm), no (red, reject/decline); `pressed` fills yes/no.
+ * ghost has no frame until hovered (a quiet × beside a value).
  */
 export function IconButton({ icon, tip, tipSub, size = "md", tone, pressed, className = "", type = "button", ...rest }: Omit<NativeButton, "title"> & {
     icon: string | ReactNode;
     tip: string;
     tipSub?: string;
     size?: "md" | "sm";
-    tone?: "danger" | "yes" | "no";
+    tone?: "danger" | "yes" | "no" | "ghost";
     pressed?: boolean;
 }) {
     return (

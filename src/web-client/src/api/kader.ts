@@ -99,6 +99,8 @@ export type KaderPlayer = {
     prefill: KaderPrefill;
     pickable: KaderPickable[];
     availability: KaderDay[];
+    /** "ab HH:MM" per chosen day from the raider's profile; a day without = the whole evening. */
+    availabilityFrom?: Partial<Record<KaderDay, string>>;
     attendance: KaderAttendance;
     /** The revision of the planner's character data (0 = none of its own) and who changed it last (the account dialog's conflict check). */
     rev?: number;
