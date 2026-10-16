@@ -9,7 +9,8 @@
 //                             admin-only field answers 403 "admin_only", anyone
 //                             else 403 "not_manager" (services/roster/rosterSettings.js)
 // A roster of another server than the active one is 404 "not_found" for
-// update, delete and composition (web/roster/activeRoster.js).
+// update, delete and composition (web/roster/activeRoster.js). A closed roster
+// (#739) answers update with 409 "roster_closed"; a full admin may still delete it.
 // Errors answer with a code the client translates (DE/EN).
 const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
@@ -18,7 +19,8 @@ const { userCan } = require("../../config/permissions");
 const rosterStore = require("../../stores/rosterStore");
 const { getConfig } = require("../../stores/settingsStore");
 const { canManageRosterLive } = require("../../services/roster/rosterAccess");
-const { createRosterWithSource, kaderExists } = require("../../services/roster/rosterCreate");
+const { createRosterWithSource, kaderExists, kaderFitsVersion } = require("../../services/roster/rosterCreate");
+const { resolveVersionQuery } = require("../../services/events/mainVersion");
 const { updateRosterSettings } = require("../../services/roster/rosterSettings");
 const { rosterOptions, serverRoles } = require("../../services/roster/rosterOptions");
 const { rosterComposition } = require("../../services/roster/rosterComposition");
@@ -30,10 +32,16 @@ const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 const STATUS_OF_CODE = {
     not_found: 404, kader_not_found: 404,
     admin_only: 403, not_manager: 403,
-    category_taken: 409, kader_taken: 409,
+    category_taken: 409, kader_taken: 409, roster_closed: 409,
 };
 
-const refuse = (res, code) => apiError(res, STATUS_OF_CODE[code] || 400, code, `Roster: ${code}`);
+// The refusals of the game version (#741, #563) in words; the client says every code in its own language.
+const MESSAGE_OF_CODE = {
+    version_mismatch: "Kader, Kategorie und Roster müssen dieselbe Spielversion spielen.",
+    version_hidden: "Diese Spielversion ist ausgeblendet – ein Roster bekommt eine sichtbare Spielversion.",
+};
+
+const refuse = (res, code) => apiError(res, STATUS_OF_CODE[code] || 400, code, MESSAGE_OF_CODE[code] || `Roster: ${code}`);
 
 /** The role ids of a server when the bot can see it (to refuse unknown ones), else null. */
 function knownRoleIds(guildId) {
@@ -44,12 +52,16 @@ function knownRoleIds(guildId) {
 /**
  * GET /api/rosters/options — what the create dialog and the settings offer for
  * the active server: { guildId, categories: [{ id, name, versionId, rosterId, rosterName }],
- * versions: [{ id, label, short }], defaultVersion, roles: [{ id, name, color, position, manageable }],
+ * versions: [{ id, label, short, icon }], defaultVersion, roles: [{ id, name, color, position, manageable }],
  * canManageRoles, online, kaders: [{ id, name, inRoster, candidates }] (only with `kader` read),
  * templateSlots: { [categoryId]: { total, tank, healer, bench, templateId, templateName } }, isAdmin }.
+ * `?version=<id>`: the version the dialog works in (#741, `resolveVersionQuery`: the page's
+ * content version, the main version while others are hidden) - only its categories and Kader.
  */
-const getRosterOptions = withUser({}, async ({ user, req, res }) => {
-    const options = rosterOptions({ guildId: activeGuildFor(req), config: getConfig(), canSeeKader: userCan(user, "kader", "read") });
+const getRosterOptions = withUser({}, async ({ user, req, res, query }) => {
+    const config = getConfig();
+    const { versionId } = resolveVersionQuery(query && query.get("version"), { config });
+    const options = rosterOptions({ guildId: activeGuildFor(req), config, canSeeKader: userCan(user, "kader", "read"), versionId });
     // #676: the Loot-Council profiles to pick from (names only) and whether "Profile verwalten" may link to the council
     return ok(res, { ...options, isAdmin: user.isAdmin === true, canOpenCouncil: userCan(user, "lootcouncil", "read") });
 });
@@ -88,6 +100,7 @@ const postRosterUpdate = withUser({ write: "roster", csrf: true, body: true }, a
     // rosterId is no settings field - cleanSettings ignores it like any unknown field
     const result = updateRosterSettings(roster.id, body, {
         isAdmin, actor: str(user.id), knownRoleIds: knownRoleIds(roster.guildId), kaderKnown: (id) => kaderExists(roster.guildId, id),
+        kaderFits: (id, versionId) => kaderFitsVersion(roster.guildId, id, versionId),
         config: getConfig(),
     });
     if (!result.ok) return refuse(res, result.code);
@@ -113,7 +126,8 @@ const postRosterDelete = withUser({ write: "roster", csrf: true, body: true }, a
 const getRosterComposition = withUser({}, async ({ user, req, query, res }) => {
     const roster = activeRoster(req, query.get("id"));
     if (!roster) return refuse(res, "not_found");
-    return ok(res, { ...rosterComposition(roster), canManage: await canManageRosterLive(user, roster) });
+    // a closed roster (#739) is read only for everybody
+    return ok(res, { ...rosterComposition(roster), canManage: !roster.closedAt && await canManageRosterLive(user, roster) });
 });
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */

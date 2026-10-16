@@ -5,6 +5,8 @@
     },
     "person": {
         "tip": {
+            "peekAria": "Raider info",
+            "peekHint": "Click to select, move, edit",
             "attendance": "Attendance",
             "attendanceNone": "no raids counted yet",
             "attendanceDetails": "Details",
@@ -27,19 +29,14 @@
             "pinned": "selected",
             "pinnedSub": "The panel stays with this raider until you release the selection — Esc or click them again."
         },
-        "offSpec": "Off-spec",
-        "status": {
-            "late": "Coming late",
-            "tentative": "Tentative",
-            "bench": "Signed up as bench"
-        }
+        "offSpec": "Off-spec"
     },
     "weights": {
         "requiredBuffs": { "label": "Required buffs", "tip": "Buffs the raid template asks for." },
         "mainSpec": { "label": "Main spec", "tip": "Raiders on the spec they signed up with." },
         "preferredCharacter": { "label": "Preferred character", "tip": "Whoever lists several characters comes along with the first — a \"can also bring\" character costs this much." },
         "fairness": { "label": "Fairness", "tip": "Whoever sat on the bench last or often is more likely to come along. Only when fairness is on." },
-        "status": { "label": "Signup status", "tip": "\"In\" before \"Coming late\" before \"Tentative\"." },
+        "status": { "label": "Signup status", "tip": "\"Signed up\" before \"Late\" before \"Tentative\"." },
         "partyBuffs": { "label": "Party buffs", "tip": "Totems, auras and shouts in the group that need them." },
         "wishes": { "label": "Wishes", "tip": "\"Happy to be with\" in one group. Only when wishes are on." },
         "avoid": { "label": "Not together", "tip": "Penalty when a \"not together\" pair stands in the same group (parallel raids: in the same raid). Only when \"not together\" is on." },
@@ -84,9 +81,15 @@
         "empty": "Everybody signed up is in the setup.",
         "aria": "Signed up, not in the setup",
         "title": "Signed up",
-        "tip": "Signed up, but neither placed nor on the bench. Never posted. Drag people from here into a group or onto the bench.",
-        "benchSignup": "Sub",
-        "benchSignupTip": "Signed up as a substitute (bench)"
+        "tip": "Signed up, but neither placed nor on the bench. Never posted. Drag people from here into a group or onto the bench."
+    },
+    "chars": {
+        "first": "The raider's first choice",
+        "also": "Can also come with – choice {n}",
+        "lineAria": "{character} · {spec} (choice {n}) – drag or click to place exactly this character",
+        "switch": "Switch character",
+        "switchSub": "Another character the raider signed up with. The place stays and is locked, so a new proposal does not undo it.",
+        "switchTo": "Play {character} ({spec})"
     },
     "summary": {
         "aria": "Summary",
@@ -200,6 +203,9 @@
         "dmsRunning": "sending DMs"
     },
     "bar": {
+        "placesChip": "{count}/{size} places",
+        "confirmedChip": "{count}/{total} confirmed",
+        "countsAria": "Roles and places",
         "ofTarget": "{value} of {target}",
         "withTarget": "{value} (target {target})",
         "places": "{count} of {size} places",
@@ -240,6 +246,10 @@
         "kicker": "Raider"
     },
     "poolPanel": {
+        "statusFilter": "Filter by status",
+        "statusChipTip": "Show only \"{status}\"",
+        "statusChipSub": "One click shows only these signups, a second one everybody again. Combines with the roles.",
+        "statusHead": "{status} · {count}",
         "notPlaced": "not placed yet",
         "search": "Search raider or spec",
         "filter": "Filter by role",
@@ -265,6 +275,13 @@
         "go": "Fill"
     },
     "postOptions": {
+        "menu": "Post options",
+        "menuSub": "What goes along with the post: the bench and the DMs to the players.",
+        "head": "When posting",
+        "withDms": "with DMs",
+        "withoutDms": "no DMs",
+        "withBench": "with bench",
+        "withoutBench": "no bench",
         "aria": "What is posted with the setup",
         "bench": "Post the bench",
         "benchSub": "On: the bench is in the setup message and the bench players get a DM. Off: the bench stays internal. Applies to the next \"Post setup\" and is remembered for this raid.",
@@ -350,6 +367,7 @@
     },
     "moves": {
         "respecBench": "Someone on the bench has no place yet – drag them into a group first, then pick the spec.",
+        "switchPool": "Not in the setup yet – drag the character you want from “Signed up” instead.",
         "notInSetup": "Raider not in the setup.",
         "targetNotInSetup": "Target not in the setup.",
         "groupFull": "Group {group} is full — drag onto a raider to swap.",
@@ -404,5 +422,37 @@
         "loading": "Loading signup …",
         "loadFailed": "Signup not loaded: {message}",
         "failed": "Signup not saved."
+    },
+    "raidGroup": {
+        "overbookedHint": { "one": "{count} signup for {places} places", "other": "{count} signups for {places} places" },
+        "aria": "Raids of this group",
+        "tab": "Raid {index}",
+        "tabTip": "{title} · {placed} of {size} placed",
+        "tabSub": "Click to switch to this raid. Drag a raider here (or click them first, then the tab) to put them on this raid's first free place.",
+        "dropHere": "Here",
+        "state": { "none": "empty", "draft": "draft", "approved": "approved", "posted": "posted" },
+        "primary": "Signup",
+        "primaryTip": "Everyone signs up here – you split the signed-up raiders over the raids of the group.",
+        "add": "Add another raid",
+        "addSub": "Same time, same template and size – the signups stay with the first raid and are split over both.",
+        "addOverbooked": "{signed} signed up for {places} places – another raid takes the rest.",
+        "addTitle": "Add another raid",
+        "addText": "A second raid at the same time: same category, template, size and composition, the same channel. Raiders keep signing up at the first raid only; you split them over the raids here. Every raid gets its own setup and its own setup message.",
+        "titleLabel": "Title of the new raid",
+        "create": "Create raid",
+        "created": "{title} created.",
+        "addFailed": "Raid not created.",
+        "remove": "Dissolve {title}",
+        "removeSub": "Only without an approved setup: the raid is deleted and its raiders are back under \"Signed up\".",
+        "removeLocked": "{title} has an approved setup – it can only be dissolved before (otherwise Manage › Delete).",
+        "removeTitle": "Dissolve {title}?",
+        "removeText": "{title} is deleted. {count} placed raiders go back to \"Signed up\".",
+        "removeAction": "Dissolve",
+        "removeFailed": "Raid not dissolved.",
+        "moveFailed": "Not moved.",
+        "elsewhere": { "one": "{count} stands in another raid of the group", "other": "{count} stand in other raids of the group" },
+        "places": "{count} raids · {places} places",
+        "head": "Raid {index} of {count}",
+        "headTip": "The raids of this evening share one signup; each has its own setup."
     }
 }

@@ -75,12 +75,12 @@ const discord = require("../discord/discord");
 // The counting rule lives in the signup service, so the page and the message agree.
 const { rosterCounts, allowedStatuses, signupWindow } = require("../signups/signupService");
 const { buildClasses } = require("../../config/gameVersions/classes");
-const { rulesForEvent } = require("./mainVersion");
+const { rulesForEvent, versionOfEvent } = require("./mainVersion");
 const {
     appEmojiMap, loadAppEmojis, emojiText, emojiOption,
     specEmojiName, classEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName, tileEmojiName, roleEmojiName, emojiStyleOf,
 } = require("../discord/appEmojis");
-const { migrateSignup } = require("../signups/signupCharacters");
+const { migrateSignup, maxCharactersFor } = require("../signups/signupCharacters");
 // The calendar link under the message (#308) — the route that serves it is
 // public, like the report pages.
 const { icsUrlFor } = require("./icsFeed");
@@ -93,6 +93,9 @@ const { signedUpText } = require("../../utils/signup/capacity");
 const { tr, specLabel, classLabel, normalizeLang } = require("../../utils/i18n/botText");
 const { eventLang } = require("../discord/botLanguage");
 const { hasExpected } = require("../roster/expectedRaiders");
+const { eventVersionTag } = require("./versionTag");
+const { isRaidSibling, signupEventIdOf } = require("../../utils/raidGroup");
+const { groupSummary } = require("./raidGroup");
 
 /**
  * The head's "Signed up" line (#520): the single Discord accounts, number in
@@ -195,8 +198,9 @@ function missingPingId(eventId) {
 
 /** Whether the event's category has raider roles — the members expected to sign up, so a "missing" exists. */
 function hasRaiderRoles(event, config = getConfig()) {
-    // a roster (#658: its core + trial members) counts like raider roles
-    return hasExpected(event && event.categoryId, config || {});
+    // a roster (#658: its core + trial members) counts like raider roles - the roster of the raid's version (#739)
+    const cfg = config || {};
+    return hasExpected(event && event.categoryId, cfg, { versionId: event ? versionOfEvent(event, { config: cfg }) : "" });
 }
 
 /** A name as plain text — no bold, links or mentions sneaking in through markdown. */
@@ -488,7 +492,10 @@ function buttonRows(event, phase, now = Date.now(), { pingMissing = false } = {}
  * differ per viewer — so the own characters open ephemerally (eventPick.js).
  */
 function pickSelect(event, emojis, lang = "de") {
-    const mine = { label: tr(lang, "My characters …"), value: PICK_MINE, description: tr(lang, "from your profile – up to 3 at once") };
+    // how many at once: the category's limit (Einstellungen › Kategorien, default 8)
+    const max = maxCharactersFor(event, getConfig());
+    const description = max > 1 ? tr(lang, "from your profile – up to {max} at once", { max }) : tr(lang, "from your profile");
+    const mine = { label: tr(lang, "My characters …"), value: PICK_MINE, description };
     const mineEmoji = emojiOption(emojis, uiEmojiName("signups"));
     if (mineEmoji) mine.emoji = mineEmoji;
     const classes = classesOf(event).map((c) => {
@@ -559,7 +566,7 @@ function phaseLine(event, phase, head, lang) {
  */
 function buildEventMessage(event, signups, {
     emojis = {}, now = Date.now(), icsUrl = "", raidArt = false, titleSize = "normal", compUrl = "", srUrl = "", lang = "de",
-    pingMissing = false,
+    pingMissing = false, raidGroup = null,
 } = {}) {
     const list = (signups || []).filter((s) => s && s.userId).map(migrateSignup);
     const c = rosterCounts(list);
@@ -600,6 +607,8 @@ function buildEventMessage(event, signups, {
         column([
             // "28 signed up" names itself — no label in front, with or without the icon (#520)
             headLine("signups", "", signedUpValue(c.accounts, lang)),
+            // a raid group (#811): one signup for every raid of the evening — "2 raids · 20 places"
+            ...(raidGroup && raidGroup.count > 1 ? [tr(lang, "**{count} raids** · {places} places", { count: raidGroup.count, places: raidGroup.places })] : []),
             headLine("time", word(lang, "time"), start ? `<t:${start}:t>` : "–"),
         ]),
         // an empty first line without a deadline keeps the countdown beside date and time
@@ -671,6 +680,9 @@ function buildEventMessage(event, signups, {
     };
     const text = clip(desc.join("\n"), LIMITS.description);
     if (text) embed.description = text;
+    // TBC and Forever share the Discord server: the post names its version, small (#743)
+    const versionTag = eventVersionTag(event);
+    if (versionTag) embed.footer = { text: versionTag };
     // Shorten the blocks until the whole embed fits Discord's 6000 characters.
     for (let maxLines = 40; maxLines >= 1; maxLines -= maxLines > 10 ? 5 : 1) {
         embed.fields = fitFields([...headFields, ...totals, ...rosterFields(entries, numbers, emojis, maxLines, style, lang), ...tail]);
@@ -708,6 +720,7 @@ async function buildPayload(event, lang) {
         srUrl: (softres && softres.url) || "",
         lang,
         pingMissing: hasRaiderRoles(event),
+        raidGroup: groupSummary(event),
     });
 }
 
@@ -724,8 +737,11 @@ async function postPayload(event, { payload, lang }) {
  * @returns {Promise<{ channelId: string, messageId: string }>}
  */
 async function postEventMessage(eventId) {
-    const event = getEvent(eventId);
-    if (!event) throw new Error("Event nicht gefunden.");
+    const asked = getEvent(eventId);
+    if (!asked) throw new Error("Event nicht gefunden.");
+    // a further raid of a raid group (#811) has no message of its own: its group's first raid's stands for it
+    if (isRaidSibling(asked)) return refreshEventMessage(signupEventIdOf(asked));
+    const event = asked;
     return postPayload(event, await payloadFor(event));
 }
 
@@ -736,7 +752,10 @@ async function postEventMessage(eventId) {
  * @returns {Promise<{ channelId: string, messageId: string, reposted: boolean, unchanged?: true }|null>} null for an unknown event
  */
 async function refreshEventMessage(eventId) {
-    const event = getEvent(eventId);
+    const asked = getEvent(eventId);
+    if (!asked) return null;
+    // a further raid of a raid group (#811) has no message of its own: the first raid's shows the group
+    const event = isRaidSibling(asked) ? getEvent(signupEventIdOf(asked)) : asked;
     if (!event) return null;
     // The channel is gone (#537): nothing to edit, nowhere to post — the
     // dashboard asks the orga to create it anew (eventManage.recreateChannel).

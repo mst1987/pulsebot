@@ -1,44 +1,131 @@
 // Who the council page works for (#676, docs/loot-council.md "Profile je
 // Roster"): a roster with loot system Loot-Council (picked first), else a raid
-// category without roster (the fallback), else every category ("Alle
-// Raid-Kategorien"). The head names the roster, its Loot-Council profile and
-// the linked Kader, with links the caller may follow.
+// category without roster whose loot system is Loot-Council (the fallback) - a
+// category on Softres, GDKP or anything else has no council and is not offered
+// (Oct 2026). The head names the roster, its Loot-Council profile and the
+// linked Kader, with links the caller may follow; the overview
+// (councilOverview) is the page's entry: one tile per such roster or category.
 //
 // Only names and ids leave here - nothing of the Kader but its name, and that
 // only for a reader of the area `kader`.
 const { userCan } = require("../../config/permissions");
 const rosterStore = require("../../stores/rosterStore");
-const { rosterLootSystem } = require("../../services/loot/lootSystem");
+const eventStore = require("../../stores/eventStore");
+const { rosterLootSystem, categoryLootSystem } = require("../../services/loot/lootSystem");
 const councilProfiles = require("../../services/loot/councilProfiles");
+const { currentRoster } = require("../../services/roster/categoryRoster");
 const { kaderChoices } = require("../../services/roster/rosterCreate");
-const { categoryOptions } = require("./councilQuery");
+const { versionLabel } = require("../../services/events/versionSettings");
+const { categoryOptions, pickVersion } = require("./councilQuery");
 
-/** The rosters of a server whose raids run as Loot-Council, by name. */
-function councilRosters(guildId, config) {
-    return rosterStore.listRosters(guildId).filter((r) => rosterLootSystem(config, r).system === "lootcouncil");
+/**
+ * The rosters of a server whose raids run as Loot-Council, by name. With
+ * `versionId` only the rosters of that version (#741).
+ */
+function councilRosters(guildId, config, { versionId = "" } = {}) {
+    return rosterStore.listRosters(guildId)
+        .filter((r) => !versionId || pickVersion({ roster: r }) === versionId)
+        .filter((r) => rosterLootSystem(config, r).system === "lootcouncil");
+}
+
+/**
+ * The raid categories without roster that run as Loot-Council (the picker's
+ * fallback group, the overview's category tiles). With `versionId` only those
+ * that play it.
+ */
+function councilCategories(guildId, config, { versionId = "" } = {}) {
+    return categoryOptions(guildId, { versionId, config })
+        .filter((c) => !currentRoster(c.id, { config }))
+        .filter((c) => categoryLootSystem(config, c.id).system === "lootcouncil");
+}
+
+/** The next raid of a category that is not cancelled, `{ id, title, startTime }` or null. */
+function nextRaidOf(guildId, categoryId, now) {
+    if (!categoryId) return null;
+    const next = eventStore.listEvents(guildId, { sinceSeconds: Math.floor(now / 1000) })
+        .filter((e) => e.categoryId === categoryId && e.status !== "cancelled")
+        .sort((a, b) => a.startTime - b.startTime)[0];
+    return next ? { id: next.id, title: next.title || "", startTime: next.startTime } : null;
+}
+
+/** How many of a roster's members stand in it (core + trial), on the bench and paused. */
+function memberCounts(roster) {
+    const counts = { roster: 0, bench: 0, pause: 0 };
+    for (const m of Object.values((roster && roster.members) || {})) {
+        if (m.status === "core" || m.status === "trial") counts.roster += 1;
+        else if (m.status === "bench") counts.bench += 1;
+        else if (m.status === "pause") counts.pause += 1;
+    }
+    return counts;
+}
+
+/**
+ * The entry of the council page: one tile per roster with loot system
+ * Loot-Council and per category without roster that runs as Loot-Council -
+ * nothing else, a raid on Softres has no council. Rosters first, by name.
+ * Cheap on purpose (no gear, no needs): the tile shows the name, the category,
+ * the version, the Loot-Council profile, who stands in the roster and the next raid.
+ * @param {{ guildId: string, config: object, versionId?: string, now?: number }} input
+ *   `versionId` = the menu's version (#741): only its rosters and categories
+ */
+function councilOverview({ guildId = "", config = {}, versionId = "", now = Date.now() } = {}) {
+    const catName = new Map(categoryOptions(guildId, { config }).map((c) => [c.id, c.name]));
+    const tile = (kind, { id, name, categoryId, versionId: version, profile, members }) => ({
+        kind, id, name, categoryId,
+        categoryName: categoryId ? (catName.get(categoryId) || categoryId) : "",
+        versionId: version,
+        versionLabel: versionLabel(version),
+        profileName: profile.name,
+        members,
+        nextRaid: nextRaidOf(guildId, categoryId, now),
+    });
+    const rosters = councilRosters(guildId, config, { versionId })
+        .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+        .map((r) => tile("roster", {
+            id: r.id, name: r.name, categoryId: r.categoryId || "", versionId: pickVersion({ roster: r }),
+            profile: councilProfiles.resolveProfile({ rosterId: r.id }).profile, members: memberCounts(r),
+        }));
+    const categories = councilCategories(guildId, config, { versionId }).map((c) => tile("category", {
+        id: c.id, name: c.name, categoryId: c.id, versionId: pickVersion({ categoryId: c.id, config }),
+        profile: councilProfiles.resolveProfile({ categoryId: c.id }).profile, members: null,
+    }));
+    return { tiles: [...rosters, ...categories] };
 }
 
 /**
  * The picker and the head of the council page.
  * @param {{ guildId: string, user: object, opts: object, config: object }} input
- *   `opts` = councilOptsFromQuery()'s answer (rosterId, categoryId)
+ *   `opts` = pageCouncilOpts()'s answer (rosterId, categoryId, charVersion, droppedPick)
+ *
+ * The picker offers only what plays the page's version (`opts.charVersion`,
+ * the menu's, #741/#563): rosters of that version, categories that play it. A
+ * pick of another version never reaches here (pageCouncilOpts drops it);
+ * `dropped` tells the page which one it was.
  */
 function councilHead({ guildId = "", user = null, opts = {}, config = {} } = {}) {
-    const categories = categoryOptions(guildId);
-    const catName = new Map(categories.map((c) => [c.id, c.name]));
+    const versionId = opts.charVersion || "";
+    // every category for the names, only the version's Loot-Council ones to pick
+    const allCategories = categoryOptions(guildId, { config });
+    const catName = new Map(allCategories.map((c) => [c.id, c.name]));
     const canOpenKader = userCan(user, "kader", "read");
     const kaders = canOpenKader ? new Map(kaderChoices(guildId).map((k) => [k.id, k.name])) : new Map();
     const target = opts.rosterId ? { rosterId: opts.rosterId } : { categoryId: opts.categoryId || "" };
     const { profile, source, roster } = councilProfiles.resolveProfile(target);
 
-    const listed = councilRosters(guildId, config);
-    // A roster picked through a link stays in the list even when it runs another system.
+    const listed = councilRosters(guildId, config, { versionId });
+    // A roster picked through a link stays in the list even when it runs another system (never another version: see above).
     if (roster && opts.rosterId && !listed.some((r) => r.id === roster.id)) listed.push(roster);
     const rosters = listed.map((r) => {
         const p = councilProfiles.resolveProfile({ rosterId: r.id }).profile;
         return { id: r.id, name: r.name, categoryId: r.categoryId || "", categoryName: r.categoryId ? (catName.get(r.categoryId) || r.categoryId) : "", profileId: p.id, profileName: p.name };
     });
-    const withoutRoster = categories.filter((c) => !rosterStore.rosterForCategory(c.id)).map((c) => {
+    // without a roster of the version the category plays now (#739), and only on Loot-Council -
+    // a category picked through a link stays, like a roster (never another version: see above)
+    const pickable = councilCategories(guildId, config, { versionId });
+    if (opts.categoryId && !opts.rosterId && !pickable.some((c) => c.id === opts.categoryId)) {
+        pickable.push({ id: opts.categoryId, name: catName.get(opts.categoryId) || opts.categoryId });
+    }
+    const withoutRoster = pickable.map((c) => {
         const p = councilProfiles.resolveProfile({ categoryId: c.id }).profile;
         return { id: c.id, name: c.name, profileId: p.id, profileName: p.name };
     });
@@ -62,6 +149,8 @@ function councilHead({ guildId = "", user = null, opts = {}, config = {} } = {})
         profile: councilProfiles.profileHead(profile, source),
         rosters,
         categories: withoutRoster,
+        // The pick the page asked for that plays another version (pageCouncilOpts), else null.
+        dropped: opts.droppedPick || null,
         canOpenRoster: userCan(user, "roster", "read"),
         canOpenKader,
         // View changes go into the profile - the whole orga's and the addon's.
@@ -69,4 +158,4 @@ function councilHead({ guildId = "", user = null, opts = {}, config = {} } = {})
     };
 }
 
-module.exports = { councilHead, councilRosters };
+module.exports = { councilHead, councilRosters, councilCategories, councilOverview };

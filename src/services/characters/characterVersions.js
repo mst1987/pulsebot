@@ -5,17 +5,19 @@
 // Nothing is stored for it; the evidence, strongest first:
 //   1. the raider profiles: a profile character carries its `versionId`
 //      (matched by name — "Devi Res" is the Forever character "forever~devi res");
-//   2. the loot: an item of an own event has that event's version, any other
-//      item (Raid-Helper, a manual bucket) is TBC — stored records never move;
+//   2. the loot: an item has the stored version of its raid (#737: an own
+//      event's, a Raid-Helper snapshot's — events/storedVersion.js), an
+//      item without a stored raid (a manual bucket, a raid never scanned) is
+//      TBC — stored records never move, whatever the setting says later;
 //   3. only when neither knows the character: the version its raid categories
 //      play (services/events/mainVersion.js).
 // A character with no evidence at all is TBC (LEGACY_VERSION), what everything
 // before versions was.
 const { LEGACY_VERSION, VERSIONS } = require("../../config/gameVersions");
-const { knownVersion, mainVersionFor, visibleVersions } = require("../events/mainVersion");
+const { mainVersionFor, visibleVersions } = require("../events/mainVersion");
+const { storedVersionOf } = require("../events/storedVersion");
 const { nameKeyOf } = require("../../utils/loot/lootImport");
 const profiles = require("../../stores/raiderProfileStore");
-const eventStore = require("../../stores/eventStore");
 
 /**
  * What the lookups need, read once per request.
@@ -33,14 +35,15 @@ function buildVersionContext({ config } = {}) {
     return { byName, eventCache: new Map(), config };
 }
 
-/** The version of the event a loot item came from: an own event's, else TBC. */
+/**
+ * The version of the event a loot item came from: the one stored for it (an
+ * own event's, a Raid-Helper snapshot's, #737), else TBC — never the live
+ * setting, so a switch of the main or category version moves no loot.
+ */
 function eventVersion(ctx, eventId) {
     const id = String(eventId || "");
     if (!id) return LEGACY_VERSION;
-    if (!ctx.eventCache.has(id)) {
-        const event = eventStore.isOwnEventId(id) ? eventStore.getEvent(id) : null;
-        ctx.eventCache.set(id, (event && knownVersion(event.versionId)) || LEGACY_VERSION);
-    }
+    if (!ctx.eventCache.has(id)) ctx.eventCache.set(id, storedVersionOf(id) || LEGACY_VERSION);
     return ctx.eventCache.get(id);
 }
 
@@ -73,4 +76,28 @@ function versionChoices(rows, mainVersion, { config } = {}) {
         .map((v) => ({ id: v.id, label: v.label, short: v.short || v.label, count: counts.get(v.id) || 0 }));
 }
 
-module.exports = { buildVersionContext, eventVersion, versionsOfCharacter, versionChoices };
+/**
+ * The rows of a list that play one game version (#741, strictly one version per
+ * answer) - a Discord lookup lists only the characters of its version. A row is
+ * `{ character, items?, categoryIds? }`; one without `items` gets them from
+ * `itemsOf(name)` (the caller owns the loot store, this module reads none).
+ * @template {{ character: string, items?: object[], categoryIds?: string[] }} T
+ * @param {T[]} rows
+ * @param {string} versionId
+ * `assigned`: the rows' `categoryIds` are categories the character was assigned to
+ * by hand (a user's own characters) - then a category that plays the version
+ * counts as evidence beside the loot, so a raider whose category just switched
+ * to the version, with only the old loot so far, still finds the character there.
+ * @param {{ itemsOf?: (name: string) => object[], config?: object, ctx?: object, assigned?: boolean }} [opts]
+ * @returns {T[]}
+ */
+function charactersOfVersion(rows, versionId, { itemsOf = () => [], config, ctx, assigned = false } = {}) {
+    const versionCtx = ctx || buildVersionContext({ config });
+    return (rows || []).filter((r) => versionsOfCharacter(versionCtx, {
+        name: r.character,
+        items: r.items || itemsOf(r.character),
+        categoryIds: r.categoryIds || [],
+    }).includes(versionId) || (assigned && (r.categoryIds || []).some((id) => mainVersionFor({ categoryId: id, config }) === versionId)));
+}
+
+module.exports = { buildVersionContext, eventVersion, versionsOfCharacter, versionChoices, charactersOfVersion };

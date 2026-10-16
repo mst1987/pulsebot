@@ -25,6 +25,8 @@
     },
     "next": {
         "title": "Nächster Raid",
+        "cancelled": "Abgesagt",
+        "cancelledSub": "Die Orga hat diesen Raid abgesagt.",
         "crumb": "Raid-Events",
         "details": "Details",
         "openTip": "Raid öffnen",
@@ -166,7 +168,9 @@
         "rosterOnly": "Nur Roster",
         "rosterOnlyTip": "Für diesen Raid melden sich nur Mitglieder des Rosters an.",
         "status": {
-            "signed": "Dabei",
+            "signed": "Angemeldet",
+            "placed": "Im Setup",
+            "notPlaced": "Nicht aufgestellt",
             "late": "Später",
             "tentative": "Vielleicht",
             "bench": "Bank",
@@ -187,6 +191,8 @@
         "setup": {
             "none": "Noch kein Setup",
             "noneSub": "Die Raidleitung stellt es noch auf.",
+            "notPlaced": "Nicht aufgestellt",
+            "notPlacedSub": "Das Setup steht, du bist diesmal nicht drin.",
             "bench": "Bank",
             "group": "Gruppe {group}"
         },
@@ -253,13 +259,13 @@
             },
             "tipSub": "Für den Raid wurde noch kein Sheet gefüllt, und seiner Kategorie ist kein festes Sheet zugewiesen. Öffnet das Raid-Event."
         },
-        "recommendations": {
-            "title": "Empfehlungen prüfen",
+        "gear": {
+            "title": "Gear-Probleme",
             "tip": {
-                "one": "{count} Empfehlung ungeprüft",
-                "other": "{count} Empfehlungen ungeprüft"
+                "one": "{count} Raider mit Gear-Problemen",
+                "other": "{count} Raider mit Gear-Problemen"
             },
-            "tipSub": "Niemand hat sie freigegeben oder verworfen – erst freigegebene Punkte gehen an die Raider. Öffnet den Report in der Sicht Raid."
+            "tipSub": "Fehlende Verzauberungen, leere Sockel, schwache Edelsteine – aus dem letzten Log. Öffnet den Report in der Sicht Raider."
         },
         "logs": {
             "title": "Logs zuordnen",

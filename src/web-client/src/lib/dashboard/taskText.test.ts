@@ -6,12 +6,12 @@ afterEach(() => switchLang("de"));
 
 describe("taskText", () => {
     it("words a task in the reader's language from its key and params", async () => {
-        const task = { texts: { title: { key: "recommendations.title" }, tip: { key: "recommendations.tip", params: { count: 7 } } } };
-        expect(taskText(task, "title", "Empfehlungen prüfen")).toBe("Empfehlungen prüfen");
-        expect(taskText(task, "tip", "x")).toBe("7 Empfehlungen ungeprüft");
+        const task = { texts: { title: { key: "gear.title" }, tip: { key: "gear.tip", params: { count: 7 } } } };
+        expect(taskText(task, "title", "Gear-Probleme")).toBe("Gear-Probleme");
+        expect(taskText(task, "tip", "x")).toBe("7 Raider mit Gear-Problemen");
         await switchLang("en");
-        expect(taskText(task, "title", "Empfehlungen prüfen")).toBe("Review recommendations");
-        expect(taskText(task, "tip", "x")).toBe("7 recommendations not reviewed");
+        expect(taskText(task, "title", "Gear-Probleme")).toBe("Gear problems");
+        expect(taskText(task, "tip", "x")).toBe("7 raiders with gear problems");
     });
 
     it("joins pieces: the reference line with a dot, the title with a space", async () => {

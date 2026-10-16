@@ -10,7 +10,7 @@ const { files, fn, text } = require("./councilHelpers");
 const { page, council, parts, dialog, drop, api, jobs } = files;
 
 describe("loot council — busy state", () => {
-    const main = fn(page, "LootCouncilPage");
+    const main = fn(page, "CouncilPage");
 
     it("guards against a second click while one is in flight and always clears the key", () => {
         expect(main).toMatch(/if \(busy\.has\(key\)\) return;/);
@@ -116,7 +116,7 @@ describe("loot council — waits are toasts", () => {
     });
 
     it("tells the reader what the armory and a loaded log did, refusals included", () => {
-        const main = fn(page, "LootCouncilPage");
+        const main = fn(page, "CouncilPage");
         expect(main).toMatch(/armoryRejected === "pvp"/);
         expect(main).toMatch(/t\("lootcouncil\.page\.armoryPvp", \{ names: pvp\.join\(", "\) \}\)/);
         expect(text("page.armoryPvp")).toMatch(/die Armory zeigt PvP-Gear — es bleibt beim Set aus dem letzten Raid/);

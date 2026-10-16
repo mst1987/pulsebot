@@ -1,4 +1,4 @@
-const WarcraftLogs = require("../../classes/warcraftlogs");
+const { parseReportLink } = require("./logLinks");
 const { buildGearIssues, buildArmory } = require("./gearIssues");
 const { analyzeConsumables } = require("./consumables");
 const { analyzeShadowResi } = require("./shadowResi");
@@ -20,10 +20,12 @@ const { analyzeRpb, rpbSummaryLines } = require("./rpb");
 const { selectPlayers } = require("./common");
 const { analyzeRaidProgress, progressSummary } = require("./raidProgress");
 const { resolveSituationalGear } = require("./gearVariants");
+const { logcheckRules, RPB_ANALYZER } = require("./rules");
 const { saveReport, getReport } = require("../../stores/reportStore");
 const { getConfig } = require("../../stores/settingsStore");
 const WarcraftLogsV2 = require("../../classes/warcraftlogsV2");
 const { publicBaseUrl } = require("../../config/variables");
+const { resolveReportVersion, logcheckSupported, wclClientFor, reportLink, unsupportedMessage } = require("../../services/logcheck/logVersion");
 
 // A user-facing failure whose message is safe to show directly.
 class ReportError extends Error {}
@@ -42,6 +44,20 @@ class IncompleteRaidError extends ReportError {
         // in its tests — a mock without the class turns `instanceof` into a
         // TypeError, which would swallow the real error behind it.
         this.incomplete = true;
+    }
+}
+
+/**
+ * The log belongs to a game version the log check has no rules for yet
+ * (services/logcheck/logVersion.js, #746). Thrown before any request to
+ * Warcraft Logs; `unsupported` and `versionId` let the bot word it in the
+ * reader's language (same flag-not-instanceof reason as IncompleteRaidError).
+ */
+class UnsupportedVersionError extends ReportError {
+    constructor(versionId) {
+        super(unsupportedMessage(versionId));
+        this.unsupported = true;
+        this.versionId = versionId;
     }
 }
 
@@ -77,46 +93,56 @@ function normalizeSections(sections) {
  *   so both halves of a log end up on one page under one link
  * @param {boolean} [opts.force]  build even though the raid's final boss is not
  *   down yet — the deliberate answer to an IncompleteRaidError
+ * @param {object} [opts.event]  the raid the log is linked to: its version is the report's
+ * @param {string} [opts.versionId]  the stored version of a tracked log (logStore);
+ *   without event or version the link's host decides, else TBC (logVersion.js)
  * @throws {ReportError} with a user-friendly message on any expected failure
  * @throws {IncompleteRaidError} when the raid is still running and force is not set
+ * @throws {UnsupportedVersionError} for a version the log check has no rules for — before any WCL request
  */
 async function buildReport(link, opts = {}) {
-    const reportId = WarcraftLogs.parseReportId(link);
+    const { host, id: reportId } = parseReportLink(link);
     if (!reportId) {
         throw new ReportError("Konnte keine Report-ID aus dem Link lesen.");
     }
+    const { versionId } = resolveReportVersion({ event: opts.event, versionId: opts.versionId, host });
+    if (!logcheckSupported(versionId)) throw new UnsupportedVersionError(versionId);
     const sections = normalizeSections(opts.sections);
     // A forced build must not join an in-flight one that is about to refuse, and
     // vice versa — they answer different questions about the same report.
     const key = `${reportId}:${sections.join("+")}${opts.force ? ":force" : ""}`;
     const running = inFlight.get(key);
     if (running) return running;
-    const build = buildReportForId(reportId, sections, opts.mergeIntoId, !!opts.force)
+    const build = buildReportForId(reportId, sections, opts.mergeIntoId, !!opts.force, { host, versionId })
         .finally(() => inFlight.delete(key));
     inFlight.set(key, build);
     return build;
 }
 
-async function buildReportForId(reportId, sections, mergeIntoId, force) {
-    const wcl = connectWcl();
+async function buildReportForId(reportId, sections, mergeIntoId, force, { host, versionId }) {
+    // The version's rule set (#747): its classes, its role mapping and which
+    // analyzers run. TBC runs every one, exactly as before.
+    const rules = logcheckRules(versionId);
+    const wcl = connectWcl(versionId);
     const fights = await loadFromWcl(() => wcl.getFights(reportId));
 
     // Before anything expensive: has the raid actually ended? The fight list is
     // the one request this needs, and it is the one already made — so a refusal
     // costs a single call instead of the dozens the analysis would spend.
-    const progress = analyzeRaidProgress(fights);
+    const progress = analyzeRaidProgress(fights, { versionId });
     if (!force && !progress.complete) throw new IncompleteRaidError(progress);
 
     const table = await loadFromWcl(() => wcl.getCasts(reportId, 0, fights.end || 999999999999));
-    const players = buildGearIssues(table, { gemsToConsider: 3 });
-    const playerEntries = selectPlayers(table);
+    // gem and enchant rules are version data: a rule set without them checks no gear
+    const players = rules.data.gear ? buildGearIssues(table, { gemsToConsider: 3, rules }) : [];
+    const playerEntries = selectPlayers(table, rules);
     const idToPlayer = {};
     for (const p of playerEntries) idToPlayer[p.id] = { name: p.name, type: p.type };
 
     // these hit the API; failures should not abort the whole report
-    const ctx = { wcl, reportId, fights, table, playerEntries, idToPlayer };
+    const ctx = { wcl, reportId, fights, table, playerEntries, idToPlayer, versionId, rules };
     const cla = sections.includes(SECTION_CLA) ? await runClaAnalyzers(ctx) : emptyCla();
-    const rpb = sections.includes(SECTION_RPB) ? await runRpb(ctx) : null;
+    const rpb = sections.includes(SECTION_RPB) && rules.analyzers.includes(RPB_ANALYZER) ? await runRpb(ctx) : null;
 
     const roster = buildRoster(playerEntries, players, cla.potions);
     // A piece worn for one boss only (Mark of the Champion and its like) is not
@@ -125,7 +151,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
     // what they wore the rest of the night. Costs nothing on a normal raid,
     // because normally nobody wears one.
     try {
-        await resolveSituationalGear(wcl, reportId, fights, roster);
+        await resolveSituationalGear(wcl, reportId, fights, roster, { rules });
     } catch (e) {
         console.error("situational gear failed:", e.message);
     }
@@ -135,7 +161,10 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         zone: fights.zoneName || (fights.zone ? String(fights.zone) : ""),
         date: fights.start ? new Date(fights.start).toLocaleString("de-DE") : "",
         reportId,
-        reportUrl: `https://classic.warcraftlogs.com/reports/${reportId}`,
+        // where the link pointed, else the site of the report's version (#746)
+        reportUrl: reportLink({ host, reportId, versionId }),
+        reportHost: host,
+        versionId,
         generatedAt: Date.now(),
         sections,
         // Kept on the report so a page built over a still-running raid says so,
@@ -152,12 +181,16 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
 
 // ---- buildReportForId's phases (#431) ---------------------------------------
 
-function connectWcl() {
+/** The v1 client on the site the log check reads the version from (logVersion.wclApiSite). */
+function connectWcl(versionId) {
+    let wcl;
     try {
-        return new WarcraftLogs();
+        wcl = wclClientFor(versionId);
     } catch {
         throw new ReportError("WCL-API-Key fehlt (WARCRAFTLOGS_API_KEY in .env).");
     }
+    if (!wcl) throw new UnsupportedVersionError(versionId);
+    return wcl;
 }
 
 /** One WCL request the report cannot do without; a failure becomes a ReportError. */
@@ -174,18 +207,20 @@ async function loadFromWcl(request) {
  * The CLA analyzers in the order they run — later ones build on the fight
  * timeline and write their bands into it. `run(ctx, out)` sees the results so
  * far in `out`; a failing analyzer leaves its field null and is logged as
- * "<key> failed".
+ * "<key> failed". Only those the report's rule set lists run
+ * (`rules.analyzers`, utils/logcheck/rules.js, whose CLA_ANALYZER_KEYS name
+ * these keys in this order); the others leave their field null as well.
  */
 const CLA_ANALYZERS = [
     { key: "consumables", run: (c) => analyzeConsumables(c.wcl, c.reportId, c.fights, c.playerEntries) },
     { key: "drums", run: (c) => analyzeDrums(c.wcl, c.reportId, c.fights) },
     { key: "potions", run: (c) => analyzePotions(c.wcl, c.reportId, c.fights) },
-    { key: "shadowResi", run: (c) => analyzeShadowResi(c.table, c.fights) },
+    { key: "shadowResi", run: (c) => analyzeShadowResi(c.table, c.fights, c.rules) },
     { key: "sunder", run: (c) => analyzeSunder(c.wcl, c.reportId, c.fights, c.idToPlayer) },
     { key: "bossUptimes", run: (c) => analyzeBossUptimes(c.wcl, c.reportId, c.fights) },
     // The time axis every fight chart draws on: fight bounds and deaths now,
     // debuff/totem/cooldown bands from the analyzers that build on it.
-    { key: "timeline", run: (c) => analyzeFightTimeline(c.wcl, c.reportId, c.fights, c.idToPlayer) },
+    { key: "timeline", run: (c) => analyzeFightTimeline(c.wcl, c.reportId, c.fights, c.idToPlayer, { versionId: c.versionId }) },
     // Raid DPS/HPS and boss health per fight, on the timeline, plus each
     // raider's own curve from the same answer; the dip summary is its own
     // field. Needs the WCL v2 client from the settings; without one the
@@ -221,7 +256,9 @@ function emptyCla() {
 
 async function runClaAnalyzers(ctx) {
     const out = emptyCla();
+    const wanted = new Set(ctx.rules.analyzers);
     for (const analyzer of CLA_ANALYZERS) {
+        if (!wanted.has(analyzer.key)) continue;
         try {
             out[analyzer.key] = await analyzer.run(ctx, out);
         } catch (e) {
@@ -238,7 +275,7 @@ async function runClaAnalyzers(ctx) {
  */
 async function runRpb(ctx) {
     try {
-        return await analyzeRpb(ctx.wcl, ctx.reportId, ctx.fights, ctx.playerEntries);
+        return await analyzeRpb(ctx.wcl, ctx.reportId, ctx.fights, ctx.playerEntries, { rules: ctx.rules });
     } catch (e) {
         console.error("rpb failed:", e.message);
         return null;
@@ -298,7 +335,7 @@ function finishReport(fresh, sections, mergeIntoId) {
 function mergeReports(existing, fresh, sections) {
     const merged = { ...existing };
     // shared meta always follows the newer run
-    for (const key of ["title", "zone", "date", "reportId", "reportUrl", "generatedAt", "players"]) {
+    for (const key of ["title", "zone", "date", "reportId", "reportUrl", "reportHost", "versionId", "generatedAt", "players"]) {
         if (fresh[key] !== undefined && fresh[key] !== null) merged[key] = fresh[key];
     }
     merged.roster = mergeRoster(existing.roster, fresh.roster, sections);
@@ -481,12 +518,14 @@ function reportSummaryLines(report, only) {
 
 module.exports = {
     buildReport,
+    CLA_ANALYZERS,
     mergeRoster,
     reportSummaryLines,
     normalizeSections,
     stripSection,
     ReportError,
     IncompleteRaidError,
+    UnsupportedVersionError,
     SECTION_CLA,
     SECTION_RPB,
     ALL_SECTIONS,

@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { postAvailabilityPanel, removeAvailabilityPanel, saveAvailabilityLinks, type ApiError, type AvailabilityLink, type AvailabilityPanel } from "../../api";
 import { useToast } from "../../components/shell/Jobs";
-import { Button, IconButton, buttonClass } from "../../components/ui/Button";
+import { Button, buttonClass } from "../../components/ui/Button";
 import { useConfirm } from "../../components/ui/Modal";
 import CategoryField from "./CategoryField";
-import { ExternalIcon, PlusIcon, SendIcon, TrashIcon } from "../../components/ui/icons";
+import LinkRow from "./LinkRow";
+import { cleanLinks } from "../../lib/discord/buttonEmoji";
+import { ExternalIcon, PlusIcon, SendIcon, TrashIcon, SaveIcon } from "../../components/ui/icons";
 import { formatDate } from "../../lib/format";
 import { useT } from "../../i18n";
 
@@ -29,10 +31,6 @@ export type AvailabilityPanels = {
     onLinks: (categoryId: string, links: AvailabilityLink[]) => void;
 };
 
-/** Keep an input from being sent with stray blanks and drop rows nobody filled in. */
-const cleaned = (rows: AvailabilityLink[]): AvailabilityLink[] =>
-    rows.map((r) => ({ label: r.label.trim(), url: r.url.trim() })).filter((r) => r.label || r.url);
-
 export default function AvailabilityPanelRow({ categoryId, categoryName, panels }: {
     categoryId: string;
     categoryName: string;
@@ -51,7 +49,7 @@ export default function AvailabilityPanelRow({ categoryId, categoryName, panels 
     const saveLinks = async () => {
         setSavingLinks(true);
         try {
-            const res = await saveAvailabilityLinks(categoryId, cleaned(rows));
+            const res = await saveAvailabilityLinks(categoryId, cleanLinks(rows));
             setRows(res.links.map((l) => ({ ...l })));
             panels.onLinks(categoryId, res.links);
             toast(t("settings.categories.linksSaved"));
@@ -90,7 +88,8 @@ export default function AvailabilityPanelRow({ categoryId, categoryName, panels 
     };
 
     return (
-        <CategoryField htmlFor={`catpanel-${categoryId}`} label={t("settings.categories.panel")} sub={t("settings.categories.panelSub")}>
+        <CategoryField htmlFor={`catpanel-${categoryId}`} label={t("settings.categories.panel")}
+            sub={t("settings.categories.panelShort")} more={t("settings.categories.panelSub")}>
             {panels.channels.length ? (
                 <div className="cat-panel">
                     <select id={`catpanel-${categoryId}`} value={channelId} aria-label={t("settings.categories.panelChannelAria", { name: categoryName })}
@@ -111,26 +110,20 @@ export default function AvailabilityPanelRow({ categoryId, categoryName, panels 
                             <ExternalIcon /> {t("settings.categories.panelView")}
                         </a>
                     )}
-                    <Button variant="ghost" size="sm" disabled={busy} onClick={remove}>{t("common.remove")}</Button>
+                    <Button variant="danger" size="sm" icon={<TrashIcon />} disabled={busy} onClick={remove}>{t("common.remove")}</Button>
                 </div>
             )}
             <div className="cat-links">
                 <strong id={`catlinks-${categoryId}`}>{t("settings.categories.links")}</strong>
                 <span className="note">{t("settings.categories.linksSub")}</span>
                 {rows.map((row, i) => (
-                    <div className="cat-link-row" key={i} role="group" aria-labelledby={`catlinks-${categoryId}`}>
-                        <input type="text" value={row.label} maxLength={40} placeholder={t("settings.categories.linkLabel")}
-                            aria-label={t("settings.categories.linkLabelAria", { n: i + 1 })} onChange={(e) => setRow(i, { label: e.target.value })} />
-                        <input type="url" value={row.url} placeholder="https://…"
-                            aria-label={t("settings.categories.linkUrlAria", { n: i + 1 })} onChange={(e) => setRow(i, { url: e.target.value })} />
-                        <IconButton icon={<TrashIcon />} tip={t("settings.categories.linkRemove", { n: i + 1 })} size="sm" tone="danger"
-                            onClick={() => setRows(rows.filter((_, at) => at !== i))} />
-                    </div>
+                    <LinkRow key={i} row={row} n={i + 1} groupId={`catlinks-${categoryId}`}
+                        onChange={(patch) => setRow(i, patch)} onRemove={() => setRows(rows.filter((_, at) => at !== i))} />
                 ))}
                 <div className="cat-links-actions">
                     <Button variant="ghost" size="sm" icon={<PlusIcon />} disabled={rows.length >= panels.maxLinks}
                         onClick={() => setRows([...rows, { label: "", url: "" }])}>{t("settings.categories.linkAdd")}</Button>
-                    <Button size="sm" running={savingLinks} onClick={saveLinks}>{t("settings.categories.linksSave")}</Button>
+                    <Button variant="go" size="sm" icon={<SaveIcon />} running={savingLinks} onClick={saveLinks}>{t("settings.categories.linksSave")}</Button>
                 </div>
             </div>
         </CategoryField>

@@ -22,6 +22,7 @@ const { migrateSettings } = require("../../src/stores/settingsMigration");
 const cases = require("../fixtures/configSchema/cases.json");
 const frozen = require("../fixtures/configSchema/golden.json");
 const defaults = require("../../src/config/defaults");
+const { defaultAddons } = require("../../src/services/addons/addonConfig");
 
 // #542 moved the Battle.net realm (region, realm slug, namespace) out of
 // `blizzard` into the TBC block of `versionSettings`, next to the armory/WCL
@@ -32,24 +33,24 @@ const defaults = require("../../src/config/defaults");
 // on top of it.
 const EMPTY_BLOCK = {
     blizzardRegion: "", blizzardRealmSlug: "", blizzardNamespace: "", armoryUrlTemplate: "",
-    wclUrlTemplate: "", wowheadPath: "", softresEdition: "", raidsheetId: "",
+    wclUrlTemplate: "", wowheadPath: "", softresEdition: "", raidsheetId: "", color: "",
 };
 function after542(config) {
     const { region, realmSlug, namespace, ...credentials } = config.blizzard;
     const tbc = {
         blizzardRegion: region, blizzardRealmSlug: realmSlug, blizzardNamespace: namespace || `profile-classicann-${region}`,
         armoryUrlTemplate: defaults.applyArmoryUrlTemplate, wclUrlTemplate: defaults.applyWclUrlTemplate,
-        wowheadPath: "tbc", softresEdition: "tbc", raidsheetId: "",
+        wowheadPath: "tbc", softresEdition: "tbc", raidsheetId: "", color: "",
     };
     const classic = {
         blizzardRegion: "eu", blizzardRealmSlug: "", blizzardNamespace: "profile-classic1x-eu",
         armoryUrlTemplate: "https://classic-armory.org/character/{region}/vanilla/{realm}/{char}",
         wclUrlTemplate: "https://vanilla.warcraftlogs.com/character/{region}/{realm}/{char}",
-        wowheadPath: "classic", softresEdition: "classic", raidsheetId: "",
+        wowheadPath: "classic", softresEdition: "classic", raidsheetId: "", color: "",
     };
     return {
-        ...config, blizzard: credentials, versionSettings: { tbc, classic, forever: EMPTY_BLOCK },
-        versionDefaultsApplied: ["tbc", "classic"],
+        ...config, blizzard: credentials, versionSettings: { tbc, classic, forever: { ...EMPTY_BLOCK, blizzardRegion: "eu", wowheadPath: "forever" } },
+        versionDefaultsApplied: ["tbc", "classic", "forever"],
     };
 }
 // Raidplan ODER Sheet: the start fixes every raid category's planning by what it
@@ -74,9 +75,30 @@ const BACKUP_DEFAULTS = {
 const after691 = (config) => ({ ...config, backup: BACKUP_DEFAULTS });
 // Oct 2026 adds the roles that count as orga (Einstellungen → Berechtigungen), none by default.
 const afterOrgaRoles = (config) => ({ ...config, orgaRoleIds: [] });
-const schemaOnly = frozen.map((g) => ({ ...g, config: afterOrgaRoles(after691(after542(g.config))) }));
-const golden = schemaOnly.map((g, i) => ({ ...g, config: afterPlanning(g.config, cases[i].config || {}) }));
-const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie"));
+// #738 adds the section history per category (empty until a category switches its version).
+const afterEras = (config) => ({ ...config, categoryEras: {} });
+// #745 adds the hand-made marks of the checklist "Neue Version starten" (empty until one is ticked off).
+const afterLaunch = (config) => ({ ...config, versionLaunch: {} });
+// Oct 2026 adds the drawn pictures in bot messages (a test), every one on by default.
+const afterVisuals = (config) => ({ ...config, discordVisuals: { overviewWeekStrip: true, setupImage: true, eventCover: true } });
+// Oct 2026 adds the characters per signup per category (empty: every category allows the default 8).
+const afterSignupCharacters = (config) => ({ ...config, categorySignupCharacters: {} });
+// Oct 2026 adds the dungeon record post (Einstellungen -> Dungeon-Bestzeiten), off by default.
+const afterDungeonRecords = (config) => ({ ...config, dungeonRecords: { post: false, channelId: "" } });
+// #738: the start pins every active category to the version it plays (the main version) -
+// only for a stored file (a missing one is never written).
+function afterCategoryVersions(config, stored) {
+    if (!stored || !Object.keys(stored).length) return config;
+    const map = { ...(config.categoryVersion || {}) };
+    for (const id of Array.isArray(stored.categoryIds) ? stored.categoryIds : []) if (!map[id]) map[id] = config.mainVersion;
+    return { ...config, categoryVersion: map };
+}
+// #818 adds the GitHub token (none) and the addons of the page "Addons" (the three own addons by default,
+// not edited by an admin: an empty list without that mark reads as the defaults again).
+const afterAddons = (config) => ({ ...config, github: { token: "" }, addonDownloads: defaultAddons(), addonDownloadsCustomized: false });
+const schemaOnly = frozen.map((g) => ({ ...g, config: afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))))) }));
+const golden = schemaOnly.map((g, i) => ({ ...g, config: afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config) }));
+const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)"));
 
 const CONFIG_FILE = settingsPath("config.json");
 const TEMPLATES_FILE = settingsPath("raid-templates.json");
@@ -136,6 +158,16 @@ describe("stores/configSchema normalisers", () => {
         expect(schema.normalizeConfig(null)).toEqual(empty);
         expect(schema.normalizeConfig([1, 2])).toEqual(empty);
         expect(schema.normalizeConfig("x")).toEqual(empty);
+    });
+
+    it("normalizeVersionLaunch keeps known versions and the manual items only (#745)", () => {
+        expect(schema.normalizeVersionLaunch({
+            forever: { talk: { at: "5", byName: "Orga" }, rosters: { at: 1 }, export: null },
+            nope: { talk: { at: 1 } },
+            tbc: {},
+        })).toEqual({ forever: { talk: { at: 5, byName: "Orga" } } });
+        expect(schema.normalizeVersionLaunch([1])).toEqual({});
+        expect(schema.VERSION_LAUNCH_MANUAL).toEqual(["backup", "export", "lootAddon", "talk"]);
     });
 
     it("normalizeEventGuilds ignores everything but a list (no legacy fallback in the read path)", () => {

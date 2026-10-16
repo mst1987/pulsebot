@@ -4,10 +4,10 @@ import type { GuildBank, GuildBankItem, GuildBankPageData } from "../../api";
 export function bankItem(over: Partial<GuildBankItem> = {}): GuildBankItem {
     return {
         itemId: 1, count: 10, tabs: { 2: 10 }, totalCount: 10, allTabs: { 2: 10 }, tabHidden: false,
-        status: "give", reserve: 0, maxPerRequest: 0, category: "", firstSeenAt: 1,
+        status: "give", reserve: 0, maxPerRequest: 0, portion: 2, category: "", firstSeenAt: 1,
         name: "Bold Living Ruby", icon: "inv_jewelcrafting_livingruby_03", iconUrl: "https://example.test/ruby.jpg",
         quality: 3, classId: 3, subclassId: 0, className: "Gems", subclassName: "Red", metaSource: "wowhead",
-        reserved: 0, handedOut: 0, available: 10, emojiId: "", group: "Edelsteine", autoGroup: "Edelsteine",
+        reserved: 0, handedOut: 0, available: 10, open: 0, free: 10, waiting: 0, waitingAmount: 0, emojiId: "", group: "Edelsteine", autoGroup: "Edelsteine",
         ...over,
     };
 }
@@ -16,7 +16,7 @@ export function bankData(over: Partial<GuildBank> = {}, banks?: GuildBankPageDat
     const bank: GuildBank = {
         key: "tbc:spineshatter:die gilde", gameVersion: "tbc", versionShort: "TBC", realm: "Spineshatter", guild: "Die Gilde",
         faction: "Alliance", guildId: "g1", pending: false, scannedAt: Date.UTC(2026, 9, 6, 16, 42), scannedBy: "Gemli",
-        money: 48120000, uploadedBy: "PC", wowheadPath: "tbc", reservedRequests: 3,
+        money: 48120000, uploadedBy: "PC", wowheadPath: "tbc", reservedRequests: 3, handedOutRequests: 0,
         tabs: [{ index: 2, name: "Edelsteine", inScan: true, hidden: false }, { index: 3, name: "Raid", inScan: true, hidden: false }, { index: 5, name: "Lager", inScan: true, hidden: true }],
         items: [
             bankItem({ itemId: 1, reserved: 4, available: 6, count: 10 }),

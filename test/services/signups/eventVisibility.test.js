@@ -1,7 +1,14 @@
 // Which raids a member sees (services/signups/eventVisibility.js, Oct 2026): the orga every raid, a
 // raider the raids of the categories they may sign up for, of the categories whose roster opened
 // them (`publicRaids`) and every raid they signed up for. An area right is no orga rank.
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn(() => null) }));
+// a category has one roster per version (#739): a raid asks for the roster of its version
+jest.mock("../../../src/services/roster/categoryRoster", () => ({
+    rosterOfEvent: jest.fn(() => null),
+    currentRoster: jest.fn(() => null),
+    rosterOfCategory: jest.fn(() => null),
+    isCurrentRoster: jest.fn(() => false),
+    currentVersionOf: jest.fn(() => "tbc"),
+}));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/stores/signupStore", () => ({ getSignup: jest.fn(() => null) }));
 jest.mock("../../../src/stores/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null) }));
@@ -11,7 +18,7 @@ jest.mock("../../../src/stores/eventStore", () => ({
 }));
 jest.mock("../../../src/services/discord/discord", () => ({ memberRoleIds: jest.fn(async () => []) }));
 
-const rosterStore = require("../../../src/stores/rosterStore");
+const categoryRoster = require("../../../src/services/roster/categoryRoster");
 const settingsStore = require("../../../src/stores/settingsStore");
 const signupStore = require("../../../src/stores/signupStore");
 const { getRaidEvent } = require("../../../src/stores/raidEventStore");
@@ -30,7 +37,8 @@ beforeEach(() => {
     jest.clearAllMocks();
     settingsStore.getConfig.mockReturnValue(CONFIG);
     discord.memberRoleIds.mockResolvedValue([]);
-    rosterStore.rosterForCategory.mockReturnValue(null);
+    categoryRoster.rosterOfEvent.mockReturnValue(null);
+    categoryRoster.currentRoster.mockReturnValue(null);
 });
 
 describe("raidViewer", () => {
@@ -67,6 +75,15 @@ describe("eventShown / visibleEvents", () => {
         expect(vis.eventShown(null, raider())).toBe(false);
     });
 
+    it("follows signupAccess: a roster-only category shows to its members, not to role holders alone", () => {
+        const config = { categoryIds: ["ro"], categoryRoles: {} };
+        categoryRoster.rosterOfCategory.mockImplementation((cat) => (cat === "ro" ? { categoryId: "ro", signupOnly: true, roleIds: [], members: { u1: { status: "core" }, u2: { status: "pause" } } } : null));
+        expect(vis.eventShown({ id: "x", categoryId: "ro" }, { orga: false, userId: "u1", roleIds: [], config })).toBe(true);
+        expect(vis.eventShown({ id: "x", categoryId: "ro" }, { orga: false, userId: "u2", roleIds: [], config })).toBe(false);
+        expect(vis.eventShown({ id: "x", categoryId: "ro" }, { orga: false, userId: "u3", roleIds: ["r-mo"], config })).toBe(false);
+        categoryRoster.rosterOfCategory.mockReturnValue(null);
+    });
+
     it("shows a foreign raid the raider signed up for: in its signUps, the own store or the snapshot", () => {
         expect(vis.eventShown({ id: "rh1", categoryId: "foreign", signUps: [{ userId: "u1" }] }, raider())).toBe(true);
         expect(vis.eventShown({ id: "rh1", categoryId: "foreign", signUps: [{ userId: "u2" }] }, raider())).toBe(false);
@@ -80,14 +97,27 @@ describe("eventShown / visibleEvents", () => {
     });
 
     it("shows the raids of a category whose roster opened them, without opening the signup", () => {
-        rosterStore.rosterForCategory.mockImplementation((cat) => (cat === "foreign" ? { categoryId: "foreign", publicRaids: true } : { publicRaids: false }));
+        categoryRoster.rosterOfEvent.mockImplementation((ev) => (ev.categoryId === "foreign" ? { categoryId: "foreign", publicRaids: true } : { publicRaids: false }));
         expect(vis.eventShown({ id: "x", categoryId: "foreign" }, raider())).toBe(true);
         expect(vis.eventShown({ id: "x", categoryId: "other" }, raider())).toBe(false);
         expect(vis.rosterOpensRaids("")).toBe(false);
-        rosterStore.rosterForCategory.mockReturnValueOnce({ categoryId: "foreign" });
+        expect(vis.rosterOpensRaids({ id: "x" })).toBe(false);
+        categoryRoster.currentRoster.mockReturnValueOnce({ categoryId: "foreign" });
         expect(vis.rosterOpensRaids("foreign")).toBe(false);
-        rosterStore.rosterForCategory.mockImplementationOnce(() => { throw new Error("broken"); });
+        categoryRoster.currentRoster.mockImplementationOnce(() => { throw new Error("broken"); });
         expect(vis.rosterOpensRaids("foreign")).toBe(false);
+    });
+
+    it("asks the roster of the raid's version, a bare category the one it plays now (#739)", () => {
+        categoryRoster.rosterOfEvent.mockImplementation((ev) => ({ publicRaids: ev.versionId === "tbc" }));
+        expect(vis.eventShown({ id: "x", categoryId: "foreign", versionId: "tbc" }, raider())).toBe(true);
+        expect(vis.eventShown({ id: "x", categoryId: "foreign", versionId: "forever" }, raider())).toBe(false);
+        expect(categoryRoster.rosterOfEvent).toHaveBeenLastCalledWith({ id: "x", categoryId: "foreign", versionId: "forever" }, { config: CONFIG });
+        const rows = [{ id: "a", categoryId: "foreign", versionId: "tbc" }, { id: "b", categoryId: "foreign", versionId: "forever" }];
+        expect(vis.visibleEvents(rows, raider()).map((r) => r.id)).toEqual(["a"]);
+        categoryRoster.currentRoster.mockReturnValueOnce({ publicRaids: true });
+        expect(vis.rosterOpensRaids("foreign")).toBe(true);
+        expect(categoryRoster.currentRoster).toHaveBeenLastCalledWith("foreign", { config: undefined });
     });
 
     it("filters a list, handing in each row's signups", () => {

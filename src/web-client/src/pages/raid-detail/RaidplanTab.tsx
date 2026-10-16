@@ -167,7 +167,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const fillBoard = useCallback((b: RaidplanBoard) => ensureBesetzung(b, besetzung, roster), [besetzung, roster]);
     const followSections = useMemo(() => (view ? view.bosses.filter((b) => !b.general && !b.defaults).map((b) => ({ key: b.key, name: b.name })) : []), [view]);
     const tankOrder = useTankOrderFollow({
-        draft, selected, version: view ? view.plan.version : 0, sections: followSections, fill: fillBoard, editAll: histEditAll, roster, canWrite: !!view && view.canWrite,
+        draft, selected, version: view ? view.plan.version : 0, sections: followSections, fill: fillBoard, editAll: histEditAll, roster, besetzung, canWrite: !!view && view.canWrite,
     });
     const choose = (key: string) => {
         tankOrder.leaving(key);
@@ -437,6 +437,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                 dirty={dirty} hasApprovedSetup={view.hasApprovedSetup} busy={saving}
                 sections={view.bosses.filter((b) => !b.defaults && (boardCount(draft, b.key) > 0 || !sheetIncluded(draft, b.key)))} draft={draft} onSheet={setSheet}
                 onPublish={(p) => publish(p)} onRotate={() => publish(true, true)}
+                onPost={() => { setModal(""); openPost(); }} posted={!!ctx.data.raidplanPost?.messageId}
             />
         </div>
     );

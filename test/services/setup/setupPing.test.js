@@ -1,7 +1,9 @@
 // "Alle pingen" (setupPing.js + the Discord button/modal in setupPingBot.js):
-// every group of the approved setup is pinged in the event channel with the
-// orga's own text (else a default), the bench never. Stores and Discord are
-// mocks; the approved setup is read by the real setupCore.
+// every group of the approved setup is pinged with the orga's own text (else a
+// default), the bench never. The ping itself goes with the setup message
+// (setupMessage.callSetupPing, tested there); here the plan, the text, the
+// button and a ping card of the time before. Stores and Discord are mocks; the
+// approved setup is read by the real setupCore.
 const { cardText } = require("../../helpers/cardText");
 const mockEvents = new Map();
 jest.mock("../../../src/stores/eventStore", () => ({
@@ -35,11 +37,16 @@ jest.mock("../../../src/services/discord/botLanguage", () => {
     return mocked;
 });
 jest.mock("../../../src/services/events/eventDraft", () => ({ guildFor: (interaction) => ({ guildId: interaction.guild.id }) }));
+jest.mock("../../../src/services/setup/setupMessage", () => ({
+    callSetupPing: jest.fn(async () => ({ message: "3 Raider aus dem Setup gepingt.", count: 3 })),
+}));
 
 const eventStore = require("../../../src/stores/eventStore");
 const discord = require("../../../src/services/discord/discord");
-const { setupPingPlan, callSetupPing, saveSetupPingText, refreshSetupPing } = require("../../../src/services/setup/setupPing");
-const { pingTextOf, PING_TEXT, pingButtonRow } = require("../../../src/services/setup/setupCore");
+const { callSetupPing } = require("../../../src/services/setup/setupMessage");
+const { setupPingPlan, saveSetupPingText, refreshSetupPing } = require("../../../src/services/setup/setupPing");
+const { pingTextOf, PING_TEXT, PING_OPEN_TEXT, pingButtonRow } = require("../../../src/services/setup/setupCore");
+const botLanguage = require("../../../src/services/discord/botLanguage");
 const bot = require("../../../src/services/setup/setupPingBot");
 const command = require("../../../src/commands/event/setupPingButton");
 
@@ -100,6 +107,16 @@ describe("setupPingPlan", () => {
         expect(setupPingPlan(event, "u-lead").userIds).toEqual(["u2", "u3", "u8"]);
     });
 
+    it("with `open` only who has neither confirmed nor cancelled, a reminder as the default text", () => {
+        const event = raid({ setupPingText: "Eigener Text", setupPost: { confirmations: { u3: { status: "declined" }, "u-x": { status: "confirmed" } } } });
+        const plan = setupPingPlan(event, "u-lead", { open: true });
+        expect(plan).toEqual({ userIds: ["u2", "u8"], text: PING_OPEN_TEXT, open: true });
+        expect(setupPingPlan(event, "u-lead", { open: true, text: "Los!" }).text).toBe("Los!");
+        // the German reminder in the German server language
+        botLanguage.eventLang.mockReturnValueOnce("de");
+        expect(setupPingPlan(event, "u-lead", { open: true }).text).toBe("⏳ Bitte bestätige oder sag deinen Platz im Setup ab.");
+    });
+
     it.each([
         ["no event", null, "u-lead", "not_found"],
         ["cancelled", raid({ status: "cancelled" }), "u-lead", "cancelled"],
@@ -107,36 +124,6 @@ describe("setupPingPlan", () => {
         ["nobody but the caller", raid({ setup: { status: "approved", approved: { groups: [{ index: 1, slots: [slot("u-lead", "Naphfß")] }] } } }), "u-lead", "nobody"],
     ])("refuses: %s", (_, event, userId, code) => {
         expect(setupPingPlan(event, userId).error.code).toBe(code);
-    });
-});
-
-describe("callSetupPing", () => {
-    it("posts into the event channel and logs it on the event", async () => {
-        raid();
-        const result = await callSetupPing({ guildId: "g1", eventId: "eh-abc123", userId: "u-lead", byName: "Nerathil" });
-        expect(discord.postMissingPing).toHaveBeenCalledWith("c1", ["u2", "u3", "u8"], PING_TEXT);
-        expect(eventStore.appendEventLog).toHaveBeenCalledWith("eh-abc123", { action: "setupPing", by: "u-lead", byName: "Nerathil", detail: "3 Raider gepingt" });
-        expect(result).toMatchObject({ count: 3, message: "3 Raider aus dem Setup gepingt." });
-    });
-
-    it("posts the given text instead of the stored/default one", async () => {
-        raid({ setupPingText: "Gespeicherter Text" });
-        await callSetupPing({ guildId: "g1", eventId: "eh-abc123", userId: "u-lead", text: "Frisch getippter Text" });
-        expect(discord.postMissingPing).toHaveBeenCalledWith("c1", ["u2", "u3", "u8"], "Frisch getippter Text");
-    });
-
-    it("refuses another server's event and posts nothing", async () => {
-        raid();
-        expect((await callSetupPing({ guildId: "other", eventId: "eh-abc123", userId: "u-lead" })).error.code).toBe("not_found");
-        expect(discord.postMissingPing).not.toHaveBeenCalled();
-    });
-
-    it("says so when Discord refuses, and logs nothing", async () => {
-        raid();
-        discord.postMissingPing.mockRejectedValueOnce(new Error("Missing Access"));
-        const result = await callSetupPing({ guildId: "g1", eventId: "eh-abc123", userId: "u-lead" });
-        expect(result.error).toMatchObject({ code: "post_failed", message: "Konnte nicht posten: Missing Access" });
-        expect(eventStore.appendEventLog).not.toHaveBeenCalled();
     });
 });
 
@@ -175,7 +162,7 @@ describe("the Discord button + modal (setupPingBot)", () => {
         const modal = interaction.showModal.mock.calls[0][0].toJSON();
         expect(modal.title).toBe("Alle pingen");
         expect(modal.components[0].components[0].value).toBe("Mein Text");
-        expect(discord.postMissingPing).not.toHaveBeenCalled();
+        expect(callSetupPing).not.toHaveBeenCalled();
     });
 
     it("refuses the click with nobody to ping, before ever opening the modal", async () => {
@@ -186,32 +173,60 @@ describe("the Discord button + modal (setupPingBot)", () => {
         expect(cardText(interaction.reply.mock.calls[0][0])).toMatch(/Im Setup steht niemand außer dir/);
     });
 
-    it("saves the typed text and posts with it on submit", async () => {
+    it("saves the typed text and pings with it on submit", async () => {
         raid();
         const interaction = submit("setup-ping:eh-abc123", "Kommt alle!");
         await command.execute(interaction);
         expect(eventStore.setEventSetupPingText).toHaveBeenCalledWith("eh-abc123", "Kommt alle!");
-        expect(discord.postMissingPing).toHaveBeenCalledWith("c1", ["u2", "u3", "u8"], "Kommt alle!");
+        expect(callSetupPing).toHaveBeenCalledWith({ guildId: "g1", eventId: "eh-abc123", userId: "u-lead", text: "Kommt alle!", byName: "Nerathil" });
         expect(cardText(interaction.reply.mock.calls[0][0])).toContain("3 Raider aus dem Setup gepingt.");
         expect(interaction.reply.mock.calls[0][0].flags).toBeTruthy();
     });
 
     it("ignores ids that are no own event", () => {
-        expect(bot.parsePingId("setup-ping:../../x")).toEqual({ eventId: "" });
-        expect(pingButtonRow("eh-abc123").components[0].custom_id).toBe("setup-ping:eh-abc123");
+        expect(bot.parsePingId("setup-ping:../../x")).toEqual({ eventId: "", open: false });
+        expect(bot.parsePingId("setup-ping:eh-abc123:open")).toEqual({ eventId: "eh-abc123", open: true });
+        expect(pingButtonRow("eh-abc123").components.map((b) => b.custom_id)).toEqual(["setup-ping:eh-abc123"]);
+        expect(pingButtonRow("eh-abc123", "de", { open: true }).components.map((b) => b.custom_id)).toEqual(["setup-ping:eh-abc123", "setup-ping:eh-abc123:open"]);
+    });
+
+    it("\"Unbestätigte pingen\": the modal names how many it reaches and holds the reminder, not the saved text", async () => {
+        raid({ setupPingText: "Mein Text", setupPost: { confirmations: { u2: { status: "confirmed" } } } });
+        const interaction = click("setup-ping:eh-abc123:open");
+        await command.execute(interaction);
+        const modal = interaction.showModal.mock.calls[0][0].toJSON();
+        expect(modal.custom_id).toBe("setup-ping:eh-abc123:open");
+        expect(modal.title).toBe("Unbestätigte pingen (2)");
+        expect(modal.components[0].components[0].value).toBe(PING_OPEN_TEXT);
+    });
+
+    it("\"Unbestätigte pingen\": pings with the typed text but never saves it as the setup's own", async () => {
+        raid();
+        const interaction = submit("setup-ping:eh-abc123:open", "Bitte bestätigen!");
+        await command.execute(interaction);
+        expect(eventStore.setEventSetupPingText).not.toHaveBeenCalled();
+        expect(callSetupPing).toHaveBeenCalledWith({ guildId: "g1", eventId: "eh-abc123", userId: "u-lead", text: "Bitte bestätigen!", byName: "Nerathil", open: true });
+    });
+
+    it("\"Unbestätigte pingen\": refuses the click once everybody has answered", async () => {
+        raid({ setupPost: { confirmations: { u2: { status: "confirmed" }, u3: { status: "declined" }, u8: { status: "confirmed" } } } });
+        const interaction = click("setup-ping:eh-abc123:open");
+        await command.execute(interaction);
+        expect(interaction.showModal).not.toHaveBeenCalled();
+        expect(cardText(interaction.reply.mock.calls[0][0])).toMatch(/Alle im Setup haben schon bestätigt oder abgesagt/);
     });
 });
 
-describe("the ping follows the setup (refreshSetupPing)", () => {
+describe("a ping card of the time before follows the setup (refreshSetupPing)", () => {
+    // a ping posted as a card of its own under the setup, before it moved into the message
     async function pinged() {
-        raid();
-        discord.postMissingPing.mockResolvedValueOnce({ channelId: "c1", messageId: "p1", messageIds: ["p1"], url: "u" });
-        await callSetupPing({ guildId: "g1", eventId: "eh-abc123", userId: "u-lead" });
+        raid({ setupPost: { channelId: "c1", messageId: "m1", ping: { channelId: "c1", messageIds: ["p1"], userIds: ["u2", "u3", "u8"], by: "u-lead", text: PING_TEXT } } });
     }
 
-    it("remembers the last ping: its messages, who was named, who pinged, the text", async () => {
-        await pinged();
-        expect(mockEvents.get("eh-abc123").setupPost.ping).toEqual({ channelId: "c1", messageIds: ["p1"], userIds: ["u2", "u3", "u8"], by: "u-lead", text: PING_TEXT });
+    it("leaves a ping in the setup message to the message", async () => {
+        raid({ setupPost: { channelId: "c1", messageId: "m1", ping: { inMessage: true, userIds: ["u2"], by: "u-lead", text: PING_TEXT } } });
+        expect(await refreshSetupPing("eh-abc123")).toEqual({ skipped: "no_ping" });
+        expect(discord.editPingMessages).not.toHaveBeenCalled();
     });
 
     it("edits it to the lineup as it stands now — the pinger still left out", async () => {

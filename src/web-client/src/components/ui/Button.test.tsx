@@ -28,6 +28,19 @@ describe("Button", () => {
     it("maps variant and size to the classes a link styled as a button shares", () => {
         expect(buttonClass()).toBe("btn");
         expect(buttonClass("danger", "sm", true)).toBe("btn btn-danger btn-sm has-icon");
+        expect(buttonClass("go")).toBe("btn btn-go");
+    });
+
+    it("colours a choice by its meaning and marks the current one as pressed", () => {
+        render(<><Button variant="yes" pressed>Anwesend</Button><Button variant="no" pressed={false}>Abwesend</Button><Button variant="go">Speichern</Button></>);
+        const yes = screen.getByRole("button", { name: "Anwesend" });
+        expect(yes).toHaveClass("btn", "btn-yes");
+        expect(yes).toHaveAttribute("aria-pressed", "true");
+        const no = screen.getByRole("button", { name: "Abwesend" });
+        expect(no).toHaveClass("btn-no");
+        expect(no).toHaveAttribute("aria-pressed", "false");
+        // a plain action is no toggle: no aria-pressed at all
+        expect(screen.getByRole("button", { name: "Speichern" })).not.toHaveAttribute("aria-pressed");
     });
 });
 
@@ -46,6 +59,15 @@ describe("IconButton", () => {
     it("lets a more specific aria-label win over the tip", () => {
         render(<IconButton icon="inv_misc_map_01" tip="Löschen" aria-label="Eintrag Alpha löschen" />);
         expect(screen.getByRole("button", { name: "Eintrag Alpha löschen" })).toHaveAttribute("data-tip", "Löschen");
+    });
+
+    it("carries its tone as a class and a pressed verdict as aria-pressed", () => {
+        render(<><IconButton icon="x" tip="Löschen" tone="danger" /><IconButton icon="x" tip="Freigeben" tone="yes" pressed /></>);
+        expect(screen.getByRole("button", { name: "Löschen" })).toHaveClass("ibtn", "danger");
+        expect(screen.getByRole("button", { name: "Löschen" })).not.toHaveAttribute("aria-pressed");
+        const yes = screen.getByRole("button", { name: "Freigeben" });
+        expect(yes).toHaveClass("yes");
+        expect(yes).toHaveAttribute("aria-pressed", "true");
     });
 });
 

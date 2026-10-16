@@ -186,14 +186,26 @@ describe("stores/reportStore", () => {
         it("exposes the WCL report code + url, deriving the url from the code when absent", () => {
             const withUrl = saveReport({ title: "A", reportId: "abc", reportUrl: "https://x/y", players: [] });
             const codeOnly = saveReport({ title: "B", reportId: "def", players: [] });
+            const withHost = saveReport({ title: "D", reportId: "ghi", reportHost: "vanilla.warcraftlogs.com", players: [] });
             const neither = saveReport({ title: "C", players: [] });
             const byId = Object.fromEntries(listReports().map((r) => [r.id, r]));
             expect(byId[withUrl]).toMatchObject({ reportId: "abc", reportUrl: "https://x/y" });
+            // no fixed host (#746): the site of the report's version, TBC for an old one
             expect(byId[codeOnly]).toMatchObject({
                 reportId: "def",
-                reportUrl: "https://classic.warcraftlogs.com/reports/def",
+                reportUrl: "https://fresh.warcraftlogs.com/reports/def",
+                versionId: "tbc",
             });
+            expect(byId[withHost]).toMatchObject({ reportUrl: "https://vanilla.warcraftlogs.com/reports/ghi" });
             expect(byId[neither]).toMatchObject({ reportId: "", reportUrl: "" });
+        });
+
+        it("names the version of a report, TBC for one from before #746", () => {
+            const old = saveReport({ title: "Old", players: [] });
+            const forever = saveReport({ title: "New", versionId: "forever", players: [] });
+            const byId = Object.fromEntries(listReports().map((r) => [r.id, r]));
+            expect(byId[old].versionId).toBe("tbc");
+            expect(byId[forever].versionId).toBe("forever");
         });
 
         it("carries the halves and the raids with their boss count for the log list", () => {

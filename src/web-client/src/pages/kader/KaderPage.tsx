@@ -3,7 +3,7 @@
 // changes it — Pool → Vorauswahl (interviews) → Vorläufig (the leads discuss) →
 // Roster / Bench / Tentative. The pages of a Kader live at /kader/<id>/<page>:
 // pool, vorauswahl (Gespräche), uebersicht, roster, fragen, setups; /kader
-// opens the Kader used last.
+// is the overview of all Kader (KaderOverview), the one opened last marked.
 //
 // One view model from GET /api/kader?kader=<id>. A change inside the Kader
 // answers the Kader as stored (swapped in here), a change on the server's side
@@ -18,11 +18,13 @@
 // and says in a toast who did what. What a part holds unsaved (an interview
 // draft, a dialog, a half-typed comment) stays: the parts keep their own state.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, useNavigate, useOutletContext, useParams } from "react-router-dom";
+import { useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { canAccess, getKader, getKaderOnly, type ApiError, type KaderChange, type KaderLive, type KaderView } from "../../api";
 import { useApi } from "../../hooks/useApi";
+import { useContentVersion } from "../../hooks/useContentVersion";
+import { useFollowVersion } from "../../hooks/useFollowVersion";
 import { usePersistedState } from "../../lib/ui/persistedState";
-import { byId } from "../../lib/kader/model";
+import { attendanceUnloaded, byId } from "../../lib/kader/model";
 import { liveToast } from "../../lib/kader/live";
 import { useToast } from "../../components/shell/Jobs";
 import RaidLoader from "../../components/ui/RaidLoader";
@@ -34,6 +36,7 @@ import {
 import { useKaderLive } from "./useKaderLive";
 import ActivityModal from "./ActivityLog";
 import KaderHeader, { StageNav } from "./KaderHeader";
+import KaderOverview from "./KaderOverview";
 import KaderStart from "./KaderStart";
 import PoolView from "./PoolView";
 import InterviewsView from "./InterviewsView";
@@ -86,7 +89,11 @@ export default function KaderPage() {
     const t = useT();
     const toast = useToast();
     const [last, setLast] = usePersistedState<string>("kader-last", "");
-    const state = useApi(() => getKader(kaderId), [kaderId]);
+    // One game version at a time (#741): the picker lists the Kader of the menu's content
+    // version. A link to a Kader of another version switches the menu to it; switching the
+    // menu away from the open Kader goes back to /kader (the Kader of the version now shown).
+    const { version } = useContentVersion();
+    const state = useApi(() => (version ? getKader(kaderId, version) : getKader(kaderId)), [kaderId, version]);
     const { setData, reload } = state;
     const [modal, setModal] = useState<KaderModal>(null);
     const canWrite = canAccess(user, "kader", "write");
@@ -99,6 +106,7 @@ export default function KaderPage() {
     useEffect(() => {
         if (kader && kader.id !== last) setLast(kader.id);
     }, [kader, last, setLast]);
+    useFollowVersion(kader ? kader.versionId : "", () => navigate("/kader"));
 
     const run = useCallback(async <T,>(call: Promise<T>, options: KaderRunOptions = {}): Promise<T | null> => {
         try {
@@ -129,7 +137,9 @@ export default function KaderPage() {
         if (refreshing.current || !kaderId) return null;
         refreshing.current = true;
         try {
-            const answer: KaderView | KaderChange = whole ? await getKader(kaderId) : await getKaderOnly(kaderId);
+            const answer: KaderView | KaderChange = whole
+                ? await (version ? getKader(kaderId, version) : getKader(kaderId))
+                : await getKaderOnly(kaderId);
             // an own save that landed while this was on its way is newer: keep it
             const older = (prev: KaderView | null) => !!prev && !!prev.kader && !!answer.kader && (answer.kader.rev || 0) < (prev.kader.rev || 0);
             const next = older(viewRef.current) ? viewRef.current : merge(viewRef.current, answer);
@@ -141,7 +151,19 @@ export default function KaderPage() {
         } finally {
             refreshing.current = false;
         }
-    }, [kaderId, setData]);
+    }, [kaderId, version, setData]);
+
+    // A picked category of a version the view has not counted (another lead's pick, or the own one: a
+    // TBC category for a Forever Kader) - the whole view again, once per pick, with its nights counted.
+    const askedFor = useRef("");
+    useEffect(() => {
+        if (!view || !view.kader || !attendanceUnloaded(view, view.kader)) return;
+        const key = `${view.kader.id}:${view.kader.attendanceCategories.join(",")}`;
+        if (askedFor.current === key) return;
+        askedFor.current = key;
+        // nothing fetched (another refetch on its way, a failed request): the next change of the view asks again
+        void refetch(true).then((next) => { if (!next) askedFor.current = ""; });
+    }, [view, refetch]);
 
     const onMoved = useCallback(async (live: KaderLive) => {
         const current = viewRef.current;
@@ -172,15 +194,16 @@ export default function KaderPage() {
     if (state.error) return <div className="empty">{state.error.message}</div>;
     if (!view) return <RaidLoader text={t("kader.loading")} />;
 
-    // no Kader in the address, or one that is gone: the one used last, else the first
+    // no Kader in the address, or one that is gone: the overview of all Kader (the start without any)
     if (!kader) {
-        const fallback = view.kaders.find((k) => k.id === last) || view.kaders[0];
-        // the address names a Kader that exists but the view lacks it: fetch again, never navigate to where we are
+        // the address names a Kader that exists but the view lacks it: fetch again, never show the overview in its place
         if (kaderId && view.kaders.some((k) => k.id === kaderId)) return <RaidLoader text={t("kader.loading")} />;
-        if (fallback) return <Navigate to={`/kader/${fallback.id}/pool`} replace />;
+        const create = () => setModal({ type: "create" });
         return (
             <>
-                <KaderStart canWrite={canWrite} onCreate={() => setModal({ type: "create" })} />
+                {view.kaders.length
+                    ? <KaderOverview view={view} last={last} canWrite={canWrite} onCreate={create} />
+                    : <KaderStart canWrite={canWrite} onCreate={create} />}
                 {modal && modal.type === "create" && (
                     <KaderSettingsModal mode="create" view={view} onClose={() => setModal(null)} run={run} onCreated={(id) => { setModal(null); navigate(`/kader/${id}/pool`); }} />
                 )}

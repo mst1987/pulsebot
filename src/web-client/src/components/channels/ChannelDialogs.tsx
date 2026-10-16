@@ -95,7 +95,7 @@ export function PurposeDialog({ purpose, data, onClose, onSaved }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon={purpose.icon} running={busy} onClick={save}>{t("channels.purposeDialog.save")}</Button>
+                    <Button variant="go" icon={purpose.icon} running={busy} onClick={save}>{t("channels.purposeDialog.save")}</Button>
                 </>
             )}
         >
@@ -199,7 +199,7 @@ export function AssignChannelDialog({ channel, data, onClose, onSaved }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon="inv_misc_note_02" running={busy} onClick={save}>{t("channels.purposeDialog.save")}</Button>
+                    <Button variant="go" icon="inv_misc_note_02" running={busy} onClick={save}>{t("channels.purposeDialog.save")}</Button>
                 </>
             )}
         >

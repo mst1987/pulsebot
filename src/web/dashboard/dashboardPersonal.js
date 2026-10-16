@@ -3,9 +3,11 @@
 // the last ones said about them. Every member sees it; the orga sees it too,
 // above its own block.
 //
-//   upcoming    the next raids of the raider's categories with their own signup,
-//               setup group, softres list and published raid plan — the rows of
-//               the "Anmeldungen" page (memberEventRows)
+//   upcoming    the next raids the raider may sign up for (or did) with their own
+//               signup, setup group, softres list and published raid plan — the
+//               rows of the "Anmeldungen" page (memberEventList, signupAccess.js),
+//               for the orga too; `upcomingRolesUnknown` when the Discord roles
+//               could not be read (raids with a raider role may be missing)
 //   attendance  attended / counted over the last raids, every category with
 //               "Anwesenheit anzeigen" together — "Meine Anwesenheit" of the
 //               Abwesenheiten page (raiderAttendance)
@@ -15,11 +17,11 @@
 //   profile     how many characters the profile has and what is missing in it
 //
 // Local stores only, except the event groups (loadEventGroups: Raid-Helper's
-// cached list) and, for a member without orga rights, their Discord roles
-// (which categories they may see) — both best-effort.
+// cached list) and the member's Discord roles (which raids they may sign up
+// for; "Ansicht als Rolle": the roles looked at, viewerRoles.js) — both best-effort.
 const { loadEventGroups } = require("../../services/events/raidEventGroups");
-const discord = require("../../services/discord/discord");
-const { memberEventRows } = require("../signups/signupView");
+const { memberEventList } = require("../signups/signupView");
+const { viewerRoles } = require("../signups/viewerRoles");
 const { raiderAttendance } = require("../availability/raiderAttendance");
 const profiles = require("../../stores/raiderProfileStore");
 const { charactersForUser } = require("../../stores/raiderCharactersStore");
@@ -27,7 +29,7 @@ const { getEventSoftres } = require("../../stores/eventSoftresStore");
 const { getPlan } = require("../../stores/raidplanStore");
 const { listLogsForEvent } = require("../../stores/logStore");
 const { getReportHints } = require("../../stores/reportStore");
-const { versionOfEvent } = require("../../services/events/mainVersion");
+const { versionOfEvent, mainVersionFor } = require("../../services/events/mainVersion");
 const { zoneFor } = require("./dashboardOverview");
 
 const UPCOMING = 4;
@@ -59,11 +61,15 @@ function upcomingRow(row) {
         specIcon: mine ? str(mine.specIcon) : "",
         // the approved setup's group ({ group }) or bench ({ bench: true }); null = no approved setup / not placed
         placement: row.placement || null,
+        // an approved setup exists: a signup without a placement was not placed ("Nicht aufgestellt")
+        setupApproved: !!row.setupApproved,
         deadline: Number(row.deadline) || 0,
         deadlinePassed: !!row.deadlinePassed,
         signupsClosed: !!row.signupsClosed,
         cancelled: !!row.cancelled,
         rosterOnly: !!row.rosterOnly,
+        // no raider role, no roster-only signup: a PuG raid (the "PuG" badge)
+        openToAll: !!row.openToAll,
         softresUrl: (softres && softres.url) || "",
         // a published plan's token: the client reads /p/<token> for the raider's own assignments
         planToken: plan && plan.status === "published" && plan.publicToken ? plan.publicToken : "",
@@ -71,21 +77,15 @@ function upcomingRow(row) {
 }
 
 /** The raider's next raids (cancelled ones included, they say so), soonest first. */
-async function loadUpcoming(guildId, user, { orga, config, versionId, now }) {
-    if (!guildId) return { raids: [], error: null };
+async function loadUpcoming(guildId, user, { config, versionId, now }) {
+    if (!guildId) return { raids: [], error: null, rolesUnknown: false };
     const { groups, error } = await loadEventGroups(guildId);
-    let roleIds = null;
-    if (!orga) {
-        try {
-            roleIds = await discord.memberRoleIds(guildId, user.id);
-        } catch {
-            roleIds = [];
-        }
-    }
-    const rows = memberEventRows(groups || [], {
-        userId: user.id, guildId, config, roleIds, orga, profile: profiles.getProfile(user.id), now,
-    }).filter((r) => !versionId || versionOfEvent(r, { config }) === versionId);
-    return { raids: rows.slice(0, UPCOMING).map(upcomingRow), error: rows.length ? null : error || null };
+    const roles = await viewerRoles(guildId, user, { now });
+    const list = memberEventList(groups || [], {
+        userId: user.id, guildId, config, roleIds: roles.roleIds, viewAs: roles.viewAs, profile: profiles.getProfile(user.id), now,
+    });
+    const rows = list.rows.filter((r) => !versionId || versionOfEvent(r, { config }) === versionId);
+    return { raids: rows.slice(0, UPCOMING).map(upcomingRow), error: rows.length ? null : error || null, rolesUnknown: list.rolesUnknown && roles.unknown };
 }
 
 /** Every name the raider plays under: the profile's characters and the ones the categories assign them. */
@@ -121,9 +121,11 @@ function reportFor(eventId, names) {
 /**
  * Attendance over every counted category together, the last nights as dots,
  * and the last raids with their evaluation. Null figures when nothing counts.
+ * Within one game version (#740): the page's, the main version for "all" -
+ * attendance never mixes versions.
  */
-function loadAttendance(userId, { config, now, names }) {
-    const view = raiderAttendance(userId, { now, config });
+function loadAttendance(userId, { config, now, names, versionId = "" }) {
+    const view = raiderAttendance(userId, { now, config, versionId: versionId || mainVersionFor({ config }) });
     const counted = ((view && view.categories) || []).filter((c) => c.total > 0);
     const nights = counted
         .flatMap((c) => (c.raids || []).map((r) => ({ ...r, categoryName: c.name || "" })))
@@ -165,25 +167,28 @@ function profileFigures(profile) {
 /**
  * Everything "Für dich" shows. Each part is best-effort: a failure leaves it
  * empty and is logged, the start page still loads.
- * @param {{ orga?: boolean, config?: object, versionId?: string, now?: number }} [opts]
+ * @param {{ config?: object, versionId?: string, now?: number }} [opts]
  */
-async function loadPersonal(guildId, user, { orga = false, config, versionId = "", now = Date.now() } = {}) {
+async function loadPersonal(guildId, user, { config, versionId = "", now = Date.now() } = {}) {
     const profile = profiles.getProfile(user.id);
     let upcoming;
     try {
-        upcoming = await loadUpcoming(guildId, user, { orga, config, versionId, now });
+        upcoming = await loadUpcoming(guildId, user, { config, versionId, now });
     } catch (e) {
         console.error("dashboard personal raids failed:", e.message);
-        upcoming = { raids: [], error: e.message };
+        upcoming = { raids: [], error: e.message, rolesUnknown: false };
     }
     let attendance = null;
     let recent = [];
     try {
-        ({ attendance, recent } = loadAttendance(user.id, { config, now, names: characterNames(user.id, profile) }));
+        ({ attendance, recent } = loadAttendance(user.id, { config, now, versionId, names: characterNames(user.id, profile) }));
     } catch (e) {
         console.error("dashboard personal attendance failed:", e.message);
     }
-    return { upcoming: upcoming.raids, upcomingError: upcoming.error, attendance, recent, profile: profileFigures(profile) };
+    return {
+        upcoming: upcoming.raids, upcomingError: upcoming.error, upcomingRolesUnknown: !!upcoming.rolesUnknown,
+        attendance, recent, profile: profileFigures(profile),
+    };
 }
 
 module.exports = { loadPersonal, upcomingRow, reportFor, profileFigures, characterNames };

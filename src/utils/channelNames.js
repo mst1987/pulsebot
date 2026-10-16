@@ -25,6 +25,10 @@ const DEFAULT_SCHEMA = "{tag}-{dd}-{mm}-{raid}";
 /** German weekday abbreviations, index = Date#getUTCDay(). */
 const WEEKDAYS = ["so", "mo", "di", "mi", "do", "fr", "sa"];
 
+const WEEKDAY_LONG_DE = ["sonntag", "montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag"];
+const WEEKDAY_SHORT_EN = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+const WEEKDAY_LONG_EN = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
 /** Month names in three letters, index = Date#getUTCMonth(). English, as the guilds write them ("oct", not "okt"). */
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
@@ -98,12 +102,31 @@ function renderChannelName(schema, { date, raid = "", tag = "", name = "", nr = 
         mon: day ? MONTHS[day.getUTCMonth()] : "",
         yy: day ? String(day.getUTCFullYear()).slice(-2) : "",
         yyyy: day ? String(day.getUTCFullYear()) : "",
+        // the spellings a name derived from a previous channel may carry (fillDate): unpadded day/month, the weekday in full or English
+        d: day ? String(day.getUTCDate()) : "",
+        m: day ? String(day.getUTCMonth() + 1) : "",
+        wochentag: day ? WEEKDAY_LONG_DE[day.getUTCDay()] : "",
+        wday: day ? WEEKDAY_SHORT_EN[day.getUTCDay()] : "",
+        weekday: day ? WEEKDAY_LONG_EN[day.getUTCDay()] : "",
         raid: String(raid || ""),
         name: String(name || ""),
         nr: nr === "" || nr === null || nr === undefined ? "" : String(nr),
     };
     const filled = String(schema || DEFAULT_SCHEMA).replace(/\{(\w+)\}/g, (_, key) => values[key.toLowerCase()] ?? "");
     return normalizeChannelName(filled);
+}
+
+/** The placeholders of a hand-typed pattern for a new event's channel ("Kanalname anpassen"): all but {name} and {nr}, which mean nothing there. */
+const PATTERN_KEYS = ["tag", "dd", "mm", "mon", "yy", "yyyy", "d", "m", "wochentag", "wday", "weekday", "raid"];
+
+/** The words in braces that rendering would silently drop, without doubles ("{foo}" gives "foo"). */
+function unknownPlaceholders(pattern, known = PATTERN_KEYS) {
+    const found = [];
+    for (const m of String(pattern || "").matchAll(/\{(\w+)\}/g)) {
+        const key = m[1].toLowerCase();
+        if (!known.includes(key) && !found.includes(key)) found.push(key);
+    }
+    return found;
 }
 
 /**
@@ -275,6 +298,21 @@ function applyPattern(pattern, { date, raid } = {}) {
     return { name: normalizeChannelName(out), replaced };
 }
 
+/**
+ * A derived pattern as the text the orga edits: the date and weekday parts as their
+ * placeholders ("hyjal-bt-{dd}-{mon}"), the raid as "{raid}" — only when the new event
+ * has a raid tag, else the old raid stays literal, as applyPattern keeps it.
+ * The text is not normalised: braces are not part of a Discord name.
+ */
+function patternText(pattern, { raid = "" } = {}) {
+    const hasRaid = Array.isArray(raid) ? raid.some(Boolean) : !!String(raid || "").trim();
+    return ((pattern && pattern.segments) || []).map((seg) => {
+        if (seg.text !== undefined) return seg.text;
+        if (seg.part === "raid") return hasRaid ? "{raid}" : seg.from;
+        return seg.format || seg.from;
+    }).join("");
+}
+
 /** The parts a pattern would replace, in reading order ("Wochentag", "Datum", "Raid"). */
 function patternParts(pattern) {
     const parts = [];
@@ -320,6 +358,6 @@ function placementFor(eventChannels = [], day = "") {
 
 module.exports = {
     CHANNEL_NAME_MAX, NAME_STRIP_RE, DEFAULT_SCHEMA, WEEKDAYS, MONTHS, WEEKDAY_FORMS, DATE_FORMATS, PART_LABELS, PLACEHOLDERS, MAX_SERIES,
-    normalizeChannelName, normalizeForType, parseDay, formatDay, renderChannelName, seriesDays, planChannels,
-    derivePatternFromName, applyPattern, patternParts, prefixOf, describeReplaced, listParts, placementFor,
+    normalizeChannelName, normalizeForType, parseDay, formatDay, renderChannelName, PATTERN_KEYS, unknownPlaceholders, seriesDays, planChannels,
+    derivePatternFromName, applyPattern, patternText, patternParts, prefixOf, describeReplaced, listParts, placementFor,
 };

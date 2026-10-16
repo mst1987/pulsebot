@@ -29,6 +29,19 @@ describe("services/logcheck/logTitles — backfillLogTitles", () => {
         else process.env.WARCRAFTLOGS_API_KEY = OLD_KEY;
     });
 
+    it("asks the site of the log's version, and never for a version without one (#746)", async () => {
+        mockGetFights.mockResolvedValue({ title: "Karazhan" });
+        const logs = [
+            { id: "l1", reportId: "AAA", versionId: "forever" }, // Forever has no Warcraft-Logs site yet
+            { id: "l2", reportId: "BBB" },                       // a log from before #746: TBC
+        ];
+        expect(await backfillLogTitles(logs)).toBe(1);
+        expect(mockGetFights).toHaveBeenCalledTimes(1);
+        expect(mockGetFights).toHaveBeenCalledWith("BBB");
+        expect(WarcraftLogs).toHaveBeenCalledWith(undefined, { site: "https://classic.warcraftlogs.com" });
+        expect(logs[0].title).toBeUndefined();
+    });
+
     it("fills the WCL report name into logs missing a title and persists it", async () => {
         mockGetFights.mockResolvedValue({ title: "  Karazhan 24/07 ", zoneName: "Karazhan" });
         const logs = [
@@ -66,6 +79,13 @@ describe("services/logcheck/logTitles — backfillLogTitles", () => {
             contentId: "hyjal", label: "Hyjal", killed: 3, total: 5, finalKilled: false, missing: ["Azgalor", "Archimonde"],
         })]);
         expect(logs[0].raids[0].killed).toBe(3);
+    });
+
+    it("places the bosses within the log's own version only (#747)", async () => {
+        // Ragnaros is a Classic boss: a TBC log naming it is no Molten Core raid
+        mockGetFights.mockResolvedValue({ title: "x", fights: [{ id: 1, boss: 1, name: "Ragnaros", kill: true }] });
+        await backfillLogTitles([{ id: "l1", reportId: "AAA", title: "x" }], 1_000_000);
+        expect(logStore.setLogRaids).toHaveBeenCalledWith("l1", []);
     });
 
     it("re-reads an unfinished raid of a fresh post, but not a finished, evaluated or old one", async () => {

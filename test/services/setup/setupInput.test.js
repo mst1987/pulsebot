@@ -59,6 +59,15 @@ describe("setupInput", () => {
         rosterStore.rosterForCategory.mockImplementation(() => null);
     });
 
+    it("reads the roster of the event's own version (#739)", () => {
+        rosterStore.rosterForCategory.mockImplementation((cat, version) => (version === "forever"
+            ? { members: { u5: { status: "trial" } } }
+            : { members: { u1: { status: "core" } } }));
+        expect(rosterStatusFor([{ id: "x1", categoryId: "cat", versionId: "forever" }])).toEqual({ u5: "trial" });
+        expect(rosterStatusFor([{ id: "x2", categoryId: "cat", versionId: "tbc" }])).toEqual({ u1: "core" });
+        rosterStore.rosterForCategory.mockImplementation(() => null);
+    });
+
     it("collects event, signups, profiles, attendance, required buffs and fixed places", () => {
         const input = collectSetupInput(["eh-new", "missing"], { now: 5000 });
         expect(input.versionId).toBe("tbc");
@@ -67,6 +76,8 @@ describe("setupInput", () => {
         expect(input.profiles.map((p) => p.userId)).toEqual(["u2"]);
         expect(input.attendance).toEqual({ u1: 90, u2: 40 });
         expect(attendance.attendanceFor).toHaveBeenCalledWith({ ctx: true }, "cat", "u1", ["u1"]);
+        // within the version of the raid being set up (#740)
+        expect(attendance.buildAttendanceContext).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ now: 5000, versionId: "tbc" }));
         expect(input.fixed).toEqual([
             { userId: "u1", eventId: "eh-new", group: 2, spec: "Warrior-Protection", role: "tank", character: "" },
             { userId: "u9", bench: true, locked: true },

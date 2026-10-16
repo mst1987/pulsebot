@@ -1,5 +1,10 @@
 {
     "title": "Loot-Council",
+    "noContent": {
+        "text": "Für diese Spielversion gibt es noch keine BiS-Listen und keine Simulation. Bedarf, Wünsche, erhaltener Loot und die Gewichtung nach Anwesenheit und Zugehörigkeit gelten weiter.",
+        "drop": "Für diese Spielversion gibt es noch keine Item-Tabelle und keine Simulation, der Drop-Check kann keine Kandidaten bestimmen.",
+        "off": "Die BiS-Listen sind für diese Spielversion ausgeschaltet (Einstellungen → Spielversion). Bedarf, Wünsche, erhaltener Loot und die Gewichtung gelten weiter."
+    },
     "role": {
         "caster": "Caster",
         "healer": "Heiler",
@@ -225,7 +230,10 @@
         "candidatesTitle": "Alle, die ihn tragen können",
         "candidatesTip": "Zugewinn und Bedarf getrennt",
         "candidatesTipSub": "Was das Item bringt (nur simuliert), und was dem Raider zusteht — die Abwägung trifft der Council.",
-        "unwearable": "Können es nicht tragen"
+        "unwearable": "Können es nicht tragen",
+        "owned": "Haben es schon",
+        "ownedWorn": "Trägt es laut letztem Gear-Stand",
+        "ownedAwarded": "Hat es laut Loot-Historie schon bekommen"
     },
     "candidates": {
         "noSimTipSub": "Für diese Spec gibt es keine Simulation — der Bot simuliert bisher nur Caster-DPS. Tanks, Nahkampf, Jäger und Heiler werden nach Bedarf und Stat-Gewichten vorgeschlagen.",
@@ -299,7 +307,9 @@
         "userOwnTip": "Diese Liste gehört ihm",
         "userBorrowTip": "Spielt diese Liste, hat keine eigene",
         "ownListShort": "eigene Liste",
-        "noSpec": "Keine Spec ausgewählt — oben wieder eine zuschalten.",
+        "noSpec": "Keine Spec ausgewählt — oben eine oder mehrere zuschalten.",
+        "groupLabel": "Rollen-Filter",
+        "none": "Keine",
         "free": "frei",
         "reference": "WoWSims-Referenz: {gems}, {enchant}",
         "gems": {
@@ -715,5 +725,23 @@
             "profile_limit": "Mehr als 50 Profile gehen nicht.",
             "not_found": "Das Profil gibt es nicht mehr."
         }
+    },
+    "overview": {
+        "kicker": "{count} Raids mit Loot-Council",
+        "cardsAria": "Raids mit Loot-Council",
+        "back": "Zur Übersicht",
+        "loading": "Lade die Raids mit Loot-Council …",
+        "inRoster": "Im Roster",
+        "persons": "Personen",
+        "bench": "dazu {count} auf der Bank",
+        "noRoster": "Kein Roster – alle Anmeldungen zählen",
+        "nextRaid": "Nächster Raid",
+        "noRaid": "Kein Raid geplant",
+        "noCategory": "ohne Kategorie",
+        "withoutRoster": "Kategorie ohne Roster",
+        "profileTip": "Das Loot-Council-Profil: Gewichtung und Ansicht dieses Councils",
+        "open": "Council öffnen",
+        "empty": "Noch kein Raid nutzt Loot-Council.",
+        "emptyHint": "Das Loot-System stellst du in den Roster-Einstellungen ein – oder für eine Kategorie ohne Roster unter Einstellungen → Kategorien. Raids mit Softres oder GDKP erscheinen hier nicht."
     }
 }

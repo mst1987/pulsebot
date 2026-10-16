@@ -6,13 +6,13 @@ import { XIcon, SearchIcon } from "../../components/ui/icons";
 import { instanceName } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 
-// "Mein Profil" (#255): the raider's own page. Deliberately calm — the
-// characters on top, the selected character's specs as the one big thing, and
-// everything else (when, which raids, with whom, a note) folded in a side column
-// that shows one line per part until it is opened. Every change saves itself;
-// there is no form to submit.
+// "Mein Profil" (#255): the raider's own page. Deliberately calm — one tab
+// "Meine Infos" for what belongs to the person (when, which raids, with whom, a
+// note, the calendar, the attendance), one tab per character (its card, then
+// roster, loot and dungeon runs), every part folded to one line until it is
+// opened. Every change saves itself; there is no form to submit.
 
-export type Fold = "days" | "raids" | "wishes" | "avoid" | "note" | "calendar" | "";
+export type Fold = "attendance" | "days" | "raids" | "wishes" | "avoid" | "note" | "calendar" | "roster" | "loot" | "dungeons" | "professions" | "wishItems" | "";
 
 /**
  * "Nicht mit X raiden": off until the raider switches it on — past a question
@@ -53,26 +53,26 @@ export function AvoidPart({ profile, max, classes, onEnable, onChange }: {
     );
 }
 
-/** One foldable part of the side column: title and a one-line summary, the body only when open. */
-export function FoldPart({ id, open, onOpen, title, summary, badge, children }: {
+/** One foldable part: title and a one-line summary, the body only when open. `open` = the parts open now (lib/profile/folds.ts). */
+export function FoldPart({ id, open, onToggle, title, summary, badge, children }: {
     id: Exclude<Fold, "">;
-    open: Fold;
-    onOpen: (f: Fold) => void;
+    open: Fold[];
+    onToggle: (id: Fold) => void;
     title: string;
     summary: ReactNode;
     badge?: ReactNode;
     children: ReactNode;
 }) {
-    const isOpen = open === id;
+    const isOpen = open.includes(id);
     return (
         <section className={`pf-fold${isOpen ? " is-open" : ""}`}>
             <div className="pf-fold-head">
-                <button type="button" className="pf-fold-title" onClick={() => onOpen(isOpen ? "" : id)}>
+                <button type="button" className="pf-fold-title" onClick={() => onToggle(id)}>
                     <span className="pf-fold-name">{title}</span>
                     {!isOpen && <span className="pf-fold-sum">{summary}</span>}
                 </button>
                 {badge}
-                <Expand open={isOpen} onToggle={() => onOpen(isOpen ? "" : id)} label={title} showLabel={false} />
+                <Expand open={isOpen} onToggle={() => onToggle(id)} label={title} showLabel={false} />
             </div>
             {isOpen && <div className="pf-fold-body">{children}</div>}
         </section>

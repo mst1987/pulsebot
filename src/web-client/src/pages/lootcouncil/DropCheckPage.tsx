@@ -22,8 +22,9 @@ import { useTableSort } from "../../lib/ui/tableSort";
 import { refreshWowheadLinks } from "../../lib/wow/wowheadTooltips";
 import { itemQualityProps } from "../../lib/wow/itemQuality";
 import {
-    CANDIDATE_SORT, FILTER_DEFAULT, VIEW_KEY, WOWHEAD, dropHref, pickVerdict, raiderHref, useCouncilSim, waitedTip,
+    CANDIDATE_SORT, FILTER_DEFAULT, VIEW_KEY, WOWHEAD, councilHref, dropHref, pickVerdict, raiderHref, useCouncilSim, waitedTip,
     type CandidateSortKey, type FilterView } from "./council";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import { WowheadPathProvider } from "../../lib/settings/versionLinks";
 import { NeedWeightsProvider } from "./needWeights";
 import { useCategoryViews } from "./categoryViews";
@@ -43,11 +44,17 @@ export default function DropCheckPage() {
     // The same filters the council page is set to — read, never written here:
     // the browser's, or the picked roster's / category's profile view (categoryViews.ts).
     const [localView] = usePersistedState<FilterView>(VIEW_KEY, FILTER_DEFAULT);
+    // The menu's content switch decides which version's council is checked (#748), like on the council page.
+    // A picked roster or category of another version is dropped by the server (#741): the version's whole council.
+    const { version: contentVersion } = useContentVersion();
     const { filters: view, ready: viewsReady } = useCategoryViews({
-        view: localView, setView: () => undefined, canWrite: false, version: "", mainVersion: "", onError: () => undefined,
+        view: localView, setView: () => undefined, canWrite: false, version: contentVersion, mainVersion: "", onError: () => undefined,
     });
     const [focus, setFocus] = useState<CouncilFocus | null>(null);
     const [simAvailable, setSimAvailable] = useState(false);
+    // The council's version has no item table (#748): the drop check says so instead of looking items up.
+    const [noItemTable, setNoItemTable] = useState(false);
+    const [versionId, setVersionId] = useState("");
     // The council's version's Wowhead path (#542); undefined until loaded = the stored (TBC) one
     const [wowheadPath, setWowheadPath] = useState<string | undefined>(undefined);
     // The weighting the need bars are stacked in (#668), from the same answer.
@@ -55,10 +62,11 @@ export default function DropCheckPage() {
     const [error, setError] = useState<ApiError | null>(null);
     const [loading, setLoading] = useState(false);
     const [unwearableOpen, setUnwearableOpen] = useState(false);
+    const [ownedOpen, setOwnedOpen] = useState(false);
     // The character a "Log laden"/"Gear aus Armory holen" reload is running
     // for, from a candidate's fold-out gear panel — one at a time.
     const [gearBusyChar, setGearBusyChar] = useState<string | null>(null);
-    const { sim, simRunning, runSim } = useCouncilSim();
+    const { sim, simRunning, runSim } = useCouncilSim({ roster: view.roster || "", category: view.category, version: contentVersion });
     const candidateSort = useTableSort<CandidateSortKey>("lootcouncil.candidate-sort", CANDIDATE_SORT, "gain");
 
     /** This item against the raiders it fits. */
@@ -79,7 +87,7 @@ export default function DropCheckPage() {
 
     const fetchFocus = () => getLootCouncil({
         role: view.role, tiers: view.tiers, contents: view.contents, category: view.category, roster: view.roster || "", bisTier: view.bisTier,
-        version: view.version,
+        version: contentVersion,
         bench: !!view.bench,
         item: itemId,
     });
@@ -97,6 +105,8 @@ export default function DropCheckPage() {
                 setFocus(d.focus);
                 setSimAvailable(d.sim.available);
                 setWowheadPath(d.wowheadPath);
+                setNoItemTable(!!d.content && !d.content.itemTable);
+                setVersionId(d.versionId || "");
                 setWeights(d.weights);
                 // Ohne Simulation gibt es keinen Zugewinn und keine Empfehlung —
                 // also wird der Drop sofort gerechnet, nicht erst auf Klick.
@@ -105,7 +115,7 @@ export default function DropCheckPage() {
             .finally(() => { if (alive) setLoading(false); });
         return () => { alive = false; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [itemId, view.role, view.tiers, view.contents, view.category, view.roster, view.bisTier, view.bench, viewsReady, jobs]);
+    }, [itemId, view.role, view.tiers, view.contents, view.category, view.roster, view.bisTier, view.bench, contentVersion, viewsReady, jobs]);
 
     /** Re-reads the focus after a gear reload — quiet, no page-level spinner. */
     const reloadFocus = async (): Promise<CouncilFocus | null> => {
@@ -177,14 +187,14 @@ export default function DropCheckPage() {
         <WowheadPathProvider path={wowheadPath}>
         <NeedWeightsProvider weights={weights}>
             <div className="page-head lc-drophead">
-                <Button variant="ghost" size="sm" icon={<ChevronLeftIcon />} onClick={() => navigate("/lootcouncil")}>{t("lootcouncil.drop.back")}</Button>
+                <Button variant="ghost" size="sm" icon={<ChevronLeftIcon />} onClick={() => navigate(councilHref({ roster: view.roster || "", category: view.category }))}>{t("lootcouncil.drop.back")}</Button>
                 <div className="ph-text">
                     <div className="kicker">{t("lootcouncil.drop.kicker")}</div>
                     <h1>{t("lootcouncil.drop.title")}</h1>
                 </div>
                 <div className="ph-act lc-dropsearch">
                     <ItemSearchPicker
-                        search={searchCouncilItems}
+                        search={(q: string) => searchCouncilItems(q, "", versionId)}
                         onPick={(item: ItemSearchResult) => navigate(dropHref(item.id))}
                         placeholder={itemId ? t("lootcouncil.drop.searchOther") : t("lootcouncil.drop.searchFirst")}
                     />
@@ -200,7 +210,7 @@ export default function DropCheckPage() {
             ) : error ? (
                 <div className="empty">{error.message}</div>
             ) : !focus ? (
-                <div className="lc-panel empty">{t("lootcouncil.drop.unknownItem")}</div>
+                <div className="lc-panel empty">{noItemTable ? t("lootcouncil.noContent.drop") : t("lootcouncil.drop.unknownItem")}</div>
             ) : (
                 <>
                     <div className="lc-panel lc-dropitem2">
@@ -320,6 +330,28 @@ export default function DropCheckPage() {
                                     <div key={u.key} className="lc-dlist-row">
                                         <RaiderIdent name={u.character} classColor={u.classColor} specIconUrl={u.specIconUrl} sub={u.specLabel} size={30} />
                                         <span className="lc-muted">{u.note}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </FoldRow>
+                    ) : null}
+
+                    {/* Wer es schon trägt oder gewonnen hat, ist kein Kandidat —
+                        aber genannt, damit sein Fehlen in der Liste erklärt ist. */}
+                    {focus.owned?.length ? (
+                        <FoldRow
+                            icon="inv_misc_bag_10"
+                            title={t("lootcouncil.drop.owned")}
+                            count={focus.owned.length}
+                            names={focus.owned.map((o) => o.character).join(", ")}
+                            open={ownedOpen}
+                            onToggle={() => setOwnedOpen((o) => !o)}
+                        >
+                            <div className="lc-dlist">
+                                {focus.owned.map((o) => (
+                                    <div key={o.key} className="lc-dlist-row">
+                                        <RaiderIdent name={o.character} classColor={o.classColor} specIconUrl={o.specIconUrl} sub={o.specLabel} size={30} />
+                                        <span className="lc-muted">{o.source === "awarded" ? t("lootcouncil.drop.ownedAwarded") : t("lootcouncil.drop.ownedWorn")}</span>
                                     </div>
                                 ))}
                             </div>

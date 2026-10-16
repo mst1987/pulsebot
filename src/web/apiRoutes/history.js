@@ -20,7 +20,7 @@ const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveM
 const { getCharacter } = require("../../stores/characterStore");
 const { loadCharGear } = require("../../services/characters/charGear");
 const { issuesForCharacter } = require("../characters/charGearIssues");
-const { parseLoot, buildManualItem, detectImportDate, enrichItemNames, LootParseError } = require("../../utils/loot/lootImport");
+const { parseLoot, buildManualItem, detectImportDate, nameKeyOf, LootParseError } = require("../../utils/loot/lootImport");
 const { bestDayMatch, formatDayDisplay, dayKey } = require("../loot/lootEventMatch");
 const {
     listPending: listPendingSessions, getPending: getPendingSession, resolvePending: resolvePendingSession,
@@ -32,8 +32,10 @@ const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView"
 const { armoryUrlFor, wclUrlFor } = require("../characters/charLinks");
 const { buildVersionContext, versionsOfCharacter, versionChoices, eventVersion } = require("../../services/characters/characterVersions");
 const { versionLinks, blizzardFor } = require("../../services/events/versionSettings");
-const { mainVersionFor, knownVersion, resolveVersionQuery, visibleRows, visibleVersions, versionOfEvent } = require("../../services/events/mainVersion");
-const { linkItemsForImport } = require("../../services/loot/lootVersion");
+const { mainVersionFor, knownVersion, resolveVersionQuery, visibleRows, visibleVersions, versionOfEvent, isVersionVisible, hidesOtherVersions } = require("../../services/events/mainVersion");
+const { storedVersionOf } = require("../../services/events/storedVersion");
+const { linkItemsForImport, enrichForImport } = require("../../services/loot/lootVersion");
+const { inVersionList } = require("../../services/logcheck/logVersion");
 const { userCan } = require("../../config/permissions");
 const discord = require("../../services/discord/discord");
 const linkCheck = require("../../services/discord/linkCheck");
@@ -57,12 +59,12 @@ const withClassLook = (c) => ({
  * the imported loot buckets and the category names they are labelled with. The
  * remaining fields stay present but empty, so the client keeps one type.
  */
-function lootOnlyHistoryData(guildId) {
+function lootOnlyHistoryData(guildId, versionId) {
     return {
         events: [],
         upcomingRaids: { events: [], error: null },
         pastRaids: { events: [], error: null },
-        lootEvents: lootEventRows(getConfig()),
+        lootEvents: lootEventRows(getConfig()).filter((e) => e.versionId === versionId),
         logs: [],
         categories: listKnownCategories(guildId),
         categoryLootTool: {},
@@ -79,37 +81,45 @@ function lootEventRows(cfg, versionCtx = buildVersionContext({ config: cfg })) {
     return visibleRows(eventsWithLoot().map((e) => ({ ...e, versionId: eventVersion(versionCtx, e.eventId) })), (e) => e.versionId, cfg);
 }
 
-/** GET /api/history — everything the "Alle Raids/Import/Loot/Logs/Loot-Tools" tabs need. */
-const getHistoryData = withUser({}, async ({ user, req, res }) => {
+/**
+ * GET /api/history[?version=<id>] — everything the "Alle Raids/Import/Loot/Logs/Loot-Tools"
+ * tabs need; the logs of one game version (#741, the content switch).
+ */
+const getHistoryData = withUser({}, async ({ user, req, res, url }) => {
     const guildId = activeGuildFor(req);
     // Someone who only holds "Loot-Ansichten" gets exactly what those four tabs
     // read and nothing else — the raid lists, the logs and the character table
     // belong to "Historie & Loot". Skipping them also spares the Raid-Helper and
     // Discord round-trips below, which that caller has no use for.
-    if (!userCan(user, "history")) return ok(res, lootOnlyHistoryData(guildId));
     const cfg = getConfig();
-    // Other versions hidden (#563): their raids, loot and characters stay out.
+    const { versionId } = resolveVersionQuery(url && url.searchParams.get("version"), { config: cfg });
+    if (!userCan(user, "history")) return ok(res, lootOnlyHistoryData(guildId, versionId));
+    // One game version (#741): the raids, loot buckets and characters of the page's
+    // version only (the client filters the same way; this is the second safety line).
+    // resolveVersionQuery answers with the main version while the others are hidden (#563).
     const rowVersion = (e) => versionOfEvent(e, { config: cfg });
+    const ofPageVersion = (rows) => visibleRows(rows, rowVersion, cfg).filter((e) => rowVersion(e) === versionId);
     const { groups, error: upcomingError } = await loadEventGroups(guildId);
-    const allUpcoming = visibleRows(groups.flatMap((g) => g.events), rowVersion, cfg);
+    const allUpcoming = ofPageVersion(groups.flatMap((g) => g.events));
     const events = allUpcoming.map((ev) => ({ id: ev.id, title: ev.title, startTime: ev.startTime, categoryId: ev.categoryId }));
     const upcomingRaids = { events: annotateUpcomingExtras(allUpcoming, guildId), error: upcomingError };
     const past = await loadRecentEvents(guildId, Infinity);
     // Only a channel that still exists is linked (#537).
-    const pastRaids = { ...past, events: linkCheck.withChannelState(guildId, visibleRows(past.events, rowVersion, cfg)) };
+    const pastRaids = { ...past, events: linkCheck.withChannelState(guildId, ofPageVersion(past.events)) };
     // Per game version (#543): each character says which versions it has loot in,
     // the "Charaktere" tab filters by it (the main version first).
     const versionCtx = buildVersionContext({ config: cfg });
     const visible = new Set(visibleVersions(cfg));
-    const chars = annotatedCharacters()
+    const allChars = annotatedCharacters()
         .map((c) => ({
             ...withClassLook(c),
             versionIds: versionsOfCharacter(versionCtx, { name: c.character, items: c.items, categoryIds: c.categoryIds }).filter((v) => visible.has(v)),
         }))
         .filter((c) => c.versionIds.length);
+    const chars = allChars.filter((c) => c.versionIds.includes(versionId));
     const mainVersion = mainVersionFor({ config: cfg });
     // Each loot bucket carries the version of its raid (#563): the "Loot" tab follows the content switch.
-    const lootEvents = lootEventRows(cfg, versionCtx);
+    const lootEvents = lootEventRows(cfg, versionCtx).filter((e) => e.versionId === versionId);
 
     ok(res, {
         events,
@@ -118,8 +128,9 @@ const getHistoryData = withUser({}, async ({ user, req, res }) => {
         lootEvents,
         // postedAt: when the WCL link was actually posted in the channel (falls
         // back through the message-id snowflake to detectedAt) — same field the
-        // legacy SSR page and the dashboard's "Latest Events" card show.
-        logs: listLogs().map((l) => ({ ...l, postedAt: logPostedAt(l) })),
+        // legacy SSR page and the dashboard's "Latest Events" card show. One
+        // game version (#741): a log without a raid in every one, a linked log in its raid's.
+        logs: listLogs().filter((l) => inVersionList(l, versionId)).map((l) => ({ ...l, postedAt: logPostedAt(l) })),
         // For labelling the loot rows' category ids, so one that Discord no
         // longer lists keeps its name (categoryNames.js). The import form's
         // validation stays on the live list — see pickedCategory().
@@ -128,7 +139,8 @@ const getHistoryData = withUser({}, async ({ user, req, res }) => {
         activeGuildId: guildId,
         chars,
         mainVersion,
-        versions: versionChoices(chars, mainVersion),
+        // The picker offers every visible version that has characters, not only the page's.
+        versions: versionChoices(allChars, mainVersion, { config: cfg }),
     });
 });
 
@@ -198,10 +210,31 @@ const deleteHistoryLog = withUser({ csrf: true, body: true }, async ({ body, res
 function pickedCategory(req, requested) {
     const id = String(requested || "").trim();
     if (!id) return { id: "" };
+    // A category that plays a hidden version (#563) is no choice: its raids are archive.
+    const cfg = getConfig();
+    if (hidesOtherVersions(cfg) && !isVersionVisible(mainVersionFor({ categoryId: id, config: cfg }), cfg)) return { error: "Unbekannte Kategorie." };
     const guildId = activeGuildFor(req);
     const known = guildId ? discord.listCategories(guildId) : [];
     if (known.length && !known.some((c) => c.id === id)) return { error: "Unbekannte Kategorie." };
     return { id };
+}
+
+/** `events` of one game version (#741); all of them while `versionId` is "". */
+function eventsOfVersion(events, versionId) {
+    const cfg = getConfig();
+    return versionId ? events.filter((ev) => versionOfEvent(ev, { config: cfg }) === versionId) : events;
+}
+
+/**
+ * The game version an import belongs to: the one the client sends (`version`, the
+ * content switch), the main version while the others are hidden (#563), else the
+ * fallback ("" = not known, nothing is narrowed, as before).
+ */
+function importVersion(body, fallback = "") {
+    const cfg = getConfig();
+    const asked = String((body && body.version) || "").trim();
+    if (asked || hidesOtherVersions(cfg)) return resolveVersionQuery(asked, { config: cfg }).versionId;
+    return fallback;
 }
 
 /**
@@ -210,9 +243,13 @@ function pickedCategory(req, requested) {
  * `event`: a real event id, "__auto__" (match by the loot's own date) or
  * "__manual__" (a hand-typed label, no Raid-Helper event involved).
  *
+ * `versionId` (#741) narrows the date match to the raids of that game version, so
+ * a Forever night is never filed under a TBC raid of the same day; "" = no
+ * narrowing (the version is not known). An explicitly chosen event id is kept.
+ *
  * @returns {{ eventId, eventLabel, categoryId } | { error, status, code }}
  */
-async function resolveImportTarget(req, { event, manualLabel, items }) {
+async function resolveImportTarget(req, { event, manualLabel, items, versionId = "" }) {
     const eventId = String(event || "").trim();
     const manualTitle = String(manualLabel || "").trim();
 
@@ -226,7 +263,7 @@ async function resolveImportTarget(req, { event, manualLabel, items }) {
     if (eventId === "__auto__" || !eventId) {
         const detected = detectImportDate(items);
         const { groups } = await loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
-        const allEvents = groups.flatMap((g) => g.events);
+        const allEvents = eventsOfVersion(groups.flatMap((g) => g.events), versionId);
         const { match, ambiguous } = detected ? bestDayMatch(detected, allEvents) : { match: null, ambiguous: false };
         if (ambiguous) {
             return {
@@ -288,12 +325,11 @@ const importLoot = withUser({ csrf: true, body: true }, async ({ body, req, res 
     if (!items.length) return error(res, 400, "empty", "Keine Loot-Einträge im Export gefunden.");
     const picked = pickedCategory(req, body.categoryId);
     if (picked.error) return error(res, 400, "bad_category", picked.error);
-    await enrichItemNames(items);
-
     const target = await resolveImportTarget(req, {
         event: body.event,
         manualLabel: body.manualLabel,
         items,
+        versionId: importVersion(body),
     });
     if (target.error) return error(res, target.status, target.code, target.error);
     const { eventId, eventLabel } = target;
@@ -302,6 +338,7 @@ const importLoot = withUser({ csrf: true, body: true }, async ({ body, req, res 
     const categoryId = target.categoryId || picked.id;
     // The Wowhead links of the event's version (#542).
     linkItemsForImport(items, { eventId, categoryId });
+    await enrichForImport(items, { eventId, categoryId });
 
     const { added, skipped } = addLootImport(eventId, items, { categoryId, eventLabel });
     // RCLootcouncil exports carry the raider's class — keep it right away, so the
@@ -327,7 +364,7 @@ const previewLootImport = withUser({ csrf: true, body: true }, async ({ body, re
         data: body.data,
         tool: body.tool,
         event: body.event,
-        events: groups.flatMap((g) => g.events),
+        events: eventsOfVersion(groups.flatMap((g) => g.events), importVersion(body)),
     });
     if (!result.ok) return error(res, 400, "parse_failed", result.error);
     const preview = { ...result };
@@ -346,6 +383,10 @@ const previewLootImport = withUser({ csrf: true, body: true }, async ({ body, re
  */
 const getLootPicker = withUser({}, async ({ res, url }) => {
     const eventId = (url.searchParams.get("event") || "").trim();
+    // The version of the event the award goes into (#741): its stored one, else the page's.
+    const cfg = getConfig();
+    const versionId = storedVersionOf(eventId) || resolveVersionQuery(url.searchParams.get("version"), { config: cfg }).versionId;
+    const versionCtx = buildVersionContext({ config: cfg });
     const title = (url.searchParams.get("title") || "").trim();
     const items = eventId ? listLootByEvent(eventId) : [];
     ok(res, {
@@ -358,15 +399,34 @@ const getLootPicker = withUser({}, async ({ res, url }) => {
         // imports and the log evaluations), class look included so the dropdown
         // reads like the loot table it writes into. A name that is not in the
         // list can still be typed — a trial's first item is exactly that case.
-        characters: annotatedCharacters().map(withClassLook).map((c) => ({
-            character: c.character,
-            className: c.className || "",
-            spec: c.spec || "",
-            classColor: c.classColor || "",
-            iconUrl: c.iconUrl || "",
-        })),
+        characters: annotatedCharacters()
+            .filter((c) => versionsOfCharacter(versionCtx, { name: c.character, items: c.items, categoryIds: c.categoryIds }).includes(versionId))
+            .map(withClassLook).map((c) => ({
+                character: c.character,
+                className: c.className || "",
+                spec: c.spec || "",
+                classColor: c.classColor || "",
+                iconUrl: c.iconUrl || "",
+            })),
     });
 });
+
+/**
+ * Strictly one version per raid (#741): a character already known from another
+ * version only is no recipient here. A name nobody knows yet (a trial) passes,
+ * and so does an event with no stored version.
+ * @returns {string} the German refusal, "" when the award may be filed
+ */
+function characterOutsideEventVersion(character, eventId) {
+    const versionId = storedVersionOf(eventId);
+    if (!versionId) return "";
+    const key = nameKeyOf(character);
+    const known = annotatedCharacters().find((c) => nameKeyOf(c.character) === key);
+    if (!known) return "";
+    const versions = versionsOfCharacter(buildVersionContext({ config: getConfig() }), { name: known.character, items: known.items, categoryIds: known.categoryIds });
+    if (versions.includes(versionId)) return "";
+    return `${known.character} spielt diese Spielversion nicht – der Raid gehört zu einer anderen Version.`;
+}
 
 /**
  * POST /api/history/loot-add — body:
@@ -390,15 +450,16 @@ const addLootItem = withUser({ csrf: true, body: true }, async ({ user, body, re
         awardedBy: user.username || "",
     });
     if (!item) return error(res, 400, "missing_fields", "Item und Charakter sind Pflicht.");
+    const wrongVersion = characterOutsideEventVersion(item.character, eventId);
+    if (wrongVersion) return error(res, 400, "wrong_version", wrongVersion);
     // Name/icon/quality: from the drop table for a raid item, from Wowhead for
     // anything it doesn't list (a badge item, a BoE) — the same enrichment the
     // Gargul import runs, so a hand-entered row is indistinguishable from an
     // imported one in the table.
-    await enrichItemNames([item]);
-
     const target = await resolveImportTarget(req, { event: eventId, manualLabel: body.manualLabel, items: [item] });
     if (target.error) return error(res, target.status, target.code, target.error);
     linkItemsForImport([item], target);
+    await enrichForImport([item], target);
 
     const { added, skipped } = addLootImport(target.eventId, [item], {
         categoryId: target.categoryId,
@@ -459,10 +520,17 @@ const clearHistoryEvent = withUser({ csrf: true, body: true }, async ({ body, re
  * has filed yet, each with the event it was matched to (a suggestion only) and
  * its loot, so the admin can see what they are accepting before they accept it.
  */
-const getLootInbox = withUser({}, async ({ res }) => {
+const getLootInbox = withUser({}, async ({ res, url }) => {
+    // One game version (#741): a session matched to a raid only under that raid's
+    // version, one without a match under every version (like a log without a raid).
+    const cfg = getConfig();
+    const { versionId } = resolveVersionQuery(url && url.searchParams.get("version"), { config: cfg });
+    const versionCtx = buildVersionContext({ config: cfg });
+    const inVersion = (eventId) => !eventId || eventVersion(versionCtx, eventId) === versionId;
+    const suggestedOf = (s) => (s && s.match && s.match.suggested ? s.match.suggested.eventId : "");
     // Decorated like stored loot (reason badge, raid, tier) even though it isn't
     // stored yet — the preview should look like the history it is about to be.
-    const sessions = listPendingSessions().map((s) => {
+    const sessions = listPendingSessions().filter((s) => inVersion(suggestedOf(s))).map((s) => {
         // Welcher Raid das war, notfalls aus den Item-IDs — das Addon kann es
         // nicht immer wissen (siehe lootSessionContent.js).
         const content = sessionContentLabel(s);
@@ -476,7 +544,7 @@ const getLootInbox = withUser({}, async ({ res }) => {
     });
     // Accepted sessions that keep appending by themselves — the quiet list under
     // the cards, so nobody wonders where last night's second half went.
-    ok(res, { sessions, linked: listLinkedSessions() });
+    ok(res, { sessions, linked: listLinkedSessions().filter((s) => inVersion(s && s.eventId)) });
 });
 
 /**
@@ -499,6 +567,8 @@ const acceptLootInbox = withUser({ csrf: true, body: true }, async ({ body, req,
         event: String(body.event || "").trim() || suggested || "__auto__",
         manualLabel: body.manualLabel,
         items: entry.items,
+        // The version the session was matched under (the inbox lists it there), else the client's.
+        versionId: importVersion(body, storedVersionOf(suggested)),
     });
     if (target.error) return error(res, target.status, target.code, target.error);
 
@@ -531,7 +601,11 @@ const dismissLootInbox = withUser({ csrf: true, body: true }, async ({ body, res
     ok(res, { id: removed.id, sessionId: removed.sessionId });
 });
 
-/** GET /api/history/event?event=<id> — the loot imported for one event. */
+/**
+ * GET /api/history/event?event=<id> — the loot imported for one event, with the
+ * game version of its raid (#741: a link to a raid of another version switches
+ * the menu's content version to it).
+ */
 const getHistoryEvent = withUser({}, async ({ res, url }) => {
     const eventId = url.searchParams.get("event") || "";
     // Backfill names/icons on rows imported before enrichment existed, so old
@@ -539,7 +613,8 @@ const getHistoryEvent = withUser({}, async ({ res, url }) => {
     await repairLootItemNames();
     const items = withLootClassLook(listLootByEvent(eventId));
     const label = (items[0] && items[0].eventLabel) || eventId;
-    ok(res, { eventId, label, items });
+    const versionId = eventVersion(buildVersionContext({ config: getConfig() }), eventId);
+    ok(res, { eventId, label, items, versionId });
 });
 
 /**
@@ -568,15 +643,20 @@ const resolveCharacters = withUser({ csrf: true }, async ({ res }) => {
  */
 const getHistoryChar = withUser({}, async ({ res, url }) => {
     const name = url.searchParams.get("name") || "";
-    const askedVersion = knownVersion(url.searchParams.get("version"));
+    const cfg = getConfig();
+    // While other versions are hidden (#563) the page's version is the main one, whatever is asked.
+    const askedRaw = url.searchParams.get("version");
+    const askedVersion = knownVersion(askedRaw) ? resolveVersionQuery(askedRaw, { config: cfg }).versionId : "";
     await repairLootItemNames(); // see getHistoryEvent
     const items = withLootClassLook(listLootByCharacter(name));
-    const cfg = getConfig();
     // The character's version (#543): the one asked for, else its own (the main
     // version when it has that one too) — realm, armory, Wowhead all follow it (#542).
     const versionIds = versionsOfCharacter(buildVersionContext({ config: cfg }), { name, items });
     const mainVersion = mainVersionFor({ config: cfg });
-    const versionId = askedVersion || (versionIds.includes(mainVersion) ? mainVersion : versionIds[0]) || mainVersion;
+    // The version asked for (the menu's content version, #741) only when the character
+    // plays it; else its own — the page then switches the menu to that one.
+    const asked = askedVersion && (!versionIds.length || versionIds.includes(askedVersion)) ? askedVersion : "";
+    const versionId = asked || (versionIds.includes(mainVersion) ? mainVersion : versionIds[0]) || mainVersion;
     const links = versionLinks(versionId, { config: cfg });
     const bz = blizzardFor(versionId, { config: cfg });
     const realm = (items[0] && items[0].realm) || links.settings.blizzardRealmSlug || "";
@@ -587,7 +667,7 @@ const getHistoryChar = withUser({}, async ({ res, url }) => {
     const gearNamespace = bz.namespace;
     let gear = null;
     // A version without realm/namespace says so instead of asking Blizzard the TBC realm.
-    let gearError = bz.reason === "version_not_configured" ? bz.message : "";
+    let gearError = bz.reason === "version_not_configured" || bz.reason === "feature_off" ? bz.message : "";
     let charSummary = null;
     if (gearConfigured && name) {
         // The summary's level/last-login reveal whether the profile is the right

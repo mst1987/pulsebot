@@ -37,6 +37,7 @@ const HistoryCharPage = lazyWithReload(() => import("./pages/history/HistoryChar
 const RostersPage = lazyWithReload(() => import("./pages/roster/RostersPage"));
 const RosterDetailPage = lazyWithReload(() => import("./pages/roster/RosterDetailPage"));
 const RosterCharsPage = lazyWithReload(() => import("./pages/roster/RosterCharsPage"));
+const DungeonsPage = lazyWithReload(() => import("./pages/dungeons/DungeonsPage"));
 const AbsencesPage = lazyWithReload(() => import("./pages/absences/AbsencesPage"));
 const ProfilePage = lazyWithReload(() => import("./pages/profile/ProfilePage"));
 const SignupsPage = lazyWithReload(() => import("./pages/SignupsPage"));
@@ -45,6 +46,7 @@ const LootCouncilPage = lazyWithReload(() => import("./pages/lootcouncil/LootCou
 const DropCheckPage = lazyWithReload(() => import("./pages/lootcouncil/DropCheckPage"));
 const GuildBankPage = lazyWithReload(() => import("./pages/guildbank/GuildBankPage"));
 const KaderPage = lazyWithReload(() => import("./pages/kader/KaderPage"));
+const AddonPage = lazyWithReload(() => import("./pages/addon/AddonPage"));
 const SystemPage = lazyWithReload(() => import("./pages/system/SystemPage"));
 
 /**
@@ -231,6 +233,8 @@ function MenuApp() {
                                 <Route path="roster" element={<Guard user={user} areas={["roster"]}><RostersPage /></Guard>} />
                                 <Route path="roster/r/:rosterId/:tab?" element={<Guard user={user} areas={["roster"]}><RosterDetailPage /></Guard>} />
                                 <Route path="roster/chars" element={<Guard user={user} areas={["roster"]}><RosterCharsPage /></Guard>} />
+                                {/* Dungeon-Bestzeiten: a page of the Roster family, readable by every member (base access "signup") */}
+                                <Route path="roster/dungeons" element={<Guard user={user} areas={["roster", "signup"]}><DungeonsPage /></Guard>} />
                                 {/* Same character page, reached from the roster — the page keeps
                                     its back-link pointing at wherever it was opened from. */}
                                 <Route path="roster/char" element={<Guard user={user} areas={["roster"]}><HistoryCharPage /></Guard>} />
@@ -241,6 +245,8 @@ function MenuApp() {
                                 <Route path="guildbank" element={<Guard user={user} areas={["raids"]}><GuildBankPage /></Guard>} />
                                 {/* The Kaderplaner (area "kader"): one Kader at a time, /kader opens the one used last. */}
                                 <Route path="kader/:kaderId?/:sub?" element={<Guard user={user} areas={["kader"]}><KaderPage /></Guard>} />
+                                {/* Addons (#818): the download page of the own addons, for every member ("signup") and the loot importers ("history"). */}
+                                <Route path="addon" element={<Guard user={user} areas={["signup", "history"]}><AddonPage /></Guard>} />
                                 {/* Systemstatus: full admins only, no area opens it (docs/system-status.md). */}
                                 <Route path="system" element={<AdminGuard user={user}><SystemPage /></AdminGuard>} />
                                 {/* Inside the shell on purpose: a mistyped path should still

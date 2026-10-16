@@ -13,7 +13,7 @@ import PartHead from "../../components/ui/PartHead";
 import RaidLoader from "../../components/ui/RaidLoader";
 import Segment from "../../components/ui/Segment";
 import Field, { FieldLabel } from "../../components/ui/Field";
-import { PenIcon } from "../../components/ui/icons";
+import { PenIcon, SaveIcon } from "../../components/ui/icons";
 
 // Einstellungen → Verbindungen → Discord-Server, part "Erinnerungen" (#264).
 // One line per raid category: its name, what is set as one short line, and a
@@ -69,6 +69,10 @@ export default function RemindersPart({ onConfig }: {
                                         : <span className="sync-role is-unknown" tabIndex={0} data-tip={t("settings.reminders.unknownCategory")} data-tip-sub={t("settings.reminders.unknownCategorySub", { id: c.id })}>{t("settings.reminders.unknownCategory")}</span>}
                                     <span className="sync-muted">{reminderSummary(rule)}</span>
                                     {rule && rule.target !== "event" && <Badge tip={t("settings.reminders.where")} tipSub={targetText(rule.target)}>{rule.target === "talk" ? t("settings.reminders.targetTalk") : t("settings.reminders.targetBoth")}</Badge>}
+                                    {/* #744: a deactivated category keeps its rule, but reminds nobody until it is active again */}
+                                    {!off && c.active === false && (
+                                        <Badge tone="mid" tip={t("settings.reminders.inactiveTip")} tipSub={t("settings.reminders.inactiveSub")}>{t("settings.reminders.inactive")}</Badge>
+                                    )}
                                     {rule && rule.missingHours > 0 && c.roleCount === 0 && (
                                         <Badge tone="mid" tip={t("settings.reminders.noRole")} tipSub={t("settings.reminders.noRoleSub")}>{t("settings.reminders.noRoleBadge")}</Badge>
                                     )}
@@ -137,7 +141,7 @@ function ReminderModal({ name, rule, data, onClose, onSave }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
-                    <Button onClick={submit} disabled={busy}>{busy ? t("settings.saving") : t("common.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} onClick={submit} disabled={busy}>{busy ? t("settings.saving") : t("common.save")}</Button>
                 </>
             )}
         >

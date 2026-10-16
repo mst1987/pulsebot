@@ -2,17 +2,19 @@
 // admin or an orga role) sees every raid. Everybody else sees:
 //
 //   - the raids of the categories they may sign up for - the rule of the "Anmeldungen" page
-//     (signupService.categoryVisible: the event categories, the category's raider roles),
+//     (signupAccess.canSignUp: the event categories, the roster-only signup, the raider roles - per
+//     the raid's game version),
 //   - the raids of a category whose roster opened them to everybody (`roster.publicRaids`, set in the
-//     roster's form) - seeing such a raid lets nobody sign up, that stays categoryVisible's rule,
+//     roster's form) - seeing such a raid lets nobody sign up, that stays signupAccess' rule,
 //   - every raid they signed up for themselves.
 //
 // A right on the area `raids` does not widen this: raider roles hold `raids` read (or more) and are no
 // orga. The raid list, the raid detail and the event-scoped reads (setup, raid plan) all ask here,
 // so the rule lives in one place. Loot is never filtered by it: raiders may look up any raid's loot.
 const { userIsOrga } = require("../../config/permissions");
-const { categoryVisible } = require("./signupService");
-const rosterStore = require("../../stores/rosterStore");
+const { canSignUp } = require("./signupAccess");
+const { versionOfEvent } = require("../events/mainVersion");
+const { rosterOfEvent, currentRoster } = require("../roster/categoryRoster");
 const settingsStore = require("../../stores/settingsStore");
 const signupStore = require("../../stores/signupStore");
 const { getEvent, isOwnEventId } = require("../../stores/eventStore");
@@ -42,23 +44,36 @@ async function raidViewer(user, guildId, { config } = {}) {
     return { orga, userId, roleIds: roleIds.map(String), config: cfg };
 }
 
-/** Whether the category's roster opened its raids to every member (`publicRaids`, default false). */
-function rosterOpensRaids(categoryId) {
-    const cat = String(categoryId || "").trim();
+/**
+ * Whether the category's roster opened its raids to every member (`publicRaids`, default false). A
+ * category has one roster per game version (#739): for a raid the roster of the raid's version
+ * (categoryRoster.rosterOfEvent), for a bare category id the one of the version it plays now.
+ * @param {string|{ id?: string, categoryId?: string, versionId?: string }} eventOrCategory
+ */
+function rosterOpensRaids(eventOrCategory, { config } = {}) {
+    const isEvent = !!eventOrCategory && typeof eventOrCategory === "object";
+    const cat = String((isEvent ? eventOrCategory.categoryId : eventOrCategory) || "").trim();
     if (!cat) return false;
     try {
-        const roster = rosterStore.rosterForCategory(cat);
+        const roster = isEvent ? rosterOfEvent(eventOrCategory, { config }) : currentRoster(cat, { config });
         return !!(roster && roster.publicRaids === true);
     } catch {
         return false;
     }
 }
 
-/** Whether the viewer sees a category's raids (without looking at their own signups). */
-function categoryShown(categoryId, viewer) {
+/**
+ * Whether the viewer sees a category's raids (without looking at their own signups). With a raid
+ * (`{ id, categoryId, versionId }`) the roster of the raid's version decides about `publicRaids`.
+ */
+function categoryShown(eventOrCategory, viewer) {
     if (!viewer || viewer.orga) return true;
-    if (categoryVisible(categoryId, { config: viewer.config, roleIds: viewer.roleIds })) return true;
-    return rosterOpensRaids(categoryId);
+    const isEvent = !!eventOrCategory && typeof eventOrCategory === "object";
+    const categoryId = isEvent ? eventOrCategory.categoryId : eventOrCategory;
+    // "may sign up" is signupAccess.canSignUp, the rule the save checks - per the raid's version (#739)
+    const versionId = isEvent ? versionOfEvent(eventOrCategory, { config: viewer.config }) : "";
+    if (canSignUp(categoryId, { userId: viewer.userId, roleIds: viewer.roleIds, config: viewer.config, versionId })) return true;
+    return rosterOpensRaids(eventOrCategory, { config: viewer.config });
 }
 
 /**
@@ -86,13 +101,13 @@ function hasSignup(event, userId) {
 function eventShown(event, viewer) {
     if (!viewer || viewer.orga) return true;
     if (!event) return false;
-    return categoryShown(event.categoryId, viewer) || hasSignup(event, viewer.userId);
+    return categoryShown(event, viewer) || hasSignup(event, viewer.userId);
 }
 
 /** The rows of a raid list the viewer sees; `signUpsOf(row)` hands in a row's signups when the caller has them. */
 function visibleEvents(rows, viewer, signUpsOf = () => undefined) {
     if (!viewer || viewer.orga) return rows || [];
-    return (rows || []).filter((row) => eventShown({ id: row.id, categoryId: row.categoryId, signUps: signUpsOf(row) }, viewer));
+    return (rows || []).filter((row) => eventShown({ id: row.id, categoryId: row.categoryId, versionId: row.versionId, signUps: signUpsOf(row) }, viewer));
 }
 
 /**

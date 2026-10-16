@@ -19,7 +19,8 @@
 // The member's profile character (raiderProfileStore) adds class and spec as
 // the last fallback: a new raider who has neither won anything nor been
 // logged is exactly who the roster knows and the data does not.
-const { rosterForCategory, getRoster } = require("../../stores/rosterStore");
+const { getRoster } = require("../../stores/rosterStore");
+const { rosterOfCategory } = require("../../services/roster/categoryRoster");
 const { listProfiles } = require("../../stores/raiderProfileStore");
 const { nameKeyOf, splitPlayer } = require("../../utils/loot/lootImport");
 
@@ -56,9 +57,10 @@ function entryFor({ key, rosterKey, status, userId, member, profile }) {
  * has no roster (then everything stays as before).
  *
  * @param {string} categoryId
- * @param {{ showBench?: boolean, rosterId?: string }} [opts]  `rosterId` (#676): that
+ * @param {{ showBench?: boolean, rosterId?: string, versionId?: string }} [opts]  `rosterId` (#676): that
  *   roster instead of the category's - a roster picked on the council page,
- *   possibly without category
+ *   possibly without category; `versionId` (#739): the council's version - the
+ *   category's roster of that version (none = the version the category plays now)
  * @returns {null | {
  *   roster: { id, name, versionId },
  *   entries: Map<string, { key, rosterKey, status, userId, name, className, specs }>,
@@ -67,11 +69,11 @@ function entryFor({ key, rosterKey, status, userId, member, profile }) {
  *   showBench: boolean,
  * }}
  */
-function rosterCandidates(categoryId, { showBench = false, rosterId = "" } = {}) {
+function rosterCandidates(categoryId, { showBench = false, rosterId = "", versionId = "" } = {}) {
     const id = String(categoryId || "").trim();
     const wanted = String(rosterId || "").trim();
     if (!id && !wanted) return null;
-    const roster = wanted ? getRoster(wanted) : rosterForCategory(id);
+    const roster = wanted ? getRoster(wanted) : rosterOfCategory(id, { versionId });
     if (!roster) return null;
 
     const profiles = new Map(listProfiles().map((p) => [p.userId, p]));

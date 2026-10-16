@@ -105,9 +105,9 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         raidhelperDisabled.mockReturnValue(true);
         const { body } = await buildRaidDetail({ guildId: "g1", eventId: "rh1" });
         expect(Object.keys(body)).toEqual([
-            "event", "planning", "setupFromSnapshot", "categoryName", "guildId", "eventsWarning", "notifyTemplates", "roles", "pingTargets",
+            "event", "planning", "setupFromSnapshot", "categoryName", "openToAll", "guildId", "eventsWarning", "notifyTemplates", "roles", "pingTargets",
             "raidsheets", "matchedSheetId", "setup", "setupError", "tankCandidates", "eventSheet", "sheetLink", "raidplanPost", "eventSoftres",
-            "softresCatalogue", "softresEdition", "versionId", "wowheadPath", "archived", "softresSuggested", "attendance", "ownSignups", "ownSetup", "ownSetupPost",
+            "softresCatalogue", "softresEdition", "softresOff", "versionId", "wowheadPath", "archived", "softresSuggested", "attendance", "ownSignups", "ownSetup", "raidGroup", "ownSetupPost",
             "ownSetupEditors", "attendanceRoleIds", "attendanceSource", "membersError", "signupTarget", "lootItems", "lootTool", "lootSystem", "eventLogs", "unlinkedLogs",
             "orga", "progress", "steps", "playerSummaries",
         ]);
@@ -121,6 +121,8 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         expect(body.attendance.responded.map((m) => m.id)).toEqual(["u1"]);
         expect(body.attendance.missing.map((m) => m.id)).toEqual(["u9"]);
         expect(body.attendanceRoleIds).toEqual(["r1"]);
+        // a category with raider roles is no PuG raid
+        expect(body.openToAll).toBe(false);
         expect(body.signupTarget).toBe(2);
         expect(body.matchedSheetId).toBe("sheet-kara");
         expect(body.softresEdition).toBe("tbc");
@@ -150,6 +152,14 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         expect(body.raidplanPost).toBeNull();
         expect(body.progress.steps.map((s) => s.key)).toEqual(expect.arrayContaining(["sheet"]));
         expect(body.progress.steps.map((s) => s.key)).not.toContain("raidplan");
+    });
+
+    it("plans a version without a raid sheet layout with the raid plan, whatever the category picked (#751)", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(rhEvent()));
+        settingsStore.getConfig.mockReturnValue({ categoryVersion: { cat1: "forever" }, categoryPlanning: { cat1: "sheet" } });
+        const { body } = await buildRaidDetail({ guildId: "g1", eventId: "rh1" });
+        expect(body.planning).toBe("raidplan");
+        expect(body.progress.steps.map((s) => s.key)).not.toContain("sheet");
     });
 
     it("follows the version of the event's category (#542): no softres edition, no TBC list, the version's own sheet", async () => {
@@ -422,7 +432,7 @@ describe("a raider's read (Oct 2026: raids of foreign categories and the orga's 
         loadEventGroups.mockResolvedValue(groupsWith(rhEvent({ signUps: [{ userId: "u7", specName: "Arms", status: "signed" }] })));
         expect((await read(RAIDER, "rh1")).status).toBe(200);
         loadEventGroups.mockResolvedValue(groupsWith(rhEvent({ signUps: [] })));
-        rosterStore.rosterForCategory.mockReturnValue({ categoryId: "cat1", publicRaids: true, members: {} });
+        rosterStore.rosterForCategory.mockReturnValue({ categoryId: "cat1", publicRaids: true, roleIds: [], members: {} });
         expect((await read(RAIDER, "rh1")).status).toBe(200);
     });
 

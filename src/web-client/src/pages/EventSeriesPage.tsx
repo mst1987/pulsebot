@@ -4,6 +4,7 @@ import {
     deleteEventSeries, getEventSeries, previewEventSeries, runEventSeries, saveEventSeries,
     type ApiError, type EventSeriesData, type EventSeriesInput, type SeriesCategory, type SeriesDate, type SeriesPreview } from "../api";
 import { useApi } from "../hooks/useApi";
+import { useContentVersion } from "../hooks/useContentVersion";
 import AsyncView from "../components/ui/AsyncView";
 import { useCollectionEditor } from "../lib/ui/collectionEditor";
 import {
@@ -17,7 +18,8 @@ import Badge from "../components/ui/Badge";
 import RaidLoader from "../components/ui/RaidLoader";
 import NamingBadge from "../components/channels/NamingBadge";
 import { SwitchRow } from "../components/raid/RaidFields";
-import { PenIcon, RefreshIcon, WarnIcon } from "../components/ui/icons";
+import Switch from "../components/ui/Switch";
+import { PenIcon, RefreshIcon, SaveIcon, TrashIcon, WarnIcon } from "../components/ui/icons";
 import "../styles/series.css";
 
 // Wiederkehrende Events (#289): one compact line per event category —
@@ -59,10 +61,8 @@ function DateRow({ o, draft, canWrite, onSkip, onRetry }: {
             </div>
             {retry && <Button size="sm" variant="ghost" onClick={() => onRetry(o.date)}>{t("series.date.retry")}</Button>}
             {skippable && onSkip && (
-                <label className="sr-skip" data-tip={t("series.date.skipTip")} data-tip-sub={t("series.date.skipSub")}>
-                    <input type="checkbox" checked={draft.skipDates.includes(o.date)} onChange={() => onSkip(o.date)} disabled={!canWrite} />
-                    {t("series.date.skip")}
-                </label>
+                <Switch className="sr-skip" label={t("series.date.skip")} tipHead={t("series.date.skipTip")} tip={t("series.date.skipSub")}
+                    checked={draft.skipDates.includes(o.date)} onChange={() => onSkip(o.date)} disabled={!canWrite} />
             )}
         </li>
     );
@@ -142,11 +142,11 @@ function SeriesModal({ category, data, canWrite, onChanged, onClose }: {
             kicker={t("series.modal.kicker")}
             title={category.name || t("series.row.unknownCategory")}
             width={720}
-            hint={category.series && canWrite ? <Button variant="danger" size="sm" onClick={remove}>{t("common.delete")}</Button> : undefined}
+            hint={category.series && canWrite ? <Button variant="danger" size="sm" icon={<TrashIcon />} onClick={remove}>{t("common.delete")}</Button> : undefined}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    {canWrite && <Button running={saving} disabled={!!problem || !preview} onClick={save} data-tip={problem || undefined}>{t("common.save")}</Button>}
+                    {canWrite && <Button variant="go" icon={<SaveIcon />} running={saving} disabled={!!problem || !preview} onClick={save} data-tip={problem || undefined}>{t("common.save")}</Button>}
                 </>
             )}
         >
@@ -176,11 +176,11 @@ function SeriesModal({ category, data, canWrite, onChanged, onClose }: {
             <div className="sr-grid">
                 <div className="sr-field">
                     <label className="sr-label" htmlFor="sr-time">{t("series.modal.time")}</label>
-                    <input id="sr-time" type="time" value={draft.time} onChange={(e) => patch({ time: e.target.value })} disabled={!canWrite} />
+                    <input id="sr-time" className="inp-sm" type="time" value={draft.time} onChange={(e) => patch({ time: e.target.value })} disabled={!canWrite} />
                 </div>
                 <div className="sr-field">
                     <label className="sr-label" htmlFor="sr-before" data-tip={t("series.modal.daysBefore")} data-tip-sub={t("series.modal.daysBeforeSub")}>{t("series.modal.daysBefore")}</label>
-                    <input id="sr-before" type="number" min={data.limits.minDaysBefore} max={data.limits.maxDaysBefore} value={draft.daysBefore}
+                    <input id="sr-before" className="inp-sm" type="number" min={data.limits.minDaysBefore} max={data.limits.maxDaysBefore} value={draft.daysBefore}
                         onChange={(e) => patch({ daysBefore: Number(e.target.value) })} disabled={!canWrite} />
                 </div>
                 <div className="sr-field">
@@ -193,7 +193,7 @@ function SeriesModal({ category, data, canWrite, onChanged, onClose }: {
             </div>
             <div className="sr-field">
                 <label className="sr-label" htmlFor="sr-title" data-tip={t("series.modal.title")} data-tip-sub={t("series.modal.titleSub")}>{t("series.modal.title")}</label>
-                <input id="sr-title" type="text" value={draft.title} placeholder={(preview && preview.template && preview.template.name) || t("series.modal.titlePlaceholder")}
+                <input id="sr-title" className="inp-sm" type="text" value={draft.title} placeholder={(preview && preview.template && preview.template.name) || t("series.modal.titlePlaceholder")}
                     onChange={(e) => patch({ title: e.target.value })} disabled={!canWrite} />
             </div>
 
@@ -241,12 +241,13 @@ function SeriesRow({ c, canWrite, onOpen }: { c: SeriesCategory; canWrite: boole
     }
 
     return (
-        <li className={`sr-row${c.series.enabled && !raidHelper ? "" : " sr-off"}`} data-category={c.id}>
+        <li className={`sr-row${c.series.enabled && !raidHelper && !c.inactive ? "" : " sr-off"}`} data-category={c.id}>
             <button type="button" className="sr-open" onClick={onOpen} aria-label={t("series.row.openAria", { name })} />
             <div className="sr-main">
                 <div className="sr-name">
                     {name}
                     {!c.series.enabled && <Badge>{t("series.row.off")}</Badge>}
+                    {c.inactive && c.series.enabled && <Badge tone="mid" icon={<WarnIcon />} tip={t("series.row.inactiveTip")} tipSub={t("series.row.inactiveSub")}>{t("series.row.inactive")}</Badge>}
                     {raidHelper && <Badge tone="mid" icon={<WarnIcon />} tip={t("series.row.restingTip")} tipSub={t("series.row.restingSub")}>Raid-Helper</Badge>}
                     {failed > 0 && <Badge tone="bad" icon={<WarnIcon />}>{t("series.row.errors", { count: failed })}</Badge>}
                 </div>
@@ -276,7 +277,9 @@ export default function EventSeriesPage() {
     const t = useT();
     const editor = useCollectionEditor("edit");
     const toast = useToast();
-    const series = useApi(() => getEventSeries(), []);
+    // The series of the categories that play the menu's content version (#741).
+    const { version } = useContentVersion();
+    const series = useApi(() => (version ? getEventSeries(version) : getEventSeries()), [version]);
     const [running, setRunning] = useState(false);
 
     return (

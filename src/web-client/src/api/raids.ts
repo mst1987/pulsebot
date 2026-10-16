@@ -24,6 +24,15 @@ export type RaidListBase = {
     softres: { url: string } | null;
     /** The game version this raid plays (#545): its own, else its category's. */
     versionId: string;
+    /** A raid group (#811): the first raid's id on every raid of it, and the raid's place (1 = the first). */
+    raidGroupId?: string;
+    raidGroupIndex?: number;
+    /** Cancelled in Event verwalten (#288); a Raid-Helper raid never is. Same names as the signup view. */
+    cancelled?: boolean;
+    cancelReason?: string;
+    /** When (ms) and by whom — 0 / "" when unknown. */
+    cancelledAt?: number;
+    cancelledByName?: string;
 };
 export type UpcomingRaid = RaidListBase & {
     signupCount: number;
@@ -40,7 +49,7 @@ export type PastRaid = RaidListBase & {
 };
 export type RaidsData = {
     events: UpcomingRaid[]; error: string | null; activeGuildId: string; guildName: string;
-    /** The version filter (#545): what is shown ("" = all), the default, and the choices. */
+    /** The version filter (#545): what is shown, the default, and the choices. */
     version: string; mainVersion: string; versions: VersionChoice[];
 };
 export type PastRaidsData = {
@@ -48,7 +57,7 @@ export type PastRaidsData = {
     version: string; mainVersion: string; versions: VersionChoice[];
 };
 
-/** `version`: a version id, "all" for every version, "" (default) = the main version. */
+/** `version`: a version id, "" (default) = the main version — never every version at once (#741). */
 export function getRaids(version = ""): Promise<RaidsData> {
     return get<RaidsData>(`/api/raids${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
@@ -67,6 +76,8 @@ export type ReusableEvent = {
     categoryId: string;
     categoryName: string;
     startTime: number;
+    /** the raid's stored version (#741): the dialog offers only those of the shown version */
+    versionId?: string;
     contentIds: string[];
 };
 
@@ -161,9 +172,17 @@ export function getChannelNameSuggestion(input: { categoryId: string; date: stri
     return get<ChannelNameSuggestion>(`/api/raids/channel-name?${q.toString()}`);
 }
 
-/** The create dialog's material; with an own event id also that event, for editing it. */
-export function getRaidCreateContext(eventId = ""): Promise<RaidCreateContext> {
-    return get<RaidCreateContext>(eventId ? `/api/raids/new?event=${encodeURIComponent(eventId)}` : "/api/raids/new");
+/**
+ * The create dialog's material; with an own event id also that event, for
+ * editing it. `version`: the menu's content version (#741) — the raids to repeat
+ * are those of it; "" = the main version.
+ */
+export function getRaidCreateContext(eventId = "", version = ""): Promise<RaidCreateContext> {
+    const q = new URLSearchParams();
+    if (eventId) q.set("event", eventId);
+    if (version) q.set("version", version);
+    const qs = q.toString();
+    return get<RaidCreateContext>(`/api/raids/new${qs ? `?${qs}` : ""}`);
 }
 
 /** The planning fields of an EventHelper event, as POST and PATCH /api/raids take them. */

@@ -44,10 +44,39 @@ beforeEach(() => {
 describe("services/roster/rosterOptions", () => {
     it("lists the raid categories with the roster each has", () => {
         const r = rosterStore.createRoster({ name: "Do", guildId: "g1", categoryId: "700000000000000001" });
-        expect(rosterCategories("g1", { categoryIds: ["700000000000000001"] })).toEqual([
-            { id: "700000000000000001", name: "Donnerstag", versionId: "tbc", rosterId: r.id, rosterName: "Do" },
-            { id: "700000000000000002", name: "Freitag", versionId: "tbc", rosterId: null, rosterName: "" },
+        expect(rosterCategories("g1", { categoryIds: ["700000000000000001", "700000000000000002"] })).toEqual([
+            {
+                id: "700000000000000001", name: "Donnerstag", active: true, versionId: "tbc", rosterId: r.id, rosterName: "Do",
+                rosters: [{ id: r.id, name: "Do", versionId: "tbc", closed: false }],
+            },
+            { id: "700000000000000002", name: "Freitag", active: true, versionId: "tbc", rosterId: null, rosterName: "", rosters: [] },
         ]);
+    });
+
+    it("names the roster of the version the category plays and lists every version's (#739)", () => {
+        const tbc = rosterStore.createRoster({ name: "Do", guildId: "g1", categoryId: "700000000000000001", versionId: "tbc" });
+        rosterStore.closeRoster(tbc.id, { reason: "version_switch" });
+        const forever = rosterStore.createRoster({ name: "Do F", guildId: "g1", categoryId: "700000000000000001", versionId: "forever" });
+        const config = { categoryIds: ["700000000000000001"], categoryVersion: { "700000000000000001": "forever" } };
+        const [cat] = rosterCategories("g1", config);
+        expect(cat).toMatchObject({ versionId: "forever", rosterId: forever.id, rosterName: "Do F" });
+        expect(cat.rosters).toEqual(expect.arrayContaining([
+            { id: tbc.id, name: "Do", versionId: "tbc", closed: true },
+            { id: forever.id, name: "Do F", versionId: "forever", closed: false },
+        ]));
+        // played in TBC (before the switch): the closed TBC roster is the category's
+        expect(rosterCategories("g1", { categoryIds: ["700000000000000001"] })[0]).toMatchObject({ versionId: "tbc", rosterId: tbc.id });
+    });
+
+    it("offers no deactivated category - one that has a roster stays, marked inactive (#744)", () => {
+        const r = rosterStore.createRoster({ name: "Do", guildId: "g1", categoryId: "700000000000000001" });
+        // Freitag had raids but is no longer active: no new roster for it
+        expect(rosterCategories("g1", { categoryIds: ["700000000000000003"] }).map((c) => [c.id, c.active, c.rosterId])).toEqual([
+            ["700000000000000001", false, r.id],
+            ["700000000000000003", true, null],
+        ]);
+        // an install that never picked a category still offers every raid category
+        expect(rosterCategories("g1", { categoryIds: [] }).map((c) => c.id)).toEqual(["700000000000000001", "700000000000000002"]);
     });
 
     it("lists the roles highest first, without @everyone, with whether the bot can hand them out", () => {
@@ -72,9 +101,18 @@ describe("services/roster/rosterOptions", () => {
         const opts = rosterOptions({ guildId: "g1", config: {}, canSeeKader: true });
         expect(opts).toEqual(expect.objectContaining({
             guildId: "g1", defaultVersion: "tbc", canManageRoles: true, online: true,
-            kaders: [{ id: "k1", name: "K", inRoster: 1, candidates: 1, attendanceCategories: [], rosterId: null, rosterName: "" }],
+            kaders: [{ id: "k1", name: "K", versionId: "forever", inRoster: 1, candidates: 1, attendanceCategories: [], rosterId: null, rosterName: "" }],
         }));
+        // the dialog of one version (#741): only its Kader; a hidden version offers nothing (#563)
+        expect(rosterOptions({ guildId: "g1", config: {}, canSeeKader: true, versionId: "tbc" })).toEqual(expect.objectContaining({ kaders: [], defaultVersion: "tbc" }));
+        expect(rosterOptions({ guildId: "g1", config: {}, canSeeKader: true, versionId: "forever" }).kaders.map((k) => k.id)).toEqual(["k1"]);
+        expect(rosterOptions({ guildId: "g1", config: { hideOtherVersions: true }, canSeeKader: true }).kaders).toEqual([]);
+        const split = { categoryIds: ["700000000000000001", "700000000000000002"], categoryVersion: { "700000000000000001": "forever" } };
+        expect(rosterOptions({ guildId: "g1", config: split, versionId: "forever" }).categories.map((c) => c.id)).toEqual(["700000000000000001"]);
+        expect(rosterOptions({ guildId: "g1", config: split, versionId: "tbc" }).categories.map((c) => c.id)).toEqual(["700000000000000002"]);
+        expect(rosterOptions({ guildId: "g1", config: { ...split, hideOtherVersions: true } }).categories.map((c) => c.id)).toEqual(["700000000000000002"]);
         expect(opts.versions.map((v) => v.id)).toEqual(expect.arrayContaining(["tbc", "forever"]));
+        expect(opts.versions.find((v) => v.id === "tbc").icon).toBe("expansionicon_burningcrusade");
         expect(rosterOptions({ guildId: "g1", canSeeKader: false }).kaders).toEqual([]);
         const none = rosterOptions({});
         expect(none).toEqual(expect.objectContaining({ guildId: "", canManageRoles: false, online: false, roles: [] }));

@@ -15,6 +15,12 @@
 .ov-push { margin-left: auto; }
 .ov-note { font-size: 13px; color: var(--muted); line-height: 1.5; }
 .ov-note.bad { color: var(--high); }
+/* the Discord roles could not be read: a quiet line under "Für dich" */
+.ov-roles-note { margin: -6px 0 0; }
+/* the category of the next raid with the "PuG" mark beside it */
+.ov-cat-line { display: flex; align-items: center; gap: 8px; min-width: 0; margin-bottom: 2px; }
+.ov-cat-line .ov-cat { margin-bottom: 0; }
+.ov-cat-line .pug-badge { margin-left: 0; }
 .ov-muted-s { font-size: 12.5px; color: var(--muted); }
 
 /* ---- cards: the part head sits flush at the top of the card ---- */

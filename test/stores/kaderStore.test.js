@@ -125,15 +125,31 @@ describe("the Kaderplaner's data stays in the Kaderplaner", () => {
 
     // services/kader/kaderRoster.js (#657) is the one door to the raid rosters: it answers only
     // { userId, state, decision, characterName } per player (test/services/kader/kaderRoster.test.js).
+    // services/kader/kaderCategories.js (#744) is the door for a closed raid category: Kader id and
+    // name out, the category id out of `attendanceCategories` in (test/services/kader/kaderCategories.test.js).
     it("is read by the Kaderplaner alone (and the start's migration)", () => {
         expect(modulesMatching(/require\(\s*["'][^"']*kaderStore["']\s*\)/))
-            .toEqual(["services/kader/kaderRoster.js", "stores/settingsMigration.js", "web/apiRoutes/kader.js"]);
+            .toEqual(["services/kader/kaderCategories.js", "services/kader/kaderRoster.js", "services/kader/kaderVersions.js", "stores/settingsMigration.js", "web/apiRoutes/kader.js"]);
     });
 
     it("keeps its rules and its view to itself: nothing else requires them", () => {
         const users = modulesMatching(/require\(\s*["'][^"']*(services\/kader\/|\/kader\/kader|\.\/kader(Model|Players|Questions|Setups|Migration|AutoAssign|View|Source|Roster))[^"']*["']\s*\)/);
-        // rosterCreate.js builds a roster from a Kader (#657) - through kaderRoster.js and nothing else (next test)
-        expect(users.filter((rel) => !OWN(rel))).toEqual(["services/roster/rosterCreate.js", "stores/settingsMigration.js"]);
+        // rosterCreate.js builds a roster from a Kader (#657) - through kaderRoster.js and nothing else (next test);
+        // categoryLifecycle.js closes a raid category (#744) - through kaderCategories.js and nothing else;
+        // contentVersions.js offers the versions the planner holds Kader for - through kaderVersions.js, version ids only
+        expect(users.filter((rel) => !OWN(rel))).toEqual(["services/events/categoryLifecycle.js", "services/events/contentVersions.js", "services/roster/rosterCreate.js", "stores/settingsMigration.js"]);
+    });
+
+    it("lets a closed category in through kaderCategories.js only (#744)", () => {
+        const src = fs.readFileSync(path.join(SRC, "services", "events", "categoryLifecycle.js"), "utf8");
+        const kaderRequires = [...src.matchAll(/require\(\s*["']([^"']*kader[^"']*)["']\s*\)/gi)].map((m) => m[1]);
+        expect(kaderRequires).toEqual(["../kader/kaderCategories"]);
+    });
+
+    it("lets the content switch in through kaderVersions.js only", () => {
+        const src = fs.readFileSync(path.join(SRC, "services", "events", "contentVersions.js"), "utf8");
+        const kaderRequires = [...src.matchAll(/require\(\s*["']([^"']*kader[^"']*)["']\s*\)/gi)].map((m) => m[1]);
+        expect(kaderRequires).toEqual(["../kader/kaderVersions"]);
     });
 
     it("lets the roster side in through kaderRoster.js only", () => {

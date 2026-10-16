@@ -52,14 +52,14 @@ function recItem(item, scope, player, reviewer, opts = {}) {
     const status = reviewer || state !== "open" ? `<span class="badge rec-state ${STATE_TONE[state]}">${STATE_LABEL[state]}</span>` : "";
     const acts = reviewer
         ? `<span class="acts rec-review" data-scope="${esc(scope)}" data-player="${esc(player || "")}" data-key="${esc(item.key)}">${
-            ibtn(LINE.check, "Freigeben", "Geht erst nach der Freigabe an den Raider. Ein zweiter Klick nimmt die Entscheidung zurück.", "data-review=\"approve\"", state === "approved" ? "ok" : "")}${
-            ibtn(LINE.ban, "Nicht senden", "Der Punkt bleibt im Report, geht aber nicht raus. Ein zweiter Klick nimmt die Entscheidung zurück.", "data-review=\"reject\"", state === "rejected" ? "bad" : "")}${
+            ibtn(LINE.check, "Freigeben", "Geht erst nach der Freigabe an den Raider. Ein zweiter Klick nimmt die Entscheidung zurück.", "data-review=\"approve\"", state === "approved" ? "yes ok" : "yes")}${
+            ibtn(LINE.ban, "Nicht senden", "Der Punkt bleibt im Report, geht aber nicht raus. Ein zweiter Klick nimmt die Entscheidung zurück.", "data-review=\"reject\"", state === "rejected" ? "no bad" : "no")}${
             ibtn(LINE.pencil, "Text bearbeiten", "Eine eigene Formulierung geht vor dem KI- und dem Regeltext.", "data-review=\"edit\"")}</span>`
         : `<span class="acts">${expBtn()}</span>`;
     const hasRule = !!(item.ai || item.custom) && item.text;
     const tools = reviewer
         ? `<div class="row-btns"><button type="button" class="btn btn-ghost btn-sm" data-review="edit">${LINE.pencil}Eigenen Text schreiben</button>${hasRule ? `<button type="button" class="btn btn-ghost btn-sm" data-review="rule">${LINE.undo}Regeltext zeigen</button>` : ""}<span class="rec-status"></span></div>
-        <div class="rec-edit" hidden><textarea class="rec-text" rows="3" placeholder="Eigene Formulierung (leer = Vorschlag so lassen)">${esc(item.custom || "")}</textarea><div class="row-btns"><button type="button" class="btn btn-sm" data-review="save">Text speichern</button></div></div>`
+        <div class="rec-edit" hidden><textarea class="rec-text" rows="3" placeholder="Eigene Formulierung (leer = Vorschlag so lassen)">${esc(item.custom || "")}</textarea><div class="row-btns"><button type="button" class="btn btn-go btn-sm" data-review="save">Text speichern</button></div></div>`
         : "";
     return `<details class="rec rrow-d rec-${esc(item.impact)} rec-state-${state}" data-key="${esc(item.key)}"${opts.open ? " open" : ""}>
       <summary class="rrow"><span>${badge(IMPACT_LABEL[item.impact] || item.impact, IMPACT_TONE[item.impact] || "")}</span><span class="t rec-title" data-tip="${esc(item.title)}">${esc(item.title)}</span><span class="ev">${evidenceBadges(item)}</span><span class="st">${status}</span>${acts}</summary>
@@ -70,6 +70,49 @@ function recItem(item, scope, player, reviewer, opts = {}) {
         ${tools}
       </div>
     </details>`;
+}
+
+/** Where a point's text comes from, as a small tag before it: the raid lead's own words, Claude or the rule. */
+function sourceTag(item) {
+    if (item.custom) return "<span class=\"rec-source own\">Eigener Text</span>";
+    if (item.ai) return "<span class=\"rec-source\" data-tip=\"Von Claude formuliert\" data-tip-sub=\"Der Regeltext dahinter steht im Tooltip des Textes.\">KI</span>";
+    return "<span class=\"rec-source rule\">Regel</span>";
+}
+
+/**
+ * One finding of a raider as an open block (Raider-Karte, Entwurf A): impact,
+ * title and a short line under it; the items of a gear finding as lines with
+ * icon, slot and problem (`opts.itemsHtml`), otherwise the evidence as badges;
+ * the text as it goes out ("Geht so an …"); for a reviewer the three verdicts
+ * as labelled buttons, the active one filled. Clicking it again takes it back.
+ * The class names the page script relies on (rec, rec-review, rec-body,
+ * rec-edit, rec-rule, rec-status, data-review) are the same as in recItem.
+ * @param {object} opts  { itemsHtml, sub }
+ */
+function recBlock(item, player, reviewer, opts = {}) {
+    const state = item.approved === true ? "approved" : item.approved === false ? "rejected" : "open";
+    const text = item.custom || item.ai || item.text;
+    const hasRule = !!(item.ai || item.custom) && item.text;
+    const evidence = opts.itemsHtml
+        ? `<div class="rec-items">${opts.itemsHtml}</div>`
+        : (item.evidence || []).length ? `<div class="badges">${evidenceBadges(item, 6)}</div>` : "";
+    const lead = reviewer ? `Geht so an ${player}` : "Von der Raidleitung";
+    const acts = reviewer
+        ? `<div class="rec-acts rec-review" data-scope="player" data-player="${esc(player || "")}" data-key="${esc(item.key)}">
+          <button type="button" class="btn btn-sm btn-yes rec-yes${state === "approved" ? " ok" : ""}" data-review="approve" aria-pressed="${state === "approved"}" data-tip="Geht erst nach der Freigabe an den Raider">${LINE.check}<span class="lbl">${state === "approved" ? "Freigegeben" : "Freigeben"}</span></button>
+          <button type="button" class="btn btn-sm btn-no rec-no${state === "rejected" ? " bad" : ""}" data-review="reject" aria-pressed="${state === "rejected"}" data-tip="Bleibt im Report, geht aber nicht raus">${LINE.ban}<span class="lbl">Nicht senden</span></button>
+          <button type="button" class="btn btn-ghost btn-sm rec-plain" data-review="edit" data-tip="Eine eigene Formulierung geht vor dem KI- und dem Regeltext">${LINE.pencil}Text ändern</button>
+          ${hasRule ? `<button type="button" class="btn btn-ghost btn-sm rec-plain" data-review="rule">${LINE.undo}Regeltext zeigen</button>` : ""}
+          <span class="rec-undo">Noch ein Klick nimmt die Entscheidung zurück</span>
+        </div>
+        <div class="rec-edit" hidden><textarea class="rec-text" rows="3" placeholder="Eigene Formulierung (leer = Vorschlag so lassen)">${esc(item.custom || "")}</textarea><div class="row-btns"><button type="button" class="btn btn-go btn-sm" data-review="save">Text speichern</button></div></div>`
+        : "";
+    return `<div class="rec rec-block rec-${esc(item.impact)} rec-state-${state}" data-key="${esc(item.key)}">
+      <div class="rec-head">${badge(IMPACT_LABEL[item.impact] || item.impact, IMPACT_TONE[item.impact] || "")}<b class="rec-title">${esc(item.title)}</b>${opts.sub ? `<span class="rec-sub">${esc(opts.sub)}</span>` : ""}${reviewer ? "<span class=\"rec-status\"></span>" : ""}</div>
+      ${evidence}
+      <div class="rec-say"><span class="kicker">${esc(lead)}</span><p${item.ai && !item.custom ? ` data-tip="Regeltext" data-tip-sub="${esc(item.text)}"` : ""}>${sourceTag(item)}<span class="rec-body">${esc(text)}</span></p>${reviewer && hasRule ? `<p class="rec-rule" hidden><span class="rec-source rule">Regel</span>${esc(item.text)}</p>` : ""}</div>
+      ${acts}
+    </div>`;
 }
 
 const KEY_SHOWN = 5;
@@ -130,12 +173,12 @@ function renderSendBox(report) {
         <button type="button" class="btn btn-ghost btn-sm" data-send="status">${LINE.search}Zuordnung prüfen</button>
         <button type="button" class="btn btn-run btn-sm" data-phrase="all" data-tip="Claude formuliert jeden Befund in Klartext" data-tip-sub="Deine Freigabe bleibt nötig; der Regeltext bleibt erhalten.">${hicon("inv_scroll_03", "")}KI-Formulierung</button>
         <span class="grow"></span>
-        <button type="button" class="btn btn-sm" data-send="all"${approved.length ? "" : " disabled"}>${hicon("inv_letter_15", "")}Freigegebenes per DM senden</button>
+        <button type="button" class="btn btn-go btn-sm" data-send="all"${approved.length ? "" : " disabled"}>${hicon("inv_letter_15", "")}Freigegebenes per DM senden</button>
       </div>
       <div class="rec-send-result" hidden></div>
     </div>`;
 }
 
 module.exports = {
-    IMPACT_LABEL, canReview, IMPACT_TONE, recItem, renderKeyFindings, renderSendBox,
+    IMPACT_LABEL, canReview, IMPACT_TONE, recItem, recBlock, renderKeyFindings, renderSendBox,
 };

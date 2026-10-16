@@ -169,7 +169,7 @@ export type RosterData = {
 
 export type RosterVersion = { id: string; label: string; short: string; count: number };
 
-/** The roster of one game version (#543): "" = the main version, "all" = every version. */
+/** The roster of one game version (#543): "" = the main version; never every version at once (#741). */
 export function getRoster(version = ""): Promise<RosterData> {
     return get<RosterData>(`/api/roster${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
@@ -204,9 +204,10 @@ export type RosterCharData = {
 };
 
 /** The character page's roster facts: role, attendance night by night, drop source and BiS per worn item. */
-export function getRosterChar(name: string, itemIds: number[] = []): Promise<RosterCharData> {
+export function getRosterChar(name: string, itemIds: number[] = [], version = ""): Promise<RosterCharData> {
     const items = itemIds.length ? `&items=${itemIds.join(",")}` : "";
-    return get<RosterCharData>(`/api/roster/char?name=${encodeURIComponent(name)}${items}`);
+    const ver = version ? `&version=${encodeURIComponent(version)}` : "";
+    return get<RosterCharData>(`/api/roster/char?name=${encodeURIComponent(name)}${items}${ver}`);
 }
 
 // ===== Raid rosters per category (#654, read only) =====
@@ -259,6 +260,13 @@ export type RosterHead = {
     trialEnding?: { userId: string; displayName: string; trialUntil: string; overdue: boolean }[];
     /** Overview cards: the caller is the orga of this roster; false = no attendance, no open-work badges (epic #723). */
     isOrga?: boolean;
+    /**
+     * Closed (#739): its category switched to another game version - read only under its version, no Discord role
+     * sync, no new members; a full admin may still delete it. `closedReason` "version_switch" (later more).
+     */
+    closed?: boolean;
+    closedAt?: string | null;
+    closedReason?: string;
 };
 
 export type RosterOverview = {
@@ -375,8 +383,9 @@ export type RosterSettings = {
 };
 
 /** Every roster of the active server as a card. */
-export function getRosters(): Promise<RosterOverview> {
-    return get<RosterOverview>("/api/rosters");
+/** `version`: the menu's content version (#741) — its rosters only; "" = the main version. */
+export function getRosters(version = ""): Promise<RosterOverview> {
+    return get<RosterOverview>(`/api/rosters${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 /** One roster with its members. */

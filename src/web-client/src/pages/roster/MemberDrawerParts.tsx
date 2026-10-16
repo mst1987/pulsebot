@@ -8,7 +8,7 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import type { RosterDetail, RosterMember, RosterMemberChar } from "../../api";
 import { useLang, useT } from "../../i18n";
 import { Button, Chip, IconButton, Switch } from "../../components/ui";
-import { ChevronDownIcon, PlusIcon, XIcon } from "../../components/ui/icons";
+import { ChevronDownIcon, PlusIcon, XIcon, SaveIcon } from "../../components/ui/icons";
 import { formatDate } from "../../lib/format";
 import { wowIconUrl } from "../../lib/wow/wowIcon";
 import { classLabel, specLabel } from "../../lib/wow/wowNames";
@@ -268,7 +268,7 @@ export function NoteSection({ member, busy, onSave }: { member: RosterMember; bu
             />
             {draft !== stored && (
                 <div className="rn-note-act">
-                    <Button size="sm" variant="ghost" running={busy} onClick={() => onSave(draft)}>{t("roster.drawer.noteSave")}</Button>
+                    <Button size="sm" variant="go" icon={<SaveIcon />} running={busy} onClick={() => onSave(draft)}>{t("roster.drawer.noteSave")}</Button>
                     <span className="rn-sub">{t("roster.drawer.noteLeft", { count: 500 - draft.length })}</span>
                 </div>
             )}

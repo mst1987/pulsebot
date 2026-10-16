@@ -267,7 +267,8 @@ const deleteTemplate = withUser({ write: "raidplan", csrf: true, body: true }, a
 });
 
 function profileList() {
-    const profiles = profileStore.listProfiles();
+    // Other versions hidden (#563): their tactic profiles stay out.
+    const profiles = visibleRows(profileStore.listProfiles(), (p) => p.versionId);
     return { profiles, categories: profileStore.categories(profiles) };
 }
 
@@ -310,10 +311,11 @@ function catalogAnswer() {
     const visible = new Set(visibleVersions());
     const shown = (e) => !Array.isArray(e.versions) || !e.versions.length || e.versions.some((v) => visible.has(v));
     const view = catalog.catalogView();
+    const hidden = catalog.hiddenEntries();
     return {
         mobs: view.mobs.filter(shown),
         spells: view.spells.filter(shown),
-        hidden: catalog.hiddenEntries(),
+        hidden: { mobs: hidden.mobs.filter(shown), spells: hidden.spells.filter(shown) },
         kinds: catalog.KINDS,
         iconChoices: mobIconChoices(),
         classes: catalog.CLASS_IDS,
@@ -396,17 +398,19 @@ function instanceChoices(versionId) {
 }
 
 /** What the activation dialog and the menu need of a Raid-Helper event's switch. */
-function linkView(eventId, ev, plan) {
+function linkView(eventId, ev, plan, pickedVersion = "") {
     const link = plan && plan.link;
-    // A switched-on link keeps its version; else the event's category's (#542).
-    const suggestion = instancesFromTitle(ev ? ev.title : (link && link.title) || "", knownVersion(link && link.versionId) || versionOfEvent(ev));
+    // The version the dialog asked for; else a switched-on link keeps its own; else the event's category's (#542).
+    const suggestion = instancesFromTitle(ev ? ev.title : (link && link.title) || "", knownVersion(pickedVersion) || knownVersion(link && link.versionId) || versionOfEvent(ev));
     return {
         eventId,
         title: ev ? ev.title : (link ? link.title : ""),
         enabled: !!(link && link.enabled),
         link: link || null,
         suggestion,
-        instances: instanceChoices(link ? link.versionId : suggestion.versionId),
+        instances: instanceChoices(suggestion.versionId),
+        // every shown game version the dialog's select offers (#751)
+        versions: [...new Set([...visibleVersions(), suggestion.versionId])].map((id) => ({ id, label: rulesFor(id).label })),
         hasPlan: !!(plan && plan.version > 0),
         published: !!(plan && plan.status === "published"),
         // Raid-Helper switched off in the settings: the plan still works, from the line-up it saved last
@@ -421,7 +425,7 @@ const getLink = withUser({}, async ({ req, res, url }) => {
     const plan = store.getPlan(id);
     const ev = await raidhelperEventOf(req, id);
     if (!ev && !(plan && plan.link)) return error(res, 404, "not_found", "Event nicht gefunden.");
-    const view = linkView(id, ev, plan);
+    const view = linkView(id, ev, plan, String(url.searchParams.get("version") || "").trim());
     // what Raid-Helper lists right now (read only, cached a minute): the dialog warns when the groups are only blocks of five
     const probe = await rosterSource.raidhelperPlanEvent({ ...(plan || store.emptyPlan(id)), link: { ...(plan && plan.link ? plan.link : {}), versionId: view.suggestion.versionId, instanceIds: view.suggestion.instanceIds } });
     ok(res, { ...view, lineup: { count: probe.loaded.length, available: probe.info.available, hasGroups: probe.info.hasGroups, origin: probe.info.origin, unmatchedNames: probe.info.unmatchedNames, unknown: probe.info.unknown } });

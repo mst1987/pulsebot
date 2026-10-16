@@ -5,11 +5,14 @@
 //   1. "Make a request" in the organizer → pickPayload: an ephemeral card,
 //      "What do you need?", the bank's state, and per group a heading
 //      ("**Edelsteine**", "-# 4 kinds") with its own select — every option an
-//      item the orga offers with something left: its name, "Available: N"
-//      (+ "max. N per request"), its application emoji (services/guildbank/
-//      itemEmojis.js; none yet = no emoji).
+//      item the orga offers, also with nothing left (#775: the rest goes on the
+//      item's waiting list): its name, "Available: N" — or "Waiting list: N
+//      ahead of you" while somebody waits — (+ "max. N per request"), its
+//      application emoji (services/guildbank/itemEmojis.js; none yet = no emoji).
 //   2. Picking an item → itemModal "Guild bank request": the item as text
-//      ("**Name** · Available: N · max. N"), "How many?", "What for?
+//      ("**Name** · Available: N · Waiting list: N ahead of you · max. N",
+//      what happens to more than is free and how the waiting list shares out:
+//      "Handed out in turns: 2 per round."), "How many?", "What for?
 //      (optional)" and — only with more than one character of the bank's game
 //      version — "To which character?", the first one preselected (the
 //      raider's own order decides, there is no main).
@@ -47,9 +50,22 @@ function itemIdOfModal(customId) {
     return parts[1] === "mbi" ? Math.max(0, Math.floor(Number(parts[3]) || 0)) : 0;
 }
 
-/** "Available: 10 · max. 5 per request" in the reader's language. */
-function availabilityText(item, lang = "de", { perRequest = true } = {}) {
-    const parts = [tr(lang, "Available: {count}", { count: Number(item.available) || 0 })];
+/** What a new request may still get now: the stock view's `free` (Verfügbar minus the open requests). */
+const freeOf = (item) => Number(item.free !== undefined ? item.free : item.available) || 0;
+
+/** "Waiting list: 3 ahead of you" — how many entries wait for the item. */
+const waitingText = (item, lang) => tr(lang, "Waiting list: {count} ahead of you", { count: Number(item.waiting) || 0 });
+
+/**
+ * The select option's line: "Available: 10 · max. 5 per request", or "Waiting
+ * list: 3 ahead of you · …" while somebody waits (a new request waits behind
+ * them). The modal (`both`) names both.
+ */
+function availabilityText(item, lang = "de", { perRequest = true, both = false } = {}) {
+    const waiting = Number(item.waiting) || 0;
+    const parts = [];
+    if (both || !waiting) parts.push(tr(lang, "Available: {count}", { count: freeOf(item) }));
+    if (both || waiting) parts.push(waitingText(item, lang));
     const max = Number(item.maxPerRequest) || 0;
     if (max > 0) parts.push(perRequest ? tr(lang, "max. {count} per request", { count: max }) : tr(lang, "max. {count}", { count: max }));
     return parts.join(" · ");
@@ -113,6 +129,12 @@ function pickPayload({ categoryId = "", bank, groups = [], lang = "de" } = {}) {
     });
 }
 
+/** " Handed out in turns: 2 per round." — the item's portion on the waiting list; "" for an item view without one. */
+function turnsHint(item, lang) {
+    const portion = Number(item && item.portion) || 0;
+    return portion > 0 ? ` ${tr(lang, "Handed out in turns: {count} per round.", { count: portion })}` : "";
+}
+
 /** A modal field: label + one component (Discord's Label component, type 18). */
 const labelled = (label, component) => ({ type: 18, label: String(label).slice(0, 45), component });
 
@@ -127,7 +149,15 @@ const characterLabel = (c) => `${str(c.name)}${str(c.realm) ? `-${str(c.realm).r
  */
 function itemModal({ categoryId = "", item, characters = [], lang = "de" } = {}) {
     const components = [
-        { type: 10, content: `**${str(item.name) || `Item ${item.itemId}`}** · ${availabilityText(item, lang, { perRequest: false })}` },
+        {
+            type: 10,
+            content: [
+                `**${str(item.name) || `Item ${item.itemId}`}** · ${availabilityText(item, lang, { perRequest: false, both: true })}`,
+                `-# ${Number(item.waiting) > 0
+                    ? tr(lang, "Others are waiting already – your request goes on the waiting list.")
+                    : tr(lang, "What is not available now goes on the waiting list – you get a DM when it is your turn.")}${turnsHint(item, lang)}`,
+            ].join("\n"),
+        },
         labelled(tr(lang, "How many?"), {
             type: 4, custom_id: "amount", style: 1, min_length: 1, max_length: AMOUNT_MAX_LENGTH, required: true, placeholder: tr(lang, "e.g. 2"),
         }),

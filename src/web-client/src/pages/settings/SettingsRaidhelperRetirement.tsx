@@ -13,7 +13,7 @@ import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { CheckMark, ChevronRightIcon, WarnIcon } from "../../components/ui/icons";
+import { CheckMark, ChevronRightIcon, WarnIcon, DownloadIcon } from "../../components/ui/icons";
 import { AdminOnlyBadge } from "../../components/settings/settingsUi";
 import { InfoTip } from "../../components/ui/Field";
 import { tParts, useT } from "../../i18n";
@@ -95,7 +95,7 @@ function ImportModal({ open, onClose, onStored }: {
                 <>
                     <Button variant="ghost" onClick={close} disabled={busy}>{result && !result.dryRun ? t("common.done") : t("common.cancel")}</Button>
                     <Button variant="ghost" onClick={() => run(true)} disabled={busy}>{t("settings.retirement.dryRun")}</Button>
-                    <Button onClick={() => run(false)} disabled={busy || !canStore}>{busy ? t("settings.retirement.running") : t("settings.retirement.import")}</Button>
+                    <Button icon={<DownloadIcon />} onClick={() => run(false)} disabled={busy || !canStore}>{busy ? t("settings.retirement.running") : t("settings.retirement.import")}</Button>
                 </>
             )}
         >

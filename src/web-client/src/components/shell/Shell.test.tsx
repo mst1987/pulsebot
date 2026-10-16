@@ -79,6 +79,30 @@ describe("the sidebar", () => {
     });
 });
 
+describe("the orga mark in the top bar", () => {
+    const audience = {
+        signup: { everyone: true, roles: [], writers: [], accounts: 0 },
+        channels: { everyone: false, roles: ["Raidleitung"], writers: [], accounts: 0 },
+    };
+    const header = () => screen.getByRole("banner");
+
+    it("sits in the top bar after the breadcrumbs on an orga page, naming who sees it, and is gone from the content", () => {
+        showShell(adminUser({ audience, canViewAs: true }), "/channels");
+        const chip = within(header()).getByRole("note");
+        expect(chip).toHaveAccessibleName(`${t("shell.orga.label")} · ${t("shell.orga.pageHidden")} · ${t("shell.orga.visibleFor", { who: "Admins · @Raidleitung" })}`);
+        expect(chip.previousElementSibling).toHaveClass("crumbs");
+        expect(header()).toHaveClass("is-orga");
+        expect(within(header()).getByRole("button", { name: t("shell.orga.asRaider") })).toBeInTheDocument();
+        expect(document.querySelector(".content .orga-chip, .orga-bar")).toBeNull();
+    });
+
+    it("marks nothing on a page every raider may open", () => {
+        showShell(adminUser({ audience, canViewAs: true }), "/signups");
+        expect(screen.queryByRole("note")).not.toBeInTheDocument();
+        expect(header()).not.toHaveClass("is-orga");
+    });
+});
+
 describe("the active entry", () => {
     it.each([
         ["/raids", "Raid-Events"],

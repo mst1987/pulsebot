@@ -52,7 +52,10 @@
         "empty": "Gerade stehen keine Raids an, die du sehen darfst.",
         "bulkAria": "Mehrere Raids anmelden",
         "selectAll": "Alle wählen",
-        "clearSelection": "Auswahl aufheben"
+        "clearSelection": "Auswahl aufheben",
+        "showAll": "Alle Kategorien",
+        "showAllTip": "Auch Raids, für die du keine Raider-Rolle hast",
+        "showAllTipSub": "Nur für die Orga. Aus: nur Raids, für die du dich anmelden kannst oder angemeldet bist."
     },
     "row": {
         "tentative": "{count} vielleicht",
@@ -105,7 +108,8 @@
         "noteTip": "Der Bot postet sie in den Kanal der Raidleitung.",
         "required": "(Pflicht)",
         "notePlaceholderAbsent": "z. B. Arbeit, Urlaub, krank",
-        "notePlaceholderTentative": "z. B. noch unsicher, evtl. später"
+        "notePlaceholderTentative": "z. B. noch unsicher, evtl. später",
+        "roleMissing": "Für diesen Raid brauchst du eine Raider-Rolle."
     },
     "bulk": {
         "toast": "{saved} von {total} Raids gespeichert.",
@@ -122,7 +126,8 @@
         "waitlisted": "Warteliste",
         "saved": "gespeichert",
         "notSaved": "nicht gespeichert",
-        "absent": "abgemeldet"
+        "absent": "abgemeldet",
+        "limitMin": "Höchstens {max} Charaktere – so viele nimmt jeder der gewählten Raids (die Kategorien erlauben unterschiedlich viele)."
     },
     "picks": {
         "characters": "Charaktere",
@@ -142,7 +147,9 @@
         "add": "+ Kann auch mit …",
         "upTo": "(bis {max})",
         "hint": "1 = deine Wahl, die weiteren „kann auch mit“. Die Orga stellt dich mit genau einem auf.",
-        "hintStatus": " Der Status gilt je Charakter."
+        "hintStatus": " Der Status gilt je Charakter.",
+        "limitReached": "Höchstens {max} Charaktere je Anmeldung in dieser Kategorie.",
+        "overLimit": "Diese Kategorie nimmt jetzt höchstens {max} Charaktere je Anmeldung. Deine bleiben – du kannst welche herausnehmen, aber keine dazunehmen."
     },
     "specPicker": {
         "removeAria": "{name} entfernen",
@@ -230,5 +237,10 @@
             "already_signed": "war schon angemeldet",
             "absent": "dort ist eine Abwesenheit eingetragen"
         }
-    }
+    },
+    "pug": {
+        "label": "PuG",
+        "tip": "Offen für alle – keine Raider-Rolle nötig"
+    },
+    "rolesUnknown": "Deine Discord-Rollen konnten gerade nicht gelesen werden – evtl. fehlen Raids."
 }

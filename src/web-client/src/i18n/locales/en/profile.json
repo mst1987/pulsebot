@@ -53,7 +53,52 @@
         "calendarActive": {
             "one": "{count} link active",
             "other": "{count} links active"
-        }
+        },
+        "attendance": "Your attendance",
+        "roster": "In the roster",
+        "loot": "Loot",
+        "dungeons": "Dungeon best times",
+        "loading": "loading",
+        "loadError": "could not be loaded",
+        "professions": "Professions",
+        "wishItems": "Wish items"
+    },
+    "days": {
+        "tagFrom": "{day} from {time}",
+        "timesKicker": "From when · in quarter hours · empty = the whole evening",
+        "fromAria": "From when on {day}",
+        "from": "from {time}",
+        "wholeEvening": "whole evening",
+        "earlier": "Earlier",
+        "later": "Later",
+        "clear": "Whole evening",
+        "clearSub": "Remove the time for {day} – then the whole evening counts."
+    },
+    "prof": {
+        "none": "If you like – nothing is required.",
+        "withSkill": "{name} {skill}",
+        "free": "optional",
+        "freeTip": "Optional",
+        "freeSub": "Just info for the orga, e.g. for enchants or potions. Nothing is required.",
+        "invite": "If you like, add up to {max} main professions. Nothing is required.",
+        "skillAria": "Skill {name}",
+        "ofMax": "of {max}",
+        "less": "Less",
+        "more": "More",
+        "remove": "Remove {name}",
+        "pickAria": "Pick a main profession for {name}"
+    },
+    "wishItems": {
+        "count": "{count} of {max}",
+        "none": "If you like – nothing is required.",
+        "orgaOnlySub": "Only you and the orga see your wish items – other raiders never do.",
+        "invite": "If you like, add up to {max} items you wish for. Nothing is required.",
+        "remove": "Remove {name}",
+        "readOnly": "This character is in no loot council roster right now – your wish items stay visible, new ones can be added once it is in one again. Removing works any time.",
+        "wowheadDown": "Wowhead is not answering right now – the item was not saved. Please try again in a moment.",
+        "search": "Search item …",
+        "full": "{max} items entered – take one out to enter another.",
+        "hint": "A wish, not a promise – the orga sees it at the loot council."
     },
     "first": {
         "title": "No character yet",
@@ -74,6 +119,8 @@
         "claimedChip": "Also added by: {names}. The orga sorts it out.",
         "claimedCard": "Also added by: {names}. The orga sees this in the roster and sorts it out.",
         "claimedBy": "claimed by {name}",
+        "unverified": "not confirmed",
+        "unverifiedTip": "No log, no loot and no armory answer knows this character – the guild bank cannot mail to it. Add it once more via “Armory” (the armory has to know it) or take the right one from the logs. Otherwise ask the orga to check it in game.",
         "otherAccount": "another account",
         "unknown": "unknown",
         "level": "Level {level}",
@@ -82,7 +129,9 @@
         "remove": "Remove character",
         "noSpec": "No spec yet – add what you can play.",
         "removeSpec": "Remove spec",
-        "addSpec": "Add spec"
+        "addSpec": "Add spec",
+        "edit": "Edit",
+        "editSub": "Change name, realm, class and specs – or pick the right character from the logs."
     },
     "logs": {
         "seen": "per logs",
@@ -185,6 +234,168 @@
         "matchName": "name matches",
         "claimed": "claimed",
         "claimedSub": "Added by: {names}. You can take it anyway – the orga sorts it out.",
-        "thatsMe": "That's me"
+        "thatsMe": "That's me",
+        "matchSimilar": "similar spelling"
+    },
+    "edit": {
+        "title": "Edit {name}",
+        "kickerOf": "Character of {owner}",
+        "save": "Save",
+        "wayAria": "How to edit",
+        "wayLog": "Pick from the logs",
+        "wayManual": "Change by hand",
+        "logHint": "Pick the character as it is named in the logs – similarly spelled names come first. Name and class are then taken from the log.",
+        "pick": "That's the one",
+        "nameHint": "As the character is named in game.",
+        "classHint": "Another class starts with new specs.",
+        "renameHint": "A new name also replaces \"{from}\" in rosters, signups, guild bank requests and attendance entries.",
+        "saved": "Saved.",
+        "renamed": "{from} is now {to}.",
+        "renamedWith": "{from} is now {to} – taken along: {what}.",
+        "moved": {
+            "rosters": {
+                "one": "{count} roster",
+                "other": "{count} rosters"
+            },
+            "signups": {
+                "one": "{count} signup",
+                "other": "{count} signups"
+            },
+            "assignments": {
+                "one": "{count} category assignment",
+                "other": "{count} category assignments"
+            },
+            "guildBank": {
+                "one": "{count} guild bank request",
+                "other": "{count} guild bank requests"
+            },
+            "availability": {
+                "one": "{count} attendance entry",
+                "other": "{count} attendance entries"
+            }
+        },
+        "noHit": "No matching character in the logs – change the name by hand."
+    },
+    "tabs": {
+        "aria": "View",
+        "info": "My Infos",
+        "infoTip": "What belongs to you, not to a character: attendance, weekdays, wishes, note, calendar",
+        "all": "All characters",
+        "allTip": "Every character of every raider – for the orga only.",
+        "addTip": "Add another character of this game version – from the logs, via the armory or by hand.",
+        "orga": "Orga",
+        "more": "Show all tabs",
+        "noSpec": "no spec yet"
+    },
+    "info": {
+        "groupRaiding": "Raiding · for every character of the version",
+        "groupLinks": "Links",
+        "groupPrefs": "Preferences"
+    },
+    "attendance": {
+        "none": "no raid counted yet",
+        "sum": {
+            "one": "{pct} % · {attended} of {count} raid · {name}",
+            "other": "{pct} % · {attended} of {count} raids · {name}"
+        },
+        "more": {
+            "one": "+ {count} more category",
+            "other": "+ {count} more categories"
+        },
+        "open": "Open attendance"
+    },
+    "roster": {
+        "sumOther": "in the roster with another character",
+        "none": "With this character you are in no roster of this version.",
+        "since": "since {date}",
+        "trialUntil": "trial until {date}",
+        "thisChar": "with this character",
+        "otherChar": "with {names}",
+        "spec": "counts as {spec}",
+        "readOnly": "The orga sets the status – shown here for reference."
+    },
+    "loot": {
+        "sum": {
+            "one": "{count} item · last {date}",
+            "other": "{count} items · last {date}"
+        },
+        "none": "No loot for this character yet.",
+        "history": {
+            "one": "{count} item in the history",
+            "other": "All {count} items in the history"
+        },
+        "itemFallback": "Item {id}"
+    },
+    "dungeons": {
+        "badge": "LevelHelper",
+        "badgeTip": "From the LevelHelper addon",
+        "badgeSub": "The sync tool uploads runs and achievement points. Matched by name and realm.",
+        "points": "Achievement points",
+        "pointsSum": "{points} achievement points",
+        "pointsRank": "Place {rank} of {count}",
+        "pointsNone": "not read yet",
+        "medals": "Medals",
+        "medal": "{count} {medal}",
+        "runs": {
+            "one": "{count} run",
+            "other": "{count} runs"
+        },
+        "fromRuns": {
+            "one": "from {count} run",
+            "other": "from {count} runs"
+        },
+        "fastest": "Your fastest runs",
+        "record": "Guild record",
+        "place": "Place {place} in the guild",
+        "solo": "solo",
+        "withOthers": {
+            "one": "with {count} other",
+            "other": "with {count} others"
+        },
+        "open": "Open best times"
+    },
+    "all": {
+        "loading": "Loading all characters …",
+        "loadError": "The characters could not be loaded: {message}",
+        "search": "Search character, raider or realm",
+        "versionAria": "Game version",
+        "allVersions": "All",
+        "onlyUnverified": {
+            "one": "unverified only ({count})",
+            "other": "unverified only ({count})"
+        },
+        "count": {
+            "one": "{count} character",
+            "other": "{count} characters"
+        },
+        "colCharacter": "Character",
+        "colOwner": "Raider",
+        "colClass": "Class",
+        "colSpecs": "Specs",
+        "colVersion": "Version",
+        "colStatus": "Status",
+        "colWish": "Wish items",
+        "wishTip": {
+            "one": "{count} wish item – only the orga sees it",
+            "other": "{count} wish items – only the orga sees them"
+        },
+        "wishCount": {
+            "one": "{count} item",
+            "other": "{count} items"
+        },
+        "noSpec": "no spec",
+        "claimed": "claimed twice",
+        "via": {
+            "log": "per logs",
+            "loot": "per loot",
+            "armory": "per armory",
+            "orga": "checked by the orga",
+            "manual": "verified"
+        },
+        "editSub": "Rename {name} or link it to a character from the logs.",
+        "removeTitle": "Take {name} out of {owner}'s profile?",
+        "removeText": "The character leaves the profile. Logs, loot and past signups stay.",
+        "noHit": "No character matches the search.",
+        "none": "No raider has a character in their profile yet."
     }
 }

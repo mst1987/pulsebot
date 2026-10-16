@@ -47,13 +47,14 @@ const DISCORD_GROUPS = [
         "<code>/report</code> — Liste der Log-Auswertungen.",
         "<code>/loot ich · item · raider</code> — eigene/Item-/Spieler-Loot-Historie.",
         "<code>/council &lt;Item&gt;</code> — Loot-Council-Infos zu einem Item (Orga).",
+        "<code>/bestzeiten [dungeon]</code> — Dungeon-Bestzeiten der Gilde (LevelHelper), ohne Dungeon die Gesamtwertung.",
         "<code>/kanal umbenennen · archivieren · anlegen</code> — Kanalverwaltung (Orga).",
     ] },
     { cat: "raids", title: "Event-Verwaltung", badge: "Orga", items: [
         "<code>/event anlegen</code> — neues Event per geführtem Dialog.",
         "<code>/event verwalten [Event]</code> bzw. Rechtsklick „Event verwalten“ — bearbeiten, verschieben, Anmeldung öffnen/schließen, Raider ein-/austragen, Fehlende pingen, Setup öffnen, absagen, löschen.",
         "<code>/fillsetup [Setup-ID]</code> — Setup ins Setup-Sheet übernehmen (das freigegebene Setup des Kanals oder ein Raid-Helper-Raidplan).",
-        "<code>/createoverview</code>, <code>/update-events</code> — ältere Befehle, durch die Talk-Übersicht ersetzt.",
+        "<code>/createoverview</code> — postet die Raid-Übersicht der Kategorie (nach Raid-ID gruppiert, ohne Knöpfe), sie aktualisiert sich selbst; <code>/update-events</code> zeichnet sie sofort neu.",
     ] },
     { cat: "auto", title: "Was der Bot automatisch macht", items: [
         "<strong>Talk-Server-Übersicht:</strong> aktualisiert sich selbst, listet alle kommenden Raids mit Anmelde-Buttons.",
@@ -102,6 +103,7 @@ const WEB_GROUPS = [
     { cat: "roster", title: "Roster", badge: "Bereich: roster", items: [
         "Alle bekannten Charaktere je Raid-Kategorie mit Anwesenheit.",
         "Charaktere ausblenden (ohne Daten zu löschen), z. B. bei Guild-Austritt.",
+        "Dungeon-Bestzeiten (auch für Mitglieder): die schnellsten Gruppenläufe je Dungeon aus dem Addon LevelHelper, Gesamtwertung nach Medaillen, Erfolgspunkte.",
     ] },
     { cat: "lootcouncil", title: "Loot-Council", badge: "Bereich: lootcouncil", items: [
         "Rangliste je Raider nach Bedarf (Drought, Loot-Anteil, BiS-Abstand).",

@@ -15,14 +15,16 @@
 //                                    (utils/signup/guildBankPick.js), else the free-text modal availability:mb
 //   availability:mb:<categoryId>     the submitted free-text modal → posted to the orga (services/signups/guildBank.js)
 //   availability:bp:<categoryId>:<n> an item picked in the pick card's n-th group → the item modal
-//   availability:mbi:<categoryId>:<itemId>  the submitted item modal → checked and posted to the orga
+//   availability:mbi:<categoryId>:<itemId>  the submitted item modal → checked and posted to the orga;
+//                                    what is not free goes on the item's waiting list (#775)
 const { MessageFlags, SlashCommandBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const profiles = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
 const availability = require("../../services/signups/availability");
 const organizer = require("../../services/signups/organizer");
 const guildBank = require("../../services/signups/guildBank");
-const { requestModal, requestSummary } = require("../../utils/signup/guildBankPost");
+const linking = require("../../services/guildbank/linking");
+const { requestModal, requestSummary, waitingSummary } = require("../../utils/signup/guildBankPost");
 const { pickPayload, itemModal, itemIdOfModal } = require("../../utils/signup/guildBankPick");
 const { categoryNameFor } = require("../../services/signups/availabilityPanel");
 const linkCheck = require("../../services/discord/linkCheck");
@@ -178,7 +180,18 @@ async function onGuildBankItemModal(interaction, categoryId, config, lang) {
         characterKey: modalValues(interaction, "character")[0] || "",
     }, { userName: displayName(interaction), categoryId, config });
     if (result.error) return interaction.editReply(answerPayload(`⚠️ ${serviceText(lang, result.error)}`, { lang }));
-    return interaction.editReply(answerPayload(`✅ ${tr(lang, "Request sent – the orga will get back to you by DM.")}\n${requestSummary(result.request, lang)}`, { lang }));
+    // what went out as a request now and what waits (#775), each in its own block
+    const parts = [];
+    if (result.request) parts.push(`✅ ${tr(lang, "Request sent – the orga will get back to you by DM.")}\n${requestSummary(result.request, lang)}`);
+    if (result.waiting) parts.push(`⏳ ${waitingSummary(result.waiting, result.position, lang, { portion: result.portion })}`);
+    // no character of the bank's version: nothing to mail to, the orga cannot confirm it yet
+    const stored = result.request || result.waiting;
+    if (stored && !stored.characterName) parts.push(`⚠️ ${tr(lang, "Add a character in your profile, otherwise the orga cannot hand it out.")}`);
+    // a character typed at a signup that no log, loot or armory knows: the mail could go nowhere
+    else if (stored && linking.linkState(stored).linkProblem === "unverified") {
+        parts.push(`⚠️ ${tr(lang, "Your character is not confirmed yet – add it in your profile from the logs or the armory, otherwise the orga cannot hand it out.")}`);
+    }
+    return interaction.editReply(answerPayload(parts.join("\n\n"), { lang }));
 }
 
 /** The organizer's "My raid", for this member. */

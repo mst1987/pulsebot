@@ -32,7 +32,7 @@ import Badge from "../../components/ui/Badge";
 import IconTile, { type TileTone } from "../../components/ui/IconTile";
 import WowIcon from "../../components/ui/WowIcon";
 import { useContentVersion } from "../../hooks/useContentVersion";
-import { ChevronRightIcon } from "../../components/ui/icons";
+import { CheckIcon, ChevronRightIcon } from "../../components/ui/icons";
 import TopLootList from "../../components/loot/TopLootList";
 import RaidDetailsModal from "./RaidDetailsModal";
 import { RoleBar, IconLink } from "./OverviewParts";
@@ -124,6 +124,7 @@ function NextRaidCard({ raid, following, error, guildId, onDetails }: {
                                 <Link className="ov-next-title" to={raidDetailHref(raid.id)}>{raid.title}</Link>
                                 <div className="ov-next-when">{raidWhen(raid.startTime)}{raid.channelName ? ` · #${raid.channelName}` : ""}</div>
                             </div>
+                            {raid.cancelled && <Badge tone="bad" tip={t("dashboard.next.cancelled")} tipSub={raid.cancelReason || t("dashboard.next.cancelledSub")}>{t("dashboard.next.cancelled")}</Badge>}
                             <Badge tone="accent" className="ov-next-rel">{relativeDayLabel(raid.startTime)}</Badge>
                         </div>
                         <div className="ov-roles">
@@ -216,7 +217,7 @@ function TrialActions({ action, onDone }: { action: Extract<DashboardTaskAction,
     };
     return (
         <span className="ov-task-btns">
-            <Button size="sm" variant="ghost" running={busy === "adopt"} disabled={!!busy} onClick={() => run("adopt")}>{t("dashboard.tasks.trial.adopt")}</Button>
+            <Button size="sm" variant="go" icon={<CheckIcon />} running={busy === "adopt"} disabled={!!busy} onClick={() => run("adopt")}>{t("dashboard.tasks.trial.adopt")}</Button>
             <Button size="sm" variant="ghost" running={busy === "extend"} disabled={!!busy} onClick={() => run("extend")}>{t("dashboard.tasks.trial.extend")}</Button>
         </span>
     );
@@ -408,7 +409,10 @@ function PersonalTiles({ personal }: { personal: DashboardPersonal }) {
                 area="absences" icon="spell_nature_timestop" label={t("dashboard.personal.attendance.label")} href="/absences"
                 tip={t("dashboard.personal.attendance.tip")} tipSub={a ? t("dashboard.personal.attendance.sub", { count: a.bench }) : t("dashboard.personal.attendance.none")}
             >
-                <span className="ov-area-big">{a ? t("dashboard.personal.attendance.value", { attended: a.attended, total: a.total }) : "–"}</span>
+                {/* within the shown version (#740): a category just switched to it has no counted raid yet - words, never "0 %" */}
+                {a
+                    ? <span className="ov-area-big">{t("dashboard.personal.attendance.value", { attended: a.attended, total: a.total })}</span>
+                    : <span className="ov-area-val">{t("dashboard.personal.attendance.none")}</span>}
                 {a && a.last.length > 0 && <AttendanceDots nights={a.last} />}
             </AreaTile>
             <AreaTile
@@ -459,6 +463,7 @@ export default function DashboardPage() {
                                     <MyNextRaid raid={me.upcoming[0] || null} compact={data.orga} />
                                     <MyRaids raids={me.upcoming.slice(1, data.orga ? 3 : undefined)} />
                                 </div>
+                                {me.upcomingRolesUnknown && <p className="ov-note ov-roles-note" role="note">{t("signups.rolesUnknown")}</p>}
                                 {!data.orga && <PersonalTiles personal={me} />}
                             </>
                         )}

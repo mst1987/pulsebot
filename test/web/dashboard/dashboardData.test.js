@@ -284,6 +284,24 @@ describe("web/dashboard/dashboardData loadNextRaids", () => {
         }
     });
 
+    it("marks a cancelled own raid with its reason, a Raid-Helper raid never (#288)", async () => {
+        const eventStore = require("../../../src/stores/eventStore");
+        const future = Math.floor(Date.now() / 1000) + 86400;
+        rh.getAllEvents.mockResolvedValue([{ id: "e1", title: "Black Temple", channelId: "c1", startTime: future + 100, signUps: [] }]);
+        rh.getSetup.mockResolvedValue({ setup: [] });
+        eventStore.listEvents.mockReturnValue([{
+            id: "eh-1", source: "eventhelper", guildId: "g1", categoryId: "cat2", channelId: "c9", title: "Kara", startTime: future,
+            versionId: "tbc", instanceIds: ["kara"], size: 10, status: "cancelled", cancel: { reason: "Tank fehlt", at: 5, by: "u1", byName: "Anna", archived: false },
+        }]);
+        try {
+            const { raids } = await loadNextRaids("g1", 2);
+            expect(raids[0]).toMatchObject({ id: "eh-1", cancelled: true, cancelReason: "Tank fehlt", cancelledByName: "Anna" });
+            expect(raids[1]).toMatchObject({ id: "e1", cancelled: false, cancelReason: "" });
+        } finally {
+            eventStore.listEvents.mockReturnValue([]);
+        }
+    });
+
     it("filters by game version (#545): an own event's own, a Raid-Helper one falls back to TBC", async () => {
         const eventStore = require("../../../src/stores/eventStore");
         const future = Math.floor(Date.now() / 1000) + 86400;
@@ -430,15 +448,54 @@ describe("web/dashboard/dashboardData loadNextRaidDetails", () => {
 });
 
 describe("web/dashboard/dashboardData area loaders", () => {
-    it("reads the newest report with its open recommendations", () => {
+    it("reads the newest report with how many raiders have gear problems", () => {
         reportStore.listReports.mockReturnValue([{ id: "r2", zone: "Black Temple", generatedAt: 9 }, { id: "r1" }]);
         reportStore.getReport.mockReturnValue({
             players: [{ issues: [1] }],
             recommendations: { raid: [{ key: "a" }], players: [{ name: "X", items: [{ key: "b" }, { key: "c" }] }] },
             recommendationReview: { raid: {}, players: { X: { b: { approved: true } } } },
         });
-        expect(loadLatestReport()).toMatchObject({ id: "r2", zone: "Black Temple", problems: 1, open: 2 });
+        expect(loadLatestReport()).toMatchObject({ id: "r2", zone: "Black Temple", problems: 1, gearRaiders: 1 });
+        expect(loadLatestReport()).not.toHaveProperty("open");
         expect(reportStore.getReport).toHaveBeenCalledWith("r2");
+    });
+
+    it("reads the newest report of the shown game version (#741)", () => {
+        reportStore.getReport.mockReturnValue({ players: [] });
+        reportStore.listReports.mockReturnValue([
+            { id: "r-forever", zone: "Barrow Deeps", generatedAt: 9, versionId: "forever" },
+            { id: "r-tbc", zone: "Black Temple", generatedAt: 5, versionId: "tbc" },
+            // stored before #746: TBC
+            { id: "r-old", zone: "Karazhan", generatedAt: 1 },
+        ]);
+        expect(loadLatestReport({ versionId: "tbc" })).toMatchObject({ id: "r-tbc" });
+        expect(loadLatestReport({ versionId: "forever" })).toMatchObject({ id: "r-forever" });
+        expect(loadLatestReport({ versionId: "classic" })).toBeNull();
+        expect(loadLatestReport()).toMatchObject({ id: "r-forever" });
+    });
+
+    it("builds the roster figures and the new loot of the shown version (#741)", () => {
+        buildRoster.mockReturnValue({ chars: [] });
+        loadRosterFigures("g1", { versionId: "forever" });
+        expect(buildRoster).toHaveBeenLastCalledWith("g1", { versionId: "forever" });
+
+        const eventStore = require("../../../src/stores/eventStore");
+        eventStore.getEvent.mockImplementation((id) => (id === "eh-forever" ? { id, versionId: "forever" } : null));
+        settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 30883 }] });
+        const start = 1_800_000_000;
+        lootStore.listAll.mockReturnValue([
+            lootRow({ awardedAt: start * 1000 + 60_000, eventId: "eh-forever", character: "Forever" }),
+            lootRow({ awardedAt: start * 1000 + 90_000, eventId: "e1", character: "Tbc" }),
+        ]);
+        try {
+            expect(loadNewLoot(start, { versionId: "forever" })).toEqual({ count: 1, since: start * 1000 });
+            expect(loadNewLoot(start, { versionId: "tbc" })).toEqual({ count: 1, since: start * 1000 });
+            expect(loadNewLoot(start, { versionId: "classic" })).toEqual({ count: 0, since: start * 1000 });
+        } finally {
+            eventStore.getEvent.mockReset();
+            lootStore.listAll.mockReturnValue([]);
+            settingsStore.getConfig.mockReturnValue({});
+        }
     });
 
     it("has no report tile without reports or on an unreadable one", () => {

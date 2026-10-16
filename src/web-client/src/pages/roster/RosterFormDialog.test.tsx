@@ -1,15 +1,17 @@
 // "Roster anlegen" and the roster's "Einstellungen" (#657): the create dialog
 // prefilled from a category (name, version, places from its raid template),
-// role chips with the ones the bot cannot give greyed out, the source of the
-// first members, the summary after the create; the settings for an admin
-// (everything, delete behind a question) and for a manager (admin fields
-// greyed out, only his fields sent); English.
+// the steps (a create walks Zurück/Weiter, the settings jump freely), roles
+// picked from a dropdown with the ones the bot cannot give greyed out, the
+// source of the first members, the summary after the create; the settings for
+// an admin (everything, delete behind a question) and for a manager (admin
+// fields greyed out, only his fields sent); English.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import RosterFormDialog from "./RosterFormDialog";
-import { renderPage } from "../../test/render";
+import { renderPage, twoVersions } from "../../test/render";
+import { CONTENT_VERSION_KEY } from "../../lib/app/contentVersion";
 import { switchLang } from "../../test/i18n";
 import { detail, member, options, rosterHead, settings } from "./rosters.fixture";
 
@@ -28,6 +30,23 @@ const dialog = (): HTMLElement => {
     if (!el) throw new Error("no roster dialog yet");
     return el as HTMLElement;
 };
+
+type Scope = ReturnType<typeof within>;
+
+/** A step's button in the step bar; its name is the step's name plus its state ("– erledigt", "– Hier fehlt …"). */
+const stepButton = (d: Scope, name: string) => within(d.getByRole("list", { name: /Schritte|Steps/ })).getByRole("button", { name: new RegExp(`^${name}( –|$)`) });
+
+/** Jumps to a step through the step bar. */
+async function step(d: Scope, name: string) {
+    await userEvent.click(stepButton(d, name));
+}
+
+/** Adds a role through the dropdown + "Hinzufügen" of the role group `label`. */
+async function addRole(d: Scope, label: string, roleId: string) {
+    const group = within(d.getByRole("group", { name: label }));
+    await userEvent.selectOptions(group.getByRole("combobox", { name: `${label}: Rolle wählen` }), roleId);
+    await userEvent.click(group.getByRole("button", { name: "Hinzufügen" }));
+}
 
 function create(presetCategory = "cat2", opts = options()) {
     vi.mocked(api.getRosterOptions).mockResolvedValue(opts);
@@ -55,6 +74,31 @@ beforeEach(() => {
 });
 afterEach(() => switchLang("de"));
 
+describe("RosterFormDialog — the game version it works in (#741)", () => {
+    afterEach(() => localStorage.removeItem(CONTENT_VERSION_KEY));
+
+    it("asks for the options of the shown version when creating, of the roster's own in the settings", async () => {
+        localStorage.setItem(CONTENT_VERSION_KEY, "forever");
+        vi.mocked(api.getRosterOptions).mockResolvedValue(options());
+        const props = { onClose: vi.fn(), onSaved: vi.fn() };
+        const view = renderPage(<RosterFormDialog mode="create" {...props} />, { content: twoVersions() });
+        await waitFor(() => expect(api.getRosterOptions).toHaveBeenCalledWith("forever"));
+        view.unmount();
+        const data = detail([member("Thorgrim")], { canManage: true, isAdmin: true, settings: settings(), roster: rosterHead() });
+        expect(data.roster.versionId).toBe("tbc");
+        renderPage(<RosterFormDialog mode="settings" data={data} {...props} />, { content: twoVersions() });
+        await waitFor(() => expect(api.getRosterOptions).toHaveBeenLastCalledWith("tbc"));
+    });
+
+    it("shows each version with its icon", async () => {
+        create();
+        const d = within(await waitFor(() => dialog()));
+        const tbc = await d.findByRole("radio", { name: "WoW TBC" });
+        expect(tbc.querySelector("img")?.getAttribute("src")).toContain("expansionicon_burningcrusade");
+        expect(d.getByRole("radio", { name: "WoW Forever" }).querySelector("img")?.getAttribute("src")).toContain("spell_holy_borrowedtime");
+    });
+});
+
 describe("RosterFormDialog — create", () => {
     it("starts from the category: name, title, places from its raid template", async () => {
         create();
@@ -63,38 +107,101 @@ describe("RosterFormDialog — create", () => {
         // The title is in the DOM before the <dialog> is open, and a closed one has no accessible roles: wait for it.
         expect(await d.findByRole("combobox", { name: "Kategorie" })).toHaveValue("cat2");
         expect(d.getByLabelText("Name des Rosters")).toHaveValue("PuG Karazhan");
+        // a category that already has a roster cannot be picked
+        expect(d.getByRole("option", { name: /Raid Mo \/ Do \(hat schon/ })).toBeDisabled();
+        await step(d, "Plätze & Regeln");
         expect(d.getByRole("group", { name: "Gesamt" })).toHaveTextContent("10");
         expect(d.getByRole("group", { name: "Tanks" })).toHaveTextContent("2");
         expect(d.getByText("DPS ergibt sich: 5 Plätze. Vorbelegt aus der Raid-Vorlage „Karazhan“.")).toBeInTheDocument();
-        // a category that already has a roster cannot be picked
-        expect(d.getByRole("option", { name: /Raid Mo \/ Do \(hat schon/ })).toBeDisabled();
+        await step(d, "Mitglieder");
         expect(d.getByText(/gleicht alle 10 Minuten ab/, { selector: ".rn-dlg-sec .rn-sub" })).toBeInTheDocument();
     });
 
-    it("greys out a role the bot cannot give and makes the first picked role the main role", async () => {
+    it("walks the steps with Weiter and Zurück, one step at a time", async () => {
+        const { onClose } = create();
+        const d = within(await waitFor(() => dialog()));
+        expect(await d.findByLabelText("Name des Rosters")).toBeInTheDocument();
+        expect(d.queryByText("Wer kommt zuerst hinein?")).not.toBeInTheDocument();
+        expect(stepButton(d, "Name")).toHaveAttribute("aria-current", "step");
+        await userEvent.click(d.getByRole("button", { name: "Weiter" }));
+        expect(d.queryByLabelText("Name des Rosters")).not.toBeInTheDocument();
+        expect(d.getByRole("group", { name: "Discord-Rolle des Rosters" })).toBeInTheDocument();
+        await userEvent.click(d.getByRole("button", { name: "Weiter" }));
+        await userEvent.click(d.getByRole("button", { name: "Weiter" }));
+        await userEvent.click(d.getByRole("button", { name: "Weiter" }));
+        expect(d.getByText("Wer kommt zuerst hinein?")).toBeInTheDocument();
+        expect(d.queryByRole("button", { name: "Weiter" })).not.toBeInTheDocument();
+        expect(d.getByRole("button", { name: "Roster anlegen" })).toBeInTheDocument();
+        await userEvent.click(d.getByRole("button", { name: "Zurück" }));
+        expect(d.getByRole("group", { name: "Gesamt" })).toBeInTheDocument();
+        await step(d, "Name");
+        await userEvent.click(d.getByRole("button", { name: "Abbrechen" }));
+        expect(onClose).toHaveBeenCalled();
+    });
+
+    it("holds Weiter while the name is missing", async () => {
+        create("");
+        const d = within(await waitFor(() => dialog()));
+        expect(await d.findByLabelText("Name des Rosters")).toHaveValue("");
+        expect(d.getByRole("button", { name: "Weiter" })).toBeDisabled();
+        expect(stepButton(d, "Name")).toHaveAccessibleName("Name – Hier fehlt noch etwas");
+        await userEvent.type(d.getByLabelText("Name des Rosters"), "Forever");
+        expect(d.getByRole("button", { name: "Weiter" })).toBeEnabled();
+        expect(stepButton(d, "Name")).toHaveAccessibleName("Name");
+    });
+
+    it("ticks only the steps really opened, not the ones a jump skipped", async () => {
         create();
         const d = within(await waitFor(() => dialog()));
-        const roles = within(await d.findByRole("group", { name: "Discord-Rolle des Rosters" }));
-        expect(roles.getByRole("button", { name: /@Raidlead/ })).toBeDisabled();
-        await userEvent.click(roles.getByRole("button", { name: /@Kara-Team/ }));
-        await userEvent.click(roles.getByRole("button", { name: /@Raider Mo\/Do/ }));
-        expect(roles.getByRole("button", { name: /@Kara-Team · Hauptrolle/ })).toHaveAttribute("aria-pressed", "true");
+        await d.findByLabelText("Name des Rosters");
+        await step(d, "Mitglieder");
+        expect(stepButton(d, "Name")).toHaveAccessibleName("Name – erledigt");
+        expect(stepButton(d, "Rollen")).toHaveAccessibleName("Rollen");
+        expect(stepButton(d, "Manager")).toHaveAccessibleName("Manager");
+        // "Alle mit der Rolle" without a role: the step says something is missing
+        expect(stepButton(d, "Mitglieder")).toHaveAccessibleName("Mitglieder – Hier fehlt noch etwas");
+        expect(stepButton(d, "Mitglieder")).toHaveClass("rn-stepbtn-bad");
+    });
+
+    it("picks roles from the dropdown, greys out one the bot cannot give and makes the first the main role", async () => {
+        create();
+        const d = within(await waitFor(() => dialog()));
+        await step(d, "Rollen");
+        const roles = within(d.getByRole("group", { name: "Discord-Rolle des Rosters" }));
+        expect(roles.getByText("Noch keine Rolle gewählt.")).toBeInTheDocument();
+        expect(roles.getByRole("option", { name: /@Raidlead – kann der Bot nicht geben/ })).toBeDisabled();
+        expect(roles.getByText(/Ausgegraute Rollen kann der Bot nicht geben/)).toBeInTheDocument();
+        expect(roles.getByRole("button", { name: "Hinzufügen" })).toBeDisabled();
+        await addRole(d, "Discord-Rolle des Rosters", "role-kara");
+        await addRole(d, "Discord-Rolle des Rosters", "role-main");
+        expect(roles.getByText(/@Kara-Team · Hauptrolle/)).toBeInTheDocument();
+        // a picked role leaves the dropdown
+        expect(roles.queryByRole("option", { name: "@Kara-Team" })).not.toBeInTheDocument();
+        await userEvent.click(roles.getByRole("button", { name: "@Kara-Team entfernen" }));
+        expect(roles.queryByText(/Hauptrolle/)).not.toBeInTheDocument();
+        expect(roles.getByRole("option", { name: "@Kara-Team" })).toBeInTheDocument();
     });
 
     it("needs a role for 'Alle mit der Rolle' and sends the whole form", async () => {
         const { onSaved } = create();
         const d = within(await waitFor(() => dialog()));
-        await d.findByText("Wer kommt zuerst hinein?");
+        await step(d, "Mitglieder");
         expect(d.getByRole("radio", { name: /Alle mit der Rolle/ })).toBeDisabled();
-        const submit = d.getByRole("button", { name: "Roster anlegen" });
-        expect(submit).toBeDisabled();
-        await userEvent.click(within(d.getByRole("group", { name: "Discord-Rolle des Rosters" })).getByRole("button", { name: /@Kara-Team/ }));
-        expect(submit).toBeEnabled();
-        await userEvent.click(within(d.getByRole("group", { name: "Probe-Rolle (optional)" })).getByRole("button", { name: /@Probe/ }));
-        await userEvent.click(within(d.getByRole("group", { name: "Heiler" })).getByRole("button", { name: "Heiler: mehr" }));
-        await userEvent.click(d.getByRole("switch", { name: "Mehrere Charaktere je Person" }));
+        expect(d.getByRole("button", { name: "Roster anlegen" })).toBeDisabled();
+        await step(d, "Rollen");
+        await addRole(d, "Discord-Rolle des Rosters", "role-kara");
+        // a role of the roster is no trial role
+        expect(within(d.getByRole("combobox", { name: "Probe-Rolle (optional)" })).queryByRole("option", { name: "@Kara-Team" })).not.toBeInTheDocument();
+        await userEvent.selectOptions(d.getByRole("combobox", { name: "Probe-Rolle (optional)" }), "role-trial");
+        await step(d, "Manager");
         await userEvent.type(d.getByRole("searchbox", { name: "Konto suchen" }), "lun");
         await userEvent.click(await d.findByRole("button", { name: "+ Lunaria" }));
+        await step(d, "Plätze & Regeln");
+        await userEvent.click(within(d.getByRole("group", { name: "Heiler" })).getByRole("button", { name: "Heiler: mehr" }));
+        await userEvent.click(d.getByRole("switch", { name: "Mehrere Charaktere je Person" }));
+        await step(d, "Mitglieder");
+        const submit = d.getByRole("button", { name: "Roster anlegen" });
+        expect(submit).toBeEnabled();
         await userEvent.click(submit);
         expect(api.createRoster).toHaveBeenCalledWith({
             name: "PuG Karazhan", slots: { total: 10, tank: 2, healer: 4, bench: 2 }, allowMultipleChars: true, signupOnly: false, publicRaids: false,
@@ -110,10 +217,11 @@ describe("RosterFormDialog — create", () => {
     it("offers the Kaderplaner only with Kader and asks which one", async () => {
         create("", options({ kaders: [{ id: "k1", name: "Forever-Kader", inRoster: 12, candidates: 30 }] }));
         const d = within(await waitFor(() => dialog()));
-        await userEvent.click(await d.findByRole("radio", { name: /Aus dem Kaderplaner/ }));
+        await userEvent.type(await d.findByLabelText("Name des Rosters"), "Forever");
+        await step(d, "Mitglieder");
+        await userEvent.click(d.getByRole("radio", { name: /Aus dem Kaderplaner/ }));
         expect(d.getByRole("radio", { name: /Aus den letzten Raids/ })).toBeDisabled();
         await userEvent.selectOptions(d.getByRole("combobox", { name: "Kader" }), "k1");
-        await userEvent.type(d.getByLabelText("Name des Rosters"), "Forever");
         await userEvent.click(d.getByRole("button", { name: "Roster anlegen" }));
         expect(api.createRoster).toHaveBeenCalledWith(expect.objectContaining({ name: "Forever", categoryId: null, source: "kader", kaderId: "k1" }));
     });
@@ -124,15 +232,44 @@ describe("RosterFormDialog — settings", () => {
         const { onSaved, onClose } = settingsOf();
         const d = within(await waitFor(() => dialog()));
         expect(await d.findByText("Raid Mo / Do einstellen")).toBeInTheDocument();
-        expect(d.queryByText("Wer kommt zuerst hinein?")).not.toBeInTheDocument();
+        expect(d.queryByRole("button", { name: "Mitglieder" })).not.toBeInTheDocument();
+        expect(d.queryByRole("button", { name: "Weiter" })).not.toBeInTheDocument();
         expect(d.getByRole("button", { name: "Speichern" })).toBeDisabled();
         await userEvent.clear(d.getByLabelText("Name des Rosters"));
         await userEvent.type(d.getByLabelText("Name des Rosters"), "Neu");
-        await userEvent.click(within(d.getByRole("group", { name: "Probe-Rolle (optional)" })).getByRole("button", { name: "Keine" }));
+        await step(d, "Rollen");
+        expect(d.getByRole("combobox", { name: "Probe-Rolle (optional)" })).toHaveValue("role-trial");
+        await userEvent.selectOptions(d.getByRole("combobox", { name: "Probe-Rolle (optional)" }), "");
         await userEvent.click(d.getByRole("button", { name: "Speichern" }));
         expect(api.updateRoster).toHaveBeenCalledWith("raid-mo-do-abc", { name: "Neu", trialRoleId: null });
         await waitFor(() => expect(onClose).toHaveBeenCalled());
         expect(onSaved).toHaveBeenCalledWith("raid-mo-do-abc");
+    });
+
+    it("adds a manager role from the dropdown, without the bot's permission check", async () => {
+        settingsOf();
+        const d = within(await waitFor(() => dialog()));
+        await d.findByText("Raid Mo / Do einstellen");
+        await step(d, "Manager");
+        const group = within(d.getByRole("group", { name: "Per Discord-Rolle" }));
+        expect(group.getByRole("option", { name: "@Raidlead" })).toBeEnabled();
+        await addRole(d, "Per Discord-Rolle", "role-lead");
+        await userEvent.click(d.getByRole("button", { name: "Speichern" }));
+        expect(api.updateRoster).toHaveBeenCalledWith("raid-mo-do-abc", { managers: { roleIds: ["role-lead"], userIds: ["u-marc"] } });
+    });
+
+    it("shows a stored role the server no longer has as unknown, still removable", async () => {
+        vi.mocked(api.getRosterOptions).mockResolvedValue(options());
+        const data = detail([member("Thorgrim")], { canManage: true, isAdmin: true, settings: settings({ roleIds: ["role-main", "role-gone"] }), roster: rosterHead() });
+        renderPage(<RosterFormDialog mode="settings" data={data} onClose={vi.fn()} onSaved={vi.fn()} />);
+        const d = within(await waitFor(() => dialog()));
+        await d.findByText("Raid Mo / Do einstellen");
+        await step(d, "Rollen");
+        const roles = within(d.getByRole("group", { name: "Discord-Rolle des Rosters" }));
+        expect(roles.getByText("Unbekannte Rolle")).toBeInTheDocument();
+        await userEvent.click(roles.getByRole("button", { name: "Unbekannte Rolle entfernen" }));
+        await userEvent.click(d.getByRole("button", { name: "Speichern" }));
+        expect(api.updateRoster).toHaveBeenCalledWith("raid-mo-do-abc", { roleIds: ["role-main"] });
     });
 
     it("deletes only after the question, which says the Discord roles stay", async () => {
@@ -151,10 +288,18 @@ describe("RosterFormDialog — settings", () => {
         const d = within(await waitFor(() => dialog()));
         await d.findByText("Raid Mo / Do einstellen");
         expect(d.getByRole("combobox", { name: "Kategorie" })).toBeDisabled();
-        expect(within(d.getByRole("group", { name: "Discord-Rolle des Rosters" })).getByRole("button", { name: /@Raider Mo\/Do/ })).toBeDisabled();
-        expect(d.queryByRole("searchbox", { name: "Konto suchen" })).not.toBeInTheDocument();
+        expect(d.getByText("WoW TBC", { selector: ".rn-version" })).toBeInTheDocument();
         expect(d.queryByRole("button", { name: "Roster löschen" })).not.toBeInTheDocument();
+        await step(d, "Rollen");
+        const roles = within(d.getByRole("group", { name: "Discord-Rolle des Rosters" }));
+        expect(roles.getByText("@Raider Mo/Do")).toBeInTheDocument();
+        expect(roles.queryByRole("button", { name: /entfernen/ })).not.toBeInTheDocument();
+        expect(roles.queryByRole("combobox")).not.toBeInTheDocument();
+        expect(d.getByRole("combobox", { name: "Probe-Rolle (optional)" })).toBeDisabled();
+        await step(d, "Manager");
+        expect(d.queryByRole("searchbox", { name: "Konto suchen" })).not.toBeInTheDocument();
         expect(d.getAllByText("Das ändern nur Admins.").length).toBeGreaterThan(0);
+        await step(d, "Plätze & Regeln");
         await userEvent.click(within(d.getByRole("group", { name: "Tanks" })).getByRole("button", { name: "Tanks: weniger" }));
         await userEvent.click(d.getByRole("switch", { name: "Anmeldung nur für Roster-Mitglieder" }));
         // publicRaids: a manager may switch it too (epic #723)
@@ -170,7 +315,27 @@ describe("RosterFormDialog — settings", () => {
         await d.findByText("Raid Mo / Do einstellen");
         await userEvent.selectOptions(d.getByRole("combobox", { name: "Kategorie" }), "");
         await userEvent.click(d.getByRole("button", { name: "Speichern" }));
-        expect(await screen.findByText("Diese Kategorie hat schon ein Roster.")).toBeInTheDocument();
+        expect(await screen.findByText("Diese Kategorie hat für diese Spielversion schon ein Roster.")).toBeInTheDocument();
+    });
+});
+
+describe("RosterFormDialog — one roster per category and version (#739)", () => {
+    it("takes a category whose roster is of another version, and refuses the version that has one", async () => {
+        const opts = options();
+        // PuG Karazhan has a closed TBC roster; it plays Forever now
+        const cat2 = opts.categories.find((c) => c.id === "cat2");
+        if (cat2) Object.assign(cat2, { versionId: "forever", rosters: [{ id: "old-tbc", name: "Kara alt", versionId: "tbc", closed: true }] });
+        create("cat2", opts);
+        const d = within(await waitFor(() => dialog()));
+        expect(await d.findByRole("combobox", { name: "Kategorie" })).toHaveValue("cat2");
+        expect(d.queryByText("Diese Kategorie hat für diese Spielversion schon ein Roster.")).toBeNull();
+        expect(d.getByRole("button", { name: "Weiter" })).toBeEnabled();
+        expect(d.getByRole("radio", { name: "WoW Forever" })).toHaveAttribute("aria-checked", "true");
+        await userEvent.click(d.getByRole("radio", { name: "WoW TBC" }));
+        expect(d.getByText("Diese Kategorie hat für diese Spielversion schon ein Roster.")).toBeInTheDocument();
+        expect(d.getByRole("button", { name: "Weiter" })).toBeDisabled();
+        await step(d, "Mitglieder");
+        expect(d.getByRole("button", { name: "Roster anlegen" })).toBeDisabled();
     });
 });
 
@@ -220,16 +385,19 @@ describe("RosterFormDialog — Loot (#676)", () => {
         lootProfiles: [{ id: "standard", name: "Standard", isDefault: true }, { id: "p-main", name: "Main T6", isDefault: false }],
         canOpenCouncil: true,
     });
-    function open(isAdmin: boolean, over: Parameters<typeof settings>[0] = {}) {
+    async function open(isAdmin: boolean, over: Parameters<typeof settings>[0] = {}) {
         vi.mocked(api.getRosterOptions).mockResolvedValue(lootOptions(isAdmin));
         const data = detail([member("Thorgrim")], { canManage: true, isAdmin, settings: settings({ lootSystem: "softres", lootProfileId: "", ...over }), roster: rosterHead() });
         renderPage(<RosterFormDialog mode="settings" data={data} onClose={vi.fn()} onSaved={vi.fn()} />);
+        const d = within(await waitFor(() => dialog()));
+        await d.findByText("Raid Mo / Do einstellen");
+        await step(d, "Loot");
+        return d;
     }
 
     it("lets a full admin switch to Loot-Council and pick a profile, sending both", async () => {
         const user = userEvent.setup();
-        open(true);
-        const d = within(await waitFor(() => dialog()));
+        const d = await open(true);
         expect(d.getByRole("heading", { name: "Loot" })).toBeInTheDocument();
         expect(d.queryByLabelText("Loot-Council-Profil")).not.toBeInTheDocument();
         await user.click(within(d.getByRole("radiogroup", { name: "Lootsystem" })).getByRole("radio", { name: "Loot-Council" }));
@@ -243,8 +411,7 @@ describe("RosterFormDialog — Loot (#676)", () => {
 
     it("shows a manager the loot system read-only but lets him pick the profile", async () => {
         const user = userEvent.setup();
-        open(false, { lootSystem: "lootcouncil" });
-        const d = within(await waitFor(() => dialog()));
+        const d = await open(false, { lootSystem: "lootcouncil" });
         expect(d.queryByRole("radiogroup", { name: "Lootsystem" })).not.toBeInTheDocument();
         expect(d.getByText("Loot-Council", { selector: "b" })).toBeInTheDocument();
         await user.selectOptions(d.getByLabelText("Loot-Council-Profil"), "p-main");
@@ -260,9 +427,15 @@ describe("RosterFormDialog — in English", () => {
         expect(await screen.findByText("PuG Karazhan gets a roster")).toBeInTheDocument();
         const d = within(dialog());
         expect(d.getByLabelText("Roster name")).toBeInTheDocument();
-        expect(d.getByText("Who comes in first?")).toBeInTheDocument();
+        expect(d.getByRole("button", { name: "Next" })).toBeInTheDocument();
+        await step(d, "Roles");
+        expect(d.getByRole("button", { name: "Add" })).toBeInTheDocument();
+        await step(d, "Places & rules");
         expect(d.getByRole("switch", { name: "Several characters per person" })).toBeInTheDocument();
         expect(d.getByText("Damage follows: 5 places. Prefilled from the raid template “Karazhan”.")).toBeInTheDocument();
+        await step(d, "Members");
+        expect(d.getByText("Who comes in first?")).toBeInTheDocument();
         expect(d.getByRole("button", { name: "Create roster" })).toBeInTheDocument();
+        expect(d.getByRole("button", { name: "Back" })).toBeInTheDocument();
     });
 });

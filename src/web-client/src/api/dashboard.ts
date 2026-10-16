@@ -106,6 +106,9 @@ export type DashboardRaid = {
     sheet: DashboardSheet;
     softres: { url: string } | null;
     lootSystem?: LootSystem;
+    /** Cancelled in Event verwalten (#288), with the reason. */
+    cancelled?: boolean;
+    cancelReason?: string;
 };
 
 export type DashboardTaskTone = "ok" | "mid" | "bad" | "accent";
@@ -179,12 +182,16 @@ export type PersonalRaid = {
     specIcon: string;
     /** the approved setup's group, or the bench; null = no approved setup or not placed */
     placement: { group?: number; bench?: boolean; character?: string } | null;
+    /** an approved setup exists (with `placement` null: the raider was not placed) */
+    setupApproved?: boolean;
     /** signup deadline in seconds; 0 = none */
     deadline: number;
     deadlinePassed: boolean;
     signupsClosed: boolean;
     cancelled: boolean;
     rosterOnly: boolean;
+    /** no raider role, no roster-only signup: open to everyone, a PuG raid (the "PuG" badge) */
+    openToAll?: boolean;
     softresUrl: string;
     /** a published raid plan's token (/p/<token>); "" = none published */
     planToken: string;
@@ -205,8 +212,11 @@ export type PersonalNight = {
 };
 
 export type DashboardPersonal = {
+    /** the raids the raider may sign up for, plus the ones they signed up for (src/services/signups/signupAccess.js) */
     upcoming: PersonalRaid[];
     upcomingError: string | null;
+    /** the raider's Discord roles could not be read: raids with a raider role may be missing */
+    upcomingRolesUnknown?: boolean;
     attendance: {
         attended: number;
         total: number;
@@ -240,13 +250,13 @@ export type DashboardData = {
     topLoot: { items: TopLootAward[]; configured: number };
     activeGuildId: string;
     // The version filter shared by the three raid/loot tiles (#545): what is
-    // shown ("" = every version, "all" asked for), the default, and the choices.
+    // shown, the default, and the choices.
     version: string;
     mainVersion: string;
     versions: VersionChoice[];
 };
 
-/** `version`: a version id, "all" for every version, "" (default) = the main version. */
+/** `version`: a version id, "" (default) = the main version — never every version at once (#741). */
 export function getDashboard(version = ""): Promise<DashboardData> {
     return get<DashboardData>(`/api/dashboard${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }

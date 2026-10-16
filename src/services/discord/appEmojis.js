@@ -34,6 +34,7 @@
 // nothing ever deletes an emoji.
 const path = require("path");
 const { buildClasses, ROLES } = require("../../config/gameVersions/classes");
+const { DEFAULT_ADDONS } = require("../addons/addonConfig");
 
 const ICON_BASE = "https://wow.zamimg.com/images/wow/icons/medium";
 const PREFIX = "eh_";
@@ -57,6 +58,12 @@ const UI_ICONS = [
     "tank", "healer", "melee", "swords", "ranged",
     // the voice channel and the raid's end in the message head (#305)
     "voice", "end",
+    // the raid statuses of the Orga-Zentrale (services/events/orgaStatus.js): each its own
+    // shape AND colour (COLOR_OVERRIDES of scripts/render-ui-emojis.js), so they read apart at a glance
+    "orgasignup", "orgaopen", "orgadraft", "orgaapproved", "orgaposted", "orgachanged", "orgacancelled",
+    // the fill bar of the raid overview (events/raidOverviewPanel.js): a segment green (places free),
+    // orange (full), grey (few signups) or empty
+    "barg", "baro", "barn", "bare",
 ];
 
 // The letter tiles of the message's title line, like Raid-Helper's: one emoji
@@ -106,6 +113,8 @@ function roleEmojiName(role, style = DEFAULT_EMOJI_STYLE) {
     const code = EMOJI_STYLES[emojiStyleOf(style)];
     return code ? `${PREFIX}r${code}_${roleIconKey(role)}` : uiEmojiName(roleIconKey(role));
 }
+/** The icon of an addon of the download centre (services/addons/addonCenterPanel.js): `eh_addon_levelhelper`. */
+const addonEmojiName = (addonId) => (addonId ? `${PREFIX}addon_${slug(addonId)}`.slice(0, 32) : "");
 /** Where the PNG of a styled emoji (tile or role) lives. */
 const styledFile = (name) => path.join(UI_DIR, `${name}.png`);
 
@@ -124,6 +133,8 @@ function emojiCatalog() {
         add(classEmojiName(cls.id), cls.icon);
         for (const spec of cls.specs) add(specEmojiName(spec.key), spec.icon);
     }
+    // the default addons' WoW icons, for the addon download centre (an addon added later shows without one)
+    for (const addon of DEFAULT_ADDONS) add(addonEmojiName(addon.id), addon.icon);
     for (const name of UI_ICONS) out.push({ name: uiEmojiName(name), icon: name, file: uiIconFile(name) });
     for (const style of Object.keys(EMOJI_STYLES).filter((s) => EMOJI_STYLES[s])) {
         for (const char of Object.keys(TITLE_TILES)) {
@@ -238,7 +249,7 @@ function resetAppEmojis() {
 
 module.exports = {
     ICON_BASE, PREFIX, UI_DIR, UI_ICONS, TITLE_TILES, EMOJI_STYLES, DEFAULT_EMOJI_STYLE, emojiStyleOf,
-    specEmojiName, classEmojiName, uiEmojiName, roleUiEmojiName, statusEmojiName, uiIconFile,
+    specEmojiName, classEmojiName, uiEmojiName, addonEmojiName, roleUiEmojiName, statusEmojiName, uiIconFile,
     tileEmojiName, roleEmojiName, styledFile, emojiCatalog, validEmojiName,
     emojiText, emojiOption, appEmojiMap, appEmojisLoaded, setAppEmojis, loadAppEmojis, emojiFor, resetAppEmojis,
 };

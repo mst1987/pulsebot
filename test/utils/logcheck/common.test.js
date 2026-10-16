@@ -1,4 +1,5 @@
 const { VALID_CLASSES, selectPlayers } = require("../../../src/utils/logcheck/common");
+const { logcheckRules, makeRuleSet } = require("../../../src/utils/logcheck/rules");
 
 describe("logcheck/common selectPlayers", () => {
     test("keeps only known-class entries with total > 20", () => {
@@ -51,5 +52,37 @@ describe("logcheck/common selectPlayers", () => {
         expect(VALID_CLASSES).toContain("Warrior");
         expect(VALID_CLASSES).toContain("Druid");
         expect(VALID_CLASSES).toHaveLength(9);
+    });
+
+    test("the nine classes are TBC's rule set's (#747)", () => {
+        expect(VALID_CLASSES).toEqual(logcheckRules("tbc").classes);
+    });
+});
+
+describe("logcheck/common selectPlayers with a rule set (#747)", () => {
+    const table = {
+        entries: [
+            { name: "Zug", type: "Warrior", total: 5000 },
+            { name: "Frosty", type: "DeathKnight", total: 7000 },
+            { name: "Pet", type: "Pet", total: 9999 },
+        ],
+    };
+    const withDk = makeRuleSet({
+        versionId: "test",
+        classDefs: [...logcheckRules("tbc").classDefs, { id: "DeathKnight", specs: [{ id: "Frost", role: "melee", buffRole: "melee" }] }],
+        analyzers: [],
+    });
+
+    test("keeps a class outside the nine when the rule set knows it", () => {
+        expect(selectPlayers(table, withDk).map((p) => p.name)).toEqual(["Frosty", "Zug"]);
+    });
+
+    test("drops it under TBC's rule set, the default", () => {
+        expect(selectPlayers(table).map((p) => p.name)).toEqual(["Zug"]);
+        expect(selectPlayers(table, logcheckRules("tbc")).map((p) => p.name)).toEqual(["Zug"]);
+    });
+
+    test("Forever's rule set knows the same nine classes", () => {
+        expect(selectPlayers(table, logcheckRules("forever")).map((p) => p.name)).toEqual(["Zug"]);
     });
 });

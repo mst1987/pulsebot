@@ -221,6 +221,8 @@ describe("web/apiRoutes/raids", () => {
                         contentIds: ["kara"], contentSources: ["title"], raidSize: 10, raidSizeKnown: true,
                         // only the public link — the edit url is the softres admin key
                         softres: { url: "https://softres.it/raid/x" },
+                        // a Raid-Helper event knows no cancellation
+                        cancelled: false, cancelReason: "", cancelledAt: 0, cancelledByName: "",
                         // no category override in the (mocked, empty) config: the main version, "tbc".
                         versionId: "tbc",
                     }],
@@ -251,7 +253,7 @@ describe("web/apiRoutes/raids", () => {
             });
         });
 
-        it("filters by game version (#545): default the main version, 'all' for every one", async () => {
+        it("filters by game version (#545): default the main version, never every one (#741)", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             activeGuildFor.mockReturnValue("guild-1");
             raidEventGroups.loadEventGroups.mockResolvedValue({
@@ -269,9 +271,10 @@ describe("web/apiRoutes/raids", () => {
             expect(json(forever).data.events.map((e) => e.id)).toEqual(["e2"]);
             expect(json(forever).data.version).toBe("forever");
 
+            // strictly separated (#741): "all" is no answer, it falls back to the main version
             const all = await get("/api/raids", { version: "all" });
-            expect(json(all).data.events.map((e) => e.id).sort()).toEqual(["e1", "e2"]);
-            expect(json(all).data.version).toBe("");
+            expect(json(all).data.events.map((e) => e.id)).toEqual(["e1"]);
+            expect(json(all).data.version).toBe("tbc");
         });
 
         // Oct 2026: raids of foreign categories are the orga's (services/signups/eventVisibility.js) -
@@ -462,6 +465,56 @@ describe("web/apiRoutes/raids", () => {
             });
             expect(json(res).data.versions.map((v) => v.id)).toEqual(["tbc", "classic", "forever"]);
             expect(json(res).data.categoryVersions).toEqual({});
+        });
+
+        it("offers the raids of the shown version to repeat, each by its stored version (#741)", async () => {
+            auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            // the category plays Forever today; its old raid stays a TBC raid
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", categoryVersion: { cat1: "forever" } });
+            settingsStore.listRaidTemplates.mockReturnValue([]);
+            discord.listTextChannels.mockReturnValue([]);
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [
+                    { id: "old", title: "Kara", channelId: "c1", startTime: 50, versionId: "tbc" },
+                    { id: "new", title: "Barrow Deeps", channelId: "c1", startTime: 60 },
+                ] }],
+                error: null,
+            });
+            const shown = async (version) => {
+                const res = mockRes();
+                await handle("/api/raids/new", { method: "GET" }, res, new URL(`http://x/api/raids/new${version ? `?version=${version}` : ""}`));
+                return json(res).data.reusableEvents.map((e) => [e.id, e.versionId]);
+            };
+            expect(await shown("forever")).toEqual([["new", "forever"]]);
+            expect(await shown("tbc")).toEqual([["old", "tbc"]]);
+            // nothing asked: the main version
+            expect(await shown("")).toEqual([["old", "tbc"]]);
+        });
+
+        it("offers only the categories and raid templates of the shown version (#741)", async () => {
+            auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", categoryVersion: { cat2: "forever" } });
+            settingsStore.listRaidTemplates.mockReturnValue([
+                { id: "t-tbc", name: "Kara", versionId: "tbc" },
+                { id: "t-forever", name: "Barrow Deeps", versionId: "forever" },
+            ]);
+            discord.listTextChannels.mockReturnValue([]);
+            discord.listCategories.mockReturnValue([{ id: "cat1", name: "TBC Raids" }, { id: "cat2", name: "Forever Raids" }]);
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
+            const shown = async (version) => {
+                const res = mockRes();
+                await handle("/api/raids/new", { method: "GET" }, res, new URL(`http://x/api/raids/new?version=${version}`));
+                const d = json(res).data;
+                return [d.categories.map((c) => c.id), d.raidTemplates.map((t) => t.id), d.templates.map((t) => t.id)];
+            };
+            expect(await shown("forever")).toEqual([["cat2"], ["t-forever"], ["t-forever"]]);
+            expect(await shown("tbc")).toEqual([["cat1"], ["t-tbc"], ["t-tbc"]]);
+            // other versions hidden: the main version whatever is asked (#563)
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", categoryVersion: { cat2: "forever" }, hideOtherVersions: true });
+            expect(await shown("forever")).toEqual([["cat1"], ["t-tbc"], ["t-tbc"]]);
+            discord.listCategories.mockReturnValue([]);
         });
 
         it("names the main version and the categories that play another one (#541)", async () => {

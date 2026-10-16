@@ -134,7 +134,10 @@ function collectTabs(rawTabs) {
 /**
  * Parse an `eventhelper-guildbank` upload (object or JSON text).
  * @param {object|string} body
- * @param {{ fallbackVersion?: string }} [opts] the version of a scan whose client says none (the main version)
+ * @param {{ fallbackVersion?: string | ((scan: { realm: string, guild: string }) => string) }} [opts]
+ *   the version of a scan whose client says none — a fixed id, or asked with
+ *   the scan's realm and guild (#737: the known bank of that realm and guild,
+ *   never the main version). Without an answer the scan is refused.
  * @returns {{ format: string, version: number, generatedAt: number, gameVersion: string, versionGuessed: boolean, build: string,
  *   project: string, guild: string, realm: string, faction: string, key: string, scannedBy: string,
  *   scannedAt: number, money: number, tabs: Array<{index:number,name:string}>,
@@ -169,8 +172,11 @@ function parseGuildBankScan(body, { fallbackVersion = "" } = {}) {
     }
     const client = data.client && typeof data.client === "object" ? data.client : {};
     const ownVersion = versionOfClient(client);
-    const gameVersion = ownVersion || String(fallbackVersion || "").trim().toLowerCase();
-    if (!gameVersion) throw new GuildBankParseError("Der Scan nennt keine bekannte Client-Version (client.project).");
+    const fallback = !ownVersion && typeof fallbackVersion === "function" ? fallbackVersion({ realm, guild }) : fallbackVersion;
+    const gameVersion = ownVersion || String(fallback || "").trim().toLowerCase();
+    if (!gameVersion) {
+        throw new GuildBankParseError(`Der Scan nennt keine bekannte Client-Version (client.project), und es gibt keine eindeutige Gildenbank für ${guild} (${realm}), der er zugeordnet werden kann.`);
+    }
     const { tabs, items } = collectTabs(data.tabs);
     const money = Number(data.money);
     return {

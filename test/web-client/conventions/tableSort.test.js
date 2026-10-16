@@ -49,7 +49,10 @@ function clientSources() {
 //     the rows run in the members tab's status groups (core, trial, bench,
 //     pause), the columns are the raid nights in time order; it is a matrix
 //     to read across, not a list to rank.
-const ALLOWED_PLAIN_HEADERS = new Set(["Links", "WCL", "Token", "Wer", "Slot", "Item", "Mitglied · Quote"]);
+//   * "Funktion" — the corner of "Funktionen je Version" (#761, Einstellungen →
+//     Spielversion): eight fixed features as rows, the versions as columns, a
+//     switch in each cell; sorting would move a row away under the cursor.
+const ALLOWED_PLAIN_HEADERS = new Set(["Links", "WCL", "Token", "Wer", "Slot", "Item", "Mitglied · Quote", "Funktion"]);
 
 describe("table sorting", () => {
     it("reads a translated header by its German text", () => {

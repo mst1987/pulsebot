@@ -76,3 +76,40 @@ describe("services/roster/categoryRoles mirrorCategoryRoles (#657)", () => {
         expect(mirrorCategoryRoles(null)).toBe(false);
     });
 });
+
+describe("services/roster/categoryRoles with one roster per version (#739)", () => {
+    const SWITCHED = { categoryIds: ["c1"], categoryVersion: { c1: "forever" }, categoryRoles: { c1: ["10"] } };
+    let tbc;
+    let forever;
+    beforeEach(() => {
+        tbc = rosterStore.createRoster({ name: "Alt", categoryId: "c1", versionId: "tbc", roleIds: ["10"] });
+        rosterStore.closeRoster(tbc.id, { reason: "version_switch" });
+        forever = rosterStore.createRoster({ name: "Neu", categoryId: "c1", versionId: "forever", roleIds: ["20"] });
+    });
+
+    it("expectedRoleIds: the roster of the raid's version, else of the version the category plays now", () => {
+        expect(expectedRoleIds("c1", SWITCHED, { versionId: "tbc" })).toEqual(["10"]);
+        expect(expectedRoleIds("c1", SWITCHED, { versionId: "forever" })).toEqual(["20"]);
+        expect(expectedRoleIds("c1", SWITCHED)).toEqual(["20"]);
+        // a version without roster: the settings value
+        rosterStore.deleteRoster(forever.id);
+        expect(expectedRoleIds("c1", SWITCHED, { versionId: "forever" })).toEqual(["10"]);
+    });
+
+    it("syncRosterRoleIds hands the settings roles only to the open roster of the current version", () => {
+        expect(syncRosterRoleIds({ c1: ["30"] }, { config: SWITCHED })).toEqual([forever.id]);
+        expect(rosterStore.getRoster(forever.id).roleIds).toEqual(["30"]);
+        expect(rosterStore.getRoster(tbc.id).roleIds).toEqual(["10"]);
+        // a category switched in this save is left to the switch
+        expect(syncRosterRoleIds({ c1: ["40"] }, { config: SWITCHED, skip: new Set(["c1"]) })).toEqual([]);
+        expect(rosterStore.getRoster(forever.id).roleIds).toEqual(["30"]);
+    });
+
+    it("mirrorCategoryRoles writes only the current open roster's roles", () => {
+        configStore.saveConfig(SWITCHED);
+        expect(mirrorCategoryRoles(rosterStore.getRoster(tbc.id))).toBe(false);
+        expect(configStore.getConfig().categoryRoles.c1).toEqual(["10"]);
+        expect(mirrorCategoryRoles(forever)).toBe(true);
+        expect(configStore.getConfig().categoryRoles.c1).toEqual(["20"]);
+    });
+});

@@ -1,7 +1,7 @@
 /* ── Gildenbank (pages/guildbank/*, #632) ──────────
    Built on the shared blocks (page head, tabs, segment, badge, dialog) and the
    Loot-Council's filter line (lc-filterline, lc-selbtn — loot-council.css) and
-   the loot views' item cell (hl-item, hl-ico, hl-search — history-loot.css);
+   the loot views' item cell (hl-item, hl-search; the icon is item-ico in loot.css — history-loot.css);
    what is here is only the list itself: one row per item, grouped by
    category, the columns shared by every row as a subgrid like the council list.
    Tokens only. */
@@ -45,6 +45,16 @@ a.gb-name:hover { text-decoration: underline; }
 /* ---- the item dialog and the tab dialog ---- */
 .gb-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
 .gb-fields .gb-wide { grid-column: 1 / -1; }
+/* the portion per turn: − / number / + (the look of the settings' stepper) */
+.gb-stepper { display: inline-flex; align-items: center; align-self: flex-start; border: 1px solid var(--line); background: var(--panel2); border-radius: var(--ctl-radius); overflow: hidden; }
+.gb-stepper button { display: grid; place-items: center; width: 38px; height: 38px; border: 0; background: transparent; color: var(--text); cursor: pointer; }
+.gb-stepper button:hover:not(:disabled) { background: var(--accent-soft); }
+.gb-stepper button:disabled { color: var(--muted); opacity: .5; cursor: not-allowed; }
+.gb-stepper button svg { width: 16px; height: 16px; }
+.gb-fields .gb-stepper input {
+    width: 56px; height: 38px; padding: 0; border: 0; border-radius: 0; background: var(--bg); text-align: center; font: 700 16px var(--font-mono); -moz-appearance: textfield;
+}
+.gb-stepper input::-webkit-outer-spin-button, .gb-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .gb-tablist { display: flex; flex-direction: column; gap: 4px; }
 .gb-tabrow { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 8px; }
 .gb-tabrow .switch-row { flex: 1; min-width: 0; }
@@ -58,12 +68,139 @@ a.gb-name:hover { text-decoration: underline; }
 .gb-req-title { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
 .gb-req-sub { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
 
+/* ---- the waiting list (#775) ---- */
+.gb-waiting { margin-left: 8px; vertical-align: middle; }
+.gb-actions { margin-left: auto; display: inline-flex; gap: 8px; flex-wrap: wrap; }
+.gb-badge-link { padding: 0; border: 0; background: none; cursor: pointer; font: inherit; }
+.gb-wl-tab .gb-hint { margin: 0 0 14px; color: var(--muted); font-size: 13.5px; }
+.gb-wl-groups { display: flex; flex-direction: column; gap: 16px; margin-bottom: 16px; }
+.gb-wl-group { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
+.gb-wl-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--panel2); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.gb-wl-item { font-size: 16px; font-weight: 700; color: var(--text); flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.gb-wl-list { list-style: none; margin: 0; padding: 0; }
+.gb-wl-row {
+    display: grid; grid-template-columns: 28px minmax(0, 1fr) 72px 136px; align-items: center; column-gap: 16px;
+    padding: 9px 14px; border-top: 1px solid var(--line-soft);
+}
+.gb-wl-row:first-child { border-top: 0; background: color-mix(in srgb, var(--accent-soft) 35%, transparent); }
+.gb-wl-row:hover { background: color-mix(in srgb, var(--panel2) 60%, transparent); }
+.gb-wl-row .gb-req-title { font-size: 15px; }
+.gb-wl-place {
+    display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 999px;
+    background: var(--panel2); border: 1px solid var(--line); font-family: var(--font-mono); font-weight: 700; color: var(--text);
+}
+.gb-wl-row .gb-req-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.gb-wl-amount { font-size: 18px; font-weight: 700; color: var(--text); white-space: nowrap; text-align: right; }
+.gb-wl-actions { display: flex; gap: 2px; justify-content: flex-end; }
+.gb-wl-submit { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.gb-wl-preview { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.gb-wl-prow { display: grid; grid-template-columns: 32px 1fr 1fr auto; gap: 10px; align-items: start; padding: 7px 10px; border-top: 1px solid var(--line-soft); font-size: 13.5px; }
+.gb-wl-prow:first-child { border-top: 0; }
+.gb-wl-line { font-family: var(--font-mono); color: var(--muted); text-align: right; }
+.gb-wl-bad { background: var(--high-bg); }
+.gb-wl-err { color: var(--high); }
+.gb-stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); background: var(--panel2); border-radius: var(--ctl-radius); overflow: hidden; }
+.gb-stepper button { display: grid; place-items: center; width: 38px; height: 38px; border: 0; background: transparent; color: var(--text); cursor: pointer; }
+.gb-stepper button:hover:not(:disabled) { background: var(--accent-soft); }
+.gb-stepper button:disabled { color: var(--muted); opacity: .5; cursor: not-allowed; }
+.gb-stepper button svg { width: 16px; height: 16px; }
+.gb-stepper b { min-width: 48px; text-align: center; font-size: 16px; }
+
+/* ---- add an item by hand ---- */
+.gb-add-hits { min-height: 24px; }
+.gb-add-hit { display: flex; align-items: center; gap: 12px; width: 100%; padding: 7px 10px; border: 1px solid var(--line-soft); border-radius: 8px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.gb-add-hit:hover:not(:disabled) { border-color: var(--accent-soft); background: var(--accent-soft); }
+.gb-add-hit:disabled { opacity: .6; cursor: not-allowed; }
+.gb-add-note { font-size: 13px; color: var(--muted); }
+.gb-fuzzy { color: var(--muted); }
+
+/* ---- linked characters ---- */
+.gb-req-unlinked { border-color: color-mix(in srgb, var(--high) 45%, var(--line-soft)); }
+.gb-req-link, .gb-wl-who { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.gb-link { display: flex; flex-direction: column; gap: 12px; }
+.gb-link-intro { display: flex; flex-direction: column; gap: 6px; margin: 0; font-size: 15px; color: var(--text); }
+.gb-link-intro > p { display: flex; flex-direction: column; gap: 2px; margin: 0; }
+.gb-link-intro > .gb-link-checks { align-items: center; padding-left: 0; }
+.gb-link-intro > .gb-link-confirm { margin-left: 0; }
+.gb-link-names { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.gb-link-names > .gb-link-checks, .gb-link-names > .gb-link-confirm { align-items: center; padding-left: 0; margin-left: 0; }
+.gb-link-profile { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.gb-link-hits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: min(460px, 55vh); overflow: auto; }
+.gb-link-hit {
+    display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 8px;
+    background: transparent; color: var(--text); text-align: left; cursor: pointer;
+}
+.gb-link-hit:hover:not(:disabled), .gb-link-hit:focus-visible { border-color: var(--accent-soft); background: var(--accent-soft); }
+.gb-link-hit:disabled { opacity: .6; cursor: not-allowed; }
+.gb-link-hit .wow-icon, .gb-link-hit img { border-radius: 6px; flex: none; }
+.gb-link-noicon { width: 28px; height: 28px; border-radius: 6px; background: var(--panel2); flex: none; }
+.gb-link-name { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+.gb-link-hit .gb-req-text { flex: 1 1 auto; min-width: 0; }
+.gb-link-hit > .badge { flex: none; }
+/* a character nobody confirmed: greyed out, not pickable — the two checks stay usable */
+.gb-link-row { display: flex; flex-direction: column; gap: 6px; }
+.gb-link-unverified { padding-bottom: 8px; border-bottom: 1px dashed var(--line-soft); }
+.gb-link-unverified .gb-link-hit:disabled { opacity: .5; }
+.gb-link-unverified .gb-link-hit:disabled .gb-link-name span { filter: grayscale(1); }
+.gb-link-checks { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 50px; }
+.gb-link-confirm {
+    display: flex; flex-direction: column; gap: 4px; margin-left: 50px; padding: 8px 10px;
+    border: 1px solid var(--accent-soft); border-radius: 8px; background: color-mix(in srgb, var(--accent-soft) 40%, transparent);
+}
+.gb-link-confirm .gb-link-checks { padding-left: 0; margin-top: 4px; }
+.gb-link-note { padding-left: 50px; font-size: 13px; color: var(--muted); }
+.gb-link-note-ok { color: var(--good); }
+.gb-link-note-warn { color: var(--high); }
+.gb-wl-unlinked { margin-top: 10px; color: var(--high); }
+
+/* ---- what was handed out ---- */
+.gb-out-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: space-between; margin-bottom: 14px; }
+.gb-out-top .gb-hint { margin: 0; }
+.gb-out-row {
+    display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; column-gap: 14px;
+    padding: 10px 14px; border-top: 1px solid var(--line-soft);
+}
+.gb-out-row:first-child { border-top: 0; }
+.gb-out-row:hover { background: color-mix(in srgb, var(--panel2) 60%, transparent); }
+.gb-out-what { font-size: 13px; color: var(--muted); font-weight: 600; }
+.gb-out-to { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.gb-out-to b { font-size: 17px; color: var(--text); overflow-wrap: anywhere; }
+.gb-out-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.gb-out-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; }
+.gb-out-time { font-family: var(--font-mono); font-size: 15px; font-weight: 700; color: var(--text); }
+.gb-out-how { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* ---- requests tab + the Vorgemerkt popover ---- */
+.gb-reqrow .gb-out-time { font-size: 13px; font-weight: 600; }
+.gb-reqrow.gb-req-unlinked { box-shadow: inset 3px 0 0 var(--high); }
+.gb-reserved-cell { text-align: right; }
+.gb-reserved-btn { padding: 2px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel2); color: var(--text); font: inherit; font-weight: 700; cursor: pointer; }
+.gb-reserved-btn:hover, .gb-reserved-btn[aria-expanded="true"] { border-color: var(--accent); }
+.gb-reserved-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.gb-reserved-pop {
+    position: fixed; z-index: 60; overflow-y: auto; overscroll-behavior: contain; width: var(--pop-width); max-height: var(--pop-max-h);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 30px var(--shade-28);
+    padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; cursor: default;
+}
+.gb-reserved-pop:focus { outline: none; }
+.gb-reserved-head { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.gb-reserved-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--text); overflow-wrap: anywhere; }
+.gb-reserved-more { font-size: 13px; color: var(--muted); }
+.gb-reserved-all { align-self: flex-start; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; text-decoration: underline; }
+
 /* ---- no bank for this server ---- */
 .gb-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 48px 24px; text-align: center; }
 .gb-empty h2 { margin: 6px 0 0; font-size: 18px; color: var(--text); }
 .gb-empty p { margin: 0; max-width: 60ch; }
 
 @media (max-width: 600px) {
+    .gb-wl-prow { grid-template-columns: 28px 1fr auto; }
+    .gb-wl-prow > .gb-req-text:nth-child(3) { grid-column: 2 / -1; }
     .gb-formula { margin-left: 0; flex-basis: 100%; }
+    .gb-actions { margin-left: 0; flex-basis: 100%; }
+    .gb-wl-row { grid-template-columns: 28px minmax(0, 1fr) auto; }
+    .gb-wl-actions { grid-column: 2 / -1; justify-content: flex-start; }
     .gb-fields { grid-template-columns: 1fr; }
+    .gb-out-row { grid-template-columns: 36px minmax(0, 1fr); }
+    .gb-out-meta { grid-column: 2 / -1; align-items: flex-start; text-align: left; flex-direction: row; flex-wrap: wrap; }
 }

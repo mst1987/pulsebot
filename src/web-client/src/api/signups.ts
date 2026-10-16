@@ -65,6 +65,8 @@ export type SignupEventBase = {
     accounts: number;
     /** The event's post (own: the bot's message) or its channel in Discord. */
     discordUrl: string;
+    /** No raider role, no roster-only signup: open to everyone, a PuG raid (the "PuG" badge). */
+    openToAll?: boolean;
 };
 
 export type RaidHelperSignupRow = SignupEventBase & {
@@ -85,6 +87,8 @@ export type OwnSignupRow = SignupEventBase & {
     wishes: boolean;
     /** The category's message with "Vielleicht" / "Absagen" (src/web/signupNotes.js); missing = optional. */
     noteMode?: "required" | "optional" | "none";
+    /** How many own characters one signup may name here: the category's setting, 1..8 (missing = 8). */
+    maxCharacters?: number;
     /** The member's own wish partners who already signed up. */
     wishPartners: { userId: string; name: string }[];
     mine: OwnSignup | null;
@@ -92,6 +96,8 @@ export type OwnSignupRow = SignupEventBase & {
     placement?: SetupPlacement | null;
     /** "Anmeldung nur für das Roster" (#658): true when the member is no roster member with status core, trial or bench. */
     rosterOnly?: boolean;
+    /** The member lacks the category's raider role — only "Alle Kategorien" lists such a raid. */
+    roleMissing?: boolean;
 };
 
 export type SignupEventRow = RaidHelperSignupRow | OwnSignupRow;
@@ -115,6 +121,16 @@ export type SignupsData = {
     classesByVersion?: Record<string, SignupClass[]>;
     /** The names of the game versions (#543), for "Lege einen Forever-Charakter an". */
     versions?: { id: string; label: string; short?: string }[];
+    /** The version shown (#741). */
+    version?: string;
+    /** The version of the raid `event` named (#741): a link from Discord switches the menu to it; "" = none. */
+    eventVersion?: string;
+    /** "mine" = the raids one may sign up for (or did); "all" = every raid (the orga's "Alle Kategorien"). */
+    scope?: "mine" | "all";
+    /** The caller may switch to "all" (the orga). */
+    canShowAll?: boolean;
+    /** The caller's Discord roles could not be read: raids with a raider role may be missing. */
+    rolesUnknown?: boolean;
     error: string | null;
 };
 
@@ -156,8 +172,19 @@ export function saveSignupsBulk(input: { eventIds: string[]; characters: { chara
 /** One signup of an own event as the orga sees it (raid detail, GET /api/signups/event). */
 export type EventSignupEntry = OwnSignup & { userId: string; name: string; at: number };
 
-export function getSignups(): Promise<SignupsData> {
-    return get<SignupsData>("/api/signups");
+/**
+ * `version`: the menu's content version (#741) — only its raids; "" = the
+ * server's main version. `eventId`: a raid a link names — its version comes back
+ * as `eventVersion`. `all`: every raid, not only the ones one may sign up for —
+ * the server honours it for the orga only.
+ */
+export function getSignups(version = "", eventId = "", all = false): Promise<SignupsData> {
+    const q = new URLSearchParams();
+    if (version) q.set("version", version);
+    if (eventId) q.set("event", eventId);
+    if (all) q.set("scope", "all");
+    const qs = q.toString();
+    return get<SignupsData>(`/api/signups${qs ? `?${qs}` : ""}`);
 }
 
 /** PUT /api/signups — plus what a full raid made of it (#306). */

@@ -30,8 +30,47 @@
 .ibtn.sm .wi { width: 20px; height: 20px; }
 .ibtn:hover:not(:disabled) { color: var(--text); border-color: var(--accent); background: var(--panel3); }
 .ibtn:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.ibtn.danger:hover:not(:disabled) { color: var(--high); border-color: var(--high); background: var(--high-bg); }
+/* tones, as on .btn: the meaning shows before the hover — a bin is red, an approve tick green */
+.ibtn.danger, .ibtn.no { color: color-mix(in srgb, var(--high) 80%, var(--muted)); }
+.ibtn.yes { color: var(--good); }
+.ibtn.danger:hover:not(:disabled), .ibtn.no:hover:not(:disabled) { color: var(--high); border-color: var(--high); background: var(--high-bg); }
+.ibtn.yes:hover:not(:disabled) { color: var(--good); border-color: var(--good); background: var(--good-bg); }
+.ibtn.yes[aria-pressed="true"] { color: var(--go-ink); border-color: var(--go); background: var(--go); }
+.ibtn.no[aria-pressed="true"] { color: var(--on-fill); border-color: var(--high); background: var(--high); }
 .ibtn:disabled { opacity: .45; cursor: default; }
+/* ghost: no frame until hovered - a quiet "take away" beside a value */
+.ibtn.ghost { border-color: transparent; background: transparent; }
+
+/* ---- number stepper: − value + as one control (components/ui/NumberStepper.tsx) ---- */
+.num-stepper {
+    display: inline-flex; align-items: stretch; flex: 0 0 auto; height: var(--ctl-h);
+    border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2); overflow: hidden;
+}
+.num-stepper.sm { height: var(--ctl-h-sm); }
+.num-stepper button {
+    display: grid; place-items: center; width: var(--ctl-h); padding: 0; border: 0; background: transparent; color: var(--text);
+    cursor: pointer; transition: background-color .12s ease, color .12s ease;
+}
+.num-stepper.sm button { width: var(--ctl-h-sm); }
+.num-stepper button svg { width: 16px; height: 16px; }
+.num-stepper button:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); }
+.num-stepper button:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+.num-stepper button:disabled { color: var(--muted); opacity: .45; cursor: default; }
+.num-stepper input, .num-stepper-value {
+    display: grid; place-items: center; min-width: var(--num-w, 64px); padding: 0 8px; margin: 0;
+    border: 0; border-left: 1px solid var(--line); border-right: 1px solid var(--line); border-radius: 0;
+    background: var(--bg); color: var(--text); text-align: center; white-space: nowrap;
+    font: 700 15px/1 var(--font-mono); font-variant-numeric: tabular-nums; -moz-appearance: textfield;
+}
+.num-stepper input { width: var(--num-w, 64px); }
+.num-stepper input:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+.num-stepper input::-webkit-outer-spin-button, .num-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.num-stepper:focus-within { border-color: var(--accent); }
+/* a thumb needs room: 40 px on a phone */
+@media (max-width: 640px) {
+    .num-stepper, .num-stepper.sm { height: 40px; }
+    .num-stepper button, .num-stepper.sm button { width: 40px; }
+}
 
 /* ---- split button: main action + chevron menu ---- */
 .split { position: relative; display: inline-flex; }
@@ -93,6 +132,8 @@
 .badge svg { width: 12px; height: 12px; }
 .badge[data-tip] { cursor: default; }
 .badge.sm { font-size: 11px; padding: 0 6px; }
+/* "PuG" beside a raid open to everyone (components/signup/PugBadge.tsx): a small mark after a title or a category */
+.pug-badge { margin-left: 8px; vertical-align: 2px; font-weight: 700; letter-spacing: .02em; }
 /* the small x of a removable badge or chip (ui/Badge onRemove, ui/Chip) */
 .badge-x { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 2px; padding: 0; border: 0; border-radius: 4px; background: none; color: inherit; opacity: .7; cursor: pointer; }
 .badge-x svg { width: 10px; height: 10px; }

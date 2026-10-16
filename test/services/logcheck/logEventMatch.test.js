@@ -3,6 +3,7 @@ const {
     HOUR_MS,
 } = require("../../../src/services/logcheck/logEventMatch");
 const { event: baseEvent } = require("../../factories/events");
+const { saveConfig } = require("../../../src/stores/configStore");
 
 // Raid-Helper hands out start times in SECONDS; the logs carry ms timestamps.
 const START = Date.UTC(2026, 6, 24, 18, 0, 0); // Fri 24.07.2026 18:00 UTC
@@ -148,7 +149,7 @@ describe("services/logcheck/logEventMatch", () => {
             expect(items[0].matchAmbiguous).toBe(false);
             expect(items[0].candidates).toEqual([{
                 eventId: "e1", title: "SSC/TK", startTime: secs(START),
-                categoryName: "Raids", diffMs: 30 * 60 * 1000, sameCategory: false,
+                categoryName: "Raids", diffMs: 30 * 60 * 1000, sameCategory: false, versionId: "", raidGroupIndex: 0,
             }]);
         });
 
@@ -192,6 +193,44 @@ describe("services/logcheck/logEventMatch", () => {
         it("tolerates empty input", () => {
             expect(autoMatches([], [event()])).toEqual([]);
             expect(autoMatches(null, null)).toEqual([]);
+        });
+    });
+
+    describe("the game version of the log (#746)", () => {
+        // A TBC and a Forever raid the same evening, in two categories; the log
+        // is posted in a third channel, so only the version can tell them apart.
+        const tbcRaid = event({ id: "tbc", title: "SSC/TK", startTime: secs(START), categoryId: "catT", versionId: "tbc" });
+        const foreverRaid = event({ id: "forever", title: "Barrow", startTime: secs(START + 15 * 60 * 1000), categoryId: "catF", versionId: "forever" });
+
+        it("matches a log only to a raid of the version its host told", () => {
+            const forever = log({ hostVersionId: "forever" });
+            expect(candidatesFor(forever, [tbcRaid, foreverRaid]).map((c) => c.event.id)).toEqual(["forever"]);
+            expect(autoMatches([forever], [tbcRaid, foreverRaid]).map((m) => m.event.id)).toEqual(["forever"]);
+            const tbc = log({ hostVersionId: "tbc" });
+            expect(autoMatches([tbc], [tbcRaid, foreverRaid]).map((m) => m.event.id)).toEqual(["tbc"]);
+        });
+
+        it("an old log reads the version from its link; an event without a version stays a candidate", () => {
+            const old = log({ link: "https://fresh.warcraftlogs.com/reports/RPT1" });
+            const bare = event({ id: "bare", startTime: secs(START), categoryId: "catT" });
+            // fresh is the TBC site of the standard settings
+            const ids = candidatesFor(old, [tbcRaid, foreverRaid, bare]).map((c) => c.event.id).sort();
+            expect(ids).toEqual(["bare", "tbc"]);
+        });
+
+        it("for a log of unknown version, the version of the channel's category breaks the tie", () => {
+            saveConfig({ categoryVersion: { catLogs: "forever" } });
+            const unknown = log({ hostVersionId: "", categoryId: "catLogs" });
+            const { match, ambiguous, candidates } = bestMatch(unknown, [tbcRaid, foreverRaid]);
+            expect(candidates.map((c) => [c.event.id, c.sameVersion])).toEqual([["forever", true], ["tbc", false]]);
+            expect(match.event.id).toBe("forever");
+            expect(ambiguous).toBe(false);
+        });
+
+        it("without a category the two raids of the evening stay a question for the admin", () => {
+            const unknown = log({ hostVersionId: "" });
+            expect(bestMatch(unknown, [tbcRaid, foreverRaid]).ambiguous).toBe(true);
+            expect(autoMatches([unknown], [tbcRaid, foreverRaid])).toEqual([]);
         });
     });
 });

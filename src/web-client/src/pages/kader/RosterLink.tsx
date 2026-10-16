@@ -21,7 +21,7 @@ import {
 } from "../../api";
 import { Button, Field, Modal, Switch, buttonClass } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
-import { PlusIcon } from "../../components/ui/icons";
+import { PlusIcon, LinkIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { useApi } from "../../hooks/useApi";
 import { useT } from "../../i18n";
@@ -29,9 +29,9 @@ import { countStates } from "../../lib/kader/model";
 import { useKader } from "./kaderContext";
 
 /** The refusals the create dialog says in words; anything else shows the server's message. */
-const CREATE_CODES = ["category_taken", "kader_not_found", "invalid_name", "name_too_long", "admin_only", "kader_taken"];
+const CREATE_CODES = ["category_taken", "kader_not_found", "invalid_name", "name_too_long", "admin_only", "kader_taken", "version_mismatch", "version_hidden"];
 /** The refusals of a link in words. */
-const LINK_CODES = ["kader_taken", "kader_not_found", "not_found"];
+const LINK_CODES = ["kader_taken", "kader_not_found", "not_found", "version_mismatch"];
 
 function CreateRosterModal({ kaderId, kaderName, onClose, onCreated }: {
     kaderId: string; kaderName: string; onClose: () => void; onCreated: (rosterId: string, added: number) => void;
@@ -41,7 +41,9 @@ function CreateRosterModal({ kaderId, kaderName, onClose, onCreated }: {
     const [categoryId, setCategoryId] = useState("");
     const [busy, setBusy] = useState(false);
     const [problem, setProblem] = useState("");
-    const options = useApi(() => getKaderRosterCategories(), []);
+    const { kader } = useKader();
+    // the categories of the Kader's version only (#741): a roster from a Kader plays its version
+    const options = useApi(() => getKaderRosterCategories(kader.versionId || ""), [kader.versionId]);
     const free: KaderRosterCategory[] = (options.data?.categories || []).filter((c) => !c.rosterId);
     const submit = async () => {
         if (!name.trim() || busy) return;
@@ -159,7 +161,7 @@ function LinkRosterModal({ state, onClose, onLinked }: { state: KaderRosterState
                 <>
                     {state.roster && <Button variant="ghost" className="kp-foot-left" disabled={busy} onClick={() => void unlink()}>{t("kader.roster.unlink")}</Button>}
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button disabled={!rosterId || rosterId === state.roster?.id || !!picked?.linkedKaderId} running={busy} onClick={() => void send(rosterId)}>{t("kader.roster.link")}</Button>
+                    <Button variant="go" icon={<LinkIcon />} disabled={!rosterId || rosterId === state.roster?.id || !!picked?.linkedKaderId} running={busy} onClick={() => void send(rosterId)}>{t("kader.roster.link")}</Button>
                 </>
             )}
         >

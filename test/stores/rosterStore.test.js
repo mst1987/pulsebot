@@ -26,7 +26,7 @@ describe("stores/rosterStore normalizeRoster", () => {
             slots: { total: 0, tank: 0, healer: 0, bench: 0 },
             allowMultipleChars: false, signupOnly: false, publicRaids: false, source: { kind: "manual" }, kaderId: null,
             lootSystem: "", lootProfileId: "",
-            members: {}, history: [], createdAt: "", createdBy: "",
+            members: {}, history: [], createdAt: "", createdBy: "", closedAt: null, closedReason: "",
         });
     });
 
@@ -126,7 +126,7 @@ describe("stores/rosterStore create / read / update / delete", () => {
         expect(r).toMatchObject({ guildId: "g1", name: "Donnerstag Raid", categoryId: "c1", roleIds: ["10"], createdAt: NOW, createdBy: "u9" });
         expect(r.history).toEqual([{ at: NOW, by: "u9", userId: "", what: "created", detail: "Donnerstag Raid" }]);
         expect(getRoster(r.id)).toEqual(r);
-        expect(rosterForCategory("c1")).toEqual(r);
+        expect(rosterForCategory("c1", "tbc")).toEqual(r);
         expect(stored().rosters[r.id].name).toBe("Donnerstag Raid");
     });
 
@@ -343,6 +343,87 @@ describe("stores/rosterStore setFirstChars (the facade's write)", () => {
     });
 });
 
+describe("stores/rosterStore one roster per category and version (#739)", () => {
+    it("takes two rosters of a category with different versions, category_taken only for the same one", () => {
+        const tbc = createRoster({ name: "Mo", categoryId: "c1", versionId: "tbc" });
+        const forever = createRoster({ name: "Mo", categoryId: "c1", versionId: "forever" });
+        expect(rosterForCategory("c1", "tbc").id).toBe(tbc.id);
+        expect(rosterForCategory("c1", "forever").id).toBe(forever.id);
+        expect(() => createRoster({ name: "Noch eins", categoryId: "c1", versionId: "forever" })).toThrow(expect.objectContaining({ code: "category_taken" }));
+        // moving onto a category and version that has one is refused, another version is free
+        const other = createRoster({ name: "Di", categoryId: "c2", versionId: "forever" });
+        expect(() => updateRoster(other.id, { categoryId: "c1" })).toThrow(expect.objectContaining({ code: "category_taken" }));
+        expect(() => updateRoster(tbc.id, { versionId: "forever" })).toThrow(expect.objectContaining({ code: "category_taken" }));
+        expect(rosterStore.rostersForCategory("c1").map((r) => r.id).sort()).toEqual([tbc.id, forever.id].sort());
+        expect(rosterStore.rostersForCategory("")).toEqual([]);
+    });
+
+    it("a file with two rosters of one category and version keeps the first, another version stays", () => {
+        const file = normalizeFile({ rosters: {
+            a: { categoryId: "c1", versionId: "tbc" }, b: { categoryId: "c1", versionId: "tbc" }, c: { categoryId: "c1", versionId: "forever" },
+        } });
+        expect(Object.keys(file.rosters)).toEqual(["a", "c"]);
+    });
+
+    it("requires the version: throws outside production, the category's version with a warning on the live bot", () => {
+        const r = createRoster({ name: "Mo", categoryId: "c1" });
+        expect(() => rosterForCategory("c1")).toThrow(/versionId fehlt/);
+        expect(() => rosterForCategory("c1", "wotlk")).toThrow(/versionId fehlt/);
+        const env = process.env.NODE_ENV;
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+        process.env.NODE_ENV = "production";
+        try {
+            expect(rosterForCategory("c1").id).toBe(r.id);
+            expect(warn).toHaveBeenCalled();
+        } finally {
+            process.env.NODE_ENV = env;
+            warn.mockRestore();
+        }
+    });
+
+    it("closeRoster closes once with reason and history, releases the Kader link, and the roster is read only", () => {
+        const r = createRoster({ name: "Mo", categoryId: "c1", kaderId: "k1" }, { now: NOW });
+        upsertMember(r.id, "u1", { status: "core", chars: ["Kes"] });
+        const closed = rosterStore.closeRoster(r.id, { reason: "version_switch", actor: "a1", now: NOW });
+        expect(closed).toMatchObject({ closedAt: NOW, closedReason: "version_switch", kaderId: null, source: { kind: "manual" } });
+        expect(rosterStore.isClosed(closed)).toBe(true);
+        expect(closed.history[closed.history.length - 1]).toEqual({ at: NOW, by: "a1", userId: "", what: "closed", detail: "version_switch" });
+        // again: unchanged, no second line
+        expect(rosterStore.closeRoster(r.id, { reason: "other" }).history).toHaveLength(closed.history.length);
+        expect(rosterStore.closeRoster("nope")).toBeNull();
+        // read only
+        expect(() => upsertMember(r.id, "u2", { status: "core" })).toThrow(expect.objectContaining({ code: "roster_closed" }));
+        expect(() => upsertMember(r.id, "u1", { status: "bench" })).toThrow(expect.objectContaining({ code: "roster_closed" }));
+        expect(() => removeMember(r.id, "u1")).toThrow(expect.objectContaining({ code: "roster_closed" }));
+        expect(() => updateRoster(r.id, { name: "X" })).toThrow(expect.objectContaining({ code: "roster_closed" }));
+        expect(setFirstChars(r.id, { u1: { key: "x", name: "X" } })).toBe(false);
+        expect(getRoster(r.id).members.u1).toMatchObject({ status: "core", chars: ["kes"] });
+        // closing is not patchable, the Kader can go to another roster now
+        expect(createRoster({ name: "Neu", kaderId: "k1" }).kaderId).toBe("k1");
+        // still found under its version and deletable
+        expect(rosterForCategory("c1", "tbc").id).toBe(r.id);
+        expect(deleteRoster(r.id)).toBe(true);
+    });
+
+    it("an unknown close reason is stored as none; reopenRoster opens it again", () => {
+        const r = createRoster({ name: "Mo", categoryId: "c1" });
+        expect(rosterStore.closeRoster(r.id, { reason: "Weil!" }).closedReason).toBe("");
+        const open = rosterStore.reopenRoster(r.id, { actor: "a1", now: NOW });
+        expect(open).toMatchObject({ closedAt: null, closedReason: "" });
+        expect(open.history[open.history.length - 1]).toMatchObject({ what: "reopened", by: "a1" });
+        expect(rosterStore.reopenRoster(r.id).history).toHaveLength(open.history.length);
+        expect(rosterStore.reopenRoster("nope")).toBeNull();
+        expect(upsertMember(r.id, "u1", { status: "core" })).toMatchObject({ status: "core" });
+    });
+
+    it("lists open rosters before closed ones in rostersForCategory", () => {
+        const old = createRoster({ name: "Alt", categoryId: "c1", versionId: "tbc" }, { now: "2026-01-01T00:00:00.000Z" });
+        rosterStore.closeRoster(old.id, { reason: "version_switch" });
+        const next = createRoster({ name: "Neu", categoryId: "c1", versionId: "forever" }, { now: NOW });
+        expect(rosterStore.rostersForCategory("c1").map((r) => r.id)).toEqual([next.id, old.id]);
+    });
+});
+
 describe("stores/rosterStore migrateCategories", () => {
     const CATS = [
         { categoryId: "c1", guildId: "g1", name: "Donnerstag", versionId: "tbc", roleIds: ["10"], members: { u1: { key: "kes", name: "Kes-Realm" } } },
@@ -355,7 +436,7 @@ describe("stores/rosterStore migrateCategories", () => {
             expect.objectContaining({ categoryId: "c1", name: "Donnerstag", guildId: "g1", members: 1, roleIds: 1 }),
             expect.objectContaining({ categoryId: "c2", name: "c2", guildId: "", members: 0, roleIds: 0 }),
         ]);
-        const r = rosterForCategory("c1");
+        const r = rosterForCategory("c1", "tbc");
         expect(r).toMatchObject({ source: { kind: "migration" }, createdAt: NOW, roleIds: ["10"], versionId: "tbc" });
         expect(r.members.u1).toEqual({ status: "core", since: NOW, by: "", chars: ["kes"], charNames: { kes: "Kes-Realm" }, note: "", spec: "", trialUntil: null });
         expect(stored().migratedCategories).toEqual(["c1", "c2"]);
@@ -370,9 +451,9 @@ describe("stores/rosterStore migrateCategories", () => {
         const own = createRoster({ name: "Eigenes", categoryId: "c1", roleIds: ["99"] });
         expect(migrateCategories(CATS, { now: NOW }).map((c) => c.categoryId)).toEqual(["c2"]);
         expect(getRoster(own.id)).toMatchObject({ name: "Eigenes", roleIds: ["99"], members: {} });
-        deleteRoster(rosterForCategory("c2").id);
+        deleteRoster(rosterForCategory("c2", "forever").id);
         expect(migrateCategories(CATS, { now: NOW })).toEqual([]);
-        expect(rosterForCategory("c2")).toBeNull();
+        expect(rosterForCategory("c2", "forever")).toBeNull();
     });
 
     it("skips entries without a category", () => {
@@ -389,5 +470,63 @@ describe("stores/rosterStore migratedCategories (#657)", () => {
         expect(stored().migratedCategories).toEqual(["c1", "c2"]);
         deleteRoster(a.id);
         expect(stored().migratedCategories).toEqual(["c1", "c2"]);
+    });
+});
+
+// #737: a roster's version is stored, never derived from today's setting on read.
+describe("stores/rosterStore versionId", () => {
+    const configStore = require("../../src/stores/configStore");
+    const setConfig = (cfg) => configStore.writeStored(cfg);
+
+    it("stamps a new roster with the version its category plays at creation", () => {
+        setConfig({ mainVersion: "tbc", categoryVersion: { fri: "forever" } });
+        expect(createRoster({ name: "Freitag", categoryId: "fri" }).versionId).toBe("forever");
+        expect(createRoster({ name: "Ohne" }).versionId).toBe("tbc");
+        expect(createRoster({ name: "Klassik", versionId: "classic" }).versionId).toBe("classic");
+        expect(Object.values(stored().rosters).map((r) => r.versionId).sort()).toEqual(["classic", "forever", "tbc"]);
+    });
+
+    it("keeps a stored roster's version when the main or category version is switched", () => {
+        setConfig({ mainVersion: "tbc" });
+        const r = createRoster({ name: "Montag", categoryId: "mon" });
+        setConfig({ mainVersion: "forever", categoryVersion: { mon: "forever" } });
+        expect(getRoster(r.id).versionId).toBe("tbc");
+        expect(updateRoster(r.id, { name: "Montag neu" }).versionId).toBe("tbc");
+    });
+
+    it("reads a roster stored without version as TBC, not as today's setting", () => {
+        setConfig({ mainVersion: "forever" });
+        fs.writeFileSync(ROSTERS_FILE, JSON.stringify({ rosters: { r1: { id: "r1", name: "Alt", categoryId: "mon" } } }));
+        expect(getRoster("r1").versionId).toBe("tbc");
+    });
+
+    it("migrateVersions stamps every roster without version once with its category's version", () => {
+        setConfig({ mainVersion: "tbc", categoryVersion: { fri: "forever" } });
+        fs.writeFileSync(ROSTERS_FILE, JSON.stringify({
+            rosters: {
+                r1: { id: "r1", name: "Montag", categoryId: "mon", members: { "100000000000000001": { status: "core", chars: ["devi"], spec: "Priest-Holy" } } },
+                r2: { id: "r2", name: "Freitag", categoryId: "fri" },
+                r3: { id: "r3", name: "Klassik", categoryId: "sun", versionId: "classic" },
+                r4: { id: "r4", name: "Ohne Kategorie" },
+            },
+            migratedCategories: ["mon"],
+        }));
+        expect(rosterStore.migrateVersions()).toEqual({ tbc: 2, forever: 1 });
+        expect(Object.fromEntries(Object.values(stored().rosters).map((r) => [r.id, r.versionId])))
+            .toEqual({ r1: "tbc", r2: "forever", r3: "classic", r4: "tbc" });
+        expect(stored().rosters.r1.members["100000000000000001"]).toMatchObject({ status: "core", chars: ["devi"], spec: "Priest-Holy" });
+        expect(stored().migratedCategories).toEqual(["mon"]);
+
+        // idempotent, and later switches move nothing
+        const before = fs.__store.get(ROSTERS_FILE);
+        setConfig({ mainVersion: "forever", categoryVersion: { mon: "forever" } });
+        expect(rosterStore.migrateVersions()).toEqual({});
+        expect(fs.__store.get(ROSTERS_FILE)).toBe(before);
+        expect(getRoster("r1").versionId).toBe("tbc");
+    });
+
+    it("migrateVersions does nothing without a file", () => {
+        expect(rosterStore.migrateVersions()).toEqual({});
+        expect(fs.__store.has(ROSTERS_FILE)).toBe(false);
     });
 });

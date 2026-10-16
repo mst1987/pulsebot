@@ -2,14 +2,26 @@
 // they are grouped and sorted, the tone of "Verfügbar" and the bank-tab line
 // under an item's name. The numbers themselves (reserved, available, group)
 // come from the server (src/services/guildbank/stockView.js).
-import type { GuildBankItem, GuildBankStatus, GuildBankTab } from "../../api";
+import type { GuildBankHandedOut, GuildBankItem, GuildBankRequest, GuildBankStatus, GuildBankTab, GuildBankWaitingEntry } from "../../api";
 import { locale, t } from "../../i18n";
+import { formatWith, isoDay } from "../../lib/format";
 
-/** The page's tabs, in the order of the design: what raiders see first. */
-export const BANK_TABS: GuildBankStatus[] = ["give", "show", "hide", "new"];
+/**
+ * The page's tabs, in the order of the design: what raiders see first; "wait"
+ * is the waiting list (#775) and "out" what was handed out — no item status.
+ */
+export type PageTab = GuildBankStatus | "wait" | "req" | "out";
+export const BANK_TABS: PageTab[] = ["give", "wait", "req", "out", "show", "hide", "new"];
 
-/** The WoW icon of the "Anfragen" button and dialog (#633). */
-export const REQUESTS_ICON = "inv_misc_bag_10";
+/** The item status whose items a tab lists ("wait", "req" and "out" filter by the offered ones; "req" = the open and set-aside requests). */
+export function itemTabOf(tab: PageTab): GuildBankStatus {
+    return tab === "wait" || tab === "req" || tab === "out" ? "give" : tab;
+}
+
+/** A stored tab id that is none of the page's tabs falls back to the first. */
+export function isPageTab(value: string): value is PageTab {
+    return (BANK_TABS as string[]).includes(value);
+}
 
 export type BankFilter = { tab: GuildBankStatus; category: string; search: string };
 
@@ -70,7 +82,7 @@ export function availableTone(available: number): "ok" | "mid" | "bad" {
     return available <= 3 ? "mid" : "ok";
 }
 
-/** "Tab 2: Edelsteine" (several: joined), or "Nicht mehr in der Bank" for an item that left. */
+/** "Tab 2: Edelsteine" (several: joined), or "Nicht in der Bank" for an item that left or was added by hand. */
 export function tabLine(item: GuildBankItem, tabs: GuildBankTab[]): string {
     const names = new Map(tabs.map((tab) => [String(tab.index), tab.name]));
     const parts = Object.keys(item.tabs || {})
@@ -87,8 +99,172 @@ export function itemsInTab(items: GuildBankItem[], index: number): number {
     return items.filter((it) => Number((it.allTabs || {})[String(index)]) > 0).length;
 }
 
+/** An item id or a Wowhead link (item=123): the server reads it as it is, no name search needed. */
+export function isDirectItemInput(text: string): boolean {
+    const v = text.trim();
+    return /^\d{1,12}$/.test(v) || (/wowhead\.com|^item=/i.test(v) && /item[=/]\d+/i.test(v));
+}
+
+/** The WoW icon of the "Warteliste" dialogs (#775). */
+export const WAITLIST_ICON = "inv_misc_pocketwatch_01";
+
+/** How many waiting-list entries wait over the listed items (the head's "N warten"). */
+export function waitingTotal(items: GuildBankItem[]): number {
+    return listedItems(items).reduce((sum, it) => sum + (Number(it.waiting) || 0), 0);
+}
+
+export type WaitlistGroup = { itemId: number; item: string; iconUrl: string; entries: GuildBankWaitingEntry[] };
+
+/** The waiting list per item, items by name, each item's entries in their order (place 1 first). */
+export function groupWaitlist(entries: GuildBankWaitingEntry[]): WaitlistGroup[] {
+    const byItem = new Map<number, WaitlistGroup>();
+    for (const e of entries) {
+        const group = byItem.get(e.itemId) || { itemId: e.itemId, item: e.item, iconUrl: e.iconUrl, entries: [] };
+        group.entries.push(e);
+        byItem.set(e.itemId, group);
+    }
+    return [...byItem.values()]
+        .map((g) => ({ ...g, entries: [...g.entries].sort((a, b) => a.position - b.position) }))
+        .sort((a, b) => a.item.localeCompare(b.item, locale()) || a.itemId - b.itemId);
+}
+
+/** The entries the filter line lets through: the item's category and a search in the item's or the waiting player's name. */
+export function filterWaitlist(
+    entries: GuildBankWaitingEntry[],
+    items: Map<number, GuildBankItem>,
+    filter: { category: string; search: string },
+): GuildBankWaitingEntry[] {
+    const needle = filter.search.trim().toLocaleLowerCase(locale());
+    return entries.filter((e) => {
+        const item = items.get(e.itemId);
+        if (filter.category && (!item || groupName(item) !== filter.category)) return false;
+        if (!needle) return true;
+        return [e.item, waitingName(e), e.characterName].some((s) => (s || "").toLocaleLowerCase(locale()).includes(needle));
+    });
+}
+
+/** Who waits: the raider's name, else the character imported without a Discord account. */
+export function waitingName(entry: GuildBankWaitingEntry): string {
+    return entry.userName || entry.characterName || entry.userId;
+}
+
+/** The items an orga member may put on the waiting list: offered and not only in hidden tabs, by name. */
+export function waitlistItems(items: GuildBankItem[]): GuildBankItem[] {
+    return listedItems(items)
+        .filter((it) => it.status === "give")
+        .sort((a, b) => itemName(a).localeCompare(itemName(b), locale()) || a.itemId - b.itemId);
+}
+
+/** Who receives it in game: "Name-Realm" (the realm without spaces), the name alone without a realm, "" without a name. */
+export function recipientName(entry: { characterName: string; realm: string }): string {
+    if (!entry.characterName) return "";
+    return entry.realm ? `${entry.characterName}-${entry.realm.replace(/\s+/g, "")}` : entry.characterName;
+}
+
+/** The handed-out requests the filter line lets through: the item's category and a search in the item, the character or the raider. */
+export function filterHandedOut(
+    list: GuildBankHandedOut[],
+    items: Map<number, GuildBankItem>,
+    filter: { category: string; search: string },
+): GuildBankHandedOut[] {
+    const needle = filter.search.trim().toLocaleLowerCase(locale());
+    return list.filter((r) => {
+        const item = items.get(r.itemId);
+        if (filter.category && (!item || groupName(item) !== filter.category)) return false;
+        if (!needle) return true;
+        return [r.item, r.characterName, r.userName].some((s) => (s || "").toLocaleLowerCase(locale()).includes(needle));
+    });
+}
+
+export type HandedOutDay = { day: string; at: number; requests: GuildBankHandedOut[] };
+
+/** The handed-out requests per day (the guild's time zone), newest first (or oldest first), each day's in the same order. */
+export function groupHandedOutByDay(list: GuildBankHandedOut[], { newestFirst = true }: { newestFirst?: boolean } = {}): HandedOutDay[] {
+    const sorted = [...list].sort((a, b) => (newestFirst ? b.handedOutAt - a.handedOutAt : a.handedOutAt - b.handedOutAt));
+    const days: HandedOutDay[] = [];
+    for (const r of sorted) {
+        const day = isoDay(r.handedOutAt);
+        const last = days[days.length - 1];
+        if (last && last.day === day) last.requests.push(r);
+        else days.push({ day, at: r.handedOutAt, requests: [r] });
+    }
+    return days;
+}
+
+/** "Heute", "Gestern" or the weekday with its date, for a day group's head. */
+export function dayLabel(at: number, now: number = Date.now()): string {
+    const day = isoDay(at);
+    if (day === isoDay(now)) return t("guildbank.handedOut.today");
+    if (day === isoDay(now - 24 * 60 * 60 * 1000)) return t("guildbank.handedOut.yesterday");
+    return formatWith(at, { weekday: "long", day: "numeric", month: "long" });
+}
+
 /** A whole number from 0 as typed, else null. */
 export function wholeNumber(text: string): number | null {
     const v = text.trim();
     return /^\d{1,7}$/.test(v) ? Number(v) : null;
+}
+
+/** The range of an item's portion per turn on the waiting list (guildBankStockStore PORTION_MAX; the default is 2). */
+export const PORTION_MIN = 1;
+export const PORTION_MAX = 99;
+
+/** Whether a typed portion counts: a whole number from 1 to 99. */
+export function validPortion(n: number): boolean {
+    return Number.isInteger(n) && n >= PORTION_MIN && n <= PORTION_MAX;
+}
+
+/**
+ * What "ins Profil übernehmen" did (#809), as a sentence for the toast: added,
+ * the class is unknown (the orga adds it in the profile by hand), no profile,
+ * or the server's own reason; "" when it was not asked for.
+ */
+export function profileNote(profile: string, raider: string): string {
+    if (!profile) return "";
+    if (profile === "added") return t("guildbank.link.profileAdded", { raider });
+    if (profile === "noClass") return t("guildbank.link.profileNoClass", { raider });
+    if (profile === "noProfile") return t("guildbank.link.profileMissing", { raider });
+    return t("guildbank.link.profileError", { reason: profile });
+}
+
+/** The requests the filter line lets through: the item's category and a search in the item, the character or the raider. */
+export function filterRequests(
+    list: GuildBankRequest[],
+    items: Map<number, GuildBankItem>,
+    filter: { category: string; search: string },
+): GuildBankRequest[] {
+    const needle = filter.search.trim().toLocaleLowerCase(locale());
+    return list.filter((r) => {
+        const item = items.get(r.itemId);
+        if (filter.category && (!item || groupName(item) !== filter.category)) return false;
+        if (!needle) return true;
+        return [r.item, r.characterName, r.userName].some((s) => (s || "").toLocaleLowerCase(locale()).includes(needle));
+    });
+}
+
+/** Set-aside requests first (they wait for the hand-out in game), then the open ones (they wait for the orga); each oldest first. */
+export function groupRequestsByStatus(list: GuildBankRequest[]): { status: GuildBankRequest["status"]; requests: GuildBankRequest[] }[] {
+    return (["confirmed", "open"] as const)
+        .map((status) => ({ status, requests: list.filter((r) => r.status === status).sort((a, b) => a.createdAt - b.createdAt) }))
+        .filter((g) => g.requests.length > 0);
+}
+
+/** The set-aside ("Vorgemerkt") requests per item id, oldest first: who the number in the item list is for. */
+export function reservedByItem(list: GuildBankRequest[]): Map<number, GuildBankRequest[]> {
+    const out = new Map<number, GuildBankRequest[]>();
+    for (const r of [...list].sort((a, b) => a.createdAt - b.createdAt)) {
+        if (r.status !== "confirmed") continue;
+        out.set(r.itemId, [...(out.get(r.itemId) || []), r]);
+    }
+    return out;
+}
+
+/** "gerade eben", "vor 5 Min.", "vor 3 Std.", "vor 2 Tagen". */
+export function agoLabel(at: number, now: number = Date.now()): string {
+    const min = Math.floor((now - at) / 60000);
+    if (min < 1) return t("guildbank.requests.agoNow");
+    if (min < 60) return t("guildbank.requests.agoMinutes", { count: min });
+    const hours = Math.floor(min / 60);
+    if (hours < 48) return t("guildbank.requests.agoHours", { count: hours });
+    return t("guildbank.requests.agoDays", { count: Math.floor(hours / 24) });
 }

@@ -26,8 +26,9 @@ const { raidContentIds } = require("./raidListing");
 const { getConfig, getRaidTemplate } = require("../../stores/settingsStore");
 const { getChannelConfig } = require("../../stores/channelArchiveStore");
 const channelNaming = require("../discord/channelNaming");
-const { instanceById } = require("../../config/gameVersions");
-const { mainVersionFor } = require("./mainVersion");
+const { instanceById, rulesFor } = require("../../config/gameVersions");
+const { mainVersionFor, isVersionVisible } = require("./mainVersion");
+const { templateVersionProblem } = require("./categoryEras");
 const { emojiStyleOf } = require("../discord/appEmojis");
 const { normalizeOverflow, normalizeLockAtLimit } = require("../../utils/signup/capacity");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
@@ -218,7 +219,16 @@ function deadlineFrom(body, startTime) {
  * @returns {{ plan?: object, error?: object }}
  */
 function planFor(body, categoryId, title, startTime) {
-    const templateId = body.raidTemplateId || (getConfig().categoryRaidTemplate || {})[categoryId];
+    const config = getConfig();
+    const templateId = body.raidTemplateId || (config.categoryRaidTemplate || {})[categoryId];
+    // #738: a template of another version than the category plays creates no
+    // event — a series or the category default must not make a silently wrong
+    // one (the template used to win). A version the body names (the dialog) is
+    // a deliberate choice and wins as before.
+    if (templateId && !given(body, "versionId")) {
+        const problem = templateVersionProblem({ template: getRaidTemplate(String(templateId)), categoryId, config });
+        if (problem) return { error: fail(409, "template_version_mismatch", `${problem} Kein Event angelegt – bitte eine passende Vorlage wählen (Serie oder Einstellungen → Kategorien).`) };
+    }
     const template = templateDefaults(templateId, startTime);
     const merged = { ...template };
     for (const key of PLAN_KEYS) {
@@ -235,14 +245,16 @@ function planFor(body, categoryId, title, startTime) {
     const deadline = deadlineFrom(body, startTime);
     if (deadline !== undefined && given(body, "signupDeadlineHours")) merged.signupDeadline = deadline;
     // Neither the body nor the template names a version: the one the category plays (#541).
-    if (!given(merged, "versionId")) merged.versionId = mainVersionFor({ categoryId, config: getConfig() });
+    if (!given(merged, "versionId")) merged.versionId = mainVersionFor({ categoryId, config });
     // The instances the title names only when they belong to that version — a
     // "Kara" in the title of a Forever raid is no reason to refuse it.
-    const fromTitle = () => raidContentIds({ title }).contentIds
+    const fromTitle = () => raidContentIds({ title, versionId: merged.versionId }).contentIds
         .filter((id) => { const inst = instanceById(id); return !inst || inst.versionId === merged.versionId; });
+    // The template's instances only when it is of the event's version.
+    const templateInstances = !template.versionId || template.versionId === merged.versionId ? template.instanceIds || [] : [];
     merged.instanceIds = Array.isArray(body.instanceIds) && body.instanceIds.length
         ? body.instanceIds
-        : ((template.instanceIds || []).length ? template.instanceIds : fromTitle());
+        : (templateInstances.length ? templateInstances : fromTitle());
     const checked = eventStore.normalizePlan(merged);
     if (checked.error) return { error: fail(400, "invalid_plan", checked.error) };
     const signupDeadline = Number(merged.signupDeadline) || 0;
@@ -252,7 +264,7 @@ function planFor(body, categoryId, title, startTime) {
             ...checked.value,
             signupDeadline,
             // The voice channel (#305): the body's choice, else the category's preset.
-            voiceChannelId: String(given(body, "voiceChannelId") ? body.voiceChannelId : ((getConfig().categoryVoiceChannel || {})[categoryId] || "")).trim(),
+            voiceChannelId: String(given(body, "voiceChannelId") ? body.voiceChannelId : ((config.categoryVoiceChannel || {})[categoryId] || "")).trim(),
             fairness: merged.fairness === true,
             wishes: merged.wishes === true,
             autoSuggest: merged.autoSuggest === true,
@@ -471,12 +483,14 @@ function followAvailability(id, before, patch) {
  * signupDeadlineHours, fairness, wishes, autoSuggest }. Missing planning
  * fields come from the raid template, then the rule set; missing instances are
  * read from the title. A cloned or new channel without a name is named by the
- * category's schema.
+ * category's schema. An event of a hidden game version (#563: its plan's or
+ * its category's) is refused with 409 `version_hidden` before anything is
+ * created, unless `allowHidden` (the series sweep).
  *
- * @param {{ guildId: string, user?: { id: string }, body: object }} input
+ * @param {{ guildId: string, user?: { id: string }, body: object, allowHidden?: boolean }} input
  * @returns {Promise<{ status: number, body: object } | { error: { status: number, code: string, message: string } }>}
  */
-async function createEvent({ guildId, user, body = {} }) {
+async function createEvent({ guildId, user, body = {}, allowHidden = false }) {
     // validation
     const date = toRaidHelperDate(body.date);
     if (!date) return fail(400, "invalid_date", "Ungültiges Datum.");
@@ -498,6 +512,10 @@ async function createEvent({ guildId, user, body = {} }) {
         if (own.error) return own;
         ({ plan, startTime } = own);
     }
+    if (!allowHidden) {
+        const hidden = hiddenVersionOf(categoryId, plan);
+        if (hidden) return fail(409, "version_hidden", `${hidden} ist ausgeblendet (Einstellungen → Spielversion) – kein Event angelegt.`);
+    }
 
     // Discord: the channel, only now that everything was checked
     const channel = await makeChannel({ guildId, categoryId, body, request, sourceChannel, instanceIds: plan ? plan.instanceIds : body.instanceIds });
@@ -517,6 +535,22 @@ async function createEvent({ guildId, user, body = {} }) {
             ...namingBody(channel.naming, channel.channelName),
         },
     };
+}
+
+/**
+ * The label of a hidden game version (#563) a new event would play - its
+ * plan's, else its category's - or that its category plays; "" while both are
+ * shown. A hidden version is archive: nothing new is created in it, from the
+ * web or from Discord (the series sweep passes `allowHidden`).
+ */
+function hiddenVersionOf(categoryId, plan) {
+    const config = getConfig();
+    const category = mainVersionFor({ categoryId, config });
+    const own = (plan && plan.versionId) || category;
+    const hidden = [own, category].find((id) => !isVersionVisible(id, config));
+    if (!hidden) return "";
+    const rules = rulesFor(hidden);
+    return rules ? rules.short || rules.label : hidden;
 }
 
 /** Where a created channel's name and design came from, for the caller's confirmation (#285). */

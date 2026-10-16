@@ -6,7 +6,7 @@ import GuildSwitcher from "./GuildSwitcher";
 import ContentSwitch from "./ContentSwitch";
 import ContentVersionProvider from "./ContentVersionProvider";
 import { ViewAsBanner, ViewAsButton } from "./ViewAs";
-import { CrestIcon, BurgerIcon, LogoutIcon, BookIcon } from "../ui/icons";
+import { BrandIcon, BurgerIcon, LogoutIcon, BookIcon } from "../ui/icons";
 import WowIcon from "../ui/WowIcon";
 import RaidLoader from "../ui/RaidLoader";
 import ChunkErrorBoundary from "./ChunkErrorBoundary";
@@ -18,7 +18,7 @@ import { useApi } from "../../hooks/useApi";
 import { PageCrumbContext } from "../../hooks/usePageCrumb";
 import { deployLine } from "../../lib/app/deployVersion";
 import { pageAudience } from "../../lib/app/orgaArea";
-import { OrgaBar, OrgaDot } from "../ui/OrgaZone";
+import { OrgaChip, OrgaDot } from "../ui/OrgaZone";
 import { t as tr, tOr, useLang, useT } from "../../i18n";
 
 export type ShellContext = { user: SessionUser };
@@ -138,6 +138,7 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
 
     const tab = crumbTab(location.pathname);
     const label = tab ? menuLabel(tab) : t("shell.menu.home");
+    const orgaAudience = tab ? pageAudience(user, tab) : null;
     // a page that knows its own name (one roster) sets it (hooks/usePageCrumb.ts); it counts only on the path it was set for
     const [pageCrumb, setPageCrumb] = useState<{ path: string; label: string } | null>(null);
     const setCrumb = useCallback((next: string | null) => {
@@ -147,7 +148,7 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
         ?? (pageCrumb && pageCrumb.path === location.pathname ? pageCrumb.label : null);
 
     return (
-        <ContentVersionProvider content={content}>
+        <ContentVersionProvider content={content} neutral={!!tab?.neutral}>
             <div className="app">
                 <aside className={`side${menuOpen ? " open" : ""}`}>
                     {/* The crest is the way home: "/" is the dashboard, or — for an
@@ -156,7 +157,7 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                         click like a nav item, so on a phone the page shows. The
                         crest stays a line icon: it is the brand, not a game thing. */}
                     <Link className="brand" to="/" aria-label={t("shell.toHome")} onClick={() => setMenuOpen(false)}>
-                        <div className="crest"><CrestIcon /></div>
+                        <div className="crest"><BrandIcon /></div>
                         <div>
                             <div className="brand-name">EventHelper</div>
                             {/* Not "Gilden-Admin": most people in here are members
@@ -182,15 +183,19 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                     </div>
                 </aside>
                 <div className="main">
-                    <header className="topbar">
+                    <header className={orgaAudience ? "topbar is-orga" : "topbar"}>
                         <IconButton className="menu-toggle" icon={<BurgerIcon />} tip={t("shell.menuToggle")} onClick={() => setMenuOpen((o) => !o)} />
                         <div className="crumbs">
                             <Link to="/">{t("shell.crumb.menu")}</Link> <span className="crumb-sep">/</span>{" "}
                             {crumb && tab ? <Link to={tab.href}>{label}</Link> : <b>{label}</b>}
                             {crumb && <> <span className="crumb-sep">/</span> <b>{crumb}</b></>}
                         </div>
+                        {/* A page only the orga may open: the teal chip says so, and who sees it after all. */}
+                        {tab && <OrgaChip key={tab.id} user={user} audience={orgaAudience} />}
                         <div className="top-actions">
-                            <ContentSwitch />
+                            {/* A page without game content (menu.json `neutral`: Kanäle, Einstellungen,
+                                Systemstatus) shows no version state (#741); every other page follows it. */}
+                            {!tab?.neutral && <ContentSwitch />}
                             <GuildSwitcher guilds={guilds} activeGuildId={activeGuildId} />
                             <ViewAsButton user={user} />
                             {/* A real link, not a button: it leaves the SPA for the
@@ -205,8 +210,6 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                     <div className="content" key={lang}>
                         {/* While an admin looks at the menu as a role: which one, and the way back. */}
                         <ViewAsBanner user={user} />
-                        {/* A page only the orga may open: the teal bar says so, and who sees it after all. */}
-                        {tab && <OrgaBar key={tab.id} user={user} audience={pageAudience(user, tab)} />}
                         {/* Every page is its own chunk (App.tsx, #436): while one loads,
                             the menu stays and only the page body shows the loader. A chunk
                             that cannot be loaded (after a deploy, #530) shows the reload

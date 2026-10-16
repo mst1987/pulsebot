@@ -21,13 +21,18 @@
 //            items: { [itemId]: itemSettings } }
 //
 //   itemSettings = { status: "new" | "hide" | "show" | "give", reserve, maxPerRequest (0 = no limit),
+//                    portion (the waiting list's share per turn, 1–99; 0 = the
+//                    default PORTION_DEFAULT — item views carry the effective value),
 //                    category (the orga's own group, "" = none), firstSeenAt,
 //                    name, icon, quality, classId, subclassId, className, subclassName,
-//                    metaSource: "" | "local" | "wowhead", metaAt, metaVersion }
+//                    metaSource: "" | "local" | "wowhead", metaAt, metaVersion,
+//                    addedByHand (true = the orga created the row), addedAt }
 //
 // The settings outlive scans: a new scan replaces `lastScan` only. An item id
 // seen for the first time gets status "new"; an item that left the bank keeps
-// its settings and reads with count 0. A scan older than the stored one (a
+// its settings and reads with count 0. The orga can also create a row by hand
+// (addItem) for an item the bank does not hold yet: count 0, status
+// "give", so a waiting list can be kept before a scan ever shows the item. A scan older than the stored one (a
 // second PC uploading late) is ignored. Item names are English — from the local
 // item tables or from Wowhead (services/guildbank/itemMeta.js); every item
 // without a current Wowhead answer is looked up again for its class and icon.
@@ -41,6 +46,13 @@ const STATUSES = ["new", "hide", "show", "give"];
 const SETTABLE_STATUSES = ["hide", "show", "give"];
 const RESERVE_MAX = 1_000_000;
 const MAX_PER_REQUEST_MAX = 9999;
+/**
+ * How much one entry of the waiting list gets per turn when stock comes free
+ * (services/guildbank/waitlist.js allocate): the item's own portion, else
+ * this. Whoever wants more goes to the end of the list with the rest.
+ */
+const PORTION_DEFAULT = 2;
+const PORTION_MAX = 99;
 const CATEGORY_MAX = 40;
 const META_SOURCES = ["", "local", "wowhead"];
 /**
@@ -75,6 +87,7 @@ function completeItem(raw) {
         status: STATUSES.includes(r.status) ? r.status : "new",
         reserve: Math.max(0, Math.floor(num(r.reserve))),
         maxPerRequest: Math.max(0, Math.floor(num(r.maxPerRequest))),
+        portion: Math.min(PORTION_MAX, Math.max(0, Math.floor(num(r.portion)))),
         category: str(r.category, CATEGORY_MAX),
         firstSeenAt: num(r.firstSeenAt),
         name: str(r.name),
@@ -87,6 +100,8 @@ function completeItem(raw) {
         metaSource: META_SOURCES.includes(r.metaSource) ? r.metaSource : "",
         metaAt: num(r.metaAt),
         metaVersion: Math.max(0, Math.floor(num(r.metaVersion))),
+        addedByHand: r.addedByHand === true,
+        addedAt: num(r.addedAt),
     };
 }
 
@@ -118,7 +133,13 @@ function tabsOf(bank, scan) {
         .sort((a, b) => a.index - b.index);
 }
 
-/** One item as the readers get it: stock of the last scan + the orga's settings (+ its emoji's id). */
+/** The portion per turn an item's settings mean: its own (1–99), else PORTION_DEFAULT. */
+function portionOf(settings) {
+    const n = Math.floor(num(settings && settings.portion));
+    return n > 0 ? Math.min(PORTION_MAX, n) : PORTION_DEFAULT;
+}
+
+/** One item as the readers get it: stock of the last scan + the orga's settings (+ its emoji's id); portion is the effective one. */
 function itemView(itemId, settings, scan, emojis) {
     const stock = obj(scan.items[itemId]);
     const tabs = {};
@@ -130,6 +151,7 @@ function itemView(itemId, settings, scan, emojis) {
         count: num(stock.count),
         tabs,
         ...settings,
+        portion: portionOf(settings),
         iconUrl: iconUrl(settings.icon),
         emojiId: str(obj(obj(emojis)[String(Number(itemId))]).id, 30),
     };
@@ -279,8 +301,9 @@ function wholeNumber(v, min, max) {
 
 /**
  * Change what the orga decided for one item: `{ status, reserve, maxPerRequest,
- * category }`, each optional. Returns `{ item }` (the item view) or `{ error }`
- * (German); nothing is written when one field is wrong.
+ * portion, category }`, each optional. A portion of PORTION_DEFAULT (or 0) is
+ * stored as 0 — the item follows the default. Returns `{ item }` (the item
+ * view) or `{ error }` (German); nothing is written when one field is wrong.
  */
 function setItemSettings(key, itemId, patch = {}) {
     const data = store.read();
@@ -305,11 +328,41 @@ function setItemSettings(key, itemId, patch = {}) {
         if (n === null) return { error: `Die Höchstmenge muss eine ganze Zahl von 0 bis ${MAX_PER_REQUEST_MAX} sein (0 = ohne Grenze).` };
         next.maxPerRequest = n;
     }
+    if (p.portion !== undefined) {
+        const n = wholeNumber(p.portion, 0, PORTION_MAX);
+        if (n === null) return { error: `Die Portion pro Runde muss eine ganze Zahl von 1 bis ${PORTION_MAX} sein.` };
+        next.portion = n === PORTION_DEFAULT ? 0 : n;
+    }
     if (p.category !== undefined) next.category = str(p.category, CATEGORY_MAX).replace(/\s+/g, " ");
     items[id] = next;
     bank.items = items;
     store.write(data);
     return { item: itemView(id, next, scanOf(bank), data.emojis) };
+}
+
+/**
+ * Create an item row by hand: an item the bank does not hold (yet). It
+ * reads with count 0 until a scan shows it. An item the bank already knows
+ * keeps everything it has, only its status is set (default "give"). Returns
+ * `{ item, created }` (the item view) or `{ error }` (German).
+ * @param {string} key
+ * @param {number} itemId
+ * @param {{ status?: string, now?: number }} [opts]
+ */
+function addItem(key, itemId, { status = "give", now = Date.now() } = {}) {
+    const data = store.read();
+    const bank = findBank(data, key);
+    if (!bank) return { error: "Gildenbank nicht gefunden." };
+    const id = Number(itemId);
+    if (!Number.isInteger(id) || id < 1 || id > 9_999_999) return { error: "Ungültige Item-ID." };
+    if (!SETTABLE_STATUSES.includes(status)) return { error: "Unbekannte Einordnung." };
+    const items = obj(bank.items);
+    const at = String(id);
+    const created = !items[at];
+    items[at] = completeItem(created ? { firstSeenAt: now, addedByHand: true, addedAt: now, status } : { ...items[at], status });
+    bank.items = items;
+    store.write(data);
+    return { item: itemView(id, items[at], scanOf(bank), data.emojis), created };
 }
 
 /** Hide or show a whole bank tab (by its index). Returns `{ bank }` (summary) or `{ error }`. */
@@ -451,9 +504,9 @@ function setItemEmoji(itemId, emoji) {
 }
 
 module.exports = {
-    STATUSES, SETTABLE_STATUSES, RESERVE_MAX, MAX_PER_REQUEST_MAX, CATEGORY_MAX, META_VERSION,
+    STATUSES, SETTABLE_STATUSES, RESERVE_MAX, MAX_PER_REQUEST_MAX, PORTION_DEFAULT, PORTION_MAX, CATEGORY_MAX, META_VERSION, portionOf,
     recordScan, getBank, listBanks, listForServer, assignBank, removeBank,
-    setItemSettings, setTabHidden, knownMeta, setItemMeta, itemsWithoutWowheadMeta, banksWithItem,
+    setItemSettings, addItem, setTabHidden, knownMeta, setItemMeta, itemsWithoutWowheadMeta, banksWithItem,
     offeredIcons, itemEmojis, setItemEmoji,
     useFile,
 };

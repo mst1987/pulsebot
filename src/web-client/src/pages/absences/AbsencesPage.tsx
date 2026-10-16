@@ -11,10 +11,13 @@
 //
 // A raider without "roster" sees only "Meine Anwesenheit". Entering goes
 // through the signup page's dialog (components/signup/AvailabilityDialog.tsx).
+// Every view shows the raids of the menu's content version (#740) and loads
+// again when it switches; the absence entries belong to no version.
 import { useState, type ReactNode } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { canAccess, getAbsenceOverview, getAvailability, type AbsenceIdentity, type RaiderRef } from "../../api";
 import { useApi } from "../../hooks/useApi";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import { usePersistedState } from "../../lib/ui/persistedState";
 import { categoryTone, visibleRaiders } from "../../lib/roster/absences";
 import { Button, IconTile, Segment, Switch } from "../../components/ui";
@@ -124,7 +127,9 @@ function OrgaViews({ user, view, patch, viewSwitch, onAttendance }: {
     // the dialog: closed (null), or open for nobody yet / for a raider
     const [dialog, setDialog] = useState<{ target: RaiderRef | null } | null>(null);
 
-    const overview = useApi(() => getAbsenceOverview(Number(view.span), view.category), [view.span, view.category]);
+    // the raids of the menu's content version only (#740) - the entries themselves cover every version
+    const { version } = useContentVersion();
+    const overview = useApi(() => getAbsenceOverview(Number(view.span), view.category, version), [view.span, view.category, version]);
     const data = overview.data;
     // The dialog needs the caller's own availability (and whether they are orga) — only for whoever may enter.
     const own = useApi(() => getAvailability(), [], { enabled: !!data?.canEdit });
@@ -145,7 +150,7 @@ function OrgaViews({ user, view, patch, viewSwitch, onAttendance }: {
             <Head lead={t("absences.lead")}>
                 {viewSwitch}
                 {data.canEdit && (
-                    <Button icon={<AbsenceIcon />} disabled={!canEnter} onClick={() => enter(null)}>{t("absences.enter")}</Button>
+                    <Button variant="no" icon={<AbsenceIcon />} disabled={!canEnter} onClick={() => enter(null)}>{t("absences.enter")}</Button>
                 )}
             </Head>
 

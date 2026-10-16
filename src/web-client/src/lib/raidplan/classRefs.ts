@@ -278,6 +278,26 @@ export function roleFits(filter: string, role: string): boolean {
 }
 
 /**
+ * The roles of a board as the class references read them: the flex roles, and on top who stands in a role slot of the Besetzung plays
+ * that role on this boss - a feral druid put into "Tank 3" by hand tanks here (no flex role is stored for that), a tank put into a DPS
+ * slot does not. Server twin: raidplanAssign.slotRoles.
+ */
+export function slotRoles(slots: { kind: string; userId: string }[], roster: RaidplanPlayer[], roles: Record<string, string>): Record<string, string> {
+    const out: Record<string, string> = { ...(roles || {}) };
+    const byId: Record<string, RaidplanPlayer> = {};
+    for (const p of roster) byId[p.userId] = p;
+    for (const s of slots || []) {
+        const p = s.userId ? byId[s.userId] : undefined;
+        if (!p) continue;
+        const now = out[p.userId] || p.role;
+        if (s.kind === "tank" || s.kind === "healer") out[p.userId] = s.kind;
+        else if ((s.kind === "melee" || s.kind === "ranged") && now !== s.kind) out[p.userId] = s.kind;
+        else if (s.kind === "dps" && (now === "tank" || now === "healer")) out[p.userId] = "dps";
+    }
+    return out;
+}
+
+/**
  * The raiders a class reference can mean, in setup order: the players of the class whose spec role (a flex role on this boss wins)
  * passes the role filter — the reference's own role, else the one the task implies. "Any" = every raider of that role; "Any" without a
  * role means nobody.
@@ -387,9 +407,11 @@ export function boardContext(list: RaidplanAssignment[], slots: { kind: string; 
  * on the row lets it repeat a raider instead. Targets ("Soulstone at a Priest") are resolved the same way among themselves. Same length
  * and order as the input, so a chip can be matched to its reference by index.
  */
-export function expandClassRefs(assignments: RaidplanAssignment[], slots: { kind: string; n: number; userId: string }[], roster: RaidplanPlayer[], roles: Record<string, string>): RaidplanAssignment[] {
+export function expandClassRefs(assignments: RaidplanAssignment[], slots: { kind: string; n: number; userId: string }[], roster: RaidplanPlayer[], flexRoles: Record<string, string>): RaidplanAssignment[] {
     const wantsExpansion = assignments.some((a) => a.assignees.some((r) => isClassRef(r)) || a.targets.some((tg) => tg.kind === "class") || hasPriority(a));
     if (!wantsExpansion) return assignments;
+    // who stands in a tank / healer slot of this boss plays that role here, flex role or not
+    const roles = slotRoles(slots, roster, flexRoles);
     const byId: Record<string, RaidplanPlayer> = {};
     for (const p of roster) byId[p.userId] = p;
     const used: Record<string, Record<string, boolean>> = {};

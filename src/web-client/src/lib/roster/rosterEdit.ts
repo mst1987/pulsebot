@@ -122,6 +122,15 @@ export function historyText(entry: RosterHistoryEntry, withUser = true): string 
             return entry.detail === "migration" ? t("roster.hist.createdMigration") : t("roster.hist.created");
         case "settings":
             return t("roster.hist.settings", { fields: settingsFields(entry.detail) });
+        // #739: closed when its category switched the game version, opened again on the way back
+        case "closed":
+            return entry.detail === "version_switch" ? t("roster.hist.closedSwitch") : t("roster.hist.closed");
+        case "reopened":
+            return t("roster.hist.reopened");
+        case "members-copied": {
+            const [count = "0", from = ""] = entry.detail.split("·").map((s) => s.trim());
+            return t("roster.hist.membersCopied", { count: Number(count) || 0, from });
+        }
         case "member-added": {
             const [status = "", ...chars] = rest.split(",").map((s) => s.trim());
             const list = charList(chars.join(","));

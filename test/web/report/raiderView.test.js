@@ -167,7 +167,7 @@ describe("web/report/raiderView", () => {
                 ] }] },
             };
             const html = renderRaiderView(reportContext(report, LEAD), null);
-            expect(html).toContain("<span class=\"badge\" data-tip=\"Befunde, die noch niemand freigegeben oder verworfen hat\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_misc_note_01.jpg\" alt=\"\">2 Empfehlungen offen</span>");
+            expect(html).toContain("<span class=\"badge pending\" data-tip=\"Befunde, die noch niemand freigegeben oder verworfen hat\"><span class=\"dot\" aria-hidden=\"true\"></span>2 Punkte zu prüfen</span>");
             expect(html).not.toContain("<span class=\"badge mid\">2 offen");
             // an open review alone is no finding: the raider stays in the fine group
             expect(html).toContain("data-group=\"fine\"");
@@ -177,14 +177,16 @@ describe("web/report/raiderView", () => {
             const html = renderRaiderView(ctx, null);
             expect(html).toContain("<dialog class=\"dlg chart\" id=\"dlg-rt-1\">");
             expect(html).toContain("Kampfverlauf · Elun</div>");
-            // the three links live in the body as labelled buttons, not as icon buttons in the summary
-            expect(html).toContain("<div class=\"raider-links\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-dialog=\"dlg-rt-1\"");
+            // the three links sit right of the section buttons as labelled buttons, not as icon buttons in the summary
+            expect(html).toContain("</nav><div class=\"raider-links\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-dialog=\"dlg-rt-1\"");
+            expect(html).toContain("<div class=\"secs-row\"><nav class=\"secs\">");
             expect(html).toContain("Kampfverlauf</button><a class=\"btn btn-ghost btn-sm\" href=\"https://classic-armory.org/character/eu/tbc-anniversary/thunderstrike/Elun\"");
             expect(html).toContain("<a class=\"btn btn-ghost btn-sm\" href=\"/r/abc123def456/p/1\" data-tip=\"Spielerseite öffnen\"");
             expect(html).not.toContain("class=\"ibtn\" href=\"/r/abc123def456/p/1\"");
-            expect(html).toContain("<div class=\"raider-foot\"><span class=\"note\">2 freigegeben · 1 offen · zuletzt gesendet: ");
+            // the foot: how far the review is, then the last send
+            expect(html).toContain("<div class=\"raider-foot\"><div class=\"rf-progress\" data-total=\"3\"><b class=\"rf-count\">2 von 3 Punkten geprüft</b><span class=\"rf-bar\" aria-hidden=\"true\"><i style=\"width:67%\"></i></span></div><span class=\"note\">Zuletzt gesendet: ");
             expect(html).toContain("<dialog class=\"dlg send\" id=\"send-1\" data-report=\"abc123def456\" data-player=\"Elun\">");
-            expect(html).toContain("zuletzt gesendet: nie</span>");
+            expect(html).toContain("Zuletzt gesendet: nie</span>");
         });
     });
 
@@ -193,7 +195,10 @@ describe("web/report/raiderView", () => {
             const ctx = reportContext(fixture("case01-report"), LEAD);
             const { secs, dialogs } = sectionsOf(ctx, "Elun", ctx.recByName.get("Elun").items);
             expect(secs.map((s) => s.key)).toEqual(["recs", "prep", "perf"]);
-            expect(sec(secs, "recs")).toMatchObject({ count: "3 · 1 offen", tone: "mid" });
+            expect(sec(secs, "recs")).toMatchObject({ count: "1 offen", tone: "mid" });
+            // a reviewer's points are open blocks with the labelled verdicts
+            expect(sec(secs, "recs").html).toContain("<div class=\"rec-blocks\"><div class=\"rec rec-block rec-");
+            expect(sec(secs, "recs").html).toContain("Geht so an Elun");
             const prep = sec(secs, "prep");
             expect(prep.tone).toBe("mid");
             expect(prep.html).toContain("<b>Gear</b><span class=\"badge mid\">1 Problem</span>");
@@ -289,6 +294,13 @@ describe("web/report/raiderView", () => {
             expect(renderRaiderView(ctx, null)).toContain("<span class=\"badge ok\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_shield_06.jpg\" alt=\"\">Gear ok</span>");
         });
 
+        it("says nothing about potions when the report's version does not count them (#747)", () => {
+            const ctx = reportContext({ id: "x", roster: [{ name: "A", type: "Mage", issues: [] }] }, null);
+            ctx.ran = new Set(["timeline"]); // a rule set without the potions analyzer
+            const { secs } = sectionsOf(ctx, "A");
+            expect(sec(secs, "prep").html).not.toContain("nicht ausgewertet");
+        });
+
         it("reads buffs cell by cell: wrong role, not provable, not expected, partly provable", () => {
             const report = {
                 id: "x", roster: [{ name: "A", type: "Mage" }],
@@ -347,21 +359,41 @@ describe("web/report/raiderView", () => {
             const html = sendDialog(ctx, p, 1, ctx.recByName.get("Elun").items);
             expect(html).toContain("<dialog class=\"dlg send\" id=\"send-1\" data-report=\"abc123def456\" data-player=\"Elun\">");
             expect(html).toContain("An <span class=\"cn\" style=\"--cc:#FFFFFF\">Elun</span> senden");
-            expect(html).toContain("<span class=\"badge ok\">2 freigegeben</span>");
+            expect(html).toContain("<div class=\"kicker\">Discord-DM · 2 Punkte freigegeben</div>");
+            // the mapping and the last send moved into the head
+            expect(html).toContain("<div class=\"badges send-state\"><span class=\"badge map-badge\">Zuordnung wird geprüft …</span>");
             expect(html).toContain("data-tip=\"Der noch offene Punkt wird nicht gesendet.\">1 offen · wird nicht gesendet</span>");
             expect(html).toContain("<div class=\"send-item on\" data-key=\"healers.mana\"");
             expect(html).toContain("data-mode=\"ai\"");
             expect(html).toContain("data-mode=\"custom\"");
-            expect(html).toContain("<textarea class=\"send-text\" rows=\"3\">Bitte die Glyphe auf die Kapuze.</textarea>");
-            expect(html).toContain("<textarea class=\"send-text\" rows=\"3\" readonly>Dein Tiefstand");
-            expect(html).toContain("<a href=\"/r/abc123def456/p/1\" target=\"_blank\" rel=\"noopener\">Report ansehen");
-            expect(html).toContain("2 Punkte von der Raidleitung geprüft");
+            expect(html).toContain("<textarea class=\"send-text\" rows=\"3\" aria-label=\"Text zu ");
+            expect(html).toContain("\">Bitte die Glyphe auf die Kapuze.</textarea>");
+            expect(html).toContain(" readonly>Dein Tiefstand");
+            // the preview says what the bot sends: its title, greeting, marks and button
+            expect(html).toContain("<a href=\"/r/abc123def456/p/1\" target=\"_blank\" rel=\"noopener\">Zu deiner Auswertung");
+            expect(html).toContain("<b>Deine Auswertung: Montagsraid Gruul</b>");
+            expect(html).toContain("Hallo Elun, hier sind die Punkte aus dem Log vom 7.9.2026, die die Raidleitung für dich freigegeben hat.");
+            expect(html).toContain("data-title=\"🔴 ");
             expect(html).toMatch(/<span class="badge">gesendet \d+\.\d+\.\d{4}, \d\d:\d\d:\d\d<\/span>/);
             expect(html).toContain("data-sendact=\"send\"><img");
         });
 
+        it("shows the items of an approved gear finding beside its text choice", () => {
+            const ctx = reportContext({
+                id: "r", title: "T", roster: [{
+                    name: "Sedroc", type: "Shaman",
+                    issues: [{ kind: "noEnchant", itemId: "30735", itemName: "Abyssal Shroud", icon: "inv_misc_cape_20", slot: 14, label: "keine Verzauberung", severity: "high" }],
+                    armory: [{ slot: 14, slotName: "Rücken", itemId: "30735", itemName: "Abyssal Shroud", icon: "inv_misc_cape_20", quality: 4, gems: [], enchant: { status: "missing" } }],
+                }],
+            }, LEAD);
+            const p = ctx.report.roster[0];
+            const html = sendDialog(ctx, p, 0, [{ key: "gear", approved: true, impact: "high", title: "1 Gear-Problem", text: "Gear vor dem Raid fertig machen." }]);
+            expect(html).toContain("<div class=\"rec-items\"><div class=\"rec-item\">");
+            expect(html).toContain(">Abyssal Shroud</a><span class=\"ri-slot\">Rücken</span>");
+            expect(html).toContain("<b>🔴 1 Gear-Problem</b>");
+        });
+
         it("disables sending without approved points and shortens a long text in the preview", () => {
-            const long = "x".repeat(200);
             const ctx = reportContext({ id: "r", title: "T", roster: [] }, LEAD);
             const empty = sendDialog(ctx, { name: "Z", type: "Bard" }, 0, [{ key: "a", approved: null, title: "t", text: "t" }, { key: "b", approved: null, title: "u", text: "u" }]);
             expect(empty).toContain("<div class=\"rec-empty\">Noch nichts freigegeben.</div>");
@@ -370,9 +402,12 @@ describe("web/report/raiderView", () => {
             expect(empty).toContain("<a href=\"/r/r\" target=\"_blank\"");
             expect(empty).toContain("<span class=\"badge\">noch nie gesendet</span>");
             expect(empty).toContain("--cc:var(--text)");
-            const one = sendDialog(ctx, { name: "Z", type: "Mage" }, 0, [{ key: "a", approved: true, impact: "low", title: "t", text: long }]);
-            expect(one).toContain(`${"x".repeat(160)} …</div>`);
-            expect(one).toContain("1 Punkt von der Raidleitung geprüft");
+            const one = sendDialog(ctx, { name: "Z", type: "Mage" }, 0, [{ key: "a", approved: true, impact: "low", title: "t", text: "x".repeat(400) }]);
+            // the preview cuts where the bot cuts: 300 characters
+            expect(one).toContain(`<br>${"x".repeat(300)} …</div>`);
+            // the text field keeps the whole text
+            expect(one).toContain(` readonly>${"x".repeat(400)}</textarea>`);
+            expect(one).toContain("Discord-DM · 1 Punkt freigegeben");
             expect(one).toContain("data-mode=\"rule\"");
         });
     });

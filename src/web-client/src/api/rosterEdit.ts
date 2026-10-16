@@ -101,8 +101,15 @@ export type RosterTemplateSlots = { total: number; tank: number; healer: number;
 
 export type RosterOptions = {
     guildId: string;
-    categories: { id: string; name: string; versionId: string; rosterId: string | null; rosterName: string }[];
-    versions: { id: string; label: string; short: string }[];
+    /**
+     * `rosterId`: the roster of the version the category plays now (`versionId`); `rosters`: every roster of the
+     * category, one per version (#739) - a roster can be created for a version that has none.
+     */
+    categories: {
+        id: string; name: string; versionId: string; rosterId: string | null; rosterName: string;
+        rosters?: { id: string; name: string; versionId: string; closed: boolean }[];
+    }[];
+    versions: { id: string; label: string; short: string; icon?: string }[];
     defaultVersion: string;
     roles: RosterOptionRole[];
     canManageRoles: boolean;
@@ -120,8 +127,9 @@ export type RosterOptions = {
 };
 
 /** What the create dialog and the settings offer for the active server. */
-export function getRosterOptions(): Promise<RosterOptions> {
-    return get("/api/rosters/options");
+export function getRosterOptions(version = ""): Promise<RosterOptions> {
+    // `version`: the game version the dialog works in (#741) - only its categories and Kader
+    return get(`/api/rosters/options${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 export type RosterSlots = { total: number; tank: number; healer: number; bench: number };

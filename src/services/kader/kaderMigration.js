@@ -141,4 +141,4 @@ function migrationSummary(planner) {
     return out;
 }
 
-module.exports = { migrateLegacyPlanner, charOfAssignments, decisionFor, migrationSummary, defaultRoleOf };
+module.exports = { PLANNER_VERSION, migrateLegacyPlanner, charOfAssignments, decisionFor, migrationSummary, defaultRoleOf };

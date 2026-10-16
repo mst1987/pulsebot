@@ -151,6 +151,16 @@ describe("Übersicht (DashboardPage)", () => {
         expect(screen.getByText(t("dashboard.sheet.missing"))).toBeInTheDocument();
     });
 
+    it("marks a cancelled next raid with a badge carrying the reason, none for an ordinary one (#288)", async () => {
+        await showPage(dashboard({ nextRaid: raid({ cancelled: true, cancelReason: "Tank fehlt" }) }));
+        expect(screen.getByText(t("dashboard.next.cancelled")).closest("[data-tip-sub]")).toHaveAttribute("data-tip-sub", "Tank fehlt");
+    });
+
+    it("shows no cancelled badge for an ordinary next raid", async () => {
+        await showPage(dashboard());
+        expect(screen.queryByText(t("dashboard.next.cancelled"))).not.toBeInTheDocument();
+    });
+
     it("offers a new raid event with a WoW icon, no line icon", async () => {
         await showPage(dashboard());
         const link = screen.getByRole("link", { name: t("dashboard.page.newRaid") });

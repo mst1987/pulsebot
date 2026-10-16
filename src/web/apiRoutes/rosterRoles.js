@@ -31,6 +31,8 @@ const postRosterRole = withUser({ write: "roster", csrf: true, body: true }, asy
     const roster = activeRoster(req, body.rosterId);
     if (!roster) return apiError(res, 404, "not_found", "Roster nicht gefunden.");
     if (!(await canManageRosterLive(user, roster))) return apiError(res, 403, "not_manager", "Nur Admins und die Manager dieses Rosters ändern Rollen.");
+    // a closed roster (#739) touches nobody's roles any more
+    if (roster.closedAt) return apiError(res, 409, "roster_closed", "Dieses Roster ist abgeschlossen.");
     if (!validUserId(body.userId)) return apiError(res, 400, "bad_request", "Kein gültiges Discord-Konto angegeben.");
     if (typeof body.give !== "boolean") return apiError(res, 400, "bad_request", "give fehlt (true/false).");
     const roleId = str(body.roleId) || roster.roleIds[0] || "";
@@ -58,7 +60,7 @@ const getRosterSync = withUser({}, async ({ user, req, query, res }) => {
         rosterSyncView(roster, { config: getConfig() }),
         canManageRosterLive(user, roster),
     ]);
-    return ok(res, { ...view, canManage });
+    return ok(res, { ...view, canManage: canManage && !roster.closedAt });
 });
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */

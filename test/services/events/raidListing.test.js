@@ -6,6 +6,7 @@ jest.mock("../../../src/stores/eventSoftresStore", () => ({ getEventSoftres: jes
 jest.mock("../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
 jest.mock("../../../src/services/logcheck/reportList", () => ({ logPostedAt: jest.fn((l) => l.postedAt || 0) }));
 
+const { cancelFields } = require("../../../src/services/events/eventSources");
 const { raidContentIds, raidSize, upcomingRows, loadPastRaids } = require("../../../src/services/events/raidListing");
 const { listRaidEvents } = require("../../../src/stores/raidEventStore");
 const { scanRaidEvents } = require("../../../src/services/events/raidEventScan");
@@ -38,6 +39,21 @@ describe("services/events/raidListing", () => {
             expect(raidContentIds({ title: "Karazhan", categoryName: "Gruul Twinks" }).contentIds).toEqual(["kara"]);
         });
 
+        it("keeps the planned instances of every version (#749)", () => {
+            expect(raidContentIds({ title: "Mittwoch", instanceIds: ["forever-ony"] })).toEqual({ contentIds: ["forever-ony"], sources: ["event"] });
+            expect(raidContentIds({ title: "Kara", instanceIds: ["mc", "forever-hyjal", "hyjal"] }).contentIds).toEqual(["hyjal", "mc", "forever-hyjal"]);
+            // an id no rule set knows is dropped, the title speaks
+            expect(raidContentIds({ title: "Kara", instanceIds: ["nope"] })).toEqual({ contentIds: ["kara"], sources: ["title"] });
+        });
+
+        it("reads the wording only within the event's version (#749)", () => {
+            expect(raidContentIds({ title: "Hyjal Summit (Forever)", versionId: "forever" }).contentIds).toEqual(["forever-hyjal"]);
+            expect(raidContentIds({ title: "Archimonde night, Hyjal", versionId: "forever" }).contentIds).toEqual(["forever-hyjal"]);
+            expect(raidContentIds({ title: "Hyjal", versionId: "tbc" }).contentIds).toEqual(["hyjal"]);
+            expect(raidContentIds({ title: "Kara", versionId: "forever" }).contentIds).toEqual([]);
+            expect(raidContentIds({ title: "T6", zones: ["Hyjal Summit"], versionId: "forever" }).contentIds).toEqual(["forever-hyjal"]);
+        });
+
         it("adds what a past raid's logs and loot prove", () => {
             const r = raidContentIds({
                 title: "T6 Main", zones: ["Hyjal Summit"],
@@ -54,6 +70,11 @@ describe("services/events/raidListing", () => {
             expect(raidSize(["za"])).toEqual({ size: 10, known: true });
             expect(raidSize(["kara", "gruul"])).toEqual({ size: 25, known: true });
             expect(raidSize(["hyjal", "bt"])).toEqual({ size: 25, known: true });
+        });
+
+        it("reads the size of an instance of any version (#749)", () => {
+            expect(raidSize(["forever-hyjal"])).toEqual({ size: 20, known: true });
+            expect(raidSize(["forever-ony"])).toEqual({ size: 40, known: true });
         });
 
         it("defaults to 25 and says so when the content is unknown", () => {
@@ -97,6 +118,39 @@ describe("services/events/raidListing", () => {
             ]);
             expect(rows[0].versionId).toBe("forever");
             expect(rows[1].versionId).toBe("tbc");
+        });
+    });
+
+    describe("cancelled raids (Event verwalten, #288)", () => {
+        const cancelled = { id: "eh-1", source: "eventhelper", title: "Hyjal", status: "cancelled", cancel: { reason: "Tank fehlt", at: 1700000000000, by: "u1", byName: "Anna", archived: false } };
+
+        it("marks a cancelled own event with its reason and author", () => {
+            expect(cancelFields(cancelled)).toEqual({ cancelled: true, cancelReason: "Tank fehlt", cancelledAt: 1700000000000, cancelledByName: "Anna" });
+        });
+
+        it("leaves an active own event and a Raid-Helper event unmarked", () => {
+            const none = { cancelled: false, cancelReason: "", cancelledAt: 0, cancelledByName: "" };
+            expect(cancelFields({ id: "eh-2", source: "eventhelper", status: "active", cancel: null })).toEqual(none);
+            expect(cancelFields({ id: "111", source: "raidhelper", status: "cancelled", cancel: cancelled.cancel })).toEqual(none);
+            expect(cancelFields(null)).toEqual(none);
+        });
+
+        it("rides on the coming rows next to the raid group fields", () => {
+            const rows = upcomingRows([{ categoryId: "c1", categoryName: "PUG", events: [
+                { ...cancelled, raidGroupId: "eh-1", raidGroupIndex: 1 },
+                { id: "eh-3", source: "eventhelper", title: "Kara", status: "active" },
+                { id: "222", title: "Kara" },
+            ] }]);
+            expect(rows[0]).toMatchObject({ id: "eh-1", cancelled: true, cancelReason: "Tank fehlt", cancelledByName: "Anna", raidGroupId: "eh-1" });
+            expect(rows[1]).toMatchObject({ cancelled: false, cancelReason: "" });
+            expect(rows[2]).toMatchObject({ cancelled: false });
+        });
+
+        it("rides on the past rows too (false for a Raid-Helper raid)", async () => {
+            const now = Date.UTC(2026, 8, 14, 12);
+            listRaidEvents.mockReturnValue([{ id: "p", title: "Kara", startTime: Math.floor(Date.UTC(2026, 8, 9, 18) / 1000) }]);
+            const { events } = await loadPastRaids("g1", { now });
+            expect(events[0]).toMatchObject({ id: "p", cancelled: false, cancelReason: "" });
         });
     });
 

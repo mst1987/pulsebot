@@ -6,6 +6,7 @@ import { cancelRaid, getManageInfo, type ApiError } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
+import { XIcon } from "../../../components/ui/icons";
 import Badge from "../../../components/ui/Badge";
 import { SwitchRow } from "../../../components/raid/RaidFields";
 import { useToast } from "../../../components/shell/Jobs";
@@ -59,7 +60,7 @@ export default function CancelModal({ ctx, open, onClose }: { ctx: RaidCtx; open
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button type="submit" form="em-cancel-form" variant="danger" running={busy} disabled={!info || !cancelReasonOk(reason)}>{t("raidManage.cancel.confirm")}</Button>
+                    <Button type="submit" form="em-cancel-form" variant="no" icon={<XIcon />} running={busy} disabled={!info || !cancelReasonOk(reason)}>{t("raidManage.cancel.confirm")}</Button>
                 </>
             )}
         >

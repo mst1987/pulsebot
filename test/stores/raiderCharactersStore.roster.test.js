@@ -71,8 +71,8 @@ describe("stores/raiderCharactersStore over rosters: golden master", () => {
         expect(rosterStore.listRosters().map((r) => r.categoryId).sort()).toEqual(["c1", "cF", "cR", "cX"]);
         expect(snapshot()).toEqual(before);
         // and the answers really come from the rosters now
-        expect(rosterStore.rosterForCategory("cF").members[U1].chars).toEqual(["forever~devi res"]);
-        expect(rosterStore.rosterForCategory("c1").members[U1].chars).toEqual(["keslight"]);
+        expect(rosterStore.rosterForCategory("cF", "forever").members[U1].chars).toEqual(["forever~devi res"]);
+        expect(rosterStore.rosterForCategory("c1", "tbc").members[U1].chars).toEqual(["keslight"]);
     });
 
     it("the old file stays as it was", () => {
@@ -103,7 +103,7 @@ describe("stores/raiderCharactersStore over rosters: writing", () => {
         const saved = chars.setCategoryAssignments("c1", { [U1]: "Kesneu", [U3]: " Mage ", [U2]: "" }, { actor: "900" });
         expect(saved).toEqual({ [U1]: "Kesneu", [U3]: "Mage" });
         expect(chars.getCategoryAssignments("c1")).toEqual(saved);
-        const roster = rosterStore.rosterForCategory("c1");
+        const roster = rosterStore.rosterForCategory("c1", "tbc");
         // U2 lost his character but stays in the roster; U3 joined as core
         expect(roster.members[U2]).toMatchObject({ status: "core", chars: [] });
         expect(roster.members[U3]).toMatchObject({ status: "core", chars: ["mage"], by: "900" });
@@ -112,10 +112,10 @@ describe("stores/raiderCharactersStore over rosters: writing", () => {
     });
 
     it("keeps a member's status when his character changes", () => {
-        const roster = rosterStore.rosterForCategory("c1");
+        const roster = rosterStore.rosterForCategory("c1", "tbc");
         rosterStore.upsertMember(roster.id, U2, { status: "bench" });
         chars.setCategoryAssignments("c1", { [U1]: "Keslight-Thunderstrike", [U2]: "Priest" });
-        expect(rosterStore.rosterForCategory("c1").members[U2]).toMatchObject({ status: "bench", chars: ["priest"] });
+        expect(rosterStore.rosterForCategory("c1", "tbc").members[U2]).toMatchObject({ status: "bench", chars: ["priest"] });
     });
 
     it("emptying a roster category drops it from listAllAssignments, like removing the file entry did", () => {
@@ -126,7 +126,7 @@ describe("stores/raiderCharactersStore over rosters: writing", () => {
 
     it("forever keys for a forever roster", () => {
         chars.setCategoryAssignments("cF", { [U2]: "Holy Light" });
-        expect(rosterStore.rosterForCategory("cF").members[U2].chars).toEqual(["forever~holy light"]);
+        expect(rosterStore.rosterForCategory("cF", "forever").members[U2].chars).toEqual(["forever~holy light"]);
         expect(chars.getCategoryAssignments("cF")).toEqual({ [U2]: "Holy Light" });
     });
 
@@ -136,6 +136,41 @@ describe("stores/raiderCharactersStore over rosters: writing", () => {
         expect(chars.listAllAssignments().cNew).toEqual({ [U1]: "Kes" });
         chars.setCategoryAssignments("cNew", {});
         expect(chars.readLegacyAssignments()).not.toHaveProperty("cNew");
+    });
+});
+
+describe("stores/raiderCharactersStore with a roster per version (#739)", () => {
+    let old;
+    let next;
+    beforeEach(() => {
+        seed();
+        migrateCategoryRosters({ now: NOW });
+        // c1 switched to Forever: the TBC roster closed, the Forever one has U1 without a character and U2 with one
+        old = rosterStore.rosterForCategory("c1", "tbc");
+        rosterStore.closeRoster(old.id, { reason: "version_switch" });
+        fs.__store.set(CONFIG_FILE, JSON.stringify({ ...CONFIG, categoryVersion: { cF: "forever", c1: "forever" } }));
+        next = rosterStore.createRoster({ name: "c1 F", categoryId: "c1", versionId: "forever" });
+        rosterStore.upsertMember(next.id, U1, { status: "trial" });
+        rosterStore.upsertMember(next.id, U2, { status: "trial", chars: ["Elesham Neu"] });
+    });
+
+    it("reads one version on request, and merges the versions otherwise - the current one first", () => {
+        expect(chars.getCategoryAssignments("c1", { versionId: "forever" })).toEqual({ [U2]: "Elesham Neu" });
+        expect(chars.getCategoryAssignments("c1", { versionId: "tbc" })).toEqual({ [U1]: "Keslight-Thunderstrike", [U2]: "elesham" });
+        expect(chars.getCategoryAssignments("c1", { versionId: "classic" })).toEqual({});
+        expect(chars.getCategoryAssignments("c1")).toEqual({ [U2]: "Elesham Neu", [U1]: "Keslight-Thunderstrike" });
+        expect(chars.listAllAssignments().c1).toEqual({ [U2]: "Elesham Neu", [U1]: "Keslight-Thunderstrike" });
+        expect(chars.resolveAssignmentProfiles("c1", { versionId: "tbc" })[U1]).toMatchObject({ character: "Keslight-Thunderstrike", className: "Shaman" });
+    });
+
+    it("writes into the roster of the version the category plays now, never into the closed one", () => {
+        chars.setCategoryAssignments("c1", { [U1]: "Kes Neu" });
+        expect(rosterStore.getRoster(next.id).members[U1].chars).toEqual(["forever~kes neu"]);
+        expect(rosterStore.getRoster(old.id).members[U1].chars).toEqual(["keslight"]);
+        // the current roster gone: nothing is written, the merged map comes back
+        rosterStore.deleteRoster(next.id);
+        expect(chars.setCategoryAssignments("c1", { [U1]: "Anders" })).toEqual({ [U1]: "Keslight-Thunderstrike", [U2]: "elesham" });
+        expect(rosterStore.getRoster(old.id).members[U1].chars).toEqual(["keslight"]);
     });
 });
 

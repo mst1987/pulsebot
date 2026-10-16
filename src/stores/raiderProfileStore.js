@@ -20,13 +20,20 @@
 // "Devi" are three characters. A character stored before versions is TBC
 // (`LEGACY_VERSION`) — migrateCharacterVersions() writes that down once at start.
 //
+// Whether a character exists in game is not this store's word: a raider types
+// any name. services/characters/characterEvidence.js decides from the logs, the
+// loot export, an armory answer (`armory.fetchedAt` + `armory.level`,
+// setCharacterArmory) or the orga's check in game (`verifiedBy`,
+// `verifiedByName`, `verifiedAt` — verifyCharacter; only stored once set).
+//
 // Stored under data/settings/raider-profiles.json like the other stores.
 
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { splitPlayer, characterKeyOf, nameKeyOf } = require("../utils/loot/lootImport");
 const { CLASSES, buildClasses } = require("../config/gameVersions/classes");
-const { instanceById, rulesFor, LEGACY_VERSION } = require("../config/gameVersions");
+const gameVersions = require("../config/gameVersions");
+const { instanceById, rulesFor, LEGACY_VERSION } = gameVersions;
 const { validateCharacterName, NAME_MAX } = require("../utils/signup/characterNames");
 const { isSnowflake } = require("../utils/ids");
 
@@ -45,6 +52,11 @@ const MAX_AVOID = 10;
 const MAX_NOTE = 500;
 // Forever's "Vorname Nachname": 12 + 1 + 12 (utils/signup/characterNames.js).
 const MAX_NAME = NAME_MAX;
+// Per character, freely given (Mein Profil, part 2): main professions and wish items.
+const MAX_PROFESSIONS = 2;
+const MAX_WISH_ITEMS = 10;
+// "ab HH:MM" per chosen weekday, in quarter hours ("Wann ich kann"); missing = the whole evening.
+const TIME_STEP_MINUTES = 15;
 
 const SPEC_BY_KEY = new Map();
 // What a class can step in as at all — a mage never tanks nor heals, whatever a switch says.
@@ -131,6 +143,71 @@ function normalizeSpecs(raw, className) {
     return out;
 }
 
+/** "19:30" on a quarter hour (00:00 to 23:45), else "". */
+function normalizeTime(raw) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(raw || "").trim());
+    if (!m) return "";
+    const h = Number(m[1]);
+    const min = Number(m[2]);
+    if (h > 23 || min > 59 || min % TIME_STEP_MINUTES !== 0) return "";
+    return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
+
+/** `{ [weekday]: "HH:MM" }` for chosen weekdays only - a day not chosen keeps no time. */
+function normalizeTimes(raw, days) {
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const out = {};
+    for (const d of days) {
+        const time = normalizeTime(src[d]);
+        if (time) out[d] = time;
+    }
+    return out;
+}
+
+/**
+ * A character's main professions: at most two of its version's list
+ * (gameVersions.professionsOf), each with a skill 0..skillMax - or no skill
+ * when the rule set names no maximum. A version without a list keeps none.
+ */
+function normalizeProfessions(raw, versionId) {
+    const { professions, skillMax } = gameVersions.professionsOf(versionId);
+    const known = new Set(professions.map((p) => p.id));
+    const out = [];
+    for (const entry of Array.isArray(raw) ? raw : []) {
+        const id = String((entry && (entry.id || entry)) || "").trim();
+        if (!known.has(id) || out.some((p) => p.id === id)) continue;
+        const n = Math.round(Number(entry && entry.skill));
+        const skill = skillMax && Number.isFinite(n) && entry && entry.skill !== null && entry.skill !== undefined
+            ? Math.max(0, Math.min(skillMax, n)) : null;
+        out.push({ id, skill });
+        if (out.length >= MAX_PROFESSIONS) break;
+    }
+    return out;
+}
+
+/**
+ * A character's wish items: at most ten, each a Wowhead item of its version
+ * `{ itemId, name, icon, quality }` (the route resolves new ones on Wowhead;
+ * the store only keeps the shape). Each item once.
+ */
+function normalizeWishItems(raw) {
+    const out = [];
+    for (const entry of Array.isArray(raw) ? raw : []) {
+        const itemId = Number(entry && entry.itemId);
+        if (!Number.isInteger(itemId) || itemId <= 0 || itemId > 9999999 || out.some((w) => w.itemId === itemId)) continue;
+        const icon = String((entry && entry.icon) || "").trim().toLowerCase();
+        const quality = Number(entry && entry.quality);
+        out.push({
+            itemId,
+            name: cleanText(entry.name, 120),
+            icon: /^[a-z0-9_-]{1,80}$/.test(icon) ? icon : "",
+            quality: Number.isInteger(quality) && quality >= 0 && quality <= 8 ? quality : null,
+        });
+        if (out.length >= MAX_WISH_ITEMS) break;
+    }
+    return out;
+}
+
 function normalizeCharacter(raw) {
     if (!raw || typeof raw !== "object") return null;
     const name = cleanText(splitPlayer(raw.name || raw.character || "").character, MAX_NAME);
@@ -138,11 +215,8 @@ function normalizeCharacter(raw) {
     const key = characterKeyOf(name, versionId);
     const className = normalizeClass(raw.className);
     if (!key || !className || !classInVersion(className, versionId)) return null;
-    const armory = raw.armory && typeof raw.armory === "object" ? {
-        level: Number(raw.armory.level) || null,
-        guild: cleanText(raw.armory.guild, 48),
-        fetchedAt: Number(raw.armory.fetchedAt) || 0,
-    } : null;
+    const armory = normalizeArmory(raw.armory);
+    const verifiedAt = Number(raw.verifiedAt) || 0;
     return {
         key,
         name,
@@ -155,7 +229,22 @@ function normalizeCharacter(raw) {
         canOfftank: tristate(raw.canOfftank),
         canHeal: tristate(raw.canHeal),
         armory,
+        // Mein Profil, part 2 - freely given: main professions of its version, wish items (only the orga reads them)
+        professions: normalizeProfessions(raw.professions, versionId),
+        wishItems: normalizeWishItems(raw.wishItems),
         addedAt: Number(raw.addedAt) || Date.now(),
+        // the orga found the character in game (verifyCharacter) — kept only once set
+        ...(verifiedAt > 0 ? { verifiedBy: cleanText(raw.verifiedBy, 40), verifiedByName: cleanText(raw.verifiedByName, 64), verifiedAt } : {}),
+    };
+}
+
+/** What the armory answered for a character (level, guild, when), null for nothing. */
+function normalizeArmory(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    return {
+        level: Number(raw.level) || null,
+        guild: cleanText(raw.guild, 48),
+        fetchedAt: Number(raw.fetchedAt) || 0,
     };
 }
 
@@ -238,6 +327,8 @@ function normalizeProfile(raw, userId = "") {
         canOfftank: tristate(src.canOfftank),
         canHeal: tristate(src.canHeal),
         availability,
+        // "ab HH:MM" per chosen weekday (quarter hours); a day without = the whole evening. Info for the orga only.
+        availabilityFrom: normalizeTimes(src.availabilityFrom, availability),
         preferredRaids,
         wishes,
         avoidEnabled,
@@ -275,9 +366,11 @@ function store(userId, profile) {
 // The fields a raider edits with one save. Characters are added and removed on
 // their own (addCharacter/removeCharacter); a save only changes what is known
 // about the ones already there — specs, gear, their order.
-const EDITABLE = ["canOfftank", "canHeal", "availability", "preferredRaids", "wishes", "avoidEnabled", "avoid", "note"];
+const EDITABLE = ["canOfftank", "canHeal", "availability", "availabilityFrom", "preferredRaids", "wishes", "avoidEnabled", "avoid", "note"];
 // What a save may change about a character that is already there, besides specs.
 const CHARACTER_EDITABLE = ["canOfftank", "canHeal"];
+// ... and the freely given lists of a character (normalized against its version on store).
+const CHARACTER_LISTS = ["professions", "wishItems"];
 
 /**
  * Save the raider's own edits. `patch.characters` may carry `{ key, specs, canOfftank, canHeal }`
@@ -304,6 +397,9 @@ function saveProfile(userId, patch = {}, { name = "" } = {}) {
             for (const field of CHARACTER_EDITABLE) {
                 // a class that cannot never stores a "yes"
                 if (edit && edit[field] !== undefined) next[field] = edit[field] === true && !classCan(c.className)[field] ? null : edit[field];
+            }
+            for (const field of CHARACTER_LISTS) {
+                if (edit && Array.isArray(edit[field])) next[field] = edit[field];
             }
             return next;
         });
@@ -348,6 +444,8 @@ function addCharacter(userId, data = {}, { name = "", versionId = "" } = {}) {
             // A class change makes the old specs meaningless; otherwise merge.
             specs: c.className === clean.className ? mergeSpecs(c.specs, clean.specs) : clean.specs,
             armory: clean.armory || c.armory,
+            // a typed character taken over again from the logs or the armory carries that source from now on
+            source: c.source === "manual" && clean.source !== "manual" ? clean.source : c.source,
         } : c));
     } else {
         if (countInVersion(current.characters, version) >= MAX_CHARACTERS) {
@@ -364,6 +462,124 @@ function mergeSpecs(have, add) {
     const out = [...have];
     for (const s of add) if (!out.some((h) => h.key === s.key)) out.push(s);
     return out;
+}
+
+/** Change one character of a profile (`fn(character)` → the new one); `{ profile, character }` or null when there is no such character. */
+function updateCharacter(userId, key, fn) {
+    const current = getProfile(userId);
+    const k = characterKeyOf(key);
+    if (!current || !k || !current.characters.some((c) => c.key === k)) return null;
+    const profile = store(userId, { ...current, characters: current.characters.map((c) => (c.key === k ? fn(c) : c)) });
+    return { profile, character: profile.characters.find((c) => c.key === k) || null };
+}
+
+/**
+ * The armory answered for a character (the guild bank's "Im Arsenal prüfen"):
+ * level and guild with the time of the answer — the character exists in game.
+ * `{ profile, character }`, or null for an unknown character or no level.
+ */
+function setCharacterArmory(userId, key, { level = null, guild = "" } = {}, { now = Date.now() } = {}) {
+    if (!(Number(level) > 0)) return null;
+    return updateCharacter(userId, key, (c) => ({ ...c, armory: { level: Number(level), guild, fetchedAt: now } }));
+}
+
+/**
+ * The orga found the character in game (e.g. per /who) — the guild bank's "Im
+ * Spiel geprüft". `{ profile, character }`, or null for an unknown character.
+ */
+function verifyCharacter(userId, key, { by = "", byName = "" } = {}, { now = Date.now() } = {}) {
+    return updateCharacter(userId, key, (c) => ({ ...c, verifiedBy: String(by || ""), verifiedByName: String(byName || ""), verifiedAt: now }));
+}
+
+/**
+ * Put a character first among the characters of its game version (#809, the
+ * guild bank's "ins Profil übernehmen"): the first of a version is what a new
+ * request goes to by default. The other versions keep their places.
+ * `{ profile, character }`, or null for an unknown character.
+ */
+function moveCharacterFirst(userId, key) {
+    const current = getProfile(userId);
+    const k = characterKeyOf(key);
+    const character = current && current.characters.find((c) => c.key === k);
+    if (!character) return null;
+    const version = characterVersion(character.versionId);
+    const rest = current.characters.filter((c) => c !== character);
+    const at = rest.findIndex((c) => characterVersion(c.versionId) === version);
+    const characters = at === -1 ? [...rest, character] : [...rest.slice(0, at), character, ...rest.slice(at)];
+    const profile = store(userId, { ...current, characters });
+    return { profile, character: profile.characters.find((c) => c.key === k) || null };
+}
+
+/**
+ * Change who a character is: its name, realm, class and — with a class — its
+ * specs (the profile's "Bearbeiten", the orga's character list). Mostly a name
+ * that was never a real character ("Gentle" for a druid) set right.
+ * `data`: { name?, realm?, className?, specs?, source? } — what is left out stays.
+ * `source: "log"` = the name was picked from the logs (the caller looked it up):
+ * it skips the name rule — a logged name is real — and the character counts
+ * as "aus den Logs" from then on.
+ *
+ * - A new name must pass utils/signup/characterNames.js and must not be another
+ *   character of the same profile. A new name means a new key (the version
+ *   stays); what spoke for the old name does not speak for the new one — the
+ *   armory answer, the orga's "im Spiel geprüft", "aus den Logs" — and goes.
+ *   Only the spelling ("gentle" → "Gentle") keeps the key and all of that.
+ * - Another realm drops the armory answer (it was for the old realm).
+ * - Another class keeps only the specs given (of the new class), and the two
+ *   switches go back to "not set" — a mage's "kann heilen" means nothing for a
+ *   priest. `specs` alone (same class) replaces the specs, keeping each one's gear.
+ *
+ * Returns `{ profile, character, renamed }` — `renamed` = { fromKey, toKey,
+ * fromName, toName, versionId } when the name changed, else null; the caller
+ * moves what hangs on the old name (services/characters/characterEdit.js) — or
+ * `{ error, code }`: "not_found" | "bad_name" | "taken" | "bad_class".
+ */
+function editCharacter(userId, key, data = {}) {
+    const current = getProfile(userId);
+    const k = characterKeyOf(key);
+    const c = current && k ? current.characters.find((x) => x.key === k) : null;
+    if (!c) return { error: "Diesen Charakter gibt es im Profil nicht.", code: "not_found" };
+    const version = characterVersion(c.versionId);
+    const fromLog = data.source === "log";
+    let name = c.name;
+    if (data.name !== undefined && cleanText(data.name, MAX_NAME * 2 + 1) !== c.name) {
+        const typed = splitPlayer(String(data.name || "")).character;
+        const checked = fromLog ? { name: cleanText(typed, MAX_NAME) } : validateCharacterName(typed, { versionId: version });
+        if (checked.error || !checked.name) return { error: checked.error || "Bitte einen Namen angeben.", code: "bad_name" };
+        name = checked.name;
+    }
+    const toKey = characterKeyOf(name, version);
+    if (toKey !== c.key && current.characters.some((x) => x.key === toKey)) {
+        return { error: `${name} steht schon in diesem Profil.`, code: "taken" };
+    }
+    const className = data.className !== undefined ? normalizeClass(data.className) : c.className;
+    if (!className || !classInVersion(className, version)) return { error: "Diese Klasse gibt es in der Spielversion des Charakters nicht.", code: "bad_class" };
+    const realm = data.realm !== undefined ? cleanText(data.realm, 32) : c.realm;
+    const keyChanged = toKey !== c.key;
+    const classChanged = className !== c.className;
+    const gearOf = new Map(c.specs.map((s) => [s.key, s.gear]));
+    const specs = Array.isArray(data.specs)
+        ? normalizeSpecs(data.specs.map((s) => {
+            const sk = String((s && (s.key || s)) || "");
+            return { key: sk, gear: (s && s.gear) || gearOf.get(sk) || "usable" };
+        }), className)
+        : (classChanged ? [] : c.specs);
+    const next = {
+        ...c,
+        name,
+        realm,
+        className,
+        specs,
+        ...(classChanged ? { canOfftank: null, canHeal: null } : {}),
+        ...(keyChanged || realm !== c.realm ? { armory: null } : {}),
+        // the old name's proof: the logs saw it, the orga found it — not this one
+        ...(keyChanged ? { source: c.source === "log" ? "manual" : c.source, verifiedAt: 0, verifiedBy: "", verifiedByName: "" } : {}),
+        ...(fromLog ? { source: "log" } : {}),
+    };
+    const profile = store(userId, { ...current, characters: current.characters.map((x) => (x.key === c.key ? next : x)) });
+    const character = profile.characters.find((x) => x.key === toKey) || null;
+    const renamed = name !== c.name ? { fromKey: c.key, toKey, fromName: c.name, toName: name, versionId: version } : null;
+    return { profile, character, renamed };
 }
 
 /** Take a character out of the raider's own profile. True when one was removed. */
@@ -552,10 +768,11 @@ function reset() {
 }
 
 module.exports = {
-    GEAR_LEVELS, WEEKDAYS, CHARACTER_SOURCES, MAX_CHARACTERS, MAX_WISHES, MAX_AVOID, MAX_NOTE,
+    GEAR_LEVELS, WEEKDAYS, CHARACTER_SOURCES, MAX_CHARACTERS, MAX_WISHES, MAX_AVOID, MAX_NOTE, MAX_PROFESSIONS, MAX_WISH_ITEMS, TIME_STEP_MINUTES,
+    normalizeTime, normalizeProfessions, normalizeWishItems,
     characterKey: characterKeyOf, nameKey: nameKeyOf, characterVersion, charactersOfVersion, findCharacter, migrateCharacterVersions, migrateCharacterOrder,
     normalizeClass, specInfo, normalizeProfile, specRoles, characterRoles, classCan,
-    getProfile, hasProfile, listProfiles, saveProfile, addCharacter, removeCharacter,
+    getProfile, hasProfile, listProfiles, saveProfile, addCharacter, editCharacter, removeCharacter, setCharacterArmory, verifyCharacter, moveCharacterFirst,
     claimsFor, characterClaims, firstCharacter, searchRaiders, raiderRef, reset, useFile,
     PROFILES_FILE,
 };

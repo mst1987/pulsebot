@@ -165,7 +165,12 @@ describe("HistoryCharPage — gear", () => {
 
     it("asks the roster facts for the worn items", async () => {
         await openPage();
-        await waitFor(() => expect(api.getRosterChar).toHaveBeenCalledWith("Alpha", [100, 101, 102, 103]));
+        await waitFor(() => expect(api.getRosterChar).toHaveBeenCalledWith("Alpha", [100, 101, 102, 103], ""));
+    });
+
+    it("asks them in the version the character page shows (#741)", async () => {
+        await openPage("/roster/char?name=Alpha", adminUser(), charData({ versionId: "forever" }));
+        await waitFor(() => expect(api.getRosterChar).toHaveBeenCalledWith("Alpha", [100, 101, 102, 103], "forever"));
     });
 
     it("opens an item's details in a modal addressed by the url", async () => {

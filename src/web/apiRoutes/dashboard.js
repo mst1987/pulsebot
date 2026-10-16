@@ -41,7 +41,7 @@ function kickerFor(guildId) {
 }
 
 /**
- * GET /api/dashboard[?version=<id>|all] — the start page, in two parts (design
+ * GET /api/dashboard[?version=<id>] — the start page, in two parts (design
  * canvas Oct 2026, direction A):
  *
  *   personal  "Für dich", for everyone with their own signup (area `signup`):
@@ -52,9 +52,10 @@ function kickerFor(guildId) {
  *             one figure per area and the last raids (dashboardOverview.js)
  *
  * The open tasks are filtered one by one by the right it takes to do them, so a
- * raider gets none. The newest top-item awards are for everyone. The raid/loot
- * parts share one version filter (#545): the main version unless the page asks
- * for another or "all".
+ * raider gets none. The newest top-item awards are for everyone. Every part with
+ * game content shares one version (#545, #741): the main version unless the
+ * page asks for another — the next raids, the last raids, the latest report, the
+ * new loot and the roster figures.
  */
 const getDashboard = withUser({}, async ({ user, req, res, url }) => {
     const guildId = activeGuildFor(req);
@@ -64,14 +65,13 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
     // a raider role may hold any area, reading or even changing raids makes nobody orga
     const orga = userIsOrga(user);
     const raidsWrite = userCanAny(user, ["raids"], "write");
-    // the orga sees every category in "Für dich", the others only their own (memberEventRows) -
-    // reading the raids is no orga rank (raider roles hold it), so it no longer widens this
     const [next, recentEvents, personal] = await Promise.all([
         orga ? loadNextRaids(guildId, 2, { versionId }) : { raids: [], error: null },
         orga ? loadRecentEvents(guildId, 5, { versionId }) : { events: [], error: null },
-        userCanAny(user, ["signup"], "read") ? loadPersonal(guildId, user, { orga, config, versionId }) : null,
+        // "Für dich" is personal for everybody, the orga too: the raids one may sign up for (or did) - the orga block shows them all
+        userCanAny(user, ["signup"], "read") ? loadPersonal(guildId, user, { config, versionId }) : null,
     ]);
-    const report = orga || userCanAny(user, ["cla"], "read") ? loadLatestReport() : null;
+    const report = orga || userCanAny(user, ["cla"], "read") ? loadLatestReport({ versionId }) : null;
     const lastRaid = recentEvents.events[0];
     // Role-sync drift is a full admin's task: only they can open the section it
     // links to. Nothing configured means no member fetch at all.
@@ -115,8 +115,8 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
         areas: orga
             ? {
                 lastReport: report,
-                newLoot: loadNewLoot(lastRaid ? lastRaid.startTime : 0),
-                roster: loadRosterFigures(guildId),
+                newLoot: loadNewLoot(lastRaid ? lastRaid.startTime : 0, { versionId }),
+                roster: loadRosterFigures(guildId, { versionId }),
             }
             : null,
         topLoot: loadTopLoot(5, versionId),

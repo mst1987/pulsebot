@@ -12,6 +12,9 @@
         "textPublic": "Diese Version ist ausgeblendet. Der Raidplan bleibt über den Link lesbar.",
         "readOnly": "Nur lesen"
     },
+    "followVersion": {
+        "switched": "Du bist jetzt in {version}"
+    },
     "brandSub": "Gildenmenü",
     "toHome": "Zur Übersicht",
     "menu": {
@@ -24,6 +27,8 @@
         "history": "Historie & Loot",
         "lootcouncil": "Loot-Council",
         "bank": "Gildenbank",
+        "dungeons": "Dungeon-Bestzeiten",
+        "addon": "Addons",
         "kader": "Kaderplaner",
         "recruitment": "Recruitment",
         "channels": "Kanäle",

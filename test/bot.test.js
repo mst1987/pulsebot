@@ -177,6 +177,31 @@ describe("interactionCreate access gate", () => {
         expect(command.execute).not.toHaveBeenCalled();
     });
 
+    it("warns with the phases when the acknowledgement came late (instrumentation)", async () => {
+        const command = {
+            name: "probe", data: { name: "probe" },
+            execute: jest.fn(async (i) => { i.deferred = true; }),
+        };
+        bot.client.commands.set("probe", command);
+        const slow = { ...slash("probe"), createdTimestamp: Date.now() - 2600 };
+        await bot.client._h.interactionCreate(slow);
+        const warned = console.warn.mock.calls.map((c) => c.join(" ")).find((l) => l.includes("Slow acknowledgement"));
+        expect(warned).toContain("probe");
+        expect(warned).toMatch(/arrival 2\d{3} ms/);
+
+        console.warn.mockClear();
+        await bot.client._h.interactionCreate({ ...slash("probe"), createdTimestamp: Date.now() - 50 });
+        expect(console.warn.mock.calls.map((c) => c.join(" ")).some((l) => l.includes("Slow acknowledgement"))).toBe(false);
+    });
+
+    it("measures a handler that throws too, and still answers the error", async () => {
+        const command = { name: "probe", data: { name: "probe" }, execute: jest.fn(async () => { throw new Error("boom"); }) };
+        bot.client.commands.set("probe", command);
+        const i = { ...slash("probe"), createdTimestamp: Date.now() };
+        await expect(bot.client._h.interactionCreate(i)).resolves.toBeUndefined();
+        expect(i.reply).toHaveBeenCalled();
+    });
+
     it("checks a button against its handler, looked up by the customId prefix", async () => {
         const command = { name: "logcheck-eval", accessOf: "logcheck", execute: jest.fn() };
         bot.client.commands.set("logcheck-eval", command);

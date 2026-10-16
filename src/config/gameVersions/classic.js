@@ -16,6 +16,7 @@
 
 const { buildClasses } = require("./classes");
 const { buildBuffs } = require("./buffs");
+const { CLASSIC_PROFESSIONS } = require("./professions");
 
 const classes = buildClasses();
 
@@ -128,6 +129,16 @@ module.exports = {
     id: "classic",
     label: "Classic Era",
     short: "Classic",
+    // The version's WoW icon; see tbc.js.
+    icon: "expansionicon_classic",
+    // The version's colour in the web admin (#742, dark theme); see tbc.js. A neutral grey-blue.
+    color: "#9fb0c8",
+    // Main professions for "Mein Profil" (Berufe): TBC's without Jewelcrafting, up to 300.
+    professions: CLASSIC_PROFESSIONS,
+    professionSkillMax: 300,
+    // The raid plan's assignment types this version has not (#751, services/raidplan/raidplanConstants.js):
+    // Misdirection is new in TBC - Classic's hunter has no such spell.
+    raidplanTypesLeftOut: ["md"],
     classes,
     instances,
     ...buildBuffs(classes, { exclude: EXCLUDED_BUFFS }),

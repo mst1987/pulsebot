@@ -23,6 +23,7 @@ jest.mock("../../../src/stores/councilStore", () => ({
 }));
 jest.mock("../../../src/stores/rosterStore", () => ({
     rosterForCategory: (...a) => mockRosterForCategory(...a),
+    rostersForCategory: (id) => [mockRosterForCategory(id, "tbc")].filter(Boolean),
     getRoster: (...a) => mockGetRoster(...a),
     listRosters: () => [],
 }));
@@ -208,6 +209,8 @@ describe("lootCouncil with a roster (#667)", () => {
         const built = councilRoster({ categoryId: "cat-mo" });
         expect(built.rows.map((r) => r.key)).toEqual(["stamm"]);
         expect(built.skipped.excluded).toBe(1);
+        // Only the roster's own member is named as set aside, not the stand-in.
+        expect(built.setAside).toEqual(["weg"]);
         expect(built.outsiders).toEqual([]);
     });
 

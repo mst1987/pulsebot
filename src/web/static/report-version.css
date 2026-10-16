@@ -1,0 +1,24 @@
+/* ---- the accent follows the game version (#742, same rules as web-client/src/styles/tokens.css) ----
+   <html data-version> is set by layout.js for a log report, whose version is the log's, and for the public event page.
+   Defaults of the rule sets only: a colour changed in Einstellungen → Spielversion reaches the web admin, not these pages. */
+:root {
+  --ver-forever:#4da3ff; --ver-forever-ink:#0b0f14; --ver-tbc:#9bd45a; --ver-tbc-ink:#0b0f14; --ver-classic:#9fb0c8; --ver-classic-ink:#0b0f14;
+  --accent-soft-alpha:16%;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --ver-forever:#1a65c4; --ver-forever-ink:#ffffff; --ver-tbc:#47711a; --ver-tbc-ink:#ffffff; --ver-classic:#4a5a73; --ver-classic-ink:#ffffff;
+    --accent-soft-alpha:10%;
+  }
+}
+:root[data-theme="light"] {
+  --ver-forever:#1a65c4; --ver-forever-ink:#ffffff; --ver-tbc:#47711a; --ver-tbc-ink:#ffffff; --ver-classic:#4a5a73; --ver-classic-ink:#ffffff;
+  --accent-soft-alpha:10%;
+}
+:root[data-version="forever"] { --version-color:var(--ver-forever); --version-ink:var(--ver-forever-ink); }
+:root[data-version="tbc"] { --version-color:var(--ver-tbc); --version-ink:var(--ver-tbc-ink); }
+:root[data-version="classic"] { --version-color:var(--ver-classic); --version-ink:var(--ver-classic-ink); }
+:root[data-version="forever"], :root[data-version="tbc"], :root[data-version="classic"] {
+  --accent:var(--version-color); --accent-ink:var(--version-ink);
+  --accent-soft:color-mix(in srgb, var(--version-color) var(--accent-soft-alpha), transparent);
+}

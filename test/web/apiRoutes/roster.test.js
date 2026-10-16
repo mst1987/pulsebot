@@ -44,6 +44,10 @@ jest.mock("../../../src/stores/settingsStore", () => ({
         ? { url: eventSheet.url, name: eventSheet.sheetName || "", source: "event" }
         : null)),
 }));
+jest.mock("../../../src/web/characters/roster", () => {
+    const actual = jest.requireActual("../../../src/web/characters/roster");
+    return { ...actual, rosterCharacter: jest.fn(actual.rosterCharacter) };
+});
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
 jest.mock("../../../src/stores/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
@@ -248,7 +252,7 @@ describe("web/apiRoutes/roster", () => {
             });
         });
 
-        it("filtert nach Spielversion: Standard Hauptversion, ?version=forever, ?version=all (#543)", async () => {
+        it("filtert nach Spielversion: Standard Hauptversion, ?version=forever, nie alle (#543, #741)", async () => {
             const settingsStore = require("../../../src/stores/settingsStore");
             settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", categoryVersion: { cat2: "forever" } });
             auth.getUser.mockReturnValue(ADMIN);
@@ -267,9 +271,10 @@ describe("web/apiRoutes/roster", () => {
                 expect(forever.chars.map((c) => [c.character, c.versionIds])).toEqual([["Devi Res", ["forever"]]]);
                 expect(forever.version).toBe("forever");
 
+                // streng getrennt (#741): "all" ist die Hauptversion, keine Mischliste
                 const all = json(await get("/api/roster", { version: "all" })).data;
-                expect(all.chars.map((c) => c.character)).toEqual(["Anna", "Devi Res"]);
-                expect(all.version).toBe("");
+                expect(all.chars.map((c) => c.character)).toEqual(["Anna"]);
+                expect(all.version).toBe("tbc");
                 // an unknown version is the main version, never an empty page
                 expect(json(await get("/api/roster", { version: "gibtsnicht" })).data.version).toBe("tbc");
             } finally {
@@ -352,6 +357,23 @@ describe("web/apiRoutes/roster", () => {
 
     describe("GET /api/roster/char", () => {
         beforeEach(() => auth.getUser.mockReturnValue(ADMIN));
+
+        it("reads the facts in the page's version (#741), the main version while the others are hidden (#563), every one when none is asked", async () => {
+            const settingsStore = require("../../../src/stores/settingsStore");
+            const rosterCharacter = require("../../../src/web/characters/roster").rosterCharacter;
+            const lastVersion = () => rosterCharacter.mock.calls[rosterCharacter.mock.calls.length - 1][2].versionId;
+            try {
+                await get("/api/roster/char", { name: "Nobody", version: "forever" });
+                expect(lastVersion()).toBe("forever");
+                await get("/api/roster/char", { name: "Nobody" });
+                expect(lastVersion()).toBe("");
+                settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+                await get("/api/roster/char", { name: "Nobody", version: "forever" });
+                expect(lastVersion()).toBe("tbc");
+            } finally {
+                settingsStore.getConfig.mockReturnValue({});
+            }
+        });
 
         it("keeps other people's attendance from a raider, but not the drop sources; the own character stays whole", async () => {
             const profiles = require("../../../src/stores/raiderProfileStore");

@@ -28,4 +28,31 @@ function extractWclLinks(text) {
     return out;
 }
 
-module.exports = { extractWclLinks, WCL_REPORT_RE };
+// The v1 site the log check has always asked for TBC: the classic host, which
+// serves the fresh (Anniversary) reports as well. classes/warcraftlogs.js'
+// default and logVersion.js' TBC entry.
+const WCL_LEGACY_SITE = "https://classic.warcraftlogs.com";
+
+/**
+ * The host and the report id of a WCL link; a bare id has no host (#746):
+ *   "https://fresh.warcraftlogs.com/reports/AbC#fight=3" -> { host: "fresh.warcraftlogs.com", id: "AbC" }
+ *   "AbC"                                                 -> { host: "", id: "AbC" }
+ * A .cn link counts as its .com twin; the host is lower case.
+ * @returns {{ host: string, id: string }}
+ */
+function parseReportLink(reportUrlOrId) {
+    if (!reportUrlOrId) return { host: "", id: "" };
+    let input = reportUrlOrId.toString().trim().replace(".cn/", ".com/");
+    let host = "";
+    const marker = "warcraftlogs.com/reports/";
+    const at = input.indexOf(marker);
+    if (at > -1) {
+        const sub = input.slice(0, at).replace(/^https?:\/\//i, "");
+        if (/^([a-z0-9-]+\.)*$/i.test(sub)) host = `${sub}warcraftlogs.com`.toLowerCase();
+        input = input.slice(at + marker.length);
+    }
+    // strip query string and #fragment (fight=, type=, ...)
+    return { host, id: input.split("#")[0].split("?")[0].split("/")[0] };
+}
+
+module.exports = { extractWclLinks, parseReportLink, WCL_REPORT_RE, WCL_LEGACY_SITE };

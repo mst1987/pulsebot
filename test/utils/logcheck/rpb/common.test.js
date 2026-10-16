@@ -43,6 +43,19 @@ describe("rpb/common fight selection", () => {
 });
 
 describe("rpb/common roleForClass", () => {
+    test("reads the role from the rule set handed in: a class only it knows by its WCL spec (#747)", () => {
+        const { logcheckRules, makeRuleSet } = require("../../../../src/utils/logcheck/rules");
+        const rules = makeRuleSet({
+            versionId: "test",
+            classDefs: [...logcheckRules("tbc").classDefs, { id: "DeathKnight", specs: [{ id: "Blood", role: "tank", buffRole: "tank" }, { id: "Frost", role: "melee", buffRole: "melee" }] }],
+            analyzers: ["rpb"],
+        });
+        expect(roleForClass("DeathKnight", { tank: 3, dps: 1 }, rules)).toBe("Tank");
+        expect(roleForClass("DeathKnight", { dps: 3, dpsSpec: "Frost" }, rules)).toBe("Physical");
+        // without the rule set the class is unknown: Physical, as it always was
+        expect(roleForClass("DeathKnight", { tank: 3 })).toBe("Physical");
+    });
+
     test("classes with a single role need no counts", () => {
         expect(roleForClass("Hunter", {})).toBe("Physical");
         expect(roleForClass("Rogue", {})).toBe("Physical");

@@ -15,13 +15,19 @@
 const profilesStore = require("../../stores/councilProfilesStore");
 const rosterStore = require("../../stores/rosterStore");
 const { rosterLootSystem } = require("./lootSystem");
+const { rosterOfCategory } = require("../roster/categoryRoster");
+const { mainVersionFor, knownVersion } = require("../events/mainVersion");
+const { LEGACY_VERSION } = require("../../config/gameVersions");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 
-/** The roster a target means: the named one, else the category's, else null. */
-function rosterOfTarget({ rosterId = "", categoryId = "" } = {}) {
+/**
+ * The roster a target means: the named one, else the category's roster of
+ * `versionId` (#739; none = the version the category plays now), else null.
+ */
+function rosterOfTarget({ rosterId = "", categoryId = "", versionId = "" } = {}) {
     if (str(rosterId)) return rosterStore.getRoster(str(rosterId));
-    return str(categoryId) ? rosterStore.rosterForCategory(str(categoryId)) : null;
+    return str(categoryId) ? rosterOfCategory(str(categoryId), { versionId }) : null;
 }
 
 /**
@@ -75,24 +81,52 @@ function profileInUse(profileId) {
  * (by their own choice, by their category or as the default), the rosters that
  * name it while running another loot system (`otherRosters` - they still keep
  * it from being deleted) and the categories without roster that keep it.
- * @param {{ config: object, guildId?: string }} opts
+ * With `versionId` only rosters of that version and categories that play it
+ * (#741: the profile tab shows one version).
+ * @param {{ config: object, guildId?: string, versionId?: string }} opts
  * @returns {Map<string, { rosters: { id, name }[], otherRosters: { id, name }[], categories: string[] }>}
  */
-function profileUsage({ config = {}, guildId = "" } = {}) {
+function profileUsage({ config = {}, guildId = "", versionId = "" } = {}) {
     const usage = new Map();
     const slot = (id) => {
         if (!usage.has(id)) usage.set(id, { rosters: [], otherRosters: [], categories: [] });
         return usage.get(id);
     };
     for (const roster of rosterStore.listRosters(guildId)) {
+        if (versionId && rosterVersion(roster) !== versionId) continue;
         const council = rosterLootSystem(config, roster).system === "lootcouncil";
         if (council) slot(resolveProfile({ rosterId: roster.id }).profile.id).rosters.push({ id: roster.id, name: roster.name });
         else if (roster.lootProfileId) slot(roster.lootProfileId).otherRosters.push({ id: roster.id, name: roster.name });
     }
     for (const [categoryId, profileId] of Object.entries(profilesStore.categoryProfiles())) {
-        if (!rosterStore.rosterForCategory(categoryId)) slot(profileId).categories.push(categoryId);
+        if (versionId && mainVersionFor({ categoryId, config }) !== versionId) continue;
+        if (!rosterOfCategory(categoryId, { config })) slot(profileId).categories.push(categoryId);
     }
     return usage;
 }
 
-module.exports = { resolveProfile, profileHead, weightsFor, viewFor, profileInUse, profileUsage, rosterOfTarget };
+/** A roster's version: its stored one (#737), TBC for one without. */
+function rosterVersion(roster) {
+    return knownVersion(roster && roster.versionId) || LEGACY_VERSION;
+}
+
+const usedBy = (u) => !!u && (u.rosters.length + u.otherRosters.length + u.categories.length) > 0;
+
+/**
+ * Whether the profile tab of `versionId` lists a profile (#741/#563): the
+ * default always; a profile a roster or category of that version uses; a
+ * profile nobody uses yet (it belongs to no version - a new one stays where
+ * it was created). One that only rosters or categories of other versions use
+ * belongs to them and is not listed.
+ * @param {object} profile
+ * @param {string} versionId
+ * @param {{ usage: Map, allUsage: Map }} ctx
+ *   `usage` = profileUsage() for the version, `allUsage` = profileUsage() for every version
+ */
+function profileShownIn(profile, versionId, { usage, allUsage } = {}) {
+    if (!versionId || profile.id === profilesStore.defaultProfileId()) return true;
+    if (usedBy(usage && usage.get(profile.id))) return true;
+    return !usedBy(allUsage && allUsage.get(profile.id));
+}
+
+module.exports = { resolveProfile, profileHead, weightsFor, viewFor, profileInUse, profileUsage, profileShownIn, rosterOfTarget };

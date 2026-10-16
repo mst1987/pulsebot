@@ -43,7 +43,7 @@ jest.mock("../../../src/stores/signupStore", () => {
 const { readJsonBody } = require("../../../src/web/http/apiBody");
 const profiles = require("../../../src/stores/raiderProfileStore");
 const route = require("../../../src/web/apiRoutes/signups");
-const { categoryVisible } = require("../../../src/web/signups/signupView");
+const memberRoleMemory = require("../../../src/services/discord/memberRoleMemory");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { mockRes, status, json } = require("../../helpers/http");
 const { ownEvent: ownEventFixture } = require("../../factories/events");
@@ -94,6 +94,7 @@ beforeEach(() => {
     mockEvents.set("eh-kara", ownEvent);
     mockConfig = {};
     mockRoleIds = null;
+    memberRoleMemory._resetForTests();
     profiles.addCharacter(ANNA.id, { name: "Nerathil", className: "Mage", specs: ["Mage-Arcane"] }, { name: "Anna" });
     mockGroups = groups();
 });
@@ -121,11 +122,30 @@ describe("GET /api/signups", () => {
         let data = json(await call(route.getSignups, ANNA)).data;
         expect(data.classes).toEqual(shape("tbc"));
         expect(data.classesByVersion).toEqual({ tbc: shape("tbc"), classic: shape("classic"), forever: shape("forever") });
-        // the own event keeps its version, whatever the main version says
+        // the own event keeps its version, whatever the main version says: it is listed under TBC
         mockConfig = { mainVersion: "forever" };
-        data = json(await call(route.getSignups, ANNA)).data;
+        data = json(await call(route.getSignups, ANNA, { query: "version=tbc" })).data;
         expect(data.classes).toEqual(shape("forever"));
         expect(data.events[0].versionId).toBe("tbc");
+    });
+
+    it("listet nur die Raids der gezeigten Spielversion: unter Forever kein TBC-Raid (#741)", async () => {
+        mockConfig = { categoryVersion: { "cat-t5": "forever" } };
+        const forever = json(await call(route.getSignups, ANNA, { query: "version=forever" })).data;
+        // the Raid-Helper raid of the Forever category; the own TBC event stays out
+        expect(forever.events.map((e) => e.id)).toEqual(["1400000000000000001"]);
+        expect(forever.version).toBe("forever");
+        // without a version: the main version (TBC), never a mixed list - "all" included
+        for (const query of ["", "version=all"]) {
+            const shown = json(await call(route.getSignups, ANNA, { query })).data;
+            expect(shown.events.map((e) => e.id)).toEqual(["eh-kara"]);
+            expect(shown.version).toBe("tbc");
+        }
+        // a link to one raid names its version, also from another version's list
+        const linked = json(await call(route.getSignups, ANNA, { query: "version=tbc&event=1400000000000000001" })).data;
+        expect(linked.eventVersion).toBe("forever");
+        expect(linked.events.map((e) => e.id)).toEqual(["eh-kara"]);
+        expect(json(await call(route.getSignups, ANNA, { query: "event=gibtsnicht" })).data.eventVersion).toBe("");
     });
 
     it("gibt jedem Charakter seine Version mit, jeder eigenen Zeile eine Version und die Versionsnamen (#543)", async () => {
@@ -133,8 +153,11 @@ describe("GET /api/signups", () => {
         mockEvents.set("eh-kara", { ...ownEvent, versionId: "" });
         mockGroups[0].events[0].versionId = "";
         mockConfig = { categoryVersion: { "cat-kara": "forever" } };
-        const data = json(await call(route.getSignups, ANNA)).data;
-        expect(data.profile.characters.map((c) => [c.name, c.versionId])).toEqual([["Nerathil", "tbc"], ["Devi Res", "forever"]]);
+        const data = json(await call(route.getSignups, ANNA, { query: "version=forever" })).data;
+        // only the characters of the page's version (#741): no TBC character for a Forever raid
+        expect(data.profile.characters.map((c) => [c.name, c.versionId])).toEqual([["Devi Res", "forever"]]);
+        const tbc = json(await call(route.getSignups, ANNA, { query: "version=tbc" })).data;
+        expect(tbc.profile.characters.map((c) => [c.name, c.versionId])).toEqual([["Nerathil", "tbc"]]);
         // an event without a version plays its category's (the dialog filters by it)
         expect(data.events[0].versionId).toBe("forever");
         expect(data.versions).toEqual(expect.arrayContaining([{ id: "forever", label: "WoW Forever", short: "Forever" }]));
@@ -145,6 +168,8 @@ describe("GET /api/signups", () => {
         mockEvents.set("eh-kara", { ...ownEvent, setup: { status: "draft", groups: [{ index: 3, slots: [{ ...slot, reasons: ["x"] }] }], bench: [], approved: null } });
         let data = json(await call(route.getSignups, ANNA)).data;
         expect(data.events[0].placement).toBeNull();
+        // a draft is no setup yet: "Noch kein Setup", not "Nicht aufgestellt"
+        expect(data.events[0].setupApproved).toBe(false);
         expect(JSON.stringify(data)).not.toContain("\"index\":3");
 
         // a changed draft after an approval: the member keeps the approved group
@@ -154,6 +179,16 @@ describe("GET /api/signups", () => {
         } });
         data = json(await call(route.getSignups, ANNA)).data;
         expect(data.events[0].placement).toEqual({ group: 2, character: "Nerathil", spec: "Mage-Arcane", role: "ranged" });
+        expect(data.events[0].setupApproved).toBe(true);
+
+        // an approved setup without the member: no placement, but the setup stands ("Nicht aufgestellt")
+        mockEvents.set("eh-kara", { ...ownEvent, setup: {
+            status: "approved", groups: [], bench: [],
+            approved: { version: 1, groups: [{ index: 1, slots: [{ ...slot, userId: "someone-else" }] }], bench: [] },
+        } });
+        data = json(await call(route.getSignups, ANNA)).data;
+        expect(data.events[0].placement).toBeNull();
+        expect(data.events[0].setupApproved).toBe(true);
     });
 
     it("zeigt den eigenen Raid-Helper-Status", async () => {
@@ -179,12 +214,70 @@ describe("GET /api/signups", () => {
         mockRoleIds = ["role-other"];
         let data = json(await call(route.getSignups, ANNA)).data;
         expect(data.events.map((e) => e.id)).toEqual(["eh-kara"]);
+        // the category without a raider role is open to everyone: the "PuG" badge
+        expect(data.events[0].openToAll).toBe(true);
+        expect(data).toMatchObject({ scope: "mine", canShowAll: false, rolesUnknown: false });
         // …wer dort schon angemeldet ist, sieht das Event trotzdem
         data = json(await call(route.getSignups, BERT)).data;
         expect(data.events.map((e) => e.id)).toEqual(["eh-kara", "1400000000000000001"]);
-        // …und die Orga sieht alles
-        data = json(await call(route.getSignups, ORGA)).data;
+        expect(data.events[1].openToAll).toBe(false);
+        mockRoleIds = ["role-t5"];
+        data = json(await call(route.getSignups, ANNA)).data;
+        expect(data.events.map((e) => e.id)).toEqual(["eh-kara", "1400000000000000001"]);
+    });
+
+    it("lists a raider role that reads the raids no other category - reading the raids is no orga rank", async () => {
+        mockConfig = { categoryIds: ["cat-kara", "cat-t5"], categoryRoles: { "cat-t5": ["role-t5"] } };
+        mockRoleIds = ["role-mo"];
+        const reader = { ...ANNA, access: { ...ANNA.access, raids: { read: true, write: false } } };
+        const data = json(await call(route.getSignups, reader)).data;
+        expect(data.events.map((e) => e.id)).toEqual(["eh-kara"]);
+        // and "Alle Kategorien" is not theirs to ask for
+        expect(data.canShowAll).toBe(false);
+        expect(json(await call(route.getSignups, reader, { query: "scope=all" })).data.events.map((e) => e.id)).toEqual(["eh-kara"]);
+    });
+
+    it("lists the orga's own raids by default, every raid with \"Alle Kategorien\" (scope=all)", async () => {
+        mockConfig = { categoryIds: ["cat-kara", "cat-t5"], categoryRoles: { "cat-t5": ["role-t5"] } };
+        mockRoleIds = ["role-other"];
+        let data = json(await call(route.getSignups, ORGA)).data;
+        expect(data.events.map((e) => e.id)).toEqual(["eh-kara"]);
+        expect(data).toMatchObject({ scope: "mine", canShowAll: true });
+        data = json(await call(route.getSignups, ORGA, { query: "scope=all" })).data;
         expect(data.events).toHaveLength(2);
+        expect(data.scope).toBe("all");
+    });
+
+    it("marks an own raid without the raider role in \"Alle Kategorien\" for an orga member the save does not exempt", async () => {
+        mockConfig = { categoryRoles: { "cat-kara": ["role-kara"] } };
+        mockRoleIds = ["role-other"];
+        // orga by role, but without the right to change raids: the save checks the raider role
+        const orgaReader = { id: "200000000000000008", name: "Ora", isAdmin: false, isOrga: true, access: { signup: { read: true, write: true }, raids: { read: true, write: false } } };
+        let rows = json(await call(route.getSignups, orgaReader, { query: "scope=all" })).data.events;
+        expect(rows.find((r) => r.id === "eh-kara")).toMatchObject({ roleMissing: true, rosterOnly: false });
+        // the full admin is exempt (raids write): no lock
+        rows = json(await call(route.getSignups, ORGA, { query: "scope=all" })).data.events;
+        expect(rows.find((r) => r.id === "eh-kara").roleMissing).toBe(false);
+    });
+
+    it("roles that cannot be read: only the raids without a raider role, and the page says so", async () => {
+        mockConfig = { categoryIds: ["cat-kara", "cat-t5"], categoryRoles: { "cat-t5": ["role-t5"] } };
+        mockRoleIds = null;
+        let data = json(await call(route.getSignups, ANNA)).data;
+        expect(data.events.map((e) => e.id)).toEqual(["eh-kara"]);
+        expect(data.rolesUnknown).toBe(true);
+        // nothing with a role in sight: nothing to say
+        mockConfig = {};
+        data = json(await call(route.getSignups, ANNA)).data;
+        expect(data.rolesUnknown).toBe(false);
+    });
+
+    it("\"Ansicht als Rolle\" lists with the roles looked at, not the admin's own", async () => {
+        mockConfig = { categoryIds: ["cat-kara", "cat-t5"], categoryRoles: { "cat-kara": ["role-kara"], "cat-t5": ["role-t5"] } };
+        mockRoleIds = ["role-kara", "role-t5"];
+        const viewing = { ...ORGA, isAdmin: false, access: { signup: { read: true, write: true } }, viewAs: { roleIds: ["role-t5"], at: Date.now() } };
+        const data = json(await call(route.getSignups, viewing)).data;
+        expect(data.events.map((e) => e.id)).toEqual(["1400000000000000001"]);
     });
 
     it("öffnet fremde Kategorien nur der Orga, nicht einer Raider-Rolle mit Raid-Events-Rechten (Okt 2026)", async () => {
@@ -192,10 +285,12 @@ describe("GET /api/signups", () => {
         mockRoleIds = ["role-other"];
         // früher sah, wer Raid-Events lesen durfte, alle Kategorien - das ist kein Orga-Rang mehr
         const raiderRole = { ...ANNA, access: { ...(ANNA.access || {}), raids: { read: true, write: true } } };
-        let data = json(await call(route.getSignups, raiderRole)).data;
+        let data = json(await call(route.getSignups, raiderRole, { query: "scope=all" })).data;
         expect(data.events.map((e) => e.id)).toEqual(["eh-kara"]);
+        expect(data.canShowAll).toBe(false);
+        // the orga role sees every category with "Alle Kategorien" (scope=all)
         const orgaRole = { ...ANNA, isOrga: true };
-        data = json(await call(route.getSignups, orgaRole)).data;
+        data = json(await call(route.getSignups, orgaRole, { query: "scope=all" })).data;
         expect(data.events).toHaveLength(2);
     });
 });
@@ -208,6 +303,16 @@ describe("PUT /api/signups", () => {
         expect(json(res).error.code).toBe("archived");
         expect(mockSignups.has(`eh-kara/${ANNA.id}`)).toBe(false);
         mockConfig = {};
+    });
+
+    // Nobody signs up with a TBC character for a Forever raid - the server says no, not only the dialog.
+    it("weist einen Charakter einer anderen Spielversion mit 400 character_version ab", async () => {
+        mockEvents.set("eh-kara", { ...ownEvent, versionId: "forever" });
+        const res = await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane", status: "signed" } });
+        expect(status(res)).toBe(400);
+        expect(json(res).error.code).toBe("character_version");
+        expect(json(res).error.message).toMatch(/Nerathil gehört zu TBC Anniversary/);
+        expect(mockSignups.has(`eh-kara/${ANNA.id}`)).toBe(false);
     });
 
     it("schreibt nur die eigene Anmeldung, auch wenn der Body ein anderes Konto nennt", async () => {
@@ -247,14 +352,19 @@ describe("PUT /api/signups", () => {
         try {
             const roster = rosterStore.createRoster({ name: "Kara", guildId: "g1", categoryId: "cat-kara", signupOnly: true });
             mockRoleIds = [];
+            // no member of the roster: the raid is not listed at all, and the save refuses
             let rows = json(await call(route.getSignups, ANNA)).data.events;
-            expect(rows.find((r) => r.id === "eh-kara").rosterOnly).toBe(true);
+            expect(rows.find((r) => r.id === "eh-kara")).toBeUndefined();
             const res = await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane", status: "signed" } });
             expect(status(res)).toBe(403);
             expect(json(res).error.code).toBe("roster_only");
             expect(mockSignups.has(`eh-kara/${ANNA.id}`)).toBe(false);
-            // the orga sees no lock
-            rows = json(await call(route.getSignups, ORGA)).data.events;
+            // "Alle Kategorien" of an orga member the save does not exempt marks the row
+            const orgaReader = { id: "200000000000000008", name: "Ora", isAdmin: false, isOrga: true, access: { signup: { read: true, write: true }, raids: { read: true, write: false } } };
+            rows = json(await call(route.getSignups, orgaReader, { query: "scope=all" })).data.events;
+            expect(rows.find((r) => r.id === "eh-kara")).toMatchObject({ rosterOnly: true, openToAll: false });
+            // the orga with the right to change raids sees no lock
+            rows = json(await call(route.getSignups, ORGA, { query: "scope=all" })).data.events;
             expect(rows.find((r) => r.id === "eh-kara").rosterOnly).toBe(false);
             // a trial member signs up
             rosterStore.upsertMember(roster.id, ANNA.id, { status: "trial" });
@@ -290,6 +400,12 @@ describe("PUT /api/signups", () => {
         mockConfig = { categorySignupNotes: { "cat-kara": "none" } };
         const res = await call(route.getSignups, ANNA);
         expect(json(res).data.events.find((e) => e.id === "eh-kara").noteMode).toBe("none");
+    });
+
+    it("sagt dem Dialog je Raid, wie viele Charaktere eine Anmeldung nennen darf (Standard 8)", async () => {
+        expect(json(await call(route.getSignups, ANNA)).data.events.find((e) => e.id === "eh-kara").maxCharacters).toBe(8);
+        mockConfig = { categorySignupCharacters: { "cat-kara": 3 } };
+        expect(json(await call(route.getSignups, ANNA)).data.events.find((e) => e.id === "eh-kara").maxCharacters).toBe(3);
     });
 
     it("nimmt mehrere eigene Charaktere in Reihenfolge an (#293)", async () => {
@@ -343,12 +459,3 @@ describe("POST /api/signups/bulk (#293)", () => {
     });
 });
 
-describe("categoryVisible", () => {
-    it("zeigt eine Kategorie, wenn die Rollen des Mitglieds unbekannt sind", () => {
-        const config = { categoryRoles: { a: ["r1"] } };
-        expect(categoryVisible("a", { config, roleIds: null })).toBe(true);
-        expect(categoryVisible("a", { config, roleIds: [] })).toBe(false);
-        expect(categoryVisible("a", { config, roleIds: ["r1"] })).toBe(true);
-        expect(categoryVisible("b", { config: { categoryIds: ["a"] }, roleIds: [] })).toBe(false);
-    });
-});

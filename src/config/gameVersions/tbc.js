@@ -10,6 +10,7 @@
 const { CONTENTS, encountersFor, finalBossesFor } = require("../tbcContent");
 const { buildClasses } = require("./classes");
 const { buildBuffs } = require("./buffs");
+const { TBC_PROFESSIONS } = require("./professions");
 
 // Per content: size, suggested tanks / healers and the look the bot's event
 // message falls back to (#307) — a colour per raid beside the boss icon, so
@@ -57,6 +58,19 @@ module.exports = {
     id: "tbc",
     label: "TBC Anniversary",
     short: "TBC",
+    // The version's WoW icon (zamimg name) next to its label in the web admin.
+    icon: "expansionicon_burningcrusade",
+    // The version's colour in the web admin (#742, dark theme): the accent while this version is shown. Editable per version in Einstellungen → Spielversion.
+    color: "#9bd45a",
+    // Main professions for "Mein Profil" (Berufe, gameVersions/professions.js) and their highest skill.
+    professions: TBC_PROFESSIONS,
+    professionSkillMax: 375,
+    // The Google raid sheet (utils/setup/fillSetup.js) is laid out for TBC raids only (#751).
+    sheetLayout: true,
+    // The loot council's content data (#748): BiS lists (Wowhead), the item table (stats, slots, wear rules),
+    // the tier/raid filter and the simulation (WoWSims tbc-new). A version without this block has none of it;
+    // whether it is used is decided in services/events/versionCapabilities.js (#761).
+    councilContent: { bis: true, sim: true, tiers: true, itemTable: true },
     classes,
     instances,
     // Everything raidBuffs.js/totems.js know is TBC 2.4.3, so nothing is dropped.

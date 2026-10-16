@@ -19,7 +19,7 @@ import Badge from "../components/ui/Badge";
 import WowIcon from "../components/ui/WowIcon";
 import RaidLoader from "../components/ui/RaidLoader";
 import CompositionEditor from "../components/raid/CompositionEditor";
-import { RefreshIcon, WarnIcon } from "../components/ui/icons";
+import { RefreshIcon, SaveIcon, TrashIcon, WarnIcon } from "../components/ui/icons";
 import "../styles/raid-templates.css";
 import { tParts, useT } from "../i18n";
 
@@ -142,11 +142,11 @@ function RaidTemplateModal({ template, versions, canWrite, onSaved, onClose }: {
             kicker={[version?.short || draft.versionId, chosen.map((i) => i.short).join(" + ")].filter(Boolean).join(" · ")}
             title={draft.name.trim() || (template ? t("raidTemplates.noName") : t("raidTemplates.editor.newTitle"))}
             width={640}
-            hint={template && canWrite ? <Button variant="danger" size="sm" onClick={remove}>{t("common.delete")}</Button> : undefined}
+            hint={template && canWrite ? <Button variant="danger" size="sm" icon={<TrashIcon />} onClick={remove}>{t("common.delete")}</Button> : undefined}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    {canWrite && <Button running={saving} disabled={!!problem} onClick={save} data-tip={problem || undefined}>{t("common.save")}</Button>}
+                    {canWrite && <Button variant="go" icon={<SaveIcon />} running={saving} disabled={!!problem} onClick={save} data-tip={problem || undefined}>{t("common.save")}</Button>}
                 </>
             )}
         >
@@ -210,16 +210,17 @@ export default function RaidTemplatesPage() {
     const editor = useCollectionEditor("edit");
     const toast = useToast();
     const canWrite = canAccess(user, "raids", "write");
+    // The game version (#563): the menu's content switch, else the main version.
+    const { version: contentVersion, hidden: othersHidden } = useContentVersion();
+    // The server answers with the templates of that version alone (#741); the list filters again, as a second line.
     const loaded = useApi(
-        () => Promise.all([getRaidTemplates(), getGameVersions()])
+        () => Promise.all([getRaidTemplates(contentVersion), getGameVersions()])
             .then(([templates, v]) => ({ templates, versions: v.versions, defaultVersion: v.defaultVersion })),
-        [],
+        [contentVersion],
     );
     const data = loaded.data?.templates ?? null;
     const versions = loaded.data?.versions ?? null;
     const defaultVersion = loaded.data?.defaultVersion ?? "";
-    // The game version (#563): the menu's content switch, else the main version.
-    const { version: contentVersion, hidden: othersHidden } = useContentVersion();
     const [importing, setImporting] = useState(false);
 
     if (loaded.error) return <div className="empty">{tParts("raidTemplates.page.loadError", { message: loaded.error.message })}</div>;

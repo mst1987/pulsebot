@@ -3,7 +3,7 @@
 // stores) are mocked; what is tested is what the module makes of them.
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: [], error: null })) }));
 jest.mock("../../../src/services/discord/discord", () => ({ memberRoleIds: jest.fn(async () => ["r1"]) }));
-jest.mock("../../../src/web/signups/signupView", () => ({ memberEventRows: jest.fn(() => []) }));
+jest.mock("../../../src/web/signups/signupView", () => ({ memberEventList: jest.fn(() => ({ rows: [], rolesUnknown: false })) }));
 jest.mock("../../../src/web/availability/raiderAttendance", () => ({ raiderAttendance: jest.fn(() => ({ categories: [] })) }));
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ getProfile: jest.fn(() => ({ characters: [] })) }));
 jest.mock("../../../src/stores/raiderCharactersStore", () => ({ charactersForUser: jest.fn(() => []) }));
@@ -14,7 +14,8 @@ jest.mock("../../../src/stores/reportStore", () => ({ getReportHints: jest.fn(()
 
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const discord = require("../../../src/services/discord/discord");
-const { memberEventRows } = require("../../../src/web/signups/signupView");
+const { memberEventList } = require("../../../src/web/signups/signupView");
+const memberRoleMemory = require("../../../src/services/discord/memberRoleMemory");
 const { raiderAttendance } = require("../../../src/web/availability/raiderAttendance");
 const profiles = require("../../../src/stores/raiderProfileStore");
 const { charactersForUser } = require("../../../src/stores/raiderCharactersStore");
@@ -34,8 +35,9 @@ beforeEach(() => {
     listLogsForEvent.mockReturnValue([]);
     getReportHints.mockReturnValue(null);
     charactersForUser.mockReturnValue([]);
-    memberEventRows.mockReturnValue([]);
+    memberEventList.mockReturnValue({ rows: [], rolesUnknown: false });
     raiderAttendance.mockReturnValue({ categories: [] });
+    memberRoleMemory._resetForTests();
 });
 
 describe("upcomingRow", () => {
@@ -56,7 +58,9 @@ describe("upcomingRow", () => {
     it("leaves the status empty without a signup, and a draft plan without token", () => {
         getPlan.mockReturnValue({ status: "draft", publicToken: "tok" });
         const row = upcomingRow({ id: "rh-1", source: "raidhelper", title: "Hyjal", startTime: 100, mine: null });
-        expect(row).toMatchObject({ status: "", placement: null, planToken: "", softresUrl: "", source: "raidhelper" });
+        expect(row).toMatchObject({ status: "", placement: null, setupApproved: false, planToken: "", softresUrl: "", source: "raidhelper" });
+        // an approved setup without the raider: the client says "Nicht aufgestellt"
+        expect(upcomingRow({ id: "eh-2", title: "x", mine: { status: "signed" }, placement: null, setupApproved: true })).toMatchObject({ placement: null, setupApproved: true });
         // a Raid-Helper row names the spec as specName
         expect(upcomingRow({ id: "rh-2", title: "x", mine: { status: "tentative", specName: "Holy1" } })).toMatchObject({ status: "tentative", spec: "Holy1" });
     });
@@ -95,17 +99,31 @@ describe("profileFigures and characterNames", () => {
 });
 
 describe("loadPersonal", () => {
-    it("asks the member's roles (not the orga's) and keeps the next four raids of the version", async () => {
-        const rows = [1, 2, 3, 4, 5].map((n) => ({ id: `eh-${n}`, title: `Raid ${n}`, startTime: n, versionId: n === 2 ? "forever" : "tbc", mine: null }));
-        memberEventRows.mockReturnValue(rows);
-        const result = await loadPersonal("g1", user, { orga: false, config: {}, versionId: "tbc" });
+    it("asks the member's own roles - the orga too, \"Für dich\" is personal - and keeps the next four raids of the version", async () => {
+        const rows = [1, 2, 3, 4, 5].map((n) => ({ id: `eh-${n}`, title: `Raid ${n}`, startTime: n, versionId: n === 2 ? "forever" : "tbc", mine: null, openToAll: n === 3 }));
+        memberEventList.mockReturnValue({ rows, rolesUnknown: false });
+        const result = await loadPersonal("g1", user, { config: {}, versionId: "tbc" });
         expect(discord.memberRoleIds).toHaveBeenCalledWith("g1", "u1");
-        expect(memberEventRows.mock.calls[0][1]).toMatchObject({ userId: "u1", guildId: "g1", roleIds: ["r1"], orga: false });
+        expect(memberEventList.mock.calls[0][1]).toMatchObject({ userId: "u1", guildId: "g1", roleIds: ["r1"], viewAs: false });
+        expect(memberEventList.mock.calls[0][1].all).toBeUndefined();
         expect(result.upcoming.map((r) => r.id)).toEqual(["eh-1", "eh-3", "eh-4", "eh-5"]);
+        // the PuG mark travels with the row
+        expect(result.upcoming.map((r) => r.openToAll)).toEqual([false, true, false, false]);
+        expect(result.upcomingRolesUnknown).toBe(false);
+    });
 
-        await loadPersonal("g1", user, { orga: true, config: {} });
-        expect(discord.memberRoleIds).toHaveBeenCalledTimes(1);
-        expect(memberEventRows.mock.calls[1][1]).toMatchObject({ roleIds: null, orga: true });
+    it("\"Ansicht als Rolle\": counts with the roles looked at and asks Discord nothing", async () => {
+        await loadPersonal("g1", { ...user, viewAs: { roleIds: ["r-mo"], at: 1 } }, { config: {} });
+        expect(discord.memberRoleIds).not.toHaveBeenCalled();
+        expect(memberEventList.mock.calls[0][1]).toMatchObject({ roleIds: ["r-mo"], viewAs: true });
+    });
+
+    it("says when the roles could not be read and a raid with a raider role may be missing", async () => {
+        discord.memberRoleIds.mockResolvedValueOnce(null);
+        memberEventList.mockReturnValue({ rows: [], rolesUnknown: true });
+        const result = await loadPersonal("g1", user, { config: {} });
+        expect(memberEventList.mock.calls[0][1]).toMatchObject({ roleIds: null });
+        expect(result.upcomingRolesUnknown).toBe(true);
     });
 
     it("sums attendance over the counted categories and lists the newest nights with their evaluation", async () => {
@@ -123,7 +141,7 @@ describe("loadPersonal", () => {
         getReportHints.mockReturnValue({ id: "aaa111", generatedAt: 1, players: { heilbert: { name: "Heilbert", idx: 2, approved: 0 } } });
         profiles.getProfile.mockReturnValue({ characters: [{ name: "Heilbert", specs: [{ key: "holy" }] }] });
 
-        const { attendance, recent, profile } = await loadPersonal("g1", user, { orga: true, config: {} });
+        const { attendance, recent, profile } = await loadPersonal("g1", user, { config: {} });
 
         expect(attendance).toMatchObject({ attended: 5, total: 6, bench: 1 });
         expect(attendance.last.map((n) => n.eventId)).toEqual(["a", "c", "b"]);
@@ -137,9 +155,21 @@ describe("loadPersonal", () => {
         loadEventGroups.mockRejectedValueOnce(new Error("Raid-Helper down"));
         raiderAttendance.mockImplementation(() => { throw new Error("broken store"); });
         const errors = jest.spyOn(console, "error").mockImplementation(() => {});
-        const result = await loadPersonal("g1", user, { orga: true, config: {} });
+        const result = await loadPersonal("g1", user, { config: {} });
         expect(result).toMatchObject({ upcoming: [], upcomingError: "Raid-Helper down", attendance: null, recent: [] });
         errors.mockRestore();
+    });
+
+    it("counts attendance within the page's version, the main version for \"all\" (#740)", async () => {
+        raiderAttendance.mockReturnValue({ categories: [{ id: "c1", name: "Do", attended: 0, total: 0, raids: [] }] });
+        const forever = await loadPersonal("g1", user, { config: {}, versionId: "forever" });
+        expect(raiderAttendance).toHaveBeenLastCalledWith("u1", expect.objectContaining({ versionId: "forever" }));
+        // a category switched to Forever before its first raid: no figure, never 0 %
+        expect(forever.attendance).toBeNull();
+        await loadPersonal("g1", user, { config: { mainVersion: "forever" }, versionId: "" });
+        expect(raiderAttendance).toHaveBeenLastCalledWith("u1", expect.objectContaining({ versionId: "forever" }));
+        await loadPersonal("g1", user, { config: {} });
+        expect(raiderAttendance).toHaveBeenLastCalledWith("u1", expect.objectContaining({ versionId: "tbc" }));
     });
 
     it("has no raids without a guild", async () => {

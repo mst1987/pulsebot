@@ -63,6 +63,7 @@
                     "leads": [],
                     "createdAt": "2026-10-01T12:00:00.000Z",
                     "createdBy": "",
+                    "versionId": "forever",
                     "attendanceCategories": [],
                     "questions": [],
                     "players": {
@@ -265,6 +266,34 @@
                                     null,
                                     null,
                                     null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
                                 ]
                             ]
                         },
@@ -303,6 +332,34 @@
                                         "userId": "111111111111111111",
                                         "spec": "Warrior-Protection"
                                     }
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
                                 ]
                             ]
                         }
@@ -314,6 +371,7 @@
                     "leads": [],
                     "createdAt": "2026-10-01T12:00:00.000Z",
                     "createdBy": "",
+                    "versionId": "forever",
                     "attendanceCategories": [],
                     "questions": [],
                     "players": {
@@ -367,6 +425,34 @@
                                         "userId": "222222222222222222",
                                         "spec": "Priest-Holy"
                                     },
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null
+                                ],
+                                [
+                                    null,
                                     null,
                                     null,
                                     null,

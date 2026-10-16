@@ -80,7 +80,7 @@ const auth = require("../../../src/web/http/auth");
 const settingsStore = require("../../../src/stores/settingsStore");
 const discord = require("../../../src/services/discord/discord");
 const { emptyAccess } = require("../../../src/config/permissions");
-const { request, post, patch, handle } = routerClient(require("../../../src/web/apiRoutes/raidTemplates"));
+const { request, post, patch, handle, get } = routerClient(require("../../../src/web/apiRoutes/raidTemplates"));
 
 describe("web/apiRoutes/raidTemplates", () => {
     describe("/api/raid-templates (#266)", () => {
@@ -109,6 +109,20 @@ describe("web/apiRoutes/raidTemplates", () => {
                 ["f1", false, true, []],
                 ["rh-3", true, false, []],
             ]);
+        });
+
+        it("GET ?version= answers the templates of that game version only (#741), the main version while the others are hidden (#563)", async () => {
+            admin();
+            settingsStore.listRaidTemplates.mockReturnValue([kara, ony]);
+            const ask = async (query, config) => {
+                settingsStore.getConfig.mockReturnValue(config);
+                return json(await get("/api/raid-templates", query)).data.templates.map((t) => t.id);
+            };
+            expect(await ask({ version: "forever" }, { mainVersion: "tbc" })).toEqual(["f1"]);
+            expect(await ask({ version: "tbc" }, { mainVersion: "tbc" })).toEqual(["k1"]);
+            expect(await ask(undefined, { mainVersion: "tbc" })).toEqual(["k1", "f1"]);
+            expect(await ask({ version: "forever" }, { mainVersion: "tbc", hideOtherVersions: true })).toEqual(["k1"]);
+            settingsStore.getConfig.mockReturnValue({});
         });
 
         it("POST creates and answers 201, ignoring an id in the body", async () => {

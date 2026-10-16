@@ -342,3 +342,8 @@ label.rd-check input { accent-color: var(--accent); margin: 0; }
 /* an editor on the page (the raid plan, data-rp-editor) lifts the content width cap; the hero and tabs above it keep the normal width */
 .content:has([data-rp-editor]) .rd-page > .page-hero,
 .content:has([data-rp-editor]) .rd-page > .tabs { max-width: 1392px; }
+
+/* A raid group (#811): "Raid 2 von 2" and the evening's other raids as links */
+.rd-hero-group { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13.5px; }
+.rd-hero-grouplink { color: var(--accent); text-decoration: none; font-weight: 600; white-space: nowrap; }
+.rd-hero-grouplink:hover { text-decoration: underline; }

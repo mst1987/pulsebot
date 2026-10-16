@@ -1,10 +1,11 @@
-import { useState, type MouseEvent, type ReactNode } from "react";
+import { Fragment, useState, type MouseEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import type { PastRaid, UpcomingRaid } from "../../api";
+import type { PastRaid, RaidListBase, UpcomingRaid } from "../../api";
 import { useTableSort, type Dir } from "../../lib/ui/tableSort";
 import { eventPostUrl, raidplanUrl } from "../../lib/discord/discordLinks";
-import { relativeDayLabel } from "../../lib/format";
+import { formatDateTime, relativeDayLabel } from "../../lib/format";
 import { eventDay, monthBands, weekBands, type TimeBand } from "../../lib/raids/raidTime";
+import { withRaidGroups } from "../../lib/raids/raidGroups";
 import RaidIcon from "../../components/raid/RaidIcon";
 import WowIcon from "../../components/ui/WowIcon";
 import Badge from "../../components/ui/Badge";
@@ -19,6 +20,8 @@ import { useT } from "../../i18n";
 // Signals instead of text: signups as a bar against the raid size, logs and loot
 // as badges whose tooltips carry the names, links as icon buttons. The whole row
 // opens the event's detail page.
+// A raid group (#811): the further raids of an evening stand indented under the
+// first raid ("Zul'Aman · 2 Raids"), whose bar counts every place of the group.
 
 type SortKey = "time";
 const SORT_DEFAULTS: Record<SortKey, Dir> = { time: "asc" };
@@ -62,11 +65,47 @@ function SortHead({ dir, onSort }: { dir: Dir; onSort: () => void }) {
     );
 }
 
-function EventTitle({ ev }: { ev: { id: string; title: string; channelName: string; categoryName: string } }) {
+type CancelInfo = Pick<RaidListBase, "cancelled" | "cancelReason" | "cancelledAt" | "cancelledByName">;
+
+/** "Abgesagt von X am …" — the badge's tooltip, the reason as its second line. */
+function cancelTip(t: ReturnType<typeof useT>, ev: CancelInfo): { tip: string; sub: string } {
+    const date = ev.cancelledAt ? formatDateTime(ev.cancelledAt) : "";
+    let tip = t("raids.list.cancelled");
+    if (ev.cancelledByName && date) tip = t("raids.list.cancelledBy", { name: ev.cancelledByName, date });
+    else if (date) tip = t("raids.list.cancelledOn", { date });
+    return { tip, sub: ev.cancelReason || t("raids.list.cancelledTipDefault") };
+}
+
+/** The red "Abgesagt" badge next to a cancelled raid's title (Event verwalten, #288). */
+function CancelledBadge({ ev }: { ev: CancelInfo }) {
+    const t = useT();
+    if (!ev.cancelled) return null;
+    const { tip, sub } = cancelTip(t, ev);
+    return <Badge tone="bad" size="sm" tip={tip} tipSub={sub}>{t("raids.list.cancelled")}</Badge>;
+}
+
+/** The signup column of a cancelled raid: "abgesagt" and the reason shortened, the full text in the tooltip. */
+function CancelNote({ ev }: { ev: CancelInfo }) {
+    const t = useT();
+    const { tip, sub } = cancelTip(t, ev);
+    return (
+        <span className="re-cancel-note" data-tip={tip} data-tip-sub={sub}>
+            <b>{t("raids.list.cancelledShort")}</b>
+            {ev.cancelReason && <span>{ev.cancelReason}</span>}
+        </span>
+    );
+}
+
+function EventTitle({ ev, raids = 0 }: { ev: { id: string; title: string; channelName: string; categoryName: string } & CancelInfo; raids?: number }) {
     const t = useT();
     return (
         <div className="re-ev">
-            <Link className="re-title" to={detailHref(ev.id)}>{ev.title || t("raids.list.untitled")}</Link>
+            <span className="re-title-line">
+                <Link className="re-title" to={detailHref(ev.id)}>{ev.title || t("raids.list.untitled")}</Link>
+                <CancelledBadge ev={ev} />
+                {/* a raid group (#811): "Zul'Aman · 2 Raids" */}
+                {raids > 1 && <Badge tone="accent" size="sm" tip={t("raids.list.groupRaidsTip", { count: raids })} tipSub={t("raids.list.groupRaidsSub")}>{t("raids.list.groupRaids", { count: raids })}</Badge>}
+            </span>
             <div className="re-sub">
                 {ev.channelName && <span className="re-chan">#{ev.channelName}</span>}
                 {ev.channelName && ev.categoryName && <span aria-hidden="true">·</span>}
@@ -109,7 +148,7 @@ export function UpcomingRaidList({ events, guildId, canWrite, orga = false, onRe
     const { dir, onSort, apply } = useTableSort<SortKey>("raid-list-upcoming-sort", SORT_DEFAULTS, "time", "asc");
     const open = useRowOpen();
     if (!events.length) return <div className="glist re-glist"><div className="re-empty">{emptyMessage}</div></div>;
-    const bands = weekBands(apply(events, (ev) => ev.startTime || 0));
+    const bands = weekBands(apply(withRaidGroups(events), (ev) => ev.startTime || 0));
 
     return (
         <div className="glist re-glist re-up" role="table" aria-label={t("raids.list.upcomingAria")}>
@@ -125,18 +164,24 @@ export function UpcomingRaidList({ events, guildId, canWrite, orga = false, onRe
                     <Band band={band} />
                     {band.rows.map((ev) => {
                         const { day, time } = eventDay(ev.startTime);
+                        const further = ev.groupRaids || [];
+                        // a raid group (#811): one signup for every raid — the bar measures against all their places
+                        const places = ev.raidSize + further.reduce((n, r) => n + (r.raidSize || 0), 0);
                         return (
-                            <div key={ev.id} className="re-row" role="row" onClick={open(ev.id)}>
+                            <Fragment key={ev.id}>
+                            <div className={`re-row${ev.cancelled ? " is-cancelled" : ""}`} role="row" onClick={open(ev.id)}>
                                 <RaidIcon contentIds={ev.contentIds} sources={ev.contentSources} />
-                                <EventTitle ev={ev} />
+                                <EventTitle ev={ev} raids={further.length ? further.length + 1 : 0} />
                                 <div className="re-when"><b>{day}</b><span>{time} · {relativeDayLabel(ev.startTime)}</span></div>
-                                <span
-                                    className="re-bar"
-                                    data-tip={t("raids.list.seatsOf", { count: ev.signupCount, size: ev.raidSize })}
-                                    data-tip-sub={ev.raidSizeKnown ? t("raids.list.sizeKnown") : t("raids.list.sizeDefault")}
-                                >
-                                    <Bar value={ev.signupCount} max={ev.raidSize} tone={signupTone(ev.signupCount, ev.raidSize)} label={`${ev.signupCount} / ${ev.raidSize}`} />
-                                </span>
+                                {ev.cancelled ? <CancelNote ev={ev} /> : (
+                                    <span
+                                        className="re-bar"
+                                        data-tip={t("raids.list.seatsOf", { count: ev.signupCount, size: places })}
+                                        data-tip-sub={ev.raidSizeKnown ? t("raids.list.sizeKnown") : t("raids.list.sizeDefault")}
+                                    >
+                                        <Bar value={ev.signupCount} max={places} tone={signupTone(ev.signupCount, places)} label={`${ev.signupCount} / ${places}`} />
+                                    </span>
+                                )}
                                 <div className="re-acts">
                                     {orga && ev.channelState === "missing" && <Badge tone="bad" tip={t("raids.list.channelMissing")} tipSub={t("raids.list.channelMissingSub")}>{t("raids.list.channelMissing")}</Badge>}
                                     {eventPostUrl(guildId, ev.channelId, ev.id, ev.channelState) && (
@@ -150,10 +195,36 @@ export function UpcomingRaidList({ events, guildId, canWrite, orga = false, onRe
                                     <DetailLink id={ev.id} />
                                 </div>
                             </div>
+                            {further.map((r) => <FurtherRaidRow key={r.id} raid={r} head={ev.title} headCancelled={!!ev.cancelled} onOpen={open(r.id)} />)}
+                            </Fragment>
                         );
                     })}
                 </div>
             ))}
+        </div>
+    );
+}
+
+/** A further raid of a group (#811) under its first raid: "Raid 2 · Zul'Aman 2", the signup is the first raid's. */
+function FurtherRaidRow({ raid, head, headCancelled = false, onOpen, children }: { raid: RaidListBase; head: string; headCancelled?: boolean; onOpen: (e: MouseEvent<HTMLDivElement>) => void; children?: ReactNode }) {
+    const t = useT();
+    // a further raid is cancelled on its own; the first raid's cancellation only changes the note ("… (abgesagt)")
+    const note = raid.cancelled
+        ? <CancelNote ev={raid} />
+        : <span className="re-subrow-note">{t(headCancelled ? "raids.list.groupSharedCancelled" : "raids.list.groupShared", { title: head })}</span>;
+    return (
+        <div className={`re-row re-subrow${raid.cancelled ? " is-cancelled" : ""}`} role="row" onClick={onOpen}>
+            <span className="re-subrow-mark" aria-hidden="true">↳</span>
+            <div className="re-ev">
+                <span className="re-title-line">
+                    <Badge size="sm">{t("raids.list.groupRaid", { index: raid.raidGroupIndex || 2 })}</Badge>
+                    <Link className="re-title" to={detailHref(raid.id)}>{raid.title || t("raids.list.untitled")}</Link>
+                    <CancelledBadge ev={raid} />
+                </span>
+            </div>
+            <div className="re-when" />
+            {children || note}
+            <div className="re-acts"><DetailLink id={raid.id} /></div>
         </div>
     );
 }
@@ -191,6 +262,8 @@ function LogBadges({ ev }: { ev: PastRaid }) {
             </Link>,
         );
     }
+    // a cancelled raid has nothing to log: no "Keine Logs" nagging
+    if (!badges.length && ev.cancelled) return null;
     if (!badges.length) return <Badge tip={t("raids.list.noLogs")} tipSub={t("raids.list.noLogsSub")}>{t("raids.list.noLogsBadge")}</Badge>;
     return <>{badges}</>;
 }
@@ -202,6 +275,7 @@ function LootBadge({ ev, orga, canLoot }: { ev: PastRaid; orga: boolean; canLoot
         // the loot page opens for whoever may read the loot (history or loot views) - raiders too
         return canLoot ? <Link className="re-blink" to={`/history/event?event=${encodeURIComponent(ev.id)}`}>{badge}</Link> : badge;
     }
+    if (ev.cancelled) return null;
     // "Kein Loot → Import" is a task of the orga's
     if (!orga) return null;
     return (
@@ -223,7 +297,7 @@ export function PastRaidList({ events, emptyMessage, orga = false, canLoot = fal
     // newest month open, every older one closed.
     const [toggled, setToggled] = useState<Record<string, boolean>>({});
     if (!events.length) return <div className="glist re-glist"><div className="re-empty">{emptyMessage}</div></div>;
-    const bands = monthBands(apply(events, (ev) => ev.startTime || 0));
+    const bands = monthBands(apply(withRaidGroups(events), (ev) => ev.startTime || 0));
     const newest = bands.reduce((best, b) => (b.key > best ? b.key : best), "");
 
     return (
@@ -246,10 +320,12 @@ export function PastRaidList({ events, emptyMessage, orga = false, canLoot = fal
                         />
                         {isOpen && band.rows.map((ev) => {
                             const { day, time } = eventDay(ev.startTime);
+                            const further = ev.groupRaids || [];
                             return (
-                                <div key={ev.id} className="re-row" role="row" onClick={open(ev.id)}>
+                                <Fragment key={ev.id}>
+                                <div className={`re-row${ev.cancelled ? " is-cancelled" : ""}`} role="row" onClick={open(ev.id)}>
                                     <RaidIcon contentIds={ev.contentIds} sources={ev.contentSources} />
-                                    <EventTitle ev={ev} />
+                                    <EventTitle ev={ev} raids={further.length ? further.length + 1 : 0} />
                                     <div className="re-when"><b>{day}</b><span>{time}</span></div>
                                     {orga && <div className="re-badges"><LogBadges ev={ev} /></div>}
                                     <div className="re-badges"><LootBadge ev={ev} orga={orga} canLoot={canLoot} /></div>
@@ -258,6 +334,23 @@ export function PastRaidList({ events, emptyMessage, orga = false, canLoot = fal
                                         <DetailLink id={ev.id} />
                                     </div>
                                 </div>
+                                {further.map((r) => (
+                                    <div key={r.id} className={`re-row re-subrow re-subrow-past${r.cancelled ? " is-cancelled" : ""}`} role="row" onClick={open(r.id)}>
+                                        <span className="re-subrow-mark" aria-hidden="true">↳</span>
+                                        <div className="re-ev">
+                                            <span className="re-title-line">
+                                                <Badge size="sm">{t("raids.list.groupRaid", { index: r.raidGroupIndex || 2 })}</Badge>
+                                                <Link className="re-title" to={detailHref(r.id)}>{r.title || t("raids.list.untitled")}</Link>
+                                                <CancelledBadge ev={r} />
+                                            </span>
+                                        </div>
+                                        <div className="re-when" />
+                                        {orga && <div className="re-badges"><LogBadges ev={r} /></div>}
+                                        <div className="re-badges"><LootBadge ev={r} orga={orga} canLoot={canLoot} /></div>
+                                        <div className="re-acts"><DetailLink id={r.id} /></div>
+                                    </div>
+                                ))}
+                                </Fragment>
                             );
                         })}
                     </div>

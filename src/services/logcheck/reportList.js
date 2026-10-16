@@ -3,6 +3,8 @@
 // unit-testable; the server route feeds it the list plus the ?sort/?dir/?page
 // query params.
 
+const { reportLink, recordVersion, knownLogVersion } = require("./logVersion");
+
 const DEFAULT_PAGE_SIZE = 15;
 
 function toInt(value, fallback) {
@@ -141,7 +143,11 @@ function annotateReportEvents(reports, logs) {
 
 const CLA_FILTERS = ["all", "open", "unlinked", "done"];
 
-const WCL_REPORT_URL = "https://classic.warcraftlogs.com/reports/";
+// The Warcraft-Logs link of a row without a stored one: on the site of its
+// version (#746, logVersion.reportLink), never a fixed host.
+function wclLinkOf(record, host) {
+    return reportLink({ host, reportId: record.reportId, versionId: record.versionId });
+}
 
 function reportMeta(r) {
     if (!r) return null;
@@ -172,7 +178,12 @@ function claRowFromLog(log, report) {
         title: l.title || (report && report.title) || l.reportId || "",
         zone: (report && report.zone) || l.zone || "",
         reportId: l.reportId || "",
-        wclUrl: l.link || (l.reportId ? `${WCL_REPORT_URL}${l.reportId}` : ""),
+        wclUrl: l.link || wclLinkOf(l, l.host),
+        // the log's game version (#746); hostVersionId feeds the raid match (logEventMatch)
+        // and the version list (logVersion.listedVersions) — read from the stored log,
+        // never from wclUrl, which for a log without a link is built on the TBC site
+        versionId: recordVersion(l),
+        hostVersionId: knownLogVersion(l),
         postedAt: logPostedAt(l),
         source: l.messageId ? "channel" : "link",
         guildId: l.guildId || "",
@@ -200,7 +211,8 @@ function claRowFromReport(r) {
         title: r.title || r.id,
         zone: r.zone || "",
         reportId: r.reportId || "",
-        wclUrl: r.reportUrl || (r.reportId ? `${WCL_REPORT_URL}${r.reportId}` : ""),
+        wclUrl: r.reportUrl || wclLinkOf(r, r.reportHost),
+        versionId: recordVersion(r),
         postedAt: r.generatedAt || 0,
         source: "link",
         guildId: "",
@@ -246,17 +258,20 @@ const CLA_SORT_KEYS = {
  * @param {object[]} logs      tracked logs of the active guild
  * @param {object[]} reports   report metadata (listReports())
  * @param {object} query       { filter, sort, dir, page }
- * @param {object} [opts]      { pageSize, allLogs } — allLogs: every guild's logs, so a
- *   report whose log lives in another guild is not mistaken for a link report
+ * @param {object} [opts]      { pageSize, allLogs, inVersion } — allLogs: every guild's logs, so a
+ *   report whose log lives in another guild is not mistaken for a link report; inVersion(row):
+ *   whether a row belongs to the version shown (#741, logVersion.inVersionList) — counted
+ *   and listed are only those
  * @returns {{ page, filter, counts: {all,open,unlinked,done} }}
  */
 function prepareClaList(logs, reports, query = {}, opts = {}) {
     const reportById = new Map((reports || []).map((r) => [r.id, r]));
     const referenced = new Set((opts.allLogs || logs || []).map((l) => l && l.reportRefId).filter(Boolean));
+    const inVersion = typeof opts.inVersion === "function" ? opts.inVersion : () => true;
     const rows = [
         ...(logs || []).map((l) => claRowFromLog(l, reportById.get(l.reportRefId))),
         ...(reports || []).filter((r) => !referenced.has(r.id)).map(claRowFromReport),
-    ];
+    ].filter(inVersion);
     const counts = {};
     for (const f of CLA_FILTERS) counts[f] = rows.filter(CLA_FILTER_TESTS[f]).length;
     const filter = CLA_FILTERS.includes(query.filter) ? query.filter : "all";

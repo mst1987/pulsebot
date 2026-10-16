@@ -7,6 +7,7 @@
 // relies on exactly that; keep it when adding a function here.
 import type { AreaAccess, EventGuildEntry, PingTarget, PingTargetInfo, ReminderRule, RoleSyncRule, TalkOverviewStatus } from "../../api";
 import { t, tOr } from "../../i18n";
+import { changedFeatureVersions } from "./versionFeatures";
 
 export type Level = "none" | "read" | "write";
 export type Grants = Record<string, AreaAccess | undefined>;
@@ -96,6 +97,15 @@ export function permissionChanges(before: GrantMap, after: GrantMap, ownerName: 
 
 // ---- the save bar: what differs between the saved config and the draft ----
 
+/** The drawn pictures in bot messages, in the order the settings show them. */
+export const DISCORD_VISUAL_KEYS = ["overviewWeekStrip", "setupImage", "eventCover"] as const;
+export type DiscordVisualKey = (typeof DISCORD_VISUAL_KEYS)[number];
+
+/** Every switch as a boolean: missing = on (the server's default). */
+export function discordVisualsOf(raw: Partial<Record<DiscordVisualKey, boolean>> | undefined): Record<DiscordVisualKey, boolean> {
+    return Object.fromEntries(DISCORD_VISUAL_KEYS.map((key) => [key, (raw || {})[key] !== false])) as Record<DiscordVisualKey, boolean>;
+}
+
 export type DraftShape = {
     adminRoleIds: string[];
     rolePermissions: GrantMap;
@@ -129,6 +139,8 @@ export type DraftShape = {
     categorySignupNotes?: Record<string, string>;
     /** Where those messages go (#335); missing = the default channel. */
     categorySignupNoteChannel?: Record<string, string>;
+    /** Characters per signup (1..8); missing = 8. */
+    categorySignupCharacters?: Record<string, number>;
     categorySheets: Record<string, { url: string; name: string }>;
     /** Raid plan or sheet per category; only picked modes. */
     categoryPlanning?: Record<string, string>;
@@ -140,8 +152,14 @@ export type DraftShape = {
     /** "Andere Versionen ausblenden" (#563): only the main version everywhere. */
     hideOtherVersions?: boolean;
     botLanguage?: "de" | "en";
+    /** The drawn pictures in bot messages (a test); missing switch = on. */
+    discordVisuals?: Partial<Record<DiscordVisualKey, boolean>>;
+    /** "Neue Gildenrekorde posten" (Dungeon-Bestzeiten); missing = off. */
+    dungeonRecords?: { post?: boolean; channelId?: string };
     /** Settings per version (#542): version id → { field → value }. */
     versionSettings?: Record<string, Record<string, string>>;
+    /** The features switched off per version (#761). */
+    versionDisabled?: Record<string, string[]>;
     topItems: { id: number }[];
 };
 
@@ -206,7 +224,7 @@ export function noteChannelPick(channels: { id: string; name: string }[], defaul
 }
 
 /** The tabs of a category's open card (Einstellungen → Kategorien), in their order. */
-export const CATEGORY_TABS = ["signup", "message", "plan", "loot"] as const;
+export const CATEGORY_TABS = ["raider", "events", "message", "hubs", "plan", "loot"] as const;
 export type CategoryTab = (typeof CATEGORY_TABS)[number];
 
 /**
@@ -225,16 +243,37 @@ export function planningLabel(mode: string): string {
     return t(mode === "sheet" ? "settings.planning.sheet" : "settings.planning.raidplan");
 }
 
-/** How many last raids a category's attendance quota may count (src/stores/configSchema.js, ATTENDANCE_WINDOWS). */
-export const ATTENDANCE_WINDOWS = [4, 8, 11, 16];
+/** How many own characters one signup may name per category (src/services/signups/signupCharacters.js): 1 to 8, default 8. */
+export const SIGNUP_CHARACTERS = { min: 1, max: 8, default: 8 };
+
+/** Whether `n` is a number of characters per signup the server keeps. */
+export function validSignupCharacters(n: number): boolean {
+    return Number.isInteger(n) && n >= SIGNUP_CHARACTERS.min && n <= SIGNUP_CHARACTERS.max;
+}
+
+/** A category's characters per signup: its own setting, else the default 8 (signupCharacters.maxCharactersFor). */
+export function signupCharactersOf(map: Record<string, number> | undefined, categoryId: string): number {
+    const n = Math.round(Number((map || {})[categoryId]));
+    if (!Number.isFinite(n) || (map || {})[categoryId] === undefined) return SIGNUP_CHARACTERS.default;
+    return Math.min(SIGNUP_CHARACTERS.max, Math.max(SIGNUP_CHARACTERS.min, n));
+}
+
+/** How many last raids a category's attendance quota may count: any whole number in this range (src/stores/configSchema.js, ATTENDANCE_WINDOW_MIN/MAX). */
+export const ATTENDANCE_WINDOW = { min: 1, max: 50, default: 11 };
 export type CategoryAttendance = { show: boolean; window: number; absences: boolean };
+
+/** Whether `n` is a quota window the server keeps. */
+export function validAttendanceWindow(n: number): boolean {
+    return Number.isInteger(n) && n >= ATTENDANCE_WINDOW.min && n <= ATTENDANCE_WINDOW.max;
+}
 
 /** One category's attendance settings with the defaults filled in: shown, over the last 11 raids, in the overview. */
 export function attendanceOf(map: Record<string, Partial<CategoryAttendance>> | undefined, id: string): CategoryAttendance {
     const entry = (map || {})[id] || {};
+    const window = Number(entry.window);
     return {
         show: entry.show !== false,
-        window: ATTENDANCE_WINDOWS.includes(Number(entry.window)) ? Number(entry.window) : 11,
+        window: validAttendanceWindow(window) ? window : ATTENDANCE_WINDOW.default,
         absences: entry.absences !== false,
     };
 }
@@ -307,6 +346,7 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         ...Object.keys(saved.categoryAnnounce || {}), ...Object.keys(draft.categoryAnnounce || {}),
         ...Object.keys(saved.categorySignupNotes || {}), ...Object.keys(draft.categorySignupNotes || {}),
         ...Object.keys(saved.categorySignupNoteChannel || {}), ...Object.keys(draft.categorySignupNoteChannel || {}),
+        ...Object.keys(saved.categorySignupCharacters || {}), ...Object.keys(draft.categorySignupCharacters || {}),
         ...Object.keys(saved.categorySheets || {}), ...Object.keys(draft.categorySheets || {}),
         ...Object.keys(saved.categoryPlanning || {}), ...Object.keys(draft.categoryPlanning || {}),
     ])];
@@ -352,6 +392,9 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const noteChWas = (saved.categorySignupNoteChannel || {})[id] || "";
         const noteChIs = (draft.categorySignupNoteChannel || {})[id] || "";
         if (noteChWas !== noteChIs) out.push(t(noteChIs ? "settings.changes.noteChannelSet" : "settings.changes.noteChannelDefault", { name }));
+        const charsWas = signupCharactersOf(saved.categorySignupCharacters, id);
+        const charsIs = signupCharactersOf(draft.categorySignupCharacters, id);
+        if (charsWas !== charsIs) out.push(t("settings.changes.signupCharacters", { name, count: charsIs }));
         const planWas = planningOf(id, saved.categoryPlanning, saved.categorySheets);
         const planIs = planningOf(id, draft.categoryPlanning, draft.categorySheets);
         if (planWas !== planIs) out.push(t("settings.changes.planning", { name, value: planningLabel(planIs) }));
@@ -377,6 +420,19 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
     if (!!saved.hideOtherVersions !== !!draft.hideOtherVersions) {
         out.push(t(draft.hideOtherVersions ? "settings.changes.hideOtherOn" : "settings.changes.hideOtherOff"));
     }
+    // The drawn pictures in bot messages (a test): one line per switch that changed.
+    for (const key of DISCORD_VISUAL_KEYS) {
+        const was = (saved.discordVisuals || {})[key] !== false;
+        const is = (draft.discordVisuals || {})[key] !== false;
+        if (was !== is) {
+            out.push(t("settings.changes.discordVisuals", { name: t(`settings.discordVisuals.${key}`), state: t(is ? "settings.changes.on" : "settings.changes.off") }));
+        }
+    }
+    // The dungeon record post: the switch, and the channel while it is on.
+    const recWas = saved.dungeonRecords || {};
+    const recIs = draft.dungeonRecords || {};
+    if (!!recWas.post !== !!recIs.post) out.push(t(recIs.post ? "settings.changes.dungeonRecordsOn" : "settings.changes.dungeonRecordsOff"));
+    if (recIs.post && (recWas.channelId || "") !== (recIs.channelId || "")) out.push(t("settings.changes.dungeonRecordsChannel"));
     if ((saved.botLanguage || "de") !== (draft.botLanguage || "de")) {
         out.push(t("settings.changes.botLanguage", { value: t(draft.botLanguage === "en" ? "settings.botLanguage.en" : "settings.botLanguage.de") }));
     }
@@ -394,6 +450,10 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const changed = [...new Set([...Object.keys(was), ...Object.keys(is)])].some((k) => String(was[k] || "").trim() !== String(is[k] || "").trim());
         if (changed) out.push(t("settings.changes.versionSettings", { value: versionName(id) }));
     }
+    // "Funktionen je Version" (#761): one line per version whose switches changed.
+    for (const id of changedFeatureVersions(saved.versionDisabled, draft.versionDisabled)) {
+        out.push(t("settings.changes.versionFeatures", { value: versionName(id) }));
+    }
 
     for (const [key, labelKey] of SIMPLE_FIELDS) {
         if (String(saved[key] || "").trim() !== String(draft[key] || "").trim()) out.push(t(labelKey));
@@ -407,13 +467,14 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
 
 // ---- connections: one status card and one self-saving modal each ----
 
-export type ConnectionId = "discord" | "battlenet" | "wcl" | "anthropic" | "lootsync";
+export type ConnectionId = "discord" | "battlenet" | "wcl" | "anthropic" | "github" | "lootsync";
 export type ConnectionState = { tone: "ok" | "mid" | "accent" | ""; label: string; missing: boolean };
 
 export type ConnectionInputs = {
     blizzard?: { clientId?: string; hasClientSecret?: boolean };
     anthropic?: { hasApiKey?: boolean };
     warcraftlogsV2?: { clientId?: string; hasClientSecret?: boolean };
+    github?: { hasToken?: boolean };
     botOnline?: boolean;
     /** null = not known (not loaded, or not a full admin). */
     tokenCount?: number | null;
@@ -436,6 +497,11 @@ export function connectionState(id: ConnectionId, input: ConnectionInputs): Conn
         return input.anthropic && input.anthropic.hasApiKey
             ? { tone: "ok", label: t("settings.state.keyStored"), missing: false }
             : { tone: "mid", label: t("settings.state.keyMissing"), missing: true };
+    }
+    if (id === "github") {
+        return input.github && input.github.hasToken
+            ? { tone: "ok", label: t("settings.state.tokenStored"), missing: false }
+            : { tone: "mid", label: t("settings.state.tokenMissing"), missing: true };
     }
     if (input.tokenCount === null || input.tokenCount === undefined) return { tone: "", label: t("settings.state.tokens"), missing: false };
     if (input.tokenCount === 0) return { tone: "mid", label: t("settings.state.noToken"), missing: true };
@@ -462,11 +528,13 @@ export function connectionPatch(id: ConnectionId, fields: Record<string, string>
     if (id === "wcl") {
         return { warcraftlogsV2: { clientId: v("clientId"), ...(secret !== undefined ? { clientSecret: secret } : {}) } };
     }
+    // #818: only the token; nothing to send when it stays as it is.
+    if (id === "github") return secret !== undefined ? { github: { token: secret } } : {};
     return {};
 }
 
 export type SettingsLike = {
-    config: { blizzard?: ConnectionInputs["blizzard"]; anthropic?: ConnectionInputs["anthropic"]; warcraftlogsV2?: ConnectionInputs["warcraftlogsV2"] };
+    config: { blizzard?: ConnectionInputs["blizzard"]; anthropic?: ConnectionInputs["anthropic"]; warcraftlogsV2?: ConnectionInputs["warcraftlogsV2"]; github?: ConnectionInputs["github"] };
     bot?: { online: boolean };
 };
 
@@ -476,6 +544,7 @@ export function connectionInputs(data: SettingsLike, tokens: unknown[] | null): 
         blizzard: data.config.blizzard,
         anthropic: data.config.anthropic,
         warcraftlogsV2: data.config.warcraftlogsV2,
+        github: data.config.github,
         botOnline: !!(data.bot && data.bot.online),
         tokenCount: tokens ? tokens.length : null,
     };
@@ -483,7 +552,7 @@ export function connectionInputs(data: SettingsLike, tokens: unknown[] | null): 
 
 /** The connections a user sees — a limited settings user only gets Battle.net (the rest are FULL_ADMIN_KEYS or admin-only ids). */
 export function visibleConnections(canManageAccess: boolean): ConnectionId[] {
-    return canManageAccess ? ["discord", "battlenet", "wcl", "anthropic", "lootsync"] : ["battlenet"];
+    return canManageAccess ? ["discord", "battlenet", "wcl", "anthropic", "github", "lootsync"] : ["battlenet"];
 }
 
 /** The sidebar badge of "Verbindungen": how many visible connections are not set up. */

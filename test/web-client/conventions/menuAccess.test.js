@@ -17,6 +17,11 @@ function topLevelRoutes() {
     return [...new Set(["/", ...paths])];
 }
 
+/** The top-level entry a sub entry lies under. */
+function parentOf(entry) {
+    return MENU.find((o) => !o.sub && o.href !== "/" && entry.href.startsWith(`${o.href}/`)) || {};
+}
+
 describe("one menu for both front ends", () => {
     it("has an entry for every top-level route and a route for every entry", () => {
         // sub entries (the raid plan's templates and catalog under Raid-Events) are routes below a top-level route
@@ -27,10 +32,15 @@ describe("one menu for both front ends", () => {
     it("gives every entry an id, a label, a group, its areas and a WoW icon", () => {
         for (const entry of MENU) {
             expect(entry).toEqual({
-                // a sub entry keeps its parent's colour (the raid plan pages under Raid-Events)
-                ...(entry.sub ? { area: "raids", sub: true } : {}),
+                // a sub entry keeps its parent's colour (the raid plan pages under Raid-Events,
+                // Dungeon-Bestzeiten under Roster)
+                ...(entry.sub ? { area: parentOf(entry).id, sub: true } : {}),
+                // the download page (Addons, #818, where the sync tool page was) wears the System colour
+                ...(entry.id === "addon" ? { area: "system" } : {}),
                 // an adminOnly entry (Systemstatus) belongs to no area: full admins only
                 ...(entry.adminOnly ? { adminOnly: true } : {}),
+                // a version-neutral page keeps the brand colour whichever version is shown (#742)
+                ...(entry.neutral ? { neutral: true } : {}),
                 id: expect.stringMatching(/^[a-zA-Z]+$/),
                 label: expect.any(String),
                 href: expect.stringMatching(/^\//),
@@ -57,7 +67,7 @@ describe("one menu for both front ends", () => {
             { name: "Raids", ids: ["raids", "cla", "history", "lootcouncil"] },
             { name: "Gilde", ids: ["roster", "kader", "recruitment", "bank"] },
             // Systemstatus (Oct 2026): full admins only
-            { name: "System", ids: ["channels", "settings", "system"] },
+            { name: "System", ids: ["channels", "addon", "settings", "system"] },
         ]);
         // a group is one contiguous block, so its heading is printed once
         expect(new Set(groups.map((g) => g.name)).size).toBe(groups.length);
@@ -66,7 +76,9 @@ describe("one menu for both front ends", () => {
 
     it("uses the icons of the approved design", () => {
         const icons = Object.fromEntries(MENU.filter((e) => !e.sub).map((e) => [e.id, e.wowIcon]));
-        expect(Object.fromEntries(MENU.filter((e) => e.sub).map((e) => [e.id, e.wowIcon]))).toEqual({ planTemplates: "inv_misc_map02", planCatalog: "inv_misc_book_11" });
+        expect(Object.fromEntries(MENU.filter((e) => e.sub).map((e) => [e.id, e.wowIcon]))).toEqual({
+            planTemplates: "inv_misc_map02", planCatalog: "inv_misc_book_11", dungeons: "spell_holy_borrowedtime",
+        });
         expect(icons).toEqual({
             home: "inv_misc_map_01",
             profile: "achievement_character_human_male",
@@ -81,6 +93,7 @@ describe("one menu for both front ends", () => {
             bank: "achievement_guildperk_mobilebanking",
             kader: "inv_misc_groupneedmore",
             channels: "inv_letter_15",
+            addon: "inv_gizmo_01",
             settings: "trade_engineering",
             system: "inv_gizmo_02",
         });

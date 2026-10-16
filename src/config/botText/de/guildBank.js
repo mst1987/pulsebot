@@ -40,4 +40,20 @@ module.exports = {
     "Handed out to {character}.": "An {character} ausgegeben.",
     "Sent by mail to {character}.": "Per Post an {character} geschickt.",
     "Sent by mail.": "Per Post geschickt.",
+    // the waiting list (#775)
+    "Waiting list: {count} ahead of you": "Warteliste: {count} vor dir",
+    "Others are waiting already – your request goes on the waiting list.": "Es warten schon andere – deine Anfrage kommt auf die Warteliste.",
+    "What is not available now goes on the waiting list – you get a DM when it is your turn.": "Was gerade nicht verfügbar ist, kommt auf die Warteliste – du bekommst eine DM, wenn du dran bist.",
+    "On the waiting list: {item} – you are no. {position}.": "Auf der Warteliste: {item} – du bist Nr. {position}.",
+    "On the waiting list: {item}.": "Auf der Warteliste: {item}.",
+    "You get a DM as soon as it is your turn.": "Du bekommst eine DM, sobald du dran bist.",
+    "Add a character in your profile, otherwise the orga cannot hand it out.": "Leg in deinem Profil einen Charakter an, sonst kann die Orga nicht ausgeben.",
+    "Your character is not confirmed yet – add it in your profile from the logs or the armory, otherwise the orga cannot hand it out.":
+        "Dein Charakter ist noch nicht bestätigt – füg ihn in deinem Profil über die Logs oder das Arsenal hinzu, sonst kann die Orga nicht ausgeben.",
+    "Your turn on the waiting list": "Du bist dran",
+    "It is in the guild bank now – the orga will confirm it shortly.": "Der Gegenstand ist jetzt in der Gildenbank – die Orga bestätigt gleich.",
+    // the list goes round in portions: the rest is back at the end
+    "{count} more are back at the end of the waiting list for you – you are no. {position}.": "{count} weitere stehen für dich wieder hinten auf der Warteliste – du bist Nr. {position}.",
+    "{count} more are back at the end of the waiting list for you.": "{count} weitere stehen für dich wieder hinten auf der Warteliste.",
+    "Handed out in turns: {count} per round.": "Ausgabe reihum: je {count} pro Runde.",
 };

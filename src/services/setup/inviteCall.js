@@ -10,6 +10,7 @@
 // invite goes out to the raid, the rest waits.
 const eventStore = require("../../stores/eventStore");
 const signupStore = require("../../stores/signupStore");
+const { signupEventIdOf } = require("../../utils/raidGroup");
 const discord = require("../discord/discord");
 const { approvedSetupOf } = require("./setupCore");
 const { fail } = require("../../web/http/apiResult");
@@ -29,7 +30,8 @@ function inviteCharacterOf(event, approved, userId) {
         ...((approved && approved.bench) || []),
     ].find((s) => String(s.userId) === uid && s.character);
     if (placed) return String(placed.character);
-    const signup = event ? signupStore.getSignup(event.id, uid) : null;
+    // a raid of a group (#811) has the signups of its first raid
+    const signup = event ? signupStore.getSignup(signupEventIdOf(event), uid) : null;
     return signup && signup.character ? String(signup.character) : "";
 }
 

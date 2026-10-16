@@ -13,6 +13,7 @@ import { VIEWPORT_MARGIN, belowStartPosition, type Placement } from "../../lib/u
 import { useToast } from "../shell/Jobs";
 import { Button } from "../ui/Button";
 import Popover from "../ui/Popover";
+import { SaveIcon } from "../ui/icons";
 
 /** A night as the field reads it: the server's night of any attendance answer. */
 export type AttendanceNight = {
@@ -148,7 +149,7 @@ export function AttendanceEditMenu({ anchor, night, status, userId, name, date, 
                 <Button size="sm" variant="ghost" disabled={busy || !night.override} onClick={() => void save(null)} data-tip={t("attendance.edit.autoHint")}>
                     {t("attendance.edit.auto")}
                 </Button>
-                <Button size="sm" running={busy} onClick={() => void save(pick)}>{t("attendance.edit.save")}</Button>
+                <Button size="sm" variant="go" icon={<SaveIcon />} running={busy} onClick={() => void save(pick)}>{t("attendance.edit.save")}</Button>
             </div>
         </Popover>
     );

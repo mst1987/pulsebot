@@ -332,6 +332,8 @@ describe("Recruitment per game version (#553)", () => {
         await user.click(within(screen.getAllByRole("radiogroup", { name: "Content: Spielversion für das ganze Menü" })[0]).getByRole("radio", { name: /Classic/ }));
         expect(await screen.findByText("Jaina")).toBeInTheDocument();
         expect(screen.queryByText("Thrall")).toBeNull();
+        // the server is asked for that version (#741)
+        expect(api.getRecruitmentData).toHaveBeenCalledWith(expect.objectContaining({ version: "classic" }));
         localStorage.removeItem("eh-content-version");
     });
 

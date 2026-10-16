@@ -12,7 +12,7 @@
 //                     attendanceCategories: [categoryId],   the raid categories attendance counts in
 //                     questions: [{ id, text, type, options: [{ id, label }], required, rev? }],
 //                     players:   { [userId]: entry },
-//                     setups:    [{ id, name, size: 10|20, groups: [[{ userId, spec }|null x5] x4] }],
+//                     setups:    [{ id, name, size: 10|20, groups: [[{ userId, spec }|null x5] x8] }],
 //                     rev?, activity?: [{ rev, at, by, type, playerId?, count?, from?, to?, questionId? }] }] }
 //
 // The revisions are stamps of the planner's change counter `rev`, set by
@@ -31,7 +31,30 @@
 const { AppError } = require("../../web/http/apiResult");
 const { isProfane, validateCharacterName } = require("../../utils/signup/characterNames");
 const { newId } = require("../../utils/ids");
-const { migrateLegacyPlanner, charOfAssignments } = require("./kaderMigration");
+const { migrateLegacyPlanner, charOfAssignments, PLANNER_VERSION } = require("./kaderMigration");
+const { rulesFor, LEGACY_VERSION } = require("../../config/gameVersions");
+const { characterKeyOf, nameKeyOf } = require("../../utils/loot/lootImport");
+
+/** A Kader's game version (#741): a known one, else the planner's own (PLANNER_VERSION, Forever). */
+function kaderVersion(id) {
+    const key = String(id || "").trim();
+    return key && rulesFor(key) ? key : PLANNER_VERSION;
+}
+
+/**
+ * Whether a Kader is listed under a game version (#741): the web shows one
+ * version at a time, a Kader only under its own. `versionId` "" = every Kader.
+ */
+function kaderInVersion(kader, versionId) {
+    return !versionId || kaderVersion(kader && kader.versionId) === versionId;
+}
+
+/** The raid sizes of a version's instances (sorted, once each) that fill whole groups of five; [10, 20] when it has none. */
+function setupSizesOf(versionId) {
+    const rules = rulesFor(versionId);
+    const sizes = new Set(((rules && rules.instances) || []).flatMap((i) => i.sizes).filter((n) => n >= 5 && n % 5 === 0));
+    return sizes.size ? [...sizes].sort((a, b) => a - b) : [10, 20];
+}
 
 const FORMAT = 2;
 const ROLES = ["tank", "healer", "melee", "ranged"];
@@ -48,9 +71,12 @@ const OPTION_COLORS = ["blue", "amber", "rose", "teal", "violet", "lime", "orang
 const VOTES = ["yes", "unsure", "no"];
 const NAME_STYLES = ["forever", "nick"];
 const GEAR_LEVELS = ["none", "usable", "ready"];
-const SETUP_SIZES = [10, 20];
-const GROUP_COUNT = 4;
 const GROUP_SIZE = 5;
+// The planner plays one game version (Forever; kaderMigration.PLANNER_VERSION). Its example setups come in
+// the sizes of that version's instances (Barrow Deeps 10, Hyjal 20, Onyxia 40 - #751); a rule set without
+// instances keeps 10 and 20. A variant stores as many groups as the biggest size shows.
+const SETUP_SIZES = setupSizesOf(PLANNER_VERSION);
+const GROUP_COUNT = Math.max(...SETUP_SIZES) / GROUP_SIZE;
 // A nickname: letters (umlauts too), digits, space, hyphen, apostrophe.
 const NICK = /^[\p{L}\p{N}' -]+$/u;
 const NICK_MIN = 2;
@@ -324,6 +350,9 @@ function normalizeKader(k) {
         leads: [...new Set((Array.isArray(k.leads) ? k.leads : []).map(str).filter(Boolean))].slice(0, LIMITS.leads),
         createdAt: str(k.createdAt),
         createdBy: str(k.createdBy),
+        // The game version the Kader is for (#741): the web lists it only under that
+        // version. One stored before had none — the planner was made for Forever.
+        versionId: kaderVersion(k.versionId),
         // A Kader stored before the setting existed counts in no category: the
         // page says "—" and asks for a pick instead of guessing (docs/kaderplaner.md).
         attendanceCategories: categoryIds(k.attendanceCategories),
@@ -454,8 +483,37 @@ function cleanName(raw, style = "forever") {
     return checked.name;
 }
 
+/** The short label of a version for a message ("Forever", "TBC"), the id when no rule set knows it. */
+function versionLabel(id) {
+    const rules = rulesFor(id);
+    return rules ? rules.short || rules.label || id : str(id);
+}
+
+/**
+ * Whether a profile character key belongs to a game version: a key of another
+ * version than TBC carries it ("forever~aldric sturmwind"), a TBC key is the
+ * bare name (utils/loot/lootImport characterKeyOf).
+ */
+function keyInVersion(key, versionId) {
+    const clean = str(key).trim().toLowerCase();
+    return !clean || characterKeyOf(nameKeyOf(clean), versionId) === clean;
+}
+
+/** The version a profile character key names: the prefix before "~", else TBC (a bare key). */
+function versionOfKey(key) {
+    const clean = str(key).trim().toLowerCase();
+    const at = clean.indexOf("~");
+    return at === -1 ? LEGACY_VERSION : clean.slice(0, at);
+}
+
 function cleanCharacter(input, ctx) {
     const nameStyle = input.nameStyle === "nick" ? "nick" : "forever";
+    // A profile character of another game version than the planner's (#741:
+    // Forever plans with Forever characters only) is refused; one typed by hand
+    // (no onlineKey) belongs to the planner's version.
+    if (input.onlineKey && ctx.versionId && !keyInVersion(input.onlineKey, ctx.versionId)) {
+        throw invalid(`${str(input.name).trim() || "Der Charakter"} ist ein ${versionLabel(versionOfKey(input.onlineKey))}-Charakter – hier zählen nur Charaktere aus ${versionLabel(ctx.versionId)}.`);
+    }
     const name = cleanName(input.name, nameStyle);
     const cls = classOf(ctx, input.className);
     const seen = new Set();
@@ -560,6 +618,8 @@ function createKader(planner, input, ctx) {
         leads: ctx.actor ? [ctx.actor] : [],
         createdAt: ctx.now,
         createdBy: ctx.actor || "",
+        // the version the page shows while it is created (#741), else the planner's own
+        versionId: kaderVersion(input.versionId),
         attendanceCategories: [],
         questions: [],
         players: {},
@@ -574,7 +634,9 @@ function createKader(planner, input, ctx) {
  * Name, leads and the raid categories attendance counts in. A category id the
  * server does not know as a raid category (`ctx.raidCategoryIds`, see
  * kaderSource.listRaidCategories) is left out without an error; an empty list
- * is a valid pick ("no category yet").
+ * is a valid pick ("no category yet"). The categories may play any game
+ * version, a hidden one included (docs/game-versions.md, "Streng getrennt":
+ * attendance is the deliberate exception).
  */
 function updateKader(planner, input, ctx) {
     return withKader(planner, input.kaderId, (kader) => {
@@ -587,6 +649,9 @@ function updateKader(planner, input, ctx) {
         }
         if (input.attendanceCategories !== undefined) {
             if (!Array.isArray(input.attendanceCategories)) throw invalid("Die Raid-Kategorien kommen als Liste.");
+            // the raid categories of every game version, hidden ones too: attendance is the
+            // one place a Kader reads across versions (a Forever Kader weighs its players'
+            // TBC nights) - only reading, nothing is written into the other version
             const known = ctx.raidCategoryIds instanceof Set ? ctx.raidCategoryIds : new Set();
             kader.attendanceCategories = categoryIds(input.attendanceCategories.filter((id) => known.has(str(id).trim())));
         }
@@ -602,7 +667,7 @@ function deleteKader(planner, kaderId) {
 
 module.exports = {
     FORMAT, ROLES, STATES, SETUP_STATES, QUESTION_TYPES, OPTION_COLORS, VOTES, NAME_STYLES, GEAR_LEVELS, SETUP_SIZES,
-    GROUP_COUNT, GROUP_SIZE, LIMITS, ACTIVITY_TYPES,
+    GROUP_COUNT, GROUP_SIZE, LIMITS, ACTIVITY_TYPES, setupSizesOf, kaderVersion, kaderInVersion,
     clone, str, isObject, invalid, notFound, conflict, forbidden, revOf, stale, assertFresh,
     emptyPlanner, emptyGroups, normalizePlanner, normalizeQuestion, normalizeAnswer, normalizeKader, normalizeActivity,
     cleanLabel, getKader, withKader, checkUserId, isKnown, classOf, cleanClassSpec,

@@ -33,12 +33,15 @@ const guildRoles = require("../../services/discord/guildRoles");
 const reminderStore = require("../../stores/reminderStore");
 const eventStore = require("../../stores/eventStore");
 const { proposeSetup } = require("../../services/setup/setupInput");
+const { inRaidGroup } = require("../../utils/raidGroup");
 const { deliverUserPing } = require("../../services/discord/pingDelivery");
 const { loadEventGroups } = require("../../services/events/raidEventGroups");
 const { getConfig } = require("../../stores/settingsStore");
 const { computeAttendance, signupStatus, isRosterKnown } = require("../../utils/attendance");
 const { tr } = require("../../utils/i18n/botText");
+const { versionOfEvent, isVersionVisible } = require("../../services/events/mainVersion");
 const { hasExpected, listExpectedMembers } = require("../../services/roster/expectedRaiders");
+const { isCategoryActive } = require("../../services/events/categoryLifecycle");
 
 const HOUR_MS = 60 * 60 * 1000;
 const KINDS = ["missing", "signed"];
@@ -113,9 +116,10 @@ async function recipients(kind, event, categoryId, guildId, config) {
             .filter((s) => s && s.userId && ["signed", "late"].includes(signupStatus(s)))
             .map((s) => String(s.userId));
     }
-    // a category with a roster: its core + trial members (#658), else the holders of its roles
-    if (!hasExpected(categoryId, config) || !isRosterKnown(event)) return null;
-    const { members, error } = await listExpectedMembers(guildId, categoryId, config);
+    // a category with a roster: its core + trial members (#658) - the roster of the raid's version (#739) -, else the holders of its roles
+    const versionId = versionOfEvent({ ...event, categoryId: event.categoryId || categoryId }, { config });
+    if (!hasExpected(categoryId, config, { versionId }) || !isRosterKnown(event)) return null;
+    const { members, error } = await listExpectedMembers(guildId, categoryId, config, { versionId });
     if (error) return null;
     return computeAttendance(members, event.signUps || []).missing.map((m) => String(m.id));
 }
@@ -144,9 +148,13 @@ async function runReminders({ now = Date.now(), config = getConfig() } = {}) {
             for (const group of groups || []) {
                 const rule = rules[group.categoryId];
                 if (!rule) continue;
+                // A deactivated category (#744) reminds nobody; its rule stays for when it is active again.
+                if (!isCategoryActive(group.categoryId, config)) continue;
                 for (const event of group.events || []) {
                     // A cancelled event (#288) reminds nobody.
                     if (event.status === "cancelled") continue;
+                    // A raid of a version the orga hid reminds nobody either (#743).
+                    if (!isVersionVisible(versionOfEvent({ ...event, categoryId: event.categoryId || group.categoryId }, { config }), config)) continue;
                     for (const kind of dueReminders(event, rule, reminderStore.getSent(event.id), now)) {
                         const userIds = await recipients(kind, event, group.categoryId, guildId, config);
                         if (userIds === null) { summary.skipped += 1; continue; }
@@ -192,6 +200,8 @@ function hasLineup(setup) {
 /** Whether an own event is due for its automatic setup proposal now. */
 function autoSuggestDue(event, sent = {}, now = Date.now()) {
     if (!event || !event.autoSuggest || hasLineup(event.setup) || sent[AUTO_SUGGEST] || event.status === "cancelled") return false;
+    // a raid group (#811): the orga is splitting the raiders over its raids by hand — no proposal of one raid alone
+    if (inRaidGroup(event)) return false;
     const deadlineMs = toMs(event.signupDeadline);
     const startMs = toMs(event.startTime);
     return !!deadlineMs && now >= deadlineMs && (!startMs || now < startMs);

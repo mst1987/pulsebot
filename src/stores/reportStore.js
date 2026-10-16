@@ -5,6 +5,7 @@ const { applyReview } = require("../utils/logcheck/recommendations");
 const { newId } = require("../utils/ids");
 const { dataPath } = require("../config/paths");
 const { writeJsonAtomic, readJsonFile } = require("./jsonStore");
+const { reportLink, recordVersion } = require("../services/logcheck/logVersion");
 
 // Reports are stored as JSON files under data/reports/<id>.json
 const REPORTS_DIR = dataPath("reports");
@@ -169,7 +170,9 @@ function metaOf(report) {
         generatedAt: report.generatedAt,
         // WCL report code + link (older reports may lack these).
         reportId: report.reportId || "",
-        reportUrl: report.reportUrl || (report.reportId ? `https://classic.warcraftlogs.com/reports/${report.reportId}` : ""),
+        reportUrl: report.reportUrl || reportLink({ host: report.reportHost, reportId: report.reportId, versionId: report.versionId }),
+        // The game version of the log (#746); a report from before it is TBC.
+        versionId: recordVersion(report),
         playerCount: (report.players || []).length,
         issueCount: (report.players || []).reduce((n, p) => n + (p.issues || []).length, 0),
         sections: Array.isArray(report.sections) ? report.sections : [],

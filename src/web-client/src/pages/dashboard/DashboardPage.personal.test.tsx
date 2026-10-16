@@ -145,6 +145,14 @@ describe("Übersicht for a raider", () => {
         expect(within(profile).getByText(t("dashboard.personal.profile.noSpec", { character: "Feuerfritz" }))).toBeInTheDocument();
     });
 
+    it("says so in words while no raid of the shown version counts yet - never 0 % (#740)", async () => {
+        await show(dashboard({ personal: personal({ attendance: null }) }));
+        const tile = screen.getByText(t("dashboard.personal.attendance.label")).closest("a")!;
+        expect(within(tile).getAllByText(t("dashboard.personal.attendance.none")).length).toBeGreaterThan(0);
+        expect(tile.querySelector(".ov-area-big")).toBeNull();
+        expect(tile.querySelectorAll(".ov-dot")).toHaveLength(0);
+    });
+
     it("gives each last raid the status and that night's evaluation for them", async () => {
         await show(dashboard());
         const card = screen.getByText(t("dashboard.personal.recent.title")).closest("section")!;
@@ -184,13 +192,64 @@ describe("Übersicht for a raider", () => {
         try {
             await show(dashboard({ personal: personal({ upcoming: [raid, myRaid({ id: "eh-2", specKey: "Rogue-Combat", spec: "Kampf", specIcon: "ability_backstab" })] }) }));
             expect(screen.queryByText(/Kampf/)).not.toBeInTheDocument();
-            const badge = screen.getByText(`${t("dashboard.personal.status.signed")} · Combat`);
+            // placed in group 2 of the approved setup: "In the setup", not just "Signed up"
+            const badge = screen.getByText(`${t("dashboard.personal.status.placed")} · Combat`);
             expect(badge.closest(".badge")!.querySelector("img")!.getAttribute("src")).toContain("ability_backstab");
             const box = screen.getByText("Schleich · Combat").closest(".ov-me-spec")!;
             expect(box.querySelector("img")!.getAttribute("src")).toContain("ability_backstab");
         } finally {
             await switchLang("de");
         }
+    });
+
+    it("says signed up until the setup is approved, then in the setup, on the bench or not placed", async () => {
+        const after = (over: Partial<PersonalRaid>) => myRaid({ id: "eh-x", title: "Kara", ...over });
+        const badgeOf = async (over: Partial<PersonalRaid>) => {
+            const view = await show(dashboard({ personal: personal({ upcoming: [myRaid({ placement: null }), after(over)] }) }));
+            const card = screen.getByText(t("dashboard.personal.list.title")).closest("section")!;
+            const text = within(card).getByText("Kara").closest(".ov-row")!.querySelector(".badge")!.textContent;
+            view.unmount();
+            return text;
+        };
+        expect(await badgeOf({ placement: null })).toBe(`${t("dashboard.personal.status.signed")} · Holy`);
+        expect(await badgeOf({ placement: null, setupApproved: false, status: "tentative" })).toBe(`${t("dashboard.personal.status.tentative")} · Holy`);
+        expect(await badgeOf({ placement: { group: 3 }, setupApproved: true })).toBe(`${t("dashboard.personal.status.placed")} · Holy`);
+        expect(await badgeOf({ placement: { bench: true }, setupApproved: true })).toBe(`${t("dashboard.personal.status.bench")} · Holy`);
+        expect(await badgeOf({ placement: null, setupApproved: true })).toBe(`${t("dashboard.personal.status.notPlaced")} · Holy`);
+        expect(await badgeOf({ placement: null, setupApproved: true, status: "absence" })).toBe(t("dashboard.personal.status.absence"));
+    });
+
+    it("tells the next raid when the approved setup left the raider out", async () => {
+        await show(dashboard({ personal: personal({ upcoming: [myRaid({ placement: null, setupApproved: true })] }) }));
+        const card = screen.getByText(t("dashboard.personal.next.title")).closest("section")!;
+        // the signup box still says what they did: signed up
+        expect(within(card).getByText(t("dashboard.personal.status.signed"))).toBeInTheDocument();
+        expect(within(card).getByText(t("dashboard.personal.setup.notPlaced"))).toBeInTheDocument();
+        expect(within(card).getByText(t("dashboard.personal.setup.notPlacedSub"))).toBeInTheDocument();
+        expect(within(card).queryByText(t("dashboard.personal.setup.none"))).not.toBeInTheDocument();
+    });
+
+    it("marks the raids open to everyone as PuG - the next one and in the list - and no other", async () => {
+        await show(dashboard({ personal: personal({ upcoming: [
+            myRaid({ openToAll: true }),
+            myRaid({ id: "eh-2", title: "BT&Hyjal&Gruul", categoryName: "Pulse Montag", status: "", placement: null, openToAll: false }),
+            myRaid({ id: "eh-4", title: "Kara", categoryName: "PUG Raids", status: "", placement: null, openToAll: true }),
+        ] }) }));
+        const next = screen.getByText(t("dashboard.personal.next.title")).closest("section")!;
+        expect(within(next).getByText(t("signups.pug.label"))).toHaveAttribute("data-tip", t("signups.pug.tip"));
+        const list = screen.getByText(t("dashboard.personal.list.title")).closest("section")!;
+        const rows = [...list.querySelectorAll<HTMLElement>(".ov-row")];
+        expect(rows.map((r) => !!within(r).queryByText(t("signups.pug.label")))).toEqual([false, true]);
+    });
+
+    it("says quietly when the Discord roles could not be read, and only then", async () => {
+        await show(dashboard({ personal: personal({ upcomingRolesUnknown: true }) }));
+        expect(screen.getByRole("note")).toHaveTextContent(t("signups.rolesUnknown"));
+    });
+
+    it("has no roles note while the roles were read", async () => {
+        await show(dashboard());
+        expect(screen.queryByText(t("signups.rolesUnknown"))).not.toBeInTheDocument();
     });
 
     it("says so when no raid is coming up", async () => {
@@ -217,7 +276,7 @@ describe("Übersicht for the orga", () => {
         // compact: one line with the title and the status, no fields
         const card = screen.getByText(t("dashboard.personal.next.title")).closest("section")!;
         expect(within(card).getByText("Hyjal+BT+Gruul")).toBeInTheDocument();
-        expect(within(card).getByText(`${t("dashboard.personal.status.signed")} · Holy`)).toBeInTheDocument();
+        expect(within(card).getByText(`${t("dashboard.personal.status.placed")} · Holy`)).toBeInTheDocument();
         expect(within(card).queryByText(t("dashboard.personal.box.setup"))).not.toBeInTheDocument();
         // the orga block and its figures; no raider tiles
         expect(screen.getByText(t("dashboard.next.title"))).toBeInTheDocument();

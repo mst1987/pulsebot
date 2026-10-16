@@ -13,6 +13,8 @@
 const { card } = require("../../utils/discord/card");
 const { tr } = require("../../utils/i18n/botText");
 const { langOfInteraction } = require("../discord/botLanguage");
+const { shortWhen } = require("../../utils/time");
+const eventStore = require("../../stores/eventStore");
 const { CONFIRM_PREFIX } = require("./setupCore");
 const confirm = require("./setupConfirm");
 
@@ -52,8 +54,11 @@ async function handleConfirmComponent(interaction) {
         const title = result.code === "not_placed" ? tr(lang, "You are not in a group in this setup.") : result.error;
         return interaction.reply(card({ kind: "warn", title, ephemeral: true }));
     }
+    // the raid can be days away: name its start instead of "see you soon"
+    const event = eventStore.getEvent(eventId);
+    const when = shortWhen(event && event.startTime, { relative: true });
     return interaction.reply(field === "y"
-        ? card({ kind: "ok", title: tr(lang, "Confirmed — see you there!"), ephemeral: true })
+        ? card({ kind: "ok", title: tr(lang, "Confirmed — see you at the raid!"), text: when ? tr(lang, "Start: {when}", { when }) : "", ephemeral: true })
         : card({
             kind: "warn", title: tr(lang, "Marked as cancelled."), text: tr(lang, "The raid lead will rebench you."), ephemeral: true,
         }));

@@ -10,6 +10,12 @@
 // eventhelper-addon repo: when a field changes, VERSION grows on both sides.
 // All times are unix SECONDS (Lua's time()), strings plain UTF-8.
 //
+// Only requests with a linked character (services/guildbank/linking.js) are
+// listed: the addon mails to the name, and a name nobody plays loses the mail.
+// Confirming already needs the link; this is the defence for requests
+// confirmed before that rule (or whose character left the profile since) —
+// each bank says how many it left out (`unlinked`, optional, version 1 stays).
+//
 // Reporting back moves a request confirmed -> handedOut through
 // services/signups/guildBank.handOutRequest (card redrawn, raider DMed). The
 // stock is never changed here: reservations.handedOutSince takes a handed-out
@@ -19,6 +25,8 @@ const store = require("../../stores/guildBankStore");
 const stockStore = require("../../stores/guildBankStockStore");
 const profiles = require("../../stores/raiderProfileStore");
 const stockView = require("./stockView");
+const linking = require("./linking");
+const { seenIndex } = require("../characters/characterEvidence");
 const guildBank = require("../signups/guildBank");
 const { serverOfToken } = require("./guildBankStock");
 
@@ -46,7 +54,7 @@ function characterOf(request, bank) {
     if (!name) return null;
     let classFile = "";
     try {
-        const c = profiles.findCharacter(profiles.getProfile(request.userId), name, bank.gameVersion);
+        const c = linking.linkedCharacter(request, { gameVersion: bank.gameVersion || "" }) || profiles.findCharacter(profiles.getProfile(request.userId), name, bank.gameVersion);
         classFile = c ? classFileOf(c.className) : "";
     } catch {
         // a broken profile never costs the hand-out its recipient
@@ -104,25 +112,32 @@ function banksFor(token, bankKey = "") {
 }
 
 /**
- * The hand-out list: per bank its confirmed requests from the stock (oldest
- * confirmation first). A bank without any is listed with `handouts: []`, so the
- * addon can clear its list.
+ * The hand-out list: per bank its confirmed requests from the stock with a
+ * linked character (oldest confirmation first); `unlinked` counts the
+ * confirmed ones left out for want of one. A bank without any is listed with
+ * `handouts: []`, so the addon can clear its list.
  * @param {{ token?: object, bankKey?: string, now?: number }} [o]
  */
 function handoutList({ token = {}, bankKey = "", now = Date.now() } = {}) {
     const confirmed = store.listRequests({ status: "confirmed" }).filter((r) => r.itemId > 0 && r.bankKey);
-    const banks = banksFor(token, bankKey).map((bank) => ({
-        key: bank.key,
-        gameVersion: bank.gameVersion,
-        realm: bank.realm,
-        guild: bank.guild,
-        faction: bank.faction,
-        scannedAt: seconds(bank.scannedAt),
-        handouts: confirmed
-            .filter((r) => r.bankKey === bank.key)
-            .sort((a, b) => (a.handledAt || a.createdAt) - (b.handledAt || b.createdAt))
-            .map((r) => handoutView(r, bank)),
-    }));
+    const banks = banksFor(token, bankKey).map((bank) => {
+        const own = confirmed.filter((r) => r.bankKey === bank.key);
+        // a confirmed request whose character is no (longer a) confirmed one stays out (linking.linkState)
+        const index = seenIndex();
+        const linked = own.filter((r) => linking.isLinked(r, { gameVersion: bank.gameVersion || "", index }));
+        return {
+            key: bank.key,
+            gameVersion: bank.gameVersion,
+            realm: bank.realm,
+            guild: bank.guild,
+            faction: bank.faction,
+            scannedAt: seconds(bank.scannedAt),
+            handouts: linked
+                .sort((a, b) => (a.handledAt || a.createdAt) - (b.handledAt || b.createdAt))
+                .map((r) => handoutView(r, bank)),
+            unlinked: own.length - linked.length,
+        };
+    });
     return { format: FORMAT, version: VERSION, generatedAt: seconds(now), banks };
 }
 

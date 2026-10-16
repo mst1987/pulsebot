@@ -22,7 +22,7 @@
 // written back to the profile.
 //
 // `differs` codes: "class", "mainSpec", "gear", "tank", "heal", "notInProfile".
-const { STATES } = require("../../services/kader/kaderModel");
+const { STATES, SETUP_SIZES, kaderVersion, kaderInVersion } = require("../../services/kader/kaderModel");
 
 const mainSpecOf = (char) => (char.specs.find((s) => s.main) || char.specs[0] || null);
 
@@ -81,8 +81,10 @@ function diffAgainst(char, profileChar, classes) {
 
 /**
  * A player's attendance per raid category, `{ [categoryId]: { attended,
- * counted, nights } }`; null when no category counted a night for the account
- * (no character known, no raid yet): the page shows "—".
+ * counted, versionId, nights } }` - each category counted in the version it
+ * plays (a Forever Kader may count TBC nights, docs/game-versions.md); null
+ * when no category counted a night for the account (no character known, no
+ * raid yet): the page shows "—".
  */
 function attendanceView(a) {
     if (!a || !a.byCategory) return null;
@@ -92,6 +94,7 @@ function attendanceView(a) {
         out[id] = {
             attended: c.attended,
             counted: c.counted,
+            ...(c.versionId ? { versionId: c.versionId } : {}),
             nights: c.nights.map(({ date, title, attended, reason }) => ({ date, title, attended, reason })),
         };
     }
@@ -133,9 +136,14 @@ function prefillOf({ assignment, profile, logChar }) {
     return null;
 }
 
-/** What the account dialog offers to assign: every profile character of any version, plus the log-linked one. */
-function pickableOf(profile, logChar) {
-    const out = (profile ? profile.allCharacters || [] : []).map((c) => ({
+/**
+ * What the account dialog offers to assign: the profile characters of the
+ * planner's version (the Kader's, #741 - Forever plans with Forever
+ * characters only), plus the log-linked one (logs know no version).
+ */
+function pickableOf(profile, logChar, versionId = "") {
+    const all = profile ? profile.allCharacters || [] : [];
+    const out = all.filter((c) => !versionId || c.versionId === versionId).map((c) => ({
         key: c.key,
         name: c.name,
         className: c.className,
@@ -151,7 +159,7 @@ function pickableOf(profile, logChar) {
     return out;
 }
 
-function buildPlayer({ userId, displayName, member, profile, logChar, attendance, assignment, manual, classes }) {
+function buildPlayer({ userId, displayName, member, profile, logChar, attendance, assignment, manual, classes, versionId }) {
     const profileChars = profile ? profile.characters : [];
     const chars = assignment
         ? assignment.characters.map((c) => ({
@@ -183,8 +191,9 @@ function buildPlayer({ userId, displayName, member, profile, logChar, attendance
             ? { character: profileMain.name, className: profileMain.className, mainSpec: profileDesc.mainSpec, logSpecs: [...profileMain.logSpecs] }
             : null,
         prefill: prefillOf({ assignment, profile, logChar }),
-        pickable: pickableOf(profile, logChar),
+        pickable: pickableOf(profile, logChar, versionId),
         availability: profile ? [...profile.availability] : [],
+        availabilityFrom: profile ? { ...(profile.availabilityFrom || {}) } : {},
         attendance: attendanceView(attendance),
         // the revision of the planner's character data and who changed it (the account dialog's conflict check)
         rev: assignment && assignment.rev ? assignment.rev : 0,
@@ -201,7 +210,24 @@ function stateCounts(kader) {
 
 /** A Kader in the picker: name, leads, counts per state and how many questions it asks (for "Fragen übernehmen"). */
 function kaderSummary(k) {
-    return { id: k.id, name: k.name, leads: [...k.leads], createdAt: k.createdAt, createdBy: k.createdBy, counts: stateCounts(k), questions: k.questions.length };
+    return {
+        id: k.id, name: k.name, leads: [...k.leads], createdAt: k.createdAt, createdBy: k.createdBy,
+        versionId: kaderVersion(k.versionId), counts: stateCounts(k), questions: k.questions.length,
+    };
+}
+
+/**
+ * The Kader the address names and the list of the picker (#741: one game
+ * version at a time). The list holds the Kader of `versionId` — without one,
+ * those of the named Kader's version (a change inside it answers its own
+ * version's list). The named Kader itself comes along whatever its version: a
+ * link to a Kader of another version opens it, and the page switches the menu
+ * to its version (hooks/useFollowVersion).
+ */
+function kadersShown(planner, kaderId, versionId = "") {
+    const kader = planner.kaders.find((k) => k.id === kaderId) || null;
+    const shown = versionId || (kader ? kaderVersion(kader.versionId) : "");
+    return { kader, kaders: planner.kaders.filter((k) => kaderInVersion(k, shown)).map(kaderSummary) };
 }
 
 /** A name for every user id the page may show: members, accounts, profiles, the names the Kader kept. */
@@ -215,10 +241,12 @@ function namesOf(source, planner) {
 }
 
 /**
- * @param {{ source: object, planner: object, kaderId?: string }} input  kaderSource.loadKaderSource(), kaderStore.readPlanner()
+ * @param {{ source: object, planner: object, kaderId?: string, versionId?: string }} input
+ *   kaderSource.loadKaderSource(), kaderStore.readPlanner(); `versionId` the game version
+ *   the page shows (#741, see kadersShown)
  * @returns the payload of GET /api/kader
  */
-function buildKaderView({ source, planner, kaderId = "" }) {
+function buildKaderView({ source, planner, kaderId = "", versionId = "" }) {
     const classes = indexClasses(source.classes);
     const members = new Map(source.members.map((m) => [m.userId, m]));
     const profiles = new Map(source.profiles.map((p) => [p.userId, p]));
@@ -243,6 +271,7 @@ function buildKaderView({ source, planner, kaderId = "" }) {
         assignment: planner.assignments[userId] || null,
         manual: manual.has(userId),
         classes,
+        versionId: source.versionId || "",
     }));
 
     // the import dialog's candidates: every member, with what they would be prefilled with
@@ -253,7 +282,7 @@ function buildKaderView({ source, planner, kaderId = "" }) {
         prefill: prefillOf({ assignment: planner.assignments[m.userId] || null, profile: profiles.get(m.userId) || null, logChar: logChars[m.userId] || null }),
     }));
 
-    const kader = planner.kaders.find((k) => k.id === kaderId) || null;
+    const { kader, kaders } = kadersShown(planner, kaderId, versionId);
     return {
         versionId: source.versionId,
         mainVersion: source.mainVersion,
@@ -261,12 +290,14 @@ function buildKaderView({ source, planner, kaderId = "" }) {
         roles: ["tank", "healer", "melee", "ranged"],
         classes: source.classes,
         buffs: source.buffs,
+        // the sizes an example setup can have: the raid sizes of the planner version's instances (#751)
+        setupSizes: SETUP_SIZES,
         raidCategories: source.raidCategories || [],
         players,
         members: memberList,
         discordRoles: source.discordRoles || [],
         names,
-        kaders: planner.kaders.map(kaderSummary),
+        kaders,
         kader,
         warnings: source.warnings,
         sharedRev: planner.sharedRev || 0,
@@ -275,12 +306,12 @@ function buildKaderView({ source, planner, kaderId = "" }) {
 
 /**
  * What a change inside one Kader answers (and GET /api/kader/kader): the Kader
- * as stored now, the summaries of all and the revision of the server's side.
+ * as stored now, the summaries of its game version (or of `versionId`, #741)
+ * and the revision of the server's side.
  */
-function kaderPayload(planner, kaderId) {
+function kaderPayload(planner, kaderId, versionId = "") {
     return {
-        kader: planner.kaders.find((k) => k.id === kaderId) || null,
-        kaders: planner.kaders.map(kaderSummary),
+        ...kadersShown(planner, kaderId, versionId),
         sharedRev: planner.sharedRev || 0,
     };
 }
@@ -294,7 +325,11 @@ function mutationContext({ source, planner, actor = "", now = new Date().toISOSt
     return {
         now,
         actor,
+        // the game version the planner works in for this change (#741): a profile character of another one is refused
+        versionId: source.versionId || "",
         classes: indexClasses(source.classes),
+        // the rule set's party buffs: the auto-assign reads who spreads and who supports from them (#751)
+        partyBuffs: (source.buffs && source.buffs.party) || [],
         memberIds: new Set(source.members.map((m) => m.userId)),
         knownIds,
         prefillOf: (userId, current = planner) => prefillOf({ assignment: (current || planner).assignments[userId] || null, profile: profiles.get(userId) || null, logChar: logChars[userId] || null }),
@@ -306,7 +341,7 @@ function mutationContext({ source, planner, actor = "", now = new Date().toISOSt
 
 /** The context of a change inside one Kader: the rule set's classes, who acts and when. */
 function lightContext({ rules, actor = "", now = new Date().toISOString() }) {
-    return { now, actor, classes: indexClasses(rules.classes), memberIds: new Set(), knownIds: new Set() };
+    return { now, actor, versionId: rules.versionId || "", classes: indexClasses(rules.classes), memberIds: new Set(), knownIds: new Set() };
 }
 
 module.exports = { buildKaderView, kaderPayload, mutationContext, lightContext, prefillOf, diffAgainst, describe, stateCounts, rateOver };

@@ -25,6 +25,10 @@
 //   - tentative and not placed (or no setup known)          -> "tentative": neutral,
 //     the night is shown but counts neither for nor against the quota (Oct 2026)
 //   - no signup and not in the log                          -> "noSignup"
+// A raid group (#811 — "Zul'Aman" and "Zul'Aman 2" from one signup) is ONE night:
+// the further raids are no nights of their own, their logs, setups and overrides
+// count for the first raid's night — present in the log of any raid of the group,
+// placed or benched in any of their setups.
 //   - no log and no raider assigned to the character        -> not counted at all:
 //     without a Discord account behind the name there is nothing to compare.
 // "present" and "bench" count for the quota (`attended`), "tentative" not at all
@@ -34,6 +38,11 @@
 // The window is the category's last RAID_WINDOW nights that carry any evidence
 // (a signup or a log), not a calendar span: a raid that runs every week and one
 // that runs every other week both get "the last 11 raids".
+// Attendance is always counted within one game version (#740): every caller
+// names it (buildAttendanceContext's `versionId`), a night belongs to the version
+// stored with it (versionOfEvent), and the window is the last nights *of that
+// version* - a category switched from TBC to Forever starts its Forever quota
+// empty ("noch keine gezählten Raids") and keeps its TBC quota under TBC.
 //
 // Role (the second open question): what the character last played in a log —
 // a hybrid's spec in the loot export says little about whether they healed
@@ -47,9 +56,10 @@ const { listStoredEvents } = require("../events/eventSources");
 const { listLogs } = require("../../stores/logStore");
 const { listReports, getReport } = require("../../stores/reportStore");
 const { characterKeyOf } = require("../../utils/loot/lootImport");
-const { contentsForText, content: contentMeta } = require("../../config/tbcContent");
-const { LEGACY_VERSION } = require("../../config/gameVersions");
-const { knownVersion } = require("../events/mainVersion");
+const { contentsForText, content: contentMeta } = require("../../config/raidContent");
+const { VERSIONS } = require("../../config/gameVersions");
+const { versionOfEvent, mainVersionFor, knownVersion } = require("../events/mainVersion");
+const logger = require("../../logger").child("attendance");
 const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
 const eventStore = require("../../stores/eventStore");
@@ -57,6 +67,7 @@ const availabilityStore = require("../../stores/availabilityStore");
 const overridesStore = require("../../stores/attendanceOverridesStore");
 const { benchAndPool } = require("../setup/setupCore");
 const { listAllAssignments } = require("../../stores/raiderCharactersStore");
+const { isRaidSibling, signupEventIdOf } = require("../../utils/raidGroup");
 
 /** How many raid nights of a category attendance looks back over. */
 const RAID_WINDOW = 11;
@@ -148,6 +159,17 @@ function setupPlaces(setup) {
     return { placed, bench: new Set(bench.filter((b) => b && b.userId && !placed.has(String(b.userId))).map((b) => String(b.userId))) };
 }
 
+/**
+ * The places of a raid group's night (#811): who stood in a group of ANY of its
+ * raids, and who sat on the bench of any of them without standing in a group anywhere.
+ */
+function groupPlaces(setups) {
+    const parts = (setups || []).map(setupPlaces);
+    const placed = new Set(parts.flatMap((p) => [...p.placed]));
+    const bench = new Set(parts.flatMap((p) => [...p.bench]).filter((id) => !placed.has(id)));
+    return { placed, bench };
+}
+
 /** fn(), or `fallback` when it throws: the extra sources (setups, absences, overrides) are best-effort. */
 function attempt(fn, fallback) {
     try {
@@ -157,19 +179,11 @@ function attempt(fn, fallback) {
     }
 }
 
-// The raid a category mostly runs, as the icon of its final boss. Names checked
-// against the zamimg CDN (the Archimonde icon only exists with its trailing "-").
-const CONTENT_ICONS = {
-    kara: "achievement_boss_princemalchezaar_02",
-    gruul: "achievement_boss_gruul",
-    mag: "achievement_boss_magtheridon",
-    ssc: "achievement_boss_ladyvashj",
-    tk: "achievement_boss_kael'thassunstrider_01",
-    za: "achievement_boss_zuljin",
-    hyjal: "achievement_boss_archimonde-",
-    bt: "achievement_boss_illidan",
-    swp: "achievement_boss_kiljaedan",
-};
+// The raid a category mostly runs, as the icon of its final boss: one entry per
+// instance of every version, read from the rule set (config/gameVersions).
+const CONTENT_ICONS = Object.fromEntries(
+    VERSIONS.flatMap((v) => v.instances.filter((i) => i.icon).map((i) => [i.id, i.icon])),
+);
 
 const TANK_SPECS = new Set(["protection", "prot", "tank", "feral tank", "guardian"]);
 const HEALER_SPECS = new Set(["holy", "discipline", "disc", "restoration", "resto", "healer"]);
@@ -226,54 +240,108 @@ function condenseReport(meta) {
     return condensed;
 }
 
+/** Adds who signed up for a night to `byCategory` (category id -> user ids), whatever its version. */
+function noteSigners(byCategory, ev) {
+    for (const s of Array.isArray(ev.signUps) ? ev.signUps : []) {
+        if (!s || !s.userId) continue;
+        if (!byCategory.has(ev.categoryId)) byCategory.set(ev.categoryId, new Set());
+        byCategory.get(ev.categoryId).add(String(s.userId));
+    }
+}
+
+/**
+ * The game version a context counts (#740): attendance is always counted within
+ * one version, never across. A call without a known version is a bug in the
+ * caller - it throws outside production (tests, dev), and on the live bot counts
+ * the main version and says so in the log rather than taking a page down.
+ */
+function requiredVersion(versionId) {
+    const id = knownVersion(versionId);
+    if (id) return id;
+    const message = `buildAttendanceContext: versionId fehlt oder ist unbekannt (${JSON.stringify(versionId)})`;
+    if (process.env.NODE_ENV !== "production") throw new Error(message);
+    logger.warn(`${message} - es zählt die Hauptversion`);
+    return mainVersionFor();
+}
+
 /**
  * Everything attendance and role need, read once per request.
  *
  * @param {string} guildId  only events of this guild count ("" = all)
- * @param {{now?: number, maxReports?: number, versionId?: string}} opts  `versionId` (#543): only
- *   raid nights of that game version count — an own event's version, TBC for every other one
+ * @param {{versionId: string, now?: number, maxReports?: number}} opts  `versionId` (required, #740):
+ *   only raid nights of that game version count - each raid's stored version (#737, versionOfEvent).
+ *   The window (the last RAID_WINDOW nights) is taken within that version, so a category switched to
+ *   another version starts its quota empty there.
  */
 function buildAttendanceContext(guildId, opts = {}) {
+    const versionId = requiredVersion(opts && opts.versionId);
     const now = opts.now || Date.now();
+    // stored start times are seconds, callers hand in `now` as milliseconds (Date.now()) or seconds
+    // (Kaderplaner): compare both in seconds, so a coming raid never counts as a night
+    const toSec = (t) => (t > 1e12 ? Math.floor(t / 1000) : t);
+    const nowSec = toSec(now);
     const maxReports = opts.maxReports > 0 ? opts.maxReports : MAX_REPORTS;
     const reports = listReports().slice(0, maxReports).map(condenseReport);
     const reportById = new Map(reports.map((r) => [String(r.id), r]));
 
-    // event id -> the evaluations of its logs
+    // #677: the setups of own events (who stood on the bench), the absence entries (vacation) and the orga's overrides
+    // #811: the further raids of a raid group too — their night is the first raid's
+    const ownEvents = attempt(() => eventStore.listEvents(guildId, { siblings: true }), []) || [];
+    const setupById = new Map(ownEvents
+        .filter((e) => e && e.id && e.setup)
+        .map((e) => [String(e.id), e.setup]));
+    // further raid id -> its group's first raid; first raid id -> its further raids
+    const nightOf = new Map();
+    const siblingsOf = new Map();
+    for (const e of ownEvents) {
+        if (!e || !isRaidSibling(e)) continue;
+        const head = signupEventIdOf(e);
+        nightOf.set(String(e.id), head);
+        siblingsOf.set(head, [...(siblingsOf.get(head) || []), String(e.id)]);
+    }
+
+    // event id -> the evaluations of its logs (a further raid's count for its group's night, #811)
     const reportsByEvent = new Map();
     for (const log of listLogs()) {
         if (!log || !log.eventId || !log.reportRefId) continue;
         const rep = reportById.get(String(log.reportRefId));
         if (!rep) continue;
-        const list = reportsByEvent.get(String(log.eventId)) || [];
+        const night = nightOf.get(String(log.eventId)) || String(log.eventId);
+        const list = reportsByEvent.get(night) || [];
         list.push(rep);
-        reportsByEvent.set(String(log.eventId), list);
+        reportsByEvent.set(night, list);
     }
-
-    // #677: the setups of own events (who stood on the bench), the absence entries (vacation) and the orga's overrides
-    const setupById = new Map(attempt(() => eventStore.listEvents(guildId), [])
-        .filter((e) => e && e.id && e.setup)
-        .map((e) => [String(e.id), e.setup]));
     const absences = attempt(() => availabilityStore.listEntries(), []).filter((e) => e && e.kind === "absence" && e.userId);
     const overrides = attempt(() => overridesStore.listOverrides(), {});
 
     // category id -> its past raid nights with evidence, newest first
     const raidsByCategory = new Map();
-    for (const ev of listStoredEvents(guildId)) {
-        if (!ev || !ev.categoryId || !ev.startTime || ev.startTime > now) continue;
-        if (opts.versionId && (knownVersion(ev.versionId) || LEGACY_VERSION) !== opts.versionId) continue;
+    // category id -> who ever signed up there, in any version: "Meine Anwesenheit" still shows a category
+    // switched to this version before its first raid ("noch keine gezählten Raids" instead of nothing)
+    const signedAnyVersion = new Map();
+    for (const ev of listStoredEvents(guildId, { now: nowSec * 1000 })) {
+        if (!ev || !ev.categoryId || !ev.startTime || toSec(ev.startTime) > nowSec) continue;
+        noteSigners(signedAnyVersion, ev);
+        const evVersion = versionOfEvent(ev);
+        if (evVersion !== versionId) continue;
         const logs = reportsByEvent.get(String(ev.id)) || [];
         const signUps = Array.isArray(ev.signUps) ? ev.signUps : [];
         if (!logs.length && !signUps.length) continue;
         const list = raidsByCategory.get(ev.categoryId) || [];
-        const places = setupPlaces(setupById.get(String(ev.id)));
+        const siblings = siblingsOf.get(String(ev.id)) || [];
+        const places = siblings.length
+            ? groupPlaces([setupById.get(String(ev.id)), ...siblings.map((id) => setupById.get(id))])
+            : setupPlaces(setupById.get(String(ev.id)));
         list.push({
             id: String(ev.id), title: ev.title || "", startTime: ev.startTime, signUps, logs,
+            // the night's stored version (#737): its zones and title are named with that version's content
+            versionId: evVersion,
             bench: places.bench,
             // who stood in a group: a tentative who did was expected, one who did not was not
             placed: places.placed,
             vacation: vacationIds(absences, ev),
-            overrides: overrides[String(ev.id)] || {},
+            // an override set on a further raid of the group still counts for the night (#811)
+            overrides: Object.assign({}, ...siblings.map((id) => overrides[id] || {}), overrides[String(ev.id)] || {}),
         });
         raidsByCategory.set(ev.categoryId, list);
     }
@@ -293,7 +361,7 @@ function buildAttendanceContext(guildId, opts = {}) {
         }
     }
 
-    return { raidsByCategory, allRaidsByCategory, roleByKey };
+    return { versionId, raidsByCategory, allRaidsByCategory, roleByKey, signedAnyVersion };
 }
 
 /**
@@ -513,9 +581,12 @@ function attendanceForAccounts(ctx, categoryId, accounts, opts = {}) {
 function categoryInfo(ctx, categoryId) {
     const raids = ctx.raidsByCategory.get(categoryId) || [];
     const found = new Set();
+    // Zones and titles are read within each night's own stored version (#740), not the one the
+    // category plays today: an old TBC night of a category switched to Forever is named with TBC content.
     for (const raid of raids) {
-        for (const rep of raid.logs) for (const id of contentsForText(rep.zone)) found.add(id);
-        if (!raid.logs.length) for (const id of contentsForText(raid.title)) found.add(id);
+        const opts = { versionId: raid.versionId || ctx.versionId || mainVersionFor({ categoryId }) };
+        for (const rep of raid.logs) for (const id of contentsForText(rep.zone, opts)) found.add(id);
+        if (!raid.logs.length) for (const id of contentsForText(raid.title, opts)) found.add(id);
     }
     const order = Object.keys(CONTENT_ICONS);
     const contents = order.filter((id) => found.has(id));

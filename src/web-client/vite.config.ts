@@ -5,8 +5,8 @@ import react from "@vitejs/plugin-react";
 import dotenv from "dotenv";
 
 // Mirrors src/bot.js: prefer the worktree's .env.dev over .env, so `npm run dev`
-// here picks up the same WEB_PORT the backend was started with (see CLAUDE.md
-// "Local test instances") without having to export it manually.
+// here picks up the same WEB_PORT the backend was started with (see
+// docs/worktrees.md, "Local test instances") without having to export it manually.
 const rootDir = path.resolve(__dirname, "..", "..");
 const envDev = path.join(rootDir, ".env.dev");
 dotenv.config({ path: existsSync(envDev) ? envDev : path.join(rootDir, ".env") });

@@ -2,7 +2,7 @@
 // short entry point and the domain knowledge lives in docs/. These tests hold
 // that split together: index and files must not drift apart, cross references
 // must resolve, and CLAUDE.md must not grow back into the 120 KB document it
-// once was.
+// once was (12 KB since the rules bound to files moved to .claude/rules/).
 //
 // A topic too big for one file gets a folder (docs/raidplan/): its files are
 // linked from the entry page of the same name (docs/raidplan.md), which stays
@@ -11,16 +11,22 @@
 // The path guard (#418): every repository path the docs name (`src/...`,
 // `scripts/...`, `test/...`, `assets/...`, `docs/...`) must exist, so a rename
 // or a deleted module shows up here instead of misleading the next agent.
+//
+// The path-scoped rules (.claude/rules/*.md) load only when Claude reads a file
+// matching their `paths:` globs. A rule whose globs match nothing never loads,
+// so each glob must point into something that exists, and the rules get the
+// same path guard as the docs.
 const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..", "..");
 const CLAUDE = path.join(ROOT, "CLAUDE.md");
 const DOCS = path.join(ROOT, "docs");
+const RULES = path.join(ROOT, ".claude", "rules");
 
 // Generous enough for a real change, tight enough to notice a section moving back in.
-const MAX_LINES = 400;
-const MAX_BYTES = 40 * 1024;
+const MAX_LINES = 180;
+const MAX_BYTES = 12 * 1024;
 
 const read = (file) => fs.readFileSync(file, "utf8");
 
@@ -157,6 +163,51 @@ describe("the docs/ files", () => {
                 expect(`${file} -> ${name}: ${hit}`).toBe(`${file} -> ${name}: true`);
             }
         }
+    });
+});
+
+const ruleFiles = () => fs.readdirSync(RULES).filter((f) => f.endsWith(".md")).sort();
+
+/** The `paths:` globs of a rule's frontmatter, or null when the file does not open with one. */
+function rulePaths(text) {
+    const m = /^---\r?\npaths:\r?\n((?: {2}- "[^"\r\n]+"\r?\n)+)---\r?\n/.exec(text);
+    if (!m) return null;
+    return [...m[1].matchAll(/- "([^"]+)"/g)].map((g) => g[1]);
+}
+
+/** The fixed part of a glob, up to the last "/" before the first wildcard ("src/web-client/src/**" -> "src/web-client/src"). */
+function globBase(glob) {
+    const star = glob.search(/[*?[{]/);
+    if (star === -1) return glob;
+    return glob.slice(0, Math.max(0, glob.lastIndexOf("/", star)));
+}
+
+describe("the rules under .claude/rules/", () => {
+    test("each opens with a paths: frontmatter whose globs point at something that exists", () => {
+        for (const file of ruleFiles()) {
+            const globs = rulePaths(read(path.join(RULES, file))) || [];
+            expect(`${file}: ${globs.length > 0}`).toBe(`${file}: true`);
+            const missing = globs.filter((g) => !fs.existsSync(path.join(ROOT, globBase(g))));
+            expect(`${file}: ${missing.join(", ")}`).toBe(`${file}: `);
+        }
+    });
+
+    test("every repository path and relative link they name exists", () => {
+        for (const file of ruleFiles()) {
+            const text = read(path.join(RULES, file));
+            const missing = repoPaths(text).filter((p) => !fs.existsSync(path.join(ROOT, p)))
+                .concat(relativeMdLinks(text).map((l) => l.target).filter((t) => !fs.existsSync(path.join(RULES, t))));
+            expect(`${file}: ${missing.join(", ")}`).toBe(`${file}: `);
+        }
+    });
+
+    test("frontmatter and glob base are read the way the rules write them", () => {
+        expect(rulePaths("---\npaths:\n  - \"src/commands/**\"\n  - \"jest.config.js\"\n---\n\n# X\n"))
+            .toEqual(["src/commands/**", "jest.config.js"]);
+        expect(rulePaths("# no frontmatter\n")).toBeNull();
+        expect(globBase("src/web-client/src/**/*.test.ts")).toBe("src/web-client/src");
+        expect(globBase(".claude/**")).toBe(".claude");
+        expect(globBase("eslint.config.mjs")).toBe("eslint.config.mjs");
     });
 });
 

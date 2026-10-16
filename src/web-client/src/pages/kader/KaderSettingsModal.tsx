@@ -5,6 +5,7 @@
 // anlegen"), so it reads only its props.
 import { useState } from "react";
 import { createKader, deleteKader, updateKader, type KaderChange, type KaderView } from "../../api";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import { Button, Field, FieldLabel, IconButton, Modal } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
 import { PlusIcon, SaveIcon, TrashIcon, XIcon } from "../../components/ui/icons";
@@ -27,6 +28,7 @@ type Props = {
 export default function KaderSettingsModal({ mode, view, me = "", onClose, run, onCreated, onDeleted }: Props) {
     const t = useT();
     const ask = useConfirm();
+    const { version } = useContentVersion();
     const kader = mode === "edit" ? view.kader : null;
     // what is typed stays when the Kader changes live; somebody else's change since opening gets a quiet hint
     const [openRev] = useState(kader && kader.rev ? kader.rev : 0);
@@ -42,7 +44,8 @@ export default function KaderSettingsModal({ mode, view, me = "", onClose, run, 
     const submit = async () => {
         if (!ready) return;
         if (mode === "create") {
-            const change = await run<KaderChange>(createKader(name.trim()));
+            // the Kader belongs to the version the menu shows (#741)
+            const change = await run<KaderChange>(version ? createKader(name.trim(), version) : createKader(name.trim()));
             if (change && change.kaderId && onCreated) onCreated(change.kaderId);
             return;
         }
@@ -73,7 +76,7 @@ export default function KaderSettingsModal({ mode, view, me = "", onClose, run, 
                 <>
                     {kader && <Button variant="danger" icon={<TrashIcon />} className="kp-footleft" onClick={() => void remove()}>{t("kader.settings.delete")}</Button>}
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon={mode === "create" ? <PlusIcon /> : <SaveIcon />} disabled={!ready} onClick={() => void submit()}>
+                    <Button variant={mode === "create" ? "primary" : "go"} icon={mode === "create" ? <PlusIcon /> : <SaveIcon />} disabled={!ready} onClick={() => void submit()}>
                         {mode === "create" ? t("kader.settings.create") : t("common.save")}
                     </Button>
                 </>

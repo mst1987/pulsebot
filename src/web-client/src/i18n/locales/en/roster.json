@@ -256,6 +256,14 @@
         "trialLine": "{name} · trial until {date}",
         "trialLineOverdue": "{name} · trial ran out on {date}"
     },
+    "closed": {
+        "badge": "Closed",
+        "tip": "Closed on {date}",
+        "reasonSwitch": "The category now plays another game version.",
+        "reasonOther": "This roster was closed.",
+        "readOnly": "Read only: no new members, no changes, no sync with Discord. Whoever holds a role of this roster keeps it.",
+        "title": "Closed on {date}"
+    },
     "detail": {
         "loading": "Loading roster …",
         "loadError": "Could not load the roster: {message}",
@@ -447,7 +455,8 @@
         "single_char_only": "This roster allows only one character per person.",
         "note_too_long": "The note is too long (500 characters at most).",
         "invalid_date": "The date is invalid.",
-        "category_taken": "This category already has a roster.",
+        "category_taken": "This category already has a roster for this game version.",
+        "roster_closed": "This roster is closed and read only.",
         "kader_not_found": "This squad does not exist (any more).",
         "invalid_name": "Please enter a name or pick a category.",
         "name_too_long": "The name is too long (40 characters at most).",
@@ -465,7 +474,9 @@
         "invalid_spec": "This spec does not fit the character's class.",
         "kader_taken": "This Kader is already linked to another roster.",
         "invalid_loot_system": "Unknown loot system.",
-        "unknown_profile": "This loot council profile does not exist."
+        "unknown_profile": "This loot council profile does not exist.",
+        "version_mismatch": "Kader, category and roster must play the same game version.",
+        "version_hidden": "This game version is hidden - a roster gets a visible game version."
     },
     "sync": {
         "loading": "Loading the sync …",
@@ -601,6 +612,13 @@
         "viaDiscord": "(via Discord)",
         "created": "Roster created",
         "createdMigration": "Roster taken over from the category's raider roles",
+        "closed": "Roster closed",
+        "closedSwitch": "Roster closed: the category now plays another game version",
+        "reopened": "Roster opened again",
+        "membersCopied": {
+            "one": "{count} person taken over from “{from}” (as trial, without a character)",
+            "other": "{count} people taken over from “{from}” (as trial, without a character)"
+        },
         "settings": "Settings changed: {fields}",
         "field": {
             "name": "name",
@@ -655,11 +673,15 @@
         "adminOnly": "Only admins change this.",
         "roles": "The roster's Discord role",
         "rolesHint": "The first role picked is the main role: whoever joins the roster gets it; whoever gets it in Discord is in the roster.",
-        "roleFilter": "Filter {label}",
+        "rolePick": "{label}: pick a role",
+        "rolePickPlaceholder": "Pick a role …",
+        "removeRole": "Remove {name}",
+        "roleGone": "Unknown role",
+        "noRolePicked": "No role picked yet.",
         "main": "main role",
         "mainRole": "The roster's main role",
-        "roleBlocked": "The bot cannot give this role",
-        "roleBlockedSub": "It is above the bot's highest role or managed by an integration.",
+        "roleBlocked": "the bot cannot give it",
+        "roleBlockedHint": "The bot cannot give greyed-out roles: they are above its highest role or managed by an integration.",
         "noRoles": "No roles found.",
         "trialRole": "Trial role (optional)",
         "noTrialRole": "None",
@@ -714,6 +736,19 @@
         "reconcileNote": "Good to know: the bot syncs every 10 minutes. Whoever holds a role of the roster in Discord is in the roster after that anyway.",
         "create": "Create roster",
         "save": "Save",
+        "back": "Back",
+        "next": "Next",
+        "stepsLabel": "Steps",
+        "stepBad": "Something is still missing here",
+        "stepDone": "done",
+        "steps": {
+            "basics": "Name",
+            "roles": "Roles",
+            "managers": "Managers",
+            "slots": "Places & rules",
+            "loot": "Loot",
+            "source": "Members"
+        },
         "saved": "Settings saved",
         "savedTrimmed": {
             "one": "Saved · {count} person now keeps only their first character",

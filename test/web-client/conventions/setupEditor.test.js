@@ -26,18 +26,32 @@ describe("setup editor conventions", () => {
         expect(css).toMatch(/\.se-bench::before \{[^}]*border-top/);
     });
 
-    it("keeps the bar ONE line over groups across the full width — no box stands open above them", () => {
+    it("keeps ONE bar over groups across the full width — no box stands open above them", () => {
         // five groups side by side: the cards are ~190 px wide, the compact ones narrower
         expect(css).toMatch(/\.se-groups \{[^}]*minmax\(188px/);
         expect(css).toMatch(/\.se-compact \.se-groups \{[^}]*minmax\(158px/);
-        // the old top row (ping box, tiles, docked panel) and the line under the bar are gone
-        expect(css).not.toMatch(/\.se-topline|\.se-publish|\.se-tip-empty|\.se-bar-hint/);
-        // the counts stay on the bar's line and cut, on a phone they wrap; quiet buttons keep a visible outline
-        expect(css).toMatch(/\.se-counts \{[^}]*white-space: nowrap;[^}]*text-overflow: ellipsis/);
+        // the old top row (ping box, tiles, docked panel) and the old publish line under the bar are gone;
+        // only an overbooked raid gets its calm hint line there (#811)
+        expect(css).not.toMatch(/\.se-topline|\.se-publish|\.se-tip-empty|\.se-bar-hint|\.se-postopts/);
+        expect(css).toMatch(/\.se-overbooked \{ display: flex;/);
+        // the counts are square fields that wrap as a whole and are never cut (#setup-bar: "8 v…" was cut off)
+        expect(css).toMatch(/\.se-counts \{[^}]*flex-wrap: wrap/);
+        expect(css).not.toMatch(/\.se-counts \{[^}]*text-overflow/);
+        expect(css).toMatch(/\.se-count-chip \{[^}]*border-radius: 6px;[^}]*white-space: nowrap/);
+        // quiet buttons keep a visible outline
         expect(css).toMatch(/\.se-bar-act \.btn\[class\*="ghost"\] \{[^}]*border: 1px solid color-mix/);
         // the bench and "Angemeldet" are rows, the summary one line
         expect(css).toMatch(/\.se-row \{ display: flex;/);
         expect(css).toMatch(/\.se-sumline \{ display: flex;/);
+    });
+
+    it("widens a small raid's groups and starts every group's places on one line (checked in Chrome at 390–1440 px)", () => {
+        // the columns no group stands in drop out; the grid is never wider than --se-n cards of --se-group-max
+        expect(css).toMatch(/\.se-groups \{[^}]*repeat\(auto-fit, minmax\(188px, 1fr\)\)/);
+        expect(css).toMatch(/\.se-groups \{[^}]*max-width: calc\(var\(--se-n\) \* var\(--se-group-max\)/);
+        expect(editor).toContain("\"--se-n\": Math.max(1, count)");
+        // each card takes two rows of the grid as its own: every head in a row as tall as the tallest (wrapped buffs)
+        expect(css).toMatch(/\.se-groups > \.se-group \{[^}]*grid-row: span 2;[^}]*grid-template-rows: subgrid;[^}]*grid-template-columns: minmax\(0, 1fr\)/);
     });
 
     it("opens the raider panel as a drawer that scrolls itself, one column, compact enough for the worst case", () => {
@@ -57,6 +71,15 @@ describe("setup editor conventions", () => {
     it("turns the drawer into a sheet from the bottom on a phone, buffs two by two", () => {
         expect(css).toMatch(/@media \(max-width: 600px\) \{\s*\.se-drawer \{ top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 85vh; \}/);
         expect(css).toMatch(/\.se-tip-buffs \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+    });
+
+    it("marks a signup state as a square field in its colour, and peeks without getting in a drag's way", () => {
+        // a field with a radius of a few pixels, never a round dot or pill; the colours are the theme's --sig-* tokens
+        expect(css).toMatch(/\.se-sig \{[^}]*border-radius: 4px;/);
+        for (const status of ["late", "tentative", "bench"]) expect(css).toContain(`.se-sigv-${status} { --se-sig: var(--sig-${status}); }`);
+        expect(editor).not.toContain("rd-sig");
+        // the peek beside the line takes no pointer events (a drop under it still lands) and sits above the drawer
+        expect(css).toMatch(/\.se-peek \{ position: fixed; z-index: 70;[^}]*pointer-events: none/);
     });
 
     it("gives a raider and a free place one row height, so cards are equally tall", () => {

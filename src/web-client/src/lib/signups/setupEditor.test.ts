@@ -27,7 +27,7 @@ describe("setup editor moves (client)", () => {
     it("turns the stored setup into the save request", () => {
         expect(input.version).toBe(3);
         expect(input.groups[0].slots[0]).toEqual({ userId: "t", character: "t", spec: "Warrior-Protection", role: "tank", locked: true, pos: 1 });
-        expect(input.bench).toEqual([{ userId: "b", locked: false }]);
+        expect(input.bench).toEqual([{ userId: "b", character: "b", locked: false }]);
     });
 
     it("moves a raider into a group with room, and onto the bench", () => {
@@ -52,7 +52,7 @@ describe("setup editor moves (client)", () => {
         const swap = lib.moveRaider(input, "b", { userId: "h" }, people, 6);
         expect(swap.input.groups[0].slots.map((x) => x.userId)).toEqual(["t", "b", "m1", "m2", "r"]);
         expect(swap.input.groups[0].slots[1]).toEqual({ userId: "b", character: "b", spec: "Hunter-BeastMastery", role: "ranged", locked: false, pos: 2 });
-        expect(swap.input.bench).toEqual([{ userId: "h", locked: false }]);
+        expect(swap.input.bench).toEqual([{ userId: "h", character: "h", locked: false }]);
         const across = lib.moveRaider(input, "w", { userId: "t" }, people, 25);
         expect(across.input.groups[0].slots.map((x) => x.userId)).toEqual(["w", "h", "m1", "m2", "r"]);
         expect(across.input.groups[1].slots).toEqual([{ userId: "t", character: "t", spec: "Warrior-Protection", role: "tank", locked: true, pos: 1 }]);
@@ -136,7 +136,7 @@ describe("setup editor moves (client)", () => {
         // a swap with somebody in the pool: the pool raider takes the exact place, the other goes into the pool
         const swap = lib.moveRaider(pin, "p", { userId: "h" }, ppl, 25).input;
         expect(swap.groups[0].slots[1]).toMatchObject({ userId: "p", spec: "Druid-Restoration", pos: 2 });
-        expect(lib.moveRaider(pin, "b", { userId: "p" }, ppl, 25).input.bench).toEqual([{ userId: "p", locked: false }]);
+        expect(lib.moveRaider(pin, "b", { userId: "p" }, ppl, 25).input.bench).toEqual([{ userId: "p", character: "p", locked: false }]);
         // a full raid refuses a pool raider like a bench one
         expect(lib.moveRaider(pin, "p", { group: 2 }, ppl, 6).error).toMatch(/Raid ist voll/);
         // drawn locally: who left a group or the bench is in the pool at once
@@ -320,8 +320,14 @@ describe("the raider tooltip and the drag glow", () => {
     });
 
     it("drops the proposal's attendance reason — the tooltip has its own attendance row for everyone", () => {
-        expect(lib.tipReasons(["Von der Orga fixiert", "Anwesenheit 82 %", "Kommt später"])).toEqual(["Von der Orga fixiert", "Kommt später"]);
+        expect(lib.tipReasons(["Von der Orga fixiert", "Anwesenheit 82 %", "Gr. 1 wegen Totem"])).toEqual(["Von der Orga fixiert", "Gr. 1 wegen Totem"]);
         expect(lib.tipReasons(undefined)).toEqual([]);
+    });
+
+    it("drops a reason that only names the signup state — the panel shows it as its field, in the app's one word", () => {
+        expect(lib.tipReasons(["Kommt später", "Nur „Vielleicht“ angemeldet", "Als Ersatz angemeldet", "Von der Orga fixiert"])).toEqual(["Von der Orga fixiert"]);
+        // a sentence that says more stays
+        expect(lib.tipReasons(["Als Ersatz angemeldet – aufgestellt, weil sonst ein Platz frei bliebe"])).toHaveLength(1);
     });
 
     describe("im Setup als — a raider who plays several specs (the third tank, an extra healer)", () => {

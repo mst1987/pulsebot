@@ -68,7 +68,11 @@ describe("templates carry their game version", () => {
         expect(fv.versionId).toBe("forever");
         expect(tbc.catalog.mobs.length).toBeGreaterThan(30);
         // everything of the catalog is TBC so far: a Forever template offers none of it
-        expect(fv.catalog).toEqual({ mobs: [], spells: [] });
+        expect(fv.catalog).toMatchObject({ mobs: [], spells: [] });
+        // the version's rule set decides the offered types and classes (#751): no Misdirection card in a Forever plan
+        expect(fv.catalog.types).not.toContain("md");
+        expect(tbc.catalog.types).toContain("md");
+        expect(fv.catalog.classes).toHaveLength(9);
 
         const mixed = await call(route.postTemplate, ORGA, { name: "Mix", versionId: "tbc", instanceIds: ["forever-ony"] });
         expect(status(mixed)).toBe(400);
@@ -112,7 +116,7 @@ describe("an event plan and its version", () => {
     });
 
     it("a Forever plan gets no TBC catalog entry; a Forever entry shows there and not in TBC", async () => {
-        expect(body(await call(route.getPlan, ORGA, null, "event=eh-fv")).catalog).toEqual({ mobs: [], spells: [] });
+        expect(body(await call(route.getPlan, ORGA, null, "event=eh-fv")).catalog).toMatchObject({ mobs: [], spells: [] });
         const own = body(await call(route.postMob, ORGA, { name: "Onyxian Whelp", kind: "add", instanceId: "forever-ony", versions: ["forever"] })).entry;
         const fvCatalog = body(await call(route.getPlan, ORGA, null, "event=eh-fv")).catalog;
         expect(fvCatalog.mobs.map((m) => m.id)).toEqual([own.id]);
@@ -143,5 +147,48 @@ describe("tactic profiles carry their game version", () => {
         expect(status(await call(route.postProfile, ORGA, { name: "X", versionId: "nope" }))).toBe(400);
         expect(body(await call(route.patchProfile, ORGA, { id: made.id, versionId: "tbc" }, "PATCH")).profile.versionId).toBe("tbc");
         expect(body(await call(route.getProfiles, ORGA)).profiles.every((p) => typeof p.versionId === "string")).toBe(true);
+    });
+});
+
+describe("other versions hidden (#563)", () => {
+    let spy;
+    beforeEach(() => {
+        spy = jest.spyOn(require("../../../src/stores/configStore"), "getConfig").mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+    });
+    afterEach(() => spy.mockRestore());
+
+    it("the template list, the profile list and the editor offer nothing of a hidden version", async () => {
+        spy.mockReturnValue({});
+        await call(route.postTemplate, ORGA, { name: "BT", instanceIds: ["bt"] });
+        await call(route.postTemplate, ORGA, { name: "Ony", instanceIds: ["forever-ony"] });
+        await call(route.postProfile, ORGA, { name: "Kiten", versionId: "forever" });
+        await call(route.postProfile, ORGA, { name: "Council", bossKey: "bt/the-illidari-council" });
+        spy.mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+
+        expect(body(await call(route.getTemplates, ORGA)).templates.map((t) => t.name)).toEqual(["BT"]);
+        const profileList = body(await call(route.getProfiles, ORGA));
+        expect(profileList.profiles.map((p) => p.name)).toEqual(["Council"]);
+        const editor = body(await call(route.getPlan, ORGA, null, "event=eh-tbc"));
+        expect(editor.templates.map((t) => t.name)).toEqual(["BT"]);
+        expect(editor.profiles.map((p) => p.name)).toEqual(["Council"]);
+        // the editor's "templates of another version" list and applying go through the same filter
+        expect(raidplan.templatesFor(mockEvents["eh-tbc"], { allVersions: true }).map((t) => t.name)).toEqual(["BT"]);
+    });
+
+    it("refuses to apply a template of a hidden version", async () => {
+        spy.mockReturnValue({});
+        const fv = body(await call(route.postTemplate, ORGA, { name: "Ony", instanceIds: ["forever-ony"] })).template;
+        spy.mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+        const refused = await call(route.postApply, ORGA, { event: "eh-tbc", templateId: fv.id, version: 0, otherVersion: true });
+        expect(status(refused)).toBe(404);
+    });
+
+    it("the catalog keeps the hidden default entries of the hidden versions out, too", async () => {
+        spy.mockReturnValue({});
+        const own = body(await call(route.postMob, ORGA, { name: "Onyxian Whelp", kind: "add", instanceId: "forever-ony", versions: ["forever"] })).entry;
+        spy.mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+        const answer = body(await call(route.getCatalog, ORGA));
+        expect(answer.mobs.some((m) => m.id === own.id)).toBe(false);
+        expect(answer.instances.every((i) => i.versionId === "tbc")).toBe(true);
     });
 });

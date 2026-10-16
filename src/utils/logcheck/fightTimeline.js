@@ -8,7 +8,7 @@
 //
 // All times are milliseconds relative to the fight's start, clipped to the
 // fight. Bands are `[from, to]` pairs.
-const { contentForBoss } = require("../../config/tbcContent");
+const { contentForBoss } = require("../../config/raidContent");
 
 /**
  * Turn WCL aura bands (`{ startTime, endTime }`, absolute report time) or plain
@@ -190,7 +190,7 @@ function deathsForFight(entries, fight, idToPlayer) {
  * @param {object} [idToPlayer]  actor id -> { name, type }
  * @returns {Promise<null | { fights: Array<object> }>}  null when there is no boss fight
  */
-async function analyzeFightTimeline(wcl, reportId, fights, idToPlayer = {}) {
+async function analyzeFightTimeline(wcl, reportId, fights, idToPlayer = {}, opts = {}) {
     const bossFights = (fights.fights || []).filter((f) => f.boss && f.boss > 0 && f.end_time > f.start_time);
     if (bossFights.length === 0) return null;
 
@@ -207,7 +207,7 @@ async function analyzeFightTimeline(wcl, reportId, fights, idToPlayer = {}) {
         boss: f.name,
         // WCL's encounter id: groups the tries of one boss and names its icon
         encounterId: f.boss,
-        contentId: contentForBoss(f.name) || "",
+        contentId: contentForBoss(f.name, { versionId: opts && opts.versionId }) || "",
         kill: !!f.kill,
         startTime: f.start_time,
         endTime: f.end_time,

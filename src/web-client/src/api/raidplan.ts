@@ -140,6 +140,8 @@ export type RaidplanLinkView = {
     link: { enabled: boolean; instanceIds: string[]; versionId: string; size: number; title: string } | null;
     suggestion: { instanceIds: string[]; size: number; versionId: string };
     instances: RaidplanLinkInstance[];
+    /** the game versions the dialog offers (#751) */
+    versions?: { id: string; label: string }[];
     hasPlan: boolean;
     published: boolean;
     raidhelperDisabled: boolean;
@@ -161,7 +163,11 @@ export type Besetzung = { size: number; counts: BesetzungCounts; groups: number;
 export type CatalogSource = "default" | "override" | "custom" | "hidden";
 export type CatalogMob = { id: string; name: string; kind: "boss" | "add" | "trash" | "other"; instanceId: string; bossKey: string; icon: string; /** the icon is a similar one, a placeholder */ similar?: boolean; note: string; /** the game versions that have it (#544: every entry names at least one; missing = all, only for data from before) */ versions?: string[]; source: CatalogSource };
 export type CatalogSpell = { id: string; name: string; nameEn: string; icon: string; type: RaidplanAssignType; classes: string[]; note: string; versions?: string[]; source: CatalogSource };
-export type Catalog = { mobs: CatalogMob[]; spells: CatalogSpell[] };
+export type Catalog = {
+    mobs: CatalogMob[]; spells: CatalogSpell[];
+    /** the assignment types and class ids of the plan's game version (#751); absent from an older server */
+    types?: string[]; classes?: string[];
+};
 export type CatalogAdmin = Catalog & {
     hidden: Catalog; iconChoices: Record<string, string[]>; kinds: string[]; classes: string[]; types: string[];
     /** the instances of every game version, each with its version (the form offers those of the entry's versions) */
@@ -270,8 +276,8 @@ export function getRaidplan(eventId: string, fresh = false): Promise<RaidplanVie
     return get<RaidplanView>(`/api/raidplan?event=${encodeURIComponent(eventId)}${fresh ? "&fresh=1" : ""}`);
 }
 
-export function getRaidplanLink(eventId: string): Promise<RaidplanLinkView> {
-    return get<RaidplanLinkView>(`/api/raidplan/link?event=${encodeURIComponent(eventId)}`);
+export function getRaidplanLink(eventId: string, versionId = ""): Promise<RaidplanLinkView> {
+    return get<RaidplanLinkView>(`/api/raidplan/link?event=${encodeURIComponent(eventId)}${versionId ? `&version=${encodeURIComponent(versionId)}` : ""}`);
 }
 
 /** Switches a Raid-Helper event's raid plan on (with instances / size / version) or off (the plan stays, its public link goes). */

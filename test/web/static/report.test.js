@@ -151,9 +151,16 @@ describe("static/report.js — helpers", () => {
         expect(h.statusLine({ name: "Elun", approved: 2, sentAt: at, changed: true })).toBe(`Elun: 2 Punkte · kein Konto zugeordnet · gesendet ${new Date(at).toLocaleString("de-DE")} (seitdem geändert)`);
     });
 
-    it("cuts a long point in the DM preview after 160 characters", () => {
+    it("cuts a long point in the DM preview where the bot cuts it, after 300 characters", () => {
         expect(h.previewText("kurz")).toBe("kurz");
-        expect(h.previewText("x".repeat(200))).toBe(`${"x".repeat(160)} …`);
+        expect(h.previewText("x".repeat(300))).toBe("x".repeat(300));
+        expect(h.previewText("x".repeat(400))).toBe(`${"x".repeat(300)} …`);
+        expect(require("../../../src/web/logcheck/recommendationSend").DM_TEXT_MAX).toBe(300);
+    });
+
+    it("says how far a raider's review is", () => {
+        expect(h.progressText(0, 1)).toBe("0 von 1 Punkt geprüft");
+        expect(h.progressText(2, 3)).toBe("2 von 3 Punkten geprüft");
     });
 
     it("turns the send answer into the dialog's line and offers a resend only for an unchanged set", () => {

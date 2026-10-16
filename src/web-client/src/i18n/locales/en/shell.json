@@ -12,6 +12,9 @@
         "textPublic": "This version is hidden. The raid plan stays readable through the link.",
         "readOnly": "Read only"
     },
+    "followVersion": {
+        "switched": "You are now in {version}"
+    },
     "brandSub": "Guild menu",
     "toHome": "Go to overview",
     "menu": {
@@ -24,6 +27,8 @@
         "history": "History & loot",
         "lootcouncil": "Loot council",
         "bank": "Guild bank",
+        "dungeons": "Dungeon best times",
+        "addon": "Addons",
         "kader": "Roster planner",
         "recruitment": "Recruitment",
         "channels": "Channels",

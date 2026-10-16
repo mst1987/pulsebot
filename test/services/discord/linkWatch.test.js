@@ -4,6 +4,9 @@
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 jest.mock("../../../src/services/talk/talkOverview", () => ({ scheduleOverviewSync: jest.fn() }));
 jest.mock("../../../src/services/events/eventMessage", () => ({ redrawEventMessage: jest.fn(async () => null) }));
+jest.mock("../../../src/services/events/orgaHub", () => ({ onHubMessageDeleted: jest.fn((id) => id === "hub-msg") }));
+jest.mock("../../../src/services/events/raidOverview", () => ({ onOverviewMessageDeleted: jest.fn((id) => id === "ov-msg") }));
+jest.mock("../../../src/services/addons/addonCenter", () => ({ onCenterMessageDeleted: jest.fn((id) => id === "center-msg") }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ discordServers: { eventGuilds: [{ guildId: "g1" }] } })) }));
 
 const fs = require("fs");
@@ -43,6 +46,22 @@ describe("services/discord/linkWatch", () => {
         expect(scheduleOverviewSync).toHaveBeenCalledWith({ delayMs: linkWatch.REDRAW_DELAY_MS });
     });
 
+    it("notes a deleted raid category (#744) and nothing for any other category", () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+        const settingsStore = require("../../../src/stores/settingsStore");
+        settingsStore.getConfig.mockReturnValue({ categoryIds: ["cat"], discordServers: { eventGuilds: [{ guildId: "g1" }] } });
+        try {
+            expect(linkWatch.onChannelDelete({ id: "cat", type: 4, name: "TBC Montag" })).toEqual([]);
+            expect(linkWatch.onChannelDelete({ id: "other", type: 4, name: "Off-Topic" })).toEqual([]);
+            expect(linkWatch.onChannelDelete({ id: "cat", type: 0 })).toEqual([]);
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(warn.mock.calls[0].join(" ")).toContain("TBC Montag");
+        } finally {
+            warn.mockRestore();
+            settingsStore.getConfig.mockReturnValue({ discordServers: { eventGuilds: [{ guildId: "g1" }] } });
+        }
+    });
+
     it("ignores a delete without an id", () => {
         expect(linkWatch.onChannelDelete(null)).toEqual([]);
         expect(scheduleOverviewSync).not.toHaveBeenCalled();
@@ -69,6 +88,27 @@ describe("services/discord/linkWatch", () => {
         expect(linkWatch.onMessageDelete({ channelId: "x", messageId: "m-other" })).toMatchObject({ overview: false, redrawn: [] });
         expect(scheduleOverviewSync).toHaveBeenCalledTimes(1);
         expect(linkWatch.onMessageDelete({ channelId: "x", messageId: "" })).toEqual({ redrawn: [], setupCleared: [], overview: false });
+    });
+
+    it("hands a deleted Orga-Zentrale message to its redraw", () => {
+        const { onHubMessageDeleted } = require("../../../src/services/events/orgaHub");
+        expect(linkWatch.onMessageDelete({ channelId: "o", messageId: "hub-msg" })).toMatchObject({ orgaHub: true });
+        expect(onHubMessageDeleted).toHaveBeenCalledWith("hub-msg", { delayMs: linkWatch.REDRAW_DELAY_MS });
+        expect(linkWatch.onMessageDelete({ channelId: "o", messageId: "m-other" })).toMatchObject({ orgaHub: false });
+    });
+
+    it("hands a deleted addon download centre to its redraw", () => {
+        const { onCenterMessageDeleted } = require("../../../src/services/addons/addonCenter");
+        expect(linkWatch.onMessageDelete({ channelId: "o", messageId: "center-msg" })).toMatchObject({ addonCenter: true });
+        expect(onCenterMessageDeleted).toHaveBeenCalledWith("center-msg", { delayMs: linkWatch.REDRAW_DELAY_MS });
+        expect(linkWatch.onMessageDelete({ channelId: "o", messageId: "m-other" })).toMatchObject({ addonCenter: false });
+    });
+
+    it("forgets a deleted category overview message", () => {
+        const { onOverviewMessageDeleted } = require("../../../src/services/events/raidOverview");
+        expect(linkWatch.onMessageDelete({ channelId: "o", messageId: "ov-msg" })).toMatchObject({ raidOverview: true });
+        expect(onOverviewMessageDeleted).toHaveBeenCalledWith("ov-msg");
+        expect(linkWatch.onMessageDelete({ channelId: "o", messageId: "m-other" })).toMatchObject({ raidOverview: false });
     });
 
     it("hooks channelDelete and the raw MESSAGE_DELETE(_BULK) packets into the client", () => {

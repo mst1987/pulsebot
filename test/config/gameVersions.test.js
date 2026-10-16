@@ -153,9 +153,34 @@ describe("config/gameVersions", () => {
     describe("Forever", () => {
         const forever = gv.rulesFor("forever");
 
-        it("shares Classic's classes and buffs", () => {
+        it("shares Classic's classes and has its own buffs (#751)", () => {
             expect(forever.classes).toBe(gv.rulesFor("classic").classes);
-            expect(forever.partyBuffs).toBe(gv.rulesFor("classic").partyBuffs);
+            expect(forever.partyBuffs).not.toBe(gv.rulesFor("classic").partyBuffs);
+            // the same buffs, only the shared air slot differs
+            const keys = (list) => list.map((b) => b.key);
+            expect(keys(forever.partyBuffs)).toEqual(keys(gv.rulesFor("classic").partyBuffs));
+            expect(keys(forever.raidBuffs)).toEqual(keys(gv.rulesFor("classic").raidBuffs));
+        });
+
+        it("keeps Battle Shout, Windfury, Grace of Air, Strength of Earth and Leader of the Pack in the party, the group buffs raid-wide", () => {
+            const party = forever.partyBuffs.map((b) => b.key);
+            for (const key of ["battleShout", "windfury", "graceOfAir", "strengthOfEarth", "lotp"]) expect(party).toContain(key);
+            const raid = forever.raidBuffs.map((b) => b.key);
+            for (const key of ["motw", "intellect", "fortitude", "spirit", "shadowProt"]) expect(raid).toContain(key);
+        });
+
+        it("does not stack the air totems: that slot is shared, the others are not", () => {
+            const shared = forever.partyBuffs.filter((b) => b.sharedSlot).map((b) => b.key).sort();
+            expect(shared).toEqual(["graceOfAir", "windfury"]);
+            expect(gv.rulesFor("classic").partyBuffs.some((b) => b.sharedSlot)).toBe(false);
+            expect(gv.rulesFor("tbc").partyBuffs.some((b) => b.sharedSlot)).toBe(false);
+        });
+
+        it("has the Google raid sheet layout for TBC only", () => {
+            expect(gv.hasSheetLayout("tbc")).toBe(true);
+            expect(gv.hasSheetLayout("classic")).toBe(false);
+            expect(gv.hasSheetLayout("forever")).toBe(false);
+            expect(gv.hasSheetLayout("nope")).toBe(false);
         });
 
         it("has the three announced raids, all incomplete", () => {
@@ -173,8 +198,16 @@ describe("config/gameVersions", () => {
             expect(gv.instance("classic", "forever-ony")).toBeNull();
         });
 
-        it("suggests the default composition while nothing is announced", () => {
-            expect(gv.compositionFor(gv.instanceById("forever-hyjal"), 20)).toEqual({ tanks: 2, healers: 5, source: "default" });
+        it("suggests its estimated composition for 10, 20 and 40 (#751)", () => {
+            expect(gv.compositionFor(gv.instanceById("forever-barrow"), 10)).toEqual({ tanks: 2, healers: 3, source: "instance" });
+            expect(gv.compositionFor(gv.instanceById("forever-hyjal"), 20)).toEqual({ tanks: 2, healers: 5, source: "instance" });
+            expect(gv.compositionFor(gv.instanceById("forever-ony"), 40)).toEqual({ tanks: 2, healers: 8, source: "instance" });
+        });
+
+        it("defaultComposition uses the version's own curve where it has one, the shared curve elsewhere", () => {
+            expect(gv.defaultComposition(40, "forever")).toEqual({ tanks: 2, healers: 8 });
+            expect(gv.defaultComposition(40, "tbc")).toEqual({ tanks: 4, healers: 10 });
+            expect(gv.defaultComposition(25, "forever")).toEqual(gv.defaultComposition(25, "tbc"));
         });
     });
 
@@ -234,6 +267,12 @@ describe("config/gameVersions", () => {
             expect(kara.suggested).toEqual({ 10: { tanks: 2, healers: 3, source: "instance" } });
             expect(versions[0].roles.map((r) => r.id)).toEqual(ROLES);
             expect(JSON.parse(JSON.stringify(versions))).toEqual(versions);
+        });
+
+        it("gives every version a WoW icon of its own", () => {
+            const icons = gv.publicVersions().map((v) => v.icon);
+            expect(icons.every((i) => /^[a-z0-9_]+$/.test(i))).toBe(true);
+            expect(new Set(icons).size).toBe(icons.length);
         });
     });
 });

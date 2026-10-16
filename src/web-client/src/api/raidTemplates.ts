@@ -111,6 +111,8 @@ export type GameVersion = {
     id: "tbc" | "classic" | "forever" | string;
     label: string;
     short: string;
+    /** The version's WoW icon (zamimg name), "" when it has none. */
+    icon?: string;
     roles: { id: GameRole; label: string }[];
     classes: GameClass[];
     instances: GameInstance[];
@@ -118,7 +120,8 @@ export type GameVersion = {
     raidBuffs: GameBuff[];
 };
 
-export type GameVersionsData = { versions: GameVersion[]; defaultVersion: string };
+/** `visible`: the versions a picker may offer (#563); `versions` stays the complete rule sets. */
+export type GameVersionsData = { versions: GameVersion[]; defaultVersion: string; visible?: string[] };
 
 /**
  * One option of a version filter (#545, the shape #543 introduced for the
@@ -136,8 +139,9 @@ export function getGameVersions(): Promise<GameVersionsData> {
 
 export type RaidTemplatesData = { templates: RaidTemplate[]; categoryNames: Record<string, string> };
 
-export function getRaidTemplates(): Promise<RaidTemplatesData> {
-    return get<RaidTemplatesData>("/api/raid-templates");
+/** `version`: the templates of that game version only (the menu's content version, #741); "" = every shown one. */
+export function getRaidTemplates(version = ""): Promise<RaidTemplatesData> {
+    return get<RaidTemplatesData>(`/api/raid-templates${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 /** Create (no id) or update (id) a raid template. */

@@ -93,6 +93,16 @@ describe("the switch", () => {
         expect(status(await call(route.getPlan, ORGA, null, `event=${EV}`))).toBe(409);
     });
 
+    it("GET offers every game version and answers for the picked one with its instances (#751)", async () => {
+        const d = body(await call(route.getLink, ORGA, null, `event=${EV}`));
+        expect(d.versions.map((v) => v.id)).toEqual(["tbc", "classic", "forever"]);
+        const fv = body(await call(route.getLink, ORGA, null, `event=${EV}&version=forever`));
+        expect(fv.suggestion.versionId).toBe("forever");
+        expect(fv.instances.map((i) => i.id)).toEqual(["forever-barrow", "forever-hyjal", "forever-ony"]);
+        // an unknown version falls back to what the event suggests
+        expect(body(await call(route.getLink, ORGA, null, `event=${EV}&version=nope`)).suggestion.versionId).toBe("tbc");
+    });
+
     it("switching on stores instances / size / version / title on the plan record and remembers the line-up; the editor gets Raid-Helper's players", async () => {
         const on = body(await activate());
         expect(on).toMatchObject({ enabled: true, link: { source: "raidhelper", enabled: true, instanceIds: ["bt"], size: 25, versionId: "tbc", title: "BT 25er Montag", guildId: "111111111111111111" } });

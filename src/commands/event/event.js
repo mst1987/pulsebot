@@ -10,11 +10,12 @@
 // "Event verwalten" (eventManageContext.js) opens the same message.
 const { MessageFlags, SlashCommandBuilder } = require("discord.js");
 const { card } = require("../../utils/discord/card");
-const { guildFor, initialState, stepMessage } = require("../../services/events/eventDraft");
+const { guildFor, initialState, stepMessage, clearNamePattern } =require("../../services/events/eventDraft");
 const { openPayload } = require("../../services/events/eventManageBot");
 const { listEvents } = require("../../stores/eventStore");
 const { whenLabel } = require("../../services/events/eventManage");
 const { respondChoices } = require("../../utils/discord/botLookup");
+const { visibleRows, versionOfEvent } = require("../../services/events/mainVersion");
 
 // Events that started more than a day ago are no longer offered.
 const LOOKBACK_SECONDS = 24 * 3600;
@@ -37,8 +38,15 @@ module.exports = {
             : "";
         if (sub !== "anlegen" && sub !== "verwalten") return interaction.reply(card({ kind: "error", title: "Diese Aktion gibt es nicht.", ephemeral: true }));
 
+        // "anlegen" lists the category's events (slow): it acknowledges before anything else.
+        if (sub === "anlegen") await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
         const { guildId, error } = guildFor(interaction);
-        if (error) return interaction.reply(card({ kind: "error", title: error, ephemeral: true }));
+        if (error) {
+            return sub === "anlegen"
+                ? interaction.editReply(card({ kind: "error", title: error }))
+                : interaction.reply(card({ kind: "error", title: error, ephemeral: true }));
+        }
 
         if (sub === "verwalten") {
             const eventId = typeof interaction.options.getString === "function" ? String(interaction.options.getString("event") || "").trim() : "";
@@ -48,17 +56,19 @@ module.exports = {
             return interaction.reply({ ...opened.payload, flags: (Number(opened.payload.flags) || 0) | MessageFlags.Ephemeral });
         }
 
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         const channel = interaction.channel || {};
         const parentId = String(channel.parentId || (channel.parent && channel.parent.id) || "");
-        const { payload } = await stepMessage(guildId, initialState(guildId, parentId));
+        const userId = String((interaction.user && interaction.user.id) || "");
+        clearNamePattern(userId); // a new flow starts with the derived name
+        const { payload } = await stepMessage(guildId, initialState(guildId, parentId), { userId });
         return interaction.editReply(payload);
     },
     /** `event` of /event verwalten: the server's EventHelper events from yesterday on, soonest first. */
     async autocomplete(interaction) {
         const guildId = String(interaction.guildId || (interaction.guild && interaction.guild.id) || "");
         const since = Math.floor(Date.now() / 1000) - LOOKBACK_SECONDS;
-        const events = guildId ? listEvents(guildId, { sinceSeconds: since }).sort((a, b) => a.startTime - b.startTime) : [];
+        // Other versions hidden (#563): their events are archive, nothing to manage from here.
+        const events = guildId ? visibleRows(listEvents(guildId, { sinceSeconds: since }), (e) => versionOfEvent(e)).sort((a, b) => a.startTime - b.startTime) : [];
         return respondChoices(interaction, events.map((e) => ({
             name: `${e.title} · ${whenLabel(e.startTime)}${e.status === "cancelled" ? " · abgesagt" : ""}`,
             value: e.id,

@@ -8,7 +8,7 @@ import RoleGlyph from "../RoleGlyph";
 import { MarkIcon } from "../MarkIcon";
 import { PlayerName, TokenIcon } from "../PlanBoard";
 import { ActionIcon, TimingIcon } from "../ActionIcon";
-import { ALL_MARKS, CLASS_IDS, ROLE_REFS, classIconOf, classPlaceNameFor, type AssignCtx } from "../../../lib/raidplan/assign";
+import { ALL_MARKS, classIdsOf, ROLE_REFS, classIconOf, classPlaceNameFor, type AssignCtx } from "../../../lib/raidplan/assign";
 import { ANY_SPEC, CLASS_COLOR, classGroups, classRef, defaultClassRole, effectiveRole, impliedRole, isClassRef, nextClassN, setClassCount, setClassRole, storedRole } from "../../../lib/raidplan/classRefs";
 import { CLASS_ROLE_CHOICES, classCount, filterPeople, peopleEntries } from "../../../lib/raidplan/assignModal";
 import { ACTIONS, MAX_SENTENCE, TASK_OF, applyMention, fillSuggestion, mentionAt, mentionMatches, resolveParticipants, suggestionsFor, type MentionEntry } from "../../../lib/raidplan/steps";
@@ -124,7 +124,7 @@ export default function StepModal({ step, index, bossName, board, roster, player
     // ---- the lists of the "who" tabs ----
     const list = tab === "players" || tab === "slots" ? filterPeople(peopleEntries(board.slots, roster, tab === "players" ? "player" : "slot", "who"), "all", query) : [];
     const tabs = [...(isEvent ? ["players"] : []), "slots", "classes", "groups"];
-    const count = (k: string) => (k === "players" ? roster.length : k === "slots" ? peopleEntries(board.slots, roster, "slot", "who").length : k === "classes" ? CLASS_IDS.length : groups.length);
+    const count = (k: string) => (k === "players" ? roster.length : k === "slots" ? peopleEntries(board.slots, roster, "slot", "who").length : k === "classes" ? classIdsOf(catalog).length : groups.length);
     const personChip = (key: string, player: RaidplanPlayer | null, label: string, kind: string, n: number) => (
         <button key={key} type="button" className={`rp-amb-tile rp-st-pick${has(key) ? " is-on" : ""}`} aria-pressed={has(key)} onClick={() => toggle(key)}>
             {player ? <TokenIcon player={player} size="sm" /> : <RoleGlyph role={kind} size={18} />}
@@ -142,9 +142,9 @@ export default function StepModal({ step, index, bossName, board, roster, player
             hint={t("raidBoard.steps.hint")}
             footer={(
                 <>
-                    {onRemove && <Button variant="ghost" className="rp-amb-remove" icon={<Trash2 size={16} />} onClick={onRemove}>{t("raidBoard.steps.remove")}</Button>}
+                    {onRemove && <Button variant="danger" className="rp-amb-remove" icon={<Trash2 size={16} />} onClick={onRemove}>{t("raidBoard.steps.remove")}</Button>}
                     <Button variant="ghost" onClick={onClose}>{t("raidBoard.am.cancel")}</Button>
-                    <Button icon={<Check size={16} />} onClick={done}>{t("raidBoard.am.done")}</Button>
+                    <Button variant="go" icon={<Check size={16} />} onClick={done}>{t("raidBoard.am.done")}</Button>
                 </>
             )}
         >
@@ -191,7 +191,7 @@ export default function StepModal({ step, index, bossName, board, roster, player
                             const key = `role:${r}`;
                             return <button key={key} type="button" className={`rp-amb-tile rp-st-pick${has(key) ? " is-on" : ""}`} aria-pressed={has(key)} onClick={() => toggle(key)}><RoleGlyph role={r} size={18} /><span className="rp-amb-name">{t(`raidBoard.roleGroup.${r}`)}</span>{has(key) && <Check size={13} className="rp-amb-check" aria-hidden="true" />}</button>;
                         })}
-                        {tab === "classes" && CLASS_IDS.map((c) => {
+                        {tab === "classes" && classIdsOf(catalog).map((c) => {
                             const on = cGroups.some((g) => g.classId === c);
                             const role = effectiveRole(defaultClassRole(c, task), task);
                             const n = classCount(roster, c, role === ANY_SPEC ? "" : role, board.roles || {});

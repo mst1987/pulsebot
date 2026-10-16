@@ -4,12 +4,12 @@ import {
     type ApiError, type BulkSignupResult, type OwnSignupRow, type SignupClass, type SignupProfile, type SignupStatus,
 } from "../../api";
 import { Badge, Button, Modal } from "../ui";
-import { CheckIcon } from "../ui/icons";
+import { CheckIcon, XIcon } from "../ui/icons";
 import { useToast } from "../shell/Jobs";
 import SignupCharacterPicks from "./SignupCharacterPicks";
 import { formatEventTime } from "../../lib/format";
 import { SIGNUP_STATUS, SIGNUP_STATUS_ORDER } from "../../lib/signups/status";
-import { initialPicks, picksToInput, type CharacterPick } from "../../lib/signups/signupPicks";
+import { bulkMaxCharacters, initialPicks, picksToInput, type CharacterPick } from "../../lib/signups/signupPicks";
 import { specLabel } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 
@@ -47,6 +47,8 @@ export default function BulkSignupDialog({ rows, profile, classes, onClose, onDo
     if (!open) return null;
 
     const absent = status === "absence";
+    // One choice for every raid: as many characters as the strictest of their categories allows.
+    const limit = bulkMaxCharacters(rows);
     const characters = picksToInput(profile, picks);
     const canSubmit = !busy && !results && (absent || characters.length > 0);
 
@@ -76,11 +78,11 @@ export default function BulkSignupDialog({ rows, profile, classes, onClose, onDo
             width={720}
             hint={results ? undefined : t("signups.bulk.hint")}
             footer={results ? (
-                <Button onClick={onClose}>{t("common.close")}</Button>
+                <Button variant="ghost" icon={<XIcon />} onClick={onClose}>{t("common.close")}</Button>
             ) : (
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon={<CheckIcon />} disabled={!canSubmit} running={busy} onClick={submit} variant={absent ? "danger" : "primary"}>
+                    <Button icon={<CheckIcon />} disabled={!canSubmit} running={busy} onClick={submit} variant={absent ? "no" : "go"}>
                         {absent ? t("signups.bulk.signOffAll", { count: rows.length }) : t("signups.bulk.signUpAll", { count: rows.length })}
                     </Button>
                 </>
@@ -96,7 +98,8 @@ export default function BulkSignupDialog({ rows, profile, classes, onClose, onDo
                         <div className="an-sel">
                             {rows.map((r) => <Badge key={r.id} tip={r.title} tipSub={formatEventTime(r.startTime)}>{r.title}</Badge>)}
                         </div>
-                        <SignupCharacterPicks profile={profile} classes={classes} picks={picks} onChange={setPicks} disabled={absent} />
+                        <SignupCharacterPicks profile={profile} classes={classes} picks={picks} onChange={setPicks} disabled={absent} max={limit.max} />
+                        {limit.mixed && !absent && <div className="hint" data-bulk-limit>{t("signups.bulk.limitMin", { max: limit.max })}</div>}
                         <div className="field">
                             <label>{t("signups.statusForAll")}</label>
                             <div className="seg an-status" role="radiogroup" aria-label={t("signups.statusForAll")}>

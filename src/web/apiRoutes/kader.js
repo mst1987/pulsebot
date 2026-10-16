@@ -26,6 +26,9 @@ const { userCan } = require("../../config/permissions");
 const kaderStore = require("../../stores/kaderStore");
 const rosterStore = require("../../stores/rosterStore");
 const { getConfig } = require("../../stores/settingsStore");
+const { AppError } = require("../http/apiResult");
+const { rulesFor } = require("../../config/gameVersions");
+const { resolveVersionQuery, isVersionVisible, knownVersion, mainVersionFor } = require("../../services/events/mainVersion");
 const { rosterLootSystem } = require("../../services/loot/lootSystem");
 const { canManageRosterLive } = require("../../services/roster/rosterAccess");
 const { kaderRosterState, rosterOfKader, syncRosterFromKader, kaderLinkChoices, linkRosterToKader } = require("../../services/roster/rosterCreate");
@@ -34,7 +37,7 @@ const players = require("../../services/kader/kaderPlayers");
 const questions = require("../../services/kader/kaderQuestions");
 const setups = require("../../services/kader/kaderSetups");
 const { recordChanges, changesSince } = require("../../services/kader/kaderActivity");
-const { loadKaderSource, loadKaderRules, listRaidCategories } = require("../kader/kaderSource");
+const { loadKaderSource, loadKaderRules, listRaidCategories, plannerVersion } = require("../kader/kaderSource");
 const { buildKaderView, kaderPayload, mutationContext, lightContext } = require("../kader/kaderView");
 const presence = require("../kader/kaderPresence");
 
@@ -44,6 +47,18 @@ const WRITE = { write: "kader", csrf: true, body: true };
 /** Splits a mutator's answer into the new planner and what it adds to the reply (a created id, counts). */
 function unpack(result) {
     return result && result.planner ? result : { planner: result };
+}
+
+/**
+ * The bot's side of the planner in one game version, with the attendance of
+ * every raid category the Kader of that version picked - also those of
+ * another version (docs/game-versions.md: attendance is the one deliberate
+ * reading across versions), counted only for the versions actually picked.
+ */
+function sourceFor(guildId, planner, versionId) {
+    const picked = new Set();
+    for (const k of planner.kaders) if (model.kaderInVersion(k, versionId)) for (const id of k.attendanceCategories || []) picked.add(id);
+    return loadKaderSource({ guildId, versionId, attendanceCategoryIds: [...picked] });
 }
 
 /** Writes a mutator's planner with its revisions and activity lines (who: `actor`, when: `now`). */
@@ -66,14 +81,61 @@ function guarded(fn) {
     };
 }
 
-/** GET /api/kader?kader=<id> — the whole view model of the active server, with the chosen Kader. */
+/** The game version the page shows (#741): `?version=`, else the main version. */
+const shownVersion = (query) => resolveVersionQuery(query && query.get("version"), { config: getConfig() }).versionId;
+
+/**
+ * The game version the planner works in for one request (#741, "Forever =
+ * Forever characters"): the named Kader's — its characters, classes, raid
+ * categories and attendance are those of its version —, else `fallback`.
+ */
+function versionFor(planner, kaderId, fallback) {
+    const kader = kaderId ? planner.kaders.find((k) => k.id === kaderId) : null;
+    return kader ? model.kaderVersion(kader.versionId) : fallback;
+}
+
+/** A change's version: the Kader the body names, else the body's `versionId`, else the planner's own. */
+function writeVersion(planner, body) {
+    return versionFor(planner, str(body, "kaderId"), knownVersion(body && body.versionId) || plannerVersion());
+}
+
+const labelOf = (id) => {
+    const rules = rulesFor(id);
+    return rules ? rules.short || rules.label : id;
+};
+
+/**
+ * The version of a new Kader (#741): the one the page shows (`versionId` in the
+ * body), else the planner's own — never a hidden one (#563): asking for a
+ * hidden version is refused (400 `version_hidden`); without a pick a hidden
+ * planner version gives way to the main version.
+ */
+function newKaderVersion(body) {
+    const config = getConfig();
+    const asked = knownVersion(body && body.versionId);
+    if (asked && !isVersionVisible(asked, config)) {
+        throw new AppError("version_hidden", 400, `${labelOf(asked)} ist ausgeblendet – ein neuer Kader bekommt eine sichtbare Spielversion.`);
+    }
+    const own = asked || plannerVersion();
+    return isVersionVisible(own, config) ? own : mainVersionFor({ config });
+}
+
+/**
+ * GET /api/kader?kader=<id>&version=<id> — the whole view model of the active
+ * server, with the chosen Kader and the Kader of the shown game version (#741).
+ * The players' characters, the classes, the raid categories and the attendance
+ * are those of the chosen Kader's version, without one of the shown version.
+ */
 const getKader = withUser({}, async ({ req, res, query }) => {
     const guildId = activeGuildFor(req);
-    const source = await loadKaderSource({ guildId });
-    ok(res, buildKaderView({ source, planner: kaderStore.readPlanner(guildId), kaderId: str(query, "kader") }));
+    const kaderId = str(query, "kader");
+    const shown = shownVersion(query);
+    const before = kaderStore.readPlanner(guildId);
+    const source = await sourceFor(guildId, before, versionFor(before, kaderId, shown));
+    ok(res, buildKaderView({ source, planner: kaderStore.readPlanner(guildId), kaderId, versionId: shown }));
 });
 
-/** GET /api/kader/kader?kader=<id> — only the Kader as stored and the summaries (a change inside it, seen live). */
+/** GET /api/kader/kader?kader=<id> — only the Kader as stored and the summaries of its version (a change inside it, seen live). */
 const getKaderOnly = withUser({}, async ({ req, res, query }) => {
     ok(res, kaderPayload(kaderStore.readPlanner(activeGuildFor(req)), str(query, "kader")));
 });
@@ -115,7 +177,8 @@ const getLive = withUser({}, async ({ req, res, query, user }) => {
 function fullWrite(mutate) {
     return withUser(WRITE, guarded(async ({ req, res, body, user }) => {
         const guildId = activeGuildFor(req);
-        const source = await loadKaderSource({ guildId });
+        const before = kaderStore.readPlanner(guildId);
+        const source = await sourceFor(guildId, before, writeVersion(before, body));
         const planner = kaderStore.readPlanner(guildId);
         const ctx = mutationContext({ source, planner, actor: user.id });
         const { planner: next, ...extra } = unpack(mutate(planner, body, ctx));
@@ -128,18 +191,23 @@ function fullWrite(mutate) {
  * A change inside one Kader: only the rule set is needed (class and spec keys),
  * unless `source` asks for the bot's data too (attendance for "Automatisch
  * verteilen") or `categories` for the server's raid categories (the Kader's
- * attendance pick is checked against them). The reply is the Kader as stored
- * and the summaries of all.
+ * attendance pick is checked against them - those of every game version count,
+ * the deliberate exception to the strict separation). The rule set is the Kader's version's (#741), `version`
+ * names another one (a new Kader). The reply is the Kader as stored and the
+ * summaries of all.
  */
-function kaderWrite(mutate, { source: withSource = false, categories = false } = {}) {
+function kaderWrite(mutate, { source: withSource = false, categories = false, version = writeVersion } = {}) {
     return withUser(WRITE, guarded(async ({ req, res, body, user }) => {
         const guildId = activeGuildFor(req);
-        const source = withSource ? await loadKaderSource({ guildId }) : null;
+        const before = kaderStore.readPlanner(guildId);
+        const versionId = version(before, body);
+        const source = withSource ? await sourceFor(guildId, before, versionId) : null;
         const planner = kaderStore.readPlanner(guildId);
         const ctx = source
             ? mutationContext({ source, planner, actor: user.id })
-            : lightContext({ rules: loadKaderRules(), actor: user.id });
-        if (categories && !source) ctx.raidCategoryIds = new Set(listRaidCategories(guildId).map((c) => c.id));
+            : lightContext({ rules: loadKaderRules(versionId), actor: user.id });
+        // the attendance pick may hold the raid categories of every version, hidden ones too
+        if (categories) ctx.raidCategoryIds = new Set(listRaidCategories(guildId, { includeHidden: true }).map((c) => c.id));
         const { planner: next, ...extra } = unpack(mutate(planner, body, ctx));
         const stored = store(guildId, planner, next, ctx);
         ok(res, { ...kaderPayload(stored, str(body, "kaderId") || extra.kaderId || ""), ...extra });
@@ -147,11 +215,17 @@ function kaderWrite(mutate, { source: withSource = false, categories = false } =
 }
 
 // ------------------------------------------------------------ Kader
-/** POST /api/kader/kaders — body: { name }; the creator becomes its lead. Answers `kaderId`. */
-const createKader = kaderWrite((p, body, ctx) => model.createKader(p, body, ctx));
+/**
+ * POST /api/kader/kaders — body: { name, versionId? }; the creator becomes its
+ * lead, the Kader belongs to the version the page shows (#741, else the
+ * planner's own) - never a hidden one (400 `version_hidden`, see
+ * newKaderVersion). Answers `kaderId`.
+ */
+const createKader = kaderWrite((p, body, ctx) => model.createKader(p, { ...body, versionId: ctx.versionId }, ctx), { version: (_p, body) => newKaderVersion(body) });
 /**
  * PUT /api/kader/kaders — body: { kaderId, name?, leads?, attendanceCategories? }; a
- * category the server does not know as a raid category is left out.
+ * category the server does not know as a raid category is left out; one of
+ * another game version is fine (a Forever Kader counts its players' TBC nights).
  */
 const updateKader = kaderWrite((p, body, ctx) => model.updateKader(p, body, ctx), { categories: true });
 /** POST /api/kader/kaders/delete — body: { kaderId } — with everything in it. */
@@ -233,7 +307,7 @@ const resetAssignment = fullWrite((p, body) => model.resetAssignment(p, str(body
  * takes and how many of them are not in it yet (counts only). `canCreate` =
  * full admin and no roster yet, `canSync` = `kader` write and manager of that
  * roster, `canLink` = full admin with `kader` write; `rosters` (only with
- * canLink, else []) = the server's rosters to link to, the one whose category
+ * canLink, else []) = the server's rosters of the Kader's version to link to (#741), the one whose category
  * the Kader counts attendance in first (`suggested`); `lootCouncil` (#676) = the
  * linked roster runs as Loot-Council and the caller may open the council (the
  * page links /lootcouncil?roster=<id>). 404 for an unknown Kader.
@@ -251,14 +325,16 @@ const getKaderRoster = withUser({}, async ({ req, res, query, user }) => {
     return ok(res, { ...state, canCreate: !roster && user.isAdmin === true, canSync, canLink, lootCouncil, rosters: canLink ? kaderLinkChoices(guildId, kaderId) : [] });
 });
 
-const LINK_STATUS = { kader_not_found: 404, not_found: 404, kader_taken: 409 };
+const LINK_STATUS = { kader_not_found: 404, not_found: 404, kader_taken: 409, version_mismatch: 400 };
+const LINK_MESSAGE = { version_mismatch: "Dieses Roster spielt eine andere Spielversion als der Kader." };
 
 /**
  * POST /api/kader/roster/link — body: { kaderId, rosterId }: link the Kader to
  * an existing roster of the active server ("Mit bestehendem Roster
  * verknüpfen"), or unlink it with rosterId "". Area `kader` write + CSRF and a
  * full admin (403 `admin_only`); a roster another Kader holds is 409
- * `kader_taken`. Nothing of the Kader is copied - "Ins Roster übernehmen" does
+ * `kader_taken`, a roster of another game version than the Kader's 400
+ * `version_mismatch` (#741). Nothing of the Kader is copied - "Ins Roster übernehmen" does
  * that afterwards. Answer: the state of GET /api/kader/roster.
  */
 const linkKaderRoster = withUser(WRITE, async ({ req, res, body, user }) => {
@@ -266,7 +342,7 @@ const linkKaderRoster = withUser(WRITE, async ({ req, res, body, user }) => {
     const guildId = activeGuildFor(req);
     const kaderId = str(body, "kaderId");
     const result = linkRosterToKader(kaderId, str(body, "rosterId"), { guildId, actor: String(user.id || "") });
-    if (!result.ok) return apiError(res, LINK_STATUS[result.code] || 400, result.code, `Roster: ${result.code}`);
+    if (!result.ok) return apiError(res, LINK_STATUS[result.code] || 400, result.code, LINK_MESSAGE[result.code] || `Roster: ${result.code}`);
     const state = kaderRosterState(guildId, kaderId);
     const roster = state.roster ? rosterStore.getRoster(state.roster.id) : null;
     const canSync = !!roster && await canManageRosterLive(user, roster).catch(() => false);

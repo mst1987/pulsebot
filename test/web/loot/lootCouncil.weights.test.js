@@ -29,6 +29,7 @@ jest.mock("../../../src/stores/reportStore", () => ({
 jest.mock("../../../src/stores/rosterStore", () => ({
     listRosters: (...a) => mockRosters(...a),
     rosterForCategory: (id) => mockRosters().find((r) => r.categoryId === id) || null,
+    rostersForCategory: (id) => mockRosters().filter((r) => r.categoryId === id),
     getRoster: (id) => mockRosters().find((r) => r.id === id) || null,
 }));
 

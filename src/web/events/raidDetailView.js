@@ -18,7 +18,7 @@ const {
 const { pickRaidsheet } = require("../../utils/setup/raidsheets");
 const { versionOfEvent } = require("../../services/events/mainVersion");
 const { archiveOf } = require("../../services/events/eventArchive");
-const { settingsForVersion } = require("../../services/events/versionSettings");
+const { settingsForVersion, versionLinks } = require("../../services/events/versionSettings");
 const { buildSetupView, tankCandidates } = require("../../utils/setup/setupView");
 const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
@@ -42,6 +42,8 @@ const discord = require("../../services/discord/discord");
 const { listSignups } = require("../../stores/signupStore");
 const { eventSignupList } = require("../signups/signupView");
 const { getEvent } = require("../../stores/eventStore");
+const { signupEventIdOf } = require("../../utils/raidGroup");
+const { groupSummary } = require("../../services/events/raidGroup");
 const raidplanStore = require("../../stores/raidplanStore");
 const { raidplanPostState } = require("../../services/raidplan/raidplanPost");
 const linkCheck = require("../../services/discord/linkCheck");
@@ -49,18 +51,21 @@ const { setupSummary } = require("../../services/setup/setupEditor");
 const setupPresence = require("../../services/setup/setupPresence");
 const { pingTargetInfo } = require("../../services/discord/pingDelivery");
 const { planningOf } = require("../../services/events/planning");
+const { featureState, sheetOffered } = require("../../services/events/versionCapabilities");
 const { expectedRoleIds } = require("../../services/roster/categoryRoles");
+const { openToAll } = require("../../services/signups/signupAccess");
 const { expectedRosterIds, listExpectedMembers } = require("../../services/roster/expectedRaiders");
 const { eventShown } = require("../../services/signups/eventVisibility");
 
 /**
  * The version of the event on this page and its settings (#542): an own event
- * carries its version, a Raid-Helper one plays its category's. The softres
- * edition and the default raidsheet follow it - a version without a softres
- * edition (Forever until softres.it has it) offers no list at all.
+ * carries its version, a scanned Raid-Helper one its stored version (#737),
+ * one not scanned yet plays its category's. The softres edition and the
+ * default raidsheet follow it - a version without a softres edition (Forever
+ * until softres.it has it) offers no list at all.
  */
 function eventVersionSettings(found, config) {
-    const versionId = versionOfEvent({ versionId: found.e.versionId, categoryId: found.g.categoryId }, { config });
+    const versionId = versionOfEvent({ id: found.e.id, versionId: found.e.versionId, categoryId: found.g.categoryId }, { config });
     const all = config.versionSettings || {};
     return {
         ...settingsForVersion(versionId, { config }),
@@ -160,12 +165,14 @@ async function setupPart(found, eventId) {
  */
 async function attendancePart(guildId, found, signupsKnown) {
     const config = getConfig();
-    const categoryRoleIds = expectedRoleIds(found.g.categoryId, config);
-    const attendanceSource = expectedRosterIds(found.g.categoryId) !== null ? "roster" : (categoryRoleIds.length ? "roles" : null);
+    // the roster of the raid's version (#739): a raid of the old version expects the closed roster's members
+    const versionId = versionOfEvent({ id: found.e.id, versionId: found.e.versionId, categoryId: found.g.categoryId }, { config });
+    const categoryRoleIds = expectedRoleIds(found.g.categoryId, config, { versionId });
+    const attendanceSource = expectedRosterIds(found.g.categoryId, { versionId, config }) !== null ? "roster" : (categoryRoleIds.length ? "roles" : null);
     let attendance = { responded: [], missing: [] };
     let membersError = null;
     if (attendanceSource && signupsKnown) {
-        const membersResult = await listExpectedMembers(guildId, found.g.categoryId, config);
+        const membersResult = await listExpectedMembers(guildId, found.g.categoryId, config, { versionId });
         membersError = membersResult.error;
         attendance = computeAttendance(membersResult.members, found.e.signUps || []);
         // Enrich with class/spec/colour from each member's most recent signup in
@@ -180,7 +187,7 @@ async function attendancePart(guildId, found, signupsKnown) {
         };
         // A manual raider->character assignment for this category (see
         // raiderCharactersStore.js) is admin-confirmed and overrides the guess above.
-        const assignmentProfiles = resolveAssignmentProfiles(found.g.categoryId);
+        const assignmentProfiles = resolveAssignmentProfiles(found.g.categoryId, { versionId });
         attendance = {
             responded: withCharacterAssignments(attendance.responded, assignmentProfiles),
             missing: withCharacterAssignments(attendance.missing, assignmentProfiles),
@@ -200,7 +207,8 @@ async function ownEventPart(guildId, found, eventId, stored = isOwn(found) ? get
     if (!isOwn(found)) return { ownSignups: null, ownSetup: null, ownSetupPost: null };
     const ownSetupPost = setupPostState(eventId, stored);
     const ownSetup = setupSummary(stored);
-    const rows = listSignups(eventId);
+    // a further raid of a raid group (#811) shows the signups of the group's first raid — the raiders signed up there once
+    const rows = listSignups(stored ? signupEventIdOf(stored) : eventId);
     const names = rows.length ? await discord.resolveUserNames(guildId, rows.map((s) => s.userId)) : {};
     // who of the orga is in the setup editor right now (only the names; the editor itself polls for more)
     const ownSetupEditors = setupPresence.editorsOf(eventId).map((p) => p.name);
@@ -348,14 +356,19 @@ async function buildRaidDetail({ guildId, eventId, planPost = true, viewer = nul
     if (!found) return fail(groupsError ? 400 : 404, groupsError ? "events_unavailable" : "not_found", groupsError || "Event nicht gefunden.");
     const orga = !viewer || !!viewer.orga;
     // a raid of a category the raider may not see answers like one that does not exist: nothing leaks
-    if (!eventShown({ id: found.e.id, categoryId: found.g.categoryId, signUps: found.e.signUps }, viewer)) {
+    if (!eventShown({ id: found.e.id, categoryId: found.g.categoryId, versionId: found.e.versionId, signUps: found.e.signUps }, viewer)) {
         return fail(404, "not_found", "Event nicht gefunden.");
     }
 
     const config = getConfig();
     // Raid plan or Google Sheet, never both: the category's choice gates the plan's tab and step and the sheet's.
-    const planning = planningOf(found.g.categoryId, config);
+    // A version without a Google raid sheet layout (everything but TBC, #751), or with the raid sheet switched off
+    // (#761, Einstellungen → Spielversion), always plans with the raid plan.
     const version = eventVersionSettings(found, config);
+    const planning = sheetOffered(version.versionId, { config }) ? planningOf(found.g.categoryId, config) : "raidplan";
+    // Softres only where the version has an edition and it is not switched off (#761).
+    const softresState = featureState(version.versionId, "softres", { config });
+    const softresEdition = softresState.on ? version.softresEdition : "";
     const raidsheets = listRaidsheets();
     const matched = pickRaidsheet(raidsheets, found.e.title, { ownId: version.raidsheetId, otherIds: version.otherSheetIds });
     // A raid that is over and whose signups Raid-Helper no longer returns (and
@@ -376,14 +389,16 @@ async function buildRaidDetail({ guildId, eventId, planPost = true, viewer = nul
         ownEventPart(guildId, found, eventId, stored),
         orga ? logsPart(guildId, eventId) : { eventLogs: [], unlinkedLogs: [] },
     ]);
-    const softresInfo = softresPart(found, eventId, attendanceInfo, version.softresEdition);
+    const softresInfo = softresPart(found, eventId, attendanceInfo, softresEdition);
 
     const payload = {
         event: eventMeta(found, eventId, { isPast, signupsKnown, guildId, planning, stored }),
         // "raidplan" | "sheet": which of the two this raid's category plans with (Einstellungen → Kategorien).
         planning,
         setupFromSnapshot: setupInfo.setupFromSnapshot,
-        categoryName: found.g.categoryName,
+        categoryName: found.e.categoryName || found.g.categoryName,
+        // no raider role, no roster-only signup: open to everyone, a PuG raid (the head's "PuG" badge)
+        openToAll: openToAll(found.g.categoryId, { config, versionId: version.versionId }),
         guildId,
         eventsWarning: stale ? (groupsError || "Raid-Helper aktuell nicht erreichbar — zeige zwischengespeicherte Event-Daten.") : null,
         notifyTemplates: listNotify(),
@@ -403,17 +418,21 @@ async function buildRaidDetail({ guildId, eventId, planPost = true, viewer = nul
         // or in a category that plans with a sheet.
         raidplanPost: planPost && planning === "raidplan" ? raidplanPostState(found.e) : null,
         eventSoftres: softresInfo.eventSoftres,
-        softresCatalogue: version.softresEdition ? softres.catalogue().filter((g) => g.edition === version.softresEdition) : [],
-        softresEdition: version.softresEdition,
+        softresCatalogue: softresEdition ? softres.catalogue().filter((g) => g.edition === softresEdition) : [],
+        softresEdition,
+        // Softres switched off for the version (#761): the dialog says so instead of "no edition".
+        softresOff: softresState.reason === "disabled",
         // The event's version and its Wowhead path (#542) for the softres item search.
         versionId: version.versionId,
-        wowheadPath: version.wowheadPath,
+        wowheadPath: versionLinks(version.versionId, { config }).wowheadPath,
         // A hidden game version (#563): the page opens as a read-only archive (null = a normal event).
         archived: archiveOf({ versionId: version.versionId, categoryId: found.g.categoryId }, { config }),
         softresSuggested: softresInfo.suggestedInstances.map((i) => i.code),
         attendance: attendanceInfo.attendance,
         ownSignups: own.ownSignups,
         ownSetup: own.ownSetup,
+        // the raids of the event's raid group (#811): the head links them, null outside a group
+        raidGroup: stored ? groupSummary(stored) : null,
         ownSetupPost: own.ownSetupPost,
         // only an own event: who of the orga is in its setup editor right now
         ownSetupEditors: own.ownSetupEditors,

@@ -16,6 +16,7 @@ import { PartHead } from "../../components/ui/PartHead";
 import { buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import WowIcon from "../../components/ui/WowIcon";
+import PugBadge from "../../components/signup/PugBadge";
 import { specLabel } from "../../lib/wow/wowNames";
 import { bossesWithMine } from "../../lib/raidplan/bossMine";
 import { rosterMap } from "../../lib/raidplan/players";
@@ -26,7 +27,8 @@ import { useT } from "../../i18n";
 
 type Tone = "ok" | "mid" | "bad" | "accent" | undefined;
 
-const STATUS_TONE: Record<string, Tone> = { signed: "ok", late: "mid", tentative: "mid", bench: undefined, absence: undefined };
+// "signed" is only signed up ("Angemeldet", neutral); being in the raid is "placed" (green), read off the approved setup
+const STATUS_TONE: Record<string, Tone> = { signed: undefined, late: "mid", tentative: "mid", bench: undefined, absence: undefined, placed: "ok", notPlaced: undefined };
 const NIGHT_TONE: Record<string, Tone> = { present: "ok", bench: undefined, vacation: undefined, absence: undefined, noSignup: "mid", noShow: "bad", tentative: undefined };
 
 /** Where the raider signs up for one raid: the "Anmeldungen" page opened on it. */
@@ -44,20 +46,32 @@ function canSignUp(raid: PersonalRaid): boolean {
     return !raid.status && !raid.cancelled && !raid.signupsClosed && !raid.deadlinePassed && !raid.rosterOnly;
 }
 
+/**
+ * What the badge says about a signed-up raider: the approved setup wins over the signup -
+ * placed in a group = "Im Setup", on its bench = "Bank", left out = "Nicht aufgestellt";
+ * without an approved setup the signup's own status ("Angemeldet", "Später", "Vielleicht").
+ */
+export function shownStatus(raid: PersonalRaid): string {
+    if (!raid.status || raid.status === "absence") return raid.status;
+    if (raid.placement) return raid.placement.bench ? "bench" : "placed";
+    return raid.setupApproved ? "notPlaced" : raid.status;
+}
+
 /** The raider's status in one coming raid as a badge, or the way to sign up. */
 export function MyStatus({ raid }: { raid: PersonalRaid }) {
     const t = useT();
     if (raid.cancelled) return <Badge tone="bad">{t("dashboard.personal.status.cancelled")}</Badge>;
     if (!raid.status) {
-        if (canSignUp(raid)) return <Link className={buttonClass("primary", "sm")} to={signupHref(raid.id)}>{t("dashboard.personal.signUp")}</Link>;
+        if (canSignUp(raid)) return <Link className={buttonClass("go", "sm")} to={signupHref(raid.id)}>{t("dashboard.personal.signUp")}</Link>;
         return <Badge tip={t(raid.rosterOnly ? "dashboard.personal.rosterOnlyTip" : "dashboard.personal.closedTip")}>{t(raid.rosterOnly ? "dashboard.personal.rosterOnly" : "dashboard.personal.closed")}</Badge>;
     }
-    const label = t(`dashboard.personal.status.${raid.status}`);
+    const shown = shownStatus(raid);
+    const label = t(`dashboard.personal.status.${shown}`);
     // the spec shows as its icon and its name in the reader's language, so "which spec" is seen at a glance
     const spec = mySpec(raid);
     const showSpec = raid.status !== "absence" && !!spec;
     return (
-        <Badge tone={STATUS_TONE[raid.status]} icon={showSpec && raid.specIcon ? raid.specIcon : undefined}>
+        <Badge tone={STATUS_TONE[shown]} icon={showSpec && raid.specIcon ? raid.specIcon : undefined}>
             {showSpec ? `${label} · ${spec}` : label}
         </Badge>
     );
@@ -132,7 +146,7 @@ function Box({ tone, label, value, sub }: { tone?: Tone; label: string; value: s
 }
 
 function setupText(raid: PersonalRaid, t: ReturnType<typeof useT>): string {
-    if (!raid.placement) return t("dashboard.personal.setup.none");
+    if (!raid.placement) return t(raid.setupApproved && raid.status && raid.status !== "absence" ? "dashboard.personal.setup.notPlaced" : "dashboard.personal.setup.none");
     return raid.placement.bench ? t("dashboard.personal.setup.bench") : t("dashboard.personal.setup.group", { group: raid.placement.group || 0 });
 }
 
@@ -160,6 +174,7 @@ export function MyNextRaid({ raid, compact = false }: { raid: PersonalRaid | nul
                 {head}
                 <div className="ov-me-line">
                     <span className="ov-me-line-t">{raid.title}</span>
+                    <PugBadge open={raid.openToAll} />
                     <MyStatus raid={raid} />
                     {raid.placement && <Badge>{setupText(raid, t)}</Badge>}
                     {raid.softresUrl && <a className="badge" href={raid.softresUrl} target="_blank" rel="noreferrer">{t("dashboard.personal.softres.open")}</a>}
@@ -176,7 +191,12 @@ export function MyNextRaid({ raid, compact = false }: { raid: PersonalRaid | nul
                 <div className="ov-next-top">
                     <WowIcon name={raid.icon} size={56} className="ov-boss56" />
                     <div className="ov-next-text">
-                        {raid.categoryName && <span className="ov-cat">{raid.categoryName}</span>}
+                        {(raid.categoryName || raid.openToAll) && (
+                            <span className="ov-cat-line">
+                                {raid.categoryName && <span className="ov-cat">{raid.categoryName}</span>}
+                                <PugBadge open={raid.openToAll} />
+                            </span>
+                        )}
                         <span className="ov-next-title">{raid.title}</span>
                         <div className="ov-next-when">{raidWhen(raid.startTime)}</div>
                     </div>
@@ -191,7 +211,7 @@ export function MyNextRaid({ raid, compact = false }: { raid: PersonalRaid | nul
                             ? <span className="ov-me-spec">{raid.specIcon && <WowIcon name={raid.specIcon} size={16} />}{[raid.character, mySpec(raid)].filter(Boolean).join(" · ")}</span>
                             : canSignUp(raid) ? <Link to={signupHref(raid.id)}>{t("dashboard.personal.signUp")}</Link> : null}
                     />
-                    <Box label={t("dashboard.personal.box.setup")} value={setupText(raid, t)} sub={signed && !raid.placement ? t("dashboard.personal.setup.noneSub") : undefined} />
+                    <Box label={t("dashboard.personal.box.setup")} value={setupText(raid, t)} sub={signed && !raid.placement ? t(raid.setupApproved ? "dashboard.personal.setup.notPlacedSub" : "dashboard.personal.setup.noneSub") : undefined} />
                     <Box
                         label={t("dashboard.personal.box.softres")}
                         value={raid.softresUrl ? t("dashboard.personal.softres.ready") : t("dashboard.personal.softres.none")}
@@ -223,7 +243,7 @@ export function MyRaids({ raids }: { raids: PersonalRaid[] }) {
                                 <div key={r.id} className={`ov-row${canSignUp(r) ? " ov-row-open" : ""}`}>
                                     <WowIcon name={r.icon} size={36} className="ov-ico36" />
                                     <span className="grow">
-                                        <span className="t1">{r.title}</span>
+                                        <span className="t1">{r.title}<PugBadge open={r.openToAll} /></span>
                                         <span className="t2">{[r.categoryName, dayDate(r.startTime * 1000), deadline].filter(Boolean).join(" · ")}</span>
                                     </span>
                                     <MyStatus raid={r} />

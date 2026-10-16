@@ -12,19 +12,22 @@
 // visibleVersions), and the export only reads.
 const { VERSIONS, LEGACY_VERSION } = require("../../config/gameVersions");
 const { mainVersionFor, knownVersion, versionOfEvent, visibleVersions, hidesOtherVersions, otherVersions } = require("./mainVersion");
+const { versionColor } = require("./versionSettings");
 const eventStore = require("../../stores/eventStore");
 const { listRaidEvents } = require("../../stores/raidEventStore");
 const lootStore = require("../../stores/lootStore");
 const profiles = require("../../stores/raiderProfileStore");
+const { kaderVersionIds } = require("../kader/kaderVersions");
 const settingsStore = require("../../stores/settingsStore");
 const { buildVersionContext, eventVersion } = require("../characters/characterVersions");
 
-/** `{ id, label, short }` of a version for the client. */
-function versionInfo(v) {
-    return { id: v.id, label: v.label, short: v.short || v.label };
+/** `{ id, label, short, color, custom }` of a version for the client: its colour (#742) and whether the setting changed it. */
+function versionInfo(v, config) {
+    const { color, custom } = versionColor(v.id, { config });
+    return { id: v.id, label: v.label, short: v.short || v.label, color, custom };
 }
 
-/** Every version something is stored for: events, categories, templates, characters, loot. */
+/** Every version something is stored for: events, categories, templates, characters, loot, Kader of the Kaderplaner. */
 function versionsWithData(config) {
     const found = new Set();
     const add = (id) => { const key = knownVersion(id); if (key) found.add(key); };
@@ -35,6 +38,9 @@ function versionsWithData(config) {
     for (const p of profiles.listProfiles()) for (const c of p.characters || []) add(c.versionId || LEGACY_VERSION);
     const ctx = buildVersionContext({ config });
     for (const it of lootStore.listAll()) add(eventVersion(ctx, it.eventId));
+    // A Kader stands only under its own version (#741): without it here, a server whose only
+    // Forever data is the Kaderplaner could never switch to Forever and lost its Kader.
+    for (const id of kaderVersionIds()) add(id);
     return found;
 }
 
@@ -42,7 +48,7 @@ function versionsWithData(config) {
  * What the menu's content switch offers: the main version first, then every
  * other version that has data or a category — none while the other versions
  * are hidden. One version only = the switch stays away.
- * @returns {{ mainVersion: string, hideOtherVersions: boolean, versions: { id, label, short }[] }}
+ * @returns {{ mainVersion: string, hideOtherVersions: boolean, versions: { id, label, short, color, custom }[] }}
  */
 function contentVersions({ config } = {}) {
     const cfg = config || settingsStore.getConfig();
@@ -52,7 +58,7 @@ function contentVersions({ config } = {}) {
     const withData = hidden ? new Set() : versionsWithData(cfg);
     const main = VERSIONS.find((v) => v.id === mainVersion);
     const rest = VERSIONS.filter((v) => v.id !== mainVersion && visible.has(v.id) && withData.has(v.id));
-    return { mainVersion, hideOtherVersions: hidden, versions: [main, ...rest].filter(Boolean).map(versionInfo) };
+    return { mainVersion, hideOtherVersions: hidden, versions: [main, ...rest].filter(Boolean).map((v) => versionInfo(v, cfg)) };
 }
 
 /**
@@ -109,8 +115,12 @@ function archiveExport({ config, now = Date.now() } = {}) {
     const versions = otherVersions(cfg).filter((id) => withData.has(id));
     const wanted = new Set(versions);
     const ctx = buildVersionContext({ config: cfg });
+    // One rule for loot and attendance (#737): the raid's stored version, TBC
+    // without one — so a raid's loot and its signups always land in the same
+    // version, whatever the main or category version says today.
+    const versionOfRaid = (id, event) => knownVersion(event && event.versionId) || eventVersion(ctx, id);
     const loot = lootStore.listAll()
-        .map((it) => ({ it, versionId: eventVersion(ctx, it.eventId) }))
+        .map((it) => ({ it, versionId: versionOfRaid(it.eventId) }))
         .filter((x) => wanted.has(x.versionId))
         .map(({ it, versionId }) => ({
             versionId, eventId: it.eventId || "", date: isoDay(it.awardedAt || it.importedAt), raid: it.eventLabel || it.instance || "",
@@ -118,7 +128,7 @@ function archiveExport({ config, now = Date.now() } = {}) {
         }));
     const { listStoredEvents } = require("./eventSources");
     const attendance = listStoredEvents("", { now })
-        .map((e) => ({ e, versionId: versionOfEvent(e, { config: cfg }) }))
+        .map((e) => ({ e, versionId: versionOfRaid(e.id, e) }))
         .filter((x) => wanted.has(x.versionId))
         .flatMap(({ e, versionId }) => attendanceRows(e, versionId));
     return { exportedAt: new Date(now).toISOString(), mainVersion: mainVersionFor({ config: cfg }), versions, loot, attendance };

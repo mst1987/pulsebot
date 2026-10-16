@@ -7,7 +7,7 @@ import { formatTime } from "../lib/format";
 import { useDraftState } from "../lib/ui/persistedState";
 import { useCollectionEditor } from "../lib/ui/collectionEditor";
 import { useTableSort, type Dir } from "../lib/ui/tableSort";
-import { TrashIcon, CrestIcon, ChevronDownIcon } from "../components/ui/icons";
+import { SaveIcon, TrashIcon, BrandIcon, ChevronDownIcon } from "../components/ui/icons";
 import { useToast } from "../components/shell/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
 import { Button, IconButton } from "../components/ui/Button";
@@ -74,7 +74,7 @@ function DiscordPreview({ title, body }: { title: string; body: string }) {
     return (
         <div className="dc-msg" aria-label={t("notifyTemplates.preview.aria")}>
             <div className="dc-author">
-                <span className="dc-avatar"><CrestIcon /></span>
+                <span className="dc-avatar"><BrandIcon /></span>
                 <div>
                     <b>EventHelper</b> <span className="dc-app">{t("notifyTemplates.preview.app")}</span>
                     <div className="dc-time">{tParts("notifyTemplates.preview.today", { time: now })}</div>
@@ -271,7 +271,7 @@ export default function NotifyTemplatesPage() {
                     <>
                         {dirty && <Badge tone="mid" className="nt-draft" tip={t("notifyTemplates.modal.draft")} tipSub={t("notifyTemplates.modal.draftSub")}>{t("notifyTemplates.modal.draft")}</Badge>}
                         <Button variant="ghost" onClick={cancel}>{t("common.cancel")}</Button>
-                        <Button type="submit" form={FORM_ID}>{t("common.save")}</Button>
+                        <Button type="submit" variant="go" icon={<SaveIcon />} form={FORM_ID}>{t("common.save")}</Button>
                     </>
                 )}
             >

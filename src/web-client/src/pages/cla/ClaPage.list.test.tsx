@@ -8,7 +8,7 @@ import { useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { ClaData, ClaFilter, ClaRow } from "../../api";
-import { renderPage } from "../../test/render";
+import { CONTENT_ARIA, renderPage, twoVersions } from "../../test/render";
 import { switchLang } from "../../test/i18n";
 import { t } from "../../i18n";
 import { LOG_FALLBACK_ICON, raidIcon } from "../../lib/raids/logRaids";
@@ -222,7 +222,7 @@ describe("Log-Auswertung: one list", () => {
 
     it("uses the shared raid icons and its own pocket watch for an unknown raid", () => {
         expect(raidIcon("hyjal")).toBe(RAID_CONTENTS.hyjal.icon);
-        expect(raidIcon("naxx")).toBe(LOG_FALLBACK_ICON);
+        expect(raidIcon("unknown-raid")).toBe(LOG_FALLBACK_ICON);
         expect(raidIcon(undefined)).toBe("inv_misc_pocketwatch_01");
     });
 });
@@ -351,5 +351,19 @@ describe("Log-Auswertung in English", () => {
         serve([]);
         show("/cla?filter=open");
         expect(await screen.findByText("No log is waiting for an evaluation.")).toBeInTheDocument();
+    });
+});
+
+// One game version at a time (#741): the list of the menu's version, loaded again on a switch.
+describe("ClaPage per game version", () => {
+    it("asks for the shown version and loads again when the menu switches", async () => {
+        localStorage.clear();
+        serve([row()]);
+        renderPage(<ClaPage />, { route: "/cla", content: twoVersions() });
+        await screen.findByText("Hyjal Mittwoch");
+        expect(api.getClaData).toHaveBeenLastCalledWith("all", "date", "desc", 1, "tbc");
+        await userEvent.click(within(screen.getAllByRole("radiogroup", { name: t(CONTENT_ARIA) })[0]).getByRole("radio", { name: "Forever" }));
+        await waitFor(() => expect(api.getClaData).toHaveBeenLastCalledWith("all", "date", "desc", 1, "forever"));
+        localStorage.clear();
     });
 });

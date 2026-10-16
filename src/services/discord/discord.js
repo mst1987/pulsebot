@@ -4,7 +4,7 @@
 // holder of the client: everything else (auth included) reads it via getClient().
 
 const {
-    ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionsBitField,
+    ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags, PermissionsBitField,
 } = require("discord.js");
 const { embedAccentColor } = require("../../config/variables");
 const { DateTime } = require("luxon");
@@ -98,8 +98,10 @@ function listRoles(guildId) {
         .filter((r) => r.id !== guild.id) // drop @everyone
         .sort((a, b) => (b.rawPosition || 0) - (a.rawPosition || 0))
         // color: the role's hex colour, "" for an uncoloured role — the
-        // permission matrix tints a role's tile with it.
-        .map((r) => ({ id: r.id, name: r.name, color: r.color ? r.hexColor : "" }));
+        // permission matrix tints a role's tile with it. managed: a role a bot or
+        // an integration owns (@MEE6, a booster role) — nobody can be given it, so
+        // the role pickers of the menu leave it out (#745).
+        .map((r) => ({ id: r.id, name: r.name, color: r.color ? r.hexColor : "", managed: r.managed === true }));
 }
 
 /**
@@ -444,6 +446,17 @@ async function postNotice(channelId, payload) {
 async function postPayload(channelId, payload) {
     const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
     const posted = await channel.send({ ...payload, allowedMentions: { parse: [] } });
+    return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url };
+}
+
+/**
+ * Post a plain text message that pings exactly one role (`allowedMentions` limited to it);
+ * link previews are suppressed.
+ * @returns {Promise<{ guildId, channelId, messageId, url }>}
+ */
+async function postRolePing(channelId, roleId, content) {
+    const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
+    const posted = await channel.send({ content, allowedMentions: { parse: [], roles: [String(roleId)] }, flags: MessageFlags.SuppressEmbeds });
     return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url };
 }
 
@@ -1171,5 +1184,5 @@ module.exports = {
     listApplications, parseApplicationEmbed,
     postLogButton, finishLogButton, LOG_EVAL_PREFIX,
     LOG_SECTIONS, logButtonRow, logButtonEmbed, logButtonPayload, logDayText,
-    postLink, editLink, postPayload, editPayload,
+    postLink, editLink, postPayload, postRolePing, editPayload,
 };

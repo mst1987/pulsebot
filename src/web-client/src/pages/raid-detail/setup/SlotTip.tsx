@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { SetupAttendance, SetupConfirmation, SetupPerson } from "../../../api";
+import type { SetupAttendance, SetupCharacter, SetupConfirmation, SetupPerson } from "../../../api";
 import { tipReasons } from "../../../lib/signups/setupEditor";
 import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { roleLabel, specLabel } from "../../../lib/wow/wowNames";
@@ -9,6 +9,7 @@ import { BenchIcon, CheckIcon, EditIcon, LockIcon, SignedIcon, UnlockIcon, XIcon
 import { classColorProps } from "../../../components/character/ClassSpec";
 import SpecTile from "../SpecTile";
 import { attendanceTone, benchText, specText, statusLabel } from "./setupText";
+import { SigBadge } from "./Board";
 
 /** The header's attendance — the important number: big percentage, how sure the character link is (check = confirmed, "Auto" = guessed) and a bar. */
 function AttendanceHead({ a }: { a: SetupAttendance | undefined }) {
@@ -119,21 +120,32 @@ function ActionRow({ a }: { a: SlotActions }) {
  * matters — and under it: what the raider brings, why they stand here, the
  * attendance in detail. It shows the raider clicked last (`pinned`), whatever
  * the pointer touches on its way, so the actions stay put.
+ * `peek`: the same panel read only, beside the line the mouse rests on or the
+ * focus is on (SetupEditor.tsx' peek) — no actions, a short hint that a click
+ * holds it with them.
  */
-export function SlotTip({ p, attendance, extra, onSpec, onExtra, actions = {}, pinned = false }: {
+export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, actions = {}, pinned = false, peek = false }: {
     p: SetupPerson; attendance: SetupAttendance | undefined | null; extra: string[];
     onSpec?: (specKey: string) => void; onExtra?: (role: "tank" | "healer", on: boolean) => void;
-    actions?: SlotActions; pinned?: boolean;
+    /** "Charakter wechseln" (#293): play another character they signed up with — groups and bench, not "Angemeldet". */
+    onCharacter?: (c: SetupCharacter) => void;
+    actions?: SlotActions; pinned?: boolean; peek?: boolean;
 }) {
     const t = useT();
+    // the other characters they signed up with, in their order
+    const otherCharacters = (p.characters || []).filter((c) => c.character.toLowerCase() !== p.character.toLowerCase());
     // the roles this raider could take on besides the one in the setup: a tank or a healer spec of the class
     const extraOffers = ((["tank", "healer"] as const).filter((r) => r !== p.role && (p.classSpecs || []).some((sp) => sp.role === r)));
     const color = classColorProps(p.classColor);
     const status = statusLabel(p.status);
     const brings = p.brings || [];
-    const reasons = [...new Set(tipReasons(p.reasons))].filter((r) => r !== status);
+    // the state is the field in the header — a reason that only names it is dropped (tipReasons)
+    const reasons = [...new Set(tipReasons(p.reasons))];
     return (
-        <aside className={`se-tip${pinned ? " se-tip-pinned" : ""}`} aria-label={t("setup.person.tip.aria")} aria-live="polite">
+        <aside
+            className={`se-tip${pinned ? " se-tip-pinned" : ""}${peek ? " se-tip-peek" : ""}`}
+            aria-label={peek ? t("setup.person.tip.peekAria") : t("setup.person.tip.aria")} aria-live={peek ? undefined : "polite"}
+        >
             <header className="se-tip-top">
                 <SpecTile iconUrl={p.specIcon ? wowIconUrl(p.specIcon, 36) : undefined} classColor={p.classColor} />
                 <div className="se-tip-who">
@@ -144,7 +156,8 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, actions = {}, p
                     <span className="se-tip-sub">
                         <span>{[specText(p), p.role ? roleLabel(p.role) : "", p.main === false ? t("setup.person.offSpec") : ""].filter(Boolean).join(" · ")}</span>
                         {p.name && <span>@{p.name}</span>}
-                        {status && <span className={`se-tip-status se-st-${p.status}`}>{status}</span>}
+                        {/* the same field and word as on the line ("Vielleicht", "Spät", "Bank") */}
+                        {status && <SigBadge status={p.status} />}
                     </span>
                     <ActionRow a={actions} />
                 </div>
@@ -181,6 +194,32 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, actions = {}, p
                 )}
             </div>
             <div className="se-tip-col">
+                {onCharacter && otherCharacters.length > 0 && (
+                    <div className="se-tip-body">
+                        <span className="se-tip-k" data-tip={t("setup.chars.switch")} data-tip-sub={t("setup.chars.switchSub")}>{t("setup.chars.switch")}</span>
+                        <div className="se-tip-chars">
+                            {otherCharacters.map((c) => {
+                                const spec = specLabel(c.spec, c.specLabel || c.spec);
+                                const cc = classColorProps(c.classColor);
+                                return (
+                                    <button
+                                        key={c.character} type="button" className="se-tip-char"
+                                        aria-label={t("setup.chars.switchTo", { character: c.character, spec })}
+                                        data-tip={t("setup.chars.switchTo", { character: c.character, spec })}
+                                        data-tip-sub={c.priority > 0 ? t("setup.chars.also", { n: c.priority + 1 }) : t("setup.chars.first")}
+                                        onClick={() => onCharacter(c)}
+                                    >
+                                        <SpecTile iconUrl={c.specIcon ? wowIconUrl(c.specIcon, 36) : undefined} classColor={c.classColor} />
+                                        <span className="se-tip-char-text">
+                                            <span className={cc.className || undefined} style={cc.style}>{c.character}</span>
+                                            <small>{[spec, c.role ? roleLabel(c.role) : "", statusLabel(c.status)].filter(Boolean).join(" · ")}</small>
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
                 {onSpec && (p.classSpecs || []).length > 1 && (
                     <div className="se-tip-body">
                         <span className="se-tip-k" data-tip={t("setup.person.tip.playsAs")} data-tip-sub={t("setup.person.tip.playsAsSub")}>{t("setup.person.tip.playsAs")}</span>
@@ -219,6 +258,7 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, actions = {}, p
                 )}
                 {attendance !== null && <AttendanceDetails a={attendance} />}
             </div>
+            {peek && <p className="se-tip-peekhint">{t("setup.person.tip.peekHint")}</p>}
         </aside>
     );
 }

@@ -4,6 +4,9 @@ import Field, { FieldLabel } from "../../components/ui/Field";
 import Badge from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { useT } from "../../i18n";
+import type { CategoryEra } from "../../api";
+import { formatDayDate } from "../../lib/format";
+import { categoryVersionOf } from "../../lib/settings/categoryVersions";
 import {
     BLIZZARD_REGIONS, SOFTRES_EDITIONS, applyDefaults, blockOf, blockProblems, defaultsDiff, versionLinks,
     type VersionSettingsBlock,
@@ -46,6 +49,8 @@ export function VersionSettingsCard({ versions, mainVersion, value, defaults = {
     const changes = defaultsDiff(block, std);
     const id = (field: string) => `vs-${version.id}-${field}`;
     const error = (field: keyof VersionSettingsBlock) => (problems.has(field) ? t(`settings.versionLinks.invalid.${field}`) : undefined);
+    const defaultColor = version.color || "";
+    const pickedColor = /^#[0-9a-f]{6}$/i.test(block.color.trim()) ? block.color.trim() : defaultColor;
     const input = (field: keyof VersionSettingsBlock, placeholder: string) => (
         <input
             id={id(field)} value={block[field]} placeholder={placeholder} spellCheck={false}
@@ -59,7 +64,7 @@ export function VersionSettingsCard({ versions, mainVersion, value, defaults = {
         { key: "wowhead", url: links.wowheadItem(SAMPLE_ITEM) },
     ];
     return (
-        <div className="set-card set-form gv-links">
+        <div className="set-card set-form gv-links" id="gv-links">
             <div className="gv-links-head">
                 <FieldLabel tip={t("settings.versionLinks.title")} tipSub={t("settings.versionLinks.titleSub")}>{t("settings.versionLinks.title")}</FieldLabel>
                 <Segment
@@ -83,6 +88,29 @@ export function VersionSettingsCard({ versions, mainVersion, value, defaults = {
                 </Button>
             </div>
             <p className="gv-hint">{t("settings.versionLinks.emptyHint", { version: version.label })}</p>
+
+            <div className="gv-group">
+                <div className="gv-group-title">{t("settings.versionLinks.colorTitle")}</div>
+                <Field
+                    className="set-field" label={t("settings.versionLinks.color")} htmlFor={id("color")}
+                    tip={t("settings.versionLinks.color")} tipSub={t("settings.versionLinks.colorSub")} error={error("color")}
+                >
+                    <div className="gv-color">
+                        <input
+                            type="color" className="gv-color-pick" aria-label={t("settings.versionLinks.colorPick")}
+                            value={pickedColor || "#8a7cff"} onChange={(e) => set({ color: e.target.value })}
+                        />
+                        {input("color", defaultColor || "#rrggbb")}
+                        <Button
+                            variant="ghost" size="sm" disabled={!block.color}
+                            data-tip={t("settings.versionLinks.colorReset")} data-tip-sub={t("settings.versionLinks.colorResetSub", { color: defaultColor })}
+                            onClick={() => set({ color: "" })}
+                        >
+                            {t("settings.versionLinks.colorReset")}
+                        </Button>
+                    </div>
+                </Field>
+            </div>
 
             <div className="gv-group">
                 <div className="gv-group-title">{t("settings.versionLinks.armory")}</div>
@@ -157,21 +185,27 @@ export function VersionSettingsCard({ versions, mainVersion, value, defaults = {
     );
 }
 
-export type GameVersionOption = { id: string; label: string; short: string };
+export type GameVersionOption = { id: string; label: string; short: string; /** the rule set's colour (#742) */ color?: string };
 
 /**
- * Einstellungen → Spielversion (#541): the guild's main version and the
- * categories that play another one. Part of the page's draft — the save bar
- * sends `mainVersion` and `categoryVersion` (a category on "Hauptversion" is
- * left out of the map).
+ * Einstellungen → Spielversion (#541, #738): the guild's main version — only
+ * the default for something new — and the fixed version of every active
+ * category. A category switched on just now starts with the main version
+ * (badge "neu"); the save writes it down. Picking another version for a
+ * category that was active already is a switch: the page opens the
+ * confirmation dialog (CategorySwitchDialog) before the draft changes.
  */
-export default function GameVersionSection({ versions, categories, activeIds, mainVersion, categoryVersion, onMainVersion, onCategoryVersion }: {
+export default function GameVersionSection({ versions, categories, activeIds, mainVersion, categoryVersion, savedIds = activeIds, categoryEras = {}, onMainVersion, onCategoryVersion }: {
     versions: GameVersionOption[];
     categories: { id: string; name: string }[];
     /** The raid categories switched on under Kategorien — only they get a row. */
     activeIds: string[];
     mainVersion: string;
     categoryVersion: Record<string, string>;
+    /** The categories active when the page was loaded; another one is new (no section starts). */
+    savedIds?: string[];
+    /** The sections per category (#738): the row says since when the current one runs. */
+    categoryEras?: Record<string, CategoryEra[]>;
     onMainVersion: (versionId: string) => void;
     onCategoryVersion: (categoryId: string, versionId: string) => void;
 }) {
@@ -181,8 +215,13 @@ export default function GameVersionSection({ versions, categories, activeIds, ma
     // knows (or another server's) keeps its row, named by its id.
     const rows = activeIds;
     const mainShort = versions.find((v) => v.id === mainVersion)?.short || mainVersion;
+    const sinceOf = (id: string) => {
+        const eras = categoryEras[id] || [];
+        const last = eras[eras.length - 1];
+        return eras.length > 1 && last && last.from ? formatDayDate(last.from) : "";
+    };
     return (
-        <div className="set-card set-form">
+        <div className="set-card set-form" id="gv-main">
             <div className="set-field">
                 <FieldLabel tip={t("settings.gameVersion.main")} tipSub={t("settings.gameVersion.mainSub")}>{t("settings.gameVersion.main")}</FieldLabel>
                 <Segment
@@ -200,16 +239,21 @@ export default function GameVersionSection({ versions, categories, activeIds, ma
                     <div className="gv-cats">
                         {rows.map((id) => {
                             const name = names.get(id) || id;
+                            const isNew = !savedIds.includes(id);
+                            const since = sinceOf(id);
                             return (
                                 <div className="gv-cat" key={id}>
-                                    <label htmlFor={`catversion-${id}`}>{name}</label>
+                                    <span className="gv-cat-name">
+                                        <label htmlFor={`catversion-${id}`}>{name}</label>
+                                        {isNew && <Badge tone="accent">{t("settings.gameVersion.newCategory", { version: mainShort })}</Badge>}
+                                        {!isNew && since && <span className="gv-cat-since">{t("settings.gameVersion.since", { date: since })}</span>}
+                                    </span>
                                     <select
                                         id={`catversion-${id}`}
                                         aria-label={t("settings.gameVersion.categoryAria", { name })}
-                                        value={categoryVersion[id] || ""}
+                                        value={categoryVersionOf(categoryVersion, id, mainVersion)}
                                         onChange={(e) => onCategoryVersion(id, e.target.value)}
                                     >
-                                        <option value="">{t("settings.gameVersion.followMain", { version: mainShort })}</option>
                                         {versions.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
                                     </select>
                                 </div>

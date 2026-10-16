@@ -14,13 +14,16 @@ const userPrefs = require("./stores/userPrefsStore.js");
 const { langOfInteraction } = require("./services/discord/botLanguage.js");
 const { startWebServer } = require("./web/http/server.js");
 const { handleLogMessage } = require("./services/logcheck/logChannel.js");
+const { autoLinkAllGuilds } = require("./services/logcheck/logAutoLink.js");
 const softresDetect = require("./services/loot/softresDetect.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/roleSync.js");
 const rosterRoleSync = require("./services/roster/rosterRoleSync.js");
 const { guardInteraction } = require("./services/discord/botAccess.js");
+const { trackAck } = require("./services/discord/ackTiming.js");
 const { runMode } = require("./config/runMode.js");
 const { ensureAppEmojis } = require("./services/discord/appEmojiSync.js");
 const { queueItemEmojiSync } = require("./services/guildbank/itemEmojis.js");
+const { redrawPendingCards } = require("./services/signups/guildBank");
 const linkWatch = require("./services/discord/linkWatch.js");
 const discord = require("./services/discord/discord.js");
 const { configuredGuildIds } = require("./services/discord/guildRoles.js");
@@ -65,6 +68,12 @@ client.on(Events.ClientReady, () => {
     ensureAppEmojis(client).catch((error) => logger.warn("ensureAppEmojis failed:", error.message));
     // The guild bank items' icons (#633): whatever changed while the bot was offline.
     queueItemEmojiSync({ delay: 30 * 1000 });
+    // The guild bank's open cards (#809): drawn again with today's buttons, so a card from an older
+    // version never keeps a disabled "Bestätigen" after a deploy.
+    setTimeout(() => { redrawPendingCards().catch(() => {}); }, 20 * 1000).unref();
+    // Logs waiting for their raid: the job's first sweep runs at web start, before the
+    // login, when there are no guilds yet — without this the next try is 10 min away.
+    autoLinkAllGuilds().catch((error) => logger.warn("log auto-link after login failed:", error.message));
     // The member lists of the configured servers, in the background: the first raid detail,
     // roster or dashboard after a restart then finds them cached (services/discord/discord.js).
     try {
@@ -193,9 +202,13 @@ async function handleInteraction(interaction) {
 
     logger.debug(`Command: ${command.name}`);
 
+    // Times the way to the acknowledgement and warns when it was slow (services/discord/ackTiming.js).
+    const ack = trackAck(interaction, { name: command.name });
     try {
         // Who may run it is decided here, once, for every command, button and modal (services/discord/botAccess.js).
-        if (!(await guardInteraction(interaction, command, client.commands))) return;
+        const allowed = await guardInteraction(interaction, command, client.commands);
+        ack.guardDone();
+        if (!allowed) return;
         await command.execute(interaction, client);
     } catch (error) {
         console.error(`Error executing ${command.name}:`, error);
@@ -212,6 +225,8 @@ async function handleInteraction(interaction) {
         } catch (replyError) {
             console.error("Failed to send error response:", replyError.message);
         }
+    } finally {
+        ack.finish();
     }
 }
 
@@ -227,6 +242,8 @@ function start() {
     // upgrade. Keep it first, before anything can fail.
     console.log(`PulseBot starting on Node ${process.version} (${runMode()}, ${process.env.EVENTHELPER_ENV_FILE}, NODE_ENV=${process.env.NODE_ENV || "-"})`);
     require("./stores/settingsMigration").migrateSettings();
+    // a category switched to another game version closes its roster (#739)
+    require("./services/roster/rosterVersionSwitch").registerRosterVersionSwitch();
     loadCommands(path.join(__dirname, "commands"));
     startWebServer(client);
     startJobs(client);

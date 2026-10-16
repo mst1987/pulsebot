@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from "react";
-import { getSettings, updateSettings, getIngestTokens, getAvailabilityPanels, type ApiError, type AvailabilityLink, type AvailabilityPanel } from "../../api";
+import {
+    getSettings, updateSettings, getIngestTokens, getAvailabilityPanels, getOrgaHubs, type ApiError, type AvailabilityLink, type AvailabilityPanel, type OrgaHub, type OrgaLink,
+} from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { usePersistedSearchParam } from "../../lib/ui/persistedState";
 import RolePermissionsEditor from "./RolePermissions";
@@ -9,6 +11,7 @@ import { useToast } from "../../components/shell/Jobs";
 import SectionRail, { RailLayout } from "../../components/ui/SectionRail";
 import CategoryMatrix from "./CategoryMatrix";
 import ConnectionsSection from "./SettingsConnections";
+import AddonsSection from "./AddonsSection";
 import DiscordServersSection from "./SettingsDiscordServers";
 import { ChannelPicker, RolePicker } from "../../components/settings/settingsUi";
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
@@ -27,9 +30,21 @@ import { type Draft, toDraft } from "./settingsDraft";
 import { RaidsheetsSection } from "./RaidsheetsSection";
 import { ChannelListField, TopItemsField } from "./SettingsFields";
 import GameVersionSection, { VersionSettingsCard } from "./SettingsGameVersion";
+import CategorySwitchDialog, { type CategorySwitchChoice } from "./CategorySwitchDialog";
+import CategoryDeactivateDialog from "./CategoryDeactivateDialog";
+import CategoryCloseDialog from "./CategoryCloseDialog";
+import { deactivatedIds } from "../../lib/settings/categoryLifecycle";
+import type { CategoryCloseResult, MissingCategory } from "../../api";
+import { categoryVersionsToSave, isVersionSwitch, savedCategoryVersion, switchFixesToSend } from "../../lib/settings/categoryVersions";
 import HideOtherVersionsCard from "./HideOtherVersionsCard";
 import BotLanguageCard from "./BotLanguageCard";
+import DiscordVisualsCard from "./DiscordVisualsCard";
+import DungeonRecordsCard from "./DungeonRecordsCard";
+import VersionFeaturesCard from "./VersionFeaturesCard";
+import VersionLaunchCard from "./VersionLaunchCard";
+import { withDisabled } from "../../lib/settings/versionFeatures";
 import { useContentVersion } from "../../hooks/useContentVersion";
+import { XIcon, SaveIcon } from "../../components/ui/icons";
 
 /** A module's fields on the panel card, each hint moved into its label's tooltip. */
 function ModuleCard({ children }: { children: ReactNode }) {
@@ -82,6 +97,25 @@ export default function SettingsPage() {
         delete rest[categoryId];
         return { ...cur, links: links.length ? { ...rest, [categoryId]: links } : rest };
     });
+    // The Orga-Zentrale per category: posted and removed at once like the panels.
+    // Its link buttons come with it and are saved the same way.
+    const hubsData = useApi(() => getOrgaHubs().then((r) => ({ hubs: r.hubs || [], links: r.links || {}, maxLinks: r.maxLinks || 5 })), [], { enabled: !!data });
+    const setHub = (categoryId: string, hub: OrgaHub | null) => hubsData.setData((cur) => (cur ? {
+        ...cur,
+        hubs: [...cur.hubs.filter((h) => h.categoryId !== categoryId), ...(hub ? [hub] : [])],
+    } : cur));
+    const setOrgaLinks = (categoryId: string, links: OrgaLink[]) => hubsData.setData((cur) => {
+        if (!cur) return cur;
+        const rest = { ...cur.links };
+        delete rest[categoryId];
+        return { ...cur, links: links.length ? { ...rest, [categoryId]: links } : rest };
+    });
+    // #738: the category whose version switch waits for the confirmation dialog.
+    const [switching, setSwitching] = useState<{ id: string; versionId: string } | null>(null);
+    // #744: a save that deactivates categories first shows what pauses; a category
+    // deleted in Discord is closed through its own dialog.
+    const [deactivating, setDeactivating] = useState(false);
+    const [closing, setClosing] = useState<MissingCategory | null>(null);
 
     if (settingsData.error) return <div className="empty">{tParts("settings.page.loadError", { message: settingsData.error.message })}</div>;
     if (!data || !draft) return <RaidLoader text={t("settings.page.loading")} />;
@@ -99,6 +133,34 @@ export default function SettingsPage() {
     const toggleCategory = (id: string) => {
         const has = draft.categoryIds.includes(id);
         patch({ categoryIds: has ? draft.categoryIds.filter((c) => c !== id) : [...draft.categoryIds, id] });
+    };
+    // #738: another version for a category that was active is a switch (a new
+    // section) and waits for the dialog; a new category, or going back to the
+    // saved version, changes the draft at once and drops the dialog's choices.
+    const setCategoryVersion = (id: string, versionId: string) => {
+        if (isVersionSwitch(data.config, id, versionId)) {
+            setSwitching({ id, versionId });
+            return;
+        }
+        const fixes = { ...draft.categorySwitchFixes };
+        delete fixes[id];
+        const back = savedCategoryVersion(data.config, id) === versionId;
+        patch({
+            categoryVersion: { ...draft.categoryVersion, [id]: versionId },
+            categorySwitchFixes: fixes,
+            ...(back ? { categoryRaidTemplate: { ...draft.categoryRaidTemplate, [id]: (data.config.categoryRaidTemplate || {})[id] || "" } } : {}),
+        });
+    };
+    const confirmSwitch = (choice: CategorySwitchChoice) => {
+        if (!switching) return;
+        const { id, versionId } = switching;
+        patch({
+            categoryVersion: { ...draft.categoryVersion, [id]: versionId },
+            // #739: the roster choice rides along; the save closes the old roster and maybe starts the new one
+            categorySwitchFixes: { ...draft.categorySwitchFixes, [id]: { series: choice.series, ...(choice.roster ? { roster: choice.roster } : {}) } },
+            ...(choice.defaultTemplateId !== undefined ? { categoryRaidTemplate: { ...draft.categoryRaidTemplate, [id]: choice.defaultTemplateId } } : {}),
+        });
+        setSwitching(null);
     };
     const toggleRole = (catId: string, roleId: string) => {
         const current = new Set(draft.categoryRoles[catId] || []);
@@ -119,10 +181,28 @@ export default function SettingsPage() {
         version: (id) => versionNames.get(id) || id,
     });
 
-    const submit = async () => {
+    // #744: switching a category off pauses its series and reminders — the dialog says so before the save.
+    const submit = () => {
+        if (deactivatedIds(data.config.categoryIds, draft.categoryIds).length) {
+            setDeactivating(true);
+            return;
+        }
+        void save();
+    };
+
+    // "Kategorie abschließen" is only offered without unsaved changes, so the draft can follow the server.
+    const afterClose = (result: CategoryCloseResult) => {
+        setData({ ...data, config: result.config, missingCategories: result.missingCategories });
+        setDraft(toDraft(result.config));
+        setClosing(null);
+        toast(t("settings.categoryClose.done", { name: result.name || t("settings.categoryClose.unknownName") }));
+    };
+
+    const save = async () => {
+        setDeactivating(false);
         setSaving(true);
         try {
-            const { config } = await updateSettings({
+            const { config, switchedCategories = [], deactivatedCategories = [] } = await updateSettings({
                 // Access config is full-admin-only; sending it as anyone else
                 // would (rightly) be rejected with a 403.
                 ...(data.canManageAccess ? {
@@ -158,16 +238,26 @@ export default function SettingsPage() {
                 categorySignupNotes: draft.categorySignupNotes,
                 // Merged on the server like the voice channel: "" = back to the default (#335).
                 categorySignupNoteChannel: draft.categorySignupNoteChannel,
+                // Merged on the server: 8 (the default) drops the entry again.
+                categorySignupCharacters: draft.categorySignupCharacters,
                 // Sent whole: a category set back to "keine" is left out.
                 categoryRaidTemplate: Object.fromEntries(Object.entries(draft.categoryRaidTemplate).filter(([, id]) => id)),
-                // #541: sent whole as well — a category back on "Hauptversion" is left out.
+                // #541/#738: sent whole as well; every active category with its version
+                // (one switched on just now with the main version — the server refuses none).
                 mainVersion: draft.mainVersion,
-                categoryVersion: Object.fromEntries(Object.entries(draft.categoryVersion).filter(([, id]) => id)),
+                categoryVersion: categoryVersionsToSave(draft.categoryVersion, draft.categoryIds, draft.mainVersion),
+                // #738: what the switch dialog chose for a switched category's series.
+                categorySwitchFixes: switchFixesToSend(draft.categorySwitchFixes, data.config, draft.categoryVersion),
                 // #563: only the main version everywhere while it is on.
                 hideOtherVersions: draft.hideOtherVersions,
                 botLanguage: draft.botLanguage,
+                // the drawn pictures (a test): every switch, merged on the server
+                discordVisuals: draft.discordVisuals,
+                // the dungeon record post: both fields, merged on the server
+                dungeonRecords: draft.dungeonRecords,
                 // #542: every version's block, merged per field on the server; a wrong value comes back as 400 with its field.
-                versionSettings: draft.versionSettings,
+                // #761: with each version's features switched off, sent whole.
+                versionSettings: withDisabled(draft.versionSettings, draft.versionDisabled),
                 // Sent whole: the store replaces the map, so clearing a url is
                 // what removes that category's sheet.
                 categorySheets: Object.fromEntries(
@@ -180,7 +270,24 @@ export default function SettingsPage() {
             setData({ ...data, config });
             setDraft(toDraft(config));
             toast(t("settings.savedToast"));
-            if ((config.mainVersion || "tbc") !== (saved.mainVersion || "tbc") || !!config.hideOtherVersions !== saved.hideOtherVersions) {
+            // #738: each switched category started a new section.
+            for (const sw of switchedCategories) {
+                const name = categoryNames.get(sw.categoryId) || sw.name || sw.categoryId;
+                const version = versionNames.get(sw.toVersion) || sw.toVersion;
+                toast(t("settings.categorySwitch.switched", { name, version }));
+                // #739: what happened to its roster
+                const roster = sw.roster;
+                if (roster && roster.created) toast(t("settings.categorySwitch.rosterCreated", { name: roster.created.name, version, count: roster.created.members }));
+                else if (roster && roster.reopened) toast(t("settings.categorySwitch.rosterReopened", { name: roster.reopened.name }));
+            }
+            // #744: each deactivated category rests (series, reminders) until it is active again.
+            for (const d of deactivatedCategories) {
+                toast(t("settings.categoryDeactivate.done", { name: categoryNames.get(d.categoryId) || d.categoryId }));
+            }
+            // a changed version colour (#742) is read from the session too
+            const colors = (map?: Record<string, { color?: string }>) => Object.entries(map || {}).map(([id, b]) => `${id}=${b?.color || ""}`).sort().join();
+            if (switchedCategories.length || (config.mainVersion || "tbc") !== (saved.mainVersion || "tbc") || !!config.hideOtherVersions !== saved.hideOtherVersions
+                || colors(config.versionSettings) !== colors(saved.versionSettings)) {
                 void content.refresh();
             }
         } catch (err) {
@@ -259,10 +366,14 @@ export default function SettingsPage() {
             );
 
             case "kategorien": return (
+                <>
                 <CategoryMatrix
                     categories={data.categories}
                     roles={data.roles}
                     categoryIds={draft.categoryIds}
+                    missing={data.missingCategories || []}
+                    onCloseCategory={setClosing}
+                    closeBlocked={changes.length > 0}
                     categoryRoles={draft.categoryRoles}
                     categoryLootTool={draft.categoryLootTool}
                     categoryLootSystem={draft.categoryLootSystem}
@@ -283,6 +394,8 @@ export default function SettingsPage() {
                     categorySignupNoteChannel={draft.categorySignupNoteChannel}
                     noteChannels={data.noteChannels}
                     onSignupNoteChannel={(id, channelId) => patch({ categorySignupNoteChannel: { ...draft.categorySignupNoteChannel, [id]: channelId } })}
+                    categorySignupCharacters={draft.categorySignupCharacters}
+                    onSignupCharacters={(id, count) => patch({ categorySignupCharacters: { ...draft.categorySignupCharacters, [id]: count } })}
                     categorySheets={draft.categorySheets}
                     categoryPlanning={draft.categoryPlanning}
                     onPlanning={(id, mode) => patch({ categoryPlanning: { ...draft.categoryPlanning, [id]: mode } })}
@@ -314,9 +427,19 @@ export default function SettingsPage() {
                         onChange: setPanel,
                         onLinks: setLinks,
                     } : undefined}
+                    orgaHubs={hubsData.data ? {
+                        hubs: hubsData.data.hubs,
+                        links: hubsData.data.links,
+                        maxLinks: hubsData.data.maxLinks,
+                        channels: data.noteChannels ? data.noteChannels.channels : [],
+                        onChange: setHub,
+                        onLinks: setOrgaLinks,
+                    } : undefined}
                     icon={activeSection.icon}
                     crumb={activeCrumb}
                 />
+                {closing && <CategoryCloseDialog category={closing} onCancel={() => setClosing(null)} onClosed={afterClose} />}
+                </>
             );
 
             case "spielversion": return (
@@ -328,9 +451,21 @@ export default function SettingsPage() {
                         activeIds={draft.categoryIds}
                         mainVersion={draft.mainVersion}
                         categoryVersion={draft.categoryVersion}
+                        savedIds={data.config.categoryIds || []}
+                        categoryEras={data.config.categoryEras}
                         onMainVersion={(mainVersion) => patch({ mainVersion })}
-                        onCategoryVersion={(id, versionId) => patch({ categoryVersion: { ...draft.categoryVersion, [id]: versionId } })}
+                        onCategoryVersion={setCategoryVersion}
                     />
+                    {switching && (
+                        <CategorySwitchDialog
+                            categoryId={switching.id}
+                            categoryName={categoryNames.get(switching.id) || ""}
+                            versionId={switching.versionId}
+                            roles={data.roles}
+                            onCancel={() => setSwitching(null)}
+                            onConfirm={confirmSwitch}
+                        />
+                    )}
                     <HideOtherVersionsCard
                         versions={data.gameVersions || []}
                         mainVersion={draft.mainVersion}
@@ -340,6 +475,12 @@ export default function SettingsPage() {
                         canExport={data.canManageAccess}
                         onChange={(hideOtherVersions) => patch({ hideOtherVersions })}
                     />
+                    <VersionFeaturesCard
+                        versions={data.gameVersions || []}
+                        matrix={data.versionCapabilities}
+                        disabled={draft.versionDisabled}
+                        onChange={(id, list) => patch({ versionDisabled: { ...draft.versionDisabled, [id]: list } })}
+                    />
                     <VersionSettingsCard
                         versions={data.gameVersions || []}
                         mainVersion={draft.mainVersion}
@@ -348,6 +489,7 @@ export default function SettingsPage() {
                         raidsheets={data.raidsheets || []}
                         onChange={(id, block) => patch({ versionSettings: { ...draft.versionSettings, [id]: block } })}
                     />
+                    <VersionLaunchCard versions={data.gameVersions || []} canExport={data.canManageAccess} saved={data.config} />
                 </>
             );
 
@@ -355,6 +497,7 @@ export default function SettingsPage() {
                 <>
                     {head(activeSection)}
                     <BotLanguageCard value={draft.botLanguage} onChange={(botLanguage) => patch({ botLanguage })} />
+                    <DiscordVisualsCard value={draft.discordVisuals} onChange={(discordVisuals) => patch({ discordVisuals })} />
                     <ModuleCard>
                         <div className="set-field">
                             <FieldLabel htmlFor="set-raid-channel" tip={t("settings.page.raidChannel")} tipSub={t("settings.page.raidChannelSub")}>{t("settings.page.raidChannel")}</FieldLabel>
@@ -408,6 +551,20 @@ export default function SettingsPage() {
                 </>
             );
 
+            case "addons": return (
+                <>
+                    {head(activeSection, undefined, sectionLabel(activeSection), t("addon.settings.sectionSub"))}
+                    <AddonsSection data={data} onConfig={(config) => setData({ ...data, config })} />
+                </>
+            );
+
+            case "dungeons": return (
+                <>
+                    {head(activeSection)}
+                    <DungeonRecordsCard value={draft.dungeonRecords} channels={channels} onChange={(dungeonRecords) => patch({ dungeonRecords })} />
+                </>
+            );
+
             default: return null;
         }
     };
@@ -448,9 +605,12 @@ export default function SettingsPage() {
                             {changes.slice(0, 2).join(", ")}{changes.length > 2 ? ` +${changes.length - 2}` : ""}
                         </span>
                         <span className="grow" />
-                        <Button variant="ghost" onClick={() => setDraft(toDraft(data.config))} disabled={saving}>{t("common.discard")}</Button>
-                        <Button onClick={submit} disabled={saving}>{saving ? t("settings.saving") : t("common.save")}</Button>
+                        <Button variant="no" icon={<XIcon />} onClick={() => setDraft(toDraft(data.config))} disabled={saving}>{t("common.discard")}</Button>
+                        <Button variant="go" icon={<SaveIcon />} onClick={submit} disabled={saving}>{saving ? t("settings.saving") : t("common.save")}</Button>
                     </div>
+                )}
+                {deactivating && (
+                    <CategoryDeactivateDialog next={draft.categoryIds} names={categoryNames} onCancel={() => setDeactivating(false)} onConfirm={() => void save()} />
                 )}
             </div>
         </RailLayout>

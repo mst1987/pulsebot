@@ -19,6 +19,7 @@
 import { Link } from "react-router-dom";
 import type { LootReason } from "../../api";
 import { itemQualityColor } from "../../lib/wow/itemQuality";
+import { RAID_CONTENTS } from "../../lib/wow/raidIcons";
 import { classColorProps } from "../character/ClassSpec";
 import { useT } from "../../i18n";
 
@@ -37,24 +38,13 @@ function reasonColor(tone?: string): string {
     return tone && TONES.has(tone) && tone !== "other" ? `var(--reason-${tone})` : "var(--muted)";
 }
 
-// The raid an item comes from, as the achievement icon of its final boss — the
-// icon every TBC player knows the raid by. Content ids from config/tbcContent.js.
-// Names checked against the zamimg CDN (Archimonde only exists with the "-").
-export const CONTENT_ICONS: Record<string, string> = {
-    kara: "achievement_boss_prince_malchezaar",
-    gruul: "achievement_boss_gruulthedragonkiller",
-    mag: "achievement_boss_magtheridon",
-    ssc: "achievement_boss_ladyvashj",
-    tk: "achievement_boss_kael'thassunstrider_01",
-    za: "achievement_boss_zuljin",
-    hyjal: "achievement_boss_archimonde-",
-    bt: "achievement_boss_illidan",
-    swp: "achievement_boss_kiljaedan",
-};
-
-/** The raid icon for a content id; the question mark for an unknown one. */
+/**
+ * The raid an item comes from, as the achievement icon of its final boss. The
+ * icon is the instance's own (lib/wow/raidIcons, every version); the question
+ * mark stands for an unknown one.
+ */
 export function contentIcon(contentId?: string): string {
-    return (contentId && CONTENT_ICONS[contentId]) || "inv_misc_questionmark";
+    return (contentId && RAID_CONTENTS[contentId]?.icon) || "inv_misc_questionmark";
 }
 
 /** A plain reason chip — the label, and the count when there is one. */
@@ -206,11 +196,11 @@ export function StackBar({ parts, size, tip, tipSub }: {
     );
 }
 
-/** An item icon framed in its quality colour. */
+/** An item icon framed in its quality colour (.item-ico in the shared loot.css: history, guild bank, profile). */
 export function ItemIcon({ url, quality, size }: { url?: string; quality?: number | null; size?: "md" | "lg" }) {
     const color = itemQualityColor(quality);
     const style = color ? ({ "--iqb": color } as React.CSSProperties) : undefined;
-    const cls = ["hl-ico", size || ""].filter(Boolean).join(" ");
+    const cls = ["item-ico", size || ""].filter(Boolean).join(" ");
     return url
         ? <img className={cls} src={url} alt="" loading="lazy" style={style} />
         : <span className={cls} style={style} />;

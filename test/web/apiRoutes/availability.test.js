@@ -195,6 +195,16 @@ describe("Links des Organizers", () => {
         expect(panel.refreshPanels).toHaveBeenCalledWith({ categoryId: "cat1" });
     });
 
+    it("PUT links speichert das Emoji eines Links und lehnt ein ungültiges mit 400 ab", async () => {
+        const ok = await call("PUT", "/api/availability/links", ORGA, { json: { categoryId: "cat1", links: [{ label: "WCL", url: wcl.url, emoji: " 📊 " }] } });
+        expect(status(ok)).toBe(200);
+        expect(json(ok).data.links).toEqual([{ ...wcl, emoji: "📊" }]);
+        const bad = await call("PUT", "/api/availability/links", ORGA, { json: { categoryId: "cat1", links: [{ label: "WCL", url: wcl.url, emoji: "wcl" }] } });
+        expect(status(bad)).toBe(400);
+        expect(json(bad).error.message).toContain("kein einzelnes Emoji");
+        expect(store.getLinks("cat1")).toEqual([{ ...wcl, emoji: "📊" }]);
+    });
+
     it("PUT links mit leerer Liste entfernt die Links", async () => {
         store.setLinks("cat1", [wcl]);
         const res = await call("PUT", "/api/availability/links", ORGA, { json: { categoryId: "cat1", links: [] } });
@@ -278,5 +288,21 @@ describe("Meine Anwesenheit", () => {
     it("lets the orga look at any raider", async () => {
         const res = await call("GET", "/api/availability/attendance", ORGA, { query: "userId=u1" });
         expect(json(res).data).toMatchObject({ userId: "u1", name: "Bananajoe#discord", own: false, orga: true });
+    });
+});
+
+describe("one game version per view (#740)", () => {
+    it("hands every attendance view the asked version, the main version for none or \"all\"", async () => {
+        await call("GET", "/api/availability/attendance", ANNA, { query: "version=forever" });
+        expect(raiderAttendance).toHaveBeenLastCalledWith(ANNA.id, expect.objectContaining({ versionId: "forever" }));
+        await call("GET", "/api/availability/attendance", ANNA);
+        expect(raiderAttendance).toHaveBeenLastCalledWith(ANNA.id, expect.objectContaining({ versionId: "tbc" }));
+        await call("GET", "/api/availability/attendance", ANNA, { query: "version=all" });
+        expect(raiderAttendance).toHaveBeenLastCalledWith(ANNA.id, expect.objectContaining({ versionId: "tbc" }));
+
+        await call("GET", "/api/availability/overview", ORGA, { query: "weeks=4&version=forever" });
+        expect(absenceOverview.buildOverview).toHaveBeenLastCalledWith(expect.objectContaining({ versionId: "forever" }));
+        await call("GET", "/api/availability/overview/raider", ORGA, { query: "userId=u1&version=forever" });
+        expect(absenceOverview.raiderDetail).toHaveBeenLastCalledWith("u1", expect.objectContaining({ versionId: "forever" }));
     });
 });

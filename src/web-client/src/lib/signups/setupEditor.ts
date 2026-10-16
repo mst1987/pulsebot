@@ -7,7 +7,7 @@
 // Written to be strippable like raidTemplates.ts (test/web-client/conventions/setupEditor.test.js
 // runs it for real, with `t` injected): imports, `export type` and one-line
 // signatures only.
-import type { SetupEditorGroup, SetupPerson, SetupPlacementInput, SetupPublish, SetupSearch, StoredSetup } from "../../api";
+import type { SetupCharacter, SetupEditorGroup, SetupPerson, SetupPlacementInput, SetupPublish, SetupSearch, StoredSetup } from "../../api";
 import { t } from "../../i18n";
 
 export const GROUP_SIZE = 5;
@@ -85,8 +85,81 @@ export function toInput(setup: StoredSetup): SetupPlacementInput {
             index: g.index,
             slots: withPlaces(g.slots.map((s) => ({ userId: s.userId, character: s.character, spec: s.spec, role: s.role, locked: !!s.locked, pos: s.pos }))),
         })),
-        bench: setup.bench.map((b) => ({ userId: b.userId, locked: !!b.locked })),
+        bench: setup.bench.map((b) => ({ userId: b.userId, ...(b.character ? { character: b.character } : {}), locked: !!b.locked })),
     };
+}
+
+// ---- several characters per raider (#293) -------------------------------------
+
+/**
+ * Which character a move takes, by user id — the one the orga dragged or picked
+ * in "Angemeldet" (a "kann auch mit" line). Who is not in it plays as they stand.
+ */
+export type CharacterChoice = Record<string, string>;
+
+const sameName = (a: string | undefined, b: string | undefined) => String(a || "").toLowerCase() === String(b || "").toLowerCase();
+
+/** The raider's signed character of that name, or undefined (one character only, or a name they did not sign up with). */
+export function characterNamed(p: SetupPerson | undefined, name: string | undefined): SetupCharacter | undefined {
+    return (p?.characters || []).find((c) => sameName(c.character, name));
+}
+
+/** The raider drawn as one of their characters: its name, spec, role, class colour and own status. */
+export function asCharacter(p: SetupPerson, c: SetupCharacter): SetupPerson {
+    return { ...p, character: c.character, spec: c.spec, role: c.role, classId: c.classId, classColor: c.classColor, classLabel: c.classLabel, specLabel: c.specLabel, specIcon: c.specIcon, status: c.status, main: true };
+}
+
+/** "Angemeldet"'s role blocks: tank, healer, melee — anything else goes with the ranged. */
+export const poolRole = (role: string | undefined) => (role === "tank" || role === "healer" || role === "melee" ? role : "ranged");
+
+/**
+ * The character that leads a raider's card in one role block: the one they stand as now when it fits
+ * the block, else their first signed character that does; null when none fits (they are not listed there).
+ */
+export function leadIn(p: SetupPerson, role: string): SetupCharacter | null | undefined {
+    if (poolRole(p.role) === role) return characterNamed(p, p.character);
+    const hit = (p.characters || []).find((c) => poolRole(c.role) === role);
+    return hit || null;
+}
+
+/** Whether a raider has a character for a role block — the one they stand as, or any signed one. */
+export function fitsRole(p: SetupPerson, role: string): boolean {
+    return leadIn(p, role) !== null;
+}
+
+/** A slot for the raider as one of their characters — what they stand as now when no other is chosen. */
+function asSlot(person: SetupPerson | undefined, userId: string, locked: boolean, choice?: CharacterChoice) {
+    const chosen = choice && choice[userId] ? characterNamed(person, choice[userId]) : undefined;
+    if (chosen && !sameName(chosen.character, person?.character)) {
+        // a "kann auch mit" character the orga picked: locked, so the next proposal keeps it (like "Im Setup als")
+        return { userId, character: chosen.character, spec: chosen.spec, role: chosen.role, locked: locked || chosen.priority > 0, pos: 0 };
+    }
+    return { userId, character: person ? person.character : "", spec: person ? person.spec : "", role: person ? person.role : "", locked, pos: 0 };
+}
+
+/**
+ * "Charakter wechseln": a placed raider plays another of the characters they signed up with — the place
+ * stays, the slot takes that character's name, spec and role and is locked (like respecRaider); on the
+ * bench the entry just names the other character. `{ input: null }` when nothing changes, `{ error }`
+ * for a character they did not sign up with or somebody not in a group or on the bench.
+ */
+export function switchCharacter(current: SetupPlacementInput, userId: string, c: SetupCharacter) {
+    const input = cloneInput(current);
+    for (const g of input.groups) {
+        const s = g.slots.find((x) => x.userId === userId);
+        if (!s) continue;
+        if (sameName(s.character, c.character) && s.spec === c.spec && s.locked) return { input: null };
+        s.character = c.character;
+        s.spec = c.spec;
+        s.role = c.role;
+        s.locked = true;
+        return { input };
+    }
+    const b = input.bench.find((x) => x.userId === userId);
+    if (!b) return { error: t("setup.moves.switchPool") };
+    if (sameName(b.character, c.character)) return { input: null };
+    b.character = c.character;
+    return { input };
 }
 
 /** All groups 1…count, the empty ones included, so a drop target exists for each. */
@@ -116,18 +189,18 @@ function cloneInput(input: SetupPlacementInput): SetupPlacementInput {
     };
 }
 
-/** Take a raider out of wherever they are; returns the removed slot (bench and pool entries get their person's spec). */
-function takeOut(input: SetupPlacementInput, userId: string, people: Map<string, SetupPerson>) {
+/** Take a raider out of wherever they are; returns the removed slot (bench and pool entries get their person's spec, or the chosen character's). */
+function takeOut(input: SetupPlacementInput, userId: string, people: Map<string, SetupPerson>, choice?: CharacterChoice) {
     for (const g of input.groups) {
         const i = g.slots.findIndex((s) => s.userId === userId);
         if (i >= 0) return g.slots.splice(i, 1)[0];
     }
     const b = input.bench.findIndex((x) => x.userId === userId);
     if (b >= 0) {
-        return slotFromBench(input.bench.splice(b, 1)[0], people);
+        return slotFromBench(input.bench.splice(b, 1)[0], people, choice);
     }
     // somebody from the pool is in neither list — nothing to take out, just their slot
-    return people.has(userId) ? slotFromBench({ userId, locked: false }, people) : null;
+    return people.has(userId) ? slotFromBench({ userId, locked: false }, people, choice) : null;
 }
 
 /** Where a raider stands, the pool included: `{ group }`, `{ bench: true }`, `{ pool: true }` or null. */
@@ -139,20 +212,25 @@ function whereIs(input: SetupPlacementInput, userId: string, people: Map<string,
  * A swap with the pool (#517): the raider from the pool takes the other's exact
  * place (group and number, or the bench), the other goes back into the pool.
  */
-function swapWithPool(input: SetupPlacementInput, fromPool: string, placed: string, people: Map<string, SetupPerson>) {
+function swapWithPool(input: SetupPlacementInput, fromPool: string, placed: string, people: Map<string, SetupPerson>, choice?: CharacterChoice) {
     const at = placeOf(input, placed);
     if (!at) return false;
-    const incoming = slotFromBench({ userId: fromPool, locked: false }, people);
+    const incoming = slotFromBench({ userId: fromPool, locked: false }, people, choice);
     if (at.slots) at.slots[at.i] = { ...incoming, pos: at.slots[at.i].pos };
-    else input.bench[at.i] = { userId: fromPool, locked: false };
+    else input.bench[at.i] = { ...benchEntry(incoming), locked: false };
     return true;
 }
 
-/** A bench entry as a group slot: the person's own spec and role. */
-function slotFromBench(entry: { userId: string; locked: boolean }, people: Map<string, SetupPerson>) {
+/** A bench entry as a group slot: the person's own spec and role — or the character chosen for the move. */
+function slotFromBench(entry: { userId: string; character?: string; locked: boolean }, people: Map<string, SetupPerson>, choice?: CharacterChoice) {
     const person = people.get(entry.userId);
     // pos 0 = no place yet: withPlaces gives it the lowest free one (or the swapped raider's)
-    return { userId: entry.userId, character: person ? person.character : "", spec: person ? person.spec : "", role: person ? person.role : "", locked: entry.locked, pos: 0 };
+    return asSlot(person, entry.userId, entry.locked, choice);
+}
+
+/** A slot as a bench entry: who, which character, the lock. */
+function benchEntry(slot: { userId: string; character?: string; locked: boolean }) {
+    return { userId: slot.userId, ...(slot.character ? { character: slot.character } : {}), locked: slot.locked };
 }
 
 /** Where a raider stands: their group's slots (null on the bench) and the position there. */
@@ -177,9 +255,9 @@ function swapInPlace(input: SetupPlacementInput, a: string, b: string, people: M
     const eb = pb.slots ? pb.slots[pb.i] : slotFromBench(input.bench[pb.i], people);
     // each takes the other's exact place (number) too
     if (pa.slots) pa.slots[pa.i] = { ...eb, pos: ea.pos };
-    else input.bench[pa.i] = { userId: eb.userId, locked: eb.locked };
+    else input.bench[pa.i] = benchEntry(eb);
     if (pb.slots) pb.slots[pb.i] = { ...ea, pos: eb.pos };
-    else input.bench[pb.i] = { userId: ea.userId, locked: ea.locked };
+    else input.bench[pb.i] = benchEntry(ea);
     return true;
 }
 
@@ -198,9 +276,11 @@ function groupFor(input: SetupPlacementInput, index: number) {
  * that reorders it); a drop onto a group takes its first free place — in the
  * raider's own group that is the last one. A full group refuses a plain drop
  * (swap onto a raider instead). Returns `{ input }` or `{ error }`, and
- * `{ input: null }` when nothing would change.
+ * `{ input: null }` when nothing would change. `choice` (#293): the character
+ * somebody coming out of "Angemeldet" or off the bench plays — a "kann auch
+ * mit" one is locked, so the next proposal keeps it.
  */
-export function moveRaider(current: SetupPlacementInput, userId: string, target: SetupTarget, people: Map<string, SetupPerson>, size: number) {
+export function moveRaider(current: SetupPlacementInput, userId: string, target: SetupTarget, people: Map<string, SetupPerson>, size: number, choice?: CharacterChoice) {
     const from = whereIs(current, userId, people);
     if (!from) return { error: t("setup.moves.notInSetup") };
     const input = cloneInput(current);
@@ -210,8 +290,8 @@ export function moveRaider(current: SetupPlacementInput, userId: string, target:
         const to = whereIs(input, target.userId, people);
         if (!to) return { error: t("setup.moves.targetNotInSetup") };
         if (("bench" in from && "bench" in to) || ("pool" in from && "pool" in to)) return { input: null };
-        if ("pool" in from) return swapWithPool(input, userId, target.userId, people) ? { input } : { error: t("setup.moves.notInSetup") };
-        if ("pool" in to) return swapWithPool(input, target.userId, userId, people) ? { input } : { error: t("setup.moves.notInSetup") };
+        if ("pool" in from) return swapWithPool(input, userId, target.userId, people, choice) ? { input } : { error: t("setup.moves.notInSetup") };
+        if ("pool" in to) return swapWithPool(input, target.userId, userId, people, choice) ? { input } : { error: t("setup.moves.notInSetup") };
         if (!swapInPlace(input, userId, target.userId, people)) return { error: t("setup.moves.notInSetup") };
         return { input };
     }
@@ -225,9 +305,10 @@ export function moveRaider(current: SetupPlacementInput, userId: string, target:
 
     if ("bench" in target) {
         if ("bench" in from) return { input: null };
-        const slot = takeOut(input, userId, people);
+        const slot = takeOut(input, userId, people, choice);
         if (!slot) return { error: t("setup.moves.notInSetup") };
-        input.bench.push({ userId: slot.userId, locked: slot.locked });
+        // out of the pool onto the bench: no lock, whichever character waits there
+        input.bench.push({ ...benchEntry(slot), locked: "pool" in from ? false : slot.locked });
         return { input };
     }
 
@@ -253,7 +334,7 @@ export function moveRaider(current: SetupPlacementInput, userId: string, target:
     if (dest.slots.length >= GROUP_SIZE) return { error: t("setup.moves.groupFull", { group: target.group }) };
     const placed = input.groups.reduce((n, g) => n + g.slots.length, 0);
     if (!("group" in from) && size > 0 && placed >= size) return { error: t("setup.moves.raidFull", { size }) };
-    const slot = takeOut(input, userId, people);
+    const slot = takeOut(input, userId, people, choice);
     if (!slot) return { error: t("setup.moves.notInSetup") };
     // the wanted place if it is free, else the lowest free one (withPlaces)
     slot.pos = target.pos && !dest.slots.some((s) => s.pos === target.pos) ? target.pos : 0;
@@ -345,15 +426,36 @@ export function suggestGroup(person: SetupPerson, groups: SetupEditorGroup[]): n
     return best;
 }
 
-/** The reasons the tooltip lists: the attendance line is drawn on its own row for everyone, so the reason of the same name is dropped. */
+/**
+ * The proposal's reasons that only name the signup state (src/utils/setup/reasons.js' STATUS_REASON, German
+ * whatever the page language): the panel shows the state as its field in the app's one word ("Vielleicht",
+ * "Spät", "Bank"), so these would only repeat it in other words. Matched, never shown — a pattern, not a
+ * string, since this is the server's data and not a text of the page (test/web-client/conventions/i18n.test.js).
+ */
+const STATUS_REASON = /^(Kommt sp.ter|Nur „Vielleicht“ angemeldet|Als Ersatz angemeldet)$/;
+
+/**
+ * The reasons the tooltip lists: the attendance line is drawn on its own row for everyone, so the reason of
+ * the same name is dropped — and so is a reason that only names the signup state (its field says it).
+ */
 export function tipReasons(reasons: string[] | undefined): string[] {
-    return (reasons || []).filter((r) => !r.startsWith("Anwesenheit "));
+    return (reasons || []).filter((r) => !r.startsWith("Anwesenheit ") && !STATUS_REASON.test(r));
 }
 
 function personFrom(people: Map<string, SetupPerson>, userId: string, locked: boolean): SetupPerson {
     const known = people.get(userId);
     const base = known || { userId, character: userId, classId: "", spec: "", role: "", name: "", classColor: "", classLabel: "", specLabel: "", specIcon: "" };
     return { ...base, userId, locked };
+}
+
+/** The raider as the save request puts them: another of their characters (#293), or another spec of the class ("Im Setup als"). */
+function drawnAs(people: Map<string, SetupPerson>, entry: { userId: string; character?: string; spec?: string; role?: string; locked: boolean }): SetupPerson {
+    const base = personFrom(people, entry.userId, entry.locked);
+    const other = entry.character && !sameName(entry.character, base.character) ? characterNamed(base, entry.character) : undefined;
+    const p = other ? { ...asCharacter(base, other), locked: entry.locked } : base;
+    if (!entry.spec || entry.spec === p.spec) return p;
+    const spec = (p.classSpecs || []).find((x) => x.key === entry.spec);
+    return spec ? { ...p, spec: spec.key, specLabel: spec.label, specIcon: spec.icon || p.specIcon, role: (entry.role || spec.role) as SetupPerson["role"] } : p;
 }
 
 /**
@@ -371,8 +473,8 @@ export function applyLocal(setup: StoredSetup, input: SetupPlacementInput): Stor
     }
     return {
         ...setup,
-        groups: input.groups.map((g) => ({ index: g.index, slots: g.slots.map((s) => ({ ...personFrom(people, s.userId, s.locked), pos: s.pos })) })),
-        bench: input.bench.map((b) => personFrom(people, b.userId, b.locked)),
+        groups: input.groups.map((g) => ({ index: g.index, slots: g.slots.map((s) => ({ ...drawnAs(people, s), pos: s.pos })) })),
+        bench: input.bench.map((b) => drawnAs(people, b)),
         pool,
     };
 }

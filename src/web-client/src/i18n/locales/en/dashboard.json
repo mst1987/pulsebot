@@ -25,6 +25,8 @@
     },
     "next": {
         "title": "Next raid",
+        "cancelled": "Cancelled",
+        "cancelledSub": "The organisers cancelled this raid.",
         "crumb": "Raid events",
         "details": "Details",
         "openTip": "Open raid",
@@ -167,6 +169,8 @@
         "rosterOnlyTip": "Only members of the roster sign up for this raid.",
         "status": {
             "signed": "Signed up",
+            "placed": "In the setup",
+            "notPlaced": "Not placed",
             "late": "Late",
             "tentative": "Tentative",
             "bench": "Bench",
@@ -187,6 +191,8 @@
         "setup": {
             "none": "No setup yet",
             "noneSub": "The raid lead is still building it.",
+            "notPlaced": "Not placed",
+            "notPlacedSub": "The setup is set; you are not in it this time.",
             "bench": "Bench",
             "group": "Group {group}"
         },
@@ -253,13 +259,13 @@
             },
             "tipSub": "No sheet was filled for the raid, and its category has no fixed sheet. Opens the raid event."
         },
-        "recommendations": {
-            "title": "Review recommendations",
+        "gear": {
+            "title": "Gear problems",
             "tip": {
-                "one": "{count} recommendation not reviewed",
-                "other": "{count} recommendations not reviewed"
+                "one": "{count} raider with gear problems",
+                "other": "{count} raiders with gear problems"
             },
-            "tipSub": "Nobody approved or discarded them yet – only approved points go to the raiders. Opens the report in the raid view."
+            "tipSub": "Missing enchants, empty sockets, weak gems – from the last log. Opens the report in the raider view."
         },
         "logs": {
             "title": "Assign logs",

@@ -7,40 +7,20 @@
 // rules (which task is shown when, how full a role is) testable without mocking
 // Raid-Helper, Discord and five stores.
 const { DateTime } = require("luxon");
-const { contentsForText } = require("../../config/tbcContent");
+const { contentsForText, iconOf } = require("../../config/raidContent");
+const { instanceById, compositionFor, VERSIONS } = require("../../config/gameVersions");
+const { versionOfEvent } = require("../../services/events/mainVersion");
 const { enrichSlot, CLASS_COLORS } = require("../../utils/setup/setupView");
 const { signupStatus } = require("../../utils/attendance");
 const { plural } = require("../../utils/text");
 const { TIMEZONE } = require("../../config/timezone");
 
-// The boss icon a raid is recognised by — its final boss, the one the raid is
-// named after in everyone's head. Names verified against the zamimg CDN; the
-// Archimonde icon only exists with its trailing "-", Kael'thas needs the
-// apostrophe (WowIcon encodes it).
-const ZONE_ICONS = {
-    kara: "achievement_boss_princemalchezaar_02",
-    gruul: "achievement_boss_gruul",
-    mag: "achievement_boss_magtheridon",
-    ssc: "achievement_boss_ladyvashj",
-    tk: "achievement_boss_kael'thassunstrider_01",
-    za: "achievement_boss_zuljin",
-    hyjal: "achievement_boss_archimonde-",
-    bt: "achievement_boss_illidan",
-    swp: "achievement_boss_kiljaedan",
-};
+// The boss icon a raid is recognised by is its instance's `icon` in the rule set
+// (config/gameVersions, every version), read through iconOf(). Release order of
+// every known instance, version after version:
+const ZONE_ORDER = VERSIONS.flatMap((v) => v.instances.map((i) => i.id));
 /** A raid whose title names no known content: a generic raid head, never a wrong boss. */
 const FALLBACK_ZONE_ICON = "inv_misc_head_dragon_01";
-
-// Raids that are ten-man; every other TBC raid is 25.
-const TEN_MAN = new Set(["kara", "za"]);
-
-// The usual composition per raid size. The Raid-Helper setup has no "target"
-// per role, and a setting per category would be one more list to maintain for a
-// number that is the same for every 25-man raid — so the size decides.
-const ROLE_TARGETS = {
-    10: { tank: 2, healer: 3, dps: 5 },
-    25: { tank: 3, healer: 6, dps: 16 },
-};
 
 const ROLES = [
     { key: "tank", label: "Tank", icon: "ability_warrior_defensivestance" },
@@ -62,10 +42,10 @@ const NOT_SIGNED = { tentative: "Tentative", bench: "Ersatzbank", absence: "Abwe
  * order, so the last hit is the raid the night is built around.
  * @returns {{ contentId: string, icon: string }}
  */
-function zoneFor(text) {
-    const hits = contentsForText(text);
+function zoneFor(text, versionId) {
+    const hits = contentsForText(text, { versionId });
     const contentId = hits.length ? hits[hits.length - 1] : "";
-    return { contentId, icon: ZONE_ICONS[contentId] || FALLBACK_ZONE_ICON };
+    return { contentId, icon: iconOf(contentId) || FALLBACK_ZONE_ICON };
 }
 
 /**
@@ -77,19 +57,37 @@ function zoneFor(text) {
  */
 function zoneForEvent(ev) {
     const ids = (ev && ev.source === "eventhelper" && Array.isArray(ev.instanceIds)) ? ev.instanceIds : [];
-    const order = Object.keys(ZONE_ICONS); // release order, like CONTENTS
-    const known = ids.filter((id) => ZONE_ICONS[id]).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    const known = ids.filter((id) => iconOf(id)).sort((a, b) => ZONE_ORDER.indexOf(a) - ZONE_ORDER.indexOf(b));
     if (known.length) {
         const contentId = known[known.length - 1];
-        return { contentId, icon: ZONE_ICONS[contentId] };
+        return { contentId, icon: iconOf(contentId) };
     }
-    return zoneFor(ev && ev.title);
+    // The title is read only within the event's own game version.
+    return zoneFor(ev && ev.title, ev ? versionOfEvent(ev) : undefined);
 }
 
-/** The raid size a night is planned for: the softres list's size wins, else the content, else 25. */
+const RAID_SIZES = [10, 20, 25, 40];
+
+/**
+ * The raid size a night is planned for: the softres list's size wins (a size the
+ * rule sets know is kept, any other is a ten- or a 25-man), else the content's
+ * size from the rule set, else 25.
+ */
 function raidSize(contentId, softresSize = 0) {
-    if (softresSize > 0) return softresSize <= 10 ? 10 : 25;
-    return TEN_MAN.has(contentId) ? 10 : 25;
+    if (softresSize > 0) return RAID_SIZES.includes(softresSize) ? softresSize : (softresSize <= 10 ? 10 : 25);
+    const inst = instanceById(contentId);
+    return (inst && inst.defaultSize) || 25;
+}
+
+/**
+ * The usual composition for a raid size, from the rule set (compositionFor):
+ * 10 → 2/3, 20 → 2/5, 25 → 3/6, 40 → 4/10, the damage dealers taking the rest.
+ * The Raid-Helper setup has no "target" per role, so the size decides.
+ */
+function roleTargets(size) {
+    const n = Number(size) || 25;
+    const { tanks, healers } = compositionFor(null, n);
+    return { tank: tanks, healer: healers, dps: Math.max(0, n - tanks - healers) };
 }
 
 /** tank / healer / dps for one Raid-Helper spec (or a raidplan slot's spec). */
@@ -127,7 +125,7 @@ function roleFill({ setupSlots = [], signUps = [], size = 25, composition = null
         : countRoles((signUps || []).filter(isAttending));
     const targets = composition
         ? { tank: composition.tank || 0, healer: composition.healer || 0, dps: Math.max(0, size - (composition.tank || 0) - (composition.healer || 0)) }
-        : (ROLE_TARGETS[size] || ROLE_TARGETS[25]);
+        : roleTargets(size);
     return ROLES.map((r) => ({ ...r, filled: counts[r.key], target: targets[r.key] }));
 }
 
@@ -172,15 +170,6 @@ function notSignedUp({ missing = [], responded = [], specHistory = {} }) {
     ].sort((a, b) => order[a.status] - order[b.status] || a.name.localeCompare(b.name));
 }
 
-/** How many recommendations of a report nobody has approved or rejected yet. */
-function openRecommendations(reviewed) {
-    if (!reviewed) return 0;
-    const raid = (reviewed.raid || []).filter((i) => i.approved === null).length;
-    const players = (reviewed.players || [])
-        .reduce((n, p) => n + (p.items || []).filter((i) => i.approved === null).length, 0);
-    return raid + players;
-}
-
 /**
  * The "Letzte Auswertung" tile: the one number (problems) plus what the tooltip
  * breaks it into. `report` is the full stored report, `summary` its listReports() row.
@@ -196,6 +185,7 @@ function lastReportArea(summary, report) {
         : rows.length;
     const deaths = r.mechanics && r.mechanics.deaths;
     const gear = (r.players || []).reduce((n, p) => n + (p.issues || []).length, 0);
+    const gearRaiders = (r.players || []).filter((p) => (p.issues || []).length > 0).length;
     const consumables = ((r.consumables && r.consumables.players) || []).filter((p) => (p.buffed || 0) < 50).length;
     const buffs = ((r.raidBuffs && r.raidBuffs.players) || []).filter((p) => (p.missing || 0) > 0).length;
     return {
@@ -209,6 +199,7 @@ function lastReportArea(summary, report) {
         deaths: deaths ? deaths.total || 0 : null,
         avoidableDeaths: deaths ? deaths.avoidable || 0 : null,
         gear,
+        gearRaiders,
         consumables,
         buffs,
         problems: gear + consumables + buffs,
@@ -287,15 +278,17 @@ function buildTasks({
         });
     }
 
-    if (report && report.open > 0) {
+    // Reviewing and sending the recommendations is optional, so they are no
+    // task; what the last log says about the raiders' gear is.
+    if (report && report.gearRaiders > 0) {
         tasks.push({
-            id: "recommendations", tone: "mid", icon: "inv_scroll_03", title: "Empfehlungen prüfen",
+            id: "gear", tone: "mid", icon: "trade_engraving", title: "Gear-Probleme",
             ref: { title: report.zone || report.title, at: report.generatedAt || 0 },
-            count: report.open,
-            href: `/r/${encodeURIComponent(report.id)}#raid`,
-            tip: `${plural(report.open, "Empfehlung", "Empfehlungen")} ungeprüft`,
-            tipSub: "Niemand hat sie freigegeben oder verworfen – erst freigegebene Punkte gehen an die Raider. Öffnet den Report in der Sicht Raid.",
-            texts: { title: txt("recommendations.title"), tip: txt("recommendations.tip", { count: report.open }), tipSub: txt("recommendations.tipSub") },
+            count: report.gearRaiders,
+            href: `/r/${encodeURIComponent(report.id)}#raider`,
+            tip: `${plural(report.gearRaiders, "Raider", "Raider")} mit Gear-Problemen`,
+            tipSub: "Fehlende Verzauberungen, leere Sockel, schwache Edelsteine – aus dem letzten Log. Öffnet den Report in der Sicht Raider.",
+            texts: { title: txt("gear.title"), tip: txt("gear.tip", { count: report.gearRaiders }), tipSub: txt("gear.tipSub") },
         });
     }
 
@@ -557,7 +550,7 @@ function trialTasks(list) {
 }
 
 module.exports = {
-    zoneFor, zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, openRecommendations, lastReportArea, newLootSince, buildTasks,
+    zoneFor, zoneForEvent, raidSize, roleTargets, roleFill, classCounts, notSignedUp, lastReportArea, newLootSince, buildTasks,
     isAttending, trialTasks,
     // only for the tests (#424): not part of the module's API
     _internal: {

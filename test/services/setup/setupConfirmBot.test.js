@@ -123,7 +123,10 @@ describe("setupConfirmBot", () => {
         const ok = reply.mock.calls[0][0];
         expect(ok.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(ok.content).toBe("");
-        expect(cardText(ok)).toContain("Bestätigt");
+        expect(cardText(ok)).toContain("Bestätigt — wir sehen uns beim Raid!");
+        // the raid can be days away: its start, never "bis gleich"
+        expect(cardText(ok)).toContain("Start: <t:2000000000:d> <t:2000000000:t> · <t:2000000000:R>");
+        expect(cardText(ok)).not.toMatch(/bis gleich/i);
 
         const cancel = jest.fn();
         await confirmBot.handleConfirmComponent({ customId: "setup-confirm:n:eh-1", user: { id: "2" }, reply: cancel });

@@ -52,7 +52,9 @@
             "name_too_long": "Der Name ist zu lang (höchstens 40 Zeichen).",
             "admin_only": "Roster anlegen dürfen nur Admins.",
             "kader_taken": "Dieses Roster ist schon mit einem anderen Kader verknüpft.",
-            "not_found": "Dieses Roster gibt es nicht mehr."
+            "not_found": "Dieses Roster gibt es nicht mehr.",
+            "version_mismatch": "Dieses Roster oder diese Kategorie spielt eine andere Spielversion als der Kader.",
+            "version_hidden": "Die Spielversion dieses Kaders ist ausgeblendet."
         },
         "linkButton": "Mit bestehendem Roster verknüpfen",
         "linkTip": "Diesen Kader mit einem Roster verknüpfen, das es schon gibt",
@@ -121,6 +123,31 @@
             }
         }
     },
+    "kaders": {
+        "kicker": {
+            "one": "{count} Kader",
+            "other": "{count} Kader"
+        },
+        "title": "Kader",
+        "cardsAria": "Alle Kader",
+        "last": "Zuletzt geöffnet",
+        "open": "Öffnen",
+        "questions": {
+            "one": "{count} Frage",
+            "other": "{count} Fragen"
+        },
+        "newHint": "Einen weiteren Kader anlegen",
+        "side": {
+            "bench": {
+                "one": "{count} Spieler auf der Bench",
+                "other": "{count} Spieler auf der Bench"
+            },
+            "tentative": {
+                "one": "{count} Spieler tentative",
+                "other": "{count} Spieler tentative"
+            }
+        }
+    },
     "header": {
         "kicker": "Kaderplaner",
         "pick": "Kader wählen",
@@ -128,7 +155,8 @@
         "leads": "Leitung",
         "noLeads": "noch niemand",
         "settings": "Einstellungen des Kaders",
-        "countLine": "{roster} im Roster · {total} gesamt"
+        "countLine": "{roster} im Roster · {total} gesamt",
+        "all": "Alle Kader"
     },
     "start": {
         "kicker": "Kaderplaner · Ablauf je Kader",
@@ -597,7 +625,7 @@
         "emptyGroup": "leer",
         "missing": "kein {buff}",
         "moreBuffs": "+{n} Buffs",
-        "hiddenGroups": "Gruppe 3 und 4 bleiben erhalten und erscheinen wieder im 20er.",
+        "hiddenGroups": "Die ausgeblendeten Gruppen bleiben erhalten und erscheinen in einer größeren Aufstellung wieder.",
         "none": "Keine Variante.",
         "groupFill": "{n} von {max} Plätzen",
         "placedOf": {
@@ -646,6 +674,7 @@
         "profileSays": "Profil sagt",
         "logs": "Laut Logs",
         "days": "Verfügbar",
+        "dayFrom": "{day} ab {time}",
         "differs": "Weicht vom Profil ab: {what}. Hier gilt die Zuweisung des Kaderplaners, das Profil wird nie überschrieben.",
         "differsNone": "Weicht deine Zuweisung vom Profil ab, steht hier ein Hinweis – überschrieben wird nichts."
     },
@@ -731,6 +760,10 @@
             "one": "{count} Abend",
             "other": "{count} Abende"
         },
+        "groupOwn": "Version des Kaders",
+        "groupOther": "zählt die {version}-Abende",
+        "archived": "archiviert",
+        "nightsLater": "zählt nach Wahl",
         "noCategories": "Auf diesem Server gibt es noch keine Raid-Kategorie. Sie erscheint, sobald ein Raid in einer Discord-Kategorie angelegt ist.",
         "nightTip": "{date} · {category}"
     },

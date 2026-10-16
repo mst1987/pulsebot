@@ -5,6 +5,7 @@ import { linkLog, linkLogUrl, type ApiError } from "../../../api";
 import { useDraftState } from "../../../lib/ui/persistedState";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
+import { CheckIcon } from "../../../components/ui/icons";
 import Segment from "../../../components/ui/Segment";
 import { useToast } from "../../../components/shell/Jobs";
 import { useT } from "../../../i18n";
@@ -57,7 +58,7 @@ export default function LogAssignModal({ ctx, open, onClose }: { ctx: RaidCtx; o
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button type="submit" form="rd-log-form" running={busy} disabled={mode === "detected" ? !unlinked.length : !urlDraft.wclUrl.trim()}>{t("raidModals.logAssign.assign")}</Button>
+                    <Button type="submit" variant="go" icon={<CheckIcon />} form="rd-log-form" running={busy} disabled={mode === "detected" ? !unlinked.length : !urlDraft.wclUrl.trim()}>{t("raidModals.logAssign.assign")}</Button>
                 </>
             )}
         >

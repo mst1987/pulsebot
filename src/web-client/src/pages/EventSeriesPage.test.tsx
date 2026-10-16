@@ -61,6 +61,14 @@ describe("the series page", () => {
         expect(screen.getByRole("button", { name: "Serie einrichten" })).toBeInTheDocument();
     });
 
+    it("marks the series of a deactivated category as paused (#744)", async () => {
+        vi.mocked(api.getEventSeries).mockResolvedValue({ ...DATA, categories: [{ ...DATA.categories[0], inactive: true }] });
+        renderPage(<EventSeriesPage />, { route: "/raids/series" });
+        const row = (await screen.findByText("Mittwochsraid")).closest("li") as HTMLElement;
+        expect(within(row).getByText("Kategorie inaktiv")).toBeInTheDocument();
+        expect(row).toHaveClass("sr-off");
+    });
+
     it("names the weekdays and the next four dates in the modal", async () => {
         renderPage(<EventSeriesPage />, { route: "/raids/series?edit=c1" });
         const dialog = await screen.findByRole("dialog");
@@ -69,6 +77,16 @@ describe("the series page", () => {
         expect(within(days).getByRole("button", { name: "Mi" })).toHaveAttribute("data-tip", "Mittwoch");
         expect(within(dialog).getByText("Nächste 4 Termine")).toBeInTheDocument();
         expect(await within(dialog).findByText("überspringen")).toBeInTheDocument();
+    });
+
+    it("gives the fields the shared control look and skips a date with a switch, not a checkbox", async () => {
+        renderPage(<EventSeriesPage />, { route: "/raids/series?edit=c1" });
+        const dialog = await screen.findByRole("dialog");
+        for (const name of ["Uhrzeit", "Tage vorher anlegen", "Titel"]) {
+            expect(within(dialog).getByLabelText(name)).toHaveClass("inp-sm");
+        }
+        expect(await within(dialog).findByRole("switch", { name: "überspringen" })).not.toBeChecked();
+        expect(within(dialog).queryByRole("checkbox")).toBeNull();
     });
 });
 

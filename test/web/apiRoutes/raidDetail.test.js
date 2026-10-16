@@ -756,7 +756,8 @@ describe("web/apiRoutes/raidDetail", () => {
                 2: { character: "Elesham", className: "Shaman", spec: "Elemental" },
             });
             const res = await get("/api/raids/detail", { event: "e1" });
-            expect(raiderCharactersStore.resolveAssignmentProfiles).toHaveBeenCalledWith("cat1");
+            // the assignment of the raid's version (#739)
+            expect(raiderCharactersStore.resolveAssignmentProfiles).toHaveBeenCalledWith("cat1", { versionId: "tbc" });
             const data = json(res).data;
             expect(data.attendance.missing).toEqual([{
                 id: "2",
@@ -964,6 +965,18 @@ describe("web/apiRoutes/raidDetail", () => {
             expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
             expect(json(res).error).toEqual({ code: "planning_mismatch", message: expect.stringContaining("plant mit dem Raidplan") });
             expect(mockDriveCopyFile).not.toHaveBeenCalled();
+        });
+
+        it("refuses with 409 for an event of a version without a raid sheet layout (Forever, #751) and copies nothing", async () => {
+            setupDefaults();
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e-fv", channelId: "chan1", versionId: "forever" }] }], error: null,
+            });
+            const res = await post("/api/raids/fill", { event: "e-fv", sheetId: "sheet1" });
+            expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+            expect(json(res).error).toEqual({ code: "no_sheet_layout", message: expect.stringContaining("keine Raidsheet-Vorlage") });
+            expect(mockDriveCopyFile).not.toHaveBeenCalled();
+            expect(mockFillSetupSheet).not.toHaveBeenCalled();
         });
 
         it("leaves an event it cannot find to the fill itself (no refusal from the planning)", async () => {
@@ -1358,6 +1371,16 @@ describe("web/apiRoutes/raidDetail", () => {
             });
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
             expect(json(res)).toEqual({ data: { message: "Softres-Liste erstellt." } });
+        });
+
+        it("refuses with 409 while softres is switched off for the event's version (#761)", async () => {
+            setupDefaults();
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", versionSettings: { tbc: { softresEdition: "tbc", disabled: ["softres"] } } });
+            const res = await post("/api/raids/softres", { event: "e1", instanceCodes: ["kara"], faction: "Horde" });
+            expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+            expect(json(res)).toEqual({ error: { code: "feature_off", message: "Softres ist für TBC Anniversary ausgeschaltet (Einstellungen → Spielversion)." } });
+            expect(softres.createRaid).not.toHaveBeenCalled();
+            settingsStore.getConfig.mockReturnValue({});
         });
 
         it("passes protection: false through when the caller opts out", async () => {

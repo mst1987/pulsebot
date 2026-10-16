@@ -12,7 +12,7 @@ import {
 import { useApi } from "../../hooks/useApi";
 import { useT } from "../../i18n";
 import { Button, Field, Modal } from "../../components/ui";
-import { SearchIcon } from "../../components/ui/icons";
+import { SearchIcon, PlusIcon } from "../../components/ui/icons";
 import { changedRoleLines, errorText, searchChar } from "../../lib/roster/rosterEdit";
 import { initialOf } from "../../lib/roster/rosters";
 import { CharChip, Notice, RoleResults, StatusPicker } from "./RosterParts";
@@ -124,10 +124,10 @@ export default function AddMemberDialog({ data, prefill, onClose, onDone }: {
             title={t("roster.add.title")}
             width={620}
             className="rn-dlg"
-            footer={failed ? <Button onClick={onClose}>{t("roster.add.close")}</Button> : (
+            footer={failed ? <Button variant="ghost" onClick={onClose}>{t("roster.add.close")}</Button> : (
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    {person && <Button running={busy === "add"} onClick={submit}>{t("roster.add.submit")}</Button>}
+                    {person && <Button variant="go" icon={<PlusIcon />} running={busy === "add"} onClick={submit}>{t("roster.add.submit")}</Button>}
                 </>
             )}
         >

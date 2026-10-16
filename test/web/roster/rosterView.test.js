@@ -58,9 +58,10 @@ beforeEach(() => {
             { id: CARL, displayName: "Carl", avatarUrl: null, roleIds: ["role-main"] },
         ],
     });
+    // two past nights (seconds, May 2026) - a coming raid never counts (#768)
     listStoredEvents.mockReturnValue([
-        night("e1", 1900000000, [{ userId: ANNA, status: "signed", character: "Thorgrim" }, { userId: BERT, status: "absence" }]),
-        night("e2", 1900600000, [{ userId: ANNA, status: "signed", character: "Thorgrim" }, { userId: BERT, status: "signed" }]),
+        night("e1", 1779000000, [{ userId: ANNA, status: "signed", character: "Thorgrim" }, { userId: BERT, status: "absence" }]),
+        night("e2", 1779600000, [{ userId: ANNA, status: "signed", character: "Thorgrim" }, { userId: BERT, status: "signed" }]),
     ]);
 });
 afterAll(() => {
@@ -107,6 +108,21 @@ describe("buildRosterOverview", () => {
         const view = await buildRosterOverview({ guildId: G, user: READER, config: { categoryIds: ["cat1", "cat2", "other-guild"] } });
         expect(view.canCreate).toBe(false);
         expect(view.categoriesWithoutRoster).toEqual([{ id: "cat2", name: "PuG Karazhan", versionId: "tbc", versionLabel: "TBC" }]);
+    });
+
+    it("lists a switched category's closed roster under its version and the category as without roster for the new one (#739)", async () => {
+        const until = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
+        rosterStore.upsertMember(rosterId(), BERT, { trialUntil: until });
+        rosterStore.closeRoster(rosterId(), { reason: "version_switch" });
+        const config = { categoryIds: ["cat1", "cat2"], categoryVersion: { cat1: "forever" } };
+        const view = await buildRosterOverview({ guildId: G, user: ADMIN, config });
+        expect(view.rosters).toHaveLength(1);
+        expect(view.rosters[0]).toMatchObject({ versionId: "tbc", closed: true, closedReason: "version_switch", trialEnding: [] });
+        expect(view.categoriesWithoutRoster.map((c) => [c.id, c.versionId])).toEqual([["cat1", "forever"], ["cat2", "tbc"]]);
+        rosterStore.createRoster({ guildId: G, name: "Raid Mo / Do", categoryId: "cat1", versionId: "forever" });
+        const after = await buildRosterOverview({ guildId: G, user: ADMIN, config });
+        expect(after.rosters.map((r) => [r.versionId, r.closed])).toEqual(expect.arrayContaining([["tbc", true], ["forever", false]]));
+        expect(after.categoriesWithoutRoster.map((c) => c.id)).toEqual(["cat2"]);
     });
 
     it("keeps working without Discord: role unknown, names from the profile", async () => {
@@ -290,6 +306,17 @@ describe("buildRosterDetail", () => {
     it("is null for an unknown roster or one of another server", async () => {
         expect(await buildRosterDetail({ guildId: G, id: "nope", user: ADMIN, config: CONFIG })).toBeNull();
         expect(await buildRosterDetail({ guildId: "g2", id: rosterId(), user: ADMIN, config: CONFIG })).toBeNull();
+    });
+
+    it("shows a closed roster read only: marked, everything readable, nothing to manage (#739)", async () => {
+        rosterStore.upsertMember(rosterId(), ANNA, { note: "Raidlead" });
+        rosterStore.closeRoster(rosterId(), { reason: "version_switch", now: "2026-10-11T12:00:00.000Z" });
+        const view = await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG });
+        expect(view.roster).toMatchObject({ closed: true, closedAt: "2026-10-11T12:00:00.000Z", closedReason: "version_switch", versionId: "tbc" });
+        expect(view).toMatchObject({ canManage: false, settings: null, isOrga: true, isAdmin: true });
+        // the orga still reads the notes and the attendance
+        expect(view.members.find((m) => m.userId === ANNA).note).toBe("Raidlead");
+        expect(view.nights.length).toBeGreaterThan(0);
     });
 
     it("gives a roster without category no attendance", async () => {

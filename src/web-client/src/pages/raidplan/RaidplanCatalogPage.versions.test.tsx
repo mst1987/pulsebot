@@ -83,4 +83,14 @@ describe("Raidplan-Katalog per game version", () => {
         await user.click(save);
         expect(api.saveCatalogEntry).toHaveBeenCalledWith("mobs", expect.objectContaining({ name: "Onyxian Warder", versions: ["forever"] }));
     });
+
+    it("the form's version chips offer only the shown versions while the others are hidden (#563)", async () => {
+        vi.mocked(api.getGameVersions).mockResolvedValue({ ...VERSIONS, visible: ["tbc"] });
+        const user = userEvent.setup();
+        renderPage(<RaidplanCatalogPage />, { route: "/raids/plan-catalog", content: twoVersions() });
+        await screen.findByText("Gathios the Shatterer");
+        await user.click(screen.getByRole("button", { name: /Neuer Mob/ }));
+        const chips = within(await screen.findByRole("dialog")).getByRole("group", { name: "Spielversion" });
+        expect(within(chips).getAllByRole("button").map((b) => b.textContent)).toEqual(["TBC"]);
+    });
 });

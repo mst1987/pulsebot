@@ -12,7 +12,11 @@ jest.mock("../../../src/stores/reportStore", () => ({
         : id === "rep2" ? { roster: [], players: [{ name: "Twink" }] } : null),
 }));
 jest.mock("../../../src/stores/rosterStore", () => ({
-    rosterForCategory: (...a) => mockRoster(...a),
+    // every roster of the category, of each version (#739); one by default
+    rostersForCategory: (...a) => {
+        const r = mockRoster(...a);
+        return Array.isArray(r) ? r : [r].filter(Boolean);
+    },
     listRosters: (...a) => mockRosters(...a),
 }));
 
@@ -48,6 +52,14 @@ describe("services/loot/councilTenure", () => {
         expect(at("devi")).toEqual({ joinedAt: NOW - 100 * DAY, source: "roster" });
         expect(at("twink").joinedAt).toBe(NOW - 100 * DAY);
         expect(at("stranger").joinedAt).toBe(0);
+    });
+
+    it("counts the category's rosters of every version - the closed TBC roster keeps the old date (#739)", () => {
+        mockRoster.mockReturnValue([
+            { categoryId: "c1", versionId: "forever", members: { u1: { since: iso(2), chars: [] } }, history: [{ at: iso(2), userId: "u1" }] },
+            { categoryId: "c1", versionId: "tbc", closedAt: iso(2), members: { u1: { since: iso(200), chars: ["devi"] } }, history: [] },
+        ]);
+        expect(tenureContext({ categoryId: "c1", now: NOW })("devi")).toEqual({ joinedAt: NOW - 200 * DAY, source: "roster" });
     });
 
     it("takes the earliest of roster, raid and loot", () => {

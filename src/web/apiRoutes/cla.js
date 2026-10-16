@@ -27,16 +27,37 @@ const { phraseReport } = require("../../utils/logcheck/recommendationText");
 const { listAllAssignments } = require("../../stores/raiderCharactersStore");
 const { loadMatchableEvents, eventLinkFields } = require("../../services/logcheck/matchableEvents");
 const { linkLogByUrl } = require("../logcheck/manualLog");
+const { linkConflict, inVersionList } = require("../../services/logcheck/logVersion");
+const { resolveVersionQuery } = require("../../services/events/mainVersion");
 const discord = require("../../services/discord/discord");
 
 /**
- * GET /api/cla?filter=all|open|unlinked|done&sort=&dir=&page= — the page's one
- * list: every log of the active guild plus the reports built from a pasted link
- * (reportList.prepareClaList), with a count per filter and how many open logs
- * "Automatisch zuordnen" would assign.
+ * The game version a request of this page is about (#741): `?version=`, else
+ * the main version. A raid of another version is no candidate, and a linked
+ * log of another version is not in the list (logVersion.inVersionList).
+ */
+function shownVersion(query) {
+    return resolveVersionQuery(query && query.get("version"), { config: getConfig() }).versionId;
+}
+
+/** The raids a log may be linked to in the version shown — the candidates and "Automatisch zuordnen". */
+function eventsOfVersion(events, versionId) {
+    return (events || []).filter((e) => !versionId || e.versionId === versionId);
+}
+
+/**
+ * GET /api/cla?filter=all|open|unlinked|done&sort=&dir=&page=&version= — the
+ * page's one list: the logs of the active guild plus the reports built from a
+ * pasted link (reportList.prepareClaList), of one game version (#741: a log
+ * without a raid in every version as "nicht zugeordnet", a linked one only in
+ * its raid's), with a count per filter and how many open logs "Automatisch
+ * zuordnen" would assign to a raid of that version.
  */
 const getClaData = withUser({}, async ({ req, res, query }) => {
     const guildId = activeGuildFor(req);
+    const versionId = shownVersion(query);
+    const config = getConfig();
+    const inVersion = (record) => inVersionList(record, versionId, { config });
     const allLogs = listLogs();
     const logs = guildId ? allLogs.filter((l) => !l.guildId || l.guildId === guildId) : allLogs;
     // which analyses already ran, normalised for legacy entries
@@ -49,7 +70,9 @@ const getClaData = withUser({}, async ({ req, res, query }) => {
         page: query.get("page"),
     };
     const reports = listReports();
-    const { page, filter, counts } = prepareClaList(logs, reports, listQuery, { allLogs });
+    const { page, filter, counts } = prepareClaList(logs, reports, listQuery, {
+        allLogs, inVersion,
+    });
 
     // Title and boss count of the logs on this page, read from WCL once, then
     // the rows rebuilt from the filled logs.
@@ -61,7 +84,8 @@ const getClaData = withUser({}, async ({ req, res, query }) => {
         ? claRowFromLog(logById.get(row.logId), reportById.get(logById.get(row.logId).reportRefId))
         : row));
 
-    const matchEvents = await loadMatchableEvents(guildId);
+    const loaded = await loadMatchableEvents(guildId);
+    const matchEvents = { ...loaded, events: eventsOfVersion(loaded.events, versionId) };
     // Candidates for every log on the page, the assigned ones included —
     // "Zuordnung ändern" offers the same choice. annotateMatches skips linked
     // logs, so it gets them without their assignment.
@@ -81,10 +105,11 @@ const getClaData = withUser({}, async ({ req, res, query }) => {
         filter,
         page,
         counts,
-        autoMatchCount: matchEvents.error ? 0 : autoMatches(logs.filter((l) => !l.eventId), matchEvents.events).length,
+        autoMatchCount: matchEvents.error ? 0 : autoMatches(logs.filter((l) => !l.eventId && inVersion(l)), matchEvents.events).length,
         matchEventsError: matchEvents.error,
-        logChannelsConfigured: (getConfig().logChannelIds || []).length > 0,
+        logChannelsConfigured: (config.logChannelIds || []).length > 0,
         activeGuildId: guildId,
+        version: versionId,
     });
 });
 
@@ -293,13 +318,17 @@ const deleteLogHandler = withUser({ csrf: true, body: true }, async ({ body, res
 const linkLog = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const logId = q.str(body, "logId");
     const eventId = q.str(body, "eventId");
-    if (!getLog(logId)) return error(res, 400, "not_found", "Log nicht gefunden.");
+    const log = getLog(logId);
+    if (!log) return error(res, 400, "not_found", "Log nicht gefunden.");
     if (!eventId) return error(res, 400, "no_event", "Kein Event gewählt.");
     // Re-resolve the event server-side; never trust the label posted by the client.
     const { events, error: loadError } = await loadMatchableEvents(activeGuildFor(req));
     if (loadError) return error(res, 400, "events_unavailable", loadError);
     const event = events.find((e) => e.id === eventId);
     if (!event) return error(res, 400, "event_not_found", "Event nicht gefunden.");
+    // a log belongs only to a raid of its own game version (#746)
+    const conflict = linkConflict(log, event);
+    if (conflict) return error(res, 400, "version_mismatch", conflict);
     linkLogEvent(logId, eventLinkFields(event, "manual"));
     ok(res, {
         logId,
@@ -341,13 +370,23 @@ const unlinkLog = withUser({ csrf: true, body: true }, async ({ body, res }) => 
     ok(res, { logId, message: "Zuordnung entfernt." });
 });
 
-/** POST /api/cla/log-automatch — assigns every still-unassigned log with an unambiguous event match. */
-const autoMatchLogs = withUser({ csrf: true }, async ({ req, res }) => {
+/**
+ * POST /api/cla/log-automatch[?version=<id>] — assigns every still-unassigned
+ * log with an unambiguous match among the raids of the version shown (#741).
+ */
+const autoMatchLogs = withUser({ csrf: true }, async ({ req, res, query }) => {
     const guildId = activeGuildFor(req);
-    const { events, error: loadError } = await loadMatchableEvents(guildId);
+    const { events: all, error: loadError } = await loadMatchableEvents(guildId);
     if (loadError) return error(res, 400, "events_unavailable", loadError);
-    const logs = (guildId ? listLogs().filter((l) => !l.guildId || l.guildId === guildId) : listLogs())
-        .filter((l) => !l.eventId);
+    const versionId = shownVersion(query);
+    const events = eventsOfVersion(all, versionId);
+    // copies with their channel's category: it ranks the candidates and its
+    // version breaks a tie for a log of unknown version (#746). Only the logs
+    // this version's list shows — an SSC log is never matched to a Forever raid.
+    const config = getConfig();
+    const logs = annotateLogCategories((guildId ? listLogs().filter((l) => !l.guildId || l.guildId === guildId) : listLogs())
+        .filter((l) => !l.eventId).map((l) => ({ ...l })), discord.getChannelCategoryMap(guildId))
+        .filter((l) => inVersionList(l, versionId, { config }));
     const matches = autoMatches(logs, events);
     for (const m of matches) linkLogEvent(m.log.id, eventLinkFields(m.event, "auto"));
     const rest = logs.length - matches.length;

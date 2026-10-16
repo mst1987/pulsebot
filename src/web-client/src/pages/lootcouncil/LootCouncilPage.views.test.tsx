@@ -58,7 +58,7 @@ function startOn(pick: { roster?: string; category?: string }) {
 describe("council filters per Loot-Council profile", () => {
     it("loads a picked roster with its profile's filters and says they reach the game", async () => {
         startOn({ roster: "r1" });
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         expect(await screen.findByText("Gilt auch fürs Spiel")).toBeInTheDocument();
         expect(api.getLootCouncil).toHaveBeenCalledTimes(1);
         expect(api.getLootCouncil).toHaveBeenCalledWith(expect.objectContaining({ roster: "r1", role: "healer", tiers: ["t6"], bisTier: "t6" }));
@@ -69,7 +69,7 @@ describe("council filters per Loot-Council profile", () => {
     it("saves a changed filter into the profile on the server, not in the browser", async () => {
         const user = userEvent.setup();
         startOn({ roster: "r1" });
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         await screen.findByText("Gilt auch fürs Spiel");
         await user.click(within(screen.getByRole("radiogroup", { name: "Rolle" })).getByRole("radio", { name: /Caster/ }));
         await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ roster: "r1", role: "caster", tiers: ["t6"] })));
@@ -79,14 +79,14 @@ describe("council filters per Loot-Council profile", () => {
 
     it("stores the menu's game version with the view", async () => {
         startOn({ roster: "r1" });
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil", content: twoVersions({ mainVersion: "forever" }) });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster", content: twoVersions({ mainVersion: "forever" }) });
         await screen.findByText("Gilt auch fürs Spiel");
         await waitFor(() => expect(api.saveCouncilView).toHaveBeenCalledWith("p-main", expect.objectContaining({ role: "healer", version: "forever" })), { timeout: 2000 });
     });
 
     it("starts a category without roster on its profile (here the default) and keeps the hint off for a non-council one", async () => {
         startOn({ category: "c2" });
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         await waitFor(() => expect(api.getLootCouncil).toHaveBeenCalledWith(expect.objectContaining({ category: "c2", role: "caster", tiers: [] })));
         await screen.findByText("Anna");
         expect(screen.queryByText("Gilt auch fürs Spiel")).not.toBeInTheDocument();
@@ -96,7 +96,7 @@ describe("council filters per Loot-Council profile", () => {
         const user = userEvent.setup();
         startOn({ roster: "r1" });
         renderPage(<LootCouncilPage />, {
-            route: "/lootcouncil",
+            route: "/lootcouncil?tab=roster",
             user: adminUser({ isAdmin: false, access: { lootcouncil: { read: true, write: false } } }),
         });
         await screen.findByText("Gilt auch fürs Spiel");
@@ -108,7 +108,7 @@ describe("council filters per Loot-Council profile", () => {
 
     it("keeps the browser's own filters without a pick", async () => {
         const user = userEvent.setup();
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         await screen.findByText("Anna");
         await user.click(within(screen.getByRole("radiogroup", { name: "Rolle" })).getByRole("radio", { name: /Heiler/ }));
         await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ category: "", roster: "", role: "healer" })));
@@ -120,7 +120,7 @@ describe("council filters per Loot-Council profile", () => {
     it("falls back to the browser's filters when the stored views cannot be read", async () => {
         vi.mocked(api.getCouncilViews).mockRejectedValue(new Error("down"));
         startOn({ category: "c1" });
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         await waitFor(() => expect(api.getLootCouncil).toHaveBeenCalledWith(expect.objectContaining({ category: "c1", role: "caster" })));
         expect(screen.queryByText("Gilt auch fürs Spiel")).not.toBeInTheDocument();
     });
@@ -129,7 +129,7 @@ describe("council filters per Loot-Council profile", () => {
 describe("council head: roster first, profile and Kader (#676)", () => {
     it("picks by roster first, categories without roster as the fallback group", async () => {
         const user = userEvent.setup();
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         const picker = await screen.findByLabelText("Council für");
         const groups = within(picker).getAllByRole("group");
         expect(groups.map((g) => g.getAttribute("label"))).toEqual(["Roster mit Loot-Council", "Kategorien ohne Roster"]);
@@ -144,7 +144,7 @@ describe("council head: roster first, profile and Kader (#676)", () => {
 
     it("names roster, profile and linked Kader with links to roster and Kader", async () => {
         startOn({ roster: "r1" });
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         const head = await screen.findByRole("region", { name: "Für wen der Council rechnet" });
         expect(within(head).getByText("Mittwoch-Roster")).toBeInTheDocument();
         expect(within(head).getByText("Main T6")).toBeInTheDocument();
@@ -163,7 +163,7 @@ describe("council head: roster first, profile and Kader (#676)", () => {
             }),
         }));
         startOn({ roster: "r1" });
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         const head = await screen.findByRole("region", { name: "Für wen der Council rechnet" });
         expect(within(head).queryByRole("link")).not.toBeInTheDocument();
         expect(within(head).queryByText("Kader")).not.toBeInTheDocument();
@@ -179,7 +179,7 @@ describe("council head: roster first, profile and Kader (#676)", () => {
         await switchLang("en");
         try {
             startOn({ roster: "r1" });
-            renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+            renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
             const head = await screen.findByRole("region", { name: "Who the council works for" });
             expect(within(head).getByRole("link", { name: "To the roster" })).toBeInTheDocument();
             expect(within(head).getByRole("link", { name: "To the squad" })).toBeInTheDocument();

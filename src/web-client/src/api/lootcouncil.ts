@@ -208,11 +208,27 @@ export type CouncilUnwearable = {
     note: string;
 };
 
-/** The picked drop: the item, who could take it, who cannot. */
+/**
+ * A raider who already has the drop — worn in their last seen gear, or won
+ * per the loot history. Never a candidate: it would replace itself.
+ */
+export type CouncilOwner = {
+    key: string;
+    character: string;
+    classColor: string;
+    specKey: string;
+    specLabel: string;
+    specIconUrl: string;
+    /** "worn" | "awarded" */
+    source: string;
+};
+
+/** The picked drop: the item, who could take it, who cannot, who has it. */
 export type CouncilFocus = {
     item: CouncilItem;
     candidates: CouncilCandidate[];
     unwearable: CouncilUnwearable[];
+    owned: CouncilOwner[];
 };
 
 /**
@@ -445,8 +461,9 @@ export type CouncilProfileData = {
     limits: CouncilWeightLimits;
 };
 
-export function getCouncilProfiles(): Promise<CouncilProfiles> {
-    return get<CouncilProfiles>("/api/lootcouncil/profiles");
+/** The profiles of the content version (#741): usage only of its rosters and categories, none only another version uses. */
+export function getCouncilProfiles(version = ""): Promise<CouncilProfiles> {
+    return get<CouncilProfiles>(`/api/lootcouncil/profiles${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 export function getCouncilProfile(id: string): Promise<CouncilProfileData> {
@@ -482,6 +499,11 @@ export type CouncilHead = {
     rosters: { id: string; name: string; categoryId: string; categoryName: string; profileId: string; profileName: string }[];
     /** Raid categories without roster (the fallback group). */
     categories: { id: string; name: string; profileId: string; profileName: string }[];
+    /**
+     * The pick asked for that plays another version than the menu's (#741/#563):
+     * the server answered with "Alle Raid-Kategorien" of the menu's version instead.
+     */
+    dropped?: { kind: "roster" | "category"; id: string; versionId: string } | null;
     canOpenRoster: boolean;
     canOpenKader: boolean;
     canEditProfile: boolean;
@@ -517,6 +539,13 @@ export type CouncilLog = {
     postedAt: number;
     eventLabel: string;
     link: string;
+};
+
+/** What the council has content data for in a game version: BiS lists, simulation, tier/raid filter, item table (#748). */
+export type CouncilContent = {
+    bis: boolean; sim: boolean; tiers: boolean; itemTable: boolean;
+    /** The version has BiS data, but it is switched off in Einstellungen → Spielversion (#761). */
+    off?: boolean;
 };
 
 export type LootCouncilData = {
@@ -558,6 +587,8 @@ export type LootCouncilData = {
         roster?: CouncilRosterSource | null;
     };
     sim: { available: boolean; version: string; hint: string };
+    /** Which content data the council's version has (#748); missing in an older answer = all. */
+    content?: CouncilContent;
     activeGuildId: string;
     /** The game version the council looks at (#542): the category's, else the main one. */
     versionId?: string;
@@ -582,7 +613,7 @@ export type CouncilFilter = {
     category?: string;
     bisTier?: string;
     item?: number;
-    /** A version id, or "all" for every version; unset = the main version (#545). */
+    /** A version id; unset = the main version (#545) — the page never asks for every version (#741). */
     version?: string;
     /** With a roster: Ersatz shown as candidates too (#667). */
     bench?: boolean;
@@ -601,6 +632,30 @@ export function getLootCouncil(filter: CouncilFilter = {}): Promise<LootCouncilD
     if (filter.bench) params.set("bench", "1");
     const qs = params.toString();
     return get<LootCouncilData>(`/api/lootcouncil${qs ? `?${qs}` : ""}`);
+}
+
+/**
+ * One tile of the council's entry (Oct 2026): a roster with loot system Loot-Council, or a
+ * category without roster on Loot-Council. `members` only for a roster (in it = core + trial).
+ */
+export type CouncilOverviewTile = {
+    kind: "roster" | "category";
+    id: string;
+    name: string;
+    categoryId: string;
+    categoryName: string;
+    versionId: string;
+    versionLabel: string;
+    profileName: string;
+    members: { roster: number; bench: number; pause: number } | null;
+    nextRaid: { id: string; title: string; startTime: number } | null;
+};
+
+export type CouncilOverview = { versionId: string; tiles: CouncilOverviewTile[] };
+
+/** The tiles of the council's entry, of the menu's version — cheap, no council is built (GET /api/lootcouncil/overview). */
+export function getLootCouncilOverview(version?: string): Promise<CouncilOverview> {
+    return get<CouncilOverview>(`/api/lootcouncil/overview${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 /**
@@ -630,8 +685,9 @@ export type CouncilViews = {
     councilRosters: string[];
 };
 
-export function getCouncilViews(): Promise<CouncilViews> {
-    return get<CouncilViews>("/api/lootcouncil/views");
+/** The stored views; `targets` only for rosters and categories of the content version (#741). */
+export function getCouncilViews(version = ""): Promise<CouncilViews> {
+    return get<CouncilViews>(`/api/lootcouncil/views${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 /** Store a profile's view (#676). */
@@ -656,12 +712,24 @@ export type SimJob = {
     error?: string;
 };
 
+/**
+ * Which council view a simulation belongs to (#745): the server reads its game
+ * version from these like the page's query and refuses a version without the
+ * feature "Simulation".
+ */
+export type CouncilSimScope = { roster?: string; category?: string; version?: string };
+
 export function startCouncilSim(
     id: string,
     subjects: { key: string; specKey: string }[],
     items: number[],
+    scope: CouncilSimScope = {},
 ): Promise<{ status: string; alreadyRunning: boolean; id: string }> {
-    return send("POST", "/api/lootcouncil/sim", { id, subjects, items });
+    const view: CouncilSimScope = {};
+    if (scope.roster) view.roster = scope.roster;
+    else if (scope.category) view.category = scope.category;
+    if (scope.version) view.version = scope.version;
+    return send("POST", "/api/lootcouncil/sim", { id, subjects, items, ...view });
 }
 
 export function getCouncilSim(id: string): Promise<SimJob> {
@@ -680,8 +748,9 @@ export async function runCouncilSim(
     subjects: { key: string; specKey: string }[],
     items: number[],
     onProgress?: (job: SimJob) => void,
+    scope: CouncilSimScope = {},
 ): Promise<SimResult> {
-    await startCouncilSim(id, subjects, items);
+    await startCouncilSim(id, subjects, items, scope);
     const startedAt = Date.now();
     const POLL_MS = 1500;
     // One raider is ~1s per item; a whole roster against a full BiS gap list is
@@ -709,9 +778,10 @@ export async function runCouncilSim(
  * candidate list needs. Same result shape as the other item pickers, so
  * ItemSearchPicker takes it as-is.
  */
-export function searchCouncilItems(q: string, tier = ""): Promise<{ items: CouncilItemHit[] }> {
+export function searchCouncilItems(q: string, tier = "", versionId = ""): Promise<{ items: CouncilItemHit[] }> {
     const qs = new URLSearchParams({ q });
     if (tier) qs.set("tier", tier);
+    if (versionId) qs.set("v", versionId);
     return get<{ items: CouncilItemHit[] }>(`/api/lootcouncil/item-search?${qs.toString()}`);
 }
 

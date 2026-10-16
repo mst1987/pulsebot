@@ -6,6 +6,16 @@ const discord = require("../discord/discord");
 const { listRaidEvents } = require("../../stores/raidEventStore");
 const { signupStatus } = require("../../utils/attendance");
 const { ownEventGroupRows } = require("./eventSources");
+const { categoryNameAt } = require("./categoryEras");
+
+/** The stored config the section names come from, read once per load (best-effort). */
+function configForEras() {
+    try {
+        return require("../../stores/configStore").getConfig() || {};
+    } catch {
+        return {};
+    }
+}
 
 // How far back events are looked up when a past raid has to be found again — for
 // the log→event assignment and for the event detail page, which the dashboard's
@@ -109,12 +119,22 @@ async function loadEventGroups(guildId, { sinceSeconds } = {}) {
     }
 
     const byCat = new Map();
+    const erasConfig = configForEras();
+    // The current name of every category Discord shows a channel of — a group
+    // opened by an old snapshot row still gets the name the category has now.
+    const liveNames = new Map();
+    for (const meta of Object.values(catMap || {})) {
+        if (meta && meta.categoryId && meta.categoryName && !liveNames.has(meta.categoryId)) liveNames.set(meta.categoryId, meta.categoryName);
+    }
     const place = (categoryId, categoryName, row) => {
         const key = categoryId || "__none__";
+        const live = (categoryId && liveNames.get(categoryId)) || categoryName || "";
         if (!byCat.has(key)) {
-            byCat.set(key, { categoryId: categoryId || "", categoryName: categoryName || "Ohne Kategorie", events: [] });
+            byCat.set(key, { categoryId: categoryId || "", categoryName: live || "Ohne Kategorie", events: [] });
         }
-        byCat.get(key).events.push(row);
+        // The group carries the category's current name; each raid the name of
+        // its section (#744) — a raid of a closed one keeps the old name.
+        byCat.get(key).events.push({ ...row, categoryName: categoryId ? categoryNameAt(categoryId, row.startTime, live, { config: erasConfig }) : live });
     };
 
     const seen = new Set();

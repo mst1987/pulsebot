@@ -39,6 +39,9 @@ const HTTP_BY_CODE = {
     cancelled: 409,
     no_channel: 400,
     discord: 502,
+    // a raid group (#811): the person already has a seat in another raid of the group
+    taken: 409,
+    full: 409,
 };
 
 /** Sends a `{ code, error }` failure; the status follows the code (HTTP_BY_CODE, 400 otherwise). */

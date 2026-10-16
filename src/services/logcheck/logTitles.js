@@ -3,7 +3,7 @@
 // logChannel.js so logAutoLink's background sweep can call it without a
 // require cycle (logChannel requires logAutoLink).
 const logStore = require("../../stores/logStore");
-const WarcraftLogs = require("../../classes/warcraftlogs");
+const { wclApiSite, wclClientFor, recordVersion } = require("./logVersion");
 const { analyzeRaidProgress, raidSummary } = require("../../utils/logcheck/raidProgress");
 
 // A log whose raid was not finished when its fight list was read is read again —
@@ -53,18 +53,24 @@ function needsRaids(l, now) {
 async function backfillLogTitles(logs, now = Date.now(), { limit = BACKFILL_PAGE_LIMIT } = {}) {
     const missing = (logs || [])
         .filter((l) => l && l.reportId && (!l.title || needsRaids(l, now)) && !recentlyFailed(l.reportId, now))
+        // a version the log check has no site for is not asked (#746)
+        .filter((l) => wclApiSite(recordVersion(l)))
         .slice(0, Math.max(0, limit));
     if (!missing.length) return 0;
-    let wcl;
+    // one client per version: each asks the site of its version (logVersion.js)
+    const clients = new Map();
     try {
-        wcl = new WarcraftLogs();
+        for (const l of missing) {
+            const v = recordVersion(l);
+            if (!clients.has(v)) clients.set(v, wclClientFor(v));
+        }
     } catch {
         return 0; // no WARCRAFTLOGS_API_KEY — skip silently
     }
     let filled = 0;
     await Promise.all(missing.map(async (l) => {
         try {
-            const data = await wcl.getFights(l.reportId);
+            const data = await clients.get(recordVersion(l)).getFights(l.reportId);
             const title = data && data.title ? String(data.title).trim() : "";
             if (title && !l.title) {
                 logStore.setLogTitle(l.id, title);
@@ -72,7 +78,8 @@ async function backfillLogTitles(logs, now = Date.now(), { limit = BACKFILL_PAGE
                 filled += 1;
             }
             if (data && Array.isArray(data.fights)) {
-                const raids = raidSummary(analyzeRaidProgress(data));
+                // the raids of the log's own version only: Forever's Hyjal is not TBC's (#747)
+                const raids = raidSummary(analyzeRaidProgress(data, { versionId: recordVersion(l) }));
                 logStore.setLogRaids(l.id, raids);
                 l.raids = raids;
                 l.raidsAt = now;

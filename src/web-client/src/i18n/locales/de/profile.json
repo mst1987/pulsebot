@@ -53,7 +53,52 @@
         "calendarActive": {
             "one": "{count} Link aktiv",
             "other": "{count} Links aktiv"
-        }
+        },
+        "attendance": "Deine Anwesenheit",
+        "roster": "Im Roster",
+        "loot": "Loot",
+        "dungeons": "Dungeon-Bestzeiten",
+        "loading": "wird geladen",
+        "loadError": "ließ sich nicht laden",
+        "professions": "Berufe",
+        "wishItems": "Wunsch-Items"
+    },
+    "days": {
+        "tagFrom": "{day} ab {time}",
+        "timesKicker": "Ab wann · in Viertelstunden · leer = ganzer Abend",
+        "fromAria": "Ab wann am {day}",
+        "from": "ab {time}",
+        "wholeEvening": "ganzer Abend",
+        "earlier": "Früher",
+        "later": "Später",
+        "clear": "Ganzer Abend",
+        "clearSub": "Die Uhrzeit für {day} entfernen – dann gilt der ganze Abend."
+    },
+    "prof": {
+        "none": "Wenn du magst – nichts muss.",
+        "withSkill": "{name} {skill}",
+        "free": "freiwillig",
+        "freeTip": "Freiwillig",
+        "freeSub": "Nur eine Info für die Orga, z. B. für Verzauberungen oder Tränke. Nichts muss.",
+        "invite": "Wenn du magst, trag bis zu {max} Hauptberufe ein. Nichts muss.",
+        "skillAria": "Fertigkeit {name}",
+        "ofMax": "von {max}",
+        "less": "Weniger",
+        "more": "Mehr",
+        "remove": "{name} entfernen",
+        "pickAria": "Hauptberuf für {name} wählen"
+    },
+    "wishItems": {
+        "count": "{count} von {max}",
+        "none": "Wenn du magst – nichts muss.",
+        "orgaOnlySub": "Deine Wunsch-Items sehen nur du und die Orga – andere Raider nie.",
+        "invite": "Wenn du magst, trag bis zu {max} Items ein, die du dir wünschst. Nichts muss.",
+        "remove": "{name} entfernen",
+        "readOnly": "Dieser Charakter ist gerade in keinem Loot-Council-Roster – deine Wunsch-Items bleiben sichtbar, neue kommen erst wieder dazu, wenn er in einem ist. Entfernen geht jederzeit.",
+        "wowheadDown": "Wowhead antwortet gerade nicht – das Item ist nicht gespeichert. Bitte gleich noch einmal versuchen.",
+        "search": "Item suchen …",
+        "full": "{max} Items eingetragen – nimm eins heraus, um ein anderes einzutragen.",
+        "hint": "Ein Wunsch, keine Zusage – die Orga sieht ihn beim Loot-Council."
     },
     "first": {
         "title": "Noch kein Charakter",
@@ -74,6 +119,8 @@
         "claimedChip": "Auch eingetragen von: {names}. Die Orga klärt das.",
         "claimedCard": "Auch eingetragen von: {names}. Die Orga sieht das im Roster und klärt es.",
         "claimedBy": "vergeben an {name}",
+        "unverified": "nicht bestätigt",
+        "unverifiedTip": "Kein Log, kein Loot und keine Armory-Antwort kennt diesen Charakter – die Gildenbank kann ihm nichts schicken. Leg ihn über „Armory“ noch einmal an (die Armory muss ihn kennen) oder nimm den richtigen aus „Aus Logs“. Sonst die Orga bitten, ihn im Spiel zu prüfen.",
         "otherAccount": "anderes Konto",
         "unknown": "unbekannt",
         "level": "Stufe {level}",
@@ -82,7 +129,9 @@
         "remove": "Charakter entfernen",
         "noSpec": "Noch kein Spec – füge hinzu, was du spielen kannst.",
         "removeSpec": "Spec entfernen",
-        "addSpec": "Spec hinzufügen"
+        "addSpec": "Spec hinzufügen",
+        "edit": "Bearbeiten",
+        "editSub": "Name, Realm, Klasse und Specs ändern – oder den richtigen Charakter aus den Logs wählen."
     },
     "logs": {
         "seen": "laut Logs",
@@ -185,6 +234,168 @@
         "matchName": "Name passt",
         "claimed": "vergeben",
         "claimedSub": "Eingetragen von: {names}. Du kannst ihn trotzdem übernehmen – die Orga klärt das.",
-        "thatsMe": "Das bin ich"
+        "thatsMe": "Das bin ich",
+        "matchSimilar": "ähnlich geschrieben"
+    },
+    "edit": {
+        "title": "{name} bearbeiten",
+        "kickerOf": "Charakter von {owner}",
+        "save": "Speichern",
+        "wayAria": "Wie bearbeiten",
+        "wayLog": "Aus den Logs wählen",
+        "wayManual": "Von Hand ändern",
+        "logHint": "Wähle den Charakter, wie er in den Logs heißt – ähnlich geschriebene Namen stehen oben. Name und Klasse kommen dann aus dem Log.",
+        "pick": "Das ist er",
+        "nameHint": "So, wie der Charakter im Spiel heißt.",
+        "classHint": "Eine andere Klasse fängt mit neuen Specs an.",
+        "renameHint": "Ein neuer Name ersetzt „{from}“ auch in Roster, Anmeldungen, Gildenbank-Anfragen und Anwesenheiten.",
+        "saved": "Gespeichert.",
+        "renamed": "{from} heißt jetzt {to}.",
+        "renamedWith": "{from} heißt jetzt {to} – mitgenommen: {what}.",
+        "moved": {
+            "rosters": {
+                "one": "{count} Roster",
+                "other": "{count} Roster"
+            },
+            "signups": {
+                "one": "{count} Anmeldung",
+                "other": "{count} Anmeldungen"
+            },
+            "assignments": {
+                "one": "{count} Kategorie-Zuordnung",
+                "other": "{count} Kategorie-Zuordnungen"
+            },
+            "guildBank": {
+                "one": "{count} Gildenbank-Anfrage",
+                "other": "{count} Gildenbank-Anfragen"
+            },
+            "availability": {
+                "one": "{count} Anwesenheit",
+                "other": "{count} Anwesenheiten"
+            }
+        },
+        "noHit": "Kein passender Charakter in den Logs – ändere den Namen von Hand."
+    },
+    "tabs": {
+        "aria": "Ansicht",
+        "info": "Meine Infos",
+        "infoTip": "Was zu dir gehört, nicht zu einem Charakter: Anwesenheit, Wochentage, Wünsche, Notiz, Kalender",
+        "all": "Alle Charaktere",
+        "allTip": "Alle Charaktere aller Raider – nur für die Orga.",
+        "addTip": "Einen weiteren Charakter dieser Spielversion anlegen – aus den Logs, über die Armory oder von Hand.",
+        "orga": "Orga",
+        "more": "Alle Reiter zeigen",
+        "noSpec": "noch kein Spec"
+    },
+    "info": {
+        "groupRaiding": "Raiden · gilt für alle Charaktere der Version",
+        "groupLinks": "Verknüpfungen",
+        "groupPrefs": "Vorlieben"
+    },
+    "attendance": {
+        "none": "noch kein Raid gezählt",
+        "sum": {
+            "one": "{pct} % · {attended} von {count} Raid · {name}",
+            "other": "{pct} % · {attended} von {count} Raids · {name}"
+        },
+        "more": {
+            "one": "+ {count} weitere Kategorie",
+            "other": "+ {count} weitere Kategorien"
+        },
+        "open": "Zur Anwesenheit"
+    },
+    "roster": {
+        "sumOther": "mit einem anderen Charakter im Roster",
+        "none": "Mit diesem Charakter bist du in keinem Roster dieser Version.",
+        "since": "seit {date}",
+        "trialUntil": "Probezeit bis {date}",
+        "thisChar": "mit diesem Charakter",
+        "otherChar": "mit {names}",
+        "spec": "zählt als {spec}",
+        "readOnly": "Den Status setzt die Orga – hier nur zum Nachsehen."
+    },
+    "loot": {
+        "sum": {
+            "one": "{count} Item · zuletzt {date}",
+            "other": "{count} Items · zuletzt {date}"
+        },
+        "none": "Noch kein Loot für diesen Charakter.",
+        "history": {
+            "one": "{count} Item in der Historie",
+            "other": "Alle {count} Items in der Historie"
+        },
+        "itemFallback": "Item {id}"
+    },
+    "dungeons": {
+        "badge": "LevelHelper",
+        "badgeTip": "Aus dem Addon LevelHelper",
+        "badgeSub": "Das Sync-Tool lädt Läufe und Erfolgspunkte hoch. Zugeordnet über Name und Realm.",
+        "points": "Erfolgspunkte",
+        "pointsSum": "{points} Erfolgspunkte",
+        "pointsRank": "Platz {rank} von {count}",
+        "pointsNone": "noch nicht gelesen",
+        "medals": "Medaillen",
+        "medal": "{count} {medal}",
+        "runs": {
+            "one": "{count} Lauf",
+            "other": "{count} Läufe"
+        },
+        "fromRuns": {
+            "one": "aus {count} Lauf",
+            "other": "aus {count} Läufen"
+        },
+        "fastest": "Deine schnellsten Läufe",
+        "record": "Gildenrekord",
+        "place": "Platz {place} in der Gilde",
+        "solo": "allein",
+        "withOthers": {
+            "one": "mit {count} anderen",
+            "other": "mit {count} anderen"
+        },
+        "open": "Zu den Bestzeiten"
+    },
+    "all": {
+        "loading": "Lade alle Charaktere …",
+        "loadError": "Die Charaktere ließen sich nicht laden: {message}",
+        "search": "Charakter, Raider oder Realm suchen",
+        "versionAria": "Spielversion",
+        "allVersions": "Alle",
+        "onlyUnverified": {
+            "one": "nur ungeprüfte ({count})",
+            "other": "nur ungeprüfte ({count})"
+        },
+        "count": {
+            "one": "{count} Charakter",
+            "other": "{count} Charaktere"
+        },
+        "colCharacter": "Charakter",
+        "colOwner": "Raider",
+        "colClass": "Klasse",
+        "colSpecs": "Specs",
+        "colVersion": "Version",
+        "colStatus": "Status",
+        "colWish": "Wunsch-Items",
+        "wishTip": {
+            "one": "{count} Wunsch-Item – nur die Orga sieht es",
+            "other": "{count} Wunsch-Items – nur die Orga sieht sie"
+        },
+        "wishCount": {
+            "one": "{count} Item",
+            "other": "{count} Items"
+        },
+        "noSpec": "keine Spec",
+        "claimed": "doppelt",
+        "via": {
+            "log": "laut Logs",
+            "loot": "laut Loot",
+            "armory": "laut Arsenal",
+            "orga": "von der Orga geprüft",
+            "manual": "geprüft"
+        },
+        "editSub": "{name} umbenennen oder einem Charakter aus den Logs zuordnen.",
+        "removeTitle": "{name} aus dem Profil von {owner} nehmen?",
+        "removeText": "Der Charakter verschwindet aus dem Profil. Logs, Loot und vergangene Anmeldungen bleiben.",
+        "noHit": "Kein Charakter passt zur Suche.",
+        "none": "Noch hat kein Raider einen Charakter im Profil."
     }
 }
