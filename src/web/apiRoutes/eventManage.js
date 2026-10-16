@@ -23,11 +23,22 @@ const manage = require("../../services/events/eventManage");
 
 // "Event verwalten" is the orga's (permissions.userIsOrga): a raider role that holds `raids`
 // write is still no orga, so every path here wants the orga as well as its right.
+// The signups of a raid (#727, epic #723) are also the orga of its category's: closing/opening the
+// signup, signing a raider up or off (and the candidates of that dialog) are `orgaScoped` - a manager
+// of the current roster of the raid's category, for that raid only (docs/permissions.md
+// "Kategorie-Orga"). Moving, cancelling, reopening, deleting and the channel stay the global orga's (#728).
+
+const BY_EVENT = (body) => body.event;
+const BY_QUERY = (body, query) => query.get("event");
 
 /** A read that prepares an action: the orga with `raids` write. */
 const reader = (fn) => withUser({ orga: true, write: "raids" }, fn);
 /** A write: the orga, CSRF, JSON body (the area gate asks for `raids` write). */
-const action = (fn) => withUser({ orga: true, csrf: true, body: true, archived: (body) => body.event }, fn);
+const action = (fn) => withUser({ orga: true, csrf: true, body: true, archived: BY_EVENT }, fn);
+/** reader for the orga of the raid's category as well (#727). */
+const scopedReader = (fn) => withUser({ orgaScoped: BY_QUERY, write: "raids" }, fn);
+/** action for the orga of the raid's category as well (#727). */
+const scopedAction = (fn) => withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, fn);
 
 const getManage = reader(async ({ req, res, query }) => {
     sendResult(res, await manage.manageInfo({ guildId: activeGuildFor(req), eventId: q.str(query, "event") }));
@@ -46,15 +57,15 @@ const postMove = action(async ({ user, body, req, res }) => {
     }));
 });
 
-const postSignups = action(async ({ user, body, req, res }) => {
+const postSignups = scopedAction(async ({ user, body, req, res }) => {
     sendResult(res, await manage.setSignupsOpen({ guildId: activeGuildFor(req), eventId: body.event, open: body.open === true, user, byName: user.name }));
 });
 
-const getRaiderCandidates = reader(async ({ req, res, query }) => {
+const getRaiderCandidates = scopedReader(async ({ req, res, query }) => {
     sendResult(res, await manage.raiderCandidates({ guildId: activeGuildFor(req), eventId: q.str(query, "event") }));
 });
 
-const postRaider = action(async ({ user, body: b, req, res }) => {
+const postRaider = scopedAction(async ({ user, body: b, req, res }) => {
     sendResult(res, await manage.addRaider({
         guildId: activeGuildFor(req), eventId: b.event, userId: b.userId, character: b.character, spec: b.spec,
         // further own characters, "kann auch mit" (#293)
@@ -63,7 +74,7 @@ const postRaider = action(async ({ user, body: b, req, res }) => {
     }));
 });
 
-const postRaiderRemove = action(async ({ user, body, req, res }) => {
+const postRaiderRemove = scopedAction(async ({ user, body, req, res }) => {
     sendResult(res, await manage.removeRaider({ guildId: activeGuildFor(req), eventId: body.event, userId: body.userId, user, byName: user.name }));
 });
 

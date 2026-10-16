@@ -45,11 +45,16 @@ const { buildRaidDetail } = require("../events/raidDetailView");
 const { postRaidplanLink } = require("../../services/raidplan/raidplanPost");
 const { userCan } = require("../../config/permissions");
 const { raidViewer } = require("../../services/signups/eventVisibility");
+const { isGlobalRaidOrga } = require("../events/raidOrgaAccess");
 
 // Every action of this file is the orga's (permissions.userIsOrga) as well as its area's write right:
 // raider roles may hold `raids` write and are still no orga. Posting the raid plan's link is the
 // exception - it is area "raidplan", handed to the people who write the tactics.
 const ORGA = { orga: true, csrf: true, body: true, archived: BY_EVENT };
+// The signup calls of a raid (#727, epic #723) are also the orga of its category's: the Anmelde-Aufruf,
+// "Fehlende pingen" and "Invite callen" let a manager of the current roster of the raid's category in,
+// for that raid only (docs/permissions.md "Kategorie-Orga"). Sheet, softres and loot system stay `ORGA` (#728).
+const SIGNUP_ORGA = { orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT };
 const { embedColor } = require("../../services/events/embedLook");
 
 /**
@@ -114,10 +119,21 @@ async function planningBlock(req, eventId, action, categoryId) {
     return planningRefusal(action, category, getConfig());
 }
 
-/** POST /api/raids/notify — post an Anmelde-Aufruf into the event channel, pinging the chosen roles. Body: { event, templateId, channelId, roleIds }. */
-const postNotify = withUser(ORGA, async ({ body, req, res }) => {
+/**
+ * POST /api/raids/notify — post an Anmelde-Aufruf into the event channel, pinging the chosen roles. Body: { event, templateId, channelId, roleIds }.
+ * The orga of the raid's category (#727) posts into that raid's own channel only: the channel is the
+ * server's record of the event, a `channelId` in the body does not count for them.
+ */
+const postNotify = withUser(SIGNUP_ORGA, async ({ user, body, req, res }) => {
     const template = getNotify(q.str(body, "templateId"));
-    const channelId = q.str(body, "channelId");
+    const eventId = q.str(body, "event");
+    let channelId = q.str(body, "channelId");
+    let lookup = null;
+    if (!isGlobalRaidOrga(user)) {
+        lookup = await resolveEventForPost(req, eventId);
+        if (!lookup.found) return error(res, lookup.code === "not_found" ? 404 : 400, lookup.code || "not_found", lookup.errorMessage || "Event nicht gefunden.");
+        channelId = String(lookup.found.channelId || "");
+    }
     const target = normalizePingTarget(body.target);
     if (!template || (target !== "talk" && !channelId)) return error(res, 400, "missing_fields", "Vorlage oder Channel fehlt.");
     try {
@@ -127,8 +143,7 @@ const postNotify = withUser(ORGA, async ({ body, req, res }) => {
         }
         // The DM fallback names the raid, so the event is resolved server-side;
         // a failed lookup only costs the DM its title.
-        const eventId = q.str(body, "event");
-        const { found } = eventId ? await resolveEventForPost(req, eventId) : { found: null };
+        const { found } = lookup || (eventId ? await resolveEventForPost(req, eventId) : { found: null });
         const result = await deliverAnnouncement({
             target, event: found, channelId, template, roleIds: body.roleIds || [], guildId: activeGuildFor(req),
         });
@@ -144,7 +159,7 @@ const postNotify = withUser(ORGA, async ({ body, req, res }) => {
  * Missing raiders are re-derived server-side; the client never gets to supply
  * the list of who to ping.
  */
-const postPingMissing = withUser(ORGA, async ({ body, req, res }) => {
+const postPingMissing = withUser(SIGNUP_ORGA, async ({ body, req, res }) => {
     const eventId = q.str(body, "event");
     const guildId = activeGuildFor(req);
     const result = await pingMissingRaiders({ guildId, eventId, target: body.target, text: body.text });
@@ -158,7 +173,7 @@ const postPingMissing = withUser(ORGA, async ({ body, req, res }) => {
  * being the caller's own (inviteCall.js). Body: `{ event, dryRun }`; `dryRun`
  * answers who and what without posting (the dialog's preview).
  */
-const postInviteCall = withUser(ORGA, async ({ user, body, req, res }) => {
+const postInviteCall = withUser(SIGNUP_ORGA, async ({ user, body, req, res }) => {
     const eventId = q.str(body, "event");
     const guildId = activeGuildFor(req);
     if (body.dryRun) {
