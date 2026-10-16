@@ -44,6 +44,9 @@ COPY src/ ./src/
 # App emojis are synced from assets/emojis on start (src/web/appEmojis.js).
 COPY assets/ ./assets/
 COPY scripts/ ./scripts/
+# The help page /docs is rendered from the two end-user guides
+# (src/web/pages/docsPage.js); the rest of docs/ stays out of the image.
+COPY docs/guide-discord.md docs/guide-web-admin.md ./docs/
 # The menu is served from src/web-client/dist (src/web/staticClient.js).
 COPY --from=client /app/src/web-client/dist ./src/web-client/dist
 
