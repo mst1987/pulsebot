@@ -42,6 +42,31 @@ describe("guideMarkdown", () => {
         });
     });
 
+    describe("forged placeholders (NUL in the input, #474 review)", () => {
+        const passThrough = (href) => ({ href, external: /^https?:/.test(href) });
+
+        it("cannot smuggle one link's HTML into another link's href", () => {
+            const html = renderInline("[a](#\u00001\u0000) [b](https://x.de/onmouseover=location='javascript:alert%281%29'//)", passThrough);
+            expect(html).not.toContain("\u0000");
+            // Every href is one quoted attribute without a stray quote or tag inside.
+            for (const [, href] of html.matchAll(/href="([^"]*)"/g)) expect(href).not.toMatch(/[<>]/);
+            expect(html).toBe("<a href=\"#1\">a</a> <a href=\"https://x.de/onmouseover=location=&#39;javascript:alert%281%29&#39;//\" target=\"_blank\" rel=\"noopener noreferrer\">b</a>");
+        });
+
+        it("never loops on a self-referencing placeholder", () => {
+            expect(renderInline("`\u00000\u0000`")).toBe("<code>0</code>");
+        }, 2000);
+
+        it("drops a NUL instead of printing undefined", () => {
+            expect(renderInline("x \u00005\u0000 y")).toBe("x 5 y");
+            expect(parseBlocks("a\u0000b").blocks).toEqual([{ type: "para", text: "ab" }]);
+        });
+
+        it("keeps a code span in a link target as text, never inside the href", () => {
+            expect(renderInline("[x](#`a`)", toHash)).toBe("[x](#<code>a</code>)");
+        });
+    });
+
     describe("parseBlocks", () => {
         it("splits headings, paragraphs and lists; a line under a list item continues it", () => {
             const { title, blocks } = parseBlocks("# Titel\n\nZeile eins\nZeile zwei\n\n## Teil\n- a\n  weiter\n- b\n\n1. eins\n2. zwei\n");
@@ -106,6 +131,14 @@ describe("guideMarkdown", () => {
 
         it("prefixes sub-heading ids with the guide", () => {
             expect(parseGuide(md, { idPrefix: "g" }).sections[0].html).toContain("<h3 id=\"g-unterpunkt\">");
+        });
+
+        it("renders section titles and badges inline (bold, code, links), escaped", () => {
+            const g = parseGuide("## Mit `/raids` & **fett**\n\n*Nur `<Orga>`*\n\nText", { resolveLink: toHash });
+            expect(g.sections[0].slug).toBe("mit-raids--fett");
+            expect(g.sections[0].titleHtml).toBe("Mit <code>/raids</code> &amp; <strong>fett</strong>");
+            expect(g.sections[0].scopeHtml).toBe("Nur <code>&lt;Orga&gt;</code>");
+            expect(parseGuide(md).sections[1].scopeHtml).toBeNull();
         });
     });
 });

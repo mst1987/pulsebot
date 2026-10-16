@@ -30,7 +30,7 @@ describe("docsPage", () => {
             for (const s of sections) {
                 expect(CAT[s.cat]).toEqual({ varName: expect.stringMatching(/^--(area|doc)-[a-z]+$/), label: expect.stringMatching(/\S/) });
                 expect(html).toContain(`id="${esc(s.id)}" style="border-left-color:var(${CAT[s.cat].varName})"`);
-                expect(html).toContain(`<span class="doc-card-title">${esc(s.title)}</span>`);
+                expect(html).toContain(`<span class="doc-card-title">${s.titleHtml}</span>`);
             }
         }
         expect((html.match(/<details class="card doc-card"/g) || []).length).toBe(expected);
@@ -59,6 +59,12 @@ describe("docsPage", () => {
         expect(html).not.toMatch(/<(Event|Name|token|id)>/);
     });
 
+    it("gives every element a unique id (cards, sub-headings, sections)", () => {
+        const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
+        expect(ids.length).toBeGreaterThan(40);
+        expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+    });
+
     it("lets every in-page link land on an element of the page", () => {
         const ids = new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
         const hashes = [...html.matchAll(/href="#([^"]+)"/g)].map((m) => m[1].replace(/&amp;/g, "&"));
@@ -75,13 +81,17 @@ describe("docsPage", () => {
     it("names only slash commands the bot registers, and only web pages the menu has (#418)", () => {
         const { loadCommandModules, commandDefinitions } = require("../../../src/commands/loader");
         const registered = commandDefinitions(loadCommandModules()).map((d) => d.name);
-        const webPages = new Set(menu.map((e) => e.href.split("/")[1]).filter(Boolean));
-        const mentioned = [...new Set([...html.matchAll(/<code>\/([a-z0-9_-]+)(\/)?/g)].map((m) => (m[2] ? `${m[1]}/` : m[1])))];
-        expect(mentioned.length).toBeGreaterThan(10);
-        for (const name of mentioned) {
-            // `/roster/r/<id>` and a bare `/kader` are web pages, the rest are commands.
-            const known = registered.includes(name) || webPages.has(name.replace(/\/$/, "")) || name.endsWith("/");
-            expect({ name, known }).toEqual({ name, known: true });
+        // Web pages: the menu's top-level paths, plus the raidplan share link
+        // `/p/<token>` (docs/raidplan.md), which has no menu entry.
+        const webPages = new Set([...menu.map((e) => e.href.split("/")[1]).filter(Boolean), "p"]);
+        const spans = [...html.matchAll(/<code>\/([a-z0-9_-]+)(\/)?/g)].map((m) => ({ name: m[1], path: Boolean(m[2]) }));
+        const commands = new Set(spans.map((s) => s.name));
+        expect(commands.size).toBeGreaterThan(10);
+        for (const { name, path: isPath } of spans) {
+            // `/roster/r/<id>` must start with a web page; a bare `/kader` may be
+            // a web page or a command; everything else is a registered command.
+            const known = isPath ? webPages.has(name) : registered.includes(name) || webPages.has(name);
+            expect({ name, isPath, known }).toEqual({ name, isPath, known: true });
         }
     });
 
@@ -126,6 +136,42 @@ describe("docsPage", () => {
             expect(block).toContain("id=\"discord\"");
             expect(block).toContain("gerade nicht verfügbar");
             expect(block).not.toContain("doc-card");
+        });
+
+        it("does not cache a page with a missing guide, retries the file and logs only once", () => {
+            jest.isolateModules(() => {
+                const realFs = jest.requireActual("fs");
+                const log = require("../../../src/logger");
+                const warn = jest.fn();
+                jest.spyOn(log, "child").mockReturnValue({ warn, info: jest.fn(), error: jest.fn(), debug: jest.fn() });
+                const isDiscord = (p) => String(p).endsWith("guide-discord.md");
+                let missing = true;
+                const original = realFs.readFileSync;
+                const read = jest.spyOn(realFs, "readFileSync").mockImplementation((p, ...rest) => {
+                    if (missing && isDiscord(p)) throw new Error("ENOENT");
+                    return original.call(realFs, p, ...rest);
+                });
+                try {
+                    const page = require("../../../src/web/pages/docsPage");
+                    const first = page.renderDocsPage(null);
+                    expect(first).toContain("gerade nicht verfügbar");
+                    expect(first).toContain("id=\"web-admin-roster\"");
+                    page.renderDocsPage(null);
+                    expect(read.mock.calls.filter(([p]) => isDiscord(p))).toHaveLength(2);
+                    expect(warn).toHaveBeenCalledTimes(1);
+
+                    missing = false;
+                    const back = page.renderDocsPage(null);
+                    expect(back).not.toContain("gerade nicht verfügbar");
+                    expect(back).toContain("id=\"discord-anmeldung\"");
+                    page.renderDocsPage(null);
+                    // Complete now, so it is cached: no further read of the file.
+                    expect(read.mock.calls.filter(([p]) => isDiscord(p))).toHaveLength(3);
+                } finally {
+                    read.mockRestore();
+                    log.child.mockRestore();
+                }
+            });
         });
     });
 });

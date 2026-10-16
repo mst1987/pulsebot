@@ -16,9 +16,13 @@ function slugify(text) {
         .replace(/\s/g, "-");
 }
 
-// Placeholders for already rendered pieces (code spans, links). \u0000 never
-// occurs in a guide and survives esc() untouched.
+// Placeholders for already rendered pieces (code spans, links). \u0000 survives
+// esc() untouched; every \u0000 of the input is removed first, so a guide can
+// never forge a placeholder (#474 review: a forged one in a link target broke
+// out of the href attribute, a self-referencing one looped forever).
 const HOLD = "\u0000";
+const HOLD_RE = new RegExp(`${HOLD}(\\d+)${HOLD}`, "g");
+const stripHold = (text) => String(text).split(HOLD).join("");
 
 function emphasis(escaped) {
     return escaped
@@ -35,19 +39,20 @@ function emphasis(escaped) {
 function renderInline(text, resolveLink) {
     const held = [];
     const hold = (html) => `${HOLD}${held.push(html) - 1}${HOLD}`;
-    let s = String(text).replace(/`([^`]+)`/g, (_, code) => hold(`<code>${esc(code)}</code>`));
-    s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, href) => {
-        const inner = emphasis(esc(label)).replace(new RegExp(`${HOLD}(\\d+)${HOLD}`, "g"), (m, i) => held[Number(i)]);
+    const unhold = (s) => s.replace(HOLD_RE, (m, i) => held[Number(i)]);
+    let s = stripHold(text).replace(/`([^`]+)`/g, (_, code) => hold(`<code>${esc(code)}</code>`));
+    // A link target never contains a placeholder: `[x](#`a`)` stays text.
+    s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (match, label, href) => {
+        if (href.includes(HOLD)) return match;
+        const inner = unhold(emphasis(esc(label)));
         const target = resolveLink ? resolveLink(href) : null;
         if (!target) return hold(inner);
         const ext = target.external ? " target=\"_blank\" rel=\"noopener noreferrer\"" : "";
         return hold(`<a href="${esc(target.href)}"${ext}>${inner}</a>`);
     });
-    s = emphasis(esc(s));
-    // Placeholders may nest (a code span inside a link label) — resolve until none is left.
-    const re = new RegExp(`${HOLD}(\\d+)${HOLD}`, "g");
-    while (re.test(s)) s = s.replace(re, (m, i) => held[Number(i)]);
-    return s;
+    // Exactly one pass: a placeholder only ever holds finished HTML, and text
+    // put back is never scanned again.
+    return unhold(emphasis(esc(s)));
 }
 
 const LIST_ITEM = /^(\s*)([-*]|\d+\.)\s+(.*)$/;
@@ -73,7 +78,7 @@ function renderList(items, inline) {
  *   { type: "heading", level, text } | { type: "para", text } | { type: "list", items }.
  */
 function parseBlocks(markdown) {
-    const lines = String(markdown).replace(/\r\n?/g, "\n").split("\n");
+    const lines = stripHold(markdown).replace(/\r\n?/g, "\n").split("\n");
     const blocks = [];
     let title = "";
     let para = null;
@@ -124,7 +129,8 @@ function scopeOf(block) {
  * and are left out — the help page is for raiders and the orga.
  * @param {string} markdown
  * @param {object} opts { idPrefix, resolveLink }
- * @returns {{ title, intro: string[], sections: { id, slug, title, scope, html }[] }}
+ * @returns {{ title, intro: string[], sections: { id, slug, title, titleHtml, scope, scopeHtml, html }[] }}
+ *   title/scope are the raw Markdown, titleHtml/scopeHtml the rendered inline HTML.
  *   intro is a list of rendered blocks (HTML strings).
  */
 function parseGuide(markdown, { idPrefix = "", resolveLink = null } = {}) {
@@ -137,7 +143,7 @@ function parseGuide(markdown, { idPrefix = "", resolveLink = null } = {}) {
     for (const block of blocks) {
         if (block.type === "para" && /^Technik:/.test(block.text)) continue;
         if (block.type === "heading" && block.level <= 2) {
-            current = { id: idOf(block.text), slug: slugify(block.text), title: block.text, scope: null, parts: [] };
+            current = { id: idOf(block.text), slug: slugify(block.text), title: block.text, titleHtml: inline(block.text), scope: null, scopeHtml: null, parts: [] };
             sections.push(current);
             continue;
         }
@@ -146,7 +152,7 @@ function parseGuide(markdown, { idPrefix = "", resolveLink = null } = {}) {
         else if (block.type === "list") html = renderList(block.items, inline);
         else {
             const scope = current && !current.parts.length && !current.scope ? scopeOf(block) : null;
-            if (scope) { current.scope = scope; continue; }
+            if (scope) { current.scope = scope; current.scopeHtml = inline(scope); continue; }
             html = `<p>${inline(block.text)}</p>`;
         }
         (current ? current.parts : intro).push(html);

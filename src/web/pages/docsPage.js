@@ -106,12 +106,19 @@ function resolveLink(guideId, href) {
     return { href: `${REPO_DOCS_URL}${m[1]}${m[2] ? `#${m[2]}` : ""}`, external: true };
 }
 
-/** Reads one guide; null (and a log line) when the file is missing. */
+// Files already reported as unreadable — one log line per file and process,
+// not one per page view (a missing guide is retried on every request).
+const warnedMissing = new Set();
+
+/** Reads one guide; null (and a log line, once per file) when the file is missing. */
 function loadGuide(file, dir = DOCS_DIR) {
     try {
         return fs.readFileSync(path.join(dir, file), "utf8");
     } catch (err) {
-        log.warn(`Guide ${file} nicht lesbar: ${err.message}`);
+        if (!warnedMissing.has(file)) {
+            warnedMissing.add(file);
+            log.warn(`Guide ${file} nicht lesbar: ${err.message}`);
+        }
         return null;
     }
 }
@@ -124,7 +131,7 @@ function guideSections(guide, markdown) {
     const parsed = parseGuide(markdown, { idPrefix: guide.id, resolveLink: (href) => resolveLink(guide.id, href) });
     const [lead, ...rest] = parsed.intro;
     const sections = rest.length
-        ? [{ id: `${guide.id}-grundlagen`, slug: "grundlagen", title: "Grundlagen", scope: null, html: rest.join("\n") }, ...parsed.sections]
+        ? [{ id: `${guide.id}-grundlagen`, slug: "grundlagen", title: "Grundlagen", titleHtml: "Grundlagen", scope: null, scopeHtml: null, html: rest.join("\n") }, ...parsed.sections]
         : parsed.sections;
     return {
         lead: lead || "",
@@ -141,11 +148,11 @@ function legend(sections) {
 
 function card(section, index) {
     const c = CAT[section.cat];
-    const badge = section.scope ? `<span class="doc-badge" style="color:var(${c.varName});background:color-mix(in srgb, var(${c.varName}) 16%, transparent)">${esc(section.scope)}</span>` : "";
+    const badge = section.scope ? `<span class="doc-badge" style="color:var(${c.varName});background:color-mix(in srgb, var(${c.varName}) 16%, transparent)">${section.scopeHtml}</span>` : "";
     return `<details class="card doc-card" id="${esc(section.id)}" style="border-left-color:var(${c.varName})">
       <summary>
         <span class="doc-idx" style="color:var(${c.varName});background:color-mix(in srgb, var(${c.varName}) 18%, transparent)">${String(index + 1).padStart(2, "0")}</span>
-        <span class="doc-card-title">${esc(section.title)}</span>
+        <span class="doc-card-title">${section.titleHtml}</span>
         ${badge}
       </summary>
       <div class="doc-card-body">${section.html}</div>
