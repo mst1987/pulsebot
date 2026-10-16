@@ -48,6 +48,12 @@
         "raidplan": "Raid plan in Raid-Helper",
         "raidplanSub": "Edit setup and groups",
         "raidplanAria": "Open the raid plan in Raid-Helper",
+        "softres": "Softres list",
+        "softresSub": "Enter your reserves on softres.it",
+        "softresAria": "Open the softres list",
+        "sheet": "Raid sheet",
+        "sheetSub": "Line-up and tactics in the Google Sheet",
+        "sheetAria": "Open the raid sheet",
         "nextOpenStep": "Next open step"
     },
     "stepBar": {

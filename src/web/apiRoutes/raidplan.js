@@ -35,7 +35,7 @@ const { ok, okWithEtag, error } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { readRawBody } = require("../http/apiBody");
 const { sendFailure } = require("../http/apiResult");
-const { userCan } = require("../../config/permissions");
+const { userCan, userIsOrga } = require("../../config/permissions");
 const auth = require("../http/auth");
 const { getEvent, isOwnEventId } = require("../../stores/eventStore");
 const store = require("../../stores/raidplanStore");
@@ -59,6 +59,7 @@ const { planningRefusal } = require("../../services/events/planning");
 // A write on an event plan: an archived event (a hidden game version, #563) is read only.
 const BY_EVENT = (body) => body.event;
 const { archiveOf } = require("../../services/events/eventArchive");
+const { userSeesEvent } = require("../../services/signups/eventVisibility");
 
 const canWrite = (user) => userCan(user, "raidplan", "write");
 
@@ -85,8 +86,16 @@ function knownRosterOf(found) {
 
 
 /** GET /api/raidplan?event=<id>[&fresh=1] — `fresh` asks Raid-Helper again now ("Neu laden") instead of the minute's cache. */
-const getPlan = withUser({}, async ({ user, res, url }) => {
-    const found = await eventOf(res, url.searchParams.get("event"), { fresh: url.searchParams.get("fresh") === "1" });
+const getPlan = withUser({}, async ({ user, req, res, url }) => {
+    // a raid of a category the raider may not see answers like an unknown one (eventVisibility.js); the orga passes at once
+    const eventId = String(url.searchParams.get("event") || "").trim();
+    if (!userIsOrga(user)) {
+        const own = isOwnEventId(eventId) ? getEvent(eventId) : null;
+        const guildId = own ? own.guildId || "" : activeGuildFor(req);
+        const loadGroups = () => loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
+        if (!(await userSeesEvent(user, { guildId, eventId, loadGroups }))) return error(res, 404, "not_found", "Event nicht gefunden.");
+    }
+    const found = await eventOf(res, eventId, { fresh: url.searchParams.get("fresh") === "1" });
     if (!found) return;
     // An archived event (a hidden game version, #563) opens read only, whatever the caller may do.
     const archived = archiveOf(found.event);

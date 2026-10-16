@@ -333,10 +333,61 @@ describe("Raid-Events list", () => {
     });
 
     it("offers no repeat and no new event to a read-only account", async () => {
-        show("/raids", adminUser({ isAdmin: false, access: { raids: "read" } }));
+        show("/raids", adminUser({ isAdmin: false, isOrga: true, access: { raids: "read" } }));
         await screen.findByRole("table", { name: t("raids.list.upcomingAria") });
         expect(screen.queryByRole("button", { name: t("raids.list.repeat") })).not.toBeInTheDocument();
         expect(screen.queryByRole("link", { name: t("raids.page.newEvent") })).not.toBeInTheDocument();
+    });
+});
+
+// Oct 2026: a raider sees the raids of their categories (the server filters) with what interests them.
+describe("Raid-Events list for a raider", () => {
+    // a raider role, even with raids write: no orga
+    const RAIDER = adminUser({ isAdmin: false, isOrga: false, access: { raids: { read: true, write: true }, loot: { read: true, write: false } } });
+    const missing: RaidsData = { ...RAIDS, events: RAIDS.events.map((ev) => ({ ...ev, channelState: "missing" as const })) };
+
+    it("has no series, templates, notifications, new event, repeat or Kanal fehlt", async () => {
+        vi.mocked(client.get).mockImplementation((path: string) => Promise.resolve(path === "/api/raids" ? missing : ROUTES[path]) as never);
+        show("/raids", RAIDER);
+        await screen.findByRole("table", { name: t("raids.list.upcomingAria") });
+        for (const name of [t("raids.page.series"), t("raids.page.raidTemplates"), t("raids.page.notifyTemplates"), t("raids.page.newEvent")]) {
+            expect(screen.queryByRole("link", { name })).not.toBeInTheDocument();
+        }
+        expect(screen.queryByRole("button", { name: t("raids.list.repeat") })).not.toBeInTheDocument();
+        expect(screen.queryByText(t("raids.list.channelMissing"))).not.toBeInTheDocument();
+        // the links of a row stay
+        expect(within(rowOf("Hyjal + BT")).getByRole("link", { name: "Softres" })).toBeInTheDocument();
+    });
+
+    it("shows the orga the header links and Kanal fehlt", async () => {
+        vi.mocked(client.get).mockImplementation((path: string) => Promise.resolve(path === "/api/raids" ? missing : ROUTES[path]) as never);
+        show("/raids", adminUser({ isAdmin: false, isOrga: true, access: { raids: "read" } }));
+        await screen.findByRole("table", { name: t("raids.list.upcomingAria") });
+        expect(screen.getByRole("link", { name: t("raids.page.series") })).toBeInTheDocument();
+        expect(screen.getAllByText(t("raids.list.channelMissing")).length).toBeGreaterThan(0);
+    });
+
+    it("gives past raids no logs column and no import link, the loot count still links", async () => {
+        const user = userEvent.setup();
+        show("/raids", RAIDER);
+        await openPast(user);
+        const table = screen.getByRole("table", { name: t("raids.list.pastAria") });
+        expect(table).toHaveClass("re-reader");
+        expect(within(table).queryByText(t("raids.list.logs"))).not.toBeInTheDocument();
+        const bt = rowOf("BT September");
+        expect(within(bt).queryByRole("link", { name: t("raids.list.analysed", { count: 1 }) })).not.toBeInTheDocument();
+        expect(within(bt).getByRole("link", { name: t("raids.list.lootBadge", { count: 12 }) })).toHaveAttribute("href", "/history/event?event=2001");
+        expect(within(rowOf("SSC September")).queryByRole("link", { name: t("raids.list.noLootBadge") })).not.toBeInTheDocument();
+        expect(within(rowOf("SSC September")).queryByText(t("raids.list.noLootBadge"))).not.toBeInTheDocument();
+    });
+
+    it("shows the loot count without a link to a raider who may not open the loot", async () => {
+        const user = userEvent.setup();
+        show("/raids", adminUser({ isAdmin: false, isOrga: false, access: { raids: { read: true, write: false } } }));
+        await openPast(user);
+        const bt = rowOf("BT September");
+        expect(within(bt).getByText(t("raids.list.lootBadge", { count: 12 }))).toBeInTheDocument();
+        expect(within(bt).queryByRole("link", { name: t("raids.list.lootBadge", { count: 12 }) })).not.toBeInTheDocument();
     });
 
     it("asks for the version of the menu's content switch and follows a switch (#563)", async () => {

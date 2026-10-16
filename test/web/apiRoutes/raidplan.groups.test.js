@@ -23,7 +23,8 @@ const route = require("../../../src/web/apiRoutes/raidplan");
 const { checkAccess, areasFor } = require("../../../src/web/http/apiAccess");
 const { mockRes, status, json } = require("../../helpers/http");
 
-const ORGA = { id: "orga", isAdmin: false, access: { raidplan: { read: true, write: true } } };
+// The orga is a role setting (permissions.userIsOrga), no area right: raider roles hold "raids" too.
+const ORGA = { id: "orga", isAdmin: false, isOrga: true, access: { raidplan: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raidplan: { read: true, write: false } } };
 const EV = "eh-1";
 const BOSS = "bt/supremus";

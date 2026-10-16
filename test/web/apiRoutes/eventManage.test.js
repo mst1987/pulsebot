@@ -24,7 +24,8 @@ const manage = require("../../../src/services/events/eventManage");
 const route = require("../../../src/web/apiRoutes/eventManage");
 const { checkAccess } = require("../../../src/web/http/apiAccess");
 
-const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raids: { read: true, write: true } } };
+// The orga is a role setting (permissions.userIsOrga), no area right: raider roles hold "raids" too.
+const ORGA = { id: "orga", name: "Orga", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
 const PATHS = [
     "/api/raids/manage", "/api/raids/manage/move", "/api/raids/manage/signups", "/api/raids/manage/raider",
@@ -57,6 +58,22 @@ describe("access", () => {
             expect(status(r)).toBe(403);
         }
         expect(manage.manageInfo).not.toHaveBeenCalled();
+    });
+
+    it("refuses a raider role even with raids write: Event verwalten and its log are the orga's (Oct 2026)", async () => {
+        const raiderWriter = { id: "rw", isAdmin: false, access: { raids: { read: true, write: true } } };
+        for (const handler of [route.getManage, route.getMovePreview, route.getRaiderCandidates]) {
+            const r = await call(handler, raiderWriter, null, "event=eh-a");
+            expect(status(r)).toBe(403);
+            expect(body(r).error.code).toBe("orga_only");
+        }
+        for (const handler of [route.postMove, route.postSignups, route.postRaider, route.postRaiderRemove, route.postCancel, route.postReopen, route.postDelete, route.postRecreateChannel]) {
+            const r = await call(handler, raiderWriter, { event: "eh-a" });
+            expect(status(r)).toBe(403);
+        }
+        expect(manage.manageInfo).not.toHaveBeenCalled();
+        expect(manage.moveEvent).not.toHaveBeenCalled();
+        expect(manage.deleteEvent).not.toHaveBeenCalled();
     });
 });
 

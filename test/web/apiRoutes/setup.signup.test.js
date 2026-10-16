@@ -33,7 +33,8 @@ const { mockRes, status, body } = require("../../helpers/http");
 const { ownEvent } = require("../../factories/events");
 
 const ID = "eh-kara";
-const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raids: { read: true, write: true } } };
+// The orga is a role setting (permissions.userIsOrga), no area right: raider roles hold "raids" too.
+const ORGA = { id: "orga", name: "Orga", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
 
 async function call(handler, user, payload, query) {
