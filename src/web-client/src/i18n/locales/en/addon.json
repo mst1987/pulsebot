@@ -99,7 +99,9 @@
         "posted": "Download centre posted.",
         "removeAsk": "Remove the download centre?",
         "role": "Role for update pings",
-        "roleSub": "Optional. On a new version the bot posts a short message that pings this role (no patch notes, with a link to the web page). It is deleted after 12 hours or by the next ping. Without a role there is no ping.",
+        "roleOfficer": "This is also the role for application pings: whoever subscribes to updates gets the pings of new applications too.",
+        "rolePrivileged": "This role grants bot rights (admin, orga, permissions, bot commands, raider role, roster, role sync), Discord permissions beyond @everyone or unlocks channels. It is pinged, but \"Subscribe to updates\" is missing from the centre - otherwise anyone could take that. Pick a role of its own without rights.",
+        "roleSub": "Optional. On a new version the bot posts a short message that pings this role (no patch notes, with a link to the web page). It is deleted after 12 hours or by the next ping. With a role the centre shows \"Subscribe to updates\": members take the role themselves or give it back (the bot needs \"Manage Roles\" and must sit above the role; the role must carry no rights). Without a role there is no ping and no button.",
         "removeText": "The message in the channel is deleted. Older update announcements still in the channel stay.",
         "removed": "Download centre removed.",
         "loadError": "The settings of the download centre could not be loaded."
