@@ -135,13 +135,15 @@ function signupTone(n: number, size: number): "ok" | "mid" | undefined {
     return "mid";
 }
 
-export function UpcomingRaidList({ events, guildId, canWrite, orga = false, onRepeat, emptyMessage }: {
+export function UpcomingRaidList({ events, guildId, canWrite, orga = false, seesAll = false, onRepeat, emptyMessage }: {
     events: UpcomingRaid[];
     guildId: string;
     /** "Wiederholen" for every row - only where a row says nothing itself (`canOrga`, #729; an older server) */
     canWrite: boolean;
     /** the orga is looking: "Kanal fehlt" is a task of theirs, a raider just gets no Discord link - per row by `canOrga` */
     orga?: boolean;
+    /** the global orga: sees "Kanal fehlt" on every row, acts (`canOrga`) where the server says so (#729) */
+    seesAll?: boolean;
     onRepeat: (id: string) => void;
     emptyMessage: string;
 }) {
@@ -169,7 +171,7 @@ export function UpcomingRaidList({ events, guildId, canWrite, orga = false, onRe
                         // a raid group (#811): one signup for every raid — the bar measures against all their places
                         const places = ev.raidSize + further.reduce((n, r) => n + (r.raidSize || 0), 0);
                         // this raid's orga (#729): the server says it per row; an older server per page
-                        const rowOrga = ev.canOrga ?? orga;
+                        const rowOrga = seesAll || (ev.canOrga ?? orga);
                         const rowWrite = ev.canOrga ?? canWrite;
                         return (
                             <Fragment key={ev.id}>
@@ -294,7 +296,9 @@ function LootBadge({ ev, orga, canLoot, canImport = true }: { ev: PastRaid; orga
  * a raider's rows without logs) - per row by its `canOrga` (#729: the orga of a category sees the logs
  * of their raids only); `canLoot`: the loot count links into the loot page; `canImport`: the import.
  */
-export function PastRaidList({ events, emptyMessage, orga = false, canLoot = false, canImport = true }: { events: PastRaid[]; emptyMessage: string; orga?: boolean; canLoot?: boolean; canImport?: boolean }) {
+export function PastRaidList({ events, emptyMessage, orga = false, seesAll = false, canLoot = false, canImport = true }: { events: PastRaid[]; emptyMessage: string; orga?: boolean; seesAll?: boolean; canLoot?: boolean; canImport?: boolean }) {
+    // a row's logs: the global orga's on every row (the server kept them), a category's orga's on its own (#729)
+    const seesRow = (row: { canOrga?: boolean }, head?: { canOrga?: boolean }) => seesAll || (row.canOrga ?? head?.canOrga ?? true);
     const t = useT();
     const { dir, onSort, apply } = useTableSort<SortKey>("raid-list-past-sort", SORT_DEFAULTS, "time", "desc");
     const open = useRowOpen();
@@ -332,8 +336,8 @@ export function PastRaidList({ events, emptyMessage, orga = false, canLoot = fal
                                     <RaidIcon contentIds={ev.contentIds} sources={ev.contentSources} />
                                     <EventTitle ev={ev} raids={further.length ? further.length + 1 : 0} />
                                     <div className="re-when"><b>{day}</b><span>{time}</span></div>
-                                    {orga && <div className="re-badges">{(ev.canOrga ?? true) && <LogBadges ev={ev} />}</div>}
-                                    <div className="re-badges"><LootBadge ev={ev} orga={orga && (ev.canOrga ?? true)} canLoot={canLoot} canImport={canImport} /></div>
+                                    {orga && <div className="re-badges">{seesRow(ev) && <LogBadges ev={ev} />}</div>}
+                                    <div className="re-badges"><LootBadge ev={ev} orga={orga && seesRow(ev)} canLoot={canLoot} canImport={canImport} /></div>
                                     <div className="re-acts">
                                         {ev.softres?.url && <IconLink href={ev.softres.url} icon="inv_scroll_11" tip="Softres" tipSub={t("raids.list.softresSub")} />}
                                         <DetailLink id={ev.id} />
@@ -350,8 +354,8 @@ export function PastRaidList({ events, emptyMessage, orga = false, canLoot = fal
                                             </span>
                                         </div>
                                         <div className="re-when" />
-                                        {orga && <div className="re-badges">{(r.canOrga ?? ev.canOrga ?? true) && <LogBadges ev={r} />}</div>}
-                                        <div className="re-badges"><LootBadge ev={r} orga={orga && (r.canOrga ?? ev.canOrga ?? true)} canLoot={canLoot} canImport={canImport} /></div>
+                                        {orga && <div className="re-badges">{seesRow(r, ev) && <LogBadges ev={r} />}</div>}
+                                        <div className="re-badges"><LootBadge ev={r} orga={orga && seesRow(r, ev)} canLoot={canLoot} canImport={canImport} /></div>
                                         <div className="re-acts"><DetailLink id={r.id} /></div>
                                     </div>
                                 ))}

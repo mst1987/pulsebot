@@ -426,6 +426,31 @@ describe("web/apiRoutes/dashboard", () => {
                 expect(data.areas).toBeNull();
             });
 
+            it("keeps the logs of the last raids on their own raids only, as /api/raids/past (review #729)", async () => {
+                dashboardData.loadRecentEvents.mockResolvedValue({
+                    events: [
+                        { id: "rh-1", title: "Hyjal", startTime: 1000, pendingLogCount: 2, logs: [{ title: "Log" }] },
+                        { id: "rh-2", title: "Fremd", startTime: 900, pendingLogCount: 1, logs: [{ title: "Fremdlog" }] },
+                    ],
+                    error: null,
+                });
+                const data = json(await get("/api/dashboard")).data;
+                expect(data.recentEvents.events.map((e) => [e.id, e.logs.length, e.pendingLogCount])).toEqual([["rh-1", 1, 2], ["rh-2", 0, 0]]);
+            });
+
+            it("gives a global orga without `raids` write that manages a roster the actions of its own raids (review #729)", async () => {
+                auth.getUser.mockReturnValue({ ...MANAGER, isOrga: true });
+                dashboardData.loadNextRaids.mockResolvedValue({ raids: [{ id: "rh-1", title: "BT", startTime: 2000, sheet: null, planning: "sheet" }, { id: "rh-2", title: "Fremd", startTime: 3000, sheet: null, planning: "sheet" }], error: null });
+                dashboardData.loadRecentEvents.mockResolvedValue({ events: [], error: null });
+                dashboardData.loadMissingChannels.mockResolvedValueOnce([{ eventId: "rh-1", title: "BT", startTime: 2000 }, { eventId: "rh-2", title: "Fremd", startTime: 2000 }]);
+                const data = json(await get("/api/dashboard")).data;
+                // as before it sees every raid; it may act on its own one only
+                expect(dashboardData.loadNextRaids).toHaveBeenLastCalledWith("guild-1", 2, { versionId: "tbc", categoryIds: null });
+                const missing = data.tasks.filter((t) => t.id.startsWith("channel-missing:"));
+                expect(missing.map((t) => [t.id, !!t.action])).toEqual([["channel-missing:rh-1", true], ["channel-missing:rh-2", false]]);
+                expect(data.tasks.find((t) => t.id === "sheet")).toMatchObject({ count: 0, href: "/raids/detail?event=rh-1" });
+            });
+
             it("may open the Raid-Details of their raid, not of another category's", async () => {
                 dashboardData.loadNextRaidDetails.mockResolvedValueOnce({ error: null, raid: { id: "rh-1", classes: [] } });
                 let res = mockRes();

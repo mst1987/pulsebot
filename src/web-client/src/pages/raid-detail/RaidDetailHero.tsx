@@ -81,7 +81,7 @@ function RaidGroupLinks({ group, current }: { group: RaidGroup; current: string 
     );
 }
 
-export default function RaidDetailHero({ data, user, orga, canAct = orga, onStep, onPrimary, primaryRunning, manage, cockpit, lootInMenu = false, onRecreateChannel, recreating = false }: {
+export default function RaidDetailHero({ data, user, orga, canAct = orga, allows, onStep, onPrimary, primaryRunning, manage, cockpit, lootInMenu = false, onRecreateChannel, recreating = false }: {
     data: RaidDetailData;
     /** who is looking, for the OrgaZone around the steps */
     user?: SessionUser;
@@ -89,6 +89,8 @@ export default function RaidDetailHero({ data, user, orga, canAct = orga, onStep
     orga: boolean;
     /** the raid's actions are open to them (`viewer.canOrga`, #729): only then a primary that opens a dialog */
     canAct?: boolean;
+    /** whether a primary's dialog is open to them beyond the raid (log/loot: `cla` / `history` write, #729) */
+    allows?: (action: RaidPrimaryAction) => boolean;
     onStep: (step: RaidStep) => void;
     onPrimary: (action: RaidPrimaryAction) => void;
     primaryRunning: boolean;
@@ -113,7 +115,7 @@ export default function RaidDetailHero({ data, user, orga, canAct = orga, onStep
     // A cancelled raid has no next step to push, and the cockpit brings its own. A primary that opens a
     // dialog only for whom the raid's actions are open (#729); a plain link for the whole orga.
     const next = !orga || cancelled || cockpit ? null : data.progress?.primary || null;
-    const primary = next && (canAct || next.href) ? next : null;
+    const primary = next && (next.href || (canAct && (!allows || allows(next)))) ? next : null;
     const steps = !orga ? null : cockpit || (data.progress?.steps?.length ? (
         <div className="rd-steps" style={{ "--rd-steps": data.progress.steps.length } as CSSProperties}>
             {data.progress.steps.map((s) => <StepCell key={s.key} step={s} onOpen={onStep} />)}

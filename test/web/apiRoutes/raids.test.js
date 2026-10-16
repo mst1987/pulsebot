@@ -352,11 +352,14 @@ describe("web/apiRoutes/raids", () => {
                     expect(data.events.map((e) => [e.id, e.canOrga])).toEqual([["e-mi", false], ["e-pug", true], ["e-mine", true]]);
                     expect(data).toMatchObject({ orga: true, canCreate: true });
                     // the past raids: the logs stay on the rows of their category only
-                    const row = (id, categoryId) => ({ id, categoryId, title: "BT", versionId: "tbc", lootCount: 1, logs: [{ id: "l1" }], pendingLogs: [], pendingLogCount: 0 });
+                    // an open log decision names the raids it also fits - for a category's orga only those of its categories
+                    const pendingLogs = [{ title: "Abendlog", alsoFits: ["Mi Kara", "PuG Gruul"], alsoFitsCategoryIds: ["mi", "foreign"] }];
+                    const row = (id, categoryId) => ({ id, categoryId, title: "BT", versionId: "tbc", lootCount: 1, logs: [{ id: "l1" }], pendingLogs, pendingLogCount: 1 });
                     raidListing.loadPastRaids.mockResolvedValue({ events: [row("p-mi", "mi"), row("p-pug", "foreign")], error: null });
                     raidEventStore.getRaidEvent.mockImplementation((id) => (id === "p-pug" ? { id: "p-pug", categoryId: "foreign" } : null));
                     const past = json(await get("/api/raids/past")).data;
                     expect(past.events.map((e) => [e.id, e.canOrga, e.logs.length])).toEqual([["p-mi", false, 0], ["p-pug", true, 1]]);
+                    expect(past.events[1].pendingLogs).toEqual([{ title: "Abendlog", alsoFits: ["PuG Gruul"] }]);
                     expect(past).toMatchObject({ orga: true, canCreate: true });
 
                     // somebody else: a raider, no orga part, no "Neues Event"

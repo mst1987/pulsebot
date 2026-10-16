@@ -45,7 +45,7 @@ const getRaids = withUser({}, async ({ user, req, res, url }) => {
     const { versionId, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
     const shown = versionId ? rows.filter((r) => r.versionId === versionId) : rows;
     // per row whether the caller is its orga (#729): "Wiederholen" and "Kanal fehlt" follow it
-    const events = await withOrgaFlags(user, shown, req, { managedCategories: viewer.orgaCategories, groups });
+    const events = await withOrgaFlags(user, shown, req, { groups });
     ok(res, {
         // the Raid-Helper sync message points into the settings: the orga's, a raider just gets the list
         events, error: viewer.orga ? err : null, activeGuildId: guildId, guildName: (guild && guild.name) || "",
@@ -83,14 +83,31 @@ const getPastRaids = withUser({}, async ({ user, req, res, url }) => {
     const { versionId, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
     const inVersion = versionId ? shown.filter((r) => r.versionId === versionId) : shown;
     // the logs are the orga's work: the global orga's rows keep them, and the rows the caller is the orga of (#729)
-    const flagged = await withOrgaFlags(user, inVersion, req, { managedCategories: viewer.orgaCategories });
-    const events = flagged.map((row) => (viewer.orga || row.canOrga ? row : withoutLogs(row)));
+    const flagged = await withOrgaFlags(user, inVersion, req);
+    // an unassigned log names the other raids it fits: the global orga all of them, a category's orga those of its categories
+    const scope = viewer.orga ? null : new Set(viewer.orgaCategories || []);
+    const events = flagged.map((row) => (viewer.orga || row.canOrga ? scopedAlsoFits(row, scope) : withoutLogs(row)));
     ok(res, {
         events, error: viewer.orga ? err : null, activeGuildId: guildId,
         version: versionId, mainVersion, versions: versionChoices(shown.map((r) => ({ versionIds: [r.versionId] })), mainVersion),
         ...await orgaFields(user, viewer, req),
     });
 });
+
+/**
+ * A past raid's open log decisions with `alsoFits` cut to the raids of `scope` (the categories of a category's
+ * orga, #729 review: the titles of other categories' raids are not theirs); null = every raid. The helper field
+ * `alsoFitsCategoryIds` never leaves the server.
+ */
+function scopedAlsoFits(row, scope) {
+    if (!Array.isArray(row.pendingLogs)) return row;
+    const pendingLogs = row.pendingLogs.map((p) => {
+        const ids = p.alsoFitsCategoryIds || [];
+        const alsoFits = scope ? (p.alsoFits || []).filter((_, i) => scope.has(String(ids[i] || ""))) : (p.alsoFits || []);
+        return { title: p.title, alsoFits };
+    });
+    return { ...row, pendingLogs };
+}
 
 /** A past raid's row without its logs, for a raider (the loot count stays: loot is for everyone). */
 function withoutLogs(row) {

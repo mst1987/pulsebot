@@ -366,6 +366,19 @@ describe("Raid-Events list for the orga of a category", () => {
         expect(screen.queryByRole("link", { name: t("raids.page.notifyTemplates") })).not.toBeInTheDocument();
     });
 
+    it("keeps \"Kanal fehlt\" on every row for the global orga without `raids` write; acting stays per row (review #729)", async () => {
+        show("/raids", adminUser({ isAdmin: false, isOrga: true, access: { raids: { read: true, write: false } } }));
+        await screen.findByRole("table", { name: t("raids.list.upcomingAria") });
+        const hyjal = rowOf("Hyjal + BT");
+        expect(within(hyjal).getByText(t("raids.list.channelMissing"))).toBeInTheDocument();
+        expect(within(hyjal).queryByRole("button", { name: t("raids.list.repeat") })).not.toBeInTheDocument();
+    });
+
+    it("opens the create dialog at /raids/new by the server's canCreate, without `raids` write (review #729)", async () => {
+        show("/raids/new", MANAGER);
+        expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    });
+
     it("repeats and sees \"Kanal fehlt\" only on the raids of their category", async () => {
         show("/raids", MANAGER);
         await screen.findByRole("table", { name: t("raids.list.upcomingAria") });

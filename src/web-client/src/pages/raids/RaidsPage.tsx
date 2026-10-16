@@ -138,6 +138,7 @@ function RaidsList({ user }: ShellContext) {
                     guildId={upcoming.activeGuildId}
                     canWrite={globalWrite}
                     orga={orga}
+                    seesAll={globalOrga}
                     onRepeat={repeat}
                     emptyMessage={upcoming.error ? t("raids.page.noneLoaded") : t("raids.page.noneUpcoming")}
                 />
@@ -152,7 +153,7 @@ function RaidsList({ user }: ShellContext) {
             <>
                 {past.error && <div className="re-warn">{past.error}</div>}
                 <PastRaidList
-                    events={filtered as PastRaid[]} emptyMessage={t("raids.page.nonePast")} orga={past.orga ?? globalOrga}
+                    events={filtered as PastRaid[]} emptyMessage={t("raids.page.nonePast")} orga={past.orga ?? globalOrga} seesAll={globalOrga}
                     canLoot={canAccess(user, "history") || canAccess(user, "loot")} canImport={canAccess(user, "history", "write")}
                 />
             </>

@@ -22,7 +22,21 @@ const signupStore = require("../../stores/signupStore");
 const { getEvent, isOwnEventId } = require("../../stores/eventStore");
 const { getRaidEvent } = require("../../stores/raidEventStore");
 const { memberRolesRemembered } = require("../discord/memberRoleMemory");
-const { orgaCategoryIds } = require("../roster/categoryOrga");
+const { orgaCategoryIds, ROLE_FETCH_MS } = require("../roster/categoryOrga");
+
+/** `promise`'s value, or null when it fails or takes longer than `ms`. */
+async function withinTime(promise, ms) {
+    let timer = null;
+    const timeout = new Promise((resolve) => {
+        timer = setTimeout(() => resolve(null), ms);
+        if (timer && typeof timer.unref === "function") timer.unref();
+    });
+    try {
+        return await Promise.race([Promise.resolve(promise).catch(() => null), timeout]);
+    } finally {
+        clearTimeout(timer);
+    }
+}
 const { signupEventIdOf } = require("../../utils/raidGroup");
 
 /**
@@ -49,11 +63,9 @@ async function raidViewer(user, guildId, { config, cache } = {}) {
         if (viewAs) {
             roleIds = user.viewAs.roleIds;
         } else {
-            try {
-                roleIds = (await memberRolesRemembered(guildId, userId)).roleIds || [];
-            } catch {
-                roleIds = [];
-            }
+            // a page request waits at most ROLE_FETCH_MS for Discord (docs/known-issues.md: member lookups need a limit)
+            const read = await withinTime(memberRolesRemembered(guildId, userId), ROLE_FETCH_MS);
+            roleIds = (read && read.roleIds) || [];
         }
         try {
             orgaCategories = await orgaCategoryIds(user, { config: cfg, managerOnly: true, cache });

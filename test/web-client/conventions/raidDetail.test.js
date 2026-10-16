@@ -52,7 +52,8 @@ describe("raid detail layout", () => {
         // step bar (#319) carries the one deed itself, so the head keeps quiet; a raider gets none (Oct 2026)
         expect(hero).toContain("const next = !orga || cancelled || cockpit ? null : data.progress?.primary || null;");
         // a primary that opens a dialog only for whom the raid's actions are open (#729); a link for the whole orga
-        expect(hero).toContain("const primary = next && (canAct || next.href) ? next : null;");
+        // ... and a log or loot dialog only with its own area (`allows`: cla / history write)
+        expect(hero).toContain("const primary = next && (next.href || (canAct && (!allows || allows(next)))) ? next : null;");
         // a step is a button that opens its dialog or tab
         expect(hero).toContain("onClick={() => onOpen(step)}");
         expect(page).toMatch(/if \(step\.open\.modal\) setModal\(step\.open\.modal\);\s*else if \(step\.open\.tab\) switchTab\(step\.open\.tab\);/);

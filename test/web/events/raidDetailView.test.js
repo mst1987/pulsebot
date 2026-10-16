@@ -541,6 +541,23 @@ describe("the orga of the raid's category", () => {
         expect(d.roles).toEqual([{ id: "r1", name: "Raider" }]);
     });
 
+    it("gets none of the server's unassigned logs without `cla` write - they are every category's (review #729)", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(ownEvent()));
+        logStore.listLogsForEvent.mockReturnValue([{ id: "l-own", eventId: "eh-1", status: "done" }]);
+        logStore.listLogs.mockReturnValue([{ id: "l-free", guildId: "g1", title: "Fremde Kategorie" }]);
+        try {
+            let d = (await read(MANAGER, "eh-1")).body.data;
+            expect(d.eventLogs.map((l) => l.id)).toEqual(["l-own"]);
+            expect(d.unlinkedLogs).toEqual([]);
+            // with `cla` write the "Log zuordnen" dialog is theirs, and its candidates with it
+            d = (await read({ ...MANAGER, access: { ...MANAGER.access, cla: { read: true, write: true } } }, "eh-1")).body.data;
+            expect(d.unlinkedLogs.map((l) => l.id)).toEqual(["l-free"]);
+        } finally {
+            logStore.listLogsForEvent.mockReturnValue([]);
+            logStore.listLogs.mockReturnValue([]);
+        }
+    });
+
     it("keeps a raid of another category as before: 404 without a signup, the raider's view with one", async () => {
         const foreign = { ...ownEvent({ id: "eh-2" }) };
         loadEventGroups.mockResolvedValue({ groups: [{ categoryId: "cat2", categoryName: "Andere", events: [foreign] }], error: null, stale: false });

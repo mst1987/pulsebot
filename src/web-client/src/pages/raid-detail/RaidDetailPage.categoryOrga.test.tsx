@@ -9,7 +9,7 @@ import * as client from "../../api/client";
 import type { RaidDetailData, SessionUser } from "../../api";
 import { t } from "../../i18n";
 import { adminUser, renderPage } from "../../test/render";
-import { raidDetail, raidhelperDetail } from "../../test/fixtures/raidDetail";
+import { ownSteps, raidDetail, raidhelperDetail } from "../../test/fixtures/raidDetail";
 import RaidDetailPage from "./RaidDetailPage";
 
 vi.mock("../../api/client", async (orig) => ({ ...(await orig<typeof import("../../api/client")>()), get: vi.fn(), send: vi.fn() }));
@@ -86,5 +86,43 @@ describe("the orga of the raid's category", () => {
     it("shows that primary action to the orga of the raid", async () => {
         await show(raidhelperDetail(MINE));
         expect(screen.getByRole("button", { name: "Anmelde-Aufruf posten" })).toBeInTheDocument();
+    });
+
+    // review #729: log and loot deeds are `cla` / `history` writes - the step informs, it offers nothing that fails
+    const LOG = { id: "log", label: "Log zuordnen", icon: "inv_misc_pocketwatch_01", modal: "log" as const };
+    const pastSteps = () => ownSteps({
+        current: "after", action: LOG,
+        steps: ownSteps().steps.map((s) => (s.id === "after" ? { ...s, state: "current" as const, action: LOG } : { ...s, action: null })),
+    });
+
+    it("offers no \"Log zuordnen\" on a past own raid without `cla` write", async () => {
+        await show(raidDetail({ ...MINE, steps: pastSteps() }, { isPast: true }));
+        expect(screen.queryByRole("button", { name: /Log zuordnen/ })).not.toBeInTheDocument();
+    });
+
+    it("does offer it with `cla` write", async () => {
+        const writer = adminUser({ ...MANAGER, access: { ...MANAGER.access, cla: { read: true, write: true } } });
+        await show(raidDetail({ ...MINE, steps: pastSteps() }, { isPast: true }), writer);
+        expect(screen.getAllByRole("button", { name: /Log zuordnen/ }).length).toBeGreaterThan(0);
+    });
+
+    it("hides a Raid-Helper raid's primary \"Loot hinzufügen\" without `history` write", async () => {
+        await show(raidhelperDetail({ ...MINE, progress: { steps: [], next: "loot", primary: { label: "Loot hinzufügen", icon: "inv_misc_bag_10", modal: "loot" } } }));
+        expect(screen.queryByRole("button", { name: "Loot hinzufügen" })).not.toBeInTheDocument();
+    });
+
+    it("names the orga of the category in its zone, not the admins", async () => {
+        await show(raidDetail(MINE));
+        expect(screen.getAllByText(new RegExp(t("shell.orga.visibleForCategory"))).length).toBeGreaterThan(0);
+    });
+
+    it("leads nobody without `raids` write to the call templates from an empty Anmelde-Aufruf", async () => {
+        const user = userEvent.setup();
+        await show(raidDetail(MINE));
+        await user.click(manageButton()!);
+        await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: new RegExp(t("raidDetail.manage.notify")) }));
+        const dialog = screen.getByRole("dialog");
+        expect(within(dialog).getByText(t("raidModals.notify.noTemplatesOrga"))).toBeInTheDocument();
+        expect(within(dialog).queryByRole("link", { name: t("raidModals.notify.noTemplatesLink") })).not.toBeInTheDocument();
     });
 });

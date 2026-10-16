@@ -262,7 +262,8 @@ function MenuApp() {
                                 <Route path="channels" element={<Guard user={user} areas={["channels"]}><ChannelsPage /></Guard>} />
                                 <Route path="settings" element={<Guard user={user} areas={["settings"]}><SettingsPage /></Guard>} />
                                 <Route path="raids" element={<Guard user={user} areas={["raids"]}><RaidsPage /></Guard>} />
-                                <Route path="raids/new" element={<Guard user={user} areas={["raids"]} level="write"><RaidCreatePage /></Guard>} />
+                                {/* the list with the create dialog over it: the dialog opens by the server's `canCreate` (#729 - the orga of a category creates without `raids` write) */}
+                                <Route path="raids/new" element={<Guard user={user} areas={["raids"]}><RaidCreatePage /></Guard>} />
                                 <Route path="raids/detail" element={<Guard user={user} areas={["raids"]}><RaidDetailPage /></Guard>} />
                                 <Route path="raids/templates" element={<Guard user={user} areas={["raids"]}><NotifyTemplatesPage /></Guard>} />
                                 <Route path="raids/raid-templates" element={<Guard user={user} areas={["raids"]}><RaidTemplatesPage /></Guard>} />

@@ -47,18 +47,20 @@ async function canCreateRaids(user, req) {
 /**
  * Each row of a raid list with `canOrga` (#729): whether the caller is the orga of that raid - the rule of
  * canOrgaRaid, so a row's button never meets a refusing gate. The global orga with `raids` write is the orga
- * of every row and nothing is looked up; nobody else is unless they manage a category's roster
- * (`managedCategories`, raidViewer's `orgaCategories`) - then each row is asked, its Raid-Helper events found
- * in the list's own `groups`.
+ * of every row and nothing is looked up; nobody else is unless they manage some current roster
+ * (isAnyCategoryManager - a global orga without `raids` write that manages one too) - then each row is asked,
+ * its Raid-Helper events found in the list's own `groups`. `canOrga` is about acting; what the global orga
+ * may see is the list's `orga` (the page shows its parts to every orga).
  * @param {object} user
  * @param {Array<{ id: string }>} rows
  * @param {object} req
- * @param {{ managedCategories?: string[], groups?: object[] }} [opts]
+ * @param {{ groups?: object[] }} [opts]
  */
-async function withOrgaFlags(user, rows, req, { managedCategories = [], groups } = {}) {
+async function withOrgaFlags(user, rows, req, { groups } = {}) {
     const list = rows || [];
     if (isGlobalRaidOrga(user)) return list.map((row) => ({ ...row, canOrga: true }));
-    if (!managedCategories.length) return list.map((row) => ({ ...row, canOrga: false }));
+    const manager = list.length > 0 && await categoryOrga.isAnyCategoryManager(user, { cache: categoryOrga.requestCache(req) });
+    if (!manager) return list.map((row) => ({ ...row, canOrga: false }));
     const loadGroups = groups ? async () => ({ groups }) : undefined;
     const out = [];
     for (const row of list) out.push({ ...row, canOrga: await canOrgaRaid(user, row.id, req, { loadGroups }) });

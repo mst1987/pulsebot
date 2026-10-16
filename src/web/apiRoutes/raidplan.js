@@ -71,6 +71,7 @@ const BY_QUERY = (body, query) => query.get("event");
 const { archiveOf } = require("../../services/events/eventArchive");
 const { userSeesEvent } = require("../../services/signups/eventVisibility");
 const raidplanAccess = require("../raidplan/raidplanAccess");
+const { requestCache } = require("../../services/roster/categoryOrga");
 
 // The plan of one event (#726): `raidplan` write for every raid (the area goes to the people who write the
 // tactics, orga rank or not), else the manager of the raid's category - raidplanAccess.js mirrors it per event.
@@ -119,7 +120,7 @@ const getPlan = withUser({ orgaRead: BY_QUERY }, async ({ user, req, res, url })
         const guildId = own ? own.guildId || "" : activeGuildFor(req);
         const loadGroups = () => loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
         // the orga of the raid's category (#726) plans it, whether or not they could sign up for it
-        const sees = (await userSeesEvent(user, { guildId, eventId, loadGroups })) || (await raidplanAccess.managesRaid(user, eventId, req));
+        const sees = (await userSeesEvent(user, { guildId, eventId, loadGroups, cache: requestCache(req) })) || (await raidplanAccess.managesRaid(user, eventId, req));
         if (!sees) return error(res, 404, "not_found", "Event nicht gefunden.");
     }
     const found = await eventOf(res, eventId, { fresh: url.searchParams.get("fresh") === "1" });

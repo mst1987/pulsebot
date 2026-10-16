@@ -109,6 +109,8 @@ const getRaidDetail = withUser({}, async ({ user, req, res, url }) => {
             canSwitchPlan: planPost,
             // the Anmelde-Aufruf of anyone but the global orga with `raids` write pings the category's raider roles only
             categoryRolesOnly: !isGlobalRaidOrga(user),
+            // the server's unassigned logs are the "Log zuordnen" dialog's: `cla` write (POST /api/cla/log-link)
+            canLogs: userCan(user, "cla", "write"),
         },
     }));
 });

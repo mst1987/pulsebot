@@ -112,6 +112,7 @@
         "noTemplatesBefore": "Noch keine Aufruf-Vorlagen. Lege zuerst unter",
         "noTemplatesLink": "Aufruf-Vorlagen",
         "noTemplatesAfter": " eine an.",
+        "noTemplatesOrga": "Noch keine Aufruf-Vorlagen. Die legt die Orga mit Schreibrecht auf Raid-Events an.",
         "template": "Vorlage",
         "unnamed": "(ohne Name)",
         "rolesTip": "Rollen pingen",

@@ -27,7 +27,7 @@ import { useConfirm } from "../../components/ui/Modal";
 import BackButton from "../../components/ui/BackButton";
 import ArchiveBanner from "../../components/raid/ArchiveBanner";
 import { lootSystemEntry, raidhelperMenu, type ManageAction } from "../../lib/raids/eventManage";
-import { withoutDeeds } from "../../lib/raids/raidSteps";
+import { deedAllowed, withAllowedDeeds, withoutDeeds } from "../../lib/raids/raidSteps";
 import ManageMenu from "./manage/ManageMenu";
 import MoveModal from "./manage/MoveModal";
 import CancelModal from "./manage/CancelModal";
@@ -182,7 +182,10 @@ export default function RaidDetailPage() {
     const tabs = TABS.filter((t) => (t === "setup" ? ownEvent : t === "plan" ? hasPlan : t === "logs" ? orga : true));
     const shown: Tab = (tab === "setup" && !ownEvent) || (tab === "plan" && !hasPlan) || (tab === "logs" && !orga) ? LEGACY_TABS.setup.tab : tab;
 
+    // Log and loot deeds are areas of their own (#729): without `cla` / `history` write the step only informs.
+    const areaRights = { canLogs: !!ctx.canLogs, canLoot: !!ctx.canLoot };
     const openStep = (step: RaidStep) => {
+        if (step.open.modal && !deedAllowed({ modal: step.open.modal }, areaRights)) return;
         if (step.open.modal) setModal(step.open.modal);
         else if (step.open.tab) switchTab(step.open.tab);
     };
@@ -298,7 +301,8 @@ export default function RaidDetailPage() {
         }
     };
     // Own event: the six-step bar, the orga's. Without raids write it only informs; a raider gets none.
-    const cockpit: RaidEventSteps | null = orga && data.steps ? (canManage ? data.steps : withoutDeeds(data.steps)) : null;
+    // Log and loot deeds additionally need their own areas (`cla` / `history` write, #729).
+    const cockpit: RaidEventSteps | null = orga && data.steps ? withAllowedDeeds(canManage ? data.steps : withoutDeeds(data.steps), areaRights) : null;
     const cockpitEval = cockpit?.action?.evaluate;
 
     return (
@@ -308,7 +312,7 @@ export default function RaidDetailPage() {
             <ArchiveBanner archive={archived} />
 
             <RaidDetailHero
-                data={data} user={user} orga={orga} canAct={canWrite}
+                data={data} user={user} orga={orga} canAct={canWrite} allows={(action) => deedAllowed(action, areaRights)}
                 onStep={canWrite ? openStep : () => undefined} onPrimary={canWrite ? runPrimary : () => undefined}
                 lootInMenu={!!lootLabel && (canManage || raidhelperEntries.length > 0)}
                 onRecreateChannel={canManage ? () => void recreate() : undefined} recreating={recreating}

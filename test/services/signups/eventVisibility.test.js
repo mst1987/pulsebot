@@ -70,6 +70,18 @@ describe("raidViewer", () => {
         expect((await vis.raidViewer(RAIDER, "g")).roleIds).toEqual(["r-mo"]);
     });
 
+    it("waits at most ROLE_FETCH_MS for a hanging Discord lookup (review #729)", async () => {
+        jest.useFakeTimers();
+        try {
+            discord.memberRoleIds.mockImplementationOnce(() => new Promise(() => {}));
+            const pending = vis.raidViewer(RAIDER, "g");
+            await jest.advanceTimersByTimeAsync(3000);
+            expect((await pending).roleIds).toEqual([]);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it("names the categories whose current roster the raider manages (#729), and shows their raids", async () => {
         const roster = { id: "r1", categoryId: "mo", versionId: "tbc", guildId: "g", managers: { userIds: ["u1"], roleIds: [] } };
         rosterStore.listRosters.mockReturnValue([roster, { id: "r2", categoryId: "other", guildId: "g", managers: { userIds: ["x"] } }]);

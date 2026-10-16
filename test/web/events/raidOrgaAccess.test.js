@@ -72,12 +72,22 @@ describe("web/events/raidOrgaAccess", () => {
         expect(await withOrgaFlags(ORGA, rows, {})).toEqual([{ id: "eh-1", canOrga: true }, { id: "rh-2", canOrga: true }]);
         expect(await withOrgaFlags(WRITER, rows, {})).toEqual([{ id: "eh-1", canOrga: false }, { id: "rh-2", canOrga: false }]);
         expect(mockCanOrgaEvent).not.toHaveBeenCalled();
+        mockIsAnyCategoryManager.mockResolvedValue(true);
         mockCanOrgaEvent.mockImplementation(async (user, id) => id === "rh-2");
         const groups = [{ categoryId: "cat1", events: [{ id: "rh-2" }] }];
-        expect(await withOrgaFlags(MANAGER, rows, {}, { managedCategories: ["cat1"], groups })).toEqual([{ id: "eh-1", canOrga: false }, { id: "rh-2", canOrga: true }]);
+        expect(await withOrgaFlags(MANAGER, rows, {}, { groups })).toEqual([{ id: "eh-1", canOrga: false }, { id: "rh-2", canOrga: true }]);
         // a Raid-Helper row is found in the list's own groups, no second request
         const opts = mockCanOrgaEvent.mock.calls[1][2];
         expect(await opts.loadGroups()).toEqual({ groups });
-        expect(await withOrgaFlags(MANAGER, null, {}, { managedCategories: ["cat1"] })).toEqual([]);
+        expect(await withOrgaFlags(MANAGER, null, {})).toEqual([]);
+    });
+
+    it("withOrgaFlags: a global orga without `raids` write that manages a roster acts on its own raids (review #729)", async () => {
+        const ORGA_MGR = { ...ORGA_READ, id: "mgr" };
+        mockIsAnyCategoryManager.mockResolvedValue(true);
+        mockCanOrgaEvent.mockImplementation(async (user, id) => id === "eh-1");
+        expect(await withOrgaFlags(ORGA_MGR, [{ id: "eh-1" }, { id: "eh-2" }], {})).toEqual([{ id: "eh-1", canOrga: true }, { id: "eh-2", canOrga: false }]);
+        // the manager path, never the global one
+        expect(mockCanOrgaEvent.mock.calls.every(([, , o]) => o.managerOnly === true)).toBe(true);
     });
 });

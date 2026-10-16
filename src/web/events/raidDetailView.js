@@ -473,7 +473,9 @@ async function buildRaidDetail({ guildId, eventId, planPost = true, viewer = nul
         // entry are offered at all (src/services/loot/lootSystem.js).
         lootSystem: lootSystemOf(eventId, found.g.categoryId),
         eventLogs: logs.eventLogs,
-        unlinkedLogs: logs.unlinkedLogs,
+        // the server's unassigned logs (of every category) are the "Log zuordnen" dialog's: only with `cla`
+        // write, the dialog's own right (#729: a category orga without it gets none of them)
+        unlinkedLogs: rights && rights.canLogs === false ? [] : logs.unlinkedLogs,
         // whom the page is for: the client draws the orga's parts only for the orga (the server already left them out)
         orga,
         // what the caller may do on this raid, each the gate of the route its buttons call (#729)

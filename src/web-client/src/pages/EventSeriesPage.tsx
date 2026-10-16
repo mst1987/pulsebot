@@ -316,7 +316,9 @@ export default function EventSeriesPage() {
                         />
 
                         {data.categories.length === 0
-                            ? <div className="empty">{t("series.page.empty")}</div>
+                            // the orga of a category (#729) manages a roster whose category is no event category yet:
+                            // the settings are not theirs, so no pointer there
+                            ? <div className="empty">{t(data.writableCategoryIds && data.writableCategoryIds.length ? "series.page.emptyManager" : "series.page.empty")}</div>
                             : (
                                 <ul className="sr-list">
                                     {data.categories.map((c) => (
