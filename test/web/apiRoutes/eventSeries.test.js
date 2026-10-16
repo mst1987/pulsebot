@@ -87,10 +87,10 @@ describe("handlers", () => {
         ]);
         service.seriesOverview.mockResolvedValue({ categories: [{ id: "cat-tbc" }, { id: "cat-forever" }], lastRun: null });
         try {
-            const forever = body(await call(route.getSeries, READER, null, "version=forever"));
+            const forever = body(await call(route.getSeries, ORGA, null, "version=forever"));
             expect(forever.categories.map((c) => c.id)).toEqual(["cat-forever"]);
             expect(forever.templates.map((t) => t.id)).toEqual(["bd"]);
-            const tbc = body(await call(route.getSeries, READER));
+            const tbc = body(await call(route.getSeries, ORGA));
             expect(tbc.categories.map((c) => c.id)).toEqual(["cat-tbc"]);
             expect(tbc.templates.map((t) => t.id)).toEqual(["kara"]);
         } finally {
@@ -138,6 +138,23 @@ describe("handlers", () => {
 
     it("is reachable through the router", () => {
         expect(typeof apiRouter.handle).toBe("function");
+    });
+});
+
+// #728 review: a global orga reading only takes the managers' path, as at the gate - no right without its button
+describe("the global orga without `raids` write", () => {
+    it("sees only the categories whose roster they manage, each writable, and may write them", async () => {
+        const categoryOrga = require("../../../src/services/roster/categoryOrga");
+        categoryOrga.orgaCategoryIds.mockResolvedValueOnce(["cat1"]);
+        service.seriesOverview.mockResolvedValueOnce({ categories: [{ id: "cat1" }, { id: "cat2" }], lastRun: null });
+        const r = body(await call(route.getSeries, READER));
+        expect(r.categories.map((c) => c.id)).toEqual(["cat1"]);
+        expect([r.canWrite, r.canRunAll]).toEqual([true, false]);
+        expect(categoryOrga.orgaCategoryIds).toHaveBeenCalledWith(READER, expect.objectContaining({ managerOnly: true }));
+        // managing nothing: nothing to see, nothing to write
+        service.seriesOverview.mockResolvedValueOnce({ categories: [{ id: "cat1" }], lastRun: null });
+        const none = body(await call(route.getSeries, READER));
+        expect([none.categories, none.canWrite]).toEqual([[], false]);
     });
 });
 

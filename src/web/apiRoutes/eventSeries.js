@@ -32,14 +32,15 @@ const WRITE = { orgaScoped: BY_CATEGORY, write: "raids", csrf: true, body: true 
 /**
  * GET /api/raids/series[?version=<id>] — the series of the categories that play
  * the shown game version (#741: a series creates the raids of its category's
- * version), and the raid templates of that version. The global orga sees every
- * category (`canWrite` with `raids` write); the orga of a category only theirs,
- * each one writable; anyone else none.
+ * version), and the raid templates of that version. The global orga with `raids`
+ * write sees and writes every category; everyone else - a global orga reading only
+ * included, as at the gate (#728 review: no right without its button) - only the
+ * categories whose current roster they manage, each one writable; a raider none.
  */
 const getSeries = withUser({}, async ({ user, req, res, url }) => {
     const config = getConfig();
     const { versionId } = resolveVersionQuery(url && url.searchParams.get("version"), { config });
-    const global = userIsOrga(user);
+    const global = userIsOrga(user) && userCan(user, "raids", "write");
     const own = global ? null : new Set(await categoryOrga.orgaCategoryIds(user, { cache: categoryOrga.requestCache(req), managerOnly: true }));
     const overview = await series.seriesOverview({ guildId: activeGuildFor(req), config });
     ok(res, {
@@ -48,10 +49,10 @@ const getSeries = withUser({}, async ({ user, req, res, url }) => {
         templates: listRaidTemplates()
             .filter((t) => (knownVersion(t.versionId) || mainVersionFor({ config })) === versionId)
             .map((t) => ({ id: t.id, name: t.name || "", instanceIds: t.instanceIds || [], size: t.size || null })),
-        // the global orga writes with `raids` write; the orga of a category writes every row it sees
-        canWrite: global ? userCan(user, "raids", "write") : own.size > 0,
+        // every row shown is writable: the global orga's all, everyone else's their own categories
+        canWrite: global || own.size > 0,
         // "Jetzt prüfen" sweeps every series at once (run without categoryId): the global orga's only
-        canRunAll: global && userCan(user, "raids", "write"),
+        canRunAll: global,
         limits: { minDaysBefore: series.MIN_DAYS_BEFORE, maxDaysBefore: series.MAX_DAYS_BEFORE },
     });
 });

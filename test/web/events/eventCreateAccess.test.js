@@ -27,6 +27,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
 jest.mock("../../../src/services/roster/categoryOrga", () => ({
     ...jest.requireActual("../../../src/services/roster/categoryOrga"),
     canOrgaEvent: jest.fn(async (user, row) => user.id === "mgr" && row.categoryId === "cat1"),
+    isAnyCategoryManager: jest.fn(async (user) => user.id === "mgr"),
     orgaCategoryIds: jest.fn(async (user) => (user.id === "mgr" ? ["cat1"] : [])),
 }));
 
@@ -102,6 +103,27 @@ describe("web/events/eventCreateAccess", () => {
             expect(voice.error.code).toBe("channel_not_allowed");
             const rhVoice = await guard()({ categoryId: "cat1", plan: null, request: {}, body: { voiceChannelId: "v-cat2" } });
             expect(rhVoice.error.code).toBe("channel_not_allowed");
+        });
+    });
+
+    describe("quickCreateAccess (the channels page's \"gleich Event anlegen\")", () => {
+        it("leaves the global orga with `raids` write alone", async () => {
+            expect(await access.quickCreateAccess(ORGA, req, "cat2", "t-cat2")).toBeNull();
+        });
+
+        it("refuses who is no orga: orga_only with `raids` write, forbidden without", async () => {
+            const writer = { id: "w", isAdmin: false, access: { raids: { read: true, write: true } } };
+            expect((await access.quickCreateAccess(writer, req, "cat1", "")).error.code).toBe("orga_only");
+            const reader = { id: "r", isAdmin: false, access: { raids: { read: true, write: false } } };
+            expect((await access.quickCreateAccess(reader, req, "cat1", "")).error.code).toBe("forbidden");
+        });
+
+        it("gives the orga of a category their category with a guard, nothing else", async () => {
+            const granted = await access.quickCreateAccess(MANAGER, req, "cat1", "t-cat1");
+            expect(typeof granted.guard).toBe("function");
+            expect((await access.quickCreateAccess(MANAGER, req, "cat2", "")).error.code).toBe("not_category_orga");
+            expect((await access.quickCreateAccess(MANAGER, req, "", "")).error.code).toBe("not_category_orga");
+            expect((await access.quickCreateAccess(MANAGER, req, "cat1", "t-cat2")).error.code).toBe("channel_not_allowed");
         });
     });
 

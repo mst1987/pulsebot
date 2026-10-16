@@ -671,5 +671,5 @@ async function updateEvent({ guildId, body = {}, user = null, byName = "" }) {
 
 module.exports = {
     createEvent, updateEvent, sourceChannelFor, startTimeOf, templateDefaults, schemaChannelName, raidTagOf,
-    requestedCategoryId, categoryMap,
+    requestedCategoryId,
 };

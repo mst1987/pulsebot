@@ -680,6 +680,92 @@ describe("web/apiRoutes/channels", () => {
                     expect(eventCreate.createEvent).not.toHaveBeenCalled();
                 });
 
+                // #728 review: the quick create was a second way to create events - the rule of POST /api/raids
+                describe("who may create the events (#728)", () => {
+                    const categoryOrga = require("../../../src/services/roster/categoryOrga");
+                    const channelsWriter = (extra = {}) => ({ id: "u3", isAdmin: false, access: { channels: { read: true, write: true }, ...extra } });
+                    const RAIDS_WRITER = channelsWriter({ raids: { read: true, write: true } });
+                    const MANAGER = channelsWriter({ raids: { read: true, write: false } });
+
+                    beforeEach(() => {
+                        // u3 manages the current roster of cat1 only (the rule itself: categoryOrga.test.js)
+                        jest.spyOn(categoryOrga, "isAnyCategoryManager").mockImplementation(async (u) => u.id === "u3" && u === MANAGER);
+                        jest.spyOn(categoryOrga, "canOrgaEvent").mockImplementation(async (u, row) => u === MANAGER && row.categoryId === "cat1");
+                        jest.spyOn(categoryOrga, "orgaCategoryIds").mockImplementation(async (u) => (u === MANAGER ? ["cat1"] : []));
+                        eventCreate.createEvent.mockResolvedValue({ status: 201, body: { id: "eh-1" } });
+                    });
+                    afterEach(() => {
+                        jest.restoreAllMocks();
+                        requireAdmin.mockReturnValue(ADMIN);
+                    });
+
+                    it("refuses a raider role with `raids` and `channels` write but no orga rank: no channel, no event", async () => {
+                        requireAdmin.mockReturnValue(RAIDS_WRITER);
+                        readJsonBody.mockResolvedValue(input);
+                        const res = mockRes();
+                        await routes.batchCreate({}, res);
+                        expect([status(res), json(res).error.code]).toEqual([403, "orga_only"]);
+                        expect(dc.createFromTemplate).not.toHaveBeenCalled();
+                        expect(eventCreate.createEvent).not.toHaveBeenCalled();
+                    });
+
+                    it("lets the orga of a category create in their category, with the guard - not in another one", async () => {
+                        requireAdmin.mockReturnValue(MANAGER);
+                        readJsonBody.mockResolvedValue({ ...input, categoryId: "cat2" });
+                        let res = mockRes();
+                        await routes.batchCreate({}, res);
+                        expect([status(res), json(res).error.code]).toEqual([403, "not_category_orga"]);
+                        expect(dc.createFromTemplate).not.toHaveBeenCalled();
+
+                        // a template channel of another category is refused as well
+                        discord.getChannelCategoryMap.mockReturnValue({ "t-cat2": { categoryId: "cat2" } });
+                        readJsonBody.mockResolvedValue({ ...input, templateChannelId: "t-cat2" });
+                        res = mockRes();
+                        await routes.batchCreate({}, res);
+                        expect([status(res), json(res).error.code]).toEqual([400, "channel_not_allowed"]);
+                        expect(dc.createFromTemplate).not.toHaveBeenCalled();
+                        discord.getChannelCategoryMap.mockReturnValue({});
+
+                        readJsonBody.mockResolvedValue({ ...input, count: 1 });
+                        res = mockRes();
+                        await routes.batchCreate({}, res);
+                        expect(status(res)).toBe(201);
+                        expect(eventCreate.createEvent).toHaveBeenCalledTimes(1);
+                        expect(typeof eventCreate.createEvent.mock.calls[0][0].guard).toBe("function");
+                    });
+
+                    it("leaves the global orga as before: no guard", async () => {
+                        readJsonBody.mockResolvedValue({ ...input, count: 1, categoryId: "cat1" });
+                        const res = mockRes();
+                        await routes.batchCreate({}, res);
+                        expect(status(res)).toBe(201);
+                        expect(eventCreate.createEvent.mock.calls[0][0]).not.toHaveProperty("guard");
+                        expect(categoryOrga.canOrgaEvent).not.toHaveBeenCalled();
+                    });
+
+                    it("offers the switch per category in GET /api/channels", async () => {
+                        requireAdmin.mockReturnValue(MANAGER);
+                        let data = json(await (async () => { const r = mockRes(); await routes.getChannels({}, r); return r; })()).data;
+                        expect([data.canCreateEvents, data.eventCategoryIds]).toEqual([true, ["cat1"]]);
+                        requireAdmin.mockReturnValue(RAIDS_WRITER);
+                        data = json(await (async () => { const r = mockRes(); await routes.getChannels({}, r); return r; })()).data;
+                        expect([data.canCreateEvents, data.eventCategoryIds]).toEqual([false, []]);
+                        requireAdmin.mockReturnValue(ADMIN);
+                        data = json(await (async () => { const r = mockRes(); await routes.getChannels({}, r); return r; })()).data;
+                        expect([data.canCreateEvents, data.eventCategoryIds]).toEqual([true, null]);
+                    });
+
+                    it("keeps channels without an event the `channels` area's", async () => {
+                        requireAdmin.mockReturnValue(channelsWriter());
+                        readJsonBody.mockResolvedValue({ ...input, withEvent: false, count: 1 });
+                        const res = mockRes();
+                        await routes.batchCreate({}, res);
+                        expect(status(res)).toBe(201);
+                        expect(dc.createFromTemplate).toHaveBeenCalled();
+                        expect(eventCreate.createEvent).not.toHaveBeenCalled();
+                    });
+                });
+
                 it("offers the switch with the category defaults in GET /api/channels", async () => {
                     const res = mockRes();
                     await routes.getChannels({}, res);

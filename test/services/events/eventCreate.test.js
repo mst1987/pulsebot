@@ -253,6 +253,31 @@ describe("services/events/eventCreate", () => {
         expect(guard).toHaveBeenLastCalledWith(expect.objectContaining({ categoryId: "cat-eh" }));
     });
 
+    // #728 review: the gate's first answer comes from the snapshot, Raid-Helper's own answer comes later -
+    // the guard sees the late one and refuses before the clone is made
+    it("lets the guard refuse a Raid-Helper clone whose channel turns out to be another category's", async () => {
+        const { getRaidEvent } = require("../../../src/stores/raidEventStore");
+        getRaidEvent.mockReturnValue({ id: "rh-9", channelId: "c2", categoryId: "cat-eh" });
+        mockGetEvent.mockResolvedValue({ id: "rh-9", channelId: "c1" });
+        const cloneBody = body({ channelId: "", sourceEventId: "rh-9", channelName: "kara-neu" });
+        try {
+            // what the gate saw: the own category (cat-eh)
+            expect(requestedCategoryId("g1", cloneBody)).toBe("cat-eh");
+            // the guard of the orga of cat-eh (createGuard's category rule)
+            const guard = jest.fn(async ({ categoryId }) => (categoryId === "cat-eh" ? null : { error: { status: 403, code: "not_category_orga", message: "nein" } }));
+            const result = await createEvent({ guildId: "g1", user, guard, body: cloneBody });
+            expect(guard).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "cat-rh" }));
+            expect(result.error.code).toBe("not_category_orga");
+            expect(discord.duplicateChannel).not.toHaveBeenCalled();
+            expect(discordChannels.createFromTemplate).not.toHaveBeenCalled();
+            expect(mockCreateEvent).not.toHaveBeenCalled();
+            expect(eventStore.listEvents("g1")).toEqual([]);
+        } finally {
+            getRaidEvent.mockReturnValue(null);
+            mockGetEvent.mockReset();
+        }
+    });
+
     it("tells the category a create body asks for without a round trip (requestedCategoryId)", () => {
         const { event: source } = eventStore.createEvent({ guildId: "g1", channelId: "c1", categoryId: "cat-old", title: "Alt", startTime: 1900000000 });
         // a clone: the source channel's category now, else the stored one

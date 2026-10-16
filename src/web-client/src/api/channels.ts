@@ -56,6 +56,8 @@ export type ChannelsData = {
     schemas: Record<string, ChannelSchema>;
     /** Whether the viewer may use "gleich Event anlegen" (raids write). */
     canCreateEvents?: boolean;
+    /** The categories "gleich Event anlegen" works in for the orga of a category (#728); null/absent = every one. */
+    eventCategoryIds?: string[] | null;
     /** Per category: its default raid template and the source of new events. */
     eventDefaults?: Record<string, ChannelEventDefaults>;
     defaultSchema: string;

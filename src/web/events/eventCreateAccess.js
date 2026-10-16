@@ -18,10 +18,12 @@ const { mainVersionFor, versionOfEvent } = require("../../services/events/mainVe
 const { rulesFor } = require("../../config/gameVersions");
 const eventCreate = require("../../services/events/eventCreate");
 const categoryOrga = require("../../services/roster/categoryOrga");
+const discord = require("../../services/discord/discord");
 const { activeGuildFor } = require("../http/activeGuild");
 const { fail } = require("../http/apiResult");
 const { NOT_CATEGORY_ORGA } = require("../http/apiHandler");
 const { isGlobalRaidOrga } = require("./raidOrgaAccess");
+const { userCan } = require("../../config/permissions");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 
@@ -44,7 +46,11 @@ async function eventCategoryScope(user, req) {
 /** The Discord category a channel sits in ("" when unknown or at the top). */
 function parentOf(guildId, channelId) {
     if (!channelId) return "";
-    return str((eventCreate.categoryMap(guildId)[channelId] || {}).categoryId);
+    try {
+        return str(((discord.getChannelCategoryMap(guildId) || {})[channelId] || {}).categoryId);
+    } catch {
+        return ""; // the bot is offline: unknown, so not the category's
+    }
 }
 
 /** Whether a voice channel belongs to `categoryId`: none, its preset, or a channel inside it. */
@@ -110,6 +116,30 @@ function createGuard(user, req) {
 }
 
 /**
+ * The other web way to create events (#728 review): the channels page's quick create with
+ * "gleich Event anlegen" (POST /api/channels/batch `withEvent`) - the rule of POST /api/raids. null for
+ * the global orga with `raids` write; else the orga of `categoryId` (403 `orga_only` for who manages no
+ * current roster - `forbidden` without `raids` write, as before -, 403 `not_category_orga` for another
+ * category) with a template channel of that category; `{ guard }` then goes to createEvent.
+ * @returns {Promise<{ error: object } | { guard: Function } | null>}
+ */
+async function quickCreateAccess(user, req, categoryId, templateChannelId) {
+    if (isGlobalRaidOrga(user)) return null;
+    const cache = categoryOrga.requestCache(req);
+    if (!(await categoryOrga.isAnyCategoryManager(user, { cache }))) {
+        return userCan(user, "raids", "write")
+            ? fail(403, "orga_only", "Events anlegen darf nur die Orga.")
+            : fail(403, "forbidden", "Events anlegen braucht Schreibrechte für Raids.");
+    }
+    const cat = str(categoryId);
+    if (!cat || !(await categoryOrga.canOrgaEvent(user, { categoryId: cat }, { cache, managerOnly: true }))) {
+        return fail(403, "not_category_orga", NOT_CATEGORY_ORGA);
+    }
+    if (!templateChannelAllowed(activeGuildFor(req), cat, templateChannelId)) return channelForeign("Der Vorlage-Kanal");
+    return { guard: createGuard(user, req) };
+}
+
+/**
  * What a category orga may not change on their raid (PATCH /api/raids): its version (the server's
  * record, versionOfEvent) and a voice channel outside its category. null = fine.
  * @param {object} event  the stored own event
@@ -129,5 +159,5 @@ function updateRefusal(event, body, req) {
 }
 
 module.exports = {
-    newEventRow, eventCategoryScope, voiceAllowed, templateChannelAllowed, createGuard, updateRefusal,
+    newEventRow, eventCategoryScope, voiceAllowed, templateChannelAllowed, createGuard, updateRefusal, quickCreateAccess,
 };
