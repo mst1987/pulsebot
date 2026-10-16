@@ -448,6 +448,15 @@
     "body": null
   },
   {
+    "request": "GET /e/eh-1/comp (writer)",
+    "status": 302,
+    "headers": {
+      "Location": "/e/eh-1",
+      "Cache-Control": "no-store"
+    },
+    "body": null
+  },
+  {
     "request": "GET /e/eh-1/comp/ (admin)",
     "status": 302,
     "headers": {

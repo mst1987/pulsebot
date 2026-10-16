@@ -40,9 +40,9 @@
 const { ok, error } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { sendFailure, sendResult } = require("../http/apiResult");
-const { userCan, userIsOrga } = require("../../config/permissions");
 const { userSeesEvent } = require("../../services/signups/eventVisibility");
-const categoryOrga = require("../../services/roster/categoryOrga");
+// who may edit a raid's setup - the rule of the `orgaScoped` gate, per event (#725)
+const { canWriteSetup, isGlobalSetupOrga } = require("../setup/setupAccess");
 const { getConfig } = require("../../stores/settingsStore");
 const { getEvent, isOwnEventId, setEventExtraRole, EXTRA_ROLES } = require("../../stores/eventStore");
 const { listSignups } = require("../../stores/signupStore");
@@ -73,16 +73,6 @@ const SOURCE_AND_TARGET = (body) => [body.event, body.target];
 
 const EXPLAIN_SECTION = "setup-explain";
 
-/**
- * Whether `user` may edit this raid's setup - the rule of the `orgaScoped` gate (apiHandler.js),
- * per event: the global orga (permissions.userIsOrga) with `raids` write, or a manager of the roster
- * of the raid's category in its version (categoryOrga.canOrgaEvent, #725). A raider role holding
- * `raids` write still gets the approved lineup only. `req` shares the Discord roles with the gate.
- */
-async function canWrite(user, event, req) {
-    if (userIsOrga(user) && userCan(user, "raids", "write")) return true;
-    return categoryOrga.canOrgaEvent(user, event.id, { cache: categoryOrga.requestCache(req), managerOnly: true });
-}
 
 /** The signups that count for an event: a raid of a group (#811) reads its first raid's. */
 const signupsOf = (event) => listSignups(signupEventIdOf(event));
@@ -112,7 +102,7 @@ function safeAttendance(event) {
  * move must answer at once — the page keeps the names it already has.
  */
 async function view(event, user, { names = true, req = null } = {}) {
-    const write = await canWrite(user, event, req);
+    const write = await canWriteSetup(user, event, req);
     const signups = write ? signupsOf(event) : [];
     // Re-read: posting and the DM run write to the event while the request runs.
     const fresh = getEvent(event.id) || event;
@@ -129,6 +119,9 @@ async function view(event, user, { names = true, req = null } = {}) {
         blank: true,
     });
     if (write) out.publish = setupMessage.publishView(fresh, { config: getConfig(), channelName: channelNameOf(fresh) });
+    // "Mehr → Raidgröße" changes the event itself (PATCH /api/raids): the global orga only, until
+    // #728 opens that route to the category orga as well
+    out.canEditEvent = write && isGlobalSetupOrga(user);
     return out;
 }
 

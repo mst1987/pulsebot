@@ -358,6 +358,16 @@ describe("the setup editor: the bar", () => {
         expect(savedBody().groups.map((g) => g.index)).toEqual([1]);
     });
 
+    // #725: the orga of a category edits the setup, but the size is the event's own (PATCH /api/raids, #728)
+    it("offers the raid size only to who may change the event (canEditEvent)", async () => {
+        await show(editorData({ canEditEvent: false }));
+        const user = userEvent.setup();
+        await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
+        expect(screen.queryByRole("menuitem", { name: new RegExp(t("setup.more.size")) })).not.toBeInTheDocument();
+        // the rest of "Mehr" stays
+        expect(screen.getByRole("menuitem", { name: new RegExp(t("setup.pingText.title")) })).toBeInTheDocument();
+    });
+
     it("offers a compact view under \"Mehr\", off by default and remembered in the browser", async () => {
         const user = userEvent.setup();
         const view = await show();

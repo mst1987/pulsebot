@@ -181,7 +181,9 @@ async function resolveEvent(eventOrId, { loadGroups } = {}) {
 
 /**
  * Whether `user` is the orga of a raid: the global orga, or a manager of the open roster of the raid's
- * category in the raid's version (categoryRoster.rosterOfEvent; a closed roster gives no right). A raid
+ * category in the raid's version (categoryRoster.rosterOfEvent) - and only while that roster is the
+ * category's current one (isCurrentRoster: a closed roster, or one prepared for a version the category
+ * does not play yet, gives no right). A raid
  * whose category cannot be told has only the global orga. `managerOnly`: the global orga does not
  * count - only the roster (the `orgaScoped` path of a global orga that lacks the route's right).
  * @param {object|null} user
@@ -195,7 +197,11 @@ async function canOrgaEvent(user, event, { config, loadGroups, managerOnly = fal
     if (!managerOnly && userIsOrga(user)) return true;
     const resolved = await resolveEvent(event, { loadGroups });
     if (!resolved || !str(resolved.categoryId)) return false;
-    return managesRoster(user, categoryRoster.rosterOfEvent(resolved, { config }), opts);
+    const roster = categoryRoster.rosterOfEvent(resolved, { config });
+    // only the roster the category plays now gives the right (docs/permissions.md): an open roster
+    // prepared for a coming version is no orga yet - the gate (isAnyCategoryManager) counts the same
+    if (user.isAdmin !== true && !categoryRoster.isCurrentRoster(roster, { config })) return false;
+    return managesRoster(user, roster, opts);
 }
 
 module.exports = {

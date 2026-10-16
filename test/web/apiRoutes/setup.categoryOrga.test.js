@@ -15,18 +15,26 @@ jest.mock("../../../src/web/http/auth", () => ({
 }));
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
-// one roster: cat1 (TBC), managed by the account "mgr" and the role "role-mgr"; cat2 has none
+// Every category plays TBC now. cat1's TBC roster is managed by the account "mgr" and the role
+// "role-mgr"; cat1 has a Forever roster prepared already (open, not current yet) managed by "fmgr" and
+// "dual"; "dual" also manages the current roster of cat3. cat2 has no roster.
 jest.mock("../../../src/stores/rosterStore", () => {
-    const roster = { id: "r1", categoryId: "cat1", versionId: "tbc", guildId: "g1", managers: { userIds: ["mgr"], roleIds: ["role-mgr"] }, members: {} };
+    const roster = (id, categoryId, versionId, userIds, roleIds = []) => ({ id, categoryId, versionId, guildId: "g1", managers: { userIds, roleIds }, members: {} });
+    const rosters = {
+        "cat1:tbc": roster("r1", "cat1", "tbc", ["mgr"], ["role-mgr"]),
+        "cat1:forever": roster("r1f", "cat1", "forever", ["fmgr", "dual"]),
+        "cat3:tbc": roster("r3", "cat3", "tbc", ["dual"]),
+    };
     return {
-        listRosters: jest.fn(() => [roster]),
-        rosterForCategory: jest.fn((cat) => (cat === "cat1" ? roster : null)),
+        listRosters: jest.fn(() => Object.values(rosters)),
+        rosterForCategory: jest.fn((cat, version) => rosters[`${cat}:${version}`] || null),
         isClosed: jest.fn(() => false),
     };
 });
 jest.mock("../../../src/services/events/mainVersion", () => ({
     ...jest.requireActual("../../../src/services/events/mainVersion"),
-    versionOfEvent: jest.fn(() => "tbc"),
+    // the raid's own version (versionOfEvent is the one resolver; here its stored field)
+    versionOfEvent: jest.fn((event) => (event && event.versionId) || "tbc"),
     mainVersionFor: jest.fn(() => "tbc"),
     knownVersion: jest.fn((v) => v || ""),
 }));
@@ -69,13 +77,13 @@ const WRITER = { id: "rw", name: "Schreiber", isAdmin: false, access: { ...empty
 let own;
 let foreign;
 
-function raid(categoryId, title) {
+function raid(categoryId, title, versionId = "tbc") {
     const event = eventStore.createEvent({
-        guildId: "g1", channelId: "c1", categoryId, title, startTime: START, versionId: "tbc",
+        guildId: "g1", channelId: "c1", categoryId, title, startTime: START, versionId,
         size: 10, composition: { tank: 1, healer: 2, melee: 0, ranged: 0 },
     }).event;
     for (const [id, spec] of [["t1", "Warrior-Protection"], ["h1", "Priest-Holy"], ["d1", "Mage-Fire"]]) {
-        signupStore.saveSignup(event.id, id, { character: id.toUpperCase(), spec, status: "signed" }, { versionId: "tbc" });
+        signupStore.saveSignup(event.id, id, { character: id.toUpperCase(), spec, status: "signed" }, { versionId });
     }
     return event;
 }
@@ -119,30 +127,53 @@ describe("the orga of a category (a manager of its roster)", () => {
         expect(body(r).canWrite).toBe(true);
     });
 
-    it("gets 403 not_category_orga for a raid of another category, and nothing changes", async () => {
-        for (const [path, payload] of [
-            ["/api/raids/setup/ping-text", { event: foreign.id, text: "x" }],
-            ["/api/raids/setup/propose", { event: foreign.id }],
-            ["/api/raids/setup/approve", { event: foreign.id, version: 1 }],
-            ["/api/raids/setup/post", { event: foreign.id }],
-            ["/api/raids/setup/ping", { event: foreign.id }],
-            ["/api/raids/setup/confirm", { event: foreign.id, userId: "h1", status: "confirmed" }],
-            ["/api/raids/setup/extra-role", { event: foreign.id, userId: "h1", role: "healer", on: true }],
-            ["/api/raids/setup/raid-add", { event: foreign.id }],
-        ]) {
-            const r = await api.post(path, payload);
-            expect([path, status(r), code(r)]).toEqual([path, 403, "not_category_orga"]);
-        }
-        let r = await api.request("PUT", "/api/raids/setup", { event: foreign.id, version: 0, groups: [], bench: [] });
-        expect(code(r)).toBe("not_category_orga");
-        r = await api.request("PUT", "/api/raids/setup/signup", { event: foreign.id, userId: "h1", status: "absence" });
-        expect(code(r)).toBe("not_category_orga");
-        r = await api.get("/api/raids/setup/signup", { event: foreign.id, user: "h1" });
-        expect(code(r)).toBe("not_category_orga");
+    it("gets 403 not_category_orga on every setup route for a raid of another category, and nothing changes", async () => {
+        // the other category's raid as its orga left it: posted setup, ping text, an extra healer, a confirmation
+        mockUser = ORGA;
+        const proposed = body(await api.post("/api/raids/setup/propose", { event: foreign.id }));
+        expect(status(await api.post("/api/raids/setup/approve", { event: foreign.id, version: proposed.setup.version }))).toBe(200);
+        expect(status(await api.post("/api/raids/setup/ping-text", { event: foreign.id, text: "Pünktlich!" }))).toBe(200);
+        expect(status(await api.post("/api/raids/setup/extra-role", { event: foreign.id, userId: "t1", role: "healer", on: true }))).toBe(200);
+        expect(status(await api.post("/api/raids/setup/confirm", { event: foreign.id, userId: "t1", status: "confirmed" }))).toBe(200);
+        const before = JSON.parse(JSON.stringify(eventStore.getEvent(foreign.id)));
+        const signupsBefore = JSON.parse(JSON.stringify(signupStore.listSignups(foreign.id)));
 
-        const after = eventStore.getEvent(foreign.id);
-        expect(after.setup || null).toBeNull();
-        expect(after.raidGroupId || "").toBe("");
+        mockUser = MANAGER;
+        const f = foreign.id;
+        // every route of the editor that writes or prepares a write - each one, so a new route needs a row here
+        const calls = {
+            "PUT /api/raids/setup": { event: f, version: before.setup.version, groups: [], bench: [] },
+            "POST /api/raids/setup/presence": { event: f, action: { kind: "drag", userId: "h1" } },
+            "POST /api/raids/setup/propose": { event: f },
+            "POST /api/raids/setup/approve": { event: f, version: before.setup.version },
+            "POST /api/raids/setup/post": { event: f },
+            "POST /api/raids/setup/ping-text": { event: f, text: "überschrieben" },
+            "POST /api/raids/setup/ping": { event: f },
+            "POST /api/raids/setup/confirm": { event: f, userId: "t1", status: "declined" },
+            "POST /api/raids/setup/confirm-all": { event: f },
+            "POST /api/raids/setup/extra-role": { event: f, userId: "t1", role: "healer", on: false },
+            "GET /api/raids/setup/signup": { event: f, user: "h1" },
+            "PUT /api/raids/setup/signup": { event: f, userId: "h1", status: "absence" },
+            "POST /api/raids/setup/search/text": { event: f, roles: { tank: 1 }, buffs: [] },
+            "POST /api/raids/setup/search": { event: f, text: "Suchen Heiler" },
+            "POST /api/raids/setup/explain": { event: f },
+            "GET /api/raids/setup/explain": { event: f },
+            "POST /api/raids/setup/move-raid": { event: f, target: f, userId: "h1" },
+            "POST /api/raids/setup/raid-add": { event: f },
+            "POST /api/raids/setup/raid-remove": { event: f },
+        };
+        const scoped = route.routes.filter((r) => r.handler.orgaScoped).map((r) => `${r.method} ${r.path}`);
+        expect(Object.keys(calls).sort()).toEqual([...scoped].sort());
+        for (const [key, payload] of Object.entries(calls)) {
+            const [method, path] = key.split(" ");
+            const r = method === "GET" ? await api.get(path, payload) : await api.request(method, path, payload);
+            expect([key, status(r), code(r)]).toEqual([key, 403, "not_category_orga"]);
+        }
+
+        // setup, ping text, extra roles, confirmations, the raid group: all as they were
+        expect(eventStore.getEvent(foreign.id)).toEqual(before);
+        expect(signupStore.listSignups(foreign.id)).toEqual(signupsBefore);
+        expect(before.raidGroupId || "").toBe("");
     });
 
     it("moves a raider only between raids of their category: a target in another category is refused", async () => {
@@ -177,6 +208,43 @@ describe("the orga of a category (a manager of its roster)", () => {
         expect(theirs.canWrite).toBe(false);
         // a draft is never handed to who could not approve it
         expect(theirs.setup || null).toBeNull();
+        // the raid size is the event's own (PATCH /api/raids): not theirs until #728
+        expect(mine.canEditEvent).toBe(false);
+    });
+});
+
+// #725 review: the gate counts only the roster a category plays now - canWrite must not say more
+describe("the manager of a roster prepared for a coming version (open, not current yet)", () => {
+    let forever;
+    beforeEach(async () => {
+        forever = raid("cat1", "Forever-Raid", "forever");
+        mockUser = ORGA;
+        expect(status(await api.post("/api/raids/setup/propose", { event: forever.id }))).toBe(200);
+    });
+
+    it("gets canWrite false and no draft for a raid of that version", async () => {
+        mockUser = { ...MANAGER, id: "fmgr" };
+        const view = body(await api.get("/api/raids/setup", { event: forever.id }));
+        expect(view.canWrite).toBe(false);
+        expect(view.setup || null).toBeNull();
+        expect(view.canEditEvent).toBe(false);
+        // and is no orga at the gate either
+        const r = await api.post("/api/raids/setup/ping-text", { event: forever.id, text: "x" });
+        expect(status(r)).toBe(403);
+    });
+
+    it("may not write even while managing a current roster elsewhere", async () => {
+        mockUser = { ...MANAGER, id: "dual" };
+        expect(body(await api.get("/api/raids/setup", { event: forever.id })).canWrite).toBe(false);
+        const before = JSON.parse(JSON.stringify(eventStore.getEvent(forever.id)));
+        for (const [path, payload] of [
+            ["/api/raids/setup/ping-text", { event: forever.id, text: "x" }],
+            ["/api/raids/setup/propose", { event: forever.id }],
+        ]) {
+            const r = await api.post(path, payload);
+            expect([path, status(r), code(r)]).toEqual([path, 403, "not_category_orga"]);
+        }
+        expect(eventStore.getEvent(forever.id)).toEqual(before);
     });
 });
 
@@ -187,10 +255,22 @@ describe("the global orga and everybody else", () => {
             const r = await api.post("/api/raids/setup/ping-text", { event: event.id, text: "Hallo" });
             expect(status(r)).toBe(200);
             expect(body(r).canWrite).toBe(true);
-            expect(body(await api.get("/api/raids/setup", { event: event.id })).canWrite).toBe(true);
+            const view = body(await api.get("/api/raids/setup", { event: event.id }));
+            expect(view.canWrite).toBe(true);
+            expect(view.canEditEvent).toBe(true);
         }
         // no roster was asked for the global orga
         expect(mockMemberRoleIds).not.toHaveBeenCalled();
+    });
+
+    it("gives a global orga without `raids` write who manages a roster canWrite per event, as the gate does", async () => {
+        mockUser = { ...MANAGER, isOrga: true };
+        const mine = body(await api.get("/api/raids/setup", { event: own.id }));
+        expect(mine.canWrite).toBe(true);
+        expect(mine.canEditEvent).toBe(false);
+        expect(body(await api.get("/api/raids/setup", { event: foreign.id })).canWrite).toBe(false);
+        expect(status(await api.post("/api/raids/setup/ping-text", { event: own.id, text: "Hallo" }))).toBe(200);
+        expect(code(await api.post("/api/raids/setup/ping-text", { event: foreign.id, text: "x" }))).toBe("not_category_orga");
     });
 
     it("refuses a raider role with `raids` write but no orga rank with orga_only, canWrite false", async () => {

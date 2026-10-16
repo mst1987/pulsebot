@@ -24,10 +24,11 @@ const calendarFeed = require("../pages/calendarFeed");
 const raidplanStore = require("../../stores/raidplanStore");
 const { getEvent } = require("../../stores/eventStore");
 const { approvedSetupOf } = require("../../services/setup/setupCore");
+const { canWriteSetup } = require("../setup/setupAccess");
 const { versionInfo } = require("./version");
 const { runMode } = require("../../config/runMode");
 const auth = require("./auth");
-const { userCan, userHasMenuAccess } = require("../../config/permissions");
+const { userHasMenuAccess } = require("../../config/permissions");
 const apiRouter = require("./apiRouter");
 const { serveAsset } = require("../report/assets");
 
@@ -222,19 +223,20 @@ function eventPage({ res, params }) {
 
 // The "Comp" link of the event message (#520): /e/<eventId>/comp. A Discord
 // message is the same for everybody, so the link lands here and the server sends
-// each reader on — whoever may write in "raids" (the gate of the setup editor,
-// the same check as apiAccess; auth.getUser applies an active "Ansicht als")
+// each reader on — whoever may edit this raid's setup (web/setup/setupAccess.js,
+// the rule of the editor's own routes: the global orga with raids write, or the
+// orga of the raid's category, #725; auth.getUser applies an active "Ansicht als")
 // into the setup tab of the raid detail page, everyone else (no login, no
-// right) to the public event page — once a setup is approved, to its setup
-// section. The setup message links here too. Only own events have that page and the
-// message, so an unknown id — a Raid-Helper one included — is a 404. Nothing is
-// cached: the answer depends on who asks.
-function eventComp({ req, res, params }) {
+// right, a raider role with raids write but no orga rank) to the public event
+// page — once a setup is approved, to its setup section. The setup message links
+// here too. Only own events have that page and the message, so an unknown id — a
+// Raid-Helper one included — is a 404. Nothing is cached: the answer depends on who asks.
+async function eventComp({ req, res, params }) {
     const event = getEvent(params[0]);
     if (!event) return send(res, 404, renderNotFound());
     const id = encodeURIComponent(event.id);
     const user = auth.getUser(req);
-    const orga = !!user && userHasMenuAccess(user) && userCan(user, "raids", "write");
+    const orga = !!user && userHasMenuAccess(user) && (await canWriteSetup(user, event, req));
     // with an approved setup straight down to it (the page's `#setup` heading)
     const publicPage = `/e/${id}${approvedSetupOf(event) ? "#setup" : ""}`;
     return redirect(res, orga ? `/raids/detail?event=${id}&tab=setup` : publicPage, { "Cache-Control": "no-store" });
