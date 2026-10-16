@@ -446,7 +446,8 @@ export default function DashboardPage() {
                 const me = data.personal;
                 // Two parts (design canvas Oct 2026, direction A): "Für dich" for everyone with a signup of their own —
                 // in full for a raider, compact above the orga block — and the orga block for whoever reads the raids.
-                const action = canAccess(user, "raids", "write")
+                // "Neues Raid": whom POST /api/raids lets create - the server says so (#729: the orga of a category too)
+                const action = (data.canCreate ?? canAccess(user, "raids", "write"))
                     ? <Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_02" size={22} />{t("dashboard.page.newRaid")}</Link>
                     : me
                         ? <Link className={buttonClass("primary", "md", true)} to="/signups"><WowIcon name="inv_misc_book_09" size={22} />{t("dashboard.personal.toSignups")}</Link>
@@ -470,7 +471,7 @@ export default function DashboardPage() {
 
                         {data.orga && (
                             // the orga's block in its zone (design canvas Oct 2026, B): for the orga only
-                            <OrgaZone user={user}>
+                            <OrgaZone user={user} categories>
                                 <div className="ov-grid ov-grid-top">
                                     <NextRaidCard
                                         raid={data.nextRaid} following={data.followingRaid} error={data.nextRaidError}

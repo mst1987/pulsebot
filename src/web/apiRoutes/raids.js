@@ -20,7 +20,8 @@ const discord = require("../../services/discord/discord");
 const linkCheck = require("../../services/discord/linkCheck");
 const { raidViewer, visibleEvents } = require("../../services/signups/eventVisibility");
 const { userCan } = require("../../config/permissions");
-const { isGlobalRaidOrga, canOrgaRaid } = require("../events/raidOrgaAccess");
+const { isGlobalRaidOrga, canOrgaRaid, canCreateRaids, withOrgaFlags } = require("../events/raidOrgaAccess");
+const { requestCache } = require("../../services/roster/categoryOrga");
 const { newEventRow, eventCategoryScope, createGuard, updateRefusal } = require("../events/eventCreateAccess");
 
 /**
@@ -37,18 +38,33 @@ const getRaids = withUser({}, async ({ user, req, res, url }) => {
     // The server's name goes into the page's kicker ("Raid-Helper · Pulse").
     const guild = guildId ? (discord.listGuilds() || []).find((g) => g.id === guildId) : null;
     const config = getConfig();
-    const viewer = await raidViewer(user, guildId, { config });
+    const viewer = await raidViewer(user, guildId, { config, cache: requestCache(req) });
     const signUps = new Map((groups || []).flatMap((g) => (g.events || []).map((e) => [e.id, e.signUps])));
     // channelState per row (#537): the list links the Discord post only while the channel exists.
     const rows = linkCheck.withChannelState(guildId, visibleEvents(upcomingRows(groups), viewer, (row) => signUps.get(row.id)));
     const { versionId, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
-    const events = versionId ? rows.filter((r) => r.versionId === versionId) : rows;
+    const shown = versionId ? rows.filter((r) => r.versionId === versionId) : rows;
+    // per row whether the caller is its orga (#729): "Wiederholen" and "Kanal fehlt" follow it
+    const events = await withOrgaFlags(user, shown, req, { groups });
     ok(res, {
         // the Raid-Helper sync message points into the settings: the orga's, a raider just gets the list
         events, error: viewer.orga ? err : null, activeGuildId: guildId, guildName: (guild && guild.name) || "",
         version: versionId, mainVersion, versions: versionChoices(rows.map((r) => ({ versionIds: [r.versionId] })), mainVersion),
+        ...await orgaFields(user, viewer, req),
     });
 });
+
+/**
+ * What a raid list says about the caller (#729): `orga` - the global orga, or the orga of a category (the
+ * page's orga parts: the series, the logs column); `canCreate` - POST /api/raids lets them create
+ * (raidOrgaAccess.canCreateRaids): "Neues Event".
+ */
+async function orgaFields(user, viewer, req) {
+    return {
+        orga: !!viewer.orga || (viewer.orgaCategories || []).length > 0,
+        canCreate: await canCreateRaids(user, req),
+    };
+}
 
 /**
  * GET /api/raids/past[?version=<id>] — the raids that already took place,
@@ -62,16 +78,36 @@ const getPastRaids = withUser({}, async ({ user, req, res, url }) => {
     const guildId = activeGuildFor(req);
     const { events: all, error: err } = await loadPastRaids(guildId);
     const config = getConfig();
-    const viewer = await raidViewer(user, guildId, { config });
-    const shown = visibleEvents(all, viewer);
-    const rows = linkCheck.withChannelState(guildId, viewer.orga ? shown : shown.map(withoutLogs));
+    const viewer = await raidViewer(user, guildId, { config, cache: requestCache(req) });
+    const shown = linkCheck.withChannelState(guildId, visibleEvents(all, viewer));
     const { versionId, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
-    const events = versionId ? rows.filter((r) => r.versionId === versionId) : rows;
+    const inVersion = versionId ? shown.filter((r) => r.versionId === versionId) : shown;
+    // the logs are the orga's work: the global orga's rows keep them, and the rows the caller is the orga of (#729)
+    const flagged = await withOrgaFlags(user, inVersion, req);
+    // an unassigned log names the other raids it fits: the global orga all of them, a category's orga those of its categories
+    const scope = viewer.orga ? null : new Set(viewer.orgaCategories || []);
+    const events = flagged.map((row) => (viewer.orga || row.canOrga ? scopedAlsoFits(row, scope) : withoutLogs(row)));
     ok(res, {
         events, error: viewer.orga ? err : null, activeGuildId: guildId,
-        version: versionId, mainVersion, versions: versionChoices(rows.map((r) => ({ versionIds: [r.versionId] })), mainVersion),
+        version: versionId, mainVersion, versions: versionChoices(shown.map((r) => ({ versionIds: [r.versionId] })), mainVersion),
+        ...await orgaFields(user, viewer, req),
     });
 });
+
+/**
+ * A past raid's open log decisions with `alsoFits` cut to the raids of `scope` (the categories of a category's
+ * orga, #729 review: the titles of other categories' raids are not theirs); null = every raid. The helper field
+ * `alsoFitsCategoryIds` never leaves the server.
+ */
+function scopedAlsoFits(row, scope) {
+    if (!Array.isArray(row.pendingLogs)) return row;
+    const pendingLogs = row.pendingLogs.map((p) => {
+        const ids = p.alsoFitsCategoryIds || [];
+        const alsoFits = scope ? (p.alsoFits || []).filter((_, i) => scope.has(String(ids[i] || ""))) : (p.alsoFits || []);
+        return { title: p.title, alsoFits };
+    });
+    return { ...row, pendingLogs };
+}
 
 /** A past raid's row without its logs, for a raider (the loot count stays: loot is for everyone). */
 function withoutLogs(row) {

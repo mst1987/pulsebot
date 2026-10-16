@@ -390,7 +390,12 @@ function roleDriftTask(roleDrift) {
  * @param {{ eventId: string, title: string, startTime: number, channelName: string }[]} list
  */
 function missingChannelTasks(list, { canRecreate = false } = {}) {
-    return (list || []).map((m) => ({
+    return (list || []).map((m) => missingChannelTask(m, typeof m.canRecreate === "boolean" ? m.canRecreate : canRecreate));
+}
+
+/** One "Kanal fehlt" task; `canRecreate` per raid (#729: the orga of its category) or for the whole list. */
+function missingChannelTask(m, canRecreate) {
+    return ({
         id: `channel-missing:${m.eventId}`, tone: "bad", tile: "channels", icon: "inv_letter_15",
         title: `Kanal von ${m.title || "Raid"} fehlt`,
         ref: { title: m.channelName ? `#${m.channelName}` : m.title, at: (m.startTime || 0) * 1000 },
@@ -403,7 +408,7 @@ function missingChannelTasks(list, { canRecreate = false } = {}) {
             title: txt("channelMissing.title", { title: m.title || "Raid" }), tip: txt("channelMissing.tip"), tipSub: txt("channelMissing.tipSub"),
             ...(canRecreate ? { action: txt("channelMissing.action") } : {}),
         },
-    }));
+    });
 }
 
 /**

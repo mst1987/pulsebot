@@ -16,7 +16,7 @@ import { useContentVersion } from "../../hooks/useContentVersion";
 import { buttonClass } from "../../components/ui/Button";
 import "../../styles/raid-events.css";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { isOrga } from "../../lib/app/orgaArea";
+import { isAnyOrga, isOrga } from "../../lib/app/orgaArea";
 import { useT } from "../../i18n";
 
 // Raid-Events: one page, two views of the same list — what is coming and what
@@ -82,9 +82,11 @@ function RaidsList({ user }: ShellContext) {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     // The orga (lib/app/orgaArea.ts): series, templates, notifications, logs, "Kanal fehlt" and creating raids.
-    // A raider sees the raids of their categories (the server filters) with what interests them.
-    const orga = isOrga(user);
-    const canWrite = orga && canAccess(user, "raids", "write");
+    // A raider sees the raids of their categories (the server filters) with what interests them. The orga of
+    // a category (#729) gets the series, "Neues Event" and per raid of theirs the orga's parts - the server
+    // says so (`orga`, `canCreate`, each row's `canOrga`); the templates stay the global orga's.
+    const globalOrga = isOrga(user);
+    const globalWrite = globalOrga && canAccess(user, "raids", "write");
 
     const [view, setView] = usePersistedSearchParam<View>("raids-view", "view", "upcoming", VIEWS);
     // Remembered by category id, not by position: categories come and go with
@@ -114,6 +116,10 @@ function RaidsList({ user }: ShellContext) {
     if (error) return <div className="empty">{t("raids.page.loadError", { message: error.message })}</div>;
     if (!upcoming) return <RaidLoader text={t("raids.page.loading")} />;
 
+    // an older server without the fields: the session's word (the global orga or a category's), raids write to create
+    const orga = upcoming.orga ?? isAnyOrga(user);
+    const canCreate = upcoming.canCreate ?? globalWrite;
+
     const events: (UpcomingRaid | PastRaid)[] = view === "past" ? (past?.events || []) : upcoming.events;
     const pills = categoryPills(events, t("raids.page.noCategory"));
     // A remembered category with nothing in this view shows everything instead of an empty list.
@@ -130,8 +136,9 @@ function RaidsList({ user }: ShellContext) {
                 <UpcomingRaidList
                     events={filtered as UpcomingRaid[]}
                     guildId={upcoming.activeGuildId}
-                    canWrite={canWrite}
+                    canWrite={globalWrite}
                     orga={orga}
+                    seesAll={globalOrga}
                     onRepeat={repeat}
                     emptyMessage={upcoming.error ? t("raids.page.noneLoaded") : t("raids.page.noneUpcoming")}
                 />
@@ -145,7 +152,10 @@ function RaidsList({ user }: ShellContext) {
         listing = (
             <>
                 {past.error && <div className="re-warn">{past.error}</div>}
-                <PastRaidList events={filtered as PastRaid[]} emptyMessage={t("raids.page.nonePast")} orga={orga} canLoot={canAccess(user, "history") || canAccess(user, "loot")} />
+                <PastRaidList
+                    events={filtered as PastRaid[]} emptyMessage={t("raids.page.nonePast")} orga={past.orga ?? globalOrga} seesAll={globalOrga}
+                    canLoot={canAccess(user, "history") || canAccess(user, "loot")} canImport={canAccess(user, "history", "write")}
+                />
             </>
         );
     }
@@ -165,12 +175,13 @@ function RaidsList({ user }: ShellContext) {
                         >i</span>
                     </h1>
                 </div>
-                {orga && (
+                {(orga || canCreate) && (
                     <div className="ph-act">
-                        <Link className={buttonClass("ghost", "md", true)} to="/raids/series"><WowIcon name="spell_holy_borrowedtime" size={22} />{t("raids.page.series")}</Link>
-                        <Link className={buttonClass("ghost", "md", true)} to="/raids/raid-templates"><WowIcon name="inv_misc_note_01" size={22} />{t("raids.page.raidTemplates")}</Link>
-                        <Link className={buttonClass("ghost", "md", true)} to="/raids/templates"><WowIcon name="inv_misc_horn_01" size={22} />{t("raids.page.notifyTemplates")}</Link>
-                        {canWrite && <Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_05" size={22} />{t("raids.page.newEvent")}</Link>}
+                        {orga && <Link className={buttonClass("ghost", "md", true)} to="/raids/series"><WowIcon name="spell_holy_borrowedtime" size={22} />{t("raids.page.series")}</Link>}
+                        {/* raid and notify templates are global (#728): the global orga's */}
+                        {globalOrga && <Link className={buttonClass("ghost", "md", true)} to="/raids/raid-templates"><WowIcon name="inv_misc_note_01" size={22} />{t("raids.page.raidTemplates")}</Link>}
+                        {globalOrga && <Link className={buttonClass("ghost", "md", true)} to="/raids/templates"><WowIcon name="inv_misc_horn_01" size={22} />{t("raids.page.notifyTemplates")}</Link>}
+                        {canCreate && <Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_05" size={22} />{t("raids.page.newEvent")}</Link>}
                     </div>
                 )}
             </div>
@@ -202,7 +213,7 @@ function RaidsList({ user }: ShellContext) {
 
             {listing}
 
-            {canWrite && (
+            {canCreate && (
                 <RaidCreateDialog
                     open={creating}
                     sourceId={creating ? searchParams.get("source") || "" : ""}

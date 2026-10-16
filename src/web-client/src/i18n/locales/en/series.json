@@ -109,6 +109,7 @@
         "title": "Series",
         "runNow": "Check now",
         "runNowSub": "Creates all due dates right away instead of waiting for the next run (every 5 minutes).",
-        "empty": "No raid categories yet — they are switched on under Settings → Categories."
+        "empty": "No raid categories yet — they are switched on under Settings → Categories.",
+        "emptyManager": "Your category is no raid category yet, so there is no series here. An admin switches it on under Settings → Categories."
     }
 }

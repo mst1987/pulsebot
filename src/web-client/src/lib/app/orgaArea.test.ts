@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { audienceText, isOrga, orgaAudience, orgaOnly, pageAudience } from "./orgaArea";
+import { audienceText, isAnyOrga, isOrga, orgaAudience, orgaOnly, pageAudience } from "./orgaArea";
 
 const audience = {
     signup: { everyone: true, roles: [], writers: [], accounts: 0 },
@@ -42,6 +42,13 @@ describe("isOrga / orgaOnly", () => {
         expect(isOrga({ isAdmin: false })).toBe(false);
         expect(orgaOnly({ orgaRoles: ["Raidleitung"] })).toEqual({ roles: ["Raidleitung"], accounts: 0 });
         expect(orgaOnly({})).toEqual({ roles: [], accounts: 0 });
+    });
+
+    it("isAnyOrga: the global orga, or the orga of a category (#729: the session's orgaCategories)", () => {
+        expect(isAnyOrga({ isAdmin: false, orgaCategories: ["c1"] })).toBe(true);
+        expect(isAnyOrga({ isAdmin: false, isOrga: true })).toBe(true);
+        expect(isAnyOrga({ isAdmin: false, orgaCategories: [] })).toBe(false);
+        expect(isAnyOrga({ isAdmin: false })).toBe(false);
     });
 });
 

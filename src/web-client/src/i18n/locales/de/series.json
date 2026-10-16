@@ -109,6 +109,7 @@
         "title": "Serien",
         "runNow": "Jetzt prüfen",
         "runNowSub": "Legt alle fälligen Termine sofort an, statt auf den nächsten Durchlauf zu warten (alle 5 Minuten).",
-        "empty": "Noch keine Raid-Kategorien — sie werden unter Einstellungen → Kategorien eingeschaltet."
+        "empty": "Noch keine Raid-Kategorien — sie werden unter Einstellungen → Kategorien eingeschaltet.",
+        "emptyManager": "Deine Kategorie ist noch keine Raid-Kategorie, darum gibt es hier noch keine Serie. Ein Admin schaltet sie unter Einstellungen → Kategorien ein."
     }
 }

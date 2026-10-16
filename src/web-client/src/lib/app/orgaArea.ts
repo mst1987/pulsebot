@@ -29,6 +29,14 @@ export function isOrga(user: Pick<SessionUser, "isAdmin" | "isOrga">): boolean {
     return !!(user.isAdmin || user.isOrga);
 }
 
+/**
+ * Whether the account is orga anywhere: the global orga (isOrga), or the orga of a category - a manager of
+ * its current roster (the session's `orgaCategories`, #729). Which raid is theirs the server says per raid.
+ */
+export function isAnyOrga(user: Pick<SessionUser, "isAdmin" | "isOrga" | "orgaCategories">): boolean {
+    return isOrga(user) || (user.orgaCategories || []).length > 0;
+}
+
 /** Who the orga is, for a part only the orga sees: the admins and every orga role. */
 export function orgaOnly(user: Pick<SessionUser, "orgaRoles">): OrgaAudience {
     return { roles: [...(user.orgaRoles || [])], accounts: 0 };

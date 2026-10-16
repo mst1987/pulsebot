@@ -222,4 +222,22 @@ describe("services/roster/categoryOrga managesRoster / isOrgaOfRoster", () => {
         expect(await orga.managesRoster(null, roster)).toBe(false);
         expect(await orga.isOrgaOfRoster(null, roster)).toBe(false);
     });
+
+    it("counts the viewed roles under \"Ansicht als\" (#729): never the admin's own account or Discord roles", async () => {
+        const roster = ROSTERS["cat1:tbc"];
+        const memberRoleIds = roles({ "g1:mgr": ["role-mgr"] });
+        // the admin "mgr" manages cat1 by account and by role - "So sieht es ein Raider" (no role) makes them no orga
+        const asRaider = { id: "mgr", isAdmin: false, access: {}, viewAs: { roleIds: [], at: 1 } };
+        expect(await orga.managesRoster(asRaider, roster, { memberRoleIds })).toBe(false);
+        expect(await orga.isCategoryOrga(asRaider, "cat1", { memberRoleIds })).toBe(false);
+        expect(await orga.canOrgaEvent(asRaider, { categoryId: "cat1" }, { memberRoleIds })).toBe(false);
+        expect(await orga.orgaCategoryIds(asRaider, { memberRoleIds, managerOnly: true })).toEqual([]);
+        expect(memberRoleIds).not.toHaveBeenCalled();
+        // viewed as the manager role: the orga of cat1, and only of cat1
+        const asManager = { ...asRaider, viewAs: { roleIds: ["role-mgr"], at: 1 } };
+        expect(await orga.isCategoryOrga(asManager, "cat1", { memberRoleIds })).toBe(true);
+        expect(await orga.orgaCategoryIds(asManager, { memberRoleIds, managerOnly: true })).toEqual(["cat1"]);
+        // viewed as an admin role (effectiveUser: isAdmin true) every roster stays theirs
+        expect(await orga.managesRoster({ ...asRaider, isAdmin: true }, roster)).toBe(true);
+    });
 });

@@ -170,6 +170,9 @@ export type RaidplanPostState = {
     postedAt: number;
 };
 
+/** The caller's rights on one raid (GET /api/raids/detail `viewer`, #729). */
+export type RaidViewerRights = { canOrga: boolean; canPlan: boolean; canSwitchPlan: boolean };
+
 export type RaidDetailData = {
     event: RaidDetailEvent;
     /**
@@ -235,6 +238,12 @@ export type RaidDetailData = {
      * parts (logs, attendance, other people's comments, steps, dialog data). Missing on an older server.
      */
     orga?: boolean;
+    /**
+     * What the caller may do on this raid, each the gate of the route its buttons call (#729): `canOrga` the
+     * raid's actions (steps, Event verwalten, Aufruf, Ping, Invite, Raider eintragen, sheet, softres, loot
+     * system), `canPlan` the "Raidplan" tab, `canSwitchPlan` "Raidplan aktivieren". Missing on an older server.
+     */
+    viewer?: RaidViewerRights;
     /** The progress bar and the head's primary action. */
     progress: RaidProgress;
     /** Die Schritt-Leiste eines eigenen Events (#319); null bei Raid-Helper. */

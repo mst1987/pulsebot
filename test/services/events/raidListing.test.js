@@ -185,7 +185,7 @@ describe("services/events/raidListing", () => {
             expect(events[0]).toEqual(expect.objectContaining({
                 categoryId: "c6", categoryName: "T6 Main", contentIds: ["bt"], lootCount: 2, pendingLogCount: 1,
                 logs: [expect.objectContaining({ title: "BT Teil 1", status: "done", reportRefId: "r1", zone: "Black Temple" })],
-                pendingLogs: [{ title: "BT Teil 2", alsoFits: [] }],
+                pendingLogs: [{ title: "BT Teil 2", alsoFits: [], alsoFitsCategoryIds: [] }],
             }));
             expect(events[1]).toEqual(expect.objectContaining({ contentIds: ["ssc", "tk"], logs: [], lootCount: 0, pendingLogCount: 0 }));
         });
@@ -193,11 +193,12 @@ describe("services/events/raidListing", () => {
         it("names the other raids an unassigned log would also fit", async () => {
             listRaidEvents.mockReturnValue([
                 { id: "x", title: "Kara", startTime: at(13, 17) },
-                { id: "y", title: "Gruul", startTime: at(13, 18) },
+                { id: "y", title: "Gruul", startTime: at(13, 18), categoryId: "c-mi" },
             ]);
             listLogs.mockReturnValue([{ id: "l", title: "Abendlog", postedAt: at(13, 19) * 1000 }]);
             const { events } = await loadPastRaids("g1", { now });
-            expect(events.find((e) => e.id === "x").pendingLogs).toEqual([{ title: "Abendlog", alsoFits: ["Gruul"] }]);
+            // with their categories, so the route can tell a category's orga only of its own raids (#729)
+            expect(events.find((e) => e.id === "x").pendingLogs).toEqual([{ title: "Abendlog", alsoFits: ["Gruul"], alsoFitsCategoryIds: ["c-mi"] }]);
         });
 
         it("reports the scan error only when nothing is stored yet", async () => {

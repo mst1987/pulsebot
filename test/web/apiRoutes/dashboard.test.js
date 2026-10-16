@@ -288,7 +288,7 @@ describe("web/apiRoutes/dashboard", () => {
             activeGuildFor.mockReturnValue("guild-1");
             dashboardData.loadMissingChannels.mockResolvedValueOnce([{ eventId: "eh-1", title: "Karazhan", startTime: 2000, channelName: "mi-kara" }]);
             const res = await get("/api/dashboard");
-            expect(dashboardData.loadMissingChannels).toHaveBeenCalledWith("guild-1");
+            expect(dashboardData.loadMissingChannels).toHaveBeenCalledWith("guild-1", expect.any(Number), { categoryIds: null });
             const task = json(res).data.tasks.find((t) => t.id === "channel-missing:eh-1");
             expect(task).toMatchObject({
                 title: "Kanal von Karazhan fehlt", tone: "bad", href: "/raids/detail?event=eh-1",
@@ -386,6 +386,83 @@ describe("web/apiRoutes/dashboard", () => {
             expect(data.tasks.map((t) => t.id)).toEqual(["sheet", "logs"]);
         });
 
+        // #729: the orga of a category (a manager of its current roster, no orga rank) - the block with their categories only
+        describe("for the orga of a category", () => {
+            const rosterStore = require("../../../src/stores/rosterStore");
+            const categoryRoster = require("../../../src/services/roster/categoryRoster");
+            const { getRaidEvent } = require("../../../src/stores/raidEventStore");
+            const ROSTER = { id: "r1", categoryId: "cat1", versionId: "tbc", guildId: "guild-1", managers: { userIds: ["m1"], roleIds: [] }, members: {}, roleIds: [] };
+            const MANAGER = { id: "m1", name: "Mgr", isAdmin: false, access: { raids: { read: true, write: false }, dashboard: { read: true, write: false } } };
+            const spies = [];
+            beforeEach(() => {
+                spies.push(jest.spyOn(rosterStore, "listRosters").mockReturnValue([ROSTER]));
+                spies.push(jest.spyOn(categoryRoster, "currentRoster").mockImplementation((cat) => (cat === "cat1" ? ROSTER : null)));
+                spies.push(jest.spyOn(categoryRoster, "rosterOfEvent").mockImplementation((ev) => (ev.categoryId === "cat1" ? ROSTER : null)));
+                spies.push(jest.spyOn(categoryRoster, "isCurrentRoster").mockImplementation((r) => r === ROSTER));
+                // the raids are Raid-Helper events with a snapshot: rh-1 of cat1, rh-2 of cat2
+                getRaidEvent.mockImplementation((id) => ({ "rh-1": { id: "rh-1", categoryId: "cat1" }, "rh-2": { id: "rh-2", categoryId: "cat2" } })[id] || null);
+                auth.getUser.mockReturnValue(MANAGER);
+                activeGuildFor.mockReturnValue("guild-1");
+            });
+            afterEach(() => {
+                while (spies.length) spies.pop().mockRestore();
+                getRaidEvent.mockImplementation(() => null);
+            });
+
+            it("gets the orga block, its raids and tasks filtered to their categories, no server figures", async () => {
+                dashboardData.loadNextRaids.mockResolvedValue({ raids: [{ id: "rh-1", title: "BT", startTime: 2000, sheet: null, planning: "sheet", categoryId: "cat1" }], error: null });
+                dashboardData.loadRecentEvents.mockResolvedValue({ events: [{ id: "rh-1", title: "Hyjal", startTime: 1000, pendingLogCount: 2, logs: [] }], error: null });
+                dashboardData.loadMissingChannels.mockResolvedValueOnce([{ eventId: "rh-1", title: "BT", startTime: 2000 }, { eventId: "rh-2", title: "Fremd", startTime: 2000 }]);
+                const data = json(await get("/api/dashboard")).data;
+                expect(data.orga).toBe(true);
+                expect(data.canCreate).toBe(true);
+                expect(dashboardData.loadNextRaids).toHaveBeenLastCalledWith("guild-1", 2, { versionId: "tbc", categoryIds: ["cat1"] });
+                expect(dashboardData.loadRecentEvents).toHaveBeenLastCalledWith("guild-1", 5, { versionId: "tbc", categoryIds: ["cat1"] });
+                expect(dashboardData.loadMissingChannels).toHaveBeenLastCalledWith("guild-1", expect.any(Number), { categoryIds: ["cat1"] });
+                expect(data.nextRaid).toMatchObject({ id: "rh-1" });
+                // the sheet (`orgaScoped`) and their own raid's channel; the logs take `cla` write, which they lack
+                expect(data.tasks.map((t) => t.id)).toEqual(["channel-missing:rh-1", "sheet"]);
+                expect(data.tasks[0].action).toMatchObject({ kind: "recreateChannel", eventId: "rh-1" });
+                expect(data.areas).toBeNull();
+            });
+
+            it("keeps the logs of the last raids on their own raids only, as /api/raids/past (review #729)", async () => {
+                dashboardData.loadRecentEvents.mockResolvedValue({
+                    events: [
+                        { id: "rh-1", title: "Hyjal", startTime: 1000, pendingLogCount: 2, logs: [{ title: "Log" }] },
+                        { id: "rh-2", title: "Fremd", startTime: 900, pendingLogCount: 1, logs: [{ title: "Fremdlog" }] },
+                    ],
+                    error: null,
+                });
+                const data = json(await get("/api/dashboard")).data;
+                expect(data.recentEvents.events.map((e) => [e.id, e.logs.length, e.pendingLogCount])).toEqual([["rh-1", 1, 2], ["rh-2", 0, 0]]);
+            });
+
+            it("gives a global orga without `raids` write that manages a roster the actions of its own raids (review #729)", async () => {
+                auth.getUser.mockReturnValue({ ...MANAGER, isOrga: true });
+                dashboardData.loadNextRaids.mockResolvedValue({ raids: [{ id: "rh-1", title: "BT", startTime: 2000, sheet: null, planning: "sheet" }, { id: "rh-2", title: "Fremd", startTime: 3000, sheet: null, planning: "sheet" }], error: null });
+                dashboardData.loadRecentEvents.mockResolvedValue({ events: [], error: null });
+                dashboardData.loadMissingChannels.mockResolvedValueOnce([{ eventId: "rh-1", title: "BT", startTime: 2000 }, { eventId: "rh-2", title: "Fremd", startTime: 2000 }]);
+                const data = json(await get("/api/dashboard")).data;
+                // as before it sees every raid; it may act on its own one only
+                expect(dashboardData.loadNextRaids).toHaveBeenLastCalledWith("guild-1", 2, { versionId: "tbc", categoryIds: null });
+                const missing = data.tasks.filter((t) => t.id.startsWith("channel-missing:"));
+                expect(missing.map((t) => [t.id, !!t.action])).toEqual([["channel-missing:rh-1", true], ["channel-missing:rh-2", false]]);
+                expect(data.tasks.find((t) => t.id === "sheet")).toMatchObject({ count: 0, href: "/raids/detail?event=rh-1" });
+            });
+
+            it("may open the Raid-Details of their raid, not of another category's", async () => {
+                dashboardData.loadNextRaidDetails.mockResolvedValueOnce({ error: null, raid: { id: "rh-1", classes: [] } });
+                let res = mockRes();
+                await handle("/api/dashboard/next-raid", { method: "GET" }, res, new URL("http://x/api/dashboard/next-raid?event=rh-1"));
+                expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                res = mockRes();
+                await handle("/api/dashboard/next-raid", { method: "GET" }, res, new URL("http://x/api/dashboard/next-raid?event=rh-2"));
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                expect(json(res).error.code).toBe("not_category_orga");
+            });
+        });
+
         it("returns 403 for a logged-in non-admin", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Bob", isAdmin: false });
             const res = mockRes();
@@ -414,8 +491,8 @@ describe("web/apiRoutes/dashboard", () => {
 
             const res = await get("/api/dashboard");
 
-            expect(dashboardData.loadNextRaids).toHaveBeenCalledWith("guild-1", 2, { versionId: "tbc" });
-            expect(dashboardData.loadRecentEvents).toHaveBeenCalledWith("guild-1", 5, { versionId: "tbc" });
+            expect(dashboardData.loadNextRaids).toHaveBeenCalledWith("guild-1", 2, { versionId: "tbc", categoryIds: null });
+            expect(dashboardData.loadRecentEvents).toHaveBeenCalledWith("guild-1", 5, { versionId: "tbc", categoryIds: null });
             // "Neuer Loot" counts from the newest past raid's start
             expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(1000, { versionId: "tbc" });
             const data = json(res).data;
@@ -458,8 +535,8 @@ describe("web/apiRoutes/dashboard", () => {
 
             const res = await get("/api/dashboard", { version: "forever" });
 
-            expect(dashboardData.loadNextRaids).toHaveBeenCalledWith("guild-1", 2, { versionId: "forever" });
-            expect(dashboardData.loadRecentEvents).toHaveBeenCalledWith("guild-1", 5, { versionId: "forever" });
+            expect(dashboardData.loadNextRaids).toHaveBeenCalledWith("guild-1", 2, { versionId: "forever", categoryIds: null });
+            expect(dashboardData.loadRecentEvents).toHaveBeenCalledWith("guild-1", 5, { versionId: "forever", categoryIds: null });
             expect(dashboardData.loadTopLoot).toHaveBeenCalledWith(5, "forever");
             // the latest report, the new loot and the roster figures follow it too (#741)
             expect(dashboardData.loadLatestReport).toHaveBeenCalledWith({ versionId: "forever" });
@@ -472,7 +549,7 @@ describe("web/apiRoutes/dashboard", () => {
 
             // strictly one version (#741): "all" is the main version
             const all = await get("/api/dashboard", { version: "all" });
-            expect(dashboardData.loadNextRaids).toHaveBeenLastCalledWith("guild-1", 2, { versionId: "tbc" });
+            expect(dashboardData.loadNextRaids).toHaveBeenLastCalledWith("guild-1", 2, { versionId: "tbc", categoryIds: null });
             expect(json(all).data.version).toBe("tbc");
         });
 

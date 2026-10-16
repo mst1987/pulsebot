@@ -149,6 +149,8 @@
         "pageHidden": "Raider sehen diese Seite nicht",
         "zoneHidden": "Raider sehen diesen Bereich nicht",
         "visibleFor": "sichtbar für {who}",
+        "visibleForCategory": "sichtbar für die Orga dieser Kategorie",
+        "visibleForCategories": "nur deine Kategorien · sichtbar für ihre Orga",
         "admins": "Admins",
         "accounts": {
             "one": "{count} einzelnes Konto",

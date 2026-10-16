@@ -3,7 +3,7 @@
 // synced role becomes its talk counterpart and everyone else a mention or a DM (#264).
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { notifyRaid, type ApiError, type PingTarget } from "../../../api";
+import { canAccess, notifyRaid, type ApiError, type PingTarget } from "../../../api";
 import TargetField from "./TargetField";
 import { targetHint } from "../../../lib/settings/settingsLogic";
 import { Modal } from "../../../components/ui/Modal";
@@ -54,9 +54,12 @@ export default function NotifyModal({ ctx, open, onClose }: { ctx: RaidCtx; open
             )}
         >
             {!notifyTemplates.length ? (
-                <p className="rd-empty">
-                    {t("raidModals.notify.noTemplatesBefore")} <Link className="mlink" to="/raids/templates">{t("raidModals.notify.noTemplatesLink")}</Link>{t("raidModals.notify.noTemplatesAfter")}
-                </p>
+                // the templates are written with `raids` write (global): without it no link into a dead end (#729)
+                !ctx.user || canAccess(ctx.user, "raids", "write") ? (
+                    <p className="rd-empty">
+                        {t("raidModals.notify.noTemplatesBefore")} <Link className="mlink" to="/raids/templates">{t("raidModals.notify.noTemplatesLink")}</Link>{t("raidModals.notify.noTemplatesAfter")}
+                    </p>
+                ) : <p className="rd-empty">{t("raidModals.notify.noTemplatesOrga")}</p>
             ) : (
                 <form id="rd-notify-form" className="rd-form" onSubmit={submit}>
                     <TargetField info={data.pingTargets} value={target} onChange={setTarget} />

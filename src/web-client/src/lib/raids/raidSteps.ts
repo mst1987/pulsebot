@@ -96,3 +96,21 @@ export function stepTipSub(step: RaidEventStep, withDeed: boolean): string {
 export function withoutDeeds(progress: RaidEventSteps): RaidEventSteps {
     return { ...progress, action: null, steps: progress.steps.map((s) => ({ ...s, action: null })) };
 }
+
+/**
+ * Ob eine Tat (oder der Hauptknopf) mit den Rechten außerhalb des Raids durchgeht (#729): „Log zuordnen“
+ * und „auswerten“ sind `cla` write (`canLogs`), „Loot hinzufügen/importieren“ `history` write (`canLoot`);
+ * alles andere hängt am Raid selbst.
+ */
+export function deedAllowed(deed: { modal?: string; evaluate?: unknown } | null | undefined, rights: { canLogs: boolean; canLoot: boolean }): boolean {
+    if (!deed) return false;
+    if (deed.modal === "log" || deed.evaluate) return rights.canLogs;
+    if (deed.modal === "loot") return rights.canLoot;
+    return true;
+}
+
+/** Die Leiste ohne die Taten, die diese Rechte nicht tragen — der Schritt bleibt als Anzeige stehen. */
+export function withAllowedDeeds(progress: RaidEventSteps, rights: { canLogs: boolean; canLoot: boolean }): RaidEventSteps {
+    const keep = (d: RaidStepDeed | null): RaidStepDeed | null => (d && deedAllowed(d, rights) ? d : null);
+    return { ...progress, action: keep(progress.action), steps: progress.steps.map((s) => ({ ...s, action: keep(s.action) })) };
+}

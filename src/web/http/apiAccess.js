@@ -26,9 +26,11 @@
 // lets in a menu user who manages some category's roster, whatever their area
 // rights - gate() asks that only after checkAccess() refused, and only on such a
 // route. The handler then checks the concrete event (403 "not_category_orga").
+// A read marked `orgaRead` (#729, routeTable.isOrgaRead) does the same for a GET
+// of one raid - the raid plan of a raid, which its category's orga plans.
 // Every other route answers exactly as checkAccess() does.
 const { AREAS, userCanAny, userHasMenuAccess } = require("../../config/permissions");
-const { ROUTES, find, areasOf, isOrgaScoped } = require("./routeTable");
+const { ROUTES, find, areasOf, isOrgaScoped, isOrgaRead } = require("./routeTable");
 const categoryOrga = require("../../services/roster/categoryOrga");
 
 /** `{ [path]: area | [areas] }` — every gated path with its area(s), the shape the tests and the docs know. */
@@ -125,7 +127,9 @@ async function gate(pathname, method, user, req) {
     if (!denied || denied.status !== 403 || denied.code !== "forbidden") return denied;
     if (!user || !userHasMenuAccess(user)) return denied;
     const route = find(method, pathname);
-    if (!isOrgaScoped(route) || route.adminOnly || !areasOf(route).length) return denied;
+    // an `orgaRead` route only for a read (#729): it never widens a write
+    const opens = isOrgaScoped(route) || (isOrgaRead(route) && levelFor(method, route) === "read");
+    if (!opens || route.adminOnly || !areasOf(route).length) return denied;
     const cache = categoryOrga.requestCache(req);
     if (!(await categoryOrga.isAnyCategoryManager(user, { cache }))) return denied;
     cache.areaViaCategory = true;

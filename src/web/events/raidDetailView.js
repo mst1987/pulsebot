@@ -294,6 +294,30 @@ function playerSummariesPart(guildId, found, { setup, attendance }) {
     return summarizePlayers(names, listAllLoot(), listStoredEvents(guildId), { categoryId: found.g.categoryId });
 }
 
+/**
+ * The roles the Anmelde-Aufruf offers: every role of the server, or - `categoryOnly`, the orga of a category
+ * (#727: POST /api/raids/notify refuses any other role with 400 "role_not_allowed") - the raider roles of the
+ * raid's category in the raid's version (categoryRoles.expectedRoleIds), in the server's order.
+ */
+function notifyRoles(guildId, categoryId, versionId, config, categoryOnly) {
+    const roles = discord.listRoles(guildId) || [];
+    if (!categoryOnly) return roles;
+    const allowed = new Set(expectedRoleIds(categoryId, config, { versionId }).map(String));
+    return roles.filter((r) => allowed.has(String(r.id)));
+}
+
+/**
+ * The caller's rights on this raid (`viewer` in the answer, #729), so the client draws no button the server
+ * refuses: `canOrga` the raid's actions (`orgaScoped` with `raids` write: steps, Event verwalten, Aufruf,
+ * Ping, Invite, Raider eintragen, sheet, softres, loot system), `canPlan` the "Raidplan" tab (GET
+ * /api/raidplan), `canSwitchPlan` "Raidplan aktivieren" (POST /api/raidplan/link). No `rights` (an older
+ * caller, the tests): the orga's view counts as the orga's rights.
+ */
+function viewerRights(rights, orga) {
+    if (!rights) return { canOrga: orga, canPlan: true, canSwitchPlan: orga };
+    return { canOrga: !!rights.canOrga, canPlan: !!rights.canPlan, canSwitchPlan: !!rights.canSwitchPlan };
+}
+
 /** What a raider's read has in place of the attendance part: nobody expected, nothing missing. */
 const NO_ATTENDANCE = { categoryRoleIds: [], attendanceSource: null, attendance: { responded: [], missing: [] }, membersError: null };
 
@@ -348,10 +372,11 @@ function forRaider(payload, userId) {
  * @param {{ guildId: string, eventId: string, planPost?: boolean, viewer?: object }} o `planPost` false (a reader without
  *   "raidplan" write) leaves out the raid plan's link state and with it the "Einteilungen" step; `viewer`
  *   (services/signups/eventVisibility.raidViewer, none = the orga): a raider gets only a raid they may see
- *   (else the same 404 as an unknown one) and only their parts of it (forRaider)
+ *   (else the same 404 as an unknown one) and only their parts of it (forRaider); `rights` (the route's, #729):
+ *   `{ canOrga, canPlan, canSwitchPlan, categoryRolesOnly }` - see viewerRights and notifyRoles
  * @returns {Promise<{ body: object } | { error: { status, code, message } }>} for apiResult.sendResult
  */
-async function buildRaidDetail({ guildId, eventId, planPost = true, viewer = null }) {
+async function buildRaidDetail({ guildId, eventId, planPost = true, viewer = null, rights = null }) {
     const { found, groupsError, stale } = await findEvent(guildId, eventId);
     if (!found) return fail(groupsError ? 400 : 404, groupsError ? "events_unavailable" : "not_found", groupsError || "Event nicht gefunden.");
     const orga = !viewer || !!viewer.orga;
@@ -402,7 +427,8 @@ async function buildRaidDetail({ guildId, eventId, planPost = true, viewer = nul
         guildId,
         eventsWarning: stale ? (groupsError || "Raid-Helper aktuell nicht erreichbar — zeige zwischengespeicherte Event-Daten.") : null,
         notifyTemplates: listNotify(),
-        roles: discord.listRoles(guildId),
+        // the Anmelde-Aufruf's roles: the category's raider roles only for whom POST /api/raids/notify allows no more (#727, #729)
+        roles: notifyRoles(guildId, found.g.categoryId, version.versionId, config, !!(rights && rights.categoryRolesOnly)),
         // Whether the ping/notify modals may offer the talk server as a target.
         pingTargets: pingTargetInfo(),
         raidsheets,
@@ -447,9 +473,13 @@ async function buildRaidDetail({ guildId, eventId, planPost = true, viewer = nul
         // entry are offered at all (src/services/loot/lootSystem.js).
         lootSystem: lootSystemOf(eventId, found.g.categoryId),
         eventLogs: logs.eventLogs,
-        unlinkedLogs: logs.unlinkedLogs,
+        // the server's unassigned logs (of every category) are the "Log zuordnen" dialog's: only with `cla`
+        // write, the dialog's own right (#729: a category orga without it gets none of them)
+        unlinkedLogs: rights && rights.canLogs === false ? [] : logs.unlinkedLogs,
         // whom the page is for: the client draws the orga's parts only for the orga (the server already left them out)
         orga,
+        // what the caller may do on this raid, each the gate of the route its buttons call (#729)
+        viewer: viewerRights(rights, orga),
     };
     if (!orga) return { body: forRaider(payload, viewer.userId) };
     // The progress bar and the head's primary action, from the same payload.

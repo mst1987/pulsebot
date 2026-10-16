@@ -67,10 +67,16 @@ const methodsFor = (pathname) => METHODS_BY_PATH.get(pathname) || [];
  */
 const isOrgaScoped = (route) => !!(route && route.handler && route.handler.orgaScoped === true);
 
+/**
+ * Whether a read lets the orga of a category in (#729): its handler is a withUser({ orgaRead })
+ * wrapper, which checks the concrete event itself (apiHandler.js).
+ */
+const isOrgaRead = (route) => !!(route && route.handler && route.handler.orgaRead === true);
+
 /** The areas an entry names, always as an array (empty = none). */
 function areasOf(route) {
     if (!route || !route.area) return [];
     return Array.isArray(route.area) ? route.area : [route.area];
 }
 
-module.exports = { ROUTES, MODULES, find, methodsFor, areasOf, isOrgaScoped };
+module.exports = { ROUTES, MODULES, find, methodsFor, areasOf, isOrgaScoped, isOrgaRead };

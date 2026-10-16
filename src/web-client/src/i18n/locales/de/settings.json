@@ -410,7 +410,7 @@
         "unknown": "unbekannt ({id})"
     },
     "fields": {
-        "topItemsSub": "Wird eines dieser Items importiert, taucht es auf dem Dashboard unter „Latest Loot“ auf — mit Charakter, Raid und Datum. Ohne Eintrag bleibt die Karte leer.",
+        "topItemsSub": "Wird eines dieser Items importiert, taucht es auf dem Dashboard unter „Neuester Loot“ auf — mit Charakter, Raid und Datum. Ohne Eintrag bleibt die Karte leer.",
         "addItem": "Item hinzufügen",
         "item": "Item {id}",
         "itemId": "Item-ID {id}",

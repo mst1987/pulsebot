@@ -274,6 +274,28 @@ describe("the orga of a category (a manager of its roster)", () => {
         expect(status(await api.get("/api/raidplan", { event: foreign.id }))).toBe(404);
     });
 
+    it("reads the plan of their raid without the area `raidplan` (#729, orgaRead) - not another category's", async () => {
+        const noPlanArea = { ...emptyAccess(), raids: { read: true, write: false }, signup: { read: true, write: true } };
+        mockUser = { ...MANAGER, access: noPlanArea };
+        let r = await api.get("/api/raidplan", { event: own.id });
+        expect(status(r)).toBe(200);
+        expect(body(r).canWrite).toBe(true);
+        expect(body(r).canWriteLibrary).toBe(false);
+        r = await api.get("/api/raidplan", { event: foreign.id });
+        expect([status(r), code(r)]).toEqual([403, "not_category_orga"]);
+        // the Raid-Helper switch's dialog the same way
+        expect(status(await api.get("/api/raidplan/link", { event: RH_OWN }))).toBe(200);
+        expect(code(await api.get("/api/raidplan/link", { event: RH_FOREIGN }))).toBe("not_category_orga");
+        // the editor's progress poll the same way (the route checks itself, it serves the token view too)
+        expect(status(await api.get("/api/raidplan/progress", { event: own.id }))).toBe(200);
+        expect(status(await api.get("/api/raidplan/progress", { event: foreign.id }))).toBe(403);
+        // the library stays shut: templates, tactic profiles, catalog
+        expect(code(await api.get("/api/raidplan/templates"))).toBe("forbidden");
+        // a raider without the area manages nothing: the area refusal as before
+        mockUser = { ...RAIDER, access: noPlanArea };
+        expect(code(await api.get("/api/raidplan", { event: own.id }))).toBe("forbidden");
+    });
+
     it("gets the Einteilungen step only for a raid of their category (GET /api/raids/detail builds with planPost)", async () => {
         expect(body(await detail.get("/api/raids/detail", { event: own.id })).planPost).toBe(true);
         expect(body(await detail.get("/api/raids/detail", { event: foreign.id })).planPost).toBe(false);

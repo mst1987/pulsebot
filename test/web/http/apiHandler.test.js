@@ -400,3 +400,51 @@ describe("web/http/apiHandler withUser orgaScoped", () => {
         });
     });
 });
+
+// `orgaRead` (#729): a read of one raid - whoever holds the area as always, the orga of a category the area
+// gate let in (`areaViaCategory`) only for the raids of their category.
+describe("web/http/apiHandler withUser orgaRead", () => {
+    const BY_QUERY = (body, query) => query.get("event");
+    const getReq = (event) => {
+        const req = jsonRequest("GET", "/", {});
+        return { req, url: new URL(`http://x/api/t${event ? `?event=${event}` : ""}`) };
+    };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockManagers = new Set(["7"]);
+        mockOwnEvents = new Set(["mine"]);
+    });
+
+    it("refuses a wrong definition and marks the wrapper for the route table", () => {
+        expect(() => withUser({ orgaRead: "event" }, jest.fn())).toThrow("orgaRead");
+        expect(() => withUser({ orgaRead: BY_QUERY, write: "raidplan" }, jest.fn())).toThrow("orgaRead");
+        expect(() => withUser({ orgaRead: BY_QUERY, orgaScoped: BY_QUERY }, jest.fn())).toThrow("orgaRead");
+        expect(() => withUser({ orgaRead: BY_QUERY, orga: true }, jest.fn())).toThrow("orgaRead");
+        expect(withUser({ orgaRead: BY_QUERY }, jest.fn()).orgaRead).toBe(true);
+        expect(withUser({ orgaRead: BY_QUERY }, jest.fn()).orgaScoped).toBeUndefined();
+    });
+
+    it("leaves a caller the area gate let in by their area alone: no event check", async () => {
+        mockUser = limited({ raidplan: { read: true, write: false } });
+        const fn = jest.fn(({ res }) => res.end("{}"));
+        const { req, url } = getReq("foreign");
+        await withUser({ orgaRead: BY_QUERY }, fn)(req, mockRes(), url);
+        expect(fn).toHaveBeenCalledTimes(1);
+        expect(categoryOrga.canOrgaEvent).not.toHaveBeenCalled();
+    });
+
+    it("holds a manager the gate let in to the raids of their category", async () => {
+        mockUser = limited({ raids: { read: true, write: false } });
+        const fn = jest.fn(({ res }) => res.end("{}"));
+        for (const [event, code] of [["mine", null], ["foreign", "not_category_orga"], ["", "not_category_orga"]]) {
+            const { req, url } = getReq(event);
+            categoryOrga.requestCache(req).areaViaCategory = true;
+            const res = mockRes();
+            await withUser({ orgaRead: BY_QUERY }, fn)(req, res, url);
+            if (code) expect(sent(res).error.code).toBe(code);
+        }
+        expect(fn).toHaveBeenCalledTimes(1);
+        expect(categoryOrga.canOrgaEvent.mock.calls.every(([, , opts]) => opts.managerOnly === true)).toBe(true);
+    });
+});

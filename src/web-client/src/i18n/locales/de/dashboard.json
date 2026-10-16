@@ -81,7 +81,7 @@
         "evaluate": "Log auswerten",
         "newLoot": "Neuer Loot",
         "newLootTip": "Top-Items seit dem letzten Raid",
-        "newLootSub": "Vergeben seit {date}. Klick öffnet Latest Loot.",
+        "newLootSub": "Vergeben seit {date}. Klick öffnet die Vergaben.",
         "newLootNone": "Noch kein vergangener Raid bekannt.",
         "topItems": "Top-Items",
         "since": "seit {date}",
@@ -93,7 +93,7 @@
         "withoutDiscord": "{count} ohne Discord"
     },
     "loot": {
-        "title": "Latest Loot",
+        "title": "Neuester Loot",
         "crumb": "Top-Items",
         "historyLink": "Historie & Loot",
         "noneAwarded": "Noch keins der {count} Top-Items vergeben.",
