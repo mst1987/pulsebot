@@ -136,8 +136,9 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
  * GET /api/dashboard/next-raid?event=<id> — the "Raid-Details" modal of an
  * upcoming raid: signups per role and class, preparation, who has not signed
  * up. Loaded when the modal opens, because the member list is a Discord call.
+ * Only the orga: the modal belongs to the orga block (who has not signed up).
  */
-const getNextRaidDetails = withUser({}, async ({ req, res, url }) => {
+const getNextRaidDetails = withUser({ orga: true }, async ({ req, res, url }) => {
     const eventId = String((url && url.searchParams.get("event")) || "").trim();
     if (!eventId) return error(res, 400, "missing_event", "Kein Event angegeben.");
     const guildId = activeGuildFor(req);

@@ -492,6 +492,15 @@ describe("web/apiRoutes/dashboard", () => {
     });
 
     describe("GET /api/dashboard/next-raid", () => {
+        it("is the orga block's: a raider role with the dashboard and raids read gets 403 (Oct 2026)", async () => {
+            auth.getUser.mockReturnValue({ id: "8", name: "Rai", isAdmin: false, access: { dashboard: { read: true, write: false }, raids: { read: true, write: false } } });
+            dashboardData.loadNextRaidDetails.mockClear();
+            const res = mockRes();
+            await handle("/api/dashboard/next-raid", { method: "GET" }, res, new URL("http://x/api/dashboard/next-raid?event=ev1"));
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(dashboardData.loadNextRaidDetails).not.toHaveBeenCalled();
+        });
+
         it("needs an event id", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             const res = mockRes();

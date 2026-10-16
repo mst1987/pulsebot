@@ -27,9 +27,10 @@ describe("raid detail layout", () => {
         // the setup editor only on an own event; the raid plan also on a Raid-Helper event whose plan is switched on,
         // and only for a reader of its own area
         expect(page).toContain("const hasPlan = canAccess(user, \"raidplan\") && planning !== \"sheet\" && (ownEvent || !!data.event.raidplanEnabled);");
-        expect(page).toContain("const tabs = TABS.filter((t) => (t === \"setup\" ? ownEvent : t === \"plan\" ? hasPlan : true));");
-        // an old ?tab=setup of a Raid-Helper event still lands on the roster
-        expect(page).toContain("const shown: Tab = (tab === \"setup\" && !ownEvent) || (tab === \"plan\" && !hasPlan) ? LEGACY_TABS.setup.tab : tab;");
+        // the Logs tab only for the orga (Oct 2026: the logs are the orga's work)
+        expect(page).toContain("const tabs = TABS.filter((t) => (t === \"setup\" ? ownEvent : t === \"plan\" ? hasPlan : t === \"logs\" ? orga : true));");
+        // an old ?tab=setup of a Raid-Helper event still lands on the roster, a raider's ?tab=logs too
+        expect(page).toContain("const shown: Tab = (tab === \"setup\" && !ownEvent) || (tab === \"plan\" && !hasPlan) || (tab === \"logs\" && !orga) ? LEGACY_TABS.setup.tab : tab;");
         expect(page).toContain("usePersistedSearchParam<Tab>(\"raid-detail-tab\", \"tab\", \"roster\", TABS)");
     });
 
@@ -48,8 +49,8 @@ describe("raid detail layout", () => {
         const hero = read("pages", "raid-detail", "RaidDetailHero.tsx");
         expect(hero).toContain("data.progress.steps.map((s) => <StepCell");
         // a cancelled own event (#288) pushes no next step — and an own event's
-        // step bar (#319) carries the one deed itself, so the head keeps quiet
-        expect(hero).toContain("const primary = cancelled || cockpit ? null : data.progress?.primary || null;");
+        // step bar (#319) carries the one deed itself, so the head keeps quiet; a raider gets none (Oct 2026)
+        expect(hero).toContain("const primary = !orga || cancelled || cockpit ? null : data.progress?.primary || null;");
         // a step is a button that opens its dialog or tab
         expect(hero).toContain("onClick={() => onOpen(step)}");
         expect(page).toMatch(/if \(step\.open\.modal\) setModal\(step\.open\.modal\);\s*else if \(step\.open\.tab\) switchTab\(step\.open\.tab\);/);

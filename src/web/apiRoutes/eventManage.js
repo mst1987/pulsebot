@@ -1,7 +1,7 @@
 // JSON API of "Event verwalten" (#288) — the actions menu on the raid detail of
-// an own event. Every path is area `raids` (apiAccess.js, level by method); the
-// two reads additionally want write access, because they only exist to prepare
-// an action (who would get a DM, what the channel would be renamed to).
+// an own event. Every path is area `raids` (apiAccess.js, level by method) and
+// only for the orga; the reads additionally want write access, because they only
+// exist to prepare an action (who would get a DM, what the channel would be renamed to).
 //
 //   GET  /api/raids/manage?event=                      state, recipients, archive, log
 //   GET  /api/raids/manage/move?event=&date=&time=     preview of a move (nothing changes)
@@ -21,10 +21,13 @@ const { q } = require("../http/apiParams");
 const { activeGuildFor } = require("../http/activeGuild");
 const manage = require("../../services/events/eventManage");
 
-/** A read that prepares an action: menu user with `raids` write. */
-const reader = (fn) => withUser({ write: "raids" }, fn);
-/** A write: menu user, CSRF, JSON body. */
-const action = (fn) => withUser({ csrf: true, body: true, archived: (body) => body.event }, fn);
+// "Event verwalten" is the orga's (permissions.userIsOrga): a raider role that holds `raids`
+// write is still no orga, so every path here wants the orga as well as its right.
+
+/** A read that prepares an action: the orga with `raids` write. */
+const reader = (fn) => withUser({ orga: true, write: "raids" }, fn);
+/** A write: the orga, CSRF, JSON body (the area gate asks for `raids` write). */
+const action = (fn) => withUser({ orga: true, csrf: true, body: true, archived: (body) => body.event }, fn);
 
 const getManage = reader(async ({ req, res, query }) => {
     sendResult(res, await manage.manageInfo({ guildId: activeGuildFor(req), eventId: q.str(query, "event") }));

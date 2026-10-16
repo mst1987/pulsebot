@@ -150,6 +150,26 @@ describe("AddonCenterCard", () => {
         expect(await screen.findByText("Ungültige Spielversion.")).toBeInTheDocument();
     });
 
+    it("warns when the chosen role carries rights: pinged, but no 'Updates abonnieren'", async () => {
+        vi.mocked(api.getAddonCenter).mockResolvedValue(posted({ roles: { g1: [{ id: "r1", name: "Gilde", privileged: true }, { id: "r3", name: "Addon-Updates" }] } }));
+        renderPage(<AddonCenterCard />);
+        expect(await screen.findByRole("alert")).toHaveTextContent(t("addon.center.rolePrivileged"));
+    });
+
+    it("only hints (no warning) when the role is also the one pinged on applications", async () => {
+        vi.mocked(api.getAddonCenter).mockResolvedValue(posted({ roles: { g1: [{ id: "r1", name: "Offiziere", privileged: false, officer: true }] } }));
+        renderPage(<AddonCenterCard />);
+        expect(await screen.findByText(t("addon.center.roleOfficer"))).toBeInTheDocument();
+        expect(screen.queryByRole("alert")).toBeNull();
+    });
+
+    it("shows no warning for a role without rights or without a role", async () => {
+        vi.mocked(api.getAddonCenter).mockResolvedValue(posted({ roles: { g1: [{ id: "r1", name: "Addon-Updates", privileged: false }, { id: "r2", name: "Gilde", privileged: true }] } }));
+        renderPage(<AddonCenterCard />);
+        await screen.findByRole("heading", { name: t("addon.center.title") });
+        expect(screen.queryByText(t("addon.center.rolePrivileged"))).toBeNull();
+    });
+
     it("says when its settings cannot be loaded", async () => {
         vi.mocked(api.getAddonCenter).mockRejectedValue({ message: "403" });
         renderPage(<AddonCenterCard />);

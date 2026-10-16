@@ -422,6 +422,7 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
                     {stepId === "managers" && <section className="rn-dlg-sec">
                         <h3 className="rn-lbl">{t("roster.form.managers")}</h3>
                         <p className="rn-sub">{t("roster.form.managersHint")}</p>
+                        <Notice>{t("roster.form.managersOrga")}</Notice>
                         <div className="rn-lbl rn-lbl-sub">{t("roster.form.managerRoles")}</div>
                         <RoleSelect roles={options.roles} value={form.managerRoleIds} onChange={(managerRoleIds) => set({ managerRoleIds })} requireManageable={false} disabled={locked} disabledTip={lockTip} label={t("roster.form.managerRoles")} />
                         <div className="rn-lbl rn-lbl-sub">{t("roster.form.managerUsers")}</div>

@@ -3,7 +3,9 @@
 // the tab: one line with the state and the tab's actions, role and status counts
 // as badges, raid groups 1–5 (an own event: role columns) and below them the two
 // lists a raid lead acts on: who has not reacted, and who reacted but is not in the plan.
-import { useMemo, useState } from "react";
+// Those lists and the tab's actions are the orga's (Oct 2026): drawn in an OrgaZone for
+// the orga, left out for a raider — who sees the lineup, names, specs and roles only.
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { AttendancePerson, EventSignupEntry, GameRole, SetupPlayer, SetupRole, SignupStatus } from "../../api";
 import { wowIconUrl } from "../../lib/wow/wowIcon";
@@ -19,6 +21,7 @@ import {
     type RaidCtx,
 } from "./meta";
 import SpecTile from "./SpecTile";
+import { OrgaZone } from "../../components/ui/OrgaZone";
 import { t, useT } from "../../i18n";
 
 const norm = (s: string) => s.trim().toLowerCase();
@@ -51,6 +54,16 @@ function PersonChip({ p, status, onOpen }: { p: AttendancePerson; status?: Signu
 }
 
 const OWN_ROLES: GameRole[] = ["tank", "healer", "melee", "ranged"];
+
+/**
+ * One raider of the lineup: for the orga a button into the player dialog (their raids and loot),
+ * for a raider a plain row — the dialog shows other people's history, so their names open nothing.
+ */
+function PlayerRow({ onOpen, tip, tipSub, children }: { onOpen?: () => void; tip: string; tipSub?: string; children: ReactNode }) {
+    return onOpen
+        ? <button type="button" className="rd-pl" data-tip={tip} data-tip-sub={tipSub} onClick={onOpen}>{children}</button>
+        : <div className="rd-pl rd-pl-static" data-tip={tip} data-tip-sub={tipSub}>{children}</div>;
+}
 
 /**
  * An own event's signups (#256) in role columns — one compact line per raider:
@@ -86,14 +99,14 @@ function OwnSignupGroups({ signups, openPlayer }: { signups: EventSignupEntry[];
                                     ].filter(Boolean).join(" · ");
                                     const color = classColorProps(s.classColor);
                                     return (
-                                        <button
-                                            type="button" key={s.userId} className="rd-pl"
-                                            data-tip={s.character || s.name || s.userId} data-tip-sub={sub || undefined}
-                                            onClick={() => openPlayer({
+                                        <PlayerRow
+                                            key={s.userId}
+                                            tip={s.character || s.name || s.userId} tipSub={sub || undefined}
+                                            onOpen={openPlayer && (() => openPlayer({
                                                 name: s.character || s.name, discordName: s.name || undefined, classColor: s.classColor,
                                                 className: s.className, specName: s.specLabel, iconUrl: wowIconUrl(s.specIcon, 36),
                                                 role: s.role || undefined, status: s.status,
-                                            })}
+                                            }))}
                                         >
                                             <SpecTile iconUrl={s.specIcon ? wowIconUrl(s.specIcon, 36) : undefined} classColor={s.classColor} />
                                             <span className="rd-pl-text">
@@ -105,7 +118,7 @@ function OwnSignupGroups({ signups, openPlayer }: { signups: EventSignupEntry[];
                                                 {s.comment && <span className="rd-own-mark" aria-label={t("raidDetail.roster.comment")}>…</span>}
                                             </span>
                                             {s.status !== "signed" && <span className={`rd-sig rd-sig-${s.status}`} aria-label={SIGNUP_META[s.status].label} />}
-                                        </button>
+                                        </PlayerRow>
                                     );
                                 })}
                             </div>
@@ -184,7 +197,9 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
     const t = useT();
     const { data, openModal, openPlayer } = ctx;
     const { setup, setupError, setupFromSnapshot, attendance, event: ev } = data;
-    const attendanceOk = expectsRaiders(data) && ev.signupsKnown !== false && !data.membersError;
+    // Who has not reacted, who is not in the plan, why that cannot be told: the orga's (a raider gets none of it)
+    const orga = !!ctx.orga;
+    const attendanceOk = orga && expectsRaiders(data) && ev.signupsKnown !== false && !data.membersError;
     const missing = attendanceOk ? [...attendance.missing].sort(byLabel) : [];
     const responded = useMemo(() => (attendanceOk ? attendance.responded : []), [attendanceOk, attendance.responded]);
 
@@ -244,16 +259,54 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
             </Button>
         )
         : null;
-    // No card head repeating the tab: one line with the state on the left (why the
-    // attendance check cannot run, where the lineup comes from) and the tab's actions on the right.
-    const state = attendanceOk ? null : <AttendanceState ctx={ctx} />;
-    const bar = state || source || pingAction || addRaider
+    // No card head repeating the tab: one line with where the lineup comes from. The orga's part —
+    // why the attendance check cannot run, the tab's actions and the two lists — is a zone of its
+    // own below the lineup (components/ui/OrgaZone.tsx); a raider sees none of it.
+    const state = !orga || attendanceOk ? null : <AttendanceState ctx={ctx} />;
+    const bar = source ? <div className="rd-toolbar rd-tabbar"><span className="rd-muted">{source}</span></div> : null;
+    const lists = attendanceOk && (missing.length > 0 || notInSetup.length > 0);
+    const allReacted = attendanceOk && !ev.isPast && !missing.length && responded.length > 0;
+    const orgaPart = orga && (state || pingAction || addRaider || lists || allReacted)
         ? (
-            <div className="rd-toolbar rd-tabbar">
-                {state}
-                {source && <span className="rd-muted">{source}</span>}
-                {(pingAction || addRaider) && <span className="rd-tabbar-act">{pingAction}{addRaider}</span>}
-            </div>
+            <>
+                {(state || pingAction || addRaider) && (
+                    <div className="rd-toolbar rd-tabbar">
+                        {state}
+                        {(pingAction || addRaider) && <span className="rd-tabbar-act">{pingAction}{addRaider}</span>}
+                    </div>
+                )}
+                {lists && (
+                    <div className="rd-glist">
+                        <div className={`rd-grp${missingOpen && missing.length ? " open bad" : ""}`}>
+                            <IconTile icon="spell_holy_borrowedtime" tone={missing.length ? "bad" : "none"} />
+                            <b>{t("raidDetail.roster.noReaction")}</b>
+                            <Badge tone={missing.length ? "bad" : undefined} count>{missing.length}</Badge>
+                            <span className="rd-grp-sub">{t("raidDetail.roster.noReactionSub")}</span>
+                            {missing.length > 0 && <Expand open={missingOpen} onToggle={() => setMissingOpen((o) => !o)} showLabel={!missingOpen} />}
+                        </div>
+                        {missingOpen && missing.length > 0 && (
+                            <div className="rd-chips">
+                                {missing.map((p) => <PersonChip key={p.id} p={p} onOpen={() => openPlayer?.(personRef(p, "missing"))} />)}
+                            </div>
+                        )}
+                        <div className={`rd-grp${asideOpen && notInSetup.length ? " open" : ""}`}>
+                            <IconTile icon="spell_holy_divineintervention" tone="none" />
+                            <b>{t("raidDetail.roster.notInSetup")}</b>
+                            <Badge count>{notInSetup.length}</Badge>
+                            <span className="rd-grp-sub">{asideSummary || t("raidDetail.roster.allInPlan")}</span>
+                            {notInSetup.length > 0 && <Expand open={asideOpen} onToggle={() => setAsideOpen((o) => !o)} showLabel={!asideOpen} />}
+                        </div>
+                        {asideOpen && notInSetup.length > 0 && (
+                            <div className="rd-chips">
+                                {notInSetup.map((p) => <PersonChip key={p.id} p={p} status={p.status || "signed"} onOpen={() => openPlayer?.(personRef(p))} />)}
+                            </div>
+                        )}
+                    </div>
+                )}
+                {allReacted && (
+                    <p className="rd-empty"><WowIcon name="achievement_guildperk_everybodysfriend" size={18} />{t("raidDetail.roster.allReacted")}</p>
+                )}
+            </>
         )
         : null;
 
@@ -291,10 +344,10 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
                                     {g.players.map((p, pi) => {
                                         const status = statusByName.get(norm(p.name));
                                         return (
-                                            <button
-                                                type="button" key={`${p.name}-${pi}`} className="rd-pl"
-                                                data-tip={p.name} data-tip-sub={[p.specName, status ? SIGNUP_META[status].label : ""].filter(Boolean).join(" · ") || undefined}
-                                                onClick={() => openPlayer(slotRef(p, g.label, status))}
+                                            <PlayerRow
+                                                key={`${p.name}-${pi}`}
+                                                tip={p.name} tipSub={[p.specName, status ? SIGNUP_META[status].label : ""].filter(Boolean).join(" · ") || undefined}
+                                                onOpen={openPlayer && (() => openPlayer(slotRef(p, g.label, status)))}
                                             >
                                                 <SpecTile iconUrl={p.iconUrl} classColor={p.classColor} />
                                                 <span className="rd-pl-text">
@@ -302,7 +355,7 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
                                                     <span className="rd-pspec">{p.specName}</span>
                                                 </span>
                                                 {status && status !== "signed" && <span className={`rd-sig rd-sig-${status}`} aria-label={SIGNUP_META[status].label} />}
-                                            </button>
+                                            </PlayerRow>
                                         );
                                     })}
                                 </div>
@@ -311,38 +364,7 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
                     </div>
                 )}
 
-            {attendanceOk && (missing.length > 0 || notInSetup.length > 0) && (
-                <div className="rd-glist">
-                    <div className={`rd-grp${missingOpen && missing.length ? " open bad" : ""}`}>
-                        <IconTile icon="spell_holy_borrowedtime" tone={missing.length ? "bad" : "none"} />
-                        <b>{t("raidDetail.roster.noReaction")}</b>
-                        <Badge tone={missing.length ? "bad" : undefined} count>{missing.length}</Badge>
-                        <span className="rd-grp-sub">{t("raidDetail.roster.noReactionSub")}</span>
-                        {missing.length > 0 && <Expand open={missingOpen} onToggle={() => setMissingOpen((o) => !o)} showLabel={!missingOpen} />}
-                    </div>
-                    {missingOpen && missing.length > 0 && (
-                        <div className="rd-chips">
-                            {missing.map((p) => <PersonChip key={p.id} p={p} onOpen={() => openPlayer(personRef(p, "missing"))} />)}
-                        </div>
-                    )}
-                    <div className={`rd-grp${asideOpen && notInSetup.length ? " open" : ""}`}>
-                        <IconTile icon="spell_holy_divineintervention" tone="none" />
-                        <b>{t("raidDetail.roster.notInSetup")}</b>
-                        <Badge count>{notInSetup.length}</Badge>
-                        <span className="rd-grp-sub">{asideSummary || t("raidDetail.roster.allInPlan")}</span>
-                        {notInSetup.length > 0 && <Expand open={asideOpen} onToggle={() => setAsideOpen((o) => !o)} showLabel={!asideOpen} />}
-                    </div>
-                    {asideOpen && notInSetup.length > 0 && (
-                        <div className="rd-chips">
-                            {notInSetup.map((p) => <PersonChip key={p.id} p={p} status={p.status || "signed"} onOpen={() => openPlayer(personRef(p))} />)}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {attendanceOk && !ev.isPast && !missing.length && responded.length > 0 && (
-                <p className="rd-empty"><WowIcon name="achievement_guildperk_everybodysfriend" size={18} />{t("raidDetail.roster.allReacted")}</p>
-            )}
+            {orgaPart && (ctx.user ? <OrgaZone user={ctx.user}>{orgaPart}</OrgaZone> : orgaPart)}
         </section>
     );
 }

@@ -135,10 +135,12 @@ function signupTone(n: number, size: number): "ok" | "mid" | undefined {
     return "mid";
 }
 
-export function UpcomingRaidList({ events, guildId, canWrite, onRepeat, emptyMessage }: {
+export function UpcomingRaidList({ events, guildId, canWrite, orga = false, onRepeat, emptyMessage }: {
     events: UpcomingRaid[];
     guildId: string;
     canWrite: boolean;
+    /** the orga is looking: "Kanal fehlt" is a task of theirs, a raider just gets no Discord link */
+    orga?: boolean;
     onRepeat: (id: string) => void;
     emptyMessage: string;
 }) {
@@ -181,7 +183,7 @@ export function UpcomingRaidList({ events, guildId, canWrite, onRepeat, emptyMes
                                     </span>
                                 )}
                                 <div className="re-acts">
-                                    {ev.channelState === "missing" && <Badge tone="bad" tip={t("raids.list.channelMissing")} tipSub={t("raids.list.channelMissingSub")}>{t("raids.list.channelMissing")}</Badge>}
+                                    {orga && ev.channelState === "missing" && <Badge tone="bad" tip={t("raids.list.channelMissing")} tipSub={t("raids.list.channelMissingSub")}>{t("raids.list.channelMissing")}</Badge>}
                                     {eventPostUrl(guildId, ev.channelId, ev.id, ev.channelState) && (
                                         <IconLink href={eventPostUrl(guildId, ev.channelId, ev.id, ev.channelState)} icon="inv_letter_15" tip={t("raids.list.discordPost")} tipSub={ev.channelName ? t("raids.list.discordPostSubIn", { channel: ev.channelName }) : t("raids.list.discordPostSub")} />
                                     )}
@@ -266,16 +268,16 @@ function LogBadges({ ev }: { ev: PastRaid }) {
     return <>{badges}</>;
 }
 
-function LootBadge({ ev }: { ev: PastRaid }) {
+function LootBadge({ ev, orga, canLoot }: { ev: PastRaid; orga: boolean; canLoot: boolean }) {
     const t = useT();
     if (ev.lootCount) {
-        return (
-            <Link className="re-blink" to={`/history/event?event=${encodeURIComponent(ev.id)}`}>
-                <Badge tone="accent" icon="inv_misc_bag_10" tip={t("raids.list.lootTip", { count: ev.lootCount })} tipSub={t("raids.list.lootSub")}>{t("raids.list.lootBadge", { count: ev.lootCount })}</Badge>
-            </Link>
-        );
+        const badge = <Badge tone="accent" icon="inv_misc_bag_10" tip={t("raids.list.lootTip", { count: ev.lootCount })} tipSub={t("raids.list.lootSub")}>{t("raids.list.lootBadge", { count: ev.lootCount })}</Badge>;
+        // the loot page opens for whoever may read the loot (history or loot views) - raiders too
+        return canLoot ? <Link className="re-blink" to={`/history/event?event=${encodeURIComponent(ev.id)}`}>{badge}</Link> : badge;
     }
     if (ev.cancelled) return null;
+    // "Kein Loot → Import" is a task of the orga's
+    if (!orga) return null;
     return (
         <Link className="re-blink" to="/history?tab=import">
             <Badge tone="mid" icon="inv_misc_bag_10" tip={t("raids.list.noLoot")} tipSub={t("raids.list.noLootSub")}>{t("raids.list.noLootBadge")}</Badge>
@@ -283,7 +285,11 @@ function LootBadge({ ev }: { ev: PastRaid }) {
     );
 }
 
-export function PastRaidList({ events, emptyMessage }: { events: PastRaid[]; emptyMessage: string }) {
+/**
+ * The past raids. `orga`: the logs column and "Kein Loot → Import" are the orga's (the server leaves
+ * a raider's rows without logs); `canLoot`: the loot count links into the loot page.
+ */
+export function PastRaidList({ events, emptyMessage, orga = false, canLoot = false }: { events: PastRaid[]; emptyMessage: string; orga?: boolean; canLoot?: boolean }) {
     const t = useT();
     const { dir, onSort, apply } = useTableSort<SortKey>("raid-list-past-sort", SORT_DEFAULTS, "time", "desc");
     const open = useRowOpen();
@@ -295,12 +301,12 @@ export function PastRaidList({ events, emptyMessage }: { events: PastRaid[]; emp
     const newest = bands.reduce((best, b) => (b.key > best ? b.key : best), "");
 
     return (
-        <div className="glist re-glist re-past" role="table" aria-label={t("raids.list.pastAria")}>
+        <div className={`glist re-glist re-past${orga ? "" : " re-reader"}`} role="table" aria-label={t("raids.list.pastAria")}>
             <div className="re-head" role="row">
                 <span />
                 <span>{t("raids.list.event")}</span>
                 <SortHead dir={dir} onSort={() => onSort("time")} />
-                <span className="tipped" data-tip={t("raids.list.logs")} data-tip-sub={t("raids.list.logsSub")}>{t("raids.list.logs")}</span>
+                {orga && <span className="tipped" data-tip={t("raids.list.logs")} data-tip-sub={t("raids.list.logsSub")}>{t("raids.list.logs")}</span>}
                 <span className="tipped" data-tip={t("raids.list.loot")} data-tip-sub={t("raids.list.lootColSub")}>{t("raids.list.loot")}</span>
                 <span className="re-right">{t("raids.list.actions")}</span>
             </div>
@@ -321,8 +327,8 @@ export function PastRaidList({ events, emptyMessage }: { events: PastRaid[]; emp
                                     <RaidIcon contentIds={ev.contentIds} sources={ev.contentSources} />
                                     <EventTitle ev={ev} raids={further.length ? further.length + 1 : 0} />
                                     <div className="re-when"><b>{day}</b><span>{time}</span></div>
-                                    <div className="re-badges"><LogBadges ev={ev} /></div>
-                                    <div className="re-badges"><LootBadge ev={ev} /></div>
+                                    {orga && <div className="re-badges"><LogBadges ev={ev} /></div>}
+                                    <div className="re-badges"><LootBadge ev={ev} orga={orga} canLoot={canLoot} /></div>
                                     <div className="re-acts">
                                         {ev.softres?.url && <IconLink href={ev.softres.url} icon="inv_scroll_11" tip="Softres" tipSub={t("raids.list.softresSub")} />}
                                         <DetailLink id={ev.id} />
@@ -339,8 +345,8 @@ export function PastRaidList({ events, emptyMessage }: { events: PastRaid[]; emp
                                             </span>
                                         </div>
                                         <div className="re-when" />
-                                        <div className="re-badges"><LogBadges ev={r} /></div>
-                                        <div className="re-badges"><LootBadge ev={r} /></div>
+                                        {orga && <div className="re-badges"><LogBadges ev={r} /></div>}
+                                        <div className="re-badges"><LootBadge ev={r} orga={orga} canLoot={canLoot} /></div>
                                         <div className="re-acts"><DetailLink id={r.id} /></div>
                                     </div>
                                 ))}

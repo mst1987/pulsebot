@@ -12,6 +12,7 @@ module.exports = {
     "Version {version}": "Version {version}",
     "{count} more addons are on the download page.": "{count} weitere Addons stehen auf der Download-Seite.",
     "Patch notes": "Patchnotes",
+    "Subscribe to updates": "Updates abonnieren",
     "{role} {item} is here.": "{role} {item} ist da.",
     "{role} New versions: {items}": "{role} Neue Versionen: {items}",
     "There are no addons for this channel's game version.": "Für die Spielversion dieses Kanals gibt es keine Addons.",
@@ -25,4 +26,9 @@ module.exports = {
     "**{name} {version}** – unpack it into `Interface\\AddOns`, then restart the game.":
         "**{name} {version}** – entpacken nach `Interface\\AddOns`, dann das Spiel neu starten.",
     "**{name}** has several files. Which one?": "**{name}** hat mehrere Dateien. Welche?",
+    "Subscribed: new versions ping you with {role}.": "Abonniert: Bei neuen Versionen pingt dich {role}.",
+    "End subscription": "Abo beenden",
+    "Subscription ended – no more update pings.": "Abo beendet – keine Update-Pings mehr.",
+    "Subscribing does not work right now. Please tell the orga.": "Abonnieren klappt gerade nicht. Sag bitte der Orga Bescheid.",
+    "There is no update role to subscribe to.": "Es gibt keine Rolle für Update-Pings.",
 };

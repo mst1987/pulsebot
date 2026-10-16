@@ -251,6 +251,8 @@ describe("RosterFormDialog — settings", () => {
         const d = within(await waitFor(() => dialog()));
         await d.findByText("Raid Mo / Do einstellen");
         await step(d, "Manager");
+        // #724: the managers are the orga of the category - said once in the step
+        expect(d.getByText("Manager sind die Orga dieser Kategorie (Setup, Raidplan, Anmeldungen, Events).")).toBeInTheDocument();
         const group = within(d.getByRole("group", { name: "Per Discord-Rolle" }));
         expect(group.getByRole("option", { name: "@Raidlead" })).toBeEnabled();
         await addRole(d, "Per Discord-Rolle", "role-lead");
@@ -430,6 +432,8 @@ describe("RosterFormDialog — in English", () => {
         expect(d.getByRole("button", { name: "Next" })).toBeInTheDocument();
         await step(d, "Roles");
         expect(d.getByRole("button", { name: "Add" })).toBeInTheDocument();
+        await step(d, "Managers");
+        expect(d.getByText("Managers are the orga of this category (setup, raid plan, signups, events).")).toBeInTheDocument();
         await step(d, "Places & rules");
         expect(d.getByRole("switch", { name: "Several characters per person" })).toBeInTheDocument();
         expect(d.getByText("Damage follows: 5 places. Prefilled from the raid template “Karazhan”.")).toBeInTheDocument();
