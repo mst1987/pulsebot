@@ -102,17 +102,28 @@ export default function ProfilePage() {
     if (!data || !profile) return <RaidLoader text={t("profile.loading")} />;
 
     const setProfile = (next: RaiderProfile) => setData((d) => (d ? { ...d, profile: next, isNew: false } : d));
+    /**
+     * Take `next` from another save (a profession, a weekday …) - while wish item saves are still under way the
+     * wish items the page shows stay (they are not confirmed yet; the wish queue's own answer settles them).
+     */
+    const setProfileKeepingWishes = (next: RaiderProfile) => setData((d) => {
+        if (!d) return d;
+        if (!wishQueue.current.pending) return { ...d, profile: next, isNew: false };
+        const shown = new Map(d.profile.characters.map((c) => [c.key, c.wishItems]));
+        const characters = next.characters.map((c) => (shown.has(c.key) ? { ...c, wishItems: shown.get(c.key) } : c));
+        return { ...d, profile: { ...next, characters }, isNew: false };
+    });
 
     // Optimistic: the page shows the change at once and takes the server's
     // answer (normalized) when it comes back; a failure puts the old state back.
     const patch = async (change: ProfilePatch, optimistic?: Partial<RaiderProfile>) => {
         const before = profile;
-        if (optimistic) setProfile({ ...profile, ...optimistic });
+        if (optimistic) setProfileKeepingWishes({ ...profile, ...optimistic });
         try {
             const res = await saveProfile(change);
-            setProfile(res.profile);
+            setProfileKeepingWishes(res.profile);
         } catch (e) {
-            setProfile(before);
+            setProfileKeepingWishes(before);
             toast((e as ApiError).message, "err");
         }
     };
@@ -299,6 +310,7 @@ export default function ProfilePage() {
                                 items={selected.wishItems || []}
                                 max={data.limits.wishItems || 10}
                                 canAdd={!!charRaiding?.lootCouncil}
+                                rosterKnown={!!raidingNow}
                                 fold={shownCharFold}
                                 onFold={toggleChar}
                                 onChange={(next) => saveWishItems(selected.key, next)}

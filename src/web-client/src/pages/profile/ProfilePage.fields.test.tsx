@@ -169,6 +169,46 @@ describe("Wunsch-Items", () => {
         await waitFor(() => expect(api.saveProfile).toHaveBeenLastCalledWith({ characters: [{ key: "borka", wishItems: [] }] }));
     });
 
+    it("says nothing about the roster while its answer is still loading", async () => {
+        const { user } = setup(profile(), undefined, false);
+        vi.mocked(api.getProfileRaiding).mockReturnValue(new Promise(() => undefined));
+        renderPage(<ProfilePage />, { route: "/profile?char=borka" });
+        const section = (await screen.findByText(t("profile.fold.wishItems"))).closest("section")!;
+        await user.click(within(section).getAllByRole("button", { name: t("profile.fold.wishItems") }).find((b) => b.hasAttribute("aria-expanded"))!);
+        expect(within(section).getByRole("link", { name: HELM.name })).toBeInTheDocument();
+        expect(within(section).queryByText(t("profile.wishItems.readOnly"))).not.toBeInTheDocument();
+    });
+
+    it("keep an unconfirmed item when another save (a profession) answers meanwhile", async () => {
+        const { user } = setup(profile(), PROFESSIONS);
+        // the wish save waits for Wowhead; the profession save answers at once
+        let releaseWish: () => void = () => undefined;
+        let current = profile();
+        vi.mocked(api.saveProfile).mockImplementation((patch) => {
+            if (patch.characters?.[0].wishItems) {
+                return new Promise((resolve) => { releaseWish = () => { current = answer(current, patch); resolve({ profile: current }); }; });
+            }
+            current = answer(current, patch);
+            return Promise.resolve({ profile: current });
+        });
+        renderPage(<ProfilePage />, { route: "/profile?char=borka" });
+        const section = (await screen.findByText(t("profile.fold.wishItems"))).closest("section")!;
+        await user.click(within(section).getAllByRole("button", { name: t("profile.fold.wishItems") }).find((b) => b.hasAttribute("aria-expanded"))!);
+        await user.type(within(section).getByPlaceholderText(t("profile.wishItems.search")), "Dragon");
+        await user.click(await within(section).findByText("Dragonspine Trophy"));
+
+        // a profession while the wish save still waits: its answer must not take the found item away
+        await user.click(screen.getAllByRole("button", { name: t("profile.fold.professions") }).find((b) => b.hasAttribute("aria-expanded"))!);
+        await user.click(screen.getByRole("button", { name: "Alpha-Beruf" }));
+        await waitFor(() => expect(api.saveProfile).toHaveBeenLastCalledWith({ characters: [{ key: "borka", professions: [{ id: "alpha", skill: 0 }] }] }));
+        await user.click(screen.getAllByRole("button", { name: t("profile.fold.wishItems") }).find((b) => b.hasAttribute("aria-expanded"))!);
+        expect(screen.getByText("Dragonspine Trophy")).toBeInTheDocument();
+
+        releaseWish();
+        await waitFor(() => expect(screen.getByText("Item 28830")).toBeInTheDocument());
+        expect(screen.getByText(t("profile.prof.withSkill", { name: "Alpha-Beruf", skill: 0 }))).toBeInTheDocument();
+    });
+
     it("keep two picks and a × made before the first answer: each save builds on what the page shows", async () => {
         const { user } = setup();
         // the server answers only when told to

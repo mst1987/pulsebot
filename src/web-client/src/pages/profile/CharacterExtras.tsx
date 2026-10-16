@@ -96,12 +96,14 @@ function wishItemFromHit(hit: ItemSearchResult): ProfileWishItem {
  * character of a Loot-Council roster (`canAdd`) - and for one that left it but
  * still has items, then only to read and take out, with a calm word why.
  */
-export function WishItemsPart({ versionId, items, max, canAdd, fold, onFold, onChange }: {
+export function WishItemsPart({ versionId, items, max, canAdd, rosterKnown, fold, onFold, onChange }: {
     versionId: string;
     items: ProfileWishItem[];
     max: number;
     /** The character is in a Loot-Council roster of its version: new items may be added. */
     canAdd: boolean;
+    /** The roster answer is in - only then may the page say the character is in no Loot-Council roster. */
+    rosterKnown: boolean;
     fold: Fold[];
     onFold: (id: Fold) => void;
     /** The whole new list - a found item is in it at once, the page saves and takes the server's answer. */
@@ -136,7 +138,7 @@ export function WishItemsPart({ versionId, items, max, canAdd, fold, onFold, onC
                 </ul>
             )}
             {!canAdd
-                ? <p className="pf-muted">{t("profile.wishItems.readOnly")}</p>
+                ? rosterKnown && <p className="pf-muted">{t("profile.wishItems.readOnly")}</p>
                 : items.length < max
                     ? <ItemSearchPicker search={search} placeholder={t("profile.wishItems.search")}
                         onPick={(it: ItemSearchResult) => { if (!ids.includes(it.id)) onChange([...items, wishItemFromHit(it)]); }} />
