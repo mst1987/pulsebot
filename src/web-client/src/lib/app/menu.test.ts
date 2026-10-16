@@ -1,7 +1,7 @@
 // The adminOnly menu entry (Systemstatus, docs/system-status.md): only a full
 // admin gets its line, whatever areas a role holds.
 import { describe, expect, it } from "vitest";
-import { MENU, firstAllowedTab, mayOpen, menuLines } from "./menu";
+import { MENU, firstAllowedTab, isNeutralPage, mayOpen, menuLines } from "./menu";
 import type { SessionUser } from "../../api";
 
 const system = MENU.find((e) => e.id === "system")!;
@@ -34,5 +34,16 @@ describe("adminOnly menu entries", () => {
 describe("version-neutral pages (#742)", () => {
     it("are Kanaele, Einstellungen and Systemstatus - the one list; every other page follows the version", () => {
         expect(MENU.filter((e) => e.neutral).map((e) => e.id).sort()).toEqual(["channels", "settings", "system"]);
+    });
+
+    it("count an addon's detail page as neutral, while the page Addons itself follows the version", () => {
+        const addon = MENU.find((e) => e.id === "addon")!;
+        const settings = MENU.find((e) => e.id === "settings")!;
+        expect(isNeutralPage(addon, "/addon")).toBe(false);
+        expect(isNeutralPage(addon, "/addon/levelhelper")).toBe(true);
+        expect(isNeutralPage(addon, "/addon/levelhelper/")).toBe(true);
+        expect(isNeutralPage(addon, "/addon/a/b")).toBe(false);
+        expect(isNeutralPage(settings, "/settings")).toBe(true);
+        expect(isNeutralPage(undefined, "/")).toBe(false);
     });
 });

@@ -55,8 +55,8 @@ const fileId = (addonId, assetId) => `${CENTER_PREFIX}:file:${addonId}:${assetId
 const SUBSCRIBE_ID = `${CENTER_PREFIX}:sub`;
 const UNSUBSCRIBE_ID = `${CENTER_PREFIX}:unsub`;
 
-/** The card of an addon on the web page "Addons" (anchor `addon-<id>`), where its release notes are. */
-const patchNotesUrl = (addonId) => `${webUrl("/addon")}#addon-${encodeURIComponent(str(addonId))}`;
+/** The detail page of an addon on the web (/addon/<id>), where its release notes are, whatever version the menu shows. */
+const patchNotesUrl = (addonId) => webUrl(`/addon/${encodeURIComponent(str(addonId))}`);
 
 const str = (v) => String(v === undefined || v === null ? "" : v);
 const text = (content) => new TextDisplayBuilder().setContent(content);

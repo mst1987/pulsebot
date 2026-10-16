@@ -19,6 +19,7 @@ vi.mock("./api", async (orig) => ({
     ...(await orig<typeof import("./api")>()),
     getSession: vi.fn(),
     getDashboard: vi.fn(),
+    getAddonName: vi.fn(),
 }));
 
 // Pages load their data through fetch; nothing answers in a test, so each
@@ -26,6 +27,7 @@ vi.mock("./api", async (orig) => ({
 beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn(() => new Promise(() => undefined)));
     vi.mocked(api.getDashboard).mockReturnValue(new Promise(() => undefined));
+    vi.mocked(api.getAddonName).mockRejectedValue({ code: "unknown_addon", message: "" });
 });
 
 afterEach(() => {
@@ -50,6 +52,38 @@ describe("menu access", () => {
         expect(await screen.findByRole("link", { name: t("shell.app.loginButton") })).toHaveAttribute("href", "/auth/login");
         expect(screen.queryByRole("link", { name: t("shell.logout") })).not.toBeInTheDocument();
         expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+    });
+
+    it("brings a visitor back to the page they opened after the login", async () => {
+        showApp(null, "/raids/detail?event=eh-1");
+        expect(await screen.findByRole("link", { name: t("shell.app.loginButton") }))
+            .toHaveAttribute("href", `/auth/login?returnTo=${encodeURIComponent("/raids/detail?event=eh-1")}`);
+        expect(screen.queryByText(t("shell.app.loginNext"))).not.toBeInTheDocument();
+    });
+
+    it("says on an addon's detail page that the login leads to its patch notes", async () => {
+        showApp(null, "/addon/levelhelper");
+        expect(await screen.findByRole("link", { name: t("shell.app.loginButton") }))
+            .toHaveAttribute("href", `/auth/login?returnTo=${encodeURIComponent("/addon/levelhelper")}`);
+        expect(screen.getByText(t("shell.app.loginNext"))).toBeInTheDocument();
+        // the name route answered 404 (unknown, hidden or orga-only): the id made readable
+        expect(await screen.findByText("Levelhelper · Patchnotes")).toBeInTheDocument();
+        expect(api.getAddonName).toHaveBeenCalledWith("levelhelper");
+    });
+
+    it("says it for an old Discord link to a card (/addon#addon-<id>) too", async () => {
+        vi.mocked(api.getAddonName).mockResolvedValue({ id: "levelhelper", name: "LevelHelper", icon: "inv_misc_map02" });
+        showApp(null, "/addon#addon-levelhelper");
+        expect(await screen.findByText("LevelHelper · Patchnotes")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: t("shell.app.loginButton") }))
+            .toHaveAttribute("href", `/auth/login?returnTo=${encodeURIComponent("/addon#addon-levelhelper")}`);
+    });
+
+    it("names the addon with its real name and icon when the name route knows it", async () => {
+        vi.mocked(api.getAddonName).mockResolvedValue({ id: "levelhelper", name: "LevelHelper", icon: "inv_misc_map02" });
+        showApp(null, "/addon/levelhelper");
+        const line = (await screen.findByText("LevelHelper · Patchnotes")).closest(".login-next") as HTMLElement;
+        expect(line.querySelector("img.wi")).not.toBeNull();
     });
 
     it("keeps the shell for a logged-in account with nothing granted", async () => {

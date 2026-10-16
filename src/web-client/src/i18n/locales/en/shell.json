@@ -136,6 +136,8 @@
         "sessionError": "Could not load the session: {message}",
         "loginPrompt": "Please sign in with Discord to use the guild menu.",
         "loginButton": "Sign in with Discord",
+        "loginNext": "Then",
+        "loginNextAddon": "{name} · Patch notes",
         "newVersionTitle": "New version available",
         "newVersionText": "The menu has been updated. Reload the page to carry on.",
         "newVersionReload": "Reload page"

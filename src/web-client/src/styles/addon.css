@@ -21,7 +21,9 @@
 .dlp-desc { margin: 0; font-size: 14.5px; line-height: 1.45; }
 
 .dlp-files { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-.dlp-download { max-width: 100%; text-decoration: none; overflow-wrap: anywhere; text-align: left; }
+.dlp-download { max-width: 100%; min-width: 0; text-decoration: none; overflow-wrap: anywhere; text-align: left; }
+/* a long file name ends in "…" instead of running out of the button (the full name is the download's own) */
+.dlp-file-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .dlp-stale { margin: 0; padding: 8px 10px; border-radius: 8px; font-size: 13.5px; background: var(--medium-bg); color: var(--text); }
 .dlp-state { margin: 0; font-size: 14px; }
@@ -32,10 +34,16 @@
 .dlp-banner { margin-bottom: 16px; }
 
 .dlp-news { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+/* the start of the notes only: cut at 200 px and faded out, the whole text is on the detail page ("Alle Patchnotes") */
 .dlp-notes {
-    width: 100%; max-height: 320px; overflow: auto; padding: 10px 12px; border-radius: 8px;
+    position: relative; width: 100%; max-height: 200px; overflow: hidden; padding: 10px 12px; border-radius: 8px;
     background: var(--panel2); border: 1px solid var(--line); font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere;
 }
+.dlp-notes::after {
+    content: ""; position: absolute; left: 0; right: 0; top: 152px; height: 48px; pointer-events: none;
+    background: linear-gradient(to bottom, transparent, var(--panel2));
+}
+.dlp-all { align-self: flex-end; max-width: 100%; }
 
 .dlp-install { padding-top: 10px; border-top: 1px solid var(--line); }
 .dlp-install h3 { margin: 0 0 6px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
@@ -59,3 +67,92 @@
 .dlp-icon-field .wi { width: 28px; height: 28px; border-radius: 6px; flex: 0 0 auto; }
 .dlp-name-cell { display: inline-flex; align-items: center; gap: 8px; }
 .dlp-name-cell .wi { border-radius: 4px; }
+
+/* ── Detail page /addon/<id> (pages/addon/AddonDetailPage.tsx, design "Addon-Detailseite") ──
+   Prefix "dlpd-" (download page detail), never "ad-" (see the head of this file).
+   The head is the shared page hero (shared.css) with the notched corner; icon, name and
+   description on the left, back and downloads on the right, the meta line under it. */
+.dlpd-page { max-width: 880px; }
+.dlpd-hero {
+    position: relative;
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+.dlpd-hero::after {
+    content: ""; position: absolute; top: 0; right: 0; width: 14px; height: 14px; pointer-events: none;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 42%, transparent 44%); opacity: .85;
+}
+.hero-main.dlpd-hero-main {
+    /* the name keeps at least 260 px; several downloads wrap in their column instead of squeezing it */
+    display: grid; grid-template-columns: auto minmax(260px, 1fr) minmax(0, auto); align-items: start; column-gap: 18px;
+    grid-template-areas: "icon ident actions" "icon sub actions";
+}
+.dlpd-icon { grid-area: icon; width: 56px; height: 56px; border-radius: 10px; }
+.dlpd-ident { grid-area: ident; min-width: 0; }
+.dlpd-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
+.dlpd-sub { grid-area: sub; margin: 6px 0 0; font-size: 14.5px; color: var(--muted); line-height: 1.45; min-width: 0; }
+.dlpd-actions { grid-area: actions; display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
+.dlpd-actions .btn { max-width: 100%; }
+.dlpd-wide { grid-column: 1 / -1; margin-top: 12px; }
+.dlpd-state-box .dlp-state.muted { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel2); }
+.dlpd-meta dd { overflow-wrap: anywhere; }
+.dlpd-meta dd.muted { color: var(--muted); }
+.hero-meta dd.dlpd-big { font-size: 22px; font-weight: 800; line-height: 1; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* the game version: a square badge in its colour (the page itself stays brand-neutral) */
+.badge.dlpd-ver {
+    --vc: var(--muted); border-radius: 4px; color: var(--vc);
+    background: color-mix(in srgb, var(--vc) 16%, transparent); border-color: color-mix(in srgb, var(--vc) 40%, transparent);
+}
+.dlpd-ver.ver-forever { --vc: var(--ver-forever); }
+.dlpd-ver.ver-tbc { --vc: var(--ver-tbc); }
+.dlpd-ver.ver-classic { --vc: var(--ver-classic); }
+.dlpd-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: 0 0 auto; }
+
+/* the patch notes: big type, one group per heading with its square in the group's colour */
+.dlpd-notes {
+    display: flex; flex-direction: column; gap: 18px; margin-bottom: 16px; padding: 22px 24px; min-width: 0;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
+}
+.dlpd-notes-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.dlpd-notes-title { min-width: 0; }
+.dlpd-notes-head h2 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
+.dlpd-when { margin-left: auto; font-size: 13px; color: var(--muted); font-family: var(--font-mono); white-space: nowrap; }
+.dlpd-group { --gc: var(--muted); display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.dlpd-g-new { --gc: var(--good); }
+.dlpd-g-better { --gc: var(--accent); }
+.dlpd-g-fixed { --gc: var(--accent-2); }
+.dlpd-group-head {
+    display: flex; align-items: center; gap: 9px; margin: 0;
+    font-family: var(--font-mono); font-size: 11.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+}
+.dlpd-mark { width: 10px; height: 10px; border-radius: 2px; background: var(--gc); flex: 0 0 auto; }
+.dlpd-group ul { margin: 0; padding: 0 0 0 22px; display: grid; gap: 7px; font-size: 15.5px; line-height: 1.5; }
+.dlpd-group li { overflow-wrap: anywhere; }
+.dlpd-group li::marker { color: var(--gc); }
+.dlpd-group p { margin: 0; font-size: 15.5px; line-height: 1.5; overflow-wrap: anywhere; }
+.dlpd-group b { font-weight: 700; }
+.dlpd-none { margin: 0; font-size: 14.5px; }
+.dlp-install.dlpd-install { padding: 18px 24px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.dlp-install.dlpd-install h3 { font-weight: 700; }
+
+/* an unknown or hidden id */
+.dlpd-dim { opacity: .5; }
+.dlpd-unknown-sub { font-size: 13.5px; }
+
+/* the actions get their own row once the head gets narrow */
+@media (max-width: 1100px) {
+    .hero-main.dlpd-hero-main { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "icon ident" "icon sub" "actions actions"; }
+    .dlpd-actions { justify-content: flex-start; margin-top: 14px; }
+}
+@media (max-width: 700px) {
+    .hero-main.dlpd-hero-main { padding: 16px 16px 12px; column-gap: 12px; grid-template-areas: "icon ident" "sub sub" "actions actions"; align-items: center; }
+    .dlpd-icon { width: 48px; height: 48px; }
+    .dlpd-sub { margin-top: 12px; font-size: 14px; }
+    .dlpd-actions { flex-direction: column; align-items: stretch; margin-top: 12px; }
+    .dlpd-actions .btn { width: 100%; }
+    .hero-meta.dlpd-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; padding: 0 16px 14px; }
+    .dlpd-notes { padding: 16px; gap: 16px; margin-bottom: 14px; }
+    .dlpd-notes-head h2 { font-size: 19px; }
+    .dlpd-group ul { padding-left: 20px; gap: 8px; }
+    .dlp-install.dlpd-install { padding: 16px; }
+}

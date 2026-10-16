@@ -1,7 +1,7 @@
 // The list of pages the server owns besides /api/* (#424). What each path
 // answers is pinned by serverRoutes.test.js (golden master) and server.test.js;
 // here: the list is well-formed, and the lookup keeps its first-fit order.
-const { PAGE_ROUTES, findPageRoute, _internal: { matchPath } } = require("../../../src/web/http/pageRoutes");
+const { PAGE_ROUTES, findPageRoute, _internal: { matchPath, safeReturnPath } } = require("../../../src/web/http/pageRoutes");
 
 const MATCHERS = ["exact", "prefix", "mount", "pattern"];
 
@@ -67,6 +67,46 @@ describe("web/http/pageRoutes", () => {
         expect(matchPath({ mount: "/admin" }, "/admin/raids/x")).toEqual({ params: [], rest: "/raids/x" });
         expect(matchPath({ mount: "/admin" }, "/admin2")).toBeNull();
         expect(matchPath({ prefix: "/r-assets/" }, "/r-assets/a.css")).toEqual({ params: [], rest: "a.css" });
+    });
+
+    it.each([
+        "/addon/levelhelper",
+        "/",
+        "/raids/detail?event=eh-1&tab=setup",
+        "/history#x",
+        "/history/char?name=%C3%9Cbel",
+        "/administration",
+    ])("keeps the login's return path %s", (path) => {
+        expect(safeReturnPath(path)).toBe(path);
+    });
+
+    it.each([
+        ["another host", "//evil.example/x"],
+        ["a scheme", "https://evil.example"],
+        ["a javascript url", "javascript:alert(1)"],
+        ["a backslash", "/\\evil.example"],
+        ["a leading backslash", "\\\\evil.example"],
+        ["a tab the browser drops", "/\t/evil.example"],
+        ["a newline", "/x\nLocation: //evil.example"],
+        ["a space", "/ /evil.example"],
+        ["a relative path", "addon/levelhelper"],
+        ["the login itself", "/auth/login?returnTo=/x"],
+        ["the auth root", "/auth"],
+        ["nothing", ""],
+        ["no string", null],
+        ["too long", `/${"a".repeat(600)}`],
+        ["an encoded second slash", "/%2F%2Fevil.example"],
+        ["an encoded backslash", "/%5Cevil.example"],
+        ["the old /admin mount", "/admin//evil.example"],
+        ["the old /admin mount bare", "/admin"],
+        ["the old /admin2 mount", "/admin2/x"],
+        ["the /admin mount encoded", "/%61dmin//evil.example"],
+        ["an encoded newline", "/x%0A"],
+        ["a broken escape", "/x%E0%A4%A"],
+        ["a character above ASCII", "/x "],
+        ["a DEL", "/x\u007f"],
+    ])("drops a return path with %s", (_why, path) => {
+        expect(safeReturnPath(path)).toBe("");
     });
 
     it("answers with the first fitting entry of the list it is given", () => {

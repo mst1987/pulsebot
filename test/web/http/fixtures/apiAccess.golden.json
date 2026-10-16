@@ -274,13 +274,15 @@
     "/api/guildbank/waitlist/preview": "raids",
     "/api/guildbank/waitlist/import": "raids",
     "/api/addons": ["signup", "history"],
+    "/api/addons/detail": ["signup", "history"],
     "/api/addons/download": ["signup", "history"]
   },
   "ungated": [
     "/api/session",
     "/api/session/view-as",
     "/api/raidplan/public",
-    "/api/raidplan/progress"
+    "/api/raidplan/progress",
+    "/api/addons/name"
   ],
   "anyArea": [
     "/api/session/guild",
