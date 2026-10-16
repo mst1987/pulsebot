@@ -176,3 +176,29 @@ export function entryState(entry: Pick<AvailabilityEntry, "from" | "to">, today:
 export function entryDays(entry: Pick<AvailabilityEntry, "from" | "to">): number {
     return dayIndex(entry.from, entry.to) + 1;
 }
+
+/** The icon a category without a known raid shows: a neutral raid badge, never a broken glyph. */
+export const CATEGORY_FALLBACK_ICON = "achievement_dungeon_gloryoftheraider";
+
+/**
+ * A category's name without the decoration a Discord server puts in front
+ * ("◜ · TBC Montag" becomes "TBC Montag"); the name itself when it is nothing but decoration.
+ * Twin of plainCategoryName() in src/utils/signup/availabilityDialog.js.
+ */
+export function plainCategoryName(name: string | null | undefined): string {
+    const raw = String(name || "").trim();
+    return raw.replace(/^[^\p{L}\p{N}]+/u, "").trim() || raw;
+}
+
+/** The icon of a category: its own when the server knows one, else the neutral raid icon. */
+export function categoryIcon(icon: string | null | undefined): string {
+    return String(icon || "").trim() || CATEGORY_FALLBACK_ICON;
+}
+
+/** What an own entry says: absent (away for a period, maybe in one category only) or present ("only there for ..."). */
+export function entryWording(entry: Pick<AvailabilityEntry, "kind" | "categoryName">): { icon: "absent" | "present"; key: string; category: string } {
+    const category = plainCategoryName(entry.categoryName);
+    const present = entry.kind === "presence";
+    const key = present ? (category ? "presentOnly" : "present") : (category ? "absentIn" : "absent");
+    return { icon: present ? "present" : "absent", key: "absences.mine.entry." + key, category };
+}
