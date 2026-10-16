@@ -243,7 +243,7 @@ async function botMember(guild) {
  * Manage Roles, a managed role, the role's place below the bot's highest role.
  */
 async function roleProblem(guild, role, config = {}) {
-    const privileged = privilegedReason(config, role.id, role);
+    const privileged = privilegedReason(config, role.id, role, guild);
     if (privileged) return privileged;
     const me = await botMember(guild);
     if (!me || !me.permissions || !me.permissions.has(PermissionsBitField.Flags.ManageRoles)) return "missing Manage Roles";

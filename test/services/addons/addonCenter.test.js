@@ -484,6 +484,34 @@ describe("addonCenter saveSettings", () => {
         await center.saveSettings({ roleId: "200000000000000003" }, { now: NOW });
         expect(JSON.stringify(discord.editPayload.mock.calls[0][2])).toContain("addonhub:sub");
     });
+
+    it("counts only permissions beyond @everyone and hides the button for a role that unlocks a channel", async () => {
+        const PLAIN = "200000000000000003";
+        const everyone = { permissions: { bitfield: 0x400n } };
+        const roles = new Map([[ROLE, { id: ROLE, permissions: { bitfield: 0x400n } }], [PLAIN, { id: PLAIN, permissions: { bitfield: 0x400n } }]]);
+        const overwrites = new Map([[ROLE, { allow: { bitfield: 0x400n } }]]);
+        mockChannels[CH] = {
+            ...mockChannels[CH],
+            guild: { roles: { cache: roles, everyone }, channels: { cache: new Map([["c9", { id: "c9", name: "offiziere", permissionOverwrites: { cache: overwrites } }]]) } },
+        };
+        store.setSettings({ roleId: PLAIN });
+        await center.postCenter({ now: NOW });
+        expect(JSON.stringify(discord.postPayload.mock.calls[0][1])).toContain("addonhub:sub");
+        await center.saveSettings({ roleId: ROLE }, { now: NOW });
+        expect(JSON.stringify(discord.editPayload.mock.calls[0][2])).not.toContain("addonhub:sub");
+    });
+
+    it("hides the button for a role of a roster", async () => {
+        const rosterStore = require("../../../src/stores/rosterStore");
+        const spy = jest.spyOn(rosterStore, "listRosters").mockReturnValue([{ id: "main", name: "Main", roleIds: [], trialRoleId: ROLE, managers: { roleIds: [], userIds: [] } }]);
+        try {
+            store.setSettings({ roleId: ROLE });
+            await center.postCenter({ now: NOW });
+            expect(JSON.stringify(discord.postPayload.mock.calls[0][1])).not.toContain("addonhub:sub");
+        } finally {
+            spy.mockRestore();
+        }
+    });
 });
 
 describe("addonCenter startAddonCenter", () => {

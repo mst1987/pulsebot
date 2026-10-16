@@ -113,8 +113,8 @@ function payloadHash(payload) {
 
 /**
  * Whether the centre offers "Updates abonnieren": only with an update role that carries
- * no rights (updateRole.js) — the bot rights from the config always, the Discord
- * permissions when the role is in the cache of the channel's server.
+ * no rights (updateRole.js) — the bot rights from the config and the rosters always,
+ * what it grants in Discord when the channel's server is in the cache.
  */
 function offersSubscribe(channelId, config) {
     const { roleId } = store.getSettings();
@@ -122,9 +122,10 @@ function offersSubscribe(channelId, config) {
     const client = discord.getClient();
     const cache = client && client.channels && client.channels.cache;
     const channel = cache && typeof cache.get === "function" ? cache.get(str(channelId)) : null;
-    const roles = channel && channel.guild && channel.guild.roles ? channel.guild.roles.cache : null;
+    const guild = channel && channel.guild ? channel.guild : null;
+    const roles = guild && guild.roles ? guild.roles.cache : null;
     const role = roles && typeof roles.get === "function" ? roles.get(roleId) || null : null;
-    return !privilegedReason(config, roleId, role);
+    return !privilegedReason(config, roleId, role, guild);
 }
 
 /** The centre as it should look now, for the channel it lives in. */

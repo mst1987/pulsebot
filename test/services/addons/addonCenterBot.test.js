@@ -203,7 +203,7 @@ describe("addonCenterBot uploadLimitOf", () => {
 
 describe("addonCenterBot subscription", () => {
     /** A server where the bot may (or may not) hand out the role, and a member with or without it. */
-    function server({ has = false, manage = true, rolePos = 1, botPos = 5, managed = false, addFails = false, perms = 0n, editable } = {}) {
+    function server({ has = false, manage = true, rolePos = 1, botPos = 5, managed = false, addFails = false, perms = 0n, editable, everyone = 0n, unlocks = 0n } = {}) {
         const roles = new Map(has ? [[ROLE, {}]] : []);
         const m = {
             displayName: "Tester",
@@ -216,7 +216,8 @@ describe("addonCenterBot subscription", () => {
         const role = { id: ROLE, name: "Addon-Updates", position: rolePos, managed, permissions: new PermissionsBitField(perms), ...(editable === undefined ? {} : { editable }) };
         const guild = {
             id: "g1",
-            roles: { cache: new Map([[ROLE, role]]), fetch: jest.fn(async () => null) },
+            roles: { cache: new Map([[ROLE, role]]), fetch: jest.fn(async () => null), everyone: { permissions: new PermissionsBitField(everyone) } },
+            channels: { cache: new Map([["c1", { id: "c1", name: "offiziere", permissionOverwrites: { cache: new Map([[ROLE, { allow: new PermissionsBitField(unlocks) }]]) } }]]) },
             members: {
                 fetch: jest.fn(async () => m),
                 me: { permissions: new PermissionsBitField(manage ? PermissionsBitField.Flags.ManageRoles : 0n), roles: { highest: { position: botPos } } },
@@ -309,6 +310,8 @@ describe("addonCenterBot subscription", () => {
         ["a managed role", { managed: true }, "integration"],
         ["Discord says it is not editable", { editable: false }, "above the bot's highest role"],
         ["a role with Discord permissions", { perms: PermissionsBitField.Flags.MentionEveryone }, "carries Discord permissions"],
+        ["a role with permissions beyond @everyone", { perms: PermissionsBitField.Flags.ViewChannel | PermissionsBitField.Flags.KickMembers, everyone: PermissionsBitField.Flags.ViewChannel }, "beyond @everyone"],
+        ["a role that unlocks a channel", { unlocks: PermissionsBitField.Flags.ViewChannel }, "unlocks the channel #offiziere"],
     ])("a role the bot may not hand out (%s): a clear line for the member, a warning in the log", async (_name, opts, reason) => {
         const { guild, member: m } = server(opts);
         const i = click("addonhub:sub", { guild, member: m });
@@ -378,6 +381,28 @@ describe("addonCenterBot subscription", () => {
             expect(m.roles.remove).not.toHaveBeenCalled();
             expect(mockLog.warn).toHaveBeenCalledWith(expect.stringContaining(reason));
         }
+    });
+
+    it("hands out a fresh role that only carries the permissions of @everyone", async () => {
+        const defaults = PermissionsBitField.Flags.ViewChannel | PermissionsBitField.Flags.SendMessages;
+        const { guild, member: m } = server({ perms: defaults, everyone: defaults });
+        const i = click("addonhub:sub", { guild, member: m });
+        await bot.handleCenter(i);
+        expect(m.roles.add).toHaveBeenCalledWith(ROLE, expect.any(String));
+    });
+
+    it.each([
+        ["a raider role of a category", () => ({ categoryRoles: { "cat-1": [ROLE] } }), "raider role"],
+        ["a role a bot command allows", () => ({ botCommandAccess: { setup: { mode: "roles", roleIds: [ROLE] } } }), "botCommandAccess"],
+        ["a role of the role sync", () => ({ roleSync: [{ eventRoleId: ROLE, talkRoleId: "200000000000000009", direction: "both" }] }), "role sync"],
+    ])("refuses %s as well", async (_name, cfg, reason) => {
+        mockConfig = { ...mockConfig, ...cfg() };
+        const { guild, member: m } = server();
+        const i = click("addonhub:sub", { guild, member: m });
+        await bot.handleCenter(i);
+        expect(textOf(answer(i))).toBe(SORRY);
+        expect(m.roles.add).not.toHaveBeenCalled();
+        expect(mockLog.warn).toHaveBeenCalledWith(expect.stringContaining(reason));
     });
 
     it("fetches the bot's own member when it is not cached before judging Manage Roles", async () => {

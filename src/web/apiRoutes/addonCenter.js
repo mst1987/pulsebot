@@ -61,8 +61,10 @@ function channelsOf(config) {
 
 /**
  * The roles of every configured server (the update role lives on the centre's server),
- * each with `privileged`: it carries bot rights or Discord permissions, so the centre
- * hides "Updates abonnieren" for it and the card warns (services/addons/updateRole.js).
+ * each with `privileged`: it grants bot rights, Discord permissions beyond @everyone or
+ * unlocks channels, so the centre hides "Updates abonnieren" for it and the card warns
+ * (services/addons/updateRole.js); and `officer`: it is pinged on applications
+ * (config.officerRoleId), the card says subscribers would get those pings too.
  */
 function rolesOf(config) {
     const out = {};
@@ -72,7 +74,8 @@ function rolesOf(config) {
             const cache = guild && guild.roles ? guild.roles.cache : null;
             out[guildId] = (discord.listRoles(guildId) || []).map((r) => {
                 const role = cache && typeof cache.get === "function" ? cache.get(r.id) || null : null;
-                return { ...r, privileged: !!privilegedReason(config, r.id, role) };
+                const officer = !!config.officerRoleId && String(config.officerRoleId) === r.id;
+                return { ...r, privileged: !!privilegedReason(config, r.id, role, guild), officer };
             });
         }
     } catch (e) {

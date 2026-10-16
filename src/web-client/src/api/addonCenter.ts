@@ -16,10 +16,11 @@ export type AddonCenterVersion = { id: string; label: string };
 export type AddonCenterPost = { channelId: string; postedAt: number; url: string };
 
 /**
- * A role of the server; `privileged`: it carries bot rights (admin, orga, area grants) or
- * Discord permissions — nobody may take it with "Updates abonnieren", so the centre hides the button.
+ * A role of the server; `privileged`: it grants bot rights, Discord permissions beyond
+ * @everyone or unlocks channels — nobody may take it with "Updates abonnieren", so the
+ * centre hides the button. `officer`: the role pinged on applications.
  */
-export type AddonCenterRole = Role & { privileged?: boolean };
+export type AddonCenterRole = Role & { privileged?: boolean; officer?: boolean };
 
 export type AddonCenterChannel = {
     id: string;
