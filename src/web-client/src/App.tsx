@@ -163,7 +163,10 @@ function LoginNotice() {
     const { pathname, search, hash } = useLocation();
     const here = `${pathname}${search}${hash}`;
     const href = here === "/" ? "/auth/login" : `/auth/login?returnTo=${encodeURIComponent(here)}`;
-    const addonPart = (/^\/addon\/([^/]+)\/?$/.exec(pathname) || [])[1] || "";
+    // an addon's detail page, or an old Discord link to its card (/addon#addon-<id>, sent on to the detail page)
+    const addonPart = (/^\/addon\/([^/]+)\/?$/.exec(pathname) || [])[1]
+        || (pathname.replace(/\/$/, "") === "/addon" ? (/^#addon-(.+)$/.exec(hash) || [])[1] : "")
+        || "";
     // the real name and icon from the one addon route without a login; until then (or on a 404) the id made readable
     const [named, setNamed] = useState<AddonName | null>(null);
     useEffect(() => {

@@ -7,7 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import { switchLang } from "../../test/i18n";
-import { adminUser, renderPage } from "../../test/render";
+import { adminUser, renderPage, twoVersions } from "../../test/render";
 import AddonDetailPage from "./AddonDetailPage";
 
 vi.mock("../../api", async (orig) => ({
@@ -114,6 +114,28 @@ describe("page Addon-Detail", () => {
         open();
         expect(await screen.findByText(/_classic_beta_\\Interface\\AddOns\\/)).toBeInTheDocument();
         expect(screen.getByText("Herunterladen nur nach dem Login, höchstens 30 Downloads pro Stunde.")).toBeInTheDocument();
+    });
+
+    describe("an addon for two versions (EventHelper Sync: TBC and Forever)", () => {
+        const sync = { ...levelhelper, id: "eventhelper-sync", name: "EventHelper Sync", versions: ["tbc", "forever"] };
+        const twoVersioned = detail(sync, { versions: [{ id: "tbc", label: "WoW TBC" }, { id: "forever", label: "WoW Forever" }] });
+        beforeEach(() => {
+            vi.mocked(api.getAddonDetail).mockResolvedValue(twoVersioned);
+            localStorage.removeItem("eh-content-version");
+        });
+
+        it("names the folder of the menu's version when the addon is for it", async () => {
+            renderPage(<AddonDetailPage />, { route: "/addon/eventhelper-sync", path: "/addon/:addonId", content: twoVersions({ mainVersion: "forever" }) });
+            const step = await screen.findByText(/Die Zip nach/);
+            expect(step.textContent).toContain("_classic_beta_");
+            expect(step.textContent).not.toContain("_anniversary_");
+        });
+
+        it("names every version's folder when the menu shows none of them", async () => {
+            open("eventhelper-sync");
+            const step = await screen.findByText(/Die Zip nach/);
+            expect(step.textContent).toContain("<WoW>\\_anniversary_\\Interface\\AddOns\\ (WoW TBC) oder <WoW>\\_classic_beta_\\Interface\\AddOns\\ (WoW Forever)");
+        });
     });
 
     it("keeps the head without a release, but leaves downloads, notes and install out", async () => {

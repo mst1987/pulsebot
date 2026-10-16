@@ -20,6 +20,7 @@ import { getAddonDetail, type AddonDetailData } from "../../api";
 import { AsyncView, BackButton, Badge, RaidLoader, WowIcon } from "../../components/ui";
 import { useApi } from "../../hooks/useApi";
 import { usePageCrumb } from "../../hooks/usePageCrumb";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import { formatDate, formatDateTime } from "../../lib/format";
 import { noteGroups, type NoteGroup, type NoteSpan } from "../../lib/addons/addonInstall";
 import { useT } from "../../i18n";
@@ -54,6 +55,8 @@ function Group({ group }: { group: NoteGroup }) {
 
 function Detail({ data }: { data: AddonDetailData }) {
     const t = useT();
+    // the zip's folder: the menu's version when the addon is for it, else every version's folder
+    const { version: menuVersion } = useContentVersion();
     const { addon, versions } = data;
     const release = addon.release;
     const date = release && release.publishedAt ? formatDate(Date.parse(release.publishedAt)) : "";
@@ -110,7 +113,9 @@ function Detail({ data }: { data: AddonDetailData }) {
                 </section>
             )}
 
-            {release && <InstallGuide addon={addon} versionId={addon.versions[0] || ""} className="dlpd-install" />}
+            {release && (versions.some((v) => v.id === menuVersion)
+                ? <InstallGuide addon={addon} versionId={menuVersion} className="dlpd-install" />
+                : <InstallGuide addon={addon} folders={versions} className="dlpd-install" />)}
             {release && <p className="dlp-foot muted">{t("addon.limit", { count: data.downloadLimit })}</p>}
         </div>
     );

@@ -49,6 +49,7 @@
     },
     "install": {
         "title": "Installation",
+        "or": "oder",
         "zip": "Die Zip nach {folder} entpacken, dann das Spiel starten oder im Spiel /reload eingeben.",
         "exe": "Die exe starten. Windows fragt beim ersten Mal evtl. nach: „Weitere Informationen“, dann „Trotzdem ausführen“."
     },

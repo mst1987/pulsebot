@@ -49,6 +49,7 @@
     },
     "install": {
         "title": "Installation",
+        "or": "or",
         "zip": "Unpack the zip into {folder}, then start the game or type /reload in game.",
         "exe": "Start the exe. Windows may ask the first time: \"More info\", then \"Run anyway\"."
     },

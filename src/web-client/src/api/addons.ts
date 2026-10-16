@@ -92,12 +92,12 @@ export type AddonDetailData = {
 export const getAddonDetail = (addonId: string) =>
     get<AddonDetailData>(`/api/addons/detail?addon=${encodeURIComponent(addonId)}`);
 
-/** One addon as Einstellungen → Addons edits it (config.addonDownloads). */
 /** Name and icon of one addon, readable WITHOUT a login (the login notice); 404 for unknown, hidden or orga-only. */
 export type AddonName = { id: string; name: string; icon: string };
 export const getAddonName = (addonId: string) =>
     get<AddonName>(`/api/addons/name?addon=${encodeURIComponent(addonId)}`);
 
+/** One addon as Einstellungen → Addons edits it (config.addonDownloads). */
 export type AddonSetting = {
     id: string;
     name: string;

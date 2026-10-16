@@ -57,12 +57,25 @@ export function StateNote({ addon, canManage }: { addon: AddonCard; canManage: b
     );
 }
 
-/** The install steps for the kinds of files the release offers, plus the admin's own note. */
-export function InstallGuide({ addon, versionId, className = "" }: { addon: AddonCard; versionId: string; className?: string }) {
+/**
+ * The install steps for the kinds of files the release offers, plus the admin's own note.
+ * The zip goes into the folder of `versionId`; with `folders` instead (the detail page,
+ * an addon for several versions none of which the menu shows) each version's folder is named.
+ */
+export function InstallGuide({ addon, versionId = "", folders, className = "" }: {
+    addon: AddonCard;
+    versionId?: string;
+    /** every version's folder with the version's name: "<WoW>\_anniversary_\… (WoW TBC)" */
+    folders?: { id: string; label: string }[];
+    className?: string;
+}) {
     const t = useT();
     const kinds = new Set((addon.release?.assets || []).map((f) => f.kind));
     const steps: string[] = [];
-    if (kinds.has("zip")) steps.push(t("addon.install.zip", { folder: addonFolder(versionId) }));
+    const folder = folders && folders.length > 1
+        ? folders.map((v) => `${addonFolder(v.id)} (${v.label})`).join(` ${t("addon.install.or")} `)
+        : addonFolder(folders && folders.length === 1 ? folders[0].id : versionId);
+    if (kinds.has("zip")) steps.push(t("addon.install.zip", { folder }));
     if (kinds.has("exe")) steps.push(t("addon.install.exe"));
     if (addon.install) steps.push(addon.install);
     if (!steps.length) return null;

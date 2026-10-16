@@ -247,6 +247,61 @@ describe("web/http/server", () => {
             expect(await loginReturningTo(`returnTo=${encodeURIComponent(target)}`)).toBe("/");
         });
 
+        /** The Location a plain GET of `url` answers with (a redirect), or undefined. */
+        async function locationOf(url) {
+            const res = await request({ url, method: "GET", headers: {} });
+            const call = res.writeHead.mock.calls[0];
+            return call && call[1] ? call[1].Location : undefined;
+        }
+        const offSite = (location) => typeof location === "string" && /^(\/\/|\/\\|\\)/.test(location);
+
+        // The chain the review found: the login sends the browser to an old /admin path,
+        // whose redirect (legacyMount, on the DECODED pathname) used to end on "//evil.example".
+        it.each([
+            "/admin//evil.example",
+            "/admin/%2F%2Fevil.example",
+            "/admin/%5Cevil.example",
+            "/admin2//evil.example",
+            "/admin2/%2F%2Fevil.example",
+        ])("never leaves the site through returnTo=%s and a second redirect", async (target) => {
+            const first = await loginReturningTo(`returnTo=${encodeURIComponent(target)}`);
+            expect(first).toBe("/");
+            expect(offSite(first)).toBe(false);
+            // the second hop, had the first one let it through
+            const second = await locationOf(target);
+            expect(second).toBeDefined();
+            expect(offSite(second)).toBe(false);
+        });
+
+        it.each([
+            "/admin//evil.example",
+            "/admin/%2F%2Fevil.example",
+            "/admin/%5Cevil.example",
+            "/admin2//evil.example",
+            "/admin2/%5Cevil.example",
+            "/admin/%E2%80%A8",
+        ])("keeps the old /admin mount on the site for a direct %s", async (url) => {
+            expect(await locationOf(url)).toBe("/");
+        });
+
+        it("answers a return path with a character above ASCII with the start page, not a crash", async () => {
+            expect(await loginReturningTo("returnTo=%2Fx%E2%80%A8")).toBe("/");
+        });
+
+        it("ignores the return path of an expired login state, and forgets expired states", async () => {
+            const { _internal } = require("../../../src/web/http/pageRoutes");
+            auth.configured.mockReturnValue(true);
+            auth.completeLogin.mockResolvedValue("sid-2");
+            await request({ url: "/auth/login?returnTo=%2Faddon%2Flevelhelper", method: "GET", headers: {} });
+            const state = auth.loginUrl.mock.calls[auth.loginUrl.mock.calls.length - 1][0];
+            _internal.states.get(state).expires = Date.now() - 1;
+            const res = await request({ url: `/auth/callback?code=xyz&state=${state}`, method: "GET", headers: {} });
+            expect(res.writeHead.mock.calls[0][1].Location).toBe("/");
+            _internal.states.set("old", { expires: Date.now() - 1, next: "/x" });
+            await request({ url: "/auth/login", method: "GET", headers: {} });
+            expect(_internal.states.has("old")).toBe(false);
+        });
+
         it("keeps ?next= for the plan page, and it wins over returnTo", async () => {
             expect(await loginReturningTo("next=/p/abcdefgh12")).toBe("/p/abcdefgh12");
             expect(await loginReturningTo("next=/p/abcdefgh12&returnTo=/addon/x")).toBe("/p/abcdefgh12");

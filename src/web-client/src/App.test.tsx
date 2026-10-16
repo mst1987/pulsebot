@@ -71,6 +71,14 @@ describe("menu access", () => {
         expect(api.getAddonName).toHaveBeenCalledWith("levelhelper");
     });
 
+    it("says it for an old Discord link to a card (/addon#addon-<id>) too", async () => {
+        vi.mocked(api.getAddonName).mockResolvedValue({ id: "levelhelper", name: "LevelHelper", icon: "inv_misc_map02" });
+        showApp(null, "/addon#addon-levelhelper");
+        expect(await screen.findByText("LevelHelper · Patchnotes")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: t("shell.app.loginButton") }))
+            .toHaveAttribute("href", `/auth/login?returnTo=${encodeURIComponent("/addon#addon-levelhelper")}`);
+    });
+
     it("names the addon with its real name and icon when the name route knows it", async () => {
         vi.mocked(api.getAddonName).mockResolvedValue({ id: "levelhelper", name: "LevelHelper", icon: "inv_misc_map02" });
         showApp(null, "/addon/levelhelper");

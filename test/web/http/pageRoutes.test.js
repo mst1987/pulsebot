@@ -74,7 +74,8 @@ describe("web/http/pageRoutes", () => {
         "/",
         "/raids/detail?event=eh-1&tab=setup",
         "/history#x",
-        "/%2F%2Fevil.example",
+        "/history/char?name=%C3%9Cbel",
+        "/administration",
     ])("keeps the login's return path %s", (path) => {
         expect(safeReturnPath(path)).toBe(path);
     });
@@ -94,6 +95,16 @@ describe("web/http/pageRoutes", () => {
         ["nothing", ""],
         ["no string", null],
         ["too long", `/${"a".repeat(600)}`],
+        ["an encoded second slash", "/%2F%2Fevil.example"],
+        ["an encoded backslash", "/%5Cevil.example"],
+        ["the old /admin mount", "/admin//evil.example"],
+        ["the old /admin mount bare", "/admin"],
+        ["the old /admin2 mount", "/admin2/x"],
+        ["the /admin mount encoded", "/%61dmin//evil.example"],
+        ["an encoded newline", "/x%0A"],
+        ["a broken escape", "/x%E0%A4%A"],
+        ["a character above ASCII", "/x "],
+        ["a DEL", "/x\u007f"],
     ])("drops a return path with %s", (_why, path) => {
         expect(safeReturnPath(path)).toBe("");
     });
