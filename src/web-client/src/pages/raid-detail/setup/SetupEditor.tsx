@@ -763,7 +763,8 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     const more: (MoreItem | "sep")[] = [
         ...groupItems,
         { id: "repropose", label: t("setup.editor.repropose"), sub: t("setup.more.reproposeSub"), icon: "spell_holy_borrowedtime", disabled: busy, onSelect: () => void propose() },
-        { id: "size", label: t("setup.more.size"), sub: t("setup.more.sizeSub", { groups: Math.max(1, Math.ceil((data.event.size || 0) / GROUP_SIZE)), size: data.event.size || 0 }), icon: "achievement_guildperk_everybodysfriend", disabled: busy, onSelect: () => setDialog("size") },
+        // the size is the event's own (PATCH /api/raids): only who may change the event (#725, the category orga with #728)
+        ...(data.canEditEvent ? [{ id: "size", label: t("setup.more.size"), sub: t("setup.more.sizeSub", { groups: Math.max(1, Math.ceil((data.event.size || 0) / GROUP_SIZE)), size: data.event.size || 0 }), icon: "achievement_guildperk_everybodysfriend", disabled: busy, onSelect: () => setDialog("size") }] : []),
         { id: "ping", label: t("setup.pingText.title"), sub: data.pingText || t("setup.more.pingDefault"), icon: "inv_letter_15", disabled: busy, onSelect: () => setDialog("ping") },
         "sep",
         { id: "fairness", label: t("setup.summary.fairness"), sub: t("setup.summary.fairnessCap"), icon: "spell_holy_divineintervention", on: opts.fairness, disabled: busy, onSelect: () => void save(keep(), { fairness: !opts.fairness }) },

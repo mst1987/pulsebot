@@ -29,7 +29,9 @@ jest.mock("../../../src/web/report/render", () => ({
 const mockUsers = {
     admin: { id: "adm", isAdmin: true },
     user: { id: "usr", isAdmin: false },
-    orga: { id: "org", isAdmin: false, access: { raids: { read: true, write: true } } },
+    orga: { id: "org", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true } } },
+    // #725: `raids` write without an orga rank (a raider role) - no setup editor, the public page
+    writer: { id: "wrt", isAdmin: false, access: { raids: { read: true, write: true } } },
     raider: { id: "rdr", isAdmin: false, access: { raids: { read: true, write: false }, signup: { read: true, write: true } } },
     viewas: { id: "adm", isAdmin: false, access: { raids: { read: true, write: false } }, viewAs: { roleIds: ["1"], at: 1 } },
 };
@@ -186,6 +188,7 @@ const CASES = [
     ["GET", "/e/eh-1/comp", "raider"],
     ["GET", "/e/eh-1/comp", "viewas"],
     ["GET", "/e/eh-1/comp", "orga"],
+    ["GET", "/e/eh-1/comp", "writer"],
     ["GET", "/e/eh-1/comp/", "admin"],
     ["GET", "/e/eh-weg/comp", "admin"],
     ["GET", "/e/eh-1/comp/x", "admin"],

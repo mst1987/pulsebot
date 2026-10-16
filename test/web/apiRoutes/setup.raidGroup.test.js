@@ -14,7 +14,8 @@ jest.mock("../../../src/web/http/auth", () => ({
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [], firstCharacter: () => null, getProfile: () => null }));
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: () => null }));
+// no roster anywhere: nobody is the orga of a category (#725), only the global orga
+jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: () => null, listRosters: () => [], isClosed: () => false }));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }), attendanceForAccounts: () => new Map() }));
 jest.mock("../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({})), listAllChannels: () => [], listGuilds: () => [] }));
 jest.mock("../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));

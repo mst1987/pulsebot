@@ -13,6 +13,7 @@ jest.mock("../../../src/stores/rosterStore", () => ({ listRosters: jest.fn(() =>
 jest.mock("../../../src/services/roster/categoryRoster", () => ({
     currentRoster: jest.fn((cat) => ROSTERS[`${cat}:${mockCurrentVersion[cat]}`] || null),
     rosterOfEvent: jest.fn((ev) => ROSTERS[`${ev.categoryId}:${ev.versionId || mockCurrentVersion[ev.categoryId]}`] || null),
+    isCurrentRoster: jest.fn((r) => !!r && !r.closedAt && r.versionId === mockCurrentVersion[r.categoryId]),
 }));
 const mockEvents = {};
 jest.mock("../../../src/stores/eventStore", () => ({
@@ -136,8 +137,15 @@ describe("services/roster/categoryOrga canOrgaEvent", () => {
         expect(await orga.canOrgaEvent(raider("mgr"), "eh-1", { memberRoleIds })).toBe(true);
         // a raid of another version belongs to that version's roster
         expect(await orga.canOrgaEvent(raider("mgr"), "eh-2", { memberRoleIds })).toBe(false);
-        expect(await orga.canOrgaEvent(raider("fmgr"), "eh-2", { memberRoleIds })).toBe(true);
+        // ... and that roster gives the right only once the category plays that version (#725 review):
+        // cat1 still plays TBC, its Forever roster is prepared but not current yet
+        expect(await orga.canOrgaEvent(raider("fmgr"), "eh-2", { memberRoleIds })).toBe(false);
         expect(categoryRoster.rosterOfEvent).toHaveBeenLastCalledWith(mockEvents["eh-2"], { config: undefined });
+        mockCurrentVersion.cat1 = "forever";
+        expect(await orga.canOrgaEvent(raider("fmgr"), "eh-2", { memberRoleIds })).toBe(true);
+        // the TBC roster is not current any more either
+        expect(await orga.canOrgaEvent(raider("mgr"), "eh-1", { memberRoleIds })).toBe(false);
+        mockCurrentVersion.cat1 = "tbc";
         // a row cannot pretend another category: the stored event wins
         expect(await orga.canOrgaEvent(raider("other"), { id: "eh-1", categoryId: "cat2" }, { memberRoleIds })).toBe(false);
         expect(await orga.canOrgaEvent(raider("mgr"), "eh-missing", { memberRoleIds })).toBe(false);
