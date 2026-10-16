@@ -45,6 +45,7 @@ const councilWeights = require("../../stores/councilWeightsStore");
 const councilProfiles = require("../../services/loot/councilProfiles");
 const { itemWeight } = require("../../services/loot/itemWeights");
 const { tenureContext, tenureDays: tenureDaysOf } = require("../../services/loot/councilTenure");
+const { manualIndex, manualBisForSpec, manualBisItems, manualBisIds, manualBisSpecsView } = require("./manualBisCouncil");
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -339,7 +340,8 @@ function wornItemView(item, bisIds, tierId = "", content = councilContentFor("tb
     return {
         // Whose BiS list this piece is on — not just "is it BiS", which says
         // nothing when nine specs share one item table.
-        bisSpecs: content.bis ? bisSpecsView(item.itemId, tierId) : [],
+        // Hand lists (#760): whose list names it, from the request's index.
+        bisSpecs: content.bis ? bisSpecsView(item.itemId, tierId) : content.manual ? manualBisSpecsView(content.manual, item.itemId) : [],
         slot: item.slot,
         slotName: item.slotName,
         itemId: item.itemId,
@@ -762,10 +764,14 @@ function rosterRow(key, ctx) {
     const lastAwardAt = filtered.length ? filtered[0].awardedAt : 0;
     const daysSinceLoot = lastAwardAt ? Math.floor((ctx.now - lastAwardAt) / DAY) : null;
     const content = ctx.content || councilContentFor("tbc");
-    // No BiS data for this version (#748): an honestly empty list, never TBC's.
-    const bis = content.bis ? bisForSpec(specEntry, ctx.bisTier) : { tier: "", exact: false, borrowedFrom: "", items: [], source: "", sourceLabel: "" };
-    const bisItems = content.bis ? bisItemsFor(bis, gear, ctx.bisTier) : [];
-    const bisIds = new Set(bis.items.map((entry) => Number(entry.id)));
+    // No BiS data for this version (#748): the orga's hand lists (#760), else an
+    // honestly empty list — never TBC's.
+    const manual = !content.bis && content.manual ? content.manual : null;
+    const bis = content.bis ? bisForSpec(specEntry, ctx.bisTier)
+        : manual ? manualBisForSpec(manual, specEntry)
+            : { tier: "", exact: false, borrowedFrom: "", items: [], source: "", sourceLabel: "" };
+    const bisItems = content.bis ? bisItemsFor(bis, gear, ctx.bisTier) : manual ? manualBisItems(manual, bis, gear) : [];
+    const bisIds = manual ? manualBisIds(bis) : new Set(bis.items.map((entry) => Number(entry.id)));
     // What each award counts as (#668): its weight decides the loot points and
     // how far it reset the wait. A weapon is a BiS weapon against *this*
     // raider's list.
@@ -846,6 +852,18 @@ function scoreRows(rows, weights = resolveWeights()) {
 }
 
 /**
+ * What content data the council's version has (#748) - without options the TBC
+ * council as ever - plus, without BiS data of its own, the hand lists (#760,
+ * `manual`), read once for every row.
+ */
+function rosterContent(opts) {
+    const versionId = opts.versionId === undefined ? "tbc" : opts.versionId;
+    const content = { ...councilContentFor(versionId, { config: opts.config }), manual: null };
+    if (content.manualBis) content.manual = opts.manualIndex || manualIndex(versionId);
+    return content;
+}
+
+/**
  * The council roster: every raider with a council spec (caster, healer, tank,
  * melee, hunter — config/councilSpecs.js) and loot history or known gear —
  * or, for a category with a roster (#667), the roster's Stamm and Probe
@@ -864,11 +882,11 @@ function scoreRows(rows, weights = resolveWeights()) {
  *               (services/characters/characterVersions.js): its own when
  *               known, else the stored version of a raid it won loot in, else
  *               its category's, else TBC.
+ *   manualIndex the hand lists' index (#760) instead of the store's (tests)
  */
 function councilRoster(opts = {}) {
     const { role = "", categoryId = "", charVersion = "" } = opts;
-    // What content data the council's version has (#748); without options the TBC council as ever.
-    const content = councilContentFor(opts.versionId === undefined ? "tbc" : opts.versionId, { config: opts.config });
+    const content = rosterContent(opts);
     const contentFilter = content.tiers ? resolveContentFilter(opts) : null;
     const info = new Map(annotatedCharacters().map((c) => [c.key, c]));
     const { roleByKey, planned } = judgedRoles();

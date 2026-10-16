@@ -97,6 +97,22 @@ describe("profile CRUD", () => {
         expect(body(await call(getProfile, `?id=${copy.id}`)).profile.name).toBe("PuG-Nacht");
     });
 
+    it("names a Forever profile's exceptions from the version's own items, never the TBC table (#760)", async () => {
+        const manualBisStore = require("../../../src/stores/manualBisStore");
+        manualBisStore.useFile(tempStoreFile("council-manual-bis.json"));
+        manualBisStore.setSlot("forever", "Priest-Shadow", 0, [{ id: 900001, name: "Kapuze", icon: "inv_helmet_01", quality: 4 }]);
+        mockUser = WRITER;
+        mockBody = { name: "Forever" };
+        const id = body(await call(postProfileCreate)).profile.id;
+        // 32483 is a TBC trinket - in Forever it is just an id with the name the council gave it
+        mockBody = { id, weights: { items: { 32483: { weight: 3, name: "Schädel" }, 900001: { weight: 2, name: "" } } }, view: { version: "forever" } };
+        const data = body(await call(postProfileUpdate));
+        expect(data.versionId).toBe("forever");
+        expect(data.itemInfo["32483"]).toEqual({ name: "Schädel", iconUrl: "", quality: null, autoClass: "normal" });
+        expect(data.itemInfo["900001"]).toMatchObject({ name: "Kapuze", quality: 4, autoClass: "normal" });
+        manualBisStore.useFile(null);
+    });
+
     it("answers the refusals with their codes", async () => {
         mockBody = { name: "standard" };
         let res = await call(postProfileCreate);

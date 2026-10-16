@@ -14,7 +14,8 @@
 //
 // Why a feature is not possible:
 //   logcheck         the log rule set is missing or not ready, or no Warcraft-Logs site (logcheckCapability)
-//   lootCouncilBis   the rule set has no `councilContent.bis` (BiS lists, item table, tier filter)
+//   lootCouncilBis   never for a known version: with the rule set's `councilContent.bis` (BiS lists,
+//                    item table, tier filter), else with the orga's hand lists (#760, manualBisStore)
 //   simulation       the rule set has no `councilContent.sim` (WoWSims)
 //   raidSheet        the rule set has no `sheetLayout` (the Google raid sheet is TBC's)
 //   softres          no softres edition in the version's settings
@@ -149,7 +150,8 @@ const POSSIBLE = {
         // rules not ready AND no site: the matrix names both (`also`), the message stays the first reason
         return cap.reason === "rules_not_ready" && !wclApiSite(id, { config }) ? { ...cap, also: ["no_site"] } : cap;
     },
-    lootCouncilBis: (id) => (councilData(id).bis ? YES : no("no_bis_data", `Für ${labelOf(id)} gibt es keine BiS-Daten.`)),
+    // A version without BiS data of its own uses the orga's hand lists (#760, stores/manualBisStore.js).
+    lootCouncilBis: () => YES,
     simulation: (id) => (councilData(id).sim ? YES : no("no_sim_data", `Für ${labelOf(id)} gibt es keine Simulationsdaten.`)),
     raidSheet: (id) => (hasSheetLayout(id) ? YES : no("no_sheet_layout", `Für ${labelOf(id)} gibt es kein Raidsheet-Layout.`)),
     softres: (id, config) => (blockOf(id, config).softresEdition
@@ -239,9 +241,12 @@ function capabilityMatrix(opts = {}) {
  * as far as it is switched on. "BiS-Listen" carries the BiS lists, the item table
  * and the tier/raid filter; "Simulation" the simulation. `off` says the BiS data
  * exists but is switched off, so the page can say so instead of "keine Daten".
+ * `manualBis` (#760): the version has no BiS data of its own, so its BiS lists
+ * are the orga's hand lists (stores/manualBisStore.js) — `bis` stays the data
+ * lists' flag, so a TBC council never takes this path.
  * @param {string} versionId
  * @param {{ config?: object }} [opts]
- * @returns {{ bis: boolean, sim: boolean, tiers: boolean, itemTable: boolean, off: boolean, simHint: string }}
+ * @returns {{ bis: boolean, manualBis: boolean, sim: boolean, tiers: boolean, itemTable: boolean, off: boolean, simHint: string }}
  *   `simHint` the German reason when the simulation is not on ("" when it is)
  */
 function councilContent(versionId, opts = {}) {
@@ -251,6 +256,7 @@ function councilContent(versionId, opts = {}) {
     const sim = featureState(versionId, "simulation", { config });
     return {
         bis: bis.on && data.bis,
+        manualBis: bis.on && !data.bis,
         tiers: bis.on && data.tiers,
         itemTable: bis.on && data.itemTable,
         sim: sim.on && data.sim,

@@ -380,9 +380,10 @@ export default function RaiderDialog({
                                 icon="inv_misc_gem_variety_02"
                                 title={t("lootcouncil.dialog.bisTitle")}
                                 crumb={t("lootcouncil.dialog.bisCrumb", { character: r.character })}
-                                tip={r.bis.sourceLabel || t("lootcouncil.candidates.listTip")}
+                                tip={r.bis.source === "manual" ? t("lootcouncil.dialog.manualLabel") : r.bis.sourceLabel || t("lootcouncil.candidates.listTip")}
                                 tipSub={[
-                                    r.bis.source === "wowhead" ? t("lootcouncil.dialog.wowheadNote") : t("lootcouncil.dialog.wowsimsNote"),
+                                    r.bis.source === "wowhead" ? t("lootcouncil.dialog.wowheadNote")
+                                        : r.bis.source === "manual" ? t("lootcouncil.dialog.manualNote") : t("lootcouncil.dialog.wowsimsNote"),
                                     r.bis.borrowedFrom ? t("lootcouncil.dialog.listOf", { from: r.bis.borrowedFrom }) : "",
                                     r.bis.tier ? t(r.bis.exact ? "lootcouncil.dialog.tierExact" : "lootcouncil.dialog.tierOlder", { tier: r.bis.tier.toUpperCase() }) : "",
                                 ].filter(Boolean).join(" ")}

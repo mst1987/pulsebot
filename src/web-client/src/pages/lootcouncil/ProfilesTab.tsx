@@ -203,6 +203,8 @@ function ProfileForm({ row, data, options, canWrite, onStored, onCopied, onDelet
     const t = useT();
     const ask = useConfirm();
     const jobs = useJobs();
+    // The menu's content version (#760): where the exceptions' item search looks.
+    const { version } = useContentVersion();
     const toast = useToast();
     const [weights, setWeights] = useState<CouncilWeightSettings>(() => cloneWeights(data.profile.weights));
     const [view, setView] = useState<CouncilCategoryView>(() => cloneView(data.profile.view));
@@ -329,7 +331,8 @@ function ProfileForm({ row, data, options, canWrite, onStored, onCopied, onDelet
                     </div>
                 </Section>
 
-                <WeightsEditor draft={weights} onChange={setWeights} data={data} readOnly={ro} />
+                {/* the exceptions' search looks in the items of the version on screen (#760) */}
+                <WeightsEditor draft={weights} onChange={setWeights} data={data} readOnly={ro} versionId={version} />
 
                 {!ro ? (
                     <div className="lc-wfoot">
