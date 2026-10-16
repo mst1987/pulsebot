@@ -23,14 +23,13 @@ const { getChannelConfig, listArchived, archiveHint } = require("../../stores/ch
 const { buildRoster } = require("../characters/roster");
 const { rosterStats } = require("../characters/rosterStats");
 const { resolveAssignmentProfiles } = require("../../stores/raiderCharactersStore");
-const { applyReview } = require("../../utils/logcheck/recommendations");
 const softres = require("../../utils/loot/softres");
 const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
 } = require("../../utils/attendance");
 const {
     zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, isAttending,
-    lastReportArea, openRecommendations, newLootSince,
+    lastReportArea, newLootSince,
 } = require("./dashboardOverview");
 const { getEvent, listEvents } = require("../../stores/eventStore");
 const linkCheck = require("../../services/discord/linkCheck");
@@ -45,6 +44,9 @@ const { trialEnding, extendedTrialUntil } = require("../../services/roster/roste
 const { planningOf } = require("../../services/events/planning");
 
 const RH_ERROR = "Events konnten nicht geladen werden (Raid-Helper API).";
+
+/** Whether a raid's category is one of `categoryIds` (the orga of a category, #729); null = every category. */
+const inCategories = (categoryId, categoryIds) => !Array.isArray(categoryIds) || categoryIds.includes(String(categoryId || ""));
 
 /** The raidplan slots of an event, [] when none is built or Raid-Helper fails. */
 async function setupSlots(rh, eventId) {
@@ -77,9 +79,10 @@ function sheetFor(eventId, categoryId) {
  * line): who fills which role against the size the raid is planned for, and
  * whether sheet, setup and softres list are ready. One getSetup call per raid,
  * best-effort — a raid without a raidplan simply counts its signups.
- * @param {{ versionId?: string }} [opts] filters by game version (#545, "" = every one)
+ * @param {{ versionId?: string, categoryIds?: string[]|null }} [opts] filters by game version (#545, "" = every
+ *   one) and by category (the orga of a category, #729; null = every one) - both before the slice
  */
-async function loadNextRaids(guildId, count = 2, { versionId = "" } = {}) {
+async function loadNextRaids(guildId, count = 2, { versionId = "", categoryIds = null } = {}) {
     if (!guildId) return { raids: [], error: null };
     const rh = createRaidhelperClient();
     let rhEvents = [];
@@ -104,6 +107,7 @@ async function loadNextRaids(guildId, count = 2, { versionId = "" } = {}) {
     ]
         .map((ev) => ({ ...ev, categoryId: (catMap[ev.channelId] || {}).categoryId || ev.categoryId || "" }))
         .filter((ev) => !versionId || versionOfEvent(ev) === versionId)
+        .filter((ev) => inCategories(ev.categoryId, categoryIds))
         .sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0)).slice(0, count);
     const config = getConfig();
     const raids = [];
@@ -215,21 +219,15 @@ async function loadNextRaidDetails(guildId, eventId) {
 }
 
 /**
- * The newest evaluation as the "Letzte Auswertung" tile needs it, plus how many
- * of its recommendations are still unreviewed (the "Empfehlungen prüfen" task).
- * Reads one report file; null when there is none or it cannot be read.
+ * The newest evaluation as the "Letzte Auswertung" tile and the "Gear-Probleme"
+ * task need it. Reads one report file; null when there is none or it cannot be read.
  * @param {{ versionId?: string }} [opts] the newest report of that game version (#741, "" = of any)
  */
 function loadLatestReport({ versionId = "" } = {}) {
     try {
         const summary = listReports().find((r) => !versionId || recordVersion(r) === versionId);
         if (!summary) return null;
-        const report = getReport(summary.id);
-        const area = lastReportArea(summary, report);
-        const reviewed = report && report.recommendations
-            ? applyReview(report.recommendations, report.recommendationReview)
-            : null;
-        return { ...area, open: openRecommendations(reviewed) };
+        return lastReportArea(summary, getReport(summary.id));
     } catch (e) {
         console.error("dashboard latest report failed:", e.message);
         return null;
@@ -299,8 +297,8 @@ function loadNewLoot(sinceStartTime, { versionId = "" } = {}) {
 // background sweep (every dashboard view is effectively an on-demand rescan);
 // if that scan fails but the store already has events for this guild, they are
 // shown regardless — only a guild with nothing stored yet surfaces the error.
-/** @param {{ versionId?: string }} [opts] filters by game version (#545, "" = every one) */
-async function loadRecentEvents(guildId, limit = 5, { versionId = "" } = {}) {
+/** @param {{ versionId?: string, categoryIds?: string[]|null }} [opts] filters by game version (#545, "" = every one) and category (#729, null = every one) */
+async function loadRecentEvents(guildId, limit = 5, { versionId = "", categoryIds = null } = {}) {
     if (!guildId) return { events: [], error: null };
     const { error: scanError } = await scanRaidEvents(guildId);
     // Assign freshly detected logs to their raid before reading them back, so a
@@ -314,7 +312,8 @@ async function loadRecentEvents(guildId, limit = 5, { versionId = "" } = {}) {
         .map((l) => ({ ...l, postedAt: logPostedAt(l) }));
     // Filtered before buildRecentEvents cuts to `limit` (#545), so "the last 5
     // Forever raids" really is the last five, not five of a shorter list.
-    const scoped = versionId ? stored.filter((ev) => versionOfEvent(ev) === versionId) : stored;
+    const scoped = (versionId ? stored.filter((ev) => versionOfEvent(ev) === versionId) : stored)
+        .filter((ev) => inCategories(ev.categoryId, categoryIds));
     const recent = buildRecentEvents(scoped, { logs, limit, windowDays: Infinity });
     return {
         events: recent.map((ev) => ({
@@ -392,11 +391,11 @@ function dashboardVersions(guildId, { config } = {}) {
  * channel known to be missing counts: with the bot offline nothing is known
  * and nothing is reported. A cancelled raid needs no channel.
  */
-async function loadMissingChannels(guildId, now = Date.now()) {
+async function loadMissingChannels(guildId, now = Date.now(), { categoryIds = null } = {}) {
     if (!guildId) return [];
     try {
         const events = listEvents(guildId, { sinceSeconds: Math.floor(now / 1000) })
-            .filter((e) => e && e.channelId && e.status !== "cancelled");
+            .filter((e) => e && e.channelId && e.status !== "cancelled" && inCategories(e.categoryId, categoryIds));
         await linkCheck.checkChannels(events.map((e) => ({ guildId, channelId: e.channelId })), now);
         return events
             .filter((e) => linkCheck.channelState(guildId, e.channelId, now) === "missing")

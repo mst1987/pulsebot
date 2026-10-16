@@ -1,6 +1,8 @@
 // Tab "Loot": what this raid handed out, grouped under whoever got it (or under
 // the boss it dropped from), with one "Loot hinzufügen" in the part head. Import
-// and nachtragen live in the dialog; deleting asks in the confirm dialog.
+// and nachtragen live in the dialog; deleting asks in the confirm dialog. Every
+// raider reads the loot; adding and deleting are the orga's with `history` write (ctx.canLoot; an older
+// caller without it: ctx.orga).
 import { useMemo, useState } from "react";
 import type { LootItem } from "../../api";
 import { clearHistoryEvent, deleteLootItems, type ApiError } from "../../api";
@@ -65,6 +67,7 @@ function ReasonBadge({ it }: { it: LootItem }) {
 export default function LootTab({ ctx }: { ctx: RaidCtx }) {
     const t = useT();
     const { data, onChanged, openModal } = ctx;
+    const canLoot = ctx.canLoot ?? !!ctx.orga;
     const ask = useConfirm();
     const [groupBy, setGroupBy] = usePersistedState<GroupBy>("raid-detail-loot-group", "character");
     const [query, setQuery] = useState("");
@@ -140,7 +143,7 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
                 tone="history"
                 title={t("raidDetail.loot.title")}
                 crumb={crumb}
-                action={<Button size="sm" icon="inv_misc_bag_10" onClick={() => openModal("loot")}>{t("raidDetail.loot.add")}</Button>}
+                action={canLoot ? <Button size="sm" icon="inv_misc_bag_10" onClick={() => openModal("loot")}>{t("raidDetail.loot.add")}</Button> : undefined}
             />
 
             {!items.length ? (
@@ -208,11 +211,13 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
                                             <span><ReasonBadge it={it} /></span>
                                             <span className="rd-mono" data-tip={fmtMs(it.awardedAt)}>{it.awardedAt ? formatTime(it.awardedAt) : "—"}</span>
                                             <span><Badge>{LOOT_TOOL_LABELS[it.source] || it.source || "?"}</Badge></span>
-                                            <IconButton
-                                                size="sm" tone="danger" icon={<TrashIcon />}
-                                                tip={t("raidDetail.loot.deleteEntry")} tipSub={t("raidDetail.loot.entrySub", { item: itemLabel(it), character: it.character })}
-                                                disabled={busyId === it.id} onClick={() => removeItem(it)}
-                                            />
+                                            {canLoot ? (
+                                                <IconButton
+                                                    size="sm" tone="danger" icon={<TrashIcon />}
+                                                    tip={t("raidDetail.loot.deleteEntry")} tipSub={t("raidDetail.loot.entrySub", { item: itemLabel(it), character: it.character })}
+                                                    disabled={busyId === it.id} onClick={() => removeItem(it)}
+                                                />
+                                            ) : <span />}
                                         </div>
                                     ))}
                                 </div>
@@ -223,7 +228,7 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
 
                     <div className="rd-foot">
                         <span className="rd-muted">{groupBy === "character" ? t("raidDetail.loot.footGroups", { count: groups.length }) : t("raidDetail.loot.footBosses", { count: groups.length })}</span>
-                        <Button variant="danger" size="sm" icon={<TrashIcon />} running={clearing} onClick={clearAll}>{t("raidDetail.loot.clearButton")}</Button>
+                        {canLoot && <Button variant="danger" size="sm" icon={<TrashIcon />} running={clearing} onClick={clearAll}>{t("raidDetail.loot.clearButton")}</Button>}
                     </div>
                 </>
             )}

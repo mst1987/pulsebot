@@ -88,7 +88,8 @@ describe("UpcomingRaidList: cancelled raids", () => {
 
 describe("PastRaidList: cancelled raids", () => {
     it("marks a cancelled past raid and drops the log and loot nagging", () => {
-        renderPage(<PastRaidList events={[past({ id: "1", title: "Kara", ...CANCELLED }), past({ id: "2", title: "SSC", startTime: PAST_START + 60 })]} emptyMessage="leer" />);
+        // the logs column and "Kein Loot" are the orga's: the orga's view
+        renderPage(<PastRaidList events={[past({ id: "1", title: "Kara", ...CANCELLED }), past({ id: "2", title: "SSC", startTime: PAST_START + 60 })]} emptyMessage="leer" orga />);
         const row = rowOf("Kara");
         expect(row).toHaveClass("is-cancelled");
         expect(within(row).getByText(t("raids.list.cancelled"))).toBeInTheDocument();

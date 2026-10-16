@@ -24,10 +24,11 @@ const calendarFeed = require("../pages/calendarFeed");
 const raidplanStore = require("../../stores/raidplanStore");
 const { getEvent } = require("../../stores/eventStore");
 const { approvedSetupOf } = require("../../services/setup/setupCore");
+const { canWriteSetup } = require("../setup/setupAccess");
 const { versionInfo } = require("./version");
 const { runMode } = require("../../config/runMode");
 const auth = require("./auth");
-const { userCan, userHasMenuAccess } = require("../../config/permissions");
+const { userHasMenuAccess } = require("../../config/permissions");
 const apiRouter = require("./apiRouter");
 const { serveAsset } = require("../report/assets");
 
@@ -52,15 +53,72 @@ const states = new Map();
 // members looking up loot as much as officers, so it moved to the root —
 // both old mounts redirect there, which keeps every bookmark and every link
 // already posted in Discord working, one hop later.
+// The target goes through safeReturnPath like a login's return path: the
+// server decodes the pathname (server.js), so "/admin//evil.example" or
+// "/admin/%2F%2Fevil.example" would otherwise send the browser to another host.
 function legacyMount({ res, url, rest }) {
-    return redirect(res, `${rest || "/"}${url.search || ""}`);
+    return redirect(res, safeReturnPath(`${rest || "/"}${url.search || ""}`) || "/");
+}
+
+const RETURN_MAX = 512;
+
+/** A path that must never be a redirect target: not a single leading "/", a backslash, or a page that redirects again. */
+function unsafePath(path) {
+    if (path[0] !== "/" || path[1] === "/" || path.includes("\\")) return true;
+    // /auth leads into the login again; /admin and /admin2 redirect once more (legacyMount)
+    return /^\/(auth|admin2?)(?:[/?#]|$)/i.test(path);
+}
+
+/** Only printable ASCII: a control character is dropped by the browser ("/\t/x" -> "//x"), anything above 0x7e makes writeHead throw. */
+function printableAscii(text) {
+    for (let i = 0; i < text.length; i++) {
+        const c = text.charCodeAt(i);
+        if (c < 0x21 || c > 0x7e) return false;
+    }
+    return true;
+}
+
+/**
+ * "?returnTo=<path>" of the login, and the target of the old /admin mounts:
+ * where the browser is sent next. Only a path on this site counts — it starts
+ * with one "/" (never "//", which a browser reads as another host), has no
+ * backslash (also read as "/"), only printable ASCII (no space, no control
+ * character, nothing writeHead refuses) and does not lead into /auth, /admin
+ * or /admin2 (which redirect again). All of that holds for the path as it is
+ * AND decoded once, because the server decodes the pathname before routing.
+ * Anything else is "" = the start page. Never an open redirect.
+ */
+function safeReturnPath(value) {
+    const path = typeof value === "string" ? value : "";
+    if (!path || path.length > RETURN_MAX || !printableAscii(path) || unsafePath(path)) return "";
+    let decoded;
+    try {
+        decoded = decodeURIComponent(path);
+    } catch {
+        return "";
+    }
+    for (let i = 0; i < decoded.length; i++) {
+        const c = decoded.charCodeAt(i);
+        if (c < 0x20 || c === 0x7f) return "";
+    }
+    return unsafePath(decoded) ? "" : path;
+}
+
+/** Forgets OAuth states nobody came back for (they expire after 10 minutes). */
+function dropExpiredStates(now = Date.now()) {
+    for (const [key, entry] of states) {
+        if (!entry || entry.expires < now) states.delete(key);
+    }
 }
 
 function authLogin({ res, url }) {
     if (!auth.configured()) return send(res, 503, renderNotFound());
     const state = crypto.randomBytes(12).toString("hex");
-    // "?next=/p/<token>": after the login back to that plan page (only such a path, nothing else)
-    const next = /^\/p\/[A-Za-z0-9_-]{8,80}$/.test(url.searchParams.get("next") || "") ? url.searchParams.get("next") : "";
+    // "?next=/p/<token>": after the login back to that plan page (only such a path, nothing else);
+    // "?returnTo=<path>": back to any page of the menu (safeReturnPath)
+    const plan = /^\/p\/[A-Za-z0-9_-]{8,80}$/.test(url.searchParams.get("next") || "") ? url.searchParams.get("next") : "";
+    const next = plan || safeReturnPath(url.searchParams.get("returnTo"));
+    dropExpiredStates();
     states.set(state, { expires: Date.now() + 600000, next });
     return redirect(res, auth.loginUrl(state));
 }
@@ -73,7 +131,9 @@ async function authCallback({ res, url }) {
     if (!code) return send(res, 400, renderError("Login fehlgeschlagen", "Kein Autorisierungscode von Discord erhalten."));
     // state is CSRF protection; if it's unknown (e.g. the bot restarted) just warn and proceed
     if (state && !states.has(state)) console.warn("OAuth state not found (process restart?) — proceeding anyway");
-    const pending = state ? states.get(state) : null;
+    const stored = state ? states.get(state) : null;
+    // an expired state still logs in (like an unknown one), but its return path no longer counts
+    const pending = stored && stored.expires >= Date.now() ? stored : null;
     if (state) states.delete(state);
     try {
         const sid = await auth.completeLogin(code);
@@ -163,19 +223,20 @@ function eventPage({ res, params }) {
 
 // The "Comp" link of the event message (#520): /e/<eventId>/comp. A Discord
 // message is the same for everybody, so the link lands here and the server sends
-// each reader on — whoever may write in "raids" (the gate of the setup editor,
-// the same check as apiAccess; auth.getUser applies an active "Ansicht als")
+// each reader on — whoever may edit this raid's setup (web/setup/setupAccess.js,
+// the rule of the editor's own routes: the global orga with raids write, or the
+// orga of the raid's category, #725; auth.getUser applies an active "Ansicht als")
 // into the setup tab of the raid detail page, everyone else (no login, no
-// right) to the public event page — once a setup is approved, to its setup
-// section. The setup message links here too. Only own events have that page and the
-// message, so an unknown id — a Raid-Helper one included — is a 404. Nothing is
-// cached: the answer depends on who asks.
-function eventComp({ req, res, params }) {
+// right, a raider role with raids write but no orga rank) to the public event
+// page — once a setup is approved, to its setup section. The setup message links
+// here too. Only own events have that page and the message, so an unknown id — a
+// Raid-Helper one included — is a 404. Nothing is cached: the answer depends on who asks.
+async function eventComp({ req, res, params }) {
     const event = getEvent(params[0]);
     if (!event) return send(res, 404, renderNotFound());
     const id = encodeURIComponent(event.id);
     const user = auth.getUser(req);
-    const orga = !!user && userHasMenuAccess(user) && userCan(user, "raids", "write");
+    const orga = !!user && userHasMenuAccess(user) && (await canWriteSetup(user, event, req));
     // with an approved setup straight down to it (the page's `#setup` heading)
     const publicPage = `/e/${id}${approvedSetupOf(event) ? "#setup" : ""}`;
     return redirect(res, orga ? `/raids/detail?event=${id}&tab=setup` : publicPage, { "Cache-Control": "no-store" });
@@ -277,5 +338,5 @@ function findPageRoute(method, pathname, routes = PAGE_ROUTES) {
 module.exports = {
     PAGE_ROUTES, findPageRoute, send,
     // only for the tests: not part of the module's API
-    _internal: { matchPath, states },
+    _internal: { matchPath, states, safeReturnPath, dropExpiredStates },
 };

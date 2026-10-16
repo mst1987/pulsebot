@@ -14,21 +14,24 @@
 //
 // Why a feature is not possible:
 //   logcheck         the log rule set is missing or not ready, or no Warcraft-Logs site (logcheckCapability)
-//   lootCouncilBis   the rule set has no `councilContent.bis` (BiS lists, item table, tier filter)
+//   lootCouncilBis   never for a known version: with the rule set's `councilContent.bis` (BiS lists,
+//                    item table, tier filter), else with the orga's hand lists (#760, manualBisStore)
 //   simulation       the rule set has no `councilContent.sim` (WoWSims)
 //   raidSheet        the rule set has no `sheetLayout` (the Google raid sheet is TBC's)
 //   softres          no softres edition in the version's settings
 //   armory           region, realm or namespace missing in the version's settings
 //   wowheadLinks     no Wowhead path in the version's settings
 //   raidplanCatalog  no mob or spell of the catalog belongs to the version
+//   dungeonTimes     the rule set has no `dungeonTimes` (no LevelHelper addon for its client)
 //
 // The readers: the log check (logVersion.logcheckSupported and its refusal), the
 // loot council (councilContent: route, view, /council), the raid sheet
 // (sheetOffered / sheetVersionRefusal: the raid detail's planning, POST
 // /api/raids/fill, /fillsetup), softres (the raid detail, POST /api/raids/softres),
 // the armory (versionSettings.blizzardFor), the Wowhead links (versionSettings.
-// versionLinks, the guild bank's links) and the raid plan catalog (catalogEnabled:
-// the plan's catalog and the assignment suggestions). Einstellungen → Spielversion
+// versionLinks, the guild bank's links), the raid plan catalog (catalogEnabled:
+// the plan's catalog and the assignment suggestions) and the dungeon times of the
+// profile (services/characters/profileRaiding.js). Einstellungen → Spielversion
 // shows the matrix (capabilityMatrix, GET /api/settings).
 //
 // Deliberately low in the require graph (test/web/noCycles.test.js): data, the
@@ -51,6 +54,7 @@ const FEATURE_NAMES = Object.freeze({
     armory: "Armory-Abruf",
     wowheadLinks: "Wowhead-Links",
     raidplanCatalog: "Raidplan-Katalog",
+    dungeonTimes: "Dungeon-Bestzeiten",
 });
 
 // A rule set without `councilContent` has none of the council's content data.
@@ -146,7 +150,8 @@ const POSSIBLE = {
         // rules not ready AND no site: the matrix names both (`also`), the message stays the first reason
         return cap.reason === "rules_not_ready" && !wclApiSite(id, { config }) ? { ...cap, also: ["no_site"] } : cap;
     },
-    lootCouncilBis: (id) => (councilData(id).bis ? YES : no("no_bis_data", `Für ${labelOf(id)} gibt es keine BiS-Daten.`)),
+    // A version without BiS data of its own uses the orga's hand lists (#760, stores/manualBisStore.js).
+    lootCouncilBis: () => YES,
     simulation: (id) => (councilData(id).sim ? YES : no("no_sim_data", `Für ${labelOf(id)} gibt es keine Simulationsdaten.`)),
     raidSheet: (id) => (hasSheetLayout(id) ? YES : no("no_sheet_layout", `Für ${labelOf(id)} gibt es kein Raidsheet-Layout.`)),
     softres: (id, config) => (blockOf(id, config).softresEdition
@@ -159,6 +164,8 @@ const POSSIBLE = {
     wowheadLinks: (id, config) => (blockOf(id, config).wowheadPath
         ? YES : no("no_wowhead_path", `Für ${labelOf(id)} ist kein Wowhead-Pfad eingetragen.`)),
     raidplanCatalog: (id) => (catalogHasEntries(id) ? YES : no("no_catalog_entries", `Der Raidplan-Katalog hat keine Einträge für ${labelOf(id)}.`)),
+    dungeonTimes: (id) => (rulesFor(id) && rulesFor(id).dungeonTimes
+        ? YES : no("no_dungeon_times", `Für ${labelOf(id)} gibt es keine Dungeon-Bestzeiten (kein LevelHelper).`)),
 };
 
 /** The German hint of a feature switched off for a version. */
@@ -176,7 +183,7 @@ function disabledMessage(versionId, feature) {
  *   `reason` "" when on, "disabled" when switched off, else why it is not possible
  *   ("unknown_version", "no_rules", "rules_not_ready", "no_site", "no_bis_data", "no_sim_data",
  *   "no_sheet_layout", "no_softres_edition", "armory_not_configured", "no_wowhead_path",
- *   "no_catalog_entries", "unknown_feature"); `message` the German text for it; `also` further reasons
+ *   "no_catalog_entries", "no_dungeon_times", "unknown_feature"); `message` the German text for it; `also` further reasons
  *   the matrix names beside it (logcheck: rules not ready and no Warcraft-Logs site)
  */
 function featureState(versionId, feature, { config } = {}) {
@@ -234,9 +241,12 @@ function capabilityMatrix(opts = {}) {
  * as far as it is switched on. "BiS-Listen" carries the BiS lists, the item table
  * and the tier/raid filter; "Simulation" the simulation. `off` says the BiS data
  * exists but is switched off, so the page can say so instead of "keine Daten".
+ * `manualBis` (#760): the version has no BiS data of its own, so its BiS lists
+ * are the orga's hand lists (stores/manualBisStore.js) — `bis` stays the data
+ * lists' flag, so a TBC council never takes this path.
  * @param {string} versionId
  * @param {{ config?: object }} [opts]
- * @returns {{ bis: boolean, sim: boolean, tiers: boolean, itemTable: boolean, off: boolean, simHint: string }}
+ * @returns {{ bis: boolean, manualBis: boolean, sim: boolean, tiers: boolean, itemTable: boolean, off: boolean, simHint: string }}
  *   `simHint` the German reason when the simulation is not on ("" when it is)
  */
 function councilContent(versionId, opts = {}) {
@@ -246,6 +256,7 @@ function councilContent(versionId, opts = {}) {
     const sim = featureState(versionId, "simulation", { config });
     return {
         bis: bis.on && data.bis,
+        manualBis: bis.on && !data.bis,
         tiers: bis.on && data.tiers,
         itemTable: bis.on && data.itemTable,
         sim: sim.on && data.sim,

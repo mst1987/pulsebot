@@ -101,12 +101,18 @@ select:focus { background-image: var(--ctl-arrow-hi); }
 .info svg { width: 12px; height: 12px; }
 .info:hover, .info:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
 
-/* One button system for the whole admin. The variants are a hierarchy, not a
-   palette: .btn = the one primary action of a form/section, .btn-ghost = every
-   secondary action next to it, .btn-run = "start this analysis" (CLA/RPB — an
-   action that then takes a while and reports back through a job toast),
-   .btn-danger = destructive. Icons come from components/ui/icons.tsx and are sized
-   here, so a button never has to hard-code one (and never carries an emoji). */
+/* One button system for the whole admin. What a button does shows in its colour,
+   the same on every page (and on the report pages, static/report.css):
+   .btn        the main action / next step of a section (version accent): create, open, post
+   .btn-go     commit something positive, filled green: save, confirm, approve, sign up
+   .btn-yes    a positive choice beside a negative one, green outline; filled when aria-pressed
+   .btn-no     say no without destroying anything, red outline: decline, absent, reject,
+               sign off; filled when aria-pressed
+   .btn-danger destructive (delete, remove, reset), always behind useConfirm()
+   .btn-ghost  neutral: cancel, close, back, details, filters, navigation
+   .btn-run    "start this analysis" (CLA/RPB — takes a while, reports through a job toast)
+   Icons come from components/ui/icons.tsx (or a WoW icon for a game meaning) and are
+   sized here, so a button never has to hard-code one (and never carries an emoji). */
 .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 7px;
     background: var(--accent); color: var(--accent-ink); border: 0; border-radius: var(--ctl-radius);
@@ -122,6 +128,14 @@ select:focus { background-image: var(--ctl-arrow-hi); }
 .btn-ghost:hover { filter: none; background: var(--panel3); border-color: var(--accent); box-shadow: none; }
 .btn-danger { background: var(--high-bg); color: var(--high); border: 1px solid var(--high); }
 .btn-danger:hover { filter: none; background: var(--high); color: var(--on-fill); box-shadow: 0 4px 22px -8px var(--high); transform: translateY(-1px); }
+.btn-go { background: var(--go); color: var(--go-ink); }
+.btn-go:hover { box-shadow: 0 4px 22px -6px var(--go); }
+.btn-yes { background: var(--good-bg); color: var(--good); border: 1px solid color-mix(in srgb, var(--good) 45%, transparent); }
+.btn-yes:hover { filter: none; background: color-mix(in srgb, var(--good) 24%, transparent); border-color: var(--good); box-shadow: none; }
+.btn-yes[aria-pressed="true"] { background: var(--go); color: var(--go-ink); border-color: var(--go); }
+.btn-no { background: transparent; color: var(--high); border: 1px solid color-mix(in srgb, var(--high) 45%, transparent); }
+.btn-no:hover { filter: none; background: var(--high-bg); border-color: var(--high); box-shadow: none; }
+.btn-no[aria-pressed="true"] { background: var(--high); color: var(--on-fill); border-color: var(--high); }
 /* Analysis starters (CLA/RPB): accent-tinted so they read as "run this", but
    outlined so a table row full of them never looks like a row of submits. */
 .btn-run { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-soft); letter-spacing: .02em; }

@@ -264,6 +264,15 @@ describe("Event anlegen: Raid", () => {
         expect(body).toMatchObject({ name: "Kara neu", instanceIds: ["kara"], size: 10 });
         expect(vi.mocked(client.send).mock.calls.some(([, p]) => p === "/api/raids")).toBe(false);
     });
+
+    // #728: a raid template is global (`raids` write) - the orga of a category creates events, not templates
+    it("offers no \"Als Vorlage speichern\" to who may not write raid templates (canSaveTemplate)", async () => {
+        ctx = context({ canSaveTemplate: false });
+        const user = userEvent.setup();
+        await atRaid(user);
+        expect(screen.queryByRole("button", { name: t("raidCreate.raid.saveAsTemplate") })).not.toBeInTheDocument();
+        expect(screen.queryByRole("group", { name: t("raidCreate.raid.saveAsTemplate") })).not.toBeInTheDocument();
+    });
 });
 
 describe("Event anlegen: Kanal & Anmeldung", () => {

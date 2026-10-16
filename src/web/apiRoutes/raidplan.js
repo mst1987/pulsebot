@@ -31,11 +31,18 @@
 // people (docs/permissions.md). The area gate (apiAccess.js) decides read vs.
 // write by method. The public route is listed in UNGATED there; it hands out
 // only what /p/<token> shows.
+//
+// The writes on one event's plan (PUT, suggest, publish, groups, an event plan's
+// map, apply, link) are `orgaScoped` (#726, epic #723): `raidplan` write for every
+// raid as before (`globalByWrite` - no orga rank needed), and besides it the
+// manager of the raid category's current roster for the raids of that category.
+// Templates, tactic profiles, the catalog and the default maps stay `raidplan`
+// write only; the editor's answer says so (`canWriteLibrary`).
 const { ok, okWithEtag, error } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { readRawBody } = require("../http/apiBody");
 const { sendFailure } = require("../http/apiResult");
-const { userCan } = require("../../config/permissions");
+const { userCan, userIsOrga } = require("../../config/permissions");
 const auth = require("../http/auth");
 const { getEvent, isOwnEventId } = require("../../stores/eventStore");
 const store = require("../../stores/raidplanStore");
@@ -56,11 +63,28 @@ const { syncRaidplanPost } = require("../../services/raidplan/raidplanPost");
 const { getConfig } = require("../../stores/configStore");
 const { planningRefusal } = require("../../services/events/planning");
 
-// A write on an event plan: an archived event (a hidden game version, #563) is read only.
+// A write on an event plan: an archived event (a hidden game version, #563) is read only, and the orga of a
+// category (#726, `orgaScoped`) may change only the plans of their own category's raids.
 const BY_EVENT = (body) => body.event;
+// a read of one event's plan names it in the query
+const BY_QUERY = (body, query) => query.get("event");
 const { archiveOf } = require("../../services/events/eventArchive");
+const { userSeesEvent } = require("../../services/signups/eventVisibility");
+const raidplanAccess = require("../raidplan/raidplanAccess");
+const { requestCache } = require("../../services/roster/categoryOrga");
 
-const canWrite = (user) => userCan(user, "raidplan", "write");
+// The plan of one event (#726): `raidplan` write for every raid (the area goes to the people who write the
+// tactics, orga rank or not), else the manager of the raid's category - raidplanAccess.js mirrors it per event.
+const EVENT_PLAN = { orgaScoped: BY_EVENT, globalByWrite: true, write: "raidplan", csrf: true, body: true, archived: BY_EVENT };
+
+/** The event a map key belongs to (`e/<event>/<boss>`); a default or template map names none (the library's). */
+function eventOfMapKey(key) {
+    const scope = store.mapScope(key);
+    return scope && scope.scope === "e" ? scope.id : "";
+}
+
+/** The editor's view after a write the gate let through: the plan is the caller's, the library only with `raidplan` write. */
+const writtenView = (event, user) => raidplan.editorView(event, { canWrite: true, canWriteLibrary: raidplanAccess.canWriteLibrary(user) });
 
 /**
  * The event of a request's plan (raidplanRosterSource.planEventFor): an own event, or a Raid-Helper event whose plan is switched on -
@@ -84,17 +108,33 @@ function knownRosterOf(found) {
 }
 
 
-/** GET /api/raidplan?event=<id>[&fresh=1] — `fresh` asks Raid-Helper again now ("Neu laden") instead of the minute's cache. */
-const getPlan = withUser({}, async ({ user, res, url }) => {
-    const found = await eventOf(res, url.searchParams.get("event"), { fresh: url.searchParams.get("fresh") === "1" });
+/**
+ * GET /api/raidplan?event=<id>[&fresh=1] — `fresh` asks Raid-Helper again now ("Neu laden") instead of the minute's cache.
+ * Area `raidplan` read, or the orga of the raid's category (#729, `orgaRead`): they plan it (#726), so they read it too.
+ */
+const getPlan = withUser({ orgaRead: BY_QUERY }, async ({ user, req, res, url }) => {
+    // a raid of a category the raider may not see answers like an unknown one (eventVisibility.js); the orga passes at once
+    const eventId = String(url.searchParams.get("event") || "").trim();
+    if (!userIsOrga(user)) {
+        const own = isOwnEventId(eventId) ? getEvent(eventId) : null;
+        const guildId = own ? own.guildId || "" : activeGuildFor(req);
+        const loadGroups = () => loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
+        // the orga of the raid's category (#726) plans it, whether or not they could sign up for it
+        const sees = (await userSeesEvent(user, { guildId, eventId, loadGroups, cache: requestCache(req) })) || (await raidplanAccess.managesRaid(user, eventId, req));
+        if (!sees) return error(res, 404, "not_found", "Event nicht gefunden.");
+    }
+    const found = await eventOf(res, eventId, { fresh: url.searchParams.get("fresh") === "1" });
     if (!found) return;
     // An archived event (a hidden game version, #563) opens read only, whatever the caller may do.
     const archived = archiveOf(found.event);
-    ok(res, { ...raidplan.editorView(found.event, { canWrite: canWrite(user) && !archived, me: user && user.id ? String(user.id) : "" }), archived });
+    // `canWrite` follows the gate of the write routes per event (raidplanAccess.js): no button without the right
+    const canWrite = !archived && await raidplanAccess.canWriteRaidplan(user, found.event.id, req);
+    const canWriteLibrary = raidplanAccess.canWriteLibrary(user);
+    ok(res, { ...raidplan.editorView(found.event, { canWrite, canWriteLibrary, me: user && user.id ? String(user.id) : "" }), archived });
 });
 
 /** PUT /api/raidplan — body `{ event, version, bosses }` */
-const putPlan = withUser({ write: "raidplan", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const putPlan = withUser(EVENT_PLAN, async ({ user, body, res }) => {
     const found = await eventOf(res, body.event);
     if (!found) return;
     const event = found.event;
@@ -107,7 +147,7 @@ const putPlan = withUser({ write: "raidplan", csrf: true, body: true, archived: 
         knownRoster: knownRosterOf(found),
     });
     if (result.error) return sendFailure(res, result);
-    ok(res, { ...raidplan.editorView(await refreshed(found), { canWrite: true }), dropped: result.dropped });
+    ok(res, { ...writtenView(await refreshed(found), user), dropped: result.dropped });
 });
 
 /**
@@ -116,9 +156,10 @@ const putPlan = withUser({ write: "raidplan", csrf: true, body: true, archived: 
  * role, `context`: the board's rows of the other types, so the ranking knows who tanks and who has how many tasks; `keep`: the rows of that type made by hand; the
  * raiders they name are taken, the class-based suggestions go round the others): suggested assignments of one
  * type from the board's placeholder slots and (with an event) its lineup. Nothing is saved;
- * the editor shows them marked as a suggestion. An unknown type answers an empty list.
+ * the editor shows them marked as a suggestion. An unknown type answers an empty list. Without an event (the template
+ * editor) it is the library's: the category orga names their raid or is refused (`orgaScoped` names nothing then).
  */
-const postSuggest = withUser({ write: "raidplan", csrf: true, body: true, archived: BY_EVENT }, async ({ body, res }) => {
+const postSuggest = withUser(EVENT_PLAN, async ({ body, res }) => {
     let event;
     if (body.event) { const found = await eventOf(res, body.event); if (!found) return; event = found.event; }
     const type = String(body.type || "");
@@ -126,13 +167,13 @@ const postSuggest = withUser({ write: "raidplan", csrf: true, body: true, archiv
 });
 
 /** POST /api/raidplan/publish — body `{ event, published, rotate? }` */
-const postPublish = withUser({ write: "raidplan", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postPublish = withUser(EVENT_PLAN, async ({ user, body, res }) => {
     const found = await eventOf(res, body.event);
     if (!found) return;
     store.setPublished(found.event.id, body.published === true, { rotate: body.rotate === true, userId: user.id });
     // A posted read link follows (#537): new token in, withdrawn share out.
     await syncRaidplanPost(found.event);
-    ok(res, raidplan.editorView(await refreshed(found), { canWrite: true }));
+    ok(res, writtenView(await refreshed(found), user));
 });
 
 /**
@@ -140,7 +181,7 @@ const postPublish = withUser({ write: "raidplan", csrf: true, body: true, archiv
  * raiders from, `null` = back to the default (the groups up to the raid's size). Written at once, no version step (the unsaved draft
  * of the boards stays valid); only valid values are kept. Answers the stored value and the one in effect.
  */
-const postGroups = withUser({ write: "raidplan", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postGroups = withUser(EVENT_PLAN, async ({ user, body, res }) => {
     const found = await eventOf(res, body.event);
     if (!found) return;
     const raw = body.includedGroups === null ? null : Array.isArray(body.includedGroups) ? body.includedGroups : undefined;
@@ -177,8 +218,12 @@ function mapKeyOk(res, key) {
     return true;
 }
 
+// A map of an event plan (`e/<event>/<boss>`) is that raid's (#726); a default or template map is the library's,
+// `raidplan` write only (the category orga names no event there and is refused).
+const MAP_RIGHTS = { globalByWrite: true, write: "raidplan", csrf: true };
+
 /** POST /api/raidplan/map?key=<key> — the body is the image itself. */
-const postMap = withUser({ write: "raidplan", csrf: true }, async ({ req, res, url }) => {
+const postMap = withUser({ ...MAP_RIGHTS, orgaScoped: (body, query) => eventOfMapKey(query.get("key")) }, async ({ req, res, url }) => {
     const key = String(url.searchParams.get("key") || "").trim();
     if (!mapKeyOk(res, key)) return;
     const buffer = await readRawBody(req, store.LIMITS.mapBytes);
@@ -189,7 +234,7 @@ const postMap = withUser({ write: "raidplan", csrf: true }, async ({ req, res, u
 });
 
 /** POST /api/raidplan/map/delete — body `{ key }` */
-const postMapDelete = withUser({ write: "raidplan", csrf: true, body: true }, async ({ body, res }) => {
+const postMapDelete = withUser({ ...MAP_RIGHTS, orgaScoped: (body) => eventOfMapKey(body.key), body: true }, async ({ body, res }) => {
     const key = String(body.key || "").trim();
     if (!mapKeyOk(res, key)) return;
     ok(res, { key, removed: store.deleteMap(key) });
@@ -199,7 +244,7 @@ const postMapDelete = withUser({ write: "raidplan", csrf: true, body: true }, as
  * POST /api/raidplan/apply — body `{ event, templateId, version, otherVersion? }`. A template of another game version than the event's
  * (#544) is only applied with `otherVersion: true` (the editor asks first); without it the answer is 409 `version_mismatch`.
  */
-const postApply = withUser({ write: "raidplan", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postApply = withUser(EVENT_PLAN, async ({ user, body, res }) => {
     const found = await eventOf(res, body.event);
     if (!found) return;
     const event = found.event;
@@ -217,7 +262,7 @@ const postApply = withUser({ write: "raidplan", csrf: true, body: true, archived
         trackKnown: !!knownRosterOf(found),
     });
     if (result.error) return sendFailure(res, result);
-    ok(res, raidplan.editorView(await refreshed(found), { canWrite: true }));
+    ok(res, writtenView(await refreshed(found), user));
 });
 
 function templateList() {
@@ -367,7 +412,10 @@ async function getProgress(req, res, url) {
     } else {
         const user = auth.getUser(req);
         if (!user) return error(res, 401, "unauthorized", "Nicht angemeldet.");
-        if (!userCan(user, "raidplan", "read")) return error(res, 403, "forbidden", "Kein Zugriff auf diesen Bereich.");
+        // `raidplan` read, or the orga of the raid's category, who opens its plan without it (#729, as GET /api/raidplan)
+        if (!userCan(user, "raidplan", "read") && !(await raidplanAccess.managesRaid(user, url.searchParams.get("event"), req))) {
+            return error(res, 403, "forbidden", "Kein Zugriff auf diesen Bereich.");
+        }
         const found = await eventOf(res, url.searchParams.get("event"));
         if (!found) return;
         event = found.event;
@@ -409,8 +457,8 @@ function linkView(eventId, ev, plan, pickedVersion = "") {
     };
 }
 
-/** GET /api/raidplan/link?event=<id> */
-const getLink = withUser({}, async ({ req, res, url }) => {
+/** GET /api/raidplan/link?event=<id> — the switch's dialog: `raidplan` read, or the orga of the raid's category (#729, `orgaRead`). */
+const getLink = withUser({ orgaRead: BY_QUERY }, async ({ req, res, url }) => {
     const id = String(url.searchParams.get("event") || "").trim();
     if (isOwnEventId(id)) return error(res, 400, "invalid", "Eigene Events haben ihren Raidplan immer.");
     const plan = store.getPlan(id);
@@ -442,7 +490,7 @@ function switchOnInput(body, before, ev, req) {
 }
 
 /** POST /api/raidplan/link — body `{ event, enabled, instanceIds?, size?, versionId?, composition? }` */
-const postLink = withUser({ write: "raidplan", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
+const postLink = withUser(EVENT_PLAN, async ({ user, body, req, res }) => {
     const id = String(body.event || "").trim();
     if (isOwnEventId(id)) return error(res, 400, "invalid", "Eigene Events haben ihren Raidplan immer.");
     const before = store.getPlan(id);

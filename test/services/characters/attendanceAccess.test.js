@@ -27,6 +27,11 @@ describe("services/characters/attendanceAccess", () => {
         expect(await canEditAttendance({ id: "x" }, "cat", { memberRoleIds: async () => { throw new Error("offline"); } })).toBe(false);
     });
 
+    it("bleibt wie vor #724: die Orga-Rolle allein, ohne raids-Schreibrecht und ohne Manager-Platz, darf nicht", async () => {
+        mockRosterForCategory.mockReturnValue(ROSTER);
+        expect(await canEditAttendance({ id: "o", isOrga: true, access: {} }, "cat", { memberRoleIds: async () => [] })).toBe(false);
+    });
+
     it("nimmt das Roster der Version des Abends; ein abgeschlossenes gibt kein Recht (#739)", async () => {
         mockRosterForCategory.mockImplementation((cat, version) => (version === "forever" ? ROSTER : { ...ROSTER, closedAt: "2026-10-01T00:00:00.000Z" }));
         expect(await canEditAttendance({ id: "m1" }, "cat", { versionId: "forever" })).toBe(true);

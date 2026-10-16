@@ -33,6 +33,15 @@ export type RaidListBase = {
     /** When (ms) and by whom — 0 / "" when unknown. */
     cancelledAt?: number;
     cancelledByName?: string;
+    /** Whether the caller is this raid's orga (#729): "Wiederholen", "Kanal fehlt", the logs. Missing on an older server. */
+    canOrga?: boolean;
+};
+/** What a raid list says about the caller (#729); missing on an older server. */
+export type RaidListOrga = {
+    /** the global orga, or the orga of a category: the page's orga parts (series, the logs column) */
+    orga?: boolean;
+    /** POST /api/raids lets them create: "Neues Event" */
+    canCreate?: boolean;
 };
 export type UpcomingRaid = RaidListBase & {
     signupCount: number;
@@ -47,12 +56,12 @@ export type PastRaid = RaidListBase & {
     pendingLogCount: number;
     lootCount: number;
 };
-export type RaidsData = {
+export type RaidsData = RaidListOrga & {
     events: UpcomingRaid[]; error: string | null; activeGuildId: string; guildName: string;
     /** The version filter (#545): what is shown, the default, and the choices. */
     version: string; mainVersion: string; versions: VersionChoice[];
 };
-export type PastRaidsData = {
+export type PastRaidsData = RaidListOrga & {
     events: PastRaid[]; error: string | null; activeGuildId: string;
     version: string; mainVersion: string; versions: VersionChoice[];
 };
@@ -160,6 +169,8 @@ export type RaidCreateContext = {
     defaultSchema?: string;
     /** the own event ?event= names, for the edit mode */
     editEvent?: OwnEvent | null;
+    /** "Als Vorlage speichern" writes a global raid template (`raids` write) - not the orga of a category's (#728) */
+    canSaveTemplate?: boolean;
 };
 
 /**

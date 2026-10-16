@@ -12,6 +12,10 @@
 // admins - with a category it is the category's system, one truth with
 // Einstellungen → Kategorien) and, on Loot-Council, the "Loot-Council-Profil"
 // (admins and the roster's managers) with a link "Profile verwalten".
+// Steps instead of one long form: a step bar on top (Name, Rollen, Manager,
+// Plätze, then Mitglieder for a new roster or Loot in the settings). A create
+// walks through with Zurück/Weiter and ends on "Roster anlegen"; the settings
+// jump freely between the steps and save from any of them.
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -23,11 +27,11 @@ import { useContentVersion } from "../../hooks/useContentVersion";
 import { useT } from "../../i18n";
 import { AsyncView, Button, Field, Modal, Segment, Switch, WowIcon, buttonClass, useConfirm } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { TrashIcon } from "../../components/ui/icons";
+import { CheckIcon, ChevronLeftIcon, ChevronRightIcon, TrashIcon, PlusIcon, SaveIcon } from "../../components/ui/icons";
 import { errorText, roleCodeText } from "../../lib/roster/rosterEdit";
 import { ROLE_ICONS } from "../../lib/roster/rosters";
 import { Notice, Stepper } from "./RosterParts";
-import { ManagerAccounts, RoleChips, SourcePicker } from "./RosterFormParts";
+import { ManagerAccounts, RoleSelect, SourcePicker } from "./RosterFormParts";
 import { useRosterAction } from "./useRosterAction";
 
 type FormState = {
@@ -137,6 +141,39 @@ function patchOf(form: FormState, base: FormState, create: boolean, admin: boole
         if (form.lootSystem !== base.lootSystem) out.lootSystem = form.lootSystem;
     }
     return out;
+}
+
+type StepId = "basics" | "roles" | "managers" | "slots" | "loot" | "source";
+
+/** The step bar: number (a check once passed, "!" where something is missing) and name; every step is clickable. */
+function StepBar({ steps, current, onPick, passed, bad }: {
+    steps: StepId[];
+    current: number;
+    onPick: (i: number) => void;
+    passed: (i: number) => boolean;
+    bad: (id: StepId) => boolean;
+}) {
+    const t = useT();
+    return (
+        <ol className="rn-steps" aria-label={t("roster.form.stepsLabel")}>
+            {steps.map((id, i) => {
+                const wrong = bad(id);
+                const done = !wrong && passed(i);
+                const cls = ["rn-stepbtn", i === current ? "is-on" : "", done ? "rn-stepbtn-done" : "", wrong ? "rn-stepbtn-bad" : ""].filter(Boolean).join(" ");
+                const name = t(`roster.form.steps.${id}`);
+                // the state is in the accessible name too: the symbol is aria-hidden and a data-tip is not read out
+                const spoken = wrong ? `${name} – ${t("roster.form.stepBad")}` : done ? `${name} – ${t("roster.form.stepDone")}` : name;
+                return (
+                    <li key={id}>
+                        <button type="button" className={cls} aria-current={i === current ? "step" : undefined} aria-label={spoken} data-tip={wrong ? t("roster.form.stepBad") : name} onClick={() => onPick(i)}>
+                            <span className="rn-stepbtn-no" aria-hidden="true">{wrong ? "!" : done ? <CheckIcon /> : i + 1}</span>
+                            <span className="rn-stepbtn-lbl">{name}</span>
+                        </button>
+                    </li>
+                );
+            })}
+        </ol>
+    );
 }
 
 const LOOT_SYSTEMS = ["softres", "lootcouncil", "gdkp", "other"];
@@ -251,6 +288,7 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
     const lockTip = admin ? undefined : t("roster.form.adminOnly");
     const locked = !admin;
     const category = options.categories.find((c) => c.id === form.categoryId) || null;
+    const shownVersion = options.versions.find((v) => v.id === form.versionId) || null;
     const template = form.categoryId ? options.templateSlots[form.categoryId] : null;
     const dps = Math.max(0, form.slots.total - form.slots.tank - form.slots.healer);
     const slotsBad = form.slots.tank + form.slots.healer > form.slots.total && form.slots.total > 0;
@@ -260,6 +298,17 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
     const pairTaken = !!category && (category.rosters || []).some((r) => r.versionId === form.versionId && r.id !== data?.roster.id);
     const patch = patchOf(form, base, create, admin);
     const nothing = !create && !Object.keys(patch).length;
+    const steps: StepId[] = ["basics", "roles", "managers", "slots", ...(create ? ["source" as const] : data ? ["loot" as const] : [])];
+    const [step, setStep] = useState(0);
+    // the steps really opened: only they get the check (create) or the "!" - a jump does not tick the ones skipped
+    const [visited, setVisited] = useState<number[]>([0]);
+    const stepId = steps[step];
+    const last = step === steps.length - 1;
+    const stepBad = (id: StepId) => (id === "basics" && (nameBad || pairTaken)) || (id === "slots" && slotsBad) || (id === "source" && sourceBad);
+    const goTo = (i: number) => {
+        setStep(i);
+        setVisited((v) => (v.includes(i) ? v : [...v, i]));
+    };
 
     const pickCategory = (id: string) => {
         const cat = options.categories.find((c) => c.id === id) || null;
@@ -300,11 +349,20 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
 
     const footer = done ? (
         <Button onClick={() => navigate(`/roster/r/${encodeURIComponent(done.roster.id)}`)}>{t("roster.form.toRoster")}</Button>
+    ) : create ? (
+        <>
+            {step > 0
+                ? <Button variant="ghost" icon={<ChevronLeftIcon />} className="rn-foot-left" onClick={() => goTo(step - 1)}>{t("roster.form.back")}</Button>
+                : <Button variant="ghost" className="rn-foot-left" onClick={onClose}>{t("common.cancel")}</Button>}
+            {last
+                ? <Button icon={<PlusIcon />} disabled={slotsBad || sourceBad || nameBad || pairTaken} running={busy === "save"} onClick={submit}>{t("roster.form.create")}</Button>
+                : <Button variant="go" icon={<ChevronRightIcon />} disabled={stepBad(stepId)} onClick={() => goTo(step + 1)}>{t("roster.form.next")}</Button>}
+        </>
     ) : (
         <>
             {!create && admin && <Button variant="danger" icon={<TrashIcon />} className="rn-foot-left" running={busy === "delete"} onClick={remove}>{t("roster.form.delete")}</Button>}
             <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-            <Button disabled={slotsBad || sourceBad || nameBad || nothing || pairTaken} running={busy === "save"} onClick={submit}>{create ? t("roster.form.create") : t("roster.form.save")}</Button>
+            <Button variant="go" icon={<SaveIcon />} disabled={slotsBad || nameBad || nothing || pairTaken} running={busy === "save"} onClick={submit}>{t("roster.form.save")}</Button>
         </>
     );
 
@@ -317,12 +375,14 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
             kicker={create ? t("roster.form.kickerNew") : t("roster.form.kickerSettings")}
             title={create ? (category ? t("roster.form.titleFor", { name: category.name }) : t("roster.form.title")) : t("roster.form.settingsTitle", { name: data?.roster.name || "" })}
             width={720}
-            className="rn-dlg"
+            className={done ? "rn-dlg" : "rn-dlg rn-dlg-steps"}
             footer={footer}
         >
             {done ? <CreatedSummary roster={done.roster} initial={done.initial} /> : (
                 <>
-                    <section className="rn-dlg-sec">
+                    <StepBar steps={steps} current={step} onPick={goTo} passed={(i) => create && visited.includes(i) && i !== step} bad={(id) => visited.includes(steps.indexOf(id)) && stepBad(id)} />
+
+                    {stepId === "basics" && <section className="rn-dlg-sec">
                         <h3 className="rn-lbl">{t("roster.form.basics")}</h3>
                         <Field label={t("roster.form.name")} htmlFor="rn-f-name" hint={t("roster.form.nameHint")} error={nameBad ? t("roster.err.invalid_name") : undefined}>
                             <input id="rn-f-name" value={form.name} maxLength={40} onChange={(e) => set({ name: e.target.value })} />
@@ -343,32 +403,33 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
                             <div className="rn-field-line" data-tip={lockTip}>
                                 <span className="rn-lbl">{t("roster.form.version")}</span>
                                 {locked
-                                    ? <b>{options.versions.find((v) => v.id === form.versionId)?.label || form.versionId}</b>
-                                    : <Segment ariaLabel={t("roster.form.version")} value={form.versionId} onChange={(v) => set({ versionId: v })} options={options.versions.map((v) => ({ value: v.id, label: v.label }))} />}
+                                    ? <b className="rn-version">{shownVersion?.icon && <WowIcon name={shownVersion.icon} size={18} />}{shownVersion?.label || form.versionId}</b>
+                                    : <Segment ariaLabel={t("roster.form.version")} value={form.versionId} onChange={(v) => set({ versionId: v })} options={options.versions.map((v) => ({ value: v.id, label: v.label, icon: v.icon || undefined }))} />}
                             </div>
                         )}
-                    </section>
+                    </section>}
 
-                    <section className="rn-dlg-sec">
+                    {stepId === "roles" && <section className="rn-dlg-sec">
                         <h3 className="rn-lbl">{t("roster.form.roles")}</h3>
                         {!options.online && <Notice tone="warn">{t("roster.form.offline")}</Notice>}
                         {options.online && !options.canManageRoles && <Notice tone="warn">{t("roster.sync.noManageRoles")}</Notice>}
-                        <RoleChips roles={options.roles} value={form.roleIds} onChange={(roleIds) => set({ roleIds, trialRoleId: roleIds.includes(form.trialRoleId) ? "" : form.trialRoleId })} disabled={locked} disabledTip={lockTip} label={t("roster.form.roles")} />
+                        <RoleSelect roles={options.roles} value={form.roleIds} onChange={(roleIds) => set({ roleIds, trialRoleId: roleIds.includes(form.trialRoleId) ? "" : form.trialRoleId })} disabled={locked} disabledTip={lockTip} label={t("roster.form.roles")} />
                         <p className="rn-sub">{t("roster.form.rolesHint")}</p>
                         <div className="rn-lbl rn-lbl-sub">{t("roster.form.trialRole")}</div>
-                        <RoleChips roles={options.roles} value={form.trialRoleId ? [form.trialRoleId] : []} onChange={(ids) => set({ trialRoleId: ids[0] || "" })} multi={false} exclude={form.roleIds} disabled={locked} disabledTip={lockTip} label={t("roster.form.trialRole")} noneLabel={t("roster.form.noTrialRole")} />
-                    </section>
+                        <RoleSelect roles={options.roles} value={form.trialRoleId ? [form.trialRoleId] : []} onChange={(ids) => set({ trialRoleId: ids[0] || "" })} multi={false} exclude={form.roleIds} disabled={locked} disabledTip={lockTip} label={t("roster.form.trialRole")} noneLabel={t("roster.form.noTrialRole")} />
+                    </section>}
 
-                    <section className="rn-dlg-sec">
+                    {stepId === "managers" && <section className="rn-dlg-sec">
                         <h3 className="rn-lbl">{t("roster.form.managers")}</h3>
                         <p className="rn-sub">{t("roster.form.managersHint")}</p>
+                        <Notice>{t("roster.form.managersOrga")}</Notice>
                         <div className="rn-lbl rn-lbl-sub">{t("roster.form.managerRoles")}</div>
-                        <RoleChips roles={options.roles} value={form.managerRoleIds} onChange={(managerRoleIds) => set({ managerRoleIds })} requireManageable={false} disabled={locked} disabledTip={lockTip} label={t("roster.form.managerRoles")} />
+                        <RoleSelect roles={options.roles} value={form.managerRoleIds} onChange={(managerRoleIds) => set({ managerRoleIds })} requireManageable={false} disabled={locked} disabledTip={lockTip} label={t("roster.form.managerRoles")} />
                         <div className="rn-lbl rn-lbl-sub">{t("roster.form.managerUsers")}</div>
                         <ManagerAccounts users={form.managerUsers} onChange={(managerUsers) => set({ managerUsers })} versionId={form.versionId} disabled={locked} disabledTip={lockTip} />
-                    </section>
+                    </section>}
 
-                    <section className="rn-dlg-sec">
+                    {stepId === "slots" && <section className="rn-dlg-sec">
                         <h3 className="rn-lbl">{t("roster.form.slots")}</h3>
                         <div className="rn-targets">
                             <Stepper label={t("roster.form.slotTotal")} icon={<WowIcon name="achievement_guildperk_everybodysfriend" size={20} />} value={form.slots.total} onChange={(total) => set({ slots: { ...form.slots, total } })} />
@@ -380,21 +441,21 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
                             {slotsBad ? t("roster.err.invalid_slots") : form.slots.total > 0 ? t("roster.form.dps", { count: dps }) : t("roster.form.noSlots")}
                             {!slotsBad && template && create ? ` ${t("roster.form.fromTemplate", { name: template.templateName })}` : ""}
                         </p>
-                    </section>
+                    </section>}
 
-                    {!create && data && (
-                        <LootSection options={options} form={form} set={set} admin={admin} rosterId={data.roster.id} hasCategory={!!form.categoryId} />
-                    )}
-
-                    <section className="rn-dlg-sec">
+                    {stepId === "slots" && <section className="rn-dlg-sec">
                         <h3 className="rn-lbl">{t("roster.form.rules")}</h3>
                         <p className="rn-sub">{t("roster.form.rulesHint")}</p>
                         <Switch checked={form.allowMultipleChars} onChange={(allowMultipleChars) => set({ allowMultipleChars })} label={t("roster.form.multi")} tip={t("roster.form.multiTip")} />
                         <Switch checked={form.signupOnly} onChange={(signupOnly) => set({ signupOnly })} label={t("roster.form.signupOnly")} tip={t("roster.form.signupOnlyTip")} />
                         <Switch checked={form.publicRaids} onChange={(publicRaids) => set({ publicRaids })} label={t("roster.form.publicRaids")} tip={t("roster.form.publicRaidsTip")} />
-                    </section>
+                    </section>}
 
-                    {create && (
+                    {stepId === "loot" && data && (
+                        <LootSection options={options} form={form} set={set} admin={admin} rosterId={data.roster.id} hasCategory={!!form.categoryId} />
+                    )}
+
+                    {stepId === "source" && (
                         <section className="rn-dlg-sec">
                             <h3 className="rn-lbl">{t("roster.form.sourceTitle")}</h3>
                             <SourcePicker value={form.source} onChange={(source) => set({ source })} options={options} kaderId={form.kaderId} onKader={(kaderId) => set({ kaderId })} hasCategory={!!form.categoryId} hasRoles={form.roleIds.length > 0} />

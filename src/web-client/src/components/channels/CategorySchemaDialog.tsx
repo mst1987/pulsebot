@@ -6,7 +6,7 @@ import NamingBadge from "./NamingBadge";
 import ChannelEmojiPicker from "./ChannelEmojiPicker";
 import { instanceIdsOfTag } from "../../lib/raids/raidEmojis";
 import { Badge, Button, Modal } from "../ui";
-import { ChannelsIcon } from "../ui/icons";
+import { ChannelsIcon, SaveIcon } from "../ui/icons";
 import { useToast } from "../shell/Jobs";
 import { PlaceholderChips } from "./ChannelBulk";
 import { isTextLike, ownSchemaOf } from "../../lib/discord/channels";
@@ -87,7 +87,7 @@ export function CategorySchemaDialog({ data, categoryId, onClose, onSaved }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon="inv_letter_15" disabled={saving || !!planError} onClick={save}>{t("common.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} disabled={saving || !!planError} onClick={save}>{t("common.save")}</Button>
                 </>
             )}
         >

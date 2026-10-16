@@ -26,7 +26,10 @@ jest.mock("../../../src/stores/eventStore", () => ({
     }),
 }));
 let mockSignups = [];
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => mockSignups }));
+jest.mock("../../../src/stores/signupStore", () => ({
+    listSignups: () => mockSignups,
+    getSignup: (eventId, userId) => mockSignups.find((s) => String(s.userId) === String(userId)) || null,
+}));
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [] }));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
 jest.mock("../../../src/services/events/eventSources", () => ({
@@ -56,7 +59,8 @@ const { mockRes, status, body } = require("../../helpers/http");
 const { ownEvent } = require("../../factories/events");
 
 const ID = "eh-kara";
-const ORGA = { id: "orga", isAdmin: false, access: { raids: { read: true, write: true } } };
+// The orga is a role setting (permissions.userIsOrga), no area right: raider roles hold "raids" too.
+const ORGA = { id: "orga", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
 
 const url = (q) => new URL(`http://x/api/raids/setup?${q}`);
@@ -109,6 +113,31 @@ describe("access", () => {
         }
         expect(mockEvents.get(ID).setup).toBeNull();
         expect(setupMessage.publishSetup).not.toHaveBeenCalled();
+    });
+
+    // Oct 2026: the setup editor is the orga's - a raider role with raids write is no orga
+    it("gives a raider role with raids write neither the draft nor a write", async () => {
+        const raiderWriter = { id: "rw", isAdmin: false, access: { raids: { read: true, write: true } } };
+        await call(route.postPropose, ORGA, { event: ID });
+        const view = body(await call(route.getSetup, raiderWriter, null, `event=${ID}`));
+        expect(view.canWrite).toBe(false);
+        expect(view).not.toHaveProperty("publish");
+        for (const handler of [route.postPropose, route.putSetup, route.postApprove, route.postPublish]) {
+            const r = await call(handler, raiderWriter, { event: ID });
+            expect(status(r)).toBe(403);
+            expect(body(r).error.code).toBe("orga_only");
+        }
+    });
+
+    it("answers a raider the setup of a raid of a foreign category with the 404 of an unknown one", async () => {
+        mockConfig = { categoryIds: ["other"] };
+        const r = await call(route.getSetup, READER, null, `event=${ID}`);
+        expect(status(r)).toBe(404);
+        expect(body(r).error.code).toBe("not_found");
+        expect(status(await call(route.getSetup, ORGA, null, `event=${ID}`))).toBe(200);
+        // …but a raider signed up for it sees the approved lineup
+        const signedUp = { id: "mage", isAdmin: false, access: { raids: { read: true, write: false } } };
+        expect(status(await call(route.getSetup, signedUp, null, `event=${ID}`))).toBe(200);
     });
 });
 

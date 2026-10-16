@@ -2,21 +2,71 @@
 // page passes through in a row (shell code, page code, page data, a tab) keep
 // party, boss and rhythm instead of reshuffling, and only the first loader of a
 // wait fades in late.
+import type { ReactNode } from "react";
 import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { t } from "../../i18n";
 import RaidLoader, { CHAIN_MS, resetLoaderScene } from "./RaidLoader";
+import { bossesFor } from "../../lib/wow/loaderBosses";
+import { ContentVersionContext, type ContentVersionState } from "../../hooks/useContentVersion";
+import { LAST_VERSION_KEY } from "../../lib/app/contentVersion";
 
 /** The party and boss a loader draws, as one line of names. */
 const sceneOf = (el: HTMLElement) => [...el.querySelectorAll(".rl-name")].map((n) => n.textContent).join(",");
 const loaderIn = (container: HTMLElement) => container.querySelector<HTMLElement>(".rl")!;
+/** The boss a loader draws: the last name of the scene. */
+const bossOf = (container: HTMLElement) => [...container.querySelectorAll(".rl-name")].pop()!.textContent;
+const partyOf = (container: HTMLElement) => [...container.querySelectorAll(".rl-name")].slice(0, -1).map((n) => n.textContent).join(",");
+
+/** A loader inside the shell, showing `version`. */
+function inVersion(version: string, ui: ReactNode) {
+    const value: ContentVersionState = {
+        version, mainVersion: version, hidden: false, versions: [],
+        setVersion: () => undefined, refresh: () => Promise.resolve(),
+    };
+    return <ContentVersionContext.Provider value={value}>{ui}</ContentVersionContext.Provider>;
+}
 
 beforeEach(() => {
     resetLoaderScene();
+    localStorage.clear();
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-04T12:00:00Z"));
 });
 afterEach(() => { vi.useRealTimers(); });
+
+describe("RaidLoader per version", () => {
+    it("draws a boss of the version the menu shows", () => {
+        const forever = bossesFor("forever").map((b) => b.label);
+        for (let i = 0; i < 30; i++) {
+            resetLoaderScene();
+            const { container, unmount } = render(inVersion("forever", <RaidLoader />));
+            expect(forever).toContain(bossOf(container));
+            unmount();
+        }
+    });
+
+    it("before the shell knows the version, takes the one shown last in this browser", () => {
+        localStorage.setItem(LAST_VERSION_KEY, "forever");
+        const forever = bossesFor("forever").map((b) => b.label);
+        for (let i = 0; i < 30; i++) {
+            resetLoaderScene();
+            const { container, unmount } = render(<RaidLoader />);
+            expect(forever).toContain(bossOf(container));
+            unmount();
+        }
+    });
+
+    it("keeps the party but draws a boss of the new version when the wait turns to another version", () => {
+        const first = render(inVersion("tbc", <RaidLoader />));
+        const party = partyOf(first.container);
+        expect(bossesFor("tbc").map((b) => b.label)).toContain(bossOf(first.container));
+        const next = render(inVersion("forever", <RaidLoader />));
+        expect(partyOf(next.container)).toBe(party);
+        expect(bossesFor("forever").map((b) => b.label)).toContain(bossOf(next.container));
+        expect(loaderIn(next.container)).not.toHaveClass("rl-fresh");
+    });
+});
 
 describe("RaidLoader", () => {
     it("keeps the scene when one loading state hands over to the next", () => {

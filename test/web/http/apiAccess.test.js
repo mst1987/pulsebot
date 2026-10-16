@@ -1,5 +1,5 @@
 const { checkAccess, levelFor, AREA_BY_PATH, UNGATED, ANY_AREA, TOKEN_AUTH } = require("../../../src/web/http/apiAccess");
-const { ROUTES } = require("../../../src/web/http/routeTable");
+const { ROUTES, isOrgaScoped, isOrgaRead } = require("../../../src/web/http/routeTable");
 // The access table as it stood before the route table took over (#421):
 // every path with its area(s) and the three special sets, captured verbatim.
 const golden = require("./fixtures/apiAccess.golden.json");
@@ -270,6 +270,18 @@ describe("web/http/apiAccess", () => {
 
         it("marks exactly the routes of the golden master as adminOnly", () => {
             expect(ROUTES.filter((r) => r.adminOnly).map((r) => r.path).sort()).toEqual([...golden.adminOnly].sort());
+        });
+
+        // `orgaScoped` (#724) opens a route to the orga of a category: each one is a deliberate change here.
+        it("marks exactly the routes of the golden master as orgaScoped", () => {
+            expect(ROUTES.filter(isOrgaScoped).map((r) => `${r.method} ${r.path}`).sort()).toEqual([...golden.orgaScoped].sort());
+        });
+
+        // `orgaRead` (#729) opens a read of one raid to the orga of its category: each one is a deliberate change here.
+        it("marks exactly the routes of the golden master as orgaRead, each a GET", () => {
+            const marked = ROUTES.filter(isOrgaRead);
+            expect(marked.map((r) => `${r.method} ${r.path}`).sort()).toEqual([...golden.orgaRead].sort());
+            for (const r of marked) expect(r.method).toBe("GET");
         });
 
         // The system status (docs/system-status.md) shows host details: no area grant may open it.

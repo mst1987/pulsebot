@@ -16,6 +16,7 @@
 .toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 10px; font-size: 14px; line-height: 1.4; box-shadow: 0 8px 28px var(--shade-35); background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--line); color: var(--text); animation: toast-in .22s ease; }
 .toast-ok { border-left-color: var(--good); }
 .toast-err { border-left-color: var(--high); }
+.toast-warn { border-left-color: var(--medium); }
 .toast-run { border-left-color: var(--accent); }
 /* The job's WoW icon (JobSpec.icon) with the state as a dot on its corner:
    running = spinner, done = check, failed = "!". A toast without a job (notify)
@@ -28,6 +29,7 @@
 .toast-ico.is-bare .st svg { width: 11px; height: 11px; }
 .toast-ico .st.ok { background: var(--good); color: var(--on-good); }
 .toast-ico .st.err { background: var(--high); color: var(--on-fill); }
+.toast-ico .st.warn { background: var(--medium); color: var(--on-medium); }
 .toast-ico .st.run { background: var(--panel2); }
 .toast-ico .st.run i { width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--accent-soft); border-top-color: var(--accent); animation: toast-spin .8s linear infinite; }
 .toast-body { flex: 1; min-width: 0; }

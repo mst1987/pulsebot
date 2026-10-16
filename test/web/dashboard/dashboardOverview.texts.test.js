@@ -13,7 +13,7 @@ function allTasks() {
         ...buildTasks({
             nextRaids: [{ id: "n1", title: "BT", startTime: 100, sheet: null, planning: "sheet" }, { id: "n2", title: "Hyjal", startTime: 200, sheet: null }],
             recentEvents: [{ id: "e1", title: "Hyjal", startTime: 50, pendingLogCount: 2 }],
-            report: { id: "r1", zone: "Black Temple", generatedAt: 9, open: 7 },
+            report: { id: "r1", zone: "Black Temple", generatedAt: 9, gearRaiders: 7 },
             inbox: [{ items: [1, 2, 3] }],
             archive: { count: 3, overdue: 1, hintDays: 14 },
             roleDrift: { total: 4, groups: [{ roleName: "Raider", guildName: "Pulse Talk", members: [1, 2] }, { roleName: "Trial", guildName: "", members: [3] }] },
@@ -50,7 +50,7 @@ describe("dashboard task texts", () => {
             expect(task.texts.tipSub).toBeTruthy();
         }
         // ten kinds of task, every one of them here
-        expect(new Set(tasks.map((t) => t.id.split(":")[0]))).toEqual(new Set(["deploy", "series", "channel-missing", "sheet", "recommendations", "logs", "inbox", "channels", "rolesync", "trial"]));
+        expect(new Set(tasks.map((t) => t.id.split(":")[0]))).toEqual(new Set(["deploy", "series", "channel-missing", "sheet", "gear", "logs", "inbox", "channels", "rolesync", "trial"]));
     });
 
     it.each(CATALOGS)("finds every key in the %s catalog", (_lang, catalog) => {
@@ -65,7 +65,7 @@ describe("dashboard task texts", () => {
         // the first task of each id (the variants at the end repeat some ids)
         const byId = {};
         for (const task of tasks) if (!byId[task.id]) byId[task.id] = task;
-        expect(byId.recommendations.texts.tip).toEqual({ key: "recommendations.tip", params: { count: 7 } });
+        expect(byId.gear.texts.tip).toEqual({ key: "gear.tip", params: { count: 7 } });
         expect(byId.inbox.texts.ref).toEqual([{ key: "inbox.sessions", params: { count: 1 } }, { key: "inbox.items", params: { count: 3 } }]);
         expect(byId["channel-missing:eh-1"].texts.action).toEqual({ key: "channelMissing.action", params: {} });
         expect(byId.deploy.texts.title).toEqual([{ key: "deploy.title", params: { count: 2 } }, { key: "deploy.since", params: { count: 3 } }]);

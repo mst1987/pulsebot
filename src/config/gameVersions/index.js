@@ -45,6 +45,24 @@ function rulesFor(versionId) {
     return BY_ID.get(String(versionId || "")) || null;
 }
 
+/**
+ * The main professions a character of the version can enter in "Mein Profil"
+ * (Berufe, at most two): the rule set's `professions` - `[{ id, label,
+ * labelEn, icon }]` - and the highest skill, `professionSkillMax` (null = the
+ * profile keeps no skill). No rule set carries a list yet (the data is not
+ * confirmed, docs/roster-profile.md "Berufe"): an empty list hides the part.
+ * @returns {{ professions: { id: string, label: string, labelEn: string, icon: string }[], skillMax: number|null }}
+ */
+function professionsOf(versionId) {
+    const rules = rulesFor(versionId);
+    const list = rules && Array.isArray(rules.professions) ? rules.professions : [];
+    const max = rules && Number.isInteger(rules.professionSkillMax) && rules.professionSkillMax > 0 ? rules.professionSkillMax : null;
+    return {
+        professions: list.map((p) => ({ id: String(p.id), label: p.label || String(p.id), labelEn: p.labelEn || p.label || String(p.id), icon: p.icon || "" })),
+        skillMax: max,
+    };
+}
+
 /** One instance of a version, or null (also when the id belongs to another version). */
 function instance(versionId, id) {
     const rules = rulesFor(versionId);
@@ -175,6 +193,7 @@ function publicVersions() {
         id: v.id,
         label: v.label,
         short: v.short,
+        icon: v.icon || "",
         roles: ROLES.map((id) => ({ id, label: ROLE_LABELS[id] })),
         classes: v.classes,
         instances: v.instances.map((i) => ({
@@ -199,7 +218,7 @@ function publicVersions() {
 
 module.exports = {
     VERSIONS, DEFAULT_VERSION, LEGACY_VERSION, ROLES,
-    rulesFor, hasSheetLayout, instance, instanceById, spec, roleOfSpec,
+    rulesFor, professionsOf, hasSheetLayout, instance, instanceById, spec, roleOfSpec,
     defaultComposition, compositionFor, finalBossesOf, bossesOf,
     instanceForBoss, instanceForZone, iconOf, publicVersions,
 };

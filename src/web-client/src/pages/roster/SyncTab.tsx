@@ -19,6 +19,7 @@ import { classLabel } from "../../lib/wow/wowNames";
 import { CharChip, MemberAvatar, Notice } from "./RosterParts";
 import { useRosterAction } from "./useRosterAction";
 import type { AddPrefill } from "./AddMemberDialog";
+import { PlusIcon } from "../../components/ui/icons";
 
 type LogChar = RosterSync["logCharsWithoutPerson"][number];
 
@@ -85,7 +86,7 @@ function AssignPersonDialog({ char, data, onClose, onDone }: { char: LogChar; da
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button disabled={!member} running={busy === "assign"} onClick={submit}>{t("roster.sync.assignSubmit")}</Button>
+                    <Button variant="go" disabled={!member} running={busy === "assign"} onClick={submit}>{t("roster.sync.assignSubmit")}</Button>
                 </>
             )}
         >
@@ -202,7 +203,7 @@ export default function SyncTab({ data, sync, onChanged, onAdd, onOpen }: {
                             <div key={p.userId} className="rn-sync-row">
                                 <Person userId={p.userId} name={p.displayName} line={line} data={data} />
                                 {manage && main && m?.onServer !== false && <Button size="sm" variant="run" running={busy === `give-${p.userId}`} disabled={busy !== "" && busy !== `give-${p.userId}`} onClick={async () => { if (await giveRole(p.userId, p.displayName)) onChanged(); }}>{t("roster.detail.giveRole")}</Button>}
-                                {manage && m?.onServer === false && <Button size="sm" variant="ghost" running={busy === `remove-${p.userId}`} onClick={() => removeMember(p.userId, p.displayName)}>{t("roster.sync.takeOut")}</Button>}
+                                {manage && m?.onServer === false && <Button size="sm" variant="no" running={busy === `remove-${p.userId}`} onClick={() => removeMember(p.userId, p.displayName)}>{t("roster.sync.takeOut")}</Button>}
                             </div>
                         );
                     })}
@@ -213,7 +214,7 @@ export default function SyncTab({ data, sync, onChanged, onAdd, onOpen }: {
                     {sync.roleWithoutRoster.map((p) => (
                         <div key={p.userId} className="rn-sync-row">
                             <Person userId={p.userId} name={p.displayName} line={p.takeFailed ? t("roster.sync.takeFailed") : ""} data={data} />
-                            {manage && <Button size="sm" variant="ghost" onClick={() => onAdd({ userId: p.userId, displayName: p.displayName })}>{t("roster.sync.takeIn")}</Button>}
+                            {manage && <Button size="sm" variant="go" icon={<PlusIcon />} onClick={() => onAdd({ userId: p.userId, displayName: p.displayName })}>{t("roster.sync.takeIn")}</Button>}
                             {manage && <Button size="sm" variant="danger" running={busy === `take-${p.userId}`} onClick={() => takeRole(p.userId, p.displayName)}>{t("roster.sync.take")}</Button>}
                         </div>
                     ))}

@@ -13,7 +13,7 @@ import RaidIcon from "../components/raid/RaidIcon";
 import SignupDialog from "../components/signup/SignupDialog";
 import BulkSignupDialog from "../components/signup/BulkSignupDialog";
 import AvailabilitySection from "../components/signup/AvailabilitySection";
-import { ExternalIcon, XIcon } from "../components/ui/icons";
+import { ExternalIcon, SignedIcon, XIcon } from "../components/ui/icons";
 import { SIGNUP_STATUS, classesForRows, fillTone, missingVersionLabel, profileForRows, roleCountText, rowSubline, signedUpLabel, statusBadgeLabel } from "../lib/signups/status";
 import { specLabel } from "../lib/wow/wowNames";
 import { weekBands } from "../lib/raids/raidTime";
@@ -283,5 +283,5 @@ function OwnAction({ row, onOpen }: { row: OwnSignupRow; onOpen: () => void }) {
     if (row.deadlinePassed) {
         return <Button variant="ghost" size="sm" onClick={open} data-tip={t("signups.deadlinePassed")} data-tip-sub={t("signups.row.latePossible")}>{t("signups.row.offOrLate")}</Button>;
     }
-    return <Button size="sm" onClick={open}>{t("signups.signUp")}</Button>;
+    return <Button size="sm" variant="go" icon={<SignedIcon />} onClick={open}>{t("signups.signUp")}</Button>;
 }

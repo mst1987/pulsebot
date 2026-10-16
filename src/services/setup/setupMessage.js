@@ -74,7 +74,7 @@ const {
     roleEmojiName, emojiStyleOf,
 } = require("../discord/appEmojis");
 const { str, clip } = require("../../utils/text");
-const { approvedSetupOf, benchPosted, confirmationsFor, confirmButtonRow, inviteButtonRow, pingButtonRow } = require("./setupCore");
+const { approvedSetupOf, benchPosted, confirmationsFor, unansweredOf, confirmButtonRow, inviteButtonRow, pingButtonRow } = require("./setupCore");
 const { groupSummary } = require("../events/raidGroup");
 const { raidIndexOf } = require("../../utils/raidGroup");
 const { setupPingPlan, refreshSetupPing } = require("./setupPing");
@@ -248,8 +248,10 @@ function buildSetupBody(event, approved, { emojis, confirmations, withBench, lan
     const compUrl = linkCheck.webTarget("comp", event.id);
     const link = compUrl ? `[${tr(lang, "View the comp")}](${compUrl})` : "";
 
+    // "Ping unconfirmed" only while somebody in a group has not answered
+    const buttons = setupButtons(event, lang, { open: unansweredOf(approved, confirmations).length > 0 });
     const picture = image ? setupImageSvg(approved, { confirmations, bench: withBench, lang }) : null;
-    if (picture) return pictureMessage(event, approved, { title, description, link, svg: picture.svg, lang });
+    if (picture) return pictureMessage(event, approved, { title, description, link, svg: picture.svg, lang, buttons });
 
     // Tried in order until the embed fits: icons everywhere, a plain bench, plain groups too.
     const variants = [{ groupIcons: true, benchIcons: true }, { groupIcons: true, benchIcons: false }, { groupIcons: false, benchIcons: false }];
@@ -283,13 +285,13 @@ function buildSetupBody(event, approved, { emojis, confirmations, withBench, lan
         if (embedLength(embed) <= LIMITS.total) break;
     }
     if (approved.approvedAt) embed.timestamp = new Date(Number(approved.approvedAt)).toISOString();
-    // Confirm, Cancel, Call invites, Ping everyone — one row (Discord's limit
-    // is 5 buttons), in that order; the rows come from setupCore.js, so this
-    // module never requires a *Bot.js back. Access is per button:
-    // Confirm/Cancel are every raider's own (accessOf "event-signup" in the
-    // command file), Call invites and Ping everyone the orga's alone (accessOf
+    // Confirm, Cancel, Call invites, Ping everyone, Ping unconfirmed — one row
+    // (Discord's limit is 5 buttons), in that order; the rows come from
+    // setupCore.js, so this module never requires a *Bot.js back. Access is per
+    // button: Confirm/Cancel are every raider's own (accessOf "event-signup" in
+    // the command file), Call invites and both pings the orga's alone (accessOf
     // "event") — merging the row changes nothing about that.
-    return { content: "", embeds: [embed], components: [setupButtons(event, lang)] };
+    return { content: "", embeds: [embed], components: [buttons] };
 }
 
 /** "**Raid 2 of 2**" for a raid of a group (#811), "" otherwise. */
@@ -318,7 +320,7 @@ function cancelledMessage(event, title, { emojis, lang }) {
 }
 
 /** The setup message with the drawn groups as its embed image (design "F"): header, comp link, footer, buttons. */
-function pictureMessage(event, approved, { title, description, link, svg, lang }) {
+function pictureMessage(event, approved, { title, description, link, svg, lang, buttons }) {
     const embed = {
         title,
         color: embedColor(event),
@@ -329,14 +331,17 @@ function pictureMessage(event, approved, { title, description, link, svg, lang }
     };
     if (!embed.description) delete embed.description;
     if (approved.approvedAt) embed.timestamp = new Date(Number(approved.approvedAt)).toISOString();
-    return { content: "", embeds: [embed], components: [setupButtons(event, lang)], images: [{ name: SETUP_IMAGE, svg }] };
+    return { content: "", embeds: [embed], components: [buttons], images: [{ name: SETUP_IMAGE, svg }] };
 }
 
-/** Confirm, Cancel, Call invites, Ping everyone - the one row under the setup message. */
-function setupButtons(event, lang) {
+/** Confirm, Cancel, Call invites, Ping everyone (+ Ping unconfirmed with `open`) - the one row under the setup message. */
+function setupButtons(event, lang, { open = false } = {}) {
     return {
         type: 1,
-        components: [...confirmButtonRow(event.id, lang).components, ...inviteButtonRow(event.id, lang).components, ...pingButtonRow(event.id, lang).components],
+        components: [
+            ...confirmButtonRow(event.id, lang).components, ...inviteButtonRow(event.id, lang).components,
+            ...pingButtonRow(event.id, lang, { open }).components,
+        ],
     };
 }
 
@@ -509,7 +514,8 @@ async function payloadFor(event, approved, { contentPing = null } = {}) {
 function shownPing(event) {
     const ping = event && event.setupPost && event.setupPost.ping;
     if (!ping || !ping.inMessage) return null;
-    const plan = setupPingPlan(event, ping.by, { text: ping.text });
+    // "Ping unconfirmed": who answers since drops out of the list
+    const plan = setupPingPlan(event, ping.by, { text: ping.text, open: !!ping.open });
     return plan.error ? null : plan;
 }
 
@@ -566,7 +572,12 @@ async function postOrEditSetupMessage(eventId, { userId = "", now = Date.now(), 
         eventStore.setEventSetupPost(event.id, {
             channelId: String(channel.id), messageId: String(sent.id), version: approved.version,
             postedAt: now, postedBy: str(userId), editedAt: 0, editedBy: "", error: "", errorAt: 0,
-            ...(pinging ? { ping: { inMessage: true, userIds: pinging.userIds.map(String), text: String(pinging.text || ""), by: str(userId) } } : {}),
+            ...(pinging ? {
+                ping: {
+                    inMessage: true, userIds: pinging.userIds.map(String), text: String(pinging.text || ""), by: str(userId),
+                    ...(pinging.open ? { open: true } : {}),
+                },
+            } : {}),
         });
         if (repost) {
             // the message it replaces, and the ping card of the time before it (setupPing.refreshSetupPing's)
@@ -624,22 +635,25 @@ async function publishSetup(eventId, { userId = "", now = Date.now(), config = g
  * the setup is posted anew with the mentions, which notifies everybody placed in a group but
  * the caller, and the old message goes (head of this file). Runs in the event's queue, so a live
  * edit never lands on the message being replaced. Logged on the event.
- * @param {{ guildId: string, eventId: string, userId: string, byName?: string, text?: string }} p
+ * `open` is "Ping unconfirmed" (the same button row): only who has not answered yet is pinged,
+ * and the embed then names only who still has not, as long as the ping stands.
+ * @param {{ guildId: string, eventId: string, userId: string, byName?: string, text?: string, open?: boolean }} p
  * @returns {Promise<{ message: string, count: number, url?: string } | { error: object }>}
  */
-async function callSetupPing({ guildId, eventId, userId, byName = "", text } = {}) {
+async function callSetupPing({ guildId, eventId, userId, byName = "", text, open = false } = {}) {
     const event = eventStore.getEvent(eventId);
     if (!event || (guildId && event.guildId && event.guildId !== String(guildId))) {
         return fail(404, "not_found", "Event nicht gefunden.");
     }
-    const plan = setupPingPlan(event, userId, { text });
+    const plan = setupPingPlan(event, userId, { text, open });
     if (plan.error) return plan;
     if (!event.channelId) return fail(400, "no_channel", "Das Event hat keinen Kanal.");
     const post = await enqueue(event.id, () => postOrEditSetupMessage(event.id, { userId, ping: plan, repost: true }));
     if (post.code) return fail(502, "post_failed", `Konnte nicht posten: ${post.error}`);
     const count = plan.userIds.length;
-    eventStore.appendEventLog(event.id, { action: "setupPing", by: str(userId), byName, detail: `${count} Raider gepingt` });
-    return { message: `${count} Raider aus dem Setup gepingt.`, count, url: post.url || "" };
+    const who = open ? "Raider ohne Antwort" : "Raider";
+    eventStore.appendEventLog(event.id, { action: "setupPing", by: str(userId), byName, detail: `${count} ${who} gepingt` });
+    return { message: open ? `${count} Raider ohne Antwort gepingt.` : `${count} Raider aus dem Setup gepingt.`, count, url: post.url || "" };
 }
 
 /** eventId → the last queued live refresh, so the edits of quick moves land in order. */

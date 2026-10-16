@@ -81,7 +81,7 @@
         "evaluate": "Log auswerten",
         "newLoot": "Neuer Loot",
         "newLootTip": "Top-Items seit dem letzten Raid",
-        "newLootSub": "Vergeben seit {date}. Klick öffnet Latest Loot.",
+        "newLootSub": "Vergeben seit {date}. Klick öffnet die Vergaben.",
         "newLootNone": "Noch kein vergangener Raid bekannt.",
         "topItems": "Top-Items",
         "since": "seit {date}",
@@ -93,7 +93,7 @@
         "withoutDiscord": "{count} ohne Discord"
     },
     "loot": {
-        "title": "Latest Loot",
+        "title": "Neuester Loot",
         "crumb": "Top-Items",
         "historyLink": "Historie & Loot",
         "noneAwarded": "Noch keins der {count} Top-Items vergeben.",
@@ -259,13 +259,13 @@
             },
             "tipSub": "Für den Raid wurde noch kein Sheet gefüllt, und seiner Kategorie ist kein festes Sheet zugewiesen. Öffnet das Raid-Event."
         },
-        "recommendations": {
-            "title": "Empfehlungen prüfen",
+        "gear": {
+            "title": "Gear-Probleme",
             "tip": {
-                "one": "{count} Empfehlung ungeprüft",
-                "other": "{count} Empfehlungen ungeprüft"
+                "one": "{count} Raider mit Gear-Problemen",
+                "other": "{count} Raider mit Gear-Problemen"
             },
-            "tipSub": "Niemand hat sie freigegeben oder verworfen – erst freigegebene Punkte gehen an die Raider. Öffnet den Report in der Sicht Raid."
+            "tipSub": "Fehlende Verzauberungen, leere Sockel, schwache Edelsteine – aus dem letzten Log. Öffnet den Report in der Sicht Raider."
         },
         "logs": {
             "title": "Logs zuordnen",

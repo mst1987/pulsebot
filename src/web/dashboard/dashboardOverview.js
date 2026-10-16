@@ -170,15 +170,6 @@ function notSignedUp({ missing = [], responded = [], specHistory = {} }) {
     ].sort((a, b) => order[a.status] - order[b.status] || a.name.localeCompare(b.name));
 }
 
-/** How many recommendations of a report nobody has approved or rejected yet. */
-function openRecommendations(reviewed) {
-    if (!reviewed) return 0;
-    const raid = (reviewed.raid || []).filter((i) => i.approved === null).length;
-    const players = (reviewed.players || [])
-        .reduce((n, p) => n + (p.items || []).filter((i) => i.approved === null).length, 0);
-    return raid + players;
-}
-
 /**
  * The "Letzte Auswertung" tile: the one number (problems) plus what the tooltip
  * breaks it into. `report` is the full stored report, `summary` its listReports() row.
@@ -194,6 +185,7 @@ function lastReportArea(summary, report) {
         : rows.length;
     const deaths = r.mechanics && r.mechanics.deaths;
     const gear = (r.players || []).reduce((n, p) => n + (p.issues || []).length, 0);
+    const gearRaiders = (r.players || []).filter((p) => (p.issues || []).length > 0).length;
     const consumables = ((r.consumables && r.consumables.players) || []).filter((p) => (p.buffed || 0) < 50).length;
     const buffs = ((r.raidBuffs && r.raidBuffs.players) || []).filter((p) => (p.missing || 0) > 0).length;
     return {
@@ -207,6 +199,7 @@ function lastReportArea(summary, report) {
         deaths: deaths ? deaths.total || 0 : null,
         avoidableDeaths: deaths ? deaths.avoidable || 0 : null,
         gear,
+        gearRaiders,
         consumables,
         buffs,
         problems: gear + consumables + buffs,
@@ -285,15 +278,17 @@ function buildTasks({
         });
     }
 
-    if (report && report.open > 0) {
+    // Reviewing and sending the recommendations is optional, so they are no
+    // task; what the last log says about the raiders' gear is.
+    if (report && report.gearRaiders > 0) {
         tasks.push({
-            id: "recommendations", tone: "mid", icon: "inv_scroll_03", title: "Empfehlungen prüfen",
+            id: "gear", tone: "mid", icon: "trade_engraving", title: "Gear-Probleme",
             ref: { title: report.zone || report.title, at: report.generatedAt || 0 },
-            count: report.open,
-            href: `/r/${encodeURIComponent(report.id)}#raid`,
-            tip: `${plural(report.open, "Empfehlung", "Empfehlungen")} ungeprüft`,
-            tipSub: "Niemand hat sie freigegeben oder verworfen – erst freigegebene Punkte gehen an die Raider. Öffnet den Report in der Sicht Raid.",
-            texts: { title: txt("recommendations.title"), tip: txt("recommendations.tip", { count: report.open }), tipSub: txt("recommendations.tipSub") },
+            count: report.gearRaiders,
+            href: `/r/${encodeURIComponent(report.id)}#raider`,
+            tip: `${plural(report.gearRaiders, "Raider", "Raider")} mit Gear-Problemen`,
+            tipSub: "Fehlende Verzauberungen, leere Sockel, schwache Edelsteine – aus dem letzten Log. Öffnet den Report in der Sicht Raider.",
+            texts: { title: txt("gear.title"), tip: txt("gear.tip", { count: report.gearRaiders }), tipSub: txt("gear.tipSub") },
         });
     }
 
@@ -395,7 +390,12 @@ function roleDriftTask(roleDrift) {
  * @param {{ eventId: string, title: string, startTime: number, channelName: string }[]} list
  */
 function missingChannelTasks(list, { canRecreate = false } = {}) {
-    return (list || []).map((m) => ({
+    return (list || []).map((m) => missingChannelTask(m, typeof m.canRecreate === "boolean" ? m.canRecreate : canRecreate));
+}
+
+/** One "Kanal fehlt" task; `canRecreate` per raid (#729: the orga of its category) or for the whole list. */
+function missingChannelTask(m, canRecreate) {
+    return ({
         id: `channel-missing:${m.eventId}`, tone: "bad", tile: "channels", icon: "inv_letter_15",
         title: `Kanal von ${m.title || "Raid"} fehlt`,
         ref: { title: m.channelName ? `#${m.channelName}` : m.title, at: (m.startTime || 0) * 1000 },
@@ -408,7 +408,7 @@ function missingChannelTasks(list, { canRecreate = false } = {}) {
             title: txt("channelMissing.title", { title: m.title || "Raid" }), tip: txt("channelMissing.tip"), tipSub: txt("channelMissing.tipSub"),
             ...(canRecreate ? { action: txt("channelMissing.action") } : {}),
         },
-    }));
+    });
 }
 
 /**
@@ -555,7 +555,7 @@ function trialTasks(list) {
 }
 
 module.exports = {
-    zoneFor, zoneForEvent, raidSize, roleTargets, roleFill, classCounts, notSignedUp, openRecommendations, lastReportArea, newLootSince, buildTasks,
+    zoneFor, zoneForEvent, raidSize, roleTargets, roleFill, classCounts, notSignedUp, lastReportArea, newLootSince, buildTasks,
     isAttending, trialTasks,
     // only for the tests (#424): not part of the module's API
     _internal: {

@@ -78,11 +78,14 @@ const itemCache = new Map();
  * squished out of the modern game come back as quality 0 there — grey, when
  * they were epic. Cached in-memory; returns null on a missing id or any error
  * (best-effort, like searchItems — a lookup failure just means the item keeps
- * showing as "Item <id>").
+ * showing as "Item <id>"). With `strict` an unknown item (Wowhead's 404 or an
+ * answer without a name) is still null, but Wowhead not answering (timeout,
+ * network, 5xx) throws - a caller that refuses an unknown item must not refuse
+ * a known one only because Wowhead was down (profile wish items).
  * @param {number|string} itemId
- * @param {object} [opts] { edition, path } - `path` a version's Wowhead path, wins over the edition
+ * @param {object} [opts] { edition, path, strict } - `path` a version's Wowhead path, wins over the edition
  */
-async function lookupItem(itemId, { edition = "tbc", path = "" } = {}) {
+async function lookupItem(itemId, { edition = "tbc", path = "", strict = false } = {}) {
     const id = Number(itemId) || 0;
     if (!id) return null;
     const branch = branchFor(edition, path);
@@ -106,6 +109,7 @@ async function lookupItem(itemId, { edition = "tbc", path = "" } = {}) {
         return result;
     } catch (e) {
         console.error("wowhead item lookup failed:", e.message);
+        if (strict && !(e.response && e.response.status === 404)) throw e;
         return null;
     }
 }

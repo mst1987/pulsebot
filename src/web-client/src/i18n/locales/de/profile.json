@@ -53,7 +53,52 @@
         "calendarActive": {
             "one": "{count} Link aktiv",
             "other": "{count} Links aktiv"
-        }
+        },
+        "attendance": "Deine Anwesenheit",
+        "roster": "Im Roster",
+        "loot": "Loot",
+        "dungeons": "Dungeon-Bestzeiten",
+        "loading": "wird geladen",
+        "loadError": "ließ sich nicht laden",
+        "professions": "Berufe",
+        "wishItems": "Wunsch-Items"
+    },
+    "days": {
+        "tagFrom": "{day} ab {time}",
+        "timesKicker": "Ab wann · in Viertelstunden · leer = ganzer Abend",
+        "fromAria": "Ab wann am {day}",
+        "from": "ab {time}",
+        "wholeEvening": "ganzer Abend",
+        "earlier": "Früher",
+        "later": "Später",
+        "clear": "Ganzer Abend",
+        "clearSub": "Die Uhrzeit für {day} entfernen – dann gilt der ganze Abend."
+    },
+    "prof": {
+        "none": "Wenn du magst – nichts muss.",
+        "withSkill": "{name} {skill}",
+        "free": "freiwillig",
+        "freeTip": "Freiwillig",
+        "freeSub": "Nur eine Info für die Orga, z. B. für Verzauberungen oder Tränke. Nichts muss.",
+        "invite": "Wenn du magst, trag bis zu {max} Hauptberufe ein. Nichts muss.",
+        "skillAria": "Fertigkeit {name}",
+        "ofMax": "von {max}",
+        "less": "Weniger",
+        "more": "Mehr",
+        "remove": "{name} entfernen",
+        "pickAria": "Hauptberuf für {name} wählen"
+    },
+    "wishItems": {
+        "count": "{count} von {max}",
+        "none": "Wenn du magst – nichts muss.",
+        "orgaOnlySub": "Deine Wunsch-Items sehen nur du und die Orga – andere Raider nie.",
+        "invite": "Wenn du magst, trag bis zu {max} Items ein, die du dir wünschst. Nichts muss.",
+        "remove": "{name} entfernen",
+        "readOnly": "Dieser Charakter ist gerade in keinem Loot-Council-Roster – deine Wunsch-Items bleiben sichtbar, neue kommen erst wieder dazu, wenn er in einem ist. Entfernen geht jederzeit.",
+        "wowheadDown": "Wowhead antwortet gerade nicht – das Item ist nicht gespeichert. Bitte gleich noch einmal versuchen.",
+        "search": "Item suchen …",
+        "full": "{max} Items eingetragen – nimm eins heraus, um ein anderes einzutragen.",
+        "hint": "Ein Wunsch, keine Zusage – die Orga sieht ihn beim Loot-Council."
     },
     "first": {
         "title": "Noch kein Charakter",
@@ -233,8 +278,81 @@
     },
     "tabs": {
         "aria": "Ansicht",
-        "own": "Mein Profil",
-        "all": "Alle Charaktere"
+        "info": "Meine Infos",
+        "infoTip": "Was zu dir gehört, nicht zu einem Charakter: Anwesenheit, Wochentage, Wünsche, Notiz, Kalender",
+        "all": "Alle Charaktere",
+        "allTip": "Alle Charaktere aller Raider – nur für die Orga.",
+        "addTip": "Einen weiteren Charakter dieser Spielversion anlegen – aus den Logs, über die Armory oder von Hand.",
+        "orga": "Orga",
+        "more": "Alle Reiter zeigen",
+        "noSpec": "noch kein Spec"
+    },
+    "info": {
+        "groupRaiding": "Raiden · gilt für alle Charaktere der Version",
+        "groupLinks": "Verknüpfungen",
+        "groupPrefs": "Vorlieben"
+    },
+    "attendance": {
+        "none": "noch kein Raid gezählt",
+        "sum": {
+            "one": "{pct} % · {attended} von {count} Raid · {name}",
+            "other": "{pct} % · {attended} von {count} Raids · {name}"
+        },
+        "more": {
+            "one": "+ {count} weitere Kategorie",
+            "other": "+ {count} weitere Kategorien"
+        },
+        "open": "Zur Anwesenheit"
+    },
+    "roster": {
+        "sumOther": "mit einem anderen Charakter im Roster",
+        "none": "Mit diesem Charakter bist du in keinem Roster dieser Version.",
+        "since": "seit {date}",
+        "trialUntil": "Probezeit bis {date}",
+        "thisChar": "mit diesem Charakter",
+        "otherChar": "mit {names}",
+        "spec": "zählt als {spec}",
+        "readOnly": "Den Status setzt die Orga – hier nur zum Nachsehen."
+    },
+    "loot": {
+        "sum": {
+            "one": "{count} Item · zuletzt {date}",
+            "other": "{count} Items · zuletzt {date}"
+        },
+        "none": "Noch kein Loot für diesen Charakter.",
+        "history": {
+            "one": "{count} Item in der Historie",
+            "other": "Alle {count} Items in der Historie"
+        },
+        "itemFallback": "Item {id}"
+    },
+    "dungeons": {
+        "badge": "LevelHelper",
+        "badgeTip": "Aus dem Addon LevelHelper",
+        "badgeSub": "Das Sync-Tool lädt Läufe und Erfolgspunkte hoch. Zugeordnet über Name und Realm.",
+        "points": "Erfolgspunkte",
+        "pointsSum": "{points} Erfolgspunkte",
+        "pointsRank": "Platz {rank} von {count}",
+        "pointsNone": "noch nicht gelesen",
+        "medals": "Medaillen",
+        "medal": "{count} {medal}",
+        "runs": {
+            "one": "{count} Lauf",
+            "other": "{count} Läufe"
+        },
+        "fromRuns": {
+            "one": "aus {count} Lauf",
+            "other": "aus {count} Läufen"
+        },
+        "fastest": "Deine schnellsten Läufe",
+        "record": "Gildenrekord",
+        "place": "Platz {place} in der Gilde",
+        "solo": "allein",
+        "withOthers": {
+            "one": "mit {count} anderen",
+            "other": "mit {count} anderen"
+        },
+        "open": "Zu den Bestzeiten"
     },
     "all": {
         "loading": "Lade alle Charaktere …",
@@ -256,6 +374,15 @@
         "colSpecs": "Specs",
         "colVersion": "Version",
         "colStatus": "Status",
+        "colWish": "Wunsch-Items",
+        "wishTip": {
+            "one": "{count} Wunsch-Item – nur die Orga sieht es",
+            "other": "{count} Wunsch-Items – nur die Orga sieht sie"
+        },
+        "wishCount": {
+            "one": "{count} Item",
+            "other": "{count} Items"
+        },
         "noSpec": "keine Spec",
         "claimed": "doppelt",
         "via": {

@@ -27,7 +27,7 @@ import { useConfirm } from "../../components/ui/Modal";
 import BackButton from "../../components/ui/BackButton";
 import ArchiveBanner from "../../components/raid/ArchiveBanner";
 import { lootSystemEntry, raidhelperMenu, type ManageAction } from "../../lib/raids/eventManage";
-import { withoutDeeds } from "../../lib/raids/raidSteps";
+import { deedAllowed, withAllowedDeeds, withoutDeeds } from "../../lib/raids/raidSteps";
 import ManageMenu from "./manage/ManageMenu";
 import MoveModal from "./manage/MoveModal";
 import CancelModal from "./manage/CancelModal";
@@ -61,6 +61,8 @@ import LogAssignModal from "./modals/LogAssignModal";
 import type { PlayerRef, RaidCtx } from "./meta";
 import "../../styles/raid-detail.css";
 import RaidLoader from "../../components/ui/RaidLoader";
+import { OrgaZone } from "../../components/ui/OrgaZone";
+import { isOrga } from "../../lib/app/orgaArea";
 import { useT } from "../../i18n";
 import { lazyWithReload } from "../../lib/app/chunkReload";
 
@@ -140,10 +142,25 @@ export default function RaidDetailPage() {
     // An event of a hidden game version (#563) is an archive: readable, nothing
     // about it can be changed (the server refuses every write with 409 as well).
     const archived = (data && data.archived) || null;
-    const canWrite = canAccess(user, "raids", "write") && !archived;
+    // The orga gets the whole cockpit; a raider the raid as it interests them: date, category, signup
+    // list, setup, loot and the links. Whom the payload is for the server says (`data.orga`): the global
+    // orga (lib/app/orgaArea.ts — a full admin or an orga role, never an area right) and the orga of the
+    // raid's category (#729). The server already left the orga's parts out of a raider's payload.
+    const orga = data && typeof data.orga === "boolean" ? data.orga : isOrga(user);
+    // What may be done here comes from the server per raid (`viewer`, #729) - each the gate of the route
+    // its buttons call; an older server without it: the old rule.
+    const rights = data?.viewer;
+    const canWrite = (rights ? rights.canOrga : orga && canAccess(user, "raids", "write")) && !archived;
     const ctx: RaidCtx | null = data && {
-        data, eventId, onChanged: afterChange, openModal: setModal, openPlayer: setPlayer,
+        data, eventId, onChanged: afterChange, openModal: setModal,
+        // the player dialog shows other people's raids and loot: the orga's
+        openPlayer: orga ? setPlayer : undefined,
         canManage: data.event.source === "eventhelper" && canWrite,
+        canWrite,
+        // adding and deleting loot is `history` write, assigning and evaluating logs `cla` write - areas of their own
+        canLoot: orga && canAccess(user, "history", "write") && !archived,
+        canLogs: orga && canAccess(user, "cla", "write"),
+        orga, user,
     };
     const evaluator = useEvaluate({ onChanged: afterChange });
 
@@ -157,13 +174,18 @@ export default function RaidDetailPage() {
     // The raid plan (boards per boss): always on an own event, on a Raid-Helper event once the orga switched it on (its players then
     // come from Raid-Helper). The setup editor stays an own event's. The plan is its own area ("raidplan", docs/permissions.md).
     const planning = data.planning;
-    const hasPlan = canAccess(user, "raidplan") && planning !== "sheet" && (ownEvent || !!data.event.raidplanEnabled);
+    // The tab follows GET /api/raidplan's gate (`raidplan` read, or the orga of the raid's category, #729).
+    const hasPlan = (rights ? rights.canPlan : canAccess(user, "raidplan")) && planning !== "sheet" && (ownEvent || !!data.event.raidplanEnabled);
     // The sheet dialog only where the category plans with a sheet (an older server without `planning` keeps it).
     const hasSheet = planning !== "raidplan";
-    const tabs = TABS.filter((t) => (t === "setup" ? ownEvent : t === "plan" ? hasPlan : true));
-    const shown: Tab = (tab === "setup" && !ownEvent) || (tab === "plan" && !hasPlan) ? LEGACY_TABS.setup.tab : tab;
+    // the logs are the orga's work: a raider has no Logs tab
+    const tabs = TABS.filter((t) => (t === "setup" ? ownEvent : t === "plan" ? hasPlan : t === "logs" ? orga : true));
+    const shown: Tab = (tab === "setup" && !ownEvent) || (tab === "plan" && !hasPlan) || (tab === "logs" && !orga) ? LEGACY_TABS.setup.tab : tab;
 
+    // Log and loot deeds are areas of their own (#729): without `cla` / `history` write the step only informs.
+    const areaRights = { canLogs: !!ctx.canLogs, canLoot: !!ctx.canLoot };
     const openStep = (step: RaidStep) => {
+        if (step.open.modal && !deedAllowed({ modal: step.open.modal }, areaRights)) return;
         if (step.open.modal) setModal(step.open.modal);
         else if (step.open.tab) switchTab(step.open.tab);
     };
@@ -192,8 +214,10 @@ export default function RaidDetailPage() {
     // Event verwalten (#288): one menu for an own event, only with raids write.
     // Editing reuses the create dialog (#261), everything else is a dialog or one question.
     const canManage = !!ctx.canManage;
-    // A Raid-Helper event's menu holds the raid plan switch (raidplan write) and the loot system.
-    const canSwitchPlan = !ownEvent && !archived && planning !== "sheet" && canAccess(user, "raidplan", "write");
+    // A Raid-Helper event's menu holds the raid plan switch (POST /api/raidplan/link: raidplan write, or the
+    // orga of the raid's category, #729) and the loot system.
+    const canSwitchPlan = orga && !ownEvent && !archived && planning !== "sheet"
+        && (rights ? rights.canSwitchPlan : canAccess(user, "raidplan", "write"));
     // The loot system (once a chip in the head) is a menu entry for whoever may change it (raids write).
     const lootLabel = canWrite && data.lootSystem ? `${data.lootSystem.label}${data.lootSystem.softresExtra ? " + Softres" : ""}` : "";
     const raidhelperEntries = ownEvent ? [] : [
@@ -276,8 +300,9 @@ export default function RaidDetailPage() {
             if (log) evaluator.evaluate(log, deed.evaluate.section);
         }
     };
-    // Own event: the six-step bar. Without raids write it only informs.
-    const cockpit: RaidEventSteps | null = data.steps ? (canManage ? data.steps : withoutDeeds(data.steps)) : null;
+    // Own event: the six-step bar, the orga's. Without raids write it only informs; a raider gets none.
+    // Log and loot deeds additionally need their own areas (`cla` / `history` write, #729).
+    const cockpit: RaidEventSteps | null = orga && data.steps ? withAllowedDeeds(canManage ? data.steps : withoutDeeds(data.steps), areaRights) : null;
     const cockpitEval = cockpit?.action?.evaluate;
 
     return (
@@ -287,7 +312,8 @@ export default function RaidDetailPage() {
             <ArchiveBanner archive={archived} />
 
             <RaidDetailHero
-                data={data} onStep={archived ? () => undefined : openStep} onPrimary={archived ? () => undefined : runPrimary}
+                data={data} user={user} orga={orga} canAct={canWrite} allows={(action) => deedAllowed(action, areaRights)}
+                onStep={canWrite ? openStep : () => undefined} onPrimary={canWrite ? runPrimary : () => undefined}
                 lootInMenu={!!lootLabel && (canManage || raidhelperEntries.length > 0)}
                 onRecreateChannel={canManage ? () => void recreate() : undefined} recreating={recreating}
                 primaryRunning={!!primaryEval && evaluator.isRunning(primaryEval.logId, primaryEval.section)}
@@ -324,18 +350,23 @@ export default function RaidDetailPage() {
             {shown === "roster" && <RosterTab ctx={ctx} />}
             {shown === "setup" && <SetupTab ctx={ctx} />}
             {shown === "loot" && <LootTab ctx={ctx} />}
-            {shown === "logs" && <LogsTab ctx={ctx} evaluator={evaluator} />}
+            {shown === "logs" && orga && <OrgaZone user={user}><LogsTab ctx={ctx} evaluator={evaluator} /></OrgaZone>}
             {shown === "plan" && <Suspense fallback={<RaidLoader />}><RaidplanTab ctx={ctx} /></Suspense>}
 
-            <NotifyModal ctx={ctx} open={modal === "notify"} onClose={close} />
-            {hasSheet && <SheetModal ctx={ctx} open={modal === "sheet"} onClose={close} />}
+            {/* the action dialogs and the player dialog are the orga's: a raider gets none of them */}
+            {orga && (
+                <>
+                    <NotifyModal ctx={ctx} open={modal === "notify"} onClose={close} />
+                    {hasSheet && <SheetModal ctx={ctx} open={modal === "sheet"} onClose={close} />}
+                    <SoftresModal ctx={ctx} open={modal === "softres"} onClose={close} />
+                    <LootSystemModal ctx={ctx} open={modal === "lootsystem"} onClose={close} />
+                    <PingModal ctx={ctx} open={modal === "ping"} onClose={close} />
+                    <LootAddModal ctx={ctx} open={modal === "loot"} onClose={close} />
+                    <LogAssignModal ctx={ctx} open={modal === "log"} onClose={close} />
+                    <PlayerModal ctx={ctx} player={player} onClose={() => setPlayer(null)} />
+                </>
+            )}
             {data.raidplanPost && hasPlan && <RaidplanPostModal ctx={ctx} open={modal === "raidplan"} onClose={close} />}
-            <SoftresModal ctx={ctx} open={modal === "softres"} onClose={close} />
-            <LootSystemModal ctx={ctx} open={modal === "lootsystem"} onClose={close} />
-            <PingModal ctx={ctx} open={modal === "ping"} onClose={close} />
-            <LootAddModal ctx={ctx} open={modal === "loot"} onClose={close} />
-            <LogAssignModal ctx={ctx} open={modal === "log"} onClose={close} />
-            <PlayerModal ctx={ctx} player={player} onClose={() => setPlayer(null)} />
             {canManage && (
                 <>
                     <MoveModal ctx={ctx} open={modal === "move"} onClose={close} />

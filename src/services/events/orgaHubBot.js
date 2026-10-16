@@ -7,14 +7,12 @@
 // /event (the gate in bot.js judges the button by `accessOf: "event"`, like the
 // create flow's own selects) AND is the orga of this category — the global
 // orga (an admin or an orga role, permissions.userIsOrga) or a manager of the
-// category's roster (rosterAccess.isRosterOrga). Everybody else gets a short
-// refusal only they see.
+// category's roster - the rule the web shares (services/roster/categoryOrga.js).
+// Everybody else gets a short refusal only they see.
 const { MessageFlags } = require("discord.js");
 const { card } = require("../../utils/discord/card");
 const { initialState, stepMessage, clearNamePattern } = require("./eventDraft");
-const { resolveAccess } = require("../discord/userAccess");
-const { isRosterOrga } = require("../roster/rosterAccess");
-const { currentRoster } = require("../roster/categoryRoster");
+const categoryOrga = require("../roster/categoryOrga");
 
 const links = require("./orgaHubLinks");
 
@@ -27,9 +25,8 @@ function parseCustomId(customId) {
 }
 
 /** Whether the user is the orga of the category: global orga, or a manager of the roster it plays now. */
-async function isCategoryOrga(userId, categoryId) {
-    const user = { id: String(userId || ""), ...(await resolveAccess(userId)) };
-    return isRosterOrga(user, currentRoster(categoryId));
+function isCategoryOrga(userId, categoryId) {
+    return categoryOrga.isCategoryOrgaById(userId, categoryId);
 }
 
 /** The button's answer: the create flow with the category chosen, or the refusal. */
@@ -50,7 +47,7 @@ async function openCreateFlow(interaction, guildId) {
 /** Every `orga:` customId: "Raid anlegen" or one of the links' (orgaHubLinks.js). */
 async function handleOrga(interaction, guildId) {
     const { action } = parseCustomId(interaction.customId);
-    if (links.LINK_ACTIONS.includes(action)) return links.handleLinkAction(interaction, guildId, isCategoryOrga);
+    if (links.LINK_ACTIONS.includes(action)) return links.handleLinkAction(interaction, guildId);
     return openCreateFlow(interaction, guildId);
 }
 

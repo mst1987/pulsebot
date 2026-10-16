@@ -170,6 +170,9 @@ export type RaidplanPostState = {
     postedAt: number;
 };
 
+/** The caller's rights on one raid (GET /api/raids/detail `viewer`, #729). */
+export type RaidViewerRights = { canOrga: boolean; canPlan: boolean; canSwitchPlan: boolean };
+
 export type RaidDetailData = {
     event: RaidDetailEvent;
     /**
@@ -230,6 +233,17 @@ export type RaidDetailData = {
     lootSystem?: LootSystem;
     eventLogs: RaidLogRow[];
     unlinkedLogs: RaidLogRow[];
+    /**
+     * Whom the server built the payload for: false = a raider, whose payload has none of the orga's
+     * parts (logs, attendance, other people's comments, steps, dialog data). Missing on an older server.
+     */
+    orga?: boolean;
+    /**
+     * What the caller may do on this raid, each the gate of the route its buttons call (#729): `canOrga` the
+     * raid's actions (steps, Event verwalten, Aufruf, Ping, Invite, Raider eintragen, sheet, softres, loot
+     * system), `canPlan` the "Raidplan" tab, `canSwitchPlan` "Raidplan aktivieren". Missing on an older server.
+     */
+    viewer?: RaidViewerRights;
     /** The progress bar and the head's primary action. */
     progress: RaidProgress;
     /** Die Schritt-Leiste eines eigenen Events (#319); null bei Raid-Helper. */
@@ -311,8 +325,9 @@ export function postRaidSoftres(
 
 export type SoftresSearchItem = ItemSearchResult;
 
-export function searchSoftresItems(edition: string, q: string): Promise<{ items: SoftresSearchItem[] }> {
-    const qs = new URLSearchParams({ edition, q });
+/** The softres picker's item search for one raid: `event` lets the orga of its category search too (#728). */
+export function searchSoftresItems(edition: string, q: string, event: string): Promise<{ items: SoftresSearchItem[] }> {
+    const qs = new URLSearchParams({ event, edition, q });
     return get<{ items: SoftresSearchItem[] }>(`/api/raids/softres/item-search?${qs.toString()}`);
 }
 

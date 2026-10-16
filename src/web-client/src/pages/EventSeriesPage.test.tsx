@@ -79,6 +79,37 @@ describe("the series page", () => {
         expect(await within(dialog).findByText("überspringen")).toBeInTheDocument();
     });
 
+    it("offers \"Jetzt prüfen\" (every series at once) only where the server allows it (canRunAll, #728)", async () => {
+        const first = renderPage(<EventSeriesPage />, { route: "/raids/series" });
+        expect(await screen.findByRole("button", { name: "Jetzt prüfen" })).toBeInTheDocument();
+        first.unmount();
+        // the orga of a category writes their series but sweeps no others
+        vi.mocked(api.getEventSeries).mockResolvedValue({ ...DATA, canRunAll: false });
+        renderPage(<EventSeriesPage />, { route: "/raids/series" });
+        expect(await screen.findByRole("heading", { name: "Serien" })).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Jetzt prüfen" })).toBeNull();
+        expect(screen.getByRole("button", { name: "Serie einrichten" })).toBeInTheDocument();
+    });
+
+    it("offers the buttons per row: a global orga reading only writes only its own categories (writableCategoryIds, #728)", async () => {
+        const c1 = { ...DATA.categories[1], id: "c1", name: "Eigene" };
+        const c2 = { ...DATA.categories[1], id: "c2", name: "Fremde" };
+        vi.mocked(api.getEventSeries).mockResolvedValue({ ...DATA, categories: [c1, c2], canRunAll: false, writableCategoryIds: ["c1"] });
+        renderPage(<EventSeriesPage />, { route: "/raids/series" });
+        const own = (await screen.findByText("Eigene")).closest("li") as HTMLElement;
+        const foreign = screen.getByText("Fremde").closest("li") as HTMLElement;
+        expect(within(own).getByRole("button", { name: "Serie einrichten" })).toBeInTheDocument();
+        expect(within(foreign).queryByRole("button", { name: "Serie einrichten" })).toBeNull();
+    });
+
+    it("opens a foreign row's series read only (writableCategoryIds, #728)", async () => {
+        vi.mocked(api.getEventSeries).mockResolvedValue({ ...DATA, writableCategoryIds: ["c2"] });
+        renderPage(<EventSeriesPage />, { route: "/raids/series?edit=c1" });
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).queryByRole("button", { name: "Speichern" })).toBeNull();
+        expect(within(dialog).getByLabelText("Uhrzeit")).toBeDisabled();
+    });
+
     it("gives the fields the shared control look and skips a date with a switch, not a checkbox", async () => {
         renderPage(<EventSeriesPage />, { route: "/raids/series?edit=c1" });
         const dialog = await screen.findByRole("dialog");

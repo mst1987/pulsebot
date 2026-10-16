@@ -19,12 +19,14 @@ jest.mock("../../../src/services/discord/discord", () => ({
     listRoles: jest.fn(() => [{ id: "r1", name: "Raider" }]),
     resolveUserNames: jest.fn(async (g, ids) => Object.fromEntries(ids.map((id) => [id, `Name ${id}`]))),
     getGuild: jest.fn(() => null),
+    memberRoleIds: jest.fn(async () => []),
 }));
 jest.mock("../../../src/utils/raidhelper/client", () => ({ createRaidhelperClient: jest.fn(), raidhelperDisabled: jest.fn(() => false) }));
 jest.mock("../../../src/stores/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null) }));
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn(() => null), listRosters: jest.fn(() => []) }));
-jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(() => null) }));
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
+// `isClosed`: the raid plan's step asks the category orga (categoryOrga.canOrgaEvent, #726)
+jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn(() => null), listRosters: jest.fn(() => []), isClosed: jest.fn(() => false) }));
+jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(() => null), isOwnEventId: jest.fn((id) => String(id).startsWith("eh")) }));
+jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []), getSignup: jest.fn(() => null) }));
 jest.mock("../../../src/stores/raidplanStore", () => ({ getPlan: jest.fn(() => null) }));
 jest.mock("../../../src/stores/eventSheetStore", () => ({ getEventSheet: jest.fn(() => null) }));
 jest.mock("../../../src/stores/raidplanPostStore", () => ({ getRaidplanPost: jest.fn(() => null) }));
@@ -108,8 +110,10 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
             "raidsheets", "matchedSheetId", "setup", "setupError", "tankCandidates", "eventSheet", "sheetLink", "raidplanPost", "eventSoftres",
             "softresCatalogue", "softresEdition", "softresOff", "versionId", "wowheadPath", "archived", "softresSuggested", "attendance", "ownSignups", "ownSetup", "raidGroup", "ownSetupPost",
             "ownSetupEditors", "attendanceRoleIds", "attendanceSource", "membersError", "signupTarget", "lootItems", "lootTool", "lootSystem", "eventLogs", "unlinkedLogs",
-            "progress", "steps", "playerSummaries",
+            "orga", "viewer", "progress", "steps", "playerSummaries",
         ]);
+        // no rights handed in (an older caller): the orga's view counts as the orga's rights
+        expect(body.viewer).toEqual({ canOrga: true, canPlan: true, canSwitchPlan: true });
         expect(body.event).toEqual({
             id: "rh1", source: "raidhelper", title: "Kara Montag", startTime: FUTURE, channelId: "c1", channelName: "kara", channelState: "ok",
             signupCount: 2, isPast: false, signupsKnown: true, signUpsFromSnapshot: false, raidplanEnabled: true, raidhelperDisabled: true,
@@ -384,12 +388,198 @@ describe("GET /api/raids/detail (the route only speaks HTTP)", () => {
             return json(r).data.steps.steps.map((s) => s.id);
         };
         try {
+            // the step bar is the orga's (a raider gets none, see "a raider's read" below): every caller here is an orga role
             expect(await stepIds(ADMIN)).toContain("plan");
-            expect(await stepIds({ id: "o", isAdmin: false, access: { raids: { read: true, write: true } } })).not.toContain("plan");
-            expect(await stepIds({ id: "p", isAdmin: false, access: { raids: { read: true, write: false }, raidplan: { read: true, write: false } } })).not.toContain("plan");
-            expect(await stepIds({ id: "w", isAdmin: false, access: { raids: { read: true, write: false }, raidplan: { read: true, write: true } } })).toContain("plan");
+            expect(await stepIds({ id: "o", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true } } })).not.toContain("plan");
+            expect(await stepIds({ id: "p", isAdmin: false, isOrga: true, access: { raids: { read: true, write: false }, raidplan: { read: true, write: false } } })).not.toContain("plan");
+            expect(await stepIds({ id: "w", isAdmin: false, isOrga: true, access: { raids: { read: true, write: false }, raidplan: { read: true, write: true } } })).toContain("plan");
         } finally {
             mockUser = ADMIN;
         }
+    });
+});
+
+describe("a raider's read (Oct 2026: raids of foreign categories and the orga's parts are the orga's)", () => {
+    const RAIDER = { id: "u7", name: "Rai", isAdmin: false, access: { raids: { read: true, write: true } } };
+    const ORGA_ROLE = { id: "o1", name: "Lead", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true } } };
+    const read = async (user, eventId) => {
+        mockUser = user;
+        const r = mockRes();
+        await getRaidDetail({ headers: {} }, r, new URL(`http://x/api/raids/detail?event=${eventId}`));
+        mockUser = ADMIN;
+        return sent(r);
+    };
+    const rosterStore = require("../../../src/stores/rosterStore");
+    const signupStore = require("../../../src/stores/signupStore");
+    const signups = [
+        { userId: "u7", character: "Rai", spec: "Warrior-Arms", status: "signed", canAlso: ["tank"], comment: "mine", at: 1 },
+        { userId: "u8", character: "Other", spec: "Mage-Fire", status: "absence", canAlso: ["healer"], comment: "secret", at: 2 },
+    ];
+
+    beforeEach(() => {
+        rosterStore.rosterForCategory.mockReturnValue(null);
+        signupStore.listSignups.mockReturnValue([]);
+        getEvent.mockReturnValue(null);
+    });
+
+    it("answers a raid of a foreign category with the 404 of an unknown one; the orga role opens it", async () => {
+        // cat1 is no event category: hidden from the raider, even with raids write
+        settingsStore.getConfig.mockReturnValue({ categoryIds: ["other"] });
+        loadEventGroups.mockResolvedValue(groupsWith(rhEvent({ signUps: [] })));
+        expect(await read(RAIDER, "rh1")).toEqual({ status: 404, body: { error: { code: "not_found", message: "Event nicht gefunden." } } });
+        expect((await read(ORGA_ROLE, "rh1")).status).toBe(200);
+    });
+
+    it("shows a foreign raid the raider signed up for, and one whose roster opened its raids", async () => {
+        settingsStore.getConfig.mockReturnValue({ categoryIds: ["other"] });
+        loadEventGroups.mockResolvedValue(groupsWith(rhEvent({ signUps: [{ userId: "u7", specName: "Arms", status: "signed" }] })));
+        expect((await read(RAIDER, "rh1")).status).toBe(200);
+        loadEventGroups.mockResolvedValue(groupsWith(rhEvent({ signUps: [] })));
+        rosterStore.rosterForCategory.mockReturnValue({ categoryId: "cat1", publicRaids: true, roleIds: [], members: {} });
+        expect((await read(RAIDER, "rh1")).status).toBe(200);
+    });
+
+    it("leaves the orga's parts out: logs, attendance, other people's comments, summaries, steps, dialog data", async () => {
+        settingsStore.getConfig.mockReturnValue({ categoryRoles: { cat1: ["r1"] } });
+        // a stale event list: the orga would read the sync warning, a raider does not
+        loadEventGroups.mockResolvedValue(groupsWith(ownEvent(), { stale: true, error: "Raid-Helper down" }));
+        getEvent.mockReturnValue({ status: "active", setup: null, log: [{ action: "x" }, { action: "y" }] });
+        signupStore.listSignups.mockReturnValue(signups);
+        getEventSoftres.mockReturnValue({ url: "https://softres.it/raid/abc", editUrl: "https://softres.it/raid/abc?token=t", token: "t", instances: ["kara"], amount: 2, postedMessage: "hi" });
+        logStore.listLogsForEvent.mockReturnValue([{ id: "l1", title: "Log", status: "done" }]);
+        logStore.listLogs.mockReturnValue([{ id: "l2", title: "Frei", status: "open" }]);
+        const { status: code, body } = await read(RAIDER, "eh-1");
+        expect(code).toBe(200);
+        const d = body.data;
+        expect(d.orga).toBe(false);
+        expect(d.eventLogs).toEqual([]);
+        expect(d.unlinkedLogs).toEqual([]);
+        expect(d.attendance).toEqual({ responded: [], missing: [] });
+        expect(d.attendanceRoleIds).toEqual([]);
+        expect(d.attendanceSource).toBeNull();
+        expect(d.membersError).toBeNull();
+        expect(d.notifyTemplates).toEqual([]);
+        expect(d.roles).toEqual([]);
+        expect(d.raidsheets).toEqual([]);
+        expect(d.ownSetupEditors).toEqual([]);
+        expect(d.playerSummaries).toEqual({});
+        expect(d.steps).toBeNull();
+        expect(d.progress).toEqual({ steps: [], next: "", primary: null });
+        expect(d.event.logCount).toBe(0);
+        expect(d.eventsWarning).toBeNull();
+        expect(d).not.toHaveProperty("pingTargets");
+        // the softres link stays, the edit link and the posted message do not
+        expect(d.eventSoftres).toEqual({ url: "https://softres.it/raid/abc", editUrl: "", edition: "", instances: ["kara"], amount: 2, hardReserveCount: 0 });
+        // the signup list keeps names, characters, specs and roles; only the raider's own comment and "kann auch" stay
+        const mine = d.ownSignups.find((s) => s.userId === "u7");
+        const other = d.ownSignups.find((s) => s.userId === "u8");
+        expect(mine).toMatchObject({ character: "Rai", comment: "mine", canAlso: ["tank"] });
+        expect(other).toMatchObject({ character: "Other", name: "Name u8", comment: "", canAlso: [] });
+        // nothing of the orga's parts was even read
+        expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
+        expect(backfillLogTitles).not.toHaveBeenCalled();
+    });
+
+    it("keeps all of it for the orga role", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(ownEvent()));
+        getEvent.mockReturnValue({ status: "active", setup: null });
+        signupStore.listSignups.mockReturnValue(signups);
+        const d = (await read(ORGA_ROLE, "eh-1")).body.data;
+        expect(d.orga).toBe(true);
+        expect(d.ownSignups.find((s) => s.userId === "u8")).toMatchObject({ comment: "secret", canAlso: ["healer"] });
+        expect(d.steps).not.toBeNull();
+        expect(d.notifyTemplates).toEqual([{ id: "n1" }]);
+        // the global orga with raids write: every raid's actions, every role of the server for the Aufruf
+        expect(d.viewer).toEqual({ canOrga: true, canPlan: false, canSwitchPlan: false });
+        expect(d.roles).toEqual([{ id: "r1", name: "Raider" }]);
+    });
+});
+
+// #729: the orga of a category (a manager of its current roster, no orga rank, no raider role of the category)
+describe("the orga of the raid's category", () => {
+    const MANAGER = { id: "m1", name: "Mgr", isAdmin: false, access: { raids: { read: true, write: false } } };
+    const rosterStore = require("../../../src/stores/rosterStore");
+    const signupStore = require("../../../src/stores/signupStore");
+    const ROSTER = { id: "r-cat1", categoryId: "cat1", versionId: "tbc", guildId: "g1", managers: { userIds: ["m1"], roleIds: [] }, members: {}, roleIds: ["r1"] };
+    const read = async (user, eventId) => {
+        mockUser = user;
+        const r = mockRes();
+        await getRaidDetail({ headers: {} }, r, new URL(`http://x/api/raids/detail?event=${eventId}`));
+        mockUser = ADMIN;
+        return sent(r);
+    };
+
+    beforeEach(() => {
+        // cat1 is no category they may sign up for: only the roster makes the raid theirs
+        settingsStore.getConfig.mockReturnValue({ categoryIds: ["other"] });
+        rosterStore.listRosters.mockReturnValue([ROSTER]);
+        rosterStore.rosterForCategory.mockImplementation((cat, version) => (cat === "cat1" && (!version || version === "tbc") ? ROSTER : null));
+        signupStore.listSignups.mockReturnValue([]);
+        discord.listRoles.mockReturnValue([{ id: "r1", name: "Raider" }, { id: "r-other", name: "Andere" }, { id: "r-admin", name: "Admin" }]);
+        getEvent.mockImplementation((id) => (id === "eh-1" ? { id: "eh-1", guildId: "g1", categoryId: "cat1", versionId: "tbc", status: "active", setup: null } : null));
+    });
+    afterEach(() => {
+        rosterStore.listRosters.mockReturnValue([]);
+        rosterStore.rosterForCategory.mockReset();
+        rosterStore.rosterForCategory.mockReturnValue(null);
+        discord.listRoles.mockReturnValue([{ id: "r1", name: "Raider" }]);
+        getEvent.mockReset();
+        getEvent.mockReturnValue(null);
+    });
+
+    it("opens their raid without a raider role (no 404), in the orga's view with the orga's rights", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(ownEvent()));
+        const { status: code, body } = await read(MANAGER, "eh-1");
+        expect(code).toBe(200);
+        const d = body.data;
+        expect(d.orga).toBe(true);
+        expect(d.steps).not.toBeNull();
+        expect(d.notifyTemplates).toEqual([{ id: "n1" }]);
+        // their raid plan too (#726): the tab and the Raid-Helper switch, without the area `raidplan`
+        expect(d.viewer).toEqual({ canOrga: true, canPlan: true, canSwitchPlan: true });
+        // the Anmelde-Aufruf offers the raider roles of the category only (POST /api/raids/notify refuses the rest)
+        expect(d.roles).toEqual([{ id: "r1", name: "Raider" }]);
+    });
+
+    it("gets none of the server's unassigned logs without `cla` write - they are every category's (review #729)", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(ownEvent()));
+        logStore.listLogsForEvent.mockReturnValue([{ id: "l-own", eventId: "eh-1", status: "done" }]);
+        logStore.listLogs.mockReturnValue([{ id: "l-free", guildId: "g1", title: "Fremde Kategorie" }]);
+        try {
+            let d = (await read(MANAGER, "eh-1")).body.data;
+            expect(d.eventLogs.map((l) => l.id)).toEqual(["l-own"]);
+            expect(d.unlinkedLogs).toEqual([]);
+            // with `cla` write the "Log zuordnen" dialog is theirs, and its candidates with it
+            d = (await read({ ...MANAGER, access: { ...MANAGER.access, cla: { read: true, write: true } } }, "eh-1")).body.data;
+            expect(d.unlinkedLogs.map((l) => l.id)).toEqual(["l-free"]);
+        } finally {
+            logStore.listLogsForEvent.mockReturnValue([]);
+            logStore.listLogs.mockReturnValue([]);
+        }
+    });
+
+    it("keeps a raid of another category as before: 404 without a signup, the raider's view with one", async () => {
+        const foreign = { ...ownEvent({ id: "eh-2" }) };
+        loadEventGroups.mockResolvedValue({ groups: [{ categoryId: "cat2", categoryName: "Andere", events: [foreign] }], error: null, stale: false });
+        expect((await read(MANAGER, "eh-2")).status).toBe(404);
+        loadEventGroups.mockResolvedValue({ groups: [{ categoryId: "cat2", categoryName: "Andere", events: [{ ...foreign, signUps: [{ userId: "m1", status: "signed" }] }] }], error: null, stale: false });
+        const d = (await read(MANAGER, "eh-2")).body.data;
+        expect(d.orga).toBe(false);
+        expect(d.viewer).toEqual({ canOrga: false, canPlan: false, canSwitchPlan: false });
+        expect(d.roles).toEqual([]);
+    });
+
+    it("gives a full admin who manages the roster no orga view in \"So sieht es ein Raider\"", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(ownEvent()));
+        discord.memberRoleIds.mockClear();
+        // effectiveUser of "Ansicht als" with no role: the admin's id, the base access, no admin rank
+        const asRaider = { ...MANAGER, viewAs: { roleIds: [], at: 1 } };
+        expect((await read(asRaider, "eh-1")).status).toBe(404);
+        // viewed as the raider role of the category: the raider's view, never the admin's own manager rights
+        settingsStore.getConfig.mockReturnValue({ categoryIds: ["cat1"] });
+        const d = (await read({ ...asRaider, viewAs: { roleIds: ["r1"], at: 1 } }, "eh-1")).body.data;
+        expect(d.orga).toBe(false);
+        expect(d.viewer.canOrga).toBe(false);
+        expect(discord.memberRoleIds).not.toHaveBeenCalled();
     });
 });

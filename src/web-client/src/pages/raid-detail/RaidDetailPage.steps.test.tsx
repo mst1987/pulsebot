@@ -17,7 +17,10 @@ import RaidDetailPage from "./RaidDetailPage";
 
 vi.mock("../../api/client", async (orig) => ({ ...(await orig<typeof import("../../api/client")>()), get: vi.fn(), send: vi.fn() }));
 
-const READER = adminUser({ isAdmin: false, access: { raids: "read" } });
+// an orga role that only reads the raids: the bar informs, it offers no deed
+const READER = adminUser({ isAdmin: false, isOrga: true, access: { raids: "read" } });
+// a raider role (Oct 2026): no orga, whatever raid rights it holds - the step bar is not theirs
+const RAIDER = adminUser({ isAdmin: false, isOrga: false, access: { raids: { read: true, write: true }, signup: { read: true, write: true } } });
 
 let detail: RaidDetailData;
 
@@ -80,6 +83,56 @@ describe("the head by event kind", () => {
         await show(raidDetail(), { user: READER });
         expect(within(cockpit()).queryAllByRole("button")).toHaveLength(0);
         expect(screen.getByText(t("raidDetail.steps.title.signup"))).toBeInTheDocument();
+    });
+
+    it("draws the orga's steps inside the orga zone", async () => {
+        await show();
+        const zone = screen.getAllByRole("region", { name: t("shell.orga.label") })[0];
+        expect(within(zone).getByText(/^Schritt \d von \d/)).toBeInTheDocument();
+    });
+});
+
+// Oct 2026: a raider gets the raid as it interests them - no cockpit, no logs, no actions.
+describe("a raider's raid page", () => {
+    const raiderData = (over: Partial<RaidDetailData> = {}) => raidDetail({
+        orga: false, steps: null, progress: { steps: [], next: "", primary: null },
+        eventSoftres: { url: "https://softres.it/raid/abc", editUrl: "", instances: [], amount: 1, hardReserveCount: 0 },
+        sheetLink: { url: "https://docs.google.com/sheet", name: "Kara", source: "category" },
+        ...over,
+    }, { channelState: "missing" });
+
+    it("has no step bar, no Logs tab, no orga zone, no Verwalten and no Kanal fehlt", async () => {
+        // even a payload that still carried steps (an older server) draws none for a raider
+        await show(raiderData({ steps: ownSteps() }), { user: RAIDER });
+        expect(screen.queryByText(/^Schritt \d von \d/)).not.toBeInTheDocument();
+        expect(tabNames()).not.toContain(t("raidDetail.page.tab.logs"));
+        expect(tabNames()).toContain(t("raidDetail.page.tab.loot"));
+        expect(screen.queryByRole("region", { name: t("shell.orga.label") })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: t("raidDetail.manage.button") })).not.toBeInTheDocument();
+        expect(screen.queryByText(t("raidDetail.hero.channelMissing"))).not.toBeInTheDocument();
+    });
+
+    it("lands on the roster for ?tab=logs", async () => {
+        await show(raiderData(), { user: RAIDER, tab: "logs" });
+        expect(selectedTab()).toBe(t("raidDetail.page.tab.roster"));
+    });
+
+    it("links the softres list and the raidsheet in the head instead", async () => {
+        await show(raiderData(), { user: RAIDER });
+        expect(screen.getByRole("link", { name: t("raidDetail.hero.softresAria") })).toHaveAttribute("href", "https://softres.it/raid/abc");
+        expect(screen.getByRole("link", { name: t("raidDetail.hero.sheetAria") })).toHaveAttribute("href", "https://docs.google.com/sheet");
+    });
+
+    it("keeps a Raid-Helper event's progress bar and primary button from a raider", async () => {
+        await show(raidhelperDetail({ orga: false }), { user: RAIDER });
+        expect(screen.queryByRole("button", { name: "Anmelde-Aufruf posten" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: new RegExp(`^${t("raidDetail.hero.stepAria", { label: "Anmeldung", value: "20", unit: "" }).trim()}`) })).not.toBeInTheDocument();
+    });
+
+    it("gives the orga no extra head links: the steps lead there", async () => {
+        await show(raiderData({ orga: true, steps: ownSteps() }));
+        expect(screen.queryByRole("link", { name: t("raidDetail.hero.softresAria") })).not.toBeInTheDocument();
+        expect(screen.getByText(t("raidDetail.hero.channelMissing"))).toBeInTheDocument();
     });
 });
 

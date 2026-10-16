@@ -112,6 +112,7 @@
         "noTemplatesBefore": "No call templates yet. First create one under",
         "noTemplatesLink": "Call templates",
         "noTemplatesAfter": ".",
+        "noTemplatesOrga": "No call templates yet. The orga with write access to raid events creates them.",
         "template": "Template",
         "unnamed": "(no name)",
         "rolesTip": "Ping roles",

@@ -265,12 +265,16 @@ copy (`origin` = the Standard row's id, the row in its `inheritOff`) or switches
   lists the Standard first (`raidplan.withStandard`).
 - **Tank order**: the Besetzung (who stands in Tank 1, Tank 2 …) is NOT inherited - every section keeps its own
   `slots`, filled in setup order the first time it is opened, so a Standard row "Tank 1 -> Boss" means each section's own
-  Tank 1. When the Standard's tank order was changed, the editor asks on leaving the Standard (or on saving while in it)
-  "Tank-Reihenfolge auch für die anderen Bosse?" - only once per change and only when some boss / trash differs
-  (`components/raidplan/editor/useTankOrderFollow.ts`). Not on every click: a swap through the Besetzung's chips takes
-  two steps. "Für alle übernehmen" reorders, in one undo step, only the players already standing in each section's tank
-  slots (`lib/raidplan/tankOrder.ts applyRoleOrder`: nobody added or removed, a flex role of that boss stays, places on
-  the map stay); "Nur im Standard" changes nothing else.
+  Tank 1. When the Standard's tanks were changed (order, number of tank slots, who stands in them: `tankLineup`), the
+  editor asks on leaving the Standard (or on saving while in it) "Tanks auch für die anderen Bosse?" - only once per
+  change and only when some boss / trash differs (`components/raidplan/editor/useTankOrderFollow.ts`). Not on every
+  click: a swap through the Besetzung's chips takes two steps. "Für alle übernehmen" gives each section, in one undo
+  step, the Standard's tank line-up (`lib/raidplan/tankOrder.ts applyTankLineup`): as many tank slots (`setCount`, as
+  +/- on the boss), the Standard's tanks in its order. A tank standing in another slot there swaps with whoever had his
+  tank slot (the "2 -> 3 tanks, the cat druid as Tank 3" case: he leaves his DPS slot); one who plays another role on
+  that boss on purpose (a flex role other than tank) stays, the next tank moves up; places on the map stay. "Nur im
+  Standard" changes nothing else. (Before Oct 2026 it only reordered the players already in the boss's tank slots, so a
+  third tank never arrived.)
 - **"Vorlage anwenden"** (`raidplanStore.applyTemplate`): the template's Standard becomes the event's Standard
   (cleaned, under the template's row ids, so `inheritOff`, deviations and moved tanks keep pointing at them); the
   bosses get the template's boards with their `inheritOff` (no copies any more). With a Standard every boss of the
@@ -306,6 +310,33 @@ All `/api/raidplan…` paths are area **`raidplan`** (read = GET, write = everyt
 the module's `routes` table (fail-closed, see docs/permissions.md) except `/api/raidplan/public`. Mutating calls
 are wrapped in `withUser({ write: "raidplan", csrf: true, body: true })`. Deleting an event deletes its plan
 (`eventManage.deleteEvent`).
+
+**The plan of one raid is also its category's orga's (#726, epic #723).** The writes on an event's plan — `PUT
+/api/raidplan`, `suggest`, `publish`, `groups`, `apply`, `link`, `map` / `map/delete` of an event plan's map
+(`e/<event>/<boss>`) and `POST /api/raids/post-raidplan` — are `withUser({ orgaScoped: (body) => body.event,
+globalByWrite: true, write: "raidplan" })`:
+
+- **`raidplan` write** is the global path, as before: every raid's plan, orga rank or not (`globalByWrite` — the area
+  is handed to the people who write the tactics, so a non-orga with `raidplan` write is not turned into "orga only").
+- **The manager of the current roster of the raid's category** (`categoryOrga.canOrgaEvent`, docs/permissions.md
+  "Kategorie-Orga") plans the raids of that category without `raidplan` write; any other raid answers 403
+  `not_category_orga` and changes nothing. A global orga without `raidplan` write takes the same category path.
+  A Raid-Helper event's category comes from its snapshot, else the event groups — never from the body.
+- **The library stays `raidplan` write only:** templates, tactic profiles, the catalog, a template's map and the
+  default maps of a boss or an instance (their keys name no event, so the category path refuses them), and
+  `suggest` without an event (the template editor).
+- **The answer follows the gate per event** (`web/raidplan/raidplanAccess.js`): `GET /api/raidplan` sends `canWrite`
+  (`canWriteRaidplan`) and `canWriteLibrary` (`raidplan` write), and lets the category's orga open the plan of a
+  raid they could not sign up for. Without `canWriteLibrary` the editor shows the default maps without buttons
+  (`MapRow.locked`) and leaves out "Als Taktik speichern" and "Verwalten" of the tactic library. `GET
+  /api/raids/detail` builds the "Einteilungen" step with the same rule.
+- Opening the plan takes `raidplan` read — or being the orga of the raid's category (#729): `GET /api/raidplan` and
+  `GET /api/raidplan/link` are `orgaRead` (docs/permissions.md "Kategorie-Orga"), `GET /api/raidplan/progress?event=`
+  asks `managesRaid` itself, and the raid detail's `viewer.canPlan` shows the tab. The library's reads stay `raidplan`.
+
+Tests: `test/web/apiRoutes/raidplan.categoryOrga.test.js` (through the router, a table over every `orgaScoped`
+route against a raid of another category), `test/web/raidplan/raidplanAccess.test.js`, `globalByWrite` in
+`test/web/http/apiHandler.test.js`, `components/raidplan/editor/libraryRights.test.tsx`.
 
 ## Test raid (dev)
 

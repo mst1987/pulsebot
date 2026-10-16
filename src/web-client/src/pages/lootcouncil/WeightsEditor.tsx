@@ -7,7 +7,7 @@
 // Everything is −/+ steppers, nothing is typed. The editor only changes the
 // draft it is handed; saving is the profile tab's one primary button. A reader
 // sees the same sections without the controls.
-import { useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { searchCouncilItems, type CouncilProfileData, type CouncilWeightSettings, type ItemSearchResult, type NeedShares } from "../../api";
 import { Button, WowIcon } from "../../components/ui";
 import { MinusIcon, PlusIcon, XIcon } from "../../components/ui/icons";
@@ -78,14 +78,20 @@ export function Section({ title, sub, children }: { title: string; sub: string; 
 }
 
 /** The four weighting sections over a draft; `onChange` gets the whole next draft. */
-export function WeightsEditor({ draft, onChange, data, readOnly }: {
+export function WeightsEditor({ draft, onChange, data, readOnly, versionId: shownVersion = "" }: {
     draft: CouncilWeightSettings;
     onChange: (next: CouncilWeightSettings) => void;
     /** The profile answer: item info of the stored exceptions, ids and limits. */
-    data: Pick<CouncilProfileData, "itemInfo" | "classIds" | "needIds" | "limits">;
+    data: Pick<CouncilProfileData, "itemInfo" | "classIds" | "needIds" | "limits" | "versionId">;
     readOnly: boolean;
+    /** The version on screen (the menu's content switch); "" = the profile's own. */
+    versionId?: string;
 }) {
     const t = useT();
+    // The exceptions are items of the version on screen (#760), else the profile's:
+    // TBC's item table, or - without one (Forever) - the hand lists plus Wowhead of the version.
+    const versionId = shownVersion || data.versionId || "";
+    const searchItems = useCallback((q: string) => searchCouncilItems(q, "", versionId, { wowhead: true }), [versionId]);
     // Icons and names of items added in this session (the server knows the stored ones).
     const [picked, setPicked] = useState<Record<string, { name: string; iconUrl: string; quality: number | null }>>({});
     const ro = readOnly;
@@ -165,7 +171,7 @@ export function WeightsEditor({ draft, onChange, data, readOnly }: {
                 )}
                 {!ro && items.length < limits.items ? (
                     <div className="lc-wpicker">
-                        <ItemSearchPicker search={searchCouncilItems} onPick={addItem} placeholder={t("lootcouncil.weights.searchItem")} />
+                        <ItemSearchPicker search={searchItems} onPick={addItem} placeholder={t("lootcouncil.weights.searchItem")} />
                     </div>
                 ) : null}
             </Section>

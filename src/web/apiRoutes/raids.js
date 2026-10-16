@@ -18,49 +18,101 @@ const { signupSourceFor } = require("../../services/events/eventSources");
 const { listSignups } = require("../../stores/signupStore");
 const discord = require("../../services/discord/discord");
 const linkCheck = require("../../services/discord/linkCheck");
+const { raidViewer, visibleEvents } = require("../../services/signups/eventVisibility");
+const { userCan } = require("../../config/permissions");
+const { isGlobalRaidOrga, canOrgaRaid, canCreateRaids, withOrgaFlags } = require("../events/raidOrgaAccess");
+const { requestCache } = require("../../services/roster/categoryOrga");
+const { newEventRow, eventCategoryScope, createGuard, updateRefusal } = require("../events/eventCreateAccess");
 
 /**
  * GET /api/raids[?version=<id>] — the active guild's upcoming events of both
  * sources (Raid-Helper and EventHelper) as flat rows, each with its raid
  * content(s), raid size and soft-reserve link (raidListing.js). One game
  * version (#545, #741): the main version unless the page asks for another —
- * see mainVersion.resolveVersionQuery.
+ * see mainVersion.resolveVersionQuery. A raider sees the raids of the
+ * categories they may see and the ones they signed up for (eventVisibility.js).
  */
-const getRaids = withUser({}, async ({ req, res, url }) => {
+const getRaids = withUser({}, async ({ user, req, res, url }) => {
     const guildId = activeGuildFor(req);
     const { groups, error: err } = await loadEventGroups(guildId);
     // The server's name goes into the page's kicker ("Raid-Helper · Pulse").
     const guild = guildId ? (discord.listGuilds() || []).find((g) => g.id === guildId) : null;
-    // channelState per row (#537): the list links the Discord post only while the channel exists.
-    const rows = linkCheck.withChannelState(guildId, upcomingRows(groups));
     const config = getConfig();
+    const viewer = await raidViewer(user, guildId, { config, cache: requestCache(req) });
+    const signUps = new Map((groups || []).flatMap((g) => (g.events || []).map((e) => [e.id, e.signUps])));
+    // channelState per row (#537): the list links the Discord post only while the channel exists.
+    const rows = linkCheck.withChannelState(guildId, visibleEvents(upcomingRows(groups), viewer, (row) => signUps.get(row.id)));
     const { versionId, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
-    const events = versionId ? rows.filter((r) => r.versionId === versionId) : rows;
+    const shown = versionId ? rows.filter((r) => r.versionId === versionId) : rows;
+    // per row whether the caller is its orga (#729): "Wiederholen" and "Kanal fehlt" follow it
+    const events = await withOrgaFlags(user, shown, req, { groups });
     ok(res, {
-        events, error: err, activeGuildId: guildId, guildName: (guild && guild.name) || "",
+        // the Raid-Helper sync message points into the settings: the orga's, a raider just gets the list
+        events, error: viewer.orga ? err : null, activeGuildId: guildId, guildName: (guild && guild.name) || "",
         version: versionId, mainVersion, versions: versionChoices(rows.map((r) => ({ versionIds: [r.versionId] })), mainVersion),
+        ...await orgaFields(user, viewer, req),
     });
 });
+
+/**
+ * What a raid list says about the caller (#729): `orga` - the global orga, or the orga of a category (the
+ * page's orga parts: the series, the logs column); `canCreate` - POST /api/raids lets them create
+ * (raidOrgaAccess.canCreateRaids): "Neues Event".
+ */
+async function orgaFields(user, viewer, req) {
+    return {
+        orga: !!viewer.orga || (viewer.orgaCategories || []).length > 0,
+        canCreate: await canCreateRaids(user, req),
+    };
+}
 
 /**
  * GET /api/raids/past[?version=<id>] — the raids that already took place,
  * newest first, with their logs, open log decisions and loot count. Its own
  * request because it rescans the event snapshot and assigns fresh logs first,
  * which the coming raids have no need to wait for. Filtered by game version
- * (#545) like GET /api/raids.
+ * (#545) like GET /api/raids. A raider sees the same raids as there
+ * (eventVisibility.js) and no log details: the logs are the orga's work.
  */
-const getPastRaids = withUser({}, async ({ req, res, url }) => {
+const getPastRaids = withUser({}, async ({ user, req, res, url }) => {
     const guildId = activeGuildFor(req);
     const { events: all, error: err } = await loadPastRaids(guildId);
-    const rows = linkCheck.withChannelState(guildId, all);
     const config = getConfig();
+    const viewer = await raidViewer(user, guildId, { config, cache: requestCache(req) });
+    const shown = linkCheck.withChannelState(guildId, visibleEvents(all, viewer));
     const { versionId, mainVersion } = resolveVersionQuery(url.searchParams.get("version"), { config });
-    const events = versionId ? rows.filter((r) => r.versionId === versionId) : rows;
+    const inVersion = versionId ? shown.filter((r) => r.versionId === versionId) : shown;
+    // the logs are the orga's work: the global orga's rows keep them, and the rows the caller is the orga of (#729)
+    const flagged = await withOrgaFlags(user, inVersion, req);
+    // an unassigned log names the other raids it fits: the global orga all of them, a category's orga those of its categories
+    const scope = viewer.orga ? null : new Set(viewer.orgaCategories || []);
+    const events = flagged.map((row) => (viewer.orga || row.canOrga ? scopedAlsoFits(row, scope) : withoutLogs(row)));
     ok(res, {
-        events, error: err, activeGuildId: guildId,
-        version: versionId, mainVersion, versions: versionChoices(rows.map((r) => ({ versionIds: [r.versionId] })), mainVersion),
+        events, error: viewer.orga ? err : null, activeGuildId: guildId,
+        version: versionId, mainVersion, versions: versionChoices(shown.map((r) => ({ versionIds: [r.versionId] })), mainVersion),
+        ...await orgaFields(user, viewer, req),
     });
 });
+
+/**
+ * A past raid's open log decisions with `alsoFits` cut to the raids of `scope` (the categories of a category's
+ * orga, #729 review: the titles of other categories' raids are not theirs); null = every raid. The helper field
+ * `alsoFitsCategoryIds` never leaves the server.
+ */
+function scopedAlsoFits(row, scope) {
+    if (!Array.isArray(row.pendingLogs)) return row;
+    const pendingLogs = row.pendingLogs.map((p) => {
+        const ids = p.alsoFitsCategoryIds || [];
+        const alsoFits = scope ? (p.alsoFits || []).filter((_, i) => scope.has(String(ids[i] || ""))) : (p.alsoFits || []);
+        return { title: p.title, alsoFits };
+    });
+    return { ...row, pendingLogs };
+}
+
+/** A past raid's row without its logs, for a raider (the loot count stays: loot is for everyone). */
+function withoutLogs(row) {
+    return { ...row, logs: [], pendingLogs: [], pendingLogCount: 0 };
+}
 
 /** A Discord list that may throw while the bot is offline — [] then. */
 function safeList(fn) {
@@ -116,15 +168,17 @@ const LEADER_NAMES_WAIT_MS = 400;
  * @param {string} guildId
  * @param {{ id: string, name?: string }} user  the orga creating the event
  * @param {object|null} editEvent  the own event being edited, if any
+ * @param {Set<string>|null} [scope]  only the events of these categories (the orga of a category, #728); null = all
  * @returns {Promise<{ id: string, name: string }[]>}
  */
-async function leaderCandidates(guildId, user, editEvent) {
+async function leaderCandidates(guildId, user, editEvent, scope = null) {
     const ids = [String(user.id)];
     // the character a raider signed up with — the label while Discord has no name for them
     const characters = {};
     if (editEvent && editEvent.leaderId) ids.push(String(editEvent.leaderId));
     try {
-        const events = editEvent ? [editEvent] : eventStore.listEvents(guildId, { sinceSeconds: eventLookbackSince() });
+        const events = (editEvent ? [editEvent] : eventStore.listEvents(guildId, { sinceSeconds: eventLookbackSince() }))
+            .filter((ev) => !scope || scope.has(String(ev.categoryId || "")));
         for (const ev of events) {
             for (const s of listSignups(ev.id)) {
                 if (!s || !s.userId) continue;
@@ -153,9 +207,14 @@ async function leaderCandidates(guildId, user, editEvent) {
  * the naming schemas and the reusable events of the shown game version (#741).
  * With ?event=<own id> also the event to edit (#261): the same dialog opens
  * prefilled for an EventHelper event.
+ * Everyone but the global orga with `raids` write (#728) gets only the categories whose current roster
+ * they manage - and with them only the channels, voice channels, raids to repeat and leader candidates
+ * of those categories, and an event to edit only when it is one of their raids (a raider: none).
  */
 const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
     const guildId = activeGuildFor(req);
+    const scope = await eventCategoryScope(user, req);
+    const inScope = (categoryId) => !scope || scope.has(String(categoryId || ""));
     // Events that can be repeated for a new date — upcoming ones and those of the
     // lookback window, so a series whose next raid is not scheduled yet can still
     // be continued. Best-effort: an API error just leaves the list short
@@ -168,7 +227,8 @@ const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
     // each by its own stored version, not by what its category plays today — an
     // old TBC raid of a category that moved on to Forever stays a TBC raid.
     const { versionId: shownVersion } = resolveVersionQuery(url && url.searchParams.get("version"), { config });
-    const editEvent = editEventFor(url, guildId);
+    const editCandidate = editEventFor(url, guildId);
+    const editEvent = editCandidate && (!scope || await canOrgaRaid(user, editCandidate, req)) ? editCandidate : null;
     // The dialog is one of the shown version (#741): only the categories that play
     // it and its raid templates. The category of the event being edited stays,
     // whatever it plays now (a raid keeps its version, #737).
@@ -183,7 +243,7 @@ const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
             versionId,
             contentIds: raidContentIds({ title: ev.title, categoryName: g.categoryName, channelName: ev.channelName, instanceIds: ev.instanceIds, versionId }).contentIds,
         };
-    })).filter((ev) => ev.versionId === shownVersion);
+    })).filter((ev) => ev.versionId === shownVersion && inScope(ev.categoryId));
     const templates = listRaidTemplates().filter((t) => (knownVersion(t.versionId) || mainVersionFor({ config })) === shownVersion);
     const categoryDefaults = config.categoryRaidTemplate || {};
     // The default template per category, as the Raid-Helper template id the
@@ -192,8 +252,10 @@ const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
     const categoryTemplates = Object.fromEntries(Object.entries(categoryDefaults)
         .map(([catId, tplId]) => [catId, rhById.get(tplId) || ""])
         .filter(([, rhId]) => rhId));
-    const channels = safeList(() => discord.listTextChannels(guildId));
-    const channelId = (config.raidDefaults || {}).channelId || "";
+    const channels = safeList(() => discord.listTextChannels(guildId)).filter((c) => inScope(c.parentId));
+    const presetVoice = config.categoryVoiceChannel || {};
+    const ownPresets = new Set(Object.entries(presetVoice).filter(([catId]) => inScope(catId)).map(([, id]) => String(id)));
+    const channelId = channels.some((c) => c.id === (config.raidDefaults || {}).channelId) ? (config.raidDefaults || {}).channelId : "";
     const defaultChannel = channels.find((c) => c.id === channelId);
     ok(res, {
         defaults: {
@@ -202,11 +264,14 @@ const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
         },
         categoryTemplates,
         leaderId: user.id,
-        leaderCandidates: await leaderCandidates(guildId, user, editEvent),
+        leaderCandidates: await leaderCandidates(guildId, user, editEvent, scope),
         channels,
-        // The raid's voice channel (#305) and the preset per category.
-        voiceChannels: safeList(() => discord.listVoiceChannels(guildId)),
-        categoryVoiceChannel: config.categoryVoiceChannel || {},
+        // The raid's voice channel (#305) and the preset per category - for the orga of a category those
+        // of their categories (eventCreateAccess.voiceAllowed).
+        voiceChannels: safeList(() => discord.listVoiceChannels(guildId)).filter((c) => inScope(c.parentId) || ownPresets.has(String(c.id))),
+        categoryVoiceChannel: Object.fromEntries(Object.entries(presetVoice).filter(([catId]) => inScope(catId))),
+        // "Als Vorlage speichern" writes a raid template - global, area `raids` write (#728: not the category's)
+        canSaveTemplate: userCan(user, "raids", "write"),
         templates,
         reusableEvents,
         // Where each category creates its new events, resolved on the server
@@ -217,7 +282,7 @@ const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
         categoryAnnounce: config.categoryAnnounce || {},
         // The planning step (#261): categories, the raid templates with their
         // badges and the default per category, the rule set, the naming schemas.
-        categories: safeList(() => discord.listCategories(guildId)).filter((c) => categoryShown(c.id)),
+        categories: safeList(() => discord.listCategories(guildId)).filter((c) => categoryShown(c.id) && inScope(c.id)),
         categoryRaidTemplates: categoryDefaults,
         raidTemplates: templates.map((t) => decorateTemplate({ instanceIds: [], ...t }, categoryDefaults)),
         versions: publicVersions().filter((v) => visible.has(v.id)),
@@ -256,8 +321,11 @@ const getChannelName = withUser({}, async ({ req, res, url }) => {
  * own store, by the category's default source; the work is eventCreate.js',
  * shared with the Discord modal (#260).
  */
-const createRaid = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
-    const result = await createEvent({ guildId: activeGuildFor(req), user, body });
+const createRaid = withUser({ orgaScoped: newEventRow, write: "raids", csrf: true, body: true }, async ({ user, body, req, res }) => {
+    // The orga of a category (#728) creates in their categories only, in the version the category plays
+    // now, with channels of that category (eventCreateAccess.js) - checked on what createEvent works out.
+    const guard = isGlobalRaidOrga(user) ? null : createGuard(user, req);
+    const result = await createEvent({ guildId: activeGuildFor(req), user, body, guard });
     if (result.error) return sendResult(res, result);
     ok(res, result.body, result.status);
 });
@@ -265,8 +333,14 @@ const createRaid = withUser({ csrf: true, body: true }, async ({ user, body, req
 /**
  * PATCH /api/raids — change an own (EventHelper) event with the create
  * dialog's fields. Body: { id, … }; a Raid-Helper id is refused (#261).
+ * The orga of the raid's category as well (#728), without changing its version.
  */
-const updateRaid = withUser({ csrf: true, body: true, archived: (body) => body.id }, async ({ user, body, req, res }) => {
+const updateRaid = withUser({ orgaScoped: (body) => body.id, write: "raids", csrf: true, body: true, archived: (body) => body.id }, async ({ user, body, req, res }) => {
+    if (!isGlobalRaidOrga(user)) {
+        const current = eventStore.isOwnEventId(String(body.id || "").trim()) ? eventStore.getEvent(String(body.id).trim()) : null;
+        const refused = current ? updateRefusal(current, body, req) : null;
+        if (refused) return sendResult(res, refused);
+    }
     const result = await updateEvent({ guildId: activeGuildFor(req), body, user, byName: user.name });
     if (result.error) return sendResult(res, result);
     ok(res, result.body, result.status);

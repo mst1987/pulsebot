@@ -11,6 +11,8 @@
 //             "menu"  — any menu user, whatever area (the guild switcher)
 //             "token" — bearer-token endpoints; the handler checks the token itself
 //   adminOnly an entry that belongs to no area on purpose: full admins only
+// A handler built with withUser({ orgaScoped }) carries the mark itself
+// (isOrgaScoped): the area gate then lets the orga of a category in as well.
 // An entry with none of these is admin-only too (fail-closed), and a test keeps
 // that state explicit (test/web/http/apiAccess.test.js).
 //
@@ -18,7 +20,7 @@
 // body (`/api/raids/detail?event=<id>`), never in the path.
 const MODULES = [
     "session", "dashboard", "version", "channels", "settings", "talkOverview", "raidhelperRetirement", "versionLaunch",
-    "ingest", "kader", "botCommands", "raiderCharacters", "roster", "rosters", "rosterRoles", "rosterMembers", "rosterAdmin", "profile", "characters", "signups", "lootCouncil",
+    "ingest", "kader", "botCommands", "raiderCharacters", "roster", "rosters", "rosterRoles", "rosterMembers", "rosterAdmin", "profile", "characters", "signups", "lootCouncil", "lootCouncilBis",
     "raids", "raidDetail", "setup", "raidplan", "eventManage", "eventSeries", "gameVersions",
     "notifyTemplates", "raidTemplates", "recruitment", "history", "cla", "availability", "orgaHub", "attendance", "guildBank", "dungeons", "addons", "addonCenter", "system",
 ];
@@ -59,10 +61,22 @@ const find = (method, pathname) => BY_KEY.get(`${method} ${pathname}`) || null;
 /** The methods a path answers to (empty for an unknown path). */
 const methodsFor = (pathname) => METHODS_BY_PATH.get(pathname) || [];
 
+/**
+ * Whether a route lets the orga of a category in (#724): its handler is a withUser({ orgaScoped })
+ * wrapper, which checks the concrete event itself (apiHandler.js).
+ */
+const isOrgaScoped = (route) => !!(route && route.handler && route.handler.orgaScoped === true);
+
+/**
+ * Whether a read lets the orga of a category in (#729): its handler is a withUser({ orgaRead })
+ * wrapper, which checks the concrete event itself (apiHandler.js).
+ */
+const isOrgaRead = (route) => !!(route && route.handler && route.handler.orgaRead === true);
+
 /** The areas an entry names, always as an array (empty = none). */
 function areasOf(route) {
     if (!route || !route.area) return [];
     return Array.isArray(route.area) ? route.area : [route.area];
 }
 
-module.exports = { ROUTES, MODULES, find, methodsFor, areasOf };
+module.exports = { ROUTES, MODULES, find, methodsFor, areasOf, isOrgaScoped, isOrgaRead };

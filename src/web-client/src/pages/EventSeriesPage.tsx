@@ -19,7 +19,7 @@ import RaidLoader from "../components/ui/RaidLoader";
 import NamingBadge from "../components/channels/NamingBadge";
 import { SwitchRow } from "../components/raid/RaidFields";
 import Switch from "../components/ui/Switch";
-import { PenIcon, RefreshIcon, WarnIcon } from "../components/ui/icons";
+import { PenIcon, RefreshIcon, SaveIcon, TrashIcon, WarnIcon } from "../components/ui/icons";
 import "../styles/series.css";
 
 // Wiederkehrende Events (#289): one compact line per event category —
@@ -142,11 +142,11 @@ function SeriesModal({ category, data, canWrite, onChanged, onClose }: {
             kicker={t("series.modal.kicker")}
             title={category.name || t("series.row.unknownCategory")}
             width={720}
-            hint={category.series && canWrite ? <Button variant="danger" size="sm" onClick={remove}>{t("common.delete")}</Button> : undefined}
+            hint={category.series && canWrite ? <Button variant="danger" size="sm" icon={<TrashIcon />} onClick={remove}>{t("common.delete")}</Button> : undefined}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    {canWrite && <Button running={saving} disabled={!!problem || !preview} onClick={save} data-tip={problem || undefined}>{t("common.save")}</Button>}
+                    {canWrite && <Button variant="go" icon={<SaveIcon />} running={saving} disabled={!!problem || !preview} onClick={save} data-tip={problem || undefined}>{t("common.save")}</Button>}
                 </>
             )}
         >
@@ -286,6 +286,8 @@ export default function EventSeriesPage() {
         <AsyncView state={series} loading={<RaidLoader text={t("series.page.loading")} />} error={(err) => <div className="empty">{tParts("series.page.loadError", { message: err.message })}</div>}>
             {(data) => {
                 const canWrite = data.canWrite;
+                // per row (#728): the global orga reading only sees every series, writes those of its own categories
+                const canWriteRow = (id: string) => canWrite && (!data.writableCategoryIds || data.writableCategoryIds.includes(id));
                 const editing = editor.editId ? data.categories.find((c) => c.id === editor.editId) || null : null;
 
                 const runNow = async () => {
@@ -308,17 +310,19 @@ export default function EventSeriesPage() {
                             tone="raids"
                             kicker={t("series.page.kicker")}
                             title={t("series.page.title")}
-                            action={canWrite ? (
+                            action={canWrite && data.canRunAll !== false ? (
                                 <IconButton icon={<RefreshIcon />} tip={t("series.page.runNow")} tipSub={t("series.page.runNowSub")} disabled={running} onClick={runNow} />
                             ) : undefined}
                         />
 
                         {data.categories.length === 0
-                            ? <div className="empty">{t("series.page.empty")}</div>
+                            // the orga of a category (#729) manages a roster whose category is no event category yet:
+                            // the settings are not theirs, so no pointer there
+                            ? <div className="empty">{t(data.writableCategoryIds && data.writableCategoryIds.length ? "series.page.emptyManager" : "series.page.empty")}</div>
                             : (
                                 <ul className="sr-list">
                                     {data.categories.map((c) => (
-                                        <SeriesRow key={c.id} c={c} canWrite={canWrite} onOpen={() => editor.startEdit(c.id)} />
+                                        <SeriesRow key={c.id} c={c} canWrite={canWriteRow(c.id)} onOpen={() => editor.startEdit(c.id)} />
                                     ))}
                                 </ul>
                             )}
@@ -328,7 +332,7 @@ export default function EventSeriesPage() {
                                 key={editing.id}
                                 category={editing}
                                 data={data}
-                                canWrite={canWrite}
+                                canWrite={canWriteRow(editing.id)}
                                 onClose={editor.close}
                                 onChanged={(msg, close) => {
                                     toast(msg);

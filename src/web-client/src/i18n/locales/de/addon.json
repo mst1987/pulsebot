@@ -3,6 +3,24 @@
     "loading": "Suche die neuesten Versionen …",
     "version": "v{version}",
     "news": "Was ist neu?",
+    "allNotes": "Alle Patchnotes",
+    "detail": {
+        "kicker": "Addon",
+        "back": "Alle Addons",
+        "loading": "Lade das Addon …",
+        "notes": "Patchnotes",
+        "notesVersion": "Version {version}",
+        "noNotes": "Zu dieser Version gibt es keine Notizen.",
+        "unknown": "Dieses Addon gibt es hier nicht (mehr).",
+        "unknownSub": "Vielleicht wurde es umbenannt oder ausgeblendet.",
+        "unknownCrumb": "Unbekannt",
+        "meta": {
+            "version": "Version",
+            "published": "Veröffentlicht",
+            "notYet": "noch nicht",
+            "game": "Spiel"
+        }
+    },
     "empty": "Für {version} gibt es hier keine Addons.",
     "emptyElsewhere": "Addons gibt es für: {versions}. Die Version wechselst du oben in der Leiste.",
     "loadError": "Die Addons konnten gerade nicht geladen werden.",
@@ -31,6 +49,7 @@
     },
     "install": {
         "title": "Installation",
+        "or": "oder",
         "zip": "Die Zip nach {folder} entpacken, dann das Spiel starten oder im Spiel /reload eingeben.",
         "exe": "Die exe starten. Windows fragt beim ersten Mal evtl. nach: „Weitere Informationen“, dann „Trotzdem ausführen“."
     },
@@ -99,7 +118,9 @@
         "posted": "Downloadzentrale gepostet.",
         "removeAsk": "Downloadzentrale entfernen?",
         "role": "Rolle für Update-Pings",
-        "roleSub": "Optional. Bei einer neuen Version postet der Bot eine kurze Nachricht, die diese Rolle pingt (ohne Patchnotes, mit Link zur Web-Seite). Sie wird nach 12 Stunden oder mit dem nächsten Ping gelöscht. Ohne Rolle gibt es keinen Ping.",
+        "roleOfficer": "Das ist auch die Rolle für Bewerbungs-Pings: Wer Updates abonniert, bekommt dann auch die Pings neuer Bewerbungen.",
+        "rolePrivileged": "Diese Rolle gibt Bot-Rechte (Admin, Orga, Berechtigungen, Bot-Befehle, Raider-Rolle, Roster, Rollen-Abgleich), Discord-Berechtigungen über @everyone hinaus oder schaltet Kanäle frei. Sie wird gepingt, aber „Updates abonnieren“ fehlt in der Zentrale – sonst könnte sich jeder das holen. Nimm eine eigene Rolle ohne Rechte.",
+        "roleSub": "Optional. Bei einer neuen Version postet der Bot eine kurze Nachricht, die diese Rolle pingt (ohne Patchnotes, mit Link zur Web-Seite). Sie wird nach 12 Stunden oder mit dem nächsten Ping gelöscht. Mit Rolle zeigt die Zentrale „Updates abonnieren“: Damit holen sich Mitglieder die Rolle selbst oder geben sie wieder ab (der Bot braucht „Rollen verwalten“ und muss über der Rolle stehen; die Rolle darf keine Rechte tragen). Ohne Rolle gibt es keinen Ping und keinen Knopf.",
         "removeText": "Die Nachricht im Kanal wird gelöscht. Update-Meldungen aus früherer Zeit, die noch im Kanal stehen, bleiben.",
         "removed": "Downloadzentrale entfernt.",
         "loadError": "Die Einstellungen der Downloadzentrale konnten nicht geladen werden."

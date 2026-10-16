@@ -74,7 +74,8 @@ export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }
     };
 
     // Events need a category (its template and source) and the right to create raids.
-    const eventsPossible = !!data.canCreateEvents && !!categoryId;
+    // The orga of a category creates events in their categories only (#728).
+    const eventsPossible = !!data.canCreateEvents && !!categoryId && (!data.eventCategoryIds || data.eventCategoryIds.includes(categoryId));
     const eventOn = eventsPossible && withEvent;
     const defaults = data.eventDefaults?.[categoryId];
     const input: QuickCreateInput = {

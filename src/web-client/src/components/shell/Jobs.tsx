@@ -16,7 +16,7 @@ import { t as translate, useT } from "../../i18n";
 // The server already runs the slow analyses detached (src/web/evalJobs.js) and
 // is polled; this is the client-side half that owns the pending promise.
 
-export type JobState = "running" | "done" | "error";
+export type JobState = "running" | "done" | "error" | "warn";
 
 export type BackgroundJob = {
     id: number;
@@ -76,8 +76,8 @@ type JobsApi = {
      * an `update` to report progress and a changing detail line into the toast.
      */
     run: <T>(spec: JobSpec<T>, runner: (update: JobUpdate) => Promise<T>) => Promise<T | null>;
-    /** One-off feedback without a job behind it (saved, deleted, …). */
-    notify: (message: string, type?: "ok" | "err") => void;
+    /** One-off feedback without a job behind it (saved, deleted, …); "warn" = done, but with a caveat. */
+    notify: (message: string, type?: "ok" | "err" | "warn") => void;
 };
 
 const JobsContext = createContext<JobsApi | null>(null);
@@ -161,11 +161,10 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         }
     }, [patch, dismiss]);
 
-    const notify = useCallback((message: string, type: "ok" | "err" = "ok") => {
+    const notify = useCallback((message: string, type: "ok" | "err" | "warn" = "ok") => {
         const id = nextId.current++;
-        setJobs((list) => [...list, {
-            id, label: "", detail: "", state: type === "err" ? "error" : "done", seconds: 0, message,
-        }]);
+        const state: JobState = type === "err" ? "error" : type === "warn" ? "warn" : "done";
+        setJobs((list) => [...list, { id, label: "", detail: "", state, seconds: 0, message }]);
     }, []);
 
     const api = useMemo<JobsApi>(() => ({ run, notify }), [run, notify]);
@@ -216,7 +215,8 @@ function JobToast({ job, onDismiss }: { job: BackgroundJob; onDismiss: (id: numb
         return () => clearTimeout(t);
     }, [hiding, job.id, onDismiss]);
 
-    const tone = running ? "toast-run" : job.state === "error" ? "toast-err" : "toast-ok";
+    const tone = running ? "toast-run" : job.state === "error" ? "toast-err" : job.state === "warn" ? "toast-warn" : "toast-ok";
+    const dot = running ? "run" : job.state === "error" ? "err" : job.state === "warn" ? "warn" : "ok";
     // A measured progress is drawn as it is. Otherwise estimated, never a lie
     // about being finished: it creeps to 95% and waits there until the job
     // actually reports back.
@@ -232,8 +232,8 @@ function JobToast({ job, onDismiss }: { job: BackgroundJob; onDismiss: (id: numb
         <div className={`toast ${tone}${hiding ? " hide" : ""}`} role="status" aria-live="polite">
             <span className={`toast-ico${job.icon ? "" : " is-bare"}`} aria-hidden="true">
                 {job.icon && <WowIcon name={job.icon} size={32} />}
-                <span className={`st ${running ? "run" : job.state === "error" ? "err" : "ok"}`}>
-                    {running ? <i /> : job.state === "error" ? <AlertIcon /> : <CheckIcon />}
+                <span className={`st ${dot}`}>
+                    {running ? <i /> : job.state === "error" || job.state === "warn" ? <AlertIcon /> : <CheckIcon />}
                 </span>
             </span>
             <div className="toast-body">

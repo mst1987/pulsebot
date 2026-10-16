@@ -1177,7 +1177,8 @@
             "softres": "Softres",
             "armory": "Armory lookup",
             "wowheadLinks": "Wowhead links",
-            "raidplanCatalog": "Raid plan catalog"
+            "raidplanCatalog": "Raid plan catalog",
+            "dungeonTimes": "Dungeon best times"
         },
         "featureSub": {
             "logcheck": "Evaluating Warcraft Logs reports.",
@@ -1187,7 +1188,8 @@
             "softres": "Creating a softres list on the raid page.",
             "armory": "Fetching gear and character data from Battle.net.",
             "wowheadLinks": "Links to Wowhead for items and spells.",
-            "raidplanCatalog": "The catalog's mobs and spells in the raid plan."
+            "raidplanCatalog": "The catalog's mobs and spells in the raid plan.",
+            "dungeonTimes": "Dungeon best times from the LevelHelper addon per character in \"My profile\"."
         },
         "reason": {
             "disabled": "Switched off for {version}.",
@@ -1202,7 +1204,8 @@
             "no_softres_edition": "No softres edition set for {version}.",
             "armory_not_configured": "Armory for {version} not set up (region, realm, namespace).",
             "no_wowhead_path": "No Wowhead path set for {version}.",
-            "no_catalog_entries": "No catalog entries for {version}."
+            "no_catalog_entries": "No catalog entries for {version}.",
+            "no_dungeon_times": "No dungeon best times for {version} (no LevelHelper)."
         }
     },
     "versionLaunch": {

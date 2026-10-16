@@ -1,7 +1,7 @@
 // JSON API of "Event verwalten" (#288) — the actions menu on the raid detail of
-// an own event. Every path is area `raids` (apiAccess.js, level by method); the
-// two reads additionally want write access, because they only exist to prepare
-// an action (who would get a DM, what the channel would be renamed to).
+// an own event. Every path is area `raids` (apiAccess.js, level by method) and
+// only for the orga; the reads additionally want write access, because they only
+// exist to prepare an action (who would get a DM, what the channel would be renamed to).
 //
 //   GET  /api/raids/manage?event=                      state, recipients, archive, log
 //   GET  /api/raids/manage/move?event=&date=&time=     preview of a move (nothing changes)
@@ -21,10 +21,21 @@ const { q } = require("../http/apiParams");
 const { activeGuildFor } = require("../http/activeGuild");
 const manage = require("../../services/events/eventManage");
 
-/** A read that prepares an action: menu user with `raids` write. */
-const reader = (fn) => withUser({ write: "raids" }, fn);
-/** A write: menu user, CSRF, JSON body. */
-const action = (fn) => withUser({ csrf: true, body: true, archived: (body) => body.event }, fn);
+// "Event verwalten" is the orga's (permissions.userIsOrga): a raider role that holds `raids`
+// write is still no orga, so every path here wants the orga as well as its right.
+// Every path is also the orga of the raid's category's (`orgaScoped`, epic #723): the signups (#727) and
+// moving, cancelling, reopening, deleting, the channel and the dialogs' state (#728) - a manager of the
+// current roster of the raid's category, for that raid only (docs/permissions.md "Kategorie-Orga").
+// Nothing here changes a raid's category: a move keeps it in its channel's category, an archived channel
+// moves to the server's archive category (not one the body names).
+
+const BY_EVENT = (body) => body.event;
+const BY_QUERY = (body, query) => query.get("event");
+
+/** A read that prepares an action: the orga with `raids` write, or the orga of the raid's category. */
+const reader = (fn) => withUser({ orgaScoped: BY_QUERY, write: "raids" }, fn);
+/** A write: CSRF, JSON body - the orga with `raids` write, or the orga of the raid's category. */
+const action = (fn) => withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, fn);
 
 const getManage = reader(async ({ req, res, query }) => {
     sendResult(res, await manage.manageInfo({ guildId: activeGuildFor(req), eventId: q.str(query, "event") }));

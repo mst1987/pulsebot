@@ -69,7 +69,7 @@ describe("OrgaChip", () => {
 
 describe("OrgaZone", () => {
     it("frames the orga's part of a page and names the orga: admins and the orga roles", () => {
-        render(<OrgaZone user={{ ...lead, orgaRoles: ["Gildenleitung", "Raidleitung"] }}><p>Inhalt</p></OrgaZone>);
+        render(<OrgaZone user={{ ...lead, isOrga: true, orgaRoles: ["Gildenleitung", "Raidleitung"] }}><p>Inhalt</p></OrgaZone>);
         const zone = screen.getByRole("region", { name: t("shell.orga.label") });
         expect(zone).toHaveTextContent("Inhalt");
         expect(zone).toHaveTextContent(t("shell.orga.zoneHidden"));
@@ -79,8 +79,19 @@ describe("OrgaZone", () => {
     });
 
     it("names the admins alone while no orga role is set", () => {
-        render(<OrgaZone user={{ ...lead, orgaRoles: undefined }}><p>Inhalt</p></OrgaZone>);
+        render(<OrgaZone user={{ ...lead, isOrga: true, orgaRoles: undefined }}><p>Inhalt</p></OrgaZone>);
         expect(screen.getByRole("region", { name: t("shell.orga.label") })).toHaveTextContent(t("shell.orga.visibleFor", { who: t("shell.orga.admins") }));
+    });
+
+    // #729: who sees it without being the global orga is the orga of a category (a roster's manager)
+    it("tells the orga of a category that it is theirs, not the admins'", () => {
+        const manager = { ...lead, orgaCategories: ["c1"], orgaRoles: ["Raidleitung"] };
+        render(<OrgaZone user={manager}><p>Inhalt</p></OrgaZone>);
+        const zone = screen.getByRole("region", { name: t("shell.orga.label") });
+        expect(zone).toHaveTextContent(t("shell.orga.visibleForCategory"));
+        expect(zone).not.toHaveTextContent(t("shell.orga.admins"));
+        render(<OrgaZone user={manager} categories><p>Block</p></OrgaZone>);
+        expect(screen.getByText(new RegExp(t("shell.orga.visibleForCategories")))).toBeInTheDocument();
     });
 });
 

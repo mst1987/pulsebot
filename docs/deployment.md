@@ -437,7 +437,8 @@ der Live-Bot als `development` (#612).
 
 Der zweite Weg neben pm2: ein Multi-Stage-Image, das den Web-Client selbst baut
 (Stage `client`) und nur dessen `dist/` ins schlanke Laufzeit-Image übernimmt
-(Stage `runtime`, `npm ci --omit=dev`, dazu `src/`, `assets/`, `scripts/`).
+(Stage `runtime`, `npm ci --omit=dev`, dazu `src/`, `assets/`, `scripts/` und aus
+`docs/` nur die beiden Guides, aus denen die Hilfeseite `/docs` entsteht).
 
 ```bash
 docker build --build-arg GIT_COMMIT=$(git rev-parse HEAD) -t pulsebot .

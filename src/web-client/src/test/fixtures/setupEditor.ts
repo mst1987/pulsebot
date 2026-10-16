@@ -60,6 +60,7 @@ export function editorData(over: Partial<SetupEditorData> = {}, setup: Partial<S
         eventId: EVENT_ID,
         event: { id: EVENT_ID, title: "Karazhan Donnerstag", startTime: 0, size: 25, composition: { tank: 2, healer: 5, melee: 0, ranged: 0 }, versionId: "tbc", fairness: false, wishes: false },
         canWrite: true,
+        canEditEvent: true,
         approved: null,
         setup: storedSetup({ ...lineup(), ...setup }),
         groupCount: 5,

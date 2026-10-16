@@ -605,6 +605,7 @@ function limitCharacters(fit, previous, max) {
  *
  * @param {string} userId
  * @param {{ eventId: string, characters: { character, spec }[], status?: string }[]} entries
+ * `byOrga`: a boolean for every raid, or `(event) => boolean | Promise<boolean>` asked per raid
  * @returns {Promise<{ eventId: string, title: string, startTime: number, ok: boolean, signup?: object, skipped: object[], error?: string, code?: string }[]>}
  */
 async function submitSignups(userId, entries, { byOrga = false, now = Date.now(), config } = {}) {
@@ -640,9 +641,11 @@ async function submitSignups(userId, entries, { byOrga = false, now = Date.now()
         // Each raid takes as many characters as its category allows: the first ones
         // in priority order, the rest is skipped there with the limit as the reason.
         if (status !== "absence") limitCharacters(fit, previous, maxCharactersFor(event, cfg));
+        // the orga's exemption: one answer for all, or per raid (the web's orga of a category, #727)
+        const exempt = typeof byOrga === "function" ? (await byOrga(event)) === true : !!byOrga;
         let roleIds;
         const needsRoles = expectedRoleIds(event.categoryId, cfg, { versionId: versionOfEvent(event, { config: cfg }) }).length > 0;
-        if (needsRoles && !byOrga) {
+        if (needsRoles && !exempt) {
             const guild = event.guildId || cfg.guildId || "";
             if (!roleCache.has(guild)) roleCache.set(guild, await discord.memberRoleIds(guild, uid));
             roleIds = roleCache.get(guild);
@@ -652,7 +655,7 @@ async function submitSignups(userId, entries, { byOrga = false, now = Date.now()
             status,
             canAlso: previous ? previous.canAlso : undefined,
             comment: previous ? previous.comment : "",
-        }, { byOrga, now, roleIds, config: cfg });
+        }, { byOrga: exempt, now, roleIds, config: cfg });
         if (result.error) results.push({ ...base, ok: false, skipped: fit.skipped, code: result.code, error: result.error });
         else {
             results.push({

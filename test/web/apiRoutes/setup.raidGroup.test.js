@@ -14,7 +14,8 @@ jest.mock("../../../src/web/http/auth", () => ({
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [], firstCharacter: () => null, getProfile: () => null }));
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: () => null }));
+// no roster anywhere: nobody is the orga of a category (#725), only the global orga
+jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: () => null, listRosters: () => [], isClosed: () => false }));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }), attendanceForAccounts: () => new Map() }));
 jest.mock("../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({})), listAllChannels: () => [], listGuilds: () => [] }));
 jest.mock("../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
@@ -32,7 +33,8 @@ const route = require("../../../src/web/apiRoutes/setup");
 const { checkAccess } = require("../../../src/web/http/apiAccess");
 const { routerClient, status, body } = require("../../helpers/http");
 
-const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raids: { read: true, write: true } } };
+// the setup editor is the orga's (userIsOrga): only the orga gets the draft from GET /api/raids/setup
+const ORGA = { id: "orga", name: "Orga", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
 const START = Math.floor(Date.now() / 1000) + 7 * 86400;
 const api = routerClient(route);
@@ -60,6 +62,17 @@ describe("access", () => {
             expect(checkAccess(path, "POST", READER)).toMatchObject({ status: 403 });
             expect(checkAccess(path, "POST", ORGA)).toBeNull();
         }
+    });
+    it("is the orga's: a role with raids write but no orga rank gets 403 orga_only on every raid group route", async () => {
+        mockUser = { id: "rw", name: "Raider", isAdmin: false, access: { raids: { read: true, write: true } } };
+        for (const path of ["/api/raids/setup/raid-add", "/api/raids/setup/raid-remove", "/api/raids/setup/move-raid"]) {
+            const r = await api.post(path, { event: primary.id, target: primary.id, userId: "h1" });
+            expect(status(r)).toBe(403);
+            expect(body(r)).toMatchObject({ error: { code: "orga_only" } });
+        }
+        // nothing happened: no further raid, no message redrawn
+        expect(refreshEventMessage).not.toHaveBeenCalled();
+        expect(eventStore.getEvent(primary.id).raidGroupId || "").toBe("");
     });
 });
 

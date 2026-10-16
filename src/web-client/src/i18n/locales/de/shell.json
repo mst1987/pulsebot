@@ -134,8 +134,12 @@
         "backHome": "Zurück zur Übersicht",
         "loadingMenu": "Menü wird geladen",
         "sessionError": "Fehler beim Laden der Session: {message}",
-        "loginPrompt": "Bitte melde dich mit Discord an, um das Gildenmenü zu nutzen.",
+        "loginTitle": "Anmelden",
+        "loginPrompt": "Melde dich mit deinem Discord-Konto an, um Raids, Anmeldungen und Loot deiner Gilde zu sehen.",
         "loginButton": "Mit Discord anmelden",
+        "loginHint": "Discord teilt nur deinen Namen und dein Profilbild – kein Passwort, keine E-Mail, keine Nachrichten.",
+        "loginNext": "Danach",
+        "loginNextAddon": "{name} · Patchnotes",
         "newVersionTitle": "Neue Version verfügbar",
         "newVersionText": "Das Menü wurde aktualisiert. Lade die Seite neu, um weiterzuarbeiten.",
         "newVersionReload": "Seite neu laden"
@@ -145,6 +149,8 @@
         "pageHidden": "Raider sehen diese Seite nicht",
         "zoneHidden": "Raider sehen diesen Bereich nicht",
         "visibleFor": "sichtbar für {who}",
+        "visibleForCategory": "sichtbar für die Orga dieser Kategorie",
+        "visibleForCategories": "nur deine Kategorien · sichtbar für ihre Orga",
         "admins": "Admins",
         "accounts": {
             "one": "{count} einzelnes Konto",

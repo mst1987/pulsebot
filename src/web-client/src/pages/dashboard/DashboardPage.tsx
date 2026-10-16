@@ -32,7 +32,7 @@ import Badge from "../../components/ui/Badge";
 import IconTile, { type TileTone } from "../../components/ui/IconTile";
 import WowIcon from "../../components/ui/WowIcon";
 import { useContentVersion } from "../../hooks/useContentVersion";
-import { ChevronRightIcon } from "../../components/ui/icons";
+import { CheckIcon, ChevronRightIcon } from "../../components/ui/icons";
 import TopLootList from "../../components/loot/TopLootList";
 import RaidDetailsModal from "./RaidDetailsModal";
 import { RoleBar, IconLink } from "./OverviewParts";
@@ -217,7 +217,7 @@ function TrialActions({ action, onDone }: { action: Extract<DashboardTaskAction,
     };
     return (
         <span className="ov-task-btns">
-            <Button size="sm" variant="ghost" running={busy === "adopt"} disabled={!!busy} onClick={() => run("adopt")}>{t("dashboard.tasks.trial.adopt")}</Button>
+            <Button size="sm" variant="go" icon={<CheckIcon />} running={busy === "adopt"} disabled={!!busy} onClick={() => run("adopt")}>{t("dashboard.tasks.trial.adopt")}</Button>
             <Button size="sm" variant="ghost" running={busy === "extend"} disabled={!!busy} onClick={() => run("extend")}>{t("dashboard.tasks.trial.extend")}</Button>
         </span>
     );
@@ -446,7 +446,8 @@ export default function DashboardPage() {
                 const me = data.personal;
                 // Two parts (design canvas Oct 2026, direction A): "Für dich" for everyone with a signup of their own —
                 // in full for a raider, compact above the orga block — and the orga block for whoever reads the raids.
-                const action = canAccess(user, "raids", "write")
+                // "Neues Raid": whom POST /api/raids lets create - the server says so (#729: the orga of a category too)
+                const action = (data.canCreate ?? canAccess(user, "raids", "write"))
                     ? <Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_02" size={22} />{t("dashboard.page.newRaid")}</Link>
                     : me
                         ? <Link className={buttonClass("primary", "md", true)} to="/signups"><WowIcon name="inv_misc_book_09" size={22} />{t("dashboard.personal.toSignups")}</Link>
@@ -470,7 +471,7 @@ export default function DashboardPage() {
 
                         {data.orga && (
                             // the orga's block in its zone (design canvas Oct 2026, B): for the orga only
-                            <OrgaZone user={user}>
+                            <OrgaZone user={user} categories>
                                 <div className="ov-grid ov-grid-top">
                                     <NextRaidCard
                                         raid={data.nextRaid} following={data.followingRaid} error={data.nextRaidError}

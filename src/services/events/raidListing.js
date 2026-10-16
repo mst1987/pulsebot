@@ -192,13 +192,16 @@ async function loadPastRaids(guildId, opts = {}) {
             contentIds,
             contentSources: sources,
             logs: ev.logs.map(trimLog),
-            pendingLogs: ev.pendingLogs.map((l) => ({
-                title: l.title || l.reportId || "",
+            pendingLogs: ev.pendingLogs.map((l) => {
                 // The other raids this log fits time-wise — why it stayed unassigned.
-                alsoFits: stored
-                    .filter((other) => other.id !== ev.id && pendingLogsForEvent(other, [l]).length)
-                    .map((other) => other.title || ""),
-            })),
+                const others = stored.filter((other) => other.id !== ev.id && pendingLogsForEvent(other, [l]).length);
+                return {
+                    title: l.title || l.reportId || "",
+                    alsoFits: others.map((other) => other.title || ""),
+                    // their categories, parallel to `alsoFits`: a category's orga is told only of its own raids (#729)
+                    alsoFitsCategoryIds: others.map((other) => other.categoryId || ""),
+                };
+            }),
             pendingLogCount: ev.pendingLogs.length,
             lootCount: loot.length,
             softres: softresOf(ev.id),

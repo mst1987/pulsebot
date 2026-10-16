@@ -3,18 +3,20 @@
 // and redraws, services/addons/addonCenterBot.js answers the buttons.
 //
 // The centre (Board 1), ONE Components V2 message:
-//   head container (accent #8a7cff)  "## Addon-Downloadzentrale" and how it works
+//   head container (accent #8a7cff)  "## Addon-Downloadzentrale" and how it works;
+//                                    "Updates abonnieren" as the section's button while an
+//                                    update role is set (addonCenterBot.js toggles the role)
 //   one container per addon          in the addon's colour: "### <emoji> Name [NEU]", the
 //                                    short description, "-# Version 0.3.0 · 12.10.2026 ·
 //                                    Patchnotes" (the link opens the addon's card on the web
 //                                    page "Addons", where its release notes are) and
 //                                    "Herunterladen" as the section's button — without a
 //                                    release a short note instead of the button
-// Nothing is announced when a new version appears (no update message, no ping): the
-// centre only shows "NEU" and the newest version.
+// The centre itself announces nothing when a new version appears: it shows "NEU" and
+// the newest version; the role ping is a separate short message (addonCenter.js).
 //
 // Discord allows 40 components per message (nested ones included) and 4000
-// characters of text: the head takes 2, an addon 4 (container, section, text,
+// characters of text: the head takes 2 or 4 (with the subscribe button), an addon 4 (container, section, text,
 // button) or 2 (container, text); addons that do not fit are left out with a line
 // in the head (the caller logs it), descriptions are cut to share the text budget.
 // Public texts go through tr() in the server's language (docs/bot-commands.md).
@@ -49,9 +51,12 @@ const FALLBACK_COLORS = Object.freeze([0x60a5fa, 0xfbbf24, 0xc084fc, 0x2dd4bf, 0
 
 const downloadId = (addonId) => `${CENTER_PREFIX}:dl:${addonId}`;
 const fileId = (addonId, assetId) => `${CENTER_PREFIX}:file:${addonId}:${assetId}`;
+/** "Updates abonnieren" in the centre (toggles the update role) and "Abo beenden" under its confirmation. */
+const SUBSCRIBE_ID = `${CENTER_PREFIX}:sub`;
+const UNSUBSCRIBE_ID = `${CENTER_PREFIX}:unsub`;
 
-/** The card of an addon on the web page "Addons" (anchor `addon-<id>`), where its release notes are. */
-const patchNotesUrl = (addonId) => `${webUrl("/addon")}#addon-${encodeURIComponent(str(addonId))}`;
+/** The detail page of an addon on the web (/addon/<id>), where its release notes are, whatever version the menu shows. */
+const patchNotesUrl = (addonId) => webUrl(`/addon/${encodeURIComponent(str(addonId))}`);
 
 const str = (v) => String(v === undefined || v === null ? "" : v);
 const text = (content) => new TextDisplayBuilder().setContent(content);
@@ -113,18 +118,19 @@ function downloadButton(addonId, lang) {
  * @param {object} o
  * @param {{ addon: object, state: string, release: object|null, files: object[], newSince: number }[]} o.entries
  *   the addons of the channel's version, in order (`files` = the release files the addon offers)
+ * @param {boolean} [o.subscribe] show "Updates abonnieren" (an update role is set)
  * @param {string} [o.lang]
  * @param {string} [o.versionLabel] the game version shown (named in the empty state)
  * @param {object} [o.emojis] the bot's application emojis (appEmojis.appEmojiMap())
  * @param {number} [o.now]
  * @returns {{ payload: object, shown: number, dropped: number }}
  */
-function centerPayload({ entries = [], lang = "de", emojis = {}, now = Date.now(), versionLabel = "" } = {}) {
+function centerPayload({ entries = [], subscribe = false, lang = "de", emojis = {}, now = Date.now(), versionLabel = "" } = {}) {
     const headText = [
         `## ${tr(lang, "Addon download centre")}`,
         tr(lang, "Click **Download** – the file comes only for you. Unpack it into `Interface\\AddOns`."),
     ].join("\n");
-    const headCost = 2;
+    const headCost = subscribe ? 4 : 2;
     const costOf = (e) => (hasFiles(e) ? 4 : 2);
 
     // what fits: everything, else as many as fit next to the line that says some are missing
@@ -159,7 +165,12 @@ function centerPayload({ entries = [], lang = "de", emojis = {}, now = Date.now(
 
     const head = new ContainerBuilder().setAccentColor(COLOR_CENTER);
     const headContent = more ? `${headText}\n${more}` : headText;
-    head.addTextDisplayComponents(text(headContent));
+    if (subscribe) {
+        head.addSectionComponents(new SectionBuilder().addTextDisplayComponents(text(headContent))
+            .setButtonAccessory(new ButtonBuilder().setCustomId(SUBSCRIBE_ID).setLabel(tr(lang, "Subscribe to updates")).setEmoji("🔔").setStyle(ButtonStyle.Secondary)));
+    } else {
+        head.addTextDisplayComponents(text(headContent));
+    }
     const components = [head.toJSON()];
 
     for (const l of lines) {
@@ -192,6 +203,6 @@ function parseCenterId(customId) {
 }
 
 module.exports = {
-    CENTER_PREFIX, COMPONENT_LIMIT, TEXT_LIMIT, NEW_MS, COLOR_CENTER, ADDON_COLORS, patchNotesUrl,
+    CENTER_PREFIX, COMPONENT_LIMIT, TEXT_LIMIT, NEW_MS, COLOR_CENTER, ADDON_COLORS, SUBSCRIBE_ID, UNSUBSCRIBE_ID, patchNotesUrl,
     centerPayload, addonColor, dateText, isNew, downloadId, fileId, parseCenterId, escapeMd,
 };

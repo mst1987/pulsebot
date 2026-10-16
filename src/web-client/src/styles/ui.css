@@ -30,8 +30,47 @@
 .ibtn.sm .wi { width: 20px; height: 20px; }
 .ibtn:hover:not(:disabled) { color: var(--text); border-color: var(--accent); background: var(--panel3); }
 .ibtn:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.ibtn.danger:hover:not(:disabled) { color: var(--high); border-color: var(--high); background: var(--high-bg); }
+/* tones, as on .btn: the meaning shows before the hover — a bin is red, an approve tick green */
+.ibtn.danger, .ibtn.no { color: color-mix(in srgb, var(--high) 80%, var(--muted)); }
+.ibtn.yes { color: var(--good); }
+.ibtn.danger:hover:not(:disabled), .ibtn.no:hover:not(:disabled) { color: var(--high); border-color: var(--high); background: var(--high-bg); }
+.ibtn.yes:hover:not(:disabled) { color: var(--good); border-color: var(--good); background: var(--good-bg); }
+.ibtn.yes[aria-pressed="true"] { color: var(--go-ink); border-color: var(--go); background: var(--go); }
+.ibtn.no[aria-pressed="true"] { color: var(--on-fill); border-color: var(--high); background: var(--high); }
 .ibtn:disabled { opacity: .45; cursor: default; }
+/* ghost: no frame until hovered - a quiet "take away" beside a value */
+.ibtn.ghost { border-color: transparent; background: transparent; }
+
+/* ---- number stepper: − value + as one control (components/ui/NumberStepper.tsx) ---- */
+.num-stepper {
+    display: inline-flex; align-items: stretch; flex: 0 0 auto; height: var(--ctl-h);
+    border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2); overflow: hidden;
+}
+.num-stepper.sm { height: var(--ctl-h-sm); }
+.num-stepper button {
+    display: grid; place-items: center; width: var(--ctl-h); padding: 0; border: 0; background: transparent; color: var(--text);
+    cursor: pointer; transition: background-color .12s ease, color .12s ease;
+}
+.num-stepper.sm button { width: var(--ctl-h-sm); }
+.num-stepper button svg { width: 16px; height: 16px; }
+.num-stepper button:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); }
+.num-stepper button:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+.num-stepper button:disabled { color: var(--muted); opacity: .45; cursor: default; }
+.num-stepper input, .num-stepper-value {
+    display: grid; place-items: center; min-width: var(--num-w, 64px); padding: 0 8px; margin: 0;
+    border: 0; border-left: 1px solid var(--line); border-right: 1px solid var(--line); border-radius: 0;
+    background: var(--bg); color: var(--text); text-align: center; white-space: nowrap;
+    font: 700 15px/1 var(--font-mono); font-variant-numeric: tabular-nums; -moz-appearance: textfield;
+}
+.num-stepper input { width: var(--num-w, 64px); }
+.num-stepper input:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+.num-stepper input::-webkit-outer-spin-button, .num-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.num-stepper:focus-within { border-color: var(--accent); }
+/* a thumb needs room: 40 px on a phone */
+@media (max-width: 640px) {
+    .num-stepper, .num-stepper.sm { height: 40px; }
+    .num-stepper button, .num-stepper.sm button { width: 40px; }
+}
 
 /* ---- split button: main action + chevron menu ---- */
 .split { position: relative; display: inline-flex; }
@@ -240,7 +279,44 @@ dialog.dlg.dlg-flush .dlg-foot .dlg-hint { order: -1; margin-right: auto; }
    A fixed look is a class; a value that differs per element (a width, a
    colour, a position) is a custom property set on the element and read here. */
 .empty.app-notice { display: flex; flex-direction: column; gap: 10px; align-items: center; padding-top: 60px; }
-.empty.app-notice.is-login { gap: 14px; padding-top: 80px; }
+/* ---- login card (App.tsx LoginNotice): the page a visitor without a session sees */
+.login-page {
+    min-height: 100vh; min-height: 100dvh; box-sizing: border-box; padding: 48px 16px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    background:
+        radial-gradient(ellipse 60% 45% at 50% 0%, var(--accent-soft), transparent 70%),
+        var(--bg);
+}
+.login-card {
+    position: relative; box-sizing: border-box; width: 100%; max-width: 400px; padding: 32px 30px 26px;
+    display: flex; flex-direction: column; gap: 14px;
+    background: var(--panel); border: 1px solid var(--line);
+    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+}
+.login-card::after {
+    content: ""; position: absolute; top: 0; right: 0; width: 18px; height: 18px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 42%, transparent 44%);
+    opacity: .85; pointer-events: none;
+}
+.login-brand { display: flex; align-items: center; gap: 12px; padding-bottom: 18px; margin-bottom: 4px; border-bottom: 1px solid var(--line-soft); }
+.login-brand .crest { width: 48px; height: 48px; border-radius: 12px; }
+.login-brand .crest svg { width: 26px; height: 26px; }
+.login-brand .brand-name { font-size: 19px; }
+.login-title { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.2px; color: var(--text); }
+.login-prompt { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.login-btn { width: 100%; min-height: 46px; margin-top: 6px; font-size: 15px; }
+.login-btn svg { width: 20px; height: 20px; }
+.login-hint { display: flex; align-items: flex-start; gap: 8px; margin: 2px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.login-hint svg { width: 14px; height: 14px; flex: 0 0 auto; margin-top: 1px; }
+@media (max-width: 480px) { .login-card { padding: 26px 20px 22px; } }
+/* "Danach: LevelHelper · Patchnotes" — where the login leads back to (App.tsx LoginNotice) */
+.login-next {
+    display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--panel2); color: var(--text); font-size: 13.5px; box-sizing: border-box;
+}
+.login-next .kicker { letter-spacing: 1px; flex: 0 0 auto; }
+.login-next .wi { width: 18px; height: 18px; border-radius: 4px; flex: 0 0 auto; }
+.login-next-text { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 nav.menu .hint.menu-hint { padding: 0 14px; }
 img.spec-ico-sm { border-radius: 4px; vertical-align: -4px; margin-right: 6px; }
 .spec-label { font-weight: 700; }

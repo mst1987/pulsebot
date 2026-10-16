@@ -32,25 +32,31 @@ const states = (versionId, cfg) => Object.fromEntries(
 );
 
 describe("services/events/versionCapabilities — the matrix", () => {
-    it("has TBC do everything", () => {
-        expect(states("tbc", config())).toEqual(Object.fromEntries(VERSION_FEATURES.map((f) => [f, "an"])));
+    it("has TBC do everything but the dungeon best times (no LevelHelper on its client)", () => {
+        expect(states("tbc", config())).toEqual({
+            ...Object.fromEntries(VERSION_FEATURES.map((f) => [f, "an"])),
+            dungeonTimes: "nicht möglich (no_dungeon_times)",
+        });
     });
 
-    it("has Forever do only the Wowhead links today, each other feature with its reason", () => {
+    it("has Forever do only the BiS hand lists, the Wowhead links and the dungeon best times today, each other feature with its reason", () => {
         expect(states("forever", config())).toEqual({
             logcheck: "nicht möglich (rules_not_ready)",
-            lootCouncilBis: "nicht möglich (no_bis_data)",
+            // no BiS data of its own: the orga's hand lists (#760)
+            lootCouncilBis: "an",
             simulation: "nicht möglich (no_sim_data)",
             raidSheet: "nicht möglich (no_sheet_layout)",
             softres: "nicht möglich (no_softres_edition)",
             armory: "nicht möglich (armory_not_configured)",
             wowheadLinks: "an",
             raidplanCatalog: "nicht möglich (no_catalog_entries)",
+            dungeonTimes: "an",
         });
         const logcheck = caps.featureState("forever", "logcheck", { config: config() });
         expect(logcheck.message).toBe("Die Logcheck-Regeln für WoW Forever sind noch nicht fertig.");
         expect(logcheck.missing.length).toBeGreaterThan(0);
-        expect(caps.featureState("forever", "lootCouncilBis", { config: config() }).message).toBe("Für WoW Forever gibt es keine BiS-Daten.");
+        expect(caps.featureState("forever", "lootCouncilBis", { config: config({}, { disabled: ["lootCouncilBis"] }) }))
+            .toMatchObject({ possible: true, on: false, reason: "disabled" });
     });
 
     it("has Classic without log rules, but softres and Wowhead from its settings", () => {
@@ -70,11 +76,14 @@ describe("services/events/versionCapabilities — the matrix", () => {
     });
 
     it("turns a switched-off feature into one that is off with its own hint", () => {
-        for (const f of VERSION_FEATURES) {
+        // every feature TBC can have (the dungeon best times are Forever's, see below)
+        for (const f of VERSION_FEATURES.filter((x) => x !== "dungeonTimes")) {
             const s = caps.featureState("tbc", f, { config: OFF });
             expect(s).toMatchObject({ possible: true, enabled: false, on: false, reason: "disabled" });
             expect(s.message).toMatch(/ist für TBC Anniversary ausgeschaltet \(Einstellungen → Spielversion\)\.$/);
         }
+        expect(caps.featureState("forever", "dungeonTimes", { config: config({}, { disabled: ["dungeonTimes"] }) }))
+            .toMatchObject({ possible: true, enabled: false, on: false, reason: "disabled" });
         // a feature that is not possible keeps its own reason, switched off or not
         const off = caps.featureState("forever", "raidSheet", { config: config({}, { disabled: ["raidSheet"] }) });
         expect(off).toMatchObject({ possible: false, enabled: false, reason: "no_sheet_layout" });
@@ -111,17 +120,20 @@ describe("services/events/versionCapabilities — the readers", () => {
         expect(logVersion.unsupportedMessage("forever", { config: config() })).toBe("Logs von WoW Forever werden noch nicht ausgewertet.");
     });
 
-    it("loot council: TBC has everything, switched off nothing and says so, Forever nothing", () => {
-        expect(caps.councilContent("tbc", { config: config() })).toEqual({ bis: true, sim: true, tiers: true, itemTable: true, off: false, simHint: "" });
+    it("loot council: TBC has everything, switched off nothing and says so, Forever only the hand lists", () => {
+        expect(caps.councilContent("tbc", { config: config() })).toEqual({ bis: true, manualBis: false, sim: true, tiers: true, itemTable: true, off: false, simHint: "" });
         const off = caps.councilContent("tbc", { config: OFF });
-        expect(off).toMatchObject({ bis: false, sim: false, tiers: false, itemTable: false, off: true });
+        expect(off).toMatchObject({ bis: false, manualBis: false, sim: false, tiers: false, itemTable: false, off: true });
         expect(off.simHint).toBe("Simulation ist für TBC Anniversary ausgeschaltet (Einstellungen → Spielversion).");
         const simOnly = caps.councilContent("tbc", { config: config({ disabled: ["simulation"] }) });
         expect(simOnly).toMatchObject({ bis: true, itemTable: true, sim: false, off: false });
         expect(caps.councilContent("forever", { config: config() })).toEqual({
-            bis: false, sim: false, tiers: false, itemTable: false, off: false, simHint: "Für diese Spielversion gibt es keine Simulation.",
+            bis: false, manualBis: true, sim: false, tiers: false, itemTable: false, off: false, simHint: "Für diese Spielversion gibt es keine Simulation.",
         });
-        expect(caps.councilContent("", { config: config() })).toMatchObject({ bis: false, sim: false });
+        // switched off: no hand lists either, and the page says "ausgeschaltet" (#760)
+        expect(caps.councilContent("forever", { config: config({}, { disabled: ["lootCouncilBis"] }) }))
+            .toMatchObject({ bis: false, manualBis: false, off: true });
+        expect(caps.councilContent("", { config: config() })).toMatchObject({ bis: false, manualBis: false, sim: false });
     });
 
     it("raid sheet: TBC fills it, Forever is refused naming the version, switched off says so", () => {

@@ -43,7 +43,22 @@ const {
 const { pingMissingRaiders } = require("../../services/events/missingPing");
 const { buildRaidDetail } = require("../events/raidDetailView");
 const { postRaidplanLink } = require("../../services/raidplan/raidplanPost");
+const { canWriteLibrary, managesRaid } = require("../raidplan/raidplanAccess");
+const { raidViewer } = require("../../services/signups/eventVisibility");
+const { isGlobalRaidOrga, canOrgaRaid } = require("../events/raidOrgaAccess");
+const { requestCache } = require("../../services/roster/categoryOrga");
 const { userCan } = require("../../config/permissions");
+const { expectedRoleIds } = require("../../services/roster/categoryRoles");
+
+// Every action of this file is the orga's (permissions.userIsOrga) as well as its area's write right:
+// raider roles may hold `raids` write and are still no orga. Posting the raid plan's link is the
+// exception - it is area "raidplan", handed to the people who write the tactics (and to the orga of
+// the raid's category, #726).
+// Every action is also the orga of the raid's category's (`orgaScoped`, epic #723): the signup calls
+// (#727: Anmelde-Aufruf, "Fehlende pingen", "Invite callen") and the sheet, softres, its item search and
+// the loot system (#728) - a manager of the current roster of the raid's category, for that raid only
+// (docs/permissions.md "Kategorie-Orga"). The channel a post goes to is always the server's record.
+const ORGA = { orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT };
 const { embedColor } = require("../../services/events/embedLook");
 
 /**
@@ -64,12 +79,40 @@ function linkCardOf(found) {
 /**
  * GET /api/raids/detail?event=<id> — everything the event-detail page needs in
  * one read; built by raidDetailView.js, this is only the HTTP side. Posting the
- * plan's link is area "raidplan", so its step comes only with that write right.
+ * plan's link is area "raidplan", so its step comes only with that write right
+ * or to the orga of the raid's category (web/raidplan/raidplanAccess.js, #726).
+ * A raider gets only the raids they may see (eventVisibility.js; any other answers
+ * 404 like an unknown one) and none of the orga's parts (raidDetailView.js).
  */
 const getRaidDetail = withUser({}, async ({ user, req, res, url }) => {
     const eventId = (url.searchParams.get("event") || "").trim();
-    const planPost = userCan(user, "raidplan", "write");
-    return sendResult(res, await buildRaidDetail({ guildId: activeGuildFor(req), eventId, planPost }));
+    const guildId = activeGuildFor(req);
+    const loadGroups = () => loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
+    // the manager of the raid's category plans it (#726): the gate of the plan's writes and of its read (#729)
+    const managesPlan = await managesRaid(user, eventId, req);
+    // the link's state and step follow the gate of POST /api/raids/post-raidplan per event (#726) - for a
+    // non-orga as well: the raid plan tab of a tactician or a category's orga posts through it
+    const planPost = canWriteLibrary(user) || managesPlan;
+    // The orga of this raid (#729): the gate of its actions (`orgaScoped` with `raids` write) - the global orga
+    // with `raids` write, or a manager of the current roster of its category. They get the orga's view, the
+    // rest of the global orga keeps it as before; anyone else the raider's (eventVisibility.js).
+    const canOrga = await canOrgaRaid(user, eventId, req, { loadGroups });
+    const viewer = await raidViewer(user, guildId, { cache: requestCache(req) });
+    return sendResult(res, await buildRaidDetail({
+        guildId, eventId, planPost,
+        viewer: canOrga && !viewer.orga ? { ...viewer, orga: true } : viewer,
+        rights: {
+            canOrga,
+            // the "Raidplan" tab: GET /api/raidplan's gate (`raidplan` read, or the category's orga - `orgaRead`)
+            canPlan: userCan(user, "raidplan", "read") || managesPlan,
+            // "Raidplan aktivieren" of a Raid-Helper event: POST /api/raidplan/link's gate, as the plan's writes
+            canSwitchPlan: planPost,
+            // the Anmelde-Aufruf of anyone but the global orga with `raids` write pings the category's raider roles only
+            categoryRolesOnly: !isGlobalRaidOrga(user),
+            // the server's unassigned logs are the "Log zuordnen" dialog's: `cla` write (POST /api/cla/log-link)
+            canLogs: userCan(user, "cla", "write"),
+        },
+    }));
 });
 
 /**
@@ -104,23 +147,45 @@ async function planningBlock(req, eventId, action, categoryId) {
     return planningRefusal(action, category, getConfig());
 }
 
-/** POST /api/raids/notify — post an Anmelde-Aufruf into the event channel, pinging the chosen roles. Body: { event, templateId, channelId, roleIds }. */
-const postNotify = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ body, req, res }) => {
+/**
+ * POST /api/raids/notify — post an Anmelde-Aufruf into the event channel, pinging the chosen roles. Body: { event, templateId, channelId, roleIds }.
+ * The orga of the raid's category (#727) posts into that raid's own channel only: the channel is the
+ * server's record of the event, a `channelId` in the body does not count for them; and they ping only the
+ * raider roles of the raid's category (categoryRoles.expectedRoleIds), any other role id is 400 "role_not_allowed".
+ */
+const postNotify = withUser(ORGA, async ({ user, body, req, res }) => {
     const template = getNotify(q.str(body, "templateId"));
-    const channelId = q.str(body, "channelId");
+    const eventId = q.str(body, "event");
+    let channelId = q.str(body, "channelId");
+    const roleIds = (Array.isArray(body.roleIds) ? body.roleIds : []).map((id) => String(id || "").trim()).filter(Boolean);
+    let lookup = null;
+    if (!isGlobalRaidOrga(user)) {
+        lookup = await resolveEventForPost(req, eventId);
+        if (!lookup.found) return error(res, lookup.code === "not_found" ? 404 : 400, lookup.code || "not_found", lookup.errorMessage || "Event nicht gefunden.");
+        channelId = String(lookup.found.channelId || "");
+        // ... and pings only the raider roles of the raid's category (in the raid's version): a role
+        // outside them is refused as a whole - the dialog offers every role of the server, so a
+        // silently shortened ping would reach other people than the ones picked
+        const allowed = new Set(expectedRoleIds(lookup.categoryId, getConfig(), {
+            versionId: versionOfEvent({ ...lookup.found, categoryId: lookup.categoryId }, { config: getConfig() }),
+        }));
+        const foreign = roleIds.filter((id) => !allowed.has(id));
+        if (foreign.length) {
+            return error(res, 400, "role_not_allowed", "Du kannst nur die Raider-Rollen der Kategorie dieses Raids pingen.");
+        }
+    }
     const target = normalizePingTarget(body.target);
     if (!template || (target !== "talk" && !channelId)) return error(res, 400, "missing_fields", "Vorlage oder Channel fehlt.");
     try {
         if (target === "event") {
-            await discord.postAnnouncement(channelId, template, body.roleIds || []);
+            await discord.postAnnouncement(channelId, template, roleIds);
             return ok(res, { message: "Anmelde-Aufruf gepostet." });
         }
         // The DM fallback names the raid, so the event is resolved server-side;
         // a failed lookup only costs the DM its title.
-        const eventId = q.str(body, "event");
-        const { found } = eventId ? await resolveEventForPost(req, eventId) : { found: null };
+        const { found } = lookup || (eventId ? await resolveEventForPost(req, eventId) : { found: null });
         const result = await deliverAnnouncement({
-            target, event: found, channelId, template, roleIds: body.roleIds || [], guildId: activeGuildFor(req),
+            target, event: found, channelId, template, roleIds, guildId: activeGuildFor(req),
         });
         ok(res, { message: `Anmelde-Aufruf gepostet (${TARGET_LABELS[target]})${dmSummary(result.dm)}.`, delivery: result });
     } catch (e) {
@@ -134,7 +199,7 @@ const postNotify = withUser({ csrf: true, body: true, archived: BY_EVENT }, asyn
  * Missing raiders are re-derived server-side; the client never gets to supply
  * the list of who to ping.
  */
-const postPingMissing = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ body, req, res }) => {
+const postPingMissing = withUser(ORGA, async ({ body, req, res }) => {
     const eventId = q.str(body, "event");
     const guildId = activeGuildFor(req);
     const result = await pingMissingRaiders({ guildId, eventId, target: body.target, text: body.text });
@@ -148,7 +213,7 @@ const postPingMissing = withUser({ csrf: true, body: true, archived: BY_EVENT },
  * being the caller's own (inviteCall.js). Body: `{ event, dryRun }`; `dryRun`
  * answers who and what without posting (the dialog's preview).
  */
-const postInviteCall = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
+const postInviteCall = withUser(ORGA, async ({ user, body, req, res }) => {
     const eventId = q.str(body, "event");
     const guildId = activeGuildFor(req);
     if (body.dryRun) {
@@ -171,7 +236,7 @@ const postInviteCall = withUser({ csrf: true, body: true, archived: BY_EVENT }, 
  * days after the raid. The source raidsheet is never written to or deleted.
  * Body: { event, sheetId, tank3, eventTitle, eventStartTime }.
  */
-const postFill = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ body, req, res }) => {
+const postFill = withUser(ORGA, async ({ body, req, res }) => {
     const eventId = q.str(body, "event");
     const sheet = getRaidsheet(q.str(body, "sheetId"));
     if (!sheet) return error(res, 400, "sheet_not_found", "Raidsheet nicht gefunden.");
@@ -246,7 +311,7 @@ const postFill = withUser({ csrf: true, body: true, archived: BY_EVENT }, async 
 });
 
 /** POST /api/raids/post-sheet — post the filled raidsheet link into the event channel, with an optional message. Body: { event, message }. */
-const postPostSheet = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ body, req, res }) => {
+const postPostSheet = withUser(ORGA, async ({ body, req, res }) => {
     const eventId = q.str(body, "event");
     const es = getEventSheet(eventId);
     // Resolve the event's channel + title server-side; never trust posted ids.
@@ -286,7 +351,7 @@ const postPostSheet = withUser({ csrf: true, body: true, archived: BY_EVENT }, a
 });
 
 /** POST /api/raids/post-softres — post the softres list link into the event channel, with an optional message. Body: { event, message }. */
-const postPostSoftres = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ body, req, res }) => {
+const postPostSoftres = withUser(ORGA, async ({ body, req, res }) => {
     const eventId = q.str(body, "event");
     const sr = getEventSoftres(eventId);
     if (!sr || !sr.url) return error(res, 400, "no_softres", "Für dieses Event gibt es noch keine Softres-Liste.");
@@ -319,9 +384,10 @@ const postPostSoftres = withUser({ csrf: true, body: true, archived: BY_EVENT },
  * POST /api/raids/post-raidplan (#502) — post the raid plan's read link
  * (/p/<token>) into the event channel, publishing the plan first when needed;
  * a second post edits the same message. Body: { event, message? } — without
- * `message` the text of the last post stays.
+ * `message` the text of the last post stays. `raidplan` write for every raid,
+ * else the orga of the raid's category (#726, `orgaScoped` as the plan's routes).
  */
-const postPostRaidplan = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
+const postPostRaidplan = withUser({ orgaScoped: BY_EVENT, globalByWrite: true, write: "raidplan", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const eventId = q.str(body, "event");
     // The channel, title and start come from the server's own event list, never from the body.
     const { found, categoryId, errorMessage, code } = await resolveEventForPost(req, eventId);
@@ -333,8 +399,11 @@ const postPostRaidplan = withUser({ csrf: true, body: true, archived: BY_EVENT }
     sendResult(res, await postRaidplanLink({ event: found, message, userId: user.id }));
 });
 
-/** GET /api/raids/softres/item-search?q=&edition= — Wowhead item search for the softres hard-reserve picker. */
-const getItemSearch = withUser({}, async ({ res, url }) => {
+/**
+ * GET /api/raids/softres/item-search?event=&q=&edition= — Wowhead item search for the softres hard-reserve
+ * picker of one raid: the orga, or the orga of that raid's category (#728 - the picker names its raid).
+ */
+const getItemSearch = withUser({ orgaScoped: (body, query) => query.get("event") }, async ({ res, url }) => {
     const term = url.searchParams.get("q") || "";
     // The softres list's edition picks the Wowhead branch; without one the main
     // version's Wowhead path (#542), and a version without one searches nothing.
@@ -352,7 +421,7 @@ const getItemSearch = withUser({}, async ({ res, url }) => {
  * `protection` (softres.it's "User Protection": reserving needs a login and each
  * raider may only edit their own reserves) is on unless explicitly false.
  */
-const postSoftresCreate = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ body, res }) => {
+const postSoftresCreate = withUser(ORGA, async ({ body, res }) => {
     const eventId = q.str(body, "event");
     const codes = Array.isArray(body.instanceCodes) ? body.instanceCodes : [];
     if (!codes.length) return error(res, 400, "no_instances", "Mindestens eine Instanz wählen.");
@@ -403,7 +472,7 @@ const postSoftresCreate = withUser({ csrf: true, body: true, archived: BY_EVENT 
  * softres.it link (e.g. one already set up directly on softres.it) instead of
  * one created via the API above. Body: { event, softresUrl, softresEditUrl }.
  */
-const postSoftresLink = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ body, res }) => {
+const postSoftresLink = withUser(ORGA, async ({ body, res }) => {
     const eventId = q.str(body, "event");
     const softresUrl = q.str(body, "softresUrl");
     if (!/^https:\/\/(www\.)?softres\.it\/raid\/[a-zA-Z0-9]+/i.test(softresUrl)) {
@@ -418,7 +487,7 @@ const postSoftresLink = withUser({ csrf: true, body: true, archived: BY_EVENT },
  * its category's, plus "Softres zusätzlich". Body: { event, system, softres }
  * (`system` "" = like the category). Answers the resolved loot system.
  */
-const postLootSystem = withUser({ csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
+const postLootSystem = withUser(ORGA, async ({ user, body, req, res }) => {
     const eventId = q.str(body, "event");
     const system = q.str(body, "system");
     if (system && !normalizeLootSystem(system)) return error(res, 400, "invalid_system", "Unbekanntes Lootsystem.");

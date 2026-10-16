@@ -4,7 +4,7 @@ Die Suite ist Jest (`npm test`, `npm run test:coverage`); die Tests liegen unter
 
 ## Wo ein Test hingehört
 
-Die Regel (#434), kurz auch in CLAUDE.md:
+Die Regel (#434), kurz auch in `.claude/rules/tests.md` (lädt, sobald eine Datei unter `test/` gelesen wird):
 
 | Quelle | Test |
 |---|---|

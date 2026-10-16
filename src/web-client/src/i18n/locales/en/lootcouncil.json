@@ -5,6 +5,45 @@
         "drop": "This game version has no item table and no simulation yet, so the drop check cannot determine candidates.",
         "off": "The BiS lists are switched off for this game version (Settings → Game version). Needs, wishes, received loot and the weighting still apply."
     },
+    "manualBis": {
+        "crumb": "BiS lists › {version}",
+        "specTitle": "Pick a spec",
+        "specHint": "This game version has no ready-made BiS lists (no WoWSims data). The orga keeps them here by hand, per spec and slot – the loot council then counts \"BiS n of m\" and shows the open items.",
+        "filled": {
+            "one": "{count} of {total} slots filled",
+            "other": "{count} of {total} slots filled"
+        },
+        "slotsTitle": {
+            "one": "{count} of {total} slots",
+            "other": "{count} of {total} slots"
+        },
+        "slotsHint": "Up to {max} items per slot: the first is BiS, the others count as equally good – a raider wearing one of them has the slot done.",
+        "bis": "BiS",
+        "bisTip": "The best item for this slot",
+        "alt": "Alternative",
+        "altTip": "Counts as equally good: a raider wearing it has the slot done.",
+        "unknownTip": "Unknown item",
+        "unknownTipSub": "Wowhead does not know this item id for the game version (yet). It stays stored and counts like any other item.",
+        "itemId": "Item {id}",
+        "makeBis": "Move to the front as BiS",
+        "remove": "Remove {name}",
+        "add": "Add an item for {slot}",
+        "closeAdd": "Close adding",
+        "emptySlot": "No item yet",
+        "searchPlaceholder": "Search an item on Wowhead …",
+        "idPlaceholder": "Item id",
+        "addById": "Add",
+        "noSearch": "No Wowhead search is set up for {version} (Settings → Game version). Items can be entered by item id.",
+        "unresolved": "Wowhead does not know item {ids} (yet) – stored with its id.",
+        "stamp": "Last changed by {by} on {date}",
+        "loading": "Loading BiS lists …",
+        "loadFailed": "The BiS lists could not be loaded.",
+        "notHere": "This game version has BiS lists of its own – hand-kept lists exist only for versions without BiS data.",
+        "noListsYet": "There are no BiS lists for this game version yet. Add them per spec in the \"BiS lists\" tab – then the council shows who is missing what.",
+        "openTab": "Open the BiS lists",
+        "dropNotListed": "This item is on no BiS list. Without an item table the drop check only names raiders whose list holds the item.",
+        "dropNoItem": "No item chosen yet — search top right. The search runs over this game version's hand-kept BiS lists; the candidates are the raiders whose list holds the item."
+    },
     "role": {
         "caster": "Caster",
         "healer": "Healer",
@@ -191,6 +230,10 @@
         "meta": {
             "one": "ilvl {ilvl} · missing for {count} raider",
             "other": "ilvl {ilvl} · missing for {count} raiders"
+        },
+        "metaNoIlvl": {
+            "one": "missing for {count} raider",
+            "other": "missing for {count} raiders"
         },
         "proposal": "Suggestion",
         "pendingTipSub": "“Check as drop” calculates it in seconds, “Simulate all BiS items” the whole list.",
@@ -540,6 +583,8 @@
         "bisCrumb": "{character} › BiS gaps",
         "wowheadNote": "Written Wowhead list: names items, no sockets and no enchants.",
         "wowsimsNote": "Simulated WoWSims set.",
+        "manualLabel": "Own list",
+        "manualNote": "List kept by the orga (tab \"BiS lists\"): names items, no sockets and no enchants.",
         "listOf": "List of {from}.",
         "tierExact": "Tier {tier}.",
         "tierOlder": "Tier {tier} (newest available list).",

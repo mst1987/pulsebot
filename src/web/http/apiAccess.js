@@ -20,8 +20,18 @@
 // lets the call through. That is how the loot views ("loot") share endpoints
 // with the full history ("history") without handing out the rest of that tab;
 // the handlers of the shared endpoints trim their payload accordingly.
+//
+// The orga of a category (#724, docs/permissions.md "Kategorie-Orga"): a route
+// whose handler is marked `orgaScoped` (withUser, routeTable.isOrgaScoped) also
+// lets in a menu user who manages some category's roster, whatever their area
+// rights - gate() asks that only after checkAccess() refused, and only on such a
+// route. The handler then checks the concrete event (403 "not_category_orga").
+// A read marked `orgaRead` (#729, routeTable.isOrgaRead) does the same for a GET
+// of one raid - the raid plan of a raid, which its category's orga plans.
+// Every other route answers exactly as checkAccess() does.
 const { AREAS, userCanAny, userHasMenuAccess } = require("../../config/permissions");
-const { ROUTES, find, areasOf } = require("./routeTable");
+const { ROUTES, find, areasOf, isOrgaScoped, isOrgaRead } = require("./routeTable");
+const categoryOrga = require("../../services/roster/categoryOrga");
 
 /** `{ [path]: area | [areas] }` — every gated path with its area(s), the shape the tests and the docs know. */
 const AREA_BY_PATH = {};
@@ -42,7 +52,8 @@ const pathsWith = (auth) => new Set(ROUTES.filter((r) => r.auth === auth).map((r
 // sees the role's rights — and the way back out must never be refused by them.
 // "/api/raidplan/public" is the token-guarded read view of a published raid plan
 // (/p/<token>): no session needed, and its handler answers only for the token of
-// a published plan.
+// a published plan. "/api/addons/name" names one addon (id, name, icon) for the
+// login notice on /addon/<id>: enabled and not orga-only, nothing else.
 const UNGATED = pathsWith("none");
 // Needs a menu user, but belongs to no single area (the guild switcher, the
 // account's own menu language).
@@ -103,4 +114,26 @@ function checkAccess(pathname, method, user) {
     };
 }
 
-module.exports = { checkAccess, areasFor, levelFor, AREA_BY_PATH, UNGATED, ANY_AREA, TOKEN_AUTH };
+/**
+ * checkAccess(), plus the category orga on an `orgaScoped` route (see the head comment): an area
+ * refusal (403 "forbidden") of a menu user who manages a category's current roster lets them
+ * through - a global orga without the area too (never less than a manager). Only a route with areas:
+ * an adminOnly or area-less route stays closed. `req` keys the role cache the handler reuses; the
+ * mark `areaViaCategory` on it tells the handler to take the category path (apiHandler.js).
+ * @returns {Promise<null | { status: number, code: string, message: string }>}
+ */
+async function gate(pathname, method, user, req) {
+    const denied = checkAccess(pathname, method, user);
+    if (!denied || denied.status !== 403 || denied.code !== "forbidden") return denied;
+    if (!user || !userHasMenuAccess(user)) return denied;
+    const route = find(method, pathname);
+    // an `orgaRead` route only for a read (#729): it never widens a write
+    const opens = isOrgaScoped(route) || (isOrgaRead(route) && levelFor(method, route) === "read");
+    if (!opens || route.adminOnly || !areasOf(route).length) return denied;
+    const cache = categoryOrga.requestCache(req);
+    if (!(await categoryOrga.isAnyCategoryManager(user, { cache }))) return denied;
+    cache.areaViaCategory = true;
+    return null;
+}
+
+module.exports = { checkAccess, gate, areasFor, levelFor, AREA_BY_PATH, UNGATED, ANY_AREA, TOKEN_AUTH };

@@ -152,7 +152,10 @@ describe("web/report/render — report page: head and views", () => {
         expect(recs).toMatch(/<button type="button" class="btn" data-dialog="dlg-rs-send"><img[^>]*inv_letter_15\.jpg" alt="">Empfehlungen senden …<\/button>/);
         expect(recs).toContain("<details class=\"rec rrow-d rec-high rec-state-open\" data-key=\"raid.debuff.misery\">");
         expect(recs).toMatch(/<summary class="rrow"><span><span class="badge bad">hoch<\/span><\/span><span class="t rec-title" data-tip="Misery: Ø 0 %, fehlte in 1 Kampf">Misery: Ø 0 %, fehlte in 1 Kampf<\/span><span class="ev"><span class="badge ev-b" data-tip="Boss" data-tip-sub="High King Maulgar">Boss <b>High King Maulgar<\/b><\/span><\/span><span class="st"><span class="badge rec-state mid">offen<\/span><\/span><span class="acts rec-review"/);
-        expect(recs.match(/class="ibtn"[^>]*data-review="(?:approve|reject|edit)"/g)).toHaveLength(6); // three per finding
+        expect(recs.match(/class="ibtn(?: yes| no)?"[^>]*data-review="(?:approve|reject|edit)"/g)).toHaveLength(6); // three per finding
+        // the verdicts carry their meaning even while not chosen: green approve, red reject
+        expect(recs.match(/class="ibtn yes"[^>]*data-review="approve"/g)).toHaveLength(2);
+        expect(recs.match(/class="ibtn no"[^>]*data-review="reject"/g)).toHaveLength(2);
         expect(recs).toContain("<dialog class=\"dlg detail\" id=\"dlg-rs-send\">");
         // two findings: nothing to fold
         expect(recs).not.toContain("key-more");
@@ -286,7 +289,8 @@ describe("web/report/render — raider cards", () => {
         // worst first: Brokk's avoidable death, Elun's mana, Dorn's consumables
         expect(chips("Brokk")).toMatch(/^<div class="vcard-chips"><span class="badge bad"[^>]*><img[^>]*ability_creature_cursed_05\.jpg" alt="">1 vermeidbarer Tod<\/span>/);
         expect(chips("Elun")).toContain("inv_potion_137.jpg\" alt=\"\">2× unter 10 % Mana</span>");
-        expect(chips("Elun")).toContain("inv_shield_06.jpg\" alt=\"\">1 Gear-Problem</span>");
+        // the gear badge shows the item itself, with its own tooltip
+        expect(chips("Elun")).toContain("<span class=\"minis\"><img class=\"mini\" style=\"--q:var(--line)\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_helmet.jpg\" loading=\"lazy\" alt=\"\" data-tip=\"Hood\" data-tip-sub=\"Keine Verzauberung\"></span>1 Gear-Problem</span>");
         expect(chips("Dorn")).toContain("inv_alchemy_endlessflask_05.jpg\" alt=\"\">Consumables 67 %</span>");
         // the timeline, the armory and the player page are labelled buttons in the opened card, not icons in the head
         expect(head("Elun")).not.toContain("class=\"ibtn\"");
@@ -302,7 +306,10 @@ describe("web/report/render — raider cards", () => {
         for (const key of ["recs", "prep", "perf"]) expect(card).toContain(`data-show="rc1-${key}"`);
         expect(card).not.toContain("data-show=\"rc1-err\"");
         expect(card).not.toContain("data-show=\"rc1-tl\"");
-        expect(card).toMatch(/Empfehlungen<span class="n(?: mid| bad)?">3 · 1 offen<\/span>/);
+        expect(card).toMatch(/Empfehlungen<span class="n(?: mid| bad)?">1 offen<\/span>/);
+        // the gear point lists its item: icon with the mark, name, problem
+        expect(card).toContain("<b class=\"rec-title\">Kopf ohne Verzauberung</b><span class=\"rec-sub\">1 Item vor dem nächsten Raid nachbessern</span>");
+        expect(card).toContain("<span class=\"ri-mark mid\" aria-hidden=\"true\">!</span>");
         expect(card).toContain("<div id=\"rc1-recs\" class=\"part\">");
         expect(card).toContain("<div id=\"rc1-prep\" class=\"part\" hidden>");
         expect(card).toContain("data-scope=\"player\" data-player=\"Elun\" data-key=\"healers.mana\"");
@@ -350,25 +357,31 @@ describe("web/report/render — raider cards", () => {
     it("gives reviewers the footer with the phrasing job and the send dialog, only approved points inside", () => {
         const html = renderReportPage(report(), admin);
         const elun = html.slice(html.indexOf("id=\"raider-Elun\""), html.indexOf("id=\"raider-Dorn\""));
-        expect(elun).toContain("<span class=\"note\">2 freigegeben · 1 offen · zuletzt gesendet: ");
+        expect(elun).toContain("<b class=\"rf-count\">2 von 3 Punkten geprüft</b>");
+        expect(elun).toContain("<span class=\"note\">Zuletzt gesendet: ");
         expect(elun).toMatch(/<button type="button" class="btn btn-run btn-sm" data-phrase="player"[^>]*><img class="hicon"[^>]*inv_scroll_03\.jpg" alt="">KI-Formulierung<\/button>/);
         expect(elun).toMatch(/<button type="button" class="btn btn-sm" data-dialog="send-1"><img class="hicon"[^>]*inv_letter_15\.jpg" alt="">Vorschau &amp; senden<\/button>/);
         expect(elun).toContain("<dialog class=\"dlg send\" id=\"send-1\" data-report=\"abc123def456\" data-player=\"Elun\">");
         // head: tile, the name in class colour, the counts as badges
-        expect(elun).toContain("<div class=\"dlg-title\">An <span class=\"cn\" style=\"--cc:#FFFFFF\">Elun</span> senden</div><div class=\"kicker\">Elun › Empfehlungen › Versand · Discord-DM</div></div><span class=\"badge ok\">2 freigegeben</span><span class=\"badge mid\" data-tip=\"Der noch offene Punkt wird nicht gesendet.\">1 offen · wird nicht gesendet</span>");
+        expect(elun).toContain("<div class=\"dlg-title\">An <span class=\"cn\" style=\"--cc:#FFFFFF\">Elun</span> senden</div><div class=\"kicker\">Discord-DM · 2 Punkte freigegeben</div></div><div class=\"badges send-state\"><span class=\"badge map-badge\">Zuordnung wird geprüft …</span>");
+        expect(elun).toContain("<span class=\"badge mid\" data-tip=\"Der noch offene Punkt wird nicht gesendet.\">1 offen · wird nicht gesendet</span></div>");
         // the two approved points, the open one only counted
-        expect(elun).toContain("data-key=\"healers.mana\" data-title=\"In 2 Kämpfen unter 10 % Mana\" data-ai=\"Dein Tiefstand lag im Schnitt bei 7 %. Nimm den ersten Manatrank schon bei 50 %.\" data-rule=\"Manatrank früher nehmen.\" data-custom=\"\" data-mode=\"ai\"");
-        expect(elun).toContain("data-key=\"gear\" data-title=\"Kopf ohne Verzauberung\" data-ai=\"\" data-rule=\"Hood verzaubern.\" data-custom=\"Bitte die Glyphe auf die Kapuze.\" data-mode=\"custom\"");
+        // the title carries the bot's impact mark, as in the DM
+        expect(elun).toContain("data-key=\"healers.mana\" data-title=\"🔴 In 2 Kämpfen unter 10 % Mana\" data-ai=\"Dein Tiefstand lag im Schnitt bei 7 %. Nimm den ersten Manatrank schon bei 50 %.\" data-rule=\"Manatrank früher nehmen.\" data-custom=\"\" data-mode=\"ai\"");
+        expect(elun).toMatch(/data-key="gear" data-title="\S+ Kopf ohne Verzauberung" data-ai="" data-rule="Hood verzaubern\." data-custom="Bitte die Glyphe auf die Kapuze\." data-mode="custom"/);
+        // the gear point shows its item in the dialog too
+        const dlg = elun.slice(elun.indexOf("<dialog class=\"dlg send\""));
+        expect(dlg).toContain("<div class=\"rec-items\"><div class=\"rec-item\">");
         expect(elun).not.toContain("data-key=\"healers.overheal\" data-title");
         // text choice KI / Regel / Eigener with icons, the precedence in the tooltip
         expect(elun).toMatch(/<nav class="seg sm" data-tip="Welcher Text geht raus\?" data-tip-sub="Der eigene Text geht vor dem KI-Text[^"]*"><button type="button" class="seg-btn active" data-txt="ai"><img class="hicon"[^>]*inv_scroll_03\.jpg" alt="">KI<\/button><button type="button" class="seg-btn" data-txt="rule">Regel<\/button><button type="button" class="seg-btn" data-txt="custom"><svg/);
-        expect(elun).toContain("<textarea class=\"send-text\" rows=\"3\" readonly>Dein Tiefstand lag im Schnitt bei 7 %. Nimm den ersten Manatrank schon bei 50 %.</textarea>");
-        expect(elun).toContain("<textarea class=\"send-text\" rows=\"3\">Bitte die Glyphe auf die Kapuze.</textarea>");
-        // the DM preview in the Discord look, the mapping badge filled from the send endpoint
+        expect(elun).toContain("<textarea class=\"send-text\" rows=\"3\" aria-label=\"Text zu In 2 Kämpfen unter 10 % Mana\" readonly>Dein Tiefstand lag im Schnitt bei 7 %. Nimm den ersten Manatrank schon bei 50 %.</textarea>");
+        expect(elun).toContain("<textarea class=\"send-text\" rows=\"3\" aria-label=\"Text zu Kopf ohne Verzauberung\">Bitte die Glyphe auf die Kapuze.</textarea>");
+        // the DM preview in the Discord look, with the bot's own title, greeting and button
         expect(elun).toContain("<b>EventHelper</b><span class=\"badge accent\">BOT</span>");
-        expect(elun).toContain("<b>Montagsraid Gruul · Deine Auswertung</b>");
-        expect(elun).toContain("2 Punkte von der Raidleitung geprüft");
-        expect(elun).toContain("href=\"/r/abc123def456/p/1\" target=\"_blank\" rel=\"noopener\">Report ansehen<svg");
+        expect(elun).toContain("<b>Deine Auswertung: Montagsraid Gruul</b>");
+        expect(elun).toContain("Hallo Elun, hier sind die Punkte aus dem Log vom 7.9.2026");
+        expect(elun).toContain("href=\"/r/abc123def456/p/1\" target=\"_blank\" rel=\"noopener\">Zu deiner Auswertung<svg");
         expect(elun).toContain("<span class=\"badge map-badge\">Zuordnung wird geprüft …</span>");
         expect(elun).toContain("data-sendact=\"save\">Nur speichern</button>");
         expect(elun).toMatch(/data-sendact="send"><img class="hicon"[^>]*>Per Bot senden<\/button>/);
@@ -430,7 +443,7 @@ describe("web/report/render — player page", () => {
         expect(at("<details class=\"pgrp\" id=\"p-prep\">")).toBeGreaterThan(at("id=\"p-fights\""));
         expect(html).toContain("<details class=\"pgrp\" id=\"p-perf\">");
         expect(html).toContain("<b>Punkte für den nächsten Raid</b><span class=\"kicker\">Elun › Empfehlungen · 2 freigegeben · 1 offen</span>");
-        expect(html).toContain("<details class=\"rec rrow-d rec-high rec-state-approved\" data-key=\"healers.mana\" open>");
+        expect(html).toContain("<div class=\"rec rec-block rec-high rec-state-approved\" data-key=\"healers.mana\">");
         // the fight table: WCL boss icon, tries, activity bar, hint badge, the chart in a dialog
         expect(html).toMatch(/<td><span class="who"><img class="hicon" src="\/bosses\/649\.jpg" alt=""><span>High King Maulgar<\/span><\/span><\/td>\s*<td><span class="badge count">1<\/span><\/td>/);
         expect(html).toMatch(/data-dialog="dlg-pf-0"><svg[^>]*>[\s\S]*?<\/svg>Verlauf<\/button>/);

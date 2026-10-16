@@ -696,9 +696,17 @@ describe(".dockerignore", () => {
     });
 
     it("leaves out nested node_modules, local data and what the image never needs", () => {
-        for (const entry of ["**/node_modules", "data/", "coverage/", "test/", "scripts/data-sources/", "docs/", "bin/", "src/web-client/dist", ".claude/", ".github/"]) {
+        for (const entry of ["**/node_modules", "data/", "coverage/", "test/", "scripts/data-sources/", "docs/*", "bin/", "src/web-client/dist", ".claude/", ".github/"]) {
             expect(lines).toContain(entry);
         }
+    });
+
+    it("lets the two guides of the help page /docs into the image, and nothing else from docs/ (#474)", () => {
+        expect(lines.filter((l) => l.startsWith("!docs/"))).toEqual(["!docs/guide-discord.md", "!docs/guide-web-admin.md"]);
+        const docker = read("Dockerfile");
+        expect(docker).toMatch(/^COPY docs\/guide-discord\.md docs\/guide-web-admin\.md \.\/docs\/$/m);
+        const { GUIDES } = require("../src/web/pages/docsPage");
+        expect(GUIDES.map((g) => g.file).sort()).toEqual(["guide-discord.md", "guide-web-admin.md"]);
     });
 });
 

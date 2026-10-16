@@ -236,7 +236,7 @@ describe("addonCenter runCheck (the job)", () => {
     });
 
     describe("update ping", () => {
-        const WEB = /\[Patchnotes\]\(<https?:\/\/[^>]*\/addon#addon-levelhelper>\)/;
+        const WEB = /\[Patchnotes\]\(<https?:\/\/[^>]*\/addon\/levelhelper>\)/;
 
         async function posted0() {
             store.setSettings({ roleId: ROLE });
@@ -433,6 +433,84 @@ describe("addonCenter saveSettings", () => {
         const res = await center.saveSettings({ channelId: "" });
         expect(res.center).toBeNull();
         expect(store.getCenter()).toBeNull();
+    });
+
+    it("a set or removed role redraws the centre at once: 'Updates abonnieren' comes and goes", async () => {
+        await center.postCenter({ now: NOW });
+        expect(JSON.stringify(discord.postPayload.mock.calls[0][1])).not.toContain("addonhub:sub");
+
+        await center.saveSettings({ roleId: ROLE }, { now: NOW });
+        expect(discord.editPayload).toHaveBeenCalledTimes(1);
+        expect(JSON.stringify(discord.editPayload.mock.calls[0][2])).toContain("addonhub:sub");
+
+        // the same role again changes nothing
+        await center.saveSettings({ roleId: ROLE }, { now: NOW });
+        expect(discord.editPayload).toHaveBeenCalledTimes(1);
+
+        await center.saveSettings({ roleId: "" }, { now: NOW });
+        expect(discord.editPayload).toHaveBeenCalledTimes(2);
+        expect(JSON.stringify(discord.editPayload.mock.calls[1][2])).not.toContain("addonhub:sub");
+    });
+
+    it("another plain role leaves the centre alone (the button stays, the fingerprint is the same)", async () => {
+        store.setSettings({ roleId: ROLE });
+        await center.postCenter({ now: NOW });
+        await center.saveSettings({ roleId: "200000000000000003" }, { now: NOW });
+        expect(discord.editPayload).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ["a full-admin role", () => ({ adminRoleIds: [ROLE] })],
+        ["an orga role", () => ({ orgaRoleIds: [ROLE] })],
+        ["a role with area grants", () => ({ rolePermissions: { [ROLE]: { signup: { read: true } } } })],
+    ])("hides 'Updates abonnieren' for %s (still pinged), and a switch to it takes the button away", async (_name, cfg) => {
+        mockConfig = { ...mockConfig, ...cfg() };
+        store.setSettings({ roleId: ROLE });
+        await center.postCenter({ now: NOW });
+        expect(JSON.stringify(discord.postPayload.mock.calls[0][1])).not.toContain("addonhub:sub");
+
+        await center.saveSettings({ roleId: "200000000000000003" }, { now: NOW });
+        expect(JSON.stringify(discord.editPayload.mock.calls[0][2])).toContain("addonhub:sub");
+        await center.saveSettings({ roleId: ROLE }, { now: NOW });
+        expect(JSON.stringify(discord.editPayload.mock.calls[1][2])).not.toContain("addonhub:sub");
+    });
+
+    it("hides the button for a role that carries Discord permissions (read from the channel's server)", async () => {
+        const roles = new Map([[ROLE, { id: ROLE, permissions: { bitfield: 8n } }], ["200000000000000003", { id: "200000000000000003", permissions: { bitfield: 0n } }]]);
+        mockChannels[CH] = { ...mockChannels[CH], guild: { roles: { cache: roles } } };
+        store.setSettings({ roleId: ROLE });
+        await center.postCenter({ now: NOW });
+        expect(JSON.stringify(discord.postPayload.mock.calls[0][1])).not.toContain("addonhub:sub");
+        await center.saveSettings({ roleId: "200000000000000003" }, { now: NOW });
+        expect(JSON.stringify(discord.editPayload.mock.calls[0][2])).toContain("addonhub:sub");
+    });
+
+    it("counts only permissions beyond @everyone and hides the button for a role that unlocks a channel", async () => {
+        const PLAIN = "200000000000000003";
+        const everyone = { permissions: { bitfield: 0x400n } };
+        const roles = new Map([[ROLE, { id: ROLE, permissions: { bitfield: 0x400n } }], [PLAIN, { id: PLAIN, permissions: { bitfield: 0x400n } }]]);
+        const overwrites = new Map([[ROLE, { allow: { bitfield: 0x400n } }]]);
+        mockChannels[CH] = {
+            ...mockChannels[CH],
+            guild: { roles: { cache: roles, everyone }, channels: { cache: new Map([["c9", { id: "c9", name: "offiziere", permissionOverwrites: { cache: overwrites } }]]) } },
+        };
+        store.setSettings({ roleId: PLAIN });
+        await center.postCenter({ now: NOW });
+        expect(JSON.stringify(discord.postPayload.mock.calls[0][1])).toContain("addonhub:sub");
+        await center.saveSettings({ roleId: ROLE }, { now: NOW });
+        expect(JSON.stringify(discord.editPayload.mock.calls[0][2])).not.toContain("addonhub:sub");
+    });
+
+    it("hides the button for a role of a roster", async () => {
+        const rosterStore = require("../../../src/stores/rosterStore");
+        const spy = jest.spyOn(rosterStore, "listRosters").mockReturnValue([{ id: "main", name: "Main", roleIds: [], trialRoleId: ROLE, managers: { roleIds: [], userIds: [] } }]);
+        try {
+            store.setSettings({ roleId: ROLE });
+            await center.postCenter({ now: NOW });
+            expect(JSON.stringify(discord.postPayload.mock.calls[0][1])).not.toContain("addonhub:sub");
+        } finally {
+            spy.mockRestore();
+        }
     });
 });
 

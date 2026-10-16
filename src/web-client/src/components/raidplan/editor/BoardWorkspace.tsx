@@ -92,8 +92,8 @@ export default function BoardWorkspace({
     profileName: string;
     /** opens the tactic library ("Aus Bibliothek wählen") */
     onPickProfile: () => void;
-    /** "Als Taktik speichern": the section's steps into the library */
-    onSaveTactic?: () => void;
+    /** "Als Taktik speichern": the section's steps into the library (absent: the library opens); null = no button (#726) */
+    onSaveTactic?: (() => void) | null;
     /** unsaved changes / a conflict: the sticky tool bar glows (amber / red) */
     saveState?: "clean" | "dirty" | "conflict";
     /** the unsaved strip at the top of the sticky tool bar */
@@ -343,7 +343,7 @@ export default function BoardWorkspace({
                     {isEvent && !noBoard && <MyTasksPreview rows={filledRows} board={board} players={players} catalog={catalog} me={me || []} />}
                     <StepsCard
                         board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite} catalog={catalog} sectionMobs={mobs}
-                        groupCount={groupCount} bossName={boss.name} onLibrary={onPickProfile} onSaveAs={onSaveTactic || onPickProfile}
+                        groupCount={groupCount} bossName={boss.name} onLibrary={onPickProfile} onSaveAs={onSaveTactic === null ? undefined : (onSaveTactic || onPickProfile)}
                     />
                     <TargetsPanel board={board} canWrite={canWrite} maxNotes={limits.notes} onChange={(b) => edit(() => b)} />
                 </div>

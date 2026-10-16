@@ -11,7 +11,7 @@
 // nothing is marked rather than guessed.
 import { useState, type ReactNode } from "react";
 import { setViewAs, type ApiError, type SessionUser } from "../../api";
-import { audienceText, orgaOnly, type OrgaAudience } from "../../lib/app/orgaArea";
+import { audienceText, isOrga, orgaOnly, type OrgaAudience } from "../../lib/app/orgaArea";
 import { useT } from "../../i18n";
 import { useToast } from "../shell/Jobs";
 import { EyeIcon } from "./icons";
@@ -59,15 +59,23 @@ export function OrgaChip({ user, audience }: { user: SessionUser; audience: Orga
     );
 }
 
-/** The orga's part of a page everybody sees — shown to the orga only, so it names the orga: admins and the orga roles. */
-export function OrgaZone({ user, children }: { user: SessionUser; children: ReactNode }) {
+/**
+ * The orga's part of a page everybody sees — shown to the orga only, so it names the orga: admins and the orga
+ * roles. Someone who sees it without being the global orga is the orga of a category (a roster's manager, #729):
+ * for them it says so instead ("sichtbar für die Orga dieser Kategorie"; `categories`: a part spanning all of
+ * theirs, the dashboard's block).
+ */
+export function OrgaZone({ user, categories = false, children }: { user: SessionUser; categories?: boolean; children: ReactNode }) {
     const t = useT();
     const audience = orgaOnly(user);
+    const visibleFor = isOrga(user)
+        ? t("shell.orga.visibleFor", { who: audienceText(audience) })
+        : t(categories ? "shell.orga.visibleForCategories" : "shell.orga.visibleForCategory");
     return (
         <section className="orga-zone" aria-label={t("shell.orga.label")}>
             <span className="orga-zone-lbl"><ShieldIcon />{t("shell.orga.label")}</span>
             <span className="orga-zone-sub">
-                {t("shell.orga.zoneHidden")} · {t("shell.orga.visibleFor", { who: audienceText(audience) })}
+                {t("shell.orga.zoneHidden")} · {visibleFor}
             </span>
             <div className="orga-zone-body">{children}</div>
         </section>

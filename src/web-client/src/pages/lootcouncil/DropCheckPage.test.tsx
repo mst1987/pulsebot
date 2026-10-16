@@ -15,11 +15,14 @@ vi.mock("../../api", async (orig) => ({
     searchCouncilItems: vi.fn(),
     getCouncilViews: vi.fn(),
     saveCouncilView: vi.fn(),
+    getManualBis: vi.fn(),
 }));
 
 const PATH = "/lootcouncil/drop/:itemId?";
+const MANUAL = { versionId: "tbc", versionLabel: "TBC", available: false, off: false, search: true, maxPerSlot: 3, slots: [], specs: [], lists: {} };
 
 beforeEach(() => {
+    vi.mocked(api.getManualBis).mockResolvedValue(MANUAL);
     vi.mocked(api.getLootCouncil).mockResolvedValue(councilData({
         focus: councilFocus(),
         sim: { available: false, version: "", hint: "" },
@@ -57,6 +60,14 @@ describe("drop check (German)", () => {
         renderPage(<DropCheckPage />, { route: "/lootcouncil/drop", path: PATH });
         expect(screen.getByText("Wer bekommt den Drop?")).toBeInTheDocument();
         expect(screen.getByText(/Noch kein Item gewählt/)).toBeInTheDocument();
+    });
+
+    it("says per mode where the search looks: the bot's item table, or the hand lists (#760)", async () => {
+        renderPage(<DropCheckPage />, { route: "/lootcouncil/drop", path: PATH });
+        expect(await screen.findByText(/Gesucht wird in der Item-Tabelle des Bots/)).toBeInTheDocument();
+        vi.mocked(api.getManualBis).mockResolvedValue({ ...MANUAL, available: true });
+        renderPage(<DropCheckPage />, { route: "/lootcouncil/drop", path: PATH });
+        expect(await screen.findByText(/Gesucht wird in den von Hand gepflegten BiS-Listen/)).toBeInTheDocument();
     });
 
     it("lists the candidates of a drop", async () => {

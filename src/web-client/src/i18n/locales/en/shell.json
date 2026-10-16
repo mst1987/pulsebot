@@ -134,8 +134,12 @@
         "backHome": "Back to the overview",
         "loadingMenu": "Loading menu",
         "sessionError": "Could not load the session: {message}",
-        "loginPrompt": "Please sign in with Discord to use the guild menu.",
+        "loginTitle": "Sign in",
+        "loginPrompt": "Sign in with your Discord account to see your guild's raids, signups and loot.",
         "loginButton": "Sign in with Discord",
+        "loginHint": "Discord only shares your name and avatar – no password, no email, no messages.",
+        "loginNext": "Then",
+        "loginNextAddon": "{name} · Patch notes",
         "newVersionTitle": "New version available",
         "newVersionText": "The menu has been updated. Reload the page to carry on.",
         "newVersionReload": "Reload page"
@@ -145,6 +149,8 @@
         "pageHidden": "Raiders do not see this page",
         "zoneHidden": "Raiders do not see this part",
         "visibleFor": "visible to {who}",
+        "visibleForCategory": "visible to the orga of this category",
+        "visibleForCategories": "only your categories · visible to their orga",
         "admins": "Admins",
         "accounts": {
             "one": "{count} single account",

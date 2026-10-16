@@ -51,6 +51,11 @@ const { buildCouncilView, councilCategoryIds } = require("../loot/councilView");
 const { councilHead, councilRosters, councilOverview } = require("../loot/councilTargets");
 const { councilContent: councilContentFor, featureState } = require("../../services/events/versionCapabilities");
 const { knownVersion } = require("../../services/events/mainVersion");
+const {
+    manualIndex, manualItemView, manualCandidateSplit, manualBisGaps, searchManualItems, manualBisSpecsView,
+} = require("../loot/manualBisCouncil");
+const { wowheadPathOf } = require("../../services/characters/wishItems");
+const { searchItems: wowheadSearch } = require("../../utils/loot/wowhead");
 const { versionLinks } = require("../../services/events/versionSettings");
 
 /**
@@ -94,8 +99,12 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     // gets no gaps, no drop check, no filter options and no simulation - and says so.
     const content = councilContentFor(versionId, { config });
     // What the page gets of it; `off` (#761): the version has BiS data, but it is switched off in Einstellungen → Spielversion.
+    // `manualBis` (#760): no BiS data of its own, the lists are the orga's hand lists;
+    // `manualLists`: the version has at least one (else the page says where to start).
+    const manual = content.manualBis ? manualIndex(versionId) : null;
     const contentView = {
         bis: content.bis, sim: content.sim, tiers: content.tiers, itemTable: content.itemTable,
+        ...(manual ? { manualBis: true, manualLists: Object.keys(manual.lists).length > 0 } : {}),
         ...(content.off ? { off: true } : {}),
     };
     const contentFilter = content.tiers ? resolveContentFilter({ tierIds, contentIds }) : null;
@@ -103,12 +112,16 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     // One named item ("this just dropped") short-circuits the BiS list: the
     // council wants the candidates for that item, not the whole gap report —
     // and, next to them, who cannot wear it at all, so a short list is explained.
+    // On hand lists: whoever's list names it and still misses it, by need (#760).
     const itemId = Number(url.searchParams.get("item") || 0);
     const focus = itemId > 0 && content.itemTable
         // Against the tier that was actually used, so "BiS für …" names the same
         // lists the roster's BiS column is counted against.
         ? { item: itemView(itemId, usedBisTier), ...candidateSplit(itemId, rows) }
-        : null;
+        : itemId > 0 && manual && manual.info.has(itemId)
+            ? { item: manualItemView(manual, itemId), ...manualCandidateSplit(itemId, rows) }
+            : null;
+    const gaps = focus ? [] : content.bis ? bisGaps(rows, { contentIds: contentFilter }) : manual ? manualBisGaps(rows) : [];
 
     ok(res, {
         roster: rows,
@@ -131,7 +144,7 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
             .filter(([key]) => setAsideKeys.has(key))
             .map(([key, entry]) => ({ key, ...entry }))
             .sort((a, b) => (b.at || 0) - (a.at || 0)),
-        gaps: focus || !content.bis ? [] : bisGaps(rows, { contentIds: contentFilter }),
+        gaps,
         focus,
         content: contentView,
         options: { ...filterOptions(contentView), categories: categoryOptions(guildId, { versionId: charVersion, config }) },
@@ -334,21 +347,28 @@ const weightsBlock = (p) => ({ ...p.weights, at: p.at || 0, by: p.by || "" });
 
 /** One profile with everything its editor needs: weights, view, icons of the exceptions, the defaults and limits. */
 function profileAnswer(profile) {
+    // The profile's version (its view; "" = the main one): an exception's item is
+    // one of that version's (#760) - TBC's item table only where the version has it.
+    const versionId = knownVersion(profile.view.version) || mainVersionFor({ config: getConfig() });
+    const content = councilContentFor(versionId);
+    const manual = content.manualBis ? manualIndex(versionId) : null;
     // What the page shows next to an exception: the item's icon and the class
     // it would have without the exception ("statt Trinket · 2,0").
     const itemInfo = {};
-    for (const id of Object.keys(profile.weights.items || {})) {
-        const view = itemView(Number(id));
+    for (const [id, entry] of Object.entries(profile.weights.items || {})) {
+        const view = content.itemTable ? itemView(Number(id)) : manual && manual.info.has(Number(id)) ? manualItemView(manual, id) : {};
         itemInfo[id] = {
-            name: view.name || itemFacts(Number(id)).name || "",
+            name: view.name || (content.itemTable ? itemFacts(Number(id)).name : "") || (entry && entry.name) || "",
             iconUrl: view.iconUrl || "",
             quality: view.quality || null,
-            autoClass: itemClass(Number(id), { items: {} }),
+            autoClass: itemClass(Number(id), { items: {} }, { noTable: !content.itemTable }),
         };
     }
     const { role, tiers, contents, bisTier, version } = profile.view;
     const d = councilWeights.defaults();
     return {
+        // Where the exceptions' item search looks (#760): this version's items.
+        versionId,
         profile: {
             ...councilProfiles.profileHead(profile),
             weights: weightsBlock(profile),
@@ -553,7 +573,25 @@ const getItemSearch = withUser({}, async ({ user, res, url }) => {
     // The item table is TBC's (#748): another version has nothing to search in.
     // `v` names the council's version (the page sends it); else the default view's.
     const versionId = knownVersion(url.searchParams.get("v")) || councilOptsFromQuery(url.searchParams).versionId;
-    if (!councilContentFor(versionId).itemTable) return ok(res, { items: [] });
+    const content = councilContentFor(versionId);
+    // On hand lists (#760) the items are those the lists name - by name or id;
+    // with `wowhead=1` (the exceptions of the weighting) Wowhead of the version
+    // adds any other item of the version.
+    if (content.manualBis) {
+        const q = url.searchParams.get("q") || "";
+        const index = manualIndex(versionId);
+        const items = searchManualItems(index, q)
+            .map(({ id, name, iconUrl, quality, ilvl, contentId, boss, bisSpecs }) => ({ id, name, iconUrl, quality, ilvl, contentId, boss, bisSpecs }));
+        const path = url.searchParams.get("wowhead") === "1" ? wowheadPathOf(versionId, { config: getConfig() }) : "";
+        if (path) {
+            for (const hit of await wowheadSearch(String(q).slice(0, 80), { path, limit: 12 })) {
+                if (items.some((it) => it.id === hit.id)) continue;
+                items.push({ id: hit.id, name: hit.name, iconUrl: hit.iconUrl, quality: hit.quality, contentId: "", boss: "", bisSpecs: manualBisSpecsView(index, hit.id) });
+            }
+        }
+        return ok(res, { items });
+    }
+    if (!content.itemTable) return ok(res, { items: [] });
     const items = searchItems(url.searchParams.get("q") || "").map((it) => {
         const source = sourceForItem(it.id) || {};
         return {

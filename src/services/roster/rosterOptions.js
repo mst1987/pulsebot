@@ -129,7 +129,7 @@ function rosterOptions({ guildId = "", config = {}, canSeeKader = false, version
     return {
         guildId,
         categories,
-        versions: publicVersions().filter((v) => visible.has(v.id)).map((v) => ({ id: v.id, label: v.label, short: v.short })),
+        versions: publicVersions().filter((v) => visible.has(v.id)).map((v) => ({ id: v.id, label: v.label, short: v.short, icon: v.icon })),
         defaultVersion: versionId || mainVersionFor({ config }),
         roles: serverRoles(guildId),
         canManageRoles: guildId ? canManageRoles(guildId) : false,

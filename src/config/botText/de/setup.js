@@ -27,6 +27,8 @@ module.exports = {
     "Go to the setup": "Zum Setup",
     // "Ping everyone" without a text of the orga
     "📋 The setup is up — you're in!": "📋 Das Setup steht – du bist dabei!",
+    // "Ping unconfirmed": the reminder for who has not answered yet
+    "⏳ Please confirm or cancel your spot in the setup.": "⏳ Bitte bestätige oder sag deinen Platz im Setup ab.",
     // the search for more raiders
     "**Looking for more raiders – {title}**": "**Wir suchen noch Raider – {title}**",
     "{placed} of {size} places filled": "{placed} von {size} Plätzen besetzt",

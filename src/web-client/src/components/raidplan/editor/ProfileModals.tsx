@@ -5,6 +5,7 @@ import {
     type ApiError, type RaidplanBoard, type RaidplanBoss, type RaidplanProfile, type RaidplanProfileInput,
 } from "../../../api";
 import { Button, Modal, useConfirm } from "../../ui";
+import { CheckIcon, SaveIcon, TrashIcon } from "../../ui/icons";
 import { useToast } from "../../shell/Jobs";
 import { ActionIcon } from "../ActionIcon";
 import { groupProfiles, profilesFor } from "../../../lib/raidplan";
@@ -37,8 +38,10 @@ export function LibraryModal({ open, onClose, profiles, bosses, bossKey, bossNam
     bossKey: string;
     bossName: string;
     onPick: (profile: RaidplanProfile) => void;
-    onSaveAs: () => void;
-    onManage: () => void;
+    /** absent: the library is not the caller's (`canWriteLibrary`, #726) - no "save as" button */
+    onSaveAs?: () => void;
+    /** absent: no "manage" button (as `onSaveAs`) */
+    onManage?: () => void;
     /** the section has steps to save */
     canSave: boolean;
 }) {
@@ -57,8 +60,8 @@ export function LibraryModal({ open, onClose, profiles, bosses, bossKey, bossNam
             open={open} onClose={onClose} width={860} className="rp-lib" icon={<BookOpen size={20} />} kicker={t("raidBoard.steps.library.kicker", { boss: bossName })} title={t("raidBoard.steps.library.title")} initialFocus=".rp-lib-search input"
             footer={(
                 <>
-                    <Button variant="ghost" icon={<Save size={15} />} disabled={!canSave} onClick={onSaveAs}>{t("raidBoard.steps.library.saveAs")}</Button>
-                    <Button variant="ghost" onClick={onManage}>{t("raidBoard.steps.library.manage")}</Button>
+                    {onSaveAs && <Button variant="ghost" icon={<Save size={15} />} disabled={!canSave} onClick={onSaveAs}>{t("raidBoard.steps.library.saveAs")}</Button>}
+                    {onManage && <Button variant="ghost" onClick={onManage}>{t("raidBoard.steps.library.manage")}</Button>}
                     <Button variant="ghost" onClick={onClose}>{t("raidBoard.steps.library.close")}</Button>
                 </>
             )}
@@ -82,7 +85,7 @@ export function LibraryModal({ open, onClose, profiles, bosses, bossKey, bossNam
                                 {steps.slice(0, 2).map((s) => <li key={s.id}><ActionIcon action={s.action} size={18} /><span>{s.sentence || t(`raidBoard.steps.actions.${s.action}`)}</span></li>)}
                                 {steps.length > 2 && <li className="rp-muted">{t("raidBoard.steps.library.moreSteps", { n: steps.length - 2 })}</li>}
                             </ul>
-                            <Button size="sm" disabled={steps.length === 0} onClick={() => onPick(p)}>{t("raidBoard.steps.library.apply")}</Button>
+                            <Button variant="go" size="sm" icon={<CheckIcon />} disabled={steps.length === 0} onClick={() => onPick(p)}>{t("raidBoard.steps.library.apply")}</Button>
                         </div>
                     );
                 })}
@@ -188,9 +191,9 @@ export function ProfilesModal({ open, onClose, profiles, categories, bosses, bos
             hint={editing === "new" && draft ? t("raidBoard.steps.library.saveHint", { n: draftSteps.length }) : undefined}
             footer={editing ? (
                 <>
-                    {editing !== "new" && <Button variant="danger" onClick={() => { const p = profiles.find((x) => x.id === editing); if (p) remove(p); }}>{t("raidBoard.profile.delete")}</Button>}
+                    {editing !== "new" && <Button variant="danger" icon={<TrashIcon />} onClick={() => { const p = profiles.find((x) => x.id === editing); if (p) remove(p); }}>{t("raidBoard.profile.delete")}</Button>}
                     <Button variant="ghost" onClick={() => (draft ? onClose() : setEditing(""))}>{t("raidBoard.profile.cancel")}</Button>
-                    <Button onClick={save} disabled={!canSave} running={busy}>{t("raidBoard.profile.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} onClick={save} disabled={!canSave} running={busy}>{t("raidBoard.profile.save")}</Button>
                 </>
             ) : undefined}
         >

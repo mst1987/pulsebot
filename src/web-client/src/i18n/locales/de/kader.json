@@ -674,6 +674,7 @@
         "profileSays": "Profil sagt",
         "logs": "Laut Logs",
         "days": "Verfügbar",
+        "dayFrom": "{day} ab {time}",
         "differs": "Weicht vom Profil ab: {what}. Hier gilt die Zuweisung des Kaderplaners, das Profil wird nie überschrieben.",
         "differsNone": "Weicht deine Zuweisung vom Profil ab, steht hier ein Hinweis – überschrieben wird nichts."
     },

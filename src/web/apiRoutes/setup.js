@@ -1,7 +1,13 @@
 // JSON API of the setup editor (#263) — Raid-Detail › Setup of an own event.
 //
 //   GET  /api/raids/setup?event=<id>          area raids (read): the orga gets the draft,
-//                                              everyone else only the approved lineup
+//                                              everyone else only the approved lineup - and
+//                                              only of a raid they may see (eventVisibility.js)
+//   every write below (`orgaScoped`, #725): the global orga (permissions.userIsOrga) with raids
+//                                              write, or the orga of the raid's category (a manager
+//                                              of its roster, categoryOrga.canOrgaEvent) - only for
+//                                              that category's raids, else 403 "not_category_orga";
+//                                              move-raid names both raids. "raids write" below means this.
 //   POST /api/raids/setup/presence            raids write: the open editor's heartbeat — who else
 //                                              is in it, the stored version, what changed
 //   POST /api/raids/setup/propose             raids write: new proposal, locked places kept
@@ -34,7 +40,10 @@
 const { ok, error } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { sendFailure, sendResult } = require("../http/apiResult");
-const { userCan } = require("../../config/permissions");
+const { userSeesEvent } = require("../../services/signups/eventVisibility");
+// who may edit a raid's setup - the rule of the `orgaScoped` gate, per event (#725)
+const { canWriteSetup } = require("../setup/setupAccess");
+const categoryOrga = require("../../services/roster/categoryOrga");
 const { getConfig } = require("../../stores/settingsStore");
 const { getEvent, isOwnEventId, setEventExtraRole, EXTRA_ROLES } = require("../../stores/eventStore");
 const { listSignups } = require("../../stores/signupStore");
@@ -55,12 +64,16 @@ const setupPresence = require("../../services/setup/setupPresence");
 const raidGroup = require("../../services/events/raidGroup");
 const { signupEventIdOf } = require("../../utils/raidGroup");
 
-// A write on an event setup: an archived event (a hidden game version, #563) is read only.
+// The event a write names: an archived event (a hidden game version, #563) is read only, and the orga
+// of a category (#725, `orgaScoped`) may change only the setups of their own category's raids.
 const BY_EVENT = (body) => body.event;
+// a GET of the editor names its event in the query
+const BY_QUERY = (body, query) => query.get("event");
+// a move between two raids of a group (#811): the category orga must be the orga of both
+const SOURCE_AND_TARGET = (body) => [body.event, body.target];
 
 const EXPLAIN_SECTION = "setup-explain";
 
-const canWrite = (user) => userCan(user, "raids", "write");
 
 /** The signups that count for an event: a raid of a group (#811) reads its first raid's. */
 const signupsOf = (event) => listSignups(signupEventIdOf(event));
@@ -89,8 +102,8 @@ function safeAttendance(event) {
  * member fetch per raider is slow where Discord does not know them yet, and a
  * move must answer at once — the page keeps the names it already has.
  */
-async function view(event, user, { names = true } = {}) {
-    const write = canWrite(user);
+async function view(event, user, { names = true, req = null } = {}) {
+    const write = await canWriteSetup(user, event, req);
     const signups = write ? signupsOf(event) : [];
     // Re-read: posting and the DM run write to the event while the request runs.
     const fresh = getEvent(event.id) || event;
@@ -107,6 +120,9 @@ async function view(event, user, { names = true } = {}) {
         blank: true,
     });
     if (write) out.publish = setupMessage.publishView(fresh, { config: getConfig(), channelName: channelNameOf(fresh) });
+    // "Mehr → Raidgröße" changes the event itself (PATCH /api/raids): `orgaScoped` by the event since
+    // #728, the same rule as the setup's own (the orga of the raid, raidOrgaAccess.canOrgaRaid)
+    out.canEditEvent = write;
     return out;
 }
 
@@ -141,10 +157,17 @@ function eventOf(res, id) {
  * when somebody else changed the setup: no Discord names, no attendance (the page
  * keeps the ones it has), so it answers at once.
  */
-const getSetup = withUser({}, async ({ user, res, url }) => {
+const getSetup = withUser({}, async ({ user, req, res, url }) => {
     const event = eventOf(res, url.searchParams.get("event"));
     if (!event) return;
-    ok(res, await view(event, user, { names: url.searchParams.get("light") !== "1" }));
+    // a raid of a category the raider may not see: the same 404 as an unknown one (eventVisibility.js) - the
+    // orga of the raid's category edits it, whether or not they could sign up for it (#729)
+    const cache = categoryOrga.requestCache(req);
+    if (!(await userSeesEvent(user, { guildId: event.guildId, eventId: event.id, categoryId: event.categoryId || "", cache }))
+        && !(await canWriteSetup(user, event, req))) {
+        return error(res, 404, "not_found", "Event nicht gefunden.");
+    }
+    ok(res, await view(event, user, { names: url.searchParams.get("light") !== "1", req }));
 });
 
 /** The characters of an event's signups, by user id — names a raider who left the lineup in the activity. */
@@ -165,7 +188,7 @@ const placedCount = (setup) => ((setup && setup.groups) || []).reduce((n, g) => 
  * the stored version (newer than the page's = somebody else changed it: fetch it
  * `light`) and what the others did after `since`. `leave: true` when the editor closes.
  */
-const postPresence = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+const postPresence = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     if (body.leave === true) {
@@ -181,9 +204,10 @@ const postPresence = withUser({ write: "raids", csrf: true, body: true }, async 
     });
 });
 
-async function answer(res, result, user, extra = {}) {
+/** The editor payload after a write; `ctx` is the handler's `{ res, user, req }`. */
+async function answer({ res, user, req }, result, extra = {}) {
     if (result.error) return sendFailure(res, result);
-    ok(res, { ...(await view(result.event, user, { names: false })), ...extra });
+    ok(res, { ...(await view(result.event, user, { names: false, req })), ...extra });
 }
 
 /**
@@ -202,7 +226,7 @@ async function followLive(result, user) {
 }
 
 /** POST /api/raids/setup/propose — body `{ event, weights?, fairness?, wishes?, keep? }` (`keep: "placed"` = "Freie Plätze füllen") */
-const postPropose = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postPropose = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const before = eventOf(res, body.event);
     if (!before) return;
     const result = setupEditor.proposeEventSetup(String(body.event).trim(), body, { userId: user.id });
@@ -215,11 +239,11 @@ const postPropose = withUser({ write: "raids", csrf: true, body: true, archived:
     for (const other of (result && result.others) || []) failed = (await followLive(other, user)) || failed;
     const done = body.keep === "placed" ? "Freie Plätze gefüllt." : "Neuer Vorschlag erstellt.";
     const message = result.live ? `${done} Die gepostete Setup-Nachricht zeigt es schon.` : done;
-    await answer(res, result, user, { message: failed ? `${done} ${failed}` : message });
+    await answer({ res, user, req }, result, { message: failed ? `${done} ${failed}` : message });
 });
 
 /** PUT /api/raids/setup — body `{ event, version, groups, bench, weights?, fairness?, wishes? }` */
-const putSetup = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const putSetup = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const before = eventOf(res, body.event);
     if (!before) return;
     const result = setupEditor.saveEventSetup(String(body.event).trim(), body, { userId: user.id });
@@ -227,7 +251,7 @@ const putSetup = withUser({ write: "raids", csrf: true, body: true, archived: BY
     if (!result.error) setupPresence.recordMoves(before.id, before.setup, result.setup, { ...actor(user), names: charactersOf(before) });
     // a move answers quietly; only a failed edit of the posted message is said
     const failed = await followLive(result, user);
-    await answer(res, result, user, failed ? { message: failed } : {});
+    await answer({ res, user, req }, result, failed ? { message: failed } : {});
 });
 
 /** "Bench mitposten" (#517): true/false from the body, undefined = keep the event's last choice. */
@@ -236,7 +260,7 @@ const benchChoice = (body) => (typeof body.bench === "boolean" ? body.bench : un
 const dmsChoice = (body) => (typeof body.dms === "boolean" ? body.dms : undefined);
 
 /** POST /api/raids/setup/approve — body `{ event, version, bench?, dms? }` */
-const postApprove = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postApprove = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = setupEditor.approveEventSetup(String(body.event).trim(), { version: body.version, userId: user.id });
     if (result.error) return sendFailure(res, result);
@@ -253,7 +277,7 @@ const postApprove = withUser({ write: "raids", csrf: true, body: true, archived:
         if (post.code) message = `${message} Setup-Nachricht nicht gepostet: ${post.error}`;
         else setupPresence.recordNote(result.event.id, "post", actor(user));
     }
-    await answer(res, result, user, { message });
+    await answer({ res, user, req }, result, { message });
 });
 
 /**
@@ -262,7 +286,7 @@ const postApprove = withUser({ write: "raids", csrf: true, body: true, archived:
  * first (only the `version` the editor showed, when one is sent), so there is
  * no separate approval step for the orga.
  */
-const postPublish = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postPublish = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     if (event.setup && event.setup.status !== "approved") {
@@ -276,7 +300,7 @@ const postPublish = withUser({ write: "raids", csrf: true, body: true, archived:
     if (post.code) return sendFailure(res, post);
     setupPresence.recordNote(event.id, "post", actor(user));
     const text = post.action === "edited" ? "Setup-Nachricht aktualisiert." : "Setup gepostet.";
-    await answer(res, { event }, user, { message: text });
+    await answer({ res, user, req }, { event }, { message: text });
 });
 
 /**
@@ -285,7 +309,7 @@ const postPublish = withUser({ write: "raids", csrf: true, body: true, archived:
  * Answers at once with only `{ confirmations }` — the Discord message is edited
  * a moment later, once for a run of quick clicks (setupConfirm.js).
  */
-const postConfirm = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postConfirm = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const result = await setupConfirm.setConfirmation(event.id, body.userId, typeof body.status === "string" ? body.status : "", { by: user.id, edit: "later" });
@@ -294,7 +318,7 @@ const postConfirm = withUser({ write: "raids", csrf: true, body: true, archived:
 });
 
 /** POST /api/raids/setup/confirm-all — body `{ event }`: everybody in a group without an answer gets the check (a "Cancel" stays). */
-const postConfirmAll = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postConfirmAll = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const result = await setupConfirm.confirmAll(event.id, { by: user.id });
@@ -303,11 +327,11 @@ const postConfirmAll = withUser({ write: "raids", csrf: true, body: true, archiv
 });
 
 /** POST /api/raids/setup/ping-text — body `{ event, text }`: what "Ping everyone" (and the first post's own ping) sends. */
-const postPingText = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postPingText = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     saveSetupPingText(event.id, body.text);
-    await answer(res, { event }, user, { message: "Ping-Nachricht gespeichert." });
+    await answer({ res, user, req }, { event }, { message: "Ping-Nachricht gespeichert." });
 });
 
 /**
@@ -316,7 +340,7 @@ const postPingText = withUser({ write: "raids", csrf: true, body: true, archived
  * of the approved setup is pinged in the event channel with the stored ping text, the caller left out.
  * `dryRun` only answers how many and with what, for the question asked before.
  */
-const postPing = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
+const postPing = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const guildId = activeGuildFor(req);
@@ -332,7 +356,7 @@ const postPing = withUser({ write: "raids", csrf: true, body: true, archived: BY
 });
 
 /** POST /api/raids/setup/extra-role — body `{ event, userId, role: "tank"|"healer", on }`: mark a raider as an extra tank / healer, or not any more. */
-const postExtraRole = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postExtraRole = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const userId = String(body.userId || "").trim();
@@ -341,11 +365,11 @@ const postExtraRole = withUser({ write: "raids", csrf: true, body: true, archive
     const known = signupsOf(event).some((x) => x.userId === userId) || JSON.stringify(event.setup || {}).includes(`"userId":"${userId}"`);
     if (!userId || !known) return error(res, 404, "unknown_raider", "Dieser Raider ist nicht angemeldet.");
     const updated = setEventExtraRole(event.id, userId, body.role, body.on === true);
-    await answer(res, { event: updated }, user);
+    await answer({ res, user, req }, { event: updated });
 });
 
 /** GET /api/raids/setup/signup?event=<id>&user=<userId> — the signup and the characters/specs the dialog offers. */
-const getSignupEdit = withUser({ write: "raids" }, async ({ res, url }) => {
+const getSignupEdit = withUser({ orgaScoped: BY_QUERY, write: "raids" }, async ({ res, url }) => {
     if (!eventOf(res, url.searchParams.get("event"))) return;
     const { view: out, failed } = setupSignup.signupEditView(url.searchParams.get("event"), url.searchParams.get("user"));
     if (failed) return error(res, failed.status, failed.code, failed.error);
@@ -353,16 +377,16 @@ const getSignupEdit = withUser({ write: "raids" }, async ({ res, url }) => {
 });
 
 /** PUT /api/raids/setup/signup — body `{ event, userId, status, character?, spec?, from? }`: the orga changes a raider's signup (#521). */
-const putSignupEdit = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const putSignupEdit = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = await setupSignup.changeSignupFromSetup(String(body.event).trim(), body.userId, body, { user });
     if (result.error) return error(res, result.status || 400, result.code || "failed", result.error);
     const failed = await followLive(result, user);
-    await answer(res, { event: result.event }, user, { message: failed ? `${result.message} ${failed}` : result.message, warning: result.warning || "" });
+    await answer({ res, user, req }, { event: result.event }, { message: failed ? `${result.message} ${failed}` : result.message, warning: result.warning || "" });
 });
 
 /** POST /api/raids/setup/search/text — body `{ event, roles, buffs }`: the message for needs the orga edited (nothing is posted). */
-const postSearchText = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
+const postSearchText = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true }, async ({ body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const result = textForNeeds(event, body);
@@ -371,7 +395,7 @@ const postSearchText = withUser({ write: "raids", csrf: true, body: true }, asyn
 });
 
 /** POST /api/raids/setup/search — body `{ event, text? }`: post the "we are looking for …" message into the event channel. */
-const postSearchMessage = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+const postSearchMessage = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const result = await postSearch({ guildId: event.guildId, eventId: event.id, userId: user.id, byName: user.username || user.name || "", text: body.text });
@@ -380,7 +404,7 @@ const postSearchMessage = withUser({ write: "raids", csrf: true, body: true }, a
 });
 
 /** POST /api/raids/setup/explain — body `{ event }`. Needs the Anthropic key. */
-const postExplain = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
+const postExplain = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true }, async ({ body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const settings = getConfig().anthropic || {};
@@ -399,7 +423,7 @@ const postExplain = withUser({ write: "raids", csrf: true, body: true }, async (
 });
 
 /** GET /api/raids/setup/explain?event=<id> — the job state plus the stored explanation. */
-const getExplain = withUser({ write: "raids" }, async ({ res, url }) => {
+const getExplain = withUser({ orgaScoped: BY_QUERY, write: "raids" }, async ({ res, url }) => {
     const event = eventOf(res, url.searchParams.get("event"));
     if (!event) return;
     ok(res, {
@@ -421,7 +445,7 @@ function refreshGroupMessage(primary) {
  * this raid (group place, bench or the shared pool) into the first free place of another raid of
  * its raid group (#811). Answers this raid's editor payload; both raids follow live when posted.
  */
-const postMoveRaid = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postMoveRaid = withUser({ orgaScoped: SOURCE_AND_TARGET, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const before = eventOf(res, body.event);
     if (!before) return;
     const result = setupEditor.moveToRaid(before.id, { target: body.target, userId: body.userId, character: body.character }, { userId: user.id });
@@ -431,14 +455,14 @@ const postMoveRaid = withUser({ write: "raids", csrf: true, body: true, archived
     failed = (await followLive(result.target, user)) || failed;
     const moved = result.moved;
     const text = `${moved.character || "Raider"} → ${moved.title} (Gruppe ${moved.group}).`;
-    await answer(res, result, user, { message: failed ? `${text} ${failed}` : text });
+    await answer({ res, user, req }, result, { message: failed ? `${text} ${failed}` : text });
 });
 
 /**
  * POST /api/raids/setup/raid-add — body `{ event, title? }`: "Weiteren Raid hinzufügen" (#811).
  * Answers `{ event: <new raid id>, raidGroup, message }`; the editor then switches to the new tab.
  */
-const postRaidAdd = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
+const postRaidAdd = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const guildId = activeGuildFor(req);
@@ -454,7 +478,7 @@ const postRaidAdd = withUser({ write: "raids", csrf: true, body: true, archived:
  * only without an approved setup; its raiders fall back into the shared pool "Angemeldet".
  * Answers `{ event: <primary id>, raidGroup, message }`.
  */
-const postRaidRemove = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postRaidRemove = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const result = raidGroup.dissolveRaid(event.id, { user });

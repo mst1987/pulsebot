@@ -153,7 +153,7 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon={<CheckIcon />} disabled={!canSubmit} running={busy} onClick={submit} variant={absent ? "danger" : "primary"}>
+                    <Button icon={<CheckIcon />} disabled={!canSubmit} running={busy} onClick={submit} variant={absent ? "no" : "go"}>
                         {absent ? t("signups.dialog.signOff") : mine ? t("common.save") : t("signups.signUp")}
                     </Button>
                 </>

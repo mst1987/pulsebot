@@ -333,6 +333,29 @@ function categoryOf(guildId, catMap, { channelId, newChannel }, sourceChannel) {
 }
 
 /**
+ * The category a create body asks for, without a round trip (no Raid-Helper call): the clone's
+ * source event (own store or the Raid-Helper snapshot), else the chosen channel's category, else the
+ * new channel's - the order createEvent follows (resolveChannelSource, categoryOf). "" when it cannot
+ * be told this way. A first answer for the gate (#728); createEvent's `guard` sees the real one.
+ * @param {string} guildId
+ * @param {object} body  the create dialog's body
+ * @returns {string}
+ */
+function requestedCategoryId(guildId, body = {}) {
+    const request = channelRequest(body || {});
+    const catMap = categoryMap(guildId);
+    const parentOf = (channelId) => String(((channelId && catMap[channelId]) || {}).categoryId || "").trim();
+    if (request.sourceEventId) {
+        const id = request.sourceEventId;
+        const source = eventStore.isOwnEventId(id) ? eventStore.getEvent(id) : getRaidEvent(id);
+        if (!source || !source.channelId) return "";
+        return parentOf(String(source.channelId)) || String(source.categoryId || "").trim();
+    }
+    if (request.channelId) return parentOf(request.channelId);
+    return request.newChannel ? request.newChannel.categoryId : "";
+}
+
+/**
  * An own event's title, start and plan. Everything the own store would refuse is
  * checked here, before a channel is cloned, so a rejected event never leaves an
  * orphan channel behind.
@@ -487,10 +510,13 @@ function followAvailability(id, before, patch) {
  * its category's) is refused with 409 `version_hidden` before anything is
  * created, unless `allowHidden` (the series sweep).
  *
- * @param {{ guildId: string, user?: { id: string }, body: object, allowHidden?: boolean }} input
+ * `guard({ categoryId, plan, request, body })` (optional, async): the caller's limits on the category
+ * and plan the server worked out - a returned `{ error }` refuses before any channel is made.
+ *
+ * @param {{ guildId: string, user?: { id: string }, body: object, allowHidden?: boolean, guard?: Function }} input
  * @returns {Promise<{ status: number, body: object } | { error: { status: number, code: string, message: string } }>}
  */
-async function createEvent({ guildId, user, body = {}, allowHidden = false }) {
+async function createEvent({ guildId, user, body = {}, allowHidden = false, guard = null }) {
     // validation
     const date = toRaidHelperDate(body.date);
     if (!date) return fail(400, "invalid_date", "Ungültiges Datum.");
@@ -515,6 +541,12 @@ async function createEvent({ guildId, user, body = {}, allowHidden = false }) {
     if (!allowHidden) {
         const hidden = hiddenVersionOf(categoryId, plan);
         if (hidden) return fail(409, "version_hidden", `${hidden} ist ausgeblendet (Einstellungen → Spielversion) – kein Event angelegt.`);
+    }
+    // The caller's own limits (the orga of a category, #728) on what this create really became: the
+    // category the server worked out and the version of the plan - before anything is made in Discord.
+    if (typeof guard === "function") {
+        const refused = await guard({ categoryId, plan, request, body });
+        if (refused && refused.error) return refused;
     }
 
     // Discord: the channel, only now that everything was checked
@@ -639,4 +671,5 @@ async function updateEvent({ guildId, body = {}, user = null, byName = "" }) {
 
 module.exports = {
     createEvent, updateEvent, sourceChannelFor, startTimeOf, templateDefaults, schemaChannelName, raidTagOf,
+    requestedCategoryId,
 };

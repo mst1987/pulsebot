@@ -204,7 +204,7 @@ describe("loot council — the raider dialog", () => {
 
     it("keeps the actions in the foot: exclude, sim export, close, armory", () => {
         const d = fn(dialog, "RaiderDialog");
-        expect(d).toMatch(/variant="danger"[\s\S]{0,120}onClick=\{\(\) => onExclude\(r\.character\)\}/);
+        expect(d).toMatch(/variant="no"[\s\S]{0,120}onClick=\{\(\) => onExclude\(r\.character\)\}/);
         expect(d).toMatch(/icon="inv_gizmo_02"[\s\S]{0,120}onClick=\{\(\) => onExport\(r\.character\)\}/);
         expect(d).toMatch(/variant="run" icon="inv_shield_06"[\s\S]{0,120}onClick=\{\(\) => onArmory\(r\.character\)\}/);
     });

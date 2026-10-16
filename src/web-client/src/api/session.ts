@@ -22,6 +22,11 @@ export type SessionUser = {
     audience?: Record<string, AreaAudience>;
     /** Orga: a full admin, or holding an orga role (Einstellungen → Berechtigungen) — sees the orga's parts of the pages. */
     isOrga?: boolean;
+    /**
+     * The categories whose current roster this account manages (#729): it is the orga of those categories'
+     * raids - the pages show it their orga parts there (each raid's buttons still follow the server's answer).
+     */
+    orgaCategories?: string[];
     /** The names of the orga roles (admin roles left out) — the orga zones name them. */
     orgaRoles?: string[];
 };

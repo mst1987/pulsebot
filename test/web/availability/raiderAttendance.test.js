@@ -7,6 +7,7 @@ let mockNights = new Map();
 const mockAttendance = jest.fn();
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({
     RAID_WINDOW: 11,
+    categoryInfo: (_ctx, id) => ({ icon: id === "mon" ? "achievement_boss_illidan" : "" }),
     buildAttendanceContext: () => ({ raidsByCategory: mockNights, allRaidsByCategory: mockNights }),
     attendanceForAccounts: (...args) => mockAttendance(...args),
 }));
@@ -54,6 +55,7 @@ describe("raiderAttendance", () => {
         const view = raiderAttendance("u1", { now: NOW, categoryNames: { mon: "TBC Montag" } });
         expect(view.categories.map((c) => [c.id, c.name, c.pct, c.attended, c.total, c.window])).toEqual([["mon", "TBC Montag", 67, 2, 3, 11]]);
         expect(view.categories[0].raids).toHaveLength(1);
+        expect(view.categories[0].icon).toBe("achievement_boss_illidan");
         const [, categoryId, accounts, opts] = mockAttendance.mock.calls[0];
         expect(categoryId).toBe("mon");
         expect(accounts[0].chars.map((c) => c.name)).toEqual(["Bananajoe"]);

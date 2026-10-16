@@ -1,7 +1,7 @@
 // The rules behind the start page ("Übersicht"): which raid icon, how full a
 // role is, which tasks are open, what the evaluation tile counts.
 const {
-    zoneFor, zoneForEvent, raidSize, roleTargets, roleFill, classCounts, notSignedUp, openRecommendations, lastReportArea, newLootSince, buildTasks,
+    zoneFor, zoneForEvent, raidSize, roleTargets, roleFill, classCounts, notSignedUp, lastReportArea, newLootSince, buildTasks,
     _internal: {
         roleBucket, FALLBACK_ZONE_ICON,
     },
@@ -114,14 +114,6 @@ describe("web/dashboard/dashboardOverview", () => {
         expect(rows[0]).toMatchObject({ className: "Druid", role: "Heiler" });
     });
 
-    it("counts only recommendations nobody decided on", () => {
-        expect(openRecommendations(null)).toBe(0);
-        expect(openRecommendations({
-            raid: [{ approved: null }, { approved: true }],
-            players: [{ items: [{ approved: null }, { approved: false }] }, { items: [{ approved: null }] }],
-        })).toBe(3);
-    });
-
     describe("lastReportArea", () => {
         it("adds gear, consumables and buffs to the problem count and keeps the parts for the tooltip", () => {
             const area = lastReportArea(
@@ -129,14 +121,14 @@ describe("web/dashboard/dashboardOverview", () => {
                 {
                     timeline: { fights: [{ encounterId: 1, kill: false }, { encounterId: 1, kill: true }, { encounterId: 2, kill: true }] },
                     mechanics: { deaths: { total: 7, avoidable: 3 } },
-                    players: [{ issues: [1, 2] }, { issues: [3] }],
+                    players: [{ issues: [1, 2] }, { issues: [3] }, { issues: [] }],
                     consumables: { players: [{ buffed: 40 }, { buffed: 95 }] },
                     raidBuffs: { players: [{ missing: 2 }, { missing: 0 }] },
                 },
             );
             expect(area).toMatchObject({
                 id: "r1", icon: "achievement_boss_illidan", bosses: 2, kills: 2, deaths: 7, avoidableDeaths: 3,
-                gear: 3, consumables: 1, buffs: 1, problems: 5,
+                gear: 3, gearRaiders: 2, consumables: 1, buffs: 1, problems: 5,
             });
         });
 
@@ -159,21 +151,25 @@ describe("web/dashboard/dashboardOverview", () => {
             expect(buildTasks({
                 nextRaids: [{ id: "n1", sheet: { url: "x" } }],
                 recentEvents: [{ id: "e1", pendingLogCount: 0 }],
-                report: { id: "r1", open: 0 },
+                report: { id: "r1", gearRaiders: 0 },
                 inbox: [],
             })).toEqual([]);
+        });
+
+        it("makes no task of unreviewed recommendations: reviewing them is optional", () => {
+            expect(buildTasks({ report: { id: "r1", open: 198, gearRaiders: 0 } })).toEqual([]);
         });
 
         it("shows every open task once, each leading to where it is done", () => {
             const tasks = buildTasks({
                 nextRaids: [{ id: "n1", title: "BT", startTime: 100, sheet: null }, { id: "n2", title: "Hyjal", startTime: 200, sheet: null }],
                 recentEvents: [{ id: "e1", title: "Hyjal", startTime: 50, pendingLogCount: 2 }, { id: "e2", pendingLogCount: 1 }],
-                report: { id: "r1", zone: "Black Temple", generatedAt: 9, open: 7 },
+                report: { id: "r1", zone: "Black Temple", generatedAt: 9, gearRaiders: 7 },
                 inbox: [{ items: [1, 2, 3] }],
             });
             expect(tasks.map((t) => [t.id, t.tone, t.count, t.href])).toEqual([
                 ["sheet", "bad", 2, "/raids/detail?event=n1"],
-                ["recommendations", "mid", 7, "/r/r1#raid"],
+                ["gear", "mid", 7, "/r/r1#raider"],
                 ["logs", "mid", 3, "/raids/detail?event=e1&tab=logs"],
                 ["inbox", "accent", 1, "/history?tab=inbox"],
             ]);

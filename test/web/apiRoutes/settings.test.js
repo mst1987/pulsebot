@@ -270,7 +270,7 @@ describe("web/apiRoutes/settings", () => {
                 // Forever: only its Wowhead section (#750), no realm, armory or log site
                 expect(data.versionDefaults.forever).toMatchObject({ wowheadPath: "forever", blizzardRealmSlug: "", blizzardNamespace: "", armoryUrlTemplate: "", wclUrlTemplate: "" });
                 // "Funktionen je Version" (#761): every version with every feature, from the one source
-                expect(data.versionCapabilities.features).toEqual(["logcheck", "lootCouncilBis", "simulation", "raidSheet", "softres", "armory", "wowheadLinks", "raidplanCatalog"]);
+                expect(data.versionCapabilities.features).toEqual(["logcheck", "lootCouncilBis", "simulation", "raidSheet", "softres", "armory", "wowheadLinks", "raidplanCatalog", "dungeonTimes"]);
                 expect(Object.keys(data.versionCapabilities.versions)).toEqual(["tbc", "classic", "forever"]);
                 expect(data.versionCapabilities.versions.tbc.raidSheet).toMatchObject({ possible: true, enabled: true, on: true, reason: "" });
                 expect(data.versionCapabilities.versions.forever.wowheadLinks).toMatchObject({ on: true });

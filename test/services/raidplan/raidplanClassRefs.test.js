@@ -86,3 +86,14 @@ describe("server: a role is the spec's role (heal / tank rows)", () => {
         expect(assign._internal.classesFor("kick", ["Mage"], false)).toEqual(["Mage"]);
     });
 });
+
+describe("who stands in a role slot plays that role on the boss (slotRoles, client twin in classCount.test.ts)", () => {
+    const P = (userId, classId, role) => ({ userId, character: userId, classId, role, group: 1 });
+    const setup = [P("war", "Warrior", "tank"), P("bear", "Druid", "tank"), P("cat", "Druid", "melee")];
+    const slots = [{ kind: "tank", n: 1, userId: "bear" }, { kind: "tank", n: 2, userId: "cat" }, { kind: "dps", n: 1, userId: "war" }];
+    it("a feral druid put into a tank slot by hand tanks there; a tank in a DPS slot does not", () => {
+        expect(assign.slotRoles(slots, setup, {})).toEqual({ bear: "tank", cat: "tank", war: "dps" });
+        const rows = [row({ id: "a", type: "tank", assignees: ["class:Druid:1:tank"] }), row({ id: "b", type: "tank", assignees: ["class:Druid:2:tank"] }), row({ id: "c", type: "tank", assignees: ["class:Warrior:1:tank"] })];
+        expect(assign.expandClassRefs(rows, slots, setup, {}).map((a) => a.assignees[0])).toEqual(["user:bear", "user:cat", "class:Warrior:1:tank"]);
+    });
+});

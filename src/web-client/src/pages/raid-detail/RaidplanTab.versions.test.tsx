@@ -22,7 +22,7 @@ const tpl = (id: string, name: string, versionId: string): RaidplanTemplateSumma
 
 function view(): RaidplanView {
     return {
-        eventId: "own1", event: { id: "own1", title: "Onyxia", startTime: 0 }, versionId: "forever", canWrite: true,
+        eventId: "own1", event: { id: "own1", title: "Onyxia", startTime: 0 }, versionId: "forever", canWrite: true, canWriteLibrary: true,
         plan: { version: 1, status: "draft", publicPath: "", templateId: "", templateName: "", bosses: {}, updatedAt: 0 },
         bosses: [BOSS], besetzung: BES, catalog: { mobs: [], spells: [] }, roster: [], hasApprovedSetup: true,
         profiles: [], templates: [tpl("t-tbc", "Montags-BT", "tbc"), tpl("t-fv", "Ony-Aufstellung", "forever")],

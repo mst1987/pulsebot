@@ -26,6 +26,33 @@ export function readStoredVersion(): string {
     }
 }
 
+/**
+ * The version the menu showed last, for what draws before the shell knows it
+ * (the loading scene of a reload: login and shell code come before the
+ * session). Unlike the pick this is the resolved version, main version included.
+ */
+export const LAST_VERSION_KEY = "eh-last-version";
+
+/** The version shown last in this browser, "" when there is none or the store cannot be read. */
+export function readLastVersion(): string {
+    try {
+        const raw = window.localStorage.getItem(LAST_VERSION_KEY);
+        return typeof raw === "string" ? raw : "";
+    } catch {
+        return "";
+    }
+}
+
+/** Remembers the version shown now ("" = nothing known, kept as it was). */
+export function writeLastVersion(versionId: string): void {
+    if (!versionId) return;
+    try {
+        window.localStorage.setItem(LAST_VERSION_KEY, versionId);
+    } catch {
+        // storage unavailable: the next reload's first loader just does not know
+    }
+}
+
 /** Remembers a pick; the main version is stored as "" so a later switch of the main version is followed. */
 export function writeStoredVersion(versionId: string, info: ContentInfo): void {
     try {

@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useRef, type KeyboardEvent, type ReactNode } from "react";
 import type { EventSource, PlanningMode, Role } from "../../api";
 import {
     signupNoteMode, noteChannelPick, signupNoteLabel, messageLook, titleSizeLabel, lootSystemLabel, lootToolLabel, planningOf, planningLabel, attendanceOf,
@@ -10,10 +10,11 @@ import Badge from "../../components/ui/Badge";
 import Chip from "../../components/ui/Chip";
 import Segment from "../../components/ui/Segment";
 import WowIcon from "../../components/ui/WowIcon";
+import NumberStepper from "../../components/ui/NumberStepper";
 import CategoryField, { CategorySubField } from "./CategoryField";
 import AvailabilityPanelRow, { type AvailabilityPanels } from "./AvailabilityPanelRow";
 import OrgaHubRow, { type OrgaHubs } from "./OrgaHubRow";
-import { ChannelsIcon, CheckMark, ClockIcon, CommentIcon, GiftIcon, MinusIcon, PlusIcon, RosterIcon, RowsIcon } from "../../components/ui/icons";
+import { ChannelsIcon, CheckMark, ClockIcon, CommentIcon, GiftIcon, RosterIcon, RowsIcon } from "../../components/ui/icons";
 
 // The expanded card of one raid category (Einstellungen → Kategorien), design
 // "A · Sechs Tabs, jede Einstellung eine Karte": its ~18 settings sorted into six
@@ -165,25 +166,11 @@ const SIGNUP_CHAR_STEPS: StepperKind = {
  */
 function QuotaStepper({ id, value, ariaLabel, onChange, kind = QUOTA_STEPS }: { id: string; value: number; ariaLabel: string; onChange: (n: number) => void; kind?: StepperKind }) {
     const t = useT();
-    const [typing, setTyping] = useState<string | null>(null);
-    const step = (by: number) => {
-        setTyping(null);
-        onChange(Math.min(kind.max, Math.max(kind.min, value + by)));
-    };
     return (
         <div className="cat-quota">
-            <div className="cat-stepper" role="group" aria-label={ariaLabel}>
-                <button type="button" aria-label={t(kind.less)} disabled={value <= kind.min} onClick={() => step(-1)}><MinusIcon /></button>
-                <input id={id} type="number" inputMode="numeric" min={kind.min} max={kind.max} step={1}
-                    value={typing ?? String(value)} aria-label={ariaLabel}
-                    onChange={(e) => {
-                        const text = e.target.value;
-                        setTyping(text);
-                        if (text !== "" && kind.valid(Number(text))) onChange(Number(text));
-                    }}
-                    onBlur={() => setTyping(null)} />
-                <button type="button" aria-label={t(kind.more)} disabled={value >= kind.max} onClick={() => step(1)}><PlusIcon /></button>
-            </div>
+            {/* the shared − value + (components/ui/NumberStepper): every valid keystroke goes to the draft */}
+            <NumberStepper id={id} value={value} min={kind.min} max={kind.max} editable commit="input" ariaLabel={ariaLabel}
+                lessLabel={t(kind.less)} moreLabel={t(kind.more)} onChange={(n) => { if (kind.valid(n)) onChange(n); }} />
             <span className="note">{t(kind.unit)}</span>
         </div>
     );

@@ -123,6 +123,11 @@ export type SetupEditorData = {
     eventId: string;
     event: { id: string; title: string; startTime: number; size: number; composition: Record<GameRole, number>; versionId: string; fairness: boolean; wishes: boolean };
     canWrite: boolean;
+    /**
+     * May change the event itself (PATCH /api/raids — "Mehr → Raidgröße"): the global orga; the orga
+     * of a category edits the setup but not yet the event (#725, opens with #728). Missing = no.
+     */
+    canEditEvent?: boolean;
     approved: ApprovedSetup | null;
     /** Only for the orga (raids write) — a reader never receives the draft. */
     setup?: StoredSetup | null;

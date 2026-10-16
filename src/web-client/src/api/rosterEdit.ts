@@ -109,7 +109,7 @@ export type RosterOptions = {
         id: string; name: string; versionId: string; rosterId: string | null; rosterName: string;
         rosters?: { id: string; name: string; versionId: string; closed: boolean }[];
     }[];
-    versions: { id: string; label: string; short: string }[];
+    versions: { id: string; label: string; short: string; icon?: string }[];
     defaultVersion: string;
     roles: RosterOptionRole[];
     canManageRoles: boolean;

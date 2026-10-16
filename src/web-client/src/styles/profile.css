@@ -10,7 +10,8 @@
 /* Icon sizes. The shared .wi is 18 px whatever size the image was requested in,
    so every place that wants a bigger icon has to say so — without these the
    spec, role and "first character" icons all shrank to 18 px. */
-.pf-chip .wi { width: 22px; height: 22px; }
+.pf-tab .wi, .pf-tabmenu-item .wi { width: 22px; height: 22px; }
+.pf-roster-spec .wi { width: 20px; height: 20px; }
 .pf-spec .wi { width: 30px; height: 30px; }
 .pf-role .wi { width: 26px; height: 26px; }
 .pf-raid .wi, .pf-class .wi { width: 20px; height: 20px; }
@@ -19,11 +20,48 @@
 .pf-muted { color: var(--muted); font-size: 13px; margin: 0; }
 .pf-err { color: var(--high); }
 
-/* ---- character chips ---- */
-/* Grouped by game version (#543): the main version first, a small label per group. */
-.pf-chip-groups { display: flex; flex-wrap: wrap; gap: 10px 24px; }
-.pf-chip-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.pf-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+/* ---- tabs: [Meine Infos], one per character, [+], "Alle Charaktere" (orga) ----
+   A desktop wraps the row; a phone scrolls it sideways, and with many characters
+   a "⋯" button at its right end lists every tab (.pf-tabbar-many). */
+.pf-tabbar { position: relative; min-width: 0; }
+.pf-tabs { margin: 0; align-items: flex-end; }
+.pf-tab { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.pf-tab .wi { border-radius: 5px; }
+.pf-tab-add { padding: 9px 12px; color: var(--accent); }
+.pf-tab-add svg { width: 16px; height: 16px; }
+.pf-tab-all { margin-left: auto; }
+/* The character's name in its class colour. On a light page the shared mix (55 %, shared.css
+   .class-colored) leaves priest white and rogue yellow below 3:1; in the tabs and the "⋯" list it
+   goes darker still - 35 % keeps every class above 5:1 on page and panel (priest white 4.6:1 at 40 %), the hue stays. */
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) :is(.pf-tab, .pf-tabmenu-item) .pf-tab-name { color: color-mix(in srgb, var(--cc, var(--text)) 35%, var(--ink-shade)); }
+}
+:root[data-theme="light"] :is(.pf-tab, .pf-tabmenu-item) .pf-tab-name { color: color-mix(in srgb, var(--cc, var(--text)) 35%, var(--ink-shade)); }
+.pf-tab-warn {
+    width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center;
+    background: var(--medium-bg); color: var(--medium); font: 800 11px/1 var(--font-mono);
+}
+.pf-tab-more { display: none; }
+@media (max-width: 640px) {
+    .pf-tabs { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+    .pf-tabs::-webkit-scrollbar { display: none; }
+    .pf-tab-all { margin-left: 0; }
+    .pf-tabbar.pf-tabbar-many .pf-tabs { padding-right: 44px; }
+    .pf-tabbar.pf-tabbar-many .pf-tab-more { display: inline-grid; position: absolute; right: 0; top: 3px; box-shadow: -12px 0 12px var(--bg); }
+}
+.pf-tabmenu {
+    position: fixed; z-index: 60; overflow-y: auto; max-height: var(--pop-max-h, 70vh); min-width: 220px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 30px var(--shade-28);
+    padding: 6px; display: flex; flex-direction: column; gap: 2px;
+}
+.pf-tabmenu-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 6px; text-align: left;
+    background: none; border: 1px solid transparent; color: var(--text); font: 600 14px/1.2 inherit; cursor: pointer;
+}
+.pf-tabmenu-item .wi { border-radius: 5px; }
+.pf-tabmenu-item:hover { background: var(--panel2); }
+.pf-tabmenu-item.is-on { background: var(--area-profile-soft); border-color: var(--area-profile); }
+
 /* The add dialog: which version the character belongs to, and Forever's first + last name. */
 .pf-version-pick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
 .pf-name-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
@@ -31,24 +69,24 @@
 @media (max-width: 520px) {
     .pf-name-pair { grid-template-columns: 1fr; }
 }
-.pf-chip {
-    display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 5px; border-radius: 999px;
-    background: var(--panel2); border: 1px solid var(--line); color: var(--text); font: 600 14px/1.2 inherit; cursor: pointer;
-}
-.pf-chip .wi { border-radius: 50%; }
-.pf-chip:hover { border-color: var(--muted); }
-.pf-chip.is-active { background: var(--area-profile-soft); border-color: var(--area-profile); }
 /* no main: the raider orders the characters of a version — forward / back in the card's head */
 .pf-order { display: inline-flex; gap: 2px; }
-.pf-chip-warn {
-    width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center;
-    background: var(--medium-bg); color: var(--medium); font: 800 11px/1 var(--font-mono);
+/* the card's way to the gear: "Armory" with its icon, on a phone the icon alone */
+.pf-armory svg { width: 15px; height: 15px; }
+@media (max-width: 640px) {
+    .pf-armory { padding: 0 8px; }
+    .pf-armory .pf-armory-label { display: none; }
 }
 
-/* ---- two columns ---- */
-.pf-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+/* ---- two columns, equal weight: Meine Infos and a character's tab ---- */
+.pf-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
 .pf-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-@media (max-width: 900px) { .pf-grid { grid-template-columns: minmax(0, 1fr); } }
+/* two columns only where the card keeps its head on one line and "Kann Offtank" unbroken (the menu takes ~250 px) */
+@media (max-width: 1279px) { .pf-grid { grid-template-columns: minmax(0, 1fr); } }
+/* Meine Infos: folds in small groups, each with its kicker */
+.pf-group { display: flex; flex-direction: column; gap: 8px; }
+.pf-group-label { padding-left: 2px; }
+.pf-fold-link { align-self: flex-start; }
 
 .pf-card {
     background: var(--panel); border: 1px solid var(--line); padding: 0 0 12px; position: relative;
@@ -97,7 +135,7 @@
     border-radius: 999px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted);
     font: 700 13px/1 inherit; cursor: pointer;
 }
-.pf-day { min-width: 46px; }
+.pf-day { min-width: 48px; min-height: 36px; }
 .pf-raid .wi, .pf-class .wi { border-radius: 50%; }
 .pf-raid.is-on, .pf-class.is-on { background: var(--area-profile-soft); border-color: var(--area-profile); color: var(--text); }
 
@@ -118,6 +156,109 @@
     padding: 1px 7px; border-radius: 999px; font-weight: 700; font-size: 12px; color: var(--day-ink);
     background: color-mix(in srgb, var(--day) 18%, transparent);
 }
+
+/* ---- "Ab wann" per chosen weekday (part 2): one calm row per day - the day in its colour, the hour as
+   the shared − value + control (the number stepper of ui.css), × quiet beside it; a day without an hour reads muted ---- */
+.pf-times { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.pf-time-row {
+    --day-ink: var(--day);
+    display: grid; grid-template-columns: 52px auto var(--ctl-h); align-items: center; gap: 12px; justify-content: start;
+    padding: 6px 6px 6px 12px; border: 1px solid var(--line); border-left: 3px solid color-mix(in srgb, var(--day) 55%, var(--line));
+    border-radius: var(--ctl-radius); background: var(--panel2);
+}
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .pf-time-row { --day-ink: color-mix(in srgb, var(--day-dark) 72%, var(--ink-shade)); }
+}
+:root[data-theme="light"] .pf-time-row { --day-ink: color-mix(in srgb, var(--day-dark) 72%, var(--ink-shade)); }
+.pf-time-row.pf-time-set { border-left-color: var(--day); }
+.pf-time-day { font-weight: 800; font-size: 15px; color: var(--day-ink); }
+.pf-time-row { --num-w: 132px; }
+.pf-time-row:not(.pf-time-set) output { color: var(--muted); font-family: inherit; font-weight: 600; font-size: 14px; }
+.pf-time-gap { width: var(--ctl-h); }
+@media (max-width: 640px) {
+    .pf-time-row { grid-template-columns: 40px auto 40px; gap: 8px; padding-left: 10px; }
+    .pf-time-row { --num-w: 112px; }
+    .pf-time-gap { width: 40px; }
+}
+
+/* ---- a character's professions (part 2): one row each - icon, name, the skill (− value + , also typed) and
+   "von 375", × quiet beside it; the rest as chips to add ---- */
+.pf-prof-list, .pf-wish-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.pf-prof, .pf-wish-row {
+    display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 6px 6px 10px;
+    border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2);
+}
+.pf-prof .wi { width: 30px; height: 30px; border-radius: 6px; flex: 0 0 auto; box-shadow: 0 0 0 1px var(--shade-35); }
+.pf-prof-name { flex: 1; min-width: 0; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-prof-skill { display: inline-flex; align-items: center; gap: 8px; }
+.pf-prof-max { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+.pf-prof-pick .wi { width: 20px; height: 20px; border-radius: 4px; }
+/* a phone: name and × on top, the skill below them */
+@media (max-width: 520px) {
+    .pf-prof { flex-wrap: wrap; row-gap: 8px; }
+    .pf-prof-skill { order: 3; width: 100%; padding-left: 42px; }
+}
+
+/* ---- wish items (part 2): the item rows, and a search field that looks like one ---- */
+.pf-wish-main { flex: 1; min-width: 0; }
+.pf-wish-name { display: block; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* dark: the quality colour lifted towards the text so an epic stays readable (light mixes it darker itself) */
+.pf-wish-row .pf-wish-name { color: color-mix(in srgb, var(--iq) 62%, var(--text)); }
+.pf-wish-search { position: relative; max-width: 440px; }
+.pf-wish-search > svg {
+    position: absolute; left: 12px; top: calc(var(--ctl-h) / 2); transform: translateY(-50%); z-index: 1;
+    width: 16px; height: 16px; color: var(--muted); pointer-events: none;
+}
+.pf-wish-search input { padding-left: 38px; }
+
+/* ---- Meine Infos › Deine Anwesenheit: per category the quota large, the nights as status fields ---- */
+.pf-att { display: flex; flex-direction: column; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line-soft); }
+.pf-att:last-of-type { border-bottom: 0; }
+.pf-att-figure { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.pf-att-figure b { font: 800 28px/1 var(--font-mono); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.pf-att-figure span { color: var(--muted); font-size: 13px; }
+.pf-att-nights { display: flex; flex-wrap: wrap; gap: 4px; }
+.pf-att-night { display: inline-flex; }
+
+/* ---- a character's tab: roster, loot, dungeon runs ---- */
+.pf-roster { display: flex; flex-direction: column; gap: 3px; padding-bottom: 10px; border-bottom: 1px solid var(--line-soft); }
+.pf-roster.is-other .pf-roster-status { color: var(--muted); }
+.pf-roster-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pf-roster-status { font-size: 22px; font-weight: 800; line-height: 1.1; }
+.pf-roster-spec { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.pf-roster-spec .wi { border-radius: 4px; }
+.pf-roster-note { font-size: 12.5px; }
+
+.pf-loot { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.pf-loot-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line-soft); }
+.pf-loot-row:last-child { border-bottom: 0; }
+.pf-loot-main { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.pf-loot-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-loot-main .pf-muted { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* the medals need more room than the points: three words with their counts on one line */
+.pf-tiles { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 10px; }
+.pf-tile { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); min-width: 0; }
+.pf-big { font: 800 28px/1 var(--font-mono); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.pf-medals { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+.pf-medal-count { white-space: nowrap; }
+.pf-medal-count { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 520px) { .pf-tiles { grid-template-columns: minmax(0, 1fr); } }
+/* a medal: a small square in its colour, then the word (as on the dungeon page) */
+.pf-medal { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 13px; font-weight: 700; }
+.pf-medal i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; background: var(--medal-c); }
+.pf-medal[data-medal="gold"] { --medal-c: var(--medal-gold); }
+.pf-medal[data-medal="silver"] { --medal-c: var(--medal-silver); }
+.pf-medal[data-medal="bronze"] { --medal-c: var(--medal-bronze); }
+.pf-medal.pf-medal-none { color: var(--muted); font-weight: 600; }
+.pf-runs { display: flex; flex-direction: column; }
+/* medal, dungeon name and time on one line (the first baseline), the place and date below the name */
+.pf-run { display: flex; align-items: first baseline; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+.pf-run:last-child { border-bottom: 0; }
+.pf-run .pf-medal { min-width: 64px; }
+.pf-run-main { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.pf-run-main .pf-muted { font-size: 12.5px; }
+.pf-run-time { font: 800 17px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
 
 /* ---- "nicht zusammen": a switch first, the list only once it is on ---- */
 .pf-avoid { display: flex; flex-direction: column; gap: 10px; }
@@ -188,7 +329,6 @@
 .pf-edit-hint + .pf-loglist { margin-top: 10px; }
 
 /* ---- "Alle Charaktere", the orga's tab ---- */
-.pf-tabs { margin-top: -6px; }
 .pf-all { display: flex; flex-direction: column; gap: 12px; }
 .pf-all-bar { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
 .pf-all-bar .pf-search { flex: 0 1 320px; }

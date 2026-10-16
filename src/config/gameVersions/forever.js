@@ -98,9 +98,16 @@ module.exports = {
     id: "forever",
     label: "WoW Forever",
     short: "Forever",
+    // The version's WoW icon; see tbc.js. A clock, for "Forever".
+    icon: "spell_holy_borrowedtime",
     // The version's colour in the web admin (#742, dark theme); see tbc.js.
     color: "#4da3ff",
     characterNames: { lastName: true },
+    // Dungeon best times (feature "dungeonTimes", services/events/versionCapabilities.js):
+    // the LevelHelper addon runs on this client and reports group runs and
+    // achievement points (docs/dungeon-leaderboard.md); "Mein Profil" shows them
+    // per character only for a version that has this.
+    dungeonTimes: true,
     // Classic's classes, so Classic's assignment types (#751): no Misdirection.
     raidplanTypesLeftOut: classic.raidplanTypesLeftOut,
     // The version's own curve for a raid size without an instance suggestion

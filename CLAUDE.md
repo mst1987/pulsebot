@@ -1,204 +1,148 @@
 # EventHelper Discord Bot
 
-A Discord bot plus web admin for organising WoW raids, built with Node.js and Discord.js v14: own events and
-signups (Raid-Helper stays a supported second source), setup proposals, raid plans, loot council, log checks of
-Warcraft Logs reports, and the web admin (a React SPA) the orga works in.
+Discord bot plus web admin (React SPA) for organising WoW raids, on Node.js and Discord.js v14: own events and
+signups (Raid-Helper stays a second source), setup proposals, raid plans, loot council, log checks of Warcraft
+Logs reports.
+
+This file is loaded in every session and every subagent, so it holds only what every task needs. Rules bound to
+files live in `.claude/rules/` (they load when a matching file is read), domain knowledge in `docs/` (index below).
 
 ## Commands
 
 ```bash
-npm start              # Run production bot
-npm run dev            # Run with auto-reload (nodemon)
-npm test               # Run the Jest test suite
-npm run test:watch     # Run Jest in watch mode
-npm run test:coverage  # Run Jest with a coverage report
-npm run lint           # Check code style
-npm run lint:fix       # Auto-fix lint issues
-npm run register       # Register slash commands to guild (instant)
-npm run register:global  # Register globally (takes ~1 hour)
-npm run register:clear   # Remove all guild slash commands
-npm run agents           # Overview of running agents per worktree: changes, test instance, what to test (--serve, --watch, --html, --json, --all)
-npm run check:main       # Is the main checkout clean? (silent + exit 0 when it is)
+npm start / npm run dev  # bot + web (dev = nodemon)
+npm test                 # Jest; test:watch, test:coverage
+npm run lint             # ESLint; lint:fix
+npm run register         # register slash commands to the guild
+npm run agents           # running agent worktrees: changes, test instance, what to test
+npm run check:main       # main checkout clean? (silent + exit 0 when it is)
 ```
 
-Every other script (emojis, generated data, dev seed, …) with its npm alias: [scripts/README.md](scripts/README.md).
+All other scripts with their npm alias: [scripts/README.md](scripts/README.md).
 
 ## Development Workflow
 
-`main` is the integration branch and always reflects the production-ready state. `main` and `dev` are kept in sync; new work does **not** branch off `dev`.
+`main` is the integration branch and always production-ready (`dev` is only kept in sync — never branch off it).
 
-**⚠️ Worktree-only, no exceptions — every agent must follow this.** All code changes (by any agent, on any task, however small) happen inside a feature worktree, never as edits to the primary checkout's working tree. The primary checkout at `d:/programming/eventhelper` stays on `main` with a clean working tree at all times — no uncommitted edits, no ad-hoc commits there. If you find yourself about to `Edit`/`Write` a file while the cwd is the primary checkout, stop and create/switch to a worktree first (see step 2). This holds even for "just a quick fix."
+**⚠️ Worktree-only, no exceptions.** Every change, however small, happens in a feature worktree. The primary
+checkout `d:/programming/eventhelper` stays on `main` with a clean tree — no edits, no commits there; its local
+`main` is only ever fast-forwarded. Hooks enforce this (Edit/Write guard, shell-write guard, Stop hook running
+`npm run check:main`, ESLint after every edit; see `.claude/rules/claude-hooks.md`).
 
-**Four hooks in `.claude/settings.json` enforce this and the lint rule mechanically** (checked in, so every agent in every worktree gets them). The first three are one rule at three distances — an edit, a shell command, and the moment somebody walks away:
-- `.claude/hooks/guardMainCheckout.js` (PreToolUse on Edit/Write/MultiEdit/NotebookEdit) refuses any edit whose target lies in the *main* worktree of this repository, in whichever directory the session runs. Linked worktrees, other repositories, files outside git and git-ignored files (`.env.dev`, `data/`) pass. A deliberate one-off override is `EVENTHELPER_ALLOW_MAIN_EDITS=1`.
-- `.claude/hooks/guardMainShell.js` (PreToolUse on Bash/PowerShell, #315) does the same for a **shell write**: twice an empty file landed in the main checkout through a redirection the Edit guard never sees. It is a prefilter, not a shell parser: it refuses **only** a redirection or write cmdlet whose resolved target lies in the main checkout and is not git-ignored, and lets everything it cannot read with certainty pass (what it reads: the hook's head comment) — silence beats a false alarm.
-- `.claude/hooks/mainCheckoutClean.js` (Stop / SubagentStop, #315) runs `scripts/check-main-clean.js` when an agent is done and blocks the stop while the main checkout holds anything unexpected — one line per find. The same script is the by-hand check (`node scripts/check-main-clean.js`, exit 1 with the lines, silent when clean); it finds the main worktree through `git worktree list`, so it works from any worktree; git-ignored files (`.env*`, `data/`, `coverage/`) never count, and there is no list of excused names. It never loops (`stop_hook_active` ends it after one round).
-- `.claude/hooks/lintChanged.js` (PostToolUse on Edit/Write/MultiEdit) runs ESLint on the file just written (`src/`, `test/`, the hooks, and `src/web-client/` with its own config) and feeds the problems straight back, so style errors are fixed at the edit, not at the PR. No ESLint installed yet (fresh worktree) means it stays silent.
-All are plain Node scripts with tests under `test/claude-hooks/`; `npm run lint` covers `src/`, `scripts/`, `test/` and the hooks (#320 — the one exception is the quote rule in `scripts/render-ui-emojis.js`, whose SVG constants are single-quoted on purpose; see the comment in `eslint.config.mjs`).
+1. **Start from current `main`:** `git fetch origin`, then
+   `git worktree add -b feature/<name> ../eventhelper-<name> origin/main`; work in `../eventhelper-<name>/`.
+   Branch names never contain “token” or “secret”.
+2. **Tests with every change** (see Testing); `npm test` and `npm run lint` green before the PR.
+3. **Local test instance on its own port** (below); hand the reviewer the URL.
+4. **Keep the branch current while working:** `git fetch origin && git merge origin/main`, resolve conflicts
+   locally, re-run tests + lint — again right before opening or updating the PR. Never leave a PR conflicting.
+5. **Open the PR against `main` proactively** when the feature is done; the body says what changed and how it
+   was verified (with the test URL/port). Merge only via PR — **a merge deploys** (docs/deployment.md).
+6. **Watch the PR until it merges** (every ~5 min, `gh pr view <nr> --json state,mergedAt`), then stop the test
+   instance and remove the worktree. The task is not done before both are gone.
 
-0. **Sync `main` first — always, before touching anything.** Every unit of work starts by fetching and fast-forwarding `main` so the branch is cut from the current production state: `git fetch origin && git checkout main && git pull --ff-only origin main`. Never start editing on a stale `main` or a branch whose base has moved on.
-1. **Branch off `main`** for every new feature or fix: `git switch main && git pull && git switch -c feature/<name>`.
-2. **Use a git worktree** so the feature is developed in its own directory without disturbing the main checkout:
-   ```bash
-   git worktree add ../eventhelper-<name> -b feature/<name> main
-   ```
-   Work happens in `../eventhelper-<name>/`; the primary checkout stays on `main`.
-3. **Write and run tests** for the change (`npm test` must pass) and keep `npm run lint` clean before opening a PR.
-4. **Spin up a local test instance on its own port** so the change can be verified live, isolated from every other running instance (see “Local test instances” below). Every agent-made change must be runnable this way, and the agent hands the reviewer the local URL to click.
-5. **Keep the worktree's branch current with `main` regularly while working, not just before the PR** — `main` moves as other features merge, and a long-lived worktree drifts. Periodically run `git fetch origin && git merge origin/main` (or rebase) inside the worktree, resolve any conflicts **locally**, and re-run `npm test` + `npm run lint` on the merged result. Do this again right before opening or updating the PR. A PR must never be opened or left in a conflicting state.
-6. **Open a PR targeting `main` as soon as the feature is finished — proactively, without waiting to be asked.** Summarize what changed and how it was verified in the PR body (including the local test URL/port used). Merge to `main` only via PR. Opening the PR is not optional and is not the end of the task — it is not "done" until the PR is merged and step 7 has run.
-7. **Watch the PR until it merges, then immediately clean up everything belonging to that unit of work** — this is the last step of every task, not a separate chore for later. Poll the PR's merge status periodically (every ~5 minutes is a reasonable cadence for a background check; e.g. `gh pr view <number> --json state,mergedAt`) until it shows merged. The moment it merges: **stop the local test instance first**, then **remove the worktree** (see “Cleanup after merges” below). Only report the task fully finished once both are gone — a merged PR with its worktree/instance still lying around is an unfinished task, not a finished one.
+Do not merge a branch that lowers the coverage of the modules it touches.
 
-Every change must ship with tests (see the Testing section). Do not merge a feature branch that lowers coverage of the modules it touches.
+### Local test instances
 
-### Cleanup after merges (do this after every merge, and sweep regularly)
+One instance per worktree, `WEB_PORT` counting up from `3010` (never the default `3005`): copy `.env.dev` from
+the main checkout, append `WEB_PORT=<port>` and `DEV_AUTO_LOGIN=1`, build the client once
+(`cd src/web-client && npm install && npm run build`), then `npm start`; the menu is at
+`http://localhost:<port>/`. Details: [docs/worktrees.md](docs/worktrees.md).
 
-Once a PR is merged, its worktree and its running test instance are dead weight — clean them up promptly, and **periodically sweep** for leftovers (e.g. at the start of a session, or whenever asked to “clean up test instances”). Stray instances hold ports and RAM; orphaned worktrees clutter the tree.
+### Cleanup after merges
 
-**The routine:**
-1. **Find merged worktrees:** cross-reference `git worktree list` with `git branch --merged origin/main` (run `git fetch origin` first). Any worktree whose branch is merged can go.
-2. **Stop its test instance first.** Find the dev instances and stop them before touching their worktree:
-   ```powershell
-   # ports 3010+ are per-worktree dev instances (3005 is the default)
-   Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -ge 3010 -and $_.LocalPort -le 3020 } | Select LocalPort, OwningProcess
-   Stop-Process -Id <pid> -Force
-   ```
-3. **Remove the worktree — one at a time, verifying between each:**
-   ```bash
-   git worktree remove ../eventhelper-<name>   # do NOT reach for --force by default
-   git worktree list                            # confirm the main checkout is still listed
-   ```
+Stop the instance first (ports 3010–3020), then `git worktree remove ../eventhelper-<name>` **one at a time,
+without `--force`**, checking `git worktree list` after each. On “not a git repository” STOP. The main worktree
+is never removed; back up its `.env`/`.env.dev` (local only, not on origin) before anything that could touch
+it. Routine and sweep: [docs/worktrees.md](docs/worktrees.md).
 
-**⚠️ Safety rules — a botched sweep once wiped the main checkout (`.git` + local env). Never again:**
-- **Remove worktrees one by one, not in a blind `--force` loop.** After each removal, re-run `git worktree list` (or `git -C <main> rev-parse --git-dir`). If any git command suddenly reports **“not a git repository”**, STOP immediately — do not continue removing.
-- **The main worktree `d:/programming/eventhelper` is sacred and must never be removed.** It holds the real `.git` (objects/refs) that every linked worktree depends on; losing it detaches them all.
-- **`.env` / `.env.dev` are git-ignored and live ONLY on local disk — never on origin.** The main checkout’s env cannot be recovered from GitHub. Before any operation that could touch the main checkout (re-clone, delete, move), **back up its `.env` and `.env.dev` first**. A worktree’s `.env.dev` is a copy of the main’s and can serve as a fallback source.
-- Prefer plain `git worktree remove` (which refuses on a dirty/uncommitted tree — a useful guardrail). Only use `--force` on a specific worktree you have confirmed is safe to discard.
+## Agent team (claude-crew)
 
-### Local test instances (one port per change)
+Subagents from the **claude-crew** marketplace (`mst1987/claude-crew`, locally `D:\programming\claude-crew`).
+The **main session conducts**: cuts the task, picks the agent, checks the result, alone talks to the user.
 
-Every feature worktree runs its **own** bot/web instance on a **new, unused port**, so several changes can be reviewed side by side without clobbering each other. Never reuse the default port (`3005`) for a feature branch — pick a fresh one and keep it stable for that worktree.
-
-The web server boots **independently of the Discord gateway** (`src/bot.js` `start()`): it comes up first, then the bot logs in best-effort. A missing/invalid token or an offline Discord only disables the Discord-backed features (guild/channel/role lists, posting) — the admin menu and report pages stay reachable. So a local instance is useful even without a working token.
-
-- **Each worktree needs its own env file.** `.env` / `.env.dev` are git-ignored and are **not** copied into new worktrees, so `npm start` in a fresh worktree finds no config. Copy the dev env in and give it a unique port:
-  ```bash
-  cp ../eventhelper/.env.dev .env.dev        # from the main checkout
-  printf '\nWEB_PORT=3010\nDEV_AUTO_LOGIN=1\n' >> .env.dev
-  ```
-  `.env.dev` points at a **separate dev Discord application**, so running it never clashes with the production bot. `bot.js` prefers `.env.dev` over `.env` automatically.
-- **Port convention:** allocate a distinct `WEB_PORT` per worktree, counting up from `3010` (`3010`, `3011`, `3012`, …). Record the chosen port in the PR body so the reviewer knows where to look. If a port is already taken, take the next free one.
-- **Start it** from the worktree root — with `.env.dev` in place, just:
-  ```bash
-  npm start          # reads WEB_PORT + DEV_AUTO_LOGIN from .env.dev
-  ```
-  or override inline (bash: `WEB_PORT=3010 DEV_AUTO_LOGIN=1 NODE_ENV=development npm start`; PowerShell: `$env:WEB_PORT=3010; $env:DEV_AUTO_LOGIN=1; npm start`). The menu is then at `http://localhost:3010/` — the site root. `DEV_AUTO_LOGIN=1` auto-logs-in the first admin and is hard-gated to non-production (`src/config/variables.js`), so it can never weaken auth on the live bot.
-- **The menu needs the React client built first.** Everything outside `/api`, `/auth`, `/health` and the `/r/` report pages is served from `src/web-client/dist/` (see "Web Admin" in docs/web-admin.md) — run `cd src/web-client && npm install && npm run build` once per fresh worktree before starting the backend, or run `npm run dev` inside `src/web-client/` (its own Vite dev server, proxying `/api` to the backend port) for live-reloading frontend work. A missing/stale `dist/` means the menu 404s outright — there is no server-rendered fallback anymore.
-- **After the change:** report the port/URL you used to verify it, and stop the instance when done (it is only for review, never left running in production).
+- `core:scout` (several/unclear tasks), `core:wow-researcher` (before game data goes into code or texts),
+  `core:implementer` (several domains), `core:reviewer` (after logic changes), `core:pr-agent` (PR series;
+  single PRs: main session), `core:ui-tester` (visible web changes), `core:designer` (design proposals as
+  canvas), `core:live-diagnostics` (production, read-only).
+- Domain: `eventhelper:event-expert` (events, signups, setup, roster planner, game versions),
+  `eventhelper:web-expert` (web client, API rights, raid plan, loot views), `eventhelper:discord-expert`,
+  `eventhelper:logcheck-analyst`, `addons:wow-api-expert` / `addons:ingame-tester` (sync addon).
+- No `model` parameter (set in each agent's frontmatter). Chain by size: small tasks the main session does
+  itself. “Which agents are there?” means this list; `npm run agents` is the worktree overview.
+- Agents cannot ask the user — open points come back in their report.
+- Project values for agents live in `.claude/skills/projektprofil/SKILL.md` (preloaded); change them there.
 
 ## Architecture
 
-A rough map without file lists (`ls` is always current); each row names the doc that explains it.
-
-| Where | What lives there | Read |
-|---|---|---|
-| `src/bot.js` | Entry: env, web server first, then the bot login (best-effort) and interaction routing | docs/bot-commands.md |
-| `src/logger.js` | The one logger (`LOG_LEVEL`) | its head comment |
-| `src/commands/<area>/` | One module per command or component; `loader.js` collects them for bot and `npm run register` | docs/bot-commands.md |
-| `src/classes/` | External API clients (Raid-Helper, Warcraft Logs, Blizzard, Google) | docs/bot-commands.md |
-| `src/config/` | Env, defaults, constants, generated data (never by hand), `gameVersions/`, permissions | docs/raid-templates.md |
-| `src/utils/` | Domain logic without HTTP, one folder per area (`signup/`, `setup/`, `raidhelper/`, `loot/`, `logcheck/`, `recruitment/`, `discord/`, `time/`, `wowsims/`, `image/`) plus a few flat helpers | docs/bot-commands.md, docs/logcheck.md, docs/setup.md |
-| `src/stores/` | The JSON stores (`*Store.js` on `jsonStore.js`), `configStore`/`configSchema`, the `settingsStore` facade | docs/data-storage.md |
-| `src/services/<area>/` | Domain logic commands, utils and web share (`events/`, `signups/`, `setup/`, `raidplan/`, `discord/`, `loot/`, `characters/`, `logcheck/`, `talk/`) | docs/web-admin.md |
-| `src/web/` | HTTP only: `http/` (server, router, auth, jobs), `apiRoutes/`, `report/` + `pages/` (SSR), per area what only the web reads (`events/`, `loot/`, …). `commands/` and `utils/` never require from here (`test/docs/layering.test.js`) | docs/web-admin.md |
-| `src/web-client/` | Web admin SPA: React + Vite + TypeScript, built to `dist/` | docs/web-admin.md |
-| `scripts/` | Registration, generators (`data-sources/` = their input), dev seed, agent overview | scripts/README.md |
-| `assets/` | Checked-in images (app emojis) | docs/signups.md |
-| `data/` | Runtime data, git-ignored, only on the server (`EVENTHELPER_DATA_DIR`) | docs/data-storage.md |
-| `test/` | Jest, mirrors `src/`; `helpers/`, `setup/` (network guard), `docs/` (doc guard) | "Testing" below |
+A rough map (`ls` is always current):
+- `src/bot.js` entry (web server first, then bot login best-effort) · `src/logger.js` the one logger ·
+  `src/commands/<area>/` one module per command · `src/classes/` external API clients · `src/config/` env,
+  constants, `gameVersions/`, generated data (never by hand).
+- `src/utils/<area>/` domain logic without HTTP · `src/services/<area>/` logic shared by commands, utils and
+  web · `src/stores/` JSON stores on `jsonStore.js` · `data/` runtime data, git-ignored, server only.
+- `src/web/` HTTP only (`http/`, `apiRoutes/`, `report/`, `pages/`); `commands/` and `utils/` never require
+  from it (`test/docs/layering.test.js`) · `src/web-client/` React SPA · `scripts/` generators, registration,
+  dev seed · `assets/` checked-in images · `test/` Jest, mirrors `src/`.
 
 ## Weiterführende Dokumentation (`docs/`)
 
-Dieses Dokument ist der Einstieg und bleibt kurz: hier steht nur, was *jeder* Agent bei *jeder* Aufgabe braucht. Alles Bereichswissen steht in `docs/` — öffne die Datei, die zu deiner Aufgabe gehört, und schreib Neues auch dorthin, nicht hierher. `test/docs/claudeMd.test.js` hält Index und Dateien zusammen und CLAUDE.md unter der Größengrenze.
+Bereichswissen steht in `docs/` — die passende Datei öffnen, Neues dorthin schreiben (neue Datei → Zeile hier).
+`test/docs/claudeMd.test.js` hält Index, Pfade und die Größengrenze dieser Datei zusammen.
 
 | Datei | Wofür |
 |---|---|
-| [docs/bot-commands.md](docs/bot-commands.md) | Wie das Befehlssystem funktioniert, wer welchen Befehl ausführen darf, Core Utilities, API-Clients, Common Patterns — für jede Änderung an `src/commands/` |
-| [docs/web-admin.md](docs/web-admin.md) | Aufbau der React-SPA und der `/api`-Routen, Routing ab Site-Root, Seitenaufbau mit vielen Abschnitten, Sammlungen bearbeiten, welcher Stand läuft |
-| [docs/permissions.md](docs/permissions.md) | Bereiche und Level (`read`/`write`), Basiszugang, Einzelkonten, wo Zugriff erzwungen wird (`apiAccess.js`) |
-| [docs/discord-servers.md](docs/discord-servers.md) | Event- und Talk-Server, Pings, Erinnerungen, Rollen-Abgleich, Raid-Übersicht auf dem Talk-Server |
-| [docs/events.md](docs/events.md) | Eigene Events: Store und Adapter, Anlegen im Web, das Raid-Cockpit der Detailseite, Event verwalten, Serien, Discord-Event, Kalender-Link und öffentliche Event-Seite |
-| [docs/signups.md](docs/signups.md) | Anmeldung im Web und im Bot, mehrere Raids auf einmal, Anmelder-Nachricht, Warteliste und Ankündigung, App-Emojis |
-| [docs/setup.md](docs/setup.md) | Setup-Vorschlag, Setup-Editor und das Setup im Kanal (Nachricht + DMs) |
-| [docs/raidplan.md](docs/raidplan.md) | Raidplan: ein Board je Boss (Karte, Spieler-Tokens, Aufgabenzeilen), Taktik-Profile, Karten-Upload, Freigabe und die öffentliche Lese-Ansicht `/p/<token>` |
-| [docs/raid-templates.md](docs/raid-templates.md) | Regelsätze der Spielversionen (`src/config/gameVersions/`: Klassen, Instanzen, Buffs) sowie Raid-Vorlagen |
-| [docs/game-versions.md](docs/game-versions.md) | Versionsmodell (Version am Raid, feste Version je Kategorie, Abschnitte, Einstellungen und Funktionen je Version, strenge Trennung) und das Runbook „Neue Version starten“ |
-| [docs/channels.md](docs/channels.md) | Kanäle-Seite, Namensregeln und -ableitung, Archiv, Schnellanlage |
+| [docs/bot-commands.md](docs/bot-commands.md) | Befehlssystem, Befehlsrechte, Core Utilities, API-Clients, Patterns |
+| [docs/web-admin.md](docs/web-admin.md) | React-SPA und `/api`-Routen: Aufbau, Stores, Styles, i18n, Bausteine |
+| [docs/permissions.md](docs/permissions.md) | Bereiche und Level, Basiszugang, Einzelkonten, `apiAccess.js` |
+| [docs/discord-servers.md](docs/discord-servers.md) | Event- und Talk-Server, Pings, Erinnerungen, Rollen-Abgleich |
+| [docs/events.md](docs/events.md) | Eigene Events: Store, Anlegen, Raid-Cockpit, Serien, öffentliche Seite |
+| [docs/signups.md](docs/signups.md) | Anmeldung in Web und Bot, Warteliste, Anmelder-Nachricht, App-Emojis |
+| [docs/setup.md](docs/setup.md) | Setup-Vorschlag, Setup-Editor, Setup im Kanal (Nachricht + DMs) |
+| [docs/raidplan.md](docs/raidplan.md) | Raidplan: Boards je Boss, Taktik-Profile, Karten, Freigabe `/p/<token>` |
+| [docs/raid-templates.md](docs/raid-templates.md) | Regelsätze der Spielversionen (Klassen, Instanzen, Buffs), Raid-Vorlagen |
+| [docs/game-versions.md](docs/game-versions.md) | Versionsmodell, strenge Trennung, Runbook „Neue Version starten“ |
+| [docs/channels.md](docs/channels.md) | Kanäle-Seite, Namensregeln, Archiv, Schnellanlage |
 | [docs/roster-profile.md](docs/roster-profile.md) | Roster-Bereich und das Raider-Profil („Mein Profil“) |
-| [docs/kaderplaner.md](docs/kaderplaner.md) | Kaderplaner für WoW Forever: Bereich `kader`, Kader mit Status je Spieler (Pool → Vorauswahl → Vorläufig → Roster), Gespräche und Fragen, Stimmen, Beispiel-Setups, Datenschutz, Umstellung |
-| [docs/loot-council.md](docs/loot-council.md) | Loot-Council: Bedarf, Gear-Quellen, BiS-Listen, Simulation, Seitenaufbau |
-| [docs/logcheck.md](docs/logcheck.md) | Kampfverlauf, Analyzer, Empfehlungen, die Report-Seiten und der Wächter gegen unfertige Raids |
-| [docs/loot-import.md](docs/loot-import.md) | Loot-Import (Gargul/RCLootcouncil), Addon-Sync und Inbox, Vergabegrund und Raid-Inhalt |
-| [docs/addons.md](docs/addons.md) | Addons zum Herunterladen (#818): GitHub-Releases über den Server, Token, Cache, Rechte, Download-Limit, `/addons` |
-| [docs/dungeon-leaderboard.md](docs/dungeon-leaderboard.md) | Dungeon-Bestzeiten aus dem Addon LevelHelper: Upload `/api/ingest/levelhelper`, Zusammenführen, Seite, `/bestzeiten`, Rekord-Post |
-| [docs/raidhelper-retirement.md](docs/raidhelper-retirement.md) | Umstieg von Raid-Helper: Standardquelle, Checkliste, Schalter, Spec-Historie |
+| [docs/kaderplaner.md](docs/kaderplaner.md) | Kaderplaner (WoW Forever): Kader-Status, Gespräche, Stimmen, Datenschutz |
+| [docs/loot-council.md](docs/loot-council.md) | Loot-Council: Bedarf, Gear-Quellen, BiS-Listen, Simulation |
+| [docs/logcheck.md](docs/logcheck.md) | Kampfverlauf, Analyzer, Empfehlungen, Report-Seiten, Raid-Wächter |
+| [docs/loot-import.md](docs/loot-import.md) | Loot-Import (Gargul/RCLC), Addon-Sync und Inbox, Vergabegrund |
+| [docs/addons.md](docs/addons.md) | Addon-Downloads über GitHub-Releases: Token, Cache, Rechte, `/addons` |
+| [docs/dungeon-leaderboard.md](docs/dungeon-leaderboard.md) | Dungeon-Bestzeiten aus LevelHelper: Upload, Seite, `/bestzeiten` |
+| [docs/raidhelper-retirement.md](docs/raidhelper-retirement.md) | Umstieg von Raid-Helper: Standardquelle, Checkliste, Schalter |
 | [docs/known-issues.md](docs/known-issues.md) | Bekannte Fallstricke, die schon einmal Zeit gekostet haben |
-| [docs/testing.md](docs/testing.md) | Test-Helfer und Fabriken (`test/helpers/`, `test/factories/`), was `test/setup/` jeder Suite mitgibt, Mock-Konvention und Coverage-Schwellen |
-| [docs/deployment.md](docs/deployment.md) | Wie ein Merge auf den Server kommt und woran man den laufenden Stand sieht |
-| [docs/system-status.md](docs/system-status.md) | Systemstatus-Seite (nur Voll-Admins): Monitor, Request-Statistik, Datenträger, Host-Prozesse, Einschätzung, wo die Last herkommt |
-| [docs/backup.md](docs/backup.md) | Datensicherung: verschlüsselte Kopie außer Haus mit restic nach Cloudflare R2, Einrichtung Schritt für Schritt, Status prüfen, Wiederherstellen (`backup:restore`) mit Runbook bis zum Serverumzug |
-| [docs/data-storage.md](docs/data-storage.md) | Alle Dateien unter `data/`: Eigentümer-Modul, Inhalt, sensibel ja/nein, Sichern und Wiederherstellen |
-| [docs/guide-discord.md](docs/guide-discord.md) | Endnutzer-Guide für Raider: alle Slash-Commands und Bot-Interaktionen im Discord |
-| [docs/guide-web-admin.md](docs/guide-web-admin.md) | Endnutzer-Guide für die Orga: alle Bereiche des Web-Admin-Panels und was man dort tun kann |
-
-## Environment Variables
-
-`src/bot.js` loads `.env.dev` from the project root when it exists, otherwise `.env` (both git-ignored). Scripts
-read the env file relative to the working directory, so run them from the project root. Only these are needed to
-run at all; everything else (Google, Warcraft Logs, Blizzard, OAuth, …) is optional and listed with its purpose
-in `.env.example`. Most server settings (servers, channels, roles, rights) live in the web settings, not here.
-
-```
-DISCORDJS_BOT_TOKEN=    # Bot token (without it only the web server runs)
-CLIENT_ID=              # Discord application id
-ADMIN_USER_ID=          # Bootstrap admin who can always log in and configure the rest
-DISCORD_CLIENT_SECRET=  # "Login with Discord" on the web (not needed with DEV_AUTO_LOGIN=1 locally)
-NODE_ENV=production     # On the server: TLS verification on, dev shortcuts off
-```
+| [docs/testing.md](docs/testing.md) | Test-Helfer, Fabriken, `test/setup/`, Mock-Konvention, Coverage |
+| [docs/worktrees.md](docs/worktrees.md) | Worktree-Testinstanzen (Ports, `.env.dev`) und sicheres Aufräumen |
+| [docs/deployment.md](docs/deployment.md) | Wie ein Merge auf den Server kommt, laufender Stand, Deploy-Pause |
+| [docs/system-status.md](docs/system-status.md) | Systemstatus-Seite (Voll-Admins): Monitor, Last, Datenträger |
+| [docs/backup.md](docs/backup.md) | Datensicherung mit restic nach R2, Einrichtung, Wiederherstellen |
+| [docs/data-storage.md](docs/data-storage.md) | Alle Dateien unter `data/`: Eigentümer, Inhalt, sensibel, Sicherung |
+| [docs/guide-discord.md](docs/guide-discord.md) | Endnutzer-Guide für Raider: Slash-Commands und Bot-Interaktionen |
+| [docs/guide-web-admin.md](docs/guide-web-admin.md) | Endnutzer-Guide für die Orga: alle Bereiche des Web-Admin-Panels |
 
 ## Code Conventions
 
-- **Module system:** CommonJS only (`require` / `module.exports`), never ES Modules.
-- **Indentation:** 4 spaces.
-- **Quotes:** Double quotes (enforced by ESLint).
-- **Semicolons:** Always (enforced by ESLint).
-- **Line endings:** LF, set by `.gitattributes` (`* text=auto eol=lf`) — not enforced by ESLint (a fixed rule broke the Linux CI).
-- **Lint rules:** `@eslint/js` recommended plus `no-undef`, `no-unused-vars` (unused args as `_x`), `prefer-const`, `no-var`, `indent` 4 (`SwitchCase: 1`) and `complexity` (warn at 30) for `src/`, `scripts/`, hooks and `test/` (there also `eslint-plugin-jest`); the client adds `eslint-plugin-react` and `jsx-a11y`.
-- **Language:** Bot texts a raider reads in Discord are written in English in the code and go through `tr(lang, "…")` (`utils/i18n/botText.js`, German catalog in `config/botText/de/`): **German by default**, public messages in the server language (`botLanguage`), personal ones in the reader's own choice (`/language`, the web's DE/EN switch). Dates as Discord timestamps; orga/admin texts in the bot stay German; the web gets its language from the client's i18n layer. Variable names, function names, comments in English. Details: docs/bot-commands.md („Sprache des Bots“).
-- **No TypeScript** in the bot (the web client in `src/web-client/` is TypeScript).
+- CommonJS only (`require`/`module.exports`), no TypeScript in the bot (the web client is TS); 4 spaces, double
+  quotes, semicolons (ESLint, `eslint.config.mjs`), LF (`.gitattributes`).
+- **Language:** identifiers and comments in English. Bot texts a raider reads go through `tr(lang, "…")`
+  (German by default); orga/admin texts in the bot stay German; the web client always in `de` and `en`.
+  Details: `.claude/rules/discord.md`, docs/bot-commands.md.
+- Commits in German: `Bereich: Beschreibung`.
 
 ## Testing
 
-The project uses [Jest](https://jestjs.io/). Tests live under `test/`. **Where a test goes:**
-- `utils/`, `classes/`, `commands/`, `config/`, `stores/`, `services/` and `web/` are mirrored one to one: `src/utils/time/index.js` → `test/utils/time/index.test.js`.
-- A route module `src/web/apiRoutes/<name>.js` is tested in `test/web/apiRoutes/<name>.test.js` (through the real router with `routerClient` from `test/helpers/http.js`); `test/web/http/apiRouter.test.js` keeps only dispatch, 404/405, error handling and the area gate.
-- A suite too big for one file, or a topic of one module, is `<modul>.<thema>.test.js` next to it (`test/web/loot/lootCouncil.gear.test.js`).
-- Every backend module is loaded by at least one test: `test/docs/testMirror.test.js` fails otherwise; its allowlist is for pure data tables (with a reason). Details in docs/testing.md.
-- The React client has its own suite: **Vitest** (jsdom + Testing Library), `cd src/web-client && npm test`, tests as `*.test.ts(x)` next to the module; behaviour is tested by rendering, only structural conventions stay as source scans in `test/web-client/conventions/` (Jest). Details in docs/testing.md, "Web-Client".
-
-- Run the full suite with `npm test`, watch mode with `npm run test:watch`, coverage with `npm run test:coverage`.
-- Config is in `jest.config.js` (Node test environment, coverage collected from `src/**/*.js`).
-- **Discord interactions and API clients are never hit for real.** Use the shared mock helpers in `test/helpers/` (`mockInteraction()` for a fake `interaction`, plus module mocks for the `classes/*` API clients). Mock external I/O with `jest.mock(...)` — no test may make a real network request; `test/setup/noNetwork.js` (`setupFiles`) enforces it: unmocked axios, `http(s).request/get` and `fetch` throw and fail the test, even when the code swallows the error (loopback stays open). `coverageThreshold` in `jest.config.js` sits about a point under the measured coverage, so `npm run test:coverage` fails when it sinks; console output is shown only for failing tests.
-- **A store a suite points somewhere else (`useFile`) gets its file from `test/helpers/tempStore.js`'s `tempStoreFile(name)`** — a scratch directory of its own, removed at the end of the suite. Not `os.tmpdir()` plus `process.pid`: that left 96 stale files in `%TEMP%` before #315 (pids repeat, `forceExit` can skip an `afterAll`). Every store on `src/stores/jsonStore.js` has `useFile(path|null)`; a suite that wants no disk at all mocks `fs` with `test/helpers/memoryFs.js` (see "Stores" in docs/web-admin.md).
-- Prefer testing pure logic directly (formatters in `utils/format.js`, date math in `utils/time/index.js`, the logcheck analyzers in `utils/logcheck/*`). For command files, assert on which helper (`botReply`/`botEditReply`) was called with which arguments.
-- ESLint recognises Jest globals for files under `test/` via `eslint.config.mjs`.
+Jest under `test/`, mirroring `src/` one to one; every backend module is loaded by at least one test
+(`test/docs/testMirror.test.js`). No test hits the network, Discord or an API client for real (enforced by
+`test/setup/noNetwork.js`); stores in tests via `tempStoreFile()` or `memoryFs`, never `os.tmpdir()`. The React
+client has its own Vitest suite (`cd src/web-client && npm test`). Placement and mocks:
+`.claude/rules/tests.md`, docs/testing.md.
 
 ## What NOT To Do
 
-- Do not add a feature or fix without tests, and do not merge with a failing `npm test`.
-- Do not branch off `dev` — always branch off `main` and open PRs against `main` (see Development Workflow).
-- Do not hardcode Discord IDs or API keys in command or utility files — read them through `src/config/` (env) or the settings store.
-- Do not use `interaction.reply()` after already calling `interaction.deferReply()` — use `botEditReply` or `botFollowup` instead.
-- Do not create slash commands without a `data` definition in the command module (`scripts/register-commands.js` collects it) and re-running `npm run register`.
-- Do not move `.env` / `.env.dev` out of the project root without also updating the `dotenv.config()` call in `src/bot.js`.
-- Do not write new domain knowledge into this file — it is read in full in every session. It belongs in the matching `docs/*.md` (new file → add it to the index above).
+- No feature or fix without tests; no merge with a failing `npm test`.
+- No hardcoded Discord IDs or API keys in commands or utils — read them through `src/config/` or the settings
+  store.
+- No new domain knowledge in this file — it goes into the matching `docs/*.md`, file-bound rules into
+  `.claude/rules/`.
