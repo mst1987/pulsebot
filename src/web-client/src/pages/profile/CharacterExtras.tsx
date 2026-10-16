@@ -5,7 +5,7 @@ import ItemSearchPicker from "../../components/loot/ItemSearchPicker";
 import { ItemIcon } from "../../components/loot/LootBadges";
 import { EyeOffIcon, XIcon } from "../../components/ui/icons";
 import { itemQualityProps } from "../../lib/wow/itemQuality";
-import { getLang, useT } from "../../i18n";
+import { useLang, useT, type Lang } from "../../i18n";
 import { type Fold, FoldPart, Stepper } from "./ProfileParts";
 
 // The freely given parts of a character's tab (Mein Profil, part 2;
@@ -17,8 +17,8 @@ import { type Fold, FoldPart, Stepper } from "./ProfileParts";
 /** Skill steps of − and +: five points (a profession's skill rises in single points, five keep the clicks few). */
 const SKILL_STEP = 5;
 
-/** The name of a profession in the page's language. */
-const professionName = (p: ProfessionList["professions"][number]) => (getLang() === "de" ? p.label : p.labelEn);
+/** The name of a profession in the page's language (, so a switch of the language draws it again). */
+const professionName = (p: ProfessionList["professions"][number], lang: Lang) => (lang === "de" ? p.label : p.labelEn);
 
 /**
  * "Berufe": at most `max` main professions of the version's list, each with its
@@ -35,8 +35,9 @@ export function ProfessionsPart({ name, list, chosen, max, fold, onFold, onChang
     onChange: (next: ProfileProfession[]) => void;
 }) {
     const t = useT();
+    const lang = useLang();
     const byId = new Map(list.professions.map((p) => [p.id, p]));
-    const label = (id: string) => (byId.has(id) ? professionName(byId.get(id)!) : id);
+    const label = (id: string) => (byId.has(id) ? professionName(byId.get(id)!, lang) : id);
     const summary = chosen.length
         ? chosen.map((p) => (p.skill !== null && list.skillMax ? t("profile.prof.withSkill", { name: label(p.id), skill: p.skill }) : label(p.id))).join(" · ")
         : t("profile.prof.none");
@@ -75,7 +76,7 @@ export function ProfessionsPart({ name, list, chosen, max, fold, onFold, onChang
                         <button key={p.id} type="button" className="pf-raid" aria-pressed={false}
                             onClick={() => onChange([...chosen, { id: p.id, skill: list.skillMax ? 0 : null }])}>
                             {p.icon && <WowIcon name={p.icon} size={20} />}
-                            {professionName(p)}
+                            {professionName(p, lang)}
                         </button>
                     ))}
                 </div>
@@ -84,19 +85,27 @@ export function ProfessionsPart({ name, list, chosen, max, fold, onFold, onChang
     );
 }
 
+/** A found item as a wish item to show at once - the server's answer replaces it (looked up on the version's Wowhead). */
+function wishItemFromHit(hit: ItemSearchResult): ProfileWishItem {
+    return { itemId: hit.id, name: hit.name, icon: "", iconUrl: hit.iconUrl || "", quality: hit.quality ?? null, link: "" };
+}
+
 /**
  * "Wunsch-Items": up to `max` items of the version, found through its Wowhead
- * suggestions. Only the raider and the orga read them ("nur Orga"); shown only
- * for a character of a Loot-Council roster.
+ * suggestions. Only the raider and the orga read them ("nur Orga"). Shown for a
+ * character of a Loot-Council roster (`canAdd`) - and for one that left it but
+ * still has items, then only to read and take out, with a calm word why.
  */
-export function WishItemsPart({ versionId, items, max, fold, onFold, onChange }: {
+export function WishItemsPart({ versionId, items, max, canAdd, fold, onFold, onChange }: {
     versionId: string;
     items: ProfileWishItem[];
     max: number;
+    /** The character is in a Loot-Council roster of its version: new items may be added. */
+    canAdd: boolean;
     fold: Fold[];
     onFold: (id: Fold) => void;
-    /** The item ids in their order - the server looks new ones up on the version's Wowhead. */
-    onChange: (ids: number[]) => void;
+    /** The whole new list - a found item is in it at once, the page saves and takes the server's answer. */
+    onChange: (next: ProfileWishItem[]) => void;
 }) {
     const t = useT();
     const search = useCallback((q: string) => searchProfileItems(q, versionId), [versionId]);
@@ -109,7 +118,7 @@ export function WishItemsPart({ versionId, items, max, fold, onFold, onChange }:
             id="wishItems" open={fold} onToggle={onFold} title={t("profile.fold.wishItems")} summary={summary}
             badge={<Badge icon={<EyeOffIcon />} tip={t("profile.fold.orgaOnlyTip")} tipSub={t("profile.wishItems.orgaOnlySub")}>{t("profile.fold.orgaOnly")}</Badge>}
         >
-            {items.length === 0 && <p className="pf-muted">{t("profile.wishItems.invite", { max })}</p>}
+            {items.length === 0 && canAdd && <p className="pf-muted">{t("profile.wishItems.invite", { max })}</p>}
             {items.length > 0 && (
                 <ul className="pf-loot">
                     {items.map((w) => (
@@ -121,16 +130,18 @@ export function WishItemsPart({ versionId, items, max, fold, onFold, onChange }:
                                     : <span {...itemQualityProps(w.quality, "pf-loot-name")}>{w.name}</span>}
                             </span>
                             <IconButton size="sm" icon={<XIcon />} tip={t("profile.wishItems.remove", { name: w.name })}
-                                onClick={() => onChange(ids.filter((id) => id !== w.itemId))} />
+                                onClick={() => onChange(items.filter((x) => x.itemId !== w.itemId))} />
                         </li>
                     ))}
                 </ul>
             )}
-            {items.length < max
-                ? <ItemSearchPicker search={search} placeholder={t("profile.wishItems.search")}
-                    onPick={(it: ItemSearchResult) => { if (!ids.includes(it.id)) onChange([...ids, it.id]); }} />
-                : <p className="pf-muted">{t("profile.wishItems.full", { max })}</p>}
-            <p className="hint">{t("profile.wishItems.hint")}</p>
+            {!canAdd
+                ? <p className="pf-muted">{t("profile.wishItems.readOnly")}</p>
+                : items.length < max
+                    ? <ItemSearchPicker search={search} placeholder={t("profile.wishItems.search")}
+                        onPick={(it: ItemSearchResult) => { if (!ids.includes(it.id)) onChange([...items, wishItemFromHit(it)]); }} />
+                    : <p className="pf-muted">{t("profile.wishItems.full", { max })}</p>}
+            {canAdd && <p className="hint">{t("profile.wishItems.hint")}</p>}
         </FoldPart>
     );
 }

@@ -25,7 +25,7 @@ const source = (over = {}) => ({
     ],
     discordRoles: [{ id: "r1", name: "Raider", color: "", count: 2 }],
     profiles: [
-        { userId: U.a, displayName: "Aldric (Profil)", characters: [warrior, druid], availability: ["mi", "do"], other: null },
+        { userId: U.a, displayName: "Aldric (Profil)", characters: [warrior, druid], availability: ["mi", "do"], availabilityFrom: { mi: "19:30" }, other: null },
         { userId: U.c, displayName: "Oldie", characters: [], availability: [], other: { name: "Oldie", className: "Mage", spec: "Mage-Fire", versionId: "tbc" } },
     ],
     logChars: { [U.d]: { name: "Kael", className: "Priest", spec: "Priest-Shadow" } },
@@ -63,7 +63,7 @@ describe("web/kader/kaderView", () => {
         expect(view.players.map((p) => p.userId)).toEqual([U.a, U.hand, U.c, U.d, U.b]);
         const byId = new Map(view.players.map((p) => [p.userId, p]));
         // the member list's name wins, then the account, the profile, the name the Kader kept
-        expect(byId.get(U.a)).toMatchObject({ displayName: "Aldric", onServer: true, roleIds: ["r1"], hasProfile: true });
+        expect(byId.get(U.a)).toMatchObject({ displayName: "Aldric", onServer: true, roleIds: ["r1"], hasProfile: true, availabilityFrom: { mi: "19:30" } });
         expect(byId.get(U.hand)).toMatchObject({ displayName: "Hand", manual: true, onServer: false });
         expect(byId.get(U.c)).toMatchObject({ displayName: "Oldie", characters: [], availability: [] });
         expect(byId.get(U.d).displayName).toBe("Kael (Import)");

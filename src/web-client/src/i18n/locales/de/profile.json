@@ -94,6 +94,8 @@
         "orgaOnlySub": "Deine Wunsch-Items sehen nur du und die Orga – andere Raider nie.",
         "invite": "Wenn du magst, trag bis zu {max} Items ein, die du dir wünschst. Nichts muss.",
         "remove": "{name} entfernen",
+        "readOnly": "Dieser Charakter ist gerade in keinem Loot-Council-Roster – deine Wunsch-Items bleiben sichtbar, neue kommen erst wieder dazu, wenn er in einem ist. Entfernen geht jederzeit.",
+        "wowheadDown": "Wowhead antwortet gerade nicht – das Item ist nicht gespeichert. Bitte gleich noch einmal versuchen.",
         "search": "Item suchen …",
         "full": "{max} Items eingetragen – nimm eins heraus, um ein anderes einzutragen.",
         "hint": "Ein Wunsch, keine Zusage – die Orga sieht ihn beim Loot-Council."

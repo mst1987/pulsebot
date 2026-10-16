@@ -94,6 +94,8 @@
         "orgaOnlySub": "Only you and the orga see your wish items – other raiders never do.",
         "invite": "If you like, add up to {max} items you wish for. Nothing is required.",
         "remove": "Remove {name}",
+        "readOnly": "This character is in no loot council roster right now – your wish items stay visible, new ones can be added once it is in one again. Removing works any time.",
+        "wowheadDown": "Wowhead is not answering right now – the item was not saved. Please try again in a moment.",
         "search": "Search item …",
         "full": "{max} items entered – take one out to enter another.",
         "hint": "A wish, not a promise – the orga sees it at the loot council."

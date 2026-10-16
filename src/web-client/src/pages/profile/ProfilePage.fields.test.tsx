@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { GameClass, GameSpec, ProfileCharacter, ProfileData, ProfilePatch, ProfileRaiding, RaiderProfile } from "../../api";
 import { t } from "../../i18n";
+import { switchLang } from "../../test/i18n";
 import { renderPage } from "../../test/render";
 import ProfilePage from "./ProfilePage";
 
@@ -135,14 +136,77 @@ describe("Berufe", () => {
         expect(await screen.findByText("Beta-Beruf")).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Gamma-Beruf" })).not.toBeInTheDocument();
     });
+
+    it("names the professions in the page's language and follows a switch", async () => {
+        setup(profile({ characters: [{ ...BORKA, professions: [{ id: "alpha", skill: 150 }] }] }), PROFESSIONS);
+        renderPage(<ProfilePage />, { route: "/profile?char=borka" });
+        expect(await screen.findByText(t("profile.prof.withSkill", { name: "Alpha-Beruf", skill: 150 }))).toBeInTheDocument();
+        await switchLang("en");
+        try {
+            expect(await screen.findByText(t("profile.prof.withSkill", { name: "Alpha trade", skill: 150 }))).toBeInTheDocument();
+        } finally {
+            await switchLang("de");
+        }
+    });
 });
 
 describe("Wunsch-Items", () => {
-    it("are only there for a character of a Loot-Council roster", async () => {
-        setup(profile(), undefined, false);
+    it("are no part for a character outside a Loot-Council roster without any", async () => {
+        setup(profile({ characters: [{ ...BORKA, wishItems: [] }] }), undefined, false);
         renderPage(<ProfilePage />, { route: "/profile?char=borka" });
         await screen.findByText(t("profile.roster.none"));
         expect(screen.queryByText(t("profile.fold.wishItems"))).not.toBeInTheDocument();
+    });
+
+    it("stay to read and take out after the character left the Loot-Council roster - no search, a calm word why", async () => {
+        const { user } = setup(profile(), undefined, false);
+        renderPage(<ProfilePage />, { route: "/profile?char=borka" });
+        const section = (await screen.findByText(t("profile.fold.wishItems"))).closest("section")!;
+        await user.click(within(section).getAllByRole("button", { name: t("profile.fold.wishItems") }).find((b) => b.hasAttribute("aria-expanded"))!);
+        expect(within(section).getByText(t("profile.wishItems.readOnly"))).toBeInTheDocument();
+        expect(within(section).queryByPlaceholderText(t("profile.wishItems.search"))).not.toBeInTheDocument();
+        await user.click(within(section).getByRole("button", { name: t("profile.wishItems.remove", { name: HELM.name }) }));
+        await waitFor(() => expect(api.saveProfile).toHaveBeenLastCalledWith({ characters: [{ key: "borka", wishItems: [] }] }));
+    });
+
+    it("keep two picks and a × made before the first answer: each save builds on what the page shows", async () => {
+        const { user } = setup();
+        // the server answers only when told to
+        const answers: (() => void)[] = [];
+        let current = profile();
+        vi.mocked(api.saveProfile).mockImplementation((patch) => new Promise((resolve) => {
+            answers.push(() => { current = answer(current, patch); resolve({ profile: current }); });
+        }));
+        vi.mocked(api.searchProfileItems).mockImplementation(async (q) => ({
+            items: q.startsWith("Drag") ? [{ id: 28830, name: "Dragonspine Trophy", iconUrl: "", quality: 4 }] : [{ id: 32837, name: "Warglaive of Azzinoth", iconUrl: "", quality: 5 }],
+        }));
+        renderPage(<ProfilePage />, { route: "/profile?char=borka" });
+        const section = (await screen.findByText(t("profile.fold.wishItems"))).closest("section")!;
+        await user.click(within(section).getAllByRole("button", { name: t("profile.fold.wishItems") }).find((b) => b.hasAttribute("aria-expanded"))!);
+        const input = within(section).getByPlaceholderText(t("profile.wishItems.search"));
+
+        await user.type(input, "Dragon");
+        await user.click(await within(section).findByText("Dragonspine Trophy"));
+        // the found item shows at once, before any answer
+        expect(within(section).getByText("Dragonspine Trophy")).toBeInTheDocument();
+        await user.type(input, "Warglaive");
+        await user.click(await within(section).findByText("Warglaive of Azzinoth"));
+        await user.click(within(section).getByRole("button", { name: t("profile.wishItems.remove", { name: HELM.name }) }));
+
+        // the saves go out one after the other, each with the list the page showed then
+        await waitFor(() => expect(answers).toHaveLength(1));
+        answers[0]();
+        await waitFor(() => expect(answers).toHaveLength(2));
+        answers[1]();
+        await waitFor(() => expect(answers).toHaveLength(3));
+        answers[2]();
+        await waitFor(() => expect(api.saveProfile).toHaveBeenCalledTimes(3));
+        expect(vi.mocked(api.saveProfile).mock.calls.map(([p]) => p.characters?.[0].wishItems)).toEqual([
+            [30236, 28830], [30236, 28830, 32837], [28830, 32837],
+        ]);
+        await waitFor(() => expect(within(section).queryByRole("link", { name: HELM.name })).not.toBeInTheDocument());
+        expect(within(section).getByText("Item 28830")).toBeInTheDocument();
+        expect(within(section).getByText("Item 32837")).toBeInTheDocument();
     });
 
     it("are marked orga-only, take a found item and let one go", async () => {

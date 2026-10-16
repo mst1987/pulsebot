@@ -17,7 +17,7 @@ const { userIcsUrl } = require("../../services/events/icsFeed");
 const { rulesFor, professionsOf, VERSIONS } = require("../../config/gameVersions");
 const { mainVersionFor, knownVersion, isVersionVisible, resolveVersionQuery } = require("../../services/events/mainVersion");
 const { profileRaiding } = require("../../services/characters/profileRaiding");
-const { wishItemsAllowed, resolveWishItems, searchWishItems } = require("../../services/characters/wishItems");
+const { anyWishItemsAllowed, resolveWishItems, searchWishItems } = require("../../services/characters/wishItems");
 const { getConfig } = require("../../stores/settingsStore");
 const { userIsOrga } = require("../../config/permissions");
 const { ROLE_LABELS } = require("../../config/gameVersions/classes");
@@ -112,10 +112,9 @@ const getProfile = withUser({}, async ({ user, res }) => {
 });
 
 /**
- * Resolve the `wishItems` of the character edits in place (services/characters/wishItems.js):
- * refused for a character that is not in a Loot-Council roster of its version
- * (403 `not_loot_council`), more than MAX_WISH_ITEMS (400), or an item its
- * version's Wowhead does not know (400 `unknown_item` / `no_wowhead`).
+ * Resolve the `wishItems` of the character edits in place (services/characters/wishItems.js
+ * resolveWishItems): stored items may always stay or go; a NEW one needs a
+ * Loot-Council roster of the character's version and the version's Wowhead.
  * @returns {Promise<null | { status: number, code: string, error: string }>}
  */
 async function withWishItems(userId, edits) {
@@ -125,14 +124,8 @@ async function withWishItems(userId, edits) {
         if (!edit || !Array.isArray(edit.wishItems)) continue;
         const character = profiles.findCharacter(profile, String(edit.key || ""));
         if (!character) { delete edit.wishItems; continue; }
-        if (edit.wishItems.length > profiles.MAX_WISH_ITEMS) {
-            return { status: 400, code: "too_many", error: `Höchstens ${profiles.MAX_WISH_ITEMS} Wunsch-Items je Charakter.` };
-        }
-        if (edit.wishItems.length && !wishItemsAllowed(userId, character, { config })) {
-            return { status: 403, code: "not_loot_council", error: "Wunsch-Items gibt es nur für Charaktere in einem Loot-Council-Roster." };
-        }
-        const resolved = await resolveWishItems(character, edit.wishItems, { config });
-        if (resolved.error) return { status: 400, code: resolved.code, error: resolved.error };
+        const resolved = await resolveWishItems(userId, character, edit.wishItems, { config });
+        if (resolved.error) return resolved;
         edit.wishItems = resolved.items;
     }
     return null;
@@ -259,11 +252,16 @@ const getProfileRaiding = withUser({}, async ({ user, res, url }) => {
 /**
  * GET /api/profile/item-search?q=&version= — Wowhead's items for a name on the
  * version's section, for a character's wish items (the same suggestions the
- * guild bank and softres use). Nothing without a Wowhead path for the version.
+ * guild bank and softres use). Nothing without a Wowhead path for the version;
+ * 403 `not_loot_council` when none of the caller's characters of the version
+ * may get new wish items (it is no general item search for every member).
  */
-const getItemSearch = withUser({}, async ({ res, url }) => {
+const getItemSearch = withUser({}, async ({ user, res, url }) => {
     const config = getConfig();
     const { versionId } = resolveVersionQuery(url.searchParams.get("version"), { config });
+    if (!anyWishItemsAllowed(user.id, profiles.getProfile(user.id).characters, versionId, { config })) {
+        return apiError(res, 403, "not_loot_council", "Wunsch-Items gibt es nur für Charaktere in einem Loot-Council-Roster.");
+    }
     ok(res, { items: await searchWishItems(versionId, url.searchParams.get("q") || "", { config }) });
 });
 

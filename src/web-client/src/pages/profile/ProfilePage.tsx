@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import type { ShellContext } from "../../components/shell/Shell";
 import {
     canAccess, canAccessAny, editProfileCharacter, getLogCharacters, getProfile, getProfileRaiding, getRaiderAttendance, saveProfile,
     removeProfileCharacter, getCalendarTokens,
-    type ApiError, type ProfileCharacter, type ProfilePatch, type RaiderProfile,
+    type ApiError, type ProfileCharacter, type ProfilePatch, type ProfileWishItem, type RaiderProfile,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { Badge, Button, PageHead, RaidLoader, useConfirm } from "../../components/ui";
@@ -51,6 +51,8 @@ export default function ProfilePage() {
     const [charFold, setCharFold] = useState<Fold[] | null>(null);
     const [adding, setAdding] = useState<AddWay | null>(null);
     const [editing, setEditing] = useState<ProfileCharacter | null>(null);
+    // the wish item saves of this page, one after the other (saveWishItems)
+    const wishQueue = useRef({ chain: Promise.resolve(), pending: 0 });
     // "Alle Charaktere" (?view=all): the orga's tab — every raider's characters, editable with write access to the roster area.
     const orga = isOrga(user) && canAccess(user, "roster");
     // Kalender-Abo (#312) — its own small payload, so the profile request stays
@@ -113,6 +115,30 @@ export default function ProfilePage() {
             setProfile(before);
             toast((e as ApiError).message, "err");
         }
+    };
+
+    /**
+     * A character's wish items: the new list shows at once (a found item with what the search knew of it), the
+     * saves go out one after the other - each built on what the page shows, so two picks (or a pick and a ×)
+     * before the first answer both count - and only the last answer is taken (the server's list then wins).
+     * A failure loads the profile again.
+     */
+    const saveWishItems = (key: string, next: ProfileWishItem[]) => {
+        setData((d) => (d ? { ...d, profile: { ...d.profile, characters: d.profile.characters.map((c) => (c.key === key ? { ...c, wishItems: next } : c)) } } : d));
+        const queue = wishQueue.current;
+        queue.pending += 1;
+        queue.chain = queue.chain.then(async () => {
+            try {
+                const res = await saveProfile({ characters: [{ key, wishItems: next.map((w) => w.itemId) }] });
+                queue.pending -= 1;
+                if (!queue.pending) setProfile(res.profile);
+            } catch (e) {
+                queue.pending -= 1;
+                const err = e as ApiError;
+                toast(err.code === "wowhead_unavailable" ? t("profile.wishItems.wowheadDown") : err.message, "err");
+                if (!queue.pending) void profileData.reload();
+            }
+        });
     };
 
     const selectTab = (next: ProfileTab) => {
@@ -265,19 +291,17 @@ export default function ProfilePage() {
                         />
                         {/* Only with LevelHelper data for this character (WoW Forever): no block, no empty state otherwise. */}
                         {dungeons && <DungeonPart dungeons={dungeons} fold={shownCharFold} onFold={toggleChar} />}
-                        {/* Wunsch-Items: freely given, only for a character of a Loot-Council roster; only the raider and the orga read them */}
-                        {charRaiding?.lootCouncil && (
+                        {/* Wunsch-Items: freely given, new ones only in a Loot-Council roster; items kept after leaving it
+                            stay to read and take out. Only the raider and the orga read them. */}
+                        {(charRaiding?.lootCouncil || (selected.wishItems || []).length > 0) && (
                             <WishItemsPart
                                 versionId={versionOf(selected)}
                                 items={selected.wishItems || []}
                                 max={data.limits.wishItems || 10}
+                                canAdd={!!charRaiding?.lootCouncil}
                                 fold={shownCharFold}
                                 onFold={toggleChar}
-                                onChange={(ids) => patch(
-                                    { characters: [{ key: selected.key, wishItems: ids }] },
-                                    // a taken-out item goes at once; a new one comes with the server's answer (looked up on Wowhead)
-                                    { characters: profile.characters.map((c) => (c.key === selected.key ? { ...c, wishItems: (c.wishItems || []).filter((w) => ids.includes(w.itemId)) } : c)) },
-                                )}
+                                onChange={(next) => saveWishItems(selected.key, next)}
                             />
                         )}
                     </div>

@@ -40,8 +40,9 @@ describe("availabilityFrom - ab HH:MM per chosen weekday", () => {
 });
 
 describe("professions - at most two of the version's list", () => {
-    it("keeps none while the version's rule set has no list (no data yet)", () => {
-        expect(profiles.normalizeProfessions([{ id: "alchemy", skill: 300 }], "tbc")).toEqual([]);
+    it("keeps none where the rule set has no list (Forever), and only the version's own (no Jewelcrafting in Classic)", () => {
+        expect(profiles.normalizeProfessions([{ id: "alchemy", skill: 300 }], "forever")).toEqual([]);
+        expect(profiles.normalizeProfessions([{ id: "jewelcrafting", skill: 300 }, { id: "alchemy", skill: 400 }], "classic")).toEqual([{ id: "alchemy", skill: 300 }]);
     });
 
     it("keeps known ones, two at most, each once, the skill within 0..skillMax", () => {

@@ -49,6 +49,7 @@ const STORED = {
             { name: "Mira Sonnlicht", versionId: "forever", className: "Druid", specs: [{ key: "Druid-Restoration", gear: "ready" }], canOfftank: false },
         ],
         availability: ["mi", "do"],
+        availabilityFrom: { mi: "19:30" },
         preferredRaids: ["forever-hyjal"],
         wishes: [U2],
         avoidEnabled: true,
@@ -164,6 +165,8 @@ describe("web/kader/kaderSource", () => {
             const [aldric, oldie] = out.profiles;
             expect(aldric.characters.map((c) => c.name)).toEqual(["Aldric Sturmwind", "Mira Sonnlicht"]);
             expect(aldric.availability).toEqual(["mi", "do"]);
+            // the hour per day from the profile (Mi ab 19:30) - Do has none, the whole evening
+            expect(aldric.availabilityFrom).toEqual({ mi: "19:30" });
             expect(aldric.other).toEqual({ name: "Devi", className: "Priest", spec: "Priest-Holy", versionId: "tbc" });
             expect(oldie).toMatchObject({ characters: [], other: { name: "Oldie", className: "Mage", spec: "Mage-Fire", versionId: "tbc" } });
         });
