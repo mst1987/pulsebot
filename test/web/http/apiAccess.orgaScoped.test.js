@@ -1,7 +1,8 @@
 // The area gate for `orgaScoped` routes (#724), through the real router (apiRouter.handle) and the
 // real rule (services/roster/categoryOrga.js): the orga of a category gets past the area gate of such
-// a route, the handler then checks the concrete event. No real route is marked yet (#725-#728 do
-// that), so one route module gets a test route built with withUser({ orgaScoped }).
+// a route, the handler then checks the concrete event. The real routes have their own tests (the
+// setup editor: test/web/apiRoutes/setup.categoryOrga.test.js, #725); here one route module gets test
+// routes built with withUser({ orgaScoped }), to pin the gate itself.
 const { json: sent, status } = require("../../helpers/http");
 const { routerClient } = require("../../helpers/http");
 
