@@ -186,3 +186,5 @@ Die Checkliste in Prosa, in ihrer Reihenfolge. Zielversion oben in der Karte wä
 10. **Optional, nur wenn die alte Version ganz endet:** Hauptversion auf die neue stellen, speichern, Archiv laden (Schritt 2), dann „Andere Versionen ausblenden“ einschalten. Nichts wird gelöscht; ausschalten holt alles zurück.
 
 Sind alle gezählten Punkte grün, steht im Kopf der Karte „10 von 10 erledigt“.
+
+**Berufe der Version (Regelsatz, kein Punkt der Karte):** „Mein Profil“ bietet Berufe nur, wenn der Regelsatz `professions` und `professionSkillMax` hat (TBC/Classic: `config/gameVersions/professions.js`). **WoW Forever** hat bis zum Start (04.11.2026) bewusst keine Liste: nach dem Start im Client prüfen (`GetProfessions()` / `GetProfessionInfo()` – welche Hauptberufe, welcher Höchstwert) und dann in `forever.js` eintragen; bis dahin zeigt das Profil unter Forever keinen Berufe-Block ([roster-profile.md](roster-profile.md), „Berufe“).

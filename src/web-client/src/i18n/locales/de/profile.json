@@ -82,7 +82,7 @@
         "freeSub": "Nur eine Info für die Orga, z. B. für Verzauberungen oder Tränke. Nichts muss.",
         "invite": "Wenn du magst, trag bis zu {max} Hauptberufe ein. Nichts muss.",
         "skillAria": "Fertigkeit {name}",
-        "skill": "{skill} von {max}",
+        "ofMax": "von {max}",
         "less": "Weniger",
         "more": "Mehr",
         "remove": "{name} entfernen",

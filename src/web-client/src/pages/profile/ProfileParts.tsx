@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { searchRaiders, type GameClass, type ProfileData, type RaiderProfile, type RaiderRef } from "../../api";
 import { Expand, IconButton, Segment, WowIcon } from "../../components/ui";
 import { classColorProps } from "../../components/character/ClassSpec";
-import { MinusIcon, PlusIcon, XIcon, SearchIcon } from "../../components/ui/icons";
+import { XIcon, SearchIcon } from "../../components/ui/icons";
 import { instanceName } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 
@@ -13,26 +13,6 @@ import { useT } from "../../i18n";
 // opened. Every change saves itself; there is no form to submit.
 
 export type Fold = "attendance" | "days" | "raids" | "wishes" | "avoid" | "note" | "calendar" | "roster" | "loot" | "dungeons" | "professions" | "wishItems" | "";
-
-/** A number with − and + beside it (no checkbox, no free typing): the value as text, each button with its tooltip. */
-export function Stepper({ label, value, lessTip, moreTip, onLess, onMore }: {
-    /** The accessible name of the group. */
-    label: string;
-    value: ReactNode;
-    lessTip: string;
-    moreTip: string;
-    /** missing = the button is disabled (at the lower / upper end). */
-    onLess?: () => void;
-    onMore?: () => void;
-}) {
-    return (
-        <span className="pf-step" role="group" aria-label={label}>
-            <IconButton size="sm" icon={<MinusIcon />} tip={lessTip} disabled={!onLess} onClick={() => onLess?.()} />
-            <b className="pf-step-value" aria-live="polite">{value}</b>
-            <IconButton size="sm" icon={<PlusIcon />} tip={moreTip} disabled={!onMore} onClick={() => onMore?.()} />
-        </span>
-    );
-}
 
 /**
  * "Nicht mit X raiden": off until the raider switches it on — past a question

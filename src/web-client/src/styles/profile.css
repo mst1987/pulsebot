@@ -135,7 +135,7 @@
     border-radius: 999px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted);
     font: 700 13px/1 inherit; cursor: pointer;
 }
-.pf-day { min-width: 46px; }
+.pf-day { min-width: 48px; min-height: 36px; }
 .pf-raid .wi, .pf-class .wi { border-radius: 50%; }
 .pf-raid.is-on, .pf-class.is-on { background: var(--area-profile-soft); border-color: var(--area-profile); color: var(--text); }
 
@@ -157,21 +157,59 @@
     background: color-mix(in srgb, var(--day) 18%, transparent);
 }
 
-/* ---- "Ab wann" per chosen weekday (part 2): the day, the hour as − value +, × back to the whole evening ---- */
-.pf-times { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
-.pf-time-row { display: flex; align-items: center; gap: 10px; }
-.pf-time-row .pf-day-tag { min-width: 30px; text-align: center; }
-/* a number with − and + (no free typing): the hours here, a profession's skill on a character's tab */
-.pf-step { display: inline-flex; align-items: center; gap: 4px; }
-.pf-step-value { min-width: 96px; text-align: center; font: 700 13px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+/* ---- "Ab wann" per chosen weekday (part 2): one calm row per day - the day in its colour, the hour as
+   the shared − value + control (the number stepper of ui.css), × quiet beside it; a day without an hour reads muted ---- */
+.pf-times { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.pf-time-row {
+    --day-ink: var(--day);
+    display: grid; grid-template-columns: 52px auto var(--ctl-h); align-items: center; gap: 12px; justify-content: start;
+    padding: 6px 6px 6px 12px; border: 1px solid var(--line); border-left: 3px solid color-mix(in srgb, var(--day) 55%, var(--line));
+    border-radius: var(--ctl-radius); background: var(--panel2);
+}
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .pf-time-row { --day-ink: color-mix(in srgb, var(--day-dark) 72%, var(--ink-shade)); }
+}
+:root[data-theme="light"] .pf-time-row { --day-ink: color-mix(in srgb, var(--day-dark) 72%, var(--ink-shade)); }
+.pf-time-row.pf-time-set { border-left-color: var(--day); }
+.pf-time-day { font-weight: 800; font-size: 15px; color: var(--day-ink); }
+.pf-time-row { --num-w: 132px; }
+.pf-time-row:not(.pf-time-set) output { color: var(--muted); font-family: inherit; font-weight: 600; font-size: 14px; }
+.pf-time-gap { width: var(--ctl-h); }
+@media (max-width: 640px) {
+    .pf-time-row { grid-template-columns: 40px auto 40px; gap: 8px; padding-left: 10px; }
+    .pf-time-row { --num-w: 112px; }
+    .pf-time-gap { width: 40px; }
+}
 
-/* ---- a character's professions (part 2): chosen ones as rows, the rest as chips to add ---- */
-.pf-prof { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line-soft); }
-.pf-prof .wi { width: 26px; height: 26px; border-radius: 5px; flex: 0 0 auto; }
-/* one line on a phone too: the name gives way (ellipsis), the skill and the × stay beside it */
+/* ---- a character's professions (part 2): one row each - icon, name, the skill (− value + , also typed) and
+   "von 375", × quiet beside it; the rest as chips to add ---- */
+.pf-prof-list, .pf-wish-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.pf-prof, .pf-wish-row {
+    display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 6px 6px 10px;
+    border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2);
+}
+.pf-prof .wi { width: 30px; height: 30px; border-radius: 6px; flex: 0 0 auto; box-shadow: 0 0 0 1px var(--shade-35); }
 .pf-prof-name { flex: 1; min-width: 0; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 520px) { .pf-prof { gap: 6px; } .pf-prof .pf-step-value { min-width: 74px; } }
-.pf-prof-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.pf-prof-skill { display: inline-flex; align-items: center; gap: 8px; }
+.pf-prof-max { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+.pf-prof-pick .wi { width: 20px; height: 20px; border-radius: 4px; }
+/* a phone: name and × on top, the skill below them */
+@media (max-width: 520px) {
+    .pf-prof { flex-wrap: wrap; row-gap: 8px; }
+    .pf-prof-skill { order: 3; width: 100%; padding-left: 42px; }
+}
+
+/* ---- wish items (part 2): the item rows, and a search field that looks like one ---- */
+.pf-wish-main { flex: 1; min-width: 0; }
+.pf-wish-name { display: block; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* dark: the quality colour lifted towards the text so an epic stays readable (light mixes it darker itself) */
+.pf-wish-row .pf-wish-name { color: color-mix(in srgb, var(--iq) 62%, var(--text)); }
+.pf-wish-search { position: relative; max-width: 440px; }
+.pf-wish-search > svg {
+    position: absolute; left: 12px; top: calc(var(--ctl-h) / 2); transform: translateY(-50%); z-index: 1;
+    width: 16px; height: 16px; color: var(--muted); pointer-events: none;
+}
+.pf-wish-search input { padding-left: 38px; }
 
 /* ---- Meine Infos › Deine Anwesenheit: per category the quota large, the nights as status fields ---- */
 .pf-att { display: flex; flex-direction: column; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line-soft); }

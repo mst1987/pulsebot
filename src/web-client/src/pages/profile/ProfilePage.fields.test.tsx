@@ -120,7 +120,7 @@ describe("Berufe", () => {
         expect(screen.queryByText(t("profile.fold.professions"))).not.toBeInTheDocument();
     });
 
-    it("invites without pressure, takes two professions at most and moves the skill with − and +", async () => {
+    it("invites without pressure, starts a profession at the version's highest skill, moves it with − / + and takes two at most", async () => {
         const { user } = setup(profile(), PROFESSIONS);
         renderPage(<ProfilePage />, { route: "/profile?char=borka" });
         expect(await screen.findByText(t("profile.prof.none"))).toBeInTheDocument();
@@ -128,13 +128,36 @@ describe("Berufe", () => {
         expect(screen.getByText(t("profile.prof.invite", { max: 2 }))).toBeInTheDocument();
 
         await user.click(screen.getByRole("button", { name: "Alpha-Beruf" }));
-        await waitFor(() => expect(api.saveProfile).toHaveBeenLastCalledWith({ characters: [{ key: "borka", professions: [{ id: "alpha", skill: 0 }] }] }));
-        await user.click(screen.getByRole("button", { name: t("profile.prof.more") }));
-        await waitFor(() => expect(api.saveProfile).toHaveBeenLastCalledWith({ characters: [{ key: "borka", professions: [{ id: "alpha", skill: 5 }] }] }));
+        await waitFor(() => expect(api.saveProfile).toHaveBeenLastCalledWith({ characters: [{ key: "borka", professions: [{ id: "alpha", skill: 300 }] }] }));
+        // at the top: + is off, − goes down in fives
+        expect(screen.getByRole("button", { name: t("profile.prof.more") })).toBeDisabled();
+        await user.click(screen.getByRole("button", { name: t("profile.prof.less") }));
+        await waitFor(() => expect(api.saveProfile).toHaveBeenLastCalledWith({ characters: [{ key: "borka", professions: [{ id: "alpha", skill: 295 }] }] }));
         await user.click(screen.getByRole("button", { name: "Beta-Beruf" }));
         // two chosen: no more chips to add
         expect(await screen.findByText("Beta-Beruf")).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Gamma-Beruf" })).not.toBeInTheDocument();
+    });
+
+    it("takes a typed skill on Enter or leaving the field, and puts back an invalid one", async () => {
+        const { user } = setup(profile({ characters: [{ ...BORKA, professions: [{ id: "alpha", skill: 150 }] }] }), PROFESSIONS);
+        renderPage(<ProfilePage />, { route: "/profile?char=borka" });
+        await screen.findByText(t("profile.prof.withSkill", { name: "Alpha-Beruf", skill: 150 }));
+        await user.click(screen.getAllByRole("button", { name: t("profile.fold.professions") }).find((b) => b.hasAttribute("aria-expanded"))!);
+        const field = screen.getByRole("spinbutton", { name: t("profile.prof.skillAria", { name: "Alpha-Beruf" }) });
+        expect(field).toHaveValue(150);
+
+        await user.clear(field);
+        await user.type(field, "212{Enter}");
+        await waitFor(() => expect(api.saveProfile).toHaveBeenLastCalledWith({ characters: [{ key: "borka", professions: [{ id: "alpha", skill: 212 }] }] }));
+        expect(api.saveProfile).toHaveBeenCalledTimes(1);
+
+        // beyond the highest skill: nothing is saved, the field shows the value that counts again
+        await user.clear(field);
+        await user.type(field, "999");
+        await user.tab();
+        expect(api.saveProfile).toHaveBeenCalledTimes(1);
+        await waitFor(() => expect(field).toHaveValue(212));
     });
 
     it("names the professions in the page's language and follows a switch", async () => {
@@ -200,13 +223,13 @@ describe("Wunsch-Items", () => {
         // a profession while the wish save still waits: its answer must not take the found item away
         await user.click(screen.getAllByRole("button", { name: t("profile.fold.professions") }).find((b) => b.hasAttribute("aria-expanded"))!);
         await user.click(screen.getByRole("button", { name: "Alpha-Beruf" }));
-        await waitFor(() => expect(api.saveProfile).toHaveBeenLastCalledWith({ characters: [{ key: "borka", professions: [{ id: "alpha", skill: 0 }] }] }));
+        await waitFor(() => expect(api.saveProfile).toHaveBeenLastCalledWith({ characters: [{ key: "borka", professions: [{ id: "alpha", skill: 300 }] }] }));
         await user.click(screen.getAllByRole("button", { name: t("profile.fold.wishItems") }).find((b) => b.hasAttribute("aria-expanded"))!);
         expect(screen.getByText("Dragonspine Trophy")).toBeInTheDocument();
 
         releaseWish();
         await waitFor(() => expect(screen.getByText("Item 28830")).toBeInTheDocument());
-        expect(screen.getByText(t("profile.prof.withSkill", { name: "Alpha-Beruf", skill: 0 }))).toBeInTheDocument();
+        expect(screen.getByText(t("profile.prof.withSkill", { name: "Alpha-Beruf", skill: 300 }))).toBeInTheDocument();
     });
 
     it("keep two picks and a × made before the first answer: each save builds on what the page shows", async () => {

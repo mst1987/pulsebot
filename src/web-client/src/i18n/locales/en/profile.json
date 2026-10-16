@@ -82,7 +82,7 @@
         "freeSub": "Just info for the orga, e.g. for enchants or potions. Nothing is required.",
         "invite": "If you like, add up to {max} main professions. Nothing is required.",
         "skillAria": "Skill {name}",
-        "skill": "{skill} of {max}",
+        "ofMax": "of {max}",
         "less": "Less",
         "more": "More",
         "remove": "Remove {name}",

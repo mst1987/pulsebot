@@ -422,15 +422,8 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 .cat-subfield-control { display: flex; align-items: center; }
 /* the quota: − / number / + and "letzte Raids" */
 .cat-quota { display: flex; align-items: center; gap: 10px; }
-.cat-stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); background: var(--panel2); border-radius: var(--ctl-radius); overflow: hidden; }
-.cat-stepper button { display: grid; place-items: center; width: 38px; height: 38px; border: 0; background: transparent; color: var(--text); cursor: pointer; }
-.cat-stepper button:hover:not(:disabled) { background: var(--accent-soft); }
-.cat-stepper button:disabled { color: var(--muted); opacity: .5; cursor: not-allowed; }
-.cat-stepper button svg { width: 16px; height: 16px; }
-.cat-detail .cat-stepper input {
-    width: 56px; height: 38px; padding: 0; border: 0; border-radius: 0; background: var(--bg); text-align: center; font: 700 16px var(--font-mono); -moz-appearance: textfield;
-}
-.cat-stepper input::-webkit-outer-spin-button, .cat-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+/* the shared stepper (the number stepper of ui.css); the category card's inputs are full width otherwise */
+.cat-detail .cat-quota input { --num-w: 56px; height: auto; padding: 0; border-top: 0; border-bottom: 0; border-radius: 0; background: var(--bg); }
 .cat-quota > .note { margin: 0; }
 /* #335: the channel of "Vielleicht/Absage" under its segment — one quiet line. */
 .cat-note-channel { display: flex; align-items: center; gap: 8px; margin-top: 6px; }

@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { AttendanceCategory, CalendarTokens, ProfileData, ProfilePatch, RaiderAttendanceData, RaiderProfile } from "../../api";
-import { Badge, buttonClass, IconButton, type ConfirmFn } from "../../components/ui";
+import { Badge, buttonClass, IconButton, NumberStepper, type ConfirmFn } from "../../components/ui";
 import AttendanceCell from "../../components/roster/AttendanceCell";
 import { EyeOffIcon, XIcon } from "../../components/ui/icons";
 import { nightsInOrder } from "../../lib/roster/absences";
 import { stepTime, withDayTime } from "../../lib/profile/dayTimes";
 import { tOr, useT } from "../../i18n";
-import { AvoidPart, type Fold, FoldPart, NoteField, RaidPicker, Stepper, WishPicker } from "./ProfileParts";
+import { AvoidPart, type Fold, FoldPart, NoteField, RaidPicker, WishPicker } from "./ProfileParts";
 import { CalendarPart } from "./CalendarPart";
 
 // The tab "Meine Infos": what belongs to the person, not to a character — in
@@ -85,20 +85,23 @@ function DayTimes({ days, times, step, onChange }: {
                 const less = stepTime(from, -1, step);
                 const more = stepTime(from, 1, step);
                 return (
-                    <div key={d.id} className="pf-time-row">
-                        <span className="pf-day-tag" data-day={d.id}>{day}</span>
-                        <Stepper
-                            label={t("profile.days.fromAria", { day })}
-                            value={from ? t("profile.days.from", { time: from }) : t("profile.days.wholeEvening")}
-                            lessTip={t("profile.days.earlier")}
-                            moreTip={t("profile.days.later")}
-                            onLess={less ? () => onChange(withDayTime(times, d.id, less)) : undefined}
-                            onMore={more ? () => onChange(withDayTime(times, d.id, more)) : undefined}
+                    // one calm row per chosen day: the day in its colour, the hour as one − value + control, × quiet beside it
+                    <div key={d.id} className={`pf-time-row${from ? " pf-time-set" : ""}`} data-day={d.id}>
+                        <span className="pf-time-day">{day}</span>
+                        <NumberStepper
+                            value={null} min={0} max={0}
+                            ariaLabel={t("profile.days.fromAria", { day })}
+                            lessLabel={t("profile.days.earlier")}
+                            moreLabel={t("profile.days.later")}
+                            display={from ? t("profile.days.from", { time: from }) : t("profile.days.wholeEvening")}
+                            onChange={() => undefined}
+                            onLess={less ? () => onChange(withDayTime(times, d.id, less)) : null}
+                            onMore={more ? () => onChange(withDayTime(times, d.id, more)) : null}
                         />
-                        {from && (
-                            <IconButton size="sm" icon={<XIcon />} tip={t("profile.days.clear")} tipSub={t("profile.days.clearSub", { day })}
+                        {from
+                            ? <IconButton tone="ghost" icon={<XIcon />} tip={t("profile.days.clear")} tipSub={t("profile.days.clearSub", { day })}
                                 onClick={() => onChange(withDayTime(times, d.id, ""))} />
-                        )}
+                            : <span className="pf-time-gap" aria-hidden="true" />}
                     </div>
                 );
             })}
