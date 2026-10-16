@@ -388,8 +388,11 @@ const batchCreate = withUser({ csrf: true, body: true }, async ({ user, body, re
     // category (eventCreateAccess.quickCreateAccess) - checked before any channel is made; channels
     // without an event stay the `channels` area's.
     let guard = null;
+    const defaults = withEvent ? quickEventDefaults([{ id: categoryId }])[categoryId] : null;
     if (withEvent) {
-        const access = await quickCreateAccess(user, req, categoryId, body.templateChannelId);
+        // the default raid template's version is checked too (createEvent only checks EventHelper events)
+        const raidTemplateId = defaults && defaults.source === "eventhelper" ? defaults.templateId : "";
+        const access = await quickCreateAccess(user, req, categoryId, body.templateChannelId, { raidTemplateId });
         if (access && access.error) return error(res, access.error.status, access.error.code, access.error.message);
         guard = access ? access.guard : null;
         if (!categoryId) return error(res, 400, "no_category", "Für Events braucht es eine Kategorie.");
@@ -405,7 +408,6 @@ const batchCreate = withUser({ csrf: true, body: true }, async ({ user, body, re
     const dayByName = new Map(todo.map((p) => [p.name, p.date]));
     // Each new channel is sorted in behind the previous date — including the ones this series just made.
     const anchors = ctx ? [...ctx.eventChannels] : [];
-    const defaults = withEvent ? quickEventDefaults([{ id: categoryId }])[categoryId] : null;
     const title = defaults
         ? defaults.templateName || ((discord.listCategories(guildId) || []).find((c) => c.id === categoryId) || {}).name || "Raid"
         : "";

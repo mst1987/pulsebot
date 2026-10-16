@@ -141,20 +141,27 @@ describe("handlers", () => {
     });
 });
 
-// #728 review: a global orga reading only takes the managers' path, as at the gate - no right without its button
+// #728 review: a global orga reading only sees every series, as before, and writes - as at the gate - only
+// the rows of the categories whose roster they manage (writableCategoryIds)
 describe("the global orga without `raids` write", () => {
-    it("sees only the categories whose roster they manage, each writable, and may write them", async () => {
+    it("sees every category; managing cat1 writes cat1 only", async () => {
         const categoryOrga = require("../../../src/services/roster/categoryOrga");
         categoryOrga.orgaCategoryIds.mockResolvedValueOnce(["cat1"]);
         service.seriesOverview.mockResolvedValueOnce({ categories: [{ id: "cat1" }, { id: "cat2" }], lastRun: null });
         const r = body(await call(route.getSeries, READER));
-        expect(r.categories.map((c) => c.id)).toEqual(["cat1"]);
-        expect([r.canWrite, r.canRunAll]).toEqual([true, false]);
+        expect(r.categories.map((c) => c.id)).toEqual(["cat1", "cat2"]);
+        expect([r.canWrite, r.writableCategoryIds, r.canRunAll]).toEqual([true, ["cat1"], false]);
         expect(categoryOrga.orgaCategoryIds).toHaveBeenCalledWith(READER, expect.objectContaining({ managerOnly: true }));
-        // managing nothing: nothing to see, nothing to write
+        // managing nothing: everything to see, nothing to write
         service.seriesOverview.mockResolvedValueOnce({ categories: [{ id: "cat1" }], lastRun: null });
         const none = body(await call(route.getSeries, READER));
-        expect([none.categories, none.canWrite]).toEqual([[], false]);
+        expect([none.categories.map((c) => c.id), none.canWrite, none.writableCategoryIds]).toEqual([["cat1"], false, []]);
+    });
+
+    it("leaves the global orga with `raids` write every row writable (writableCategoryIds null)", async () => {
+        service.seriesOverview.mockResolvedValueOnce({ categories: [{ id: "cat1" }, { id: "cat2" }], lastRun: null });
+        const r = body(await call(route.getSeries, ORGA));
+        expect([r.categories.length, r.canWrite, r.writableCategoryIds, r.canRunAll]).toEqual([2, true, null, true]);
     });
 });
 

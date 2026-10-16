@@ -12,7 +12,8 @@
 //   - an edit (PATCH /api/raids) keeps the raid's version and takes only such a voice channel.
 // The create dialog's choices (GET /api/raids/new) are cut down to the same, so nothing is offered
 // that the server would refuse.
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig, getRaidTemplate } = require("../../stores/settingsStore");
+const { templateVersionProblem } = require("../../services/events/categoryEras");
 const { getChannelConfig } = require("../../stores/channelArchiveStore");
 const { mainVersionFor, versionOfEvent } = require("../../services/events/mainVersion");
 const { rulesFor } = require("../../config/gameVersions");
@@ -121,9 +122,25 @@ function createGuard(user, req) {
  * the global orga with `raids` write; else the orga of `categoryId` (403 `orga_only` for who manages no
  * current roster - `forbidden` without `raids` write, as before -, 403 `not_category_orga` for another
  * category) with a template channel of that category; `{ guard }` then goes to createEvent.
+ * For everyone: the raid template the events would get (`raidTemplateId`, the category's default for an
+ * EventHelper category) must be of the version the category plays now - else 409 `version_fixed`
+ * before the first channel, so no run leaves channels without their events behind.
+ * @param {{ raidTemplateId?: string }} [opts]
  * @returns {Promise<{ error: object } | { guard: Function } | null>}
  */
-async function quickCreateAccess(user, req, categoryId, templateChannelId) {
+async function quickCreateAccess(user, req, categoryId, templateChannelId, { raidTemplateId = "" } = {}) {
+    const access = await quickCreateRight(user, req, categoryId, templateChannelId);
+    if (access && access.error) return access;
+    const cat = str(categoryId);
+    const template = cat && str(raidTemplateId) ? getRaidTemplate(str(raidTemplateId)) : null;
+    if (template && templateVersionProblem({ template, categoryId: cat, config: getConfig() })) {
+        return versionFixed(mainVersionFor({ categoryId: cat, config: getConfig() }));
+    }
+    return access;
+}
+
+/** quickCreateAccess without the version: who may, with which guard. */
+async function quickCreateRight(user, req, categoryId, templateChannelId) {
     if (isGlobalRaidOrga(user)) return null;
     const cache = categoryOrga.requestCache(req);
     if (!(await categoryOrga.isAnyCategoryManager(user, { cache }))) {

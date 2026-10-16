@@ -32,27 +32,30 @@ const WRITE = { orgaScoped: BY_CATEGORY, write: "raids", csrf: true, body: true 
 /**
  * GET /api/raids/series[?version=<id>] — the series of the categories that play
  * the shown game version (#741: a series creates the raids of its category's
- * version), and the raid templates of that version. The global orga with `raids`
- * write sees and writes every category; everyone else - a global orga reading only
- * included, as at the gate (#728 review: no right without its button) - only the
- * categories whose current roster they manage, each one writable; a raider none.
+ * version), and the raid templates of that version. The global orga (`userIsOrga`)
+ * sees every category - writing each with `raids` write, else only those whose
+ * current roster they manage, as at the gate (#728); the orga of a category sees
+ * and writes theirs; a raider none. `writableCategoryIds`: null = every row
+ * shown, else the rows the caller may write.
  */
 const getSeries = withUser({}, async ({ user, req, res, url }) => {
     const config = getConfig();
     const { versionId } = resolveVersionQuery(url && url.searchParams.get("version"), { config });
-    const global = userIsOrga(user) && userCan(user, "raids", "write");
-    const own = global ? null : new Set(await categoryOrga.orgaCategoryIds(user, { cache: categoryOrga.requestCache(req), managerOnly: true }));
+    const seesAll = userIsOrga(user);
+    const writesAll = seesAll && userCan(user, "raids", "write");
+    const own = writesAll ? null : new Set(await categoryOrga.orgaCategoryIds(user, { cache: categoryOrga.requestCache(req), managerOnly: true }));
     const overview = await series.seriesOverview({ guildId: activeGuildFor(req), config });
     ok(res, {
         ...overview,
-        categories: overview.categories.filter((c) => mainVersionFor({ categoryId: c.id, config }) === versionId && (!own || own.has(c.id))),
+        categories: overview.categories.filter((c) => mainVersionFor({ categoryId: c.id, config }) === versionId && (seesAll || own.has(c.id))),
         templates: listRaidTemplates()
             .filter((t) => (knownVersion(t.versionId) || mainVersionFor({ config })) === versionId)
             .map((t) => ({ id: t.id, name: t.name || "", instanceIds: t.instanceIds || [], size: t.size || null })),
-        // every row shown is writable: the global orga's all, everyone else's their own categories
-        canWrite: global || own.size > 0,
-        // "Jetzt prüfen" sweeps every series at once (run without categoryId): the global orga's only
-        canRunAll: global,
+        // writing: every row with the global path, else the rows of the categories they manage
+        canWrite: writesAll || own.size > 0,
+        writableCategoryIds: own ? [...own] : null,
+        // "Jetzt prüfen" sweeps every series at once (run without categoryId): the global orga's with write only
+        canRunAll: writesAll,
         limits: { minDaysBefore: series.MIN_DAYS_BEFORE, maxDaysBefore: series.MAX_DAYS_BEFORE },
     });
 });

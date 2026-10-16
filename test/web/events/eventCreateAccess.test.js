@@ -6,6 +6,7 @@ const mockConfig = { categoryVoiceChannel: { cat1: "v-shared" } };
 jest.mock("../../../src/stores/settingsStore", () => ({
     ...jest.requireActual("../../../src/stores/settingsStore"),
     getConfig: () => mockConfig,
+    getRaidTemplate: (id) => ({ "tpl-tbc": { id, versionId: "tbc" }, "tpl-forever": { id, name: "BD", versionId: "forever" } })[id] || null,
 }));
 jest.mock("../../../src/stores/channelArchiveStore", () => ({
     ...jest.requireActual("../../../src/stores/channelArchiveStore"),
@@ -124,6 +125,17 @@ describe("web/events/eventCreateAccess", () => {
             expect((await access.quickCreateAccess(MANAGER, req, "cat2", "")).error.code).toBe("not_category_orga");
             expect((await access.quickCreateAccess(MANAGER, req, "", "")).error.code).toBe("not_category_orga");
             expect((await access.quickCreateAccess(MANAGER, req, "cat1", "t-cat2")).error.code).toBe("channel_not_allowed");
+        });
+
+        it("refuses a default raid template of another version than the category plays - for everyone", async () => {
+            for (const who of [ORGA, MANAGER]) {
+                const r = await access.quickCreateAccess(who, req, "cat1", "", { raidTemplateId: "tpl-forever" });
+                expect([who.id, r.error.status, r.error.code]).toEqual([who.id, 409, "version_fixed"]);
+            }
+            expect(await access.quickCreateAccess(ORGA, req, "cat1", "", { raidTemplateId: "tpl-tbc" })).toBeNull();
+            expect(typeof (await access.quickCreateAccess(MANAGER, req, "cat1", "", { raidTemplateId: "tpl-tbc" })).guard).toBe("function");
+            // the right first: another category is "not yours", whatever its template
+            expect((await access.quickCreateAccess(MANAGER, req, "cat2", "", { raidTemplateId: "tpl-forever" })).error.code).toBe("not_category_orga");
         });
     });
 

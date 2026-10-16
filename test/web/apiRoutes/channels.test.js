@@ -755,6 +755,24 @@ describe("web/apiRoutes/channels", () => {
                         expect([data.canCreateEvents, data.eventCategoryIds]).toEqual([true, null]);
                     });
 
+                    it("refuses a default template of another version than the category plays before the first channel", async () => {
+                        const settingsStore = require("../../../src/stores/settingsStore");
+                        settingsStore.getRaidTemplate.mockImplementation((id) => (id === "tpl-kara" ? { id: "tpl-kara", name: "Karazhan 10er", versionId: "forever" } : null));
+                        try {
+                            for (const who of [ADMIN, MANAGER]) {
+                                requireAdmin.mockReturnValue(who);
+                                readJsonBody.mockResolvedValue({ ...input, count: 1 });
+                                const res = mockRes();
+                                await routes.batchCreate({}, res);
+                                expect([who.id, status(res), json(res).error.code]).toEqual([who.id, 409, "version_fixed"]);
+                            }
+                            expect(dc.createFromTemplate).not.toHaveBeenCalled();
+                            expect(eventCreate.createEvent).not.toHaveBeenCalled();
+                        } finally {
+                            settingsStore.getRaidTemplate.mockImplementation((id) => (id === "tpl-kara" ? { id: "tpl-kara", name: "Karazhan 10er" } : null));
+                        }
+                    });
+
                     it("keeps channels without an event the `channels` area's", async () => {
                         requireAdmin.mockReturnValue(channelsWriter());
                         readJsonBody.mockResolvedValue({ ...input, withEvent: false, count: 1 });

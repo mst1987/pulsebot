@@ -286,6 +286,8 @@ export default function EventSeriesPage() {
         <AsyncView state={series} loading={<RaidLoader text={t("series.page.loading")} />} error={(err) => <div className="empty">{tParts("series.page.loadError", { message: err.message })}</div>}>
             {(data) => {
                 const canWrite = data.canWrite;
+                // per row (#728): the global orga reading only sees every series, writes those of its own categories
+                const canWriteRow = (id: string) => canWrite && (!data.writableCategoryIds || data.writableCategoryIds.includes(id));
                 const editing = editor.editId ? data.categories.find((c) => c.id === editor.editId) || null : null;
 
                 const runNow = async () => {
@@ -318,7 +320,7 @@ export default function EventSeriesPage() {
                             : (
                                 <ul className="sr-list">
                                     {data.categories.map((c) => (
-                                        <SeriesRow key={c.id} c={c} canWrite={canWrite} onOpen={() => editor.startEdit(c.id)} />
+                                        <SeriesRow key={c.id} c={c} canWrite={canWriteRow(c.id)} onOpen={() => editor.startEdit(c.id)} />
                                     ))}
                                 </ul>
                             )}
@@ -328,7 +330,7 @@ export default function EventSeriesPage() {
                                 key={editing.id}
                                 category={editing}
                                 data={data}
-                                canWrite={canWrite}
+                                canWrite={canWriteRow(editing.id)}
                                 onClose={editor.close}
                                 onChanged={(msg, close) => {
                                     toast(msg);
