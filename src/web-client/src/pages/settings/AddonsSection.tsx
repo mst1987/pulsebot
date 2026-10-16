@@ -33,6 +33,12 @@ type Version = { id: string; label: string; short: string };
 type AddonSortKey = "name" | "repo" | "versions" | "assets" | "status";
 const ADDON_SORT_DEFAULTS: Record<AddonSortKey, Dir> = { name: "asc", repo: "asc", versions: "asc", assets: "asc", status: "desc" };
 
+// What the server's normalizeCurseforge (services/addons/addonConfig.js) accepts: a project page
+// curseforge.com/wow/addons/<slug>, with www./legacy., anything after the slug. Browsers compile
+// `pattern` with the v flag, hence the escaped "-" and "/" inside the classes; the server also
+// takes upper case in scheme and host, the field only the usual spelling.
+const CURSEFORGE_PATTERN = "https?://(www\\.|legacy\\.)?curseforge\\.com/wow/addons/[A-Za-z0-9\\-]{1,100}([\\/?#].*)?";
+
 const EMPTY: AddonSetting = {
     id: "", name: "", description: "", repo: "", private: false, assets: [], versions: [], install: "", icon: "", enabled: true, orgaOnly: false, curseforge: "",
 };
@@ -97,7 +103,7 @@ function AddonForm({ addon, versions, onSave, onCancel }: {
                 <textarea id="dlp-install" rows={2} value={value.install} onChange={(e) => set({ install: e.target.value })} />
             </Field>
             <Field className="set-field" htmlFor="dlp-curseforge" label={t("addon.settings.curseforge")} tip={t("addon.settings.curseforge")} tipSub={t("addon.settings.curseforgeSub")}>
-                <input id="dlp-curseforge" type="url" className="mono" value={value.curseforge || ""} onChange={(e) => set({ curseforge: e.target.value })} placeholder="https://www.curseforge.com/wow/addons/pulse-aurakit" />
+                <input id="dlp-curseforge" type="url" className="mono" pattern={CURSEFORGE_PATTERN} value={value.curseforge || ""} onChange={(e) => set({ curseforge: e.target.value })} placeholder="https://www.curseforge.com/wow/addons/pulse-aurakit" />
             </Field>
             <div className="set-grid">
                 <Switch checked={value.private} onChange={(v) => set({ private: v })} label={t("addon.settings.private")} tip={t("addon.settings.privateSub")} />

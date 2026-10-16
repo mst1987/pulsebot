@@ -74,7 +74,7 @@
         "install": "Installationshinweis",
         "installSub": "Erscheint unter den Standard-Schritten (Zip entpacken, exe starten). Leer lassen, wenn die reichen.",
         "curseforge": "CurseForge-Link",
-        "curseforgeSub": "Optional: die Projektseite auf CurseForge, zum Beispiel https://www.curseforge.com/wow/addons/pulse-aurakit. Seite und Discord-Zentrale verlinken sie neben dem Download. Leer = kein Link.",
+        "curseforgeSub": "Optional: die Projektseite auf CurseForge, zum Beispiel https://www.curseforge.com/wow/addons/pulse-aurakit. Nur ein Link der Form curseforge.com/wow/addons/<name> geht, keine Adresse mit Projekt-ID (/projects/…). Seite und Discord-Zentrale verlinken sie neben dem Download. Leer = kein Link.",
         "private": "Privates Repo",
         "privateSub": "Braucht den GitHub-Token. Ohne Token sehen die Mitglieder „Gerade nicht verfügbar“.",
         "privateShort": "privat",

@@ -179,6 +179,27 @@ describe("AddonsSection", () => {
         expect(vi.mocked(api.updateSettings).mock.calls[0][0].addonDownloads![0]).toMatchObject({ curseforge: "" });
     });
 
+    it("lets the browser flag a CurseForge address the server would drop (pattern as browsers compile it, v flag)", async () => {
+        const user = userEvent.setup();
+        renderPage(<AddonsSection data={data()} onConfig={vi.fn()} />, { route: "/settings?section=addons" });
+        await user.click(within(rowOf("LevelHelper")).getByRole("button", { name: "Bearbeiten" }));
+        const pattern = screen.getByLabelText("CurseForge-Link", { selector: "input" }).getAttribute("pattern")!;
+        const accepts = (value: string) => new RegExp(`^(?:${pattern})$`, "v").test(value);
+        for (const ok of [
+            "https://www.curseforge.com/wow/addons/pulse-aurakit",
+            "https://curseforge.com/wow/addons/pulse-aurakit/",
+            "http://legacy.curseforge.com/wow/addons/pulse-aurakit/files/123",
+            "https://www.curseforge.com/wow/addons/pulse-aurakit?ref=x",
+        ]) expect(accepts(ok)).toBe(true);
+        for (const bad of [
+            "https://www.curseforge.com/projects/1748186",
+            "https://www.curseforge.com/wow/addons/",
+            "https://www.curseforge.com/minecraft/mc-mods/x",
+            "https://evil.example/www.curseforge.com/wow/addons/x",
+            "https://www.curseforge.com/wow/addons/pulse_aurakit",
+        ]) expect(accepts(bad)).toBe(false);
+    });
+
     it("speaks English", async () => {
         await switchLang("en");
         renderPage(<AddonsSection data={data()} onConfig={vi.fn()} />, { route: "/settings?section=addons" });
