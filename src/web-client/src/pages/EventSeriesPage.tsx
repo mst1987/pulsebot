@@ -308,7 +308,7 @@ export default function EventSeriesPage() {
                             tone="raids"
                             kicker={t("series.page.kicker")}
                             title={t("series.page.title")}
-                            action={canWrite ? (
+                            action={canWrite && data.canRunAll !== false ? (
                                 <IconButton icon={<RefreshIcon />} tip={t("series.page.runNow")} tipSub={t("series.page.runNowSub")} disabled={running} onClick={runNow} />
                             ) : undefined}
                         />

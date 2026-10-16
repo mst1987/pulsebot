@@ -292,6 +292,15 @@ describe("web/http/apiHandler withUser orgaScoped", () => {
         expect(categoryOrga.canOrgaEvent.mock.calls.every(([, , opts]) => opts.managerOnly === true)).toBe(true);
     });
 
+    it("hands the request to the function as its third argument (a new event's category needs its server, #728)", async () => {
+        mockUser = manager();
+        const fn = jest.fn(({ res }) => res.end("{}"));
+        const names = jest.fn(() => "mine");
+        await call(withUser({ orgaScoped: names, body: true }, fn), { json: { event: "x" } });
+        expect(names).toHaveBeenCalledWith({ event: "x" }, expect.any(URLSearchParams), expect.objectContaining({ headers: expect.anything() }));
+        expect(fn).toHaveBeenCalledTimes(1);
+    });
+
     it("never gives a global orga without the write right less than a manager (#724 review)", async () => {
         // an orga role with `raids` read only, which manages the roster of "mine"
         mockUser = { ...manager(), isOrga: true };

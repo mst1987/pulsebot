@@ -67,6 +67,8 @@ export type EventSeriesData = {
     templates: SeriesTemplate[];
     lastRun: { at: number; created: number; failed: number; existing: number; ignored: number; error: string | null } | null;
     canWrite: boolean;
+    /** "Jetzt prüfen" (every series at once): the global orga's - not the orga of a category's (#728) */
+    canRunAll?: boolean;
     limits: { minDaysBefore: number; maxDaysBefore: number };
 };
 

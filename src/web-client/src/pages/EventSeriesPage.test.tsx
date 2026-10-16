@@ -79,6 +79,18 @@ describe("the series page", () => {
         expect(await within(dialog).findByText("überspringen")).toBeInTheDocument();
     });
 
+    it("offers \"Jetzt prüfen\" (every series at once) only where the server allows it (canRunAll, #728)", async () => {
+        const first = renderPage(<EventSeriesPage />, { route: "/raids/series" });
+        expect(await screen.findByRole("button", { name: "Jetzt prüfen" })).toBeInTheDocument();
+        first.unmount();
+        // the orga of a category writes their series but sweeps no others
+        vi.mocked(api.getEventSeries).mockResolvedValue({ ...DATA, canRunAll: false });
+        renderPage(<EventSeriesPage />, { route: "/raids/series" });
+        expect(await screen.findByRole("heading", { name: "Serien" })).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Jetzt prüfen" })).toBeNull();
+        expect(screen.getByRole("button", { name: "Serie einrichten" })).toBeInTheDocument();
+    });
+
     it("gives the fields the shared control look and skips a date with a switch, not a checkbox", async () => {
         renderPage(<EventSeriesPage />, { route: "/raids/series?edit=c1" });
         const dialog = await screen.findByRole("dialog");

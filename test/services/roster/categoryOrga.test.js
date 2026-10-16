@@ -113,6 +113,13 @@ describe("services/roster/categoryOrga orgaCategoryIds / isAnyCategoryManager", 
         expect(await orga.orgaCategoryIds(null)).toEqual([]);
     });
 
+    it("managerOnly (#728): the global orga gets only the categories whose roster they manage", async () => {
+        const memberRoleIds = roles({});
+        expect(await orga.orgaCategoryIds(globalOrga, { memberRoleIds, managerOnly: true })).toEqual([]);
+        expect(await orga.orgaCategoryIds({ ...globalOrga, id: "mgr" }, { memberRoleIds, managerOnly: true })).toEqual(["cat1"]);
+        expect(await orga.orgaCategoryIds(raider("mgr"), { memberRoleIds, managerOnly: true })).toEqual(["cat1"]);
+    });
+
     it("tells whether someone manages any current roster", async () => {
         const memberRoleIds = roles({});
         expect(await orga.isAnyCategoryManager(raider("mgr"), { memberRoleIds })).toBe(true);

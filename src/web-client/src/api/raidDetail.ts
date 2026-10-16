@@ -316,8 +316,9 @@ export function postRaidSoftres(
 
 export type SoftresSearchItem = ItemSearchResult;
 
-export function searchSoftresItems(edition: string, q: string): Promise<{ items: SoftresSearchItem[] }> {
-    const qs = new URLSearchParams({ edition, q });
+/** The softres picker's item search for one raid: `event` lets the orga of its category search too (#728). */
+export function searchSoftresItems(edition: string, q: string, event: string): Promise<{ items: SoftresSearchItem[] }> {
+    const qs = new URLSearchParams({ event, edition, q });
     return get<{ items: SoftresSearchItem[] }>(`/api/raids/softres/item-search?${qs.toString()}`);
 }
 

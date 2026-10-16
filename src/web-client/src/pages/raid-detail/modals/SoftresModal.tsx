@@ -71,8 +71,8 @@ export default function SoftresModal({ ctx, open, onClose }: { ctx: RaidCtx; ope
     const [message, setMessage] = useState(so?.postedMessage || "");
 
     const search = useCallback(
-        (q: string) => (currentEdition ? searchSoftresItems(currentEdition, q) : Promise.resolve({ items: [] })),
-        [currentEdition],
+        (q: string) => (currentEdition ? searchSoftresItems(currentEdition, q, eventId) : Promise.resolve({ items: [] })),
+        [currentEdition, eventId],
     );
 
     const toggle = (code: string, edition: string) => {

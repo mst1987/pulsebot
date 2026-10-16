@@ -16,8 +16,10 @@ import type { RaidCreateForm } from "./useRaidCreateForm";
  */
 export function RaidStep({ f }: { f: RaidCreateForm }) {
     const t = useT();
-    const { form, patch, changePlan, versions, version, baseTemplate, problem, template } = f;
+    const { form, patch, changePlan, versions, version, baseTemplate, problem, template, ctx } = f;
     const { plan, freeSize } = form;
+    // a raid template is global (`raids` write): not the orga of a category's (#728)
+    const canSaveTemplate = ctx?.canSaveTemplate !== false;
     const moreCount = [plan.melee, plan.ranged].filter(Boolean).length + plan.requiredBuffs.length
         + (plan.fairness ? 1 : 0) + (plan.wishes ? 1 : 0) + (plan.autoSuggest ? 1 : 0)
         + (plan.overflow !== "none" ? 1 : 0) + (plan.lockAtLimit ? 1 : 0)
@@ -33,10 +35,10 @@ export function RaidStep({ f }: { f: RaidCreateForm }) {
                     options={versions.map((v) => ({ value: v.id, label: v.short, tip: v.label }))} />
                 <span className="re-raid-tpl">
                     {baseTemplate && <Badge tip={t("raidCreate.raid.templateBadge")} tipSub={t("raidCreate.raid.templateBadgeSub")}>{baseTemplate.name}</Badge>}
-                    <Button variant="ghost" size="sm" icon="inv_misc_note_05" onClick={template.openSave}>{t("raidCreate.raid.saveAsTemplate")}</Button>
+                    {canSaveTemplate && <Button variant="ghost" size="sm" icon="inv_misc_note_05" onClick={template.openSave}>{t("raidCreate.raid.saveAsTemplate")}</Button>}
                 </span>
             </div>
-            {template.open && (
+            {canSaveTemplate && template.open && (
                 <div className="re-tpl-save" role="group" aria-label={t("raidCreate.raid.saveAsTemplate")}>
                     {baseTemplate && (
                         <Segment<TemplateMode> size="sm" ariaLabel={t("raidCreate.raid.tplMode")} value={template.mode} onChange={template.setMode}

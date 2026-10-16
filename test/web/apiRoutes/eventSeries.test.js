@@ -24,6 +24,11 @@ jest.mock("../../../src/web/events/eventSeries", () => ({
     saveSeriesFor: jest.fn(() => ({ series: { categoryId: "cat1", enabled: true } })),
     runSeries: jest.fn(async () => ({ created: 1, failed: 0, existing: 0, ignored: 0, error: null, results: [] })),
 }));
+// the categories whose current roster the caller manages (#728) - the rule has its own tests
+jest.mock("../../../src/services/roster/categoryOrga", () => ({
+    ...jest.requireActual("../../../src/services/roster/categoryOrga"),
+    orgaCategoryIds: jest.fn(async () => []),
+}));
 
 const { readJsonBody } = require("../../../src/web/http/apiBody");
 const store = require("../../../src/stores/eventSeriesStore");
@@ -32,8 +37,11 @@ const route = require("../../../src/web/apiRoutes/eventSeries");
 const { checkAccess } = require("../../../src/web/http/apiAccess");
 const apiRouter = require("../../../src/web/http/apiRouter");
 
-const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raids: { read: true, write: true } } };
-const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
+const ORGA = { id: "orga", name: "Orga", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true } } };
+// the global orga reading only
+const READER = { id: "reader", isAdmin: false, isOrga: true, access: { raids: { read: true, write: false } } };
+// a raider role with `raids` read (and write), no orga rank and no roster
+const RAIDER = { id: "raider", isAdmin: false, access: { raids: { read: true, write: true } } };
 const PATHS = ["/api/raids/series", "/api/raids/series/preview", "/api/raids/series/run"];
 
 const { mockRes, status, body } = require("../../helpers/http");
@@ -130,5 +138,33 @@ describe("handlers", () => {
 
     it("is reachable through the router", () => {
         expect(typeof apiRouter.handle).toBe("function");
+    });
+});
+
+// #728: a series is the orga's planning - the category orga's path is covered in events.categoryOrga.test.js
+describe("who is no orga", () => {
+    it("sees no series and may write none, `raids` write or not", async () => {
+        service.seriesOverview.mockResolvedValueOnce({ categories: [{ id: "cat1" }], lastRun: null });
+        const r = body(await call(route.getSeries, RAIDER));
+        expect(r.categories).toEqual([]);
+        expect(r.canWrite).toBe(false);
+        for (const handler of [route.putSeries, route.deleteSeries, route.postRun]) {
+            expect(status(await call(handler, RAIDER, { categoryId: "cat1" }))).toBe(403);
+        }
+        expect(status(await call(route.getPreview, RAIDER, null, "category=cat1"))).toBe(403);
+        expect(service.saveSeriesFor).not.toHaveBeenCalled();
+        expect(store.deleteSeries).not.toHaveBeenCalled();
+        expect(service.runSeries).not.toHaveBeenCalled();
+        expect(service.previewSeries).not.toHaveBeenCalled();
+    });
+
+    it("leaves the global orga every category, writing with `raids` write", async () => {
+        service.seriesOverview.mockResolvedValueOnce({ categories: [{ id: "cat1" }], lastRun: null });
+        const r = body(await call(route.getSeries, ORGA));
+        expect(r.categories.map((c) => c.id)).toEqual(["cat1"]);
+        expect(r.canWrite).toBe(true);
+        // a sweep of every series at once (no category) is the global orga's
+        expect(status(await call(route.postRun, ORGA, {}))).toBe(200);
+        expect(service.runSeries).toHaveBeenCalledWith({ onlyCategoryId: "" });
     });
 });

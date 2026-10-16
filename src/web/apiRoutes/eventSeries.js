@@ -11,7 +11,8 @@ const { ok, error } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { sendResult } = require("../http/apiResult");
 const { activeGuildFor } = require("../http/activeGuild");
-const { userCan } = require("../../config/permissions");
+const { userCan, userIsOrga } = require("../../config/permissions");
+const categoryOrga = require("../../services/roster/categoryOrga");
 const { listRaidTemplates, getConfig } = require("../../stores/settingsStore");
 const { mainVersionFor, knownVersion, resolveVersionQuery } = require("../../services/events/mainVersion");
 const store = require("../../stores/eventSeriesStore");
@@ -20,27 +21,42 @@ const series = require("../events/eventSeries");
 const q = (url, key) => String((url && url.searchParams && url.searchParams.get(key)) || "").trim();
 const list = (value) => value.split(",").map((s) => s.trim()).filter(Boolean);
 
+// A series belongs to its category (one per category): the orga with `raids` write keeps every series,
+// the orga of a category (#728, epic #723: a manager of its current roster) sees and changes the series
+// of their categories only - `orgaScoped` by the category, as a new event of it ({ categoryId }).
+// Everybody else sees none (a series is the orga's planning, docs/permissions.md "Kategorie-Orga").
+const BY_CATEGORY = (body) => ({ categoryId: String(body.categoryId || "").trim() });
+const BY_QUERY_CATEGORY = (body, query) => ({ categoryId: String(query.get("category") || "").trim() });
+const WRITE = { orgaScoped: BY_CATEGORY, write: "raids", csrf: true, body: true };
+
 /**
  * GET /api/raids/series[?version=<id>] — the series of the categories that play
  * the shown game version (#741: a series creates the raids of its category's
- * version), and the raid templates of that version.
+ * version), and the raid templates of that version. The global orga sees every
+ * category (`canWrite` with `raids` write); the orga of a category only theirs,
+ * each one writable; anyone else none.
  */
 const getSeries = withUser({}, async ({ user, req, res, url }) => {
     const config = getConfig();
     const { versionId } = resolveVersionQuery(url && url.searchParams.get("version"), { config });
+    const global = userIsOrga(user);
+    const own = global ? null : new Set(await categoryOrga.orgaCategoryIds(user, { cache: categoryOrga.requestCache(req), managerOnly: true }));
     const overview = await series.seriesOverview({ guildId: activeGuildFor(req), config });
     ok(res, {
         ...overview,
-        categories: overview.categories.filter((c) => mainVersionFor({ categoryId: c.id, config }) === versionId),
+        categories: overview.categories.filter((c) => mainVersionFor({ categoryId: c.id, config }) === versionId && (!own || own.has(c.id))),
         templates: listRaidTemplates()
             .filter((t) => (knownVersion(t.versionId) || mainVersionFor({ config })) === versionId)
             .map((t) => ({ id: t.id, name: t.name || "", instanceIds: t.instanceIds || [], size: t.size || null })),
-        canWrite: userCan(user, "raids", "write"),
+        // the global orga writes with `raids` write; the orga of a category writes every row it sees
+        canWrite: global ? userCan(user, "raids", "write") : own.size > 0,
+        // "Jetzt prüfen" sweeps every series at once (run without categoryId): the global orga's only
+        canRunAll: global && userCan(user, "raids", "write"),
         limits: { minDaysBefore: series.MIN_DAYS_BEFORE, maxDaysBefore: series.MAX_DAYS_BEFORE },
     });
 });
 
-const getPreview = withUser({}, async ({ req, res, url }) => {
+const getPreview = withUser({ orgaScoped: BY_QUERY_CATEGORY }, async ({ req, res, url }) => {
     const input = {
         categoryId: q(url, "category"),
         weekdays: list(q(url, "weekdays")).map(Number),
@@ -54,19 +70,20 @@ const getPreview = withUser({}, async ({ req, res, url }) => {
     ok(res, await series.previewSeries({ guildId: activeGuildFor(req), input }));
 });
 
-const putSeries = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
+const putSeries = withUser(WRITE, async ({ user, body, req, res }) => {
     const result = series.saveSeriesFor({ guildId: activeGuildFor(req), input: body, user });
     if (result.error) return sendResult(res, result);
     ok(res, { series: result.series, message: result.series.enabled ? "Serie gespeichert." : "Serie gespeichert (ausgeschaltet)." });
 });
 
-const deleteSeries = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const deleteSeries = withUser(WRITE, async ({ body, res }) => {
     const categoryId = String(body.categoryId || "").trim();
     if (!store.deleteSeries(categoryId)) return error(res, 404, "not_found", "Serie nicht gefunden.");
     ok(res, { categoryId, message: "Serie gelöscht. Bereits angelegte Events bleiben." });
 });
 
-const postRun = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+// a category orga names their category; only the global orga sweeps every series at once (no categoryId)
+const postRun = withUser(WRITE, async ({ body, res }) => {
     const categoryId = String(body.categoryId || "").trim();
     const retryDate = String(body.retryDate || "").trim();
     if (retryDate) {
