@@ -6,6 +6,13 @@
 //                                     file as an attachment; a release with several
 //                                     matching files first offers one button per file
 //   addonhub:file:<addonId>:<assetId> one of those files
+//   addonhub:sub                      "Updates abonnieren" (only while an update role is
+//                                     set): the update role on or off for the clicker
+//   addonhub:unsub                    "Abo beenden" under the confirmation
+//
+// The bot may hand out the role only with Manage Roles, when the role sits below its
+// highest role and belongs to no integration; otherwise (and when the role is gone)
+// the member gets one clear line and the log a warning saying why.
 //
 // A download is checked like the web's (apiRoutes/addons.js): the areas "signup" or
 // "history", an orga-only addon only for the orga (userAccess.resolveAccess, a failed
@@ -13,11 +20,12 @@
 // then the size against what Discord lets the bot upload here. It is logged like
 // the web's download, marked "via discord"; the token never reaches a log line.
 const {
-    ActionRowBuilder, ButtonBuilder, ButtonStyle, FileBuilder, MessageFlags, TextDisplayBuilder,
+    ActionRowBuilder, ButtonBuilder, ButtonStyle, FileBuilder, MessageFlags, PermissionsBitField, TextDisplayBuilder,
 } = require("discord.js");
 const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
 const { getConfig } = require("../../stores/configStore");
+const store = require("../../stores/addonCenterStore");
 const { resolveAccess } = require("../discord/userAccess");
 const { langOfInteraction } = require("../discord/botLanguage");
 const { userCanAny, userIsOrga } = require("../../config/permissions");
@@ -27,7 +35,7 @@ const { takeDownload } = require("./downloadLimit");
 const { openAssetStream } = require("../../classes/githubReleases");
 const { publicBaseUrl } = require("../../utils/publicUrl");
 const { tr } = require("../../utils/i18n/botText");
-const { parseCenterId, fileId } = require("./addonCenterPanel");
+const { parseCenterId, fileId, UNSUBSCRIBE_ID } = require("./addonCenterPanel");
 const log = require("../../logger").child("addons");
 
 /** The areas whose holders may download (the web's rule). */
@@ -200,14 +208,90 @@ async function download(interaction, addonId, assetId = "") {
     return interaction.editReply(filePayload(lang, target.addon, target.release, target.asset.name, buffer));
 }
 
+/** "Abonniert …" with "Abo beenden", or "Abo beendet …" (Board 2). */
+function subscribedPayload(lang, roleId) {
+    return notice("✅", tr(lang, "Subscribed: new versions ping you with {role}.", { role: `<@&${roleId}>` }), [
+        new ButtonBuilder().setCustomId(UNSUBSCRIBE_ID).setLabel(tr(lang, "End subscription")).setStyle(ButtonStyle.Secondary),
+    ]);
+}
+
+const unsubscribedPayload = (lang) => notice("🔕", tr(lang, "Subscription ended – no more update pings."));
+
+/** Discord's "Unknown Role": the role was deleted. */
+const isUnknownRole = (e) => !!(e && (e.code === 10011 || /unknown role/i.test(str(e && e.message))));
+
+/** Why the bot may not hand out the role, "" when it may: its right, the role's place, a managed role. */
+function roleProblem(guild, role) {
+    const me = guild && guild.members ? guild.members.me : null;
+    if (!me || !me.permissions || !me.permissions.has(PermissionsBitField.Flags.ManageRoles)) return "missing Manage Roles";
+    if (role.managed) return "the role belongs to an integration";
+    const top = me.roles && me.roles.highest ? Number(me.roles.highest.position) : 0;
+    if (Number(role.position) >= top) return "the role is above the bot's highest role";
+    return "";
+}
+
+/**
+ * "Updates abonnieren" (`sub`, toggles) and "Abo beenden" (`unsub`, only off, replaces
+ * the ephemeral confirmation it sits under).
+ */
+async function subscription(interaction, action) {
+    const replace = action === "unsub";
+    if (replace) await interaction.deferUpdate();
+    else await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const lang = langOfInteraction(interaction);
+    const { roleId } = store.getSettings();
+    const sorry = notice("❌", tr(lang, "Subscribing does not work right now. Please tell the orga."));
+    if (!roleId || !interaction.guild) return interaction.editReply(notice("❌", tr(lang, "There is no update role to subscribe to.")));
+    const guild = interaction.guild;
+    let role = null;
+    let member;
+    try {
+        role = guild.roles.cache.get(roleId) || await guild.roles.fetch(roleId);
+    } catch (e) {
+        if (!isUnknownRole(e)) {
+            log.warn(`subscription: the update role ${roleId} could not be read on ${guild.id}: ${str(e && e.message) || e}`);
+            return interaction.editReply(sorry);
+        }
+    }
+    if (!role) {
+        log.warn(`subscription: the update role ${roleId} is missing on ${guild.id} (deleted, or on another server) - pick another one in the settings`);
+        return interaction.editReply(sorry);
+    }
+    try {
+        member = interaction.member && interaction.member.roles && interaction.member.roles.cache
+            ? interaction.member
+            : await guild.members.fetch(str(interaction.user && interaction.user.id));
+    } catch (e) {
+        log.warn(`subscription: member ${whoOf(interaction)} not found on ${guild.id}: ${str(e && e.message) || e}`);
+        return interaction.editReply(sorry);
+    }
+    const problem = roleProblem(guild, role);
+    if (problem) {
+        log.warn(`subscription: cannot hand out @${role.name} (${roleId}): ${problem}`);
+        return interaction.editReply(sorry);
+    }
+    const has = member.roles.cache.has(roleId);
+    const on = action === "sub" && !has;
+    try {
+        if (on) await member.roles.add(roleId, "Addon-Updates abonniert");
+        else if (has) await member.roles.remove(roleId, "Addon-Updates abbestellt");
+    } catch (e) {
+        log.warn(`subscription: @${role.name} not ${on ? "given to" : "taken from"} ${whoOf(interaction)}: ${str(e && e.message) || e}`);
+        return interaction.editReply(sorry);
+    }
+    log.info(`subscription ${on ? "on" : "off"}: ${whoOf(interaction)}`);
+    return interaction.editReply(on ? subscribedPayload(lang, roleId) : unsubscribedPayload(lang));
+}
+
 /** Every `addonhub:` customId. */
 async function handleCenter(interaction) {
     const { action, addonId, assetId } = parseCenterId(interaction.customId);
     if (action === "dl") return download(interaction, addonId);
     if (action === "file") return download(interaction, addonId, assetId);
+    if (action === "sub" || action === "unsub") return subscription(interaction, action);
     return interaction.reply({ ...unavailable(langOfInteraction(interaction)), flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
 }
 
 module.exports = {
-    handleCenter, download, uploadLimitOf, readLimited, filePayload, AREAS, DEFAULT_UPLOAD_LIMIT,
+    handleCenter, download, subscription, roleProblem, uploadLimitOf, readLimited, filePayload, AREAS, DEFAULT_UPLOAD_LIMIT,
 };

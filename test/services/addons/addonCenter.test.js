@@ -434,6 +434,23 @@ describe("addonCenter saveSettings", () => {
         expect(res.center).toBeNull();
         expect(store.getCenter()).toBeNull();
     });
+
+    it("a set or removed role redraws the centre at once: 'Updates abonnieren' comes and goes", async () => {
+        await center.postCenter({ now: NOW });
+        expect(JSON.stringify(discord.postPayload.mock.calls[0][1])).not.toContain("addonhub:sub");
+
+        await center.saveSettings({ roleId: ROLE }, { now: NOW });
+        expect(discord.editPayload).toHaveBeenCalledTimes(1);
+        expect(JSON.stringify(discord.editPayload.mock.calls[0][2])).toContain("addonhub:sub");
+
+        // the same role again changes nothing
+        await center.saveSettings({ roleId: ROLE }, { now: NOW });
+        expect(discord.editPayload).toHaveBeenCalledTimes(1);
+
+        await center.saveSettings({ roleId: "" }, { now: NOW });
+        expect(discord.editPayload).toHaveBeenCalledTimes(2);
+        expect(JSON.stringify(discord.editPayload.mock.calls[1][2])).not.toContain("addonhub:sub");
+    });
 });
 
 describe("addonCenter startAddonCenter", () => {

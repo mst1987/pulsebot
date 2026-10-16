@@ -115,7 +115,8 @@ async function currentPayload({ channelId, config, now = Date.now() } = {}) {
     const cfg = config || getConfig();
     const versionId = channelVersion(channelId, cfg);
     const entries = await centerEntries(cfg, versionId, { now });
-    const built = centerPayload({ entries, lang: serverLang(cfg), emojis: appEmojiMap(), now, versionLabel: versionLabel(versionId) });
+    const subscribe = !!store.getSettings().roleId;
+    const built = centerPayload({ entries, subscribe, lang: serverLang(cfg), emojis: appEmojiMap(), now, versionLabel: versionLabel(versionId) });
     if (built.dropped) log.warn(`${built.dropped} addon(s) do not fit into the centre (Discord allows 40 components); they are on the download page`);
     return { ...built, versionId, entries };
 }
@@ -353,7 +354,7 @@ function onCenterMessageDeleted(messageId, { delayMs = REDRAW_DELAY_MS } = {}) {
 /**
  * Save the settings of Einstellungen → Module → Addons and follow them in Discord:
  * another channel moves the posted centre there (the old message is deleted), a
- * changed game version redraws it.
+ * changed game version or role redraws it ("Updates abonnieren" shows only with a role).
  * @returns {Promise<{ settings?: object, center?: object|null, error?: string }>}
  */
 async function saveSettings(patch = {}, { by = "", config, now = Date.now() } = {}) {
@@ -379,7 +380,7 @@ async function saveSettings(patch = {}, { by = "", config, now = Date.now() } = 
             log.warn(`versions of the new game version not remembered: ${str(e && e.message) || e}`);
         }
     }
-    if (saved.settings.versionId !== before.versionId) await refreshCenter({ config, force: true, now });
+    if (saved.settings.versionId !== before.versionId || saved.settings.roleId !== before.roleId) await refreshCenter({ config, force: true, now });
     return { settings: saved.settings, center: store.getCenter() };
 }
 
