@@ -351,6 +351,18 @@ describe("web/dashboard/dashboardData loadNextRaids", () => {
         }
     });
 
+    it("keeps the raids of the given categories only, before the slice (the orga of a category, #729)", async () => {
+        rh.getAllEvents.mockResolvedValue([
+            { id: "e1", title: "Black Temple", channelId: "c1", startTime: 100, signUps: [] },
+            { id: "e2", title: "Hyjal", channelId: "c2", startTime: 200, signUps: [] },
+            { id: "e3", title: "Kara", channelId: "c2", startTime: 300, signUps: [] },
+        ]);
+        rh.getSetup.mockResolvedValue({ setup: [] });
+        const { raids } = await loadNextRaids("g1", 2, { categoryIds: ["cat2"] });
+        expect(raids.map((r) => r.id)).toEqual(["e2", "e3"]);
+        expect((await loadNextRaids("g1", 2, { categoryIds: [] })).raids).toEqual([]);
+    });
+
     it("reports a Raid-Helper failure instead of throwing", async () => {
         rh.getAllEvents.mockRejectedValue(new Error("kaputt"));
         expect(await loadNextRaids("g1")).toEqual({ raids: [], error: "kaputt" });
@@ -555,6 +567,15 @@ describe("web/dashboard/dashboardData loadMissingChannels (#537)", () => {
             { eventId: "eh-1", title: "Kara", startTime: 100, channelName: "mi-kara" },
             { eventId: "eh-3", title: "Gruul", startTime: 300, channelName: "fr-gruul" },
         ]);
+    });
+
+    it("lists only the raids of the given categories for the orga of a category (#729)", async () => {
+        linkCheck.channelDeleted("c-gone");
+        eventStore.listEvents.mockReturnValueOnce([
+            { id: "eh-1", title: "Kara", startTime: 100, channelId: "c-gone", categoryId: "cat1" },
+            { id: "eh-2", title: "Gruul", startTime: 200, channelId: "c-gone", categoryId: "cat2" },
+        ]);
+        expect((await loadMissingChannels("g1", now, { categoryIds: ["cat1"] })).map((m) => m.eventId)).toEqual(["eh-1"]);
     });
 
     it("answers nothing without a guild or when the store fails", async () => {

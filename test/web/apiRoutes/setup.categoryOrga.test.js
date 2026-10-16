@@ -212,6 +212,19 @@ describe("the orga of a category (a manager of its roster)", () => {
         expect(mine.canEditEvent).toBe(true);
         expect(theirs.canEditEvent).toBe(false);
     });
+
+    it("opens the setup of their raid where they could not sign up (#729); another category's stays 404", async () => {
+        const { userSeesEvent } = require("../../../src/services/signups/eventVisibility");
+        userSeesEvent.mockResolvedValue(false);
+        try {
+            const mine = await api.get("/api/raids/setup", { event: own.id });
+            expect(status(mine)).toBe(200);
+            expect(body(mine).canWrite).toBe(true);
+            expect(status(await api.get("/api/raids/setup", { event: foreign.id }))).toBe(404);
+        } finally {
+            userSeesEvent.mockResolvedValue(true);
+        }
+    });
 });
 
 // #725 review: the gate counts only the roster a category plays now - canWrite must not say more

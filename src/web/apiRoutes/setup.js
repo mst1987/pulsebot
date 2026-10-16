@@ -43,6 +43,7 @@ const { sendFailure, sendResult } = require("../http/apiResult");
 const { userSeesEvent } = require("../../services/signups/eventVisibility");
 // who may edit a raid's setup - the rule of the `orgaScoped` gate, per event (#725)
 const { canWriteSetup } = require("../setup/setupAccess");
+const categoryOrga = require("../../services/roster/categoryOrga");
 const { getConfig } = require("../../stores/settingsStore");
 const { getEvent, isOwnEventId, setEventExtraRole, EXTRA_ROLES } = require("../../stores/eventStore");
 const { listSignups } = require("../../stores/signupStore");
@@ -159,8 +160,11 @@ function eventOf(res, id) {
 const getSetup = withUser({}, async ({ user, req, res, url }) => {
     const event = eventOf(res, url.searchParams.get("event"));
     if (!event) return;
-    // a raid of a category the raider may not see: the same 404 as an unknown one (eventVisibility.js)
-    if (!(await userSeesEvent(user, { guildId: event.guildId, eventId: event.id, categoryId: event.categoryId || "" }))) {
+    // a raid of a category the raider may not see: the same 404 as an unknown one (eventVisibility.js) - the
+    // orga of the raid's category edits it, whether or not they could sign up for it (#729)
+    const cache = categoryOrga.requestCache(req);
+    if (!(await userSeesEvent(user, { guildId: event.guildId, eventId: event.id, categoryId: event.categoryId || "", cache }))
+        && !(await canWriteSetup(user, event, req))) {
         return error(res, 404, "not_found", "Event nicht gefunden.");
     }
     ok(res, await view(event, user, { names: url.searchParams.get("light") !== "1", req }));

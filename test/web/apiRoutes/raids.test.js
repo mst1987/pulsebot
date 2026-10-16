@@ -225,6 +225,8 @@ describe("web/apiRoutes/raids", () => {
                         cancelled: false, cancelReason: "", cancelledAt: 0, cancelledByName: "",
                         // no category override in the (mocked, empty) config: the main version, "tbc".
                         versionId: "tbc",
+                        // a full admin is the orga of every raid (#729)
+                        canOrga: true,
                     }],
                     error: null,
                     activeGuildId: "guild-1",
@@ -233,6 +235,8 @@ describe("web/apiRoutes/raids", () => {
                     version: "tbc",
                     mainVersion: "tbc",
                     versions: [{ id: "tbc", label: "TBC Anniversary", short: "TBC", count: 1 }],
+                    orga: true,
+                    canCreate: true,
                 },
             });
         });
@@ -249,6 +253,7 @@ describe("web/apiRoutes/raids", () => {
                 data: {
                     events: [], error: "Raid-Helper nicht erreichbar.", activeGuildId: "guild-1", guildName: "",
                     version: "tbc", mainVersion: "tbc", versions: [{ id: "tbc", label: "TBC Anniversary", short: "TBC", count: 0 }],
+                    orga: true, canCreate: true,
                 },
             });
         });
@@ -336,6 +341,35 @@ describe("web/apiRoutes/raids", () => {
                 expect(await ids(RAIDER)).toEqual(["e-mi", "e-pug", "e-mine"]);
             });
 
+            // #729: a manager of the roster of "foreign" is its orga - raider role of it or not
+            it("shows the orga of a category its raids, each row marked, with \"Neues Event\"; a raider none of it", async () => {
+                const roster = { id: "r-pug", categoryId: "foreign", versionId: "tbc", guildId: "guild-1", managers: { userIds: ["u1"], roleIds: [] }, members: {}, roleIds: [] };
+                const list = jest.spyOn(rosterStore, "listRosters").mockReturnValue([roster]);
+                rosterSpy.mockImplementation((cat) => (cat === "foreign" ? roster : null));
+                try {
+                    auth.getUser.mockReturnValue(RAIDER);
+                    let data = json(await get("/api/raids")).data;
+                    expect(data.events.map((e) => [e.id, e.canOrga])).toEqual([["e-mi", false], ["e-pug", true], ["e-mine", true]]);
+                    expect(data).toMatchObject({ orga: true, canCreate: true });
+                    // the past raids: the logs stay on the rows of their category only
+                    const row = (id, categoryId) => ({ id, categoryId, title: "BT", versionId: "tbc", lootCount: 1, logs: [{ id: "l1" }], pendingLogs: [], pendingLogCount: 0 });
+                    raidListing.loadPastRaids.mockResolvedValue({ events: [row("p-mi", "mi"), row("p-pug", "foreign")], error: null });
+                    raidEventStore.getRaidEvent.mockImplementation((id) => (id === "p-pug" ? { id: "p-pug", categoryId: "foreign" } : null));
+                    const past = json(await get("/api/raids/past")).data;
+                    expect(past.events.map((e) => [e.id, e.canOrga, e.logs.length])).toEqual([["p-mi", false, 0], ["p-pug", true, 1]]);
+                    expect(past).toMatchObject({ orga: true, canCreate: true });
+
+                    // somebody else: a raider, no orga part, no "Neues Event"
+                    auth.getUser.mockReturnValue({ ...RAIDER, id: "u2" });
+                    data = json(await get("/api/raids")).data;
+                    expect(data.events.every((e) => e.canOrga === false)).toBe(true);
+                    expect(data).toMatchObject({ orga: false, canCreate: false });
+                } finally {
+                    list.mockRestore();
+                    raidEventStore.getRaidEvent.mockImplementation(() => null);
+                }
+            });
+
             it("leaves the orga role every raid, without asking Discord", async () => {
                 expect(await ids(ORGA_ROLE)).toEqual(["e-mo", "e-mi", "e-pug", "e-mine"]);
                 expect(discord.memberRoleIds).not.toHaveBeenCalled();
@@ -379,12 +413,14 @@ describe("web/apiRoutes/raids", () => {
             expect(raidListing.loadPastRaids).toHaveBeenCalledWith("guild-1");
             expect(json(res)).toEqual({
                 data: {
-                    events: [{ id: "p1", title: "BT", versionId: "tbc" }],
+                    events: [{ id: "p1", title: "BT", versionId: "tbc", canOrga: true }],
                     error: null,
                     activeGuildId: "guild-1",
                     version: "tbc",
                     mainVersion: "tbc",
                     versions: [{ id: "tbc", label: "TBC Anniversary", short: "TBC", count: 1 }],
+                    orga: true,
+                    canCreate: true,
                 },
             });
         });

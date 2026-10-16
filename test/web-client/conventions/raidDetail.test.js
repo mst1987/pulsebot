@@ -26,7 +26,7 @@ describe("raid detail layout", () => {
         expect(page).toContain("const TABS: Tab[] = [\"roster\", \"setup\", \"plan\", \"loot\", \"logs\"];");
         // the setup editor only on an own event; the raid plan also on a Raid-Helper event whose plan is switched on,
         // and only for a reader of its own area
-        expect(page).toContain("const hasPlan = canAccess(user, \"raidplan\") && planning !== \"sheet\" && (ownEvent || !!data.event.raidplanEnabled);");
+        expect(page).toContain("const hasPlan = (rights ? rights.canPlan : canAccess(user, \"raidplan\")) && planning !== \"sheet\" && (ownEvent || !!data.event.raidplanEnabled);");
         // the Logs tab only for the orga (Oct 2026: the logs are the orga's work)
         expect(page).toContain("const tabs = TABS.filter((t) => (t === \"setup\" ? ownEvent : t === \"plan\" ? hasPlan : t === \"logs\" ? orga : true));");
         // an old ?tab=setup of a Raid-Helper event still lands on the roster, a raider's ?tab=logs too
@@ -50,7 +50,9 @@ describe("raid detail layout", () => {
         expect(hero).toContain("data.progress.steps.map((s) => <StepCell");
         // a cancelled own event (#288) pushes no next step — and an own event's
         // step bar (#319) carries the one deed itself, so the head keeps quiet; a raider gets none (Oct 2026)
-        expect(hero).toContain("const primary = !orga || cancelled || cockpit ? null : data.progress?.primary || null;");
+        expect(hero).toContain("const next = !orga || cancelled || cockpit ? null : data.progress?.primary || null;");
+        // a primary that opens a dialog only for whom the raid's actions are open (#729); a link for the whole orga
+        expect(hero).toContain("const primary = next && (canAct || next.href) ? next : null;");
         // a step is a button that opens its dialog or tab
         expect(hero).toContain("onClick={() => onOpen(step)}");
         expect(page).toMatch(/if \(step\.open\.modal\) setModal\(step\.open\.modal\);\s*else if \(step\.open\.tab\) switchTab\(step\.open\.tab\);/);

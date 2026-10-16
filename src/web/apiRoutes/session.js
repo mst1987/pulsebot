@@ -13,13 +13,15 @@ const { guildId: envGuildId, adminRoleIds: envAdminRoleIds } = require("../../co
 const { normalizeRoleIds, MAX_ROLES } = require("../http/viewAs");
 const { contentVersions } = require("../../services/events/contentVersions");
 const { areaAudience, orgaRoleNames } = require("../http/areaAudience");
+const { orgaCategoryIds, requestCache } = require("../../services/roster/categoryOrga");
 
 /** GET /api/session — who the caller is (if anyone), their CSRF token, what the
  * caller may see (per-area access) and — for menu users — the guilds the bot is
  * in plus which one they're managing. */
-function getSession(req, res) {
+async function getSession(req, res) {
     const user = auth.getUser(req);
     const hasMenu = userHasMenuAccess(user);
+    const orgaCategories = hasMenu ? await orgaCategoriesOf(user, req) : [];
     ok(res, {
         user: user
             ? {
@@ -38,6 +40,9 @@ function getSession(req, res) {
                 // Orga (permissions.userIsOrga): a full admin, or holding one of the orga roles
                 // (Einstellungen → Berechtigungen) — sees the orga's parts of the pages.
                 isOrga: userIsOrga(user),
+                // The categories whose current roster the caller manages (#729, categoryOrga.orgaCategoryIds with
+                // `managerOnly`): the orga of those categories - the client shows them the orga's parts there.
+                orgaCategories,
                 // Who sees each area the caller may open (areaAudience.js): the client marks an area
                 // only admins and orga roles open as "Orga-Bereich" and names those orga roles.
                 ...audienceFields(user),
@@ -52,6 +57,15 @@ function getSession(req, res) {
         // hidden, and the versions it offers (only those with data or a category).
         content: hasMenu ? contentVersions() : null,
     });
+}
+
+/** The category ids the caller is the orga of through a roster; best-effort, [] on failure ("Ansicht als": the viewed roles'). */
+async function orgaCategoriesOf(user, req) {
+    try {
+        return await orgaCategoryIds(user, { managerOnly: true, cache: requestCache(req) });
+    } catch {
+        return [];
+    }
 }
 
 /**

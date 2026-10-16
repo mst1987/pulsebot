@@ -108,7 +108,7 @@ During the raid the read view and the editor turn to the boss being pulled by th
 the event.
 
 - **Endpoint:** `GET /api/raidplan/progress?token=<token>` (the read view; like `/public` in `UNGATED`, the same 404 for an
-  unknown or withdrawn link) or `?event=<id>` (the editor; the handler checks the session and `raidplan` read itself, since the route
+  unknown or withdrawn link) or `?event=<id>` (the editor; the handler checks the session and `raidplan` read - or the orga of the raid's category, #729 - itself, since the route
   is listed with `auth: "none"` for the token). Answer `{ live, waiting, killed, current, next, updatedAt }` with section keys
   (`bt/supremus`); without a linked log, outside the raid window or when WCL fails `{ live: false, killed: [], current: null,
   next: null }` plus `waiting`: `"no_log"` (inside the window, no Warcraft Log linked to the event), `"wcl_error"` (a log is

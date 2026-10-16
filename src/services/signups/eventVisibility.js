@@ -6,7 +6,9 @@
 //     the raid's game version),
 //   - the raids of a category whose roster opened them to everybody (`roster.publicRaids`, set in the
 //     roster's form) - seeing such a raid lets nobody sign up, that stays signupAccess' rule,
-//   - every raid they signed up for themselves.
+//   - every raid they signed up for themselves,
+//   - the raids of the categories they are the orga of (a manager of the current roster, #729) - their
+//     orga view and buttons are a question of the raid detail (canOrgaRaid), not of this file.
 //
 // A right on the area `raids` does not widen this: raider roles hold `raids` read (or more) and are no
 // orga. The raid list, the raid detail and the event-scoped reads (setup, raid plan) all ask here,
@@ -19,30 +21,47 @@ const settingsStore = require("../../stores/settingsStore");
 const signupStore = require("../../stores/signupStore");
 const { getEvent, isOwnEventId } = require("../../stores/eventStore");
 const { getRaidEvent } = require("../../stores/raidEventStore");
-const discord = require("../discord/discord");
+const { memberRolesRemembered } = require("../discord/memberRoleMemory");
+const { orgaCategoryIds } = require("../roster/categoryOrga");
 const { signupEventIdOf } = require("../../utils/raidGroup");
 
 /**
- * Who is looking: `{ orga, userId, roleIds, config }`. The member's Discord roles are read only for a
- * non-orga, best-effort - a failed or unknown lookup counts as no roles (a category with raider roles
- * then stays hidden; the own signups and the open categories still show).
- * @param {{ id: string, isAdmin?: boolean, isOrga?: boolean }} user  the session user
+ * Who is looking: `{ orga, userId, roleIds, orgaCategories, config }`. Only for a non-orga:
+ *   - the member's Discord roles, best-effort with a short memory (memberRoleMemory) - an unknown
+ *     lookup counts as no roles (a category with raider roles then stays hidden; the own signups and
+ *     the open categories still show),
+ *   - the categories whose current roster they manage (categoryOrga.orgaCategoryIds, `managerOnly`):
+ *     the orga of a category sees its raids, raider role or not (#729).
+ * "Ansicht als Rolle" (user.viewAs, web/http/viewAs.js) counts with the roles being looked at - never
+ * the admin's own roles, account or signups (the view is per role, not per person).
+ * @param {{ id: string, isAdmin?: boolean, isOrga?: boolean, viewAs?: { roleIds: string[] } }} user  the session user
  * @param {string} guildId
- * @param {{ config?: object }} [opts]
+ * @param {{ config?: object, cache?: object }} [opts]  `cache`: categoryOrga.requestCache of the request
  */
-async function raidViewer(user, guildId, { config } = {}) {
+async function raidViewer(user, guildId, { config, cache } = {}) {
     const cfg = config || settingsStore.getConfig() || {};
     const orga = userIsOrga(user);
-    const userId = String((user && user.id) || "");
+    const viewAs = !!(user && user.viewAs && Array.isArray(user.viewAs.roleIds));
+    const userId = viewAs ? "" : String((user && user.id) || "");
     let roleIds = [];
+    let orgaCategories = [];
     if (!orga) {
+        if (viewAs) {
+            roleIds = user.viewAs.roleIds;
+        } else {
+            try {
+                roleIds = (await memberRolesRemembered(guildId, userId)).roleIds || [];
+            } catch {
+                roleIds = [];
+            }
+        }
         try {
-            roleIds = (await discord.memberRoleIds(guildId, userId)) || [];
+            orgaCategories = await orgaCategoryIds(user, { config: cfg, managerOnly: true, cache });
         } catch {
-            roleIds = [];
+            orgaCategories = [];
         }
     }
-    return { orga, userId, roleIds: roleIds.map(String), config: cfg };
+    return { orga, userId, roleIds: roleIds.map(String), orgaCategories: orgaCategories.map(String), config: cfg };
 }
 
 /**
@@ -71,6 +90,8 @@ function categoryShown(eventOrCategory, viewer) {
     if (!viewer || viewer.orga) return true;
     const isEvent = !!eventOrCategory && typeof eventOrCategory === "object";
     const categoryId = isEvent ? eventOrCategory.categoryId : eventOrCategory;
+    // the orga of the category (a manager of its current roster, #729) sees its raids
+    if (categoryId && (viewer.orgaCategories || []).includes(String(categoryId))) return true;
     // "may sign up" is signupAccess.canSignUp, the rule the save checks - per the raid's version (#739)
     const versionId = isEvent ? versionOfEvent(eventOrCategory, { config: viewer.config }) : "";
     if (canSignUp(categoryId, { userId: viewer.userId, roleIds: viewer.roleIds, config: viewer.config, versionId })) return true;
@@ -143,10 +164,10 @@ async function eventCategoryOf(eventId, { loadGroups } = {}) {
  * always may; an event whose category cannot be told is hidden from a non-orga unless they signed up.
  * @returns {Promise<boolean>}
  */
-async function userSeesEvent(user, { guildId = "", eventId, categoryId, signUps, loadGroups } = {}) {
+async function userSeesEvent(user, { guildId = "", eventId, categoryId, signUps, loadGroups, cache } = {}) {
     if (userIsOrga(user)) return true;
     const known = categoryId !== undefined ? { categoryId, signUps } : await eventCategoryOf(eventId, { loadGroups });
-    const viewer = await raidViewer(user, guildId || (known && known.guildId) || "");
+    const viewer = await raidViewer(user, guildId || (known && known.guildId) || "", { cache });
     return eventShown({ id: eventId, categoryId: known ? known.categoryId : "", signUps: known ? known.signUps : undefined }, viewer)
         && (!!known || hasSignup({ id: eventId }, viewer.userId));
 }

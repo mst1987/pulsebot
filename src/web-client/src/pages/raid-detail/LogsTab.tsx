@@ -17,6 +17,9 @@ import { useT } from "../../i18n";
 export default function LogsTab({ ctx, evaluator }: { ctx: RaidCtx; evaluator: Evaluator }) {
     const t = useT();
     const { data, onChanged, openModal } = ctx;
+    // assigning, evaluating, discarding and unlinking are `cla` writes (#729: no button the server refuses);
+    // an older caller without the flag: as before
+    const canLogs = ctx.canLogs ?? true;
     const ask = useConfirm();
     const [unlinkBusyId, setUnlinkBusyId] = useState("");
     const logs = data.eventLogs;
@@ -52,7 +55,7 @@ export default function LogsTab({ ctx, evaluator }: { ctx: RaidCtx; evaluator: E
                 tone="cla"
                 title={t("raidDetail.logs.title")}
                 crumb={`${data.event.title || "Raid"} · ${logs.length ? t("raidDetail.logs.assigned", { count: logs.length }) : t("raidDetail.logs.noneAssigned")}`}
-                action={<Button variant="ghost" size="sm" icon="inv_misc_pocketwatch_01" onClick={() => openModal("log")}>{t("raidDetail.logs.assign")}</Button>}
+                action={canLogs ? <Button variant="ghost" size="sm" icon="inv_misc_pocketwatch_01" onClick={() => openModal("log")}>{t("raidDetail.logs.assign")}</Button> : undefined}
             />
 
             {!logs.length ? (
@@ -64,7 +67,7 @@ export default function LogsTab({ ctx, evaluator }: { ctx: RaidCtx; evaluator: E
                         const done = l.sections || [];
                         const wclUrl = l.link || (l.reportId ? `https://classic.warcraftlogs.com/reports/${l.reportId}` : "");
                         const reportHref = l.reportUrl || (l.reportRefId ? `/r/${l.reportRefId}` : "");
-                        const open = LOG_ANALYSES.filter((a) => !done.includes(a.key));
+                        const open = canLogs ? LOG_ANALYSES.filter((a) => !done.includes(a.key)) : [];
                         return (
                             <div key={l.id} className="rd-log-row">
                                 <span className="rd-log-title">
@@ -100,17 +103,19 @@ export default function LogsTab({ ctx, evaluator }: { ctx: RaidCtx; evaluator: E
                                             <ExternalIcon />
                                         </a>
                                     )}
-                                    {done.map((key) => (
+                                    {canLogs && done.map((key) => (
                                         <IconButton
                                             key={key} size="sm" tone="danger" icon={<RefreshIcon />}
                                             tip={t("raidDetail.logs.resetTip", { label: key.toUpperCase() })} tipSub={t("raidDetail.logs.resetSub")}
                                             onClick={() => reset(l, key as LogSection)}
                                         />
                                     ))}
-                                    <IconButton
-                                        size="sm" tone="danger" icon={<XIcon />} tip={t("raidDetail.logs.unlinkTip")} tipSub={t("raidDetail.logs.unlinkSub")}
-                                        disabled={unlinkBusyId === l.id} onClick={() => unlink(l)}
-                                    />
+                                    {canLogs && (
+                                        <IconButton
+                                            size="sm" tone="danger" icon={<XIcon />} tip={t("raidDetail.logs.unlinkTip")} tipSub={t("raidDetail.logs.unlinkSub")}
+                                            disabled={unlinkBusyId === l.id} onClick={() => unlink(l)}
+                                        />
+                                    )}
                                 </span>
                             </div>
                         );

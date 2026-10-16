@@ -229,8 +229,10 @@ export type DashboardPersonal = {
 
 export type DashboardData = {
     kicker: { guild: string; realm: string };
-    /** Whether the orga part is shown (raid events readable). */
+    /** Whether the orga part is shown: the global orga, or the orga of a category (#729, then with their categories only). */
     orga: boolean;
+    /** "Neues Raid" in the head: POST /api/raids lets the caller create (#729); missing from an older server. */
+    canCreate?: boolean;
     /** "Für dich"; null without a signup area of one's own. */
     personal: DashboardPersonal | null;
     nextRaid: DashboardRaid | null;

@@ -252,7 +252,8 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
             </Button>
         )
         : null;
-    const pingAction = !ev.isPast && missing.length && ev.status !== "cancelled"
+    // "Fehlende pingen" (POST /api/raids/ping-missing) for whom the raid's actions are open (#729)
+    const pingAction = (ctx.canWrite ?? orga) && !ev.isPast && missing.length && ev.status !== "cancelled"
         ? (
             <Button variant="ghost" icon="inv_letter_15" onClick={() => openModal("ping")} data-tip={t("raidDetail.roster.pingMissing")} data-tip-sub={t("raidDetail.roster.pingMissingSub")}>
                 {t("raidDetail.roster.pingMissing")}<Badge tone="bad" count>{missing.length}</Badge>

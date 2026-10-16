@@ -283,7 +283,7 @@ describe("web/apiRoutes/session", () => {
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
             const data = json(res).data;
             // a full admin may look at the menu as a role ("Ansicht als Rolle")
-            expect(data.user).toEqual({ id: "42", name: "Anna", isAdmin: true, isOrga: true, access: fullAccess(), canViewAs: true, audience: expect.any(Object), orgaRoles: [] });
+            expect(data.user).toEqual({ id: "42", name: "Anna", isAdmin: true, isOrga: true, orgaCategories: [], access: fullAccess(), canViewAs: true, audience: expect.any(Object), orgaRoles: [] });
             // a full admin gets who sees every area
             expect(Object.keys(data.user.audience)).toEqual(AREA_IDS);
             expect(data.csrfToken).toBe("csrf-abc");
@@ -337,9 +337,35 @@ describe("web/apiRoutes/session", () => {
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
             const data = json(res).data;
-            expect(data.user).toEqual({ id: "7", name: "Bob", isAdmin: false, isOrga: false, access: emptyAccess(), canViewAs: false, audience: {}, orgaRoles: [] });
+            expect(data.user).toEqual({ id: "7", name: "Bob", isAdmin: false, isOrga: false, orgaCategories: [], access: emptyAccess(), canViewAs: false, audience: {}, orgaRoles: [] });
             expect(data.guilds).toEqual([]);
             expect(data.activeGuildId).toBe("");
+        });
+
+        // #729: the orga of a category - the client shows them the orga's parts of their raids
+        it("names the categories whose current roster the caller manages - with the viewed roles under \"Ansicht als\"", async () => {
+            const rosterStore = require("../../../src/stores/rosterStore");
+            const categoryRoster = require("../../../src/services/roster/categoryRoster");
+            const roster = { id: "r1", categoryId: "cat1", guildId: "g1", managers: { userIds: ["7"], roleIds: [] } };
+            const list = jest.spyOn(rosterStore, "listRosters").mockReturnValue([roster, { id: "r2", categoryId: "cat2", guildId: "g1", managers: { userIds: ["8"] } }]);
+            const current = jest.spyOn(categoryRoster, "currentRoster").mockImplementation((cat) => (cat === "cat1" ? roster : { id: "r2", categoryId: "cat2", guildId: "g1", managers: { userIds: ["8"] } }));
+            try {
+                const bob = { id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), raids: { read: true, write: false } } };
+                auth.getUser.mockReturnValue(bob);
+                auth.getRealUser.mockReturnValue(bob);
+                let res = mockRes();
+                await handle("/api/session", { method: "GET" }, res);
+                expect(json(res).data.user).toMatchObject({ isOrga: false, orgaCategories: ["cat1"] });
+                // a full admin looking as a raider: their own account manages cat1, the view does not
+                auth.getUser.mockReturnValue({ ...bob, viewAs: { roleIds: [], at: Date.now() } });
+                auth.getRealUser.mockReturnValue({ ...bob, isAdmin: true });
+                res = mockRes();
+                await handle("/api/session", { method: "GET" }, res);
+                expect(json(res).data.user.orgaCategories).toEqual([]);
+            } finally {
+                list.mockRestore();
+                current.mockRestore();
+            }
         });
 
         // "Orga-Bereich" (design canvas Oct 2026): who sees each area the caller may open.

@@ -49,9 +49,18 @@ jest.mock("../../../src/web/apiRoutes/orgaHub", () => {
         res.end("{}");
     });
     const adminOnly = withUser({ orgaScoped: (body) => body.event, csrf: true, body: true }, ({ res }) => res.end("{}"));
+    // #729: a read of one raid - the area as always, a manager for their raids
+    const read = withUser({ orgaRead: (body, query) => query.get("event") }, ({ query, res }) => {
+        mockHandlerRan(query.get("event"));
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end("{}");
+    });
     return {
         routes: [
             ...actual.routes,
+            { method: "GET", path: "/api/test/orga-read", handler: read, area: "raidplan" },
+            // the same handler on a write method: the read mark never widens a write
+            { method: "POST", path: "/api/test/orga-read", handler: read, area: "raidplan" },
             { method: "POST", path: "/api/test/orga-scoped", handler: scoped, area: "raids" },
             { method: "POST", path: "/api/test/orga-plain", handler: plain, area: "raids" },
             { method: "POST", path: "/api/test/orga-area", handler: areaOnly, area: "raids" },
@@ -62,9 +71,9 @@ jest.mock("../../../src/web/apiRoutes/orgaHub", () => {
 
 const { emptyAccess } = require("../../../src/config/permissions");
 const { gate } = require("../../../src/web/http/apiAccess");
-const { find, isOrgaScoped } = require("../../../src/web/http/routeTable");
+const { find, isOrgaScoped, isOrgaRead } = require("../../../src/web/http/routeTable");
 
-const { post } = routerClient();
+const { post, get } = routerClient();
 const user = (id, grants = {}, extra = {}) => ({ id, isAdmin: false, access: { ...emptyAccess(), ...grants }, ...extra });
 // a raider with a menu area, but no right on `raids`
 const raiderGrants = { signup: { read: true, write: true } };
@@ -152,5 +161,40 @@ describe("web/http/apiAccess gate (orgaScoped)", () => {
         mockUser = { id: "a", isAdmin: true };
         const res = await post("/api/test/orga-scoped", { event: "rh2" });
         expect(status(res)).toBe(200);
+    });
+});
+
+describe("web/http/apiAccess gate (orgaRead, #729)", () => {
+    it("sees the mark of a withUser({ orgaRead }) handler", () => {
+        expect(isOrgaRead(find("GET", "/api/test/orga-read"))).toBe(true);
+        expect(isOrgaRead(find("POST", "/api/test/orga-scoped"))).toBe(false);
+        expect(isOrgaRead(null)).toBe(false);
+    });
+
+    it("lets a manager without the area read a raid of their category, not another one", async () => {
+        mockUser = user("mgr", raiderGrants);
+        let res = await get("/api/test/orga-read", { event: "rh1" });
+        expect(status(res)).toBe(200);
+        res = await get("/api/test/orga-read", { event: "rh2" });
+        expect([status(res), sent(res).error.code]).toEqual([403, "not_category_orga"]);
+        // naming no raid refuses too
+        res = await get("/api/test/orga-read", {});
+        expect(sent(res).error.code).toBe("not_category_orga");
+        expect(mockHandlerRan.mock.calls).toEqual([["rh1"]]);
+    });
+
+    it("keeps whoever holds the area as before: every raid, no roster asked", async () => {
+        mockUser = user("reader", { raidplan: { read: true, write: false } });
+        expect(status(await get("/api/test/orga-read", { event: "rh2" }))).toBe(200);
+        expect(mockMemberRoleIds).not.toHaveBeenCalled();
+    });
+
+    it("keeps the area refusal for who manages no roster, and never widens a write", async () => {
+        mockUser = user("nobody", raiderGrants);
+        expect(sent(await get("/api/test/orga-read", { event: "rh1" })).error.code).toBe("forbidden");
+        mockUser = user("mgr", raiderGrants);
+        const res = await post("/api/test/orga-read", { event: "rh1" });
+        expect([status(res), sent(res).error.code]).toEqual([403, "forbidden"]);
+        expect(mockHandlerRan).not.toHaveBeenCalled();
     });
 });

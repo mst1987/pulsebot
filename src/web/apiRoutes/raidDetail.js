@@ -43,9 +43,11 @@ const {
 const { pingMissingRaiders } = require("../../services/events/missingPing");
 const { buildRaidDetail } = require("../events/raidDetailView");
 const { postRaidplanLink } = require("../../services/raidplan/raidplanPost");
-const { canWriteRaidplan } = require("../raidplan/raidplanAccess");
+const { canWriteLibrary, managesRaid } = require("../raidplan/raidplanAccess");
 const { raidViewer } = require("../../services/signups/eventVisibility");
-const { isGlobalRaidOrga } = require("../events/raidOrgaAccess");
+const { isGlobalRaidOrga, canOrgaRaid } = require("../events/raidOrgaAccess");
+const { requestCache } = require("../../services/roster/categoryOrga");
+const { userCan } = require("../../config/permissions");
 const { expectedRoleIds } = require("../../services/roster/categoryRoles");
 
 // Every action of this file is the orga's (permissions.userIsOrga) as well as its area's write right:
@@ -85,11 +87,30 @@ function linkCardOf(found) {
 const getRaidDetail = withUser({}, async ({ user, req, res, url }) => {
     const eventId = (url.searchParams.get("event") || "").trim();
     const guildId = activeGuildFor(req);
+    const loadGroups = () => loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
+    // the manager of the raid's category plans it (#726): the gate of the plan's writes and of its read (#729)
+    const managesPlan = await managesRaid(user, eventId, req);
     // the link's state and step follow the gate of POST /api/raids/post-raidplan per event (#726) - for a
     // non-orga as well: the raid plan tab of a tactician or a category's orga posts through it
-    const planPost = await canWriteRaidplan(user, eventId, req);
-    const viewer = await raidViewer(user, guildId);
-    return sendResult(res, await buildRaidDetail({ guildId, eventId, planPost, viewer }));
+    const planPost = canWriteLibrary(user) || managesPlan;
+    // The orga of this raid (#729): the gate of its actions (`orgaScoped` with `raids` write) - the global orga
+    // with `raids` write, or a manager of the current roster of its category. They get the orga's view, the
+    // rest of the global orga keeps it as before; anyone else the raider's (eventVisibility.js).
+    const canOrga = await canOrgaRaid(user, eventId, req, { loadGroups });
+    const viewer = await raidViewer(user, guildId, { cache: requestCache(req) });
+    return sendResult(res, await buildRaidDetail({
+        guildId, eventId, planPost,
+        viewer: canOrga && !viewer.orga ? { ...viewer, orga: true } : viewer,
+        rights: {
+            canOrga,
+            // the "Raidplan" tab: GET /api/raidplan's gate (`raidplan` read, or the category's orga - `orgaRead`)
+            canPlan: userCan(user, "raidplan", "read") || managesPlan,
+            // "Raidplan aktivieren" of a Raid-Helper event: POST /api/raidplan/link's gate, as the plan's writes
+            canSwitchPlan: planPost,
+            // the Anmelde-Aufruf of anyone but the global orga with `raids` write pings the category's raider roles only
+            categoryRolesOnly: !isGlobalRaidOrga(user),
+        },
+    }));
 });
 
 /**

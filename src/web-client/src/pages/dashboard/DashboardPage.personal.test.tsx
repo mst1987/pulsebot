@@ -284,4 +284,21 @@ describe("Übersicht for the orga", () => {
         expect(screen.queryByText(t("dashboard.personal.attendance.label"))).not.toBeInTheDocument();
         expect(screen.getByRole("link", { name: t("dashboard.page.newRaid") })).toHaveAttribute("href", "/raids/new");
     });
+
+    // #729: the orga of a category - the block with their categories (the server filtered it), no server figures
+    it("gives the orga of a category the orga block and \"Neues Raid\" by the server's word, without raids write", async () => {
+        const manager: SessionUser = { ...raider, orgaCategories: ["c1"], access: { signup: { read: true, write: true }, raids: { read: true, write: false } } };
+        await show(dashboard({ orga: true, canCreate: true, areas: null }), manager);
+        const zone = screen.getByRole("region", { name: t("shell.orga.label") });
+        expect(within(zone).getByText(t("dashboard.next.title"))).toBeInTheDocument();
+        expect(within(zone).getByText(t("dashboard.tasks.title"))).toBeInTheDocument();
+        expect(screen.queryByText(t("dashboard.areas.roster"))).not.toBeInTheDocument();
+        expect(screen.getByRole("link", { name: t("dashboard.page.newRaid") })).toHaveAttribute("href", "/raids/new");
+    });
+
+    it("gives no \"Neues Raid\" where the server says no, raids write or not", async () => {
+        const writer: SessionUser = { ...raider, access: { signup: { read: true, write: true }, raids: { read: true, write: true } } };
+        await show(dashboard({ canCreate: false }), writer);
+        expect(screen.queryByRole("link", { name: t("dashboard.page.newRaid") })).not.toBeInTheDocument();
+    });
 });

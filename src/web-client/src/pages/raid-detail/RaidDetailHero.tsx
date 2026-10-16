@@ -81,12 +81,14 @@ function RaidGroupLinks({ group, current }: { group: RaidGroup; current: string 
     );
 }
 
-export default function RaidDetailHero({ data, user, orga, onStep, onPrimary, primaryRunning, manage, cockpit, lootInMenu = false, onRecreateChannel, recreating = false }: {
+export default function RaidDetailHero({ data, user, orga, canAct = orga, onStep, onPrimary, primaryRunning, manage, cockpit, lootInMenu = false, onRecreateChannel, recreating = false }: {
     data: RaidDetailData;
     /** who is looking, for the OrgaZone around the steps */
     user?: SessionUser;
-    /** the orga is looking (lib/app/orgaArea.ts isOrga): steps, primary action and "Kanal fehlt" */
+    /** the orga is looking (the server's `orga`: the global orga or the raid's category's): steps, primary action and "Kanal fehlt" */
     orga: boolean;
+    /** the raid's actions are open to them (`viewer.canOrga`, #729): only then a primary that opens a dialog */
+    canAct?: boolean;
     onStep: (step: RaidStep) => void;
     onPrimary: (action: RaidPrimaryAction) => void;
     primaryRunning: boolean;
@@ -108,8 +110,10 @@ export default function RaidDetailHero({ data, user, orga, onStep, onPrimary, pr
     const cancelled = ev.status === "cancelled";
     // "Kanal fehlt" is a task for the orga; a raider simply gets no channel link
     const missing = orga && ev.channelState === "missing";
-    // A cancelled raid has no next step to push, and the cockpit brings its own.
-    const primary = !orga || cancelled || cockpit ? null : data.progress?.primary || null;
+    // A cancelled raid has no next step to push, and the cockpit brings its own. A primary that opens a
+    // dialog only for whom the raid's actions are open (#729); a plain link for the whole orga.
+    const next = !orga || cancelled || cockpit ? null : data.progress?.primary || null;
+    const primary = next && (canAct || next.href) ? next : null;
     const steps = !orga ? null : cockpit || (data.progress?.steps?.length ? (
         <div className="rd-steps" style={{ "--rd-steps": data.progress.steps.length } as CSSProperties}>
             {data.progress.steps.map((s) => <StepCell key={s.key} step={s} onOpen={onStep} />)}

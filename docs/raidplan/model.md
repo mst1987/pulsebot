@@ -330,8 +330,9 @@ globalByWrite: true, write: "raidplan" })`:
   raid they could not sign up for. Without `canWriteLibrary` the editor shows the default maps without buttons
   (`MapRow.locked`) and leaves out "Als Taktik speichern" and "Verwalten" of the tactic library. `GET
   /api/raids/detail` builds the "Einteilungen" step with the same rule.
-- Opening the plan still takes `raidplan` read (`GET` routes are not `orgaScoped`); a manager without it gets no
-  tab — the client's part is #729.
+- Opening the plan takes `raidplan` read — or being the orga of the raid's category (#729): `GET /api/raidplan` and
+  `GET /api/raidplan/link` are `orgaRead` (docs/permissions.md "Kategorie-Orga"), `GET /api/raidplan/progress?event=`
+  asks `managesRaid` itself, and the raid detail's `viewer.canPlan` shows the tab. The library's reads stay `raidplan`.
 
 Tests: `test/web/apiRoutes/raidplan.categoryOrga.test.js` (through the router, a table over every `orgaScoped`
 route against a raid of another category), `test/web/raidplan/raidplanAccess.test.js`, `globalByWrite` in

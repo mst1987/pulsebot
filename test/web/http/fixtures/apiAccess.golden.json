@@ -305,8 +305,13 @@
     "/api/system/backup/snapshot",
     "/api/system/status"
   ],
+  "orgaRead": [
+    "GET /api/raidplan",
+    "GET /api/raidplan/link"
+  ],
   "orgaScoped": [
     "DELETE /api/raids/series",
+    "GET /api/dashboard/next-raid",
     "GET /api/raids/manage",
     "GET /api/raids/manage/move",
     "GET /api/raids/manage/raider",

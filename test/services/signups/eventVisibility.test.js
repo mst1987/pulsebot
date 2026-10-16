@@ -17,8 +17,12 @@ jest.mock("../../../src/stores/eventStore", () => ({
     isOwnEventId: jest.fn((id) => String(id).startsWith("eh_")),
 }));
 jest.mock("../../../src/services/discord/discord", () => ({ memberRoleIds: jest.fn(async () => []) }));
+// the rosters of the orga of a category (#729): steered per test
+jest.mock("../../../src/stores/rosterStore", () => ({ listRosters: jest.fn(() => []) }));
 
 const categoryRoster = require("../../../src/services/roster/categoryRoster");
+const rosterStore = require("../../../src/stores/rosterStore");
+const memberRoleMemory = require("../../../src/services/discord/memberRoleMemory");
 const settingsStore = require("../../../src/stores/settingsStore");
 const signupStore = require("../../../src/stores/signupStore");
 const { getRaidEvent } = require("../../../src/stores/raidEventStore");
@@ -39,6 +43,9 @@ beforeEach(() => {
     discord.memberRoleIds.mockResolvedValue([]);
     categoryRoster.rosterOfEvent.mockReturnValue(null);
     categoryRoster.currentRoster.mockReturnValue(null);
+    categoryRoster.isCurrentRoster.mockReturnValue(false);
+    rosterStore.listRosters.mockReturnValue([]);
+    memberRoleMemory._resetForTests();
 });
 
 describe("raidViewer", () => {
@@ -47,15 +54,54 @@ describe("raidViewer", () => {
         expect(await vis.raidViewer(ORGA, "g")).toMatchObject({ orga: true, roleIds: [] });
         expect(discord.memberRoleIds).not.toHaveBeenCalled();
         discord.memberRoleIds.mockResolvedValueOnce(["r-mo", 5]);
-        expect(await vis.raidViewer(RAIDER, "g")).toEqual({ orga: false, userId: "u1", roleIds: ["r-mo", "5"], config: CONFIG });
+        expect(await vis.raidViewer(RAIDER, "g")).toEqual({ orga: false, userId: "u1", roleIds: ["r-mo", "5"], orgaCategories: [], config: CONFIG });
         expect(discord.memberRoleIds).toHaveBeenCalledWith("g", "u1");
     });
 
-    it("counts an unknown or failed role lookup as no roles", async () => {
+    it("counts an unknown or failed role lookup as no roles - unless a read of the last minutes stands in", async () => {
         discord.memberRoleIds.mockResolvedValueOnce(null);
         expect((await vis.raidViewer(RAIDER, "g")).roleIds).toEqual([]);
         discord.memberRoleIds.mockRejectedValueOnce(new Error("offline"));
         expect((await vis.raidViewer(RAIDER, "g")).roleIds).toEqual([]);
+        // memberRoleMemory: a Discord hiccup right after a good read keeps the roles
+        discord.memberRoleIds.mockResolvedValueOnce(["r-mo"]);
+        expect((await vis.raidViewer(RAIDER, "g")).roleIds).toEqual(["r-mo"]);
+        discord.memberRoleIds.mockRejectedValueOnce(new Error("offline"));
+        expect((await vis.raidViewer(RAIDER, "g")).roleIds).toEqual(["r-mo"]);
+    });
+
+    it("names the categories whose current roster the raider manages (#729), and shows their raids", async () => {
+        const roster = { id: "r1", categoryId: "mo", versionId: "tbc", guildId: "g", managers: { userIds: ["u1"], roleIds: [] } };
+        rosterStore.listRosters.mockReturnValue([roster, { id: "r2", categoryId: "other", guildId: "g", managers: { userIds: ["x"] } }]);
+        categoryRoster.currentRoster.mockImplementation((cat) => (cat === "mo" ? roster : { id: "r2", categoryId: "other", guildId: "g", managers: { userIds: ["x"] } }));
+        const viewer = await vis.raidViewer(RAIDER, "g");
+        expect(viewer.orgaCategories).toEqual(["mo"]);
+        // without the raider role r-mo: their category shows, another one does not
+        expect(vis.eventShown({ id: "x", categoryId: "mo" }, viewer)).toBe(true);
+        expect(vis.eventShown({ id: "x", categoryId: "other" }, viewer)).toBe(false);
+        // the orga needs no such list
+        expect((await vis.raidViewer(ORGA, "g")).orgaCategories).toEqual([]);
+    });
+
+    it("counts with the viewed roles under \"Ansicht als\" - never the admin's own roles, account or signups", async () => {
+        const roster = { id: "r1", categoryId: "mo", versionId: "tbc", guildId: "g", managers: { userIds: ["a"], roleIds: ["r-mgr"] } };
+        rosterStore.listRosters.mockReturnValue([roster]);
+        categoryRoster.currentRoster.mockReturnValue(roster);
+        // "So sieht es ein Raider": no role - the admin manages the roster by account, the view does not
+        const asRaider = { id: "a", isAdmin: false, access: {}, viewAs: { roleIds: [], at: 1 } };
+        signupStore.getSignup.mockReturnValue({ userId: "a" });
+        let viewer = await vis.raidViewer(asRaider, "g");
+        expect(viewer).toMatchObject({ orga: false, userId: "", roleIds: [], orgaCategories: [] });
+        expect(discord.memberRoleIds).not.toHaveBeenCalled();
+        expect(vis.eventShown({ id: "eh_1", categoryId: "mo" }, viewer)).toBe(false);
+        signupStore.getSignup.mockReturnValue(null);
+        // viewed as the raider role, then as the manager role
+        viewer = await vis.raidViewer({ ...asRaider, viewAs: { roleIds: ["r-mo"], at: 1 } }, "g");
+        expect(viewer.roleIds).toEqual(["r-mo"]);
+        expect(vis.eventShown({ id: "x", categoryId: "mo" }, viewer)).toBe(true);
+        viewer = await vis.raidViewer({ ...asRaider, viewAs: { roleIds: ["r-mgr"], at: 1 } }, "g");
+        expect(viewer.orgaCategories).toEqual(["mo"]);
+        expect(discord.memberRoleIds).not.toHaveBeenCalled();
     });
 });
 

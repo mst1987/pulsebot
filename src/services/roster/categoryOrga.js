@@ -17,7 +17,7 @@
 const discord = require("../discord/discord");
 const { resolveAccess } = require("../discord/userAccess");
 const { userIsOrga } = require("../../config/permissions");
-const { canManageRosterLive } = require("./rosterAccess");
+const { canManageRoster, canManageRosterLive } = require("./rosterAccess");
 const categoryRoster = require("./categoryRoster");
 const rosterStore = require("../../stores/rosterStore");
 const { getEvent, isOwnEventId } = require("../../stores/eventStore");
@@ -81,6 +81,11 @@ async function managesRoster(user, roster, { cache, memberRoleIds } = {}) {
     if (!roster) return user.isAdmin === true;
     // a closed roster (#739, its category plays another version now) is read only - it makes nobody orga
     if (roster.closedAt && user.isAdmin !== true) return false;
+    // "Ansicht als Rolle" (web/http/viewAs.js): the roles being looked at, never the admin's own account or
+    // Discord roles - a full admin who manages a roster sees no orga part in "So sieht es ein Raider"
+    if (user.viewAs && Array.isArray(user.viewAs.roleIds)) {
+        return canManageRoster({ id: "", isAdmin: user.isAdmin === true }, roster, user.viewAs.roleIds.map(String));
+    }
     const lookup = cachedRoleLookup(cache || createCache(), memberRoleIds);
     return canManageRosterLive(user, roster, { memberRoleIds: lookup }).catch(() => false);
 }

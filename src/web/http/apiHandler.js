@@ -36,6 +36,16 @@
 //                         takes the category path as above.
 // The two are exclusive; the wrapper carries `orgaScoped = true` so the route
 // table and the area gate see the mark (routeTable.isOrgaScoped).
+//   orgaRead: (body, query) => eventId(s)
+//                         a read of one raid (#729): everyone who holds the
+//                         route's area reads it as always; besides them the
+//                         area gate lets a manager of a category's roster in
+//                         (apiAccess.gate), and for them every event the
+//                         function names must be one of their categories -
+//                         else 403 "not_category_orga". The raid plan of a raid
+//                         is the first: the orga of its category plans it
+//                         (#726) without the area `raidplan`. The wrapper
+//                         carries `orgaRead = true` (routeTable.isOrgaRead).
 const { requireAdmin, requireFullAdmin, requireCsrf } = require("./apiMiddleware");
 const { readJsonBody } = require("./apiBody");
 const { error } = require("./apiResponse");
@@ -80,6 +90,9 @@ const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
  *        (an id or a row with `categoryId`; `req` for what only the request knows, e.g. its server -
  *        a new event's category, #728); 403 "orga_only" for whom it is neither, 403
  *        "not_category_orga" for a category orga outside the event's category (see the head comment)
+ * @param {(body: object, query: URLSearchParams, req: object) => string|Array<string>} [opts.orgaRead]
+ *        a read of one raid: whoever holds the area as always, a manager the gate let in (#729) only
+ *        for the events the function names (403 "not_category_orga" otherwise)
  * @param {boolean} [opts.globalByWrite]  with `orgaScoped` + `write`: that write right alone is the global
  *        path (every raid), whatever the orga rank - an area handed to people outside the orga (#726)
  * @param {string}  [opts.write]  the area the caller needs at write level (403 otherwise)
@@ -92,8 +105,10 @@ const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
  */
 function withUser(opts, fn) {
     if (typeof opts === "function") { fn = opts; opts = {}; }
-    const { full = false, orga = false, orgaScoped = null, globalByWrite = false, write = "", csrf = false, body = false, archived = null } = opts || {};
+    const { full = false, orga = false, orgaScoped = null, orgaRead = null, globalByWrite = false, write = "", csrf = false, body = false, archived = null } = opts || {};
     if (orgaScoped !== null && typeof orgaScoped !== "function") throw new Error("withUser: orgaScoped names the event(s) as (body, query) => id(s)");
+    if (orgaRead !== null && typeof orgaRead !== "function") throw new Error("withUser: orgaRead names the event(s) as (body, query) => id(s)");
+    if (orgaRead && (orgaScoped || orga || write)) throw new Error("withUser: orgaRead is a read - no orga, orgaScoped or write beside it");
     if (orgaScoped && orga) throw new Error("withUser: orga and orgaScoped exclude each other");
     if (globalByWrite && (!orgaScoped || !write)) throw new Error("withUser: globalByWrite needs orgaScoped and write");
     async function handler(req, res, url) {
@@ -127,6 +142,12 @@ function withUser(opts, fn) {
             error(res, 403, "not_category_orga", NOT_CATEGORY_ORGA);
             return undefined;
         }
+        // a read the area gate let through for the orga of a category only (#729): their raids only
+        if (orgaRead && categoryOrga.requestCache(req).areaViaCategory === true
+            && !(await categoryOrgaOfAll(user, orgaRead(parsed || {}, query, req), req))) {
+            error(res, 403, "not_category_orga", NOT_CATEGORY_ORGA);
+            return undefined;
+        }
         if (archived) {
             const refused = archivedRefusal(archived(parsed || {}, query));
             if (refused) {
@@ -137,6 +158,7 @@ function withUser(opts, fn) {
         return fn({ user, body: parsed, query, url, req, res });
     }
     if (orgaScoped) handler.orgaScoped = true;
+    if (orgaRead) handler.orgaRead = true;
     return handler;
 }
 

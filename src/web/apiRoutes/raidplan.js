@@ -66,6 +66,8 @@ const { planningRefusal } = require("../../services/events/planning");
 // A write on an event plan: an archived event (a hidden game version, #563) is read only, and the orga of a
 // category (#726, `orgaScoped`) may change only the plans of their own category's raids.
 const BY_EVENT = (body) => body.event;
+// a read of one event's plan names it in the query
+const BY_QUERY = (body, query) => query.get("event");
 const { archiveOf } = require("../../services/events/eventArchive");
 const { userSeesEvent } = require("../../services/signups/eventVisibility");
 const raidplanAccess = require("../raidplan/raidplanAccess");
@@ -105,8 +107,11 @@ function knownRosterOf(found) {
 }
 
 
-/** GET /api/raidplan?event=<id>[&fresh=1] — `fresh` asks Raid-Helper again now ("Neu laden") instead of the minute's cache. */
-const getPlan = withUser({}, async ({ user, req, res, url }) => {
+/**
+ * GET /api/raidplan?event=<id>[&fresh=1] — `fresh` asks Raid-Helper again now ("Neu laden") instead of the minute's cache.
+ * Area `raidplan` read, or the orga of the raid's category (#729, `orgaRead`): they plan it (#726), so they read it too.
+ */
+const getPlan = withUser({ orgaRead: BY_QUERY }, async ({ user, req, res, url }) => {
     // a raid of a category the raider may not see answers like an unknown one (eventVisibility.js); the orga passes at once
     const eventId = String(url.searchParams.get("event") || "").trim();
     if (!userIsOrga(user)) {
@@ -406,7 +411,10 @@ async function getProgress(req, res, url) {
     } else {
         const user = auth.getUser(req);
         if (!user) return error(res, 401, "unauthorized", "Nicht angemeldet.");
-        if (!userCan(user, "raidplan", "read")) return error(res, 403, "forbidden", "Kein Zugriff auf diesen Bereich.");
+        // `raidplan` read, or the orga of the raid's category, who opens its plan without it (#729, as GET /api/raidplan)
+        if (!userCan(user, "raidplan", "read") && !(await raidplanAccess.managesRaid(user, url.searchParams.get("event"), req))) {
+            return error(res, 403, "forbidden", "Kein Zugriff auf diesen Bereich.");
+        }
         const found = await eventOf(res, url.searchParams.get("event"));
         if (!found) return;
         event = found.event;
@@ -448,8 +456,8 @@ function linkView(eventId, ev, plan, pickedVersion = "") {
     };
 }
 
-/** GET /api/raidplan/link?event=<id> */
-const getLink = withUser({}, async ({ req, res, url }) => {
+/** GET /api/raidplan/link?event=<id> — the switch's dialog: `raidplan` read, or the orga of the raid's category (#729, `orgaRead`). */
+const getLink = withUser({ orgaRead: BY_QUERY }, async ({ req, res, url }) => {
     const id = String(url.searchParams.get("event") || "").trim();
     if (isOwnEventId(id)) return error(res, 400, "invalid", "Eigene Events haben ihren Raidplan immer.");
     const plan = store.getPlan(id);

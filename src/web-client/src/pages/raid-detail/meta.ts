@@ -16,10 +16,16 @@ export type RaidCtx = {
     openModal: (modal: RaidDetailModal) => void;
     /** The player dialog (other people's raids and loot) — the orga's; absent for a raider, whose names open nothing. */
     openPlayer?: (player: PlayerRef) => void;
-    /** An own event and raids write: "Event verwalten" (#288) is offered. */
+    /** An own event whose actions are open to the caller: "Event verwalten" (#288) is offered. */
     canManage?: boolean;
+    /** The raid's actions are open to the caller (the server's `viewer.canOrga`, #729) and it is no archive: Ping, Aufruf, … */
+    canWrite?: boolean;
+    /** Adding and deleting loot (`history` write). */
+    canLoot?: boolean;
+    /** Assigning, evaluating and unlinking logs (`cla` write). */
+    canLogs?: boolean;
     /**
-     * The orga is looking (lib/app/orgaArea.ts isOrga): the page draws the orga's parts — the
+     * The orga is looking (the server's `orga`: the global orga or the raid's category's, #729): the page draws the orga's parts — the
      * attendance lists, the logs, the actions — inside an OrgaZone. Absent = a raider, who gets
      * none of them (the server already left them out of the payload).
      */
