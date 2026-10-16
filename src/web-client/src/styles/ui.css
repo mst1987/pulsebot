@@ -279,11 +279,40 @@ dialog.dlg.dlg-flush .dlg-foot .dlg-hint { order: -1; margin-right: auto; }
    A fixed look is a class; a value that differs per element (a width, a
    colour, a position) is a custom property set on the element and read here. */
 .empty.app-notice { display: flex; flex-direction: column; gap: 10px; align-items: center; padding-top: 60px; }
-.empty.app-notice.is-login { gap: 14px; padding-top: 80px; }
+/* ---- login card (App.tsx LoginNotice): the page a visitor without a session sees */
+.login-page {
+    min-height: 100vh; min-height: 100dvh; box-sizing: border-box; padding: 48px 16px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    background:
+        radial-gradient(ellipse 60% 45% at 50% 0%, var(--accent-soft), transparent 70%),
+        var(--bg);
+}
+.login-card {
+    position: relative; box-sizing: border-box; width: 100%; max-width: 400px; padding: 32px 30px 26px;
+    display: flex; flex-direction: column; gap: 14px;
+    background: var(--panel); border: 1px solid var(--line); box-shadow: 0 24px 60px -30px rgba(0, 0, 0, .6);
+    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+}
+.login-card::after {
+    content: ""; position: absolute; top: 0; right: 0; width: 18px; height: 18px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 42%, transparent 44%);
+    opacity: .85; pointer-events: none;
+}
+.login-brand { display: flex; align-items: center; gap: 12px; padding-bottom: 18px; margin-bottom: 4px; border-bottom: 1px solid var(--line-soft); }
+.login-brand .crest { width: 48px; height: 48px; border-radius: 12px; }
+.login-brand .crest svg { width: 26px; height: 26px; }
+.login-brand .brand-name { font-size: 19px; }
+.login-title { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.2px; color: var(--text); }
+.login-prompt { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.login-btn { width: 100%; min-height: 46px; margin-top: 6px; font-size: 15px; }
+.login-btn svg { width: 20px; height: 20px; }
+.login-hint { display: flex; align-items: flex-start; gap: 8px; margin: 2px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.login-hint svg { width: 14px; height: 14px; flex: 0 0 auto; margin-top: 1px; }
+@media (max-width: 480px) { .login-card { padding: 26px 20px 22px; } }
 /* "Danach: LevelHelper · Patchnotes" — where the login leads back to (App.tsx LoginNotice) */
 .login-next {
     display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px;
-    background: var(--panel); color: var(--text); font-size: 13.5px;
+    background: var(--panel2); color: var(--text); font-size: 13.5px; box-sizing: border-box;
 }
 .login-next .kicker { letter-spacing: 1px; flex: 0 0 auto; }
 .login-next .wi { width: 18px; height: 18px; border-radius: 4px; flex: 0 0 auto; }
