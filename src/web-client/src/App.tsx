@@ -7,6 +7,7 @@ import { getLang, langReady, setLang, useT } from "./i18n";
 import { firstAllowedTab } from "./lib/app/menu";
 import RaidLoader from "./components/ui/RaidLoader";
 import WowIcon from "./components/ui/WowIcon";
+import { BrandIcon, DiscordIcon, LockIcon } from "./components/ui/icons";
 import LangToggle from "./components/shell/LangToggle";
 import ChunkErrorBoundary from "./components/shell/ChunkErrorBoundary";
 import { lazyWithReload } from "./lib/app/chunkReload";
@@ -182,20 +183,33 @@ function LoginNotice() {
         getAddonName(id).then((a) => { if (live) setNamed(a); }).catch(() => undefined);
         return () => { live = false; };
     }, [addonPart]);
+    // A card like any login form: the brand on top, one big button (Discord is
+    // the only way in, so there are no fields), what the login reads below it.
     return (
-        <div className="empty app-notice is-login">
-            <p>{t("shell.app.loginPrompt")}</p>
-            {addonPart && (
-                <span className="login-next">
-                    <span className="kicker">{t("shell.app.loginNext")}</span>
-                    {named && named.icon && <WowIcon name={named.icon} size={18} />}
-                    <span className="login-next-text">{t("shell.app.loginNextAddon", { name: named ? named.name : addonNameOf(addonPart) })}</span>
-                </span>
-            )}
-            <a className="mlink" href={href}>{t("shell.app.loginButton")}</a>
+        <main className="login-page">
+            <section className="login-card" aria-labelledby="login-title">
+                <div className="login-brand">
+                    <div className="crest"><BrandIcon /></div>
+                    <div>
+                        <div className="brand-name">EventHelper</div>
+                        <div className="brand-sub">{t("shell.brandSub")}</div>
+                    </div>
+                </div>
+                <h1 id="login-title" className="login-title">{t("shell.app.loginTitle")}</h1>
+                <p className="login-prompt">{t("shell.app.loginPrompt")}</p>
+                {addonPart && (
+                    <span className="login-next">
+                        <span className="kicker">{t("shell.app.loginNext")}</span>
+                        {named && named.icon && <WowIcon name={named.icon} size={18} />}
+                        <span className="login-next-text">{t("shell.app.loginNextAddon", { name: named ? named.name : addonNameOf(addonPart) })}</span>
+                    </span>
+                )}
+                <a className="btn login-btn" href={href}><DiscordIcon />{t("shell.app.loginButton")}</a>
+                <p className="login-hint"><LockIcon />{t("shell.app.loginHint")}</p>
+            </section>
             {/* The one switch a visitor gets before logging in — kept in the browser only. */}
             <LangToggle />
-        </div>
+        </main>
     );
 }
 

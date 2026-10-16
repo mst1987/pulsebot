@@ -54,6 +54,19 @@ describe("menu access", () => {
         expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
     });
 
+    it("shows the way in as a login card: brand, heading, Discord button and what the login reads", async () => {
+        showApp(null);
+        const card = await screen.findByRole("region", { name: t("shell.app.loginTitle") });
+        expect(within(card).getByText("EventHelper")).toBeInTheDocument();
+        expect(within(card).getByRole("heading", { level: 1, name: t("shell.app.loginTitle") })).toBeInTheDocument();
+        const button = within(card).getByRole("link", { name: t("shell.app.loginButton") });
+        expect(button).toHaveClass("btn");
+        expect(button.querySelector("svg")).not.toBeNull();
+        expect(within(card).getByText(t("shell.app.loginHint"))).toBeInTheDocument();
+        // the language switch stays outside the card, still before any login
+        expect(within(card).queryByRole("group")).toBeNull();
+    });
+
     it("brings a visitor back to the page they opened after the login", async () => {
         showApp(null, "/raids/detail?event=eh-1");
         expect(await screen.findByRole("link", { name: t("shell.app.loginButton") }))
