@@ -78,17 +78,19 @@ export function Section({ title, sub, children }: { title: string; sub: string; 
 }
 
 /** The four weighting sections over a draft; `onChange` gets the whole next draft. */
-export function WeightsEditor({ draft, onChange, data, readOnly }: {
+export function WeightsEditor({ draft, onChange, data, readOnly, versionId: shownVersion = "" }: {
     draft: CouncilWeightSettings;
     onChange: (next: CouncilWeightSettings) => void;
     /** The profile answer: item info of the stored exceptions, ids and limits. */
     data: Pick<CouncilProfileData, "itemInfo" | "classIds" | "needIds" | "limits" | "versionId">;
     readOnly: boolean;
+    /** The version on screen (the menu's content switch); "" = the profile's own. */
+    versionId?: string;
 }) {
     const t = useT();
-    // The exceptions are items of the profile's version (#760): TBC's item table,
-    // or - without one (Forever) - the hand lists plus Wowhead of the version.
-    const versionId = data.versionId || "";
+    // The exceptions are items of the version on screen (#760), else the profile's:
+    // TBC's item table, or - without one (Forever) - the hand lists plus Wowhead of the version.
+    const versionId = shownVersion || data.versionId || "";
     const searchItems = useCallback((q: string) => searchCouncilItems(q, "", versionId, { wowhead: true }), [versionId]);
     // Icons and names of items added in this session (the server knows the stored ones).
     const [picked, setPicked] = useState<Record<string, { name: string; iconUrl: string; quality: number | null }>>({});

@@ -550,6 +550,8 @@ export type CouncilContent = {
     off?: boolean;
     /** No BiS data of its own: the BiS lists are the orga's hand lists (#760, tab "BiS-Listen"). */
     manualBis?: boolean;
+    /** With hand lists: whether the version has at least one (else the page says where to start). */
+    manualLists?: boolean;
 };
 
 export type LootCouncilData = {

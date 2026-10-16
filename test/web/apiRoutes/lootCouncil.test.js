@@ -182,7 +182,7 @@ describe("GET /api/lootcouncil for a version without council content (#748)", ()
         const res = await call(getLootCouncil, "/api/lootcouncil", "?item=30000");
         const answer = body(res);
         // no BiS data of its own: the hand lists (#760) - none kept yet, so no focus and no gaps
-        expect(answer.content).toEqual({ bis: false, sim: false, tiers: false, itemTable: false, manualBis: true });
+        expect(answer.content).toEqual({ bis: false, sim: false, tiers: false, itemTable: false, manualBis: true, manualLists: false });
         expect(answer.versionId).toBe("forever");
         expect(answer.gaps).toEqual([]);
         expect(answer.focus).toBeNull();
@@ -203,7 +203,10 @@ describe("GET /api/lootcouncil for a version without council content (#748)", ()
             bis: { source: "manual", owned: owned ? 1 : 0, total: 1, items: [{ id: 900001, name: "Kapuze", slot: 0, slotName: "Kopf", alternatives: [], owned, bisSpecs: [] }] },
         });
         lc.councilRoster.mockReturnValue({ rows: [handRow("anna", 0.4, false), handRow("bert", 0.9, false), handRow("cleo", 0.7, true)], avgLootCount: 0, bisTier: "", skipped: 0, categorySources: {} });
-        const gaps = body(await call(getLootCouncil)).gaps;
+        const answer = body(await call(getLootCouncil));
+        // the version has a hand list: the page needs no "no list yet" hint
+        expect(answer.content).toMatchObject({ manualBis: true, manualLists: true });
+        const gaps = answer.gaps;
         expect(gaps.map((g) => [g.id, g.name, g.wantedBy.map((w) => w.key)])).toEqual([[900001, "Kapuze", ["anna", "bert"]]]);
         expect(gaps[0].candidates.map((c) => c.key)).toEqual(["bert", "anna"]);
         const focus = body(await call(getLootCouncil, "/api/lootcouncil", "?item=900001")).focus;

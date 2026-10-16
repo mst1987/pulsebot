@@ -25,17 +25,19 @@ const { SLOT_NAMES } = require("../../utils/logcheck/gearIssues");
 const { SPECS, specByKey } = require("../../config/councilSpecs");
 const { characterProfile } = require("../../utils/setup/setupView");
 const { rulesFor } = require("../../config/gameVersions");
-const { knownVersion, mainVersionFor } = require("../../services/events/mainVersion");
+const { knownVersion, resolveVersionQuery, isVersionVisible } = require("../../services/events/mainVersion");
 const { councilContent } = require("../../services/events/versionCapabilities");
 const { versionLinks } = require("../../services/events/versionSettings");
 const { wowheadPathOf } = require("../../services/characters/wishItems");
 const wowhead = require("../../utils/loot/wowhead");
 
 const SLOT_SET = new Set(MANUAL_SLOTS);
+// The highest item id a save takes (the same bound as the profile's wish items).
+const MAX_ITEM_ID = 9999999;
 
-/** The version a request names, else the main version. */
+/** The version a request names, else the main version - only the main one while the others are hidden (#563). */
 function versionOf(raw, config) {
-    return knownVersion(raw) || mainVersionFor({ config });
+    return resolveVersionQuery(raw, { config }).versionId;
 }
 
 /** A stored item as the editor shows it: icon url and the Wowhead link of the version. */
@@ -124,15 +126,25 @@ const getManualBisSearch = withUser({}, async ({ user, res, url }) => {
     ok(res, { items: items.map((it) => ({ id: it.id, name: it.name, iconUrl: it.iconUrl, quality: it.quality })), search: true });
 });
 
-/** The item ids a save asks for, each once; null when one is no id. */
+/** The item ids a save asks for, each once; null when the list is none or one is no id (a number or digits, 1..MAX_ITEM_ID). */
 function requestedIds(list) {
+    if (!Array.isArray(list)) return null;
     const ids = [];
-    for (const raw of Array.isArray(list) ? list : []) {
-        const id = Number(raw && typeof raw === "object" ? raw.id : raw);
-        if (!Number.isInteger(id) || id <= 0) return null;
+    for (const raw of list) {
+        const value = raw && typeof raw === "object" ? raw.id : raw;
+        if (typeof value !== "number" && !(typeof value === "string" && /^\d+$/.test(value))) return null;
+        const id = Number(value);
+        if (!Number.isInteger(id) || id <= 0 || id > MAX_ITEM_ID) return null;
         if (!ids.includes(id)) ids.push(id);
     }
     return ids;
+}
+
+/** The slot a save names: a whole number of the character sheet (number or digits), else null - never "" or null as the head slot 0. */
+function requestedSlot(raw) {
+    if (typeof raw !== "number" && !(typeof raw === "string" && /^\d+$/.test(raw))) return null;
+    const slot = Number(raw);
+    return Number.isInteger(slot) && SLOT_SET.has(slot) ? slot : null;
 }
 
 /**
@@ -170,24 +182,36 @@ async function resolveItems(versionId, ids, config) {
  * the BiS piece, the rest alternatives). Items already in the version's lists
  * keep their stored name; a new one is looked up on Wowhead of the version.
  */
+/** A save's body checked: `{ versionId, spec, slot, ids }`, or `{ status, code, message }` for the refusal. */
+function checkSave(body, config) {
+    const fail = (status, code, message) => ({ fail: { status, code, message } });
+    const versionId = knownVersion(body.version);
+    if (!versionId) return fail(400, "unknown_version", "Unbekannte Spielversion.");
+    // "Andere Versionen ausblenden" (#563): a hidden version's lists are not written.
+    if (!isVersionVisible(versionId, config)) return fail(409, "version_hidden", "Diese Spielversion ist ausgeblendet – ihre BiS-Listen lassen sich nicht ändern.");
+    const refused = refusal(versionId, config);
+    if (refused) return fail(409, refused.code, refused.message);
+    const spec = specByKey(String(body.spec || ""));
+    if (!spec || !SPECS.includes(spec)) return fail(400, "unknown_spec", "Unbekannte Spezialisierung.");
+    const slot = requestedSlot(body.slot);
+    if (slot === null) return fail(400, "unknown_slot", "Unbekannter Slot.");
+    const ids = requestedIds(body.items);
+    if (!ids) return fail(400, "unknown_item", "Ungültige Item-Liste: erwartet eine Liste von Item-IDs.");
+    if (ids.length > MAX_PER_SLOT) return fail(400, "too_many", `Höchstens ${MAX_PER_SLOT} Items je Slot.`);
+    return { versionId, spec, slot, ids };
+}
+
 const postManualBis = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ user, body, res }) => {
     const config = getConfig();
-    const versionId = knownVersion(body.version);
-    if (!versionId) return apiError(res, 400, "unknown_version", "Unbekannte Spielversion.");
-    const refused = refusal(versionId, config);
-    if (refused) return apiError(res, 409, refused.code, refused.message);
-    const spec = specByKey(String(body.spec || ""));
-    if (!spec || !SPECS.includes(spec)) return apiError(res, 400, "unknown_spec", "Unbekannte Spezialisierung.");
-    const slot = Number(body.slot);
-    if (!SLOT_SET.has(slot)) return apiError(res, 400, "unknown_slot", "Unbekannter Slot.");
-    const ids = requestedIds(body.items);
-    if (!ids) return apiError(res, 400, "unknown_item", "Ungültige Item-ID.");
-    if (ids.length > MAX_PER_SLOT) return apiError(res, 400, "too_many", `Höchstens ${MAX_PER_SLOT} Items je Slot.`);
-
+    const checked = checkSave(body, config);
+    if (checked.fail) return apiError(res, checked.fail.status, checked.fail.code, checked.fail.message);
+    const { versionId, spec, slot, ids } = checked;
+    // Which ids are new in this slot: only those are worth a "Wowhead kennt … nicht" (#760).
+    const before = new Set((((manualBisStore.listsFor(versionId)[spec.key] || {}).slots || {})[slot] || []).map((it) => it.id));
     const { items, unresolved } = await resolveItems(versionId, ids, config);
     manualBisStore.setSlot(versionId, spec.key, slot, items, { by: (user && user.name) || "" });
     const view = editorView(versionId, config);
-    ok(res, { ...view, spec: spec.key, slot, unresolved });
+    ok(res, { ...view, spec: spec.key, slot, unresolved: unresolved.filter((id) => !before.has(id)) });
 });
 
 const routes = [

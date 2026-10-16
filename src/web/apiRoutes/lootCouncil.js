@@ -99,14 +99,15 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     // gets no gaps, no drop check, no filter options and no simulation - and says so.
     const content = councilContentFor(versionId, { config });
     // What the page gets of it; `off` (#761): the version has BiS data, but it is switched off in Einstellungen → Spielversion.
-    // `manualBis` (#760): no BiS data of its own, the lists are the orga's hand lists.
+    // `manualBis` (#760): no BiS data of its own, the lists are the orga's hand lists;
+    // `manualLists`: the version has at least one (else the page says where to start).
+    const manual = content.manualBis ? manualIndex(versionId) : null;
     const contentView = {
         bis: content.bis, sim: content.sim, tiers: content.tiers, itemTable: content.itemTable,
-        ...(content.manualBis ? { manualBis: true } : {}),
+        ...(manual ? { manualBis: true, manualLists: Object.keys(manual.lists).length > 0 } : {}),
         ...(content.off ? { off: true } : {}),
     };
     const contentFilter = content.tiers ? resolveContentFilter({ tierIds, contentIds }) : null;
-    const manual = content.manualBis ? manualIndex(versionId) : null;
 
     // One named item ("this just dropped") short-circuits the BiS list: the
     // council wants the candidates for that item, not the whole gap report —

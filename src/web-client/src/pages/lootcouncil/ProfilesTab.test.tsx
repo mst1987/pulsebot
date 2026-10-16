@@ -10,7 +10,7 @@ import * as api from "../../api";
 import type { CouncilProfileData, CouncilProfileRow, CouncilWeightSettings } from "../../api";
 import { councilData } from "../../test/councilFixtures";
 import { switchLang } from "../../test/i18n";
-import { renderPage } from "../../test/render";
+import { renderPage, twoVersions } from "../../test/render";
 import { ProfilesTab } from "./ProfilesTab";
 
 vi.mock("../../api", async (orig) => ({
@@ -63,6 +63,18 @@ beforeEach(() => {
     vi.mocked(api.searchCouncilItems).mockResolvedValue({ items: [{ id: 28789, name: "Eye of Magtheridon", iconUrl: "", quality: 4, contentId: "mag", boss: "Magtheridon", bisSpecs: [] }] });
 });
 
+describe("the exceptions' search (#760)", () => {
+    it("looks in the items of the version on screen, not the profile's", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getCouncilProfile).mockImplementation(async (id) => ({ ...profileData(id), versionId: "tbc" }));
+        renderPage(<ProfilesTab initialId="p-main" options={options} canWrite onSaved={vi.fn()} />, {
+            content: twoVersions({ mainVersion: "forever", versions: [{ id: "forever", label: "WoW Forever", short: "Forever" }, { id: "tbc", label: "WoW TBC", short: "TBC" }] }),
+        });
+        await user.type(await screen.findByPlaceholderText("Item suchen, um eine Ausnahme anzulegen …"), "Eye");
+        await waitFor(() => expect(api.searchCouncilItems).toHaveBeenCalledWith("Eye", "", "forever", { wowhead: true }));
+    });
+});
+
 function show(initialId = "p-main", canWrite = true, onSaved = vi.fn()) {
     renderPage(<ProfilesTab initialId={initialId} options={options} canWrite={canWrite} onSaved={onSaved} />, canWrite ? {} : { user: readerUser });
     return onSaved;
@@ -106,6 +118,7 @@ describe("profiles tab (German)", () => {
         expect(await screen.findByText("Noch keine Ausnahmen.")).toBeInTheDocument();
         await user.type(screen.getByPlaceholderText("Item suchen, um eine Ausnahme anzulegen …"), "Eye");
         await user.click(await screen.findByText("Eye of Magtheridon"));
+        expect(api.searchCouncilItems).toHaveBeenCalledWith("Eye", "", "", { wowhead: true });
         await user.click(screen.getByRole("button", { name: "Speichern" }));
         await waitFor(() => expect(api.updateCouncilProfile).toHaveBeenCalledWith("p-main", expect.objectContaining({
             weights: expect.objectContaining({ items: { 28789: { weight: 1, name: "Eye of Magtheridon" } } }),

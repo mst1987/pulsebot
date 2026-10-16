@@ -147,10 +147,30 @@ describe("councilRoster on hand lists", () => {
         expect(gaps[0].best.key).toBe("devihra");
     });
 
-    it("an awarded copy not yet in a log counts as owned", () => {
+    it("counts copies: one ring worn and awarded leaves the second ring slot open", () => {
         fillLists();
+        // the worn ring (slot 10) was won here - that award is the worn copy, not a second one
         mockListAll.mockReturnValue([lootRow({ itemId: RING, itemName: "Ring" })]);
-        const { rows } = councilRoster({ versionId: "forever" });
-        expect(manualCandidateSplit(RING, rows).owned).toEqual([expect.objectContaining({ source: "awarded" })]);
+        const split = manualCandidateSplit(RING, councilRoster({ versionId: "forever" }).rows);
+        expect(split.candidates.map((c) => [c.key, c.slot])).toEqual([["devihra", 11]]);
+        expect(split.owned).toEqual([]);
+    });
+
+    it("a second awarded copy not yet in a log counts as owned", () => {
+        fillLists();
+        mockListAll.mockReturnValue([lootRow({ itemId: RING, itemName: "Ring" }), lootRow({ itemId: RING, itemName: "Ring", awardedAt: Date.now() - 1000 })]);
+        const split = manualCandidateSplit(RING, councilRoster({ versionId: "forever" }).rows);
+        expect(split.candidates).toEqual([]);
+        expect(split.owned).toEqual([expect.objectContaining({ key: "devihra", source: "awarded" })]);
+    });
+
+    it("an awarded copy with nothing of it worn fills the open slot", () => {
+        fillLists();
+        mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([item(0, ALT_HOOD), item(10, 1234)])]]));
+        mockListAll.mockReturnValue([lootRow({ itemId: RING, itemName: "Ring" }), lootRow({ itemId: RING, itemName: "Ring" })]);
+        const split = manualCandidateSplit(RING, councilRoster({ versionId: "forever" }).rows);
+        expect(split.owned).toEqual([expect.objectContaining({ source: "awarded" })]);
+        mockListAll.mockReturnValue([lootRow({ itemId: RING, itemName: "Ring" })]);
+        expect(manualCandidateSplit(RING, councilRoster({ versionId: "forever" }).rows).candidates).toHaveLength(1);
     });
 });

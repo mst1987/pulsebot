@@ -41,7 +41,8 @@
         "notHere": "This game version has BiS lists of its own – hand-kept lists exist only for versions without BiS data.",
         "noListsYet": "There are no BiS lists for this game version yet. Add them per spec in the \"BiS lists\" tab – then the council shows who is missing what.",
         "openTab": "Open the BiS lists",
-        "dropNotListed": "This item is on no BiS list. Without an item table the drop check only names raiders whose list holds the item."
+        "dropNotListed": "This item is on no BiS list. Without an item table the drop check only names raiders whose list holds the item.",
+        "dropNoItem": "No item chosen yet — search top right. The search runs over this game version's hand-kept BiS lists; the candidates are the raiders whose list holds the item."
     },
     "role": {
         "caster": "Caster",

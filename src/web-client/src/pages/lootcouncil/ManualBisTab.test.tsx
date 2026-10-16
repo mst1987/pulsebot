@@ -100,7 +100,23 @@ describe("ManualBisTab", () => {
         await user.type(screen.getByRole("textbox", { name: "Item-ID" }), "9000x09");
         await user.click(screen.getByRole("button", { name: "Hinzufügen" }));
         expect(api.saveManualBisSlot).toHaveBeenCalledWith("forever", "Priest-Shadow", 1, [900009]);
-        expect(await screen.findByText(/Wowhead kennt Item 900009 \(noch\) nicht/)).toBeInTheDocument();
+        const note = await screen.findByText(/Wowhead kennt Item 900009 \(noch\) nicht/);
+        // a hint, not a success
+        expect(note.closest(".toast")).toHaveClass("toast-warn");
+    });
+
+    it("leaves the ids already in the slot out of the search, and doubles", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.searchManualBisItems).mockResolvedValue({
+            items: [{ id: 900001, name: "Kapuze", iconUrl: "", quality: 4 }, { id: 900003, name: "Kapuzenmantel", iconUrl: "", quality: 3 }, { id: 900003, name: "Kapuzenmantel", iconUrl: "", quality: 3 }],
+            search: true,
+        });
+        renderPage(<ManualBisTab versionId="forever" canWrite onSaved={onSaved} />);
+        await screen.findByText("Kapuze");
+        await user.click(screen.getByRole("button", { name: "Item für Kopf hinzufügen" }));
+        await user.type(screen.getByPlaceholderText("Item auf Wowhead suchen …"), "kapu");
+        expect(await screen.findAllByText("Kapuzenmantel")).toHaveLength(1);
+        expect(screen.getAllByText("Kapuze")).toHaveLength(1);
     });
 
     it("adds from the Wowhead search of the version", async () => {

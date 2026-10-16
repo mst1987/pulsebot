@@ -41,7 +41,8 @@
         "notHere": "Diese Spielversion hat eigene BiS-Listen – von Hand gepflegte Listen gibt es nur für Versionen ohne BiS-Daten.",
         "noListsYet": "Für diese Spielversion gibt es noch keine BiS-Listen. Legt sie je Spec im Tab „BiS-Listen“ an – dann zeigt der Council, wem was fehlt.",
         "openTab": "Zu den BiS-Listen",
-        "dropNotListed": "Dieses Item steht auf keiner BiS-Liste. Ohne Item-Tabelle nennt der Drop-Check nur Raider, auf deren Liste das Item steht."
+        "dropNotListed": "Dieses Item steht auf keiner BiS-Liste. Ohne Item-Tabelle nennt der Drop-Check nur Raider, auf deren Liste das Item steht.",
+        "dropNoItem": "Noch kein Item gewählt — oben rechts suchen. Gesucht wird in den von Hand gepflegten BiS-Listen dieser Spielversion; Kandidaten sind die Raider, auf deren Liste das Item steht."
     },
     "role": {
         "caster": "Caster",

@@ -64,6 +64,8 @@ const VIEW_DEFAULT: View = {
 
 /** What in the url makes it the council of a pick; plain /lootcouncil is the tile overview. */
 const COUNCIL_PARAMS = ["roster", "category", "raider", "tab"];
+/** The tabs a link (`?tab=`) opens directly; any other value just opens the council. */
+const LINKABLE_TABS: readonly View["tab"][] = ["profiles", "bislists", "bis", "compare"];
 
 /**
  * The entry (Oct 2026): plain /lootcouncil shows the tiles of every roster and category that
@@ -106,8 +108,10 @@ function CouncilPage() {
     const restoredRef = useRef("");
     useEffect(() => {
         if (urlRoster && urlRoster !== restoredRef.current) linkedRef.current = urlRoster;
-        const tabPatch = linkedTab === "profiles" ? { tab: "profiles" as const } : {};
-        if (localView.roster !== pick.roster || localView.category !== pick.category || linkedTab === "profiles") {
+        // A link may open these tabs directly (#760: `?tab=bislists` for the hand-list editor).
+        const linkTab = LINKABLE_TABS.find((x) => x === linkedTab);
+        const tabPatch = linkTab ? { tab: linkTab } : {};
+        if (localView.roster !== pick.roster || localView.category !== pick.category || linkTab) {
             setLocalView({ ...localView, ...pick, ...tabPatch });
         }
         const pickMissing = (pick.roster && !urlRoster) || (pick.category && !urlCategory);
@@ -426,7 +430,7 @@ function CouncilPage() {
             {/* A version without content data says so, instead of showing TBC's (#748). */}
             {!hasBis ? <div className="lc-panel empty" role="note">{t(content.off ? "lootcouncil.noContent.off" : "lootcouncil.noContent.text")}</div> : null}
             {/* Hand lists without any list yet (#760): one calm line where to start. */}
-            {content.manualBis && !roster.some((r) => r.bis.total) && shownTab !== "bislists" ? (
+            {content.manualBis && content.manualLists === false && shownTab !== "bislists" ? (
                 <div className="lc-panel lc-mb-hint" role="note">
                     <span>{t("lootcouncil.manualBis.noListsYet")}</span>
                     <Button variant="ghost" size="sm" icon="inv_misc_book_09" onClick={() => patch({ tab: "bislists" })}>{t("lootcouncil.manualBis.openTab")}</Button>
@@ -436,16 +440,19 @@ function CouncilPage() {
             {/* Tabs first, then the one filter line they all share. */}
             <CouncilTabs tab={shownTab} patch={patch} rosterCount={roster.length} gapCount={gaps.length} hasBis={hasBis} />
 
-            <FilterBar
-                data={data}
-                view={view}
-                patch={patch}
-                armoryCount={armoryCount}
-                simulated={simulated}
-                simulatable={simulatable.length}
-                reachesGame={reachesGame}
-                canWrite={canWrite}
-            />
+            {/* The hand-list editor (#760) filters nothing by role or content: no filter line there. */}
+            {shownTab === "bislists" && content.manualBis ? null : (
+                <FilterBar
+                    data={data}
+                    view={view}
+                    patch={patch}
+                    armoryCount={armoryCount}
+                    simulated={simulated}
+                    simulatable={simulatable.length}
+                    reachesGame={reachesGame}
+                    canWrite={canWrite}
+                />
+            )}
 
             {shownTab === "roster" ? (
                 <RosterTab

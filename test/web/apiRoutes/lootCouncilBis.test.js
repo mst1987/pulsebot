@@ -115,6 +115,23 @@ describe("POST /api/lootcouncil/manual-bis", () => {
         expect(wowhead.lookupItem).not.toHaveBeenCalled();
     });
 
+    it("names only the newly added unknown ids, not the ones already in the slot", async () => {
+        store.setSlot("forever", "Priest-Shadow", 0, [{ id: 900002 }]);
+        const data = body(await post("/api/lootcouncil/manual-bis", { version: "forever", spec: "Priest-Shadow", slot: 0, items: ["900002", 900003] }));
+        expect(data.lists["Priest-Shadow"].slots["0"].map((i) => i.id)).toEqual([900002, 900003]);
+        expect(data.unresolved).toEqual([900003]);
+        const again = body(await post("/api/lootcouncil/manual-bis", { version: "forever", spec: "Priest-Shadow", slot: 0, items: [900003, 900002] }));
+        expect(again.unresolved).toEqual([]);
+    });
+
+    it("keeps to the main version while the others are hidden (#563)", async () => {
+        mockConfig = { ...FOREVER, mainVersion: "tbc", hideOtherVersions: true };
+        expect(body(await get("/api/lootcouncil/manual-bis", { version: "forever" })).versionId).toBe("tbc");
+        const res = await post("/api/lootcouncil/manual-bis", { version: "forever", spec: "Priest-Shadow", slot: 0, items: [1] });
+        expect([status(res), code(res)]).toEqual([409, "version_hidden"]);
+        expect(store.listsFor("forever")).toEqual({});
+    });
+
     it("an empty list clears the slot", async () => {
         store.setSlot("forever", "Priest-Shadow", 0, [{ id: 900001, name: "Kapuze" }]);
         const data = body(await post("/api/lootcouncil/manual-bis", { version: "forever", spec: "Priest-Shadow", slot: 0, items: [] }));
@@ -137,6 +154,17 @@ describe("POST /api/lootcouncil/manual-bis", () => {
             [{ version: "forever", spec: "Priest-Shadow", slot: 3, items: [] }, "unknown_slot"],
             [{ version: "forever", spec: "Priest-Shadow", slot: 0, items: ["x"] }, "unknown_item"],
             [{ version: "forever", spec: "Priest-Shadow", slot: 0, items: [1, 2, 3, 4] }, "too_many"],
+            // not a list: never a silently cleared slot
+            [{ version: "forever", spec: "Priest-Shadow", slot: 0, items: "123" }, "unknown_item"],
+            [{ version: "forever", spec: "Priest-Shadow", slot: 0 }, "unknown_item"],
+            [{ version: "forever", spec: "Priest-Shadow", slot: 0, items: [10000000] }, "unknown_item"],
+            [{ version: "forever", spec: "Priest-Shadow", slot: 0, items: [1.5] }, "unknown_item"],
+            [{ version: "forever", spec: "Priest-Shadow", slot: 0, items: [true] }, "unknown_item"],
+            // null, "" or a fraction never become the head slot 0
+            [{ version: "forever", spec: "Priest-Shadow", slot: null, items: [1] }, "unknown_slot"],
+            [{ version: "forever", spec: "Priest-Shadow", slot: "", items: [1] }, "unknown_slot"],
+            [{ version: "forever", spec: "Priest-Shadow", items: [1] }, "unknown_slot"],
+            [{ version: "forever", spec: "Priest-Shadow", slot: 0.5, items: [1] }, "unknown_slot"],
         ];
         for (const [payload, expected] of cases) {
             const res = await post("/api/lootcouncil/manual-bis", payload);

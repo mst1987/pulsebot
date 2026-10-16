@@ -25,15 +25,23 @@ import { ROLE_ICON } from "./council";
 const ROLE_ORDER = ["caster", "healer", "tank", "melee", "ranged"];
 
 /** The add row of one slot: Wowhead of the version, and an item id as the quiet fallback. */
-function SlotAdder({ versionId, search, busy, onAdd }: {
+function SlotAdder({ versionId, search, busy, taken, onAdd }: {
     versionId: string;
     search: boolean;
     busy: boolean;
+    /** The ids already in the slot: the search leaves them out (Wowhead's suggestions carry no slot to filter by). */
+    taken: number[];
     onAdd: (id: number) => void;
 }) {
     const t = useT();
     const [idText, setIdText] = useState("");
-    const lookup = useCallback((q: string) => searchManualBisItems(versionId, q), [versionId]);
+    const takenKey = taken.join(",");
+    const lookup = useCallback(async (q: string) => {
+        const answer = await searchManualBisItems(versionId, q);
+        const skip = new Set(takenKey.split(",").map(Number));
+        const seen = new Set<number>();
+        return { ...answer, items: answer.items.filter((it) => !skip.has(it.id) && !seen.has(it.id) && seen.add(it.id)) };
+    }, [versionId, takenKey]);
     const id = Number(idText.trim());
     const validId = Number.isInteger(id) && id > 0;
     const addId = () => { if (validId) { onAdd(id); setIdText(""); } };
@@ -48,14 +56,14 @@ function SlotAdder({ versionId, search, busy, onAdd }: {
                 <input
                     type="text"
                     inputMode="numeric"
-                    className="lc-mb-id"
+                    className="inp-sm lc-mb-id"
                     value={idText}
                     placeholder={t("lootcouncil.manualBis.idPlaceholder")}
                     aria-label={t("lootcouncil.manualBis.idPlaceholder")}
                     onChange={(e) => setIdText(e.target.value.replace(/[^\d]/g, ""))}
                     onKeyDown={(e) => { if (e.key === "Enter") addId(); }}
                 />
-                <Button variant="go" size="sm" icon={<PlusIcon />} disabled={!validId} running={busy} onClick={addId}>
+                <Button variant="go" icon={<PlusIcon />} disabled={!validId} running={busy} onClick={addId}>
                     {t("lootcouncil.manualBis.addById")}
                 </Button>
             </div>
@@ -142,7 +150,8 @@ export function ManualBisTab({ versionId, canWrite, onSaved }: {
         try {
             const next = await saveManualBisSlot(data.versionId, current.key, slot, ids);
             setData(next);
-            if (next.unresolved.length) toast(t("lootcouncil.manualBis.unresolved", { ids: next.unresolved.join(", ") }), "ok");
+            // only the ids this save added that Wowhead does not know (the server filters) - a hint, not a success
+            if (next.unresolved.length) toast(t("lootcouncil.manualBis.unresolved", { ids: next.unresolved.join(", ") }), "warn");
             onSaved();
         } catch (err) {
             toast((err as ApiError).message || t("lootcouncil.page.actionFailed"), "err");
@@ -206,7 +215,7 @@ export function ManualBisTab({ versionId, canWrite, onSaved }: {
                             const busy = busySlot === slot;
                             const open = adding === slot;
                             return (
-                                <li key={slot} className={`lc-mb-slot${items.length ? "" : " empty"}`}>
+                                <li key={slot} className={`lc-mb-slot${items.length ? "" : " lc-mb-noitem"}`}>
                                     <span className="lc-mb-slotname">{slotLabel(slot, slotName)}</span>
                                     <div className="lc-mb-slotbody">
                                         {items.length ? (
@@ -229,6 +238,7 @@ export function ManualBisTab({ versionId, canWrite, onSaved }: {
                                                 versionId={data.versionId}
                                                 search={data.search}
                                                 busy={busy}
+                                                taken={ids}
                                                 onAdd={(id) => {
                                                     if (ids.includes(id)) return;
                                                     void save(slot, [...ids, id]).then(() => setAdding(null));

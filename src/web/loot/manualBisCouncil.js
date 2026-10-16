@@ -167,10 +167,12 @@ function manualCandidateSplit(itemId, roster) {
             specIconUrl: row.specIconUrl,
         };
         const open = openEntriesFor(row, id);
-        const awarded = (row.items || []).filter((it) => Number(it.itemId) === id).length;
         if (!open.length) { owned.push({ ...ident, source: "worn" }); continue; }
-        // Won but not yet in a log: as many copies as the open slots ask for are "awarded".
-        if (awarded >= open.length) { owned.push({ ...ident, source: "awarded" }); continue; }
+        // In copies, like alreadyHas(): the awards count the copy already worn too,
+        // so only the awarded copies the gear does not show yet can fill an open slot.
+        const awarded = (row.items || []).filter((it) => Number(it.itemId) === id).length;
+        const worn = named.filter((entry) => entry.owned && entry.id === id).length;
+        if (Math.max(0, awarded - worn) >= open.length) { owned.push({ ...ident, source: "awarded" }); continue; }
         const entry = open[0];
         const replaces = ((row.gear && row.gear.items) || []).find((it) => it.slot === entry.slot) || null;
         candidates.push({
