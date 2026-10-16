@@ -1,0 +1,215 @@
+/* Animations of a raid plan section (docs/raidplan/animation.md): the player's bar, the button that opens it and the caption over
+   the map - the same in the sheet's stage and in the editor. The effects on the board itself (badges, pulses, trails) are in objects.css. */
+.rp-anim-bar { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--panel) 94%, transparent); box-shadow: 0 8px 24px var(--shade-35); color: var(--text); }
+.rp-anim-row { display: flex; align-items: center; gap: 6px; }
+.rp-anim-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 34px; padding: 0 6px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+.rp-anim-btn:hover:not(:disabled) { background: var(--accent-soft); }
+.rp-anim-btn:disabled { opacity: .4; cursor: default; }
+.rp-anim-btn.is-on { background: var(--accent-soft); color: var(--accent); }
+.rp-anim-play { min-width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); }
+.rp-anim-play:hover:not(:disabled) { background: var(--accent); filter: brightness(1.1); }
+.rp-anim-speed { min-width: 44px; font-variant-numeric: tabular-nums; }
+.rp-anim-time { min-width: 76px; color: var(--muted); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: center; }
+.rp-anim-track { position: relative; flex: 1 1 auto; min-width: 120px; height: 34px; display: flex; align-items: center; }
+.rp-anim-track input[type="range"] { width: 100%; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.rp-anim-tick { position: absolute; left: var(--rp-at); top: 2px; width: 12px; height: 12px; margin-left: -6px; padding: 0; border: 2px solid var(--panel); border-radius: 50%; background: var(--muted); cursor: pointer; }
+.rp-anim-tick.is-on { background: var(--accent); }
+.rp-anim-tick:hover { transform: scale(1.25); }
+.rp-anim-scenes { display: flex; flex-wrap: wrap; gap: 6px; }
+.rp-anim-scene { padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.rp-anim-scene.is-on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+/* the sheet's stage: the bar at the bottom in the middle, the button where it will open, the caption at the top */
+.rp-anim-stage { position: absolute; left: 50%; bottom: 16px; z-index: 9; width: min(760px, calc(100% - var(--rp-side, 64px) - 32px)); transform: translateX(calc(-50% - var(--rp-side, 64px) / 2 + 32px)); box-sizing: border-box; }
+.rp-anim-open { position: absolute; left: calc(50% - var(--rp-side, 64px) / 2 + 32px); top: 14px; z-index: 9; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border: 0; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 15px; font-weight: 800; white-space: nowrap; box-shadow: 0 8px 24px var(--shade-35); cursor: pointer; }
+.rp-anim-open:hover { filter: brightness(1.1); }
+.rp-anim-caption { position: absolute; left: calc(50% - var(--rp-side, 64px) / 2 + 32px); top: 14px; z-index: 9; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; max-width: min(640px, calc(100% - var(--rp-side, 64px) - 32px)); padding: 8px 16px; border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--panel) 92%, transparent); box-shadow: 0 8px 24px var(--shade-35); text-align: center; pointer-events: none; }
+.rp-anim-caption-n { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.rp-anim-caption-text { font-size: 18px; line-height: 1.3; }
+
+@media (max-width: 720px) {
+    .rp-anim-stage { left: 8px; right: 8px; bottom: 8px; width: auto; transform: none; }
+    .rp-anim-time { display: none; }
+    .rp-anim-row { gap: 2px; }
+    .rp-anim-btn { min-width: 30px; padding: 0 4px; }
+    .rp-anim-speed { min-width: 34px; }
+    .rp-anim-track { min-width: 0; margin: 0 4px; }
+    .rp-anim-caption, .rp-anim-open { top: 52px; }
+    .rp-anim-caption { max-width: calc(100% - 16px); }
+    .rp-anim-caption-text { font-size: 15px; }
+}
+
+/* while an animation plays, the zoom stands above its bar ("Deine Aufgaben" is not shown meanwhile) */
+.rp-sheet-stage.is-anim .rp-zoomctl { bottom: 96px; }
+@media (max-width: 720px) { .rp-sheet-stage.is-anim .rp-zoomctl { bottom: auto; } }
+
+/* ---- the editor's view "Animation" (components/raidplan/editor/AnimWorkspace.tsx, AnimPanel.tsx) ---- */
+.rp-anim-work { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.rp-anim-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.rp-anim-head .rp-anim-scene { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 13px; }
+.rp-anim-scene-n { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.rp-anim-add { border-style: dashed; gap: 4px; }
+.rp-anim-stagegrid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 12px; align-items: start; }
+.rp-anim-boardcol { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.rp-anim-boardwrap { position: relative; }
+
+/* the frame strip: one card per frame, like slides */
+.rp-anim-strip { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px; }
+.rp-anim-frame { flex: 0 0 168px; display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.rp-anim-frame:hover { border-color: var(--accent); }
+.rp-anim-frame.is-on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+.rp-anim-frame-top { display: flex; align-items: baseline; gap: 8px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.rp-anim-frame-top b { color: var(--text); font-size: 18px; line-height: 1; }
+.rp-anim-frame-len { margin-left: auto; }
+.rp-anim-frame-cap { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 2.6em; font-size: 13px; font-weight: 700; line-height: 1.3; }
+.rp-anim-frame-sum { color: var(--muted); font-size: 11px; }
+.rp-anim-frame-add { flex-basis: 96px; align-items: center; justify-content: center; border-style: dashed; color: var(--muted); font-weight: 700; }
+
+/* the panel beside the board */
+.rp-anim-panel { display: flex; flex-direction: column; gap: 10px; }
+.rp-anim-psec { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.rp-anim-psec .rp-anim-input { width: 100%; box-sizing: border-box; padding: 6px 10px; }
+.rp-anim-title { font-size: 15px; font-weight: 700; }
+.rp-anim-fhead, .rp-anim-ohead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0; font-size: 16px; }
+.rp-anim-fhead .rp-muted { font-size: 12px; font-weight: 600; }
+.rp-anim-prow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rp-anim-plabel { color: var(--muted); font-size: 12px; font-weight: 700; }
+.rp-anim-fbtns { display: flex; flex-wrap: wrap; gap: 6px; }
+.rp-anim-del, .rp-anim-reset { align-self: flex-start; }
+.rp-anim-note { margin: 0; font-size: 12px; }
+.rp-anim-state { margin: 0; color: var(--muted); font-size: 12px; }
+.rp-anim-state.is-on { color: var(--accent); font-weight: 700; }
+.rp-anim-chips, .rp-anim-eases { display: flex; flex-wrap: wrap; gap: 6px; }
+.rp-anim-chip { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.rp-anim-chip.is-on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.rp-anim-chip:disabled { opacity: .45; cursor: default; }
+.rp-anim-step { display: inline-flex; align-items: center; gap: 4px; }
+.rp-anim-step > button { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: var(--panel2); color: var(--text); cursor: pointer; }
+.rp-anim-step > button:hover:not(:disabled) { border-color: var(--accent); }
+.rp-anim-step > button:disabled { opacity: .4; cursor: default; }
+.rp-anim-step .rp-num { width: 74px; }
+.rp-anim-step .rp-num input { box-sizing: border-box; height: 28px; padding: 0 24px 0 6px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--text); font: inherit; font-size: 13px; }
+.rp-anim-step .rp-num input:focus { border-color: var(--accent); outline: none; }
+.rp-anim-badge { display: flex; flex-direction: column; gap: 6px; }
+.rp-anim-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.rp-anim-preset { padding: 2px; border: 2px solid transparent; border-radius: 7px; background: var(--panel2); cursor: pointer; line-height: 0; }
+.rp-anim-preset img { border-radius: 4px; }
+.rp-anim-preset.is-on { border-color: var(--rp-danger); }
+.rp-anim-iconname { display: flex; gap: 6px; }
+.rp-anim-badgenow { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.rp-anim-badgenow img { border-radius: 4px; }
+
+/* drawing a way (#712): the points as grips on the map, a crosshair while a click adds one, the loops in the panel */
+.rp-board .rp-path-pt { left: var(--rp-x) !important; top: var(--rp-y) !important; }
+.rp-path-pt { position: absolute; z-index: 8; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 2px solid var(--rp-icon-outline); border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); cursor: grab; touch-action: none; }
+.rp-path-pt.is-loopstart { background: var(--panel); border-color: var(--accent); }
+.rp-path-pt:hover { transform: scale(1.25); }
+.rp-anim-boardwrap.is-drawing { cursor: crosshair; }
+.rp-anim-boardwrap.is-drawing .rp-board { box-shadow: 0 0 0 3px var(--accent); }
+.rp-anim-wayctl { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.rp-anim-drawnote { margin: 0; padding: 6px 8px; border-radius: 8px; background: var(--accent-soft); color: var(--text); font-size: 12px; line-height: 1.4; }
+.rp-anim-loops { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.rp-anim-loops > button { align-self: flex-start; }
+.rp-anim-loop { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; }
+.rp-anim-loop.is-drawing { border-color: var(--accent); }
+.rp-anim-loophead { display: flex; align-items: center; gap: 8px; }
+.rp-anim-loophead .rp-muted { margin-right: auto; font-size: 12px; }
+.rp-anim-iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; }
+.rp-anim-iconbtn:hover:not(:disabled) { border-color: var(--rp-danger); color: var(--rp-danger); }
+
+/* no scene yet: what an animation is and how to make one */
+.rp-anim-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 620px; margin: 24px auto; padding: 28px; border: 1px dashed var(--line); border-radius: 14px; text-align: center; }
+.rp-anim-empty h3 { margin: 0; font-size: 20px; }
+.rp-anim-empty p { margin: 0; }
+.rp-anim-howto { margin: 4px 0 8px; padding-left: 20px; text-align: left; line-height: 1.5; }
+
+/* scenes at tactic steps (#713): the step the editor links, the mark at the editor's step, the sheet's play button */
+.rp-anim-steppick { display: flex; flex-direction: column; gap: 4px; }
+.rp-anim-steppick select { width: 100%; }
+.rp-st-anim { display: inline-flex; margin-left: 6px; color: var(--accent); vertical-align: middle; }
+.rp-rs-play { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; padding: 3px 10px; border: 1px solid var(--accent); border-radius: 999px; background: var(--accent-soft); color: var(--accent); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.rp-rs-play:hover { background: var(--accent); color: var(--accent-ink); }
+
+/* ---- design B (#722): who is picked, the frame's actions as sentences, the assistant Wer → Was → Wohin ---- */
+.rp-anim-stagegrid { grid-template-columns: minmax(0, 1fr) 380px; }
+.rp-anim-pickhint { margin: 0; color: var(--muted); font-size: 12px; }
+
+/* "Wer?" under the map: the actors in sections, a picked group opens its raiders */
+.rp-actors { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.rp-actors.is-active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.rp-actors-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.rp-actors-head strong { font-size: 15px; }
+.rp-actors-head .rp-muted { font-size: 12px; }
+.rp-actors-clear { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.rp-actors-sec { display: flex; flex-direction: column; gap: 4px; }
+.rp-actors-label { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rp-actors-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rp-actor-wrap { display: contents; }
+.rp-actor-wrap.is-open { display: flex; flex-basis: 100%; flex-direction: column; gap: 6px; padding: 6px; border: 1px solid var(--accent); border-radius: 12px; background: var(--accent-soft); }
+.rp-actor { display: inline-flex; align-self: flex-start; align-items: center; gap: 6px; padding: 3px 11px 3px 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--text); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.rp-actor:hover { border-color: var(--accent); }
+.rp-actor.is-on { border: 2px solid var(--accent); background: var(--accent-soft); color: var(--accent); }
+.rp-actor.is-small { font-size: 12px; }
+.rp-actor-dot { display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: var(--rp-ac, var(--muted)); color: var(--rp-icon-outline); font-size: 11px; font-weight: 800; }
+.rp-actor-acts { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.rp-actor-raiders { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-left: 8px; }
+.rp-actors-note { font-size: 12px; line-height: 1.4; }
+
+/* the label over the picked actors on the map: who a movement is given to */
+.rp-board .rp-anim-sellabel { left: var(--rp-x) !important; top: var(--rp-y) !important; }
+.rp-anim-sellabel { position: absolute; z-index: 9; display: flex; flex-direction: column; gap: 1px; width: max-content; max-width: 340px; padding: 6px 11px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); box-shadow: 0 6px 18px var(--shade-50); font-size: 12px; transform: translate(-50%, calc(-100% - 46px)); pointer-events: none; }
+.rp-anim-sellabel strong { font-size: 13px; }
+/* near the map's edge the label leans towards its middle instead of running off the map */
+.rp-anim-sellabel.is-leanstart { transform: translate(-24px, calc(-100% - 46px)); }
+.rp-anim-sellabel.is-leanend { transform: translate(calc(-100% + 24px), calc(-100% - 46px)); }
+.rp-anim-picking { position: absolute; left: 50%; top: 10px; z-index: 9; transform: translateX(-50%); padding: 8px 14px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); font-size: 14px; font-weight: 800; box-shadow: 0 6px 18px var(--shade-50); pointer-events: none; }
+
+/* the frame strip names who acts */
+.rp-anim-frame-who { display: flex; flex-wrap: wrap; gap: 4px; }
+.rp-anim-frame-chip { max-width: 100%; overflow: hidden; padding: 1px 7px; border-radius: 999px; background: var(--rp-ac, var(--muted)); color: var(--rp-icon-outline); font-size: 11px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+
+/* the frame's actions as sentences */
+.rp-anim-kick { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.rp-acts { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.rp-act { border: 1px solid var(--line); border-radius: 12px; background: var(--panel2); }
+.rp-act.is-picked { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.rp-act-row { display: flex; align-items: center; gap: 4px; padding: 4px 6px 4px 4px; }
+.rp-act-main { display: flex; flex: 1 1 auto; align-items: center; gap: 10px; min-width: 0; padding: 6px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.rp-act-main:hover { background: var(--accent-soft); }
+.rp-act-dot { display: grid; flex: 0 0 auto; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--rp-ac, var(--muted)); color: var(--rp-icon-outline); font-size: 13px; font-weight: 800; }
+.rp-act-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.rp-act-sentence { font-size: 14px; line-height: 1.3; }
+.rp-act-meta { display: flex; flex-wrap: wrap; gap: 4px; }
+.rp-act-meta span { padding: 1px 7px; border-radius: 999px; background: var(--panel); color: var(--muted); font-size: 11px; font-weight: 700; }
+.rp-act-edit { display: flex; flex-direction: column; gap: 8px; padding: 6px 10px 10px; border-top: 1px solid var(--line); }
+.rp-anim-addact { align-self: stretch; justify-content: center; }
+
+/* the assistant */
+.rp-wiz { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 2px solid var(--accent); border-radius: 14px; background: var(--panel); }
+.rp-wiz-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.rp-wiz-head strong { font-size: 16px; }
+.rp-wiz-steps { display: flex; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 12px; font-weight: 800; }
+.rp-wiz-steps li { padding: 3px 9px; border-radius: 999px; background: var(--panel2); color: var(--muted); }
+.rp-wiz-steps li.is-on { background: var(--accent); color: var(--accent-ink); }
+.rp-wiz-steps li.is-stepdone { background: var(--accent-soft); color: var(--accent); }
+.rp-wiz-who { display: flex; align-items: center; gap: 8px; margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--accent-soft); font-size: 13px; line-height: 1.4; }
+.rp-wiz-who > span { flex: 1 1 auto; min-width: 0; }
+.rp-wiz-who.is-nopick { color: var(--text); }
+.rp-wiz-link { flex: 0 0 auto; border: 0; background: transparent; color: var(--accent); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.rp-wiz-q { font-size: 14px; }
+.rp-wiz-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.rp-wiz-tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--text); font: inherit; text-align: center; cursor: pointer; }
+.rp-wiz-tile:hover:not(:disabled) { border-color: var(--accent); }
+.rp-wiz-tile.is-on { border: 2px solid var(--accent); background: var(--accent-soft); }
+.rp-wiz-tile:disabled { opacity: .4; cursor: not-allowed; }
+.rp-wiz-ico { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--panel2); }
+.rp-wiz-tile.is-on .rp-wiz-ico { background: var(--accent); color: var(--accent-ink); }
+.rp-wiz-tl { font-size: 13px; font-weight: 800; }
+.rp-wiz-ts { color: var(--muted); font-size: 11px; }
+.rp-wiz-where { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); font-size: 14px; font-weight: 800; }
+.rp-wiz-foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.rp-anim-settings > summary { font-size: 13px; font-weight: 800; cursor: pointer; }
+
+@media (max-width: 1100px) {
+    .rp-anim-stagegrid { grid-template-columns: minmax(0, 1fr); }
+}

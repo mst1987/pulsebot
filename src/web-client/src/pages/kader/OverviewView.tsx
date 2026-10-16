@@ -24,7 +24,7 @@ import { cleanState, passes, type FilterDef, type FilterOption, type FilterState
 import { FilterChips, FilterMenus } from "./FilterMenus";
 import { BatchBar } from "./BatchBar";
 import {
-    AnswerChips, AnswerLines, BackButton, ClassIcon, Count, DaySquares, DoneBadge, EmptyState, HistoryLines, InterviewChip, PlayerName, RoleIcon, SelectionTabs, SortHead, SpecTag,
+    AnswerChips, AnswerLines, BackButton, ClassIcon, Count, DaySquares, DoneBadge, EmptyState, HistoryLines, InterviewChip, PlayerAvatar, PlayerName, RoleIcon, SelectionTabs, SortHead, SpecTag,
     TableNote, WishLines,
 } from "./parts";
 import { useKader } from "./kaderContext";
@@ -90,7 +90,7 @@ function OverviewRow({ row, marked, onMark }: { row: Row; marked: boolean; onMar
             <span role="cell" className="kp-cell-mark">
                 <input type="checkbox" checked={marked} disabled={!canWrite} aria-label={t("kader.batch.mark", { name: playerName(view, userId, entry) })} onChange={(e) => onMark(e.target.checked)} />
             </span>
-            <span role="cell" className="kp-cell-name kp-namerowcell"><Peek row={row} />{status === "done" && <DoneBadge />}<PresenceMark playerId={userId} /></span>
+            <span role="cell" className="kp-cell-name kp-namerowcell"><PlayerAvatar userId={userId} entry={entry} /><Peek row={row} />{status === "done" && <DoneBadge />}<PresenceMark playerId={userId} /></span>
             <span role="cell" className="kp-cell-char">{w1 ? <SpecTag pick={w1} size={22} /> : <span className="kp-muted">—</span>}</span>
             <span role="cell" className="kp-cell-char">{w2 ? <SpecTag pick={w2} size={20} className="kp-small" /> : <span className="kp-muted">—</span>}</span>
             {kader.questions.map((q) => <AnswerCell key={q.id} q={q} entry={entry} />)}

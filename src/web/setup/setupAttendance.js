@@ -15,6 +15,8 @@ const { raidContentIds, raidSize } = require("../../services/events/raidListing"
 const { benchHistory } = require("../../services/setup/setupInput");
 const settingsStore = require("../../stores/settingsStore");
 const { categoryAttendanceFor } = require("../../stores/configSchema");
+const { versionOfEvent } = require("../../services/events/mainVersion");
+const { signupEventIdOf } = require("../../utils/raidGroup");
 
 /** "Druid-Feral" -> "Druid". */
 const classOfSpec = (spec) => String(spec || "").split("-")[0];
@@ -68,7 +70,7 @@ function comparableTo(event) {
     const own = Number(event && event.size);
     if (!(own > 0)) return null;
     return (raid) => {
-        const contents = raidContentIds({ title: raid.title, zones: (raid.logs || []).map((l) => l.zone) }).contentIds;
+        const contents = raidContentIds({ title: raid.title, zones: (raid.logs || []).map((l) => l.zone), versionId: raid.versionId }).contentIds;
         const night = raidSize(contents);
         return !night.known || sizeClass(night.size) === sizeClass(own);
     };
@@ -87,11 +89,15 @@ function setupAttendance(events, { now = Date.now() } = {}) {
     const out = {};
     const list = (events || []).filter((e) => e && e.categoryId);
     if (!list.length) return out;
-    const ctx = buildAttendanceContext(list[0].guildId, { now });
+    // the version of the raid the setup belongs to (#740): its nights count, no other version's
+    // (raids set up together share one version, as collectSetupInput's versionId says)
+    const versionId = versionOfEvent(list[0]);
+    const ctx = buildAttendanceContext(list[0].guildId, { now, versionId });
     const profiles = new Map(profileStore.listProfiles().map((p) => [String(p.userId), p]));
     const byCategory = new Map();
     for (const event of list) {
-        for (const s of signupStore.listSignups(event.id)) {
+        // a raid of a group (#811): the signups of its first raid
+        for (const s of signupStore.listSignups(signupEventIdOf(event))) {
             if (!s || !s.userId || s.status === "absence") continue;
             const perCategory = byCategory.get(event.categoryId) || new Map();
             if (!perCategory.has(String(s.userId))) perCategory.set(String(s.userId), s);
@@ -99,7 +105,8 @@ function setupAttendance(events, { now = Date.now() } = {}) {
         }
     }
     for (const [categoryId, signups] of byCategory) {
-        const assignments = getCategoryAssignments(categoryId);
+        // the roster of the raid's version (#739)
+        const assignments = getCategoryAssignments(categoryId, { versionId });
         const accounts = [...signups].map(([userId, signup]) => ({
             userId,
             chars: accountCharacters(userId, categoryId, signup, profiles.get(userId), assignments),

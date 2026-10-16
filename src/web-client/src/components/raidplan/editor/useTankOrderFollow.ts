@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef } from "react";
-import type { RaidplanBoard, RaidplanPlayer } from "../../../api";
+import type { Besetzung, RaidplanBoard, RaidplanPlayer } from "../../../api";
 import { useConfirm } from "../../ui";
 import { useT } from "../../../i18n";
 import { boardOf } from "../../../lib/raidplan";
 import { DEFAULTS_KEY } from "../../../lib/raidplan/inherit";
-import { applyRoleOrder, differingKeys, roleOrder, sameOrder } from "../../../lib/raidplan/tankOrder";
+import { applyTankLineup, differingKeys, sameOrder, tankLineup } from "../../../lib/raidplan/tankOrder";
 
 type Bosses = Record<string, Partial<RaidplanBoard>>;
 
@@ -13,7 +13,8 @@ const NAMES_SHOWN = 6;
 
 /**
  * "Soll die Tank-Reihenfolge auch für die anderen Bosse gelten?" Every section fills its tank slots in setup order; a
- * new order set in the Standard asks once whether the bosses (and trash) follow it (lib/raidplan/tankOrder.ts). Asked
+ * new tank line-up set in the Standard (order, number of tanks, who tanks) asks once whether the bosses (and trash) follow
+ * it (lib/raidplan/tankOrder.ts). Asked
  * when the editor leaves the Standard or saves on it - not on every click: a swap through the Besetzung's chips takes two
  * (Tank 1 = B empties Tank 2 until A is put there), so the order is only complete when the organiser is done.
  *
@@ -21,7 +22,7 @@ const NAMES_SHOWN = 6;
  * first and hands back the plan to send (null = save the draft as it is), since the edit reaches the draft only on the
  * next render. The order the Standard had when it was opened (or last saved / asked) is the one compared against.
  */
-export function useTankOrderFollow({ draft, selected, version, sections, fill, editAll, roster, canWrite }: {
+export function useTankOrderFollow({ draft, selected, version, sections, fill, editAll, roster, besetzung, canWrite }: {
     draft: Bosses;
     selected: string;
     /** the saved plan's version: a save starts a new comparison */
@@ -33,6 +34,8 @@ export function useTankOrderFollow({ draft, selected, version, sections, fill, e
     /** one step over several boards (useDraftHistory's editAll) */
     editAll: (keys: string[], fn: (b: RaidplanBoard) => RaidplanBoard) => void;
     roster: RaidplanPlayer[];
+    /** the plan's raid type: a boss that gets more or fewer tank slots keeps its other numbers */
+    besetzung: Besetzung | null;
     canWrite: boolean;
 }) {
     const t = useT();
@@ -46,22 +49,22 @@ export function useTankOrderFollow({ draft, selected, version, sections, fill, e
 
     // the order to compare against: the Standard's when it is opened, and again after a save (not on a new roster)
     useEffect(() => {
-        baseline.current = onStandard ? roleOrder(fillRef.current(boardOf(draftRef.current, DEFAULTS_KEY))) : null;
+        baseline.current = onStandard ? tankLineup(fillRef.current(boardOf(draftRef.current, DEFAULTS_KEY))) : null;
     }, [onStandard, version]);
 
-    /** Asks when the Standard's order changed and some section differs; the plan with the order followed, or null. */
+    /** Asks when the Standard's tank line-up changed and some section differs; the plan with the line-up followed, or null. */
     const follow = useCallback(async (): Promise<Bosses | null> => {
         const before = baseline.current;
         if (!before || !canWrite) return null;
         const cur = draftRef.current;
         const at = (k: string) => fill(boardOf(cur, k));
-        const order = roleOrder(at(DEFAULTS_KEY));
-        if (sameOrder(order, before)) return null;
-        baseline.current = order; // one question per change, whatever the answer
-        const keys = differingKeys(at, sections.map((s) => s.key), order);
+        const want = tankLineup(at(DEFAULTS_KEY));
+        if (sameOrder(want, before)) return null;
+        baseline.current = want; // one question per change, whatever the answer
+        const keys = differingKeys(at, sections.map((s) => s.key), want, besetzung, roster);
         if (keys.length === 0) return null;
         const names = sections.filter((s) => keys.includes(s.key)).map((s) => s.name);
-        const tanks = order.map((u, i) => `${i + 1}. ${(roster.find((p) => p.userId === u) || { character: u }).character}`).join(", ");
+        const tanks = want.map((u, i) => `${i + 1}. ${u ? (roster.find((p) => p.userId === u) || { character: u }).character : t("raidBoard.slot.open")}`).join(", ");
         const ok = await ask({
             title: t("raidBoard.tankOrder.title"),
             text: t(keys.length === 1 ? "raidBoard.tankOrder.textOne" : "raidBoard.tankOrder.text", {
@@ -74,11 +77,11 @@ export function useTankOrderFollow({ draft, selected, version, sections, fill, e
             icon: "ability_warrior_defensivestance",
         });
         if (!ok) return null;
-        editAll(keys, (b) => applyRoleOrder(fill(b), order));
+        editAll(keys, (b) => applyTankLineup(fill(b), want, besetzung, roster));
         const next: Bosses = { ...cur };
-        for (const k of keys) next[k] = applyRoleOrder(at(k), order);
+        for (const k of keys) next[k] = applyTankLineup(at(k), want, besetzung, roster);
         return next;
-    }, [ask, canWrite, editAll, fill, roster, sections, t]);
+    }, [ask, besetzung, canWrite, editAll, fill, roster, sections, t]);
 
     const leaving = useCallback((next: string) => {
         if (onStandard && next !== DEFAULTS_KEY) void follow();

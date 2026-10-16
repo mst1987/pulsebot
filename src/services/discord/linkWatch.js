@@ -10,7 +10,8 @@
 //   message deleted  → an own event's signup message is posted anew (the
 //                      sweep would not: its hash still matches), a posted
 //                      setup is marked as not posted, a raid overview message
-//                      is posted anew by its sync.
+//                      is posted anew by its sync, an Orga-Zentrale and the addon
+//                      download centre by their redraw.
 //
 // MESSAGE_DELETE comes in as a raw gateway packet: the client has no
 // Partials.Message (#430), so a message it did not cache (every message after
@@ -21,6 +22,8 @@ const { getOverviewState } = require("../../stores/talkOverviewStore");
 const { getConfig } = require("../../stores/settingsStore");
 const logger = require("../../logger").child("linkWatch");
 
+// discord.js' ChannelType.GuildCategory (the plain number: this module's tests mock little of discord.js).
+const CATEGORY_TYPE = 4;
 // How long after a deletion the overviews redraw — a bulk delete of several
 // channels ends in one redraw.
 const REDRAW_DELAY_MS = 1500;
@@ -40,6 +43,11 @@ function recentOwnEvents(now = Date.now()) {
 function onChannelDelete(channel, { now = Date.now() } = {}) {
     const channelId = String((channel && channel.id) || "");
     if (!channelId) return [];
+    // A raid category deleted in Discord (#744): Einstellungen → Kategorien marks
+    // it "in Discord gelöscht" and offers to close it (categoryLifecycle.js) — here it is only noted.
+    if (channel.type === CATEGORY_TYPE && ((getConfig() || {}).categoryIds || []).map(String).includes(channelId)) {
+        logger.warn(`Raid-Kategorie ${channel.name || channelId} in Discord gelöscht — Einstellungen → Kategorien → „Kategorie abschließen“`);
+    }
     linkCheck.channelDeleted(channelId, now);
     const hit = recentOwnEvents(now).filter((e) => String(e.channelId) === channelId);
     for (const event of hit) {
@@ -80,7 +88,13 @@ function onMessageDelete({ channelId, messageId }, { now = Date.now() } = {}) {
     }
     const overview = isOverviewMessage(id);
     if (overview || redrawn.length) scheduleOverviews();
-    return { redrawn, setupCleared, overview, channelId: String(channelId || "") };
+    // an Orga-Zentrale's message: posted anew by its redraw (lazily, like the overviews)
+    const orgaHub = require("../events/orgaHub").onHubMessageDeleted(id, { delayMs: REDRAW_DELAY_MS });
+    // a category's raid overview (/createoverview): placed by hand, so forgotten, not posted again
+    const raidOverview = require("../events/raidOverview").onOverviewMessageDeleted(id);
+    // the addon download centre: posted anew by its redraw
+    const addonCenter = require("../addons/addonCenter").onCenterMessageDeleted(id, { delayMs: REDRAW_DELAY_MS });
+    return { redrawn, setupCleared, overview, orgaHub, raidOverview, addonCenter, channelId: String(channelId || "") };
 }
 
 /** Hook both into the bot client (bot.js). */

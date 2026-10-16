@@ -36,8 +36,9 @@ import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/ui/persistedState";
 import { useTableSort } from "../../lib/ui/tableSort";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { Button, PageHead, useConfirm } from "../../components/ui";
-import { CANDIDATE_SORT, ROSTER_SORT, VIEW_KEY, dropHref, roleLabel, useCouncilSim, type CandidateSortKey, type RosterSortKey } from "./council";
+import { BackButton, Button, PageHead, useConfirm } from "../../components/ui";
+import { CANDIDATE_SORT, ROSTER_SORT, VIEW_KEY, councilContent, councilHref, dropHref, roleLabel, useCouncilSim, type CandidateSortKey, type RosterSortKey } from "./council";
+import CouncilOverview from "./CouncilOverview";
 import { WowheadPathProvider } from "../../lib/settings/versionLinks";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import FilterBar from "./FilterBar";
@@ -49,15 +50,31 @@ import { RosterTab } from "./RosterTab";
 import { GapsTab } from "./GapsTab";
 import { BisListsTab } from "./BisListsTab";
 import { CompareTab } from "./CompareTab";
-import { WeightsTab } from "./WeightsTab";
+import { ProfilesTab } from "./ProfilesTab";
+import { CouncilHead } from "./CouncilHead";
+import { pickValue } from "./profiles";
+import { useDroppedPick } from "./droppedPick";
 import { NeedWeightsProvider } from "./needWeights";
 
 const VIEW_DEFAULT: View = {
-    role: "caster", tiers: [], contents: [], category: "", bisTier: "", bench: false, tab: "roster",
+    role: "caster", tiers: [], contents: [], category: "", roster: "", bisTier: "", bench: false, tab: "roster",
     listTier: "t6", listOff: [], listFocus: 0, cmpOff: [],
 };
 
+/** What in the url makes it the council of a pick; plain /lootcouncil is the tile overview. */
+const COUNCIL_PARAMS = ["roster", "category", "raider", "tab"];
+
+/**
+ * The entry (Oct 2026): plain /lootcouncil shows the tiles of every roster and category that
+ * runs as Loot-Council (CouncilOverview.tsx); a tile, a link with `?roster=` / `?category=`,
+ * a raider's link or `?tab=profiles` opens the council itself.
+ */
 export default function LootCouncilPage() {
+    const [params] = useSearchParams();
+    return COUNCIL_PARAMS.some((key) => params.has(key)) ? <CouncilPage /> : <CouncilOverview />;
+}
+
+function CouncilPage() {
     // The game version of the raiders shown (#563): the menu's content switch.
     const { version: contentVersion, mainVersion } = useContentVersion();
     const { user } = useOutletContext<ShellContext>();
@@ -71,17 +88,57 @@ export default function LootCouncilPage() {
     const [localView, setLocalView] = usePersistedState<View>(VIEW_KEY, VIEW_DEFAULT);
     // A picked category brings its own filters from the server (they drive the
     // in-game council too): lootcouncil/categoryViews.ts.
-    const { filters: view, patch, ready: viewsReady, reachesGame } = useCategoryViews({
-        view: localView,
+    // The pick lives in the url (Oct 2026): ?roster=<id> or ?category=<id> - a tile of the
+    // overview, the Kaderplaner's "Zum Loot-Council", the roster settings' "Profile verwalten"
+    // (with ?tab=profiles, taken over once). A raider's link (?raider=) carries no pick: the
+    // last one is put back into the url, so closing the details stays in this council.
+    const [params, setParams] = useSearchParams();
+    const urlRoster = params.get("roster") || "";
+    const urlCategory = urlRoster ? "" : (params.get("category") || "");
+    const linkedTab = params.get("tab") || "";
+    const pick = urlRoster || urlCategory
+        ? { roster: urlRoster, category: urlCategory }
+        : { roster: localView.roster || "", category: localView.roster ? "" : localView.category };
+    // The roster a link opened - a roster of another version follows into it (droppedPick.ts).
+    // A stored pick the page put back into the url itself is no link: a stale one is forgotten.
+    const linkedRef = useRef("");
+    const restoredRef = useRef("");
+    useEffect(() => {
+        if (urlRoster && urlRoster !== restoredRef.current) linkedRef.current = urlRoster;
+        const tabPatch = linkedTab === "profiles" ? { tab: "profiles" as const } : {};
+        if (localView.roster !== pick.roster || localView.category !== pick.category || linkedTab === "profiles") {
+            setLocalView({ ...localView, ...pick, ...tabPatch });
+        }
+        const pickMissing = (pick.roster && !urlRoster) || (pick.category && !urlCategory);
+        // `tab` leaves the url only with a pick taking its place - else the url would be the overview's
+        if (pickMissing || (linkedTab && (pick.roster || pick.category))) {
+            if (pick.roster && !urlRoster) restoredRef.current = pick.roster;
+            setParams((prev) => {
+                const next = new URLSearchParams(prev);
+                if (pick.roster) next.set("roster", pick.roster);
+                else if (pick.category) next.set("category", pick.category);
+                next.delete("tab");
+                return next;
+            }, { replace: true });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [urlRoster, urlCategory, linkedTab]);
+    /** Another council: a new url (the effect above takes it into the view), the raider's details closed. */
+    const pickCouncil = (fields: { roster: string; category: string }) => navigate(councilHref(fields));
+    const { filters: view, patch, ready: viewsReady, reachesGame, profileId, reload: reloadViews } = useCategoryViews({
+        view: { ...localView, ...pick },
         setView: setLocalView,
         canWrite,
         version: contentVersion,
         mainVersion,
         onError: (message) => toast(message || t("lootcouncil.page.actionFailed"), "err"),
     });
-    // A stored "drop" tab is from before the drop check had its own page.
-    const tab = view.tab === "drop" ? "roster" : view.tab;
+    // A stored "drop" tab is from before the drop check had its own page; "weights" became "profiles" (#676).
+    const tab = view.tab === "drop" ? "roster" : view.tab === "weights" ? "profiles" : view.tab;
     const [data, setData] = useState<LootCouncilData | null>(null);
+    // A version without BiS data has no BiS tabs (#748): a stored one opens the Raider tab.
+    const content = councilContent(data);
+    const shownTab = !content.bis && (tab === "bis" || tab === "bislists") ? "roster" : tab;
     const [error, setError] = useState<ApiError | null>(null);
     const [loading, setLoading] = useState(true);
     // Whether a first load has landed — after it, reloads run as quiet jobs
@@ -89,7 +146,7 @@ export default function LootCouncilPage() {
     const loaded = useRef(false);
     // Sim results live next to the data, not in it: the page is complete
     // without them and they are only ever an improvement laid over the top.
-    const { sim, setSim, simRunning, runSim } = useCouncilSim();
+    const { sim, setSim, simRunning, runSim } = useCouncilSim({ roster: view.roster || "", category: view.category, version: contentVersion });
     // The open WoWSims export, if any — one raider at a time.
     const [exportData, setExportData] = useState<CouncilExport | null>(null);
     // Which per-raider actions are in flight, as "action:character" — two
@@ -102,7 +159,6 @@ export default function LootCouncilPage() {
     const candidateSort = useTableSort<CandidateSortKey>("lootcouncil.candidate-sort", CANDIDATE_SORT, "gain");
     // The raider whose details are open lives in the url (?raider=<name>), so a
     // link from the drop check or from Discord leads straight there.
-    const [params, setParams] = useSearchParams();
     const openName = (params.get("raider") || "").toLowerCase();
 
     // Returns the promise (resolving with the fresh data, or null) so an action
@@ -115,6 +171,7 @@ export default function LootCouncilPage() {
             tiers: view.tiers,
             contents: view.contents,
             category: view.category,
+            roster: view.roster || "",
             bisTier: view.bisTier,
             version: contentVersion,
             bench: !!view.bench,
@@ -128,7 +185,7 @@ export default function LootCouncilPage() {
                 return d;
             })
             .finally(() => setLoading(false));
-    }, [view.role, view.tiers, view.contents, view.category, view.bisTier, view.bench, contentVersion, jobs, t]);
+    }, [view.role, view.tiers, view.contents, view.category, view.roster, view.bisTier, view.bench, contentVersion, jobs, t]);
 
     /** Everything that depends on the raiders' data — every gear-changing action goes through here. */
     const reloadAll = useCallback(async () => load(), [load]);
@@ -141,8 +198,18 @@ export default function LootCouncilPage() {
 
     // A changed filter changes which raiders and items were simulated, so the
     // old results no longer describe what is on screen.
-    useEffect(() => { setSim(null); }, [view.role, view.tiers, view.contents, view.category, view.bisTier, view.bench, contentVersion, setSim]);
+    useEffect(() => { setSim(null); }, [view.role, view.tiers, view.contents, view.category, view.roster, view.bisTier, view.bench, contentVersion, setSim]);
 
+    // A pick of another version (#741/#563): follow a link into it, else forget it and back to the overview.
+    const dropped = data && data.council && data.council.dropped && pickValue(view) === `${data.council.dropped.kind}:${data.council.dropped.id}`
+        ? data.council.dropped : null;
+    // Leaves for the overview one render later, once the forgotten pick is stored (usePersistedState writes in an effect).
+    const [toOverview, setToOverview] = useState(false);
+    useDroppedPick(dropped, linkedRef.current, () => {
+        setLocalView({ ...localView, roster: "", category: "" });
+        setToOverview(true);
+    });
+    useEffect(() => { if (toOverview) navigate("/lootcouncil", { replace: true }); }, [toOverview, navigate]);
 
     const roster = useMemo(() => (data ? data.roster : []), [data]);
     const gaps = data ? data.gaps : [];
@@ -328,12 +395,13 @@ export default function LootCouncilPage() {
         o.bisTiers.find((b) => b.id === data.filter.bisTier)?.label || "",
         [...o.tiers.filter((x) => view.tiers.includes(x.id)), ...o.contents.filter((c) => view.contents.includes(c.id))]
             .map((c) => c.label).join(" + ") || t("lootcouncil.page.allLoot"),
-        o.categories.find((c) => c.id === view.category)?.name || t("lootcouncil.page.allRaids"),
+        data.council?.roster?.name || o.categories.find((c) => c.id === view.category)?.name || t("lootcouncil.page.allRaids"),
     ].filter(Boolean).join(" · ");
 
     return (
         <WowheadPathProvider path={data.wowheadPath}>
         <NeedWeightsProvider weights={data.weights}>
+            <div className="lc-back-row"><BackButton to="/lootcouncil" label={t("lootcouncil.overview.back")} size="sm" /></div>
             <PageHead
                 icon="inv_misc_coin_02"
                 tone="lootcouncil"
@@ -342,8 +410,21 @@ export default function LootCouncilPage() {
                 action={<Button icon="inv_misc_bag_10" onClick={() => navigate(dropHref())}>{t("lootcouncil.page.dropCheck")}</Button>}
             />
 
+            {/* Who the council works for (#676): roster, profile, linked Kader. */}
+            {data.council ? (
+                <CouncilHead
+                    head={data.council}
+                    value={pickValue(view)}
+                    onPick={pickCouncil}
+                    onProfiles={() => patch({ tab: "profiles" })}
+                />
+            ) : null}
+
+            {/* A version without content data says so, instead of showing TBC's (#748). */}
+            {!content.bis ? <div className="lc-panel empty" role="note">{t(content.off ? "lootcouncil.noContent.off" : "lootcouncil.noContent.text")}</div> : null}
+
             {/* Tabs first, then the one filter line they all share. */}
-            <CouncilTabs tab={tab} patch={patch} rosterCount={roster.length} gapCount={gaps.length} />
+            <CouncilTabs tab={shownTab} patch={patch} rosterCount={roster.length} gapCount={gaps.length} hasBis={content.bis} />
 
             <FilterBar
                 data={data}
@@ -356,7 +437,7 @@ export default function LootCouncilPage() {
                 canWrite={canWrite}
             />
 
-            {tab === "roster" ? (
+            {shownTab === "roster" ? (
                 <RosterTab
                     data={data}
                     roster={roster}
@@ -376,7 +457,7 @@ export default function LootCouncilPage() {
                 />
             ) : null}
 
-            {tab === "bis" ? (
+            {shownTab === "bis" ? (
                 <GapsTab
                     data={data}
                     gaps={gaps}
@@ -392,19 +473,19 @@ export default function LootCouncilPage() {
 
             {/* Die Listen selbst — die einzige Ansicht hier, die nicht von den
                 Raidern und ihrem Loot abhängt, sondern nur von WoWSims. */}
-            {tab === "bislists" ? <BisListsTab view={view} patch={patch} /> : null}
+            {shownTab === "bislists" ? <BisListsTab view={view} patch={patch} versionId={data.versionId} /> : null}
 
             {/* Wer hat was bekommen, nebeneinander: dieselben Raider und derselbe
                 Loot wie im Raider-Tab, nur als Matrix statt als Tooltip je Zeile. */}
             {view.tab === "compare" ? <CompareTab roster={roster} view={view} patch={patch} contents={o.contents} /> : null}
 
-            {/* Wie gewichtet wird (#668) — ändert jede Zahl oben, also danach neu laden. */}
-            {tab === "weights" ? (
-                <WeightsTab
-                    category={view.category}
-                    categoryName={o.categories.find((c) => c.id === view.category)?.name || view.category}
+            {/* Die Profile (#676): Gewichtung und Ansicht je Roster — ändert jede Zahl oben, also danach neu laden. */}
+            {shownTab === "profiles" ? (
+                <ProfilesTab
+                    initialId={profileId || data.council?.profile.id || ""}
+                    options={o}
                     canWrite={canWrite}
-                    onSaved={() => { load(); }}
+                    onSaved={() => { reloadViews(); load(); }}
                 />
             ) : null}
 

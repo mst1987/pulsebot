@@ -4,6 +4,7 @@
 // per-account grant actually reaches the store.
 
 const { mockRes, json, body, routerClient } = require("../../helpers/http");
+const { tempStoreFile } = require("../../helpers/tempStore");
 
 jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
@@ -263,10 +264,18 @@ describe("web/apiRoutes/settings", () => {
                 expect(data.areas.map((a) => a.id)).toEqual(AREA_IDS);
                 // Einstellungen → Spielversion (#541) picks from these
                 expect(data.gameVersions.map((v) => v.id)).toEqual(["tbc", "classic", "forever"]);
-                expect(data.gameVersions[2]).toEqual({ id: "forever", label: expect.any(String), short: expect.any(String) });
+                expect(data.gameVersions[2]).toEqual({ id: "forever", label: expect.any(String), short: expect.any(String), color: "#4da3ff" });
                 // "Standardwerte übernehmen" (#553): Classic has checked values, Forever none yet
                 expect(data.versionDefaults.classic).toMatchObject({ wowheadPath: "classic", softresEdition: "classic", blizzardRealmSlug: "" });
-                expect(Object.values(data.versionDefaults.forever).every((v) => v === "")).toBe(true);
+                // Forever: only its Wowhead section (#750), no realm, armory or log site
+                expect(data.versionDefaults.forever).toMatchObject({ wowheadPath: "forever", blizzardRealmSlug: "", blizzardNamespace: "", armoryUrlTemplate: "", wclUrlTemplate: "" });
+                // "Funktionen je Version" (#761): every version with every feature, from the one source
+                expect(data.versionCapabilities.features).toEqual(["logcheck", "lootCouncilBis", "simulation", "raidSheet", "softres", "armory", "wowheadLinks", "raidplanCatalog", "dungeonTimes"]);
+                expect(Object.keys(data.versionCapabilities.versions)).toEqual(["tbc", "classic", "forever"]);
+                expect(data.versionCapabilities.versions.tbc.raidSheet).toMatchObject({ possible: true, enabled: true, on: true, reason: "" });
+                expect(data.versionCapabilities.versions.forever.wowheadLinks).toMatchObject({ on: true });
+                expect(data.versionCapabilities.versions.forever.logcheck).toMatchObject({ possible: false, reason: "rules_not_ready" });
+                expect(data.versionCapabilities.versions.forever.raidSheet).toMatchObject({ possible: false, reason: "no_sheet_layout" });
             });
 
             // A role with write on "Einstellungen" may edit the bot config, but must
@@ -397,6 +406,24 @@ describe("web/apiRoutes/settings", () => {
                 rosterStore.deleteRoster(roster.id);
             });
 
+            it("forwards the picture switches as booleans, known keys only", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                await patch("/api/settings", { discordVisuals: { overviewWeekStrip: false, setupImage: "yes", eventCover: true, other: false } });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ discordVisuals: { overviewWeekStrip: false, eventCover: true } });
+                await patch("/api/settings", { discordVisuals: null, officerRoleId: "x" });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ officerRoleId: "x" });
+            });
+
+            it("forwards the dungeon record setting, its two fields only", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                await patch("/api/settings", { dungeonRecords: { post: true, channelId: " 123456789012345678 ", other: 1 } });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ dungeonRecords: { post: true, channelId: "123456789012345678" } });
+                await patch("/api/settings", { dungeonRecords: { post: "yes" } });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ dungeonRecords: {} });
+            });
+
             it("forwards the main version and the category map (#541)", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
@@ -404,6 +431,117 @@ describe("web/apiRoutes/settings", () => {
                 expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ mainVersion: "forever", categoryVersion: { cat1: "tbc" } });
                 await patch("/api/settings", { categoryVersion: null });
                 expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ categoryVersion: {} });
+            });
+
+            describe("a fixed version per category (#738)", () => {
+                const seriesStore = require("../../../src/stores/eventSeriesStore");
+                const { onCategoryVersionSwitch } = require("../../../src/services/events/categorySwitch");
+                const BEFORE = { guildId: "g1", categoryIds: ["cat1"], mainVersion: "tbc", categoryVersion: { cat1: "tbc" } };
+                beforeEach(() => {
+                    auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                    auth.checkCsrf.mockReturnValue(true);
+                    settingsStore.getConfig.mockReturnValue(BEFORE);
+                    discord.listCategories.mockReturnValue([{ id: "cat1", name: "TBC Montag" }, { id: "cat2", name: "Freitag" }]);
+                });
+                afterEach(() => {
+                    settingsStore.getConfig.mockReturnValue({});
+                    seriesStore.deleteSeries("cat1");
+                });
+
+                it("refuses an active category without a version", async () => {
+                    const res = await patch("/api/settings", { categoryIds: ["cat1", "cat2"], categoryVersion: { cat1: "tbc" } });
+                    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    expect(json(res)).toMatchObject({ error: { code: "category_version_missing", message: expect.stringContaining("Freitag") } });
+                    // an unknown version counts as none
+                    const res2 = await patch("/api/settings", { categoryVersion: { cat1: "wotlk" } });
+                    expect(res2.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    // the active list alone is checked against the stored map too
+                    const res3 = await patch("/api/settings", { categoryIds: ["cat1", "cat2"] });
+                    expect(res3.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                it("takes a new category with its version, without a new section", async () => {
+                    const res = await patch("/api/settings", { categoryIds: ["cat1", "cat2"], categoryVersion: { cat1: "tbc", cat2: "forever" } });
+                    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                    expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ categoryIds: ["cat1", "cat2"], categoryVersion: { cat1: "tbc", cat2: "forever" } });
+                    expect(json(res).data.switchedCategories).toEqual([]);
+                });
+
+                it("starts a new section on a switch, applies the series fix and tells the listeners", async () => {
+                    seriesStore.saveSeries({ categoryId: "cat1", enabled: true, raidTemplateId: "t-tbc", weekdays: [1], time: "19:30" });
+                    const seen = [];
+                    const off = onCategoryVersionSwitch((sw, ctx) => { seen.push({ sw, user: ctx.user.id }); });
+                    try {
+                        const res = await patch("/api/settings", { categoryVersion: { cat1: "forever" }, categorySwitchFixes: { cat1: { series: "pause" } } });
+                        expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                        const partial = settingsStore.saveConfig.mock.calls.at(-1)[0];
+                        expect(partial.categoryVersion).toEqual({ cat1: "forever" });
+                        expect(partial.categorySwitchFixes).toBeUndefined();
+                        expect(partial.categoryEras.cat1).toEqual([
+                            { versionId: "tbc", from: 0, name: "TBC Montag" },
+                            { versionId: "forever", from: expect.any(Number), name: "TBC Montag" },
+                        ]);
+                        const [switched] = json(res).data.switchedCategories;
+                        expect(switched).toMatchObject({ categoryId: "cat1", fromVersion: "tbc", toVersion: "forever", name: "TBC Montag", series: "paused" });
+                        expect(seriesStore.getSeries("cat1")).toMatchObject({ enabled: false, updatedBy: "1" });
+                        expect(seen).toEqual([{ sw: expect.objectContaining({ categoryId: "cat1", toVersion: "forever" }), user: "1" }]);
+                    } finally {
+                        off();
+                    }
+                });
+
+                it("closes the category's roster and starts the new one with the dialog's choice (#739)", async () => {
+                    const rosterStore = require("../../../src/stores/rosterStore");
+                    const configStore = require("../../../src/stores/configStore");
+                    const { registerRosterVersionSwitch } = require("../../../src/services/roster/rosterVersionSwitch");
+                    rosterStore.useFile(tempStoreFile("switch-rosters.json"));
+                    configStore.useFile(tempStoreFile("switch-config.json"));
+                    const off = registerRosterVersionSwitch();
+                    try {
+                        const old = rosterStore.createRoster({ guildId: "g1", name: "Montag", categoryId: "cat1", versionId: "tbc", roleIds: ["500000000000000001"] });
+                        rosterStore.upsertMember(old.id, "200000000000000001", { status: "core", chars: ["Kes"] });
+                        // what the (mocked) settings store saves: the category plays Forever from now on
+                        configStore.saveConfig({ categoryIds: ["cat1"], categoryVersion: { cat1: "forever" }, categoryRoles: { cat1: ["500000000000000001"] } });
+
+                        const preview = json(await get("/api/settings/category-switch", { categoryId: "cat1", versionId: "forever" })).data;
+                        expect(preview.roster).toEqual({ closing: { id: old.id, name: "Montag", members: 1 }, existing: null, canCreate: true });
+
+                        const res = await patch("/api/settings", {
+                            categoryVersion: { cat1: "forever" },
+                            // the draft still holds the TBC roles: they never reach the new roster
+                            categoryRoles: { cat1: ["500000000000000001"] },
+                            categorySwitchFixes: { cat1: { series: "", roster: { create: true, copyMembers: true, roleIds: [] } } },
+                        });
+                        expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                        const [switched] = json(res).data.switchedCategories;
+                        const next = rosterStore.rosterForCategory("cat1", "forever");
+                        expect(switched.roster).toEqual({ closed: { id: old.id, name: "Montag" }, reopened: null, created: { id: next.id, name: "Montag", members: 1 }, mirrored: true });
+                        expect(rosterStore.getRoster(old.id)).toMatchObject({ closedReason: "version_switch", roleIds: ["500000000000000001"] });
+                        expect(next.roleIds).toEqual([]);
+                        expect(next.members["200000000000000001"]).toMatchObject({ status: "trial", chars: [] });
+                        expect(configStore.getConfig().categoryRoles.cat1 || []).toEqual([]);
+                    } finally {
+                        off();
+                        rosterStore.useFile(null);
+                        configStore.useFile(null);
+                    }
+                });
+
+                it("previews a switch for the dialog", async () => {
+                    settingsStore.listRaidTemplates.mockReturnValue([{ id: "t-fe", name: "Onyxia", versionId: "forever" }, { id: "t-tbc", name: "Kara", versionId: "tbc" }]);
+                    const res = await get("/api/settings/category-switch", { categoryId: "cat1", versionId: "forever" });
+                    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                    expect(json(res).data).toMatchObject({
+                        categoryId: "cat1", name: "TBC Montag", switching: true, from: { id: "tbc" }, to: { id: "forever" },
+                        upcoming: [], series: null, defaultTemplate: null, templates: [{ id: "t-fe", name: "Onyxia" }],
+                    });
+                    settingsStore.listRaidTemplates.mockReturnValue([]);
+                    const bad = await get("/api/settings/category-switch", { categoryId: "cat1", versionId: "wotlk" });
+                    expect(bad.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    const none = await get("/api/settings/category-switch", { versionId: "forever" });
+                    expect(none.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                });
             });
 
             it("forwards the Anthropic key only when sent, and never echoes it back", async () => {
@@ -435,6 +573,114 @@ describe("web/apiRoutes/settings", () => {
 
                 await patch("/api/settings", { warcraftlogsV2: { clientSecret: "" } });
                 expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ warcraftlogsV2: { clientSecret: "" } });
+            });
+
+            // #818: the GitHub token of the addon downloads follows the same contract.
+            it("masks the GitHub token and forwards it only when sent (omit = keep, \"\" = clear)", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                settingsStore.getConfig.mockReturnValue({ guildId: "g1", github: { token: "github_pat_SECRET" } });
+                const read = mockRes();
+                await handle("/api/settings", { method: "GET" }, read);
+                expect(json(read).data.config.github).toEqual({ hasToken: true });
+                expect(JSON.stringify(json(read))).not.toContain("github_pat_SECRET");
+
+                settingsStore.saveConfig.mockReturnValue({ guildId: "g1", github: { token: "github_pat_NEW" } });
+                const res = await patch("/api/settings", { github: { token: " github_pat_NEW " } });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ github: { token: "github_pat_NEW" } });
+                expect(json(res).data.config.github).toEqual({ hasToken: true });
+                expect(JSON.stringify(json(res))).not.toContain("github_pat_NEW");
+
+                await patch("/api/settings", { github: { token: "" } });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ github: { token: "" } });
+                settingsStore.saveConfig.mockClear();
+                await patch("/api/settings", { github: {}, officerRoleId: "o" });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ officerRoleId: "o" });
+            });
+
+            it("saves the addon list whole, normalised, and refuses anything but a list", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                await patch("/api/settings", { addonDownloads: [
+                    { name: "LevelHelper", repo: "https://github.com/mst1987/levelhelper", versions: ["forever", "x"], assets: "LevelHelper-*.zip" },
+                    { name: "", repo: "a/b" },
+                ] });
+                // an edit: the list and the edit mark, so an emptied list may stay empty
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ addonDownloads: [expect.objectContaining({
+                    id: "levelhelper", repo: "mst1987/levelhelper", versions: ["forever"], assets: ["LevelHelper-*.zip"], enabled: true,
+                })], addonDownloadsCustomized: true });
+                expect(settingsStore.saveConfig.mock.calls.at(-1)[0].addonDownloads).toHaveLength(1);
+                settingsStore.saveConfig.mockClear();
+                const res = await patch("/api/settings", { addonDownloads: "nope" });
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            it("lets an admin empty the addon list on purpose, the last addon removed", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                await patch("/api/settings", { addonDownloads: [] });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ addonDownloads: [], addonDownloadsCustomized: true });
+            });
+
+            it("never wipes the addon list from a save that carries it along with other settings", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                let res = await patch("/api/settings", { github: { token: "github_pat_NEW" }, addonDownloads: [] });
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(json(res).error.code).toBe("invalid_addons");
+                res = await patch("/api/settings", { officerRoleId: "o", addonDownloads: [] });
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            it("refuses a list of which no entry is an addon instead of storing it empty", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                const res = await patch("/api/settings", { addonDownloads: [{ name: "", repo: "" }, { id: "x" }] });
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            it("saves the GitHub token without touching the addon list", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                await patch("/api/settings", { github: { token: "github_pat_NEW" } });
+                const sent = settingsStore.saveConfig.mock.calls.at(-1)[0];
+                expect(sent).toEqual({ github: { token: "github_pat_NEW" } });
+                expect(sent).not.toHaveProperty("addonDownloads");
+            });
+
+            it("restores the default addons on \"Standard wiederherstellen\" and clears the edit mark", async () => {
+                const { defaultAddons } = require("../../../src/services/addons/addonConfig");
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                await patch("/api/settings", { addonDownloadsReset: true });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ addonDownloads: defaultAddons(), addonDownloadsCustomized: false });
+                settingsStore.saveConfig.mockClear();
+                // the edit mark cannot be set from outside
+                await patch("/api/settings", { addonDownloadsCustomized: true });
+                expect(settingsStore.saveConfig.mock.calls.at(-1)[0]).toEqual({});
+            });
+
+            it("keeps the GitHub token and the addon list from a non-admin settings user", async () => {
+                auth.getUser.mockReturnValue({
+                    id: "7", name: "Bob", isAdmin: false,
+                    access: { ...emptyAccess(), settings: { read: true, write: true } },
+                });
+                auth.checkCsrf.mockReturnValue(true);
+                settingsStore.getConfig.mockReturnValue({ guildId: "g1", github: { token: "github_pat_SECRET" }, addonDownloads: [{ id: "a" }] });
+                const read = mockRes();
+                await handle("/api/settings", { method: "GET" }, read);
+                expect(json(read).data.config).not.toHaveProperty("github");
+                expect(json(read).data.config).not.toHaveProperty("addonDownloads");
+                let res = await patch("/api/settings", { github: { token: "mine" } });
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                res = await patch("/api/settings", { addonDownloads: [] });
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                res = await patch("/api/settings", { addonDownloadsReset: true });
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
 
             it("stores the loot tool per category, dropping anything but the two known tools", async () => {
@@ -570,6 +816,20 @@ describe("web/apiRoutes/settings", () => {
                 });
             });
 
+            it("saves which roles count as orga, trimmed - and only for a full admin", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                await patch("/api/settings", { orgaRoleIds: [" r-lead ", "", "r-officer"] });
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ orgaRoleIds: ["r-lead", "r-officer"] });
+
+                settingsStore.saveConfig.mockClear();
+                auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), settings: { read: true, write: true } } });
+                const res = await patch("/api/settings", { orgaRoleIds: ["r-mo"] });
+                // a settings writer must not make their own raider role orga
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
             // Otherwise a role with write access to "Einstellungen" could grant
             // itself (or anyone) full admin.
             it("refuses adminRoleIds/rolePermissions from a non-admin settings user", async () => {
@@ -701,10 +961,36 @@ describe("web/apiRoutes/settings", () => {
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
 
+            it("takes a version colour as lower-case #rrggbb, an empty one resets it, a bad one is refused", async () => {
+                const ok = await patch("/api/settings", { versionSettings: { forever: { color: "#AA3377" }, tbc: { color: "" } } });
+                expect(ok.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ versionSettings: { forever: { color: "#aa3377" }, tbc: { color: "" } } });
+                settingsStore.saveConfig.mockClear();
+                const bad = await patch("/api/settings", { versionSettings: { forever: { color: "blue" } } });
+                expect(bad.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(json(bad).error.message).toBe("WoW Forever: color ist ungültig.");
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
             it("refuses a raidsheet nobody has", async () => {
                 const res = await patch("/api/settings", { versionSettings: { tbc: { raidsheetId: "gone" } } });
                 expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
                 expect(json(res).error.message).toBe("TBC Anniversary: Raidsheet nicht gefunden.");
+            });
+
+            it("takes the features switched off as a list of known ids, in the matrix order (#761)", async () => {
+                const res = await patch("/api/settings", { versionSettings: { tbc: { disabled: ["softres", "logcheck", "logcheck"] }, forever: { disabled: [] } } });
+                expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ versionSettings: { tbc: { disabled: ["logcheck", "softres"] }, forever: { disabled: [] } } });
+            });
+
+            it("refuses an unknown feature or a list that is none, naming the version (#761)", async () => {
+                const unknown = await patch("/api/settings", { versionSettings: { tbc: { disabled: ["logcheck", "teleport"] } } });
+                expect(unknown.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(json(unknown).error).toEqual({ code: "invalid_version_settings", message: "TBC Anniversary: unbekannte Funktion „teleport“." });
+                const notAList = await patch("/api/settings", { versionSettings: { forever: { disabled: "logcheck" } } });
+                expect(json(notAList).error.message).toBe("WoW Forever: disabled ist ungültig.");
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
         });
 
@@ -793,6 +1079,19 @@ describe("web/apiRoutes/settings", () => {
             });
         });
 
+        describe("characters per signup per category", () => {
+            beforeEach(() => {
+                settingsStore.getConfig.mockReturnValue({});
+                settingsStore.saveConfig.mockImplementation((partial) => ({ ...partial }));
+            });
+
+            it("keeps 1..8 per category (clamped, 8 = back to the default), drops what is no number", async () => {
+                readJsonBody.mockResolvedValue({ categorySignupCharacters: { pug: 3, guild: "8", many: 25, zero: 0, bad: "x", " ": 2 } });
+                await updateSettings({ headers: {} }, mockRes());
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categorySignupCharacters: { pug: 3, guild: 8, many: 8, zero: 1 } });
+            });
+        });
+
         describe("the language of a category's posts", () => {
             const languageChange = require("../../../src/services/discord/languageChange");
             beforeEach(() => {
@@ -809,11 +1108,16 @@ describe("web/apiRoutes/settings", () => {
             });
 
             it("passes attendance settings per category whole, defaults filled in", async () => {
-                readJsonBody.mockResolvedValue({ categoryAttendance: { pug: { show: false, window: "8" }, " ": { show: false }, guild: { window: 3 } } });
+                // any whole number from 1 to 50 is kept, anything else becomes the default 11
+                readJsonBody.mockResolvedValue({ categoryAttendance: {
+                    pug: { show: false, window: "8" }, " ": { show: false }, guild: { window: 3 }, many: { window: 51 }, zero: { window: 0 },
+                } });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryAttendance: {
                     pug: { show: false, window: 8, absences: true },
-                    guild: { show: true, window: 11, absences: true },
+                    guild: { show: true, window: 3, absences: true },
+                    many: { show: true, window: 11, absences: true },
+                    zero: { show: true, window: 11, absences: true },
                 } });
             });
 
@@ -1119,8 +1423,8 @@ describe("web/apiRoutes/settings", () => {
                 const data = body(res);
                 expect(discord.listCategories).toHaveBeenCalledWith("200000");
                 expect(data.categories).toEqual([
-                    { id: "900000", name: "Raids Mittwoch", roleCount: 2 },
-                    { id: "910000", name: "", roleCount: 0 },
+                    { id: "900000", name: "Raids Mittwoch", roleCount: 2, active: true },
+                    { id: "910000", name: "", roleCount: 0, active: false },
                 ]);
                 expect(data.pingTargets.talk).toBe(false);
                 expect(data.categoryReminders["910000"].missingHours).toBe(24);
@@ -1137,7 +1441,7 @@ describe("web/apiRoutes/settings", () => {
                 getReminders({}, res);
                 expect(discord.listCategories).toHaveBeenCalledWith("200000");
                 expect(discord.listCategories).toHaveBeenCalledWith("300000");
-                expect(body(res).categories).toEqual([{ id: "920000", name: "PvP-Raids", roleCount: 0 }]);
+                expect(body(res).categories).toEqual([{ id: "920000", name: "PvP-Raids", roleCount: 0, active: true }]);
                 settingsStore.getConfig.mockReturnValue({});
             });
         });

@@ -100,6 +100,19 @@ describe("RostersPage", () => {
         expect(within(empty).queryByRole("link")).not.toBeInTheDocument();
     });
 
+    it("marks a closed roster under its version, without open-work badges (#739)", async () => {
+        await openPage(overview({ rosters: [rosterHead({ closed: true, closedAt: "2026-10-11T12:00:00.000Z", closedReason: "version_switch" })] }));
+        const el = card("Raid Mo / Do");
+        expect(el.querySelector(".rn-card")).toHaveClass("rn-card-closed");
+        const badge = within(el).getByText("Abgeschlossen");
+        expect(badge).toHaveAttribute("data-tip", "Abgeschlossen am 11.10.2026");
+        expect(badge).toHaveAttribute("data-tip-sub", "Die Kategorie spielt jetzt eine andere Spielversion.");
+        expect(within(el).queryByText("4 Plätze frei")).not.toBeInTheDocument();
+        expect(within(el).queryByText("Nichts offen")).not.toBeInTheDocument();
+        // still a link to the roster
+        expect(within(el).getByRole("link")).toHaveAttribute("href", "/roster/r/raid-mo-do-abc");
+    });
+
     it("leads to all characters and has one primary button, \"Roster anlegen\"", async () => {
         await openPage();
         expect(screen.getByRole("link", { name: "Alle Charaktere" })).toHaveAttribute("href", "/roster/chars");
@@ -128,5 +141,23 @@ describe("RostersPage", () => {
         expect(c.getByText("2 on trial")).toBeInTheDocument();
         expect(c.getByText("Open roster")).toBeInTheDocument();
         expect(screen.getByRole("link", { name: "All characters" })).toBeInTheDocument();
+    });
+});
+
+describe("RostersPage - a raider (epic #723)", () => {
+    it("sees the composition of a card, but no attendance, no open-work badges and no all-characters link", async () => {
+        await openPage(overview({ isOrga: false, rosters: [rosterHead({ isOrga: false, attendance: null, todo: { withoutRole: null, withoutChar: 0, trial: 0 } })] }));
+        const c = within(card("Raid Mo / Do"));
+        expect(c.getByText("von 25 Plätzen")).toBeInTheDocument();
+        expect(c.getByText("Tanks").closest(".rn-fig")).toHaveTextContent("3 von 3");
+        expect(c.queryByText("Anwesenheit")).not.toBeInTheDocument();
+        expect(c.queryByText("Nichts offen")).not.toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: "Alle Charaktere" })).not.toBeInTheDocument();
+    });
+
+    it("shows the orga everything, with the all-characters link", async () => {
+        await openPage(overview({ isOrga: true }));
+        expect(within(card("Raid Mo / Do")).getByText("Anwesenheit")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Alle Charaktere" })).toBeInTheDocument();
     });
 });

@@ -205,6 +205,18 @@ describe("Wünsche bleiben bei der Orga", () => {
         expect(data.profile.note).toBe("nur für die Orga");
     });
 
+    it("sperrt Profil und Doppel-Charaktere für Raider (403 orga_only), auch mit Roster-Leserecht (epic #723)", async () => {
+        const raider = { ...ANNA, isOrga: false, access: { roster: { read: true, write: false } } };
+        for (const [handler, query] of [[route.getUserProfile, `id=${BERT.id}`], [route.getCharacterClaims, ""]]) {
+            const res = await call(handler, raider, { query });
+            expect(status(res)).toBe(403);
+            expect(json(res).error.code).toBe("orga_only");
+        }
+        const orgaRole = { ...ANNA, isOrga: true };
+        expect(status(await call(route.getUserProfile, orgaRole, { query: `id=${BERT.id}` }))).toBe(200);
+        expect(status(await call(route.getCharacterClaims, orgaRole))).toBe(200);
+    });
+
     it("antwortet 404 für ein Konto ohne Profil", async () => {
         const res = await call(route.getUserProfile, ORGA, { query: "id=200000000000000055" });
         expect(status(res)).toBe(404);
@@ -373,6 +385,16 @@ describe("Charaktere je Spielversion (#543)", () => {
         const byMain = await call(route.postProfileCharacter, ANNA, { json: { source: "manual", name: "Devi Rew", className: "Mage", specs: [] } });
         expect(json(byMain).data.character).toMatchObject({ key: "forever~devi rew", versionId: "forever" });
         expect(store.getProfile(ANNA.id).characters.map((c) => c.key)).toEqual(["devi", "forever~devi res", "forever~devi rew"]);
+    });
+
+    it("legt keinen Charakter einer ausgeblendeten Version an (#563)", async () => {
+        mockMainVersion = { mainVersion: "forever", hideOtherVersions: true };
+        const res = await call(route.postProfileCharacter, ANNA, { json: { source: "manual", name: "Devi", className: "Priest", specs: ["Priest-Holy"], versionId: "tbc" } });
+        expect(status(res)).toBe(400);
+        expect(json(res).error.code).toBe("version_hidden");
+        expect(store.getProfile(ANNA.id).characters).toEqual([]);
+        const ok = await call(route.postProfileCharacter, ANNA, { json: { source: "manual", name: "Devi Res", className: "Priest", specs: [], versionId: "forever" } });
+        expect(status(ok)).toBe(200);
     });
 
     it("prueft den Namen nach der Regel der Version: TBC ohne, Forever mit Nachnamen", async () => {

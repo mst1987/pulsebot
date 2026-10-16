@@ -10,7 +10,7 @@ const discord = require("../../services/discord/discord");
 const { SPEC_CATALOG } = require("../../utils/recruitment/recruitmentSpecs");
 const { annotateApplication } = require("../recruitment/recruitmentApplications");
 const { VERSIONS } = require("../../config/gameVersions");
-const { mainVersionFor, visibleRows, visibleVersions } = require("../../services/events/mainVersion");
+const { mainVersionFor, visibleRows, visibleVersions, resolveVersionQuery } = require("../../services/events/mainVersion");
 
 /**
  * GET /api/recruitment?view=posts|templates|applications&edit=<id>&editpost=<id>
@@ -23,6 +23,11 @@ const getRecruitmentData = withUser({}, async ({ req, res, url }) => {
     const editPostId = (url.searchParams.get("editpost") || "").trim();
     const view = url.searchParams.get("view") || "";
     const { applicationChannelId } = getConfig();
+    // One game version (#741): `?version=` narrows the three lists to it (nothing asked = every shown version);
+    // an entry an editor is opened on stays, whatever its version.
+    const asked = url.searchParams.get("version");
+    const pageVersion = asked === null ? "" : resolveVersionQuery(asked, { config: getConfig() }).versionId;
+    const ofPage = (rows, keepId = "") => (pageVersion && rows ? rows.filter((r) => (r.versionId || "tbc") === pageVersion || (keepId && r.id === keepId)) : rows);
 
     let applications = null;
     let applicationsError = null;
@@ -37,14 +42,14 @@ const getRecruitmentData = withUser({}, async ({ req, res, url }) => {
         view,
         guildName: guild ? guild.name : "",
         // Other versions hidden (#563): their templates, posts and applications stay out.
-        templates: visibleRows(listRecruitment(), (r) => r.versionId),
+        templates: ofPage(visibleRows(listRecruitment(), (r) => r.versionId), editId),
         editing: editId ? getRecruitment(editId) : null,
         editingPost: editPostId ? getRecruitmentPost(editPostId) : null,
-        posts: visibleRows(guildId ? listRecruitmentPosts().filter((p) => p.guildId === guildId) : listRecruitmentPosts(), (p) => p.versionId),
+        posts: ofPage(visibleRows(guildId ? listRecruitmentPosts().filter((p) => p.guildId === guildId) : listRecruitmentPosts(), (p) => p.versionId), editPostId),
         channels: discord.listTextChannels(guildId),
         emojis: discord.listEmojis(guildId),
         specCatalog: SPEC_CATALOG,
-        applications: visibleRows(applications, (a) => a.versionId || "tbc"),
+        applications: ofPage(visibleRows(applications, (a) => a.versionId || "tbc")),
         applicationsError,
         applicationChannelId,
         activeGuildId: guildId,

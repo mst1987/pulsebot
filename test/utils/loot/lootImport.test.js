@@ -179,6 +179,15 @@ describe("utils/loot/lootImport", () => {
             expect(items[0]).toMatchObject({ itemName: "Phoenix-Ring of Rebirth", itemIconUrl: "https://example/ring.jpg" });
         });
 
+        it("asks the Wowhead section of the version it is given (#750)", async () => {
+            wowhead.lookupItem.mockResolvedValue(null);
+            await enrichItemNames([{ itemId: 7, itemName: "", itemIconUrl: "" }], { versionId: "forever" });
+            expect(wowhead.lookupItem).toHaveBeenCalledWith(7, { path: "forever" });
+            wowhead.lookupItem.mockClear();
+            await enrichItemNames([{ itemId: 8, itemName: "", itemIconUrl: "" }]);
+            expect(wowhead.lookupItem).toHaveBeenCalledWith(8, { path: "" }); // stays on TBC
+        });
+
         it("dedupes lookups for repeated item ids", async () => {
             wowhead.lookupItem.mockResolvedValue({ id: 1, name: "X", iconUrl: "https://example/x.jpg" });
             const items = [

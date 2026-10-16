@@ -468,6 +468,20 @@ describe("editorView's buff info and attendance", () => {
         expect(view.setup.pool[0].brings.some((b) => b.scope === "raid")).toBe(true);
     });
 
+    it("counts the air totems once per party in Forever, where they no longer stack (#751), and per shaman in TBC", () => {
+        const two = (versionId) => ({
+            ...draft(),
+            versionId,
+            setup: { ...draft().setup, groups: [
+                { index: 1, slots: [slot("sham", "Shaman-Enhancement", "melee"), slot("sham2", "Shaman-Elemental", "ranged"), slot("rogue", "Rogue-Combat", "melee")] },
+                { index: 2, slots: [slot("fury", "Warrior-Fury", "melee")] },
+            ] },
+        });
+        const airOf = (versionId) => editor.editorView(two(versionId), { canWrite: true, signups: [] }).setup.groups[0].slots[0].brings.filter((b) => b.scope === "party" && ["windfury", "graceOfAir"].includes(b.key));
+        expect(airOf("tbc").length).toBe(1);
+        expect(airOf("forever")).toEqual([]);
+    });
+
     it("gives every raider the groups where they would help more — the drag glow — but never their own", () => {
         const view = editor.editorView(draft(), { canWrite: true, signups: [] });
         const sham = view.setup.groups[0].slots[0];

@@ -9,6 +9,11 @@
 // `mutual` and `wishedBy`. "Nicht mit X raiden" (`avoid`) is stricter still:
 // there is no reverse list at all, not even for the orga — only the setup
 // proposal reads it, and only when the orga asks for it.
+//
+// Part 2 (docs/roster-profile.md): the hours per weekday (`availabilityFrom`),
+// the professions and the wish items of each character go to the owner and the
+// orga only - every caller of profileView is one of them (the own profile, the
+// orga's profile and character views).
 
 const { getConfig } = require("../../stores/settingsStore");
 const { armoryUrlFor } = require("./charLinks");
@@ -16,6 +21,8 @@ const { blizzardFor } = require("../../services/events/versionSettings");
 const { mainVersionFor } = require("../../services/events/mainVersion");
 const profiles = require("../../stores/raiderProfileStore");
 const { specEvidence, logIndex } = require("./profileLogs");
+const { characterEvidence, seenIndex } = require("../../services/characters/characterEvidence");
+const { wishItemView } = require("../../services/characters/wishItems");
 
 /** A spec entry with what the rule set says about it and what the logs say. */
 function specView(character, spec, index) {
@@ -55,10 +62,11 @@ function effectiveRoles(profile) {
  * The API shape of a profile. `forOrga` adds who wished for this raider and
  * which wishes are mutual; without it no other profile's wishes are touched.
  */
-function profileView(profile, { forOrga = false, index = logIndex(), all = profiles.listProfiles() } = {}) {
+function profileView(profile, { forOrga = false, index = logIndex(), all = profiles.listProfiles(), seen = seenIndex() } = {}) {
     const byId = new Map(all.map((p) => [p.userId, p]));
     // another raider is named by their first character of the main game version
-    const preferVersion = mainVersionFor({ config: getConfig() });
+    const config = getConfig();
+    const preferVersion = mainVersionFor({ config });
     const characters = profile.characters.map((c) => {
         const roles = profiles.characterRoles(profile, c);
         return {
@@ -71,11 +79,15 @@ function profileView(profile, { forOrga = false, index = logIndex(), all = profi
             source: c.source,
             armory: c.armory,
             armoryUrl: armoryUrlFor(c.name, c.versionId),
+            // does it exist in game (log, loot, armory, orga)? An unconfirmed one gets no guild bank mail
+            evidence: characterEvidence(c, { index: seen }),
             specs: c.specs.map((s) => specView(c, s, index)),
             canOfftank: roles.canOfftank,
             canHeal: roles.canHeal,
             suggested: roles.suggested,
             possible: roles.possible,
+            professions: c.professions || [],
+            wishItems: (c.wishItems || []).map((w) => wishItemView(w, c.versionId, { config })),
             claimedBy: all
                 .filter((p) => p.userId !== profile.userId && p.characters.some((o) => o.key === c.key))
                 .map((p) => ({ userId: p.userId, name: p.name })),
@@ -96,6 +108,7 @@ function profileView(profile, { forOrga = false, index = logIndex(), all = profi
         characters,
         ...effectiveRoles(profile),
         availability: profile.availability,
+        availabilityFrom: profile.availabilityFrom || {},
         preferredRaids: profile.preferredRaids,
         wishes,
         // Like the wishes: the owner sees whom *they* named, never who named them.

@@ -14,6 +14,7 @@ import { classColorProps } from "../../components/character/ClassSpec";
 import { eventPostUrl, raidplanUrl } from "../../lib/discord/discordLinks";
 import { dayDate, clock, fetchedAt } from "../../lib/raids/overviewDates";
 import { RoleBar, IconLink } from "./OverviewParts";
+import { usesSheet } from "./raidPlanning";
 import { tOr, useT } from "../../i18n";
 import { classLabel, roleLabel } from "../../lib/wow/wowNames";
 
@@ -77,7 +78,7 @@ function Details({ raid, guildId }: { raid: NextRaidDetails; guildId: string }) 
             <div className="ov-dlg-col">
                 <SectHead icon="inv_misc_note_01" tone="mid" title={t("dashboard.raidDetails.prep")} />
                 <div className="ov-glist">
-                    {check(!!raid.sheet, "inv_misc_note_02", t("dashboard.raidDetails.raidsheet"), raid.sheet ? (raid.sheet.playerCount ? t("dashboard.raidDetails.players", { count: raid.sheet.playerCount }) : t("dashboard.raidDetails.present")) : t("dashboard.raidDetails.missing"),
+                    {usesSheet(raid) && check(!!raid.sheet, "inv_misc_note_02", t("dashboard.raidDetails.raidsheet"), raid.sheet ? (raid.sheet.playerCount ? t("dashboard.raidDetails.players", { count: raid.sheet.playerCount }) : t("dashboard.raidDetails.present")) : t("dashboard.raidDetails.missing"),
                         raid.sheet?.url ? { href: raid.sheet.url, tip: t("dashboard.raidDetails.openSheet") } : undefined)}
                     {check(raid.setupCount > 0, "inv_misc_groupneedmore", t("dashboard.raidDetails.setupComp"), raid.setupCount ? t("dashboard.raidDetails.setCount", { count: raid.setupCount }) : t("dashboard.raidDetails.open"),
                         raidplanUrl(raid.id) ? { href: raidplanUrl(raid.id), tip: t("dashboard.raidDetails.openRaidplan") } : undefined)}
@@ -156,7 +157,7 @@ export default function RaidDetailsModal({ eventId, guildId, title, icon, onClos
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>
-                    {raid && !raid.sheet
+                    {raid && usesSheet(raid) && !raid.sheet
                         ? (
                             <Link className={buttonClass("primary", "md", true)} to={detailHref}>
                                 <WowIcon name="inv_misc_note_02" size={22} />{t("dashboard.raidDetails.fillSheet")}

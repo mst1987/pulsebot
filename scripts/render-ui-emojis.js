@@ -6,8 +6,9 @@
 //
 // Raid-Helper's look: thin, single-colour line icons in a light grey that reads
 // on Discord's dark and light theme — no colourful unicode emojis. The PNGs are
-// checked in; the bot never rasterises anything at runtime, so @resvg/resvg-js
-// is only a devDependency. Change an icon here, re-run, commit the PNG — and
+// checked in; the bot never rasterises these at runtime (it does draw the
+// pictures of services/discord/discordImage.js with the same @resvg/resvg-js,
+// which is why that is a runtime dependency now). Change an icon here, re-run, commit the PNG — and
 // note that the bot never replaces an existing emoji: give a redrawn icon to
 // the application by deleting the old one in the developer portal first.
 const fs = require("fs");
@@ -19,7 +20,13 @@ const COLOR = "#B9BBBE";
 const STROKE = 2.4;
 // Every icon shares COLOR except these two — a raider's own confirmation
 // reads at a glance, like the green/red of the Confirm/Cancel buttons.
-const COLOR_OVERRIDES = { confirmed: "#3BA55D", declined: "#ED4245" };
+const COLOR_OVERRIDES = {
+    confirmed: "#3BA55D", declined: "#ED4245",
+    // the Orga-Zentrale's raid statuses: grey (signup, cancelled), orange (open, changed), blue (draft), green (approved, posted)
+    orgaopen: "#E0A33A", orgadraft: "#4F9CF9", orgaapproved: "#3BA55D", orgaposted: "#3BA55D", orgachanged: "#E0A33A",
+    // the fill bar of the raid overview: green, orange, grey (own colour so it differs from the empty outline)
+    barg: "#3BA55D", baro: "#E0A33A", barn: "#8E9297", bare: "#5A5E66",
+};
 
 // 24 × 24 line drawings (stroke only, unless an element says otherwise).
 const ICONS = {
@@ -74,6 +81,26 @@ const ICONS = {
     // an arrow running into a wall — the raid's end (#305); a second clock
     // would be indistinguishable from `time` at 32 px.
     end: '<path d="M3.5 12h11"/><path d="M10.5 7.5 15 12l-4.5 4.5"/><path d="M19.5 4.5v15"/>',
+    // The Orga-Zentrale's raid statuses (services/events/orgaStatus.js) — shape and colour both differ.
+    // a hollow circle, grey — the signup runs
+    orgasignup: '<circle cx="12" cy="12" r="8"/>',
+    // a filled circle, orange — the setup is open
+    orgaopen: '<circle cx="12" cy="12" r="8.5" fill="COLOR"/>',
+    // a half-filled circle, blue — the setup is in the works
+    orgadraft: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16Z" fill="COLOR"/>',
+    // a green ring with a tick — approved, not posted
+    orgaapproved: '<circle cx="12" cy="12" r="8.5"/><path d="M8 12.4l2.8 2.8 5.2-5.6"/>',
+    // a filled green circle with a white tick — posted
+    orgaposted: '<circle cx="12" cy="12" r="9.2" fill="COLOR"/><path d="M7.8 12.4l3 3 5.4-5.8" stroke="#FFFFFF" stroke-width="2.8"/>',
+    // an exclamation mark, orange — changed since the approval
+    orgachanged: '<path d="M12 4v10.5" stroke-width="3.6"/><circle cx="12" cy="19.6" r="2" fill="COLOR" stroke="none"/>',
+    // a cross, grey — cancelled
+    orgacancelled: '<path d="M7 7l10 10M17 7 7 17"/>',
+    // The fill bar of the raid overview: one rounded segment, filled (green / orange / grey) or only outlined (empty).
+    barg: '<rect x="1.5" y="6" width="21" height="12" rx="3" fill="COLOR"/>',
+    baro: '<rect x="1.5" y="6" width="21" height="12" rx="3" fill="COLOR"/>',
+    barn: '<rect x="1.5" y="6" width="21" height="12" rx="3" fill="COLOR"/>',
+    bare: '<rect x="2.5" y="7" width="19" height="10" rx="2.5"/>',
 };
 
 /** The SVG source of one icon. */

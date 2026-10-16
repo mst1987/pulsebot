@@ -6,7 +6,7 @@ import {
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { Button, Modal, Segment, WowIcon } from "../ui";
-import { AbsenceIcon, CheckIcon, SignedIcon } from "../ui/icons";
+import { AbsenceIcon, CheckIcon, SignedIcon, XIcon } from "../ui/icons";
 import { useToast } from "../shell/Jobs";
 import { RaidChecklist, RaiderPick, ResultList } from "./AvailabilityParts";
 import { countResults, firstSpec, nextTo, resultSummary, staysAsIs } from "../../lib/signups/availability";
@@ -145,11 +145,11 @@ function AvailabilityForm({ initialKind, own, initialTarget, onClose, onSaved }:
             width={640}
             hint={results ? undefined : hint}
             footer={results ? (
-                <Button onClick={onClose}>{t("common.close")}</Button>
+                <Button variant="ghost" icon={<XIcon />} onClick={onClose}>{t("common.close")}</Button>
             ) : (
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon={<CheckIcon />} disabled={!canSave} running={busy} onClick={submit} variant={presence ? "primary" : "danger"}>
+                    <Button icon={<CheckIcon />} disabled={!canSave} running={busy} onClick={submit} variant={presence ? "go" : "no"}>
                         {presence ? t("signups.availability.dialog.savePresence") : t("signups.availability.dialog.saveAbsence")}
                     </Button>
                 </>

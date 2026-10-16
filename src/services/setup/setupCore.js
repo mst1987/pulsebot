@@ -18,6 +18,7 @@ const BUTTON_LABELS = {
     cancel: { de: "Absagen", en: "Cancel" },
     invite: { de: "Invites callen", en: "Call invites" },
     ping: { de: "Alle pingen", en: "Ping everyone" },
+    pingOpen: { de: "Unbestätigte pingen", en: "Ping unconfirmed" },
 };
 const buttonLabel = (lang, key) => BUTTON_LABELS[key][normalizeLang(lang)];
 
@@ -41,6 +42,51 @@ function benchAndPool(setup) {
     return { bench: bench.filter((b) => b.locked), pool: bench.filter((b) => !b.locked).map((b) => ({ ...b, locked: false })) };
 }
 
+// ---- where a setup stands --------------------------------------------------------
+
+/**
+ * What the raid detail's progress step and the Orga-Zentrale need of an own
+ * event's setup — counts and state, no names. null without a setup.
+ */
+function setupSummary(event) {
+    const setup = event && event.setup;
+    if (!setup) return null;
+    const placed = (setup.groups || []).reduce((n, g) => n + (g.slots || []).length, 0);
+    const { bench, pool } = benchAndPool(setup);
+    return {
+        status: setup.status === "approved" ? "approved" : "draft",
+        changedSinceApproval: !!setup.changedSinceApproval,
+        version: setup.version || 0,
+        placed,
+        size: Number(event.size) || 0,
+        bench: bench.length,
+        pool: pool.length,
+        ok: !!(setup.checks && setup.checks.ok),
+        approvedAt: setup.approvedAt || (setup.approved && setup.approved.approvedAt) || 0,
+    };
+}
+
+/**
+ * The one reading of where a setup stands, shared by the raid detail's
+ * Freigabe step (web/events/raidDetailSteps.js) and the Orga-Zentrale
+ * (services/events/orgaStatus.js), so the two can never disagree:
+ *   "none"      nobody placed (no setup, or an empty one)
+ *   "draft"     placed, never approved
+ *   "changed"   approved once, the draft differs from that approval
+ *   "approved"  approved, not posted to the channel
+ *   "outdated"  approved and posted, but the message shows an older state
+ *   "posted"    approved and posted as it stands
+ * @param {ReturnType<typeof setupSummary>} summary
+ * @param {{ messageId?: string, version?: number } | null} [post] the event's `setupPost`
+ */
+function setupPhase(summary, post) {
+    if (!summary || !summary.placed) return "none";
+    if (summary.changedSinceApproval) return "changed";
+    if (summary.status !== "approved") return "draft";
+    if (!(post && post.messageId)) return "approved";
+    return Number(post.version) < Number(summary.version || 0) ? "outdated" : "posted";
+}
+
 /**
  * Whether the setup message and its DMs carry the bench (#517): the orga's last
  * choice when posting ("Bench mitposten"), off by default. The pool is never posted.
@@ -60,6 +106,9 @@ const PING_TEXT_MAX = 300;
 function pingTextOf(event, lang = "de") {
     return (event && event.setupPingText) || tr(lang, PING_TEXT);
 }
+
+/** "Ping unconfirmed"'s line — a reminder, never the orga's stored text for everybody. */
+const PING_OPEN_TEXT = "⏳ Please confirm or cancel your spot in the setup.";
 
 // ---- Confirm / Cancel ---------------------------------------------------------
 
@@ -83,6 +132,12 @@ function confirmationsFor(event, approved) {
     return out;
 }
 
+/** Everybody placed in a group without an answer yet (neither confirmed nor cancelled), once each, in group order. */
+function unansweredOf(approved, confirmations = {}) {
+    const placed = ((approved && approved.groups) || []).flatMap((g) => (g.slots || []).map((s) => String(s.userId || "")));
+    return [...new Set(placed)].filter((id) => id && !CONFIRM_STATUSES.includes(confirmations[id]));
+}
+
 // ---- the button row under the setup message -------------------------------------
 
 const CONFIRM_PREFIX = "setup-confirm";
@@ -91,7 +146,8 @@ const PING_PREFIX = "setup-ping";
 
 const confirmId = (field, eventId) => `${CONFIRM_PREFIX}:${field}:${eventId}`;
 const inviteId = (field, eventId) => `${INVITE_PREFIX}:${field}:${eventId}`;
-const pingId = (eventId) => `${PING_PREFIX}:${eventId}`;
+// `open`: "Ping unconfirmed" — only who has not answered yet
+const pingId = (eventId, open = false) => `${PING_PREFIX}:${eventId}${open ? ":open" : ""}`;
 
 /** Confirm / Cancel (setupConfirmBot.js) — every raider reads it, so it is in the server language. */
 function confirmButtonRow(eventId, lang = "de") {
@@ -113,15 +169,24 @@ function inviteButtonRow(eventId, lang = "de") {
     return { type: 1, components: [{ type: 2, style: 2, custom_id: inviteId("p", eventId), label: buttonLabel(lang, "invite"), emoji: { name: "📣" } }] };
 }
 
-/** "Ping everyone" (setupPingBot.js), beside "Call invites". */
-function pingButtonRow(eventId, lang = "de") {
-    return { type: 1, components: [{ type: 2, style: 2, custom_id: pingId(eventId), label: buttonLabel(lang, "ping") }] };
+/**
+ * "Ping everyone" (setupPingBot.js), beside "Call invites" — and with `open`
+ * "Ping unconfirmed" after it, only while somebody in a group has not answered.
+ */
+function pingButtonRow(eventId, lang = "de", { open = false } = {}) {
+    return {
+        type: 1,
+        components: [
+            { type: 2, style: 2, custom_id: pingId(eventId), label: buttonLabel(lang, "ping") },
+            ...(open ? [{ type: 2, style: 2, custom_id: pingId(eventId, true), label: buttonLabel(lang, "pingOpen") }] : []),
+        ],
+    };
 }
 
 module.exports = {
-    approvedSetupOf, benchAndPool, benchPosted,
-    PING_TEXT, PING_TEXT_MAX, pingTextOf,
-    CONFIRM_STATUSES, confirmationsFor,
+    approvedSetupOf, benchAndPool, benchPosted, setupSummary, setupPhase,
+    PING_TEXT, PING_OPEN_TEXT, PING_TEXT_MAX, pingTextOf,
+    CONFIRM_STATUSES, confirmationsFor, unansweredOf,
     CONFIRM_PREFIX, INVITE_PREFIX, PING_PREFIX, confirmId, inviteId, pingId,
     confirmButtonRow, inviteButtonRow, pingButtonRow,
 };

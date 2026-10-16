@@ -4,9 +4,9 @@
 // content(s) it is (for the boss icon), the raid size the signup bar is measured
 // against, and for a past raid its logs and loot as counts plus the few names a
 // tooltip shows. Derived on every read, never stored.
-const { contentsForText, CONTENTS } = require("../../config/tbcContent");
-const { instanceById } = require("../../config/gameVersions");
-const { listStoredEvents } = require("./eventSources");
+const { contentsForText } = require("../../config/raidContent");
+const { instanceById, VERSIONS } = require("../../config/gameVersions");
+const { listStoredEvents, cancelFields } = require("./eventSources");
 const { scanRaidEvents } = require("./raidEventScan");
 const { autoLinkLogs } = require("../logcheck/logAutoLink");
 const { listByEvent: listLootByEvent } = require("../../stores/lootStore");
@@ -18,7 +18,8 @@ const { versionOfEvent } = require("./mainVersion");
 
 // The size a night is measured against when no content was recognised.
 const DEFAULT_RAID_SIZE = 25;
-const CONTENT_ORDER = CONTENTS.map((c) => c.id);
+// Every known instance id of every version, in version and release order.
+const CONTENT_ORDER = VERSIONS.flatMap((v) => v.instances.map((i) => i.id));
 
 // A content counts as "looted there" only from this many items on: a single
 // stray bank item handed out on a BT night must not paint a Karazhan icon on it.
@@ -32,8 +33,9 @@ const MIN_LOOT_ITEMS = 2;
  * wording. Nothing recognised gives [] (no icon), never a guess.
  *
  * @param {object} input { title, categoryName, channelName, zones: string[], lootContentIds: string[],
- *   instanceIds: string[] (an own event's planned instances, which beat the wording) }
- * @returns {{ contentIds: string[], sources: string[] }} ids in tbcContent order;
+ *   instanceIds: string[] (an own event's planned instances of any version, which beat the wording),
+ *   versionId: string (the event's game version: the wording is read only within it; default TBC) }
+ * @returns {{ contentIds: string[], sources: string[] }} ids in rule-set order;
  *   sources: which of "event" | "title" | "category" | "channel" | "logs" | "loot" contributed
  */
 function raidContentIds(input = {}) {
@@ -47,14 +49,15 @@ function raidContentIds(input = {}) {
     };
 
     // An own event names its instances outright — nothing to read from wording.
+    const opts = { versionId: input.versionId };
     const planned = (input.instanceIds || []).filter((id) => CONTENT_ORDER.includes(id));
     if (!add(planned, "event")
-        && !add(contentsForText(input.title), "title")
-        && !add(contentsForText(input.categoryName), "category")) {
-        add(contentsForText(input.channelName), "channel");
+        && !add(contentsForText(input.title, opts), "title")
+        && !add(contentsForText(input.categoryName, opts), "category")) {
+        add(contentsForText(input.channelName, opts), "channel");
     }
 
-    for (const zone of input.zones || []) add(contentsForText(zone), "logs");
+    for (const zone of input.zones || []) add(contentsForText(zone, opts), "logs");
 
     const lootCounts = new Map();
     for (const id of input.lootContentIds || []) {
@@ -107,8 +110,9 @@ function softresOf(eventId) {
  */
 function upcomingRows(groups) {
     return (groups || []).flatMap((g) => (g.events || []).map((ev) => {
+        const versionId = versionOfEvent({ versionId: ev.versionId, categoryId: g.categoryId });
         const { contentIds, sources } = raidContentIds({
-            title: ev.title, categoryName: g.categoryName, channelName: ev.channelName, instanceIds: ev.instanceIds,
+            title: ev.title, categoryName: g.categoryName, channelName: ev.channelName, instanceIds: ev.instanceIds, versionId,
         });
         // An own event carries its planned size; Raid-Helper's is read off the contents.
         const size = ev.size ? { size: ev.size, known: true } : raidSize(contentIds);
@@ -120,18 +124,29 @@ function upcomingRows(groups) {
             channelId: ev.channelId || "",
             channelName: ev.channelName || "",
             categoryId: g.categoryId || "",
-            categoryName: g.categoryName || "",
+            categoryName: ev.categoryName || g.categoryName || "",
             signupCount: ev.signupCount || 0,
             contentIds,
             contentSources: sources,
             raidSize: size.size,
             raidSizeKnown: size.known,
             softres: softresOf(ev.id),
+            ...cancelFields(ev),
             // The game version this raid plays (#545): its own (own events), else
             // what the category plays — a Raid-Helper event carries none.
-            versionId: versionOfEvent({ versionId: ev.versionId, categoryId: g.categoryId }),
+            versionId,
+            ...raidGroupFields(ev),
         };
     }));
+}
+
+/**
+ * A raid group (#811): the first raid's id on every raid of it and the raid's
+ * place — the list shows the further raids under the first ("Zul'Aman · 2 Raids").
+ * Nothing outside a group.
+ */
+function raidGroupFields(ev) {
+    return ev && ev.raidGroupId ? { raidGroupId: String(ev.raidGroupId), raidGroupIndex: Number(ev.raidGroupIndex) || 1 } : {};
 }
 
 /**
@@ -146,7 +161,8 @@ async function loadPastRaids(guildId, opts = {}) {
     if (!guildId) return { events: [], error: null };
     const { error: scanError } = await scanRaidEvents(guildId);
     await autoLinkLogs(guildId);
-    const stored = listStoredEvents(guildId);
+    // the further raids of a raid group too (#811): each has its own logs and loot
+    const stored = listStoredEvents(guildId, { siblings: true });
     const logs = listLogs()
         .filter((l) => !l.guildId || l.guildId === guildId)
         .map((l) => ({ ...l, postedAt: logPostedAt(l) }));
@@ -154,7 +170,9 @@ async function loadPastRaids(guildId, opts = {}) {
 
     const events = recent.map((ev) => {
         const loot = listLootByEvent(ev.id);
+        const versionId = versionOfEvent({ versionId: ev.versionId, categoryId: ev.categoryId });
         const { contentIds, sources } = raidContentIds({
+            versionId,
             title: ev.title,
             categoryName: ev.categoryName,
             channelName: ev.channelName,
@@ -184,7 +202,9 @@ async function loadPastRaids(guildId, opts = {}) {
             pendingLogCount: ev.pendingLogs.length,
             lootCount: loot.length,
             softres: softresOf(ev.id),
-            versionId: versionOfEvent({ versionId: ev.versionId, categoryId: ev.categoryId }),
+            ...cancelFields(ev),
+            versionId,
+            ...raidGroupFields(stored.find((s) => s.id === ev.id) || ev),
         };
     });
     return { events, error: stored.length ? null : scanError };

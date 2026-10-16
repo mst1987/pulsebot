@@ -7,12 +7,14 @@ import { t as translate, useT } from "../../i18n";
 import { Button, IconButton } from "../../components/ui/Button";
 import { Modal } from "../../components/ui/Modal";
 import Badge from "../../components/ui/Badge";
+import Chip from "../../components/ui/Chip";
 import Segment from "../../components/ui/Segment";
 import PartHead from "../../components/ui/PartHead";
 import WowIcon from "../../components/ui/WowIcon";
 import { EyeIcon, LockIcon, PenIcon, PlusIcon, TrashIcon, XIcon } from "../../components/ui/icons";
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import { useDismiss } from "../../hooks/useDismiss";
+import { assignableRoles } from "../../lib/settings/assignableRoles";
 
 // Einstellungen → Berechtigungen as one matrix: rows = who, columns = the areas
 // of the menu, each cell one tri-state button (aus › Lesen › Schreiben). It
@@ -128,8 +130,11 @@ function grantSummary(areas: Area[], grants: Grants | undefined): string {
 
 export default function RolePermissionsEditor({
     areas, roles, adminRoleIds, onAdminRoleIds, value, onChange, baseAccess, onBaseAccessChange,
-    userPermissions, onUserPermissionsChange, userNames, icon, crumb, viewSwitch,
+    userPermissions, onUserPermissionsChange, userNames, icon, crumb, viewSwitch, orgaRoleIds = [], onOrgaRoleIds,
 }: {
+    /** The roles that count as orga (the rest are raider roles); missing = no switch (an older caller). */
+    orgaRoleIds?: string[];
+    onOrgaRoleIds?: (next: string[]) => void;
     /** The Bereiche · Bot-Befehle segment, shown in the part head. */
     viewSwitch?: ReactNode;
     areas: Area[];
@@ -295,12 +300,27 @@ export default function RolePermissionsEditor({
                             return (
                                 <tr key={id} className={role ? undefined : "perm-unknown"}>
                                     <td>
-                                        <RowName
-                                            label={name}
-                                            sub={role ? grantSummary(areas, value[id]) : t("settings.permissions.notOnServer")}
-                                            avatar={<span className="perm-avatar" style={role?.color ? { "--rc": role.color } as CSSProperties : undefined}>@</span>}
-                                            onAll={(lv) => setRole(id, allOf(lv))}
-                                        />
+                                        <div className="perm-who-row">
+                                            <RowName
+                                                label={name}
+                                                sub={role ? grantSummary(areas, value[id]) : t("settings.permissions.notOnServer")}
+                                                avatar={<span className="perm-avatar" style={role?.color ? { "--rc": role.color } as CSSProperties : undefined}>@</span>}
+                                                onAll={(lv) => setRole(id, allOf(lv))}
+                                            />
+                                            {/* orga or raider role: who is orga sees the orga's parts; the areas stay per role either way */}
+                                            {onOrgaRoleIds && (
+                                                <Chip
+                                                    className="perm-orga"
+                                                    pressed={orgaRoleIds.includes(id)}
+                                                    tone={orgaRoleIds.includes(id) ? "accent" : undefined}
+                                                    tip={t(orgaRoleIds.includes(id) ? "settings.permissions.orgaOnTip" : "settings.permissions.orgaOffTip", { name })}
+                                                    tipSub={t("settings.permissions.orgaSub")}
+                                                    onClick={() => onOrgaRoleIds(orgaRoleIds.includes(id) ? orgaRoleIds.filter((x) => x !== id) : [...orgaRoleIds, id])}
+                                                >
+                                                    {t(orgaRoleIds.includes(id) ? "settings.permissions.orgaOn" : "settings.permissions.orgaOff")}
+                                                </Chip>
+                                            )}
+                                        </div>
                                     </td>
                                     {cells("role", id, name, value[id])}
                                     <td className="cell-act">
@@ -385,7 +405,8 @@ function AddOwnerModal({ mode, roles, taken, takenUsers, onClose, onAddRole, onA
     const [kind, setKind] = useState<"role" | "user">(roles.length || mode === "admin" ? "role" : "user");
     const [roleId, setRoleId] = useState("");
     const [userId, setUserId] = useState("");
-    const addable = roles.filter((r) => !taken.includes(r.id));
+    // a bot's own role (@MEE6) is held by no member: nothing to grant it (#745)
+    const addable = assignableRoles(roles).filter((r) => !taken.includes(r.id));
     const trimmed = userId.trim();
     const idValid = isDiscordId(trimmed);
     const duplicate = idValid && takenUsers.includes(trimmed);
@@ -405,7 +426,7 @@ function AddOwnerModal({ mode, roles, taken, takenUsers, onClose, onAddRole, onA
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button disabled={!canAdd} onClick={() => (kind === "role" ? onAddRole(roleId) : onAddUser(trimmed))}>{t("common.add")}</Button>
+                    <Button icon={<PlusIcon />} disabled={!canAdd} onClick={() => (kind === "role" ? onAddRole(roleId) : onAddUser(trimmed))}>{t("common.add")}</Button>
                 </>
             )}
         >

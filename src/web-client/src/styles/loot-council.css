@@ -272,7 +272,75 @@ tr.lc-crow-panel > td { padding: 0 14px 16px 50px; border-bottom: 1px solid var(
 .lc-witem .lc-wstep-lbl { display: none; }
 .lc-wempty { padding: 4px 0; }
 .lc-wpicker { max-width: 420px; }
-.lc-wfoot { display: flex; align-items: center; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+.lc-wfoot { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
 @media (max-width: 700px) {
     .lc-witem { grid-template-columns: 1fr; gap: 8px; }
+}
+/* ---- Wer der Council ist (#676): Roster-Wahl, Profil, Kader ---- */
+.lc-head { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 14px 22px; margin: 4px 0 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel); }
+.lc-head-pick { display: flex; flex-direction: column; gap: 6px; min-width: 240px; }
+.lc-head-sel { min-height: var(--ctl-h); font-size: 15px; font-weight: 700; width: 100%; }
+.lc-head-facts { display: flex; flex-wrap: wrap; gap: 10px 26px; flex: 1 1 auto; }
+.lc-head-fact { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.lc-head-fact b { font-size: 16px; }
+.lc-head-fact .lc-muted { font-size: 12.5px; }
+.lc-head-profile { padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer; text-align: left; font: inherit; }
+.lc-head-profile:hover b { text-decoration: underline; }
+.lc-head-links { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 700px) {
+    .lc-head { align-items: stretch; flex-direction: column; }
+    .lc-head-pick { min-width: 0; }
+}
+
+/* ---- Profile (#676): Liste links, das gewählte Profil rechts ---- */
+.lc-profiles { display: grid; grid-template-columns: minmax(200px, 260px) 1fr; gap: 22px; align-items: start; }
+.lc-plist { display: flex; flex-direction: column; gap: 10px; }
+.lc-plist-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.lc-plist-head h3 { margin: 0; font-size: 15px; font-weight: 800; }
+.lc-plist ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.lc-pitem { display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2); color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+.lc-pitem:hover { border-color: var(--accent); }
+.lc-pitem.on { border-color: var(--accent); background: var(--accent-soft); }
+.lc-pitem-name { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14.5px; }
+.lc-pitem .lc-muted { font-size: 12.5px; }
+.lc-peditor { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.lc-peditor-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.lc-peditor-head h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 20px; font-weight: 800; }
+.lc-peditor-head p { margin: 4px 0 0; font-size: 13px; }
+.lc-peditor-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.lc-pview { display: flex; flex-direction: column; gap: 14px; }
+.lc-pview .lc-field { max-width: 640px; }
+@media (max-width: 900px) {
+    .lc-profiles { grid-template-columns: 1fr; }
+}
+
+/* The council's entry (Oct 2026): one tile per roster or category that runs as Loot-Council
+   (lootcouncil/CouncilOverview.tsx) - shaped like the roster overview's cards (rosters.css) in the
+   council's own colour; the whole tile is the link. */
+.lc-ov-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 18px; }
+.lc-ov-cards > li { display: flex; min-width: 0; }
+.lc-ov-card { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 18px 20px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; text-decoration: none; color: inherit; transition: border-color .15s ease; }
+a.lc-ov-card:hover, a.lc-ov-card:focus-visible { border-color: var(--area-lootcouncil); color: inherit; outline: none; }
+a.lc-ov-card:focus-visible { box-shadow: inset 0 0 0 2px var(--area-lootcouncil); }
+.lc-ov-top { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.lc-ov-title { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.lc-ov-title b { font-size: 17px; overflow-wrap: anywhere; }
+.lc-ov-ver { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); flex-wrap: wrap; }
+.lc-ov-kick { font: 600 10.5px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); }
+.lc-ov-sub { color: var(--muted); font-size: 13px; }
+.lc-ov-nums { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
+.lc-ov-big { font-size: 34px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.lc-ov-big small { font-size: 15px; color: var(--muted); font-weight: 600; margin-left: 6px; }
+.lc-ov-big.lc-ov-none { color: var(--muted); }
+.lc-ov-next { margin-left: auto; text-align: right; min-width: 0; }
+.lc-ov-when { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.lc-ov-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--line-soft); padding-top: 14px; margin-top: auto; }
+.lc-ov-profile { display: inline-flex; align-items: baseline; gap: 6px; font-weight: 700; min-width: 0; }
+.lc-ov-open { margin-left: auto; }
+.lc-ov-empty { display: flex; flex-direction: column; gap: 6px; padding: 18px 20px; }
+.lc-ov-empty p { margin: 0; color: var(--muted); }
+.lc-back-row { margin-bottom: 8px; }
+@media (max-width: 700px) {
+    .lc-ov-card { padding: 16px; }
+    .lc-ov-next { margin-left: 0; text-align: left; }
 }

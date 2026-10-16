@@ -1,0 +1,20 @@
+# Nightly encrypted off-site copy of the PulseBot backup (#692).
+# Install: cp to /etc/systemd/system/, then systemctl daemon-reload.
+# Setup step by step: docs/backup.md. Adjust ExecStart if DEPLOY_DIR differs.
+[Unit]
+Description=PulseBot off-site backup (restic to Cloudflare R2)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Secrets (repository, password file, R2 keys) live here, mode 600, never in the repo
+EnvironmentFile=/etc/pulsebot/backup.env
+ExecStart=/var/www/pulsebot/scripts/backup/offsite.sh /etc/pulsebot/backup.env
+# Low priority: the 921 MB server must not feel it
+Nice=19
+IOSchedulingClass=idle
+CPUWeight=10
+# Protection for the small server; raise it if the journal shows an OOM kill
+MemoryMax=300M
+TimeoutStartSec=3h

@@ -1,4 +1,4 @@
-const { json, routerClient } = require("../../helpers/http");
+const { json, jsonRequest, mockRes, routerClient } = require("../../helpers/http");
 
 jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
@@ -199,7 +199,7 @@ const evalJobs = require("../../../src/web/logcheck/evalJobs");
 const flushJobs = () => new Promise((r) => setImmediate(r));
 const manualLog = require("../../../src/web/logcheck/manualLog");
 const { buildReport, ReportError } = require("../../../src/utils/logcheck/report");
-const { post, get } = routerClient(require("../../../src/web/apiRoutes/cla"));
+const { post, get, handle, urlFor } = routerClient(require("../../../src/web/apiRoutes/cla"));
 
 describe("web/apiRoutes/cla", () => {
     describe("GET /api/cla", () => {
@@ -247,7 +247,7 @@ describe("web/apiRoutes/cla", () => {
         it("passes filter/sort/dir/page through to prepareClaList", async () => {
             await get("/api/cla", { filter: "unlinked", sort: "event", dir: "asc", page: "2" });
             expect(reportList.prepareClaList).toHaveBeenCalledWith(
-                [], [], { filter: "unlinked", sort: "event", dir: "asc", page: "2" }, { allLogs: [] },
+                [], [], { filter: "unlinked", sort: "event", dir: "asc", page: "2" }, { allLogs: [], inVersion: expect.any(Function) },
             );
         });
 
@@ -313,8 +313,77 @@ describe("web/apiRoutes/cla", () => {
             );
             expect(logEventMatch.annotateMatches).toHaveBeenCalledWith(
                 expect.any(Array),
-                [{ id: "e1", source: "raidhelper", title: "Kara", startTime: 100, channelId: "c1", channelName: "log-chan", categoryId: "cat1", categoryName: "Raids" }],
+                [{ id: "e1", source: "raidhelper", title: "Kara", startTime: 100, channelId: "c1", channelName: "log-chan", categoryId: "cat1", categoryName: "Raids", versionId: "tbc" }],
             );
+        });
+
+        it("lists one game version (#741): unlinked logs under every version, linked ones and link reports only under theirs", async () => {
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc" });
+            logStore.listLogs.mockReturnValue([
+                { id: "tbc-log", eventId: "rh-tbc", versionId: "tbc", postedAt: 4 },
+                { id: "forever-log", eventId: "rh-forever", versionId: "forever", postedAt: 3 },
+                { id: "waiting", postedAt: 2 },
+            ]);
+            reportStore.listReports.mockReturnValue([
+                { id: "r-tbc", generatedAt: 1, versionId: "tbc" },
+                { id: "r-forever", generatedAt: 0, versionId: "forever" },
+            ]);
+            const forever = json(await get("/api/cla", { version: "forever" })).data;
+            expect(forever.page.items.map((r) => r.id)).toEqual(["forever-log", "waiting", "report:r-forever"]);
+            expect(forever.counts).toMatchObject({ all: 3, unlinked: 1 });
+            expect(forever.version).toBe("forever");
+            const tbc = json(await get("/api/cla")).data;
+            expect(tbc.page.items.map((r) => r.id)).toEqual(["tbc-log", "waiting", "report:r-tbc"]);
+            // "all" is no answer any more: the main version
+            expect(json(await get("/api/cla", { version: "all" })).data.version).toBe("tbc");
+        });
+
+        it("keeps an unlinked log of a TBC-only raid out of Forever's list and auto-assign", async () => {
+            activeGuildFor.mockReturnValue("guild-1");
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc" });
+            logStore.listLogs.mockReturnValue([
+                { id: "ssc-tk", guildId: "guild-1", title: "SSC + TK", raids: [{ contentId: "ssc" }, { contentId: "tk" }], postedAt: 3 },
+                { id: "titled", guildId: "guild-1", title: "Gruul / Magtheridon", postedAt: 2 },
+                { id: "waiting", guildId: "guild-1", postedAt: 1 },
+            ]);
+            const forever = json(await get("/api/cla", { version: "forever" })).data;
+            expect(forever.page.items.map((r) => r.id)).toEqual(["waiting"]);
+            expect(logEventMatch.autoMatches.mock.lastCall[0].map((l) => l.id)).toEqual(["waiting"]);
+            const tbc = json(await get("/api/cla", { version: "tbc" })).data;
+            expect(tbc.page.items.map((r) => r.id)).toEqual(["ssc-tk", "titled", "waiting"]);
+
+            logEventMatch.autoMatches.mockClear();
+            auth.checkCsrf.mockReturnValue(true);
+            const req = jsonRequest("POST", "/api/cla/log-automatch", {}, { "x-csrf-token": "tok" });
+            await handle("/api/cla/log-automatch", req, mockRes(), urlFor("/api/cla/log-automatch", { version: "forever" }));
+            expect(logEventMatch.autoMatches.mock.lastCall[0].map((l) => l.id)).toEqual(["waiting"]);
+        });
+
+        it("offers only the raids of the shown version as candidates and for auto-assign (#741)", async () => {
+            activeGuildFor.mockReturnValue("guild-1");
+            const config = { mainVersion: "tbc", categoryVersion: { "cat-forever": "forever" } };
+            settingsStore.getConfig.mockReturnValue(config);
+            // the matchable events resolve their version from the stored config (mainVersion.js)
+            const configSpy = jest.spyOn(require("../../../src/stores/configStore"), "getConfig").mockReturnValue(config);
+            logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "guild-1" }]);
+            discord.getChannelCategoryMap.mockReturnValue({
+                c1: { name: "kara", categoryId: "cat-tbc", categoryName: "TBC" },
+                c2: { name: "bd", categoryId: "cat-forever", categoryName: "Forever" },
+            });
+            mockGetPastEvents.mockResolvedValue([
+                { id: "e-tbc", title: "Kara", startTime: 100, channelId: "c1" },
+                { id: "e-forever", title: "Barrow Deeps", startTime: 200, channelId: "c2" },
+            ]);
+            await get("/api/cla", { version: "forever" });
+            expect(logEventMatch.annotateMatches.mock.lastCall[1].map((e) => e.id)).toEqual(["e-forever"]);
+            expect(logEventMatch.autoMatches.mock.lastCall[1].map((e) => e.id)).toEqual(["e-forever"]);
+
+            logEventMatch.autoMatches.mockClear();
+            auth.checkCsrf.mockReturnValue(true);
+            const req = jsonRequest("POST", "/api/cla/log-automatch", {}, { "x-csrf-token": "tok" });
+            await handle("/api/cla/log-automatch", req, mockRes(), urlFor("/api/cla/log-automatch", { version: "tbc" }));
+            expect(logEventMatch.autoMatches.mock.lastCall[1].map((e) => e.id)).toEqual(["e-tbc"]);
+            configSpy.mockRestore();
         });
 
         it("surfaces the Raid-Helper error as matchEventsError and offers no auto-assign", async () => {
@@ -377,6 +446,17 @@ describe("web/apiRoutes/cla", () => {
             const res = await get("/api/cla/report-status", { jobId: json(started).data.jobId });
 
             expect(json(res).data).toMatchObject({ status: "done", id: "abc123", url: "/r/abc123" });
+        });
+
+        it("says clearly that a Forever log is not evaluated yet, not a 404 (#746)", async () => {
+            buildReport.mockRejectedValue(Object.assign(
+                new ReportError("Logs von WoW Forever werden noch nicht ausgewertet."), { unsupported: true, versionId: "forever" }));
+
+            const started = await post("/api/cla", { link: "https://forever.warcraftlogs.com/reports/X" });
+            await flushJobs();
+            const res = await get("/api/cla/report-status", { jobId: json(started).data.jobId });
+
+            expect(json(res).data).toMatchObject({ status: "error", error: "Logs von WoW Forever werden noch nicht ausgewertet." });
         });
 
         it("reports a ReportError as the job's error message", async () => {
@@ -816,10 +896,26 @@ describe("web/apiRoutes/cla", () => {
 
             const res = await post("/api/cla/log-link", { logId: "l1", eventId: "e2" });
 
-            expect(logStore.linkEvent).toHaveBeenCalledWith("l1", { eventId: "e2", eventLabel: "Other", eventStartTime: 100, source: "manual" });
+            expect(logStore.linkEvent).toHaveBeenCalledWith("l1", { eventId: "e2", eventLabel: "Other", eventStartTime: 100, source: "manual", versionId: "tbc" });
             expect(json(res)).toEqual({
                 data: { logId: "l1", eventId: "e2", eventLabel: "Other", message: "Log „Other\" zugeordnet." },
             });
+        });
+
+        it("refuses a raid of another version than the log's host told (#746)", async () => {
+            logStore.getLog.mockReturnValue({ id: "l1", hostVersionId: "forever" });
+            activeGuildFor.mockReturnValue("guild-1");
+            discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "chan", categoryId: "cat1", categoryName: "Raids" } });
+            mockGetPastEvents.mockResolvedValue([{ id: "e2", title: "Other", startTime: 100, channelId: "c1" }]);
+
+            const res = await post("/api/cla/log-link", { logId: "l1", eventId: "e2" });
+
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(json(res)).toEqual({ error: {
+                code: "version_mismatch",
+                message: "Dieses Log ist von WoW Forever, der Raid von TBC Anniversary. Ein Log gehört nur zu einem Raid seiner Version.",
+            } });
+            expect(logStore.linkEvent).not.toHaveBeenCalled();
         });
     });
 
@@ -919,7 +1015,7 @@ describe("web/apiRoutes/cla", () => {
             ]);
             discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "chan", categoryId: "cat1", categoryName: "Raids" } });
             mockGetPastEvents.mockResolvedValue([{ id: "e9", title: "Match Event", startTime: 500, channelId: "c1" }]);
-            const matchedEvent = { id: "e9", source: "raidhelper", title: "Match Event", startTime: 500, channelId: "c1", channelName: "chan", categoryId: "cat1", categoryName: "Raids" };
+            const matchedEvent = { id: "e9", source: "raidhelper", title: "Match Event", startTime: 500, channelId: "c1", channelName: "chan", categoryId: "cat1", categoryName: "Raids", versionId: "tbc" };
             logEventMatch.autoMatches.mockReturnValue([{ log: { id: "l1" }, event: matchedEvent, diffMs: 1000 }]);
 
             const res = await post("/api/cla/log-automatch", {});
@@ -928,7 +1024,7 @@ describe("web/apiRoutes/cla", () => {
                 [{ id: "l1", guildId: "guild-1" }, { id: "l3", guildId: "guild-1" }],
                 [matchedEvent],
             );
-            expect(logStore.linkEvent).toHaveBeenCalledWith("l1", { eventId: "e9", eventLabel: "Match Event", eventStartTime: 500, source: "auto" });
+            expect(logStore.linkEvent).toHaveBeenCalledWith("l1", { eventId: "e9", eventLabel: "Match Event", eventStartTime: 500, source: "auto", versionId: "tbc" });
             expect(json(res)).toEqual({
                 data: { matched: 1, remaining: 1, message: "1 Log(s) automatisch zugeordnet, 1 ohne eindeutiges Event." },
             });

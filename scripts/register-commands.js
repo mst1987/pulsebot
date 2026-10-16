@@ -7,13 +7,25 @@
 //   npm run register:global        globally (takes ~1 hour to show up)
 //   npm run register:clear         remove the commands (same targets as above)
 //   --dev                          read .env.dev instead of .env
+//   --print-hash                   register nothing; print "commands-hash: <sha256>"
+//                                  of the definitions and targets (deploy.sh only
+//                                  registers when it differs from the last one)
 //
 // The server ids come from the settings store (Einstellungen → Verbindungen →
 // Discord-Server) with GUILD_ID from the env file as the fallback. Requiring
 // this file does nothing; only running it talks to Discord.
 const { REST, Routes } = require("discord.js");
+const { commandsHash } = require("./lib/commandsHash");
 
-/** The command line as flags: `{ dev, global, clear, guild }` (guild "" = not given). */
+// deploy.sh greps for this prefix: a module may log to stdout while it loads.
+const HASH_PREFIX = "commands-hash: ";
+
+/** The line --print-hash writes: the prefix and the fingerprint of the registration. */
+function hashLine({ body, clientId, guildIds, global }) {
+    return `${HASH_PREFIX}${commandsHash({ body, clientId, guildIds, global })}`;
+}
+
+/** The command line as flags: `{ dev, global, clear, printHash, guild }` (guild "" = not given). */
 function parseArgs(argv) {
     const idx = argv.indexOf("--guild");
     const next = idx > -1 ? String(argv[idx + 1] || "") : "";
@@ -21,6 +33,7 @@ function parseArgs(argv) {
         dev: argv.includes("--dev"),
         global: argv.includes("--global"),
         clear: argv.includes("--clear"),
+        printHash: argv.includes("--print-hash"),
         guild: next.startsWith("--") ? "" : next.trim(),
     };
 }
@@ -81,6 +94,10 @@ async function main(argv) {
         configuredIds: configuredGuildIds(getConfig()),
         envGuildId: process.env.GUILD_ID,
     });
+    if (flags.printHash) {
+        console.log(hashLine({ body: collectCommands(), clientId, guildIds, global: flags.global }));
+        process.exit(0);
+    }
     if (!token || !clientId || (!flags.global && !guildIds.length)) {
         console.error(`ERROR: DISCORDJS_BOT_TOKEN and CLIENT_ID must be set in ${envFile}, and a server configured (Einstellungen, GUILD_ID or --guild <id>).`);
         process.exit(1);
@@ -99,4 +116,4 @@ if (require.main === module) {
     main(process.argv.slice(2));
 }
 
-module.exports = { collectCommands, parseArgs, targetGuildIds, registerCommands };
+module.exports = { collectCommands, parseArgs, targetGuildIds, registerCommands, hashLine, HASH_PREFIX };

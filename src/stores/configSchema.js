@@ -13,9 +13,15 @@ const { normalizeBotCommandAccess } = require("../config/botCommands");
 const { normalizeCategoryLootSystem } = require("../services/loot/lootSystem");
 const { normalizeCategoryMessageLook } = require("../services/events/embedLook");
 const { normalizeCategoryPlanning } = require("../services/events/planning");
+const { normalizeCategorySignupCharacters } = require("../services/signups/signupCharacters");
 const { isSnowflake } = require("../utils/ids");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { versionSettingsOf, normalizeVersionSettings, versionsWithDefaults } = require("./versionSettingsSchema");
+const { normalizeBackupSettings } = require("../services/backup/backupConfig");
+const { defaultAddons, storedAddonList, normalizeGithub } = require("../services/addons/addonConfig");
+
+/** The pictures of `config.discordVisuals`, each on by default. */
+const DISCORD_VISUALS_DEFAULT = Object.freeze({ overviewWeekStrip: true, setupImage: true, eventCover: true });
 
 // General bot config editable from the admin menu (kept out of .env on purpose).
 // Defaults come from config/variables (env / historical hard-codes); values saved
@@ -37,6 +43,10 @@ const CONFIG_DEFAULTS = {
     // access. For areas that go to named people (the loot council), where a
     // Discord role would only be a second list to keep in sync.
     userPermissions: {},
+    // The roles that count as orga (guild leads, raid leads) — the others are raider roles,
+    // whatever areas they hold. Who is orga sees the orga's parts (the dashboard's orga
+    // block, everybody's absences); an area only orga roles open is marked "Orga-Bereich".
+    orgaRoleIds: [],
     // Who may use which bot command: { [commandName]: { mode, roleIds } } with
     // mode "everyone" | "roles" | "admins". Empty = every command follows its
     // own defaultAccess (see config/botCommands.js and services/discord/botAccess.js).
@@ -152,6 +162,11 @@ const CONFIG_DEFAULTS = {
     // Where a category's messages go instead (#335): { [categoryId]: channelId }.
     // Missing = discordServers.signupNoteChannelId, the default for every category.
     categorySignupNoteChannel: {},
+    // How many own characters one signup may name per raid category (the first
+    // counts, the others "kann auch mit"): { [categoryId]: 1..7 }. A category
+    // without an entry allows 8 — the default and the most there is, so 8 is not
+    // stored (signupCharacters.maxCharactersFor is the one reader).
+    categorySignupCharacters: {},
     // A fixed, guild-owned Google Sheet per Discord category:
     // { [categoryId]: { url, name } }. When one is set, a raid in that category
     // links this sheet instead of needing its own copy. A copy the app actually
@@ -170,18 +185,40 @@ const CONFIG_DEFAULTS = {
     // template and the profile start with when nobody picked one. A version id
     // of config/gameVersions; switched in Einstellungen → Spielversion.
     mainVersion: DEFAULT_VERSION,
-    // A category that plays another version than the main one:
-    // { [categoryId]: versionId }. Only the categories that differ are stored.
+    // The version every raid category plays: { [categoryId]: versionId }. Since
+    // #738 every active category has one written down (the start-up migration
+    // pins the version it played; a new category is saved with the main
+    // version), so the main version is only the default for something new.
     categoryVersion: {},
+    // The sections of a category (#738): { [categoryId]: [{ versionId, from, name }] },
+    // oldest first. Switching a category to another version starts a new one
+    // (`from` = ms of the switch, `name` = the Discord category name then); a
+    // category never switched has none (services/events/categoryEras.js).
+    categoryEras: {},
     // "Andere Versionen ausblenden" (#563): true = every list, selection list
     // and the menu's content switch show only the main version; a direct link
     // to an event of another version opens it read only (archive). Nothing is
     // deleted, switching it off brings everything back.
     hideOtherVersions: false,
+    // "Neue Version starten" (#745, Einstellungen → Spielversion): the items of
+    // the checklist that cannot be computed and were marked done by hand, per
+    // target version: { [versionId]: { [itemId]: { at, byName } } } — item ids
+    // of VERSION_LAUNCH_MANUAL only (services/events/versionLaunch.js).
+    versionLaunch: {},
     // The language of the bot's public messages (event and setup message, talk
     // overview, panels, announcements) and the fallback for every raider who
     // chose none (userPrefsStore): "de" | "en". Einstellungen -> Discord-Server.
     botLanguage: "de",
+    // Drawn pictures in bot messages (a test, Oct 2026; Einstellungen -> Raid-Standardwerte
+    // -> "Bilder in Bot-Nachrichten"): the raid overview's week strip
+    // (services/events/raidWeekStrip.js), the setup as a graphic (services/setup/setupImage.js)
+    // and the raid's picture as the cover of the Discord server event (discordEventCover.js).
+    // On unless switched off; off, the message is drawn as before at its next redraw.
+    discordVisuals: { ...DISCORD_VISUALS_DEFAULT },
+    // "Neue Gildenrekorde posten" (Einstellungen -> Dungeon-Bestzeiten): a gold
+    // run of the LevelHelper addon that is now the fastest of its dungeon goes
+    // into `channelId` as a card (services/dungeons/dungeonRecords.js). Off by default.
+    dungeonRecords: { post: false, channelId: "" },
     // The items the guild considers a "big" drop: [{ id, name, iconUrl, quality }],
     // picked from the Wowhead search in Einstellungen → Loot. Imported loot is
     // matched against these ids for the dashboard's "Latest Loot" card
@@ -194,6 +231,18 @@ const CONFIG_DEFAULTS = {
     // Logs): the raid DPS/HPS and boss-health curves of the fight timeline.
     // Empty = the report has no such curves; the v1 key in .env does the rest.
     warcraftlogsV2: { clientId: "", clientSecret: "" },
+    // GitHub (Einstellungen -> Verbindungen -> GitHub, #818): a fine-grained token
+    // with read-only "Contents" on the addon repos, for the private ones among
+    // the addon downloads. Never sent to the browser (publicConfig: hasToken).
+    github: { token: "" },
+    // The addons of the page "Addons" (#818, Einstellungen -> Module -> Addons):
+    // [{ id, name, description, repo, private, assets, versions, install, icon,
+    // enabled }] - services/addons/addonConfig.js. Default: the three own addons.
+    addonDownloads: defaultAddons(),
+    // Whether an admin edited that list by hand: an edit in Einstellungen -> Module ->
+    // Addons sets it, "Standard wiederherstellen" clears it. Only then does an empty
+    // list stay empty; without it an empty list reads as the defaults (storedAddonList).
+    addonDownloadsCustomized: false,
     // Role sync between the two servers (#264): [{ eventRoleId, talkRoleId,
     // direction }] with direction "toTalk" | "toEvent" | "both". The sync only
     // ever ADDS roles (src/services/discord/roleSync.js); a role lost on one side stays on
@@ -204,6 +253,11 @@ const CONFIG_DEFAULTS = {
     // deadline (else the raid start) to the members still missing, hours before
     // the raid to the signed-up ones; 0 = off. See src/web/events/reminders.js.
     categoryReminders: {},
+    // Data snapshots (#691, services/backup/): how often the bot takes one (minutes) and how many it keeps
+    // (grandfather-father-son over the hourly ones, the newest n of deploy/manual/pre-restore), and the weekday and
+    // time of the weekly restore probe (`restoreTest`, #694, default Wednesday 04:30). The directory and
+    // the on/off switch are env (BACKUP_DIR, BACKUP_ENABLED), see services/backup/backupConfig.js.
+    backup: normalizeBackupSettings(null),
 };
 
 const ROLE_SYNC_DIRECTIONS = ["toTalk", "toEvent", "both"];
@@ -244,7 +298,19 @@ function normalizeCategoryRaidTemplate(raw) {
     return out;
 }
 
-/** A version id a rule set knows, else the default (#541). */
+/** `{ overviewWeekStrip, setupImage, eventCover }` as booleans: a picture is on unless stored as false; unknown keys are dropped. */
+function normalizeDiscordVisuals(raw) {
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    return Object.fromEntries(Object.keys(DISCORD_VISUALS_DEFAULT).map((key) => [key, src[key] !== false]));
+}
+
+/** `{ post, channelId }`: post only a literal true, the channel only a snowflake. */
+function normalizeDungeonRecords(raw) {
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const channelId = String(src.channelId === undefined || src.channelId === null ? "" : src.channelId).trim();
+    return { post: src.post === true, channelId: /^\d{17,20}$/.test(channelId) ? channelId : "" };
+}
+
 /** "de" | "en"; anything else is the default, German. */
 function normalizeBotLanguage(raw) {
     const lang = String(raw || "").trim().toLowerCase();
@@ -264,6 +330,30 @@ function normalizeCategoryVersion(raw) {
         const key = String(catId).trim();
         const value = String(versionId || "").trim();
         if (key && value && rulesFor(value)) out[key] = value;
+    }
+    return out;
+}
+
+/**
+ * Normalise { [categoryId]: [{ versionId, from, name }] } (#738): only known
+ * versions, `from` a non-negative number (ms), `name` a string; each list
+ * sorted oldest first, an empty list dropped.
+ */
+function normalizeCategoryEras(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, list] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        if (!key || !Array.isArray(list)) continue;
+        const eras = list
+            .filter((e) => e && typeof e === "object" && rulesFor(String(e.versionId || "").trim()))
+            .map((e) => ({
+                versionId: String(e.versionId).trim(),
+                from: Math.max(0, Math.floor(Number(e.from) || 0)),
+                name: String(e.name || "").trim().slice(0, 100),
+            }))
+            .sort((a, b) => a.from - b.from);
+        if (eras.length) out[key] = eras;
     }
     return out;
 }
@@ -426,17 +516,20 @@ function normalizeCategoryLanguagePatch(raw) {
     return out;
 }
 
-// How many of a category's last raids its attendance quota counts (the setup tooltip and "Meine Anwesenheit").
-const ATTENDANCE_WINDOWS = [4, 8, 11, 16];
+// How many of a category's last raids its attendance quota counts (the setup tooltip and "Meine Anwesenheit"):
+// any whole number in this range, typed or stepped in the category's settings.
+const ATTENDANCE_WINDOW_MIN = 1;
+const ATTENDANCE_WINDOW_MAX = 50;
 const ATTENDANCE_DEFAULT_WINDOW = 11;
 
 /** One category's attendance settings with every default filled in. */
 function attendanceSettings(raw) {
     const src = raw && typeof raw === "object" ? raw : {};
     const window = Number(src.window);
+    const valid = Number.isInteger(window) && window >= ATTENDANCE_WINDOW_MIN && window <= ATTENDANCE_WINDOW_MAX;
     return {
         show: src.show !== false,
-        window: ATTENDANCE_WINDOWS.includes(window) ? window : ATTENDANCE_DEFAULT_WINDOW,
+        window: valid ? window : ATTENDANCE_DEFAULT_WINDOW,
         absences: src.absences !== false,
     };
 }
@@ -594,6 +687,30 @@ function normalizeRaidhelperRetirement(raw) {
     };
 }
 
+// The items of the checklist "Neue Version starten" (#745) that are marked done by hand.
+const VERSION_LAUNCH_MANUAL = Object.freeze(["backup", "export", "lootAddon", "talk"]);
+
+/**
+ * The hand-made marks of the version checklist (#745):
+ * { [versionId]: { [itemId]: { at, byName } } } — known versions and the item
+ * ids of VERSION_LAUNCH_MANUAL only; a version without a mark is dropped.
+ */
+function normalizeVersionLaunch(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+    for (const [versionId, marks] of Object.entries(raw)) {
+        const id = String(versionId).trim();
+        if (!rulesFor(id) || !marks || typeof marks !== "object" || Array.isArray(marks)) continue;
+        const kept = {};
+        for (const item of VERSION_LAUNCH_MANUAL) {
+            const m = marks[item];
+            if (m && typeof m === "object") kept[item] = { at: Number(m.at) || 0, byName: String(m.byName || "").slice(0, 100) };
+        }
+        if (Object.keys(kept).length) out[id] = kept;
+    }
+    return out;
+}
+
 /**
  * Normalise the categorySheets map to `{ [categoryId]: { url, name } }`: coerce
  * both fields to trimmed strings and drop every category without a url, so an
@@ -658,6 +775,7 @@ function normalizeConfig(raw) {
         rolePermissions: normalizeRolePermissions(stored.rolePermissions),
         baseAccess: normalizeAreaAccess(stored.baseAccess),
         userPermissions: normalizeUserPermissions(stored.userPermissions),
+        orgaRoleIds: Array.isArray(stored.orgaRoleIds) ? [...new Set(stored.orgaRoleIds.map((id) => String(id).trim()).filter(Boolean))] : CONFIG_DEFAULTS.orgaRoleIds,
         botCommandAccess: normalizeBotCommandAccess(stored.botCommandAccess),
         categoryIds: Array.isArray(stored.categoryIds) ? stored.categoryIds : CONFIG_DEFAULTS.categoryIds,
         categoryRoles: normalizeCategoryRoles(stored.categoryRoles),
@@ -667,6 +785,10 @@ function normalizeConfig(raw) {
         versionSettings: versionSettingsOf(stored),
         anthropic: { ...CONFIG_DEFAULTS.anthropic, ...(stored.anthropic || {}) },
         warcraftlogsV2: { ...CONFIG_DEFAULTS.warcraftlogsV2, ...(stored.warcraftlogsV2 || {}) },
+        github: normalizeGithub(stored.github),
+        // never stored = the defaults; a stored list wins, an empty one only when an admin emptied it
+        addonDownloads: storedAddonList(stored),
+        addonDownloadsCustomized: stored.addonDownloadsCustomized === true,
         categoryLootTool: (stored.categoryLootTool && typeof stored.categoryLootTool === "object")
             ? stored.categoryLootTool : { ...CONFIG_DEFAULTS.categoryLootTool },
         categoryLootSystem: normalizeCategoryLootSystem(stored.categoryLootSystem),
@@ -681,16 +803,22 @@ function normalizeConfig(raw) {
         categoryAnnounce: normalizeCategoryAnnounce(stored.categoryAnnounce),
         categorySignupNotes: normalizeCategorySignupNotes(stored.categorySignupNotes),
         categorySignupNoteChannel: normalizeCategoryVoiceChannel(stored.categorySignupNoteChannel),
+        categorySignupCharacters: normalizeCategorySignupCharacters(stored.categorySignupCharacters),
         categorySheets: normalizeCategorySheets(stored.categorySheets),
         categoryPlanning: normalizeCategoryPlanning(stored.categoryPlanning),
         categoryRaidTemplate: normalizeCategoryRaidTemplate(stored.categoryRaidTemplate),
         mainVersion: normalizeMainVersion(stored.mainVersion),
         categoryVersion: normalizeCategoryVersion(stored.categoryVersion),
+        categoryEras: normalizeCategoryEras(stored.categoryEras),
         hideOtherVersions: stored.hideOtherVersions === true,
+        versionLaunch: normalizeVersionLaunch(stored.versionLaunch),
         botLanguage: normalizeBotLanguage(stored.botLanguage),
+        discordVisuals: normalizeDiscordVisuals(stored.discordVisuals),
+        dungeonRecords: normalizeDungeonRecords(stored.dungeonRecords),
         topItems: normalizeTopItems(stored.topItems),
         roleSync: normalizeRoleSync(stored.roleSync),
         categoryReminders: normalizeCategoryReminders(stored.categoryReminders),
+        backup: normalizeBackupSettings(stored.backup),
     };
 }
 
@@ -699,8 +827,9 @@ module.exports = {
     normalizeConfig, normalizeDiscordServers, normalizeEventGuilds, normalizeEventGuildEntry,
     normalizeRoleSync, normalizeCategoryRaidTemplate, normalizeCategoryReminders, normalizeTopItems,
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryLanguagePatch,
-    normalizeCategoryAttendance, attendanceSettings, categoryAttendanceFor, ATTENDANCE_WINDOWS, ATTENDANCE_DEFAULT_WINDOW, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
-    normalizeCategorySignupNotes, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,
-    normalizeRaidhelperRetirement, normalizeCategorySheets, normalizeCategoryPlanning, normalizeCategoryRoles,
-    normalizeMainVersion, normalizeCategoryVersion, normalizeVersionSettings, normalizeBotLanguage,
+    normalizeCategoryAttendance, attendanceSettings, categoryAttendanceFor, ATTENDANCE_WINDOW_MIN, ATTENDANCE_WINDOW_MAX, ATTENDANCE_DEFAULT_WINDOW, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
+    normalizeCategorySignupNotes, normalizeCategorySignupCharacters, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,
+    normalizeRaidhelperRetirement, normalizeVersionLaunch, VERSION_LAUNCH_MANUAL, normalizeCategorySheets, normalizeCategoryPlanning, normalizeCategoryRoles,
+    normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings, normalizeBotLanguage,
+    normalizeDiscordVisuals, DISCORD_VISUALS_DEFAULT, normalizeDungeonRecords,
 };

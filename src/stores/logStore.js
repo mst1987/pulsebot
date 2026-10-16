@@ -1,6 +1,22 @@
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { newId } = require("../utils/ids");
+const { LEGACY_VERSION } = require("../config/gameVersions");
+
+// Every log knows its game version (#746, services/logcheck/logVersion.js):
+//   host           the Warcraft-Logs host of its link ("fresh.warcraftlogs.com")
+//   hostVersionId  the version that host belonged to when the log was detected,
+//                  "" when the host told nothing; read once and kept
+//   versionId      the log's version: its raid's while it is linked, else
+//                  hostVersionId, else TBC (`versionFrom` says which)
+// A log stored before #746 has none of them and counts as TBC.
+
+/** Host and version of a fresh log's link (late: logVersion reads the settings, which load more stores). */
+function versionFieldsOf(link) {
+    const { linkVersion } = require("../services/logcheck/logVersion");
+    const { host, hostVersionId } = linkVersion(link);
+    return { host, hostVersionId, versionId: hostVersionId || LEGACY_VERSION, versionFrom: hostVersionId ? "host" : "default" };
+}
 
 // Detected/evaluated Warcraft-Logs from the log channels are tracked here so a
 // report is only ever evaluated once. Stored as a single JSON file next to the
@@ -11,6 +27,8 @@ const store = createJsonStore({
     file: LOGS_FILE,
     defaults: () => [],
     normalize: (data) => (Array.isArray(data.logs) ? data.logs : []),
+    // Read on every page that lists it: parsed once per change, not per call.
+    cache: true,
 });
 
 function readAll() {
@@ -66,7 +84,8 @@ function saveLog(data) {
         saved = Object.assign(
             { id: newId(), status: "open", detectedAt: now, updatedAt: now,
                 buttonChannelId: "", buttonMessageId: "", reportRefId: "", reportUrl: "" },
-            fields
+            fields,
+            versionFieldsOf(fields.link || fields.reportId),
         );
         logs.push(saved);
     }
@@ -247,10 +266,11 @@ function setLogRaids(id, raids) {
  * event's title/start time as well, because Raid-Helper drops past events from
  * its list — without the snapshot an old assignment would lose its label.
  * `source` records whether the match was applied automatically ("auto") or
- * picked by an admin ("manual"). Returns the saved log, or null for an unknown
- * id / blank event id.
+ * picked by an admin ("manual"). `versionId` is the event's game version: the
+ * log takes it while it is linked (#746). Returns the saved log, or null for an
+ * unknown id / blank event id.
  */
-function linkEvent(id, { eventId, eventLabel, eventStartTime, source } = {}) {
+function linkEvent(id, { eventId, eventLabel, eventStartTime, source, versionId } = {}) {
     const cleanEvent = String(eventId || "").trim();
     if (!cleanEvent) return null;
     const logs = readAll();
@@ -261,6 +281,11 @@ function linkEvent(id, { eventId, eventLabel, eventStartTime, source } = {}) {
     log.eventStartTime = Number(eventStartTime) || 0;
     log.eventLinkSource = source === "auto" ? "auto" : "manual";
     log.eventLinkedAt = Date.now();
+    const version = String(versionId || "").trim();
+    if (version) {
+        log.versionId = version;
+        log.versionFrom = "event";
+    }
     log.updatedAt = Date.now();
     writeAll(logs);
     return log;
@@ -279,6 +304,11 @@ function unlinkEvent(id) {
     delete log.eventStartTime;
     delete log.eventLinkSource;
     delete log.eventLinkedAt;
+    // back to the version its host told, else TBC
+    if (log.versionFrom === "event") {
+        log.versionId = log.hostVersionId || LEGACY_VERSION;
+        log.versionFrom = log.hostVersionId ? "host" : "default";
+    }
     log.updatedAt = Date.now();
     writeAll(logs);
     return log;

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { saveRaidsheet, deleteRaidsheet, type ApiError, type Raidsheet } from "../../api";
 import { useTableSort, type Dir } from "../../lib/ui/tableSort";
 import { SortTh } from "../../components/ui/SortTh";
-import { ExternalIcon, PenIcon, TrashIcon } from "../../components/ui/icons";
+import { ExternalIcon, PenIcon, TrashIcon, SaveIcon, PlusIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { ListSection } from "../../components/ui/ListSection";
 import { useCollectionEditor } from "../../lib/ui/collectionEditor";
@@ -55,7 +55,7 @@ function RaidsheetForm({ sheet, onSaved, onCancel }: {
                 <input id="rs-kw" type="text" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="kara, gruul, maggi" />
             </Field>
             <div className="row-actions">
-                <Button type="submit" disabled={busy}>{sheet ? t("common.save") : t("settings.raidsheets.create")}</Button>
+                <Button type="submit" variant={sheet ? "go" : "primary"} icon={sheet ? <SaveIcon /> : <PlusIcon />} disabled={busy}>{sheet ? t("common.save") : t("settings.raidsheets.create")}</Button>
                 <Button variant="ghost" disabled={busy} onClick={onCancel}>{t("common.cancel")}</Button>
             </div>
         </form>

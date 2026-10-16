@@ -12,6 +12,8 @@
 //   href     — the route at the site root
 //   group    — the heading the entry sits under
 //   areas    — permission areas (config/permissions.js); one of them opens it
+//   adminOnly — full admins only, whatever areas an account holds (Systemstatus,
+//              docs/system-status.md); `areas` is then empty
 //   wowIcon  — the zamimg icon name drawn in front of the label
 const MENU = require("./menu.json");
 

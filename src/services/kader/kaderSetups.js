@@ -14,7 +14,7 @@ const {
     SETUP_STATES, SETUP_SIZES, GROUP_COUNT, GROUP_SIZE, LIMITS, str, invalid, notFound, conflict,
     withKader, cleanLabel, emptyGroups,
 } = require("./kaderModel");
-const { autoAssign } = require("./kaderAutoAssign");
+const { autoAssign, supportOf } = require("./kaderAutoAssign");
 
 /** The specs a player can stand for in a setup: their decision and their wishes. */
 function specsOf(entry) {
@@ -38,7 +38,7 @@ function getVariant(kader, variantId) {
 
 function cleanSize(raw) {
     const size = Number(raw);
-    if (!SETUP_SIZES.includes(size)) throw invalid("Ein Beispiel-Setup ist ein 10er oder ein 20er.");
+    if (!SETUP_SIZES.includes(size)) throw invalid(`Ein Beispiel-Setup ist ein ${SETUP_SIZES.map((n) => `${n}er`).join(", ").replace(/, ([^,]*)$/, " oder ein $1")}.`);
     return size;
 }
 
@@ -119,7 +119,7 @@ function autoVariant(planner, input, ctx) {
                 return { userId, spec, role: roleOf.get(spec) || "melee", classKey: classOf.get(spec) || "", rate: rate + (e.state === "roster" ? 2 : e.state === "provisional" ? 1 : 0) };
             });
         const visible = variant.size / GROUP_SIZE;
-        const { groups } = autoAssign(members, visible);
+        const { groups } = autoAssign(members, visible, supportOf(ctx.partyBuffs, ctx.classes));
         const specOf = new Map(members.map((m) => [m.userId, m.spec]));
         variant.groups = emptyGroups().map((g, gi) => g.map((_, si) => {
             const id = gi < visible && groups[gi] ? groups[gi][si] : null;

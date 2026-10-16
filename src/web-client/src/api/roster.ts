@@ -93,7 +93,8 @@ export type RosterRole = "tank" | "healer" | "dps" | "";
  * How one raid night went (#677, services/characters/rosterAttendance.js): "present" and "bench" count for the
  * quota, the four others are missed. The server sends the code; the client words it (lib/roster/attendanceStatus.ts).
  */
-export type AttendanceStatus = "present" | "bench" | "vacation" | "absence" | "noSignup" | "noShow";
+/** "tentative": a "maybe" the setup left out - shown, but neither attended nor missed (not in `total`). */
+export type AttendanceStatus = "present" | "bench" | "vacation" | "absence" | "noSignup" | "noShow" | "tentative";
 
 /** A night the orga set by hand (attendanceOverridesStore): the status, the free-text reason, who and when (ms). */
 export type AttendanceOverride = { status: AttendanceStatus; reason: string; by: string; byName: string; at: number };
@@ -168,7 +169,7 @@ export type RosterData = {
 
 export type RosterVersion = { id: string; label: string; short: string; count: number };
 
-/** The roster of one game version (#543): "" = the main version, "all" = every version. */
+/** The roster of one game version (#543): "" = the main version; never every version at once (#741). */
 export function getRoster(version = ""): Promise<RosterData> {
     return get<RosterData>(`/api/roster${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
@@ -197,13 +198,16 @@ export type RosterCharData = {
     role: RosterRole;
     categories: (RosterCategoryInfo & { id: string; name: string })[];
     attendance: Record<string, RosterAttendance>;
+    /** false: the attendance and categories are the orga's (or the player's own) - they come back empty (epic #723). */
+    attendanceVisible?: boolean;
     items: Record<string, RosterItemFacts>;
 };
 
 /** The character page's roster facts: role, attendance night by night, drop source and BiS per worn item. */
-export function getRosterChar(name: string, itemIds: number[] = []): Promise<RosterCharData> {
+export function getRosterChar(name: string, itemIds: number[] = [], version = ""): Promise<RosterCharData> {
     const items = itemIds.length ? `&items=${itemIds.join(",")}` : "";
-    return get<RosterCharData>(`/api/roster/char?name=${encodeURIComponent(name)}${items}`);
+    const ver = version ? `&version=${encodeURIComponent(version)}` : "";
+    return get<RosterCharData>(`/api/roster/char?name=${encodeURIComponent(name)}${items}${ver}`);
 }
 
 // ===== Raid rosters per category (#654, read only) =====
@@ -254,6 +258,15 @@ export type RosterHead = {
     todo: { withoutRole: number | null; withoutChar: number; trial: number };
     /** Overview cards only (#658): trial members whose end lies within 7 days or has passed, earliest first. */
     trialEnding?: { userId: string; displayName: string; trialUntil: string; overdue: boolean }[];
+    /** Overview cards: the caller is the orga of this roster; false = no attendance, no open-work badges (epic #723). */
+    isOrga?: boolean;
+    /**
+     * Closed (#739): its category switched to another game version - read only under its version, no Discord role
+     * sync, no new members; a full admin may still delete it. `closedReason` "version_switch" (later more).
+     */
+    closed?: boolean;
+    closedAt?: string | null;
+    closedReason?: string;
 };
 
 export type RosterOverview = {
@@ -261,6 +274,8 @@ export type RosterOverview = {
     categoriesWithoutRoster: { id: string; name: string; versionId: string; versionLabel: string }[];
     /** Full admins create rosters (#657). */
     canCreate: boolean;
+    /** The caller is orga in general (full admin or orga role): the all-characters list is theirs. */
+    isOrga?: boolean;
 };
 
 /** Where a member's spec comes from (services/roster/memberSpec.js): the orga, the last signup, the logs, the profile, the class alone. */
@@ -338,6 +353,8 @@ export type RosterDetail = {
     /** The caller may set a night by hand (roster managers, admins, raids write). */
     canEditAttendance?: boolean;
     membersKnown: boolean;
+    /** The caller is the roster's orga (admin, orga role, manager); false = the Komposition's slice only (epic #723). */
+    isOrga?: boolean;
     canManage: boolean;
     isAdmin: boolean;
     /** What the settings dialog starts from; null for a caller who may not manage the roster. */
@@ -352,15 +369,23 @@ export type RosterSettings = {
     trialRoleId: string | null;
     managers: { roleIds: string[]; userIds: string[]; users: { userId: string; displayName: string }[] };
     signupOnly: boolean;
+    /** The raids of this category are visible to every raider (epic #723). */
+    publicRaids?: boolean;
     allowMultipleChars: boolean;
     slots: RosterHead["slots"];
     /** The linked Kader of the Kaderplaner, null for none. */
     kaderId: string | null;
+    /** What the roster runs on (#676; with a category the category's system) and where that came from. */
+    lootSystem?: string;
+    lootSystemSource?: "category" | "addon" | "default" | "roster";
+    /** Its Loot-Council profile, "" = the default. */
+    lootProfileId?: string;
 };
 
 /** Every roster of the active server as a card. */
-export function getRosters(): Promise<RosterOverview> {
-    return get<RosterOverview>("/api/rosters");
+/** `version`: the menu's content version (#741) — its rosters only; "" = the main version. */
+export function getRosters(version = ""): Promise<RosterOverview> {
+    return get<RosterOverview>(`/api/rosters${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 /** One roster with its members. */

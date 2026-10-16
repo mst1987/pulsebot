@@ -132,6 +132,9 @@ describe("POST /api/rosters/create", () => {
         await post("/api/rosters/create", { categoryId: CAT });
         const res = await post("/api/rosters/create", { categoryId: CAT, name: "Noch eins" });
         expect([status(res), code(res)]).toEqual([409, "category_taken"]);
+        // another game version of the same category is free (#739)
+        const forever = await post("/api/rosters/create", { categoryId: CAT, name: "Forever", versionId: "forever" });
+        expect([status(forever), data(forever).roster.versionId]).toEqual([200, "forever"]);
     });
 
     it("validates: name, roles the server does not have, slots, source", async () => {
@@ -221,14 +224,33 @@ describe("POST /api/rosters/update", () => {
         expect(status(await post("/api/rosters/update", { rosterId: "nope", name: "X" }))).toBe(404);
     });
 
+    it("switches publicRaids (raids visible to all raiders) for an admin and a manager of that roster, not for a stranger, only as a boolean", async () => {
+        expect(roster.publicRaids).toBe(false);
+        let res = await post("/api/rosters/update", { rosterId: roster.id, publicRaids: true });
+        expect([status(res), data(res).roster.publicRaids]).toEqual([200, true]);
+        mockUser = MANAGER;
+        res = await post("/api/rosters/update", { rosterId: roster.id, publicRaids: false });
+        expect([status(res), data(res).roster.publicRaids]).toEqual([200, false]);
+        res = await post("/api/rosters/update", { rosterId: roster.id, publicRaids: "yes" });
+        expect([status(res), code(res)]).toEqual([400, "bad_request"]);
+        mockUser = WRITER;
+        res = await post("/api/rosters/update", { rosterId: roster.id, publicRaids: true });
+        expect([status(res), code(res)]).toEqual([403, "not_manager"]);
+        expect(rosterStore.getRoster(roster.id).publicRaids).toBe(false);
+    });
+
     it("answers 409 category_taken when moving onto a category with a roster", async () => {
         rosterStore.createRoster({ name: "Other", categoryId: CAT });
         const res = await post("/api/rosters/update", { rosterId: roster.id, categoryId: CAT });
         expect([status(res), code(res)]).toEqual([409, "category_taken"]);
     });
 
-    it("links the Kader of the Kaderplaner: admins only, a known Kader, one roster per Kader", async () => {
-        let res = await post("/api/rosters/update", { rosterId: roster.id, kaderId: "nope" });
+    it("links the Kader of the Kaderplaner: admins only, a known Kader of the roster's version, one roster per Kader", async () => {
+        // the Kader is a Forever one, this roster plays TBC (#741)
+        let res = await post("/api/rosters/update", { rosterId: roster.id, kaderId: "k1" });
+        expect([status(res), code(res)]).toEqual([400, "version_mismatch"]);
+        roster = rosterStore.createRoster({ name: "Raid", guildId: "g1", versionId: "forever", managers: { userIds: [MANAGER.id] } });
+        res = await post("/api/rosters/update", { rosterId: roster.id, kaderId: "nope" });
         expect([status(res), code(res)]).toEqual([404, "kader_not_found"]);
         mockUser = MANAGER;
         res = await post("/api/rosters/update", { rosterId: roster.id, kaderId: "k1" });
@@ -237,12 +259,58 @@ describe("POST /api/rosters/update", () => {
         res = await post("/api/rosters/update", { rosterId: roster.id, kaderId: "k1" });
         expect(status(res)).toBe(200);
         expect(data(res).roster.kaderId).toBe("k1");
-        expect(data(await get("/api/rosters/options")).kaders[0]).toMatchObject({ id: "k1", rosterId: roster.id, rosterName: "Raid" });
-        const other = rosterStore.createRoster({ name: "Other", guildId: "g1" });
+        expect(data(await get("/api/rosters/options", { version: "forever" })).kaders[0]).toMatchObject({ id: "k1", rosterId: roster.id, rosterName: "Raid" });
+        // a linked roster cannot move to another version than its Kader's
+        res = await post("/api/rosters/update", { rosterId: roster.id, versionId: "tbc" });
+        expect([status(res), code(res)]).toEqual([400, "version_mismatch"]);
+        const other = rosterStore.createRoster({ name: "Other", guildId: "g1", versionId: "forever" });
         res = await post("/api/rosters/update", { rosterId: other.id, kaderId: "k1" });
         expect([status(res), code(res)]).toEqual([409, "kader_taken"]);
         res = await post("/api/rosters/update", { rosterId: roster.id, kaderId: null });
         expect(data(res).roster.kaderId).toBeNull();
+    });
+});
+
+describe("POST /api/rosters/update - loot system and Loot-Council profile (#676)", () => {
+    const councilProfilesStore = require("../../../src/stores/councilProfilesStore");
+    let roster;
+    afterAll(() => councilProfilesStore.useFile(null));
+    beforeEach(() => {
+        councilProfilesStore.useFile(tempStoreFile("council-profiles.json"));
+        roster = rosterStore.createRoster({ name: "Raid", guildId: "g1", categoryId: CAT, managers: { userIds: [MANAGER.id] } });
+    });
+
+    it("lets a full admin switch the loot system - with a category it lands in the settings", async () => {
+        const res = await post("/api/rosters/update", { rosterId: roster.id, lootSystem: "lootcouncil" });
+        expect(status(res)).toBe(200);
+        expect(configStore.getConfig().categoryLootSystem[CAT]).toBe("lootcouncil");
+        const detail = await post("/api/rosters/update", { rosterId: roster.id, lootSystem: "nope" });
+        expect([status(detail), code(detail)]).toEqual([400, "invalid_loot_system"]);
+    });
+
+    it("lets a manager pick the profile but not the loot system", async () => {
+        const p = councilProfilesStore.createProfile({ name: "PuG-Nacht" });
+        mockUser = MANAGER;
+        let res = await post("/api/rosters/update", { rosterId: roster.id, lootProfileId: p.id });
+        expect(status(res)).toBe(200);
+        expect(data(res).roster.lootProfileId).toBe(p.id);
+        res = await post("/api/rosters/update", { rosterId: roster.id, lootSystem: "gdkp" });
+        expect([status(res), code(res)]).toEqual([403, "admin_only"]);
+        res = await post("/api/rosters/update", { rosterId: roster.id, lootProfileId: "p-gone" });
+        expect([status(res), code(res)]).toEqual([400, "unknown_profile"]);
+        mockUser = WRITER;
+        res = await post("/api/rosters/update", { rosterId: roster.id, lootProfileId: p.id });
+        expect([status(res), code(res)]).toEqual([403, "not_manager"]);
+    });
+
+    it("offers the profiles and the loot systems in the options, and whether the council may be opened", async () => {
+        councilProfilesStore.createProfile({ name: "Main T6" });
+        const d = data(await get("/api/rosters/options"));
+        expect(d.lootSystems).toEqual(["softres", "lootcouncil", "gdkp", "other"]);
+        expect(d.lootProfiles.map((p) => [p.name, p.isDefault])).toEqual([["Standard", true], ["Main T6", false]]);
+        expect(d.canOpenCouncil).toBe(true);
+        mockUser = READER;
+        expect(data(await get("/api/rosters/options")).canOpenCouncil).toBe(false);
     });
 });
 
@@ -257,6 +325,19 @@ describe("POST /api/rosters/delete", () => {
         expect(rosterStore.getRoster(roster.id)).toBeNull();
         expect(status(await post("/api/rosters/delete", { rosterId: roster.id }))).toBe(404);
     });
+
+    it("a closed roster refuses every change with 409 roster_closed, a full admin may still delete it (#739)", async () => {
+        const roster = rosterStore.createRoster({ name: "Alt", guildId: "g1", categoryId: CAT, managers: { userIds: [MANAGER.id] } });
+        rosterStore.closeRoster(roster.id, { reason: "version_switch" });
+        let res = await post("/api/rosters/update", { rosterId: roster.id, name: "Neu" });
+        expect([status(res), code(res)]).toEqual([409, "roster_closed"]);
+        mockUser = MANAGER;
+        res = await post("/api/rosters/update", { rosterId: roster.id, name: "Neu" });
+        expect([status(res), code(res)]).toEqual([409, "roster_closed"]);
+        expect(data(await get("/api/rosters/composition", { id: roster.id })).canManage).toBe(false);
+        mockUser = ADMIN;
+        expect(data(await post("/api/rosters/delete", { rosterId: roster.id }))).toEqual({ rosterId: roster.id, deleted: true });
+    });
 });
 
 describe("GET /api/rosters/options", () => {
@@ -265,10 +346,28 @@ describe("GET /api/rosters/options", () => {
         const res = await get("/api/rosters/options");
         expect(status(res)).toBe(200);
         const d = data(res);
-        expect(d.categories).toEqual([{ id: CAT, name: "Donnerstag Raid", versionId: "tbc", rosterId: null, rosterName: "" }]);
+        expect(d.categories).toEqual([{ id: CAT, name: "Donnerstag Raid", active: true, versionId: "tbc", rosterId: null, rosterName: "", rosters: [] }]);
         expect(d.roles.map((r) => r.id)).toEqual([ROLE, ROLE2]);
-        expect(d.kaders).toEqual([{ id: "k1", name: "Forever-Kader", inRoster: 1, candidates: 1, attendanceCategories: [], rosterId: null, rosterName: "" }]);
+        // the main version (TBC) shows no Forever Kader (#741)
+        expect(d.kaders).toEqual([]);
+        expect(d.defaultVersion).toBe("tbc");
+        const forever = data(await get("/api/rosters/options", { version: "forever" }));
+        expect(forever.kaders).toEqual([{ id: "k1", name: "Forever-Kader", versionId: "forever", inRoster: 1, candidates: 1, attendanceCategories: [], rosterId: null, rosterName: "" }]);
+        expect(forever.categories).toEqual([]);
+        expect(forever.defaultVersion).toBe("forever");
         expect(d.isAdmin).toBe(true);
+    });
+
+    it("refuses a roster of a hidden version, created or moved there (#563)", async () => {
+        configStore.saveConfig({ hideOtherVersions: true });
+        let res = await post("/api/rosters/create", { name: "F", versionId: "forever" });
+        expect([status(res), code(res)]).toEqual([400, "version_hidden"]);
+        const roster = rosterStore.createRoster({ name: "T", guildId: "g1" });
+        res = await post("/api/rosters/update", { rosterId: roster.id, versionId: "forever" });
+        expect([status(res), code(res)]).toEqual([400, "version_hidden"]);
+        // ?version= of a hidden version answers the main version
+        expect(data(await get("/api/rosters/options", { version: "forever" })).defaultVersion).toBe("tbc");
+        configStore.saveConfig({ hideOtherVersions: false });
     });
 
     it("leaves the Kader out for a roster reader without the Kaderplaner", async () => {

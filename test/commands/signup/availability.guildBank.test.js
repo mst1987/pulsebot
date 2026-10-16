@@ -96,8 +96,8 @@ describe("Gildenbank aus dem Bestand", () => {
         expect(modal.custom_id).toBe(`availability:mbi:cat1:${RUBY}`);
         expect(modal.components).toHaveLength(3);
 
-        profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
-        profiles.addCharacter(ANNA, { name: "Zibbowar", className: "Warrior", specs: [{ key: "Warrior-Protection", gear: "ready" }] });
+        profiles.addCharacter(ANNA, { source: "log", name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+        profiles.addCharacter(ANNA, { source: "log", name: "Zibbowar", className: "Warrior", specs: [{ key: "Warrior-Protection", gear: "ready" }] });
         const two = pickItem([String(RUBY)]);
         await command.execute(two);
         expect(two.showModal.mock.calls[0][0].components[3].component.options.map((o) => [o.value, o.default])).toEqual([["zibbo", true], ["zibbowar", false]]);
@@ -112,8 +112,8 @@ describe("Gildenbank aus dem Bestand", () => {
     });
 
     it("Absenden prüft gegen den Bestand, postet an die Orga und nennt den Empfänger", async () => {
-        profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
-        profiles.addCharacter(ANNA, { name: "Zibbowar", className: "Warrior", specs: [{ key: "Warrior-Protection", gear: "ready" }] });
+        profiles.addCharacter(ANNA, { source: "log", name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+        profiles.addCharacter(ANNA, { source: "log", name: "Zibbowar", className: "Warrior", specs: [{ key: "Warrior-Protection", gear: "ready" }] });
         const sent = submit(`availability:mbi:cat1:${RUBY}`, { amount: "3", purpose: "Gruul" }, "zibbowar");
         await command.execute(sent);
         expect(sent.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
@@ -125,7 +125,7 @@ describe("Gildenbank aus dem Bestand", () => {
     });
 
     it("ohne Charakterwahl im Formular und ohne Wofür-Feld: der erste Charakter, kein Zweck", async () => {
-        profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+        profiles.addCharacter(ANNA, { source: "log", name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
         const sent = click(`availability:mbi:cat1:${RUBY}`, { modal: true });
         sent.fields.getTextInputValue = jest.fn((id) => {
             if (id === "amount") return "1";
@@ -133,6 +133,16 @@ describe("Gildenbank aus dem Bestand", () => {
         });
         await command.execute(sent);
         expect(bankStore.listRequests()).toEqual([expect.objectContaining({ amount: 1, purpose: "", characterName: "Zibbo" })]);
+    });
+
+    it("ein nur eingetippter Charakter: die Anfrage geht raus, mit dem Hinweis, ihn über die Logs oder das Arsenal anzulegen", async () => {
+        profiles.addCharacter(ANNA, { name: "Gentle", className: "Druid" });
+        const sent = submit(`availability:mbi:cat1:${RUBY}`, { amount: "1" });
+        await command.execute(sent);
+        const answer = answerOf(sent.editReply.mock.calls[0][0]);
+        expect(answer.description).toBe("**1× Bold Living Ruby**\nAn: Gentle-Spineshatter\n\n⚠️ Dein Charakter ist noch nicht bestätigt – füg ihn in deinem Profil "
+            + "über die Logs oder das Arsenal hinzu, sonst kann die Orga nicht ausgeben.");
+        expect(bankStore.listRequests()).toEqual([expect.objectContaining({ characterName: "Gentle", status: "open" })]);
     });
 
     it("ein Bestand, der beim Absenden weg ist, und eine leere Wahl", async () => {
@@ -146,15 +156,37 @@ describe("Gildenbank aus dem Bestand", () => {
         expect(empty.showModal).not.toHaveBeenCalled();
     });
 
-    it("zu viel: über maxPerRequest und über Verfügbar, auf Englisch für einen englischen Server", async () => {
+    it("zu viel: über maxPerRequest abgelehnt, über Verfügbar auf die Warteliste — auf Englisch für einen englischen Server", async () => {
         mocks.access.config = { ...CONFIG, botLanguage: "en" };
         const tooMany = submit(`availability:mbi:cat1:${RUBY}`, { amount: "6" });
         await command.execute(tooMany);
         expect(answerOf(tooMany.editReply.mock.calls[0][0]).description).toBe("⚠️ At most 5 per request.");
+        expect(discord.postPayload).not.toHaveBeenCalled();
         stockStore.setItemSettings(KEY, RUBY, { reserve: 8 });
         const left = submit(`availability:mbi:cat1:${RUBY}`, { amount: "3" });
         await command.execute(left);
-        expect(answerOf(left.editReply.mock.calls[0][0]).description).toBe("⚠️ Only 2 left.");
+        const answer = answerOf(left.editReply.mock.calls[0][0]);
+        expect(answer.title).toBe("✅ Request sent – the orga will get back to you by DM.");
+        // no character of the bank's version in the profile: the hint that the orga cannot hand it out
+        expect(answer.description).toBe("**2× Bold Living Ruby**\n\n⏳ On the waiting list: **1× Bold Living Ruby** – you are no. 1.\nYou get a DM as soon as it is your turn. Handed out in turns: 2 per round."
+            + "\n\n⚠️ Add a character in your profile, otherwise the orga cannot hand it out.");
+        expect(discord.postPayload).toHaveBeenCalledTimes(1);
+        expect(bankStore.listRequests().map((r) => [r.status, r.amount])).toEqual([["open", 2], ["waiting", 1]]);
+    });
+
+    it("nichts frei: alles auf die Warteliste, mit Platz; das Menü zeigt, wie viele warten", async () => {
+        stockStore.setItemSettings(KEY, RUBY, { reserve: 10 });
+        const first = submit(`availability:mbi:cat1:${RUBY}`, { amount: "2" });
+        await command.execute(first);
+        const answer = answerOf(first.editReply.mock.calls[0][0]);
+        expect(answer.title).toBe("⏳ Auf der Warteliste: 2× Bold Living Ruby – du bist Nr. 1.");
+        expect(answer.description).toBe("Du bekommst eine DM, sobald du dran bist. Ausgabe reihum: je 2 pro Runde.\n\n⚠️ Leg in deinem Profil einen Charakter an, sonst kann die Orga nicht ausgeben.");
         expect(discord.postPayload).not.toHaveBeenCalled();
+        const pick = click("availability:b:cat1");
+        await command.execute(pick);
+        expect(cardControls(pick.reply.mock.calls[0][0])[0].options[0].description).toBe("Warteliste: 1 vor dir · max. 5 pro Anfrage");
+        const second = submit(`availability:mbi:cat1:${RUBY}`, { amount: "1" });
+        await command.execute(second);
+        expect(answerOf(second.editReply.mock.calls[0][0]).title).toBe("⏳ Auf der Warteliste: 1× Bold Living Ruby – du bist Nr. 2.");
     });
 });

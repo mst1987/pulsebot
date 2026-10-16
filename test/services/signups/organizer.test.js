@@ -4,7 +4,7 @@ let mockReports = [];
 jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
 jest.mock("../../../src/stores/reportStore", () => ({
-    listReports: jest.fn(() => mockReports.map(({ id, title, generatedAt }) => ({ id, title, generatedAt }))),
+    listReports: jest.fn(() => mockReports.map(({ id, title, generatedAt, versionId }) => ({ id, title, generatedAt, versionId }))),
     getReportRoster: jest.fn((id) => mockReports.find((r) => r.id === id) || null),
 }));
 
@@ -117,8 +117,19 @@ describe("latestReportFor", () => {
         profiles.addCharacter(ANNA, { name: "Devi Res", className: "Priest", versionId: "forever", specs: [{ key: "Priest-Holy", gear: "ready" }] });
         const key = profiles.getProfile(ANNA).characters[0].key;
         expect(key).toMatch(/~/);
-        mockReports = [report("aaaaaa", 1000, ["Tank", "Devi Res"])];
-        expect(organizer.latestReportFor(ANNA)).toMatchObject({ id: "aaaaaa", character: "Devi Res", idx: 1 });
+        mockReports = [{ ...report("aaaaaa", 1000, ["Tank", "Devi Res"]), versionId: "forever" }];
+        expect(organizer.latestReportFor(ANNA, { config: {} })).toMatchObject({ id: "aaaaaa", character: "Devi Res", idx: 1 });
+    });
+
+    // #741: the TBC log of a TBC "Zibbo" is no evaluation of the Forever "Zibbo Res" - and the other way round.
+    it("nimmt nur Auswertungen der Version des Charakters, keine einer ausgeblendeten Version", () => {
+        profiles.addCharacter(ANNA, { name: "Devi Res", className: "Priest", versionId: "forever", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+        mockReports = [
+            report("tbclog", 3000, ["Devi Res"]),
+            { ...report("folog", 2000, ["Devi Res"]), versionId: "forever" },
+        ];
+        expect(organizer.latestReportFor(ANNA, { config: {} })).toMatchObject({ id: "folog" });
+        expect(organizer.latestReportFor(ANNA, { config: { mainVersion: "tbc", hideOtherVersions: true } })).toBeNull();
     });
 
     it("gibt null ohne Treffer", () => {

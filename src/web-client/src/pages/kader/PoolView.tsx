@@ -22,7 +22,7 @@ import { cleanState, passes, type FilterDef, type FilterState } from "../../lib/
 import { FilterChips, FilterMenus } from "./FilterMenus";
 import { BatchBar } from "./BatchBar";
 import { AttendanceSource, AttendanceValue } from "./Attendance";
-import { BackButton, EmptyState, PlayerName, SortHead, SourceBadge, SpecTag, StateBadge, Switch, TableNote } from "./parts";
+import { BackButton, EmptyState, PlayerAvatar, PlayerName, SortHead, SourceBadge, SpecTag, StateBadge, Switch, TableNote } from "./parts";
 import { useKader } from "./kaderContext";
 
 type Scope = "all" | "pool" | "selected";
@@ -70,9 +70,12 @@ function PoolRow({ row, marked, onMark }: { row: Row; marked: boolean; onMark: (
             <span role="cell" className="kp-cell-mark">
                 <input type="checkbox" checked={marked} disabled={!canWrite} aria-label={t("kader.batch.mark", { name })} onChange={(e) => onMark(e.target.checked)} />
             </span>
-            <span role="cell" className="kp-cell-name">
-                <PlayerPeek userId={userId} entry={entry} />
-                {p && !p.onServer && <span className="kp-sub">{t("kader.pool.notOnServer")}</span>}
+            <span role="cell" className="kp-cell-who">
+                <PlayerAvatar userId={userId} entry={entry} />
+                <span className="kp-cell-name">
+                    <PlayerPeek userId={userId} entry={entry} />
+                    {p && !p.onServer && <span className="kp-sub">{t("kader.pool.notOnServer")}</span>}
+                </span>
             </span>
             <span role="cell" className="kp-cell-stack">
                 <span className="kp-cell-char">

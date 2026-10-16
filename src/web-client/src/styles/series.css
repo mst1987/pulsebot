@@ -39,7 +39,10 @@
 .sr-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .sr-summary { font-family: var(--font-mono); font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 6px; background: var(--accent-soft); }
 .sr-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-.sr-field input, .sr-field select { min-height: var(--ctl-h-sm); padding: 4px 8px; }
+/* the inputs carry the shared compact look (.inp-sm in base.css); here they only fill the column.
+   The select keeps its chevron room (34px on the right) — only its height is the compact one. */
+.sr-field .inp-sm { width: 100%; box-sizing: border-box; }
+.sr-field select { min-height: var(--ctl-h-sm); padding-top: 6px; padding-bottom: 6px; width: 100%; }
 .sr-grid { display: grid; grid-template-columns: 120px 150px minmax(0, 1fr); gap: 12px; }
 .sr-days { display: flex; gap: 6px; flex-wrap: wrap; }
 .sr-daychip {
@@ -62,7 +65,7 @@
 .sr-what { flex: 1; min-width: 0; }
 .sr-channel { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13.5px; }
 .sr-channel .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sr-skip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); white-space: nowrap; cursor: pointer; }
+.sr-skip { flex: none; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 
 @media (max-width: 640px) {
     .sr-row { flex-wrap: wrap; }

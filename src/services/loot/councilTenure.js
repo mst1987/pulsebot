@@ -23,7 +23,7 @@
 const { listStoredEvents } = require("../events/eventSources");
 const { listLogs } = require("../../stores/logStore");
 const { getReportRoster } = require("../../stores/reportStore");
-const { listRosters, rosterForCategory } = require("../../stores/rosterStore");
+const { listRosters, rostersForCategory } = require("../../stores/rosterStore");
 const { characterKeyOf, nameKeyOf } = require("../../utils/loot/lootImport");
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -41,12 +41,13 @@ const isoMs = (iso) => {
 };
 const earlier = (a, b) => (!a ? b : !b ? a : Math.min(a, b));
 
-/** The rosters that count: the category's, or every one without a category. */
+/**
+ * The rosters that count: the category's - of every game version (#739: a
+ * raider who came over from the closed TBC roster belongs since his TBC
+ * days) -, or every one without a category.
+ */
 function rostersFor(categoryId) {
-    if (categoryId) {
-        const r = rosterForCategory(categoryId);
-        return r ? [r] : [];
-    }
+    if (categoryId) return rostersForCategory(categoryId);
     return listRosters("");
 }
 

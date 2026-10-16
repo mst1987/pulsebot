@@ -2,13 +2,24 @@
 // the default, unknown ids never handed out, an event's own version wins.
 let mockConfig = {};
 jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
+// #737: the versions the Raid-Helper scan stored per snapshot.
+const mockSnapshots = new Map();
+let mockSnapshotError = null;
+jest.mock("../../../src/stores/raidEventStore", () => ({
+    versionOfRaidEvent: (id) => {
+        if (mockSnapshotError) throw mockSnapshotError;
+        return mockSnapshots.get(id) || "";
+    },
+}));
 
 const {
-    mainVersionFor, versionOfEvent, rulesForEvent, classesOfVersion, knownVersion,
+    mainVersionFor, versionOfEvent, rulesForEvent, classesOfVersion, knownVersion, snapshotVersionOf,
 } = require("../../../src/services/events/mainVersion");
 
 beforeEach(() => {
     mockConfig = {};
+    mockSnapshots.clear();
+    mockSnapshotError = null;
 });
 
 describe("mainVersionFor", () => {
@@ -63,6 +74,41 @@ describe("versionOfEvent / rulesForEvent", () => {
         expect(versionOfEvent({ categoryId: "c1" })).toBe("tbc");
         expect(versionOfEvent({ versionId: "bogus", categoryId: "c2" })).toBe("forever");
         expect(rulesForEvent(null).id).toBe("forever");
+    });
+
+    // #737: a scanned Raid-Helper raid keeps the version it was stored with.
+    it("reads a Raid-Helper snapshot's stored version before the category's of today", () => {
+        mockSnapshots.set("rh-1", "tbc");
+        mockConfig = { mainVersion: "forever", categoryVersion: { c1: "forever" } };
+        expect(versionOfEvent({ id: "rh-1", categoryId: "c1" })).toBe("tbc");
+        expect(versionOfEvent({ id: "rh-1", versionId: "classic", categoryId: "c1" })).toBe("classic");
+        // not scanned yet (a coming raid): the category's version of today
+        expect(versionOfEvent({ id: "rh-2", categoryId: "c1" })).toBe("forever");
+    });
+
+    it("reads an own event's stored version through the hook eventStore registers", () => {
+        const { registerOwnEventVersions } = require("../../../src/services/events/mainVersion");
+        mockConfig = { mainVersion: "forever" };
+        registerOwnEventVersions((id) => (id.startsWith("eh-") ? ({ "eh-1": "tbc" }[id] || "") : null));
+        try {
+            expect(versionOfEvent({ id: "eh-1" })).toBe("tbc");
+            // an own event that is gone: today's version, never another store's answer
+            mockSnapshots.set("eh-2", "classic");
+            expect(versionOfEvent({ id: "eh-2" })).toBe("forever");
+            mockSnapshots.set("rh-1", "tbc");
+            expect(versionOfEvent({ id: "rh-1" })).toBe("tbc");
+        } finally {
+            registerOwnEventVersions(null);
+        }
+        expect(versionOfEvent({ id: "eh-1" })).toBe("forever");
+    });
+
+    it("counts a snapshot store that cannot answer as nothing stored", () => {
+        mockConfig = { mainVersion: "forever" };
+        mockSnapshotError = new Error("broken");
+        expect(snapshotVersionOf("rh-1")).toBe("");
+        expect(versionOfEvent({ id: "rh-1" })).toBe("forever");
+        expect(snapshotVersionOf("")).toBe("");
     });
 });
 
@@ -129,6 +175,15 @@ describe("hiding the other versions (#563)", () => {
         expect(resolveVersionQuery("all")).toEqual({ versionId: "forever", mainVersion: "forever" });
         mockConfig = { mainVersion: "forever" };
         expect(resolveVersionQuery("tbc")).toEqual({ versionId: "tbc", mainVersion: "forever" });
-        expect(resolveVersionQuery("all")).toEqual({ versionId: "", mainVersion: "forever" });
+    });
+
+    it("answers one version for every page: 'all' is the main version, only a caller with allowAll reads across (#741)", () => {
+        mockConfig = { mainVersion: "forever" };
+        expect(resolveVersionQuery("all")).toEqual({ versionId: "forever", mainVersion: "forever" });
+        expect(resolveVersionQuery("")).toEqual({ versionId: "forever", mainVersion: "forever" });
+        expect(resolveVersionQuery("all", { allowAll: true })).toEqual({ versionId: "", mainVersion: "forever" });
+        // hidden versions win over allowAll
+        mockConfig = { mainVersion: "forever", hideOtherVersions: true };
+        expect(resolveVersionQuery("all", { allowAll: true })).toEqual({ versionId: "forever", mainVersion: "forever" });
     });
 });

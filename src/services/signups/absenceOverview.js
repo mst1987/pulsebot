@@ -17,6 +17,11 @@
 // The reasons are the raid lead's (the Discord panel says so): `withReasons`
 // leaves them out for anyone else. Pure over the stores, no Discord call but
 // the names the caller hands in.
+//
+// One game version at a time (#740, `versionId`, the menu's content switch):
+// the raids, the hints and a raider's last raids are those of that version
+// (versionOfEvent - each raid's stored version). The entries themselves belong
+// to no version: an absence covers the raids of every version.
 const { DateTime } = require("luxon");
 const store = require("../../stores/availabilityStore");
 const eventStore = require("../../stores/eventStore");
@@ -26,6 +31,7 @@ const settingsStore = require("../../stores/settingsStore");
 const { categoryAttendanceFor } = require("../../stores/configSchema");
 const { TIMEZONE } = require("../../config/timezone");
 const { CLASSES } = require("../../config/gameVersions/classes");
+const { versionOfEvent, mainVersionFor, knownVersion } = require("../events/mainVersion");
 
 const HINT_MIN = 3;
 const HINT_OF = 4;
@@ -57,12 +63,21 @@ function activeCategories(config) {
 /** Whether a category takes part in the overview (Einstellungen › Kategorien: "In Abwesenheiten zeigen"). */
 const inOverview = (config, categoryId) => categoryAttendanceFor(config, categoryId).absences;
 
-/** Own raids of the active categories (or one of them), not cancelled, between two days. */
-function raidsBetween(from, to, { categoryId = "", config }) {
+/** The version a view counts: the one named, else the main version (#740). */
+function versionFor(versionId, config) {
+    return knownVersion(versionId) || mainVersionFor({ config });
+}
+
+/** Whether an event is a raid of this version (its stored version, #737). */
+const ofVersion = (e, versionId, config) => versionOfEvent(e, { config }) === versionId;
+
+/** Own raids of the active categories (or one of them) and of one version, not cancelled, between two days. */
+function raidsBetween(from, to, { categoryId = "", config, versionId }) {
     const cats = activeCategories(config);
     const since = Math.floor(DateTime.fromISO(from, { zone: TIMEZONE }).startOf("day").toSeconds());
     return eventStore.listEvents("", { sinceSeconds: since })
         .filter((e) => e && e.startTime && e.status !== "cancelled")
+        .filter((e) => ofVersion(e, versionId, config))
         .filter((e) => !cats.length || cats.includes(str(e.categoryId)))
         .filter((e) => inOverview(config, e.categoryId))
         .filter((e) => !categoryId || str(e.categoryId) === categoryId)
@@ -113,10 +128,40 @@ function specLooks(spec) {
     return { specLabel: info.label, classId: info.classId, classColor: cls ? cls.color : "", specIcon: info.icon || "", specRole: info.role || "" };
 }
 
+/**
+ * The signups of one overview, each asked of the store once: `list(eventId)`
+ * and `get(eventId, userId)`. The overview looks the same raids up per raider,
+ * per role and per raid; asking the store each time made it quadratic in raids.
+ * `get` answers from a list already read, else asks for that one signup.
+ */
+function signupLookup() {
+    const lists = new Map();
+    const byUser = new Map();
+    const singles = new Map();
+    const list = (eventId) => {
+        const key = str(eventId);
+        if (!lists.has(key)) {
+            const rows = signupStore.listSignups(key);
+            lists.set(key, rows);
+            byUser.set(key, new Map(rows.map((s) => [str(s.userId), s])));
+        }
+        return lists.get(key);
+    };
+    const get = (eventId, userId) => {
+        const key = str(eventId);
+        const uid = str(userId);
+        if (byUser.has(key)) return byUser.get(key).get(uid) || null;
+        const single = `${key}\n${uid}`;
+        if (!singles.has(single)) singles.set(single, signupStore.getSignup(key, uid));
+        return singles.get(single);
+    };
+    return { list, get };
+}
+
 /** The latest signup of a raider among some raids (for the character the overview names). */
-function latestSignup(userId, raids) {
+function latestSignup(userId, raids, signups) {
     for (let i = raids.length - 1; i >= 0; i -= 1) {
-        const s = signupStore.getSignup(raids[i].id, userId);
+        const s = signups.get(raids[i].id, userId);
         if (s) return s;
     }
     return null;
@@ -139,8 +184,8 @@ function periodView(entry, { withReasons, categoryNames, now }) {
 }
 
 /** Who is away from one raid: absence signups, and the raiders a period covers who have no signup there. */
-function awayFrom(event, entries) {
-    const signups = signupStore.listSignups(event.id);
+function awayFrom(event, entries, lookup) {
+    const signups = lookup.list(event.id);
     const byUser = new Map(signups.map((s) => [str(s.userId), s]));
     const out = new Map();
     for (const s of signups) {
@@ -159,10 +204,11 @@ function awayFrom(event, entries) {
  * The hints: raiders who signed off from at least HINT_MIN of the last HINT_OF
  * raids of a category one by one, without a period covering any of them.
  */
-function hintsFor({ now, config, entries, categoryNames }) {
+function hintsFor({ now, config, entries, categoryNames, signups: lookup, versionId }) {
     const cats = activeCategories(config);
     const past = eventStore.listEvents("", { sinceSeconds: Math.floor(now / 1000) - 120 * 86400 })
         .filter((e) => e && e.startTime && e.status !== "cancelled" && Number(e.startTime) * 1000 < now)
+        .filter((e) => ofVersion(e, versionId, config))
         .filter((e) => !cats.length || cats.includes(str(e.categoryId)))
         .filter((e) => inOverview(config, e.categoryId));
     const byCategory = new Map();
@@ -178,7 +224,7 @@ function hintsFor({ now, config, entries, categoryNames }) {
         const counts = new Map();
         const signups = new Map();
         for (const event of last) {
-            for (const s of signupStore.listSignups(event.id)) {
+            for (const s of lookup.list(event.id)) {
                 const uid = str(s.userId);
                 if (s.status !== "absence") continue;
                 if (entries.some((en) => en.userId === uid && en.kind === "absence" && entryCovers(en, event))) continue;
@@ -198,10 +244,12 @@ function hintsFor({ now, config, entries, categoryNames }) {
 
 /**
  * The overview of `weeks` weeks from this Monday on.
- * @param {object} opts { weeks, categoryId, now, config, withReasons, names: { userId: name }, categoryNames: { id: name } }
+ * @param {object} opts { weeks, categoryId, versionId, now, config, withReasons, names: { userId: name }, categoryNames: { id: name } }
+ *   `versionId`: only raids of this game version (#740); the main version when none is named
  */
-function buildOverview({ weeks = 8, categoryId = "", now = Date.now(), config, withReasons = false, names = {}, categoryNames = {}, eventUrl = () => "" } = {}) {
+function buildOverview({ weeks = 8, categoryId = "", versionId = "", now = Date.now(), config, withReasons = false, names = {}, categoryNames = {}, eventUrl = () => "" } = {}) {
     const cfg = config || settingsStore.getConfig();
+    const version = versionFor(versionId, cfg);
     const span = Math.max(1, Math.min(MAX_WEEKS, Number(weeks) || 8));
     const todayDt = DateTime.fromMillis(Number(now), { zone: TIMEZONE }).startOf("day");
     const from = todayDt.minus({ days: todayDt.weekday - 1 }).toFormat("yyyy-MM-dd");
@@ -216,9 +264,10 @@ function buildOverview({ weeks = 8, categoryId = "", now = Date.now(), config, w
         .filter((e) => !e.categoryId || inPick(e.categoryId))
         .filter((e) => !e.categoryId || inOverview(cfg, e.categoryId));
     // every category of the weeks stays offered (and keeps its colour) while the view shows only the picked ones
-    const allRaids = raidsBetween(from, to, { config: cfg });
+    const allRaids = raidsBetween(from, to, { config: cfg, versionId: version });
     const raids = allRaids.filter((e) => inPick(e.categoryId));
 
+    const signups = signupLookup();
     const raiders = new Map();
     const rowOf = (userId) => {
         if (!raiders.has(userId)) raiders.set(userId, { userId, periods: [], singles: [] });
@@ -227,10 +276,10 @@ function buildOverview({ weeks = 8, categoryId = "", now = Date.now(), config, w
     for (const e of entries) rowOf(e.userId).periods.push(periodView(e, { withReasons, categoryNames, now }));
 
     const raidViews = raids.map((event) => {
-        const { signups, away } = awayFrom(event, entries);
+        const { signups: rows, away } = awayFrom(event, entries, signups);
         const comp = event.composition || {};
-        const dabei = signups.filter((s) => IN.includes(s.status));
-        const roleOfAway = (a) => identityOf(a.userId, { signup: a.signup || latestSignup(a.userId, raids) }).role;
+        const dabei = rows.filter((s) => IN.includes(s.status));
+        const roleOfAway = (a) => identityOf(a.userId, { signup: a.signup || latestSignup(a.userId, raids, signups) }).role;
         const roles = {};
         for (const role of ["tank", "healer"]) {
             const awayRole = away.filter((a) => roleOfAway(a) === role).length;
@@ -264,11 +313,11 @@ function buildOverview({ weeks = 8, categoryId = "", now = Date.now(), config, w
         };
     });
 
-    const hints = hintsFor({ now, config: cfg, entries: store.listEntries(), categoryNames })
+    const hints = hintsFor({ now, config: cfg, entries: store.listEntries(), categoryNames, signups, versionId: version })
         .filter((h) => inPick(h.categoryId));
 
     const rows = [...raiders.values()].map((r) => {
-        const id = identityOf(r.userId, { signup: latestSignup(r.userId, raids), names });
+        const id = identityOf(r.userId, { signup: latestSignup(r.userId, raids, signups), names });
         const absences = r.periods.filter((p) => p.kind === "absence");
         const longest = absences.reduce((n, p) => Math.max(n, p.days), 0);
         const awayToday = absences.some((p) => p.from <= today && p.to >= today) || r.singles.some((s) => s.day === today);
@@ -293,12 +342,12 @@ function buildOverview({ weeks = 8, categoryId = "", now = Date.now(), config, w
     };
 
     return {
-        from, to, today, weeks: span,
+        from, to, today, weeks: span, versionId: version,
         categories: [...new Set(allRaids.map((r) => str(r.categoryId)))].map((id) => ({ id, name: categoryNameOf(id, categoryNames, allRaids) })),
         picked,
         raids: raidViews,
         raiders: rows,
-        hints: hints.map(({ signup, ...h }) => ({ ...h, ...identityOf(h.userId, { signup: latestSignup(h.userId, raids) || signup, names }) })),
+        hints: hints.map(({ signup, ...h }) => ({ ...h, ...identityOf(h.userId, { signup: latestSignup(h.userId, raids, signups) || signup, names }) })),
         tiles,
     };
 }
@@ -306,11 +355,12 @@ function buildOverview({ weeks = 8, categoryId = "", now = Date.now(), config, w
 /**
  * One raider: every entry with what it did, and the last HISTORY raids of the
  * categories they raid in (a signup there in the last 120 days) — in, off, or
- * no answer.
+ * no answer. Raids of one game version (`versionId`, #740; the main version when none is named).
  */
-function raiderDetail(userId, { now = Date.now(), config, withReasons = false, names = {}, categoryNames = {} } = {}) {
+function raiderDetail(userId, { versionId = "", now = Date.now(), config, withReasons = false, names = {}, categoryNames = {} } = {}) {
     const uid = str(userId);
     const cfg = config || settingsStore.getConfig();
+    const version = versionFor(versionId, cfg);
     const cats = activeCategories(cfg);
     const entries = store.listEntries({ userId: uid }).map((e) => {
         const applied = Object.values(e.applied || {});
@@ -318,17 +368,20 @@ function raiderDetail(userId, { now = Date.now(), config, withReasons = false, n
     }).sort((a, b) => b.from.localeCompare(a.from));
     const past = eventStore.listEvents("", { sinceSeconds: Math.floor(now / 1000) - 120 * 86400 })
         .filter((e) => e && e.startTime && e.status !== "cancelled" && Number(e.startTime) * 1000 < now)
+        .filter((e) => ofVersion(e, version, cfg))
         .filter((e) => !cats.length || cats.includes(str(e.categoryId)))
         .filter((e) => inOverview(cfg, e.categoryId))
         .sort((a, b) => Number(b.startTime) - Number(a.startTime));
-    const theirs = new Set(past.filter((e) => signupStore.getSignup(e.id, uid)).map((e) => str(e.categoryId)));
+    const signups = signupLookup();
+    const theirs = new Set(past.filter((e) => signups.get(e.id, uid)).map((e) => str(e.categoryId)));
     const history = past.filter((e) => theirs.has(str(e.categoryId))).slice(0, HISTORY).reverse().map((e) => {
-        const s = signupStore.getSignup(e.id, uid);
+        const s = signups.get(e.id, uid);
         return { eventId: e.id, day: dayOf(e.startTime), title: e.title || "", status: !s ? "none" : s.status === "absence" ? "off" : IN.includes(s.status) ? "in" : "other" };
     });
     const count = (status) => history.filter((h) => h.status === status).length;
     return {
-        ...identityOf(uid, { signup: latestSignup(uid, past.slice().reverse()), names }),
+        ...identityOf(uid, { signup: latestSignup(uid, past.slice().reverse(), signups), names }),
+        versionId: version,
         entries,
         history,
         counts: { in: count("in"), off: count("off"), none: count("none"), other: count("other") },

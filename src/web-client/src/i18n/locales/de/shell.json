@@ -12,6 +12,9 @@
         "textPublic": "Diese Version ist ausgeblendet. Der Raidplan bleibt über den Link lesbar.",
         "readOnly": "Nur lesen"
     },
+    "followVersion": {
+        "switched": "Du bist jetzt in {version}"
+    },
     "brandSub": "Gildenmenü",
     "toHome": "Zur Übersicht",
     "menu": {
@@ -24,13 +27,16 @@
         "history": "Historie & Loot",
         "lootcouncil": "Loot-Council",
         "bank": "Gildenbank",
+        "dungeons": "Dungeon-Bestzeiten",
+        "addon": "Addons",
         "kader": "Kaderplaner",
         "recruitment": "Recruitment",
         "channels": "Kanäle",
         "settings": "Einstellungen",
         "planTemplates": "Raidplan-Vorlagen",
         "planCatalog": "Raidplan-Katalog",
-        "absences": "Abwesenheiten"
+        "absences": "Abwesenheiten",
+        "system": "Systemstatus"
     },
     "group": {
         "Start": "Start",
@@ -121,6 +127,7 @@
     "app": {
         "noWrite": "Für diesen Bereich fehlen dir die Schreibrechte.",
         "noRead": "Für diesen Bereich hat deine Rolle keine Berechtigung.",
+        "adminOnly": "Diese Seite ist nur für Administratoren.",
         "noAccess": "Dein Discord-Konto hat noch keinen Zugang zu diesem Menü.",
         "noAccessHint": "Ein Admin kann dir in den Einstellungen unter „Berechtigungen\" Bereiche freischalten.",
         "notFound": "Diese Seite gibt es nicht.",
@@ -132,5 +139,18 @@
         "newVersionTitle": "Neue Version verfügbar",
         "newVersionText": "Das Menü wurde aktualisiert. Lade die Seite neu, um weiterzuarbeiten.",
         "newVersionReload": "Seite neu laden"
+    },
+    "orga": {
+        "label": "Orga-Bereich",
+        "pageHidden": "Raider sehen diese Seite nicht",
+        "zoneHidden": "Raider sehen diesen Bereich nicht",
+        "visibleFor": "sichtbar für {who}",
+        "admins": "Admins",
+        "accounts": {
+            "one": "{count} einzelnes Konto",
+            "other": "{count} einzelne Konten"
+        },
+        "asRaider": "So sieht es ein Raider",
+        "asRaiderTip": "Zeigt das Menü mit dem Basiszugang – so, wie es ein Raider ohne weitere Rolle sieht. „Beenden“ oben bringt dich zurück."
     }
 }

@@ -26,9 +26,12 @@ describe("step bar conventions", () => {
         expect(skipped).not.toMatch(/line-through|--bad|red/);
     });
 
-    it("is one slim row with a strip for the open step's deed", () => {
+    it("is one row of equal steps, each two lines (name over value), with a strip for the open step's deed", () => {
         expect(css).toMatch(/\n\.rd-ck-steps \{[^}]*display: flex/);
-        expect(css).toMatch(/\n\.rd-ck \{[^}]*flex-direction: row/);
+        expect(css).toMatch(/\n\.rd-ck-steps > li \{[^}]*flex: 1 1 0;/);
+        // icon | name | mark on top, the value below name and mark: neither is cut short for the other
+        expect(css).toMatch(/\n\.rd-ck \{[^}]*display: grid;[^}]*grid-template-rows: auto auto/);
+        expect(css).toMatch(/\n\.rd-ck-val \{[^}]*grid-row: 2; grid-column: 2 \/ span 2;/);
         expect(css).toMatch(/\n\.rd-ck-focus \{/);
     });
 

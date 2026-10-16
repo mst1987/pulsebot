@@ -20,6 +20,8 @@ const RULES = [
     [/^Der Raid hat schon begonnen – Anmeldungen sind geschlossen\.$/, "The raid has already started – signups are closed."],
     [/^Die Anmeldung ist geschlossen – du kannst dich nur noch abmelden\.$/, "Signups are closed – you can only sign off now."],
     [/^Der Anmeldeschluss ist vorbei – du kannst dich nur noch abmelden oder „Spät“ angeben\.$/, "The signup deadline has passed – you can only sign off or sign up as “Late” now."],
+    [/^Höchstens (\d+) Charaktere je Anmeldung in dieser Kategorie\.$/, "At most $1 characters per signup in this category."],
+    [/^mehr als (\d+) Charaktere je Anmeldung in dieser Kategorie$/, "more than $1 characters per signup in this category"],
     [/^Höchstens (\d+) Charaktere je Anmeldung\.$/, "At most $1 characters per signup."],
     [/^Höchstens (\d+) Charaktere\.$/, "At most $1 characters."],
     [/^Dieser Charakter steht nicht in deinem Profil\.$/, "This character is not in your profile."],
@@ -102,11 +104,17 @@ const RULES = [
     [/^Unbekannter Status\.$/, "Unknown status."],
     [/^Diesen Gegenstand gibt es gerade nicht in der Gildenbank\.$/, "This item is not available in the guild bank right now."],
     [/^Höchstens (\d+) pro Anfrage\.$/, "At most $1 per request."],
-    [/^Nur noch (\d+) verfügbar\.$/, "Only $1 left."],
+    [/^Höchstens (\d+) Einträge auf der Warteliste – warte, bis einer drankommt\.$/, "At most $1 entries on the waiting list – wait until one is your turn."],
+    [/^Kein Raider und kein Charakter\.$/, "No raider and no character."],
+    [/^Nur Gegenstände aus dem Bestand haben eine Warteliste\.$/, "Only items from the stock have a waiting list."],
+    [/^Kein Eintrag der Warteliste\.$/, "Not an entry of the waiting list."],
+    [/^Nichts zu verteilen\.$/, "Nothing to hand out."],
+    [/^Unbekannte Richtung\.$/, "Unknown direction."],
     [/^Diese Anfrage ist keine aus dem Bestand\.$/, "This request is not one from the stock."],
     [/^Diese Anfrage ist noch nicht vorgemerkt\.$/, "This request has not been confirmed yet."],
     [/^Diese Anfrage ist schon vorgemerkt\.$/, "This request has already been confirmed."],
     [/^Diese Anfrage ist schon ausgegeben\.$/, "This request has already been handed out."],
+    [/^Die Anfrage nennt keinen Charakter – erst verknüpfen\.$/, "The request names no character – link one first."],
 ];
 
 /**

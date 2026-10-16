@@ -13,12 +13,14 @@ const { createJsonStore } = require("./jsonStore");
 const { normalizeCategoryLootSystem } = require("../services/loot/lootSystem");
 const { normalizeCategoryMessageLook } = require("../services/events/embedLook");
 const {
-    normalizeConfig, normalizeDiscordServers, normalizeRaidhelperRetirement, normalizeCategorySignupSource,
+    normalizeConfig, normalizeDiscordServers, normalizeRaidhelperRetirement, normalizeVersionLaunch, normalizeCategorySignupSource,
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryAttendance, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
-    normalizeCategorySignupNotes, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeCategoryPlanning, normalizeTopItems,
-    normalizeRoleSync, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeVersionSettings, normalizeBotLanguage,
+    normalizeCategorySignupNotes, normalizeCategorySignupCharacters, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeCategoryPlanning, normalizeTopItems,
+    normalizeRoleSync, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings, normalizeBotLanguage,
+    normalizeDiscordVisuals, normalizeDungeonRecords,
 } = require("./configSchema");
 const { planningOf } = require("../services/events/planning");
+const { normalizeBackupSettings } = require("../services/backup/backupConfig");
 
 const FILE = settingsPath("config.json");
 
@@ -92,6 +94,7 @@ function resolveEventSheetLink(eventSheet, categoryId) {
  * - categoryVoiceChannel (#305), categorySignupNoteChannel (#335): "" = back to the default;
  * - categoryMessageLook: merged per category, one back at the defaults drops out;
  * - categoryAnnounce (#306), categorySignupNotes ("optional" drops out);
+ * - categorySignupCharacters: 8 (the default) drops the category again;
  * - categorySheets: an emptied url drops the sheet;
  * - categoryPlanning: raid plan or sheet, a category not sent keeps its mode.
  */
@@ -107,9 +110,29 @@ const MERGED_CATEGORY_MAPS = [
     ["categoryAnnounce", normalizeCategoryAnnounce],
     ["categorySignupNotes", normalizeCategorySignupNotes],
     ["categorySignupNoteChannel", normalizeCategoryVoiceChannel],
+    ["categorySignupCharacters", normalizeCategorySignupCharacters],
     ["categorySheets", normalizeCategorySheets],
     ["categoryPlanning", normalizeCategoryPlanning],
 ];
+
+// Blocks a PATCH sends only partly: the fields sent are merged over the stored
+// block (a secret left out stays — the credentials' "omit = keep").
+const MERGED_FIELDS = ["raidDefaults", "blizzard", "anthropic", "warcraftlogsV2", "github", "categoryLootTool"];
+
+/**
+ * Small blocks merged per field before they are normalised: the drawn pictures
+ * (a switch sent alone leaves the others as they are) and the dungeon record
+ * post (the switch sent alone keeps the channel).
+ */
+const MERGED_BLOCKS = [
+    ["discordVisuals", normalizeDiscordVisuals],
+    ["dungeonRecords", normalizeDungeonRecords],
+];
+
+/** `next[key]` = the stored block with the sent fields over it, normalised; nothing sent leaves it alone. */
+function mergeBlock(next, current, sent, key, normalize) {
+    if (sent && typeof sent === "object") next[key] = normalize({ ...current[key], ...sent });
+}
 
 /**
  * Merge and persist a partial config update. Returns the config as every other
@@ -120,9 +143,15 @@ const MERGED_CATEGORY_MAPS = [
 function saveConfig(partial) {
     const current = getConfig();
     const next = { ...current, ...partial };
-    if (partial.raidDefaults) next.raidDefaults = { ...current.raidDefaults, ...partial.raidDefaults };
-    if (partial.blizzard) next.blizzard = { ...current.blizzard, ...partial.blizzard };
-    if (partial.anthropic) next.anthropic = { ...current.anthropic, ...partial.anthropic };
+    // The addon list (#818) is replaced only by an edit of it, which says so with
+    // `addonDownloadsCustomized`; a save that just carries a list along (an
+    // unrelated one) leaves the stored list as it is - it can never wipe the page.
+    if (partial.addonDownloads !== undefined && typeof partial.addonDownloadsCustomized !== "boolean") {
+        next.addonDownloads = current.addonDownloads;
+    }
+    for (const key of MERGED_FIELDS) {
+        if (partial[key]) next[key] = { ...current[key], ...partial[key] };
+    }
     if (partial.discordServers) {
         next.discordServers = normalizeDiscordServers({ ...current.discordServers, ...partial.discordServers });
         // Keep the fallback key in step, so clearing every event server later
@@ -130,9 +159,9 @@ function saveConfig(partial) {
         const first = next.discordServers.eventGuilds[0];
         if (first) next.guildId = first.guildId;
     }
-    if (partial.warcraftlogsV2) next.warcraftlogsV2 = { ...current.warcraftlogsV2, ...partial.warcraftlogsV2 };
-    if (partial.categoryLootTool) next.categoryLootTool = { ...current.categoryLootTool, ...partial.categoryLootTool };
     if (partial.raidhelperRetirement !== undefined) next.raidhelperRetirement = normalizeRaidhelperRetirement(partial.raidhelperRetirement);
+    // #745: replaced whole — the route sends the marks of every version.
+    if (partial.versionLaunch !== undefined) next.versionLaunch = normalizeVersionLaunch(partial.versionLaunch);
     for (const [key, normalize] of MERGED_CATEGORY_MAPS) {
         if (partial[key]) next[key] = normalize({ ...current[key], ...partial[key] });
     }
@@ -142,7 +171,10 @@ function saveConfig(partial) {
     // whole (a category back on the main version is left out), like the templates.
     if (partial.mainVersion !== undefined) next.mainVersion = normalizeMainVersion(partial.mainVersion);
     if (partial.botLanguage !== undefined) next.botLanguage = normalizeBotLanguage(partial.botLanguage);
+    for (const [key, normalize] of MERGED_BLOCKS) mergeBlock(next, current, partial[key], key, normalize);
     if (partial.categoryVersion !== undefined) next.categoryVersion = normalizeCategoryVersion(partial.categoryVersion);
+    // #738: the section history is replaced whole (the settings route appends a section on a switch).
+    if (partial.categoryEras !== undefined) next.categoryEras = normalizeCategoryEras(partial.categoryEras);
     // #542: merged per version and per field (a block sent for one version leaves the others alone), then normalised.
     if (partial.versionSettings && typeof partial.versionSettings === "object") {
         const merged = { ...current.versionSettings };
@@ -155,8 +187,47 @@ function saveConfig(partial) {
     // Both replace the stored value as a whole, like topItems.
     if (partial.roleSync !== undefined) next.roleSync = normalizeRoleSync(partial.roleSync);
     if (partial.categoryReminders !== undefined) next.categoryReminders = normalizeCategoryReminders(partial.categoryReminders);
+    // Merged per field, the retention per rule and the restore probe's slot per field, then normalised (#691, #694).
+    if (partial.backup && typeof partial.backup === "object") {
+        const cur = current.backup || {};
+        const part = (key) => ({ ...(cur[key] || {}), ...((partial.backup && partial.backup[key]) || {}) });
+        next.backup = normalizeBackupSettings({
+            ...cur, ...partial.backup, retention: part("retention"), restoreTest: part("restoreTest"),
+        });
+    }
     store.write(next);
     return getConfig();
 }
 
-module.exports = { getConfig, saveConfig, resolveEventSheetLink, readStored, writeStored, useFile };
+/**
+ * Remove one category from the config (#744: "Kategorie abschließen"): out of
+ * `categoryIds` and out of every map named in `keys`. saveConfig() merges most
+ * category maps, so a key can only be dropped here. Returns the config as
+ * getConfig() reads it, and the keys that held an entry.
+ * @param {string} categoryId
+ * @param {string[]} keys  the category maps to clear (config keys)
+ * @returns {{ config: object, removed: string[] }}
+ */
+function dropCategoryEntries(categoryId, keys = []) {
+    const id = String(categoryId || "").trim();
+    const current = getConfig();
+    if (!id) return { config: current, removed: [] };
+    const next = { ...current };
+    const removed = [];
+    if (Array.isArray(current.categoryIds) && current.categoryIds.map(String).includes(id)) {
+        next.categoryIds = current.categoryIds.filter((c) => String(c) !== id);
+        removed.push("categoryIds");
+    }
+    for (const key of keys) {
+        const map = current[key];
+        if (!map || typeof map !== "object" || Array.isArray(map) || !Object.prototype.hasOwnProperty.call(map, id)) continue;
+        const rest = { ...map };
+        delete rest[id];
+        next[key] = rest;
+        removed.push(key);
+    }
+    if (removed.length) store.write(next);
+    return { config: getConfig(), removed };
+}
+
+module.exports = { getConfig, saveConfig, dropCategoryEntries, resolveEventSheetLink, readStored, writeStored, useFile };

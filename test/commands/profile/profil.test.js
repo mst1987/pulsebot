@@ -47,6 +47,20 @@ describe("commands/profile/profil", () => {
         expect(text).toContain("Available: Wed · Sun");
     });
 
+    // Forever = Forever characters, TBC = TBC characters (#741); a hidden version's are not listed (#563).
+    it("nennt bei mehreren Versionen die Version jedes Charakters und lässt ausgeblendete weg", () => {
+        store.addCharacter(USER, { name: "Nerathil", className: "Mage", specs: [{ key: "Mage-Arcane", gear: "ready" }] });
+        store.addCharacter(USER, { name: "Devi Res", className: "Priest", specs: ["Priest-Shadow"], versionId: "forever" });
+        const profile = store.getProfile(USER);
+        const both = command.summaryLines(profile, "en", { config: { mainVersion: "tbc" } }).join("\n");
+        expect(both).toContain("`TBC` **Nerathil**");
+        expect(both).toContain("`Forever` **Devi Res**");
+        const hidden = command.summaryLines(profile, "en", { config: { mainVersion: "forever", hideOtherVersions: true } }).join("\n");
+        expect(hidden).toContain("**Devi Res**");
+        expect(hidden).not.toContain("Nerathil");
+        expect(hidden).not.toContain("`Forever`");
+    });
+
     it("schaltet per Button am ersten Charakter um und speichert es im eigenen Profil", async () => {
         store.addCharacter(USER, { name: "Bärbel", className: "Druid", specs: ["Druid-Guardian"] });
         store.addCharacter(USER, { name: "Nerathil", className: "Mage", specs: ["Mage-Arcane"] });

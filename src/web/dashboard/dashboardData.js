@@ -1,7 +1,7 @@
 // Data assembly shared by the dashboard's SSR route (server.js) and its JSON
 // counterpart (apiRouter.js) — moved out of server.js so both can require it
 // without a circular dependency (server.js requires apiRouter.js).
-const { listStoredEvents, ownUpcomingRaw } = require("../../services/events/eventSources");
+const { listStoredEvents, ownUpcomingRaw, cancelFields } = require("../../services/events/eventSources");
 const { scanRaidEvents } = require("../../services/events/raidEventScan");
 const { listByEvent: listLootByEvent } = require("../../stores/lootStore");
 const { getEventSheet } = require("../../stores/eventSheetStore");
@@ -11,6 +11,7 @@ const { listLogs } = require("../../stores/logStore");
 const { buildRecentEvents, matchLogsForEvent, pendingLogsForEvent } = require("../../services/events/recentEvents");
 const { autoLinkLogs } = require("../../services/logcheck/logAutoLink");
 const { logPostedAt } = require("../../services/logcheck/reportList");
+const { recordVersion } = require("../../services/logcheck/logVersion");
 const { listAwards } = require("../loot/lootAwards");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 const discord = require("../../services/discord/discord");
@@ -22,14 +23,13 @@ const { getChannelConfig, listArchived, archiveHint } = require("../../stores/ch
 const { buildRoster } = require("../characters/roster");
 const { rosterStats } = require("../characters/rosterStats");
 const { resolveAssignmentProfiles } = require("../../stores/raiderCharactersStore");
-const { applyReview } = require("../../utils/logcheck/recommendations");
 const softres = require("../../utils/loot/softres");
 const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
 } = require("../../utils/attendance");
 const {
     zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, isAttending,
-    lastReportArea, openRecommendations, newLootSince,
+    lastReportArea, newLootSince,
 } = require("./dashboardOverview");
 const { getEvent, listEvents } = require("../../stores/eventStore");
 const linkCheck = require("../../services/discord/linkCheck");
@@ -41,6 +41,7 @@ const rosterStore = require("../../stores/rosterStore");
 const { getProfile } = require("../../stores/raiderProfileStore");
 const { canManageRosterLive } = require("../../services/roster/rosterAccess");
 const { trialEnding, extendedTrialUntil } = require("../../services/roster/rosterTrials");
+const { planningOf } = require("../../services/events/planning");
 
 const RH_ERROR = "Events konnten nicht geladen werden (Raid-Helper API).";
 
@@ -103,6 +104,7 @@ async function loadNextRaids(guildId, count = 2, { versionId = "" } = {}) {
         .map((ev) => ({ ...ev, categoryId: (catMap[ev.channelId] || {}).categoryId || ev.categoryId || "" }))
         .filter((ev) => !versionId || versionOfEvent(ev) === versionId)
         .sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0)).slice(0, count);
+    const config = getConfig();
     const raids = [];
     for (const ev of next) {
         const own = ev.source === "eventhelper";
@@ -114,6 +116,7 @@ async function loadNextRaids(guildId, count = 2, { versionId = "" } = {}) {
         const size = own && ev.size
             ? ev.size
             : raidSize(zone.contentId, softres.targetSizeForInstances((softresList && softresList.instances) || []));
+        const categoryId = meta.categoryId || ev.categoryId || "";
         raids.push({
             id: ev.id,
             source: ev.source,
@@ -121,15 +124,21 @@ async function loadNextRaids(guildId, count = 2, { versionId = "" } = {}) {
             startTime: ev.startTime,
             channelId: ev.channelId,
             channelName: meta.name || ev.channelName || "",
-            categoryId: meta.categoryId || ev.categoryId || "",
+            categoryId,
+            categoryName: meta.categoryName || ev.categoryName || "",
+            // A category plans with the raid plan or a Google Sheet, never both (planning.js):
+            // only a "sheet" raid can miss its sheet.
+            planning: planningOf(categoryId, config),
             icon: zone.icon,
             size,
             signupCount: (ev.signUps || []).filter(isAttending).length,
             setupCount: slots.length,
             roles: roleFill({ setupSlots: slots, signUps: ev.signUps || [], size, composition: own ? ev.composition : null }),
-            sheet: sheetFor(ev.id, meta.categoryId || ev.categoryId || ""),
+            sheet: sheetFor(ev.id, categoryId),
             softres: softresList && softresList.url ? { url: softresList.url } : null,
-            lootSystem: lootSystemOf(ev.id, meta.categoryId || ev.categoryId || ""),
+            lootSystem: lootSystemOf(ev.id, categoryId),
+            // Event verwalten (#288): a cancelled raid says so instead of passing for the next one
+            ...cancelFields(ev),
         });
     }
     return { raids, error: raids.length ? null : error };
@@ -159,16 +168,18 @@ async function loadNextRaidDetails(guildId, eventId) {
 
     // a category with a roster expects its core + trial members (#658), else the role holders
     const config = getConfig();
-    const expects = hasExpected(g.categoryId, config);
+    // the roster of the raid's version (#739)
+    const versionId = versionOfEvent({ ...ev, categoryId: ev.categoryId || g.categoryId }, { config });
+    const expects = hasExpected(g.categoryId, config, { versionId });
     let missing = [];
     let membersError = null;
     let specHistory = {};
     if (expects) {
-        const result = await listExpectedMembers(guildId, g.categoryId, config);
+        const result = await listExpectedMembers(guildId, g.categoryId, config, { versionId });
         membersError = result.error;
         const attendance = computeAttendance(result.members, signUps);
         specHistory = buildSpecHistory(g.events);
-        const assignments = resolveAssignmentProfiles(g.categoryId);
+        const assignments = resolveAssignmentProfiles(g.categoryId, { versionId });
         const annotate = (people) => withCharacterAssignments(withSpecProfiles(people, specHistory), assignments);
         missing = notSignedUp({ missing: annotate(attendance.missing), responded: annotate(attendance.responded), specHistory });
     }
@@ -182,6 +193,9 @@ async function loadNextRaidDetails(guildId, eventId) {
             startTime: ev.startTime,
             channelId: ev.channelId,
             channelName: ev.channelName || "",
+            categoryId: g.categoryId || "",
+            categoryName: ev.categoryName || g.categoryName || "",
+            planning: planningOf(g.categoryId, config),
             icon: zone.icon,
             size,
             signupCount: signUps.filter(isAttending).length,
@@ -200,30 +214,28 @@ async function loadNextRaidDetails(guildId, eventId) {
 }
 
 /**
- * The newest evaluation as the "Letzte Auswertung" tile needs it, plus how many
- * of its recommendations are still unreviewed (the "Empfehlungen prüfen" task).
- * Reads one report file; null when there is none or it cannot be read.
+ * The newest evaluation as the "Letzte Auswertung" tile and the "Gear-Probleme"
+ * task need it. Reads one report file; null when there is none or it cannot be read.
+ * @param {{ versionId?: string }} [opts] the newest report of that game version (#741, "" = of any)
  */
-function loadLatestReport() {
+function loadLatestReport({ versionId = "" } = {}) {
     try {
-        const summary = listReports()[0];
+        const summary = listReports().find((r) => !versionId || recordVersion(r) === versionId);
         if (!summary) return null;
-        const report = getReport(summary.id);
-        const area = lastReportArea(summary, report);
-        const reviewed = report && report.recommendations
-            ? applyReview(report.recommendations, report.recommendationReview)
-            : null;
-        return { ...area, open: openRecommendations(reviewed) };
+        return lastReportArea(summary, getReport(summary.id));
     } catch (e) {
         console.error("dashboard latest report failed:", e.message);
         return null;
     }
 }
 
-/** Roster size and how many characters have no Discord account assigned; null when the roster cannot be built. */
-function loadRosterFigures(guildId) {
+/**
+ * Roster size and how many characters have no Discord account assigned; null when the roster cannot be built.
+ * @param {{ versionId?: string }} [opts] only the characters of that game version (#741, "" = every one)
+ */
+function loadRosterFigures(guildId, { versionId = "" } = {}) {
     try {
-        const stats = rosterStats(buildRoster(guildId).chars);
+        const stats = rosterStats(buildRoster(guildId, { versionId }).chars);
         return { total: stats.total, withoutDiscord: stats.fromLootOnly };
     } catch (e) {
         console.error("dashboard roster failed:", e.message);
@@ -258,9 +270,12 @@ function loadChannelArchive(guildId) {
     }
 }
 
-/** Top-item awards since the newest past raid started — the "Neuer Loot" tile. */
-function loadNewLoot(sinceStartTime) {
-    const { items } = listAwards({ topOnly: true, page: 1, pageSize: 500 });
+/**
+ * Top-item awards since the newest past raid started — the "Neuer Loot" tile.
+ * @param {{ versionId?: string }} [opts] only the loot of that game version's raids (#741, "" = every one)
+ */
+function loadNewLoot(sinceStartTime, { versionId = "" } = {}) {
+    const { items } = listAwards({ topOnly: true, page: 1, pageSize: 500, versionId });
     const sinceMs = (Number(sinceStartTime) || 0) * 1000;
     return { count: newLootSince(items, sinceMs), since: sinceMs };
 }
@@ -398,6 +413,8 @@ async function loadTrialEndings(guildId, user, { now = Date.now() } = {}) {
     try {
         const out = [];
         for (const roster of rosterStore.listRosters(guildId || "")) {
+            // a closed roster (#739) takes no decision any more
+            if (roster.closedAt) continue;
             const ending = trialEnding(roster, { now });
             if (!ending.length || !(await canManageRosterLive(user, roster).catch(() => false))) continue;
             const names = await discord.resolveUserNames(roster.guildId || guildId, ending.map((m) => m.userId)).catch(() => ({}));

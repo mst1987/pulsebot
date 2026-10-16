@@ -6,7 +6,7 @@ import {
 } from "../../api";
 import { discordServersPatch, overlapBadge, serverCardState, type ServerFields } from "../../lib/settings/settingsLogic";
 import { useToast } from "../../components/shell/Jobs";
-import { CheckMark, PenIcon, PlusIcon, TrashIcon, WarnIcon } from "../../components/ui/icons";
+import { CheckMark, PenIcon, PlusIcon, TrashIcon, WarnIcon, SaveIcon } from "../../components/ui/icons";
 import RoleSyncPart from "./SettingsRoleSync";
 import RemindersPart from "./SettingsReminders";
 import TalkOverviewRow from "./SettingsTalkOverview";
@@ -361,7 +361,7 @@ function ServersModal({ data, onClose, onSaved }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
-                    <Button onClick={save} disabled={busy}>{busy ? t("settings.saving") : t("common.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} onClick={save} disabled={busy}>{busy ? t("settings.saving") : t("common.save")}</Button>
                 </>
             )}
         >

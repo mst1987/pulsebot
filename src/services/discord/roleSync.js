@@ -165,9 +165,10 @@ async function runRoleSync({ config = getConfig(), now = Date.now() } = {}) {
     }
     running = true;
     try {
+        // a fresh list: the sweep gives roles from it (a page reads the cached one)
         const [eventList, talkList] = await Promise.all([
-            discord.fetchGuildMembersCached(srv.ids.event, srv.guilds.event),
-            discord.fetchGuildMembersCached(srv.ids.talk, srv.guilds.talk),
+            discord.fetchGuildMembersCached(srv.ids.event, srv.guilds.event, { fresh: true }),
+            discord.fetchGuildMembersCached(srv.ids.talk, srv.guilds.talk, { fresh: true }),
         ]);
         const memberObjects = {
             event: new Map(eventList.map((m) => [String(m.id), m])),

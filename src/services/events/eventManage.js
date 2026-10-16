@@ -20,6 +20,8 @@ const { DateTime } = require("luxon");
 const { ButtonBuilder, ButtonStyle } = require("discord.js");
 const { card } = require("../../utils/discord/card");
 const eventStore = require("../../stores/eventStore");
+const raidGroup = require("./raidGroup");
+const { isRaidPrimary, isRaidSibling } = require("../../utils/raidGroup");
 const signupStore = require("../../stores/signupStore");
 const raidplanStore = require("../../stores/raidplanStore");
 const { deleteRaidplanPost } = require("../../stores/raidplanPostStore");
@@ -74,6 +76,10 @@ const ACTION_LABELS = {
     signupEdit: "Anmeldung geändert (Orga)",
     channelGone: "Kanal in Discord gelöscht",
     channel: "Kanal neu angelegt",
+    softresLinked: "Softres-Liste aus dem Kanal verknüpft",
+    // a raid group (#811)
+    raidAdd: "Weiterer Raid angelegt",
+    raidRemove: "Weiterer Raid aufgelöst",
 };
 
 const STATUS_LABELS = {
@@ -241,6 +247,8 @@ async function moveEvent({ guildId, eventId, date, time, renameChannel = true, n
     const { plan } = planned;
     const updated = eventStore.updateEvent(plan.eventId, { startTime: plan.to.startTime, signupDeadline: plan.signupDeadline });
     if (updated.error) return fail(400, "invalid_plan", updated.error);
+    // a raid group (#811): its further raids run the same evening and move along
+    raidGroup.followPrimary(updated.event);
     // A reminder sent for the old date says nothing about the new one.
     for (const kind of ["missing", "signed"]) reminderStore.clearSent(plan.eventId, kind);
     // Absences and attendances of the new day sign raiders off / up, like for a new raid (not awaited).
@@ -344,8 +352,11 @@ async function addRaider({ guildId, eventId, userId, character, spec, alternates
     const info = profiles.specInfo(spec);
     if (!info) return fail(400, "spec", "Bitte eine Spezialisierung wählen.");
     const extra = Array.isArray(alternates) ? alternates.filter((a) => a && str(a.character)) : null;
-    if (extra && extra.length + 1 > signupService.MAX_CHARACTERS) {
-        return fail(400, "characters", `Höchstens ${signupService.MAX_CHARACTERS} Charaktere je Anmeldung.`);
+    // The category's limit, checked before anything lands in the profile (the service checks again).
+    const maxCharacters = signupService.maxCharactersFor(found.event);
+    const requested = [{ character: name }, ...(extra || []).map((a) => ({ character: str(a.character) }))];
+    if (extra && signupService.exceedsCharacterLimit(requested, signupStore.getSignup(found.event.id, uid), maxCharacters)) {
+        return fail(400, "characters", signupService.characterLimitError(maxCharacters));
     }
 
     let profileChanged = false;
@@ -617,6 +628,10 @@ async function deleteEvent({ guildId, eventId, archiveChannel = false, notify = 
     const found = ownEvent(guildId, eventId, { allowCancelled: true });
     if (found.error) return found;
     const { event } = found;
+    // a raid group (#811): the first raid carries the signup of every raid — it goes last
+    if (isRaidPrimary(event) && raidGroup.groupEvents(event).length > 1) {
+        return fail(409, "raid_group", "Dieser Raid trägt die Anmeldung seiner weiteren Raids – erst die weiteren Raids löschen oder im Setup auflösen.");
+    }
     const info = deletionInfo(event, now);
     if (info.started && !confirmStarted) {
         return fail(409, "started", `Der Raid hat schon begonnen — mit dem Event gehen ${info.signups} ${info.signups === 1 ? "Anmeldung" : "Anmeldungen"} und die Anwesenheit verloren. Bitte bestätigen.`);
@@ -629,6 +644,8 @@ async function deleteEvent({ guildId, eventId, archiveChannel = false, notify = 
 
     // The stores first: a sync that runs meanwhile finds no event and posts nothing.
     eventStore.deleteEvent(event.id);
+    // a further raid of a group (#811): the others close up, the last one gone ends the group
+    if (isRaidSibling(event)) raidGroup.closeUp(raidGroup.primaryOf(event), event.id);
     signupStore.deleteEventSignups(event.id);
     reminderStore.clearEvent(event.id);
     raidplanStore.deletePlan(event.id);
@@ -769,7 +786,7 @@ async function raiderCandidates({ guildId, eventId }) {
             key: c.key, name: c.name, className: c.className, specs: c.specs.map((s) => specOf(s.key)).filter(Boolean),
         }));
     }
-    const roleIds = expectedRoleIds(event.categoryId, getConfig());
+    const roleIds = expectedRoleIds(event.categoryId, getConfig(), { versionId: versionOfEvent(event) });
     if (roleIds.length) {
         try {
             const { members = [] } = (await discord.listMembersWithRoles(event.guildId || guildId, roleIds)) || {};

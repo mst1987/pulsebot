@@ -1,10 +1,6 @@
-// Drum ability GUIDs -> category. Covers TBC and the "fresh" re-issues.
-const DRUM_TYPE = {
-    35476: "Battle", 351355: "Battle",
-    35475: "War", 351360: "War",
-    35478: "Restoration", 351358: "Restoration",
-    35477: "Speed", 351359: "Speed",
-};
+// Drum ability GUIDs -> category (TBC data, config/logcheckTables.js).
+const { DRUM_TYPE } = require("../../config/logcheckTables");
+
 const DRUM_FILTER = "ability.id IN (35476,35475,35478,35477,351355,351360,351358,351359)";
 
 /**
@@ -40,4 +36,4 @@ async function analyzeDrums(wcl, reportId, fights) {
     return results.length ? { players: results, icon } : null;
 }
 
-module.exports = { analyzeDrums };
+module.exports = { analyzeDrums, DRUM_TYPE };

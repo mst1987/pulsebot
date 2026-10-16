@@ -37,7 +37,7 @@ function rule(selector) {
 
 describe("loot council — the comparison tab", () => {
     it("is a tab of its own next to the BiS lists", () => {
-        expect(page).toMatch(/tab: "roster" \| "bis" \| "drop" \| "bislists" \| "compare" \| "weights";/);
+        expect(page).toMatch(/tab: "roster" \| "bis" \| "drop" \| "bislists" \| "compare" \| "weights" \| "profiles";/);
         expect(page).toMatch(/onClick=\{\(\) => patch\(\{ tab: "compare" \}\)\}/);
         expect(page).toMatch(/view\.tab === "compare" \? <CompareTab roster=\{roster\} view=\{view\} patch=\{patch\} contents=\{o\.contents\} \/> : null/);
     });

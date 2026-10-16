@@ -19,6 +19,7 @@ const { NEED_WEIGHTS, DROUGHT_DAYS, droughtCounter } = require("./lootCouncil");
 const { itemClass, itemFacts } = require("../../services/loot/itemWeights");
 const { RAID_LOOT } = require("../../config/tbcContent");
 const councilWeights = require("../../stores/councilWeightsStore");
+const councilProfiles = require("../../services/loot/councilProfiles");
 
 /**
  * The need weights in % as the addon reads them: drought, share, need. Since
@@ -229,9 +230,9 @@ function weightsV3(built) {
     return out;
 }
 
-/** The server's own weighting as councilRoster() would report it. */
+/** The default profile's weighting (#676) as councilRoster() would report it. */
 function weightsViewDefaults() {
-    const s = councilWeights.weightsFor("");
+    const s = councilProfiles.weightsFor({});
     return { ...s, needShares: councilWeights.effectiveNeedWeights(s.need), droughtDays: DROUGHT_DAYS };
 }
 
@@ -328,6 +329,11 @@ function raiderViewV3(row) {
 function councilSyncPayloadV3(entries, ctx = {}) {
     const categories = (entries || []).map((entry) => ({
         ...categoryHead(entry, entry.opts.role || ""),
+        // Where the values came from (#676): the roster this category's council
+        // runs for (null without one) and its Loot-Council profile. Information
+        // only - the addon keys a council by `id`, which stays the category id.
+        roster: entry.roster ? { id: String(entry.roster.id), name: String(entry.roster.name || "") } : null,
+        profile: entry.profile ? { id: String(entry.profile.id), name: String(entry.profile.name || "") } : null,
         avgLootPoints: entry.built.avgLootPoints || 0,
         weights: weightsV3(entry.built),
         itemWeights: itemWeightsV3(entry.built),

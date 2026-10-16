@@ -39,7 +39,11 @@ const TEMPLATES: RaidTemplate[] = [
 
 beforeEach(() => {
     vi.mocked(client.get).mockImplementation((path: string) => {
-        if (path === "/api/raid-templates") return Promise.resolve({ templates: TEMPLATES, categoryNames: {} });
+        // like the server: `?version=` narrows the list to that game version (#741)
+        if (path.startsWith("/api/raid-templates")) {
+            const asked = new URLSearchParams(path.split("?")[1] || "").get("version");
+            return Promise.resolve({ templates: asked ? TEMPLATES.filter((x) => x.versionId === asked) : TEMPLATES, categoryNames: {} });
+        }
         if (path === "/api/game-versions") return Promise.resolve({ versions, defaultVersion: "tbc" });
         return Promise.reject({ code: "not_mocked", message: path });
     });
@@ -86,7 +90,9 @@ describe("the Raid-Vorlagen list", () => {
         expect(rowNames()).toEqual(["Kara Donnerstag", "Altes Raid-Helper-Event"]);
         expect(screen.queryByRole("radiogroup", { name: "Spielversion" })).not.toBeInTheDocument();
         await user.click(within(screen.getAllByRole("radiogroup", { name: t(CONTENT_ARIA) })[0]).getByRole("radio", { name: /Classic/ }));
-        expect(rowNames()).toEqual(["Ony"]);
+        await waitFor(() => expect(rowNames()).toEqual(["Ony"]));
+        // the list was asked for in that version (#741)
+        expect(vi.mocked(client.get)).toHaveBeenCalledWith("/api/raid-templates?version=classic");
         localStorage.removeItem("eh-content-version");
     });
 });

@@ -53,6 +53,21 @@ describe("services/roster/rosterMembers addMember", () => {
     });
 });
 
+describe("services/roster/rosterMembers on a closed roster (#739)", () => {
+    it("refuses every member change with roster_closed and touches no role", async () => {
+        rosterStore.upsertMember(roster.id, "100001", { status: "core" });
+        rosterStore.closeRoster(roster.id, { reason: "version_switch" });
+        expect((await addMember(roster.id, "100002")).code).toBe("roster_closed");
+        expect((await updateMember(roster.id, "100001", { note: "x" })).code).toBe("roster_closed");
+        expect((await setStatus(roster.id, "100001", "bench")).code).toBe("roster_closed");
+        expect((await removeMember(roster.id, "100001")).code).toBe("roster_closed");
+        expect(fresh().members["100001"].status).toBe("core");
+        expect(rosterRoleSync.applyMemberAdded).not.toHaveBeenCalled();
+        expect(rosterRoleSync.applyMemberRemoved).not.toHaveBeenCalled();
+        expect(rosterRoleSync.applyStatusChange).not.toHaveBeenCalled();
+    });
+});
+
 describe("services/roster/rosterMembers removeMember", () => {
     it("removes from the store first, then takes the roles", async () => {
         rosterStore.upsertMember(roster.id, "100001", {});

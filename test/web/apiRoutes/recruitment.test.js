@@ -151,6 +151,55 @@ describe("web/apiRoutes/recruitment", () => {
         });
     });
 
+    describe("GET /api/recruitment?version= (#741)", () => {
+        const tpls = [{ id: "t1", versionId: "tbc" }, { id: "t2", versionId: "forever" }, { id: "t3" }];
+        const posts = [{ id: "p1", versionId: "tbc" }, { id: "p2", versionId: "forever" }];
+        beforeEach(() => {
+            activeGuildFor.mockReturnValue("");
+            settingsStore.listRecruitment.mockReturnValue(tpls);
+            settingsStore.listRecruitmentPosts.mockReturnValue(posts);
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc" });
+        });
+        afterEach(() => {
+            settingsStore.listRecruitment.mockReturnValue([]);
+            settingsStore.listRecruitmentPosts.mockReturnValue([]);
+            settingsStore.getConfig.mockReturnValue({});
+        });
+
+        it("answers the lists of the asked version, an entry without a version counting as TBC", async () => {
+            const forever = json(await get("/api/recruitment", { version: "forever" })).data;
+            expect(forever.templates.map((t) => t.id)).toEqual(["t2"]);
+            expect(forever.posts.map((p) => p.id)).toEqual(["p2"]);
+            const tbc = json(await get("/api/recruitment", { version: "tbc" })).data;
+            expect(tbc.templates.map((t) => t.id)).toEqual(["t1", "t3"]);
+        });
+
+        it("keeps every shown version when no version is asked", async () => {
+            expect(json(await get("/api/recruitment")).data.templates.map((t) => t.id)).toEqual(["t1", "t2", "t3"]);
+        });
+
+        it("keeps the entry an editor is opened on, whatever its version", async () => {
+            const data = json(await get("/api/recruitment", { version: "forever", edit: "t1", editpost: "p1" })).data;
+            expect(data.templates.map((t) => t.id)).toEqual(["t1", "t2"]);
+            expect(data.posts.map((p) => p.id)).toEqual(["p1", "p2"]);
+        });
+
+        it("answers the applications of the asked version", async () => {
+            discord.listApplications.mockResolvedValue({
+                applications: [{ id: "a1", versionId: "forever" }, { id: "a2" }], error: null,
+            });
+            const data = json(await get("/api/recruitment", { view: "applications", version: "forever" })).data;
+            expect(data.applications.map((a) => a.id)).toEqual(["a1"]);
+        });
+
+        it("answers the main version while the others are hidden, whatever is asked (#563)", async () => {
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+            const data = json(await get("/api/recruitment", { version: "forever" })).data;
+            expect(data.templates.map((t) => t.id)).toEqual(["t1", "t3"]);
+            expect(data.posts.map((p) => p.id)).toEqual(["p1"]);
+        });
+    });
+
     describe("POST /api/recruitment (save template)", () => {
         it("saves and returns the template", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });

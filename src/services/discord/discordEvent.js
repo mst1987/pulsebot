@@ -24,7 +24,10 @@
 // location — a link is all Discord takes there, and the message is where the
 // signup actually happens.
 //
-// Stored on the event as `event.discordEvent = { id, guildId, at, error }`
+// The cover image (discordEventCover.js) is attached on create and whenever the
+// picture changed (`coverKey`), best-effort like everything else.
+//
+// Stored on the event as `event.discordEvent = { id, guildId, at, error, coverKey }`
 // (eventStore.setEventDiscordEvent). A Discord event somebody deleted by hand
 // answers 404 and is forgotten cleanly.
 const {
@@ -40,6 +43,7 @@ const { getConfig } = require("../../stores/settingsStore");
 const { str, clip } = require("../../utils/text");
 const { tr } = require("../../utils/i18n/botText");
 const { eventLang } = require("./botLanguage");
+const cover = require("./discordEventCover");
 
 // Discord's limits for a scheduled event.
 const LIMITS = { name: 100, description: 1000, location: 100 };
@@ -202,8 +206,11 @@ async function createForEvent(eventId, { config = getConfig(), now = Date.now() 
     if (!guild || !guild.scheduledEvents) return { skipped: "offline" };
     if (canManageEvents(event.guildId) === false) return noteError(event.id, MISSING_RIGHT);
     try {
-        const created = await guild.scheduledEvents.create(buildScheduledEvent(event, { voiceChannelId: voiceChannelFor(guild, event), lang: eventLang(event, config) }));
-        eventStore.setEventDiscordEvent(event.id, { id: String(created.id), guildId: event.guildId, at: now, error: "" });
+        const payload = buildScheduledEvent(event, { voiceChannelId: voiceChannelFor(guild, event), lang: eventLang(event, config) });
+        const pic = await cover.coverToSend(event, config);
+        if (pic) payload.image = pic.image;
+        const created = await guild.scheduledEvents.create(payload);
+        eventStore.setEventDiscordEvent(event.id, { id: String(created.id), guildId: event.guildId, at: now, error: "", ...(pic ? { coverKey: pic.key } : {}) });
         return { id: String(created.id) };
     } catch (e) {
         return noteError(event.id, errorText(e));
@@ -241,8 +248,11 @@ async function syncForEvent(eventId, { config = getConfig(), now = Date.now() } 
         return { skipped: "closed", id: stored };
     }
     try {
-        await scheduled.edit(buildScheduledEvent(event, { voiceChannelId: voiceChannelFor(guild, event), lang: eventLang(event, config) }));
-        eventStore.setEventDiscordEvent(event.id, { error: "", at: now });
+        const payload = buildScheduledEvent(event, { voiceChannelId: voiceChannelFor(guild, event), lang: eventLang(event, config) });
+        const pic = await cover.coverToSend(event, config, (event.discordEvent && event.discordEvent.coverKey) || "");
+        if (pic) payload.image = pic.image;
+        await scheduled.edit(payload);
+        eventStore.setEventDiscordEvent(event.id, { error: "", at: now, ...(pic ? { coverKey: pic.key } : {}) });
         return { id: stored };
     } catch (e) {
         return noteError(event.id, errorText(e));

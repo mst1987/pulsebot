@@ -4,7 +4,7 @@ Die Suite ist Jest (`npm test`, `npm run test:coverage`); die Tests liegen unter
 
 ## Wo ein Test hingehört
 
-Die Regel (#434), kurz auch in CLAUDE.md:
+Die Regel (#434), kurz auch in `.claude/rules/tests.md` (lädt, sobald eine Datei unter `test/` gelesen wird):
 
 | Quelle | Test |
 |---|---|
@@ -47,6 +47,7 @@ Eingebunden über `jest.config.js`, ohne dass ein Test etwas tun muss:
 | `signupMocks.js` | In-Memory-`eventStore`/`signupStore`/`discord`/`settingsStore` für den Anmelde-Dialog; `signupService` läuft echt darauf. |
 | `botCommandAccess.js` | `memberMayRun(command, config)` — prüft die echten Zugriffsregeln (`services/discord/botAccess.js`) für einen Befehl. |
 | `tempRepo.js` | Ein Wegwerf-Git-Repo mit verknüpftem Worktree, nur für die Hook-Tests unter `test/claude-hooks/`. |
+| `fakeWcl.js` | `mockFakeWcl()` — ein deterministischer Warcraft-Logs-v1-Client: jede Antwort aus einem PRNG über Methode und Argumente, Zauber-IDs aus den TBC-Tabellen, `ability.id in (…)`-Filter wie beim Server. Speist den Golden Master eines ganzen Report-Baus (`test/utils/logcheck/report.golden.test.js`, #747); die Zahlen sind sinnlos, es zählt nur, dass dieselbe Eingabe dieselben Bytes liefert. |
 
 ## Fabriken (`test/factories/`)
 

@@ -188,6 +188,38 @@ describe("stores/raiderProfileStore", () => {
         expect(store.getProfile(B).characters).toHaveLength(1);
     });
 
+    it("hält fest, dass die Orga einen Charakter im Spiel gefunden hat – nur gesetzt, nur am eigenen Charakter", () => {
+        store.addCharacter(A, { name: "Gentle", className: "Druid" }, { name: "Gentle" });
+        expect(store.getProfile(A).characters[0]).not.toHaveProperty("verifiedAt");
+        const done = store.verifyCharacter(A, "gentle", { by: "9", byName: "Orga" }, { now: 1234 });
+        expect(done.character).toMatchObject({ key: "gentle", verifiedBy: "9", verifiedByName: "Orga", verifiedAt: 1234 });
+        expect(store.getProfile(A).characters[0]).toMatchObject({ verifiedBy: "9", verifiedByName: "Orga", verifiedAt: 1234 });
+        expect(store.verifyCharacter(A, "nobody", { by: "9" })).toBeNull();
+        expect(store.verifyCharacter(B, "gentle", { by: "9" })).toBeNull();
+        // a later save or a refresh keeps it
+        store.addCharacter(A, { name: "Gentle", className: "Druid", specs: [{ key: "Druid-Restoration" }] });
+        expect(store.getProfile(A).characters[0].verifiedAt).toBe(1234);
+        // a broken stored value is dropped
+        expect(store.normalizeProfile({ characters: [{ name: "X", className: "Mage", verifiedAt: "nope", verifiedBy: "9" }] }).characters[0]).not.toHaveProperty("verifiedBy");
+    });
+
+    it("speichert die Antwort des Arsenals am Charakter, nur mit Level", () => {
+        store.addCharacter(A, { name: "Armo", className: "Mage" });
+        expect(store.setCharacterArmory(A, "armo", { level: null, guild: "G" })).toBeNull();
+        expect(store.getProfile(A).characters[0].armory).toBeNull();
+        const saved = store.setCharacterArmory(A, "armo", { level: 70, guild: "Die Gilde" }, { now: 55 });
+        expect(saved.character.armory).toEqual({ level: 70, guild: "Die Gilde", fetchedAt: 55 });
+        expect(store.setCharacterArmory(A, "nobody", { level: 70 })).toBeNull();
+    });
+
+    it("übernimmt die Quelle Logs oder Arsenal für einen eingetippten Charakter, nie umgekehrt", () => {
+        store.addCharacter(A, { name: "Gentle", className: "Druid" });
+        expect(store.addCharacter(A, { name: "Gentle", className: "Druid", source: "log" }).character.source).toBe("log");
+        expect(store.addCharacter(A, { name: "Gentle", className: "Druid", source: "manual" }).character.source).toBe("log");
+        store.addCharacter(A, { name: "Armo", className: "Mage" });
+        expect(store.addCharacter(A, { name: "Armo", className: "Mage", source: "armory" }).character.source).toBe("armory");
+    });
+
     it("meldet doppelt beanspruchte Charaktere, statt sie abzulehnen", () => {
         store.addCharacter(A, { name: "Nerathil", className: "Mage" }, { name: "Anna" });
         const second = store.addCharacter(B, { name: "Nerathil-Thunderstrike", className: "Mage" }, { name: "Bert" });
@@ -213,5 +245,39 @@ describe("stores/raiderProfileStore", () => {
         expect(store.searchRaiders("ysol", A, 10, { preferVersion: "forever" })).toEqual([{ userId: B, name: "Bert", character: "Bert Stein", className: "Warrior" }]);
         expect(store.searchRaiders("", A).map((h) => h.userId)).toEqual([B]);
         expect(JSON.stringify(store.searchRaiders("", C))).not.toMatch(/wishes|geheim|availability/);
+    });
+});
+
+// Read per raider (roster, absences, setup): cached, parsed once per change,
+// every profile handed out built afresh.
+describe("Cache", () => {
+    const fs = require("fs");
+    afterEach(() => jest.restoreAllMocks());
+
+    it("liest die Datei für beliebig viele Abfragen nur einmal, nach dem Schreiben neu", () => {
+        store.addCharacter(A, { name: "Nerasol", className: "Priest", source: "log" });
+        store.addCharacter(B, { name: "Thorgar", className: "Warrior", source: "log" });
+        const read = jest.spyOn(fs, "readFileSync");
+        const parses = () => read.mock.calls.filter(([p]) => String(p).endsWith("eh-profiles-store.json")).length;
+        for (let i = 0; i < 10; i += 1) {
+            store.getProfile(A);
+            store.hasProfile(B);
+            store.listProfiles();
+        }
+        expect(parses()).toBe(1);
+        store.addCharacter(A, { name: "Zweitchar", className: "Mage", source: "log" });
+        expect(store.getProfile(A).characters.map((c) => c.name)).toEqual(["Nerasol", "Zweitchar"]);
+        expect(parses()).toBe(2);
+    });
+
+    it("gibt Kopien heraus: wer ein Profil ändert, ändert nichts Gespeichertes", () => {
+        store.addCharacter(A, { name: "Nerasol", className: "Priest", source: "log" });
+        const p = store.getProfile(A);
+        p.characters[0].name = "Fremd";
+        p.characters.push({ name: "x" });
+        store.listProfiles()[0].note = "x";
+        expect(store.getProfile(A).characters.map((c) => c.name)).toEqual(["Nerasol"]);
+        expect(store.getProfile(A).note).toBe("");
+        expect(Object.isFrozen(store.getProfile(A).characters)).toBe(false);
     });
 });

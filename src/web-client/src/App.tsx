@@ -2,7 +2,7 @@ import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import { JobsProvider } from "./components/shell/Jobs";
 import { ConfirmProvider } from "./components/ui/Modal";
-import { canAccess, canAccessAny, getSession, type ApiError, type Session, type SessionUser } from "./api";
+import { canAccessAny, getSession, type ApiError, type Session, type SessionUser } from "./api";
 import { getLang, langReady, setLang, useT } from "./i18n";
 import { firstAllowedTab } from "./lib/app/menu";
 import RaidLoader from "./components/ui/RaidLoader";
@@ -37,6 +37,7 @@ const HistoryCharPage = lazyWithReload(() => import("./pages/history/HistoryChar
 const RostersPage = lazyWithReload(() => import("./pages/roster/RostersPage"));
 const RosterDetailPage = lazyWithReload(() => import("./pages/roster/RosterDetailPage"));
 const RosterCharsPage = lazyWithReload(() => import("./pages/roster/RosterCharsPage"));
+const DungeonsPage = lazyWithReload(() => import("./pages/dungeons/DungeonsPage"));
 const AbsencesPage = lazyWithReload(() => import("./pages/absences/AbsencesPage"));
 const ProfilePage = lazyWithReload(() => import("./pages/profile/ProfilePage"));
 const SignupsPage = lazyWithReload(() => import("./pages/SignupsPage"));
@@ -45,6 +46,8 @@ const LootCouncilPage = lazyWithReload(() => import("./pages/lootcouncil/LootCou
 const DropCheckPage = lazyWithReload(() => import("./pages/lootcouncil/DropCheckPage"));
 const GuildBankPage = lazyWithReload(() => import("./pages/guildbank/GuildBankPage"));
 const KaderPage = lazyWithReload(() => import("./pages/kader/KaderPage"));
+const AddonPage = lazyWithReload(() => import("./pages/addon/AddonPage"));
+const SystemPage = lazyWithReload(() => import("./pages/system/SystemPage"));
 
 /**
  * Hides a page the user's rights don't cover. `areas` is an OR — one of them at
@@ -65,6 +68,16 @@ function Guard({ user, areas, level = "read", children }: {
             {level === "write" ? t("shell.app.noWrite") : t("shell.app.noRead")}
         </div>
     );
+}
+
+/**
+ * Hides a page that belongs to no area: full admins only, whatever a role is
+ * granted (the system status). Cosmetic like Guard — the API route is adminOnly.
+ */
+function AdminGuard({ user, children }: { user: SessionUser; children: ReactNode }) {
+    const t = useT();
+    if (user.isAdmin) return <>{children}</>;
+    return <div className="empty">{t("shell.app.adminOnly")}</div>;
 }
 
 /** An old address of a page: the same view at its new path, the query kept. */
@@ -162,9 +175,11 @@ function MenuApp() {
     // says what is (not) open to them and, above all, the logout is in it. What
     // they may actually open is decided per tab and per route below.
     const start = firstAllowedTab(user);
-    // A user without the "Übersicht" area would land on an empty start page —
+    // The start page is every raider's ("Für dich" comes with their own signup
+    // area) and the orga's; anyone with neither would land on an empty page —
     // send them to the first section they may actually open instead.
-    const home = canAccess(user, "dashboard") ? null : start;
+    const homeAreas = ["dashboard", "signup"];
+    const home = canAccessAny(user, homeAreas) ? null : start;
 
     // JobsProvider wraps the router, not a page: that is what lets a running
     // CLA/RPB evaluation survive navigating to another section.
@@ -182,7 +197,7 @@ function MenuApp() {
                         <Routes>
                             <Route element={<Shell user={user} guilds={guilds} activeGuildId={activeGuildId} content={state.session.content} />}>
                                 <Route index element={
-                                    canAccess(user, "dashboard")
+                                    canAccessAny(user, homeAreas)
                                         ? <DashboardPage />
                                         : home
                                             ? <Navigate to={home.href} replace />
@@ -218,6 +233,8 @@ function MenuApp() {
                                 <Route path="roster" element={<Guard user={user} areas={["roster"]}><RostersPage /></Guard>} />
                                 <Route path="roster/r/:rosterId/:tab?" element={<Guard user={user} areas={["roster"]}><RosterDetailPage /></Guard>} />
                                 <Route path="roster/chars" element={<Guard user={user} areas={["roster"]}><RosterCharsPage /></Guard>} />
+                                {/* Dungeon-Bestzeiten: a page of the Roster family, readable by every member (base access "signup") */}
+                                <Route path="roster/dungeons" element={<Guard user={user} areas={["roster", "signup"]}><DungeonsPage /></Guard>} />
                                 {/* Same character page, reached from the roster — the page keeps
                                     its back-link pointing at wherever it was opened from. */}
                                 <Route path="roster/char" element={<Guard user={user} areas={["roster"]}><HistoryCharPage /></Guard>} />
@@ -228,6 +245,10 @@ function MenuApp() {
                                 <Route path="guildbank" element={<Guard user={user} areas={["raids"]}><GuildBankPage /></Guard>} />
                                 {/* The Kaderplaner (area "kader"): one Kader at a time, /kader opens the one used last. */}
                                 <Route path="kader/:kaderId?/:sub?" element={<Guard user={user} areas={["kader"]}><KaderPage /></Guard>} />
+                                {/* Addons (#818): the download page of the own addons, for every member ("signup") and the loot importers ("history"). */}
+                                <Route path="addon" element={<Guard user={user} areas={["signup", "history"]}><AddonPage /></Guard>} />
+                                {/* Systemstatus: full admins only, no area opens it (docs/system-status.md). */}
+                                <Route path="system" element={<AdminGuard user={user}><SystemPage /></AdminGuard>} />
                                 {/* Inside the shell on purpose: a mistyped path should still
                                     leave the menu (and the way back) standing. */}
                                 <Route path="*" element={<NotFound />} />

@@ -115,6 +115,13 @@ describe("HistoryCharPage — sections", () => {
         expect(window.localStorage.getItem("eh-history-char-tab")).toBe("\"loot\"");
     });
 
+    it("leaves the attendance section away when the server holds it back (somebody else's attendance, epic #723)", async () => {
+        vi.mocked(api.getRosterChar).mockResolvedValue({ ...rosterFacts(), attendance: {}, categories: [], attendanceVisible: false });
+        await openPage("/roster/char?name=Alpha&tab=attendance");
+        await waitFor(() => expect(screen.queryByRole("tab", { name: /Anwesenheit/ })).not.toBeInTheDocument());
+        expect(screen.getByRole("tab", { name: /Loot-Historie/ })).toBeInTheDocument();
+    });
+
     it("opens on the remembered section without a param, and the url wins over it", async () => {
         window.localStorage.setItem("eh-history-char-tab", "\"loot\"");
         await openPage("/roster/char?name=Alpha&tab=attendance");
@@ -158,7 +165,12 @@ describe("HistoryCharPage — gear", () => {
 
     it("asks the roster facts for the worn items", async () => {
         await openPage();
-        await waitFor(() => expect(api.getRosterChar).toHaveBeenCalledWith("Alpha", [100, 101, 102, 103]));
+        await waitFor(() => expect(api.getRosterChar).toHaveBeenCalledWith("Alpha", [100, 101, 102, 103], ""));
+    });
+
+    it("asks them in the version the character page shows (#741)", async () => {
+        await openPage("/roster/char?name=Alpha", adminUser(), charData({ versionId: "forever" }));
+        await waitFor(() => expect(api.getRosterChar).toHaveBeenCalledWith("Alpha", [100, 101, 102, 103], "forever"));
     });
 
     it("opens an item's details in a modal addressed by the url", async () => {

@@ -1,11 +1,12 @@
-// The editor's two views of one section (Oct 2026): "Aufgaben" (the assignments, the Besetzung, the tactic - no drawing tools)
-// and "Karte" (the board with its tools in the full width). Never side by side: there is not enough room for the map next
+// The editor's views of one section (Oct 2026): "Aufgaben" (the assignments, the Besetzung, the tactic - no drawing tools),
+// "Karte" (the board with its tools in the full width) and "Animation" (the scenes of the board, docs/raidplan/animation.md). Never side by side: there is not enough room for the map next
 // to the task list. The choice is the user's, remembered in this browser, and - in the event editor, whose section is in the
 // address already (`#boss=`, lib/raidplan/sectionUrl.ts) - also in the address (`#view=map`), so a reload or a shared link
 // opens the same view. "Allgemein" and "Standard" have no map: there the view is always "tasks" (the stored choice stays).
+// The address carries `#view=map` / `#view=anim`; "tasks" is the default and left out.
 import { useCallback, useState } from "react";
 
-export type PlanView = "tasks" | "map";
+export type PlanView = "tasks" | "map" | "anim";
 
 type Section = { key: string; general?: boolean; defaults?: boolean; trash?: boolean };
 /** A boss (not Standard, Allgemein or trash): the sections counted as "Boss n von m". */
@@ -27,19 +28,19 @@ const HASH_KEY = "view";
 
 /** A stored or written value as a view; anything else is the default "tasks". */
 export function parseView(raw: string | null | undefined): PlanView {
-    return raw === "map" ? "map" : "tasks";
+    return raw === "map" || raw === "anim" ? raw : "tasks";
 }
 
 /** The view a hash names (`#boss=bt/supremus&view=map`), "" when it names none. */
 export function viewFromHash(hash: string): PlanView | "" {
     const v = new URLSearchParams(String(hash || "").replace(/^#/, "")).get(HASH_KEY);
-    return v === "map" || v === "tasks" ? v : "";
+    return v === "map" || v === "tasks" || v === "anim" ? v : "";
 }
 
 /** The hash with the view set, every other part (the section) kept; the default view is left out. The slash of a key stays readable. */
 export function hashWithView(hash: string, view: PlanView): string {
     const params = new URLSearchParams(String(hash || "").replace(/^#/, ""));
-    if (view === "map") params.set(HASH_KEY, view); else params.delete(HASH_KEY);
+    if (view !== "tasks") params.set(HASH_KEY, view); else params.delete(HASH_KEY);
     const text = params.toString().replace(/%2F/gi, "/");
     return text ? `#${text}` : "";
 }

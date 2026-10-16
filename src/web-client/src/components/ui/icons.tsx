@@ -1,6 +1,22 @@
 // Inline SVGs ported 1:1 from src/web/renderAdmin.js (CREST_SVG, BURGER_SVG,
 // NAV_ICONS) and src/web/render.js (theme toggle SUN/MOON), as JSX components.
 
+/** The EventHelper mark (logo canvas Oct 2026, "Kalender mit Haken"): the
+ * calendar of the events with the check of a sign-up. Drawn on the accent
+ * gradient of `.crest`; the same lines as public/favicon.svg, the sync tool's
+ * icon and the addon's in game. */
+export function BrandIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+            <path d="M8 2.5V7M16 2.5V7M3.5 9.5h17" />
+            <path d="m8.5 14.5 2.5 2.5 4.5-4.5" />
+        </svg>
+    );
+}
+
+/** A shield with a check: "in the roster" in the squad planner. Until Oct 2026
+ * it was also the brand mark (now BrandIcon). */
 export function CrestIcon() {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
@@ -241,6 +257,15 @@ export function ChevronDownIcon() {
     );
 }
 
+/** A chevron pointing up: one place forward (the guild bank's waiting list). */
+export function ChevronUpIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m6 15 6-6 6 6" />
+        </svg>
+    );
+}
+
 export function ChevronLeftIcon() {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -359,6 +384,17 @@ export function MinusIcon({ strokeWidth = 2.2 }: { strokeWidth?: number }) {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" aria-hidden="true">
             <path d="M5 12h14" />
+        </svg>
+    );
+}
+
+/** Three dots: "more" - the full list behind a row that does not fit (the profile's tabs on a phone). */
+export function MoreIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="5" cy="12" r="2" />
+            <circle cx="12" cy="12" r="2" />
+            <circle cx="19" cy="12" r="2" />
         </svg>
     );
 }
@@ -507,6 +543,25 @@ export function WarnIcon() {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+        </svg>
+    );
+}
+
+/** An arrow into a tray: download a file (the page "Addons", the archive export of Spielversion). */
+export function DownloadIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5" /><path d="M12 15V3" />
+        </svg>
+    );
+}
+
+/** Two chain links: a request linked to a raider's character (guild bank). */
+export function LinkIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
+            <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
         </svg>
     );
 }

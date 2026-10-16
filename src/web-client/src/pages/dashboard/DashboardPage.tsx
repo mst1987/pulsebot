@@ -1,19 +1,27 @@
 // "Übersicht" — the start page (design issue #220). It answers one question:
 // what is coming up, and what is open? Everything else is one click away.
 //
-//   row 1: the next raid (role fill, sheet/setup/softres, the raid after it)
+// Two parts (design canvas Oct 2026, direction A): "Für dich" (PersonalParts.tsx)
+// for everyone with a signup of their own — the next raid with their signup,
+// setup group, softres and raid plan, the raids after it, attendance, profile
+// and their last raids — and, for whoever reads the raids, the orga block below:
+//
+//   row 1: the next raid (its category, role fill, setup/softres — the sheet
+//          only where the category plans with one — and the raid after it)
 //          beside the open tasks — one row per task, only when there is one;
-//   row 2: one compact tile per area (last evaluation, new loot, recruitment,
-//          roster), each a link, the details in its tooltip;
-//   row 3: the newest top-item awards beside the last raids.
+//   row 2: one compact tile per area (last evaluation, new loot, roster),
+//          each a link, the details in its tooltip;
+//   row 3: the newest top-item awards beside the last raids, rows of one height.
 //
 // The modal "Raid-Details" (pages/dashboard/RaidDetailsModal.tsx) loads its own data
 // when it opens.
 import { useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import {
-    decideTrial, getDashboard, recreateChannel, type ApiError, type DashboardData, type DashboardRaid, type DashboardTask, type DashboardTaskAction,
+    canAccess, decideTrial, getDashboard, recreateChannel,
+    type ApiError, type DashboardData, type DashboardPersonal, type DashboardRaid, type DashboardTask, type DashboardTaskAction,
 } from "../../api";
+import type { ShellContext } from "../../components/shell/Shell";
 import { useToast } from "../../components/shell/Jobs";
 import { useApi } from "../../hooks/useApi";
 import AsyncView from "../../components/ui/AsyncView";
@@ -24,10 +32,14 @@ import Badge from "../../components/ui/Badge";
 import IconTile, { type TileTone } from "../../components/ui/IconTile";
 import WowIcon from "../../components/ui/WowIcon";
 import { useContentVersion } from "../../hooks/useContentVersion";
-import { ChevronRightIcon } from "../../components/ui/icons";
+import { CheckIcon, ChevronRightIcon } from "../../components/ui/icons";
 import TopLootList from "../../components/loot/TopLootList";
 import RaidDetailsModal from "./RaidDetailsModal";
 import { RoleBar, IconLink } from "./OverviewParts";
+import { usesSheet } from "./raidPlanning";
+import { taskText } from "../../lib/dashboard/taskText";
+import { OrgaZone } from "../../components/ui/OrgaZone";
+import { AttendanceDots, MyNextRaid, MyRaids, MyRecentRaids } from "./PersonalParts";
 import { eventPostUrl, raidplanUrl } from "../../lib/discord/discordLinks";
 import { relativeDayLabel } from "../../lib/format";
 import { longDay, shortDate, dayDate, clock, raidWhen } from "../../lib/raids/overviewDates";
@@ -52,8 +64,10 @@ function RowLink({ href, className, tip, tipSub, children }: {
         : <Link to={href} {...props}>{children}</Link>;
 }
 
+/** The sheet badge — only for a category that plans with a Google Sheet; a raid-plan category has none to miss. */
 function SheetBadge({ raid }: { raid: DashboardRaid }) {
     const t = useT();
+    if (!usesSheet(raid)) return null;
     return raid.sheet
         ? <Badge tone="ok" icon="inv_misc_note_02" tip={t("dashboard.sheet.doneTip")} tipSub={raid.sheet.playerCount ? t("dashboard.sheet.doneSubCount", { count: raid.sheet.playerCount }) : t("dashboard.sheet.doneSubFixed")}>{t("dashboard.sheet.done")}</Badge>
         : <Badge tone="bad" icon="inv_misc_note_02" tip={t("dashboard.sheet.missingTip")} tipSub={t("dashboard.sheet.missingSub")}>{t("dashboard.sheet.missing")}</Badge>;
@@ -106,9 +120,11 @@ function NextRaidCard({ raid, following, error, guildId, onDetails }: {
                         <div className="ov-next-top">
                             <WowIcon name={raid.icon} size={56} className="ov-boss56" />
                             <div className="ov-next-text">
+                                {raid.categoryName && <span className="ov-cat" data-tip={t("dashboard.next.categoryTip")}>{raid.categoryName}</span>}
                                 <Link className="ov-next-title" to={raidDetailHref(raid.id)}>{raid.title}</Link>
                                 <div className="ov-next-when">{raidWhen(raid.startTime)}{raid.channelName ? ` · #${raid.channelName}` : ""}</div>
                             </div>
+                            {raid.cancelled && <Badge tone="bad" tip={t("dashboard.next.cancelled")} tipSub={raid.cancelReason || t("dashboard.next.cancelledSub")}>{t("dashboard.next.cancelled")}</Badge>}
                             <Badge tone="accent" className="ov-next-rel">{relativeDayLabel(raid.startTime)}</Badge>
                         </div>
                         <div className="ov-roles">
@@ -138,6 +154,7 @@ function NextRaidCard({ raid, following, error, guildId, onDetails }: {
                                 <Link className="ov-following-t" to={raidDetailHref(following.id)}>
                                     {following.title} – {dayDate(following.startTime * 1000)} {clock(following.startTime * 1000)}
                                 </Link>
+                                {following.categoryName && <span className="ov-cat-s">{following.categoryName}</span>}
                                 <span className="ov-push"><SheetBadge raid={following} /></span>
                             </div>
                         )}
@@ -149,7 +166,10 @@ function NextRaidCard({ raid, following, error, guildId, onDetails }: {
 
 const TASK_TILE: Record<DashboardTask["tone"], TileTone> = { ok: "ok", mid: "mid", bad: "bad", accent: "home" };
 
+/** The task's second line: its words from the server (`texts.ref`), a ready text, else the raid/report with its date. */
 function taskRef(task: DashboardTask): string {
+    const fallback = task.ref.text || [task.ref.title, task.ref.at ? dayDate(task.ref.at) : ""].filter(Boolean).join(" · ");
+    if (task.texts && task.texts.ref) return taskText(task, "ref", fallback);
     if (task.ref.text) return task.ref.text;
     return [task.ref.title, task.ref.at ? dayDate(task.ref.at) : ""].filter(Boolean).join(" · ");
 }
@@ -174,7 +194,7 @@ function TaskAction({ task, onDone }: { task: DashboardTask; onDone?: () => void
             .catch((err: ApiError) => toast(err.message, "err"))
             .finally(() => setBusy(false));
     };
-    return <Button size="sm" variant="ghost" running={busy} onClick={run}>{action.label}</Button>;
+    return <Button size="sm" variant="ghost" running={busy} onClick={run}>{taskText(task, "action", action.label)}</Button>;
 }
 
 /**
@@ -197,7 +217,7 @@ function TrialActions({ action, onDone }: { action: Extract<DashboardTaskAction,
     };
     return (
         <span className="ov-task-btns">
-            <Button size="sm" variant="ghost" running={busy === "adopt"} disabled={!!busy} onClick={() => run("adopt")}>{t("dashboard.tasks.trial.adopt")}</Button>
+            <Button size="sm" variant="go" icon={<CheckIcon />} running={busy === "adopt"} disabled={!!busy} onClick={() => run("adopt")}>{t("dashboard.tasks.trial.adopt")}</Button>
             <Button size="sm" variant="ghost" running={busy === "extend"} disabled={!!busy} onClick={() => run("extend")}>{t("dashboard.tasks.trial.extend")}</Button>
         </span>
     );
@@ -224,13 +244,13 @@ export function TaskList({ tasks, onChanged }: { tasks: DashboardTask[]; onChang
                 )
                 : (
                     <div className="ov-rows">
-                        {/* `t` here is the task (it shadows the translator; the row shows server texts only) */}
+                        {/* `t` here is the task (it shadows the translator; the row words its texts through taskText) */}
                         {tasks.map((t) => {
                             const row = (
-                                <RowLink key={t.id} href={t.href} className="ov-row ov-task" tip={t.tip} tipSub={t.tipSub}>
+                                <RowLink key={t.id} href={t.href} className="ov-row ov-task" tip={taskText(t, "tip", t.tip)} tipSub={taskText(t, "tipSub", t.tipSub)}>
                                     <IconTile icon={t.icon} tone={(t.tile as TileTone) || TASK_TILE[t.tone]} />
                                     <span className="grow">
-                                        <span className="t1">{t.title}</span>
+                                        <span className="t1">{taskText(t, "title", t.title)}</span>
                                         <span className="t2">{taskRef(t)}</span>
                                     </span>
                                     {t.count > 0 && <Badge tone={t.tone} count>{t.count}</Badge>}
@@ -259,7 +279,7 @@ function AreaTile({ area, icon, label, href, tip, tipSub, children }: {
     );
 }
 
-function AreaTiles({ areas }: { areas: DashboardData["areas"] }) {
+function AreaTiles({ areas }: { areas: NonNullable<DashboardData["areas"]> }) {
     const t = useT();
     const r = areas.lastReport;
     const reportSub = r
@@ -296,14 +316,6 @@ function AreaTiles({ areas }: { areas: DashboardData["areas"] }) {
                     {areas.newLoot.since > 0 && <Badge>{t("dashboard.areas.since", { date: dayDate(areas.newLoot.since).split(" ")[0] })}</Badge>}
                 </span>
             </AreaTile>
-            <AreaTile area="recruitment" icon="inv_misc_grouplooking" label={t("dashboard.areas.recruitment")} href="/recruitment" tip={t("dashboard.areas.recruitmentTip")} tipSub={t("dashboard.areas.recruitmentSub")}>
-                <span className="ov-area-big">{areas.recruitment.posts}</span>
-                <span className="ov-badges">
-                    {areas.recruitment.posts
-                        ? <Badge tone="ok">{t("dashboard.areas.postsActive")}</Badge>
-                        : <Badge>{t("dashboard.areas.noPosts")}</Badge>}
-                </span>
-            </AreaTile>
             <AreaTile area="roster" icon="achievement_guildperk_everybodysfriend" label={t("dashboard.areas.roster")} href="/roster" tip={t("dashboard.areas.rosterTip")} tipSub={areas.roster ? t("dashboard.areas.rosterSub", { count: areas.roster.withoutDiscord }) : t("dashboard.areas.rosterError")}>
                 <span className="ov-area-big">{areas.roster ? areas.roster.total : "–"}</span>
                 <span className="ov-badges">
@@ -318,7 +330,7 @@ function AreaTiles({ areas }: { areas: DashboardData["areas"] }) {
 function LootCard({ topLoot }: { topLoot: DashboardData["topLoot"] }) {
     const t = useT();
     return (
-        <section className="dash-card ov-card">
+        <section className="dash-card ov-card ov-loot">
             <PartHead
                 icon="inv_misc_bag_10" tone="history" title={t("dashboard.loot.title")} crumb={t("dashboard.loot.crumb")}
                 action={<Link className={buttonClass("ghost", "sm")} to="/history?tab=awards">{t("dashboard.loot.historyLink")}</Link>}
@@ -356,7 +368,7 @@ function RecentRaidList({ recent }: { recent: DashboardData["recentEvents"] }) {
                                     <WowIcon name={ev.icon} size={36} className="ov-ico36" />
                                     <span className="grow">
                                         <span className="t1">{ev.title}</span>
-                                        <span className="t2">{dayDate(ev.startTime * 1000)}{ev.channelName ? ` · #${ev.channelName}` : ""}</span>
+                                        <span className="t2">{[ev.categoryName, dayDate(ev.startTime * 1000), ev.channelName ? `#${ev.channelName}` : ""].filter(Boolean).join(" · ")}</span>
                                     </span>
                                     {pending > 0
                                         ? <Badge tone="mid" icon="inv_misc_pocketwatch_01" tip={t("dashboard.recent.pendingTip")} tipSub={t("dashboard.recent.pendingSub")}>{t("dashboard.recent.pendingLogs", { count: pending })}</Badge>
@@ -375,8 +387,53 @@ function RecentRaidList({ recent }: { recent: DashboardData["recentEvents"] }) {
     );
 }
 
+/** A thin heading between the page's two parts ("Für dich", "Orga"). */
+function PartDivider({ label, tone }: { label: string; tone: "me" | "orga" }) {
+    return (
+        <div className={`ov-divider ov-divider-${tone}`}>
+            <span className="ov-divider-l">{label}</span>
+            <span className="ov-divider-line" aria-hidden="true" />
+        </div>
+    );
+}
+
+/** The raider's two figures: attendance over the last nights, and the profile. */
+function PersonalTiles({ personal }: { personal: DashboardPersonal }) {
+    const t = useT();
+    const a = personal.attendance;
+    const p = personal.profile;
+    const hint = p.hints[0];
+    return (
+        <div className="ov-grid ov-grid-me-tiles">
+            <AreaTile
+                area="absences" icon="spell_nature_timestop" label={t("dashboard.personal.attendance.label")} href="/absences"
+                tip={t("dashboard.personal.attendance.tip")} tipSub={a ? t("dashboard.personal.attendance.sub", { count: a.bench }) : t("dashboard.personal.attendance.none")}
+            >
+                {/* within the shown version (#740): a category just switched to it has no counted raid yet - words, never "0 %" */}
+                {a
+                    ? <span className="ov-area-big">{t("dashboard.personal.attendance.value", { attended: a.attended, total: a.total })}</span>
+                    : <span className="ov-area-val">{t("dashboard.personal.attendance.none")}</span>}
+                {a && a.last.length > 0 && <AttendanceDots nights={a.last} />}
+            </AreaTile>
+            <AreaTile
+                area="profile" icon="achievement_character_human_male" label={t("dashboard.personal.profile.label")} href="/profile"
+                tip={t("dashboard.personal.profile.tip")} tipSub={hint ? t(`dashboard.personal.profile.${hint.kind}`, { character: hint.character }) : t("dashboard.personal.profile.complete")}
+            >
+                <span className="ov-area-val">{hint ? t(`dashboard.personal.profile.${hint.kind}`, { character: hint.character }) : t("dashboard.personal.profile.characters", { count: p.characters })}</span>
+                <span className="ov-badges">
+                    {p.hints.length > 0
+                        ? <Badge tone="mid">{t("dashboard.personal.profile.hints", { count: p.hints.length })}</Badge>
+                        : <Badge tone="ok">{t("dashboard.personal.profile.ok")}</Badge>}
+                    {p.characters > 0 && p.hints.length > 0 && <Badge>{t("dashboard.personal.profile.characters", { count: p.characters })}</Badge>}
+                </span>
+            </AreaTile>
+        </div>
+    );
+}
+
 export default function DashboardPage() {
     const t = useT();
+    const { user } = useOutletContext<ShellContext>();
     // The game version of the raid/loot tiles (#563): the menu's content switch.
     const { version } = useContentVersion();
     const dashboard = useApi(() => getDashboard(version), [version]);
@@ -386,27 +443,53 @@ export default function DashboardPage() {
         <AsyncView state={dashboard} loading={<RaidLoader text={t("dashboard.page.loading")} />} error={(err) => <div className="empty">{t("dashboard.page.loadError", { message: err.message })}</div>}>
             {(data) => {
                 const kicker = [data.kicker.guild, data.kicker.realm, longDay(Date.now())].filter(Boolean).join(" · ");
+                const me = data.personal;
+                // Two parts (design canvas Oct 2026, direction A): "Für dich" for everyone with a signup of their own —
+                // in full for a raider, compact above the orga block — and the orga block for whoever reads the raids.
+                const action = canAccess(user, "raids", "write")
+                    ? <Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_02" size={22} />{t("dashboard.page.newRaid")}</Link>
+                    : me
+                        ? <Link className={buttonClass("primary", "md", true)} to="/signups"><WowIcon name="inv_misc_book_09" size={22} />{t("dashboard.personal.toSignups")}</Link>
+                        : undefined;
 
                 return (
                     <div className="ov-page">
-                        <PageHead
-                            icon="inv_misc_map_01" tone="home" kicker={kicker} title={t("dashboard.page.title")}
-                            action={<Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_02" size={22} />{t("dashboard.page.newRaid")}</Link>}
-                        />
+                        <PageHead icon="inv_misc_map_01" tone="home" kicker={kicker} title={t("dashboard.page.title")} action={action} />
 
-                        <div className="ov-grid ov-grid-top">
-                            <NextRaidCard
-                                raid={data.nextRaid} following={data.followingRaid} error={data.nextRaidError}
-                                guildId={data.activeGuildId} onDetails={() => setDetailsOpen(true)}
-                            />
-                            <TaskList tasks={data.tasks} onChanged={() => void dashboard.reload()} />
-                        </div>
+                        {me && (
+                            <>
+                                {data.orga && <PartDivider tone="me" label={t("dashboard.personal.divider")} />}
+                                <div className="ov-grid ov-grid-top">
+                                    <MyNextRaid raid={me.upcoming[0] || null} compact={data.orga} />
+                                    <MyRaids raids={me.upcoming.slice(1, data.orga ? 3 : undefined)} />
+                                </div>
+                                {me.upcomingRolesUnknown && <p className="ov-note ov-roles-note" role="note">{t("signups.rolesUnknown")}</p>}
+                                {!data.orga && <PersonalTiles personal={me} />}
+                            </>
+                        )}
 
-                        <AreaTiles areas={data.areas} />
+                        {data.orga && (
+                            // the orga's block in its zone (design canvas Oct 2026, B): for the orga only
+                            <OrgaZone user={user}>
+                                <div className="ov-grid ov-grid-top">
+                                    <NextRaidCard
+                                        raid={data.nextRaid} following={data.followingRaid} error={data.nextRaidError}
+                                        guildId={data.activeGuildId} onDetails={() => setDetailsOpen(true)}
+                                    />
+                                    <TaskList tasks={data.tasks} onChanged={() => void dashboard.reload()} />
+                                </div>
+                                {data.areas && <AreaTiles areas={data.areas} />}
+                            </OrgaZone>
+                        )}
+
+                        {/* someone outside the raids with a task of their own (the server's state, the archive) */}
+                        {!data.orga && data.tasks.length > 0 && <TaskList tasks={data.tasks} onChanged={() => void dashboard.reload()} />}
 
                         <div className="ov-grid ov-grid-bottom">
                             <LootCard topLoot={data.topLoot} />
-                            <RecentRaidList recent={data.recentEvents} />
+                            {data.orga
+                                ? <RecentRaidList recent={data.recentEvents} />
+                                : me && <MyRecentRaids recent={me.recent} />}
                         </div>
 
                         {data.nextRaid && (

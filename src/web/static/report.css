@@ -12,7 +12,7 @@
   --text:#e6e6e6; --muted:#9aa0aa; --line:#2c313b; --line-soft:#23272f;
   --high:#e0524f; --high-bg:rgba(224,82,79,.16);
   --medium:#e0a23a; --medium-bg:rgba(224,162,58,.16);
-  --good:#7fd17f; --good-bg:rgba(120,200,120,.16);
+  --good:#7fd17f; --good-bg:rgba(120,200,120,.16); --go:#7fd17f; --go-ink:#0d1a08;
   --accent:#8a7cff; --accent-2:#35d6c4; --accent-soft:rgba(138,124,255,.16); --accent-ink:#130f26;
   --portrait-1:#1a1d24; --portrait-2:#14161b;
   --font-mono: ui-monospace, "Cascadia Code", Consolas, "SFMono-Regular", Menlo, monospace;
@@ -23,6 +23,7 @@
   --area-history:#f472b6; --area-history-soft:rgba(244,114,182,.16);
   --area-channels:#4dd0c8; --area-channels-soft:rgba(77,208,200,.16);
   --area-settings:#b083f0; --area-settings-soft:rgba(176,131,240,.16);
+  --area-system:#7fa7d9; --area-system-soft:rgba(127,167,217,.16);
   --area-home:#8a7cff; --area-home-soft:rgba(138,124,255,.16);
   --area-profile:#38bdf8; --area-profile-soft:rgba(56,189,248,.16);
   --area-signups:#4ade80; --area-signups-soft:rgba(74,222,128,.16);
@@ -39,7 +40,7 @@
     --text:#1b1e27; --muted:#5b616e; --line:#dde1eb; --line-soft:#e8ebf2;
     --high:#cf3b37; --high-bg:rgba(207,59,55,.12);
     --medium:#9a6c12; --medium-bg:rgba(154,108,18,.14);
-    --good:#2b9440; --good-bg:rgba(43,148,64,.12);
+    --good:#2b9440; --good-bg:rgba(43,148,64,.12); --go:#23802f; --go-ink:#ffffff;
     --accent:#6a4fe0; --accent-2:#0f8f82; --accent-soft:rgba(106,79,224,.10); --accent-ink:#ffffff;
     --portrait-1:#e9edf4; --portrait-2:#dce2ec;
     --area-recruitment:#1f9d6c; --area-recruitment-soft:rgba(31,157,108,.12);
@@ -47,6 +48,7 @@
     --area-history:#c23f8f; --area-history-soft:rgba(194,63,143,.12);
     --area-channels:#1f978c; --area-channels-soft:rgba(31,151,140,.12);
     --area-settings:#7c4fd6; --area-settings-soft:rgba(124,79,214,.12);
+    --area-system:#3f6fae; --area-system-soft:rgba(63,111,174,.12);
     --area-home:#6a4fe0; --area-home-soft:rgba(106,79,224,.12);
     --area-profile:#0e7fb8; --area-profile-soft:rgba(14,127,184,.12);
     --area-signups:#16a34a; --area-signups-soft:rgba(22,163,74,.12);
@@ -63,7 +65,7 @@
   --text:#1b1e27; --muted:#5b616e; --line:#dde1eb; --line-soft:#e8ebf2;
   --high:#cf3b37; --high-bg:rgba(207,59,55,.12);
   --medium:#9a6c12; --medium-bg:rgba(154,108,18,.14);
-  --good:#2b9440; --good-bg:rgba(43,148,64,.12);
+  --good:#2b9440; --good-bg:rgba(43,148,64,.12); --go:#23802f; --go-ink:#ffffff;
   --accent:#6a4fe0; --accent-2:#0f8f82; --accent-soft:rgba(106,79,224,.10); --accent-ink:#ffffff;
   --portrait-1:#e9edf4; --portrait-2:#dce2ec;
   --area-recruitment:#1f9d6c; --area-recruitment-soft:rgba(31,157,108,.12);
@@ -71,6 +73,7 @@
   --area-history:#c23f8f; --area-history-soft:rgba(194,63,143,.12);
   --area-channels:#1f978c; --area-channels-soft:rgba(31,151,140,.12);
   --area-settings:#7c4fd6; --area-settings-soft:rgba(124,79,214,.12);
+  --area-system:#3f6fae; --area-system-soft:rgba(63,111,174,.12);
   --area-home:#6a4fe0; --area-home-soft:rgba(106,79,224,.12);
   --area-profile:#0e7fb8; --area-profile-soft:rgba(14,127,184,.12);
   --area-signups:#16a34a; --area-signups-soft:rgba(22,163,74,.12);
@@ -540,8 +543,23 @@ dialog.dlg.chart { max-width:min(1400px, 96vw); width:min(1400px, 96vw); }
 
 /* ---- report page, design #226: area groups with metric cards, detail dialogs, one-line findings,
    icon buttons, the four-section raider card and the focused player page. Tokens only, light + dark. ---- */
-/* buttons: .btn-run starts a job, .ibtn is the square icon button */
+/* buttons: .btn-run starts a job, .ibtn is the square icon button.
+   What a button does shows in its colour, the same everywhere on these pages:
+   .btn       the next step (version accent): open the send dialog, "Empfehlungen senden …"
+   .btn-go    do it / positive, filled green: Per Bot senden, Text speichern
+   .btn-yes   a positive verdict, green even while not chosen; .ok = chosen (filled)
+   .btn-no    a negative verdict, red even while not chosen; .bad = chosen (filled)
+   .btn-ghost neutral: cancel, close, open, links
+   .ibtn.yes / .ibtn.no the same verdicts as icon buttons (raid rows) */
 .btn .hicon, .btn-ghost .hicon { width:18px; height:18px; margin:0; border-radius:4px; }
+.btn-go { background:var(--go); color:var(--go-ink); }
+.btn-go:hover { box-shadow:0 4px 22px -6px var(--go); }
+.btn-yes { background:var(--good-bg); color:var(--good); border:1px solid color-mix(in srgb, var(--good) 45%, transparent); }
+.btn-yes:hover { filter:none; background:color-mix(in srgb, var(--good) 24%, transparent); border-color:var(--good); box-shadow:none; }
+.btn-yes.ok { background:var(--go); color:var(--go-ink); border-color:var(--go); }
+.btn-no { background:transparent; color:var(--high); border:1px solid color-mix(in srgb, var(--high) 45%, transparent); }
+.btn-no:hover { filter:none; background:var(--high-bg); border-color:var(--high); box-shadow:none; }
+.btn-no.bad { background:var(--high); color:#fff; border-color:var(--high); }
 .btn svg { width:15px; height:15px; flex:0 0 auto; }
 .btn:disabled { opacity:.5; cursor:default; filter:none; transform:none; box-shadow:none; }
 .btn-run { background:var(--panel2); color:var(--text); border:1px solid color-mix(in srgb, var(--accent-2) 55%, transparent); }
@@ -551,8 +569,12 @@ dialog.dlg.chart { max-width:min(1400px, 96vw); width:min(1400px, 96vw); }
 .ibtn svg { width:16px; height:16px; display:block; }
 .ibtn .hicon { width:22px; height:22px; margin:0; border-radius:4px; }
 .ibtn:hover { border-color:var(--accent); color:var(--text); }
-.ibtn.ok { color:var(--good); border-color:color-mix(in srgb, var(--good) 45%, transparent); background:var(--good-bg); }
-.ibtn.bad { color:var(--high); border-color:color-mix(in srgb, var(--high) 45%, transparent); background:var(--high-bg); }
+.ibtn.yes { color:var(--good); border-color:color-mix(in srgb, var(--good) 35%, var(--line)); }
+.ibtn.no { color:var(--high); border-color:color-mix(in srgb, var(--high) 35%, var(--line)); }
+.ibtn.yes:hover { border-color:var(--good); color:var(--good); background:var(--good-bg); }
+.ibtn.no:hover { border-color:var(--high); color:var(--high); background:var(--high-bg); }
+.ibtn.ok { color:var(--go-ink); border-color:var(--go); background:var(--go); }
+.ibtn.bad { color:#fff; border-color:var(--high); background:var(--high); }
 .mute { color:var(--muted); }
 .mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
 .cn { color:var(--cc, var(--text)); font-weight:700; }
@@ -819,3 +841,72 @@ table.idx th[data-tip] { text-decoration:underline dotted; text-decoration-color
 .vcard-sub { color:var(--muted); font-size:13px; margin-top:2px; }
 .raider-links { display:flex; gap:8px; flex-wrap:wrap; padding:12px 0 0; }
 @media (max-width:860px) { .topic-grid { grid-template-columns:1fr; } .bfacts { gap:16px; } .boss-table th:nth-child(5), .boss-table td:nth-child(5), .boss-table th:nth-child(6), .boss-table td:nth-child(6), .boss-table th:nth-child(7), .boss-table td:nth-child(7) { display:none; } }
+/* ---- a raider's points as open blocks (Raider-Karte, Entwurf A): items with icons, the text as it goes out, labelled verdicts ---- */
+.secs-row { display:flex; align-items:flex-end; gap:8px 16px; flex-wrap:wrap; }
+.secs-row .secs { flex:1 1 auto; }
+.secs-row .raider-links { padding:14px 0 0; }
+.rec-blocks { display:flex; flex-direction:column; gap:12px; }
+.rec-block { display:flex; flex-direction:column; gap:12px; padding:14px 16px; border:1px solid var(--line); border-radius:10px; background:var(--panel2); }
+.rec-block.rec-state-approved { border-color:color-mix(in srgb, var(--good) 45%, var(--line)); }
+.rec-block.rec-state-rejected { opacity:.62; }
+.rec-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.rec-head .rec-title { font-size:16px; font-weight:700; }
+.rec-head .rec-sub { color:var(--muted); font-size:13px; }
+.rec-head .rec-status { margin-left:auto; }
+.rec-items { display:flex; flex-direction:column; gap:6px; }
+.rec-item { display:flex; align-items:center; gap:12px; padding:8px 10px; border-radius:8px; background:var(--panel); border:1px solid var(--line-soft); }
+.ri-icon { position:relative; flex:0 0 auto; width:38px; height:38px; display:block; }
+.ri-icon img, .ri-icon .ri-none { width:38px; height:38px; border-radius:6px; border:2px solid var(--q); box-sizing:border-box; display:block; background:var(--panel3); }
+.ri-mark { position:absolute; right:-6px; bottom:-6px; width:18px; height:18px; border-radius:50%; display:grid; place-items:center; font:700 11px/1 var(--font-mono); border:2px solid var(--panel); }
+.ri-mark.bad { background:var(--high); color:#fff; }
+.ri-mark.mid { background:var(--medium); color:#1b1405; }
+.ri-main { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.ri-name { color:var(--q); font-weight:600; font-size:14.5px; text-decoration:none; overflow-wrap:anywhere; }
+a.ri-name:hover { text-decoration:underline; }
+.ri-slot { color:var(--muted); font-size:12px; }
+.ri-prob { flex:0 0 auto; display:inline-flex; align-items:center; gap:7px; padding:4px 10px 4px 5px; border-radius:6px; font-size:13px; font-weight:600; }
+.ri-prob img { width:20px; height:20px; border-radius:4px; display:block; }
+.ri-prob.bad { background:var(--high-bg); color:var(--high); }
+.ri-prob.mid { background:var(--medium-bg); color:var(--medium); }
+.ri-sock { width:16px; height:16px; margin:0 2px; border-radius:50%; border:2px dashed currentColor; box-sizing:border-box; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .ri-name { color:color-mix(in srgb, var(--q) 70%, #000); } }
+:root[data-theme="light"] .ri-name { color:color-mix(in srgb, var(--q) 70%, #000); }
+.rec-say { display:flex; flex-direction:column; gap:5px; padding:10px 12px; border-radius:8px; background:var(--panel); }
+.rec-say .kicker { margin:0; }
+.rec-say p { margin:0; font-size:14px; line-height:1.5; }
+.rec-say .rec-rule { color:var(--muted); }
+.rec-source.rule { background:var(--panel3); color:var(--muted); }
+.rec-source.own { background:var(--good-bg); color:var(--good); }
+.rec-acts { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.rec-acts .btn { min-height:38px; }
+.rec-acts .rec-plain { background:transparent; border-color:transparent; color:var(--muted); }
+.rec-acts .rec-plain:hover { color:var(--text); }
+.rec-undo { color:var(--muted); font-size:12.5px; margin-left:4px; }
+.rec-block.rec-state-open .rec-undo { display:none; }
+.rec-block .rec-edit { display:flex; flex-direction:column; gap:6px; }
+.rec-block .rec-text { width:100%; border-radius:8px; }
+.rec-block .row-btns { display:flex; gap:8px; }
+/* the card head: item icons inside the gear badge, the open points as a quiet amber chip */
+.badge.has-minis { padding-left:4px; }
+.minis { display:inline-flex; }
+.minis .mini { width:18px; height:18px; border-radius:4px; border:1px solid var(--q); box-sizing:border-box; display:block; background:var(--panel3); }
+.minis .mini + .mini { margin-left:-5px; }
+.badge.pending { background:var(--medium-bg); color:var(--medium); border-color:transparent; }
+.badge.pending .dot { width:7px; height:7px; border-radius:50%; background:currentColor; }
+/* the foot: review progress instead of "x freigegeben · y offen" */
+.rf-progress { display:flex; flex-direction:column; gap:5px; }
+.rf-count { font-size:14px; }
+.rf-bar { display:block; width:150px; height:6px; border-radius:3px; background:var(--panel3); overflow:hidden; }
+.rf-bar i { display:block; height:100%; background:var(--good); transition:width .2s; }
+.raider-foot .note { margin:0 auto 0 0; }
+/* the send dialog (Entwurf E): state in the head, items left, the DM as it arrives right */
+dialog.dlg.send { max-width:min(1000px, 96vw); width:min(1000px, 96vw); }
+.send-grid { grid-template-columns:minmax(0,1fr) 400px; }
+.send-items .kicker, .send-preview > .kicker { margin:0; }
+.send-state { flex:0 1 auto; justify-content:flex-end; }
+.send-choice { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.send-choice .kicker { margin:0; }
+.send-item .rec-item { background:var(--panel2); }
+.dm-hello { color:var(--muted); }
+.dm-items > div { overflow-wrap:anywhere; }
+@media (max-width:760px) { .send-grid { grid-template-columns:1fr; } .rec-item { flex-wrap:wrap; } .ri-prob { margin-left:50px; } .secs-row .raider-links { padding-top:8px; } }

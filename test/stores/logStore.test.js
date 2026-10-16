@@ -7,6 +7,7 @@ const {
     markEvaluated, evaluatedSections, clearEvaluation, clearSection, setLogTitle, setReportStart, setLogRaids, deleteLog,
     linkEvent, unlinkEvent, listLogsForEvent,
 } = require("../../src/stores/logStore.js");
+const { saveConfig } = require("../../src/stores/configStore.js");
 
 beforeEach(() => {
     fs.__store.clear();
@@ -354,6 +355,43 @@ describe("stores/logStore", () => {
             expect(unlinkEvent(a.id)).toBeNull();
             expect(unlinkEvent("nope")).toBeNull();
             expect(fs.writeFileSync.mock.calls.length).toBe(writes);
+        });
+    });
+
+    describe("the version of a log (#746)", () => {
+        const forever = "https://forever.warcraftlogs.com/character/{region}/{realm}/{char}";
+        const fresh = "https://fresh.warcraftlogs.com/character/{region}/{realm}/{char}";
+        beforeEach(() => {
+            // which host belongs to which version is a setting (Einstellungen → Spielversion)
+            saveConfig({ versionSettings: { tbc: { wclUrlTemplate: fresh }, forever: { wclUrlTemplate: forever } } });
+        });
+
+        it("a fresh log without a raid gets the version of its host, once", () => {
+            const log = saveLog(base({ reportId: "F1", link: "https://forever.warcraftlogs.com/reports/F1" }));
+            expect(log).toMatchObject({ host: "forever.warcraftlogs.com", hostVersionId: "forever", versionId: "forever", versionFrom: "host" });
+            const tbc = saveLog(base({ reportId: "T1", link: "https://fresh.warcraftlogs.com/reports/T1" }));
+            expect(tbc).toMatchObject({ hostVersionId: "tbc", versionId: "tbc", versionFrom: "host" });
+        });
+
+        it("a host no version names is TBC, and the host is not asked again on a re-detection", () => {
+            const log = saveLog(base());
+            expect(log).toMatchObject({ host: "classic.warcraftlogs.com", hostVersionId: "", versionId: "tbc", versionFrom: "default" });
+            saveConfig({ versionSettings: { tbc: { wclUrlTemplate: fresh }, forever: { wclUrlTemplate: "https://classic.warcraftlogs.com/character/{char}" } } });
+            expect(saveLog(base({ messageId: "m2" }))).toMatchObject({ hostVersionId: "", versionId: "tbc" });
+        });
+
+        it("a log on a Forever raid is Forever while linked, and goes back to its host's version", () => {
+            const a = saveLog(base({ reportId: "T1", link: "https://fresh.warcraftlogs.com/reports/T1" }));
+            expect(linkEvent(a.id, { eventId: "ev1", versionId: "forever" })).toMatchObject({ versionId: "forever", versionFrom: "event" });
+            expect(unlinkEvent(a.id)).toMatchObject({ versionId: "tbc", versionFrom: "host" });
+            const b = saveLog(base({ reportId: "C1" }));
+            linkEvent(b.id, { eventId: "ev1", versionId: "forever" });
+            expect(unlinkEvent(b.id)).toMatchObject({ versionId: "tbc", versionFrom: "default" });
+        });
+
+        it("a link without a version leaves the log's version alone", () => {
+            const a = saveLog(base({ reportId: "F1", link: "https://forever.warcraftlogs.com/reports/F1" }));
+            expect(linkEvent(a.id, { eventId: "ev1" })).toMatchObject({ versionId: "forever", versionFrom: "host" });
         });
     });
 

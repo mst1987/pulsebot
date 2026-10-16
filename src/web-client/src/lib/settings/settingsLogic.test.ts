@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import * as mod from "./settingsLogic";
 import { inLang } from "../../test/i18n";
+import { t } from "../../i18n";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the tests hand the lib loose fixtures, as the Jest version did
 const logic: any = mod;
@@ -72,6 +73,24 @@ describe("save bar change list", () => {
         categoryLootTool: {}, categorySheets: {}, categoryRaidTemplate: { c1: "tpl1" }, topItems: [{ id: 1 }],
     });
 
+    it("names a role made orga and one set back to a raider role", () => {
+        const saved = { ...base(), orgaRoleIds: ["raidlead"] };
+        const draft = { ...base(), orgaRoleIds: ["officer"] };
+        const lines = logic.draftChanges(saved, draft, names);
+        expect(lines).toContain(t("settings.changes.orgaAdded", { name: names.role("officer") }));
+        expect(lines).toContain(t("settings.changes.orgaRemoved", { name: names.role("raidlead") }));
+        expect(logic.draftChanges(saved, { ...base(), orgaRoleIds: ["raidlead"] }, names)).toEqual([]);
+    });
+
+    it("names a switched picture of the bot messages; a missing switch counts as on", () => {
+        const draft = { ...base(), discordVisuals: { overviewWeekStrip: false, setupImage: true, eventCover: true } };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Bilder in Bot-Nachrichten · Raid-Übersicht mit Wochenleiste aus"]);
+        expect(logic.draftChanges({ ...base(), discordVisuals: { setupImage: false } }, { ...base(), discordVisuals: logic.discordVisualsOf(undefined) }, names))
+            .toEqual(["Bilder in Bot-Nachrichten · Setup als Grafik an"]);
+        expect(logic.draftChanges(base(), { ...base(), discordVisuals: logic.discordVisualsOf({}) }, names)).toEqual([]);
+        expect(logic.discordVisualsOf({ eventCover: false })).toEqual({ overviewWeekStrip: true, setupImage: true, eventCover: false });
+    });
+
     it("names a changed planning per category: the picked mode, else the fixed sheet's default", () => {
         const draft = base();
         draft.categoryPlanning = { c1: "sheet" };
@@ -97,6 +116,13 @@ describe("save bar change list", () => {
         // back on the main version; without version names the id stands in
         expect(logic.draftChanges(draft, { ...draft, categoryVersion: {} }, names)).toEqual(["Hyjal & BT · Spielversion → Hauptversion"]);
         expect(logic.draftChanges(base(), { ...base(), mainVersion: "classic" }, names)).toEqual(["Hauptversion → classic"]);
+    });
+
+    it("names a version whose features were switched (#761), not one whose list only changed its order", () => {
+        const version = (id: string) => ({ tbc: "TBC" } as Record<string, string>)[id] || id;
+        const saved = { ...base(), versionDisabled: { tbc: ["logcheck", "softres"] } };
+        expect(logic.draftChanges(saved, { ...base(), versionDisabled: { tbc: ["softres", "logcheck"] } }, { ...names, version })).toEqual([]);
+        expect(logic.draftChanges(saved, { ...base(), versionDisabled: { tbc: ["softres"] } }, { ...names, version })).toEqual(["Funktionen je Version · TBC"]);
     });
 
     it("is empty when nothing changed, even if the order of a list or an empty entry differs", () => {
@@ -158,7 +184,12 @@ describe("save bar change list", () => {
             "Hyjal & BT · Anwesenheit ausgeblendet", "Hyjal & BT · Quote über 8 Raids", "Hyjal & BT · nicht in Abwesenheiten",
         ]);
         expect(logic.draftChanges(base(), { ...base(), categoryAttendance: { c1: { show: true, window: 11, absences: true } } }, names)).toEqual([]);
-        expect(logic.attendanceOf({ c1: { window: 5 } }, "c1")).toEqual({ show: true, window: 11, absences: true });
+        // any whole number from 1 to 50 counts; anything else is the default 11
+        expect(logic.attendanceOf({ c1: { window: 5 } }, "c1")).toEqual({ show: true, window: 5, absences: true });
+        expect(logic.attendanceOf({ c1: { window: 50 } }, "c1").window).toBe(50);
+        for (const bad of [0, 51, 7.5, Number.NaN]) expect(logic.attendanceOf({ c1: { window: bad } }, "c1").window).toBe(11);
+        expect(logic.validAttendanceWindow(1)).toBe(true);
+        expect(logic.validAttendanceWindow(0)).toBe(false);
     });
 
     it("names the Discord-Event switch and the voice channel per category (#305)", () => {
@@ -185,6 +216,17 @@ describe("save bar change list", () => {
             .toEqual(["Hyjal & BT · Ankündigung → aus"]);
         expect(logic.announceMode(undefined)).toBe("");
         expect(logic.announceMode({ enabled: true, target: "" })).toBe("event");
+    });
+
+    it("names the characters per signup, missing = 8, clamped into 1..8", () => {
+        expect(logic.draftChanges(base(), { ...base(), categorySignupCharacters: { c1: 8 } }, names)).toEqual([]);
+        expect(logic.draftChanges(base(), { ...base(), categorySignupCharacters: { c1: 3 } }, names))
+            .toEqual(["Hyjal & BT · Charaktere je Anmeldung → 3"]);
+        expect(logic.signupCharactersOf(undefined, "c1")).toBe(8);
+        expect(logic.signupCharactersOf({ c1: 20 }, "c1")).toBe(8);
+        expect(logic.signupCharactersOf({ c1: 0 }, "c1")).toBe(1);
+        expect(logic.validSignupCharacters(9)).toBe(false);
+        expect(logic.validSignupCharacters(1)).toBe(true);
     });
 
     it("names the message mode with Vielleicht/Absage, missing = optional", () => {
@@ -266,6 +308,16 @@ describe("connection cards", () => {
             blizzard: { clientId: "c" },
         });
         expect(logic.connectionPatch("battlenet", {}, "").blizzard.clientSecret).toBe("");
+    });
+
+    it("has a GitHub card for the addon downloads (#818): only the token, full admins only", () => {
+        expect(logic.connectionState("github", { github: { hasToken: true } })).toEqual({ tone: "ok", label: "Token hinterlegt", missing: false });
+        expect(logic.connectionState("github", {})).toEqual({ tone: "mid", label: "Token fehlt", missing: true });
+        expect(logic.connectionPatch("github", {}, " t ".trim())).toEqual({ github: { token: "t" } });
+        expect(logic.connectionPatch("github", {}, "")).toEqual({ github: { token: "" } });
+        expect(logic.connectionPatch("github", {}, undefined)).toEqual({});
+        expect(logic.visibleConnections(true)).toContain("github");
+        expect(logic.visibleConnections(false)).not.toContain("github");
     });
 });
 

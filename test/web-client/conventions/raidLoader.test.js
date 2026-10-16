@@ -32,14 +32,24 @@ describe("RaidLoader", () => {
         expect(css).not.toContain(".pl-rune");
     });
 
-    it("draws the boss with the icons the menu already checked, never a new name", () => {
-        expect(loader).toContain("import { RAID_CONTENTS } from \"../../lib/wow/raidIcons\";");
-        expect(loader).toContain("RAID_CONTENTS[boss.key].icon");
-        // the bosses the loader lists, by the content id each one belongs to
-        const keys = [...loader.match(/const BOSSES[\s\S]*?\];/)[0].matchAll(/key: "(\w+)"/g)].map((m) => m[1]);
+    it("draws a raid's end boss with the icon the menu already checked, other bosses with a boss icon", () => {
+        // the bosses per version live in lib/wow/loaderBosses.ts (no TBC boss in the Forever part)
+        expect(loader).toContain("from \"../../lib/wow/loaderBosses\";");
+        expect(loader).toContain("<WowIcon name={boss.icon}");
+        const bosses = read("lib", "wow", "loaderBosses.ts");
+        expect(bosses).toContain("import { RAID_CONTENTS } from \"./raidIcons\";");
+        // a raid's end boss by the content id it belongs to: the raid's own icon
+        const keys = [...bosses.matchAll(/endBoss\("([\w-]+)"/g)].map((m) => m[1]);
         const known = read("lib", "wow", "raidIcons.ts");
-        for (const key of keys) expect({ key, known: known.includes(`    ${key}: {`) }).toEqual({ key, known: true });
-        expect(keys.length).toBeGreaterThan(4);
+        for (const key of keys) {
+            const entry = /^[a-z0-9]+$/.test(key) ? `    ${key}: content("${key}"` : `    "${key}": content("${key}"`;
+            expect({ key, known: known.includes(entry) }).toEqual({ key, known: true });
+        }
+        expect(keys.length).toBeGreaterThan(10);
+        // the bosses beyond them (Classic's dungeons, Naxxramas' wings): achievement boss icons,
+        // each checked against the CDN by hand (docs/web-admin.md), a typo shows WowIcon's question mark
+        const icons = [...bosses.matchAll(/icon: "([^"]+)"/g)].map((m) => m[1]);
+        for (const icon of icons) expect({ icon, ok: /^achievement_boss_[a-z0-9_]+$/.test(icon) }).toEqual({ icon, ok: true });
     });
 
     it("is decorative: a status role, empty alt icons and no motion when that is switched off", () => {

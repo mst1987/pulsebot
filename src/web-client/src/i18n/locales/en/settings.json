@@ -51,6 +51,14 @@
         "recruitment": {
             "label": "Recruitment",
             "crumb": "Modules · applications"
+        },
+        "dungeons": {
+            "label": "Dungeon best times",
+            "crumb": "Modules · guild records from the LevelHelper addon"
+        },
+        "addons": {
+            "label": "Addons",
+            "crumb": "Modules · addon downloads"
         }
     },
     "page": {
@@ -98,10 +106,9 @@
     },
     "gameVersion": {
         "main": "Main version",
-        "mainSub": "A new event, a new raid template and the raider profile start in this version when nobody picks another. Existing events and templates keep their version.",
-        "categories": "Categories that differ",
-        "categoriesSub": "A category that plays another version than the main one. “Main version” follows the setting above.",
-        "followMain": "Main version ({version})",
+        "mainSub": "The default for something new: a category switched on, a new raid template and the raider profile start with it. Existing categories, events and templates keep their version.",
+        "categories": "Version per category",
+        "categoriesSub": "Every active category plays one fixed version. Switching starts a new section: earlier raids, roster and quota stay readable in their version.",
         "categoryAria": "Game version of {name}",
         "noCategories": "No active category yet – switch one on under Categories.",
         "hideOthers": "Hide other versions",
@@ -117,7 +124,62 @@
         "exportJson": "as JSON",
         "preview": "This is how the top bar looks",
         "previewOn": "Hidden: no switch anymore, only a quiet hint which version is active.",
-        "previewOff": "Not hidden: everybody can switch between the versions at the top, the choice is remembered per user."
+        "previewOff": "Not hidden: everybody can switch between the versions at the top, the choice is remembered per user.",
+        "newCategory": "new · starts with {version}",
+        "since": "since {date}"
+    },
+    "categorySwitch": {
+        "kicker": "Switch game version",
+        "title": "{name}: {from} → {to}",
+        "intro": "Switching starts a new section. The past is not re-read.",
+        "keep": "Earlier raids, roster and quota stay readable as {from} (under {from} in the switch).",
+        "new": "From the save on, new raids are created as {to}.",
+        "fresh": "The attendance quota starts afresh, the {to} roster is new.",
+        "upcomingTitle": "Coming raids",
+        "upcoming": {
+            "one": "1 coming raid keeps its version. The orga may cancel it.",
+            "other": "{count} coming raids keep their version. The orga may cancel them."
+        },
+        "upcomingNone": "No coming raids of another version.",
+        "more": "… and {count} more",
+        "templatesTitle": "Series and default template",
+        "seriesMismatch": "The series uses the template “{name}” ({version}). A template of another version creates no events.",
+        "seriesFits": "The series fits the new version.",
+        "seriesFix": "Series",
+        "seriesPause": "Pause the series",
+        "useTemplate": "Use template “{name}”",
+        "defaultMismatch": "The default template “{name}” is {version} and no longer fits.",
+        "defaultFits": "The default template “{name}” fits.",
+        "defaultFix": "Default template",
+        "defaultNone": "no default template",
+        "noTemplates": "There is no raid template for {to} yet – create one under Raid templates.",
+        "hint": "Takes effect with “Save”.",
+        "confirm": "Switch to {version}",
+        "loading": "Loading what the switch affects …",
+        "error": "Could not be loaded: {message}",
+        "switched": "{name}: new section with {version}",
+        "rosterTitle": "Roster",
+        "rosterCloses": "Roster “{name}” is closed. It stays readable under {from}, without sync with Discord – nobody loses a role.",
+        "rosterReopens": "The {to} roster “{name}” is opened again.",
+        "rosterExists": "There already is the roster “{name}” for {to}.",
+        "rosterCreate": "Create a {to} roster",
+        "rosterCreateTip": "With the name, managers, places and settings of the old roster.",
+        "rosterCopy": "Take the people over",
+        "rosterCopyTip": {
+            "one": "{count} person joins the new roster as trial, without a character – they pick their {to} character themselves.",
+            "other": "{count} people join the new roster as trial, without a character – each picks their {to} character themselves."
+        },
+        "rosterRoles": "Discord roles of the new roster",
+        "rosterRolesNone": "No role picked: the new roster has no Discord role for now. Set it later in the roster's settings.",
+        "rosterRolesSome": {
+            "one": "{count} role picked. Nobody gets it automatically – the sync tab shows who lacks it.",
+            "other": "{count} roles picked. Nobody gets them automatically – the sync tab shows who lacks them."
+        },
+        "rosterCreated": {
+            "one": "Roster “{name}” created for {version}, {count} person taken over",
+            "other": "Roster “{name}” created for {version}, {count} people taken over"
+        },
+        "rosterReopened": "Roster “{name}” opened again"
     },
     "level": {
         "none": "off",
@@ -125,6 +187,8 @@
         "write": "Write"
     },
     "changes": {
+        "orgaAdded": "{name} is orga now",
+        "orgaRemoved": "{name} is a raider role now",
         "perm": "{owner} · {area} → {level}",
         "added": "{name} added",
         "removed": "{name} removed",
@@ -164,8 +228,16 @@
         "hideOtherOff": "Hide other versions off",
         "followMain": "main version",
         "versionSettings": "Links and armory · {value}",
+        "versionFeatures": "Features per version · {value}",
         "planning": "{name} · planning → {value}",
-        "botLanguage": "Bot language: {value}"
+        "botLanguage": "Bot language: {value}",
+        "discordVisuals": "Pictures in bot messages · {name} {state}",
+        "on": "on",
+        "off": "off",
+        "signupCharacters": "{name} · characters per signup → {count}",
+        "dungeonRecordsOn": "Post guild records: on",
+        "dungeonRecordsOff": "Post guild records: off",
+        "dungeonRecordsChannel": "Channel for guild records"
     },
     "lootTool": {
         "none": "none"
@@ -218,7 +290,9 @@
         "rightsMissing": {
             "one": "{count} permission missing",
             "other": "{count} permissions missing"
-        }
+        },
+        "tokenStored": "Token stored",
+        "tokenMissing": "Token missing"
     },
     "overlap": {
         "unknown": "Overlap unknown",
@@ -409,7 +483,10 @@
         "missingSub": "Hours before signup closes (without a deadline: before the raid starts) to everyone with a raider role who has not reacted yet. Empty = off.",
         "signed": "Signed up · h before",
         "signedTip": "To signed-up raiders",
-        "signedSub": "Hours before the raid starts to everyone signed up (including \"comes later\"). Empty = off."
+        "signedSub": "Hours before the raid starts to everyone signed up (including \"comes later\"). Empty = off.",
+        "inactive": "paused",
+        "inactiveTip": "Category inactive",
+        "inactiveSub": "The category is deactivated under Settings → Categories. The rule stays but reminds nobody until the category is active again."
     },
     "roleSync": {
         "title": "Role sync",
@@ -559,7 +636,19 @@
         "secretNone": "no secret stored yet",
         "keep": "Keep",
         "secretNote": "Never shown again, only replaced or deleted.",
-        "realmNotSet": "per game version (main version has no realm)"
+        "realmNotSet": "per game version (main version has no realm)",
+        "githubTitle": "GitHub (addons)",
+        "githubTip": "GitHub token for the addon downloads",
+        "githubSub": "Reads the releases of the private addon repos (LevelHelper, ProfessionKit). Public repos work without it. The token never leaves the server, members download through the EventHelper.",
+        "token": "Token",
+        "tokenSet": "set",
+        "tokenNotSet": "not set",
+        "githubOn": "Private addons available",
+        "githubOff": "Public addons only",
+        "githubMissing": "Without a token the page \"Addons\" shows the private addons as \"not available right now\".",
+        "githubLink": "Create a token on github.com",
+        "githubTokenTip": "Fine-grained personal access token",
+        "githubTokenSub": "Create it on github.com under Settings > Developer settings > Fine-grained tokens: repository access \"Only select repositories\" with the addon repos, Permissions > Repository > Contents: \"Read-only\". Nothing else."
     },
     "tokens": {
         "revokeAsk": "Revoke token \"{name}\"?",
@@ -587,6 +676,11 @@
         "revokeTip": "Revoke token"
     },
     "permissions": {
+        "orgaOn": "Orga",
+        "orgaOff": "Raider",
+        "orgaOnTip": "{name} is an orga role – click to make it a raider role",
+        "orgaOffTip": "{name} is a raider role – click to make it an orga role",
+        "orgaSub": "Orga see the orga's parts (the dashboard's orga block, everybody's absences). An area only admins and orga roles open is marked “Orga area”. Which areas the role opens is set in its row, independently.",
         "cellAria": "{owner} · {area}: {level}",
         "cellSub": "{level} — click switches to {next}",
         "rowSub": "Click: set the whole row to read, write or off",
@@ -662,7 +756,7 @@
         "switchSub": "Channels of this category hold raid events.",
         "switchAria": "{name} as raid category",
         "unknownTip": "Unknown category",
-        "unknownSub": "This ID is configured but no longer exists in Discord. Deselecting and saving removes it.",
+        "unknownSub": "This ID is configured, but Discord does not know it right now (bot offline?). Once the bot sees every event server, a deleted category is marked “deleted in Discord” and can be closed.",
         "unknown": "unknown",
         "roleCount": {
             "one": "{count} role",
@@ -682,7 +776,7 @@
         "noRaiders": "no raiders found yet",
         "saveRolesFirst": "save raider roles first",
         "assign": "Assign",
-        "newEvents": "New events",
+        "newEvents": "Created in",
         "newEventsSub": "Where new events of this category are created. Raid-Helper events stay in use either way – in lists, attendance, log and loot assignment.",
         "newEventsAria": "New events {name}",
         "setupDms": "Setup DMs",
@@ -692,11 +786,11 @@
         "languageSub": "The bot writes everything a raid of this category posts in the channel in this language: signup message, setup, announcement, pings, Discord event. \"As the server\" takes the bot language of the general settings. What a raider reads personally (answers, DMs) stays in their own language.",
         "languageAria": "Language of the posts {name}",
         "languageServer": "As the server",
-        "attendance": "Show attendance",
+        "attendance": "Show in \"My attendance\"",
         "attendanceSub": "Shows this category's attendance under Absences › My attendance – for the raiders themselves and for the orga. Off: the category does not appear there.",
         "attendanceAria": "Show attendance {name}",
         "attendanceWindow": "Quota over",
-        "attendanceWindowSub": "How many of the last raids the attendance quota counts – in \"My attendance\" and in the setup editor's tooltip. Default: 11.",
+        "attendanceWindowSub": "How many of the last raids the attendance quota counts – in \"My attendance\" and in the setup editor's tooltip. Any whole number from 1 to 50, default: 11.",
         "attendanceWindowAria": "Quota over how many raids {name}",
         "absences": "Show in absences",
         "absencesSub": "This category's raids and absences that only apply to it appear in the timeline, under \"Per raid\" and in the hints. Off: the category stays out of it.",
@@ -762,18 +856,31 @@
         "panelRemoveText": "The message in Discord is deleted. What raiders already entered stays.",
         "panelSince": "posted {date}",
         "panelNoChannels": "No text channels – is the bot online?",
+        "orgaHub": "Orga hub",
+        "orgaHubSub": "A Discord message for the orga: the raids of the next 4 weeks, where each one stands, and “Create raid”. Post it into a channel only the orga sees.",
+        "orgaHubChannelAria": "Channel for the orga hub of {name}",
+        "orgaHubPosted": "Orga hub posted.",
+        "orgaHubRemoved": "Orga hub removed.",
+        "orgaHubRemoveTitle": "Remove orga hub?",
+        "orgaHubRemoveText": "The message in Discord is deleted. The raids themselves stay as they are.",
+        "orgaLinks": "Orga hub links",
+        "orgaLinksSub": "Buttons below “Create raid”, e.g. the WCL guild or raid sheet – for the orga only. Also editable in Discord through “Links …” on the orga hub.",
         "links": "Links in the organizer",
         "linksSub": "Buttons such as the WCL invite, info sheet or tactics – shown at the bottom of the panel.",
         "linkLabel": "Text",
         "linkLabelAria": "Text of link {n}",
         "linkUrlAria": "Address of link {n}",
+        "linkEmojiAria": "Emoji of link {n}",
+        "linkEmojiPick": "Pick emoji",
         "linkRemove": "Remove link {n}",
         "linkAdd": "Add link",
         "linksSave": "Save links",
         "linksSaved": "Links saved",
         "tabs": {
-            "signup": "Signup",
-            "message": "Message",
+            "raider": "Raiders",
+            "events": "New events",
+            "message": "Signup message",
+            "hubs": "Discord hubs",
             "plan": "Setup & planning",
             "loot": "Loot"
         },
@@ -785,7 +892,49 @@
         "planningRaidplanTip": "Plans with the raid plan",
         "planningRaidplanSub": "Raid page with the \"Raid plan\" tab and the \"Assignments\" step; no raidsheet.",
         "planningCopiesTip": "Plans with a sheet",
-        "planningCopiesSub": "No fixed sheet: each raid fills a copy of a raidsheet template (Modules › Raidsheets)."
+        "planningCopiesSub": "No fixed sheet: each raid fills a copy of a raidsheet template (Modules › Raidsheets).",
+        "attendanceBlock": "Attendance",
+        "attendanceBlockShort": "Show it, count it, include it in absences.",
+        "attendanceShort": "For the raiders themselves and for the orga.",
+        "attendanceWindowShort": "This many of the last raids count. Default: 11.",
+        "attendanceWindowUnit": "last raids",
+        "attendanceWindowLess": "One raid fewer",
+        "attendanceWindowMore": "One raid more",
+        "absencesShort": "Timeline, \"Per raid\" and hints.",
+        "raiderRolesShort": "Whoever has one of these roles is expected at the raids.",
+        "charsShort": "A fixed character per raider instead of automatic detection.",
+        "newEventsShort": "Raid-Helper events stay in use.",
+        "templateShort": "A new event starts from this template.",
+        "voiceShort": "Preset, still changeable on the event.",
+        "announceShort": "Pings the raider roles once per event.",
+        "discordEventShort": "Also an event in the server sidebar.",
+        "languageShort": "For everything posted in the channel.",
+        "raidArtShort": "Zone picture below the signup message.",
+        "titleSizeShort": "Size of the title's letter tiles.",
+        "notesShort": "A short message to the raid lead.",
+        "panelShort": "For raiders: next raid, absence and attendance, your links.",
+        "orgaHubShort": "For the orga: raids of the next 4 weeks and \"Create raid\".",
+        "planningShort": "Raid plan or Google Sheet, never both.",
+        "fixedSheetShort": "Every raid of this category links this sheet.",
+        "setupDmsShort": "Every raider learns their spot by DM.",
+        "lootSystemShort": "Decides what a raid of this category offers.",
+        "lootAddonShort": "Which export the loot import expects.",
+        "moreAbout": "More about {label}",
+        "tabsIntro": {
+            "raider": "Who belongs to this category – and how their attendance is counted.",
+            "events": "What happens when a new event of this category is created.",
+            "message": "How signing up looks – the message in the channel, what its buttons ask and how many characters it takes.",
+            "hubs": "This category's standing Discord messages – one for the raiders, one for the orga.",
+            "plan": "What the raids are assigned with and who hears about it after the release.",
+            "loot": "How loot is handed out and imported in this category."
+        },
+        "signupChars": "Characters per signup",
+        "signupCharsShort": "How many characters a raider may name in one signup — the first counts, the others are “can also come with”.",
+        "signupCharsSub": "Applies everywhere: the signup dialog on the web, the signup message in Discord and “Several raids”. 1 to 8, default: 8. Whoever is already signed up with more characters keeps them – they can take some out, but not add any.",
+        "signupCharsAria": "Characters per signup {name}",
+        "signupCharsLess": "One character less",
+        "signupCharsMore": "One character more",
+        "signupCharsUnit": "characters"
     },
     "botCommands": {
         "mode": {
@@ -846,7 +995,10 @@
         "infoSub": "The EventHelper addon scans the guild bank, the sync tool uploads the scan. A bank belongs to an event server: with just one event server it lands there by itself, otherwise it waits here for the assignment.",
         "loading": "Loading the guild banks …",
         "none": "No scan has arrived yet.",
-        "waiting": { "one": "{count} waiting", "other": "{count} waiting" },
+        "waiting": {
+            "one": "{count} waiting",
+            "other": "{count} waiting"
+        },
         "allAssigned": "assigned",
         "waitingBadge": "Waiting for assignment",
         "serverAria": "Server for {name}",
@@ -955,6 +1107,12 @@
     "versionLinks": {
         "title": "Links and armory per version",
         "titleSub": "Where a character is looked up (armory, Warcraft Logs) and where items link to (Wowhead), separately for every game version. An event uses the values of its version, raider pages and the loot council those of the main version or the category.",
+        "colorTitle": "Colour",
+        "color": "Version colour",
+        "colorSub": "The accent colour of the web admin (buttons, active menu line, links, selection) while this version is shown. The version's name always stays visible in the switch at the top. Empty = the version's standard colour. Settings, Channels and System status keep the brand colour.",
+        "colorPick": "Pick a colour",
+        "colorReset": "Reset",
+        "colorResetSub": "Puts the standard colour {color} back.",
         "switch": "Game version of the settings",
         "emptyHint": "These values apply only to {version}. Empty field = the link is left out.",
         "armory": "Armory",
@@ -993,12 +1151,204 @@
             "wclUrlTemplate": "An http(s) address with {char}.",
             "wowheadPath": "Lower-case letters, digits and hyphens only, e.g. tbc.",
             "softresEdition": "Unknown edition.",
-            "raidsheetId": "Raidsheet not found."
+            "raidsheetId": "Raidsheet not found.",
+            "color": "A colour like #4da3ff."
         },
         "defaults": "Use standard values",
         "defaultsSub": "Fills in the known values for {version} (namespace, armory, Warcraft Logs, Wowhead, softres). Realm and raidsheet stay as they are. Nothing is stored until you save.",
         "defaultsSame": "The standard values are already filled in.",
         "defaultsNone": "No standard values are known for {version} yet."
+    },
+    "versionFeatures": {
+        "title": "Features per version",
+        "titleSub": "What each game version can do. A feature is possible when data, rules or settings exist for the version. Only then is there a switch. Stored with “Save”.",
+        "hint": "“Possible” follows the saved settings.",
+        "feature": "Feature",
+        "on": "on",
+        "off": "off",
+        "impossible": "not possible",
+        "cellAria": "{feature} · {version}",
+        "onSub": "Switched on. Off behaves like “not possible”.",
+        "features": {
+            "logcheck": "Log check",
+            "lootCouncilBis": "BiS lists",
+            "simulation": "Simulation",
+            "raidSheet": "Raid sheet",
+            "softres": "Softres",
+            "armory": "Armory lookup",
+            "wowheadLinks": "Wowhead links",
+            "raidplanCatalog": "Raid plan catalog",
+            "dungeonTimes": "Dungeon best times"
+        },
+        "featureSub": {
+            "logcheck": "Evaluating Warcraft Logs reports.",
+            "lootCouncilBis": "BiS lists, item table and tier filter in the loot council.",
+            "simulation": "DPS simulation (WoWSims) in the loot council.",
+            "raidSheet": "Filling the Google raid sheet. Without it the raid plans with the raid plan.",
+            "softres": "Creating a softres list on the raid page.",
+            "armory": "Fetching gear and character data from Battle.net.",
+            "wowheadLinks": "Links to Wowhead for items and spells.",
+            "raidplanCatalog": "The catalog's mobs and spells in the raid plan.",
+            "dungeonTimes": "Dungeon best times from the LevelHelper addon per character in \"My profile\"."
+        },
+        "reason": {
+            "disabled": "Switched off for {version}.",
+            "unknown_version": "Unknown game version.",
+            "unknown_feature": "Unknown feature.",
+            "no_rules": "No log check rules for {version}.",
+            "rules_not_ready": "Log check rules for {version} not finished yet ({count} open).",
+            "no_site": "No Warcraft Logs site set for {version}.",
+            "no_bis_data": "No BiS data for {version}.",
+            "no_sim_data": "No simulation data for {version}.",
+            "no_sheet_layout": "No raid sheet layout for {version}.",
+            "no_softres_edition": "No softres edition set for {version}.",
+            "armory_not_configured": "Armory for {version} not set up (region, realm, namespace).",
+            "no_wowhead_path": "No Wowhead path set for {version}.",
+            "no_catalog_entries": "No catalog entries for {version}.",
+            "no_dungeon_times": "No dungeon best times for {version} (no LevelHelper)."
+        }
+    },
+    "versionLaunch": {
+        "title": "Start a new version",
+        "titleSub": "What should be done on the switch day, per target version. The state comes from the real data. Only what cannot be checked is ticked off by hand. Details in each item's tooltip.",
+        "target": "Target version",
+        "doneOf": "{done} of {total} done",
+        "loading": "Checking the list",
+        "loadError": "Checklist could not be loaded: {message}",
+        "status": {
+            "done": "done",
+            "open": "open"
+        },
+        "optional": "optional",
+        "optionalTip": "Only when the old version ends for good. Not counted.",
+        "manualTip": "Cannot be checked from the data: tick it off yourself.",
+        "mark": "done",
+        "markAria": "{item}: done",
+        "markedBy": "ticked off on {date} by {name}",
+        "markedAt": "ticked off on {date}",
+        "jump": "Up here",
+        "toLink": "To {label}",
+        "markFailed": "Not saved: {message}",
+        "items": {
+            "backup": {
+                "label": "Data backed up",
+                "why": "A fresh backup before the switch: if something goes wrong, today's state can be brought back."
+            },
+            "export": {
+                "label": "Archive of the old version downloaded",
+                "why": "Loot and attendance of every version but the main one as CSV. Worth it when the old version ends: download it after switching the main version."
+            },
+            "categories": {
+                "label": "Every category has a fixed version",
+                "why": "Every active category plays exactly one version. A switch starts a new section, old raids stay in their version."
+            },
+            "versionSettings": {
+                "label": "Links of the version set",
+                "why": "Realm, armory, Warcraft Logs, Wowhead, softres and raid sheet of the target version. Empty is fine where the feature is not possible for the version or switched off."
+            },
+            "templates": {
+                "label": "Raid templates of the version exist",
+                "why": "New raids, series and a category's default template need templates of this version."
+            },
+            "series": {
+                "label": "Series and default templates fit",
+                "why": "A template of another version creates no event. The series would fail."
+            },
+            "rosters": {
+                "label": "Rosters with roles and managers",
+                "why": "Every category of the version needs an open roster with Discord roles and managers. Rosters exist per version."
+            },
+            "guildBank": {
+                "label": "Guild bank assigned",
+                "why": "The new version's bank arrives with the first scan from the game and needs a Discord server."
+            },
+            "lootAddon": {
+                "label": "Loot addon tested on the new client",
+                "why": "Record loot and a bank scan once on the new client and upload them. Does the version arrive correctly?"
+            },
+            "talk": {
+                "label": "Talk overview and reminders checked",
+                "why": "The raid overview on the talk server and the reminders show raids of every version. Take a look whether the new raids appear correctly."
+            },
+            "mainVersion": {
+                "label": "Main version switched, others hidden",
+                "why": "Only when the old version ends for good: switch the main version to the new one and turn on “Hide other versions”."
+            }
+        },
+        "value": {
+            "manual": "by hand",
+            "backupAt": "backup {date}",
+            "backupStale": "not fresh",
+            "noCategory": "no category",
+            "categories": "{done} / {total}",
+            "fieldsOk": "complete",
+            "fieldsMissing": {
+                "one": "{count} missing",
+                "other": "{count} missing"
+            },
+            "templates": {
+                "one": "{count} template",
+                "other": "{count} templates"
+            },
+            "none": "none",
+            "seriesOk": "fits",
+            "seriesNothing": "nothing to check",
+            "seriesBad": {
+                "one": "{count} does not fit",
+                "other": "{count} do not fit"
+            },
+            "rosters": "{done} / {total}",
+            "noTargetCategory": "no {version} category",
+            "bankOk": "assigned",
+            "bankWaiting": "waiting for a server",
+            "bankNone": "no bank",
+            "isMain": "main version",
+            "mainNotHidden": "others visible",
+            "mainOther": "main: {version}"
+        },
+        "detail": {
+            "categoriesMissing": "Without a version: {names}",
+            "categoriesTarget": "Playing {version}: {names}",
+            "fieldMissing": "Missing: {fields}",
+            "fieldNotNeeded": "Empty, not needed: {fields}",
+            "templateNames": "Templates: {names}",
+            "incomplete": "Enter the bosses once known: {raids}",
+            "seriesItem": "{name}: series with “{template}”",
+            "defaultItem": "{name}: default template “{template}”",
+            "rosterItem": "{name}: {problems}",
+            "bankItem": "{guild} ({realm}): {state}",
+            "noTarget": "No active category plays {version}. Switch a category first.",
+            "backupManual": "This instance takes no backup of its own: back up by hand and tick it off.",
+            "backupParts": "Local: {snapshot} · Off-site: {offsite}",
+            "never": "never"
+        },
+        "fields": {
+            "realm": "Realm",
+            "armory": "Armory link",
+            "wcl": "Warcraft Logs",
+            "wowhead": "Wowhead",
+            "softres": "Softres",
+            "raidsheet": "Raid sheet"
+        },
+        "notNeeded": {
+            "disabled": "switched off",
+            "other": "not possible for the version"
+        },
+        "roster": {
+            "missing": "no roster",
+            "closed": "closed",
+            "noRoles": "without roles",
+            "noManagers": "without managers"
+        },
+        "links": {
+            "backup": "System status",
+            "export": "Download CSV",
+            "templates": "Raid templates",
+            "series": "Series",
+            "rosters": "Rosters",
+            "guildBank": "Guild banks",
+            "talk": "Discord servers"
+        }
     },
     "planning": {
         "raidplan": "Raid plan",
@@ -1010,5 +1360,78 @@
         "de": "Deutsch",
         "en": "English",
         "text": "Language of the bot's public messages (signup message, setup, overview, panels) and the default for every raider. Everyone can pick their own language with /language or the DE/EN switch at the top."
+    },
+    "categoryDeactivate": {
+        "kicker": "Deactivate categories",
+        "title": {
+            "one": "What deactivating pauses",
+            "other": "What deactivating {count} categories pauses"
+        },
+        "intro": "Nothing is deleted. What runs on its own pauses until the category is active again.",
+        "series": "Series ({when}) pauses – creates no events",
+        "seriesOff": "Series is already off",
+        "noSeries": "No series",
+        "reminders": "Reminders pause",
+        "noReminders": "No reminders",
+        "upcoming": {
+            "one": "1 upcoming raid stays, without reminders. The organisers can cancel it.",
+            "other": "{count} upcoming raids stay, without reminders. The organisers can cancel them."
+        },
+        "keep": "Settings, rosters, raids, loot and logs stay. The squad planner, the roster picker and /anwesenheit no longer offer the category; archive and history still show it. Activating it again resumes everything.",
+        "emptyBlocked": "At least one raid category must stay active while there are raids.",
+        "confirm": "Deactivate and save",
+        "loading": "Loading what pauses …",
+        "done": "{name}: deactivated – series and reminders pause"
+    },
+    "categoryClose": {
+        "badge": "deleted in Discord",
+        "badgeTip": "Category deleted in Discord",
+        "badgeSub": "This category no longer exists in Discord. “Close category” cleans up its settings; raids, loot and logs stay readable under their version.",
+        "action": "Close category",
+        "saveFirst": "Save or discard the open changes first.",
+        "unknownName": "Unknown category",
+        "kicker": "Close category",
+        "title": "Close {name}",
+        "intro": "The category was deleted in Discord. Closing removes what only new raids need:",
+        "removeSeries": "The series ({when}) is deleted.",
+        "removeReminders": "The reminders are removed.",
+        "removeSettings": {
+            "one": "1 category setting is removed (roles, template, channels …).",
+            "other": "{count} category settings are removed (roles, template, channels …)."
+        },
+        "removeActive": "It is no longer a raid category.",
+        "removeCouncil": "Its Loot Council profile entry is removed.",
+        "removeKaders": {
+            "one": "It no longer counts for attendance in the squad {names}.",
+            "other": "It no longer counts for attendance in {count} squads: {names}."
+        },
+        "nothing": "Nothing is configured any more.",
+        "upcoming": {
+            "one": "1 upcoming raid is still in the category – please cancel it.",
+            "other": "{count} upcoming raids are still in the category – please cancel them."
+        },
+        "rostersTitle": "Rosters",
+        "rosters": "These rosters belong to the category and are closed: they stay readable under their version, without sync with Discord – nobody loses a role. A full admin can delete them later on the roster page.",
+        "rosterClosed": "already closed",
+        "keep": "What stays: raids, loot, logs and the category's version and name – everything stays readable under its version.",
+        "confirm": "Close",
+        "done": "{name} closed"
+    },
+    "discordVisuals": {
+        "label": "Pictures in bot messages",
+        "text": "Test: the bot draws parts of its messages as a picture. Off = the text form as before, from the message's next update.",
+        "overviewWeekStrip": "Raid overview with week strip",
+        "overviewWeekStripTip": "Test: each ID's week as a picture above its raids in the raid overview (/createoverview).",
+        "setupImage": "Setup as a graphic",
+        "setupImageTip": "Test: the groups of the posted setup as a picture instead of a list; confirm marks in the picture, the buttons stay.",
+        "eventCover": "Cover of the Discord event",
+        "eventCoverTip": "Test: a raid's Discord server event gets the raid's picture as its cover (the event's own picture, else the zone art)."
+    },
+    "dungeonRecords": {
+        "post": "Post new guild records",
+        "postTip": "A gold run that is now the fastest of its dungeon goes into the channel as a card. Only runs of the last three days, at most three per upload.",
+        "channel": "Channel for guild records",
+        "channelSub": "The bot posts every new guild record here, in the bot language.",
+        "noChannel": "Without a channel nothing is posted."
     }
 }

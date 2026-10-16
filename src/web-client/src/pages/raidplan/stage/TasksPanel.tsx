@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import type { RaidplanPublicBoss } from "../../../api";
+import type { RaidplanPublicBoss, RaidplanScene } from "../../../api";
 import type { AssignCtx } from "../../../lib/raidplan/assign";
 import Mentions from "../../../components/raidplan/Mentions";
 import ReadTables from "../../../components/raidplan/editor/ReadTables";
@@ -14,7 +14,7 @@ import { useT } from "../../../i18n";
  * remembered with the sheet layout) makes the map narrower beside it instead of lying over it; the switch is only there where the window
  * has room for both.
  */
-export default function TasksPanel({ boss, title, ctx, meIds, names, loggedIn, loginHref, focusGroup, onFocusGroup, onClose, push = null }: {
+export default function TasksPanel({ boss, title, ctx, meIds, names, loggedIn, loginHref, focusGroup, onFocusGroup, onClose, push = null, scenes = [], onPlay }: {
     boss: RaidplanPublicBoss;
     title: string;
     ctx: AssignCtx;
@@ -28,6 +28,9 @@ export default function TasksPanel({ boss, title, ctx, meIds, names, loggedIn, l
     onClose?: () => void;
     /** the switch "Karte daneben"; null where the window has no room to put the map beside the panel */
     push?: { on: boolean; toggle: () => void } | null;
+    /** the section's playable animations and how one is played (a step with one shows "Animation", docs/raidplan/animation.md) */
+    scenes?: RaidplanScene[];
+    onPlay?: (sceneId: string) => void;
 }) {
     const t = useT();
     const steps = boss.steps || [];
@@ -52,7 +55,7 @@ export default function TasksPanel({ boss, title, ctx, meIds, names, loggedIn, l
                     : (
                         <>
                             <ReadTables assignments={boss.assignments} ctx={ctx} me={meIds} loggedIn={loggedIn} loginHref={loginHref} focusGroup={focusGroup} onFocusGroup={onFocusGroup} personal={false} />
-                            <ReadSteps steps={steps} ctx={ctx} me={meIds} onlyMine={false} />
+                            <ReadSteps steps={steps} ctx={ctx} me={meIds} onlyMine={false} scenes={scenes} onPlay={onPlay} />
                         </>
                     )}
             </div>

@@ -247,6 +247,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 .area-kader { --area: var(--area-kader); --area-soft: var(--area-kader-soft); }
 .area-channels { --area: var(--area-channels); --area-soft: var(--area-channels-soft); }
 .area-settings { --area: var(--area-settings); --area-soft: var(--area-settings-soft); }
+.area-system { --area: var(--area-system); --area-soft: var(--area-system-soft); }
 /* Which commit the server runs (#314). One quiet line above the user block —
    small, muted, the details in its tooltip; only the dot carries the tone. */
 .side-version { padding: 8px 14px; border-top: 1px solid var(--line-soft); display: flex; align-items: flex-start; gap: 8px; font-size: 11px; line-height: 1.4; color: var(--muted); cursor: default; }
@@ -285,7 +286,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 :root { --page-narrow: 1200px; }
 .content { padding: 24px; max-width: 1440px; width: 100%; min-width: 0; }
 .ov-page, .re-page, .rt-page, .sr-page, .an-page, .pf-page, .rc-page, .kn-page,
-.la-page, .hc-page,
+.la-page, .hc-page, .sy-page, .dg-page,
 .settings-panel:not([data-section="berechtigungen"]):not([data-section="kategorien"]) {
     max-width: var(--page-narrow);
 }
@@ -543,6 +544,8 @@ nav.menu::-webkit-scrollbar { display: none; }
 .ver-dot.ver-classic { background: var(--ver-classic); }
 .cswitch-seg .seg-opt { gap: 8px; min-height: var(--ctl-h-sm); padding: 0 14px; font-weight: 600; }
 .cswitch-seg .seg-opt.active { background: var(--accent); color: var(--accent-ink); }
+/* the dot would vanish on a fill of its own colour; the name beside it stays (colour is never the only sign) */
+.cswitch-seg .seg-opt.active .ver-dot { background: var(--accent-ink); }
 .cswitch-quiet { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .cswitch-chip { display: none; align-items: center; gap: 6px; min-height: var(--ctl-h-sm); padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 .cswitch-chip[aria-expanded="true"] { border-color: var(--accent); }
@@ -652,6 +655,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 [data-att="absence"] { --att: var(--att-absence); }
 [data-att="noSignup"] { --att: var(--att-nosignup); }
 [data-att="noShow"] { --att: var(--att-noshow); }
+[data-att="tentative"] { --att: var(--att-tentative); }
 .att-sq {
     position: relative; display: inline-grid; place-items: center; width: 24px; height: 24px; flex: 0 0 24px; padding: 0;
     border-radius: 5px; border: 2px solid var(--att, var(--line)); background: color-mix(in srgb, var(--att, var(--line)) 16%, transparent);

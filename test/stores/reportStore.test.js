@@ -56,6 +56,7 @@ const {
     saveReport,
     getReport,
     getReportRoster,
+    getReportHints,
     deleteReport,
     listReports,
     resetCache,
@@ -185,14 +186,26 @@ describe("stores/reportStore", () => {
         it("exposes the WCL report code + url, deriving the url from the code when absent", () => {
             const withUrl = saveReport({ title: "A", reportId: "abc", reportUrl: "https://x/y", players: [] });
             const codeOnly = saveReport({ title: "B", reportId: "def", players: [] });
+            const withHost = saveReport({ title: "D", reportId: "ghi", reportHost: "vanilla.warcraftlogs.com", players: [] });
             const neither = saveReport({ title: "C", players: [] });
             const byId = Object.fromEntries(listReports().map((r) => [r.id, r]));
             expect(byId[withUrl]).toMatchObject({ reportId: "abc", reportUrl: "https://x/y" });
+            // no fixed host (#746): the site of the report's version, TBC for an old one
             expect(byId[codeOnly]).toMatchObject({
                 reportId: "def",
-                reportUrl: "https://classic.warcraftlogs.com/reports/def",
+                reportUrl: "https://fresh.warcraftlogs.com/reports/def",
+                versionId: "tbc",
             });
+            expect(byId[withHost]).toMatchObject({ reportUrl: "https://vanilla.warcraftlogs.com/reports/ghi" });
             expect(byId[neither]).toMatchObject({ reportId: "", reportUrl: "" });
+        });
+
+        it("names the version of a report, TBC for one from before #746", () => {
+            const old = saveReport({ title: "Old", players: [] });
+            const forever = saveReport({ title: "New", versionId: "forever", players: [] });
+            const byId = Object.fromEntries(listReports().map((r) => [r.id, r]));
+            expect(byId[old].versionId).toBe("tbc");
+            expect(byId[forever].versionId).toBe("forever");
         });
 
         it("carries the halves and the raids with their boss count for the log list", () => {
@@ -295,5 +308,49 @@ describe("stores/reportStore", () => {
             fs.__store.set(path.join(REPORTS_DIR, "cafebabe01.json"), "{kaputt");
             expect(getReportRoster("cafebabe01")).toBeNull();
         });
+    });
+});
+
+describe("getReportHints", () => {
+    const report = () => ({
+        title: "BT",
+        roster: [{ name: "Thrall" }, { name: "Heilbert" }],
+        recommendations: {
+            raid: [],
+            players: [
+                { name: "Heilbert", type: "healer", items: [{ key: "k1", title: "a" }, { key: "k2", title: "b" }, { key: "k3", title: "c" }] },
+                { name: "Thrall", type: "dps", items: [{ key: "k1", title: "a" }] },
+                { name: "Gone", type: "dps", items: [{ key: "k1", title: "a" }] },
+            ],
+        },
+        recommendationReview: { players: { Heilbert: { k1: { approved: true }, k2: { approved: false }, k3: { approved: true } } } },
+    });
+
+    it("counts the approved recommendations per player and finds their player page", () => {
+        const id = saveReport(report());
+        const hints = getReportHints(id);
+        expect(hints.id).toBe(id);
+        expect(hints.players).toEqual({
+            heilbert: { name: "Heilbert", idx: 1, approved: 2 },
+            thrall: { name: "Thrall", idx: 0, approved: 0 },
+            gone: { name: "Gone", idx: -1, approved: 0 },
+        });
+    });
+
+    it("reads the file once until it changes", () => {
+        const id = saveReport(report());
+        getReportHints(id);
+        const reads = fs.readFileSync.mock.calls.length;
+        getReportHints(id);
+        expect(fs.readFileSync.mock.calls.length).toBe(reads);
+        saveReport({ ...report(), recommendationReview: {} }, id);
+        expect(getReportHints(id).players.heilbert.approved).toBe(0);
+    });
+
+    it("is null for a bad id or a missing report, and empty without recommendations", () => {
+        expect(getReportHints("../x")).toBeNull();
+        expect(getReportHints("abcdef99")).toBeNull();
+        const id = saveReport({ title: "old", roster: [] });
+        expect(getReportHints(id).players).toEqual({});
     });
 });

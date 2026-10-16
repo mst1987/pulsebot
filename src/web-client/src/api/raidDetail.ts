@@ -5,6 +5,7 @@ import type { Role, PingTarget, PingTargetInfo, ItemSearchResult, Raidsheet } fr
 import type { NotifyTemplate } from "./notifyTemplates";
 import type { LootItem } from "./history";
 import type { EventSignupEntry } from "./signups";
+import type { RaidGroup } from "./setup";
 
 /** Role bucket of a raidplan spec — mirrors roleOf() in src/utils/setupView.js. */
 export type SetupRole = "tank" | "healer" | "melee" | "ranged" | "dps";
@@ -171,9 +172,16 @@ export type RaidplanPostState = {
 
 export type RaidDetailData = {
     event: RaidDetailEvent;
+    /**
+     * The raid's stored game version (#737): a link to a raid of another version
+     * switches the menu's content version to it (#741, hooks/useFollowVersion).
+     */
+    versionId?: string;
     /** An event of a hidden game version (#563): the page opens as a read-only archive; null/missing = a normal event. */
     archived?: { versionId: string; label: string; short: string } | null;
     categoryName: string;
+    /** No raider role, no roster-only signup: open to everyone, a PuG raid (the head's "PuG" badge). */
+    openToAll?: boolean;
     /** Raid plan or sheet, after the category's choice; missing (an older server) = both are offered. */
     planning?: PlanningMode;
     guildId: string;
@@ -199,12 +207,16 @@ export type RaidDetailData = {
     eventSoftres: EventSoftres;
     softresCatalogue: SoftresCatalogueGroup[];
     softresEdition: string;
+    /** Softres switched off for the event's version (#761, Einstellungen → Spielversion). */
+    softresOff?: boolean;
     softresSuggested: string[];
     attendance: Attendance;
     /** An own event's signups with "kann auch" and comment; null for a Raid-Helper event. */
     ownSignups?: EventSignupEntry[] | null;
     /** An own event's setup state (#263): counts only, the lineup comes from GET /api/raids/setup. */
     ownSetup?: { status: "draft" | "approved"; changedSinceApproval: boolean; version: number; placed: number; size: number; bench: number; ok: boolean; approvedAt: number } | null;
+    /** The raids of the event's raid group (#811) — the head links them; null outside a group. */
+    raidGroup?: RaidGroup | null;
     /** Wo die freigegebene Setup-Nachricht steht (#290), soweit die Leiste sie nennt. */
     ownSetupPost?: { channelId: string; messageId: string; version: number; dms: { total: number; sent: number; failed: number } | null } | null;
     attendanceRoleIds: string[];

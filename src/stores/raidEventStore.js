@@ -1,5 +1,6 @@
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
+const { rulesFor } = require("../config/gameVersions");
 
 // Raid-Helper events the periodic/on-view scan (raidEventScan.js) has already
 // seen are snapshotted here — including their channel/category NAME, not just
@@ -8,14 +9,25 @@ const { createJsonStore } = require("./jsonStore");
 // window, or the event being cleaned up on their end) or its Discord channel is
 // renamed/deleted. Stored as a single JSON file next to the other editable
 // settings under data/settings/raid-events.json.
+//
+// `versionId` (#737): the game version the raid belongs to. The scan hands in
+// the version its category plays at the moment it first sees the raid
+// (mainVersionFor({ categoryId })); a later scan never overwrites it, so
+// switching `mainVersion` or `categoryVersion` afterwards moves no stored
+// raid. Snapshots from before #737 get it once from settingsMigration.js
+// (migrateVersions). Readers go through services/events/mainVersion.js'
+// versionOfEvent(), never the live config.
 const RAID_EVENTS_FILE = settingsPath("raid-events.json");
 
 const store = createJsonStore({
     file: RAID_EVENTS_FILE,
     defaults: () => [],
     normalize: (data) => (Array.isArray(data.events) ? data.events : []),
+    // Read on the dashboard, the raid lists and per event (getRaidEvent): parsed once per change.
+    cache: true,
 });
 
+/** Every snapshot, as a copy to change and write back. */
 function readAll() {
     return store.read();
 }
@@ -24,18 +36,40 @@ function writeAll(events) {
     store.write({ events });
 }
 
-/** All persisted events for a guild, newest start first. */
+/** All persisted events for a guild, newest start first. Copies, the caller may change them. */
 function listRaidEvents(guildId) {
     const id = String(guildId || "").trim();
-    return readAll()
+    return store.peek()
         .filter((e) => e && (!id || e.guildId === id))
+        .map((e) => structuredClone(e))
         .sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
 }
 
-/** A single persisted event by its Raid-Helper id, or null. */
+/** A single persisted event by its Raid-Helper id (a copy), or null. */
 function getRaidEvent(id) {
     if (!id) return null;
-    return readAll().find((e) => e.id === id) || null;
+    const hit = store.peek().find((e) => e.id === id);
+    return hit ? structuredClone(hit) : null;
+}
+
+// What a scan refreshes on a snapshot; `updatedAt` follows only a real change.
+// `versionId` is kept like `firstSeenAt`: set once, never refreshed.
+const SNAPSHOT_FIELDS = ["guildId", "title", "channelId", "channelName", "categoryId", "categoryName", "startTime", "signUps", "setup", "firstSeenAt", "versionId"];
+
+/** `id` when a rule set knows it, else "". */
+function knownVersion(id) {
+    const key = String(id || "").trim();
+    return key && rulesFor(key) ? key : "";
+}
+
+/** The version a snapshot keeps (#737): the stored one; only a snapshot without one takes the scan's. */
+function keptVersion(existing, incoming) {
+    return knownVersion(existing && existing.versionId) || knownVersion(incoming && incoming.versionId);
+}
+
+/** Whether `merged` says anything `existing` does not already hold. */
+function snapshotChanged(existing, merged) {
+    return SNAPSHOT_FIELDS.some((key) => JSON.stringify(existing[key]) !== JSON.stringify(merged[key]));
 }
 
 /**
@@ -52,12 +86,16 @@ function getRaidEvent(id) {
  * captured while it was still there — that emptiness means "we no longer know",
  * not "nobody signed up". This is what lets a past raid's detail page show the
  * roster as it was at raid time instead of "0 Anmeldungen, alle fehlen".
+ *
+ * The file is written only when a snapshot was added or changed; `updatedAt`
+ * is the moment of the last real change, not of the last scan.
  */
 function saveRaidEvents(list) {
     const events = readAll();
     const byId = new Map(events.map((e) => [e.id, e]));
     const now = Date.now();
     let added = 0;
+    let changed = 0;
     for (const data of list || []) {
         const id = String((data && data.id) || "").trim();
         if (!id) continue;
@@ -78,16 +116,62 @@ function saveRaidEvents(list) {
             firstSeenAt: (existing && existing.firstSeenAt) || now,
             updatedAt: now,
         };
+        const versionId = keptVersion(existing, data);
+        if (versionId) merged.versionId = versionId;
         if (existing) {
+            // A rescan that brings nothing new leaves the snapshot - and the file - alone.
+            if (!snapshotChanged(existing, merged)) continue;
             Object.assign(existing, merged);
+            changed += 1;
         } else {
             events.push(merged);
             byId.set(id, merged);
             added += 1;
         }
     }
-    if (list && list.length) writeAll(events);
+    // The dashboard scans on every view; rewriting an unchanged file each time was pure cost.
+    if (added || changed) writeAll(events);
     return added;
 }
 
-module.exports = { listRaidEvents, getRaidEvent, saveRaidEvents, RAID_EVENTS_FILE, useFile: store.useFile };
+// id -> stored versionId, built once per loaded file (peek() hands out the same
+// frozen array until the file changes), so a list asking per row stays linear.
+let versionIndex = { source: null, map: new Map() };
+
+/**
+ * The stored game version of a snapshot (#737), "" when there is no snapshot
+ * or it has none yet. No copy, one lookup.
+ */
+function versionOfRaidEvent(id) {
+    const key = String(id || "").trim();
+    if (!key) return "";
+    const all = store.peek();
+    if (versionIndex.source !== all) {
+        versionIndex = { source: all, map: new Map(all.filter((e) => e && e.id).map((e) => [e.id, knownVersion(e.versionId)])) };
+    }
+    return versionIndex.map.get(key) || "";
+}
+
+/**
+ * One-off upgrade at start (#737, settingsMigration.js): every snapshot
+ * without a (known) version gets `versionOf(snapshot)` — the version its
+ * category plays today, so in practice TBC. `updatedAt` stays (no scan
+ * changed anything). Idempotent: writes only when something changed.
+ * @param {(snapshot: object) => string} versionOf
+ * @returns {Record<string, number>} how many snapshots got which version
+ */
+function migrateVersions(versionOf) {
+    const events = readAll();
+    const counts = {};
+    for (const e of events) {
+        if (!e || typeof e !== "object" || knownVersion(e.versionId)) continue;
+        const versionId = knownVersion(versionOf(e));
+        if (!versionId) continue;
+        e.versionId = versionId;
+        counts[versionId] = (counts[versionId] || 0) + 1;
+    }
+    if (Object.keys(counts).length) writeAll(events);
+    return counts;
+}
+
+module.exports = { listRaidEvents, getRaidEvent, saveRaidEvents, versionOfRaidEvent, migrateVersions, RAID_EVENTS_FILE, useFile: store.useFile };

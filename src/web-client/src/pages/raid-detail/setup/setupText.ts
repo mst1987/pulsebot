@@ -2,13 +2,36 @@ import type { SetupActivity, SetupAttendance, SetupPerson } from "../../../api";
 import { specLabel } from "../../../lib/wow/wowNames";
 import { t } from "../../../i18n";
 import { formatWith } from "../../../lib/format";
+import { SIGNUP_STATUS } from "../../../lib/signups/status";
 
-/** The signup states a slot shows a marker for, in the active language. */
+/**
+ * The word of a marked signup state (late, tentative, bench) — the app's one
+ * vocabulary (lib/signups/status.ts, the signup page and Discord): "Spät",
+ * "Vielleicht", "Bank" / "Late", "Tentative", "Bench"; "" for a plain signup.
+ */
 export function statusLabel(status: string | undefined): string {
-    if (status === "late") return t("setup.person.status.late");
-    if (status === "tentative") return t("setup.person.status.tentative");
-    if (status === "bench") return t("setup.person.status.bench");
-    return "";
+    const marked = markedStatus(status);
+    return marked ? SIGNUP_STATUS[marked].label : "";
+}
+
+/** The word of any signup state, a plain one included ("Angemeldet" / "Signed up"). */
+export function statusWord(status: string | undefined): string {
+    return SIGNUP_STATUS[markedStatus(status) || "signed"].label;
+}
+
+/** The signup states that are not a plain "dabei" — they get a labelled badge on the line. */
+export const MARKED_STATUSES = ["late", "tentative", "bench"] as const;
+export type MarkedStatus = typeof MARKED_STATUSES[number];
+
+/** The state a line is marked with: late, tentative or bench — "" for a plain signup. */
+export function markedStatus(status: string | undefined): MarkedStatus | "" {
+    return (MARKED_STATUSES as readonly string[]).includes(status || "") ? status as MarkedStatus : "";
+}
+
+/** The order inside a role block of "Angemeldet": signed first, then late, tentative, bench. */
+export function statusRank(status: string | undefined): number {
+    const marked = markedStatus(status);
+    return marked ? MARKED_STATUSES.indexOf(marked) + 1 : 0;
 }
 
 /** A raider's spec in the active language — the server's label as fallback. */
@@ -104,9 +127,10 @@ export function agoText(at: number, now: number): string {
     return t("setup.live.minutesAgo", { count: Math.round(s / 60) });
 }
 
-/** Who the search finds: the character, the Discord name, the spec. */
+/** Who the search finds: the character, the Discord name, the spec — and every other character they signed up with (#293) and its spec. */
 export function matchesQuery(p: SetupPerson, query: string): boolean {
     const q = query.trim().toLowerCase();
     if (!q) return true;
-    return [p.character, p.name, specText(p)].some((x) => String(x || "").toLowerCase().includes(q));
+    const others = (p.characters || []).flatMap((c) => [c.character, specLabel(c.spec, c.specLabel || c.spec)]);
+    return [p.character, p.name, specText(p), ...others].some((x) => String(x || "").toLowerCase().includes(q));
 }

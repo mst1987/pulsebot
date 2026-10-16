@@ -1,0 +1,61 @@
+/* ── Addons (pages/addon/AddonPage.tsx, #818) ──────────
+   One card per addon: head, description, download buttons, "Was ist neu?",
+   the install steps. Plus the few pieces of Einstellungen → Addons
+   (pages/settings/AddonsSection.tsx). Tokens only.
+
+   The prefix is "dlp-" (download page), NEVER "ad-": ad blockers hide
+   .ad-card and .ad-grid (EasyList's generic rules), and with them every card
+   of this page, while the rest of it stayed - a page with a head and a foot
+   and nothing between. test/web-client/conventions/adBlockClasses.test.js. */
+
+.dlp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+.dlp-card { scroll-margin-top: 16px;
+    display: flex; flex-direction: column; gap: 12px; padding: 20px; min-width: 0;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
+}
+.dlp-card-head { display: flex; align-items: center; gap: 14px; }
+.dlp-card-head h2 { margin: 0 0 2px; font-size: 19px; }
+.dlp-card-head .wi { width: 40px; height: 40px; border-radius: 8px; flex: 0 0 auto; }
+.dlp-version { font-size: 14px; }
+.dlp-card .muted, .dlp-foot { color: var(--muted); }
+.dlp-desc { margin: 0; font-size: 14.5px; line-height: 1.45; }
+
+.dlp-files { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.dlp-download { max-width: 100%; text-decoration: none; overflow-wrap: anywhere; text-align: left; }
+
+.dlp-stale { margin: 0; padding: 8px 10px; border-radius: 8px; font-size: 13.5px; background: var(--medium-bg); color: var(--text); }
+.dlp-state { margin: 0; font-size: 14px; }
+.dlp-admin {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 12px; border-radius: 8px;
+    background: var(--medium-bg); border: 1px solid color-mix(in srgb, var(--medium) 35%, transparent);
+}
+.dlp-banner { margin-bottom: 16px; }
+
+.dlp-news { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.dlp-notes {
+    width: 100%; max-height: 320px; overflow: auto; padding: 10px 12px; border-radius: 8px;
+    background: var(--panel2); border: 1px solid var(--line); font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+.dlp-install { padding-top: 10px; border-top: 1px solid var(--line); }
+.dlp-install h3 { margin: 0 0 6px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.dlp-install ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; overflow-wrap: anywhere; }
+
+.dlp-foot { margin: 16px 0 0; font-size: 13px; }
+.dlp-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.dlp-empty p { margin: 0; }
+.dlp-error { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.dlp-error p { margin: 0; }
+
+/* Einstellungen → Addons */
+.dlp-token-hint { margin-bottom: 14px; flex-wrap: wrap; }
+.dlp-restore { display: flex; justify-content: flex-end; margin-top: 12px; }
+/* "Downloadzentrale im Discord" under the list (AddonCenterCard, design board 4) */
+.dlp-center { margin-top: 16px; display: flex; flex-direction: column; gap: 14px; }
+.dlp-center > .list-head-text { flex: none; }
+.dlp-center .list-head-text h2 { font-size: 18px; }
+.dlp-center-actions { margin-top: 0; padding-top: 14px; border-top: 1px solid var(--line); }
+.dlp-icon-field { display: flex; align-items: center; gap: 8px; }
+.dlp-icon-field .wi { width: 28px; height: 28px; border-radius: 6px; flex: 0 0 auto; }
+.dlp-name-cell { display: inline-flex; align-items: center; gap: 8px; }
+.dlp-name-cell .wi { border-radius: 4px; }

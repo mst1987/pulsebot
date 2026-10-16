@@ -1,5 +1,8 @@
 import { get, send } from "./client";
 import type { GameRole, GameClass } from "./raidTemplates";
+import type { CharLootPreview } from "./history";
+import type { RosterStatus } from "./roster";
+import type { ItemSearchResult } from "./settings";
 
 // ---- Mein Profil (#255, src/web/apiRoutes/profile.js) ----
 
@@ -33,6 +36,11 @@ export type ProfileCharacter = {
     source: "log" | "armory" | "manual";
     armory: { level: number | null; guild: string; fetchedAt: number } | null;
     armoryUrl: string;
+    /**
+     * Does it exist in game — seen in a log or the loot, answered by the armory, or
+     * checked by the orga. Unconfirmed: the guild bank cannot mail to it.
+     */
+    evidence?: { verified: boolean; via: "" | "log" | "loot" | "armory" | "orga" };
     specs: ProfileSpec[];
     /** "Kann offtanken / heilen" of this character — its own word, else what its specs allow. */
     canOfftank: boolean;
@@ -42,7 +50,18 @@ export type ProfileCharacter = {
     possible: { canOfftank: boolean; canHeal: boolean };
     /** Other accounts that added the same character. */
     claimedBy: { userId: string; name: string }[];
+    /** Part 2, freely given: main professions of its version (at most two; skill null = none kept). */
+    professions?: ProfileProfession[];
+    /** Part 2: wish items (at most ten, Loot-Council rosters only) - only the raider and the orga read them. */
+    wishItems?: ProfileWishItem[];
 };
+
+export type ProfileProfession = { id: string; skill: number | null };
+
+export type ProfileWishItem = { itemId: number; name: string; icon: string; iconUrl: string; quality: number | null; link: string };
+
+/** A version's main professions from its rule set; empty = the version has no list (yet). */
+export type ProfessionList = { professions: { id: string; label: string; labelEn: string; icon: string }[]; skillMax: number | null };
 
 export type RaiderProfile = {
     userId: string;
@@ -53,6 +72,8 @@ export type RaiderProfile = {
     canHeal: boolean;
     suggested: { canOfftank: boolean; canHeal: boolean };
     availability: string[];
+    /** "ab HH:MM" per chosen weekday (quarter hours); a day without = the whole evening. Info for the orga. */
+    availabilityFrom?: Record<string, string>;
     preferredRaids: string[];
     /** For the owner: whom they wished for — never whether it is mutual. */
     wishes: (RaiderRef & { mutual?: boolean })[];
@@ -87,19 +108,27 @@ export type ProfileData = {
     raidGroups: ProfileRaidGroup[];
     weekdays: { id: string; label: string }[];
     gearLevels: { id: GearLevel; label: string }[];
-    limits: { characters: number; wishes: number; avoid: number; note: number };
+    limits: { characters: number; wishes: number; avoid: number; note: number; professions?: number; wishItems?: number; timeStep?: number };
+    /** Each version's main professions (part 2); a version without = no "Berufe" part. */
+    professionsByVersion?: Record<string, ProfessionList>;
 };
 
 export type ProfileVersion = { id: string; label: string; short: string; lastName: boolean };
 
 export type ProfilePatch = {
     availability?: string[];
+    availabilityFrom?: Record<string, string>;
     preferredRaids?: string[];
     wishes?: string[];
     avoidEnabled?: boolean;
     avoid?: string[];
     note?: string;
-    characters?: { key: string; specs?: { key: string; gear: GearLevel }[]; canOfftank?: boolean; canHeal?: boolean }[];
+    characters?: {
+        key: string; specs?: { key: string; gear: GearLevel }[]; canOfftank?: boolean; canHeal?: boolean;
+        professions?: ProfileProfession[];
+        /** Item ids: new ones are looked up on the version's Wowhead by the server. */
+        wishItems?: number[];
+    }[];
     /** The characters' keys in the raider's order — the first of a version is the one suggested for it (there is no main). */
     order?: string[];
 };
@@ -110,7 +139,8 @@ export type LogCharacterSuggestion = {
     specKey: string;
     reports: number;
     lastSeen: number;
-    match: "assigned" | "name" | "";
+    /** Why it is suggested; "similar" = looks like a typo of the character being set right. */
+    match: "similar" | "assigned" | "name" | "";
     claimedBy: { userId: string; name: string }[];
 };
 
@@ -136,8 +166,9 @@ export function saveProfile(patch: ProfilePatch): Promise<{ profile: RaiderProfi
     return send("PUT", "/api/profile", patch);
 }
 
-export function getLogCharacters(q = ""): Promise<{ characters: LogCharacterSuggestion[] }> {
-    return get(`/api/profile/log-characters?q=${encodeURIComponent(q)}`);
+/** `near` = an own character's key being set right: the logged names that look like a typo of it come first. */
+export function getLogCharacters(q = "", near = ""): Promise<{ characters: LogCharacterSuggestion[] }> {
+    return get(`/api/profile/log-characters?q=${encodeURIComponent(q)}${near ? `&near=${encodeURIComponent(near)}` : ""}`);
 }
 
 export function addProfileCharacter(input: AddCharacterInput): Promise<{
@@ -152,12 +183,119 @@ export function removeProfileCharacter(key: string): Promise<{ removed: boolean;
     return send("POST", "/api/profile/characters", { remove: key });
 }
 
+/**
+ * Who a character is — what an edit may change; a field left out stays. `specs`
+ * are spec keys, each keeps its gear. `fromLog` = the logged character of that
+ * name instead (name and class from the logs, it counts as "aus den Logs").
+ */
+export type CharacterEditInput = { name?: string; realm?: string; className?: string; specs?: string[]; fromLog?: string };
+
+/** What an edit moved along with a new name (rosters, signups, …) — counts per place; null when the name stayed. */
+export type CharacterEditMoved = { rosters: number; assignments: number; signups: number; guildBank: number; availability: number } | null;
+
+export type CharacterRename = { fromKey: string; toKey: string; fromName: string; toName: string; versionId: string } | null;
+
+export function editProfileCharacter(key: string, input: CharacterEditInput): Promise<{
+    character: ProfileCharacter;
+    renamed: CharacterRename;
+    moved: CharacterEditMoved;
+    profile: RaiderProfile;
+}> {
+    return send("POST", "/api/profile/characters", { edit: key, ...input });
+}
+
+// ---- Alle Charaktere — the orga's tab on the profile page (src/web/apiRoutes/characters.js) ----
+
+/** One raider in the orga's list: the account and its characters. */
+export type CharacterOwner = { userId: string; name: string; characters: ProfileCharacter[] };
+
+export function getAllCharacters(): Promise<{ raiders: CharacterOwner[] }> {
+    return get("/api/characters");
+}
+
+/** The logged characters a raider could be, the typos of character `key` first. */
+export function getLogCharactersOf(userId: string, key: string, q = ""): Promise<{ characters: LogCharacterSuggestion[] }> {
+    return get(`/api/characters/log-suggestions?userId=${encodeURIComponent(userId)}&key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}`);
+}
+
+export function editCharacterOf(userId: string, key: string, input: CharacterEditInput): Promise<{
+    key: string;
+    renamed: CharacterRename;
+    moved: CharacterEditMoved;
+    raider: CharacterOwner;
+}> {
+    return send("POST", "/api/characters/edit", { userId, key, ...input });
+}
+
+export function saveCharacterOf(userId: string, key: string, patch: { specs?: { key: string; gear: GearLevel }[]; canOfftank?: boolean; canHeal?: boolean }): Promise<{ raider: CharacterOwner }> {
+    return send("POST", "/api/characters/save", { userId, key, ...patch });
+}
+
+export function removeCharacterOf(userId: string, key: string): Promise<{ removed: boolean; raider: CharacterOwner }> {
+    return send("POST", "/api/characters/remove", { userId, key });
+}
+
 export function searchRaiders(q: string): Promise<{ raiders: RaiderRef[] }> {
     return get(`/api/profile/raiders?q=${encodeURIComponent(q)}`);
 }
 
 export function getCharacterClaims(): Promise<{ claims: CharacterClaim[] }> {
     return get("/api/roster/character-claims");
+}
+
+// ---- The character tabs: roster, loot, dungeons (src/services/characters/profileRaiding.js) ----
+
+/** The raider's own membership in an open roster of the shown version. */
+export type ProfileRosterMembership = {
+    id: string;
+    name: string;
+    categoryId: string;
+    status: RosterStatus;
+    /** ISO date, "" unknown. */
+    since: string;
+    trialUntil: string | null;
+    /** The profile keys of the characters this roster lists for the raider. */
+    chars: string[];
+    charNames: Record<string, string>;
+    /** The orga's spec for the first character, null = "automatisch". */
+    spec: { key: string; label: string; icon: string } | null;
+};
+
+export type ProfileLoot = { count: number; lastAt: number; items: (CharLootPreview & { boss: string })[] };
+
+/** LevelHelper data of one character (WoW Forever); the tab shows no block without it. */
+export type ProfileDungeons = {
+    /** Achievement points, null when the addon reported runs but no reading of the character. */
+    points: number | null;
+    pointsRank: number | null;
+    /** How many characters of the version the addon has a points reading of — the field `pointsRank` is a place in. */
+    characters: number;
+    medals: { gold: number; silver: number; bronze: number };
+    runs: number;
+    dungeons: number;
+    /** Its fastest run per dungeon; `place` among all runs of that dungeon, ranked as the dungeon page does. */
+    best: { dungeon: string; seconds: number; medal: "gold" | "silver" | "bronze" | null; place: number; runsOfDungeon: number; finishedAt: number; others: number }[];
+};
+
+export type ProfileRaiding = {
+    versionId: string;
+    /** Whether the version has dungeon best times (feature "dungeonTimes", WoW Forever) - without, no character has a dungeon block. */
+    dungeonTimes: boolean;
+    rosters: ProfileRosterMembership[];
+    /** By profile character key, only the shown version's characters. */
+    characters: Record<string, { loot: ProfileLoot; dungeons: ProfileDungeons | null; lootCouncil?: boolean }>;
+};
+
+/** Wowhead's items for a name on a version's section - the wish items picker ("" = the main version). */
+export function searchProfileItems(q: string, version = ""): Promise<{ items: ItemSearchResult[] }> {
+    const query = new URLSearchParams({ q });
+    if (version) query.set("version", version);
+    return get(`/api/profile/item-search?${query.toString()}`);
+}
+
+/** The own characters' roster status, loot and dungeon data of one version ("" = the server's main version). */
+export function getProfileRaiding(version = ""): Promise<ProfileRaiding> {
+    return get(version ? `/api/profile/raiding?version=${encodeURIComponent(version)}` : "/api/profile/raiding");
 }
 
 // ---- Kalender-Abo (#312) ----

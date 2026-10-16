@@ -12,6 +12,9 @@ const { listSignups } = require("../../stores/signupStore");
 const { listRaidEvents, getRaidEvent } = require("../../stores/raidEventStore");
 const { getConfig } = require("../../stores/settingsStore");
 const { ALIASES } = require("../../config/classlist");
+const { categoryNameAt } = require("./categoryEras");
+const { visibleRows, versionOfEvent } = require("./mainVersion");
+const { signupEventIdOf, raidIndexOf } = require("../../utils/raidGroup");
 
 const SOURCES = ["raidhelper", "eventhelper"];
 const DEFAULT_SOURCE = "raidhelper";
@@ -124,7 +127,11 @@ function ownSignUps(eventId) {
     return listSignups(eventId).map(toSignUpShape);
 }
 
-/** Channel/category name: the live Discord join first, the stored name second. */
+/**
+ * Channel/category name: the live Discord join first, the stored name second.
+ * The category name is the current one; a single raid shows the name of its
+ * section instead (withEraName, #744).
+ */
 function placement(ev, catMap) {
     const meta = (catMap || {})[ev.channelId];
     return {
@@ -134,11 +141,31 @@ function placement(ev, catMap) {
     };
 }
 
+/** The stored config the section names come from, read once per list (categoryEras reads configStore). */
+function erasConfig() {
+    try {
+        return require("../../stores/configStore").getConfig() || {};
+    } catch {
+        return {};
+    }
+}
+
+/**
+ * A raid row (either source) with the category name it shows (#744): a raid
+ * of a closed section of its category keeps the name the category had then
+ * (categoryEras.categoryNameAt), every other one the name it carries.
+ */
+function withEraName(row, { config } = {}) {
+    if (!row || !row.categoryId) return row;
+    const name = categoryNameAt(row.categoryId, row.startTime, row.categoryName || "", { config });
+    return name === (row.categoryName || "") ? row : { ...row, categoryName: name };
+}
+
 /** What only an own event carries, kept on every shape it is handed out in. */
 function planFields(ev) {
     return {
         versionId: ev.versionId, instanceIds: ev.instanceIds, size: ev.size,
-        composition: ev.composition, signupDeadline: ev.signupDeadline,
+        composition: ev.composition, signupDeadline: ev.signupDeadline, overflow: ev.overflow,
         // #305: how long the raid takes and where it meets (a voice channel).
         durationMinutes: ev.durationMinutes, voiceChannelId: ev.voiceChannelId || "",
         // #307: colour and picture of the event message, so the edit dialog
@@ -146,13 +173,34 @@ function planFields(ev) {
         color: ev.color || "", image: ev.image || { mode: "thumbnail", url: "" },
         // #288: readers skip or mark a cancelled event (reminders, talk overview).
         status: ev.status || "active", signupsClosed: !!ev.signupsClosed,
+        // the cancellation's reason and author, for the lists that mark a cancelled raid
+        cancel: ev.cancel || null,
+        // #811: a raid group — the first raid's id on every raid of it ("" = none) and the raid's place
+        raidGroupId: ev.raidGroupId || "", raidGroupIndex: ev.raidGroupId ? raidIndexOf(ev) : 0,
+    };
+}
+
+/**
+ * A cancelled own event (Event verwalten, #288) as the list marks it: the flag,
+ * the reason and who cancelled when (ms). Raid-Helper events know no cancellation.
+ * Same names as the signup view (`cancelled`, `cancelReason`).
+ */
+function cancelFields(ev) {
+    const cancelled = !!ev && ev.source === "eventhelper" && ev.status === "cancelled";
+    const cancel = (cancelled && ev.cancel) || {};
+    return {
+        cancelled,
+        cancelReason: cancel.reason || "",
+        cancelledAt: Number(cancel.at) || 0,
+        cancelledByName: cancel.byName || "",
     };
 }
 
 /** An own event as a row of loadEventGroups()'s groups. */
 function toEventGroupShape(ev, { catMap, signUps } = {}) {
     const place = placement(ev, catMap);
-    const rows = signUps || ownSignUps(ev.id);
+    // a further raid of a raid group (#811) shares the first raid's signups
+    const rows = signUps || ownSignUps(signupEventIdOf(ev));
     return {
         id: ev.id,
         source: "eventhelper",
@@ -168,16 +216,16 @@ function toEventGroupShape(ev, { catMap, signUps } = {}) {
         signUps: rows,
         signUpsFromSnapshot: false,
         ...planFields(ev),
-        // categoryName is not part of a group row (the group carries it); the
-        // caller places the row under it.
+        // The group carries the category's current name; the caller places the
+        // row under it (and gives the row the name of its section, #744).
         _categoryName: place.categoryName,
     };
 }
 
 /** An own event as a loadMatchableEvents() row. */
-function toMatchableShape(ev, { catMap } = {}) {
+function toMatchableShape(ev, { catMap, config } = {}) {
     const place = placement(ev, catMap);
-    return {
+    return withEraName({
         id: ev.id,
         source: "eventhelper",
         title: ev.title,
@@ -186,12 +234,16 @@ function toMatchableShape(ev, { catMap } = {}) {
         channelName: place.channelName,
         categoryId: place.categoryId,
         categoryName: place.categoryName,
-    };
+        versionId: ev.versionId || "",
+        // #811: the raids of one group start together — the log matching tells them apart (logEventMatch.siblingPick)
+        raidGroupId: ev.raidGroupId || "",
+        raidGroupIndex: ev.raidGroupId ? raidIndexOf(ev) : 0,
+    }, { config });
 }
 
 /** An own event in the shape of a raidEventStore snapshot row. */
-function toStoredShape(ev) {
-    return {
+function toStoredShape(ev, { config } = {}) {
+    return withEraName({
         id: ev.id,
         source: "eventhelper",
         guildId: ev.guildId,
@@ -204,7 +256,7 @@ function toStoredShape(ev) {
         signUps: ownSignUps(ev.id),
         setup: [],
         ...planFields(ev),
-    };
+    }, { config });
 }
 
 /**
@@ -239,18 +291,26 @@ function toRaidHelperShape(ev) {
 function ownEventGroupRows(guildId, { sinceSeconds, catMap, now = Date.now() } = {}) {
     if (!guildId) return [];
     const lower = sinceSeconds || Math.floor(now / 1000);
-    return listEvents(guildId, { sinceSeconds: lower }).map((ev) => {
+    // the further raids of a raid group too (#811): the raid list shows them under the first raid
+    return listEvents(guildId, { sinceSeconds: lower, siblings: true }).map((ev) => {
         const row = toEventGroupShape(ev, { catMap });
         const { _categoryName, ...clean } = row;
         return { categoryId: clean.categoryId, categoryName: _categoryName, row: clean };
     });
 }
 
-/** Own events that already started within [fromSeconds, now], for log/loot matching. */
-function ownMatchableEvents(guildId, fromSeconds, { catMap, now = Date.now() } = {}) {
+/**
+ * Own events that start within [fromSeconds, untilSeconds], for log/loot matching.
+ * `untilSeconds` defaults to now (already started); the log matching passes a
+ * bit beyond now, since a log is often posted shortly before the raid starts.
+ */
+function ownMatchableEvents(guildId, fromSeconds, { catMap, now = Date.now(), untilSeconds } = {}) {
     if (!guildId) return [];
-    return listEvents(guildId, { sinceSeconds: fromSeconds, untilSeconds: Math.floor(now / 1000) })
-        .map((ev) => toMatchableShape(ev, { catMap }));
+    const config = erasConfig();
+    const until = Number.isFinite(Number(untilSeconds)) && Number(untilSeconds) > 0 ? Math.floor(untilSeconds) : Math.floor(now / 1000);
+    // a log of a further raid of a raid group (#811) belongs to that raid
+    return listEvents(guildId, { sinceSeconds: fromSeconds, untilSeconds: until, siblings: true })
+        .map((ev) => toMatchableShape(ev, { catMap, config }));
 }
 
 /** Own upcoming events of a guild in Raid-Helper's raw list shape, soonest first. */
@@ -269,7 +329,8 @@ function ownUpcomingRaw(guildId, { now = Date.now(), categoryId } = {}) {
 function ownSignedUpEvents(userId, { now = Date.now() } = {}) {
     const uid = String(userId || "");
     if (!uid) return [];
-    return listEvents("", { sinceSeconds: Math.floor(now / 1000) })
+    // Other versions hidden (#563): a raid of a hidden version is archive, its setup is not listed.
+    return visibleRows(listEvents("", { sinceSeconds: Math.floor(now / 1000) }), (ev) => versionOfEvent(ev))
         .filter((ev) => listSignups(ev.id).some((s) => String(s.userId) === uid && s.status !== "absence"))
         .map(toRaidHelperShape);
 }
@@ -279,9 +340,11 @@ function ownSignedUpEvents(userId, { now = Date.now() } = {}) {
  * snapshot (raidEventStore.js, which only holds raids that already took place)
  * plus the own events that already started. The drop-in for listRaidEvents().
  */
-function listStoredEvents(guildId, { now = Date.now() } = {}) {
-    const rh = listRaidEvents(guildId).map((e) => ({ source: "raidhelper", ...e }));
-    const own = listEvents(guildId, { untilSeconds: Math.floor(now / 1000) }).map(toStoredShape);
+function listStoredEvents(guildId, { now = Date.now(), siblings = false } = {}) {
+    const config = erasConfig();
+    const rh = listRaidEvents(guildId).map((e) => withEraName({ source: "raidhelper", ...e }, { config }));
+    // without the further raids of a raid group (#811) unless asked: a night of a group counts once
+    const own = listEvents(guildId, { untilSeconds: Math.floor(now / 1000), siblings }).map((ev) => toStoredShape(ev, { config }));
     return [...rh, ...own].sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
 }
 
@@ -309,7 +372,7 @@ function getStoredEvent(id) {
         return ev ? toStoredShape(ev) : null;
     }
     const snap = getRaidEvent(id);
-    return snap ? { source: "raidhelper", ...snap } : null;
+    return snap ? withEraName({ source: "raidhelper", ...snap }) : null;
 }
 
 module.exports = {
@@ -317,4 +380,5 @@ module.exports = {
     specNameFor, specKeyFromRaidHelper, signupSourceFor, defaultSignupSource, sourceOfEventId,
     toSignUpShape, ownSignUps, toEventGroupShape, toMatchableShape, toStoredShape, toRaidHelperShape,
     ownEventGroupRows, ownMatchableEvents, ownUpcomingRaw, ownSignedUpEvents, ownEventInChannel, listStoredEvents, getStoredEvent,
+    withEraName, cancelFields,
 };

@@ -626,6 +626,7 @@
           }
         }
       ],
+      "scenes": [],
       "showMap": false,
       "autoPlace": false,
       "autoPos": {
@@ -926,6 +927,7 @@
       ],
       "assignments": [],
       "steps": [],
+      "scenes": [],
       "showMap": true,
       "autoPlace": true,
       "autoPos": {},
@@ -963,6 +965,7 @@
       "targets": [],
       "assignments": [],
       "steps": [],
+      "scenes": [],
       "showMap": true,
       "autoPlace": true,
       "autoPos": {},
@@ -1000,6 +1003,7 @@
       "targets": [],
       "assignments": [],
       "steps": [],
+      "scenes": [],
       "showMap": true,
       "autoPlace": true,
       "autoPos": {},

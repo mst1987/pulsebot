@@ -3,9 +3,11 @@ const { requireFullAdmin } = require("../http/apiMiddleware");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
 const {
-    getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates,
+    getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates, getRaidTemplate,
 } = require("../../stores/settingsStore");
-const { normalizeCategoryLanguagePatch, attendanceSettings } = require("../../stores/configSchema");
+const { normalizeCategoryLanguagePatch, attendanceSettings, normalizeCategoryVersion, DISCORD_VISUALS_DEFAULT } = require("../../stores/configSchema");
+const { switchPreview, versionSwitches, applySeriesFix, notifyCategoryVersionSwitch } = require("../../services/events/categorySwitch");
+const categoryLifecycle = require("../../services/events/categoryLifecycle");
 const {
     listTokens: listIngestTokens, createToken: createIngestToken, revokeToken: revokeIngestToken,
 } = require("../../stores/ingestTokenStore");
@@ -23,15 +25,20 @@ const {
     AREAS, normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,
 } = require("../../config/permissions");
 const { normalizeBotCommandAccess } = require("../../config/botCommands");
+const { normalizeAddonList, defaultAddons } = require("../../services/addons/addonConfig");
 const { VERSIONS } = require("../../config/gameVersions");
 const versionSettings = require("../../services/events/versionSettings");
+const { capabilityMatrix } = require("../../services/events/versionCapabilities");
+const { isVersionFeature, normalizeDisabled } = require("../../config/versionFeatures");
 const { mainVersionFor } = require("../../services/events/mainVersion");
 const { normalizeCategoryPlanning } = require("../../services/events/planning");
+const { normalizeCategorySignupCharacters } = require("../../services/signups/signupCharacters");
 const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../services/events/contentVersions");
 // Makes Excel read the umlauts of an archive CSV as UTF-8.
 const BOM = String.fromCharCode(0xfeff);
-const { defaultVersionSettings } = require("../../stores/versionSettingsSchema");
+const { defaultVersionSettings, defaultColorOf } = require("../../stores/versionSettingsSchema");
 const { expectedRoleIds, syncRosterRoleIds } = require("../../services/roster/categoryRoles");
+const { switchRosterPreview } = require("../../services/roster/rosterVersionSwitch");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
 
@@ -165,14 +172,21 @@ function normalizeCategorySheets(raw) {
 
 // Config keys that decide who gets into the menu — only full admins may change
 // them, so a role with write access to "Einstellungen" can't grant itself more.
-const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess", "userPermissions", "botCommandAccess"];
+const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess", "userPermissions", "botCommandAccess", "orgaRoleIds"];
 
 // Config keys that hold a credential to a foreign system the bot pays for or
 // acts through (the Anthropic key, the Warcraft Logs API client). Full-admin
 // only as well: a limited settings user neither sees whether one is set nor
 // can replace it with their own. The client mirrors this with `adminOnly` on
 // the section (src/web-client/src/lib/settings/settingsSections.ts).
-const CREDENTIAL_KEYS = ["anthropic", "warcraftlogsV2"];
+// The GitHub token (#818) reads the private addon repos.
+const CREDENTIAL_KEYS = ["anthropic", "warcraftlogsV2", "github"];
+
+// The addon downloads (#818): which repos the server fetches files from with
+// the GitHub token and hands to every member — guarded like the token itself.
+// `addonDownloadsReset` is no config key, only the body's "Standard
+// wiederherstellen"; the edit mark is set by the server alone.
+const ADDON_KEYS = ["addonDownloads", "addonDownloadsCustomized", "addonDownloadsReset"];
 
 // Which Discord server is the event server and which the talk server (#251).
 // Full-admin only: the event server is where the admin-role check runs, so
@@ -185,7 +199,7 @@ const GUILD_KEYS = ["discordServers"];
 const ROLE_SYNC_KEYS = ["roleSync"];
 
 // Everything a non-admin settings user may neither read nor write.
-const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS];
+const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS, ...ADDON_KEYS];
 
 const DISCORD_SERVER_FIELDS = ["talkGuildId", "talkPingChannelId", "signupNoteChannelId", "guildBankChannelId"];
 
@@ -220,10 +234,12 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // settings user needs no raid rights to pick one.
         raidTemplates: listRaidTemplates().map((t) => ({ id: t.id, name: t.name, versionId: t.versionId, size: t.size })),
         // Einstellungen → Spielversion (#541): the versions to pick from, names only.
-        gameVersions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short })),
+        gameVersions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short, color: defaultColorOf(v.id) })),
         // The standard values per version (#553) for "Standardwerte übernehmen";
         // an all-empty block = the version has none yet (Forever).
         versionDefaults: defaultVersionSettings(config.versionSettings),
+        // "Funktionen je Version" (#761): per version and feature: possible, switched on, why not.
+        versionCapabilities: capabilityMatrix({ config }),
         // "Andere Versionen ausblenden" (#563): the coming raids per version, for the warning.
         upcomingByVersion: upcomingByVersion({ config }),
         // The versions with data (#563): the archive export names only those.
@@ -238,6 +254,9 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // The channel picker of "Nachricht bei Vielleicht/Absage" per category (#335).
         noteChannels: noteChannels(config),
         bot: botStatus(guildId),
+        // #744: configured categories Discord no longer has (only when the bot sees
+        // every event server), each with what "Kategorie abschließen" would remove.
+        missingCategories: missingCategoriesOf(config),
         // The two server cards (cheap: names, member counts, rights). The member
         // overlap needs a full member fetch and loads with the section itself.
         servers: user.isAdmin ? serverCards(config) : null,
@@ -328,7 +347,8 @@ const getReminders = withUser({}, async ({ res }) => {
     const ids = [...new Set([...(config.categoryIds || []), ...Object.keys(config.categoryReminders || {})])];
     ok(res, {
         categoryReminders: config.categoryReminders || {},
-        categories: ids.map((id) => ({ id, name: names.get(id) || "", roleCount: expectedRoleIds(id, config).length })),
+        // `active: false`: a deactivated category (#744) — its rule stays, but it reminds nobody.
+        categories: ids.map((id) => ({ id, name: names.get(id) || "", roleCount: expectedRoleIds(id, config).length, active: categoryLifecycle.isCategoryActive(id, config) })),
         pingTargets: pingTargetInfo(config),
         lastRun: lastReminderRun(),
     });
@@ -379,6 +399,9 @@ function publicConfig(config) {
         const wclV2 = config.warcraftlogsV2 || {};
         out.warcraftlogsV2 = { clientId: wclV2.clientId || "", hasClientSecret: !!wclV2.clientSecret };
     }
+    if (config.github !== undefined) {
+        out.github = { hasToken: !!(config.github && config.github.token) };
+    }
     return out;
 }
 
@@ -409,8 +432,39 @@ function versionSettingsPatch(raw) {
             if (field === "raidsheetId" && clean[field] && !sheets.has(clean[field])) return { error: `${v.label}: Raidsheet nicht gefunden.`, field, versionId: v.id };
             partial[v.id][field] = clean[field];
         }
+        // The features switched off (#761): a list of known feature ids, sent whole.
+        if (block.disabled !== undefined) {
+            const list = Array.isArray(block.disabled) ? block.disabled : null;
+            const unknown = list ? list.find((f) => !isVersionFeature(f)) : "";
+            if (!list || unknown !== undefined) {
+                return { error: unknown ? `${v.label}: unbekannte Funktion „${unknown}“.` : `${v.label}: disabled ist ungültig.`, field: "disabled", versionId: v.id };
+            }
+            partial[v.id].disabled = normalizeDisabled(list);
+        }
     }
     return { partial };
+}
+
+/**
+ * The addon list of a PATCH (#818). Einstellungen -> Module -> Addons is the
+ * only sender and saves it on its own: the list sent whole (an edit, so the
+ * edit mark goes with it and an emptied list stays empty), or
+ * `addonDownloadsReset: true` for "Standard wiederherstellen" (the defaults,
+ * mark cleared). A body that carries the list along with anything else is no
+ * edit of it and is refused, as is a list of which no entry survives the
+ * normaliser - neither may ever wipe the page "Addons". No list = nothing.
+ * @returns {{ partial: object } | { error: string }}
+ */
+function addonListPatch(body) {
+    const reset = body.addonDownloadsReset === true;
+    if (body.addonDownloads === undefined && !reset) return { partial: {} };
+    const others = Object.keys(body).filter((k) => !ADDON_KEYS.includes(k));
+    if (others.length) return { error: "Die Addon-Liste wird nur für sich gespeichert, nicht zusammen mit anderen Einstellungen." };
+    if (reset) return { partial: { addonDownloads: defaultAddons(), addonDownloadsCustomized: false } };
+    if (!Array.isArray(body.addonDownloads)) return { error: "addonDownloads muss eine Liste sein." };
+    const list = normalizeAddonList(body.addonDownloads);
+    if (body.addonDownloads.length && !list.length) return { error: "Kein Eintrag der Liste ist ein gültiges Addon (Name und Repo fehlen)." };
+    return { partial: { addonDownloads: list, addonDownloadsCustomized: true } };
 }
 
 /**
@@ -427,6 +481,8 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (touchesGuarded && !requireFullAdmin(req, res)) return;
     const partial = {};
     if (body.adminRoleIds !== undefined) partial.adminRoleIds = asStringArray(body.adminRoleIds);
+    // which roles count as orga (the rest are raider roles) — guarded like the access keys
+    if (body.orgaRoleIds !== undefined) partial.orgaRoleIds = asStringArray(body.orgaRoleIds);
     if (body.rolePermissions !== undefined) partial.rolePermissions = normalizeRolePermissions(body.rolePermissions);
     if (body.baseAccess !== undefined) partial.baseAccess = normalizeAreaAccess(body.baseAccess);
     // Guarded like the other access keys above, but it was never taken over
@@ -473,6 +529,14 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         if (body.warcraftlogsV2.clientId !== undefined) partial.warcraftlogsV2.clientId = String(body.warcraftlogsV2.clientId || "").trim();
         if (body.warcraftlogsV2.clientSecret !== undefined) partial.warcraftlogsV2.clientSecret = String(body.warcraftlogsV2.clientSecret || "").trim();
     }
+    // github.token (#818): the same contract — omit = keep, "" = clear.
+    if (body.github !== undefined && body.github && typeof body.github === "object" && body.github.token !== undefined) {
+        partial.github = { token: String(body.github.token || "").trim() };
+    }
+    // The addon list (#818): only its own section sends it, alone (addonListPatch).
+    const addons = addonListPatch(body);
+    if (addons.error) return error(res, 400, "invalid_addons", addons.error);
+    Object.assign(partial, addons.partial);
     if (body.categoryLootTool !== undefined) partial.categoryLootTool = normalizeCategoryLootTool(body.categoryLootTool);
     if (body.categoryLootSystem !== undefined) partial.categoryLootSystem = normalizeCategoryLootSystemPatch(body.categoryLootSystem);
     if (body.categorySignupSource !== undefined) partial.categorySignupSource = normalizeCategorySignupSource(body.categorySignupSource);
@@ -492,6 +556,11 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (body.categorySignupNotes !== undefined) partial.categorySignupNotes = normalizeCategorySignupNotesPatch(body.categorySignupNotes);
     // The channel of those messages per category (#335): same contract as the voice channel.
     if (body.categorySignupNoteChannel !== undefined) partial.categorySignupNoteChannel = normalizeCategoryVoiceChannel(body.categorySignupNoteChannel);
+    // Characters per signup per category (1..8, clamped): the 8 stays in the patch
+    // so the store's merge sets the category back to the default and drops it.
+    if (body.categorySignupCharacters !== undefined) {
+        partial.categorySignupCharacters = normalizeCategorySignupCharacters(body.categorySignupCharacters, { keepDefault: true });
+    }
     if (body.categorySheets !== undefined) partial.categorySheets = normalizeCategorySheets(body.categorySheets);
     // Raid plan or sheet per category: merged by the store, an unknown mode drops out.
     if (body.categoryPlanning !== undefined) partial.categoryPlanning = normalizeCategoryPlanning(body.categoryPlanning);
@@ -510,6 +579,18 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     }
     if (body.hideOtherVersions !== undefined) partial.hideOtherVersions = body.hideOtherVersions === true;
     if (body.botLanguage !== undefined) partial.botLanguage = String(body.botLanguage || "").trim();
+    // The drawn pictures in bot messages (a test): only the known switches, as booleans, merged by the store.
+    if (body.discordVisuals !== undefined && body.discordVisuals && typeof body.discordVisuals === "object") {
+        partial.discordVisuals = Object.fromEntries(Object.keys(DISCORD_VISUALS_DEFAULT)
+            .filter((key) => typeof body.discordVisuals[key] === "boolean")
+            .map((key) => [key, body.discordVisuals[key]]));
+    }
+    // Dungeon records (Einstellungen -> Dungeon-Bestzeiten): only the two fields, merged and checked by the store.
+    if (body.dungeonRecords !== undefined && body.dungeonRecords && typeof body.dungeonRecords === "object") {
+        partial.dungeonRecords = {};
+        if (typeof body.dungeonRecords.post === "boolean") partial.dungeonRecords.post = body.dungeonRecords.post;
+        if (body.dungeonRecords.channelId !== undefined) partial.dungeonRecords.channelId = String(body.dungeonRecords.channelId || "").trim();
+    }
     // Per version (#542): only the versions and fields sent, merged by the store.
     if (body.versionSettings !== undefined) {
         const patch = versionSettingsPatch(body.versionSettings);
@@ -526,10 +607,24 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         partial.categoryReminders = body.categoryReminders && typeof body.categoryReminders === "object" ? body.categoryReminders : {};
     }
     const before = getConfig();
+    // #744: no active category at all would read as "every category" — refused while raids exist.
+    if (emptiesActiveCategories(partial, before)) return error(res, 400, "categories_empty", categoryLifecycle.EMPTY_LIST_MESSAGE);
+    // #738: every active category plays an explicit version; a changed one starts a new section.
+    const versions = categoryVersionPatch(body, partial, before);
+    if (versions.error) return error(res, 400, "category_version_missing", versions.error);
     const langBefore = before.botLanguage;
+    // #744: what deactivating pauses (series, reminders), for the save's answer.
+    const deactivated = deactivationOf(partial, before);
     const saved = saveConfig(partial);
-    // The settings still edit a category's raider roles; a category with a roster follows them (#653).
-    if (partial.categoryRoles !== undefined) syncRosterRoleIds(saved.categoryRoles, { actor: String((user && user.id) || "") });
+    // The settings still edit a category's raider roles; the roster of the version a category plays
+    // follows them (#653) - not for a category switched just now: its roster changes below (#739).
+    const switchedIds = new Set(versions.switches.map((sw) => sw.categoryId));
+    if (partial.categoryRoles !== undefined) syncRosterRoleIds(saved.categoryRoles, { actor: String((user && user.id) || ""), config: saved, skip: switchedIds });
+    // #739: the listeners (the roster: close the old one, maybe a new one) get the dialog's choices
+    const switchedCategories = await notifyCategoryVersionSwitch(
+        afterCategorySwitches(versions.switches, body.categorySwitchFixes, { user }),
+        { config: saved, user, fixes: body.categorySwitchFixes && typeof body.categorySwitchFixes === "object" ? body.categorySwitchFixes : {} },
+    );
     // A new server language, or a category's own, redraws the bot's public messages (not awaited).
     if (saved.botLanguage !== langBefore || JSON.stringify(saved.categoryLanguage || {}) !== JSON.stringify(before.categoryLanguage || {})) {
         void languageChange.afterServerLangChange({ config: saved });
@@ -537,7 +632,140 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // The guild bank area of the raider organizers comes and goes with its channel:
     // redraw them now instead of at the next five-minute sweep (not awaited, never throws).
     else if (guildBankOf(saved) !== guildBankOf(before)) void availabilityPanel.refreshPanels({ config: saved }).catch(() => {});
-    ok(res, { config: publicConfig(saved) });
+    // a switch may have changed the raider roles (#739: they mirror the new roster) - answer what is stored now
+    ok(res, { config: publicConfig(switchedCategories.length ? getConfig() : saved), switchedCategories, deactivatedCategories: deactivated });
+});
+
+/** The categories a PATCH takes out of the active list, with what pauses (#744) — logged once. */
+function deactivationOf(partial, before) {
+    if (partial.categoryIds === undefined) return [];
+    const list = categoryLifecycle.deactivationPreview({ config: before, nextIds: partial.categoryIds }).categories;
+    for (const d of list) {
+        const paused = [d.series && d.series.enabled ? "Serie" : "", d.reminders ? "Erinnerungen" : ""].filter(Boolean).join(", ");
+        console.log(`[settings] Kategorie ${d.categoryId} deaktiviert (#744)${paused ? `, pausiert: ${paused}` : ""}`);
+    }
+    return list;
+}
+
+/** Whether a PATCH takes the last active category away although raids exist (#744). */
+function emptiesActiveCategories(partial, before) {
+    if (partial.categoryIds === undefined || partial.categoryIds.length) return false;
+    // An install that never picked one keeps "every category" (it was never a choice made here).
+    if (!(before.categoryIds || []).length) return false;
+    return categoryLifecycle.emptyListBlocked(partial.categoryIds);
+}
+
+/** The categories Discord no longer has, with their names (#744). Best-effort: [] on any trouble. */
+function missingCategoriesOf(config) {
+    try {
+        const names = categoryNamesOf(config);
+        return categoryLifecycle.missingCategories({ config, nameOf: (id) => names.get(id) || "" });
+    } catch (e) {
+        console.warn("missingCategories failed:", e.message);
+        return [];
+    }
+}
+
+/**
+ * GET /api/settings/category-deactivate?next=a,b — what saving the active
+ * categories `next` pauses (#744): per category taken out its series and
+ * reminders, and whether the list would be empty although raids exist.
+ */
+const getCategoryDeactivate = withUser({}, async ({ res, url }) => {
+    const next = String(url.searchParams.get("next") || "").split(",").map((s) => s.trim()).filter(Boolean);
+    const config = getConfig();
+    const preview = categoryLifecycle.deactivationPreview({ config, nextIds: next });
+    const names = categoryNamesOf(config);
+    ok(res, {
+        categories: preview.categories.map((c) => ({ ...c, name: names.get(c.categoryId) || "" })),
+        emptyBlocked: !next.length && !!(config.categoryIds || []).length && preview.emptyBlocked,
+    });
+});
+
+/**
+ * POST /api/settings/category-close { categoryId } — "Kategorie abschließen"
+ * (#744) for a category deleted in Discord: its series, settings, reminders,
+ * Loot-Council profile entry and Kader attendance entries go, its rosters are
+ * closed (#739: readable, no role sync); raids, loot and
+ * logs stay. 409 while Discord still has it, 503 while that is unknown.
+ */
+const closeCategoryHandler = withUser({ csrf: true, body: true }, async ({ body, res, user }) => {
+    const categoryId = String((body && body.categoryId) || "").trim();
+    const config = getConfig();
+    const name = categoryNamesOf(config).get(categoryId) || "";
+    // #739: its rosters are closed too, by this caller
+    const result = categoryLifecycle.closeCategory(categoryId, { config, actor: String((user && user.id) || "") });
+    if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
+    console.log(`[settings] Kategorie ${name || categoryId} abgeschlossen (#744) von ${(user && (user.name || user.id)) || "?"}`);
+    ok(res, { ...result, name, config: publicConfig(getConfig()), missingCategories: missingCategoriesOf(getConfig()) });
+});
+
+/** Category id → name over every event server (live list backed by the snapshot); "" when unknown. */
+function categoryNamesOf(config) {
+    const names = new Map();
+    try {
+        for (const guildId of guildRoles.eventGuildIds(config)) {
+            for (const c of listKnownCategories(guildId) || []) if (c && !names.has(c.id)) names.set(c.id, c.name || "");
+        }
+    } catch {
+        // a name is a courtesy: the section keeps "" and the id still says which category
+    }
+    return names;
+}
+
+/**
+ * The category versions of a PATCH (#738). Every active category must have a
+ * version — checked when the body touches the active categories or the map.
+ * A category whose version changes starts a new section: `partial.categoryEras`
+ * gets the history after the switch.
+ * @returns {{ error?: string, switches: object[] }}
+ */
+function categoryVersionPatch(body, partial, before) {
+    if (body.categoryIds === undefined && body.categoryVersion === undefined) return { switches: [] };
+    const ids = partial.categoryIds !== undefined ? partial.categoryIds : (before.categoryIds || []);
+    const map = normalizeCategoryVersion(partial.categoryVersion !== undefined ? partial.categoryVersion : before.categoryVersion);
+    const missing = ids.filter((id) => !map[id]);
+    const names = categoryNamesOf(before);
+    if (missing.length) {
+        return { error: `Jede aktive Kategorie braucht eine Spielversion: ${missing.map((id) => names.get(id) || id).join(", ")}.`, switches: [] };
+    }
+    if (partial.categoryVersion === undefined) return { switches: [] };
+    const { switches, categoryEras } = versionSwitches({ before, categoryVersion: map, nameOf: (id) => names.get(id) || "" });
+    if (categoryEras) partial.categoryEras = categoryEras;
+    return { switches };
+}
+
+/**
+ * The dialog's choice for each switched category's series (`categorySwitchFixes`
+ * = `{ [categoryId]: { series: "pause" | templateId } }`), applied once the
+ * switch is saved. Returns the switches with what happened to the series.
+ */
+function afterCategorySwitches(switches, fixes, { user }) {
+    const src = fixes && typeof fixes === "object" && !Array.isArray(fixes) ? fixes : {};
+    return (switches || []).map((sw) => {
+        const fix = src[sw.categoryId] && typeof src[sw.categoryId] === "object" ? src[sw.categoryId].series : "";
+        const series = applySeriesFix({ categoryId: sw.categoryId, fix, toVersion: sw.toVersion, getTemplate: getRaidTemplate, user });
+        console.log(`[settings] Kategorie ${sw.name || sw.categoryId}: Spielversion ${sw.fromVersion} → ${sw.toVersion}, neuer Abschnitt (#738)${series ? `, Serie ${series === "paused" ? "pausiert" : "mit neuer Vorlage"}` : ""}`);
+        return { ...sw, series };
+    });
+}
+
+/**
+ * GET /api/settings/category-switch?categoryId=&versionId= — what switching a
+ * category to another version means (#738), for the confirmation dialog: the
+ * coming raids that keep the old version, the series and default template
+ * whose template no longer fits, the templates of the new version.
+ */
+const getCategorySwitch = withUser({}, async ({ res, url }) => {
+    const categoryId = String(url.searchParams.get("categoryId") || "").trim();
+    const versionId = String(url.searchParams.get("versionId") || "").trim();
+    if (!categoryId) return error(res, 400, "invalid", "Keine Kategorie angegeben.");
+    if (!VERSIONS.some((v) => v.id === versionId)) return error(res, 400, "invalid", "Unbekannte Spielversion.");
+    const config = getConfig();
+    const preview = switchPreview({ categoryId, versionId, config, listTemplates: listRaidTemplates });
+    // #739: the roster that is closed, the one of the new version, whether one can be created
+    const roster = switchRosterPreview(categoryId, { fromVersion: preview.from.id, toVersion: preview.switching ? preview.to.id : "" });
+    ok(res, { ...preview, roster, name: categoryNamesOf(config).get(categoryId) || "" });
 });
 
 /**
@@ -627,6 +855,9 @@ const routes = [
     { method: "PATCH", path: "/api/settings", handler: updateSettings, area: "settings" },
     { method: "GET", path: "/api/settings/item-search", handler: getItemSearch, area: "settings" },
     { method: "GET", path: "/api/settings/archive-export", handler: getArchiveExport, area: "settings" },
+    { method: "GET", path: "/api/settings/category-switch", handler: getCategorySwitch, area: "settings" },
+    { method: "GET", path: "/api/settings/category-deactivate", handler: getCategoryDeactivate, area: "settings" },
+    { method: "POST", path: "/api/settings/category-close", handler: closeCategoryHandler, area: "settings" },
     { method: "POST", path: "/api/settings/raidsheets", handler: saveRaidsheetHandler, area: "settings" },
     { method: "POST", path: "/api/settings/raidsheets/delete", handler: deleteRaidsheetHandler, area: "settings" },
     { method: "GET", path: "/api/settings/discord-servers", handler: getDiscordServers, area: "settings" },
@@ -638,9 +869,9 @@ const routes = [
 ];
 
 module.exports = {
-    getSettings, updateSettings, getItemSearch, getArchiveExport, saveRaidsheetHandler, deleteRaidsheetHandler,
+    getSettings, updateSettings, getItemSearch, getArchiveExport, getCategorySwitch, saveRaidsheetHandler, deleteRaidsheetHandler,
     getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers,
     getRoleSync, getReminders,
-    publicConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, FULL_ADMIN_KEYS,
+    publicConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, ADDON_KEYS, FULL_ADMIN_KEYS,
     routes,
 };

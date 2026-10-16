@@ -9,6 +9,7 @@
 // Reading rosters needs the area `roster` (read) - that is apiAccess.js' job,
 // not this module's.
 const discord = require("../discord/discord");
+const { userIsOrga } = require("../../config/permissions");
 
 const ids = (list) => (Array.isArray(list) ? list.map((v) => String(v)) : []);
 
@@ -44,4 +45,16 @@ async function canManageRosterLive(user, roster, { memberRoleIds = discord.membe
     return canManageRoster(user, roster, roles);
 }
 
-module.exports = { canManageRoster, canManageRosterLive };
+/**
+ * Whether `user` is the orga of `roster` (epic #723): a full admin, a role in
+ * config.orgaRoleIds (the session's `isOrga`), or a manager of that very roster.
+ * The people data of a roster (members, attendance, Discord roles, history) is for
+ * them only; a raider with `roster` read sees the Komposition.
+ * @returns {Promise<boolean>}
+ */
+async function isRosterOrga(user, roster, opts) {
+    if (userIsOrga(user)) return true;
+    return canManageRosterLive(user, roster, opts);
+}
+
+module.exports = { canManageRoster, canManageRosterLive, isRosterOrga };

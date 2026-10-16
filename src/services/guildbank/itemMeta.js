@@ -33,11 +33,10 @@ const wowhead = require("../../utils/loot/wowhead");
 const wowsims = require("../../config/wowsims");
 const { itemMeta: raidItemMeta } = require("../../config/tbcLootNames");
 const { settingsForVersion } = require("../events/versionSettings");
+const { settingsDefaultsOf } = require("../../stores/versionSettingsSchema");
+const { LEGACY_VERSION } = require("../../config/gameVersions");
 const logger = require("../../logger").child("guildbank");
 
-// The Wowhead path of a version without its own setting (#542): Forever has
-// Classic's items until it gets a branch of its own.
-const FALLBACK_PATH = { tbc: "tbc", classic: "classic", forever: "classic" };
 /** Pause between two Wowhead requests. */
 const DEFAULT_GAP_MS = 400;
 /** How long a failed lookup is not tried again. */
@@ -54,7 +53,12 @@ const failedAt = new Map();
 let running = null;
 let refreshTimer = null;
 
-/** The Wowhead path an item of a version is looked up on. */
+/**
+ * The Wowhead path an item of a version is looked up on: the version's setting
+ * (#542), else its rule set's standard path (#553; Forever has a section of its
+ * own, #750), else TBC's. A lookup, not a link — the links follow the feature
+ * "wowheadLinks" (stockView, #761).
+ */
 function wowheadPathFor(versionId) {
     try {
         const settings = settingsForVersion(versionId);
@@ -62,7 +66,7 @@ function wowheadPathFor(versionId) {
     } catch {
         // no settings readable: the fallback below
     }
-    return FALLBACK_PATH[versionId] || "tbc";
+    return String(settingsDefaultsOf(versionId).wowheadPath || "") || settingsDefaultsOf(LEGACY_VERSION).wowheadPath || "tbc";
 }
 
 /** `{ name, icon, quality }` from the local tables, or null. Only TBC has them. */

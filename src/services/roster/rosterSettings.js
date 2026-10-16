@@ -4,10 +4,12 @@
 // Permission split:
 //   full admin           everything - name, category, game version, Discord
 //                        roles (roleIds, trialRoleId), managers, slots,
-//                        allowMultipleChars, signupOnly, the linked Kader
+//                        allowMultipleChars, signupOnly, publicRaids, the linked Kader
 //                        (kaderId); creating and deleting
-//   manager of a roster  name, slots, allowMultipleChars, signupOnly of that
-//                        roster - not its managers, roles, category or version
+//   manager of a roster  name, slots, allowMultipleChars, signupOnly, publicRaids and the
+//                        Loot-Council profile (lootProfileId, #676) of that
+//                        roster - not its managers, roles, category, version
+//                        or loot system
 //                        (an admin-only field sent with a *changed* value
 //                        answers 403 "admin_only"; the unchanged value of a
 //                        whole form passes)
@@ -19,17 +21,30 @@
 // removals once, as for any changed role list). A roster's roles are mirrored
 // into config.categoryRoles of its category (categoryRoles.mirrorCategoryRoles).
 //
+// The loot system (#676, full admins) has ONE truth: a roster with category
+// writes config.categoryLootSystem (what Einstellungen → Kategorien shows), a
+// roster without category its own `lootSystem` (services/loot/lootSystem.js
+// rosterLootSystem). The profile (`lootProfileId`, "" = the default profile)
+// must exist (councilProfilesStore). Both are settings-only: creating a roster
+// ignores them.
+//
 // Every refusal is a code the web translates (DE/EN): "invalid_name",
 // "name_too_long", "bad_request", "invalid_version", "invalid_roles",
 // "unknown_role", "invalid_managers", "invalid_slots", "admin_only",
-// "category_taken", "kader_taken", "kader_not_found", "not_found".
+// "category_taken", "kader_taken", "kader_not_found", "not_found",
+// "invalid_loot_system", "unknown_profile", "roster_closed" (#739, a closed roster).
 const rosterStore = require("../../stores/rosterStore");
-const { knownVersion } = require("../events/mainVersion");
+const councilProfilesStore = require("../../stores/councilProfilesStore");
+const settingsStore = require("../../stores/settingsStore");
+const { knownVersion, isVersionVisible } = require("../events/mainVersion");
 const { mirrorCategoryRoles } = require("./categoryRoles");
+const { normalizeLootSystem, rosterLootSystem } = require("../loot/lootSystem");
 
-const ADMIN_FIELDS = ["name", "categoryId", "versionId", "roleIds", "trialRoleId", "managers", "slots", "allowMultipleChars", "signupOnly", "kaderId"];
-const MANAGER_FIELDS = ["name", "slots", "allowMultipleChars", "signupOnly"];
+const ADMIN_FIELDS = ["name", "categoryId", "versionId", "roleIds", "trialRoleId", "managers", "slots", "allowMultipleChars", "signupOnly", "publicRaids", "kaderId", "lootSystem", "lootProfileId"];
+const MANAGER_FIELDS = ["name", "slots", "allowMultipleChars", "signupOnly", "publicRaids", "lootProfileId"];
 const SLOT_KEYS = ["total", "tank", "healer", "bench"];
+// a change of these decides whether the roster's roles are its category's raider roles (#657, #739)
+const MIRRORED_FIELDS = ["roleIds", "categoryId", "versionId"];
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
@@ -138,6 +153,7 @@ function cleanSettings(raw, { current = null, knownRoleIds = null } = {}) {
         ["managers", () => cleanManagers(p.managers, current && current.managers)],
         ["allowMultipleChars", () => cleanBool(p.allowMultipleChars)],
         ["signupOnly", () => cleanBool(p.signupOnly)],
+        ["publicRaids", () => cleanBool(p.publicRaids)],
         ["kaderId", () => cleanKader(p.kaderId)],
     ];
     for (const [key, check] of steps) {
@@ -163,17 +179,31 @@ function adminOnlyChanges(fields, current) {
 /**
  * Change a roster's settings (POST /api/rosters/update). `isAdmin`: a full
  * admin; anyone else must already be known as a manager of this roster (the
- * route asks rosterAccess.canManageRosterLive before).
+ * route asks rosterAccess.canManageRosterLive before). `kaderFits(kaderId,
+ * versionId)`: whether a Kader plays that game version - a link (new, or kept
+ * while the version changes) to a Kader of another one is `version_mismatch`
+ * (#741); a new version that is hidden (#563) is `version_hidden`.
  * @returns {{ ok: true, roster: object, trimmedChars: number } | { ok: false, code: string }}
  */
-function updateRosterSettings(rosterId, raw, { isAdmin = false, actor = "", knownRoleIds = null, kaderKnown = null } = {}) {
+function updateRosterSettings(rosterId, raw, { isAdmin = false, actor = "", knownRoleIds = null, kaderKnown = null, kaderFits = null, config = null, saveConfig = null } = {}) {
     const current = rosterStore.getRoster(rosterId);
     if (!current) return { ok: false, code: "not_found" };
+    // a closed roster (#739) is read only - only a full admin may still delete it
+    if (current.closedAt) return { ok: false, code: "roster_closed" };
     const clean = cleanSettings(raw, { current, knownRoleIds });
     if (clean.code) return { ok: false, code: clean.code };
-    if (!isAdmin && adminOnlyChanges(clean.fields, current).length) return { ok: false, code: "admin_only" };
+    const loot = lootChanges(raw, current, config || settingsStore.getConfig());
+    if (loot.code) return { ok: false, code: loot.code };
+    if (loot.lootProfileId !== undefined) clean.fields.lootProfileId = loot.lootProfileId;
+    if (!isAdmin && (loot.systemChanged || adminOnlyChanges(clean.fields, current).length)) return { ok: false, code: "admin_only" };
+    const systemChanged = loot.systemChanged;
     const kaderId = clean.fields.kaderId;
     if (kaderId && kaderId !== current.kaderId && typeof kaderKnown === "function" && !kaderKnown(kaderId)) return { ok: false, code: "kader_not_found" };
+    // #741: the linked Kader plays the roster's version (after this change); #563: no move to a hidden version
+    const versionId = clean.fields.versionId !== undefined ? clean.fields.versionId : current.versionId;
+    const linked = kaderId !== undefined ? kaderId : current.kaderId;
+    if (linked && (kaderId !== undefined || clean.fields.versionId !== undefined) && typeof kaderFits === "function" && !kaderFits(linked, versionId)) return { ok: false, code: "version_mismatch" };
+    if (clean.fields.versionId !== undefined && clean.fields.versionId !== current.versionId && !isVersionVisible(clean.fields.versionId, config || settingsStore.getConfig())) return { ok: false, code: "version_hidden" };
     // switching "mehrere Charaktere" off keeps each member's first character only (the store cuts the rest)
     const trimmedChars = clean.fields.allowMultipleChars === false && current.allowMultipleChars
         ? Object.values(current.members).filter((m) => m.chars.length > 1).length
@@ -185,8 +215,56 @@ function updateRosterSettings(rosterId, raw, { isAdmin = false, actor = "", know
         if (e && e.name === "RosterError") return { ok: false, code: e.code };
         throw e;
     }
-    if (clean.fields.roleIds !== undefined || clean.fields.categoryId !== undefined) mirrorCategoryRoles(roster);
+    if (MIRRORED_FIELDS.some((key) => clean.fields[key] !== undefined)) mirrorCategoryRoles(roster);
+    if (systemChanged) roster = writeLootSystem(roster, loot.lootSystem, { actor, saveConfig: saveConfig || settingsStore.saveConfig });
     return { ok: true, roster, trimmedChars };
 }
 
-module.exports = { cleanSettings, adminOnlyChanges, updateRosterSettings, ADMIN_FIELDS, MANAGER_FIELDS, SNOWFLAKE };
+/**
+ * The loot fields sent (#676): `{ lootSystem?, lootProfileId? }` (only those
+ * present) or `{ code }` - "invalid_loot_system" for anything but the four
+ * systems, "unknown_profile" for a profile that does not exist ("" / null =
+ * back to the default profile).
+ */
+function cleanLoot(raw) {
+    const p = isMap(raw) ? raw : {};
+    const out = {};
+    if (p.lootSystem !== undefined) {
+        const system = normalizeLootSystem(p.lootSystem);
+        if (!system || typeof p.lootSystem !== "string") return { code: "invalid_loot_system" };
+        out.lootSystem = system;
+    }
+    if (p.lootProfileId !== undefined) {
+        if (p.lootProfileId !== null && typeof p.lootProfileId !== "string") return { code: "unknown_profile" };
+        const id = str(p.lootProfileId);
+        if (id && !councilProfilesStore.getProfile(id)) return { code: "unknown_profile" };
+        out.lootProfileId = id;
+    }
+    return out;
+}
+
+/**
+ * cleanLoot() plus whether the loot system really changes - compared with what
+ * the roster runs on now (with a category: the category's system).
+ */
+function lootChanges(raw, current, config) {
+    const loot = cleanLoot(raw);
+    if (loot.code) return loot;
+    return { ...loot, systemChanged: loot.lootSystem !== undefined && loot.lootSystem !== rosterLootSystem(config, current).system };
+}
+
+/**
+ * Store a roster's loot system where it lives: with a category in
+ * config.categoryLootSystem (one truth with Einstellungen → Kategorien) plus a
+ * history line, without one on the roster itself (the store writes the line).
+ */
+function writeLootSystem(roster, system, { actor = "", saveConfig }) {
+    if (roster.categoryId) {
+        saveConfig({ categoryLootSystem: { [roster.categoryId]: system } });
+        rosterStore.appendHistory(roster.id, { by: actor, what: "settings", detail: "lootSystem" });
+        return rosterStore.getRoster(roster.id);
+    }
+    return rosterStore.updateRoster(roster.id, { lootSystem: system }, { actor });
+}
+
+module.exports = { cleanSettings, cleanLoot, adminOnlyChanges, updateRosterSettings, ADMIN_FIELDS, MANAGER_FIELDS, SNOWFLAKE };

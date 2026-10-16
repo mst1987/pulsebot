@@ -1,16 +1,19 @@
-import { useState, type MouseEvent, type CSSProperties } from "react";
+import { useRef, useState, type MouseEvent, type CSSProperties } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import type { ShellContext } from "../components/shell/Shell";
 import {
     getSignups,
     type BulkSignupResult, type OwnSignup, type OwnSignupRow, type SignupCounts, type SignupEventRow } from "../api";
 import { useApi } from "../hooks/useApi";
-import { Badge, Bar, Button, IconButton, PageHead, RaidLoader, WowIcon } from "../components/ui";
+import { useContentVersion } from "../hooks/useContentVersion";
+import { useFollowVersion } from "../hooks/useFollowVersion";
+import { Badge, Bar, Button, IconButton, PageHead, RaidLoader, Switch, WowIcon } from "../components/ui";
+import PugBadge from "../components/signup/PugBadge";
 import RaidIcon from "../components/raid/RaidIcon";
 import SignupDialog from "../components/signup/SignupDialog";
 import BulkSignupDialog from "../components/signup/BulkSignupDialog";
 import AvailabilitySection from "../components/signup/AvailabilitySection";
-import { ExternalIcon, XIcon } from "../components/ui/icons";
+import { ExternalIcon, SignedIcon, XIcon } from "../components/ui/icons";
 import { SIGNUP_STATUS, classesForRows, fillTone, missingVersionLabel, profileForRows, roleCountText, rowSubline, signedUpLabel, statusBadgeLabel } from "../lib/signups/status";
 import { specLabel } from "../lib/wow/wowNames";
 import { weekBands } from "../lib/raids/raidTime";
@@ -28,9 +31,17 @@ import "../styles/signups.css";
 export default function SignupsPage() {
     const t = useT();
     const { user } = useOutletContext<ShellContext>();
-    const signups = useApi(() => getSignups(), []);
-    const { data, setData } = signups;
     const [params, setParams] = useSearchParams();
+    // One game version at a time (#741): the menu's content version; a switch loads again.
+    const { version } = useContentVersion();
+    // The raid a link opened (the Discord post's button): its version comes back with the
+    // list, and a raid of another version switches the menu to it.
+    const linkedEvent = useRef(params.get("event") || "");
+    // "Alle Kategorien" (the orga only, canShowAll): every raid, not only the ones one may sign up for
+    const [showAll, setShowAll] = useState(false);
+    const signups = useApi(() => getSignups(version, linkedEvent.current, showAll), [version, showAll]);
+    const { data, setData } = signups;
+    useFollowVersion(data?.eventVersion, () => { linkedEvent.current = ""; });
     // Several raids at once (#293): the picked own raids, and the raids the open bulk
     // dialog works on — kept apart, so clearing the selection after saving does not
     // close the dialog before it has shown the results.
@@ -86,6 +97,9 @@ export default function SignupsPage() {
                 tone="signups"
                 kicker={`${user.name} · ${t("signups.page.upcoming", { count })}`}
                 title={t("signups.page.title")}
+                action={data.canShowAll && (
+                    <Switch checked={data.scope === "all"} onChange={setShowAll} label={t("signups.page.showAll")} tipHead={t("signups.page.showAllTip")} tip={t("signups.page.showAllTipSub")} />
+                )}
                 meta={noCharacter && (
                     <Link className="badge mid" to="/profile" data-tip={t("signups.page.noCharTip")} data-tip-sub={t("signups.page.noCharTipSub")}>
                         {t("signups.page.noCharLink")}
@@ -94,6 +108,7 @@ export default function SignupsPage() {
             />
 
             {data.error && <div className="flash flash-err">{t("signups.page.raidHelperError", { error: data.error })}</div>}
+            {data.rolesUnknown && <p className="an-note" role="note">{t("signups.rolesUnknown")}</p>}
 
             <AvailabilitySection onChanged={() => { void signups.reload(); }} />
 
@@ -203,7 +218,7 @@ function SignupRow({ row, onOpen, selectable, selected, onToggle }: {
                 {row.instanceIcon ? <WowIcon name={row.instanceIcon} size={44} /> : <RaidIcon contentIds={row.contentIds} sources={row.contentSources} />}
             </span>
             <div className="an-text">
-                <div className="an-title">{row.title}</div>
+                <div className="an-title">{row.title}<PugBadge open={row.openToAll} /></div>
                 <div className="an-sub">{rowSubline(row)}</div>
             </div>
             <span className="an-bar" data-tip={barTip} data-tip-sub={barSub}>
@@ -268,5 +283,5 @@ function OwnAction({ row, onOpen }: { row: OwnSignupRow; onOpen: () => void }) {
     if (row.deadlinePassed) {
         return <Button variant="ghost" size="sm" onClick={open} data-tip={t("signups.deadlinePassed")} data-tip-sub={t("signups.row.latePossible")}>{t("signups.row.offOrLate")}</Button>;
     }
-    return <Button size="sm" onClick={open}>{t("signups.signUp")}</Button>;
+    return <Button size="sm" variant="go" icon={<SignedIcon />} onClick={open}>{t("signups.signUp")}</Button>;
 }

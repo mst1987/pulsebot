@@ -101,8 +101,10 @@ describe("/event anlegen — step 1", () => {
         eventGuildId.mockReturnValue("other-guild");
         const i = mockInteraction({ commandName: "event", options: { __subcommand: "anlegen" } });
         await eventCommand.execute(i);
-        expect(cardText(i.reply.mock.calls[0][0])).toContain("Events legst du auf dem Event-Server an.");
-        expect(i.reply.mock.calls[0][0].flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+        // acknowledged first (ephemeral), the refusal then replaces the "thinking" message
+        expect(i.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
+        expect(cardText(i.editReply.mock.calls[0][0])).toContain("Events legst du auf dem Event-Server an.");
+        expect(i.reply).not.toHaveBeenCalled();
     });
 
     it("a select redraws the message with the choice in every customId", async () => {
@@ -112,7 +114,7 @@ describe("/event anlegen — step 1", () => {
         expect(i.deferUpdate).toHaveBeenCalled();
         const payload = lastPayload(i.editReply);
         const weiter = payload.components[payload.components.length - 1].components[0];
-        expect(draft.parseCustomId(weiter.custom_id).state).toEqual({ cat: CAT_RH, tpl: RH.id, mode: "n", src: "r", ref: "", ann: "" });
+        expect(draft.parseCustomId(weiter.custom_id).state).toEqual({ cat: CAT_RH, tpl: RH.id, mode: "n", src: "r", ref: "", ann: "", ico: "" });
     });
 
     it("switches the channel mode, the source, and cancels", async () => {
@@ -156,7 +158,7 @@ describe("/event anlegen — step 2", () => {
         expect(createEvent.mock.calls[0][0].body).toMatchObject({ signupSource: "eventhelper", time: "19:30", newChannel: expect.objectContaining({ categoryId: CAT_EH }) });
         const payload = lastPayload(i.editReply);
         expect(payload.embeds[0].title).toBe("Event angelegt · SSC + TK");
-        expect(payload.components[0].components.map((b) => b.label)).toEqual(["Zum Kanal", "Im Web bearbeiten", "Ankündigung pingen"]);
+        expect(payload.components[0].components.map((b) => b.label)).toEqual(["Zum Kanal", "Im Web bearbeiten", "Ankündigung pingen", "Kanal umbenennen …"]);
     });
 
     it("a Raid-Helper category creates through Raid-Helper with its linked template", async () => {

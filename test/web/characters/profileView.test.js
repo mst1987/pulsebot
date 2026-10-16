@@ -82,6 +82,8 @@ describe("profileView for the owner", () => {
             source: "manual",
             armory: { level: 70, guild: "Pulse", fetchedAt: 9 },
             armoryUrl: armoryUrlFor("Treeguy"),
+            // the armory answered: it exists in game
+            evidence: { verified: true, via: "armory" },
             canOfftank: true,
             canHeal: true,
             suggested: { canOfftank: false, canHeal: true },
@@ -101,6 +103,9 @@ describe("profileView for the owner", () => {
         }]);
         // A mage never heals, whatever the switch says; the other account claims the name.
         expect(frosty).toMatchObject({ canHeal: false, canOfftank: false, claimedBy: [{ userId: FRIEND, name: "Friend" }] });
+        // typed by the raider, no log, loot or armory knows it: unconfirmed
+        expect(frosty.evidence).toEqual({ verified: false, via: "" });
+        expect(profileView(mine(), { index, all: all(), seen: new Map([["frosty", "loot"]]) }).characters[1].evidence).toEqual({ verified: true, via: "loot" });
         expect(frosty.specs[0]).toMatchObject({ key: "Mage-Frost", gear: "usable", role: "ranged", logs: { status: "unknown", reports: 0 } });
     });
 
@@ -194,7 +199,7 @@ describe("lookupArmory", () => {
         mockBlizzard.getCharacterSummary.mockResolvedValueOnce({ className: "MAGE", level: 70, guild: "Pulse" });
         const out = await lookupArmory("Frosty", "Die Aldor");
         // the realm of the main version (#542): the TBC block read from the old values
-        expect(Blizzard).toHaveBeenCalledWith({ clientId: "id", clientSecret: "", ...{ region: "eu", realmSlug: "thunderstrike", namespace: "profile-classicann-eu" } });
+        expect(Blizzard).toHaveBeenCalledWith({ clientId: "id", clientSecret: "", ...{ region: "eu", realmSlug: "thunderstrike", namespace: "profile-classicann-eu", versionId: "tbc", wowheadPath: "tbc" } });
         expect(mockBlizzard.getCharacterSummary).toHaveBeenCalledWith("Frosty", { realmSlug: "die-aldor" });
         expect(out).toEqual({ url: armoryUrlFor("Frosty"), fetched: true, className: "Mage", level: 70, guild: "Pulse" });
     });
@@ -220,7 +225,7 @@ describe("lookupArmory", () => {
     it("builds the client with the TBC realm and no credentials when no Blizzard config is stored", async () => {
         getConfig.mockReturnValueOnce({});
         await lookupArmory("Frosty");
-        expect(Blizzard).toHaveBeenCalledWith({ clientId: "", clientSecret: "", ...{ region: "eu", realmSlug: "thunderstrike", namespace: "profile-classicann-eu" } });
+        expect(Blizzard).toHaveBeenCalledWith({ clientId: "", clientSecret: "", ...{ region: "eu", realmSlug: "thunderstrike", namespace: "profile-classicann-eu", versionId: "tbc", wowheadPath: "tbc" } });
     });
 
     it("asks nobody for a version without a realm (#542) and keeps the link empty without a template", async () => {

@@ -215,6 +215,18 @@ describe("GET /api/rosters/member-search", () => {
         expect(searchMembers).toHaveBeenCalledWith({ guildId: "g1", versionId: "forever", members: {}, query: "x" });
     });
 
+    it("searches the main version while the others are hidden, whatever is asked (#563)", async () => {
+        const configStore = require("../../../src/stores/configStore");
+        const spy = jest.spyOn(configStore, "getConfig").mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+        try {
+            searchMembers.mockResolvedValueOnce({ results: [] });
+            await get("/api/rosters/member-search", { q: "x", version: "forever" });
+            expect(searchMembers).toHaveBeenCalledWith({ guildId: "g1", versionId: "tbc", members: {}, query: "x" });
+        } finally {
+            spy.mockRestore();
+        }
+    });
+
     it("answers 503 offline when the member list cannot be read, 404 for an unknown roster", async () => {
         searchMembers.mockResolvedValueOnce({ error: "offline" });
         const res = await get("/api/rosters/member-search", { id: roster.id });

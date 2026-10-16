@@ -104,9 +104,9 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         raidhelperDisabled.mockReturnValue(true);
         const { body } = await buildRaidDetail({ guildId: "g1", eventId: "rh1" });
         expect(Object.keys(body)).toEqual([
-            "event", "planning", "setupFromSnapshot", "categoryName", "guildId", "eventsWarning", "notifyTemplates", "roles", "pingTargets",
+            "event", "planning", "setupFromSnapshot", "categoryName", "openToAll", "guildId", "eventsWarning", "notifyTemplates", "roles", "pingTargets",
             "raidsheets", "matchedSheetId", "setup", "setupError", "tankCandidates", "eventSheet", "sheetLink", "raidplanPost", "eventSoftres",
-            "softresCatalogue", "softresEdition", "versionId", "wowheadPath", "archived", "softresSuggested", "attendance", "ownSignups", "ownSetup", "ownSetupPost",
+            "softresCatalogue", "softresEdition", "softresOff", "versionId", "wowheadPath", "archived", "softresSuggested", "attendance", "ownSignups", "ownSetup", "raidGroup", "ownSetupPost",
             "ownSetupEditors", "attendanceRoleIds", "attendanceSource", "membersError", "signupTarget", "lootItems", "lootTool", "lootSystem", "eventLogs", "unlinkedLogs",
             "progress", "steps", "playerSummaries",
         ]);
@@ -120,6 +120,8 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         expect(body.attendance.responded.map((m) => m.id)).toEqual(["u1"]);
         expect(body.attendance.missing.map((m) => m.id)).toEqual(["u9"]);
         expect(body.attendanceRoleIds).toEqual(["r1"]);
+        // a category with raider roles is no PuG raid
+        expect(body.openToAll).toBe(false);
         expect(body.signupTarget).toBe(2);
         expect(body.matchedSheetId).toBe("sheet-kara");
         expect(body.softresEdition).toBe("tbc");
@@ -149,6 +151,14 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         expect(body.raidplanPost).toBeNull();
         expect(body.progress.steps.map((s) => s.key)).toEqual(expect.arrayContaining(["sheet"]));
         expect(body.progress.steps.map((s) => s.key)).not.toContain("raidplan");
+    });
+
+    it("plans a version without a raid sheet layout with the raid plan, whatever the category picked (#751)", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(rhEvent()));
+        settingsStore.getConfig.mockReturnValue({ categoryVersion: { cat1: "forever" }, categoryPlanning: { cat1: "sheet" } });
+        const { body } = await buildRaidDetail({ guildId: "g1", eventId: "rh1" });
+        expect(body.planning).toBe("raidplan");
+        expect(body.progress.steps.map((s) => s.key)).not.toContain("sheet");
     });
 
     it("follows the version of the event's category (#542): no softres edition, no TBC list, the version's own sheet", async () => {
@@ -222,6 +232,44 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         expect(body.softresSuggested).toEqual(expect.any(Array));
         expect(Array.isArray(body.steps.steps || body.steps)).toBe(true);
         expect(body.eventsWarning).toBe("Raid-Helper aktuell nicht erreichbar — zeige zwischengespeicherte Event-Daten.");
+        // the stored record is read once for the head, the setup state and its post
+        expect(getEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it("sends the outside reads out side by side: Raid-Helper, Discord and Warcraft Logs do not wait for each other", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(rhEvent()));
+        settingsStore.getConfig.mockReturnValue({ categoryRoles: { cat1: ["r1"] } });
+        let answerSetup;
+        rhClient(() => new Promise((resolve) => { answerSetup = resolve; }));
+        const pending = buildRaidDetail({ guildId: "g1", eventId: "rh1" });
+        await new Promise((resolve) => setImmediate(resolve));
+        // Raid-Helper has not answered yet, and the member list and the log titles are already asked
+        expect(discord.listMembersWithRoles).toHaveBeenCalledTimes(1);
+        expect(backfillLogTitles).toHaveBeenCalledTimes(1);
+        answerSetup({ setup: SLOTS });
+        const { body } = await pending;
+        expect(body.setup.groups).toHaveLength(1);
+        expect(body.attendance.missing.map((m) => m.id)).toEqual(["u9"]);
+    });
+
+    it("waits for the slowest outside read, not for the sum of them", async () => {
+        jest.useFakeTimers();
+        try {
+            loadEventGroups.mockResolvedValue(groupsWith(rhEvent()));
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: { cat1: ["r1"] } });
+            const after = (ms, value) => new Promise((resolve) => setTimeout(() => resolve(value), ms));
+            rhClient(() => after(1000, { setup: SLOTS }));
+            discord.listMembersWithRoles.mockImplementation(() => after(1000, { members: [{ id: "u1", name: "Tanki" }], error: null }));
+            backfillLogTitles.mockImplementation(() => after(1000, 0));
+            let done = false;
+            const pending = buildRaidDetail({ guildId: "g1", eventId: "rh1" }).then((r) => { done = true; return r; });
+            await jest.advanceTimersByTimeAsync(1000);
+            expect(done).toBe(true); // in sequence it would still need two more seconds
+            expect((await pending).body.setup.groups).toHaveLength(1);
+        } finally {
+            jest.useRealTimers();
+            backfillLogTitles.mockImplementation(async () => {});
+        }
     });
 
     // Posting the plan's link is a raid plan write (docs/permissions.md): without it there is no step to nudge.

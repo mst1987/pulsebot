@@ -1,6 +1,6 @@
 // The report page /r/<id>: head, KPI cards and the three views.
 const { esc, shellPage } = require("./layout");
-const { LINE, hicon, kpi } = require("./widgets");
+const { LINE, hicon, kpi, withReportVersion } = require("./widgets");
 const { groupByBoss } = require("./fightTopics");
 const { renderBossView } = require("./bossView");
 const { reportContext } = require("./context");
@@ -65,7 +65,12 @@ function kpiCards(report) {
     return `<div class="kpis">${out.join("")}</div>`;
 }
 
+/** The page in the links of the report's version (widgets.withReportVersion, #746). */
 function renderReportPage(report, user) {
+    return withReportVersion(report, () => renderReportPageIn(report, user));
+}
+
+function renderReportPageIn(report, user) {
     const ctx = reportContext(report, user);
     const { reviewer, rec, linkFor } = ctx;
     const dateStr = report.date ? esc(report.date) : "";
@@ -85,7 +90,7 @@ function renderReportPage(report, user) {
 
     const views = [
         { id: "raid", icon: "ability_warrior_rallyingcry", label: "Raid", count: groups.length, tone: flagged ? "mid" : "", html: groups.length ? groups.map((g) => g.html).join("") : "<div class=\"empty\">Keine raid-weiten Auswertungen in diesem Report.</div>" },
-        { id: "bosse", icon: "achievement_boss_illidan", label: "Bosse", count: bosses.length, html: renderBossView(report.timeline, linkFor, rec ? rec.raid : [], reviewer) },
+        { id: "bosse", icon: "achievement_boss_illidan", label: "Bosse", count: bosses.length, html: renderBossView(report.timeline, linkFor, rec ? rec.raid : [], reviewer, { seriesRan: ctx.ran.has("fightSeries") }) },
         { id: "raider", icon: "inv_misc_grouplooking", label: "Raider", count: roster.length, html: renderRaiderView(ctx, null) },
     ];
     const start = hasTimeline ? "bosse" : "raid";

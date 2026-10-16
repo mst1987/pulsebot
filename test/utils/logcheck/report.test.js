@@ -3,16 +3,16 @@
 // (analyzers) is mocked out since it's covered by their own unit tests.
 const mockGetFights = jest.fn();
 const mockGetCasts = jest.fn();
-const mockParseReportId = jest.fn((link) => String(link || "").trim() || null);
+const mockWclCtorArgs = [];
 let mockWclCtorError = null;
 
 jest.mock("../../../src/classes/warcraftlogs.js", () => {
-    function WarcraftLogsMock() {
+    function WarcraftLogsMock(...args) {
+        mockWclCtorArgs.push(args);
         if (mockWclCtorError) throw mockWclCtorError;
         this.getFights = mockGetFights;
         this.getCasts = mockGetCasts;
     }
-    WarcraftLogsMock.parseReportId = (...args) => mockParseReportId(...args);
     return WarcraftLogsMock;
 });
 jest.mock("../../../src/utils/logcheck/gearIssues.js", () => ({
@@ -72,6 +72,12 @@ jest.mock("../../../src/utils/logcheck/rpb/index.js", () => ({
     rpbSummaryLines: jest.fn(() => ["🎭 Rollen: Tank 2"]),
 }));
 jest.mock("../../../src/utils/logcheck/common.js", () => ({ selectPlayers: jest.fn(() => []) }));
+// The real rule sets, unless a test hands in its own for a version (#747).
+let mockRulesOverride = null;
+jest.mock("../../../src/utils/logcheck/rules.js", () => {
+    const actual = jest.requireActual("../../../src/utils/logcheck/rules.js");
+    return { ...actual, logcheckRules: (v) => (mockRulesOverride && mockRulesOverride(v)) || actual.logcheckRules(v) };
+});
 const mockSaveReport = jest.fn();
 const mockGetReport = jest.fn();
 jest.mock("../../../src/stores/reportStore.js", () => ({
@@ -84,12 +90,12 @@ const { analyzeConsumables } = require("../../../src/utils/logcheck/consumables.
 const { analyzeRpb } = require("../../../src/utils/logcheck/rpb/index.js");
 const {
     buildReport, mergeRoster, reportSummaryLines, normalizeSections, stripSection,
-    ReportError, IncompleteRaidError,
+    ReportError, IncompleteRaidError, UnsupportedVersionError,
 } = require("../../../src/utils/logcheck/report.js");
 
 beforeEach(() => {
     jest.clearAllMocks();
-    mockParseReportId.mockImplementation((link) => String(link || "").trim() || null);
+    mockWclCtorArgs.length = 0;
     // A finished raid night by default: buildReport refuses to evaluate one whose
     // final boss is still standing (see the guard tests at the bottom), so every
     // other test here needs a log that actually got to the end.
@@ -138,8 +144,8 @@ describe("logcheck/report — buildReport dedup", () => {
     });
 
     it("rejects a link without a parseable report id before touching the API", async () => {
-        mockParseReportId.mockReturnValueOnce(null);
-        await expect(buildReport("not-a-link")).rejects.toThrow(ReportError);
+        await expect(buildReport("https://fresh.warcraftlogs.com/reports/")).rejects.toThrow(ReportError);
+        await expect(buildReport("")).rejects.toThrow(ReportError);
         expect(mockGetFights).not.toHaveBeenCalled();
     });
 
@@ -641,13 +647,14 @@ describe("logcheck/report — the whole build (characterisation, #431)", () => {
         expect(id).toBe("id1");
         expect(url).toBe("http://localhost:3005/r/id1");
         expect(Object.keys(report)).toEqual([
-            "title", "zone", "date", "reportId", "reportUrl", "generatedAt", "sections", "raidProgress", "players",
+            "title", "zone", "date", "reportId", "reportUrl", "reportHost", "versionId", "generatedAt", "sections", "raidProgress", "players",
             "consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes", "timeline", "fightSeries", "raidDebuffs",
             "cooldowns", "totems", "mechanics", "activity", "healers", "raidBuffs", "rpb", "roster", "icons", "recommendations",
         ]);
         expect(report).toEqual(expect.objectContaining({
             title: "SSC + TK", zone: "Serpentshrine Cavern", date: "", reportId: "RPT1",
-            reportUrl: "https://classic.warcraftlogs.com/reports/RPT1", generatedAt: 1234, sections: ["cla", "rpb"],
+            // a bare id links on the site of its version; this suite has none set (config/variables is mocked)
+            reportUrl: "", reportHost: "", versionId: "tbc", generatedAt: 1234, sections: ["cla", "rpb"],
             players: [{ name: "Aldra", issues: [{ slot: "head" }] }],
             consumables: { icons: { flask: "f.jpg" }, players: [] }, shadowResi: { sr: 1 }, drums: { icon: "dr.jpg" },
             potions: { icons: { destruction: "d.jpg", haste: "h.jpg", mana: "m.jpg" } }, sunder: { su: 1 }, bossUptimes: { bu: 1 },
@@ -692,5 +699,82 @@ describe("logcheck/report — the whole build (characterisation, #431)", () => {
         await expect(buildReport("RPT1")).rejects.toThrow("Report konnte nicht geladen werden. Stimmt der Link und ist der Report öffentlich?");
         mockGetCasts.mockRejectedValueOnce(Object.assign(new Error("nope"), { response: { status: 403 } }));
         await expect(buildReport("RPT1")).rejects.toThrow("Report konnte nicht geladen werden (HTTP 403). Stimmt der Link und ist der Report öffentlich?");
+    });
+});
+
+describe("logcheck/report — the version of a log (#746)", () => {
+    it("asks the classic v1 host for a TBC log, as before, and keeps the host the link was posted with", async () => {
+        const { report } = await buildReport("https://fresh.warcraftlogs.com/reports/RPT1#fight=3");
+        expect(mockWclCtorArgs).toEqual([[undefined, { site: "https://classic.warcraftlogs.com" }]]);
+        expect(report).toMatchObject({
+            reportId: "RPT1", versionId: "tbc", reportHost: "fresh.warcraftlogs.com",
+            reportUrl: "https://fresh.warcraftlogs.com/reports/RPT1",
+        });
+    });
+
+    it("a host no version names (classic., www.) is TBC and still links where it was posted", async () => {
+        const { report } = await buildReport("https://www.warcraftlogs.com/reports/RPT9");
+        expect(report).toMatchObject({ versionId: "tbc", reportUrl: "https://www.warcraftlogs.com/reports/RPT9" });
+    });
+
+    it("refuses a Forever log from its raid clearly, before any request to Warcraft Logs", async () => {
+        const run = buildReport("https://fresh.warcraftlogs.com/reports/RPT1", { event: { id: "e1", versionId: "forever" } });
+        await expect(run).rejects.toThrow(UnsupportedVersionError);
+        await expect(run).rejects.toThrow("Logs von WoW Forever werden noch nicht ausgewertet.");
+        await expect(run).rejects.toMatchObject({ unsupported: true, versionId: "forever" });
+        expect(mockWclCtorArgs).toEqual([]);
+        expect(mockGetFights).not.toHaveBeenCalled();
+        expect(mockSaveReport).not.toHaveBeenCalled();
+    });
+
+    it("the stored version of a tracked log decides when no raid is handed in", async () => {
+        await expect(buildReport("RPT1", { versionId: "forever" })).rejects.toThrow(ReportError);
+        await expect(buildReport("RPT1", { versionId: "classic" })).rejects.toMatchObject({ unsupported: true, versionId: "classic" });
+        expect(mockGetFights).not.toHaveBeenCalled();
+    });
+
+    it("carries the version and host into a merged page", async () => {
+        mockGetReport.mockReturnValue({ id: "abc123", title: "old", sections: ["cla"], roster: [] });
+        const { report } = await buildReport("https://fresh.warcraftlogs.com/reports/RPT1", { sections: ["rpb"], mergeIntoId: "abc123" });
+        expect(report).toMatchObject({ versionId: "tbc", reportHost: "fresh.warcraftlogs.com" });
+    });
+});
+
+describe("logcheck/report — the rule set of the version (#747)", () => {
+    const rules = jest.requireActual("../../../src/utils/logcheck/rules.js");
+    const { selectPlayers } = require("../../../src/utils/logcheck/common.js");
+    const { buildGearIssues } = require("../../../src/utils/logcheck/gearIssues.js");
+    const { analyzeFightTimeline } = require("../../../src/utils/logcheck/fightTimeline.js");
+    const { analyzeShadowResi } = require("../../../src/utils/logcheck/shadowResi.js");
+    const { analyzeDrums } = require("../../../src/utils/logcheck/drums.js");
+    const { analyzeTotems } = require("../../../src/utils/logcheck/totems.js");
+    const { analyzeSunder } = require("../../../src/utils/logcheck/sunder.js");
+    const { analyzeRaidBuffs } = require("../../../src/utils/logcheck/raidBuffs.js");
+
+    afterEach(() => { mockRulesOverride = null; });
+
+    it("hands TBC's rule set to the class filter, the gear check, Shadow-Resi and the RPB, and the version to the timeline", async () => {
+        const tbc = rules.logcheckRules("tbc");
+        await buildReport("RPT1");
+        expect(selectPlayers).toHaveBeenCalledWith({ entries: [] }, tbc);
+        expect(buildGearIssues).toHaveBeenCalledWith({ entries: [] }, { gemsToConsider: 3, rules: tbc });
+        expect(analyzeShadowResi.mock.calls[0][2]).toBe(tbc);
+        expect(analyzeFightTimeline.mock.calls[0][4]).toEqual({ versionId: "tbc" });
+        expect(analyzeRpb.mock.calls[0][4]).toEqual({ rules: tbc });
+    });
+
+    it("runs only the analyzers its rule set lists and checks no gear without gear rules", async () => {
+        // TBC's classes with Forever's analyzer list and no gear data: what a ready Forever would run
+        mockRulesOverride = (v) => (v === "tbc" ? rules.makeRuleSet({
+            versionId: "tbc", classDefs: rules.logcheckRules("tbc").classDefs, analyzers: rules.analyzersFor("forever"), ready: true, data: { gear: null },
+            apiSite: rules.logcheckRules("tbc").apiSite,
+        }) : null);
+        const { report } = await buildReport("RPT1");
+        for (const fn of [analyzeDrums, analyzeTotems, analyzeShadowResi, analyzeRpb, buildGearIssues]) expect(fn).not.toHaveBeenCalled();
+        for (const fn of [analyzeSunder, analyzeRaidBuffs, analyzeFightTimeline]) expect(fn).toHaveBeenCalledTimes(1);
+        expect(report).toMatchObject({ drums: null, totems: null, shadowResi: null, rpb: null, players: [] });
+        expect(report.raidBuffs).not.toBeNull();
+        // the page keeps its shape: every CLA field is there, null where nothing ran
+        expect(Object.keys(report)).toEqual(expect.arrayContaining(["drums", "totems", "shadowResi", "rpb"]));
     });
 });

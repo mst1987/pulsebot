@@ -108,7 +108,7 @@ export function deleteAvailability(id: string): Promise<{ id: string }> {
 }
 
 /** One link button of a category's raider organizer in Discord. */
-export type AvailabilityLink = { label: string; url: string };
+export type AvailabilityLink = { label: string; url: string; /** One emoji or a custom "<:name:id>"; none = no emoji. */ emoji?: string };
 
 export type AvailabilityPanelsData = {
     panels: AvailabilityPanel[];
@@ -246,14 +246,21 @@ export type AbsenceRaiderDetail = AbsenceIdentity & {
     canEdit: boolean;
 };
 
-export function getAbsenceOverview(weeks: number, category = ""): Promise<AbsenceOverview> {
+// The three attendance views are per game version (#740): `version` is the menu's content version
+// (hooks/useContentVersion); "" leaves it out and the server takes the main version.
+
+export function getAbsenceOverview(weeks: number, category = "", version = ""): Promise<AbsenceOverview> {
     const q = new URLSearchParams({ weeks: String(weeks) });
     if (category) q.set("category", category);
+    if (version) q.set("version", version);
     return get(`/api/availability/overview?${q.toString()}`);
 }
 
-export function getAbsenceRaider(userId: string): Promise<AbsenceRaiderDetail> {
-    return get(`/api/availability/overview/raider?userId=${encodeURIComponent(userId)}`);
+/** `&version=…`, or nothing for the server's main version. */
+const versionParam = (version: string) => (version ? `&version=${encodeURIComponent(version)}` : "");
+
+export function getAbsenceRaider(userId: string, version = ""): Promise<AbsenceRaiderDetail> {
+    return get(`/api/availability/overview/raider?userId=${encodeURIComponent(userId)}${versionParam(version)}`);
 }
 
 // ---- "Meine Anwesenheit": one raider's attendance per raid category and raid (src/web/availability/raiderAttendance.js) ----
@@ -302,6 +309,7 @@ export type RaiderAttendanceData = {
 };
 
 /** The own attendance, or a raider's for the orga. */
-export function getRaiderAttendance(userId = ""): Promise<RaiderAttendanceData> {
-    return get(userId ? `/api/availability/attendance?userId=${encodeURIComponent(userId)}` : "/api/availability/attendance");
+export function getRaiderAttendance(userId = "", version = ""): Promise<RaiderAttendanceData> {
+    const query = `${userId ? `&userId=${encodeURIComponent(userId)}` : ""}${versionParam(version)}`;
+    return get(query ? `/api/availability/attendance?${query.slice(1)}` : "/api/availability/attendance");
 }

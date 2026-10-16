@@ -16,12 +16,13 @@
 // Raidplan tab and its switch, "raidplan" the sheet dialog and its menu entry.
 // The steps the server sends are gated the same way.
 import { Suspense, useEffect, useState } from "react";
-import { useOutletContext, useSearchParams } from "react-router-dom";
+import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import {
     canAccess, getRaidDetail, recreateChannel, reopenRaid, setRaidSignupsOpen, setRaidplanLink,
     type ApiError, type RaidDetailModal, type RaidEventSteps,
     type RaidPrimaryAction, type RaidStep, type RaidStepDeed } from "../../api";
 import { useApi } from "../../hooks/useApi";
+import { useFollowVersion } from "../../hooks/useFollowVersion";
 import { useConfirm } from "../../components/ui/Modal";
 import BackButton from "../../components/ui/BackButton";
 import ArchiveBanner from "../../components/raid/ArchiveBanner";
@@ -46,7 +47,7 @@ import StepBar from "./StepBar";
 import RosterTab from "./RosterTab";
 import LootTab from "./LootTab";
 import LogsTab from "./LogsTab";
-import SetupEditor from "./setup/SetupEditor";
+import SetupTab from "./setup/SetupTab";
 import useEvaluate from "./useEvaluate";
 import NotifyModal from "./modals/NotifyModal";
 import SheetModal from "./modals/SheetModal";
@@ -94,6 +95,7 @@ const TAB_ICONS: Record<Tab, string> = {
 export default function RaidDetailPage() {
     const t = useT();
     const { user } = useOutletContext<ShellContext>();
+    const navigate = useNavigate();
     const [editing, setEditing] = useState(false);
     const [searchParams] = useSearchParams();
     const eventId = searchParams.get("event") || "";
@@ -109,6 +111,10 @@ export default function RaidDetailPage() {
     const ask = useConfirm();
     const detail = useApi(() => getRaidDetail(eventId), [eventId]);
     const { data } = detail;
+    // The raid is shown in its own game version (#741): a link from another version (Discord,
+    // a bookmark) switches the menu to it with a toast; switching the menu away from it goes
+    // back to the raid list of the version now shown.
+    useFollowVersion(data ? data.versionId || data.archived?.versionId || "" : "", () => navigate("/raids"));
     const [modal, setModal] = useState<RaidDetailModal | null>(legacy?.modal || null);
     const [player, setPlayer] = useState<PlayerRef | null>(null);
     // "Raidplan aktivieren" of a Raid-Helper event (docs/raidplan.md, "Raid-Helper-Events")
@@ -316,7 +322,7 @@ export default function RaidDetailPage() {
             </div>
 
             {shown === "roster" && <RosterTab ctx={ctx} />}
-            {shown === "setup" && <SetupEditor ctx={ctx} />}
+            {shown === "setup" && <SetupTab ctx={ctx} />}
             {shown === "loot" && <LootTab ctx={ctx} />}
             {shown === "logs" && <LogsTab ctx={ctx} evaluator={evaluator} />}
             {shown === "plan" && <Suspense fallback={<RaidLoader />}><RaidplanTab ctx={ctx} /></Suspense>}

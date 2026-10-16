@@ -1,7 +1,9 @@
 // Einstellungen → Kategorien: the open card of a category sorts its settings into
-// four tabs (design "B · Tabs in der Karte"), each setting one row with its
-// explanation beside it, and the Planung switch decides whether the fixed sheet
-// is offered at all (raid plan OR sheet, never both).
+// six tabs (design "A · Sechs Tabs, jede Einstellung eine Karte"), each setting a
+// card with a one-line summary and the full explanation behind its (i), the three
+// attendance settings in one card with the quota as a free number, and the
+// Planung switch decides whether the fixed sheet is offered at all (raid plan OR
+// sheet, never both).
 import { useState } from "react";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -21,7 +23,15 @@ vi.mock("../../api", async (orig) => ({
 
 const noop = () => undefined;
 
-function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage, attendance, onAttendance }: {
+function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage, attendance, onAttendance, missing, onCloseCategory, closeBlocked, roles, categoryRoles, hubs, signupChars, onSignupCharacters }: {
+    /** Characters per signup per category; with onSignupCharacters the card is offered. */
+    signupChars?: Record<string, number>;
+    onSignupCharacters?: (id: string, count: number) => void;
+    missing?: api.MissingCategory[];
+    onCloseCategory?: (c: api.MissingCategory) => void;
+    closeBlocked?: boolean;
+    roles?: api.Role[];
+    categoryRoles?: Record<string, string[]>;
     attendance?: Record<string, Partial<CategoryAttendance>>;
     onAttendance?: (id: string, value: CategoryAttendance) => void;
     languages?: Record<string, string>;
@@ -30,14 +40,19 @@ function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, langu
     sheets?: Record<string, CategorySheet>;
     onSheet?: (id: string, sheet: CategorySheet) => void;
     onPlanning?: (id: string, mode: PlanningMode) => void;
+    /** With the Raid- and Orga-Zentrale (their lists loaded). */
+    hubs?: boolean;
 }) {
     const [plan, setPlan] = useState(planning);
     return (
         <CategoryMatrix
             categories={[{ id: "c1", name: "Raids Mittwoch" }]}
-            roles={[{ id: "r1", name: "Raider" }]}
+            roles={roles || [{ id: "r1", name: "Raider" }]}
             categoryIds={["c1"]}
-            categoryRoles={{ c1: ["r1"] }}
+            categoryRoles={categoryRoles || { c1: ["r1"] }}
+            missing={missing}
+            onCloseCategory={onCloseCategory}
+            closeBlocked={closeBlocked}
             categoryLootTool={{ c1: "gargul" }}
             categorySheets={sheets}
             categoryPlanning={plan}
@@ -49,6 +64,8 @@ function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, langu
             onLootSystem={noop}
             onSignupSource={noop}
             onSignupNotes={noop}
+            categorySignupCharacters={signupChars}
+            onSignupCharacters={onSignupCharacters}
             onSetupDms={noop}
             onAnnounce={noop}
             onDiscordEvent={noop}
@@ -59,6 +76,8 @@ function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, langu
             categoryAttendance={attendance}
             onAttendance={onAttendance}
             onSheet={onSheet}
+            availabilityPanels={hubs ? { panels: [], channels: [], links: {}, maxLinks: 5, onChange: noop, onLinks: noop } : undefined}
+            orgaHubs={hubs ? { hubs: [], channels: [], onChange: noop, links: {}, maxLinks: 5, onLinks: noop } : undefined}
             raidTemplates={{ options: [], value: {}, onChange: noop }}
             icon="inv_banner_03"
             crumb="Raid-Kategorien"
@@ -74,30 +93,38 @@ async function openCard(props: Parameters<typeof Harness>[0] = {}) {
 }
 
 const tab = (key: string) => screen.getByRole("tab", { name: new RegExp(`^${t(`settings.categories.tabs.${key}`).replace(/[&]/g, "\\&")}`) });
+const label = (key: string) => `${t(`settings.categories.tabs.${key}`)}`;
 
 beforeEach(() => {
     vi.mocked(api.getRaiderCharacters).mockResolvedValue({ categoryId: "c1", raiders: [], characters: {} } as never);
 });
 
 describe("CategoryMatrix: the open card's tabs", () => {
-    it("shows four tabs with their field counts, the first one open", async () => {
+    it("shows the tabs with their field counts, the Raider tab open", async () => {
         await openCard();
         const tabs = screen.getAllByRole("tab");
         expect(tabs.map((b) => b.textContent)).toEqual([
-            `${t("settings.categories.tabs.signup")}4`,
-            `${t("settings.categories.tabs.message")}5`,
-            // template, setup DMs, Planung - no sheet while it plans with the raid plan
-            `${t("settings.categories.tabs.plan")}3`,
-            `${t("settings.categories.tabs.loot")}2`,
+            `${label("raider")}2`,
+            // source, template, voice channel, announcement, Discord event
+            `${label("events")}5`,
+            `${label("message")}3`,
+            // no Discord-Zentralen without their lists; Planung + setup DMs, no sheet while it plans with the raid plan
+            `${label("plan")}2`,
+            `${label("loot")}2`,
         ]);
-        expect(tab("signup")).toHaveAttribute("aria-selected", "true");
+        expect(tab("raider")).toHaveAttribute("aria-selected", "true");
         const panel = screen.getByRole("tabpanel");
-        expect(panel).toHaveAttribute("aria-labelledby", tab("signup").id);
-        expect(within(panel).getByRole("radiogroup", { name: t("settings.categories.newEventsAria", { name: "Raids Mittwoch" }) })).toBeInTheDocument();
+        expect(panel).toHaveAttribute("aria-labelledby", tab("raider").id);
+        // the tab says in one line what it covers
+        expect(within(panel).getByText(t("settings.categories.tabsIntro.raider"))).toBeVisible();
         expect(within(panel).getByText(t("settings.categories.raiderRoles"))).toBeInTheDocument();
-        // the explanation sits beside the control, not only behind an "i"
-        expect(within(panel).getByText(t("settings.categories.newEventsSub"))).toBeVisible();
+        // a short line is visible, the full explanation sits behind the (i)
+        expect(within(panel).getByText(t("settings.categories.raiderRolesShort"))).toBeVisible();
+        expect(within(panel).queryByText(t("settings.categories.raiderRolesSub"))).toBeNull();
+        const more = within(panel).getByRole("button", { name: t("settings.categories.moreAbout", { label: t("settings.categories.raiderRoles") }) });
+        expect(more).toHaveAttribute("data-tip-sub", t("settings.categories.raiderRolesSub"));
         // nothing of the other tabs is rendered
+        expect(screen.queryByRole("radiogroup", { name: t("settings.categories.newEventsAria", { name: "Raids Mittwoch" }) })).toBeNull();
         expect(screen.queryByRole("radiogroup", { name: t("settings.categories.lootAddonAria", { name: "Raids Mittwoch" }) })).toBeNull();
     });
 
@@ -107,31 +134,50 @@ describe("CategoryMatrix: the open card's tabs", () => {
         expect(tab("loot")).toHaveAttribute("aria-selected", "true");
         const panel = screen.getByRole("tabpanel");
         expect(within(panel).getByRole("radiogroup", { name: t("settings.categories.lootAddonAria", { name: "Raids Mittwoch" }) })).toBeInTheDocument();
-        expect(within(panel).getByText(t("settings.categories.lootAddonSub"))).toBeInTheDocument();
+        expect(within(panel).getByText(t("settings.categories.lootAddonShort"))).toBeInTheDocument();
         expect(within(panel).queryByText(t("settings.categories.raiderRoles"))).toBeNull();
 
+        // everything that happens when an event is created sits in "Neue Events"
+        await user.click(tab("events"));
+        const events = screen.getByRole("tabpanel");
+        expect(within(events).getByRole("radiogroup", { name: t("settings.categories.newEventsAria", { name: "Raids Mittwoch" }) })).toBeInTheDocument();
+        expect(within(events).getByRole("checkbox", { name: t("settings.categories.discordEventAria", { name: "Raids Mittwoch" }) })).toBeInTheDocument();
+        expect(within(events).getByText(t("settings.categories.voice"))).toBeInTheDocument();
+        expect(within(events).getByLabelText(t("settings.categories.template"))).toBeInTheDocument();
+
+        // the signup message's look and the tentative/decline question sit together
         await user.click(tab("message"));
         const message = screen.getByRole("tabpanel");
-        expect(within(message).getByRole("checkbox", { name: t("settings.categories.discordEventAria", { name: "Raids Mittwoch" }) })).toBeInTheDocument();
-        expect(within(message).getByText(t("settings.categories.voice"))).toBeInTheDocument();
+        expect(within(message).getByRole("radiogroup", { name: t("settings.categories.notesAria", { name: "Raids Mittwoch" }) })).toBeInTheDocument();
+        expect(within(message).getByRole("checkbox", { name: t("settings.categories.raidArtAria", { name: "Raids Mittwoch" }) })).toBeInTheDocument();
+    });
+
+    it("offers the Discord-Zentralen tab with the Raid- and Orga-Zentrale once their lists are loaded", async () => {
+        const user = await openCard({ hubs: true });
+        expect(screen.getAllByRole("tab").map((b) => b.textContent)[3]).toBe(`${label("hubs")}2`);
+        await user.click(tab("hubs"));
+        const panel = screen.getByRole("tabpanel");
+        expect(within(panel).getByText(t("settings.categories.panel"))).toBeInTheDocument();
+        expect(within(panel).getByText(t("settings.categories.orgaHub"))).toBeInTheDocument();
+        expect(within(panel).getByText(t("settings.categories.links"))).toBeInTheDocument();
     });
 
     it("moves between the tabs with the arrow keys, Home and End", async () => {
         const user = await openCard();
-        tab("signup").focus();
+        tab("raider").focus();
         await user.keyboard("{ArrowRight}");
-        expect(tab("message")).toHaveAttribute("aria-selected", "true");
-        expect(tab("message")).toHaveFocus();
+        expect(tab("events")).toHaveAttribute("aria-selected", "true");
+        expect(tab("events")).toHaveFocus();
         await user.keyboard("{End}");
         expect(tab("loot")).toHaveFocus();
         await user.keyboard("{ArrowRight}");
-        expect(tab("signup")).toHaveAttribute("aria-selected", "true");
+        expect(tab("raider")).toHaveAttribute("aria-selected", "true");
         await user.keyboard("{ArrowLeft}");
         expect(tab("loot")).toHaveAttribute("aria-selected", "true");
         await user.keyboard("{Home}");
-        expect(tab("signup")).toHaveFocus();
+        expect(tab("raider")).toHaveFocus();
         // only the open tab is in the tab order
-        expect(tab("signup")).toHaveAttribute("tabindex", "0");
+        expect(tab("raider")).toHaveAttribute("tabindex", "0");
         expect(tab("plan")).toHaveAttribute("tabindex", "-1");
     });
 
@@ -149,7 +195,7 @@ describe("CategoryMatrix: the open card's tabs", () => {
         expect(onPlanning).toHaveBeenCalledWith("c1", "sheet");
         expect(screen.getByLabelText(t("settings.categories.sheetLinkAria"))).toBeInTheDocument();
         expect(screen.getByLabelText(t("settings.categories.fixedSheet"))).toBeInTheDocument();
-        expect(tab("plan").textContent).toBe(`${t("settings.categories.tabs.plan")}4`);
+        expect(tab("plan").textContent).toBe(`${label("plan")}3`);
 
         await user.click(within(planning).getByRole("radio", { name: t("settings.planning.raidplan") }));
         expect(screen.queryByLabelText(t("settings.categories.sheetLinkAria"))).toBeNull();
@@ -179,42 +225,147 @@ describe("CategoryMatrix: the open card's tabs", () => {
         const onLanguage = vi.fn();
         const user = await openCard({ languages: { c1: "en" }, onLanguage });
         await user.click(tab("message"));
-        expect(tab("message").textContent).toBe(`${t("settings.categories.tabs.message")}6`);
+        expect(tab("message").textContent).toBe(`${label("message")}4`);
         const group = screen.getByRole("radiogroup", { name: t("settings.categories.languageAria", { name: "Raids Mittwoch" }) });
         expect(within(group).getByRole("radio", { name: "English" })).toHaveAttribute("aria-checked", "true");
-        expect(screen.getByText(t("settings.categories.languageSub"))).toBeVisible();
+        expect(screen.getByText(t("settings.categories.languageShort"))).toBeVisible();
         await user.click(within(group).getByRole("radio", { name: t("settings.categories.languageServer") }));
         expect(onLanguage).toHaveBeenCalledWith("c1", "");
         await user.click(within(group).getByRole("radio", { name: "Deutsch" }));
         expect(onLanguage).toHaveBeenLastCalledWith("c1", "de");
     });
 
-    it("sets attendance in the signup tab: shown or not, over how many raids, in the absence overview or not", async () => {
+    it("keeps attendance in one card of the Raider tab: shown or not, over how many raids, in the absence overview or not", async () => {
         const onAttendance = vi.fn();
         const user = await openCard({ attendance: { c1: { window: 8 } }, onAttendance });
-        expect(tab("signup").textContent).toBe(`${t("settings.categories.tabs.signup")}7`);
+        // roles, characters and the attendance card
+        expect(tab("raider").textContent).toBe(`${label("raider")}3`);
         const name = "Raids Mittwoch";
-        const windows = screen.getByRole("radiogroup", { name: t("settings.categories.attendanceWindowAria", { name }) });
-        expect(within(windows).getAllByRole("radio").map((r) => r.textContent)).toEqual(["4", "8", "11", "16"]);
-        expect(within(windows).getByRole("radio", { name: "8" })).toHaveAttribute("aria-checked", "true");
-        await user.click(within(windows).getByRole("radio", { name: "16" }));
-        expect(onAttendance).toHaveBeenLastCalledWith("c1", { show: true, window: 16, absences: true });
+        const card = screen.getByText(t("settings.categories.attendanceBlock")).closest(".cat-field-wrap") as HTMLElement;
+        expect(card).toHaveAttribute("data-field", "attendance");
+        expect(within(card).getByRole("checkbox", { name: t("settings.categories.attendanceAria", { name }) })).toBeInTheDocument();
+        expect(within(card).getByRole("checkbox", { name: t("settings.categories.absencesAria", { name }) })).toBeInTheDocument();
+        expect(within(card).getByRole("spinbutton", { name: t("settings.categories.attendanceWindowAria", { name }) })).toHaveValue(8);
+
         await user.click(screen.getByRole("checkbox", { name: t("settings.categories.absencesAria", { name }) }));
         expect(onAttendance).toHaveBeenLastCalledWith("c1", { show: true, window: 8, absences: false });
         await user.click(screen.getByRole("checkbox", { name: t("settings.categories.attendanceAria", { name }) }));
         expect(onAttendance).toHaveBeenLastCalledWith("c1", { show: false, window: 8, absences: true });
     });
 
-    it("hides the window while the attendance is not shown", async () => {
+    it("counts the quota over any number from 1 to 50: − / + or typed", async () => {
+        const onAttendance = vi.fn();
+        const user = await openCard({ attendance: { c1: { window: 8 } }, onAttendance });
+        const name = "Raids Mittwoch";
+        const input = screen.getByRole("spinbutton", { name: t("settings.categories.attendanceWindowAria", { name }) });
+        await user.click(screen.getByRole("button", { name: t("settings.categories.attendanceWindowMore") }));
+        expect(onAttendance).toHaveBeenLastCalledWith("c1", { show: true, window: 9, absences: true });
+        await user.click(screen.getByRole("button", { name: t("settings.categories.attendanceWindowLess") }));
+        expect(onAttendance).toHaveBeenLastCalledWith("c1", { show: true, window: 7, absences: true });
+
+        // typed: every valid step is handed over, a half-typed or too large number is not
+        onAttendance.mockClear();
+        await user.clear(input);
+        expect(onAttendance).not.toHaveBeenCalled();
+        await user.type(input, "20");
+        expect(onAttendance).toHaveBeenLastCalledWith("c1", { show: true, window: 20, absences: true });
+        onAttendance.mockClear();
+        await user.clear(input);
+        await user.type(input, "60");
+        expect(onAttendance.mock.calls.map((c) => c[1].window)).toEqual([6]);
+        // leaving the field shows the value that counts again
+        await user.tab();
+        expect(input).toHaveValue(8);
+    });
+
+    it("stops − at 1 and + at 50", async () => {
+        await openCard({ attendance: { c1: { window: 1 } }, onAttendance: noop });
+        expect(screen.getByRole("button", { name: t("settings.categories.attendanceWindowLess") })).toBeDisabled();
+        expect(screen.getByRole("button", { name: t("settings.categories.attendanceWindowMore") })).toBeEnabled();
+    });
+
+    it("keeps a stored 50 and stops + there", async () => {
+        await openCard({ attendance: { c1: { window: 50 } }, onAttendance: noop });
+        expect(screen.getByRole("spinbutton", { name: t("settings.categories.attendanceWindowAria", { name: "Raids Mittwoch" }) })).toHaveValue(50);
+        expect(screen.getByRole("button", { name: t("settings.categories.attendanceWindowMore") })).toBeDisabled();
+    });
+
+    it("hides the quota while the attendance is not shown", async () => {
         await openCard({ attendance: { c1: { show: false } }, onAttendance: noop });
         expect(screen.getByRole("checkbox", { name: t("settings.categories.attendanceAria", { name: "Raids Mittwoch" }) })).not.toBeChecked();
-        expect(screen.queryByRole("radiogroup", { name: t("settings.categories.attendanceWindowAria", { name: "Raids Mittwoch" }) })).toBeNull();
+        expect(screen.queryByRole("spinbutton", { name: t("settings.categories.attendanceWindowAria", { name: "Raids Mittwoch" }) })).toBeNull();
+    });
+
+    it("sets the characters per signup in the message tab: 8 by default, − / + within 1..8", async () => {
+        const onSignupCharacters = vi.fn();
+        const user = await openCard({ onSignupCharacters });
+        await user.click(tab("message"));
+        const name = "Raids Mittwoch";
+        const input = screen.getByRole("spinbutton", { name: t("settings.categories.signupCharsAria", { name }) });
+        const card = input.closest("[data-field]") as HTMLElement;
+        expect(card).toHaveAttribute("data-field", "signupChars");
+        expect(within(card).getByText(t("settings.categories.signupChars"))).toBeInTheDocument();
+        expect(within(card).getByText(t("settings.categories.signupCharsShort"))).toBeInTheDocument();
+        expect(input).toHaveValue(8);
+        // 8 is the most there is
+        expect(screen.getByRole("button", { name: t("settings.categories.signupCharsMore") })).toBeDisabled();
+        await user.click(screen.getByRole("button", { name: t("settings.categories.signupCharsLess") }));
+        expect(onSignupCharacters).toHaveBeenLastCalledWith("c1", 7);
+        onSignupCharacters.mockClear();
+        await user.clear(input);
+        await user.type(input, "9");
+        expect(onSignupCharacters).not.toHaveBeenCalled();
+        await user.clear(input);
+        await user.type(input, "3");
+        expect(onSignupCharacters).toHaveBeenLastCalledWith("c1", 3);
+    });
+
+    it("shows a category's own number and stops − at 1", async () => {
+        const user = await openCard({ signupChars: { c1: 1 }, onSignupCharacters: noop });
+        await user.click(tab("message"));
+        expect(screen.getByRole("spinbutton", { name: t("settings.categories.signupCharsAria", { name: "Raids Mittwoch" }) })).toHaveValue(1);
+        expect(screen.getByRole("button", { name: t("settings.categories.signupCharsLess") })).toBeDisabled();
+        expect(tab("message")).toHaveTextContent(`${label("message")}4`);
     });
 
     it("words the tabs in English", async () => {
-        switchLang("en");
+        await switchLang("en");
         await openCard();
         expect(screen.getByRole("tablist", { name: "Settings of Raids Mittwoch" })).toBeInTheDocument();
-        expect(screen.getAllByRole("tab").map((b) => b.textContent)).toEqual(["Signup4", "Message5", "Setup & planning3", "Loot2"]);
+        expect(screen.getAllByRole("tab").map((b) => b.textContent)).toEqual(["Raiders2", "New events5", "Signup message3", "Setup & planning2", "Loot2"]);
+    });
+});
+
+describe("CategoryMatrix: a category's life (#744)", () => {
+    // the tabs' English case above leaves the page in English
+    beforeEach(() => switchLang("de"));
+
+    const gone: api.MissingCategory = {
+        categoryId: "gone", name: "TBC Montag", active: false, series: { enabled: true, weekdays: [1], time: "19:30" }, reminders: false,
+        settings: [], councilProfile: false, kaders: [], rosters: [], upcoming: 0,
+    };
+
+    it("marks a category deleted in Discord under its last name and offers to close it", async () => {
+        const user = userEvent.setup();
+        const onClose = vi.fn();
+        renderPage(<Harness missing={[gone]} onCloseCategory={onClose} />);
+        const row = screen.getByText("TBC Montag").closest(".cat-row") as HTMLElement;
+        expect(within(row).getByText("in Discord gelöscht")).toBeInTheDocument();
+        expect(within(row).queryByText("unbekannt")).toBeNull();
+        await user.click(within(row).getByRole("button", { name: "Kategorie abschließen" }));
+        expect(onClose).toHaveBeenCalledWith(gone);
+    });
+
+    it("keeps the close action shut while the page has unsaved changes", () => {
+        renderPage(<Harness missing={[gone]} onCloseCategory={noop} closeBlocked />);
+        expect(screen.getByRole("button", { name: "Kategorie abschließen" })).toBeDisabled();
+    });
+
+    it("offers a renamed raider role by its id, also in a category that does not use it yet", async () => {
+        const user = userEvent.setup();
+        renderPage(<Harness roles={[{ id: "r1", name: "Kern" }, { id: "r2", name: "Gamer" }]} categoryRoles={{ c1: ["r1"] }} />);
+        await user.click(screen.getByRole("button", { name: "Details" }));
+        expect(screen.getByRole("button", { name: "@Kern" })).toHaveAttribute("aria-pressed", "true");
+        expect(screen.queryByRole("button", { name: "@Gamer" })).toBeNull();
     });
 });

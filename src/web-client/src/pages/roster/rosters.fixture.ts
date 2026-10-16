@@ -139,7 +139,7 @@ export function options(over: Partial<RosterOptions> = {}): RosterOptions {
             { id: "cat1", name: "Raid Mo / Do", versionId: "tbc", rosterId: "raid-mo-do-abc", rosterName: "Raid Mo / Do" },
             { id: "cat2", name: "PuG Karazhan", versionId: "tbc", rosterId: null, rosterName: "" },
         ],
-        versions: [{ id: "tbc", label: "WoW TBC", short: "TBC" }, { id: "forever", label: "WoW Forever", short: "Forever" }],
+        versions: [{ id: "tbc", label: "WoW TBC", short: "TBC", icon: "expansionicon_burningcrusade" }, { id: "forever", label: "WoW Forever", short: "Forever", icon: "spell_holy_borrowedtime" }],
         defaultVersion: "tbc",
         roles: [
             { id: "role-main", name: "Raider Mo/Do", color: "#e67e22", position: 10, manageable: true },

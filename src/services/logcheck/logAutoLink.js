@@ -16,6 +16,16 @@ const logStore = require("../../stores/logStore");
 const discord = require("../discord/discord");
 const { autoMatches } = require("./logEventMatch");
 const { loadMatchableEvents, eventLinkFields } = require("./matchableEvents");
+const { backfillAllLogTitles } = require("./logTitles");
+
+/** The live channel → category join, {} when Discord cannot give one right now. */
+function categoryMap(guildId) {
+    try {
+        return (typeof discord.getChannelCategoryMap === "function" && discord.getChannelCategoryMap(guildId)) || {};
+    } catch {
+        return {};
+    }
+}
 
 /**
  * Assign every still-unlinked log of one guild to its unambiguous event.
@@ -27,7 +37,12 @@ const { loadMatchableEvents, eventLinkFields } = require("./matchableEvents");
  */
 async function autoLinkLogs(guildId) {
     if (!guildId) return { linked: 0, remaining: 0, error: null };
-    const logs = logStore.listLogs().filter((l) => (!l.guildId || l.guildId === guildId) && !l.eventId);
+    // Copies with the category of their channel: the category ranks the
+    // candidates, and its version breaks a tie for a log whose host told none (#746).
+    const catMap = categoryMap(guildId);
+    const logs = logStore.listLogs()
+        .filter((l) => (!l.guildId || l.guildId === guildId) && !l.eventId)
+        .map((l) => ({ ...l, categoryId: (catMap[l.channelId] && catMap[l.channelId].categoryId) || l.categoryId || "" }));
     if (!logs.length) return { linked: 0, remaining: 0, error: null };
 
     // A reported error is not fatal here: loadMatchableEvents falls back to the
@@ -62,7 +77,10 @@ let timer = null;
  */
 function startLogAutoLink({ intervalMs = 10 * 60 * 1000 } = {}) {
     if (timer) return timer;
-    const run = () => autoLinkAllGuilds().catch((e) => console.error("[logAutoLink]", e.message));
+    const run = () => autoLinkAllGuilds()
+        .catch((e) => console.error("[logAutoLink]", e.message))
+        // The log titles a page did not wait for (logTitles.backfillLogTitles reads only a few per view). Never throws.
+        .then(() => backfillAllLogTitles());
     run();
     timer = setInterval(run, intervalMs);
     if (timer.unref) timer.unref();

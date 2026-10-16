@@ -8,8 +8,15 @@ on:
   # Deploy by hand (Actions -> CI -> Run workflow, or `gh workflow run ci.yml
   # --ref main`): the whole pipeline runs and the deploy job goes ahead even
   # while DEPLOY_PAUSED is set - that is how a paused series of merges reaches
-  # the server in one go at the end.
+  # the server in one go at the end. "force" redoes steps deploy.sh would
+  # otherwise skip as unchanged (docs/deployment.md).
   workflow_dispatch:
+    inputs:
+      force:
+        description: "Schritte trotzdem ausführen (deploy.sh DEPLOY_FORCE)"
+        type: choice
+        default: none
+        options: [none, all, install, register, pm2, node, build]
 
 jobs:
   lint:
@@ -112,6 +119,18 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The deploy job ships exactly this build to the server: there, tsc +
+      # vite took minutes of swapping on 1 vCPU and 921 MB RAM. Same run, same
+      # commit - also for a manual run (workflow_dispatch).
+      - name: Keep the build for the deploy
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-client-dist
+          path: src/web-client/dist/
+          if-no-files-found: error
+          retention-days: 7
+
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
@@ -130,8 +149,12 @@ jobs:
     # Deploys queue up instead of running side by side. Three merges within
     # eight minutes (#472, #473, #475) each ran `git reset` + `npm ci` on the
     # server while another one was restarting pm2: the bot crash-looped and
-    # every healthcheck timed out. Nothing is cancelled - the last deploy still
-    # brings the newest main to the server, it just waits for its turn.
+    # every healthcheck timed out. A running deploy is never cancelled. GitHub
+    # keeps at most ONE deploy waiting behind it: a newer one that queues up
+    # replaces the waiting one (shown as "cancelled") - fine, the newer commit
+    # contains the older. Each deploy puts its own commit live (DEPLOY_SHA, the
+    # one its client was built from); one that gets its turn after a newer
+    # commit is already live does nothing (deploy.sh, DEPLOYED_COMMIT).
     concurrency:
       group: deploy-production
       cancel-in-progress: false
@@ -142,6 +165,8 @@ jobs:
     # deploy.sh has always used.
     env:
       DEPLOY_DIR: ${{ vars.DEPLOY_DIR || '/var/www/pulsebot' }}
+      DEPLOY_SHA: ${{ github.sha }}
+      DEPLOY_FORCE: ${{ inputs.force != 'none' && inputs.force || '' }}
 
     steps:
       # Eight merges in a row deployed nothing: the ssh action wrote "missing
@@ -164,7 +189,40 @@ jobs:
             echo "Ohne diese Secrets kann nicht deployt werden. Der Job bricht ab, damit ein fehlgeschlagenes Deployment nicht als Erfolg durchgeht."
             exit 1
           fi
+          # The path goes into remote shell commands below, quoted with '...'.
+          if [[ ! "$DEPLOY_DIR" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
+            echo "::error title=DEPLOY_DIR ungültig::DEPLOY_DIR muss ein absoluter Pfad aus Buchstaben, Ziffern und ._/- sein (ist: $DEPLOY_DIR)."
+            exit 1
+          fi
           echo "Alle Deploy-Secrets sind gesetzt. Zielverzeichnis: $DEPLOY_DIR"
+
+      - name: Download the web client build
+        uses: actions/download-artifact@v8
+        with:
+          name: web-client-dist
+          path: web-client-dist
+
+      # Into a staging directory inside the checkout (.deploy/dist-<sha>),
+      # under a .part name until it is complete; deploy.sh switches it in.
+      # tar over plain ssh: neither side needs rsync.
+      - name: Copy the build to the server
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
+        run: |
+          test -f web-client-dist/index.html
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          target="$DEPLOY_DIR/.deploy/dist-$DEPLOY_SHA"
+          tar -C web-client-dist -czf - . | ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 \
+            "$SSH_USER@$SSH_HOST" \
+            "set -e; [ -d '$DEPLOY_DIR/.git' ] || { echo 'Kein git-Checkout unter $DEPLOY_DIR - DEPLOY_DIR prüfen (docs/deployment.md).'; exit 1; }; rm -rf '$target.part'; mkdir -p '$target.part'; tar -xzf - -C '$target.part'; rm -rf '$target'; mv '$target.part' '$target'"
+          rm -f ~/.ssh/deploy_key
+          echo "Client-Build liegt auf dem Server unter $target ($(du -sh web-client-dist | cut -f1))."
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.5
@@ -175,9 +233,14 @@ jobs:
           # Optional — 22 unless the server listens elsewhere.
           port: ${{ secrets.SSH_PORT || 22 }}
           # The action's default (10 min) once cut the script off in the middle
-          # of the web client build, which alone takes 4-5 min on the server.
+          # of the web client build, which took 4-5 min on the server. With the
+          # build from CI a deploy takes about a minute; the margin stays for
+          # DEPLOY_FORCE=build, which builds on the server again.
           command_timeout: 20m
-          envs: DEPLOY_DIR
+          envs: DEPLOY_DIR,DEPLOY_SHA,DEPLOY_FORCE
+          # deploy.sh comes from the commit being deployed, not from the
+          # checkout the server still has: a change to the script works on the
+          # very deploy that brings it.
           script: |
             set -e
             if [ ! -d "$DEPLOY_DIR" ]; then
@@ -185,4 +248,7 @@ jobs:
               exit 1
             fi
             cd "$DEPLOY_DIR"
-            ./deploy.sh main
+            git fetch --quiet origin
+            mkdir -p .deploy
+            git show "$DEPLOY_SHA:deploy.sh" > ".deploy/deploy-$DEPLOY_SHA.sh"
+            PREBUILT_DIST="$DEPLOY_DIR/.deploy/dist-$DEPLOY_SHA" bash ".deploy/deploy-$DEPLOY_SHA.sh" main

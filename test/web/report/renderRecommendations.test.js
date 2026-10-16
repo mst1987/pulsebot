@@ -53,13 +53,15 @@ describe("web/report/render — Empfehlungen for a reviewer", () => {
 
     it("reflects the review: state, buttons and the rewritten text", () => {
         const html = renderReportPage(report({ raid: {}, players: { Farin: { gear: { approved: true, text: "Bitte vor dem Raid verzaubern." }, "consumables.food": { approved: false } } } }), admin);
-        expect(html).toContain("class=\"rec rrow-d rec-high rec-state-approved\" data-key=\"gear\"");
-        expect(html).toContain("<p class=\"rec-body\">Bitte vor dem Raid verzaubern.</p>");
-        expect(html).toContain("class=\"rec rrow-d rec-low rec-state-rejected\" data-key=\"consumables.food\"");
+        // a raider's points are open blocks: the own text with its tag, under "Geht so an …"
+        expect(html).toContain("class=\"rec rec-block rec-high rec-state-approved\" data-key=\"gear\"");
+        expect(html).toContain("<span class=\"kicker\">Geht so an Farin</span><p><span class=\"rec-source own\">Eigener Text</span><span class=\"rec-body\">Bitte vor dem Raid verzaubern.</span></p>");
+        expect(html).toContain("class=\"rec rec-block rec-low rec-state-rejected\" data-key=\"consumables.food\"");
         expect(html).toContain("<span class=\"sub\">1 Punkt für den ganzen Raid · 1 offen · 0 freigegeben</span>"); // only the raid finding is still open
-        // the active verdict is toned; the text sits in the row's body with the editor
-        expect(html).toMatch(/<button type="button" class="ibtn ok" data-tip="Freigeben"[^>]*data-review="approve">/);
-        expect(html).toMatch(/<button type="button" class="ibtn bad" data-tip="Nicht senden"[^>]*data-review="reject">/);
+        // the active verdict is a filled, pressed button with its label
+        expect(html).toContain("<button type=\"button\" class=\"btn btn-sm btn-yes rec-yes ok\" data-review=\"approve\" aria-pressed=\"true\"");
+        expect(html).toContain("<span class=\"lbl\">Freigegeben</span>");
+        expect(html).toContain("<button type=\"button\" class=\"btn btn-sm btn-no rec-no bad\" data-review=\"reject\" aria-pressed=\"true\"");
         expect(html).toContain("<textarea class=\"rec-text\" rows=\"3\" placeholder=\"Eigene Formulierung (leer = Vorschlag so lassen)\">Bitte vor dem Raid verzaubern.</textarea>");
         expect(html).toContain("data-review=\"rule\"");
     });
@@ -67,9 +69,12 @@ describe("web/report/render — Empfehlungen for a reviewer", () => {
     it("puts the raider's own points into their card: chip, section with controls and the footer", () => {
         const html = renderReportPage(report({ raid: {}, players: { Farin: { gear: { approved: true } } } }), admin);
         expect(html).toContain("data-name=\"Farin\" data-role=\"dps\" data-open=\"1\"");
-        expect(html).toContain("<span class=\"badge\" data-tip=\"Befunde, die noch niemand freigegeben oder verworfen hat\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_misc_note_01.jpg\" alt=\"\">1 Empfehlung offen</span>");
-        expect(html).toMatch(/Empfehlungen<span class="n(?: mid| bad)?">2 · 1 offen<\/span>/);
-        expect(html).toContain("<span class=\"note\">1 freigegeben · 1 offen · zuletzt gesendet: nie</span>");
+        expect(html).toContain("<span class=\"badge pending\" data-tip=\"Befunde, die noch niemand freigegeben oder verworfen hat\"><span class=\"dot\" aria-hidden=\"true\"></span>1 Punkt zu prüfen</span>");
+        expect(html).toMatch(/Empfehlungen<span class="n(?: mid| bad)?">1 offen<\/span>/);
+        expect(html).toContain("<b class=\"rf-count\">1 von 2 Punkten geprüft</b>");
+        expect(html).toContain("<span class=\"note\">Zuletzt gesendet: nie</span>");
+        // without gear issues in the report the gear finding keeps its evidence badges
+        expect(html).toContain("<span class=\"badge ev-b\" data-tip=\"Hood\" data-tip-sub=\"keine Verzauberung\">Hood <b>keine Verzauberung</b></span>");
         expect(html).toContain("data-phrase=\"player\"");
         expect(html).toMatch(/data-dialog="send-0"><img class="hicon"[^>]*>Vorschau &amp; senden<\/button>/);
         // a clean raider says so instead of showing nothing
@@ -118,8 +123,9 @@ describe("web/report/render — player page", () => {
         // their points come first, under their own head
         expect(own).toContain("<b>Deine Punkte für den nächsten Raid</b><span class=\"kicker\">Farin › Empfehlungen · von der Raidleitung geprüft</span>");
         expect(own.indexOf("id=\"p-points\"")).toBeLessThan(own.indexOf("id=\"p-prep\""));
-        // the first point opens with its text
-        expect(own).toContain("<details class=\"rec rrow-d rec-high rec-state-approved\" data-key=\"gear\" open>");
+        // every point shows its text, from the raid lead, without verdicts
+        expect(own).toContain("<div class=\"rec rec-block rec-high rec-state-approved\" data-key=\"gear\">");
+        expect(own).toContain("<span class=\"kicker\">Von der Raidleitung</span>");
         expect(own).toContain("2 Gear-Probleme");
         expect(own).not.toContain("Essen 80 %");
         expect(own).not.toContain("data-review=");

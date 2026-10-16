@@ -5,8 +5,10 @@ let mockUser = null;
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "g1" }));
+let mockConfig = {};
 jest.mock("../../../src/stores/settingsStore", () => ({
     listRaidTemplates: jest.fn(() => [{ id: "tpl", name: "SSC + TK 25er", instanceIds: ["ssc"], size: 25, extra: "x" }]),
+    getConfig: jest.fn(() => mockConfig),
 }));
 jest.mock("../../../src/stores/eventSeriesStore", () => ({
     deleteSeries: jest.fn(() => true),
@@ -64,7 +66,29 @@ describe("handlers", () => {
         expect(status(r)).toBe(200);
         expect(body(r)).toMatchObject({ categories: [], canWrite: false, templates: [{ id: "tpl", name: "SSC + TK 25er", instanceIds: ["ssc"], size: 25 }] });
         expect(body(r).templates[0].extra).toBeUndefined();
-        expect(service.seriesOverview).toHaveBeenCalledWith({ guildId: "g1" });
+        expect(service.seriesOverview).toHaveBeenCalledWith({ guildId: "g1", config: {} });
+    });
+
+    it("lists only the series and templates of the shown game version (#741)", async () => {
+        const settings = require("../../../src/stores/settingsStore");
+        mockConfig = { mainVersion: "tbc", categoryVersion: { "cat-forever": "forever" } };
+        settings.listRaidTemplates.mockReturnValueOnce([
+            { id: "kara", name: "Kara", versionId: "tbc" }, { id: "bd", name: "Barrow Deeps", versionId: "forever" },
+        ]).mockReturnValueOnce([
+            { id: "kara", name: "Kara", versionId: "tbc" }, { id: "bd", name: "Barrow Deeps", versionId: "forever" },
+        ]);
+        service.seriesOverview.mockResolvedValue({ categories: [{ id: "cat-tbc" }, { id: "cat-forever" }], lastRun: null });
+        try {
+            const forever = body(await call(route.getSeries, READER, null, "version=forever"));
+            expect(forever.categories.map((c) => c.id)).toEqual(["cat-forever"]);
+            expect(forever.templates.map((t) => t.id)).toEqual(["bd"]);
+            const tbc = body(await call(route.getSeries, READER));
+            expect(tbc.categories.map((c) => c.id)).toEqual(["cat-tbc"]);
+            expect(tbc.templates.map((t) => t.id)).toEqual(["kara"]);
+        } finally {
+            mockConfig = {};
+            service.seriesOverview.mockResolvedValue({ categories: [], lastRun: null });
+        }
     });
 
     it("previews from the query string", async () => {

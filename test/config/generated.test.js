@@ -104,7 +104,11 @@ describe("golden master: the loaders answer what the old tables answered", () =>
         expect(bosses.bossIconUrl(601)).toBe(golden.bossIcon);
         expect(bosses.bossName(601)).toBe(golden.bossName);
         expect(bosses.ZONES).toHaveLength(golden.zones);
-        expect(wowsims.item(28770)).toEqual(golden.wowsimsItem);
+        // `unique` came in after the move (unique-equipped, for the drop check);
+        // everything the old table carried is still the same.
+        const { unique, ...moved } = wowsims.item(28770);
+        expect(moved).toEqual(golden.wowsimsItem);
+        expect(unique).toBe(true);
         expect([wowsims.ITEM_DB_VERSION, wowsims.BIS_VERSION]).toEqual(golden.wowsimsVersions);
         expect(wowsims.bisFor("Priest-Shadow", "t6")).toEqual(golden.wowsimsBis);
         expect(!!wowsims.aplFor("Priest-Shadow")).toBe(golden.apl);

@@ -1,7 +1,7 @@
 const {
     AREAS, AREA_IDS, emptyAccess, fullAccess, can, hasAnyAccess,
     normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess, mergeAccess, baseAccessMap,
-    accessForRoles, accessForUser, userCan, userCanAny, userHasMenuAccess,
+    accessForRoles, accessForUser, userCan, userCanAny, userHasMenuAccess, userIsOrga,
 } = require("../../src/config/permissions");
 
 describe("config/permissions", () => {
@@ -157,6 +157,13 @@ describe("config/permissions", () => {
             expect(userHasMenuAccess({ isAdmin: false })).toBe(false);
             expect(userHasMenuAccess(null)).toBe(false);
             expect(userCan(null, "raids")).toBe(false);
+        });
+
+        it("userIsOrga: a full admin or an orga role - no area makes anybody orga", () => {
+            expect(userIsOrga({ isAdmin: true })).toBe(true);
+            expect(userIsOrga({ isAdmin: false, isOrga: true, access: emptyAccess() })).toBe(true);
+            expect(userIsOrga({ isAdmin: false, access: { ...emptyAccess(), raids: { read: true, write: true } } })).toBe(false);
+            expect(userIsOrga(null)).toBe(false);
         });
 
         it("userCanAny takes any one of the areas, admins included", () => {

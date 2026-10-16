@@ -58,6 +58,19 @@ describe("utils/loot/wowhead", () => {
         });
     });
 
+    describe("lookupItem strict", () => {
+        it("stays null for an unknown item, but throws when Wowhead does not answer", async () => {
+            const notFound = Object.assign(new Error("404"), { response: { status: 404 } });
+            axios.get.mockRejectedValueOnce(notFound);
+            expect(await wowhead.lookupItem(990001, { path: "tbc", strict: true })).toBeNull();
+            axios.get.mockRejectedValueOnce(new Error("timeout"));
+            await expect(wowhead.lookupItem(990002, { path: "tbc", strict: true })).rejects.toThrow("timeout");
+            // without strict a failure is just "not found", as ever
+            axios.get.mockRejectedValueOnce(new Error("timeout"));
+            expect(await wowhead.lookupItem(990003, { path: "tbc" })).toBeNull();
+        });
+    });
+
     describe("lookupItemDetails", () => {
         const XML = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><wowhead><item id=\"22854\"><name><![CDATA[Flask of Relentless Assault]]></name>"
             + "<level>75</level><quality id=\"1\">Common</quality><class id=\"0\"><![CDATA[Consumables]]></class>"
@@ -108,6 +121,21 @@ describe("utils/loot/wowhead", () => {
             axios.get.mockResolvedValueOnce({ data: "" }).mockResolvedValueOnce({ data: { error: "x" } });
             expect(await wowhead.lookupItemDetails(999998)).toBeNull();
             expect(await wowhead.lookupItemDetails(0)).toBeNull();
+        });
+    });
+
+    describe("Forever's own section (#750)", () => {
+        it("looks items up and builds links on /forever", async () => {
+            axios.get.mockResolvedValue({ data: { name: "Test Item", icon: "inv_misc_bone_03", quality: 4 } });
+            await wowhead.lookupItem(1234, { path: "forever" });
+            expect(axios.get).toHaveBeenCalledWith("https://nether.wowhead.com/forever/tooltip/item/1234", expect.anything());
+            expect(wowhead.itemLink(1234, "tbc", "forever")).toBe("https://www.wowhead.com/forever/item=1234");
+        });
+
+        it("keeps the name cache apart per path", async () => {
+            axios.get.mockResolvedValue({ data: { results: [{ typeName: "Item", id: 9, name: "Gemname", icon: "x", quality: 3 }] } });
+            expect((await wowhead.findItemByName("Gemname", { path: "forever" })).id).toBe(9);
+            expect(axios.get).toHaveBeenCalledWith("https://www.wowhead.com/forever/search/suggestions-template", expect.anything());
         });
     });
 

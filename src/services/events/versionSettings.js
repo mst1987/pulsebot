@@ -24,6 +24,9 @@ const schema = require("../../stores/versionSettingsSchema");
 const { knownVersion, mainVersionFor } = require("./mainVersion");
 const { externalLink } = require("../discord/linkCheck");
 
+// the feature source (#761): whether Wowhead links and the armory lookup are on for a version
+const capabilities = require("./versionCapabilities");
+
 const str = (v) => (v === undefined || v === null ? "" : String(v)).trim();
 
 /** The config to read: the one handed in, else the stored one (late, see mainVersion.js' configOf). */
@@ -42,13 +45,27 @@ function configOf(config) {
  * @param {string} [versionId]
  * @param {{ config?: object }} [opts]
  * @returns {{ versionId: string, blizzardRegion: string, blizzardRealmSlug: string, blizzardNamespace: string,
- *   armoryUrlTemplate: string, wclUrlTemplate: string, wowheadPath: string, softresEdition: string, raidsheetId: string }}
+ *   armoryUrlTemplate: string, wclUrlTemplate: string, wowheadPath: string, softresEdition: string, raidsheetId: string, color: string }}
  */
 function settingsForVersion(versionId, { config } = {}) {
     const cfg = configOf(config);
     const id = knownVersion(versionId) || mainVersionFor({ config: cfg });
     const map = cfg.versionSettings && typeof cfg.versionSettings === "object" ? cfg.versionSettings : schema.versionSettingsOf(cfg);
     return { versionId: id, ...schema.normalizeBlock(map[id]) };
+}
+
+/**
+ * The colour a version shows in in the web admin (#742): its own setting, else
+ * the rule set's. `custom` says the setting differs from the rule set's colour.
+ * @param {string} [versionId]
+ * @param {{ config?: object }} [opts]
+ * @returns {{ color: string, defaultColor: string, custom: boolean }}
+ */
+function versionColor(versionId, opts = {}) {
+    const s = settingsForVersion(versionId, opts);
+    const defaultColor = schema.defaultColorOf(s.versionId);
+    const color = s.color || defaultColor;
+    return { color, defaultColor, custom: color !== defaultColor };
 }
 
 /**
@@ -71,22 +88,9 @@ function fillChar(template, character, { region = "", realm = "" } = {}) {
         .replace(/\{char\}/g, encodeURIComponent(name)));
 }
 
-/**
- * The Warcraft Logs site of a version: the origin of its log template
- * ("https://vanilla.warcraftlogs.com"), "" without one or when it is no
- * warcraftlogs.com address — the applicant check (#553) asks this site's v1
- * API and links its reports there.
- */
-function wclSiteOf(template) {
-    const text = str(template);
-    if (!text) return "";
-    try {
-        const url = new URL(text.replace(/\{(char|region|realm)\}/g, "x"));
-        return /(^|\.)warcraftlogs\.com$/i.test(url.hostname) && url.protocol === "https:" ? url.origin : "";
-    } catch {
-        return "";
-    }
-}
+// The Warcraft Logs site of a log template: stores/versionSettingsSchema.js (the
+// feature source, versionCapabilities.js, reads it there without this module).
+const { wclSiteOf } = schema;
 
 /**
  * The links of one version. Every builder answers "" where the version has no
@@ -96,12 +100,15 @@ function wclSiteOf(template) {
  */
 function versionLinks(versionId, opts = {}) {
     const s = settingsForVersion(versionId, opts);
+    // Wowhead links only while the feature is on for the version (#761): a path, not switched off.
+    const wowheadPath = capabilities.featureOn(s.versionId, "wowheadLinks", { config: opts.config }) ? s.wowheadPath : "";
     const wowhead = (kind, id, params = []) => {
         const n = Number(id) || 0;
-        if (!s.wowheadPath || n <= 0) return "";
-        const target = kind === "item" ? wowheadItemId(n) : n;
+        if (!wowheadPath || n <= 0) return "";
+        // the re-issues are TBC Anniversary's: another version's section knows no such id
+        const target = kind === "item" && wowheadPath === "tbc" ? wowheadItemId(n) : n;
         const query = params && params.length ? `?${params.join("&")}` : "";
-        return externalLink(`https://www.wowhead.com/${s.wowheadPath}/${kind}=${target}${query}`);
+        return externalLink(`https://www.wowhead.com/${wowheadPath}/${kind}=${target}${query}`);
     };
     const place = { region: s.blizzardRegion, realm: s.blizzardRealmSlug };
     const wclSite = wclSiteOf(s.wclUrlTemplate);
@@ -119,7 +126,8 @@ function versionLinks(versionId, opts = {}) {
         },
         wowheadItem: (itemId, params) => wowhead("item", itemId, params),
         wowheadSpell: (spellId) => wowhead("spell", spellId),
-        wowheadPath: s.wowheadPath,
+        /** The Wowhead path links go to, "" without one or with the links switched off (#761). */
+        wowheadPath,
         softresEdition: s.softresEdition,
         raidsheetId: s.raidsheetId,
     };
@@ -135,7 +143,9 @@ function versionLabel(versionId) {
  * A Battle.net client for a version's realm, or why there is none:
  *   { client, versionId, namespace, realmSlug, region, reason: "" }       ready to ask
  *   { client: null, reason: "version_not_configured", message }          the version has no region/realm/namespace
+ *   { client: null, reason: "feature_off", message }                     the armory lookup is switched off for it (#761)
  *   { client: null, reason: "not_configured", message }                  no client id/secret
+ * Whether the version may ask at all is the feature "armory" of versionCapabilities.js.
  * @param {string} [versionId]
  * @param {{ config?: object }} [opts]
  */
@@ -144,9 +154,11 @@ function blizzardFor(versionId, opts = {}) {
     const s = settingsForVersion(versionId, { config: cfg });
     const creds = cfg.blizzard && typeof cfg.blizzard === "object" ? cfg.blizzard : {};
     const base = { versionId: s.versionId, namespace: s.blizzardNamespace, realmSlug: s.blizzardRealmSlug, region: s.blizzardRegion };
-    if (!s.blizzardRegion || !s.blizzardRealmSlug || !s.blizzardNamespace) {
+    const armory = capabilities.featureState(s.versionId, "armory", { config: cfg });
+    if (!armory.possible) {
         return { ...base, client: null, reason: "version_not_configured", message: `Armory für ${versionLabel(s.versionId)} nicht eingerichtet (Einstellungen → Spielversion).` };
     }
+    if (!armory.on) return { ...base, client: null, reason: "feature_off", message: armory.message };
     const Blizzard = require("../../classes/blizzard");
     const client = new Blizzard({
         clientId: creds.clientId || "",
@@ -154,6 +166,8 @@ function blizzardFor(versionId, opts = {}) {
         region: s.blizzardRegion,
         realmSlug: s.blizzardRealmSlug,
         namespace: s.blizzardNamespace,
+        versionId: s.versionId,
+        wowheadPath: s.wowheadPath,
     });
     if (!client.isConfigured()) {
         return { ...base, client: null, reason: "not_configured", message: "Battle.net-Zugang nicht eingerichtet (Einstellungen → Verbindungen)." };
@@ -164,5 +178,5 @@ function blizzardFor(versionId, opts = {}) {
 module.exports = {
     FIELDS: schema.FIELDS, REGIONS: schema.REGIONS, SOFTRES_EDITIONS: schema.SOFTRES_EDITIONS,
     normalizeBlock: schema.normalizeBlock,
-    settingsForVersion, versionLinks, blizzardFor, fillChar, wclSiteOf, versionLabel,
+    settingsForVersion, versionColor, versionLinks, blizzardFor, fillChar, wclSiteOf, versionLabel,
 };

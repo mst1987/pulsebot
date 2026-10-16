@@ -17,7 +17,11 @@ describe("boards without every array", () => {
     });
     it("a stored board with nothing in it is completed by boardOf: every array is there", () => {
         const b = raidplan.boardOf({ x: { notes: "n" } }, "x");
-        for (const k of ["tokens", "slots", "marks", "icons", "zones", "lines", "texts", "assignments", "mobs", "hiddenCards", "inheritOff"]) expect(Array.isArray(b[k])).toBe(true);
+        for (const k of ["tokens", "slots", "marks", "icons", "zones", "lines", "texts", "assignments", "mobs", "hiddenCards", "inheritOff", "scenes"]) expect(Array.isArray(b[k])).toBe(true);
+    });
+    it("boardOf keeps the animations, so a save from the editor never drops them (docs/raidplan/animation.md)", () => {
+        const scene = { id: "s1", title: "Bloodboil", loop: false, length: 4, stepId: "", frames: [{ id: "f", at: 0, caption: "", changes: [] }], loops: [] };
+        expect(raidplan.boardOf({ x: { scenes: [scene] } }, "x").scenes).toEqual([scene]);
     });
     it("putting a mob on the map as an icon makes a complete icon with its mob id and turns nothing without a tank", () => {
         const r = raidplan.insertObject(raidplan.emptyBoard(), { type: "icon", iconKey: "boss", label: "Boss", mobId: "m1" }, null);

@@ -18,6 +18,8 @@ const store = createJsonStore({
     file: EVENTS_FILE,
     defaults: () => [],
     normalize: (data) => (Array.isArray(data.events) ? data.events : []),
+    // Read on every page and per event (getEvent): parsed once per change.
+    cache: true,
 });
 
 // Own ids carry a prefix, so an id alone says which source it belongs to —
@@ -41,12 +43,41 @@ const { emojiStyleOf } = require("../services/discord/appEmojis");
 const { str } = require("../utils/text");
 const { normalizeOverflow, isLegacyOverflow, normalizeLockAtLimit } = require("../utils/signup/capacity");
 
+/** Every stored event, as a copy to change and write back. */
 function readAll() {
     return store.read();
 }
 
+/**
+ * Every stored event, read-only: the cached list itself, frozen (jsonStore
+ * peek()). Readers pick their events from it and copy only those (handOut).
+ */
+function peekAll() {
+    return store.peek();
+}
+
+/** A stored event as readers get it: a copy of its own, every field present. */
+const handOut = (e) => complete(structuredClone(e));
+
+// Who wants to know that an own event changed (the Orga-Zentrale, services/events/orgaHub.js):
+// told after every write — created, edited, moved, cancelled, a setup saved or posted.
+const listeners = new Set();
+
 function writeAll(events) {
     store.write({ events });
+    for (const fn of listeners) {
+        try {
+            fn();
+        } catch (e) {
+            console.error("[eventStore] listener failed:", e.message);
+        }
+    }
+}
+
+/** Subscribe to changes of the own events (any write). Returns the unsubscribe function. */
+function onEventsChanged(fn) {
+    listeners.add(fn);
+    return () => listeners.delete(fn);
 }
 
 function newId() {
@@ -253,25 +284,40 @@ function complete(e) {
             archived: !!e.cancel.archived,
         } : null,
         log: Array.isArray(e.log) ? e.log : [],
+        // Raid group (#811, utils/raidGroup.js): the primary's id on every raid of the group
+        // ("" = none) and the raid's place in it (1 = the primary the raiders sign up at).
+        raidGroupId: e.raidGroupId ? String(e.raidGroupId) : "",
+        raidGroupIndex: e.raidGroupId ? Math.max(1, Number(e.raidGroupIndex) || 1) : 0,
         createdBy: e.createdBy || "",
         createdAt: Number(e.createdAt) || 0,
         updatedAt: Number(e.updatedAt) || 0,
     };
 }
 
+/** A further raid of a raid group (#811): its group id is another event's. */
+const isSiblingRecord = (e) => !!(e && e.raidGroupId && String(e.raidGroupId) !== String(e.id));
+
 /**
  * The guild's own events, newest start first.
+ *
+ * The further raids of a raid group (#811) are left out unless `siblings: true`:
+ * they have no signup and no message of their own and share the night with the
+ * group's first raid — every reader that counts signups or nights, or offers a
+ * signup, sees the group once. The setup, the raid list, log matching and
+ * attendance ask for them.
  * @param {string} guildId  "" = every guild
- * @param {{ sinceSeconds?: number, untilSeconds?: number }} [opts] start-time bounds, inclusive
+ * @param {{ sinceSeconds?: number, untilSeconds?: number, siblings?: boolean }} [opts] start-time bounds, inclusive
  */
 function listEvents(guildId, opts = {}) {
     const gid = str(guildId);
     const since = Number(opts.sinceSeconds) || 0;
     const until = Number(opts.untilSeconds) || 0;
-    return readAll()
+    const siblings = opts.siblings === true;
+    return peekAll()
         .filter((e) => e && e.id && (!gid || e.guildId === gid))
+        .filter((e) => siblings || !isSiblingRecord(e))
         .filter((e) => (!since || (Number(e.startTime) || 0) >= since) && (!until || (Number(e.startTime) || 0) <= until))
-        .map(complete)
+        .map(handOut)
         .sort((a, b) => b.startTime - a.startTime);
 }
 
@@ -279,8 +325,8 @@ function listEvents(guildId, opts = {}) {
 function getEvent(id) {
     const key = str(id);
     if (!key) return null;
-    const hit = readAll().find((e) => e && e.id === key);
-    return hit ? complete(hit) : null;
+    const hit = peekAll().find((e) => e && e.id === key);
+    return hit ? handOut(hit) : null;
 }
 
 /**
@@ -324,6 +370,8 @@ function createEvent(input = {}) {
         lockAtLimit: normalizeLockAtLimit(input),
         emojiStyle: emojiStyleOf(input.emojiStyle),
         raidTemplateId: str(input.raidTemplateId),
+        raidGroupId: str(input.raidGroupId),
+        raidGroupIndex: int(input.raidGroupIndex),
         createdBy: str(input.createdBy),
         createdAt: now,
         updatedAt: now,
@@ -551,6 +599,21 @@ function setEventAnnounced(id, at = Date.now()) {
     return complete(events[idx]);
 }
 
+/**
+ * Put an event into a raid group (#811) or take it out (`raidGroupId` ""):
+ * `{ raidGroupId, raidGroupIndex }`. Apart from updateEvent(): no planning field.
+ * Returns the event or null.
+ */
+function setEventRaidGroup(id, { raidGroupId = "", raidGroupIndex = 0 } = {}) {
+    const events = readAll();
+    const idx = events.findIndex((e) => e && e.id === str(id));
+    if (idx < 0) return null;
+    const group = str(raidGroupId);
+    events[idx] = { ...events[idx], raidGroupId: group, raidGroupIndex: group ? Math.max(1, int(raidGroupIndex) || 1) : 0, updatedAt: Date.now() };
+    writeAll(events);
+    return complete(events[idx]);
+}
+
 /** Delete an own event. Returns true when one was removed. */
 function deleteEvent(id) {
     const events = readAll();
@@ -625,10 +688,22 @@ function migrateOverflowModes() {
     return count;
 }
 
+// The one version resolver (mainVersion.versionOfEvent, #737) reads an own
+// event's stored version by id through this; it cannot require this store
+// back (cycle). A test's stand-in of mainVersion may lack the hook.
+const versionHook = require("../services/events/mainVersion").registerOwnEventVersions;
+if (typeof versionHook === "function") {
+    versionHook((id) => {
+        if (!isOwnEventId(id)) return null;
+        const hit = peekAll().find((e) => e && e.id === str(id));
+        return hit ? (hit.versionId || LEGACY_VERSION) : "";
+    });
+}
+
 module.exports = {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft, setEventState,
-    appendEventLog, setEventSetupPost, setEventSetupPingText, setEventExtraRole, EXTRA_ROLES, setEventDiscordEvent, setEventAnnounced,
-    normalizePlan, isOwnEventId, migrateOverflowModes, useFile: store.useFile, eventEndTime, plannedEndOrDefault, durationOf, MIN_DURATION, MAX_DURATION,
+    appendEventLog, setEventRaidGroup, setEventSetupPost, setEventSetupPingText, setEventExtraRole, EXTRA_ROLES, setEventDiscordEvent, setEventAnnounced,
+    normalizePlan, isOwnEventId, migrateOverflowModes, onEventsChanged, useFile: store.useFile, eventEndTime, plannedEndOrDefault, durationOf, MIN_DURATION, MAX_DURATION,
     // only for the tests (#424): not part of the module's API
     _internal: {
         EVENTS_FILE,

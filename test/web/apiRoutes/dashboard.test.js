@@ -45,6 +45,10 @@ jest.mock("../../../src/stores/settingsStore", () => ({
         : null)),
 }));
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
+// "Für dich" has its own test (test/web/dashboard/dashboardPersonal.test.js); here only who gets it
+jest.mock("../../../src/web/dashboard/dashboardPersonal", () => ({
+    loadPersonal: jest.fn(async () => ({ upcoming: [], upcomingError: null, attendance: null, recent: [], profile: { characters: 0, hints: [] } })),
+}));
 jest.mock("../../../src/web/dashboard/dashboardData", () => ({
     loadNextRaids: jest.fn(() => Promise.resolve({ raids: [], error: null })),
     loadNextRaidDetails: jest.fn(() => Promise.resolve({ error: "Event nicht gefunden.", notFound: true })),
@@ -264,6 +268,7 @@ const auth = require("../../../src/web/http/auth");
 const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const dashboardData = require("../../../src/web/dashboard/dashboardData");
+const { loadPersonal } = require("../../../src/web/dashboard/dashboardPersonal");
 const discord = require("../../../src/services/discord/discord");
 const { handle, get } = routerClient(require("../../../src/web/apiRoutes/dashboard"));
 
@@ -309,6 +314,78 @@ describe("web/apiRoutes/dashboard", () => {
             expect(task.title).toContain("Zibbo");
         });
 
+        it("gives a raider (own signup only) \"Für dich\" and the top items, nothing of the orga", async () => {
+            const raider = { id: "7", name: "Rai", isAdmin: false, access: { signup: { read: true, write: true } } };
+            auth.getUser.mockReturnValue(raider);
+            activeGuildFor.mockReturnValue("guild-1");
+            dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "BT", generatedAt: 5, problems: 3, gearRaiders: 7 });
+            dashboardData.loadInbox.mockReturnValue([{ id: "s1", items: [1] }]);
+            dashboardData.loadNextRaids.mockClear();
+            dashboardData.loadRecentEvents.mockClear();
+            dashboardData.loadTopLoot.mockReturnValue({ items: [{ itemId: 1 }], configured: 1 });
+
+            const data = json(await get("/api/dashboard")).data;
+
+            expect(loadPersonal).toHaveBeenCalledWith("guild-1", raider, expect.objectContaining({ versionId: "tbc" }));
+            expect(data.orga).toBe(false);
+            expect(data.personal).toMatchObject({ upcoming: [], recent: [] });
+            expect(dashboardData.loadNextRaids).not.toHaveBeenCalled();
+            expect(dashboardData.loadRecentEvents).not.toHaveBeenCalled();
+            expect(data.nextRaid).toBeNull();
+            expect(data.areas).toBeNull();
+            expect(data.tasks).toEqual([]);
+            expect(data.topLoot.items).toHaveLength(1);
+        });
+
+        it("keeps the orga block from a raider role that reads the raids", async () => {
+            const reader = { id: "8", name: "Rai", isAdmin: false, access: { raids: { read: true, write: false }, signup: { read: true, write: true } } };
+            auth.getUser.mockReturnValue(reader);
+            activeGuildFor.mockReturnValue("guild-1");
+            dashboardData.loadNextRaids.mockClear();
+            dashboardData.loadRecentEvents.mockClear();
+            dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "BT", generatedAt: 5, problems: 3, gearRaiders: 7 });
+            dashboardData.loadInbox.mockReturnValue([{ id: "s1", items: [1] }]);
+            loadPersonal.mockClear();
+
+            const data = json(await get("/api/dashboard")).data;
+
+            expect(data.orga).toBe(false);
+            expect(dashboardData.loadNextRaids).not.toHaveBeenCalled();
+            expect(dashboardData.loadRecentEvents).not.toHaveBeenCalled();
+            expect(data.nextRaid).toBeNull();
+            expect(data.areas).toBeNull();
+            expect(data.tasks).toEqual([]);
+            // reading the raids opens no category in "Für dich": it lists what one may sign up for (dashboard.forYou.test.js)
+            expect(loadPersonal).toHaveBeenCalledWith("guild-1", reader, expect.not.objectContaining({ orga: expect.anything() }));
+        });
+
+        it("keeps the orga block from a raider role even with the right to change raids - an area is no orga rank", async () => {
+            const writerRaider = { id: "10", name: "Mo", isAdmin: false, access: { raids: { read: true, write: true }, dashboard: { read: true, write: false } } };
+            auth.getUser.mockReturnValue(writerRaider);
+            activeGuildFor.mockReturnValue("guild-1");
+            const data = json(await get("/api/dashboard")).data;
+            expect(data.orga).toBe(false);
+            expect(data.areas).toBeNull();
+        });
+
+        it("shows the orga block to an orga role, each task still only for whoever can do it", async () => {
+            const writer = { id: "9", name: "Lead", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true }, dashboard: { read: true, write: false } } };
+            auth.getUser.mockReturnValue(writer);
+            activeGuildFor.mockReturnValue("guild-1");
+            dashboardData.loadNextRaids.mockResolvedValue({ raids: [{ id: "n1", title: "BT", startTime: 2000, sheet: null, planning: "sheet" }], error: null });
+            dashboardData.loadRecentEvents.mockResolvedValue({ events: [{ id: "e1", title: "Hyjal", startTime: 1000, pendingLogCount: 2, logs: [] }], error: null });
+            dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "BT", generatedAt: 5, problems: 3, gearRaiders: 7 });
+            dashboardData.loadInbox.mockReturnValue([{ id: "s1", items: [1] }]);
+
+            const data = json(await get("/api/dashboard")).data;
+
+            expect(data.orga).toBe(true);
+            expect(data.nextRaid).toMatchObject({ id: "n1" });
+            expect(data.areas).toMatchObject({ lastReport: { id: "r1" } });
+            // sheet and logs take raids write; reviewing (cla write) and importing (history write) it does not have
+            expect(data.tasks.map((t) => t.id)).toEqual(["sheet", "logs"]);
+        });
+
         it("returns 403 for a logged-in non-admin", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Bob", isAdmin: false });
             const res = mockRes();
@@ -329,7 +406,7 @@ describe("web/apiRoutes/dashboard", () => {
             dashboardData.loadRecentEvents.mockResolvedValue({
                 events: [{ id: "e1", title: "Hyjal", startTime: 1000, pendingLogCount: 2, logs: [] }], error: null,
             });
-            dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "Black Temple", generatedAt: 5, problems: 3, open: 7 });
+            dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "Black Temple", generatedAt: 5, problems: 3, gearRaiders: 7 });
             dashboardData.loadInbox.mockReturnValue([{ id: "s1", items: [1, 2] }]);
             dashboardData.loadRosterFigures.mockReturnValue({ total: 27, withoutDiscord: 2 });
             dashboardData.loadNewLoot.mockReturnValue({ count: 3, since: 1000000 });
@@ -340,18 +417,19 @@ describe("web/apiRoutes/dashboard", () => {
             expect(dashboardData.loadNextRaids).toHaveBeenCalledWith("guild-1", 2, { versionId: "tbc" });
             expect(dashboardData.loadRecentEvents).toHaveBeenCalledWith("guild-1", 5, { versionId: "tbc" });
             // "Neuer Loot" counts from the newest past raid's start
-            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(1000);
+            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(1000, { versionId: "tbc" });
             const data = json(res).data;
             expect(data.kicker).toEqual({ guild: "Pulse", realm: "Thunderstrike EU" });
             expect(data.nextRaid).toEqual(next);
             expect(data.followingRaid).toEqual(after);
-            expect(data.tasks.map((t) => t.id)).toEqual(["sheet", "recommendations", "logs", "inbox"]);
+            expect(data.tasks.map((t) => t.id)).toEqual(["sheet", "gear", "logs", "inbox"]);
             expect(data.areas).toEqual({
-                lastReport: { id: "r1", zone: "Black Temple", generatedAt: 5, problems: 3, open: 7 },
+                lastReport: { id: "r1", zone: "Black Temple", generatedAt: 5, problems: 3, gearRaiders: 7 },
                 newLoot: { count: 3, since: 1000000 },
-                recruitment: { posts: 2 },
                 roster: { total: 27, withoutDiscord: 2 },
             });
+            // recruitment posts are no figure of the start page any more
+            expect(data.areas.recruitment).toBeUndefined();
             expect(data.recentEvents.events[0]).toMatchObject({ id: "e1", icon: "achievement_boss_archimonde-" });
             expect(data.topLoot).toEqual({ items: [{ itemId: 30883, character: "Kilrogg" }], configured: 3 });
             expect(data.activeGuildId).toBe("guild-1");
@@ -364,7 +442,7 @@ describe("web/apiRoutes/dashboard", () => {
             expect(data.versions).toEqual([{ id: "tbc", label: "TBC Anniversary", short: "TBC", count: 0 }]);
         });
 
-        it("passes the game version filter through to the three tiles (#545)", async () => {
+        it("passes the game version filter through to every tile with game content (#545, #741)", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             activeGuildFor.mockReturnValue("guild-1");
             settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", categoryVersion: { cat2: "forever" } });
@@ -383,14 +461,19 @@ describe("web/apiRoutes/dashboard", () => {
             expect(dashboardData.loadNextRaids).toHaveBeenCalledWith("guild-1", 2, { versionId: "forever" });
             expect(dashboardData.loadRecentEvents).toHaveBeenCalledWith("guild-1", 5, { versionId: "forever" });
             expect(dashboardData.loadTopLoot).toHaveBeenCalledWith(5, "forever");
+            // the latest report, the new loot and the roster figures follow it too (#741)
+            expect(dashboardData.loadLatestReport).toHaveBeenCalledWith({ versionId: "forever" });
+            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(0, { versionId: "forever" });
+            expect(dashboardData.loadRosterFigures).toHaveBeenCalledWith("guild-1", { versionId: "forever" });
             const data = json(res).data;
             expect(data.version).toBe("forever");
             // Every version dashboardVersions() found, plus the main one.
             expect(data.versions.map((v) => v.id).sort()).toEqual(["forever", "tbc"]);
 
+            // strictly one version (#741): "all" is the main version
             const all = await get("/api/dashboard", { version: "all" });
-            expect(dashboardData.loadNextRaids).toHaveBeenLastCalledWith("guild-1", 2, { versionId: "" });
-            expect(json(all).data.version).toBe("");
+            expect(dashboardData.loadNextRaids).toHaveBeenLastCalledWith("guild-1", 2, { versionId: "tbc" });
+            expect(json(all).data.version).toBe("tbc");
         });
 
         it("shows no tasks and no next raid when nothing is due", async () => {
@@ -404,7 +487,7 @@ describe("web/apiRoutes/dashboard", () => {
             expect(data.nextRaid).toBeNull();
             expect(data.nextRaidError).toBe("Raid-Helper down");
             expect(data.tasks).toEqual([]);
-            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(0);
+            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(0, { versionId: "tbc" });
         });
     });
 

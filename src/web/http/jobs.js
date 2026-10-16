@@ -26,9 +26,21 @@ const talkOverview = require("../../services/talk/talkOverview");
 const eventSeries = require("../events/eventSeries");
 const applicationState = require("../../utils/recruitment/applicationState");
 const availabilityPanel = require("../../services/signups/availabilityPanel");
+const orgaHub = require("../../services/events/orgaHub");
+const raidOverview = require("../../services/events/raidOverview");
+const addonCenter = require("../../services/addons/addonCenter");
+const softresDetect = require("../../services/loot/softresDetect");
 const guildBankItemMeta = require("../../services/guildbank/itemMeta");
+const systemMonitor = require("../../services/system/systemMonitor");
+const backupSnapshots = require("../../services/backup/snapshotJob");
+const backupAlerts = require("../../services/backup/backupAlerts");
+const backupRestoreTest = require("../../services/backup/restoreTestJob");
+const { versionInfo } = require("./version");
 
 const JOBS = [
+    // The "Systemstatus" page's samples (docs/system-status.md): host and process figures every 15 s, kept 24 h in memory.
+    // First, so it measures everything the other jobs start.
+    { name: "systemMonitor", start: () => systemMonitor.start(), stop: () => systemMonitor.stop() },
     // Sweep due raid-sheet copies (deleted a few days after each raid).
     { name: "sheetCleanup", start: () => sheetCleanup.startSheetCleanup(), stop: () => sheetCleanup.stopSheetCleanup() },
     // The only reader of Raid-Helper's event list (#608): fetch it every few
@@ -55,9 +67,25 @@ const JOBS = [
     { name: "applicationState", start: () => applicationState.start(), stop: () => applicationState.stop() },
     // Once after the start: redraw the absence/attendance panels whose text a deploy changed.
     { name: "availabilityPanels", start: () => availabilityPanel.startPanelRefresh(), stop: () => availabilityPanel.stopPanelRefresh() },
+    // The Orga-Zentrale per raid category: redrawn on every change of an own event or a signup, and swept every 5 minutes.
+    { name: "orgaHubs", start: () => orgaHub.startOrgaHubs(), stop: () => orgaHub.stopOrgaHubs() },
+    // The raid overviews /createoverview posted per category: redrawn on every change and swept every 5 minutes; old ones are adopted once.
+    { name: "raidOverviews", start: () => raidOverview.startRaidOverviews(), stop: () => raidOverview.stopRaidOverviews() },
+    // The addon download centre in Discord (docs/addons.md): new versions checked every 15 minutes, announced and
+    // marked "NEU", the centre redrawn or posted anew; nothing until a centre is posted.
+    { name: "addonCenter", start: () => addonCenter.startAddonCenter(), stop: () => addonCenter.stopAddonCenter() },
     // Once after the start: guild bank items without a current name (none yet, or the
     // German ones stored before the names turned English) are looked up again.
     { name: "guildBankItemMeta", start: () => guildBankItemMeta.startMetaRefresh(), stop: () => guildBankItemMeta.stopMetaRefresh() },
+    // Softres lists the raid leads made on softres.it and posted into the raid channel while the bot was away.
+    { name: "softresDetect", start: () => softresDetect.startSoftresDetect(), stop: () => softresDetect.stopSoftresDetect() },
+    // Hourly snapshot of DATA_DIR into BACKUP_DIR (#691, docs/data-storage.md); only on the live bot unless BACKUP_ENABLED=1.
+    { name: "backupSnapshots", start: () => backupSnapshots.startBackupJob({ commit: () => versionInfo().commit }), stop: () => backupSnapshots.stopBackupJob() },
+    // Every 30 minutes: DM to ADMIN_USER_ID when a backup part failed or turned red (#696), at most once a day per part.
+    // Weekly restore probe (#694, docs/backup.md): the newest snapshot played back into a scratch directory and read by
+    // every store; on the slot of the settings (default Wednesday 04:30), never on a raid evening. Same switch as the snapshots.
+    { name: "backupRestoreTest", start: () => backupRestoreTest.startRestoreTestJob(), stop: () => backupRestoreTest.stopRestoreTestJob() },
+    { name: "backupAlerts", start: () => backupAlerts.startBackupAlerts(), stop: () => backupAlerts.stopBackupAlerts() },
 ];
 
 let running = false;

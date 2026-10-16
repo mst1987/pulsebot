@@ -25,10 +25,13 @@
     },
     "next": {
         "title": "Nächster Raid",
+        "cancelled": "Abgesagt",
+        "cancelledSub": "Die Orga hat diesen Raid abgesagt.",
         "crumb": "Raid-Events",
         "details": "Details",
         "openTip": "Raid öffnen",
         "openSub": "Die Seite des Raids im EventHelper: Anmeldung, Setup, Softres, Loot, Logs.",
+        "categoryTip": "Kategorie des Raids (der Discord-Kategorie seines Kanals)",
         "open": "Öffnen",
         "empty": "Kein anstehender Raid bei Raid-Helper.",
         "roleSubSetup": "{filled} von {target} besetzt laut Setup. Soll aus der Raidgröße ({size}).",
@@ -53,7 +56,7 @@
     "tasks": {
         "title": "Offene Aufgaben",
         "allDone": "Alles erledigt",
-        "allDoneNote": "Sheets gefüllt, Logs zugeordnet, Empfehlungen geprüft.",
+        "allDoneNote": "Logs zugeordnet, Empfehlungen geprüft, Inbox leer.",
         "trial": {
             "adopt": "Übernehmen",
             "extend": "Verlängern",
@@ -82,11 +85,6 @@
         "newLootNone": "Noch kein vergangener Raid bekannt.",
         "topItems": "Top-Items",
         "since": "seit {date}",
-        "recruitment": "Recruitment",
-        "recruitmentTip": "Gepostete Recruitment-Nachrichten",
-        "recruitmentSub": "Klick öffnet Recruitment.",
-        "postsActive": "Posts aktiv",
-        "noPosts": "keine Posts",
         "roster": "Roster",
         "rosterTip": "Charaktere im Roster",
         "rosterSub": "{count} nur aus dem Loot bekannt, keinem Discord-Konto zugeordnet. Klick öffnet das Roster.",
@@ -160,5 +158,211 @@
         "fillSheet": "Sheet füllen",
         "openRaid": "Raid öffnen",
         "loading": "Lade Anmeldungen…"
+    },
+    "personal": {
+        "divider": "Für dich",
+        "toSignups": "Zu meinen Anmeldungen",
+        "signUp": "Anmelden",
+        "closed": "Anmeldung zu",
+        "closedTip": "Die Anmeldung ist geschlossen oder der Anmeldeschluss vorbei.",
+        "rosterOnly": "Nur Roster",
+        "rosterOnlyTip": "Für diesen Raid melden sich nur Mitglieder des Rosters an.",
+        "status": {
+            "signed": "Angemeldet",
+            "placed": "Im Setup",
+            "notPlaced": "Nicht aufgestellt",
+            "late": "Später",
+            "tentative": "Vielleicht",
+            "bench": "Bank",
+            "absence": "Abgemeldet",
+            "cancelled": "Abgesagt"
+        },
+        "next": {
+            "title": "Dein nächster Raid",
+            "toSignup": "Zur Anmeldung",
+            "empty": "Kein anstehender Raid in deinen Kategorien."
+        },
+        "box": {
+            "signup": "Anmeldung",
+            "notYet": "Noch offen",
+            "setup": "Setup",
+            "softres": "Softres"
+        },
+        "setup": {
+            "none": "Noch kein Setup",
+            "noneSub": "Die Raidleitung stellt es noch auf.",
+            "notPlaced": "Nicht aufgestellt",
+            "notPlacedSub": "Das Setup steht, du bist diesmal nicht drin.",
+            "bench": "Bank",
+            "group": "Gruppe {group}"
+        },
+        "softres": {
+            "ready": "Liste steht",
+            "none": "Keine Liste",
+            "open": "Softres öffnen"
+        },
+        "plan": {
+            "title": "Deine Einteilung im Raidplan",
+            "open": "Raidplan öffnen",
+            "loading": "Raidplan wird gelesen …",
+            "error": "Der Raidplan ließ sich nicht laden.",
+            "none": "Keine persönliche Aufgabe – schau trotzdem in den Plan."
+        },
+        "list": {
+            "title": "Deine nächsten Raids",
+            "all": "Alle",
+            "empty": "Danach steht nichts an.",
+            "deadline": "Schluss {when}"
+        },
+        "attendance": {
+            "label": "Deine Anwesenheit",
+            "value": "{attended} von {total}",
+            "tip": "Anwesenheit über deine letzten Raids",
+            "sub": "Bank zählt mit ({count}× Bank). Klick öffnet deine Anwesenheit.",
+            "none": "Noch kein gezählter Raid."
+        },
+        "profile": {
+            "label": "Dein Profil",
+            "tip": "Dein Raider-Profil",
+            "complete": "Alles drin. Klick öffnet dein Profil.",
+            "ok": "vollständig",
+            "hints": {
+                "one": "{count} Hinweis",
+                "other": "{count} Hinweise"
+            },
+            "characters": {
+                "one": "{count} Charakter",
+                "other": "{count} Charaktere"
+            },
+            "noCharacters": "Noch kein Charakter angelegt",
+            "noSpec": "{character} hat keine Spec"
+        },
+        "recent": {
+            "title": "Deine letzten Raids",
+            "attendance": "Anwesenheit",
+            "empty": "Noch kein Raid von dir gezählt.",
+            "noReport": "keine Auswertung",
+            "report": "Auswertung",
+            "hints": {
+                "one": "{count} Hinweis für dich",
+                "other": "{count} Hinweise für dich"
+            },
+            "allGood": "alles gut"
+        }
+    },
+    "task": {
+        "sheet": {
+            "title": "Sheet füllen",
+            "tip": {
+                "one": "Raidsheet fehlt",
+                "other": "{count} Raids ohne Raidsheet"
+            },
+            "tipSub": "Für den Raid wurde noch kein Sheet gefüllt, und seiner Kategorie ist kein festes Sheet zugewiesen. Öffnet das Raid-Event."
+        },
+        "gear": {
+            "title": "Gear-Probleme",
+            "tip": {
+                "one": "{count} Raider mit Gear-Problemen",
+                "other": "{count} Raider mit Gear-Problemen"
+            },
+            "tipSub": "Fehlende Verzauberungen, leere Sockel, schwache Edelsteine – aus dem letzten Log. Öffnet den Report in der Sicht Raider."
+        },
+        "logs": {
+            "title": "Logs zuordnen",
+            "tip": {
+                "one": "{count} Log passt zu mehreren Raids",
+                "other": "{count} Logs passen zu mehreren Raids"
+            },
+            "tipSub": "Zeitlich kommen mehrere Raids am selben Abend in Frage; die automatische Zuordnung hat keinen gewählt. Öffnet den Logs-Tab des Raids."
+        },
+        "inbox": {
+            "title": "Addon-Inbox",
+            "sessions": {
+                "one": "{count} Sitzung",
+                "other": "{count} Sitzungen"
+            },
+            "items": {
+                "one": "{count} Item",
+                "other": "{count} Items"
+            },
+            "tip": "Hochgeladener Loot wartet",
+            "tipSub": "Das Addon hat Loot hochgeladen, der noch keinem Raid zugeordnet ist. Öffnet die Addon-Inbox unter Historie & Loot."
+        },
+        "channels": {
+            "title": "Archivierte Kanäle löschen",
+            "refOverdue": {
+                "one": "{count} Kanal wartet länger als {days} Tage",
+                "other": "{count} Kanäle warten länger als {days} Tage"
+            },
+            "refWaiting": {
+                "one": "{count} Kanal wartet auf Löschung",
+                "other": "{count} Kanäle warten auf Löschung"
+            },
+            "tip": {
+                "one": "{count} archivierter Kanal wartet auf Löschung",
+                "other": "{count} archivierte Kanäle warten auf Löschung"
+            },
+            "tipSub": "Archivierte Kanäle werden nie automatisch gelöscht. Öffnet das Archiv der Kanäle-Seite, wo ein Admin sie löscht."
+        },
+        "rolesync": {
+            "title": "Rollen prüfen",
+            "ref": {
+                "one": "{count} Mitglied hat @{role} nur noch auf {guild}",
+                "other": "{count} Mitglieder haben @{role} nur noch auf {guild}"
+            },
+            "refOther": {
+                "one": "{count} Mitglied hat @{role} nur noch auf dem anderen Server",
+                "other": "{count} Mitglieder haben @{role} nur noch auf dem anderen Server"
+            },
+            "more": {
+                "one": "+{count} Rolle",
+                "other": "+{count} Rollen"
+            },
+            "tip": {
+                "one": "{count} Mitglied trägt eine abgeglichene Rolle ohne ihre Ursprungsrolle",
+                "other": "{count} Mitglieder tragen eine abgeglichene Rolle ohne ihre Ursprungsrolle"
+            },
+            "tipSub": "Der Rollen-Abgleich vergibt nur und entfernt nie. Wer die Rolle auf einem Server verloren hat, behält sie auf dem anderen, bis jemand sie in Discord entfernt. Öffnet Einstellungen → Discord-Server."
+        },
+        "channelMissing": {
+            "title": "Kanal von {title} fehlt",
+            "tip": "Der Discord-Kanal des Raids existiert nicht mehr",
+            "tipSub": "Mit ihm ist die Anmelde-Nachricht weg; die Übersichten zeigen „channel missing“ statt eines Links. „Kanal neu anlegen“ legt ihn nach der Namensregel in der Kategorie des Events an und postet die Anmelde-Nachricht dort. Öffnet sonst das Raid-Event.",
+            "action": "Kanal neu anlegen"
+        },
+        "series": {
+            "title": "Serie konnte Event nicht anlegen: {reason}",
+            "day": "{day}",
+            "tip": {
+                "one": "Termin einer Serie fehlgeschlagen",
+                "other": "{count} Termine von Serien fehlgeschlagen"
+            },
+            "tipSub": "Die Serie hat das Event dieses Termins nicht anlegen können. Sie versucht es höchstens dreimal im Abstand von 10 Minuten, danach nur noch auf Knopfdruck. Öffnet Raid-Events › Serien mit Grund und „Erneut versuchen“."
+        },
+        "deploy": {
+            "title": {
+                "one": "Server ist {count} Commit hinter main",
+                "other": "Server ist {count} Commits hinter main"
+            },
+            "since": {
+                "one": "(seit {count} Tag)",
+                "other": "(seit {count} Tagen)"
+            },
+            "running": "läuft auf {commit}",
+            "unknown": "Stand unbekannt",
+            "main": "main auf {commit}",
+            "tip": {
+                "one": "{count} Commit ist auf main, aber nicht auf dem Server",
+                "other": "{count} Commits sind auf main, aber nicht auf dem Server"
+            },
+            "tipSub": "Das automatische Deployment hat den Stand nicht übernommen. Öffnet die Anleitung: welche Secrets es braucht und wie man von Hand deployt."
+        },
+        "trial": {
+            "title": "Probezeit endet: {name}",
+            "titleOverdue": "Probezeit abgelaufen: {name}",
+            "tip": "Die Probezeit endet am {date}",
+            "tipOverdue": "Die Probezeit lief am {date} ab",
+            "tipSub": "Übernehmen macht die Person zum Stamm, Verlängern schiebt das Ende um 14 Tage. Von selbst ändert sich nichts. Öffnet sonst das Roster."
+        }
     }
 }

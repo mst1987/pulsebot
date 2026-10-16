@@ -129,6 +129,16 @@ describe("runReminders", () => {
         expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
     });
 
+    it("reminds nobody in a deactivated category, and keeps its rule (#744)", async () => {
+        loadEventGroups.mockResolvedValue(groups([soon]));
+        const r = await reminders.runReminders({ now: NOW, config: { ...config, categoryIds: ["800000"] } });
+        expect(r.sent).toBe(0);
+        expect(deliverUserPing).not.toHaveBeenCalled();
+        expect(reminderStore.getSent("e1")).toEqual({});
+        // active again: the same rule reminds
+        expect((await reminders.runReminders({ now: NOW, config: { ...config, categoryIds: ["900000"] } })).sent).toBe(2);
+    });
+
     it("never reminds anybody of a cancelled event (#288)", async () => {
         loadEventGroups.mockResolvedValue(groups([{ ...soon, status: "cancelled" }]));
         const r = await reminders.runReminders({ now: NOW, config });

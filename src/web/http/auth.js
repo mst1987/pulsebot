@@ -16,7 +16,7 @@ const { computeAccess, resolveAccess } = require("../../services/discord/userAcc
 const { effectiveUser, viewAsActive, normalizeRoleIds } = require("./viewAs");
 
 // Sessions are persisted to disk so a bot/PM2 restart does not log everyone out.
-// sid -> { id, name, isAdmin, access, csrf, createdAt, adminCheckedAt }
+// sid -> { id, name, isAdmin, isOrga?, access, csrf, createdAt, adminCheckedAt } (isOrga only when true: an orga role)
 // `access` is the per-area read/write map from config/permissions.js; full
 // admins carry fullAccess().
 const SESSIONS_FILE = dataPath("sessions.json");
@@ -126,7 +126,13 @@ function maybeRefreshAdmin(sid, s) {
     if (Date.now() - checkedAt < ADMIN_REFRESH_MS || refreshingSids.has(sid)) return;
     refreshingSids.add(sid);
     computeAccess(s.id)
-        .then(({ isAdmin, access }) => { s.isAdmin = isAdmin; s.access = access; })
+        .then(({ isAdmin, access, isOrga }) => {
+            s.isAdmin = isAdmin;
+            s.access = access;
+            // an orga role (config.orgaRoleIds): kept only while true, like the login sets it
+            if (isOrga) s.isOrga = true;
+            else delete s.isOrga;
+        })
         .catch((e) => console.warn(`Admin re-check failed for ${s.id}:`, e.message))
         .finally(() => {
             s.adminCheckedAt = Date.now();
@@ -244,11 +250,12 @@ async function completeLogin(code) {
     const me = await axios.get("https://discord.com/api/users/@me", {
         headers: { Authorization: `Bearer ${token.data.access_token}` },
     });
-    const { isAdmin, access } = await resolveAccess(me.data.id);
+    const { isAdmin, access, isOrga } = await resolveAccess(me.data.id);
     const user = {
         id: me.data.id,
         name: me.data.global_name || me.data.username,
         isAdmin,
+        ...(isOrga ? { isOrga: true } : {}),
         access,
         csrf: crypto.randomBytes(18).toString("hex"),
         createdAt: Date.now(),

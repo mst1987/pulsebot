@@ -15,8 +15,24 @@ function esc(s) {
 }
 
 // A theme-toggle button. static/report.js paints its icon and wires the click.
+// The game version of the page being rendered (#742), "" outside a log report: the report
+// entries set it for the time they render (widgets.withReportVersion), the public event
+// page passes its own as opts.version. It becomes <html data-version>, which turns the
+// accent into the version's colour (static/report-version.css).
+let pageVersion = "";
+function setPageVersion(versionId) {
+    const before = pageVersion;
+    pageVersion = /^[a-z0-9-]{1,40}$/.test(String(versionId || "")) ? String(versionId) : "";
+    return before;
+}
+
 function themeToggleBtn() {
     return "<button class=\"theme-toggle\" id=\"themeBtn\" type=\"button\" aria-label=\"Design umschalten\" data-tip=\"Hell / Dunkel umschalten\"></button>";
+}
+
+function versionAttr(version) {
+    const id = version === undefined ? pageVersion : String(version || "");
+    return /^[a-z0-9-]{1,40}$/.test(id) ? ` data-version="${id}"` : "";
 }
 
 /**
@@ -35,15 +51,17 @@ ${body}
 <footer>EventHelper · Log-Check · Tooltips by Wowhead</footer>
 </div>`;
     return `<!DOCTYPE html>
-<html lang="de">
+<html lang="de"${versionAttr(opts.version)}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script>/* set theme before first paint to avoid a flash */
 (function(){try{var t=localStorage.getItem("eh-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="${assetUrl("report.css")}">${opts.extraStyle ? `
+<link rel="stylesheet" href="${assetUrl("report.css")}">
+<link rel="stylesheet" href="${assetUrl("report-version.css")}">${opts.extraStyle ? `
 <style>
 ${opts.extraStyle}
 </style>` : ""}
@@ -108,5 +126,5 @@ function renderError(title, message) {
 }
 
 module.exports = {
-    esc, themeToggleBtn, layout, shellPage, authBar, renderNotFound, renderError,
+    esc, themeToggleBtn, setPageVersion, layout, shellPage, authBar, renderNotFound, renderError,
 };

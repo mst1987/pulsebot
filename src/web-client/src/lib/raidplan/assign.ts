@@ -77,9 +77,10 @@ export function cardTypes(scope: string, assignments: RaidplanAssignment[], extr
 }
 
 /** The types a card can still be added for (the area's types that are not shown yet). */
-export function addableCards(scope: string, shown: string[]): string[] {
+export function addableCards(scope: string, shown: string[], versionTypes?: string[]): string[] {
     const types = SCOPE_TYPES[scope] || SCOPE_TYPES.boss;
-    return CARD_ORDER.filter((x) => types.indexOf(x) >= 0 && shown.indexOf(x) < 0);
+    // only the types the plan's game version has (the catalog carries them, #751: no Misdirection card in a Forever plan)
+    return CARD_ORDER.filter((x) => types.indexOf(x) >= 0 && shown.indexOf(x) < 0 && (!versionTypes || versionTypes.indexOf(x) >= 0));
 }
 
 /** Whether a card is one of the area's default cards (those are hidden, the others removed). */
@@ -171,6 +172,10 @@ export function scopeOf(boss: { trash?: boolean; general?: boolean; defaults?: b
 
 /** The WoW classes a row can prefer, and a class's icon name. */
 export const CLASS_IDS = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"];
+/** The classes of the plan's game version (the catalog carries them from the rule set, #751); the nine of every version without. */
+export function classIdsOf(catalog: { classes?: string[] } | null | undefined): string[] {
+    return catalog && catalog.classes && catalog.classes.length ? catalog.classes : CLASS_IDS;
+}
 export function classIconOf(classId: string): string {
     return `classicon_${String(classId || "").toLowerCase()}`;
 }

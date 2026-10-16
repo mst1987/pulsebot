@@ -23,6 +23,13 @@
 //     the category's own (Einstellungen > Kategorien, categoryAttendance), the
 //     nights only those of the roster's game version.
 //
+// Who sees what (epic #723): the people data - attendance per person, Discord roles, the
+// trial end, the settings - is for the orga of that roster (a full admin, a role in
+// config.orgaRoleIds, or a manager of that very roster; rosterAccess.isRosterOrga). Everybody
+// else with `roster` read gets the Komposition: the head with the places and role figures,
+// and per member only name, status, characters and role (`slimMember`). Both views carry
+// `isOrga` so the page knows which one it holds.
+//
 // Places: core and trial members take a place ("n von m Plaetzen", the role
 // figures); bench and pause are counted per status only. The attendance average
 // is taken over everybody but the paused members.
@@ -40,10 +47,12 @@ const { buildAttendanceContext, attendanceForAccounts, categoryInfo, categoryNig
 const { canEditAnyAttendance } = require("../../services/characters/attendanceAccess");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView");
 const { characterKeyOf, nameKeyOf } = require("../../utils/loot/lootImport");
-const { canManageRosterLive } = require("../../services/roster/rosterAccess");
+const { canManageRosterLive, isRosterOrga } = require("../../services/roster/rosterAccess");
+const { userIsOrga } = require("../../config/permissions");
 const { trialEnding } = require("../../services/roster/rosterTrials");
 const { resolveMemberSpec, specContext, specChoices } = require("../../services/roster/memberSpec");
 const { kaderChoices } = require("../../services/roster/rosterCreate");
+const { rosterLootSystem } = require("../../services/loot/lootSystem");
 
 const STATUSES = rosterStore.STATUSES;
 /** Statuses that take a place in the roster. */
@@ -188,7 +197,7 @@ function attendanceChars(chars, profile, versionId) {
 
 /**
  * Attendance of the shape the roster's AttendanceBar reads, from attendanceForAccounts with `nights`:
- * `present` = the nights that count (status present or bench, #677), `missed` the others - each with
+ * `present` = the nights that count (status present or bench, #677), `missed` the others (a neutral "tentative" too) - each with
  * its status code, detail and the orga's override when there is one.
  */
 function attendanceView(result) {
@@ -198,7 +207,9 @@ function attendanceView(result) {
         total: result.total,
         pct: result.pct,
         link: result.link,
-        missed: result.missed,
+        // every night not attended - a "maybe" the setup left out (status tentative) rides along so the grid shows it;
+        // the quota above already leaves it out
+        missed: result.raids ? result.raids.filter((r) => !r.attended).map(({ attended: _a, ...night }) => night) : result.missed,
         present: (result.raids || []).filter((r) => r.attended).map(({ attended: _a, reason: _r, ...night }) => night),
     };
 }
@@ -224,7 +235,7 @@ function contextCache(guildId) {
  * Every member of a roster as a row: identity, status, characters, role,
  * whether the Discord role is there and the attendance per person.
  */
-function memberRows(roster, { ctx, discordData, config, manage = false }) {
+function memberRows(roster, { ctx, discordData, config, manage = false, orga = true }) {
     const { members: discordMembers } = discordData;
     const roleIds = roster.roleIds || [];
     const rosterRoleIds = [...roleIds, roster.trialRoleId].filter(Boolean);
@@ -262,7 +273,7 @@ function memberRows(roster, { ctx, discordData, config, manage = false }) {
             _attendanceChars: attendanceChars(chars, profile, roster.versionId),
         };
     });
-    if (roster.categoryId) {
+    if (orga && roster.categoryId) {
         const window = categoryAttendanceFor(config, roster.categoryId).window;
         const accounts = rows.map((r) => ({ userId: r.userId, chars: r._attendanceChars }));
         const results = attempt(() => attendanceForAccounts(ctx, roster.categoryId, accounts, { nights: true, window }), new Map());
@@ -270,6 +281,32 @@ function memberRows(roster, { ctx, discordData, config, manage = false }) {
     }
     for (const r of rows) delete r._attendanceChars;
     return rows.sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
+/**
+ * What a member row shows somebody who is not the roster's orga: the Komposition's data (who plays which
+ * role in which status) without attendance, roles, trial end or the orga's spec choice.
+ */
+function slimMember(row) {
+    return {
+        userId: row.userId,
+        displayName: row.displayName,
+        avatarUrl: row.avatarUrl,
+        onServer: null,
+        status: row.status,
+        since: "",
+        trialUntil: null,
+        chars: row.chars,
+        role: row.role,
+        hasRole: null,
+        heldRoles: null,
+        attendance: null,
+    };
+}
+
+/** The head figures without what reveals people data: attendance and the open-work counts. */
+function slimFigures(figures) {
+    return { ...figures, attendance: null, attendanceCounted: 0, todo: { withoutRole: null, withoutChar: 0, trial: 0 } };
 }
 
 /** The figures a card and the roster's head share. */
@@ -342,6 +379,10 @@ function rosterHead(roster, { ctx, names, discordData, figures, guildId }) {
         allowMultipleChars: roster.allowMultipleChars,
         source: roster.source.kind,
         kaderId: roster.kaderId || null,
+        // closed (#739): read only under its version, badge "abgeschlossen"
+        closed: !!roster.closedAt,
+        closedAt: roster.closedAt || null,
+        closedReason: roster.closedReason || "",
         ...figures,
     };
 }
@@ -350,7 +391,7 @@ function rosterHead(roster, { ctx, names, discordData, figures, guildId }) {
  * What the settings dialog starts from (managers and admins only): the stored
  * fields a head does not carry, the manager accounts with their names.
  */
-function rosterSettingsView(roster, discordData) {
+function rosterSettingsView(roster, discordData, config = {}) {
     const nameOf = (userId) => {
         const dm = discordData.members ? discordData.members.get(userId) : null;
         const p = profiles.getProfile(userId);
@@ -367,9 +408,14 @@ function rosterSettingsView(roster, discordData) {
             users: roster.managers.userIds.map((userId) => ({ userId, displayName: nameOf(userId) })),
         },
         signupOnly: roster.signupOnly,
+        publicRaids: roster.publicRaids === true,
         allowMultipleChars: roster.allowMultipleChars,
         slots: { ...roster.slots },
         kaderId: roster.kaderId || null,
+        // #676: what the roster runs on (with a category: the category's system) and its council profile ("" = default)
+        lootSystem: rosterLootSystem(config, roster).system,
+        lootSystemSource: rosterLootSystem(config, roster).source,
+        lootProfileId: roster.lootProfileId || "",
     };
 }
 
@@ -390,15 +436,21 @@ async function buildRosterOverview({ guildId = "", user = null, config = {} } = 
     const names = categoryNames(guildId);
     const ctxFor = contextCache(guildId);
     const list = rosterStore.listRosters(guildId);
-    const rosters = list.map((roster) => {
+    const rosters = await Promise.all(list.map(async (roster) => {
         const ctx = ctxFor(roster.versionId);
-        const rows = memberRows(roster, { ctx, discordData, config });
-        const head = rosterHead(roster, { ctx, names, discordData, figures: rosterFigures(rows), guildId });
+        const orga = await isRosterOrga(user, roster).catch(() => false);
+        const rows = memberRows(roster, { ctx, discordData, config, orga });
+        const figures = rosterFigures(rows);
+        const head = rosterHead(roster, { ctx, names, discordData, figures: orga ? figures : slimFigures(figures), guildId });
+        if (!orga) return { ...head, isOrga: false, trialEnding: [] };
         // trials ending within a week or overdue (#658): the managers' hint
         const nameOf = new Map(rows.map((r) => [r.userId, r.displayName]));
-        return { ...head, trialEnding: trialEnding(roster, { nameOf: (id) => nameOf.get(id) || id }) };
-    });
-    const taken = new Set(list.map((r) => r.categoryId).filter(Boolean));
+        // a closed roster (#739) has nothing left to decide
+        const ending = roster.closedAt ? [] : trialEnding(roster, { nameOf: (id) => nameOf.get(id) || id });
+        return { ...head, isOrga: true, trialEnding: ending };
+    }));
+    // a category "has a roster" when the version it plays now has one (#739) - a closed one of an older version does not count
+    const taken = new Set(list.filter((r) => r.categoryId && r.versionId === mainVersionFor({ categoryId: r.categoryId, config })).map((r) => r.categoryId));
     const categoriesWithoutRoster = (Array.isArray(config.categoryIds) ? config.categoryIds : [])
         .map(str)
         .filter((id, i, all) => id && all.indexOf(id) === i && !taken.has(id))
@@ -408,7 +460,8 @@ async function buildRosterOverview({ guildId = "", user = null, config = {} } = 
             const versionId = mainVersionFor({ categoryId: id, config });
             return { id, name: names.get(id) || eventCategoryName(guildId, id) || id, versionId, versionLabel: versionLabel(versionId) };
         });
-    return { rosters, categoriesWithoutRoster, canCreate: !!(user && user.isAdmin === true) };
+    // `isOrga`: the caller is orga in general (the all-characters link); each card has its own, for its roster
+    return { rosters, categoriesWithoutRoster, canCreate: !!(user && user.isAdmin === true), isOrga: userIsOrga(user) };
 }
 
 /**
@@ -421,15 +474,36 @@ async function buildRosterDetail({ guildId = "", id = "", user = null, config = 
     if (!roster || (guildId && roster.guildId && roster.guildId !== guildId)) return null;
     const discordData = await loadDiscord(roster.guildId || guildId);
     const ctx = contextCache(roster.guildId || guildId)(roster.versionId);
-    const canManage = await canManageRosterLive(user, roster).catch(() => false);
-    const members = memberRows(roster, { ctx, discordData, config, manage: canManage });
+    const manager = await canManageRosterLive(user, roster).catch(() => false);
+    // a closed roster (#739) is read only: its managers still read everything, nobody edits
+    const closed = !!roster.closedAt;
+    const canManage = manager && !closed;
+    const orga = manager || await isRosterOrga(user, roster).catch(() => false);
+    const rows = memberRows(roster, { ctx, discordData, config, manage: manager, orga });
+    const figures = rosterFigures(rows);
     const head = rosterHead(roster, {
-        ctx, names: categoryNames(roster.guildId || guildId), discordData, figures: rosterFigures(members), guildId: roster.guildId || guildId,
+        ctx, names: categoryNames(roster.guildId || guildId), discordData, figures: orga ? figures : slimFigures(figures), guildId: roster.guildId || guildId,
     });
+    if (!orga) {
+        return {
+            roster: { ...head, kader: null },
+            members: rows.map(slimMember),
+            window: null,
+            nights: [],
+            canEditAttendance: false,
+            membersKnown: false,
+            canManage: false,
+            isAdmin: false,
+            isOrga: false,
+            settings: null,
+        };
+    }
+    const members = rows;
     const window = roster.categoryId ? categoryAttendanceFor(config, roster.categoryId).window : null;
     return {
         roster: { ...head, kader: linkedKader(roster) },
         members,
+        isOrga: true,
         window,
         // the attendance grid's columns (#677): the counted nights of the category, newest first
         nights: roster.categoryId ? attempt(() => categoryNights(ctx, roster.categoryId, { window }), []) : [],
@@ -438,7 +512,7 @@ async function buildRosterDetail({ guildId = "", id = "", user = null, config = 
         membersKnown: !!discordData.members,
         canManage,
         isAdmin: !!(user && user.isAdmin === true),
-        settings: canManage ? rosterSettingsView(roster, discordData) : null,
+        settings: canManage ? rosterSettingsView(roster, discordData, config) : null,
     };
 }
 

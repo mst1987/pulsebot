@@ -6,9 +6,15 @@ import type { EventSource, PlanningMode } from "./raidDetail";
 import type { TextChannel } from "./recruitment";
 import type { BotAccessRule } from "./botCommands";
 import type { VersionSettingsBlock } from "../lib/settings/versionLinks";
+import type { CapabilityMatrix } from "../lib/settings/versionFeatures";
+import type { AddonSetting } from "./addons";
 
-/** `color`: the role's Discord colour as hex, "" when it has none. */
-export type Role = { id: string; name: string; color?: string };
+/**
+ * `color`: the role's Discord colour as hex, "" when it has none. `managed`: a
+ * role a bot or an integration owns (@MEE6) — nobody can be given it, so the
+ * role pickers leave it out (lib/settings/assignableRoles.ts, #745).
+ */
+export type Role = { id: string; name: string; color?: string; managed?: boolean };
 
 // The Battle.net client. The secret never comes back from the server — only
 // whether one is stored. Read: { …, hasClientSecret }. Write: { …, clientSecret? }
@@ -21,6 +27,9 @@ export type BlizzardConfig = {
     clientSecret?: string;
 };
 
+/** The switches of the drawn pictures in bot messages (Einstellungen → Raid-Standardwerte). */
+export type DiscordVisuals = { overviewWeekStrip: boolean; setupImage: boolean; eventCover: boolean };
+
 export type AdminConfig = {
     adminRoleIds: string[];
     // Per-role area rights; only sent to (and savable by) full admins.
@@ -30,6 +39,8 @@ export type AdminConfig = {
     // Area rights for single Discord accounts (keyed by user id), for areas that
     // go to named people rather than to a group — same gate as above.
     userPermissions?: RolePermissions;
+    // The roles that count as orga (the rest are raider roles) — same gate as above.
+    orgaRoleIds?: string[];
     // Who may use which bot command (Berechtigungen → Bot-Befehle) — same gate as above.
     botCommandAccess?: Record<string, BotAccessRule>;
     guildId: string;
@@ -46,18 +57,35 @@ export type AdminConfig = {
     categoryRaidTemplate: Record<string, string>;
     /** The game version the guild plays (#541); missing = "tbc". */
     mainVersion?: string;
-    /** Categories that play another version: category id → version id. */
+    /**
+     * The version every active category plays (#738): category id → version
+     * id. The server refuses an active category without one; the main version
+     * is only the default of a category switched on just now.
+     */
     categoryVersion?: Record<string, string>;
+    /** The sections of a category (#738): one per version it played, oldest first (read only). */
+    categoryEras?: Record<string, CategoryEra[]>;
+    /**
+     * Write only, with a version switch (#738): what the confirmation dialog
+     * chose for the category's series — "pause" or a template id of the new version —
+     * and for its roster (#739): start one for the new version, with the people, with roles.
+     */
+    categorySwitchFixes?: Record<string, { series: string; roster?: RosterSwitchChoice }>;
     /** "Andere Versionen ausblenden" (#563): only the main version everywhere. */
     hideOtherVersions?: boolean;
     /** Language of the bot's public messages and default for every raider; missing = "de". */
     botLanguage?: "de" | "en";
+    /** The drawn pictures in bot messages (a test); missing switch = on. */
+    discordVisuals?: Partial<DiscordVisuals>;
+    /** "Neue Gildenrekorde posten" (Einstellungen → Dungeon-Bestzeiten); missing = off. */
+    dungeonRecords?: { post: boolean; channelId: string };
     /**
      * Settings per game version (#542): armory realm, armory/WCL templates,
      * Wowhead path, softres edition, default raidsheet. Every known version is
      * present; an empty field = not there for that version (no link).
+     * `disabled` (#761): the features switched off for the version, only when there are any.
      */
-    versionSettings?: Record<string, VersionSettingsBlock>;
+    versionSettings?: Record<string, VersionSettingsBlock & { disabled?: string[] }>;
     blizzard: BlizzardConfig;
     // Claude phrases the log recommendations for the raiders. The key itself
     // never comes back from the server — only whether one is stored.
@@ -67,6 +95,16 @@ export type AdminConfig = {
     // of the fight timeline. Same contract as above: the secret never comes
     // back. Read: { clientId, hasClientSecret }. Write: { clientId, clientSecret? }.
     warcraftlogsV2?: { clientId: string; hasClientSecret?: boolean; clientSecret?: string };
+    // GitHub token for the private addon repos (#818), full admins only. Same
+    // contract: the token never comes back. Read: { hasToken }. Write: { token }.
+    github?: { hasToken?: boolean; token?: string };
+    // The addons of the page "Addons" (#818), full admins only; sent whole and
+    // alone (Einstellungen → Module → Addons is the only sender).
+    addonDownloads?: AddonSetting[];
+    // Read: whether an admin edited that list (only then may it stay empty).
+    addonDownloadsCustomized?: boolean;
+    // Write only: "Standard wiederherstellen" - the default addons again, sent alone.
+    addonDownloadsReset?: boolean;
     // Which loot addon a Discord category raids with ("gargul" | "rclc" | ""),
     // keyed by category id — preselects the parser on the loot import and tells
     // the raid-detail loot tab which export to ask for.
@@ -104,6 +142,9 @@ export type AdminConfig = {
     categorySignupNotes?: Record<string, string>;
     // Where a category's messages go instead of discordServers.signupNoteChannelId (#335).
     categorySignupNoteChannel?: Record<string, string>;
+    // How many own characters one signup may name per category (1..8); a
+    // category without an entry allows 8 (signupCharacters.maxCharactersFor).
+    categorySignupCharacters?: Record<string, number>;
     // A fixed Google Sheet per category, keyed by category id. A raid in that
     // category links this sheet unless the app made it a copy of its own.
     categorySheets: Record<string, { url: string; name: string }>;
@@ -157,7 +198,8 @@ export type RoleSyncData = {
 };
 export type RemindersData = {
     categoryReminders: Record<string, ReminderRule>;
-    categories: { id: string; name: string; roleCount: number }[];
+    /** `active: false`: a deactivated category (#744) — its rule stays but reminds nobody. */
+    categories: { id: string; name: string; roleCount: number; active?: boolean }[];
     pingTargets: PingTargetInfo;
     lastRun: { at: number; sent: number; failed: number; skipped: number; error: string | null } | null;
 };
@@ -204,12 +246,14 @@ export type SettingsData = {
     // The raid templates, for the default-template select per category.
     raidTemplates?: { id: string; name: string; versionId: string; size: number | null }[];
     /** Einstellungen → Spielversion (#541): the versions to pick from. */
-    gameVersions?: { id: string; label: string; short: string }[];
+    gameVersions?: { id: string; label: string; short: string; color?: string }[];
     /**
      * The standard values per version (#553) the "Standardwerte übernehmen"
      * button takes over; an all-empty block = the version has none yet.
      */
     versionDefaults?: Record<string, VersionSettingsBlock>;
+    /** "Funktionen je Version" (#761): per version and feature possible / on / why not, from the saved settings. */
+    versionCapabilities?: CapabilityMatrix;
     /** The coming raids per version (#563), for the warning before hiding the other versions. */
     upcomingByVersion?: Record<string, { id: string; title: string; startTime: number }[]>;
     /** The versions something is stored for (#563): the archive export names only those. */
@@ -228,6 +272,8 @@ export type SettingsData = {
     bot?: { online: boolean; readySince: number; guildName: string };
     // The event and talk server cards; null for a limited settings user.
     servers?: { events: DiscordServerCard[]; talk: DiscordServerCard | null } | null;
+    /** #744: configured categories Discord no longer has (only known while the bot sees every event server). */
+    missingCategories?: MissingCategory[];
     activeGuildId: string;
 };
 
@@ -235,8 +281,104 @@ export function getSettings(): Promise<SettingsData> {
     return get<SettingsData>("/api/settings");
 }
 
-export function updateSettings(partial: Partial<AdminConfig>): Promise<{ config: AdminConfig }> {
+/** A section of a category (#738): `from` = ms of the switch (0 = always), `name` = the category name then. */
+export type CategoryEra = { versionId: string; from: number; name: string };
+
+/** The switch dialog's choice for the roster (#739): a roster for the new version, the people taken over, its Discord roles. */
+export type RosterSwitchChoice = { create: boolean; copyMembers: boolean; roleIds: string[] };
+
+/** What a switch did to the category's roster (#739). */
+export type SwitchRosterResult = {
+    closed: { id: string; name: string } | null;
+    reopened: { id: string; name: string } | null;
+    created: { id: string; name: string; members: number } | null;
+    mirrored: boolean;
+};
+
+/** A category the save switched to another version (#738), with what happened to its series and its roster (#739). */
+export type SwitchedCategory = {
+    categoryId: string; fromVersion: string; toVersion: string; at: number; name: string; series: "" | "paused" | "template";
+    roster?: SwitchRosterResult;
+};
+
+export function updateSettings(partial: Partial<AdminConfig>): Promise<{ config: AdminConfig; switchedCategories?: SwitchedCategory[]; deactivatedCategories?: DeactivatedCategory[] }> {
     return send("PATCH", "/api/settings", partial);
+}
+
+type SwitchVersion = { id: string; label: string; short: string };
+
+/** GET /api/settings/category-switch: what switching a category to another version means (#738). */
+export type CategorySwitchPreview = {
+    categoryId: string;
+    name: string;
+    from: SwitchVersion;
+    to: SwitchVersion;
+    switching: boolean;
+    eras: CategoryEra[];
+    /** The category's coming raids of another version: they keep it (the orga may cancel them). */
+    upcoming: { id: string; title: string; startTime: number; versionId: string; source: EventSource }[];
+    /** The category's series; `fits` = its template (own or the default) is of the new version. */
+    series: { enabled: boolean; usesDefault: boolean; template: { id: string; name: string; versionId: string } | null; fits: boolean } | null;
+    defaultTemplate: { id: string; name: string; versionId: string; fits: boolean } | null;
+    /** The templates of the new version, to pick one for the series or as the default. */
+    templates: { id: string; name: string }[];
+    /**
+     * The roster (#739): the one of the old version that will be closed, the one of the new version that already
+     * exists (`reopens`: a switch closed it, it opens again), and whether a new one can be created (only from an old one).
+     */
+    roster?: {
+        closing: { id: string; name: string; members: number } | null;
+        existing: { id: string; name: string; closed: boolean; reopens: boolean } | null;
+        canCreate: boolean;
+    };
+};
+
+export function getCategorySwitch(categoryId: string, versionId: string): Promise<CategorySwitchPreview> {
+    return get<CategorySwitchPreview>(`/api/settings/category-switch?categoryId=${encodeURIComponent(categoryId)}&versionId=${encodeURIComponent(versionId)}`);
+}
+
+/** A category's series as the lifecycle dialogs name it (#744). */
+export type CategorySeriesInfo = { enabled: boolean; weekdays: number[]; time: string };
+
+/** What deactivating a category pauses (#744): its series and reminders rest, its coming raids stay. */
+export type DeactivatedCategory = {
+    categoryId: string; name?: string; series: CategorySeriesInfo | null; reminders: boolean; upcoming: number;
+};
+
+/** GET /api/settings/category-deactivate?next=…: what saving these active categories pauses (#744). */
+export function getCategoryDeactivate(next: string[]): Promise<{ categories: DeactivatedCategory[]; emptyBlocked: boolean }> {
+    return get(`/api/settings/category-deactivate?next=${encodeURIComponent(next.join(","))}`);
+}
+
+/** A configured category Discord no longer has (#744), with what "Kategorie abschließen" removes. */
+export type MissingCategory = {
+    categoryId: string;
+    name: string;
+    active: boolean;
+    series: CategorySeriesInfo | null;
+    reminders: boolean;
+    /** The category settings that go (config keys). */
+    settings: string[];
+    councilProfile: boolean;
+    kaders: { kaderId: string; name: string }[];
+    /** The category's rosters, one per game version (#739); closing the category closes them. */
+    rosters: { id: string; name: string; versionId?: string; closed?: boolean }[];
+    upcoming: number;
+};
+
+export type CategoryCloseResult = {
+    ok: true;
+    name: string;
+    removed: { series: boolean; reminders: boolean; settings: string[]; active: boolean; councilProfile: boolean; kaders: number };
+    /** The category's rosters, now closed (#739). */
+    rosters: { id: string; name: string; versionId?: string; closed?: boolean }[];
+    config: AdminConfig;
+    missingCategories: MissingCategory[];
+};
+
+/** POST /api/settings/category-close: close a category deleted in Discord (#744). */
+export function closeCategory(categoryId: string): Promise<CategoryCloseResult> {
+    return send("POST", "/api/settings/category-close", { categoryId });
 }
 
 export function saveRaidsheet(input: Partial<Raidsheet>): Promise<Raidsheet> {

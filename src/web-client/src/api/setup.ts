@@ -24,6 +24,20 @@ export type SetupAttendance = {
     benchNights?: number;
 };
 
+/** One character a raider signed up with (#293), decorated like a slot; `priority` 0 = their choice, then "kann auch mit"; its own status (#320). */
+export type SetupCharacter = {
+    character: string;
+    spec: string;
+    role: GameRole | "";
+    status: SignupStatus | "";
+    priority: number;
+    classId: string;
+    classColor: string;
+    classLabel: string;
+    specLabel: string;
+    specIcon: string;
+};
+
 /** A raider in a group or on the bench, decorated for the page. */
 export type SetupPerson = {
     userId: string;
@@ -44,6 +58,8 @@ export type SetupPerson = {
     brings?: SetupBuff[];
     /** Per other group index: how many would profit from what they bring there — drives the drag glow. */
     fit?: Record<string, number>;
+    /** Every character they signed up with, in their order — only for somebody with more than one (#293). */
+    characters?: SetupCharacter[];
     name: string;
     classColor: string;
     classLabel: string;
@@ -130,8 +146,51 @@ export type SetupEditorData = {
     publish?: SetupPublish;
     /** Only for the orga: what the raid still needs and the message that looks for it ("Suche"); null without a setup. */
     search?: SetupSearch | null;
+    /** The raids of the event's raid group (#811) — the editor's tabs "Raid 1 | Raid 2"; null outside a group. */
+    raidGroup?: RaidGroup | null;
+    /** Orga only (#811): how many signed-up raiders the other raids of the group hold (left out of "Angemeldet"). */
+    placedElsewhere?: number;
     message?: string;
 };
+
+/** One raid of a raid group (#811) as the tabs, the raid detail and the raid list draw it. */
+export type RaidGroupRaid = {
+    id: string;
+    title: string;
+    /** 1 = the first raid, where the raiders sign up; 2, 3 … the further raids. */
+    index: number;
+    size: number;
+    placed: number;
+    status: "none" | "draft" | "approved";
+    approved: boolean;
+    posted: boolean;
+    cancelled: boolean;
+};
+
+/** A raid group (#811): further raids at the same time that share the first raid's signup. */
+export type RaidGroup = {
+    id: string;
+    primaryId: string;
+    count: number;
+    /** The places of every raid together ("2 Raids · 20 Plätze"). */
+    places: number;
+    raids: RaidGroupRaid[];
+};
+
+/** "Weiteren Raid hinzufügen" (#811): a further raid of the event's group; `title` empty = "<Titel> 2". */
+export function addGroupRaid(eventId: string, title = ""): Promise<{ event: string; title: string; raidGroup: RaidGroup | null; message: string }> {
+    return send("POST", "/api/raids/setup/raid-add", { event: eventId, title });
+}
+
+/** Dissolve a further raid without an approved setup (#811): its raiders fall back into "Angemeldet". */
+export function removeGroupRaid(eventId: string): Promise<{ event: string; raidGroup: RaidGroup | null; message: string }> {
+    return send("POST", "/api/raids/setup/raid-remove", { event: eventId });
+}
+
+/** A raider of this raid (group, bench or "Angemeldet") into another raid of its group (#811) — the answer is this raid's payload. */
+export function moveToGroupRaid(eventId: string, target: string, userId: string, character?: string): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/move-raid", { event: eventId, target, userId, ...(character ? { character } : {}) });
+}
 
 /** The classes and specs the setup still needs, and the draft of the message that looks for them. */
 export type SetupSearch = {
@@ -268,7 +327,8 @@ export type SetupPlacementInput = {
     version: number;
     /** `character`: which of the raider's named characters (#293) plays the spec. */
     groups: { index: number; slots: { userId: string; character?: string; spec: string; role: string; locked: boolean; pos?: number }[] }[];
-    bench: { userId: string; locked: boolean }[];
+    /** `character`: which of the raider's named characters waits on the bench (#293). */
+    bench: { userId: string; character?: string; locked: boolean }[];
     fairness?: boolean;
     wishes?: boolean;
     avoid?: boolean;

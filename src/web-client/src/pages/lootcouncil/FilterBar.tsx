@@ -1,6 +1,7 @@
 // The council's filter as ONE line under the tabs: who is counted (the role
 // segment) and a single "Filter · 3 aktiv" button that opens everything else —
-// which loot counts (Content), the raid category, the BiS list, and the two
+// which loot counts (Content), the BiS list ("Ersatz zeigen" with a roster;
+// the roster or category itself is picked in the head since #676), and the two
 // read-only facts the old chips showed (where the gear comes from, how much is
 // simulated). A change applies live, like it always did; "Zurücksetzen" clears
 // the three real filters and "Fertig" closes the box. Every explanation that
@@ -9,7 +10,7 @@ import { useRef, useState } from "react";
 import type { LootCouncilData } from "../../api";
 import { Badge, Button, Segment, Switch } from "../../components/ui";
 import { ChevronDownIcon, FunnelIcon } from "../../components/ui/icons";
-import { ROLE_ICON, categoryNote, roleLabel, rosterNote, type FilterView } from "./council";
+import { ROLE_ICON, categoryNote, councilContent, roleLabel, rosterNote, type FilterView } from "./council";
 import { useDismiss } from "../../hooks/useDismiss";
 import { tParts, useT } from "../../i18n";
 
@@ -84,15 +85,17 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
     const o = data.options;
     const derivedTier = data.filter.bisTierDerived ? o.bisTiers.find((b) => b.id === data.filter.bisTier) : null;
     const note = categoryNote(data);
+    // What this version has content data for (#748): no tier filter, BiS list or simulation without it.
+    const content = councilContent(data);
     // A category with a roster (#667): the roster is the candidate list.
     const fromRoster = rosterNote(data);
     const noSpec = data.filter.roster ? data.filter.roster.noSpec : [];
     const roster = data.roster.length;
     // The filters the button counts: Content (tiers and raids together), the
-    // raid category, the BiS list and — with a roster — "Ersatz zeigen".
-    // Gear source and simulation are facts.
+    // BiS list and — with a roster — "Ersatz zeigen". Gear source and
+    // simulation are facts; the roster/category is the head's pick (#676).
     const benchOn = !!(view.bench && data.filter.roster);
-    const active = (view.tiers.length || view.contents.length ? 1 : 0) + (view.category ? 1 : 0) + (view.bisTier ? 1 : 0) + (benchOn ? 1 : 0);
+    const active = (view.tiers.length || view.contents.length ? 1 : 0) + (view.bisTier ? 1 : 0) + (benchOn ? 1 : 0);
 
     return (
         <div className="lc-filterline">
@@ -119,22 +122,18 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                 </button>
                 {open ? (
                     <div className="lc-fpopmenu" role="dialog" aria-label={t("lootcouncil.filter.button")}>
-                        <ContentFilter data={data} view={view} patch={patch} />
-                        <div className="lc-field">
-                            <label className="kicker" htmlFor="lc-f-category">{t("lootcouncil.filter.category")}</label>
-                            <select id="lc-f-category" className="lc-sel" value={view.category} onChange={(e) => patch({ category: e.target.value })}>
-                                <option value="">{t("lootcouncil.filter.allCategories")}</option>
-                                {o.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                            {data.filter.roster ? (
+                        {content.tiers ? <ContentFilter data={data} view={view} patch={patch} /> : null}
+                        {data.filter.roster ? (
+                            <div className="lc-field">
                                 <Switch
                                     checked={!!view.bench}
                                     onChange={(bench) => patch({ bench })}
                                     label={t("lootcouncil.filter.bench")}
                                     tip={t("lootcouncil.filter.benchTip", { count: data.filter.roster.counts.bench })}
                                 />
-                            ) : null}
-                        </div>
+                            </div>
+                        ) : null}
+                        {content.bis ? (
                         <div
                             className="lc-field"
                             data-tip={derivedTier ? t("lootcouncil.filter.derivedTip", { tier: derivedTier.label }) : undefined}
@@ -146,6 +145,7 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                                 {o.bisTiers.map((b) => <option key={b.id} value={b.id}>{tParts("lootcouncil.filter.bisTier", { tier: TIER_SHORT[b.id] || b.label })}</option>)}
                             </select>
                         </div>
+                        ) : null}
                         <div
                             className="lc-field"
                             data-tip={t("lootcouncil.filter.gearTip")}
@@ -158,6 +158,7 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                                 {armoryCount ? t("lootcouncil.filter.gearValueArmory", { armory: armoryCount, count: roster }) : t("lootcouncil.filter.gearValueLog")}
                             </span>
                         </div>
+                        {content.sim ? (
                         <div
                             className="lc-field"
                             data-tip={data.sim.available ? `WoWSims ${data.sim.version}` : t("lootcouncil.sim.noSim")}
@@ -168,8 +169,9 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                                 {data.sim.available ? t("lootcouncil.filter.simValue", { done: simulated, total: simulatable }) : t("lootcouncil.filter.simOffValue")}
                             </span>
                         </div>
+                        ) : null}
                         <div className="lc-fpop-foot">
-                            <Button variant="ghost" size="sm" disabled={!active} onClick={() => patch({ tiers: [], contents: [], category: "", bisTier: "", bench: false })}>{t("common.reset")}</Button>
+                            <Button variant="ghost" size="sm" disabled={!active} onClick={() => patch({ tiers: [], contents: [], bisTier: "", bench: false })}>{t("common.reset")}</Button>
                             <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>{t("lootcouncil.filter.done")}</Button>
                         </div>
                     </div>
@@ -180,7 +182,7 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                     <Badge
                         tone="accent"
                         icon="inv_misc_gear_01"
-                        tip={t("lootcouncil.filter.gameTip", { category: o.categories.find((c) => c.id === view.category)?.name || view.category })}
+                        tip={t("lootcouncil.filter.gameTip", { category: data.council?.roster?.name || o.categories.find((c) => c.id === view.category)?.name || view.category })}
                         tipSub={canWrite ? t("lootcouncil.filter.gameTipSub") : t("lootcouncil.filter.gameTipReadOnly")}
                     >
                         {t("lootcouncil.filter.game")}

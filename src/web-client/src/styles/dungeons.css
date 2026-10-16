@@ -1,0 +1,32 @@
+/* ── Dungeon-Bestzeiten (pages/dungeons/*) ──────────
+   Built on the shared blocks (page head, tabs, badge, table.idx); what is
+   here: the filter line with the dungeon pick, the table's cells, the medal as
+   a small square field and the empty page. Tokens only. */
+
+.dg-filterline { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; margin-bottom: 14px; }
+.dg-pick { width: auto; max-width: 100%; min-height: var(--ctl-h-sm); padding-top: 4px; padding-bottom: 4px; font-size: 13.5px; }
+.dg-facts { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+
+.dg-scroll { overflow-x: auto; margin-bottom: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.dg-table { min-width: 640px; }
+.dg-table td { vertical-align: middle; }
+.dg-rank { font-family: var(--font-mono); color: var(--muted); }
+.dg-time { font-family: var(--font-mono); font-size: 14px; }
+.dg-count b { font-family: var(--font-mono); }
+.dg-zero { color: var(--muted); }
+
+/* a medal: a small square in its colour, then the word — never a round pill */
+.dg-medal { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.dg-medal i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; background: var(--medal-c); }
+.dg-medal[data-medal="gold"] { --medal-c: var(--medal-gold); }
+.dg-medal[data-medal="silver"] { --medal-c: var(--medal-silver); }
+.dg-medal[data-medal="bronze"] { --medal-c: var(--medal-bronze); }
+.dg-nomedal { color: var(--muted); }
+
+.dg-group { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.dg-member { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.dg-member b { font-weight: 600; }
+
+.dg-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 48px 24px; text-align: center; }
+.dg-empty h2 { margin: 6px 0 0; font-size: 18px; color: var(--text); }
+.dg-empty p { margin: 0; max-width: 60ch; }

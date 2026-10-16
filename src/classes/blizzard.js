@@ -125,6 +125,8 @@ class Blizzard {
      * @param {string} [opts.realmSlug]  connected-realm slug, lowercase (default "thunderstrike")
      * @param {string} [opts.namespace]  profile namespace (default "profile-classic-<region>")
      * @param {string} [opts.locale]     API locale (default "en_GB")
+     * @param {string} [opts.versionId]  game version of the realm (default "tbc"): only TBC knows the gem-name table
+     * @param {string} [opts.wowheadPath] Wowhead section for item lookups (default: TBC's)
      */
     constructor(opts = {}) {
         this.clientId = opts.clientId || process.env.BLIZZARD_CLIENT_ID || "";
@@ -137,8 +139,11 @@ class Blizzard {
         this._namespaceExplicit = Boolean(opts.namespace);
         this.namespace = opts.namespace || `profile-classicann-${this.region}`;
         this.locale = opts.locale || "en_GB";
+        this.versionId = opts.versionId || "tbc";
+        this.wowheadPath = opts.wowheadPath || "";
         this._token = null;
         this._tokenExpiry = 0; // epoch ms
+        this._tokenRequest = null; // the token request in flight, shared by parallel callers
         // Reason the last getEquipment() returned null, for UI diagnostics:
         // { status, message } or { reason: "not_configured" | "no_name" }.
         this.lastError = null;
@@ -166,6 +171,14 @@ class Blizzard {
      */
     async getToken() {
         if (this._token && Date.now() < this._tokenExpiry) return this._token;
+        // Two requests side by side (summary + gear, services/characters/charGear.js) share one token request.
+        if (!this._tokenRequest) {
+            this._tokenRequest = this._requestToken().finally(() => { this._tokenRequest = null; });
+        }
+        return this._tokenRequest;
+    }
+
+    async _requestToken() {
         const res = await this.http.post(this.tokenUrl, "grant_type=client_credentials", {
             auth: { username: this.clientId, password: this.clientSecret },
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -247,6 +260,9 @@ class Blizzard {
         const data = await this._getCharacter(characterName, "/equipment", opts);
         if (!data) return null;
         const items = data.equipped_items || [];
+        // The gem-name table is TBC's; the item lookups ask the version's Wowhead section.
+        const gemNames = this.versionId === "tbc" ? TBC_GEM_NAME_BY_TEXT : {};
+        const path = this.wowheadPath;
         const gear = items.map((it) => {
             const enchants = [];
             const enchantIds = [];
@@ -264,7 +280,7 @@ class Blizzard {
                 const isPermanent = slotType === "PERMANENT" || /^Enchanted:/i.test(text);
                 const looksLikeGem = Boolean(e.source_item)
                     || slotType.includes("SOCKET")
-                    || Boolean(TBC_GEM_NAME_BY_TEXT[normalizeGemText(text)]);
+                    || Boolean(gemNames[normalizeGemText(text)]);
                 if (!isPermanent && looksLikeGem) {
                     // Gems reported via enchantments only appear when the API
                     // sent no sockets array — don't duplicate existing entries.
@@ -297,9 +313,9 @@ class Blizzard {
         for (const g of gear) {
             for (const s of g.sockets) {
                 if (s.gemId || (!s.gemName && !s.gemText)) continue;
-                const mappedName = s.gemName || TBC_GEM_NAME_BY_TEXT[normalizeGemText(s.gemText)];
+                const mappedName = s.gemName || gemNames[normalizeGemText(s.gemText)];
                 if (!mappedName) continue;
-                const found = await wowhead.findItemByName(mappedName);
+                const found = await wowhead.findItemByName(mappedName, { path });
                 if (found) {
                     s.gemId = found.id;
                     s.gemName = found.name;
@@ -312,7 +328,7 @@ class Blizzard {
             ...gear.flatMap((g) => g.sockets.filter((s) => s.gemId && !s.gemIconUrl).map((s) => s.gemId)),
         ])];
         if (ids.length) {
-            const lookups = await Promise.all(ids.map((id) => wowhead.lookupItem(id)));
+            const lookups = await Promise.all(ids.map((id) => wowhead.lookupItem(id, { path })));
             const byId = new Map(ids.map((id, i) => [id, lookups[i]]));
             for (const g of gear) {
                 const found = g.itemId ? byId.get(g.itemId) : null;

@@ -327,7 +327,7 @@ describe("web/report/render", () => {
             expect(html).toContain("<details class=\"vcard raider-card\" id=\"raider-Bob\" data-name=\"Bob\" data-role=\"dps\"");
             expect(html).not.toContain("data-role=\"dps\" data-open=\"0\" data-report=\"abc123def456\" style=\"--cc:#69CCF0\" open");
             expect(html).toContain("classicon_mage.jpg");
-            expect(html).toContain("inv_shield_06.jpg\" alt=\"\">1 Gear-Problem</span>");
+            expect(html).toMatch(/<span class="badge (?:bad|mid) has-minis"[^>]*><span class="minis"><img class="mini"[^>]*><\/span>1 Gear-Problem<\/span>/);
             // nothing stands out about Bob: one badge in the ok tone
             const bob = html.slice(html.indexOf("id=\"raider-Bob\""), html.indexOf("</summary>", html.indexOf("id=\"raider-Bob\"")));
             expect(bob).toContain("<div class=\"vcard-chips\"><span class=\"badge ok\">");
@@ -515,6 +515,16 @@ describe("web/report/render", () => {
         it("links issues with an itemId to wowhead", () => {
             const html = renderReportPage(sampleReport());
             expect(html).toContain("https://www.wowhead.com/tbc/item=1234");
+        });
+
+        it("links in the version of the report, never TBC for another one (#746)", () => {
+            const forever = renderReportPage({ ...sampleReport(), versionId: "forever" });
+            expect(forever).toContain("https://www.wowhead.com/forever/item=1234");
+            expect(forever).not.toContain("wowhead.com/tbc/item=1234");
+            const classic = renderPlayerPage({ ...sampleReport(), versionId: "classic" }, 0);
+            expect(classic).not.toContain("wowhead.com/tbc/");
+            // and the next page, of an old report, is TBC again
+            expect(renderReportPage(sampleReport())).toContain("https://www.wowhead.com/tbc/item=1234");
         });
 
         it("renders the Wipe marker for non-kill boss rows", () => {

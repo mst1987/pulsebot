@@ -52,7 +52,10 @@
         "empty": "There are no upcoming raids you can see right now.",
         "bulkAria": "Sign up for several raids",
         "selectAll": "Select all",
-        "clearSelection": "Clear selection"
+        "clearSelection": "Clear selection",
+        "showAll": "All categories",
+        "showAllTip": "Also raids you hold no raider role for",
+        "showAllTipSub": "Orga only. Off: only raids you can sign up for or are signed up for."
     },
     "row": {
         "tentative": "{count} tentative",
@@ -105,7 +108,8 @@
         "noteTip": "The bot posts it in the raid lead's channel.",
         "required": "(required)",
         "notePlaceholderAbsent": "e.g. work, holiday, ill",
-        "notePlaceholderTentative": "e.g. not sure yet, maybe later"
+        "notePlaceholderTentative": "e.g. not sure yet, maybe later",
+        "roleMissing": "You need a raider role for this raid."
     },
     "bulk": {
         "toast": "{saved} of {total} raids saved.",
@@ -122,7 +126,8 @@
         "waitlisted": "Waiting list",
         "saved": "saved",
         "notSaved": "not saved",
-        "absent": "signed off"
+        "absent": "signed off",
+        "limitMin": "At most {max} characters – that many every one of the chosen raids takes (the categories allow different numbers)."
     },
     "picks": {
         "characters": "Characters",
@@ -142,7 +147,9 @@
         "add": "+ Can also come with …",
         "upTo": "(up to {max})",
         "hint": "1 = your choice, the others “can also come with”. The organisers put you in with exactly one.",
-        "hintStatus": " The status applies per character."
+        "hintStatus": " The status applies per character.",
+        "limitReached": "At most {max} characters per signup in this category.",
+        "overLimit": "This category now takes at most {max} characters per signup. Yours stay – you can take some out, but not add any."
     },
     "specPicker": {
         "removeAria": "Remove {name}",
@@ -230,5 +237,10 @@
             "already_signed": "was already signed up",
             "absent": "an absence covers it"
         }
-    }
+    },
+    "pug": {
+        "label": "PuG",
+        "tip": "Open to everyone – no raider role needed"
+    },
+    "rolesUnknown": "Your Discord roles could not be read just now – some raids may be missing."
 }

@@ -28,7 +28,7 @@ profile.
 | `src/services/kader/kaderActivity.js` | Live: what a write changed — revisions and the Kader's activity log (`recordChanges`), the lines after a revision (`changesSince`) |
 | `src/web/kader/kaderPresence.js` | Live: who is in which Kader right now, in memory only |
 | `src/stores/kaderStore.js` | `data/settings/kader.json`, one planner per Discord server; `liveState` for the poll |
-| `src/web-client/src/pages/kader/` | the page (`KaderPage.tsx`): header, status bar, the six views and the dialogs; live: `useKaderLive.ts` (the poll), `useInterviewDraft.ts` (the interview's draft and its conflicts), `Presence.tsx` (who is here, the conflict banner), `ActivityLog.tsx` (Verlauf, Aktivität) |
+| `src/web-client/src/pages/kader/` | the page (`KaderPage.tsx`): the overview of all Kader (`KaderOverview.tsx`), header, status bar, the six views and the dialogs; live: `useKaderLive.ts` (the poll), `useInterviewDraft.ts` (the interview's draft and its conflicts), `Presence.tsx` (who is here, the conflict banner), `ActivityLog.tsx` (Verlauf, Aktivität) |
 | `src/web-client/src/lib/kader/` | client logic: `model.ts` (names, icons, states, counts, the attendance sum over the Kader's raid categories), `interview.ts` (progress, draft/patch), `filters.ts`, `sort.ts` (the sort keys of the planner's tables), `colors.ts` (the colours of the answers), `setup.ts` (slots, buff hints, Discord text), `names.ts`, `live.ts` (activity lines as sentences, the toast, presence in words) |
 | `src/web-client/src/styles/kader.css` | the module stylesheet, prefix `kp-` (modifiers too) |
 
@@ -92,6 +92,7 @@ character cross, and only through "Ins Roster übernehmen".
   them in the same way (status, character, main role); **members already in the roster are never touched**, and nobody
   is taken out because the Kader moved them back. Role failures are counted in the toast.
 - **"Zum Roster"** — the link to `/roster/r/<id>`: name, members, status and roles are edited there.
+- **"Zum Loot-Council"** (#676) — when the linked roster runs as Loot-Council (`rosterLootSystem`) and the caller may read the loot council, a link `/lootcouncil?roster=<id>` next to "Zum Roster" opens the council with that roster picked (`GET /api/kader/roster` → `lootCouncil: true`). Only the roster id crosses; interviews, votes and notes stay here.
 - **"Verknüpfung"** — full admins: the same dialog to link another roster or "Verknüpfung lösen" (the roster stays
   with all its members). The roster page links back: its Komposition's "Zum Kaderplaner" opens `/kader/<kaderId>/roster`
   of the linked Kader, and the roster settings ("Kader im Kaderplaner") set or clear the same link from that side.
@@ -108,8 +109,20 @@ interview note and a comment with a marker and asserts neither reaches the roste
 
 ## The version and the server
 
-- Version: `forever` when that rule set exists, else the main version (`kaderSource.plannerVersion()`); the content
-  switch does not apply.
+- Version: `forever` when that rule set exists, else the main version (`kaderSource.plannerVersion()`) — the rule
+  set the planner works with.
+- **Each Kader has a game version** (#741, `versionId`, `kaderModel.kaderVersion`: one stored before has none and is
+  Forever). The picker lists only the Kader of the menu's content version (`GET /api/kader?version=`,
+  `kaderView.kadersShown`); a change inside a Kader answers the list of its version; a new Kader takes the version
+  the page shows. A link to a Kader of another version opens it and switches the menu to its version
+  (`hooks/useFollowVersion`); switching the menu away goes back to the overview at `/kader`.
+- **The planner reads in the Kader's version** ("Forever = Forever-Charaktere"): `GET /api/kader` and every write
+  load `loadKaderSource({ versionId })` with the version of the Kader they name (`kader` / `kaderId`), else the
+  shown one (GET) or the planner's own (writes) — classes, profile characters, raid categories and attendance of
+  that version. A new Kader of a hidden version is refused (400 `version_hidden`); without a pick it gets the
+  planner's version, the main version while that one is hidden. The planner's own character data
+  (`assignments`) is still per server, not per version: a profile character of another version (its `onlineKey`)
+  is refused there (400), a character typed by hand counts as one of the Kader's version.
 - Server: the **active guild** of the session (`activeGuildFor(req)`): its members and roles, its events for
   attendance, and the planner is stored under its id.
 
@@ -120,24 +133,42 @@ of the Kader joins must not pull everybody down, a Thursday Kader only cares for
 
 - **The server's raid categories** (`kaderSource.listRaidCategories`): every Discord category marked for events
   (`config.categoryIds`) and every category a raid of this server ran in, named live or from the remembered names
-  (`categoryNames.js`), with the game version it plays (`mainVersionFor`) and how many nights it counts. An id
-  without a known name is left out. The view model sends them as `raidCategories` in Discord's order.
+  (`categoryNames.js`), with the game version it plays (`mainVersionFor`), whether that version is hidden and how
+  many nights it counts. An id without a known name is left out. The view model sends them as `raidCategories`:
+  **every version** (`includeHidden: true`), grouped by version (`groupByVersion`) — the Kader's own first, then the
+  other shown versions, then the hidden ones, Discord's order inside a version.
+- **Other versions — the deliberate exception** (docs/game-versions.md, "Streng getrennt"): a Forever Kader recruits
+  players who raid in TBC today, their TBC nights are the reliability signal. So a Kader may pick categories of any
+  version, a hidden one included (marked "archiviert": its history still says something). Reading only — nothing is
+  written into the other version; characters, `pickable` and the roster link stay strictly separated.
+  `PUT /api/kader/kaders` accepts every category of `listRaidCategories(…, { includeHidden: true })`.
 - **Per account and category** (`sourceAttendance`): the category's last 11 nights with evidence
-  (`rosterAttendance.attendanceForAccounts`, `RAID_WINDOW`), whatever version they were played in; the account's
-  characters are the profile's of every version plus the characters assigned per category. `player.attendance` is
-  `{ [categoryId]: { attended, counted, nights } }`, only the categories that counted a night; `null` without any.
+  (`rosterAttendance.attendanceForAccounts`, `RAID_WINDOW`) **of the version the category plays** (#740), counted with
+  that version's context — a TBC category counts its TBC nights against the TBC characters. The account's characters
+  are the profile's of every version plus the characters assigned per category. `player.attendance` is
+  `{ [categoryId]: { attended, counted, versionId, nights } }`, only the categories that counted a night; `null` without any.
+- **Contexts only for versions picked** (`attendanceContexts`): one `buildAttendanceContext` for the Kader's own
+  version and one per other version a Kader of this version picked (the route's `sourceFor` hands
+  `attendanceCategoryIds` in) — a category of a version nobody picked comes with `nights: null` ("zählt nach Wahl")
+  and no attendance. Once such a category is picked, the page fetches the whole view again
+  (`lib/kader/model.ts attendanceUnloaded`, an effect in `KaderPage.tsx`, once per pick — also for another lead's pick
+  seen live).
   A night carries its attendance code `status` (#677, docs/roster-profile.md "Anwesenheit: Status je Abend"): a bench
   night counts as attended, the orga's overrides win; the account dialog colours each night by it and words it
   (`attendanceStatus.ts verdictText`).
 - **The sum is the page's** (`lib/kader/model.ts` `attendanceOf`): attended and counted nights added up over the
-  picked categories, each category's share for the tooltip ("Mo Raid 9/11 · Do Raid 7/10"), the nights newest
-  first with their category — so a new pick needs no second request. "Automatisch verteilen" sums the same way on
+  picked categories, each category's share for the tooltip ("Mo Raid 9/11 · TBC · Mo Raider 10/11"), the nights
+  newest first with their category — so a new pick of a counted version needs no second request. A category of
+  another version is named with its version first everywhere (`categoryLabel`: "TBC · Mo Raider"). "Automatisch verteilen" sums the same way on
   the server (`kaderView.rateOver` via `ctx.rateOf(userId, categoryIds)`).
 - **No pick, no number**: a Kader without a category shows "—" everywhere, a hint above the Pool table and a
   warning-coloured "Kategorien wählen" in the column head — there is no silent fallback to all categories. Existing
   Kader start with `[]` (normalised on read). A picked id the server no longer knows counts for nothing.
 - **Where it is picked**: in the Kader's settings (a checklist, saved with the dialog) and in the head of the
-  Pool's attendance column (a menu, every tick saved at once for the whole Kader). `PUT /api/kader/kaders` keeps only
+  Pool's attendance column (a menu, every tick saved at once for the whole Kader). Both group the categories by
+  version (`categoryGroups`, `CategoryChecklist`): a head per version with its dot (`--ver-*`), "Version des Kaders"
+  or "zählt die TBC-Abende", "archiviert" for a hidden version; a server whose categories all play the Kader's version
+  shows the plain list. `PUT /api/kader/kaders` keeps only
   ids of the server's raid categories (`ctx.raidCategoryIds`); an empty list is a valid pick.
 - **Where it shows**: Pool (value, tooltip with the shares, sortable), the Vorläufig drawer (the value with the
   shares written out), the account dialog (one square per night with date and category, "letzte n Raidabende · x da,
@@ -164,7 +195,7 @@ of the Kader joins must not pull everybody down, a Thursday Kader only cares for
   attendanceCategories: [categoryId] (≤ 20, the raid categories attendance counts in; [] = none picked yet),
   questions: [{ id, text (≤ 200), type: single|multi|text, options: [{ id, label (≤ 60), color? }] (≤ 20), required }] (≤ 30),
   players: { [userId]: entry } (≤ 500),
-  setups: [{ id, name, size: 10|20, groups: [[{ userId, spec } | null] × 5] × 4 }] (1–6) }
+  setups: [{ id, name, size: 10|20|40, groups: [[{ userId, spec } | null] × 5] × 8 }] (1–6) }
 ```
 
 A player's **entry**:
@@ -223,12 +254,12 @@ An answer is recognised at a glance before it is read (`lib/kader/colors.ts`):
 
 ### Example setups
 
-A variant is always four groups of five; `size` 10 shows groups 1–2 and keeps 3–4 untouched (switching the size is
-non-destructive). A slot is `{ userId, spec }` — the spec is one of the player's wishes (or the decision). Only
+A variant is always eight groups of five (`GROUP_COUNT`); `size` shows the first `size / 5` of them and keeps the others untouched (switching the size is
+non-destructive). The sizes are those of the planner version's instances (`kaderModel.setupSizesOf`: Forever 10, 20, 40, #751); the view sends them as `setupSizes`. A variant stored with four groups is padded to eight. A slot is `{ userId, spec }` — the spec is one of the player's wishes (or the decision). Only
 players in `roster`, `provisional`, `bench` or `tentative` may stand in a setup, each once; a setup **never changes a
 state**. "Automatisch verteilen" (sources: roster + provisional by default, bench/tentative switchable) fills the
 visible groups — roster before provisional, then by attendance over the Kader's raid categories — with the heuristic of `kaderAutoAssign.js` (tanks
-one per group, healers and shamans spread, melee to a shaman or warrior, casters to a healer or shaman).
+one per group, healers and classes with totems spread, melee to a group with a supporting class, casters to a healer or such a class; which classes spread/support comes from the rule set's party buffs, `supportOf()` — Shaman and Warrior in Classic-like versions).
 
 ## Live: changes, presence, conflicts
 
@@ -312,14 +343,15 @@ members, discordRoles, names, kaders, kader, warnings, sharedRev }`
 
 - **buffs**: each with `label` (German) and `labelEn` (the rule set's English name — the totem's or the spell's,
   "Windfury Totem"); the setup hints take the one of the menu language (`lib/kader/setup.ts` `buffLabel`).
-- **raidCategories**: `{ id, name, versionId, versionLabel, nights }` (see "Attendance per raid category"); a
-  category's name carries its version only while the categories play different ones ("Mo Raid · TBC").
+- **raidCategories**: `{ id, name, versionId, versionLabel, hidden, nights }` — every version, the Kader's own first,
+  `nights` null for a version no Kader of this version picked (see "Attendance per raid category"); a category of
+  another version than the Kader's is named with its version first ("TBC · Mo Raider").
 - **players**: everybody the planner knows on this server (profiles of the version, accounts, everybody in a Kader):
   `{ userId, displayName, avatarUrl, onServer, roleIds, hasProfile, manual, hasOverride, characters,
   activeCharacterId, differs, profile, prefill, pickable, availability, attendance, rev, changedBy }` — `attendance` per raid
   category, `rev`/`changedBy` the revision of the planner's character data and who saved it (0/"" without any).
-- **pickable**: what the account dialog offers to assign, "Aus dem Profil zuweisen": every profile character of any game
-  version `{ key, name, className, versionId, canTank, canHeal, specs, source: "profile" }` (the raider's order, no main) plus the log-linked one
+- **pickable**: what the account dialog offers to assign, "Aus dem Profil zuweisen": the profile characters of the Kader's game
+  version (#741; `allCharacters` still carries every version, `kaderView.pickableOf` filters) `{ key, name, className, versionId, canTank, canHeal, specs, source: "profile" }` (the raider's order, no main) plus the log-linked one
   (`source: "logs"`). Same whitelisted fields as the rest of the profile (source: `allCharacters`); a pick fills a new
   planner character (Forever: first + last name, other versions: nickname) the lead can still edit.
 - **prefill**: the character a player is prefilled with — `{ name, className, spec, source: planner|profile|logs,
@@ -365,10 +397,16 @@ Parameters in the body; `kaderId` names the Kader.
 
 ## The page
 
-`/kader/:kaderId/:sub` — `/kader` opens the Kader used last (`kader-last`), else the first; without any Kader the
-start page shows the flow and "Ersten Kader anlegen".
+`/kader/:kaderId/:sub` — `/kader` is the **overview** (`pages/kader/KaderOverview.tsx`, like the roster overview):
+one card per Kader of the shown version, built from the server's `kaderSummary` only (counts, leads' names, number
+of questions — never wishes, answers, notes or votes). A card shows the name, the version, the players per state
+(Pool → Vorauswahl → Vorläufig → Roster big, Bench and Tentative small), the leads as coloured initials and the
+questions; the whole card is a link to `/kader/<id>/pool`. The Kader opened last (`kader-last`) carries "Zuletzt
+geöffnet"; there is no automatic jump into it any more. The head's "Neuer Kader" and a dashed card at the end open
+the create dialog (write access only). Without any Kader the start page shows the flow and "Ersten Kader anlegen".
+Deleting a Kader and switching the menu's version away from the open one land on the overview.
 
-- **Header**: the Kader picker (every Kader with "n im Roster · m gesamt", "Neuer Kader"), the leads as avatars,
+- **Header**: a coloured back button "Alle Kader" (to `/kader`), the Kader picker (every Kader with "n im Roster · m gesamt", "Neuer Kader"), the leads as avatars,
   the settings (name, leads as rows with a remove button, add a member, the raid categories attendance counts in as a
   checklist with their nights, delete behind a confirmation). Below the
   **status bar** "Spieler je Status": one rectangular segment per state — icon, label, the count as a badge, the
@@ -380,6 +418,9 @@ start page shows the flow and "Ersten Kader anlegen".
 - **Specs are icons**: a spec shows as its spec icon plus the class name in the class colour ("[Resto-Icon]
   Schamane"); "Schamane · Wiederherstellung" is the tooltip and the icon's label (`SpecTag`, `PickLabel`). Wishes
   in a small space are numbered icons ("1 [icon] 2 [icon]", `WishIcons`). Player names stay text.
+- **Discord picture beside the name** (`PlayerAvatar`, `pages/kader/parts.tsx`): the rows of Pool and Übersicht
+  start with the player's round Discord avatar (`avatarUrl` of the player view), like the roster's member list;
+  without one the initial stands on the prefilled class's colour.
 - **Status icons** (`pages/kader/parts.tsx`): interview open = empty circle, running = a ring filled to x/n, held =
   check (also beside the name); answered question = check, required and open = "!"; state icons Pool = people,
   Vorauswahl = checklist, Vorläufig = hourglass, Roster = shield, Bench, Tentative = question mark; votes dafür =

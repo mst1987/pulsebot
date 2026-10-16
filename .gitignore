@@ -22,3 +22,6 @@ coverage/
 *.bak
 *.log
 .claude/scheduled_tasks.lock
+
+# deploy.sh: state file, lock and staging of CI builds (docs/deployment.md).
+.deploy/

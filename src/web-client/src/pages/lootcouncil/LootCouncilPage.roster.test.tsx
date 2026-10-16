@@ -46,7 +46,7 @@ beforeEach(() => {
 
 describe("loot council with a roster (#667)", () => {
     it("names the roster and counts the members without a council spec", async () => {
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         expect(await screen.findByText("Roster Montag")).toBeInTheDocument();
         const noSpec = screen.getByText("1 ohne Council-Spec");
         expect(noSpec.closest("[data-tip-sub]")?.getAttribute("data-tip-sub")).toContain("Krieger");
@@ -56,7 +56,7 @@ describe("loot council with a roster (#667)", () => {
 
     it("shows Probe as a badge in the list and in the raider's details, none for Stamm", async () => {
         const user = userEvent.setup();
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         await screen.findByText("Berta");
         const rows = screen.getAllByRole("row");
         const berta = rows.find((r) => within(r).queryByText("Berta"))!;
@@ -72,17 +72,16 @@ describe("loot council with a roster (#667)", () => {
 
     it("offers \"Ersatz zeigen\" only with a roster and asks the server for the bench when it is on", async () => {
         const user = userEvent.setup();
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
+        await user.selectOptions(await screen.findByLabelText("Council für"), "roster:r1");
+        await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ roster: "r1", bench: false })));
         await user.click(await screen.findByRole("button", { name: /^Filter/ }));
-        const box = screen.getByRole("dialog", { name: "Filter" });
-        await user.selectOptions(within(box).getByLabelText("Raid-Kategorie"), "c1");
-        await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ category: "c1", bench: false })));
         const toggle = within(screen.getByRole("dialog", { name: "Filter" })).getByRole("switch", { name: "Ersatz zeigen" });
         expect(toggle).not.toBeChecked();
 
         await user.click(toggle);
-        await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ category: "c1", bench: true })));
-        expect(await screen.findByRole("button", { name: "Filter · 2 aktiv" })).toBeInTheDocument();
+        await waitFor(() => expect(api.getLootCouncil).toHaveBeenLastCalledWith(expect.objectContaining({ roster: "r1", bench: true })));
+        expect(await screen.findByRole("button", { name: "Filter · 1 aktiv" })).toBeInTheDocument();
     });
 
     it("has no bench switch without a roster", async () => {
@@ -90,7 +89,7 @@ describe("loot council with a roster (#667)", () => {
         plain.options.categories = [{ id: "c1", name: "Montagsraid" }] as typeof plain.options.categories;
         vi.mocked(api.getLootCouncil).mockResolvedValue(plain);
         const user = userEvent.setup();
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         await user.click(await screen.findByRole("button", { name: /^Filter/ }));
         expect(within(screen.getByRole("dialog", { name: "Filter" })).queryByRole("switch", { name: "Ersatz zeigen" })).not.toBeInTheDocument();
         expect(screen.queryByText(/^Roster /)).not.toBeInTheDocument();
@@ -98,7 +97,7 @@ describe("loot council with a roster (#667)", () => {
 
     it("folds the stand-ins under \"Nicht im Roster\", unranked", async () => {
         const user = userEvent.setup();
-        renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
         const fold = (await screen.findByText("Nicht im Roster")).closest(".lc-fold") as HTMLElement;
         // folded: the name in the summary line, no row of its own in the ranked list
         expect(within(fold).getByText("Aushilfe")).toBeInTheDocument();
@@ -112,7 +111,7 @@ describe("loot council with a roster (#667)", () => {
     it("speaks English too", async () => {
         await switchLang("en");
         try {
-            renderPage(<LootCouncilPage />, { route: "/lootcouncil" });
+            renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
             expect(await screen.findByText("Roster Montag")).toBeInTheDocument();
             expect(screen.getByText("1 without council spec")).toBeInTheDocument();
             expect(screen.getByText("Not in the roster")).toBeInTheDocument();

@@ -5916,6 +5916,9 @@
       "excluded": 1,
       "version": 0
     },
+    "setAside": [
+      "satt"
+    ],
     "categorySources": null
   },
   "casters": {
@@ -9534,6 +9537,9 @@
       "excluded": 1,
       "version": 0
     },
+    "setAside": [
+      "satt"
+    ],
     "categorySources": null
   },
   "healers": {
@@ -10296,6 +10302,9 @@
       "excluded": 1,
       "version": 0
     },
+    "setAside": [
+      "satt"
+    ],
     "categorySources": null
   },
   "tanks": {
@@ -10949,6 +10958,9 @@
       "excluded": 1,
       "version": 0
     },
+    "setAside": [
+      "satt"
+    ],
     "categorySources": null
   },
   "melee": {
@@ -11976,6 +11988,9 @@
       "excluded": 1,
       "version": 0
     },
+    "setAside": [
+      "satt"
+    ],
     "categorySources": null
   },
   "monday": {
@@ -16403,6 +16418,9 @@
       "excluded": 1,
       "version": 0
     },
+    "setAside": [
+      "satt"
+    ],
     "categorySources": {
       "reports": 0,
       "loot": 5,
@@ -22308,6 +22326,9 @@
       "excluded": 1,
       "version": 0
     },
+    "setAside": [
+      "satt"
+    ],
     "categorySources": null
   },
   "mondayT6": {
@@ -26456,6 +26477,9 @@
       "excluded": 1,
       "version": 0
     },
+    "setAside": [
+      "satt"
+    ],
     "categorySources": {
       "reports": 0,
       "loot": 5,

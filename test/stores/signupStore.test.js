@@ -61,8 +61,10 @@ describe("stores/signupStore", () => {
             ],
         });
         expect(normalizeSignup({ characters: [{ character: "A", spec: "Mage-Frost" }, { character: "B", spec: "Bogus" }] }).error).toBe("Unbekannte Spezialisierung „Bogus“.");
-        const four = ["A", "B", "C", "D"].map((character) => ({ character, spec: "Mage-Frost" }));
-        expect(normalizeSignup({ characters: four }).error).toBe("Höchstens 3 Charaktere je Anmeldung.");
+        // the store's guard is the most any category allows (8); the category's own limit is the service's
+        const eight = ["A", "B", "C", "D", "E", "F", "G", "H"].map((character) => ({ character, spec: "Mage-Frost" }));
+        expect(normalizeSignup({ characters: eight }).value.characters).toHaveLength(8);
+        expect(normalizeSignup({ characters: [...eight, { character: "I", spec: "Mage-Frost" }] }).error).toBe("Höchstens 8 Charaktere je Anmeldung.");
         expect(normalizeSignup({ characters: [] }).error).toBe("Für eine Anmeldung fehlt die Spezialisierung.");
     });
 
@@ -142,5 +144,55 @@ describe("lastSignupOf je Spielversion (#543)", () => {
         expect(specHistory.specHistoryOf("u8", { versionId: "forever" }).map((e) => e.spec)).toEqual(["Priest-Shadow"]);
         expect(specHistory.specHistoryOf("u8").map((e) => [e.spec, e.versionId])).toEqual([["Priest-Holy", "tbc"], ["Priest-Shadow", "forever"]]);
         expect(specHistory.migrateVersions()).toBe(0);
+    });
+});
+
+// The file is read per event and per raider (absences, attendance, every event
+// list): cached, parsed once per change, and every signup handed out a copy.
+describe("cache", () => {
+    const { SIGNUPS_FILE, signupsOfUser } = require("../../src/stores/signupStore");
+    const parses = () => fs.readFileSync.mock.calls.filter(([p]) => p === SIGNUPS_FILE).length;
+
+    beforeEach(() => {
+        fs.__store.clear();
+        fs.readFileSync.mockClear();
+    });
+
+    it("parses the file once for any number of lookups while it does not change", () => {
+        saveSignup("eh-1", "u1", { spec: "Warrior-Fury" });
+        saveSignup("eh-2", "u1", { spec: "Mage-Fire" });
+        fs.readFileSync.mockClear();
+        for (let i = 0; i < 20; i += 1) {
+            listSignups("eh-1");
+            getSignup("eh-2", "u1");
+            signupsOfUser("u1");
+            lastSignupOf("u1");
+        }
+        expect(parses()).toBe(1);
+    });
+
+    it("reads again after its own write and after a change from outside", () => {
+        saveSignup("eh-1", "u1", { spec: "Warrior-Fury" });
+        expect(getSignup("eh-1", "u1").spec).toBe("Warrior-Fury");
+        saveSignup("eh-1", "u1", { spec: "Warrior-Protection" });
+        expect(getSignup("eh-1", "u1").spec).toBe("Warrior-Protection");
+        // an edit by hand
+        const data = JSON.parse(fs.__store.get(SIGNUPS_FILE));
+        data.signups["eh-1"].u1.comment = "von Hand";
+        fs.__store.set(SIGNUPS_FILE, JSON.stringify(data));
+        expect(getSignup("eh-1", "u1").comment).toBe("von Hand");
+    });
+
+    it("hands out copies: a caller changing a signup changes nothing stored", () => {
+        saveSignup("eh-1", "u1", { spec: "Warrior-Fury", canAlso: ["healer"] });
+        const one = getSignup("eh-1", "u1");
+        one.spec = "x";
+        one.canAlso.push("tank");
+        one.characters[0].character = "Fremd";
+        listSignups("eh-1")[0].status = "absence";
+        signupsOfUser("u1")["eh-1"].comment = "x";
+        expect(getSignup("eh-1", "u1")).toMatchObject({ spec: "Warrior-Fury", canAlso: ["healer"], status: "signed", comment: "" });
+        expect(getSignup("eh-1", "u1").characters[0].character).toBe("");
+        expect(Object.isFrozen(getSignup("eh-1", "u1"))).toBe(false);
     });
 });

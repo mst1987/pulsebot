@@ -1,6 +1,7 @@
 // POST /api/ingest/loot — the main endpoint the loot-sync companion tool talks to
 // (plus /api/ingest/raids for its raid list, /api/ingest/guildbank for guild
-// bank scans and /api/ingest/guildbank/handouts for the in-game hand-out list).
+// bank scans, /api/ingest/guildbank/handouts for the in-game hand-out list and
+// /api/ingest/levelhelper for the LevelHelper addon's dungeon runs).
 //
 // Unlike every other /api/* route this one has no Discord session behind it: the
 // uploader runs unattended on a raidleader's PC and authenticates with a bearer
@@ -17,8 +18,8 @@ const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 const { addImport: addLootImport, eventsWithLoot } = require("../../stores/lootStore");
 const { rememberFromLoot } = require("../../services/characters/characterInfo");
-const { parseEventHelperSessions, enrichItemNames, LootParseError } = require("../../utils/loot/lootImport");
-const { linkItemsForImport } = require("../../services/loot/lootVersion");
+const { parseEventHelperSessions, LootParseError } = require("../../utils/loot/lootImport");
+const { linkItemsForImport, enrichForImport } = require("../../services/loot/lootVersion");
 const { bestDayMatch } = require("../loot/lootEventMatch");
 const { verifyToken, touchToken, bearerFrom } = require("../../stores/ingestTokenStore");
 const { upsertPending, resolutionFor, noteAppended, listPending } = require("../../stores/lootInboxStore");
@@ -33,6 +34,10 @@ const { queueLookups } = require("../../services/guildbank/itemMeta");
 const { queueItemEmojiSync } = require("../../services/guildbank/itemEmojis");
 const { GuildBankParseError } = require("../../utils/guildbank/guildBankScan");
 const { handoutList, reportHandouts, HandoutReportError } = require("../../services/guildbank/handouts");
+const { advanceWaitlist } = require("../../services/signups/guildBank");
+const { ingestLevelHelper } = require("../../services/dungeons/dungeonRuns");
+const { postNewRecords } = require("../../services/dungeons/dungeonRecords");
+const { LevelHelperParseError } = require("../../utils/dungeons/levelHelperUpload");
 
 /** The token behind the request, or null after sending the 401. */
 function requireToken(req, res) {
@@ -118,7 +123,11 @@ async function ingestLoot(req, res) {
             results.push({ sessionId: session.sessionId, status: "dismissed", added: 0 });
             continue;
         }
-        await enrichItemNames(session.items);
+        // A confirmed session asks the Wowhead section of its event's version;
+        // a pending one has no event yet and asks the main version's (#750).
+        await enrichForImport(session.items, prior && prior.action === "accepted" && prior.eventId
+            ? { eventId: prior.eventId, categoryId: prior.categoryId }
+            : {});
 
         if (prior && prior.action === "accepted" && prior.eventId) {
             // Already confirmed once — the rest of the raid needs no second click.
@@ -321,8 +330,16 @@ async function ingestCouncil(req, res, url) {
 }
 
 /**
- * Every Loot-Council category with its stored view, one after another (the
+ * Every Loot-Council category with its profile's view, one after another (the
  * armory cache is shared) - what versions 2 and 3 are built from.
+ *
+ * Since #676 a council runs per roster: a roster with category runs on the
+ * category's loot system, so "every Loot-Council roster with category" plus
+ * "every Loot-Council category without roster" is exactly the list of
+ * Loot-Council categories - `id` stays the category id, weights and view come
+ * from the roster's profile (categoryCouncil). A roster WITHOUT category is
+ * left out: the addon picks a council by the raid's instances, and such a
+ * roster has no raid template to name them (docs/loot-import.md).
  */
 async function councilEntries(req) {
     const config = getConfig();
@@ -331,8 +348,8 @@ async function councilEntries(req) {
     const names = new Map(listKnownCategories(activeGuildFor(req)).filter((c) => c.name).map((c) => [c.id, c.name]));
     const entries = [];
     for (const id of councilCategoryIds(config)) {
-        const { opts, built } = await categoryCouncil(id);
-        entries.push({ id, name: names.get(id) || id, opts, built, instances: categoryInstances(config, id) });
+        const { opts, built, profile, roster } = await categoryCouncil(id);
+        entries.push({ id, name: names.get(id) || id, opts, built, instances: categoryInstances(config, id), profile, roster });
     }
     return entries;
 }
@@ -374,6 +391,8 @@ async function ingestGuildBank(req, res) {
     if (lookups.length) queueLookups(bank.gameVersion, lookups);
     // items already on "give" get (or keep) their emoji (#633); the sync runs in the background
     if (status !== "stale" && bank.counts && bank.counts.give > 0) queueItemEmojiSync();
+    // new stock: the waiting list moves up (#775), cards and DMs in the background
+    if (status !== "stale") advanceWaitlist({ bankKey: bank.key }).catch(() => {});
 }
 
 /**
@@ -409,6 +428,31 @@ async function ingestHandoutReport(req, res) {
     ok(res, result);
 }
 
+/**
+ * POST /api/ingest/levelhelper — the dungeon runs and achievement points of the
+ * LevelHelper addon (format "levelhelper-runs" v1, utils/dungeons/levelHelperUpload.js),
+ * same bearer-token auth as the loot upload. Anything that does not fit refuses
+ * the whole request (400, the message names the field); the same run reported
+ * again merges (services/dungeons/dungeonRuns.js). Answer:
+ * `{ ok: true, versionId, runs: { added, merged, skipped }, characters: { updated } }`.
+ * A new guild record is posted after the answer, when the setting is on.
+ */
+async function ingestLevelHelperRuns(req, res) {
+    const token = requireToken(req, res);
+    if (!token) return;
+    const body = await readJsonBody(req);
+    let result;
+    try {
+        result = ingestLevelHelper(body, { tokenName: token.name });
+    } catch (e) {
+        if (e instanceof LevelHelperParseError) return error(res, 400, "parse_failed", e.message);
+        throw e;
+    }
+    touchToken(token.id);
+    ok(res, { ok: true, versionId: result.versionId, runs: result.runs, characters: result.characters });
+    if (result.touched.length) postNewRecords({ versionId: result.versionId, touched: result.touched }).catch(() => {});
+}
+
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "POST", path: "/api/ingest/loot", handler: ingestLoot, auth: "token" },
@@ -417,6 +461,10 @@ const routes = [
     { method: "POST", path: "/api/ingest/guildbank", handler: ingestGuildBank, auth: "token" },
     { method: "GET", path: "/api/ingest/guildbank/handouts", handler: ingestHandoutList, auth: "token" },
     { method: "POST", path: "/api/ingest/guildbank/handouts", handler: ingestHandoutReport, auth: "token" },
+    { method: "POST", path: "/api/ingest/levelhelper", handler: ingestLevelHelperRuns, auth: "token" },
 ];
 
-module.exports = { ingestLoot, ingestRaidStatus, ingestCouncil, ingestGuildBank, ingestHandoutList, ingestHandoutReport, computeRaidStatus, routes };
+module.exports = {
+    ingestLoot, ingestRaidStatus, ingestCouncil, ingestGuildBank, ingestHandoutList, ingestHandoutReport, ingestLevelHelperRuns,
+    computeRaidStatus, routes,
+};

@@ -67,7 +67,7 @@ describe("services/events/raidEventGroups", () => {
             categoryId: "cat1", categoryName: "Raids",
             events: [{
                 id: "e1", source: "raidhelper", title: "Kara", startTime: 2000000000, leaderId: "u1",
-                channelId: "chan1", channelName: "kara-signup", categoryId: "cat1",
+                channelId: "chan1", channelName: "kara-signup", categoryId: "cat1", categoryName: "Raids",
                 templateId: "3", description: "desc", signupCount: 1,
                 signUps: [{ userId: "1", specName: "Fire", status: "signed" }], signUpsFromSnapshot: false,
             }],
@@ -102,7 +102,7 @@ describe("services/events/raidEventGroups", () => {
             categoryId: "cat1", categoryName: "Raids",
             events: [{
                 id: "e1", source: "raidhelper", title: "Kara", startTime: 2000000000, leaderId: "u1",
-                channelId: "chan1", channelName: "kara-signup (gone)", categoryId: "cat1",
+                channelId: "chan1", channelName: "kara-signup (gone)", categoryId: "cat1", categoryName: "Raids",
                 templateId: "3", description: "desc", signupCount: 1,
                 signUps: [{ userId: "1", specName: "Fire", status: "signed" }], signUpsFromSnapshot: false,
             }],
@@ -127,7 +127,7 @@ describe("services/events/raidEventGroups", () => {
             categoryId: "cat2", categoryName: "Raids",
             events: [{
                 id: "e2", source: "raidhelper", title: "SSC", startTime: 2000000000, leaderId: "",
-                channelId: "chan2", channelName: "ssc", categoryId: "cat2",
+                channelId: "chan2", channelName: "ssc", categoryId: "cat2", categoryName: "Raids",
                 templateId: "", description: "", signupCount: 0, signUps: [], signUpsFromSnapshot: false,
             }],
         }]);
@@ -304,7 +304,7 @@ describe("services/events/raidEventGroups", () => {
             categoryId: "cat2", categoryName: "Raids",
             events: [{
                 id: "e2", source: "raidhelper", title: "SSC", startTime: 2000000000, leaderId: "",
-                channelId: "chan2", channelName: "ssc", categoryId: "cat2",
+                channelId: "chan2", channelName: "ssc", categoryId: "cat2", categoryName: "Raids",
                 templateId: "", description: "", signupCount: 0, signUps: [], signUpsFromSnapshot: false,
             }],
         }]);
@@ -402,7 +402,7 @@ describe("services/events/raidEventGroups", () => {
 
         it("passes the lookback on to the own store", async () => {
             await loadEventGroups("g1", { sinceSeconds: 4242 });
-            expect(eventStore.listEvents).toHaveBeenCalledWith("g1", { sinceSeconds: 4242 });
+            expect(eventStore.listEvents).toHaveBeenCalledWith("g1", { sinceSeconds: 4242, siblings: true });
         });
     });
 });

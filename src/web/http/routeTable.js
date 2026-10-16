@@ -17,10 +17,10 @@
 // Paths are exact; the /api layer carries its parameters in the query and the
 // body (`/api/raids/detail?event=<id>`), never in the path.
 const MODULES = [
-    "session", "dashboard", "version", "channels", "settings", "talkOverview", "raidhelperRetirement",
-    "ingest", "kader", "botCommands", "raiderCharacters", "roster", "rosters", "rosterRoles", "rosterMembers", "rosterAdmin", "profile", "signups", "lootCouncil",
+    "session", "dashboard", "version", "channels", "settings", "talkOverview", "raidhelperRetirement", "versionLaunch",
+    "ingest", "kader", "botCommands", "raiderCharacters", "roster", "rosters", "rosterRoles", "rosterMembers", "rosterAdmin", "profile", "characters", "signups", "lootCouncil",
     "raids", "raidDetail", "setup", "raidplan", "eventManage", "eventSeries", "gameVersions",
-    "notifyTemplates", "raidTemplates", "recruitment", "history", "cla", "availability", "attendance", "guildBank",
+    "notifyTemplates", "raidTemplates", "recruitment", "history", "cla", "availability", "orgaHub", "attendance", "guildBank", "dungeons", "addons", "addonCenter", "system",
 ];
 
 const METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);

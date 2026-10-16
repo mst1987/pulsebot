@@ -42,10 +42,34 @@
 /* ---- Spielversion (#541): one compact row per category that may differ ---- */
 .gv-cats { display: grid; gap: 8px; max-width: 520px; }
 .gv-cat { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 240px); gap: 12px; align-items: center; }
+.gv-cat-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .gv-cat label { font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gv-cat-since { flex: 0 0 auto; font-size: 12px; color: var(--muted); }
 .gv-empty { margin: 0; color: var(--muted); font-size: 13px; }
 @media (max-width: 560px) {
     .gv-cat { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+
+/* ---- Spielversion einer Kategorie umstellen (#738): the confirmation dialog ---- */
+.csw { display: grid; gap: 14px; font-size: 14px; }
+.csw p { margin: 0; }
+.csw-intro { font-weight: 600; }
+.csw-facts { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.csw-part { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.csw-head { margin: 0; font-size: 11px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.csw-quiet { color: var(--muted); font-size: 13px; }
+.csw-raids { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.csw-raids li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.csw-raids a { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.csw-date { flex: 0 0 auto; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.csw-fix { display: grid; gap: 6px; }
+/* #739: the roster of the switch - two switches, the new roster's roles as toggle chips */
+.csw-roster { display: grid; gap: 10px; }
+.csw-roles { display: grid; gap: 6px; }
+.csw-lbl { font-size: 13px; font-weight: 600; }
+.csw-pick { display: grid; grid-template-columns: auto minmax(0, 280px); gap: 10px; align-items: center; font-size: 13px; }
+@media (max-width: 560px) {
+    .csw-pick { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 }
 
 /* ---- Links und Armory je Version (#542): one version at a time behind a switcher ---- */
@@ -55,11 +79,68 @@
 .gv-hint { margin: 0; color: var(--muted); font-size: 13px; }
 .gv-group { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 .gv-group-title { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.gv-color { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.gv-links .set-field .gv-color input[type="color"] { flex: 0 0 48px; width: 48px; max-width: 48px; min-height: 0; height: var(--ctl-h-sm); padding: 2px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--bg); cursor: pointer; }
+.gv-links .set-field .gv-color input:not([type="color"]) { flex: 0 0 140px; width: 140px; max-width: 140px; font-family: var(--font-mono); }
 .gv-preview { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; font-size: 13px; }
 .gv-preview-label { color: var(--muted); }
 .gv-preview-off { color: var(--muted); text-decoration: line-through; }
 .gv-links .set-field input:not([type=checkbox]) { max-width: 100%; }
 .gv-links .set-field input[aria-invalid] { border-color: var(--high); }
+
+/* ---- Funktionen je Version (#761): features as rows, versions as columns, a switch where possible ---- */
+.vf-card { margin-top: 16px; gap: 12px; }
+.vf-table { width: 100%; max-width: 640px; border-collapse: collapse; font-size: 14px; }
+.vf-table th, .vf-table td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+.vf-table tbody tr:last-child th, .vf-table tbody tr:last-child td { border-bottom: 0; }
+.vf-table thead th { font-size: 11px; font-family: var(--font-mono); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.vf-version-name { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.vf-feature { font-weight: 500; }
+.vf-feature .tip-anchor { cursor: help; }
+.vf-cell { white-space: nowrap; }
+.vf-switch { gap: 8px; }
+.vf-state { font-size: 13px; }
+.vf-off .vf-state { color: var(--muted); }
+.vf-none { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; cursor: help; border-radius: 4px; }
+.vf-none:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.vf-none-mark { display: none; }
+.vf-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+/* a phone: the switch and a dash carry the state, the words go to the tooltip */
+@media (max-width: 560px) {
+    .vf-table th, .vf-table td { padding: 7px 6px; }
+    .vf-cell { text-align: center; }
+    .vf-feature { white-space: normal; font-size: 13px; }
+    .vf-cell .vf-state { display: none; }
+    .vf-none-mark { display: inline; font-size: 15px; }
+}
+
+/* ---- Neue Version starten (#745): one line per checklist item - badge, label, value, where to fix it ---- */
+.vl-card { margin-top: 16px; gap: 10px; scroll-margin-top: 80px; }
+.vl-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.vl-head > .badge { margin-left: auto; }
+.vl-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.vl-item { display: grid; grid-template-columns: 112px minmax(0, 1fr) 170px 250px; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+.vl-item:last-child { border-bottom: 0; }
+.vl-item .badge { justify-self: start; }
+.vl-label { justify-self: start; font-weight: 600; cursor: help; }
+.vl-label:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.vl-item.is-optional .vl-label { font-weight: 500; color: var(--muted); }
+.vl-value { font-family: var(--font-mono); font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vl-act { justify-self: end; display: inline-flex; align-items: center; gap: 12px; }
+.vl-mark { gap: 6px; font-size: 13px; }
+.vl-link { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; white-space: nowrap; color: var(--accent); text-decoration: none; }
+.vl-link:hover { text-decoration: underline; }
+.vl-link svg { width: 14px; height: 14px; }
+.vl-jump { background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; }
+.vl-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+#gv-main, #gv-links { scroll-margin-top: 80px; }
+/* a phone: badge and label in the first row, value and action below */
+@media (max-width: 640px) {
+    .vl-item { grid-template-columns: 96px minmax(0, 1fr); gap: 4px 10px; }
+    .vl-value { grid-column: 1; justify-self: start; }
+    .vl-act { grid-column: 2; justify-self: end; flex-wrap: wrap; justify-content: flex-end; }
+    .vl-head > .badge { margin-left: 0; }
+}
 
 .set-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
 .set-form { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
@@ -235,6 +316,10 @@ td.perm-empty { color: var(--muted); font-size: 13px; }
 tr.perm-unknown .perm-who-label { color: var(--high); }
 
 .perm-who { display: flex; align-items: center; gap: 10px; position: relative; min-width: 0; }
+/* a role row: the name, then whether the role is orga or a raider role */
+.perm-who-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.perm-who-row > .perm-who { flex: 1 1 auto; }
+.perm-orga { flex: 0 0 auto; }
 .perm-avatar {
     --rc: var(--accent); width: 30px; height: 30px; border-radius: 7px; display: inline-grid; place-items: center; flex: 0 0 auto;
     background: color-mix(in srgb, var(--rc) 14%, transparent); border: 1px solid color-mix(in srgb, var(--rc) 40%, transparent);
@@ -295,7 +380,7 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 .cat-name > span:first-child { overflow-wrap: anywhere; }
 .cat-off { grid-column: 3 / -1; font-family: var(--font-mono); font-size: 12px; }
 .cat-row .badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-/* The open card (design "B · Tabs in der Karte"): a tab bar under the row, then one row per setting. */
+/* The open card (design "A · Sechs Tabs, jede Einstellung eine Karte"): a tab bar under the row, a line on what the tab covers, then one card per setting. */
 .cat-detail { border-left: 3px solid var(--accent); border-bottom: 1px solid var(--line); background: var(--panel); }
 .cat-tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 0 14px; border-bottom: 1px solid var(--line); background: var(--accent-soft); }
 .cat-tab {
@@ -310,18 +395,36 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
     background: var(--panel2); color: var(--muted); border: 1px solid var(--line);
 }
 .cat-tab.is-active .cat-tab-count { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
-.cat-tabpanel { padding: 0 16px 0 17px; }
-.cat-field-wrap + .cat-field-wrap { border-top: 1px solid var(--line-soft); }
-/* name | control | what it does */
-.cat-field { display: grid; grid-template-columns: 170px minmax(0, 1.5fr) minmax(0, 1fr); gap: 8px 22px; align-items: start; padding: 14px 0; }
-.cat-field-label { padding-top: 7px; min-width: 0; font-size: 14px; font-weight: 700; line-height: 1.35; }
+.cat-tab-icon { display: inline-flex; }
+.cat-tab-icon svg { width: 15px; height: 15px; }
+.cat-tabpanel { display: flex; flex-direction: column; gap: 10px; padding: 16px 16px 18px 17px; background: var(--bg); }
+.cat-tab-intro { margin: 0 0 2px; font-size: 13.5px; line-height: 1.5; color: var(--muted); }
+/* every setting a card of its own: name + one line | control */
+.cat-field-wrap { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.cat-field { display: grid; grid-template-columns: minmax(180px, 260px) minmax(0, 1fr); gap: 8px 24px; align-items: start; padding: 16px 18px; }
+.cat-field-head { min-width: 0; }
+.cat-field-label { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 32px; font-size: 14.5px; font-weight: 700; line-height: 1.35; }
 .cat-field-label > label { margin: 0; font: inherit; color: inherit; }
+.cat-field-more.ibtn { width: 24px; height: 24px; min-width: 24px; border-radius: 999px; color: var(--muted); }
+.cat-field-more.ibtn svg { width: 14px; height: 14px; }
 .cat-field-control { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
 .cat-field-control > select, .cat-field-control > .rch-summary, .cat-field-control > .sheet-field, .cat-field-control > .cat-panel,
-.cat-field-control > .cat-note-channel, .cat-field-control > .cat-panel-state { align-self: stretch; }
+.cat-field-control > .cat-note-channel, .cat-field-control > .cat-panel-state, .cat-field-control > .cat-subfields { align-self: stretch; }
 .cat-field-control > .seg { flex-wrap: wrap; max-width: 100%; }
 .cat-field-control > .switch { margin-top: 5px; }
-.cat-field-sub { padding-top: 6px; font-size: 12.5px; line-height: 1.5; color: var(--muted); min-width: 0; }
+.cat-field-sub { margin-top: 2px; font-size: 12.5px; line-height: 1.5; color: var(--muted); min-width: 0; }
+/* several settings in one card (Anwesenheit), each on its own line */
+.cat-subfields { display: flex; flex-direction: column; }
+.cat-subfield { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; padding: 12px 0; border-top: 1px solid var(--line-soft); }
+.cat-subfield:first-child { border-top: 0; padding-top: 0; }
+.cat-subfield:last-child { padding-bottom: 0; }
+.cat-subfield .cat-field-label { font-size: 13.5px; font-weight: 600; min-height: 26px; }
+.cat-subfield-control { display: flex; align-items: center; }
+/* the quota: − / number / + and "letzte Raids" */
+.cat-quota { display: flex; align-items: center; gap: 10px; }
+/* the shared stepper (the number stepper of ui.css); the category card's inputs are full width otherwise */
+.cat-detail .cat-quota input { --num-w: 56px; height: auto; padding: 0; border-top: 0; border-bottom: 0; border-radius: 0; background: var(--bg); }
+.cat-quota > .note { margin: 0; }
 /* #335: the channel of "Vielleicht/Absage" under its segment — one quiet line. */
 .cat-note-channel { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .cat-note-channel > select { flex: 1; min-width: 0; font-size: 13px; }
@@ -335,6 +438,13 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 .cat-link-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .cat-link-row > input[type="text"] { flex: 1 1 140px; min-width: 0; font-size: 13px; }
 .cat-link-row > input[type="url"] { flex: 2 1 220px; min-width: 0; font-size: 13px; }
+.cat-link-row > input.link-emoji { flex: 0 0 56px; width: 56px; text-align: center; }
+.cat-link-item { display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; border-bottom: 1px dashed var(--line); }
+.link-extras { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.link-preview { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 6px; background: var(--discord-dark-quote); color: var(--discord-dark-strong); font-size: 13px; font-weight: 500; }
+.link-preview img { display: block; }
+.link-preview-arrow { opacity: .8; font-size: 11px; }
+.link-emoji-grid { margin-bottom: 0; }
 .cat-links-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .rch-summary { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; font-size: 13.5px; flex-wrap: wrap; }
 .sheet-field { display: flex; gap: 10px; align-items: flex-start; }
@@ -347,9 +457,8 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 .rch-name { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 760px) {
-    /* the three columns of a setting stack */
-    .cat-field { grid-template-columns: minmax(0, 1fr); gap: 6px; }
-    .cat-field-label, .cat-field-sub { padding-top: 0; }
+    /* a setting's name and its control stack */
+    .cat-field { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px; }
     .rch-row { grid-template-columns: 1fr; gap: 4px; }
 }
 /* phone: no sideways scrolling - a category's row wraps its pills under its name */
@@ -362,7 +471,7 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
     .cat-row > .cat-off { flex: 1 1 100%; }
     .cat-tabs { padding: 0 6px; }
     .cat-tab { padding: 10px 9px 8px; }
-    .cat-tabpanel { padding: 0 12px 0 13px; }
+    .cat-tabpanel { padding: 12px 10px 14px 11px; }
 }
 
 /* ---- save bar: sticks to the bottom while the panel scrolls ---- */
@@ -386,6 +495,6 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 .gv-hide-warn p { margin: 0; font-size: 13.5px; line-height: 1.55; }
 .gv-hide-warn-icon { width: 18px; height: 18px; flex: 0 0 auto; color: var(--archive-ink); }
 .gv-hide-export { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
-.gv-hide-export-icon { width: 16px; height: 16px; flex: 0 0 auto; }
+.gv-hide-export .btn svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .gv-hide-preview { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
 .gv-hide-bar { display: flex; align-items: center; min-height: 52px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); }

@@ -90,6 +90,7 @@ describe("utils/signup/guildBankPost", () => {
             expect(section.accessory.media.url).toBe("https://wow.zamimg.com/images/wow/icons/large/inv_jewelcrafting_livingruby_03.jpg");
             expect(cardButtons(payload).map((b) => [b.custom_id, b.label, b.style])).toEqual([
                 ["guildbank:confirm:abc123", "Bestätigen", ButtonStyle.Success],
+                ["guildbank:rename:abc123", "Charakter ändern …", ButtonStyle.Secondary],
                 ["guildbank:reject:abc123", "Ablehnen …", ButtonStyle.Secondary],
             ]);
             expect(cardColor(payload)).toBe(post.COLOR_OPEN);
@@ -103,6 +104,7 @@ describe("utils/signup/guildBankPost", () => {
             expect(cardButtons(payload).map((b) => [b.custom_id, b.label])).toEqual([
                 ["guildbank:handout:abc123", "Ausgegeben"],
                 ["guildbank:release:abc123", "Vormerkung lösen"],
+                ["guildbank:rename:abc123", "Charakter ändern …"],
             ]);
         });
 
@@ -149,7 +151,83 @@ describe("utils/signup/guildBankPost", () => {
         expect(post.parseOrgaId(undefined)).toEqual({ action: "", id: "" });
     });
 
+    describe("the waiting list (#775)", () => {
+        const STOCK = { ...REQUEST, item: "Crimson Spinal", amount: 2, bankKey: "k", itemId: 32470, characterName: "Zibbo", realm: "Spineshatter" };
+
+        it("tells the raider their place, in their language", () => {
+            expect(post.waitingSummary(STOCK, 4, "de")).toBe("Auf der Warteliste: **2× Crimson Spinal** – du bist Nr. 4.\nDu bekommst eine DM, sobald du dran bist.");
+            expect(post.waitingSummary(STOCK, 0, "en")).toBe("On the waiting list: **2× Crimson Spinal**.\nYou get a DM as soon as it is your turn.");
+            // how the list shares out: the item's portion
+            expect(post.waitingSummary(STOCK, 4, "de", { portion: 2 })).toBe("Auf der Warteliste: **2× Crimson Spinal** – du bist Nr. 4.\nDu bekommst eine DM, sobald du dran bist. Ausgabe reihum: je 2 pro Runde.");
+            expect(post.turnsText(3, "en")).toBe("Handed out in turns: 3 per round.");
+        });
+
+        it("DMs 'Your turn' with the rest that is back at the end of the list", () => {
+            const de = cardText(post.movedUpCard(STOCK, "de", { rest: 13, position: 9 }));
+            expect(de).toContain("## Du bist dran");
+            expect(de).toContain("Der Gegenstand ist jetzt in der Gildenbank – die Orga bestätigt gleich.");
+            expect(de).toContain("13 weitere stehen für dich wieder hinten auf der Warteliste – du bist Nr. 9.");
+            expect(de).toContain("An: Zibbo-Spineshatter");
+            expect(cardText(post.movedUpCard(STOCK, "en", { rest: 1 }))).toContain("1 more are back at the end of the waiting list for you.");
+            const en = cardText(post.movedUpCard({ ...STOCK, characterName: "" }, "en"));
+            expect(en).toContain("## Your turn on the waiting list");
+            expect(en).not.toContain("waiting list for you");
+        });
+
+        it("marks a moved-up card (with the rest that waits again) and names a character without a Discord account", () => {
+            const card = post.orgaPayload({ ...STOCK, fromWaitlist: true, userId: "", characterName: "Alîna" }, { categoryName: "TBC Montag" });
+            expect(cardText(card)).toContain("**Alîna** · ohne Discord-Konto, keine DM");
+            expect(cardText(card)).toContain("-# TBC Montag · aus der Warteliste · offen");
+            expect(cardText(post.orgaPayload({ ...STOCK }))).not.toContain("aus der Warteliste");
+            const rest = post.orgaPayload({ ...STOCK, fromWaitlist: true }, { rest: { amount: 13, position: 9 } });
+            expect(cardText(rest)).toContain("-# aus der Warteliste · Rest 13 wartet (Platz 9) · offen");
+            expect(post.waitlistNote({ fromWaitlist: true }, { amount: 2, position: 0 })).toBe("aus der Warteliste · Rest 2 wartet");
+            expect(post.waitlistNote({ fromWaitlist: true }, { amount: 0 })).toBe("aus der Warteliste");
+            expect(post.waitlistNote({ fromWaitlist: false }, { amount: 2 })).toBe("");
+        });
+    });
+
     it("keeps typed text plain: no markdown, no mentions", () => {
         expect(post.plain("**@everyone** [x](y)")).toBe("\\*\\*@​everyone\\*\\* \\[x\\]\\(y\\)");
+    });
+});
+
+describe("utils/signup/guildBankPost — a request without a linked character", () => {
+    const UNLINKED = {
+        ...REQUEST, item: "Crimson Spinel", amount: 1, bankKey: "tbc:x:y", itemId: 32227, userId: "", characterName: "Whapap", realm: "Spineshatter",
+    };
+
+    it("open with a name (#806): the warning, and Geprüft & bestätigen instead of a dead Bestätigen; Ablehnen stays", () => {
+        const payload = post.orgaPayload(UNLINKED, { linked: false });
+        expect(cardText(payload)).toContain(post.NOT_LINKED_LINE);
+        expect(cardButtons(payload).map((b) => [b.label, !!b.disabled])).toEqual([["Geprüft & bestätigen", false], ["Charakter ändern …", false], ["Ablehnen …", false]]);
+        expect(cardButtons(payload)[0].custom_id).toBe(`guildbank:vouch:${UNLINKED.id}`);
+    });
+
+    it("open without any character name: nothing to vouch for, Bestätigen stays disabled", () => {
+        const payload = post.orgaPayload({ ...UNLINKED, characterName: "", realm: "" }, { linked: false });
+        expect(cardText(payload)).toContain(post.NO_CHARACTER_LINE);
+        expect(cardButtons(payload).map((b) => [b.label, !!b.disabled])).toEqual([["Bestätigen", true], ["Charakter ändern …", false], ["Ablehnen …", false]]);
+    });
+
+    it("an unconfirmed character: the card names that reason instead", () => {
+        const payload = post.orgaPayload(UNLINKED, { linked: false, linkProblem: "unverified" });
+        expect(cardText(payload)).toContain(post.NOT_VERIFIED_LINE);
+        expect(cardText(payload)).toContain("Charakter nicht bestätigt");
+        expect(cardText(payload)).not.toContain(post.NOT_LINKED_LINE);
+        expect(cardButtons(payload)[0]).toMatchObject({ label: "Geprüft & bestätigen" });
+    });
+
+    it("confirmed (from before the rule): the warning, the buttons stay; handed out: no warning", () => {
+        const confirmed = post.orgaPayload({ ...UNLINKED, status: "confirmed", handledByName: "Arthas" }, { linked: false });
+        expect(cardText(confirmed)).toContain("Kein verknüpfter Charakter");
+        expect(cardButtons(confirmed).map((b) => b.label)).toEqual(["Ausgegeben", "Vormerkung lösen", "Charakter ändern …"]);
+        expect(cardText(post.orgaPayload({ ...UNLINKED, status: "handedOut" }, { linked: false }))).not.toContain("Kein verknüpfter Charakter");
+    });
+
+    it("a free-text request knows no link: no warning, Erledigt enabled", () => {
+        const payload = post.orgaPayload({ ...REQUEST }, { linked: false });
+        expect(cardText(payload)).not.toContain("Kein verknüpfter Charakter");
+        expect(cardButtons(payload).every((b) => !b.disabled)).toBe(true);
     });
 });

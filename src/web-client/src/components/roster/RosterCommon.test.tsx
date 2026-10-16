@@ -70,6 +70,19 @@ describe("AttendanceBar", () => {
         expect(tip).not.toHaveTextContent("Keinen gezählten Raid verpasst.");
     });
 
+    it("shows a \"maybe\" the setup left out as its own neutral group, never as a missed raid", () => {
+        const { tip } = openTip({
+            attended: 1, total: 1, pct: 100,
+            present: [{ eventId: "p1", title: "Kara", startTime: SECONDS, status: "present" }],
+            missed: [{ eventId: "t1", title: "Kara", startTime: SECONDS - WEEK, reason: "vorläufig, nicht aufgestellt (zählt nicht)", status: "tentative" }],
+        });
+        const groups = Array.from(tip.querySelectorAll(".ros-atip-grp"));
+        expect(groups.map((g) => g.getAttribute("data-att"))).toEqual(["present", "tentative"]);
+        expect(groups[1]).toHaveClass("ros-atip-neutral");
+        // nothing that counts was missed
+        expect(tip).toHaveTextContent("Keinen gezählten Raid verpasst.");
+    });
+
     it("marks a night set by hand and names who set it, when and why", () => {
         const at = Date.UTC(2026, 9, 9, 12);
         const { tip } = openTip({

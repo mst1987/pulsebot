@@ -7,40 +7,20 @@
 // rules (which task is shown when, how full a role is) testable without mocking
 // Raid-Helper, Discord and five stores.
 const { DateTime } = require("luxon");
-const { contentsForText } = require("../../config/tbcContent");
+const { contentsForText, iconOf } = require("../../config/raidContent");
+const { instanceById, compositionFor, VERSIONS } = require("../../config/gameVersions");
+const { versionOfEvent } = require("../../services/events/mainVersion");
 const { enrichSlot, CLASS_COLORS } = require("../../utils/setup/setupView");
 const { signupStatus } = require("../../utils/attendance");
 const { plural } = require("../../utils/text");
 const { TIMEZONE } = require("../../config/timezone");
 
-// The boss icon a raid is recognised by — its final boss, the one the raid is
-// named after in everyone's head. Names verified against the zamimg CDN; the
-// Archimonde icon only exists with its trailing "-", Kael'thas needs the
-// apostrophe (WowIcon encodes it).
-const ZONE_ICONS = {
-    kara: "achievement_boss_princemalchezaar_02",
-    gruul: "achievement_boss_gruul",
-    mag: "achievement_boss_magtheridon",
-    ssc: "achievement_boss_ladyvashj",
-    tk: "achievement_boss_kael'thassunstrider_01",
-    za: "achievement_boss_zuljin",
-    hyjal: "achievement_boss_archimonde-",
-    bt: "achievement_boss_illidan",
-    swp: "achievement_boss_kiljaedan",
-};
+// The boss icon a raid is recognised by is its instance's `icon` in the rule set
+// (config/gameVersions, every version), read through iconOf(). Release order of
+// every known instance, version after version:
+const ZONE_ORDER = VERSIONS.flatMap((v) => v.instances.map((i) => i.id));
 /** A raid whose title names no known content: a generic raid head, never a wrong boss. */
 const FALLBACK_ZONE_ICON = "inv_misc_head_dragon_01";
-
-// Raids that are ten-man; every other TBC raid is 25.
-const TEN_MAN = new Set(["kara", "za"]);
-
-// The usual composition per raid size. The Raid-Helper setup has no "target"
-// per role, and a setting per category would be one more list to maintain for a
-// number that is the same for every 25-man raid — so the size decides.
-const ROLE_TARGETS = {
-    10: { tank: 2, healer: 3, dps: 5 },
-    25: { tank: 3, healer: 6, dps: 16 },
-};
 
 const ROLES = [
     { key: "tank", label: "Tank", icon: "ability_warrior_defensivestance" },
@@ -62,10 +42,10 @@ const NOT_SIGNED = { tentative: "Tentative", bench: "Ersatzbank", absence: "Abwe
  * order, so the last hit is the raid the night is built around.
  * @returns {{ contentId: string, icon: string }}
  */
-function zoneFor(text) {
-    const hits = contentsForText(text);
+function zoneFor(text, versionId) {
+    const hits = contentsForText(text, { versionId });
     const contentId = hits.length ? hits[hits.length - 1] : "";
-    return { contentId, icon: ZONE_ICONS[contentId] || FALLBACK_ZONE_ICON };
+    return { contentId, icon: iconOf(contentId) || FALLBACK_ZONE_ICON };
 }
 
 /**
@@ -77,19 +57,37 @@ function zoneFor(text) {
  */
 function zoneForEvent(ev) {
     const ids = (ev && ev.source === "eventhelper" && Array.isArray(ev.instanceIds)) ? ev.instanceIds : [];
-    const order = Object.keys(ZONE_ICONS); // release order, like CONTENTS
-    const known = ids.filter((id) => ZONE_ICONS[id]).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    const known = ids.filter((id) => iconOf(id)).sort((a, b) => ZONE_ORDER.indexOf(a) - ZONE_ORDER.indexOf(b));
     if (known.length) {
         const contentId = known[known.length - 1];
-        return { contentId, icon: ZONE_ICONS[contentId] };
+        return { contentId, icon: iconOf(contentId) };
     }
-    return zoneFor(ev && ev.title);
+    // The title is read only within the event's own game version.
+    return zoneFor(ev && ev.title, ev ? versionOfEvent(ev) : undefined);
 }
 
-/** The raid size a night is planned for: the softres list's size wins, else the content, else 25. */
+const RAID_SIZES = [10, 20, 25, 40];
+
+/**
+ * The raid size a night is planned for: the softres list's size wins (a size the
+ * rule sets know is kept, any other is a ten- or a 25-man), else the content's
+ * size from the rule set, else 25.
+ */
 function raidSize(contentId, softresSize = 0) {
-    if (softresSize > 0) return softresSize <= 10 ? 10 : 25;
-    return TEN_MAN.has(contentId) ? 10 : 25;
+    if (softresSize > 0) return RAID_SIZES.includes(softresSize) ? softresSize : (softresSize <= 10 ? 10 : 25);
+    const inst = instanceById(contentId);
+    return (inst && inst.defaultSize) || 25;
+}
+
+/**
+ * The usual composition for a raid size, from the rule set (compositionFor):
+ * 10 → 2/3, 20 → 2/5, 25 → 3/6, 40 → 4/10, the damage dealers taking the rest.
+ * The Raid-Helper setup has no "target" per role, so the size decides.
+ */
+function roleTargets(size) {
+    const n = Number(size) || 25;
+    const { tanks, healers } = compositionFor(null, n);
+    return { tank: tanks, healer: healers, dps: Math.max(0, n - tanks - healers) };
 }
 
 /** tank / healer / dps for one Raid-Helper spec (or a raidplan slot's spec). */
@@ -127,7 +125,7 @@ function roleFill({ setupSlots = [], signUps = [], size = 25, composition = null
         : countRoles((signUps || []).filter(isAttending));
     const targets = composition
         ? { tank: composition.tank || 0, healer: composition.healer || 0, dps: Math.max(0, size - (composition.tank || 0) - (composition.healer || 0)) }
-        : (ROLE_TARGETS[size] || ROLE_TARGETS[25]);
+        : roleTargets(size);
     return ROLES.map((r) => ({ ...r, filled: counts[r.key], target: targets[r.key] }));
 }
 
@@ -172,15 +170,6 @@ function notSignedUp({ missing = [], responded = [], specHistory = {} }) {
     ].sort((a, b) => order[a.status] - order[b.status] || a.name.localeCompare(b.name));
 }
 
-/** How many recommendations of a report nobody has approved or rejected yet. */
-function openRecommendations(reviewed) {
-    if (!reviewed) return 0;
-    const raid = (reviewed.raid || []).filter((i) => i.approved === null).length;
-    const players = (reviewed.players || [])
-        .reduce((n, p) => n + (p.items || []).filter((i) => i.approved === null).length, 0);
-    return raid + players;
-}
-
 /**
  * The "Letzte Auswertung" tile: the one number (problems) plus what the tooltip
  * breaks it into. `report` is the full stored report, `summary` its listReports() row.
@@ -196,6 +185,7 @@ function lastReportArea(summary, report) {
         : rows.length;
     const deaths = r.mechanics && r.mechanics.deaths;
     const gear = (r.players || []).reduce((n, p) => n + (p.issues || []).length, 0);
+    const gearRaiders = (r.players || []).filter((p) => (p.issues || []).length > 0).length;
     const consumables = ((r.consumables && r.consumables.players) || []).filter((p) => (p.buffed || 0) < 50).length;
     const buffs = ((r.raidBuffs && r.raidBuffs.players) || []).filter((p) => (p.missing || 0) > 0).length;
     return {
@@ -209,6 +199,7 @@ function lastReportArea(summary, report) {
         deaths: deaths ? deaths.total || 0 : null,
         avoidableDeaths: deaths ? deaths.avoidable || 0 : null,
         gear,
+        gearRaiders,
         consumables,
         buffs,
         problems: gear + consumables + buffs,
@@ -224,11 +215,20 @@ function newLootSince(awards, sinceMs) {
 
 
 /**
+ * A task text the client words in the reader's language: the key under
+ * `dashboard.task.` with what it needs (counts, names; `date`/`day` as ms the
+ * client formats). The German fields stay as they are - the fallback for a key
+ * the client does not know. A field may also be a list of pieces (joined with
+ * " · " for the reference line, a space otherwise), or a raw `{ text }`.
+ */
+const txt = (key, params = {}) => ({ key, params });
+
+/**
  * The open tasks, one row each and only when there is something to do. Every
  * task leads straight to where it is done; the tooltip says why it is open.
  *
  * @param {object} p
- * @param {object[]} p.nextRaids     from loadNextRaids(): { id, title, startTime, sheet }
+ * @param {object[]} p.nextRaids     from loadNextRaids(): { id, title, startTime, sheet, planning }
  * @param {object[]} p.recentEvents  from loadRecentEvents(): { id, title, startTime, pendingLogCount }
  * @param {object|null} p.report     { id, title, zone, generatedAt, open } of the newest evaluation
  * @param {object[]} p.inbox         pending addon-inbox sessions ({ items })
@@ -236,11 +236,12 @@ function newLootSince(awards, sinceMs) {
  * @param {object|null} p.roleDrift  from roleSync.loadDrift(): { groups, total }
  * @param {object[]} p.seriesFailures from eventSeries.seriesFailures(): { categoryId, categoryName, date, error }
  * @param {object|null} p.deploy     from deployStatus(): { status, behind, behindSince, short, … }
+ * @param {object|null} p.backup     from backupStatus.readParts() (full admins only): { parts: [{ key, light, state, at, error }] }
  * @param {object[]} p.trials        from loadTrialEndings(): trials ending soon in rosters the caller manages (trialTasks)
  */
 function buildTasks({
     nextRaids = [], recentEvents = [], report = null, inbox = [], archive = null, roleDrift = null, seriesFailures = [], deploy = null,
-    missingChannels = [], canRecreate = false, trials = [],
+    missingChannels = [], canRecreate = false, trials = [], backup = null,
 }) {
     const tasks = [];
 
@@ -249,6 +250,10 @@ function buildTasks({
     const deployT = deployTask(deploy);
     if (deployT) tasks.push(deployT);
 
+    // The backup (#696), a full admin's task: no use in a roster if the data is gone.
+    const backupT = backupTask(backup);
+    if (backupT) tasks.push(backupT);
+
     const seriesTask = eventSeriesTask(seriesFailures);
     if (seriesTask) tasks.push(seriesTask);
 
@@ -256,7 +261,10 @@ function buildTasks({
     // says "channel missing" — one task per raid, with the way out.
     tasks.push(...missingChannelTasks(missingChannels, { canRecreate }));
 
-    const noSheet = (nextRaids || []).filter((r) => !r.sheet);
+    // Only a category that plans with a Google Sheet can miss one — a raid-plan
+    // category never had a sheet to fill (planning.js). No `planning` = an older
+    // caller: count it as a sheet raid, as before.
+    const noSheet = (nextRaids || []).filter((r) => !r.sheet && (r.planning || "sheet") === "sheet");
     if (noSheet.length) {
         const first = noSheet[0];
         tasks.push({
@@ -266,17 +274,21 @@ function buildTasks({
             href: `/raids/detail?event=${encodeURIComponent(first.id)}`,
             tip: noSheet.length > 1 ? `${noSheet.length} Raids ohne Raidsheet` : "Raidsheet fehlt",
             tipSub: "Für den Raid wurde noch kein Sheet gefüllt, und seiner Kategorie ist kein festes Sheet zugewiesen. Öffnet das Raid-Event.",
+            texts: { title: txt("sheet.title"), tip: txt("sheet.tip", { count: noSheet.length }), tipSub: txt("sheet.tipSub") },
         });
     }
 
-    if (report && report.open > 0) {
+    // Reviewing and sending the recommendations is optional, so they are no
+    // task; what the last log says about the raiders' gear is.
+    if (report && report.gearRaiders > 0) {
         tasks.push({
-            id: "recommendations", tone: "mid", icon: "inv_scroll_03", title: "Empfehlungen prüfen",
+            id: "gear", tone: "mid", icon: "trade_engraving", title: "Gear-Probleme",
             ref: { title: report.zone || report.title, at: report.generatedAt || 0 },
-            count: report.open,
-            href: `/r/${encodeURIComponent(report.id)}#raid`,
-            tip: `${plural(report.open, "Empfehlung", "Empfehlungen")} ungeprüft`,
-            tipSub: "Niemand hat sie freigegeben oder verworfen – erst freigegebene Punkte gehen an die Raider. Öffnet den Report in der Sicht Raid.",
+            count: report.gearRaiders,
+            href: `/r/${encodeURIComponent(report.id)}#raider`,
+            tip: `${plural(report.gearRaiders, "Raider", "Raider")} mit Gear-Problemen`,
+            tipSub: "Fehlende Verzauberungen, leere Sockel, schwache Edelsteine – aus dem letzten Log. Öffnet den Report in der Sicht Raider.",
+            texts: { title: txt("gear.title"), tip: txt("gear.tip", { count: report.gearRaiders }), tipSub: txt("gear.tipSub") },
         });
     }
 
@@ -291,6 +303,7 @@ function buildTasks({
             href: `/raids/detail?event=${encodeURIComponent(first.id)}&tab=logs`,
             tip: `${plural(logs, "Log passt", "Logs passen")} zu mehreren Raids`,
             tipSub: "Zeitlich kommen mehrere Raids am selben Abend in Frage; die automatische Zuordnung hat keinen gewählt. Öffnet den Logs-Tab des Raids.",
+            texts: { title: txt("logs.title"), tip: txt("logs.tip", { count: logs }), tipSub: txt("logs.tipSub") },
         });
     }
 
@@ -303,6 +316,10 @@ function buildTasks({
             href: "/history?tab=inbox",
             tip: "Hochgeladener Loot wartet",
             tipSub: "Das Addon hat Loot hochgeladen, der noch keinem Raid zugeordnet ist. Öffnet die Addon-Inbox unter Historie & Loot.",
+            texts: {
+                title: txt("inbox.title"), ref: [txt("inbox.sessions", { count: inbox.length }), txt("inbox.items", { count: items })],
+                tip: txt("inbox.tip"), tipSub: txt("inbox.tipSub"),
+            },
         });
     }
 
@@ -318,6 +335,11 @@ function buildTasks({
             href: "/channels?tab=archive",
             tip: `${plural(archive.count, "archivierter Kanal wartet", "archivierte Kanäle warten")} auf Löschung`,
             tipSub: "Archivierte Kanäle werden nie automatisch gelöscht. Öffnet das Archiv der Kanäle-Seite, wo ein Admin sie löscht.",
+            texts: {
+                title: txt("channels.title"),
+                ref: overdue ? txt("channels.refOverdue", { count: overdue, days: archive.hintDays }) : txt("channels.refWaiting", { count: archive.count }),
+                tip: txt("channels.tip", { count: archive.count }), tipSub: txt("channels.tipSub"),
+            },
         });
     }
 
@@ -348,6 +370,14 @@ function roleDriftTask(roleDrift) {
         href: "/settings?section=discordserver",
         tip: `${plural(total, "Mitglied trägt", "Mitglieder tragen")} eine abgeglichene Rolle ohne ihre Ursprungsrolle`,
         tipSub: "Der Rollen-Abgleich vergibt nur und entfernt nie. Wer die Rolle auf einem Server verloren hat, behält sie auf dem anderen, bis jemand sie in Discord entfernt. Öffnet Einstellungen → Discord-Server.",
+        texts: {
+            title: txt("rolesync.title"),
+            ref: [
+                txt(first.guildName ? "rolesync.ref" : "rolesync.refOther", { count: first.members.length, role: first.roleName, guild: first.guildName || "" }),
+                ...(groups.length > 1 ? [txt("rolesync.more", { count: groups.length - 1 })] : []),
+            ],
+            tip: txt("rolesync.tip", { count: total }), tipSub: txt("rolesync.tipSub"),
+        },
     };
 }
 
@@ -369,6 +399,10 @@ function missingChannelTasks(list, { canRecreate = false } = {}) {
         tip: "Der Discord-Kanal des Raids existiert nicht mehr",
         tipSub: "Mit ihm ist die Anmelde-Nachricht weg; die Übersichten zeigen „channel missing“ statt eines Links. „Kanal neu anlegen“ legt ihn nach der Namensregel in der Kategorie des Events an und postet die Anmelde-Nachricht dort. Öffnet sonst das Raid-Event.",
         ...(canRecreate ? { action: { kind: "recreateChannel", eventId: m.eventId, label: "Kanal neu anlegen" } } : {}),
+        texts: {
+            title: txt("channelMissing.title", { title: m.title || "Raid" }), tip: txt("channelMissing.tip"), tipSub: txt("channelMissing.tipSub"),
+            ...(canRecreate ? { action: txt("channelMissing.action") } : {}),
+        },
     }));
 }
 
@@ -393,6 +427,16 @@ function eventSeriesTask(failures) {
         href: "/raids/series",
         tip: first.error || (list.length > 1 ? `${list.length} Termine von Serien fehlgeschlagen` : "Termin einer Serie fehlgeschlagen"),
         tipSub: "Die Serie hat das Event dieses Termins nicht anlegen können. Sie versucht es höchstens dreimal im Abstand von 10 Minuten, danach nur noch auf Knopfdruck. Öffnet Raid-Events › Serien mit Grund und „Erneut versuchen“.",
+        texts: {
+            // the reason is the server's own error sentence: it stays as it came
+            title: txt("series.title", { reason }),
+            ref: [
+                ...(first.categoryName ? [{ text: first.categoryName }] : []),
+                day.isValid ? txt("series.day", { day: day.toMillis() }) : { text: String(first.date || "") },
+            ],
+            tip: first.error ? { text: first.error } : txt("series.tip", { count: list.length }),
+            tipSub: txt("series.tipSub"),
+        },
     };
 }
 
@@ -429,6 +473,49 @@ function deployTask(deploy, now = Date.now()) {
         href: DEPLOY_GUIDE_URL,
         tip: `${plural(behind, "Commit ist", "Commits sind")} auf main, aber nicht auf dem Server`,
         tipSub: "Das automatische Deployment hat den Stand nicht übernommen. Öffnet die Anleitung: welche Secrets es braucht und wie man von Hand deployt.",
+        texts: {
+            title: [txt("deploy.title", { count: behind }), ...(since ? [txt("deploy.since", { count: days })] : [])],
+            ref: [
+                deploy.short ? txt("deploy.running", { commit: deploy.short }) : txt("deploy.unknown"),
+                ...(deploy.latest && deploy.latest.short ? [txt("deploy.main", { commit: deploy.latest.short })] : []),
+            ],
+            tip: txt("deploy.tip", { count: behind }), tipSub: txt("deploy.tipSub"),
+        },
+    };
+}
+
+// The parts of the backup in the words of a task title, and the order to name them in when several need a look.
+const BACKUP_PART_NAMES = { snapshot: "Sicherung", offsite: "Kopie außer Haus", restoreTest: "Wiederherstellungsprobe" };
+const BACKUP_PART_ORDER = ["snapshot", "offsite", "restoreTest"];
+
+/**
+ * "Letzte Sicherung vor 3 Tagen" / "Sicherung fehlgeschlagen" (#696) - yellow or red like the traffic light on the
+ * Systemstatus page it leads to. One row, for the part that needs a look most (red before yellow, the snapshot
+ * before the off-site copy before the restore test). Nothing while everything is green or nothing is known yet.
+ * @param {{ parts: { key: string, light: string, state: string, at: number, error: string }[] }|null} backup
+ */
+function backupTask(backup, now = Date.now()) {
+    if (!backup || !Array.isArray(backup.parts)) return null;
+    const rank = { warn: 1, bad: 2 };
+    const worst = BACKUP_PART_ORDER.map((key) => backup.parts.find((p) => p.key === key))
+        .filter((p) => p && rank[p.light])
+        .sort((a, b) => rank[b.light] - rank[a.light])[0];
+    if (!worst) return null;
+    const name = BACKUP_PART_NAMES[worst.key] || worst.key;
+    const days = Math.floor((now - worst.at) / 86400000);
+    const hours = Math.floor((now - worst.at) / 3600000);
+    const ago = days >= 2 ? plural(days, "Tag", "Tagen") : plural(Math.max(1, hours), "Stunde", "Stunden");
+    let title;
+    if (worst.state === "failed") title = `${name} fehlgeschlagen`;
+    else if (worst.state === "never") title = `${name}: bisher nie gelaufen`;
+    else title = worst.key === "snapshot" ? `Letzte Sicherung vor ${ago}` : `${name} zuletzt vor ${ago}`;
+    return {
+        id: "backup", tone: worst.light === "bad" ? "bad" : "mid", tile: "settings", icon: "inv_misc_gear_02",
+        title,
+        ref: { text: "Systemstatus" },
+        href: "/system",
+        tip: "Die Datensicherung braucht einen Blick",
+        tipSub: worst.error || "Öffnet die Systemstatus-Seite: Zeitpunkt, Größe und Ergebnis jeder Sicherung, dort auch „Jetzt sichern“.",
     };
 }
 
@@ -453,15 +540,20 @@ function trialTasks(list) {
             tip: m.overdue ? `Die Probezeit lief am ${day} ab` : `Die Probezeit endet am ${day}`,
             tipSub: "Übernehmen macht die Person zum Stamm, Verlängern schiebt das Ende um 14 Tage. Von selbst ändert sich nichts. Öffnet sonst das Roster.",
             action: { kind: "rosterTrial", rosterId: m.rosterId, userId: m.userId, extendTo: m.extendTo, label: "" },
+            texts: {
+                title: txt(m.overdue ? "trial.titleOverdue" : "trial.title", { name: m.displayName }),
+                tip: txt(m.overdue ? "trial.tipOverdue" : "trial.tip", { date: at }),
+                tipSub: txt("trial.tipSub"),
+            },
         };
     });
 }
 
 module.exports = {
-    zoneFor, zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, openRecommendations, lastReportArea, newLootSince, buildTasks,
+    zoneFor, zoneForEvent, raidSize, roleTargets, roleFill, classCounts, notSignedUp, lastReportArea, newLootSince, buildTasks,
     isAttending, trialTasks,
     // only for the tests (#424): not part of the module's API
     _internal: {
-        eventSeriesTask, deployTask, DEPLOY_GUIDE_URL, FALLBACK_ZONE_ICON, roleBucket, roleDriftTask, missingChannelTasks,
+        eventSeriesTask, deployTask, backupTask, DEPLOY_GUIDE_URL, FALLBACK_ZONE_ICON, roleBucket, roleDriftTask, missingChannelTasks,
     },
 };

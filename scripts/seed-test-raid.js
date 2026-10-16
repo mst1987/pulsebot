@@ -46,6 +46,56 @@ function demoSlots() {
         ...Array.from({ length: 5 }, (_, i) => ({ kind: "group", n: i + 1, x: 0.12 + 0.19 * i, y: 0.92 }))];
 }
 
+/**
+ * Gurtogg's board of the demo: the boss, the melee groups 1-2 at him, the ranged groups 3-5 at their places, and the scene in which
+ * Bloodboil hits the group at the back, which runs to the front while the next group falls back (twice).
+ */
+function gurtoggDemo(key) {
+    const back = [0.5, 0.8], left = [0.18, 0.72], right = [0.82, 0.72];
+    const group = (n, [x, y]) => ({ id: `bbg${n}`, kind: "group", n, label: "", x, y, split: true, groupScale: 0.75 });
+    const move = (n, [x, y], extra = {}) => ({ obj: `slot:bbg${n}`, x, y, dur: 2, ease: "inout", ...extra });
+    const debuff = (n) => ({ obj: `slot:bbg${n}`, badge: "spell_shadow_bloodboil", pulse: true, dur: 0 });
+    return {
+        slots: [group(1, [0.3, 0.33]), group(2, [0.7, 0.33]), group(3, back), group(4, left), group(5, right)],
+        icons: [{ id: "bbboss", iconKey: "bosspos", label: "Gurtogg", showLabel: true, x: 0.5, y: 0.14, size: 56, rotation: 180, mobId: `b:${key}`, autoFace: true, opacity: 1, lock: false, hidden: false }],
+        // the tactic step the scene stands at: the sheet shows "Animation" beside it (#713)
+        steps: [{ id: "bbst", action: "soak", participants: ["group:3", "group:4", "group:5"], sentence: "tauschen bei Bloodboil: wer ihn hat, läuft nach vorne", targets: [], timing: { kind: "interval", from: 10 } }],
+        scenes: [{
+            id: "bbrot", title: "Bloodboil-Rotation", loop: false, length: 13, stepId: "bbst",
+            frames: [
+                { id: "f1", at: 0, caption: "Gruppe 3 steht hinten, 4 und 5 warten vorne", changes: [] },
+                { id: "f2", at: 2, caption: "Bloodboil trifft die fünf Entferntesten: Gruppe 3", changes: [debuff(3)] },
+                { id: "f3", at: 3.5, caption: "Gruppe 3 läuft nach vorne, Gruppe 4 rückt nach hinten", changes: [move(3, left, { pulse: false, path: [[0.33, 0.86]] }), move(4, back, { delay: 0.4, path: [[0.36, 0.66]] })] },
+                { id: "f4", at: 6.5, caption: "Nächster Bloodboil: Gruppe 4", changes: [debuff(4)] },
+                { id: "f5", at: 8, caption: "Gruppe 4 nach vorne, Gruppe 5 nach hinten", changes: [move(4, right, { pulse: false, path: [[0.67, 0.86]] }), move(5, back, { delay: 0.4, path: [[0.64, 0.66]] })] },
+                { id: "f6", at: 11, caption: "Bloodboil: Gruppe 5 - und so weiter", changes: [debuff(5)] },
+            ],
+            loops: [],
+        }],
+    };
+}
+
+/**
+ * Illidan's scene of the demo (#712): in phase 2 Illidan flies up and two Flames of Azzinoth appear; tank 2 and tank 3 each kite
+ * one round their half of the room (a loop), the flame follows a second behind and leaves its Blaze as a trail.
+ */
+function flameKiteDemo() {
+    const left = [[0.14, 0.3], [0.3, 0.16], [0.4, 0.38], [0.26, 0.62], [0.1, 0.5]];
+    const right = left.map(([x, y]) => [Math.round((1 - x) * 100) / 100, y]);
+    const loop = (id, obj, path, from, trail) => ({ id, obj, path, closed: true, period: 10, from, to: 0, trail });
+    const ch = (obj, extra) => ({ delay: 0, dur: 1, ease: "inout", obj, ...extra });
+    return {
+        id: "flamekite", title: "Flammen kiten", loop: false, length: 26,
+        frames: [
+            { id: "k1", at: 0, caption: "Phase 2: Illidan steht in der Mitte", changes: [] },
+            { id: "k2", at: 1.5, caption: "Illidan fliegt hoch, zwei Flammen von Azzinoth erscheinen", changes: [ch("icon:illidanb", { opacity: 0.45, scale: 0.8 }), ch("icon:flame1", { badge: "spell_fire_felfire", pulse: true, dur: 0 }), ch("icon:flame2", { badge: "spell_fire_felfire", pulse: true, dur: 0 })] },
+            { id: "k3", at: 3, caption: "Tank 2 und Tank 3 holen je eine Flamme", changes: [ch("icon:flame1", { x: 0.14, y: 0.3, dur: 1.2, pulse: false }), ch("icon:flame2", { x: 0.86, y: 0.3, dur: 1.2, pulse: false })] },
+            { id: "k4", at: 4.5, caption: "Kiten: jeder bleibt auf seiner Seite, die Flammen nie zusammen, aus dem Feuer (Blaze) raus", changes: [] },
+        ],
+        loops: [loop("lt2", "slot:illtk2", left, 4.5, false), loop("lf1", "icon:flame1", left, 5.5, true), loop("lt3", "slot:illtk3", right, 4.5, false), loop("lf2", "icon:flame2", right, 5.5, true)],
+    };
+}
+
 function arg(name) {
     const i = process.argv.indexOf(`--${name}`);
     return i >= 0 ? String(process.argv[i + 1] || "") : "";
@@ -98,7 +148,7 @@ function seedPlan(eventId, event) {
     {
         const key = "bt/illidan-stormrage";
         const mk = (id, iconKey, x, y, mobId) => ({ id, iconKey, label: "", showLabel: false, x, y, size: 48, rotation: 0, mobId, autoFace: true, opacity: 1, lock: false, hidden: false });
-        const tk = (n, x, y) => ({ ...slots.find((sl) => sl.kind === "tank" && sl.n === n), x, y });
+        const tk = (n, x, y) => ({ ...slots.find((sl) => sl.kind === "tank" && sl.n === n), id: `illtk${n}`, x, y });
         const row = (id, n, ref, name, icon) => ({ id, type: "tank", title: "", spell: null, assignees: [`slot:tank:${n}`], targets: [{ kind: "mob", ref, name, icon }], note: "", suggested: false });
         bosses[key] = {
             ...bosses[key],
@@ -106,7 +156,15 @@ function seedPlan(eventId, event) {
             slots: autoDemo ? [] : [tk(1, 0.5, 0.86), tk(2, 0.14, 0.3), tk(3, 0.86, 0.3)],
             icons: autoDemo ? [] : [mk("illidanb", "boss:609", 0.5, 0.5, `b:${key}`), mk("flame1", "mob:22997", 0.28, 0.42, "d:flame-of-azzinoth"), mk("flame2", "mob:22997", 0.72, 0.42, "d:flame-of-azzinoth")],
             assignments: [row("illt1", 1, `b:${key}`, "Illidan Stormrage", ""), row("illt2", 2, "d:flame-of-azzinoth", "Flame of Azzinoth", "mob:22997"), row("illt3", 3, "d:flame-of-azzinoth", "Flame of Azzinoth", "mob:22997"), ...bosses[key].assignments.filter((x) => x.type !== "tank")],
+            steps: autoDemo ? [] : [{ id: "illkite", action: "kite", participants: ["slot:tank:2", "slot:tank:3"], sentence: "kiten je eine Flamme von Azzinoth auf ihrer Seite", targets: [{ kind: "mob", ref: "d:flame-of-azzinoth", name: "Flame of Azzinoth", icon: "mob:22997" }], timing: { kind: "phase", from: 2 } }],
+            scenes: autoDemo ? [] : [{ ...flameKiteDemo(), stepId: "illkite" }],
         };
+    }
+    // Gurtogg: the five groups as split markers and the animation "Bloodboil-Rotation" (docs/raidplan/animation.md): Bloodboil hits the
+    // group standing farthest away, it runs to the front and the next group falls back
+    {
+        const key = "bt/gurtogg-bloodboil";
+        bosses[key] = { ...bosses[key], ...gurtoggDemo(key) };
     }
     bosses.general = { notes: "Allgemeine Einteilungen: Fluecke, Donnerknall, Demoralisierender Ruf." };
 

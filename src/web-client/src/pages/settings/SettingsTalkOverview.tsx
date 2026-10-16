@@ -5,6 +5,7 @@ import { useToast } from "../../components/shell/Jobs";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import { useT } from "../../i18n";
+import { SendIcon } from "../../components/ui/icons";
 
 // One row of an event server's card (#257, #361): that server's own raid
 // overview state as a badge (the times and any error in its tooltip), where it
@@ -57,7 +58,7 @@ export default function TalkOverviewRow({
                 ) : (
                     <Badge tone={badge.tone || undefined} tip={badge.tip} tipSub={badge.tipSub}>{badge.label}</Badge>
                 )}
-                <Button variant="ghost" size="sm" onClick={repost} disabled={busy}>{busy ? t("settings.talkOverview.posting") : t("settings.talkOverview.repost")}</Button>
+                <Button size="sm" icon={<SendIcon />} onClick={repost} disabled={busy}>{busy ? t("settings.talkOverview.posting") : t("settings.talkOverview.repost")}</Button>
             </dd>
         </div>
     );

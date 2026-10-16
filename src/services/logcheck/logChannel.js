@@ -7,9 +7,10 @@ const logStore = require("../../stores/logStore");
 const discord = require("../discord/discord");
 const { extractWclLinks } = require("../../utils/logcheck/logLinks");
 const { buildReport, ReportError } = require("../../utils/logcheck/report");
-const WarcraftLogs = require("../../classes/warcraftlogs");
-const { analyzeRaidProgress, raidSummary } = require("../../utils/logcheck/raidProgress");
+const { wclClientFor, recordVersion } = require("./logVersion");
 const { autoLinkLogs } = require("./logAutoLink");
+// Re-exported: the pages ask logChannel for the titles; the code lives in logTitles.js.
+const { backfillLogTitles } = require("./logTitles");
 
 // In-process guard so a double click (or a click racing the web button) cannot
 // start two evaluations of the same log before the first marks it done.
@@ -45,7 +46,9 @@ function messageText(message) {
  */
 async function enrichLogButton(log, btn, { client } = {}) {
     try {
-        const wcl = client || new WarcraftLogs();
+        // the site of the log's version; a version without one is not asked (#746)
+        const wcl = client || wclClientFor(recordVersion(log));
+        if (!wcl) return false;
         const report = await wcl.getFights(log.reportId);
         const title = String((report && report.title) || "").trim();
         const startMs = Number(report && report.start) || 0;
@@ -147,7 +150,7 @@ const SECTION_LABEL = { [SECTION_CLA]: "CLA", [SECTION_RPB]: "RPB" };
  *   not down yet; without it such a log comes back as `{ incomplete: true }`
  *   with the progress, so the caller can ask before spending the analysis
  * @returns {Promise<{ok:true,id,url,report,log,section}
- *   | {ok:false,error,already?,url?,incomplete?,progress?}>}
+ *   | {ok:false,error,already?,url?,incomplete?,progress?,unsupported?,versionId?}>}
  */
 async function evaluateLog(logId, section = SECTION_CLA, opts = {}) {
     const kind = section === SECTION_RPB ? SECTION_RPB : SECTION_CLA;
@@ -174,6 +177,8 @@ async function evaluateLog(logId, section = SECTION_CLA, opts = {}) {
         let result;
         try {
             result = await buildReport(log.link, {
+                // the log's stored version: its raid's, else its host's, else TBC (#746)
+                versionId: recordVersion(log),
                 sections: [kind],
                 // fold into the page the other half already created, if there is one
                 mergeIntoId: log.reportRefId || undefined,
@@ -184,6 +189,10 @@ async function evaluateLog(logId, section = SECTION_CLA, opts = {}) {
             // the caller offers "evaluate anyway" instead of showing an error.
             if (e && e.incomplete) {
                 return { ok: false, incomplete: true, progress: e.progress, error: e.message };
+            }
+            // A version the log check has no rules for (#746): the bot words it in the reader's language.
+            if (e && e.unsupported) {
+                return { ok: false, unsupported: true, versionId: e.versionId, error: e.message };
             }
             const msg = e instanceof ReportError ? e.message : "Unerwarteter Fehler beim Erstellen der Auswertung.";
             if (!(e instanceof ReportError)) console.error("evaluateLog build failed:", e);
@@ -251,62 +260,6 @@ async function scanLogChannels(guildId, { perChannel = 50 } = {}) {
         }
     }
     return count;
-}
-
-// A log whose raid was not finished when its fight list was read is read again —
-// it may have been a live log — but only while the post is fresh: a raid that was
-// called off stays unfinished forever and must not cost a request on every view.
-const RAIDS_REFRESH_MS = 10 * 60 * 1000;
-const RAIDS_LIVE_WINDOW_MS = 12 * 60 * 60 * 1000;
-
-function needsRaids(l, now) {
-    if (!Array.isArray(l.raids)) return true;
-    if (logStore.evaluatedSections(l).length) return false; // the report's own progress takes over
-    const unfinished = l.raids.some((r) => !r.finalKilled);
-    const posted = l.postedAt || l.detectedAt || 0;
-    return unfinished && now - posted < RAIDS_LIVE_WINDOW_MS && now - (l.raidsAt || 0) > RAIDS_REFRESH_MS;
-}
-
-/**
- * Backfill what the log list shows before a log is evaluated, from one
- * Warcraft-Logs request per log (report/fights): the display title (the report
- * name instead of the raw code) and the raids it covers with their boss count
- * ("Hyjal 3/5", raidProgress.raidSummary). Mutates each log in place and persists
- * both. Best-effort: a missing API key or a failed/rate-limited request is
- * ignored (the row keeps what it had and is retried on the next view). Only the
- * given logs (i.e. the current page) are fetched, in parallel. Returns how many
- * titles were filled.
- */
-async function backfillLogTitles(logs, now = Date.now()) {
-    const missing = (logs || []).filter((l) => l && l.reportId && (!l.title || needsRaids(l, now)));
-    if (!missing.length) return 0;
-    let wcl;
-    try {
-        wcl = new WarcraftLogs();
-    } catch {
-        return 0; // no WARCRAFTLOGS_API_KEY — skip silently
-    }
-    let filled = 0;
-    await Promise.all(missing.map(async (l) => {
-        try {
-            const data = await wcl.getFights(l.reportId);
-            const title = data && data.title ? String(data.title).trim() : "";
-            if (title && !l.title) {
-                logStore.setLogTitle(l.id, title);
-                l.title = title; // reflect in the in-memory page items
-                filled += 1;
-            }
-            if (data && Array.isArray(data.fights)) {
-                const raids = raidSummary(analyzeRaidProgress(data));
-                logStore.setLogRaids(l.id, raids);
-                l.raids = raids;
-                l.raidsAt = now;
-            }
-        } catch {
-            // report deleted / rate-limited — leave the code, retry next time
-        }
-    }));
-    return filled;
 }
 
 module.exports = {

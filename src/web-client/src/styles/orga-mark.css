@@ -1,0 +1,51 @@
+/* =====================================================================
+   What only the orga sees (components/ui/OrgaZone.tsx, design canvas Oct 2026):
+   the teal chip in the top bar of an orga page (E), the tinted dashed zone around the orga's
+   part of a page everybody sees (B) and the menu's dot. Teal (--orga-teal, its own token: it does not follow the version colour, #742), not
+   the orange of "mid": orange already says "warning" all over the menu.
+   ===================================================================== */
+
+:root { --orga: var(--orga-teal); --orga-soft: color-mix(in srgb, var(--orga-teal) 10%, transparent); --orga-line: color-mix(in srgb, var(--orga-teal) 45%, transparent); }
+
+/* E · the chip in the top bar, right after the breadcrumbs; the explanation sits in its tooltip */
+.orga-chip { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+.orga-chip-lbl {
+    display: inline-flex; align-items: center; gap: 6px; min-height: 26px; padding: 0 10px; border-radius: 999px;
+    background: var(--orga-soft); border: 1px solid var(--orga-line); color: var(--orga);
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; white-space: nowrap;
+}
+.orga-chip-lbl svg, .orga-zone-lbl svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.orga-chip-btn {
+    display: inline-flex; align-items: center; gap: 6px; min-height: 26px; padding: 0 10px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--orga-line); background: transparent; color: var(--orga); font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap;
+}
+.orga-chip-btn svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.orga-chip-btn:hover { background: var(--orga-soft); }
+.orga-chip-btn:focus-visible { outline: 2px solid var(--orga); outline-offset: 2px; }
+.orga-chip-btn:disabled { opacity: .6; cursor: default; }
+/* a subtle teal edge under the whole top bar: the page reads as orga */
+.topbar.is-orga { border-bottom-color: var(--orga); box-shadow: 0 1px 0 var(--orga); }
+
+/* B · the zone around the orga's part of a page */
+.orga-zone {
+    position: relative; display: flex; flex-direction: column; gap: 10px;
+    margin-top: 10px; padding: 26px 14px 14px; border-radius: 12px;
+    border: 1.5px dashed var(--orga-line); background: var(--orga-soft);
+}
+.orga-zone-lbl {
+    position: absolute; top: -12px; left: 16px; display: inline-flex; align-items: center; gap: 6px;
+    padding: 2px 10px; border-radius: 999px; border: 1.5px solid var(--orga-line); background: var(--bg);
+    color: var(--orga); font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+}
+.orga-zone-sub { position: absolute; top: 6px; right: 16px; left: 180px; text-align: right; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.orga-zone-body { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* the menu's dot beside an orga page */
+.orga-dot { margin-left: auto; width: 7px; height: 7px; border-radius: 50%; background: var(--orga); flex: 0 0 auto; }
+
+@media (max-width: 640px) {
+    .orga-zone { padding-top: 34px; }
+    .orga-zone-sub { left: 16px; top: 14px; text-align: left; }
+    .orga-chip-btn-txt, .orga-chip-txt { display: none; }
+    .orga-chip-lbl, .orga-chip-btn { padding: 0 7px; }
+}

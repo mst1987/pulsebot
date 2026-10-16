@@ -4,7 +4,7 @@ const { plural } = require("../../utils/text");
 const { bossIconUrl } = require("../../config/bosses");
 const { PX_PER_SEC } = require("./charts");
 const { esc, shellPage, renderNotFound } = require("./layout");
-const { classIconUrl, expBtn, badge, LINE, armoryLink, dlgClose, groupHead, barCell, barPct, hicon, classColorOf, fmtK, kpi, avgOf } = require("./widgets");
+const { classIconUrl, expBtn, badge, LINE, armoryLink, dlgClose, groupHead, barCell, barPct, hicon, classColorOf, fmtK, kpi, avgOf, withReportVersion } = require("./widgets");
 const { groupByBoss } = require("./fightTopics");
 const { renderFightSection } = require("./fight");
 const { tryPills, playerFights } = require("./bossView");
@@ -125,7 +125,7 @@ function playerFightTable(ctx, p) {
         return `<dialog class="dlg chart" id="dlg-pf-${r.bi}">
           <div class="dlg-head">${icon ? `<img class="vcard-icon" src="${esc(icon)}" alt="">` : ""}<div class="dlg-main"><div class="dlg-title">${hicon("inv_misc_pocketwatch_01", "")}${esc(r.b.name)} · ${esc(name)}</div><div class="vcard-meta">${plural(r.b.fights.length, "Try", "Tries")} · ${PX_PER_SEC} px pro Sekunde, seitlich scrollen</div></div>${dlgClose()}</div>
           <div class="dlg-body">${tryPills(r.b, ns)}${sections}</div>
-          <div class="dlg-foot"><span class="note">Tode als senkrechte Striche in Klassenfarbe · Tabellenansicht unter jeder Grafik aufklappbar</span><div class="btns"><button type="button" class="btn btn-sm" data-close>Schließen</button></div></div>
+          <div class="dlg-foot"><span class="note">Tode als senkrechte Striche in Klassenfarbe · Tabellenansicht unter jeder Grafik aufklappbar</span><div class="btns"><button type="button" class="btn btn-ghost btn-sm" data-close>Schließen</button></div></div>
         </dialog>`;
     }).join("");
     const seg = flagged && flagged < rows.length
@@ -145,7 +145,12 @@ function playerFightTable(ctx, p) {
  * boss with the chart in a dialog; Vorbereitung / Leistung / Fehler as
  * collapsed area heads with one badge each.
  */
+/** The page in the links of the report's version (widgets.withReportVersion, #746). */
 function renderPlayerPage(report, idx, user) {
+    return withReportVersion(report, () => renderPlayerPageIn(report, idx, user));
+}
+
+function renderPlayerPageIn(report, idx, user) {
     const p = (report.roster || [])[idx];
     if (!p) return renderNotFound();
     const ctx = reportContext(report, user);
@@ -158,7 +163,7 @@ function renderPlayerPage(report, idx, user) {
     const open = items.filter((x) => x.approved === null).length;
     const approved = items.filter((x) => x.approved === true).length;
     const fights = playerFights(report.timeline, name);
-    const { secs, dialogs } = raiderSections(ctx, p, idx, items, { openFirst: true });
+    const { secs, dialogs } = raiderSections(ctx, p, idx, items);
 
     const roleIcon = { tank: "inv_shield_06", healer: "spell_holy_flashheal", dps: "ability_dualwield" }[role];
     const meta = [

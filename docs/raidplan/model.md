@@ -265,12 +265,16 @@ copy (`origin` = the Standard row's id, the row in its `inheritOff`) or switches
   lists the Standard first (`raidplan.withStandard`).
 - **Tank order**: the Besetzung (who stands in Tank 1, Tank 2 …) is NOT inherited - every section keeps its own
   `slots`, filled in setup order the first time it is opened, so a Standard row "Tank 1 -> Boss" means each section's own
-  Tank 1. When the Standard's tank order was changed, the editor asks on leaving the Standard (or on saving while in it)
-  "Tank-Reihenfolge auch für die anderen Bosse?" - only once per change and only when some boss / trash differs
-  (`components/raidplan/editor/useTankOrderFollow.ts`). Not on every click: a swap through the Besetzung's chips takes
-  two steps. "Für alle übernehmen" reorders, in one undo step, only the players already standing in each section's tank
-  slots (`lib/raidplan/tankOrder.ts applyRoleOrder`: nobody added or removed, a flex role of that boss stays, places on
-  the map stay); "Nur im Standard" changes nothing else.
+  Tank 1. When the Standard's tanks were changed (order, number of tank slots, who stands in them: `tankLineup`), the
+  editor asks on leaving the Standard (or on saving while in it) "Tanks auch für die anderen Bosse?" - only once per
+  change and only when some boss / trash differs (`components/raidplan/editor/useTankOrderFollow.ts`). Not on every
+  click: a swap through the Besetzung's chips takes two steps. "Für alle übernehmen" gives each section, in one undo
+  step, the Standard's tank line-up (`lib/raidplan/tankOrder.ts applyTankLineup`): as many tank slots (`setCount`, as
+  +/- on the boss), the Standard's tanks in its order. A tank standing in another slot there swaps with whoever had his
+  tank slot (the "2 -> 3 tanks, the cat druid as Tank 3" case: he leaves his DPS slot); one who plays another role on
+  that boss on purpose (a flex role other than tank) stays, the next tank moves up; places on the map stay. "Nur im
+  Standard" changes nothing else. (Before Oct 2026 it only reordered the players already in the boss's tank slots, so a
+  third tank never arrived.)
 - **"Vorlage anwenden"** (`raidplanStore.applyTemplate`): the template's Standard becomes the event's Standard
   (cleaned, under the template's row ids, so `inheritOff`, deviations and moved tanks keep pointing at them); the
   bosses get the template's boards with their `inheritOff` (no copies any more). With a Standard every boss of the

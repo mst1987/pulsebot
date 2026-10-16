@@ -1,16 +1,18 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { switchLang } from "../../test/i18n";
-import { EDIT_ORDER, STATUS_ORDER, countsAsPresent, detailText, overrideLine, statusLabel, statusLetter, statusOf, verdictText } from "./attendanceStatus";
+import { EDIT_ORDER, STATUS_ORDER, countsAsPresent, countsForQuota, detailText, overrideLine, statusHint, statusLabel, statusLetter, statusOf, verdictText, verdictTip } from "./attendanceStatus";
 import { attendanceGrid } from "./attendanceGrid";
 import { member } from "../../pages/roster/rosters.fixture";
 
 afterEach(() => switchLang("de"));
 
 describe("attendanceStatus (#677)", () => {
-    it("knows the six statuses, their order in the tooltip and in the menu, and which count", () => {
-        expect(STATUS_ORDER).toEqual(["present", "bench", "noSignup", "absence", "vacation", "noShow"]);
+    it("knows the statuses, their order in the tooltip and in the menu, and which count", () => {
+        expect(STATUS_ORDER).toEqual(["present", "bench", "noSignup", "absence", "vacation", "noShow", "tentative"]);
+        // the orga never sets "tentative" by hand: it only says the setup left a "maybe" out
         expect(EDIT_ORDER).toEqual(["present", "bench", "vacation", "absence", "noSignup", "noShow"]);
         expect(STATUS_ORDER.filter(countsAsPresent)).toEqual(["present", "bench"]);
+        expect(STATUS_ORDER.filter((s) => !countsForQuota(s))).toEqual(["tentative"]);
     });
 
     it("takes the server's code, else an older answer's German word, else attended", () => {
@@ -23,15 +25,16 @@ describe("attendanceStatus (#677)", () => {
     });
 
     it("words status, letter, detail and verdict in German and English", async () => {
-        expect(STATUS_ORDER.map(statusLabel)).toEqual(["Dabei", "Bench", "Nicht angemeldet", "Abgemeldet", "Urlaub", "Nicht erschienen"]);
-        expect(STATUS_ORDER.map(statusLetter)).toEqual(["D", "B", "?", "A", "U", "X"]);
+        expect(STATUS_ORDER.map(statusLabel)).toEqual(["Dabei", "Bench", "Nicht angemeldet", "Abgemeldet", "Urlaub", "Nicht erschienen", "Vielleicht"]);
+        expect(STATUS_ORDER.map(statusLetter)).toEqual(["D", "B", "?", "A", "U", "X", "V"]);
+        expect(verdictText({ status: "tentative", detail: "tentativeNotPlaced" })).toBe("Vielleicht · vorläufig, nicht aufgestellt – zählt nicht");
         expect(detailText("benchSetup")).toBe("im Setup auf der Bank");
         expect(detailText("override")).toBe("");
         expect(detailText(undefined)).toBe("");
         expect(verdictText({ status: "present", detail: "late" })).toBe("Dabei · angemeldet (später)");
         expect(verdictText({ status: "noShow" })).toBe("Nicht erschienen");
         await switchLang("en");
-        expect(STATUS_ORDER.map(statusLabel)).toEqual(["Present", "Bench", "Not signed up", "Signed off", "Vacation", "No-show"]);
+        expect(STATUS_ORDER.map(statusLabel)).toEqual(["Present", "Bench", "Not signed up", "Signed off", "Vacation", "No-show", "Tentative"]);
         expect(verdictText({ status: "absence", detail: "absence" })).toBe("Signed off · signed off for this raid");
     });
 
@@ -40,6 +43,15 @@ describe("attendanceStatus (#677)", () => {
         expect(overrideLine(o)).toBe("von Hand: Bench (Marc, 09.10.)");
         expect(overrideLine({ ...o, byName: "", by: "", at: 0 })).toBe("von Hand: Bench");
         expect(verdictText({ status: "bench", override: o })).toBe("von Hand: Bench (Marc, 09.10.) · hat gewartet");
+        expect(verdictTip({ status: "bench", override: o })).toBe("von Hand: Bench (Marc, 09.10.) · hat gewartet");
+    });
+
+    it("explains a short label in its tooltip without repeating it", () => {
+        expect(verdictTip({ status: "tentative", detail: "tentativeNotPlaced" })).toBe("vorläufig, nicht aufgestellt – zählt nicht");
+        expect(verdictTip({ status: "bench", detail: "benchNotInLog" })).toBe("angemeldet, nicht im Log – als Bench gewertet");
+        // "Nicht angemeldet" · "keine Anmeldung" says the same twice: the tooltip explains the status instead
+        expect(verdictTip({ status: "noSignup", detail: "noSignup" })).toBe(statusHint("noSignup"));
+        expect(verdictTip({ status: "noShow" })).toBe(statusHint("noShow"));
     });
 });
 

@@ -1,7 +1,7 @@
 // scripts/register-commands.js registers for every configured server (#251).
 // Nothing here talks to Discord: the REST client is a jest double.
 const {
-    collectCommands, parseArgs, targetGuildIds, registerCommands,
+    collectCommands, parseArgs, targetGuildIds, registerCommands, hashLine, HASH_PREFIX,
 } = require("../../scripts/register-commands");
 const { commandDefinitions } = require("../../src/commands/loader");
 
@@ -22,9 +22,13 @@ describe("scripts/register-commands", () => {
 
     describe("parseArgs", () => {
         it("reads the flags and the --guild value", () => {
-            expect(parseArgs(["--dev", "--guild", "123456", "--clear"])).toEqual({ dev: true, global: false, clear: true, guild: "123456" });
-            expect(parseArgs([])).toEqual({ dev: false, global: false, clear: false, guild: "" });
+            expect(parseArgs(["--dev", "--guild", "123456", "--clear"])).toEqual({ dev: true, global: false, clear: true, printHash: false, guild: "123456" });
+            expect(parseArgs([])).toEqual({ dev: false, global: false, clear: false, printHash: false, guild: "" });
             expect(parseArgs(["--global"]).global).toBe(true);
+        });
+
+        it("reads --print-hash", () => {
+            expect(parseArgs(["--print-hash"]).printHash).toBe(true);
         });
 
         it("does not take the next flag as a server id", () => {
@@ -46,6 +50,24 @@ describe("scripts/register-commands", () => {
             expect(targetGuildIds({ configuredIds: ["", " "], envGuildId: "100" })).toEqual(["100"]);
             expect(targetGuildIds({ configuredIds: ["200", "200"] })).toEqual(["200"]);
             expect(targetGuildIds()).toEqual([]);
+        });
+    });
+
+    // deploy.sh greps the line for its prefix and registers only on a change.
+    describe("hashLine (--print-hash)", () => {
+        it("prints the prefix deploy.sh looks for and a sha256", () => {
+            const line = hashLine({ body: [{ name: "a" }], clientId: "app", guildIds: ["200"] });
+            expect(HASH_PREFIX).toBe("commands-hash: ");
+            expect(line).toMatch(/^commands-hash: [0-9a-f]{64}$/);
+        });
+
+        it("gives the real command set the same hash on every load", () => {
+            let again;
+            jest.isolateModules(() => {
+                again = require("../../scripts/register-commands").collectCommands();
+            });
+            const args = { clientId: "app", guildIds: ["200", "300"] };
+            expect(hashLine({ ...args, body: again })).toBe(hashLine({ ...args, body: collectCommands() }));
         });
     });
 

@@ -189,8 +189,18 @@ describe("prepareClaList — the Log-Auswertung's one list", () => {
     it("makes one row per log and one per report no log points at", () => {
         const { page } = prepareClaList(logs, reports, {});
         expect(page.items.map((r) => r.id)).toEqual(["open", "half", "legacy", "report:r3"]);
-        expect(page.items[3]).toMatchObject({ kind: "report", source: "link", sections: ["cla", "rpb"], wclUrl: "https://classic.warcraftlogs.com/reports/Z" });
+        expect(page.items[3]).toMatchObject({ kind: "report", source: "link", sections: ["cla", "rpb"], wclUrl: "https://fresh.warcraftlogs.com/reports/Z", versionId: "tbc" });
+        expect(page.items[0]).toMatchObject({ versionId: "tbc" });
         expect(page.items[0]).toMatchObject({ kind: "log", source: "channel", sections: [], report: null, raids: [hyjal] });
+    });
+
+    it("lists and counts only the rows `inVersion` lets through (#741)", () => {
+        const inVersion = (row) => row.id !== "legacy" && row.id !== "report:r3";
+        const { page, counts } = prepareClaList(logs, reports, {}, { inVersion });
+        expect(page.items.map((r) => r.id)).toEqual(["open", "half"]);
+        expect(counts).toMatchObject({ all: 2, done: 1 });
+        // the report of a log that is not shown is still no link report
+        expect(page.items.some((r) => r.id === "report:r2")).toBe(false);
     });
 
     it("carries the report's numbers and raids on the log's row, and reads a legacy done log as CLA", () => {
@@ -222,5 +232,13 @@ describe("prepareClaList — the Log-Auswertung's one list", () => {
 
     it("marks a log that was never posted in a channel as a link", () => {
         expect(claRowFromLog({ id: "x", reportId: "Q", link: "https://w/reports/Q" }, null)).toMatchObject({ source: "link", wclUrl: "https://w/reports/Q" });
+    });
+
+    it("reads the host version from the stored log, never from the link built for one without", () => {
+        // no link stored: wclUrl is built on TBC's site, which must not make the log TBC's
+        const row = claRowFromLog({ id: "x", reportId: "Q" }, null);
+        expect(row.wclUrl).toMatch(/\/reports\/Q$/);
+        expect(row.hostVersionId).toBe("");
+        expect(claRowFromLog({ id: "y", reportId: "Q", hostVersionId: "forever" }, null).hostVersionId).toBe("forever");
     });
 });

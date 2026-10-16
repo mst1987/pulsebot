@@ -4,7 +4,7 @@ import { FIT, type BoardView } from "../../lib/raidplan/boardView";
 import { ringShownFor, selectionDrawn } from "../../lib/raidplan/viewRules";
 import { groupColor, groupFocusCls, groupMark, inkOn } from "../../lib/raidplan/groupStyle";
 import { groupScales, rhNote } from "../../lib/raidplan";
-import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type RefObject } from "react";
+import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { AlertTriangle, Crosshair, Swords, Users } from "lucide-react";
 import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanPlayer, RaidplanSlot, RaidplanText, RaidplanToken, RaidplanZone } from "../../api";
 import { classColorProps } from "../character/ClassSpec";
@@ -18,6 +18,7 @@ import { useT } from "../../i18n";
 import { classPlaceNameFor, classRefIcon, facingOf, linkClass, offRole, type AssignLink } from "../../lib/raidplan/assign";
 import { ANY } from "../../lib/raidplan/classRefs";
 import { autoFacing, mobIconNo, type AutoPlan, type AutoTank } from "../../lib/raidplan/autoPlace";
+import type { SceneFx, SceneTrail } from "../../lib/raidplan/scene";
 import "../../styles/raidplan/index.css";
 
 
@@ -127,6 +128,18 @@ type BoardProps = {
     emptyText?: string;
     /** what the tank rows put on the map (lib/raidplan/autoPlace.ts): the mobs and tanks nobody placed by hand */
     auto?: AutoPlan;
+    /** an animation's effects on objects ("<kind>:<id>" -> a WoW icon on it, a pulse) and the trails of its loops (lib/raidplan/scene.ts) */
+    fx?: Record<string, SceneFx>;
+    trails?: SceneTrail[];
+    /** more to draw on the canvas, in its coordinates (an editor's grips: the points of an animation's way) */
+    overlay?: ReactNode;
+    /**
+     * The animation editor's picked actors ("<kind>:<id>", lib/raidplan/scene.ts): they light up, everything else steps back (a picked
+     * group lights all its raiders, a picked raider only himself). Empty or missing = nothing is lit or dimmed.
+     */
+    lit?: string[];
+    /** Hears the board's width / height once its map is known (16:10 without one): where a group's ring puts its raiders depends on it. */
+    onAspect?: (aspect: number) => void;
 };
 
 /** The pixel size of an element, kept up to date (the lines are drawn in pixels so an arrow head never stretches). */
@@ -169,7 +182,7 @@ function arrowHead(x1: number, y1: number, x2: number, y2: number, width: number
  */
 export default function PlanBoard({
     boardRef, bossName, bossIcon, mapUrl, mapOpacity = 1, tokens, slots = [], marks = [], icons = [], objectScale = 1, zones = [], lines = [], texts = [], players, roster = [],
-    me = "", assignments, maxHeight, showRings = true, view = FIT, frameRef, showNames = true, showBadges = true, showRoleRings = true, highlightMe = true, showSelection = true, groupColors, groupMarks, focusGroup = 0, multi = [], multiBox = null, band = null, onMultiScale, onMultiMove, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText, auto,
+    me = "", assignments, maxHeight, showRings = true, view = FIT, frameRef, showNames = true, showBadges = true, showRoleRings = true, highlightMe = true, showSelection = true, groupColors, groupMarks, focusGroup = 0, multi = [], multiBox = null, band = null, onMultiScale, onMultiMove, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText, auto, fx, trails, overlay, lit, onAspect,
 }: BoardProps) {
     const t = useT();
     const [aspect, setAspect] = useState(0);
@@ -184,6 +197,14 @@ export default function PlanBoard({
         if (boardRef) (boardRef as MutableRefObject<HTMLDivElement | null>).current = el;
     }, [boardRef]);
     useEffect(() => { setAspect(0); }, [mapUrl]);
+    useEffect(() => { if (onAspect) onAspect(aspect || 16 / 10); }, [aspect, onAspect]);
+    // the animation editor's picked actors (lit); a raider counts as picked when his whole group is
+    const litSet = new Set(lit || []);
+    const litCls = (kind: ObjectKind, id: string) => {
+        if (litSet.size === 0) return "";
+        const on = litSet.has(`${kind}:${id}`) || (kind === "member" && litSet.has(`slot:${id.slice(0, Math.max(0, id.indexOf("~")))}`));
+        return on ? " rp-lit" : " rp-unlit";
+    };
 
     const mineIds = !highlightMe ? [] : Array.isArray(me) ? me : me ? [me] : [];
     const isMe = (id: string) => mineIds.indexOf(id) >= 0;
@@ -192,7 +213,7 @@ export default function PlanBoard({
     const mineNames = mineIds.map((id) => (players.get(id) || { character: "" }).character).filter((n) => n.length > 1);
     const isSel = (kind: ObjectKind, id: string) => !!selected && selected.kind === kind && selected.id === id;
     const picked = (kind: ObjectKind, id: string) => multi.some((m) => m.kind === kind && m.id === id);
-    const cls = (base: string, kind: ObjectKind, id: string, extra = "", locked = false) => [base, editable ? "is-editable" : "", selectionDrawn(editable, isSel(kind, id) || picked(kind, id), showSelection) ? "is-selected" : "", picked(kind, id) ? "is-multi" : "", dragKey === `${kind}:${id}` ? "is-drag" : "", locked ? "is-locked" : "", extra].filter(Boolean).join(" ");
+    const cls = (base: string, kind: ObjectKind, id: string, extra = "", locked = false) => [base + litCls(kind, id), editable ? "is-editable" : "", selectionDrawn(editable, isSel(kind, id) || picked(kind, id), showSelection) ? "is-selected" : "", picked(kind, id) ? "is-multi" : "", dragKey === `${kind}:${id}` ? "is-drag" : "", locked ? "is-locked" : "", extra].filter(Boolean).join(" ");
     // a highlighted group (the "Groups" bar, #512): the raiders of the other groups dim, a mark / boss / open slot never ("rp-gdim" in objects.css)
     const gf = (group: number | null | undefined) => { const c = groupFocusCls(focusGroup, group); return c ? ` ${c}` : ""; };
     const handlers = (kind: ObjectKind, id: string) => (editable ? {
@@ -264,6 +285,41 @@ export default function PlanBoard({
     };
     /** What a tank of the rows is called: the class place ("Tank (Paladin)", "Magier-Tank", "Tank") or the slot. */
     const ruleName = (k: AutoTank) => (k.classId ? (k.classId === ANY ? t(`raidBoard.class.roles.${k.role || "tank"}`) : classPlaceNameFor(k.classId, k.role, k.type)) : k.slotKind ? t(`raidBoard.slot.${k.slotKind}`, { n: k.slotN }) : "");
+    /**
+     * Where an animation's effect sits on an object (its middle, and its size in reference px): a split group's effect sits on each of
+     * its raiders (a group gets Bloodboil: every member shows it), an auto object where the tank rows put it, a zone / line in its middle.
+     */
+    const fxAnchors = (key: string): { x: number; y: number; px: number }[] => {
+        const i = key.indexOf(":");
+        const kind = key.slice(0, i);
+        const id = key.slice(i + 1);
+        if (kind === "token") { const o = tokens.find((x) => x.userId === id); return o && !o.hidden ? [{ x: o.x, y: o.y, px: scaled(o.size, SIZE_RANGES.token.def) }] : []; }
+        if (kind === "slot") {
+            const o = slots.find((x) => x.id === id);
+            if (!o || o.hidden || o.placed === false) return [];
+            const members = o.kind === "group" ? splitMembers(boardOwn, o, roster).filter((p) => places[p.userId]) : [];
+            if (o.kind === "group" && o.split && !o.hideMembers && members.length > 0) return members.map((p) => ({ ...places[p.userId], px: scaled(o.size, SIZE_RANGES.member.def) * groupScales(o).gs * groupScales(o).ts }));
+            return [{ x: o.x, y: o.y, px: scaled(o.size, SIZE_RANGES.slot.def) }];
+        }
+        if (kind === "member") {
+            const at = id.indexOf("~");
+            const o = slots.find((x) => x.id === id.slice(0, at));
+            const place = places[id.slice(at + 1)];
+            return o && place ? [{ ...place, px: scaled(o.size, SIZE_RANGES.member.def) * groupScales(o).gs * groupScales(o).ts }] : [];
+        }
+        if (kind === "icon") { const o = icons.find((x) => x.id === id); return o && !o.hidden ? [{ x: o.x, y: o.y, px: scaled(o.size, SIZE_RANGES.icon.def) }] : []; }
+        if (kind === "mark") { const o = marks.find((x) => x.id === id); return o && !o.hidden ? [{ x: o.x, y: o.y, px: scaled(o.size, SIZE_RANGES.mark.def) }] : []; }
+        if (kind === "text") { const o = texts.find((x) => x.id === id); return o && !o.hidden ? [{ x: o.x, y: o.y, px: 30 }] : []; }
+        if (kind === "zone") { const o = zones.find((x) => x.id === id); return o && !o.hidden ? [{ x: o.x + o.w / 2, y: o.y + o.h / 2, px: Math.min(o.w * size.w, o.h * size.h) }] : []; }
+        if (kind === "line") { const o = lines.find((x) => x.id === id); return o && !o.hidden ? [{ x: (o.x1 + o.x2) / 2, y: (o.y1 + o.y2) / 2, px: 24 }] : []; }
+        if (kind === "auto" && auto) {
+            const k = auto.tanks.find((x) => x.key === id && !x.existing);
+            if (k) return k.style.hidden ? [] : [{ x: k.x, y: k.y, px: scaled(k.size, SIZE_RANGES.token.def) }];
+            const m = auto.mobs.find((x) => x.key === id);
+            if (m && !m.iconId) return m.style.hidden ? [] : [{ x: m.x, y: m.y, px: scaled(m.size, SIZE_RANGES.icon.def) }];
+        }
+        return [];
+    };
     /** The facing wedge of an icon: its own size factor (--rp-ar), hidden, colour and opacity ("Pfeilgröße", "Pfeil ausblenden"). */
     const arrowVars = (o: { arrowScale?: number }) => ({ "--rp-ar": String(o.arrowScale || 1) }) as CSSProperties;
     const wedge = (o: { arrowHidden?: boolean; arrowColor?: string; arrowOpacity?: number }) => (o.arrowHidden ? null : (
@@ -604,11 +660,13 @@ export default function PlanBoard({
                     const chipMode = groupChipMode(editable, tag.badges, boardLabel);
                     const holders = ringOffsets(tag.placeholders, size.w, size.h, spacePx);
                     const shownOffsets = [...around.map((p) => { const off = s.offsets ? s.offsets[p.userId] : undefined; const at = everyone.findIndex((x) => x.userId === p.userId); return off ? { dx: off.dx * spread, dy: off.dy * spread } : ring[at] || { dx: 0, dy: 0 }; }), ...holders];
-                    const cover = ringCover(shownOffsets, (memberPx * 0.9) / size.w, (memberPx * 0.9) / size.h);
+                    // a raider an animation sent off on his own (offset `away`) does not stretch the ring
+                    const inRing = [...around.filter((p) => !(s.offsets && s.offsets[p.userId] && s.offsets[p.userId].away)).map((p) => shownOffsets[around.indexOf(p)]), ...shownOffsets.slice(around.length)];
+                    const cover = ringCover(inRing.length > 0 ? inRing : shownOffsets, (memberPx * 0.9) / size.w, (memberPx * 0.9) / size.h);
                     return (
                         <div key={s.id} className={`rp-groupwrap${gf(s.n)}`} style={{ "--gc": gcol, "--gi": inkOn(gcol), "--rp-gs": String(gs * objectScale) } as CSSProperties}>
                             {tag.ring && ringShown(showRings, s) && shownOffsets.length > 0 && (
-                                <div className={`rp-groupring${everyone.some((p) => isMe(p.userId)) ? " is-yours" : ""}${s.ringColor ? " is-colored" : ""}`} aria-hidden="true" style={{ "--rp-x": `${s.x * 100}%`, "--rp-y": `${s.y * 100}%`, "--rp-w": `${cover.rx * 200}%`, "--rp-h": `${cover.ry * 200}%`, "--rp-o": s.opacity * (s.ringOpacity === undefined ? 0.55 : s.ringOpacity) / 0.55, ...(s.ringColor ? { "--rp-ringc": s.ringColor } : {}) } as CSSProperties} />
+                                <div className={`rp-groupring${everyone.some((p) => isMe(p.userId)) ? " is-yours" : ""}${s.ringColor ? " is-colored" : ""}${litSet.size > 0 && !litSet.has(`slot:${s.id}`) && !everyone.some((p) => litSet.has(`member:${memberId(s.id, p.userId)}`)) ? " rp-unlit" : ""}`} aria-hidden="true" style={{ "--rp-x": `${s.x * 100}%`, "--rp-y": `${s.y * 100}%`, "--rp-w": `${cover.rx * 200}%`, "--rp-h": `${cover.ry * 200}%`, "--rp-o": s.opacity * (s.ringOpacity === undefined ? 0.55 : s.ringOpacity) / 0.55, ...(s.ringColor ? { "--rp-ringc": s.ringColor } : {}) } as CSSProperties} />
                             )}
                             <div data-obj={`slot:${s.id}`} className={cls("rp-token rp-slotobj", "slot", s.id, `${members.some((p) => isMe(p.userId)) ? "is-me" : ""}${ringShownFor(showRoleRings, s.ring) ? "" : " is-noring"}${noName(s.size, SIZE_RANGES.slot.def, 1, s.showName)}`, s.lock)} style={anchor} data-slot={s.id}>
                                 {chipMode === "text" && <span className="rp-grouptext">{gmark && <MarkIcon mark={gmark as never} size={16} />}{boardLabel}</span>}
@@ -771,6 +829,18 @@ export default function PlanBoard({
                     </div>
                 );
             })}
+
+            {trails && trails.map((tr) => tr.points.map((p, i) => (
+                <span key={`trail:${tr.obj}:${i}`} className={`rp-trail${tr.hint ? " is-hint" : ""}`} aria-hidden="true" style={{ "--rp-x": `${p.x * 100}%`, "--rp-y": `${p.y * 100}%`, "--rp-to": String((i + 1) / (tr.points.length + 1)) } as CSSProperties} />
+            )))}
+            {fx && Object.entries(fx).flatMap(([key, f]) => fxAnchors(key).map((a, i) => (
+                <div key={`fx:${key}:${i}`} className={`rp-fx${f.pulse ? " is-pulse" : ""}`} aria-hidden="true" style={{ "--rp-x": `${a.x * 100}%`, "--rp-y": `${a.y * 100}%`, "--rp-s": `${a.px}px` } as CSSProperties}>
+                    {f.pulse && <span className="rp-fx-pulse" />}
+                    {f.badge && <span className="rp-fx-badge"><WowIcon name={f.badge} size={Math.max(14, Math.round(a.px * 0.5))} /></span>}
+                </div>
+            )))}
+
+            {overlay}
 
             {band && (
                 <div className="rp-band" aria-hidden="true" style={{ "--rp-x": `${band.x0 * 100}%`, "--rp-y": `${band.y0 * 100}%`, "--rp-w": `${(band.x1 - band.x0) * 100}%`, "--rp-h": `${(band.y1 - band.y0) * 100}%` } as CSSProperties} />

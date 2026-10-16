@@ -13,5 +13,7 @@ scripts/data-sources/
 docs/
 bin/
 src/web-client/dist
+src/web-client/dist.*
 .claude/
 .github/
+.deploy/

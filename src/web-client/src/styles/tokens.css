@@ -14,7 +14,7 @@
     --text: #e6e6e6; --muted: #9aa0aa; --line: #2c313b; --line-soft: #23272f;
     --high: #e0524f; --high-bg: rgba(224, 82, 79, .16);
     --medium: #e0a23a; --medium-bg: rgba(224, 162, 58, .16);
-    --good: #7fd17f; --good-bg: rgba(120, 200, 120, .16);
+    --good: #7fd17f; --good-bg: rgba(120, 200, 120, .16); --go: #7fd17f; --go-ink: #10240f;
     --accent: #8a7cff; --accent-2: #35d6c4; --accent-soft: rgba(138, 124, 255, .16); --accent-ink: #130f26;
     --font-mono: ui-monospace, "Cascadia Code", Consolas, "SFMono-Regular", Menlo, monospace;
     /* ---- control metrics: one height for everything that shares a line ---- */
@@ -34,6 +34,7 @@
     --area-history: #f472b6; --area-history-soft: rgba(244, 114, 182, .16);
     --area-channels: #4dd0c8; --area-channels-soft: rgba(77, 208, 200, .16);
     --area-settings: #b083f0; --area-settings-soft: rgba(176, 131, 240, .16);
+    --area-system: #7fa7d9; --area-system-soft: rgba(127, 167, 217, .16);
     --area-home: #8a7cff; --area-home-soft: rgba(138, 124, 255, .16);
     --area-profile: #38bdf8; --area-profile-soft: rgba(56, 189, 248, .16);
     --area-signups: #4ade80; --area-signups-soft: rgba(74, 222, 128, .16);
@@ -68,9 +69,18 @@
     /* ---- Roster (rosters.css): member status - Stamm, Probe, Ersatz, Pause ---- */
     --rn-core: #a3e635; --rn-trial: #fbbf24; --rn-bench: #60a5fa; --rn-pause: #94a3b8;
     /* attendance per night (#677, lib/roster/attendanceStatus.ts): present/bench filled, the missed ones as rings; lightness differs, a letter rides along */
-    --att-present: #4ade80; --att-bench: #3b82f6; --att-vacation: #a78bfa; --att-absence: #f59e0b; --att-nosignup: #6b7280; --att-noshow: #f87171; --att-ink: #0b0f14;
-    /* ---- game versions (#563): the dot of the content switch, and the archive banner of a hidden version ---- */
-    --ver-forever: #35d6c4; --ver-tbc: #e0a23a; --ver-classic: #b0b8c4;
+    --att-present: #4ade80; --att-bench: #3b82f6; --att-vacation: #a78bfa; --att-absence: #f59e0b; --att-nosignup: #6b7280; --att-noshow: #f87171; --att-tentative: #2dd4bf; --att-ink: #0b0f14;
+    /* ---- game versions (#563, #742): the colour of a version is the whole accent while it is shown (see the end of the file).
+       The defaults here are the rule sets' colours (config/gameVersions/<id>.js); a colour changed in Einstellungen → Spielversion
+       arrives as --vc-<id>-dark / -light / -ink-dark / -ink-light (lib/app/versionColor.ts) and wins. Every default reaches 4.5:1
+       as text on every panel of its theme, and its ink 4.5:1 on it (lib/app/versionColor.test.ts). ---- */
+    --ver-forever: var(--vc-forever-dark, #4da3ff); --ver-forever-ink: var(--vc-forever-ink-dark, #0b0f14);
+    --ver-tbc: var(--vc-tbc-dark, #9bd45a); --ver-tbc-ink: var(--vc-tbc-ink-dark, #0b0f14);
+    --ver-classic: var(--vc-classic-dark, #9fb0c8); --ver-classic-ink: var(--vc-classic-ink-dark, #0b0f14);
+    --accent-soft-alpha: 16%;
+    /* the orga marking (#732) is teal whichever version is shown; it has its own token, not --accent-2 */
+    --orga-teal: #35d6c4;
+    /* the archive banner of a hidden version */
     --archive-ink: #f0c27a; --archive-text: #c9b28a; --archive-bg: rgba(224, 162, 58, .10); --archive-line: rgba(224, 162, 58, .35);
     /* ---- the same in both themes: ink on a coloured fill, shadows, overlays ---- */
     --on-fill: #fff; --on-good: #10240f; --on-medium: #1c1305;
@@ -85,6 +95,8 @@
     /* WoW item quality; on the light theme epic and uncommon get a darker shade */
     --q-uncommon: #1eff00; --q-rare: #0070dd; --q-epic: #a335ee; --q-legendary: #ff8000;
     --q-uncommon-light: #178a00; --q-epic-light: #7b1fc4;
+    /* Dungeon-Bestzeiten: the three medals of the LevelHelper addon, as small square fields */
+    --medal-gold: #e2b53b; --medal-silver: #c4ccd6; --medal-bronze: #c57f4a;
     /* loot council: a worn item without enchant, the third need step */
     --worn-alert: #e5484d; --lc-need-3: #5badde;
     /* Mein Profil: one colour per weekday, and its darker shade for text on light */
@@ -144,7 +156,7 @@
         --text: #1b1e27; --muted: #5b616e; --line: #dde1eb; --line-soft: #e8ebf2;
         --high: #cf3b37; --high-bg: rgba(207, 59, 55, .12);
         --medium: #9a6c12; --medium-bg: rgba(154, 108, 18, .14);
-        --good: #2b9440; --good-bg: rgba(43, 148, 64, .12);
+        --good: #2b9440; --good-bg: rgba(43, 148, 64, .12); --go: #23802f; --go-ink: #fff;
         --accent: #6a4fe0; --accent-2: #0f8f82; --accent-soft: rgba(106, 79, 224, .10); --accent-ink: #ffffff;
         --ctl-arrow: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b616e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
         --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a4fe0' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
@@ -154,6 +166,7 @@
         --area-history: #c23f8f; --area-history-soft: rgba(194, 63, 143, .12);
         --area-channels: #1f978c; --area-channels-soft: rgba(31, 151, 140, .12);
         --area-settings: #7c4fd6; --area-settings-soft: rgba(124, 79, 214, .12);
+        --area-system: #3f6fae; --area-system-soft: rgba(63, 111, 174, .12);
         --area-home: #6a4fe0; --area-home-soft: rgba(106, 79, 224, .12);
         --area-profile: #0e7fb8; --area-profile-soft: rgba(14, 127, 184, .12);
         --area-signups: #16a34a; --area-signups-soft: rgba(22, 163, 74, .12);
@@ -180,10 +193,15 @@
         --ab-away: #c2410c; --ab-away-soft: rgba(234, 88, 12, .12); --ab-away-ink: #ffffff;
         --rn-core: #4d7c0f; --rn-trial: #b45309; --rn-bench: #2563eb; --rn-pause: #64748b;
         /* attendance per night (#677, lib/roster/attendanceStatus.ts): present/bench filled, the missed ones as rings; lightness differs, a letter rides along */
-        --att-present: #2b9440; --att-bench: #1d4ed8; --att-vacation: #7c3aed; --att-absence: #b45309; --att-nosignup: #9aa3b2; --att-noshow: #dc2626; --att-ink: #ffffff;
-        --ver-forever: #0f8f82; --ver-tbc: #9a6c12; --ver-classic: #5b616e;
+        --att-present: #2b9440; --att-bench: #1d4ed8; --att-vacation: #7c3aed; --att-absence: #b45309; --att-nosignup: #9aa3b2; --att-noshow: #dc2626; --att-tentative: #0f766e; --att-ink: #ffffff;
+        --ver-forever: var(--vc-forever-light, #1a65c4); --ver-forever-ink: var(--vc-forever-ink-light, #ffffff);
+        --ver-tbc: var(--vc-tbc-light, #47711a); --ver-tbc-ink: var(--vc-tbc-ink-light, #ffffff);
+        --ver-classic: var(--vc-classic-light, #4a5a73); --ver-classic-ink: var(--vc-classic-ink-light, #ffffff);
+        --accent-soft-alpha: 10%;
+        --orga-teal: #0f8f82;
         --archive-ink: #7a5208; --archive-text: #6b5424; --archive-bg: rgba(154, 108, 18, .08); --archive-line: rgba(154, 108, 18, .35);
         --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
+        --medal-gold: #b88a12; --medal-silver: #8792a0; --medal-bronze: #a5622f;
         /* role group areas (#559): the board stays a dark picture, only the badge's shadow is softer on a light page */
         --rp-area-badge-bg: rgba(18, 22, 26, .92); --rp-area-badge-ink: #f1f3f8; --rp-area-badge-shadow: rgba(0, 0, 0, .3); --rp-area-calm-fill: .33; --rp-area-line: .6;
     }
@@ -193,7 +211,7 @@
     --text: #1b1e27; --muted: #5b616e; --line: #dde1eb; --line-soft: #e8ebf2;
     --high: #cf3b37; --high-bg: rgba(207, 59, 55, .12);
     --medium: #9a6c12; --medium-bg: rgba(154, 108, 18, .14);
-    --good: #2b9440; --good-bg: rgba(43, 148, 64, .12);
+    --good: #2b9440; --good-bg: rgba(43, 148, 64, .12); --go: #23802f; --go-ink: #fff;
     --accent: #6a4fe0; --accent-2: #0f8f82; --accent-soft: rgba(106, 79, 224, .10); --accent-ink: #ffffff;
     --ctl-arrow: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b616e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a4fe0' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
@@ -203,6 +221,7 @@
     --area-history: #c23f8f; --area-history-soft: rgba(194, 63, 143, .12);
     --area-channels: #1f978c; --area-channels-soft: rgba(31, 151, 140, .12);
     --area-settings: #7c4fd6; --area-settings-soft: rgba(124, 79, 214, .12);
+    --area-system: #3f6fae; --area-system-soft: rgba(63, 111, 174, .12);
     --area-home: #6a4fe0; --area-home-soft: rgba(106, 79, 224, .12);
     --area-profile: #0e7fb8; --area-profile-soft: rgba(14, 127, 184, .12);
     --area-signups: #16a34a; --area-signups-soft: rgba(22, 163, 74, .12);
@@ -229,10 +248,32 @@
     --ab-away: #c2410c; --ab-away-soft: rgba(234, 88, 12, .12); --ab-away-ink: #ffffff;
     --rn-core: #4d7c0f; --rn-trial: #b45309; --rn-bench: #2563eb; --rn-pause: #64748b;
     /* attendance per night (#677, lib/roster/attendanceStatus.ts): present/bench filled, the missed ones as rings; lightness differs, a letter rides along */
-    --att-present: #2b9440; --att-bench: #1d4ed8; --att-vacation: #7c3aed; --att-absence: #b45309; --att-nosignup: #9aa3b2; --att-noshow: #dc2626; --att-ink: #ffffff;
-    --ver-forever: #0f8f82; --ver-tbc: #9a6c12; --ver-classic: #5b616e;
+    --att-present: #2b9440; --att-bench: #1d4ed8; --att-vacation: #7c3aed; --att-absence: #b45309; --att-nosignup: #9aa3b2; --att-noshow: #dc2626; --att-tentative: #0f766e; --att-ink: #ffffff;
+    --ver-forever: var(--vc-forever-light, #1a65c4); --ver-forever-ink: var(--vc-forever-ink-light, #ffffff);
+    --ver-tbc: var(--vc-tbc-light, #47711a); --ver-tbc-ink: var(--vc-tbc-ink-light, #ffffff);
+    --ver-classic: var(--vc-classic-light, #4a5a73); --ver-classic-ink: var(--vc-classic-ink-light, #ffffff);
+    --accent-soft-alpha: 10%;
+    --orga-teal: #0f8f82;
     --archive-ink: #7a5208; --archive-text: #6b5424; --archive-bg: rgba(154, 108, 18, .08); --archive-line: rgba(154, 108, 18, .35);
         --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
+        --medal-gold: #b88a12; --medal-silver: #8792a0; --medal-bronze: #a5622f;
         /* role group areas (#559): the board stays a dark picture, only the badge's shadow is softer on a light page */
         --rp-area-badge-bg: rgba(18, 22, 26, .92); --rp-area-badge-ink: #f1f3f8; --rp-area-badge-shadow: rgba(0, 0, 0, .3); --rp-area-calm-fill: .33; --rp-area-line: .6;
+}
+
+/* ---- the accent follows the version (#742, variant B) ----
+   <html data-version> is set by components/shell/ContentVersionProvider (and left off on
+   a version-neutral page: Einstellungen, Systemstatus, Kanäle, see menu.json), so those keep
+   the brand violet above. Last in the file on purpose: it has the specificity of the light
+   blocks and must win over their --accent. Soft tint, hover and focus are derived from the one
+   colour. --accent-2 (the second hue) and --orga-teal (the orga marking) do not follow. */
+:root[data-version="forever"] { --version-color: var(--ver-forever); --version-ink: var(--ver-forever-ink); }
+:root[data-version="tbc"] { --version-color: var(--ver-tbc); --version-ink: var(--ver-tbc-ink); }
+:root[data-version="classic"] { --version-color: var(--ver-classic); --version-ink: var(--ver-classic-ink); }
+:root[data-version="forever"], :root[data-version="tbc"], :root[data-version="classic"] {
+    --accent: var(--version-color);
+    --accent-ink: var(--version-ink);
+    --accent-soft: color-mix(in srgb, var(--version-color) var(--accent-soft-alpha), transparent);
+    /* Uebersicht is the one area hue that is the brand accent itself: its menu line and tiles follow; the other areas keep their spectrum hue */
+    --area-home: var(--version-color); --area-home-soft: var(--accent-soft);
 }

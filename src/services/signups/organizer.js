@@ -9,6 +9,9 @@ const signupStore = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
 const { listReports, getReportRoster } = require("../../stores/reportStore");
 const { accountCount } = require("../../utils/signup/capacity");
+const { recordVersion } = require("../logcheck/logVersion");
+const { isVersionVisible } = require("../events/mainVersion");
+const { LEGACY_VERSION } = require("../../config/gameVersions");
 
 /** How many of the newest evaluations "Evaluation" looks through. */
 const MAX_REPORTS = 40;
@@ -40,15 +43,27 @@ function signupOf(eventId, userId) {
 /**
  * The newest evaluation one of a raider's profile characters is in:
  * `{ id, title, generatedAt, character, idx }` (`idx` = their place in the
- * roster, the player page's index), or null. Matched by name alone: a
- * profile key carries the game version ("forever~devi res", #543), a log's
- * roster only the name.
+ * roster, the player page's index), or null. Matched by name: a profile key
+ * carries the game version ("forever~devi res", #543), a log's roster only
+ * the name - but only against an evaluation of the character's own version
+ * (#741: a TBC log is no evaluation of the Forever character of that name),
+ * and never one of a version hidden in the settings (#563).
  */
-function latestReportFor(userId, { maxReports = MAX_REPORTS } = {}) {
+function latestReportFor(userId, { maxReports = MAX_REPORTS, config } = {}) {
     const profile = profiles.getProfile(str(userId));
-    const names = new Set(((profile && profile.characters) || []).map((c) => profiles.nameKey(c.key)).filter(Boolean));
-    if (!names.size) return null;
+    const namesOf = new Map();
+    for (const c of (profile && profile.characters) || []) {
+        const key = profiles.nameKey(c.key);
+        if (!key) continue;
+        const v = c.versionId || LEGACY_VERSION;
+        if (!namesOf.has(v)) namesOf.set(v, new Set());
+        namesOf.get(v).add(key);
+    }
+    if (!namesOf.size) return null;
     for (const meta of listReports().slice(0, maxReports)) {
+        const versionId = recordVersion(meta);
+        const names = namesOf.get(versionId);
+        if (!names || !isVersionVisible(versionId, config)) continue;
         const report = getReportRoster(meta.id);
         const roster = (report && report.roster) || [];
         const idx = roster.findIndex((p) => p && names.has(profiles.nameKey(p.name)));

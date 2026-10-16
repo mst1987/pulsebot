@@ -275,8 +275,13 @@ describe("stores/settingsStore", () => {
 
         it("stores attendance per category as a diff from the defaults, and drops one set back", () => {
             expect(getConfig().categoryAttendance).toEqual({});
-            saveConfig({ categoryAttendance: { pug: { show: false, window: 8 }, guild: { window: 16, absences: false }, odd: { window: 5 } } });
-            expect(getConfig().categoryAttendance).toEqual({ pug: { show: false, window: 8 }, guild: { window: 16, absences: false } });
+            // any whole number from 1 to 50 is kept; zero, too many, a fraction or text fall back to the default (and drop out)
+            saveConfig({ categoryAttendance: {
+                pug: { show: false, window: 8 }, guild: { window: 16, absences: false }, odd: { window: 5 }, wide: { window: 50 },
+                zero: { window: 0 }, many: { window: 51 }, half: { window: 7.5 }, text: { window: "x" },
+            } });
+            expect(getConfig().categoryAttendance).toEqual({ pug: { show: false, window: 8 }, guild: { window: 16, absences: false }, odd: { window: 5 }, wide: { window: 50 } });
+            saveConfig({ categoryAttendance: { odd: { window: 11 }, wide: { window: 11 } } });
             saveConfig({ categoryAttendance: { pug: { show: true, window: 11, absences: true } } });
             expect(getConfig().categoryAttendance).toEqual({ guild: { window: 16, absences: false } });
         });

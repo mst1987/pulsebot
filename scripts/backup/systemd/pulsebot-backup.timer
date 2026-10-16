@@ -1,0 +1,14 @@
+# Starts pulsebot-backup.service every night (#692). No permanent process:
+# restic runs only during the service and ends afterwards.
+[Unit]
+Description=Nightly PulseBot off-site backup
+
+[Timer]
+# 03:30 server time plus up to 20 minutes of random delay
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=20min
+# A run missed while the server was off happens at the next boot
+Persistent=true
+
+[Install]
+WantedBy=timers.target

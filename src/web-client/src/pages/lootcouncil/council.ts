@@ -3,7 +3,7 @@
 // from the components so both routes (/lootcouncil and /lootcouncil/drop/:id)
 // import the same rules instead of two copies drifting apart.
 import { useCallback, useRef, useState } from "react";
-import { runCouncilSim, type LootCouncilData, type CouncilCandidate, type SimResult, type WornItem } from "../../api";
+import { runCouncilSim, type CouncilContent, type CouncilSimScope, type LootCouncilData, type CouncilCandidate, type SimResult, type WornItem } from "../../api";
 import { useJobs } from "../../components/shell/Jobs";
 import { t, tOr } from "../../i18n";
 import type { Dir } from "../../lib/ui/tableSort";
@@ -15,6 +15,8 @@ export type FilterView = {
     tiers: string[];
     contents: string[];
     category: string;
+    /** The roster the council works for (#676), wins over category; "" = none. */
+    roster?: string;
     bisTier: string;
     /** The game version filter (#545): "" = the main version, "all" = every one. */
     version?: string;
@@ -25,7 +27,7 @@ export type FilterView = {
 /** The key the council's view is stored under — the drop check reads the same filters. */
 export const VIEW_KEY = "lootcouncil.view";
 
-export const FILTER_DEFAULT: FilterView = { role: "caster", tiers: [], contents: [], category: "", bisTier: "", version: "", bench: false };
+export const FILTER_DEFAULT: FilterView = { role: "caster", tiers: [], contents: [], category: "", roster: "", bisTier: "", version: "", bench: false };
 
 // Wie die Rollen am Raider heißen, und ihr Icon im Segment. Der Name wird beim
 // Rendern übersetzt (lootcouncil.role.*); eine unbekannte Rolle zeigt `fallback`.
@@ -59,6 +61,16 @@ export const WOWHEAD = (id: number, path: string = LEGACY_WOWHEAD_PATH) => wowhe
  * `?raider=<name>`, so the drop check (or a message in Discord) leads straight there.
  */
 export const raiderHref = (character: string) => `/lootcouncil?raider=${encodeURIComponent(character)}`;
+
+/**
+ * The council of one pick (Oct 2026: the pick lives in the url, plain /lootcouncil is the tile
+ * overview): `?roster=<id>`, else `?category=<id>`, else the overview.
+ */
+export function councilHref(pick: { roster?: string; category?: string }): string {
+    if (pick.roster) return `/lootcouncil?roster=${encodeURIComponent(pick.roster)}`;
+    if (pick.category) return `/lootcouncil?category=${encodeURIComponent(pick.category)}`;
+    return "/lootcouncil";
+}
 
 /** The drop check for one item — its own route, so a drop can be shared as a link. */
 export const dropHref = (itemId?: number) => (itemId ? `/lootcouncil/drop/${itemId}` : "/lootcouncil/drop");
@@ -175,14 +187,20 @@ type Subject = { key: string; specKey: string };
  * that drop's candidates when a drop is checked — the difference between
  * minutes and seconds. Results are merged, not replaced: simulating one drop
  * must not throw away the deltas of the BiS run somebody started earlier.
+ *
+ * `scope` is the council view (roster, category, content version): the server
+ * reads the game version from it and refuses one without "Simulation" (#745).
  */
-export function useCouncilSim() {
+export function useCouncilSim(scope: CouncilSimScope = {}) {
     const jobs = useJobs();
     const [sim, setSim] = useState<SimResult | null>(null);
     const [simRunning, setSimRunning] = useState(false);
     // The same flag as a ref, so an automatic run (the drop check) cannot start
     // a second simulation while one is going.
     const simBusy = useRef(false);
+    // The view of the moment, read when a run starts (runSim keeps its identity).
+    const scopeRef = useRef(scope);
+    scopeRef.current = scope;
 
     const runSim = useCallback(async (items: number[], subjects: Subject[], what = "") => {
         if (simBusy.current || !subjects.length) return;
@@ -206,7 +224,7 @@ export function useCouncilSim() {
             (update) => runCouncilSim(id, subjects, items, (job) => update({
                 progress: job.total ? (job.progress ?? 0) / job.total : undefined,
                 detail: t("lootcouncil.sim.progress", { detail, done: job.progress ?? 0, total: job.total ?? total }),
-            })),
+            }), scopeRef.current),
         );
         simBusy.current = false;
         setSimRunning(false);
@@ -283,4 +301,9 @@ export function rosterNote(data: LootCouncilData): { label: string; head: string
         head: t("lootcouncil.rosterSource.head", { name: src.name }),
         sub: parts.join(" "),
     };
+}
+
+/** The content data the council's version has (#748); an answer without the field is the full TBC council. */
+export function councilContent(data: Pick<LootCouncilData, "content"> | null | undefined): CouncilContent {
+    return (data && data.content) || { bis: true, sim: true, tiers: true, itemTable: true };
 }

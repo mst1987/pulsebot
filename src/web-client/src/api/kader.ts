@@ -52,15 +52,20 @@ export type KaderCharacter = {
 /** One counted night; status = the attendance code (#677, present/bench count), reason the server's German word. */
 export type KaderNight = { date: string; title: string; attended: boolean; status?: AttendanceStatus; reason: string | null };
 /** One raid category's last nights for an account (rosterAttendance.js: the last 11 with a signup or a log). */
-export type KaderCategoryAttendance = { attended: number; counted: number; nights: KaderNight[] };
+export type KaderCategoryAttendance = { attended: number; counted: number; /** the version the category plays (its nights are that version's) */ versionId?: string; nights: KaderNight[] };
 /**
  * A player's attendance per raid category id — only the categories that counted
  * a night for the account; null when none did. The page sums the Kader's pick
  * (lib/kader/model.ts attendanceOf).
  */
 export type KaderAttendance = Record<string, KaderCategoryAttendance> | null;
-/** A raid category of the server: a Discord category with raid events, the game version it plays, the nights it counts. */
-export type KaderRaidCategory = { id: string; name: string; versionId: string; versionLabel: string; nights: number };
+/**
+ * A raid category of the server: a Discord category with raid events, the game
+ * version it plays (any version: a Forever Kader may count its players' TBC
+ * nights), whether that version is hidden ("archiviert"), the nights it counts -
+ * null while no Kader picked a category of that version (counted once picked).
+ */
+export type KaderRaidCategory = { id: string; name: string; versionId: string; versionLabel: string; hidden?: boolean; nights: number | null };
 
 /** The character a player is prefilled with, and where it comes from ("fehlt" when null). */
 export type KaderPrefill = { name: string; className: string; spec: string; source: "planner" | "profile" | "logs"; versionId: string } | null;
@@ -94,6 +99,8 @@ export type KaderPlayer = {
     prefill: KaderPrefill;
     pickable: KaderPickable[];
     availability: KaderDay[];
+    /** "ab HH:MM" per chosen day from the raider's profile; a day without = the whole evening. */
+    availabilityFrom?: Partial<Record<KaderDay, string>>;
     attendance: KaderAttendance;
     /** The revision of the planner's character data (0 = none of its own) and who changed it last (the account dialog's conflict check). */
     rev?: number;
@@ -140,7 +147,7 @@ export type KaderEntry = {
 export type KaderOption = { id: string; label: string; color?: string };
 export type KaderQuestion = { id: string; text: string; type: KaderQuestionType; options: KaderOption[]; required: boolean; rev?: number };
 export type KaderSlot = { userId: string; spec: string } | null;
-export type KaderVariant = { id: string; name: string; size: 10 | 20; groups: KaderSlot[][] };
+export type KaderVariant = { id: string; name: string; size: number; groups: KaderSlot[][] };
 
 export type KaderData = {
     id: string;
@@ -148,6 +155,8 @@ export type KaderData = {
     leads: string[];
     createdAt: string;
     createdBy: string;
+    /** The game version the Kader is for (#741): the page lists it only under that version. */
+    versionId?: string;
     /** The raid categories attendance counts in (empty: none picked yet, the page shows "—"). */
     attendanceCategories: string[];
     questions: KaderQuestion[];
@@ -202,7 +211,7 @@ export const isStale = (e: unknown): e is KaderStaleError => !!e && typeof e ===
 /** A save that names the revision it started from; `force` overwrites a newer one ("Trotzdem speichern"). */
 export type KaderBase = { baseRev?: number; force?: boolean };
 
-export type KaderSummary = { id: string; name: string; leads: string[]; createdAt: string; createdBy: string; counts: Record<KaderState, number>; questions: number };
+export type KaderSummary = { id: string; name: string; leads: string[]; createdAt: string; createdBy: string; versionId?: string; counts: Record<KaderState, number>; questions: number };
 
 export type KaderView = {
     versionId: string;
@@ -211,6 +220,8 @@ export type KaderView = {
     roles: KaderRole[];
     classes: KaderClassDef[];
     buffs: { raid: KaderRaidBuff[]; party: KaderPartyBuff[] };
+    /** the sizes an example setup can have (the raid sizes of the version's instances, #751); absent from an older server */
+    setupSizes?: number[];
     /** The server's raid categories, in Discord's order. */
     raidCategories: KaderRaidCategory[];
     players: KaderPlayer[];
@@ -255,8 +266,13 @@ export type KaderCharacterInput = {
 export type KaderInterviewPatch = { wishes?: KaderWish[]; answers?: Record<string, KaderAnswer>; note?: string; lead?: string };
 export type KaderQuestionInput = { text: string; type: KaderQuestionType; options: { id?: string; label: string; color?: string }[]; required: boolean };
 
-export function getKader(kaderId = ""): Promise<KaderView> {
-    return get<KaderView>(kaderId ? `/api/kader?kader=${encodeURIComponent(kaderId)}` : "/api/kader");
+export function getKader(kaderId = "", version = ""): Promise<KaderView> {
+    // `version`: the menu's content version (#741) — the picker lists its Kader only
+    const q = new URLSearchParams();
+    if (kaderId) q.set("kader", kaderId);
+    if (version) q.set("version", version);
+    const qs = q.toString();
+    return get<KaderView>(`/api/kader${qs ? `?${qs}` : ""}`);
 }
 
 /** Only the Kader as stored and the summaries: the light refetch after a change somebody else made inside it. */
@@ -289,8 +305,9 @@ export function leaveKaderLive(kaderId: string, where: KaderLiveWhere): void {
 }
 
 // ----- Kader
-export function createKader(name: string): Promise<KaderChange> {
-    return send("POST", "/api/kader/kaders", { name });
+/** A new Kader of `versionId` (#741: the version the page shows; "" = the planner's own). */
+export function createKader(name: string, versionId = ""): Promise<KaderChange> {
+    return send("POST", "/api/kader/kaders", versionId ? { name, versionId } : { name });
 }
 
 export function updateKader(kaderId: string, input: { name?: string; leads?: string[]; attendanceCategories?: string[] }): Promise<KaderChange> {
@@ -367,7 +384,7 @@ export function addKaderVariant(kaderId: string, input: { name?: string; copyFro
     return send("POST", "/api/kader/variants", { kaderId, ...input });
 }
 
-export function saveKaderVariant(kaderId: string, variantId: string, input: { name?: string; size?: 10 | 20; groups?: KaderSlot[][] }): Promise<KaderChange> {
+export function saveKaderVariant(kaderId: string, variantId: string, input: { name?: string; size?: number; groups?: KaderSlot[][] }): Promise<KaderChange> {
     return send("PUT", "/api/kader/variants", { kaderId, variantId, ...input });
 }
 
@@ -414,6 +431,8 @@ export type KaderRosterState = {
     canLink?: boolean;
     /** With canLink: the server's rosters to link to, suggested first (its category counts in the Kader's attendance). */
     rosters?: KaderLinkRoster[];
+    /** The linked roster runs as Loot-Council and the caller may open the council (#676): "Zum Loot-Council". */
+    lootCouncil?: boolean;
 };
 
 /** A roster the Kader can be linked to; `linkedKaderId` = another Kader holds it. */
@@ -435,8 +454,9 @@ export function syncKaderRoster(kaderId: string): Promise<{ rosterId: string; ad
 /** The raid categories a new roster can belong to (GET /api/rosters/options, full admins): those without a roster. */
 export type KaderRosterCategory = { id: string; name: string; rosterId: string | null };
 
-export function getKaderRosterCategories(): Promise<{ categories: KaderRosterCategory[] }> {
-    return get<{ categories: KaderRosterCategory[] }>("/api/rosters/options");
+export function getKaderRosterCategories(version = ""): Promise<{ categories: KaderRosterCategory[] }> {
+    // `version`: the Kader's game version (#741) - only the categories that play it
+    return get<{ categories: KaderRosterCategory[] }>(`/api/rosters/options${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 /** "Roster anlegen" from a Kader (POST /api/rosters/create, source "kader", full admins). */

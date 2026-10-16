@@ -1,6 +1,7 @@
 // "Anmeldungen" (#256): the member's upcoming raids and their own signup.
 //
-// GET /api/signups              area signup — upcoming events the caller may see, own status, profile
+// GET /api/signups              area signup — upcoming events the caller may sign up for (or did), own status, profile;
+//                               `?scope=all`: every raid, only for the orga (userIsOrga)
 // PUT /api/signups              area signup — the caller's own signup; body { eventId, characters[] | character+spec, status, canAlso, comment }
 // POST /api/signups/bulk        area signup — the caller for several raids at once (#293); body { eventIds[], characters[], status }
 //
@@ -12,29 +13,58 @@ const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups } = require("../../services/events/raidEventGroups");
 const { getConfig } = require("../../stores/settingsStore");
-const discord = require("../../services/discord/discord");
 const profiles = require("../../stores/raiderProfileStore");
 const { getEvent, isOwnEventId } = require("../../stores/eventStore");
 const { listSignups } = require("../../stores/signupStore");
 const { submitSignup, submitSignups, httpStatusFor, roleCounts } = require("../../services/signups/signupService");
-const { memberEventRows, profileForSignup, signupSummary } = require("../signups/signupView");
+const { memberEventList, profileForSignup, signupSummary } = require("../signups/signupView");
+const { viewerRoles } = require("../signups/viewerRoles");
 const { noteMode, isNoteStatus, MIN_NOTE } = require("../../services/signups/signupNotes");
-const { userCanAny } = require("../../config/permissions");
+const { userCanAny, userIsOrga } = require("../../config/permissions");
 const { VERSIONS } = require("../../config/gameVersions");
-const { mainVersionFor, classesOfVersion, visibleRows, versionOfEvent } = require("../../services/events/mainVersion");
+const { mainVersionFor, classesOfVersion, resolveVersionQuery, versionOfEvent } = require("../../services/events/mainVersion");
 
-/** GET /api/signups — the caller's upcoming raids, their status in each, and their characters. */
-const getSignups = withUser({}, async ({ user, req, res }) => {
+/**
+ * GET /api/signups[?version=<id>][&event=<id>] — the caller's upcoming raids of
+ * one game version (#741: the menu's content switch, else the main version),
+ * their status in each, and their characters. With `event` also that raid's
+ * version (`eventVersion`, "" when the caller has no such raid).
+ *
+ * Which raids: the ones the caller may sign up for plus the ones they signed
+ * up for (signupView.memberEventList) - for everybody, the orga too. The orga
+ * (userIsOrga - an area right makes nobody orga, raider roles read the raids
+ * as well) may ask for every raid with `scope=all` ("Alle Kategorien");
+ * `canShowAll` tells the page to offer the switch. `rolesUnknown`: the
+ * caller's Discord roles could not be read, raids with a raider role may be
+ * missing.
+ */
+const getSignups = withUser({}, async ({ user, req, res, url }) => {
     const guildId = activeGuildFor(req);
     const { groups, error: err } = await loadEventGroups(guildId);
-    const orga = userCanAny(user, ["raids"], "read");
-    const roleIds = orga ? null : await discord.memberRoleIds(guildId, user.id);
+    const canShowAll = userIsOrga(user);
+    const all = canShowAll && url && url.searchParams.get("scope") === "all";
+    const roles = await viewerRoles(guildId, user);
     const profile = profiles.getProfile(user.id);
     const config = getConfig();
+    // One version at a time (#741); with other versions hidden (#563) always the main one.
+    const { versionId } = resolveVersionQuery(url && url.searchParams.get("version"), { config });
+    const { rows, rolesUnknown } = memberEventList(groups, {
+        userId: user.id, guildId, config, roleIds: roles.roleIds, viewAs: roles.viewAs, all,
+        byOrga: userCanAny(user, ["raids"], "write"), profile,
+    });
+    // A link to one raid (`?event=`, the Discord post's button) names its version,
+    // so the page can switch to it when the menu shows another one.
+    const linkedId = String((url && url.searchParams.get("event")) || "").trim();
+    const linked = linkedId ? rows.find((e) => e.id === linkedId) : null;
     ok(res, {
-        // Other versions hidden (#563): only the raids of the main version.
-        events: visibleRows(memberEventRows(groups, { userId: user.id, guildId, config, roleIds, orga, profile }), (e) => versionOfEvent(e, { config }), config),
-        profile: profileForSignup(profile),
+        events: rows.filter((e) => versionOfEvent(e, { config }) === versionId),
+        version: versionId,
+        scope: all ? "all" : "mine",
+        canShowAll,
+        rolesUnknown: rolesUnknown && roles.unknown,
+        eventVersion: linked ? versionOfEvent(linked, { config }) : "",
+        // only the characters of the page's version (#741), like its raids
+        profile: profileForSignup(profile, { versionId }),
         // Class colour and icon for the character picker (#541): per version,
         // the dialog takes the list of the event's version; `classes` is the
         // main version's, for a row without one (Raid-Helper).

@@ -50,6 +50,16 @@ describe("services/discord/userAccess", () => {
         expect((await userAccess.computeAccess("stranger")).access.raids).toEqual({ read: false, write: false });
     });
 
+    it("marks a member holding an orga role as orga, a raider role with rights never", async () => {
+        getConfig.mockReturnValue({ orgaRoleIds: ["r-lead"], rolePermissions: { "r-mo": RAIDS_WRITE } });
+        clientWith(makeGuild({ id: "guild-1", members: [makeMember({ id: "lead", roleIds: ["r-lead"] }), makeMember({ id: "mo", roleIds: ["r-mo"] })] }));
+        // an orga role alone already asks Discord, even without any role rights
+        expect(await userAccess.computeAccess("lead")).toMatchObject({ isAdmin: false, isOrga: true });
+        const mo = await userAccess.computeAccess("mo");
+        expect(mo.isOrga).toBeUndefined();
+        expect(mo.access.raids).toEqual({ read: true, write: true });
+    });
+
     it("throws when no event server can be reached, resolveAccess falls back to the base access", async () => {
         getConfig.mockReturnValue({ rolePermissions: { "r-lead": RAIDS_WRITE }, baseAccess: { loot: { read: true } } });
         await expect(userAccess.computeAccess("u1")).rejects.toThrow("bot client or guild id not available");

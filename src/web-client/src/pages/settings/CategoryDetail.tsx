@@ -2,7 +2,7 @@ import { useRef, type KeyboardEvent, type ReactNode } from "react";
 import type { EventSource, PlanningMode, Role } from "../../api";
 import {
     signupNoteMode, noteChannelPick, signupNoteLabel, messageLook, titleSizeLabel, lootSystemLabel, lootToolLabel, planningOf, planningLabel, attendanceOf,
-    TITLE_SIZES, CATEGORY_TABS, ATTENDANCE_WINDOWS, type CategoryAttendance, type CategoryRow, type CategoryTab, type RaiderCharSummary,
+    validAttendanceWindow, signupCharactersOf, validSignupCharacters, TITLE_SIZES, CATEGORY_TABS, ATTENDANCE_WINDOW, SIGNUP_CHARACTERS, type CategoryAttendance, type CategoryRow, type CategoryTab, type RaiderCharSummary,
 } from "../../lib/settings/settingsLogic";
 import { tParts, t as translate, useT } from "../../i18n";
 import { Button } from "../../components/ui/Button";
@@ -10,16 +10,21 @@ import Badge from "../../components/ui/Badge";
 import Chip from "../../components/ui/Chip";
 import Segment from "../../components/ui/Segment";
 import WowIcon from "../../components/ui/WowIcon";
-import CategoryField from "./CategoryField";
+import NumberStepper from "../../components/ui/NumberStepper";
+import CategoryField, { CategorySubField } from "./CategoryField";
 import AvailabilityPanelRow, { type AvailabilityPanels } from "./AvailabilityPanelRow";
-import { CheckMark } from "../../components/ui/icons";
+import OrgaHubRow, { type OrgaHubs } from "./OrgaHubRow";
+import { ChannelsIcon, CheckMark, ClockIcon, CommentIcon, GiftIcon, RosterIcon, RowsIcon } from "../../components/ui/icons";
 
 // The expanded card of one raid category (Einstellungen → Kategorien), design
-// "B · Tabs in der Karte": its ~16 settings sorted into four tabs instead of two
-// loose columns — Anmeldung, Nachricht, Setup & Planung, Loot. Each setting is
-// one row: name | control | what it does (CategoryField). Which tab is open is
-// the list's state (one per category, the first by default); a tab without a
-// single field (a caller that leaves the callbacks out) is not offered.
+// "A · Sechs Tabs, jede Einstellung eine Karte": its ~18 settings sorted into six
+// tabs of at most five — Raider, Neue Events, Anmelde-Nachricht, Discord-Zentralen,
+// Setup & Planung, Loot. Each tab opens with one line on what it covers; each
+// setting is a card of its own (CategoryField): name and a one-line summary, the
+// control beside it, the full explanation behind the (i). The three attendance
+// settings share one card. Which tab is open is the list's state (one per
+// category, the first by default); a tab without a single field (a caller that
+// leaves the callbacks out) is not offered.
 
 export type CategorySheet = { url: string; name: string };
 
@@ -34,11 +39,17 @@ export type { CategoryTab };
 /** Everything configured per category, as CategoryMatrix receives it (see there for each field). */
 export type CategorySettings = {
     availabilityPanels?: AvailabilityPanels;
+    /** The Orga-Zentrale per category; missing = no row (an older caller, or the list failed to load). */
+    orgaHubs?: OrgaHubs;
     categorySignupNotes?: Record<string, string>;
     onSignupNotes?: (categoryId: string, mode: string) => void;
     categorySignupNoteChannel?: Record<string, string>;
     noteChannels?: { defaultId: string; channels: { id: string; name: string; category?: string }[] };
     onSignupNoteChannel?: (categoryId: string, channelId: string) => void;
+    /** Characters per signup (1..8); missing = 8. */
+    categorySignupCharacters?: Record<string, number>;
+    /** Missing = no "Charaktere je Anmeldung" card (an older caller). */
+    onSignupCharacters?: (categoryId: string, count: number) => void;
     raidTemplates?: CategoryRaidTemplates;
     categoryRoles: Record<string, string[]>;
     categoryLootTool: Record<string, string>;
@@ -103,9 +114,6 @@ const announceModes = () => [
     { value: "both", label: translate("settings.categories.announceMode.both") },
 ];
 
-// How many last raids the attendance quota counts (Abwesenheiten › Meine Anwesenheit, the setup tooltip).
-const attendanceWindows = () => ATTENDANCE_WINDOWS.map((n) => ({ value: String(n), label: String(n) }));
-
 // The message with "Vielleicht" / "Absagen" (src/web/signupNotes.js).
 const noteModes = () => ["required", "optional", "none"].map((value) => ({ value, label: signupNoteLabel(value) }));
 
@@ -118,6 +126,11 @@ const SIGNUP_SOURCES = [
     { value: "eventhelper", label: "EventHelper" },
 ];
 
+// The icon of each tab, in front of its name.
+const TAB_ICONS: Record<CategoryTab, ReactNode> = {
+    raider: <RosterIcon />, events: <ClockIcon />, message: <CommentIcon />, hubs: <ChannelsIcon />, plan: <RowsIcon />, loot: <GiftIcon />,
+};
+
 type Field = { key: string; node: ReactNode };
 
 /** A switch with its label hidden (the row names it). */
@@ -127,6 +140,39 @@ function Toggle({ checked, onChange, ariaLabel }: { checked: boolean; onChange: 
             <input type="checkbox" checked={checked} onChange={onChange} aria-label={ariaLabel} />
             <span className="switch-track"><span className="switch-thumb" /></span>
         </label>
+    );
+}
+
+/** What a stepper counts: its range, the check of a typed number and its labels (i18n keys). */
+type StepperKind = { min: number; max: number; valid: (n: number) => boolean; less: string; more: string; unit: string };
+
+// Over how many last raids the attendance quota counts (1..50).
+const QUOTA_STEPS: StepperKind = {
+    min: ATTENDANCE_WINDOW.min, max: ATTENDANCE_WINDOW.max, valid: validAttendanceWindow,
+    less: "settings.categories.attendanceWindowLess", more: "settings.categories.attendanceWindowMore", unit: "settings.categories.attendanceWindowUnit",
+};
+
+// How many characters one signup may name (1..8).
+const SIGNUP_CHAR_STEPS: StepperKind = {
+    min: SIGNUP_CHARACTERS.min, max: SIGNUP_CHARACTERS.max, valid: validSignupCharacters,
+    less: "settings.categories.signupCharsLess", more: "settings.categories.signupCharsMore", unit: "settings.categories.signupCharsUnit",
+};
+
+/**
+ * A number with − / + beside it, typed freely within its range (`kind`: the
+ * attendance quota by default, 1 to 50). A half-typed number ("" or "0" on the
+ * way to "5") stays in the field and is only handed over once it is valid;
+ * leaving the field shows the value that counts again.
+ */
+function QuotaStepper({ id, value, ariaLabel, onChange, kind = QUOTA_STEPS }: { id: string; value: number; ariaLabel: string; onChange: (n: number) => void; kind?: StepperKind }) {
+    const t = useT();
+    return (
+        <div className="cat-quota">
+            {/* the shared − value + (components/ui/NumberStepper): every valid keystroke goes to the draft */}
+            <NumberStepper id={id} value={value} min={kind.min} max={kind.max} editable commit="input" ariaLabel={ariaLabel}
+                lessLabel={t(kind.less)} moreLabel={t(kind.more)} onChange={(n) => { if (kind.valid(n)) onChange(n); }} />
+            <span className="note">{t(kind.unit)}</span>
+        </div>
     );
 }
 
@@ -143,7 +189,9 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
     const t = useT();
     const list = useRef<HTMLDivElement>(null);
     const name = cat.name;
-    const fields: Record<CategoryTab, Field[]> = { signup: signupFields(), message: messageFields(), plan: planFields(), loot: lootFields() };
+    const fields: Record<CategoryTab, Field[]> = {
+        raider: raiderFields(), events: eventFields(), message: messageFields(), hubs: hubFields(), plan: planFields(), loot: lootFields(),
+    };
     const offered = CATEGORY_TABS.filter((id) => fields[id].length > 0);
     const shown: CategoryTab = offered.includes(tab) ? tab : offered[0];
     const tabId = (id: CategoryTab) => `cat-${cat.id}-tab-${id}`;
@@ -161,17 +209,12 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
         if (buttons && buttons[to[e.key]]) buttons[to[e.key]].focus();
     };
 
-    function signupFields(): Field[] {
+    // Who belongs to the category, and how their attendance is counted.
+    function raiderFields(): Field[] {
         const out: Field[] = [];
-        const signupSource: EventSource = (s.categorySignupSource || {})[cat.id] || s.signupSourceDefault || "raidhelper";
-        out.push({ key: "source", node: (
-            <CategoryField label={t("settings.categories.newEvents")} sub={t("settings.categories.newEventsSub")}>
-                <Segment ariaLabel={t("settings.categories.newEventsAria", { name })} value={signupSource} onChange={(v) => s.onSignupSource(cat.id, v as EventSource)} options={SIGNUP_SOURCES} />
-            </CategoryField>
-        ) });
         const assigned = s.categoryRoles[cat.id] || [];
         out.push({ key: "roles", node: (
-            <CategoryField label={t("settings.categories.raiderRoles")} sub={t("settings.categories.raiderRolesSub")}>
+            <CategoryField label={t("settings.categories.raiderRoles")} sub={t("settings.categories.raiderRolesShort")} more={t("settings.categories.raiderRolesSub")}>
                 <div className="chip-row">
                     {roles.length ? roles.map((r) => {
                         const on = assigned.includes(r.id);
@@ -187,7 +230,7 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
         const saved = (s.savedCategoryRoles[cat.id] || []).length > 0;
         const openCount = summary ? summary.members - summary.assigned : 0;
         out.push({ key: "chars", node: (
-            <CategoryField label={t("settings.categories.chars")} sub={t("settings.categories.charsDetailSub")}>
+            <CategoryField label={t("settings.categories.chars")} sub={t("settings.categories.charsShort")} more={t("settings.categories.charsDetailSub")}>
                 <div className="rch-summary">
                     {summary && summary.members ? (
                         <>
@@ -204,34 +247,87 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
                 </div>
             </CategoryField>
         ) });
-        if (s.onSignupNotes) out.push({ key: "notes", node: notesField(s.onSignupNotes) });
-        if (s.availabilityPanels) out.push({ key: "panel", node: <AvailabilityPanelRow categoryId={cat.id} categoryName={name} panels={s.availabilityPanels} /> });
-        if (s.onAttendance) out.push(...attendanceFields(s.onAttendance));
+        if (s.onAttendance) out.push({ key: "attendance", node: attendanceField(s.onAttendance) });
         return out;
     }
 
-    // Abwesenheiten per category: whether its attendance is shown, over how many raids, and whether it is in the overview.
-    function attendanceFields(onAttendance: (categoryId: string, value: CategoryAttendance) => void): Field[] {
+    // Abwesenheiten per category in one card: whether its attendance is shown, over how many raids, and whether it is in the overview.
+    function attendanceField(onAttendance: (categoryId: string, value: CategoryAttendance) => void) {
         const att = attendanceOf(s.categoryAttendance, cat.id);
         const set = (change: Partial<CategoryAttendance>) => onAttendance(cat.id, { ...att, ...change });
-        const out: Field[] = [{ key: "attendance", node: (
-            <CategoryField label={t("settings.categories.attendance")} sub={t("settings.categories.attendanceSub")}>
-                <Toggle checked={att.show} onChange={() => set({ show: !att.show })} ariaLabel={t("settings.categories.attendanceAria", { name })} />
+        return (
+            <CategoryField label={t("settings.categories.attendanceBlock")} sub={t("settings.categories.attendanceBlockShort")}>
+                <div className="cat-subfields">
+                    <CategorySubField label={t("settings.categories.attendance")} sub={t("settings.categories.attendanceShort")} more={t("settings.categories.attendanceSub")}>
+                        <Toggle checked={att.show} onChange={() => set({ show: !att.show })} ariaLabel={t("settings.categories.attendanceAria", { name })} />
+                    </CategorySubField>
+                    {att.show && (
+                        <CategorySubField label={t("settings.categories.attendanceWindow")} htmlFor={`catquota-${cat.id}`}
+                            sub={t("settings.categories.attendanceWindowShort")} more={t("settings.categories.attendanceWindowSub")}>
+                            <QuotaStepper id={`catquota-${cat.id}`} value={att.window} ariaLabel={t("settings.categories.attendanceWindowAria", { name })}
+                                onChange={(n) => set({ window: n })} />
+                        </CategorySubField>
+                    )}
+                    <CategorySubField label={t("settings.categories.absences")} sub={t("settings.categories.absencesShort")} more={t("settings.categories.absencesSub")}>
+                        <Toggle checked={att.absences} onChange={() => set({ absences: !att.absences })} ariaLabel={t("settings.categories.absencesAria", { name })} />
+                    </CategorySubField>
+                </div>
             </CategoryField>
-        ) }];
-        if (att.show) {
-            out.push({ key: "attendanceWindow", node: (
-                <CategoryField label={t("settings.categories.attendanceWindow")} sub={t("settings.categories.attendanceWindowSub")}>
-                    <Segment ariaLabel={t("settings.categories.attendanceWindowAria", { name })} value={String(att.window)}
-                        onChange={(v) => set({ window: Number(v) })} options={attendanceWindows()} />
+        );
+    }
+
+    // What happens when a new event of the category is created.
+    function eventFields(): Field[] {
+        const out: Field[] = [];
+        const { raidTemplates, onVoiceChannel, onAnnounce, onDiscordEvent } = s;
+        const signupSource: EventSource = (s.categorySignupSource || {})[cat.id] || s.signupSourceDefault || "raidhelper";
+        out.push({ key: "source", node: (
+            <CategoryField label={t("settings.categories.newEvents")} sub={t("settings.categories.newEventsShort")} more={t("settings.categories.newEventsSub")}>
+                <Segment ariaLabel={t("settings.categories.newEventsAria", { name })} value={signupSource} onChange={(v) => s.onSignupSource(cat.id, v as EventSource)} options={SIGNUP_SOURCES} />
+            </CategoryField>
+        ) });
+        if (raidTemplates) {
+            out.push({ key: "template", node: (
+                <CategoryField label={t("settings.categories.template")} htmlFor={`cattpl-${cat.id}`} sub={t("settings.categories.templateShort")} more={t("settings.categories.templateSub")}>
+                    <select id={`cattpl-${cat.id}`} value={raidTemplates.value[cat.id] || ""} onChange={(e) => raidTemplates.onChange(cat.id, e.target.value)}>
+                        <option value="">{t("settings.categories.noTemplate")}</option>
+                        {raidTemplates.options.map((tpl) => <option key={tpl.id} value={tpl.id}>{tpl.name || t("settings.noName")}</option>)}
+                    </select>
                 </CategoryField>
             ) });
         }
-        out.push({ key: "absences", node: (
-            <CategoryField label={t("settings.categories.absences")} sub={t("settings.categories.absencesSub")}>
-                <Toggle checked={att.absences} onChange={() => set({ absences: !att.absences })} ariaLabel={t("settings.categories.absencesAria", { name })} />
-            </CategoryField>
-        ) });
+        if (onVoiceChannel) {
+            const voiceChannels = s.voiceChannels || [];
+            out.push({ key: "voice", node: (
+                <CategoryField label={t("settings.categories.voice")} htmlFor={voiceChannels.length ? `catvoice-${cat.id}` : undefined}
+                    sub={t("settings.categories.voiceShort")} more={t("settings.categories.voiceSub")}>
+                    {voiceChannels.length ? (
+                        <select id={`catvoice-${cat.id}`} value={(s.categoryVoiceChannel || {})[cat.id] || ""} onChange={(e) => onVoiceChannel(cat.id, e.target.value)}>
+                            <option value="">{t("settings.categories.noVoiceOption")}</option>
+                            {voiceChannels.map((c) => <option key={c.id} value={c.id}>{c.name}{c.category ? ` · ${c.category}` : ""}</option>)}
+                        </select>
+                    ) : <span className="note">{t("settings.categories.noVoice")}</span>}
+                </CategoryField>
+            ) });
+        }
+        if (onAnnounce) {
+            const entry = (s.categoryAnnounce || {})[cat.id];
+            out.push({ key: "announce", node: (
+                <CategoryField label={t("settings.categories.announce")} sub={t("settings.categories.announceShort")} more={t("settings.categories.announceSub")}>
+                    <Segment ariaLabel={t("settings.categories.announceAria", { name })}
+                        value={entry && entry.enabled ? (entry.target || "event") : ""}
+                        onChange={(v) => onAnnounce(cat.id, v)} options={announceModes()} />
+                </CategoryField>
+            ) });
+        }
+        if (onDiscordEvent) {
+            const on = (s.categoryDiscordEvent || {})[cat.id] === true;
+            out.push({ key: "discordEvent", node: (
+                <CategoryField label={t("settings.categories.discordEvent")} sub={t("settings.categories.discordEventShort")} more={t("settings.categories.discordEventSub")}>
+                    <Toggle checked={on} onChange={() => onDiscordEvent(cat.id, !on)} ariaLabel={t("settings.categories.discordEventAria", { name })} />
+                </CategoryField>
+            ) });
+        }
         return out;
     }
 
@@ -258,7 +354,7 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
             );
         }
         return (
-            <CategoryField label={t("settings.categories.notes")} sub={t("settings.categories.notesSub")}>
+            <CategoryField label={t("settings.categories.notes")} sub={t("settings.categories.notesShort")} more={t("settings.categories.notesSub")}>
                 <Segment ariaLabel={t("settings.categories.notesAria", { name })} value={mode}
                     onChange={(v) => onSignupNotes(cat.id, v)} options={noteModes()} />
                 {channelPicker}
@@ -266,89 +362,61 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
         );
     }
 
+    // How the signup message in the channel looks, and what its buttons ask.
     function messageFields(): Field[] {
         const out: Field[] = [];
-        const { onAnnounce, onDiscordEvent, onMessageLook, onVoiceChannel, onLanguage } = s;
+        const { onMessageLook, onLanguage, onSignupNotes, onSignupCharacters } = s;
         if (onLanguage) {
             out.push({ key: "language", node: (
-                <CategoryField label={t("settings.categories.language")} sub={t("settings.categories.languageSub")}>
+                <CategoryField label={t("settings.categories.language")} sub={t("settings.categories.languageShort")} more={t("settings.categories.languageSub")}>
                     <Segment ariaLabel={t("settings.categories.languageAria", { name })} value={(s.categoryLanguage || {})[cat.id] || ""}
                         onChange={(v) => onLanguage(cat.id, v)} options={languageModes()} />
-                </CategoryField>
-            ) });
-        }
-        if (onAnnounce) {
-            const entry = (s.categoryAnnounce || {})[cat.id];
-            out.push({ key: "announce", node: (
-                <CategoryField label={t("settings.categories.announce")} sub={t("settings.categories.announceSub")}>
-                    <Segment ariaLabel={t("settings.categories.announceAria", { name })}
-                        value={entry && entry.enabled ? (entry.target || "event") : ""}
-                        onChange={(v) => onAnnounce(cat.id, v)} options={announceModes()} />
-                </CategoryField>
-            ) });
-        }
-        if (onDiscordEvent) {
-            const on = (s.categoryDiscordEvent || {})[cat.id] === true;
-            out.push({ key: "discordEvent", node: (
-                <CategoryField label={t("settings.categories.discordEvent")} sub={t("settings.categories.discordEventSub")}>
-                    <Toggle checked={on} onChange={() => onDiscordEvent(cat.id, !on)} ariaLabel={t("settings.categories.discordEventAria", { name })} />
                 </CategoryField>
             ) });
         }
         if (onMessageLook) {
             const look = messageLook(s.categoryMessageLook, cat.id);
             out.push({ key: "raidArt", node: (
-                <CategoryField label={t("settings.categories.raidArt")} sub={t("settings.categories.raidArtSub")}>
+                <CategoryField label={t("settings.categories.raidArt")} sub={t("settings.categories.raidArtShort")} more={t("settings.categories.raidArtSub")}>
                     <Toggle checked={look.raidArt} onChange={() => onMessageLook(cat.id, { ...look, raidArt: !look.raidArt })} ariaLabel={t("settings.categories.raidArtAria", { name })} />
                 </CategoryField>
             ) });
             out.push({ key: "titleSize", node: (
-                <CategoryField label={t("settings.categories.titleSize")} sub={t("settings.categories.titleSizeSub")}>
+                <CategoryField label={t("settings.categories.titleSize")} sub={t("settings.categories.titleSizeShort")} more={t("settings.categories.titleSizeSub")}>
                     <Segment ariaLabel={t("settings.categories.titleSizeAria", { name })} value={look.titleSize} onChange={(v) => onMessageLook(cat.id, { ...look, titleSize: v })} options={titleSizes()} />
                 </CategoryField>
             ) });
         }
-        if (onVoiceChannel) {
-            const voiceChannels = s.voiceChannels || [];
-            out.push({ key: "voice", node: (
-                <CategoryField label={t("settings.categories.voice")} htmlFor={voiceChannels.length ? `catvoice-${cat.id}` : undefined} sub={t("settings.categories.voiceSub")}>
-                    {voiceChannels.length ? (
-                        <select id={`catvoice-${cat.id}`} value={(s.categoryVoiceChannel || {})[cat.id] || ""} onChange={(e) => onVoiceChannel(cat.id, e.target.value)}>
-                            <option value="">{t("settings.categories.noVoiceOption")}</option>
-                            {voiceChannels.map((c) => <option key={c.id} value={c.id}>{c.name}{c.category ? ` · ${c.category}` : ""}</option>)}
-                        </select>
-                    ) : <span className="note">{t("settings.categories.noVoice")}</span>}
+        if (onSignupCharacters) {
+            // How many characters one signup may name — in the web, at the message and for "Mehrere Raids".
+            out.push({ key: "signupChars", node: (
+                <CategoryField label={t("settings.categories.signupChars")} htmlFor={`catchars-${cat.id}`}
+                    sub={t("settings.categories.signupCharsShort")} more={t("settings.categories.signupCharsSub")}>
+                    <QuotaStepper id={`catchars-${cat.id}`} kind={SIGNUP_CHAR_STEPS} value={signupCharactersOf(s.categorySignupCharacters, cat.id)}
+                        ariaLabel={t("settings.categories.signupCharsAria", { name })} onChange={(n) => onSignupCharacters(cat.id, n)} />
                 </CategoryField>
             ) });
         }
+        if (onSignupNotes) out.push({ key: "notes", node: notesField(onSignupNotes) });
         return out;
     }
 
+    // The category's standing Discord messages: one for the raiders, one for the orga.
+    function hubFields(): Field[] {
+        const out: Field[] = [];
+        if (s.availabilityPanels) out.push({ key: "panel", node: <AvailabilityPanelRow categoryId={cat.id} categoryName={name} panels={s.availabilityPanels} /> });
+        if (s.orgaHubs) out.push({ key: "orgaHub", node: <OrgaHubRow categoryId={cat.id} categoryName={name} hubs={s.orgaHubs} /> });
+        return out;
+    }
+
+    // What the raids are planned with, and who hears about it after the release.
     function planFields(): Field[] {
         const out: Field[] = [];
-        const { raidTemplates, onSetupDms, onPlanning } = s;
-        if (raidTemplates) {
-            out.push({ key: "template", node: (
-                <CategoryField label={t("settings.categories.template")} htmlFor={`cattpl-${cat.id}`} sub={t("settings.categories.templateSub")}>
-                    <select id={`cattpl-${cat.id}`} value={raidTemplates.value[cat.id] || ""} onChange={(e) => raidTemplates.onChange(cat.id, e.target.value)}>
-                        <option value="">{t("settings.categories.noTemplate")}</option>
-                        {raidTemplates.options.map((tpl) => <option key={tpl.id} value={tpl.id}>{tpl.name || t("settings.noName")}</option>)}
-                    </select>
-                </CategoryField>
-            ) });
-        }
-        if (onSetupDms) {
-            const on = (s.categorySetupDms || {})[cat.id] === true;
-            out.push({ key: "setupDms", node: (
-                <CategoryField label={t("settings.categories.setupDms")} sub={t("settings.categories.setupDmsSub")}>
-                    <Toggle checked={on} onChange={() => onSetupDms(cat.id, !on)} ariaLabel={t("settings.categories.setupDmsAria", { name })} />
-                </CategoryField>
-            ) });
-        }
+        const { onSetupDms, onPlanning } = s;
         const planning = planningOf(cat.id, s.categoryPlanning, s.categorySheets);
         if (onPlanning) {
             out.push({ key: "planning", node: (
-                <CategoryField label={t("settings.categories.planning")} sub={t("settings.categories.planningSub")}>
+                <CategoryField label={t("settings.categories.planning")} sub={t("settings.categories.planningShort")} more={t("settings.categories.planningSub")}>
                     <Segment ariaLabel={t("settings.categories.planningAria", { name })} value={planning}
                         onChange={(v) => onPlanning(cat.id, v)} options={planningModes()} />
                 </CategoryField>
@@ -358,7 +426,7 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
         if (!onPlanning || planning === "sheet") {
             const sheet = s.categorySheets[cat.id] || { url: "", name: "" };
             out.push({ key: "sheet", node: (
-                <CategoryField label={t("settings.categories.fixedSheet")} htmlFor={`catsheet-name-${cat.id}`} sub={t("settings.categories.fixedSheetSub")}>
+                <CategoryField label={t("settings.categories.fixedSheet")} htmlFor={`catsheet-name-${cat.id}`} sub={t("settings.categories.fixedSheetShort")} more={t("settings.categories.fixedSheetSub")}>
                     <div className="sheet-field">
                         <WowIcon name="inv_scroll_03" size={20} />
                         <div className="sheet-inputs">
@@ -371,24 +439,34 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
                 </CategoryField>
             ) });
         }
+        if (onSetupDms) {
+            const on = (s.categorySetupDms || {})[cat.id] === true;
+            out.push({ key: "setupDms", node: (
+                <CategoryField label={t("settings.categories.setupDms")} sub={t("settings.categories.setupDmsShort")} more={t("settings.categories.setupDmsSub")}>
+                    <Toggle checked={on} onChange={() => onSetupDms(cat.id, !on)} ariaLabel={t("settings.categories.setupDmsAria", { name })} />
+                </CategoryField>
+            ) });
+        }
         return out;
     }
 
     function lootFields(): Field[] {
+        const out: Field[] = [];
         const tool = s.categoryLootTool[cat.id] || "";
-        const out: Field[] = [{ key: "lootTool", node: (
-            <CategoryField label={t("settings.categories.lootAddon")} sub={t("settings.categories.lootAddonSub")}>
-                <Segment ariaLabel={t("settings.categories.lootAddonAria", { name })} value={tool} onChange={(v) => s.onLootTool(cat.id, v)} options={lootTools()} />
-            </CategoryField>
-        ) }];
         const { onLootSystem } = s;
         if (onLootSystem) {
             out.push({ key: "lootSystem", node: (
-                <CategoryField label={t("settings.categories.lootSystem")} sub={t("settings.categories.lootSystemSub", { auto: tool === "rclc" ? t("settings.categories.lootSystemAutoRclc") : "Softres" })}>
+                <CategoryField label={t("settings.categories.lootSystem")} sub={t("settings.categories.lootSystemShort")}
+                    more={t("settings.categories.lootSystemSub", { auto: tool === "rclc" ? t("settings.categories.lootSystemAutoRclc") : "Softres" })}>
                     <Segment ariaLabel={t("settings.categories.lootSystemAria", { name })} value={(s.categoryLootSystem || {})[cat.id] || ""} onChange={(v) => onLootSystem(cat.id, v)} options={lootSystems()} />
                 </CategoryField>
             ) });
         }
+        out.push({ key: "lootTool", node: (
+            <CategoryField label={t("settings.categories.lootAddon")} sub={t("settings.categories.lootAddonShort")} more={t("settings.categories.lootAddonSub")}>
+                <Segment ariaLabel={t("settings.categories.lootAddonAria", { name })} value={tool} onChange={(v) => s.onLootTool(cat.id, v)} options={lootTools()} />
+            </CategoryField>
+        ) });
         return out;
     }
 
@@ -400,6 +478,7 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
                     return (
                         <button key={id} type="button" role="tab" id={tabId(id)} aria-selected={on} aria-controls={panelId(id)} tabIndex={on ? 0 : -1}
                             className={`cat-tab${on ? " is-active" : ""}`} onClick={() => onTab(id)}>
+                            <span className="cat-tab-icon" aria-hidden="true">{TAB_ICONS[id]}</span>
                             {t(`settings.categories.tabs.${id}`)}
                             <span className="cat-tab-count">{fields[id].length}</span>
                         </button>
@@ -407,6 +486,7 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
                 })}
             </div>
             <div className="cat-tabpanel" role="tabpanel" id={panelId(shown)} aria-labelledby={tabId(shown)}>
+                <p className="cat-tab-intro">{t(`settings.categories.tabsIntro.${shown}`)}</p>
                 {fields[shown].map((f) => <div key={f.key} className="cat-field-wrap" data-field={f.key}>{f.node}</div>)}
             </div>
         </div>

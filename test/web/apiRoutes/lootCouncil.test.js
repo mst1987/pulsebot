@@ -75,7 +75,7 @@ const discord = require("../../../src/services/discord/discord");
 const { getConfig } = require("../../../src/stores/settingsStore");
 const routesModule = require("../../../src/web/apiRoutes/lootCouncil");
 const {
-    getLootCouncil, postLootCouncilSim, getLootCouncilSim, getItemSearch, getBisLists,
+    getLootCouncil, getOverview, postLootCouncilSim, getLootCouncilSim, getItemSearch, getBisLists,
     postExclude, postRole, getExport, postArmoryRefresh, postLogGear, getViews, postView, routes,
 } = routesModule;
 const { mockRes, status, body, json } = require("../../helpers/http");
@@ -120,14 +120,18 @@ describe("the route table", () => {
     it("registers every loot council route in the lootcouncil area", () => {
         expect(routes.map((r) => `${r.method} ${r.path}`)).toEqual([
             "GET /api/lootcouncil",
+            "GET /api/lootcouncil/overview",
             "GET /api/lootcouncil/export",
             "POST /api/lootcouncil/exclude",
             "GET /api/lootcouncil/item-search",
             "POST /api/lootcouncil/role",
             "GET /api/lootcouncil/views",
             "POST /api/lootcouncil/view",
-            "GET /api/lootcouncil/weights",
-            "POST /api/lootcouncil/weights",
+            "GET /api/lootcouncil/profiles",
+            "GET /api/lootcouncil/profile",
+            "POST /api/lootcouncil/profiles/create",
+            "POST /api/lootcouncil/profiles/update",
+            "POST /api/lootcouncil/profiles/delete",
             "POST /api/lootcouncil/armory",
             "POST /api/lootcouncil/loggear",
             "GET /api/lootcouncil/bislists",
@@ -142,6 +146,7 @@ describe("the route table", () => {
 describe("read access on the GET handlers", () => {
     const readers = [
         ["GET /api/lootcouncil", () => getLootCouncil],
+        ["GET /api/lootcouncil/overview", () => getOverview],
         ["GET /api/lootcouncil/export", () => getExport],
         ["GET /api/lootcouncil/item-search", () => getItemSearch],
         ["GET /api/lootcouncil/bislists", () => getBisLists],
@@ -161,6 +166,39 @@ describe("read access on the GET handlers", () => {
         const res = await call(getLootCouncil);
         expect(status(res)).toBe(401);
         expect(lc.councilRoster).not.toHaveBeenCalled();
+    });
+});
+
+describe("GET /api/lootcouncil for a version without council content (#748)", () => {
+    it("flags the content, drops gaps, filter options and the simulation, and never reads the item focus", async () => {
+        getConfig.mockReturnValue({ mainVersion: "forever" });
+        const res = await call(getLootCouncil, "/api/lootcouncil", "?item=30000");
+        const answer = body(res);
+        expect(answer.content).toEqual({ bis: false, sim: false, tiers: false, itemTable: false });
+        expect(answer.versionId).toBe("forever");
+        expect(answer.gaps).toEqual([]);
+        expect(answer.focus).toBeNull();
+        expect(lc.bisGaps).not.toHaveBeenCalled();
+        expect(lc.candidateSplit).not.toHaveBeenCalled();
+        expect(lc.filterOptions).toHaveBeenCalledWith(answer.content);
+        expect(answer.sim.available).toBe(false);
+        expect(answer.sim.hint).toMatch(/keine Simulation/);
+    });
+
+    it("keeps TBC as it was", async () => {
+        const answer = body(await call(getLootCouncil));
+        expect(answer.content).toEqual({ bis: true, sim: true, tiers: true, itemTable: true });
+        expect(answer.sim.available).toBe(true);
+        expect(lc.bisGaps).toHaveBeenCalled();
+    });
+
+    it("treats BiS and the simulation switched off for TBC (#761) like no content, and says they are off", async () => {
+        getConfig.mockReturnValue({ mainVersion: "tbc", versionSettings: { tbc: { wowheadPath: "tbc", disabled: ["lootCouncilBis", "simulation"] } } });
+        const answer = body(await call(getLootCouncil));
+        expect(answer.content).toEqual({ bis: false, sim: false, tiers: false, itemTable: false, off: true });
+        expect(answer.gaps).toEqual([]);
+        expect(answer.sim.available).toBe(false);
+        expect(answer.sim.hint).toBe("Simulation ist für TBC Anniversary ausgeschaltet (Einstellungen → Spielversion).");
     });
 });
 
@@ -188,7 +226,9 @@ describe("write access on the POST handlers", () => {
 describe("GET /api/lootcouncil", () => {
     it("builds the whole picture from stored data with the filters from the query", async () => {
         const rows = [{ character: "Alpha", gear: { dropped: [] } }];
-        lc.councilRoster.mockReturnValue({ rows, avgLootCount: 2.5, bisTier: "t5", skipped: 3, categorySources: { c1: "signups" } });
+        lc.councilRoster.mockReturnValue({
+            rows, avgLootCount: 2.5, bisTier: "t5", skipped: 3, categorySources: { c1: "signups" }, setAside: ["old", "newer", "undated"],
+        });
         councilStore.listExcluded.mockReturnValue({
             old: { reason: "left", at: 10 },
             newer: { reason: "break", at: 20 },
@@ -201,7 +241,7 @@ describe("GET /api/lootcouncil", () => {
         const res = await call(getLootCouncil, "/api/lootcouncil", "?role=caster&tiers=t5, t6,&contents=ssc&category=c1");
         expect(status(res)).toBe(200);
         expect(lc.councilRoster).toHaveBeenCalledWith({
-            role: "caster", tierIds: ["t5", "t6"], contentIds: ["ssc"], categoryId: "c1", bisTier: "", showBench: false, versionId: "tbc",
+            role: "caster", tierIds: ["t5", "t6"], contentIds: ["ssc"], categoryId: "c1", rosterId: "", bisTier: "", showBench: false, versionId: "tbc",
             config: { categoryIds: ["c1", "c2"] }, mainVersion: "tbc", charVersion: "tbc",
         });
         expect(lc.resolveContentFilter).toHaveBeenCalledWith({ tierIds: ["t5", "t6"], contentIds: ["ssc"] });
@@ -234,6 +274,23 @@ describe("GET /api/lootcouncil", () => {
         expect(data.mainVersion).toBe("tbc");
     });
 
+    // The store is one list for every version and roster: a TBC raider set
+    // aside there must not show up as „Nicht eingeplant“ in the Forever council.
+    it("names only those set aside who this view would otherwise list", async () => {
+        lc.councilRoster.mockReturnValue({ rows: [], avgLootCount: 0, bisTier: "t5", skipped: 0, categorySources: {}, setAside: ["hier"] });
+        councilStore.listExcluded.mockReturnValue({
+            hier: { character: "Hier", at: 2 },
+            tbcchar: { character: "Tbcchar", at: 3 },
+        });
+        const data = body(await call(getLootCouncil, "/api/lootcouncil", "?version=forever"));
+        expect(data.excluded).toEqual([{ key: "hier", character: "Hier", at: 2 }]);
+    });
+
+    it("names nobody when the view set nobody aside", async () => {
+        councilStore.listExcluded.mockReturnValue({ tbcchar: { character: "Tbcchar", at: 3 } });
+        expect(body(await call(getLootCouncil)).excluded).toEqual([]);
+    });
+
     it("hands the category's roster and its stand-ins to the page, and asks for Ersatz only with bench=1 (#667)", async () => {
         const rosterSource = { id: "r1", name: "Mittwoch", versionId: "tbc", counts: { core: 2, trial: 1, bench: 1, pause: 1 }, showBench: true, noSpec: [] };
         const outsiders = [{ key: "aushilfe", character: "Aushilfe", status: "" }];
@@ -252,7 +309,7 @@ describe("GET /api/lootcouncil", () => {
         expect(body(plain).outsiders).toEqual([]);
     });
 
-    it("passes the game version filter through, and 'all' lifts it (#545)", async () => {
+    it("passes the game version filter through; 'all' is no answer for the page (#545, #741)", async () => {
         lc.councilRoster.mockReturnValue({
             rows: [], avgLootCount: 0, bisTier: "t5", skipped: 0, categorySources: {}, versions: [{ id: "tbc", label: "TBC", short: "TBC", count: 3 }],
         });
@@ -263,9 +320,10 @@ describe("GET /api/lootcouncil", () => {
         expect(body(forever).version).toBe("forever");
         expect(body(forever).versions).toEqual([{ id: "tbc", label: "TBC", short: "TBC", count: 3 }]);
 
+        // strictly one version at a time (#741): "all" falls back to the main version
         const all = await call(getLootCouncil, "/api/lootcouncil", "?version=all");
-        expect(lc.councilRoster).toHaveBeenCalledWith(expect.objectContaining({ charVersion: "" }));
-        expect(body(all).version).toBe("");
+        expect(lc.councilRoster).toHaveBeenLastCalledWith(expect.objectContaining({ charVersion: "tbc" }));
+        expect(body(all).version).toBe("tbc");
     });
 
     it("narrows to one dropped item: candidates instead of the gap list", async () => {
@@ -344,6 +402,29 @@ describe("POST /api/lootcouncil/sim", () => {
         res = await call(postLootCouncilSim, "/api/lootcouncil/sim");
         expect(status(res)).toBe(400);
         expectError(res, "bad_request", "Keine Raider angegeben.");
+        expect(startCouncilSim).not.toHaveBeenCalled();
+    });
+
+    it("refuses a version without simulation data (#745), read from the category like the page", async () => {
+        getConfig.mockReturnValue({ mainVersion: "tbc", categoryVersion: { c9: "forever" } });
+        // The page sends its menu version with the category (#741: a Forever category is picked only in the Forever menu).
+        mockBody = { id: "job", subjects: [{ key: "a", specKey: "b" }], category: "c9", version: "forever" };
+        let res = await call(postLootCouncilSim, "/api/lootcouncil/sim");
+        expect(status(res)).toBe(409);
+        expectError(res, "no_sim_data", "Für diese Spielversion gibt es keine Simulation.");
+
+        mockBody = { id: "job", subjects: [{ key: "a", specKey: "b" }], version: "forever" };
+        res = await call(postLootCouncilSim, "/api/lootcouncil/sim");
+        expect(status(res)).toBe(409);
+        expect(startCouncilSim).not.toHaveBeenCalled();
+    });
+
+    it("refuses when the simulation is switched off for the version (#745)", async () => {
+        getConfig.mockReturnValue({ mainVersion: "tbc", versionSettings: { tbc: { wowheadPath: "tbc", disabled: ["simulation"] } } });
+        mockBody = { id: "job", subjects: [{ key: "a", specKey: "b" }] };
+        const res = await call(postLootCouncilSim, "/api/lootcouncil/sim");
+        expect(status(res)).toBe(409);
+        expectError(res, "feature_off", "Simulation ist für TBC Anniversary ausgeschaltet (Einstellungen → Spielversion).");
         expect(startCouncilSim).not.toHaveBeenCalled();
     });
 
@@ -449,41 +530,8 @@ describe("POST /api/lootcouncil/role", () => {
     });
 });
 
-describe("GET /api/lootcouncil/views", () => {
-    it("hands out the stored views, the defaults and the Loot-Council categories", async () => {
-        councilStore.listViews.mockReturnValue({
-            c1: { role: "healer", tiers: ["t6"], contents: [], bisTier: "t6", version: "tbc", at: 5, by: "Admin" },
-        });
-        getConfig.mockReturnValue({ categoryIds: ["c1", "c2", "c3"], categoryLootSystem: { c1: "lootcouncil" }, categoryLootTool: { c3: "rclc" } });
-        mockUser = READER;
-        const res = await call(getViews, "/api/lootcouncil/views");
-        expect(status(res)).toBe(200);
-        expect(body(res)).toEqual({
-            views: { c1: { role: "healer", tiers: ["t6"], contents: [], bisTier: "t6", version: "tbc" } },
-            defaults: { role: "caster", tiers: [], contents: [], bisTier: "", version: "" },
-            councilCategories: ["c1", "c3"],
-        });
-    });
-});
-
-describe("POST /api/lootcouncil/view", () => {
-    it("stores a category's view, cleaned, with who set it", async () => {
-        mockUser = WRITER;
-        mockBody = { category: "c1", role: "boss", tiers: ["t5", "t5", "<x>"], contents: ["bt"], bisTier: "t6", version: "tbc" };
-        const res = await call(postView, "/api/lootcouncil/view");
-        expect(status(res)).toBe(200);
-        expect(councilStore.setView).toHaveBeenCalledWith("c1", mockBody, { by: "3" });
-        expect(body(res)).toEqual({ category: "c1", view: { role: "caster", tiers: ["t5"], contents: ["bt"], bisTier: "t6", version: "tbc" } });
-    });
-
-    it("needs a category", async () => {
-        mockBody = { role: "caster" };
-        const res = await call(postView, "/api/lootcouncil/view");
-        expect(status(res)).toBe(400);
-        expectError(res, "bad_request", "Keine Kategorie angegeben.");
-        expect(councilStore.setView).not.toHaveBeenCalled();
-    });
-});
+// GET /api/lootcouncil/views and POST /api/lootcouncil/view work on the
+// Loot-Council profiles since #676: lootCouncil.profiles.test.js (real stores).
 
 describe("GET /api/lootcouncil/export", () => {
     const SPEC = { key: "Mage-Fire", label: "Feuer-Magier", role: "caster", simSpec: "mage" };
@@ -595,6 +643,15 @@ describe("GET /api/lootcouncil/item-search", () => {
         });
     });
 
+    it("has no item table to search for a version without council content (#748)", async () => {
+        searchItems.mockReturnValue([{ id: 30000, name: "Hat" }]);
+        const res = await call(getItemSearch, "/api/lootcouncil/item-search", "?q=ha&v=forever");
+        expect(searchItems).not.toHaveBeenCalled();
+        expect(body(res)).toEqual({ items: [] });
+        getConfig.mockReturnValue({ mainVersion: "forever" });
+        expect(body(await call(getItemSearch, "/api/lootcouncil/item-search", "?q=ha")).items).toEqual([]);
+    });
+
     it("searches with an empty query when none is given", async () => {
         const res = await call(getItemSearch, "/api/lootcouncil/item-search");
         expect(searchItems).toHaveBeenCalledWith("");
@@ -687,5 +744,68 @@ describe("POST /api/lootcouncil/loggear", () => {
         mockBody = { character: "Alpha" };
         loadLogGear.mockRejectedValueOnce(new Error("disk full"));
         await expect(call(postLogGear, "/api/lootcouncil/loggear")).rejects.toThrow("disk full");
+    });
+});
+
+// The user's report: in the Forever council, "Council für" still offered
+// "Montagsraid · TBC Montag" and "PUG Raids" (TBC). The menu's version comes
+// first (#741/#563): another version's category is no pick and no option.
+describe("GET /api/lootcouncil keeps to the menu's version", () => {
+    const CONFIG = {
+        categoryIds: ["tbcCat", "foreverCat"], mainVersion: "forever", categoryVersion: { tbcCat: "tbc", foreverCat: "forever" },
+        categoryLootSystem: { tbcCat: "lootcouncil", foreverCat: "lootcouncil" },
+    };
+    beforeEach(() => {
+        getConfig.mockReturnValue(CONFIG);
+        discord.listCategories.mockReturnValue([{ id: "tbcCat", name: "PUG Raids" }, { id: "foreverCat", name: "Forever Mittwoch" }]);
+    });
+
+    it("drops a stored TBC category pick: the Forever council of every Forever category, and names the pick", async () => {
+        const data = body(await call(getLootCouncil, "/api/lootcouncil", "?category=tbcCat&version=forever"));
+        expect(lc.councilRoster).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "", rosterId: "", versionId: "forever", charVersion: "forever" }));
+        expect(data.council.dropped).toEqual({ kind: "category", id: "tbcCat", versionId: "tbc" });
+        expect(data.council.target).toBe("all");
+        expect(data.council.categories.map((c) => c.id)).toEqual(["foreverCat"]);
+        expect(data.options.categories).toEqual([{ id: "foreverCat", name: "Forever Mittwoch" }]);
+        expect(data.versionId).toBe("forever");
+    });
+
+    it("keeps a pick of the menu's version", async () => {
+        const data = body(await call(getLootCouncil, "/api/lootcouncil", "?category=tbcCat&version=tbc"));
+        expect(lc.councilRoster).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "tbcCat", versionId: "tbc", charVersion: "tbc" }));
+        expect(data.council.dropped).toBeNull();
+        expect(data.council.target).toBe("category");
+        expect(data.options.categories.map((c) => c.id)).toEqual(["tbcCat"]);
+    });
+
+    it("drops the TBC pick while other versions are hidden, whatever the url asks", async () => {
+        getConfig.mockReturnValue({ ...CONFIG, hideOtherVersions: true });
+        const data = body(await call(getLootCouncil, "/api/lootcouncil", "?category=tbcCat&version=tbc"));
+        expect(lc.councilRoster).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "", charVersion: "forever" }));
+        expect(data.council.dropped).toEqual({ kind: "category", id: "tbcCat", versionId: "tbc" });
+        expect(data.council.categories.map((c) => c.id)).toEqual(["foreverCat"]);
+    });
+});
+
+// The page's entry (Oct 2026): tiles of the menu's version, only what runs as Loot-Council.
+describe("GET /api/lootcouncil/overview", () => {
+    const CONFIG = {
+        categoryIds: ["tbcCat", "foreverCat", "softresCat"], mainVersion: "forever",
+        categoryVersion: { tbcCat: "tbc", foreverCat: "forever", softresCat: "forever" },
+        categoryLootSystem: { tbcCat: "lootcouncil", foreverCat: "lootcouncil", softresCat: "softres" },
+    };
+    beforeEach(() => {
+        getConfig.mockReturnValue(CONFIG);
+        discord.listCategories.mockReturnValue([{ id: "tbcCat", name: "PUG Raids" }, { id: "foreverCat", name: "Forever Mittwoch" }, { id: "softresCat", name: "Forever Sonntag" }]);
+    });
+
+    it("answers the Loot-Council tiles of the menu's version, without building a council", async () => {
+        const data = body(await call(getOverview, "/api/lootcouncil/overview", "?version=forever"));
+        expect(data.versionId).toBe("forever");
+        expect(data.tiles.map((t) => `${t.kind}:${t.id}`)).toEqual(["category:foreverCat"]);
+        expect(data.tiles[0]).toMatchObject({ name: "Forever Mittwoch", versionId: "forever", profileName: "Standard", members: null });
+        expect(lc.councilRoster).not.toHaveBeenCalled();
+        const tbc = body(await call(getOverview, "/api/lootcouncil/overview", "?version=tbc"));
+        expect(tbc.tiles.map((t) => t.id)).toEqual(["tbcCat"]);
     });
 });

@@ -18,13 +18,27 @@ export type SessionUser = {
     canViewAs?: boolean;
     /** Set while the menu shows the rights of these roles instead of the own ones. */
     viewAs?: ViewAs;
+    /** Who sees each area this account may open (src/web/http/areaAudience.js) — the "Orga-Bereich" marks read it. */
+    audience?: Record<string, AreaAudience>;
+    /** Orga: a full admin, or holding an orga role (Einstellungen → Berechtigungen) — sees the orga's parts of the pages. */
+    isOrga?: boolean;
+    /** The names of the orga roles (admin roles left out) — the orga zones name them. */
+    orgaRoles?: string[];
 };
+/** A raider area (the base access or a raider role opens it), else the orga roles that may read / change in it and how many single accounts may read it. */
+export type AreaAudience = { everyone: boolean; roles: string[]; writers: string[]; raiders?: string[]; accounts: number };
 export type ViewAsRole = { id: string; name: string; color: string; admin: boolean; configured: boolean };
 /** "event" | "talk" = the server's fixed role from Einstellungen → Discord-Server, "" = none. */
 export type GuildRole = "event" | "talk" | "";
 export type SessionGuild = { id: string; name: string; role?: GuildRole };
 /** A game version the content switch offers (#563). */
-export type ContentVersionRef = { id: string; label: string; short: string };
+export type ContentVersionRef = {
+    id: string; label: string; short: string;
+    /** The version's colour (#742): the setting's, else the rule set's. Missing = the stylesheet's default. */
+    color?: string;
+    /** The colour differs from the rule set's — only then the client writes its own values (lib/app/versionColor.ts). */
+    custom?: boolean;
+};
 /** The content switch of the menu (#563): main version, whether the others are hidden, the versions offered (main first). */
 export type ContentInfo = { mainVersion: string; hideOtherVersions: boolean; versions: ContentVersionRef[] };
 export type Session = {

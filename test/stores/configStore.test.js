@@ -112,6 +112,12 @@ describe("stores/configStore saveConfig", () => {
         expect(saved.guildId).toBe("1100000000000000001");
         expect(saved.categorySignupNoteChannel).toEqual({ a: "1300000000000000002" });
     });
+
+    it("merges the characters per signup per category; 8 sets a category back to the default", () => {
+        configStore.saveConfig({ categorySignupCharacters: { a: 3, b: 2 } });
+        expect(configStore.saveConfig({ categorySignupCharacters: { a: 8, c: 5 } }).categorySignupCharacters).toEqual({ b: 2, c: 5 });
+        expect(configStore.getConfig().categorySignupCharacters).toEqual({ b: 2, c: 5 });
+    });
 });
 
 describe("stores/configStore resolveEventSheetLink", () => {
@@ -178,5 +184,133 @@ describe("stores/configStore main version (#541)", () => {
         expect(saved.mainVersion).toBe("forever");
         expect(saved.categoryVersion).toEqual({ b: "classic" });
         expect(configStore.saveConfig({ mainVersion: "bogus" }).mainVersion).toBe("tbc");
+    });
+});
+
+describe("stores/configStore backup settings (#691)", () => {
+    it("reads the defaults while nothing is stored", () => {
+        expect(configStore.getConfig().backup).toEqual({
+            intervalMinutes: 60,
+            retention: { hourlyHours: 48, dailyDays: 14, weeklyWeeks: 8, monthlyMonths: 12, deployKeep: 10, manualKeep: 10, preRestoreKeep: 10 },
+            restoreTest: { weekday: 3, time: "04:30" },
+        });
+    });
+
+    it("merges a save per field and per retention rule, within the bounds", () => {
+        configStore.saveConfig({ backup: { retention: { dailyDays: 7 } } });
+        const saved = configStore.saveConfig({ backup: { intervalMinutes: 5, retention: { deployKeep: 3 } } });
+        expect(saved.backup).toEqual({
+            intervalMinutes: 15,
+            retention: { hourlyHours: 48, dailyDays: 7, weeklyWeeks: 8, monthlyMonths: 12, deployKeep: 3, manualKeep: 10, preRestoreKeep: 10 },
+            restoreTest: { weekday: 3, time: "04:30" },
+        });
+    });
+
+    it("merges the restore probe's slot per field (#694)", () => {
+        configStore.saveConfig({ backup: { restoreTest: { weekday: 2 } } });
+        expect(configStore.saveConfig({ backup: { restoreTest: { time: "5:15" } } }).backup.restoreTest).toEqual({ weekday: 2, time: "05:15" });
+    });
+});
+
+describe("stores/configStore dropCategoryEntries (#744)", () => {
+    it("takes one category out of the active list and the named maps, and nothing else", () => {
+        writeFile({
+            categoryIds: ["700000000000000001", "700000000000000002"],
+            categoryRoles: { "700000000000000001": ["r1"], "700000000000000002": ["r2"] },
+            categoryLootSystem: { "700000000000000002": "lootcouncil" },
+            categoryReminders: { "700000000000000002": { missingHours: 24, signedHours: 0, target: "event" } },
+        });
+        const { config, removed } = configStore.dropCategoryEntries("700000000000000002", ["categoryRoles", "categoryReminders", "categorySheets"]);
+        expect(removed).toEqual(["categoryIds", "categoryRoles", "categoryReminders"]);
+        expect(config.categoryIds).toEqual(["700000000000000001"]);
+        expect(config.categoryRoles).toEqual({ "700000000000000001": ["r1"] });
+        expect(config.categoryReminders).toEqual({});
+        // a map not named stays as it is
+        expect(config.categoryLootSystem["700000000000000002"]).toBeTruthy();
+        expect(configStore.getConfig().categoryRoles).toEqual({ "700000000000000001": ["r1"] });
+    });
+
+    it("writes nothing for an unknown or empty id", () => {
+        writeFile({ categoryIds: ["700000000000000001"] });
+        expect(configStore.dropCategoryEntries("nope", ["categoryRoles"]).removed).toEqual([]);
+        expect(configStore.dropCategoryEntries("", ["categoryRoles"]).removed).toEqual([]);
+        expect(configStore.getConfig().categoryIds).toEqual(["700000000000000001"]);
+    });
+});
+
+describe("stores/configStore discordVisuals (drawn pictures, a test)", () => {
+    it("has every picture on by default and keeps only booleans of the known switches", () => {
+        expect(configStore.getConfig().discordVisuals).toEqual({ overviewWeekStrip: true, setupImage: true, eventCover: true });
+        writeFile({ discordVisuals: { overviewWeekStrip: false, setupImage: "no", other: false } });
+        expect(configStore.getConfig().discordVisuals).toEqual({ overviewWeekStrip: false, setupImage: true, eventCover: true });
+    });
+
+    it("merges a saved switch over the stored ones", () => {
+        writeFile({ discordVisuals: { overviewWeekStrip: false } });
+        const saved = configStore.saveConfig({ discordVisuals: { setupImage: false } });
+        expect(saved.discordVisuals).toEqual({ overviewWeekStrip: false, setupImage: false, eventCover: true });
+        expect(configStore.saveConfig({ discordVisuals: { overviewWeekStrip: true } }).discordVisuals)
+            .toEqual({ overviewWeekStrip: true, setupImage: false, eventCover: true });
+    });
+});
+
+describe("stores/configStore dungeonRecords (Neue Gildenrekorde posten)", () => {
+    it("is off by default and merges a saved field over the stored ones", () => {
+        writeFile({});
+        expect(configStore.getConfig().dungeonRecords).toEqual({ post: false, channelId: "" });
+        configStore.saveConfig({ dungeonRecords: { channelId: "123456789012345678" } });
+        expect(configStore.saveConfig({ dungeonRecords: { post: true } }).dungeonRecords).toEqual({ post: true, channelId: "123456789012345678" });
+        expect(configStore.saveConfig({ dungeonRecords: { channelId: "nope" } }).dungeonRecords).toEqual({ post: true, channelId: "" });
+    });
+});
+
+describe("stores/configStore addon list (#818): never wiped by accident", () => {
+    const { defaultAddons } = require("../../src/services/addons/addonConfig");
+    const ids = (config) => config.addonDownloads.map((a) => a.id);
+    const DEFAULT_IDS = ["levelhelper", "professionkit", "aurakit", "macrohelper", "eventhelper-sync"];
+
+    it("heals a stored empty list nobody emptied on purpose: the defaults again", () => {
+        writeFile({ addonDownloads: [] });
+        expect(ids(configStore.getConfig())).toEqual(DEFAULT_IDS);
+        expect(configStore.getConfig().addonDownloadsCustomized).toBe(false);
+    });
+
+    it("keeps a list an admin emptied on purpose empty", () => {
+        writeFile({ addonDownloads: [], addonDownloadsCustomized: true });
+        expect(configStore.getConfig().addonDownloads).toEqual([]);
+    });
+
+    it("keeps the list through the GitHub token save and every other save", () => {
+        writeFile({ addonDownloads: [{ id: "mine", name: "Mine", repo: "me/mine" }], addonDownloadsCustomized: true });
+        configStore.saveConfig({ github: { token: "github_pat_NEW" } });
+        configStore.saveConfig({ officerRoleId: "o" });
+        expect(ids(configStore.getConfig())).toEqual(["mine"]);
+        expect(configStore.getConfig().github.token).toBe("github_pat_NEW");
+    });
+
+    it("ignores a list carried along without the edit mark - an unrelated save cannot wipe it", () => {
+        configStore.saveConfig({ addonDownloads: [], officerRoleId: "o" });
+        expect(ids(configStore.getConfig())).toEqual(DEFAULT_IDS);
+        expect(configStore.getConfig().officerRoleId).toBe("o");
+    });
+
+    it("takes an edit (list with the mark), removing single addons and all of them", () => {
+        const byId = (id) => defaultAddons().find((a) => a.id === id);
+        const professionkit = byId("professionkit");
+        const sync = byId("eventhelper-sync");
+        configStore.saveConfig({ addonDownloads: [professionkit, sync], addonDownloadsCustomized: true });
+        expect(ids(configStore.getConfig())).toEqual(["professionkit", "eventhelper-sync"]);
+        configStore.saveConfig({ addonDownloads: [], addonDownloadsCustomized: true });
+        expect(configStore.getConfig().addonDownloads).toEqual([]);
+        // an unrelated save afterwards keeps the deliberate empty list
+        configStore.saveConfig({ github: { token: "t" } });
+        expect(configStore.getConfig().addonDownloads).toEqual([]);
+    });
+
+    it("restores the defaults and clears the mark", () => {
+        configStore.saveConfig({ addonDownloads: [], addonDownloadsCustomized: true });
+        configStore.saveConfig({ addonDownloads: defaultAddons(), addonDownloadsCustomized: false });
+        expect(ids(configStore.getConfig())).toEqual(DEFAULT_IDS);
+        expect(configStore.getConfig().addonDownloadsCustomized).toBe(false);
     });
 });

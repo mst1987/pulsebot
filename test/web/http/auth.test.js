@@ -261,6 +261,23 @@ describe("web/http/auth", () => {
             expect(fetch).toHaveBeenCalledTimes(1);
         });
 
+        it("marks an orga role at login and takes the mark away when the role is no orga role any more", async () => {
+            let orgaRoleIds = ["role-lead"];
+            getConfig.mockImplementation(() => ({ orgaRoleIds }));
+            const fetch = jest.fn().mockResolvedValue(memberWithRoles("role-lead"));
+            discord.setClient(fakeClient(fetch).client);
+
+            const { req } = await loginAs("560");
+            expect(auth.getUser(req)).toMatchObject({ isAdmin: false, isOrga: true });
+
+            // the role is set back to a raider role; the next re-check drops the mark
+            orgaRoleIds = [];
+            now += FIVE_MIN + 1000;
+            auth.getUser(req);
+            await flush();
+            expect(auth.getUser(req).isOrga).toBeUndefined();
+        });
+
         it("re-checks only once per cache window", async () => {
             getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
             const fetch = jest.fn().mockResolvedValue(memberWithRoles("role-1"));

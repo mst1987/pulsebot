@@ -1,7 +1,7 @@
 // The rules behind the start page ("Übersicht"): which raid icon, how full a
 // role is, which tasks are open, what the evaluation tile counts.
 const {
-    zoneFor, zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, openRecommendations, lastReportArea, newLootSince, buildTasks,
+    zoneFor, zoneForEvent, raidSize, roleTargets, roleFill, classCounts, notSignedUp, lastReportArea, newLootSince, buildTasks,
     _internal: {
         roleBucket, FALLBACK_ZONE_ICON,
     },
@@ -11,7 +11,7 @@ describe("web/dashboard/dashboardOverview", () => {
     describe("zoneForEvent (#291)", () => {
         it("takes an own event's raids, newest content first, and the title otherwise", () => {
             expect(zoneForEvent({ source: "eventhelper", title: "Mittwoch", instanceIds: ["tk", "ssc"] })).toEqual({ contentId: "tk", icon: "achievement_boss_kael'thassunstrider_01" });
-            expect(zoneForEvent({ source: "eventhelper", title: "Kara Donnerstag", instanceIds: ["ony"] }).contentId).toBe("kara");
+            expect(zoneForEvent({ source: "eventhelper", title: "Kara Donnerstag", instanceIds: ["nope"] }).contentId).toBe("kara");
             expect(zoneForEvent({ source: "raidhelper", title: "Black Temple", instanceIds: ["kara"] }).contentId).toBe("bt");
             expect(zoneForEvent(null).contentId).toBe("");
         });
@@ -39,6 +39,30 @@ describe("web/dashboard/dashboardOverview", () => {
             expect(raidSize("kara", 0)).toBe(10);
             expect(raidSize("bt", 0)).toBe(25);
             expect(raidSize("", 0)).toBe(25);
+        });
+    });
+
+    describe("sizes and role targets from the rule set (#749)", () => {
+        it("sizes a night by its content, any version, and keeps a known softres size", () => {
+            expect(raidSize("ssc")).toBe(25);
+            expect(raidSize("forever-hyjal")).toBe(20);
+            expect(raidSize("forever-ony")).toBe(40);
+            expect(raidSize("kara", 40)).toBe(40);
+            expect(raidSize("kara", 15)).toBe(25);
+        });
+
+        it("gives a 20- and a 40-man their own role targets", () => {
+            expect(roleTargets(10)).toEqual({ tank: 2, healer: 3, dps: 5 });
+            expect(roleTargets(25)).toEqual({ tank: 3, healer: 6, dps: 16 });
+            expect(roleTargets(20)).toEqual({ tank: 2, healer: 5, dps: 13 });
+            expect(roleTargets(40)).toEqual({ tank: 4, healer: 10, dps: 26 });
+            expect(roleFill({ size: 40 }).map((r) => r.target)).toEqual([4, 10, 26]);
+        });
+
+        it("gives a Forever event its own icon, not TBC's Hyjal", () => {
+            const f = zoneForEvent({ source: "eventhelper", title: "Hyjal", versionId: "forever", instanceIds: [] });
+            expect(f).toEqual({ contentId: "forever-hyjal", icon: "achievement_boss_archimonde-" });
+            expect(zoneForEvent({ source: "eventhelper", title: "x", instanceIds: ["forever-ony"] }).contentId).toBe("forever-ony");
         });
     });
 
@@ -90,14 +114,6 @@ describe("web/dashboard/dashboardOverview", () => {
         expect(rows[0]).toMatchObject({ className: "Druid", role: "Heiler" });
     });
 
-    it("counts only recommendations nobody decided on", () => {
-        expect(openRecommendations(null)).toBe(0);
-        expect(openRecommendations({
-            raid: [{ approved: null }, { approved: true }],
-            players: [{ items: [{ approved: null }, { approved: false }] }, { items: [{ approved: null }] }],
-        })).toBe(3);
-    });
-
     describe("lastReportArea", () => {
         it("adds gear, consumables and buffs to the problem count and keeps the parts for the tooltip", () => {
             const area = lastReportArea(
@@ -105,14 +121,14 @@ describe("web/dashboard/dashboardOverview", () => {
                 {
                     timeline: { fights: [{ encounterId: 1, kill: false }, { encounterId: 1, kill: true }, { encounterId: 2, kill: true }] },
                     mechanics: { deaths: { total: 7, avoidable: 3 } },
-                    players: [{ issues: [1, 2] }, { issues: [3] }],
+                    players: [{ issues: [1, 2] }, { issues: [3] }, { issues: [] }],
                     consumables: { players: [{ buffed: 40 }, { buffed: 95 }] },
                     raidBuffs: { players: [{ missing: 2 }, { missing: 0 }] },
                 },
             );
             expect(area).toMatchObject({
                 id: "r1", icon: "achievement_boss_illidan", bosses: 2, kills: 2, deaths: 7, avoidableDeaths: 3,
-                gear: 3, consumables: 1, buffs: 1, problems: 5,
+                gear: 3, gearRaiders: 2, consumables: 1, buffs: 1, problems: 5,
             });
         });
 
@@ -135,21 +151,25 @@ describe("web/dashboard/dashboardOverview", () => {
             expect(buildTasks({
                 nextRaids: [{ id: "n1", sheet: { url: "x" } }],
                 recentEvents: [{ id: "e1", pendingLogCount: 0 }],
-                report: { id: "r1", open: 0 },
+                report: { id: "r1", gearRaiders: 0 },
                 inbox: [],
             })).toEqual([]);
+        });
+
+        it("makes no task of unreviewed recommendations: reviewing them is optional", () => {
+            expect(buildTasks({ report: { id: "r1", open: 198, gearRaiders: 0 } })).toEqual([]);
         });
 
         it("shows every open task once, each leading to where it is done", () => {
             const tasks = buildTasks({
                 nextRaids: [{ id: "n1", title: "BT", startTime: 100, sheet: null }, { id: "n2", title: "Hyjal", startTime: 200, sheet: null }],
                 recentEvents: [{ id: "e1", title: "Hyjal", startTime: 50, pendingLogCount: 2 }, { id: "e2", pendingLogCount: 1 }],
-                report: { id: "r1", zone: "Black Temple", generatedAt: 9, open: 7 },
+                report: { id: "r1", zone: "Black Temple", generatedAt: 9, gearRaiders: 7 },
                 inbox: [{ items: [1, 2, 3] }],
             });
             expect(tasks.map((t) => [t.id, t.tone, t.count, t.href])).toEqual([
                 ["sheet", "bad", 2, "/raids/detail?event=n1"],
-                ["recommendations", "mid", 7, "/r/r1#raid"],
+                ["gear", "mid", 7, "/r/r1#raider"],
                 ["logs", "mid", 3, "/raids/detail?event=e1&tab=logs"],
                 ["inbox", "accent", 1, "/history?tab=inbox"],
             ]);
@@ -164,6 +184,17 @@ describe("web/dashboard/dashboardOverview", () => {
         it("drops the count badge for a single missing sheet", () => {
             const [task] = buildTasks({ nextRaids: [{ id: "n1", title: "BT", startTime: 1, sheet: null }] });
             expect(task.count).toBe(0);
+        });
+
+        it("asks for a sheet only where the category plans with one", () => {
+            expect(buildTasks({ nextRaids: [{ id: "n1", title: "BT", startTime: 1, sheet: null, planning: "raidplan" }] })).toEqual([]);
+            const tasks = buildTasks({
+                nextRaids: [
+                    { id: "n1", title: "BT", startTime: 1, sheet: null, planning: "raidplan" },
+                    { id: "n2", title: "Hyjal", startTime: 2, sheet: null, planning: "sheet" },
+                ],
+            });
+            expect(tasks.map((t) => [t.id, t.count, t.href])).toEqual([["sheet", 0, "/raids/detail?event=n2"]]);
         });
 
         // Issue #259: archived channels wait for an admin, never for a timer.

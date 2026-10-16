@@ -52,7 +52,9 @@
             "name_too_long": "The name is too long (40 characters at most).",
             "admin_only": "Only admins create rosters.",
             "kader_taken": "This roster is already linked to another Kader.",
-            "not_found": "This roster no longer exists."
+            "not_found": "This roster no longer exists.",
+            "version_mismatch": "This roster or category plays another game version than the Kader.",
+            "version_hidden": "This Kader's game version is hidden."
         },
         "linkButton": "Link an existing roster",
         "linkTip": "Link this Kader to a roster that already exists",
@@ -74,7 +76,9 @@
         "unlinkTitle": "Remove the link to “{name}”?",
         "unlinkText": "The roster stays as it is, with all its members. Only “Take into the roster” no longer goes there.",
         "relink": "Link",
-        "relinkTip": "Linked to {name}: change or remove"
+        "relinkTip": "Linked to {name}: change or remove",
+        "council": "To the loot council",
+        "councilTip": "Open the loot council for “{name}”"
     },
     "quote": "“{text}”",
     "state": {
@@ -119,6 +123,31 @@
             }
         }
     },
+    "kaders": {
+        "kicker": {
+            "one": "{count} squad",
+            "other": "{count} squads"
+        },
+        "title": "Squads",
+        "cardsAria": "All squads",
+        "last": "Last opened",
+        "open": "Open",
+        "questions": {
+            "one": "{count} question",
+            "other": "{count} questions"
+        },
+        "newHint": "Create another squad",
+        "side": {
+            "bench": {
+                "one": "{count} player on the bench",
+                "other": "{count} players on the bench"
+            },
+            "tentative": {
+                "one": "{count} player tentative",
+                "other": "{count} players tentative"
+            }
+        }
+    },
     "header": {
         "kicker": "Roster planner",
         "pick": "Choose a squad",
@@ -126,7 +155,8 @@
         "leads": "Leads",
         "noLeads": "nobody yet",
         "settings": "Squad settings",
-        "countLine": "{roster} in roster · {total} total"
+        "countLine": "{roster} in roster · {total} total",
+        "all": "All squads"
     },
     "start": {
         "kicker": "Roster planner · the steps of a squad",
@@ -595,7 +625,7 @@
         "emptyGroup": "empty",
         "missing": "no {buff}",
         "moreBuffs": "+{n} buffs",
-        "hiddenGroups": "Groups 3 and 4 are kept and show again in the 20-man setup.",
+        "hiddenGroups": "The hidden groups are kept and show again in a larger setup.",
         "none": "No variant.",
         "groupFill": "{n} of {max} spots",
         "placedOf": {
@@ -644,6 +674,7 @@
         "profileSays": "Profile says",
         "logs": "Per logs",
         "days": "Available",
+        "dayFrom": "{day} from {time}",
         "differs": "Differs from the profile: {what}. The roster planner's assignment applies here, the profile is never overwritten.",
         "differsNone": "If your assignment differs from the profile, a note shows up here; nothing is overwritten."
     },
@@ -729,6 +760,10 @@
             "one": "{count} night",
             "other": "{count} nights"
         },
+        "groupOwn": "the squad's version",
+        "groupOther": "counts the {version} nights",
+        "archived": "archived",
+        "nightsLater": "counted once picked",
         "noCategories": "This server has no raid category yet. One shows up as soon as a raid is created in a Discord category.",
         "nightTip": "{date} · {category}"
     },

@@ -25,10 +25,13 @@
     },
     "next": {
         "title": "Next raid",
+        "cancelled": "Cancelled",
+        "cancelledSub": "The organisers cancelled this raid.",
         "crumb": "Raid events",
         "details": "Details",
         "openTip": "Open raid",
         "openSub": "The raid's page in EventHelper: signups, setup, Softres, loot, logs.",
+        "categoryTip": "The raid's category (the Discord category of its channel)",
         "open": "Open",
         "empty": "No upcoming raid on Raid-Helper.",
         "roleSubSetup": "{filled} of {target} filled per setup. Target from the raid size ({size}).",
@@ -53,7 +56,7 @@
     "tasks": {
         "title": "Open tasks",
         "allDone": "All done",
-        "allDoneNote": "Sheets filled, logs assigned, recommendations reviewed.",
+        "allDoneNote": "Logs assigned, recommendations reviewed, inbox empty.",
         "trial": {
             "adopt": "Take over",
             "extend": "Extend",
@@ -82,11 +85,6 @@
         "newLootNone": "No past raid known yet.",
         "topItems": "Top items",
         "since": "since {date}",
-        "recruitment": "Recruitment",
-        "recruitmentTip": "Posted recruitment messages",
-        "recruitmentSub": "Click to open Recruitment.",
-        "postsActive": "Posts active",
-        "noPosts": "no posts",
         "roster": "Roster",
         "rosterTip": "Characters in the roster",
         "rosterSub": "{count} known only from loot, not linked to a Discord account. Click to open the roster.",
@@ -160,5 +158,211 @@
         "fillSheet": "Fill sheet",
         "openRaid": "Open raid",
         "loading": "Loading signups…"
+    },
+    "personal": {
+        "divider": "For you",
+        "toSignups": "My signups",
+        "signUp": "Sign up",
+        "closed": "Signup closed",
+        "closedTip": "Signup is closed or the deadline has passed.",
+        "rosterOnly": "Roster only",
+        "rosterOnlyTip": "Only members of the roster sign up for this raid.",
+        "status": {
+            "signed": "Signed up",
+            "placed": "In the setup",
+            "notPlaced": "Not placed",
+            "late": "Late",
+            "tentative": "Tentative",
+            "bench": "Bench",
+            "absence": "Signed off",
+            "cancelled": "Cancelled"
+        },
+        "next": {
+            "title": "Your next raid",
+            "toSignup": "To signup",
+            "empty": "No upcoming raid in your categories."
+        },
+        "box": {
+            "signup": "Signup",
+            "notYet": "Open",
+            "setup": "Setup",
+            "softres": "Softres"
+        },
+        "setup": {
+            "none": "No setup yet",
+            "noneSub": "The raid lead is still building it.",
+            "notPlaced": "Not placed",
+            "notPlacedSub": "The setup is set; you are not in it this time.",
+            "bench": "Bench",
+            "group": "Group {group}"
+        },
+        "softres": {
+            "ready": "List ready",
+            "none": "No list",
+            "open": "Open softres"
+        },
+        "plan": {
+            "title": "Your assignments in the raid plan",
+            "open": "Open raid plan",
+            "loading": "Reading the raid plan …",
+            "error": "The raid plan could not be loaded.",
+            "none": "No personal assignment – still have a look at the plan."
+        },
+        "list": {
+            "title": "Your next raids",
+            "all": "All",
+            "empty": "Nothing else coming up.",
+            "deadline": "until {when}"
+        },
+        "attendance": {
+            "label": "Your attendance",
+            "value": "{attended} of {total}",
+            "tip": "Attendance over your last raids",
+            "sub": "Bench counts ({count}× bench). Click to open your attendance.",
+            "none": "No counted raid yet."
+        },
+        "profile": {
+            "label": "Your profile",
+            "tip": "Your raider profile",
+            "complete": "All there. Click to open your profile.",
+            "ok": "complete",
+            "hints": {
+                "one": "{count} hint",
+                "other": "{count} hints"
+            },
+            "characters": {
+                "one": "{count} character",
+                "other": "{count} characters"
+            },
+            "noCharacters": "No character yet",
+            "noSpec": "{character} has no spec"
+        },
+        "recent": {
+            "title": "Your last raids",
+            "attendance": "Attendance",
+            "empty": "No raid of yours counted yet.",
+            "noReport": "no evaluation",
+            "report": "Evaluation",
+            "hints": {
+                "one": "{count} hint for you",
+                "other": "{count} hints for you"
+            },
+            "allGood": "all good"
+        }
+    },
+    "task": {
+        "sheet": {
+            "title": "Fill the sheet",
+            "tip": {
+                "one": "Raid sheet missing",
+                "other": "{count} raids without a raid sheet"
+            },
+            "tipSub": "No sheet was filled for the raid, and its category has no fixed sheet. Opens the raid event."
+        },
+        "gear": {
+            "title": "Gear problems",
+            "tip": {
+                "one": "{count} raider with gear problems",
+                "other": "{count} raiders with gear problems"
+            },
+            "tipSub": "Missing enchants, empty sockets, weak gems – from the last log. Opens the report in the raider view."
+        },
+        "logs": {
+            "title": "Assign logs",
+            "tip": {
+                "one": "{count} log fits several raids",
+                "other": "{count} logs fit several raids"
+            },
+            "tipSub": "Several raids on the same evening fit by time; the automatic assignment picked none. Opens the raid's logs tab."
+        },
+        "inbox": {
+            "title": "Addon inbox",
+            "sessions": {
+                "one": "{count} session",
+                "other": "{count} sessions"
+            },
+            "items": {
+                "one": "{count} item",
+                "other": "{count} items"
+            },
+            "tip": "Uploaded loot is waiting",
+            "tipSub": "The addon uploaded loot that belongs to no raid yet. Opens the addon inbox under History & Loot."
+        },
+        "channels": {
+            "title": "Delete archived channels",
+            "refOverdue": {
+                "one": "{count} channel waiting longer than {days} days",
+                "other": "{count} channels waiting longer than {days} days"
+            },
+            "refWaiting": {
+                "one": "{count} channel waiting to be deleted",
+                "other": "{count} channels waiting to be deleted"
+            },
+            "tip": {
+                "one": "{count} archived channel waiting to be deleted",
+                "other": "{count} archived channels waiting to be deleted"
+            },
+            "tipSub": "Archived channels are never deleted automatically. Opens the archive of the channels page, where an admin deletes them."
+        },
+        "rolesync": {
+            "title": "Check roles",
+            "ref": {
+                "one": "{count} member has @{role} only on {guild}",
+                "other": "{count} members have @{role} only on {guild}"
+            },
+            "refOther": {
+                "one": "{count} member has @{role} only on the other server",
+                "other": "{count} members have @{role} only on the other server"
+            },
+            "more": {
+                "one": "+{count} role",
+                "other": "+{count} roles"
+            },
+            "tip": {
+                "one": "{count} member carries a synced role without its source role",
+                "other": "{count} members carry a synced role without its source role"
+            },
+            "tipSub": "The role sync only adds and never removes. Whoever lost the role on one server keeps it on the other until someone removes it in Discord. Opens Settings → Discord servers."
+        },
+        "channelMissing": {
+            "title": "Channel of {title} is missing",
+            "tip": "The raid's Discord channel no longer exists",
+            "tipSub": "The signup message went with it; the overviews show “channel missing” instead of a link. “Recreate channel” creates it by the naming rule in the event's category and posts the signup message there. Otherwise opens the raid event.",
+            "action": "Recreate channel"
+        },
+        "series": {
+            "title": "Series could not create the event: {reason}",
+            "day": "{day}",
+            "tip": {
+                "one": "A series date failed",
+                "other": "{count} series dates failed"
+            },
+            "tipSub": "The series could not create the event of this date. It tries at most three times, 10 minutes apart, then only at the push of a button. Opens Raid events › Series with the reason and “Try again”."
+        },
+        "deploy": {
+            "title": {
+                "one": "Server is {count} commit behind main",
+                "other": "Server is {count} commits behind main"
+            },
+            "since": {
+                "one": "(for {count} day)",
+                "other": "(for {count} days)"
+            },
+            "running": "running {commit}",
+            "unknown": "version unknown",
+            "main": "main at {commit}",
+            "tip": {
+                "one": "{count} commit is on main but not on the server",
+                "other": "{count} commits are on main but not on the server"
+            },
+            "tipSub": "The automatic deployment did not pick up the latest version. Opens the guide: which secrets it needs and how to deploy by hand."
+        },
+        "trial": {
+            "title": "Trial ends: {name}",
+            "titleOverdue": "Trial over: {name}",
+            "tip": "The trial ends on {date}",
+            "tipOverdue": "The trial ended on {date}",
+            "tipSub": "Take over makes the person core, Extend moves the end 14 days on. Nothing changes by itself. Otherwise opens the roster."
+        }
     }
 }

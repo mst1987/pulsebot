@@ -30,7 +30,7 @@ const RH = { id: "rh-37", name: "Raid-Helper Standard", instanceIds: [], size: n
 // 16.09.2026, 12:00 Berlin
 const NOW = Date.UTC(2026, 8, 16, 10, 0);
 const values = (over = {}) => ({ title: "SSC + TK", date: "24.09.", time: "19:30", comp: "25/3/6", description: "Flasks Pflicht", ...over });
-const state = (over = {}) => ({ cat: CAT_EH, tpl: T5.id, mode: "n", src: "e", ref: "", ann: "", ...over });
+const state = (over = {}) => ({ cat: CAT_EH, tpl: T5.id, mode: "n", src: "e", ref: "", ann: "", ico: "", ...over });
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -50,7 +50,7 @@ describe("services/events/eventDraft — the state in the customId", () => {
         const s = state({ mode: "d", ref: "eh-mfx1k2abc123" });
         expect(draft.parseCustomId(draft._internal.stepId("c", s))).toEqual({ prefix: "event-new", field: "c", state: s, token: "" });
         expect(draft.parseCustomId(draft._internal.formId(s, "0a1b2c3d"))).toMatchObject({ prefix: "event-form", state: s, token: "0a1b2c3d" });
-        expect(draft.parseCustomId("event-form:12:<script>:z:q:../x:nope").state).toEqual({ cat: "", tpl: "", mode: "n", src: "", ref: "", ann: "" });
+        expect(draft.parseCustomId("event-form:12:<script>:z:q:../x:nope").state).toEqual({ cat: "", tpl: "", mode: "n", src: "", ref: "", ann: "", ico: "" });
     });
 
     it("stays within Discord's 100 characters in the worst case", () => {
@@ -65,17 +65,18 @@ describe("services/events/eventDraft — the state in the customId", () => {
 
 describe("services/events/eventDraft — step 1", () => {
     it("starts in the channel's category with its template and source", () => {
-        expect(draft.initialState("g1", CAT_RH)).toEqual({ cat: CAT_RH, tpl: RH.id, mode: "n", src: "r", ref: "", ann: "" });
-        expect(draft.initialState("g1", "elsewhere")).toEqual({ cat: CAT_EH, tpl: T5.id, mode: "n", src: "e", ref: "", ann: "" });
+        expect(draft.initialState("g1", CAT_RH)).toEqual({ cat: CAT_RH, tpl: RH.id, mode: "n", src: "r", ref: "", ann: "", ico: "" });
+        expect(draft.initialState("g1", "elsewhere")).toEqual({ cat: CAT_EH, tpl: T5.id, mode: "n", src: "e", ref: "", ann: "", ico: "" });
     });
 
     it("offers only the event categories and the templates that fit the source", async () => {
         const { payload } = await draft.stepMessage("g1", state());
-        const [cats, tpls, modes, buttons] = payload.components.map((r) => r.components);
+        const [cats, tpls, modes, icons, buttons] = payload.components.map((r) => r.components);
+        expect(icons[0]).toMatchObject({ type: 3, placeholder: "Kanal-Icon" });
         expect(cats[0].options.map((o) => o.label)).toEqual(["Mittwoch-Raid", "PuG"]);
         expect(tpls[0].options).toEqual([expect.objectContaining({ value: T5.id, default: true, description: "SSC + TK · 25er · 3 T / 6 H / 16 DPS" })]);
         expect(modes[0].options.map((o) => o.value)).toEqual(["n", "d", "e"]);
-        expect(buttons.map((b) => b.label)).toEqual(["Weiter", "Anmeldung über Raid-Helper", "Ankündigung: aus", "Abbrechen"]);
+        expect(buttons.map((b) => b.label)).toEqual(["Weiter", "Anmeldung über Raid-Helper", "Ankündigung: aus", "Kanalname anpassen …", "Abbrechen"]);
         expect(buttons[0]).toMatchObject({ custom_id: draft._internal.formId(state()), disabled: false });
         expect(payload.embeds[0].description).toContain("neu nach Standard-Schema `{tag}-{dd}-{mm}-{raid}`");
         expect(payload.embeds[0].description).toContain("**Anmeldung über:** EventHelper");
@@ -105,7 +106,7 @@ describe("services/events/eventDraft — step 1", () => {
     });
 
     it("changing the category proposes its source and template again, the toggle switches the source", () => {
-        expect(draft.applyStep(state({ ref: "x" }), "c", CAT_RH)).toEqual({ cat: CAT_RH, tpl: RH.id, mode: "n", src: "r", ref: "", ann: "" });
+        expect(draft.applyStep(state({ ref: "x" }), "c", CAT_RH)).toEqual({ cat: CAT_RH, tpl: RH.id, mode: "n", src: "r", ref: "", ann: "", ico: "" });
         expect(draft.applyStep(state(), "s")).toMatchObject({ src: "r", tpl: RH.id });
         expect(draft.applyStep(state(), "k", "e")).toMatchObject({ mode: "e", ref: "" });
         expect(draft.applyStep(state(), "t", "../evil")).toMatchObject({ tpl: "" });
@@ -292,7 +293,9 @@ describe("services/events/eventDraft — submit", () => {
             ["Zum Kanal", "https://discord.com/channels/g1/555"],
             ["Im Web bearbeiten", "https://eh.test/raids/detail?event=eh-abc"],
             ["Ankündigung pingen", "https://eh.test/raids/detail?event=eh-abc&tab=actions"],
+            ["Kanal umbenennen …", undefined],
         ]);
+        expect(payload.components[0].components[3].custom_id).toBe("event-rename:555");
     });
 
     it("answers a refusal with Nochmal, and keeps the typed values for this user only", async () => {

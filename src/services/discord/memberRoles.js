@@ -22,15 +22,16 @@
 // The web translates the code (DE/EN), so no sentence is built here.
 //
 // Every successful write is remembered for WRITE_MEMORY_MS (recentWrite): the
-// member list is cached for a minute (discord.fetchGuildMembersCached) and a
-// role write only reaches the cached member with the gateway event, so the
-// periodic roster reconcile asks here first instead of trusting a stale cache.
+// member list is cached (discord.fetchGuildMembersCached) and a role write only
+// reaches the cached member with the gateway event, so the periodic roster
+// reconcile asks here first instead of trusting a stale cache. The reconcile
+// fetches its list fresh ({ fresh: true }), so the window is the gateway's lag.
 const discord = require("./discord");
 const { canManageRoles } = require("./roleSync");
 const rosterStore = require("../../stores/rosterStore");
 
 const REASON = "EventHelper Roster";
-// Longer than the member cache's 60 s, so a reconcile never reads a list older than the write.
+// Longer than the member cache's fresh window (60 s), so a reconcile never trusts a list older than the write.
 const WRITE_MEMORY_MS = 3 * 60 * 1000;
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
@@ -38,12 +39,17 @@ const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 // `${guildId}:${userId}:${roleId}` -> { has, at }
 const writes = new Map();
 
-/** Every role id some roster of that server names: roleIds and trialRoleId. */
+/**
+ * Every role id some open roster of that server names: roleIds and trialRoleId.
+ * A closed roster's roles (#739) are no roster roles any more - nothing gives
+ * or takes them for it.
+ */
 function rosterRoleIds(guildId) {
     const gid = str(guildId);
     const out = new Set();
     if (!gid) return out;
     for (const roster of rosterStore.listRosters(gid)) {
+        if (roster.closedAt) continue;
         for (const id of roster.roleIds) out.add(String(id));
         if (roster.trialRoleId) out.add(String(roster.trialRoleId));
     }

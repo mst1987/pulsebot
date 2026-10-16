@@ -31,9 +31,36 @@ for (const v of VERSIONS) {
     for (const i of v.instances) INSTANCE_BY_ID.set(i.id, { ...i, versionId: v.id });
 }
 
+/**
+ * Whether the version has a Google raid sheet layout (#751): the sheet fill
+ * (utils/setup/fillSetup.js) writes TBC's template - other versions have none.
+ */
+function hasSheetLayout(versionId) {
+    const rules = rulesFor(versionId);
+    return Boolean(rules && rules.sheetLayout);
+}
+
 /** The rule set of a version, or null for an unknown id. */
 function rulesFor(versionId) {
     return BY_ID.get(String(versionId || "")) || null;
+}
+
+/**
+ * The main professions a character of the version can enter in "Mein Profil"
+ * (Berufe, at most two): the rule set's `professions` - `[{ id, label,
+ * labelEn, icon }]` - and the highest skill, `professionSkillMax` (null = the
+ * profile keeps no skill). No rule set carries a list yet (the data is not
+ * confirmed, docs/roster-profile.md "Berufe"): an empty list hides the part.
+ * @returns {{ professions: { id: string, label: string, labelEn: string, icon: string }[], skillMax: number|null }}
+ */
+function professionsOf(versionId) {
+    const rules = rulesFor(versionId);
+    const list = rules && Array.isArray(rules.professions) ? rules.professions : [];
+    const max = rules && Number.isInteger(rules.professionSkillMax) && rules.professionSkillMax > 0 ? rules.professionSkillMax : null;
+    return {
+        professions: list.map((p) => ({ id: String(p.id), label: p.label || String(p.id), labelEn: p.labelEn || p.label || String(p.id), icon: p.icon || "" })),
+        skillMax: max,
+    };
 }
 
 /** One instance of a version, or null (also when the id belongs to another version). */
@@ -67,13 +94,15 @@ function roleOfSpec(specKey, versionId = DEFAULT_VERSION) {
 /**
  * A suggested number of tanks and healers for a raid size, for an instance
  * without its own suggestion. 10 → 2/3, 20 → 2/5, 25 → 3/6, 40 → 4/10; other
- * sizes on the same curve, never more than the raid holds. The version is
- * accepted for when a version needs its own curve; today they share one.
+ * sizes on the same curve, never more than the raid holds. A version may list
+ * its own `composition` per size, which wins for those sizes.
  * @returns {{ tanks: number, healers: number }}
  */
-// eslint-disable-next-line no-unused-vars
 function defaultComposition(size, versionId = DEFAULT_VERSION) {
     const n = Math.max(0, Math.floor(Number(size) || 0));
+    // A version with its own curve (Forever, #751) answers for the sizes it lists.
+    const own = (rulesFor(versionId) || {}).composition;
+    if (own && own[n]) return { tanks: own[n].tanks, healers: own[n].healers };
     if (n <= 1) return { tanks: n, healers: 0 };
     if (n <= 5) return { tanks: 1, healers: 1 };
     const tanks = n <= 20 ? 2 : (n <= 25 ? 3 : 4);
@@ -106,33 +135,56 @@ function bossesOf(id) {
 }
 
 // Boss and zone lookups for the non-TBC versions. TBC has its own, richer ones
-// in tbcContent.js (loot table, instance patterns); callers ask that first.
-const BOSS_INSTANCE = new Map();
+// in tbcContent.js (loot table, instance patterns); config/raidContent.js asks
+// the right one for a version. Both lookups take an optional `versionId`: with
+// one they search only that version's instances (Forever's "Hyjal Summit" is
+// not TBC's), without one every non-TBC version in release order.
+const BOSS_INSTANCE = new Map(); // versionId -> Map(normalized boss -> instance id)
 for (const v of VERSIONS) {
+    const byBoss = new Map();
+    BOSS_INSTANCE.set(v.id, byBoss);
     if (v.id === "tbc") continue;
     for (const i of v.instances) {
-        for (const name of [...(i.bosses || []), ...(i.finalBossNames || [])]) {
+        for (const name of [...(i.bosses || []), ...(i.finalBossNames || []), ...(i.bossHints || [])]) {
             const key = normalizeBoss(name);
-            if (key && !BOSS_INSTANCE.has(key)) BOSS_INSTANCE.set(key, i.id);
+            if (key && !byBoss.has(key)) byBoss.set(key, i.id);
         }
     }
 }
 
-/** The non-TBC instance an encounter name belongs to, or "". */
-function instanceForBoss(name) {
-    return BOSS_INSTANCE.get(normalizeBoss(name)) || "";
+function searchedVersions(versionId) {
+    if (versionId) {
+        const v = rulesFor(versionId);
+        return v && v.id !== "tbc" ? [v] : [];
+    }
+    return VERSIONS.filter((v) => v.id !== "tbc");
 }
 
-/** The non-TBC instance a zone name ("Molten Core") names, or "". */
-function instanceForZone(text) {
+/** The non-TBC instance an encounter name belongs to (within `versionId` when given), or "". */
+function instanceForBoss(name, versionId = "") {
+    const key = normalizeBoss(name);
+    for (const v of searchedVersions(versionId)) {
+        const hit = BOSS_INSTANCE.get(v.id).get(key);
+        if (hit) return hit;
+    }
+    return "";
+}
+
+/** The non-TBC instance a zone name ("Molten Core") names (within `versionId` when given), or "". */
+function instanceForZone(text, versionId = "") {
     const s = String(text || "").toLowerCase();
     if (!s) return "";
-    for (const v of VERSIONS) {
-        if (v.id === "tbc") continue;
+    for (const v of searchedVersions(versionId)) {
         const hit = v.instances.find((i) => (i.zoneNames || []).some((z) => s.includes(z)));
         if (hit) return hit.id;
     }
     return "";
+}
+
+/** The boss icon of an instance of any version (rule set, `icon`), or "". */
+function iconOf(id) {
+    const inst = instanceById(id);
+    return (inst && inst.icon) || "";
 }
 
 /** Every version in the shape GET /api/game-versions serves. */
@@ -141,6 +193,7 @@ function publicVersions() {
         id: v.id,
         label: v.label,
         short: v.short,
+        icon: v.icon || "",
         roles: ROLES.map((id) => ({ id, label: ROLE_LABELS[id] })),
         classes: v.classes,
         instances: v.instances.map((i) => ({
@@ -165,7 +218,7 @@ function publicVersions() {
 
 module.exports = {
     VERSIONS, DEFAULT_VERSION, LEGACY_VERSION, ROLES,
-    rulesFor, instance, instanceById, spec, roleOfSpec,
+    rulesFor, professionsOf, hasSheetLayout, instance, instanceById, spec, roleOfSpec,
     defaultComposition, compositionFor, finalBossesOf, bossesOf,
-    instanceForBoss, instanceForZone, publicVersions,
+    instanceForBoss, instanceForZone, iconOf, publicVersions,
 };

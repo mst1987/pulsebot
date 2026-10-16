@@ -68,6 +68,13 @@ describe("services/discord/memberRoles rosterRoleIds", () => {
         expect([...rosterRoleIds("g2")]).toEqual(["admin"]);
         expect(rosterRoleIds("").size).toBe(0);
     });
+
+    it("leaves the roles of a closed roster out - nothing gives or takes them for it (#739)", async () => {
+        const closed = rosterStore.listRosters("g2")[0];
+        rosterStore.closeRoster(closed.id, { reason: "version_switch" });
+        expect(rosterRoleIds("g2").size).toBe(0);
+        expect(await takeRole("g2", "u1", "admin")).toEqual(expect.objectContaining({ ok: false, code: "not_roster_role" }));
+    });
 });
 
 describe("services/discord/memberRoles giveRole / takeRole", () => {

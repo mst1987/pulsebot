@@ -1,7 +1,18 @@
 // What the three views of the report page share, computed once per request:
 // links, review rights, the reviewed recommendations, roles and per-raider slices.
 const { applyReview } = require("../../utils/logcheck/recommendations");
+const { analyzersFor } = require("../../utils/logcheck/rules");
+const { recordVersion } = require("../../services/logcheck/logVersion");
 const { canReview } = require("./recommendations");
+
+/**
+ * The analyzers that ran for a report: those of its version's rule set (#747;
+ * a report without a version is TBC, which runs every one). A part whose
+ * analyzer did not run is left off the page rather than shown as missing.
+ */
+function analyzersRan(report) {
+    return new Set(analyzersFor(recordVersion(report)));
+}
 
 function byName(list) {
     const m = new Map();
@@ -35,6 +46,7 @@ function reportContext(report, user) {
     const rpb = report.rpb || {};
     return {
         report, user, linkFor, reviewer, rec, recItems, roleOf, fights,
+        ran: analyzersRan(report),
         recByName: byName(rec ? rec.players : []),
         gearByName: byName(report.players),
         consByName: byName(report.consumables && report.consumables.players),
@@ -57,5 +69,5 @@ function reportContext(report, user) {
 }
 
 module.exports = {
-    ROLE_LABEL, reportContext,
+    ROLE_LABEL, reportContext, analyzersRan,
 };

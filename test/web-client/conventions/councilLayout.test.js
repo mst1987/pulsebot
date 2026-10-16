@@ -48,16 +48,16 @@ describe("loot council — page structure", () => {
         expect(filterBar).toMatch(/const note = categoryNote\(data\);/);
     });
 
-    it("has five tabs (the weighting since #668); the drop check left the tab row", () => {
-        for (const t of ["roster", "bis", "bislists", "compare", "weights"]) {
+    it("has five tabs (the profiles since #676, before: the weighting of #668); the drop check left the tab row", () => {
+        for (const t of ["roster", "bis", "bislists", "compare", "profiles"]) {
             expect(page).toContain(`onClick={() => patch({ tab: "${t}" })}`);
         }
         expect(page).not.toContain("patch({ tab: \"drop\" })");
         expect(page).not.toMatch(/function DropPanel/);
     });
 
-    it("falls back to the Raider tab for a stored tab: \"drop\"", () => {
-        expect(page).toMatch(/const tab = view\.tab === "drop" \? "roster" : view\.tab;/);
+    it("falls back to the Raider tab for a stored tab: \"drop\" (and to the profiles for \"weights\")", () => {
+        expect(page).toMatch(/const tab = view\.tab === "drop" \? "roster" : view\.tab === "weights" \? "profiles" : view\.tab;/);
         // The persisted view no longer carries the picked drop.
         expect(page).not.toMatch(/dropItem/);
     });
@@ -204,7 +204,7 @@ describe("loot council — the raider dialog", () => {
 
     it("keeps the actions in the foot: exclude, sim export, close, armory", () => {
         const d = fn(dialog, "RaiderDialog");
-        expect(d).toMatch(/variant="danger"[\s\S]{0,120}onClick=\{\(\) => onExclude\(r\.character\)\}/);
+        expect(d).toMatch(/variant="no"[\s\S]{0,120}onClick=\{\(\) => onExclude\(r\.character\)\}/);
         expect(d).toMatch(/icon="inv_gizmo_02"[\s\S]{0,120}onClick=\{\(\) => onExport\(r\.character\)\}/);
         expect(d).toMatch(/variant="run" icon="inv_shield_06"[\s\S]{0,120}onClick=\{\(\) => onArmory\(r\.character\)\}/);
     });
@@ -215,7 +215,7 @@ describe("loot council — the raider dialog", () => {
     });
 
     it("asks before setting a raider aside from the details", () => {
-        expect(fn(page, "LootCouncilPage")).toMatch(/const excludeFromDialog = async \(character: string\) => \{\s*const ok = await ask\(\{/);
+        expect(fn(page, "CouncilPage")).toMatch(/const excludeFromDialog = async \(character: string\) => \{\s*const ok = await ask\(\{/);
     });
 });
 

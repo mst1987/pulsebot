@@ -183,7 +183,7 @@ describe("web/http/apiAccess", () => {
         // That exemption must stay this deliberate, tiny set, not a hole a
         // future route slips into by accident.
         it("exempts nothing but the loot-sync ingest endpoints from the session gate", () => {
-            expect([...TOKEN_AUTH]).toEqual(["/api/ingest/loot", "/api/ingest/raids", "/api/ingest/council", "/api/ingest/guildbank", "/api/ingest/guildbank/handouts"]);
+            expect([...TOKEN_AUTH]).toEqual(["/api/ingest/loot", "/api/ingest/raids", "/api/ingest/council", "/api/ingest/guildbank", "/api/ingest/guildbank/handouts", "/api/ingest/levelhelper"]);
         });
 
         // The guild bank assignment is a setting, not part of the token's reach.
@@ -268,8 +268,19 @@ describe("web/http/apiAccess", () => {
             for (const r of ROUTES) if (r.auth) expect(["none", "menu", "token"]).toContain(r.auth);
         });
 
-        it("marks no route as adminOnly today — the golden master lists them all", () => {
-            expect(ROUTES.filter((r) => r.adminOnly).map((r) => r.path)).toEqual([]);
+        it("marks exactly the routes of the golden master as adminOnly", () => {
+            expect(ROUTES.filter((r) => r.adminOnly).map((r) => r.path).sort()).toEqual([...golden.adminOnly].sort());
+        });
+
+        // The system status (docs/system-status.md) shows host details: no area grant may open it.
+        it("keeps the adminOnly routes to full admins, even for a role holding every area", () => {
+            const everything = limited(Object.fromEntries(AREA_IDS.map((a) => [a, { read: true, write: true }])));
+            for (const pathname of golden.adminOnly) {
+                expect(checkAccess(pathname, "GET", everything)).toMatchObject({ status: 403, code: "forbidden" });
+                expect(checkAccess(pathname, "GET", limited({}))).toMatchObject({ status: 403 });
+                expect(checkAccess(pathname, "GET", null)).toMatchObject({ status: 401 });
+                expect(checkAccess(pathname, "GET", admin)).toBeNull();
+            }
         });
 
         it("treats an entry without area as admin-only, even for a role holding every area", () => {

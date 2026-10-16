@@ -8,10 +8,26 @@
 //   availability:mb:<categoryId>   the submitted free-text modal (commands/signup/availability.js)
 //   guildbank:done:<id>            "Erledigt" under a free-text request (commands/signup/guildBank.js)
 //   guildbank:confirm:<id>         "Bestätigen" under a request from the stock: sets the amount aside
+//   guildbank:vouch:<id>           "Geprüft & bestätigen" instead, while the request is not linked but
+//                                  names a character: the orga vouches for the name and confirms (#806)
 //   guildbank:handout:<id>         "Ausgegeben" under a confirmed request
 //   guildbank:release:<id>         "Vormerkung lösen": confirmed → open again
+//   guildbank:rename:<id>          "Charakter ändern …" (open or confirmed, #809) → renameModal
+//   guildbank:mrename:<id>         the submitted rename modal: the request goes to that name
 //   guildbank:reject:<id>          "Ablehnen …" → rejectModal
 //   guildbank:mreject:<id>         the submitted decline modal
+//
+// A request that moved up from the waiting list (#775) is a normal open card
+// with "aus der Warteliste" in its note (and the rest that waits again: "Rest
+// 13 wartet (Platz 9)" — the list goes round in portions); one imported by character name alone
+// shows the name instead of the raider ("ohne Discord-Konto, keine DM").
+// A request from the stock without a linked character (services/guildbank/
+// linking.js) shows "⚠ Kein verknüpfter Charakter – Post erst nach Verknüpfen
+// im Web" — or, when its character is a profile character nobody has
+// confirmed, "⚠ Charakter nicht bestätigt" — and offers "Geprüft & bestätigen"
+// instead of "Bestätigen" (#806: the orga checked the name in game). Without
+// any character name ("⚠ Kein Charakter") "Bestätigen" stays disabled until
+// the orga links one in the web.
 //
 // What the raider reads is in their language (tr); the orga card and the orga's
 // modal are orga texts and stay German.
@@ -36,6 +52,8 @@ const ITEM_MAX = 80;
 const AMOUNT_MAX_LENGTH = 6;
 const PURPOSE_MAX = 100;
 const REASON_MAX = 200;
+// Forever's "Vorname Nachname" (utils/signup/characterNames.js NAME_MAX).
+const RENAME_NAME_MAX = 25;
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -94,6 +112,52 @@ function requestSummary(request, lang = "de") {
     const to = recipientName(request);
     if (to) lines.push(tr(lang, "To: {character}", { character: plain(to) }));
     return lines.join("\n");
+}
+
+/**
+ * The answer line of a request that went on the waiting list (#775), in the
+ * raider's language: "On the waiting list: **2× Crimson Spinal** – you are
+ * no. 4." plus when they hear from the bot — and, with `portion`, how the
+ * list shares out ("Handed out in turns: 2 per round.").
+ */
+function waitingSummary(request, position, lang = "de", { portion = 0 } = {}) {
+    const line = position > 0
+        ? tr(lang, "On the waiting list: {item} – you are no. {position}.", { item: `**${amountItem(request)}**`, position })
+        : tr(lang, "On the waiting list: {item}.", { item: `**${amountItem(request)}**` });
+    const turns = portion > 0 ? ` ${turnsText(portion, lang)}` : "";
+    return `${line}\n${tr(lang, "You get a DM as soon as it is your turn.")}${turns}`;
+}
+
+/** "Handed out in turns: 2 per round." — how the waiting list shares an item out (the item's portion). */
+function turnsText(portion, lang = "de") {
+    return tr(lang, "Handed out in turns: {count} per round.", { count: Number(portion) || 0 });
+}
+
+/**
+ * The DM when a waiting-list entry moved up to a request (#775): "Your turn" —
+ * the item is in the bank, the orga confirms it next. `rest` = what still
+ * waits for the raider (they got one portion or more, not all): it is back at
+ * the end of the list, at `position` (1 = next; 0 = not known).
+ */
+function movedUpCard(request, lang = "de", { rest = 0, position = 0 } = {}) {
+    const to = recipientName(request);
+    let restLine = "";
+    if (rest > 0) {
+        restLine = position > 0
+            ? tr(lang, "{count} more are back at the end of the waiting list for you – you are no. {position}.", { count: rest, position })
+            : tr(lang, "{count} more are back at the end of the waiting list for you.", { count: rest });
+    }
+    return card({
+        color: COLOR_OPEN,
+        kicker: tr(lang, "Guild bank"),
+        title: tr(lang, "Your turn on the waiting list"),
+        text: [
+            `**${amountItem(request)}**`,
+            tr(lang, "It is in the guild bank now – the orga will confirm it shortly."),
+            restLine,
+            to ? tr(lang, "To: {character}", { character: plain(to) }) : "",
+        ].filter(Boolean).join("\n"),
+    });
 }
 
 /**
@@ -158,8 +222,49 @@ function stockFacts(request, stock) {
     return [["Bestand", String(Number(stock.count) || 0)], ["Vorgemerkt", String(Number(stock.reserved) || 0)], ["Verfügbar", `${available}${after}`]];
 }
 
-/** The card's buttons for the request's status. */
-function orgaButtons(request) {
+/** The orga card's warning for a request from the stock without a linked character. German (orga text). */
+const NOT_LINKED_LINE = "⚠ **Kein verknüpfter Charakter** – Namen im Spiel prüfen, dann „Geprüft & bestätigen“ (oder im Web verknüpfen)";
+/** The same for a profile character no log, loot, armory or orga has confirmed (linking.linkState "unverified"). */
+const NOT_VERIFIED_LINE = "⚠ **Charakter nicht bestätigt** – im Spiel prüfen, dann „Geprüft & bestätigen“ (oder im Web: Arsenal)";
+/** The same without any character name: nothing to mail to, only the web can link one. */
+const NO_CHARACTER_LINE = "⚠ **Kein Charakter** – Post erst nach Verknüpfen im Web (Gildenbank)";
+
+/**
+ * The card's line when the stock does not cover an open request (#809) — its
+ * own reason, apart from any character problem: "Bestätigen" checks against
+ * Verfügbar. German (orga text).
+ */
+function shortLine(available, amount) {
+    return `⚠ **Nicht genug verfügbar** – noch ${available}, angefragt ${amount}. Bestätigen geht wieder, sobald genug frei ist (nächster Scan, gelöste Vormerkung, kleinere Reserve) – oder ablehnen.`;
+}
+
+/** Whether the stock (stockView.stockItem) does not cover an open request: then "Bestätigen" would be refused. */
+function isShort(request, stock) {
+    return !!stock && request.status === "open" && (Number(stock.available) || 0) < (Number(request.amount) || 0);
+}
+
+/**
+ * The warnings of a card from the stock, each its own reason: the character
+ * (open or confirmed, not linked) and the stock (open, not covered, #809).
+ */
+function warningLines(request, { linked, linkProblem, to, stock, short }) {
+    const lines = [];
+    if (!linked && (request.status === "open" || request.status === "confirmed")) {
+        lines.push(!to ? NO_CHARACTER_LINE : linkProblem === "unverified" ? NOT_VERIFIED_LINE : NOT_LINKED_LINE);
+    }
+    if (short) lines.push(shortLine(Number(stock.available) || 0, Number(request.amount) || 0));
+    return lines;
+}
+
+/**
+ * The card's buttons for the request's status. Not linked (#806): "Geprüft &
+ * bestätigen" while the request names a character (the click vouches for it),
+ * else "Bestätigen" disabled; either disabled while the stock does not cover
+ * it (`short`, #809). A request from the stock always has "Charakter ändern …"
+ * (#809) — the way out of a wrong name without the web — and, while open,
+ * "Ablehnen …".
+ */
+function orgaButtons(request, { linked = true, short = false } = {}) {
     const id = request.id;
     const button = (action, label, style, emoji) => {
         const b = new ButtonBuilder().setCustomId(`${PREFIX}:${action}:${id}`).setLabel(label).setStyle(style);
@@ -167,9 +272,17 @@ function orgaButtons(request) {
     };
     const reject = button("reject", "Ablehnen …", ButtonStyle.Secondary);
     if (!request.itemId) return request.status === "open" ? [button("done", "Erledigt", ButtonStyle.Success, "✅"), reject] : [];
-    if (request.status === "open") return [button("confirm", "Bestätigen", ButtonStyle.Success, "✅"), reject];
+    const rename = button("rename", "Charakter ändern …", ButtonStyle.Secondary);
+    if (request.status === "open") {
+        // not linked, but a name to mail to: the orga checks it in game and vouches for it with the click (#806)
+        const confirm = !linked && str(request.characterName)
+            ? button("vouch", "Geprüft & bestätigen", ButtonStyle.Success, "✅")
+            : button("confirm", "Bestätigen", ButtonStyle.Success, "✅").setDisabled(!linked);
+        if (short) confirm.setDisabled(true);
+        return [confirm, rename, reject];
+    }
     if (request.status === "confirmed") {
-        return [button("handout", "Ausgegeben", ButtonStyle.Secondary), button("release", "Vormerkung lösen", ButtonStyle.Secondary)];
+        return [button("handout", "Ausgegeben", ButtonStyle.Secondary), button("release", "Vormerkung lösen", ButtonStyle.Secondary), rename];
     }
     return [];
 }
@@ -181,17 +294,24 @@ function orgaButtons(request) {
  * text); `<@id>` shows the raider's name and pings nobody (discord.postPayload
  * allows no mentions).
  * @param {object} request a guildBankStore request
- * @param {{ categoryName?: string, stock?: object|null }} [o] the organizer's category name; the item as
- *   stockView.stockItem reads it now (count, reserved, available, group, icon), null when unknown
+ * @param {{ categoryName?: string, stock?: object|null, linked?: boolean, linkProblem?: string }} [o] the organizer's category name; the item as
+ *   stockView.stockItem reads it now (count, reserved, available, group, icon), null when unknown; `linked`
+ *   false = the request's character is no confirmed profile character (linking.linkState): warning, "Bestätigen" disabled;
+ *   `linkProblem` "unverified" names that reason (a profile character nobody confirmed); `rest` = what the
+ *   recipient of a request that moved up still waits for (`{ amount, position }`, guildBank.restWaiting), null = nothing
  */
-function orgaPayload(request, { categoryName = "", stock = null } = {}) {
+function orgaPayload(request, { categoryName = "", stock = null, linked = true, linkProblem = "", rest = null } = {}) {
     const created = seconds(request.createdAt);
     const fromStock = !!request.itemId;
     const group = fromStock ? str((stock && stock.group) || request.group) : "";
-    const text = [`<@${request.userId}>${created ? ` · <t:${created}:R>` : ""}`];
+    // an entry the orga imported by character name has no Discord account (#775)
+    const who = request.userId ? `<@${request.userId}>` : `**${plain(request.characterName) || "?"}** · ohne Discord-Konto, keine DM`;
+    const text = [`${who}${created ? ` · <t:${created}:R>` : ""}`];
     if (str(request.purpose)) text.push(`Wofür: ${plain(request.purpose)}`);
     const to = recipientName(request);
     if (to) text.push(`An: ${plain(to)}`);
+    const short = fromStock && isShort(request, stock);
+    if (fromStock) text.push(...warningLines(request, { linked, linkProblem, to, stock, short }));
     const status = request.status === "open" ? "offen" : statusLine(request);
     const icon = fromStock ? iconUrl(str((stock && stock.icon) || request.icon)) : "";
     return card({
@@ -201,9 +321,18 @@ function orgaPayload(request, { categoryName = "", stock = null } = {}) {
         text: text.join("\n"),
         thumbnail: icon,
         facts: stockFacts(request, stock),
-        buttons: orgaButtons(request),
-        note: [plainCategoryName(categoryName), status].filter(Boolean).join(" · "),
+        buttons: orgaButtons(request, { linked: !fromStock || linked, short }),
+        note: [plainCategoryName(categoryName), waitlistNote(request, rest), status].filter(Boolean).join(" · "),
     });
+}
+
+/** "aus der Warteliste", with the rest that waits again: "aus der Warteliste · Rest 13 wartet (Platz 9)". German (orga text). */
+function waitlistNote(request, rest) {
+    if (!request.fromWaitlist) return "";
+    const amount = rest ? Number(rest.amount) || 0 : 0;
+    if (!amount) return "aus der Warteliste";
+    const place = Number(rest.position) || 0;
+    return `aus der Warteliste · Rest ${amount} wartet${place ? ` (Platz ${place})` : ""}`;
 }
 
 /** The orga's decline modal: an optional reason the raider sees. German (orga text). */
@@ -218,6 +347,28 @@ function rejectModal(requestId) {
         ));
 }
 
+/**
+ * "Charakter ändern …" (#809): the orga names the character the request goes
+ * to in game — the raider stays. Prefilled with the current name and realm;
+ * the label says that the name must be checked in game, the submit vouches for
+ * it. German (orga text).
+ */
+function renameModal(request) {
+    const input = (id, label, value, max, required, placeholder) => {
+        const field = new TextInputBuilder().setCustomId(id).setLabel(label).setStyle(TextInputStyle.Short)
+            .setMaxLength(max).setRequired(required).setPlaceholder(placeholder);
+        if (str(value)) field.setValue(str(value).slice(0, max));
+        return new ActionRowBuilder().addComponents(field);
+    };
+    return new ModalBuilder()
+        .setCustomId(`${PREFIX}:mrename:${request.id}`)
+        .setTitle("Empfänger ändern")
+        .addComponents(
+            input("name", "Charakter (im Spiel geprüft, z. B. per /who)", request.characterName, RENAME_NAME_MAX, true, "z. B. Gentletwowl"),
+            input("realm", "Realm (leer = der der Gildenbank)", request.realm, 60, false, "z. B. Thunderstrike"),
+        );
+}
+
 /** `{ action, id }` of a `guildbank:<action>:<id>` customId. */
 function parseOrgaId(customId) {
     const [, action = "", id = ""] = String(customId || "").split(":");
@@ -225,6 +376,6 @@ function parseOrgaId(customId) {
 }
 
 module.exports = {
-    PREFIX, COLOR_OPEN, COLOR_CONFIRMED, COLOR_DONE, COLOR_REJECTED, guildBankChannelId, plain, amountItem, recipientName,
-    requestModal, requestSummary, decisionCard, statusLine, stockFacts, orgaPayload, rejectModal, parseOrgaId,
+    PREFIX, COLOR_OPEN, COLOR_CONFIRMED, COLOR_DONE, COLOR_REJECTED, NOT_LINKED_LINE, NOT_VERIFIED_LINE, NO_CHARACTER_LINE, guildBankChannelId, plain, amountItem, recipientName,
+    requestModal, requestSummary, waitingSummary, turnsText, movedUpCard, waitlistNote, decisionCard, statusLine, stockFacts, orgaPayload, rejectModal, renameModal, shortLine, isShort, parseOrgaId,
 };

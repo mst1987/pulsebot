@@ -27,6 +27,7 @@ const { rulesForEvent, versionOfEvent } = require("../events/mainVersion");
 const { signupCharacters } = require("../../utils/setup/model");
 const { SIGNUP_STATUSES } = require("../../utils/attendance");
 const { str } = require("../../utils/text");
+const { signupEventIdOf } = require("../../utils/raidGroup");
 
 const fail = (status, code, error) => ({ status, code, error });
 
@@ -44,7 +45,8 @@ function signupOf(eventId, userId) {
     if (!eventStore.isOwnEventId(id)) return { failed: fail(409, "raidhelper", "Das Setup dieses Events liegt bei Raid-Helper.") };
     const event = eventStore.getEvent(id);
     if (!event) return { failed: fail(404, "not_found", "Event nicht gefunden.") };
-    const signup = signupStore.getSignup(event.id, str(userId));
+    // a raid of a group (#811): the raider signed up at its first raid
+    const signup = signupStore.getSignup(signupEventIdOf(event), str(userId));
     if (!signup) return { failed: fail(404, "not_signed_up", "Dieser Raider ist nicht angemeldet.") };
     return { event, signup };
 }
@@ -110,7 +112,7 @@ function changeLine(before, after, beforeEntry, afterEntry) {
  * proposal ignores them the same way.
  */
 function placementAfter(setup, uid, { absent, from, to, playChanged }) {
-    const signups = new Map(signupStore.listSignups(setup.eventId || "").map((s) => [s.userId, s]));
+    const signups = new Map(signupStore.listSignups(setup.signupEventId || setup.eventId || "").map((s) => [s.userId, s]));
     const keep = (id) => !(absent && id === uid);
     const groups = (setup.groups || []).map((g) => ({
         index: g.index,
@@ -163,7 +165,7 @@ async function changeSignupFromSetup(eventId, userId, body = {}, { user = null, 
     // the same character twice would count once anyway — keep the changed one where it stands
     const characters = list.filter((c, i) => i === at || keyOf(c.character) !== keyOf(to.character));
 
-    const result = await signupService.submitSignup(event.id, uid, {
+    const result = await signupService.submitSignup(signupEventIdOf(event), uid, {
         characters,
         status,
         canAlso: Array.isArray(before.canAlso) ? before.canAlso : undefined,
@@ -185,7 +187,7 @@ async function changeSignupFromSetup(eventId, userId, body = {}, { user = null, 
     const fresh = eventStore.getEvent(event.id) || event;
     if (fresh.setup) {
         const playChanged = keyOf(from.character) !== keyOf(to.character) || from.spec !== to.spec;
-        const placement = withoutGone(placementAfter({ ...fresh.setup, eventId: fresh.id }, uid, { absent: after.status === "absence", from, to, playChanged }));
+        const placement = withoutGone(placementAfter({ ...fresh.setup, eventId: fresh.id, signupEventId: signupEventIdOf(fresh) }, uid, { absent: after.status === "absence", from, to, playChanged }));
         const saved = setupEditor.saveEventSetup(fresh.id, placement, { userId: str(user && user.id), now });
         if (saved.error) warning = `Setup nicht angepasst: ${saved.error}`;
         live = !!saved.live;

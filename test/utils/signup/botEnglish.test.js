@@ -24,6 +24,8 @@ describe("utils/signup/botEnglish", () => {
     it("translates the service's templated refusals and notices", () => {
         expect(toEnglish("Unbekannter Anmeldestatus „foo“.")).toBe("Unknown signup status “foo”.");
         expect(toEnglish("Höchstens 3 Charaktere je Anmeldung.")).toBe("At most 3 characters per signup.");
+        expect(toEnglish("Höchstens 5 Charaktere je Anmeldung in dieser Kategorie.")).toBe("At most 5 characters per signup in this category.");
+        expect(toEnglish("mehr als 2 Charaktere je Anmeldung in dieser Kategorie")).toBe("more than 2 characters per signup in this category");
         expect(toEnglish("Zibbo steht nicht in deinem Profil.")).toBe("Zibbo is not in your profile.");
         expect(toEnglish("Diese Spezialisierung ist für Zibbo nicht im Profil hinterlegt.")).toBe("This spec is not in your profile for Zibbo.");
         expect(toEnglish("Der Raid ist voll (25/25) – es geht keine Anmeldung mehr. Frag die Raidleitung."))
@@ -54,7 +56,8 @@ describe("utils/signup/botEnglish", () => {
         // the request from the stock (#633): the item, maxPerRequest, what is left
         expect(toEnglish("Diesen Gegenstand gibt es gerade nicht in der Gildenbank.")).toBe("This item is not available in the guild bank right now.");
         expect(toEnglish("Höchstens 5 pro Anfrage.")).toBe("At most 5 per request.");
-        expect(toEnglish("Nur noch 3 verfügbar.")).toBe("Only 3 left.");
+        // the waiting list (#775)
+        expect(toEnglish("Höchstens 10 Einträge auf der Warteliste – warte, bis einer drankommt.")).toBe("At most 10 entries on the waiting list – wait until one is your turn.");
     });
 
     it("translates every fixed refusal of absences and attendances", () => {

@@ -13,7 +13,8 @@
 // it, it is an entry of "Verwalten" now (`lootInMenu`) — a reader still reads it
 // in the time line.
 import type { CSSProperties, ReactNode } from "react";
-import type { RaidDetailData, RaidPrimaryAction, RaidStep } from "../../api";
+import { Link } from "react-router-dom";
+import type { RaidDetailData, RaidGroup, RaidPrimaryAction, RaidStep } from "../../api";
 import { eventTimeParts, relativeDayLabel } from "../../lib/format";
 import { eventPostUrl, raidplanUrl } from "../../lib/discord/discordLinks";
 import { Button, buttonClass } from "../../components/ui/Button";
@@ -21,6 +22,7 @@ import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
 import WowIcon from "../../components/ui/WowIcon";
 import { useT } from "../../i18n";
+import PugBadge from "../../components/signup/PugBadge";
 
 function StepCell({ step, onOpen }: { step: RaidStep; onOpen: (step: RaidStep) => void }) {
     const t = useT();
@@ -57,6 +59,21 @@ function StepCell({ step, onOpen }: { step: RaidStep; onOpen: (step: RaidStep) =
 function lootSystemText(data: RaidDetailData): string {
     const ls = data.lootSystem;
     return ls ? `${ls.label}${ls.softresExtra ? " + Softres" : ""}` : "";
+}
+
+/** "Raid 2 von 2 · Zul'Aman · Zul'Aman 2" — the other raids of the evening as links to their detail pages (#811). */
+function RaidGroupLinks({ group, current }: { group: RaidGroup; current: string }) {
+    const t = useT();
+    const me = group.raids.find((r) => r.id === current);
+    return (
+        <span className="rd-hero-group" data-tip={t("setup.raidGroup.head", { index: me ? me.index : 1, count: group.count })} data-tip-sub={t("setup.raidGroup.headTip")}>
+            <span className="rd-dot" aria-hidden="true">·</span>
+            <Badge tone="accent">{t("setup.raidGroup.head", { index: me ? me.index : 1, count: group.count })}</Badge>
+            {group.raids.filter((r) => r.id !== current).map((r) => (
+                <Link key={r.id} className="rd-hero-grouplink" to={`/raids/detail?event=${encodeURIComponent(r.id)}`}>{r.title}</Link>
+            ))}
+        </span>
+    );
 }
 
 export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning, manage, cockpit, lootInMenu = false, onRecreateChannel, recreating = false }: {
@@ -101,7 +118,7 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                         <span className="hero-time-unit">{t("raidDetail.hero.timeUnit")}</span>
                         {relDay && <><span className="rd-dot" aria-hidden="true">·</span><Badge tone={ev.isPast ? undefined : "accent"}>{relDay}</Badge></>}
                         {/* the dot travels with the category, so a wrapped line never ends in "·" */}
-                        {data.categoryName && <span className="rd-hero-cat"><span className="rd-dot" aria-hidden="true">·</span>{data.categoryName}</span>}
+                        {data.categoryName && <span className="rd-hero-cat"><span className="rd-dot" aria-hidden="true">·</span>{data.categoryName}<PugBadge open={data.openToAll} /></span>}
                         {loot && ls && (
                             <span
                                 className="rd-hero-cat" data-tip={t("raidDetail.hero.lootTip", { label: loot })}
@@ -115,6 +132,8 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                                 {t("raidDetail.hero.cancelled")}
                             </Badge>
                         )}
+                        {/* a raid group (#811): which raid this is, the evening's other raids one click away */}
+                        {data.raidGroup && <RaidGroupLinks group={data.raidGroup} current={ev.id} />}
                         {!cancelled && ev.signupsClosed && (
                             <Badge tone="mid" className="em-state" tip={t("raidDetail.hero.signupsClosed")} tipSub={t("raidDetail.hero.signupsClosedSub")}>
                                 {t("raidDetail.hero.signupsClosed")}

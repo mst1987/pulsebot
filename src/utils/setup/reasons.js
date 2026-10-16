@@ -33,12 +33,15 @@ const ROLE_PLURAL = { tank: "Tanks", healer: "Heiler", melee: "Nahkämpfer", ran
 /**
  * Which of several named characters (#293) the raider plays, and why:
  * "Mit Zibbowar als Tank statt Zibbo (Tanks fehlten)", or "1. Wahl: Zibbo".
+ * A fixed place (`byOrga`) on a further character was the orga's own pick:
+ * "Mit Zibbowar als Tank (von der Orga gewählt)".
  * Null for a raider who named one character.
  */
-function characterChoiceReason(model, facts, cand, o) {
+function characterChoiceReason(model, facts, cand, o, byOrga = false) {
     const pref = cand.preferred && cand.preferred.get(o.eventIdx);
     if (!pref) return null;
     if (!(o.priority > 0)) return `1. Wahl: ${o.character}`;
+    if (byOrga) return `Mit ${o.character} als ${ROLE_LABELS[o.role]} (von der Orga gewählt)`;
     const event = model.events[o.eventIdx];
     const ev = facts.events[o.eventIdx];
     const prefIdx = ROLES.indexOf(pref.role);
@@ -65,7 +68,7 @@ function slotReasons(model, facts, state, c, credits) {
     const o = cand.options[state.opt[c]];
     const out = [];
     if (state.lockOpt[c]) out.push("Von der Orga fixiert");
-    const choice = characterChoiceReason(model, facts, cand, o);
+    const choice = characterChoiceReason(model, facts, cand, o, !!state.lockOpt[c]);
     if (choice) out.push(choice);
     if (!o.main) out.push(`Zweitspec als ${ROLE_LABELS[o.role]}`);
     if (o.status === "bench") out.push("Als Ersatz angemeldet – aufgestellt, weil sonst ein Platz frei bliebe");
@@ -155,7 +158,10 @@ function slotOf(model, state, c, reasons) {
 
 function benchEntryOf(model, state, c, reasons) {
     const cand = model.cands[c];
-    const o = cand.options.find((x) => x.main) || cand.options[0] || null;
+    // the character the orga put on the bench (#293), else the first main option
+    const wanted = cand.fixed && cand.fixed.bench ? String(cand.fixed.character || "").toLowerCase() : "";
+    const chosen = wanted ? cand.options.find((x) => x.main && String(x.character).toLowerCase() === wanted) : null;
+    const o = chosen || cand.options.find((x) => x.main) || cand.options[0] || null;
     return {
         userId: cand.userId,
         character: o ? o.character : (cand.name || cand.userId),

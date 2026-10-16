@@ -11,7 +11,7 @@ export type RaidplanTarget = { id: string; title: string; userIds: string[] };
 export type RaidplanSlotKind = "tank" | "healer" | "melee" | "ranged" | "dps" | "group" | "label";
 /** A placeholder place: tank 1..n, healer 1..n, dps, a group marker (n = the setup group) or a free label; `userId` "" = open. */
 /** A raider of a split group who was moved or scaled on his own: relative to the group marker, in board fractions. */
-export type RaidplanOffset = { dx: number; dy: number; size: number };
+export type RaidplanOffset = { dx: number; dy: number; size: number; /** never stored: an animation moved him on his own (lib/raidplan/scene.ts) - his group's ring does not stretch to him */ away?: boolean };
 /** A group marker also has hideMembers (only its tag shows), split (its raiders stand around it) and per-raider offsets. */
 export type RaidplanSlot = {
     /** a group: its scale as a whole, of its ring spacing and of its member tokens (0.25 .. 4, missing = 1) */
@@ -41,6 +41,8 @@ export type RaidplanBoard = {
     assignments: RaidplanAssignment[];
     /** the tactic: ordered steps, who does what, when and how (references only) */
     steps?: RaidplanStep[];
+    /** animations of the board's objects (lib/raidplan/scene.ts, docs/raidplan/animation.md) */
+    scenes?: RaidplanScene[];
     /** false = this boss / trash section is shown without its map (the objects stay stored) */
     showMap?: boolean;
     /** the tank rows put their mobs and tanks on the map by themselves (default on; lib/raidplan/autoPlace.ts) */
@@ -138,6 +140,8 @@ export type RaidplanLinkView = {
     link: { enabled: boolean; instanceIds: string[]; versionId: string; size: number; title: string } | null;
     suggestion: { instanceIds: string[]; size: number; versionId: string };
     instances: RaidplanLinkInstance[];
+    /** the game versions the dialog offers (#751) */
+    versions?: { id: string; label: string }[];
     hasPlan: boolean;
     published: boolean;
     raidhelperDisabled: boolean;
@@ -159,7 +163,11 @@ export type Besetzung = { size: number; counts: BesetzungCounts; groups: number;
 export type CatalogSource = "default" | "override" | "custom" | "hidden";
 export type CatalogMob = { id: string; name: string; kind: "boss" | "add" | "trash" | "other"; instanceId: string; bossKey: string; icon: string; /** the icon is a similar one, a placeholder */ similar?: boolean; note: string; /** the game versions that have it (#544: every entry names at least one; missing = all, only for data from before) */ versions?: string[]; source: CatalogSource };
 export type CatalogSpell = { id: string; name: string; nameEn: string; icon: string; type: RaidplanAssignType; classes: string[]; note: string; versions?: string[]; source: CatalogSource };
-export type Catalog = { mobs: CatalogMob[]; spells: CatalogSpell[] };
+export type Catalog = {
+    mobs: CatalogMob[]; spells: CatalogSpell[];
+    /** the assignment types and class ids of the plan's game version (#751); absent from an older server */
+    types?: string[]; classes?: string[];
+};
 export type CatalogAdmin = Catalog & {
     hidden: Catalog; iconChoices: Record<string, string[]>; kinds: string[]; classes: string[]; types: string[];
     /** the instances of every game version, each with its version (the form offers those of the entry's versions) */
@@ -204,6 +212,20 @@ export type RaidplanTemplate = {
 /** One step of a tactic (docs/raidplan.md, "Taktik"). */
 export type RaidplanStepTarget = { kind: "mob" | "zone" | "mark" | "group" | "role"; ref: string; name?: string; icon?: string };
 export type RaidplanTiming = { kind: "" | "pull" | "phase" | "hp" | "interval" | "now" | "text"; from: number | null; to: number | null; text: string };
+/** How a change of a scene runs: slow in and out (default), even, slow start, slow end. */
+export type RaidplanEase = "inout" | "linear" | "in" | "out";
+/**
+ * What one frame changes about one object (src/services/raidplan/raidplanScenes.js): `obj` = "<kind>:<id>" ("token:<userId>",
+ * "auto:<key>" ...); only the fields it sets change. It starts `delay` s after its frame and takes `dur` s; `path` = the points a
+ * movement passes on its way; `hidden` fades out (true) or in (false); `badge` = a WoW icon name on it ("" takes it off).
+ */
+export type RaidplanChange = { obj: string; x?: number; y?: number; path?: [number, number][]; rotation?: number; opacity?: number; scale?: number; hidden?: boolean; badge?: string; pulse?: boolean; delay: number; dur: number; ease: RaidplanEase };
+/** A "Takt": its start time in seconds (the first one at 0), a caption and what changes. */
+export type RaidplanFrame = { id: string; at: number; caption: string; changes: RaidplanChange[] };
+/** A movement of its own along a path, independent of the frames (kiting): one round takes `period` s; `to` 0 = until the end. */
+export type RaidplanLoop = { id: string; obj: string; path: [number, number][]; closed: boolean; period: number; from: number; to: number; trail: boolean };
+/** An animation of a section: frames in time order, its length in seconds, played once or in a loop, maybe at a tactic step. */
+export type RaidplanScene = { id: string; title: string; loop: boolean; length: number; stepId: string; frames: RaidplanFrame[]; loops: RaidplanLoop[] };
 export type RaidplanStep = { id: string; action: string; participants: string[]; sentence: string; targets: RaidplanStepTarget[]; timing: RaidplanTiming };
 export type RaidplanProfile = { id: string; name: string; category: string; /** the game version (#544) */ versionId: string; bossKey: string; steps: RaidplanStep[]; targets: { title: string }[]; notes: string; updatedAt: number };
 export type RaidplanProfileInput = { name?: string; category?: string; versionId?: string; bossKey?: string; steps?: RaidplanStep[]; targets?: { title: string }[]; notes?: string };
@@ -233,7 +255,7 @@ export type RaidplanView = {
 export type RaidplanPublicBoss = {
     key: string; name: string; instanceName: string; iconUrl: string; mapUrl: string; trash: boolean; general: boolean;
     tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; icons: RaidplanIcon[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
-    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; steps?: RaidplanStep[]; showMap?: boolean; autoPlace?: boolean; autoPos?: Record<string, { x: number; y: number }>; autoStyle?: Record<string, RaidplanAutoStyle>; autoScale?: number; /** who plays another role on this boss (flex): role groups follow it */ roles?: Record<string, string>; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean; inSheet?: boolean; groupColors?: Record<string, string>; groupMarks?: Record<string, string>; showNames?: boolean; showBadges?: boolean; showRoleRings?: boolean; view?: { zoom: number; cx: number; cy: number } | null;
+    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; steps?: RaidplanStep[]; scenes?: RaidplanScene[]; showMap?: boolean; autoPlace?: boolean; autoPos?: Record<string, { x: number; y: number }>; autoStyle?: Record<string, RaidplanAutoStyle>; autoScale?: number; /** who plays another role on this boss (flex): role groups follow it */ roles?: Record<string, string>; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean; inSheet?: boolean; groupColors?: Record<string, string>; groupMarks?: Record<string, string>; showNames?: boolean; showBadges?: boolean; showRoleRings?: boolean; view?: { zoom: number; cx: number; cy: number } | null;
 };
 export type RaidplanPublic = {
     event: { title: string; startTime: number };
@@ -254,8 +276,8 @@ export function getRaidplan(eventId: string, fresh = false): Promise<RaidplanVie
     return get<RaidplanView>(`/api/raidplan?event=${encodeURIComponent(eventId)}${fresh ? "&fresh=1" : ""}`);
 }
 
-export function getRaidplanLink(eventId: string): Promise<RaidplanLinkView> {
-    return get<RaidplanLinkView>(`/api/raidplan/link?event=${encodeURIComponent(eventId)}`);
+export function getRaidplanLink(eventId: string, versionId = ""): Promise<RaidplanLinkView> {
+    return get<RaidplanLinkView>(`/api/raidplan/link?event=${encodeURIComponent(eventId)}${versionId ? `&version=${encodeURIComponent(versionId)}` : ""}`);
 }
 
 /** Switches a Raid-Helper event's raid plan on (with instances / size / version) or off (the plan stays, its public link goes). */

@@ -24,7 +24,6 @@ const ALLOWED = {
     "src/config/profanity.js": "reine Wortlisten, geprüft über utils/signup/characterNames.js (characterNames.test.js)",
     "src/config/recommendationRules.js": "reine Regeltabelle, geprüft über utils/logcheck/recommendations.js",
     "src/config/softresInstances.js": "reine Instanz-Tabelle, geprüft über utils/loot/softres.js (softres.test.js)",
-    "src/services/raidplan/raidplanConstants.js": "zwei Konstanten-Listen, geprüft über raidplanAssign/raidplanCatalogStore/raidplanTitle",
     // loaded through a computed path
     "src/web/static/report.js": "Browser-Skript; test/web/static/report.test.js lädt es über path.join",
 };

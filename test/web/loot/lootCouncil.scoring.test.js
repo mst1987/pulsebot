@@ -214,7 +214,7 @@ describe("web/loot/lootCouncil — what counts as having been given something", 
         ]);
         mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
         mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([])]]));
-        const [candidate] = candidatesForItem(31064, councilRoster({}).rows);
+        const [candidate] = candidatesForItem(32525, councilRoster({}).rows);
         expect(candidate.lootCount).toBe(1);
         expect(candidate.otherCount).toBe(1);
     });

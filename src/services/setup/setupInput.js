@@ -8,13 +8,13 @@
 //               status (#320): the proposal weighs the status of the character
 //               it would place, not the signup's
 //   profiles    raiderProfileStore — gear per spec, can offtank/heal, wishes
-//   attendance  rosterAttendance, per raider in the event's category
+//   attendance  rosterAttendance, per raider in the event's category - within the event's version (#740)
 //   history     earlier nights of the same categories: from *approved* setups
 //               (`event.setup.status === "approved"`) — the bench is never
 //               stored separately. As long as no setup was approved yet, the
 //               stored signups stand in (signed/late = placed, "Ersatzbank" = bench).
 //   fixed       the places the orga locked in the event's current setup draft
-//   rosterStatus  the roster of the event's category (#658): `{ userId: status }`
+//   rosterStatus  the roster of the event's category and version (#658, #739): `{ userId: status }`
 //               of its members — core before trial before bench in the proposal;
 //               empty for a category without roster
 //
@@ -28,8 +28,10 @@ const settingsStore = require("../../stores/settingsStore");
 const rosterStore = require("../../stores/rosterStore");
 const { buildAttendanceContext, attendanceFor } = require("../characters/rosterAttendance");
 const { listStoredEvents } = require("../events/eventSources");
+const { versionOfEvent } = require("../events/mainVersion");
 const { buildSetupProposal } = require("../../utils/setup/proposal");
 const { benchAndPool } = require("./setupCore");
+const { signupEventIdOf } = require("../../utils/raidGroup");
 
 // How many earlier nights per category go into the fairness history.
 const HISTORY_NIGHTS = 10;
@@ -69,7 +71,8 @@ function benchHistory(events, { guildId, now }) {
     const before = Math.min(...events.map((e) => e.startTime || Infinity));
     const inScope = (e) => !ids.has(String(e.id)) && (!categories.size || categories.has(e.categoryId)) && (Number(e.startTime) || 0) < before;
 
-    const approved = eventStore.listEvents(guildId)
+    // the further raids of a group (#811) ran that night too, each with its own approved setup
+    const approved = eventStore.listEvents(guildId, { siblings: true })
         .filter(inScope)
         .map((e) => ({ e, lineup: approvedLineup(e.setup) }))
         .filter((x) => x.lineup)
@@ -107,7 +110,7 @@ function fixedFromSetup(event, { keepPlaced = false } = {}) {
     }
     // #517: the whole explicit bench stays on the bench — a new proposal never undoes the orga's choice
     for (const b of benchAndPool(setup).bench) {
-        if (b.userId) out.push({ userId: String(b.userId), bench: true, locked: !!b.locked });
+        if (b.userId) out.push({ userId: String(b.userId), bench: true, locked: !!b.locked, ...(b.character ? { character: String(b.character) } : {}) });
     }
     return out;
 }
@@ -151,17 +154,23 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false } = 
     const guildId = events[0].guildId;
     const config = settingsStore.getConfig();
 
-    const signups = events.flatMap((e) => signupStore.listSignups(e.id).map((s) => ({ ...s, eventId: e.id })));
+    // A raid group (#811): every raid takes the signups of the group's first raid — the raiders
+    // signed up there once — so each of them can be placed in any raid, and the proposal's hard
+    // rule "each raider at most once across all events" keeps it to one seat.
+    const signups = events.flatMap((e) => signupStore.listSignups(signupEventIdOf(e)).map((s) => ({ ...s, eventId: e.id })));
     const userIds = new Set(signups.map((s) => String(s.userId)));
     const profiles = profileStore.listProfiles().filter((p) => userIds.has(p.userId));
 
     const attendance = {};
-    const ctx = buildAttendanceContext(guildId, { now });
+    // within the version of the raid being set up (#740)
+    const ctx = buildAttendanceContext(guildId, { now, versionId: versionOfEvent(events[0]) });
+    const eventById = new Map(events.map((e) => [e.id, e]));
+    const profileById = new Map(profiles.map((p) => [p.userId, p]));
     for (const s of signups) {
         if (attendance[s.userId] !== undefined || s.status === "absence") continue;
-        const event = events.find((e) => e.id === s.eventId);
+        const event = eventById.get(s.eventId);
         // a signup without a name: the raider's first character of the event's version (their own order)
-        const character = s.character || (profileStore.firstCharacter(profiles.find((p) => p.userId === s.userId), event.versionId || "") || {}).name || "";
+        const character = s.character || (profileStore.firstCharacter(profileById.get(String(s.userId)), event.versionId || "") || {}).name || "";
         if (!event.categoryId || !character) continue;
         attendance[s.userId] = attendanceFor(ctx, event.categoryId, character, [s.userId]).pct;
     }
@@ -197,7 +206,8 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false } = 
 function rosterStatusFor(events) {
     const out = {};
     for (const e of events) {
-        const roster = e.categoryId ? rosterStore.rosterForCategory(String(e.categoryId)) : null;
+        // the roster of the event's version (#739)
+        const roster = e.categoryId ? rosterStore.rosterForCategory(String(e.categoryId), versionOfEvent(e)) : null;
         if (!roster) continue;
         for (const [userId, member] of Object.entries(roster.members)) {
             if (out[userId] === undefined) out[userId] = member.status;

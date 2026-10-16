@@ -136,3 +136,134 @@ describe("stores/raidEventStore", () => {
         expect(saveRaidEvents([event({ id: "e1" }), event({ id: "e3" })])).toBe(1);
     });
 });
+
+// The dashboard scans on every view: a rescan that brings nothing new must not
+// rewrite the file, and the snapshots are read from the cache.
+describe("stores/raidEventStore - only real changes are written", () => {
+    const { RAID_EVENTS_FILE } = require("../../src/stores/raidEventStore.js");
+    const writes = () => fs.renameSync.mock.calls.filter(([, to]) => to === RAID_EVENTS_FILE).length;
+
+    beforeEach(() => {
+        fs.__store.clear();
+        fs.renameSync.mockClear();
+        fs.readFileSync.mockClear();
+    });
+
+    it("leaves the file alone on a rescan with the same content, updatedAt included", () => {
+        const now = jest.spyOn(Date, "now");
+        try {
+            now.mockReturnValue(1000);
+            expect(saveRaidEvents([event({ signUps: [{ userId: "u1", specName: "Fury", status: "signed" }] })])).toBe(1);
+            expect(writes()).toBe(1);
+            now.mockReturnValue(2000);
+            // same scan again, and one that only lacks the (kept) roster
+            expect(saveRaidEvents([event({ signUps: [{ userId: "u1", specName: "Fury", status: "signed" }] })])).toBe(0);
+            expect(saveRaidEvents([event({ signUps: [] })])).toBe(0);
+            expect(writes()).toBe(1);
+            expect(getRaidEvent("e1")).toMatchObject({ firstSeenAt: 1000, updatedAt: 1000 });
+        } finally {
+            now.mockRestore();
+        }
+    });
+
+    it("writes when a field changed, and bumps updatedAt", () => {
+        const now = jest.spyOn(Date, "now");
+        try {
+            now.mockReturnValue(1000);
+            saveRaidEvents([event()]);
+            now.mockReturnValue(2000);
+            saveRaidEvents([event({ channelName: "kara-neu" })]);
+            expect(writes()).toBe(2);
+            expect(getRaidEvent("e1")).toMatchObject({ channelName: "kara-neu", firstSeenAt: 1000, updatedAt: 2000 });
+            now.mockReturnValue(3000);
+            saveRaidEvents([event({ channelName: "kara-neu", signUps: [{ userId: "u2", specName: "Arms" }] })]);
+            expect(writes()).toBe(3);
+            expect(getRaidEvent("e1").updatedAt).toBe(3000);
+        } finally {
+            now.mockRestore();
+        }
+    });
+
+    it("writes nothing for an empty or id-less batch", () => {
+        saveRaidEvents([]);
+        saveRaidEvents([{ title: "ohne id" }]);
+        expect(writes()).toBe(0);
+    });
+
+    it("parses the file once for many lookups and hands out copies", () => {
+        saveRaidEvents([event(), event({ id: "e2" })]);
+        fs.readFileSync.mockClear();
+        for (let i = 0; i < 10; i += 1) {
+            getRaidEvent("e1");
+            listRaidEvents("g1");
+        }
+        expect(fs.readFileSync.mock.calls.filter(([p]) => p === RAID_EVENTS_FILE)).toHaveLength(1);
+        getRaidEvent("e1").title = "x";
+        listRaidEvents("g1")[0].signUps.push({ userId: "x" });
+        expect(getRaidEvent("e1").title).toBe("Kara");
+        expect(listRaidEvents("g1").every((e) => e.signUps.length === 0)).toBe(true);
+    });
+});
+
+// #737: every snapshot has a stored version; a rescan never moves it.
+describe("stores/raidEventStore — versionId", () => {
+    const { versionOfRaidEvent, migrateVersions, RAID_EVENTS_FILE } = require("../../src/stores/raidEventStore.js");
+    const writes = () => fs.renameSync.mock.calls.filter(([, to]) => to === RAID_EVENTS_FILE).length;
+
+    it("stores the version of the first scan", () => {
+        saveRaidEvents([event({ versionId: "tbc" })]);
+        expect(getRaidEvent("e1").versionId).toBe("tbc");
+        expect(versionOfRaidEvent("e1")).toBe("tbc");
+    });
+
+    it("keeps it when a later scan brings another one (the category was switched)", () => {
+        saveRaidEvents([event({ versionId: "tbc" })]);
+        fs.renameSync.mockClear();
+        saveRaidEvents([event({ versionId: "forever" })]);
+        expect(getRaidEvent("e1").versionId).toBe("tbc");
+        // nothing new: the file stays as it was
+        expect(writes()).toBe(0);
+    });
+
+    it("stamps a snapshot without version on its next scan, and ignores an unknown id", () => {
+        saveRaidEvents([event()]);
+        expect(getRaidEvent("e1")).not.toHaveProperty("versionId");
+        expect(versionOfRaidEvent("e1")).toBe("");
+        saveRaidEvents([event({ versionId: "wotlk" })]);
+        expect(getRaidEvent("e1")).not.toHaveProperty("versionId");
+        saveRaidEvents([event({ versionId: "forever" })]);
+        expect(versionOfRaidEvent("e1")).toBe("forever");
+    });
+
+    it("answers \"\" for an unknown or blank id and follows a changed file", () => {
+        expect(versionOfRaidEvent("")).toBe("");
+        expect(versionOfRaidEvent("nope")).toBe("");
+        saveRaidEvents([event({ versionId: "tbc" })]);
+        expect(versionOfRaidEvent("e1")).toBe("tbc");
+        saveRaidEvents([event({ id: "e2", versionId: "classic" })]);
+        expect(versionOfRaidEvent("e2")).toBe("classic");
+    });
+
+    it("migrateVersions gives every snapshot without version the asked one, once", () => {
+        fs.writeFileSync(RAID_EVENTS_FILE, JSON.stringify({ events: [
+            { id: "a", categoryId: "mon", title: "A", updatedAt: 5 },
+            { id: "b", categoryId: "fri", title: "B", updatedAt: 6 },
+            { id: "c", categoryId: "mon", title: "C", versionId: "classic", updatedAt: 7 },
+        ] }));
+        const versionOf = jest.fn((e) => (e.categoryId === "fri" ? "forever" : "tbc"));
+        expect(migrateVersions(versionOf)).toEqual({ tbc: 1, forever: 1 });
+        expect(listRaidEvents("").map((e) => [e.id, e.versionId, e.updatedAt])).toEqual([
+            ["a", "tbc", 5], ["b", "forever", 6], ["c", "classic", 7],
+        ]);
+        // idempotent: nothing left to do, nothing written
+        fs.renameSync.mockClear();
+        expect(migrateVersions(versionOf)).toEqual({});
+        expect(writes()).toBe(0);
+    });
+
+    it("migrateVersions leaves a snapshot alone when no known version comes back", () => {
+        fs.writeFileSync(RAID_EVENTS_FILE, JSON.stringify({ events: [{ id: "a" }] }));
+        expect(migrateVersions(() => "")).toEqual({});
+        expect(getRaidEvent("a")).not.toHaveProperty("versionId");
+    });
+});

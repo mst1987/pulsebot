@@ -33,3 +33,16 @@ describe("services/discord/discord postPayload / editPayload", () => {
         await expect(discord.editPayload("c1", "m1", {})).rejects.toThrow("Bot nicht verbunden.");
     });
 });
+
+describe("services/discord/discord postRolePing", () => {
+    it("posts plain text that pings exactly the given role and shows no link previews", async () => {
+        const channel = dc.makeChannel({ id: "c1", guildId: "g1" });
+        discord.setClient(dc.makeClient({ channels: [channel], user: { id: BOT } }));
+        const res = await discord.postRolePing("c1", "123456789012345678", "<@&123456789012345678> **X 1.0** ist da.");
+        const sent = channel.send.mock.calls[0][0];
+        expect(sent.content).toBe("<@&123456789012345678> **X 1.0** ist da.");
+        expect(sent.allowedMentions).toEqual({ parse: [], roles: ["123456789012345678"] });
+        expect(sent.flags).toBeTruthy();
+        expect(res).toMatchObject({ guildId: "g1", channelId: "c1", messageId: "m-new" });
+    });
+});

@@ -6,13 +6,14 @@ import {
     type ApiError, type AttendanceCategory, type AvailabilityEntry, type SignupStatus,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import { Badge, BackButton, Button, IconButton, WowIcon, useConfirm, type Tone } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { AbsenceIcon, CheckIcon, CheckMark, TrashIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import AvailabilityDialog from "../../components/signup/AvailabilityDialog";
 import { categoryIcon, entryDays, entryState, entryWording, nightsInOrder, plainCategoryName } from "../../lib/roster/absences";
-import { countsAsPresent, statusOf, verdictText } from "../../lib/roster/attendanceStatus";
+import { countsAsPresent, countsForQuota, statusLabel, statusOf, verdictTip } from "../../lib/roster/attendanceStatus";
 import AttendanceCell from "../../components/roster/AttendanceCell";
 import { periodLabel } from "../../lib/signups/availability";
 import { formatDayDate, formatTime } from "../../lib/format";
@@ -33,7 +34,9 @@ export default function MyAttendance({ userId = "", onBack }: {
     onBack?: () => void;
 }) {
     const t = useT();
-    const attendance = useApi(() => getRaiderAttendance(userId), [userId]);
+    // counted within the menu's content version (#740): a switch loads it again
+    const { version } = useContentVersion();
+    const attendance = useApi(() => getRaiderAttendance(userId, version), [userId, version]);
     // the entries of whoever is shown; the caller's own data feeds the dialog when that is somebody else
     const entries = useApi(() => getAvailability(userId), [userId]);
     const caller = useApi(() => getAvailability(), [], { enabled: !!userId });
@@ -67,7 +70,7 @@ export default function MyAttendance({ userId = "", onBack }: {
                 <div className="ab-own-head">
                     <h3>{other ? t("absences.mine.entriesOf", { name }) : t("absences.mine.entries")}</h3>
                     {own && (
-                        <Button size="sm" variant="ghost" icon={<AbsenceIcon />} onClick={() => setDialog(true)}>
+                        <Button size="sm" variant="no" icon={<AbsenceIcon />} onClick={() => setDialog(true)}>
                             {other ? t("absences.drawer.enterFor", { name }) : t("absences.enter")}
                         </Button>
                     )}
@@ -201,10 +204,12 @@ function CategoryCard({ cat, userId, name, canEdit, onSaved }: { cat: Attendance
                     </div>
                     <ul className="ab-att-list">
                         {[...nights].reverse().map((r) => (
-                            <li key={r.eventId} className={countsAsPresent(statusOf(r)) ? "ab-att-in" : "ab-att-out"} data-att={statusOf(r)}>
+                            <li key={r.eventId} className={countsAsPresent(statusOf(r)) ? "ab-att-in" : countsForQuota(statusOf(r)) ? "ab-att-out" : "ab-att-neutral"} data-att={statusOf(r)}>
                                 <span className="ab-att-date">{formatDayDate(r.startTime * 1000)}</span>
                                 <span className="ab-att-title">{r.title}</span>
-                                <span className="ab-att-verdict">{verdictText(r)}</span>
+                                <span className="ab-att-verdict tipped" tabIndex={0} data-tip={statusLabel(statusOf(r))} data-tip-sub={verdictTip(r)}>
+                                    {statusLabel(statusOf(r))}
+                                </span>
                             </li>
                         ))}
                     </ul>

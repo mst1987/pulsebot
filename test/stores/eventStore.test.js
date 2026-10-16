@@ -286,3 +286,63 @@ describe("stores/eventStore", () => {
         });
     });
 });
+
+// Read on every page and per event: cached, parsed once per change, every
+// event handed out a copy of its own.
+describe("cache", () => {
+    const { _internal: { EVENTS_FILE } } = require("../../src/stores/eventStore");
+    const parses = () => fs.readFileSync.mock.calls.filter(([p]) => p === EVENTS_FILE).length;
+
+    beforeEach(() => {
+        fs.__store.clear();
+        fs.readFileSync.mockClear();
+    });
+
+    it("parses the file once for any number of lookups while it does not change", () => {
+        const ids = [1, 2, 3].map((n) => createEvent(base({ title: `Raid ${n}`, startTime: 2000000000 + n })).event.id);
+        fs.readFileSync.mockClear();
+        for (let i = 0; i < 10; i += 1) {
+            ids.forEach((id) => getEvent(id));
+            listEvents("g1");
+        }
+        expect(parses()).toBe(1);
+        updateEvent(ids[0], { title: "Neu" });
+        expect(getEvent(ids[0]).title).toBe("Neu");
+        expect(parses()).toBe(2);
+    });
+
+    it("hands out copies: a caller changing an event changes nothing stored", () => {
+        const { event } = createEvent(base({ instanceIds: ["kara"] }));
+        const got = getEvent(event.id);
+        got.title = "x";
+        got.instanceIds.push("gruul");
+        got.composition.tank = 9;
+        listEvents("g1")[0].log.push({ action: "x" });
+        expect(getEvent(event.id)).toMatchObject({ title: "Kara Donnerstag", instanceIds: ["kara"], log: [] });
+        expect(getEvent(event.id).composition.tank).not.toBe(9);
+        expect(Object.isFrozen(getEvent(event.id).instanceIds)).toBe(false);
+    });
+});
+
+describe("onEventsChanged", () => {
+    const { onEventsChanged } = require("../../src/stores/eventStore");
+    beforeEach(() => fs.__store.clear());
+
+    it("tells every listener after each write until it unsubscribes, and survives a failing one", () => {
+        const seen = jest.fn();
+        const off = onEventsChanged(seen);
+        const offBroken = onEventsChanged(() => {
+            throw new Error("boom");
+        });
+        const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+        const { event } = createEvent(base({ instanceIds: ["kara"] }));
+        updateEvent(event.id, { title: "Neu" });
+        expect(seen).toHaveBeenCalledTimes(2);
+        expect(spy).toHaveBeenCalledWith("[eventStore] listener failed:", "boom");
+        off();
+        offBroken();
+        deleteEvent(event.id);
+        expect(seen).toHaveBeenCalledTimes(2);
+        spy.mockRestore();
+    });
+});

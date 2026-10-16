@@ -14,10 +14,14 @@ const { profileView, lookupArmory } = require("../characters/profileView");
 const calendarTokens = require("../../stores/calendarTokenStore");
 const calendarFeed = require("../pages/calendarFeed");
 const { userIcsUrl } = require("../../services/events/icsFeed");
-const { rulesFor, VERSIONS } = require("../../config/gameVersions");
-const { mainVersionFor, knownVersion, isVersionVisible } = require("../../services/events/mainVersion");
+const { rulesFor, professionsOf, VERSIONS } = require("../../config/gameVersions");
+const { mainVersionFor, knownVersion, isVersionVisible, resolveVersionQuery } = require("../../services/events/mainVersion");
+const { profileRaiding } = require("../../services/characters/profileRaiding");
+const { anyWishItemsAllowed, resolveWishItems, searchWishItems } = require("../../services/characters/wishItems");
 const { getConfig } = require("../../stores/settingsStore");
+const { userIsOrga } = require("../../config/permissions");
 const { ROLE_LABELS } = require("../../config/gameVersions/classes");
+const { editProfileCharacter } = require("../../services/characters/characterEdit");
 
 const WEEKDAY_LABELS = { mo: "Mo", di: "Di", mi: "Mi", do: "Do", fr: "Fr", sa: "Sa", so: "So" };
 const GEAR_LABELS = { none: "keins", usable: "brauchbar", ready: "raidbereit" };
@@ -52,8 +56,42 @@ function pageContext({ versionId, config = getConfig() } = {}) {
         })),
         weekdays: profiles.WEEKDAYS.map((id) => ({ id, label: WEEKDAY_LABELS[id] })),
         gearLevels: profiles.GEAR_LEVELS.map((id) => ({ id, label: GEAR_LABELS[id] })),
-        limits: { characters: profiles.MAX_CHARACTERS, wishes: profiles.MAX_WISHES, avoid: profiles.MAX_AVOID, note: profiles.MAX_NOTE },
+        limits: {
+            characters: profiles.MAX_CHARACTERS, wishes: profiles.MAX_WISHES, avoid: profiles.MAX_AVOID, note: profiles.MAX_NOTE,
+            professions: profiles.MAX_PROFESSIONS, wishItems: profiles.MAX_WISH_ITEMS, timeStep: profiles.TIME_STEP_MINUTES,
+        },
+        // Part 2: each version's main professions and highest skill (rule set; none yet = no "Berufe" part).
+        professionsByVersion: Object.fromEntries(VERSIONS.map((v) => [v.id, professionsOf(v.id)])),
     };
+}
+
+/**
+ * What an edit of `current` (a profile character) may change, from a request
+ * body (raiderProfileStore.editCharacter): only the fields it names — or, with
+ * `fromLog: name`, the logged character of that name: its name and class, from
+ * the logs, not from the request; a class change brings the logged spec.
+ * `{ input }`, or `{ status, code, error }` for a name no log knows.
+ */
+function editInput(body, current = null, index = null) {
+    if (body.fromLog !== undefined) {
+        const entry = (index || logIndex()).get(profiles.characterKey(String(body.fromLog || "")));
+        if (!entry || !entry.className) return { status: 404, code: "not_in_logs", error: "Dieser Charakter taucht in keinem Log auf." };
+        const input = { name: entry.character, className: entry.className, source: "log" };
+        if (current && current.className !== entry.className) input.specs = entry.specKey ? [entry.specKey] : [];
+        return { input };
+    }
+    const input = {};
+    for (const key of ["name", "realm", "className"]) {
+        if (body[key] !== undefined) input[key] = String(body[key] || "");
+    }
+    if (Array.isArray(body.specs)) input.specs = body.specs;
+    return { input };
+}
+
+/** `near` for logSuggestions: the profile character `key` of `userId` that is being set right, or null. */
+function nearOf(userId, key) {
+    const c = key ? profiles.findCharacter(profiles.getProfile(userId), key) : null;
+    return c ? { name: c.name, className: c.className } : null;
 }
 
 /** The caller's own profile in its member shape. */
@@ -74,6 +112,26 @@ const getProfile = withUser({}, async ({ user, res }) => {
 });
 
 /**
+ * Resolve the `wishItems` of the character edits in place (services/characters/wishItems.js
+ * resolveWishItems): stored items may always stay or go; a NEW one needs a
+ * Loot-Council roster of the character's version and the version's Wowhead.
+ * @returns {Promise<null | { status: number, code: string, error: string }>}
+ */
+async function withWishItems(userId, edits) {
+    const profile = profiles.getProfile(userId);
+    const config = getConfig();
+    for (const edit of edits) {
+        if (!edit || !Array.isArray(edit.wishItems)) continue;
+        const character = profiles.findCharacter(profile, String(edit.key || ""));
+        if (!character) { delete edit.wishItems; continue; }
+        const resolved = await resolveWishItems(userId, character, edit.wishItems, { config });
+        if (resolved.error) return resolved;
+        edit.wishItems = resolved.items;
+    }
+    return null;
+}
+
+/**
  * PUT /api/profile — save the caller's own edits (availability, raids, wishes,
  * avoid list, note; specs/gear/off-tank/heal of existing characters, `order` — the
  * characters' keys in the raider's order, there is no main). The
@@ -82,7 +140,7 @@ const getProfile = withUser({}, async ({ user, res }) => {
  */
 const putProfile = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
     const patch = {};
-    for (const key of ["availability", "preferredRaids", "wishes", "avoidEnabled", "avoid", "note", "characters", "order"]) {
+    for (const key of ["availability", "availabilityFrom", "preferredRaids", "wishes", "avoidEnabled", "avoid", "note", "characters", "order"]) {
         if (body[key] !== undefined) patch[key] = body[key];
     }
     // A wish (or an avoid) only for someone who has a profile — an id nobody can resolve is a typo.
@@ -90,20 +148,31 @@ const putProfile = withUser({ csrf: true, body: true }, async ({ user, body, res
     for (const key of ["wishes", "avoid"]) {
         if (Array.isArray(patch[key])) patch[key] = patch[key].map(String).filter((id) => known.has(id));
     }
+    // Wish items (part 2): only for a character of a Loot-Council roster, only items of its version (Wowhead).
+    if (Array.isArray(patch.characters)) {
+        const failure = await withWishItems(user.id, patch.characters);
+        if (failure) return apiError(res, failure.status, failure.code, failure.error);
+    }
     profiles.saveProfile(user.id, patch, { name: user.name });
     ok(res, { profile: ownView(user) });
 });
 
-/** GET /api/profile/log-characters?q= — characters from the logs the caller could take over. */
+/**
+ * GET /api/profile/log-characters?q=&near= — characters from the logs the caller
+ * could take over; `near` (an own character's key) puts the names that look
+ * like a typo of it first ("Bearbeiten" › aus den Logs).
+ */
 const getLogCharacters = withUser({}, async ({ user, res, url }) => {
     const q = String(url.searchParams.get("q") || "").slice(0, 32);
-    ok(res, { characters: logSuggestions(user, { query: q }) });
+    const near = nearOf(user.id, String(url.searchParams.get("near") || "").slice(0, 80));
+    ok(res, { characters: logSuggestions(user, { query: q, near }) });
 });
 
 /**
  * POST /api/profile/characters — add a character to the caller's own profile,
- * or remove one.
- * Body: { remove: key } | { source: "log", name } | { source: "armory", name, realm, className? }
+ * edit one or remove one.
+ * Body: { remove: key } | { edit: key, name?, realm?, className?, specs? } | { edit: key, fromLog: name }
+ *     | { source: "log", name } | { source: "armory", name, realm, className? }
  *     | { source: "manual", name, className, specs: [key] } — each with `versionId` (#543), the
  * character's game version; missing or unknown = the main version.
  *
@@ -116,11 +185,25 @@ const postProfileCharacter = withUser({ csrf: true, body: true }, async ({ user,
         const removed = profiles.removeCharacter(user.id, String(body.remove || ""));
         return ok(res, { removed, profile: ownView(user) });
     }
+    if (body.edit !== undefined) {
+        const key = String(body.edit || "");
+        const asked = editInput(body, profiles.findCharacter(profiles.getProfile(user.id), key));
+        if (asked.error) return apiError(res, asked.status, asked.code, asked.error);
+        const edited = editProfileCharacter(user.id, key, asked.input, { actor: user.id });
+        if (edited.error) return apiError(res, edited.code === "not_found" ? 404 : 400, edited.code, edited.error);
+        const profile = ownView(user);
+        return ok(res, { character: profile.characters.find((c) => c.key === edited.character.key), renamed: edited.renamed, moved: edited.moved, profile });
+    }
 
     const name = String(body.name || "").trim();
     if (!name) return apiError(res, 400, "bad_request", "Bitte einen Charakternamen angeben.");
     const source = profiles.CHARACTER_SOURCES.includes(body.source) ? body.source : "manual";
-    const versionId = knownVersion(body.versionId) || mainVersionFor({ config: getConfig() });
+    const config = getConfig();
+    const versionId = knownVersion(body.versionId) || mainVersionFor({ config });
+    // Other versions hidden (#563): no new character of one (the dialog offers none either).
+    if (!isVersionVisible(versionId, config)) {
+        return apiError(res, 400, "version_hidden", `${rulesFor(versionId).label} ist ausgeblendet (Einstellungen → Spielversion) – lege den Charakter in ${rulesFor(mainVersionFor({ config })).label} an.`);
+    }
     const input = { name, realm: String(body.realm || "").trim(), source, className: body.className, specs: [], versionId };
     let armory = null;
 
@@ -152,21 +235,53 @@ const postProfileCharacter = withUser({ csrf: true, body: true }, async ({ user,
     });
 });
 
+/**
+ * GET /api/profile/raiding?version= — the character tabs of "Mein Profil": the
+ * caller's own roster memberships, and per own character of that one game
+ * version its loot and LevelHelper dungeon data
+ * (services/characters/profileRaiding.js). Stores only, no network; nothing
+ * names another account. Without `version` (or with other versions hidden)
+ * the main version.
+ */
+const getProfileRaiding = withUser({}, async ({ user, res, url }) => {
+    const config = getConfig();
+    const { versionId } = resolveVersionQuery(url.searchParams.get("version"), { config });
+    ok(res, profileRaiding(user.id, versionId, { config }));
+});
+
+/**
+ * GET /api/profile/item-search?q=&version= — Wowhead's items for a name on the
+ * version's section, for a character's wish items (the same suggestions the
+ * guild bank and softres use). Nothing without a Wowhead path for the version;
+ * 403 `not_loot_council` when none of the caller's characters of the version
+ * may get new wish items (it is no general item search for every member).
+ */
+const getItemSearch = withUser({}, async ({ user, res, url }) => {
+    const config = getConfig();
+    const { versionId } = resolveVersionQuery(url.searchParams.get("version"), { config });
+    if (!anyWishItemsAllowed(user.id, profiles.getProfile(user.id).characters, versionId, { config })) {
+        return apiError(res, 403, "not_loot_council", "Wunsch-Items gibt es nur für Charaktere in einem Loot-Council-Roster.");
+    }
+    ok(res, { items: await searchWishItems(versionId, url.searchParams.get("q") || "", { config }) });
+});
+
 /** GET /api/profile/raiders?q= — raiders with a profile, names only, for the wish picker. */
 const getRaiderSearch = withUser({}, async ({ user, res, url }) => {
     const q = String(url.searchParams.get("q") || "").slice(0, 32);
     ok(res, { raiders: profiles.searchRaiders(q, user.id, 10, { preferVersion: mainVersionFor({ config: getConfig() }) }) });
 });
 
-/** GET /api/profile/user?id= — one raider's profile for the orga, read-only, with wishes. */
-const getUserProfile = withUser({}, async ({ res, url }) => {
+/** GET /api/profile/user?id= — one raider's profile for the orga, read-only, with wishes. 403 "orga_only" for everybody else (epic #723). */
+const getUserProfile = withUser({}, async ({ user, res, url }) => {
+    if (!userIsOrga(user)) return apiError(res, 403, "orga_only", "Nur die Orga sieht das.");
     const id = String(url.searchParams.get("id") || "").trim();
     if (!id || !profiles.hasProfile(id)) return apiError(res, 404, "not_found", "Kein Profil für dieses Konto.");
     ok(res, { profile: profileView(profiles.getProfile(id), { forOrga: true }) });
 });
 
-/** GET /api/roster/character-claims — characters more than one account has added. */
-const getCharacterClaims = withUser({}, async ({ res }) => {
+/** GET /api/roster/character-claims — characters more than one account has added (orga only, epic #723). */
+const getCharacterClaims = withUser({}, async ({ user, res }) => {
+    if (!userIsOrga(user)) return apiError(res, 403, "orga_only", "Nur die Orga sieht das.");
     ok(res, { claims: profiles.characterClaims() });
 });
 
@@ -218,12 +333,14 @@ const routes = [
     { method: "GET", path: "/api/profile/calendar", handler: getCalendarTokens, area: "signup" },
     { method: "POST", path: "/api/profile/calendar", handler: postCalendarToken, area: "signup" },
     { method: "GET", path: "/api/profile/raiders", handler: getRaiderSearch, area: "signup" },
+    { method: "GET", path: "/api/profile/raiding", handler: getProfileRaiding, area: "signup" },
+    { method: "GET", path: "/api/profile/item-search", handler: getItemSearch, area: "signup" },
     { method: "GET", path: "/api/profile/user", handler: getUserProfile, area: "roster" },
 ];
 
 module.exports = {
-    getProfile, putProfile, getLogCharacters, postProfileCharacter, getRaiderSearch, getUserProfile, getCharacterClaims,
+    getProfile, putProfile, getLogCharacters, postProfileCharacter, getRaiderSearch, getProfileRaiding, getItemSearch, getUserProfile, getCharacterClaims,
     getCalendarTokens, postCalendarToken,
-    pageContext,
+    pageContext, editInput, nearOf,
     routes,
 };

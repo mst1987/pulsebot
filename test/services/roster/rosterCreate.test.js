@@ -26,7 +26,7 @@ const rosterRoleSync = require("../../../src/services/roster/rosterRoleSync");
 const { buildAttendanceContext } = require("../../../src/services/characters/rosterAttendance");
 const {
     createRosterWithSource, createRosterFromKader, kaderChoices, presentInRaids, kaderCharacter,
-    rosterOfKader, kaderRosterState, syncRosterFromKader, kaderExists, kaderLinkChoices, linkRosterToKader,
+    rosterOfKader, kaderRosterState, syncRosterFromKader, kaderExists, kaderLinkChoices, linkRosterToKader, kaderFitsVersion,
 } = require("../../../src/services/roster/rosterCreate");
 
 const CAT = "700000000000000001";
@@ -124,8 +124,12 @@ describe("services/roster/rosterCreate source role", () => {
 describe("services/roster/rosterCreate source kader", () => {
     it("maps the states, picks the characters and gives the roles through rosterMembers", async () => {
         rosterRoleSync.applyMemberAdded.mockResolvedValueOnce({ ok: false, results: [{ roleId: ROLE, give: true, ok: false, code: "no_permission" }] });
-        // the profiles here are TBC characters; a Kader roster without category would play Forever (next test)
-        const res = await createRosterFromKader("k1", { guildId: "g1", actor: "1", roleIds: [ROLE], trialRoleId: TRIAL, versionId: "tbc" });
+        // the profiles here are TBC characters: a TBC Kader's roster plays TBC (#741)
+        const planner = kaderPlanner();
+        planner.kaders[0].versionId = "tbc";
+        kaderStore.writePlanner("g1", planner);
+        const res = await createRosterFromKader("k1", { guildId: "g1", actor: "1", roleIds: [ROLE], trialRoleId: TRIAL });
+        expect(res.roster.versionId).toBe("tbc");
         expect(res.ok).toBe(true);
         expect(res.roster).toEqual(expect.objectContaining({ name: "Forever-Kader", source: { kind: "kader", kaderId: "k1" } }));
         const m = res.roster.members;
@@ -141,14 +145,25 @@ describe("services/roster/rosterCreate source kader", () => {
         expect(res.initial.roleFailures).toEqual([{ userId: expect.any(String), roleId: ROLE, code: "no_permission" }]);
     });
 
-    it("plays the Kaderplaner's version (Forever) without a category, the category's version with one (#658)", async () => {
+    it("plays the Kader's version (Forever), with a category only one that plays it (#658, #741)", async () => {
         const first = (await createRosterFromKader("k1", { guildId: "g1" })).roster;
         expect(first.versionId).toBe("forever");
         expect(first.kaderId).toBe("k1");
         // a Kader belongs to one roster: a second one from it is refused until the first is gone
-        expect(await createRosterFromKader("k1", { guildId: "g1", categoryId: CAT })).toEqual({ ok: false, code: "kader_taken" });
+        expect(await createRosterFromKader("k1", { guildId: "g1" })).toEqual({ ok: false, code: "kader_taken" });
         rosterStore.deleteRoster(first.id);
-        expect((await createRosterFromKader("k1", { guildId: "g1", categoryId: CAT })).roster.versionId).toBe("tbc");
+        // CAT plays TBC (the main version), another version than the Kader's; so does a TBC pick
+        expect(await createRosterFromKader("k1", { guildId: "g1", categoryId: CAT })).toEqual({ ok: false, code: "version_mismatch" });
+        expect(await createRosterFromKader("k1", { guildId: "g1", versionId: "tbc" })).toEqual({ ok: false, code: "version_mismatch" });
+        configStore.saveConfig({ categoryVersion: { [CAT]: "forever" } });
+        expect((await createRosterFromKader("k1", { guildId: "g1", categoryId: CAT })).roster.versionId).toBe("forever");
+    });
+
+    it("creates no roster of a hidden version (#563)", async () => {
+        configStore.saveConfig({ hideOtherVersions: true });
+        expect(await createRosterWithSource({ name: "X", versionId: "forever" }, { guildId: "g1" })).toEqual({ ok: false, code: "version_hidden" });
+        expect(await createRosterFromKader("k1", { guildId: "g1" })).toEqual({ ok: false, code: "version_hidden" });
+        expect((await createRosterWithSource({ name: "Y" }, { guildId: "g1" })).roster.versionId).toBe("tbc");
     });
 
     it("copies nothing private of the Kader into the roster file", async () => {
@@ -168,7 +183,7 @@ describe("services/roster/rosterCreate source kader", () => {
     });
 
     it("kaderChoices hands the create dialog counts only", () => {
-        expect(kaderChoices("g1")).toEqual([{ id: "k1", name: "Forever-Kader", inRoster: 1, candidates: 3, attendanceCategories: [] }]);
+        expect(kaderChoices("g1")).toEqual([{ id: "k1", name: "Forever-Kader", versionId: "forever", inRoster: 1, candidates: 3, attendanceCategories: [] }]);
     });
 });
 
@@ -254,9 +269,10 @@ describe("services/roster/rosterCreate linking a Kader to an existing roster", (
         planner.kaders[0].attendanceCategories = [CAT];
         planner.kaders.push({ id: "k2", name: "Anderer Kader", leads: [], questions: [], players: {} });
         kaderStore.writePlanner("g1", planner);
-        // the Mo-Raider roster of the bug report: migrated, no source.kaderId
-        migrated = rosterStore.createRoster({ guildId: "g1", name: "Mo-Raider", categoryId: CAT, source: { kind: "migration" } });
-        rosterStore.createRoster({ guildId: "g1", name: "Aaa PuG" });
+        // the Mo-Raider roster of the bug report: migrated, no source.kaderId; the Kader are Forever ones
+        migrated = rosterStore.createRoster({ guildId: "g1", name: "Mo-Raider", categoryId: CAT, versionId: "forever", source: { kind: "migration" } });
+        rosterStore.createRoster({ guildId: "g1", name: "Aaa PuG", versionId: "forever" });
+        rosterStore.createRoster({ guildId: "g1", name: "TBC-Raider", versionId: "tbc" });
     });
 
     it("suggests the roster of a category the Kader counts attendance in, first", () => {
@@ -264,6 +280,16 @@ describe("services/roster/rosterCreate linking a Kader to an existing roster", (
         expect(choices[0]).toEqual({ id: migrated.id, name: "Mo-Raider", categoryId: CAT, members: 0, linkedKaderId: null, suggested: true });
         expect(choices[1]).toMatchObject({ name: "Aaa PuG", suggested: false });
         expect(kaderLinkChoices("g1", "k2").every((c) => !c.suggested)).toBe(true);
+    });
+
+    it("offers and links only rosters of the Kader's version (#741)", () => {
+        expect(kaderLinkChoices("g1", "k1").map((c) => c.name)).toEqual(["Mo-Raider", "Aaa PuG"]);
+        const tbc = rosterStore.listRosters("g1").find((r) => r.name === "TBC-Raider");
+        expect(linkRosterToKader("k1", tbc.id, { guildId: "g1" })).toEqual({ ok: false, code: "version_mismatch" });
+        expect(tbc.kaderId || null).toBeNull();
+        expect(kaderFitsVersion("g1", "k1", "forever")).toBe(true);
+        expect(kaderFitsVersion("g1", "k1", "tbc")).toBe(false);
+        expect(kaderFitsVersion("g1", "nope", "forever")).toBe(false);
     });
 
     it("links, takes players over into exactly that roster, relinks and unlinks", async () => {

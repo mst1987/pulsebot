@@ -6,18 +6,21 @@
 // admins), the head's primary button opens the same dialog without category.
 // The character list that used to live here is "Alle Charaktere" (/roster/chars).
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import { getRosters, type RosterHead, type RosterOverview } from "../../api";
 import { useApi } from "../../hooks/useApi";
+import { useContentVersion } from "../../hooks/useContentVersion";
 import { tParts, useT } from "../../i18n";
 import { Badge, Button, IconTile, PageHead, WowIcon, buttonClass } from "../../components/ui";
 import { PlusIcon } from "../../components/ui/icons";
 import RaidLoader from "../../components/ui/RaidLoader";
+import { MenuRailPage } from "../../components/ui/SectionRail";
+import type { ShellContext } from "../../components/shell/Shell";
 import { rolePluralLabel } from "../../lib/wow/wowNames";
 import { ROLE_ICONS, dpsTarget } from "../../lib/roster/rosters";
 import { attendanceTone } from "../../lib/roster/rosterView";
 import { formatDate } from "../../lib/format";
-import { RoleChip, VersionLine } from "./RosterParts";
+import { ClosedBadge, RoleChip, VersionLine } from "./RosterParts";
 import RosterFormDialog from "./RosterFormDialog";
 import "../../styles/rosters.css";
 
@@ -64,17 +67,22 @@ function TodoBadges({ roster }: { roster: RosterHead }) {
 
 function RosterCard({ roster }: { roster: RosterHead }) {
     const t = useT();
+    // a raider sees the card and its composition; attendance and open work are the orga's (epic #723)
+    const orga = roster.isOrga !== false;
     const tone = attendanceTone(roster.attendance);
     const total = roster.slots.total;
+    // closed (#739): listed under its version, marked, nothing left to do in it
+    const closed = !!roster.closed;
     return (
         <li>
-            <Link className="rn-panel rn-card" to={`/roster/r/${encodeURIComponent(roster.id)}`}>
+            <Link className={`rn-panel rn-card${closed ? " rn-card-closed" : ""}`} to={`/roster/r/${encodeURIComponent(roster.id)}`}>
                 <div className="rn-card-top">
                     <IconTile icon={roster.icon} tone="roster" size="lg" />
                     <div className="rn-card-title">
                         <b>{roster.name}</b>
                         <VersionLine versionId={roster.versionId} parts={[roster.versionLabel, ...(roster.categoryId ? roster.contents : [t("roster.overview.noCategory")])]} />
                     </div>
+                    {closed && <ClosedBadge roster={roster} />}
                 </div>
                 <div className="rn-card-nums">
                     <div data-tip={t("roster.overview.placesTip")} data-tip-sub={t("roster.overview.placesSub")}>
@@ -84,23 +92,25 @@ function RosterCard({ roster }: { roster: RosterHead }) {
                             <small>{total > 0 ? t("roster.overview.ofPlaces", { total }) : t("roster.overview.persons", { count: roster.places })}</small>
                         </div>
                     </div>
-                    <div className="rn-card-att">
-                        <div className="rn-kick">{t("roster.overview.attendance")}</div>
-                        {roster.attendance === null
-                            ? <><div className="rn-big rn-tone-none">–</div><div className="rn-sub">{t("roster.overview.noRaids")}</div></>
-                            : (
-                                <div className={`rn-big${tone ? ` rn-tone-${tone}` : ""}`} data-tip={t("roster.overview.attendance")} data-tip-sub={t("roster.overview.attendanceSub", { count: roster.attendanceCounted })}>
-                                    {roster.attendance}<small>%</small>
-                                </div>
-                            )}
-                    </div>
+                    {orga && (
+                        <div className="rn-card-att">
+                            <div className="rn-kick">{t("roster.overview.attendance")}</div>
+                            {roster.attendance === null
+                                ? <><div className="rn-big rn-tone-none">–</div><div className="rn-sub">{t("roster.overview.noRaids")}</div></>
+                                : (
+                                    <div className={`rn-big${tone ? ` rn-tone-${tone}` : ""}`} data-tip={t("roster.overview.attendance")} data-tip-sub={t("roster.overview.attendanceSub", { count: roster.attendanceCounted })}>
+                                        {roster.attendance}<small>%</small>
+                                    </div>
+                                )}
+                        </div>
+                    )}
                 </div>
                 <div className="rn-figs">
                     <RoleFigure role="tank" count={roster.roleCounts.tank} target={roster.slots.tank} />
                     <RoleFigure role="healer" count={roster.roleCounts.healer} target={roster.slots.healer} />
                     <RoleFigure role="dps" count={roster.roleCounts.dps} target={dpsTarget(roster.slots)} />
                 </div>
-                <TodoBadges roster={roster} />
+                {orga && !closed && <TodoBadges roster={roster} />}
                 <div className="rn-card-foot">
                     <RoleChip role={roster.mainRole} />
                     <span className={buttonClass("ghost", "sm", false, "rn-open")}>{t("roster.overview.open")}</span>
@@ -132,9 +142,17 @@ function EmptyCategoryCard({ category, onCreate }: { category: RosterOverview["c
     );
 }
 
+/** The overview inside the Roster family's rail (Roster, Dungeon-Bestzeiten — menu.json). */
 export default function RostersPage() {
+    const { user } = useOutletContext<ShellContext>();
+    return <MenuRailPage user={user} parent="roster"><RosterOverviewPage /></MenuRailPage>;
+}
+
+function RosterOverviewPage() {
     const t = useT();
-    const state = useApi(() => getRosters(), []);
+    // The rosters of the menu's content version (#741); a switch loads again.
+    const { version } = useContentVersion();
+    const state = useApi(() => (version ? getRosters(version) : getRosters()), [version]);
     const [creating, setCreating] = useState<{ categoryId: string } | null>(null);
     if (state.error) return <div className="empty">{tParts("roster.overview.loadError", { message: state.error.message })}</div>;
     const data = state.data;
@@ -152,9 +170,9 @@ export default function RostersPage() {
                 title={t("roster.overview.title")}
                 action={(
                     <>
-                        <Link className={buttonClass("ghost")} to="/roster/chars" data-tip={t("roster.overview.allCharsTip")} data-tip-sub={t("roster.overview.allCharsSub")}>
+                        {data.isOrga !== false && <Link className={buttonClass("ghost")} to="/roster/chars" data-tip={t("roster.overview.allCharsTip")} data-tip-sub={t("roster.overview.allCharsSub")}>
                             {t("roster.overview.allChars")}
-                        </Link>
+                        </Link>}
                         {data.canCreate && <Button icon={<PlusIcon />} onClick={() => setCreating({ categoryId: "" })}>{t("roster.overview.create")}</Button>}
                     </>
                 )}

@@ -177,6 +177,18 @@ describe("classes/Raidhelper", () => {
             expect(result.map((e) => e.id)).toEqual(["recent", "old"]);
         });
 
+        it("takes raids up to untilSeconds when given (raids that start soon, for the log matching)", async () => {
+            respondWith({
+                postedEvents: [
+                    { id: "soon", startTime: nowSecs + 600 },
+                    { id: "later", startTime: nowSecs + 3 * 3600 },
+                    { id: "recent", startTime: nowSecs - 600 },
+                ],
+            });
+            const result = await new Raidhelper().getPastEvents(nowSecs - 86400, { untilSeconds: nowSecs + 7200 });
+            expect(result.map((e) => e.id)).toEqual(["soon", "recent"]);
+        });
+
         it("sends the given lower bound as StartTimeFilter", async () => {
             respondWith({ postedEvents: [] });
             await new Raidhelper().getPastEvents(1699999999);

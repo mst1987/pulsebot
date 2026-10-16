@@ -69,13 +69,40 @@
 //     roster is never touched, a deleted one never comes back
 //     (rosterStore.migrateCategories, services/roster/rosterMigration.js).
 //
+//   - council-profiles.json (#676): the loot council weighs by profiles. The
+//     server weighting (council-weights.json `global`) becomes the default
+//     profile "Standard"; every category with its own weighting or a stored
+//     view (council-views.json) becomes a profile named after the category,
+//     assigned to the category's roster (`lootProfileId`) or, without one,
+//     kept as the category's profile. Runs after the rosters, once
+//     (councilProfilesStore.migrateLegacy, `migrated`); the old files stay
+//     untouched on disk.
+//
+//   - raid-events.json, rosters.json (#737): every raid has a stored version.
+//     A Raid-Helper snapshot without `versionId` gets the version its category
+//     plays today (config.categoryVersion, else the main version — in practice
+//     TBC), a roster without one the same for its category. From then on a
+//     switch of the main or category version moves no stored raid, loot, log
+//     or roster; the scan stamps new snapshots itself (raidEventScan.js). Has
+//     to run before the main version is switched for the first time - it is
+//     part of the first deploy of epic #736. One line per file and version.
+//
+//   - config.json, categoryVersion (#738): every active category gets the
+//     version it plays today written down (the main version unless it already
+//     had its own). From then on the main version is only the default for
+//     something new; a category changes its version only by a deliberate
+//     switch in Einstellungen → Spielversion, which starts a new section
+//     (config.categoryEras, services/events/categoryEras.js). Runs after the
+//     stored versions of #737, which read the same map.
+//
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
 const path = require("path");
 const { isSnowflake } = require("../utils/ids");
-const { CONFIG_DEFAULTS } = require("./configSchema");
+const { CONFIG_DEFAULTS, normalizeCategoryVersion } = require("./configSchema");
 const { versionSettingsOf, versionsWithDefaults, fillDefaults } = require("./versionSettingsSchema");
 const { LEGACY_VERSION } = require("../config/gameVersions");
+const { mainVersionFor } = require("../services/events/mainVersion");
 const configStore = require("./configStore");
 const raidTemplateStore = require("./raidTemplateStore");
 const eventStore = require("./eventStore");
@@ -95,6 +122,9 @@ const raiderCharactersStore = require("./raiderCharactersStore");
 const { readJsonFile } = require("./jsonStore");
 const { settingsPath } = require("../config/paths");
 const { categoriesToMigrate, migrationLine } = require("../services/roster/rosterMigration");
+const councilProfilesStore = require("./councilProfilesStore");
+const councilWeightsStore = require("./councilWeightsStore");
+const councilStore = require("./councilStore");
 
 /**
  * The event-server list an old single-server block stands for: its
@@ -256,6 +286,50 @@ function migrateRecruitmentVersions() {
     return out;
 }
 
+/** `counts` ({ versionId: n }) as log lines `<file>: n <what> → "<versionId>" (#737)`. */
+function versionStampLines(file, what, counts) {
+    return Object.entries(counts || {}).map(([versionId, n]) => `${file}: ${n} ${what} → "${versionId}" (#737)`);
+}
+
+/**
+ * Every raid has a stored version (#737): Raid-Helper snapshots and rosters
+ * without one get the version their category plays today. One line per file
+ * and version, or none.
+ */
+function migrateStoredVersions() {
+    const config = configStore.getConfig();
+    const raids = raidEventStore.migrateVersions((e) => mainVersionFor({ categoryId: e.categoryId || "", config }));
+    return [
+        ...versionStampLines("raid-events.json", "Raid(s)", raids),
+        ...versionStampLines("rosters.json", "Roster", rosterStore.migrateVersions()),
+    ];
+}
+
+/**
+ * Every active category plays a fixed version (#738): an active category
+ * (the stored `categoryIds`, like migrateCategoryPlanning) without one in
+ * `categoryVersion` gets the version it plays today — the main version —
+ * written down, so switching the main version later moves no category. A
+ * fresh install (no file) or a file without categories has nothing to pin;
+ * the settings page writes a version with the first save of its categories.
+ * One line, or none.
+ */
+function migrateCategoryVersions() {
+    const stored = configStore.readStored();
+    if (!Object.keys(stored).length) return [];
+    const config = configStore.getConfig();
+    const map = normalizeCategoryVersion(stored.categoryVersion);
+    const set = [];
+    for (const id of (Array.isArray(stored.categoryIds) ? stored.categoryIds : []).map(String).filter(Boolean)) {
+        if (map[id]) continue;
+        map[id] = mainVersionFor({ categoryId: id, config });
+        set.push(`${id} ${map[id]}`);
+    }
+    if (!set.length) return [];
+    configStore.writeStored({ ...stored, categoryVersion: map });
+    return [`config.json: Spielversion je aktiver Kategorie festgeschrieben (#738) - ${set.join(", ")}`];
+}
+
 /** The Forever character of a raider profile as the Kaderplaner's migration reads it: the raider's first one. */
 function profileCharOf(userId) {
     const c = raiderProfileStore.firstCharacter(raiderProfileStore.getProfile(userId), "forever");
@@ -337,6 +411,42 @@ function migrateCategoryRosters({ now = new Date().toISOString() } = {}) {
     return line ? [line] : [];
 }
 
+/** A category's name for its migrated council profile: the name snapshot, else its newest event's, else "". */
+function councilCategoryName(snapshot, events) {
+    const names = new Map();
+    for (const byCategory of Object.values(snapshot || {})) {
+        for (const [id, name] of Object.entries(byCategory || {})) if (name && !names.has(id)) names.set(id, String(name));
+    }
+    return (categoryId) => {
+        if (names.has(categoryId)) return names.get(categoryId);
+        const newest = events
+            .filter((e) => e && String(e.categoryId || "") === categoryId && e.categoryName)
+            .sort((a, b) => Number(b.startTime || b.start || 0) - Number(a.startTime || a.start || 0))[0];
+        return newest ? String(newest.categoryName) : "";
+    };
+}
+
+/** Loot-Council profiles from #668's weighting and views (#676), once. One line, or none. */
+function migrateCouncilProfiles({ now = Date.now() } = {}) {
+    if (councilProfilesStore.isMigrated()) return [];
+    const stored = councilWeightsStore.storedWeights();
+    const views = councilStore.listViews();
+    // Nothing set before (a fresh install): the virtual "Standard" already is the defaults - no file, no line.
+    if (!stored.global && !Object.keys(stored.categories).length && !Object.keys(views).length) return [];
+    const result = councilProfilesStore.migrateLegacy({
+        global: stored.global,
+        categories: stored.categories,
+        views,
+        nameOf: councilCategoryName(categoryNameSnapshot(), [...raidEventStore.listRaidEvents(""), ...eventStore.listEvents("")]),
+        // a migration of the days with one roster per category (#739: the open one, the newest first)
+        rosterFor: (categoryId) => rosterStore.rostersForCategory(categoryId)[0] || null,
+        assign: (rosterId, profileId) => rosterStore.assignLootProfile(rosterId, profileId),
+    }, { now });
+    if (!result.ran) return [];
+    const parts = result.created.map((c) => `"${c.name}" (${c.rosterId ? `Roster ${c.rosterId}` : `Kategorie ${c.categoryId}`})`);
+    return [`council-profiles.json: Loot-Council-Profile angelegt (#676) - "Standard"${stored.global ? " aus der Server-Gewichtung" : " mit den Vorgaben"}${parts.length ? `, ${parts.join(", ")}` : ""}`];
+}
+
 /**
  * Run every upgrade once. Never throws - a start must not fail over an old
  * file; the error is logged and the bot comes up with what it can read.
@@ -360,6 +470,9 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateKaderPlanner());
         changes.push(...migrateCategoryPlanning());
         changes.push(...migrateCategoryRosters());
+        changes.push(...migrateStoredVersions());
+        changes.push(...migrateCategoryVersions());
+        changes.push(...migrateCouncilProfiles());
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
         return { changes, error };
@@ -369,6 +482,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateCategoryPlanning, migrateCategoryRosters, raidplanDefaultsLine,
+    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, raidplanDefaultsLine,
     legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

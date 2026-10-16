@@ -7,6 +7,7 @@ const { renderNotFound } = require("../report/render");
 const discord = require("../../services/discord/discord");
 const staticClient = require("./staticClient");
 const { findPageRoute, send } = require("./pageRoutes");
+const compression = require("./compression");
 
 /**
  * One request: the first entry of pageRoutes.js that fits method and path
@@ -20,6 +21,7 @@ async function handle(req, res) {
     let pathname;
     try { pathname = decodeURIComponent(url.pathname); } catch { pathname = "/"; }
 
+    compression.install(req, res, pathname);
     const hit = findPageRoute(req.method, pathname);
     if (hit) return hit.route.handler({ req, res, url, pathname, params: hit.params, rest: hit.rest });
     if (req.method !== "GET" && req.method !== "HEAD") return send(res, 405, renderNotFound());

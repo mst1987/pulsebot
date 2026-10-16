@@ -19,7 +19,7 @@ const css = require("../clientSource").read("index.css");
 function themeBlocks() {
     return css
         .split(/\n(?=:root|@media|\S)/)
-        .filter((block) => block.includes("--accent:"));
+        .filter((block) => block.includes("--accent:") && !block.includes("data-version"));
 }
 
 describe("web-client control styles", () => {
@@ -43,6 +43,13 @@ describe("web-client control styles", () => {
         expect(rule[0]).toContain("appearance: none");
         expect(rule[0]).toContain("background-image: var(--ctl-arrow)");
         expect(rule[0]).toContain("min-height: var(--ctl-h)");
+    });
+
+    it("gives the chevron to a disabled select only, never to a disabled text field (it tiled across the field)", () => {
+        const shared = css.match(/select:disabled, \.field input:disabled, \.inp-sm:disabled \{[^}]+\}/);
+        expect(shared).not.toBeNull();
+        expect(shared[0]).not.toContain("background-image");
+        expect(css).toMatch(/\nselect:disabled \{ background-image: var\(--ctl-arrow\); \}/);
     });
 
     it("never sets the control background through the shorthand", () => {

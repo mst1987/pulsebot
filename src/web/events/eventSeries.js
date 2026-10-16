@@ -41,6 +41,8 @@ const { parseClockTime } = require("../../utils/time");
 
 const { TIMEZONE } = require("../../config/timezone");
 const { createEvent } = require("../../services/events/eventCreate");
+const { templateVersionProblem } = require("../../services/events/categoryEras");
+const { isCategoryActive } = require("../../services/events/categoryLifecycle");
 const WEEKDAY_SHORT = ["", "Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const MIN_DAYS_BEFORE = 1;
 const MAX_DAYS_BEFORE = 28;
@@ -59,10 +61,10 @@ function todayIn(now) {
 /**
  * Validate a series as the page sends it.
  * @param {object} input { categoryId, enabled, weekdays, time, raidTemplateId, daysBefore, title, skipDates }
- * @param {{ now?: number, categoryTemplateId?: string }} opts
+ * @param {{ now?: number, categoryTemplateId?: string, config?: object }} opts
  * @returns {{ value?: object, error?: string }}
  */
-function normalizeSeries(input = {}, { now = Date.now(), categoryTemplateId = "" } = {}) {
+function normalizeSeries(input = {}, { now = Date.now(), categoryTemplateId = "", config } = {}) {
     const categoryId = String(input.categoryId || "").trim();
     if (!categoryId) return { error: "Keine Kategorie angegeben." };
     const weekdays = [...new Set((Array.isArray(input.weekdays) ? input.weekdays : [])
@@ -78,6 +80,12 @@ function normalizeSeries(input = {}, { now = Date.now(), categoryTemplateId = ""
     if (raidTemplateId && !getRaidTemplate(raidTemplateId)) return { error: "Die Raid-Vorlage gibt es nicht mehr." };
     if (!raidTemplateId && !categoryTemplateId) {
         return { error: "Bitte eine Raid-Vorlage wählen — die Kategorie hat keine Standard-Vorlage." };
+    }
+    // #738: a running series needs a template of the version the category
+    // plays — a paused one may keep its old template until the orga picks one.
+    if (input.enabled !== false) {
+        const problem = templateVersionProblem({ template: getRaidTemplate(raidTemplateId || categoryTemplateId), categoryId, config });
+        if (problem) return { error: `${problem} Bitte eine passende Vorlage wählen oder die Serie pausieren.` };
     }
     const today = todayIn(now);
     const skipDates = [...new Set((Array.isArray(input.skipDates) ? input.skipDates : [])
@@ -247,7 +255,7 @@ let running = false;
  * @returns {Promise<{ created: number, failed: number, existing: number, ignored: number, error: string|null, results: object[] }>}
  */
 async function runSeries({ now = Date.now(), config = getConfig(), onlyCategoryId = "" } = {}) {
-    const summary = { created: 0, failed: 0, existing: 0, ignored: 0, error: null, results: [] };
+    const summary = { created: 0, failed: 0, existing: 0, ignored: 0, inactive: 0, error: null, results: [] };
     const all = Object.values(store.listSeries()).filter((s) => s && s.enabled && (!onlyCategoryId || s.categoryId === onlyCategoryId));
     if (!all.length) return summary;
     if (running) return { ...summary, error: "läuft bereits" };
@@ -260,6 +268,8 @@ async function runSeries({ now = Date.now(), config = getConfig(), onlyCategoryI
         for (const series of all) {
             const categoryId = series.categoryId;
             if (signupSourceFor(categoryId) !== "eventhelper") { summary.ignored += 1; continue; }
+            // A deactivated category (#744): its series rests until the category is active again.
+            if (!isCategoryActive(categoryId, config)) { summary.inactive += 1; continue; }
             const guildId = series.guildId || guildRoles.eventGuildId(config);
             if (!guildId) { summary.error = "Kein Event-Discord eingestellt."; continue; }
             const due = dueDates(series, store.getRuns(categoryId), now);
@@ -285,6 +295,8 @@ async function runSeries({ now = Date.now(), config = getConfig(), onlyCategoryI
                 try {
                     result = await createEvent({
                         guildId,
+                        // a series runs on while its version is hidden (#563 hides, it pauses nothing)
+                        allowHidden: true,
                         user: leader ? { id: leader } : null,
                         body: {
                             title,
@@ -358,9 +370,11 @@ async function seriesOverview({ guildId, config = getConfig(), now = Date.now(),
     for (const id of ids) {
         const series = stored[id] || null;
         const source = signupSourceFor(id);
-        const row = { id, name: names[id] || "", source, series: null, template: null, summary: "", upcoming: [], lastCreated: null };
+        // #744: the series of a deactivated category rests; its dates read "off".
+        const inactive = !isCategoryActive(id, config);
+        const row = { id, name: names[id] || "", source, inactive, series: null, template: null, summary: "", upcoming: [], lastCreated: null };
         if (series) {
-            const view = await describeSeries(series, { guildId, config, now, count, inputs });
+            const view = await describeSeries(inactive ? { ...series, enabled: false } : series, { guildId, config, now, count, inputs });
             Object.assign(row, view, { series });
         } else {
             const template = templateFor({ categoryId: id, raidTemplateId: "" }, config);
@@ -435,7 +449,7 @@ const RAIDHELPER_HINT = "Neue Events dieser Kategorie laufen über Raid-Helper �
  */
 async function previewSeries({ guildId, input = {}, config = getConfig(), now = Date.now(), count = 4 } = {}) {
     const categoryTemplateId = (config.categoryRaidTemplate || {})[String(input.categoryId || "")] || "";
-    const checked = normalizeSeries(input, { now, categoryTemplateId });
+    const checked = normalizeSeries(input, { now, categoryTemplateId, config });
     if (checked.error) return { error: checked.error, summary: "", upcoming: [], template: null, lastCreated: null };
     const series = { ...(store.getSeries(checked.value.categoryId) || {}), ...checked.value };
     const view = await describeSeries(series, { guildId, config, now, count });
@@ -453,7 +467,7 @@ function saveSeriesFor({ guildId, input = {}, user = null, config = getConfig(),
     if (categoryId && !current && signupSourceFor(categoryId) !== "eventhelper") {
         return { error: { status: 409, code: "raidhelper_category", message: RAIDHELPER_HINT } };
     }
-    const checked = normalizeSeries(input, { now, categoryTemplateId: (config.categoryRaidTemplate || {})[categoryId] || "" });
+    const checked = normalizeSeries(input, { now, categoryTemplateId: (config.categoryRaidTemplate || {})[categoryId] || "", config });
     if (checked.error) return { error: { status: 400, code: "invalid", message: checked.error } };
     const series = store.saveSeries({
         ...checked.value,

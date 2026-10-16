@@ -500,7 +500,7 @@ function evaluateSetup(input = {}, placement = {}, options = {}) {
     }
     // #517: every bench entry is the orga's explicit choice; who is neither placed nor benched is the pool
     for (const b of Array.isArray(placement.bench) ? placement.bench : []) {
-        if (b && b.userId) fixed.push({ userId: String(b.userId), bench: true, locked: !!b.locked });
+        if (b && b.userId) fixed.push({ userId: String(b.userId), bench: true, locked: !!b.locked, ...(b.character ? { character: String(b.character) } : {}) });
     }
     const { model, effective } = prepare({ ...input, fixed }, options);
     const n = model.cands.length;

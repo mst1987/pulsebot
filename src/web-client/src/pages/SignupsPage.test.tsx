@@ -14,7 +14,7 @@ import { t } from "../i18n";
 import { formatEventTime } from "../lib/format";
 import { roleCountText, rowSubline, SIGNUP_STATUS } from "../lib/signups/status";
 import { specLabel } from "../lib/wow/wowNames";
-import { adminUser, renderPage } from "../test/render";
+import { CONTENT_ARIA, adminUser, renderPage, twoVersions } from "../test/render";
 import { at, counts, ownRow, raidHelperRow, signup, signupsData } from "../test/signupFixtures";
 import SignupsPage from "./SignupsPage";
 
@@ -273,6 +273,29 @@ describe("several raids at once on the page (#293)", () => {
         expect(screen.getByRole("link", { name: t("signups.page.noCharLink") })).toHaveAttribute("href", "/profile");
     });
 
+    it("takes the lowest limit of the chosen raids for the shared characters and says so", async () => {
+        const user = userEvent.setup();
+        await show(signupsData({ events: [{ ...KARA, maxCharacters: 1 }, { ...SSC, maxCharacters: 5 }] }));
+        await user.click(check("Kara Freitag")!);
+        await user.click(check("SSC Donnerstag")!);
+        await user.click(within(toolbar()!).getByRole("button", { name: t("signups.bulkTitle") }));
+        const dialog = screen.getByRole("dialog");
+        expect(within(dialog).getByText(t("signups.bulk.limitMin", { max: 1 }))).toBeInTheDocument();
+        // one character per signup in Kara: no "+ Kann auch mit …" although the profile has a second one
+        expect(within(dialog).queryByRole("button", { name: (n) => n.startsWith(t("signups.picks.add")) })).not.toBeInTheDocument();
+    });
+
+    it("offers the shared limit without a note when every chosen raid allows the same", async () => {
+        const user = userEvent.setup();
+        await show(signupsData({ events: [KARA, SSC] }));
+        await user.click(check("Kara Freitag")!);
+        await user.click(check("SSC Donnerstag")!);
+        await user.click(within(toolbar()!).getByRole("button", { name: t("signups.bulkTitle") }));
+        const dialog = screen.getByRole("dialog");
+        expect(within(dialog).queryByText(t("signups.bulk.limitMin", { max: 8 }))).not.toBeInTheDocument();
+        expect(within(dialog).getByRole("button", { name: (n) => n.startsWith(t("signups.picks.add")) })).toHaveTextContent(t("signups.picks.upTo", { max: 8 }));
+    });
+
     it("asks once for characters and status and lists every raid's result with the reason", async () => {
         const user = userEvent.setup();
         const results: BulkSignupResult[] = [
@@ -345,4 +368,56 @@ describe("Warteliste in der Sammelanmeldung (#306)", () => {
     function check(title: string) {
         return within(rowOf(title)).getByRole("checkbox", { name: t("signups.row.selectAria", { title }) });
     }
+});
+
+// One game version at a time (#741): the page asks for the menu's version and loads again on a switch.
+describe("SignupsPage: which raids (only the ones one may sign up for)", () => {
+    it("marks a raid open to everyone as PuG, a raid with raider roles not", async () => {
+        await show(signupsData({ events: [ownRow({ openToAll: true }), { ...GRUUL, openToAll: false }] }));
+        const pug = within(rowOf(KARA.title)).getByText(t("signups.pug.label"));
+        expect(pug).toHaveAttribute("data-tip", t("signups.pug.tip"));
+        expect(within(rowOf(GRUUL.title)).queryByText(t("signups.pug.label"))).not.toBeInTheDocument();
+    });
+
+    it("says quietly when the Discord roles could not be read", async () => {
+        await show(signupsData({ events: [KARA], rolesUnknown: true }));
+        expect(screen.getByRole("note")).toHaveTextContent(t("signups.rolesUnknown"));
+    });
+
+    it("offers the orga \"Alle Kategorien\" and loads every raid with it", async () => {
+        const user = userEvent.setup();
+        await show(signupsData({ events: [KARA], canShowAll: true, scope: "mine" }));
+        expect(api.getSignups).toHaveBeenLastCalledWith("", "", false);
+        await user.click(screen.getByRole("switch", { name: t("signups.page.showAll") }));
+        await waitFor(() => expect(api.getSignups).toHaveBeenLastCalledWith("", "", true));
+    });
+
+    it("shows no switch to a raider", async () => {
+        await show(signupsData({ events: [KARA] }));
+        expect(screen.queryByRole("switch", { name: t("signups.page.showAll") })).not.toBeInTheDocument();
+        expect(screen.queryByRole("note")).not.toBeInTheDocument();
+    });
+});
+
+describe("SignupsPage per game version", () => {
+    it("asks for the shown version, loads again on a switch, and follows the version of a linked raid", async () => {
+        const user = userEvent.setup();
+        localStorage.clear();
+        vi.mocked(api.getSignups).mockResolvedValue(signupsData({ events: [KARA] }));
+        renderPage(<SignupsPage />, { route: "/signups", content: twoVersions() });
+        await screen.findByRole("heading", { name: t("signups.page.title") });
+        expect(api.getSignups).toHaveBeenLastCalledWith("tbc", "", false);
+        await user.click(within(screen.getAllByRole("radiogroup", { name: t(CONTENT_ARIA) })[0]).getByRole("radio", { name: "Forever" }));
+        await waitFor(() => expect(api.getSignups).toHaveBeenLastCalledWith("forever", "", false));
+        localStorage.clear();
+    });
+
+    it("switches to the version of a raid a Discord link names", async () => {
+        localStorage.clear();
+        vi.mocked(api.getSignups).mockImplementation(async (version = "") => signupsData({ events: version === "forever" ? [KARA] : [], eventVersion: "forever" }));
+        renderPage(<SignupsPage />, { route: `/signups?event=${KARA.id}`, content: twoVersions() });
+        expect(await screen.findByText(t("shell.followVersion.switched", { version: "Forever" }))).toBeInTheDocument();
+        await waitFor(() => expect(api.getSignups).toHaveBeenLastCalledWith("forever", KARA.id, false));
+        localStorage.clear();
+    });
 });

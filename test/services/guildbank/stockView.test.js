@@ -4,9 +4,11 @@ jest.mock("../../../src/services/guildbank/reservations", () => ({
     reservedByItem: jest.fn(() => ({})),
     handedOutSince: jest.fn(() => ({})),
     reservedRequestCount: jest.fn(() => 0),
+    handedOutRequestCount: jest.fn(() => 0),
+    pendingByItem: jest.fn(() => ({ open: {}, waiting: {}, waitingAmount: {} })),
 }));
 
-const { reservedByItem, handedOutSince, reservedRequestCount } = require("../../../src/services/guildbank/reservations");
+const { reservedByItem, handedOutSince, reservedRequestCount, pendingByItem } = require("../../../src/services/guildbank/reservations");
 const store = require("../../../src/stores/guildBankStockStore");
 const view = require("../../../src/services/guildbank/stockView");
 const { parseGuildBankScan, GB_FORMAT } = require("../../../src/utils/guildbank/guildBankScan");
@@ -64,8 +66,37 @@ describe("services/guildbank/stockView", () => {
 
     it("shows nothing for a server without banks or without an id", () => {
         record("Alpha", "g2");
-        expect(view.stockForServer("g1")).toEqual({ banks: [], bank: null });
-        expect(view.stockForServer("")).toEqual({ banks: [], bank: null });
+        expect(view.stockForServer("g1")).toEqual({ banks: [], bank: null, otherVersions: [] });
+        expect(view.stockForServer("")).toEqual({ banks: [], bank: null, otherVersions: [] });
+    });
+
+    // #741: the version decides — Forever page = Forever bank, never another version's
+    it("shows only the asked version's banks, no bank (with the other versions named) when it has none", () => {
+        const tbc = record("Alpha", "g1");
+        const tbc2 = record("Beta", "g1");
+        const forever = record("Alpha", "g1", "forever");
+        let shown = view.stockForServer("g1", { versionId: "forever" });
+        expect([shown.bank.key, shown.banks.map((b) => b.key), shown.otherVersions]).toEqual([forever.key, [forever.key], ["TBC"]]);
+        // a key of another version's bank does not pull that bank in
+        shown = view.stockForServer("g1", { versionId: "forever", key: tbc.key });
+        expect(shown.bank.key).toBe(forever.key);
+        shown = view.stockForServer("g1", { versionId: "tbc", key: tbc2.key });
+        expect([shown.bank.key, shown.banks.map((b) => b.key).sort()]).toEqual([tbc2.key, [tbc.key, tbc2.key].sort()]);
+        shown = view.stockForServer("g1", { versionId: "classic" });
+        expect([shown.bank, shown.banks, shown.otherVersions.sort()]).toEqual([null, [], ["Forever", "TBC"]]);
+        expect(view.offerForServer("g1", { versionId: "classic" })).toEqual({ bank: null, groups: [] });
+    });
+
+    it("never lists a bank of a hidden version (#563)", () => {
+        record("Alpha", "g1");
+        const forever = record("Alpha", "g1", "forever");
+        const config = { mainVersion: "forever", hideOtherVersions: true };
+        const shown = view.stockForServer("g1", { versionId: "forever", config });
+        expect([shown.bank.key, shown.banks.length, shown.otherVersions]).toEqual([forever.key, 1, []]);
+        // (the route never asks for a hidden version: resolveVersionQuery answers the main one)
+        expect(view.stockForServer("g1", { versionId: "tbc", config })).toEqual({ banks: [], bank: null, otherVersions: ["Forever"] });
+        // without a version: every visible bank
+        expect(view.stockForServer("g1", { config }).banks.map((b) => b.key)).toEqual([forever.key]);
     });
 
     it("adds reserved and available to every item of the bank shown", () => {
@@ -104,7 +135,18 @@ describe("services/guildbank/stockView", () => {
         expect(view.stockItem("nope", 22854)).toBeNull();
     });
 
-    it("offers a server's raiders only items on 'give' with something left, grouped, groupless last", () => {
+    it("takes the open requests off what is free and counts the waiting list (#775)", () => {
+        const bank = record("Alpha", "g1");
+        reservedByItem.mockReturnValue({ 22854: 3 });
+        handedOutSince.mockReturnValue({});
+        pendingByItem.mockReturnValue({ open: { 22854: 5 }, waiting: { 22854: 2 }, waitingAmount: { 22854: 4 } });
+        expect(view.stockItem(bank.key, 22854)).toMatchObject({ available: 7, open: 5, free: 2, waiting: 2, waitingAmount: 4 });
+        pendingByItem.mockReturnValue({ open: { 22854: 9 }, waiting: {}, waitingAmount: {} });
+        expect(view.stockForServer("g1").bank.items[0]).toMatchObject({ available: 7, open: 9, free: 0, waiting: 0 });
+        expect(pendingByItem).toHaveBeenCalledWith(bank.key);
+    });
+
+    it("offers a server's raiders every item on 'give' — also with nothing left — grouped, groupless last", () => {
         const bank = record("Alpha", "g1");
         // a second item, a third one only in stock
         const scan = parseGuildBankScan({
@@ -119,8 +161,13 @@ describe("services/guildbank/stockView", () => {
         reservedByItem.mockReturnValue({ 22861: 5 });
         const offer = view.offerForServer("g1", { versionId: "tbc" });
         expect(offer.bank.key).toBe(bank.key);
-        expect(offer.groups.map((g) => [g.name, g.items.map((it) => it.itemId)])).toEqual([["Fläschchen", [22854]], ["", [32193]]]);
-        expect(view.isOfferable(null)).toBe(false);
+        // 22861 has nothing left: it stays requestable for its waiting list
+        expect(offer.groups.map((g) => [g.name, g.items.map((it) => it.itemId)])).toEqual([["Fläschchen", [22854, 22861]], ["", [32193]]]);
+        expect(offer.groups[0].items[1]).toMatchObject({ available: 0, free: 0 });
+        expect(view.isRequestable(null)).toBe(false);
+        expect(view.isRequestable({ status: "give", tabHidden: true })).toBe(false);
+        expect(view.isRequestable({ status: "show", tabHidden: false })).toBe(false);
+        expect(view.isRequestable({ status: "give", tabHidden: false, available: 0 })).toBe(true);
         expect(view.offerForServer("g9")).toEqual({ bank: null, groups: [] });
     });
 

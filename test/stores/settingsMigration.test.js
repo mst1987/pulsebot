@@ -33,9 +33,11 @@ describe("stores/settingsMigration migrateSettings (#420)", () => {
         const log = jest.fn();
         const { changes } = migrateSettings({ log });
         // the four upgrades of the old install, plus the planning of its two raid categories (nothing used yet: raid plan)
-        expect(changes).toHaveLength(5);
+        // and their version pinned to the one they play (#738)
+        expect(changes).toHaveLength(6);
         expect(changes[4]).toBe("config.json: Planung je Raid-Kategorie nach der bisherigen Nutzung festgelegt (Raidplan oder Sheet) - c1 raidplan, c2 raidplan");
-        expect(log).toHaveBeenCalledTimes(5);
+        expect(changes[5]).toBe("config.json: Spielversion je aktiver Kategorie festgeschrieben (#738) - c1 tbc, c2 tbc");
+        expect(log).toHaveBeenCalledTimes(6);
         expect(log.mock.calls.every(([line]) => line.startsWith("[settings] Migration: "))).toBe(true);
 
         expect(stored(TEMPLATES_FILE).templates[0]).toMatchObject({ id: "rh-3", raidhelperTemplateId: "3" });
@@ -223,10 +225,11 @@ describe("stores/settingsMigration standard values and recruitment versions (#55
         const { changes } = migrateSettings(quiet);
         expect(changes).toEqual([expect.stringContaining("Standardwerte je Spielversion (#553)")]);
         const config = stored(CONFIG_FILE);
-        expect(config.versionDefaultsApplied).toEqual(["tbc", "classic"]);
+        expect(config.versionDefaultsApplied).toEqual(["tbc", "classic", "forever"]);
         expect(config.versionSettings.classic).toMatchObject({ wowheadPath: "classic-own", softresEdition: "classic", blizzardNamespace: "profile-classic1x-eu", blizzardRealmSlug: "" });
         expect(config.versionSettings.tbc).toMatchObject({ blizzardRealmSlug: "thunderstrike", wowheadPath: "tbc", softresEdition: "tbc", blizzardNamespace: "profile-classicann-eu" });
-        expect(config.versionSettings.forever).toEqual(EMPTY);
+        // Forever gets its Wowhead section (#750), realm, armory and logs stay empty
+        expect(config.versionSettings.forever).toEqual({ ...EMPTY, blizzardRegion: "eu", wowheadPath: "forever" });
         // the links work with the TBC realm, and stay out for Classic without one
         const { versionLinks } = require("../../src/services/events/versionSettings");
         expect(versionLinks("tbc").wcl("Nera")).toBe("https://fresh.warcraftlogs.com/character/eu/thunderstrike/Nera");
@@ -238,15 +241,15 @@ describe("stores/settingsMigration standard values and recruitment versions (#55
     });
 
     it("never fills a field again once the version is listed (cleared on purpose)", () => {
-        fs.__store.set(CONFIG_FILE, JSON.stringify(current({ versionDefaultsApplied: ["tbc", "classic"] })));
+        fs.__store.set(CONFIG_FILE, JSON.stringify(current({ versionDefaultsApplied: ["tbc", "classic", "forever"] })));
         expect(migrateSettings(quiet)).toEqual({ changes: [] });
         expect(stored(CONFIG_FILE).versionSettings.classic.softresEdition).toBe("");
     });
 
     it("fills a version that was not listed yet and keeps the others", () => {
         const out = migrateVersionDefaults(current({ versionDefaultsApplied: ["tbc"] }));
-        expect(out.versionDefaultsApplied).toEqual(["tbc", "classic"]);
-        expect(Object.keys(out.filled)).toEqual(["classic"]);
+        expect(out.versionDefaultsApplied).toEqual(["tbc", "classic", "forever"]);
+        expect(Object.keys(out.filled)).toEqual(["classic", "forever"]);
         expect(out.versionSettings.tbc.softresEdition).toBe("");
     });
 

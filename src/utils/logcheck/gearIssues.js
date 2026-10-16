@@ -257,11 +257,11 @@ function buildArmory(player, opts = {}) {
 /**
  * Build a per-player gear-issue report from a WCL "casts" table (whole-raid).
  * @param {object} table  WCL report/tables/casts response (has .entries)
- * @param {object} opts   { gemsToConsider, onlyGems, listPlayersWithNoIssues }
+ * @param {object} opts   { gemsToConsider, onlyGems, listPlayersWithNoIssues, rules? (the report's rule set; TBC without one) }
  * @returns {Array<{name, type, issues: string[]}>}
  */
 function buildGearIssues(table, opts = {}) {
-    const players = selectPlayers(table);
+    const players = selectPlayers(table, opts.rules);
 
     const results = [];
     for (const p of players) {

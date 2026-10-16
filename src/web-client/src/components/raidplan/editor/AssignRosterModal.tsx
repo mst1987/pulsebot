@@ -101,7 +101,7 @@ export default function AssignRosterModal({ board, roster, isEvent, canWrite, ed
     return (
         <Modal
             open onClose={onClose} title={t("raidBoard.roster.title")} width={1500} initialFocus=".rp-ar-row.is-sel"
-            footer={<Button onClick={onClose}>{t("raidBoard.am.done")}</Button>}
+            footer={<Button variant="ghost" onClick={onClose}>{t("raidBoard.am.done")}</Button>}
             hint={<span>{t("raidBoard.roster.hint")}</span>}
         >
             <div className="rp-ar">

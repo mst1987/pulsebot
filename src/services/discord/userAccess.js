@@ -57,7 +57,9 @@ function memberRoleIds(member) {
 }
 
 /**
- * What the given Discord user id may currently do: `{ isAdmin, access }`.
+ * What the given Discord user id may currently do: `{ isAdmin, access, isOrga? }`.
+ * `isOrga: true` when a non-admin holds one of the orga roles (config.orgaRoleIds) on an
+ * event server — full admins are orga anyway (permissions.userIsOrga).
  * Full admin if the id is in the static admin list, or a member of ANY
  * configured event server (#361 — several can exist now) holding one of the
  * admin roles there — full admins get every area at write level. Otherwise
@@ -76,17 +78,19 @@ async function computeAccess(userId) {
     // with any .env ADMIN_ROLE_IDS merged in as an optional fallback.
     const adminRoleIds = [...new Set([...(config.adminRoleIds || []), ...(envAdminRoleIds || [])])];
     const rolePermissions = config.rolePermissions || {};
+    const orgaRoleIds = (config.orgaRoleIds || []).map(String);
     // What this account gets before any role is looked at: the guild-wide base
     // access plus its own per-account grants (see BASE_ACCESS).
     const base = BASE_ACCESS(userId).access;
     // Nothing role-based is configured at all — no need to hit Discord.
-    if (!adminRoleIds.length && !Object.keys(rolePermissions).length) return { isAdmin: false, access: base };
+    if (!adminRoleIds.length && !Object.keys(rolePermissions).length && !orgaRoleIds.length) return { isAdmin: false, access: base };
     // The event servers are admin-editable (data/settings/config.json); an
     // install that never configured one falls back to guildId, .env-only in turn.
     const guildIds = guildRoles.eventGuildIds(config);
     const botClient = discord.getClient();
     if (!botClient || !guildIds.length) throw new Error("bot client or guild id not available");
     let access = base;
+    let isOrga = false;
     let reachedAnyGuild = false;
     let lastGuildError = null;
     for (const guildId of guildIds) {
@@ -107,10 +111,12 @@ async function computeAccess(userId) {
             throw e;
         }
         if (adminRoleIds.some((rid) => member.roles.cache.has(rid))) return ALL_ACCESS();
-        access = mergeAccess(access, accessForRoles(rolePermissions, memberRoleIds(member)));
+        const roleIds = memberRoleIds(member);
+        access = mergeAccess(access, accessForRoles(rolePermissions, roleIds));
+        if (roleIds.some((rid) => orgaRoleIds.includes(String(rid)))) isOrga = true;
     }
     if (!reachedAnyGuild) throw lastGuildError || new Error("no configured event server reachable");
-    return { isAdmin: false, access };
+    return { isAdmin: false, access, ...(isOrga ? { isOrga: true } : {}) };
 }
 
 /** computeAccess(), falling back to the base access when the lookup fails. */

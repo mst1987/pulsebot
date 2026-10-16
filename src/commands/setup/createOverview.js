@@ -1,51 +1,36 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder } = require("discord.js");
-const { showAllEvents } = require("../../utils/raidhelper/channelEvents");
+const { SlashCommandBuilder } = require("discord.js");
+const { postOverview } = require("../../services/events/raidOverview");
 const { botReply } = require("../../utils/discord/reply");
 
+// Posts the raid overview of the channel's category (services/events/raidOverview.js):
+// one card without buttons that redraws itself when a raid or a signup changes.
+// The channel already holding an overview of this category gets that one edited, not a second.
 module.exports = {
     name: "createoverview",
-    description: "Postet die Event-Übersicht mit Buttons für diese Kategorie",
+    description: "Postet die Raid-Übersicht dieser Kategorie (aktualisiert sich selbst)",
     group: "raids",
     defaultAccess: "admins",
     data: new SlashCommandBuilder()
         .setName("createoverview")
-        .setDescription("Creates an event overview for the current category"),
+        .setDescription("Creates a self-updating raid overview for the current category"),
     async execute(interaction) {
         try {
             if (!interaction.channel.parent) {
                 return botReply(interaction, "Fehler", "Dieser Befehl muss in einem Kanal mit einer Kategorie ausgeführt werden.");
             }
-            const categoryId = interaction.channel.parent.id;
-            const row = new ActionRowBuilder();
-            //const customEmoji = findServerEmoji(interaction, "SNIFFA");
-            row.addComponents(
-                new ButtonBuilder()
-                    .setCustomId("update-events")
-                    .setLabel("Update Events")
-                    .setStyle(ButtonStyle.Primary),
-                new ButtonBuilder()
-                    .setCustomId("show-signups")
-                    .setLabel("Show my Signups")
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId("show-mysetups")
-                    .setLabel("Show my Setups")
-                    .setStyle(ButtonStyle.Success),
-                new ButtonBuilder()
-                    .setCustomId("show-allsetups")
-                    .setLabel("Show All Setups")
-                    .setStyle(ButtonStyle.Danger)
-            );
-
-            const formattedRaids = await showAllEvents(interaction, categoryId);
-            botReply(
-                interaction,
-                interaction.channel.parent.name,
-                formattedRaids,
-                0,
-                false,
-                [row]
-            );
+            await interaction.deferReply({ ephemeral: true });
+            const result = await postOverview({
+                guildId: interaction.guildId || (interaction.guild && interaction.guild.id) || "",
+                channelId: interaction.channel.id,
+                categoryId: interaction.channel.parent.id,
+            });
+            if (result.error) {
+                return interaction.editReply({ content: `Die Übersicht konnte nicht gepostet werden: ${result.error}` });
+            }
+            const where = result.url ? ` ${result.url}` : "";
+            return interaction.editReply({
+                content: `${result.edited ? "Die Übersicht dieser Kategorie in diesem Kanal wurde neu gezeichnet." : "Die Übersicht ist gepostet."} Sie aktualisiert sich von selbst.${where}`,
+            });
         } catch (error) {
             console.log(error);
         }

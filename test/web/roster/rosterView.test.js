@@ -58,9 +58,10 @@ beforeEach(() => {
             { id: CARL, displayName: "Carl", avatarUrl: null, roleIds: ["role-main"] },
         ],
     });
+    // two past nights (seconds, May 2026) - a coming raid never counts (#768)
     listStoredEvents.mockReturnValue([
-        night("e1", 1900000000, [{ userId: ANNA, status: "signed", character: "Thorgrim" }, { userId: BERT, status: "absence" }]),
-        night("e2", 1900600000, [{ userId: ANNA, status: "signed", character: "Thorgrim" }, { userId: BERT, status: "signed" }]),
+        night("e1", 1779000000, [{ userId: ANNA, status: "signed", character: "Thorgrim" }, { userId: BERT, status: "absence" }]),
+        night("e2", 1779600000, [{ userId: ANNA, status: "signed", character: "Thorgrim" }, { userId: BERT, status: "signed" }]),
     ]);
 });
 afterAll(() => {
@@ -109,6 +110,21 @@ describe("buildRosterOverview", () => {
         expect(view.categoriesWithoutRoster).toEqual([{ id: "cat2", name: "PuG Karazhan", versionId: "tbc", versionLabel: "TBC" }]);
     });
 
+    it("lists a switched category's closed roster under its version and the category as without roster for the new one (#739)", async () => {
+        const until = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
+        rosterStore.upsertMember(rosterId(), BERT, { trialUntil: until });
+        rosterStore.closeRoster(rosterId(), { reason: "version_switch" });
+        const config = { categoryIds: ["cat1", "cat2"], categoryVersion: { cat1: "forever" } };
+        const view = await buildRosterOverview({ guildId: G, user: ADMIN, config });
+        expect(view.rosters).toHaveLength(1);
+        expect(view.rosters[0]).toMatchObject({ versionId: "tbc", closed: true, closedReason: "version_switch", trialEnding: [] });
+        expect(view.categoriesWithoutRoster.map((c) => [c.id, c.versionId])).toEqual([["cat1", "forever"], ["cat2", "tbc"]]);
+        rosterStore.createRoster({ guildId: G, name: "Raid Mo / Do", categoryId: "cat1", versionId: "forever" });
+        const after = await buildRosterOverview({ guildId: G, user: ADMIN, config });
+        expect(after.rosters.map((r) => [r.versionId, r.closed])).toEqual(expect.arrayContaining([["tbc", true], ["forever", false]]));
+        expect(after.categoriesWithoutRoster.map((c) => c.id)).toEqual(["cat2"]);
+    });
+
     it("keeps working without Discord: role unknown, names from the profile", async () => {
         discord.listHumanMembers.mockResolvedValue({ members: [], error: "offline" });
         discord.listRoles.mockReturnValue([]);
@@ -119,6 +135,62 @@ describe("buildRosterOverview", () => {
         const detail = await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG });
         expect(detail.membersKnown).toBe(false);
         expect(detail.members.find((m) => m.userId === ANNA)).toMatchObject({ displayName: "Anna", hasRole: null, onServer: null });
+    });
+});
+
+describe("who sees the people data (epic #723)", () => {
+    const ORGA = { id: "8", name: "Orga", isAdmin: false, isOrga: true };
+
+    it("gives a raider the Komposition only: places and roles, no attendance, Discord roles or settings", async () => {
+        const view = await buildRosterDetail({ guildId: G, id: rosterId(), user: READER, config: CONFIG });
+        expect(view.isOrga).toBe(false);
+        expect(view.nights).toEqual([]);
+        expect(view.window).toBeNull();
+        expect(view.settings).toBeNull();
+        expect(view.roster.attendance).toBeNull();
+        expect(view.roster.todo).toEqual({ withoutRole: null, withoutChar: 0, trial: 0 });
+        expect(view.roster.roleCounts).toEqual({ tank: 1, healer: 1, dps: 0, unknown: 0 });
+        const anna = view.members.find((m) => m.userId === ANNA);
+        expect(anna).toMatchObject({ status: "core", attendance: null, hasRole: null, heldRoles: null, onServer: null, since: "", trialUntil: null });
+        expect(anna.chars[0].name).toBe("Thorgrim");
+        expect(anna.resolved).toBeUndefined();
+    });
+
+    it("shows everything to an orga role, a full admin and a manager of that roster", async () => {
+        const asOrga = await buildRosterDetail({ guildId: G, id: rosterId(), user: ORGA, config: CONFIG });
+        expect(asOrga.isOrga).toBe(true);
+        expect(asOrga.members.find((m) => m.userId === ANNA).attendance).not.toBeNull();
+        expect(asOrga.canManage).toBe(false);
+        expect((await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG })).isOrga).toBe(true);
+        rosterStore.updateRoster(rosterId(), { managers: { userIds: [READER.id] } });
+        const asManager = await buildRosterDetail({ guildId: G, id: rosterId(), user: READER, config: CONFIG });
+        expect(asManager.isOrga).toBe(true);
+        expect(asManager.members.find((m) => m.userId === ANNA).attendance).not.toBeNull();
+    });
+
+    it("trims the overview cards per roster: a raider sees no todo badges, the orga and that roster's manager do", async () => {
+        const mineId = rosterId();
+        const other = rosterStore.createRoster({ guildId: G, name: "Anderes Roster" });
+        rosterStore.updateRoster(mineId, { managers: { userIds: [READER.id] } });
+        const cards = (await buildRosterOverview({ guildId: G, user: READER, config: CONFIG })).rosters;
+        const mine = cards.find((c) => c.id === mineId);
+        const foreign = cards.find((c) => c.id === other.id);
+        expect(mine.isOrga).toBe(true);
+        expect(mine.attendance).not.toBeUndefined();
+        expect(foreign).toMatchObject({ isOrga: false, attendance: null, trialEnding: [], todo: { withoutRole: null, withoutChar: 0, trial: 0 } });
+        const raiderCard = (await buildRosterOverview({ guildId: G, user: { id: "7", isAdmin: false }, config: CONFIG })).rosters.find((c) => c.id === mineId);
+        expect(raiderCard).toMatchObject({ isOrga: false, attendance: null, trialEnding: [], places: 2 });
+        expect(raiderCard.roleCounts).toEqual({ tank: 1, healer: 1, dps: 0, unknown: 0 });
+        expect((await buildRosterOverview({ guildId: G, user: READER, config: CONFIG })).isOrga).toBe(false);
+        expect((await buildRosterOverview({ guildId: G, user: ORGA, config: CONFIG })).isOrga).toBe(true);
+        const orgaCard = (await buildRosterOverview({ guildId: G, user: ORGA, config: CONFIG })).rosters.find((c) => c.id === mineId);
+        expect(orgaCard.isOrga).toBe(true);
+    });
+
+    it("carries publicRaids in the head's settings for the managers", async () => {
+        rosterStore.updateRoster(rosterId(), { publicRaids: true });
+        const view = await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG });
+        expect(view.settings.publicRaids).toBe(true);
     });
 });
 
@@ -186,7 +258,8 @@ describe("buildRosterDetail", () => {
         expect(view.settings).toEqual({
             categoryId: "cat1", versionId: "tbc", roleIds: ["role-main"], trialRoleId: "role-trial",
             managers: { roleIds: ["role-lead"], userIds: [ANNA, "300000000000000009"], users: [{ userId: ANNA, displayName: "Anna Discord" }, { userId: "300000000000000009", displayName: "300000000000000009" }] },
-            signupOnly: true, allowMultipleChars: false, slots: { total: 25, tank: 3, healer: 7, bench: 0 }, kaderId: null,
+            signupOnly: true, publicRaids: false, allowMultipleChars: false, slots: { total: 25, tank: 3, healer: 7, bench: 0 }, kaderId: null,
+            lootSystem: "softres", lootSystemSource: "default", lootProfileId: "",
         });
         // the drawer's spec picker: the specs of the first character's class
         expect(anna.specChoices.map((s) => s.key)).toEqual(["Warrior-Arms", "Warrior-Fury", "Warrior-Protection"]);
@@ -233,6 +306,17 @@ describe("buildRosterDetail", () => {
     it("is null for an unknown roster or one of another server", async () => {
         expect(await buildRosterDetail({ guildId: G, id: "nope", user: ADMIN, config: CONFIG })).toBeNull();
         expect(await buildRosterDetail({ guildId: "g2", id: rosterId(), user: ADMIN, config: CONFIG })).toBeNull();
+    });
+
+    it("shows a closed roster read only: marked, everything readable, nothing to manage (#739)", async () => {
+        rosterStore.upsertMember(rosterId(), ANNA, { note: "Raidlead" });
+        rosterStore.closeRoster(rosterId(), { reason: "version_switch", now: "2026-10-11T12:00:00.000Z" });
+        const view = await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG });
+        expect(view.roster).toMatchObject({ closed: true, closedAt: "2026-10-11T12:00:00.000Z", closedReason: "version_switch", versionId: "tbc" });
+        expect(view).toMatchObject({ canManage: false, settings: null, isOrga: true, isAdmin: true });
+        // the orga still reads the notes and the attendance
+        expect(view.members.find((m) => m.userId === ANNA).note).toBe("Raidlead");
+        expect(view.nights.length).toBeGreaterThan(0);
     });
 
     it("gives a roster without category no attendance", async () => {

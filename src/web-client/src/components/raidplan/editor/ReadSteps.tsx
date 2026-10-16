@@ -1,4 +1,5 @@
-import type { RaidplanStep } from "../../../api";
+import { Clapperboard } from "lucide-react";
+import type { RaidplanScene, RaidplanStep } from "../../../api";
 import { ActionIcon } from "../ActionIcon";
 import type { AssignCtx } from "../../../lib/raidplan/assign";
 import { duForm, isMyStep } from "../../../lib/raidplan/steps";
@@ -8,9 +9,15 @@ import { useLang, useT } from "../../../i18n";
 /**
  * The tactic in the sheet (read only): "Was tue ich?" first — the viewer's own steps, the verb in the "du" form, his chip carries "DU"
  * (the one mark) — then "Alle Schritte" in their order (the viewer's own ones dimmed there, so the numbers do not jump). The steps come
- * from the server already resolved (class references of the approved setup; a missing class stays an open chip).
+ * from the server already resolved (class references of the approved setup; a missing class stays an open chip). A step an animation
+ * stands at (docs/raidplan/animation.md) gets "Animation" beside it, which plays that scene on the map (#713).
  */
-export default function ReadSteps({ steps, ctx, me, onlyMine = false }: { steps: RaidplanStep[]; ctx: AssignCtx; me: string[]; onlyMine?: boolean }) {
+export default function ReadSteps({ steps, ctx, me, onlyMine = false, scenes = [], onPlay }: {
+    steps: RaidplanStep[]; ctx: AssignCtx; me: string[]; onlyMine?: boolean;
+    /** the section's playable animations: the ones with a stepId show at their step */
+    scenes?: RaidplanScene[];
+    onPlay?: (sceneId: string) => void;
+}) {
     const t = useT();
     const lang = useLang();
     if (steps.length === 0) return null;
@@ -25,6 +32,11 @@ export default function ReadSteps({ steps, ctx, me, onlyMine = false }: { steps:
                 <StepPeople step={s} filled={s.participants} ctx={ctx} me={own ? me : []} readOnly />
                 <StepSentence step={s} ctx={ctx} text={own ? duForm(s.sentence, lang) : s.sentence} />
                 <TimingChip timing={s.timing} />
+                {onPlay && scenes.filter((sc) => sc.stepId === s.id).map((sc) => (
+                    <button key={sc.id} type="button" className="rp-rs-play" aria-label={t("raidBoard.anim.playStep", { title: sc.title })} data-tip={sc.title} onClick={() => onPlay(sc.id)}>
+                        <Clapperboard size={14} aria-hidden="true" />{t("raidBoard.anim.playShort")}
+                    </button>
+                ))}
             </span>
         </li>
     );

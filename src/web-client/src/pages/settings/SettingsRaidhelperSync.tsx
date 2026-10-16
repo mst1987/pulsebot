@@ -96,7 +96,7 @@ export default function RaidhelperSyncCard() {
             )}
             {sync && (
                 <div className="conn-foot rhr-foot">
-                    <Button size="sm" icon="spell_nature_timestop" onClick={refresh} disabled={busy || sync.disabled}>
+                    <Button variant="run" size="sm" icon="spell_nature_timestop" onClick={refresh} disabled={busy || sync.disabled}>
                         {busy ? t("settings.rhSync.running") : t("settings.rhSync.refresh")}
                     </Button>
                     <span className="grow" />

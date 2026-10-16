@@ -1,5 +1,6 @@
 {
     "page": {
+        "orgaOnly": "Diese Liste ist für die Orga. Als Raider siehst du die Roster und ihre Komposition unter „Roster“.",
         "loadError": "Fehler beim Laden: {message}",
         "loading": "Roster wird geladen",
         "categories": {
@@ -255,6 +256,14 @@
         "trialLine": "{name} · Probezeit bis {date}",
         "trialLineOverdue": "{name} · Probezeit seit {date} abgelaufen"
     },
+    "closed": {
+        "badge": "Abgeschlossen",
+        "tip": "Abgeschlossen am {date}",
+        "reasonSwitch": "Die Kategorie spielt jetzt eine andere Spielversion.",
+        "reasonOther": "Dieses Roster wurde abgeschlossen.",
+        "readOnly": "Nur noch lesbar: keine neuen Mitglieder, keine Änderungen, kein Abgleich mit Discord. Wer eine Rolle dieses Rosters hat, behält sie.",
+        "title": "Abgeschlossen am {date}"
+    },
     "detail": {
         "loading": "Lade Roster …",
         "loadError": "Das Roster konnte nicht geladen werden: {message}",
@@ -446,7 +455,8 @@
         "single_char_only": "Dieses Roster erlaubt nur einen Charakter je Person.",
         "note_too_long": "Die Notiz ist zu lang (höchstens 500 Zeichen).",
         "invalid_date": "Das Datum ist ungültig.",
-        "category_taken": "Diese Kategorie hat schon ein Roster.",
+        "category_taken": "Diese Kategorie hat für diese Spielversion schon ein Roster.",
+        "roster_closed": "Dieses Roster ist abgeschlossen und nur noch lesbar.",
         "kader_not_found": "Diesen Kader gibt es nicht (mehr).",
         "invalid_name": "Bitte gib einen Namen ein oder wähle eine Kategorie.",
         "name_too_long": "Der Name ist zu lang (höchstens 40 Zeichen).",
@@ -462,7 +472,11 @@
         "not_roster_role": "Diese Rolle gehört nicht zu diesem Roster.",
         "csrf": "Die Seite ist veraltet. Bitte neu laden.",
         "invalid_spec": "Dieser Spec passt nicht zur Klasse des Charakters.",
-        "kader_taken": "Dieser Kader ist schon mit einem anderen Roster verknüpft."
+        "kader_taken": "Dieser Kader ist schon mit einem anderen Roster verknüpft.",
+        "invalid_loot_system": "Unbekanntes Lootsystem.",
+        "unknown_profile": "Dieses Loot-Council-Profil gibt es nicht.",
+        "version_mismatch": "Kader, Kategorie und Roster müssen dieselbe Spielversion spielen.",
+        "version_hidden": "Diese Spielversion ist ausgeblendet – ein Roster bekommt eine sichtbare Spielversion."
     },
     "sync": {
         "loading": "Lade den Abgleich …",
@@ -598,6 +612,13 @@
         "viaDiscord": "(über Discord)",
         "created": "Roster angelegt",
         "createdMigration": "Roster aus den Raider-Rollen der Kategorie übernommen",
+        "closed": "Roster abgeschlossen",
+        "closedSwitch": "Roster abgeschlossen: Die Kategorie spielt jetzt eine andere Spielversion",
+        "reopened": "Roster wieder geöffnet",
+        "membersCopied": {
+            "one": "{count} Person aus „{from}“ übernommen (als Probe, ohne Charakter)",
+            "other": "{count} Personen aus „{from}“ übernommen (als Probe, ohne Charakter)"
+        },
         "settings": "Einstellungen geändert: {fields}",
         "field": {
             "name": "Name",
@@ -652,11 +673,15 @@
         "adminOnly": "Das ändern nur Admins.",
         "roles": "Discord-Rolle des Rosters",
         "rolesHint": "Die erste gewählte Rolle ist die Hauptrolle: wer ins Roster kommt, bekommt sie; wer sie im Discord bekommt, steht im Roster.",
-        "roleFilter": "{label} filtern",
+        "rolePick": "{label}: Rolle wählen",
+        "rolePickPlaceholder": "Rolle wählen …",
+        "removeRole": "{name} entfernen",
+        "roleGone": "Unbekannte Rolle",
+        "noRolePicked": "Noch keine Rolle gewählt.",
         "main": "Hauptrolle",
         "mainRole": "Die Hauptrolle des Rosters",
-        "roleBlocked": "Der Bot kann diese Rolle nicht geben",
-        "roleBlockedSub": "Sie liegt über der höchsten Rolle des Bots oder wird von einer Integration verwaltet.",
+        "roleBlocked": "kann der Bot nicht geben",
+        "roleBlockedHint": "Ausgegraute Rollen kann der Bot nicht geben: Sie liegen über seiner höchsten Rolle oder werden von einer Integration verwaltet.",
         "noRoles": "Keine Rollen gefunden.",
         "trialRole": "Probe-Rolle (optional)",
         "noTrialRole": "Keine",
@@ -687,6 +712,8 @@
         "multiTip": "Zum Beispiel für PuGs. Aus: jede Person spielt genau einen Charakter in diesem Roster.",
         "signupOnly": "Anmeldung nur für Roster-Mitglieder",
         "signupOnlyTip": "Probe und Ersatz dürfen sich auch anmelden.",
+        "publicRaids": "Raids für alle Raider sichtbar",
+        "publicRaidsTip": "Sonst sehen nur die Raider dieser Kategorie ihre Raids. Ist das an, sehen auch Raider anderer Kategorien diese Raids in Raid-Liste und Übersicht.",
         "sourceTitle": "Wer kommt zuerst hinein?",
         "source": {
             "role": "Alle mit der Rolle",
@@ -709,6 +736,19 @@
         "reconcileNote": "Gut zu wissen: Der Bot gleicht alle 10 Minuten ab. Wer eine Rolle des Rosters im Discord hat, steht danach ohnehin im Roster.",
         "create": "Roster anlegen",
         "save": "Speichern",
+        "back": "Zurück",
+        "next": "Weiter",
+        "stepsLabel": "Schritte",
+        "stepBad": "Hier fehlt noch etwas",
+        "stepDone": "erledigt",
+        "steps": {
+            "basics": "Name",
+            "roles": "Rollen",
+            "managers": "Manager",
+            "slots": "Plätze & Regeln",
+            "loot": "Loot",
+            "source": "Mitglieder"
+        },
         "saved": "Einstellungen gespeichert",
         "savedTrimmed": {
             "one": "Gespeichert · {count} Person hat jetzt nur noch ihren ersten Charakter",
@@ -755,7 +795,22 @@
         "noKader": "Kein Kader",
         "kaderGone": "Verknüpfter Kader (gelöscht)",
         "kaderTaken": "{name} – verknüpft mit {roster}",
-        "kaderLink": "Kader im Kaderplaner"
+        "kaderLink": "Kader im Kaderplaner",
+        "loot": "Loot",
+        "lootSystem": "Lootsystem",
+        "lootSystems": {
+            "softres": "Softres",
+            "lootcouncil": "Loot-Council",
+            "gdkp": "GDKP",
+            "other": "Sonstiges"
+        },
+        "lootSystemHint": "Wie in den Raids dieses Rosters gelootet wird.",
+        "lootSystemCategoryHint": "Gilt für die Kategorie des Rosters — dieselbe Einstellung wie unter Einstellungen › Kategorien.",
+        "lootProfile": "Loot-Council-Profil",
+        "lootProfileHint": "Gewichtung und Ansicht, mit denen der Council für dieses Roster rechnet. Manager dürfen es wählen.",
+        "lootProfileDefault": "{name} (Vorgabe)",
+        "lootProfileGone": "Profil gibt es nicht mehr",
+        "lootProfilesManage": "Profile verwalten"
     },
     "spec": {
         "title": "Spec in diesem Roster",

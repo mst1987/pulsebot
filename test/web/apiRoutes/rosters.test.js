@@ -14,11 +14,12 @@ jest.mock("../../../src/web/http/auth", () => ({
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ categoryIds: ["cat1"] })) }));
 jest.mock("../../../src/web/roster/rosterView", () => ({
-    buildRosterOverview: jest.fn(async () => ({ rosters: [{ id: "r1", name: "Raid Mo / Do" }], categoriesWithoutRoster: [], canCreate: true })),
+    buildRosterOverview: jest.fn(async () => ({ rosters: [{ id: "r1", name: "Raid Mo / Do", versionId: "tbc" }], categoriesWithoutRoster: [], canCreate: true })),
     buildRosterDetail: jest.fn(async ({ id }) => (id === "r1" ? { roster: { id: "r1" }, members: [], canManage: false } : null)),
 }));
 
 jest.mock("../../../src/web/roster/activeRoster", () => ({ activeRoster: jest.fn((req, id) => (id === "r1" ? { id: "r1", guildId: "g1", history: [] } : null)) }));
+jest.mock("../../../src/services/roster/rosterAccess", () => ({ isRosterOrga: jest.fn(async (user, roster) => !!user.isOrga || user.managesRoster === roster.id) }));
 jest.mock("../../../src/web/roster/rosterHistoryView", () => ({
     buildRosterHistory: jest.fn(async () => ({ entries: [{ what: "created" }], total: 1, offset: 0, limit: 50 })),
 }));
@@ -30,7 +31,9 @@ const { emptyAccess } = require("../../../src/config/permissions");
 const { get } = routerClient(require("../../../src/web/apiRoutes/rosters"));
 
 const ADMIN = { id: "1", name: "Admin", isAdmin: true, access: emptyAccess() };
-const READER = { id: "2", name: "Orga", isAdmin: false, access: { ...emptyAccess(), roster: { read: true, write: false } } };
+const READER = { id: "2", name: "Orga", isAdmin: false, isOrga: true, access: { ...emptyAccess(), roster: { read: true, write: false } } };
+// a raider role that holds `roster` read (epic #723): reads the Komposition, not the people data
+const RAIDER = { id: "4", name: "Mo Raider", isAdmin: false, isOrga: false, access: { ...emptyAccess(), roster: { read: true, write: false } } };
 const MEMBER = { id: "3", name: "Raider", isAdmin: false, access: { ...emptyAccess(), signup: { read: true, write: true } } };
 
 beforeEach(() => {
@@ -42,8 +45,19 @@ describe("GET /api/rosters", () => {
     it("answers the overview of the active server", async () => {
         const res = await get("/api/rosters");
         expect(status(res)).toBe(200);
-        expect(body(res)).toEqual({ rosters: [{ id: "r1", name: "Raid Mo / Do" }], categoriesWithoutRoster: [], canCreate: true });
+        expect(body(res)).toEqual({ rosters: [{ id: "r1", name: "Raid Mo / Do", versionId: "tbc" }], categoriesWithoutRoster: [], canCreate: true });
         expect(view.buildRosterOverview).toHaveBeenCalledWith({ guildId: "g1", user: ADMIN, config: { categoryIds: ["cat1"] } });
+    });
+
+    it("lists only the rosters and categories of the shown game version (#741)", async () => {
+        view.buildRosterOverview.mockResolvedValueOnce({
+            rosters: [{ id: "r-tbc", versionId: "tbc" }, { id: "r-forever", versionId: "forever" }],
+            categoriesWithoutRoster: [{ id: "c-tbc", versionId: "tbc" }, { id: "c-forever", versionId: "forever" }],
+            canCreate: true,
+        });
+        const forever = body(await get("/api/rosters", { version: "forever" }));
+        expect(forever.rosters.map((r) => r.id)).toEqual(["r-forever"]);
+        expect(forever.categoriesWithoutRoster.map((c) => c.id)).toEqual(["c-forever"]);
     });
 
     it("opens for roster readers and stays shut for everybody else", async () => {
@@ -88,6 +102,18 @@ describe("GET /api/rosters/history", () => {
         expect(status(res)).toBe(200);
         expect(body(res)).toEqual({ entries: [{ what: "created" }], total: 1, offset: 0, limit: 50 });
         expect(buildRosterHistory).toHaveBeenCalledWith({ id: "r1", guildId: "g1", history: [] }, { userId: "100001", offset: "50", limit: "20" });
+    });
+
+    it("is the orga's: 403 orga_only for a raider with roster read, ok for a manager of that roster (epic #723)", async () => {
+        auth.getUser.mockReturnValue(RAIDER);
+        const res = await get("/api/rosters/history", { id: "r1" });
+        expect(status(res)).toBe(403);
+        expect(body(res).error.code).toBe("orga_only");
+        auth.getUser.mockReturnValue({ ...RAIDER, managesRoster: "r2" });
+        expect(status(await get("/api/rosters/history", { id: "r1" }))).toBe(403);
+        auth.getUser.mockReturnValue({ ...RAIDER, managesRoster: "r1" });
+        expect(status(await get("/api/rosters/history", { id: "r1" }))).toBe(200);
+        expect(buildRosterHistory).toHaveBeenCalledTimes(1);
     });
 
     it("asks for an id, answers 404 for an unknown roster (or another server's) and stays shut without the area", async () => {

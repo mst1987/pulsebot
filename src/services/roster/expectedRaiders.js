@@ -10,23 +10,28 @@
 // readable list does not know has left the server and is dropped; when the list
 // cannot be read, the roster's members still count, named by their profile
 // (else their id) — the roster is the truth, the names are cosmetic.
-const rosterStore = require("../../stores/rosterStore");
+//
+// One roster per category and version (#739): every function takes the raid's
+// version (`versionId`, versionOfEvent) - a raid of the old version still
+// expects the closed roster of that version, a raid of the new one its own.
+// Without a version: the one the category plays now.
 const raiderProfileStore = require("../../stores/raiderProfileStore");
 const discord = require("../discord/discord");
 const { expectedRoleIds } = require("./categoryRoles");
+const { rosterOfCategory } = require("./categoryRoster");
 
 /** The roster statuses that are expected in every raid of the category. */
 const EXPECTED_STATUSES = ["core", "trial"];
 
 /**
  * The roster members expected in a raid of the category: their user ids, or
- * null when the category has no roster (then the roles decide).
+ * null when the category has no roster of that version (then the roles decide).
  * @param {string} categoryId
+ * @param {{ versionId?: string, config?: object }} [opts]  the raid's version
  * @returns {string[]|null}
  */
-function expectedRosterIds(categoryId) {
-    const cat = String(categoryId || "").trim();
-    const roster = cat ? rosterStore.rosterForCategory(cat) : null;
+function expectedRosterIds(categoryId, { versionId = "", config } = {}) {
+    const roster = rosterOfCategory(categoryId, { versionId, config });
     if (!roster) return null;
     return Object.entries(roster.members)
         .filter(([, m]) => EXPECTED_STATUSES.includes(m.status))
@@ -34,8 +39,8 @@ function expectedRosterIds(categoryId) {
 }
 
 /** Whether a raid of the category has anybody it expects: a roster, or raider roles. */
-function hasExpected(categoryId, config) {
-    return expectedRosterIds(categoryId) !== null || expectedRoleIds(categoryId, config).length > 0;
+function hasExpected(categoryId, config, { versionId = "" } = {}) {
+    return expectedRosterIds(categoryId, { versionId, config }) !== null || expectedRoleIds(categoryId, config, { versionId }).length > 0;
 }
 
 /**
@@ -46,11 +51,12 @@ function hasExpected(categoryId, config) {
  * @param {string} guildId
  * @param {string} categoryId
  * @param {object} [config]
+ * @param {{ versionId?: string }} [opts]  the raid's version (#739)
  * @returns {Promise<{ members: { id: string, displayName: string }[], error: string|null, roleIds: string[], source: "roster"|"roles"|null }>}
  */
-async function listExpectedMembers(guildId, categoryId, config) {
-    const roleIds = expectedRoleIds(categoryId, config);
-    const ids = expectedRosterIds(categoryId);
+async function listExpectedMembers(guildId, categoryId, config, { versionId = "" } = {}) {
+    const roleIds = expectedRoleIds(categoryId, config, { versionId });
+    const ids = expectedRosterIds(categoryId, { versionId, config });
     if (ids === null) {
         if (!roleIds.length) return { members: [], error: null, roleIds, source: null };
         const { members, error } = await discord.listMembersWithRoles(guildId, roleIds);

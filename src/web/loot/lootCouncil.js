@@ -22,7 +22,7 @@ const { countsAsLoot } = require("../../utils/loot/lootReasons");
 const { getCategoryAssignments } = require("../../stores/raiderCharactersStore");
 const { excludedKeys, plannedRoles } = require("../../stores/councilStore");
 const { versionLinks } = require("../../services/events/versionSettings");
-const { buildVersionContext, versionsOfCharacter, versionChoices } = require("../../services/characters/characterVersions");
+const { buildVersionContext, eventVersion, versionsOfCharacter, versionChoices } = require("../../services/characters/characterVersions");
 const { mainVersionFor } = require("../../services/events/mainVersion");
 const { characterKey, characterKeyOf } = require("../../utils/loot/lootImport");
 const { rosterCandidates } = require("./councilRosterSource");
@@ -36,11 +36,13 @@ const { targetSlotFor } = require("../../utils/wowsims/loadout");
 const wowsims = require("../../config/wowsims");
 const bisSource = require("../../config/bisSets");
 const { wearCheck } = require("../../config/wearable");
+const { councilContent: councilContentFor } = require("../../services/events/versionCapabilities");
 const {
     ROLES, specFor, specByKey, specForRole, rolesForClass, weightsFor, hitStatFor, hitCapFor,
     bisForSpec, isSimSupported, bisSpecsForItem,
 } = require("../../config/councilSpecs");
 const councilWeights = require("../../stores/councilWeightsStore");
+const councilProfiles = require("../../services/loot/councilProfiles");
 const { itemWeight } = require("../../services/loot/itemWeights");
 const { tenureContext, tenureDays: tenureDaysOf } = require("../../services/loot/councilTenure");
 
@@ -330,13 +332,14 @@ function itemView(itemId, tierId = "") {
  *
  * `isBis` is resolved here because only the server knows this raider's BiS list.
  */
-function wornItemView(item, bisIds, tierId = "") {
-    const known = wowsims.item(item.itemId);
-    const source = sourceForItem(item.itemId) || {};
+function wornItemView(item, bisIds, tierId = "", content = councilContentFor("tbc")) {
+    // A version without item table / BiS (#748) knows nothing beyond the log's own data.
+    const known = content.itemTable ? wowsims.item(item.itemId) : null;
+    const source = (content.itemTable && sourceForItem(item.itemId)) || {};
     return {
         // Whose BiS list this piece is on — not just "is it BiS", which says
         // nothing when nine specs share one item table.
-        bisSpecs: bisSpecsView(item.itemId, tierId),
+        bisSpecs: content.bis ? bisSpecsView(item.itemId, tierId) : [],
         slot: item.slot,
         slotName: item.slotName,
         itemId: item.itemId,
@@ -485,7 +488,7 @@ function needScore(input, weights = NEED_WEIGHTS, tenureSaturation = councilWeig
 
 /** The weighting a council request runs with: the stored settings plus the shares of 1 the score uses. */
 function resolveWeights(settings) {
-    const s = settings || councilWeights.weightsFor("");
+    const s = settings || councilProfiles.weightsFor({});
     return { ...s, needShares: councilWeights.effectiveNeedWeights(s.need) };
 }
 
@@ -539,15 +542,21 @@ function judgedRoles() {
  * who only ever won something on Thursday belongs in the Monday list with
  * zero items, not out of it. Who is on the list at all is decided in
  * councilRoster.
+ *
+ * `inVersion(item)` (optional) narrows what counts to the council's version
+ * (#741): a TBC item never counts in the Forever council, not even in "Alle
+ * Raid-Kategorien" or in a category switched from TBC to Forever. `seen`
+ * keeps the items before that cut - they still tell which versions a
+ * character belongs to (derivedVersions).
  */
-function lootByCharacter(allLoot, categoryId, contentFilter) {
+function lootByCharacter(allLoot, categoryId, contentFilter, inVersion = null) {
     const loot = new Map();
     for (const it of allLoot) {
         const key = it.characterKey;
         if (!key) continue;
         // The name is taken before the category cut, so a raider whose items
         // all belong to another raid is still shown by name rather than by key.
-        if (!loot.has(key)) loot.set(key, { all: [], filtered: [], other: 0, character: it.character });
+        if (!loot.has(key)) loot.set(key, { all: [], seen: [], filtered: [], other: 0, character: it.character });
         const bucket = loot.get(key);
         if (categoryId && it.categoryId !== categoryId) continue;
         // An off-spec roll, a shard or a bank item did nothing for this raider's
@@ -556,9 +565,11 @@ function lootByCharacter(allLoot, categoryId, contentFilter) {
         // who got one real upgrade. They are tallied separately (`other`) rather
         // than dropped silently, so the page can say they exist.
         if (!countsAsLoot(it.reason)) {
-            bucket.other += 1;
+            if (!inVersion || inVersion(it)) bucket.other += 1;
             continue;
         }
+        bucket.seen.push(it);
+        if (inVersion && !inVersion(it)) continue;
         bucket.all.push(it);
         if (!contentFilter || contentFilter.has(it.contentId)) bucket.filtered.push(it);
     }
@@ -619,7 +630,7 @@ function awardedItemView(it, w = { weight: 1, cls: "normal" }) {
 }
 
 /** The raider's last seen gear as the roster row carries it (null without any). */
-function rosterGearView(gear, specEntry, bisIds, bisTier) {
+function rosterGearView(gear, specEntry, bisIds, bisTier, content = councilContentFor("tbc")) {
     if (!gear) return null;
     return {
         seenAt: gear.seenAt,
@@ -629,7 +640,7 @@ function rosterGearView(gear, specEntry, bisIds, bisTier) {
         // The hit that counts for this spec, and its cap: spell hit for a
         // caster, physical hit for melee, hunters and tanks (`hitStat`), none
         // for a healer (hitCap 0 — the page then shows no hit badge).
-        hit: gearHit(gear, hitStatFor(specEntry)),
+        hit: content.itemTable ? gearHit(gear, hitStatFor(specEntry)) : 0,
         hitStat: hitStatFor(specEntry),
         hitCap: hitCapFor(specEntry),
         // Whether this really is the raider's damage kit. A shaman who
@@ -685,7 +696,7 @@ function rosterGearView(gear, specEntry, bisIds, bisTier) {
         // page can show the raider's gear as a row of icons. Whether a
         // piece is on their BiS list is decided here rather than in the
         // client, which has no BiS list per raider to check against.
-        items: gear.items.map((it) => wornItemView(it, bisIds, bisTier)),
+        items: gear.items.map((it) => wornItemView(it, bisIds, bisTier, content)),
     };
 }
 
@@ -750,13 +761,15 @@ function rosterRow(key, ctx) {
     const filtered = bucket.filtered.sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0));
     const lastAwardAt = filtered.length ? filtered[0].awardedAt : 0;
     const daysSinceLoot = lastAwardAt ? Math.floor((ctx.now - lastAwardAt) / DAY) : null;
-    const bis = bisForSpec(specEntry, ctx.bisTier);
-    const bisItems = bisItemsFor(bis, gear, ctx.bisTier);
+    const content = ctx.content || councilContentFor("tbc");
+    // No BiS data for this version (#748): an honestly empty list, never TBC's.
+    const bis = content.bis ? bisForSpec(specEntry, ctx.bisTier) : { tier: "", exact: false, borrowedFrom: "", items: [], source: "", sourceLabel: "" };
+    const bisItems = content.bis ? bisItemsFor(bis, gear, ctx.bisTier) : [];
     const bisIds = new Set(bis.items.map((entry) => Number(entry.id)));
     // What each award counts as (#668): its weight decides the loot points and
     // how far it reset the wait. A weapon is a BiS weapon against *this*
     // raider's list.
-    const weighed = filtered.map((it) => ({ it, w: itemWeight(it.itemId, ctx.weights, { bisIds, itemName: it.itemName }) }));
+    const weighed = filtered.map((it) => ({ it, w: itemWeight(it.itemId, ctx.weights, { bisIds, itemName: it.itemName, noTable: !content.itemTable }) }));
     const lootPoints = Math.round(weighed.reduce((n, x) => n + x.w.weight, 0) * 10) / 10;
     const joined = ctx.joinedAtFor(key);
 
@@ -802,9 +815,9 @@ function rosterRow(key, ctx) {
         joinedFrom: joined.source,
         tenureDays: tenureDaysOf(joined.joinedAt, ctx.now),
         items: weighed.map((x) => awardedItemView(x.it, x.w)),
-        gear: rosterGearView(gear, specEntry, bisIds, ctx.bisTier),
+        gear: rosterGearView(gear, specEntry, bisIds, ctx.bisTier, content),
         bis: bisView(bis, bisItems),
-        simSupported: isSimSupported(specEntry),
+        simSupported: content.sim && isSimSupported(specEntry),
     };
 }
 
@@ -849,12 +862,14 @@ function scoreRows(rows, weights = resolveWeights()) {
  *   charVersion restrict to raiders of one game version (#545, "" = every
  *               version) — a character's version like the roster derives it
  *               (services/characters/characterVersions.js): its own when
- *               known, else the version of an own event it won loot in, else
+ *               known, else the stored version of a raid it won loot in, else
  *               its category's, else TBC.
  */
 function councilRoster(opts = {}) {
     const { role = "", categoryId = "", charVersion = "" } = opts;
-    const contentFilter = resolveContentFilter(opts);
+    // What content data the council's version has (#748); without options the TBC council as ever.
+    const content = councilContentFor(opts.versionId === undefined ? "tbc" : opts.versionId, { config: opts.config });
+    const contentFilter = content.tiers ? resolveContentFilter(opts) : null;
     const info = new Map(annotatedCharacters().map((c) => [c.key, c]));
     const { roleByKey, planned } = judgedRoles();
     const gearMap = gearByCharacter({ roleFor: (key) => roleByKey.get(key) || "" });
@@ -864,13 +879,22 @@ function councilRoster(opts = {}) {
     const now = Date.now();
 
     const allLoot = listAll();
-    const bisTier = opts.bisTier || currentTier(allLoot);
-    const loot = lootByCharacter(allLoot, categoryId, contentFilter);
+    const bisTier = content.bis ? (opts.bisTier || currentTier(allLoot)) : "";
+    // Every candidate's game version (#545), read once — cheap (no network),
+    // so it is always known: the version filter's own choices come from it
+    // (every version a candidate of this category has, plus the main one),
+    // and the same values decide who the charVersion filter keeps.
+    const versionCtx = buildVersionContext({ config: opts.config });
+    // Only the loot of the council's version counts (#741): the item's raid's stored version (#737).
+    const inVersion = charVersion ? (it) => eventVersion(versionCtx, it.eventId) === charVersion : null;
+    const loot = lootByCharacter(allLoot, categoryId, contentFilter, inVersion);
 
     // A category with a roster (#667): the roster IS the candidate list —
     // Stamm and Probe, Ersatz with `showBench`, every assigned character. Its
     // members appear even with no loot and no gear (0 items, the longest wait).
-    const fromRoster = rosterCandidates(categoryId, { showBench: !!opts.showBench });
+    // A roster picked on the page (#676, `rosterId`) may have no category at all.
+    // The category's roster of the council's version (#739): a TBC view reads the closed TBC roster.
+    const fromRoster = rosterCandidates(categoryId, { showBench: !!opts.showBench, rosterId: opts.rosterId || "", versionId: opts.versionId });
 
     // Without one: everyone who could be on the council, known from loot, from
     // a CLA report, or from both. A raider who has never won an item still
@@ -889,19 +913,15 @@ function councilRoster(opts = {}) {
 
     // One read of the version's links for every row (#542): the category's version, else the main one.
     const links = versionLinks(opts.versionId);
-    // Every candidate's game version (#545), read once — cheap (no network),
-    // so it is always known: the version filter's own choices come from it
-    // (every version a candidate of this category has, plus the main one),
-    // and the same values decide who the charVersion filter keeps.
-    const versionCtx = buildVersionContext({ config: opts.config });
     const mainVersion = opts.mainVersion || mainVersionFor({ config: opts.config });
-    // How items and the need parts weigh (#668): the category's own settings,
-    // else the server's; `opts.weights` lets a caller (a test) pass them in.
-    const weights = resolveWeights(opts.weights || councilWeights.weightsFor(categoryId));
+    // How items and the need parts weigh (#668): the profile of the roster or
+    // category (#676, services/loot/councilProfiles.js), else the default
+    // profile; `opts.weights` lets a caller (a test) pass them in.
+    const weights = resolveWeights(opts.weights || councilProfiles.weightsFor({ rosterId: opts.rosterId || "", categoryId }));
     // "Dabei seit" per raider, read once for the whole roster.
     const joinedAtFor = opts.joinedAtFor || tenureContext({ categoryId, allLoot, now });
     const ctx = {
-        info, charStore, gearMap, loot, planned, role, bisTier, now, links, weights, joinedAtFor,
+        info, charStore, gearMap, loot, planned, role, bisTier, now, links, weights, joinedAtFor, content,
         hints: fromRoster ? fromRoster.entries : null,
     };
     const rows = [];
@@ -910,13 +930,22 @@ function councilRoster(opts = {}) {
     // Roster members whose spec the council does not know (yet): counted and
     // named rather than left out silently.
     const noSpec = [];
+    // Who was set aside *in this view* — the page names only them under
+    // „Nicht eingeplant“, not every character ever set aside: a TBC raider has
+    // no business in the Forever council's list.
+    const setAside = [];
     for (const key of keys) {
         if (!fromRoster && members && !members.keys.has(key)) { skipped.category += 1; continue; }
-        if (excluded.has(key)) { skipped.excluded += 1; continue; }
         // A roster member's version is the roster's; everyone else's is derived.
         const versionIds = fromRoster ? [fromRoster.roster.versionId] : derivedVersions(key, { info, loot, versionCtx });
+        const inVersion = !charVersion || versionIds.includes(charVersion);
+        if (excluded.has(key)) {
+            // Another version's raider is missing for the version, not for being set aside.
+            if (inVersion) { skipped.excluded += 1; setAside.push(key); } else skipped.version += 1;
+            continue;
+        }
         seenVersions.push({ versionIds });
-        if (charVersion && !versionIds.includes(charVersion)) { skipped.version += 1; continue; }
+        if (!inVersion) { skipped.version += 1; continue; }
         const row = rosterRow(key, ctx);
         const entry = fromRoster ? fromRoster.entries.get(key) : null;
         if (row) {
@@ -952,6 +981,9 @@ function councilRoster(opts = {}) {
         // of this category has, plus the main version even with none.
         versions: versionChoices(seenVersions, mainVersion),
         skipped,
+        // The keys behind skipped.excluded: the page's „Nicht eingeplant“ lists
+        // exactly these, so its count and its names agree.
+        setAside,
         // How the category filter knew who belongs: from the maintained
         // assignment, or only from who won loot there (which cannot see a
         // raider who never won anything).
@@ -990,7 +1022,7 @@ function derivedVersions(key, { info, loot, versionCtx }) {
     const bucket = loot.get(key);
     return versionsOfCharacter(versionCtx, {
         name: known.character || (bucket && bucket.character) || key,
-        items: (bucket && bucket.all) || [],
+        items: (bucket && bucket.seen) || [],
         categoryIds: known.categoryIds || [],
     });
 }
@@ -1048,13 +1080,19 @@ function rosterGear(roster) {
  * disk, so the BiS overview — which asks per item — paid that price once per
  * gap and took minutes on a real guild's data.
  *
- * @returns {{candidates: object[], unwearable: object[]}}
+ * ⚠️ A raider who already has the item is no candidate either: the drop would
+ * replace the very piece it is, so it gains them nothing, yet their need score
+ * still ranked them first whenever nothing was simulated. `owned` names them
+ * (alreadyHas), so the council sees why they are missing from the list.
+ *
+ * @returns {{candidates: object[], unwearable: object[], owned: object[]}}
  */
 function candidateSplit(itemId, roster, gearMap = rosterGear(roster)) {
     const item = wowsims.item(itemId);
-    if (!item) return { candidates: [], unwearable: [] };
+    if (!item) return { candidates: [], unwearable: [], owned: [] };
     const out = [];
     const unwearable = [];
+    const owned = [];
     for (const row of roster) {
         const specEntry = specByKey(row.specKey);
         const fit = wearCheck(row.className, itemId, { spec: (specEntry && specEntry.spec) || row.spec || "" });
@@ -1072,6 +1110,19 @@ function candidateSplit(itemId, roster, gearMap = rosterGear(roster)) {
             continue;
         }
         const gear = gearMap.get(row.key) || null;
+        const has = alreadyHas(row, gear, itemId, item);
+        if (has) {
+            owned.push({
+                key: row.key,
+                character: row.character,
+                classColor: row.classColor,
+                specKey: row.specKey,
+                specLabel: row.specLabel,
+                specIconUrl: row.specIconUrl,
+                source: has,
+            });
+            continue;
+        }
         const target = targetSlotFor(gear, itemId);
         if (!target) continue; // the item fits no slot this raider has
         const bisIds = new Set(row.bis.items.map((i) => i.id));
@@ -1176,7 +1227,26 @@ function candidateSplit(itemId, roster, gearMap = rosterGear(roster)) {
     // half); the weighted need only breaks ties, because a council weighs
     // fairness itself and should see the raw upgrade unblurred.
     out.sort((a, b) => b.value * b.bisWeight - a.value * a.bisWeight || b.itemNeedScore - a.itemNeedScore);
-    return { candidates: out, unwearable };
+    return { candidates: out, unwearable, owned };
+}
+
+/**
+ * Whether a raider already has every copy of the item they could use: "worn"
+ * when the last seen gear shows it, "awarded" when only the loot history does
+ * (won last raid, not in a log yet), "" when the drop could still go to them.
+ *
+ * Copies, not a yes/no: a ring or a one-hander fits two slots, and wearing one
+ * still leaves room for the second — unless it is unique-equipped, as nearly
+ * every raid trinket and ring is (Dragonspine Trophy), or a two-hander: then
+ * one copy is all a raider can use.
+ */
+function alreadyHas(row, gear, itemId, item) {
+    const id = Number(itemId);
+    const room = item.hand === "two" || item.unique ? 1 : Math.max(1, (item.slots || []).length);
+    const worn = ((gear && gear.items) || []).filter((it) => Number(it.itemId) === id).length;
+    if (worn >= room) return "worn";
+    const awarded = (row.items || []).filter((it) => Number(it.itemId) === id).length;
+    return Math.max(worn, awarded) >= room ? "awarded" : "";
 }
 
 /** The candidates alone — everyone on the roster who can wear the item. */
@@ -1235,7 +1305,8 @@ function bisGaps(roster, { contentIds = null } = {}) {
 }
 
 /** The filter options the page offers, so the client needs no second source. */
-function filterOptions() {
+function filterOptions(content = councilContentFor("tbc")) {
+    if (!content.tiers && !content.bis) return { roles: ROLES, tiers: [], contents: [], bisTiers: [] };
     return {
         roles: ROLES,
         tiers: TIERS,

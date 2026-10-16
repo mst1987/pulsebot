@@ -6,11 +6,11 @@
 // (api/client), so every test also pins the request that is sent.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "../../api/client";
 import type { AbsenceOverview, AbsencePeriod, AbsenceRaider, AbsenceRaiderDetail, AttendanceStatus, AvailabilityData, RaiderAttendanceData } from "../../api";
 import { t } from "../../i18n";
-import { renderPage, adminUser } from "../../test/render";
+import { renderPage, adminUser, CONTENT_ARIA, twoVersions } from "../../test/render";
 import { switchLang } from "../../test/i18n";
 import AbsencesPage from "./AbsencesPage";
 
@@ -334,6 +334,13 @@ describe("Abwesenheiten: Raider", () => {
 const raiderOnly = () => adminUser({ isAdmin: false, access: { signup: { read: true, write: true } } });
 
 describe("Abwesenheiten: Meine Anwesenheit", () => {
+    it("shows a raider role its own attendance even with the roster area - everybody's absences are the orga's", async () => {
+        const rosterRaider = adminUser({ isAdmin: false, access: { signup: { read: true, write: true }, roster: { read: true, write: false } } });
+        await showMine(rosterRaider);
+        expect(screen.getByText(t("absences.mine.lead"))).toBeInTheDocument();
+        expect(screen.queryByRole("radiogroup", { name: t("absences.viewAria") })).not.toBeInTheDocument();
+    });
+
     async function showMine(user = raiderOnly(), route = "/absences") {
         const view = renderPage(<AbsencesPage />, { route, user });
         await screen.findByRole("region", { name: "TBC Montag" });
@@ -367,11 +374,14 @@ describe("Abwesenheiten: Meine Anwesenheit", () => {
         expect(cells.map((c) => c.classList.contains("is-in"))).toEqual([true, true, false]);
         expect(cells[0].tagName).toBe("BUTTON");
 
-        // the list: newest first, the verdict in words
+        // the list: newest first, the verdict as one short word, why in its tooltip (no word said twice)
         const rows = [...mon.querySelectorAll(".ab-att-list li")].slice(0, 3);
-        expect(rows.map((r) => r.querySelector(".ab-att-verdict")?.textContent)).toEqual([
-            "Abgemeldet · für diesen Raid abgemeldet", "Bench · im Setup auf der Bank", "Dabei · im Log",
+        const verdicts = rows.map((r) => r.querySelector(".ab-att-verdict") as HTMLElement);
+        expect(verdicts.map((v) => v.textContent)).toEqual(["Abgemeldet", "Bench", "Dabei"]);
+        expect(verdicts.map((v) => v.getAttribute("data-tip-sub"))).toEqual([
+            t("attendance.hint.absence"), "im Setup auf der Bank", "im Log",
         ]);
+        expect(verdicts[0]).toHaveAttribute("tabindex", "0");
         expect(rows[0]).toHaveClass("ab-att-out");
         expect(rows[1]).toHaveClass("ab-att-in");
 
@@ -505,6 +515,38 @@ describe("Abwesenheiten: Meine Anwesenheit", () => {
         const drawer = await screen.findByRole("complementary", { name: t("absences.drawer.aria") });
         await within(drawer).findByText(t("absences.drawer.entries"));
         expect(within(drawer).queryByRole("button", { name: t("absences.drawer.attendance") })).not.toBeInTheDocument();
+    });
+});
+
+describe("Abwesenheiten je Spielversion (#740)", () => {
+    const switchTo = async (user: ReturnType<typeof userEvent.setup>, name: RegExp) => {
+        await user.click(within(screen.getAllByRole("radiogroup", { name: t(CONTENT_ARIA) })[0]).getByRole("radio", { name }));
+    };
+    afterEach(() => localStorage.removeItem("eh-content-version"));
+
+    it("asks the overview and the drawer for the content version and loads both again when it switches", async () => {
+        const user = userEvent.setup();
+        renderPage(<AbsencesPage />, { route: "/absences", content: twoVersions() });
+        await screen.findByRole("heading", { name: t("absences.title") });
+        await waitFor(() => expect(gets("/api/availability/overview?")).toEqual(["/api/availability/overview?weeks=8&version=tbc"]));
+        await user.click(row("Tankadin"));
+        await waitFor(() => expect(gets("/api/availability/overview/raider?")).toEqual(["/api/availability/overview/raider?userId=201&version=tbc"]));
+
+        await switchTo(user, /Forever/);
+        await waitFor(() => expect(gets("/api/availability/overview?").at(-1)).toBe("/api/availability/overview?weeks=8&version=forever"));
+        await waitFor(() => expect(gets("/api/availability/overview/raider?").at(-1)).toBe("/api/availability/overview/raider?userId=201&version=forever"));
+    });
+
+    it("counts Meine Anwesenheit in the content version and loads it again when it switches", async () => {
+        const user = userEvent.setup();
+        renderPage(<AbsencesPage />, { route: "/absences", user: raiderOnly(), content: twoVersions() });
+        expect(await screen.findByRole("region", { name: "TBC Montag" })).toBeInTheDocument();
+        expect(gets("/api/availability/attendance")).toEqual(["/api/availability/attendance?version=tbc"]);
+        // a category switched to Forever before its first raid: words, never 0 %
+        expect(within(screen.getByRole("region", { name: "TBC Mittwoch" })).getByText(t("absences.mine.noRaids"))).toBeInTheDocument();
+
+        await switchTo(user, /Forever/);
+        await waitFor(() => expect(gets("/api/availability/attendance").at(-1)).toBe("/api/availability/attendance?version=forever"));
     });
 });
 

@@ -77,6 +77,9 @@ beforeEach(() => {
     profiles.reset();
     settingsStore.getConfig.mockReturnValue(CONFIG);
     seed();
+    // the recipients are characters of the raiders' profiles: only linked requests reach the addon
+    profiles.addCharacter("u1", { source: "log", name: "Zibbo", className: "Priest", realm: "Spineshatter", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+    profiles.addCharacter("u2", { source: "log", name: "Zibbo", className: "Mage", realm: "Spineshatter", specs: [{ key: "Mage-Frost", gear: "ready" }] });
     jest.spyOn(console, "warn").mockImplementation(() => {});
 });
 afterEach(() => console.warn.mockRestore());
@@ -93,7 +96,6 @@ describe("classFileOf", () => {
 
 describe("handoutList", () => {
     it("lists the assigned banks with their confirmed requests from the stock only", () => {
-        profiles.addCharacter("u1", { name: "Zibbo", className: "Priest", realm: "Spineshatter", specs: [{ key: "Priest-Holy", gear: "ready" }] });
         const r = confirmed();
         store.addRequest({ userId: "u2", userName: "Bert", item: "Rubin", amount: 1, bankKey: KEY, itemId: RUBY }); // open
         store.addRequest({ userId: "u3", userName: "Cleo", item: "Gold", amount: 1 }); // free text
@@ -111,25 +113,64 @@ describe("handoutList", () => {
                 inBank: 14,
                 tabs: [{ index: 1, name: "Edelsteine", count: 10 }, { index: 2, name: "Verbrauch", count: 4 }],
             }],
+            unlinked: 0,
         });
     });
 
-    it("gives no character without a name, falls back to the request's item, and lists a bank without requests empty", () => {
+    it("falls back to the request's item and lists a bank without requests empty", () => {
         stockStore.setTabHidden(KEY, 2, true);
-        const flask = confirmed({ itemId: FLASK, item: "Fläschchen", icon: "inv_flask", characterName: "" });
+        const flask = confirmed({ itemId: FLASK, item: "Fläschchen", icon: "inv_flask" });
         let [bank] = handouts.handoutList().banks;
         expect(bank.handouts[0]).toMatchObject({
-            id: flask.id, name: "Fläschchen", icon: "inv_flask", quality: -1, character: null, inBank: 0, tabs: [],
+            id: flask.id, name: "Fläschchen", icon: "inv_flask", quality: -1, inBank: 0, tabs: [],
         });
         store.handOutRequest(flask.id, { via: "manual" });
         [bank] = handouts.handoutList().banks;
         expect(bank.handouts).toEqual([]);
+        expect(bank.unlinked).toBe(0);
     });
 
-    it("keeps the character without a class when the profile does not know it", () => {
-        confirmed({ characterName: "Fremd", realm: "", faction: "" });
+    it("keeps a request the orga confirmed although its profile character is unconfirmed — the confirmation vouches for it (#806)", () => {
+        // "Gentle" was typed at a signup: no log, no loot, no armory — but the orga confirmed the request
+        profiles.addCharacter("u3", { name: "Gentle", className: "Druid" }, { name: "Gentle" });
+        const typed = confirmed({ userId: "u3", userName: "Gentle", characterName: "Gentle" });
+        const [bank] = handouts.handoutList().banks;
+        expect(bank.handouts.map((h) => [h.id, h.character.name])).toEqual([[typed.id, "Gentle"]]);
+        expect(bank.unlinked).toBe(0);
+    });
+
+    it("keeps confirmed requests of a stranger, of an entry without a Discord account and of a character that left the profile (#806)", () => {
+        const stranger = confirmed({ characterName: "Fremd" });
+        // imported by name alone (no Discord account), moved up and confirmed
+        const waiting = store.addWaiting({ characterName: "Whapap", item: "Rubin", amount: 1, bankKey: KEY, itemId: RUBY, addedBy: "o1" }).request;
+        const imported = store.confirmRequest(store.promoteWaiting(waiting.id, 1).request.id, { by: "o1", byName: "Arthas" }, { now: 1791060000000 }).request;
+        const ok = confirmed({}, { at: 1791070000000 });
+        profiles.removeCharacter("u1", "zibbo");
+        const [bank] = handouts.handoutList().banks;
+        expect(bank.handouts.map((h) => h.id)).toEqual([stranger.id, imported.id, ok.id]);
+        expect(bank.handouts[1].character).toEqual({ name: "Whapap", realm: "Spineshatter", faction: "Alliance", classFile: "" });
+        expect(bank.unlinked).toBe(0);
+    });
+
+    it("leaves out a confirmed request without a name, and one whose recipient changed to a name nobody vouched for", () => {
+        confirmed({ characterName: "" });
+        const moved = confirmed();
+        profiles.addCharacter("u3", { name: "Gentle", className: "Druid" }, { name: "Gentle" });
+        store.setRecipient(moved.id, { userId: "u3", userName: "Gentle", characterName: "Gentle", realm: "Spineshatter" });
+        let [bank] = handouts.handoutList().banks;
+        expect(bank.handouts).toEqual([]);
+        expect(bank.unlinked).toBe(2);
+        // the orga checks the new name in game: listed again
+        store.checkRecipient(moved.id, { by: "o1", byName: "Arthas" });
+        [bank] = handouts.handoutList().banks;
+        expect(bank.handouts.map((h) => h.id)).toEqual([moved.id]);
+        expect(bank.unlinked).toBe(1);
+    });
+    it("takes the bank's realm and the profile's class for a character without a realm", () => {
+        profiles.addCharacter("u3", { source: "log", name: "Ohnerealm", className: "Mage", specs: [{ key: "Mage-Fire", gear: "ready" }] });
+        confirmed({ userId: "u3", characterName: "Ohnerealm", realm: "", faction: "" });
         const [h] = handouts.handoutList().banks[0].handouts;
-        expect(h.character).toEqual({ name: "Fremd", realm: "Spineshatter", faction: "Alliance", classFile: "" });
+        expect(h.character).toEqual({ name: "Ohnerealm", realm: "Spineshatter", faction: "Alliance", classFile: "MAGE" });
     });
 
     it("lists the oldest confirmation first and narrows to one bank or a token's server", () => {

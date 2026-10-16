@@ -27,7 +27,7 @@ async function listEvents({ past = false, guildId = eventGuildId() } = {}) {
         for (const ev of group.events || []) {
             if (!ev || seen.has(ev.id)) continue;
             seen.add(ev.id);
-            events.push({ ...ev, categoryName: group.categoryName || "" });
+            events.push({ ...ev, categoryName: ev.categoryName || group.categoryName || "" });
         }
     }
     events.sort((a, b) => (a.startTime || 0) - (b.startTime || 0));

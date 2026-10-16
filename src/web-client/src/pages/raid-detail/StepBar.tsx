@@ -1,8 +1,9 @@
 // Das Raid-Cockpit (#319): die Schritt-Leiste im Kopf eines *eigenen* Events.
 //
 // Sechs Schritte — Angelegt › Anmeldung › Setup › Freigabe › Einteilungen ›
-// Nachbereitung — als EINE schmale Zeile: je Schritt Icon, Name, ein kurzer
-// Wert ("25 angemeldet", "Stand 1") und rechts ein Haken (erledigt) bzw. seine
+// Nachbereitung — als eine Reihe gleich breiter Zellen: je Schritt Icon, Name und
+// darunter ein kurzer Wert ("25 angemeldet", "Stand 1"), zweizeilig, damit beides
+// nicht abgekürzt werden muss, und rechts ein Haken (erledigt) bzw. seine
 // Nummer (der offene Schritt hervorgehoben). Darunter ein Streifen „Jetzt dran:
 // <Tat>“ mit dem einen erklärenden Satz und dem einzigen auffälligen Knopf der
 // Leiste — voll sichtbar, nie abgeschnitten. Jeder andere Schritt mit einer Tat
@@ -33,6 +34,7 @@ function StepCell({ step, index, onDeed }: {
     const t = useT();
     const title = stepTitle(step);
     const short = step.state === "current" ? "" : stepShort(step);
+    // two lines: the name (and the mark) on top, the value below them across the cell, so neither has to be cut short
     const cell = (
         <>
             <WowIcon name={step.icon} size={18} />

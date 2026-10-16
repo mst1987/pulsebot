@@ -7,15 +7,22 @@
 //   reserved   the confirmed requests of the item (reservations.js)
 //   handedOut  handed out after the last scan (reservations.handedOutSince): still
 //              in the stored stock, no longer in the bank
-//   available  max(0, count - reserved - handedOut - reserve) — what a raider may still ask for
+//   available  max(0, count - reserved - handedOut - reserve) — what the orga may still confirm
+//   open       the open (not yet confirmed) requests of the item — promised, not set aside (#775)
+//   free       max(0, available - open) — what a new request or the waiting list may still get
+//   waiting    how many waiting-list entries wait for the item, waitingAmount their amounts
+//   portion    the waiting list's share per turn (the item's own 1–99, else
+//              guildBankStockStore.PORTION_DEFAULT = 2; the store's item view)
 //   group      the line the item is listed under: the orga's own category,
 //              else Wowhead's class (gems, recipes) or subclass (consumables,
 //              trade goods: "Fläschchen", "Stoff") — German labels by id
 //              (config/itemClassLabels.js), while the item names are English —
 //              "" when Wowhead has not answered yet; autoGroup = Wowhead's alone
 const stockStore = require("../../stores/guildBankStockStore");
-const { reservedByItem, handedOutSince, reservedRequestCount } = require("./reservations");
+const { reservedByItem, handedOutSince, pendingByItem, reservedRequestCount, handedOutRequestCount } = require("./reservations");
 const { wowheadPathFor } = require("./itemMeta");
+const { featureOn } = require("../events/versionCapabilities");
+const { visibleRows } = require("../events/mainVersion");
 const { rulesFor } = require("../../config/gameVersions");
 const { classLabel, subclassLabel } = require("../../config/itemClassLabels");
 
@@ -54,7 +61,7 @@ function hiddenTabsOf(bank) {
  * stock lies in hidden tabs is `tabHidden` — the page leaves it out, nobody
  * can ask for it.
  */
-function withAvailability(item, reserved = {}, hiddenTabs = new Set(), handedOut = {}) {
+function withAvailability(item, reserved = {}, hiddenTabs = new Set(), handedOut = {}, pending = {}) {
     const tabs = {};
     let count = 0;
     for (const [index, n] of Object.entries(item.tabs || {})) {
@@ -67,6 +74,8 @@ function withAvailability(item, reserved = {}, hiddenTabs = new Set(), handedOut
     const visibleCount = Object.keys(item.tabs || {}).length ? count : totalCount;
     const r = Number(reserved[item.itemId]) || 0;
     const out = Number(handedOut[item.itemId]) || 0;
+    const available = availableOf(visibleCount, r + out, item.reserve);
+    const open = Number((pending.open || {})[item.itemId]) || 0;
     return {
         ...item,
         count: visibleCount,
@@ -76,7 +85,11 @@ function withAvailability(item, reserved = {}, hiddenTabs = new Set(), handedOut
         tabHidden: onlyHidden,
         reserved: r,
         handedOut: out,
-        available: availableOf(visibleCount, r + out, item.reserve),
+        available,
+        open,
+        free: Math.max(0, available - open),
+        waiting: Number((pending.waiting || {})[item.itemId]) || 0,
+        waitingAmount: Number((pending.waitingAmount || {})[item.itemId]) || 0,
         group: itemGroup(item),
         autoGroup: itemGroup({ ...item, category: "" }),
     };
@@ -97,61 +110,73 @@ function summary(bank) {
 }
 
 /**
- * The banks of a Discord server and the one the page shows: the one asked for
- * by `key`, else the first of the content version `versionId`, else the first.
+ * The banks of a Discord server for one game version and the one the page
+ * shows (#741, the version decides): `banks` = the server's banks of
+ * `versionId` ("" = of every visible version), `bank` = the one of them asked
+ * for by `key`, else the first — never a bank of another version, so a version
+ * without a bank answers `bank: null`. A bank of a hidden version (#563,
+ * mainVersion.visibleRows) is never listed. `otherVersions` = the short names
+ * of the other visible versions the server has a bank of (the page's hint
+ * "no bank for this version").
  * @param {string} guildId
- * @param {{ key?: string, versionId?: string }} [opts]
- * @returns {{ banks: object[], bank: object|null }}
+ * @param {{ key?: string, versionId?: string, config?: object }} [opts]
+ * @returns {{ banks: object[], bank: object|null, otherVersions: string[] }}
  */
-function stockForServer(guildId, { key = "", versionId = "" } = {}) {
-    const all = stockStore.listForServer(guildId);
-    const chosen = all.find((b) => key && b.key === key)
-        || all.find((b) => versionId && b.gameVersion === versionId)
-        || all[0]
-        || null;
-    if (!chosen) return { banks: [], bank: null };
+function stockForServer(guildId, { key = "", versionId = "", config } = {}) {
+    const visible = visibleRows(stockStore.listForServer(guildId), (b) => b.gameVersion, config);
+    const own = versionId ? visible.filter((b) => b.gameVersion === versionId) : visible;
+    const otherVersions = [...new Set(visible.filter((b) => !own.includes(b)).map((b) => versionShort(b.gameVersion)))];
+    const chosen = own.find((b) => key && b.key === key) || own[0] || null;
+    if (!chosen) return { banks: [], bank: null, otherVersions };
     const reserved = reservedByItem(chosen.key);
     const out = handedOutSince(chosen.key, chosen.scannedAt);
     const hidden = hiddenTabsOf(chosen);
+    const pending = pendingByItem(chosen.key);
     const bank = {
         ...chosen,
         versionShort: versionShort(chosen.gameVersion),
-        wowheadPath: wowheadPathFor(chosen.gameVersion),
+        // the item links: only while Wowhead links are on for the bank's version (#761)
+        wowheadPath: featureOn(chosen.gameVersion, "wowheadLinks") ? wowheadPathFor(chosen.gameVersion) : "",
         reservedRequests: reservedRequestCount(chosen.key),
-        items: chosen.items.map((it) => withAvailability(it, reserved, hidden, out)),
+        handedOutRequests: handedOutRequestCount(chosen.key),
+        items: chosen.items.map((it) => withAvailability(it, reserved, hidden, out, pending)),
     };
-    return { banks: all.map(summary), bank };
+    return { banks: own.map(summary), bank, otherVersions };
 }
 
 /** One item of a bank with reserved/available/group, or null. */
 function itemForPage(bankKey, item) {
     if (!item) return null;
     const bank = stockStore.getBank(bankKey);
-    return withAvailability(item, reservedByItem(bankKey), hiddenTabsOf(bank), handedOutSince(bankKey, bank && bank.scannedAt));
+    return withAvailability(item, reservedByItem(bankKey), hiddenTabsOf(bank), handedOutSince(bankKey, bank && bank.scannedAt), pendingByItem(bankKey));
 }
 
 /** One item of a bank by id with reserved/available/group — what the request form and the orga card read — or null. */
 function stockItem(bankKey, itemId) {
     const bank = stockStore.getBank(bankKey);
     const item = bank ? bank.items.find((it) => it.itemId === Number(itemId)) : null;
-    return item ? withAvailability(item, reservedByItem(bankKey), hiddenTabsOf(bank), handedOutSince(bankKey, bank.scannedAt)) : null;
+    return item ? withAvailability(item, reservedByItem(bankKey), hiddenTabsOf(bank), handedOutSince(bankKey, bank.scannedAt), pendingByItem(bankKey)) : null;
 }
 
-/** Whether a raider may ask for an item now: offered ("give"), not only in hidden tabs, something left. */
-const isOfferable = (item) => !!item && item.status === "give" && !item.tabHidden && item.available > 0;
+/**
+ * Whether a raider may ask for an item: offered ("give") and not only in hidden
+ * tabs. Nothing left is no reason (#775): what is not free goes on the item's
+ * waiting list — an empty item keeps its settings in the stock store and stays.
+ */
+const isRequestable = (item) => !!item && item.status === "give" && !item.tabHidden;
 
 /**
  * What a raider of a Discord server may ask for: the server's bank of
- * `versionId` (else its first, like the page) and its offerable items in
- * groups — by group name, the items without a group last, each group by item
- * name. `{ bank: null, groups: [] }` without a bank.
+ * `versionId` (like the page: never one of another version, #741) and its
+ * requestable items in groups — by group name, the items without a group
+ * last, each group by item name. `{ bank: null, groups: [] }` without a bank.
  * @returns {{ bank: object|null, groups: { name: string, items: object[] }[] }}
  */
-function offerForServer(guildId, { versionId = "" } = {}) {
-    const { bank } = stockForServer(guildId, { versionId });
+function offerForServer(guildId, { versionId = "", config } = {}) {
+    const { bank } = stockForServer(guildId, { versionId, config });
     if (!bank) return { bank: null, groups: [] };
     const byGroup = new Map();
-    for (const item of bank.items.filter(isOfferable)) {
+    for (const item of bank.items.filter(isRequestable)) {
         const name = item.group || "";
         if (!byGroup.has(name)) byGroup.set(name, []);
         byGroup.get(name).push(item);
@@ -171,6 +196,6 @@ function bankOfServer(key, guildId) {
 }
 
 module.exports = {
-    itemGroup, availableOf, withAvailability, hiddenTabsOf, versionShort, stockForServer, itemForPage, stockItem, isOfferable,
+    itemGroup, availableOf, withAvailability, hiddenTabsOf, versionShort, stockForServer, itemForPage, stockItem, isRequestable,
     offerForServer, bankOfServer,
 };

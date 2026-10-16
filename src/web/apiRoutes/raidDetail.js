@@ -22,11 +22,12 @@ const softres = require("../../utils/loot/softres");
 const { setEventLootSystem, lootSystemOf } = require("../../stores/eventLootSystemStore");
 const { normalizeLootSystem } = require("../../services/loot/lootSystem");
 const wowhead = require("../../utils/loot/wowhead");
-const { mainVersionFor } = require("../../services/events/mainVersion");
+const { mainVersionFor, versionOfEvent } = require("../../services/events/mainVersion");
 
 // Every write here changes one event: an archived one (a hidden game version, #563) is read only.
 const BY_EVENT = (body) => body.event;
 const { settingsForVersion } = require("../../services/events/versionSettings");
+const { featureState, sheetVersionRefusal } = require("../../services/events/versionCapabilities");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 const Drive = require("../../classes/drive");
 const SheetsClient = require("../../classes/sheets");
@@ -177,6 +178,13 @@ const postFill = withUser({ csrf: true, body: true, archived: BY_EVENT }, async 
     // A category that plans with the raid plan gets no sheet (Einstellungen → Kategorien).
     const blocked = await planningBlock(req, eventId, "sheet");
     if (blocked) return error(res, blocked.status, blocked.code, blocked.message);
+    // The sheet is laid out for TBC only (#751): another version never gets a wrongly filled TBC sheet.
+    const resolved = await resolveEventForPost(req, eventId);
+    if (resolved.found) {
+        const config = getConfig();
+        const noLayout = sheetVersionRefusal(versionOfEvent({ versionId: resolved.found.versionId, categoryId: resolved.categoryId }, { config }), { config });
+        if (noLayout) return error(res, noLayout.status, noLayout.code, noLayout.message);
+    }
     // An own event fills the sheet from its approved setup (#263) — never from a draft.
     const own = sourceOfEventId(eventId) === "eventhelper";
     const ownSlots = own ? raidHelperSlots(getEvent(eventId)) : null;
@@ -348,6 +356,10 @@ const postSoftresCreate = withUser({ csrf: true, body: true, archived: BY_EVENT 
     const eventId = q.str(body, "event");
     const codes = Array.isArray(body.instanceCodes) ? body.instanceCodes : [];
     if (!codes.length) return error(res, 400, "no_instances", "Mindestens eine Instanz wählen.");
+    // Softres only for a version with an edition that has it switched on (#761, Einstellungen → Spielversion).
+    const config = getConfig();
+    const softresState = featureState(versionOfEvent({ id: eventId }, { config }), "softres", { config });
+    if (!softresState.on) return error(res, 409, softresState.reason === "disabled" ? "feature_off" : "no_softres_edition", softresState.message);
     // All chosen instances must belong to one edition (a softres list is single-edition).
     const editions = [...new Set(codes.map((c) => softres.editionOf(c)).filter(Boolean))];
     if (editions.length !== 1) {

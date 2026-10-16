@@ -14,13 +14,20 @@ const profileStore = require("../../stores/raidplanProfileStore");
 const templateStore = require("../../stores/raidplanTemplateStore");
 const { approvedSetupOf, benchAndPool } = require("../../services/setup/setupCore");
 const groupsOf = require("../../services/raidplan/raidplanGroups");
-const { rulesForEvent, versionOfEvent } = require("../../services/events/mainVersion");
+const { rulesForEvent, versionOfEvent, visibleRows } = require("../../services/events/mainVersion");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 const { wowIconUrl } = require("../../config/menu");
 const assign = require("../../services/raidplan/raidplanAssign");
 const stepsOf = require("../../services/raidplan/raidplanSteps");
 const besetzungOf = require("../../services/raidplan/raidplanBesetzung");
 const catalogStore = require("../../stores/raidplanCatalogStore");
+const { catalogEnabled } = require("../../services/events/versionCapabilities");
+
+/** The catalog a plan of a version gets: no mobs and no spells while "Raidplan-Katalog" is off for it (#761). */
+function catalogFor(versionId) {
+    const view = catalogStore.catalogView(versionId);
+    return catalogEnabled(versionId) ? view : { ...view, mobs: [], spells: [] };
+}
 const raiderProfiles = require("../../stores/raiderProfileStore");
 const characterKey = raiderProfiles.characterKey;
 
@@ -172,7 +179,7 @@ function templateView(t) {
             instanceMap: !!store.mapVersion(b.instanceId),
         };
     });
-    return { ...t, bossList: withStandard(bosses), catalog: catalogStore.catalogView(t.versionId), besetzung: besetzungOf.effectiveBesetzung(t.instanceIds, t.size, t.counts) };
+    return { ...t, bossList: withStandard(bosses), catalog: catalogFor(t.versionId), besetzung: besetzungOf.effectiveBesetzung(t.instanceIds, t.size, t.counts) };
 }
 
 /** What a template picker needs of a template (no boards). */
@@ -197,7 +204,9 @@ function planVersion(event) {
  * `allVersions`: also those of other versions (the editor lists them apart, applying one asks first).
  */
 function templatesFor(event, { allVersions = false } = {}) {
-    return templateStore.listTemplates().filter((t) => (!t.guildId || t.guildId === String(event.guildId || "")) && (allVersions || t.versionId === planVersion(event)));
+    const own = templateStore.listTemplates().filter((t) => (!t.guildId || t.guildId === String(event.guildId || "")) && (allVersions || t.versionId === planVersion(event)));
+    // Other versions hidden (#563): the templates of a hidden version are no choice, not even "of another version".
+    return visibleRows(own, (t) => t.versionId);
 }
 
 /** GET /api/raidplan — everything the editor needs. */
@@ -231,9 +240,9 @@ function editorView(event, { canWrite, me = "" }) {
         hasApprovedSetup: event.rosterSource ? !!event.rosterSource.available : !!approvedSetupOf(event),
         // where the players of a Raid-Helper event come from (the header shows it); null for an own event
         rosterSource: event.rosterSource || null,
-        profiles: profileStore.listProfiles(),
+        profiles: visibleRows(profileStore.listProfiles(), (p) => p.versionId),
         templates: templatesFor(event, { allVersions: true }).map(templateSummary),
-        catalog: catalogStore.catalogView(planVersion(event)),
+        catalog: catalogFor(planVersion(event)),
         limits: { ...store.LIMITS, profileName: profileStore.LIMITS.name, profileCategory: profileStore.LIMITS.category },
     };
 }
@@ -326,6 +335,8 @@ function publicView(plan, event, { me = "" } = {}) {
                 })), slots, roster, board.roles || {}),
                 // the tactic: each step resolved on its own from the approved setup (a missing class stays its reference: an open chip)
                 steps: stepsOf.resolveSteps(board.steps || [], { slots, roster, roles: board.roles || {}, known }),
+                // the animations move objects of the map: none without it (a reference to an object left out above simply moves nothing)
+                scenes: mapOn ? board.scenes || [] : [],
                 notes: board.notes,
                 profileName: (profileStore.getProfile(board.profileId) || {}).name || "",
             };
@@ -363,7 +374,7 @@ function publicView(plan, event, { me = "" } = {}) {
         roster: [...roster, ...outside].filter((r) => used.has(r.userId)),
         me: meIds[0] || "",
         meIds,
-        catalog: catalogStore.catalogView(planVersion(event)),
+        catalog: catalogFor(planVersion(event)),
         loggedIn: !!me,
     };
 }

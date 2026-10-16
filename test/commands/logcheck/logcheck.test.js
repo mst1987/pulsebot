@@ -32,6 +32,8 @@ const { analyzeSunder } = require("../../../src/utils/logcheck/sunder.js");
 const { analyzeBossUptimes } = require("../../../src/utils/logcheck/bossUptimes.js");
 const { selectPlayers } = require("../../../src/utils/logcheck/common.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
+const { cardText, cardControls } = require("../../helpers/cardText.js");
+const { saveConfig } = require("../../../src/stores/configStore.js");
 
 function primeAnalyzers() {
     // buildGearIssues / selectPlayers / potionsByName results are used unguarded,
@@ -69,8 +71,7 @@ describe("commands/logcheck/logcheck", () => {
     });
 
     it("replies with an error when the report id cannot be parsed", async () => {
-        WarcraftLogs.parseReportId.mockReturnValueOnce("");
-        const interaction = mockInteraction({ options: { link: "not-a-report" } });
+        const interaction = mockInteraction({ options: { link: "https://fresh.warcraftlogs.com/reports/" } });
 
         await command.execute(interaction);
 
@@ -95,7 +96,10 @@ describe("commands/logcheck/logcheck", () => {
         expect(saveReport).toHaveBeenCalledTimes(1);
         expect(saveReport.mock.calls[0][0]).toMatchObject({
             title: "My Raid",
-            reportId: "REPORTID",
+            reportId: "xyz",
+            // the host the link was posted with stays the report's link (#746)
+            reportUrl: "https://classic.warcraftlogs.com/reports/xyz",
+            versionId: "tbc",
         });
 
         expect(botEditReply).toHaveBeenCalledTimes(1);
@@ -120,5 +124,46 @@ describe("commands/logcheck/logcheck", () => {
             "Fehler",
             expect.stringContaining("Report konnte nicht geladen werden")
         );
+    });
+
+    describe("a log of a version the log check cannot read yet (#746)", () => {
+        beforeEach(() => {
+            saveConfig({ versionSettings: { forever: { wclUrlTemplate: "https://forever.warcraftlogs.com/character/{region}/{realm}/{char}" } } });
+        });
+
+        it("refuses it clearly, in German by default, without asking Warcraft Logs", async () => {
+            const interaction = mockInteraction({ options: { link: "https://forever.warcraftlogs.com/reports/xyz" } });
+
+            await command.execute(interaction);
+
+            expect(WarcraftLogs).not.toHaveBeenCalled();
+            expect(saveReport).not.toHaveBeenCalled();
+            expect(botEditReply).not.toHaveBeenCalled();
+            const text = cardText(interaction.editReply.mock.calls[0][0]);
+            expect(text).toContain("Noch keine Auswertung");
+            expect(text).toContain("Logs von WoW Forever werden noch nicht ausgewertet.");
+            expect(text).not.toContain("404");
+        });
+
+        it("in the language of the reader", async () => {
+            const interaction = mockInteraction({ options: { link: "https://forever.warcraftlogs.com/reports/xyz" } });
+            interaction.locale = "en-US";
+
+            await command.execute(interaction);
+
+            expect(cardText(interaction.editReply.mock.calls[0][0])).toContain("Logs from WoW Forever are not evaluated yet.");
+        });
+
+        it("puts the host of the link on the button of a raid still running", async () => {
+            WarcraftLogs.__getFights.mockResolvedValue({
+                title: "BT", start: 0, end: 10, fights: [{ id: 1, boss: 601, name: "High Warlord Naj'entus", kill: true }],
+            });
+            const interaction = mockInteraction({ options: { link: "https://fresh.warcraftlogs.com/reports/xyz" } });
+
+            await command.execute(interaction);
+
+            const ids = cardControls(interaction.editReply.mock.calls[0][0]).map((c) => c.custom_id);
+            expect(ids).toEqual(["logcheck-force:id:xyz:all:fresh.warcraftlogs.com"]);
+        });
     });
 });

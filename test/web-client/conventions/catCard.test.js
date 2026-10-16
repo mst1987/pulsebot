@@ -6,8 +6,9 @@
 // section with its own category picker. What is protected here: the list with
 // its tinted head, one row open at a time, the inactive categories folded away,
 // unknown ids kept visible, and the assignment reachable from the row. The open
-// card (CategoryDetail.tsx, design "B · Tabs in der Karte") sorts its settings
-// into four tabs, one row each: name | control | what it does.
+// card (CategoryDetail.tsx, design "A · Sechs Tabs, jede Einstellung eine Karte")
+// sorts its settings into six tabs, one card each: name + one line | control,
+// the full explanation behind the (i).
 // The row logic itself (categoryRows / splitCategoryRows) runs in
 // settingsLogic.test.js.
 const fs = require("fs");
@@ -58,7 +59,10 @@ describe("Kategorien list", () => {
     });
 
     it("keeps an unknown category id visible with a bad badge", () => {
-        expect(matrix).toMatch(/\{cat\.unknown && \(\s*<Badge tone="bad"/);
+        expect(matrix).toMatch(/\{cat\.unknown && !gone && \(\s*<Badge tone="bad"/);
+        // #744: one Discord really deleted says so and offers to close it
+        expect(matrix).toMatch(/\{cat\.unknown && gone && \(\s*<Badge tone="bad"/);
+        expect(matrix).toContain("t(\"settings.categoryClose.action\")");
     });
 
     it("shows the per-category settings as badges in the row", () => {
@@ -82,35 +86,51 @@ describe("Kategorien list", () => {
         expect(page).not.toContain("RaiderCharactersTab");
     });
 
-    it("shows each setting's explanation beside it: name | control | what it does", () => {
+    it("gives each setting a short line under its name and the full explanation behind the (i): name + line | control", () => {
         expect(matrix + detail).not.toContain("className=\"hint\"");
         for (const key of ["raiderRoles", "lootAddon", "fixedSheet", "newEvents", "notes", "planning"]) {
             expect(detail).toContain(`label={t("settings.categories.${key}")}`);
-            expect(detail).toContain(`sub={t("settings.categories.${key}Sub")}`);
+            expect(detail).toMatch(new RegExp(`sub=\\{t\\("settings\\.categories\\.${key}Short"\\)\\} more=\\{t\\("settings\\.categories\\.${key}Sub"\\)\\}`));
+            expect(de[`settings.categories.${key}Short`]).toBeTruthy();
         }
-        expect(detail).toContain("label={t(\"settings.categories.chars\")} sub={t(\"settings.categories.charsDetailSub\")}");
+        expect(detail).toContain("label={t(\"settings.categories.chars\")} sub={t(\"settings.categories.charsShort\")} more={t(\"settings.categories.charsDetailSub\")}");
         expect(de["settings.categories.chars"]).toBe("Raider → Charakter");
         expect(field).toContain("<div className=\"cat-field-sub\">{sub}</div>");
-        expect(rule(".cat-field")).toContain("grid-template-columns: 170px minmax(0, 1.5fr) minmax(0, 1fr)");
+        // the (i) is the shared tooltip, never the browser's title
+        expect(field).toContain("tip={label} tipSub={more}");
+        expect(field).not.toContain("title=");
+        expect(rule(".cat-field")).toContain("grid-template-columns: minmax(180px, 260px) minmax(0, 1fr)");
         // below 760 px the three columns stack
         expect(css).toMatch(/@media \(max-width: 760px\) \{[^@]*\.cat-field \{ grid-template-columns: minmax\(0, 1fr\);/);
     });
 
-    it("sorts the open card's settings into four real tabs", () => {
+    it("sorts the open card's settings into six real tabs, each opened by a line on what it covers", () => {
         const logic = fs.readFileSync(path.join(CLIENT, "lib", "settings", "settingsLogic.ts"), "utf8");
-        expect(logic).toContain("export const CATEGORY_TABS = [\"signup\", \"message\", \"plan\", \"loot\"] as const;");
+        expect(logic).toContain("export const CATEGORY_TABS = [\"raider\", \"events\", \"message\", \"hubs\", \"plan\", \"loot\"] as const;");
+        expect(detail).toContain("<p className=\"cat-tab-intro\">{t(`settings.categories.tabsIntro.${shown}`)}</p>");
+        for (const id of ["raider", "events", "message", "hubs", "plan", "loot"]) {
+            expect(de[`settings.categories.tabs.${id}`]).toBeTruthy();
+            expect(de[`settings.categories.tabsIntro.${id}`]).toBeTruthy();
+        }
+        // the three attendance settings share one card, the quota is a stepper, never fixed choices
+        expect(detail).toContain("<div className=\"cat-subfields\">");
+        expect(detail).not.toContain("ATTENDANCE_WINDOWS");
+        expect(detail).toContain("<QuotaStepper ");
         expect(detail).toContain("role=\"tablist\"");
         expect(detail).toContain("role=\"tab\"");
         expect(detail).toContain("role=\"tabpanel\"");
         expect(detail).toContain("onKeyDown={onKey}");
         expect(matrix).toContain("usePersistedState<Record<string, CategoryTab>>(\"settings-category-tabs\", {})");
         expect(rule(".cat-tab.is-active")).toContain("border-bottom-color: var(--accent)");
-        expect([de["settings.categories.tabs.signup"], de["settings.categories.tabs.plan"]]).toEqual(["Anmeldung", "Setup & Planung"]);
+        expect([de["settings.categories.tabs.raider"], de["settings.categories.tabs.hubs"], de["settings.categories.tabs.plan"]]).toEqual(["Raider", "Discord-Zentralen", "Setup & Planung"]);
     });
 
     it("spaces the list from the stylesheet, never inline", () => {
         expect(matrix + detail + field).not.toContain("style={{");
-        expect(rule(".cat-field-wrap + .cat-field-wrap")).toContain("border-top: 1px solid var(--line-soft)");
+        // every setting its own card, spaced apart by the panel's gap
+        expect(rule(".cat-field-wrap")).toContain("border: 1px solid var(--line)");
+        expect(rule(".cat-field-wrap")).toContain("border-radius: 12px");
+        expect(rule(".cat-tabpanel")).toContain("gap: 10px");
     });
 
     it("picks the message channel at the message segment, hidden for \"keine\" and while no channels load (#335)", () => {

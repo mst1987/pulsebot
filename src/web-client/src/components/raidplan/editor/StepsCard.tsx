@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { BookOpen, Copy, GripVertical, ListOrdered, Pencil, Plus, Save, Trash2 } from "lucide-react";
+import { BookOpen, Clapperboard, Copy, GripVertical, ListOrdered, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import type { Catalog, RaidplanBoard, RaidplanMobRef, RaidplanPlayer, RaidplanStep } from "../../../api";
 import { useConfirm } from "../../ui";
 import { ActionIcon } from "../ActionIcon";
@@ -127,7 +127,7 @@ export default function StepsCard({ board, edit, roster, players, isEvent, canWr
                                 <ActionIcon action={s.action} size={30} label={t(`raidBoard.steps.actions.${s.action}`)} />
                                 <span className="rp-st-who"><StepPeople step={s} filled={filled[i]} ctx={ctx} isEvent={isEvent} /></span>
                                 <span className="rp-st-sent"><StepSentence step={s} ctx={ctx} /></span>
-                                <span className="rp-st-tm"><TimingChip timing={s.timing} /></span>
+                                <span className="rp-st-tm"><TimingChip timing={s.timing} />{(board.scenes || []).some((sc) => sc.stepId === s.id) && <span className="rp-st-anim" data-tip={t("raidBoard.anim.stepHas", { titles: (board.scenes || []).filter((sc) => sc.stepId === s.id).map((sc) => sc.title).join(", ") })}><Clapperboard size={13} aria-label={t("raidBoard.anim.stepHasShort")} /></span>}</span>
                                 <span className="rp-line-acts">
                                     {canWrite && <button type="button" className="rp-st-open rp-line-btn" aria-label={`${t("raidBoard.steps.edit")}: ${i + 1}. ${t(`raidBoard.steps.actions.${s.action}`)} ${s.sentence} ${timingLabel(s.timing)}`} data-tip={t("raidBoard.steps.editTip")} onClick={() => setEditing(s)}><Pencil size={14} /></button>}
                                     {canWrite && <button type="button" className="rp-line-btn" aria-label={t("raidBoard.steps.duplicate")} data-tip={t("raidBoard.steps.duplicate")} onClick={() => edit((b) => duplicateStep(b, s.id))}><Copy size={14} /></button>}
