@@ -116,6 +116,83 @@ describe("commands/signup/eventButton", () => {
         expect(orderedValues(["b|X", "a|Y"], [{ value: "a|Y" }, { value: "b|X" }])).toEqual([{ character: "a", spec: "Y" }, { character: "b", spec: "X" }]);
     });
 
+    // Design canvas "Schnellere Anmeldung", way A: one click instead of five.
+    describe("Anmelden in one click (quick)", () => {
+        const signupOf = (characters, extra = {}) => ({
+            userId: ANNA, character: characters[0][0], spec: characters[0][1], role: "healer", status: "signed",
+            characters: characters.map(([character, spec, status = "signed"]) => ({ character, spec, status })), canAlso: [], comment: "", at: 1, ...extra,
+        });
+
+        it("signs up at once with the likeliest character and offers a select to swap or add", async () => {
+            twoCharacters();
+            const i = click("quick");
+            await command.execute(i);
+            expect(statuses()).toEqual([["Zibbo", "signed"]]);
+            const payload = replyOf(i);
+            expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+            expect(answerOf(payload).title).toBe("Saved for Karazhan");
+            const select = selectOf(payload);
+            expect(select).toMatchObject({ custom_id: "event-btn:eh-kara:pick:s", placeholder: "Pick other or more characters …", max_values: 2 });
+            // the one just signed up with on top
+            expect(select.options[0].value).toBe("zibbo|Priest-Holy");
+        });
+
+        it("takes every character of the last signup in the same category, in that order - not a newer one of another category", async () => {
+            twoCharacters();
+            mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-1" }));
+            mocks.events.set("eh-old", mocks.ownEvent({ id: "eh-old", categoryId: "cat-1" }));
+            mocks.events.set("eh-pug", mocks.ownEvent({ id: "eh-pug", categoryId: "cat-2" }));
+            mocks.signups.set(`eh-old/${ANNA}`, signupOf([["Zibbowar", "Warrior-Protection"], ["Zibbo", "Priest-Holy", "bench"]], { at: 10 }));
+            mocks.signups.set(`eh-pug/${ANNA}`, signupOf([["Zibbo", "Priest-Holy"]], { at: 20 }));
+            const i = click("quick");
+            await command.execute(i);
+            expect(statuses()).toEqual([["Zibbowar", "signed"], ["Zibbo", "signed"]]);
+        });
+
+        it("says so when already signed up, and saves nothing", async () => {
+            twoCharacters();
+            mocks.signups.set(`eh-kara/${ANNA}`, signupOf([["Zibbo", "Priest-Holy"]]));
+            const i = click("quick");
+            await command.execute(i);
+            expect(require("../../../src/stores/signupStore").saveSignup).not.toHaveBeenCalled();
+            expect(answerOf(replyOf(i)).title).toBe("You are already signed up for Karazhan");
+            expect(selectOf(replyOf(i)).custom_id).toBe("event-btn:eh-kara:pick:s");
+        });
+
+        it("turns Late, Tentative or Bench back into Dabei with the same characters", async () => {
+            twoCharacters();
+            mocks.signups.set(`eh-kara/${ANNA}`, signupOf([["Zibbowar", "Warrior-Protection", "tentative"], ["Zibbo", "Priest-Holy", "bench"]], { status: "tentative" }));
+            const i = click("quick");
+            await command.execute(i);
+            expect(statuses()).toEqual([["Zibbowar", "signed"], ["Zibbo", "signed"]]);
+        });
+
+        it("signs up again after an absence instead of telling the raider they are in", async () => {
+            profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+            mocks.signups.set(`eh-kara/${ANNA}`, signupOf([["Zibbo", "Priest-Holy"]], { status: "absence" }));
+            const i = click("quick");
+            await command.execute(i);
+            expect(stored().status).toBe("signed");
+            expect(answerOf(replyOf(i)).title).toBe("Saved for Karazhan");
+        });
+
+        it("goes the class way without a character in the profile", async () => {
+            const i = click("quick");
+            await command.execute(i);
+            expect(stored()).toBeUndefined();
+            expect(selectOf(replyOf(i)).custom_id).toBe("event-btn:eh-kara:cls:s");
+        });
+
+        it("refuses after the signup deadline like every way in", async () => {
+            twoCharacters();
+            mocks.events.set("eh-kara", mocks.ownEvent({ signupDeadline: sec() - 60 }));
+            const i = click("quick");
+            await command.execute(i);
+            expect(stored()).toBeUndefined();
+            expect(answerOf(replyOf(i)).text).toMatch(/deadline has passed/);
+        });
+    });
+
     describe("Anmelden", () => {
         it("signs up at once with the only fitting character", async () => {
             profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }, { key: "Priest-Shadow", gear: "none" }] });

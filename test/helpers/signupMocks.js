@@ -53,21 +53,24 @@ function eventStore() {
 function signupStore() {
     const actual = jest.requireActual("../../src/stores/signupStore");
     const list = (eventId) => [...signups.entries()].filter(([k]) => k.startsWith(`${eventId}/`)).map(([, v]) => v);
+    // The newest signup with a spec over every event `keep` accepts (updatedAt, else at, decides).
+    const lastOwnSignupOf = (userId, keep = null) => {
+        const own = [...signups.entries()]
+            .filter(([k, v]) => k.endsWith(`/${userId}`) && v.spec && v.status !== "absence")
+            .filter(([k]) => !keep || keep(k.split("/")[0]))
+            .sort((a, b) => (b[1].updatedAt || b[1].at || 0) - (a[1].updatedAt || a[1].at || 0));
+        if (!own.length) return null;
+        const [key, s] = own[0];
+        return { eventId: key.split("/")[0], character: s.character, spec: s.spec };
+    };
     return {
         normalizeSignup: actual.normalizeSignup,
+        migrateSignup: actual.migrateSignup,
         onSignupsChanged: () => () => {},
         getSignup: (eventId, userId) => signups.get(`${eventId}/${userId}`) || null,
-        // The newest signup with a spec over every event (updatedAt, else at, decides).
+        lastOwnSignupOf,
         // With `versionId` + `versionOf` (#543) only the events of that game version count.
-        lastSignupOf: (userId, { versionId = "", versionOf = null } = {}) => {
-            const own = [...signups.entries()]
-                .filter(([k, v]) => k.endsWith(`/${userId}`) && v.spec && v.status !== "absence")
-                .filter(([k]) => !versionId || !versionOf || versionOf(k.split("/")[0]) === versionId)
-                .sort((a, b) => (b[1].updatedAt || b[1].at || 0) - (a[1].updatedAt || a[1].at || 0));
-            if (!own.length) return null;
-            const [key, s] = own[0];
-            return { eventId: key.split("/")[0], character: s.character, spec: s.spec };
-        },
+        lastSignupOf: (userId, { versionId = "", versionOf = null } = {}) => lastOwnSignupOf(userId, versionId && versionOf ? (eventId) => versionOf(eventId) === versionId : null),
         listSignups: list,
         saveSignup: jest.fn((eventId, userId, input, opts) => {
             const checked = actual.normalizeSignup(input, opts);

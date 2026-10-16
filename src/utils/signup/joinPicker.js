@@ -15,7 +15,7 @@
 // Only the member sees it: the texts are in their language (`lang`).
 const { embedAccentColor } = require("../../config/variables");
 const { publicBaseUrl } = require("../publicUrl");
-const { getSignup, lastSignupOf } = require("../../stores/signupStore");
+const { getSignup, lastSignupOf, lastOwnSignupOf, migrateSignup } = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
 const { defaultCanAlso, signupWindow } = require("../../services/signups/signupService");
 const { versionOfEvent } = require("../../services/events/mainVersion");
@@ -111,6 +111,40 @@ function defaultPick(options, { mine = null, last = null } = {}) {
     const firsts = options.filter((o) => o.first);
     const pool = firsts.length ? firsts : options;
     return pool.slice().sort((a, b) => (GEAR_RANK[b.gear] || 0) - (GEAR_RANK[a.gear] || 0))[0];
+}
+
+/**
+ * What the one-click "Anmelden" under the event message signs up with (Oct 2026): the characters of
+ * the raider's last own signup in the event's category - else in its game version - that are still
+ * in the profile, in that order and at most `max`; without such a signup (or none of its characters
+ * left) the likeliest single pick (defaultPick: an imported Raid-Helper spec, else the first
+ * character's best-geared spec). [] when the profile has no option at all.
+ * @param {object} event   the event signed up for
+ * @param {string} userId
+ * @param {ReturnType<typeof characterOptions>} options  the raider's options for the event's version
+ * @param {{ max?: number }} [o]  the category's limit (signupService.pickLimitFor)
+ */
+function quickPicks(event, userId, options, { max = 1 } = {}) {
+    if (!options.length) return [];
+    const versionId = versionOfEvent(event);
+    const inCategory = event.categoryId
+        ? lastOwnSignupOf(userId, (eventId) => {
+            const other = getEvent(eventId);
+            return !!other && other.categoryId === event.categoryId && versionOfEvent(other) === versionId;
+        })
+        : null;
+    const last = inCategory || lastSignupInVersion(userId, versionId);
+    if (last && !last.imported) {
+        const signup = migrateSignup(getSignup(last.eventId, userId));
+        const picks = [];
+        for (const c of (signup && signup.characters) || []) {
+            const hit = options.find((o) => sameOption(o, c.character, c.spec));
+            if (hit && !picks.includes(hit)) picks.push(hit);
+        }
+        if (picks.length) return picks.slice(0, Math.max(1, max));
+    }
+    const one = defaultPick(options, { last });
+    return one ? [one] : [];
 }
 
 /**
@@ -226,5 +260,5 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
 }
 
 module.exports = {
-    JOIN_PREFIX, joinId, parseJoinId, characterOptions, defaultPick, resolvePick, buildJoinPicker, lastSignupInVersion,
+    JOIN_PREFIX, joinId, parseJoinId, characterOptions, defaultPick, resolvePick, buildJoinPicker, lastSignupInVersion, quickPicks,
 };

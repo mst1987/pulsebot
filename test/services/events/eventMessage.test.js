@@ -74,7 +74,7 @@ describe("services/events/eventMessage", () => {
     it("speaks English to the raiders: roles, classes, statuses, buttons, select; dates only as Discord timestamps", () => {
         const payload = buildEventMessage(event({ signupDeadline: 1999990000 }), signups, { now: NOW });
         const text = JSON.stringify(payload);
-        for (const word of ["Healers", "Ranged", "Melee", "Priest", "Late", "Tentative", "Absence", "Leader", "Deadline", "Sign up – pick a character or class …", "Warrior", "Druid"]) {
+        for (const word of ["Healers", "Ranged", "Melee", "Priest", "Late", "Tentative", "Absence", "Leader", "Deadline", "Sign up", "Another character or class …", "Warrior", "Druid"]) {
             expect(text).toContain(word);
         }
         for (const german of ["Heiler", "Fernkampf", "Nahkampf", "Priester", "Spät", "Vielleicht", "Abgemeldet", "Absagen", "Leitung", "Anmeldeschluss", "Krieger", "Druide", "Uhr"]) {
@@ -91,11 +91,11 @@ describe("services/events/eventMessage", () => {
         const text = JSON.stringify(payload);
         for (const word of ["Heiler", "Fernkampf", "Nahkampf", "Priester", "Spät (1)", "Vielleicht (1)", "Abgemeldet (1)", "Raidleitung: <@7>",
             "Anmeldeschluss: <t:1999990000:f>", "Sprachkanal: <#v9>", "Uhrzeit: <t:2000000000:t>", "**5** angemeldet",
-            "Anmelden – Charakter oder Klasse wählen …", "Meine Charaktere …", "Krieger", "Druide", "[Anmelden](", "[Kalender](", "· Schutz"]) {
+            "Anderer Charakter oder Klasse …", "Meine Charaktere …", "Krieger", "Druide", "[Anmelden](", "[Kalender](", "· Schutz"]) {
             expect(text).toContain(word);
         }
-        const buttons = payload.components[1].components.map((b) => b.label);
-        expect(buttons).toEqual(["Spät", "Vielleicht", "Bank", "Absagen"]);
+        const buttons = payload.components[0].components.map((b) => b.label);
+        expect(buttons).toEqual(["Anmelden", "Spät", "Vielleicht", "Bank", "Absagen"]);
         for (const english of ["Healers", "Ranged", "Melee", "Leader", "Deadline", "signed up", "My characters"]) {
             expect(text).not.toContain(english);
         }
@@ -125,7 +125,7 @@ describe("services/events/eventMessage", () => {
         try {
             await expect(refreshEventMessage("eh-1")).resolves.toMatchObject({ reposted: false });
             expect(message.edit).toHaveBeenCalledTimes(2);
-            expect(message.edit.mock.calls[1][0].components[1].components[0].label).toBe("Spät");
+            expect(message.edit.mock.calls[1][0].components[0].components[1].label).toBe("Spät");
         } finally {
             botLanguage.serverLang.mockReturnValue("en");
         }
@@ -372,7 +372,7 @@ describe("services/events/eventMessage", () => {
         expect(embed.fields.find((f) => !f.inline && f.value.includes("Late")).value.split("\n")[0]).toBe("Late (1): `2` Ysolde");
         const components = payload.components.flatMap((r) => r.components);
         expect(components.every((b) => b.emoji === undefined)).toBe(true);
-        expect(components[0].options.every((o) => o.emoji === undefined)).toBe(true);
+        expect(components.find((c) => c.type === 3).options.every((o) => o.emoji === undefined)).toBe(true);
     });
 
     it("escapes markdown and mentions in character names", () => {
@@ -381,10 +381,10 @@ describe("services/events/eventMessage", () => {
         expect(block.value).toContain("\\*Bold\\*\\_@​everyone");
     });
 
-    it("offers the signup select (Meine Charaktere … and the classes) and one row of status buttons before the deadline", () => {
+    it("offers Anmelden in front of the status buttons and, under them, the select (Meine Charaktere … and the classes) before the deadline", () => {
         const payload = buildEventMessage(event(), signups, { emojis, now: NOW });
         expect(payload.components).toHaveLength(2);
-        const [[select], buttons] = payload.components.map((r) => r.components);
+        const [buttons, [select]] = payload.components.map((r) => r.components);
         expect(select).toMatchObject({ type: 3, custom_id: "event-pick:eh-1", min_values: 1, max_values: 1 });
         expect(select.options[0]).toMatchObject({ label: "My characters …", value: "mine", emoji: { name: "eh_ui_signups" } });
         // how many at once: the category's limit (nothing set here = the default 8)
@@ -394,13 +394,17 @@ describe("services/events/eventMessage", () => {
         expect(select.options.length).toBeLessThanOrEqual(25);
         // the public select is the same for everybody: no own characters in it
         expect(select.options.some((o) => o.value.includes("|"))).toBe(false);
+        expect(select.placeholder).toBe("Another character or class …");
+        // one click signs up: the green Anmelden first (eventButton.js onQuick)
         expect(buttons.map((b) => [b.label, b.custom_id, b.style])).toEqual([
+            ["Sign up", "event-btn:eh-1:quick", 3],
             ["Late", "event-btn:eh-1:late", 2],
             ["Tentative", "event-btn:eh-1:tentative", 2],
             ["Bench", "event-btn:eh-1:bench", 2],
             ["Absence", "event-btn:eh-1:absence", 4],
         ]);
-        expect(buttons[2].emoji).toEqual({ id: expect.any(String), name: "eh_ui_bench", animated: false });
+        expect(buttons[0].emoji).toEqual({ id: expect.any(String), name: "eh_ui_signed", animated: false });
+        expect(buttons[3].emoji).toEqual({ id: expect.any(String), name: "eh_ui_bench", animated: false });
         expect(buttonId("x", "late")).toBe("event-btn:x:late");
         expect(pickSelectId("x")).toBe("event-pick:x");
         expect(joinSelectId("x")).toBe("event-join:x");
@@ -409,7 +413,7 @@ describe("services/events/eventMessage", () => {
 
     it("lists the classes of the event's game version", () => {
         const classic = buildEventMessage(event({ versionId: "classic" }), [], { now: NOW });
-        const values = classic.components[0].components[0].options.map((o) => o.value);
+        const values = classic.components[1].components[0].options.map((o) => o.value);
         expect(values[0]).toBe("mine");
         expect(values.length).toBeGreaterThan(5);
         expect(messageComponents(event(), { now: NOW })).toEqual(buildEventMessage(event(), [], { now: NOW }).components);
@@ -425,20 +429,23 @@ describe("services/events/eventMessage", () => {
         expect(started.embeds[0].description).toContain("The raid has started");
     });
 
-    it("adds the orga's Ping missing to the status row only for a category with raider roles, before and after the deadline", () => {
+    it("adds the orga's Ping missing only for a category with raider roles - a row of its own while Anmelden fills the status row", () => {
         const ids = (payload) => payload.components.flatMap((r) => r.components.map((c) => c.custom_id));
-        // no roles: the row stays as it is
+        // no roles: the rows stay as they are
         expect(ids(buildEventMessage(event(), signups, { emojis, now: NOW }))).not.toContain("event-missing:eh-1");
         const open = buildEventMessage(event(), signups, { emojis, now: NOW, pingMissing: true });
-        const row = open.components[1].components;
-        expect(row.map((b) => b.custom_id)).toEqual([
-            "event-btn:eh-1:late", "event-btn:eh-1:tentative", "event-btn:eh-1:bench", "event-btn:eh-1:absence", "event-missing:eh-1",
+        expect(open.components).toHaveLength(3);
+        expect(open.components[0].components.map((b) => b.custom_id)).toEqual([
+            "event-btn:eh-1:quick", "event-btn:eh-1:late", "event-btn:eh-1:tentative", "event-btn:eh-1:bench", "event-btn:eh-1:absence",
         ]);
-        expect(row[4]).toMatchObject({ type: 2, style: 2, label: "Ping missing", emoji: { name: "eh_ui_signups" } });
+        expect(open.components[1].components[0].custom_id).toBe("event-pick:eh-1");
+        const row = open.components[2].components;
+        expect(row.map((b) => b.custom_id)).toEqual(["event-missing:eh-1"]);
+        expect(row[0]).toMatchObject({ type: 2, style: 2, label: "Ping missing", emoji: { name: "eh_ui_signups" } });
         // in the server language: German by default
         const de = buildRaw(event(), signups, { now: NOW, pingMissing: true });
-        expect(de.components[1].components[4].label).toBe("Fehlende pingen");
-        expect(de.components[1].components[4].emoji).toBeUndefined();
+        expect(de.components[2].components[0].label).toBe("Fehlende pingen");
+        expect(de.components[2].components[0].emoji).toBeUndefined();
         const late = buildEventMessage(event({ signupDeadline: 1998000000 }), signups, { now: NOW, pingMissing: true });
         expect(ids(late)).toEqual(["event-btn:eh-1:late", "event-btn:eh-1:absence", "event-missing:eh-1"]);
         // started, cancelled, closed: nobody is asked any more
@@ -456,7 +463,7 @@ describe("services/events/eventMessage", () => {
         expect(hasRaiderRoles(event({ categoryId: "cat3" }), config)).toBe(false);
         expect(hasRaiderRoles(event({ categoryId: "" }), {})).toBe(false);
         // messageComponents asks the config itself unless told — the select reset (eventPick.js) keeps the button
-        expect(messageComponents(event(), { now: NOW, pingMissing: true, lang: "en" })[1].components.at(-1).custom_id).toBe("event-missing:eh-1");
+        expect(messageComponents(event(), { now: NOW, pingMissing: true, lang: "en" })[2].components.at(-1).custom_id).toBe("event-missing:eh-1");
     });
 
     describe("Farbe und Bild (#307)", () => {
@@ -678,7 +685,7 @@ describe("services/events/eventMessage", () => {
         discord.getClient.mockReturnValue({ ...discord.getClient(), application: { emojis: { fetch: fetchEmojis } } });
         await expect(postEventMessage("eh-1")).resolves.toEqual({ channelId: "c1", messageId: "m-new" });
         const sent = channel.send.mock.calls[0][0];
-        expect(sent.components[1].components[2].emoji).toEqual({ id: "55", name: "eh_ui_bench", animated: false });
+        expect(sent.components[0].components[3].emoji).toEqual({ id: "55", name: "eh_ui_bench", animated: false });
         expect(setEventMessage).toHaveBeenCalledWith("eh-1", { channelId: "c1", messageId: "m-new", hash: payloadHash(sent, "en") });
     });
 

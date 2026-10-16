@@ -59,7 +59,9 @@ describe("commands/signup/eventPick", () => {
         // the message's components are drawn anew (the embed is left alone), so the pick does not stick
         const reset = i.update.mock.calls[0][0];
         expect(Object.keys(reset)).toEqual(["components"]);
-        expect(cardButtons(reset)[0].custom_id).toBe("event-pick:eh-kara");
+        // Anmelden first, the select in the row under it
+        expect(cardButtons(reset)[0].custom_id).toBe("event-btn:eh-kara:quick");
+        expect(reset.components[1].components[0].custom_id).toBe("event-pick:eh-kara");
         expect(i.reply).not.toHaveBeenCalled();
 
         const payload = followOf(i);

@@ -5,6 +5,9 @@
 //
 //   event-pick:<eventId>              the public select (#303, commands/signup/eventPick.js):
 //                                     "My characters …" = what `join` does, a class = the spec step
+//   event-btn:<eventId>:quick         Anmelden in one click (Oct 2026): the characters of the last signup in the
+//                                     category (else the likeliest one) at once, the confirmation with a select
+//                                     to swap or add (buildChangeRow); no character yet = the class way
 //   event-btn:<eventId>:join          Anmelden: own characters (multi-select, the classes below), or directly
 //                                     with only one — the button only sits under messages posted before #303
 //   event-btn:<eventId>:class         Klasse wählen: class → spec → name modal (adds to an existing signup; same)
@@ -305,6 +308,30 @@ function buildCharacterPicker(event, userId, status, { emojis = {}, notice = "",
     };
 }
 
+/**
+ * The one select under the confirmation of the quick "Anmelden" (Oct 2026): the own characters ·
+ * specs (the ones just signed up with on top), up to the category's limit — a pick saves like the
+ * picker's (`pick`, signed), so swapping or adding is one more step, never a new flow. null when the
+ * profile has none (the class way signed up then, and the confirmation needs no select).
+ */
+function buildChangeRow(event, userId, { emojis = {}, lang = "de" } = {}) {
+    const profile = profiles.getProfile(userId) || { characters: [] };
+    const options = pickOptions(profile, userId, event.id, { emojis, versionId: versionOfEvent(event), lang });
+    if (!options.length) return null;
+    const max = Math.min(pickLimitFor(event, getSignup(event.id, userId)), options.length);
+    return {
+        type: 1,
+        components: [{
+            type: 3,
+            custom_id: btnId(event.id, "pick", codeOf("signed")),
+            placeholder: tr(lang, "Pick other or more characters …"),
+            min_values: 1,
+            max_values: Math.max(1, max),
+            options,
+        }],
+    };
+}
+
 /** Step: the classes of the event's game version. */
 function buildClassPicker(event, status, { emojis = {}, notice = "", lang = "de" } = {}) {
     const lines = [headLine(event, status, lang), tr(lang, "Which class?")];
@@ -387,5 +414,5 @@ function buildNoteModal(eventId, status, { required = false, lang = "de" } = {})
 module.exports = {
     MAX_REASON, statusWord, btnId, parseButtonId, refusal, characterText, savedText, savedEmbed,
     picksWithStatus, firstCharacterTo, withAddedCharacter, orderedValues, pickOptions,
-    buildCharacterPicker, buildClassPicker, buildSpecPicker, buildNameModal, buildNoteModal,
+    buildCharacterPicker, buildChangeRow, buildClassPicker, buildSpecPicker, buildNameModal, buildNoteModal,
 };
