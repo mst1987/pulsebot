@@ -20,6 +20,7 @@ const signupStore = require("../../stores/signupStore");
 const { getEvent, isOwnEventId } = require("../../stores/eventStore");
 const { getRaidEvent } = require("../../stores/raidEventStore");
 const discord = require("../discord/discord");
+const { signupEventIdOf } = require("../../utils/raidGroup");
 
 /**
  * Who is looking: `{ orga, userId, roleIds, config }`. The member's Discord roles are read only for a
@@ -79,6 +80,7 @@ function categoryShown(eventOrCategory, viewer) {
 /**
  * Whether the member signed up for the event: the event's `signUps` when the caller has them (the
  * event groups), else the own signup store (an own event) or Raid-Helper's snapshot (a past raid).
+ * A further raid of a raid group (#811) has no signups of its own: they are the group's first raid's.
  */
 function hasSignup(event, userId) {
     const uid = String(userId || "");
@@ -87,7 +89,7 @@ function hasSignup(event, userId) {
     if (listed && listed.some((s) => s && String(s.userId) === uid)) return true;
     const id = String(event.id || "");
     if (!id) return false;
-    if (isOwnEventId(id)) return !!signupStore.getSignup(id, uid);
+    if (isOwnEventId(id)) return !!signupStore.getSignup(signupEventIdOf(event.raidGroupId ? event : getEvent(id) || { id }), uid);
     if (listed) return false;
     const snap = getRaidEvent(id);
     return !!(snap && Array.isArray(snap.signUps) && snap.signUps.some((s) => s && String(s.userId) === uid));

@@ -84,6 +84,34 @@ describe("eventShown / visibleEvents", () => {
         categoryRoster.rosterOfCategory.mockReturnValue(null);
     });
 
+    it("reads a further raid's signup at the group's first raid (#811): a raider moved into \"Raid 2\" still sees it", () => {
+        // eh_2 is the second raid of the group eh_1: the signups are eh_1's
+        getEvent.mockImplementation((id) => (id === "eh_2" ? { id: "eh_2", categoryId: "foreign", raidGroupId: "eh_1", raidGroupIndex: 2 } : null));
+        signupStore.getSignup.mockImplementation((eventId, uid) => (eventId === "eh_1" && uid === "u1" ? { userId: "u1" } : null));
+        expect(vis.eventShown({ id: "eh_2", categoryId: "foreign" }, raider())).toBe(true);
+        expect(signupStore.getSignup).toHaveBeenLastCalledWith("eh_1", "u1");
+        expect(vis.hasSignup({ id: "eh_2", raidGroupId: "eh_1" }, "u1")).toBe(true);
+        expect(vis.hasSignup({ id: "eh_2" }, "u2")).toBe(false);
+        // outside a group the raid's own signups count
+        getEvent.mockReturnValue(null);
+        expect(vis.hasSignup({ id: "eh_3" }, "u1")).toBe(false);
+        expect(signupStore.getSignup).toHaveBeenLastCalledWith("eh_3", "u1");
+        getEvent.mockReset();
+        getEvent.mockReturnValue(null);
+        signupStore.getSignup.mockReset();
+        signupStore.getSignup.mockReturnValue(null);
+    });
+
+    it("userSeesEvent opens a further raid to a raider signed up at the first raid", async () => {
+        getEvent.mockImplementation((id) => (id === "eh_2" ? { id: "eh_2", categoryId: "foreign", guildId: "g", raidGroupId: "eh_1", raidGroupIndex: 2 } : null));
+        signupStore.getSignup.mockImplementation((eventId, uid) => (eventId === "eh_1" && uid === "u1" ? { userId: "u1" } : null));
+        expect(await vis.userSeesEvent(RAIDER, { eventId: "eh_2" })).toBe(true);
+        getEvent.mockReset();
+        getEvent.mockReturnValue(null);
+        signupStore.getSignup.mockReset();
+        signupStore.getSignup.mockReturnValue(null);
+    });
+
     it("shows a foreign raid the raider signed up for: in its signUps, the own store or the snapshot", () => {
         expect(vis.eventShown({ id: "rh1", categoryId: "foreign", signUps: [{ userId: "u1" }] }, raider())).toBe(true);
         expect(vis.eventShown({ id: "rh1", categoryId: "foreign", signUps: [{ userId: "u2" }] }, raider())).toBe(false);

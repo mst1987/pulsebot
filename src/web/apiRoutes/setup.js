@@ -430,7 +430,7 @@ function refreshGroupMessage(primary) {
  * this raid (group place, bench or the shared pool) into the first free place of another raid of
  * its raid group (#811). Answers this raid's editor payload; both raids follow live when posted.
  */
-const postMoveRaid = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postMoveRaid = withUser({ orga: true, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const before = eventOf(res, body.event);
     if (!before) return;
     const result = setupEditor.moveToRaid(before.id, { target: body.target, userId: body.userId, character: body.character }, { userId: user.id });
@@ -447,7 +447,7 @@ const postMoveRaid = withUser({ write: "raids", csrf: true, body: true, archived
  * POST /api/raids/setup/raid-add — body `{ event, title? }`: "Weiteren Raid hinzufügen" (#811).
  * Answers `{ event: <new raid id>, raidGroup, message }`; the editor then switches to the new tab.
  */
-const postRaidAdd = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
+const postRaidAdd = withUser({ orga: true, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const guildId = activeGuildFor(req);
@@ -463,7 +463,7 @@ const postRaidAdd = withUser({ write: "raids", csrf: true, body: true, archived:
  * only without an approved setup; its raiders fall back into the shared pool "Angemeldet".
  * Answers `{ event: <primary id>, raidGroup, message }`.
  */
-const postRaidRemove = withUser({ write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
+const postRaidRemove = withUser({ orga: true, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const result = raidGroup.dissolveRaid(event.id, { user });

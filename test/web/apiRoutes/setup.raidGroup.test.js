@@ -62,6 +62,17 @@ describe("access", () => {
             expect(checkAccess(path, "POST", ORGA)).toBeNull();
         }
     });
+    it("is the orga's: a role with raids write but no orga rank gets 403 orga_only on every raid group route", async () => {
+        mockUser = { id: "rw", name: "Raider", isAdmin: false, access: { raids: { read: true, write: true } } };
+        for (const path of ["/api/raids/setup/raid-add", "/api/raids/setup/raid-remove", "/api/raids/setup/move-raid"]) {
+            const r = await api.post(path, { event: primary.id, target: primary.id, userId: "h1" });
+            expect(status(r)).toBe(403);
+            expect(body(r)).toMatchObject({ error: { code: "orga_only" } });
+        }
+        // nothing happened: no further raid, no message redrawn
+        expect(refreshEventMessage).not.toHaveBeenCalled();
+        expect(eventStore.getEvent(primary.id).raidGroupId || "").toBe("");
+    });
 });
 
 describe("POST /api/raids/setup/raid-add", () => {
