@@ -209,8 +209,12 @@ function templatesFor(event, { allVersions = false } = {}) {
     return visibleRows(own, (t) => t.versionId);
 }
 
-/** GET /api/raidplan — everything the editor needs. */
-function editorView(event, { canWrite, me = "" }) {
+/**
+ * GET /api/raidplan — everything the editor needs. `canWrite`: this plan (raidplanAccess.canWriteRaidplan);
+ * `canWriteLibrary`: the shared library the editor also offers (tactic profiles, default room maps) - `raidplan`
+ * write only, so the orga of a category gets no button whose route refuses them (#726).
+ */
+function editorView(event, { canWrite, canWriteLibrary = false, me = "" }) {
     const plan = store.getPlan(event.id) || store.emptyPlan(event.id);
     const template = plan.templateId ? templateStore.getTemplate(plan.templateId) : null;
     return {
@@ -219,6 +223,7 @@ function editorView(event, { canWrite, me = "" }) {
         // the game version of the plan (#544): the catalog below is that version's; templates and tactics are filtered by it
         versionId: planVersion(event),
         canWrite,
+        canWriteLibrary: !!canWrite && !!canWriteLibrary,
         plan: {
             version: plan.version,
             status: plan.status,

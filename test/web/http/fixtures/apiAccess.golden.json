@@ -308,6 +308,14 @@
   "orgaScoped": [
     "GET /api/raids/setup/explain",
     "GET /api/raids/setup/signup",
+    "POST /api/raidplan/apply",
+    "POST /api/raidplan/groups",
+    "POST /api/raidplan/link",
+    "POST /api/raidplan/map",
+    "POST /api/raidplan/map/delete",
+    "POST /api/raidplan/publish",
+    "POST /api/raidplan/suggest",
+    "POST /api/raids/post-raidplan",
     "POST /api/raids/setup/approve",
     "POST /api/raids/setup/confirm",
     "POST /api/raids/setup/confirm-all",
@@ -323,6 +331,7 @@
     "POST /api/raids/setup/raid-remove",
     "POST /api/raids/setup/search",
     "POST /api/raids/setup/search/text",
+    "PUT /api/raidplan",
     "PUT /api/raids/setup",
     "PUT /api/raids/setup/signup"
   ]

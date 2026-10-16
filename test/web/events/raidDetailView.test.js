@@ -23,7 +23,8 @@ jest.mock("../../../src/services/discord/discord", () => ({
 }));
 jest.mock("../../../src/utils/raidhelper/client", () => ({ createRaidhelperClient: jest.fn(), raidhelperDisabled: jest.fn(() => false) }));
 jest.mock("../../../src/stores/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null) }));
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn(() => null), listRosters: jest.fn(() => []) }));
+// `isClosed`: the raid plan's step asks the category orga (categoryOrga.canOrgaEvent, #726)
+jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn(() => null), listRosters: jest.fn(() => []), isClosed: jest.fn(() => false) }));
 jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(() => null), isOwnEventId: jest.fn((id) => String(id).startsWith("eh")) }));
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []), getSignup: jest.fn(() => null) }));
 jest.mock("../../../src/stores/raidplanStore", () => ({ getPlan: jest.fn(() => null) }));

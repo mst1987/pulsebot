@@ -29,6 +29,11 @@
 //                         in a list, refuses them too (fail-closed). A global
 //                         orga lacking the route's `write` or area takes the
 //                         same category path - never less than a manager.
+//   globalByWrite: true   (with `orgaScoped` and `write`) the global path is the
+//                         route's `write` right alone, no orga rank: an area
+//                         handed to people outside the orga (the raid plan,
+//                         docs/permissions.md "raidplan", #726). Everybody else
+//                         takes the category path as above.
 // The two are exclusive; the wrapper carries `orgaScoped = true` so the route
 // table and the area gate see the mark (routeTable.isOrgaScoped).
 const { requireAdmin, requireFullAdmin, requireCsrf } = require("./apiMiddleware");
@@ -74,6 +79,8 @@ const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
  *        the global orga (as `orga`) or the orga of the category of every event the function names
  *        (an id or a row with `categoryId`); 403 "orga_only" for whom it is neither, 403
  *        "not_category_orga" for a category orga outside the event's category (see the head comment)
+ * @param {boolean} [opts.globalByWrite]  with `orgaScoped` + `write`: that write right alone is the global
+ *        path (every raid), whatever the orga rank - an area handed to people outside the orga (#726)
  * @param {string}  [opts.write]  the area the caller needs at write level (403 otherwise)
  * @param {boolean} [opts.csrf]   check the X-CSRF-Token header (every mutating call)
  * @param {boolean} [opts.body]   parse the JSON body (always an object; `{}` when empty or invalid)
@@ -84,9 +91,10 @@ const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
  */
 function withUser(opts, fn) {
     if (typeof opts === "function") { fn = opts; opts = {}; }
-    const { full = false, orga = false, orgaScoped = null, write = "", csrf = false, body = false, archived = null } = opts || {};
+    const { full = false, orga = false, orgaScoped = null, globalByWrite = false, write = "", csrf = false, body = false, archived = null } = opts || {};
     if (orgaScoped !== null && typeof orgaScoped !== "function") throw new Error("withUser: orgaScoped names the event(s) as (body, query) => id(s)");
     if (orgaScoped && orga) throw new Error("withUser: orga and orgaScoped exclude each other");
+    if (globalByWrite && (!orgaScoped || !write)) throw new Error("withUser: globalByWrite needs orgaScoped and write");
     async function handler(req, res, url) {
         const user = full ? requireFullAdmin(req, res) : requireAdmin(req, res);
         if (!user) return undefined;
@@ -98,9 +106,11 @@ function withUser(opts, fn) {
         // The category path: not the global orga - or a global orga without the route's right (the
         // `write` here, or the area the gate let them past as a manager): never less than a manager.
         const cache = orgaScoped ? categoryOrga.requestCache(req) : null;
-        const scoped = !!orgaScoped && (!userIsOrga(user) || writeMissing || cache.areaViaCategory === true);
+        // the global path: the orga with the route's right - or, `globalByWrite`, that right alone
+        const global = !writeMissing && (globalByWrite || userIsOrga(user));
+        const scoped = !!orgaScoped && (!global || cache.areaViaCategory === true);
         if (scoped && !(await categoryOrga.isAnyCategoryManager(user, { cache }))) {
-            if (userIsOrga(user) && writeMissing) error(res, 403, "forbidden", `Keine Schreibrechte für „${LABELS[write] || write}“.`);
+            if ((globalByWrite || userIsOrga(user)) && writeMissing) error(res, 403, "forbidden", `Keine Schreibrechte für „${LABELS[write] || write}“.`);
             else error(res, 403, "orga_only", ORGA_ONLY);
             return undefined;
         }

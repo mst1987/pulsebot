@@ -134,6 +134,8 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     // per section: the strip's badge "2 offen" and the counts in its list
     const openCounts = useMemo(() => { const out: Record<string, number> = {}; for (const o of openRows) out[o.key] = (out[o.key] || 0) + 1; return out; }, [openRows]);
     const canWrite = !!view && view.canWrite;
+    // the shared library (tactic profiles, default room maps) besides this plan: not the category orga's (#726)
+    const canLibrary = canWrite && !!view && view.canWriteLibrary;
     // "Einteilungen posten" (#502) publishes a draft plan on the way: the page's reload after the post brings the new state here
     const postedPath = ctx.data.raidplanPost?.publicPath || "";
     const loaded = !!view;
@@ -291,8 +293,8 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const published = view.plan.status === "published";
     const mapRows: MapRow[] = boss ? [
         { key: `e/${eventId}/${boss.key}`, label: t("raidBoard.board.mapForPlan"), has: !!boss.eventMap, override: true },
-        { key: boss.key, label: `${t("raidBoard.board.mapForBoss")}: ${boss.name}`, has: boss.ownMap, override: false },
-        { key: boss.instanceId, label: `${t("raidBoard.board.mapForInstance")}: ${boss.instanceName}`, has: boss.instanceMap, override: false },
+        { key: boss.key, label: `${t("raidBoard.board.mapForBoss")}: ${boss.name}`, has: boss.ownMap, override: false, locked: !canLibrary },
+        { key: boss.instanceId, label: `${t("raidBoard.board.mapForInstance")}: ${boss.instanceName}`, has: boss.instanceMap, override: false, locked: !canLibrary },
     ] : [];
     const empty = objectCount(board) === 0;
     // "Link kopieren": the read view's address, once the plan is shared (before that the button says so instead)
@@ -328,7 +330,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                 <RaidplanBoundary resetKey={selected}>
                 <BoardWorkspace
                     mode="event" eventId={eventId} besetzung={view.besetzung} catalog={view.catalog} boss={boss} allBosses={view.bosses} board={board} edit={editBoard} editAll={editAllBoards} roster={roster} outside={outside} canWrite={canWrite} limits={view.limits}
-                    profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")} onSaveTactic={() => setModal("save")}
+                    profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")} onSaveTactic={canLibrary ? () => setModal("save") : null}
                     history={{ undo, redo, canUndo, canRedo }}
                     mapRows={mapRows} onMapsChanged={reloadMaps} me={mine}
                     defaultRows={boardOf(draft, DEFAULTS_KEY).assignments}
@@ -419,8 +421,8 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
             <LibraryModal
                 open={modal === "pick"} onClose={() => setModal("")} profiles={versionProfiles} bosses={view.bosses} bossKey={selected} bossName={boss ? boss.name : ""}
                 onPick={pickProfile} canSave={stepsOf(board).length > 0}
-                onSaveAs={() => setModal("save")}
-                onManage={() => setModal("profiles")}
+                onSaveAs={canLibrary ? () => setModal("save") : undefined}
+                onManage={canLibrary ? () => setModal("profiles") : undefined}
             />
             <ProfilesModal
                 open={modal === "profiles" || modal === "save"} onClose={() => setModal("")}

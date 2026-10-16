@@ -351,4 +351,43 @@ describe("web/http/apiHandler withUser orgaScoped", () => {
         expect(categoryOrga.canOrgaEvent.mock.calls[0][2].cache).toBe(cacheOfGate);
         expect(loadEventGroups).toHaveBeenCalledWith("g1", { sinceSeconds: 123 });
     });
+
+    // `globalByWrite` (#726): the raid plan's area is handed to people outside the orga - its write right
+    // alone is the global path.
+    describe("globalByWrite", () => {
+        const PLAN = { orgaScoped: BY_EVENT, globalByWrite: true, write: "raidplan", body: true };
+
+        it("needs orgaScoped and write", () => {
+            expect(() => withUser({ globalByWrite: true, write: "raidplan" }, jest.fn())).toThrow("globalByWrite");
+            expect(() => withUser({ globalByWrite: true, orgaScoped: BY_EVENT }, jest.fn())).toThrow("globalByWrite");
+        });
+
+        it("lets the write right through for every event, without an orga rank and without asking a roster", async () => {
+            mockUser = { ...limited({ raidplan: { read: true, write: true } }), id: "8" };
+            const fn = jest.fn(({ res }) => res.end("{}"));
+            await call(withUser(PLAN, fn), { json: { event: "foreign" } });
+            await call(withUser(PLAN, fn), { json: {} });
+            expect(fn).toHaveBeenCalledTimes(2);
+            expect(categoryOrga.isAnyCategoryManager).not.toHaveBeenCalled();
+            expect(categoryOrga.canOrgaEvent).not.toHaveBeenCalled();
+        });
+
+        it("sends everybody else down the category path - a global orga without the write right too", async () => {
+            const fn = jest.fn(({ res }) => res.end("{}"));
+            for (const user of [limited({ raidplan: { read: true, write: false } }), { ...limited({ raidplan: { read: true, write: false } }), isOrga: true }]) {
+                mockUser = user;
+                await call(withUser(PLAN, fn), { json: { event: "mine" } });
+                const res = await call(withUser(PLAN, fn), { json: { event: "foreign" } });
+                expect(sent(res).error.code).toBe("not_category_orga");
+            }
+            expect(fn).toHaveBeenCalledTimes(2);
+        });
+
+        it("refuses who lacks the write right and manages no roster with forbidden, not orga_only", async () => {
+            mockUser = { ...limited({ raidplan: { read: true, write: false } }), id: "8" };
+            const res = await call(withUser(PLAN, jest.fn()), { json: { event: "mine" } });
+            expect(status(res)).toBe(403);
+            expect(sent(res).error.code).toBe("forbidden");
+        });
+    });
 });

@@ -311,6 +311,32 @@ the module's `routes` table (fail-closed, see docs/permissions.md) except `/api/
 are wrapped in `withUser({ write: "raidplan", csrf: true, body: true })`. Deleting an event deletes its plan
 (`eventManage.deleteEvent`).
 
+**The plan of one raid is also its category's orga's (#726, epic #723).** The writes on an event's plan — `PUT
+/api/raidplan`, `suggest`, `publish`, `groups`, `apply`, `link`, `map` / `map/delete` of an event plan's map
+(`e/<event>/<boss>`) and `POST /api/raids/post-raidplan` — are `withUser({ orgaScoped: (body) => body.event,
+globalByWrite: true, write: "raidplan" })`:
+
+- **`raidplan` write** is the global path, as before: every raid's plan, orga rank or not (`globalByWrite` — the area
+  is handed to the people who write the tactics, so a non-orga with `raidplan` write is not turned into "orga only").
+- **The manager of the current roster of the raid's category** (`categoryOrga.canOrgaEvent`, docs/permissions.md
+  "Kategorie-Orga") plans the raids of that category without `raidplan` write; any other raid answers 403
+  `not_category_orga` and changes nothing. A global orga without `raidplan` write takes the same category path.
+  A Raid-Helper event's category comes from its snapshot, else the event groups — never from the body.
+- **The library stays `raidplan` write only:** templates, tactic profiles, the catalog, a template's map and the
+  default maps of a boss or an instance (their keys name no event, so the category path refuses them), and
+  `suggest` without an event (the template editor).
+- **The answer follows the gate per event** (`web/raidplan/raidplanAccess.js`): `GET /api/raidplan` sends `canWrite`
+  (`canWriteRaidplan`) and `canWriteLibrary` (`raidplan` write), and lets the category's orga open the plan of a
+  raid they could not sign up for. Without `canWriteLibrary` the editor shows the default maps without buttons
+  (`MapRow.locked`) and leaves out "Als Taktik speichern" and "Verwalten" of the tactic library. `GET
+  /api/raids/detail` builds the "Einteilungen" step with the same rule.
+- Opening the plan still takes `raidplan` read (`GET` routes are not `orgaScoped`); a manager without it gets no
+  tab — the client's part is #729.
+
+Tests: `test/web/apiRoutes/raidplan.categoryOrga.test.js` (through the router, a table over every `orgaScoped`
+route against a raid of another category), `test/web/raidplan/raidplanAccess.test.js`, `globalByWrite` in
+`test/web/http/apiHandler.test.js`, `components/raidplan/editor/libraryRights.test.tsx`.
+
 ## Test raid (dev)
 
 The dev auto-login user (the first admin id of `.env.dev`, or `--me <userId>`) is the player "Heilbert" of the
