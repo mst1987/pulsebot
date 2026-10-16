@@ -602,12 +602,14 @@ describe("web/apiRoutes/settings", () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
                 await patch("/api/settings", { addonDownloads: [
-                    { name: "LevelHelper", repo: "https://github.com/mst1987/levelhelper", versions: ["forever", "x"], assets: "LevelHelper-*.zip" },
+                    { name: "LevelHelper", repo: "https://github.com/mst1987/levelhelper", versions: ["forever", "x"], assets: "LevelHelper-*.zip",
+                        curseforge: "https://legacy.curseforge.com/wow/addons/levelhelper/files" },
                     { name: "", repo: "a/b" },
                 ] });
                 // an edit: the list and the edit mark, so an emptied list may stay empty
                 expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ addonDownloads: [expect.objectContaining({
                     id: "levelhelper", repo: "mst1987/levelhelper", versions: ["forever"], assets: ["LevelHelper-*.zip"], enabled: true,
+                    curseforge: "https://www.curseforge.com/wow/addons/levelhelper",
                 })], addonDownloadsCustomized: true });
                 expect(settingsStore.saveConfig.mock.calls.at(-1)[0].addonDownloads).toHaveLength(1);
                 settingsStore.saveConfig.mockClear();

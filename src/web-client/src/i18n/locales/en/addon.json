@@ -4,6 +4,8 @@
     "version": "v{version}",
     "news": "What's new?",
     "allNotes": "All patch notes",
+    "curseforge": "On CurseForge",
+    "curseforgeTip": "The same addon on CurseForge, for example for the CurseForge app.",
     "detail": {
         "kicker": "Addon",
         "back": "All addons",
@@ -71,6 +73,8 @@
         "versions": "Game versions",
         "install": "Install note",
         "installSub": "Shown below the standard steps (unpack the zip, start the exe). Leave empty when those are enough.",
+        "curseforge": "CurseForge link",
+        "curseforgeSub": "Optional: the project page on CurseForge, for example https://www.curseforge.com/wow/addons/pulse-aurakit. The page and the Discord centre link it next to the download. Empty = no link.",
         "private": "Private repo",
         "privateSub": "Needs the GitHub token. Without it members see \"Not available right now\".",
         "privateShort": "private",

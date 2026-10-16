@@ -34,7 +34,7 @@ type AddonSortKey = "name" | "repo" | "versions" | "assets" | "status";
 const ADDON_SORT_DEFAULTS: Record<AddonSortKey, Dir> = { name: "asc", repo: "asc", versions: "asc", assets: "asc", status: "desc" };
 
 const EMPTY: AddonSetting = {
-    id: "", name: "", description: "", repo: "", private: false, assets: [], versions: [], install: "", icon: "", enabled: true, orgaOnly: false,
+    id: "", name: "", description: "", repo: "", private: false, assets: [], versions: [], install: "", icon: "", enabled: true, orgaOnly: false, curseforge: "",
 };
 
 function AddonForm({ addon, versions, onSave, onCancel }: {
@@ -95,6 +95,9 @@ function AddonForm({ addon, versions, onSave, onCancel }: {
             </div>
             <Field className="set-field" htmlFor="dlp-install" label={t("addon.settings.install")} tip={t("addon.settings.install")} tipSub={t("addon.settings.installSub")}>
                 <textarea id="dlp-install" rows={2} value={value.install} onChange={(e) => set({ install: e.target.value })} />
+            </Field>
+            <Field className="set-field" htmlFor="dlp-curseforge" label={t("addon.settings.curseforge")} tip={t("addon.settings.curseforge")} tipSub={t("addon.settings.curseforgeSub")}>
+                <input id="dlp-curseforge" type="url" className="mono" value={value.curseforge || ""} onChange={(e) => set({ curseforge: e.target.value })} placeholder="https://www.curseforge.com/wow/addons/pulse-aurakit" />
             </Field>
             <div className="set-grid">
                 <Switch checked={value.private} onChange={(v) => set({ private: v })} label={t("addon.settings.private")} tip={t("addon.settings.privateSub")} />

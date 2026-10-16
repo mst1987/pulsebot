@@ -25,7 +25,7 @@ const file = (name: string, size: number, kind: api.AddonFile["kind"]): api.Addo
 
 const levelhelper: api.AddonCard = {
     id: "levelhelper", name: "LevelHelper", description: "Leveling-Helfer für WoW Forever.", icon: "inv_misc_map02",
-    versions: ["forever"], install: "", state: "ok", stale: false, errorCode: "", fetchedAt: Date.parse("2026-10-12T10:00:00Z"), orgaOnly: false,
+    versions: ["forever"], install: "", state: "ok", stale: false, errorCode: "", fetchedAt: Date.parse("2026-10-12T10:00:00Z"), orgaOnly: false, curseforge: "",
     release: {
         version: "0.3.0", tag: "v0.3.0", publishedAt: "2026-10-12T10:00:00Z",
         notes: "## Neu\n- **Duo-Modus** mit Partner-Anzeige\n- [Doku](https://example.org)",
@@ -34,7 +34,7 @@ const levelhelper: api.AddonCard = {
 };
 const sync: api.AddonCard = {
     id: "eventhelper-sync", name: "EventHelper Sync", description: "Sync-Tool und Addon.", icon: "inv_gizmo_01",
-    versions: ["tbc", "forever"], install: "Im Sync-Tool den Token eintragen.", state: "ok", stale: false, errorCode: "", fetchedAt: 1, orgaOnly: true,
+    versions: ["tbc", "forever"], install: "Im Sync-Tool den Token eintragen.", state: "ok", stale: false, errorCode: "", fetchedAt: 1, orgaOnly: true, curseforge: "",
     release: {
         version: "1.14.0", tag: "v1.14.0", publishedAt: "2026-10-10T12:00:00Z", notes: "",
         assets: [file("EventHelperSync.exe", 73_400_320, "exe"), file("EventHelperSync-1.14.0.zip", 90_000, "zip")],
@@ -42,7 +42,7 @@ const sync: api.AddonCard = {
 };
 const professionkit: api.AddonCard = {
     id: "professionkit", name: "ProfessionKit", description: "Berufe-Guide.", icon: "trade_blacksmithing",
-    versions: ["forever"], install: "", state: "no_release", stale: false, errorCode: "", fetchedAt: 1, orgaOnly: false, release: null,
+    versions: ["forever"], install: "", state: "no_release", stale: false, errorCode: "", fetchedAt: 1, orgaOnly: false, curseforge: "", release: null,
 };
 
 /** Where the router is now (path and hash). */
@@ -120,6 +120,36 @@ describe("page Addons", () => {
         expect(zip).toHaveAttribute("download", "LevelHelper-0.3.0.zip");
         expect(screen.getByRole("link", { name: "EventHelperSync.exe · 70 MB" })).toBeInTheDocument();
         for (const link of screen.getAllByRole("link")) expect(link.getAttribute("href") || "").not.toMatch(/github/i);
+    });
+
+    it("puts 'Auf CurseForge' next to the download of a card that has a link, also without a release, and nowhere else", async () => {
+        const aura = "https://www.curseforge.com/wow/addons/pulse-aurakit";
+        const macro = "https://www.curseforge.com/wow/addons/pulse-macrohelper";
+        vi.mocked(api.getAddons).mockResolvedValue(data([
+            { ...levelhelper, id: "aurakit", name: "AuraKit", curseforge: aura },
+            { ...professionkit, id: "macrohelper", name: "MacroHelper", curseforge: macro },
+            levelhelper,
+        ]));
+        renderPage(<AddonPage />, { route: "/addon" });
+        const links = await screen.findAllByRole("link", { name: "Auf CurseForge" });
+        expect(links.map((l) => [l.closest("section")?.getAttribute("data-addon"), l.getAttribute("href")])).toEqual([
+            ["aurakit", aura], ["macrohelper", macro],
+        ]);
+        for (const l of links) {
+            expect(l).toHaveAttribute("target", "_blank");
+            expect(l).toHaveAttribute("rel", "noopener noreferrer");
+            expect(l.closest(".dlp-files")).not.toBeNull();
+        }
+        // with a release it sits beside the download button
+        expect(links[0].closest(".dlp-files")!.querySelector(".dlp-download")).not.toBeNull();
+        expect(screen.getByText(/Noch kein Release/)).toBeInTheDocument();
+    });
+
+    it("speaks English on the CurseForge button", async () => {
+        await switchLang("en");
+        vi.mocked(api.getAddons).mockResolvedValue(data([{ ...levelhelper, curseforge: "https://www.curseforge.com/wow/addons/x" }]));
+        renderPage(<AddonPage />, { route: "/addon" });
+        expect(await screen.findByRole("link", { name: "On CurseForge" })).toBeInTheDocument();
     });
 
     it("asks the server for the menu's game version", async () => {

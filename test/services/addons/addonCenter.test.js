@@ -260,6 +260,32 @@ describe("addonCenter runCheck (the job)", () => {
             expect(store.getPing()).toEqual({ channelId: CH, messageId: "p1", postedAt: NOW + 1000 });
         });
 
+        it("names the CurseForge page of an addon that has one, only for that addon", async () => {
+            mockReleases.aurakit = releaseOf("aurakit", "1.0.0");
+            await posted0();
+            mockReleases.aurakit = releaseOf("aurakit", "1.1.0");
+            await center.runCheck({ now: NOW + 1000 });
+            const single = discord.postRolePing.mock.calls[0][2];
+            expect(single).toMatch(/\*\*AuraKit 1\.1\.0\*\* \(\[Patchnotes\]\(<https?:\/\/[^>]*\/addon\/aurakit>\) · \[Jetzt auch auf CurseForge\]\(<https:\/\/www\.curseforge\.com\/wow\/addons\/pulse-aurakit>\)\) ist da\.$/);
+
+            mockReleases.aurakit = releaseOf("aurakit", "1.2.0");
+            mockReleases.levelhelper = releaseOf("levelhelper", "0.5.0");
+            await center.runCheck({ now: NOW + 2000 });
+            const both = discord.postRolePing.mock.calls[1][2];
+            expect(both.match(/CurseForge/g)).toHaveLength(1);
+            expect(both).toMatch(WEB);
+            expect(both).toMatch(/\*\*LevelHelper 0\.5\.0\*\* \(\[Patchnotes\]\([^)]*\)\)/);
+        });
+
+        it("names no CurseForge page when the addon has none (or the admin removed it)", async () => {
+            mockConfig.addonDownloads = defaultAddons().map((a) => (a.id === "aurakit" ? { ...a, curseforge: "" } : a));
+            mockReleases.aurakit = releaseOf("aurakit", "1.0.0");
+            await posted0();
+            mockReleases.aurakit = releaseOf("aurakit", "1.1.0");
+            await center.runCheck({ now: NOW + 1000 });
+            expect(discord.postRolePing.mock.calls[0][2]).not.toContain("CurseForge");
+        });
+
         it("several addons updated in one check: ONE message naming all of them", async () => {
             await posted0();
             mockReleases.levelhelper = releaseOf("levelhelper", "0.5.0");

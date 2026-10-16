@@ -8,8 +8,9 @@
 //                                    update role is set (addonCenterBot.js toggles the role)
 //   one container per addon          in the addon's colour: "### <emoji> Name [NEU]", the
 //                                    short description, "-# Version 0.3.0 · 12.10.2026 ·
-//                                    Patchnotes" (the link opens the addon's card on the web
-//                                    page "Addons", where its release notes are) and
+//                                    Patchnotes · CurseForge" (the first link opens the addon's
+//                                    detail page on the web, where its release notes are; the
+//                                    second only for an addon with a CurseForge page) and
 //                                    "Herunterladen" as the section's button — without a
 //                                    release a short note instead of the button
 // The centre itself announces nothing when a new version appears: it shows "NEU" and
@@ -102,6 +103,15 @@ function hasFiles(entry) {
     return !!(entry && entry.release && Array.isArray(entry.files) && entry.files.length);
 }
 
+/**
+ * "[CurseForge](<url>)" for the sub line of an addon with a CurseForge page; "" without one.
+ * The url is canonical (addonConfig.normalizeCurseforge), the angle brackets keep Discord's preview off.
+ */
+function curseforgeLink(addon, lang) {
+    const url = str(addon && addon.curseforge);
+    return url ? `[${tr(lang, "CurseForge")}](<${url}>)` : "";
+}
+
 /** The note an addon shows instead of its button. */
 function stateNote(entry, lang) {
     if (entry.release && !hasFiles(entry)) return tr(lang, "The newest release has no matching file.");
@@ -154,7 +164,7 @@ function centerPayload({ entries = [], subscribe = false, lang = "de", emojis = 
         return {
             e,
             head: headingOf(e.addon, { emojis, lang, fresh }),
-            sub: `-# ${[version, hasFiles(e) ? "" : stateNote(e, lang), e.release ? `[${tr(lang, "Patch notes")}](${patchNotesUrl(e.addon.id)})` : ""].filter(Boolean).join(" · ")}`,
+            sub: `-# ${[version, hasFiles(e) ? "" : stateNote(e, lang), e.release ? `[${tr(lang, "Patch notes")}](${patchNotesUrl(e.addon.id)})` : "", curseforgeLink(e.addon, lang)].filter(Boolean).join(" · ")}`,
             desc: escapeMd(cut(e.addon.description, DESCRIPTION_MAX)),
         };
     });

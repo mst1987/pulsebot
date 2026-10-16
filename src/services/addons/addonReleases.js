@@ -141,6 +141,8 @@ function addonCard(addon, result, { canManage = false } = {}) {
         errorCode: result.errorCode || "",
         fetchedAt: result.fetchedAt || 0,
         orgaOnly: !!addon.orgaOnly,
+        // the public CurseForge project page ("" = none); downloads there count for its rewards
+        curseforge: addon.curseforge || "",
         ...(canManage ? { repo: addon.repo, private: !!addon.private } : {}),
         release: release ? {
             version: release.version,

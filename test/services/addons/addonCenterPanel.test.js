@@ -89,8 +89,28 @@ describe("addonCenterPanel centerPayload", () => {
         expect(texts(payload).slice(1).map((t) => t.split("\n").pop())).toEqual([
             "-# Noch kein Release.",
             "-# Gerade nicht verfügbar.",
-            `-# Version 0.3.0 · 12.10.2026 · Das neueste Release hat keine passende Datei. · [Patchnotes](${webUrl("/addon/aurakit")})`,
+            `-# Version 0.3.0 · 12.10.2026 · Das neueste Release hat keine passende Datei. · [Patchnotes](${webUrl("/addon/aurakit")}) · [CurseForge](<https://www.curseforge.com/wow/addons/pulse-aurakit>)`,
         ]);
+    });
+
+    it("links the CurseForge page after the patch notes, with and without a release, and only when set", () => {
+        const cf = "https://www.curseforge.com/wow/addons/pulse-aurakit";
+        const { payload } = panel.centerPayload({
+            entries: [
+                entry("aurakit"),
+                entry("aurakit", { state: "no_release", release: null, files: [] }),
+                entry("levelhelper"),
+                entry("macrohelper", { addon: addon("macrohelper", { curseforge: "" }) }),
+            ],
+            now: NOW,
+        });
+        const subs = texts(payload).slice(1).map((t) => t.split("\n").pop());
+        expect(subs[0]).toBe(`-# Version 0.3.0 · 12.10.2026 · [Patchnotes](${webUrl("/addon/aurakit")}) · [CurseForge](<${cf}>)`);
+        expect(subs[1]).toBe(`-# Noch kein Release. · [CurseForge](<${cf}>)`);
+        expect(subs[2]).not.toContain("CurseForge");
+        expect(subs[3]).not.toContain("CurseForge");
+        // a link in the text, no extra component: head 2, addons 4 + 2 + 4 + 4
+        expect(all(payload.components)).toHaveLength(16);
     });
 
     it("says so when the channel's version has no addons", () => {

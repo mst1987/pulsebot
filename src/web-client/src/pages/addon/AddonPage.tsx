@@ -28,7 +28,7 @@ import { useContentVersion } from "../../hooks/useContentVersion";
 import { formatDate, formatDateTime } from "../../lib/format";
 import { TOKEN_SETTINGS_LINK as SETTINGS_LINK, addonDetailPath as detailPath, plainNotes } from "../../lib/addons/addonInstall";
 import { useT } from "../../i18n";
-import { DownloadButtons, ErrorState, InstallGuide, StateNote } from "./AddonParts";
+import { CurseforgeLink, DownloadButtons, ErrorState, InstallGuide, StateNote } from "./AddonParts";
 import "../../styles/addon.css";
 import "../../styles/orga-mark.css";
 
@@ -72,11 +72,12 @@ function AddonCardView({ addon, versionId, canManage }: { addon: AddonCard; vers
                 <p className="dlp-stale">{t("addon.state.stale", { time: formatDateTime(addon.fetchedAt) })}</p>
             )}
             {release && release.assets.length ? (
-                <div className="dlp-files"><DownloadButtons files={release.assets} /></div>
-            ) : release ? (
-                <p className="dlp-state muted">{t("addon.state.noFiles")}</p>
+                <div className="dlp-files"><DownloadButtons files={release.assets} /><CurseforgeLink addon={addon} /></div>
             ) : (
-                <StateNote addon={addon} canManage={canManage} />
+                <>
+                    {release ? <p className="dlp-state muted">{t("addon.state.noFiles")}</p> : <StateNote addon={addon} canManage={canManage} />}
+                    {addon.curseforge && <div className="dlp-files"><CurseforgeLink addon={addon} /></div>}
+                </>
             )}
             {notes && (
                 <div className="dlp-news">
