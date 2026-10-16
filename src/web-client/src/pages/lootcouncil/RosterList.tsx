@@ -100,7 +100,7 @@ export function BisBar({ raider }: { raider: CouncilRaider }) {
         return <span className="lc-muted" data-tip={t("lootcouncil.list.noBisTip")} data-tip-sub={t("lootcouncil.dialog.noBisList")}>{t("lootcouncil.word.noList")}</span>;
     }
     const notes = [
-        raider.bis.source === "wowhead" ? t("lootcouncil.dialog.wowheadNote") : "",
+        raider.bis.source === "wowhead" ? t("lootcouncil.dialog.wowheadNote") : raider.bis.source === "manual" ? t("lootcouncil.dialog.manualNote") : "",
         raider.bis.borrowedFrom ? t("lootcouncil.list.bisBorrowed", { from: raider.bis.borrowedFrom }) : "",
         !raider.bis.exact && raider.bis.tier ? t("lootcouncil.list.bisOlder", { tier: raider.bis.tier.toUpperCase() }) : "",
     ].filter(Boolean);

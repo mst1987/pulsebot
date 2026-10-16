@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-    getLootCouncil, loadCouncilLogGear, refreshCouncilArmory, searchCouncilItems,
+    getLootCouncil, getManualBis, loadCouncilLogGear, refreshCouncilArmory, searchCouncilItems,
     type ApiError, type CouncilCandidate, type CouncilFocus, type CouncilWeightsView, type ItemSearchResult } from "../../api";
 import { useJobs, useToast } from "../../components/shell/Jobs";
 import ItemSearchPicker from "../../components/loot/ItemSearchPicker";
@@ -54,6 +54,8 @@ export default function DropCheckPage() {
     const [simAvailable, setSimAvailable] = useState(false);
     // The council's version has no item table (#748): the drop check says so instead of looking items up.
     const [noItemTable, setNoItemTable] = useState(false);
+    // Hand lists (#760): the candidates are the raiders whose list names the drop.
+    const [manualBis, setManualBis] = useState(false);
     const [versionId, setVersionId] = useState("");
     // The council's version's Wowhead path (#542); undefined until loaded = the stored (TBC) one
     const [wowheadPath, setWowheadPath] = useState<string | undefined>(undefined);
@@ -92,6 +94,16 @@ export default function DropCheckPage() {
         item: itemId,
     });
 
+    // Before an item is picked: whether this version's search runs over the hand lists (#760) - the text says so.
+    useEffect(() => {
+        if (itemId) return undefined;
+        let alive = true;
+        getManualBis(contentVersion || "")
+            .then((d) => { if (alive) setManualBis(d.available); })
+            .catch(() => undefined);
+        return () => { alive = false; };
+    }, [itemId, contentVersion]);
+
     useEffect(() => {
         if (!itemId) { setFocus(null); return undefined; }
         if (!viewsReady) return undefined;
@@ -106,6 +118,7 @@ export default function DropCheckPage() {
                 setSimAvailable(d.sim.available);
                 setWowheadPath(d.wowheadPath);
                 setNoItemTable(!!d.content && !d.content.itemTable);
+                setManualBis(!!d.content && !!d.content.manualBis);
                 setVersionId(d.versionId || "");
                 setWeights(d.weights);
                 // Ohne Simulation gibt es keinen Zugewinn und keine Empfehlung —
@@ -194,7 +207,7 @@ export default function DropCheckPage() {
                 </div>
                 <div className="ph-act lc-dropsearch">
                     <ItemSearchPicker
-                        search={(q: string) => searchCouncilItems(q, "", versionId)}
+                        search={(q: string) => searchCouncilItems(q, "", versionId || contentVersion)}
                         onPick={(item: ItemSearchResult) => navigate(dropHref(item.id))}
                         placeholder={itemId ? t("lootcouncil.drop.searchOther") : t("lootcouncil.drop.searchFirst")}
                     />
@@ -203,14 +216,14 @@ export default function DropCheckPage() {
 
             {!itemId ? (
                 <div className="lc-panel empty">
-                    {t("lootcouncil.drop.noItem")}
+                    {t(manualBis ? "lootcouncil.manualBis.dropNoItem" : "lootcouncil.drop.noItem")}
                 </div>
             ) : loading && !focus ? (
                 <RaidLoader text={t("lootcouncil.drop.loading")} />
             ) : error ? (
                 <div className="empty">{error.message}</div>
             ) : !focus ? (
-                <div className="lc-panel empty">{noItemTable ? t("lootcouncil.noContent.drop") : t("lootcouncil.drop.unknownItem")}</div>
+                <div className="lc-panel empty">{manualBis ? t("lootcouncil.manualBis.dropNotListed") : noItemTable ? t("lootcouncil.noContent.drop") : t("lootcouncil.drop.unknownItem")}</div>
             ) : (
                 <>
                     <div className="lc-panel lc-dropitem2">

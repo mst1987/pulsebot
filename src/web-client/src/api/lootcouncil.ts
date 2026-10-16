@@ -452,6 +452,8 @@ export type CouncilProfiles = { defaultId: string; profiles: CouncilProfileRow[]
 
 /** One profile for its editor (GET /api/lootcouncil/profile). */
 export type CouncilProfileData = {
+    /** The profile's game version (its view, else the main one) - where the exceptions' search looks (#760). */
+    versionId?: string;
     profile: CouncilProfileHead & { weights: CouncilWeightSettings; view: CouncilCategoryView };
     /** Per stored exception: icon, name and the class it would have without it. */
     itemInfo: Record<string, { name: string; iconUrl: string; quality: number | null; autoClass: ItemWeightClass }>;
@@ -546,6 +548,10 @@ export type CouncilContent = {
     bis: boolean; sim: boolean; tiers: boolean; itemTable: boolean;
     /** The version has BiS data, but it is switched off in Einstellungen → Spielversion (#761). */
     off?: boolean;
+    /** No BiS data of its own: the BiS lists are the orga's hand lists (#760, tab "BiS-Listen"). */
+    manualBis?: boolean;
+    /** With hand lists: whether the version has at least one (else the page says where to start). */
+    manualLists?: boolean;
 };
 
 export type LootCouncilData = {
@@ -778,10 +784,12 @@ export async function runCouncilSim(
  * candidate list needs. Same result shape as the other item pickers, so
  * ItemSearchPicker takes it as-is.
  */
-export function searchCouncilItems(q: string, tier = "", versionId = ""): Promise<{ items: CouncilItemHit[] }> {
+export function searchCouncilItems(q: string, tier = "", versionId = "", { wowhead = false }: { wowhead?: boolean } = {}): Promise<{ items: CouncilItemHit[] }> {
     const qs = new URLSearchParams({ q });
     if (tier) qs.set("tier", tier);
     if (versionId) qs.set("v", versionId);
+    // On hand lists (#760): Wowhead of the version adds items no list names yet (the weighting's exceptions).
+    if (wowhead) qs.set("wowhead", "1");
     return get<{ items: CouncilItemHit[] }>(`/api/lootcouncil/item-search?${qs.toString()}`);
 }
 
@@ -924,4 +932,47 @@ export type CouncilExport = {
 
 export function getCouncilExport(character: string): Promise<CouncilExport> {
     return get<CouncilExport>(`/api/lootcouncil/export?character=${encodeURIComponent(character)}`);
+}
+
+// ── Hand-maintained BiS lists (#760) ─────────────────────────────────────────
+// A version without BiS data of its own (WoW Forever) keeps its lists by hand,
+// per spec and slot (src/web/apiRoutes/lootCouncilBis.js).
+
+/** An item of a hand list: name, icon and quality from Wowhead of the version ("" / null when Wowhead did not know it). */
+export type ManualBisItem = { id: number; name: string; iconUrl: string; quality: number | null; link: string };
+
+export type ManualBisSpec = {
+    key: string; label: string; className: string; spec: string; role: string;
+    iconUrl: string; classColor: string;
+    /** How many slots its list fills. */
+    filled: number;
+};
+
+export type ManualBisData = {
+    versionId: string;
+    versionLabel: string;
+    /** The version keeps hand lists (no BiS data of its own, feature on). */
+    available: boolean;
+    /** BiS lists are switched off for the version. */
+    off: boolean;
+    /** Wowhead of the version can be searched (a path is set); otherwise item ids only. */
+    search: boolean;
+    maxPerSlot: number;
+    slots: { slot: number; slotName: string }[];
+    specs: ManualBisSpec[];
+    lists: Record<string, { slots: Record<string, ManualBisItem[]>; at: number; by: string }>;
+};
+
+export function getManualBis(version: string): Promise<ManualBisData> {
+    return get<ManualBisData>(`/api/lootcouncil/manual-bis?version=${encodeURIComponent(version)}`);
+}
+
+/** Wowhead of the version: a name, or an item id. `search: false` = the version has no Wowhead path. */
+export function searchManualBisItems(version: string, q: string): Promise<{ items: ItemSearchResult[]; search?: boolean }> {
+    return get(`/api/lootcouncil/manual-bis/search?${new URLSearchParams({ version, q }).toString()}`);
+}
+
+/** Set one slot of one spec's list, whole and in order (first = BiS, the rest alternatives); [] clears it. */
+export function saveManualBisSlot(version: string, spec: string, slot: number, items: number[]): Promise<ManualBisData & { unresolved: number[] }> {
+    return send("POST", "/api/lootcouncil/manual-bis", { version, spec, slot, items });
 }

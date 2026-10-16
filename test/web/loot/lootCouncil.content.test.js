@@ -26,6 +26,12 @@ function setup() {
     mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([item(0, 31064)])]]));
 }
 
+// No hand lists (#760, manualBisStore) in these cases: an empty scratch file.
+const manualBisStore = require("../../../src/stores/manualBisStore");
+const { tempStoreFile } = require("../../helpers/tempStore");
+
+beforeAll(() => manualBisStore.useFile(tempStoreFile("council-manual-bis.json")));
+afterAll(() => manualBisStore.useFile(null));
 beforeEach(() => { jest.clearAllMocks(); setup(); });
 
 describe("councilRoster per version content", () => {
