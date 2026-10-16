@@ -24,6 +24,11 @@ jest.mock("../../../src/web/events/eventSeries", () => ({
     saveSeriesFor: jest.fn(() => ({ series: { categoryId: "cat1", enabled: true } })),
     runSeries: jest.fn(async () => ({ created: 1, failed: 0, existing: 0, ignored: 0, error: null, results: [] })),
 }));
+// the categories whose current roster the caller manages (#728) - the rule has its own tests
+jest.mock("../../../src/services/roster/categoryOrga", () => ({
+    ...jest.requireActual("../../../src/services/roster/categoryOrga"),
+    orgaCategoryIds: jest.fn(async () => []),
+}));
 
 const { readJsonBody } = require("../../../src/web/http/apiBody");
 const store = require("../../../src/stores/eventSeriesStore");
@@ -32,8 +37,11 @@ const route = require("../../../src/web/apiRoutes/eventSeries");
 const { checkAccess } = require("../../../src/web/http/apiAccess");
 const apiRouter = require("../../../src/web/http/apiRouter");
 
-const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raids: { read: true, write: true } } };
-const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
+const ORGA = { id: "orga", name: "Orga", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true } } };
+// the global orga reading only
+const READER = { id: "reader", isAdmin: false, isOrga: true, access: { raids: { read: true, write: false } } };
+// a raider role with `raids` read (and write), no orga rank and no roster
+const RAIDER = { id: "raider", isAdmin: false, access: { raids: { read: true, write: true } } };
 const PATHS = ["/api/raids/series", "/api/raids/series/preview", "/api/raids/series/run"];
 
 const { mockRes, status, body } = require("../../helpers/http");
@@ -79,10 +87,10 @@ describe("handlers", () => {
         ]);
         service.seriesOverview.mockResolvedValue({ categories: [{ id: "cat-tbc" }, { id: "cat-forever" }], lastRun: null });
         try {
-            const forever = body(await call(route.getSeries, READER, null, "version=forever"));
+            const forever = body(await call(route.getSeries, ORGA, null, "version=forever"));
             expect(forever.categories.map((c) => c.id)).toEqual(["cat-forever"]);
             expect(forever.templates.map((t) => t.id)).toEqual(["bd"]);
-            const tbc = body(await call(route.getSeries, READER));
+            const tbc = body(await call(route.getSeries, ORGA));
             expect(tbc.categories.map((c) => c.id)).toEqual(["cat-tbc"]);
             expect(tbc.templates.map((t) => t.id)).toEqual(["kara"]);
         } finally {
@@ -130,5 +138,57 @@ describe("handlers", () => {
 
     it("is reachable through the router", () => {
         expect(typeof apiRouter.handle).toBe("function");
+    });
+});
+
+// #728 review: a global orga reading only sees every series, as before, and writes - as at the gate - only
+// the rows of the categories whose roster they manage (writableCategoryIds)
+describe("the global orga without `raids` write", () => {
+    it("sees every category; managing cat1 writes cat1 only", async () => {
+        const categoryOrga = require("../../../src/services/roster/categoryOrga");
+        categoryOrga.orgaCategoryIds.mockResolvedValueOnce(["cat1"]);
+        service.seriesOverview.mockResolvedValueOnce({ categories: [{ id: "cat1" }, { id: "cat2" }], lastRun: null });
+        const r = body(await call(route.getSeries, READER));
+        expect(r.categories.map((c) => c.id)).toEqual(["cat1", "cat2"]);
+        expect([r.canWrite, r.writableCategoryIds, r.canRunAll]).toEqual([true, ["cat1"], false]);
+        expect(categoryOrga.orgaCategoryIds).toHaveBeenCalledWith(READER, expect.objectContaining({ managerOnly: true }));
+        // managing nothing: everything to see, nothing to write
+        service.seriesOverview.mockResolvedValueOnce({ categories: [{ id: "cat1" }], lastRun: null });
+        const none = body(await call(route.getSeries, READER));
+        expect([none.categories.map((c) => c.id), none.canWrite, none.writableCategoryIds]).toEqual([["cat1"], false, []]);
+    });
+
+    it("leaves the global orga with `raids` write every row writable (writableCategoryIds null)", async () => {
+        service.seriesOverview.mockResolvedValueOnce({ categories: [{ id: "cat1" }, { id: "cat2" }], lastRun: null });
+        const r = body(await call(route.getSeries, ORGA));
+        expect([r.categories.length, r.canWrite, r.writableCategoryIds, r.canRunAll]).toEqual([2, true, null, true]);
+    });
+});
+
+// #728: a series is the orga's planning - the category orga's path is covered in events.categoryOrga.test.js
+describe("who is no orga", () => {
+    it("sees no series and may write none, `raids` write or not", async () => {
+        service.seriesOverview.mockResolvedValueOnce({ categories: [{ id: "cat1" }], lastRun: null });
+        const r = body(await call(route.getSeries, RAIDER));
+        expect(r.categories).toEqual([]);
+        expect(r.canWrite).toBe(false);
+        for (const handler of [route.putSeries, route.deleteSeries, route.postRun]) {
+            expect(status(await call(handler, RAIDER, { categoryId: "cat1" }))).toBe(403);
+        }
+        expect(status(await call(route.getPreview, RAIDER, null, "category=cat1"))).toBe(403);
+        expect(service.saveSeriesFor).not.toHaveBeenCalled();
+        expect(store.deleteSeries).not.toHaveBeenCalled();
+        expect(service.runSeries).not.toHaveBeenCalled();
+        expect(service.previewSeries).not.toHaveBeenCalled();
+    });
+
+    it("leaves the global orga every category, writing with `raids` write", async () => {
+        service.seriesOverview.mockResolvedValueOnce({ categories: [{ id: "cat1" }], lastRun: null });
+        const r = body(await call(route.getSeries, ORGA));
+        expect(r.categories.map((c) => c.id)).toEqual(["cat1"]);
+        expect(r.canWrite).toBe(true);
+        // a sweep of every series at once (no category) is the global orga's
+        expect(status(await call(route.postRun, ORGA, {}))).toBe(200);
+        expect(service.runSeries).toHaveBeenCalledWith({ onlyCategoryId: "" });
     });
 });

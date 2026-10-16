@@ -4,7 +4,7 @@
 // Anmelde-Aufruf, pings the missing raiders and calls the invites - for cat1's raids, not for cat2's -
 // without `raids` write; the global orga stays the orga of every raid, a raider role with `raids` write
 // but no orga rank gets 403 orga_only as before. Moving, cancelling, deleting, the channel, sheet, softres
-// and loot system stay the global orga's (#728). The services behind the routes are mocked (their own
+// and loot system are #728's (events.categoryOrga.test.js). The services behind the routes are mocked (their own
 // tests); the events and signups are real stores on scratch files.
 let mockUser = null;
 jest.mock("../../../src/web/http/auth", () => ({
@@ -187,8 +187,15 @@ describe("the orga of a category (a manager of its roster)", () => {
         const before = JSON.parse(JSON.stringify(eventStore.getEvent(foreign.id)));
         const signupsBefore = JSON.parse(JSON.stringify(signupStore.listSignups(foreign.id)));
         const calls = callsFor(foreign.id);
-        // raidDetail.js also holds the raid plan's post (#726, covered in raidplan.categoryOrga.test.js)
-        const otherPart = new Set(["POST /api/raids/post-raidplan"]);
+        // raidDetail.js also holds the raid plan's post (#726, covered in raidplan.categoryOrga.test.js), both
+        // files the event part's routes (#728, covered in events.categoryOrga.test.js)
+        const otherPart = new Set([
+            "POST /api/raids/post-raidplan",
+            "GET /api/raids/manage", "GET /api/raids/manage/move", "POST /api/raids/manage/move", "POST /api/raids/manage/cancel",
+            "POST /api/raids/manage/reopen", "POST /api/raids/manage/delete", "POST /api/raids/manage/recreate-channel",
+            "POST /api/raids/fill", "POST /api/raids/post-sheet", "POST /api/raids/post-softres", "GET /api/raids/softres/item-search",
+            "POST /api/raids/softres", "POST /api/raids/softres/link", "POST /api/raids/loot-system",
+        ]);
         const scoped = [...manageRoutes.routes, ...detailRoutes.routes].filter((r) => r.handler.orgaScoped).map((r) => `${r.method} ${r.path}`)
             .filter((key) => !otherPart.has(key));
         expect(Object.keys(calls).sort()).toEqual([...scoped].sort());
@@ -211,24 +218,6 @@ describe("the orga of a category (a manager of its roster)", () => {
         expect(discord.postAnnouncement).not.toHaveBeenCalled();
     });
 
-    it("keeps the rest of Event verwalten and the raid detail's other actions shut (#728)", async () => {
-        for (const [method, path, payload] of [
-            ["GET", "/api/raids/manage", { event: own.id }],
-            ["POST", "/api/raids/manage/move", { event: own.id, date: "2026-12-01", time: "20:00" }],
-            ["POST", "/api/raids/manage/cancel", { event: own.id, reason: "Zu wenige" }],
-            ["POST", "/api/raids/manage/reopen", { event: own.id }],
-            ["POST", "/api/raids/manage/delete", { event: own.id }],
-            ["POST", "/api/raids/manage/recreate-channel", { event: own.id }],
-            ["POST", "/api/raids/post-softres", { event: own.id }],
-            ["POST", "/api/raids/loot-system", { event: own.id, lootSystem: "softres" }],
-        ]) {
-            const r = await send(method, path, payload);
-            expect([path, status(r)]).toEqual([path, 403]);
-        }
-        expect(manage.moveEvent).not.toHaveBeenCalled();
-        expect(manage.cancelEvent).not.toHaveBeenCalled();
-        expect(manage.deleteEvent).not.toHaveBeenCalled();
-    });
 });
 
 describe("the manager of a roster prepared for a coming version (open, not current yet)", () => {

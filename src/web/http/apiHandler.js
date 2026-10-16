@@ -75,9 +75,10 @@ const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
  * @param {boolean} [opts.full]   only a full admin (requireFullAdmin) — the access settings and the foreign credentials
  * @param {boolean} [opts.orga]   only the orga (permissions.userIsOrga: full admin or an orga role) - an area
  *        right is no orga rank, raider roles hold some; 403 "orga_only" otherwise
- * @param {(body: object, query: URLSearchParams) => string|object|Array<string|object>} [opts.orgaScoped]
+ * @param {(body: object, query: URLSearchParams, req: object) => string|object|Array<string|object>} [opts.orgaScoped]
  *        the global orga (as `orga`) or the orga of the category of every event the function names
- *        (an id or a row with `categoryId`); 403 "orga_only" for whom it is neither, 403
+ *        (an id or a row with `categoryId`; `req` for what only the request knows, e.g. its server -
+ *        a new event's category, #728); 403 "orga_only" for whom it is neither, 403
  *        "not_category_orga" for a category orga outside the event's category (see the head comment)
  * @param {boolean} [opts.globalByWrite]  with `orgaScoped` + `write`: that write right alone is the global
  *        path (every raid), whatever the orga rank - an area handed to people outside the orga (#726)
@@ -122,7 +123,7 @@ function withUser(opts, fn) {
         const parsed = body ? ((await readJsonBody(req)) || {}) : undefined;
         const query = url && url.searchParams ? url.searchParams : new URLSearchParams();
         // the category first: a raid of another category is "not yours", whatever its archive state
-        if (scoped && !(await categoryOrgaOfAll(user, orgaScoped(parsed || {}, query), req))) {
+        if (scoped && !(await categoryOrgaOfAll(user, orgaScoped(parsed || {}, query, req), req))) {
             error(res, 403, "not_category_orga", NOT_CATEGORY_ORGA);
             return undefined;
         }

@@ -42,7 +42,7 @@ const { withUser } = require("../http/apiHandler");
 const { sendFailure, sendResult } = require("../http/apiResult");
 const { userSeesEvent } = require("../../services/signups/eventVisibility");
 // who may edit a raid's setup - the rule of the `orgaScoped` gate, per event (#725)
-const { canWriteSetup, isGlobalSetupOrga } = require("../setup/setupAccess");
+const { canWriteSetup } = require("../setup/setupAccess");
 const { getConfig } = require("../../stores/settingsStore");
 const { getEvent, isOwnEventId, setEventExtraRole, EXTRA_ROLES } = require("../../stores/eventStore");
 const { listSignups } = require("../../stores/signupStore");
@@ -119,9 +119,9 @@ async function view(event, user, { names = true, req = null } = {}) {
         blank: true,
     });
     if (write) out.publish = setupMessage.publishView(fresh, { config: getConfig(), channelName: channelNameOf(fresh) });
-    // "Mehr → Raidgröße" changes the event itself (PATCH /api/raids): the global orga only, until
-    // #728 opens that route to the category orga as well
-    out.canEditEvent = write && isGlobalSetupOrga(user);
+    // "Mehr → Raidgröße" changes the event itself (PATCH /api/raids): `orgaScoped` by the event since
+    // #728, the same rule as the setup's own (the orga of the raid, raidOrgaAccess.canOrgaRaid)
+    out.canEditEvent = write;
     return out;
 }
 

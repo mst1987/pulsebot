@@ -48,7 +48,7 @@ const raidEventGroups = require("../../../src/services/events/raidEventGroups");
 const eventStore = require("../../../src/stores/eventStore");
 const discordEvent = require("../../../src/services/discord/discordEvent");
 const availability = require("../../../src/services/signups/availability");
-const { createEvent, updateEvent, startTimeOf, schemaChannelName } = require("../../../src/services/events/eventCreate");
+const { createEvent, updateEvent, startTimeOf, schemaChannelName, requestedCategoryId } = require("../../../src/services/events/eventCreate");
 
 const user = { id: "42" };
 const body = (over = {}) => ({
@@ -229,6 +229,68 @@ describe("services/events/eventCreate", () => {
         }) });
         expect(discordChannels.createFromTemplate).toHaveBeenCalledWith("g1", { name: "mi-24-09-kara", parentId: "cat-eh", templateChannelId: "c2" });
         expect(eventStore.getEvent(result.body.id)).toMatchObject({ channelId: "c9", channelName: "mi-24-09-kara", categoryId: "cat-eh" });
+    });
+
+    // #728: the orga of a category - the caller's guard sees what the server worked out, before Discord
+    it("asks the caller's guard with the real category and plan, and makes no channel when it refuses", async () => {
+        discordChannels.createFromTemplate.mockResolvedValue({ id: "c9", name: "neu" });
+        const guard = jest.fn(async () => ({ error: { status: 403, code: "not_category_orga", message: "nein" } }));
+        const refused = await createEvent({ guildId: "g1", user, guard, body: body({
+            channelId: "", newChannel: { name: "neu", categoryId: "cat-eh", templateChannelId: "t1" },
+        }) });
+        expect(refused.error.code).toBe("not_category_orga");
+        expect(guard).toHaveBeenCalledWith(expect.objectContaining({
+            categoryId: "cat-eh",
+            plan: expect.objectContaining({ versionId: "tbc" }),
+            request: expect.objectContaining({ newChannel: expect.objectContaining({ templateChannelId: "t1" }) }),
+        }));
+        expect(discordChannels.createFromTemplate).not.toHaveBeenCalled();
+        expect(eventStore.listEvents("g1")).toEqual([]);
+        // the category of an existing channel is its Discord parent, whatever the body says besides
+        guard.mockResolvedValue(null);
+        const made = await createEvent({ guildId: "g1", user, guard, body: body({ channelId: "c2" }) });
+        expect(made.status).toBe(201);
+        expect(guard).toHaveBeenLastCalledWith(expect.objectContaining({ categoryId: "cat-eh" }));
+    });
+
+    // #728 review: the gate's first answer comes from the snapshot, Raid-Helper's own answer comes later -
+    // the guard sees the late one and refuses before the clone is made
+    it("lets the guard refuse a Raid-Helper clone whose channel turns out to be another category's", async () => {
+        const { getRaidEvent } = require("../../../src/stores/raidEventStore");
+        getRaidEvent.mockReturnValue({ id: "rh-9", channelId: "c2", categoryId: "cat-eh" });
+        mockGetEvent.mockResolvedValue({ id: "rh-9", channelId: "c1" });
+        const cloneBody = body({ channelId: "", sourceEventId: "rh-9", channelName: "kara-neu" });
+        try {
+            // what the gate saw: the own category (cat-eh)
+            expect(requestedCategoryId("g1", cloneBody)).toBe("cat-eh");
+            // the guard of the orga of cat-eh (createGuard's category rule)
+            const guard = jest.fn(async ({ categoryId }) => (categoryId === "cat-eh" ? null : { error: { status: 403, code: "not_category_orga", message: "nein" } }));
+            const result = await createEvent({ guildId: "g1", user, guard, body: cloneBody });
+            expect(guard).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "cat-rh" }));
+            expect(result.error.code).toBe("not_category_orga");
+            expect(discord.duplicateChannel).not.toHaveBeenCalled();
+            expect(discordChannels.createFromTemplate).not.toHaveBeenCalled();
+            expect(mockCreateEvent).not.toHaveBeenCalled();
+            expect(eventStore.listEvents("g1")).toEqual([]);
+        } finally {
+            getRaidEvent.mockReturnValue(null);
+            mockGetEvent.mockReset();
+        }
+    });
+
+    it("tells the category a create body asks for without a round trip (requestedCategoryId)", () => {
+        const { event: source } = eventStore.createEvent({ guildId: "g1", channelId: "c1", categoryId: "cat-old", title: "Alt", startTime: 1900000000 });
+        // a clone: the source channel's category now, else the stored one
+        expect(requestedCategoryId("g1", { sourceEventId: source.id, channelId: "c2" })).toBe("cat-rh");
+        discord.getChannelCategoryMap.mockReturnValue({});
+        expect(requestedCategoryId("g1", { sourceEventId: source.id })).toBe("cat-old");
+        discord.getChannelCategoryMap.mockReturnValue({ c2: { name: "kara-fr", categoryId: "cat-eh" } });
+        expect(requestedCategoryId("g1", { channelId: "c2", newChannel: { categoryId: "cat-x" } })).toBe("cat-eh");
+        expect(requestedCategoryId("g1", { newChannel: { name: "neu", categoryId: "cat-x" } })).toBe("cat-x");
+        // unknown: an unknown channel, an unknown source, nothing named
+        expect(requestedCategoryId("g1", { channelId: "c-unknown" })).toBe("");
+        expect(requestedCategoryId("g1", { sourceEventId: "eh-unknown" })).toBe("");
+        expect(requestedCategoryId("g1", {})).toBe("");
     });
 
     it("reports a new channel Discord refused, readable", async () => {

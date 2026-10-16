@@ -6,7 +6,7 @@
 // the raid's category - a raider role holding `raids` write but no orga rank is neither.
 const { isGlobalRaidOrga, canOrgaRaid } = require("../events/raidOrgaAccess");
 
-/** The global orga with `raids` write: every raid's setup - and the event itself (PATCH /api/raids, until #728). */
+/** The global orga with `raids` write: every raid's setup. */
 const isGlobalSetupOrga = isGlobalRaidOrga;
 
 /**

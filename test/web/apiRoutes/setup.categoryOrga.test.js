@@ -208,8 +208,9 @@ describe("the orga of a category (a manager of its roster)", () => {
         expect(theirs.canWrite).toBe(false);
         // a draft is never handed to who could not approve it
         expect(theirs.setup || null).toBeNull();
-        // the raid size is the event's own (PATCH /api/raids): not theirs until #728
-        expect(mine.canEditEvent).toBe(false);
+        // the raid size is the event's own (PATCH /api/raids): theirs since #728, for their raid only
+        expect(mine.canEditEvent).toBe(true);
+        expect(theirs.canEditEvent).toBe(false);
     });
 });
 
@@ -267,7 +268,8 @@ describe("the global orga and everybody else", () => {
         mockUser = { ...MANAGER, isOrga: true };
         const mine = body(await api.get("/api/raids/setup", { event: own.id }));
         expect(mine.canWrite).toBe(true);
-        expect(mine.canEditEvent).toBe(false);
+        // PATCH /api/raids takes the same category path (#728)
+        expect(mine.canEditEvent).toBe(true);
         expect(body(await api.get("/api/raids/setup", { event: foreign.id })).canWrite).toBe(false);
         expect(status(await api.post("/api/raids/setup/ping-text", { event: own.id, text: "Hallo" }))).toBe(200);
         expect(code(await api.post("/api/raids/setup/ping-text", { event: foreign.id, text: "x" }))).toBe("not_category_orga");

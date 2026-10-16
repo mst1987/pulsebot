@@ -153,6 +153,20 @@ describe("ChannelsPage — 'gleich Event anlegen'", () => {
         expect(within(screen.getByRole("dialog")).queryByRole("switch", { name: "Gleich Event anlegen" })).not.toBeInTheDocument();
     });
 
+    it("is offered to the orga of a category only in their categories (eventCategoryIds, #728)", async () => {
+        const user = userEvent.setup();
+        await openPage(channelsData({ ...withEvents(), eventCategoryIds: ["another-category"] }));
+        await user.click(screen.getByRole("button", { name: "Anlegen" }));
+        expect(within(screen.getByRole("dialog")).queryByRole("switch", { name: "Gleich Event anlegen" })).not.toBeInTheDocument();
+    });
+
+    it("is offered in a category of their own (eventCategoryIds, #728)", async () => {
+        const user = userEvent.setup();
+        await openPage(channelsData({ ...withEvents(), eventCategoryIds: [RAIDS] }));
+        await user.click(screen.getByRole("button", { name: "Anlegen" }));
+        expect(within(screen.getByRole("dialog")).getByRole("switch", { name: "Gleich Event anlegen" })).toBeInTheDocument();
+    });
+
     it("disappears when the category is taken away", async () => {
         const user = userEvent.setup();
         await openPage(withEvents());

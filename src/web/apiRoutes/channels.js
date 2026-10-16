@@ -11,7 +11,7 @@ const { runSerial, summarize, eventStatusByChannel } = require("../channels/chan
 const { getConfig, getRaidTemplate, listRecruitmentPosts } = require("../../stores/settingsStore");
 const { resolvePurposes, purposeSummary } = require("../channels/channelPurposes");
 const eventCreate = require("../../services/events/eventCreate");
-const { userCanAny } = require("../../config/permissions");
+const { eventCategoryScope, quickCreateAccess } = require("../events/eventCreateAccess");
 const { parseClockTime } = require("../../utils/time");
 const channelNaming = require("../../services/discord/channelNaming");
 const { DEFAULT_SCHEMA, PLACEHOLDERS, planChannels, placementFor, renderChannelName } = require("../../utils/channelNames");
@@ -113,6 +113,7 @@ const getChannels = withUser({}, async ({ user, req, res }) => {
     const connected = !!guild;
     const purposes = resolvePurposes(getConfig(), channels, categories, connected);
     const config = archiveStore.getChannelConfig(guildId);
+    const eventScope = await eventCategoryScope(user, req);
     ok(res, {
         categories,
         channels,
@@ -127,8 +128,10 @@ const getChannels = withUser({}, async ({ user, req, res }) => {
         events: guildId ? eventStatusByChannel(await eventsFor(guildId)) : {},
         archive: archiveFor(guildId, channels, connected),
         schemas: config.schemas,
-        // "gleich Event anlegen" (quick-create): only offered to whoever may create raids.
-        canCreateEvents: userCanAny(user, ["raids"], "write"),
+        // "gleich Event anlegen" (quick-create): only offered to whoever may create raids - the global orga
+        // with `raids` write in every category, the orga of a category in theirs (`eventCategoryIds`, #728)
+        canCreateEvents: !eventScope || eventScope.size > 0,
+        eventCategoryIds: eventScope ? [...eventScope] : null,
         eventDefaults: quickEventDefaults(categories),
         defaultSchema: DEFAULT_SCHEMA,
         placeholders: PLACEHOLDERS,
@@ -381,8 +384,17 @@ const batchCreate = withUser({ csrf: true, body: true }, async ({ user, body, re
 
     const withEvent = body.withEvent === true;
     const time = withEvent ? parseClockTime(body.time) : "";
+    // The events follow POST /api/raids (#728): the global orga with `raids` write, else the orga of this
+    // category (eventCreateAccess.quickCreateAccess) - checked before any channel is made; channels
+    // without an event stay the `channels` area's.
+    let guard = null;
+    const defaults = withEvent ? quickEventDefaults([{ id: categoryId }])[categoryId] : null;
     if (withEvent) {
-        if (!userCanAny(user, ["raids"], "write")) return error(res, 403, "forbidden", "Events anlegen braucht Schreibrechte für Raids.");
+        // the default raid template's version is checked too (createEvent only checks EventHelper events)
+        const raidTemplateId = defaults && defaults.source === "eventhelper" ? defaults.templateId : "";
+        const access = await quickCreateAccess(user, req, categoryId, body.templateChannelId, { raidTemplateId });
+        if (access && access.error) return error(res, access.error.status, access.error.code, access.error.message);
+        guard = access ? access.guard : null;
         if (!categoryId) return error(res, 400, "no_category", "Für Events braucht es eine Kategorie.");
         if (!time) return error(res, 400, "invalid_time", "Ungültige Uhrzeit.");
     }
@@ -396,7 +408,6 @@ const batchCreate = withUser({ csrf: true, body: true }, async ({ user, body, re
     const dayByName = new Map(todo.map((p) => [p.name, p.date]));
     // Each new channel is sorted in behind the previous date — including the ones this series just made.
     const anchors = ctx ? [...ctx.eventChannels] : [];
-    const defaults = withEvent ? quickEventDefaults([{ id: categoryId }])[categoryId] : null;
     const title = defaults
         ? defaults.templateName || ((discord.listCategories(guildId) || []).find((c) => c.id === categoryId) || {}).name || "Raid"
         : "";
@@ -410,6 +421,7 @@ const batchCreate = withUser({ csrf: true, body: true }, async ({ user, body, re
         const made = await eventCreate.createEvent({
             guildId,
             user,
+            ...(guard ? { guard } : {}),
             body: {
                 title,
                 date: dayByName.get(name),

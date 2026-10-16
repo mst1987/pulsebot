@@ -120,12 +120,13 @@ async function isCategoryOrgaById(userId, categoryId, opts = {}) {
 /**
  * The categories `user` is the orga of through a roster: every category whose current roster they
  * manage - for the global orga every category that has a current roster (the global orga is the orga
- * of a category without a roster as well; who needs that asks userIsOrga first).
+ * of a category without a roster as well; who needs that asks userIsOrga first). `managerOnly`: the
+ * global orga does not count - only the rosters they manage (the `orgaScoped` category path, #728).
  * @returns {Promise<string[]>}  sorted, without duplicates
  */
-async function orgaCategoryIds(user, { config, ...opts } = {}) {
+async function orgaCategoryIds(user, { config, managerOnly = false, ...opts } = {}) {
     if (!user) return [];
-    const global = userIsOrga(user);
+    const global = !managerOnly && userIsOrga(user);
     const cats = [...new Set(rosterStore.listRosters().map((r) => str(r.categoryId)).filter(Boolean))].sort();
     const out = [];
     for (const cat of cats) {

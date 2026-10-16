@@ -52,11 +52,11 @@ const { expectedRoleIds } = require("../../services/roster/categoryRoles");
 // raider roles may hold `raids` write and are still no orga. Posting the raid plan's link is the
 // exception - it is area "raidplan", handed to the people who write the tactics (and to the orga of
 // the raid's category, #726).
-const ORGA = { orga: true, csrf: true, body: true, archived: BY_EVENT };
-// The signup calls of a raid (#727, epic #723) are also the orga of its category's: the Anmelde-Aufruf,
-// "Fehlende pingen" and "Invite callen" let a manager of the current roster of the raid's category in,
-// for that raid only (docs/permissions.md "Kategorie-Orga"). Sheet, softres and loot system stay `ORGA` (#728).
-const SIGNUP_ORGA = { orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT };
+// Every action is also the orga of the raid's category's (`orgaScoped`, epic #723): the signup calls
+// (#727: Anmelde-Aufruf, "Fehlende pingen", "Invite callen") and the sheet, softres, its item search and
+// the loot system (#728) - a manager of the current roster of the raid's category, for that raid only
+// (docs/permissions.md "Kategorie-Orga"). The channel a post goes to is always the server's record.
+const ORGA = { orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT };
 const { embedColor } = require("../../services/events/embedLook");
 
 /**
@@ -130,7 +130,7 @@ async function planningBlock(req, eventId, action, categoryId) {
  * server's record of the event, a `channelId` in the body does not count for them; and they ping only the
  * raider roles of the raid's category (categoryRoles.expectedRoleIds), any other role id is 400 "role_not_allowed".
  */
-const postNotify = withUser(SIGNUP_ORGA, async ({ user, body, req, res }) => {
+const postNotify = withUser(ORGA, async ({ user, body, req, res }) => {
     const template = getNotify(q.str(body, "templateId"));
     const eventId = q.str(body, "event");
     let channelId = q.str(body, "channelId");
@@ -176,7 +176,7 @@ const postNotify = withUser(SIGNUP_ORGA, async ({ user, body, req, res }) => {
  * Missing raiders are re-derived server-side; the client never gets to supply
  * the list of who to ping.
  */
-const postPingMissing = withUser(SIGNUP_ORGA, async ({ body, req, res }) => {
+const postPingMissing = withUser(ORGA, async ({ body, req, res }) => {
     const eventId = q.str(body, "event");
     const guildId = activeGuildFor(req);
     const result = await pingMissingRaiders({ guildId, eventId, target: body.target, text: body.text });
@@ -190,7 +190,7 @@ const postPingMissing = withUser(SIGNUP_ORGA, async ({ body, req, res }) => {
  * being the caller's own (inviteCall.js). Body: `{ event, dryRun }`; `dryRun`
  * answers who and what without posting (the dialog's preview).
  */
-const postInviteCall = withUser(SIGNUP_ORGA, async ({ user, body, req, res }) => {
+const postInviteCall = withUser(ORGA, async ({ user, body, req, res }) => {
     const eventId = q.str(body, "event");
     const guildId = activeGuildFor(req);
     if (body.dryRun) {
@@ -376,8 +376,11 @@ const postPostRaidplan = withUser({ orgaScoped: BY_EVENT, globalByWrite: true, w
     sendResult(res, await postRaidplanLink({ event: found, message, userId: user.id }));
 });
 
-/** GET /api/raids/softres/item-search?q=&edition= — Wowhead item search for the softres hard-reserve picker. */
-const getItemSearch = withUser({ orga: true }, async ({ res, url }) => {
+/**
+ * GET /api/raids/softres/item-search?event=&q=&edition= — Wowhead item search for the softres hard-reserve
+ * picker of one raid: the orga, or the orga of that raid's category (#728 - the picker names its raid).
+ */
+const getItemSearch = withUser({ orgaScoped: (body, query) => query.get("event") }, async ({ res, url }) => {
     const term = url.searchParams.get("q") || "";
     // The softres list's edition picks the Wowhead branch; without one the main
     // version's Wowhead path (#542), and a version without one searches nothing.

@@ -160,6 +160,8 @@ export type RaidCreateContext = {
     defaultSchema?: string;
     /** the own event ?event= names, for the edit mode */
     editEvent?: OwnEvent | null;
+    /** "Als Vorlage speichern" writes a global raid template (`raids` write) - not the orga of a category's (#728) */
+    canSaveTemplate?: boolean;
 };
 
 /**
