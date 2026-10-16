@@ -38,8 +38,10 @@ export function LibraryModal({ open, onClose, profiles, bosses, bossKey, bossNam
     bossKey: string;
     bossName: string;
     onPick: (profile: RaidplanProfile) => void;
-    onSaveAs: () => void;
-    onManage: () => void;
+    /** absent: the library is not the caller's (`canWriteLibrary`, #726) - no "save as" button */
+    onSaveAs?: () => void;
+    /** absent: no "manage" button (as `onSaveAs`) */
+    onManage?: () => void;
     /** the section has steps to save */
     canSave: boolean;
 }) {
@@ -58,8 +60,8 @@ export function LibraryModal({ open, onClose, profiles, bosses, bossKey, bossNam
             open={open} onClose={onClose} width={860} className="rp-lib" icon={<BookOpen size={20} />} kicker={t("raidBoard.steps.library.kicker", { boss: bossName })} title={t("raidBoard.steps.library.title")} initialFocus=".rp-lib-search input"
             footer={(
                 <>
-                    <Button variant="ghost" icon={<Save size={15} />} disabled={!canSave} onClick={onSaveAs}>{t("raidBoard.steps.library.saveAs")}</Button>
-                    <Button variant="ghost" onClick={onManage}>{t("raidBoard.steps.library.manage")}</Button>
+                    {onSaveAs && <Button variant="ghost" icon={<Save size={15} />} disabled={!canSave} onClick={onSaveAs}>{t("raidBoard.steps.library.saveAs")}</Button>}
+                    {onManage && <Button variant="ghost" onClick={onManage}>{t("raidBoard.steps.library.manage")}</Button>}
                     <Button variant="ghost" onClick={onClose}>{t("raidBoard.steps.library.close")}</Button>
                 </>
             )}

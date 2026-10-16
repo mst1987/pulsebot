@@ -30,8 +30,8 @@ export default function StepsCard({ board, edit, roster, players, isEvent, canWr
     bossName: string;
     /** "Aus Bibliothek wählen" */
     onLibrary: () => void;
-    /** "Als Taktik speichern" (the steps of this section) */
-    onSaveAs: () => void;
+    /** "Als Taktik speichern" (the steps of this section); absent = the library is not the caller's (#726), no button */
+    onSaveAs?: () => void;
 }) {
     const t = useT();
     const ask = useConfirm();
@@ -91,7 +91,7 @@ export default function StepsCard({ board, edit, roster, players, isEvent, canWr
                     <span className="rp-steps-tools">
                         <button type="button" className="rp-acard-add" onClick={onLibrary}><BookOpen size={14} aria-hidden="true" />{t("raidBoard.steps.fromLibrary")}</button>
                         <button type="button" className="rp-acard-add is-primary" onClick={() => setEditing(blankStep("tank"))} disabled={steps.length >= 30}><Plus size={14} aria-hidden="true" />{t("raidBoard.steps.addStep")}</button>
-                        {steps.length > 0 && <button type="button" className="rp-line-btn is-tool" aria-label={t("raidBoard.steps.saveAs")} data-tip={t("raidBoard.steps.saveAs")} onClick={onSaveAs}><Save size={15} /></button>}
+                        {steps.length > 0 && onSaveAs && <button type="button" className="rp-line-btn is-tool" aria-label={t("raidBoard.steps.saveAs")} data-tip={t("raidBoard.steps.saveAs")} onClick={onSaveAs}><Save size={15} /></button>}
                         {steps.length > 0 && <button type="button" className="rp-line-btn is-tool is-danger" aria-label={t("raidBoard.steps.clearAll")} data-tip={t("raidBoard.steps.clearAll")} onClick={clearAll}><Trash2 size={15} /></button>}
                     </span>
                 )}

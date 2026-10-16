@@ -187,7 +187,10 @@ describe("the orga of a category (a manager of its roster)", () => {
         const before = JSON.parse(JSON.stringify(eventStore.getEvent(foreign.id)));
         const signupsBefore = JSON.parse(JSON.stringify(signupStore.listSignups(foreign.id)));
         const calls = callsFor(foreign.id);
-        const scoped = [...manageRoutes.routes, ...detailRoutes.routes].filter((r) => r.handler.orgaScoped).map((r) => `${r.method} ${r.path}`);
+        // raidDetail.js also holds the raid plan's post (#726, covered in raidplan.categoryOrga.test.js)
+        const otherPart = new Set(["POST /api/raids/post-raidplan"]);
+        const scoped = [...manageRoutes.routes, ...detailRoutes.routes].filter((r) => r.handler.orgaScoped).map((r) => `${r.method} ${r.path}`)
+            .filter((key) => !otherPart.has(key));
         expect(Object.keys(calls).sort()).toEqual([...scoped].sort());
         for (const [key, payload] of Object.entries(calls)) {
             const [method, path] = key.split(" ");

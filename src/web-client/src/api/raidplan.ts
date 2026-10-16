@@ -238,6 +238,11 @@ export type RaidplanView = {
     /** the game version of the plan (#544): the catalog is that version's, templates and tactics are filtered by it */
     versionId: string;
     canWrite: boolean;
+    /**
+     * the shared library the editor offers besides this plan - saving and managing tactic profiles, the default room maps of a
+     * boss or an instance (`raidplan` write only): the orga of a category edits their raid's plan, not the library (#726)
+     */
+    canWriteLibrary: boolean;
     plan: { version: number; status: "draft" | "published"; publicPath: string; templateId: string; templateName: string; bosses: Record<string, Partial<RaidplanBoard>>; updatedAt: number; includedGroups?: IncludedGroups | null };
     bosses: RaidplanBoss[];
     besetzung: Besetzung;

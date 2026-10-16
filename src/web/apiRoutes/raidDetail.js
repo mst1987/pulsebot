@@ -43,14 +43,15 @@ const {
 const { pingMissingRaiders } = require("../../services/events/missingPing");
 const { buildRaidDetail } = require("../events/raidDetailView");
 const { postRaidplanLink } = require("../../services/raidplan/raidplanPost");
-const { userCan } = require("../../config/permissions");
+const { canWriteRaidplan } = require("../raidplan/raidplanAccess");
 const { raidViewer } = require("../../services/signups/eventVisibility");
 const { isGlobalRaidOrga } = require("../events/raidOrgaAccess");
 const { expectedRoleIds } = require("../../services/roster/categoryRoles");
 
 // Every action of this file is the orga's (permissions.userIsOrga) as well as its area's write right:
 // raider roles may hold `raids` write and are still no orga. Posting the raid plan's link is the
-// exception - it is area "raidplan", handed to the people who write the tactics.
+// exception - it is area "raidplan", handed to the people who write the tactics (and to the orga of
+// the raid's category, #726).
 const ORGA = { orga: true, csrf: true, body: true, archived: BY_EVENT };
 // The signup calls of a raid (#727, epic #723) are also the orga of its category's: the Anmelde-Aufruf,
 // "Fehlende pingen" and "Invite callen" let a manager of the current roster of the raid's category in,
@@ -76,14 +77,17 @@ function linkCardOf(found) {
 /**
  * GET /api/raids/detail?event=<id> — everything the event-detail page needs in
  * one read; built by raidDetailView.js, this is only the HTTP side. Posting the
- * plan's link is area "raidplan", so its step comes only with that write right.
+ * plan's link is area "raidplan", so its step comes only with that write right
+ * or to the orga of the raid's category (web/raidplan/raidplanAccess.js, #726).
  * A raider gets only the raids they may see (eventVisibility.js; any other answers
  * 404 like an unknown one) and none of the orga's parts (raidDetailView.js).
  */
 const getRaidDetail = withUser({}, async ({ user, req, res, url }) => {
     const eventId = (url.searchParams.get("event") || "").trim();
     const guildId = activeGuildFor(req);
-    const planPost = userCan(user, "raidplan", "write");
+    // the link's state and step follow the gate of POST /api/raids/post-raidplan per event (#726) - for a
+    // non-orga as well: the raid plan tab of a tactician or a category's orga posts through it
+    const planPost = await canWriteRaidplan(user, eventId, req);
     const viewer = await raidViewer(user, guildId);
     return sendResult(res, await buildRaidDetail({ guildId, eventId, planPost, viewer }));
 });
@@ -357,9 +361,10 @@ const postPostSoftres = withUser(ORGA, async ({ body, req, res }) => {
  * POST /api/raids/post-raidplan (#502) — post the raid plan's read link
  * (/p/<token>) into the event channel, publishing the plan first when needed;
  * a second post edits the same message. Body: { event, message? } — without
- * `message` the text of the last post stays.
+ * `message` the text of the last post stays. `raidplan` write for every raid,
+ * else the orga of the raid's category (#726, `orgaScoped` as the plan's routes).
  */
-const postPostRaidplan = withUser({ csrf: true, body: true, archived: BY_EVENT },async ({ user, body, req, res }) => {
+const postPostRaidplan = withUser({ orgaScoped: BY_EVENT, globalByWrite: true, write: "raidplan", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const eventId = q.str(body, "event");
     // The channel, title and start come from the server's own event list, never from the body.
     const { found, categoryId, errorMessage, code } = await resolveEventForPost(req, eventId);

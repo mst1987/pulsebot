@@ -5,8 +5,11 @@ import { useToast } from "../../shell/Jobs";
 import { useT } from "../../../i18n";
 import { prepareMapFile } from "./mapUpload";
 
-/** One map a boss can have: `override` = it hides the defaults below it, so removing it is "back to the default". */
-export type MapRow = { key: string; label: string; has: boolean; override: boolean };
+/**
+ * One map a boss can have: `override` = it hides the defaults below it, so removing it is "back to the default";
+ * `locked` = shown, but not the caller's to change (a default map for the orga of a category, #726).
+ */
+export type MapRow = { key: string; label: string; has: boolean; override: boolean; locked?: boolean };
 
 /**
  * The room maps of a boss, most specific first: this plan's (or this template's)
@@ -72,7 +75,7 @@ export default function MapPanel({ rows, canWrite, onChanged }: {
                         <strong>{row.label}</strong>
                         <span className="rp-muted">{row.has ? t("raidBoard.board.mapHas") : t("raidBoard.board.mapNone")}</span>
                     </div>
-                    {canWrite && (
+                    {canWrite && !row.locked && (
                         <div className="rp-map-btns">
                             <Button variant="ghost" size="sm" disabled={busy} onClick={() => { setTarget(row.key); input.current?.click(); }}>
                                 {row.has ? t("raidBoard.board.mapReplace") : t("raidBoard.board.mapUpload")}
