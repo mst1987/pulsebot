@@ -115,6 +115,21 @@ describe("councilSyncPayloadV3", () => {
         for (const key of Object.keys(v2)) expect(r).toHaveProperty(key);
     });
 
+    it("carries a hand list (#760) as it is - owned, total, missing - but names no BiS weapon from the TBC table", () => {
+        const hand = row({
+            bis: {
+                tier: "", source: "manual", owned: 1, total: 3,
+                // a TBC weapon id on a Forever hand list says nothing about Forever's weapons
+                items: [{ id: WEAPON, owned: false }, { id: TRINKET, owned: true }, { id: 900001, owned: false }],
+            },
+        });
+        const [r] = councilSyncPayloadV3([entry({ built: { rows: [hand], weights: WEIGHTS } })]).categories[0].raiders;
+        expect(r.bis).toEqual({ tier: "", source: "manual", owned: 1, total: 3, missing: [WEAPON, 900001] });
+        expect(r.bisWeapons).toEqual([]);
+        const [v2] = councilSyncPayloadV2([entry({ built: { rows: [hand], weights: WEIGHTS } })]).categories[0].raiders;
+        expect(v2.bis.missing).toEqual([WEAPON, 900001]);
+    });
+
     it("carries every council role - no legacy filter - and the view's role as it is", () => {
         const rows = ["caster", "healer", "tank", "melee", "ranged"].map((role) => row({ key: role, character: role, role }));
         const p = councilSyncPayloadV3([entry({ built: { rows, weights: WEIGHTS } }), entry({ id: "t", opts: { ...opts, role: "tank" } })]);

@@ -1,6 +1,6 @@
 // The council of a version without content data (#748): no BiS tabs, no tier filter,
 // no simulation - an honest hint instead - while the raiders and their needs stay.
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
@@ -14,6 +14,7 @@ vi.mock("../../api", async (orig) => ({
     getLootCouncil: vi.fn(),
     getBisLists: vi.fn(),
     searchCouncilItems: vi.fn(),
+    getManualBis: vi.fn(),
 }));
 
 const NONE = { bis: false, sim: false, tiers: false, itemTable: false };
@@ -61,6 +62,26 @@ describe("loot council page without content data", () => {
         expect(screen.queryByText("BiS-Liste")).not.toBeInTheDocument();
         expect(screen.queryByText("Simulation")).not.toBeInTheDocument();
         expect(screen.getByText("Gear-Quelle")).toBeInTheDocument();
+    });
+
+    it("on hand lists (#760): both BiS tabs, a calm hint while no list exists, the editor instead of the WoWSims matrix", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getManualBis).mockResolvedValue({
+            versionId: "forever", versionLabel: "WoW Forever", available: true, off: false, search: true, maxPerSlot: 3,
+            slots: [{ slot: 0, slotName: "Kopf" }], specs: [], lists: {},
+        });
+        const roster = councilData().roster.map((r) => ({ ...r, bis: { ...r.bis, total: 0, owned: 0, items: [] } }));
+        vi.mocked(api.getLootCouncil).mockResolvedValue(councilData({
+            content: { ...NONE, manualBis: true }, roster, gaps: [], sim: { available: false, version: "", hint: "" }, versionId: "forever",
+        }));
+        renderPage(<LootCouncilPage />, { route: "/lootcouncil?tab=roster" });
+        expect(await screen.findByText("Anna")).toBeInTheDocument();
+        expect(screen.queryByText(/noch keine BiS-Listen und keine Simulation/)).not.toBeInTheDocument();
+        expect(screen.getByText(/Legt sie je Spec im Tab „BiS-Listen“ an/)).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Offene BiS-Items/ })).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Zu den BiS-Listen" }));
+        await waitFor(() => expect(api.getManualBis).toHaveBeenCalledWith("forever"));
+        expect(api.getBisLists).not.toHaveBeenCalled();
     });
 
     it("shows nothing of this for TBC", async () => {

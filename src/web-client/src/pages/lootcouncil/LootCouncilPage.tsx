@@ -49,6 +49,7 @@ import { CouncilTabs } from "./CouncilTabs";
 import { RosterTab } from "./RosterTab";
 import { GapsTab } from "./GapsTab";
 import { BisListsTab } from "./BisListsTab";
+import { ManualBisTab } from "./ManualBisTab";
 import { CompareTab } from "./CompareTab";
 import { ProfilesTab } from "./ProfilesTab";
 import { CouncilHead } from "./CouncilHead";
@@ -138,7 +139,9 @@ function CouncilPage() {
     const [data, setData] = useState<LootCouncilData | null>(null);
     // A version without BiS data has no BiS tabs (#748): a stored one opens the Raider tab.
     const content = councilContent(data);
-    const shownTab = !content.bis && (tab === "bis" || tab === "bislists") ? "roster" : tab;
+    // Hand lists (#760): a version without BiS data keeps both BiS tabs, its lists are the orga's.
+    const hasBis = content.bis || !!content.manualBis;
+    const shownTab = !hasBis && (tab === "bis" || tab === "bislists") ? "roster" : tab;
     const [error, setError] = useState<ApiError | null>(null);
     const [loading, setLoading] = useState(true);
     // Whether a first load has landed — after it, reloads run as quiet jobs
@@ -421,10 +424,17 @@ function CouncilPage() {
             ) : null}
 
             {/* A version without content data says so, instead of showing TBC's (#748). */}
-            {!content.bis ? <div className="lc-panel empty" role="note">{t(content.off ? "lootcouncil.noContent.off" : "lootcouncil.noContent.text")}</div> : null}
+            {!hasBis ? <div className="lc-panel empty" role="note">{t(content.off ? "lootcouncil.noContent.off" : "lootcouncil.noContent.text")}</div> : null}
+            {/* Hand lists without any list yet (#760): one calm line where to start. */}
+            {content.manualBis && !roster.some((r) => r.bis.total) && shownTab !== "bislists" ? (
+                <div className="lc-panel lc-mb-hint" role="note">
+                    <span>{t("lootcouncil.manualBis.noListsYet")}</span>
+                    <Button variant="ghost" size="sm" icon="inv_misc_book_09" onClick={() => patch({ tab: "bislists" })}>{t("lootcouncil.manualBis.openTab")}</Button>
+                </div>
+            ) : null}
 
             {/* Tabs first, then the one filter line they all share. */}
-            <CouncilTabs tab={shownTab} patch={patch} rosterCount={roster.length} gapCount={gaps.length} hasBis={content.bis} />
+            <CouncilTabs tab={shownTab} patch={patch} rosterCount={roster.length} gapCount={gaps.length} hasBis={hasBis} />
 
             <FilterBar
                 data={data}
@@ -473,7 +483,11 @@ function CouncilPage() {
 
             {/* Die Listen selbst — die einzige Ansicht hier, die nicht von den
                 Raidern und ihrem Loot abhängt, sondern nur von WoWSims. */}
-            {shownTab === "bislists" ? <BisListsTab view={view} patch={patch} versionId={data.versionId} /> : null}
+            {/* Ohne eigene BiS-Daten (#760): die von Hand gepflegten Listen der Orga. */}
+            {shownTab === "bislists" && content.manualBis
+                ? <ManualBisTab versionId={data.versionId || ""} canWrite={canWrite} onSaved={() => { void load(); }} />
+                : null}
+            {shownTab === "bislists" && !content.manualBis ? <BisListsTab view={view} patch={patch} versionId={data.versionId} /> : null}
 
             {/* Wer hat was bekommen, nebeneinander: dieselben Raider und derselbe
                 Loot wie im Raider-Tab, nur als Matrix statt als Tooltip je Zeile. */}

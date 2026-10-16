@@ -290,7 +290,10 @@ function itemClassesFor(instances) {
 function raiderViewV3(row) {
     const base = raiderView(row, true);
     const parts = row.needParts || {};
-    const bisWeapons = [...new Set(((row.bis && row.bis.items) || [])
+    // A hand list (#760) is of a version without item table: its ids say nothing
+    // about TBC's weapons, so it names no BiS weapon (like the server's noTable weighting).
+    const handList = row.bis && row.bis.source === "manual";
+    const bisWeapons = handList ? [] : [...new Set(((row.bis && row.bis.items) || [])
         .map((i) => Number(i.id) || 0)
         .filter((id) => id && itemFacts(id).weapon))];
     const counter = droughtCounter((row.items || []).map((it) => ({ awardedAt: it.awardedAt, weight: it.weight })));

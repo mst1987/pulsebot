@@ -55,6 +55,7 @@ jest.mock("../../../src/utils/wowsims/engine", () => ({
 }));
 jest.mock("../../../src/services/discord/discord", () => ({ listCategories: jest.fn(() => []) }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/utils/loot/wowhead", () => ({ ...jest.requireActual("../../../src/utils/loot/wowhead"), searchItems: jest.fn(async () => []) }));
 
 let mockUser = null;
 let mockBody = {};
@@ -79,6 +80,12 @@ const {
     postExclude, postRole, getExport, postArmoryRefresh, postLogGear, getViews, postView, routes,
 } = routesModule;
 const { mockRes, status, body, json } = require("../../helpers/http");
+const manualBisStore = require("../../../src/stores/manualBisStore");
+const wowheadUtil = require("../../../src/utils/loot/wowhead");
+const { tempStoreFile } = require("../../helpers/tempStore");
+
+beforeAll(() => manualBisStore.useFile(tempStoreFile("council-manual-bis.json")));
+afterAll(() => manualBisStore.useFile(null));
 
 const ADMIN = { id: "1", name: "Admin", isAdmin: true };
 const READER = { id: "2", name: "Reader", isAdmin: false, access: { lootcouncil: { read: true, write: false } } };
@@ -174,7 +181,8 @@ describe("GET /api/lootcouncil for a version without council content (#748)", ()
         getConfig.mockReturnValue({ mainVersion: "forever" });
         const res = await call(getLootCouncil, "/api/lootcouncil", "?item=30000");
         const answer = body(res);
-        expect(answer.content).toEqual({ bis: false, sim: false, tiers: false, itemTable: false });
+        // no BiS data of its own: the hand lists (#760) - none kept yet, so no focus and no gaps
+        expect(answer.content).toEqual({ bis: false, sim: false, tiers: false, itemTable: false, manualBis: true });
         expect(answer.versionId).toBe("forever");
         expect(answer.gaps).toEqual([]);
         expect(answer.focus).toBeNull();
@@ -183,6 +191,42 @@ describe("GET /api/lootcouncil for a version without council content (#748)", ()
         expect(lc.filterOptions).toHaveBeenCalledWith(answer.content);
         expect(answer.sim.available).toBe(false);
         expect(answer.sim.hint).toMatch(/keine Simulation/);
+    });
+
+    it("on hand lists (#760): gaps and the drop focus from the lists, by need, never the TBC table", async () => {
+        getConfig.mockReturnValue({ mainVersion: "forever" });
+        manualBisStore.setSlot("forever", "Priest-Shadow", 0, [{ id: 900001, name: "Kapuze", icon: "inv_helmet_01", quality: 4 }]);
+        const handRow = (key, needScore, owned) => ({
+            key, character: key, classColor: "", specKey: "Priest-Shadow", specLabel: "Schattenpriester", specIconUrl: "",
+            needScore, needParts: {}, lootCount: 0, lootTotal: 0, otherCount: 0, items: [], daysSinceLoot: null, lastAwardAt: 0,
+            gear: null, simSupported: false,
+            bis: { source: "manual", owned: owned ? 1 : 0, total: 1, items: [{ id: 900001, name: "Kapuze", slot: 0, slotName: "Kopf", alternatives: [], owned, bisSpecs: [] }] },
+        });
+        lc.councilRoster.mockReturnValue({ rows: [handRow("anna", 0.4, false), handRow("bert", 0.9, false), handRow("cleo", 0.7, true)], avgLootCount: 0, bisTier: "", skipped: 0, categorySources: {} });
+        const gaps = body(await call(getLootCouncil)).gaps;
+        expect(gaps.map((g) => [g.id, g.name, g.wantedBy.map((w) => w.key)])).toEqual([[900001, "Kapuze", ["anna", "bert"]]]);
+        expect(gaps[0].candidates.map((c) => c.key)).toEqual(["bert", "anna"]);
+        const focus = body(await call(getLootCouncil, "/api/lootcouncil", "?item=900001")).focus;
+        expect(focus.item).toMatchObject({ id: 900001, name: "Kapuze", iconUrl: expect.stringContaining("inv_helmet_01") });
+        expect(focus.candidates.map((c) => c.key)).toEqual(["bert", "anna"]);
+        expect(focus.owned).toEqual([expect.objectContaining({ key: "cleo", source: "worn" })]);
+        expect(lc.candidateSplit).not.toHaveBeenCalled();
+        expect(lc.bisGaps).not.toHaveBeenCalled();
+        // the drop picker searches the hand lists
+        const hits = body(await call(getItemSearch, "/api/lootcouncil/item-search", "?q=kap&v=forever")).items;
+        expect(hits.map((h) => [h.id, h.name])).toEqual([[900001, "Kapuze"]]);
+        expect(searchItems).not.toHaveBeenCalled();
+        expect(wowheadUtil.searchItems).not.toHaveBeenCalled();
+        // the weighting's exceptions (`wowhead=1`) add Wowhead of the version, without doubles
+        getConfig.mockReturnValue({ mainVersion: "forever", versionSettings: { forever: { wowheadPath: "forever" } } });
+        wowheadUtil.searchItems.mockResolvedValue([
+            { id: 900001, name: "Kapuze", iconUrl: "a", quality: 4 },
+            { id: 900003, name: "Kapuzenmantel", iconUrl: "b", quality: 3 },
+        ]);
+        const withWowhead = body(await call(getItemSearch, "/api/lootcouncil/item-search", "?q=kap&v=forever&wowhead=1")).items;
+        expect(withWowhead.map((h) => [h.id, h.bisSpecs.length])).toEqual([[900001, 1], [900003, 0]]);
+        expect(wowheadUtil.searchItems).toHaveBeenCalledWith("kap", { path: "forever", limit: 12 });
+        manualBisStore.setSlot("forever", "Priest-Shadow", 0, []);
     });
 
     it("keeps TBC as it was", async () => {

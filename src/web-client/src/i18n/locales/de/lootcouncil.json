@@ -5,6 +5,44 @@
         "drop": "Für diese Spielversion gibt es noch keine Item-Tabelle und keine Simulation, der Drop-Check kann keine Kandidaten bestimmen.",
         "off": "Die BiS-Listen sind für diese Spielversion ausgeschaltet (Einstellungen → Spielversion). Bedarf, Wünsche, erhaltener Loot und die Gewichtung gelten weiter."
     },
+    "manualBis": {
+        "crumb": "BiS-Listen › {version}",
+        "specTitle": "Spec wählen",
+        "specHint": "Für diese Spielversion gibt es keine fertigen BiS-Listen (keine WoWSims-Daten). Die Orga pflegt sie hier je Spec und Slot von Hand – der Loot-Council zählt danach „BiS n von m“ und zeigt die offenen Items.",
+        "filled": {
+            "one": "{count} von {total} Slots gepflegt",
+            "other": "{count} von {total} Slots gepflegt"
+        },
+        "slotsTitle": {
+            "one": "{count} von {total} Slots",
+            "other": "{count} von {total} Slots"
+        },
+        "slotsHint": "Je Slot bis zu {max} Items: das erste ist BiS, weitere gelten als gleich gut – trägt ein Raider eines davon, ist der Slot erledigt.",
+        "bis": "BiS",
+        "bisTip": "Das beste Item für diesen Slot",
+        "alt": "Alternative",
+        "altTip": "Gilt als gleich gut: trägt ein Raider es, ist der Slot erledigt.",
+        "unknownTip": "Unbekanntes Item",
+        "unknownTipSub": "Wowhead kennt diese Item-ID für die Spielversion (noch) nicht. Sie bleibt gespeichert und zählt wie jedes andere Item.",
+        "itemId": "Item {id}",
+        "makeBis": "Als BiS nach vorn",
+        "remove": "{name} entfernen",
+        "add": "Item für {slot} hinzufügen",
+        "closeAdd": "Hinzufügen schließen",
+        "emptySlot": "Noch kein Item",
+        "searchPlaceholder": "Item auf Wowhead suchen …",
+        "idPlaceholder": "Item-ID",
+        "addById": "Hinzufügen",
+        "noSearch": "Für {version} ist keine Wowhead-Suche eingerichtet (Einstellungen → Spielversion). Items lassen sich per Item-ID eintragen.",
+        "unresolved": "Wowhead kennt Item {ids} (noch) nicht – mit der ID gespeichert.",
+        "stamp": "Zuletzt geändert von {by} am {date}",
+        "loading": "BiS-Listen werden geladen …",
+        "loadFailed": "Die BiS-Listen konnten nicht geladen werden.",
+        "notHere": "Diese Spielversion hat eigene BiS-Listen – von Hand gepflegte Listen gibt es nur für Versionen ohne BiS-Daten.",
+        "noListsYet": "Für diese Spielversion gibt es noch keine BiS-Listen. Legt sie je Spec im Tab „BiS-Listen“ an – dann zeigt der Council, wem was fehlt.",
+        "openTab": "Zu den BiS-Listen",
+        "dropNotListed": "Dieses Item steht auf keiner BiS-Liste. Ohne Item-Tabelle nennt der Drop-Check nur Raider, auf deren Liste das Item steht."
+    },
     "role": {
         "caster": "Caster",
         "healer": "Heiler",
@@ -191,6 +229,10 @@
         "meta": {
             "one": "ilvl {ilvl} · fehlt {count} Raider(n)",
             "other": "ilvl {ilvl} · fehlt {count} Raider(n)"
+        },
+        "metaNoIlvl": {
+            "one": "fehlt {count} Raider",
+            "other": "fehlt {count} Raidern"
         },
         "proposal": "Vorschlag",
         "pendingTipSub": "„Als Drop prüfen“ rechnet es in Sekunden, „Alle BiS-Items durchrechnen“ die ganze Liste.",
@@ -540,6 +582,8 @@
         "bisCrumb": "{character} › BiS-Lücken",
         "wowheadNote": "Geschriebene Wowhead-Liste: nennt Items, keine Sockel und keine Verzauberungen.",
         "wowsimsNote": "Simuliertes WoWSims-Set.",
+        "manualLabel": "Eigene Liste",
+        "manualNote": "Von der Orga gepflegte Liste (Tab „BiS-Listen“): nennt Items, keine Sockel und keine Verzauberungen.",
         "listOf": "Liste von {from}.",
         "tierExact": "Tier {tier}.",
         "tierOlder": "Tier {tier} (neueste verfügbare Liste).",

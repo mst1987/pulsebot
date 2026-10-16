@@ -43,7 +43,10 @@ export function GapCard({ gap, sim, expanded, onToggle, sortState }: {
                     quality={gap.quality}
                     meta={<>
                         <ContentBadge contentId={gap.contentId} />
-                        {gap.boss ? `${gap.boss} · ` : ""}{t("lootcouncil.gaps.meta", { ilvl: gap.ilvl, count: gap.wantedBy.length })}
+                        {gap.boss ? `${gap.boss} · ` : ""}{gap.ilvl
+                            ? t("lootcouncil.gaps.meta", { ilvl: gap.ilvl, count: gap.wantedBy.length })
+                            // a hand list (#760) knows no item level
+                            : t("lootcouncil.gaps.metaNoIlvl", { count: gap.wantedBy.length })}
                     </>}
                 />
                 <BisSpecs specs={gap.bisSpecs} />

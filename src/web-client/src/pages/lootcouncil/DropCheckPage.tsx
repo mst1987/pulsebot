@@ -54,6 +54,8 @@ export default function DropCheckPage() {
     const [simAvailable, setSimAvailable] = useState(false);
     // The council's version has no item table (#748): the drop check says so instead of looking items up.
     const [noItemTable, setNoItemTable] = useState(false);
+    // Hand lists (#760): the candidates are the raiders whose list names the drop.
+    const [manualBis, setManualBis] = useState(false);
     const [versionId, setVersionId] = useState("");
     // The council's version's Wowhead path (#542); undefined until loaded = the stored (TBC) one
     const [wowheadPath, setWowheadPath] = useState<string | undefined>(undefined);
@@ -106,6 +108,7 @@ export default function DropCheckPage() {
                 setSimAvailable(d.sim.available);
                 setWowheadPath(d.wowheadPath);
                 setNoItemTable(!!d.content && !d.content.itemTable);
+                setManualBis(!!d.content && !!d.content.manualBis);
                 setVersionId(d.versionId || "");
                 setWeights(d.weights);
                 // Ohne Simulation gibt es keinen Zugewinn und keine Empfehlung —
@@ -210,7 +213,7 @@ export default function DropCheckPage() {
             ) : error ? (
                 <div className="empty">{error.message}</div>
             ) : !focus ? (
-                <div className="lc-panel empty">{noItemTable ? t("lootcouncil.noContent.drop") : t("lootcouncil.drop.unknownItem")}</div>
+                <div className="lc-panel empty">{manualBis ? t("lootcouncil.manualBis.dropNotListed") : noItemTable ? t("lootcouncil.noContent.drop") : t("lootcouncil.drop.unknownItem")}</div>
             ) : (
                 <>
                     <div className="lc-panel lc-dropitem2">

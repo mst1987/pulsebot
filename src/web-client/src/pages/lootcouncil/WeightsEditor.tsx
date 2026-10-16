@@ -7,7 +7,7 @@
 // Everything is −/+ steppers, nothing is typed. The editor only changes the
 // draft it is handed; saving is the profile tab's one primary button. A reader
 // sees the same sections without the controls.
-import { useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { searchCouncilItems, type CouncilProfileData, type CouncilWeightSettings, type ItemSearchResult, type NeedShares } from "../../api";
 import { Button, WowIcon } from "../../components/ui";
 import { MinusIcon, PlusIcon, XIcon } from "../../components/ui/icons";
@@ -82,10 +82,14 @@ export function WeightsEditor({ draft, onChange, data, readOnly }: {
     draft: CouncilWeightSettings;
     onChange: (next: CouncilWeightSettings) => void;
     /** The profile answer: item info of the stored exceptions, ids and limits. */
-    data: Pick<CouncilProfileData, "itemInfo" | "classIds" | "needIds" | "limits">;
+    data: Pick<CouncilProfileData, "itemInfo" | "classIds" | "needIds" | "limits" | "versionId">;
     readOnly: boolean;
 }) {
     const t = useT();
+    // The exceptions are items of the profile's version (#760): TBC's item table,
+    // or - without one (Forever) - the hand lists plus Wowhead of the version.
+    const versionId = data.versionId || "";
+    const searchItems = useCallback((q: string) => searchCouncilItems(q, "", versionId, { wowhead: true }), [versionId]);
     // Icons and names of items added in this session (the server knows the stored ones).
     const [picked, setPicked] = useState<Record<string, { name: string; iconUrl: string; quality: number | null }>>({});
     const ro = readOnly;
@@ -165,7 +169,7 @@ export function WeightsEditor({ draft, onChange, data, readOnly }: {
                 )}
                 {!ro && items.length < limits.items ? (
                     <div className="lc-wpicker">
-                        <ItemSearchPicker search={searchCouncilItems} onPick={addItem} placeholder={t("lootcouncil.weights.searchItem")} />
+                        <ItemSearchPicker search={searchItems} onPick={addItem} placeholder={t("lootcouncil.weights.searchItem")} />
                     </div>
                 ) : null}
             </Section>
