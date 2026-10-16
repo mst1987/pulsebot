@@ -20,7 +20,8 @@ const { submitSignup, submitSignups, httpStatusFor, roleCounts } = require("../.
 const { memberEventList, profileForSignup, signupSummary } = require("../signups/signupView");
 const { viewerRoles } = require("../signups/viewerRoles");
 const { noteMode, isNoteStatus, MIN_NOTE } = require("../../services/signups/signupNotes");
-const { userCanAny, userIsOrga } = require("../../config/permissions");
+const { userIsOrga } = require("../../config/permissions");
+const { isGlobalRaidOrga, canOrgaRaid } = require("../events/raidOrgaAccess");
 const { VERSIONS } = require("../../config/gameVersions");
 const { mainVersionFor, classesOfVersion, resolveVersionQuery, versionOfEvent } = require("../../services/events/mainVersion");
 
@@ -50,7 +51,10 @@ const getSignups = withUser({}, async ({ user, req, res, url }) => {
     const { versionId } = resolveVersionQuery(url && url.searchParams.get("version"), { config });
     const { rows, rolesUnknown } = memberEventList(groups, {
         userId: user.id, guildId, config, roleIds: roles.roleIds, viewAs: roles.viewAs, all,
-        byOrga: userCanAny(user, ["raids"], "write"), profile,
+        // byOrga only clears the "roster only" / "raider role missing" marks, which only "Alle
+        // Kategorien" (the global orga's) can show - a category orga's rows are the raids they may
+        // sign up for anyway, so no roster is asked here (#727: the save decides per raid)
+        byOrga: isGlobalRaidOrga(user), profile,
     });
     // A link to one raid (`?event=`, the Discord post's button) names its version,
     // so the page can switch to it when the menu shows another one.
@@ -78,14 +82,16 @@ const getSignups = withUser({}, async ({ user, req, res, url }) => {
 });
 
 /** PUT /api/signups — create, change or withdraw (status "absence") the caller's own signup. */
-const putSignup = withUser({ csrf: true, body: true, archived: (body) => body.eventId }, async ({ user, body, res }) => {
+const putSignup = withUser({ csrf: true, body: true, archived: (body) => body.eventId }, async ({ user, body, req, res }) => {
     const eventId = String(body.eventId || "").trim();
     if (!eventId) return apiError(res, 400, "bad_request", "Kein Event angegeben.");
-    // Whoever may change raids is the orga: the deadline does not bind them.
-    const byOrga = userCanAny(user, ["raids"], "write");
+    // The orga of this raid (#727: the global orga with `raids` write, or a manager of the current
+    // roster of its category - raidOrgaAccess.js, the rule of the `orgaScoped` gate): the deadline,
+    // a closed signup and the required message do not bind them.
+    const event = isOwnEventId(eventId) ? getEvent(eventId) : null;
+    const byOrga = event ? await canOrgaRaid(user, event, req) : false;
     // A category that requires a message with "Vielleicht" / "Absagen" requires
     // it here too — the dialog says so, this holds a bare request to the rule.
-    const event = isOwnEventId(eventId) ? getEvent(eventId) : null;
     if (event && !byOrga && isNoteStatus(body.status) && noteMode(event.categoryId) === "required"
         && String(body.comment || "").trim().length < MIN_NOTE) {
         return apiError(res, 400, "note_required", "Bitte hinterlasse eine kurze Nachricht an die Raidleitung.");
@@ -120,14 +126,15 @@ const MAX_BULK = 50;
  * one result per raid (saved, or refused with the reason, and the characters
  * skipped there) plus the fresh counts of the saved ones.
  */
-const postSignupsBulk = withUser({ csrf: true, body: true, archived: (body) => (Array.isArray(body.eventIds) ? body.eventIds : []) }, async ({ user, body, res }) => {
+const postSignupsBulk = withUser({ csrf: true, body: true, archived: (body) => (Array.isArray(body.eventIds) ? body.eventIds : []) }, async ({ user, body, req, res }) => {
     const eventIds = [...new Set((Array.isArray(body.eventIds) ? body.eventIds : []).map((id) => String(id || "").trim()).filter(Boolean))];
     if (!eventIds.length) return apiError(res, 400, "bad_request", "Keine Raids gewählt.");
     if (eventIds.length > MAX_BULK) return apiError(res, 400, "bad_request", `Höchstens ${MAX_BULK} Raids auf einmal.`);
     const characters = Array.isArray(body.characters) ? body.characters : [];
     const status = String(body.status || "signed");
     const results = await submitSignups(user.id, eventIds.map((eventId) => ({ eventId, characters, status })), {
-        byOrga: userCanAny(user, ["raids"], "write"),
+        // per raid (#727): the orga of one raid's category is exempt there, not in the others
+        byOrga: (event) => canOrgaRaid(user, event, req),
     });
     ok(res, {
         results: results.map((r) => {

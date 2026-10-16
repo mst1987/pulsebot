@@ -306,6 +306,7 @@
     "/api/system/status"
   ],
   "orgaScoped": [
+    "GET /api/raids/manage/raider",
     "GET /api/raids/setup/explain",
     "GET /api/raids/setup/signup",
     "POST /api/raidplan/apply",
@@ -315,6 +316,12 @@
     "POST /api/raidplan/map/delete",
     "POST /api/raidplan/publish",
     "POST /api/raidplan/suggest",
+    "POST /api/raids/invite-call",
+    "POST /api/raids/manage/raider",
+    "POST /api/raids/manage/raider/remove",
+    "POST /api/raids/manage/signups",
+    "POST /api/raids/notify",
+    "POST /api/raids/ping-missing",
     "POST /api/raids/post-raidplan",
     "POST /api/raids/setup/approve",
     "POST /api/raids/setup/confirm",
