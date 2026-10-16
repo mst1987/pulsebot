@@ -196,7 +196,7 @@ function checkSave(body, config) {
     const slot = requestedSlot(body.slot);
     if (slot === null) return fail(400, "unknown_slot", "Unbekannter Slot.");
     const ids = requestedIds(body.items);
-    if (!ids) return fail(400, "unknown_item", "Ungültige Item-Liste: erwartet eine Liste von Item-IDs.");
+    if (!ids) return fail(400, "unknown_item", `Ungültige Item-ID: erlaubt sind ganze Zahlen von 1 bis ${MAX_ITEM_ID}.`);
     if (ids.length > MAX_PER_SLOT) return fail(400, "too_many", `Höchstens ${MAX_PER_SLOT} Items je Slot.`);
     return { versionId, spec, slot, ids };
 }
