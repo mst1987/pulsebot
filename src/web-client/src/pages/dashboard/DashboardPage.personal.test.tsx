@@ -178,9 +178,9 @@ describe("Übersicht for a raider", () => {
         } as unknown as RaidplanPublic;
         vi.mocked(api.getRaidplanPublic).mockResolvedValue({ data: plan, etag: "" });
         await show(dashboard({ personal: personal({ upcoming: [myRaid({ planToken: "tok" })] }) }));
-        expect(api.getRaidplanPublic).toHaveBeenCalledWith("tok");
-        // the plan is read after the page: give a busy test run time for it
+        // the plan is read after the page: give a busy test run time for it, the call included
         const chip = await screen.findByRole("link", { name: "High Warlord Naj'entus" }, { timeout: 4000 });
+        expect(api.getRaidplanPublic).toHaveBeenCalledWith("tok");
         expect(chip).toHaveAttribute("href", "/p/tok?section=bt%2Fnajentus");
         expect(screen.queryByRole("link", { name: "Supremus" })).not.toBeInTheDocument();
         expect(screen.getByRole("link", { name: t("dashboard.personal.plan.open") })).toHaveAttribute("href", "/p/tok");
