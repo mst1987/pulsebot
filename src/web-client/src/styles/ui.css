@@ -290,7 +290,7 @@ dialog.dlg.dlg-flush .dlg-foot .dlg-hint { order: -1; margin-right: auto; }
 .login-card {
     position: relative; box-sizing: border-box; width: 100%; max-width: 400px; padding: 32px 30px 26px;
     display: flex; flex-direction: column; gap: 14px;
-    background: var(--panel); border: 1px solid var(--line); box-shadow: 0 24px 60px -30px rgba(0, 0, 0, .6);
+    background: var(--panel); border: 1px solid var(--line);
     clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
 }
 .login-card::after {
