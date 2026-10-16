@@ -300,5 +300,6 @@
     "/api/system/backup",
     "/api/system/backup/snapshot",
     "/api/system/status"
-  ]
+  ],
+  "orgaScoped": []
 }

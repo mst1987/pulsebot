@@ -19,7 +19,32 @@ jest.mock("../../../src/services/events/eventArchive", () => ({
     }),
 }));
 
+// The category orga (#724): steered per test - who manages some roster, which events are theirs.
+let mockManagers = new Set();
+let mockOwnEvents = new Set();
+jest.mock("../../../src/services/roster/categoryOrga", () => {
+    const caches = new WeakMap();
+    return {
+        requestCache: jest.fn((req) => {
+            if (!caches.has(req)) caches.set(req, { roles: new Map() });
+            return caches.get(req);
+        }),
+        isAnyCategoryManager: jest.fn(async (user) => mockManagers.has(user.id)),
+        canOrgaEvent: jest.fn(async (user, event, opts) => {
+            if (opts && opts.loadGroups) await opts.loadGroups();
+            return mockManagers.has(user.id) && mockOwnEvents.has(typeof event === "object" ? event.id : event);
+        }),
+    };
+});
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
+jest.mock("../../../src/services/events/raidEventGroups", () => ({
+    loadEventGroups: jest.fn(async () => ({ groups: [] })),
+    eventLookbackSince: jest.fn(() => 123),
+}));
+
 const { withUser } = require("../../../src/web/http/apiHandler");
+const categoryOrga = require("../../../src/services/roster/categoryOrga");
+const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const { emptyAccess } = require("../../../src/config/permissions");
 
 const admin = { id: "1", name: "Admin", isAdmin: true };
@@ -204,5 +229,94 @@ describe("web/http/apiHandler withUser archived", () => {
         const res = await call(withUser({ csrf: true, archived: (_body, query) => query.get("event") }, fn), { url });
         expect(status(res)).toBe(409);
         expect(fn).not.toHaveBeenCalled();
+    });
+});
+
+// `orgaScoped` (#724): the global orga as with `orga: true`, and besides them the orga of the
+// category of every event the route names.
+describe("web/http/apiHandler withUser orgaScoped", () => {
+    const BY_EVENT = (body, query) => body.event || query.get("event");
+    const manager = () => limited({ raids: { read: true, write: false } });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockUser = admin;
+        mockCsrf = true;
+        mockArchived = new Set();
+        mockManagers = new Set(["7"]);
+        mockOwnEvents = new Set(["mine", "mine2"]);
+    });
+
+    it("refuses a wrong definition and marks the wrapper for the route table", () => {
+        expect(() => withUser({ orgaScoped: true }, jest.fn())).toThrow("orgaScoped");
+        expect(() => withUser({ orga: true, orgaScoped: BY_EVENT }, jest.fn())).toThrow("exclude");
+        expect(withUser({ orgaScoped: BY_EVENT }, jest.fn()).orgaScoped).toBe(true);
+        expect(withUser({ orga: true }, jest.fn()).orgaScoped).toBeUndefined();
+    });
+
+    it("lets the global orga through like `orga: true` - write still asked, no event check", async () => {
+        const fn = jest.fn(({ res }) => res.end("{}"));
+        mockUser = admin;
+        await call(withUser({ orgaScoped: BY_EVENT, write: "raids", body: true }, fn), { json: { event: "foreign" } });
+        mockUser = { ...limited({ raids: { read: true, write: true } }), id: "9", isOrga: true };
+        await call(withUser({ orgaScoped: BY_EVENT, write: "raids", body: true }, fn), { json: { event: "foreign" } });
+        expect(fn).toHaveBeenCalledTimes(2);
+        expect(categoryOrga.canOrgaEvent).not.toHaveBeenCalled();
+        expect(categoryOrga.isAnyCategoryManager).not.toHaveBeenCalled();
+
+        mockUser = { ...limited({ raids: { read: true, write: false } }), id: "9", isOrga: true };
+        const res = await call(withUser({ orgaScoped: BY_EVENT, write: "raids", body: true }, fn), { json: { event: "foreign" } });
+        expect(sent(res).error.code).toBe("forbidden");
+    });
+
+    it("refuses who is neither global nor category orga with orga_only, before the body", async () => {
+        mockUser = { ...limited({ raids: { read: true, write: true } }), id: "8" };
+        const fn = jest.fn();
+        const res = await call(withUser({ orgaScoped: BY_EVENT, write: "raids", body: true }, fn), { json: { event: "mine" } });
+        expect(status(res)).toBe(403);
+        expect(sent(res).error.code).toBe("orga_only");
+        expect(categoryOrga.canOrgaEvent).not.toHaveBeenCalled();
+        expect(fn).not.toHaveBeenCalled();
+    });
+
+    it("lets a category orga act on the events of their category, without the area's write right", async () => {
+        mockUser = manager();
+        const fn = jest.fn(({ res }) => res.end("{}"));
+        await call(withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true }, fn), { json: { event: "mine" } });
+        await call(withUser({ orgaScoped: BY_EVENT, write: "raids" }, fn), { method: "GET", url: new URL("http://x/api/t?event=mine") });
+        await call(withUser({ orgaScoped: (body) => body.ids, body: true }, fn), { json: { ids: ["mine", "mine2"] } });
+        await call(withUser({ orgaScoped: (body) => ({ id: body.event, categoryId: "c" }), body: true }, fn), { json: { event: "mine" } });
+        expect(fn).toHaveBeenCalledTimes(4);
+    });
+
+    it("answers not_category_orga for an event of another category, a mixed list and no event at all", async () => {
+        mockUser = manager();
+        const fn = jest.fn();
+        for (const json of [{ event: "foreign" }, { ids: ["mine", "foreign"] }, {}]) {
+            const res = await call(withUser({ orgaScoped: (body) => body.event || body.ids, body: true }, fn), { json });
+            expect(status(res)).toBe(403);
+            expect(sent(res).error).toEqual({ code: "not_category_orga", message: "Das darf nur die Orga dieser Kategorie." });
+        }
+        expect(fn).not.toHaveBeenCalled();
+    });
+
+    it("still checks CSRF and the archive before the event", async () => {
+        mockUser = manager();
+        mockCsrf = false;
+        let res = await call(withUser({ orgaScoped: BY_EVENT, csrf: true, body: true }, jest.fn()), { json: { event: "mine" } });
+        expect(sent(res).error.code).toBe("csrf");
+        mockCsrf = true;
+        mockArchived = new Set(["mine"]);
+        res = await call(withUser({ orgaScoped: BY_EVENT, csrf: true, body: true, archived: BY_EVENT }, jest.fn()), { json: { event: "mine" } });
+        expect(status(res)).toBe(409);
+    });
+
+    it("shares the request's role cache and loads the caller's event groups on demand", async () => {
+        mockUser = manager();
+        const fn = jest.fn(({ res }) => res.end("{}"));
+        await call(withUser({ orgaScoped: BY_EVENT, body: true }, fn), { json: { event: "mine" } });
+        const cacheOfGate = categoryOrga.isAnyCategoryManager.mock.calls[0][1].cache;
+        expect(categoryOrga.canOrgaEvent.mock.calls[0][2].cache).toBe(cacheOfGate);
+        expect(loadEventGroups).toHaveBeenCalledWith("g1", { sinceSeconds: 123 });
     });
 });

@@ -30,6 +30,7 @@ const orgaHub = require("./orgaHub");
 const { categoryNameFor } = require("../signups/availabilityPanel");
 const { plainCategoryName } = require("../../utils/signup/availabilityDialog");
 const { NEW_RAID_PREFIX } = require("./orgaHubPanel");
+const categoryOrga = require("../roster/categoryOrga");
 
 const DENIED = "Dafür fehlt dir das Recht.";
 const ACTIONS = { show: "links", add: "ladd", edit: "ledit", save: "lsave", del: "ldel" };
@@ -138,10 +139,11 @@ async function saveAndAnswer(interaction, categoryId, list, done) {
 }
 
 /**
- * Every `orga:` customId of the links (see the head comment). `isCategoryOrga(userId, categoryId)`
- * is the rule of "Raid anlegen" (orgaHubBot.js).
+ * Every `orga:` customId of the links (see the head comment). Who may: the orga of the category - the
+ * rule of "Raid anlegen" and of the web (services/roster/categoryOrga.js); `isCategoryOrga` replaces
+ * it in a test.
  */
-async function handleLinkAction(interaction, guildId, isCategoryOrga) {
+async function handleLinkAction(interaction, guildId, isCategoryOrga = categoryOrga.isCategoryOrgaById) {
     const { action, categoryId, index, hash } = parseLinkId(interaction.customId);
     const userId = str(interaction.user && interaction.user.id);
     const modalSubmit = typeof interaction.isModalSubmit === "function" && interaction.isModalSubmit();

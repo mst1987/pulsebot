@@ -688,6 +688,7 @@
         "offline": "Der Bot ist gerade nicht mit Discord verbunden, die Rollen fehlen in der Liste. Sie lassen sich später in den Einstellungen setzen.",
         "managers": "Manager",
         "managersHint": "Wer dieses Roster verwalten darf: Leute aufnehmen, Status ändern, Discord-Rollen geben. Admins dürfen es immer.",
+        "managersOrga": "Manager sind die Orga dieser Kategorie (Setup, Raidplan, Anmeldungen, Events).",
         "managerRoles": "Per Discord-Rolle",
         "managerUsers": "Einzelne Konten",
         "managerSearch": "Konto suchen",

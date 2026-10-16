@@ -12,13 +12,47 @@
 // unchanged. The area gate itself (apiAccess.js) still runs before any of this
 // in apiRouter.handle(); `write` only guards a handler that is called directly
 // or a GET that prepares an action.
+//
+// The orga (#723, docs/permissions.md "Kategorie-Orga") comes in two widths:
+//   orga: true            the global orga only (permissions.userIsOrga)
+//   orgaScoped: (body, query) => eventId(s)
+//                         the global orga exactly as with `orga: true` (every
+//                         other check unchanged), and besides them the orga of
+//                         the raid's category (a manager of its roster,
+//                         services/roster/categoryOrga.js). For such a category
+//                         orga the event's category is their right: `write` is
+//                         not asked, the area gate lets them in as well
+//                         (apiAccess.gate), and after the body is read every
+//                         event the function names must be one of their
+//                         categories - else 403 "not_category_orga". Naming no
+//                         event refuses them too (fail-closed).
+// The two are exclusive; the wrapper carries `orgaScoped = true` so the route
+// table and the area gate see the mark (routeTable.isOrgaScoped).
 const { requireAdmin, requireFullAdmin, requireCsrf } = require("./apiMiddleware");
 const { readJsonBody } = require("./apiBody");
 const { error } = require("./apiResponse");
+const { activeGuildFor } = require("./activeGuild");
 const { AREAS, userCan, userIsOrga } = require("../../config/permissions");
 const { archivedRefusal } = require("../../services/events/eventArchive");
+const categoryOrga = require("../../services/roster/categoryOrga");
+const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 
 const ORGA_ONLY = "Das darf nur die Orga.";
+const NOT_CATEGORY_ORGA = "Das darf nur die Orga dieser Kategorie.";
+
+/** The event groups of the caller's server, for a Raid-Helper event without snapshot (loaded on demand). */
+const groupsLoaderFor = (req) => () => loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
+
+/** Whether a category orga (not the global orga) may act on every event `ids` names. */
+async function categoryOrgaOfAll(user, ids, req) {
+    const list = [].concat(ids || []).map((v) => (v && typeof v === "object" ? v : String(v || "").trim())).filter(Boolean);
+    if (!list.length) return false;
+    const opts = { cache: categoryOrga.requestCache(req), loadGroups: groupsLoaderFor(req) };
+    for (const event of list) {
+        if (!(await categoryOrga.canOrgaEvent(user, event, opts))) return false;
+    }
+    return true;
+}
 
 const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
 
@@ -27,6 +61,10 @@ const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
  * @param {boolean} [opts.full]   only a full admin (requireFullAdmin) — the access settings and the foreign credentials
  * @param {boolean} [opts.orga]   only the orga (permissions.userIsOrga: full admin or an orga role) - an area
  *        right is no orga rank, raider roles hold some; 403 "orga_only" otherwise
+ * @param {(body: object, query: URLSearchParams) => string|object|Array<string|object>} [opts.orgaScoped]
+ *        the global orga (as `orga`) or the orga of the category of every event the function names
+ *        (an id or a row with `categoryId`); 403 "orga_only" for whom it is neither, 403
+ *        "not_category_orga" for a category orga outside the event's category (see the head comment)
  * @param {string}  [opts.write]  the area the caller needs at write level (403 otherwise)
  * @param {boolean} [opts.csrf]   check the X-CSRF-Token header (every mutating call)
  * @param {boolean} [opts.body]   parse the JSON body (always an object; `{}` when empty or invalid)
@@ -37,15 +75,23 @@ const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
  */
 function withUser(opts, fn) {
     if (typeof opts === "function") { fn = opts; opts = {}; }
-    const { full = false, orga = false, write = "", csrf = false, body = false, archived = null } = opts || {};
-    return async function handler(req, res, url) {
+    const { full = false, orga = false, orgaScoped = null, write = "", csrf = false, body = false, archived = null } = opts || {};
+    if (orgaScoped !== null && typeof orgaScoped !== "function") throw new Error("withUser: orgaScoped names the event(s) as (body, query) => id(s)");
+    if (orgaScoped && orga) throw new Error("withUser: orga and orgaScoped exclude each other");
+    async function handler(req, res, url) {
         const user = full ? requireFullAdmin(req, res) : requireAdmin(req, res);
         if (!user) return undefined;
         if (orga && !userIsOrga(user)) {
             error(res, 403, "orga_only", ORGA_ONLY);
             return undefined;
         }
-        if (write && !userCan(user, write, "write")) {
+        // A category orga: not the global orga, but a manager of some category's roster.
+        const scoped = !!orgaScoped && !userIsOrga(user);
+        if (scoped && !(await categoryOrga.isAnyCategoryManager(user, { cache: categoryOrga.requestCache(req) }))) {
+            error(res, 403, "orga_only", ORGA_ONLY);
+            return undefined;
+        }
+        if (write && !scoped && !userCan(user, write, "write")) {
             error(res, 403, "forbidden", `Keine Schreibrechte für „${LABELS[write] || write}“.`);
             return undefined;
         }
@@ -59,15 +105,15 @@ function withUser(opts, fn) {
                 return undefined;
             }
         }
-        return fn({
-            user,
-            body: parsed,
-            query: url && url.searchParams ? url.searchParams : new URLSearchParams(),
-            url,
-            req,
-            res,
-        });
-    };
+        const query = url && url.searchParams ? url.searchParams : new URLSearchParams();
+        if (scoped && !(await categoryOrgaOfAll(user, orgaScoped(parsed || {}, query), req))) {
+            error(res, 403, "not_category_orga", NOT_CATEGORY_ORGA);
+            return undefined;
+        }
+        return fn({ user, body: parsed, query, url, req, res });
+    }
+    if (orgaScoped) handler.orgaScoped = true;
+    return handler;
 }
 
-module.exports = { withUser };
+module.exports = { withUser, ORGA_ONLY, NOT_CATEGORY_ORGA };

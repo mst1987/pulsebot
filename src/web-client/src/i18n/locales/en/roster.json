@@ -688,6 +688,7 @@
         "offline": "The bot is not connected to Discord right now, so the roles are missing from the list. They can be set later in the settings.",
         "managers": "Managers",
         "managersHint": "Who may manage this roster: add people, change the status, give Discord roles. Admins always may.",
+        "managersOrga": "Managers are the orga of this category (setup, raid plan, signups, events).",
         "managerRoles": "By Discord role",
         "managerUsers": "Single accounts",
         "managerSearch": "Search an account",

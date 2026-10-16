@@ -20,8 +20,16 @@
 // lets the call through. That is how the loot views ("loot") share endpoints
 // with the full history ("history") without handing out the rest of that tab;
 // the handlers of the shared endpoints trim their payload accordingly.
-const { AREAS, userCanAny, userHasMenuAccess } = require("../../config/permissions");
-const { ROUTES, find, areasOf } = require("./routeTable");
+//
+// The orga of a category (#724, docs/permissions.md "Kategorie-Orga"): a route
+// whose handler is marked `orgaScoped` (withUser, routeTable.isOrgaScoped) also
+// lets in a menu user who manages some category's roster, whatever their area
+// rights - gate() asks that only after checkAccess() refused, and only on such a
+// route. The handler then checks the concrete event (403 "not_category_orga").
+// Every other route answers exactly as checkAccess() does.
+const { AREAS, userCanAny, userHasMenuAccess, userIsOrga } = require("../../config/permissions");
+const { ROUTES, find, areasOf, isOrgaScoped } = require("./routeTable");
+const categoryOrga = require("../../services/roster/categoryOrga");
 
 /** `{ [path]: area | [areas] }` — every gated path with its area(s), the shape the tests and the docs know. */
 const AREA_BY_PATH = {};
@@ -103,4 +111,18 @@ function checkAccess(pathname, method, user) {
     };
 }
 
-module.exports = { checkAccess, areasFor, levelFor, AREA_BY_PATH, UNGATED, ANY_AREA, TOKEN_AUTH };
+/**
+ * checkAccess(), plus the category orga on an `orgaScoped` route (see the head comment): an area
+ * refusal (403 "forbidden") of a menu user who is not the global orga but manages a category's
+ * roster lets them through. `req` keys the role cache the handler reuses.
+ * @returns {Promise<null | { status: number, code: string, message: string }>}
+ */
+async function gate(pathname, method, user, req) {
+    const denied = checkAccess(pathname, method, user);
+    if (!denied || denied.status !== 403 || denied.code !== "forbidden") return denied;
+    if (!user || !userHasMenuAccess(user) || userIsOrga(user)) return denied;
+    if (!isOrgaScoped(find(method, pathname))) return denied;
+    return (await categoryOrga.isAnyCategoryManager(user, { cache: categoryOrga.requestCache(req) })) ? null : denied;
+}
+
+module.exports = { checkAccess, gate, areasFor, levelFor, AREA_BY_PATH, UNGATED, ANY_AREA, TOKEN_AUTH };
