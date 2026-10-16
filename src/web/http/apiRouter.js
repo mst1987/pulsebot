@@ -8,7 +8,7 @@
 const { error } = require("./apiResponse");
 const { AppError } = require("./apiResult");
 const auth = require("./auth");
-const { checkAccess } = require("./apiAccess");
+const { gate } = require("./apiAccess");
 const { find, methodsFor } = require("./routeTable");
 
 /**
@@ -28,7 +28,7 @@ const { find, methodsFor } = require("./routeTable");
  */
 async function handle(pathname, req, res, url) {
     try {
-        const denied = checkAccess(pathname, req.method, auth.getUser(req));
+        const denied = await gate(pathname, req.method, auth.getUser(req), req);
         if (denied) {
             error(res, denied.status, denied.code, denied.message);
             return true;
