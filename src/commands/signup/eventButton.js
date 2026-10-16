@@ -1,18 +1,18 @@
 const { getEvent } = require("../../stores/eventStore");
-const { getSignup } = require("../../stores/signupStore");
+const { getSignup, migrateSignup } = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
 const { versionOfEvent } = require("../../services/events/mainVersion");
 const { archivedNotice } = require("../../services/events/eventArchive");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
-const { submitSignup, checkRaiderRole, maxCharactersFor } = require("../../services/signups/signupService");
+const { submitSignup, checkRaiderRole, maxCharactersFor, pickLimitFor } = require("../../services/signups/signupService");
 const { BUTTON_PREFIX } = require("../../services/events/eventMessage");
 const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
-const { characterOptions } = require("../../utils/signup/joinPicker");
+const { characterOptions, quickPicks } = require("../../utils/signup/joinPicker");
 const { classLabel, missingVersionLine } = require("../../utils/signup/signupDialog");
 const {
     parseButtonId, refusal, savedEmbed, picksWithStatus, firstCharacterTo, withAddedCharacter, orderedValues,
-    buildCharacterPicker, buildClassPicker, buildSpecPicker, buildNameModal, buildNoteModal, statusWord,
+    buildCharacterPicker, buildChangeRow, buildClassPicker, buildSpecPicker, buildNameModal, buildNoteModal, statusWord,
 } = require("../../utils/signup/signupButtons");
 const { answerPayload, answerUpdate } = require("../../utils/signup/signupReply");
 const { noteMode, MIN_NOTE } = require("../../services/signups/signupNotes");const { asEphemeral } = require("../../utils/discord/card");
@@ -30,7 +30,7 @@ const STATUS_ACTIONS = ["late", "tentative", "bench"];
 const reply = (interaction, payload, event = null) => {
     let body;
     if (typeof payload === "string") body = answerPayload(payload, { event, lang: langOfInteraction(interaction) });
-    else if (payload && payload.embed) body = answerPayload(payload.embed);
+    else if (payload && payload.embed) body = answerPayload(payload.embed, { components: payload.components || [] });
     else body = asEphemeral(payload);
     return interaction.replied || interaction.deferred ? interaction.followUp(body) : interaction.reply(body);
 };
@@ -79,8 +79,11 @@ async function blocked(event, uid, status, lang) {
     return access.error || "";
 }
 
-/** Save and answer with the confirmation or the service's reason. */
-async function save(interaction, event, input, { update = false } = {}) {
+/**
+ * Save and answer with the confirmation or the service's reason. `change`: the confirmation carries
+ * the select to swap or add characters (the quick "Anmelden", buildChangeRow).
+ */
+async function save(interaction, event, input, { update = false, change = false } = {}) {
     const uid = interaction.user.id;
     const previous = getSignup(event.id, uid);
     const result = await submitSignup(event.id, uid, {
@@ -94,8 +97,53 @@ async function save(interaction, event, input, { update = false } = {}) {
     }
     const emojis = await emojisFor(interaction);
     // "You are on the waiting list" belongs under the confirmation, not into the roster (#306).
-    const embed = savedEmbed(event, result.signup, profiles.getProfile(uid), { emojis, notice: result.notice, lang: langOfInteraction(interaction) });
-    return update ? done(interaction, embed) : reply(interaction, { embed });
+    const lang = langOfInteraction(interaction);
+    const embed = savedEmbed(event, result.signup, profiles.getProfile(uid), { emojis, notice: result.notice, lang });
+    if (update) return done(interaction, embed);
+    const row = change ? buildChangeRow(event, uid, { emojis, lang }) : null;
+    return reply(interaction, { embed, components: row ? [row] : [] });
+}
+
+/** A signup that counts as "in" (not an absence) with at least one character. */
+const activeSignup = (event, uid) => {
+    const mine = migrateSignup(getSignup(event.id, uid));
+    return mine && mine.status !== "absence" && (mine.characters || []).length ? mine : null;
+};
+
+/**
+ * Anmelden in one click (Oct 2026, design canvas "Schnellere Anmeldung", way A): signs up at once with
+ * the characters of the last signup in this category (else the likeliest one, joinPicker.quickPicks) and
+ * answers with the confirmation plus a select to swap or add. Already "Dabei" with every character: says
+ * so, with the same select. Signed up as Late/Tentative/Bench: back to "Dabei", same characters. No
+ * character in the profile: the class way (class, spec, name), like the select's class options.
+ */
+async function onQuick(interaction, event) {
+    const uid = interaction.user.id;
+    const lang = langOfInteraction(interaction);
+    const why = await blocked(event, uid, "signed", lang);
+    if (why) return reply(interaction, why, event);
+    const emojis = await emojisFor(interaction);
+    const mine = activeSignup(event, uid);
+    if (mine) {
+        const current = mine.characters;
+        if (current.every((c) => c.status === "signed")) {
+            const embed = savedEmbed(event, mine, profiles.getProfile(uid), { emojis, lang });
+            const row = buildChangeRow(event, uid, { emojis, lang });
+            const title = tr(lang, "You are already signed up for {title}", { title: String(event.title || "Raid") });
+            return reply(interaction, { embed: { ...embed, title }, components: row ? [row] : [] });
+        }
+        // Late / Tentative / Bench: "Anmelden" means "Dabei" - the same characters, signed
+        return save(interaction, event, { characters: current.map((c) => ({ character: c.character, spec: c.spec, status: "signed" })), status: "signed" }, { change: true });
+    }
+    const profile = profiles.getProfile(uid) || { characters: [] };
+    const options = characterOptions(profile, versionOfEvent(event));
+    if (!options.length) {
+        const notice = missingVersionLine(profile, versionOfEvent(event), lang)
+            || tr(lang, "No character in your profile yet – pick class and spec, then the bot asks for the name.");
+        return reply(interaction, buildClassPicker(event, "signed", { emojis, notice, lang }));
+    }
+    const picks = quickPicks(event, uid, options, { max: pickLimitFor(event, null) });
+    return save(interaction, event, { characters: picksWithStatus(picks, "signed"), status: "signed" }, { change: true });
 }
 
 /** Anmelden: one fitting character signs up at once, several get the select, none the class way. */
@@ -224,7 +272,7 @@ async function onNote(interaction, event, status) {
 
 module.exports = {
     // The public select (eventPick.js) runs the same steps.
-    onJoin, onClass, reply, emojisFor,
+    onJoin, onQuick, onClass, reply, emojisFor,
     name: BUTTON_PREFIX,
     description: "Anmelde-Buttons unter einer EventHelper-Event-Nachricht",
     // Signing up is for every raider; every step of the flow shares this access.
@@ -236,7 +284,7 @@ module.exports = {
         const isModal = !!(interaction.isModalSubmit && interaction.isModalSubmit());
         const lang = langOfInteraction(interaction);
         // A click on the public message replies; a step in the member's own message updates it.
-        const fromPublic = ["join", "class", "absence", "why", "note", ...STATUS_ACTIONS].includes(action);
+        const fromPublic = ["quick", "join", "class", "absence", "why", "note", ...STATUS_ACTIONS].includes(action);
         if (!event) {
             const gone = tr(lang, "This event no longer exists.");
             return fromPublic ? reply(interaction, gone) : done(interaction, gone);
@@ -247,6 +295,8 @@ module.exports = {
         const uid = interaction.user.id;
 
         switch (action) {
+            case "quick":
+                return onQuick(interaction, event);
             case "join":
                 return onJoin(interaction, event);
             case "class":

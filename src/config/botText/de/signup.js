@@ -72,6 +72,9 @@ module.exports = {
     "Pick up to {max} characters – the topmost in the list is your 1st choice.": "Wähle bis zu {max} Charaktere – der oberste in der Liste ist deine 1. Wahl.",
     "Pick your character.": "Wähle deinen Charakter.",
     "Choose all Characters to sign up with": "Alle Charaktere wählen, mit denen du dich anmeldest",
+    // the quick "Anmelden" (eventButton.js onQuick)
+    "Pick other or more characters …": "Andere oder weitere Charaktere wählen …",
+    "You are already signed up for {title}": "Du bist schon dabei: {title}",
     "Or a new character: pick a class …": "Oder ein neuer Charakter: Klasse wählen …",
     "Which class?": "Welche Klasse?",
     "**{class}** – which spec?": "**{class}** – welche Spec?",

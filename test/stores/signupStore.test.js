@@ -2,7 +2,7 @@ jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
 const {
-    listSignups, getSignup, lastSignupOf, saveSignup, removeSignup, deleteEventSignups, normalizeSignup, onSignupsChanged,
+    listSignups, getSignup, lastSignupOf, lastOwnSignupOf, saveSignup, removeSignup, deleteEventSignups, normalizeSignup, onSignupsChanged,
 } = require("../../src/stores/signupStore");
 
 describe("stores/signupStore", () => {
@@ -35,6 +35,9 @@ describe("stores/signupStore", () => {
         expect(lastSignupOf("u1")).toEqual({ eventId: "eh-2", character: "Heilmann", spec: "Priest-Holy" });
         expect(lastSignupOf("nobody")).toBeNull();
         expect(lastSignupOf("")).toBeNull();
+        // the quick "Anmelden" asks for the newest own one of some events only (its category)
+        expect(lastOwnSignupOf("u1", (eventId) => eventId === "eh-1")).toEqual({ eventId: "eh-1", character: "Schattenmann", spec: "Priest-Shadow" });
+        expect(lastOwnSignupOf("u1", () => false)).toBeNull();
     });
 
     it("falls back to the spec imported from Raid-Helper, and an own signup wins over it (#291)", () => {

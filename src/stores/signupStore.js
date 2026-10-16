@@ -170,6 +170,10 @@ function lastSignupOf(userId, { versionId = "", versionOf = null } = {}) {
     return imported ? { eventId: imported.eventId, character: imported.character, spec: imported.spec, imported: true } : null;
 }
 
+/**
+ * The raider's newest own signup (not an absence) whose event `keep(eventId)` accepts, else null —
+ * `{ eventId, character, spec }`; the quick "Anmelden" asks it for the event's category.
+ */
 function lastOwnSignupOf(userId, keep = null) {
     const uid = String(userId || "");
     if (!uid) return null;
@@ -283,6 +287,6 @@ function deleteEventSignups(eventId) {
 }
 
 module.exports = {
-    listSignups, getSignup, signupsOfUser, lastSignupOf, saveSignup, removeSignup, renameCharacter, deleteEventSignups,
+    listSignups, getSignup, signupsOfUser, lastSignupOf, lastOwnSignupOf, saveSignup, removeSignup, renameCharacter, deleteEventSignups,
     normalizeSignup, migrateSignup, onSignupsChanged, SIGNUPS_FILE, MAX_CHARACTERS, useFile: store.useFile,
 };

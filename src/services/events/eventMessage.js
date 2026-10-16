@@ -114,6 +114,7 @@ const WORDS = {
     bench: { de: "Bank", en: "Bench" },
     absence: { de: "Abgemeldet", en: "Absence" },
     absenceButton: { de: "Absagen", en: "Absence" },
+    quickButton: { de: "Anmelden", en: "Sign up" },
     tank: { de: "Tanks", en: "Tanks" },
     healer: { de: "Heiler", en: "Healers" },
     ranged: { de: "Fernkampf", en: "Ranged" },
@@ -446,6 +447,8 @@ function fitFields(fields) {
 
 const BUTTON_STYLE = { primary: 1, secondary: 2, success: 3, danger: 4 };
 const BUTTONS = {
+    // one click, the characters of the last signup in the category (Oct 2026, commands/signup/eventButton.js onQuick)
+    quick: { word: "quickButton", style: BUTTON_STYLE.success, icon: "signed" },
     late: { word: "late", style: BUTTON_STYLE.secondary, icon: "late" },
     tentative: { word: "tentative", style: BUTTON_STYLE.secondary, icon: "tentative" },
     bench: { word: "bench", style: BUTTON_STYLE.secondary, icon: "bench" },
@@ -468,18 +471,22 @@ function missingPingButton(event, emojis, lang) {
 }
 
 /**
- * Which components a phase offers, as rows: before the deadline the signup
- * select ("pick") and Late · Tentative · Bench · Absence; after it
- * Late · Absence; a closed signup only Absence; nothing once the raid started
- * or the event was cancelled. `pingMissing` adds the orga's "Ping missing" at
- * the end of the status row while the signup is open or past its deadline.
+ * Which components a phase offers, as rows: before the deadline
+ * Anmelden · Late · Tentative · Bench · Absence (one click signs up, Oct 2026,
+ * design canvas "Schnellere Anmeldung" way A) and under it the select for
+ * another character or a class ("pick"); after the deadline Late · Absence; a
+ * closed signup only Absence; nothing once the raid started or the event was
+ * cancelled. `pingMissing` adds the orga's "Ping missing": with "Anmelden" the
+ * status row is full (Discord: five buttons a row), so it gets a row of its own
+ * under the select; otherwise at the end of the status row.
  */
 function buttonRows(event, phase, now = Date.now(), { pingMissing = false } = {}) {
     const ping = pingMissing ? ["ping"] : [];
     if (phase === "open") {
         const allowed = allowedStatuses(event, { now });
         const buttons = ["late", "tentative", "bench"].filter((a) => allowed.includes(a));
-        return [allowed.includes("signed") ? ["pick"] : [], [...buttons, "absence", ...ping]].filter((r) => r.length);
+        if (!allowed.includes("signed")) return [[...buttons, "absence", ...ping]];
+        return [["quick", ...buttons, "absence"], ["pick"], ping].filter((r) => r.length);
     }
     if (phase === "deadline") return [["late", "absence", ...ping]];
     if (phase === "closed") return event && event.signupsClosed ? [["absence"]] : [];
@@ -507,7 +514,7 @@ function pickSelect(event, emojis, lang = "de") {
     return {
         type: 3,
         custom_id: pickSelectId(event.id),
-        placeholder: tr(lang, "Sign up – pick a character or class …"),
+        placeholder: tr(lang, "Another character or class …"),
         min_values: 1,
         max_values: 1,
         options: [mine, ...classes].slice(0, LIMITS.options),

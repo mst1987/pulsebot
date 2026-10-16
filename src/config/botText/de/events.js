@@ -22,7 +22,7 @@ module.exports = {
     "My characters …": "Meine Charaktere …",
     "from your profile – up to {max} at once": "aus deinem Profil – bis zu {max} auf einmal",
     "from your profile": "aus deinem Profil",
-    "Sign up – pick a character or class …": "Anmelden – Charakter oder Klasse wählen …",
+    "Another character or class …": "Anderer Charakter oder Klasse …",
     // the orga's button at the end of the status row (services/events/missingPingBot.js)
     "Ping missing": "Fehlende pingen",
     // the announcement of a new raid (services/events/eventAnnounce.js)
