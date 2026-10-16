@@ -39,6 +39,8 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
   (`cd src/web-client && npm run build`), dann `npm start` im Worktree. Testdaten: `npm run dev:seed`
   (Testraid mit 25 Anmeldungen, Setup, Raidplan) oder `data/settings` aus dem Hauptcheckout kopieren.
   Fester Dev-Discord-Server `1139509316387344395` (dort dürfen Agenten Kanäle anlegen/löschen).
+- Ein eigener Test-Launcher muss dotenv laden, bevor er Stores oder `src/config/variables` lädt,
+  sonst läuft die Instanz auf dem Default-Port 3005.
 - Test-URL `http://localhost:<port>/` gehört in Bericht und PR-Body. Nach dem Merge: Instanz stoppen
   (Ports 3010–3020 per `Get-NetTCPConnection`), dann `git worktree remove` **einzeln, ohne
   `--force`**, danach `git worktree list` prüfen; bei „not a git repository" sofort stoppen.
@@ -153,6 +155,10 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     categoryRoles, Roster roleIds/trialRoleId/managers.roleIds, roleSync beide Seiten), keine
     Discord-Berechtigungen über @everyone hinaus, keine Kanal-Overwrites mit allow
     (`services/addons/updateRole.js`; neue rollenbasierte Rechte dort nachtragen).
+17. Login-Rücksprünge und interne Umleitungen: `server.js` dekodiert den pathname, daher kann jede
+    Route, die aus dem Pfad weiterleitet (`legacyMount` `/admin`, `/admin2`), aus einem harmlosen
+    Pfad `//host` machen. Jedes Umleitungsziel durch `safeReturnPath` schicken und Ketten
+    (Rücksprung → zweite Umleitung) im Test prüfen.
 
 ## Fach-Agenten
 

@@ -3,6 +3,24 @@
     "loading": "Looking for the newest versions …",
     "version": "v{version}",
     "news": "What's new?",
+    "allNotes": "All patch notes",
+    "detail": {
+        "kicker": "Addon",
+        "back": "All addons",
+        "loading": "Loading the addon …",
+        "notes": "Patch notes",
+        "notesVersion": "Version {version}",
+        "noNotes": "This version comes without notes.",
+        "unknown": "This addon is not (or no longer) here.",
+        "unknownSub": "It may have been renamed or hidden.",
+        "unknownCrumb": "Unknown",
+        "meta": {
+            "version": "Version",
+            "published": "Published",
+            "notYet": "not yet",
+            "game": "Game"
+        }
+    },
     "empty": "There are no addons here for {version}.",
     "emptyElsewhere": "Addons exist for: {versions}. Switch the version in the bar at the top.",
     "loadError": "The addons could not be loaded right now.",
@@ -31,6 +49,7 @@
     },
     "install": {
         "title": "Installation",
+        "or": "or",
         "zip": "Unpack the zip into {folder}, then start the game or type /reload in game.",
         "exe": "Start the exe. Windows may ask the first time: \"More info\", then \"Run anyway\"."
     },

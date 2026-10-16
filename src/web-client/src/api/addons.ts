@@ -77,6 +77,26 @@ export type AddonsData = {
 export const getAddons = (version = "") =>
     get<AddonsData>(`/api/addons${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 
+/** One addon for its detail page /addon/<id>, whatever version the menu shows. */
+export type AddonDetailData = {
+    canManage: boolean;
+    /** Full admins only: whether the GitHub token is set. */
+    tokenSet?: boolean;
+    downloadLimit: number;
+    addon: AddonCard;
+    /** The addon's game versions with their names. */
+    versions: { id: string; label: string }[];
+};
+
+/** One addon by its id; 404 unknown_addon for an unknown, hidden or (for a raider) orga-only one. */
+export const getAddonDetail = (addonId: string) =>
+    get<AddonDetailData>(`/api/addons/detail?addon=${encodeURIComponent(addonId)}`);
+
+/** Name and icon of one addon, readable WITHOUT a login (the login notice); 404 for unknown, hidden or orga-only. */
+export type AddonName = { id: string; name: string; icon: string };
+export const getAddonName = (addonId: string) =>
+    get<AddonName>(`/api/addons/name?addon=${encodeURIComponent(addonId)}`);
+
 /** One addon as Einstellungen → Addons edits it (config.addonDownloads). */
 export type AddonSetting = {
     id: string;

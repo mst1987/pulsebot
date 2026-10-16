@@ -1,5 +1,6 @@
 // The newest release of every configured addon (#818), cached, and what the
-// page "Addons", the download route and /addons make of it.
+// page "Addons", its detail page /addon/<id>, the download route and /addons
+// make of it.
 //
 // One cached lookup per repo, never a GitHub call per page view (project rule
 // for external APIs): a good answer — a release, or "no release yet" — lives
@@ -159,6 +160,31 @@ async function addonCards(config, versionId, { canManage = false, orga = false, 
 }
 
 /**
+ * The card of ONE addon, whatever game version the menu shows (the detail page
+ * /addon/<id>, the Discord links). `null` for an id that is unknown, disabled,
+ * or orga-only for a caller who is not orga — one answer for all three, so the
+ * address says nothing about what exists.
+ */
+async function addonDetail(config, addonId, { canManage = false, orga = false, now } = {}) {
+    const id = String(addonId || "");
+    const addon = id ? enabledAddons(config, "", { orga }).find((a) => a.id === id) : null;
+    if (!addon) return null;
+    return addonCard(addon, await releaseFor(addon, { config, now }), { canManage });
+}
+
+/**
+ * Name and icon of one addon for a visitor without a login (the login notice
+ * on /addon/<id>): `{ id, name, icon }` of an enabled addon that is not
+ * orga-only, else `null`. From the settings alone — no GitHub call, nothing of
+ * the release.
+ */
+function publicAddon(config, addonId) {
+    const id = String(addonId || "");
+    const addon = id ? enabledAddons(config, "", { orga: false }).find((a) => a.id === id) : null;
+    return addon ? { id: addon.id, name: addon.name, icon: addon.icon } : null;
+}
+
+/**
  * What a download asks for, checked: the enabled addon, its current release
  * and the one offered file of that name, plus the token to fetch it with.
  * `{ addon, asset, token }` or `{ status, code, message }`.
@@ -186,6 +212,6 @@ function resetAddonReleaseCache() {
 }
 
 module.exports = {
-    releaseFor, enabledAddons, addonVersions, addonCard, addonCards, resolveDownload, offeredAssets, kindOf, downloadPath,
+    releaseFor, enabledAddons, addonVersions, addonCard, addonCards, addonDetail, publicAddon, resolveDownload, offeredAssets, kindOf, downloadPath,
     tokenOf, tokenFingerprint, resetAddonReleaseCache, CACHE_MS, RETRY_MS,
 };

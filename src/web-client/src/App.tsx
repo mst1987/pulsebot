@@ -2,13 +2,15 @@ import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import { JobsProvider } from "./components/shell/Jobs";
 import { ConfirmProvider } from "./components/ui/Modal";
-import { canAccessAny, getSession, type ApiError, type Session, type SessionUser } from "./api";
+import { canAccessAny, getAddonName, getSession, type AddonName, type ApiError, type Session, type SessionUser } from "./api";
 import { getLang, langReady, setLang, useT } from "./i18n";
 import { firstAllowedTab } from "./lib/app/menu";
 import RaidLoader from "./components/ui/RaidLoader";
+import WowIcon from "./components/ui/WowIcon";
 import LangToggle from "./components/shell/LangToggle";
 import ChunkErrorBoundary from "./components/shell/ChunkErrorBoundary";
 import { lazyWithReload } from "./lib/app/chunkReload";
+import { addonNameOf } from "./lib/addons/addonName";
 
 // Every page, the shell around them and the public plan view are their own
 // chunk (#436): the first load carries only this router, the session and the
@@ -47,6 +49,7 @@ const DropCheckPage = lazyWithReload(() => import("./pages/lootcouncil/DropCheck
 const GuildBankPage = lazyWithReload(() => import("./pages/guildbank/GuildBankPage"));
 const KaderPage = lazyWithReload(() => import("./pages/kader/KaderPage"));
 const AddonPage = lazyWithReload(() => import("./pages/addon/AddonPage"));
+const AddonDetailPage = lazyWithReload(() => import("./pages/addon/AddonDetailPage"));
 const SystemPage = lazyWithReload(() => import("./pages/system/SystemPage"));
 
 /**
@@ -148,6 +151,54 @@ export default function App() {
     return <MenuApp />;
 }
 
+/**
+ * The way in for a visitor: the Discord login, which comes back to the page
+ * they opened (`?returnTo=`, checked on the server: only a path of this site,
+ * src/web/http/pageRoutes.js safeReturnPath) instead of the start page. On an
+ * addon's detail page (a Discord "Patchnotes" link) it also says where it leads,
+ * with the addon's name and icon from GET /api/addons/name (no login needed).
+ */
+function LoginNotice() {
+    const t = useT();
+    const { pathname, search, hash } = useLocation();
+    const here = `${pathname}${search}${hash}`;
+    const href = here === "/" ? "/auth/login" : `/auth/login?returnTo=${encodeURIComponent(here)}`;
+    // an addon's detail page, or an old Discord link to its card (/addon#addon-<id>, sent on to the detail page)
+    const addonPart = (/^\/addon\/([^/]+)\/?$/.exec(pathname) || [])[1]
+        || (pathname.replace(/\/$/, "") === "/addon" ? (/^#addon-(.+)$/.exec(hash) || [])[1] : "")
+        || "";
+    // the real name and icon from the one addon route without a login; until then (or on a 404) the id made readable
+    const [named, setNamed] = useState<AddonName | null>(null);
+    useEffect(() => {
+        setNamed(null);
+        if (!addonPart) return undefined;
+        let live = true;
+        let id = addonPart;
+        try {
+            id = decodeURIComponent(addonPart);
+        } catch {
+            // a broken escape asks for the part as it is
+        }
+        getAddonName(id).then((a) => { if (live) setNamed(a); }).catch(() => undefined);
+        return () => { live = false; };
+    }, [addonPart]);
+    return (
+        <div className="empty app-notice is-login">
+            <p>{t("shell.app.loginPrompt")}</p>
+            {addonPart && (
+                <span className="login-next">
+                    <span className="kicker">{t("shell.app.loginNext")}</span>
+                    {named && named.icon && <WowIcon name={named.icon} size={18} />}
+                    <span className="login-next-text">{t("shell.app.loginNextAddon", { name: named ? named.name : addonNameOf(addonPart) })}</span>
+                </span>
+            )}
+            <a className="mlink" href={href}>{t("shell.app.loginButton")}</a>
+            {/* The one switch a visitor gets before logging in — kept in the browser only. */}
+            <LangToggle />
+        </div>
+    );
+}
+
 function MenuApp() {
     const state = useSession();
     const t = useT();
@@ -160,16 +211,7 @@ function MenuApp() {
     const { user, guilds, activeGuildId } = state.session;
     // Not logged in is the one case without a shell: there is no user to put in
     // its footer and nothing to navigate to, only the way in.
-    if (!user) {
-        return (
-            <div className="empty app-notice is-login">
-                <p>{t("shell.app.loginPrompt")}</p>
-                <a className="mlink" href="/auth/login">{t("shell.app.loginButton")}</a>
-                {/* The one switch a visitor gets before logging in — kept in the browser only. */}
-                <LangToggle />
-            </div>
-        );
-    }
+    if (!user) return <LoginNotice />;
 
     // Anyone logged in gets the shell, even with nothing granted: the sidebar
     // says what is (not) open to them and, above all, the logout is in it. What
@@ -247,6 +289,8 @@ function MenuApp() {
                                 <Route path="kader/:kaderId?/:sub?" element={<Guard user={user} areas={["kader"]}><KaderPage /></Guard>} />
                                 {/* Addons (#818): the download page of the own addons, for every member ("signup") and the loot importers ("history"). */}
                                 <Route path="addon" element={<Guard user={user} areas={["signup", "history"]}><AddonPage /></Guard>} />
+                                {/* One addon with its patch notes, whatever version the menu shows (the Discord centre links here). */}
+                                <Route path="addon/:addonId" element={<Guard user={user} areas={["signup", "history"]}><AddonDetailPage /></Guard>} />
                                 {/* Systemstatus: full admins only, no area opens it (docs/system-status.md). */}
                                 <Route path="system" element={<AdminGuard user={user}><SystemPage /></AdminGuard>} />
                                 {/* Inside the shell on purpose: a mistyped path should still

@@ -43,6 +43,18 @@ export type MenuEntry = {
 
 export const MENU: MenuEntry[] = MENU_JSON;
 
+/**
+ * Pages under a tab that follows the version but are version-neutral themselves:
+ * an addon's detail page /addon/<id> shows that addon whatever version the menu
+ * shows (its version is a badge), so it keeps the brand colour and drops the switch.
+ */
+const NEUTRAL_SUBPAGES = [/^\/addon\/[^/]+\/?$/];
+
+/** Whether a page keeps the brand colour and shows no content switch: menu.json `neutral`, or one of the sub pages above. */
+export function isNeutralPage(entry: MenuEntry | undefined, pathname: string): boolean {
+    return !!(entry && entry.neutral) || NEUTRAL_SUBPAGES.some((re) => re.test(pathname));
+}
+
 /** Whether the account may open an entry: one of its areas, or full admin for an adminOnly entry. */
 export function mayOpen(user: SessionUser | null, entry: MenuEntry): boolean {
     if (entry.adminOnly) return !!(user && user.isAdmin);
