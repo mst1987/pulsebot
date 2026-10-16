@@ -286,6 +286,7 @@ dialog.dlg.dlg-flush .dlg-foot .dlg-hint { order: -1; margin-right: auto; }
     background: var(--panel); color: var(--text); font-size: 13.5px;
 }
 .login-next .kicker { letter-spacing: 1px; flex: 0 0 auto; }
+.login-next .wi { width: 18px; height: 18px; border-radius: 4px; flex: 0 0 auto; }
 .login-next-text { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 nav.menu .hint.menu-hint { padding: 0 14px; }
 img.spec-ico-sm { border-radius: 4px; vertical-align: -4px; margin-right: 6px; }

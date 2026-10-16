@@ -2,10 +2,11 @@ import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import { JobsProvider } from "./components/shell/Jobs";
 import { ConfirmProvider } from "./components/ui/Modal";
-import { canAccessAny, getSession, type ApiError, type Session, type SessionUser } from "./api";
+import { canAccessAny, getAddonName, getSession, type AddonName, type ApiError, type Session, type SessionUser } from "./api";
 import { getLang, langReady, setLang, useT } from "./i18n";
 import { firstAllowedTab } from "./lib/app/menu";
 import RaidLoader from "./components/ui/RaidLoader";
+import WowIcon from "./components/ui/WowIcon";
 import LangToggle from "./components/shell/LangToggle";
 import ChunkErrorBoundary from "./components/shell/ChunkErrorBoundary";
 import { lazyWithReload } from "./lib/app/chunkReload";
@@ -154,21 +155,38 @@ export default function App() {
  * The way in for a visitor: the Discord login, which comes back to the page
  * they opened (`?returnTo=`, checked on the server: only a path of this site,
  * src/web/http/pageRoutes.js safeReturnPath) instead of the start page. On an
- * addon's detail page (a Discord "Patchnotes" link) it also says where it leads.
+ * addon's detail page (a Discord "Patchnotes" link) it also says where it leads,
+ * with the addon's name and icon from GET /api/addons/name (no login needed).
  */
 function LoginNotice() {
     const t = useT();
     const { pathname, search, hash } = useLocation();
     const here = `${pathname}${search}${hash}`;
     const href = here === "/" ? "/auth/login" : `/auth/login?returnTo=${encodeURIComponent(here)}`;
-    const addon = /^\/addon\/([^/]+)\/?$/.exec(pathname);
+    const addonPart = (/^\/addon\/([^/]+)\/?$/.exec(pathname) || [])[1] || "";
+    // the real name and icon from the one addon route without a login; until then (or on a 404) the id made readable
+    const [named, setNamed] = useState<AddonName | null>(null);
+    useEffect(() => {
+        setNamed(null);
+        if (!addonPart) return undefined;
+        let live = true;
+        let id = addonPart;
+        try {
+            id = decodeURIComponent(addonPart);
+        } catch {
+            // a broken escape asks for the part as it is
+        }
+        getAddonName(id).then((a) => { if (live) setNamed(a); }).catch(() => undefined);
+        return () => { live = false; };
+    }, [addonPart]);
     return (
         <div className="empty app-notice is-login">
             <p>{t("shell.app.loginPrompt")}</p>
-            {addon && (
+            {addonPart && (
                 <span className="login-next">
                     <span className="kicker">{t("shell.app.loginNext")}</span>
-                    <span className="login-next-text">{t("shell.app.loginNextAddon", { name: addonNameOf(addon[1]) })}</span>
+                    {named && named.icon && <WowIcon name={named.icon} size={18} />}
+                    <span className="login-next-text">{t("shell.app.loginNextAddon", { name: named ? named.name : addonNameOf(addonPart) })}</span>
                 </span>
             )}
             <a className="mlink" href={href}>{t("shell.app.loginButton")}</a>

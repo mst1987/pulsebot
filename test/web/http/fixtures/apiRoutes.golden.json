@@ -13,6 +13,7 @@
   "GET /api/addons",
   "GET /api/addons/detail",
   "GET /api/addons/download",
+  "GET /api/addons/name",
   "GET /api/availability",
   "GET /api/availability/attendance",
   "GET /api/availability/overview",

@@ -5,7 +5,7 @@ jest.mock("../../../src/classes/githubReleases", () => ({ fetchLatestRelease: je
 
 const { fetchLatestRelease } = require("../../../src/classes/githubReleases");
 const {
-    releaseFor, addonCards, addonCard, addonDetail, resolveDownload, enabledAddons, addonVersions, kindOf, downloadPath, tokenFingerprint,
+    releaseFor, addonCards, addonCard, addonDetail, publicAddon, resolveDownload, enabledAddons, addonVersions, kindOf, downloadPath, tokenFingerprint,
     resetAddonReleaseCache, CACHE_MS, RETRY_MS,
 } = require("../../../src/services/addons/addonReleases");
 const { defaultAddons } = require("../../../src/services/addons/addonConfig");
@@ -171,6 +171,22 @@ describe("addonDetail", () => {
         expect(fetchLatestRelease).not.toHaveBeenCalled();
         fetchLatestRelease.mockResolvedValue(release("1.14.0", ["EventHelperSync.exe"]));
         expect(await addonDetail(config(), "eventhelper-sync", { orga: true })).toMatchObject({ id: "eventhelper-sync", orgaOnly: true });
+    });
+});
+
+describe("publicAddon", () => {
+    it("answers id, name and icon of an enabled addon that is not orga-only, nothing more", () => {
+        const a = addon("levelhelper");
+        expect(publicAddon(config(), "levelhelper")).toEqual({ id: "levelhelper", name: a.name, icon: a.icon });
+    });
+
+    it("answers null for an unknown, empty, disabled or orga-only id", () => {
+        const off = config();
+        off.addonDownloads[0].enabled = false;
+        expect(publicAddon(config(), "nope")).toBeNull();
+        expect(publicAddon(config(), "")).toBeNull();
+        expect(publicAddon(off, "levelhelper")).toBeNull();
+        expect(publicAddon(config(), "eventhelper-sync")).toBeNull();
     });
 });
 

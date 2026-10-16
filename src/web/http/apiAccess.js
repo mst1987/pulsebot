@@ -42,7 +42,8 @@ const pathsWith = (auth) => new Set(ROUTES.filter((r) => r.auth === auth).map((r
 // sees the role's rights — and the way back out must never be refused by them.
 // "/api/raidplan/public" is the token-guarded read view of a published raid plan
 // (/p/<token>): no session needed, and its handler answers only for the token of
-// a published plan.
+// a published plan. "/api/addons/name" names one addon (id, name, icon) for the
+// login notice on /addon/<id>: enabled and not orga-only, nothing else.
 const UNGATED = pathsWith("none");
 // Needs a menu user, but belongs to no single area (the guild switcher, the
 // account's own menu language).

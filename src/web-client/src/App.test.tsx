@@ -19,6 +19,7 @@ vi.mock("./api", async (orig) => ({
     ...(await orig<typeof import("./api")>()),
     getSession: vi.fn(),
     getDashboard: vi.fn(),
+    getAddonName: vi.fn(),
 }));
 
 // Pages load their data through fetch; nothing answers in a test, so each
@@ -26,6 +27,7 @@ vi.mock("./api", async (orig) => ({
 beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn(() => new Promise(() => undefined)));
     vi.mocked(api.getDashboard).mockReturnValue(new Promise(() => undefined));
+    vi.mocked(api.getAddonName).mockRejectedValue({ code: "unknown_addon", message: "" });
 });
 
 afterEach(() => {
@@ -64,7 +66,16 @@ describe("menu access", () => {
         expect(await screen.findByRole("link", { name: t("shell.app.loginButton") }))
             .toHaveAttribute("href", `/auth/login?returnTo=${encodeURIComponent("/addon/levelhelper")}`);
         expect(screen.getByText(t("shell.app.loginNext"))).toBeInTheDocument();
-        expect(screen.getByText("Levelhelper · Patchnotes")).toBeInTheDocument();
+        // the name route answered 404 (unknown, hidden or orga-only): the id made readable
+        expect(await screen.findByText("Levelhelper · Patchnotes")).toBeInTheDocument();
+        expect(api.getAddonName).toHaveBeenCalledWith("levelhelper");
+    });
+
+    it("names the addon with its real name and icon when the name route knows it", async () => {
+        vi.mocked(api.getAddonName).mockResolvedValue({ id: "levelhelper", name: "LevelHelper", icon: "inv_misc_map02" });
+        showApp(null, "/addon/levelhelper");
+        const line = (await screen.findByText("LevelHelper · Patchnotes")).closest(".login-next") as HTMLElement;
+        expect(line.querySelector("img.wi")).not.toBeNull();
     });
 
     it("keeps the shell for a logged-in account with nothing granted", async () => {

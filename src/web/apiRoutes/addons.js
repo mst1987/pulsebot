@@ -3,6 +3,7 @@
 //
 //   GET /api/addons?version=<id>                      the cards of one game version
 //   GET /api/addons/detail?addon=<id>                 one addon, whatever the version (/addon/<id>)
+//   GET /api/addons/name?addon=<id>                   name and icon only, WITHOUT login (the login notice)
 //   GET /api/addons/download?addon=<id>&asset=<file>  streams the file
 //
 // The browser never sees a GitHub url or the token: the cards link only to the
@@ -21,7 +22,7 @@ const { q } = require("../http/apiParams");
 const { getConfig } = require("../../stores/configStore");
 const { resolveVersionQuery } = require("../../services/events/mainVersion");
 const { VERSIONS } = require("../../config/gameVersions");
-const { addonCards, addonDetail, addonVersions, resolveDownload, tokenOf } = require("../../services/addons/addonReleases");
+const { addonCards, addonDetail, addonVersions, publicAddon, resolveDownload, tokenOf } = require("../../services/addons/addonReleases");
 const { openAssetStream } = require("../../classes/githubReleases");
 const { takeDownload, LIMIT } = require("../../services/addons/downloadLimit");
 const { userIsOrga } = require("../../config/permissions");
@@ -91,6 +92,21 @@ const getAddonDetail = withUser({}, async ({ user, query, res }) => {
     });
 });
 
+/**
+ * GET /api/addons/name — no login (`auth: "none"`): what the login notice on
+ * /addon/<id> names before anyone is logged in. Only id, name and icon of an
+ * enabled addon that is not orga-only, read from the settings — no GitHub call,
+ * no release, no repo. Anything else is the same 404 unknown_addon, so an
+ * orga-only addon stays invisible. Cheap and side-effect free, like the other
+ * ungated reads (there is no per-route rate limit in this server).
+ */
+function getAddonName(req, res, url) {
+    const id = String((url && url.searchParams.get("addon")) || "").slice(0, 60);
+    const addon = publicAddon(getConfig(), id);
+    if (!addon) return error(res, 404, "unknown_addon", "Dieses Addon gibt es nicht.");
+    return ok(res, addon);
+}
+
 /** GET /api/addons/download — streams one release file of an addon. */
 const downloadAddon = withUser({}, async ({ user, query, res }) => {
     const config = getConfig();
@@ -141,7 +157,8 @@ const downloadAddon = withUser({}, async ({ user, query, res }) => {
 const routes = [
     { method: "GET", path: "/api/addons", handler: getAddons, area: AREAS },
     { method: "GET", path: "/api/addons/detail", handler: getAddonDetail, area: AREAS },
+    { method: "GET", path: "/api/addons/name", handler: getAddonName, auth: "none" },
     { method: "GET", path: "/api/addons/download", handler: downloadAddon, area: AREAS },
 ];
 
-module.exports = { getAddons, getAddonDetail, downloadAddon, contentTypeOf, dispositionOf, routes };
+module.exports = { getAddons, getAddonDetail, getAddonName, downloadAddon, contentTypeOf, dispositionOf, routes };

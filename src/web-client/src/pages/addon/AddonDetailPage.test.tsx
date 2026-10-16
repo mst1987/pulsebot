@@ -69,14 +69,15 @@ describe("page Addon-Detail", () => {
         for (const link of screen.getAllByRole("link")) expect(link.getAttribute("href") || "").not.toMatch(/github|example\.org/i);
     });
 
-    it("shows version, date, game and the reload hint in the meta line", async () => {
+    it("shows version, date and game in the meta line, and no reload claim of its own", async () => {
         open();
         await screen.findByRole("heading", { name: "LevelHelper", level: 1 });
         const meta = document.querySelector(".dlpd-meta") as HTMLElement;
         expect(within(meta).getByText("0.6.0")).toBeInTheDocument();
         expect(within(meta).getAllByText("16.10.2026")).toHaveLength(1);
         expect(within(meta).getByText("WoW Forever")).toBeInTheDocument();
-        expect(within(meta).getByText("/reload").tagName).toBe("CODE");
+        expect(meta.querySelectorAll("dt")).toHaveLength(3);
+        expect(meta.textContent).not.toMatch(/reload|Nach dem Update/);
     });
 
     it("shows the patch notes as coloured groups, bold and code as such, without GitHub's block", async () => {
@@ -94,17 +95,11 @@ describe("page Addon-Detail", () => {
         expect(notes.textContent).not.toMatch(/What's Changed|Full Changelog|PR by/);
     });
 
-    it("adds the reload hint under the notes only when they do not say it themselves", async () => {
-        open();
-        await screen.findByRole("region", { name: "Patchnotes" });
-        expect(document.querySelector(".dlpd-hint")).toBeNull();
-    });
-
-    it("shows the reload hint under notes that do not mention it", async () => {
+    it("adds no reload hint of its own under the notes", async () => {
         vi.mocked(api.getAddonDetail).mockResolvedValue(detail({ ...levelhelper, release: { ...levelhelper.release!, notes: "## Neu\n- Eins" } }));
         open();
         const notes = await screen.findByRole("region", { name: "Patchnotes" });
-        expect(notes.querySelector(".dlpd-hint")).toHaveTextContent("Nach dem Update reicht /reload.");
+        expect(notes.textContent).not.toMatch(/reload/);
     });
 
     it("never renders markup or a link from the notes", async () => {
@@ -168,6 +163,6 @@ describe("page Addon-Detail", () => {
         open();
         expect(await screen.findByRole("link", { name: "All addons" })).toBeInTheDocument();
         expect(screen.getByRole("region", { name: "Patch notes" })).toBeInTheDocument();
-        expect(screen.getByText(/is enough/, { selector: "dd *, dd" })).toBeInTheDocument();
+        expect(screen.getByText("Published")).toBeInTheDocument();
     });
 });

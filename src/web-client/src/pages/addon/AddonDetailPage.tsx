@@ -18,24 +18,17 @@
 import { useParams } from "react-router-dom";
 import { getAddonDetail, type AddonDetailData } from "../../api";
 import { AsyncView, BackButton, Badge, RaidLoader, WowIcon } from "../../components/ui";
-import { RefreshIcon } from "../../components/ui/icons";
 import { useApi } from "../../hooks/useApi";
 import { usePageCrumb } from "../../hooks/usePageCrumb";
 import { formatDate, formatDateTime } from "../../lib/format";
 import { noteGroups, type NoteGroup, type NoteSpan } from "../../lib/addons/addonInstall";
-import { tParts, useT } from "../../i18n";
+import { useT } from "../../i18n";
 import { DownloadButtons, ErrorState, InstallGuide, StateNote } from "./AddonParts";
 import "../../styles/addon.css";
 import "../../styles/orga-mark.css";
 
 const ICON = "inv_gizmo_01";
 const BACK = "/addon";
-const RELOAD = "/reload";
-
-/** A text with the in-game command in it, the command as `code`. */
-function WithReload({ textKey }: { textKey: string }) {
-    return <>{tParts(textKey, { cmd: RELOAD }).map((part, i) => (part === RELOAD ? <code key={i}>{part}</code> : <span key={i}>{part}</span>))}</>;
-}
 
 /** A line of the notes: text, bold and code as React text nodes, nothing else. */
 function Spans({ spans }: { spans: NoteSpan[] }) {
@@ -65,10 +58,7 @@ function Detail({ data }: { data: AddonDetailData }) {
     const release = addon.release;
     const date = release && release.publishedAt ? formatDate(Date.parse(release.publishedAt)) : "";
     const files = release ? release.assets : [];
-    const zip = files.some((f) => f.kind === "zip");
     const groups = release ? noteGroups(release.notes) : [];
-    // the notes often say it themselves ("Nach dem Update reicht `/reload`."): then not twice
-    const notesSayReload = groups.some((g) => g.blocks.some((b) => JSON.stringify(b).includes(RELOAD)));
     const game = versions.map((v) => v.label).join(", ");
     return (
         <div className="dlpd-page" data-addon={addon.id}>
@@ -102,9 +92,6 @@ function Detail({ data }: { data: AddonDetailData }) {
                     <div><dt>{t("addon.detail.meta.version")}</dt><dd className={release ? "dlpd-big" : "dlpd-big muted"}>{release ? release.version : "—"}</dd></div>
                     <div><dt>{t("addon.detail.meta.published")}</dt><dd className={release ? "" : "muted"}>{release ? (date || "—") : t("addon.detail.meta.notYet")}</dd></div>
                     {game && <div><dt>{t("addon.detail.meta.game")}</dt><dd>{game}</dd></div>}
-                    {release && zip && (
-                        <div><dt>{t("addon.detail.meta.after")}</dt><dd><WithReload textKey="addon.detail.meta.reload" /></dd></div>
-                    )}
                 </dl>
             </section>
 
@@ -120,12 +107,6 @@ function Detail({ data }: { data: AddonDetailData }) {
                     {groups.length
                         ? groups.map((g, i) => <Group key={i} group={g} />)
                         : <p className="muted dlpd-none">{t("addon.detail.noNotes")}</p>}
-                    {zip && !notesSayReload && (
-                        <div className="dlpd-hint">
-                            <RefreshIcon />
-                            <span><WithReload textKey="addon.detail.hint" /></span>
-                        </div>
-                    )}
                 </section>
             )}
 

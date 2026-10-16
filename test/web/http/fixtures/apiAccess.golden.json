@@ -279,7 +279,8 @@
     "/api/session",
     "/api/session/view-as",
     "/api/raidplan/public",
-    "/api/raidplan/progress"
+    "/api/raidplan/progress",
+    "/api/addons/name"
   ],
   "anyArea": [
     "/api/session/guild",

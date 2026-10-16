@@ -193,6 +193,29 @@ describe("GET /api/addons/detail", () => {
     });
 });
 
+describe("GET /api/addons/name (no login)", () => {
+    it("names an enabled addon to a visitor without a session: id, name and icon only, without asking GitHub", async () => {
+        mockUser = null;
+        const res = await get("/api/addons/name", { addon: "levelhelper" });
+        expect(status(res)).toBe(200);
+        expect(body(res)).toEqual({ id: "levelhelper", name: "LevelHelper", icon: expect.any(String) });
+        expect(fetchLatestRelease).not.toHaveBeenCalled();
+    });
+
+    it("answers the same 404 for an unknown, a disabled and an orga-only addon, even for the orga", async () => {
+        mockConfig = { ...mockConfig, addonDownloads: defaultAddons().map((a) => (a.id === "aurakit" ? { ...a, enabled: false } : a)) };
+        for (const user of [null, orga, ADMIN]) {
+            mockUser = user;
+            for (const addon of ["nope", "", "aurakit", "eventhelper-sync"]) {
+                const res = await get("/api/addons/name", { addon });
+                expect(status(res)).toBe(404);
+                expect(body(res)).toMatchObject({ error: { code: "unknown_addon" } });
+            }
+        }
+        expect(fetchLatestRelease).not.toHaveBeenCalled();
+    });
+});
+
 describe("GET /api/addons/download", () => {
     it("streams the file with its name and type, fetched with the token, and logs who took it", async () => {
         mockUser = member();

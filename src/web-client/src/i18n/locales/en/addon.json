@@ -11,7 +11,6 @@
         "notes": "Patch notes",
         "notesVersion": "Version {version}",
         "noNotes": "This version comes without notes.",
-        "hint": "After the update, {cmd} is enough.",
         "unknown": "This addon is not (or no longer) here.",
         "unknownSub": "It may have been renamed or hidden.",
         "unknownCrumb": "Unknown",
@@ -19,9 +18,7 @@
             "version": "Version",
             "published": "Published",
             "notYet": "not yet",
-            "game": "Game",
-            "after": "After the update",
-            "reload": "{cmd} is enough"
+            "game": "Game"
         }
     },
     "empty": "There are no addons here for {version}.",

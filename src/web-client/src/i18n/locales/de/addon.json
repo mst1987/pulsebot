@@ -11,7 +11,6 @@
         "notes": "Patchnotes",
         "notesVersion": "Version {version}",
         "noNotes": "Zu dieser Version gibt es keine Notizen.",
-        "hint": "Nach dem Update reicht {cmd}.",
         "unknown": "Dieses Addon gibt es hier nicht (mehr).",
         "unknownSub": "Vielleicht wurde es umbenannt oder ausgeblendet.",
         "unknownCrumb": "Unbekannt",
@@ -19,9 +18,7 @@
             "version": "Version",
             "published": "Veröffentlicht",
             "notYet": "noch nicht",
-            "game": "Spiel",
-            "after": "Nach dem Update",
-            "reload": "{cmd} reicht"
+            "game": "Spiel"
         }
     },
     "empty": "Für {version} gibt es hier keine Addons.",
