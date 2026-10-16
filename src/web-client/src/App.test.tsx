@@ -52,6 +52,21 @@ describe("menu access", () => {
         expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
     });
 
+    it("brings a visitor back to the page they opened after the login", async () => {
+        showApp(null, "/raids/detail?event=eh-1");
+        expect(await screen.findByRole("link", { name: t("shell.app.loginButton") }))
+            .toHaveAttribute("href", `/auth/login?returnTo=${encodeURIComponent("/raids/detail?event=eh-1")}`);
+        expect(screen.queryByText(t("shell.app.loginNext"))).not.toBeInTheDocument();
+    });
+
+    it("says on an addon's detail page that the login leads to its patch notes", async () => {
+        showApp(null, "/addon/levelhelper");
+        expect(await screen.findByRole("link", { name: t("shell.app.loginButton") }))
+            .toHaveAttribute("href", `/auth/login?returnTo=${encodeURIComponent("/addon/levelhelper")}`);
+        expect(screen.getByText(t("shell.app.loginNext"))).toBeInTheDocument();
+        expect(screen.getByText("Levelhelper · Patchnotes")).toBeInTheDocument();
+    });
+
     it("keeps the shell for a logged-in account with nothing granted", async () => {
         showApp(nobody);
         expect(await screen.findByRole("link", { name: t("shell.logout") }, SLOW)).toHaveAttribute("href", "/auth/logout");

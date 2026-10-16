@@ -2,6 +2,7 @@
 // and the download of one release file through the server.
 //
 //   GET /api/addons?version=<id>                      the cards of one game version
+//   GET /api/addons/detail?addon=<id>                 one addon, whatever the version (/addon/<id>)
 //   GET /api/addons/download?addon=<id>&asset=<file>  streams the file
 //
 // The browser never sees a GitHub url or the token: the cards link only to the
@@ -20,7 +21,7 @@ const { q } = require("../http/apiParams");
 const { getConfig } = require("../../stores/configStore");
 const { resolveVersionQuery } = require("../../services/events/mainVersion");
 const { VERSIONS } = require("../../config/gameVersions");
-const { addonCards, addonVersions, resolveDownload, tokenOf } = require("../../services/addons/addonReleases");
+const { addonCards, addonDetail, addonVersions, resolveDownload, tokenOf } = require("../../services/addons/addonReleases");
 const { openAssetStream } = require("../../classes/githubReleases");
 const { takeDownload, LIMIT } = require("../../services/addons/downloadLimit");
 const { userIsOrga } = require("../../config/permissions");
@@ -62,7 +63,31 @@ const getAddons = withUser({}, async ({ user, query, res }) => {
         downloadLimit: LIMIT,
         addons,
         // the versions that do have addons, for the hint on an empty page (e.g. Classic)
-        addonVersions: addonVersions(config, { orga }).map((id) => ({ id, label: (VERSIONS.find((v) => v.id === id) || { label: id }).label })),
+        addonVersions: versionRefs(addonVersions(config, { orga })),
+    });
+});
+
+/** `{ id, label }` of each version id, in the given order; an unknown id keeps itself as its label. */
+const versionRefs = (ids) => (ids || []).map((id) => ({ id, label: (VERSIONS.find((v) => v.id === id) || { label: id }).label }));
+
+/**
+ * GET /api/addons/detail — one addon for its detail page /addon/<id>, independent
+ * of the menu's game version (a Discord link must not land on nothing because
+ * the menu shows another version). Unknown, disabled and — for anyone but the
+ * orga — orga-only addons are all the same 404 unknown_addon.
+ */
+const getAddonDetail = withUser({}, async ({ user, query, res }) => {
+    const config = getConfig();
+    const canManage = !!user.isAdmin;
+    const addon = await addonDetail(config, q.str(query, "addon", { max: 60 }), { canManage, orga: userIsOrga(user) });
+    if (!addon) return error(res, 404, "unknown_addon", "Dieses Addon gibt es nicht.");
+    return ok(res, {
+        canManage,
+        ...(canManage ? { tokenSet: !!tokenOf(config) } : {}),
+        downloadLimit: LIMIT,
+        addon,
+        // the addon's game versions with their names, for the badge and the meta line
+        versions: versionRefs(addon.versions),
     });
 });
 
@@ -115,7 +140,8 @@ const downloadAddon = withUser({}, async ({ user, query, res }) => {
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "GET", path: "/api/addons", handler: getAddons, area: AREAS },
+    { method: "GET", path: "/api/addons/detail", handler: getAddonDetail, area: AREAS },
     { method: "GET", path: "/api/addons/download", handler: downloadAddon, area: AREAS },
 ];
 
-module.exports = { getAddons, downloadAddon, contentTypeOf, dispositionOf, routes };
+module.exports = { getAddons, getAddonDetail, downloadAddon, contentTypeOf, dispositionOf, routes };

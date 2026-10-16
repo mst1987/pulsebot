@@ -56,11 +56,37 @@ function legacyMount({ res, url, rest }) {
     return redirect(res, `${rest || "/"}${url.search || ""}`);
 }
 
+const RETURN_MAX = 512;
+
+/**
+ * "?returnTo=<path>" of the login: where the menu sends someone back after
+ * Discord (the page they opened logged out, e.g. /addon/levelhelper from a
+ * Discord link). Only a path on this site counts — it starts with one "/"
+ * (never "//", which a browser reads as another host), has no backslash (also
+ * read as "/"), no control character (a tab or newline is dropped by the
+ * browser, turning "/\t/x" into "//x") and does not lead into /auth/ again.
+ * Anything else is "" = the start page. Never an open redirect.
+ */
+function safeReturnPath(value) {
+    const path = typeof value === "string" ? value : "";
+    if (!path || path.length > RETURN_MAX) return "";
+    if (path[0] !== "/" || path[1] === "/" || path.includes("\\")) return "";
+    // control characters (a tab or newline would be dropped by the browser) and a space
+    for (let i = 0; i < path.length; i++) {
+        const c = path.charCodeAt(i);
+        if (c <= 0x20 || c === 0x7f) return "";
+    }
+    if (path === "/auth" || path.startsWith("/auth/") || path.startsWith("/auth?")) return "";
+    return path;
+}
+
 function authLogin({ res, url }) {
     if (!auth.configured()) return send(res, 503, renderNotFound());
     const state = crypto.randomBytes(12).toString("hex");
-    // "?next=/p/<token>": after the login back to that plan page (only such a path, nothing else)
-    const next = /^\/p\/[A-Za-z0-9_-]{8,80}$/.test(url.searchParams.get("next") || "") ? url.searchParams.get("next") : "";
+    // "?next=/p/<token>": after the login back to that plan page (only such a path, nothing else);
+    // "?returnTo=<path>": back to any page of the menu (safeReturnPath)
+    const plan = /^\/p\/[A-Za-z0-9_-]{8,80}$/.test(url.searchParams.get("next") || "") ? url.searchParams.get("next") : "";
+    const next = plan || safeReturnPath(url.searchParams.get("returnTo"));
     states.set(state, { expires: Date.now() + 600000, next });
     return redirect(res, auth.loginUrl(state));
 }
@@ -277,5 +303,5 @@ function findPageRoute(method, pathname, routes = PAGE_ROUTES) {
 module.exports = {
     PAGE_ROUTES, findPageRoute, send,
     // only for the tests: not part of the module's API
-    _internal: { matchPath, states },
+    _internal: { matchPath, states, safeReturnPath },
 };

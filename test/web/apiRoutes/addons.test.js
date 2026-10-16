@@ -140,6 +140,59 @@ describe("GET /api/addons", () => {
     });
 });
 
+describe("GET /api/addons/detail", () => {
+    it("answers one addon with its release and the names of its versions, whatever version the menu shows", async () => {
+        mockUser = member();
+        const res = await get("/api/addons/detail", { addon: "levelhelper" });
+        expect(status(res)).toBe(200);
+        const data = body(res);
+        expect(data.addon).toMatchObject({ id: "levelhelper", name: "LevelHelper", state: "ok" });
+        expect(data.addon.release.version).toBe("0.3.0");
+        expect(data.addon.release.assets[0].url).toBe("/api/addons/download?addon=levelhelper&asset=LevelHelper-0.3.0.zip");
+        expect(data.versions).toEqual([{ id: "forever", label: expect.any(String) }]);
+        expect(data.versions[0].label).not.toBe("forever");
+        expect(data.downloadLimit).toBe(LIMIT);
+        expect(data).not.toHaveProperty("tokenSet");
+        expect(data.addon).not.toHaveProperty("repo");
+        const text = JSON.stringify(data);
+        expect(text).not.toContain(TOKEN);
+        expect(text).not.toMatch(/github\.com/);
+    });
+
+    it("keeps the state of an addon without a release", async () => {
+        const data = body(await get("/api/addons/detail", { addon: "professionkit" }));
+        expect(data.addon).toMatchObject({ id: "professionkit", state: "no_release", release: null });
+    });
+
+    it("tells an admin whether the token is set and names the repo", async () => {
+        mockConfig = { ...mockConfig, github: { token: "" } };
+        const data = body(await get("/api/addons/detail", { addon: "levelhelper" }));
+        expect(data.tokenSet).toBe(false);
+        expect(data.addon).toMatchObject({ state: "token_missing", repo: "mst1987/levelhelper" });
+    });
+
+    it("answers the same 404 for an unknown, a disabled and (for a raider) an orga-only addon", async () => {
+        mockConfig = { ...mockConfig, addonDownloads: defaultAddons().map((a) => (a.id === "aurakit" ? { ...a, enabled: false } : a)) };
+        mockUser = member();
+        for (const addon of ["nope", "", "aurakit", "eventhelper-sync"]) {
+            const res = await get("/api/addons/detail", { addon });
+            expect(status(res)).toBe(404);
+            expect(body(res)).toMatchObject({ error: { code: "unknown_addon" } });
+        }
+        mockUser = orga;
+        expect(status(await get("/api/addons/detail", { addon: "eventhelper-sync" }))).toBe(200);
+    });
+
+    it("opens for signup or history, nothing else, and never anonymously", async () => {
+        mockUser = member("history");
+        expect(status(await get("/api/addons/detail", { addon: "levelhelper" }))).toBe(200);
+        mockUser = member("raids");
+        expect(status(await get("/api/addons/detail", { addon: "levelhelper" }))).toBe(403);
+        mockUser = null;
+        expect(status(await get("/api/addons/detail", { addon: "levelhelper" }))).toBe(401);
+    });
+});
+
 describe("GET /api/addons/download", () => {
     it("streams the file with its name and type, fetched with the token, and logs who took it", async () => {
         mockUser = member();

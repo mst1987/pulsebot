@@ -12,7 +12,7 @@ import RaidLoader from "../ui/RaidLoader";
 import ChunkErrorBoundary from "./ChunkErrorBoundary";
 import { IconButton } from "../ui/Button";
 import { TipLayer } from "../ui/Tip";
-import { MENU, firstAllowedTab, matchesHref, menuLabel, menuLines } from "../../lib/app/menu";
+import { MENU, firstAllowedTab, isNeutralPage, matchesHref, menuLabel, menuLines } from "../../lib/app/menu";
 import { canAccess, getVersion, type SessionUser, type SessionGuild, type ContentInfo } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { PageCrumbContext } from "../../hooks/usePageCrumb";
@@ -139,6 +139,7 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
     const tab = crumbTab(location.pathname);
     const label = tab ? menuLabel(tab) : t("shell.menu.home");
     const orgaAudience = tab ? pageAudience(user, tab) : null;
+    const neutral = isNeutralPage(tab, location.pathname);
     // a page that knows its own name (one roster) sets it (hooks/usePageCrumb.ts); it counts only on the path it was set for
     const [pageCrumb, setPageCrumb] = useState<{ path: string; label: string } | null>(null);
     const setCrumb = useCallback((next: string | null) => {
@@ -148,7 +149,7 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
         ?? (pageCrumb && pageCrumb.path === location.pathname ? pageCrumb.label : null);
 
     return (
-        <ContentVersionProvider content={content} neutral={!!tab?.neutral}>
+        <ContentVersionProvider content={content} neutral={neutral}>
             <div className="app">
                 <aside className={`side${menuOpen ? " open" : ""}`}>
                     {/* The crest is the way home: "/" is the dashboard, or — for an
@@ -194,8 +195,8 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                         {tab && <OrgaChip key={tab.id} user={user} audience={orgaAudience} />}
                         <div className="top-actions">
                             {/* A page without game content (menu.json `neutral`: Kanäle, Einstellungen,
-                                Systemstatus) shows no version state (#741); every other page follows it. */}
-                            {!tab?.neutral && <ContentSwitch />}
+                                Systemstatus, an addon's detail page) shows no version state (#741); every other page follows it. */}
+                            {!neutral && <ContentSwitch />}
                             <GuildSwitcher guilds={guilds} activeGuildId={activeGuildId} />
                             <ViewAsButton user={user} />
                             {/* A real link, not a button: it leaves the SPA for the

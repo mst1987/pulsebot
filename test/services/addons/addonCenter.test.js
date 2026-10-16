@@ -236,7 +236,7 @@ describe("addonCenter runCheck (the job)", () => {
     });
 
     describe("update ping", () => {
-        const WEB = /\[Patchnotes\]\(<https?:\/\/[^>]*\/addon#addon-levelhelper>\)/;
+        const WEB = /\[Patchnotes\]\(<https?:\/\/[^>]*\/addon\/levelhelper>\)/;
 
         async function posted0() {
             store.setSettings({ roleId: ROLE });

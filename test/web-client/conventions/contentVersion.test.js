@@ -24,6 +24,10 @@ const NEUTRAL_PAGES = {
     // Aufruf-Vorlagen (#745, decision on #736): plain message texts with placeholders,
     // the same for every version - no raid, class or item in them.
     "raids/templates": "call text templates: text without game content",
+    // One addon's detail page (/addon/<id>): it shows that one addon whatever the menu
+    // shows - its own version is a badge - so a Discord link never lands on nothing.
+    // The shell keeps the brand colour and drops the switch there (lib/app/menu.ts isNeutralPage).
+    "addon/:addonId": "one addon by its id, its version as a badge",
 };
 
 // Pages that neither follow nor are neutral yet — each with its reason. An entry
@@ -118,7 +122,9 @@ describe("one game version per page (#741)", () => {
     });
 
     it("shows no version state on a neutral page", () => {
-        expect(read("components/shell/Shell.tsx")).toMatch(/\{!tab\?\.neutral && <ContentSwitch \/>\}/);
+        const shell = read("components/shell/Shell.tsx");
+        expect(shell).toMatch(/const neutral = isNeutralPage\(tab, location\.pathname\);/);
+        expect(shell).toMatch(/\{!neutral && <ContentSwitch \/>\}/);
     });
 
     it("offers no 'Alle' in the switch and never asks the server for every version", () => {

@@ -222,6 +222,37 @@ describe("web/http/server", () => {
             }));
         });
 
+        /** Logs in through /auth/login?<query> and the callback; the Location the callback sends. */
+        async function loginReturningTo(query) {
+            auth.configured.mockReturnValue(true);
+            auth.completeLogin.mockResolvedValue("sid-1");
+            await request({ url: `/auth/login?${query}`, method: "GET", headers: {} });
+            const state = auth.loginUrl.mock.calls[auth.loginUrl.mock.calls.length - 1][0];
+            const res = await request({ url: `/auth/callback?code=xyz&state=${state}`, method: "GET", headers: {} });
+            return res.writeHead.mock.calls[0][1].Location;
+        }
+
+        it("sends the login back to ?returnTo= when it is a path on this site", async () => {
+            expect(await loginReturningTo(`returnTo=${encodeURIComponent("/addon/levelhelper")}`)).toBe("/addon/levelhelper");
+            expect(await loginReturningTo(`returnTo=${encodeURIComponent("/raids/detail?event=eh-1&tab=setup")}`)).toBe("/raids/detail?event=eh-1&tab=setup");
+        });
+
+        it.each([
+            "//evil.example/x",
+            "https://evil.example",
+            "/\\evil.example",
+            "/\t/evil.example",
+            "javascript:alert(1)",
+        ])("ignores the open-redirect attempt returnTo=%s and lands on the start page", async (target) => {
+            expect(await loginReturningTo(`returnTo=${encodeURIComponent(target)}`)).toBe("/");
+        });
+
+        it("keeps ?next= for the plan page, and it wins over returnTo", async () => {
+            expect(await loginReturningTo("next=/p/abcdefgh12")).toBe("/p/abcdefgh12");
+            expect(await loginReturningTo("next=/p/abcdefgh12&returnTo=/addon/x")).toBe("/p/abcdefgh12");
+            expect(await loginReturningTo("next=//evil.example")).toBe("/");
+        });
+
         it("GET /auth/callback returns 500 when the token exchange fails", async () => {
             auth.completeLogin.mockRejectedValue(new Error("boom"));
             const res = await request({

@@ -280,6 +280,13 @@ dialog.dlg.dlg-flush .dlg-foot .dlg-hint { order: -1; margin-right: auto; }
    colour, a position) is a custom property set on the element and read here. */
 .empty.app-notice { display: flex; flex-direction: column; gap: 10px; align-items: center; padding-top: 60px; }
 .empty.app-notice.is-login { gap: 14px; padding-top: 80px; }
+/* "Danach: LevelHelper · Patchnotes" — where the login leads back to (App.tsx LoginNotice) */
+.login-next {
+    display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--panel); color: var(--text); font-size: 13.5px;
+}
+.login-next .kicker { letter-spacing: 1px; flex: 0 0 auto; }
+.login-next-text { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 nav.menu .hint.menu-hint { padding: 0 14px; }
 img.spec-ico-sm { border-radius: 4px; vertical-align: -4px; margin-right: 6px; }
 .spec-label { font-weight: 700; }

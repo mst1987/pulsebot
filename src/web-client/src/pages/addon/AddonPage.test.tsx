@@ -3,8 +3,9 @@
 // GitHub), "Was ist neu?", the install steps, and the states (no release,
 // GitHub unreachable with the cached release, missing token for admins and
 // for members).
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import { switchLang } from "../../test/i18n";
@@ -44,6 +45,12 @@ const professionkit: api.AddonCard = {
     versions: ["forever"], install: "", state: "no_release", stale: false, errorCode: "", fetchedAt: 1, orgaOnly: false, release: null,
 };
 
+/** Where the router is now (path and hash). */
+function Where() {
+    const { pathname, hash } = useLocation();
+    return <span data-testid="where">{`${pathname}${hash}`}</span>;
+}
+
 const data = (addons: api.AddonCard[], over: Partial<api.AddonsData> = {}): api.AddonsData => ({
     versionId: "forever", mainVersion: "forever", canManage: false, downloadLimit: 30, addons, ...over,
 });
@@ -74,13 +81,35 @@ describe("page Addons", () => {
         expect(chips[0]).toHaveAttribute("data-tip-sub", "Nur Admins und Orga-Rollen sehen und laden es.");
     });
 
-    it("gives each card an anchor (#addon-<id>) and opens the notes of the card the Discord centre links to", async () => {
-        renderPage(<AddonPage />, { route: "/addon#addon-levelhelper" });
+    it("gives each card an anchor (#addon-<id>)", async () => {
+        renderPage(<AddonPage />, { route: "/addon" });
         const card = (await screen.findByRole("heading", { name: "LevelHelper" })).closest("section");
         expect(card).toHaveAttribute("id", "addon-levelhelper");
         expect(screen.getByRole("heading", { name: "ProfessionKit" }).closest("section")).toHaveAttribute("id", "addon-professionkit");
-        // the linked card shows its patch notes without a click
-        expect(await screen.findByText(/• Duo-Modus mit Partner-Anzeige/)).toBeInTheDocument();
+    });
+
+    it("sends an old Discord link (/addon#addon-<id>) on to the detail page", async () => {
+        renderPage(<><AddonPage /><Where /></>, { route: "/addon#addon-levelhelper" });
+        await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/addon\/levelhelper$/));
+    });
+
+    it("links each card with notes to all its patch notes on the detail page, and only those", async () => {
+        renderPage(<AddonPage />, { route: "/addon" });
+        const all = await screen.findByRole("link", { name: "Alle Patchnotes" });
+        expect(all).toHaveAttribute("href", "/addon/levelhelper");
+        expect(screen.getAllByRole("link", { name: "Alle Patchnotes" })).toHaveLength(1);
+    });
+
+    it("leaves GitHub's What's Changed block out of the card's notes", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getAddons).mockResolvedValue(data([{
+            ...levelhelper,
+            release: { ...levelhelper.release!, notes: "## Neu\n- Eigenes\n\n## What's Changed\n* PR by @x in #1\n\n**Full Changelog**: https://github.com/a/b/compare/v1...v2" },
+        }]));
+        renderPage(<AddonPage />, { route: "/addon" });
+        await user.click(await screen.findByRole("button", { name: /Was ist neu\?/ }));
+        expect(screen.getByText(/• Eigenes/)).toBeInTheDocument();
+        expect(screen.queryByText(/What's Changed|Full Changelog|PR by/)).toBeNull();
     });
 
     it("links every download to the server route, with the file name and its size", async () => {
@@ -220,9 +249,7 @@ describe("addon install helpers", () => {
         expect(addonFolder("unknown")).toContain("_classic_beta_");
     });
 
-    it("turns Markdown notes into plain text", () => {
+    it("turns Markdown notes into plain text (more in lib/addons/addonInstall.test.ts)", () => {
         expect(plainNotes("## Neu\r\n\r\n\r\n* **fett** und `code`\n- [Link](https://x.y)")).toBe("Neu\n\n• fett und code\n• Link");
-        expect(plainNotes("<script>x</script>")).toBe("<script>x</script>");
-        expect(plainNotes("")).toBe("");
     });
 });

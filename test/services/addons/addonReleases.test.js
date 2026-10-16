@@ -5,7 +5,7 @@ jest.mock("../../../src/classes/githubReleases", () => ({ fetchLatestRelease: je
 
 const { fetchLatestRelease } = require("../../../src/classes/githubReleases");
 const {
-    releaseFor, addonCards, addonCard, resolveDownload, enabledAddons, addonVersions, kindOf, downloadPath, tokenFingerprint,
+    releaseFor, addonCards, addonCard, addonDetail, resolveDownload, enabledAddons, addonVersions, kindOf, downloadPath, tokenFingerprint,
     resetAddonReleaseCache, CACHE_MS, RETRY_MS,
 } = require("../../../src/services/addons/addonReleases");
 const { defaultAddons } = require("../../../src/services/addons/addonConfig");
@@ -148,6 +148,29 @@ describe("cards", () => {
     it("knows the kinds of files and builds the download path", () => {
         expect([kindOf("a.ZIP"), kindOf("b.exe"), kindOf("c.tar.gz"), kindOf("")]).toEqual(["zip", "exe", "file", "file"]);
         expect(downloadPath("a b", "x&y.zip")).toBe("/api/addons/download?addon=a%20b&asset=x%26y.zip");
+    });
+});
+
+describe("addonDetail", () => {
+    it("answers the card of one addon, whatever version it is for", async () => {
+        fetchLatestRelease.mockResolvedValue(release("0.3.0", ["LevelHelper-0.3.0.zip"]));
+        const card = await addonDetail(config(), "levelhelper");
+        expect(card).toMatchObject({ id: "levelhelper", state: "ok", versions: ["forever"], release: { version: "0.3.0" } });
+        expect(card).not.toHaveProperty("repo");
+        expect(await addonDetail(config(), "levelhelper", { canManage: true })).toMatchObject({ repo: "mst1987/levelhelper" });
+    });
+
+    it("answers null for an unknown, an empty, a disabled and an orga-only id (unless orga), before GitHub is asked", async () => {
+        fetchLatestRelease.mockClear();
+        const off = config();
+        off.addonDownloads[0].enabled = false;
+        expect(await addonDetail(config(), "nope")).toBeNull();
+        expect(await addonDetail(config(), "")).toBeNull();
+        expect(await addonDetail(off, "levelhelper")).toBeNull();
+        expect(await addonDetail(config(), "eventhelper-sync")).toBeNull();
+        expect(fetchLatestRelease).not.toHaveBeenCalled();
+        fetchLatestRelease.mockResolvedValue(release("1.14.0", ["EventHelperSync.exe"]));
+        expect(await addonDetail(config(), "eventhelper-sync", { orga: true })).toMatchObject({ id: "eventhelper-sync", orgaOnly: true });
     });
 });
 

@@ -50,8 +50,8 @@ const FALLBACK_COLORS = Object.freeze([0x60a5fa, 0xfbbf24, 0xc084fc, 0x2dd4bf, 0
 const downloadId = (addonId) => `${CENTER_PREFIX}:dl:${addonId}`;
 const fileId = (addonId, assetId) => `${CENTER_PREFIX}:file:${addonId}:${assetId}`;
 
-/** The card of an addon on the web page "Addons" (anchor `addon-<id>`), where its release notes are. */
-const patchNotesUrl = (addonId) => `${webUrl("/addon")}#addon-${encodeURIComponent(str(addonId))}`;
+/** The detail page of an addon on the web (/addon/<id>), where its release notes are, whatever version the menu shows. */
+const patchNotesUrl = (addonId) => webUrl(`/addon/${encodeURIComponent(str(addonId))}`);
 
 const str = (v) => String(v === undefined || v === null ? "" : v);
 const text = (content) => new TextDisplayBuilder().setContent(content);

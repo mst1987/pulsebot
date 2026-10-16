@@ -32,7 +32,7 @@ describe("addonCenterPanel centerPayload", () => {
             "## Addon-Downloadzentrale",
             "Klick auf **Herunterladen** – die Datei kommt nur für dich. Entpacken nach `Interface\\AddOns`.",
         ].join("\n"));
-        expect(level).toBe(`### LevelHelper\nLeveling-Helfer für WoW Forever: solo oder im Duo, mit oder ohne RestedXP.\n-# Version 0.3.0 · 12.10.2026 · [Patchnotes](${webUrl("/addon")}#addon-levelhelper)`);
+        expect(level).toBe(`### LevelHelper\nLeveling-Helfer für WoW Forever: solo oder im Duo, mit oder ohne RestedXP.\n-# Version 0.3.0 · 12.10.2026 · [Patchnotes](${webUrl("/addon/levelhelper")})`);
         expect(head).not.toMatch(/gemeldet|abonnier/i);
         expect(buttons(payload).map((b) => [b.label, b.custom_id, b.style])).toEqual([
             ["Herunterladen", "addonhub:dl:levelhelper", ButtonStyle.Success],
@@ -47,12 +47,13 @@ describe("addonCenterPanel centerPayload", () => {
         expect(JSON.stringify(payload)).not.toMatch(/addonhub:(sub|unsub)|gemeldet|abonnier/i);
     });
 
-    it("links the patch notes of each addon with a release to its card on the web page, not to GitHub", () => {
+    it("links the patch notes of each addon with a release to its detail page on the web, not to GitHub", () => {
         const { payload } = panel.centerPayload({ entries: [entry("levelhelper"), entry("aurakit", { state: "no_release", release: null, files: [] })], now: NOW });
         const [, level, aura] = texts(payload);
-        expect(level).toContain(`[Patchnotes](${webUrl("/addon")}#addon-levelhelper)`);
+        expect(level).toContain(`[Patchnotes](${webUrl("/addon/levelhelper")})`);
         expect(aura).not.toContain("Patchnotes");
-        expect(panel.patchNotesUrl("levelhelper")).toBe(`${webUrl("/addon")}#addon-levelhelper`);
+        expect(panel.patchNotesUrl("levelhelper")).toBe(webUrl("/addon/levelhelper"));
+        expect(panel.patchNotesUrl("levelhelper")).not.toContain("#");
         expect(JSON.stringify(payload)).not.toContain("github.com");
     });
 
@@ -77,7 +78,7 @@ describe("addonCenterPanel centerPayload", () => {
         expect(texts(payload).slice(1).map((t) => t.split("\n").pop())).toEqual([
             "-# Noch kein Release.",
             "-# Gerade nicht verfügbar.",
-            `-# Version 0.3.0 · 12.10.2026 · Das neueste Release hat keine passende Datei. · [Patchnotes](${webUrl("/addon")}#addon-aurakit)`,
+            `-# Version 0.3.0 · 12.10.2026 · Das neueste Release hat keine passende Datei. · [Patchnotes](${webUrl("/addon/aurakit")})`,
         ]);
     });
 

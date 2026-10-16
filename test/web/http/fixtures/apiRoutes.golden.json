@@ -11,6 +11,7 @@
   "DELETE /api/raids/series",
   "GET /api/addon-center",
   "GET /api/addons",
+  "GET /api/addons/detail",
   "GET /api/addons/download",
   "GET /api/availability",
   "GET /api/availability/attendance",
