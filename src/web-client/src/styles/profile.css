@@ -166,9 +166,11 @@
 .pf-step-value { min-width: 96px; text-align: center; font: 700 13px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
 
 /* ---- a character's professions (part 2): chosen ones as rows, the rest as chips to add ---- */
-.pf-prof { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 0; border-bottom: 1px solid var(--line-soft); }
-.pf-prof .wi { width: 26px; height: 26px; border-radius: 5px; }
-.pf-prof-name { flex: 1; min-width: 100px; font-size: 15px; }
+.pf-prof { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line-soft); }
+.pf-prof .wi { width: 26px; height: 26px; border-radius: 5px; flex: 0 0 auto; }
+/* one line on a phone too: the name gives way (ellipsis), the skill and the × stay beside it */
+.pf-prof-name { flex: 1; min-width: 0; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 520px) { .pf-prof { gap: 6px; } .pf-prof .pf-step-value { min-width: 74px; } }
 .pf-prof-pick { display: flex; flex-wrap: wrap; gap: 6px; }
 
 /* ---- Meine Infos › Deine Anwesenheit: per category the quota large, the nights as status fields ---- */
