@@ -3,9 +3,12 @@
 const ROSTERS = {
     "cat1:tbc": { id: "r1", categoryId: "cat1", versionId: "tbc", guildId: "g1", managers: { userIds: ["mgr"], roleIds: ["role-mgr"] } },
     "cat1:forever": { id: "r1f", categoryId: "cat1", versionId: "forever", guildId: "g1", managers: { userIds: ["fmgr"], roleIds: [] } },
-    "cat2:tbc": { id: "r2", categoryId: "cat2", versionId: "tbc", guildId: "g2", managers: { userIds: ["other"], roleIds: ["role-2"] } },
+    "cat2:tbc": { id: "r2", categoryId: "cat2", versionId: "tbc", guildId: "g2", managers: { userIds: ["other", "dual"], roleIds: ["role-2"] } },
+    // cat3 switched to Forever: its TBC roster is closed (#739)
+    "cat3:tbc": { id: "r3", categoryId: "cat3", versionId: "tbc", guildId: "g1", closedAt: "2026-10-01T00:00:00.000Z", managers: { userIds: ["dual"], roleIds: [] } },
+    "cat3:forever": { id: "r3f", categoryId: "cat3", versionId: "forever", guildId: "g1", managers: { userIds: ["f3"], roleIds: [] } },
 };
-const mockCurrentVersion = { cat1: "tbc", cat2: "tbc" };
+const mockCurrentVersion = { cat1: "tbc", cat2: "tbc", cat3: "forever" };
 jest.mock("../../../src/stores/rosterStore", () => ({ listRosters: jest.fn(() => Object.values(ROSTERS)) }));
 jest.mock("../../../src/services/roster/categoryRoster", () => ({
     currentRoster: jest.fn((cat) => ROSTERS[`${cat}:${mockCurrentVersion[cat]}`] || null),
@@ -91,7 +94,8 @@ describe("services/roster/categoryOrga per request", () => {
         expect(orga.requestCache(req)).toBe(cache);
         expect(orga.requestCache({})).not.toBe(cache);
         await orga.isCategoryOrga(raider("x"), "cat1", { cache, memberRoleIds });
-        await orga.canOrgaEvent(raider("x"), { id: "rh1", categoryId: "cat1" }, { cache, memberRoleIds });
+        mockSnapshots.rh1 = { categoryId: "cat1" };
+        expect(await orga.canOrgaEvent(raider("x"), "rh1", { cache, memberRoleIds })).toBe(true);
         await orga.orgaCategoryIds(raider("x"), { cache, memberRoleIds });
         expect(memberRoleIds.mock.calls.filter(([g]) => g === "g1")).toHaveLength(1);
         expect(typeof orga.requestCache(null).roles.get).toBe("function");
@@ -104,7 +108,7 @@ describe("services/roster/categoryOrga orgaCategoryIds / isAnyCategoryManager", 
         expect(await orga.orgaCategoryIds(raider("mgr"), { memberRoleIds })).toEqual(["cat1"]);
         expect(await orga.orgaCategoryIds(raider("x"), { memberRoleIds })).toEqual(["cat2"]);
         expect(await orga.orgaCategoryIds(raider("nobody"), { memberRoleIds })).toEqual([]);
-        expect(await orga.orgaCategoryIds(globalOrga, { memberRoleIds })).toEqual(["cat1", "cat2"]);
+        expect(await orga.orgaCategoryIds(globalOrga, { memberRoleIds })).toEqual(["cat1", "cat2", "cat3"]);
         expect(await orga.orgaCategoryIds(null)).toEqual([]);
     });
 
@@ -137,14 +141,51 @@ describe("services/roster/categoryOrga canOrgaEvent", () => {
         // a row cannot pretend another category: the stored event wins
         expect(await orga.canOrgaEvent(raider("other"), { id: "eh-1", categoryId: "cat2" }, { memberRoleIds })).toBe(false);
         expect(await orga.canOrgaEvent(raider("mgr"), "eh-missing", { memberRoleIds })).toBe(false);
+        // a row's version does not count either: eh-1 stays a TBC raid
+        expect(await orga.canOrgaEvent(raider("fmgr"), { id: "eh-1", versionId: "forever" }, { memberRoleIds })).toBe(false);
+        expect(await orga.canOrgaEvent(raider("mgr"), { id: "eh-1", versionId: "forever" }, { memberRoleIds })).toBe(true);
+        // an unknown own id is no raid, whatever the row claims
+        expect(await orga.canOrgaEvent(raider("mgr"), { id: "eh-missing", categoryId: "cat1" }, { memberRoleIds })).toBe(false);
     });
 
-    it("Raid-Helper event: the row's category, else the snapshot, else the event groups", async () => {
+    it("a row without an id (a new event in a category) counts by its category, in the version played now", async () => {
         const memberRoleIds = roles({});
-        expect(await orga.canOrgaEvent(raider("mgr"), { id: "rh1", categoryId: "cat1" }, { memberRoleIds })).toBe(true);
+        expect(await orga.canOrgaEvent(raider("mgr"), { categoryId: "cat1" }, { memberRoleIds })).toBe(true);
+        expect(await orga.canOrgaEvent(raider("fmgr"), { categoryId: "cat1", versionId: "forever" }, { memberRoleIds })).toBe(false);
+        expect(await orga.canOrgaEvent(raider("mgr"), { categoryId: "cat2" }, { memberRoleIds })).toBe(false);
+        expect(await orga.canOrgaEvent(raider("mgr"), {}, { memberRoleIds })).toBe(false);
+    });
+
+    it("a closed roster gives no right - not even to who manages a current roster elsewhere (#739)", async () => {
+        mockEvents["eh-old"] = { id: "eh-old", categoryId: "cat3", versionId: "tbc" };
+        mockEvents["eh-b"] = { id: "eh-b", categoryId: "cat2", versionId: "tbc" };
+        const memberRoleIds = roles({});
+        expect(await orga.isAnyCategoryManager(raider("dual"), { memberRoleIds })).toBe(true);
+        expect(await orga.canOrgaEvent(raider("dual"), "eh-old", { memberRoleIds })).toBe(false);
+        expect(await orga.canOrgaEvent(raider("dual"), "eh-b", { memberRoleIds })).toBe(true);
+        expect(await orga.orgaCategoryIds(raider("dual"), { memberRoleIds })).toEqual(["cat2"]);
+        expect(await orga.orgaCategoryIds(globalOrga, { memberRoleIds })).toEqual(["cat1", "cat2", "cat3"]);
+    });
+
+    it("managerOnly: the global orga counts only through a roster", async () => {
+        mockEvents["eh-1"] = { id: "eh-1", categoryId: "cat1", versionId: "tbc" };
+        mockEvents["eh-b"] = { id: "eh-b", categoryId: "cat2", versionId: "tbc" };
+        const orgaManager = { ...globalOrga, id: "mgr" };
+        const memberRoleIds = roles({});
+        expect(await orga.canOrgaEvent(orgaManager, "eh-1", { memberRoleIds, managerOnly: true })).toBe(true);
+        expect(await orga.canOrgaEvent(orgaManager, "eh-b", { memberRoleIds, managerOnly: true })).toBe(false);
+        expect(await orga.canOrgaEvent(orgaManager, "eh-b", { memberRoleIds })).toBe(true);
+    });
+
+    it("Raid-Helper event: the snapshot, else the event groups - never the row's claim", async () => {
+        const memberRoleIds = roles({});
+        // unknown to the server: the row's category does not count
+        expect(await orga.canOrgaEvent(raider("mgr"), { id: "rh1", categoryId: "cat1" }, { memberRoleIds })).toBe(false);
         mockSnapshots.rh2 = { categoryId: "cat2", guildId: "g2" };
         expect(await orga.canOrgaEvent(raider("other"), "rh2", { memberRoleIds })).toBe(true);
         expect(await orga.canOrgaEvent(raider("mgr"), "rh2", { memberRoleIds })).toBe(false);
+        // a row naming another category for a snapshot event
+        expect(await orga.canOrgaEvent(raider("mgr"), { id: "rh2", categoryId: "cat1" }, { memberRoleIds })).toBe(false);
         const loadGroups = jest.fn(async () => ({ groups: [{ categoryId: "cat1", events: [{ id: "rh3" }] }] }));
         expect(await orga.canOrgaEvent(raider("mgr"), "rh3", { memberRoleIds, loadGroups })).toBe(true);
         expect(await orga.canOrgaEvent(raider("mgr"), "rh4", { memberRoleIds, loadGroups })).toBe(false);

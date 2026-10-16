@@ -16,16 +16,19 @@
 // The orga (#723, docs/permissions.md "Kategorie-Orga") comes in two widths:
 //   orga: true            the global orga only (permissions.userIsOrga)
 //   orgaScoped: (body, query) => eventId(s)
-//                         the global orga exactly as with `orga: true` (every
-//                         other check unchanged), and besides them the orga of
-//                         the raid's category (a manager of its roster,
+//                         the global orga with the route's rights as with
+//                         `orga: true`, and besides them the orga of the raid's
+//                         category (a manager of its open roster,
 //                         services/roster/categoryOrga.js). For such a category
 //                         orga the event's category is their right: `write` is
 //                         not asked, the area gate lets them in as well
 //                         (apiAccess.gate), and after the body is read every
 //                         event the function names must be one of their
-//                         categories - else 403 "not_category_orga". Naming no
-//                         event refuses them too (fail-closed).
+//                         categories - else 403 "not_category_orga", before
+//                         the archive check. Naming no event, or an empty entry
+//                         in a list, refuses them too (fail-closed). A global
+//                         orga lacking the route's `write` or area takes the
+//                         same category path - never less than a manager.
 // The two are exclusive; the wrapper carries `orgaScoped = true` so the route
 // table and the area gate see the mark (routeTable.isOrgaScoped).
 const { requireAdmin, requireFullAdmin, requireCsrf } = require("./apiMiddleware");
@@ -43,11 +46,17 @@ const NOT_CATEGORY_ORGA = "Das darf nur die Orga dieser Kategorie.";
 /** The event groups of the caller's server, for a Raid-Helper event without snapshot (loaded on demand). */
 const groupsLoaderFor = (req) => () => loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
 
-/** Whether a category orga (not the global orga) may act on every event `ids` names. */
+/** An entry of what `orgaScoped` names: an id or a row (`{ id }`, or `{ categoryId }` for a new event). */
+const namesEvent = (v) => (v && typeof v === "object" ? !!(String(v.id || "").trim() || String(v.categoryId || "").trim()) : !!String(v === null || v === undefined ? "" : v).trim());
+
+/**
+ * Whether the caller manages the roster of every event `ids` names (the category path - the global
+ * orga does not count here). Nothing named, or one empty entry in the list, refuses.
+ */
 async function categoryOrgaOfAll(user, ids, req) {
-    const list = [].concat(ids || []).map((v) => (v && typeof v === "object" ? v : String(v || "").trim())).filter(Boolean);
-    if (!list.length) return false;
-    const opts = { cache: categoryOrga.requestCache(req), loadGroups: groupsLoaderFor(req) };
+    const list = Array.isArray(ids) ? ids : [ids];
+    if (!list.length || !list.every(namesEvent)) return false;
+    const opts = { cache: categoryOrga.requestCache(req), loadGroups: groupsLoaderFor(req), managerOnly: true };
     for (const event of list) {
         if (!(await categoryOrga.canOrgaEvent(user, event, opts))) return false;
     }
@@ -85,30 +94,34 @@ function withUser(opts, fn) {
             error(res, 403, "orga_only", ORGA_ONLY);
             return undefined;
         }
-        // A category orga: not the global orga, but a manager of some category's roster.
-        const scoped = !!orgaScoped && !userIsOrga(user);
-        if (scoped && !(await categoryOrga.isAnyCategoryManager(user, { cache: categoryOrga.requestCache(req) }))) {
-            error(res, 403, "orga_only", ORGA_ONLY);
+        const writeMissing = !!write && !userCan(user, write, "write");
+        // The category path: not the global orga - or a global orga without the route's right (the
+        // `write` here, or the area the gate let them past as a manager): never less than a manager.
+        const cache = orgaScoped ? categoryOrga.requestCache(req) : null;
+        const scoped = !!orgaScoped && (!userIsOrga(user) || writeMissing || cache.areaViaCategory === true);
+        if (scoped && !(await categoryOrga.isAnyCategoryManager(user, { cache }))) {
+            if (userIsOrga(user) && writeMissing) error(res, 403, "forbidden", `Keine Schreibrechte für „${LABELS[write] || write}“.`);
+            else error(res, 403, "orga_only", ORGA_ONLY);
             return undefined;
         }
-        if (write && !scoped && !userCan(user, write, "write")) {
+        if (writeMissing && !scoped) {
             error(res, 403, "forbidden", `Keine Schreibrechte für „${LABELS[write] || write}“.`);
             return undefined;
         }
         if (csrf && !requireCsrf(req, res)) return undefined;
         const parsed = body ? ((await readJsonBody(req)) || {}) : undefined;
+        const query = url && url.searchParams ? url.searchParams : new URLSearchParams();
+        // the category first: a raid of another category is "not yours", whatever its archive state
+        if (scoped && !(await categoryOrgaOfAll(user, orgaScoped(parsed || {}, query), req))) {
+            error(res, 403, "not_category_orga", NOT_CATEGORY_ORGA);
+            return undefined;
+        }
         if (archived) {
-            const query = url && url.searchParams ? url.searchParams : new URLSearchParams();
             const refused = archivedRefusal(archived(parsed || {}, query));
             if (refused) {
                 error(res, refused.status, refused.code, refused.message);
                 return undefined;
             }
-        }
-        const query = url && url.searchParams ? url.searchParams : new URLSearchParams();
-        if (scoped && !(await categoryOrgaOfAll(user, orgaScoped(parsed || {}, query), req))) {
-            error(res, 403, "not_category_orga", NOT_CATEGORY_ORGA);
-            return undefined;
         }
         return fn({ user, body: parsed, query, url, req, res });
     }

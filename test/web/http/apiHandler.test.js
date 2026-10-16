@@ -285,14 +285,39 @@ describe("web/http/apiHandler withUser orgaScoped", () => {
         await call(withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true }, fn), { json: { event: "mine" } });
         await call(withUser({ orgaScoped: BY_EVENT, write: "raids" }, fn), { method: "GET", url: new URL("http://x/api/t?event=mine") });
         await call(withUser({ orgaScoped: (body) => body.ids, body: true }, fn), { json: { ids: ["mine", "mine2"] } });
-        await call(withUser({ orgaScoped: (body) => ({ id: body.event, categoryId: "c" }), body: true }, fn), { json: { event: "mine" } });
+        // a row is handed on as it is; the server's record decides (categoryOrga.resolveEvent)
+        await call(withUser({ orgaScoped: (body) => ({ id: body.event }), body: true }, fn), { json: { event: "mine" } });
         expect(fn).toHaveBeenCalledTimes(4);
+        // the category path asks the roster only, never the global orga
+        expect(categoryOrga.canOrgaEvent.mock.calls.every(([, , opts]) => opts.managerOnly === true)).toBe(true);
+    });
+
+    it("never gives a global orga without the write right less than a manager (#724 review)", async () => {
+        // an orga role with `raids` read only, which manages the roster of "mine"
+        mockUser = { ...manager(), isOrga: true };
+        const fn = jest.fn(({ res }) => res.end("{}"));
+        await call(withUser({ orgaScoped: BY_EVENT, write: "raids", body: true }, fn), { json: { event: "mine" } });
+        expect(fn).toHaveBeenCalledTimes(1);
+        const res = await call(withUser({ orgaScoped: BY_EVENT, write: "raids", body: true }, fn), { json: { event: "foreign" } });
+        expect(sent(res).error.code).toBe("not_category_orga");
+        expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it("takes the category path for a global orga the area gate let in as a manager", async () => {
+        const req = jsonRequest("POST", "/", { event: "foreign" }, { "x-csrf-token": "tok" });
+        mockUser = { ...manager(), isOrga: true };
+        categoryOrga.requestCache(req).areaViaCategory = true;
+        const fn = jest.fn();
+        const res = mockRes();
+        await withUser({ orgaScoped: BY_EVENT, body: true }, fn)(req, res);
+        expect(sent(res).error.code).toBe("not_category_orga");
+        expect(fn).not.toHaveBeenCalled();
     });
 
     it("answers not_category_orga for an event of another category, a mixed list and no event at all", async () => {
         mockUser = manager();
         const fn = jest.fn();
-        for (const json of [{ event: "foreign" }, { ids: ["mine", "foreign"] }, {}]) {
+        for (const json of [{ event: "foreign" }, { ids: ["mine", "foreign"] }, {}, { ids: [] }, { ids: ["mine", ""] }, { ids: ["mine", null] }]) {
             const res = await call(withUser({ orgaScoped: (body) => body.event || body.ids, body: true }, fn), { json });
             expect(status(res)).toBe(403);
             expect(sent(res).error).toEqual({ code: "not_category_orga", message: "Das darf nur die Orga dieser Kategorie." });
@@ -300,7 +325,14 @@ describe("web/http/apiHandler withUser orgaScoped", () => {
         expect(fn).not.toHaveBeenCalled();
     });
 
-    it("still checks CSRF and the archive before the event", async () => {
+    it("answers a foreign archived raid with not_category_orga, not with the archive", async () => {
+        mockUser = manager();
+        mockArchived = new Set(["foreign"]);
+        const res = await call(withUser({ orgaScoped: BY_EVENT, csrf: true, body: true, archived: BY_EVENT }, jest.fn()), { json: { event: "foreign" } });
+        expect(sent(res).error.code).toBe("not_category_orga");
+    });
+
+    it("still checks CSRF first and the archive for an own raid", async () => {
         mockUser = manager();
         mockCsrf = false;
         let res = await call(withUser({ orgaScoped: BY_EVENT, csrf: true, body: true }, jest.fn()), { json: { event: "mine" } });

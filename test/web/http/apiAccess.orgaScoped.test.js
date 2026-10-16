@@ -41,11 +41,20 @@ jest.mock("../../../src/web/apiRoutes/orgaHub", () => {
         res.end("{}");
     });
     const plain = withUser({ orga: true, write: "raids", csrf: true, body: true }, ({ res }) => res.end("{}"));
+    // no `write` on the wrapper: only the area gate (raids at write level for a POST) guards it
+    const areaOnly = withUser({ orgaScoped: (body) => body.event, csrf: true, body: true }, ({ body, res }) => {
+        mockHandlerRan(body.event);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end("{}");
+    });
+    const adminOnly = withUser({ orgaScoped: (body) => body.event, csrf: true, body: true }, ({ res }) => res.end("{}"));
     return {
         routes: [
             ...actual.routes,
             { method: "POST", path: "/api/test/orga-scoped", handler: scoped, area: "raids" },
             { method: "POST", path: "/api/test/orga-plain", handler: plain, area: "raids" },
+            { method: "POST", path: "/api/test/orga-area", handler: areaOnly, area: "raids" },
+            { method: "POST", path: "/api/test/orga-admin", handler: adminOnly, adminOnly: true },
         ],
     };
 });
@@ -109,11 +118,33 @@ describe("web/http/apiAccess gate (orgaScoped)", () => {
 
     it("answers the global orga and the anonymous caller exactly as checkAccess does", async () => {
         expect(await gate("/api/test/orga-scoped", "POST", null, {})).toMatchObject({ status: 401 });
-        // an orga role without `raids` write: the gate does not widen for them (orga: true does not either)
+        // an orga role without `raids` write that manages no roster: the gate does not widen for them
         expect(await gate("/api/test/orga-scoped", "POST", user("o", raiderGrants, { isOrga: true }), {})).toMatchObject({ code: "forbidden" });
         expect(await gate("/api/test/orga-scoped", "POST", { id: "a", isAdmin: true }, {})).toBeNull();
         // no menu access at all stays refused, manager or not
         expect(await gate("/api/test/orga-scoped", "POST", user("mgr"), {})).toMatchObject({ code: "forbidden" });
+    });
+
+    it("gives a global orga without `raids` write at least what a manager gets (#724 review)", async () => {
+        // an orga role with `raids` read only that manages the roster of cat1
+        mockUser = user("mgr", { raids: { read: true, write: false } }, { isOrga: true });
+        let res = await post("/api/test/orga-scoped", { event: "rh1" });
+        expect(status(res)).toBe(200);
+        res = await post("/api/test/orga-scoped", { event: "rh2" });
+        expect(sent(res).error.code).toBe("not_category_orga");
+        // the area alone missing (no write on the wrapper): the gate's category path holds in the handler
+        res = await post("/api/test/orga-area", { event: "rh1" });
+        expect(status(res)).toBe(200);
+        res = await post("/api/test/orga-area", { event: "rh2" });
+        expect(sent(res).error.code).toBe("not_category_orga");
+        expect(mockHandlerRan.mock.calls).toEqual([["rh1"], ["rh1"]]);
+    });
+
+    it("never opens an adminOnly route, marked or not", async () => {
+        mockUser = user("mgr", raiderGrants);
+        const res = await post("/api/test/orga-admin", { event: "rh1" });
+        expect(status(res)).toBe(403);
+        expect(sent(res).error.code).toBe("forbidden");
     });
 
     it("lets a full admin through the router to any raid", async () => {

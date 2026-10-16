@@ -27,7 +27,7 @@
 // rights - gate() asks that only after checkAccess() refused, and only on such a
 // route. The handler then checks the concrete event (403 "not_category_orga").
 // Every other route answers exactly as checkAccess() does.
-const { AREAS, userCanAny, userHasMenuAccess, userIsOrga } = require("../../config/permissions");
+const { AREAS, userCanAny, userHasMenuAccess } = require("../../config/permissions");
 const { ROUTES, find, areasOf, isOrgaScoped } = require("./routeTable");
 const categoryOrga = require("../../services/roster/categoryOrga");
 
@@ -113,16 +113,22 @@ function checkAccess(pathname, method, user) {
 
 /**
  * checkAccess(), plus the category orga on an `orgaScoped` route (see the head comment): an area
- * refusal (403 "forbidden") of a menu user who is not the global orga but manages a category's
- * roster lets them through. `req` keys the role cache the handler reuses.
+ * refusal (403 "forbidden") of a menu user who manages a category's current roster lets them
+ * through - a global orga without the area too (never less than a manager). Only a route with areas:
+ * an adminOnly or area-less route stays closed. `req` keys the role cache the handler reuses; the
+ * mark `areaViaCategory` on it tells the handler to take the category path (apiHandler.js).
  * @returns {Promise<null | { status: number, code: string, message: string }>}
  */
 async function gate(pathname, method, user, req) {
     const denied = checkAccess(pathname, method, user);
     if (!denied || denied.status !== 403 || denied.code !== "forbidden") return denied;
-    if (!user || !userHasMenuAccess(user) || userIsOrga(user)) return denied;
-    if (!isOrgaScoped(find(method, pathname))) return denied;
-    return (await categoryOrga.isAnyCategoryManager(user, { cache: categoryOrga.requestCache(req) })) ? null : denied;
+    if (!user || !userHasMenuAccess(user)) return denied;
+    const route = find(method, pathname);
+    if (!isOrgaScoped(route) || route.adminOnly || !areasOf(route).length) return denied;
+    const cache = categoryOrga.requestCache(req);
+    if (!(await categoryOrga.isAnyCategoryManager(user, { cache }))) return denied;
+    cache.areaViaCategory = true;
+    return null;
 }
 
 module.exports = { checkAccess, gate, areasFor, levelFor, AREA_BY_PATH, UNGATED, ANY_AREA, TOKEN_AUTH };

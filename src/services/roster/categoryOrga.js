@@ -79,6 +79,8 @@ function cachedRoleLookup(cache, lookup = discord.memberRoleIds, waitMs = ROLE_F
 async function managesRoster(user, roster, { cache, memberRoleIds } = {}) {
     if (!user) return false;
     if (!roster) return user.isAdmin === true;
+    // a closed roster (#739, its category plays another version now) is read only - it makes nobody orga
+    if (roster.closedAt && user.isAdmin !== true) return false;
     const lookup = cachedRoleLookup(cache || createCache(), memberRoleIds);
     return canManageRosterLive(user, roster, { memberRoleIds: lookup }).catch(() => false);
 }
@@ -149,21 +151,19 @@ async function isAnyCategoryManager(user, { config, ...opts } = {}) {
 }
 
 /**
- * The raid an id or a partial row stands for, as far as the category and version go:
- * `{ id, categoryId, versionId? }` or null.
- *   - an own event: the stored event (its category and stored version),
- *   - a Raid-Helper event: the row itself when it names a category (loadEventGroups rows do),
- *     else Raid-Helper's snapshot (raidEventStore), else the event groups (`loadGroups`).
+ * The raid an id or a partial row stands for, as far as the category and version go - always the
+ * server's own record, never what a caller's row claims (category and version alike):
+ *   - an own event (`eh-` id): the stored event; unknown = null (no falling back on the row),
+ *   - a Raid-Helper event: Raid-Helper's snapshot (raidEventStore), else the event groups
+ *     (`loadGroups`); unknown = null,
+ *   - a row without an id ("a new event in category X", #728): only its `categoryId` - the version
+ *     is then the one the category plays now.
  */
 async function resolveEvent(eventOrId, { loadGroups } = {}) {
     const given = eventOrId && typeof eventOrId === "object" ? eventOrId : { id: eventOrId };
     const id = str(given.id);
-    if (id && isOwnEventId(id)) {
-        const stored = getEvent(id);
-        if (stored) return stored;
-    }
-    if (str(given.categoryId)) return given;
-    if (!id) return null;
+    if (!id) return str(given.categoryId) ? { categoryId: str(given.categoryId) } : null;
+    if (isOwnEventId(id)) return getEvent(id) || null;
     const snap = getRaidEvent(id);
     if (snap && str(snap.categoryId)) return { ...snap, id };
     if (typeof loadGroups !== "function") return null;
@@ -180,18 +180,19 @@ async function resolveEvent(eventOrId, { loadGroups } = {}) {
 }
 
 /**
- * Whether `user` is the orga of a raid: the global orga, or a manager of the roster of the raid's
- * category in the raid's version (categoryRoster.rosterOfEvent). A raid whose category cannot be told
- * has only the global orga.
+ * Whether `user` is the orga of a raid: the global orga, or a manager of the open roster of the raid's
+ * category in the raid's version (categoryRoster.rosterOfEvent; a closed roster gives no right). A raid
+ * whose category cannot be told has only the global orga. `managerOnly`: the global orga does not
+ * count - only the roster (the `orgaScoped` path of a global orga that lacks the route's right).
  * @param {object|null} user
  * @param {string|{ id?: string, categoryId?: string, versionId?: string }} event  an id or a row
- * @param {{ cache?: object, memberRoleIds?: Function, config?: object, loadGroups?: Function }} [opts]
+ * @param {{ cache?: object, memberRoleIds?: Function, config?: object, loadGroups?: Function, managerOnly?: boolean }} [opts]
  *   `loadGroups`: the event groups (raidEventGroups.loadEventGroups) for a Raid-Helper event without snapshot
  * @returns {Promise<boolean>}
  */
-async function canOrgaEvent(user, event, { config, loadGroups, ...opts } = {}) {
+async function canOrgaEvent(user, event, { config, loadGroups, managerOnly = false, ...opts } = {}) {
     if (!user) return false;
-    if (userIsOrga(user)) return true;
+    if (!managerOnly && userIsOrga(user)) return true;
     const resolved = await resolveEvent(event, { loadGroups });
     if (!resolved || !str(resolved.categoryId)) return false;
     return managesRoster(user, categoryRoster.rosterOfEvent(resolved, { config }), opts);
