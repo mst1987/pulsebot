@@ -59,7 +59,7 @@ const DEFAULT_ADDONS = Object.freeze([
     }),
     Object.freeze({
         id: "aurakit",
-        name: "AuraKit",
+        name: "Pulse AuraKit",
         description: "Buffs, Debuffs, Cooldowns, Leben und Ressourcen als Leiste unter dem Charakter, mit Klassen-Vorlagen und Cooldown-Puls.",
         repo: "mst1987/aurakit",
         private: true,
@@ -73,7 +73,7 @@ const DEFAULT_ADDONS = Object.freeze([
     }),
     Object.freeze({
         id: "macrohelper",
-        name: "MacroHelper",
+        name: "Pulse MacroHelper",
         description: "Macht aus Zaubern im Zauberbuch fertige Makros, mit Vorschlägen je Klasse.",
         repo: "mst1987/macrohelper",
         private: true,
@@ -177,18 +177,29 @@ function curseforgeOf(raw, id) {
     return known ? known.curseforge : "";
 }
 
+/** Former default names (Okt 2026: named like their CurseForge projects): a list stored with them follows. */
+const RENAMED = Object.freeze({ aurakit: "AuraKit", macrohelper: "MacroHelper" });
+
+/** The name of an entry; a former default name becomes today's default, a name the admin chose stays. */
+function nameOf(name, id) {
+    if (!Object.prototype.hasOwnProperty.call(RENAMED, id) || name !== RENAMED[id]) return name;
+    const known = DEFAULT_ADDONS.find((a) => a.id === id);
+    return known ? known.name : name;
+}
+
 /**
  * One stored or submitted entry in its final shape, or null when it cannot be
  * one (no usable repo, no name). The id comes from the entry, else its name.
  */
 function normalizeAddon(raw) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-    const name = text(raw.name, 60);
+    const typedName = text(raw.name, 60);
     const repo = normalizeRepo(raw.repo);
-    if (!name || !repo) return null;
+    if (!typedName || !repo) return null;
     const typedId = String(raw.id || "").trim().toLowerCase();
-    const id = ID.test(typedId) ? typedId : slugify(name);
+    const id = ID.test(typedId) ? typedId : slugify(typedName);
     if (!id) return null;
+    const name = nameOf(typedName, id);
     return {
         id,
         name,

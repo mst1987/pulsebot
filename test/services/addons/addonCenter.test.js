@@ -266,7 +266,7 @@ describe("addonCenter runCheck (the job)", () => {
             mockReleases.aurakit = releaseOf("aurakit", "1.1.0");
             await center.runCheck({ now: NOW + 1000 });
             const single = discord.postRolePing.mock.calls[0][2];
-            expect(single).toMatch(/\*\*AuraKit 1\.1\.0\*\* \(\[Patchnotes\]\(<https?:\/\/[^>]*\/addon\/aurakit>\) · \[Jetzt auch auf CurseForge\]\(<https:\/\/www\.curseforge\.com\/wow\/addons\/pulse-aurakit>\)\) ist da\.$/);
+            expect(single).toMatch(/\*\*Pulse AuraKit 1\.1\.0\*\* \(\[Patchnotes\]\(<https?:\/\/[^>]*\/addon\/aurakit>\) · \[Jetzt auch auf CurseForge\]\(<https:\/\/www\.curseforge\.com\/wow\/addons\/pulse-aurakit>\)\) ist da\.$/);
 
             mockReleases.aurakit = releaseOf("aurakit", "1.2.0");
             mockReleases.levelhelper = releaseOf("levelhelper", "0.5.0");
