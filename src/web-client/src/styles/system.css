@@ -5,7 +5,7 @@
 .sy-page { min-width: 0; }
 
 /* small uppercase labels, the page's quiet layer */
-.sy-label { font-size: 11.5px; color: var(--muted); font-weight: 600; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .04em; }
+.sy-label { font-size: 12px; color: var(--muted); font-weight: 600; }
 
 /* ---- the verdict ---- */
 .sy-verdict {
@@ -29,15 +29,16 @@
 /* ---- the tiles ---- */
 .sy-tiles-wrap { margin: 0 0 8px; }
 .sy-tiles-head { display: flex; justify-content: flex-end; margin: 0 0 10px; }
-.sy-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+/* one strip with hairlines between the figures (each tile draws its right and bottom line; the frame clips the outer ones) */
+.sy-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0; border: 1px solid var(--line); background: var(--panel); overflow: hidden; }
 .sy-tile {
     --sy-ink: var(--accent);
-    background: var(--panel); border: 1px solid var(--line); padding: 16px 18px 12px; min-width: 0;
+    padding: 16px 18px 12px; min-width: 0; box-shadow: 1px 0 0 var(--line-soft), 0 1px 0 var(--line-soft);
     display: flex; flex-direction: column; gap: 4px; outline: none;
 }
-.sy-tile:focus-visible { border-color: var(--accent); }
-.sy-tile.sy-tone-mid { --sy-ink: var(--medium); border-top: 3px solid var(--medium); }
-.sy-tile.sy-tone-bad { --sy-ink: var(--high); border-top: 3px solid var(--high); }
+.sy-tile:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.sy-tile.sy-tone-mid { --sy-ink: var(--medium); }
+.sy-tile.sy-tone-bad { --sy-ink: var(--high); }
 .sy-value { font-size: 32px; font-weight: 700; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
 .sy-tile.sy-tone-mid .sy-value { color: var(--medium); }
 .sy-tile.sy-tone-bad .sy-value { color: var(--high); }
@@ -94,7 +95,7 @@
 .sy-backup-detail { overflow-wrap: anywhere; }
 .sy-backup-light { margin-top: 6px; }
 .sy-backup-deploy { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 12.5px; color: var(--muted); }
-.sy-backup-deploy-label { display: block; font-size: 11px; font-weight: 600; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .04em; }
+.sy-backup-deploy-label { display: block; font-size: 12px; font-weight: 600; }
 .sy-backup-deploy-fig { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .sy-backup-deploy-when { white-space: nowrap; }
 .sy-backup-deploy-commits { display: block; font-family: var(--font-mono); font-size: 12px; overflow-wrap: anywhere; }
