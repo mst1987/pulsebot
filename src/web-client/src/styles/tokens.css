@@ -83,7 +83,7 @@
     --ver-forever: var(--vc-forever-dark, #4da3ff); --ver-forever-ink: var(--vc-forever-ink-dark, #0b0f14);
     --ver-tbc: var(--vc-tbc-dark, #9bd45a); --ver-tbc-ink: var(--vc-tbc-ink-dark, #0b0f14);
     --ver-classic: var(--vc-classic-dark, #9fb0c8); --ver-classic-ink: var(--vc-classic-ink-dark, #0b0f14);
-    --accent-soft-alpha: 16%;
+    --accent-soft-alpha: 14%;
     /* the orga marking (#732) is teal whichever version is shown; it has its own token, not --accent-2 */
     --orga-teal: #35d6c4;
     /* the archive banner of a hidden version */
@@ -242,8 +242,18 @@
 
 /* ---- the version colour (#742) ----
    <html data-version> is set by components/shell/ContentVersionProvider (and left off on
-   a version-neutral page). Design pilot C keeps the one accent (Rost) on every page: the
-   version colour no longer replaces --accent, it stays available as --version-color. */
+   a version-neutral page: Einstellungen, Systemstatus, Kanäle, see menu.json). On a page with a
+   version the version colour is the accent (variant B, user decision 2026-10-17: TBC and Forever
+   must be told apart at a glance); a neutral page keeps the Rost accent above. Last in the file on
+   purpose: it has the specificity of the light blocks and must win over their --accent. The --area-*
+   names point at --accent and follow by themselves; the soft tint is mixed from the one colour and
+   only shows where the calm design still uses --accent-soft. --accent-2 and --orga-teal never follow.
+   The 2px line under the topbar and the filled switcher segment read --version-color (shared.css). */
 :root[data-version="forever"] { --version-color: var(--ver-forever); --version-ink: var(--ver-forever-ink); }
 :root[data-version="tbc"] { --version-color: var(--ver-tbc); --version-ink: var(--ver-tbc-ink); }
 :root[data-version="classic"] { --version-color: var(--ver-classic); --version-ink: var(--ver-classic-ink); }
+:root[data-version="forever"], :root[data-version="tbc"], :root[data-version="classic"] {
+    --accent: var(--version-color);
+    --accent-ink: var(--version-ink);
+    --accent-soft: color-mix(in srgb, var(--version-color) var(--accent-soft-alpha), transparent);
+}
