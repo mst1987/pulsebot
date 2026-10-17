@@ -31,7 +31,8 @@ describe("step bar conventions", () => {
         expect(css).toMatch(/\n\.rd-ck-steps > li \{[^}]*flex: 1 1 0;/);
         // icon | name | mark on top, the value below name and mark: neither is cut short for the other
         expect(css).toMatch(/\n\.rd-ck \{[^}]*display: grid;[^}]*grid-template-columns: auto minmax\(0, 1fr\) auto;[^}]*grid-template-rows: auto auto/);
-        expect(css).toMatch(/\n\.rd-ck-icon \{[^}]*grid-row: 1 \/ span 2; grid-column: 1;/);
+        // the icon spans both lines at 32 px — `.wi` so it wins over the shared 18-px icon rule
+        expect(css).toMatch(/\n\.wi\.rd-ck-icon \{[^}]*grid-row: 1 \/ span 2; grid-column: 1;[^}]*width: 32px; height: 32px;/);
         expect(css).toMatch(/\n\.rd-ck-val \{[^}]*grid-row: 2; grid-column: 2 \/ span 2;/);
         expect(css).toMatch(/\n\.rd-ck-focus \{/);
     });

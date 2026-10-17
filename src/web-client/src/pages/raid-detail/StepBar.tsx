@@ -88,7 +88,7 @@ function LaterStrip({ progress, onDeed }: { progress: RaidEventSteps; onDeed: (d
     if (!later) return null;
     const deed = later.step && later.step.action;
     return (
-        <div className="rd-ck-focus is-calm" data-step={later.step ? later.step.id : undefined}>
+        <div className="rd-ck-focus rd-ck-calm" data-step={later.step ? later.step.id : undefined}>
             <div className="rd-ck-focus-text">
                 <b className="rd-ck-focus-title">{later.title}</b>
                 {later.text && <span className="rd-ck-focus-sub">{later.text}</span>}

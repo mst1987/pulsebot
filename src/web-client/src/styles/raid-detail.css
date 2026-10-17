@@ -103,9 +103,9 @@ button.rd-ck:focus-visible { outline: 2px solid var(--accent); outline-offset: -
 .rd-ck-focus-sub { font-size: 13.5px; color: var(--muted); }
 .rd-ck-focus .btn { flex: 0 0 auto; }
 /* nothing is due: the same strip, quieter - normal weight, muted, a ghost button at most */
-.rd-ck-focus.is-calm { padding: 11px 24px; }
-.rd-ck-focus.is-calm .rd-ck-focus-title { font-size: 14px; font-weight: 500; }
-.rd-ck-focus.is-calm .rd-ck-focus-sub { font-size: 13px; }
+.rd-ck-focus.rd-ck-calm { padding: 11px 24px; }
+.rd-ck-focus.rd-ck-calm .rd-ck-focus-title { font-size: 14px; font-weight: 500; }
+.rd-ck-focus.rd-ck-calm .rd-ck-focus-sub { font-size: 13px; }
 /* Abgesagt: eine Zeile, der Grund und der Weg zurück. */
 .rd-ck-off { display: flex; align-items: center; gap: 12px; padding: 12px 16px; flex-wrap: wrap; }
 .rd-ck-off-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
