@@ -36,7 +36,7 @@
 .se-size input { width: 52px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; color: var(--text); font: 700 13px var(--mono); padding: 3px 6px; text-align: center; }
 .se-size input:disabled { opacity: .6; }
 .se-size-total { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
-.se-size-dirty { color: var(--accent); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
+.se-size-dirty { color: var(--accent); font-size: 12px; font-weight: 700; }
 
 /* the ping text sent with the posted setup ("Ping-Text…" under "Mehr"): its own card, so it reads as "this is what gets posted" */
 .se-pingtext { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; border-left: 3px solid var(--accent); border-radius: 8px; background: var(--panel2); }
@@ -128,7 +128,7 @@
 .se-tip-char-text small { color: var(--muted); font-size: 12px; font-weight: 500; }
 /* the name is always readable in full and on one line: the header gives it the width */
 .se-tip-name { font-weight: 800; font-size: 20px; line-height: 1.2; white-space: nowrap; }
-.se-tip-k { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+.se-tip-k { font-size: 12px; font-weight: 600; color: var(--muted); }
 .se-tip-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 10px; font-size: 12.5px; color: var(--muted); }
 .se-tip-sub .wi { border-radius: 3px; }
 /* the state in the panel's header: the line's field (.se-sig), a touch larger */
@@ -143,7 +143,7 @@
 .se-tip-link { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 .se-tip-linked { width: 22px; height: 22px; border-radius: 50%; background: var(--good-bg); color: var(--good); }
 .se-tip-linked svg { width: 13px; height: 13px; }
-.se-tip-auto { font-weight: 700; font-size: 12px; padding: 2px 9px; border-radius: 999px; background: var(--medium-bg); color: var(--medium); }
+.se-tip-auto { font-weight: 700; font-size: 12px; padding: 2px 6px; border-radius: 3px; background: var(--medium-bg); color: var(--medium); }
 .se-tip-buff { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .se-tip-buff .wi { width: 22px; height: 22px; border-radius: 5px; flex: 0 0 auto; }
 /* one line per buff: the name, and for a group buff a small tag after it (a raid buff needs none) */
@@ -244,7 +244,7 @@
 .se-post-state { font-size: 12px; color: var(--muted); white-space: nowrap; cursor: help; }
 .se-post-split .se-post-caret { min-height: 36px; }
 .se-post-pop { position: fixed; z-index: 60; display: flex; flex-direction: column; gap: 12px; min-width: 250px; padding: 12px 16px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 18px 40px -12px var(--shade-55); }
-.se-post-head { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+.se-post-head { font-size: 12px; font-weight: 600; color: var(--muted); }
 .se-postopt { white-space: nowrap; font-size: 13.5px; }
 
 /* overbooked (#811): a calm line under the bar — "25 Anmeldungen für 10 Plätze — Weiteren Raid hinzufügen" */
@@ -395,7 +395,7 @@
 .se-slot.se-flash { border-color: var(--se-who); box-shadow: 0 0 0 3px color-mix(in srgb, var(--se-who) 30%, transparent); animation: se-flash 4s ease-out forwards; }
 @keyframes se-flash { 0%, 70% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--se-who) 30%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }
 @media (prefers-reduced-motion: reduce) { .se-slot.se-flash { animation: none; } }
-.se-who-tag { position: absolute; top: -8px; right: 6px; max-width: calc(100% - 12px); padding: 0 7px; border-radius: 999px; background: var(--se-who); color: color-mix(in srgb, var(--se-who) 22%, black); font-size: 10px; font-weight: 800; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.se-who-tag { position: absolute; top: -8px; right: 6px; max-width: calc(100% - 12px); padding: 0 7px; border-radius: 3px; background: var(--se-who); color: color-mix(in srgb, var(--se-who) 22%, black); font-size: 10px; font-weight: 800; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 .se-feed { padding: 10px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
 .se-feed-head { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13.5px; margin-bottom: 6px; }
 .se-feed-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
@@ -481,7 +481,7 @@
 .se-search-foot .se-search-count { margin-left: auto; }
 
 /* an extra tank / healer: a small pill on the tile, and the two toggles in the raider panel */
-.se-extra { margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.se-extra { margin-left: 6px; padding: 0 4px; border-radius: 3px; background: none; color: var(--accent); font-size: 11px; font-weight: 700; white-space: nowrap; }
 .se-tip-extra { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 4px; border: 1px solid var(--line); border-radius: 8px; background: none; color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .se-tip-extra:hover { border-color: var(--accent); color: var(--text); }
 .se-tip-extra.is-on { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
@@ -508,13 +508,13 @@
 .se-more-sep { height: 1px; margin: 4px 6px; background: var(--line-soft); }
 /* a picked raider holds the panel: a small pin next to the name says so */
 .se-tip-nameline { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
-.se-tip-pin { flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 11.5px; font-weight: 700; }
+.se-tip-pin { flex: 0 0 auto; padding: 1px 0; border-radius: 0; background: none; color: var(--accent); font-size: 11.5px; font-weight: 700; }
 .se-tip.se-tip-pinned { box-shadow: 0 0 0 2px var(--accent-soft); }
 
-/* Confirm/Cancel of a group slot: the line tinted green (red for a cancel), the mark a small badge on the spec
+/* Confirm/Cancel of a group slot: a green (red for a cancel) bar on the line's left and frame, the mark a small badge on the spec
    icon's bottom right corner, like an online status — ringed in the line's colour, so the line's right stays free */
-.se-slot.se-confirmed { background: linear-gradient(90deg, var(--panel2) 0%, var(--good-bg) 55%), var(--panel2); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
-.se-slot.se-declined { background: linear-gradient(90deg, var(--panel2) 0%, var(--high-bg) 55%), var(--panel2); border-color: color-mix(in srgb, var(--high) 45%, transparent); }
+.se-slot.se-confirmed { box-shadow: inset 3px 0 0 var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.se-slot.se-declined { box-shadow: inset 3px 0 0 var(--high); border-color: color-mix(in srgb, var(--high) 45%, transparent); }
 .se-slot-tile { position: relative; display: inline-flex; flex: 0 0 auto; }
 .se-confirm-mark { position: absolute; right: -4px; bottom: -4px; display: flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; color: var(--bg); box-shadow: 0 0 0 2px var(--panel2); pointer-events: none; }
 .se-confirm-mark svg { width: 9px; height: 9px; stroke-width: 4; }
@@ -524,8 +524,8 @@
 .se-compact .se-confirm-mark svg { width: 7px; height: 7px; }
 /* the picked raider wins over every tint: a strong accent frame and wash, also on a green or red line */
 .se-slot.se-picked, .se-slot.se-picked.se-confirmed, .se-slot.se-picked.se-declined {
-    border-color: var(--accent); background: linear-gradient(0deg, var(--accent-soft), var(--accent-soft)), var(--panel2);
-    box-shadow: 0 0 0 2px var(--accent), 0 0 14px -2px var(--accent);
+    border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--panel2));
+    box-shadow: 0 0 0 2px var(--accent);
 }
 /* the raider the panel holds (after a panel action, nothing to move): the frame without the wash, the tint stays readable */
 .se-slot.se-pinned, .se-slot.se-pinned.se-confirmed, .se-slot.se-pinned.se-declined { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
@@ -548,10 +548,10 @@
 }
 .se-raidtab:hover { border-color: var(--accent); color: var(--text); }
 .se-raidtab.se-current { background: var(--panel2); border-color: var(--accent); color: var(--text); box-shadow: inset 0 -3px 0 var(--accent); }
-.se-raidtab-no { font: 600 11px/1 var(--font-mono); text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.se-raidtab-no { font: 600 12px/1 var(--font-sans); color: var(--muted); }
 .se-raidtab-title { font-weight: 700; font-size: 15px; color: var(--text); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
 .se-raidtab-count { font-family: var(--font-mono); font-size: 13px; color: var(--text); }
-.se-raidtab-state { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--panel3); color: var(--muted); }
+.se-raidtab-state { font-size: 12px; padding: 2px 6px; border-radius: 3px; background: var(--panel3); color: var(--muted); }
 .se-raidtab-state.se-st-approved, .se-raidtab-state.se-st-posted { background: var(--good-bg, var(--panel3)); color: var(--good); }
 .se-raidtab-state.se-st-draft { color: var(--medium); }
 .se-raidtab-target { border-style: dashed; border-color: var(--accent); color: var(--text); }
