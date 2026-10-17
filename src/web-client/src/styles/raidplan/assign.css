@@ -515,11 +515,12 @@ dialog.dlg.rp-amb { width: min(1320px, calc(100vw - 32px)) !important; max-heigh
 .rp-line-dev { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 700; white-space: nowrap; }
 .rp-line.is-dev { background: color-mix(in srgb, var(--accent) 7%, var(--panel)); }
 .rp-line.is-dev:not(.is-ro):hover { background: color-mix(in srgb, var(--accent) 12%, var(--panel2)); }
-/* the rows of an editor card: top aligned so the targets start next to the first class, the targets a calm list (colour only as the left edge, equal heights) */
+/* the rows of an editor card: top aligned so the targets start next to the first class, the targets a calm list (colour only as the left edge, equal heights),
+   each chip only as wide as its content like the chips under "Wer" (max-width: 100% and the ellipsis of .rp-lc cut a long one); the row stays the click area */
 .rp-editlist > .rp-line { align-items: start; min-height: 0; }
 .rp-editlist .rp-line-arr { margin-top: 5px; }
 .rp-editlist .rp-line-ico { margin-top: 1px; }
-.rp-editlist .rp-line-cell.is-at { flex-direction: column; align-items: stretch; gap: 4px; }
+.rp-editlist .rp-line-cell.is-at { flex-direction: column; align-items: flex-start; gap: 4px; }
 .rp-editlist .rp-line-cell.is-at > .rp-lc { height: 26px; }
 .rp-editlist .rp-line-cell.is-at > .rp-lc.is-grp { background: var(--panel2); }
 /* actions dimmed until the row is hovered or focused (the pencil stays as it is) */
