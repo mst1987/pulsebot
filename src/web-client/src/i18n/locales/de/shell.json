@@ -71,6 +71,7 @@
     "logoutSub": "Vom Gildenmenü abmelden",
     "docs": "Dokumentation",
     "menuToggle": "Menü",
+    "menuClose": "Menü schließen",
     "rail": {
         "aria": "Seiten von {name}"
     },

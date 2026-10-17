@@ -71,7 +71,9 @@ function PlayerRow({ onOpen, tip, tipSub, children }: { onOpen?: () => void; tip
  * they "can also" do and their comment sit in the tooltip, never in the row.
  * The sign-offs are one badge with the names in its tooltip.
  */
-function OwnSignupGroups({ signups, target, openPlayer }: { signups: EventSignupEntry[]; target?: number; openPlayer: RaidCtx["openPlayer"] }) {
+function OwnSignupGroups({ signups, target, roleTargets, openPlayer }: {
+    signups: EventSignupEntry[]; target?: number; roleTargets?: Partial<Record<GameRole, number>> | null; openPlayer: RaidCtx["openPlayer"];
+}) {
     const t = useT();
     const coming = signups.filter((s) => s.status !== "absence");
     const absent = signups.filter((s) => s.status === "absence");
@@ -94,9 +96,17 @@ function OwnSignupGroups({ signups, target, openPlayer }: { signups: EventSignup
             <div className="rd-groups rd-own">
                 {OWN_ROLES.map((role) => {
                     const list = coming.filter((s) => s.role === role);
+                    // the planned places of the role (its composition): "3 von 3", an open place in the accent
+                    const want = roleTargets?.[role];
+                    const signed = list.filter((s) => s.status !== "bench").length;
                     return (
                         <div className="rd-group" key={role}>
-                            <div className="rd-group-head"><span className="kicker">{ROLE_META[role].label}</span><span className="rd-gh-n">{t("raidDetail.roster.roleHeadCount", { count: list.length })}</span></div>
+                            <div className="rd-group-head">
+                                <span className="kicker">{ROLE_META[role].label}</span>
+                                {want
+                                    ? <span className={signed < want ? "rd-gh-n open" : "rd-gh-n"}>{t("raidDetail.roster.roleHeadOf", { count: signed, target: want })}</span>
+                                    : <span className="rd-gh-n">{t("raidDetail.roster.roleHeadCount", { count: list.length })}</span>}
+                            </div>
                             <div className="rd-plist">
                                 {list.map((s) => {
                                     const also = s.canAlso.map((r) => CAN_ALSO[r].label).join(", ");
@@ -343,7 +353,7 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
             )}
 
             {data.ownSignups
-                ? <OwnSignupGroups signups={data.ownSignups} target={data.signupTarget} openPlayer={openPlayer} />
+                ? <OwnSignupGroups signups={data.ownSignups} target={data.signupTarget} roleTargets={data.roleTargets} openPlayer={openPlayer} />
                 : !setup?.total
                 ? !setupError && <p className="rd-empty">{t("raidDetail.roster.noPlan")}</p>
                 : (

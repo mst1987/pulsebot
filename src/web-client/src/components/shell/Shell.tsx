@@ -181,6 +181,8 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                         </a>
                     </div>
                 </aside>
+                {/* On a phone the open drawer covers the burger: a tap beside it closes it. */}
+                {menuOpen && <button type="button" className="side-scrim" aria-label={t("shell.menuClose")} onClick={() => setMenuOpen(false)} />}
                 <div className="main">
                     <header className={orgaAudience ? "topbar is-orga" : "topbar"}>
                         <IconButton className="menu-toggle" icon={<BurgerIcon />} tip={t("shell.menuToggle")} onClick={() => setMenuOpen((o) => !o)} />

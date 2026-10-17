@@ -162,6 +162,7 @@
         "notInSetup": "Nicht im Setup",
         "allInPlan": "alle Reagierten stehen im Raidplan",
         "roleHeadCount": "{count} angemeldet",
+        "roleHeadOf": "{count} von {target}",
         "lead": "{count} von {target} angemeldet",
         "leadNoTarget": "{count} angemeldet",
         "leadAria": "Stand der Anmeldungen",

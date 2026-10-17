@@ -162,6 +162,7 @@
         "notInSetup": "Not in the setup",
         "allInPlan": "everyone who reacted is in the raid plan",
         "roleHeadCount": "{count} signed up",
+        "roleHeadOf": "{count} of {target}",
         "lead": "{count} of {target} signed up",
         "leadNoTarget": "{count} signed up",
         "leadAria": "Signup state",

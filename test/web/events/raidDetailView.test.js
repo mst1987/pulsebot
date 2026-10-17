@@ -109,7 +109,7 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
             "event", "planning", "setupFromSnapshot", "categoryName", "openToAll", "guildId", "eventsWarning", "notifyTemplates", "roles", "pingTargets",
             "raidsheets", "matchedSheetId", "setup", "setupError", "tankCandidates", "eventSheet", "sheetLink", "raidplanPost", "eventSoftres",
             "softresCatalogue", "softresEdition", "softresOff", "versionId", "wowheadPath", "archived", "softresSuggested", "attendance", "ownSignups", "ownSetup", "raidGroup", "ownSetupPost",
-            "ownSetupEditors", "attendanceRoleIds", "attendanceSource", "membersError", "signupTarget", "lootItems", "lootTool", "lootSystem", "eventLogs", "unlinkedLogs",
+            "ownSetupEditors", "attendanceRoleIds", "attendanceSource", "membersError", "signupTarget", "roleTargets", "lootItems", "lootTool", "lootSystem", "eventLogs", "unlinkedLogs",
             "orga", "viewer", "progress", "steps", "playerSummaries",
         ]);
         // no rights handed in (an older caller): the orga's view counts as the orga's rights
@@ -581,5 +581,18 @@ describe("the orga of the raid's category", () => {
         expect(d.orga).toBe(false);
         expect(d.viewer.canOrga).toBe(false);
         expect(discord.memberRoleIds).not.toHaveBeenCalled();
+    });
+});
+
+describe("web/events/raidDetailView roleTargetsOf", () => {
+    it("reads the planned places per role from an own event's composition", () => {
+        expect(_internal.roleTargetsOf({ composition: { tank: 3, healer: 7, melee: 8, ranged: 7 } })).toEqual({ tank: 3, healer: 7, melee: 8, ranged: 7 });
+    });
+
+    it("leaves out a role without a planned number, and is null without any", () => {
+        expect(_internal.roleTargetsOf({ composition: { tank: 2, healer: 5, melee: null, ranged: undefined } })).toEqual({ tank: 2, healer: 5 });
+        expect(_internal.roleTargetsOf({ composition: { tank: 0, healer: 0 } })).toBeNull();
+        expect(_internal.roleTargetsOf({})).toBeNull();
+        expect(_internal.roleTargetsOf(null)).toBeNull();
     });
 });
