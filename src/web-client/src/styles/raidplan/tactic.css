@@ -40,7 +40,7 @@
 .rp-steps-starter li span, .rp-lib-tile li span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rp-steps-starter .rp-acard-add { justify-content: center; margin-top: 2px; }
 .rp-st-cols, .rp-st-row { display: grid; grid-template-columns: 44px 30px minmax(0, 1fr) minmax(0, 1.5fr) 118px 76px; gap: 0 10px; align-items: center; }
-.rp-st-cols { padding: 0 18px 0 20px; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.rp-st-cols { padding: 0 18px 0 20px; font-size: 12px; font-weight: 700; color: var(--muted); }
 .rp-st-cols .is-end { text-align: right; }
 .rp-st-list { list-style: none; margin: 0; padding: 0 12px; display: flex; flex-direction: column; gap: 6px; }
 .rp-st-row { position: relative; min-height: 48px; padding: 8px 6px 8px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
