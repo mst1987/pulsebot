@@ -10,6 +10,7 @@ import { useTableSort } from "../../lib/ui/tableSort";
 import { usePersistedState } from "../../lib/ui/persistedState";
 import { formatTime } from "../../lib/format";
 import { millis, num } from "../../lib/system/systemFormat";
+import PathText from "./PathText";
 
 // "Langsamste Seiten/Anfragen": every route pattern with its count, mean, p95,
 // maximum and slow requests - for the last hour or since the start - sortable,
@@ -29,7 +30,7 @@ export default function RoutesSection({ requests }: { requests: SystemStatus["re
     const fig = (r: SystemRoute) => r[win];
     const slowTone = (r: SystemRoute) => (fig(r).slow > 0 ? "bad" : undefined);
     const columns: Column<SystemRoute, SortKey>[] = [
-        { id: "route", label: t("system.routes.route"), sortKey: "route", className: "sy-route", cell: (r) => <code>{r.route}</code> },
+        { id: "route", label: t("system.routes.route"), sortKey: "route", className: "sy-route", cell: (r) => <code><PathText text={r.route} /></code> },
         { id: "count", label: t("system.routes.count"), sortKey: "count", className: "sy-num", tip: t("system.routes.countTip"), cell: (r) => num(fig(r).count) },
         { id: "avg", label: t("system.routes.avg"), sortKey: "avg", className: "sy-num sy-wide-only", tip: t("system.routes.avgTip"), cell: (r) => millis(fig(r).avg) },
         { id: "p95", label: t("system.routes.p95"), sortKey: "p95", className: "sy-num", tip: t("system.routes.p95Tip"), cell: (r) => <strong>{millis(fig(r).p95)}</strong> },
@@ -78,7 +79,7 @@ export default function RoutesSection({ requests }: { requests: SystemStatus["re
                             {requests.slow.map((s, i) => (
                                 <li key={`${s.t}-${i}`}>
                                     <span className="sy-label">{formatTime(s.t)}</span>
-                                    <code>{s.method} {s.path}</code>
+                                    <code>{s.method} <PathText text={s.path} /></code>
                                     <Badge size="sm" tone={s.status >= 500 ? "bad" : undefined}>{s.status}</Badge>
                                     <strong>{millis(s.ms)}</strong>
                                 </li>

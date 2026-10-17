@@ -58,13 +58,14 @@
 /* ---- sections ---- */
 .sy-section { margin: 0 0 24px; min-width: 0; }
 .sy-empty { padding: 8px 2px; }
-.sy-table td.sy-route code { font-size: 13px; overflow-wrap: anywhere; }
+/* paths wrap after a slash (PathText.tsx puts a <wbr> there); break-word only splits a segment that is wider than the cell on its own */
+.sy-table td.sy-route code { font-size: 13px; overflow-wrap: break-word; }
 .sy-table td.sy-num { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sy-slow { margin: 10px 0 0; }
 .sy-slow-list { list-style: none; margin: 8px 0 0; padding: 0; border: 1px solid var(--line); background: var(--panel); }
 .sy-slow-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 7px 12px; border-bottom: 1px solid var(--line-soft); min-width: 0; }
 .sy-slow-list li:last-child { border-bottom: 0; }
-.sy-slow-list code { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+.sy-slow-list code { flex: 1 1 200px; min-width: 0; overflow-wrap: break-word; font-size: 13px; }
 
 /* process and disk rows: name | bar | figure */
 .sy-rows { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); background: var(--panel); }
@@ -79,7 +80,9 @@
     .sy-verdict { padding: 14px; gap: 12px; }
     .sy-verdict-head { font-size: 19px; }
     .sy-verdict-text { font-size: 15.5px; }
-    .sy-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    /* still one strip on a phone: the figures wrap two to a row, an odd last one takes the whole row (no empty cell) */
+    .sy-tiles { display: flex; flex-wrap: wrap; }
+    .sy-tiles > * { flex: 1 1 140px; }
     .sy-tile { padding: 12px 12px 10px; }
     .sy-value { font-size: 24px; }
     /* the mean (3rd) and the maximum (5th) column give way; p95 says enough on a phone */
