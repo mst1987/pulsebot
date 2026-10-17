@@ -87,7 +87,7 @@
 .ros-grp + .ros-grp .ros-grp-head { border-top: 1px solid var(--line); }
 .ros-grp-head { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--panel2); flex-wrap: wrap; }
 .ros-grp-title { display: flex; flex-direction: column; min-width: 0; font-size: 15px; font-weight: 800; line-height: 1.25; }
-.ros-grp-title .kicker { font-weight: 500; letter-spacing: .8px; }
+.ros-grp-title .kicker { font-weight: 500; }
 .ros-grp-head .exp-lbl { margin-left: auto; }
 /* The rows of an open group. It used to be called "rc-list" — a name the
    settings' raider-character modal defines — so this list quietly inherited

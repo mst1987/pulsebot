@@ -399,7 +399,7 @@
 
 /* state badge, source badge, switch */
 .kp-state {
-    display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 2px 8px 2px 6px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 2px 8px 2px 6px; border-radius: 3px;
     background: var(--panel3); color: var(--muted); white-space: nowrap;
 }
 .kp-state .kp-sico { width: 13px; height: 13px; }
