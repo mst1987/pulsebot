@@ -17,7 +17,6 @@
 .ros-kpi {
     display: flex; gap: 12px; align-items: center; min-width: 0; padding: 12px 14px; text-align: left; font: inherit; color: inherit;
     background: var(--panel); border: 1px solid var(--line); border-left: 2px solid var(--line); border-radius: 0;
-    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
 }
 .ros-kpi.is-accent { border-left-color: var(--area-roster); }
 .ros-kpi.is-ok { border-left-color: var(--good); }
@@ -25,7 +24,7 @@
 .ros-kpi.is-warn { border-left-color: var(--high); }
 .ros-kpi-body { display: grid; gap: 5px; min-width: 0; flex: 1; }
 .ros-kpi-label {
-    font: 700 10.5px/1.2 var(--font-mono); text-transform: uppercase; letter-spacing: .09em; color: var(--muted); justify-self: start;
+    font: 700 12px/1.2 var(--font-sans); color: var(--muted); justify-self: start;
     text-decoration: underline dotted; text-decoration-color: var(--line); text-underline-offset: 3px; cursor: help;
 }
 .ros-kpi-value { font: 800 24px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
@@ -54,7 +53,7 @@
 /* the spec pills under the class chips — same gesture, text instead of an icon */
 .ros-specs-row { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--panel2); }
 .ros-spec {
-    display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 3px; cursor: pointer;
     border: 1px solid var(--line); background: var(--bg); color: var(--muted); font: 600 12.5px/1.6 inherit;
     transition: border-color .12s ease, color .12s ease, box-shadow .12s ease;
 }
@@ -104,7 +103,7 @@
 }
 .ros-cols { background: var(--panel2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 /* the heads are sort buttons now (SortLabel), so they carry the head type too */
-.ros-cols > span, .ros-cols > .sort-link { font: 600 11.5px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); white-space: nowrap; }
+.ros-cols > span, .ros-cols > .sort-link { font: 600 12px/1.3 var(--font-sans); color: var(--muted); white-space: nowrap; }
 .ros-cols > .sort-link:hover, .ros-cols > .sort-link.active { color: var(--accent); }
 .ros-cols .tipped { justify-self: start; }
 .ros-cols-links { text-align: right; }
@@ -200,7 +199,7 @@
 .ros-hstat.is-mid { border-left-color: var(--medium); }
 .ros-hstat.is-warn { border-left-color: var(--high); }
 .ros-hstat-label {
-    font: 700 10.5px/1.2 var(--font-mono); text-transform: uppercase; letter-spacing: .12em; color: var(--muted); justify-self: start; cursor: help;
+    font: 700 12px/1.2 var(--font-sans); color: var(--muted); justify-self: start; cursor: help;
     text-decoration: underline dotted; text-decoration-color: var(--line); text-underline-offset: 3px;
 }
 .ros-hstat-value { font: 800 22px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
@@ -260,7 +259,7 @@
 .ros-gb { min-width: 0; flex: 1; display: flex; flex-direction: column; }
 .ros-iname { display: block; font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ros-sline { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
-.ros-slabel { font: 10.5px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.ros-slabel { font: 10.5px/1.3 var(--font-sans); color: var(--muted); }
 .ros-gem { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--line); display: block; flex: none; }
 .ros-gem.is-dot { background: var(--muted); }
 .ros-gem.is-socket { width: 13px; height: 13px; border: 0; border-radius: 0; image-rendering: pixelated; }
@@ -289,7 +288,7 @@ dialog.dlg:has(.ros-item-body.q-legendary) .dlg-title { color: var(--q-legendary
 .ros-kv { display: grid; grid-template-columns: 140px 1fr; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .ros-kv > div { padding: 9px 12px; border-bottom: 1px solid var(--line-soft); display: flex; align-items: center; gap: 8px; font-size: 13.5px; min-width: 0; flex-wrap: wrap; }
 .ros-kv > div:nth-last-child(-n+2) { border-bottom: 0; }
-.ros-kv > .k { background: var(--panel2); font: 600 11.5px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.ros-kv > .k { background: var(--panel2); font: 600 12px/1.3 var(--font-sans); color: var(--muted); }
 .ros-kv .sub, .ros-night .sub, .ros-find .sub, .ros-part .sub { margin: 0; font-size: 13px; }
 .ros-kv-ico { width: 20px; height: 20px; border-radius: 4px; display: block; }
 .ros-kv-end { margin-left: auto; }
