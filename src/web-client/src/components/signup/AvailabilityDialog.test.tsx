@@ -29,7 +29,21 @@ const OWN: AvailabilityData = {
             { key: "Warrior-Protection", label: "Protection", gear: "ready" },
         ] },
     ],
+    // one category only: no chips, every entry holds for all of them
+    categories: [],
 };
+
+/** Two categories of two versions — the chips show, an attendance in "forever" needs a Forever character. */
+const CATS: AvailabilityData["categories"] = [
+    { id: "c-tbc", name: "📅 Raids TBC", icon: "", versionId: "tbc" },
+    { id: "c-fv", name: "Forever-Raid", icon: "", versionId: "forever" },
+];
+const WITH_CATS: AvailabilityData = {
+    ...OWN,
+    categories: CATS,
+    characters: [...OWN.characters, { key: "zibbofv", name: "Zibbofv", className: "Mage", versionId: "forever", specs: [{ key: "Mage-Frost", label: "Frost", gear: "ready" }] }],
+};
+const catChip = (name: string) => screen.getByRole("button", { name });
 
 const RAIDS: AvailabilityRaid[] = [
     { id: "kara", title: "Kara Freitag", startTime: Date.UTC(2026, 9, 9, 17, 45) / 1000, categoryName: "T4", status: "signed", url: "" },
@@ -216,6 +230,69 @@ describe("AvailabilityDialog", () => {
         await waitFor(() => expect(api.previewAvailability).toHaveBeenLastCalledWith({ kind: "absence", from: "2026-10-05", to: "2026-10-05", userId: "u9" }));
         await user.click(screen.getByRole("button", { name: t("signups.availability.dialog.backToMe") }));
         expect(screen.getByRole("button", { name: t("signups.availability.dialog.forRaider") })).toBeInTheDocument();
+    });
+
+    it("offers no category chips while there is only one category", () => {
+        show("absence", { ...OWN, categories: [CATS[0]] });
+        expect(screen.queryByRole("group", { name: t("signups.availability.dialog.category") })).not.toBeInTheDocument();
+    });
+
+    it("limits an entry to one category: chips 'Alle Kategorien' plus one per category, categoryId on preview and save", async () => {
+        const user = userEvent.setup();
+        show("absence", WITH_CATS);
+        const group = screen.getByRole("group", { name: t("signups.availability.dialog.category") });
+        expect(within(group).getAllByRole("button").map((b) => b.textContent)).toEqual([t("signups.availability.dialog.allCategories"), "Raids TBC", "Forever-Raid"]);
+        // starts on every category: no categoryId goes along
+        expect(catChip(t("signups.availability.dialog.allCategories"))).toHaveAttribute("aria-pressed", "true");
+        await raidBox("Kara Freitag");
+        expect(api.previewAvailability).toHaveBeenLastCalledWith({ kind: "absence", from: "2026-10-05", to: "2026-10-05" });
+
+        await user.click(catChip("Raids TBC"));
+        expect(catChip("Raids TBC")).toHaveAttribute("aria-pressed", "true");
+        expect(catChip(t("signups.availability.dialog.allCategories"))).toHaveAttribute("aria-pressed", "false");
+        await waitFor(() => expect(api.previewAvailability).toHaveBeenLastCalledWith({ kind: "absence", from: "2026-10-05", to: "2026-10-05", categoryId: "c-tbc" }));
+        await waitFor(() => expect(saveButton()).toBeEnabled());
+        await user.click(saveButton());
+        expect(api.saveAvailability).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "c-tbc", eventIds: ["kara", "gruul"] }));
+    });
+
+    it("starts on the category of the page's open tab", async () => {
+        renderPage(<AvailabilityDialog kind="absence" own={WITH_CATS} categoryId="c-fv" onClose={vi.fn()} onSaved={vi.fn()} />);
+        expect(catChip("Forever-Raid")).toHaveAttribute("aria-pressed", "true");
+        await waitFor(() => expect(api.previewAvailability).toHaveBeenLastCalledWith(expect.objectContaining({ categoryId: "c-fv" })));
+    });
+
+    it("takes an unknown category from the page as every category", async () => {
+        renderPage(<AvailabilityDialog kind="absence" own={WITH_CATS} categoryId="gone" onClose={vi.fn()} onSaved={vi.fn()} />);
+        expect(catChip(t("signups.availability.dialog.allCategories"))).toHaveAttribute("aria-pressed", "true");
+        await waitFor(() => expect(api.previewAvailability).toHaveBeenLastCalledWith({ kind: "absence", from: "2026-10-05", to: "2026-10-05" }));
+    });
+
+    it("an attendance in one category offers only characters of its version", async () => {
+        const user = userEvent.setup();
+        show("presence", WITH_CATS);
+        const options = () => within(screen.getByLabelText(t("signups.availability.dialog.character"))).getAllByRole("option").map((o) => o.textContent);
+        expect(options()).toEqual(["Zibbo", "Zibbowar", "Zibbofv"]);
+        await user.click(catChip("Forever-Raid"));
+        expect(options()).toEqual(["Zibbofv"]);
+        await waitFor(() => expect(api.previewAvailability).toHaveBeenLastCalledWith(expect.objectContaining({ character: "zibbofv", spec: "Mage-Frost", categoryId: "c-fv" })));
+        await user.click(catChip("Raids TBC"));
+        expect(options()).toEqual(["Zibbo", "Zibbowar"]);
+    });
+
+    it("names the category when it has no character of its version", async () => {
+        const user = userEvent.setup();
+        show("presence", { ...WITH_CATS, characters: OWN.characters });
+        await user.click(catChip("Forever-Raid"));
+        expect(screen.getByText(t("signups.availability.dialog.noCharacterCategory", { category: "Forever-Raid" }))).toBeInTheDocument();
+        expect(saveButton("presence")).toBeDisabled();
+    });
+
+    it("keeps the category when the orga enters for another raider", async () => {
+        vi.mocked(api.getAvailability).mockResolvedValue({ ...OWN, userId: "u9", name: "Anna" });
+        const anna = { userId: "u9", name: "Anna", character: "Annadruid", className: "Druid" };
+        renderPage(<AvailabilityDialog kind="absence" own={{ ...WITH_CATS, orga: true }} target={anna} categoryId="c-tbc" onClose={vi.fn()} onSaved={vi.fn()} />);
+        await waitFor(() => expect(api.previewAvailability).toHaveBeenLastCalledWith({ kind: "absence", from: "2026-10-05", to: "2026-10-05", categoryId: "c-tbc", userId: "u9" }));
     });
 
     it("ignores a picked raider for somebody who is no orga", () => {

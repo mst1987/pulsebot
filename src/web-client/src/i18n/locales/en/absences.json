@@ -8,7 +8,8 @@
         "raids": "Per raid",
         "mine": "My attendance"
     },
-    "enter": "Enter absence",
+    "enter": "Enter absence / attendance",
+    "enterTip": "Absence or attendance – you pick which in the dialog.",
     "loading": "Loading absences",
     "loadError": "Error while loading: {message}",
     "days": {
@@ -103,7 +104,7 @@
         "aria": "Raider details",
         "kicker": "Raider",
         "loading": "Loading raider",
-        "enterFor": "Enter absence for {name}",
+        "enterFor": "Enter absence / attendance for {name}",
         "toCharacter": "To the character page",
         "nowRunning": "away now",
         "nowPlanned": "planned",

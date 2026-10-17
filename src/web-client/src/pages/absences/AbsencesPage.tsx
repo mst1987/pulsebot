@@ -23,7 +23,7 @@ import { categoryTone, visibleRaiders } from "../../lib/roster/absences";
 import { Button, IconTile, Segment, Switch } from "../../components/ui";
 import Chip from "../../components/ui/Chip";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { AbsenceIcon, SearchIcon } from "../../components/ui/icons";
+import { PlusIcon, SearchIcon } from "../../components/ui/icons";
 import AvailabilityDialog from "../../components/signup/AvailabilityDialog";
 import type { ShellContext } from "../../components/shell/Shell";
 import { useT } from "../../i18n";
@@ -125,7 +125,8 @@ function OrgaViews({ user, view, patch, viewSwitch, onAttendance }: {
     // bumped after a save in the dialog, so an open drawer loads the raider again
     const [saved, setSaved] = useState(0);
     // the dialog: closed (null), or open for nobody yet / for a raider
-    const [dialog, setDialog] = useState<{ target: RaiderRef | null } | null>(null);
+    // and the category it starts on ("" = every category)
+    const [dialog, setDialog] = useState<{ target: RaiderRef | null; categoryId: string } | null>(null);
 
     // the raids of the menu's content version only (#740) - the entries themselves cover every version
     const { version } = useContentVersion();
@@ -143,14 +144,16 @@ function OrgaViews({ user, view, patch, viewSwitch, onAttendance }: {
 
     const rows = visibleRaiders(data.raiders, { presence: view.presence, search });
     const canEnter = data.canEdit && !!own.data;
-    const enter = (target: RaiderRef | null) => setDialog({ target });
+    // the dialog starts on the category the view is filtered to, when it is exactly one
+    const enter = (target: RaiderRef | null, categoryId = picked.length === 1 ? picked[0] : "") => setDialog({ target, categoryId });
 
     return (
         <div className="ab-page">
             <Head lead={t("absences.lead")}>
                 {viewSwitch}
                 {data.canEdit && (
-                    <Button variant="no" icon={<AbsenceIcon />} disabled={!canEnter} onClick={() => enter(null)}>{t("absences.enter")}</Button>
+                    // neutral: it opens absence and attendance alike, the kind is picked in the dialog
+                    <Button icon={<PlusIcon />} disabled={!canEnter} onClick={() => enter(null)} data-tip={t("absences.enterTip")}>{t("absences.enter")}</Button>
                 )}
             </Head>
 
@@ -187,7 +190,7 @@ function OrgaViews({ user, view, patch, viewSwitch, onAttendance }: {
             {view.mode === "timeline" ? (
                 <>
                     {data.hints.map((h) => (
-                        <HintCard key={`${h.userId}-${h.categoryId}`} hint={h} canEdit={canEnter} onOpen={setDrawer} onEnter={(x) => enter(refOf(x))} />
+                        <HintCard key={`${h.userId}-${h.categoryId}`} hint={h} canEdit={canEnter} onOpen={setDrawer} onEnter={(x) => enter(refOf(x), x.categoryId)} />
                     ))}
                     <AbsenceTimeline data={data} rows={rows} onOpen={setDrawer} />
                     <Legend />
@@ -210,6 +213,7 @@ function OrgaViews({ user, view, patch, viewSwitch, onAttendance }: {
                     kind={dialog ? "absence" : null}
                     own={own.data}
                     target={dialog ? dialog.target : null}
+                    categoryId={dialog?.categoryId || ""}
                     onClose={() => setDialog(null)}
                     onSaved={() => { void overview.reload(); setSaved((n) => n + 1); }}
                 />

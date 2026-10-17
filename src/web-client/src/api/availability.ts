@@ -49,6 +49,18 @@ export type AvailabilityData = {
     entries: AvailabilityEntry[];
     /** In the raider's own order — the first is the one to suggest (there is no main). */
     characters: AvailabilityCharacter[];
+    /** The raid categories an entry can be limited to (src/web/availability/entryCategories.js). */
+    categories: AvailabilityCategory[];
+};
+
+/** A raid category an entry can be limited to; named and pictured like the tabs of "Meine Anwesenheit". */
+export type AvailabilityCategory = {
+    id: string;
+    name: string;
+    /** The final-boss icon of the raid it mostly runs; "" = none known (categoryIcon() shows a neutral one). */
+    icon: string;
+    /** The game version it plays — an attendance there needs a character of it. */
+    versionId: string;
 };
 
 export type AvailabilityInput = {
@@ -58,6 +70,8 @@ export type AvailabilityInput = {
     /** The character's key (attendance only). */
     character?: string;
     spec?: string;
+    /** Only the raids of this category; missing = every category. */
+    categoryId?: string;
     /** Somebody else's account — the orga only. */
     userId?: string;
 };

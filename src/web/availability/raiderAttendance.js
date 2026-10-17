@@ -135,4 +135,4 @@ function raiderAttendance(userId, { versionId = "", now = Date.now(), config, ca
     return { userId: uid, versionId: version, character: str(newest && newest.character), categories };
 }
 
-module.exports = { raiderAttendance };
+module.exports = { raiderAttendance, eventCategoryNames };

@@ -32,6 +32,10 @@ jest.mock("../../../src/services/signups/absenceOverview", () => ({
 jest.mock("../../../src/web/availability/raiderAttendance", () => ({
     raiderAttendance: jest.fn((userId) => ({ userId, categories: [{ id: "cat1", pct: 80, raids: [], upcoming: [] }] })),
 }));
+jest.mock("../../../src/web/availability/entryCategories", () => ({
+    entryCategories: jest.fn(() => [{ id: "cat1", name: "Raids TBC", icon: "achievement_boss_magtheridon", versionId: "tbc" }]),
+    entryCategoryIds: jest.fn(() => ["cat1"]),
+}));
 
 const { readJsonBody } = require("../../../src/web/http/apiBody");
 const profiles = require("../../../src/stores/raiderProfileStore");
@@ -41,6 +45,7 @@ const panel = require("../../../src/services/signups/availabilityPanel");
 const route = require("../../../src/web/apiRoutes/availability");
 const absenceOverview = require("../../../src/services/signups/absenceOverview");
 const { raiderAttendance } = require("../../../src/web/availability/raiderAttendance");
+const entryCats = require("../../../src/web/availability/entryCategories");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { mockRes, status, json } = require("../../helpers/http");
 
@@ -89,6 +94,9 @@ describe("GET /api/availability", () => {
         expect(data.entries[0]).toMatchObject({ id: "e1", kind: "absence", comment: "Urlaub", byOrga: false, done: 1, categoryName: "" });
         expect(data.entries[1]).toMatchObject({ kind: "presence", specLabel: "Arkan", categoryName: "Raids TBC", byOrga: true });
         expect(data.characters).toEqual([{ key: "nerathil", name: "Nerathil", className: "Mage", versionId: "tbc", specs: [{ key: "Mage-Arcane", label: "Arkan", gear: "ready" }] }]);
+        // the categories an entry can be limited to, named like the tabs of the Abwesenheiten page
+        expect(data.categories).toEqual([{ id: "cat1", name: "Raids TBC", icon: "achievement_boss_magtheridon", versionId: "tbc" }]);
+        expect(entryCats.entryCategories).toHaveBeenCalledWith(expect.objectContaining({ categoryNames: expect.objectContaining({}) }));
     });
 
     it("die eines anderen nur für die Orga", async () => {
@@ -110,6 +118,15 @@ describe("POST /api/availability/preview", () => {
         expect(status(res)).toBe(400);
         expect(json(res).error.message).toBe("Bitte ein gültiges Von- und Bis-Datum angeben.");
     });
+
+    it("gibt die Kategorie an die Prüfung weiter, eine unbekannte ist ein 400", async () => {
+        await call("POST", "/api/availability/preview", ANNA, { json: { kind: "absence", from: "2030-03-20", to: "2030-03-25", categoryId: "cat1" } });
+        expect(availability.checkInput).toHaveBeenCalledWith(ANNA.id, expect.objectContaining({ categoryId: "cat1" }));
+        const res = await call("POST", "/api/availability/preview", ANNA, { json: { kind: "absence", from: "2030-03-20", to: "2030-03-25", categoryId: "gone" } });
+        expect(status(res)).toBe(400);
+        expect(json(res).error.message).toMatch(/Raid-Kategorie gibt es nicht/);
+        expect(availability.raidsInRange).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe("POST /api/availability", () => {
@@ -125,6 +142,17 @@ describe("POST /api/availability", () => {
         expect(status(await call("POST", "/api/availability", ANNA, { json: { userId: "200000000000000002" } }))).toBe(403);
         await call("POST", "/api/availability", ORGA, { json: { kind: "absence", from: "2030-03-20", userId: ANNA.id } });
         expect(availability.createEntry).toHaveBeenCalledWith(ANNA.id, expect.anything(), expect.objectContaining({ by: ORGA.id, eventIds: undefined }));
+    });
+
+    it("die Kategorie landet im Eintrag, eine unbekannte ist ein 400 ohne Eintrag", async () => {
+        availability.createEntry.mockResolvedValue({ entry: entry({ categoryId: "cat1" }), results: [], dm: false });
+        const res = await call("POST", "/api/availability", ANNA, { json: { kind: "absence", from: "2030-03-20", categoryId: "cat1" } });
+        expect(availability.createEntry).toHaveBeenCalledWith(ANNA.id, expect.objectContaining({ categoryId: "cat1" }), expect.anything());
+        expect(json(res).data.entry).toMatchObject({ categoryId: "cat1", categoryName: "Raids TBC" });
+        availability.createEntry.mockClear();
+        const bad = await call("POST", "/api/availability", ORGA, { json: { kind: "absence", from: "2030-03-20", categoryId: "gone", userId: ANNA.id } });
+        expect(status(bad)).toBe(400);
+        expect(availability.createEntry).not.toHaveBeenCalled();
     });
 
     it("gibt den Fehler des Service als 400 zurück", async () => {

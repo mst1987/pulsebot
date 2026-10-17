@@ -9,7 +9,7 @@ import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { Badge, BackButton, Button, IconButton, WowIcon, useConfirm, type Tone } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { AbsenceIcon, CheckIcon, CheckMark, TrashIcon } from "../../components/ui/icons";
+import { AbsenceIcon, CheckIcon, CheckMark, PlusIcon, TrashIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import AvailabilityDialog from "../../components/signup/AvailabilityDialog";
 import { categoryIcon, entryDays, entryState, entryWording, nightsInOrder, plainCategoryName } from "../../lib/roster/absences";
@@ -70,7 +70,8 @@ export default function MyAttendance({ userId = "", onBack }: {
                 <div className="ab-own-head">
                     <h3>{other ? t("absences.mine.entriesOf", { name }) : t("absences.mine.entries")}</h3>
                     {own && (
-                        <Button size="sm" variant="no" icon={<AbsenceIcon />} onClick={() => setDialog(true)}>
+                        // neutral: absence and attendance alike, the kind is picked in the dialog
+                        <Button size="sm" icon={<PlusIcon />} onClick={() => setDialog(true)} data-tip={t("absences.enterTip")}>
                             {other ? t("absences.drawer.enterFor", { name }) : t("absences.enter")}
                         </Button>
                     )}
@@ -115,6 +116,7 @@ export default function MyAttendance({ userId = "", onBack }: {
                     kind={dialog ? "absence" : null}
                     own={own}
                     target={other ? { userId, name, character: "", className: "" } : null}
+                    categoryId={pick}
                     onClose={() => setDialog(false)}
                     onSaved={() => { void entries.reload(); void attendance.reload(); }}
                 />
