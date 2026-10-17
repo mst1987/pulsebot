@@ -20,4 +20,12 @@ describe("absence overview", () => {
         expect(ini).toContain("font-size: var(--fs-label)");
         expect(ini).not.toContain("text-transform: uppercase");
     });
+
+    it("shows the figures as one strip with dividers, no frame around them", () => {
+        const strip = rule(".ab-tiles");
+        expect(strip).not.toMatch(/(^|[\s;])border:/);
+        expect(strip).not.toContain("background");
+        expect(rule(".ab-tile")).toContain("border-left: 1px solid var(--line)");
+        expect(rule(".ab-tile:first-child")).toContain("border-left: 0");
+    });
 });

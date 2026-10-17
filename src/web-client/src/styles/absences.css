@@ -13,9 +13,9 @@
 .ab-lead { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; max-width: 70ch; }
 
 /* ---- the four figures: a big number with its word, the names small ---- */
-.ab-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin: 0 0 16px; background: var(--panel); border: 1px solid var(--line); }
-.ab-tile { min-width: 0; padding: 14px 16px; border-left: 1px solid var(--line-soft); }
-.ab-tile:first-child { border-left: 0; }
+.ab-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin: 0 0 16px; }
+.ab-tile { min-width: 0; padding: 4px 16px; border-left: 1px solid var(--line); }
+.ab-tile:first-child { border-left: 0; padding-left: 0; }
 .ab-tile-num { font-size: 13px; color: var(--muted); font-weight: 600; }
 .ab-tile-num b { font-size: 28px; font-weight: 800; color: var(--text); letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; margin-right: 4px; }
 .ab-tile.ab-warn .ab-tile-num b { color: var(--ab-away); }
@@ -274,14 +274,14 @@ button.ab-tl-raider:focus-visible { outline: 2px solid var(--accent); outline-of
 
 @media (max-width: 1100px) {
     .ab-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .ab-tile:nth-child(3) { border-left: 0; }
-    .ab-tile:nth-child(n+3) { border-top: 1px solid var(--line-soft); }
+    .ab-tile:nth-child(3) { border-left: 0; padding-left: 0; }
+    .ab-tile:nth-child(n+3) { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 8px; }
 }
 @media (max-width: 600px) {
     .ab-tl { --ab-who: 150px; }
     .ab-tl-who { gap: 6px; padding: 6px 8px; }
     .ab-tl-raider .ab-pill { display: none; }
-    .ab-tile { padding: 12px; }
+    .ab-tile { padding-right: 12px; padding-left: 12px; }
     .ab-tile-num b { font-size: 24px; }
     .ab-search { width: 100%; margin-left: 0; }
     .ab-drawer { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 85vh; }
