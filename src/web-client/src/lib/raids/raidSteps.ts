@@ -69,6 +69,29 @@ export function stepShort(step: RaidEventStep): string {
 }
 
 /**
+ * Die zweite Zeile einer Zelle: der kurze Wert, sonst die Randnotiz des Servers
+ * ("Raidplan leer", "nach dem Raid") — nie eine nackte Nummer, nie eine leere Zeile,
+ * solange der Server etwas zu sagen hat.
+ */
+export function stepLine(step: RaidEventStep): string {
+    return stepShort(step) || step.note || "";
+}
+
+/**
+ * Der ruhige Streifen, wenn kein Schritt dran ist: der Satz des Servers ("Alles
+ * erledigt, was vor dem Raid zu tun war.") und der nächste spätere Schritt — mit
+ * seiner Tat, falls er eine hat (z. B. "Raidplan öffnen"), sonst nur mit dem Satz,
+ * wann es weitergeht. Null, solange ein Schritt dran oder der Raid abgesagt ist.
+ */
+export function stepLater(progress: RaidEventSteps): { title: string; text: string; step: RaidEventStep | null } | null {
+    if (progress.cancelled || progress.steps.some((s) => s.id === progress.current)) return null;
+    const step = progress.steps.find((s) => s.state === "todo") || null;
+    const title = progress.note || t("raidDetail.steps.nothingOpen");
+    if (!step) return { title, text: "", step: null };
+    return { title, text: t("raidDetail.steps.later", { what: stepTitle(step), text: step.hint || step.note || "" }), step };
+}
+
+/**
  * Der Streifen unter der Leiste: "Jetzt dran: Einteilungen posten" und der eine
  * erklärende Satz dazu (sonst die Randnotiz). Ohne Tat (Leser) heißt er nach dem Schritt.
  */

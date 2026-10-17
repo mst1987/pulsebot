@@ -27,7 +27,7 @@ export function ownSteps(over: Partial<RaidEventSteps> = {}): RaidEventSteps {
             eventStep("signup", { label: "Anmeldung", state: "current", value: "8", unit: "/ 10", note: "2 fehlen", hint: "Anmeldung läuft.", action: ping }),
             eventStep("setup", { label: "Setup", state: "todo", action: { id: "setup", label: "Setup öffnen", icon: "inv_misc_map_01", tab: "setup" } }),
             eventStep("approval", { label: "Freigabe", state: "skipped", hint: "Ohne Setup keine Freigabe." }),
-            eventStep("after", { label: "Nachbereitung", state: "todo" }),
+            eventStep("after", { label: "Nachbereitung", state: "todo", note: "nach dem Raid" }),
         ],
         current: "signup",
         action: ping,

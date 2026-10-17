@@ -91,6 +91,36 @@ describe("the step bar's words", () => {
         expect(lib.stepFocus({ ...open, action: null, hint: "", note: "Entwurf" })).toEqual({ title: `Jetzt dran: ${lib.stepTitle(open)}`, text: "Entwurf" });
     });
 
+    it("fills a cell's second line with the value, else the server's note — never empty while there is one", () => {
+        const p = progress();
+        const signup = p.steps.find((s) => s.id === "signup")!;
+        expect(lib.stepLine(signup)).toBe(lib.stepShort(signup));
+        const after = p.steps.find((s) => s.id === "after")!;
+        expect(lib.stepShort(after)).toBe("");
+        expect(lib.stepLine(after)).toBe("nach dem Raid");
+        expect(lib.stepLine({ ...after, note: "" })).toBe("");
+    });
+
+    it("gives a calm strip when nothing is due: the server's sentence and the next later step", () => {
+        const done = progress({ event: { signupsClosed: true, startTime: inHours(0.2) } });
+        expect(done.current).toBe("");
+        const later = lib.stepLater(done)!;
+        expect(later.title).toBe(done.note);
+        const next = done.steps.find((s) => s.state === "todo");
+        if (next) {
+            expect(later.step).toBe(next);
+            expect(later.text).toBe(`Als Nächstes ${lib.stepTitle(next)}: ${next.hint || next.note}`);
+        } else {
+            expect(later).toEqual({ title: done.note, text: "", step: null });
+        }
+        // nothing later: the sentence alone
+        const all = { ...done, steps: done.steps.map((s) => ({ ...s, state: "done" as const })) };
+        expect(lib.stepLater(all)).toEqual({ title: done.note, text: "", step: null });
+        // a step is due, or the raid is off: no calm strip
+        expect(lib.stepLater(progress())).toBeNull();
+        expect(lib.stepLater(progress({ event: { status: "cancelled" } }))).toBeNull();
+    });
+
     it("hands a reader the same bar without a single deed", () => {
         const p = progress();
         expect(p.action).not.toBeNull();

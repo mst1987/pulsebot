@@ -76,6 +76,7 @@
         "position": "Step {index} of {total}",
         "cancelled": "Cancelled",
         "nothingOpen": "Nothing open",
+        "later": "Next up, {what}: {text}",
         "of": "of {total}",
         "focus": "Up next: {what}",
         "clickDeed": "Click: {action}",

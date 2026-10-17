@@ -9,7 +9,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { RaidEventSteps } from "../../api";
 import { t } from "../../i18n";
-import { deedLabel, stepFocus, stepShort, stepStateLabel, stepSummary, stepTitle } from "../../lib/raids/raidSteps";
+import { deedLabel, stepFocus, stepLine, stepStateLabel, stepSummary, stepTitle } from "../../lib/raids/raidSteps";
 import { requireBackend } from "../../test/backend";
 import { eventStep, ownSteps } from "../../test/fixtures/raidDetail";
 import StepBar from "./StepBar";
@@ -77,24 +77,51 @@ describe("the step bar", () => {
         expect(screen.getAllByRole("button").filter((b) => !b.getAttribute("aria-label"))).toHaveLength(1);
     });
 
-    it("is one row of steps, each two lines: the name over its value, a check when done, the number otherwise", () => {
+    it("is one row of steps, each an icon and two lines: the name over its value or note, a check only when done", () => {
         const progress = ownSteps();
         const { container } = draw(progress);
         const items = within(screen.getByRole("list")).getAllByRole("listitem");
         progress.steps.forEach((step, i) => {
-            // the name and the value are lines of their own, so neither is cut short for the other
+            // a small WoW icon per step, no tile around it
+            expect(items[i].querySelector("img.rd-ck-icon")).not.toBeNull();
+            // the name and the second line are lines of their own, so neither is cut short for the other
             expect(items[i].querySelector(".rd-ck-label")).toHaveTextContent(stepTitle(step));
-            if (step.state !== "current" && stepShort(step)) expect(items[i].querySelector(".rd-ck-val")).toHaveTextContent(stepShort(step));
-            const mark = items[i].querySelector(".rd-ck-mark")!;
-            if (step.state === "done") expect(mark.querySelector("svg")).not.toBeNull();
-            else expect(mark).toHaveTextContent(String(i + 1));
+            if (stepLine(step)) expect(items[i].querySelector(".rd-ck-val")).toHaveTextContent(stepLine(step));
+            const mark = items[i].querySelector(".rd-ck-mark");
+            if (step.state === "done") expect(mark!.querySelector("svg")).not.toBeNull();
+            else expect(mark).toBeNull();
         });
+        // a step without a value says its note instead of standing as a bare number
+        const after = items[progress.steps.findIndex((s) => s.id === "after")];
+        expect(after.querySelector(".rd-ck-val")).toHaveTextContent(progress.steps.find((s) => s.id === "after")!.note);
         // no figure stands bare against its target
         expect(container.querySelector(".rd-ck-steps")!.textContent).not.toMatch(/\d\s*\/\s*\d/);
-        // nothing open: no strip
+    });
+
+    it("shows a calm strip when nothing is due: the server's sentence, what comes next, a quiet button for its deed", async () => {
+        const user = userEvent.setup();
+        const own = ownSteps();
+        const plan = eventStep("plan", { state: "todo", note: "Raidplan leer", hint: "Taktik vor dem Raid eintragen.", action: { id: "plan", label: "Raidplan öffnen", icon: "inv_misc_map_01", tab: "plan" } });
+        const progress: RaidEventSteps = { ...own, current: "", action: null, note: "Alles erledigt, was vor dem Raid zu tun war.", steps: [...own.steps.map((s) => ({ ...s, state: s.state === "skipped" ? s.state : "done" as const, action: null })), plan] };
+        const { onDeed, container } = draw(progress);
+        const strip = container.querySelector<HTMLElement>(".rd-ck-focus.is-calm")!;
+        expect(strip).toHaveTextContent("Alles erledigt, was vor dem Raid zu tun war.");
+        expect(strip).toHaveTextContent(t("raidDetail.steps.later", { what: stepTitle(plan), text: plan.hint }));
+        const quiet = within(strip).getByRole("button", { name: deedLabel(plan.action!) });
+        // no accent button: the ghost variant
+        expect(quiet.className).toMatch(/ghost/);
+        await user.click(quiet);
+        expect(onDeed).toHaveBeenCalledWith(plan.action);
+        // the phone line is not doubled: the calm strip says it
+        expect(container.querySelector(".rd-ck-sum")).toBeNull();
         container.remove();
-        draw({ ...progress, current: "", action: null });
-        expect(document.querySelector(".rd-ck-focus")).toBeNull();
+
+        // nothing later either: the sentence alone, no button
+        const done: RaidEventSteps = { ...progress, steps: progress.steps.map((s) => ({ ...s, state: s.state === "skipped" ? s.state : "done" as const, action: null })) };
+        const second = draw(done);
+        const calm = second.container.querySelector<HTMLElement>(".rd-ck-focus.is-calm")!;
+        expect(calm).toHaveTextContent("Alles erledigt");
+        expect(within(calm).queryByRole("button")).toBeNull();
     });
 
     it("says „übersprungen“ for a skipped step, with its reason in the tooltip", () => {

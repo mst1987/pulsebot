@@ -380,6 +380,26 @@ describe("eventSteps — das Raid-Cockpit (#319)", () => {
         expect(posted.current).not.toBe("signup");
     });
 
+    it("ein gepostetes Setup ohne eine einzige Anmeldung macht die Anmeldung nicht fertig", () => {
+        // a cloned/approved setup must not claim "0 angemeldet" as done next to "Setup 25 von 25"
+        const res = run(own({
+            event: { signupsClosed: false, startTime: inHours(30) }, ownSignups: [],
+            ownSetup: { status: "approved", changedSinceApproval: false, placed: 25, size: 25, version: 1, bench: 0, ok: true },
+            ownSetupPost: { messageId: "m1", version: 1, dms: null },
+        }));
+        expect(at(res, "signup")).toMatchObject({ state: "current", value: "0" });
+        expect(res.current).toBe("signup");
+    });
+
+    it("gibt Schritten ohne Wert eine Randnotiz: Tag, „nach dem Setup“, „nach dem Raid“", () => {
+        const res = run(own());
+        // with a channel the cell says "#channel"; only without one does the day stand in
+        expect(at(res, "created").note).toBe("");
+        expect(at(run(own({ event: { channelName: "" } })), "created").note).toMatch(/^[A-Z][a-z]\.?, \d{2}\.\d{2}\.?$/);
+        expect(at(res, "approval")).toMatchObject({ state: "todo", note: "nach dem Setup" });
+        expect(at(res, "after")).toMatchObject({ state: "todo", note: "nach dem Raid" });
+    });
+
     it("Setup: kein Vorschlag → offen, ein Entwurf → erledigt", () => {
         const open = run(own({ event: { signupsClosed: true } }));
         expect(at(open, "setup")).toMatchObject({ state: "current", value: "—" });

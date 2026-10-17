@@ -375,6 +375,11 @@ function whenLabel(seconds) {
     return `${day} · ${time} Uhr`;
 }
 
+/** "Mi 24.09." einer Unix-Sekunde — die kurze Randnotiz, wenn ein Schritt keinen eigenen Wert zeigt. */
+function dayLabel(seconds) {
+    return new Date(seconds * 1000).toLocaleDateString("de-DE", { timeZone: TIMEZONE, weekday: "short", day: "2-digit", month: "2-digit" });
+}
+
 /** Eine Tat: ein Menü-Eintrag, ein Dialog, ein Tab oder eine Auswertung. */
 function deed(id, label, icon, extra) {
     return { id, label, icon, ...extra };
@@ -402,7 +407,7 @@ function createdStep(d) {
     const when = ev.startTime ? ` und beginnt am ${whenLabel(ev.startTime)}` : "";
     return {
         id: "created", label: "Angelegt", icon: "inv_misc_note_05", state: "done", fill: null,
-        value: channel ? `#${channel}` : "angelegt", unit: "", note: "",
+        value: channel ? `#${channel}` : "angelegt", unit: "", note: !channel && ev.startTime ? dayLabel(ev.startTime) : "",
         hint: `Das Event steht ${where}${when}. „Bearbeiten“ ändert Titel, Termin, Raid, Größe und Anmeldeschluss.`,
         action: deed("edit", "Bearbeiten", "inv_misc_note_05", { manage: "edit" }),
     };
@@ -434,7 +439,9 @@ function signupStepOwn(d, now) {
     }
     // Posting the setup (= approving it) is past the signup by itself: nothing to
     // close — the signup may well stay open, so somebody can step in when a raider drops out.
-    if (d.ownSetup && d.ownSetup.status === "approved") {
+    // Without a single signup row it is not past by itself: a posted setup nobody signed up for
+    // (everyone withdrew, or the rows are gone) would otherwise read "0 angemeldet" with a tick.
+    if (d.ownSetup && d.ownSetup.status === "approved" && c.total > 0) {
         return { ...step, state: "done", hint: `Das Setup ist gepostet — die Anmeldung muss dafür nicht geschlossen werden und bleibt offen für Nachrücker. ${closing}`, action: null };
     }
     // Offen: die eine Tat richtet sich danach, woran es gerade hängt.
@@ -530,7 +537,7 @@ function approvalStep(d, now) {
         if (setupSkipped(d, now)) {
             return { ...step, state: "skipped", note: "ohne Setup", hint: "Ohne Setup gibt es nichts freizugeben. Raider sehen ihre Anmeldung, aber keine Gruppen.", action: null };
         }
-        return { ...step, state: "todo", hint: "Erst ein Entwurf, dann die Freigabe. Bis dahin sehen Raider kein Setup — weder im Web noch in Discord.", action: null };
+        return { ...step, state: "todo", note: "nach dem Setup", hint: "Erst ein Entwurf, dann die Freigabe. Bis dahin sehen Raider kein Setup — weder im Web noch in Discord.", action: null };
     }
     const outdated = phase === "outdated";
     const posted = outdated || phase === "posted";
@@ -614,7 +621,8 @@ function afterStep(d) {
         return { ...step, state: "done", hint: `Alles da: ${plural(logs.length, "Log", "Logs")} ausgewertet, ${plural(loot, "Item", "Items")} importiert.`, action: null };
     }
     if (!ev.isPast) {
-        return { ...step, state: "todo", hint: "Nach dem Raid: das Log zuordnen und auswerten, den Loot-Export importieren.", action: null };
+        // before the raid "kein Loot" reads like a fault; the note says when the step comes
+        return { ...step, state: "todo", note: "nach dem Raid", hint: "Nach dem Raid: das Log zuordnen und auswerten, den Loot-Export importieren.", action: null };
     }
     let action;
     let hint;

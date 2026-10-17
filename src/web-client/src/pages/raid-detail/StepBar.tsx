@@ -1,47 +1,47 @@
 // Das Raid-Cockpit (#319): die Schritt-Leiste im Kopf eines *eigenen* Events.
-// Design-Pilot C (Okt 2026): eine ruhige Textleiste ohne Icons und Kreise; nur der
-// offene Schritt traegt die Akzentfarbe.
+// Design-Pilot C (Okt 2026): eine ruhige Textleiste, je Schritt ein kleines WoW-Icon
+// ohne Kachel und Kreis; nur der offene Schritt traegt die Akzentfarbe.
 //
 // Sechs Schritte — Angelegt › Anmeldung › Setup › Freigabe › Einteilungen ›
 // Nachbereitung — als eine Reihe gleich breiter Zellen: je Schritt Icon, Name und
-// darunter ein kurzer Wert ("25 angemeldet", "Stand 1"), zweizeilig, damit beides
-// nicht abgekürzt werden muss, und rechts ein Haken (erledigt) bzw. seine
-// Nummer (der offene Schritt hervorgehoben). Darunter ein Streifen „Jetzt dran:
-// <Tat>“ mit dem einen erklärenden Satz und dem einzigen auffälligen Knopf der
-// Leiste — voll sichtbar, nie abgeschnitten. Jeder andere Schritt mit einer Tat
-// ist ein stiller Knopf, der dorthin führt; Zustand und Randnotiz stehen im Tooltip.
+// darunter eine zweite Zeile, zweizeilig, damit beides nicht abgekürzt werden muss:
+// der kurze Wert ("25 angemeldet", "Stand 1") oder, wo es keinen gibt, die Randnotiz
+// ("Raidplan leer", "nach dem Raid"). Rechts steht nur bei erledigten Schritten ein
+// Haken — keine nackte Nummer, die sich wie eine Anzahl liest.
+//
+// Darunter ein Streifen: ist ein Schritt dran, „Jetzt dran: <Tat>“ mit dem einen
+// erklärenden Satz und dem einzigen auffälligen Knopf der Leiste. Ist nichts dran,
+// ein ruhiger Streifen mit dem Satz des Servers („Alles erledigt, …“), was als
+// Nächstes kommt und — hat dieser spätere Schritt eine Tat — ein stiller Knopf dafür.
+// Jeder andere Schritt mit einer Tat ist ein stiller Knopf, der dorthin führt;
+// Zustand und Randnotiz stehen im Tooltip.
 //
 // Welche Zustände es gibt und welche Tat ansteht, entscheidet der Server
 // (src/web/raidDetailSteps.js' eventSteps); die Texte drumherum stehen rein in
 // lib/raids/raidSteps.ts. Hier wird nur gezeichnet.
 import type { RaidEventStep, RaidEventSteps, RaidStepDeed } from "../../api";
-import { deedLabel, stepFocus, stepShort, stepStateLabel, stepSummary, stepTipSub, stepTitle } from "../../lib/raids/raidSteps";
+import { deedLabel, stepFocus, stepLater, stepLine, stepStateLabel, stepSummary, stepTipSub, stepTitle } from "../../lib/raids/raidSteps";
 import { Button } from "../../components/ui/Button";
+import WowIcon from "../../components/ui/WowIcon";
 import { CheckIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
 
-/** Rechts in der Zeile: der Haken eines erledigten Schritts, sonst seine Nummer. */
-function StepMark({ step, index }: { step: RaidEventStep; index: number }) {
-    if (step.state === "done") return <span className="rd-ck-mark is-done" aria-hidden="true"><CheckIcon /></span>;
-    return <span className={`rd-ck-mark${step.state === "current" ? " is-current" : ""}`} aria-hidden="true">{index}</span>;
-}
-
-function StepCell({ step, index, onDeed }: {
+function StepCell({ step, onDeed }: {
     step: RaidEventStep;
-    index: number;
     onDeed: (deed: RaidStepDeed) => void;
 }) {
     const t = useT();
     const title = stepTitle(step);
-    const short = step.state === "current" ? "" : stepShort(step);
-    // two lines: the name (and the mark) on top, the value below them across the cell, so neither has to be cut short
+    const line = stepLine(step);
+    // icon | name | tick on top, the second line below name and tick, so neither has to be cut short
     const cell = (
         <>
+            <WowIcon name={step.icon} size={18} className="rd-ck-icon" />
             <span className="rd-ck-label">{title}</span>
-            {short && <span className="rd-ck-val">{short}</span>}
-            {/* der Zustand in Worten, für Vorlesehilfen — sichtbar sind Haken und Nummer */}
+            {line && <span className="rd-ck-val">{line}</span>}
+            {/* der Zustand in Worten, für Vorlesehilfen — sichtbar sind Haken, Farbe und zweite Zeile */}
             <span className="rd-ck-sr">{stepStateLabel(step.state)}</span>
-            <StepMark step={step} index={index} />
+            {step.state === "done" && <span className="rd-ck-mark is-done" aria-hidden="true"><CheckIcon /></span>}
         </>
     );
     // Der offene Schritt: kein Knopf — seine Tat ist der Knopf im Streifen darunter.
@@ -82,6 +82,26 @@ function FocusStrip({ step, running, onDeed }: { step: RaidEventStep; running: b
     );
 }
 
+/** Nichts ist dran: der Satz des Servers, was als Nächstes kommt, und höchstens ein stiller Knopf. */
+function LaterStrip({ progress, onDeed }: { progress: RaidEventSteps; onDeed: (deed: RaidStepDeed) => void }) {
+    const later = stepLater(progress);
+    if (!later) return null;
+    const deed = later.step && later.step.action;
+    return (
+        <div className="rd-ck-focus is-calm" data-step={later.step ? later.step.id : undefined}>
+            <div className="rd-ck-focus-text">
+                <b className="rd-ck-focus-title">{later.title}</b>
+                {later.text && <span className="rd-ck-focus-sub">{later.text}</span>}
+            </div>
+            {deed && (
+                <Button variant="ghost" size="sm" icon={deed.icon} onClick={() => onDeed(deed)}>
+                    {deedLabel(deed)}
+                </Button>
+            )}
+        </div>
+    );
+}
+
 export default function StepBar({ progress, running, onDeed }: {
     progress: RaidEventSteps;
     /** Die Haupt-Tat läuft gerade (eine Log-Auswertung). */
@@ -110,16 +130,16 @@ export default function StepBar({ progress, running, onDeed }: {
     const current = progress.steps.find((s) => s.id === progress.current);
     return (
         <div className={`rd-cockpit${current ? " has-focus" : ""}`}>
-            {/* Auf dem Handy fällt die Leiste auf diese Zeile plus den Streifen zusammen. */}
-            <p className="rd-ck-sum">{stepSummary(progress)}</p>
+            {/* Auf dem Handy fällt die Leiste auf diese Zeile plus den Streifen zusammen; ohne offenen Schritt sagt es der ruhige Streifen. */}
+            {current && <p className="rd-ck-sum">{stepSummary(progress)}</p>}
             <ol className="rd-ck-steps">
-                {progress.steps.map((s, i) => (
+                {progress.steps.map((s) => (
                     <li key={s.id} className={s.id === progress.current ? "is-current" : undefined}>
-                        <StepCell step={s} index={i + 1} onDeed={onDeed} />
+                        <StepCell step={s} onDeed={onDeed} />
                     </li>
                 ))}
             </ol>
-            {current && <FocusStrip step={current} running={running} onDeed={onDeed} />}
+            {current ? <FocusStrip step={current} running={running} onDeed={onDeed} /> : <LaterStrip progress={progress} onDeed={onDeed} />}
         </div>
     );
 }
