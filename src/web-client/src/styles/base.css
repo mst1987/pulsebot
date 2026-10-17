@@ -18,7 +18,7 @@ table.idx { width: 100%; border-collapse: collapse; }
 table.idx th, table.idx td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
 /* The third head level: tinted, mono, upper case — the same column head as the
    report pages. A head that explains itself carries data-tip (see SortTh). */
-table.idx th { background: var(--panel2); color: var(--muted); font-weight: 600; font-family: var(--font-mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; }
+table.idx th { background: var(--panel2); color: var(--muted); font-weight: 600; font-size: 11.5px; }
 table.idx tr:hover td { background: var(--panel2); }
 table.idx td.small { white-space: nowrap; color: var(--muted); font-size: 12.5px; }
 /* A cell holding a control is taller than one holding text, and baseline

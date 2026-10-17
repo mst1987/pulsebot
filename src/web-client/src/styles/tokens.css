@@ -30,25 +30,27 @@
        mode on a light OS, and the native select popup + scrollbars have to
        follow the app, not the OS. */
     color-scheme: dark;
-    /* ---- "Spektrum" area accents: one hue per admin section (nav icons, dashboard tiles) ---- */
-    --area-recruitment: #6fb08f; --area-recruitment-soft: rgba(111, 176, 143, .14);
-    --area-cla: #d08a6c; --area-cla-soft: rgba(208, 138, 108, .14);
-    --area-history: #c97f9f; --area-history-soft: rgba(201, 127, 159, .14);
-    --area-channels: #6fb0aa; --area-channels-soft: rgba(111, 176, 170, .14);
-    --area-settings: #9d93bf; --area-settings-soft: rgba(157, 147, 191, .14);
-    --area-system: #8ea3bd; --area-system-soft: rgba(142, 163, 189, .14);
-    --area-home: #d4683c; --area-home-soft: rgba(212, 104, 60, .14);
-    --area-profile: #73a9c9; --area-profile-soft: rgba(115, 169, 201, .14);
-    --area-signups: #78b47e; --area-signups-soft: rgba(120, 180, 126, .14);
-    --area-raids: #7f9fcb; --area-raids-soft: rgba(127, 159, 203, .14);
-    --area-roster: #9fb86a; --area-roster-soft: rgba(159, 184, 106, .14);
-    --area-absences: #d39a62; --area-absences-soft: rgba(211, 154, 98, .14);
-    --area-lootcouncil: #b88cc0; --area-lootcouncil-soft: rgba(184, 140, 192, .14);
-    --area-bank: #6aaba2; --area-bank-soft: rgba(106, 171, 162, .14);
-    --area-kader: #b98a6a; --area-kader-soft: rgba(185, 138, 106, .14);
-    /* a step back (the Kaderplaner's BackButton): its own sky blue, the ink at
-       least 4.5:1 on its tint over --panel and --panel2 in both themes */
-    --back-ink: #4cc3f7; --back-bg: rgba(56, 189, 248, .14); --back-bg-hover: rgba(56, 189, 248, .20); --back-line: rgba(56, 189, 248, .55);
+    /* ---- section names (--area-*): no hue per section any more (design pass 2026-10, "nicht nach KI").
+       Every section resolves to the one accent, so a selected chip or tab reads the same everywhere;
+       nav icons and icon tiles are neutral (shared.css, ui.css). Kept as names so the call sites stay. ---- */
+    --area-recruitment: var(--accent); --area-recruitment-soft: var(--accent-soft);
+    --area-cla: var(--accent); --area-cla-soft: var(--accent-soft);
+    --area-history: var(--accent); --area-history-soft: var(--accent-soft);
+    --area-channels: var(--accent); --area-channels-soft: var(--accent-soft);
+    --area-settings: var(--accent); --area-settings-soft: var(--accent-soft);
+    --area-system: var(--accent); --area-system-soft: var(--accent-soft);
+    --area-home: var(--accent); --area-home-soft: var(--accent-soft);
+    --area-profile: var(--accent); --area-profile-soft: var(--accent-soft);
+    --area-signups: var(--accent); --area-signups-soft: var(--accent-soft);
+    --area-raids: var(--accent); --area-raids-soft: var(--accent-soft);
+    --area-roster: var(--accent); --area-roster-soft: var(--accent-soft);
+    --area-absences: var(--accent); --area-absences-soft: var(--accent-soft);
+    --area-lootcouncil: var(--accent); --area-lootcouncil-soft: var(--accent-soft);
+    --area-bank: var(--accent); --area-bank-soft: var(--accent-soft);
+    --area-kader: var(--accent); --area-kader-soft: var(--accent-soft);
+    /* a step back (BackButton): a calm steel blue, the ink at least 4.5:1 on its
+       tint over --panel and --panel2 in both themes */
+    --back-ink: #8fb0d6; --back-bg: rgba(143, 176, 214, .10); --back-bg-hover: rgba(143, 176, 214, .16); --back-line: rgba(143, 176, 214, .45);
     /* the Kaderplaner's answer options (lib/kader/colors.ts): distinct in hue and
        lightness; only tints, dots and borders use them, the text stays --text */
     --opt-blue: #7f9fcb; --opt-amber: #d1a05a; --opt-rose: #cc7d86; --opt-teal: #6aaba2;
@@ -67,11 +69,11 @@
     --sig-signed: #5fae6a; --sig-tentative: #cdb85e; --sig-late: #d08a4a;
     --sig-bench: #7f9fcb; --sig-absence: #d9534f;
     /* ---- Roster > Abwesenheiten (absences.css): away is orange, a long absence filled ---- */
-    --ab-away: #fb923c; --ab-away-soft: rgba(251, 146, 60, .18); --ab-away-ink: #1f1206;
+    --ab-away: #d68f3c; --ab-away-soft: rgba(214, 143, 60, .14); --ab-away-ink: #1c1305;
     /* ---- Roster (rosters.css): member status - Stamm, Probe, Ersatz, Pause ---- */
-    --rn-core: #a3e635; --rn-trial: #fbbf24; --rn-bench: #60a5fa; --rn-pause: #94a3b8;
+    --rn-core: #5fae6a; --rn-trial: #d1a05a; --rn-bench: #7f9fcb; --rn-pause: #8a8882;
     /* attendance per night (#677, lib/roster/attendanceStatus.ts): present/bench filled, the missed ones as rings; lightness differs, a letter rides along */
-    --att-present: #4ade80; --att-bench: #3b82f6; --att-vacation: #a78bfa; --att-absence: #f59e0b; --att-nosignup: #6b7280; --att-noshow: #f87171; --att-tentative: #2dd4bf; --att-ink: #0b0f14;
+    --att-present: #5fae6a; --att-bench: #7f9fcb; --att-vacation: #a690c8; --att-absence: #d68f3c; --att-nosignup: #6b6963; --att-noshow: #d9534f; --att-tentative: #6aaba2; --att-ink: #111214;
     /* ---- game versions (#563, #742): the colour of a version is the whole accent while it is shown (see the end of the file).
        The defaults here are the rule sets' colours (config/gameVersions/<id>.js); a colour changed in Einstellungen → Spielversion
        arrives as --vc-<id>-dark / -light / -ink-dark / -ink-light (lib/app/versionColor.ts) and wins. Every default reaches 4.5:1
@@ -95,20 +97,20 @@
     --shade-45: rgba(0, 0, 0, .45); --shade-50: rgba(0, 0, 0, .5); --shade-55: rgba(0, 0, 0, .55); --shade-60: rgba(0, 0, 0, .6);
     --shade-65: rgba(0, 0, 0, .65); --shade-70: rgba(0, 0, 0, .7); --shade-90: rgba(0, 0, 0, .9);
     --overlay-dialog: rgba(10, 11, 14, .62); --loader-hit-glow: rgba(224, 82, 79, .35);
-    /* the bot's own avatar (violet/cyan duo of the dark theme, fixed) */
-    --brand-violet: #8a7cff; --brand-cyan: #35d6c4; --brand-ink: #130f26;
+    /* dark ink on a filled avatar (initials on --av) */
+    --brand-ink: #15161a;
     /* WoW item quality; on the light theme epic and uncommon get a darker shade */
     --q-uncommon: #1eff00; --q-rare: #0070dd; --q-epic: #a335ee; --q-legendary: #ff8000;
     --q-uncommon-light: #178a00; --q-epic-light: #7b1fc4;
     /* Dungeon-Bestzeiten: the three medals of the LevelHelper addon, as small square fields */
     --medal-gold: #e2b53b; --medal-silver: #c4ccd6; --medal-bronze: #c57f4a;
     /* loot council: a worn item without enchant, the third need step */
-    --worn-alert: #e5484d; --lc-need-3: #5badde;
-    /* Mein Profil: one colour per weekday, and its darker shade for text on light */
-    --day-mo: #5b8def; --day-mo-dark: #2f5fbf; --day-di: #22b8cf; --day-di-dark: #0f7f91;
-    --day-mi: #3fbf73; --day-mi-dark: #1f8a4c; --day-do: #8fbf3f; --day-do-dark: #5a7f1f;
-    --day-fr: #f0883e; --day-fr-dark: #b5561a; --day-sa: #e0569b; --day-sa-dark: #b02f70;
-    --day-so: #9b72f0; --day-so-dark: #6a43c4;
+    --worn-alert: #e5484d; --lc-need-3: #7f9fcb;
+    /* Mein Profil + Kader weekday answers: one calm hue per weekday (the option palette), and its darker shade for text on light */
+    --day-mo: #7f9fcb; --day-mo-dark: #3e5f99; --day-di: #6aaba2; --day-di-dark: #2f7c74;
+    --day-mi: #5fae6a; --day-mi-dark: #2b8a3e; --day-do: #9fb86a; --day-do-dark: #5d7a26;
+    --day-fr: #d0895a; --day-fr-dark: #b0602a; --day-sa: #cc7d86; --day-sa-dark: #a8434f;
+    --day-so: #a690c8; --day-so-dark: #6b5ba3;
     /* Discord's own palette for the message previews: dark (always, in the call
        templates) and light (the recruitment preview follows the theme) */
     --discord-dark-bg: #313338; --discord-dark-text: #dbdee1; --discord-dark-strong: #f2f3f5; --discord-dark-muted: #949ba4;
@@ -131,15 +133,15 @@
     --rp-done-dim: .6; /* opacity of a section chip whose boss the log shows killed (#534) */
     --rp-ico-base: #4a5060; --rp-ico-mix: #10131a; --rp-handle-edge: #fff;
     --rp-enemy: #b91c1c; --rp-bosspos: #7e22ce; --rp-du-ink: #14112e; --rp-fly-backdrop: rgba(8, 10, 18, .55);
-    --rp-onme: #e0a020; --rp-onme-ink: #1a1205; --rp-oop: #d99a1e; --rp-bad: #f87171; --rp-autotank-miss: #fbbf24;
+    --rp-onme: #d4683c; --rp-onme-ink: #1a1205; --rp-oop: #d68f3c; --rp-bad: #d9534f; --rp-autotank-miss: #d68f3c;
     /* status: ok / unsaved (warn) / conflict (danger) */
-    --rp-ok: #22c55e; --rp-ok-glow: rgba(34, 197, 94, .6); --rp-ok-glow-0: rgba(34, 197, 94, 0);
-    --rp-warn: #f59e0b; --rp-warn-strong: #d97706; --rp-warn-ink: #1a1204;
-    --rp-warn-a15: rgba(245, 158, 11, .15); --rp-warn-a30: rgba(245, 158, 11, .30); --rp-warn-a35: rgba(245, 158, 11, .35);
-    --rp-warn-a45: rgba(245, 158, 11, .45); --rp-warn-a50: rgba(245, 158, 11, .5); --rp-warn-a55: rgba(245, 158, 11, .55);
-    --rp-danger: #ef4444; --rp-danger-strong: #b91c1c; --rp-danger-a45: rgba(239, 68, 68, .45);
+    --rp-ok: #5fae6a; --rp-ok-glow: rgba(95, 174, 106, .45); --rp-ok-glow-0: rgba(95, 174, 106, 0);
+    --rp-warn: #d68f3c; --rp-warn-strong: #b8742a; --rp-warn-ink: #1a1204;
+    --rp-warn-a15: rgba(214, 143, 60, .15); --rp-warn-a30: rgba(214, 143, 60, .30); --rp-warn-a35: rgba(214, 143, 60, .35);
+    --rp-warn-a45: rgba(214, 143, 60, .45); --rp-warn-a50: rgba(214, 143, 60, .5); --rp-warn-a55: rgba(214, 143, 60, .55);
+    --rp-danger: #d9534f; --rp-danger-strong: #b0362f; --rp-danger-a45: rgba(217, 83, 79, .45);
     /* the unsaved strip's and the save button's text: light on dark, dark on light */
-    --rp-unsaved-ink: #fcd34d; --rp-conflict-ink: #fca5a5; --rp-saved-ink: #4ade80;
+    --rp-unsaved-ink: #e0b070; --rp-conflict-ink: #e8a09c; --rp-saved-ink: #8fca97;
     /* action icons of the assignment lines */
     --rp-act-tank: #60a5fa; --rp-act-tank-ink: #3b82f6; --rp-act-ctl: #8a7cff; --rp-act-ctl-ink: #7c6cf0;
     --rp-act-pos: #f59e0b; --rp-act-pos-ink: #d97706; --rp-act-sup: #35d6c4; --rp-act-sup-ink: #0f9f90;
@@ -166,22 +168,7 @@
         --ctl-arrow: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b616e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
         --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b84f26' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
         color-scheme: light;
-        --area-recruitment: #2f7d5a; --area-recruitment-soft: rgba(47, 125, 90, .10);
-        --area-cla: #b2593a; --area-cla-soft: rgba(178, 89, 58, .10);
-        --area-history: #a3486f; --area-history-soft: rgba(163, 72, 111, .10);
-        --area-channels: #2f7c76; --area-channels-soft: rgba(47, 124, 118, .10);
-        --area-settings: #635a94; --area-settings-soft: rgba(99, 90, 148, .10);
-        --area-system: #4b6890; --area-system-soft: rgba(75, 104, 144, .10);
-        --area-home: #b84f26; --area-home-soft: rgba(184, 79, 38, .10);
-        --area-profile: #2f6f91; --area-profile-soft: rgba(47, 111, 145, .10);
-        --area-signups: #3a7d43; --area-signups-soft: rgba(58, 125, 67, .10);
-        --area-raids: #3e5f99; --area-raids-soft: rgba(62, 95, 153, .10);
-        --area-roster: #5d7a26; --area-roster-soft: rgba(93, 122, 38, .10);
-        --area-absences: #a35f22; --area-absences-soft: rgba(163, 95, 34, .10);
-        --area-lootcouncil: #8a4f94; --area-lootcouncil-soft: rgba(138, 79, 148, .10);
-        --area-bank: #2f7c74; --area-bank-soft: rgba(47, 124, 116, .10);
-        --area-kader: #8a5f3f; --area-kader-soft: rgba(138, 95, 63, .10);
-        --back-ink: #0b6694; --back-bg: rgba(14, 127, 184, .10); --back-bg-hover: rgba(14, 127, 184, .15); --back-line: rgba(14, 127, 184, .5);
+        --back-ink: #33577f; --back-bg: rgba(51, 87, 127, .07); --back-bg-hover: rgba(51, 87, 127, .12); --back-line: rgba(51, 87, 127, .45);
         --opt-blue: #3e5f99; --opt-amber: #a3701f; --opt-rose: #a8434f; --opt-teal: #2f7c74;
         --opt-violet: #6b5ba3; --opt-lime: #5d7a26; --opt-orange: #b0602a; --opt-slate: #6b6963;
         --reason-bis: #2a7d68; --reason-bis-bg: rgba(42, 125, 104, .10);
@@ -195,17 +182,17 @@
         --reason-bank: #6b6963; --reason-bank-bg: rgba(107, 105, 99, .10);
         --sig-signed: #2b8a3e; --sig-tentative: #8a6a12; --sig-late: #ad5a1c;
         --sig-bench: #3e6a99; --sig-absence: #c0392b;
-        --ab-away: #c2410c; --ab-away-soft: rgba(234, 88, 12, .12); --ab-away-ink: #ffffff;
-        --rn-core: #4d7c0f; --rn-trial: #b45309; --rn-bench: #2563eb; --rn-pause: #64748b;
+        --ab-away: #a0621c; --ab-away-soft: rgba(160, 98, 28, .10); --ab-away-ink: #ffffff;
+        --rn-core: #2b8a3e; --rn-trial: #8a6a12; --rn-bench: #3e5f99; --rn-pause: #6b6963;
         /* attendance per night (#677, lib/roster/attendanceStatus.ts): present/bench filled, the missed ones as rings; lightness differs, a letter rides along */
-        --att-present: #2b9440; --att-bench: #1d4ed8; --att-vacation: #7c3aed; --att-absence: #b45309; --att-nosignup: #9aa3b2; --att-noshow: #dc2626; --att-tentative: #0f766e; --att-ink: #ffffff;
+        --att-present: #2b8a3e; --att-bench: #3e5f99; --att-vacation: #6b5ba3; --att-absence: #a0621c; --att-nosignup: #9a9893; --att-noshow: #c0392b; --att-tentative: #2f7c74; --att-ink: #ffffff;
         --ver-forever: var(--vc-forever-light, #1a65c4); --ver-forever-ink: var(--vc-forever-ink-light, #ffffff);
         --ver-tbc: var(--vc-tbc-light, #47711a); --ver-tbc-ink: var(--vc-tbc-ink-light, #ffffff);
         --ver-classic: var(--vc-classic-light, #4a5a73); --ver-classic-ink: var(--vc-classic-ink-light, #ffffff);
         --accent-soft-alpha: 10%;
         --orga-teal: #0f8f82;
         --archive-ink: #7a5208; --archive-text: #6b5424; --archive-bg: rgba(154, 108, 18, .08); --archive-line: rgba(154, 108, 18, .35);
-        --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
+        --rp-unsaved-ink: #8a5a12; --rp-conflict-ink: #a8322a; --rp-saved-ink: #2b8a3e;
         --medal-gold: #b88a12; --medal-silver: #8792a0; --medal-bronze: #a5622f;
         /* role group areas (#559): the board stays a dark picture, only the badge's shadow is softer on a light page */
         --rp-area-badge-bg: rgba(18, 22, 26, .92); --rp-area-badge-ink: #f1f3f8; --rp-area-badge-shadow: rgba(0, 0, 0, .3); --rp-area-calm-fill: .33; --rp-area-line: .6;
@@ -221,22 +208,7 @@
     --ctl-arrow: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b616e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b84f26' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     color-scheme: light;
-    --area-recruitment: #2f7d5a; --area-recruitment-soft: rgba(47, 125, 90, .10);
-    --area-cla: #b2593a; --area-cla-soft: rgba(178, 89, 58, .10);
-    --area-history: #a3486f; --area-history-soft: rgba(163, 72, 111, .10);
-    --area-channels: #2f7c76; --area-channels-soft: rgba(47, 124, 118, .10);
-    --area-settings: #635a94; --area-settings-soft: rgba(99, 90, 148, .10);
-    --area-system: #4b6890; --area-system-soft: rgba(75, 104, 144, .10);
-    --area-home: #b84f26; --area-home-soft: rgba(184, 79, 38, .10);
-    --area-profile: #2f6f91; --area-profile-soft: rgba(47, 111, 145, .10);
-    --area-signups: #3a7d43; --area-signups-soft: rgba(58, 125, 67, .10);
-    --area-raids: #3e5f99; --area-raids-soft: rgba(62, 95, 153, .10);
-    --area-roster: #5d7a26; --area-roster-soft: rgba(93, 122, 38, .10);
-    --area-absences: #a35f22; --area-absences-soft: rgba(163, 95, 34, .10);
-    --area-lootcouncil: #8a4f94; --area-lootcouncil-soft: rgba(138, 79, 148, .10);
-    --area-bank: #2f7c74; --area-bank-soft: rgba(47, 124, 116, .10);
-    --area-kader: #8a5f3f; --area-kader-soft: rgba(138, 95, 63, .10);
-    --back-ink: #0b6694; --back-bg: rgba(14, 127, 184, .10); --back-bg-hover: rgba(14, 127, 184, .15); --back-line: rgba(14, 127, 184, .5);
+    --back-ink: #33577f; --back-bg: rgba(51, 87, 127, .07); --back-bg-hover: rgba(51, 87, 127, .12); --back-line: rgba(51, 87, 127, .45);
     --opt-blue: #3e5f99; --opt-amber: #a3701f; --opt-rose: #a8434f; --opt-teal: #2f7c74;
     --opt-violet: #6b5ba3; --opt-lime: #5d7a26; --opt-orange: #b0602a; --opt-slate: #6b6963;
     --reason-bis: #2a7d68; --reason-bis-bg: rgba(42, 125, 104, .10);
@@ -250,20 +222,20 @@
     --reason-bank: #6b6963; --reason-bank-bg: rgba(107, 105, 99, .10);
     --sig-signed: #2b8a3e; --sig-tentative: #8a6a12; --sig-late: #ad5a1c;
     --sig-bench: #3e6a99; --sig-absence: #c0392b;
-    --ab-away: #c2410c; --ab-away-soft: rgba(234, 88, 12, .12); --ab-away-ink: #ffffff;
-    --rn-core: #4d7c0f; --rn-trial: #b45309; --rn-bench: #2563eb; --rn-pause: #64748b;
+    --ab-away: #a0621c; --ab-away-soft: rgba(160, 98, 28, .10); --ab-away-ink: #ffffff;
+    --rn-core: #2b8a3e; --rn-trial: #8a6a12; --rn-bench: #3e5f99; --rn-pause: #6b6963;
     /* attendance per night (#677, lib/roster/attendanceStatus.ts): present/bench filled, the missed ones as rings; lightness differs, a letter rides along */
-    --att-present: #2b9440; --att-bench: #1d4ed8; --att-vacation: #7c3aed; --att-absence: #b45309; --att-nosignup: #9aa3b2; --att-noshow: #dc2626; --att-tentative: #0f766e; --att-ink: #ffffff;
+    --att-present: #2b8a3e; --att-bench: #3e5f99; --att-vacation: #6b5ba3; --att-absence: #a0621c; --att-nosignup: #9a9893; --att-noshow: #c0392b; --att-tentative: #2f7c74; --att-ink: #ffffff;
     --ver-forever: var(--vc-forever-light, #1a65c4); --ver-forever-ink: var(--vc-forever-ink-light, #ffffff);
     --ver-tbc: var(--vc-tbc-light, #47711a); --ver-tbc-ink: var(--vc-tbc-ink-light, #ffffff);
     --ver-classic: var(--vc-classic-light, #4a5a73); --ver-classic-ink: var(--vc-classic-ink-light, #ffffff);
     --accent-soft-alpha: 10%;
     --orga-teal: #0f8f82;
     --archive-ink: #7a5208; --archive-text: #6b5424; --archive-bg: rgba(154, 108, 18, .08); --archive-line: rgba(154, 108, 18, .35);
-        --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
-        --medal-gold: #b88a12; --medal-silver: #8792a0; --medal-bronze: #a5622f;
-        /* role group areas (#559): the board stays a dark picture, only the badge's shadow is softer on a light page */
-        --rp-area-badge-bg: rgba(18, 22, 26, .92); --rp-area-badge-ink: #f1f3f8; --rp-area-badge-shadow: rgba(0, 0, 0, .3); --rp-area-calm-fill: .33; --rp-area-line: .6;
+    --rp-unsaved-ink: #8a5a12; --rp-conflict-ink: #a8322a; --rp-saved-ink: #2b8a3e;
+    --medal-gold: #b88a12; --medal-silver: #8792a0; --medal-bronze: #a5622f;
+    /* role group areas (#559): the board stays a dark picture, only the badge's shadow is softer on a light page */
+    --rp-area-badge-bg: rgba(18, 22, 26, .92); --rp-area-badge-ink: #f1f3f8; --rp-area-badge-shadow: rgba(0, 0, 0, .3); --rp-area-calm-fill: .33; --rp-area-line: .6;
 }
 
 /* ---- the version colour (#742) ----
