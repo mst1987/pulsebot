@@ -327,7 +327,15 @@ label.rd-check input { accent-color: var(--accent); margin: 0; }
     .rd-ck-focus .btn { flex: 1 1 100%; justify-content: center; min-height: 44px; }
     /* the tabs stay one row that scrolls sideways, as in the phone design, never three rows */
     .rd-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
-    .rd-tabs .tab-btn { flex: 0 0 auto; white-space: nowrap; }
+    .rd-tabs .tab-btn { flex: 0 0 auto; white-space: nowrap; gap: 6px; margin-right: 14px; }
+    /* Scroll hint, not decoration: the last 28px fade out, so a cut tab reads as
+       "more to the right". A mask only reads alpha, so black is no colour here; the
+       padding lets the last tab scroll clear of the fade. */
+    .rd-tabs {
+        padding-right: 28px;
+        -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+        mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+    }
     .rd-loot-row { grid-template-columns: minmax(0, 1fr) 100px 32px; }
     .rd-loot-row > :nth-child(2) { display: none; }
     .rd-log-row { grid-template-columns: 1fr; }
