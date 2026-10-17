@@ -36,7 +36,7 @@ function StepCell({ step, onDeed }: {
     // icon | name | tick on top, the second line below name and tick, so neither has to be cut short
     const cell = (
         <>
-            <WowIcon name={step.icon} size={18} className="rd-ck-icon" />
+            <WowIcon name={step.icon} size={32} className="rd-ck-icon" />
             <span className="rd-ck-label">{title}</span>
             {line && <span className="rd-ck-val">{line}</span>}
             {/* der Zustand in Worten, für Vorlesehilfen — sichtbar sind Haken, Farbe und zweite Zeile */}
