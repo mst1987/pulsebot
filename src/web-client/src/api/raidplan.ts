@@ -264,6 +264,8 @@ export type RaidplanPublicBoss = {
 };
 export type RaidplanPublic = {
     event: { title: string; startTime: number };
+    /** The raid's game version and its colour: the page's accent (#742). */
+    version?: { id: string; color?: string; custom?: boolean };
     bosses: RaidplanPublicBoss[];
     hiddenCount?: number;
     roster: RaidplanPlayer[];
