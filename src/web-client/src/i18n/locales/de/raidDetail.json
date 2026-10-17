@@ -54,7 +54,12 @@
         "sheet": "Raidsheet",
         "sheetSub": "Aufstellung und Taktik im Google Sheet",
         "sheetAria": "Raidsheet öffnen",
-        "nextOpenStep": "Nächster offener Schritt"
+        "nextOpenStep": "Nächster offener Schritt",
+        "linksAria": "Links zum Raid",
+        "linkPost": "Event-Post",
+        "linkRaidplan": "Raidplan",
+        "linkSoftres": "Softres",
+        "linkSheet": "Raidsheet"
     },
     "stepBar": {
         "cancelled": "Abgesagt",
@@ -155,7 +160,15 @@
         "noReaction": "Ohne Reaktion",
         "noReactionSub": "Raider-Rolle, aber weder an- noch abgemeldet",
         "notInSetup": "Nicht im Setup",
-        "allInPlan": "alle Reagierten stehen im Raidplan"
+        "allInPlan": "alle Reagierten stehen im Raidplan",
+        "roleHeadCount": "{count} angemeldet",
+        "lead": "{count} von {target} angemeldet",
+        "leadNoTarget": "{count} angemeldet",
+        "leadAria": "Stand der Anmeldungen",
+        "groupHeadCount": {
+            "one": "{count} Spieler",
+            "other": "{count} Spieler"
+        }
     },
     "loot": {
         "title": "Loot",

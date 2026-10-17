@@ -84,12 +84,12 @@ describe("signup status display", () => {
         expect(late.querySelector("svg, img")).toBeNull();
     });
 
-    it("marks a maybe in the raid groups with a dot, a signed-up or unknown slot with none", () => {
+    it("names a maybe in the raid groups as a word, a signed-up or unknown slot with none", () => {
         renderPage(<RosterTab ctx={ctx()} />);
         const ahri = chip("Ahri");
-        expect(within(ahri).getByLabelText("Unsicher")).toHaveClass("rd-sig", "rd-sig-tentative");
+        expect(within(ahri).getByText("Unsicher")).toHaveClass("rd-pstat", "rd-pstat-tentative");
         expect(ahri).toHaveAttribute("data-tip-sub", "Holy · Unsicher");
-        expect(within(chip("Zibbo")).queryByLabelText(/./)).toBeNull();
+        expect(chip("Zibbo").querySelector(".rd-pstat")).toBeNull();
     });
 
     it("sorts both lists by the name shown", async () => {

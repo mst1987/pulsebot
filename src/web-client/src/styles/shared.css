@@ -35,7 +35,7 @@
    a labelled meta row, and a tinted footer with the KPIs — so the name, the
    numbers and the links each read at their own type size. The bands are shared;
    what goes into the leading badge and the KPI strip is per page. */
-.page-hero { background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--accent); margin-bottom: 16px; }
+.page-hero { background: var(--panel); border: 1px solid var(--line); margin-bottom: 16px; }
 .hero-main { display: flex; align-items: flex-start; gap: 18px; padding: 18px 20px 14px; flex-wrap: wrap; }
 /* calendar-style date badge: weekday / day / month+year on three levels */
 .hero-date {
@@ -292,24 +292,15 @@ nav.menu::-webkit-scrollbar { display: none; }
 }
 .page-title { font-size: 24px; font-weight: 800; letter-spacing: -.3px; margin: 0 0 18px; }
 
-/* ===== panel geometry: clipped top-right corner + accent tick, the signature
-   shape of the 2026-07 redesign, replacing plain rounded corners on the main
-   structural panels (stat tiles, dashboard cards, forms, sheet cards) ===== */
-.tile, .dash-card, form.card-form, .sheetcard, .page-hero {
-    position: relative;
-    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
-}
-.tile::after, .dash-card::after, form.card-form::after, .sheetcard::after, .page-hero::after {
-    content: ""; position: absolute; top: 0; right: 0; width: 14px; height: 14px;
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 42%, transparent 44%);
-    opacity: .85; pointer-events: none;
-}
+/* ===== panel geometry: design pilot C drops the clipped corner and the accent
+   tick of 2026-07; the main panels are plain boxes with a line ===== */
+.tile, .dash-card, form.card-form, .sheetcard, .page-hero { position: relative; }
 
 /* ===== stat tiles (the start page's own layout is in styles/dashboard.css) ===== */
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
 .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 0; padding: 20px 22px;
     transition: transform .18s cubic-bezier(.34, 1.56, .64, 1), box-shadow .18s ease, border-color .18s ease; }
-.tile:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 14px 32px -14px var(--accent); }
+.tile:hover { border-color: var(--muted); }
 .tile.accent { border-top: 2px solid var(--accent); }
 .tile .t-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--accent-soft); color: var(--accent);
     display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
@@ -463,9 +454,9 @@ nav.menu::-webkit-scrollbar { display: none; }
    out accent-violet instead of its class colour. */
 .class-colored, a.class-colored { color: var(--cc); }
 @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) .class-colored { color: color-mix(in srgb, var(--cc) 55%, var(--ink-shade)); }
+    :root:not([data-theme="dark"]) .class-colored { color: var(--cc-l, color-mix(in srgb, var(--cc) 55%, var(--ink-shade))); }
 }
-:root[data-theme="light"] .class-colored { color: color-mix(in srgb, var(--cc) 55%, var(--ink-shade)); }
+:root[data-theme="light"] .class-colored { color: var(--cc-l, color-mix(in srgb, var(--cc) 55%, var(--ink-shade))); }
 
 /* Item names in their WoW quality colour (epic purple, rare blue, legendary
    orange, …), handed in as --iq by lib/wow/itemQuality.ts — same mechanism and the

@@ -1,4 +1,6 @@
 // Das Raid-Cockpit (#319): die Schritt-Leiste im Kopf eines *eigenen* Events.
+// Design-Pilot C (Okt 2026): eine ruhige Textleiste ohne Icons und Kreise; nur der
+// offene Schritt traegt die Akzentfarbe.
 //
 // Sechs Schritte — Angelegt › Anmeldung › Setup › Freigabe › Einteilungen ›
 // Nachbereitung — als eine Reihe gleich breiter Zellen: je Schritt Icon, Name und
@@ -15,8 +17,6 @@
 import type { RaidEventStep, RaidEventSteps, RaidStepDeed } from "../../api";
 import { deedLabel, stepFocus, stepShort, stepStateLabel, stepSummary, stepTipSub, stepTitle } from "../../lib/raids/raidSteps";
 import { Button } from "../../components/ui/Button";
-import IconTile from "../../components/ui/IconTile";
-import WowIcon from "../../components/ui/WowIcon";
 import { CheckIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
 
@@ -37,7 +37,6 @@ function StepCell({ step, index, onDeed }: {
     // two lines: the name (and the mark) on top, the value below them across the cell, so neither has to be cut short
     const cell = (
         <>
-            <WowIcon name={step.icon} size={18} />
             <span className="rd-ck-label">{title}</span>
             {short && <span className="rd-ck-val">{short}</span>}
             {/* der Zustand in Worten, für Vorlesehilfen — sichtbar sind Haken und Nummer */}
@@ -70,7 +69,6 @@ function FocusStrip({ step, running, onDeed }: { step: RaidEventStep; running: b
     const focus = stepFocus(step);
     return (
         <div className="rd-ck-focus" data-step={step.id}>
-            <IconTile icon={step.icon} tone="raids" />
             <div className="rd-ck-focus-text">
                 <b className="rd-ck-focus-title">{focus.title}</b>
                 {focus.text && <span className="rd-ck-focus-sub">{focus.text}</span>}
@@ -96,7 +94,6 @@ export default function StepBar({ progress, running, onDeed }: {
         return (
             <div className="rd-cockpit cancelled">
                 <div className="rd-ck-off">
-                    <IconTile icon="ability_creature_cursed_02" tone="bad" />
                     <span className="rd-ck-off-text">
                         <span className="kicker">{t("raidDetail.stepBar.cancelled")}</span>
                         <span className="rd-ck-off-why">{progress.note}</span>

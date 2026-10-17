@@ -90,6 +90,17 @@ describe("Raid detail roster of an own event", () => {
         expect(screen.queryByText(t("raidDetail.roster.benchCount", { count: 2 }))).not.toBeInTheDocument();
     });
 
+    it("heads each role list with its count in words and leads with one sentence (design pilot C)", () => {
+        show();
+        expect(within(column(ROLE_META.ranged.label)).getByText(t("raidDetail.roster.roleHeadCount", { count: 2 }))).toBeInTheDocument();
+        // bench and sign-offs do not count as coming; the maybe is named as a word
+        const lead = screen.getByLabelText(t("raidDetail.roster.leadAria"));
+        expect(lead).toHaveTextContent(t("raidDetail.roster.leadNoTarget", { count: 2 }));
+        expect(within(lead).getByText(/^1 /)).toHaveClass("rd-lead-sub");
+        // the status sits in the row as a word, not as a dot
+        expect(within(column(ROLE_META.tank.label)).getByText("Unsicher")).toHaveClass("rd-pstat", "rd-pstat-tentative");
+    });
+
     it("says so when nobody has signed up yet", () => {
         show([]);
         expect(screen.getByText(t("raidDetail.roster.ownEmpty"))).toBeInTheDocument();

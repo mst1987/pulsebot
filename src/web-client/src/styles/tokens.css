@@ -5,65 +5,67 @@
    variable here first, in :root and, where the themes differ, in both light
    blocks. Loaded first (index.css). */
 
-/* Theme tokens + shell layout. Visual identity 2026-07 (feature/visual-redesign):
-   violet/cyan accent duo + clipped-corner panel geometry, replacing the earlier
-   flat arcane-blue pass — see the approved design entwurf for the full plan. */
+/* Theme tokens. Design pilot C "ruhig/typografisch" (2026-10): neutral surfaces,
+   lines and text, one accent (Rost) for the current step, the main button and an
+   open slot; area and option hues kept in meaning but calm and desaturated.
+   Type is IBM Plex Sans / Plex Mono, self-hosted (main.tsx). */
 
 :root {
-    --bg: #16181d; --panel: #1f232b; --panel2: #272c36; --panel3: #30353f;
-    --text: #e6e6e6; --muted: #9aa0aa; --line: #2c313b; --line-soft: #23272f;
-    --high: #e0524f; --high-bg: rgba(224, 82, 79, .16);
-    --medium: #e0a23a; --medium-bg: rgba(224, 162, 58, .16);
-    --good: #7fd17f; --good-bg: rgba(120, 200, 120, .16); --go: #7fd17f; --go-ink: #10240f;
-    --accent: #8a7cff; --accent-2: #35d6c4; --accent-soft: rgba(138, 124, 255, .16); --accent-ink: #130f26;
-    --font-mono: ui-monospace, "Cascadia Code", Consolas, "SFMono-Regular", Menlo, monospace;
+    --bg: #17181a; --panel: #1c1d20; --panel2: #22242a; --panel3: #2a2c32;
+    --text: #e8e6e1; --muted: #9a9893; --line: #2b2d33; --line-soft: #232428;
+    --high: #d9534f; --high-bg: rgba(217, 83, 79, .14);
+    --medium: #d68f3c; --medium-bg: rgba(214, 143, 60, .14);
+    --good: #5fae6a; --good-bg: rgba(95, 174, 106, .14); --go: #5fae6a; --go-ink: #0f1f11;
+    --accent: #d4683c; --accent-2: #6fb0a6; --accent-soft: rgba(212, 104, 60, .14); --accent-ink: #1a0d06;
+    --font-sans: "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
     /* ---- control metrics: one height for everything that shares a line ---- */
-    --ctl-h: 38px; --ctl-h-sm: 32px; --ctl-radius: 8px;
+    --ctl-h: 38px; --ctl-h-sm: 32px; --ctl-radius: 4px;
     /* The select chevron, drawn by us instead of by the OS widget (see the form
        controls section). It has to be restated per theme because a data URI
        cannot read a custom property. */
     --ctl-arrow: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa0aa' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a7cff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4683c' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     /* Pinned instead of "light dark": the theme toggle can put the app in dark
        mode on a light OS, and the native select popup + scrollbars have to
        follow the app, not the OS. */
     color-scheme: dark;
     /* ---- "Spektrum" area accents: one hue per admin section (nav icons, dashboard tiles) ---- */
-    --area-recruitment: #34d399; --area-recruitment-soft: rgba(52, 211, 153, .16);
-    --area-cla: #ff8a65; --area-cla-soft: rgba(255, 138, 101, .16);
-    --area-history: #f472b6; --area-history-soft: rgba(244, 114, 182, .16);
-    --area-channels: #4dd0c8; --area-channels-soft: rgba(77, 208, 200, .16);
-    --area-settings: #b083f0; --area-settings-soft: rgba(176, 131, 240, .16);
-    --area-system: #7fa7d9; --area-system-soft: rgba(127, 167, 217, .16);
-    --area-home: #8a7cff; --area-home-soft: rgba(138, 124, 255, .16);
-    --area-profile: #38bdf8; --area-profile-soft: rgba(56, 189, 248, .16);
-    --area-signups: #4ade80; --area-signups-soft: rgba(74, 222, 128, .16);
-    --area-raids: #60a5fa; --area-raids-soft: rgba(96, 165, 250, .16);
-    --area-roster: #a3e635; --area-roster-soft: rgba(163, 230, 53, .16);
-    --area-absences: #fb923c; --area-absences-soft: rgba(251, 146, 60, .16);
-    --area-lootcouncil: #e879f9; --area-lootcouncil-soft: rgba(232, 121, 249, .16);
-    --area-bank: #2dd4bf; --area-bank-soft: rgba(45, 212, 191, .16);
-    --area-kader: #fbbf24; --area-kader-soft: rgba(251, 191, 36, .16);
+    --area-recruitment: #6fb08f; --area-recruitment-soft: rgba(111, 176, 143, .14);
+    --area-cla: #d08a6c; --area-cla-soft: rgba(208, 138, 108, .14);
+    --area-history: #c97f9f; --area-history-soft: rgba(201, 127, 159, .14);
+    --area-channels: #6fb0aa; --area-channels-soft: rgba(111, 176, 170, .14);
+    --area-settings: #9d93bf; --area-settings-soft: rgba(157, 147, 191, .14);
+    --area-system: #8ea3bd; --area-system-soft: rgba(142, 163, 189, .14);
+    --area-home: #d4683c; --area-home-soft: rgba(212, 104, 60, .14);
+    --area-profile: #73a9c9; --area-profile-soft: rgba(115, 169, 201, .14);
+    --area-signups: #78b47e; --area-signups-soft: rgba(120, 180, 126, .14);
+    --area-raids: #7f9fcb; --area-raids-soft: rgba(127, 159, 203, .14);
+    --area-roster: #9fb86a; --area-roster-soft: rgba(159, 184, 106, .14);
+    --area-absences: #d39a62; --area-absences-soft: rgba(211, 154, 98, .14);
+    --area-lootcouncil: #b88cc0; --area-lootcouncil-soft: rgba(184, 140, 192, .14);
+    --area-bank: #6aaba2; --area-bank-soft: rgba(106, 171, 162, .14);
+    --area-kader: #b98a6a; --area-kader-soft: rgba(185, 138, 106, .14);
     /* a step back (the Kaderplaner's BackButton): its own sky blue, the ink at
        least 4.5:1 on its tint over --panel and --panel2 in both themes */
     --back-ink: #4cc3f7; --back-bg: rgba(56, 189, 248, .14); --back-bg-hover: rgba(56, 189, 248, .20); --back-line: rgba(56, 189, 248, .55);
     /* the Kaderplaner's answer options (lib/kader/colors.ts): distinct in hue and
        lightness; only tints, dots and borders use them, the text stays --text */
-    --opt-blue: #60a5fa; --opt-amber: #fbbf24; --opt-rose: #fb7185; --opt-teal: #2dd4bf;
-    --opt-violet: #c084fc; --opt-lime: #a3e635; --opt-orange: #fb923c; --opt-slate: #94a3b8;
+    --opt-blue: #7f9fcb; --opt-amber: #d1a05a; --opt-rose: #cc7d86; --opt-teal: #6aaba2;
+    --opt-violet: #a690c8; --opt-lime: #9fb86a; --opt-orange: #d0895a; --opt-slate: #9a9893;
     /* ---- loot award reasons: a green→yellow→orange→red scale, see .rbadge ---- */
-    --reason-bis: #35d6a4; --reason-bis-bg: rgba(53, 214, 164, .16);
-    --reason-mainspec: #7fd17f; --reason-mainspec-bg: rgba(127, 209, 127, .16);
-    --reason-upgrade: #b9d96a; --reason-upgrade-bg: rgba(185, 217, 106, .16);
-    --reason-minor: #e3cf5c; --reason-minor-bg: rgba(227, 207, 92, .16);
-    --reason-offspec: #eb9440; --reason-offspec-bg: rgba(235, 148, 64, .16);
-    --reason-pvp: #e0524f; --reason-pvp-bg: rgba(224, 82, 79, .16);
-    --reason-greed: #6fa8dc; --reason-greed-bg: rgba(111, 168, 220, .16);
-    --reason-disenchant: #b083f0; --reason-disenchant-bg: rgba(176, 131, 240, .16);
-    --reason-bank: #9aa0aa; --reason-bank-bg: rgba(154, 160, 170, .16);
+    --reason-bis: #5fae8f; --reason-bis-bg: rgba(95, 174, 143, .14);
+    --reason-mainspec: #5fae6a; --reason-mainspec-bg: rgba(95, 174, 106, .14);
+    --reason-upgrade: #a3b862; --reason-upgrade-bg: rgba(163, 184, 98, .14);
+    --reason-minor: #cdb85e; --reason-minor-bg: rgba(205, 184, 94, .14);
+    --reason-offspec: #d08a4a; --reason-offspec-bg: rgba(208, 138, 74, .14);
+    --reason-pvp: #d9534f; --reason-pvp-bg: rgba(217, 83, 79, .14);
+    --reason-greed: #7f9fcb; --reason-greed-bg: rgba(127, 159, 203, .14);
+    --reason-disenchant: #a690c8; --reason-disenchant-bg: rgba(166, 144, 200, .14);
+    --reason-bank: #9a9893; --reason-bank-bg: rgba(154, 152, 147, .14);
     /* ---- signup status (Anwesenheit): icon-only colours, see .sig-ico ---- */
-    --sig-signed: #7fd17f; --sig-tentative: #e3cf5c; --sig-late: #eb9440;
-    --sig-bench: #6fa8dc; --sig-absence: #e0524f;
+    --sig-signed: #5fae6a; --sig-tentative: #cdb85e; --sig-late: #d08a4a;
+    --sig-bench: #7f9fcb; --sig-absence: #d9534f;
     /* ---- Roster > Abwesenheiten (absences.css): away is orange, a long absence filled ---- */
     --ab-away: #fb923c; --ab-away-soft: rgba(251, 146, 60, .18); --ab-away-ink: #1f1206;
     /* ---- Roster (rosters.css): member status - Stamm, Probe, Ersatz, Pause ---- */
@@ -86,6 +88,9 @@
     --on-fill: #fff; --on-good: #10240f; --on-medium: #1c1305;
     /* the dark a colour is mixed with to stay readable on the light theme (.class-colored, .item-quality) */
     --ink-shade: #0d0f14;
+    /* WoW class colours darkened for text on the light theme (classColorProps sets --cc-l from these, shared.css .class-colored) */
+    --cls-warrior: #8a5a2b; --cls-paladin: #c2417f; --cls-hunter: #4f7f1f; --cls-rogue: #8a7a00; --cls-priest: #4a4a4a;
+    --cls-shaman: #0a5bb5; --cls-mage: #1f7fa8; --cls-warlock: #6a53b8; --cls-druid: #c45c00; --cls-dk: #a3182f;
     --shade-12: rgba(0, 0, 0, .12); --shade-28: rgb(0 0 0 / .28); --shade-35: rgba(0, 0, 0, .35); --shade-40: rgba(0, 0, 0, .4);
     --shade-45: rgba(0, 0, 0, .45); --shade-50: rgba(0, 0, 0, .5); --shade-55: rgba(0, 0, 0, .55); --shade-60: rgba(0, 0, 0, .6);
     --shade-65: rgba(0, 0, 0, .65); --shade-70: rgba(0, 0, 0, .7); --shade-90: rgba(0, 0, 0, .9);
@@ -152,44 +157,44 @@
 }
 @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
-        --bg: #f2f4f8; --panel: #ffffff; --panel2: #eef1f6; --panel3: #e2e6ee;
-        --text: #1b1e27; --muted: #5b616e; --line: #dde1eb; --line-soft: #e8ebf2;
-        --high: #cf3b37; --high-bg: rgba(207, 59, 55, .12);
-        --medium: #9a6c12; --medium-bg: rgba(154, 108, 18, .14);
-        --good: #2b9440; --good-bg: rgba(43, 148, 64, .12); --go: #23802f; --go-ink: #fff;
-        --accent: #6a4fe0; --accent-2: #0f8f82; --accent-soft: rgba(106, 79, 224, .10); --accent-ink: #ffffff;
+        --bg: #f6f5f2; --panel: #ffffff; --panel2: #efede8; --panel3: #ebe8e2;
+        --text: #1d1c1a; --muted: #68665f; --line: #dcdad4; --line-soft: #e8e6e0;
+        --high: #c0392b; --high-bg: rgba(192, 57, 43, .10);
+        --medium: #a0621c; --medium-bg: rgba(160, 98, 28, .10);
+        --good: #2b8a3e; --good-bg: rgba(43, 138, 62, .10); --go: #2b8a3e; --go-ink: #fff;
+        --accent: #b84f26; --accent-2: #2f7c74; --accent-soft: rgba(184, 79, 38, .10); --accent-ink: #ffffff;
         --ctl-arrow: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b616e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-        --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a4fe0' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b84f26' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
         color-scheme: light;
-        --area-recruitment: #1f9d6c; --area-recruitment-soft: rgba(31, 157, 108, .12);
-        --area-cla: #d95f39; --area-cla-soft: rgba(217, 95, 57, .12);
-        --area-history: #c23f8f; --area-history-soft: rgba(194, 63, 143, .12);
-        --area-channels: #1f978c; --area-channels-soft: rgba(31, 151, 140, .12);
-        --area-settings: #7c4fd6; --area-settings-soft: rgba(124, 79, 214, .12);
-        --area-system: #3f6fae; --area-system-soft: rgba(63, 111, 174, .12);
-        --area-home: #6a4fe0; --area-home-soft: rgba(106, 79, 224, .12);
-        --area-profile: #0e7fb8; --area-profile-soft: rgba(14, 127, 184, .12);
-        --area-signups: #16a34a; --area-signups-soft: rgba(22, 163, 74, .12);
-        --area-raids: #2563c9; --area-raids-soft: rgba(37, 99, 201, .12);
-        --area-roster: #5f8f12; --area-roster-soft: rgba(95, 143, 18, .12);
-        --area-absences: #c2410c; --area-absences-soft: rgba(194, 65, 12, .12);
-        --area-lootcouncil: #b03cc0; --area-lootcouncil-soft: rgba(176, 60, 192, .12);
-        --area-bank: #0f8f82; --area-bank-soft: rgba(15, 143, 130, .12);
-        --area-kader: #b7791f; --area-kader-soft: rgba(183, 121, 31, .12);
+        --area-recruitment: #2f7d5a; --area-recruitment-soft: rgba(47, 125, 90, .10);
+        --area-cla: #b2593a; --area-cla-soft: rgba(178, 89, 58, .10);
+        --area-history: #a3486f; --area-history-soft: rgba(163, 72, 111, .10);
+        --area-channels: #2f7c76; --area-channels-soft: rgba(47, 124, 118, .10);
+        --area-settings: #635a94; --area-settings-soft: rgba(99, 90, 148, .10);
+        --area-system: #4b6890; --area-system-soft: rgba(75, 104, 144, .10);
+        --area-home: #b84f26; --area-home-soft: rgba(184, 79, 38, .10);
+        --area-profile: #2f6f91; --area-profile-soft: rgba(47, 111, 145, .10);
+        --area-signups: #3a7d43; --area-signups-soft: rgba(58, 125, 67, .10);
+        --area-raids: #3e5f99; --area-raids-soft: rgba(62, 95, 153, .10);
+        --area-roster: #5d7a26; --area-roster-soft: rgba(93, 122, 38, .10);
+        --area-absences: #a35f22; --area-absences-soft: rgba(163, 95, 34, .10);
+        --area-lootcouncil: #8a4f94; --area-lootcouncil-soft: rgba(138, 79, 148, .10);
+        --area-bank: #2f7c74; --area-bank-soft: rgba(47, 124, 116, .10);
+        --area-kader: #8a5f3f; --area-kader-soft: rgba(138, 95, 63, .10);
         --back-ink: #0b6694; --back-bg: rgba(14, 127, 184, .10); --back-bg-hover: rgba(14, 127, 184, .15); --back-line: rgba(14, 127, 184, .5);
-        --opt-blue: #2563eb; --opt-amber: #d97706; --opt-rose: #e11d48; --opt-teal: #0d9488;
-        --opt-violet: #9333ea; --opt-lime: #65a30d; --opt-orange: #ea580c; --opt-slate: #64748b;
-        --reason-bis: #0f8f72; --reason-bis-bg: rgba(15, 143, 114, .12);
-        --reason-mainspec: #2b9440; --reason-mainspec-bg: rgba(43, 148, 64, .12);
-        --reason-upgrade: #6d8f19; --reason-upgrade-bg: rgba(109, 143, 25, .12);
-        --reason-minor: #9a6c12; --reason-minor-bg: rgba(154, 108, 18, .14);
-        --reason-offspec: #c26414; --reason-offspec-bg: rgba(194, 100, 20, .12);
-        --reason-pvp: #cf3b37; --reason-pvp-bg: rgba(207, 59, 55, .12);
-        --reason-greed: #2b6ca3; --reason-greed-bg: rgba(43, 108, 163, .12);
-        --reason-disenchant: #7c4fd6; --reason-disenchant-bg: rgba(124, 79, 214, .12);
-        --reason-bank: #5b616e; --reason-bank-bg: rgba(91, 97, 110, .12);
-        --sig-signed: #2b9440; --sig-tentative: #9a6c12; --sig-late: #c26414;
-        --sig-bench: #2b6ca3; --sig-absence: #cf3b37;
+        --opt-blue: #3e5f99; --opt-amber: #a3701f; --opt-rose: #a8434f; --opt-teal: #2f7c74;
+        --opt-violet: #6b5ba3; --opt-lime: #5d7a26; --opt-orange: #b0602a; --opt-slate: #6b6963;
+        --reason-bis: #2a7d68; --reason-bis-bg: rgba(42, 125, 104, .10);
+        --reason-mainspec: #2b8a3e; --reason-mainspec-bg: rgba(43, 138, 62, .10);
+        --reason-upgrade: #5f7d1f; --reason-upgrade-bg: rgba(95, 125, 31, .10);
+        --reason-minor: #8a6a12; --reason-minor-bg: rgba(138, 106, 18, .10);
+        --reason-offspec: #ad5a1c; --reason-offspec-bg: rgba(173, 90, 28, .10);
+        --reason-pvp: #c0392b; --reason-pvp-bg: rgba(192, 57, 43, .10);
+        --reason-greed: #3e6a99; --reason-greed-bg: rgba(62, 106, 153, .10);
+        --reason-disenchant: #6b5ba3; --reason-disenchant-bg: rgba(107, 91, 163, .10);
+        --reason-bank: #6b6963; --reason-bank-bg: rgba(107, 105, 99, .10);
+        --sig-signed: #2b8a3e; --sig-tentative: #8a6a12; --sig-late: #ad5a1c;
+        --sig-bench: #3e6a99; --sig-absence: #c0392b;
         --ab-away: #c2410c; --ab-away-soft: rgba(234, 88, 12, .12); --ab-away-ink: #ffffff;
         --rn-core: #4d7c0f; --rn-trial: #b45309; --rn-bench: #2563eb; --rn-pause: #64748b;
         /* attendance per night (#677, lib/roster/attendanceStatus.ts): present/bench filled, the missed ones as rings; lightness differs, a letter rides along */
@@ -207,44 +212,44 @@
     }
 }
 :root[data-theme="light"] {
-    --bg: #f2f4f8; --panel: #ffffff; --panel2: #eef1f6; --panel3: #e2e6ee;
-    --text: #1b1e27; --muted: #5b616e; --line: #dde1eb; --line-soft: #e8ebf2;
-    --high: #cf3b37; --high-bg: rgba(207, 59, 55, .12);
-    --medium: #9a6c12; --medium-bg: rgba(154, 108, 18, .14);
-    --good: #2b9440; --good-bg: rgba(43, 148, 64, .12); --go: #23802f; --go-ink: #fff;
-    --accent: #6a4fe0; --accent-2: #0f8f82; --accent-soft: rgba(106, 79, 224, .10); --accent-ink: #ffffff;
+    --bg: #f6f5f2; --panel: #ffffff; --panel2: #efede8; --panel3: #ebe8e2;
+    --text: #1d1c1a; --muted: #68665f; --line: #dcdad4; --line-soft: #e8e6e0;
+    --high: #c0392b; --high-bg: rgba(192, 57, 43, .10);
+    --medium: #a0621c; --medium-bg: rgba(160, 98, 28, .10);
+    --good: #2b8a3e; --good-bg: rgba(43, 138, 62, .10); --go: #2b8a3e; --go-ink: #fff;
+    --accent: #b84f26; --accent-2: #2f7c74; --accent-soft: rgba(184, 79, 38, .10); --accent-ink: #ffffff;
     --ctl-arrow: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b616e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a4fe0' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b84f26' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     color-scheme: light;
-    --area-recruitment: #1f9d6c; --area-recruitment-soft: rgba(31, 157, 108, .12);
-    --area-cla: #d95f39; --area-cla-soft: rgba(217, 95, 57, .12);
-    --area-history: #c23f8f; --area-history-soft: rgba(194, 63, 143, .12);
-    --area-channels: #1f978c; --area-channels-soft: rgba(31, 151, 140, .12);
-    --area-settings: #7c4fd6; --area-settings-soft: rgba(124, 79, 214, .12);
-    --area-system: #3f6fae; --area-system-soft: rgba(63, 111, 174, .12);
-    --area-home: #6a4fe0; --area-home-soft: rgba(106, 79, 224, .12);
-    --area-profile: #0e7fb8; --area-profile-soft: rgba(14, 127, 184, .12);
-    --area-signups: #16a34a; --area-signups-soft: rgba(22, 163, 74, .12);
-    --area-raids: #2563c9; --area-raids-soft: rgba(37, 99, 201, .12);
-    --area-roster: #5f8f12; --area-roster-soft: rgba(95, 143, 18, .12);
-    --area-absences: #c2410c; --area-absences-soft: rgba(194, 65, 12, .12);
-    --area-lootcouncil: #b03cc0; --area-lootcouncil-soft: rgba(176, 60, 192, .12);
-    --area-bank: #0f8f82; --area-bank-soft: rgba(15, 143, 130, .12);
-    --area-kader: #b7791f; --area-kader-soft: rgba(183, 121, 31, .12);
+    --area-recruitment: #2f7d5a; --area-recruitment-soft: rgba(47, 125, 90, .10);
+    --area-cla: #b2593a; --area-cla-soft: rgba(178, 89, 58, .10);
+    --area-history: #a3486f; --area-history-soft: rgba(163, 72, 111, .10);
+    --area-channels: #2f7c76; --area-channels-soft: rgba(47, 124, 118, .10);
+    --area-settings: #635a94; --area-settings-soft: rgba(99, 90, 148, .10);
+    --area-system: #4b6890; --area-system-soft: rgba(75, 104, 144, .10);
+    --area-home: #b84f26; --area-home-soft: rgba(184, 79, 38, .10);
+    --area-profile: #2f6f91; --area-profile-soft: rgba(47, 111, 145, .10);
+    --area-signups: #3a7d43; --area-signups-soft: rgba(58, 125, 67, .10);
+    --area-raids: #3e5f99; --area-raids-soft: rgba(62, 95, 153, .10);
+    --area-roster: #5d7a26; --area-roster-soft: rgba(93, 122, 38, .10);
+    --area-absences: #a35f22; --area-absences-soft: rgba(163, 95, 34, .10);
+    --area-lootcouncil: #8a4f94; --area-lootcouncil-soft: rgba(138, 79, 148, .10);
+    --area-bank: #2f7c74; --area-bank-soft: rgba(47, 124, 116, .10);
+    --area-kader: #8a5f3f; --area-kader-soft: rgba(138, 95, 63, .10);
     --back-ink: #0b6694; --back-bg: rgba(14, 127, 184, .10); --back-bg-hover: rgba(14, 127, 184, .15); --back-line: rgba(14, 127, 184, .5);
-    --opt-blue: #2563eb; --opt-amber: #d97706; --opt-rose: #e11d48; --opt-teal: #0d9488;
-    --opt-violet: #9333ea; --opt-lime: #65a30d; --opt-orange: #ea580c; --opt-slate: #64748b;
-    --reason-bis: #0f8f72; --reason-bis-bg: rgba(15, 143, 114, .12);
-    --reason-mainspec: #2b9440; --reason-mainspec-bg: rgba(43, 148, 64, .12);
-    --reason-upgrade: #6d8f19; --reason-upgrade-bg: rgba(109, 143, 25, .12);
-    --reason-minor: #9a6c12; --reason-minor-bg: rgba(154, 108, 18, .14);
-    --reason-offspec: #c26414; --reason-offspec-bg: rgba(194, 100, 20, .12);
-    --reason-pvp: #cf3b37; --reason-pvp-bg: rgba(207, 59, 55, .12);
-    --reason-greed: #2b6ca3; --reason-greed-bg: rgba(43, 108, 163, .12);
-    --reason-disenchant: #7c4fd6; --reason-disenchant-bg: rgba(124, 79, 214, .12);
-    --reason-bank: #5b616e; --reason-bank-bg: rgba(91, 97, 110, .12);
-    --sig-signed: #2b9440; --sig-tentative: #9a6c12; --sig-late: #c26414;
-    --sig-bench: #2b6ca3; --sig-absence: #cf3b37;
+    --opt-blue: #3e5f99; --opt-amber: #a3701f; --opt-rose: #a8434f; --opt-teal: #2f7c74;
+    --opt-violet: #6b5ba3; --opt-lime: #5d7a26; --opt-orange: #b0602a; --opt-slate: #6b6963;
+    --reason-bis: #2a7d68; --reason-bis-bg: rgba(42, 125, 104, .10);
+    --reason-mainspec: #2b8a3e; --reason-mainspec-bg: rgba(43, 138, 62, .10);
+    --reason-upgrade: #5f7d1f; --reason-upgrade-bg: rgba(95, 125, 31, .10);
+    --reason-minor: #8a6a12; --reason-minor-bg: rgba(138, 106, 18, .10);
+    --reason-offspec: #ad5a1c; --reason-offspec-bg: rgba(173, 90, 28, .10);
+    --reason-pvp: #c0392b; --reason-pvp-bg: rgba(192, 57, 43, .10);
+    --reason-greed: #3e6a99; --reason-greed-bg: rgba(62, 106, 153, .10);
+    --reason-disenchant: #6b5ba3; --reason-disenchant-bg: rgba(107, 91, 163, .10);
+    --reason-bank: #6b6963; --reason-bank-bg: rgba(107, 105, 99, .10);
+    --sig-signed: #2b8a3e; --sig-tentative: #8a6a12; --sig-late: #ad5a1c;
+    --sig-bench: #3e6a99; --sig-absence: #c0392b;
     --ab-away: #c2410c; --ab-away-soft: rgba(234, 88, 12, .12); --ab-away-ink: #ffffff;
     --rn-core: #4d7c0f; --rn-trial: #b45309; --rn-bench: #2563eb; --rn-pause: #64748b;
     /* attendance per night (#677, lib/roster/attendanceStatus.ts): present/bench filled, the missed ones as rings; lightness differs, a letter rides along */
@@ -261,19 +266,10 @@
         --rp-area-badge-bg: rgba(18, 22, 26, .92); --rp-area-badge-ink: #f1f3f8; --rp-area-badge-shadow: rgba(0, 0, 0, .3); --rp-area-calm-fill: .33; --rp-area-line: .6;
 }
 
-/* ---- the accent follows the version (#742, variant B) ----
+/* ---- the version colour (#742) ----
    <html data-version> is set by components/shell/ContentVersionProvider (and left off on
-   a version-neutral page: Einstellungen, Systemstatus, Kanäle, see menu.json), so those keep
-   the brand violet above. Last in the file on purpose: it has the specificity of the light
-   blocks and must win over their --accent. Soft tint, hover and focus are derived from the one
-   colour. --accent-2 (the second hue) and --orga-teal (the orga marking) do not follow. */
+   a version-neutral page). Design pilot C keeps the one accent (Rost) on every page: the
+   version colour no longer replaces --accent, it stays available as --version-color. */
 :root[data-version="forever"] { --version-color: var(--ver-forever); --version-ink: var(--ver-forever-ink); }
 :root[data-version="tbc"] { --version-color: var(--ver-tbc); --version-ink: var(--ver-tbc-ink); }
 :root[data-version="classic"] { --version-color: var(--ver-classic); --version-ink: var(--ver-classic-ink); }
-:root[data-version="forever"], :root[data-version="tbc"], :root[data-version="classic"] {
-    --accent: var(--version-color);
-    --accent-ink: var(--version-ink);
-    --accent-soft: color-mix(in srgb, var(--version-color) var(--accent-soft-alpha), transparent);
-    /* Uebersicht is the one area hue that is the brand accent itself: its menu line and tiles follow; the other areas keep their spectrum hue */
-    --area-home: var(--version-color); --area-home-soft: var(--accent-soft);
-}

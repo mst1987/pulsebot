@@ -54,7 +54,12 @@
         "sheet": "Raid sheet",
         "sheetSub": "Line-up and tactics in the Google Sheet",
         "sheetAria": "Open the raid sheet",
-        "nextOpenStep": "Next open step"
+        "nextOpenStep": "Next open step",
+        "linksAria": "Raid links",
+        "linkPost": "Event post",
+        "linkRaidplan": "Raid plan",
+        "linkSoftres": "Softres",
+        "linkSheet": "Raid sheet"
     },
     "stepBar": {
         "cancelled": "Cancelled",
@@ -155,7 +160,15 @@
         "noReaction": "No reaction",
         "noReactionSub": "Raider role, but neither signed up nor off",
         "notInSetup": "Not in the setup",
-        "allInPlan": "everyone who reacted is in the raid plan"
+        "allInPlan": "everyone who reacted is in the raid plan",
+        "roleHeadCount": "{count} signed up",
+        "lead": "{count} of {target} signed up",
+        "leadNoTarget": "{count} signed up",
+        "leadAria": "Signup state",
+        "groupHeadCount": {
+            "one": "{count} player",
+            "other": "{count} players"
+        }
     },
     "loot": {
         "title": "Loot",

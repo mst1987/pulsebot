@@ -4,7 +4,7 @@
 * { box-sizing: border-box; }
 body {
     margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.5 -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    font: 14.5px/1.5 var(--font-sans);
     transition: background .2s, color .2s;
 }
 a { color: inherit; }
@@ -81,7 +81,7 @@ select:disabled { background-image: var(--ctl-arrow); }
    themselves (plus the pinned color-scheme in :root). */
 select option { background: var(--panel); color: var(--text); }
 select:focus, .field input:focus, .field textarea:focus, .inp-sm:focus, .sel-sm:focus, .hr-picker input:focus {
-    border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--accent);
+    border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft);
 }
 select:focus { background-image: var(--ctl-arrow-hi); }
 /* compact variants for dense places (table cells, the topbar's neighbours) */
@@ -121,15 +121,15 @@ select:focus { background-image: var(--ctl-arrow-hi); }
     transition: filter .15s ease, box-shadow .2s ease, transform .1s ease, background-color .15s ease, border-color .15s ease;
 }
 .btn svg { width: 15px; height: 15px; flex: 0 0 auto; }
-.btn:hover { filter: brightness(1.08); box-shadow: 0 4px 22px -6px var(--accent); transform: translateY(-1px); }
+.btn:hover { filter: brightness(1.08); }
 .btn:active { transform: translateY(0); }
 .btn:disabled { opacity: .6; cursor: not-allowed; filter: none; box-shadow: none; transform: none; }
 .btn-ghost { background: var(--panel2); color: var(--text); border: 1px solid var(--line); }
 .btn-ghost:hover { filter: none; background: var(--panel3); border-color: var(--accent); box-shadow: none; }
 .btn-danger { background: var(--high-bg); color: var(--high); border: 1px solid var(--high); }
-.btn-danger:hover { filter: none; background: var(--high); color: var(--on-fill); box-shadow: 0 4px 22px -8px var(--high); transform: translateY(-1px); }
+.btn-danger:hover { filter: none; background: var(--high); color: var(--on-fill); }
 .btn-go { background: var(--go); color: var(--go-ink); }
-.btn-go:hover { box-shadow: 0 4px 22px -6px var(--go); }
+.btn-go:hover { filter: brightness(1.08); }
 .btn-yes { background: var(--good-bg); color: var(--good); border: 1px solid color-mix(in srgb, var(--good) 45%, transparent); }
 .btn-yes:hover { filter: none; background: color-mix(in srgb, var(--good) 24%, transparent); border-color: var(--good); box-shadow: none; }
 .btn-yes[aria-pressed="true"] { background: var(--go); color: var(--go-ink); border-color: var(--go); }
@@ -139,7 +139,7 @@ select:focus { background-image: var(--ctl-arrow-hi); }
 /* Analysis starters (CLA/RPB): accent-tinted so they read as "run this", but
    outlined so a table row full of them never looks like a row of submits. */
 .btn-run { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-soft); letter-spacing: .02em; }
-.btn-run:hover { filter: none; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); box-shadow: 0 4px 18px -8px var(--accent); }
+.btn-run:hover { filter: none; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 /* While its job runs the button stays clickable-looking but inert, and swaps
    its icon for a spinner (the real progress lives in the toast). */
 .btn.is-running { cursor: progress; }
@@ -159,7 +159,7 @@ select:focus { background-image: var(--ctl-arrow-hi); }
 .pill-x:hover { opacity: 1; }
 .empty { color: var(--muted); padding: 40px; text-align: center; }
 .note { color: var(--muted); font-size: 12.5px; margin: -6px 0 12px; }
-code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; padding: 2px 6px; border-radius: 4px; background: var(--panel2); color: var(--text); }
+code { font-family: var(--font-mono); font-size: 13px; padding: 2px 6px; border-radius: 4px; background: var(--panel2); color: var(--text); }
 
 /* ===== tabs ===== */
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 20px; border-bottom: 1px solid var(--line); }
@@ -168,6 +168,6 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; padding:
 .tab-btn.active { color: var(--text); background: var(--panel); border-color: var(--line); border-bottom-color: var(--panel); }
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
-.tab-count { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; font-size: 11.5px; font-weight: 700; font-family: var(--font-mono); background: var(--panel2); color: var(--muted); border: 1px solid var(--line); }
-.tab-btn.active .tab-count { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
+.tab-count { display: inline-block; margin-left: 6px; font-size: 12px; font-weight: 500; font-family: var(--font-mono); color: var(--muted); }
+.tab-btn.active .tab-count { color: var(--text); }
 td.cell-actions { text-align: right; white-space: nowrap; vertical-align: middle; }

@@ -55,9 +55,11 @@ describe("version colours in tokens.css", () => {
         expect(orga).not.toMatch(/--orga[\w-]*:[^;]*(--accent|--ver-)/);
     });
 
-    it("keeps the brand violet for a page without a version (no data-version rule matches)", () => {
-        expect(token(THEMES.dark, "--accent")).toBe("#8a7cff");
-        expect(CSS).toMatch(/:root\[data-version="forever"\], :root\[data-version="tbc"\], :root\[data-version="classic"\] \{\s*--accent: var\(--version-color\);/);
+    it("keeps the one accent (Rost, design pilot C) whatever version is shown", () => {
+        expect(token(THEMES.dark, "--accent")).toBe("#d4683c");
+        expect(token(THEMES.light, "--accent")).toBe("#b84f26");
+        expect(CSS).toMatch(/:root\[data-version="tbc"\] \{ --version-color: var\(--ver-tbc\);/);
+        expect(CSS).not.toMatch(/--accent:\s*var\(--version-color\)/);
     });
 });
 
