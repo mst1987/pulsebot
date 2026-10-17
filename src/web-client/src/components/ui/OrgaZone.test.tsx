@@ -1,12 +1,13 @@
 // What only the orga sees (design canvas Oct 2026): the chip in the top bar of an orga page, the zone
-// around the orga's part of a page, the menu dot — each naming who sees it after all.
+// around the orga's part of a page — each naming who sees it after all. The menu shows no mark
+// (design C): a dot on every orga entry reported nothing new.
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { SessionUser } from "../../api";
 import { t } from "../../i18n";
-import { OrgaChip, OrgaDot, OrgaZone } from "./OrgaZone";
+import { OrgaChip, OrgaZone } from "./OrgaZone";
 import { pageAudience } from "../../lib/app/orgaArea";
 
 vi.mock("../../api", async (orig) => ({
@@ -92,14 +93,5 @@ describe("OrgaZone", () => {
         expect(zone).not.toHaveTextContent(t("shell.orga.admins"));
         render(<OrgaZone user={manager} categories><p>Block</p></OrgaZone>);
         expect(screen.getByText(new RegExp(t("shell.orga.visibleForCategories")))).toBeInTheDocument();
-    });
-});
-
-describe("OrgaDot", () => {
-    it("is a small mark with its meaning in the tooltip, silent for screen readers (the link keeps its name)", () => {
-        const { container } = render(<OrgaDot />);
-        const dot = container.querySelector(".orga-dot")!;
-        expect(dot).toHaveAttribute("data-tip", t("shell.orga.label"));
-        expect(dot).toHaveAttribute("aria-hidden", "true");
     });
 });

@@ -54,7 +54,12 @@
         "sheet": "Raid sheet",
         "sheetSub": "Line-up and tactics in the Google Sheet",
         "sheetAria": "Open the raid sheet",
-        "nextOpenStep": "Next open step"
+        "nextOpenStep": "Next open step",
+        "linksAria": "Raid links",
+        "linkPost": "Event post",
+        "linkRaidplan": "Raid plan",
+        "linkSoftres": "Softres",
+        "linkSheet": "Raid sheet"
     },
     "stepBar": {
         "cancelled": "Cancelled",
@@ -71,9 +76,28 @@
         "position": "Step {index} of {total}",
         "cancelled": "Cancelled",
         "nothingOpen": "Nothing open",
+        "later": "Next up, {what}: {text}",
         "of": "of {total}",
         "focus": "Up next: {what}",
         "clickDeed": "Click: {action}",
+        "note": {
+            "afterSetup": "after the setup",
+            "afterRaid": "after the raid",
+            "planEmpty": "raid plan empty",
+            "noLoot": "no loot",
+            "noSetup": "no setup",
+            "planned": "placed",
+            "autoSuggest": "draft at signup close",
+            "neverApproved": "never approved",
+            "posted": "posted",
+            "notPosted": "not posted",
+            "draft": "draft",
+            "changed": "changed since posting",
+            "published": "published",
+            "allDone": "Everything before the raid is done.",
+            "afterDone": "Follow-up done.",
+            "cancelled": "Cancelled."
+        },
         "title": {
             "created": "Created",
             "signup": "Signups",
@@ -155,7 +179,16 @@
         "noReaction": "No reaction",
         "noReactionSub": "Raider role, but neither signed up nor off",
         "notInSetup": "Not in the setup",
-        "allInPlan": "everyone who reacted is in the raid plan"
+        "allInPlan": "everyone who reacted is in the raid plan",
+        "roleHeadCount": "{count} signed up",
+        "roleHeadOf": "{count} of {target}",
+        "lead": "{count} of {target} signed up",
+        "leadNoTarget": "{count} signed up",
+        "leadAria": "Signup state",
+        "groupHeadCount": {
+            "one": "{count} player",
+            "other": "{count} players"
+        }
     },
     "loot": {
         "title": "Loot",

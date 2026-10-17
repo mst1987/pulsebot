@@ -46,7 +46,7 @@
 .dlp-all { align-self: flex-end; max-width: 100%; }
 
 .dlp-install { padding-top: 10px; border-top: 1px solid var(--line); }
-.dlp-install h3 { margin: 0 0 6px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.dlp-install h3 { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
 .dlp-install ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; overflow-wrap: anywhere; }
 
 .dlp-foot { margin: 16px 0 0; font-size: 13px; }
@@ -70,16 +70,11 @@
 
 /* ── Detail page /addon/<id> (pages/addon/AddonDetailPage.tsx, design "Addon-Detailseite") ──
    Prefix "dlpd-" (download page detail), never "ad-" (see the head of this file).
-   The head is the shared page hero (shared.css) with the notched corner; icon, name and
+   The head is the shared page hero (shared.css); icon, name and
    description on the left, back and downloads on the right, the meta line under it. */
 .dlpd-page { max-width: 880px; }
 .dlpd-hero {
     position: relative;
-    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
-}
-.dlpd-hero::after {
-    content: ""; position: absolute; top: 0; right: 0; width: 14px; height: 14px; pointer-events: none;
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 42%, transparent 44%); opacity: .85;
 }
 .hero-main.dlpd-hero-main {
     /* the name keeps at least 260 px; several downloads wrap in their column instead of squeezing it */
@@ -122,8 +117,7 @@
 .dlpd-g-better { --gc: var(--accent); }
 .dlpd-g-fixed { --gc: var(--accent-2); }
 .dlpd-group-head {
-    display: flex; align-items: center; gap: 9px; margin: 0;
-    font-family: var(--font-mono); font-size: 11.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+    display: flex; align-items: center; gap: 9px; margin: 0; font-size: 12px; font-weight: 700; color: var(--muted);
 }
 .dlpd-mark { width: 10px; height: 10px; border-radius: 2px; background: var(--gc); flex: 0 0 auto; }
 .dlpd-group ul { margin: 0; padding: 0 0 0 22px; display: grid; gap: 7px; font-size: 15.5px; line-height: 1.5; }

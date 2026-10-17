@@ -54,7 +54,12 @@
         "sheet": "Raidsheet",
         "sheetSub": "Aufstellung und Taktik im Google Sheet",
         "sheetAria": "Raidsheet öffnen",
-        "nextOpenStep": "Nächster offener Schritt"
+        "nextOpenStep": "Nächster offener Schritt",
+        "linksAria": "Links zum Raid",
+        "linkPost": "Event-Post",
+        "linkRaidplan": "Raidplan",
+        "linkSoftres": "Softres",
+        "linkSheet": "Raidsheet"
     },
     "stepBar": {
         "cancelled": "Abgesagt",
@@ -71,9 +76,28 @@
         "position": "Schritt {index} von {total}",
         "cancelled": "Abgesagt",
         "nothingOpen": "Nichts offen",
+        "later": "Als Nächstes {what}: {text}",
         "of": "von {total}",
         "focus": "Jetzt dran: {what}",
         "clickDeed": "Klick: {action}",
+        "note": {
+            "afterSetup": "nach dem Setup",
+            "afterRaid": "nach dem Raid",
+            "planEmpty": "Raidplan leer",
+            "noLoot": "kein Loot",
+            "noSetup": "ohne Setup",
+            "planned": "verplant",
+            "autoSuggest": "Vorschlag bei Anmeldeschluss",
+            "neverApproved": "nie freigegeben",
+            "posted": "gepostet",
+            "notPosted": "nicht gepostet",
+            "draft": "Entwurf",
+            "changed": "geändert seit dem Posten",
+            "published": "freigegeben",
+            "allDone": "Alles erledigt, was vor dem Raid zu tun war.",
+            "afterDone": "Nachbereitung erledigt.",
+            "cancelled": "Abgesagt."
+        },
         "title": {
             "created": "Angelegt",
             "signup": "Anmeldung",
@@ -155,7 +179,16 @@
         "noReaction": "Ohne Reaktion",
         "noReactionSub": "Raider-Rolle, aber weder an- noch abgemeldet",
         "notInSetup": "Nicht im Setup",
-        "allInPlan": "alle Reagierten stehen im Raidplan"
+        "allInPlan": "alle Reagierten stehen im Raidplan",
+        "roleHeadCount": "{count} angemeldet",
+        "roleHeadOf": "{count} von {target}",
+        "lead": "{count} von {target} angemeldet",
+        "leadNoTarget": "{count} angemeldet",
+        "leadAria": "Stand der Anmeldungen",
+        "groupHeadCount": {
+            "one": "{count} Spieler",
+            "other": "{count} Spieler"
+        }
     },
     "loot": {
         "title": "Loot",

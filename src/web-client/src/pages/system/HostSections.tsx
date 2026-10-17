@@ -7,6 +7,7 @@ import Bar from "../../components/ui/Bar";
 import Expand from "../../components/ui/Expand";
 import { formatTime } from "../../lib/format";
 import { bytes, pct } from "../../lib/system/systemFormat";
+import PathText from "./PathText";
 
 // "Prozesse auf dem Server" and "Speicherplatz": what else runs on the host
 // (only where the server could measure it - Linux), and what takes the space
@@ -82,7 +83,7 @@ export function DiskSection({ disk }: { disk: Disk }) {
                         <ul className="sy-slow-list">
                             {disk.files.map((f) => (
                                 <li key={f.path}>
-                                    <code>{f.path}</code>
+                                    <code><PathText text={f.path} /></code>
                                     <strong>{bytes(f.size)}</strong>
                                 </li>
                             ))}

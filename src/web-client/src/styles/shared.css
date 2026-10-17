@@ -26,7 +26,7 @@
 .sig-bench { --sig-fg: var(--sig-bench); }
 .sig-absence { --sig-fg: var(--sig-absence); }
 .sig-group + .sig-group { margin-top: 12px; }
-.sig-group-head { display: flex; align-items: center; gap: 7px; margin: 0 0 6px; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.sig-group-head { display: flex; align-items: center; gap: 7px; margin: 0 0 6px; font-size: 12px; font-weight: 700; color: var(--muted); }
 .sig-group-head b { color: var(--text); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
 /* ===== page hero header (raid detail, character detail) =====
@@ -35,25 +35,25 @@
    a labelled meta row, and a tinted footer with the KPIs — so the name, the
    numbers and the links each read at their own type size. The bands are shared;
    what goes into the leading badge and the KPI strip is per page. */
-.page-hero { background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--accent); margin-bottom: 16px; }
+.page-hero { background: var(--panel); border: 1px solid var(--line); margin-bottom: 16px; }
 .hero-main { display: flex; align-items: flex-start; gap: 18px; padding: 18px 20px 14px; flex-wrap: wrap; }
 /* calendar-style date badge: weekday / day / month+year on three levels */
 .hero-date {
     flex: 0 0 auto; width: 82px; display: grid; justify-items: center; gap: 2px; padding: 9px 6px 10px;
     background: var(--accent-soft); border: 1px solid var(--accent-soft); border-radius: 12px; text-align: center;
 }
-.hero-date-dow { font-size: 11px; font-family: var(--font-mono); font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: var(--accent); }
+.hero-date-dow { font-size: var(--fs-label); font-weight: 700; color: var(--accent); }
 .hero-date-day { font-size: 30px; line-height: 1; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
-.hero-date-mon { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.hero-date-mon { font-size: 12px; font-weight: 700; color: var(--muted); }
 .hero-ident { min-width: 0; flex: 1 1 240px; }
 .hero-eyebrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 5px; }
-.hero-kicker { font-size: 10.5px; font-family: var(--font-mono); font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: var(--muted); }
+.hero-kicker { font-size: 12px; font-weight: 700; color: var(--muted); }
 .hero-title { font-size: 25px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin: 0; overflow-wrap: anywhere; }
 .hero-when { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; color: var(--muted); }
 .hero-when svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--accent-2); }
 .hero-time { font-size: 18px; font-weight: 700; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
 .hero-time-unit { font-size: 12.5px; }
-.hero-rel { font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 2px 10px; background: var(--panel2); border: 1px solid var(--line); color: var(--muted); }
+.hero-rel { font-size: var(--fs-label); font-weight: 700; border-radius: 3px; padding: 2px 10px; background: var(--panel2); border: 1px solid var(--line); color: var(--muted); }
 .hero-rel.is-soon { background: var(--accent-soft); border-color: var(--accent-soft); color: var(--accent); }
 .hero-rel.is-past { opacity: .75; }
 .hero-actions { margin-left: auto; }
@@ -61,8 +61,7 @@
 .hero-meta { display: flex; flex-wrap: wrap; gap: 12px 34px; margin: 0; padding: 0 20px 16px; }
 .hero-meta-item { min-width: 0; }
 .hero-meta dt, .hero-stat-label {
-    font-size: 10.5px; font-family: var(--font-mono); font-weight: 700;
-    text-transform: uppercase; letter-spacing: .12em; color: var(--muted);
+    font-size: 12px; font-weight: 700; color: var(--muted);
 }
 .hero-meta dt { margin-bottom: 4px; }
 .hero-meta dd { margin: 0; font-size: 13.5px; font-weight: 600; }
@@ -89,7 +88,7 @@
 
 /* ===== raid detail: setup/attendance summary + roster chips (ported from renderAdmin.js's ADMIN_STYLE) ===== */
 .setup-summary { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-.setup-count { background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 13px; color: var(--muted); }
+.setup-count { background: var(--panel2); border: 1px solid var(--line); border-radius: 3px; padding: 4px 12px; font-size: 13px; color: var(--muted); }
 .setup-count b { color: var(--text); font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
 .setup-count.setup-total { border-color: var(--accent-soft); background: var(--accent-soft); }
 /* raid-roster avatar row (real signups: spec icon + small name, initials as fallback) */
@@ -101,14 +100,14 @@
 }
 .avatar-stack .av {
     width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--panel);
-    font-size: 10.5px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
+    font-size: var(--fs-label); font-weight: 800; display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
 }
 .avatar-stack .av-ico { object-fit: cover; }
 .avatar-stack .av.more { background: var(--panel2); color: var(--muted); border-color: var(--line); }
 .setup-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 .setup-group { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
-.setup-group-head { font-size: 12.5px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin: 0 0 8px; display: flex; justify-content: space-between; align-items: center; }
-.setup-group-n { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; font-size: 11px; color: var(--text); font-variant-numeric: tabular-nums; }
+.setup-group-head { font-size: 12.5px; color: var(--muted); margin: 0 0 8px; display: flex; justify-content: space-between; align-items: center; }
+.setup-group-n { background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 1px 8px; font-size: var(--fs-label); color: var(--text); font-variant-numeric: tabular-nums; }
 .setup-group-list { display: flex; flex-direction: column; gap: 6px; }
 .setup-player { display: flex; align-items: center; gap: 9px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 8px; padding: 6px 10px; min-width: 0; }
 .setup-ico { width: 22px; height: 22px; border-radius: 5px; flex: 0 0 auto; }
@@ -168,25 +167,30 @@ input[type=checkbox]:checked::after {
 .brand { display: flex; align-items: center; gap: 12px; padding: 18px 18px 16px; border-bottom: 1px solid var(--line-soft); color: inherit; text-decoration: none; }
 .brand:hover .crest, .brand:focus-visible .crest { box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--accent); }
 .brand:focus-visible { outline: none; }
+/* the crest keeps its gradient: the one coloured mark of the shell (the user liked it better than flat) */
 .crest { width: 40px; height: 40px; border-radius: 10px; flex: 0 0 auto; display: grid; place-items: center; background: linear-gradient(150deg, var(--accent), var(--accent-2)); color: var(--accent-ink); }
 .crest svg { width: 22px; height: 22px; }
 .brand-name { font-weight: 800; font-size: 16px; }
-.brand-sub { font-size: 10.5px; font-family: var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; margin-top: 1px; }
+.brand-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
 /* the menu scrolls on a short screen (wheel, touch, keyboard) but shows no scrollbar right beside the entries */
 nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; flex: 1; overflow-y: auto; scrollbar-width: none; }
 nav.menu::-webkit-scrollbar { display: none; }
-.menu-label { font-size: 10.5px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1.3px; color: var(--muted); opacity: .7; padding: 14px 12px 6px; }
+.menu-label { font-size: 12px; font-weight: 500; color: var(--muted); padding: 14px 12px 4px; }
 /* Menu entries lead with their WoW icon (src/config/menu.json): slightly
-   desaturated at rest, full colour on hover, and ringed in the section's own
-   --area-* colour when active — also on the sub pages of the entry (the
-   settings sections, the raid plan's pages), which its page's rail lists. */
+   desaturated at rest, full colour on hover. The active entry (also on the sub
+   pages of the entry: the settings sections, the raid plan's pages, which its
+   page's rail lists) must read at a glance, design C: a neutral raised surface
+   (--panel3, no accent tint, no glow), the strongest text colour, a heavier
+   weight and a rust line over the entry's full height, flush with its left
+   edge (the entry squares its left corners for it). Hover is the weaker
+   surface, so it never looks like a second active entry. */
 .nav-item { --area: var(--accent); --area-soft: var(--accent-soft); display: flex; align-items: center; gap: 12px; padding: 7px 12px; border-radius: 8px; color: var(--muted); font-weight: 600; font-size: 14.5px; text-decoration: none; border: 1px solid transparent; position: relative; transition: background .12s, color .12s, border-color .12s; }
 .nav-item .wi { width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); flex: 0 0 auto; filter: saturate(.45) brightness(.8); transition: filter .12s, box-shadow .12s, border-color .12s; }
-.nav-item:hover { background: var(--panel2); color: var(--text); }
+.nav-item:hover { background: color-mix(in srgb, var(--panel2) 60%, transparent); color: var(--text); }
 .nav-item:hover .wi, .nav-item:focus-visible .wi { filter: none; }
-.nav-item.active { background: var(--area-soft); color: var(--text); border-color: var(--area-soft); }
-.nav-item.active::before { content: ""; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--area); }
-.nav-item.active .wi { filter: none; border-color: var(--area); box-shadow: 0 0 0 2px var(--area-soft); }
+.nav-item.active, .nav-item.active:hover { background: var(--panel3); color: var(--text); font-weight: 700; border-radius: 0 8px 8px 0; }
+.nav-item.active::before { content: ""; position: absolute; left: -1px; top: -1px; bottom: -1px; width: 3px; background: var(--accent); }
+.nav-item.active .wi { filter: none; }
 .nav-item .nav-n { margin-left: auto; }
 
 /* ===== the icon rail of a page with sub sections (components/ui/SectionRail.tsx,
@@ -225,32 +229,16 @@ nav.menu::-webkit-scrollbar { display: none; }
     .srail-list { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }
     .srail-group { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; flex-basis: 100%; }
     .srail-group + .srail-group::before { display: none; }
-    .srail-label { display: block; flex-basis: 100%; font-size: 10.5px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); opacity: .7; padding: 6px 0 0; }
+    .srail-label { display: block; flex-basis: 100%; font-size: 12px; font-weight: 500; color: var(--muted); padding: 6px 0 0; }
     .srail-group:first-child .srail-label { padding-top: 0; }
     .srail-item { width: auto; height: auto; display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-color: var(--line); border-radius: 8px; font-size: 14px; font-weight: 600; text-align: left; }
     .srail-text { display: inline; }
     .srail-item:hover { color: var(--text); }
     .srail-badge { position: static; margin-left: auto; box-shadow: none; }
 }
-/* "Spektrum": every section keeps its own accent for the active state */
-.area-home { --area: var(--area-home); --area-soft: var(--area-home-soft); }
-.area-profile { --area: var(--area-profile); --area-soft: var(--area-profile-soft); }
-.area-signups { --area: var(--area-signups); --area-soft: var(--area-signups-soft); }
-.area-recruitment { --area: var(--area-recruitment); --area-soft: var(--area-recruitment-soft); }
-.area-cla { --area: var(--area-cla); --area-soft: var(--area-cla-soft); }
-.area-raids { --area: var(--area-raids); --area-soft: var(--area-raids-soft); }
-.area-roster { --area: var(--area-roster); --area-soft: var(--area-roster-soft); }
-.area-absences { --area: var(--area-absences); --area-soft: var(--area-absences-soft); }
-.area-history { --area: var(--area-history); --area-soft: var(--area-history-soft); }
-.area-lootcouncil { --area: var(--area-lootcouncil); --area-soft: var(--area-lootcouncil-soft); }
-.area-bank { --area: var(--area-bank); --area-soft: var(--area-bank-soft); }
-.area-kader { --area: var(--area-kader); --area-soft: var(--area-kader-soft); }
-.area-channels { --area: var(--area-channels); --area-soft: var(--area-channels-soft); }
-.area-settings { --area: var(--area-settings); --area-soft: var(--area-settings-soft); }
-.area-system { --area: var(--area-system); --area-soft: var(--area-system-soft); }
 /* Which commit the server runs (#314). One quiet line above the user block —
    small, muted, the details in its tooltip; only the dot carries the tone. */
-.side-version { padding: 8px 14px; border-top: 1px solid var(--line-soft); display: flex; align-items: flex-start; gap: 8px; font-size: 11px; line-height: 1.4; color: var(--muted); cursor: default; }
+.side-version { padding: 8px 14px; border-top: 1px solid var(--line-soft); display: flex; align-items: flex-start; gap: 8px; font-size: var(--fs-label); line-height: 1.4; color: var(--muted); cursor: default; }
 /* Two lines at most: the sidebar is narrow and cutting the sentence off after
    "Server läuft auf 26bf95c vom 18.09. · akt…" hides exactly the half that
    matters. Anything beyond that is in the tooltip. */
@@ -264,9 +252,12 @@ nav.menu::-webkit-scrollbar { display: none; }
 .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--panel2); display: grid; place-items: center; font-weight: 800; color: var(--accent); border: 1px solid var(--line); flex: 0 0 auto; }
 .ub-meta { min-width: 0; flex: 1; }
 .u-name { font-size: 13.5px; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.u-role { font-size: 11.5px; color: var(--muted); }
+.u-role { font-size: var(--fs-label); color: var(--muted); }
 .main { display: flex; flex-direction: column; min-width: 0; }
 .topbar { display: flex; align-items: center; gap: 14px; padding: 12px 24px; border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 0; z-index: 5; flex-wrap: wrap; }
+/* The game version stays recognisable but quiet: a thin line in its colour under the top bar
+   (like a zone band in the game), and the switch's active part in that colour. */
+:root[data-version] .topbar { border-bottom: 2px solid var(--version-color); }
 .crumbs { font-size: 13.5px; color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
 .crumbs b { color: var(--text); font-weight: 700; }
 .crumbs a { color: inherit; text-decoration: none; }
@@ -274,6 +265,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 .crumbs .crumb-sep { opacity: .45; }
 .top-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
 .ibtn.menu-toggle { display: none; }
+.side-scrim { display: none; }
 /* Two page widths. Dense pages (tables, boards, grids: Kaderplaner .kp-page, the
    roster list, the raid detail .rd-page, the Loot-Council, the settings
    sections Berechtigungen and Kategorien) use the whole 1440px of .content.
@@ -292,57 +284,34 @@ nav.menu::-webkit-scrollbar { display: none; }
 }
 .page-title { font-size: 24px; font-weight: 800; letter-spacing: -.3px; margin: 0 0 18px; }
 
-/* ===== panel geometry: clipped top-right corner + accent tick, the signature
-   shape of the 2026-07 redesign, replacing plain rounded corners on the main
-   structural panels (stat tiles, dashboard cards, forms, sheet cards) ===== */
-.tile, .dash-card, form.card-form, .sheetcard, .page-hero {
-    position: relative;
-    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
-}
-.tile::after, .dash-card::after, form.card-form::after, .sheetcard::after, .page-hero::after {
-    content: ""; position: absolute; top: 0; right: 0; width: 14px; height: 14px;
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 42%, transparent 44%);
-    opacity: .85; pointer-events: none;
-}
+/* ===== panel geometry: design pilot C drops the clipped corner and the accent
+   tick of 2026-07; the main panels are plain boxes with a line ===== */
+.tile, .dash-card, form.card-form, .sheetcard, .page-hero { position: relative; }
 
 /* ===== stat tiles (the start page's own layout is in styles/dashboard.css) ===== */
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
 .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 0; padding: 20px 22px;
-    transition: transform .18s cubic-bezier(.34, 1.56, .64, 1), box-shadow .18s ease, border-color .18s ease; }
-.tile:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 14px 32px -14px var(--accent); }
-.tile.accent { border-top: 2px solid var(--accent); }
-.tile .t-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--accent-soft); color: var(--accent);
-    display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+    transition: border-color .15s ease; }
+.tile:hover { border-color: var(--muted); }
+.tile .t-icon { width: 20px; height: 20px; color: var(--muted);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
 .tile .t-icon svg { width: 18px; height: 18px; }
-.tile .t-label { font-size: 11.5px; color: var(--muted); font-weight: 600; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .04em; }
+.tile .t-label { font-size: var(--fs-label); color: var(--muted); font-weight: 600; }
 .tile .t-value { font-size: 32px; font-weight: 700; letter-spacing: -.02em; margin-top: 6px; line-height: 1; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
 .tile .t-sub { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
-/* "Spektrum": each dashboard tile picks up its section's accent for icon + hover glow */
-.tile.area-recruitment .t-icon { background: var(--area-recruitment-soft); color: var(--area-recruitment); }
-.tile.area-recruitment:hover { border-color: var(--area-recruitment); box-shadow: 0 14px 32px -14px var(--area-recruitment); }
-.tile.area-cla .t-icon { background: var(--area-cla-soft); color: var(--area-cla); }
-.tile.area-cla:hover { border-color: var(--area-cla); box-shadow: 0 14px 32px -14px var(--area-cla); }
-.tile.accent.area-cla { border-top-color: var(--area-cla); }
-.tile.area-channels .t-icon { background: var(--area-channels-soft); color: var(--area-channels); }
-.tile.area-channels:hover { border-color: var(--area-channels); box-shadow: 0 14px 32px -14px var(--area-channels); }
-.tile.area-settings .t-icon { background: var(--area-settings-soft); color: var(--area-settings); }
-.tile.area-settings:hover { border-color: var(--area-settings); box-shadow: 0 14px 32px -14px var(--area-settings); }
 @media (prefers-reduced-motion: reduce) { .tile { transition: none; } .tile:hover { transform: none; } }
 .dash-card { background: var(--panel); border: 1px solid var(--line); border-radius: 0; overflow: hidden; margin-bottom: 16px; }
-/* Card head: an accented icon tile (same idiom as the stat tiles' .t-icon and
-   the quick-links' .qi), the title at heading size, an optional kicker, and the
-   "go there" link pushed right. */
+/* Card head: a small neutral icon, the title at heading size, an optional
+   quiet note, and the "go there" link pushed right. */
 .dash-card-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line-soft); }
 .dash-card-head h3 { font-size: 19px; margin: 0; letter-spacing: -.01em; }
 .dash-card-head .dch-icon {
-    width: 34px; height: 34px; border-radius: 9px; flex: 0 0 auto;
-    background: var(--accent-soft); color: var(--accent); display: grid; place-items: center;
+    width: 20px; height: 20px; flex: 0 0 auto;
+    color: var(--muted); display: grid; place-items: center;
 }
 .dash-card-head .dch-icon svg { width: 18px; height: 18px; }
 .dash-card-head .dch-kicker {
-    font-size: 11.5px; font-weight: 700; font-family: var(--font-mono); color: var(--accent);
-    text-transform: uppercase; letter-spacing: .06em; border: 1px solid var(--accent-soft);
-    background: var(--accent-soft); border-radius: 999px; padding: 2px 9px;
+    font-size: 12.5px; font-weight: 600; color: var(--muted);
 }
 .dash-card-head .mlink { margin-left: auto; font-size: 13px; white-space: nowrap; }
 .dash-card table.idx { margin: 0; }
@@ -358,6 +327,7 @@ nav.menu::-webkit-scrollbar { display: none; }
     .side.open { transform: none; box-shadow: 0 8px 28px var(--shade-35); }
     .topbar { padding: 12px 14px; }
     .ibtn.menu-toggle { display: inline-grid; }
+    .side-scrim { display: block; position: fixed; inset: 0; z-index: 29; border: 0; padding: 0; background: var(--shade-35); cursor: pointer; }
     .content { padding: 18px 14px; }
     .tiles { grid-template-columns: repeat(2, 1fr); }
     .dash-card-head h3 { font-size: 17px; }
@@ -368,10 +338,10 @@ nav.menu::-webkit-scrollbar { display: none; }
 .subnav-item { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; background: none; border: 0; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14.5px; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; font: inherit; }
 .subnav-item:hover { color: var(--text); }
 .subnav-item.active { color: var(--accent); border-bottom-color: var(--accent); }
-.subnav-count { font-size: 12px; font-weight: 700; font-family: var(--font-mono); background: var(--panel2); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; font-variant-numeric: tabular-nums; }
+.subnav-count { font-size: 12px; font-weight: 700; font-family: var(--font-mono); background: var(--panel2); color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 1px 8px; font-variant-numeric: tabular-nums; }
 .subnav-item.active .subnav-count { color: var(--accent); border-color: var(--accent-soft); }
-.cat-badge { display: inline-block; font-size: 12px; font-weight: 600; background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-soft); border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
-.lbadge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; line-height: 1.5; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); }
+.cat-badge { display: inline-block; font-size: 12px; font-weight: 600; background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-soft); border-radius: 3px; padding: 2px 10px; white-space: nowrap; }
+.lbadge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: 700; line-height: 1.5; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); }
 .lbadge-ok { background: var(--good-bg); color: var(--good); border-color: var(--good); }
 .lbadge-neutral { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
 .lbadge-warn { background: var(--high-bg); color: var(--high); border-color: var(--high); }
@@ -389,7 +359,7 @@ nav.menu::-webkit-scrollbar { display: none; }
    colours themselves sit with the other palettes in :root, so light mode can
    restate them without touching these rules. */
 .rbadge {
-    display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 3px;
     font-size: 12px; font-weight: 700; line-height: 1.6; white-space: nowrap;
     border: 1px solid var(--reason-line, var(--line)); background: var(--reason-bg, var(--panel2)); color: var(--reason-fg, var(--muted));
 }
@@ -407,11 +377,11 @@ nav.menu::-webkit-scrollbar { display: none; }
 /* A raider chip: spec icon + class-coloured name, for wherever a list of people
    has to stay scannable (the item table's recipients). */
 .raider-badge {
-    display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px 2px 3px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px 2px 3px; border-radius: 3px;
     font-size: 12.5px; font-weight: 700; line-height: 1.6; white-space: nowrap;
     border: 1px solid var(--line); background: var(--panel2); color: var(--text); text-decoration: none;
 }
-.raider-badge-ico { width: 18px; height: 18px; border-radius: 999px; flex: 0 0 auto; }
+.raider-badge-ico { width: 18px; height: 18px; border-radius: 3px; flex: 0 0 auto; }
 .raider-badge-ico-ph { background: var(--panel3); border: 1px solid var(--line); }
 
 /* Both badges double as HoverPanel triggers, and .loot-pop-trigger's own look
@@ -463,9 +433,9 @@ nav.menu::-webkit-scrollbar { display: none; }
    out accent-violet instead of its class colour. */
 .class-colored, a.class-colored { color: var(--cc); }
 @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) .class-colored { color: color-mix(in srgb, var(--cc) 55%, var(--ink-shade)); }
+    :root:not([data-theme="dark"]) .class-colored { color: var(--cc-l, color-mix(in srgb, var(--cc) 55%, var(--ink-shade))); }
 }
-:root[data-theme="light"] .class-colored { color: color-mix(in srgb, var(--cc) 55%, var(--ink-shade)); }
+:root[data-theme="light"] .class-colored { color: var(--cc-l, color-mix(in srgb, var(--cc) 55%, var(--ink-shade))); }
 
 /* Item names in their WoW quality colour (epic purple, rare blue, legendary
    orange, …), handed in as --iq by lib/wow/itemQuality.ts — same mechanism and the
@@ -481,10 +451,11 @@ nav.menu::-webkit-scrollbar { display: none; }
 :root[data-theme="light"] .item-quality { color: color-mix(in srgb, var(--iq) 62%, var(--ink-shade)); }
 
 .flash { border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 14px; }
-.flash-ok { background: var(--good-bg); color: var(--good); border: 1px solid var(--good); }
-.flash-err { background: var(--high-bg); color: var(--high); border: 1px solid var(--high); }
+/* quiet, design C: a line on the left in the state's colour and the words in it; no frame, no tint */
+.flash-ok { color: var(--good); border-left: 2px solid var(--good); border-radius: 0; }
+.flash-err { color: var(--high); border-left: 2px solid var(--high); border-radius: 0; }
 /* a hint worth acting on, not an error (e.g. the raid plan link without groups) */
-.flash-warn { background: var(--medium-bg); color: var(--medium); border: 1px solid var(--medium); }
+.flash-warn { color: var(--medium); border-left: 2px solid var(--medium); border-radius: 0; }
 
 /* ===== Components several modules render (components/raid/RaidIcon.tsx, components/channels/NamingBadge.tsx).
    Their look lives here, not in the stylesheet of the first page that used them: a page
@@ -533,6 +504,8 @@ nav.menu::-webkit-scrollbar { display: none; }
 .guild-sel > .wi { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border-radius: 5px; pointer-events: none; }
 .guild-sel select { min-height: var(--ctl-h); max-width: 300px; padding-left: 38px; font-size: 14px; font-weight: 600; }
 .guild-sel.is-single { min-height: var(--ctl-h); padding: 0 12px 0 38px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--bg); font-size: 14px; font-weight: 600; }
+/* next to the select the role badge stands as tall as every other control of the top bar */
+.guild-sel:not(.is-single) > .badge { box-sizing: border-box; height: var(--ctl-h); padding: 0 12px; border-radius: var(--ctl-radius); font-size: 14px; display: inline-flex; align-items: center; }
 
 /* ===== content switch (#563): one game version for the whole menu, next to
    the server select. Wide screens show the segment, a phone the chip that
@@ -543,11 +516,11 @@ nav.menu::-webkit-scrollbar { display: none; }
 .ver-dot.ver-tbc { background: var(--ver-tbc); }
 .ver-dot.ver-classic { background: var(--ver-classic); }
 .cswitch-seg .seg-opt { gap: 8px; min-height: var(--ctl-h-sm); padding: 0 14px; font-weight: 600; }
-.cswitch-seg .seg-opt.active { background: var(--accent); color: var(--accent-ink); }
+.cswitch-seg .seg-opt.active { background: var(--version-color, var(--accent)); color: var(--version-ink, var(--accent-ink)); }
 /* the dot would vanish on a fill of its own colour; the name beside it stays (colour is never the only sign) */
-.cswitch-seg .seg-opt.active .ver-dot { background: var(--accent-ink); }
+.cswitch-seg .seg-opt.active .ver-dot { background: var(--version-ink, var(--accent-ink)); }
 .cswitch-quiet { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; }
-.cswitch-chip { display: none; align-items: center; gap: 6px; min-height: var(--ctl-h-sm); padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.cswitch-chip { display: none; align-items: center; gap: 6px; min-height: var(--ctl-h-sm); padding: 0 10px; border-radius: 3px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 .cswitch-chip[aria-expanded="true"] { border-color: var(--accent); }
 .cswitch-panel { display: none; }
 @media (max-width: 700px) {
@@ -590,11 +563,11 @@ nav.menu::-webkit-scrollbar { display: none; }
 .spec-pills { display: flex; flex-wrap: wrap; gap: 6px; min-height: 32px; }
 .spec-pill {
     display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); border: 1px solid var(--accent-soft);
-    color: var(--text); border-radius: 999px; padding: 4px 6px 4px 8px; font-size: 13px; font-weight: 600;
+    color: var(--text); border-radius: 3px; padding: 4px 6px 4px 8px; font-size: 13px; font-weight: 600;
 }
 .spec-pill img { width: 18px; height: 18px; border-radius: 4px; flex: 0 0 auto; }
 .spec-pill-q {
-    width: 18px; height: 18px; border-radius: 4px; background: var(--panel3); color: var(--muted); font-size: 11px; font-weight: 800;
+    width: 18px; height: 18px; border-radius: 4px; background: var(--panel3); color: var(--muted); font-size: var(--fs-label); font-weight: 800;
     display: grid; place-items: center; flex: 0 0 auto;
 }
 .spec-pill-custom { background: var(--panel2); border-color: var(--line); }
@@ -659,7 +632,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 .att-sq {
     position: relative; display: inline-grid; place-items: center; width: 24px; height: 24px; flex: 0 0 24px; padding: 0;
     border-radius: 5px; border: 2px solid var(--att, var(--line)); background: color-mix(in srgb, var(--att, var(--line)) 16%, transparent);
-    color: var(--att, var(--muted)); font: 800 11px/1 var(--font-mono); user-select: none;
+    color: var(--att, var(--muted)); font: 800 var(--fs-label)/1 var(--font-mono); user-select: none;
 }
 .att-sq.is-in { background: var(--att); color: var(--att-ink); }
 .att-sq.is-none { border-style: dashed; border-color: var(--line); background: transparent; color: var(--muted); }

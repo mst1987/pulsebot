@@ -15,12 +15,12 @@
 .rp-bar-template { font-size: 12.5px; }
 
 .rp-bosschip-name { white-space: nowrap; }
-.rp-bosschip { position: relative; display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; padding: 3px 8px 3px 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
+.rp-bosschip { position: relative; display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; padding: 3px 8px 3px 4px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel); color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
 .rp-bosschip img { border-radius: 50%; }
 .rp-bosschip:hover { color: var(--text); border-color: var(--accent); }
 .rp-bosschip.is-on { background: var(--accent-soft); border-color: var(--accent); color: var(--text); font-weight: 700; }
 .rp-bosschip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.rp-bosschip-no { font-family: var(--font-mono); font-size: 11.5px; }
+.rp-bosschip-no { font-family: var(--font-mono); font-size: var(--fs-label); }
 .rp-bosschip .rp-boss-dot { position: absolute; right: 1px; top: 1px; width: 7px; height: 7px; }
 
 /* the players not placed yet: one compact strip, always in view */
@@ -45,10 +45,10 @@
 .rp-pal-item:hover { border-color: var(--accent); }
 .rp-pal-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .rp-pal-item .wi { border-radius: 6px; }
-.rp-pal-text { font-size: 11px; font-weight: 800; }
+.rp-pal-text { font-size: var(--fs-label); font-weight: 800; }
 .rp-pal-swatch { background: var(--rp-sw); display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 5px; color: var(--rp-board-bg); font-size: 12px; font-weight: 800; }
 .rp-pal-round { border-radius: 50%; }
-.rp-pal-hint { font-size: 11px; line-height: 1.3; margin-top: 2px; }
+.rp-pal-hint { font-size: var(--fs-label); line-height: 1.3; margin-top: 2px; }
 
 .rp-panel { display: flex; flex-direction: column; gap: 8px; padding: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; position: static; min-width: 0; }
 .rp-tabs2 { display: flex; gap: 2px; border-bottom: 1px solid var(--line); }
@@ -88,7 +88,7 @@
 .rp-layer.is-on { background: var(--accent-soft); border-color: var(--accent); }
 .rp-layer.is-hidden .rp-layer-name { opacity: .5; text-decoration: line-through; }
 .rp-layer-name { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; padding: 2px 4px; border: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
-.rp-layer-kind { font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.rp-layer-kind { font-size: var(--fs-label); color: var(--muted); }
 .rp-layer-text { font-size: 12.5px; font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rp-layer-btn { display: inline-flex; padding: 3px; border: 0; border-radius: 5px; background: none; color: var(--muted); cursor: pointer; }
 .rp-layer-btn:hover:not(:disabled) { color: var(--text); background: var(--panel3); }
@@ -112,7 +112,7 @@
 
 /* the context menu */
 .rp-menu { position: fixed; z-index: 1200; min-width: 200px; max-width: min(680px, calc(100vw - 16px)); column-width: 196px; column-gap: 4px; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 34px var(--shade-45); }
-.rp-menu-title { padding: 4px 10px 6px; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.rp-menu-title { padding: 4px 10px 6px; font-size: 12px; font-weight: 800; color: var(--muted); }
 .rp-menu-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 10px; border: 0; border-radius: 6px; background: none; color: var(--text); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; }
 .rp-menu-item:hover:not(:disabled), .rp-menu-item:focus-visible { background: var(--accent-soft); outline: none; }
 .rp-menu-item.is-danger { color: var(--high); }
@@ -152,7 +152,7 @@
 .rp-groupwrap { display: contents; }
 .rp-pal-boss { border-radius: 6px; }
 .rp-pal-name { display: flex; align-items: center; gap: 4px; }
-.rp-palette .rp-pal-name input { min-width: 0; flex: 1; padding: 4px 6px; background-color: var(--panel2); border: 1px solid var(--line); border-radius: 6px; color: var(--text); font: inherit; font-size: 11px; }
+.rp-palette .rp-pal-name input { min-width: 0; flex: 1; padding: 4px 6px; background-color: var(--panel2); border: 1px solid var(--line); border-radius: 6px; color: var(--text); font: inherit; font-size: var(--fs-label); }
 .rp-pal-preview { flex: 0 0 34px; width: 34px; aspect-ratio: 1; }
 .rp-pal-preview:disabled { opacity: .45; cursor: default; }
 .rp-check { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
@@ -185,12 +185,12 @@
 
 /* "Gruppen im Plan" (#529): which setup groups the plan picks its raiders from - small chips in the tool bar's status */
 .rp-pgroups { display: inline-flex; align-items: center; gap: 3px; height: 26px; padding: 0 4px 0 7px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); }
-.rp-pgroups-label { display: inline-flex; align-items: center; gap: 4px; margin-right: 2px; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
-.rp-pgroups-chip { min-width: 20px; height: 20px; padding: 0 5px; border: 1px dashed var(--line); border-radius: 10px; background: transparent; color: var(--muted); font: inherit; font-size: 11.5px; font-weight: 700; line-height: 1; cursor: pointer; }
+.rp-pgroups-label { display: inline-flex; align-items: center; gap: 4px; margin-right: 2px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.rp-pgroups-chip { min-width: 20px; height: 20px; padding: 0 5px; border: 1px dashed var(--line); border-radius: 10px; background: transparent; color: var(--muted); font: inherit; font-size: var(--fs-label); font-weight: 700; line-height: 1; cursor: pointer; }
 .rp-pgroups-chip.is-on { border-style: solid; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--text); }
 .rp-pgroups-chip:hover:not(:disabled) { border-color: var(--accent); }
 .rp-pgroups-chip:disabled { cursor: default; }
-.rp-pgroups-count { min-width: 20px; padding: 0 3px; color: var(--muted); font-size: 11.5px; font-weight: 700; text-align: center; }
+.rp-pgroups-count { min-width: 20px; padding: 0 3px; color: var(--muted); font-size: var(--fs-label); font-weight: 700; text-align: center; }
 .rp-pgroups-reset { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
 .rp-pgroups-reset:hover { color: var(--text); }
 

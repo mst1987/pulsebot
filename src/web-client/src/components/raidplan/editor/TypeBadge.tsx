@@ -3,8 +3,8 @@ import { ASSIGN_META } from "../../../lib/raidplan/assign";
 import { useT } from "../../../i18n";
 
 /**
- * A coloured label with the type's icon in front: "TANKT", "HEILT", "KICK" ... in the read view, the type's name in the
- * editor's card head. One component for both, so an assignment looks the same wherever it is shown.
+ * The type's icon with its name: in the read view a group heading in sentence case ("Heilen", "Unterbrechen", "Flüche" ...;
+ * stage.css drops the coloured frame there), in the editor's card head a coloured label with the type's name. One component for both, so an assignment looks the same wherever it is shown.
  */
 export default function TypeBadge({ type, label, size = 22 }: { type: string; label?: string; size?: number }) {
     const t = useT();

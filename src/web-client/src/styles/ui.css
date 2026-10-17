@@ -117,21 +117,26 @@
     .seg { flex-wrap: wrap; max-width: 100%; }
 }
 
-/* ---- badges ---- */
+/* ---- badges ----
+   Design C: a badge is a word, set in the sans like the text around it (digits
+   tabular). A neutral badge is a small framed label; a toned one (ok/mid/bad/
+   accent) is just the word in its state's colour, like the status words in the
+   signups: no pill, no tint. Counts and chips keep their frame. */
 .badge {
     display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 6px; line-height: 1.5; white-space: nowrap;
-    font-size: 12px; font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums;
     background: var(--panel2); color: var(--muted); border: 1px solid var(--line);
 }
 .badge.ok { background: var(--good-bg); color: var(--good); border-color: color-mix(in srgb, var(--good) 35%, transparent); }
 .badge.mid { background: var(--medium-bg); color: var(--medium); border-color: color-mix(in srgb, var(--medium) 35%, transparent); }
 .badge.bad { background: var(--high-bg); color: var(--high); border-color: color-mix(in srgb, var(--high) 35%, transparent); }
 .badge.accent { background: var(--accent-soft); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.badge:is(.ok, .mid, .bad, .accent):not(.count, .chip) { background: none; border-color: transparent; padding-inline: 0; }
 .badge.count { border-radius: 10px; padding: 1px 7px; }
 .badge .wi { width: 14px; height: 14px; border-radius: 3px; }
 .badge svg { width: 12px; height: 12px; }
 .badge[data-tip] { cursor: default; }
-.badge.sm { font-size: 11px; padding: 0 6px; }
+.badge.sm { font-size: var(--fs-label); padding: 0 6px; }
 /* "PuG" beside a raid open to everyone (components/signup/PugBadge.tsx): a small mark after a title or a category */
 .pug-badge { margin-left: 8px; vertical-align: 2px; font-weight: 700; letter-spacing: .02em; }
 /* the small x of a removable badge or chip (ui/Badge onRemove, ui/Chip) */
@@ -149,31 +154,18 @@ button.badge.chip:disabled { opacity: .45; cursor: not-allowed; border-color: va
 .badge.chip .badge-x:hover { background: none; }
 
 /* ---- icon tiles (.itile — .tile is the dashboard's stat tile) ---- */
-.itile { --tile-bg: var(--accent-soft); width: 34px; height: 34px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; background: var(--tile-bg); color: var(--accent); }
+/* No coloured disc any more (design pass 2026-10): the icon stands bare in the text colour; only a
+   result tone (t-ok / t-mid / t-bad) colours it, never a section. */
+.itile { --tile-bg: transparent; width: 34px; height: 34px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; background: var(--tile-bg); color: var(--muted); }
 .itile .wi { width: 22px; height: 22px; border-radius: 4px; }
 .itile svg { width: 18px; height: 18px; }
 .itile.lg { width: 48px; height: 48px; border-radius: 12px; }
 .itile.lg .wi { width: 32px; height: 32px; border-radius: 6px; }
 .itile.lg svg { width: 24px; height: 24px; }
-.itile.t-home { --tile-bg: var(--area-home-soft); color: var(--area-home); }
-.itile.t-profile { --tile-bg: var(--area-profile-soft); color: var(--area-profile); }
-.itile.t-signups { --tile-bg: var(--area-signups-soft); color: var(--area-signups); }
-.itile.t-recruitment { --tile-bg: var(--area-recruitment-soft); color: var(--area-recruitment); }
-.itile.t-cla { --tile-bg: var(--area-cla-soft); color: var(--area-cla); }
-.itile.t-raids { --tile-bg: var(--area-raids-soft); color: var(--area-raids); }
-.itile.t-roster { --tile-bg: var(--area-roster-soft); color: var(--area-roster); }
-.itile.t-absences { --tile-bg: var(--area-absences-soft); color: var(--area-absences); }
-.itile.t-history { --tile-bg: var(--area-history-soft); color: var(--area-history); }
-.itile.t-lootcouncil { --tile-bg: var(--area-lootcouncil-soft); color: var(--area-lootcouncil); }
-.itile.t-bank { --tile-bg: var(--area-bank-soft); color: var(--area-bank); }
-.itile.t-kader { --tile-bg: var(--area-kader-soft); color: var(--area-kader); }
-.itile.t-channels { --tile-bg: var(--area-channels-soft); color: var(--area-channels); }
-.itile.t-settings { --tile-bg: var(--area-settings-soft); color: var(--area-settings); }
-.itile.t-system { --tile-bg: var(--area-system-soft); color: var(--area-system); }
-.itile.t-ok { --tile-bg: var(--good-bg); color: var(--good); }
-.itile.t-mid { --tile-bg: var(--medium-bg); color: var(--medium); }
-.itile.t-bad { --tile-bg: var(--high-bg); color: var(--high); }
-.itile.t-none { --tile-bg: var(--panel2); color: var(--muted); }
+.itile.t-ok { color: var(--good); }
+.itile.t-mid { color: var(--medium); }
+.itile.t-bad { color: var(--high); }
+.itile.t-none { color: var(--muted); }
 
 /* ---- expand: "Details" + the round chevron button ---- */
 .exp-lbl { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; flex: 0 0 auto; padding: 0; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
@@ -196,7 +188,7 @@ button.badge.chip:disabled { opacity: .45; cursor: not-allowed; border-color: va
 table.idx td:has(> .bar) { padding-top: 5px; padding-bottom: 5px; }
 
 /* ---- heads: page head › part head (› table head, see table.idx th) ---- */
-.kicker { font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.3px; color: var(--muted); font-weight: 500; }
+.kicker { font-size: 12px; color: var(--muted); font-weight: 500; }
 .page-head { display: flex; align-items: center; gap: 16px; margin: 0 0 20px; flex-wrap: wrap; }
 .page-head .ph-text { min-width: 0; }
 .page-head h1 { font-size: 24px; font-weight: 800; letter-spacing: -.3px; margin: 2px 0 0; line-height: 1.15; overflow-wrap: anywhere; }
@@ -213,7 +205,7 @@ table.idx th[data-tip] { text-decoration: underline dotted; text-decoration-colo
     position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none; opacity: 0; transform: translateY(5px); max-width: 330px;
     background: var(--panel); color: var(--text); border: 1px solid var(--line); border-left: 3px solid var(--accent);
     padding: 8px 12px; font-size: 12.5px; line-height: 1.45; box-shadow: 0 14px 38px -12px var(--shade-65);
-    clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+    border-radius: 4px;
     transition: opacity .11s ease, transform .11s ease; white-space: pre-line;
     /* <TipLayer> makes the box a manual popover (top layer, above an open modal):
        undo the popover's centring defaults, placement comes from left/top. */
@@ -267,13 +259,16 @@ dialog.dlg.dlg-flush .dlg-foot .dlg-hint { order: -1; margin-right: auto; }
     border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2);
 }
 .lang-toggle button {
-    min-width: 30px; padding: 0 7px; border: 0; border-radius: calc(var(--ctl-radius) - 2px);
-    background: transparent; color: var(--muted); font: inherit; font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    display: inline-flex; align-items: center; gap: 6px;
+    min-width: 30px; padding: 0 8px; border: 0; border-radius: calc(var(--ctl-radius) - 2px);
+    background: transparent; color: var(--muted); font: inherit; font-size: var(--fs-label); font-weight: 700; letter-spacing: .06em;
     cursor: pointer; transition: color .12s ease, background-color .12s ease;
 }
 .lang-toggle button:hover:not(.is-on) { color: var(--text); background: var(--panel3); }
 .lang-toggle button.is-on { color: var(--text); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); cursor: default; }
 .lang-toggle button:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent); }
+.lang-flag { flex: 0 0 auto; border-radius: 2px; box-shadow: 0 0 0 1px var(--shade-12); }
+.lang-toggle button:not(.is-on) .lang-flag { opacity: .7; }
 
 /* ---- what used to be inline styles (#441) --------------------------------
    A fixed look is a class; a value that differs per element (a width, a
@@ -283,20 +278,13 @@ dialog.dlg.dlg-flush .dlg-foot .dlg-hint { order: -1; margin-right: auto; }
 .login-page {
     min-height: 100vh; min-height: 100dvh; box-sizing: border-box; padding: 48px 16px;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
-    background:
-        radial-gradient(ellipse 60% 45% at 50% 0%, var(--accent-soft), transparent 70%),
-        var(--bg);
+    background: var(--bg);
 }
 .login-card {
     position: relative; box-sizing: border-box; width: 100%; max-width: 400px; padding: 32px 30px 26px;
     display: flex; flex-direction: column; gap: 14px;
     background: var(--panel); border: 1px solid var(--line);
-    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
-}
-.login-card::after {
-    content: ""; position: absolute; top: 0; right: 0; width: 18px; height: 18px;
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 42%, transparent 44%);
-    opacity: .85; pointer-events: none;
+    border-top: 3px solid var(--accent);
 }
 .login-brand { display: flex; align-items: center; gap: 12px; padding-bottom: 18px; margin-bottom: 4px; border-bottom: 1px solid var(--line-soft); }
 .login-brand .crest { width: 48px; height: 48px; border-radius: 12px; }
@@ -314,7 +302,7 @@ dialog.dlg.dlg-flush .dlg-foot .dlg-hint { order: -1; margin-right: auto; }
     display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px;
     background: var(--panel2); color: var(--text); font-size: 13.5px; box-sizing: border-box;
 }
-.login-next .kicker { letter-spacing: 1px; flex: 0 0 auto; }
+.login-next .kicker { flex: 0 0 auto; }
 .login-next .wi { width: 18px; height: 18px; border-radius: 4px; flex: 0 0 auto; }
 .login-next-text { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 nav.menu .hint.menu-hint { padding: 0 14px; }
@@ -366,7 +354,7 @@ dialog.dlg.dlg-w { width: min(var(--dlg-w), calc(100vw - 32px)); }
 .emo-scroll { flex: 1; min-height: 120px; overflow-y: auto; padding: 0 8px 8px; position: relative; }
 .emo-head {
     position: sticky; top: 0; z-index: 1; margin: 0; padding: 9px 4px 5px; background: var(--panel);
-    font: 600 10.5px var(--font-mono); text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted);
+    font: 600 var(--fs-label) var(--font-sans); color: var(--muted);
 }
 .emo-grid { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 2px; }
 .emo-cell {

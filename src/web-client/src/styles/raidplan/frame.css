@@ -10,7 +10,7 @@
 
 .rp-muted { color: var(--muted); font-size: 13px; margin: 0; }
 .rp-warn { color: var(--medium); font-size: 13px; margin: 0; padding: 8px 12px; border-left: 3px solid var(--medium); background: var(--medium-bg); border-radius: 6px; }
-.rp-kicker { margin: 0; font-size: 11.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.rp-kicker { margin: 0; font-size: 12px; font-weight: 700; color: var(--muted); }
 .rp-empty { display: flex; flex-direction: column; gap: 6px; align-items: center; padding: 48px 16px; text-align: center; background: var(--panel); border: 1px dashed var(--line); border-radius: 12px; }
 
 /* ---- editor frame ---- */
@@ -128,7 +128,7 @@
 .rp-notes textarea:disabled { opacity: 1; }
 
 /* a player: icon and name in a pill — in the list of the unplaced, on a row, in the read view */
-.rp-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel2); font-size: 13.5px; font-weight: 600; }
+.rp-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel2); font-size: 13.5px; font-weight: 600; }
 .rp-chip.is-drag { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
 .rp-chip.is-drag:hover { border-color: var(--accent); }
 .rp-static { padding-right: 8px; }
@@ -226,7 +226,7 @@
 /* the shared instance / size pickers (RaidFields, another module's classes): no own bottom margin, the section's gap
    spaces them, and their label (the first span) in the same style as the other labels here */
 .rp-tform-sec.is-picks > div { gap: 8px; margin-bottom: 0; }
-.rp-tform-sec.is-picks > div > span:first-child { font-size: 11.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.rp-tform-sec.is-picks > div > span:first-child { font-size: 12px; font-weight: 700; color: var(--muted); }
 @media (max-width: 520px) {
     .rp-tform-pair { grid-template-columns: minmax(0, 1fr); }
 }

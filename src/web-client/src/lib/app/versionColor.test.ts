@@ -53,11 +53,28 @@ describe("version colours in tokens.css", () => {
         const orga = readFileSync(resolve(__dirname, "../../styles/orga-mark.css"), "utf8");
         expect(orga).toContain("--orga: var(--orga-teal)");
         expect(orga).not.toMatch(/--orga[\w-]*:[^;]*(--accent|--ver-)/);
+        // the menu carries no orga mark since design C (the dot reported nothing new)
+        expect(orga).not.toContain(".orga-dot");
     });
 
-    it("keeps the brand violet for a page without a version (no data-version rule matches)", () => {
-        expect(token(THEMES.dark, "--accent")).toBe("#8a7cff");
-        expect(CSS).toMatch(/:root\[data-version="forever"\], :root\[data-version="tbc"\], :root\[data-version="classic"\] \{\s*--accent: var\(--version-color\);/);
+    it("a version-neutral page keeps the Rost accent (no data-version rule matches)", () => {
+        expect(token(THEMES.dark, "--accent")).toBe("#d4683c");
+        expect(token(THEMES.light, "--accent")).toBe("#b84f26");
+    });
+
+    it("on a page with a version the accent follows the version (variant B, decision 2026-10-17)", () => {
+        expect(CSS).toMatch(/:root\[data-version="tbc"\] \{ --version-color: var\(--ver-tbc\);/);
+        const rule = /:root\[data-version="forever"\], :root\[data-version="tbc"\], :root\[data-version="classic"\] \{([^}]*)\}/.exec(CSS);
+        expect(rule).not.toBeNull();
+        const body = rule![1];
+        expect(body).toContain("--accent: var(--version-color);");
+        expect(body).toContain("--accent-ink: var(--version-ink);");
+        expect(body).toContain("--accent-soft: color-mix(in srgb, var(--version-color) var(--accent-soft-alpha), transparent);");
+        // after both light blocks, so it wins over their --accent
+        expect(CSS.indexOf(rule![0])).toBeGreaterThan(CSS.lastIndexOf("--accent: #b84f26"));
+        // the sections follow through --accent; the orga marking keeps its own teal
+        expect(CSS).toContain("--area-raids: var(--accent);");
+        expect(token(THEMES.dark, "--orga-teal")).toBe("#35d6c4");
     });
 });
 

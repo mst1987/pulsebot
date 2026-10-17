@@ -27,7 +27,7 @@ const SIGNUPS: EventSignupEntry[] = [
     entry({ userId: "u5", name: "gone_dc", character: "Gone", role: "melee", status: "absence", comment: "Urlaub" }),
 ];
 
-function show(ownSignups: EventSignupEntry[] = SIGNUPS) {
+function show(ownSignups: EventSignupEntry[] = SIGNUPS, roleTargets: RaidDetailData["roleTargets"] = null) {
     const data = {
         event: { id: "eh-kara", title: "Karazhan", channelId: "c1", channelName: "kara", signupsKnown: true, isPast: false, status: "active" },
         categoryName: "T4",
@@ -37,6 +37,7 @@ function show(ownSignups: EventSignupEntry[] = SIGNUPS) {
         setupError: null,
         attendance: { responded: [], missing: [] },
         ownSignups,
+        roleTargets,
     } as unknown as RaidDetailData;
     const openPlayer = vi.fn();
     const ctx: RaidCtx = { data, eventId: "eh-kara", onChanged: vi.fn(), openModal: vi.fn(), openPlayer };
@@ -90,8 +91,29 @@ describe("Raid detail roster of an own event", () => {
         expect(screen.queryByText(t("raidDetail.roster.benchCount", { count: 2 }))).not.toBeInTheDocument();
     });
 
+    it("heads each role list with its count in words and leads with one sentence (design pilot C)", () => {
+        show();
+        expect(within(column(ROLE_META.ranged.label)).getByText(t("raidDetail.roster.roleHeadCount", { count: 2 }))).toBeInTheDocument();
+        // bench and sign-offs do not count as coming; the maybe is named as a word
+        const lead = screen.getByLabelText(t("raidDetail.roster.leadAria"));
+        expect(lead).toHaveTextContent(t("raidDetail.roster.leadNoTarget", { count: 2 }));
+        expect(within(lead).getByText(/^1 /)).toHaveClass("rd-lead-sub");
+        // the status sits in the row as a word, not as a dot
+        expect(within(column(ROLE_META.tank.label)).getByText("Unsicher")).toHaveClass("rd-pstat", "rd-pstat-tentative");
+    });
+
     it("says so when nobody has signed up yet", () => {
         show([]);
         expect(screen.getByText(t("raidDetail.roster.ownEmpty"))).toBeInTheDocument();
+    });
+    it("heads a role with its planned places, an open place marked, the bench not counted", () => {
+        show(SIGNUPS, { tank: 2, healer: 1, ranged: 2 });
+        const tank = within(column(ROLE_META.tank.label)).getByText(t("raidDetail.roster.roleHeadOf", { count: 1, target: 2 }));
+        expect(tank).toHaveClass("open");
+        expect(within(column(ROLE_META.healer.label)).getByText(t("raidDetail.roster.roleHeadOf", { count: 1, target: 1 }))).not.toHaveClass("open");
+        // two on the bench: none of the two ranged places is taken
+        expect(within(column(ROLE_META.ranged.label)).getByText(t("raidDetail.roster.roleHeadOf", { count: 0, target: 2 }))).toHaveClass("open");
+        // melee without a planned number keeps the plain count
+        expect(within(column(ROLE_META.melee.label)).getByText(t("raidDetail.roster.roleHeadCount", { count: 0 }))).toBeInTheDocument();
     });
 });

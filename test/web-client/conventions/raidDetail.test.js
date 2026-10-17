@@ -112,4 +112,10 @@ describe("raid detail layout", () => {
         }
         expect(read("pages", "raid-detail", "modals", "SoftresModal.tsx")).toContain("INSTANCE_ICONS[i.code]");
     });
+
+    it("keeps the phone tab row one line with a fade at the right edge as a scroll hint", () => {
+        const css = read("styles", "raid-detail.css");
+        expect(css).toContain("overflow-x: auto");
+        expect(css).toMatch(/\.rd-tabs \{[^}]*mask-image: linear-gradient\(to right, black calc\(100% - 28px\), transparent\)/);
+    });
 });

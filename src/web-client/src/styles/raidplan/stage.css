@@ -3,7 +3,7 @@
    A section without a map (.rp-sheet-flat) shows card and panel in the page's flow. */
 
 .rp-public.rp-sheet { max-width: none; margin: 0; padding: 0; gap: 0; height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; background: var(--bg); }
-.rp-sheet .rp-kicker { font-family: var(--font-mono); font-size: 11px; letter-spacing: .05em; }
+.rp-sheet .rp-kicker { font-family: var(--font-sans); font-size: var(--fs-label); font-weight: 600; letter-spacing: 0; text-transform: none; }
 
 /* ---- the bar ---- */
 .rp-sheet-bar { position: relative; z-index: 20; flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); box-shadow: 0 6px 18px var(--shade-28); }
@@ -23,15 +23,15 @@
 .rp-sheet-menubtn.is-on { background: var(--accent-soft); }
 
 /* the section menu */
-.rp-sheet-menu { position: absolute; left: 0; top: calc(100% + 8px); z-index: 30; width: 360px; max-width: calc(100vw - 32px); max-height: min(640px, calc(100dvh - 120px)); overflow-y: auto; box-sizing: border-box; padding: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel2); box-shadow: 0 18px 44px var(--shade-55); }
+.rp-sheet-menu { position: absolute; left: 0; top: calc(100% + 8px); z-index: 30; width: 360px; max-width: calc(100vw - 32px); max-height: min(640px, calc(100dvh - 120px)); overflow-y: auto; box-sizing: border-box; padding: 6px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2); box-shadow: 0 18px 44px var(--shade-55); }
 .rp-sheet-menu-head { padding: 8px 10px 6px; font-size: 13px; color: var(--muted); }
 .rp-sheet-menu-run { display: flex; flex-direction: column; gap: 1px; padding: 4px 0; }
 .rp-sheet-menu-run > .rp-kicker { padding: 6px 10px 4px; }
-.rp-sheet-menu-item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 0 12px 0 8px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: inherit; font-size: 14.5px; font-weight: 600; text-align: left; cursor: pointer; }
+.rp-sheet-menu-item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 0 12px 0 8px; border: 0; border-radius: 3px; background: transparent; color: var(--text); font: inherit; font-size: 14.5px; font-weight: 600; text-align: left; cursor: pointer; }
 .rp-sheet-menu-item:hover { background: var(--panel3); }
 .rp-sheet-menu-item:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; }
 .rp-sheet-menu-item.is-on { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); font-weight: 800; }
-.rp-sheet-menu-item img, .rp-sheet-menu-ph { flex: none; width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: var(--panel3); }
+.rp-sheet-menu-item img, .rp-sheet-menu-ph { flex: none; width: 30px; height: 30px; border-radius: 3px; object-fit: cover; background: var(--panel3); }
 .rp-sheet-menu-item.is-killed img { filter: grayscale(1); opacity: var(--rp-done-dim); }
 .rp-sheet-menu-name { flex: 1; min-width: 0; }
 .rp-sheet-tag { flex: none; display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 700; }
@@ -45,7 +45,7 @@
 .rp-sheet-groups button { display: inline-flex; align-items: center; gap: 5px; height: 38px; padding: 0 8px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2); color: var(--text); cursor: pointer; }
 .rp-sheet-groups button:hover { border-color: var(--gc); }
 .rp-sheet-groups button.is-on { border: 2px solid var(--gc); background: color-mix(in srgb, var(--gc) 18%, var(--panel2)); }
-.rp-sheet-gnum { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 3px; box-sizing: border-box; border-radius: 5px; background: var(--gc); color: var(--gi); font: 800 12px/1 var(--font-mono); }
+.rp-sheet-gnum { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 3px; box-sizing: border-box; border-radius: 3px; background: var(--gc); color: var(--gi); font: 700 13px/1 var(--font-sans); }
 .rp-sheet-tools { display: flex; align-items: center; gap: 10px; flex: none; margin-left: auto; }
 .rp-sheet-tools .rp-autofollow { margin-left: 0; }
 /* "Alle Einteilungen": a switch with its word, pressed while the panel is open */
@@ -73,13 +73,13 @@
 .rp-sheet-strip.is-left .rp-sheet-strip-run > .rp-kicker { padding: 0 6px 2px; }
 .rp-sheet-strip-chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .rp-sheet-strip.is-left .rp-sheet-strip-chips { flex-direction: column; flex-wrap: nowrap; gap: 2px; }
-.rp-sheet-chip { position: relative; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 11px 0 4px; border: 1px solid var(--line); border-radius: 17px; background: var(--panel2); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
-.rp-sheet-strip.is-left .rp-sheet-chip { width: 100%; height: 40px; border-color: transparent; border-radius: 8px; background: transparent; text-align: left; }
+.rp-sheet-chip { position: relative; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 11px 0 4px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel2); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.rp-sheet-strip.is-left .rp-sheet-chip { width: 100%; height: 40px; border-color: transparent; border-radius: 3px; background: transparent; text-align: left; }
 .rp-sheet-chip:hover { border-color: var(--accent); }
 .rp-sheet-strip.is-left .rp-sheet-chip:hover { background: var(--panel2); }
 .rp-sheet-chip:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }
 .rp-sheet-chip.is-on, .rp-sheet-strip.is-left .rp-sheet-chip.is-on { border-color: var(--accent); background: var(--accent-soft); font-weight: 800; }
-.rp-sheet-chip img, .rp-sheet-chip-ph { flex: none; width: 26px; height: 26px; border-radius: 50%; object-fit: cover; background: var(--panel3); }
+.rp-sheet-chip img, .rp-sheet-chip-ph { flex: none; width: 26px; height: 26px; border-radius: 3px; object-fit: cover; background: var(--panel3); }
 .rp-sheet-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .rp-sheet-chip.is-killed { opacity: var(--rp-done-dim); }
 .rp-sheet-chip.is-killed img { filter: grayscale(.7); }
@@ -96,7 +96,7 @@
 .rp-sheet-board .rp-board { box-shadow: 0 12px 40px var(--shade-55); }
 /* "Karte daneben": the open panel takes its width from the stage, the map fits what is left (--rp-side, set by PlanPublicPage) */
 .rp-sheet-stage.is-push .rp-sheet-board { right: calc(var(--rp-side) - 4px); }
-.rp-sheet-stage .rp-zoomctl { right: 64px; bottom: 16px; padding: 5px; border-radius: 12px; box-shadow: 0 8px 24px var(--shade-35); }
+.rp-sheet-stage .rp-zoomctl { right: 64px; bottom: 16px; padding: 5px; border-radius: var(--ctl-radius); box-shadow: 0 8px 24px var(--shade-35); }
 .rp-sheet-stage .rp-zoomctl button { min-width: 34px; height: 34px; }
 .rp-sheet-stage.is-panel .rp-zoomctl { right: calc(min(480px, 100%) + 16px); }
 .rp-sheet-stage .rp-minimap { left: auto; right: 64px; bottom: 70px; }
@@ -106,25 +106,27 @@
    right); the translate by the card's own size keeps every share inside the stage without measuring the card. 16px margin, 64px on
    the right (--rp-side) so the card never covers the "Alle Aufgaben" tab, nor the panel when it stands beside the map (MineCard.tsx
    counts the same margins) */
-.rp-sheet-mine { position: absolute; left: calc(16px + (100% - 16px - var(--rp-side, 64px)) * var(--mx, 0)); top: calc(16px + (100% - 32px) * var(--my, 1)); transform: translate(calc(var(--mx, 0) * -100%), calc(var(--my, 1) * -100%)); z-index: 8; width: min(400px, calc(100% - 32px - var(--rp-side, 64px))); max-height: calc(100% - 32px); display: flex; flex-direction: column; box-sizing: border-box; border: 2px solid var(--accent); border-radius: 14px; background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--panel); box-shadow: 0 14px 36px var(--shade-50); overflow: hidden; }
-.rp-sheet-mine.is-inline { position: static; width: 100%; max-height: none; box-shadow: none; transform: none; }
+.rp-sheet-mine { position: absolute; left: calc(16px + (100% - 16px - var(--rp-side, 64px)) * var(--mx, 0)); top: calc(16px + (100% - 32px) * var(--my, 1)); transform: translate(calc(var(--mx, 0) * -100%), calc(var(--my, 1) * -100%)); z-index: 8; width: min(400px, calc(100% - 32px - var(--rp-side, 64px))); max-height: calc(100% - 32px); display: flex; flex-direction: column; box-sizing: border-box; border: 1px solid var(--line); border-top: 2px solid var(--accent); border-radius: var(--ctl-radius); background: var(--panel); box-shadow: 0 14px 36px var(--shade-50); overflow: hidden; }
+/* flex: none: inside the flat section (a flex column that scrolls) the card would otherwise shrink to its border (overflow: hidden
+   gives it no minimum height), as it did on a phone where the panel beside it is taller than the screen */
+.rp-sheet-mine.is-inline { position: static; flex: none; width: 100%; max-height: none; box-shadow: none; transform: none; }
 .rp-sheet-mine.is-movable .rp-sheet-mine-head { cursor: grab; touch-action: none; user-select: none; }
 .rp-sheet-mine.is-dragging { box-shadow: 0 20px 48px var(--shade-55); }
 .rp-sheet-mine.is-dragging .rp-sheet-mine-head { cursor: grabbing; }
-.rp-sheet-mine-grip { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 36px; margin: 0 -6px 0 -8px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: inherit; }
+.rp-sheet-mine-grip { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 36px; margin: 0 -6px 0 -8px; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--muted); cursor: inherit; }
 .rp-sheet-mine-grip:hover { color: var(--accent); }
 .rp-sheet-mine-grip:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }
-.rp-sheet-mine.is-note { padding: 14px 16px; border-width: 1px; border-color: var(--line); background: var(--panel); }
+.rp-sheet-mine.is-note { padding: 14px 16px; border-top-width: 1px; border-top-color: var(--line); }
 .rp-sheet-mine.is-note p { margin: 0; font-size: 14px; }
 .rp-sheet-mine-head { flex: none; display: flex; align-items: center; gap: 11px; padding: 12px 12px 12px 16px; }
-.rp-sheet-mine:not(.is-collapsed) .rp-sheet-mine-head { border-bottom: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); }
+.rp-sheet-mine:not(.is-collapsed) .rp-sheet-mine-head { border-bottom: 1px solid var(--line); }
 .rp-sheet-mine-who { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
-.rp-sheet-mine-who .rp-kicker { color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rp-sheet-mine-who .rp-kicker { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rp-sheet-mine-name { font-size: 18px; font-weight: 800; }
 .rp-sheet-mine-group { flex: none; display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 700; }
 .rp-sheet-mine-body { overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; padding: 4px 16px 14px; display: flex; flex-direction: column; gap: 12px; }
 .rp-sheet-mine-sec { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; }
-.rp-sheet-mine-sec + .rp-sheet-mine-sec { border-top: 1px solid color-mix(in srgb, var(--accent) 18%, transparent); }
+.rp-sheet-mine-sec + .rp-sheet-mine-sec { border-top: 1px solid var(--line); }
 /* the blocks inside the card without a box of their own (the card is the box); the receiver in the visitor's violet, not the old amber */
 .rp-sheet-mine .rp-mineblk { margin-top: 0; padding: 0; border: 0; background: none; }
 .rp-sheet-mine .rp-mineblk + .rp-mineblk { margin-top: 10px; }
@@ -139,27 +141,27 @@
 .rp-sheet-mine .rp-mcard-note:empty { display: none; }
 .rp-sheet-mine .rp-mcard-arrow { flex: none; }
 .rp-sheet-mine-none { margin: 0; font-size: 14.5px; color: var(--muted); }
-.rp-sheet-mine-else { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid color-mix(in srgb, var(--accent) 18%, transparent); }
+.rp-sheet-mine-else { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
 .rp-sheet-mine-links { display: flex; flex-wrap: wrap; gap: 6px; }
-.rp-sheet-mine-links button { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; height: 36px; padding: 0 12px 0 4px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel2); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.rp-sheet-mine-links button { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; height: 36px; padding: 0 12px 0 4px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel2); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
 .rp-sheet-mine-links button:hover { border-color: var(--accent); }
-.rp-sheet-mine-links img { flex: none; width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+.rp-sheet-mine-links img { flex: none; width: 28px; height: 28px; border-radius: 3px; object-fit: cover; }
 .rp-sheet-mine-links span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .rp-sheet-iconbtn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2); color: var(--text); cursor: pointer; }
 .rp-sheet-iconbtn:hover { border-color: var(--accent); }
 
 /* "Alle Aufgaben": the tab on the right edge and its panel */
-.rp-sheet-tab { position: absolute; right: 0; top: 50%; z-index: 8; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px 10px; border: 1px solid var(--line); border-right: 0; border-radius: 12px 0 0 12px; background: var(--panel); color: var(--text); box-shadow: -8px 0 24px var(--shade-35); cursor: pointer; }
+.rp-sheet-tab { position: absolute; right: 0; top: 50%; z-index: 8; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px 10px; border: 1px solid var(--line); border-right: 0; border-radius: var(--ctl-radius) 0 0 var(--ctl-radius); background: var(--panel); color: var(--text); box-shadow: -8px 0 24px var(--shade-35); cursor: pointer; }
 .rp-sheet-tab:hover { border-color: var(--accent); }
 .rp-sheet-tab-label, .rp-sheet-tab-sub { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
 .rp-sheet-tab-label { font-size: 14px; font-weight: 700; }
 .rp-sheet-tab-sub { font-size: 12px; color: var(--muted); }
 .rp-sheet-panel { position: absolute; top: 0; right: 0; bottom: 0; z-index: 9; width: min(480px, 100%); box-sizing: border-box; display: flex; flex-direction: column; background: var(--panel); border-left: 1px solid var(--line); box-shadow: -24px 0 48px var(--shade-50); }
-.rp-sheet-panel.is-inline { position: static; width: 100%; border: 1px solid var(--line); border-radius: 12px; box-shadow: none; }
+.rp-sheet-panel.is-inline { position: static; flex: none; width: 100%; border: 1px solid var(--line); border-radius: var(--ctl-radius); box-shadow: none; }
 .rp-sheet-panel-head { flex: none; display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
 .rp-sheet-panel-title { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
 .rp-sheet-panel-title strong { font-size: 18px; font-weight: 800; }
-.rp-sheet-panel-head .rp-sheet-panel-push { flex: none; font-size: 13px; }
+.rp-sheet-panel-head .rp-sheet-panel-push { flex: none; font-size: 14px; }
 /* the tables inside ask the panel's width (not the window's) whether a three-column row fits: canvas.css @container rp-tables */
 .rp-sheet-panel-body { container: rp-tables / inline-size; flex: 1; overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; padding: 14px 18px 24px; display: flex; flex-direction: column; gap: 16px; }
 .rp-sheet-panel .rp-rgrid { grid-template-columns: minmax(0, 1fr); }
@@ -169,6 +171,24 @@
 
 /* ---- a section without a map ---- */
 .rp-sheet-flat { flex: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; width: 100%; max-width: 1100px; margin: 0 auto; padding: 20px 16px 40px; display: flex; flex-direction: column; gap: 18px; }
+
+/* ---- Pilot C inside the read view (scoped to .rp-sheet: the editor keeps its look). Modelled on Wowhead's guide pages: a task type
+   is a plain group heading in sentence case with its icon (no tinted caps label in a coloured frame), the tables are flat with rules
+   between rows, corners 3px, no pills; the class colour on a name stays the one colour that carries meaning ---- */
+.rp-sheet .rp-tbadge { gap: 8px; padding: 0; border: 0; border-radius: 0; background: none; color: var(--text); font-size: 15px; font-weight: 700; }
+.rp-sheet .rp-tbadge > span { color: var(--text); }
+.rp-sheet .rp-tbadge .wi { border-radius: 3px; }
+.rp-sheet .rp-du, .rp-sheet .rp-lc-du { padding: 0 5px; border-radius: 3px; background: var(--accent); color: var(--accent-ink); font-size: var(--fs-label); font-weight: 700; letter-spacing: 0; text-transform: none; line-height: 18px; }
+.rp-sheet .rp-mygroup-label, .rp-sheet .rp-achip-no { border-radius: 3px; }
+.rp-sheet .rp-mineblk { border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; padding: 10px 0 0; }
+.rp-sheet .rp-sheet-mine .rp-mineblk { border-top: 0; padding: 0; }
+.rp-sheet .rp-mcard, .rp-sheet .rp-line, .rp-sheet .rp-rs-row, .rp-sheet .rp-lc, .rp-sheet .rp-lref, .rp-sheet .rp-tmchip, .rp-sheet .rp-mcard-ico .wi { border-radius: 3px; }
+.rp-sheet .rp-rtable { border-radius: 3px; }
+.rp-sheet .rp-rtable tbody tr:nth-child(even) { background: none; }
+.rp-sheet .rp-rsec h3 { font-size: 15px; }
+.rp-sheet .rp-allzone > summary h2 { font-size: 17px; }
+.rp-sheet .rp-gmembers { font-size: 13px; }
+.rp-sheet .rp-mcard-note { font-size: 14px; }
 
 @media (max-width: 720px) {
     .rp-sheet-bar { padding: 8px 10px; gap: 8px; }
@@ -183,7 +203,7 @@
     .rp-sheet-strip.is-top, .rp-sheet-strip.is-left { flex-direction: row; flex-wrap: nowrap; width: auto; gap: 14px; padding: 6px 10px; overflow-x: auto; overflow-y: hidden; border-right: 0; border-bottom: 1px solid var(--line); }
     .rp-sheet-strip.is-left .rp-sheet-strip-run { flex-direction: row; align-items: center; }
     .rp-sheet-strip-chips, .rp-sheet-strip.is-left .rp-sheet-strip-chips { flex-direction: row; flex-wrap: nowrap; }
-    .rp-sheet-strip.is-left .rp-sheet-chip { width: auto; height: 34px; border-color: var(--line); border-radius: 17px; background: var(--panel2); }
+    .rp-sheet-strip.is-left .rp-sheet-chip { width: auto; height: 34px; border-color: var(--line); border-radius: 3px; background: var(--panel2); }
     .rp-sheet-title { font-size: 18px; }
     /* the menu opens under the whole bar, as wide as the screen */
     .rp-sheet-menuwrap { position: static; }

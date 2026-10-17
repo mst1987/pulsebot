@@ -14,8 +14,8 @@
 /* ---- tables ---- */
 .kn-table { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
 .kn-th {
-    background: var(--panel2); text-transform: uppercase; letter-spacing: .04em; font-family: var(--font-mono);
-    font-size: 11.5px; color: var(--muted); font-weight: 600; padding-block: 9px !important;
+    background: var(--panel2);
+    font-size: 12px; color: var(--muted); font-weight: 600; padding-block: 9px !important;
 }
 .kn-th [data-tip] { text-decoration: underline dotted; text-decoration-color: var(--muted); text-underline-offset: 3px; cursor: help; }
 
@@ -48,7 +48,7 @@ a.ibtn svg { width: 15px; height: 15px; }
 .kn-type svg { width: 17px; height: 17px; }
 
 /* small mono label ("Enter speichert · Esc verwirft", figure labels) */
-.kn-kicker { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.kn-kicker { font-size: 12px; font-weight: 600; color: var(--muted); }
 .kn-mono { font-family: var(--font-mono); }
 
 /* ---- page layout (issue #259): tabs, the tree, the side panel ---- */
@@ -79,7 +79,7 @@ a.ibtn svg { width: 15px; height: 15px; }
 .kn-fold svg { width: 14px; height: 14px; flex: 0 0 auto; transform: rotate(-90deg); transition: transform .15s; }
 .kn-fold.open svg { transform: none; }
 .kn-fold:hover { color: var(--text); }
-.kn-cat-title { font-family: var(--font-mono); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.kn-cat-title { font-size: 12px; font-weight: 700; color: var(--muted); }
 
 .kn-row { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px solid transparent; }
 .kn-row:hover { background: var(--panel2); }
@@ -117,7 +117,6 @@ a.ibtn svg { width: 15px; height: 15px; }
     height: 30px; min-width: 220px; padding: 0 8px; background: var(--bg); color: var(--text); border: 1px solid var(--accent);
     box-shadow: 0 0 0 3px var(--accent-soft); border-radius: 6px; font: 600 14px var(--font-mono); outline: none;
 }
-
 
 /* ---- bulk bar ---- */
 /* sticky at the bottom of the list: it stays in view while the list scrolls, but sits in the flow, not over the page */
@@ -165,8 +164,8 @@ a.ibtn svg { width: 15px; height: 15px; }
 
 .kn-pick { border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 50vh; background: var(--panel); }
 .kn-pick-cat {
-    padding: 7px 14px; background: var(--panel2); border-bottom: 1px solid var(--line); font-family: var(--font-mono);
-    font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
+    padding: 7px 14px; background: var(--panel2); border-bottom: 1px solid var(--line);
+    font-size: 12px; font-weight: 700; color: var(--muted);
 }
 .kn-pick-row { display: grid; grid-template-columns: 22px 20px 1fr auto; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--line-soft); font-size: 14px; cursor: pointer; }
 .kn-pick-row:hover { background: var(--panel2); }

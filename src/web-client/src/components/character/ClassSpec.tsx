@@ -27,8 +27,19 @@ export const CLASS_SOURCE_LABELS: Record<string, string> = {
  */
 export function classColorProps(classColor?: string): { className?: string; style?: React.CSSProperties } {
     if (!classColor) return {};
-    return { className: "class-colored", style: { "--cc": classColor } as React.CSSProperties };
+    const style: Record<string, string> = { "--cc": classColor };
+    // A known WoW class colour gets its own hand-darkened shade for the light theme (tokens.css --cls-*);
+    // any other colour falls back to the generic mix in .class-colored.
+    const light = LIGHT_CLASS_TOKEN[classColor.toUpperCase()];
+    if (light) style["--cc-l"] = `var(--cls-${light})`;
+    return { className: "class-colored", style: style as React.CSSProperties };
 }
+
+/** The class colours of config/gameVersions/classes.js, keyed by hex, onto their light-theme token. */
+const LIGHT_CLASS_TOKEN: Record<string, string> = {
+    "#C79C6E": "warrior", "#F58CBA": "paladin", "#ABD473": "hunter", "#FFF569": "rogue", "#FFFFFF": "priest",
+    "#0070DE": "shaman", "#69CCF0": "mage", "#9482C9": "warlock", "#FF7D0A": "druid", "#C41F3B": "dk",
+};
 
 export function ClassSpecIcon({ iconUrl, size = 18 }: { iconUrl: string; size?: 18 | 34 }) {
     if (!iconUrl) return null;

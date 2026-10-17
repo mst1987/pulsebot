@@ -99,13 +99,13 @@ describe("one menu for both front ends", () => {
         });
     });
 
-    it("has an accent colour for every entry, in the dark and in both light blocks", () => {
+    it("names every entry's section colour once, as the one accent (no hue per section)", () => {
         const css = read("index.css");
         for (const entry of MENU) {
             const id = entry.area || entry.id;
-            const defs = css.match(new RegExp(`--area-${id}: #[0-9a-f]{6}; --area-${id}-soft: rgba\\(`, "g")) || [];
-            expect({ id, defs: defs.length }).toEqual({ id, defs: 3 });
-            expect(css).toContain(`.area-${id} { --area: var(--area-${id}); --area-soft: var(--area-${id}-soft); }`);
+            const defs = css.match(new RegExp(`--area-${id}: var\\(--accent\\); --area-${id}-soft: var\\(--accent-soft\\);`, "g")) || [];
+            expect({ id, defs: defs.length }).toEqual({ id, defs: 1 });
+            expect({ id, hex: new RegExp(`--area-${id}: #`).test(css) }).toEqual({ id, hex: false });
         }
     });
 });

@@ -71,6 +71,7 @@
     "logoutSub": "Sign out of the guild menu",
     "docs": "Documentation",
     "menuToggle": "Menu",
+    "menuClose": "Close menu",
     "rail": {
         "aria": "Pages of {name}"
     },
