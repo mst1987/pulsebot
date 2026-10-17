@@ -80,6 +80,7 @@ const OWN: AvailabilityData = {
         { id: "own1", kind: "absence", from: "2026-10-19", to: "2026-10-25", comment: "Urlaub", character: "", spec: "", specLabel: "", versionId: "", categoryId: "", categoryName: "", byOrga: false, done: 1 },
         { id: "old", kind: "absence", from: "2026-09-01", to: "2026-09-03", comment: "", character: "", spec: "", specLabel: "", versionId: "", categoryId: "", categoryName: "", byOrga: false, done: 0 },
     ],
+    categories: [{ id: "mon", name: "TBC Montag", icon: "", versionId: "tbc" }, { id: "wed", name: "TBC Mittwoch", icon: "", versionId: "tbc" }],
 };
 
 const night = (eventId: string, day: string, attended: boolean, reason: string, status?: AttendanceStatus, detail?: string) => (
@@ -239,15 +240,25 @@ describe("Abwesenheiten: Zeitleiste", () => {
         expect(within(dialog).getByText(t("signups.availability.dialog.titleAbsence"))).toBeInTheDocument();
         expect(within(dialog).getByText(t("signups.availability.dialog.forName", { name: "Nwek-acc" }))).toBeInTheDocument();
         await waitFor(() => expect(gets("/api/availability?userId=203")).toHaveLength(1));
+        // the hint is about one category: the dialog starts on it
+        expect(within(dialog).getByRole("button", { name: "TBC Montag" })).toHaveAttribute("aria-pressed", "true");
+        await waitFor(() => expect(client.send).toHaveBeenCalledWith("POST", "/api/availability/preview", expect.objectContaining({ categoryId: "mon", userId: "203" })));
     });
 
     it("opens the dialog from the head for the raid lead, and has neither button nor hint button for anyone else", async () => {
         const user = userEvent.setup();
         const view = await show();
-        await user.click(await screen.findByRole("button", { name: t("absences.enter") }));
+        const enter = await screen.findByRole("button", { name: t("absences.enter") });
+        // neutral, neither the red "no" nor the coloured main action: it opens absence and attendance alike
+        expect(enter).toHaveClass("btn-ghost");
+        expect(enter).not.toHaveClass("btn-no");
+        expect(enter).toHaveAttribute("data-tip", t("absences.enterTip"));
+        await user.click(enter);
         const dialog = await screen.findByRole("dialog");
         expect(within(dialog).getByText(t("signups.availability.dialog.titleAbsence"))).toBeInTheDocument();
         expect(within(dialog).getByRole("button", { name: t("signups.availability.dialog.forRaider") })).toBeInTheDocument();
+        // no category filter on the page: the dialog starts on every category
+        expect(within(dialog).getByRole("button", { name: t("signups.availability.dialog.allCategories") })).toHaveAttribute("aria-pressed", "true");
         view.unmount();
         vi.mocked(client.get).mockClear();
 
@@ -411,6 +422,18 @@ describe("Abwesenheiten: Meine Anwesenheit", () => {
         // back to all (the pick is remembered)
         await user.click(within(filter).getByRole("button", { name: t("absences.mine.allCategories") }));
         expect(screen.getByRole("region", { name: "TBC Montag" })).toBeInTheDocument();
+    });
+
+    it("enters for the category picked in the filter, with a neutral button", async () => {
+        const user = userEvent.setup();
+        await showMine();
+        await user.click(within(screen.getByRole("group", { name: t("absences.mine.filterAria") })).getByRole("button", { name: "TBC Mittwoch" }));
+        const enter = within(screen.getByRole("region", { name: t("absences.mine.entries") })).getByRole("button", { name: t("absences.enter") });
+        expect(enter).toHaveClass("btn-ghost");
+        await user.click(enter);
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByRole("button", { name: "TBC Mittwoch" })).toHaveAttribute("aria-pressed", "true");
+        await waitFor(() => expect(client.send).toHaveBeenCalledWith("POST", "/api/availability/preview", expect.objectContaining({ categoryId: "wed" })));
     });
 
     it("offers no filter for a single category", async () => {

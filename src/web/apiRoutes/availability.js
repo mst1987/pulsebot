@@ -2,9 +2,11 @@
 // signs a raider off from the raids of that period, "there from … to … with
 // this character" signs them up — now and for raids created later, with a DM.
 //
-// GET    /api/availability[?userId=]      area signup   — the active entries and the characters to pick from
-// POST   /api/availability/preview        area signup   — the raids a period covers; body { kind, from, to, character, spec, userId? }
-// POST   /api/availability                area signup   — enter one; body { kind, from, to, comment, character, spec, eventIds[], userId? }
+// GET    /api/availability[?userId=]      area signup   — the active entries, the characters to pick from and the raid
+//                                                         categories an entry may be limited to (entryCategories.js)
+// POST   /api/availability/preview        area signup   — the raids a period covers; body { kind, from, to, character, spec, categoryId?, userId? }
+// POST   /api/availability                area signup   — enter one; body { kind, from, to, comment, character, spec, categoryId?, eventIds[], userId? }
+//                                                         `categoryId` "" or missing = every category; an unknown one is a 400
 // DELETE /api/availability                area signup   — remove one; body { id }
 // GET    /api/availability/attendance[?userId=&version=]        area signup — own attendance per category and raid (orga: anyone's)
 // GET    /api/availability/overview?weeks=&category=&version=  area roster — the orga's overview: who is away when (absenceOverview.js)
@@ -35,6 +37,7 @@ const linkCheck = require("../../services/discord/linkCheck");
 const discord = require("../../services/discord/discord");
 const absenceOverview = require("../../services/signups/absenceOverview");
 const { raiderAttendance } = require("../availability/raiderAttendance");
+const { entryCategories, entryCategoryIds } = require("../availability/entryCategories");
 const { canEditAnyAttendance } = require("../../services/characters/attendanceAccess");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
@@ -108,16 +111,28 @@ const getAvailability = withUser({}, async ({ user, query, res }) => {
         maxDays: availability.MAX_DAYS,
         entries: availability.activeEntries(target.userId).map(entryView),
         characters: characterChoices(profile, config),
+        // the dialog offers the caller's own list, also when the orga enters for somebody else
+        categories: target.userId === str(user.id) ? entryCategories({ config, categoryNames: categoryNamesOf(config) }) : [],
     });
 });
+
+const UNKNOWN_CATEGORY = "Diese Raid-Kategorie gibt es nicht (mehr) – bitte eine andere wählen.";
+
+/** Whether a body's `categoryId` is none ("" = every category) or one an entry may name. */
+function knownCategory(body, config) {
+    const id = str(body && body.categoryId);
+    return !id || entryCategoryIds({ config }).includes(id);
+}
 
 /** POST /api/availability/preview — which raids the period covers, with the raider's current status in each. */
 const postPreview = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
     const target = targetOf(user, body.userId);
     if (target.error) return apiError(res, 403, "forbidden", target.error);
+    const config = getConfig();
+    if (!knownCategory(body, config)) return apiError(res, 400, "bad_request", UNKNOWN_CATEGORY);
     const checked = availability.checkInput(target.userId, body);
     if (checked.error) return apiError(res, 400, "bad_request", checked.error);
-    const raids = availability.raidsInRange(checked.value, { config: getConfig() });
+    const raids = availability.raidsInRange(checked.value, { config });
     ok(res, {
         raids: raids.map((e) => {
             const signup = getSignup(e.id, target.userId);
@@ -137,8 +152,10 @@ const postPreview = withUser({ csrf: true, body: true }, async ({ user, body, re
 const postEntry = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
     const target = targetOf(user, body.userId);
     if (target.error) return apiError(res, 403, "forbidden", target.error);
+    const config = getConfig();
+    if (!knownCategory(body, config)) return apiError(res, 400, "bad_request", UNKNOWN_CATEGORY);
     const eventIds = Array.isArray(body.eventIds) ? body.eventIds.map(str).filter(Boolean) : undefined;
-    const result = await availability.createEntry(target.userId, body, { by: user.id, eventIds, config: getConfig() });
+    const result = await availability.createEntry(target.userId, body, { by: user.id, via: "web", eventIds, config });
     if (result.error) return apiError(res, 400, "bad_request", result.error);
     ok(res, { entry: entryView(result.entry), results: result.results.map(resultView), dm: !!result.dm });
 });

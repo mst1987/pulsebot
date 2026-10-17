@@ -190,9 +190,12 @@ async function applyOutcome(entry, event, { now, config }) {
     if (entry.kind === "absence") {
         if (previous && previous.status === "absence") return { ok: false, skipped: "already_absent" };
         // Saying "I am away" needs no raider role: an entry made at a category's panel signs off from its raids
-        // whatever the roles say. One for every category (/availability) leaves the raids of categories the
-        // raider is no raider of alone — quietly, they were never theirs.
-        if (!entry.categoryId && !previous && !byOrga) {
+        // whatever the roles say (the panel sits where only that category's raiders are). One for every
+        // category (/availability) leaves the raids of categories the raider is no raider of alone — quietly,
+        // they were never theirs. So does one from the web dialog, category or not: anybody can pick any
+        // category there. Entries without `via` predate the web dialog and come from Discord.
+        const fromPanel = entry.categoryId && entry.via !== "web";
+        if (!fromPanel && !previous && !byOrga) {
             const access = await checkRaiderRole(event, entry.userId, { previous: null, config });
             if (access.error) return { ok: false, skipped: "not_raider" };
         }
@@ -219,7 +222,7 @@ async function applyOutcome(entry, event, { now, config }) {
  * happened.
  * @returns {Promise<{ entry?: object, results?: object[], dm?: boolean, error?: string }>}
  */
-async function createEntry(userId, input = {}, { by = "", eventIds, now = Date.now(), config, dm = true } = {}) {
+async function createEntry(userId, input = {}, { by = "", via = "", eventIds, now = Date.now(), config, dm = true } = {}) {
     const checked = checkInput(userId, input, { now });
     if (checked.error) return checked;
     const cfg = config || settingsStore.getConfig();
@@ -229,7 +232,7 @@ async function createEntry(userId, input = {}, { by = "", eventIds, now = Date.n
     // entries long over go here - after KEEP_DAYS: the attendance (#677) still tells "Urlaub" from a plain
     // sign-off by them, over its longest window (16 raids of a weekly category)
     store.prune(today(now), KEEP_DAYS);
-    const added = store.addEntry({ ...checked.value, skip, createdBy: str(by) || checked.value.userId }, { now });
+    const added = store.addEntry({ ...checked.value, skip, createdBy: str(by) || checked.value.userId, via }, { now });
     if (added.error) return added;
     const results = [];
     for (const event of raids) {

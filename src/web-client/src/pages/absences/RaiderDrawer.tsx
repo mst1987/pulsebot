@@ -5,7 +5,7 @@ import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { Badge, Button, IconButton, useConfirm } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { AbsenceIcon, ListChecksIcon, TrashIcon, XIcon } from "../../components/ui/icons";
+import { ListChecksIcon, PlusIcon, TrashIcon, XIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { currentAbsence, displayName, playsLine } from "../../lib/roster/absences";
 import { dayMs, periodLabel } from "../../lib/signups/availability";
@@ -24,7 +24,7 @@ const STATE_TONE = { planned: "accent", running: "mid", past: undefined } as con
 export default function RaiderDrawer({ userId, onClose, onEnter, onChanged, onAttendance }: {
     userId: string;
     onClose: () => void;
-    /** "Abwesenheit für … eintragen": the dialog with this raider picked. */
+    /** "Ab- & Anwesenheit für … eintragen": the dialog with this raider picked. */
     onEnter: (raider: AbsenceRaiderDetail) => void;
     /** An entry was deleted: the overview reloads. */
     onChanged: () => void;
@@ -61,7 +61,8 @@ export default function RaiderDrawer({ userId, onClose, onEnter, onChanged, onAt
             {data && (
                 <div className="ab-drawer-foot">
                     {data.canEdit && (
-                        <Button variant="no" icon={<AbsenceIcon />} onClick={() => onEnter(data)}>
+                        // neutral (ghost, no meaning colour): absence and attendance alike, the kind is picked in the dialog
+                        <Button variant="ghost" icon={<PlusIcon />} onClick={() => onEnter(data)} data-tip={t("absences.enterTip")}>
                             {t("absences.drawer.enterFor", { name: displayName(data) })}
                         </Button>
                     )}

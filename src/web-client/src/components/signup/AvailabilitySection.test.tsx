@@ -26,7 +26,7 @@ const entry = (over: Partial<AvailabilityEntry> = {}): AvailabilityEntry => ({
 });
 
 const DATA: AvailabilityData = {
-    userId: "u1", name: "Zibbo", orga: false, today: "2026-10-05", maxDays: 180, characters: [],
+    userId: "u1", name: "Zibbo", orga: false, today: "2026-10-05", maxDays: 180, characters: [], categories: [],
     entries: [
         entry(),
         entry({ id: "av2", kind: "presence", from: "2026-10-12", to: "2026-10-12", comment: "", character: "Zibbo", spec: "Priest-Holy", specLabel: "Holy", byOrga: true, done: 0 }),

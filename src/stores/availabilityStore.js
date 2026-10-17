@@ -11,7 +11,9 @@
 //             (presence: the character the raids are signed up with), skip
 //             (event ids deselected when it was entered), applied ({ [eventId]:
 //             { at, ok, error? } } — every raid it was applied to once, so a
-//             raid is never touched twice), createdBy, createdAt }
+//             raid is never touched twice), createdBy, createdAt,
+//             via ("panel" = entered in Discord, "web" = the web dialog, "" =
+//             older entries, all from Discord) }
 //   panel = { categoryId, guildId, channelId, messageId, postedAt, postedBy, hash }
 //   links = { [categoryId]: [{ label, url, emoji? }] } — the link buttons of a
 //           category's raider organizer (WCL invite, info sheet …), at most
@@ -25,6 +27,8 @@ const { newId } = require("../utils/ids");
 const { checkButtonEmoji, parseButtonEmoji } = require("../utils/discord/buttonEmoji");
 
 const KINDS = ["absence", "presence"];
+/** Where an entry was made: Discord (a category's panel or /availability) or the web dialog. */
+const VIAS = ["panel", "web"];
 const COMMENT_MAX = 100;
 /** How many entries one raider may have at once. */
 const MAX_ENTRIES = 20;
@@ -66,6 +70,7 @@ function complete(entry) {
         applied: entry.applied && typeof entry.applied === "object" && !Array.isArray(entry.applied) ? { ...entry.applied } : {},
         createdBy: str(entry.createdBy),
         createdAt: Number(entry.createdAt) || 0,
+        via: VIAS.includes(entry.via) ? entry.via : "",
     };
 }
 
@@ -282,7 +287,7 @@ function removePanel(categoryId) {
 }
 
 module.exports = {
-    KINDS, MAX_ENTRIES, COMMENT_MAX,
+    KINDS, VIAS, MAX_ENTRIES, COMMENT_MAX,
     listEntries, getEntry, addEntry, removeEntry, renameCharacter, markApplied, prune, entryProblem,
     listPanels, getPanel, setPanel, markPanelDrawn, removePanel, useFile,
     MAX_LINKS, LINK_LABEL_MAX, checkLinks, readLinks, getLinks, listLinks, setLinks,

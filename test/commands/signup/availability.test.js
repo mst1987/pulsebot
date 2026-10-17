@@ -113,7 +113,7 @@ describe("Abwesenheit", () => {
         expect(mocks.signups.get(`eh-b/${ANNA}`)).toMatchObject({ status: "absence", comment: "Urlaub" });
         expect(mocks.signups.get(`eh-a/${ANNA}`)).toBeUndefined();
         expect(mocks.signups.get(`eh-c/${ANNA}`)).toBeUndefined();
-        expect(store.listEntries({ userId: ANNA })[0]).toMatchObject({ categoryId: "cat1", skip: ["eh-a"] });
+        expect(store.listEntries({ userId: ANNA })[0]).toMatchObject({ categoryId: "cat1", skip: ["eh-a"], via: "panel" });
         expect(discord.sendDirectMessage).toHaveBeenCalledTimes(1);
 
         // the session is over

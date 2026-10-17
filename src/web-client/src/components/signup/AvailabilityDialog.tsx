@@ -6,11 +6,13 @@ import {
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { Button, Modal, Segment, WowIcon } from "../ui";
-import { AbsenceIcon, CheckIcon, SignedIcon, XIcon } from "../ui/icons";
+import Chip from "../ui/Chip";
+import { AbsenceIcon, CheckIcon, CheckMark, SignedIcon, XIcon } from "../ui/icons";
 import { useToast } from "../shell/Jobs";
 import { RaidChecklist, RaiderPick, ResultList } from "./AvailabilityParts";
 import { countResults, firstSpec, nextTo, resultSummary, staysAsIs } from "../../lib/signups/availability";
 import { classIconName } from "../../lib/roster/rosterView";
+import { categoryIcon, plainCategoryName } from "../../lib/roster/absences";
 import { specLabel } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 // rendered on more than one page (Anmeldungen, Roster › Abwesenheiten): it brings its stylesheet along
@@ -22,32 +24,38 @@ import "../../styles/signups.css";
 // remembers the period for raids created later (src/services/signups/availability.js).
 // The orga may enter for another raider: their characters are loaded, and
 // `userId` goes along with preview and save.
+// An entry holds for every raid category or for one (chips "Alle Kategorien" ·
+// one per category): `categoryId` goes along, the preview lists only that
+// category's raids, and an attendance offers only characters of its version.
 
 /** How long the inputs must rest before the raids of the period are looked up. */
 const PREVIEW_DELAY = 300;
 
 type Preview = { key: string; raids: AvailabilityRaid[] | null; problem: string };
 
-export default function AvailabilityDialog({ kind, own, target = null, onClose, onSaved }: {
+export default function AvailabilityDialog({ kind, own, target = null, categoryId = "", onClose, onSaved }: {
     /** The kind to start with; null = closed. */
     kind: AvailabilityKind | null;
     /** The caller's own GET /api/availability. */
     own: AvailabilityData;
     /** The orga enters for this raider from the start (Roster › Abwesenheiten); they can still pick another. */
     target?: RaiderRef | null;
+    /** The raid category picked at the start (the open tab of the page); "" = every category. */
+    categoryId?: string;
     onClose: () => void;
     /** After a save: the section and the raid list reload. */
     onSaved: () => void;
 }) {
     // a fresh form per opening: every field starts from scratch
     if (!kind) return null;
-    return <AvailabilityForm initialKind={kind} own={own} initialTarget={own.orga ? target : null} onClose={onClose} onSaved={onSaved} />;
+    return <AvailabilityForm initialKind={kind} own={own} initialTarget={own.orga ? target : null} initialCategory={categoryId} onClose={onClose} onSaved={onSaved} />;
 }
 
-function AvailabilityForm({ initialKind, own, initialTarget, onClose, onSaved }: {
+function AvailabilityForm({ initialKind, own, initialTarget, initialCategory, onClose, onSaved }: {
     initialKind: AvailabilityKind;
     own: AvailabilityData;
     initialTarget: RaiderRef | null;
+    initialCategory: string;
     onClose: () => void;
     onSaved: () => void;
 }) {
@@ -60,6 +68,10 @@ function AvailabilityForm({ initialKind, own, initialTarget, onClose, onSaved }:
     const [comment, setComment] = useState("");
     const [charKey, setCharKey] = useState("");
     const [spec, setSpec] = useState("");
+    // the categories are the same for everybody: the caller's own list (a nameless one is never offered)
+    const categories = (own.categories || []).filter((c) => c.name);
+    // the start pick only counts where the chips show it: one category alone, or one not offered, is "every category"
+    const [categoryPick, setCategoryPick] = useState(() => (categories.length > 1 && categories.some((c) => c.id === initialCategory) ? initialCategory : ""));
     const [off, setOff] = useState<Set<string>>(() => new Set());
     const [preview, setPreview] = useState<Preview>({ key: "", raids: null, problem: "" });
     const [busy, setBusy] = useState(false);
@@ -68,7 +80,9 @@ function AvailabilityForm({ initialKind, own, initialTarget, onClose, onSaved }:
     // The other raider's characters (orga only).
     const other = useApi(() => getAvailability(target ? target.userId : ""), [target ? target.userId : ""], { enabled: !!target });
     const data = target ? other.data : own;
-    const characters = data ? data.characters : [];
+    const category = categories.find((c) => c.id === categoryPick) || null;
+    // an attendance in one category needs a character of the version it plays
+    const characters = (data ? data.characters : []).filter((c) => !category || !category.versionId || c.versionId === category.versionId);
     // The picked character, else the raider's first — their own order, there is no main.
     const character = characters.find((c) => c.key === charKey) || characters[0];
     const specKey = character && character.specs.some((s) => s.key === spec) ? spec : firstSpec(character);
@@ -78,6 +92,7 @@ function AvailabilityForm({ initialKind, own, initialTarget, onClose, onSaved }:
     const input: AvailabilityInput = {
         kind, from, to,
         ...(presence && character ? { character: character.key, spec: specKey } : {}),
+        ...(category ? { categoryId: category.id } : {}),
         ...(target ? { userId: target.userId } : {}),
     };
     const inputKey = JSON.stringify(input);
@@ -167,6 +182,22 @@ function AvailabilityForm({ initialKind, own, initialTarget, onClose, onSaved }:
                             { value: "presence", label: t("signups.availability.dialog.presence"), icon: <SignedIcon /> },
                         ]}
                     />
+                    {categories.length > 1 && (
+                        <div className="field">
+                            <span className="an-label" id="an-av-cat">{t("signups.availability.dialog.category")}</span>
+                            <div className="chip-row" role="group" aria-labelledby="an-av-cat">
+                                <Chip pressed={!category} tone={!category ? "accent" : undefined} icon={!category ? <CheckMark /> : undefined} onClick={() => setCategoryPick("")}>
+                                    {t("signups.availability.dialog.allCategories")}
+                                </Chip>
+                                {categories.map((c) => (
+                                    <Chip key={c.id} pressed={category?.id === c.id} tone={category?.id === c.id ? "accent" : undefined}
+                                        icon={<WowIcon name={categoryIcon(c.icon)} size={16} />} onClick={() => setCategoryPick(c.id)}>
+                                        {plainCategoryName(c.name)}
+                                    </Chip>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     <div className="an-grid">
                         <div className="field">
                             <label htmlFor="an-av-from">{t("signups.availability.dialog.from")}</label>
@@ -181,7 +212,8 @@ function AvailabilityForm({ initialKind, own, initialTarget, onClose, onSaved }:
                     {presence ? (
                         target && !data ? <p className="an-note">{t("signups.availability.dialog.loadingRaider")}</p>
                             : !character ? (
-                                <p className="an-note">{target ? t("signups.availability.dialog.noCharacterFor", { name: forName }) : t("signups.availability.dialog.noCharacter")}</p>
+                                <p className="an-note">{category ? t("signups.availability.dialog.noCharacterCategory", { category: plainCategoryName(category.name || category.id) })
+                                    : target ? t("signups.availability.dialog.noCharacterFor", { name: forName }) : t("signups.availability.dialog.noCharacter")}</p>
                             ) : (
                                 <div className="an-grid">
                                     <div className="field">

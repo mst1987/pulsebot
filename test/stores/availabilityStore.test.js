@@ -21,6 +21,14 @@ describe("Einträge", () => {
         expect(store.listEntries({ userId: "someone" })).toEqual([]);
     });
 
+    it("merkt sich, wo ein Eintrag entstand (Panel/Web), Unbekanntes und Alt-Einträge als leer", () => {
+        expect(store.addEntry(entry({ via: "panel" })).entry.via).toBe("panel");
+        expect(store.addEntry(entry({ via: "web" })).entry.via).toBe("web");
+        expect(store.addEntry(entry({ via: "irgendwo" })).entry.via).toBe("");
+        expect(store.addEntry(entry()).entry.via).toBe("");
+        expect(store.VIAS).toEqual(["panel", "web"]);
+    });
+
     it("lehnt unvollständige Einträge ab", () => {
         expect(store.addEntry(entry({ userId: "" })).error).toBe("Kein Raider.");
         expect(store.addEntry(entry({ kind: "x" })).error).toBe("Unbekannte Art – Abwesenheit oder Anwesenheit.");

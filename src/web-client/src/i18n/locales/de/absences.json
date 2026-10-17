@@ -8,7 +8,8 @@
         "raids": "Pro Raid",
         "mine": "Meine Anwesenheit"
     },
-    "enter": "Abwesenheit eintragen",
+    "enter": "Ab- & Anwesenheit eintragen",
+    "enterTip": "Abwesenheit oder Anwesenheit – die Art wählst du im Dialog.",
     "loading": "Abwesenheiten werden geladen",
     "loadError": "Fehler beim Laden: {message}",
     "days": {
@@ -103,7 +104,7 @@
         "aria": "Raider-Details",
         "kicker": "Raider",
         "loading": "Raider wird geladen",
-        "enterFor": "Abwesenheit für {name} eintragen",
+        "enterFor": "Ab- & Anwesenheit für {name} eintragen",
         "toCharacter": "Zur Charakter-Seite",
         "nowRunning": "gerade weg",
         "nowPlanned": "geplant",
