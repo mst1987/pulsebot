@@ -189,7 +189,7 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                             {crumb && tab ? <Link to={tab.href}>{label}</Link> : <b>{label}</b>}
                             {crumb && <> <span className="crumb-sep">/</span> <b>{crumb}</b></>}
                         </div>
-                        {/* A page only the orga may open: the quiet label says so, and who sees it after all. */}
+                        {/* A page only the orga may open: the teal chip says so, and who sees it after all. */}
                         {tab && <OrgaChip key={tab.id} user={user} audience={orgaAudience} />}
                         <div className="top-actions">
                             {/* A page without game content (menu.json `neutral`: Kanäle, Einstellungen,

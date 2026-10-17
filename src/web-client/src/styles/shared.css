@@ -166,9 +166,10 @@ input[type=checkbox]:checked::after {
 /* A link to the dashboard, styled as the brand block it always was: no link
    colour or underline, the crest answers the pointer instead. */
 .brand { display: flex; align-items: center; gap: 12px; padding: 18px 18px 16px; border-bottom: 1px solid var(--line-soft); color: inherit; text-decoration: none; }
-.brand:hover .crest, .brand:focus-visible .crest { box-shadow: 0 0 0 2px var(--line); }
+.brand:hover .crest, .brand:focus-visible .crest { box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--accent); }
 .brand:focus-visible { outline: none; }
-.crest { width: 40px; height: 40px; border-radius: 10px; flex: 0 0 auto; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); }
+/* the crest keeps its gradient: the one coloured mark of the shell (the user liked it better than flat) */
+.crest { width: 40px; height: 40px; border-radius: 10px; flex: 0 0 auto; display: grid; place-items: center; background: linear-gradient(150deg, var(--accent), var(--accent-2)); color: var(--accent-ink); }
 .crest svg { width: 22px; height: 22px; }
 .brand-name { font-weight: 800; font-size: 16px; }
 .brand-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
@@ -179,14 +180,17 @@ nav.menu::-webkit-scrollbar { display: none; }
 /* Menu entries lead with their WoW icon (src/config/menu.json): slightly
    desaturated at rest, full colour on hover. The active entry (also on the sub
    pages of the entry: the settings sections, the raid plan's pages, which its
-   page's rail lists) is quiet, design C: full text colour, a heavier weight and
-   a thin rust line on the left; no tinted card, no ring. */
+   page's rail lists) must read at a glance, design C: a neutral raised surface
+   (--panel3, no accent tint, no glow), the strongest text colour, a heavier
+   weight and a rust line over the entry's full height, flush with its left
+   edge (the entry squares its left corners for it). Hover is the weaker
+   surface, so it never looks like a second active entry. */
 .nav-item { --area: var(--accent); --area-soft: var(--accent-soft); display: flex; align-items: center; gap: 12px; padding: 7px 12px; border-radius: 8px; color: var(--muted); font-weight: 600; font-size: 14.5px; text-decoration: none; border: 1px solid transparent; position: relative; transition: background .12s, color .12s, border-color .12s; }
 .nav-item .wi { width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); flex: 0 0 auto; filter: saturate(.45) brightness(.8); transition: filter .12s, box-shadow .12s, border-color .12s; }
-.nav-item:hover { background: var(--panel2); color: var(--text); }
+.nav-item:hover { background: color-mix(in srgb, var(--panel2) 60%, transparent); color: var(--text); }
 .nav-item:hover .wi, .nav-item:focus-visible .wi { filter: none; }
-.nav-item.active { color: var(--text); font-weight: 700; }
-.nav-item.active::before { content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 2px; border-radius: 2px; background: var(--accent); }
+.nav-item.active, .nav-item.active:hover { background: var(--panel3); color: var(--text); font-weight: 700; border-radius: 0 8px 8px 0; }
+.nav-item.active::before { content: ""; position: absolute; left: -1px; top: -1px; bottom: -1px; width: 3px; background: var(--accent); }
 .nav-item.active .wi { filter: none; }
 .nav-item .nav-n { margin-left: auto; }
 

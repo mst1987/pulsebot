@@ -1,11 +1,11 @@
 // The marks for what only the orga sees (design canvas Oct 2026: E for whole pages, B for parts;
-// calmed in design C: neutral, no pill, no tint, no mark in the menu):
+// design C kept both in teal and only dropped the menu's dot):
 //
-//   OrgaChip  the quiet label in the top bar (after the breadcrumbs) on a page none of whose areas
+//   OrgaChip  the teal chip in the top bar (after the breadcrumbs) on a page none of whose areas
 //             the base access opens — "Orga-Bereich", the "Raider sehen diese Seite nicht /
 //             sichtbar für …" in its tooltip and accessible name, and for a full admin the way
 //             to look at it as a raider (the base access only)
-//   OrgaZone  the fine dashed frame around the orga's part of a page everybody sees
+//   OrgaZone  the tinted, dashed frame around the orga's part of a page everybody sees
 //             (the dashboard's orga block, the absence overview of all raiders)
 //
 // Who is named comes from the server (user.audience, lib/app/orgaArea.ts); without it
