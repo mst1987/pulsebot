@@ -231,9 +231,16 @@ async function refreshCenter({ config, force = false, now = Date.now() } = {}) {
     }
 }
 
-/** The text of the ping: the role, each addon with its version and a link to its patch notes on the web page. */
+/**
+ * The text of the ping: the role, each addon with its version and a link to its patch notes on the web page,
+ * plus "Jetzt auch auf CurseForge" for an addon with a CurseForge page.
+ */
 function pingContent(roleId, updates, lang) {
-    const items = updates.map((u) => `**${escapeMd(u.name)} ${escapeMd(u.version)}** ([${tr(lang, "Patch notes")}](<${patchNotesUrl(u.id)}>))`);
+    const items = updates.map((u) => {
+        const links = [`[${tr(lang, "Patch notes")}](<${patchNotesUrl(u.id)}>)`];
+        if (u.curseforge) links.push(`[${tr(lang, "Now also on CurseForge")}](<${u.curseforge}>)`);
+        return `**${escapeMd(u.name)} ${escapeMd(u.version)}** (${links.join(" · ")})`;
+    });
     return items.length === 1
         ? tr(lang, "{role} {item} is here.", { role: `<@&${roleId}>`, item: items[0] })
         : tr(lang, "{role} New versions: {items}", { role: `<@&${roleId}>`, items: items.join(" · ") });
@@ -314,7 +321,7 @@ async function checkVersions({ config, now = Date.now() } = {}) {
         }
         store.setSeen(e.addon.id, { version, previous: known.version, newSince: now, notifiedAt: 0 });
         out.updated.push(e.addon.id);
-        updates.push({ id: e.addon.id, name: e.addon.name, version });
+        updates.push({ id: e.addon.id, name: e.addon.name, version, curseforge: e.addon.curseforge || "" });
     }
     if (updates.length) out.pinged = await postUpdatePing(updates, { config: cfg, now });
     return out;

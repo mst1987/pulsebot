@@ -1,10 +1,11 @@
 // The pieces the page "Addons" (#818) and the detail page /addon/<id> share:
-// the download buttons (always the server's route, never GitHub), why there is
-// nothing to download, and the install steps.
+// the download buttons (always the server's route, never GitHub), the CurseForge
+// page as a second way when the addon has one, why there is nothing to download,
+// and the install steps.
 import { Link } from "react-router-dom";
 import type { AddonCard, AddonFile, ApiError } from "../../api";
 import { Badge, Button, buttonClass } from "../../components/ui";
-import { DownloadIcon, RefreshIcon, WarnIcon } from "../../components/ui/icons";
+import { DownloadIcon, ExternalIcon, RefreshIcon, WarnIcon } from "../../components/ui/icons";
 import { TOKEN_SETTINGS_LINK, addonFolder, fileLabel } from "../../lib/addons/addonInstall";
 import { useT } from "../../i18n";
 
@@ -37,6 +38,27 @@ export function DownloadButtons({ files, className = "" }: { files: AddonFile[];
                 </a>
             ))}
         </>
+    );
+}
+
+/**
+ * "Auf CurseForge": the addon's CurseForge project page in a new tab, next to the download
+ * (downloads there count for CurseForge's rewards). Nothing when the addon has none.
+ */
+export function CurseforgeLink({ addon, className = "" }: { addon: AddonCard; className?: string }) {
+    const t = useT();
+    if (!addon.curseforge) return null;
+    return (
+        <a
+            className={buttonClass("ghost", "md", true, ["dlp-curseforge", className].filter(Boolean).join(" "))}
+            href={addon.curseforge}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-tip={t("addon.curseforge")}
+            data-tip-sub={t("addon.curseforgeTip")}
+        >
+            <ExternalIcon /><span>{t("addon.curseforge")}</span>
+        </a>
     );
 }
 

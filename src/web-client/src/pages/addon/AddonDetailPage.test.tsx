@@ -31,7 +31,7 @@ const NOTES = [
 
 const levelhelper: api.AddonCard = {
     id: "levelhelper", name: "LevelHelper", description: "Leveling-Helfer für WoW Forever.", icon: "inv_misc_map02",
-    versions: ["forever"], install: "", state: "ok", stale: false, errorCode: "", fetchedAt: 1, orgaOnly: false,
+    versions: ["forever"], install: "", state: "ok", stale: false, errorCode: "", fetchedAt: 1, orgaOnly: false, curseforge: "",
     release: {
         version: "0.6.0", tag: "v0.6.0", publishedAt: "2026-10-16T10:00:00Z", notes: NOTES,
         assets: [{ name: "LevelHelper-0.6.0.zip", size: 574_464, sha256: "ab".repeat(32), kind: "zip", url: "/api/addons/download?addon=levelhelper&asset=LevelHelper-0.6.0.zip" }],
@@ -136,6 +136,33 @@ describe("page Addon-Detail", () => {
             const step = await screen.findByText(/Die Zip nach/);
             expect(step.textContent).toContain("<WoW>\\_anniversary_\\Interface\\AddOns\\ (WoW TBC) oder <WoW>\\_classic_beta_\\Interface\\AddOns\\ (WoW Forever)");
         });
+    });
+
+    it("offers the CurseForge page next to the download in a new tab, only when the addon has one", async () => {
+        const cf = "https://www.curseforge.com/wow/addons/pulse-aurakit";
+        vi.mocked(api.getAddonDetail).mockResolvedValue(detail({ ...levelhelper, curseforge: cf }));
+        open();
+        const link = await screen.findByRole("link", { name: "Auf CurseForge" });
+        expect(link).toHaveAttribute("href", cf);
+        expect(link).toHaveAttribute("target", "_blank");
+        expect(link).toHaveAttribute("rel", "noopener noreferrer");
+        expect(link.closest(".dlpd-actions")).not.toBeNull();
+        // the download stays the server's route
+        expect(screen.getByRole("link", { name: "LevelHelper-0.6.0.zip · 561 KB" })).toHaveAttribute("href", "/api/addons/download?addon=levelhelper&asset=LevelHelper-0.6.0.zip");
+    });
+
+    it("shows the CurseForge page also without a release", async () => {
+        const cf = "https://www.curseforge.com/wow/addons/pulse-macrohelper";
+        vi.mocked(api.getAddonDetail).mockResolvedValue(detail({ ...levelhelper, id: "macrohelper", name: "MacroHelper", state: "no_release", release: null, curseforge: cf }));
+        open("macrohelper");
+        expect(await screen.findByRole("link", { name: "Auf CurseForge" })).toHaveAttribute("href", cf);
+    });
+
+    it("has no CurseForge button for an addon without a link", async () => {
+        open();
+        await screen.findByRole("heading", { name: "LevelHelper", level: 1 });
+        expect(screen.queryByRole("link", { name: "Auf CurseForge" })).toBeNull();
+        expect(document.querySelector(".dlp-curseforge")).toBeNull();
     });
 
     it("keeps the head without a release, but leaves downloads, notes and install out", async () => {

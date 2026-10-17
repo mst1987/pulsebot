@@ -17,11 +17,11 @@ vi.mock("../../api", async (orig) => ({
 
 const LEVELHELPER: api.AddonSetting = {
     id: "levelhelper", name: "LevelHelper", description: "Leveling-Helfer.", repo: "mst1987/levelhelper", private: true,
-    assets: ["LevelHelper-*.zip"], versions: ["forever"], install: "", icon: "inv_misc_map02", enabled: true, orgaOnly: false,
+    assets: ["LevelHelper-*.zip"], versions: ["forever"], install: "", icon: "inv_misc_map02", enabled: true, orgaOnly: false, curseforge: "",
 };
 const SYNC: api.AddonSetting = {
     id: "eventhelper-sync", name: "EventHelper Sync", description: "", repo: "mst1987/eventhelper-addon", private: false,
-    assets: [], versions: ["tbc", "forever"], install: "", icon: "inv_gizmo_01", enabled: false, orgaOnly: true,
+    assets: [], versions: ["tbc", "forever"], install: "", icon: "inv_gizmo_01", enabled: false, orgaOnly: true, curseforge: "",
 };
 
 function data(over: Partial<api.AdminConfig> = {}): api.SettingsData {
@@ -150,6 +150,54 @@ describe("AddonsSection", () => {
         await user.click(within(dialog).getByRole("button", { name: "Abbrechen" }));
         await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
         expect(api.updateSettings).not.toHaveBeenCalled();
+    });
+
+    it("edits and saves the CurseForge link of an addon", async () => {
+        const user = userEvent.setup();
+        renderPage(<AddonsSection data={data()} onConfig={vi.fn()} />, { route: "/settings?section=addons" });
+        await user.click(within(rowOf("LevelHelper")).getByRole("button", { name: "Bearbeiten" }));
+        const input = screen.getByLabelText("CurseForge-Link", { selector: "input" });
+        expect(input).toHaveValue("");
+        await user.type(input, "https://www.curseforge.com/wow/addons/levelhelper");
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+        const sent = vi.mocked(api.updateSettings).mock.calls[0][0].addonDownloads!;
+        expect(sent[0]).toMatchObject({ id: "levelhelper", curseforge: "https://www.curseforge.com/wow/addons/levelhelper" });
+        expect(sent[1]).toMatchObject({ id: "eventhelper-sync", curseforge: "" });
+    });
+
+    it("shows a stored CurseForge link and lets the admin clear it", async () => {
+        const user = userEvent.setup();
+        const cf = "https://www.curseforge.com/wow/addons/pulse-aurakit";
+        renderPage(<AddonsSection data={data({ addonDownloads: [{ ...LEVELHELPER, curseforge: cf }, SYNC] })} onConfig={vi.fn()} />, { route: "/settings?section=addons" });
+        await user.click(within(rowOf("LevelHelper")).getByRole("button", { name: "Bearbeiten" }));
+        const input = screen.getByLabelText("CurseForge-Link", { selector: "input" });
+        expect(input).toHaveValue(cf);
+        await user.clear(input);
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0].addonDownloads![0]).toMatchObject({ curseforge: "" });
+    });
+
+    it("lets the browser flag a CurseForge address the server would drop (pattern as browsers compile it, v flag)", async () => {
+        const user = userEvent.setup();
+        renderPage(<AddonsSection data={data()} onConfig={vi.fn()} />, { route: "/settings?section=addons" });
+        await user.click(within(rowOf("LevelHelper")).getByRole("button", { name: "Bearbeiten" }));
+        const pattern = screen.getByLabelText("CurseForge-Link", { selector: "input" }).getAttribute("pattern")!;
+        const accepts = (value: string) => new RegExp(`^(?:${pattern})$`, "v").test(value);
+        for (const ok of [
+            "https://www.curseforge.com/wow/addons/pulse-aurakit",
+            "https://curseforge.com/wow/addons/pulse-aurakit/",
+            "http://legacy.curseforge.com/wow/addons/pulse-aurakit/files/123",
+            "https://www.curseforge.com/wow/addons/pulse-aurakit?ref=x",
+        ]) expect(accepts(ok)).toBe(true);
+        for (const bad of [
+            "https://www.curseforge.com/projects/1748186",
+            "https://www.curseforge.com/wow/addons/",
+            "https://www.curseforge.com/minecraft/mc-mods/x",
+            "https://evil.example/www.curseforge.com/wow/addons/x",
+            "https://www.curseforge.com/wow/addons/pulse_aurakit",
+        ]) expect(accepts(bad)).toBe(false);
     });
 
     it("speaks English", async () => {

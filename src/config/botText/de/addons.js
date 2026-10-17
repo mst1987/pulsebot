@@ -12,6 +12,8 @@ module.exports = {
     "Version {version}": "Version {version}",
     "{count} more addons are on the download page.": "{count} weitere Addons stehen auf der Download-Seite.",
     "Patch notes": "Patchnotes",
+    "CurseForge": "CurseForge",
+    "Now also on CurseForge": "Jetzt auch auf CurseForge",
     "Subscribe to updates": "Updates abonnieren",
     "{role} {item} is here.": "{role} {item} ist da.",
     "{role} New versions: {items}": "{role} Neue Versionen: {items}",

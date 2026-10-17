@@ -56,6 +56,8 @@ export type AddonCard = {
     private?: boolean;
     /** Only admins and orga roles get this card (the server leaves it out for everyone else). */
     orgaOnly: boolean;
+    /** The public CurseForge project page, "" for none (a second way to download). */
+    curseforge: string;
     release: AddonReleaseInfo | null;
 };
 
@@ -115,4 +117,6 @@ export type AddonSetting = {
     enabled: boolean;
     /** Only admins and orga roles see and download it. */
     orgaOnly: boolean;
+    /** The public CurseForge project page (https://www.curseforge.com/wow/addons/<slug>), "" for none. */
+    curseforge: string;
 };

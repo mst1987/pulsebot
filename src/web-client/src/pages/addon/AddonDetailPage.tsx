@@ -24,7 +24,7 @@ import { useContentVersion } from "../../hooks/useContentVersion";
 import { formatDate, formatDateTime } from "../../lib/format";
 import { noteGroups, type NoteGroup, type NoteSpan } from "../../lib/addons/addonInstall";
 import { useT } from "../../i18n";
-import { DownloadButtons, ErrorState, InstallGuide, StateNote } from "./AddonParts";
+import { CurseforgeLink, DownloadButtons, ErrorState, InstallGuide, StateNote } from "./AddonParts";
 import "../../styles/addon.css";
 import "../../styles/orga-mark.css";
 
@@ -84,6 +84,7 @@ function Detail({ data }: { data: AddonDetailData }) {
                     <div className="dlpd-actions">
                         <BackButton to={BACK} label={t("addon.detail.back")} />
                         {files.length > 0 && <DownloadButtons files={files} className="dlpd-download" />}
+                        <CurseforgeLink addon={addon} />
                     </div>
                     {addon.stale && release && (
                         <p className="dlp-stale dlpd-wide">{t("addon.state.stale", { time: formatDateTime(addon.fetchedAt) })}</p>

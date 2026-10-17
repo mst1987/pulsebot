@@ -23,6 +23,8 @@ const ICON = /^[a-z0-9_'-]{1,80}$/;
 const ZAMIMG = /^https:\/\/wow\.zamimg\.com\/images\/wow\/icons\/(?:small|medium|large)\/([a-z0-9_'-]{1,80})\.(?:jpg|png)$/i;
 // A file pattern: a file name with * and ? as wildcards, nothing that walks a path.
 const PATTERN = /^[A-Za-z0-9._*?+-]{1,80}$/;
+// A CurseForge project page: www./legacy./no prefix, http(s), anything after the slug.
+const CURSEFORGE = /^https?:\/\/(?:www\.|legacy\.)?curseforge\.com\/wow\/addons\/([a-z0-9-]{1,100})(?:[/?#].*)?$/i;
 
 const DEFAULT_ICON = "inv_misc_questionmark";
 
@@ -39,6 +41,7 @@ const DEFAULT_ADDONS = Object.freeze([
         icon: "inv_misc_map02",
         enabled: true,
         orgaOnly: false,
+        curseforge: "",
     }),
     Object.freeze({
         id: "professionkit",
@@ -52,6 +55,7 @@ const DEFAULT_ADDONS = Object.freeze([
         icon: "trade_blacksmithing",
         enabled: true,
         orgaOnly: false,
+        curseforge: "",
     }),
     Object.freeze({
         id: "aurakit",
@@ -65,6 +69,7 @@ const DEFAULT_ADDONS = Object.freeze([
         icon: "spell_holy_auraoflight",
         enabled: true,
         orgaOnly: false,
+        curseforge: "https://www.curseforge.com/wow/addons/pulse-aurakit",
     }),
     Object.freeze({
         id: "macrohelper",
@@ -78,6 +83,7 @@ const DEFAULT_ADDONS = Object.freeze([
         icon: "inv_misc_book_09",
         enabled: true,
         orgaOnly: false,
+        curseforge: "https://www.curseforge.com/wow/addons/pulse-macrohelper",
     }),
     Object.freeze({
         id: "eventhelper-sync",
@@ -91,6 +97,7 @@ const DEFAULT_ADDONS = Object.freeze([
         icon: "inv_gizmo_01",
         enabled: true,
         orgaOnly: true,
+        curseforge: "",
     }),
 ]);
 
@@ -153,6 +160,23 @@ function orgaOnlyOf(raw, id) {
     return !!(known && known.orgaOnly);
 }
 
+/** The canonical CurseForge project url of a typed one (https://www.curseforge.com/wow/addons/<slug>); "" when it is none. */
+function normalizeCurseforge(raw) {
+    const m = CURSEFORGE.exec(String(raw || "").trim());
+    return m ? `https://www.curseforge.com/wow/addons/${m[1].toLowerCase()}` : "";
+}
+
+/**
+ * The CurseForge link of an entry. A typed value (also "", the admin removed
+ * it) wins; an entry stored before the field existed takes the link of the
+ * DEFAULT_ADDONS entry with the same id, else "" — like orgaOnlyOf.
+ */
+function curseforgeOf(raw, id) {
+    if (raw !== undefined) return normalizeCurseforge(raw);
+    const known = DEFAULT_ADDONS.find((a) => a.id === id);
+    return known ? known.curseforge : "";
+}
+
 /**
  * One stored or submitted entry in its final shape, or null when it cannot be
  * one (no usable repo, no name). The id comes from the entry, else its name.
@@ -177,6 +201,7 @@ function normalizeAddon(raw) {
         icon: normalizeIcon(raw.icon),
         enabled: raw.enabled !== false,
         orgaOnly: orgaOnlyOf(raw.orgaOnly, id),
+        curseforge: curseforgeOf(raw.curseforge, id),
     };
 }
 
@@ -231,5 +256,5 @@ function assetMatches(addon, fileName) {
 module.exports = {
     DEFAULT_ADDONS, DEFAULT_ICON, MAX_ADDONS, MAX_PATTERNS, VERSION_IDS,
     defaultAddons, normalizeAddon, normalizeAddonList, storedAddonList, normalizeGithub, normalizeIcon, normalizeRepo,
-    normalizePatterns, normalizeVersions, slugify, patternRegex, assetMatches,
+    normalizeCurseforge, normalizePatterns, normalizeVersions, slugify, patternRegex, assetMatches,
 };

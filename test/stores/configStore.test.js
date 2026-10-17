@@ -288,6 +288,14 @@ describe("stores/configStore addon list (#818): never wiped by accident", () => 
         expect(configStore.getConfig().github.token).toBe("github_pat_NEW");
     });
 
+    it("keeps the CurseForge link through save and load; a stored list from before the field gets the default one", () => {
+        writeFile({ addonDownloads: [{ id: "aurakit", name: "AuraKit", repo: "mst1987/aurakit" }], addonDownloadsCustomized: true });
+        expect(configStore.getConfig().addonDownloads[0].curseforge).toBe("https://www.curseforge.com/wow/addons/pulse-aurakit");
+        configStore.saveConfig({ addonDownloads: [{ id: "aurakit", name: "AuraKit", repo: "mst1987/aurakit", curseforge: "" },
+            { id: "mine", name: "Mine", repo: "me/mine", curseforge: "https://curseforge.com/wow/addons/mine/" }], addonDownloadsCustomized: true });
+        expect(configStore.getConfig().addonDownloads.map((a) => a.curseforge)).toEqual(["", "https://www.curseforge.com/wow/addons/mine"]);
+    });
+
     it("ignores a list carried along without the edit mark - an unrelated save cannot wipe it", () => {
         configStore.saveConfig({ addonDownloads: [], officerRoleId: "o" });
         expect(ids(configStore.getConfig())).toEqual(DEFAULT_IDS);

@@ -159,6 +159,20 @@ describe("GET /api/addons/detail", () => {
         expect(text).not.toMatch(/github\.com/);
     });
 
+    it("passes the CurseForge page to every member, empty when the addon has none", async () => {
+        mockUser = member();
+        const list = body(await get("/api/addons", { version: "forever" }));
+        expect(list.addons.map((a) => [a.id, a.curseforge])).toEqual([
+            ["levelhelper", ""], ["professionkit", ""],
+            ["aurakit", "https://www.curseforge.com/wow/addons/pulse-aurakit"],
+            ["macrohelper", "https://www.curseforge.com/wow/addons/pulse-macrohelper"],
+        ]);
+        const detail = body(await get("/api/addons/detail", { addon: "aurakit" }));
+        expect(detail.addon.curseforge).toBe("https://www.curseforge.com/wow/addons/pulse-aurakit");
+        // also without a release: the link does not depend on GitHub
+        expect(detail.addon.release).toBeNull();
+    });
+
     it("keeps the state of an addon without a release", async () => {
         const data = body(await get("/api/addons/detail", { addon: "professionkit" }));
         expect(data.addon).toMatchObject({ id: "professionkit", state: "no_release", release: null });

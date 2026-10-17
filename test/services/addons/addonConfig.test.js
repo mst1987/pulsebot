@@ -175,3 +175,63 @@ describe("orgaOnly", () => {
         expect(list[0].orgaOnly).toBe(true);
     });
 });
+
+describe("curseforge", () => {
+    const { storedAddonList, normalizeCurseforge } = require("../../../src/services/addons/addonConfig");
+    const stored = (over) => ({ name: "X", repo: "x/x", ...over });
+    const CANON = "https://www.curseforge.com/wow/addons/pulse-aurakit";
+
+    it("is set by default for AuraKit and MacroHelper only", () => {
+        expect(DEFAULT_ADDONS.map((a) => [a.id, a.curseforge])).toEqual([
+            ["levelhelper", ""],
+            ["professionkit", ""],
+            ["aurakit", CANON],
+            ["macrohelper", "https://www.curseforge.com/wow/addons/pulse-macrohelper"],
+            ["eventhelper-sync", ""],
+        ]);
+    });
+
+    it("canonicalises the typed variants of a project url", () => {
+        for (const typed of [
+            CANON,
+            "https://curseforge.com/wow/addons/pulse-aurakit",
+            "http://www.curseforge.com/wow/addons/pulse-aurakit",
+            "https://www.curseforge.com/wow/addons/pulse-aurakit/",
+            "https://www.curseforge.com/wow/addons/pulse-aurakit/files/12345",
+            "https://www.curseforge.com/wow/addons/pulse-aurakit?ref=x",
+            "https://legacy.curseforge.com/wow/addons/pulse-aurakit",
+            "  HTTPS://WWW.CurseForge.com/wow/addons/Pulse-AuraKit  ",
+        ]) expect(normalizeCurseforge(typed)).toBe(CANON);
+    });
+
+    it("refuses anything that is no CurseForge wow addon page", () => {
+        for (const typed of [
+            "", null, undefined, 42, "pulse-aurakit",
+            "https://www.curseforge.com/wow/addons/",
+            "https://www.curseforge.com/minecraft/mc-mods/pulse-aurakit",
+            "https://evil.example/www.curseforge.com/wow/addons/pulse-aurakit",
+            "https://www.curseforge.com.evil.example/wow/addons/pulse-aurakit",
+            "https://www.curseforge.com/wow/addons/pulse_aurakit",
+            "javascript:alert(1)//www.curseforge.com/wow/addons/x",
+            `https://www.curseforge.com/wow/addons/${"a".repeat(101)}`,
+        ]) expect(normalizeCurseforge(typed)).toBe("");
+    });
+
+    it("of an entry stored before the field follows the default entry with the same id, else empty", () => {
+        expect(normalizeAddon(stored({ id: "aurakit" })).curseforge).toBe(CANON);
+        expect(normalizeAddon(stored({ id: "levelhelper" })).curseforge).toBe("");
+        expect(normalizeAddon(stored({ id: "my-own" })).curseforge).toBe("");
+    });
+
+    it("keeps an explicit empty value (the admin removed it) and a typed one", () => {
+        expect(normalizeAddon(stored({ id: "aurakit", curseforge: "" })).curseforge).toBe("");
+        expect(normalizeAddon(stored({ id: "aurakit", curseforge: "no url" })).curseforge).toBe("");
+        expect(normalizeAddon(stored({ id: "my-own", curseforge: "https://curseforge.com/wow/addons/my-own/" })).curseforge)
+            .toBe("https://www.curseforge.com/wow/addons/my-own");
+    });
+
+    it("shows up for the stored live list without an admin edit", () => {
+        const list = storedAddonList({ addonDownloads: [stored({ id: "aurakit" }), stored({ id: "macrohelper" })] });
+        expect(list.map((a) => a.curseforge)).toEqual([CANON, "https://www.curseforge.com/wow/addons/pulse-macrohelper"]);
+    });
+});
