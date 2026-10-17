@@ -25,7 +25,7 @@
 .re-seg .badge { font-size: 11.5px; }
 .re-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
 .re-pill {
-    display: inline-flex; align-items: center; gap: 7px; padding: 4px 6px 4px 5px; border-radius: 999px; min-height: 32px;
+    display: inline-flex; align-items: center; gap: 7px; padding: 4px 6px 4px 5px; border-radius: 3px; min-height: 32px;
     border: 1px solid var(--line); background: transparent; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .re-pill .wi { width: 20px; height: 20px; border-radius: 50%; }
@@ -44,7 +44,7 @@
 .re-head, .re-row { display: grid; grid-template-columns: var(--re-cols); align-items: center; gap: 16px; }
 .re-head {
     padding: 8px 16px; background: var(--panel2); border-bottom: 1px solid var(--line);
-    font: 600 11px/1.4 var(--font-mono); text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
+    font: 600 12.5px/1.4 var(--font-sans); color: var(--muted);
 }
 .re-head .tipped { cursor: help; justify-self: start; }
 .re-right { text-align: right; }
@@ -57,7 +57,7 @@
 .re-sort:not(.on):not(:first-child) { color: var(--muted); }
 .re-band {
     display: flex; align-items: center; gap: 10px; padding: 7px 16px; min-height: 36px; background: color-mix(in srgb, var(--panel2) 55%, transparent);
-    border-bottom: 1px solid var(--line); font: 700 11px/1.4 var(--font-mono); text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted);
+    border-bottom: 1px solid var(--line); font: 600 12.5px/1.4 var(--font-sans); color: var(--muted);
 }
 [role="rowgroup"] + [role="rowgroup"] .re-band { border-top: 1px solid var(--line); }
 .re-band b { color: var(--text); }
@@ -79,7 +79,7 @@ a.re-title:hover { color: var(--accent); text-decoration: none; }
 .re-sub { display: flex; align-items: center; gap: 8px; margin-top: 3px; font-size: 12.5px; color: var(--muted); min-width: 0; flex-wrap: wrap; }
 .re-chan { font-family: var(--font-mono); font-size: 12px; }
 .re-when b { display: block; font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
-.re-when span { font-size: 12.5px; color: var(--muted); font-family: var(--font-mono); white-space: nowrap; }
+.re-when span { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .re-bar { display: block; width: 120px; }
 .re-badges { display: flex; gap: 6px; flex-wrap: wrap; }
 .re-blink { text-decoration: none; }
@@ -199,7 +199,7 @@ a.re-title:hover { color: var(--accent); text-decoration: none; }
 .re-naming { margin-top: 6px; display: flex; min-width: 0; }
 .re-figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px; }
 .re-fig { display: flex; flex-direction: column; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); }
-.re-fig-lbl { font: 600 10.5px var(--font-mono); text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted); }
+.re-fig-lbl { font: 500 12px var(--font-sans); color: var(--muted); }
 .re-fig-val { font-size: 22px; font-weight: 800; letter-spacing: -.3px; line-height: 1.15; }
 @media (max-width: 640px) {
     .re-step-lbl { display: none; }
@@ -230,7 +230,7 @@ a.re-title:hover { color: var(--accent); text-decoration: none; }
 .dc-author b { color: var(--discord-dark-strong); font-size: 14px; }
 .dc-avatar { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); }
 .dc-avatar svg { width: 18px; height: 18px; }
-.dc-app { font: 700 10px/1 var(--font-mono); text-transform: uppercase; letter-spacing: .6px; padding: 3px 5px; border-radius: 4px; background: var(--discord-blurple); color: var(--on-fill); vertical-align: 2px; }
+.dc-app { font: 700 10px/1 var(--font-sans); text-transform: uppercase; letter-spacing: .6px; padding: 3px 5px; border-radius: 4px; background: var(--discord-blurple); color: var(--on-fill); vertical-align: 2px; }
 .dc-time { font-size: 12px; color: var(--discord-dark-muted); }
 .dc-pings { margin: 0 0 8px; }
 .dc-ping { color: var(--discord-dark-mention-text); background: var(--discord-dark-mention); border-radius: 3px; padding: 0 3px; font-weight: 600; }

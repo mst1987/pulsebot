@@ -22,7 +22,7 @@
 .rd-hero-main { display: flex; align-items: flex-end; gap: 16px 24px; padding: 22px 24px 18px; flex-wrap: wrap; }
 .rd-hero-sup {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 6px;
-    font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+    font-size: 12px; font-weight: 500; color: var(--muted);
 }
 .rd-hero .hero-title { margin: 0; font-size: 30px; font-weight: 600; letter-spacing: -.015em; line-height: 1.15; }
 .rd-hero .hero-when { margin-top: 8px; gap: 6px 8px; font-size: 14.5px; }
@@ -51,7 +51,7 @@
 .rd-step:last-child { border-right: 0; }
 .rd-step:hover { background: var(--panel2); }
 .rd-step:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.rd-step-l { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rd-step-l { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rd-step-v { font-size: 16px; font-weight: 500; line-height: 1.3; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rd-step-v small { font-size: 13px; color: var(--muted); margin-left: 4px; }
 .rd-step-badge { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
@@ -65,7 +65,7 @@
 /* ---- the raid cockpit of an own event (#319): six steps as a text bar, name over value ---- */
 .rd-cockpit { border-top: 1px solid var(--line); }
 /* the collapsed line: narrow screens only */
-.rd-ck-sum { display: none; margin: 0; padding: 12px 16px 0; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; font-weight: 500; color: var(--muted); }
+.rd-ck-sum { display: none; margin: 0; padding: 12px 16px 0; font-size: 12px; font-weight: 500; color: var(--muted); }
 .rd-ck-steps { list-style: none; display: flex; flex-wrap: nowrap; margin: 0; padding: 0; }
 .rd-ck-steps > li { display: flex; flex: 1 1 0; min-width: 0; border-right: 1px solid var(--line-soft); }
 .rd-ck-steps > li:last-child { border-right: 0; }
@@ -171,7 +171,7 @@ button.rd-ck:focus-visible { outline: 2px solid var(--accent); outline-offset: -
 /* an own event's signups (#256): the extra marks, details in the tooltip */
 .rd-own { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .rd-own-marks { display: inline-flex; gap: 4px; margin-left: auto; flex: 0 0 auto; }
-.rd-own-mark { font: 500 11px/1 var(--font-mono); color: var(--muted); padding: 2px 0; }
+.rd-own-mark { font: 500 12px/1 var(--font-sans); color: var(--muted); padding: 2px 0; }
 .rd-own-marks + .rd-pstat { margin-left: 6px; }
 
 /* ---- grouped lists (owner head + entries under it) ---- */
@@ -212,7 +212,7 @@ span.rd-chip { cursor: default; padding-right: 3px; }
     padding: 7px 12px 7px 56px; border-top: 1px solid var(--line-soft); background: var(--panel); min-width: 0;
 }
 .rd-loot-th { background: var(--panel2); border-top: 0; padding-top: 7px; padding-bottom: 7px; }
-.rd-loot-th > span, .rd-log-row.rd-loot-th > span { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.rd-loot-th > span, .rd-log-row.rd-loot-th > span { font-size: 12.5px; color: var(--muted); font-weight: 600; }
 .rd-loot-grp { display: contents; }
 .rd-item { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .rd-item > img, .rd-item-ph { width: 22px; height: 22px; border-radius: 5px; flex: 0 0 auto; }
