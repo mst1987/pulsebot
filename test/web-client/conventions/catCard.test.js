@@ -31,13 +31,13 @@ function rule(selector) {
 }
 
 describe("Kategorien list", () => {
-    it("is a list with a tinted mono head instead of a card per category", () => {
+    it("is a list with a tinted head instead of a card per category", () => {
         expect(matrix).not.toContain("catcard");
         expect(matrix).toContain("className=\"cat-row cat-head\"");
         const head = rule(".cat-row.cat-head");
         expect(head).toContain("var(--panel2)");
-        expect(head).toContain("var(--font-mono)");
-        expect(head).toContain("text-transform: uppercase");
+        // design pilot C: a quiet sentence-case head, no mono capitals
+        expect(head).not.toContain("text-transform: uppercase");
         // head and rows share one grid, so the columns line up
         expect(rule(".cat-row")).toContain("grid-template-columns:");
     });
