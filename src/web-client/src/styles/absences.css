@@ -93,7 +93,7 @@
 
 .ab-day { flex: 0 0 var(--ab-dw); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; height: 34px; }
 .ab-day:nth-child(7n + 1) { border-left: 1px solid var(--line); }
-.ab-day-ini { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+.ab-day-ini { font-size: var(--fs-label); font-weight: 600; line-height: 1; color: var(--muted); }
 .ab-day.is-raid { background: var(--accent-soft); }
 .ab-day.is-raid .ab-day-ini { color: var(--text); }
 .ab-day.is-today .ab-day-ini { color: var(--accent); }
