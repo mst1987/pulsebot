@@ -166,27 +166,28 @@ input[type=checkbox]:checked::after {
 /* A link to the dashboard, styled as the brand block it always was: no link
    colour or underline, the crest answers the pointer instead. */
 .brand { display: flex; align-items: center; gap: 12px; padding: 18px 18px 16px; border-bottom: 1px solid var(--line-soft); color: inherit; text-decoration: none; }
-.brand:hover .crest, .brand:focus-visible .crest { box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--accent); }
+.brand:hover .crest, .brand:focus-visible .crest { box-shadow: 0 0 0 2px var(--line); }
 .brand:focus-visible { outline: none; }
-.crest { width: 40px; height: 40px; border-radius: 10px; flex: 0 0 auto; display: grid; place-items: center; background: linear-gradient(150deg, var(--accent), var(--accent-2)); color: var(--accent-ink); }
+.crest { width: 40px; height: 40px; border-radius: 10px; flex: 0 0 auto; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); }
 .crest svg { width: 22px; height: 22px; }
 .brand-name { font-weight: 800; font-size: 16px; }
-.brand-sub { font-size: 10.5px; font-family: var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; margin-top: 1px; }
+.brand-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
 /* the menu scrolls on a short screen (wheel, touch, keyboard) but shows no scrollbar right beside the entries */
 nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; flex: 1; overflow-y: auto; scrollbar-width: none; }
 nav.menu::-webkit-scrollbar { display: none; }
-.menu-label { font-size: 10.5px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1.3px; color: var(--muted); opacity: .7; padding: 14px 12px 6px; }
+.menu-label { font-size: 12px; font-weight: 500; color: var(--muted); padding: 14px 12px 4px; }
 /* Menu entries lead with their WoW icon (src/config/menu.json): slightly
-   desaturated at rest, full colour on hover, and ringed in the section's own
-   --area-* colour when active — also on the sub pages of the entry (the
-   settings sections, the raid plan's pages), which its page's rail lists. */
+   desaturated at rest, full colour on hover. The active entry (also on the sub
+   pages of the entry: the settings sections, the raid plan's pages, which its
+   page's rail lists) is quiet, design C: full text colour, a heavier weight and
+   a thin rust line on the left; no tinted card, no ring. */
 .nav-item { --area: var(--accent); --area-soft: var(--accent-soft); display: flex; align-items: center; gap: 12px; padding: 7px 12px; border-radius: 8px; color: var(--muted); font-weight: 600; font-size: 14.5px; text-decoration: none; border: 1px solid transparent; position: relative; transition: background .12s, color .12s, border-color .12s; }
 .nav-item .wi { width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); flex: 0 0 auto; filter: saturate(.45) brightness(.8); transition: filter .12s, box-shadow .12s, border-color .12s; }
 .nav-item:hover { background: var(--panel2); color: var(--text); }
 .nav-item:hover .wi, .nav-item:focus-visible .wi { filter: none; }
-.nav-item.active { background: var(--area-soft); color: var(--text); border-color: var(--area-soft); }
-.nav-item.active::before { content: ""; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--area); }
-.nav-item.active .wi { filter: none; border-color: var(--area); box-shadow: 0 0 0 2px var(--area-soft); }
+.nav-item.active { color: var(--text); font-weight: 700; }
+.nav-item.active::before { content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 2px; border-radius: 2px; background: var(--accent); }
+.nav-item.active .wi { filter: none; }
 .nav-item .nav-n { margin-left: auto; }
 
 /* ===== the icon rail of a page with sub sections (components/ui/SectionRail.tsx,
@@ -225,7 +226,7 @@ nav.menu::-webkit-scrollbar { display: none; }
     .srail-list { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }
     .srail-group { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; flex-basis: 100%; }
     .srail-group + .srail-group::before { display: none; }
-    .srail-label { display: block; flex-basis: 100%; font-size: 10.5px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); opacity: .7; padding: 6px 0 0; }
+    .srail-label { display: block; flex-basis: 100%; font-size: 12px; font-weight: 500; color: var(--muted); padding: 6px 0 0; }
     .srail-group:first-child .srail-label { padding-top: 0; }
     .srail-item { width: auto; height: auto; display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-color: var(--line); border-radius: 8px; font-size: 14px; font-weight: 600; text-align: left; }
     .srail-text { display: inline; }
@@ -472,10 +473,11 @@ nav.menu::-webkit-scrollbar { display: none; }
 :root[data-theme="light"] .item-quality { color: color-mix(in srgb, var(--iq) 62%, var(--ink-shade)); }
 
 .flash { border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 14px; }
-.flash-ok { background: var(--good-bg); color: var(--good); border: 1px solid var(--good); }
-.flash-err { background: var(--high-bg); color: var(--high); border: 1px solid var(--high); }
+/* quiet, design C: a line on the left in the state's colour and the words in it; no frame, no tint */
+.flash-ok { color: var(--good); border-left: 2px solid var(--good); border-radius: 0; }
+.flash-err { color: var(--high); border-left: 2px solid var(--high); border-radius: 0; }
 /* a hint worth acting on, not an error (e.g. the raid plan link without groups) */
-.flash-warn { background: var(--medium-bg); color: var(--medium); border: 1px solid var(--medium); }
+.flash-warn { color: var(--medium); border-left: 2px solid var(--medium); border-radius: 0; }
 
 /* ===== Components several modules render (components/raid/RaidIcon.tsx, components/channels/NamingBadge.tsx).
    Their look lives here, not in the stylesheet of the first page that used them: a page
