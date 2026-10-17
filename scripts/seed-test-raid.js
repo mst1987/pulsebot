@@ -77,35 +77,70 @@ function gurtoggDemo(key) {
 
 /**
  * Illidan's phase 2 in the demo (#712): Illidan flies up, the raid goes to the middle into five tight camps (a Fireball splashes
- * 10 yd round its target), two glaives land west and east and a Flame of Azzinoth rises at each; tank 2 and tank 3 take one flame
- * each out to their side and kite it round their own glaive, the flame a second behind leaving its Blaze as a trail. The circle
- * round a glaive is the leash: a flame (and the raid) has to stay near it, else Uncaged Wrath. The game facts (spells, icons,
- * 10 yd splash, glaives west / east, leash) were checked against Wowhead TBC and warcraft.wiki.gg plus guides (Oct 2026); the
- * places on the map are the demo's own layout, not data. Returns the objects of the board and the scene.
+ * 10 yd round its target), two glaives land west and east and a Flame of Azzinoth rises at each; the druids (tank 2 and tank 3)
+ * take one flame each out to their side and kite it round their own glaive stop by stop: the flame stands a moment, lays its green
+ * fire (Blaze) on the ground, then the druid moves on and the flame follows - the green fire stays behind. Meanwhile an Eye Blast
+ * sweeps over the west side and leaves blue fire for a while; the west druid has to move on through it, as behind him lies the
+ * green fire. The circle round a glaive is the leash: a flame (and the raid) has to stay near it, else Uncaged Wrath. The game facts
+ * (spells, icons, 10 yd splash, glaives west / east, leash) were checked against Wowhead TBC and warcraft.wiki.gg plus guides (Oct
+ * 2026); the stop-and-go kiting and the blue fire left by the Eye Blast are how the user's guild plays it, the places on the map
+ * the demo's own layout, not data. Returns the objects of the board and the scene.
  */
 function illidanPhase2Demo() {
     const r2 = (n) => Math.round(n * 100) / 100;
+    const r3 = (n) => Math.round(n * 1000) / 1000;
     const glaiveW = [0.27, 0.46], glaiveE = [0.73, 0.46];
-    // the kite path round the west glaive on its outer side (the east one mirrored), the tank's first point is where it takes its flame
-    const kiteW = [[0.22, 0.22], [0.12, 0.3], [0.08, 0.46], [0.12, 0.62], [0.22, 0.7], [0.3, 0.66], [0.3, 0.28]];
-    const mirror = (path) => path.map(([x, y]) => [r2(1 - x), y]);
-    const kiteE = mirror(kiteW);
+    // the west druid's stops round his glaive on its outer side, from north over west to south, 25 degrees apart (on the demo's wide
+    // board 0.17 of the width is about 0.3 of the height); the east side mirrored
+    const arc = (deg) => [r3(glaiveW[0] + 0.17 * Math.cos((deg * Math.PI) / 180)), r3(glaiveW[1] + 0.3 * Math.sin((deg * Math.PI) / 180))];
+    const mirror = ([x, y]) => [r3(1 - x), y];
+    const lerp = ([ax, ay], [bx, by], f) => [r3(ax + (bx - ax) * f), r3(ay + (by - ay) * f)];
+    const stopsW = [260, 235, 210, 185, 160, 135, 110, 85].map(arc);
+    // the flame stands behind its druid, most of the way back to his last stop (so the two do not cover each other on the map)
+    const flamesW = [arc(285), ...stopsW.slice(1).map((p, i) => lerp(stopsW[i], p, 0.3))];
+    const side = {
+        w: { tank: "slot:illtk2", flame: "icon:flame1", stops: stopsW, flames: flamesW, done: 0 },
+        e: { tank: "slot:illtk3", flame: "icon:flame2", stops: stopsW.map(mirror), flames: flamesW.map(mirror), done: 0 },
+    };
     // the five camps as a cross in the middle, where both leash circles overlap (warcraft.wiki.gg: up to five tight groups as a cross)
     const camps = { 1: [0.5, 0.26], 2: [0.36, 0.5], 3: [0.64, 0.5], 4: [0.5, 0.74], 5: [0.5, 0.5] };
     // phase 1: the melee groups at Illidan, the others behind them
     const phase1 = { 1: [0.43, 0.32], 2: [0.57, 0.32], 3: [0.3, 0.6], 4: [0.5, 0.72], 5: [0.7, 0.6] };
     const group = (n) => ({ id: `illg${n}`, kind: "group", n, label: "", x: camps[n][0], y: camps[n][1], split: true, groupScale: 0.45 });
     const icon = (id, iconKey, [x, y], extra = {}) => ({ id, iconKey, label: "", showLabel: false, x, y, size: 48, rotation: 0, autoFace: false, opacity: 1, lock: false, hidden: false, ...extra });
-    // the leash round a glaive: a circle on the demo's wide board (w 0.5 of the width = h 0.8 of the height), both overlap in the middle
-    const leash = (id, [x, y], label) => ({ id, shape: "ellipse", type: "custom", label, color: "#5f8f3a", opacity: 0.18, x: r2(x - 0.25), y: r2(y - 0.4), w: 0.5, h: 0.8 });
+    // the leash round a glaive: a circle on the demo's wide board (w 0.5 of the width = h 0.8 of the height), both overlap in the middle;
+    // neutral grey, green is the flames' fire
+    const leash = (id, [x, y], label) => ({ id, shape: "ellipse", type: "custom", label, color: "#8f8a80", opacity: 0.16, x: r2(x - 0.25), y: r2(y - 0.4), w: 0.5, h: 0.8 });
     // the 10 yd splash of a Fireball round camp 3
     const splash = { id: "fireball", shape: "ellipse", type: "danger", label: "Feuerball", opacity: 0.25, x: r2(camps[3][0] - 0.07), y: r2(camps[3][1] - 0.11), w: 0.14, h: 0.22 };
+    // the green fire a flame lays where it stood (a danger zone: never step in), and the blue fire of the Eye Blast across the west
+    // druid's way (a plain area: bad, but better than the green; no label, the druid's name would cover it - the caption says it)
+    const blaze = (id, [x, y]) => ({ id, shape: "ellipse", type: "danger", label: "", color: "#4fa82a", opacity: 0.6, x: r3(x - 0.03), y: r3(y - 0.048), w: 0.06, h: 0.096 });
+    const blue = [{ id: "bluefire", shape: "rect", type: "custom", label: "", color: "#4a78c8", opacity: 0.55, x: 0.03, y: 0.35, w: 0.3, h: 0.05 }];
+    const blazes = [];
     const ch = (obj, extra) => ({ delay: 0, dur: 1, ease: "inout", obj, ...extra });
-    const loop = (id, obj, path, from, trail) => ({ id, obj, path, closed: true, period: 10, from, to: 0, trail });
+    // one kite stop of a side: the flame has stood a moment, lays its green fire, then the druid moves on and the flame follows
+    const step = (s) => {
+        const d = side[s];
+        const i = d.done++;
+        const id = `blaze${s}${i}`;
+        blazes.push(blaze(id, d.flames[i]));
+        const [tx, ty] = d.stops[i + 1];
+        const [fx, fy] = d.flames[i + 1];
+        return [ch(`zone:${id}`, { hidden: false, delay: 0.4, dur: 0.4 }), ch(d.tank, { x: tx, y: ty, delay: 1, dur: 1 }), ch(d.flame, { x: fx, y: fy, delay: 1.4, dur: 0.9 })];
+    };
+    const both = () => [...step("w"), ...step("e")];
+    // built before the first frame, which hides every fire they lay
+    const kite = {
+        k1: both(), k2: both(),
+        // the Eye Blast: the west druid waits, the east one kites on
+        eye: step("e"),
+        dodge: both(), fb: both(), off: both(), end: both(),
+    };
     const groups = [1, 2, 3, 4, 5];
-    const objects = ["icon:glaivew", "icon:glaivee", "icon:flame1", "icon:flame2", "zone:leashw", "zone:leashe", "zone:fireball"];
+    const objects = ["icon:glaivew", "icon:glaivee", "icon:flame1", "icon:flame2", "zone:leashw", "zone:leashe", "zone:fireball", ...blue.map((z) => `zone:${z.id}`), ...blazes.map((z) => `zone:${z.id}`)];
     const scene = {
-        id: "illp2", title: "Phase 2: Flammen und Camps", loop: false, length: 24,
+        id: "illp2", title: "Phase 2: Flammen und Camps", loop: false, length: 30,
         frames: [
             { id: "p1", at: 0, caption: "Phase 1: Illidan am Boden, der Raid um ihn herum",
                 changes: [ch("icon:illidanb", { x: 0.5, y: 0.22 }), ...groups.map((n) => ch(`slot:illg${n}`, { x: phase1[n][0], y: phase1[n][1] })),
@@ -117,28 +152,34 @@ function illidanPhase2Demo() {
                     ch("slot:illtk1", { x: 0.5, y: 0.88, dur: 2 })] },
             { id: "p3", at: 4.6, caption: "Illidan wirft zwei Glaiven: eine nach Westen, eine nach Osten",
                 changes: [ch("icon:glaivew", { hidden: false, pulse: true, dur: 0.4 }), ch("icon:glaivee", { hidden: false, pulse: true, dur: 0.4 }),
-                    ch("slot:illtk2", { x: kiteW[0][0], y: kiteW[0][1], dur: 2.2 }), ch("slot:illtk3", { x: kiteE[0][0], y: kiteE[0][1], dur: 2.2 })] },
+                    ch("slot:illtk2", { x: side.w.stops[0][0], y: side.w.stops[0][1], dur: 2.2 }), ch("slot:illtk3", { x: side.e.stops[0][0], y: side.e.stops[0][1], dur: 2.2 })] },
             { id: "p4", at: 6.2, caption: "An jeder Glaive steigt eine Flamme von Azzinoth auf",
                 changes: [ch("icon:flame1", { hidden: false, badge: "spell_fire_felfire", pulse: true, dur: 0.6 }), ch("icon:flame2", { hidden: false, badge: "spell_fire_felfire", pulse: true, dur: 0.6 }),
                     ch("icon:glaivew", { pulse: false, dur: 0 }), ch("icon:glaivee", { pulse: false, dur: 0 })] },
             { id: "p5", at: 7.8, caption: "Der Kreis um die Glaive: Flamme und Raid bleiben drin, sonst Ungezügelter Hass (+500 % Schaden)",
                 changes: [ch("zone:leashw", { hidden: false, dur: 0.8 }), ch("zone:leashe", { hidden: false, dur: 0.8 })] },
-            { id: "p6", at: 10, caption: "Tank 2 und Tank 3 holen je eine Flamme nach außen, ihr Feuerstoß zeigt vom Raid weg",
-                changes: [ch("icon:flame1", { x: 0.25, y: 0.27, dur: 1.2, pulse: false }), ch("icon:flame2", { x: 0.75, y: 0.27, dur: 1.2, pulse: false })] },
-            { id: "p7", at: 11.5, caption: "Kiten: im Kreis um die eigene Glaive, immer in Bewegung, nie in die Feuerspur (Lohe)", changes: [] },
-            { id: "p8", at: 16.5, caption: "Feuerball trifft alles 10 Meter um sein Ziel: eng im eigenen Camp, Abstand zu den anderen",
-                changes: [ch("slot:illg3", { badge: "spell_fire_blueflamebolt", pulse: true, dur: 0 }), ch("zone:fireball", { hidden: false, dur: 0.3 })] },
-            { id: "p9", at: 19.5, caption: "Bis beide Flammen tot sind, dann landet Illidan (Phase 3)",
-                changes: [ch("slot:illg3", { badge: "", pulse: false, dur: 0 }), ch("zone:fireball", { hidden: true, dur: 0.5 })] },
+            { id: "p6", at: 10, caption: "Die Druiden (Tank 2 und 3) holen je eine Flamme nach außen, ihr Feuerstoß zeigt vom Raid weg",
+                changes: [ch("icon:flame1", { x: side.w.flames[0][0], y: side.w.flames[0][1], dur: 1.2, pulse: false }), ch("icon:flame2", { x: side.e.flames[0][0], y: side.e.flames[0][1], dur: 1.2, pulse: false })] },
+            { id: "p7", at: 11.6, caption: "Die Flamme bleibt kurz stehen und legt grünes Feuer (Lohe), dann zieht der Druide sie weiter", changes: kite.k1 },
+            { id: "p8", at: 14.2, caption: "Halt, grünes Feuer, weiter: so wandert die Flamme um ihre Glaive, die Lohe bleibt hinter ihr liegen", changes: kite.k2 },
+            { id: "p9", at: 16.8, caption: "Augenstrahl: Illidan zieht einen Strahl über die Westseite, dahinter bleibt blaues Feuer liegen",
+                changes: [ch("icon:illidanb", { badge: "spell_fire_fireball02", pulse: true, dur: 0 }), ...blue.map((z) => ch(`zone:${z.id}`, { hidden: false, delay: 0.3, dur: 1 })), ...kite.eye] },
+            { id: "p10", at: 19.6, caption: "Der Druide im Westen muss weiter: hinter ihm liegt grünes Feuer, also lieber kurz durchs blaue",
+                changes: [ch("icon:illidanb", { badge: "", pulse: false, dur: 0 }), ...kite.dodge] },
+            { id: "p11", at: 22.2, caption: "Feuerball trifft alles 10 Meter um sein Ziel: eng im eigenen Camp, Abstand zu den anderen",
+                changes: [ch("slot:illg3", { badge: "spell_fire_blueflamebolt", pulse: true, dur: 0 }), ch("zone:fireball", { hidden: false, dur: 0.3 }), ...kite.fb] },
+            { id: "p12", at: 24.8, caption: "Das blaue Feuer liegt eine Weile und verschwindet dann, die Druiden kiten weiter",
+                changes: [ch("slot:illg3", { badge: "", pulse: false, dur: 0 }), ch("zone:fireball", { hidden: true, dur: 0.5 }), ...blue.map((z) => ch(`zone:${z.id}`, { hidden: true, dur: 0.8 })), ...kite.off] },
+            { id: "p13", at: 27.4, caption: "Bis beide Flammen tot sind, dann landet Illidan (Phase 3)", changes: kite.end },
         ],
-        loops: [loop("lt2", "slot:illtk2", kiteW, 11.5, false), loop("lf1", "icon:flame1", kiteW, 12.5, true), loop("lt3", "slot:illtk3", kiteE, 11.5, false), loop("lf2", "icon:flame2", kiteE, 12.5, true)],
+        loops: [],
     };
     return {
         groups: groups.map(group),
-        tanks: { 1: [0.5, 0.88], 2: kiteW[0], 3: kiteE[0] },
+        tanks: { 1: [0.5, 0.88], 2: side.w.stops[0], 3: side.e.stops[0] },
         icons: [icon("glaivew", "wow:inv_weapon_glave_01", glaiveW, { size: 40 }), icon("glaivee", "wow:inv_weapon_glave_01", glaiveE, { size: 40 })],
-        flames: { flame1: [0.25, 0.27], flame2: [0.75, 0.27] },
-        zones: [leash("leashw", glaiveW, "Glaive West"), leash("leashe", glaiveE, "Glaive Ost"), splash],
+        flames: { flame1: side.w.flames[0], flame2: side.e.flames[0] },
+        zones: [leash("leashw", glaiveW, "Glaive West"), leash("leashe", glaiveE, "Glaive Ost"), splash, ...blue, ...blazes],
         scene,
     };
 }

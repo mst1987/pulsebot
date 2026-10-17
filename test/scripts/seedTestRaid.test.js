@@ -53,17 +53,41 @@ describe("seed-test-raid", () => {
         const [want] = raw.scenes;
         expect(scene.stepId).toBe("illkite");
         expect(scene.frames.map((f) => [f.at, f.changes.length])).toEqual(want.frames.map((f) => [f.at, f.changes.length]));
-        expect(scene.loops.map((l) => [l.obj, l.from, l.trail])).toEqual(want.loops.map((l) => [l.obj, l.from, l.trail]));
-        // the glaives, flames, leash circles and the Fireball's splash start hidden and appear in their frame; the tank rows place
-        // nothing of their own meanwhile
-        expect(scene.frames[0].changes.filter((c) => c.hidden === true).map((c) => c.obj).sort()).toEqual(["icon:flame1", "icon:flame2", "icon:glaivee", "icon:glaivew", "zone:fireball", "zone:leashe", "zone:leashw"]);
+        expect(scene.loops).toEqual([]);
+        // the glaives, flames and every zone (leash circles, the Fireball's splash, the green and the blue fire) start hidden and appear
+        // in their frame; the tank rows place nothing of their own meanwhile
+        expect(scene.frames[0].changes.filter((c) => c.hidden === true).map((c) => c.obj).sort()).toEqual(["icon:flame1", "icon:flame2", "icon:glaivee", "icon:glaivew", ...board.zones.map((z) => `zone:${z.id}`)].sort());
         expect(board.autoPlace).toBe(false);
-        // a tank starts kiting where it stands after the frames, and its flame follows on the same path a second later
-        const tank2 = scene.loops.find((l) => l.obj === "slot:illtk2");
-        const flame1 = scene.loops.find((l) => l.obj === "icon:flame1");
-        expect(flame1.path).toEqual(tank2.path);
-        expect(flame1.from - tank2.from).toBe(1);
-        expect(board.slots.find((s) => s.id === "illtk2")).toMatchObject({ x: tank2.path[0][0], y: tank2.path[0][1] });
+        // stop and go: in every kite step the flame has stood, lays its green fire, then the druid moves on and only after him the flame
+        const moves = (obj) => scene.frames.flatMap((f) => f.changes.filter((c) => c.obj === obj && c.x !== undefined).map((c) => ({ f, c })));
+        // (the first two moves: his place in phase 1, then out to where he takes his flame)
+        const kiteSteps = moves("slot:illtk2").slice(2);
+        expect(kiteSteps.length).toBeGreaterThanOrEqual(5);
+        for (const { f, c } of kiteSteps) {
+            const fire = f.changes.find((x) => /^zone:blazew\d+$/.test(x.obj) && x.hidden === false);
+            const flame = f.changes.find((x) => x.obj === "icon:flame1" && x.x !== undefined);
+            expect(fire.delay + fire.dur).toBeLessThanOrEqual(c.delay);
+            expect(flame.delay).toBeGreaterThan(c.delay);
+        }
+        // the green fire stays: once laid, no frame takes it away
+        expect(scene.frames.slice(1).flatMap((f) => f.changes).filter((c) => /^zone:blaze/.test(c.obj) && c.hidden === true)).toEqual([]);
+        // the Eye Blast: the blue fire lies across the west druid's way, he waits during the beam and then goes through it (behind him the
+        // green fire), and it goes again later
+        const eye = scene.frames.find((f) => f.changes.some((c) => c.obj === "icon:illidanb" && c.badge === "spell_fire_fireball02"));
+        expect(eye.changes.some((c) => c.obj === "slot:illtk2")).toBe(false);
+        const blue = board.zones.filter((z) => /^bluefire/.test(z.id));
+        expect(eye.changes.filter((c) => /^zone:bluefire/.test(c.obj) && c.hidden === false)).toHaveLength(blue.length);
+        const at = (i) => scene.frames.indexOf(eye) + i;
+        const before = moves("slot:illtk2").filter(({ f }) => scene.frames.indexOf(f) < at(0)).pop().c;
+        const through = moves("slot:illtk2").find(({ f }) => scene.frames.indexOf(f) === at(1)).c;
+        const top = Math.min(...blue.map((z) => z.y));
+        const bottom = Math.max(...blue.map((z) => z.y + z.h));
+        expect(before.y).toBeLessThan(top);
+        expect(through.y).toBeGreaterThan(bottom);
+        expect(blue.some((z) => through.x >= z.x && through.x <= z.x + z.w)).toBe(true);
+        expect(scene.frames.slice(at(2)).flatMap((f) => f.changes).filter((c) => /^zone:bluefire/.test(c.obj) && c.hidden === true)).toHaveLength(blue.length);
+        // a druid's slot stands where he takes his flame
+        expect(board.slots.find((s) => s.id === "illtk2")).toMatchObject({ x: moves("slot:illtk2")[1].c.x, y: moves("slot:illtk2")[1].c.y });
         // the auto demo places nothing by hand
         expect(seed.illidanBoard("bt/illidan-stormrage", seed.demoSlots(), true)).toMatchObject({ slots: [], icons: [], scenes: [] });
     });

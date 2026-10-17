@@ -180,14 +180,17 @@ drawn with "Weg zeichnen" in its sentence. The mechanics below are unchanged.
 
 - **Gurtogg Bloodboil:** five split group markers and "Bloodboil-Rotation" (6 frames: the group at the back gets
   Bloodboil, runs to the front on a curve, the next one falls back half a second later, twice).
-- **Illidan:** "Phase 2: Flammen und Camps" (9 frames and 4 loops, `illidanBoard` in the seed script): Illidan flies up
+- **Illidan:** "Phase 2: Flammen und Camps" (13 frames, no loops, `illidanBoard` in the seed script): Illidan flies up
   (faded, smaller), the five groups go from their phase 1 places into five tight camps as a cross in the middle, two
   glaives land west and east (`wow:inv_weapon_glave_01`), a Flame of Azzinoth rises at each, the leash circle round each
-  glaive fades in (flame and raid stay inside, else Uncaged Wrath), tank 2 / tank 3 take one flame each to the outside and
-  kite it round their own glaive while the flame follows a second behind leaving its Blaze as a trail, then a Fireball
-  marks camp 3 with its 10 yd splash. The board has `autoPlace: false`: while the hand-placed flames are hidden, the tank
-  rows would otherwise put flames of their own on the map. The game facts were checked against Wowhead TBC and
-  warcraft.wiki.gg plus guides (Oct 2026); the places on the map are the demo's layout.
+  glaive fades in (flame and raid stay inside, else Uncaged Wrath), the druids (tank 2 / tank 3) take one flame each to
+  the outside and kite it round their own glaive stop by stop: the flame stands, lays its green fire (a hidden `danger`
+  zone per stop that appears and stays), then the druid moves on and the flame follows. An Eye Blast (badge on Illidan)
+  leaves blue fire across the west druid's way; he waits, then goes through it, as behind him lies the green fire; the
+  blue fire goes again two frames later. A Fireball marks camp 3 with its 10 yd splash meanwhile. The board has
+  `autoPlace: false`: while the hand-placed flames are hidden, the tank rows would otherwise put flames of their own on
+  the map. The game facts were checked against Wowhead TBC and warcraft.wiki.gg plus guides (Oct 2026); the stop-and-go
+  kiting and the blue fire are how the user's guild plays it, the places on the map the demo's layout.
 
 ## Tests
 
