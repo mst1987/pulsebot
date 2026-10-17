@@ -105,11 +105,11 @@ describe("building blocks", () => {
         expect(block).not.toMatch(/:\s*gold\b|goldenrod|#d4af37|#ffd700|#c9a227|#e6b422/i);
     });
 
-    it("gives the table head the report pages' tinted mono look", () => {
+    it("gives the table head a tinted row in the normal font, no mono capitals", () => {
         const th = css.match(/\ntable\.idx th \{[^}]+\}/)[0];
         expect(th).toContain("background: var(--panel2)");
-        expect(th).toContain("font-family: var(--font-mono)");
-        expect(th).toContain("text-transform: uppercase");
+        expect(th).not.toContain("font-family: var(--font-mono)");
+        expect(th).not.toContain("text-transform: uppercase");
     });
 });
 

@@ -333,6 +333,12 @@ describe("GET /api/raidplan/public", () => {
         expect(d).toMatchObject({ me: "", loggedIn: false });
     });
 
+    it("hands out the raid's game version with its colour, the page's accent (#742)", async () => {
+        const d = body(await publicGet(await publish()));
+        expect(d.version).toMatchObject({ id: "tbc", custom: false });
+        expect(d.version.color).toMatch(/^#[0-9a-f]{6}$/i);
+    });
+
     it("marks the viewer's own token when they are logged in and in the plan", async () => {
         const token = await publish();
         expect(body(await publicGet(token, { id: "u1" }))).toMatchObject({ me: "u1", loggedIn: true });

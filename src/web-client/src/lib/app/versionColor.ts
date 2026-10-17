@@ -87,7 +87,7 @@ export function derivePalette(hex: string): VersionPalette {
  * Writes the custom colours of `versions` to the root as --vc-* variables and
  * removes the ones that went back to the default, so tokens.css' fallback applies.
  */
-export function applyVersionColors(root: HTMLElement, versions: ContentVersionRef[]): void {
+export function applyVersionColors(root: HTMLElement, versions: Pick<ContentVersionRef, "id" | "color" | "custom">[]): void {
     for (const v of versions) {
         const names = ["dark", "light", "ink-dark", "ink-light"].map((n) => `--vc-${v.id}-${n}`);
         if (!v.custom || !v.color || !isHexColor(v.color)) {

@@ -12,7 +12,7 @@
 .rp-strip-pick.is-unsaved { box-shadow: 0 0 0 2px var(--rp-warn), 0 0 10px var(--rp-warn-a50); }
 .rp-strip-titles { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
 .rp-strip-name { font-size: 15px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rp-strip-pos { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.rp-strip-pos { font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }
 .rp-strip-chev { margin-left: auto; flex: 0 0 auto; color: var(--muted); }
 .rp-strip-right { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-left: auto; min-width: 0; }
 .rp-strip .rp-tool-status { flex: 0 1 auto; margin-left: 0; }
@@ -28,7 +28,7 @@
 .rp-strip-item.rp-bosschip:hover, .rp-strip-item.rp-bosschip:focus-visible { background: var(--panel2); border-color: var(--line); outline: none; }
 .rp-strip-item.rp-bosschip.is-on { background: var(--accent-soft); border-color: var(--accent); }
 .rp-strip-item .rp-bosschip-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
-.rp-strip-no { font-size: 11px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rp-strip-no { font-size: var(--fs-label); font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
 .rp-strip-eye { display: inline-grid; place-items: center; flex: 0 0 auto; width: 28px; height: 28px; padding: 0; border: 1px solid transparent; border-radius: 7px; background: none; color: var(--muted); cursor: pointer; }
 .rp-strip-eye:hover, .rp-strip-eye:focus-visible { border-color: var(--line); color: var(--text); outline: none; }
 .rp-strip-row.is-out .rp-strip-eye { color: var(--rp-warn); }
@@ -55,7 +55,7 @@
 /* ---- the view "Karte": one labelled tool row, the board in the full width, the players not placed in a slim column ---- */
 .rp-maptools { gap: 6px 8px; padding: 6px 10px; }
 .rp-maptools .rp-tool-sep { align-self: center; height: 24px; }
-.rp-tool-kicker { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.rp-tool-kicker { font-size: 12px; font-weight: 800; color: var(--muted); }
 .rp-maptools-end { gap: 6px; margin-left: auto; }
 .rp-maptools .rp-viewopts-pop { max-height: none; }
 .rp-maptools .rp-viewopts-pop .rp-link.rp-view-row { display: inline-flex; align-items: center; gap: 8px; min-height: var(--ctl-h-sm, 32px); padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; }

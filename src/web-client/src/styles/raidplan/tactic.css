@@ -40,7 +40,7 @@
 .rp-steps-starter li span, .rp-lib-tile li span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rp-steps-starter .rp-acard-add { justify-content: center; margin-top: 2px; }
 .rp-st-cols, .rp-st-row { display: grid; grid-template-columns: 44px 30px minmax(0, 1fr) minmax(0, 1.5fr) 118px 76px; gap: 0 10px; align-items: center; }
-.rp-st-cols { padding: 0 18px 0 20px; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.rp-st-cols { padding: 0 18px 0 20px; font-size: 12px; font-weight: 700; color: var(--muted); }
 .rp-st-cols .is-end { text-align: right; }
 .rp-st-list { list-style: none; margin: 0; padding: 0 12px; display: flex; flex-direction: column; gap: 6px; }
 .rp-st-row { position: relative; min-height: 48px; padding: 8px 6px 8px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
@@ -67,7 +67,7 @@ dialog.dlg.rp-stm { width: min(860px, calc(100vw - 32px)) !important; max-height
 .rp-stm-parts { display: none; }
 .rp-stm-sec > h3 { display: flex; align-items: center; gap: 6px; }
 .rp-stm-sec > h3 .rp-muted { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 12.5px; }
-.rp-stm-no { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); font-size: 11px; }
+.rp-stm-no { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); font-size: var(--fs-label); }
 .rp-stm-acts { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
 .rp-stm-act { display: flex; align-items: center; gap: 6px; min-width: 0; height: 34px; padding: 0 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--text); font: inherit; font-size: 12.5px; cursor: pointer; text-align: left; }
 .rp-stm-act span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -129,7 +129,7 @@ dialog.dlg.rp-lib { width: min(860px, calc(100vw - 32px)) !important; }
     .rp-stm-parts button { flex: 1 1 auto; }
     .rp-stm-sec:not(.is-cur), .rp-stm-preview { display: none; }
     .rp-stm-acts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .rp-stm-act { height: 32px; font-size: 11.5px; }
+    .rp-stm-act { height: 32px; font-size: var(--fs-label); }
     .rp-stm-two { grid-template-columns: 1fr; }
     .rp-stm-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .rp-lib-grid { grid-template-columns: 1fr; }
@@ -160,7 +160,7 @@ dialog.dlg.rp-lib { width: min(860px, calc(100vw - 32px)) !important; }
 .rp-unsaved-btn { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border: 1px solid var(--rp-warn-strong); border-radius: 7px; background: var(--rp-warn); color: var(--rp-warn-ink); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 .rp-unsaved-btn:disabled { opacity: .6; cursor: default; }
 .rp-unsaved-key { margin-left: auto; font-size: 12px; opacity: .85; }
-.rp-unsaved-key kbd { padding: 1px 5px; border: 1px solid currentColor; border-radius: 4px; font-family: var(--font-mono, monospace); font-size: 11px; }
+.rp-unsaved-key kbd { padding: 1px 5px; border: 1px solid currentColor; border-radius: 4px; font-family: var(--font-mono, monospace); font-size: var(--fs-label); }
 .rp-savebtn { display: inline-flex; align-items: center; gap: 6px; height: var(--ctl-h-sm); padding: 0 12px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
 .rp-savebtn:disabled { cursor: default; }
 .rp-savebtn.is-clean { color: var(--rp-saved-ink); border-color: color-mix(in srgb, var(--rp-ok) 50%, var(--line)); }

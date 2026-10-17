@@ -71,7 +71,9 @@ function PlayerRow({ onOpen, tip, tipSub, children }: { onOpen?: () => void; tip
  * they "can also" do and their comment sit in the tooltip, never in the row.
  * The sign-offs are one badge with the names in its tooltip.
  */
-function OwnSignupGroups({ signups, openPlayer }: { signups: EventSignupEntry[]; openPlayer: RaidCtx["openPlayer"] }) {
+function OwnSignupGroups({ signups, target, roleTargets, openPlayer }: {
+    signups: EventSignupEntry[]; target?: number; roleTargets?: Partial<Record<GameRole, number>> | null; openPlayer: RaidCtx["openPlayer"];
+}) {
     const t = useT();
     const coming = signups.filter((s) => s.status !== "absence");
     const absent = signups.filter((s) => s.status === "absence");
@@ -79,14 +81,32 @@ function OwnSignupGroups({ signups, openPlayer }: { signups: EventSignupEntry[];
     // Nobody moves up by itself; this is the line that says there is someone to move.
     const bench = signups.filter((s) => s.status === "bench");
     if (!signups.length) return <p className="rd-empty">{t("raidDetail.roster.ownEmpty")}</p>;
+    // Design pilot C: one lead sentence instead of a badge row - how many come, then the doubts as words
+    const nComing = coming.filter((s) => s.status !== "bench").length;
+    const doubts = SIGNUP_ORDER.filter((st) => st !== "signed" && st !== "bench" && st !== "absence")
+        .map((st) => ({ st, n: coming.filter((s) => s.status === st).length }))
+        .filter((x) => x.n > 0)
+        .map((x) => `${x.n} ${SIGNUP_META[x.st].label.toLowerCase()}`);
     return (
         <>
+            <p className="rd-lead" aria-label={t("raidDetail.roster.leadAria")}>
+                <b>{target ? t("raidDetail.roster.lead", { count: nComing, target }) : t("raidDetail.roster.leadNoTarget", { count: nComing })}</b>
+                {doubts.map((d) => <span key={d} className="rd-lead-sub">{d}</span>)}
+            </p>
             <div className="rd-groups rd-own">
                 {OWN_ROLES.map((role) => {
                     const list = coming.filter((s) => s.role === role);
+                    // the planned places of the role (its composition): "3 von 3", an open place in the accent
+                    const want = roleTargets?.[role];
+                    const signed = list.filter((s) => s.status !== "bench").length;
                     return (
                         <div className="rd-group" key={role}>
-                            <div className="rd-group-head"><span className="kicker">{ROLE_META[role].label}</span><Badge count>{list.length}</Badge></div>
+                            <div className="rd-group-head">
+                                <span className="kicker">{ROLE_META[role].label}</span>
+                                {want
+                                    ? <span className={signed < want ? "rd-gh-n open" : "rd-gh-n"}>{t("raidDetail.roster.roleHeadOf", { count: signed, target: want })}</span>
+                                    : <span className="rd-gh-n">{t("raidDetail.roster.roleHeadCount", { count: list.length })}</span>}
+                            </div>
                             <div className="rd-plist">
                                 {list.map((s) => {
                                     const also = s.canAlso.map((r) => CAN_ALSO[r].label).join(", ");
@@ -117,7 +137,7 @@ function OwnSignupGroups({ signups, openPlayer }: { signups: EventSignupEntry[];
                                                 {s.canAlso.length > 0 && <span className="rd-own-mark" aria-label={t("raidDetail.roster.canAlso", { roles: also })}>+{s.canAlso.length}</span>}
                                                 {s.comment && <span className="rd-own-mark" aria-label={t("raidDetail.roster.comment")}>…</span>}
                                             </span>
-                                            {s.status !== "signed" && <span className={`rd-sig rd-sig-${s.status}`} aria-label={SIGNUP_META[s.status].label} />}
+                                            {s.status !== "signed" && <span className={`rd-pstat rd-pstat-${s.status}`}>{SIGNUP_META[s.status].label}</span>}
                                         </PlayerRow>
                                     );
                                 })}
@@ -333,14 +353,14 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
             )}
 
             {data.ownSignups
-                ? <OwnSignupGroups signups={data.ownSignups} openPlayer={openPlayer} />
+                ? <OwnSignupGroups signups={data.ownSignups} target={data.signupTarget} roleTargets={data.roleTargets} openPlayer={openPlayer} />
                 : !setup?.total
                 ? !setupError && <p className="rd-empty">{t("raidDetail.roster.noPlan")}</p>
                 : (
                     <div className="rd-groups">
                         {setup.groups.map((g, gi) => (
                             <div className="rd-group" key={gi}>
-                                <div className="rd-group-head"><span className="kicker">{g.label}</span><Badge count>{g.players.length}</Badge></div>
+                                <div className="rd-group-head"><span className="kicker">{g.label}</span><span className="rd-gh-n">{t("raidDetail.roster.groupHeadCount", { count: g.players.length })}</span></div>
                                 <div className="rd-plist">
                                     {g.players.map((p, pi) => {
                                         const status = statusByName.get(norm(p.name));
@@ -355,7 +375,7 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
                                                     <span className={`rd-pname ${classColorProps(p.classColor).className || ""}`} style={classColorProps(p.classColor).style}>{p.name}</span>
                                                     <span className="rd-pspec">{p.specName}</span>
                                                 </span>
-                                                {status && status !== "signed" && <span className={`rd-sig rd-sig-${status}`} aria-label={SIGNUP_META[status].label} />}
+                                                {status && status !== "signed" && <span className={`rd-pstat rd-pstat-${status}`}>{SIGNUP_META[status].label}</span>}
                                             </PlayerRow>
                                         );
                                     })}

@@ -1,4 +1,5 @@
-// The marks for what only the orga sees (design canvas Oct 2026: E for whole pages, B for parts):
+// The marks for what only the orga sees (design canvas Oct 2026: E for whole pages, B for parts;
+// design C kept both in teal and only dropped the menu's dot):
 //
 //   OrgaChip  the teal chip in the top bar (after the breadcrumbs) on a page none of whose areas
 //             the base access opens — "Orga-Bereich", the "Raider sehen diese Seite nicht /
@@ -80,13 +81,4 @@ export function OrgaZone({ user, categories = false, children }: { user: Session
             <div className="orga-zone-body">{children}</div>
         </section>
     );
-}
-
-/**
- * The menu's small mark beside an orga page. Silent for screen readers: it would change the
- * link's name ("Roster Orga-Bereich"), and the page's chip says it in words.
- */
-export function OrgaDot() {
-    const t = useT();
-    return <span className="orga-dot" aria-hidden="true" data-tip={t("shell.orga.label")} />;
 }

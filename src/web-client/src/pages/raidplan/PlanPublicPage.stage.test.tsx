@@ -56,6 +56,20 @@ beforeEach(() => {
     vi.mocked(api.getRaidplanPublic).mockReset();
 });
 
+describe("the version colour", () => {
+    it("takes the raid's version as the page's accent and gives it back on leaving (#742)", async () => {
+        window.history.replaceState(null, "", "/p/abc#boss=general");
+        vi.mocked(api.getRaidplanPublic).mockResolvedValue({ data: { ...plan("u1"), version: { id: "forever", color: "#123456", custom: true } }, etag: "" });
+        const r = render(<PlanPublicPage token="abc" />);
+        await screen.findByRole("heading", { level: 1 });
+        const root = document.documentElement;
+        expect(root).toHaveAttribute("data-version", "forever");
+        expect(root.style.getPropertyValue("--vc-forever-dark")).not.toBe("");
+        r.unmount();
+        expect(root).not.toHaveAttribute("data-version");
+    });
+});
+
 describe("the bar", () => {
     it("names the open section with its place and steps to its neighbours", async () => {
         await open();

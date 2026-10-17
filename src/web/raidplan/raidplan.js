@@ -22,6 +22,13 @@ const stepsOf = require("../../services/raidplan/raidplanSteps");
 const besetzungOf = require("../../services/raidplan/raidplanBesetzung");
 const catalogStore = require("../../stores/raidplanCatalogStore");
 const { catalogEnabled } = require("../../services/events/versionCapabilities");
+const { versionColor } = require("../../services/events/versionSettings");
+
+/** The version as the public page needs it for its colour: id, colour, and whether that colour is the setting's own (#742). */
+function publicVersion(versionId) {
+    const { color, custom } = versionColor(versionId);
+    return { id: versionId, color, custom };
+}
 
 /** The catalog a plan of a version gets: no mobs and no spells while "Raidplan-Katalog" is off for it (#761). */
 function catalogFor(versionId) {
@@ -372,6 +379,8 @@ function publicView(plan, event, { me = "" } = {}) {
     }
     return {
         event: { title: event.title, startTime: event.startTime },
+        // the raid's game version and its colour: the page takes it as its accent like every page with a version (#742)
+        version: publicVersion(planVersion(event)),
         // how many sections hold something but are left out of the sheet (a number only, nothing of them)
         hiddenCount: bossList(event, { templateId: plan.templateId }).filter((b) => plan.bosses[b.key] && plan.bosses[b.key].inSheet === false).length,
         bosses,

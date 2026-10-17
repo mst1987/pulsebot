@@ -20,7 +20,8 @@ function roleBadge(role: "event" | "talk"): { label: string; tip: string; tipSub
 function RoleBadge({ role }: { role?: GuildRole }) {
     if (!role) return null;
     const b = roleBadge(role);
-    return <Badge tone="accent" tip={b.tip} tipSub={b.tipSub}>{b.label}</Badge>;
+    // neutral (design C): which server this is, not a state; the colour stays free for states
+    return <Badge tip={b.tip} tipSub={b.tipSub}>{b.label}</Badge>;
 }
 
 // Topbar server switcher — mirrors src/web/renderAdmin.js's renderServerBar(),

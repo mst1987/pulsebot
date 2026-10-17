@@ -35,6 +35,7 @@ import { formatEventTime } from "../../lib/format";
 import { rememberSection, rememberedSection, rosterMap, sectionLabel, severalInstances, startSection } from "../../lib/raidplan";
 import { cleanNames } from "../../lib/raidplan/mention";
 import { useT } from "../../i18n";
+import { applyVersionColors, markVersion } from "../../lib/app/versionColor";
 import "../../styles/raidplan/index.css";
 
 /** the width of "Alle Aufgaben" (stage.css .rp-sheet-panel) */
@@ -90,6 +91,17 @@ export default function PlanPublicPage({ token }: { token: string }) {
         return d;
     }), [token]);
     const { data, error, setData } = plan;
+    // the raid's version colour is the page's accent, as on every menu page with a version (#742)
+    const versionId = data?.version?.id || "";
+    const versionColor = data?.version?.color;
+    const versionCustom = data?.version?.custom;
+    useEffect(() => {
+        if (!versionId) return undefined;
+        const root = document.documentElement;
+        applyVersionColors(root, [{ id: versionId, color: versionColor, custom: versionCustom }]);
+        markVersion(root, versionId);
+        return () => markVersion(root, null);
+    }, [versionId, versionColor, versionCustom]);
     // the chosen section into the address and this browser - by hand, by following the log or on the first load (#555)
     useEffect(() => {
         if (!selected) return;

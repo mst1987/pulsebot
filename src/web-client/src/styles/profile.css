@@ -39,7 +39,7 @@
 :root[data-theme="light"] :is(.pf-tab, .pf-tabmenu-item) .pf-tab-name { color: color-mix(in srgb, var(--cc, var(--text)) 35%, var(--ink-shade)); }
 .pf-tab-warn {
     width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center;
-    background: var(--medium-bg); color: var(--medium); font: 800 11px/1 var(--font-mono);
+    background: var(--medium-bg); color: var(--medium); font: 800 var(--fs-label)/1 var(--font-mono);
 }
 .pf-tab-more { display: none; }
 @media (max-width: 640px) {
@@ -90,7 +90,6 @@
 
 .pf-card {
     background: var(--panel); border: 1px solid var(--line); padding: 0 0 12px; position: relative;
-    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
 }
 .pf-card .part-head { border-radius: 0; border-width: 0 0 1px; }
 .pf-card .ph-act { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -132,7 +131,7 @@
 .pf-days { display: flex; flex-wrap: wrap; gap: 6px; }
 .pf-day, .pf-raid, .pf-class {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 4px 12px;
-    border-radius: 999px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted);
+    border-radius: 3px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted);
     font: 700 13px/1 inherit; cursor: pointer;
 }
 .pf-day { min-width: 48px; min-height: 36px; }
@@ -153,7 +152,7 @@
 .pf-day.is-on { background: color-mix(in srgb, var(--day) 26%, var(--panel2)); border-color: var(--day); color: var(--text); }
 .pf-day-sum { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 .pf-day-tag {
-    padding: 1px 7px; border-radius: 999px; font-weight: 700; font-size: 12px; color: var(--day-ink);
+    padding: 1px 7px; border-radius: 3px; font-weight: 700; font-size: 12px; color: var(--day-ink);
     background: color-mix(in srgb, var(--day) 18%, transparent);
 }
 
@@ -270,7 +269,7 @@
 
 .pf-wishes { display: flex; flex-direction: column; gap: 8px; }
 .pf-wish-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.pf-wish { display: inline-flex; align-items: center; gap: 6px; padding: 2px 2px 2px 12px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); font-weight: 700; }
+.pf-wish { display: inline-flex; align-items: center; gap: 6px; padding: 2px 2px 2px 12px; border-radius: 3px; background: var(--panel2); border: 1px solid var(--line); font-weight: 700; }
 .pf-search { display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .pf-search svg { width: 15px; height: 15px; flex: 0 0 auto; }
 .pf-search input { flex: 1; min-width: 0; }
@@ -305,7 +304,6 @@
 .pf-way {
     display: grid; gap: 8px; justify-items: start; align-content: start; text-align: left; padding: 18px; cursor: pointer;
     background: var(--panel); border: 1px solid var(--line); color: var(--text); font: inherit;
-    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
 }
 .pf-way:hover { border-color: var(--area-profile); background: var(--area-profile-soft); }
 .pf-way .wi { border-radius: 8px; }

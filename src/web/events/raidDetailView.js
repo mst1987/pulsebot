@@ -75,6 +75,21 @@ function eventVersionSettings(found, config) {
 
 const isOwn = (found) => found.e.source === "eventhelper";
 
+/**
+ * An own event's planned places per role (its composition), for the role heads "3 von 3":
+ * a role without a planned number (melee/ranged left open) is missing, null for an event without any.
+ */
+function roleTargetsOf(stored) {
+    const comp = stored && stored.composition;
+    if (!comp) return null;
+    const out = {};
+    for (const role of ["tank", "healer", "melee", "ranged"]) {
+        const n = Number(comp[role]);
+        if (Number.isInteger(n) && n > 0) out[role] = n;
+    }
+    return Object.keys(out).length ? out : null;
+}
+
 /** The state "Event verwalten" (#288) sets on an own event, for the page head and the menu. */
 function manageState(eventId, stored = getEvent(eventId)) {
     const ev = stored || {};
@@ -467,6 +482,8 @@ async function buildRaidDetail({ guildId, eventId, planPost = true, viewer = nul
         attendanceSource: attendanceInfo.attendanceSource,
         membersError: attendanceInfo.membersError,
         signupTarget: softresInfo.signupTarget,
+        // an own event's planned places per role (its composition): the role heads read "3 von 3"
+        roleTargets: roleTargetsOf(stored),
         lootItems: withLootClassLook(listLootByEvent(eventId)),
         lootTool: (getConfig().categoryLootTool || {})[found.g.categoryId] || "",
         // Softres, Loot-Council, … — decides whether the softres step and menu
@@ -496,6 +513,6 @@ module.exports = {
     // only for the tests: not part of the module's API
     _internal: {
         findEvent, setupPart, attendancePart, ownEventPart, softresPart, logsPart, eventMeta, playerSummariesPart,
-        manageState, raidplanSwitchedOn, setupPostState, forRaider,
+        manageState, raidplanSwitchedOn, setupPostState, forRaider, roleTargetsOf,
     },
 };

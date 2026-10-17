@@ -6,6 +6,7 @@ import type { NotifyTemplate } from "./notifyTemplates";
 import type { LootItem } from "./history";
 import type { EventSignupEntry } from "./signups";
 import type { RaidGroup } from "./setup";
+import type { GameRole } from "./raidTemplates";
 
 /** Role bucket of a raidplan spec — mirrors roleOf() in src/utils/setupView.js. */
 export type SetupRole = "tank" | "healer" | "melee" | "ranged" | "dps";
@@ -68,6 +69,8 @@ export type RaidEventStep = {
     value: string;
     unit: string;
     note: string;
+    /** Die feste Id einer Randnotiz ohne Zahl und Namen ("afterRaid") — der Client übersetzt über sie. */
+    noteId?: string;
     fill?: number | null;
     /** Der eine erklärende Satz — er steht im Tooltip, nicht auf der Fläche. */
     hint: string;
@@ -80,6 +83,7 @@ export type RaidEventSteps = {
     action: RaidStepDeed | null;
     cancelled: boolean;
     note: string;
+    noteId?: string;
 };
 
 /** What the player dialog shows beyond this raid — src/web/raidPlayerSummary.js. */
@@ -227,6 +231,8 @@ export type RaidDetailData = {
     attendanceSource?: "roster" | "roles" | null;
     membersError: string | null;
     signupTarget: number;
+    /** An own event's planned places per role (its composition); a role without a number is missing, null without any. */
+    roleTargets?: Partial<Record<GameRole, number>> | null;
     lootItems: LootItem[];
     lootTool: string;
     /** Softres, Loot-Council, … — whether the softres step and menu entry are offered. */

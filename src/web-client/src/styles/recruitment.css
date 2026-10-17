@@ -95,7 +95,7 @@
 .dc-row { display: flex; gap: 14px; }
 .dc-ava {
     width: 40px; height: 40px; border-radius: 50%; flex: 0 0 auto; display: grid; place-items: center;
-    background: linear-gradient(150deg, var(--brand-violet), var(--brand-cyan)); color: var(--brand-ink);
+    background: var(--accent); color: var(--accent-ink);
 }
 .dc-ava svg { width: 22px; height: 22px; }
 .dc-msg { min-width: 0; flex: 1; }
@@ -128,7 +128,7 @@
 .rc-app-badges { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 0 0 14px; }
 .rc-app-class { font-weight: 800; font-size: 15px; margin-right: 4px; }
 dl.rc-meta { display: grid; grid-template-columns: 150px 1fr; gap: 8px 16px; margin: 0; }
-dl.rc-meta dt { color: var(--muted); font-size: 12px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .06em; padding-top: 2px; }
+dl.rc-meta dt { color: var(--muted); font-size: 12px; padding-top: 2px; }
 dl.rc-meta dd { margin: 0; font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 560px) { dl.rc-meta { grid-template-columns: 1fr; gap: 2px 0; } dl.rc-meta dd { margin-bottom: 8px; } }
 .rc-link { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }

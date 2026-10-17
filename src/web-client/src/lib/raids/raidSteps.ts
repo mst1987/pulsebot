@@ -27,6 +27,16 @@ export function deedLabel(deed: RaidStepDeed): string {
 }
 
 /**
+ * Eine Randnotiz (eines Schritts oder der ganzen Leiste) in der Menüsprache: über
+ * ihre feste Id ("afterRaid"), sonst der Text des Servers — Notizen mit Zahl,
+ * Name oder Datum schickt er ohne Id.
+ */
+export function noteText(item: { note: string; noteId?: string }): string {
+    if (!item.noteId) return item.note || "";
+    return tOr(`raidDetail.steps.note.${item.noteId}`, item.note);
+}
+
+/**
  * Wie ein Zustand heißt. „Übersprungen“ ist bewusst kein Fehlerwort: ein Raid
  * ohne Setup ist ein gewöhnlicher Raid, kein kaputter.
  */
@@ -50,9 +60,9 @@ export function stepPosition(steps: RaidEventStep[], id: string): string {
  * "Schritt 3 von 5 · Setup" — oder, wenn nichts offen ist, warum.
  */
 export function stepSummary(progress: RaidEventSteps): string {
-    if (progress.cancelled) return progress.note || t("raidDetail.steps.cancelled");
+    if (progress.cancelled) return noteText(progress) || t("raidDetail.steps.cancelled");
     const step = progress.steps.find((s) => s.id === progress.current);
-    if (!step) return progress.note || t("raidDetail.steps.nothingOpen");
+    if (!step) return noteText(progress) || t("raidDetail.steps.nothingOpen");
     return `${stepPosition(progress.steps, step.id)} · ${stepTitle(step)}`;
 }
 
@@ -69,12 +79,35 @@ export function stepShort(step: RaidEventStep): string {
 }
 
 /**
+ * Die zweite Zeile einer Zelle: der kurze Wert, sonst die Randnotiz des Servers
+ * ("Raidplan leer", "nach dem Raid") — nie eine nackte Nummer, nie eine leere Zeile,
+ * solange der Server etwas zu sagen hat.
+ */
+export function stepLine(step: RaidEventStep): string {
+    return stepShort(step) || noteText(step);
+}
+
+/**
+ * Der ruhige Streifen, wenn kein Schritt dran ist: der Satz des Servers ("Alles
+ * erledigt, was vor dem Raid zu tun war.") und der nächste spätere Schritt — mit
+ * seiner Tat, falls er eine hat (z. B. "Raidplan öffnen"), sonst nur mit dem Satz,
+ * wann es weitergeht. Null, solange ein Schritt dran oder der Raid abgesagt ist.
+ */
+export function stepLater(progress: RaidEventSteps): { title: string; text: string; step: RaidEventStep | null } | null {
+    if (progress.cancelled || progress.steps.some((s) => s.id === progress.current)) return null;
+    const step = progress.steps.find((s) => s.state === "todo") || null;
+    const title = noteText(progress) || t("raidDetail.steps.nothingOpen");
+    if (!step) return { title, text: "", step: null };
+    return { title, text: t("raidDetail.steps.later", { what: stepTitle(step), text: step.hint || noteText(step) }), step };
+}
+
+/**
  * Der Streifen unter der Leiste: "Jetzt dran: Einteilungen posten" und der eine
  * erklärende Satz dazu (sonst die Randnotiz). Ohne Tat (Leser) heißt er nach dem Schritt.
  */
 export function stepFocus(step: RaidEventStep): { title: string; text: string } {
     const what = step.action ? deedLabel(step.action) : stepTitle(step);
-    return { title: t("raidDetail.steps.focus", { what }), text: step.hint || step.note || "" };
+    return { title: t("raidDetail.steps.focus", { what }), text: step.hint || noteText(step) };
 }
 
 /**
@@ -83,7 +116,7 @@ export function stepFocus(step: RaidEventStep): { title: string; text: string } 
  * was ein Klick tut.
  */
 export function stepTipSub(step: RaidEventStep, withDeed: boolean): string {
-    const parts = [step.note, step.hint];
+    const parts = [noteText(step), step.hint];
     if (withDeed && step.action) parts.push(t("raidDetail.steps.clickDeed", { action: deedLabel(step.action) }));
     return parts.filter(Boolean).join(" · ");
 }
