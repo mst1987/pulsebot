@@ -3,7 +3,7 @@
 .sr-page { display: flex; flex-direction: column; gap: 18px; }
 .sr-page .ph-act { display: flex; align-items: center; gap: 8px; }
 .sr-muted { color: var(--muted); font-size: 12.5px; }
-.sr-label { font: 600 10.5px var(--font-mono); text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted); }
+.sr-label { font: 600 12px var(--font-sans); color: var(--muted); }
 .sr-day { font-weight: 800; white-space: nowrap; }
 
 /* ---- list: one compact line per event category ---- */
@@ -11,7 +11,6 @@
 .sr-row {
     position: relative; display: flex; align-items: center; gap: 16px; padding: 12px 16px;
     background: var(--panel); border: 1px solid var(--line);
-    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
     transition: border-color .15s ease, background-color .15s ease;
 }
 .sr-row:not(.sr-empty):hover { border-color: var(--accent); background: var(--panel2); }

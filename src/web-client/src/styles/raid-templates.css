@@ -11,13 +11,9 @@
     position: relative; display: flex; align-items: center; gap: 14px; width: 100%;
     padding: 14px 16px; text-align: left; color: var(--text); font: inherit; cursor: pointer;
     background: var(--panel); border: 1px solid var(--line);
-    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
     transition: border-color .15s ease, background-color .15s ease;
 }
-.rt-row::after {
-    content: ""; position: absolute; top: 0; right: 0; width: 14px; height: 14px; pointer-events: none;
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 42%, transparent 44%); opacity: .85;
-}
+
 .rt-row:hover { border-color: var(--accent); background: var(--panel2); }
 .rt-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .rt-icons { display: flex; flex: 0 0 auto; }
@@ -26,7 +22,7 @@
 .rt-main { flex: 1; min-width: 0; }
 .rt-name { font-size: 17px; font-weight: 800; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rt-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 3px; }
-.rt-lbl { font: 600 10.5px var(--font-mono); text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted); }
+.rt-lbl { font: 600 12px var(--font-sans); color: var(--muted); }
 .rt-vals { display: flex; gap: 18px; text-align: right; flex: 0 0 auto; }
 .rt-val { min-width: 44px; }
 .rt-num { font-size: 22px; font-weight: 800; letter-spacing: -.3px; line-height: 1.1; }
@@ -51,7 +47,7 @@
 .rt-more { border-top: 1px solid var(--line-soft); padding-top: 10px; margin-top: 16px; }
 .rt-more > summary {
     cursor: pointer; display: flex; align-items: center; gap: 8px;
-    font: 600 10.5px var(--font-mono); text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted);
+    font: 600 12px var(--font-sans); color: var(--muted);
 }
 .rt-more-body { display: flex; flex-direction: column; gap: 14px; padding-top: 14px; }
 .rt-ranges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -93,7 +89,7 @@
 }
 .comp-card > .wi { width: 32px; height: 32px; border-radius: 6px; flex: 0 0 auto; }
 .comp-text { flex: 1; min-width: 0; }
-.comp-lbl { font: 600 10.5px var(--font-mono); text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted); }
+.comp-lbl { font: 600 12px var(--font-sans); color: var(--muted); }
 .comp-num { font-size: 22px; font-weight: 800; letter-spacing: -.3px; line-height: 1.1; }
 .comp-hint { color: var(--muted); font-size: 12.5px; margin-top: 8px; }
 
