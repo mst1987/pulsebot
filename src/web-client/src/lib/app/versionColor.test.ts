@@ -47,12 +47,15 @@ describe("version colours in tokens.css", () => {
         expect(token(THEMES.dark, "--ver-tbc")).toBe("#9bd45a");
     });
 
-    it("the orga marking has its own teal in both themes, apart from any version colour", () => {
+    it("keeps the orga teal (Discord orga hub) in both themes", () => {
         expect(token(THEMES.dark, "--orga-teal")).toBe("#35d6c4");
         expect(token(THEMES.light, "--orga-teal")).toBe("#0f8f82");
+    });
+
+    it("draws the web's orga marking neutral (design C): no teal, no version colour", () => {
         const orga = readFileSync(resolve(__dirname, "../../styles/orga-mark.css"), "utf8");
-        expect(orga).toContain("--orga: var(--orga-teal)");
-        expect(orga).not.toMatch(/--orga[\w-]*:[^;]*(--accent|--ver-)/);
+        expect(orga).not.toMatch(/--orga-teal|--ver-/);
+        expect(orga).toMatch(/\.orga-zone\s*\{[^}]*border:\s*1px dashed var\(--line\)/);
     });
 
     it("keeps the one accent (Rost, design pilot C) whatever version is shown", () => {
