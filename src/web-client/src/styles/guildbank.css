@@ -25,8 +25,7 @@
 .gb-row:last-child { border-bottom: 0; }
 .gb-row:not(.gb-head):hover { background: color-mix(in srgb, var(--panel2) 60%, transparent); }
 .gb-head { background: var(--panel2); border-bottom: 1px solid var(--line); padding-top: 9px; padding-bottom: 9px; }
-.gb-head, .gb-group {
-    font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
+.gb-head, .gb-group { font-size: 12px; font-weight: 600; color: var(--muted);
 }
 .gb-num { text-align: right; }
 .gb-num.muted { color: var(--muted); font-weight: 500; }
@@ -37,7 +36,7 @@
     background: color-mix(in srgb, var(--panel2) 55%, var(--panel)); border-bottom: 1px solid var(--line-soft);
 }
 .gb-group-name { color: var(--text); }
-.gb-group-count { padding: 0 7px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); font-weight: 700; }
+.gb-group-count { padding: 0 7px; border-radius: 3px; background: var(--panel2); border: 1px solid var(--line); font-weight: 700; }
 .gb-empty-row { grid-column: 1 / -1; }
 .gb-name { text-decoration: none; }
 a.gb-name:hover { text-decoration: underline; }
@@ -86,7 +85,7 @@ a.gb-name:hover { text-decoration: underline; }
 .gb-wl-row:hover { background: color-mix(in srgb, var(--panel2) 60%, transparent); }
 .gb-wl-row .gb-req-title { font-size: 15px; }
 .gb-wl-place {
-    display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 999px;
+    display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 3px;
     background: var(--panel2); border: 1px solid var(--line); font-family: var(--font-mono); font-weight: 700; color: var(--text);
 }
 .gb-wl-row .gb-req-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -165,7 +164,7 @@ a.gb-name:hover { text-decoration: underline; }
 .gb-out-what { font-size: 13px; color: var(--muted); font-weight: 600; }
 .gb-out-to { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 .gb-out-to b { font-size: 17px; color: var(--text); overflow-wrap: anywhere; }
-.gb-out-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.gb-out-label { font-size: 12px; color: var(--muted); }
 .gb-out-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; }
 .gb-out-time { font-family: var(--font-mono); font-size: 15px; font-weight: 700; color: var(--text); }
 .gb-out-how { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
@@ -183,7 +182,7 @@ a.gb-name:hover { text-decoration: underline; }
     padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; cursor: default;
 }
 .gb-reserved-pop:focus { outline: none; }
-.gb-reserved-head { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.gb-reserved-head { font-size: 12px; color: var(--muted); }
 .gb-reserved-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--text); overflow-wrap: anywhere; }
 .gb-reserved-more { font-size: 13px; color: var(--muted); }
 .gb-reserved-all { align-self: flex-start; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; text-decoration: underline; }
