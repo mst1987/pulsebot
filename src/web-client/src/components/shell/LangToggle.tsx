@@ -1,5 +1,6 @@
 import { saveLang } from "../../api";
 import { LANGS, setLang, useLang, useT, LANG_LABELS, type Lang } from "../../i18n";
+import LangFlag from "./LangFlag";
 
 /**
  * The language switch in the top bar: a small two-part pill "DE | EN" with the
@@ -31,6 +32,7 @@ export default function LangToggle({ account = false }: { account?: boolean }) {
                     aria-label={l === lang ? LANG_LABELS[l] : t("shell.lang.switchTo", { lang: LANG_LABELS[l] })}
                     onClick={() => pick(l)}
                 >
+                    <LangFlag lang={l} />
                     {l.toUpperCase()}
                 </button>
             ))}

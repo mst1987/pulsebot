@@ -504,6 +504,8 @@ nav.menu::-webkit-scrollbar { display: none; }
 .guild-sel > .wi { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border-radius: 5px; pointer-events: none; }
 .guild-sel select { min-height: var(--ctl-h); max-width: 300px; padding-left: 38px; font-size: 14px; font-weight: 600; }
 .guild-sel.is-single { min-height: var(--ctl-h); padding: 0 12px 0 38px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--bg); font-size: 14px; font-weight: 600; }
+/* next to the select the role badge stands as tall as every other control of the top bar */
+.guild-sel:not(.is-single) > .badge { box-sizing: border-box; height: var(--ctl-h); padding: 0 12px; border-radius: var(--ctl-radius); font-size: 14px; display: inline-flex; align-items: center; }
 
 /* ===== content switch (#563): one game version for the whole menu, next to
    the server select. Wide screens show the segment, a phone the chip that
