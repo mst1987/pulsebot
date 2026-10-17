@@ -296,6 +296,15 @@ describe("stores/configStore addon list (#818): never wiped by accident", () => 
         expect(configStore.getConfig().addonDownloads.map((a) => a.curseforge)).toEqual(["", "https://www.curseforge.com/wow/addons/mine"]);
     });
 
+    it("renames a stored list's former default names to the CurseForge names, a name the admin chose stays", () => {
+        writeFile({ addonDownloads: [
+            { id: "aurakit", name: "AuraKit", repo: "mst1987/aurakit" },
+            { id: "macrohelper", name: "Makros", repo: "mst1987/macrohelper" },
+            { id: "levelhelper", name: "LevelHelper", repo: "mst1987/levelhelper" },
+        ], addonDownloadsCustomized: true });
+        expect(configStore.getConfig().addonDownloads.map((a) => a.name)).toEqual(["Pulse AuraKit", "Makros", "LevelHelper"]);
+    });
+
     it("ignores a list carried along without the edit mark - an unrelated save cannot wipe it", () => {
         configStore.saveConfig({ addonDownloads: [], officerRoleId: "o" });
         expect(ids(configStore.getConfig())).toEqual(DEFAULT_IDS);

@@ -8,11 +8,12 @@
 //                                    update role is set (addonCenterBot.js toggles the role)
 //   one container per addon          in the addon's colour: "### <emoji> Name [NEU]", the
 //                                    short description, "-# Version 0.3.0 · 12.10.2026 ·
-//                                    Patchnotes · CurseForge" (the first link opens the addon's
-//                                    detail page on the web, where its release notes are; the
-//                                    second only for an addon with a CurseForge page) and
-//                                    "Herunterladen" as the section's button — without a
-//                                    release a short note instead of the button
+//                                    Patchnotes" (the link opens the addon's detail page on
+//                                    the web, where its release notes are) and as the
+//                                    section's button "CurseForge" (a link button, grey —
+//                                    Discord gives link buttons no colour) for an addon with
+//                                    a CurseForge page, else "Herunterladen" — without either
+//                                    a short note instead of the button
 // The centre itself announces nothing when a new version appears: it shows "NEU" and
 // the newest version; the role ping is a separate short message (addonCenter.js).
 //
@@ -103,14 +104,11 @@ function hasFiles(entry) {
     return !!(entry && entry.release && Array.isArray(entry.files) && entry.files.length);
 }
 
-/**
- * "[CurseForge](<url>)" for the sub line of an addon with a CurseForge page; "" without one.
- * The url is canonical (addonConfig.normalizeCurseforge), the angle brackets keep Discord's preview off.
- */
-function curseforgeLink(addon, lang) {
-    const url = str(addon && addon.curseforge);
-    return url ? `[${tr(lang, "CurseForge")}](<${url}>)` : "";
-}
+/** The CurseForge page of an addon (canonical, addonConfig.normalizeCurseforge); "" without one. */
+const curseforgeOf = (entry) => str(entry && entry.addon && entry.addon.curseforge);
+
+/** Whether an addon's section carries a button: CurseForge before the own download. */
+const hasButton = (entry) => !!curseforgeOf(entry) || hasFiles(entry);
 
 /** The note an addon shows instead of its button. */
 function stateNote(entry, lang) {
@@ -121,6 +119,13 @@ function stateNote(entry, lang) {
 
 function downloadButton(addonId, lang) {
     return new ButtonBuilder().setCustomId(downloadId(addonId)).setLabel(tr(lang, "Download")).setEmoji("📥").setStyle(ButtonStyle.Success);
+}
+
+/** The section's button: a link to the CurseForge page when the addon has one, else the own download. */
+function addonButton(entry, lang) {
+    const url = curseforgeOf(entry);
+    if (url) return new ButtonBuilder().setLabel("CurseForge").setURL(url).setStyle(ButtonStyle.Link);
+    return downloadButton(entry.addon.id, lang);
 }
 
 /**
@@ -141,7 +146,7 @@ function centerPayload({ entries = [], subscribe = false, lang = "de", emojis = 
         tr(lang, "Click **Download** – the file comes only for you. Unpack it into `Interface\\AddOns`."),
     ].join("\n");
     const headCost = subscribe ? 4 : 2;
-    const costOf = (e) => (hasFiles(e) ? 4 : 2);
+    const costOf = (e) => (hasButton(e) ? 4 : 2);
 
     // what fits: everything, else as many as fit next to the line that says some are missing
     let list = entries.filter((e) => e && e.addon);
@@ -161,10 +166,12 @@ function centerPayload({ entries = [], subscribe = false, lang = "de", emojis = 
     const lines = list.map((e) => {
         const fresh = isNew(e.newSince, now);
         const version = e.release ? [tr(lang, "Version {version}", { version: e.release.version }), dateText(e.release.publishedAt)].filter(Boolean).join(" · ") : "";
+        const subParts = [version, hasButton(e) ? "" : stateNote(e, lang), e.release ? `[${tr(lang, "Patch notes")}](${patchNotesUrl(e.addon.id)})` : ""].filter(Boolean);
         return {
             e,
             head: headingOf(e.addon, { emojis, lang, fresh }),
-            sub: `-# ${[version, hasFiles(e) ? "" : stateNote(e, lang), e.release ? `[${tr(lang, "Patch notes")}](${patchNotesUrl(e.addon.id)})` : "", curseforgeLink(e.addon, lang)].filter(Boolean).join(" · ")}`,
+            // no line at all when nothing is left (a CurseForge addon without an own release)
+            sub: subParts.length ? `-# ${subParts.join(" · ")}` : "",
             desc: escapeMd(cut(e.addon.description, DESCRIPTION_MAX)),
         };
     });
@@ -186,8 +193,8 @@ function centerPayload({ entries = [], subscribe = false, lang = "de", emojis = 
     for (const l of lines) {
         const content = [l.head, cut(l.desc, share), l.sub].filter((s) => s.trim()).join("\n");
         const c = new ContainerBuilder().setAccentColor(addonColor(l.e.addon.id));
-        if (hasFiles(l.e)) {
-            c.addSectionComponents(new SectionBuilder().addTextDisplayComponents(text(content)).setButtonAccessory(downloadButton(l.e.addon.id, lang)));
+        if (hasButton(l.e)) {
+            c.addSectionComponents(new SectionBuilder().addTextDisplayComponents(text(content)).setButtonAccessory(addonButton(l.e, lang)));
         } else {
             c.addTextDisplayComponents(text(content));
         }

@@ -41,19 +41,19 @@ describe("addonCenterPanel centerPayload", () => {
     });
 
     it("has no subscribe button without an update role and no promise of announcements", () => {
-        const { payload } = panel.centerPayload({ entries: [entry("aurakit")], now: NOW });
-        expect(buttons(payload).map((b) => b.custom_id)).toEqual(["addonhub:dl:aurakit"]);
+        const { payload } = panel.centerPayload({ entries: [entry("levelhelper")], now: NOW });
+        expect(buttons(payload).map((b) => b.custom_id)).toEqual(["addonhub:dl:levelhelper"]);
         expect(payload.components[0].components[0].type).toBe(ComponentType.TextDisplay);
         expect(JSON.stringify(payload)).not.toMatch(/addonhub:(sub|unsub)|gemeldet|abonnier/i);
     });
 
     it("puts 'Updates abonnieren' into the head as the section's button while an update role is set", () => {
-        const { payload } = panel.centerPayload({ entries: [entry("aurakit")], subscribe: true, now: NOW });
+        const { payload } = panel.centerPayload({ entries: [entry("levelhelper")], subscribe: true, now: NOW });
         const head = payload.components[0];
         expect(head.components.map((c) => c.type)).toEqual([ComponentType.Section]);
         expect(head.components[0].accessory).toMatchObject({ custom_id: "addonhub:sub", label: "Updates abonnieren", style: ButtonStyle.Secondary });
         expect(texts(payload)[0]).toMatch(/^## Addon-Downloadzentrale\n/);
-        expect(buttons(payload).map((b) => b.custom_id)).toEqual(["addonhub:sub", "addonhub:dl:aurakit"]);
+        expect(buttons(payload).map((b) => b.custom_id)).toEqual(["addonhub:sub", "addonhub:dl:levelhelper"]);
         expect(panel.parseCenterId(panel.SUBSCRIBE_ID).action).toBe("sub");
         expect(panel.parseCenterId(panel.UNSUBSCRIBE_ID).action).toBe("unsub");
     });
@@ -70,9 +70,9 @@ describe("addonCenterPanel centerPayload", () => {
 
     it("marks an addon NEU for seven days after its new version", () => {
         const fresh = panel.centerPayload({ entries: [entry("macrohelper", { newSince: NOW - 6 * DAY })], now: NOW }).payload;
-        expect(texts(fresh)[1]).toMatch(/^### MacroHelper `NEU`\n/);
+        expect(texts(fresh)[1]).toMatch(/^### Pulse MacroHelper `NEU`\n/);
         const old = panel.centerPayload({ entries: [entry("macrohelper", { newSince: NOW - 7 * DAY })], now: NOW }).payload;
-        expect(texts(old)[1]).toMatch(/^### MacroHelper\n/);
+        expect(texts(old)[1]).toMatch(/^### Pulse MacroHelper\n/);
         expect(panel.isNew(0, NOW)).toBe(false);
     });
 
@@ -81,7 +81,7 @@ describe("addonCenterPanel centerPayload", () => {
             entries: [
                 entry("levelhelper", { state: "no_release", release: null, files: [] }),
                 entry("professionkit", { state: "error", release: null, files: [] }),
-                entry("aurakit", { files: [] }),
+                entry("macrohelper", { addon: addon("macrohelper", { curseforge: "" }), files: [] }),
             ],
             now: NOW,
         });
@@ -89,11 +89,11 @@ describe("addonCenterPanel centerPayload", () => {
         expect(texts(payload).slice(1).map((t) => t.split("\n").pop())).toEqual([
             "-# Noch kein Release.",
             "-# Gerade nicht verfügbar.",
-            `-# Version 0.3.0 · 12.10.2026 · Das neueste Release hat keine passende Datei. · [Patchnotes](${webUrl("/addon/aurakit")}) · [CurseForge](<https://www.curseforge.com/wow/addons/pulse-aurakit>)`,
+            `-# Version 0.3.0 · 12.10.2026 · Das neueste Release hat keine passende Datei. · [Patchnotes](${webUrl("/addon/macrohelper")})`,
         ]);
     });
 
-    it("links the CurseForge page after the patch notes, with and without a release, and only when set", () => {
+    it("offers the CurseForge page as the button instead of 'Herunterladen', with and without an own release", () => {
         const cf = "https://www.curseforge.com/wow/addons/pulse-aurakit";
         const { payload } = panel.centerPayload({
             entries: [
@@ -104,13 +104,19 @@ describe("addonCenterPanel centerPayload", () => {
             ],
             now: NOW,
         });
+        expect(buttons(payload).map((b) => [b.label, b.style, b.url, b.custom_id])).toEqual([
+            ["CurseForge", ButtonStyle.Link, cf, undefined],
+            ["CurseForge", ButtonStyle.Link, cf, undefined],
+            ["Herunterladen", ButtonStyle.Success, undefined, "addonhub:dl:levelhelper"],
+            ["Herunterladen", ButtonStyle.Success, undefined, "addonhub:dl:macrohelper"],
+        ]);
         const subs = texts(payload).slice(1).map((t) => t.split("\n").pop());
-        expect(subs[0]).toBe(`-# Version 0.3.0 · 12.10.2026 · [Patchnotes](${webUrl("/addon/aurakit")}) · [CurseForge](<${cf}>)`);
-        expect(subs[1]).toBe(`-# Noch kein Release. · [CurseForge](<${cf}>)`);
-        expect(subs[2]).not.toContain("CurseForge");
-        expect(subs[3]).not.toContain("CurseForge");
-        // a link in the text, no extra component: head 2, addons 4 + 2 + 4 + 4
-        expect(all(payload.components)).toHaveLength(16);
+        expect(subs[0]).toBe(`-# Version 0.3.0 · 12.10.2026 · [Patchnotes](${webUrl("/addon/aurakit")})`);
+        // the button stands in for the note, and an empty "-#" line is left out; no link in the text any more
+        expect(subs[1]).toBe("Buffs, Debuffs, Cooldowns, Leben und Ressourcen als Leiste unter dem Charakter, mit Klassen-Vorlagen und Cooldown-Puls.");
+        expect(texts(payload).join("\n")).not.toContain("[CurseForge]");
+        // every addon a section with its button: head 2, addons 4 + 4 + 4 + 4
+        expect(all(payload.components)).toHaveLength(18);
     });
 
     it("says so when the channel's version has no addons", () => {
