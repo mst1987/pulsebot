@@ -249,7 +249,8 @@ describe("Abwesenheiten: Zeitleiste", () => {
         const user = userEvent.setup();
         const view = await show();
         const enter = await screen.findByRole("button", { name: t("absences.enter") });
-        // neutral, not the red "no": it opens absence and attendance alike, the kind is picked inside
+        // neutral, neither the red "no" nor the coloured main action: it opens absence and attendance alike
+        expect(enter).toHaveClass("btn-ghost");
         expect(enter).not.toHaveClass("btn-no");
         expect(enter).toHaveAttribute("data-tip", t("absences.enterTip"));
         await user.click(enter);
@@ -428,7 +429,7 @@ describe("Abwesenheiten: Meine Anwesenheit", () => {
         await showMine();
         await user.click(within(screen.getByRole("group", { name: t("absences.mine.filterAria") })).getByRole("button", { name: "TBC Mittwoch" }));
         const enter = within(screen.getByRole("region", { name: t("absences.mine.entries") })).getByRole("button", { name: t("absences.enter") });
-        expect(enter).not.toHaveClass("btn-no");
+        expect(enter).toHaveClass("btn-ghost");
         await user.click(enter);
         const dialog = await screen.findByRole("dialog");
         expect(within(dialog).getByRole("button", { name: "TBC Mittwoch" })).toHaveAttribute("aria-pressed", "true");

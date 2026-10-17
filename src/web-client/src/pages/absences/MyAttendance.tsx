@@ -70,8 +70,8 @@ export default function MyAttendance({ userId = "", onBack }: {
                 <div className="ab-own-head">
                     <h3>{other ? t("absences.mine.entriesOf", { name }) : t("absences.mine.entries")}</h3>
                     {own && (
-                        // neutral: absence and attendance alike, the kind is picked in the dialog
-                        <Button size="sm" icon={<PlusIcon />} onClick={() => setDialog(true)} data-tip={t("absences.enterTip")}>
+                        // neutral (ghost, no meaning colour): absence and attendance alike, the kind is picked in the dialog
+                        <Button variant="ghost" size="sm" icon={<PlusIcon />} onClick={() => setDialog(true)} data-tip={t("absences.enterTip")}>
                             {other ? t("absences.drawer.enterFor", { name }) : t("absences.enter")}
                         </Button>
                     )}

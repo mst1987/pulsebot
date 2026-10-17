@@ -1,19 +1,8 @@
 // The raid categories an absence or attendance can be limited to (src/web/availability/entryCategories.js):
-// the active ones, else those of coming raids; names, icons and the version each plays.
+// the active ones, else those of coming raids; names, icons (from event titles only) and the version each plays.
 const NOW = Date.UTC(2030, 2, 21, 12, 0);
 const sec = (iso) => Math.floor(Date.parse(iso) / 1000);
 
-const mockContexts = [];
-jest.mock("../../../src/services/characters/rosterAttendance", () => ({
-    buildAttendanceContext: (_g, { versionId }) => {
-        mockContexts.push(versionId);
-        return { versionId };
-    },
-    categoryInfo: (ctx, id) => {
-        if (id === "boom") throw new Error("no logs");
-        return { icon: id === "mon" ? `boss_${ctx.versionId}` : "" };
-    },
-}));
 const mockEvents = [];
 jest.mock("../../../src/stores/eventStore", () => ({
     listEvents: (_g, { sinceSeconds = 0 } = {}) => mockEvents.filter((e) => e.startTime >= sinceSeconds),
@@ -21,10 +10,12 @@ jest.mock("../../../src/stores/eventStore", () => ({
 let mockConfig = {};
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 
+const rosterAttendance = require("../../../src/services/characters/rosterAttendance");
 const { entryCategories, entryCategoryIds } = require("../../../src/web/availability/entryCategories");
 
+const { CONTENT_ICONS } = rosterAttendance;
+
 beforeEach(() => {
-    mockContexts.length = 0;
     mockEvents.length = 0;
     mockConfig = {};
 });
@@ -44,27 +35,48 @@ describe("entryCategoryIds", () => {
         );
         expect(entryCategoryIds({ now: NOW, config: {} })).toEqual(["mon"]);
     });
+
+    it("nimmt auch Kategorien ohne bekannten Namen an (Prüfung der Eingabe)", () => {
+        expect(entryCategoryIds({ now: NOW, config: { categoryIds: ["123456789012345678"] } })).toEqual(["123456789012345678"]);
+    });
 });
 
 describe("entryCategories", () => {
-    it("Name aus Discord, sonst aus den Events; Icon und Version je Kategorie", () => {
-        mockEvents.push({ id: "a", categoryId: "fri", categoryName: "Freitag-Raid", startTime: sec("2030-03-25T19:00Z") });
+    it("Name aus Discord, sonst aus den Events; Icon aus den Titeln, Version je Kategorie", () => {
+        mockEvents.push(
+            // last month's and the coming raids name the content; the newest content gives the icon
+            { id: "p", categoryId: "mon", title: "Karazhan", startTime: sec("2030-03-04T19:00Z") },
+            { id: "a", categoryId: "mon", title: "Gruul + Magtheridon", startTime: sec("2030-03-25T19:00Z") },
+            { id: "b", categoryId: "fri", categoryName: "Freitag-Raid", title: "Spaßabend", startTime: sec("2030-03-28T19:00Z") },
+        );
         const config = { categoryIds: ["mon", "fri"], mainVersion: "tbc", categoryVersion: { fri: "forever" } };
         const list = entryCategories({ now: NOW, config, categoryNames: { mon: "Montag" } });
         expect(list).toEqual([
-            { id: "mon", name: "Montag", icon: "boss_tbc", versionId: "tbc" },
+            { id: "mon", name: "Montag", icon: CONTENT_ICONS.mag, versionId: "tbc" },
             { id: "fri", name: "Freitag-Raid", icon: "", versionId: "forever" },
         ]);
-        // one attendance context per version, not per category
-        expect(mockContexts.sort()).toEqual(["forever", "tbc"]);
     });
 
-    it("ohne Kategorien eine leere Liste, ein Fehler beim Icon kostet nur das Icon", () => {
+    it("liest keine Logs oder Reports: kein Anwesenheits-Kontext", () => {
+        const spy = jest.spyOn(rosterAttendance, "buildAttendanceContext");
+        mockEvents.push({ id: "a", categoryId: "mon", categoryName: "Montag", title: "Karazhan", startTime: sec("2030-03-25T19:00Z") });
+        entryCategories({ now: NOW, config: { categoryIds: ["mon"], mainVersion: "tbc" } });
+        expect(spy).not.toHaveBeenCalled();
+        spy.mockRestore();
+    });
+
+    it("abgesagte und zu alte Raids zählen weder für Name noch Icon", () => {
+        mockEvents.push(
+            { id: "x", categoryId: "mon", categoryName: "Alt", title: "Karazhan", startTime: sec("2029-09-01T19:00Z") },
+            { id: "y", categoryId: "mon", categoryName: "Abgesagt", title: "Gruul", startTime: sec("2030-03-25T19:00Z"), status: "cancelled" },
+        );
+        expect(entryCategories({ now: NOW, config: { categoryIds: ["mon"], mainVersion: "tbc" } })).toEqual([]);
+    });
+
+    it("ohne Kategorien eine leere Liste; Kategorien ohne Namen fallen weg statt als nackte ID", () => {
         expect(entryCategories({ now: NOW, config: {} })).toEqual([]);
-        const list = entryCategories({ now: NOW, config: { categoryIds: ["boom", "mon"], mainVersion: "tbc" } });
-        expect(list).toEqual([
-            { id: "boom", name: "", icon: "", versionId: "tbc" },
-            { id: "mon", name: "", icon: "boss_tbc", versionId: "tbc" },
-        ]);
+        mockEvents.push({ id: "a", categoryId: "mon", title: "Karazhan", startTime: sec("2030-03-25T19:00Z") });
+        const list = entryCategories({ now: NOW, config: { categoryIds: ["123456789012345678", "mon"], mainVersion: "tbc" }, categoryNames: { mon: "Montag" } });
+        expect(list).toEqual([{ id: "mon", name: "Montag", icon: CONTENT_ICONS.kara, versionId: "tbc" }]);
     });
 });

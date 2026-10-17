@@ -104,6 +104,9 @@ describe("GET /api/availability", () => {
         const res = await call("GET", "/api/availability", ORGA, { query: `userId=${ANNA.id}` });
         expect(json(res).data).toMatchObject({ userId: ANNA.id, name: "Anna", orga: true });
         expect(availability.activeEntries).toHaveBeenCalledWith(ANNA.id);
+        // the categories are the caller's own list (the dialog reads them from there): not built for somebody else
+        expect(json(res).data.categories).toEqual([]);
+        expect(entryCats.entryCategories).not.toHaveBeenCalled();
     });
 });
 
@@ -133,7 +136,7 @@ describe("POST /api/availability", () => {
     it("trägt für sich selbst ein, mit den gewählten Raids", async () => {
         availability.createEntry.mockResolvedValue({ entry: entry(), results: [{ eventId: "eh-a", title: "Kara", startTime: 1, ok: true }], dm: true });
         const res = await call("POST", "/api/availability", ANNA, { json: { kind: "absence", from: "2030-03-20", eventIds: ["eh-a", ""], userId: "" } });
-        expect(availability.createEntry).toHaveBeenCalledWith(ANNA.id, expect.objectContaining({ kind: "absence" }), expect.objectContaining({ by: ANNA.id, eventIds: ["eh-a"] }));
+        expect(availability.createEntry).toHaveBeenCalledWith(ANNA.id, expect.objectContaining({ kind: "absence" }), expect.objectContaining({ by: ANNA.id, via: "web", eventIds: ["eh-a"] }));
         expect(json(res).data).toMatchObject({ entry: { id: "e1" }, results: [{ eventId: "eh-a", ok: true, skipped: "", error: "" }], dm: true });
     });
 

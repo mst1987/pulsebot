@@ -269,7 +269,7 @@ async function onPicker(interaction, token, action, lang) {
         const input = { ...session, character: session.characterKey || session.character };
         // nothing picked by hand = every raid offered (the hidden ones of other categories stay out)
         const eventIds = session.selected || ((session.hidden || []).length ? offeredRaids(session, config).map((e) => e.id) : undefined);
-        const result = await availability.createEntry(uid, input, { eventIds, config });
+        const result = await availability.createEntry(uid, input, { eventIds, config, via: "panel" });
         if (result.error) return interaction.editReply(picker(token, session, config, lang, `⚠️ ${serviceText(lang, result.error)}`));
         endSession(token);
         const summary = availability.entrySummary(result.entry, result.results, lang);

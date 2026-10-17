@@ -191,9 +191,38 @@ describe("Abwesenheit und Raider-Rolle", () => {
     afterEach(() => discord.memberRoleIds.mockImplementation(async () => null));
 
     it("signs off at a category's panel even without the raider role — saying \"I am away\" needs none", async () => {
-        const res = await availability.createEntry(ANNA, { kind: "absence", from: today, to: dayPlus(5), categoryId: "cat1" }, { now: NOW });
+        const res = await availability.createEntry(ANNA, { kind: "absence", from: today, to: dayPlus(5), categoryId: "cat1" }, { now: NOW, via: "panel" });
+        expect(res.entry.via).toBe("panel");
         expect(res.results.map((r) => [r.eventId, r.ok])).toEqual([["eh-a", true], ["eh-b", true]]);
         expect(mockSignups.get(`eh-a/${ANNA}`)).toMatchObject({ status: "absence" });
+    });
+
+    it("an older entry without `via` came from the panel too and keeps signing off without the role", async () => {
+        const res = await availability.createEntry(ANNA, { kind: "absence", from: today, to: dayPlus(5), categoryId: "cat1" }, { now: NOW });
+        expect(res.entry.via).toBe("");
+        expect(res.results.map((r) => [r.eventId, r.ok])).toEqual([["eh-a", true], ["eh-b", true]]);
+    });
+
+    it("checks the role for a web entry with a category: anybody can pick any category there", async () => {
+        const res = await availability.createEntry(ANNA, { kind: "absence", from: today, to: dayPlus(5), categoryId: "cat1" }, { now: NOW, by: ANNA, via: "web" });
+        expect(res.entry.via).toBe("web");
+        expect(res.results.map((r) => [r.eventId, r.ok, r.skipped || ""])).toEqual([["eh-a", false, "not_raider"], ["eh-b", false, "not_raider"]]);
+        expect(mockSignups.get(`eh-a/${ANNA}`)).toBeUndefined();
+        // a raid created later is held to the same check
+        mockEvents.set("eh-later", raid("eh-later", 4));
+        await availability.applyToEvent("eh-later", { now: NOW });
+        expect(mockSignups.get(`eh-later/${ANNA}`)).toBeUndefined();
+    });
+
+    it("a web entry with the role signs off as usual", async () => {
+        discord.memberRoleIds.mockImplementation(async () => ["r-raider"]);
+        const res = await availability.createEntry(ANNA, { kind: "absence", from: today, to: dayPlus(5), categoryId: "cat1" }, { now: NOW, by: ANNA, via: "web" });
+        expect(res.results.map((r) => [r.eventId, r.ok])).toEqual([["eh-a", true], ["eh-b", true]]);
+    });
+
+    it("the orga entering for a raider stays without the role check, from the web too", async () => {
+        const res = await availability.createEntry(ANNA, { kind: "absence", from: today, to: dayPlus(5), categoryId: "cat1" }, { now: NOW, by: "orga-1", via: "web" });
+        expect(res.results.map((r) => [r.eventId, r.ok])).toEqual([["eh-a", true], ["eh-b", true]]);
     });
 
     it("leaves the raids of categories the raider is no raider of quietly alone for an absence of every category", async () => {

@@ -152,8 +152,8 @@ function OrgaViews({ user, view, patch, viewSwitch, onAttendance }: {
             <Head lead={t("absences.lead")}>
                 {viewSwitch}
                 {data.canEdit && (
-                    // neutral: it opens absence and attendance alike, the kind is picked in the dialog
-                    <Button icon={<PlusIcon />} disabled={!canEnter} onClick={() => enter(null)} data-tip={t("absences.enterTip")}>{t("absences.enter")}</Button>
+                    // neutral (ghost, no meaning colour): it opens absence and attendance alike, the kind is picked in the dialog
+                    <Button variant="ghost" icon={<PlusIcon />} disabled={!canEnter} onClick={() => enter(null)} data-tip={t("absences.enterTip")}>{t("absences.enter")}</Button>
                 )}
             </Head>
 

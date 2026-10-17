@@ -61,8 +61,8 @@ export default function RaiderDrawer({ userId, onClose, onEnter, onChanged, onAt
             {data && (
                 <div className="ab-drawer-foot">
                     {data.canEdit && (
-                        // neutral: absence and attendance alike, the kind is picked in the dialog
-                        <Button icon={<PlusIcon />} onClick={() => onEnter(data)} data-tip={t("absences.enterTip")}>
+                        // neutral (ghost, no meaning colour): absence and attendance alike, the kind is picked in the dialog
+                        <Button variant="ghost" icon={<PlusIcon />} onClick={() => onEnter(data)} data-tip={t("absences.enterTip")}>
                             {t("absences.drawer.enterFor", { name: displayName(data) })}
                         </Button>
                     )}

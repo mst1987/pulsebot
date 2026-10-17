@@ -111,7 +111,8 @@ const getAvailability = withUser({}, async ({ user, query, res }) => {
         maxDays: availability.MAX_DAYS,
         entries: availability.activeEntries(target.userId).map(entryView),
         characters: characterChoices(profile, config),
-        categories: entryCategories({ config, categoryNames: categoryNamesOf(config) }),
+        // the dialog offers the caller's own list, also when the orga enters for somebody else
+        categories: target.userId === str(user.id) ? entryCategories({ config, categoryNames: categoryNamesOf(config) }) : [],
     });
 });
 
@@ -154,7 +155,7 @@ const postEntry = withUser({ csrf: true, body: true }, async ({ user, body, res 
     const config = getConfig();
     if (!knownCategory(body, config)) return apiError(res, 400, "bad_request", UNKNOWN_CATEGORY);
     const eventIds = Array.isArray(body.eventIds) ? body.eventIds.map(str).filter(Boolean) : undefined;
-    const result = await availability.createEntry(target.userId, body, { by: user.id, eventIds, config });
+    const result = await availability.createEntry(target.userId, body, { by: user.id, via: "web", eventIds, config });
     if (result.error) return apiError(res, 400, "bad_request", result.error);
     ok(res, { entry: entryView(result.entry), results: result.results.map(resultView), dm: !!result.dm });
 });

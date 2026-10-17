@@ -68,7 +68,10 @@ function AvailabilityForm({ initialKind, own, initialTarget, initialCategory, on
     const [comment, setComment] = useState("");
     const [charKey, setCharKey] = useState("");
     const [spec, setSpec] = useState("");
-    const [categoryPick, setCategoryPick] = useState(initialCategory);
+    // the categories are the same for everybody: the caller's own list (a nameless one is never offered)
+    const categories = (own.categories || []).filter((c) => c.name);
+    // the start pick only counts where the chips show it: one category alone, or one not offered, is "every category"
+    const [categoryPick, setCategoryPick] = useState(() => (categories.length > 1 && categories.some((c) => c.id === initialCategory) ? initialCategory : ""));
     const [off, setOff] = useState<Set<string>>(() => new Set());
     const [preview, setPreview] = useState<Preview>({ key: "", raids: null, problem: "" });
     const [busy, setBusy] = useState(false);
@@ -77,8 +80,6 @@ function AvailabilityForm({ initialKind, own, initialTarget, initialCategory, on
     // The other raider's characters (orga only).
     const other = useApi(() => getAvailability(target ? target.userId : ""), [target ? target.userId : ""], { enabled: !!target });
     const data = target ? other.data : own;
-    // the categories are the same for everybody: the caller's own list
-    const categories = own.categories || [];
     const category = categories.find((c) => c.id === categoryPick) || null;
     // an attendance in one category needs a character of the version it plays
     const characters = (data ? data.characters : []).filter((c) => !category || !category.versionId || c.versionId === category.versionId);
@@ -191,7 +192,7 @@ function AvailabilityForm({ initialKind, own, initialTarget, initialCategory, on
                                 {categories.map((c) => (
                                     <Chip key={c.id} pressed={category?.id === c.id} tone={category?.id === c.id ? "accent" : undefined}
                                         icon={<WowIcon name={categoryIcon(c.icon)} size={16} />} onClick={() => setCategoryPick(c.id)}>
-                                        {plainCategoryName(c.name || c.id)}
+                                        {plainCategoryName(c.name)}
                                     </Chip>
                                 ))}
                             </div>

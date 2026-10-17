@@ -268,6 +268,24 @@ describe("AvailabilityDialog", () => {
         await waitFor(() => expect(api.previewAvailability).toHaveBeenLastCalledWith({ kind: "absence", from: "2026-10-05", to: "2026-10-05" }));
     });
 
+    it("takes the page's category only where chips show it: one category alone is every category", async () => {
+        renderPage(<AvailabilityDialog kind="absence" own={{ ...WITH_CATS, categories: [CATS[0]] }} categoryId="c-tbc" onClose={vi.fn()} onSaved={vi.fn()} />);
+        expect(screen.queryByRole("group", { name: t("signups.availability.dialog.category") })).not.toBeInTheDocument();
+        await waitFor(() => expect(api.previewAvailability).toHaveBeenLastCalledWith({ kind: "absence", from: "2026-10-05", to: "2026-10-05" }));
+    });
+
+    it("never offers a category without a name (no bare Discord ids as chips)", () => {
+        show("absence", { ...WITH_CATS, categories: [...CATS, { id: "123456789012345678", name: "", icon: "", versionId: "tbc" }] });
+        const group = screen.getByRole("group", { name: t("signups.availability.dialog.category") });
+        expect(within(group).getAllByRole("button").map((b) => b.textContent)).toEqual([t("signups.availability.dialog.allCategories"), "Raids TBC", "Forever-Raid"]);
+    });
+
+    it("a nameless category next to a single named one shows no chips and keeps every category", async () => {
+        renderPage(<AvailabilityDialog kind="absence" own={{ ...WITH_CATS, categories: [CATS[0], { id: "123456789012345678", name: "", icon: "", versionId: "tbc" }] }} categoryId="123456789012345678" onClose={vi.fn()} onSaved={vi.fn()} />);
+        expect(screen.queryByRole("group", { name: t("signups.availability.dialog.category") })).not.toBeInTheDocument();
+        await waitFor(() => expect(api.previewAvailability).toHaveBeenLastCalledWith({ kind: "absence", from: "2026-10-05", to: "2026-10-05" }));
+    });
+
     it("an attendance in one category offers only characters of its version", async () => {
         const user = userEvent.setup();
         show("presence", WITH_CATS);
