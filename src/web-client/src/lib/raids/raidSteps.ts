@@ -27,6 +27,16 @@ export function deedLabel(deed: RaidStepDeed): string {
 }
 
 /**
+ * Eine Randnotiz (eines Schritts oder der ganzen Leiste) in der Menüsprache: über
+ * ihre feste Id ("afterRaid"), sonst der Text des Servers — Notizen mit Zahl,
+ * Name oder Datum schickt er ohne Id.
+ */
+export function noteText(item: { note: string; noteId?: string }): string {
+    if (!item.noteId) return item.note || "";
+    return tOr(`raidDetail.steps.note.${item.noteId}`, item.note);
+}
+
+/**
  * Wie ein Zustand heißt. „Übersprungen“ ist bewusst kein Fehlerwort: ein Raid
  * ohne Setup ist ein gewöhnlicher Raid, kein kaputter.
  */
@@ -50,9 +60,9 @@ export function stepPosition(steps: RaidEventStep[], id: string): string {
  * "Schritt 3 von 5 · Setup" — oder, wenn nichts offen ist, warum.
  */
 export function stepSummary(progress: RaidEventSteps): string {
-    if (progress.cancelled) return progress.note || t("raidDetail.steps.cancelled");
+    if (progress.cancelled) return noteText(progress) || t("raidDetail.steps.cancelled");
     const step = progress.steps.find((s) => s.id === progress.current);
-    if (!step) return progress.note || t("raidDetail.steps.nothingOpen");
+    if (!step) return noteText(progress) || t("raidDetail.steps.nothingOpen");
     return `${stepPosition(progress.steps, step.id)} · ${stepTitle(step)}`;
 }
 
@@ -74,7 +84,7 @@ export function stepShort(step: RaidEventStep): string {
  * solange der Server etwas zu sagen hat.
  */
 export function stepLine(step: RaidEventStep): string {
-    return stepShort(step) || step.note || "";
+    return stepShort(step) || noteText(step);
 }
 
 /**
@@ -86,9 +96,9 @@ export function stepLine(step: RaidEventStep): string {
 export function stepLater(progress: RaidEventSteps): { title: string; text: string; step: RaidEventStep | null } | null {
     if (progress.cancelled || progress.steps.some((s) => s.id === progress.current)) return null;
     const step = progress.steps.find((s) => s.state === "todo") || null;
-    const title = progress.note || t("raidDetail.steps.nothingOpen");
+    const title = noteText(progress) || t("raidDetail.steps.nothingOpen");
     if (!step) return { title, text: "", step: null };
-    return { title, text: t("raidDetail.steps.later", { what: stepTitle(step), text: step.hint || step.note || "" }), step };
+    return { title, text: t("raidDetail.steps.later", { what: stepTitle(step), text: step.hint || noteText(step) }), step };
 }
 
 /**
@@ -97,7 +107,7 @@ export function stepLater(progress: RaidEventSteps): { title: string; text: stri
  */
 export function stepFocus(step: RaidEventStep): { title: string; text: string } {
     const what = step.action ? deedLabel(step.action) : stepTitle(step);
-    return { title: t("raidDetail.steps.focus", { what }), text: step.hint || step.note || "" };
+    return { title: t("raidDetail.steps.focus", { what }), text: step.hint || noteText(step) };
 }
 
 /**
@@ -106,7 +116,7 @@ export function stepFocus(step: RaidEventStep): { title: string; text: string } 
  * was ein Klick tut.
  */
 export function stepTipSub(step: RaidEventStep, withDeed: boolean): string {
-    const parts = [step.note, step.hint];
+    const parts = [noteText(step), step.hint];
     if (withDeed && step.action) parts.push(t("raidDetail.steps.clickDeed", { action: deedLabel(step.action) }));
     return parts.filter(Boolean).join(" · ");
 }

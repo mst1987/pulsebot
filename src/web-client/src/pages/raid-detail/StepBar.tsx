@@ -20,7 +20,7 @@
 // (src/web/raidDetailSteps.js' eventSteps); die Texte drumherum stehen rein in
 // lib/raids/raidSteps.ts. Hier wird nur gezeichnet.
 import type { RaidEventStep, RaidEventSteps, RaidStepDeed } from "../../api";
-import { deedLabel, stepFocus, stepLater, stepLine, stepStateLabel, stepSummary, stepTipSub, stepTitle } from "../../lib/raids/raidSteps";
+import { deedLabel, noteText, stepFocus, stepLater, stepLine, stepStateLabel, stepSummary, stepTipSub, stepTitle } from "../../lib/raids/raidSteps";
 import { Button } from "../../components/ui/Button";
 import WowIcon from "../../components/ui/WowIcon";
 import { CheckIcon } from "../../components/ui/icons";
@@ -116,7 +116,7 @@ export default function StepBar({ progress, running, onDeed }: {
                 <div className="rd-ck-off">
                     <span className="rd-ck-off-text">
                         <span className="kicker">{t("raidDetail.stepBar.cancelled")}</span>
-                        <span className="rd-ck-off-why">{progress.note}</span>
+                        <span className="rd-ck-off-why">{noteText(progress)}</span>
                     </span>
                     {progress.action && (
                         <Button variant="ghost" size="sm" icon={progress.action.icon} onClick={() => onDeed(progress.action!)}>

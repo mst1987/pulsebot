@@ -1,4 +1,4 @@
-const { raidSteps, eventSteps, STEP_IDS, STEP_STATES, _internal: { roleSummary, firstOpenAnalysis } } = require("../../../src/web/events/raidDetailSteps");
+const { raidSteps, eventSteps, STEP_IDS, STEP_STATES, STEP_NOTES, _internal: { roleSummary, firstOpenAnalysis } } = require("../../../src/web/events/raidDetailSteps");
 
 function base(overrides = {}) {
     return {
@@ -398,6 +398,31 @@ describe("eventSteps — das Raid-Cockpit (#319)", () => {
         expect(at(run(own({ event: { channelName: "" } })), "created").note).toMatch(/^[A-Z][a-z]\.?, \d{2}\.\d{2}\.?$/);
         expect(at(res, "approval")).toMatchObject({ state: "todo", note: "nach dem Setup" });
         expect(at(res, "after")).toMatchObject({ state: "todo", note: "nach dem Raid" });
+    });
+
+    it("gibt festen Randnotizen eine Id zum Übersetzen, Notizen mit Zahl oder Name keine", () => {
+        const res = run(own());
+        expect(at(res, "approval").noteId).toBe("afterSetup");
+        expect(at(res, "plan")).toMatchObject({ state: "todo", note: "Raidplan leer", noteId: "planEmpty" });
+        expect(at(res, "after").noteId).toBe("afterRaid");
+        const bench = at(run(own({ ownSignups: [...signed(2), { status: "bench" }] })), "signup");
+        expect(bench).toMatchObject({ note: "1 auf der Warteliste", noteId: "" });
+        const cancelled = run(own({ event: { status: "cancelled" } }));
+        expect(cancelled).toMatchObject({ note: "Abgesagt.", noteId: "cancelled" });
+        // über viele Lagen: jede Id ist leer oder ein Schlüssel, dessen Text der Server sendet
+        const cases = [
+            own(), own({ event: { signupsClosed: true, autoSuggest: true } }), own({ event: { status: "cancelled", cancelReason: "x" } }),
+            own({ event: { signupsClosed: true, startTime: inHours(0.2) } }),
+            own({ event: { isPast: true, startTime: inHours(-30) }, lootItems: [] }),
+            own({ event: { signupsClosed: true }, ownSignups: signed(20), ownSetup: { status: "draft", placed: 20, size: 25, bench: 0, version: 1, ok: true } }),
+        ];
+        for (const c of cases) {
+            const r = run(c);
+            for (const item of [r, ...r.steps]) {
+                expect(typeof item.noteId).toBe("string");
+                if (item.noteId) expect({ id: item.noteId, note: item.note }).toEqual({ id: item.noteId, note: STEP_NOTES[item.noteId] });
+            }
+        }
     });
 
     it("Setup: kein Vorschlag → offen, ein Entwurf → erledigt", () => {

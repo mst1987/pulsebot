@@ -69,6 +69,8 @@ export type RaidEventStep = {
     value: string;
     unit: string;
     note: string;
+    /** Die feste Id einer Randnotiz ohne Zahl und Namen ("afterRaid") — der Client übersetzt über sie. */
+    noteId?: string;
     fill?: number | null;
     /** Der eine erklärende Satz — er steht im Tooltip, nicht auf der Fläche. */
     hint: string;
@@ -81,6 +83,7 @@ export type RaidEventSteps = {
     action: RaidStepDeed | null;
     cancelled: boolean;
     note: string;
+    noteId?: string;
 };
 
 /** What the player dialog shows beyond this raid — src/web/raidPlayerSummary.js. */

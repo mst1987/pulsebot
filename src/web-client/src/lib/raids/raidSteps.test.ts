@@ -11,7 +11,7 @@ import { t } from "../../i18n";
 import { BACKEND_SRC, requireBackend } from "../../test/backend";
 import { inLang } from "../../test/i18n";
 
-const { eventSteps, STEP_IDS, STEP_STATES } = requireBackend("web/events/raidDetailSteps");
+const { eventSteps, STEP_IDS, STEP_STATES, STEP_NOTES } = requireBackend("web/events/raidDetailSteps");
 
 const NOW = Date.UTC(2026, 8, 20, 12, 0, 0);
 const inHours = (h: number) => Math.floor((NOW + h * 3600 * 1000) / 1000);
@@ -98,7 +98,7 @@ describe("the step bar's words", () => {
         const after = p.steps.find((s) => s.id === "after")!;
         expect(lib.stepShort(after)).toBe("");
         expect(lib.stepLine(after)).toBe("nach dem Raid");
-        expect(lib.stepLine({ ...after, note: "" })).toBe("");
+        expect(lib.stepLine({ ...after, note: "", noteId: "" })).toBe("");
     });
 
     it("gives a calm strip when nothing is due: the server's sentence and the next later step", () => {
@@ -155,6 +155,31 @@ describe("the cockpit in the menu language", () => {
 
     it("keeps the server's German where the dictionary has the same text", () => {
         for (const d of named) expect({ id: d.id, text: t(`raidDetail.steps.deed.${d.id}`) }).toEqual({ id: d.id, text: d.label });
+    });
+
+    it("knows every fixed note the server can send, in both languages, the German one word for word", async () => {
+        const ids = Object.keys(STEP_NOTES);
+        expect(ids).toEqual(expect.arrayContaining(["afterSetup", "afterRaid", "planEmpty", "noLoot"]));
+        for (const id of ids) expect({ id, text: t(`raidDetail.steps.note.${id}`) }).toEqual({ id, text: STEP_NOTES[id] });
+        const unknown = () => ids.filter((id) => t(`raidDetail.steps.note.${id}`) === `raidDetail.steps.note.${id}`);
+        expect(await inLang("en", unknown)).toEqual([]);
+    });
+
+    it("translates a note by its id, the server's text only as fallback, a note with a count as sent", async () => {
+        const p = progress();
+        const after = p.steps.find((s) => s.id === "after")!;
+        expect(after.noteId).toBe("afterRaid");
+        expect(await inLang("en", () => lib.stepLine(after))).toBe("after the raid");
+        expect(await inLang("en", () => lib.noteText({ note: "Raidplan leer", noteId: "planEmpty" }))).toBe("raid plan empty");
+        // the bar's own sentence follows the menu language too
+        const done = progress({ event: { signupsClosed: true, startTime: inHours(0.2) } });
+        expect(done.noteId).toBe("allDone");
+        expect(await inLang("en", () => lib.stepSummary(done))).toBe("Everything before the raid is done.");
+        // an id the dictionaries do not know keeps the server's text; without an id it is the text
+        expect(lib.noteText({ note: "Neu", noteId: "future" })).toBe("Neu");
+        const bench = progress({ ownSignups: [{ status: "signed" }, { status: "bench" }] }).steps[1];
+        expect(bench.noteId).toBe("");
+        expect(await inLang("en", () => lib.noteText(bench))).toBe("1 auf der Warteliste");
     });
 
     it("names steps and deeds by id, the server's text only as fallback", () => {

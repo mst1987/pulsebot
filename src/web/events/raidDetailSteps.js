@@ -365,6 +365,34 @@ const STEP_IDS = ["created", "signup", "setup", "approval", "plan", "after"];
 const SKIP_WINDOW_MS = 60 * 60 * 1000;
 /** Einen Platz im Raid belegt, wer „Dabei“ oder „Spät“ ist — wie rosterCounts(). */
 const ATTENDING = ["signed", "late"];
+/**
+ * The fixed notes of the bar, by id: the client shows them in the menu language
+ * (raidDetail.steps.note.<id>), the German text stays the fallback. Notes with a
+ * count, a name or a date carry no id and stay as the server sends them.
+ */
+const STEP_NOTES = {
+    afterSetup: "nach dem Setup",
+    afterRaid: "nach dem Raid",
+    planEmpty: "Raidplan leer",
+    noLoot: "kein Loot",
+    noSetup: "ohne Setup",
+    planned: "verplant",
+    autoSuggest: "Vorschlag bei Anmeldeschluss",
+    neverApproved: "nie freigegeben",
+    posted: "gepostet",
+    notPosted: "nicht gepostet",
+    draft: "Entwurf",
+    changed: "geändert seit dem Posten",
+    published: "freigegeben",
+    allDone: "Alles erledigt, was vor dem Raid zu tun war.",
+    afterDone: "Nachbereitung erledigt.",
+    cancelled: "Abgesagt.",
+};
+
+/** `{ note, noteId }` of a fixed note; "" clears both. */
+function fixedNote(id) {
+    return id ? { note: STEP_NOTES[id], noteId: id } : { note: "", noteId: "" };
+}
 
 /** "Mi 24.09. · 19:30 Uhr" einer Unix-Sekunde, in der Zeitzone des Menüs. */
 function whenLabel(seconds) {
@@ -407,7 +435,7 @@ function createdStep(d) {
     const when = ev.startTime ? ` und beginnt am ${whenLabel(ev.startTime)}` : "";
     return {
         id: "created", label: "Angelegt", icon: "inv_misc_note_05", state: "done", fill: null,
-        value: channel ? `#${channel}` : "angelegt", unit: "", note: !channel && ev.startTime ? dayLabel(ev.startTime) : "",
+        value: channel ? `#${channel}` : "angelegt", unit: "", note: !channel && ev.startTime ? dayLabel(ev.startTime) : "", noteId: "",
         hint: `Das Event steht ${where}${when}. „Bearbeiten“ ändert Titel, Termin, Raid, Größe und Anmeldeschluss.`,
         action: deed("edit", "Bearbeiten", "inv_misc_note_05", { manage: "edit" }),
     };
@@ -426,7 +454,7 @@ function signupStepOwn(d, now) {
     if (!notes.length && c.absence) notes.push(`${c.absence} abgemeldet`);
     const step = {
         id: "signup", label: "Anmeldung", icon: "inv_letter_15",
-        value: String(c.accounts), unit: "angemeldet", note: notes.join(" · "),
+        value: String(c.accounts), unit: "angemeldet", note: notes.join(" · "), noteId: "",
         fill: size ? Math.min(1, c.attending / size) : null,
     };
     const closing = deadline ? `Anmeldeschluss ${whenLabel(deadline)}.` : "Kein Anmeldeschluss gesetzt.";
@@ -479,7 +507,7 @@ function withEditors(step, d) {
     const names = (Array.isArray(d.ownSetupEditors) ? d.ownSetupEditors : []).filter(Boolean);
     if (!names.length) return step;
     const who = names.length > 2 ? `${names.slice(0, 2).join(", ")} +${names.length - 2}` : names.join(" und ");
-    return { ...step, live: names, note: `${who} ${names.length > 1 ? "arbeiten" : "arbeitet"} dran`, hint: `${step.hint} Gerade im Setup: ${names.join(", ")}.` };
+    return { ...step, live: names, note: `${who} ${names.length > 1 ? "arbeiten" : "arbeitet"} dran`, noteId: "", hint: `${step.hint} Gerade im Setup: ${names.join(", ")}.` };
 }
 
 function setupStepOwn(d, now) {
@@ -490,13 +518,13 @@ function setupStepOwnBase(d, now) {
     const s = d.ownSetup || null;
     const ev = d.event || {};
     const size = Number(ev.size) || (s && Number(s.size)) || 0;
-    const step = { id: "setup", label: "Setup", icon: "inv_misc_map_01", value: "—", unit: "", note: "", fill: null };
+    const step = { id: "setup", label: "Setup", icon: "inv_misc_map_01", value: "—", unit: "", note: "", noteId: "", fill: null };
     const openEditor = deed("setup", "Setup öffnen", "inv_misc_map_01", { tab: "setup" });
     if (s && s.placed) {
         const checks = s.ok === false ? ", die Prüfung meldet noch etwas" : "";
         return {
             ...step, state: "done",
-            value: String(s.placed), unit: size ? `/ ${size}` : "", note: s.bench ? `${s.bench} auf der Bank` : "verplant",
+            value: String(s.placed), unit: size ? `/ ${size}` : "", ...(s.bench ? { note: `${s.bench} auf der Bank`, noteId: "" } : fixedNote("planned")),
             fill: size ? Math.min(1, s.placed / size) : null,
             hint: `${s.placed}${size ? ` von ${size}` : ""} Plätzen sind eingeteilt${checks}. Klick öffnet den Setup-Editor.`,
             action: openEditor,
@@ -504,13 +532,13 @@ function setupStepOwnBase(d, now) {
     }
     if (setupSkipped(d, now)) {
         return {
-            ...step, state: "skipped", note: "ohne Setup",
+            ...step, state: "skipped", ...fixedNote("noSetup"),
             hint: "Dieser Raid läuft ohne Setup — kein Vorschlag, keine Gruppen. Ein gewöhnlicher Fall (PuG, spontaner Abend), kein Fehler. Der Editor steht trotzdem offen.",
             action: openEditor,
         };
     }
     return {
-        ...step, state: "open", note: ev.autoSuggest ? "Vorschlag bei Anmeldeschluss" : "",
+        ...step, state: "open", ...fixedNote(ev.autoSuggest ? "autoSuggest" : ""),
         hint: ev.autoSuggest
             ? "Zieh die Angemeldeten direkt in die Gruppen – oder warte: zum Anmeldeschluss legt der Bot einen Entwurf an, solange noch niemand eingeteilt ist."
             : "Zieh die Angemeldeten direkt in die Gruppen. „Automatisch füllen“ verteilt sie auf Wunsch für dich.",
@@ -529,15 +557,15 @@ function dmNote(post) {
 function approvalStep(d, now) {
     const s = d.ownSetup || null;
     const post = d.ownSetupPost || null;
-    const step = { id: "approval", label: "Freigabe", icon: "inv_misc_note_02", value: "—", unit: "", note: "", fill: null };
+    const step = { id: "approval", label: "Freigabe", icon: "inv_misc_note_02", value: "—", unit: "", note: "", noteId: "", fill: null };
     // where the setup stands: one reading with the Orga-Zentrale (services/setup/setupCore.js setupPhase)
     const phase = setupPhase(s, post);
     if (phase === "none") {
         // Ohne Setup gibt es nichts freizugeben — übersprungen, nicht offen.
         if (setupSkipped(d, now)) {
-            return { ...step, state: "skipped", note: "ohne Setup", hint: "Ohne Setup gibt es nichts freizugeben. Raider sehen ihre Anmeldung, aber keine Gruppen.", action: null };
+            return { ...step, state: "skipped", ...fixedNote("noSetup"), hint: "Ohne Setup gibt es nichts freizugeben. Raider sehen ihre Anmeldung, aber keine Gruppen.", action: null };
         }
-        return { ...step, state: "todo", note: "nach dem Setup", hint: "Erst ein Entwurf, dann die Freigabe. Bis dahin sehen Raider kein Setup — weder im Web noch in Discord.", action: null };
+        return { ...step, state: "todo", ...fixedNote("afterSetup"), hint: "Erst ein Entwurf, dann die Freigabe. Bis dahin sehen Raider kein Setup — weder im Web noch in Discord.", action: null };
     }
     const outdated = phase === "outdated";
     const posted = outdated || phase === "posted";
@@ -546,7 +574,9 @@ function approvalStep(d, now) {
         const dms = dmNote(post) ? ` ${dmNote(post)} sind raus.` : "";
         return {
             // „Stand 3“ statt „3 Stand“: die Zahl allein sagt hier nichts.
-            ...step, state: "done", value: `Stand ${s.version || 1}`, unit: "", note: notes.join(" · "),
+            ...step, state: "done", value: `Stand ${s.version || 1}`, unit: "",
+            // without a DM count the note is a fixed word the client can translate
+            ...(notes.length > 1 ? { note: notes.join(" · "), noteId: "" } : fixedNote(posted ? "posted" : "notPosted")),
             hint: outdated
                 ? `Freigegeben als Stand ${s.version}. Die Nachricht im Kanal zeigt noch Stand ${post.version} — „Setup posten“ bringt sie nach.`
                 : `Freigegeben als Stand ${s.version}. Raider sehen die Gruppen im Web, in der Anmelde-Nachricht und im Bot.${dms}`,
@@ -556,13 +586,13 @@ function approvalStep(d, now) {
     if (d.event && d.event.isPast) {
         // Ein Entwurf, der nie freigegeben wurde, und der Raid ist gelaufen.
         return {
-            ...step, state: "skipped", value: String(s.placed), unit: "im Entwurf", note: "nie freigegeben",
+            ...step, state: "skipped", value: String(s.placed), unit: "im Entwurf", ...fixedNote("neverApproved"),
             hint: "Der Entwurf wurde nie freigegeben — die Raider haben ihn nie gesehen. Nach dem Raid ändert das nichts mehr.", action: null,
         };
     }
     return {
         ...step, state: "open", value: String(s.placed), unit: "im Entwurf",
-        note: phase === "changed" ? "geändert seit dem Posten" : "Entwurf",
+        ...fixedNote(phase === "changed" ? "changed" : "draft"),
         hint: phase === "changed"
             ? "Die Raider sehen noch den zuletzt geposteten Stand. Erst „Setup posten“ macht die Änderung sichtbar."
             : "Der Entwurf steht, gepostet ist er nicht — Raider sehen noch nichts. Im Editor prüfen und „Setup posten“ (das gibt ihn zugleich frei).",
@@ -578,11 +608,11 @@ function approvalStep(d, now) {
 function planStepOwn(d) {
     const rp = d.raidplanPost || null;
     const ev = d.event || {};
-    const step = { id: "plan", label: "Einteilungen", icon: "inv_misc_map02", value: "—", unit: "", note: "", fill: null };
+    const step = { id: "plan", label: "Einteilungen", icon: "inv_misc_map02", value: "—", unit: "", note: "", noteId: "", fill: null };
     const post = deed("raidplan", "Einteilungen posten", "inv_letter_15", { modal: "raidplan" });
     if (!rp || !rp.filled) {
         return {
-            ...step, state: "todo", note: "Raidplan leer",
+            ...step, state: "todo", ...fixedNote("planEmpty"),
             hint: "Im Tab „Raidplan“ die Bosse einteilen und speichern — danach kommt der Link zu den Einteilungen in den Kanal.",
             action: deed("plan", "Raidplan öffnen", "inv_misc_map02", { tab: "plan" }),
         };
@@ -597,10 +627,10 @@ function planStepOwn(d) {
         };
     }
     if (ev.isPast) {
-        return { ...step, state: "skipped", note: "nicht gepostet", hint: "Der Link wurde nie gepostet. Nach dem Raid ändert das nichts mehr.", action: post };
+        return { ...step, state: "skipped", ...fixedNote("notPosted"), hint: "Der Link wurde nie gepostet. Nach dem Raid ändert das nichts mehr.", action: post };
     }
     return {
-        ...step, state: "open", value: "Offen", note: rp.published ? "freigegeben" : "Entwurf",
+        ...step, state: "open", value: "Offen", ...fixedNote(rp.published ? "published" : "draft"),
         hint: "Der Raidplan steht, im Kanal fehlt der Link. „Einteilungen posten“ gibt ihn bei Bedarf frei und postet ihn.",
         action: post,
     };
@@ -615,14 +645,14 @@ function afterStep(d) {
         id: "after", label: "Nachbereitung", icon: "inv_misc_pocketwatch_01", fill: null,
         value: logs.length ? String(logs.length) : "—",
         unit: logs.length ? (logs.length === 1 ? "Log" : "Logs") : "",
-        note: loot ? plural(loot, "Item", "Items") : "kein Loot",
+        ...(loot ? { note: plural(loot, "Item", "Items"), noteId: "" } : fixedNote("noLoot")),
     };
     if (logs.length && !open && loot) {
         return { ...step, state: "done", hint: `Alles da: ${plural(logs.length, "Log", "Logs")} ausgewertet, ${plural(loot, "Item", "Items")} importiert.`, action: null };
     }
     if (!ev.isPast) {
         // before the raid "kein Loot" reads like a fault; the note says when the step comes
-        return { ...step, state: "todo", note: "nach dem Raid", hint: "Nach dem Raid: das Log zuordnen und auswerten, den Loot-Export importieren.", action: null };
+        return { ...step, state: "todo", ...fixedNote("afterRaid"), hint: "Nach dem Raid: das Log zuordnen und auswerten, den Loot-Export importieren.", action: null };
     }
     let action;
     let hint;
@@ -664,7 +694,7 @@ function eventSteps(d, opts = {}) {
         }
         return {
             steps, current: "", cancelled: true,
-            note: ev.cancelReason ? `Abgesagt: ${ev.cancelReason}` : "Abgesagt.",
+            ...(ev.cancelReason ? { note: `Abgesagt: ${ev.cancelReason}`, noteId: "" } : fixedNote("cancelled")),
             action: deed("reopen", "Absage zurücknehmen", "spell_holy_divineintervention", { manage: "reopen" }),
         };
     }
@@ -677,7 +707,7 @@ function eventSteps(d, opts = {}) {
     }
     return {
         steps, current: current ? current.id : "", cancelled: false,
-        note: current ? "" : (ev.isPast ? "Nachbereitung erledigt." : "Alles erledigt, was vor dem Raid zu tun war."),
+        ...fixedNote(current ? "" : (ev.isPast ? "afterDone" : "allDone")),
         action: current ? current.action : null,
     };
 }
@@ -685,3 +715,4 @@ function eventSteps(d, opts = {}) {
 module.exports.eventSteps = eventSteps;
 module.exports.STEP_STATES = STEP_STATES;
 module.exports.STEP_IDS = STEP_IDS;
+module.exports.STEP_NOTES = STEP_NOTES;
