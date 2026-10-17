@@ -43,6 +43,31 @@ describe("seed-test-raid", () => {
         expect(mod.TEMPLATE_NAME).toBe("BT Demo");
     });
 
+    it("Illidan's phase 2 animation survives a save untouched: every frame, change and loop names an object of its board", () => {
+        const { cleanBoard } = require("../../src/services/raidplan/raidplanBoard");
+        const seed = require(FILE);
+        const raw = seed.illidanBoard("bt/illidan-stormrage", seed.demoSlots(), false);
+        const { board, dropped } = cleanBoard(raw, { allowedUserIds: [], allowTokens: false });
+        expect(dropped).toBe(0);
+        const [scene] = board.scenes;
+        const [want] = raw.scenes;
+        expect(scene.stepId).toBe("illkite");
+        expect(scene.frames.map((f) => [f.at, f.changes.length])).toEqual(want.frames.map((f) => [f.at, f.changes.length]));
+        expect(scene.loops.map((l) => [l.obj, l.from, l.trail])).toEqual(want.loops.map((l) => [l.obj, l.from, l.trail]));
+        // the glaives, flames, leash circles and the Fireball's splash start hidden and appear in their frame; the tank rows place
+        // nothing of their own meanwhile
+        expect(scene.frames[0].changes.filter((c) => c.hidden === true).map((c) => c.obj).sort()).toEqual(["icon:flame1", "icon:flame2", "icon:glaivee", "icon:glaivew", "zone:fireball", "zone:leashe", "zone:leashw"]);
+        expect(board.autoPlace).toBe(false);
+        // a tank starts kiting where it stands after the frames, and its flame follows on the same path a second later
+        const tank2 = scene.loops.find((l) => l.obj === "slot:illtk2");
+        const flame1 = scene.loops.find((l) => l.obj === "icon:flame1");
+        expect(flame1.path).toEqual(tank2.path);
+        expect(flame1.from - tank2.from).toBe(1);
+        expect(board.slots.find((s) => s.id === "illtk2")).toMatchObject({ x: tank2.path[0][0], y: tank2.path[0][1] });
+        // the auto demo places nothing by hand
+        expect(seed.illidanBoard("bt/illidan-stormrage", seed.demoSlots(), true)).toMatchObject({ slots: [], icons: [], scenes: [] });
+    });
+
     it("starts only as a script (require.main === module), never by a bare call; its stores are loaded inside main / seedPlan only", () => {
         const src = fs.readFileSync(FILE, "utf8").replace(/\r\n/g, "\n");
         expect(src).toContain("if (require.main === module) main();");

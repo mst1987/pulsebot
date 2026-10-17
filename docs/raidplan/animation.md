@@ -180,9 +180,14 @@ drawn with "Weg zeichnen" in its sentence. The mechanics below are unchanged.
 
 - **Gurtogg Bloodboil:** five split group markers and "Bloodboil-Rotation" (6 frames: the group at the back gets
   Bloodboil, runs to the front on a curve, the next one falls back half a second later, twice).
-- **Illidan:** "Flammen kiten" (4 frames and 4 loops): Illidan flies up (faded, smaller), two Flames of Azzinoth appear
-  with a fire badge and a pulse, they move to tank 2 / tank 3, then each tank kites a round on its half of the room and
-  its flame follows a second behind on the same path, leaving its Blaze as a trail.
+- **Illidan:** "Phase 2: Flammen und Camps" (9 frames and 4 loops, `illidanBoard` in the seed script): Illidan flies up
+  (faded, smaller), the five groups go from their phase 1 places into five tight camps as a cross in the middle, two
+  glaives land west and east (`wow:inv_weapon_glave_01`), a Flame of Azzinoth rises at each, the leash circle round each
+  glaive fades in (flame and raid stay inside, else Uncaged Wrath), tank 2 / tank 3 take one flame each to the outside and
+  kite it round their own glaive while the flame follows a second behind leaving its Blaze as a trail, then a Fireball
+  marks camp 3 with its 10 yd splash. The board has `autoPlace: false`: while the hand-placed flames are hidden, the tank
+  rows would otherwise put flames of their own on the map. The game facts were checked against Wowhead TBC and
+  warcraft.wiki.gg plus guides (Oct 2026); the places on the map are the demo's layout.
 
 ## Tests
 

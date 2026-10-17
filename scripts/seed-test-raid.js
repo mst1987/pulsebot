@@ -76,23 +76,91 @@ function gurtoggDemo(key) {
 }
 
 /**
- * Illidan's scene of the demo (#712): in phase 2 Illidan flies up and two Flames of Azzinoth appear; tank 2 and tank 3 each kite
- * one round their half of the room (a loop), the flame follows a second behind and leaves its Blaze as a trail.
+ * Illidan's phase 2 in the demo (#712): Illidan flies up, the raid goes to the middle into five tight camps (a Fireball splashes
+ * 10 yd round its target), two glaives land west and east and a Flame of Azzinoth rises at each; tank 2 and tank 3 take one flame
+ * each out to their side and kite it round their own glaive, the flame a second behind leaving its Blaze as a trail. The circle
+ * round a glaive is the leash: a flame (and the raid) has to stay near it, else Uncaged Wrath. The game facts (spells, icons,
+ * 10 yd splash, glaives west / east, leash) were checked against Wowhead TBC and warcraft.wiki.gg plus guides (Oct 2026); the
+ * places on the map are the demo's own layout, not data. Returns the objects of the board and the scene.
  */
-function flameKiteDemo() {
-    const left = [[0.14, 0.3], [0.3, 0.16], [0.4, 0.38], [0.26, 0.62], [0.1, 0.5]];
-    const right = left.map(([x, y]) => [Math.round((1 - x) * 100) / 100, y]);
-    const loop = (id, obj, path, from, trail) => ({ id, obj, path, closed: true, period: 10, from, to: 0, trail });
+function illidanPhase2Demo() {
+    const r2 = (n) => Math.round(n * 100) / 100;
+    const glaiveW = [0.27, 0.46], glaiveE = [0.73, 0.46];
+    // the kite path round the west glaive on its outer side (the east one mirrored), the tank's first point is where it takes its flame
+    const kiteW = [[0.22, 0.22], [0.12, 0.3], [0.08, 0.46], [0.12, 0.62], [0.22, 0.7], [0.3, 0.66], [0.3, 0.28]];
+    const mirror = (path) => path.map(([x, y]) => [r2(1 - x), y]);
+    const kiteE = mirror(kiteW);
+    // the five camps as a cross in the middle, where both leash circles overlap (warcraft.wiki.gg: up to five tight groups as a cross)
+    const camps = { 1: [0.5, 0.26], 2: [0.36, 0.5], 3: [0.64, 0.5], 4: [0.5, 0.74], 5: [0.5, 0.5] };
+    // phase 1: the melee groups at Illidan, the others behind them
+    const phase1 = { 1: [0.43, 0.32], 2: [0.57, 0.32], 3: [0.3, 0.6], 4: [0.5, 0.72], 5: [0.7, 0.6] };
+    const group = (n) => ({ id: `illg${n}`, kind: "group", n, label: "", x: camps[n][0], y: camps[n][1], split: true, groupScale: 0.45 });
+    const icon = (id, iconKey, [x, y], extra = {}) => ({ id, iconKey, label: "", showLabel: false, x, y, size: 48, rotation: 0, autoFace: false, opacity: 1, lock: false, hidden: false, ...extra });
+    // the leash round a glaive: a circle on the demo's wide board (w 0.5 of the width = h 0.8 of the height), both overlap in the middle
+    const leash = (id, [x, y], label) => ({ id, shape: "ellipse", type: "custom", label, color: "#5f8f3a", opacity: 0.18, x: r2(x - 0.25), y: r2(y - 0.4), w: 0.5, h: 0.8 });
+    // the 10 yd splash of a Fireball round camp 3
+    const splash = { id: "fireball", shape: "ellipse", type: "danger", label: "Feuerball", opacity: 0.25, x: r2(camps[3][0] - 0.07), y: r2(camps[3][1] - 0.11), w: 0.14, h: 0.22 };
     const ch = (obj, extra) => ({ delay: 0, dur: 1, ease: "inout", obj, ...extra });
-    return {
-        id: "flamekite", title: "Flammen kiten", loop: false, length: 26,
+    const loop = (id, obj, path, from, trail) => ({ id, obj, path, closed: true, period: 10, from, to: 0, trail });
+    const groups = [1, 2, 3, 4, 5];
+    const objects = ["icon:glaivew", "icon:glaivee", "icon:flame1", "icon:flame2", "zone:leashw", "zone:leashe", "zone:fireball"];
+    const scene = {
+        id: "illp2", title: "Phase 2: Flammen und Camps", loop: false, length: 24,
         frames: [
-            { id: "k1", at: 0, caption: "Phase 2: Illidan steht in der Mitte", changes: [] },
-            { id: "k2", at: 1.5, caption: "Illidan fliegt hoch, zwei Flammen von Azzinoth erscheinen", changes: [ch("icon:illidanb", { opacity: 0.45, scale: 0.8 }), ch("icon:flame1", { badge: "spell_fire_felfire", pulse: true, dur: 0 }), ch("icon:flame2", { badge: "spell_fire_felfire", pulse: true, dur: 0 })] },
-            { id: "k3", at: 3, caption: "Tank 2 und Tank 3 holen je eine Flamme", changes: [ch("icon:flame1", { x: 0.14, y: 0.3, dur: 1.2, pulse: false }), ch("icon:flame2", { x: 0.86, y: 0.3, dur: 1.2, pulse: false })] },
-            { id: "k4", at: 4.5, caption: "Kiten: jeder bleibt auf seiner Seite, die Flammen nie zusammen, aus dem Feuer (Blaze) raus", changes: [] },
+            { id: "p1", at: 0, caption: "Phase 1: Illidan am Boden, der Raid um ihn herum",
+                changes: [ch("icon:illidanb", { x: 0.5, y: 0.22 }), ...groups.map((n) => ch(`slot:illg${n}`, { x: phase1[n][0], y: phase1[n][1] })),
+                    ch("slot:illtk1", { x: 0.5, y: 0.31 }), ch("slot:illtk2", { x: 0.4, y: 0.42 }), ch("slot:illtk3", { x: 0.6, y: 0.42 }),
+                    // hidden until their frame; the flames wait at their glaive (they rise there)
+                    ...objects.map((o) => ch(o, { hidden: true, ...(o === "icon:flame1" ? { x: glaiveW[0], y: glaiveW[1] } : o === "icon:flame2" ? { x: glaiveE[0], y: glaiveE[1] } : {}) }))] },
+            { id: "p2", at: 2, caption: "Bei 65 % hebt Illidan ab: der Raid geht in die Mitte, jede Gruppe in ihr Camp",
+                changes: [ch("icon:illidanb", { y: 0.1, opacity: 0.4, scale: 0.8, dur: 1.5 }), ...groups.map((n, i) => ch(`slot:illg${n}`, { x: camps[n][0], y: camps[n][1], dur: 2, delay: i * 0.2 })),
+                    ch("slot:illtk1", { x: 0.5, y: 0.88, dur: 2 })] },
+            { id: "p3", at: 4.6, caption: "Illidan wirft zwei Glaiven: eine nach Westen, eine nach Osten",
+                changes: [ch("icon:glaivew", { hidden: false, pulse: true, dur: 0.4 }), ch("icon:glaivee", { hidden: false, pulse: true, dur: 0.4 }),
+                    ch("slot:illtk2", { x: kiteW[0][0], y: kiteW[0][1], dur: 2.2 }), ch("slot:illtk3", { x: kiteE[0][0], y: kiteE[0][1], dur: 2.2 })] },
+            { id: "p4", at: 6.2, caption: "An jeder Glaive steigt eine Flamme von Azzinoth auf",
+                changes: [ch("icon:flame1", { hidden: false, badge: "spell_fire_felfire", pulse: true, dur: 0.6 }), ch("icon:flame2", { hidden: false, badge: "spell_fire_felfire", pulse: true, dur: 0.6 }),
+                    ch("icon:glaivew", { pulse: false, dur: 0 }), ch("icon:glaivee", { pulse: false, dur: 0 })] },
+            { id: "p5", at: 7.8, caption: "Der Kreis um die Glaive: Flamme und Raid bleiben drin, sonst Ungezügelter Hass (+500 % Schaden)",
+                changes: [ch("zone:leashw", { hidden: false, dur: 0.8 }), ch("zone:leashe", { hidden: false, dur: 0.8 })] },
+            { id: "p6", at: 10, caption: "Tank 2 und Tank 3 holen je eine Flamme nach außen, ihr Feuerstoß zeigt vom Raid weg",
+                changes: [ch("icon:flame1", { x: 0.25, y: 0.27, dur: 1.2, pulse: false }), ch("icon:flame2", { x: 0.75, y: 0.27, dur: 1.2, pulse: false })] },
+            { id: "p7", at: 11.5, caption: "Kiten: im Kreis um die eigene Glaive, immer in Bewegung, nie in die Feuerspur (Lohe)", changes: [] },
+            { id: "p8", at: 16.5, caption: "Feuerball trifft alles 10 Meter um sein Ziel: eng im eigenen Camp, Abstand zu den anderen",
+                changes: [ch("slot:illg3", { badge: "spell_fire_blueflamebolt", pulse: true, dur: 0 }), ch("zone:fireball", { hidden: false, dur: 0.3 })] },
+            { id: "p9", at: 19.5, caption: "Bis beide Flammen tot sind, dann landet Illidan (Phase 3)",
+                changes: [ch("slot:illg3", { badge: "", pulse: false, dur: 0 }), ch("zone:fireball", { hidden: true, dur: 0.5 })] },
         ],
-        loops: [loop("lt2", "slot:illtk2", left, 4.5, false), loop("lf1", "icon:flame1", left, 5.5, true), loop("lt3", "slot:illtk3", right, 4.5, false), loop("lf2", "icon:flame2", right, 5.5, true)],
+        loops: [loop("lt2", "slot:illtk2", kiteW, 11.5, false), loop("lf1", "icon:flame1", kiteW, 12.5, true), loop("lt3", "slot:illtk3", kiteE, 11.5, false), loop("lf2", "icon:flame2", kiteE, 12.5, true)],
+    };
+    return {
+        groups: groups.map(group),
+        tanks: { 1: [0.5, 0.88], 2: kiteW[0], 3: kiteE[0] },
+        icons: [icon("glaivew", "wow:inv_weapon_glave_01", glaiveW, { size: 40 }), icon("glaivee", "wow:inv_weapon_glave_01", glaiveE, { size: 40 })],
+        flames: { flame1: [0.25, 0.27], flame2: [0.75, 0.27] },
+        zones: [leash("leashw", glaiveW, "Glaive West"), leash("leashe", glaiveE, "Glaive Ost"), splash],
+        scene,
+    };
+}
+
+/** Illidan's board of the demo template (`slots` = demoSlots(), `assignments` = the boss's rows so far); --auto-demo places nothing by hand. */
+function illidanBoard(key, slots, autoDemo, assignments = []) {
+    const row = (id, n, ref, name, icon) => ({ id, type: "tank", title: "", spell: null, assignees: [`slot:tank:${n}`], targets: [{ kind: "mob", ref, name, icon }], note: "", suggested: false });
+    const rows = [row("illt1", 1, `b:${key}`, "Illidan Stormrage", ""), row("illt2", 2, "d:flame-of-azzinoth", "Flame of Azzinoth", "mob:22997"), row("illt3", 3, "d:flame-of-azzinoth", "Flame of Azzinoth", "mob:22997"), ...assignments.filter((x) => x.type !== "tank")];
+    // --auto-demo: nothing placed by hand, the tank rows put Illidan, both Flames and the three tanks on the map
+    if (autoDemo) return { slots: [], icons: [], assignments: rows, steps: [], scenes: [] };
+    const p2 = illidanPhase2Demo();
+    const mk = (id, iconKey, [x, y], mobId) => ({ id, iconKey, label: "", showLabel: false, x, y, size: 48, rotation: 0, mobId, autoFace: true, opacity: 1, lock: false, hidden: false });
+    const tk = (n) => ({ ...slots.find((sl) => sl.kind === "tank" && sl.n === n), id: `illtk${n}`, x: p2.tanks[n][0], y: p2.tanks[n][1] });
+    return {
+        slots: [tk(1), tk(2), tk(3), ...p2.groups],
+        icons: [mk("illidanb", "boss:609", [0.5, 0.22], `b:${key}`), mk("flame1", "mob:22997", p2.flames.flame1, "d:flame-of-azzinoth"), mk("flame2", "mob:22997", p2.flames.flame2, "d:flame-of-azzinoth"), ...p2.icons],
+        zones: p2.zones,
+        // the flames are placed by hand and hidden until they rise: the tank rows must not put flames of their own on the map meanwhile
+        autoPlace: false,
+        assignments: rows,
+        steps: [{ id: "illkite", action: "kite", participants: ["slot:tank:2", "slot:tank:3"], sentence: "kiten je eine Flamme von Azzinoth um ihre Glaive", targets: [{ kind: "mob", ref: "d:flame-of-azzinoth", name: "Flame of Azzinoth", icon: "mob:22997" }], timing: { kind: "phase", from: 2 } }],
+        scenes: [{ ...p2.scene, stepId: "illkite" }],
     };
 }
 
@@ -144,21 +212,11 @@ function seedPlan(eventId, event) {
         bosses[second] = { ...bosses[second], slots: slots.filter((s) => s.kind === "tank"), icons: [icon(second)], assignments: bosses[second].assignments.filter((a) => a.type !== "tank") };
         bosses.defaults = { slots: [], assignments: [{ id: "stdtank1", type: "tank", title: "", spell: null, assignees: ["slot:tank:1"], targets: [{ kind: "mob", ref: "b:this", name: "Boss", icon: "" }], note: "", suggested: false }] };
     }
-    // Illidan: the boss icon and two Flames of Azzinoth on the map, three tanks; Tank 1 holds Illidan, Tank 2 and 3 one Flame each (the icons face their tank)
+    // Illidan: the boss icon, two Flames of Azzinoth, their glaives and leash circles, three tanks and the five camps of phase 2;
+    // Tank 1 holds Illidan, Tank 2 and 3 one Flame each (the flames face their tank)
     {
         const key = "bt/illidan-stormrage";
-        const mk = (id, iconKey, x, y, mobId) => ({ id, iconKey, label: "", showLabel: false, x, y, size: 48, rotation: 0, mobId, autoFace: true, opacity: 1, lock: false, hidden: false });
-        const tk = (n, x, y) => ({ ...slots.find((sl) => sl.kind === "tank" && sl.n === n), id: `illtk${n}`, x, y });
-        const row = (id, n, ref, name, icon) => ({ id, type: "tank", title: "", spell: null, assignees: [`slot:tank:${n}`], targets: [{ kind: "mob", ref, name, icon }], note: "", suggested: false });
-        bosses[key] = {
-            ...bosses[key],
-            // --auto-demo: nothing placed by hand, the tank rows put Illidan, both Flames and the three tanks on the map
-            slots: autoDemo ? [] : [tk(1, 0.5, 0.86), tk(2, 0.14, 0.3), tk(3, 0.86, 0.3)],
-            icons: autoDemo ? [] : [mk("illidanb", "boss:609", 0.5, 0.5, `b:${key}`), mk("flame1", "mob:22997", 0.28, 0.42, "d:flame-of-azzinoth"), mk("flame2", "mob:22997", 0.72, 0.42, "d:flame-of-azzinoth")],
-            assignments: [row("illt1", 1, `b:${key}`, "Illidan Stormrage", ""), row("illt2", 2, "d:flame-of-azzinoth", "Flame of Azzinoth", "mob:22997"), row("illt3", 3, "d:flame-of-azzinoth", "Flame of Azzinoth", "mob:22997"), ...bosses[key].assignments.filter((x) => x.type !== "tank")],
-            steps: autoDemo ? [] : [{ id: "illkite", action: "kite", participants: ["slot:tank:2", "slot:tank:3"], sentence: "kiten je eine Flamme von Azzinoth auf ihrer Seite", targets: [{ kind: "mob", ref: "d:flame-of-azzinoth", name: "Flame of Azzinoth", icon: "mob:22997" }], timing: { kind: "phase", from: 2 } }],
-            scenes: autoDemo ? [] : [{ ...flameKiteDemo(), stepId: "illkite" }],
-        };
+        bosses[key] = { ...bosses[key], ...illidanBoard(key, slots, autoDemo, bosses[key].assignments) };
     }
     // Gurtogg: the five groups as split markers and the animation "Bloodboil-Rotation" (docs/raidplan/animation.md): Bloodboil hits the
     // group standing farthest away, it runs to the front and the next group falls back
@@ -309,4 +367,4 @@ function main() {
 // only when started as a script: a `require` (a test, a syntax check) runs nothing and writes nothing
 if (require.main === module) main();
 
-module.exports = { main, seedPlan, demoSlots, ROSTER, TEMPLATE_NAME };
+module.exports = { main, seedPlan, demoSlots, illidanBoard, ROSTER, TEMPLATE_NAME };
