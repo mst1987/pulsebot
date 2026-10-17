@@ -19,7 +19,7 @@
    can undo. */
 .loot-pop-wrap { display: inline-block; outline: none; }
 .loot-pop-trigger {
-    display: inline-block; min-width: 26px; padding: 1px 7px; border-radius: 999px;
+    display: inline-block; min-width: 26px; padding: 1px 7px; border-radius: 3px;
     background: var(--panel2); border: 1px dashed var(--line); color: var(--text);
     font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700;
     text-align: center; cursor: help;
@@ -39,7 +39,7 @@
     background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
     box-shadow: 0 12px 30px var(--shade-28); padding: 8px; cursor: default;
 }
-.loot-pop-head { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 2px 6px 8px; }
+.loot-pop-head { font-size: 12px; font-weight: 700; color: var(--muted); padding: 2px 6px 8px; }
 .loot-pop-list { display: flex; flex-direction: column; gap: 2px; }
 .loot-pop-row { display: flex; align-items: center; gap: 9px; padding: 5px 6px; border-radius: 7px; }
 .loot-pop-row:hover { background: var(--panel2); }
@@ -88,13 +88,8 @@
     border: 1px solid var(--line);
     margin-bottom: 12px;
     position: relative;
-    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
 }
-.lc-gap::after {
-    content: ""; position: absolute; top: 0; right: 0; width: 14px; height: 14px;
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 42%, transparent 44%);
-    opacity: .85; pointer-events: none;
-}
+
 .lc-gap-open { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 .lc-gap-head {
     display: flex;
@@ -127,7 +122,6 @@
 .lc-itemhead-icon {
     width: 40px; height: 40px; border-radius: 6px; flex: none; display: block;
     border: 2px solid var(--iq, var(--line));
-    box-shadow: 0 0 10px color-mix(in srgb, var(--iq, transparent) 35%, transparent);
     background: var(--panel3);
 }
 .lc-itemhead-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
@@ -243,7 +237,7 @@
 .lc-cbadge {
     display: inline-block;
     padding: 1px 7px;
-    border-radius: 999px;
+    border-radius: 3px;
     font-family: var(--font-mono);
     font-size: 11px;
     font-weight: 700;
@@ -363,7 +357,7 @@
     align-items: center;
     gap: 10px;
     padding: 8px 17px 8px 8px;
-    border-radius: 999px;
+    border-radius: 3px;
     font: inherit;
     font-size: 12.5px;
     font-weight: 600;
@@ -406,10 +400,8 @@
     width: 116px;
     background: var(--panel);
     color: var(--muted);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .05em;
     white-space: nowrap;
     text-align: left;
     border-right: 1px solid var(--line);
@@ -426,10 +418,8 @@
 .lc-blsource {
     display: inline-block;
     margin-top: 7px;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
-    letter-spacing: .05em;
-    text-transform: uppercase;
     color: var(--muted);
     background: var(--panel3);
     border: 1px dashed var(--line);
@@ -508,7 +498,7 @@
 .lc-blresultbody { display: grid; gap: 9px; min-width: 0; }
 .lc-blresulthead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; font-weight: 600; }
 .lc-blresultspecs { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-.lc-blbisfor { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+.lc-blbisfor { font-size: 12px; color: var(--muted); font-weight: 700; }
 
 /* Die Klasse ist der Link: ein Klick filtert die Liste auf sie und hebt das
    Teil dort hervor. Deshalb sieht sie aus wie ein Ziel, nicht wie ein Etikett. */
@@ -519,7 +509,7 @@
     font-weight: 700;
     cursor: pointer;
     padding: 4px 11px;
-    border-radius: 999px;
+    border-radius: 3px;
     color: var(--cc);
     background: color-mix(in srgb, var(--cc) 12%, transparent);
     border: 1px solid color-mix(in srgb, var(--cc) 45%, transparent);
@@ -548,11 +538,11 @@
     color: var(--text);
     white-space: normal;
 }
-.lc-blcorner.lc-cmpitem { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.lc-blcorner.lc-cmpitem { color: var(--muted); font-size: 12px; font-weight: 700; }
 .lc-cmpcol { width: 172px; }
 .lc-cmpcol .lc-blcolhead img { width: 22px; height: 22px; }
 .lc-cmpcolsub { display: block; margin-top: 7px; font-size: 11px; font-weight: 600; color: var(--muted); }
-.lc-cmpslot { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.lc-cmpslot { font-size: 12px; font-weight: 700; color: var(--muted); }
 /* Die Zahl am Schalter: wie viele Items der Raider im Filter hat. */
 .lc-cmpcount { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
 
@@ -581,10 +571,8 @@
 .lc-cmpdate { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--text); }
 .lc-cmpwant {
     display: inline-block;
-    font-size: 10.5px;
+    font-size: 12px;
     font-weight: 700;
-    letter-spacing: .04em;
-    text-transform: uppercase;
     color: var(--accent);
     border: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
     border-radius: 5px;

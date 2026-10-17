@@ -12,7 +12,7 @@
 .lc-grow { flex: 1; }
 .lc-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
 .lc-unit { color: var(--muted); font-weight: 500; font-size: 12px; }
-.lc-th { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.lc-th { font-size: 12px; font-weight: 600; color: var(--muted); }
 .lc-hints { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-width: 0; }
 /* a long hint ("Liste: Warlock-Destruction") stays in its column, the tooltip has the rest */
 .lc-hints .badge { max-width: 100%; overflow: hidden; }
@@ -107,7 +107,7 @@ a.lc-id-name:hover { text-decoration: underline; }
 .lc-lrow:not(.lc-lhead):hover { background: color-mix(in srgb, var(--panel2) 60%, transparent); }
 .lc-lrow.open { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
 .lc-lhead { background: var(--panel2); border-bottom: 1px solid var(--line); padding-top: 9px; padding-bottom: 9px; }
-.lc-lhead, .lc-lhead .sort-link { font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.lc-lhead, .lc-lhead .sort-link { font-size: 12px; font-weight: 600; color: var(--muted); }
 .lc-lhead .sort-link.active { color: var(--accent); }
 .lc-rank {
     width: 26px; height: 26px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center;
@@ -326,7 +326,7 @@ a.lc-ov-card:focus-visible { box-shadow: inset 0 0 0 2px var(--area-lootcouncil)
 .lc-ov-title { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .lc-ov-title b { font-size: 17px; overflow-wrap: anywhere; }
 .lc-ov-ver { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); flex-wrap: wrap; }
-.lc-ov-kick { font: 600 10.5px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); }
+.lc-ov-kick { font: 600 12px/1.3 var(--font-sans); color: var(--muted); }
 .lc-ov-sub { color: var(--muted); font-size: 13px; }
 .lc-ov-nums { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
 .lc-ov-big { font-size: 34px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
@@ -350,7 +350,7 @@ a.lc-ov-card:focus-visible { box-shadow: inset 0 0 0 2px var(--area-lootcouncil)
 .lc-mb-hint { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 12px; padding: 12px 16px; color: var(--muted); }
 .lc-mb-groups { display: flex; flex-wrap: wrap; gap: 14px 28px; }
 .lc-mb-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.lc-mb-role { display: inline-flex; align-items: center; gap: 6px; font: 600 10.5px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted); }
+.lc-mb-role { display: inline-flex; align-items: center; gap: 6px; font: 600 12px/1.3 var(--font-sans); color: var(--muted); }
 .lc-mb-specs { display: flex; flex-wrap: wrap; gap: 8px; }
 .lc-mb-spec {
     position: relative;
