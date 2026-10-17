@@ -28,7 +28,7 @@
 
 .rp-side .rp-tray { padding: 6px 8px; gap: 4px; width: 100%; box-sizing: border-box; }
 .rp-side .rp-tray-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; width: 100%; }
-.rp-side .rp-chip { min-width: 0; padding: 1px 5px 1px 2px; font-size: 11.5px; overflow: hidden; }
+.rp-side .rp-chip { min-width: 0; padding: 1px 5px 1px 2px; font-size: var(--fs-label); overflow: hidden; }
 .rp-side .rp-chip .rp-name, .rp-side .rp-chip span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ==== read view v2: assignments left (tables), map right and sticky; my assignments first; the log by player at the end ==== */
@@ -95,7 +95,7 @@
 .rp-band { position: absolute; z-index: 30; border: 1.5px dashed var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); pointer-events: none; }
 .rp-multibox { position: absolute; z-index: 29; border: 1.5px dashed var(--accent); border-radius: 4px; pointer-events: none; box-sizing: border-box; }
 .rp-multibox .rp-handle { pointer-events: auto; }
-.rp-multi-count { position: absolute; left: 0; top: -24px; padding: 1px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 11.5px; font-weight: 800; white-space: nowrap; pointer-events: none; }
+.rp-multi-count { position: absolute; left: 0; top: -24px; padding: 1px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: var(--fs-label); font-weight: 800; white-space: nowrap; pointer-events: none; }
 .rp-token.is-multi { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
 .rp-zone.is-multi { box-shadow: 0 0 0 2px var(--accent); }
 .rp-multi-insp .rp-insp-actions { flex-wrap: wrap; }
@@ -204,7 +204,7 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-rtable td { padding: 3px 8px; }
 .rp-rtable { border-radius: 9px; }
 .rp-mine { padding: 8px 12px; border-radius: 11px; }
-.rp-mine h2 { margin-bottom: 6px; font-size: 11.5px; }
+.rp-mine h2 { margin-bottom: 6px; font-size: var(--fs-label); }
 .rp-mine-text { font-size: 16px; }
 .rp-grouptext { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); white-space: nowrap; font-size: 13px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; color: var(--on-fill); text-shadow: 0 1px 3px var(--shade-90), 0 0 6px var(--shade-70); pointer-events: none; }
 
@@ -212,7 +212,7 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-me-hit { background: var(--accent-soft); color: inherit; border-bottom: 2px solid var(--accent); border-radius: 3px; padding: 0 3px; font-weight: 800; }
 .rp-who.is-own { padding: 1px 8px 1px 3px; border: 2px solid var(--accent); border-radius: 3px; background: var(--accent-soft); color: var(--text); }
 .rp-who.is-own .class-colored { color: var(--text) !important; font-weight: 800; }
-.rp-du { padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; line-height: 16px; }
+.rp-du { padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: var(--fs-label); font-weight: 800; letter-spacing: .04em; text-transform: uppercase; line-height: 16px; }
 .rp-mine-from { display: inline-flex; align-items: center; gap: 6px; }
 .rp-mine-note { flex-basis: 100%; }
 /* the visitor's own line: solid, thick and glowing in the colour of its row type */
@@ -233,7 +233,7 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-ar-row.is-sel { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
 .rp-ar-row.is-target:hover { border-style: dashed; }
 .rp-ar-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.rp-ar-n { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; border-radius: 6px; background: var(--panel); border: 1px solid var(--line); font-size: 11px; font-weight: 800; color: var(--muted); flex: 0 0 auto; }
+.rp-ar-n { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; border-radius: 6px; background: var(--panel); border: 1px solid var(--line); font-size: var(--fs-label); font-weight: 800; color: var(--muted); flex: 0 0 auto; }
 .rp-ar-cls { margin-left: auto; display: inline-flex; gap: 2px; padding: 1px 3px; border-radius: 3px; border: 1px solid var(--line); background: var(--panel); flex: 0 0 auto; }
 .rp-ar-cls.is-missing { border-color: var(--high); }
 .rp-ar-cls.is-filled { border-color: var(--rp-ok); }
@@ -244,7 +244,7 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-ar-filter { display: flex; flex-direction: column; gap: 6px; }
 .rp-ar-players { display: flex; flex-direction: column; gap: 8px; }
 .rp-ar-note { margin: 0; padding: 4px 10px; border-radius: 8px; background: var(--accent-soft); font-size: 13px; font-weight: 700; }
-.rp-ar-at { font-size: 10.5px; font-weight: 700; color: var(--muted); }
+.rp-ar-at { font-size: var(--fs-label); font-weight: 700; color: var(--muted); }
 .rp-fchip.is-used { opacity: .7; }
 .rp-bes-assign { align-self: flex-start; }
 @media (max-width: 900px) { .rp-ar { grid-template-columns: minmax(0, 1fr); } }

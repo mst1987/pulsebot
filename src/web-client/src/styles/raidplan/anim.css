@@ -47,7 +47,7 @@
 .rp-anim-work { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .rp-anim-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .rp-anim-head .rp-anim-scene { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 13px; }
-.rp-anim-scene-n { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.rp-anim-scene-n { color: var(--muted); font-size: var(--fs-label); font-variant-numeric: tabular-nums; }
 .rp-anim-add { border-style: dashed; gap: 4px; }
 .rp-anim-stagegrid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 12px; align-items: start; }
 .rp-anim-boardcol { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
@@ -58,11 +58,11 @@
 .rp-anim-frame { flex: 0 0 168px; display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .rp-anim-frame:hover { border-color: var(--accent); }
 .rp-anim-frame.is-on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
-.rp-anim-frame-top { display: flex; align-items: baseline; gap: 8px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.rp-anim-frame-top { display: flex; align-items: baseline; gap: 8px; color: var(--muted); font-size: var(--fs-label); font-variant-numeric: tabular-nums; }
 .rp-anim-frame-top b { color: var(--text); font-size: 18px; line-height: 1; }
 .rp-anim-frame-len { margin-left: auto; }
 .rp-anim-frame-cap { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 2.6em; font-size: 13px; font-weight: 700; line-height: 1.3; }
-.rp-anim-frame-sum { color: var(--muted); font-size: 11px; }
+.rp-anim-frame-sum { color: var(--muted); font-size: var(--fs-label); }
 .rp-anim-frame-add { flex-basis: 96px; align-items: center; justify-content: center; border-style: dashed; color: var(--muted); font-weight: 700; }
 
 /* the panel beside the board */
@@ -150,7 +150,7 @@
 .rp-actor:hover { border-color: var(--accent); }
 .rp-actor.is-on { border: 2px solid var(--accent); background: var(--accent-soft); color: var(--accent); }
 .rp-actor.is-small { font-size: 12px; }
-.rp-actor-dot { display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: var(--rp-ac, var(--muted)); color: var(--rp-icon-outline); font-size: 11px; font-weight: 800; }
+.rp-actor-dot { display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: var(--rp-ac, var(--muted)); color: var(--rp-icon-outline); font-size: var(--fs-label); font-weight: 800; }
 .rp-actor-acts { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
 .rp-actor-raiders { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-left: 8px; }
 .rp-actors-note { font-size: 12px; line-height: 1.4; }
@@ -166,7 +166,7 @@
 
 /* the frame strip names who acts */
 .rp-anim-frame-who { display: flex; flex-wrap: wrap; gap: 4px; }
-.rp-anim-frame-chip { max-width: 100%; overflow: hidden; padding: 1px 7px; border-radius: 3px; background: var(--rp-ac, var(--muted)); color: var(--rp-icon-outline); font-size: 11px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.rp-anim-frame-chip { max-width: 100%; overflow: hidden; padding: 1px 7px; border-radius: 3px; background: var(--rp-ac, var(--muted)); color: var(--rp-icon-outline); font-size: var(--fs-label); font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 
 /* the frame's actions as sentences */
 .rp-anim-kick { color: var(--muted); font-size: 12px; font-weight: 800; }
@@ -180,7 +180,7 @@
 .rp-act-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .rp-act-sentence { font-size: 14px; line-height: 1.3; }
 .rp-act-meta { display: flex; flex-wrap: wrap; gap: 4px; }
-.rp-act-meta span { padding: 1px 7px; border-radius: 3px; background: var(--panel); color: var(--muted); font-size: 11px; font-weight: 700; }
+.rp-act-meta span { padding: 1px 7px; border-radius: 3px; background: var(--panel); color: var(--muted); font-size: var(--fs-label); font-weight: 700; }
 .rp-act-edit { display: flex; flex-direction: column; gap: 8px; padding: 6px 10px 10px; border-top: 1px solid var(--line); }
 .rp-anim-addact { align-self: stretch; justify-content: center; }
 
@@ -205,7 +205,7 @@
 .rp-wiz-ico { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--panel2); }
 .rp-wiz-tile.is-on .rp-wiz-ico { background: var(--accent); color: var(--accent-ink); }
 .rp-wiz-tl { font-size: 13px; font-weight: 800; }
-.rp-wiz-ts { color: var(--muted); font-size: 11px; }
+.rp-wiz-ts { color: var(--muted); font-size: var(--fs-label); }
 .rp-wiz-where { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); font-size: 14px; font-weight: 800; }
 .rp-wiz-foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .rp-anim-settings > summary { font-size: 13px; font-weight: 800; cursor: pointer; }

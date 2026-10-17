@@ -93,7 +93,7 @@
 /* the wishes as numbered spec icons: 1 [icon] 2 [icon] */
 .kp-wishicons { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .kp-wishicon { display: inline-flex; align-items: center; gap: 3px; }
-.kp-wishicon .kp-mono { font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.kp-wishicon .kp-mono { font-size: var(--fs-label); font-weight: 700; color: var(--muted); }
 
 /* ---- header: Kader picker, leads, settings ---- */
 .kp-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-width: 0; }
@@ -234,7 +234,7 @@
 .kp-menubtn svg { width: 14px; height: 14px; color: var(--muted); flex: none; }
 .kp-menubtn:hover, .kp-menubtn.kp-open { border-color: var(--accent); }
 .kp-menubtn.kp-active { border-color: var(--accent); background-color: var(--accent-soft); }
-.kp-menubadge { font: 700 11px/1 var(--font-mono); padding: 3px 6px; border-radius: 3px; background: var(--accent); color: var(--accent-ink); }
+.kp-menubadge { font: 700 var(--fs-label)/1 var(--font-mono); padding: 3px 6px; border-radius: 3px; background: var(--accent); color: var(--accent-ink); }
 .kp-countrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; min-width: 0; }
 .kp-groupby { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .kp-tabs { display: inline-flex; padding: 3px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--ctl-radius); }
@@ -315,7 +315,7 @@
 .kp-catgroup-head > b { flex: none; font-weight: 600; }
 .kp-catgroup-badge {
     flex: none; margin-left: auto; padding: 1px 8px; border: 1px solid var(--line); border-radius: 3px;
-    font-size: 11.5px; color: var(--muted);
+    font-size: var(--fs-label); color: var(--muted);
 }
 .kp-catgroup-hidden .kp-catopt:not(.kp-on) { color: var(--muted); }
 .kp-pool-table { --minw: 920px; }
@@ -343,12 +343,12 @@
     width: 30px; height: 30px; border-radius: 50%; flex: none; display: grid; place-items: center; object-fit: cover;
     font-weight: 800; font-size: 12px; color: var(--brand-ink); background: var(--av, var(--accent));
 }
-.kp-namerowcell .kp-pava { width: 26px; height: 26px; font-size: 11px; margin-right: 2px; }
+.kp-namerowcell .kp-pava { width: 26px; height: 26px; font-size: var(--fs-label); margin-right: 2px; }
 .kp-cell-char { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .kp-cell-stack { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .kp-cell-roles { display: flex; gap: 4px; flex-wrap: wrap; min-width: 0; }
 .kp-rolechip {
-    font-size: 11.5px; padding: 2px 7px; border-radius: 3px; background: var(--panel3); color: var(--muted);
+    font-size: var(--fs-label); padding: 2px 7px; border-radius: 3px; background: var(--panel3); color: var(--muted);
     max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .kp-namebtn {
@@ -407,7 +407,7 @@
 .kp-state.kp-st-provisional { background: var(--medium-bg); color: var(--medium); }
 .kp-state.kp-st-roster { background: color-mix(in srgb, var(--accent-2) 16%, transparent); color: var(--accent-2); }
 .kp-state.kp-st-bench { background: var(--accent-soft); color: var(--text); }
-.kp-source { flex: none; font-size: 11px; padding: 1px 7px; border-radius: 3px; background: var(--panel3); color: var(--muted); white-space: nowrap; }
+.kp-source { flex: none; font-size: var(--fs-label); padding: 1px 7px; border-radius: 3px; background: var(--panel3); color: var(--muted); white-space: nowrap; }
 .kp-source.kp-src-profile { background: color-mix(in srgb, var(--accent-2) 14%, transparent); color: var(--accent-2); }
 .kp-source.kp-src-logs { background: var(--accent-soft); color: var(--accent); }
 .kp-source.kp-src-none { background: var(--medium-bg); color: var(--medium); }
@@ -568,7 +568,7 @@ dialog.dlg.kp-dialog .dlg-foot .kp-foot-left { margin-right: auto; }
 .kp-ivrow-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .kp-ivchip {
     display: inline-flex; align-items: center; gap: 5px; flex: none; padding: 3px 9px 3px 7px; border-radius: 3px;
-    background: var(--panel3); color: var(--muted); font: 600 11.5px/1.4 var(--font-mono); white-space: nowrap;
+    background: var(--panel3); color: var(--muted); font: 600 var(--fs-label)/1.4 var(--font-mono); white-space: nowrap;
 }
 .kp-ivchip svg { width: 13px; height: 13px; flex: none; }
 .kp-ivchip.kp-iv-started { background: var(--medium-bg); color: var(--medium); }
@@ -833,7 +833,7 @@ dialog.dlg.kp-dialog .dlg-foot .kp-foot-left { margin-right: auto; }
 }
 .kp-qitem-main .kp-strong { font-size: 15px; overflow-wrap: anywhere; }
 .kp-req { color: var(--medium); }
-.kp-qtype { flex: none; font-size: 11px; padding: 3px 9px; border-radius: 3px; white-space: nowrap; background: var(--panel3); color: var(--muted); }
+.kp-qtype { flex: none; font-size: var(--fs-label); padding: 3px 9px; border-radius: 3px; white-space: nowrap; background: var(--panel3); color: var(--muted); }
 .kp-qtype.kp-qtype-single { background: color-mix(in srgb, var(--accent-2) 16%, transparent); color: var(--accent-2); }
 .kp-qtype.kp-qtype-multi { background: var(--accent-soft); color: var(--accent); }
 .kp-qitem-act { display: inline-flex; gap: 2px; flex: none; }
@@ -927,7 +927,7 @@ dialog.dlg.kp-dialog .dlg-foot .kp-foot-left { margin-right: auto; }
 .kp-group { display: flex; flex-direction: column; gap: 6px; }
 .kp-group h3 { margin: 0; font-size: 16px; font-weight: 700; }
 .kp-hints { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
-.kp-hintchip { font-size: 11.5px; padding: 2px 8px; border-radius: 3px; background: var(--panel3); color: var(--muted); }
+.kp-hintchip { font-size: var(--fs-label); padding: 2px 8px; border-radius: 3px; background: var(--panel3); color: var(--muted); }
 .kp-hintchip.kp-ok { background: color-mix(in srgb, var(--accent-2) 14%, transparent); color: var(--accent-2); }
 .kp-hintchip.kp-miss { background: var(--medium-bg); color: var(--medium); }
 .kp-textarea { width: 100%; min-height: 260px; font: 13px/1.5 var(--font-mono); padding: 10px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; }
@@ -953,9 +953,9 @@ dialog.dlg.kp-dialog .dlg-foot .kp-foot-left { margin-right: auto; }
 .kp-presence-av { font-weight: 800; color: var(--text); background: color-mix(in srgb, var(--hue) 24%, transparent); }
 .kp-guests { display: inline-flex; align-items: center; gap: 6px; padding-left: 10px; border-left: 1px solid var(--line); color: var(--muted); }
 .kp-guests > svg { width: 14px; height: 14px; flex: none; }
-.kp-guests .kp-avatar { width: 24px; height: 24px; font-size: 11px; }
+.kp-guests .kp-avatar { width: 24px; height: 24px; font-size: var(--fs-label); }
 .kp-presence-mark { display: inline-flex; align-items: center; gap: 2px; flex: none; margin-left: 2px; }
-.kp-presence-more { font-size: 11px; font-weight: 700; color: var(--muted); }
+.kp-presence-more { font-size: var(--fs-label); font-weight: 700; color: var(--muted); }
 .kp-presence-banner {
     display: flex; flex-direction: column; gap: 6px; padding: 8px 12px; font-size: 13px; color: var(--text);
     background: color-mix(in srgb, var(--good) 8%, var(--panel)); border-left: 2px solid var(--good);

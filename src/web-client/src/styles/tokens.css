@@ -19,6 +19,8 @@
     --accent: #d4683c; --accent-2: #6fb0a6; --accent-soft: rgba(212, 104, 60, .14); --accent-ink: #1a0d06;
     --font-sans: "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+    /* ---- type: the smallest step a label may use (pilot C: nothing readable below 12px) ---- */
+    --fs-label: 12px;
     /* ---- control metrics: one height for everything that shares a line ---- */
     --ctl-h: 38px; --ctl-h-sm: 32px; --ctl-radius: 4px;
     /* The select chevron, drawn by us instead of by the OS widget (see the form

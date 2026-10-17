@@ -123,7 +123,7 @@ a.badge.ov-me-boss:hover { border-color: var(--accent); }
 .ov-row a.badge { text-decoration: none; }
 /* the last nights: the attendance grid's colours, and its letter so the status never rests on hue alone */
 .ov-dots { display: flex; flex-wrap: wrap; gap: 4px; }
-.ov-dot { width: 18px; height: 18px; border-radius: 4px; display: inline-grid; place-items: center; font-size: 10px; font-weight: 700; font-family: var(--font-mono); color: var(--att-ink); }
+.ov-dot { width: 18px; height: 18px; border-radius: 4px; display: inline-grid; place-items: center; font-size: var(--fs-label); font-weight: 700; font-family: var(--font-mono); color: var(--att-ink); }
 .ov-dot.att-present { background: var(--att-present); }
 .ov-dot.att-bench { background: var(--att-bench); }
 .ov-dot.att-vacation { background: var(--att-vacation); }

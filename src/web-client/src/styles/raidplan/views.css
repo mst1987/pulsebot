@@ -28,7 +28,7 @@
 .rp-strip-item.rp-bosschip:hover, .rp-strip-item.rp-bosschip:focus-visible { background: var(--panel2); border-color: var(--line); outline: none; }
 .rp-strip-item.rp-bosschip.is-on { background: var(--accent-soft); border-color: var(--accent); }
 .rp-strip-item .rp-bosschip-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
-.rp-strip-no { font-size: 11px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rp-strip-no { font-size: var(--fs-label); font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
 .rp-strip-eye { display: inline-grid; place-items: center; flex: 0 0 auto; width: 28px; height: 28px; padding: 0; border: 1px solid transparent; border-radius: 7px; background: none; color: var(--muted); cursor: pointer; }
 .rp-strip-eye:hover, .rp-strip-eye:focus-visible { border-color: var(--line); color: var(--text); outline: none; }
 .rp-strip-row.is-out .rp-strip-eye { color: var(--rp-warn); }

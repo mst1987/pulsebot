@@ -84,7 +84,7 @@ a.rn-card:focus-visible { box-shadow: inset 0 0 0 2px var(--area-roster); }
 /* ---- members: the table ---- */
 .rn-tbl-wrap { overflow-x: auto; }
 .rn-tbl { width: 100%; border-collapse: collapse; min-width: 960px; }
-.rn-tbl th { text-align: left; font: 600 11.5px/1.3 var(--font-sans); color: var(--muted); padding: 10px 14px; background: var(--panel2); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.rn-tbl th { text-align: left; font: 600 var(--fs-label)/1.3 var(--font-sans); color: var(--muted); padding: 10px 14px; background: var(--panel2); border-bottom: 1px solid var(--line); white-space: nowrap; }
 .rn-tbl td { padding: 10px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; font-size: 14px; }
 .rn-tbl tr.rn-grp td { background: var(--panel2); padding: 8px 14px; border-bottom: 1px solid var(--line); }
 .rn-person { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -119,7 +119,7 @@ a.rn-card:focus-visible { box-shadow: inset 0 0 0 2px var(--area-roster); }
 .rn-h3 { margin: 0; font-size: 15px; font-weight: 700; }
 .rn-pad { padding: 18px 20px; }
 .rn-lbl { margin: 0; font: 600 12px/1.3 var(--font-sans); color: var(--muted); }
-.rn-lbl-sub { margin-top: 6px; font-size: 11px; }
+.rn-lbl-sub { margin-top: 6px; font-size: var(--fs-label); }
 .rn-sec-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .rn-sec-head > :first-child { flex: 1; min-width: 0; margin: 0; }
 .rn-lines { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
@@ -351,13 +351,13 @@ dialog.rn-dlg-steps .dlg-body { min-height: 440px; }
 .rn-att-top .rn-sub { margin: 0; }
 .rn-att-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--muted); }
 .rn-att-legend li { display: inline-flex; align-items: center; gap: 6px; }
-.rn-att-legend .att-sq { width: 18px; height: 18px; flex-basis: 18px; font-size: 10px; }
+.rn-att-legend .att-sq { width: 18px; height: 18px; flex-basis: 18px; font-size: var(--fs-label); }
 .rn-att-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 .rn-att-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .rn-att-grid { border-collapse: separate; border-spacing: 0; min-width: 100%; }
 .rn-att-grid th, .rn-att-grid td { padding: 6px 5px; border-bottom: 1px solid var(--line-soft); text-align: center; vertical-align: middle; }
 .rn-att-grid tbody tr:last-child > * { border-bottom: 0; }
-.rn-att-grid thead th { font-size: 11.5px; font-weight: 700; color: var(--muted); white-space: nowrap; background: var(--panel2); }
+.rn-att-grid thead th { font-size: var(--fs-label); font-weight: 700; color: var(--muted); white-space: nowrap; background: var(--panel2); }
 .rn-att-night span { font-family: var(--font-mono); }
 .rn-att-name {
     position: sticky; left: 0; z-index: 1; text-align: left !important; min-width: 190px; max-width: 240px;
@@ -367,10 +367,10 @@ dialog.rn-dlg-steps .dlg-body { min-height: 440px; }
 .rn-att-who { display: flex; align-items: center; gap: 8px; width: 100%; padding: 2px 6px; border: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; border-radius: 6px; }
 .rn-att-who:hover { background: var(--panel2); }
 .rn-att-who:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.rn-att-who .rn-ava { width: 26px; height: 26px; font-size: 11px; }
+.rn-att-who .rn-ava { width: 26px; height: 26px; font-size: var(--fs-label); }
 .rn-att-who-text { display: flex; flex-direction: column; min-width: 0; }
 .rn-att-who-text b { font-size: 13.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rn-att-who-text small { font: 600 11.5px/1.3 var(--font-mono); color: var(--muted); }
+.rn-att-who-text small { font: 600 var(--fs-label)/1.3 var(--font-mono); color: var(--muted); }
 .rn-att-who-text small.rn-tone-ok { color: var(--good); }
 .rn-att-who-text small.rn-tone-mid { color: var(--medium); }
 .rn-att-who-text small.rn-tone-bad { color: var(--high); }

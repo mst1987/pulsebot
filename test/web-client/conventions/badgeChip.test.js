@@ -16,7 +16,7 @@ describe("ui/Badge", () => {
     });
 
     it("has its variants in the shared stylesheet", () => {
-        expect(css).toContain(".badge.sm { font-size: 11px; padding: 0 6px; }");
+        expect(css).toContain(".badge.sm { font-size: var(--fs-label); padding: 0 6px; }");
         expect(css).toMatch(/\n\.badge-x \{ display: inline-grid;[^}]*width: 15px; height: 15px;/);
         expect(css).toContain(".badge-x svg { width: 10px; height: 10px; }");
     });

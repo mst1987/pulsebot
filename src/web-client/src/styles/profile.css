@@ -39,7 +39,7 @@
 :root[data-theme="light"] :is(.pf-tab, .pf-tabmenu-item) .pf-tab-name { color: color-mix(in srgb, var(--cc, var(--text)) 35%, var(--ink-shade)); }
 .pf-tab-warn {
     width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center;
-    background: var(--medium-bg); color: var(--medium); font: 800 11px/1 var(--font-mono);
+    background: var(--medium-bg); color: var(--medium); font: 800 var(--fs-label)/1 var(--font-mono);
 }
 .pf-tab-more { display: none; }
 @media (max-width: 640px) {

@@ -47,8 +47,8 @@
 .loot-pop-ico-ph { background: var(--panel2); border: 1px solid var(--line); }
 .loot-pop-body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .loot-pop-name { font-size: 13.5px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.loot-pop-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11.5px; }
-.loot-pop-meta .lbadge { font-size: 11px; padding: 1px 7px; }
+.loot-pop-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: var(--fs-label); }
+.loot-pop-meta .lbadge { font-size: var(--fs-label); padding: 1px 7px; }
 
 @media (max-width: 640px) {
     .gear-summary { padding: 12px; gap: 12px; }
@@ -239,7 +239,7 @@
     padding: 1px 7px;
     border-radius: 3px;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--fs-label);
     font-weight: 700;
     letter-spacing: .02em;
     white-space: nowrap;
@@ -327,7 +327,7 @@
     min-height: 180px;
     max-height: 340px;
     font-family: var(--font-mono);
-    font-size: 11.5px;
+    font-size: var(--fs-label);
     line-height: 1.45;
     white-space: pre;
     resize: vertical;
@@ -430,7 +430,7 @@
    eine abgeschaltete Spec einfach verschwindet, ohne ein Komma zu hinterlassen. */
 .lc-blcolusers { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
 .lc-bluser {
-    font-size: 10.5px;
+    font-size: var(--fs-label);
     font-weight: 600;
     color: var(--muted);
     background: var(--panel2);
@@ -444,7 +444,7 @@
 .lc-blicon { width: 34px; height: 34px; border-radius: 6px; border: 1.5px solid var(--line); display: block; flex: none; }
 .lc-blnoicon { background: var(--panel3); border-style: dashed; }
 .lc-blmeta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.lc-blilvl, .lc-blfree { color: var(--muted); font-size: 11.5px; }
+.lc-blilvl, .lc-blfree { color: var(--muted); font-size: var(--fs-label); }
 .lc-blilvl { font-family: var(--font-mono); }
 
 /* Umstritten: das Teil steht auf mehreren Listen dieses Tiers. Eine Schiene an
@@ -456,7 +456,7 @@
 .lc-blcell.shared.focused { box-shadow: inset 3px 0 0 var(--accent-2), inset 0 0 0 1.5px var(--accent); }
 .lc-blshare {
     font-family: var(--font-mono);
-    font-size: 10.5px;
+    font-size: var(--fs-label);
     font-weight: 700;
     color: var(--accent-2);
     border: 1px solid color-mix(in srgb, var(--accent-2) 45%, transparent);
@@ -505,7 +505,7 @@
 .lc-bllink {
     appearance: none;
     font: inherit;
-    font-size: 11.5px;
+    font-size: var(--fs-label);
     font-weight: 700;
     cursor: pointer;
     padding: 4px 11px;
@@ -541,10 +541,10 @@
 .lc-blcorner.lc-cmpitem { color: var(--muted); font-size: 12px; font-weight: 700; }
 .lc-cmpcol { width: 172px; }
 .lc-cmpcol .lc-blcolhead img { width: 22px; height: 22px; }
-.lc-cmpcolsub { display: block; margin-top: 7px; font-size: 11px; font-weight: 600; color: var(--muted); }
+.lc-cmpcolsub { display: block; margin-top: 7px; font-size: var(--fs-label); font-weight: 600; color: var(--muted); }
 .lc-cmpslot { font-size: 12px; font-weight: 700; color: var(--muted); }
 /* Die Zahl am Schalter: wie viele Items der Raider im Filter hat. */
-.lc-cmpcount { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.lc-cmpcount { font-family: var(--font-mono); font-size: var(--fs-label); color: var(--muted); }
 
 /* Ein Raid als Zwischenzeile — die Zeilen darunter gehören ihm. */
 .lc-cmpmatrix .lc-cmpgroup th {

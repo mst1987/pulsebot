@@ -78,7 +78,7 @@ a.lc-id-name:hover { text-decoration: underline; }
 .lc-needbar i:last-of-type { border-right: 2px solid var(--lc-need-3); }
 /* #668: the item count with its loot points under it, and a weight column in the loot tooltip */
 .lc-lootn { display: inline-flex; flex-direction: column; line-height: 1.15; }
-.lc-lootn small { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.lc-lootn small { font-size: var(--fs-label); color: var(--muted); white-space: nowrap; }
 .lc-rtip .lc-loot-row.lc-loot-roww { grid-template-columns: 1fr auto auto auto auto; }
 .lc-needbar b { position: absolute; left: 8px; top: 0; line-height: 24px; font: 700 13px/24px var(--font-mono); color: var(--text); }
 .lc-need-rows { display: grid; grid-template-columns: 10px 18px 1fr auto; align-items: center; gap: 8px; margin: 4px 0 6px; }
@@ -172,13 +172,13 @@ dialog.lc-dlg { width: min(960px, calc(100vw - 32px)); }
 .lc-sheet-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
 .lc-sheet-name { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; }
 .lc-sheet-name:hover { text-decoration: underline; }
-.lc-sheet-slot { font-size: 11.5px; color: var(--muted); }
+.lc-sheet-slot { font-size: var(--fs-label); color: var(--muted); }
 .lc-logpanel2 { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); }
 .lc-logrow2 { display: flex; align-items: center; gap: 12px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
 .lc-logrow2.current { border-color: var(--accent); background: var(--accent-soft); }
 .lc-logrow2-name { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; font-size: 13.5px; flex-wrap: wrap; }
 .lc-logrow2-name .lc-muted { font-size: 12.5px; }
-.lc-logrow2-date { font: 11px var(--font-mono); color: var(--muted); white-space: nowrap; }
+.lc-logrow2-date { font: var(--fs-label) var(--font-mono); color: var(--muted); white-space: nowrap; }
 .lc-export { display: flex; flex-direction: column; gap: 10px; }
 
 /* ---- candidates, gain bar ---- */
