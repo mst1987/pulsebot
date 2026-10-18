@@ -10,6 +10,8 @@
 //                                                  # (boss, two Flames and their tanks come from the tank rows), the Council with
 //                                                  # "Magier-Tank -> Zerevor" and "Tank (Paladin) -> Malande", the paladin tank playing
 //                                                  # DPS there ("Paladin fehlt")
+//   node scripts/seed-test-raid.js --illidan-map <file>  # also store this image (PNG/JPG/WebP, max 3 MB) as the template's room map of
+//                                                  # Illidan (the phase 2 demo is laid out on the top platform seen from above)
 //
 // It also fills the raid plan: a template "BT Demo" (slots, heal / trash assignments for Naj'entus,
 // Supremus, Gurtogg, Illidan and the trash) is created or updated and applied to the event, then
@@ -87,13 +89,15 @@ function gurtoggDemo(key) {
  * the demo's own layout, not data. Returns the objects of the board and the scene.
  */
 function illidanPhase2Demo() {
-    const r2 = (n) => Math.round(n * 100) / 100;
     const r3 = (n) => Math.round(n * 1000) / 1000;
-    const glaiveW = [0.27, 0.46], glaiveE = [0.73, 0.46];
-    // the west druid's stops round his glaive on its outer side, from north over west to south, 25 degrees apart (on the demo's wide
-    // board 0.17 of the width is about 0.3 of the height); the east side mirrored
-    const arc = (deg) => [r3(glaiveW[0] + 0.17 * Math.cos((deg * Math.PI) / 180)), r3(glaiveW[1] + 0.3 * Math.sin((deg * Math.PI) / 180))];
-    const mirror = ([x, y]) => [r3(1 - x), y];
+    // laid out on the top platform seen from above (the 16:9 map of `--illidan-map`): the grate in the middle of the ring stands at
+    // x 0.515; a circle on that board is 1.78 times as high as it is wide (in fractions of the board)
+    const cx = 0.515;
+    const tall = 1.78;
+    const mirror = ([x, y]) => [r3(2 * cx - x), y];
+    const glaiveW = [0.3, 0.64], glaiveE = mirror(glaiveW);
+    // the west druid's stops round his glaive on its outer side, from north over west to south, 25 degrees apart; the east side mirrored
+    const arc = (deg) => [r3(glaiveW[0] + 0.12 * Math.cos((deg * Math.PI) / 180)), r3(glaiveW[1] + 0.12 * tall * Math.sin((deg * Math.PI) / 180))];
     const lerp = ([ax, ay], [bx, by], f) => [r3(ax + (bx - ax) * f), r3(ay + (by - ay) * f)];
     const stopsW = [260, 235, 210, 185, 160, 135, 110, 85].map(arc);
     // the flame stands behind its druid, most of the way back to his last stop (so the two do not cover each other on the map)
@@ -103,20 +107,26 @@ function illidanPhase2Demo() {
         e: { tank: "slot:illtk3", flame: "icon:flame2", stops: stopsW.map(mirror), flames: flamesW.map(mirror), done: 0 },
     };
     // the five camps as a cross in the middle, where both leash circles overlap (warcraft.wiki.gg: up to five tight groups as a cross)
-    const camps = { 1: [0.5, 0.26], 2: [0.36, 0.5], 3: [0.64, 0.5], 4: [0.5, 0.74], 5: [0.5, 0.5] };
+    const camps = { 1: [cx, 0.44], 2: [0.42, 0.64], 3: [r3(2 * cx - 0.42), 0.64], 4: [cx, 0.84], 5: [cx, 0.64] };
     // phase 1: the melee groups at Illidan, the others behind them
-    const phase1 = { 1: [0.43, 0.32], 2: [0.57, 0.32], 3: [0.3, 0.6], 4: [0.5, 0.72], 5: [0.7, 0.6] };
-    const group = (n) => ({ id: `illg${n}`, kind: "group", n, label: "", x: camps[n][0], y: camps[n][1], split: true, groupScale: 0.45 });
+    const illidan1 = [cx, 0.5], illidan2 = [cx, 0.2];
+    const phase1 = { 1: [0.47, 0.58], 2: [0.56, 0.58], 3: [0.38, 0.74], 4: [cx, 0.84], 5: [0.65, 0.74] };
+    const tanks1 = { 1: [cx, 0.38], 2: [0.45, 0.46], 3: [0.58, 0.46] };
+    // tank 1 waits beside the south camp while Illidan is up
+    const tank1 = [0.6, 0.9];
+    // one marker per camp, not split into members: with tanks, flames and fire the board would get too cluttered
+    const group = (n) => ({ id: `illg${n}`, kind: "group", n, label: "", x: camps[n][0], y: camps[n][1] });
     const icon = (id, iconKey, [x, y], extra = {}) => ({ id, iconKey, label: "", showLabel: false, x, y, size: 48, rotation: 0, autoFace: false, opacity: 1, lock: false, hidden: false, ...extra });
-    // the leash round a glaive: a circle on the demo's wide board (w 0.5 of the width = h 0.8 of the height), both overlap in the middle;
-    // neutral grey, green is the flames' fire
-    const leash = (id, [x, y], label) => ({ id, shape: "ellipse", type: "custom", label, color: "#8f8a80", opacity: 0.16, x: r2(x - 0.25), y: r2(y - 0.4), w: 0.5, h: 0.8 });
+    // a round zone of radius r (in widths of the board) round a point
+    const round = (id, [x, y], r, extra) => ({ id, shape: "ellipse", label: "", x: r3(x - r), y: r3(y - r * tall), w: r3(2 * r), h: r3(2 * r * tall), ...extra });
+    // the leash round a glaive, both overlap in the middle; neutral grey, green is the flames' fire
+    const leash = (id, at, label) => round(id, at, 0.2, { type: "custom", label, color: "#8f8a80", opacity: 0.16 });
     // the 10 yd splash of a Fireball round camp 3
-    const splash = { id: "fireball", shape: "ellipse", type: "danger", label: "Feuerball", opacity: 0.25, x: r2(camps[3][0] - 0.07), y: r2(camps[3][1] - 0.11), w: 0.14, h: 0.22 };
+    const splash = round("fireball", camps[3], 0.05, { type: "danger", label: "Feuerball", opacity: 0.25 });
     // the green fire a flame lays where it stood (a danger zone: never step in), and the blue fire of the Eye Blast across the west
     // druid's way (a plain area: bad, but better than the green; no label, the druid's name would cover it - the caption says it)
-    const blaze = (id, [x, y]) => ({ id, shape: "ellipse", type: "danger", label: "", color: "#4fa82a", opacity: 0.6, x: r3(x - 0.03), y: r3(y - 0.048), w: 0.06, h: 0.096 });
-    const blue = [{ id: "bluefire", shape: "rect", type: "custom", label: "", color: "#4a78c8", opacity: 0.55, x: 0.03, y: 0.35, w: 0.3, h: 0.05 }];
+    const blaze = (id, at) => round(id, at, 0.018, { type: "danger", color: "#4fa82a", opacity: 0.6 });
+    const blue = [{ id: "bluefire", shape: "rect", type: "custom", label: "", color: "#4a78c8", opacity: 0.55, x: 0.1, y: 0.56, w: 0.19, h: 0.035 }];
     const blazes = [];
     const ch = (obj, extra) => ({ delay: 0, dur: 1, ease: "inout", obj, ...extra });
     // one kite stop of a side: the flame has stood a moment, lays its green fire, then the druid moves on and the flame follows
@@ -143,13 +153,13 @@ function illidanPhase2Demo() {
         id: "illp2", title: "Phase 2: Flammen und Camps", loop: false, length: 30,
         frames: [
             { id: "p1", at: 0, caption: "Phase 1: Illidan am Boden, der Raid um ihn herum",
-                changes: [ch("icon:illidanb", { x: 0.5, y: 0.22 }), ...groups.map((n) => ch(`slot:illg${n}`, { x: phase1[n][0], y: phase1[n][1] })),
-                    ch("slot:illtk1", { x: 0.5, y: 0.31 }), ch("slot:illtk2", { x: 0.4, y: 0.42 }), ch("slot:illtk3", { x: 0.6, y: 0.42 }),
+                changes: [ch("icon:illidanb", { x: illidan1[0], y: illidan1[1] }), ...groups.map((n) => ch(`slot:illg${n}`, { x: phase1[n][0], y: phase1[n][1] })),
+                    ...[1, 2, 3].map((n) => ch(`slot:illtk${n}`, { x: tanks1[n][0], y: tanks1[n][1] })),
                     // hidden until their frame; the flames wait at their glaive (they rise there)
                     ...objects.map((o) => ch(o, { hidden: true, ...(o === "icon:flame1" ? { x: glaiveW[0], y: glaiveW[1] } : o === "icon:flame2" ? { x: glaiveE[0], y: glaiveE[1] } : {}) }))] },
             { id: "p2", at: 2, caption: "Bei 65 % hebt Illidan ab: der Raid geht in die Mitte, jede Gruppe in ihr Camp",
-                changes: [ch("icon:illidanb", { y: 0.1, opacity: 0.4, scale: 0.8, dur: 1.5 }), ...groups.map((n, i) => ch(`slot:illg${n}`, { x: camps[n][0], y: camps[n][1], dur: 2, delay: i * 0.2 })),
-                    ch("slot:illtk1", { x: 0.5, y: 0.88, dur: 2 })] },
+                changes: [ch("icon:illidanb", { x: illidan2[0], y: illidan2[1], opacity: 0.4, scale: 0.8, dur: 1.5 }), ...groups.map((n, i) => ch(`slot:illg${n}`, { x: camps[n][0], y: camps[n][1], dur: 2, delay: i * 0.2 })),
+                    ch("slot:illtk1", { x: tank1[0], y: tank1[1], dur: 2 })] },
             { id: "p3", at: 4.6, caption: "Illidan wirft zwei Glaiven: eine nach Westen, eine nach Osten",
                 changes: [ch("icon:glaivew", { hidden: false, pulse: true, dur: 0.4 }), ch("icon:glaivee", { hidden: false, pulse: true, dur: 0.4 }),
                     ch("slot:illtk2", { x: side.w.stops[0][0], y: side.w.stops[0][1], dur: 2.2 }), ch("slot:illtk3", { x: side.e.stops[0][0], y: side.e.stops[0][1], dur: 2.2 })] },
@@ -176,7 +186,8 @@ function illidanPhase2Demo() {
     };
     return {
         groups: groups.map(group),
-        tanks: { 1: [0.5, 0.88], 2: side.w.stops[0], 3: side.e.stops[0] },
+        illidan: illidan2,
+        tanks: { 1: tank1, 2: side.w.stops[0], 3: side.e.stops[0] },
         icons: [icon("glaivew", "wow:inv_weapon_glave_01", glaiveW, { size: 40 }), icon("glaivee", "wow:inv_weapon_glave_01", glaiveE, { size: 40 })],
         flames: { flame1: side.w.flames[0], flame2: side.e.flames[0] },
         zones: [leash("leashw", glaiveW, "Glaive West"), leash("leashe", glaiveE, "Glaive Ost"), splash, ...blue, ...blazes],
@@ -195,10 +206,12 @@ function illidanBoard(key, slots, autoDemo, assignments = []) {
     const tk = (n) => ({ ...slots.find((sl) => sl.kind === "tank" && sl.n === n), id: `illtk${n}`, x: p2.tanks[n][0], y: p2.tanks[n][1] });
     return {
         slots: [tk(1), tk(2), tk(3), ...p2.groups],
-        icons: [mk("illidanb", "boss:609", [0.5, 0.22], `b:${key}`), mk("flame1", "mob:22997", p2.flames.flame1, "d:flame-of-azzinoth"), mk("flame2", "mob:22997", p2.flames.flame2, "d:flame-of-azzinoth"), ...p2.icons],
+        icons: [mk("illidanb", "boss:609", p2.illidan, `b:${key}`), mk("flame1", "mob:22997", p2.flames.flame1, "d:flame-of-azzinoth"), mk("flame2", "mob:22997", p2.flames.flame2, "d:flame-of-azzinoth"), ...p2.icons],
         zones: p2.zones,
         // the flames are placed by hand and hidden until they rise: the tank rows must not put flames of their own on the map meanwhile
         autoPlace: false,
+        // the platform is big and the fight has many objects: everything a size smaller than the default
+        objectScale: 0.6,
         assignments: rows,
         steps: [{ id: "illkite", action: "kite", participants: ["slot:tank:2", "slot:tank:3"], sentence: "kiten je eine Flamme von Azzinoth um ihre Glaive", targets: [{ kind: "mob", ref: "d:flame-of-azzinoth", name: "Flame of Azzinoth", icon: "mob:22997" }], timing: { kind: "phase", from: 2 } }],
         scenes: [{ ...p2.scene, stepId: "illkite" }],
@@ -276,6 +289,11 @@ function seedPlan(eventId, event) {
     const saved = templates.updateTemplate(tpl.id, { bosses, version: tpl.version, size: 25, counts: DEMO_COUNTS });
     if (saved.error) throw new Error(saved.error);
     tpl = saved.template;
+    const illidanMap = arg("illidan-map");
+    if (illidanMap) {
+        const stored = planStore.saveMap(planStore.templateMapKey(tpl.id, "bt/illidan-stormrage"), fs.readFileSync(illidanMap));
+        if (stored.error) throw new Error(`--illidan-map: ${stored.error}`);
+    }
 
     // apply it to the event's plan, then add what needs the setup's players
     const bossKeys = raidplan.bossList(event).map((b) => b.key);
