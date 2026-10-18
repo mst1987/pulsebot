@@ -2,10 +2,13 @@ import type { RaidplanBoard, RaidplanLook, RaidplanSlotKind, RaidplanAssignType 
 
 export const RAID_MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];
 
-export const ZONE_TYPES = ["danger", "healthy", "neutral", "custom"];
+export const ZONE_TYPES = ["danger", "healthy", "neutral", "custom", "fire"];
 
-// What a new zone of a type starts with; the orga may pick any colour.
-export const ZONE_COLORS = { danger: "#ef4444", healthy: "#22c55e", neutral: "#60a5fa", custom: "#a78bfa", role: "#f97316" };
+// What a new zone of a type starts with; the orga may pick any colour (a fire zone in blue, too).
+export const ZONE_COLORS = { danger: "#ef4444", healthy: "#22c55e", neutral: "#60a5fa", custom: "#a78bfa", fire: "#4fa82a", role: "#f97316" };
+
+/** How a zone appears in a scene (not a role group): "fade" (default), "grow" from its middle, or from a side. */
+export const ZONE_ENTERS = ["fade", "grow", "w", "e", "n", "s"] as const;
 
 // A role group placeholder ("Melees", "Ranged" ...): the roles in the order the palette offers them, their colours (the board's role colours).
 export const ROLE_GROUPS = ["melee", "ranged", "healer", "tank", "dps"];

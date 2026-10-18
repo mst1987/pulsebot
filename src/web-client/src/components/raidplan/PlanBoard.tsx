@@ -18,13 +18,13 @@ import { useT } from "../../i18n";
 import { classPlaceNameFor, classRefIcon, facingOf, linkClass, offRole, type AssignLink } from "../../lib/raidplan/assign";
 import { ANY } from "../../lib/raidplan/classRefs";
 import { autoFacing, mobIconNo, type AutoPlan, type AutoTank } from "../../lib/raidplan/autoPlace";
-import type { SceneFx, SceneTrail } from "../../lib/raidplan/scene";
+import { revealClip, type SceneFx, type SceneTrail } from "../../lib/raidplan/scene";
 import "../../styles/raidplan/index.css";
 
 
-/** The type of a zone as a glyph, so it reads without its colour (danger, healthy, neutral, own). */
+/** The type of a zone as a glyph, so it reads without its colour (danger, healthy, neutral, own, fire). */
 const PLACEHOLDER_ROLES = ["tank", "healer", "dps", "dps", "dps"];
-export const ZONE_GLYPHS: Record<string, string> = { danger: "⚠", healthy: "✚", neutral: "○", custom: "◆" };
+export const ZONE_GLYPHS: Record<string, string> = { danger: "⚠", healthy: "✚", neutral: "○", custom: "◆", fire: "≋" };
 
 /**
  * A player's spec icon in a role-coloured ring (tank blue, healer cyan, damage
@@ -482,9 +482,10 @@ export default function PlanBoard({
             )}
 
             {zones.filter((z) => !z.hidden).map((z) => {
-                // a role group can be turned about its middle (degrees)
+                // every zone can be turned about its middle (degrees); while a scene shows it with an entrance (grow / from a side)
+                // only the part reached so far is drawn, cut in the zone's own frame so it follows the turn
                 const rm = z.type === "role" ? roleZoneMetrics(z.w * size.w, z.h * size.h, z.shape === "cluster", z.count || 0) : null;
-                const zs = { "--rp-x": `${z.x * 100}%`, "--rp-y": `${z.y * 100}%`, "--rp-w": `${z.w * 100}%`, "--rp-h": `${z.h * 100}%`, "--zc": z.color, "--zo": z.opacity, ...(rm ? { "--rp-rg": `${rm.icon}px`, "--rp-zb": `${rm.border}px`, "--rp-zl": `${rm.label}px`, "--rp-zk": `${rm.badge}px`, "--rp-zn": `${rm.names}px` } : {}), ...(z.type === "role" && z.rotation ? { transform: `rotate(${z.rotation}deg)` } : {}) } as CSSProperties;
+                const zs = { "--rp-x": `${z.x * 100}%`, "--rp-y": `${z.y * 100}%`, "--rp-w": `${z.w * 100}%`, "--rp-h": `${z.h * 100}%`, "--zc": z.color, "--zo": z.opacity, ...(rm ? { "--rp-rg": `${rm.icon}px`, "--rp-zb": `${rm.border}px`, "--rp-zl": `${rm.label}px`, "--rp-zk": `${rm.badge}px`, "--rp-zn": `${rm.names}px` } : {}), ...(z.rotation ? { transform: `rotate(${z.rotation}deg)` } : {}), ...(z.reveal !== undefined && z.reveal < 1 ? { clipPath: revealClip(z.enter, z.reveal) } : {}) } as CSSProperties;
                 const name = z.label || (z.type === "role" ? t(`raidBoard.roleGroup.${z.role || "melee"}`) : t(`raidBoard.zone.${z.type}`));
                 const zoneLabel = zoneBoardLabel(z);
                 // a role group area: calm or arc (#559), a ranged one with a dashed line
@@ -500,8 +501,8 @@ export default function PlanBoard({
                         {...handlers("zone", z.id)}
                     >
                         {area === "arc" && zw > 0 && <svg className="rp-arc" viewBox={`0 0 ${zw} ${zh}`} aria-hidden="true"><path className="rp-arc-band" d={arcPath(zw, zh, arcSpanOf(z), arcWidthOf(z))} /></svg>}
-                        {z.type === "role" ? null : <span className={`rp-zone-label${zoneLabel ? "" : " is-glyph"}`}><span aria-hidden="true">{ZONE_GLYPHS[z.type]}</span>{zoneLabel ? ` ${zoneLabel}` : ""}</span>}
-                        {editable && !z.lock && isSel("zone", z.id) && z.type === "role" && <span className="rp-handle rp-h-zrot" data-handle="rot" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "zone", z.id, "rot"); }} />}
+                        {z.type === "role" || (z.type === "fire" && !zoneLabel) ? null : <span className={`rp-zone-label${zoneLabel ? "" : " is-glyph"}`}><span aria-hidden="true">{ZONE_GLYPHS[z.type]}</span>{zoneLabel ? ` ${zoneLabel}` : ""}</span>}
+                        {editable && !z.lock && isSel("zone", z.id) && <span className="rp-handle rp-h-zrot" data-handle="rot" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "zone", z.id, "rot"); }} />}
                         {editable && !z.lock && isSel("zone", z.id) && (["nw", "ne", "sw", "se", "n", "e", "s", "w"] as Handle[]).map((c) => (
                             <span key={c} className={`rp-handle rp-h-${c}`} data-handle={c} onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "zone", z.id, c); }} />
                         ))}

@@ -244,6 +244,16 @@
         "healthy": "Safe zone",
         "neutral": "Neutral zone",
         "custom": "Custom zone",
+        "fire": "Fire",
+        "enter": "Entrance",
+        "enters": {
+            "fade": "Fade in",
+            "grow": "Grow",
+            "w": "From the left",
+            "e": "From the right",
+            "n": "From the top",
+            "s": "From the bottom"
+        },
         "rect": "Rectangle",
         "ellipse": "Ellipse",
         "label": "Label",

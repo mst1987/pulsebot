@@ -21,7 +21,7 @@ export type SceneBoard = {
     slots: { id: string; kind: string; x: number; y: number; size: number; opacity: number; hidden: boolean; groupScale?: number; ringSpread?: number; offsets?: Record<string, { dx: number; dy: number; size: number; away?: boolean }> }[];
     icons: { id: string; x: number; y: number; size: number; rotation: number; opacity: number; hidden: boolean }[];
     marks: { id: string; x: number; y: number; size: number; opacity: number; hidden: boolean }[];
-    zones: { id: string; x: number; y: number; w: number; h: number; rotation?: number; opacity: number; hidden: boolean }[];
+    zones: { id: string; x: number; y: number; w: number; h: number; rotation?: number; opacity: number; hidden: boolean; type?: string; enter?: string; reveal?: number }[];
     lines: { id: string; x1: number; y1: number; x2: number; y2: number; opacity: number; hidden: boolean }[];
     texts: { id: string; x: number; y: number; size: number; opacity: number; hidden: boolean }[];
     autoPos?: Record<string, Pt>;
@@ -242,7 +242,7 @@ function baseLook(board: SceneBoard, obj: string, autoAt: AutoAt, memberAt: Memb
 const r4 = (n: number) => Math.round(n * 10000) / 10000;
 
 /** Writes an object's look at t into a copy of the board (only the lists it touches are copied). */
-function applyLook<B extends SceneBoard>(board: B, obj: string, look: Look & { vis: number; moved: boolean; turned: boolean; sized: boolean }): B {
+function applyLook<B extends SceneBoard>(board: B, obj: string, look: Look & { vis: number; moved: boolean; turned: boolean; sized: boolean; showing: boolean }): B {
     const i = obj.indexOf(":");
     const kind = obj.slice(0, i);
     const id = obj.slice(i + 1);
@@ -266,7 +266,11 @@ function applyLook<B extends SceneBoard>(board: B, obj: string, look: Look & { v
             // a zone's point is its top-left corner; a bigger zone grows round its middle
             const x = (look.moved ? look.pos.x : o.x) - (w - o.w) / 2;
             const y = (look.moved ? look.pos.y : o.y) - (h - o.h) / 2;
-            return { ...common(o), x: r4(x), y: r4(y), w: r4(w), h: r4(h), ...(look.turned ? { rotation: Math.round(look.rotation) } : {}) };
+            // a zone that grows or spreads from a side (enter): while it is being shown, vis drives how much of it is uncovered,
+            // not its opacity; hiding it again stays a fade (docs/raidplan/animation.md)
+            const spread = !!o.enter && o.enter !== "fade" && o.type !== "role" && look.showing && look.vis < 1;
+            const shown = spread ? { opacity: Math.max(0.05, clamp(look.opacity, 0, 1)), hidden: o.hidden || hidden, reveal: r4(clamp(look.vis, 0, 1)) } : common(o);
+            return { ...o, ...shown, x: r4(x), y: r4(y), w: r4(w), h: r4(h), ...(look.turned ? { rotation: Math.round(look.rotation) } : {}) };
         });
     } else if (kind === "line") {
         put("lines", (o) => o.id === id, (o) => {
@@ -291,6 +295,17 @@ function applyLook<B extends SceneBoard>(board: B, obj: string, look: Look & { v
         board.autoStyle = { ...(board.autoStyle || {}), [id]: st };
     }
     return board;
+}
+
+/** The part of a zone its entrance has uncovered (p = 0..1) as a clip-path in the zone's own frame: grows from its middle or spreads from a side. */
+export function revealClip(enter: string | undefined, p: number): string {
+    const q = clamp(p, 0, 1);
+    const rest = `${Math.round((1 - q) * 10000) / 100}%`;
+    if (enter === "w") return `inset(0 ${rest} 0 0)`;
+    if (enter === "e") return `inset(0 0 0 ${rest})`;
+    if (enter === "n") return `inset(0 0 ${rest} 0)`;
+    if (enter === "s") return `inset(${rest} 0 0 0)`;
+    return `inset(${Math.round((1 - q) * 5000) / 100}%)`;
 }
 
 /** How much of a loop's past is drawn as its trail, as a share of one round. */
@@ -334,6 +349,8 @@ export function boardAt<B extends SceneBoard>(board: B, scene: RaidplanScene | n
             moved: list.some((s) => s.c.x !== undefined && s.start <= t),
             turned: list.some((s) => s.c.rotation !== undefined && s.start <= t),
             sized: list.some((s) => s.c.scale !== undefined && s.start <= t),
+            // the last show / hide that has started shows it (an entrance runs) rather than hiding it (a fade out)
+            showing: switched(list, (c) => c.hidden, t) === false,
         };
         applyLook(out, obj, look);
         const badge = switched(list, (c) => c.badge, t);
@@ -346,7 +363,7 @@ export function boardAt<B extends SceneBoard>(board: B, scene: RaidplanScene | n
         const at = loopPoint(loop, t);
         const base = at ? baseLook(out, loop.obj, autoAt, memberAt) : null;
         if (!at || !base) continue;
-        applyLook(out, loop.obj, { ...base, pos: at, vis: 1, moved: true, turned: false, sized: false });
+        applyLook(out, loop.obj, { ...base, pos: at, vis: 1, moved: true, turned: false, sized: false, showing: false });
         if (loop.trail) {
             const points: Pt[] = [];
             const span = loop.period * TRAIL_SHARE;

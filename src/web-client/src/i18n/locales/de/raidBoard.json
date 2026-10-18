@@ -244,6 +244,16 @@
         "healthy": "Sichere Zone",
         "neutral": "Neutrale Zone",
         "custom": "Eigene Zone",
+        "fire": "Feuerfläche",
+        "enter": "Einstieg",
+        "enters": {
+            "fade": "Einblenden",
+            "grow": "Wachsen",
+            "w": "Von links",
+            "e": "Von rechts",
+            "n": "Von oben",
+            "s": "Von unten"
+        },
         "rect": "Rechteck",
         "ellipse": "Ellipse",
         "label": "Beschriftung",

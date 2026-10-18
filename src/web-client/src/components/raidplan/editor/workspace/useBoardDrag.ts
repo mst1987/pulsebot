@@ -54,7 +54,7 @@ export function useBoardDrag({ board, boardNow, edit, canWrite, multi, selectMod
                 const m = d.multi;
                 edit(() => noAuto(moveSelection(m.board0, m.sel, p.x - d.p0!.x, p.y - d.p0!.y, boardPx())), true);
             } else if (d.handle === "rot" && d.center && d.kind === "zone") {
-                // a role group turned by its grip (Shift = 15 degree steps)
+                // a zone turned by its grip (Shift = 15 degree steps)
                 const a = angleTo(d.center.x, d.center.y, e.clientX, e.clientY);
                 edit((b) => updateZone(b, d.id, { rotation: e.shiftKey ? snapAngle(a, 15) : a }), true);
             } else if (d.handle === "rot" && d.center && d.kind === "auto") {

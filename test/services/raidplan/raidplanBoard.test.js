@@ -80,6 +80,28 @@ describe("zones", () => {
         expect(clean({ zones: [{ label: "z".repeat(99) }] }).board.zones[0].label).toHaveLength(board.LIMITS.label);
         expect(clean({ zones: Array.from({ length: 31 }, () => ({})) }).code).toBe("invalid");
     });
+
+    it("knows the fire zone: its own green as default colour, any valid colour stays (blue fire)", () => {
+        const r = clean({ zones: [{ type: "fire" }, { type: "fire", color: "#3B82F6", opacity: 0.6 }] }).board.zones;
+        expect(r[0]).toMatchObject({ type: "fire", color: "#4fa82a", opacity: 0.3 });
+        expect(r[1]).toMatchObject({ type: "fire", color: "#3b82f6", opacity: 0.6 });
+    });
+
+    it("keeps the entrance of a zone (grow or from a side); fade is the default and is not stored, junk is dropped", () => {
+        const r = clean({ zones: [
+            { type: "fire", enter: "w" }, { type: "danger", enter: "grow" }, { type: "custom", enter: "n" },
+            { type: "fire", enter: "fade" }, { type: "fire", enter: "spiral" }, { type: "fire" },
+        ] }).board.zones;
+        expect(r.map((z) => z.enter)).toEqual(["w", "grow", "n", undefined, undefined, undefined]);
+        for (const z of r.slice(3)) expect(z).not.toHaveProperty("enter");
+        // a role group has its own look and never an entrance
+        expect(clean({ zones: [{ type: "role", enter: "e" }] }).board.zones[0]).not.toHaveProperty("enter");
+    });
+
+    it("turns every zone (0..359, 0 = as drawn), not only a role group", () => {
+        const r = clean({ zones: [{ type: "fire", rotation: 30 }, { type: "danger", rotation: -90 }, { type: "neutral", rotation: 725 }, { type: "custom", rotation: "x" }, { type: "healthy" }] }).board.zones;
+        expect(r.map((z) => z.rotation)).toEqual([30, 270, 5, 0, 0]);
+    });
 });
 
 describe("the rest of a board", () => {

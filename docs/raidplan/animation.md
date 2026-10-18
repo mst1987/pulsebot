@@ -43,6 +43,13 @@ loop   { id, obj, path: [[x, y]], closed, period, from, to, trail }
   `opacity` 0.1..1; `scale` 0.25..4 of the object's own size (a zone grows round its middle, a group marker also scales
   its ring); `hidden` true fades out / false fades in; `badge` a WoW icon name shown on the object (`""` takes it off);
   `pulse` a pulsing ring. `path` = points a movement passes (a Catmull-Rom curve through them, by its length).
+- **A zone's entrance** is a field of the zone, not of the change: `enter` `fade` (default) | `grow` | `w` | `e` | `n` |
+  `s` (model.md). With anything but `fade`, a `hidden: false` change does not fade the zone in but **reveals** it over
+  its `dur`: `grow` from the middle, `w` from the left edge to the right (`e` from the right, `n` from the top, `s` from
+  the bottom), in the zone's own turned frame, so a turned strip grows along its length. Going away (`hidden: true`) is
+  always a fade. Example, a blue fire strip that runs out from one spot from 2 s on, 3 s long:
+  zone `{ type: "fire", color: "#3b82f6", enter: "w", rotation: 30 }`, frame 0 `{ obj: "zone:<id>", hidden: true }`,
+  frame at 2 s `{ obj: "zone:<id>", hidden: false, dur: 3, ease: "linear" }`.
 - `delay`/`dur` 0..60 s in tenths (defaults 0 / 1), `ease` `inout` (default) | `linear` | `in` | `out`.
 - Frames are kept in time order; the first starts at 0, each later one at least 0.1 s after the one before. `length`
   is at least 0.1 s after the last frame (default: 2 s after it), at most 600 s.
@@ -75,6 +82,10 @@ loop   { id, obj, path: [[x, y]], closed, period, from, to, trail }
   it in: `boardAt(…, autoAt, memberAt)` with `memberAt = memberOffsets(board, roster, aspect)`
   (`lib/raidplan/members.ts`, the same layout `PlanBoard` draws; `aspect` from `PlanBoard`'s `onAspect`). Members can
   move, carry a badge, pulse and run a loop; they do not fade, turn or scale.
+- **Revealing a zone:** while a zone with an `enter` other than `fade` is being shown (its last started `hidden` change
+  says `false`, the fade value `vis` is still below 1), `boardAt` keeps its full opacity and sets `reveal` = `vis`
+  (0..1, never stored); `PlanBoard` turns it into a `clip-path: inset(...)` (`revealClip(enter, reveal)`), on the zone
+  element itself, so it turns with the zone. Worked out from `t` alone, scrubbing back works. A role group never reveals.
 - `boardAfter(board, scene, k)` - frame k with everything of frames 0..k arrived and no loops: what the editor edits.
 - `frameAt`, `frameRest`, `frameLength`, `playable` (at least two frames or a loop), `clock`.
 - `useScenePlayer` (hooks) runs the time with `requestAnimationFrame`: play / pause, seek, to frame k, speed 0.5x / 1x /
@@ -196,7 +207,10 @@ drawn with "Weg zeichnen" in its sentence. The mechanics below are unchanged.
 
 `test/services/raidplan/raidplanScenes.test.js` (validation, limits, the board's cleaning, `reidBoard`),
 `test/web/apiRoutes/raidplan.templates.test.js` (the sheet sends the scenes, none without the map),
-`src/web-client/src/lib/raidplan/scene.test.ts` (easing, blending, take-over, paths, loops, auto objects, frames),
+`src/web-client/src/lib/raidplan/scene.test.ts` (easing, blending, take-over, paths, loops, auto objects, frames, a
+zone's entrance and `revealClip`), `src/web-client/src/components/raidplan/PlanBoard.fire.test.tsx` (fire zone, turned
+and clipped zones, the turning grip), `src/web-client/src/components/raidplan/editor/Inspector.zone.test.tsx` (type,
+entrance segment, turn),
 `src/web-client/src/pages/raidplan/PlanPublicPage.anim.test.tsx` (the player in the sheet, a step's "Animation", the group highlight),
 `src/web-client/src/lib/raidplan/sceneEdit.test.ts` (editing on the timeline),
 `src/web-client/src/lib/raidplan/sceneActions.test.ts` (actors, the ring of a group, sentences, directions, one action
