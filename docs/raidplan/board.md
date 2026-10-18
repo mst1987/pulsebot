@@ -323,9 +323,13 @@ drawn by `PlanBoard` into `svg.rp-links`, the same in the editor (`BoardWorkspac
   `meInRole` (used by `mineView.rowMode`), server twin `raidplanAssign.inRoleGroup` (the same
   table in the tests). The public view names the raiders of a referenced role in its roster (so the page knows
   the visitor's role) and sends the boss's flex roles (`roles`, lineup players only).
-- **Turned role group**: a role group (`zone.type === "role"`) has `rotation` (0..359, `normAngle`); the grip
+- **Turned zone**: every zone (role group or not) has `rotation` (0..359, `normAngle`, stored for all zones); the grip
   above its top edge (Shift = 15 degree steps), Q / E and "Drehung (°)" in the inspector; drawn with
-  `transform: rotate()` about its middle, the same in the sheet.
+  `transform: rotate()` about its middle, the same in the sheet - a fire strip can lie at any angle.
+- **Fire zone** (`type: "fire"`, preset `#4fa82a`, any colour - green fel fire, blue flames): a restless ground fire in
+  `--zc` drawn by CSS alone (`.rp-zone-fire`: drifting embers on `::before` via `background-position`, a flickering inner
+  edge on `::after` via `opacity`; cheap enough for 30 zones, still under `prefers-reduced-motion`, no glow). Without a
+  label it shows no glyph badge (the fire itself says what it is).
 
 ## Names on the map (feature/raidplan-14)
 
@@ -399,7 +403,7 @@ Tests: "a group's own token size" in `src/web-client/src/lib/raidplan/raidplan.r
   token's name). The names are listed in lines of the zone's width, a name is never split. The shapes: circle
   (`ellipse`), rectangle (`rect`) - the same outline and icon, no concentric rings - and the cluster
   ("Symbole", several icons). The other zones (danger / healthy / neutral / own) keep their one line (solid,
-  dotted, dashed); the double ring of a RANGED token is its role mark and not a zone.
+  dotted, dashed), a fire zone a thin solid one; the double ring of a RANGED token is its role mark and not a zone.
 - **Grips of a zone:** the four corners (both sides; Shift keeps the proportions) and, new, the middle of each
   edge (`ZoneGrip` "n" / "e" / "s" / "w": only that side - a melee strip gets taller or wider on its own).
 - **Group chip with its names** (a group marker that is not split): as wide as its longest name needs, up to

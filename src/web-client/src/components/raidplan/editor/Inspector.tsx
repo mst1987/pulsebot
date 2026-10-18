@@ -4,7 +4,7 @@ import { BringToFront, Copy, Lock, LockOpen, SendToBack, Trash2, UserMinus } fro
 import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanPlayer, RaidplanText, RaidplanZone, RaidplanZoneType } from "../../../api";
 import { IconButton, Switch } from "../../ui";
 import {
-    AREA_STYLES, areaStyleOf, arcSpanOf, arcWidthOf, ARROW_COLOR, ARROW_MAX, ARROW_MIN, ROLE_GROUPS, ROLE_GROUP_COLORS, arrowOf, patchArrow, COMPASS, COMPASS_NAMES, SCALE_MAX, SCALE_MIN, ZONE_COLORS, ZONE_TYPES, assignSlot, canFace, clampOpacity, iconKeyType, duplicateObject, lookOf, normAngle, objectName, patchLook, removeObject, reorderObject, setMapOpacity,
+    AREA_STYLES, areaStyleOf, arcSpanOf, arcWidthOf, ARROW_COLOR, ARROW_MAX, ARROW_MIN, ROLE_GROUPS, ROLE_GROUP_COLORS, arrowOf, patchArrow, COMPASS, COMPASS_NAMES, SCALE_MAX, SCALE_MIN, ZONE_COLORS, ZONE_ENTERS, ZONE_TYPES, assignSlot, canFace, clampOpacity, iconKeyType, duplicateObject, lookOf, normAngle, objectName, patchLook, removeObject, reorderObject, setMapOpacity,
     setObjectScale, sizeOf, objectPercent, setObjectPercent, LABEL_POS, scaleObject, SIZE_STEPS, slotTitle, updateIcon, updateLine, updateSlot, updateText, updateZone, type ObjectKind, type Selection,
 } from "../../../lib/raidplan";
 import { PlayerName, TokenIcon, ZONE_GLYPHS } from "../PlanBoard";
@@ -18,6 +18,8 @@ import { REF_W } from "../../../lib/raidplan/boardScale";
 import { ICON_NAME_FACTOR, NAME_FACTOR, labelMetrics } from "../../../lib/raidplan/labelScale";
 
 const COMPASS_ARROWS = ["\u2191", "\u2197", "\u2192", "\u2198", "\u2193", "\u2199", "\u2190", "\u2196"];
+/** A zone's entrance from a side as the way it spreads: from the left (w) it runs to the right, and so on. */
+const ENTER_ARROWS: Record<string, string> = { w: "\u2192", e: "\u2190", n: "\u2193", s: "\u2191" };
 import { useT } from "../../../i18n";
 
 /** A slider and a number field for an opacity in percent, 10..100. */
@@ -367,6 +369,20 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                             <span className="rp-kicker">{t("raidBoard.insp.height")}</span>
                             <NumberField label={t("raidBoard.insp.height")} value={Math.round(zone.h * 100)} min={3} max={100} unit="%" disabled={dis} onChange={(v) => edit((b) => updateZone(b, id, { h: Math.max(0.03, Math.min(1 - zone.y, v / 100)) }), true)} />
                         </label>
+                    </div>
+                    <SizeField label={t("raidBoard.roleGroupUi.rotation")} value={zone.rotation || 0} min={0} max={359} step={1} unit="°" onChange={(v) => !dis && edit((b) => updateZone(b, id, { rotation: normAngle(v) }), true)} />
+                    {(zone.rotation || 0) !== 0 && <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => updateZone(b, id, { rotation: 0 }))}>{t("raidBoard.roleGroupUi.rotationReset")}</button>}
+                    {/* how a scene shows it: fade in, grow from the middle or spread from a side (in its own, turned frame) */}
+                    <div className="rp-field">
+                        <span className="rp-kicker">{t("raidBoard.zone.enter")}</span>
+                        <span className="rp-amb-seg sm" role="radiogroup" aria-label={t("raidBoard.zone.enter")}>
+                            {ZONE_ENTERS.map((en) => {
+                                const on = (zone.enter || "fade") === en;
+                                // fade and grow as words, the four sides as the arrow of the way it spreads (named in the tooltip)
+                                const arrow = ENTER_ARROWS[en];
+                                return <button key={en} type="button" role="radio" aria-checked={on} className={on ? "is-on" : ""} disabled={dis} aria-label={t(`raidBoard.zone.enters.${en}`)} data-tip={t(`raidBoard.zone.enters.${en}`)} onClick={() => edit((b) => updateZone(b, id, { enter: en === "fade" ? undefined : en }))}>{arrow || t(`raidBoard.zone.enters.${en}`)}</button>;
+                            })}
+                        </span>
                     </div>
                 </>
             )}

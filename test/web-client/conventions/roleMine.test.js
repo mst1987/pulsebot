@@ -5,9 +5,9 @@ const { readWorkspace } = require("../clientSource");
 const { read } = require("../clientSource"); // inlines the @imports of a stylesheet (#441)
 
 describe("the turned role group and the editor on a phone", () => {
-    it("a role group turns about its middle (grip, Q / E, degrees in the inspector), the same in the sheet", () => {
+    it("a zone (role group or not) turns about its middle (grip, Q / E, degrees in the inspector), the same in the sheet", () => {
         const pb = read("components/raidplan/PlanBoard.tsx");
-        expect(pb).toContain("z.type === \"role\" && z.rotation ? { transform: `rotate(${z.rotation}deg)` }");
+        expect(pb).toContain("z.rotation ? { transform: `rotate(${z.rotation}deg)` }");
         expect(pb).toContain("rp-h-zrot");
         const ws = readWorkspace();
         expect(ws).toContain("d.handle === \"rot\" && d.center && d.kind === \"zone\"");

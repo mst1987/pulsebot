@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RaidplanChange, RaidplanScene } from "../../api";
-import { boardAfter, boardAt, clock, ease, frameAt, frameLength, frameRest, lerpAngle, loopPoint, moveHints, pathPoint, playable, positionOf, type SceneBoard } from "./scene";
+import { boardAfter, boardAt, clock, ease, frameAt, frameLength, frameRest, lerpAngle, loopPoint, moveHints, pathPoint, playable, positionOf, revealClip, type SceneBoard } from "./scene";
 
 const look = { opacity: 1, hidden: false };
 const board = (): SceneBoard => ({
@@ -202,5 +202,43 @@ describe("frames", () => {
         expect(playable([bloodboil, scene({ frames: [{ id: "a", at: 0, caption: "", changes: [] }] })])).toEqual([bloodboil]);
         expect(playable(undefined)).toEqual([]);
         expect(clock(67.4)).toBe("1:07");
+    });
+});
+
+describe("a zone's entrance (enter)", () => {
+    const fireBoard = (enter?: string): SceneBoard => ({ ...board(), zones: [{ id: "z1", x: 0.1, y: 0.1, w: 0.4, h: 0.1, opacity: 0.4, hidden: false, type: "fire", enter }] });
+    // hidden at 0, shown from 2 s over 3 s, hidden again from 6 s over 1 s
+    const comes = scene({ length: 8, frames: [
+        { id: "a", at: 0, caption: "", changes: [ch("zone:z1", { hidden: true, dur: 0 })] },
+        { id: "b", at: 2, caption: "", changes: [ch("zone:z1", { hidden: false, dur: 3 })] },
+        { id: "c", at: 6, caption: "", changes: [ch("zone:z1", { hidden: true, dur: 1 })] },
+    ] });
+    const z = (enter: string | undefined, t: number) => boardAt(fireBoard(enter), comes, t).board.zones[0];
+    it("a sweeping zone keeps its full opacity and opens over the change's time instead", () => {
+        expect(z("w", 3.5)).toMatchObject({ hidden: false, opacity: 0.4, reveal: 0.5 });
+        expect(z("grow", 2.75).reveal).toBe(0.25);
+        expect(z("w", 5).reveal).toBeUndefined();
+        expect(z("w", 5).opacity).toBe(0.4);
+    });
+    it("fade (the default) still fades and never clips", () => {
+        expect(z(undefined, 3.5).reveal).toBeUndefined();
+        expect(z(undefined, 3.5).opacity).toBeCloseTo(0.2);
+        expect(z("fade", 3.5).reveal).toBeUndefined();
+    });
+    it("going away is always a fade, whatever the entrance", () => {
+        const out = z("w", 6.5);
+        expect(out.reveal).toBeUndefined();
+        expect(out.opacity).toBeCloseTo(0.2);
+    });
+    it("is the same at the same time (deterministic, scrubbing back works)", () => {
+        expect(z("e", 4)).toEqual(z("e", 4));
+    });
+    it("clips from the side it comes from, grow from the middle", () => {
+        expect(revealClip("w", 0.25)).toBe("inset(0 75% 0 0)");
+        expect(revealClip("e", 0.25)).toBe("inset(0 0 0 75%)");
+        expect(revealClip("n", 0.5)).toBe("inset(0 0 50% 0)");
+        expect(revealClip("s", 0.5)).toBe("inset(50% 0 0 0)");
+        expect(revealClip("grow", 0)).toBe("inset(50%)");
+        expect(revealClip("grow", 1)).toBe("inset(0%)");
     });
 });

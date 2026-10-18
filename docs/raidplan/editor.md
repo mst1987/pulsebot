@@ -150,7 +150,8 @@ dialogs are for the rare things (sharing, the template picker, managing tactic p
   stretches), marks, slots, texts and player tokens. **The board takes the aspect ratio of its map** (a
   near-square room gives a near-square board, without a map 16:10), so any map fits as a whole.
 - **Right panel:** tab **Eigenschaften** = the inspector of the selection (name; a zone's label, type, shape,
-  colour with the type's preset one click away, width/height in %; a line's kind, colour, thickness; a text's
+  colour with the type's preset one click away, width/height in %, "Drehung (°)" and the **Einstieg** as a segment -
+  Einblenden / Wachsen / four arrows for the side it spreads from, named in the tooltip; a line's kind, colour, thickness; a text's
   words, colour, size; a slot's number, own title and — in an event plan — the player; **opacity for every
   kind** as slider and number, 10–100 %; lock, duplicate, front, back, take the player out, delete as icons).
   Tab **Hintergrund** = the map's opacity ("abdunkeln") and the map rows (upload, replace, remove; an
@@ -172,7 +173,8 @@ dialogs are for the rare things (sharing, the template picker, managing tactic p
   each entry is and does is pure and tested (`contextMenuItems`, `applyMenuAction`, `clampMenuPosition`).
 - Tokens show the **real spec icon** in a role ring (tank blue, healer cyan, everything else orange) on a
   class-coloured tile. **A zone's type is a pattern and a label as well as a colour** (danger: diagonal
-  stripes and ⚠, healthy: dots and ✚, neutral: dashed border, own: solid). Open slots show the role's WoW icon
+  stripes and ⚠, healthy: dots and ✚, neutral: dashed border, own: solid, Feuerfläche: animated ground fire in its
+  colour, no symbol without a label). Open slots show the role's WoW icon
   on a dashed ring.
 - Rows: free title, players from the roster (a picker dialog), delete; "Taktik wählen" as before. "Freigeben &
   teilen" publishes/withdraws the *saved* plan.

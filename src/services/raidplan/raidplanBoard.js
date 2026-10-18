@@ -14,9 +14,10 @@
 //                                          raider moved or scaled on his own, relative to the tag).
 //   icons    [{ id, iconKey, label, showLabel, x, y, size, rotation, ... }]  boss / enemy / spell icons
 //   marks    [{ id, mark, x, y }]         the eight raid target marks
-//   zones    [{ id, shape, type, label, color, opacity, x, y, w, h }]
+//   zones    [{ id, shape, type, label, color, opacity, x, y, w, h, rotation, enter? }]
 //                                          rectangle / ellipse areas: danger, healthy,
-//                                          neutral or a custom one; type "role" = a placeholder for a whole role
+//                                          neutral, fire (animated ground fire) or a custom one, turned by rotation;
+//                                          enter = how a scene brings it in (grow, w/e/n/s; fade = default, not stored); type "role" = a placeholder for a whole role
 //                                          group ("Melees", "Ranged" ...: role, count, showNames; shape also "cluster"),
 //                                          never resolved into players; its area drawn "calm" or as an "arc"
 //                                          (areaStyle, arcSpan 30..360, arcWidth 0.1..0.8, #559)
@@ -119,10 +120,13 @@ function cleanGroupStyles(colors, marks) {
 }
 
 const MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];
-const ZONE_TYPES = ["danger", "healthy", "neutral", "custom", "role"];
+const ZONE_TYPES = ["danger", "healthy", "neutral", "custom", "fire", "role"];
+// how a zone (not a role group) comes in when a scene fades it in: "fade" (the default, not stored), "grow" out of its middle, or
+// spreading from one of its sides ("w" | "e" | "n" | "s", in the zone's own frame, so it follows its rotation) - docs/raidplan/animation.md
+const ZONE_ENTERS = ["fade", "grow", "w", "e", "n", "s"];
 const ZONE_SHAPES = ["rect", "ellipse"];
 // Preset colours per zone type: what a new zone starts with, free to be overridden.
-const ZONE_COLORS = { danger: "#ef4444", healthy: "#22c55e", neutral: "#60a5fa", custom: "#a78bfa", role: "#f97316" };
+const ZONE_COLORS = { danger: "#ef4444", healthy: "#22c55e", neutral: "#60a5fa", custom: "#a78bfa", fire: "#4fa82a", role: "#f97316" };
 // where a role group's label stands: inside it, or outside on one side
 const ROLE_LABEL_POS = ["in", "top", "bottom", "left", "right"];
 // how a role group area is drawn (#559): "calm" (light fill, thin outline, badge on the top edge, names inside - the default, also for
@@ -337,7 +341,10 @@ function cleanZone(z, ids) {
         label: str(o.label).slice(0, LIMITS.label),
         color: cleanColor(o.color, type === "role" ? ROLE_COLORS[role] : ZONE_COLORS[type]),
         // a role group: which role, an optional count badge (0 = none), whether the event shows the setup's players of that role
-        ...(type === "role" ? { role, count: Math.max(0, Math.min(40, Math.floor(Number(o.count)) || 0)), showNames: o.showNames === true, rotation: normAngle(o.rotation),
+        // every zone can be turned about its middle (degrees); a zone that is not a role group also keeps how a scene brings it in
+        rotation: normAngle(o.rotation),
+        ...(type !== "role" && ZONE_ENTERS.includes(o.enter) && o.enter !== "fade" ? { enter: o.enter } : {}),
+        ...(type === "role" ? { role, count: Math.max(0, Math.min(40, Math.floor(Number(o.count)) || 0)), showNames: o.showNames === true,
             // its symbol's own scale on top of the automatic size (0.25 .. 3, 1 = automatic) and where its label stands: inside, or outside
             // above / below / left / right of the zone (upright also when the zone is turned) - docs/raidplan.md, "Role groups"
             iconScale: Number.isFinite(Number(o.iconScale)) && Number(o.iconScale) > 0 ? Math.max(0.25, Math.min(3, Math.round(Number(o.iconScale) * 100) / 100)) : 1,
