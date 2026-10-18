@@ -123,10 +123,19 @@ function illidanPhase2Demo() {
     const leash = (id, at, label) => round(id, at, 0.2, { type: "custom", label, color: "#8f8a80", opacity: 0.16 });
     // the 10 yd splash of a Fireball round camp 3
     const splash = round("fireball", camps[3], 0.05, { type: "danger", label: "Feuerball", opacity: 0.25 });
-    // the green fire a flame lays where it stood (a danger zone: never step in), and the blue fire of the Eye Blast across the west
-    // druid's way (a plain area: bad, but better than the green; no label, the druid's name would cover it - the caption says it)
-    const blaze = (id, at) => round(id, at, 0.018, { type: "danger", color: "#4fa82a", opacity: 0.6 });
-    const blue = [{ id: "bluefire", shape: "rect", type: "custom", label: "", color: "#4a78c8", opacity: 0.55, x: 0.1, y: 0.56, w: 0.19, h: 0.035 }];
+    // the green fire a flame lays where it stood: a fire zone that flares up from its middle and stays (never step in)
+    const blaze = (id, at) => round(id, at, 0.022, { type: "fire", color: "#4fa82a", opacity: 0.5, enter: "grow" });
+    // the blue fire of the Eye Blast: a long narrow strip from the platform's outer edge in the south west towards the middle, across
+    // the west druid's way between two of his stops; it starts at the edge and grows along the beam (enter "w" in the strip's own
+    // frame). No label, the druid's name would cover it - the caption says it. On the 16:9 board the beam runs from (0.08, 0.70) to
+    // (0.33, 0.40): 0.25 x 16 wide and 0.30 x 9 high, so 34 degrees up and 0.302 of the board's width long
+    const beam = { from: [0.08, 0.7], to: [0.33, 0.4], thick: 0.045 };
+    const beamC = lerp(beam.from, beam.to, 0.5);
+    const beamDx = (beam.to[0] - beam.from[0]) * 16, beamDy = (beam.to[1] - beam.from[1]) * 9;
+    const beamLen = r3(Math.hypot(beamDx, beamDy) / 16);
+    const blue = [{ id: "bluefire", shape: "rect", type: "fire", label: "", color: "#3f7fd8", opacity: 0.5, enter: "w",
+        rotation: Math.round((Math.atan2(beamDy, beamDx) * 180) / Math.PI + 360) % 360,
+        x: r3(beamC[0] - beamLen / 2), y: r3(beamC[1] - beam.thick / 2), w: beamLen, h: beam.thick }];
     const blazes = [];
     const ch = (obj, extra) => ({ delay: 0, dur: 1, ease: "inout", obj, ...extra });
     // one kite stop of a side: the flame has stood a moment, lays its green fire, then the druid moves on and the flame follows
@@ -137,7 +146,7 @@ function illidanPhase2Demo() {
         blazes.push(blaze(id, d.flames[i]));
         const [tx, ty] = d.stops[i + 1];
         const [fx, fy] = d.flames[i + 1];
-        return [ch(`zone:${id}`, { hidden: false, delay: 0.4, dur: 0.4 }), ch(d.tank, { x: tx, y: ty, delay: 1, dur: 1 }), ch(d.flame, { x: fx, y: fy, delay: 1.4, dur: 0.9 })];
+        return [ch(`zone:${id}`, { hidden: false, delay: 0.2, dur: 0.6, ease: "out" }), ch(d.tank, { x: tx, y: ty, delay: 1, dur: 1 }), ch(d.flame, { x: fx, y: fy, delay: 1.4, dur: 0.9 })];
     };
     const both = () => [...step("w"), ...step("e")];
     // built before the first frame, which hides every fire they lay
@@ -173,7 +182,7 @@ function illidanPhase2Demo() {
             { id: "p7", at: 11.6, caption: "Die Flamme bleibt kurz stehen und legt grünes Feuer (Lohe), dann zieht der Druide sie weiter", changes: kite.k1 },
             { id: "p8", at: 14.2, caption: "Halt, grünes Feuer, weiter: so wandert die Flamme um ihre Glaive, die Lohe bleibt hinter ihr liegen", changes: kite.k2 },
             { id: "p9", at: 16.8, caption: "Augenstrahl: Illidan zieht einen Strahl über die Westseite, dahinter bleibt blaues Feuer liegen",
-                changes: [ch("icon:illidanb", { badge: "spell_fire_fireball02", pulse: true, dur: 0 }), ...blue.map((z) => ch(`zone:${z.id}`, { hidden: false, delay: 0.3, dur: 1 })), ...kite.eye] },
+                changes: [ch("icon:illidanb", { badge: "spell_fire_fireball02", pulse: true, dur: 0 }), ...blue.map((z) => ch(`zone:${z.id}`, { hidden: false, delay: 0.3, dur: 2.2, ease: "linear" })), ...kite.eye] },
             { id: "p10", at: 19.6, caption: "Der Druide im Westen muss weiter: hinter ihm liegt grünes Feuer, also lieber kurz durchs blaue",
                 changes: [ch("icon:illidanb", { badge: "", pulse: false, dur: 0 }), ...kite.dodge] },
             { id: "p11", at: 22.2, caption: "Feuerball trifft alles 10 Meter um sein Ziel: eng im eigenen Camp, Abstand zu den anderen",

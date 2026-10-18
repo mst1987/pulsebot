@@ -69,27 +69,33 @@
 .rp-zone-healthy { border-style: dotted; border-width: 3px; background-image: radial-gradient(circle, color-mix(in srgb, var(--zc) 60%, transparent) 2px, transparent 2.5px); background-size: 14px 14px; }
 .rp-zone-neutral { border-style: dashed; }
 .rp-zone-custom { border-style: solid; }
-/* a fire zone (green fel fire, blue flames ... any colour): restless ground fire - darker embers and bright flecks drift through the
-   fill, the edge flickers. Only background-position and opacity move (cheap for 30 zones); everything scales with the zone's --zo,
-   so a scene still fades it; still under prefers-reduced-motion */
-.rp-zone-fire { border-width: 1px; border-color: color-mix(in srgb, var(--zc) 75%, transparent); }
+/* a fire zone (green fel fire, blue flames ... any colour): restless ground fire. Two tiling noise textures (small SVGs with
+   feTurbulence, stitched so no seam shows) mask a light and a dark tint of the zone's colour: bright tongues (the noise is stretched
+   upwards) rise fast, dark smoke drifts slower and flickers. Only mask-position and opacity move (cheap for 30 zones); the strength
+   follows the zone's --zo, so a scene still fades it; still under prefers-reduced-motion. Small tiles (the sheet scales the board up, ~1.7x on a desktop), so even a small zone burns */
+.rp-zone-fire {
+    border: 0;
+    background-color: color-mix(in srgb, var(--zc) calc(var(--zo, .3) * 100% + 10%), transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--zc) 70%, black), inset 0 0 5px color-mix(in srgb, var(--zc) 50%, black);
+}
 .rp-zone-fire::before, .rp-zone-fire::after { content: ""; position: absolute; inset: 0; z-index: 0; border-radius: inherit; pointer-events: none; }
 .rp-zone-fire::before {
-    background-image:
-        radial-gradient(ellipse 20% 46% at 30% 70%, color-mix(in srgb, var(--zc) 62%, white), transparent 80%),
-        radial-gradient(ellipse 16% 40% at 70% 40%, color-mix(in srgb, var(--zc) 72%, white), transparent 80%),
-        radial-gradient(ellipse 42% 30% at 60% 60%, color-mix(in srgb, var(--zc) 55%, black), transparent 78%),
-        radial-gradient(ellipse 14% 34% at 45% 55%, color-mix(in srgb, var(--zc) 78%, white), transparent 80%);
-    /* flame tongues on tiles of unequal size, so the pattern does not read as a grid of dots */
-    background-size: 41px 67px, 59px 83px, 97px 73px, 23px 43px;
-    background-position: 0 0, 17px 29px, 41px 11px, 7px 19px;
-    opacity: calc(var(--zo, .3) * 1.4 + .1);
-    animation: rp-fire-drift 9s linear infinite;
+    background-color: color-mix(in srgb, var(--zc) 42%, white);
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='72'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.09 0.045' numOctaves='3' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3.6 0 0 0 -1.5'/%3E%3C/filter%3E%3Crect width='48' height='72' filter='url(%23n)'/%3E%3C/svg%3E");
+    mask-size: 28px 42px;
+    opacity: calc(var(--zo, .3) + .5);
+    animation: rp-fire-rise 2.2s linear infinite;
 }
-.rp-zone-fire::after { box-shadow: inset 0 0 7px 1px color-mix(in srgb, var(--zc) calc(var(--zo, .3) * 100% + 45%), transparent); animation: rp-fire-flicker 1.9s ease-in-out infinite; }
+.rp-zone-fire::after {
+    background-color: color-mix(in srgb, var(--zc) 30%, black);
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.05' numOctaves='2' seed='8' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 0 0 -1.5'/%3E%3C/filter%3E%3Crect width='80' height='80' filter='url(%23n)'/%3E%3C/svg%3E");
+    mask-size: 48px 48px;
+    animation: rp-fire-smoke 4.5s linear infinite, rp-fire-flicker 1.4s ease-in-out infinite;
+}
 .rp-zone-fire > * { z-index: 1; }
-@keyframes rp-fire-drift { to { background-position: 0 -134px, 17px -137px, 138px 11px, 7px -110px; } }
-@keyframes rp-fire-flicker { 0%, 100% { opacity: .55; } 17% { opacity: .85; } 31% { opacity: .6; } 52% { opacity: 1; } 68% { opacity: .5; } 84% { opacity: .8; } }
+@keyframes rp-fire-rise { to { mask-position: 0 -42px; } }
+@keyframes rp-fire-smoke { to { mask-position: 12px -48px; } }
+@keyframes rp-fire-flicker { 0%, 100% { opacity: .55; } 30% { opacity: .85; } 55% { opacity: .5; } 80% { opacity: .8; } }
 @media (prefers-reduced-motion: reduce) { .rp-zone-fire::before, .rp-zone-fire::after { animation: none; } }
 .rp-zone-label { position: absolute; left: 6px; top: 4px; max-width: calc(100% - 12px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 7px; border-radius: 6px; background: var(--rp-label-bg); color: var(--rp-zone-ink); font-size: 11.5px; font-weight: 700; pointer-events: none; }
 .rp-zone-label.is-glyph { padding: 1px 5px; }

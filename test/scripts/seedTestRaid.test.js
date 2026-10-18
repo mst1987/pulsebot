@@ -80,11 +80,22 @@ describe("seed-test-raid", () => {
         const at = (i) => scene.frames.indexOf(eye) + i;
         const before = moves("slot:illtk2").filter(({ f }) => scene.frames.indexOf(f) < at(0)).pop().c;
         const through = moves("slot:illtk2").find(({ f }) => scene.frames.indexOf(f) === at(1)).c;
-        const top = Math.min(...blue.map((z) => z.y));
-        const bottom = Math.max(...blue.map((z) => z.y + z.h));
-        expect(before.y).toBeLessThan(top);
-        expect(through.y).toBeGreaterThan(bottom);
-        expect(blue.some((z) => through.x >= z.x && through.x <= z.x + z.w)).toBe(true);
+        // the strip is turned: measured in pixels of the 16:9 map along its length (along) and across it (across), his way from
+        // before to through crosses its middle line within its length, and both his stops lie off the strip
+        expect(blue).toEqual([expect.objectContaining({ type: "fire", enter: "w" })]);
+        const [z] = blue;
+        const rad = (z.rotation * Math.PI) / 180;
+        const local = ({ x, y }) => {
+            const dx = (x - (z.x + z.w / 2)) * 16, dy = (y - (z.y + z.h / 2)) * 9;
+            return { along: dx * Math.cos(rad) + dy * Math.sin(rad), across: dy * Math.cos(rad) - dx * Math.sin(rad) };
+        };
+        const a = local(before), b = local(through);
+        expect(Math.sign(a.across)).not.toBe(Math.sign(b.across));
+        expect(Math.min(Math.abs(a.across), Math.abs(b.across))).toBeGreaterThan((z.h * 9) / 2);
+        const cross = a.along + (b.along - a.along) * (a.across / (a.across - b.across));
+        expect(Math.abs(cross)).toBeLessThan((z.w * 16) / 2);
+        // the green fire flares up from its middle
+        expect(board.zones.filter((zz) => /^blaze/.test(zz.id)).every((zz) => zz.type === "fire" && zz.enter === "grow")).toBe(true);
         expect(scene.frames.slice(at(2)).flatMap((f) => f.changes).filter((c) => /^zone:bluefire/.test(c.obj) && c.hidden === true)).toHaveLength(blue.length);
         // a druid's slot stands where he takes his flame
         expect(board.slots.find((s) => s.id === "illtk2")).toMatchObject({ x: moves("slot:illtk2")[1].c.x, y: moves("slot:illtk2")[1].c.y });

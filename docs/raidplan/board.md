@@ -327,8 +327,9 @@ drawn by `PlanBoard` into `svg.rp-links`, the same in the editor (`BoardWorkspac
   above its top edge (Shift = 15 degree steps), Q / E and "Drehung (°)" in the inspector; drawn with
   `transform: rotate()` about its middle, the same in the sheet - a fire strip can lie at any angle.
 - **Fire zone** (`type: "fire"`, preset `#4fa82a`, any colour - green fel fire, blue flames): a restless ground fire in
-  `--zc` drawn by CSS alone (`.rp-zone-fire`: drifting embers on `::before` via `background-position`, a flickering inner
-  edge on `::after` via `opacity`; cheap enough for 30 zones, still under `prefers-reduced-motion`, no glow). Without a
+  `--zc` drawn by CSS alone (`.rp-zone-fire`: two small tiling noise SVGs - `feTurbulence` with `stitchTiles`, inline as data
+  URIs - mask a light tint on `::before` (rising tongues) and a dark tint on `::after` (slower smoke that flickers); only
+  `mask-position` and `opacity` move, cheap enough for 30 zones, still under `prefers-reduced-motion`, no glow). Without a
   label it shows no glyph badge (the fire itself says what it is).
 
 ## Names on the map (feature/raidplan-14)

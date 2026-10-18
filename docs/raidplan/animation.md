@@ -195,13 +195,18 @@ drawn with "Weg zeichnen" in its sentence. The mechanics below are unchanged.
   (faded, smaller), the five groups go from their phase 1 places into five tight camps as a cross in the middle, two
   glaives land west and east (`wow:inv_weapon_glave_01`), a Flame of Azzinoth rises at each, the leash circle round each
   glaive fades in (flame and raid stay inside, else Uncaged Wrath), the druids (tank 2 / tank 3) take one flame each to
-  the outside and kite it round their own glaive stop by stop: the flame stands, lays its green fire (a hidden `danger`
-  zone per stop that appears and stays), then the druid moves on and the flame follows. An Eye Blast (badge on Illidan)
-  leaves blue fire across the west druid's way; he waits, then goes through it, as behind him lies the green fire; the
-  blue fire goes again two frames later. A Fireball marks camp 3 with its 10 yd splash meanwhile. The board has
-  `autoPlace: false`: while the hand-placed flames are hidden, the tank rows would otherwise put flames of their own on
-  the map. The game facts were checked against Wowhead TBC and warcraft.wiki.gg plus guides (Oct 2026); the stop-and-go
-  kiting and the blue fire are how the user's guild plays it, the places on the map the demo's layout.
+  the outside and kite it round their own glaive stop by stop: the flame stands, lays its green fire (a hidden `fire`
+  zone per stop with `enter: "grow"` that flares up and stays), then the druid moves on and the flame follows. An Eye
+  Blast (badge on Illidan) leaves blue fire: a long turned `fire` strip from the platform's edge towards the middle,
+  across the west druid's way, that grows along the beam (`enter: "w"`, linear over 2.2 s); he waits, then goes through
+  it, as behind him lies the green fire; the blue fire goes again two frames later. A Fireball marks camp 3 with its
+  10 yd splash meanwhile. The groups stay one marker each (not split: too cluttered beside tanks, flames and fire). The
+  board has `autoPlace: false` (while the hand-placed flames are hidden, the tank rows would otherwise put flames of their
+  own on the map) and `objectScale: 0.6` (the platform is big and carries many objects). The places fit the top platform
+  seen from above: `--illidan-map <file>` stores such an image as the template's room map of Illidan (without it the
+  board stays on its plain background). The game facts were checked against Wowhead TBC and warcraft.wiki.gg plus guides
+  (Oct 2026); the stop-and-go kiting and the blue fire are how the user's guild plays it, the places on the map the
+  demo's layout.
 
 ## Tests
 
