@@ -34,7 +34,9 @@ function compEntry(kader, userId) {
  * `spec` { className, spec } plans a spec (one of the player's decision and
  * wishes), `spec: null` takes the planned one back; `excluded` true/false
  * leaves the player out or takes them in again. Starts the draft when there is
- * none. Unchanged = the planner as it was.
+ * none; a draft emptied by taking its last change back is gone (`plan` null,
+ * `ctx.planEmptied` = the Kader, so the activity counts it as a change of the
+ * draft, not as "Verwerfen"). Unchanged = the planner as it was.
  */
 function savePlan(planner, input, ctx) {
     const userId = str(input && input.userId);
@@ -60,15 +62,29 @@ function savePlan(planner, input, ctx) {
             plan.excluded = plan.excluded.filter((id) => id !== userId);
             if (out) plan.excluded.push(userId);
         }
-        if (kader.plan && JSON.stringify([plan.specs, plan.excluded]) === before) return;
+        const empty = !Object.keys(plan.specs).length && !plan.excluded.length;
+        // nothing to keep: without a draft that is no change at all
+        if (kader.plan ? JSON.stringify([plan.specs, plan.excluded]) === before : empty) return;
+        if (empty) {
+            // the last change taken back: the draft goes as a change of it (activity "plan", not "plan_discarded")
+            kader.plan = null;
+            ctx.planEmptied = kader.id;
+            return;
+        }
         kader.plan = { ...plan, by: ctx.actor || "", at: ctx.now };
     });
 }
 
-/** Throws away the draft ("Verwerfen"). Without a draft there is nothing to throw away. */
+/**
+ * Throws away the draft ("Verwerfen"). Without a draft there is nothing to
+ * throw away. `baseRev` = the draft's revision the confirmation was shown for
+ * (409 `stale` when it moved on), as for the take-over.
+ */
 function discardPlan(planner, input) {
     return withKader(planner, input.kaderId, (kader) => {
-        if (!kader.plan) throw conflict("Es gibt keinen Entwurf.");
+        const plan = kader.plan;
+        if (!plan) throw conflict("Es gibt keinen Entwurf.");
+        assertFresh(input, plan.rev, "Der Entwurf wurde inzwischen geändert.", { by: plan.by, at: plan.at });
         kader.plan = null;
     });
 }

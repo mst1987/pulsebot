@@ -477,7 +477,26 @@ describe("web/apiRoutes/kader", () => {
             expect(status(await post("/api/kader/plan/discard", { kaderId }))).toBe(409);
             await put("/api/kader/plan", { kaderId, userId: U2, excluded: true });
             expect(body(await post("/api/kader/plan/apply", { kaderId })).error.message).toMatch(/keine Entscheidung/);
-            res = await post("/api/kader/plan/discard", { kaderId });
+            // taking the last change back empties the draft: gone, as a change of it - no "Verwerfen"
+            const before = body(await get("/api/kader", { kader: kaderId })).kader.activity.length;
+            res = await put("/api/kader/plan", { kaderId, userId: U2, excluded: false });
+            expect(body(res).kader.plan).toBeNull();
+            expect(body(res).kader.activity.map((a) => a.type)).not.toContain("plan_discarded");
+            expect(body(res).kader.activity.at(-1).type).toBe("plan");
+            // without a draft a change that leaves it empty writes nothing
+            const rev = body(res).kader.rev;
+            res = await put("/api/kader/plan", { kaderId, userId: U2, excluded: false });
+            expect(body(res).kader).toMatchObject({ plan: null, rev });
+            expect(body(res).kader.activity.length).toBeLessThanOrEqual(before);
+
+            // throwing away a draft that moved on since the dialog opened: 409 stale
+            res = await put("/api/kader/plan", { kaderId, userId: U2, excluded: true });
+            const shown = body(res).kader.plan.rev;
+            await put("/api/kader/plan", { kaderId, userId: U1, excluded: true });
+            res = await post("/api/kader/plan/discard", { kaderId, baseRev: shown });
+            expect(status(res)).toBe(409);
+            expect(body(res).error.code).toBe("stale");
+            res = await post("/api/kader/plan/discard", { kaderId, baseRev: body(await get("/api/kader", { kader: kaderId })).kader.plan.rev });
             expect(body(res).kader.plan).toBeNull();
             expect(body(res).kader.activity.at(-1).type).toBe("plan_discarded");
         });

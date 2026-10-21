@@ -134,5 +134,16 @@ describe("lib/kader/composition", () => {
             // heal: new decision; tank: same as the decision; sham: left out; gone: no longer in the Kader
             expect(planDecisions(p, kader())).toBe(1);
         });
+
+        it("counts a planned first wish of a player without a decision as a change, like taking it over does", () => {
+            const k = kader();
+            const before = composition(view, k, true);
+            const p = plan({ specs: { [U.tent]: { className: "Mage", spec: "Mage-Fire" } } });
+            const after = composition(view, k, true, p);
+            expect(after.rows.find((r) => r.userId === U.tent)).toMatchObject({ pick: { spec: "Mage-Fire" }, was: null, undecided: true });
+            const diff = planDiff(before, after, buffCoverage(view, before.rows), buffCoverage(view, after.rows));
+            expect(diff.changes).toBe(1);
+            expect(diff.changes).toBe(planDecisions(p, k));
+        });
     });
 });

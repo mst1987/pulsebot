@@ -413,8 +413,9 @@ export function saveKaderPlan(kaderId: string, userId: string, input: { spec?: K
     return send("PUT", "/api/kader/plan", { kaderId, userId, ...input });
 }
 
-export function discardKaderPlan(kaderId: string): Promise<KaderChange> {
-    return send("POST", "/api/kader/plan/discard", { kaderId });
+/** Throws the draft away; `baseRev` = the draft's revision the dialog showed (409 stale when it moved on). */
+export function discardKaderPlan(kaderId: string, baseRev?: number): Promise<KaderChange> {
+    return send("POST", "/api/kader/plan/discard", { kaderId, baseRev });
 }
 
 /** Makes the planned specs decisions (no state change); `baseRev` = the draft's revision the dialog showed. */

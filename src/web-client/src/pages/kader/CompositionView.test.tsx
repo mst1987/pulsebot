@@ -121,6 +121,10 @@ describe("KaderPage · Zusammensetzung · Planspiel", () => {
         expect(screen.getAllByText(t("kader.composition.players", { count: 2 }), { exact: false })[0].closest("p")).toHaveTextContent("1 Tank · 0 Heiler · 1 Nahkampf");
         expect(screen.getByText(/^vorher 1 Tank · 1 Heiler/)).toBeInTheDocument();
         expect(within(row("Mira")).getByText("Wiederherstellung").tagName).toBe("S");
+        // the trigger names the spec ("Verstärkung"), the class only in its tooltip
+        const trigger = within(row("Mira")).getByRole("button", { name: /Spec von Mira im Planspiel/ });
+        expect(trigger).toHaveTextContent("Verstärkung");
+        expect(trigger).not.toHaveTextContent("Schamane");
         const motw = screen.getByText("Mal der Wildnis").closest("li") as HTMLElement;
         expect(within(motw).getByText(t("kader.composition.plan.markGone"))).toBeInTheDocument();
     });
@@ -129,13 +133,16 @@ describe("KaderPage · Zusammensetzung · Planspiel", () => {
         withPlan(null);
         vi.mocked(api.saveKaderPlan).mockResolvedValueOnce(change(draft({ excluded: [U.tank] })));
         await show("/kader/k1/zusammensetzung");
-        await userEvent.click(within(row("Aldric")).getByRole("button", { name: t("kader.composition.plan.exclude") }));
+        await userEvent.click(within(row("Aldric")).getByRole("button", { name: t("kader.composition.plan.excludeAria", { name: "Aldric" }) }));
         expect(api.saveKaderPlan).toHaveBeenCalledWith("k1", U.tank, { excluded: true });
         expect(await within(row("Aldric")).findByText(t("kader.composition.plan.excludedRow"))).toBeInTheDocument();
+        const eye = within(row("Aldric")).getByRole("button", { name: t("kader.composition.plan.includeAria", { name: "Aldric" }) });
+        expect(eye).toHaveAttribute("aria-pressed", "true");
+        expect(eye).toHaveAttribute("data-tip", t("kader.composition.plan.include"));
         expect(sumOf(1)).toHaveTextContent("0 Tanks · 1 Heiler");
         expect(bar()).toHaveTextContent(t("kader.composition.plan.excluded", { count: 1 }));
         vi.mocked(api.saveKaderPlan).mockResolvedValueOnce(change(null));
-        await userEvent.click(within(row("Aldric")).getByRole("button", { name: t("kader.composition.plan.include") }));
+        await userEvent.click(within(row("Aldric")).getByRole("button", { name: t("kader.composition.plan.includeAria", { name: "Aldric" }) }));
         expect(api.saveKaderPlan).toHaveBeenLastCalledWith("k1", U.tank, { excluded: false });
         expect(await screen.findByText(t("kader.composition.players", { count: 2 }), { exact: false })).toBeInTheDocument();
         expect(screen.queryByRole("region", { name: REGION() })).not.toBeInTheDocument();
@@ -145,9 +152,9 @@ describe("KaderPage · Zusammensetzung · Planspiel", () => {
         withPlan(null);
         vi.mocked(api.saveKaderPlan).mockRejectedValue(new Error("kaputt"));
         await show("/kader/k1/zusammensetzung");
-        await userEvent.click(within(row("Aldric")).getByRole("button", { name: t("kader.composition.plan.exclude") }));
+        await userEvent.click(within(row("Aldric")).getByRole("button", { name: t("kader.composition.plan.excludeAria", { name: "Aldric" }) }));
         expect(await screen.findByText("kaputt")).toBeInTheDocument();
-        expect(within(row("Aldric")).getByRole("button", { name: t("kader.composition.plan.exclude") })).toBeInTheDocument();
+        expect(within(row("Aldric")).getByRole("button", { name: t("kader.composition.plan.excludeAria", { name: "Aldric" }) })).toBeInTheDocument();
         expect(screen.queryByRole("region", { name: REGION() })).not.toBeInTheDocument();
     });
 
@@ -160,9 +167,22 @@ describe("KaderPage · Zusammensetzung · Planspiel", () => {
         const dialog = await screen.findByRole("dialog");
         expect(dialog).toHaveTextContent(t("kader.composition.plan.discardText"));
         await userEvent.click(within(dialog).getByRole("button", { name: t("kader.composition.plan.discard") }));
-        expect(api.discardKaderPlan).toHaveBeenCalledWith("k1");
+        expect(api.discardKaderPlan).toHaveBeenCalledWith("k1", 7);
         expect(await screen.findByText(t("kader.composition.plan.discarded"))).toBeInTheDocument();
         expect(screen.queryByRole("region", { name: REGION() })).not.toBeInTheDocument();
+    });
+
+    it("reloads instead of discarding a draft somebody changed since the dialog opened", async () => {
+        withPlan(draft({ specs: { [U.heal]: ENH } }));
+        vi.mocked(api.discardKaderPlan).mockRejectedValue(Object.assign(new Error("stale"), { code: "stale" }));
+        await show("/kader/k1/zusammensetzung");
+        vi.mocked(api.getKaderOnly).mockResolvedValue({ kader: kaderData(), kaders: kaderView().kaders, sharedRev: 0 });
+        await userEvent.click(within(bar()).getByRole("button", { name: t("kader.composition.plan.discard") }));
+        await userEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: t("kader.composition.plan.discard") }));
+        expect(api.discardKaderPlan).toHaveBeenCalledWith("k1", 7);
+        expect(await screen.findByText(t("kader.composition.plan.stale"))).toBeInTheDocument();
+        expect(api.getKaderOnly).toHaveBeenCalledWith("k1");
+        expect(screen.queryByText(t("kader.composition.plan.discarded"))).not.toBeInTheDocument();
     });
 
     it("takes the draft over as decisions after naming the consequences", async () => {
@@ -199,7 +219,7 @@ describe("KaderPage · Zusammensetzung · Planspiel", () => {
         withPlan(draft({ specs: { [U.heal]: ENH } }));
         await show("/kader/k1/zusammensetzung", reader);
         expect(within(bar()).queryByRole("button")).not.toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: t("kader.composition.plan.exclude") })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: t("kader.composition.plan.excludeAria", { name: "Aldric" }) })).not.toBeInTheDocument();
         expect(screen.queryByRole("button", { name: /Spec von Mira/ })).not.toBeInTheDocument();
         expect(within(row("Mira")).getByText("Verstärkung")).toBeInTheDocument();
     });

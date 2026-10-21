@@ -104,9 +104,10 @@ function playerLines(id, was, now, rev, questionsChanged) {
  * The line of the composition draft, stamping its revision when it changed:
  * `plan` for a draft started or changed, `plan_applied` (with the player or
  * the number of decisions it set) when it went and decisions changed with it,
- * `plan_discarded` when it went alone. null = unchanged.
+ * `plan_discarded` when it went alone — unless `emptied` (its last change was
+ * taken back, kaderPlan.savePlan): that is a change of it, `plan`. null = unchanged.
  */
-function planLine(prev, next, rev) {
+function planLine(prev, next, rev, emptied) {
     const was = prev.plan || null;
     const now = next.plan || null;
     if (same(was, now)) return null;
@@ -116,7 +117,7 @@ function planLine(prev, next, rev) {
         return was && was.at === now.at ? null : { type: "plan" };
     }
     const decided = Object.keys(next.players).filter((id) => prev.players[id] && !same(prev.players[id].decision, next.players[id].decision));
-    if (!decided.length) return { type: "plan_discarded" };
+    if (!decided.length) return emptied ? { type: "plan" } : { type: "plan_discarded" };
     return decided.length === 1 ? { type: "plan_applied", playerId: decided[0] } : { type: "plan_applied", count: decided.length };
 }
 
@@ -124,7 +125,7 @@ function planLine(prev, next, rev) {
  * The lines of one Kader that was there before and after (without who and
  * when), stamping the revisions of what changed in it.
  */
-function kaderLines(prev, next, rev) {
+function kaderLines(prev, next, rev, planEmptied = "") {
     const lines = [];
     if (prev.name !== next.name || !same(prev.leads, next.leads) || !same(prev.attendanceCategories, next.attendanceCategories)) {
         lines.push({ type: "settings" });
@@ -154,7 +155,7 @@ function kaderLines(prev, next, rev) {
         lines.push(list.length === 1 ? { type: "state", playerId: list[0].id, from: list[0].from, to } : { type: "state", count: list.length, to });
     }
     // the draft (kaderPlan.js): changed = "plan", gone with decisions set = taken over, gone without = thrown away
-    const planned = planLine(prev, next, rev);
+    const planned = planLine(prev, next, rev, planEmptied === next.id);
     // the decisions a take-over sets are its one line, not one per player
     lines.push(...(planned && planned.type === "plan_applied" ? per.filter((l) => l.type !== "decision") : per));
     if (planned) lines.push(planned);
@@ -211,9 +212,10 @@ function assignmentChanges(before, after, { rev, actor, now }) {
  * be stored (`after`, normalised; changed in place and returned): raises the
  * counter when anything changed and stamps every Kader, interview, question
  * and account that changed with it, writes the activity lines. Nothing changed
- * = `after` as it is.
+ * = `after` as it is. `planEmptied` = the Kader whose draft went because its
+ * last change was taken back (kaderPlan.savePlan): a `plan` line, not `plan_discarded`.
  */
-function recordChanges(before, after, { actor = "", now = new Date().toISOString() } = {}) {
+function recordChanges(before, after, { actor = "", now = new Date().toISOString(), planEmptied = "" } = {}) {
     const rev = (before.rev || 0) + 1;
     const stamp = { rev, actor, now };
     let changed = false;
@@ -235,7 +237,7 @@ function recordChanges(before, after, { actor = "", now = new Date().toISOString
             changed = shared = true;
             continue;
         }
-        const lines = kaderLines(prev, kader, rev);
+        const lines = kaderLines(prev, kader, rev, planEmptied);
         for (const id of characters) if (prev.players[id] && kader.players[id]) lines.push({ type: "character", playerId: id });
         if (!lines.length && same(prev, kader)) continue;
         kader.rev = rev;

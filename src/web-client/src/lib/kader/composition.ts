@@ -21,6 +21,8 @@ export type CompositionRow = {
     counted: boolean;
     /** The spec without the draft, set only when the draft plans another one ("vorher …"). */
     was?: KaderWish | null;
+    /** With `was`: the player has no decision yet, so the draft's spec becomes the first one ("vorher: keine Entscheidung"). */
+    undecided?: boolean;
     /** The draft leaves the player out. */
     excluded?: boolean;
 };
@@ -76,6 +78,11 @@ export function composition(view: KaderView, kader: KaderData, withExtra: boolea
         const excluded = !!plan && plan.excluded.includes(userId);
         const row: CompositionRow = { userId, entry, pick, role: specRole(view.classes, pick ? pick.spec : ""), counted: (base || withExtra) && !excluded };
         if (pick !== shown) row.was = shown;
+        else if (planned && !decides(entry, planned)) {
+            // the planned spec is the one shown (the first wish) but not yet the decision: taking over sets it, so a change
+            row.was = entry.decision && entry.decision.spec ? entry.decision : null;
+            if (!entry.decision || !(entry.decision.spec || entry.decision.className)) row.undecided = true;
+        }
         if (excluded) row.excluded = true;
         rows.push(row);
     }
@@ -185,10 +192,15 @@ export function planDecisions(plan: KaderPlan | null, kader: KaderData): number 
     for (const [id, pick] of Object.entries(plan.specs)) {
         const entry = kader.players[id];
         if (!entry || plan.excluded.includes(id)) continue;
-        if (entry.decision && entry.decision.className === pick.className && entry.decision.spec === pick.spec) continue;
+        if (decides(entry, pick)) continue;
         n += 1;
     }
     return n;
+}
+
+/** The player's decision already is this pick (taking the draft over changes nothing for them). */
+function decides(entry: KaderEntry, pick: KaderWish): boolean {
+    return !!entry.decision && entry.decision.className === pick.className && entry.decision.spec === pick.spec;
 }
 
 /**

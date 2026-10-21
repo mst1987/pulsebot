@@ -219,7 +219,7 @@ A player's **entry**:
 | `interview` | `{ lead, answers: { [questionId]: optionId \| [optionId] \| text }, note (≤ 2000), startedAt, updatedAt, updatedBy, completedAt, completedBy, rev? }` |
 | `votes` | `{ [leadUserId]: yes \| unsure \| no }` |
 | `comments` | `[{ id, by, at, text (≤ 1000) }]` (≤ 200), only the author deletes one |
-| `decision` | `{ className, spec }` — set when the player goes into the roster |
+| `decision` | `{ className, spec }` — set when the player goes into the roster, and by "Planspiel übernehmen" for every planned player of the composition (also provisional, bench and tentative, whose state stays) |
 
 ### States and moves
 
@@ -524,15 +524,21 @@ Deleting a Kader and switching the menu's version away from the open one land on
   lists the raid and party buffs of the version: "n Spender" in `--good` (the names in the tooltip) or "fehlt" in
   `--high`, with who could bring it. Below 700 px the table folds into two lines per player without wishes.
   **Planspiel** (the shared draft, `kader.plan`): with `kader` write the spec cell of a player with more than one
-  plannable spec is a `WishPicker` ("Spec von Mira im Planspiel"), and a last column "Ausklammern" / "Einklammern"
-  leaves a player out (greyed, "ausgeklammert", counted nowhere). Sums and buffs count with the draft
-  (`composition(…, plan)`), a planned spec shows "vorher ~~Wiederherstellung~~", the sums a quiet "vorher …" line, a
+  plannable spec is a `WishPicker` ("Spec von Mira im Planspiel"; the trigger shows the spec icon and name in the
+  class colour, "Klasse · Spec" in the tooltip; one plannable spec gives no menu), and a narrow last column with an
+  eye icon button (eye / eye struck through, pressed when left out, `aria-label` "Ausklammern: Mira" /
+  "Einklammern: Mira") leaves a player out (greyed, "ausgeklammert", counted nowhere). Sums and buffs count with the
+  draft (`composition(…, plan)`), a planned spec shows "vorher ~~Wiederherstellung~~" ("vorher ~~keine
+  Entscheidung~~" for a planned first wish of a player without a decision, which counts as a change like taking it
+  over does), the sums a quiet "vorher …" line, a
   buff its change ("jetzt da", "fehlt jetzt", "jetzt doppelt" = from one donor to two or more). Over the table a calm
   bar with the accent line (`kp-comp-plan`): "Planspiel · 3 Änderungen · Entwurf von Kurt · vor 5 Min." and the
   difference ("+1 Heiler · −1 Fernkampf · Kampfrausch jetzt doppelt", `planDiff`), with "Verwerfen" (confirmation)
   and "Als Entscheidung übernehmen" (the dialog says how many decisions it sets and that left-out players stay as
   they are; disabled when it sets none, `planDecisions`). Edits are optimistic: an edit on its way is laid over every
-  refetch (`planWithPending`) and taken back with the error when the save fails; a `stale` apply reloads with a toast.
+  refetch (`planWithPending`) and taken back with the error when the save fails; apply and discard send the `rev` from
+  when the dialog opened, a `stale` answer reloads with a toast. A draft emptied by edits becomes `null` (activity
+  `plan`, not `plan_discarded`); an empty save without a draft writes nothing.
   Readers see the draft (bar, planned specs, greyed players) without any control.
 - **Dialogs** share one rhythm (`kp-dialog`, `kp-stack`): 24 px body padding and between field groups, 8 px between
   a label and its control and between list rows, the hint set apart; buttons carry an icon where it helps (Speichern,

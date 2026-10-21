@@ -65,15 +65,18 @@ export function PickIcon({ pick, size = 20 }: { pick: KaderWish | null | undefin
     return <span className="kp-ico kp-ico-none" style={{ "--ico": `${size}px` } as CSSProperties} aria-hidden="true" />;
 }
 
-/** The class of a class/spec pair in its colour ("Schamane"); the spec icon beside it says the rest, the tooltip spells it out. */
-export function PickLabel({ pick, className: extra = "" }: { pick: KaderWish | null | undefined; className?: string }) {
+/**
+ * The class of a class/spec pair in its colour ("Schamane"), or with `spec` the spec ("Wiederherstellung") where the
+ * class already heads the group; the spec icon beside it says the rest, the tooltip spells it out.
+ */
+export function PickLabel({ pick, spec = false, className: extra = "" }: { pick: KaderWish | null | undefined; spec?: boolean; className?: string }) {
     const { view } = useKader();
     const t = useT();
     if (!pick) return <span className={`kp-muted ${extra}`.trim()}>{t("kader.player.noChar")}</span>;
     const props = classColorProps(classColor(view.classes, pick.className));
     return (
         <span className={[extra, props.className].filter(Boolean).join(" ")} style={props.style} data-tip={wishLabel(view.classes, pick)}>
-            {className(view.classes, pick.className)}
+            {spec && pick.spec ? specName(view.classes, pick.spec) : className(view.classes, pick.className)}
         </span>
     );
 }

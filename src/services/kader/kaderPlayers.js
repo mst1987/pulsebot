@@ -16,6 +16,8 @@
 //     votes:     { [userId]: "yes" | "unsure" | "no" }                     leads only
 //     comments:  [{ id, by, at, text }]
 //     decision:  { className, spec } | null }                              set when moved into the roster
+//                                                                          or by taking the Planspiel over
+//                                                                          (any composition state, kaderPlan.js)
 //
 // States stay until somebody changes them — every change is an explicit action
 // (setState) and is written into the history with who and when.

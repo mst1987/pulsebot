@@ -41,11 +41,23 @@ describe("services/kader/kaderPlan savePlan", () => {
         expect(kader(p).plan.specs[U.b].spec).toBe("Priest-Shadow");
     });
 
-    it("takes a planned spec back and a player in again — the draft stays until it is thrown away", () => {
+    it("takes a planned spec back and a player in again — a draft left empty is gone, marked as emptied", () => {
         const { planner, kaderId } = setup();
         let p = plan.savePlan(planner, { kaderId, userId: U.a, spec: { className: "Warrior", spec: "Warrior-Fury" }, excluded: true }, ctx);
-        p = plan.savePlan(p, { kaderId, userId: U.a, spec: null, excluded: false }, later);
-        expect(kader(p).plan).toEqual({ specs: {}, excluded: [], by: U.lead2, at: later.now });
+        p = plan.savePlan(p, { kaderId, userId: U.a, excluded: false }, later);
+        expect(kader(p).plan).toMatchObject({ specs: { [U.a]: { spec: "Warrior-Fury" } }, excluded: [] });
+        const step = kaderCtx({ now: "2026-10-02T19:05:00.000Z", actor: U.lead2 });
+        p = plan.savePlan(p, { kaderId, userId: U.a, spec: null }, step);
+        expect(kader(p).plan).toBeNull();
+        expect(step.planEmptied).toBe(kaderId);
+    });
+
+    it("does nothing without a draft when the change leaves it empty", () => {
+        const { planner, kaderId } = setup();
+        const fresh = kaderCtx();
+        expect(plan.savePlan(planner, { kaderId, userId: U.c, excluded: false }, fresh)).toEqual(planner);
+        expect(plan.savePlan(planner, { kaderId, userId: U.a, spec: null }, fresh)).toEqual(planner);
+        expect(fresh.planEmptied).toBeUndefined();
     });
 
     it("leaves the planner as it was for a change that changes nothing", () => {
@@ -89,6 +101,16 @@ describe("services/kader/kaderPlan discardPlan", () => {
         const p = plan.savePlan(planner, { kaderId, userId: U.c, excluded: true }, ctx);
         expect(kader(plan.discardPlan(p, { kaderId })).plan).toBeNull();
         expect(refusal(() => plan.discardPlan(planner, { kaderId })).status).toBe(409);
+    });
+
+    it("refuses a draft that moved on since the confirmation was shown (409 stale), unless forced", () => {
+        const { planner, kaderId } = setup();
+        const p = model.normalizePlanner(plan.savePlan(planner, { kaderId, userId: U.c, excluded: true }, ctx));
+        p.kaders[0].plan.rev = 7;
+        const stale = refusal(() => plan.discardPlan(p, { kaderId, baseRev: 6 }));
+        expect(stale).toMatchObject({ status: 409, code: "stale" });
+        expect(kader(plan.discardPlan(p, { kaderId, baseRev: 7 })).plan).toBeNull();
+        expect(kader(plan.discardPlan(p, { kaderId, baseRev: 6, force: true })).plan).toBeNull();
     });
 });
 

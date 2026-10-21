@@ -1094,7 +1094,8 @@ dialog.dlg.kp-dialog .dlg-foot .kp-foot-left { margin-right: auto; }
 .kp-comp-excluded .kp-cell-name, .kp-comp-excluded .kp-comp-speccell, .kp-comp-excluded .kp-comp-role { opacity: .6; }
 .kp-comp-buffmark { grid-column: 1 / -1; font-size: 12px; font-weight: 600; color: var(--text); }
 .kp-comp-table-plan { --minw: 760px; }
-.kp-comp-grid.kp-comp-planning { grid-template-columns: minmax(150px, 1.4fr) minmax(170px, 1.3fr) 112px 120px minmax(90px, .8fr) 136px; }
+/* the last column is the eye button alone (its header only for screen readers) */
+.kp-comp-grid.kp-comp-planning { grid-template-columns: minmax(170px, 1.4fr) minmax(190px, 1.4fr) 112px 120px minmax(80px, .55fr) 36px; }
 .kp-comp-plancell { display: flex; justify-content: flex-end; }
 @media (max-width: 900px) {
     .kp-comp-body { grid-template-columns: minmax(0, 1fr); }
@@ -1111,8 +1112,8 @@ dialog.dlg.kp-dialog .dlg-foot .kp-foot-left { margin-right: auto; }
     .kp-thead.kp-comp-grid { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
     .kp-thead.kp-comp-grid .kp-th { flex-direction: row; align-items: center; gap: 8px; max-width: 100%; }
     .kp-thead.kp-comp-grid > .kp-comp-wishes { display: none; }
-    .kp-comp-grid.kp-comp-planning { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "who state" "spec role" "plan plan"; }
-    .kp-comp-grid.kp-comp-planning > :nth-child(6) { grid-area: plan; justify-content: flex-start; }
+    .kp-comp-grid.kp-comp-planning { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "who state plan" "spec role role"; }
+    .kp-comp-grid.kp-comp-planning > :nth-child(6) { grid-area: plan; }
     .kp-thead.kp-comp-grid > .kp-comp-plancell { display: none; }
     .kp-comp-plan { padding: 10px 12px; }
 }

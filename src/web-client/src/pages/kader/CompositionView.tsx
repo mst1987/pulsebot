@@ -5,7 +5,8 @@
 // and count only with the switch, remembered per Kader.
 //
 // The "Planspiel": one shared draft per Kader. With write access each row gets the
-// spec picker (the same menu as the decision) and a "Ausklammern" button; sums and
+// spec picker (the same menu as the decision, naming the spec) and an eye button
+// to leave the player out ("Ausklammern"); sums and
 // buffs follow the draft, the bar above says by whom, how old and what it changes
 // ("+1 Heiler · −1 Fernkampf · Kampfrausch jetzt doppelt"), and offers "Verwerfen"
 // and "Als Entscheidung übernehmen" (sets decisions, never a state). Own edits are
@@ -13,7 +14,7 @@
 // takes a pick back. Read access sees the draft without any control.
 import { useState, type ReactNode } from "react";
 import { applyKaderPlan, discardKaderPlan, isStale, saveKaderPlan, type KaderRole, type KaderState, type KaderWish } from "../../api";
-import { Button, Switch } from "../../components/ui";
+import { Button, IconButton, Switch } from "../../components/ui";
 import { useConfirm } from "../../components/ui/Modal";
 import { CheckIcon, EyeIcon, EyeOffIcon, RosterIcon, TrashIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
@@ -105,12 +106,12 @@ type RowProps = {
 function CompRow({ row, canPlan, onSpec, onExclude }: RowProps) {
     const t = useT();
     const { view } = useKader();
-    const { userId, entry, pick, role, counted, was, excluded } = row;
+    const { userId, entry, pick, role, counted, was, undecided, excluded } = row;
     const name = playerName(view, userId, entry);
     const pickable = canPlan && !excluded && !!pick && !!pick.spec && wishOptions(entry, pick.spec).length > 1;
     let spec: ReactNode;
     if (!pick || !pick.spec) spec = <span className="kp-muted">{t("kader.composition.noSpecRow")}</span>;
-    else if (pickable) spec = <WishPicker entry={entry} value={pick.spec} label={t("kader.composition.plan.specOf", { name })} onChange={(p) => onSpec(row, p)} />;
+    else if (pickable) spec = <WishPicker entry={entry} value={pick.spec} label={t("kader.composition.plan.specOf", { name })} onChange={(p) => onSpec(row, p)} specLabel />;
     else spec = <SpecCell pick={pick} />;
     return (
         <div className={`kp-trow kp-comp-grid${canPlan ? " kp-comp-planning" : ""}${counted ? "" : " kp-comp-off"}${excluded ? " kp-comp-excluded" : ""}`} role="row">
@@ -127,7 +128,7 @@ function CompRow({ row, canPlan, onSpec, onExclude }: RowProps) {
                 {spec}
                 {was !== undefined && (
                     <span className="kp-sub kp-comp-was">
-                        {t("kader.composition.plan.was")} <s>{was && was.spec ? specName(view.classes, was.spec) : t("kader.composition.noSpecRow")}</s>
+                        {t("kader.composition.plan.was")} <s>{undecided ? t("kader.composition.plan.wasUndecided") : was && was.spec ? specName(view.classes, was.spec) : t("kader.composition.noSpecRow")}</s>
                     </span>
                 )}
             </span>
@@ -138,10 +139,10 @@ function CompRow({ row, canPlan, onSpec, onExclude }: RowProps) {
             <span role="cell" className="kp-comp-wishes"><WishIcons wishes={entry.wishes} size={18} /></span>
             {canPlan && (
                 <span role="cell" className="kp-comp-plancell">
-                    <Button variant="ghost" size="sm" icon={excluded ? <EyeIcon /> : <EyeOffIcon />} aria-pressed={!!excluded}
-                        data-tip={t("kader.composition.plan.excludeTip")} onClick={() => onExclude(row, !excluded)}>
-                        {excluded ? t("kader.composition.plan.include") : t("kader.composition.plan.exclude")}
-                    </Button>
+                    <IconButton size="sm" tone="ghost" icon={excluded ? <EyeOffIcon /> : <EyeIcon />} pressed={!!excluded}
+                        tip={excluded ? t("kader.composition.plan.include") : t("kader.composition.plan.exclude")} tipSub={t("kader.composition.plan.excludeTip")}
+                        aria-label={t(excluded ? "kader.composition.plan.includeAria" : "kader.composition.plan.excludeAria", { name })}
+                        onClick={() => onExclude(row, !excluded)} />
                 </span>
             )}
         </div>
@@ -227,26 +228,11 @@ export default function CompositionView() {
     };
     const onExclude = (row: CompositionRow, excluded: boolean) => void edit(row.userId, { excluded });
 
-    const discard = async () => {
-        const ok = await ask({ title: t("kader.composition.plan.discardTitle"), text: t("kader.composition.plan.discardText"), action: t("kader.composition.plan.discard"), tone: "danger" });
-        if (!ok) return;
-        setBusy(true);
-        if (await run(discardKaderPlan(kader.id))) toast(t("kader.composition.plan.discarded"));
-        setBusy(false);
-    };
-    const decisions = planDecisions(plan, kader);
-    const leftOut = plan ? plan.excluded.filter((id) => kader.players[id]).length : 0;
-    const apply = async () => {
-        const ok = await ask({
-            title: t("kader.composition.plan.applyTitle"),
-            text: <>{t("kader.composition.plan.applyText", { count: decisions })}{leftOut > 0 && <> {t("kader.composition.plan.applyExcluded", { count: leftOut })}</>}</>,
-            action: t("kader.composition.plan.apply"),
-            tone: "go",
-        });
-        if (!ok) return;
+    /** Runs a draft action against the draft as it was when its dialog opened; a draft moved on meanwhile is refused (409 stale) and reloaded. */
+    const runFresh = async <T,>(call: Promise<T>): Promise<T | null> => {
         setBusy(true);
         let stale = false;
-        const res = await run(applyKaderPlan(kader.id, kader.plan ? kader.plan.rev : undefined), {
+        const res = await run(call, {
             onError: (e) => {
                 if (!isStale(e)) return false;
                 stale = true;
@@ -254,10 +240,31 @@ export default function CompositionView() {
             },
         });
         setBusy(false);
-        if (stale) {
-            toast(t("kader.composition.plan.stale"), "warn");
-            void refresh();
-        } else if (res) toast(t("kader.composition.plan.applied", { count: res.applied }));
+        if (!stale) return res ?? null;
+        toast(t("kader.composition.plan.stale"), "warn");
+        void refresh();
+        return null;
+    };
+    const discard = async () => {
+        // the draft as seen when the dialog opened
+        const rev = kader.plan ? kader.plan.rev : undefined;
+        const ok = await ask({ title: t("kader.composition.plan.discardTitle"), text: t("kader.composition.plan.discardText"), action: t("kader.composition.plan.discard"), tone: "danger" });
+        if (!ok) return;
+        if (await runFresh(discardKaderPlan(kader.id, rev))) toast(t("kader.composition.plan.discarded"));
+    };
+    const decisions = planDecisions(plan, kader);
+    const leftOut = plan ? plan.excluded.filter((id) => kader.players[id]).length : 0;
+    const apply = async () => {
+        const rev = kader.plan ? kader.plan.rev : undefined;
+        const ok = await ask({
+            title: t("kader.composition.plan.applyTitle"),
+            text: <>{t("kader.composition.plan.applyText", { count: decisions })}{leftOut > 0 && <> {t("kader.composition.plan.applyExcluded", { count: leftOut })}</>}</>,
+            action: t("kader.composition.plan.apply"),
+            tone: "go",
+        });
+        if (!ok) return;
+        const res = await runFresh(applyKaderPlan(kader.id, rev));
+        if (res) toast(t("kader.composition.plan.applied", { count: res.applied }));
     };
 
     const parts = (r: CompositionRow): SortParts => {
@@ -325,7 +332,7 @@ export default function CompositionView() {
                         <SortHead sortKey="role" label={t("kader.composition.colRole")} sort={sort} />
                         <SortHead sortKey="state" label={t("kader.composition.colState")} sort={sort} />
                         <span role="columnheader" className="kp-th kp-comp-wishes"><span className="kicker">{t("kader.composition.colWishes")}</span></span>
-                        {canWrite && <span role="columnheader" className="kp-th kp-comp-plancell"><span className="kicker">{t("kader.composition.plan.colPlan")}</span></span>}
+                        {canWrite && <span role="columnheader" className="kp-th kp-comp-plancell"><span className="kp-sr">{t("kader.composition.plan.colPlan")}</span></span>}
                     </div>
                     {comp.rows.length === 0 && (
                         <TableNote><EmptyState icon={<RosterIcon />} text={t("kader.composition.empty")} /></TableNote>
