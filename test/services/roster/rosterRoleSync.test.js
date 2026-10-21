@@ -346,6 +346,23 @@ describe("services/roster/rosterRoleSync role gained (Kader takeover)", () => {
         discord.fetchGuildMembersCached.mockResolvedValue([]);
     });
 
+    it("skips the gateway echo of the tool's own role write; a role given by hand still counts", async () => {
+        memberRoles.recentWrite.mockImplementation((g, u, r) => (u === "100001" && r === "kr" ? true : undefined));
+        sync.onGuildMemberUpdate(member("100001", []), member("100001", ["kr"]));
+        rosterStore.upsertMember(kr.id, "100003", {});
+        sync.onGuildMemberUpdate(member("100003", []), member("100003", ["kr"]));
+        expect(gained.mock.calls.map((c) => c[1])).toEqual(["100003"]);
+        // the echo still joins the roster, it only does not reach the Kader
+        expect(rosterStore.getRoster(kr.id).members["100001"]).toBeTruthy();
+        // the reconcile skips it too
+        gained.mockClear();
+        discord.fetchGuildMembersCached.mockResolvedValue([member("100001", ["kr"]), member("100002", ["kr"])]);
+        await sync.reconcile("g1");
+        expect(gained.mock.calls.map((c) => c[1])).toEqual(["100002"]);
+        discord.fetchGuildMembersCached.mockResolvedValue([]);
+        memberRoles.recentWrite.mockReturnValue(undefined);
+    });
+
     it("a throwing handler only logs; the member is in the roster anyway", () => {
         gained.mockImplementation(() => { throw new Error("boom"); });
         expect(sync.onGuildMemberUpdate(member("100001", []), member("100001", ["kr"]))).toEqual([{ rosterId: kr.id, userId: "100001", action: "added" }]);

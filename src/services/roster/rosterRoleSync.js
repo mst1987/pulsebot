@@ -199,14 +199,22 @@ function memberName(member) {
     return str(member.displayName || (member.user && (member.user.globalName || member.user.username)));
 }
 
+/** Whether the tool itself just gave this member a role of the roster (its gateway echo, not a hand-given role). */
+function toolGave(roster, userId) {
+    return (roster.roleIds || []).some((r) => memberRoles.recentWrite(roster.guildId, userId, r) === true);
+}
+
 /**
  * A holder of a role of a roster a Kader was taken over into (docs/kaderplaner.md
  * "Übernahme"): the handler puts them into the Kader as provisional unless they
- * are planned there already - which everyone the takeover hands the role is, so
- * the tool's own role writes never go round. Never throws.
+ * are planned there already. The gateway echo of a role the tool gave itself
+ * (memberRoles.recentWrite) is skipped: only a role given by hand counts, so a
+ * late echo of the takeover's own write can never undo an orga decision made
+ * in between (player moved back to Vorauswahl). Never throws.
  */
 function roleGained(roster, userId, member) {
     if (!roster.kaderId || !roleGainedHandler) return;
+    if (toolGave(roster, userId)) return;
     try {
         roleGainedHandler(roster, userId, { name: memberName(member) });
     } catch (e) {

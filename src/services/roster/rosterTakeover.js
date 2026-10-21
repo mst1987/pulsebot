@@ -26,7 +26,9 @@
 //     Kader. Provisional is still a takeover state, so that write drops nobody.
 //     A member who gains the role (by hand in Discord) and is not planned in
 //     the Kader comes in as provisional (`onRoleGained`); one already planned
-//     stays as he is, which also keeps the takeover's own role writes quiet.
+//     stays as he is. The gateway echo of the tool's own role writes is skipped
+//     (memberRoles.recentWrite), and handOut checks each player again after
+//     the write, so a player the orga moves meanwhile is not taken back in.
 // A deleted Kader leaves roster, role and channels as they are; nothing
 // follows it any more.
 // A player who comes into the Kader later does not get the role on his own; he
@@ -255,12 +257,31 @@ function resultOf(change) {
 }
 
 /**
+ * Undoes one turn of handOut for a player the orga moved below provisional
+ * meanwhile - what dropPlayers does: a roster member leaves the roster (and
+ * loses its roles), anybody else just loses the role just given. Never throws.
+ */
+async function takeBack(rosterId, uid, roleId, { actor = "" } = {}) {
+    try {
+        const roster = rosterStore.getRoster(rosterId);
+        if (!roster) return;
+        if (roster.members[uid]) await rosterMembers.removeMember(rosterId, uid, { actor });
+        else await rosterRoleSync.applyRoleChange(roster, uid, roleId, false, { actor });
+        logger.info(`takeover: ${uid} was moved while getting the role of roster ${rosterId} - taken back`);
+    } catch (e) {
+        logger.warn(`takeover: could not take back the role of ${uid}:`, e && (e.code || e.message));
+    }
+}
+
+/**
  * Hands the role to `players` one by one: a player who is no roster member
  * yet joins as core (with the Kader's character) and gets the roster's main
  * role that way; a member already in the roster is set to core and gets the
  * role. With `guildId`/`kaderId` each player is checked against the Kader
  * right before his turn - the orga can move players while the role is handed
- * out, and a player no longer planned is skipped (no result). Never throws.
+ * out, and a player no longer planned is skipped (no result). The check runs
+ * again after the role write: a player moved meanwhile has his turn taken back
+ * (takeBack) and gets no result either. Never throws.
  * @returns {Promise<Object<string, "ok"|"missing"|"failed">>}
  */
 async function handOut(rosterId, roleId, players, { actor = "", gapMs = ROLE_GAP_MS, guildId = "", kaderId = "" } = {}) {
@@ -282,6 +303,12 @@ async function handOut(rosterId, roleId, players, { actor = "", gapMs = ROLE_GAP
             } else {
                 if (roster.members[uid].status !== "core") await rosterMembers.setStatus(rosterId, uid, "core", { actor });
                 results[uid] = resultOf(await rosterRoleSync.applyRoleChange(rosterStore.getRoster(rosterId), uid, roleId, true, { actor }));
+            }
+            // The orga may have moved the player while the role was written; its
+            // drop (dropPlayers) then ran before the role was there - take it back.
+            if (guildId && kaderId && !kaderRoster.stillPlanned(guildId, kaderId, uid)) {
+                await takeBack(rosterId, uid, roleId, { actor });
+                delete results[uid];
             }
         } catch (e) {
             logger.warn(`takeover: role for ${uid} failed:`, e && (e.code || e.message));
@@ -513,15 +540,16 @@ function onRoleLost(roster, userId) {
 }
 
 /**
- * rosterRoleSync saw a member gain a role of the roster in Discord (by hand or
- * through the roster): in the Kader taken over into this roster, a player who
- * is not (or below provisional) in the Kader comes in as provisional. A player
- * already planned stays as he is - that also covers the role the takeover
- * hands out itself, so there is no loop.
+ * rosterRoleSync saw a member gain a role of the roster in Discord by hand (the
+ * echo of the tool's own writes is skipped there): in the Kader taken over into
+ * this roster, a player who is not (or below provisional) in the Kader comes in
+ * as provisional. A player already planned stays as he is - checked first, as
+ * it is cheap and the reconcile after a restart calls this for every holder.
  * @returns {boolean} whether the Kader changed
  */
 function onRoleGained(roster, userId, { name = "" } = {}) {
     if (!roster || !roster.kaderId || !roster.guildId) return false;
+    if (kaderRoster.stillPlanned(roster.guildId, roster.kaderId, userId)) return false;
     const kader = kaderRoster.takeoverPlayers(roster.guildId, roster.kaderId);
     if (!kader || !kader.takeover || kader.takeover.rosterId !== roster.id) return false;
     const changed = kaderRoster.roleGainedFromDiscord(roster.guildId, kader.id, userId, { name, actor: "" });

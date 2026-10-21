@@ -342,6 +342,67 @@ describe("services/roster/rosterTakeover start", () => {
         expect(kaderNow().takeover.results).toEqual({ [U.a]: "ok", [U.c]: "ok" });
     });
 
+    it("takes the role back from a player the orga moved while it was written, and his echo changes nothing", async () => {
+        let roleId = "";
+        memberRoles.giveRole.mockImplementation(async (g, u, r) => {
+            roleId = r;
+            if (u === U.b) {
+                // the orga moves b to the pool right now; its drop ran before b was in the roster
+                const p = kaderStore.readPlanner("g1");
+                p.kaders[0].players[U.b].state = "pool";
+                kaderStore.writePlanner("g1", p);
+            }
+            return ok(r);
+        });
+        await startAndWait();
+        expect(rosterNow().members[U.b]).toBeUndefined();
+        expect(memberRoles.takeRole.mock.calls).toContainEqual(["g1", U.b, roleId]);
+        expect(kaderNow().takeover.results).toEqual({ [U.a]: "ok", [U.c]: "ok" });
+        // the gateway echo of that give comes late: the tool wrote it, so the Kader stays
+        memberRoles.recentWrite.mockImplementation((g, u, r) => (u === U.b && r === roleId ? true : undefined));
+        const member = (roles) => ({ id: U.b, partial: false, user: { bot: false }, guild: { id: "g1" }, roles: { cache: new Map(roles.map((x) => [x, {}])) } });
+        rosterRoleSync.onGuildMemberUpdate(member([]), member([roleId]));
+        expect(kaderNow().players[U.b].state).toBe("pool");
+        memberRoles.recentWrite.mockReturnValue(undefined);
+    });
+
+    it("a roster member moved while getting the role: dropped meanwhile, the role is taken back", async () => {
+        rosterStore.upsertMember(roster.id, U.a, { status: "trial" });
+        let roleId = "";
+        memberRoles.giveRole.mockImplementation(async (g, u, r) => {
+            roleId = r;
+            if (u === U.a) {
+                // the orga moves a to the pool and its drop removes him before the role is there
+                const p = kaderStore.readPlanner("g1");
+                p.kaders[0].players[U.a].state = "pool";
+                kaderStore.writePlanner("g1", p);
+                rosterStore.removeMember(roster.id, U.a);
+            }
+            return ok(r);
+        });
+        await startAndWait();
+        expect(rosterNow().members[U.a]).toBeUndefined();
+        expect(memberRoles.takeRole.mock.calls).toContainEqual(["g1", U.a, roleId]);
+        expect(kaderNow().takeover.results).toEqual({ [U.b]: "ok", [U.c]: "ok" });
+        expect(kaderNow().players[U.a].state).toBe("pool");
+    });
+
+    it("a roster member moved while getting the role and still in the roster leaves it", async () => {
+        rosterStore.upsertMember(roster.id, U.a, { status: "trial" });
+        memberRoles.giveRole.mockImplementation(async (g, u, r) => {
+            if (u === U.a) {
+                const p = kaderStore.readPlanner("g1");
+                p.kaders[0].players[U.a].state = "pool";
+                kaderStore.writePlanner("g1", p);
+            }
+            return ok(r);
+        });
+        await startAndWait();
+        expect(rosterNow().members[U.a]).toBeUndefined();
+        expect(memberRoles.takeRole.mock.calls.map((c) => c[1])).toContain(U.a);
+        expect(kaderNow().takeover.results[U.a]).toBeUndefined();
+    });
+
     it("finishing never overwrites a removal from Discord in between", async () => {
         memberRoles.giveRole.mockImplementation(async (g, u, r) => {
             // a lost the role in Discord meanwhile: back to provisional, "removed"
@@ -567,6 +628,36 @@ describe("services/roster/rosterTakeover sync Discord -> Kader", () => {
         rosterRoleSync.onGuildMemberUpdate(member(U.a, []), member(U.a, [roleId]));
         expect(kaderNow().rev).toBe(rev);
         expect(kaderNow().players[U.a].state).toBe("roster");
+    });
+
+    it("onRoleGained asks the cheap stillPlanned first and reads the takeover only for others", async () => {
+        await startAndWait();
+        const spy = jest.spyOn(kaderRoster, "takeoverPlayers");
+        try {
+            expect(takeover.onRoleGained(rosterNow(), U.a)).toBe(false);
+            expect(spy).not.toHaveBeenCalled();
+            expect(takeover.onRoleGained(rosterNow(), U.d)).toBe(true);
+            expect(spy).toHaveBeenCalledTimes(1);
+        } finally {
+            spy.mockRestore();
+        }
+    });
+
+    it("a deleted Kader: gaining or losing the role changes nothing", async () => {
+        const res = await startAndWait();
+        const roleId = res.steps[0].id;
+        const p = kaderStore.readPlanner("g1");
+        p.kaders = [];
+        kaderStore.writePlanner("g1", p);
+        const before = JSON.stringify(kaderStore.readPlanner("g1"));
+        rosterRoleSync.onGuildMemberUpdate(member(U.e, []), member(U.e, [roleId]));
+        rosterRoleSync.onGuildMemberUpdate(member(U.a, [roleId]), member(U.a, []));
+        expect(JSON.stringify(kaderStore.readPlanner("g1"))).toBe(before);
+        expect(takeover.onRoleGained(rosterNow(), U.d)).toBe(false);
+        expect(takeover.onRoleLost(rosterNow(), U.b)).toBe(false);
+        // the roster itself still follows its role
+        expect(rosterNow().members[U.e]).toBeDefined();
+        expect(rosterNow().members[U.a]).toBeUndefined();
     });
 
     it("onRoleGained leaves a roster alone that is no takeover's", async () => {

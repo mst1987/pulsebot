@@ -171,17 +171,19 @@ The activity log gets `takeover`, `role_given`, `role_removed_kader`, `role_remo
 - **Role given by hand in Discord:** `rosterRoleSync` adds the member to the roster (as for every roster role) and
   calls the handler of `setRoleGainedHandler` → `rosterTakeover.onRoleGained` → `kaderRoster.roleGainedFromDiscord`:
   a player not in the Kader or below provisional joins as **provisional** (activity + Verlauf `role_added_discord`,
-  result `ok`); a player already provisional or above stays as he is (no write, no loop). It fires on the gateway
-  event and on the reconcile for every new holder of the current signature.
+  result `ok`); a player already provisional or above stays as he is (no write, no loop; `stillPlanned` is checked
+  first, it is cheap). It fires on the gateway event and on the reconcile for every new holder of the current
+  signature — except the echo of a role the tool itself gave in the last minutes (`memberRoles.recentWrite`), so
+  only a role given by hand counts. `handOut` checks every player again after his role write and takes the turn back
+  (out of the roster, or the role taken) when the orga moved him meanwhile.
 - A player who reaches provisional later in the planner gets nothing on his own; he counts as "nachzuziehen" until
   the orga presses "Rolle nachziehen".
 
 Known limits: deleting a Kader does nothing — roster, role, channels and members stay (the record goes with the
 Kader); a member outside the Kader who holds only an old roster role keeps his roster place, one who gets the new role
-joins the Kader as provisional; when recording fails after Discord was written, role and channels stay. Races left
-open: a role event of the takeover's own write that arrives after the orga moved the player to the pool puts him back
-to provisional; after a restart the first reconcile treats every holder as new, so a holder the Kader no longer plans
-(e.g. a failed role removal) comes back as provisional.
+joins the Kader as provisional; when recording fails after Discord was written, role and channels stay. Race left
+open: after a restart the first reconcile treats every holder as new (the write memory is gone), so a holder the Kader
+no longer plans (e.g. a failed role removal) comes back as provisional.
 
 ## The version and the server
 
