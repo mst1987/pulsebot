@@ -146,9 +146,25 @@ Routes (area `kader`, writes with CSRF):
 
 | Route | Body / answer |
 |---|---|
-| `GET /api/kader/takeover?kader=<id>` | precheck: `{ kader {id,name,versionId,rev}, roster, online, canManageRoles, canManageChannels, iconPossible, premiumTier, blockers[], notes[], outsideCount, takeover, running, aborted, pending[], pendingCount, players[{userId, state, …, onServer, hasRole, inRoster, result}], categories[{id,name}], canStart }` |
+| `GET /api/kader/takeover?kader=<id>` | precheck: `{ kader {id,name,versionId,rev}, roster, online, canManageRoles, canManageChannels, iconPossible, premiumTier, blockers[], notes[], outsideCount, takeover, role, category, running, aborted, pending[], pendingCount, players[{userId, state, …, onServer, hasRole, inRoster, result}], categories[{id,name}], canStart }` |
 | `POST /api/kader/takeover` | `{ kaderId, confirm: true, baseRev, role: { name, color?, unicodeEmoji? }, category: { id } \| { name, emoji? }, channels: [{ name, emoji?, orgaOnlyWrite? }] }` → `{ takeover, steps, assigning }` |
 | `POST /api/kader/takeover/role` | "Rolle nachziehen" `{ kaderId }` → `{ count }`: the role for every player who reached provisional after the takeover (`kaderRoster.pendingOf`), in the background; 409 `not_taken` / `role_gone` |
+
+`role` / `category` in the precheck: what the takeover made, as Discord has it now (`madeOf`) — `role { id, name,
+color ("#rrggbb", "" for none), gone }`, `category { id, name, gone }`; null before a takeover or with the bot
+offline.
+
+**The web assistant** (`pages/kader/TakeoverWizard.tsx`, logic in `lib/kader/takeover.ts`): the button "In Discord
+übernehmen" in the stage bar of "Zusammensetzung" (only with `kader` write; locked with the blocker as tooltip while
+`canStart` is false) opens four steps — **Rolle** (name, colour, emoji; the emoji field is off with the boost-level
+reason unless `iconPossible`), **Kanäle** (new or existing category, channels with "Nur Orga schreibt"), **Wer**
+(everybody from provisional upwards in a sortable table with status and "nicht auf dem Server", plus the
+`outsideCount` note; "Übernahme starten" stays locked until the confirm switch is on) and **Ergebnis** (one line per
+`steps` entry, then "n von m Eingeplanten haben die Rolle", polled while the job runs). 409 `stale` shows a note,
+reloads the Kader and turns the switch off again. After the takeover the Kader head shows the line "In Discord": the
+role (colour from Discord, struck through when gone), "n von m Eingeplanten haben die Rolle", the category, "Rolle
+wird verteilt …" while running, a note for `aborted`, and **"Rolle nachziehen (n)"** (with a confirm) when
+`pendingCount > 0` — also after an abort.
 
 The record is the Kader's field **`takeover`**: `{ rosterId, roleId, roleName, categoryId, channelIds, by, at,
 status: "running" | "done", results: { [userId]: "ok" | "missing" | "failed" | "removed" } }` (`missing` = not on
