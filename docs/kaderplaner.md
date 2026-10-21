@@ -108,6 +108,57 @@ character cross, and only through "Ins Roster übernehmen".
 other way round —, so `kaderRoster.js` stays the only door (`test/stores/kaderStore.test.js`); the route test fills an
 interview note and a comment with a marker and asserts neither reaches the roster.
 
+### Übernahme (Kader → Discord, October 2026)
+
+When the Kader is decided, the orga takes it over into Discord in **one confirmed step**
+(`src/services/roster/rosterTakeover.js`, every planner access through `kaderRoster.js`): a new role, a category (an
+existing one or a new one) and channels that only the new role and the orga see; the role becomes `roleIds[0]` (the
+main role) of the **linked roster**, and every player from provisional upwards (`provisional`, `roster`, `bench`,
+`tentative`) joins that roster as **core** with the Kader's character and gets the role — one by one in the background
+(300 ms apart, the server has one vCPU). A Kader that is only provisional goes too. Only the Kader's own server.
+
+- **Rights:** full admins and the managers of the linked roster (`canManageRosterLive`), with `kader` write; a
+  reader gets the precheck only. Without a linked roster there is a blocker (`no_roster`).
+- **The role:** name, colour `#rrggbb`, optional Unicode emoji. The emoji becomes the role icon only when the server
+  has `ROLE_ICONS` (boost level 2); otherwise the precheck shows the note `icon_not_possible` and the role is made
+  without it. A role that would lie above the bot's role is deleted again (409 `role_too_high`).
+- **Category and channels:** an existing category is used as it is (not changed); a new one and every channel get
+  `@everyone` deny View, the new role View (with `orgaOnlyWrite` no Send), the orga roles (admin/orga roles of the
+  settings + the roster's manager roles) View + Send, the bot View/Send/Manage. Names follow docs/channels.md
+  (`emoji・name`, channel names through `normalizeChannelName`); at most 10 channels. Each step reports on its own
+  (`steps`), a failed channel does not undo the role.
+- **Stale guard:** `confirm: true` and `baseRev` (the Kader's `rev` the dialog showed) are required — missing
+  `baseRev` is 400 `base_rev_required`, a planner write since then 409 `stale`. One takeover per Kader at a time
+  (409 `running`), once only (409 `already_taken`).
+
+Routes (area `kader`, writes with CSRF):
+
+| Route | Body / answer |
+|---|---|
+| `GET /api/kader/takeover?kader=<id>` | precheck: `{ kader {id,name,versionId,rev}, roster, online, canManageRoles, canManageChannels, iconPossible, premiumTier, blockers[], notes[], takeover, running, pending[], pendingCount, players[{userId, state, …, onServer, hasRole, inRoster, result}], categories[{id,name}], canStart }` |
+| `POST /api/kader/takeover` | `{ kaderId, confirm: true, baseRev, role: { name, color?, unicodeEmoji? }, category: { id } \| { name, emoji? }, channels: [{ name, emoji?, orgaOnlyWrite? }] }` → `{ takeover, steps, assigning }` |
+| `POST /api/kader/takeover/role` | "Rolle nachziehen" `{ kaderId }` → `{ count }`: the role for every player who reached provisional after the takeover (`kaderRoster.pendingOf`), in the background; 409 `not_taken` / `role_gone` |
+
+The record is the Kader's field **`takeover`**: `{ rosterId, roleId, roleName, categoryId, channelIds, by, at,
+status: "running" | "done", results: { [userId]: "ok" | "missing" | "failed" } }` (`missing` = not on the server).
+The activity log gets `takeover`, `role_given`, `role_removed_kader`, `role_removed_discord`; the player's Verlauf
+`role_given`, `role_removed_kader {from,to}`, `role_removed_discord {from,to}`.
+
+**Both sides stay in step afterwards, without a loop:**
+
+- **Kader → Discord:** a player who falls below provisional or is removed from the Kader loses the roster and its
+  roles. `kaderRoster.takeoverDrops` finds them on every planner write (`kader.js store()`), the lines go into the
+  activity, and `rosterTakeover.dropPlayers` removes them from the roster in the background — the roster is written
+  first, so the role event Discord sends back finds no member any more.
+- **Discord → Kader:** a member who lost every role of the roster in Discord is removed by `rosterRoleSync` (gateway
+  event or the reconcile) and `rosterTakeover.onRoleLost` puts the player back to provisional — provisional is still a
+  takeover state, so that write drops nobody.
+- A player who reaches provisional later gets nothing on his own; he counts as "nachzuziehen" until the orga presses
+  "Rolle nachziehen".
+
+Known limits: deleting a Kader drops nobody; members holding an older `roleIds` entry keep their roster place; members
+already in the roster keep their status; when recording fails after Discord was written, role and channels stay.
+
 ## The version and the server
 
 - Version: `forever` when that rule set exists, else the main version (`kaderSource.plannerVersion()`) — the rule
@@ -197,8 +248,11 @@ of the Kader joins must not pull everybody down, a Thursday Kader only cares for
   questions: [{ id, text (≤ 200), type: single|multi|text, options: [{ id, label (≤ 60), color? }] (≤ 20), required }] (≤ 30),
   players: { [userId]: entry } (≤ 500),
   setups: [{ id, name, size: 10|20|40, groups: [[{ userId, spec } | null] × 5] × 8 }] (1–6),
-  plan: { specs: { [userId]: { className, spec } }, excluded: [userId], by, at, rev? } | null }
+  plan: { specs: { [userId]: { className, spec } }, excluded: [userId], by, at, rev? } | null,
+  takeover: { rosterId, roleId, roleName, categoryId, channelIds, by, at, status, results } | null }
 ```
+
+`takeover` is the record of the Übernahme (above); `null` until the Kader was taken over.
 
 `plan` is the **Planspiel** of the composition page (`kaderPlan.js`): one shared draft per Kader. `specs` holds only
 a spec that differs from the one the page counts the player with, and only one of the player's decision and wishes

@@ -173,5 +173,9 @@ describe("lib/kader/model", () => {
         expect(historyText(view, { at: "", by: ME, type: "vote", vote: "none" })).toBe(t("kader.history.voteNone"));
         expect(historyText(view, { at: "", by: "", type: "migrated", to: "roster" })).toContain("Roster");
         expect(historyText(view, { at: "", by: ME, type: "something-new" })).toBe("something-new");
+        // the takeover (docs/kaderplaner.md "Übernahme")
+        expect(historyText(view, { at: "", by: ME, type: "role_given" })).toBe("Roster-Rolle bekommen");
+        expect(historyText(view, { at: "", by: ME, type: "role_removed_kader", from: "provisional", to: "selected" })).toBe("Vorläufig → Vorauswahl: Rolle und Roster entfernt");
+        expect(historyText(view, { at: "", by: "discord", type: "role_removed_discord", from: "bench", to: "provisional" })).toBe("Rolle in Discord verloren: Bench → Vorläufig");
     });
 });

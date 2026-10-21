@@ -542,7 +542,10 @@
         "migrated": "aus dem alten Kaderplaner übernommen ({to})",
         "saved": "Gespräch gespeichert",
         "lead": "Gespräch führt: {name}",
-        "leadNone": "Gesprächsführung entfernt"
+        "leadNone": "Gesprächsführung entfernt",
+        "roleGiven": "Roster-Rolle bekommen",
+        "roleRemovedKader": "{from} → {to}: Rolle und Roster entfernt",
+        "roleRemovedDiscord": "Rolle in Discord verloren: {from} → Vorläufig"
     },
     "questions": {
         "back": "Zur Vorauswahl",
@@ -834,6 +837,10 @@
         "plan": "{by} hat das Planspiel geändert",
         "plan_applied": "{by} hat das Planspiel für {who} als Entscheidung übernommen",
         "plan_discarded": "{by} hat das Planspiel verworfen",
+        "takeover": "{by} hat den Kader übernommen (Rolle, Roster, Kanäle)",
+        "role_given": "{by} hat {who} die Roster-Rolle gegeben",
+        "role_removed_kader": "{who} ist nicht mehr ab Vorläufig dabei: {by} hat Rolle und Roster entfernt",
+        "role_removed_discord": "{who} hat die Rolle in Discord verloren und ist wieder vorläufig",
         "summary": {
             "one": "{by} hat {count} Änderung gemacht",
             "other": "{by} hat {count} Änderungen gemacht"

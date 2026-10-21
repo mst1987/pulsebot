@@ -542,7 +542,10 @@
         "migrated": "taken over from the old roster planner ({to})",
         "saved": "Interview saved",
         "lead": "Interview by: {name}",
-        "leadNone": "Interviewer removed"
+        "leadNone": "Interviewer removed",
+        "roleGiven": "Got the roster role",
+        "roleRemovedKader": "{from} → {to}: role and roster removed",
+        "roleRemovedDiscord": "Lost the role in Discord: {from} → Provisional"
     },
     "questions": {
         "back": "To the preselection",
@@ -834,6 +837,10 @@
         "plan": "{by} changed the draft plan",
         "plan_applied": "{by} took over the draft plan for {who} as decisions",
         "plan_discarded": "{by} discarded the draft plan",
+        "takeover": "{by} took the Kader over (role, roster, channels)",
+        "role_given": "{by} gave {who} the roster role",
+        "role_removed_kader": "{who} is no longer provisional or above: {by} removed role and roster",
+        "role_removed_discord": "{who} lost the role in Discord and is provisional again",
         "summary": {
             "one": "{by} made {count} change",
             "other": "{by} made {count} changes"
