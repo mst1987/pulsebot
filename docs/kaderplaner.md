@@ -152,7 +152,9 @@ The activity log gets `takeover`, `role_given`, `role_removed_kader`, `role_remo
   first, so the role event Discord sends back finds no member any more.
 - **Discord → Kader:** a member who lost every role of the roster in Discord is removed by `rosterRoleSync` (gateway
   event or the reconcile) and `rosterTakeover.onRoleLost` puts the player back to provisional — provisional is still a
-  takeover state, so that write drops nobody.
+  takeover state, so that write drops nobody. `rosterTakeover` registers that handler with
+  `rosterRoleSync.setRoleLostHandler` when it loads (through `web/apiRoutes/kader.js`); a `require` back would be a
+  require cycle (`test/web/noCycles.test.js` counts lazy requires too).
 - A player who reaches provisional later gets nothing on his own; he counts as "nachzuziehen" until the orga presses
   "Rolle nachziehen".
 

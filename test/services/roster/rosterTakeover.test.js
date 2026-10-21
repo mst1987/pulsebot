@@ -467,6 +467,32 @@ describe("services/roster/rosterTakeover sync Discord -> Kader", () => {
         expect(normalized.kaders[0].takeover.results[U.c]).toBeUndefined();
     });
 
+    it("a failing handler only logs; the member is out of the roster anyway", async () => {
+        const res = await startAndWait();
+        const roleId = res.steps[0].id;
+        rosterRoleSync.setRoleLostHandler(() => { throw new Error("boom"); });
+        try {
+            rosterRoleSync.onGuildMemberUpdate(member(U.a, [roleId]), member(U.a, []));
+            expect(rosterNow().members[U.a]).toBeUndefined();
+            expect(kaderNow().players[U.a].state).toBe("roster");
+        } finally {
+            rosterRoleSync.setRoleLostHandler(takeover.onRoleLost);
+        }
+    });
+
+    it("without a registered handler the Kader is left alone", async () => {
+        const res = await startAndWait();
+        const roleId = res.steps[0].id;
+        rosterRoleSync.setRoleLostHandler("not a function");
+        try {
+            rosterRoleSync.onGuildMemberUpdate(member(U.a, [roleId]), member(U.a, []));
+            expect(rosterNow().members[U.a]).toBeUndefined();
+            expect(kaderNow().players[U.a].state).toBe("roster");
+        } finally {
+            rosterRoleSync.setRoleLostHandler(takeover.onRoleLost);
+        }
+    });
+
     it("leaves a roster alone that is no takeover's", () => {
         expect(takeover.onRoleLost(rosterNow(), U.a)).toBe(false);
         expect(takeover.onRoleLost({ id: "x" }, U.a)).toBe(false);

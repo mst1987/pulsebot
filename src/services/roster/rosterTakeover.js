@@ -475,6 +475,11 @@ function onRoleLost(roster, userId) {
     return changed;
 }
 
+// Discord -> Kader: rosterRoleSync calls this when a member loses the role
+// (registered, not required back - that would be a require cycle). Loaded at
+// start through web/apiRoutes/kader.js.
+rosterRoleSync.setRoleLostHandler(onRoleLost);
+
 /** Test-only: forget the locks. */
 function _resetForTests() {
     running.clear();

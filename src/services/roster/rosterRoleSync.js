@@ -177,6 +177,15 @@ function addFromDiscord(roster, userId) {
     }
 }
 
+// Registered by rosterTakeover.js (it requires this module, so a require back
+// would be a cycle): moves a player who lost the role back in the Kader.
+let roleLostHandler = null;
+
+/** Register the handler for "lost the roster's role in Discord" (null clears it). */
+function setRoleLostHandler(fn) {
+    roleLostHandler = typeof fn === "function" ? fn : null;
+}
+
 /**
  * Remove a member who lost every role of the roster in Discord. A roster a
  * Kader was taken over into (docs/kaderplaner.md "Übernahme") also moves the
@@ -185,10 +194,9 @@ function addFromDiscord(roster, userId) {
  */
 function removeFromDiscord(roster, userId) {
     const removed = rosterStore.removeMember(roster.id, userId, { actor: "", via: "discord" });
-    if (removed && roster.kaderId) {
+    if (removed && roster.kaderId && roleLostHandler) {
         try {
-            // lazy: rosterTakeover requires this module
-            require("./rosterTakeover").onRoleLost(roster, userId);
+            roleLostHandler(roster, userId);
         } catch (e) {
             logger.warn(`could not move ${userId} of roster ${roster.id} back in the Kader:`, e && (e.code || e.message));
         }
@@ -373,7 +381,7 @@ function _resetForTests() {
 module.exports = {
     applyMemberAdded, applyStatusChange, applyMemberRemoved, applyRoleChange,
     onGuildMemberUpdate, onGuildMemberAdd, reconcile, reconcileAll, lastReconcile,
-    takeFailedPending, memberRoleSet,
+    takeFailedPending, memberRoleSet, setRoleLostHandler,
     startRosterRoleSync, stopRosterRoleSync, _resetForTests,
     MASS_REMOVAL_SHARE, MASS_REMOVAL_MIN,
 };

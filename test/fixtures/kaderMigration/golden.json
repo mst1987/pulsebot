@@ -364,7 +364,8 @@
                             ]
                         }
                     ],
-                    "plan": null
+                    "plan": null,
+                    "takeover": null
                 },
                 {
                     "id": "r2",
@@ -483,7 +484,8 @@
                             ]
                         }
                     ],
-                    "plan": null
+                    "plan": null,
+                    "takeover": null
                 }
             ],
             "decisionsCleared": false
