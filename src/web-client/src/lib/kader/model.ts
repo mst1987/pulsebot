@@ -286,6 +286,9 @@ export function historyText(view: KaderView, item: KaderHistoryItem): string {
         case "role_given": return t("kader.history.roleGiven");
         case "role_removed_kader": return t("kader.history.roleRemovedKader", { from: state(item.from), to: state(item.to) });
         case "role_removed_discord": return t("kader.history.roleRemovedDiscord", { from: state(item.from) });
+        case "role_added_discord": return item.from
+            ? t("kader.history.roleAddedDiscord", { from: state(item.from) })
+            : t("kader.history.roleAddedDiscordNew");
         default: return item.type;
     }
 }

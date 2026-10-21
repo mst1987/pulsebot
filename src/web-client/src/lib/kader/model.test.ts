@@ -177,5 +177,7 @@ describe("lib/kader/model", () => {
         expect(historyText(view, { at: "", by: ME, type: "role_given" })).toBe("Roster-Rolle bekommen");
         expect(historyText(view, { at: "", by: ME, type: "role_removed_kader", from: "provisional", to: "selected" })).toBe("Vorläufig → Vorauswahl: Rolle und Roster entfernt");
         expect(historyText(view, { at: "", by: "discord", type: "role_removed_discord", from: "bench", to: "provisional" })).toBe("Rolle in Discord verloren: Bench → Vorläufig");
+        expect(historyText(view, { at: "", by: "discord", type: "role_added_discord", from: "pool", to: "provisional" })).toBe("Rolle in Discord bekommen: Pool → Vorläufig");
+        expect(historyText(view, { at: "", by: "discord", type: "role_added_discord", to: "provisional" })).toBe("Rolle in Discord bekommen, neu als Vorläufig");
     });
 });

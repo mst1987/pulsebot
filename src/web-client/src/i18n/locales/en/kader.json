@@ -52,6 +52,7 @@
             "name_too_long": "The name is too long (40 characters at most).",
             "admin_only": "Only admins create rosters.",
             "kader_taken": "This roster is already linked to another Kader.",
+            "kader_taken_over": "The Kader has already been taken over to Discord – the roster stays linked.",
             "not_found": "This roster no longer exists.",
             "version_mismatch": "This roster or category plays another game version than the Kader.",
             "version_hidden": "This Kader's game version is hidden."
@@ -545,7 +546,9 @@
         "leadNone": "Interviewer removed",
         "roleGiven": "Got the roster role",
         "roleRemovedKader": "{from} → {to}: role and roster removed",
-        "roleRemovedDiscord": "Lost the role in Discord: {from} → Provisional"
+        "roleRemovedDiscord": "Lost the role in Discord: {from} → Provisional",
+        "roleAddedDiscord": "Got the role in Discord: {from} → Provisional",
+        "roleAddedDiscordNew": "Got the role in Discord, new as provisional"
     },
     "questions": {
         "back": "To the preselection",
@@ -841,6 +844,7 @@
         "role_given": "{by} gave {who} the roster role",
         "role_removed_kader": "{who} is no longer provisional or above: {by} removed role and roster",
         "role_removed_discord": "{who} lost the role in Discord and is provisional again",
+        "role_added_discord": "{who} got the role in Discord and is provisional now",
         "summary": {
             "one": "{by} made {count} change",
             "other": "{by} made {count} changes"
