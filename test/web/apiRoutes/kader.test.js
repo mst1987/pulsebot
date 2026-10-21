@@ -31,7 +31,7 @@ jest.mock("../../../src/services/roster/rosterRoleSync", () => ({
 jest.mock("../../../src/services/roster/rosterTakeover", () => ({
     precheck: jest.fn(async () => ({ blockers: [], notes: [], players: [] })),
     start: jest.fn(async () => ({ takeover: { roleId: "role1" }, steps: [], assigning: 1 })),
-    pullRole: jest.fn(() => ({ count: 2 })),
+    pullRole: jest.fn(async () => ({ count: 2, away: 0 })),
     dropPlayers: jest.fn(async () => 0),
 }));
 jest.mock("../../../src/web/characters/profileLogs", () => ({
@@ -746,9 +746,9 @@ describe("web/apiRoutes/kader the takeover (docs/kaderplaner.md \"Übernahme\")"
     it("POST role: the count of players the role goes to", async () => {
         const { kaderId } = await linkedKader();
         let res = await post("/api/kader/takeover/role", { kaderId });
-        expect([status(res), body(res)]).toEqual([200, { count: 2 }]);
+        expect([status(res), body(res)]).toEqual([200, { count: 2, away: 0 }]);
         expect(takeover.pullRole).toHaveBeenCalledWith("g1", kaderId, { actor: LEAD });
-        takeover.pullRole.mockImplementationOnce(() => { throw new AppError("not_taken", 409, "Noch nicht übernommen."); });
+        takeover.pullRole.mockImplementationOnce(async () => { throw new AppError("not_taken", 409, "Noch nicht übernommen."); });
         res = await post("/api/kader/takeover/role", { kaderId });
         expect([status(res), body(res).error.code]).toEqual([409, "not_taken"]);
         auth.getUser.mockReturnValue(granted("write"));

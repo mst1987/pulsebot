@@ -464,7 +464,8 @@ const startTakeover = withUser(WRITE, async ({ req, res, body, user }) => {
 /**
  * POST /api/kader/takeover/role — body: { kaderId }: "Rolle nachziehen", the
  * role for every player still pending. Rights as the takeover; 409 not_taken /
- * running / role_gone. Answer: `{ count }` - the roles go out in the background.
+ * running / role_gone. Answer: `{ count, away }` - the roles go out in the background
+ * to the players on the server; `away` pending players are not on it.
  */
 const pullTakeoverRole = withUser(WRITE, async ({ req, res, body, user }) => {
     const guildId = activeGuildFor(req);
@@ -473,7 +474,7 @@ const pullTakeoverRole = withUser(WRITE, async ({ req, res, body, user }) => {
     if (!roster) return apiError(res, 404, "not_found", "Kein Roster zu diesem Kader.");
     if (!may) return apiError(res, 403, "not_manager", "Nur Manager dieses Rosters.");
     try {
-        return ok(res, rosterTakeover.pullRole(guildId, kaderId, { actor: String(user.id || "") }));
+        return ok(res, await rosterTakeover.pullRole(guildId, kaderId, { actor: String(user.id || "") }));
     } catch (e) {
         return takeoverRefusal(res, e);
     }

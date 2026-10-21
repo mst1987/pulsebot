@@ -168,6 +168,8 @@ export type KaderData = {
     activity?: KaderActivityItem[];
     /** The shared composition draft ("Planspiel"), null = none; never leaves the Kaderplaner. */
     plan?: KaderPlan | null;
+    /** The recorded takeover (docs/kaderplaner.md "Übernahme"), missing/null = not taken over. */
+    takeover?: KaderTakeover | null;
 };
 
 /**
@@ -490,4 +492,106 @@ export function getKaderRosterCategories(version = ""): Promise<{ categories: Ka
 /** "Roster anlegen" from a Kader (POST /api/rosters/create, source "kader", full admins). */
 export function createKaderRoster(kaderId: string, input: { name: string; categoryId?: string }): Promise<{ roster: { id: string; name: string }; initial: { added: number; skipped: number; roleFailures: unknown[] } }> {
     return send("POST", "/api/rosters/create", { source: "kader", kaderId, name: input.name, ...(input.categoryId ? { categoryId: input.categoryId } : {}) });
+}
+
+// ===== Übernahme (takeover, docs/kaderplaner.md "Übernahme") =====
+// A decided Kader becomes a Discord role, a category with channels and the
+// roster's members: GET /api/kader/takeover answers the check, POST starts it
+// (role, category and channels right away, the role hand-out in the
+// background), POST /role hands the role to those still waiting
+// ("Rolle nachziehen").
+
+/** What a player got in the hand-out: given, not on the server, failed, taken away in Discord. */
+export type KaderTakeoverResult = "ok" | "missing" | "failed" | "removed";
+
+/** The recorded takeover of a Kader (one per Kader, never undone). */
+export type KaderTakeover = {
+    rosterId: string;
+    roleId: string;
+    roleName: string;
+    categoryId: string;
+    channelIds: string[];
+    by: string;
+    at: string;
+    status: "running" | "done";
+    results: Record<string, KaderTakeoverResult>;
+};
+
+/** One player the takeover concerns (provisional upwards); `onServer` / `hasRole` null = unknown. */
+export type KaderTakeoverPlayer = {
+    userId: string;
+    state: KaderState;
+    decision?: string;
+    characterName?: string;
+    onServer: boolean | null;
+    hasRole: boolean | null;
+    inRoster: boolean;
+    result: KaderTakeoverResult | null;
+};
+
+export type KaderTakeoverBlocker = "no_roster" | "roster_closed" | "offline" | "no_manage_roles" | "no_manage_channels" | "no_players" | "already_taken";
+
+/** GET /api/kader/takeover: the check of the dialog and the head's line after a takeover. */
+export type KaderTakeoverCheck = {
+    kader: { id: string; name: string; versionId?: string; rev: number };
+    roster: { id: string; name: string; closed: boolean; roleIds: string[] } | null;
+    online: boolean;
+    canManageRoles: boolean;
+    canManageChannels: boolean | null;
+    iconPossible: boolean;
+    premiumTier: number | null;
+    blockers: KaderTakeoverBlocker[];
+    notes: string[];
+    outsideCount: number;
+    takeover: KaderTakeover | null;
+    /** The takeover's role and category as Discord has them now (null: none / bot offline). */
+    role: { id: string; name: string; color: string; gone: boolean } | null;
+    category: { id: string; name: string; gone: boolean } | null;
+    running: boolean;
+    aborted: boolean;
+    pending: string[];
+    pendingCount: number;
+    /** Of the pending players, those on the server ("Rolle nachziehen" reaches them) and those not on it. */
+    pullCount: number;
+    pendingAway: number;
+    players: KaderTakeoverPlayer[];
+    categories: { id: string; name: string }[];
+    /** May the caller start it (kader write + manager of the roster)? */
+    canStart: boolean;
+};
+
+/** One step of a started takeover, in order: role, roster, category, channels. */
+export type KaderTakeoverStep = {
+    step: "role" | "roster" | "category" | "channel";
+    ok: boolean;
+    id?: string;
+    name?: string;
+    error?: string;
+    /** role only: the icon was set, not possible on this server, or none picked */
+    icon?: "set" | "not_possible" | "none";
+    /** category only: an existing one was used */
+    existing?: boolean;
+};
+
+export type KaderTakeoverBody = {
+    baseRev: number;
+    role: { name: string; color?: string; unicodeEmoji?: string };
+    category: { id: string } | { name: string; emoji?: string };
+    channels: { name: string; emoji?: string; orgaOnlyWrite?: boolean }[];
+};
+
+export type KaderTakeoverStart = { takeover: KaderTakeover | null; steps: KaderTakeoverStep[]; assigning: number };
+
+export function getKaderTakeover(kaderId: string): Promise<KaderTakeoverCheck> {
+    return get<KaderTakeoverCheck>(`/api/kader/takeover?kader=${encodeURIComponent(kaderId)}`);
+}
+
+/** Starts the takeover; `takeover` null = made in Discord, but nothing recorded and no role handed out. */
+export function startKaderTakeover(kaderId: string, body: KaderTakeoverBody): Promise<KaderTakeoverStart> {
+    return send("POST", "/api/kader/takeover", { kaderId, confirm: true, ...body });
+}
+
+/** "Rolle nachziehen": the role for everyone still waiting on the server; `count` = how many get it now, `away` = waiting but not on the server. */
+export function pullKaderTakeoverRole(kaderId: string): Promise<{ count: number; away: number }> {
+    return send("POST", "/api/kader/takeover/role", { kaderId });
 }

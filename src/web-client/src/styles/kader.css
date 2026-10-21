@@ -1117,3 +1117,85 @@ dialog.dlg.kp-dialog .dlg-foot .kp-foot-left { margin-right: auto; }
     .kp-thead.kp-comp-grid > .kp-comp-plancell { display: none; }
     .kp-comp-plan { padding: 10px 12px; }
 }
+
+/* ---- takeover into Discord (TakeoverWizard.tsx): the assistant and the head's line ---- */
+.kp-tk-entry { display: inline-flex; }
+dialog.dlg.kp-tk .dlg-body { display: flex; flex-direction: column; gap: 20px; }
+.kp-tk-steps { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; padding: 0 0 12px; list-style: none; border-bottom: 1px solid var(--line); }
+.kp-tk-step { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.kp-tk-step.kp-active { color: var(--text); font-weight: 700; }
+.kp-tk-stepn {
+    display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; flex: none;
+    font-size: 12px; font-weight: 700; border: 1px solid var(--line); color: var(--muted);
+}
+.kp-tk-step.kp-active .kp-tk-stepn { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+.kp-tk-step.kp-done .kp-tk-stepn { border-color: var(--good); color: var(--good); }
+.kp-tk-stepn svg { width: 12px; height: 12px; }
+.kp-tk-color { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.kp-tk-color input.kp-tk-colorpick {
+    flex: 0 0 48px; width: 48px; min-height: 0; height: var(--ctl-h-sm); padding: 2px;
+    border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--bg); cursor: pointer;
+}
+.kp-tk-color input.kp-tk-hex { flex: 0 0 120px; width: 120px; font-family: var(--font-mono); }
+.kp-tk-iconrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.kp-tk-iconrow .hint { margin: 0; flex: 1 1 200px; min-width: 0; }
+.kp-tk-emoji { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.kp-tk-clear {
+    display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--ctl-radius);
+    background: none; color: var(--muted); cursor: pointer;
+}
+.kp-tk-clear:hover, .kp-tk-clear:focus-visible { color: var(--high); }
+.kp-tk-clear svg { width: 12px; height: 12px; }
+.kp-tk-preview { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.kp-tk-rolechip {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; padding: 2px 8px 2px 6px;
+    border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2);
+    font-size: 14px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.kp-tk-swatch { width: 12px; height: 12px; border-radius: 50%; flex: none; background: var(--tk-role, var(--muted)); }
+.kp-tk-note { margin: 0; font-size: 13px; color: var(--muted); }
+.kp-tk-block { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.kp-tk-block > .seg { align-self: flex-start; }
+.kp-tk-block > .hint { margin: 0; }
+.kp-tk-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.kp-tk-row > .hint { margin: 0; min-width: 0; }
+.kp-tk-row > input { min-width: 0; }
+.kp-tk-chlist { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.kp-tk-ch { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+.kp-tk-ch:first-child { padding-top: 0; }
+.kp-tk-chmeta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; min-width: 0; }
+.kp-tk-mono { font-family: var(--font-mono); font-size: 12px; color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.kp-tk-problems { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--high); }
+.kp-tk-problems li { display: flex; align-items: center; gap: 6px; }
+.kp-tk-problems svg { width: 14px; height: 14px; flex: none; }
+.kp-tk-sum { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.kp-tk-sum > p { margin: 0; }
+.kp-tk-sum > .kp-sub { white-space: normal; font-size: 13px; }
+.kp-tk-big { font-size: 22px; font-weight: 800; color: var(--text); }
+.kp-tk-facts { display: flex; flex-direction: column; gap: 2px; margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--text); }
+.kp-tk-bad { color: var(--high); }
+.kp-tk-tablewrap { max-height: 260px; overflow-y: auto; border-top: 1px solid var(--line); }
+/* narrow: the three columns fit the dialog - tighter cells, the Discord note wraps */
+@media (max-width: 480px) {
+    .kp-tk-table th, .kp-tk-table td { padding: 8px 6px; }
+    .kp-tk-table td .kp-sub { white-space: normal; overflow-wrap: anywhere; }
+    /* "nicht auf Server" in one line, the whole text as tooltip */
+    .kp-tk-away { white-space: nowrap; }
+    .kp-tk-away .kp-tk-long { display: none; }
+    .kp-tk-away .kp-tk-short { display: inline; }
+}
+.kp-tk-short { display: none; }
+.kp-tk-who { display: flex; flex-direction: column; min-width: 0; }
+.kp-tk-reslist { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.kp-tk-res { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+.kp-tk-res .kp-sub { white-space: normal; }
+.kp-tk-resicon { display: inline-grid; place-items: center; width: 18px; height: 18px; flex: none; color: var(--good); }
+.kp-tk-res.kp-tk-bad .kp-tk-resicon { color: var(--high); }
+.kp-tk-resicon svg { width: 14px; height: 14px; }
+.kp-tk-line {
+    flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; min-width: 0;
+    padding: 8px 0 0; border-top: 1px solid var(--line-soft);
+}
+.kp-tk-line > .kp-sub { font-size: 13px; }
+.kp-tk-linetext { font-size: 14px; font-weight: 700; color: var(--text); }
+.kp-tk-gone { text-decoration: line-through; color: var(--muted); }

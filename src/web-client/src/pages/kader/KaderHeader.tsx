@@ -4,7 +4,9 @@
 // stand in each state (Pool → Vorauswahl → Vorläufig → Roster · Bench ·
 // Tentative), each state with its icon and its count, the states of the open
 // page marked. On the decision page the bar ends with the raid roster action
-// (RosterLink.tsx, #658) and the example setups.
+// (RosterLink.tsx, #658) and the example setups; on the composition page with
+// "In Discord übernehmen" (TakeoverWizard.tsx), and a taken-over Kader shows its
+// role and "Rolle nachziehen" in the head.
 import { Fragment, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { KaderState } from "../../api";
@@ -16,6 +18,7 @@ import { countStates } from "../../lib/kader/model";
 import { StateIcon } from "./parts";
 import { HeaderPeople } from "./Presence";
 import RosterLink from "./RosterLink";
+import { TakeoverEntry, TakeoverLine } from "./TakeoverWizard";
 import { useKader, type KaderSub } from "./kaderContext";
 
 /** Which page shows a state. */
@@ -80,6 +83,7 @@ export default function KaderHeader() {
                 </button>
                 {canWrite && <IconButton icon={<SettingsIcon />} tip={t("kader.header.settings")} onClick={() => open({ type: "settings" })} />}
             </span>
+            <TakeoverLine />
         </div>
     );
 }
@@ -119,6 +123,7 @@ export function StageNav({ sub }: { sub: KaderSub }) {
                         <Link to={`/kader/${kader.id}/zusammensetzung`} className={buttonClass("ghost", "md", false, "kp-stage-act")}>{t("kader.nav.composition")}</Link>
                     )}
                     <Link to={`/kader/${kader.id}/setups`} className={buttonClass("ghost", "md", false, "kp-stage-act")}>{t("kader.nav.setups")}</Link>
+                    {sub === "zusammensetzung" && <TakeoverEntry />}
                 </>
             )}
         </nav>
