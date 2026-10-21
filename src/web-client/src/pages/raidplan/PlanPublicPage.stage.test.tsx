@@ -1,7 +1,7 @@
 // The read view /p/<token> as a stage ("Karte als Bühne"): one bar with the open section, its arrows and "Alle N Abschnitte";
 // the map under it; "Deine Aufgaben" floating over the map and "Alle Aufgaben" behind a tab on the right edge. A section
 // without a map shows card and tables in the page's flow.
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
@@ -63,7 +63,8 @@ describe("the version colour", () => {
         const r = render(<PlanPublicPage token="abc" />);
         await screen.findByRole("heading", { level: 1 });
         const root = document.documentElement;
-        expect(root).toHaveAttribute("data-version", "forever");
+        // The accent is set in an effect after the heading renders; a slow runner sees the heading first.
+        await waitFor(() => expect(root).toHaveAttribute("data-version", "forever"));
         expect(root.style.getPropertyValue("--vc-forever-dark")).not.toBe("");
         r.unmount();
         expect(root).not.toHaveAttribute("data-version");
