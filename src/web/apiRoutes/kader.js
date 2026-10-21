@@ -36,6 +36,7 @@ const model = require("../../services/kader/kaderModel");
 const players = require("../../services/kader/kaderPlayers");
 const questions = require("../../services/kader/kaderQuestions");
 const setups = require("../../services/kader/kaderSetups");
+const plan = require("../../services/kader/kaderPlan");
 const { recordChanges, changesSince } = require("../../services/kader/kaderActivity");
 const { loadKaderSource, loadKaderRules, listRaidCategories, plannerVersion } = require("../kader/kaderSource");
 const { buildKaderView, kaderPayload, mutationContext, lightContext } = require("../kader/kaderView");
@@ -61,9 +62,12 @@ function sourceFor(guildId, planner, versionId) {
     return loadKaderSource({ guildId, versionId, attendanceCategoryIds: [...picked] });
 }
 
-/** Writes a mutator's planner with its revisions and activity lines (who: `actor`, when: `now`). */
-function store(guildId, before, next, { actor, now }) {
-    return kaderStore.writePlanner(guildId, recordChanges(before, model.normalizePlanner(next), { actor, now }));
+/**
+ * Writes a mutator's planner with its revisions and activity lines (who: `actor`, when: `now`;
+ * `planEmptied` from kaderPlan.savePlan).
+ */
+function store(guildId, before, next, { actor, now, planEmptied }) {
+    return kaderStore.writePlanner(guildId, recordChanges(before, model.normalizePlanner(next), { actor, now, planEmptied }));
 }
 
 /**
@@ -277,6 +281,14 @@ const deleteVariant = kaderWrite((p, body) => setups.deleteVariant(p, body));
 /** POST /api/kader/variants/auto — body: { kaderId, variantId, sources? }: "Automatisch verteilen". */
 const autoVariant = kaderWrite((p, body, ctx) => setups.autoVariant(p, body, ctx), { source: true });
 
+// ------------------------------------------------ composition draft
+/** PUT /api/kader/plan — body: { kaderId, userId, spec?: { className, spec } | null, excluded?: boolean }: one player of the draft. */
+const savePlan = kaderWrite((p, body, ctx) => plan.savePlan(p, body, ctx));
+/** POST /api/kader/plan/discard — body: { kaderId, baseRev?, force? }: "Verwerfen" (409 stale when the draft moved on). */
+const discardPlan = kaderWrite((p, body) => plan.discardPlan(p, body));
+/** POST /api/kader/plan/apply — body: { kaderId, baseRev?, force? }: the planned specs become decisions. Answers `applied`. */
+const applyPlan = kaderWrite((p, body, ctx) => plan.applyPlan(p, body, ctx));
+
 // ------------------------------------------ accounts and character data
 /**
  * POST /api/kader/accounts — body: { userId, displayName, character?, kaderId? }:
@@ -399,6 +411,9 @@ const routes = [
     { method: "PUT", path: "/api/kader/variants", handler: saveVariant, area: "kader" },
     { method: "POST", path: "/api/kader/variants/delete", handler: deleteVariant, area: "kader" },
     { method: "POST", path: "/api/kader/variants/auto", handler: autoVariant, area: "kader" },
+    { method: "PUT", path: "/api/kader/plan", handler: savePlan, area: "kader" },
+    { method: "POST", path: "/api/kader/plan/discard", handler: discardPlan, area: "kader" },
+    { method: "POST", path: "/api/kader/plan/apply", handler: applyPlan, area: "kader" },
     { method: "POST", path: "/api/kader/accounts", handler: addAccount, area: "kader" },
     { method: "POST", path: "/api/kader/accounts/remove", handler: removeAccount, area: "kader" },
     { method: "PUT", path: "/api/kader/assignments", handler: saveAssignment, area: "kader" },
@@ -409,6 +424,6 @@ module.exports = {
     getKader, getKaderOnly, getLive, createKader, updateKader, deleteKader, addPlayers, removePlayers, setState,
     saveInterview, completeInterview, reopenInterview, setVote, addComment, deleteComment,
     addQuestion, updateQuestion, deleteQuestion, orderQuestions, copyQuestions,
-    addVariant, saveVariant, deleteVariant, autoVariant,
+    addVariant, saveVariant, deleteVariant, autoVariant, savePlan, discardPlan, applyPlan,
     addAccount, removeAccount, saveAssignment, resetAssignment, getKaderRoster, syncKaderRoster, linkKaderRoster, routes,
 };

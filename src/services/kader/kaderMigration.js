@@ -141,4 +141,29 @@ function migrationSummary(planner) {
     return out;
 }
 
-module.exports = { PLANNER_VERSION, migrateLegacyPlanner, charOfAssignments, decisionFor, migrationSummary, defaultRoleOf };
+/**
+ * The one-time cleanup of the decisions left outside the roster: before the
+ * Planspiel (and before leaving the roster cleared it) a decision only came from
+ * the move into the roster and stayed when the player left, so the composition
+ * counted an old spec instead of the first wish. A planner that carries the mark
+ * `decisionsCleared` is left alone — after it, a decision outside the roster is
+ * one "Planspiel übernehmen" set on purpose. Returns null when the planner had
+ * the mark, else `{ planner, cleared }` with the mark set (a copy, pure).
+ */
+function clearStaleDecisions(planner) {
+    if (!planner || planner.decisionsCleared === true) return null;
+    let cleared = 0;
+    const kaders = (planner.kaders || []).map((k) => {
+        const players = {};
+        for (const [id, e] of Object.entries(k.players || {})) {
+            if (e && e.state !== "roster" && e.decision) {
+                players[id] = { ...e, decision: null };
+                cleared += 1;
+            } else players[id] = e;
+        }
+        return { ...k, players };
+    });
+    return { planner: { ...planner, kaders, decisionsCleared: true }, cleared };
+}
+
+module.exports = { PLANNER_VERSION, migrateLegacyPlanner, charOfAssignments, decisionFor, migrationSummary, defaultRoleOf, clearStaleDecisions };

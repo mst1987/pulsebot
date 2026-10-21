@@ -16,6 +16,9 @@
 //     votes:     { [userId]: "yes" | "unsure" | "no" }                     leads only
 //     comments:  [{ id, by, at, text }]
 //     decision:  { className, spec } | null }                              set when moved into the roster
+//                                                                          or by taking the Planspiel over
+//                                                                          (any composition state, kaderPlan.js);
+//                                                                          cleared when the player leaves the roster
 //
 // States stay until somebody changes them — every change is an explicit action
 // (setState) and is written into the history with who and when.
@@ -182,7 +185,8 @@ function removePlayers(planner, input) {
  * Moves players into another state (`to`), one or many. A move the planner does
  * not know (MOVES) is skipped; when nothing could move, the call is refused.
  * Into the roster a player goes with a decision: the one given, else the one
- * they had, else their first wish.
+ * they had (only "Planspiel übernehmen" sets one outside the roster), else their
+ * first wish. Leaving the roster clears the decision.
  */
 function setState(planner, input, ctx) {
     const to = str(input.to);
@@ -210,6 +214,9 @@ function setState(planner, input, ctx) {
                 entry.since = ctx.now;
                 entry.by = ctx.actor || "";
                 pushHistory(entry, { at: ctx.now, by: ctx.actor || "", type: "state", from, to });
+                // The decision belongs to the roster: whoever leaves it loses it, so
+                // a later move back in starts from the current first wish again.
+                if (from === "roster") entry.decision = null;
             }
             if (to === "roster") {
                 const next = decision || entry.decision || entry.wishes[0] || null;

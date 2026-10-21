@@ -17,7 +17,7 @@ const fs = require("fs");
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { normalizePlanner } = require("../services/kader/kaderModel");
-const { migrateLegacyPlanner, migrationSummary } = require("../services/kader/kaderMigration");
+const { migrateLegacyPlanner, migrationSummary, clearStaleDecisions: clearStaleDecisionsOf } = require("../services/kader/kaderMigration");
 
 const store = createJsonStore({
     file: settingsPath("kader.json"),
@@ -105,9 +105,31 @@ function migrateLegacy({ now, charOfFor, roleOf } = {}) {
     return done;
 }
 
+/**
+ * The one-time cleanup of stale decisions outside the roster (settingsMigration.js,
+ * kaderMigration.clearStaleDecisions): every planner without the mark gets it,
+ * so it runs once per server and never after a "Planspiel übernehmen". Returns
+ * one `{ guildId, cleared }` per server that got the mark.
+ */
+function clearStaleDecisions() {
+    const guilds = store.read();
+    const done = [];
+    for (const [guildId, raw] of Object.entries(guilds)) {
+        const result = clearStaleDecisionsOf(normalizePlanner(raw));
+        if (!result) continue;
+        guilds[guildId] = normalizePlanner(result.planner);
+        done.push({ guildId, cleared: result.cleared });
+    }
+    if (done.length) {
+        live = null;
+        store.write({ guilds });
+    }
+    return done;
+}
+
 /** The server keys the file holds a planner for ("_" = the one without a server). */
 function plannerGuildKeys() {
     return Object.keys(store.read());
 }
 
-module.exports = { readPlanner, writePlanner, plannerGuildKeys, liveState, migrateLegacy, useFile };
+module.exports = { readPlanner, writePlanner, plannerGuildKeys, liveState, migrateLegacy, clearStaleDecisions, useFile };

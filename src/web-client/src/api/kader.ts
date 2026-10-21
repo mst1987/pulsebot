@@ -166,12 +166,21 @@ export type KaderData = {
     rev?: number;
     /** What changed, oldest first, the newest 50 lines (types and ids only). */
     activity?: KaderActivityItem[];
+    /** The shared composition draft ("Planspiel"), null = none; never leaves the Kaderplaner. */
+    plan?: KaderPlan | null;
 };
+
+/**
+ * The composition draft: planned specs that differ from what the page shows, players left out,
+ * who changed it last and when. `rev` = the revision of its last change (for "Übernehmen").
+ */
+export type KaderPlan = { specs: Record<string, KaderWish>; excluded: string[]; by: string; at: string; rev?: number };
 
 /** The kinds of change a Kader's activity log knows (src/services/kader/kaderActivity.js). */
 export type KaderActivityType =
     | "created" | "added" | "removed" | "state" | "decision" | "interview" | "lead" | "interview_completed" | "interview_reopened"
-    | "vote" | "comment" | "comment_deleted" | "questions" | "setups" | "settings" | "character";
+    | "vote" | "comment" | "comment_deleted" | "questions" | "setups" | "settings" | "character"
+    | "plan" | "plan_applied" | "plan_discarded";
 /** One line of the activity log: several players moved at once are one line with `count`. */
 export type KaderActivityItem = {
     rev: number;
@@ -396,6 +405,22 @@ export function deleteKaderVariant(kaderId: string, variantId: string): Promise<
 
 export function autoKaderVariant(kaderId: string, variantId: string, sources: KaderState[]): Promise<KaderChange> {
     return send("POST", "/api/kader/variants/auto", { kaderId, variantId, sources });
+}
+
+// ----- composition draft ("Planspiel"): one player per change, so two people never overwrite each other
+/** `spec: null` takes the planned spec back, `excluded` leaves the player out of the sums or takes them in again. */
+export function saveKaderPlan(kaderId: string, userId: string, input: { spec?: KaderWish | null; excluded?: boolean }): Promise<KaderChange> {
+    return send("PUT", "/api/kader/plan", { kaderId, userId, ...input });
+}
+
+/** Throws the draft away; `baseRev` = the draft's revision the dialog showed (409 stale when it moved on). */
+export function discardKaderPlan(kaderId: string, baseRev?: number): Promise<KaderChange> {
+    return send("POST", "/api/kader/plan/discard", { kaderId, baseRev });
+}
+
+/** Makes the planned specs decisions (no state change); `baseRev` = the draft's revision the dialog showed. */
+export function applyKaderPlan(kaderId: string, baseRev?: number): Promise<KaderChange & { applied: number }> {
+    return send("POST", "/api/kader/plan/apply", { kaderId, baseRev });
 }
 
 // ----- accounts and character data (answer the whole view; `kaderId` = the open Kader, so the answer carries it)

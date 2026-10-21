@@ -16,7 +16,7 @@ afterAll(() => kaderStore.useFile(null));
 
 describe("stores/kaderStore", () => {
     it("reads an empty planner when nothing is stored", () => {
-        expect(kaderStore.readPlanner("g1")).toEqual({ v: 2, accounts: [], assignments: {}, kaders: [] });
+        expect(kaderStore.readPlanner("g1")).toEqual({ v: 2, accounts: [], assignments: {}, kaders: [], decisionsCleared: true });
     });
 
     it("keeps the planners of different servers apart", () => {
@@ -44,6 +44,38 @@ describe("stores/kaderStore", () => {
         expect(done).toEqual([{ guildId: "g1", kaders: 1, roster: 1, bench: 0, variants: 0 }]);
         expect(kaderStore.readPlanner("g1").kaders[0].players["111111111111111111"]).toMatchObject({ state: "roster", decision: null });
         expect(kaderStore.migrateLegacy({ now: "x", charOfFor: () => () => null })).toEqual([]);
+    });
+
+    it("clears the stale decisions outside the roster exactly once, per server, and keeps those in the roster", () => {
+        const ROSTER = "111111111111111111";
+        const PROV = "222222222222222222";
+        const BENCH = "333333333333333333";
+        const disc = { className: "Priest", spec: "Priest-Discipline" };
+        const holyPala = { className: "Paladin", spec: "Paladin-Holy" };
+        fs.writeFileSync(file, JSON.stringify({ guilds: {
+            g1: { v: 2, kaders: [{ id: "k1", name: "Hyjal", players: {
+                [ROSTER]: { state: "roster", decision: disc, wishes: [disc] },
+                [PROV]: { state: "provisional", decision: disc, wishes: [holyPala] },
+                [BENCH]: { state: "bench", decision: holyPala, wishes: [holyPala] },
+            } }] },
+            g2: { v: 2, kaders: [] },
+            g3: { v: 2, kaders: [], decisionsCleared: true },
+        } }));
+        expect(kaderStore.readPlanner("g1").decisionsCleared).toBe(false);
+        expect(kaderStore.clearStaleDecisions()).toEqual([{ guildId: "g1", cleared: 2 }, { guildId: "g2", cleared: 0 }]);
+        const p = kaderStore.readPlanner("g1");
+        expect(p.decisionsCleared).toBe(true);
+        expect(p.kaders[0].players[ROSTER].decision).toEqual(disc);
+        expect(p.kaders[0].players[PROV].decision).toBeNull();
+        expect(p.kaders[0].players[BENCH].decision).toBeNull();
+        // a decision set outside the roster afterwards ("Planspiel übernehmen") survives the next start
+        p.kaders[0].players[PROV].decision = holyPala;
+        kaderStore.writePlanner("g1", p);
+        expect(kaderStore.clearStaleDecisions()).toEqual([]);
+        expect(kaderStore.readPlanner("g1").kaders[0].players[PROV].decision).toEqual(holyPala);
+        // a server whose planner is created later never needs it
+        kaderStore.writePlanner("g4", kaderStore.readPlanner("g4"));
+        expect(kaderStore.clearStaleDecisions()).toEqual([]);
     });
 
     describe("revisions and the activity log (Live)", () => {

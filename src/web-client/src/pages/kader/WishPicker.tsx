@@ -2,7 +2,7 @@
 // across classes (1 Paladin · Vergeltung, 2 Magier · Feuer, …). The same menu in
 // the setup slots and in the drawer's decision, so both look alike. The trigger
 // shows the chosen spec's icon (with the class in its colour when there is
-// room) and a chevron; the menu: rank, spec icon, class in class colour, the
+// room, or the spec with `specLabel`) and a chevron; the menu: rank, spec icon, class in class colour, the
 // full "Klasse · Spec" as tooltip and label, a check on the current one. A
 // decision that is none of the wishes (a roster player) comes first, labelled
 // "Entscheidung". Keyboard: Enter, Space or ArrowDown opens, the arrows move,
@@ -20,7 +20,7 @@ import { useKader } from "./kaderContext";
 /** The menu under its trigger, left edges aligned (the trigger sits at a slot's left), above it when there is no room below. */
 const belowStart = belowStartPlacement();
 
-export default function WishPicker({ entry, value, onChange, label, disabled = false, compact = false, wide = false }: {
+export default function WishPicker({ entry, value, onChange, label, disabled = false, compact = false, wide = false, specLabel = false }: {
     entry: KaderEntry;
     /** The chosen spec key. */
     value: string;
@@ -32,6 +32,8 @@ export default function WishPicker({ entry, value, onChange, label, disabled = f
     compact?: boolean;
     /** The trigger fills its row (the drawer). */
     wide?: boolean;
+    /** The trigger names the spec instead of the class (the composition: the class heads the group). */
+    specLabel?: boolean;
 }) {
     const t = useT();
     const { view } = useKader();
@@ -81,7 +83,7 @@ export default function WishPicker({ entry, value, onChange, label, disabled = f
         return (
             <span className={`kp-wpick kp-static${compact ? " kp-compact" : ""}${wide ? " kp-wide" : ""}`}>
                 <PickIcon pick={current ? current.pick : null} size={compact ? 20 : 24} />
-                {!compact && current && <PickLabel pick={current.pick} className="kp-ellipsis" />}
+                {!compact && current && <PickLabel pick={current.pick} spec={specLabel} className="kp-ellipsis" />}
             </span>
         );
     }
@@ -91,7 +93,7 @@ export default function WishPicker({ entry, value, onChange, label, disabled = f
                 aria-haspopup="menu" aria-expanded={open} aria-label={current ? `${label}: ${fullLabel(current)}` : label}
                 data-tip={current ? fullLabel(current) : undefined} onClick={() => setOpen(!open)} onKeyDown={onTriggerKey}>
                 <PickIcon pick={current ? current.pick : null} size={compact ? 20 : 24} />
-                {!compact && current && <PickLabel pick={current.pick} className="kp-ellipsis kp-grow" />}
+                {!compact && current && <PickLabel pick={current.pick} spec={specLabel} className="kp-ellipsis kp-grow" />}
                 <ChevronDownIcon />
             </button>
             {open && (

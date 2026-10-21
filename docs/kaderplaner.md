@@ -23,12 +23,13 @@ profile.
 | `src/services/kader/kaderPlayers.js` | players of a Kader: take in, remove, states (`MOVES`), interview, votes, comments |
 | `src/services/kader/kaderQuestions.js` | the questions of a Kader: add, change, delete, order, copy from another Kader |
 | `src/services/kader/kaderSetups.js` | example setups: variants, size 10/20, groups, "Automatisch verteilen" |
+| `src/services/kader/kaderPlan.js` | the Planspiel of the composition: plan a spec or leave a player out, discard, take over as decisions |
 | `src/services/kader/kaderAutoAssign.js` | the group heuristic of "Automatisch verteilen" |
 | `src/services/kader/kaderMigration.js` | the one-time upgrade of the #566 file (see "Umstellung") |
 | `src/services/kader/kaderActivity.js` | Live: what a write changed — revisions and the Kader's activity log (`recordChanges`), the lines after a revision (`changesSince`) |
 | `src/web/kader/kaderPresence.js` | Live: who is in which Kader right now, in memory only |
 | `src/stores/kaderStore.js` | `data/settings/kader.json`, one planner per Discord server; `liveState` for the poll |
-| `src/web-client/src/pages/kader/` | the page (`KaderPage.tsx`): the overview of all Kader (`KaderOverview.tsx`), header, status bar, the seven views (`CompositionView.tsx` the read-only "Zusammensetzung") and the dialogs; live: `useKaderLive.ts` (the poll), `useInterviewDraft.ts` (the interview's draft and its conflicts), `Presence.tsx` (who is here, the conflict banner), `ActivityLog.tsx` (Verlauf, Aktivität) |
+| `src/web-client/src/pages/kader/` | the page (`KaderPage.tsx`): the overview of all Kader (`KaderOverview.tsx`), header, status bar, the seven views (`CompositionView.tsx` the "Zusammensetzung" with its Planspiel) and the dialogs; live: `useKaderLive.ts` (the poll), `useInterviewDraft.ts` (the interview's draft and its conflicts), `Presence.tsx` (who is here, the conflict banner), `ActivityLog.tsx` (Verlauf, Aktivität) |
 | `src/web-client/src/lib/kader/` | client logic: `model.ts` (names, icons, states, counts, the attendance sum over the Kader's raid categories), `interview.ts` (progress, draft/patch), `filters.ts`, `sort.ts` (the sort keys of the planner's tables), `colors.ts` (the colours of the answers), `setup.ts` (slots, buff hints, Discord text), `composition.ts` (who counts with which spec and role, per class, the buffs they bring, the nearest setup size), `names.ts`, `live.ts` (activity lines as sentences, the toast, presence in words) |
 | `src/web-client/src/styles/kader.css` | the module stylesheet, prefix `kp-` (modifiers too) |
 
@@ -195,8 +196,16 @@ of the Kader joins must not pull everybody down, a Thursday Kader only cares for
   attendanceCategories: [categoryId] (≤ 20, the raid categories attendance counts in; [] = none picked yet),
   questions: [{ id, text (≤ 200), type: single|multi|text, options: [{ id, label (≤ 60), color? }] (≤ 20), required }] (≤ 30),
   players: { [userId]: entry } (≤ 500),
-  setups: [{ id, name, size: 10|20|40, groups: [[{ userId, spec } | null] × 5] × 8 }] (1–6) }
+  setups: [{ id, name, size: 10|20|40, groups: [[{ userId, spec } | null] × 5] × 8 }] (1–6),
+  plan: { specs: { [userId]: { className, spec } }, excluded: [userId], by, at, rev? } | null }
 ```
+
+`plan` is the **Planspiel** of the composition page (`kaderPlan.js`): one shared draft per Kader. `specs` holds only
+a spec that differs from the one the page counts the player with, and only one of the player's decision and wishes
+(`kaderModel.plannableSpecs`); `excluded` are players left out for the moment. Both only for players of the
+composition (`SETUP_STATES`); `kaderModel.normalizePlan` drops the rest (a player who moves to the pool leaves the
+draft by itself). `by`/`at` are who changed it last and when ("Entwurf von Kurt · vor 5 Min."), `rev` its revision.
+Nothing of the draft reaches a state, the roster or anything outside the planner until it is taken over.
 
 A player's **entry**:
 
@@ -210,14 +219,16 @@ A player's **entry**:
 | `interview` | `{ lead, answers: { [questionId]: optionId \| [optionId] \| text }, note (≤ 2000), startedAt, updatedAt, updatedBy, completedAt, completedBy, rev? }` |
 | `votes` | `{ [leadUserId]: yes \| unsure \| no }` |
 | `comments` | `[{ id, by, at, text (≤ 1000) }]` (≤ 200), only the author deletes one |
-| `decision` | `{ className, spec }` — set when the player goes into the roster |
+| `decision` | `{ className, spec }` — set when the player goes into the roster, and by "Planspiel übernehmen" for every planned player of the composition (also provisional, bench and tentative, whose state stays); cleared when the player leaves the roster. Old decisions left outside the roster are cleared once at start (see "Aufräumen der alten Entscheidungen") |
 
 ### States and moves
 
 `MOVES` (`kaderPlayers.js`, mirrored in `lib/kader/model.ts`): pool → selected; selected → pool | provisional;
 provisional → selected | roster | bench | tentative; roster → provisional | bench | tentative; bench → provisional |
 roster | tentative; tentative → provisional | roster | bench. Every step can go back. Into the roster the decision is
-the one given, else the one it had, else the first wish; roster → roster with a new decision only changes it. A batch
+the one given, else the one it had (outside the roster only "Planspiel übernehmen" sets one), else the first wish;
+roster → roster with a new decision only changes it. Leaving the roster (roster → any other state, one player or a
+batch) clears the decision, so the composition counts the first wish again and a later move back in starts from it. A batch
 move skips who does not fit and answers `moved`/`skipped`; only when nothing moved it is a 409.
 
 ### Interview
@@ -279,9 +290,10 @@ keep a revision only when it is a positive number; `test/stores/kaderStore.test.
 **Activity log** (`kader.activity`, the newest 50, oldest first): one line per kind of change of a write,
 `{ rev, at, by, type, playerId?, count?, from?, to?, questionId? }` — types `created`, `added`, `removed`, `state`,
 `decision`, `interview`, `lead`, `interview_completed`, `interview_reopened`, `vote`, `comment`, `comment_deleted`,
-`questions`, `setups`, `settings`, `character`. Several players of one write are one line with `count`; a question
+`questions`, `setups`, `settings`, `character`, `plan` (the draft started or changed), `plan_applied` (taken over,
+with the player or `count` decisions; the decisions it set are not listed again), `plan_discarded`. Several players of one write are one line with `count`; a question
 edit that refits answers is one `questions` line, not one per interview; a move that drops setup slots is the move,
-not a setup change. Repeated edits (`interview`, `lead`, `questions`, `setups`, `settings`, `character`) of the same
+not a setup change. Repeated edits (`interview`, `lead`, `questions`, `setups`, `settings`, `character`, `plan`) of the same
 person on the same thing within ten minutes replace that person's earlier line, also with other people's lines in
 between, and move to the end (newer `rev` and `at`) — an interview typed and autosaved every second stays one line, two
 leads taking turns on one interview stay two. Never an answer, a note or a comment's text (tested).
@@ -390,6 +402,9 @@ Parameters in the body; `kaderId` names the Kader.
 | `POST /api/kader/accounts/remove` | `{ kaderId, userId }` — only an account added by hand |
 | `PUT /api/kader/assignments` · `POST …/reset` | `{ kaderId, userId, characters, activeCharacterId, baseRev?, force? }` · `{ kaderId, userId }` |
 | `POST /api/kader/roster/sync` | `{ kaderId }` — "Ins Roster übernehmen" (#658): `kader` write **and** manager of the roster the Kader created → `{ rosterId, added, skipped, kept, roleFailures }` |
+| `PUT /api/kader/plan` | `{ kaderId, userId, spec?: { className, spec } \| null, excluded?: boolean }` — the Planspiel for one player (one click, so two people on the draft never overwrite each other's players; no `baseRev`); `spec: null` takes a planned spec back; starts the draft when there is none |
+| `POST /api/kader/plan/discard` | `{ kaderId }` — "Verwerfen"; 409 without a draft |
+| `POST /api/kader/plan/apply` | `{ kaderId, baseRev?, force? }` — "Als Entscheidung übernehmen": every planned spec of a player not left out becomes the decision (into the history), nobody changes state, the draft is gone → `applied`; 409 `stale` when the draft moved on since the dialog, 409 when it changes no decision |
 
 `baseRev`/`force`: see "Live" — a save from an older revision answers 409 `stale`. The reads: `GET /api/kader`
 (the view), `GET /api/kader/kader?kader=<id>` (only the Kader), `GET /api/kader/live` (the poll),
@@ -500,7 +515,7 @@ Deleting a Kader and switching the menu's version away from the open one land on
   ohne Gruppe" (with the wishes as icons), the groups with the spec picker per slot (class colour, role counts and buff
   hints follow the chosen spec), buff hints ("kein Totem der Manaquelle"), drag or pick-and-place, "Automatisch
   verteilen", "Als Text kopieren" (for Discord; a dialog with the text when the clipboard is refused).
-- **`zusammensetzung`** (`CompositionView.tsx`, linked from the decision page, read-only — it writes nothing):
+- **`zusammensetzung`** (`CompositionView.tsx`, linked from the decision page; it writes only the Planspiel):
   Vorläufig and Roster grouped by class (icon, name in class colour, "n gezählt"), columns Spieler / Spec / Rolle /
   Status / Wünsche, sortable (`kader-composition-sort`). The spec is the decision, else the first wish, else the
   prefill (`lib/kader/composition.ts`); a player without a spec stands in the list as "kein Spec" and counts toward
@@ -510,6 +525,23 @@ Deleting a Kader and switching the menu's version away from the open one land on
   per Kader (`kader-composition-extra`); off, bench and tentative stand greyed out as "nicht gezählt". The side
   lists the raid and party buffs of the version: "n Spender" in `--good` (the names in the tooltip) or "fehlt" in
   `--high`, with who could bring it. Below 700 px the table folds into two lines per player without wishes.
+  **Planspiel** (the shared draft, `kader.plan`): with `kader` write the spec cell of a player with more than one
+  plannable spec is a `WishPicker` ("Spec von Mira im Planspiel"; the trigger shows the spec icon and name in the
+  class colour, "Klasse · Spec" in the tooltip; one plannable spec gives no menu), and a narrow last column with an
+  eye icon button (eye / eye struck through, pressed when left out, `aria-label` "Ausklammern: Mira" /
+  "Einklammern: Mira") leaves a player out (greyed, "ausgeklammert", counted nowhere). Sums and buffs count with the
+  draft (`composition(…, plan)`), a planned spec shows "vorher ~~Wiederherstellung~~" ("vorher ~~keine
+  Entscheidung~~" for a planned first wish of a player without a decision, which counts as a change like taking it
+  over does), the sums a quiet "vorher …" line, a
+  buff its change ("jetzt da", "fehlt jetzt", "jetzt doppelt" = from one donor to two or more). Over the table a calm
+  bar with the accent line (`kp-comp-plan`): "Planspiel · 3 Änderungen · Entwurf von Kurt · vor 5 Min." and the
+  difference ("+1 Heiler · −1 Fernkampf · Kampfrausch jetzt doppelt", `planDiff`), with "Verwerfen" (confirmation)
+  and "Als Entscheidung übernehmen" (the dialog says how many decisions it sets and that left-out players stay as
+  they are; disabled when it sets none, `planDecisions`). Edits are optimistic: an edit on its way is laid over every
+  refetch (`planWithPending`) and taken back with the error when the save fails; apply and discard send the `rev` from
+  when the dialog opened, a `stale` answer reloads with a toast. A draft emptied by edits becomes `null` (activity
+  `plan`, not `plan_discarded`); an empty save without a draft writes nothing.
+  Readers see the draft (bar, planned specs, greyed players) without any control.
 - **Dialogs** share one rhythm (`kp-dialog`, `kp-stack`): 24 px body padding and between field groups, 8 px between
   a label and its control and between list rows, the hint set apart; buttons carry an icon where it helps (Speichern,
   Übernehmen, Löschen, In den Pool) and never get a width that cuts their label.
@@ -538,3 +570,14 @@ auf der Bench, z Beispiel-Setup(s))`.
 The character data comes from the planner's own assignments, else the raider profile (`profileCharOf`). The golden
 test `test/stores/settingsMigration.kader.test.js` runs the fixture `test/fixtures/kaderMigration/legacy.json` and
 compares with `golden.json` (`UPDATE_GOLDEN=1` rewrites it).
+
+### Aufräumen der alten Entscheidungen
+
+Before the Planspiel a decision stayed when a player left the roster, and the composition counted it before the first
+wish (a provisional player shown as Discipline Priest although the first wish was Holy Paladin). Right after the step
+above, `settingsMigration.migrateKaderDecisions()` → `kaderStore.clearStaleDecisions()` →
+`kaderMigration.clearStaleDecisions` clears every decision outside the roster **once per server**: a planner without
+the mark `decisionsCleared: true` loses them and gets the mark; a marked one is left alone, so a decision "Planspiel
+übernehmen" sets later is never undone. A new planner (`emptyPlanner`) starts marked. Decisions in the roster stay.
+Log line per server that lost some: `kader.json: Server <id>: N veraltete Entscheidung(en) außerhalb des Rosters
+entfernt`.

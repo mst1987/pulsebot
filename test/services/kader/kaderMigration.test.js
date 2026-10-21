@@ -1,7 +1,7 @@
 // The step from the #566 planner to Kader with states, pure (docs/kaderplaner.md,
 // "Umstellung"). The whole run over a stored file, with the profiles as a second
 // source and its golden master, is test/stores/settingsMigration.kader.test.js.
-const { migrateLegacyPlanner, charOfAssignments, decisionFor, migrationSummary, defaultRoleOf } = require("../../../src/services/kader/kaderMigration");
+const { migrateLegacyPlanner, charOfAssignments, decisionFor, migrationSummary, defaultRoleOf, clearStaleDecisions } = require("../../../src/services/kader/kaderMigration");
 
 const NOW = "2026-10-01T12:00:00.000Z";
 const warrior = { className: "Warrior", specs: ["Warrior-Fury", "Warrior-Protection"], mainSpec: "Warrior-Fury" };
@@ -53,5 +53,25 @@ describe("services/kader/kaderMigration", () => {
         expect(migrateLegacyPlanner({})).toBeNull();
         expect(migrateLegacyPlanner(null)).toBeNull();
         expect(migrationSummary(null)).toEqual({ kaders: 0, roster: 0, bench: 0, variants: 0 });
+    });
+
+    it("clears the decisions outside the roster of an unmarked planner, as a copy, and leaves a marked one alone", () => {
+        const disc = { className: "Priest", spec: "Priest-Discipline" };
+        const planner = { v: 2, kaders: [{ id: "k1", players: {
+            r: { state: "roster", decision: disc },
+            p: { state: "provisional", decision: disc },
+            t: { state: "tentative", decision: null },
+        } }] };
+        const result = clearStaleDecisions(planner);
+        expect(result.cleared).toBe(1);
+        expect(result.planner.decisionsCleared).toBe(true);
+        expect(result.planner.kaders[0].players).toEqual({
+            r: { state: "roster", decision: disc },
+            p: { state: "provisional", decision: null },
+            t: { state: "tentative", decision: null },
+        });
+        expect(planner.kaders[0].players.p.decision).toEqual(disc);
+        expect(clearStaleDecisions(result.planner)).toBeNull();
+        expect(clearStaleDecisions(null)).toBeNull();
     });
 });

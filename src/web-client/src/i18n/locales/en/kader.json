@@ -831,6 +831,9 @@
         "setups": "{by} changed the example setups",
         "settings": "{by} changed the squad's settings",
         "character": "{by} changed the characters of {who}",
+        "plan": "{by} changed the draft plan",
+        "plan_applied": "{by} took over the draft plan for {who} as decisions",
+        "plan_discarded": "{by} discarded the draft plan",
         "summary": {
             "one": "{by} made {count} change",
             "other": "{by} made {count} changes"
@@ -938,6 +941,68 @@
             "other": "{count} providers"
         },
         "noBuffs": "The rule set knows no buffs.",
-        "empty": "Nobody in provisional or roster yet. Players get here through the interviews."
+        "empty": "Nobody in provisional or roster yet. Players get here through the interviews.",
+        "plan": {
+            "title": "Draft plan",
+            "changes": {
+                "one": "{count} change",
+                "other": "{count} changes"
+            },
+            "by": "Draft by {name} · {ago}",
+            "ago": {
+                "now": "just now",
+                "minutes": "{count} min. ago",
+                "hours": "{count} h ago",
+                "days": {
+                    "one": "{count} day ago",
+                    "other": "{count} days ago"
+                }
+            },
+            "note": "changes no status until it is taken over",
+            "noteTip": "One shared draft per squad. Everyone with write access to the squad planner sees and edits it live.",
+            "noDiff": "changes no roles and no buffs",
+            "excluded": {
+                "one": "{count} left out",
+                "other": "{count} left out"
+            },
+            "buffNow": "{name} now present",
+            "buffGone": "{name} now missing",
+            "buffDouble": "{name} now twice",
+            "markNow": "now",
+            "markGone": "now missing",
+            "markDouble": "now twice",
+            "before": "before {text}",
+            "was": "before",
+            "wasUndecided": "no decision",
+            "colSpec": "Spec (draft)",
+            "colPlan": "Draft",
+            "exclude": "Leave out",
+            "include": "Put back",
+            "excludeAria": "Leave out: {name}",
+            "includeAria": "Put back: {name}",
+            "excludeTip": "Not counted in the draft. The status stays.",
+            "excludedRow": "left out",
+            "specOf": "Spec of {name} in the draft",
+            "discard": "Discard",
+            "discardTitle": "Discard the draft plan?",
+            "discardText": "The draft is deleted for everyone. Decisions and statuses stay as they are.",
+            "apply": "Take over as decisions",
+            "applyTitle": "Take the draft over as decisions?",
+            "applyText": {
+                "one": "{count} decision will be set, the status stays.",
+                "other": "{count} decisions will be set, the status stays."
+            },
+            "applyExcluded": {
+                "one": "{count} left-out player stays as they are.",
+                "other": "{count} left-out players stay as they are."
+            },
+            "applyNone": "No planned spec differs from the decision.",
+            "applied": {
+                "one": "{count} decision taken over",
+                "other": "{count} decisions taken over"
+            },
+            "discarded": "Draft plan discarded",
+            "stale": "Someone changed the draft in the meantime. Please take another look."
+        }
     }
 }

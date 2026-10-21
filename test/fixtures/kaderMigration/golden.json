@@ -363,7 +363,8 @@
                                 ]
                             ]
                         }
-                    ]
+                    ],
+                    "plan": null
                 },
                 {
                     "id": "r2",
@@ -481,9 +482,11 @@
                                 ]
                             ]
                         }
-                    ]
+                    ],
+                    "plan": null
                 }
-            ]
+            ],
+            "decisionsCleared": false
         }
     }
 }
