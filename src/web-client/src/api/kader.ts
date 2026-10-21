@@ -186,7 +186,7 @@ export type KaderActivityItem = {
 };
 
 /** The pages of one Kader a presence can name. */
-export type KaderPresenceSub = "" | "pool" | "vorauswahl" | "uebersicht" | "roster" | "fragen" | "setups";
+export type KaderPresenceSub = "" | "pool" | "vorauswahl" | "uebersicht" | "roster" | "fragen" | "setups" | "zusammensetzung";
 /** What somebody has open with a player: the interview, the discussion drawer, the account dialog. */
 export type KaderPresenceWhat = "" | "interview" | "drawer" | "account";
 /** Somebody else in the same Kader right now (in memory on the server, gone 25 s after their last poll). */
@@ -222,6 +222,8 @@ export type KaderView = {
     buffs: { raid: KaderRaidBuff[]; party: KaderPartyBuff[] };
     /** the sizes an example setup can have (the raid sizes of the version's instances, #751); absent from an older server */
     setupSizes?: number[];
+    /** The rule set's own tank/healer targets per setup size, only the sizes it names. */
+    setupComposition?: Record<string, { tanks: number; healers: number }>;
     /** The server's raid categories, in Discord's order. */
     raidCategories: KaderRaidCategory[];
     players: KaderPlayer[];

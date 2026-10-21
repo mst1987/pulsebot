@@ -95,6 +95,7 @@
         "vorauswahl": "Gespräche",
         "uebersicht": "Übersicht",
         "setups": "Beispiel-Setup bauen",
+        "composition": "Zusammensetzung",
         "kicker": "Spieler je Status",
         "count": {
             "pool": {
@@ -849,7 +850,8 @@
             "uebersicht": "Übersicht",
             "roster": "Vorläufig & Roster",
             "fragen": "Fragen",
-            "setups": "Beispiel-Setups"
+            "setups": "Beispiel-Setups",
+            "zusammensetzung": "Zusammensetzung"
         },
         "presence": {
             "where": "{name} · gerade in {where}",
@@ -890,5 +892,52 @@
             "one": "{count} Änderung",
             "other": "{count} Änderungen"
         }
+    },
+    "composition": {
+        "title": "Zusammensetzung",
+        "tableLabel": "Zusammensetzung von {name}",
+        "colPlayer": "Spieler",
+        "colSpec": "Spec",
+        "colRole": "Rolle",
+        "colState": "Status",
+        "colWishes": "Wünsche",
+        "specSub": "Entscheidung, sonst erster Wunsch, sonst der vorausgefüllte Charakter",
+        "extra": {
+            "one": "Bench und Tentative mitzählen ({count} weiterer)",
+            "other": "Bench und Tentative mitzählen ({count} weitere)"
+        },
+        "extraTip": "Aus: nur Vorläufig und Roster zählen. Bench und Tentative stehen trotzdem grau in der Liste.",
+        "players": {
+            "one": "{count} Spieler",
+            "other": "{count} Spieler"
+        },
+        "noSpec": {
+            "one": "{count} ohne Spec",
+            "other": "{count} ohne Spec"
+        },
+        "noSpecTip": "Zählt nicht zu den Rollen, bis eine Entscheidung oder ein Wunsch eingetragen ist.",
+        "target": "Richtwert {size}er: {tanks} · {healers}",
+        "targetTip": "Aus dem Regelsatz der Spielversion, für die nächste Setup-Größe",
+        "classCount": {
+            "one": "{count} gezählt",
+            "other": "{count} gezählt"
+        },
+        "classExtra": {
+            "one": "+{count} nicht gezählt",
+            "other": "+{count} nicht gezählt"
+        },
+        "noClass": "Ohne Klasse",
+        "notCounted": "nicht gezählt",
+        "noSpecRow": "kein Spec",
+        "buffs": "Buffs",
+        "raidBuffs": "Im ganzen Raid",
+        "partyBuffs": "Je Gruppe",
+        "missing": "fehlt",
+        "donors": {
+            "one": "{count} Spender",
+            "other": "{count} Spender"
+        },
+        "noBuffs": "Der Regelsatz kennt keine Buffs.",
+        "empty": "Noch niemand in Vorläufig oder Roster. Spieler kommen über die Gespräche hierher."
     }
 }

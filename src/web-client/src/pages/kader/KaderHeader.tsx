@@ -23,6 +23,8 @@ const STATE_SUB: Record<KaderState, KaderSub> = { pool: "pool", selected: "vorau
 /** The steps before a decision, then the three states a decision leads to (one group). */
 const FLOW: KaderState[] = ["pool", "selected", "provisional"];
 const DECIDED: KaderState[] = ["roster", "bench", "tentative"];
+/** The states the composition page counts (lib/kader/composition BASE_STATES). */
+const COMPOSED: KaderState[] = ["provisional", "roster"];
 
 function KaderPicker() {
     const t = useT();
@@ -88,7 +90,7 @@ export function StageNav({ sub }: { sub: KaderSub }) {
     const { kader } = useKader();
     const counts = countStates(kader);
     const segment = (s: KaderState) => {
-        const active = STATE_SUB[s] === sub || (s === "selected" && sub === "uebersicht");
+        const active = STATE_SUB[s] === sub || (s === "selected" && sub === "uebersicht") || (sub === "zusammensetzung" && COMPOSED.includes(s));
         const tip = t(`kader.nav.count.${s}`, { count: counts[s] });
         return (
             <Link key={s} to={`/kader/${kader.id}/${STATE_SUB[s]}`} className={`kp-stage kp-stage-${s}${active ? " kp-active" : ""}`}
@@ -109,10 +111,13 @@ export function StageNav({ sub }: { sub: KaderSub }) {
                 </Fragment>
             ))}
             <span className="kp-stage-group">{DECIDED.map(segment)}</span>
-            {sub === "roster" && (
+            {(sub === "roster" || sub === "zusammensetzung") && (
                 <>
                     <span className="kp-grow" />
-                    <RosterLink />
+                    {sub === "roster" && <RosterLink />}
+                    {sub === "roster" && (
+                        <Link to={`/kader/${kader.id}/zusammensetzung`} className={buttonClass("ghost", "md", false, "kp-stage-act")}>{t("kader.nav.composition")}</Link>
+                    )}
                     <Link to={`/kader/${kader.id}/setups`} className={buttonClass("ghost", "md", false, "kp-stage-act")}>{t("kader.nav.setups")}</Link>
                 </>
             )}
