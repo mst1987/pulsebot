@@ -60,8 +60,41 @@ describe("services/kader/kaderPlayers", () => {
             p = move(p, kaderId, [U.a], "selected");
             p = move(p, kaderId, [U.a], "pool");
             expect(entry(p, U.a).state).toBe("pool");
-            // the decision is kept for later
+            // the decision belongs to the roster: leaving it cleared it
+            expect(entry(p, U.a).decision).toBeNull();
+        });
+
+        it("clears the decision when a player leaves the roster and takes the current first wish on the way back", () => {
+            const { planner, kaderId } = setup();
+            let p = move(move(planner, kaderId, [U.a], "selected"), kaderId, [U.a], "provisional");
+            p = move(p, kaderId, [U.a], "roster");
             expect(entry(p, U.a).decision).toEqual({ className: "Mage", spec: "Mage-Frost" });
+            p = move(p, kaderId, [U.a], "provisional");
+            expect(entry(p, U.a)).toMatchObject({ state: "provisional", decision: null });
+            // the first wish changes while out of the roster (the Prod case: a healer wish, not the old spec)
+            p = players.saveInterview(p, { kaderId, userId: U.a, wishes: [{ className: "Shaman", spec: "Shaman-Restoration" }, { className: "Mage", spec: "Mage-Frost" }] }, ctx);
+            p = move(p, kaderId, [U.a], "roster");
+            expect(entry(p, U.a).decision).toEqual({ className: "Shaman", spec: "Shaman-Restoration" });
+            // moves that do not leave the roster keep it
+            p = move(p, kaderId, [U.a], "roster");
+            expect(entry(p, U.a).decision.spec).toBe("Shaman-Restoration");
+        });
+
+        it("clears the decisions of a batch leaving the roster, and only of those", () => {
+            const { planner, kaderId } = setup();
+            let p = move(move(planner, kaderId, [U.a, U.c], "selected"), kaderId, [U.a, U.c], "provisional");
+            p = move(p, kaderId, [U.a], "roster");
+            p = move(p, kaderId, [U.c], "roster", { decision: { className: "Priest", spec: "Priest-Shadow" } });
+            p = move(p, kaderId, [U.a, U.c], "bench");
+            expect(entry(p, U.a)).toMatchObject({ state: "bench", decision: null });
+            expect(entry(p, U.c)).toMatchObject({ state: "bench", decision: null });
+            // bench → tentative is no leaving of the roster; a decision set there (Planspiel) stays
+            p.kaders[0].players[U.c].decision = { className: "Priest", spec: "Priest-Holy" };
+            p = move(p, kaderId, [U.c], "tentative");
+            expect(entry(p, U.c).decision).toEqual({ className: "Priest", spec: "Priest-Holy" });
+            // and is the one the player goes into the roster with
+            p = move(p, kaderId, [U.c], "roster");
+            expect(entry(p, U.c).decision.spec).toBe("Priest-Holy");
         });
 
         it("refuses a jump the pipeline does not know, and skips such players in a batch", () => {

@@ -54,6 +54,12 @@
 //     setups (services/kader/kaderMigration.js). The characters come from the
 //     planner's own data, else from the Forever characters of the profile.
 //
+//   - kader.json (stale decisions): a decision used to stay when a player left
+//     the roster, and the composition counted it before the first wish. Every
+//     planner without the mark `decisionsCleared` loses its decisions outside
+//     the roster once and gets the mark, so a later "Planspiel übernehmen"
+//     is never undone (kaderMigration.clearStaleDecisions).
+//
 //   - config.json, categoryPlanning (Raidplan ODER Sheet): every raid category
 //     (config.categoryIds) without a stored mode gets the one it really used,
 //     written down so the settings card shows it: "sheet" with a fixed sheet
@@ -350,6 +356,13 @@ function migrateKaderPlanner({ now = new Date().toISOString() } = {}) {
     return done.map((d) => `kader.json: Server ${d.guildId}: ${d.kaders} Kader aus dem alten Format übernommen (${d.roster} im Roster, ${d.bench} auf der Bench, ${d.variants} Beispiel-Setup(s))`);
 }
 
+/** Stale decisions outside the roster go, once per server (the mark `decisionsCleared`). One line per server that lost some. */
+function migrateKaderDecisions() {
+    return kaderStore.clearStaleDecisions()
+        .filter((d) => d.cleared > 0)
+        .map((d) => `kader.json: Server ${d.guildId}: ${d.cleared} veraltete Entscheidung(en) außerhalb des Rosters entfernt`);
+}
+
 /** The newest moment per category, from records that name an event: `{ [categoryId]: at }`. */
 function lastUseByCategory(records, categoryOf) {
     const out = {};
@@ -468,6 +481,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateCharacterVersions());
         changes.push(...migrateRecruitmentVersions());
         changes.push(...migrateKaderPlanner());
+        changes.push(...migrateKaderDecisions());
         changes.push(...migrateCategoryPlanning());
         changes.push(...migrateCategoryRosters());
         changes.push(...migrateStoredVersions());
@@ -482,6 +496,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, raidplanDefaultsLine,
+    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, raidplanDefaultsLine,
     legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

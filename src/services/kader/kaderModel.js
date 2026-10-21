@@ -5,7 +5,8 @@
 // its status. The players of a Kader, its questions and its example setups have
 // their own modules (kaderPlayers.js, kaderQuestions.js, kaderSetups.js).
 //
-//   { v: 2, rev?, sharedRev?,
+//   { v: 2, rev?, sharedRev?, decisionsCleared,   true once the stale decisions outside the roster are gone
+//                                                  (kaderMigration.clearStaleDecisions, run once at start)
 //     accounts:    [{ userId, displayName, addedAt }]          known by hand (no profile)
 //     assignments: { [userId]: { characters: [...], activeCharacterId, rev?, by?, at? } }   per server, not per Kader
 //     kaders:      [{ id, name, leads: [userId], createdAt, createdBy,
@@ -148,8 +149,12 @@ function assertFresh(input, rev, message, details = {}) {
     if (Number(input.baseRev) !== revOf(rev)) throw stale(message, { rev: revOf(rev), ...details });
 }
 
+/**
+ * A new planner never had a decision outside the roster, so it starts with the
+ * one-time cleanup done (`decisionsCleared`, kaderMigration.clearStaleDecisions).
+ */
 function emptyPlanner() {
-    return { v: FORMAT, accounts: [], assignments: {}, kaders: [] };
+    return { v: FORMAT, accounts: [], assignments: {}, kaders: [], decisionsCleared: true };
 }
 
 /** Four groups of five empty slots — a 10er shows the first two of them. */
@@ -453,6 +458,8 @@ function normalizePlanner(raw) {
     // on the server's side (accounts, character data, Kader created/renamed/deleted)
     if (revOf(src.rev)) out.rev = src.rev;
     if (revOf(src.sharedRev)) out.sharedRev = src.sharedRev;
+    // a stored planner without the mark still waits for the one-time cleanup
+    out.decisionsCleared = src.decisionsCleared === true;
     return out;
 }
 

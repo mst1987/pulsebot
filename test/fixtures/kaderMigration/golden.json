@@ -485,7 +485,8 @@
                     ],
                     "plan": null
                 }
-            ]
+            ],
+            "decisionsCleared": false
         }
     }
 }

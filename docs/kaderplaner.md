@@ -219,14 +219,16 @@ A player's **entry**:
 | `interview` | `{ lead, answers: { [questionId]: optionId \| [optionId] \| text }, note (≤ 2000), startedAt, updatedAt, updatedBy, completedAt, completedBy, rev? }` |
 | `votes` | `{ [leadUserId]: yes \| unsure \| no }` |
 | `comments` | `[{ id, by, at, text (≤ 1000) }]` (≤ 200), only the author deletes one |
-| `decision` | `{ className, spec }` — set when the player goes into the roster, and by "Planspiel übernehmen" for every planned player of the composition (also provisional, bench and tentative, whose state stays) |
+| `decision` | `{ className, spec }` — set when the player goes into the roster, and by "Planspiel übernehmen" for every planned player of the composition (also provisional, bench and tentative, whose state stays); cleared when the player leaves the roster. Old decisions left outside the roster are cleared once at start (see "Aufräumen der alten Entscheidungen") |
 
 ### States and moves
 
 `MOVES` (`kaderPlayers.js`, mirrored in `lib/kader/model.ts`): pool → selected; selected → pool | provisional;
 provisional → selected | roster | bench | tentative; roster → provisional | bench | tentative; bench → provisional |
 roster | tentative; tentative → provisional | roster | bench. Every step can go back. Into the roster the decision is
-the one given, else the one it had, else the first wish; roster → roster with a new decision only changes it. A batch
+the one given, else the one it had (outside the roster only "Planspiel übernehmen" sets one), else the first wish;
+roster → roster with a new decision only changes it. Leaving the roster (roster → any other state, one player or a
+batch) clears the decision, so the composition counts the first wish again and a later move back in starts from it. A batch
 move skips who does not fit and answers `moved`/`skipped`; only when nothing moved it is a 409.
 
 ### Interview
@@ -568,3 +570,14 @@ auf der Bench, z Beispiel-Setup(s))`.
 The character data comes from the planner's own assignments, else the raider profile (`profileCharOf`). The golden
 test `test/stores/settingsMigration.kader.test.js` runs the fixture `test/fixtures/kaderMigration/legacy.json` and
 compares with `golden.json` (`UPDATE_GOLDEN=1` rewrites it).
+
+### Aufräumen der alten Entscheidungen
+
+Before the Planspiel a decision stayed when a player left the roster, and the composition counted it before the first
+wish (a provisional player shown as Discipline Priest although the first wish was Holy Paladin). Right after the step
+above, `settingsMigration.migrateKaderDecisions()` → `kaderStore.clearStaleDecisions()` →
+`kaderMigration.clearStaleDecisions` clears every decision outside the roster **once per server**: a planner without
+the mark `decisionsCleared: true` loses them and gets the mark; a marked one is left alone, so a decision "Planspiel
+übernehmen" sets later is never undone. A new planner (`emptyPlanner`) starts marked. Decisions in the roster stay.
+Log line per server that lost some: `kader.json: Server <id>: N veraltete Entscheidung(en) außerhalb des Rosters
+entfernt`.
