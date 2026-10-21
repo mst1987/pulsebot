@@ -473,6 +473,7 @@
         "csrf": "The page is out of date. Please reload.",
         "invalid_spec": "This spec does not fit the character's class.",
         "kader_taken": "This Kader is already linked to another roster.",
+        "kader_taken_over": "The Kader has already been taken over to Discord – the link stays.",
         "invalid_loot_system": "Unknown loot system.",
         "unknown_profile": "This loot council profile does not exist.",
         "version_mismatch": "Kader, category and roster must play the same game version.",

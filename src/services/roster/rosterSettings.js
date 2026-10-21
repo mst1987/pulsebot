@@ -31,7 +31,7 @@
 // Every refusal is a code the web translates (DE/EN): "invalid_name",
 // "name_too_long", "bad_request", "invalid_version", "invalid_roles",
 // "unknown_role", "invalid_managers", "invalid_slots", "admin_only",
-// "category_taken", "kader_taken", "kader_not_found", "not_found",
+// "category_taken", "kader_taken", "kader_taken_over", "kader_not_found", "not_found",
 // "invalid_loot_system", "unknown_profile", "roster_closed" (#739, a closed roster).
 const rosterStore = require("../../stores/rosterStore");
 const councilProfilesStore = require("../../stores/councilProfilesStore");
@@ -183,9 +183,11 @@ function adminOnlyChanges(fields, current) {
  * versionId)`: whether a Kader plays that game version - a link (new, or kept
  * while the version changes) to a Kader of another one is `version_mismatch`
  * (#741); a new version that is hidden (#563) is `version_hidden`.
+ * `kaderLocked(kaderId)`: whether a Kader was taken over into Discord - its
+ * link (to this roster or another) stays as it is, `kader_taken_over`.
  * @returns {{ ok: true, roster: object, trimmedChars: number } | { ok: false, code: string }}
  */
-function updateRosterSettings(rosterId, raw, { isAdmin = false, actor = "", knownRoleIds = null, kaderKnown = null, kaderFits = null, config = null, saveConfig = null } = {}) {
+function updateRosterSettings(rosterId, raw, { isAdmin = false, actor = "", knownRoleIds = null, kaderKnown = null, kaderFits = null, kaderLocked = null, config = null, saveConfig = null } = {}) {
     const current = rosterStore.getRoster(rosterId);
     if (!current) return { ok: false, code: "not_found" };
     // a closed roster (#739) is read only - only a full admin may still delete it
@@ -199,6 +201,8 @@ function updateRosterSettings(rosterId, raw, { isAdmin = false, actor = "", know
     const systemChanged = loot.systemChanged;
     const kaderId = clean.fields.kaderId;
     if (kaderId && kaderId !== current.kaderId && typeof kaderKnown === "function" && !kaderKnown(kaderId)) return { ok: false, code: "kader_not_found" };
+    if (kaderId !== undefined && (kaderId || null) !== (current.kaderId || null) && typeof kaderLocked === "function"
+        && ((current.kaderId && kaderLocked(current.kaderId)) || (kaderId && kaderLocked(kaderId)))) return { ok: false, code: "kader_taken_over" };
     // #741: the linked Kader plays the roster's version (after this change); #563: no move to a hidden version
     const versionId = clean.fields.versionId !== undefined ? clean.fields.versionId : current.versionId;
     const linked = kaderId !== undefined ? kaderId : current.kaderId;

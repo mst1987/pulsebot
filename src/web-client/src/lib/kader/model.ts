@@ -283,6 +283,12 @@ export function historyText(view: KaderView, item: KaderHistoryItem): string {
         case "interview_reopened": return t("kader.history.reopened");
         case "vote": return item.vote && item.vote !== "none" ? t("kader.history.vote", { vote: t(`kader.vote.${item.vote}`) }) : t("kader.history.voteNone");
         case "migrated": return t("kader.history.migrated", { to: state(item.to) });
+        case "role_given": return t("kader.history.roleGiven");
+        case "role_removed_kader": return t("kader.history.roleRemovedKader", { from: state(item.from), to: state(item.to) });
+        case "role_removed_discord": return t("kader.history.roleRemovedDiscord", { from: state(item.from) });
+        case "role_added_discord": return item.from
+            ? t("kader.history.roleAddedDiscord", { from: state(item.from) })
+            : t("kader.history.roleAddedDiscordNew");
         default: return item.type;
     }
 }

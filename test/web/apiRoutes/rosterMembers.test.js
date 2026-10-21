@@ -19,6 +19,8 @@ jest.mock("../../../src/services/roster/rosterRoleSync", () => ({
     applyMemberRemoved: jest.fn(async () => ({ ok: true, results: [] })),
     applyStatusChange: jest.fn(async () => ({ ok: true, skipped: "no_roles", results: [] })),
     applyRoleChange: jest.fn(),
+    setRoleLostHandler: jest.fn(),
+    setRoleGainedHandler: jest.fn(),
     takeFailedPending: jest.fn(() => false),
 }));
 jest.mock("../../../src/services/roster/rosterMemberSearch", () => ({ searchMembers: jest.fn() }));

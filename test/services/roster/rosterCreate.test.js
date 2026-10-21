@@ -26,7 +26,7 @@ const rosterRoleSync = require("../../../src/services/roster/rosterRoleSync");
 const { buildAttendanceContext } = require("../../../src/services/characters/rosterAttendance");
 const {
     createRosterWithSource, createRosterFromKader, kaderChoices, presentInRaids, kaderCharacter,
-    rosterOfKader, kaderRosterState, syncRosterFromKader, kaderExists, kaderLinkChoices, linkRosterToKader, kaderFitsVersion,
+    rosterOfKader, kaderRosterState, syncRosterFromKader, kaderExists, kaderTakenOver, kaderLinkChoices, linkRosterToKader, kaderFitsVersion,
 } = require("../../../src/services/roster/rosterCreate");
 
 const CAT = "700000000000000001";
@@ -183,7 +183,7 @@ describe("services/roster/rosterCreate source kader", () => {
     });
 
     it("kaderChoices hands the create dialog counts only", () => {
-        expect(kaderChoices("g1")).toEqual([{ id: "k1", name: "Forever-Kader", versionId: "forever", inRoster: 1, candidates: 3, attendanceCategories: [] }]);
+        expect(kaderChoices("g1")).toEqual([{ id: "k1", name: "Forever-Kader", versionId: "forever", inRoster: 1, candidates: 3, attendanceCategories: [], takenOver: false }]);
     });
 });
 
@@ -309,6 +309,21 @@ describe("services/roster/rosterCreate linking a Kader to an existing roster", (
         expect(rosterOfKader("g1", "k1")).toBeNull();
         // the members stay where they are
         expect(Object.keys(rosterStore.getRoster(migrated.id).members)).toHaveLength(3);
+    });
+
+    it("a Kader taken over into Discord keeps its link: no relinking, no unlinking", () => {
+        const { saveTakeover } = require("../../../src/services/kader/kaderRoster");
+        expect(linkRosterToKader("k1", migrated.id, { guildId: "g1" }).ok).toBe(true);
+        expect(kaderTakenOver("g1", "k1")).toBe(false);
+        saveTakeover("g1", "k1", { rosterId: migrated.id, roleId: ROLE, roleName: "Raider", categoryId: "", channelIds: [] });
+        expect(kaderTakenOver("g1", "k1")).toBe(true);
+        expect(kaderTakenOver("g1", "")).toBe(false);
+        const pug = rosterStore.listRosters("g1").find((r) => r.name === "Aaa PuG");
+        expect(linkRosterToKader("k1", pug.id, { guildId: "g1" })).toEqual({ ok: false, code: "kader_taken_over" });
+        expect(linkRosterToKader("k1", "", { guildId: "g1" })).toEqual({ ok: false, code: "kader_taken_over" });
+        // the same link again is fine
+        expect(linkRosterToKader("k1", migrated.id, { guildId: "g1" }).ok).toBe(true);
+        expect(rosterOfKader("g1", "k1").id).toBe(migrated.id);
     });
 
     it("answers a code for an unknown Kader or roster, and a roster of another server", () => {

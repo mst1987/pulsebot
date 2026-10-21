@@ -31,7 +31,7 @@ import { useKader } from "./kaderContext";
 /** The refusals the create dialog says in words; anything else shows the server's message. */
 const CREATE_CODES = ["category_taken", "kader_not_found", "invalid_name", "name_too_long", "admin_only", "kader_taken", "version_mismatch", "version_hidden"];
 /** The refusals of a link in words. */
-const LINK_CODES = ["kader_taken", "kader_not_found", "not_found", "version_mismatch"];
+const LINK_CODES = ["kader_taken", "kader_not_found", "not_found", "version_mismatch", "kader_taken_over"];
 
 function CreateRosterModal({ kaderId, kaderName, onClose, onCreated }: {
     kaderId: string; kaderName: string; onClose: () => void; onCreated: (rosterId: string, added: number) => void;

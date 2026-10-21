@@ -473,6 +473,7 @@
         "csrf": "Die Seite ist veraltet. Bitte neu laden.",
         "invalid_spec": "Dieser Spec passt nicht zur Klasse des Charakters.",
         "kader_taken": "Dieser Kader ist schon mit einem anderen Roster verknüpft.",
+        "kader_taken_over": "Der Kader wurde schon nach Discord übernommen – die Verknüpfung bleibt.",
         "invalid_loot_system": "Unbekanntes Lootsystem.",
         "unknown_profile": "Dieses Loot-Council-Profil gibt es nicht.",
         "version_mismatch": "Kader, Kategorie und Roster müssen dieselbe Spielversion spielen.",

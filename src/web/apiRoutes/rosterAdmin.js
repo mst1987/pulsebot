@@ -19,7 +19,7 @@ const { userCan } = require("../../config/permissions");
 const rosterStore = require("../../stores/rosterStore");
 const { getConfig } = require("../../stores/settingsStore");
 const { canManageRosterLive } = require("../../services/roster/rosterAccess");
-const { createRosterWithSource, kaderExists, kaderFitsVersion } = require("../../services/roster/rosterCreate");
+const { createRosterWithSource, kaderExists, kaderFitsVersion, kaderTakenOver } = require("../../services/roster/rosterCreate");
 const { resolveVersionQuery } = require("../../services/events/mainVersion");
 const { updateRosterSettings } = require("../../services/roster/rosterSettings");
 const { rosterOptions, serverRoles } = require("../../services/roster/rosterOptions");
@@ -32,7 +32,7 @@ const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 const STATUS_OF_CODE = {
     not_found: 404, kader_not_found: 404,
     admin_only: 403, not_manager: 403,
-    category_taken: 409, kader_taken: 409, roster_closed: 409,
+    category_taken: 409, kader_taken: 409, kader_taken_over: 409, roster_closed: 409,
 };
 
 // The refusals of the game version (#741, #563) in words; the client says every code in its own language.
@@ -101,6 +101,7 @@ const postRosterUpdate = withUser({ write: "roster", csrf: true, body: true }, a
     const result = updateRosterSettings(roster.id, body, {
         isAdmin, actor: str(user.id), knownRoleIds: knownRoleIds(roster.guildId), kaderKnown: (id) => kaderExists(roster.guildId, id),
         kaderFits: (id, versionId) => kaderFitsVersion(roster.guildId, id, versionId),
+        kaderLocked: (id) => kaderTakenOver(roster.guildId, id),
         config: getConfig(),
     });
     if (!result.ok) return refuse(res, result.code);

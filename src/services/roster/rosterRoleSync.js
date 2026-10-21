@@ -177,8 +177,67 @@ function addFromDiscord(roster, userId) {
     }
 }
 
+// Registered by rosterTakeover.js (it requires this module, so a require back
+// would be a cycle): moves a player who lost the role back in the Kader, and
+// one who got it by hand into the Kader as provisional.
+let roleLostHandler = null;
+let roleGainedHandler = null;
+
+/** Register the handler for "lost the roster's role in Discord" (null clears it). */
+function setRoleLostHandler(fn) {
+    roleLostHandler = typeof fn === "function" ? fn : null;
+}
+
+/** Register the handler for "got the roster's role in Discord" (null clears it). */
+function setRoleGainedHandler(fn) {
+    roleGainedHandler = typeof fn === "function" ? fn : null;
+}
+
+/** The name Discord shows for a member, for a new Kader entry. */
+function memberName(member) {
+    if (!member) return "";
+    return str(member.displayName || (member.user && (member.user.globalName || member.user.username)));
+}
+
+/** Whether the tool itself just gave this member a role of the roster (its gateway echo, not a hand-given role). */
+function toolGave(roster, userId) {
+    return (roster.roleIds || []).some((r) => memberRoles.recentWrite(roster.guildId, userId, r) === true);
+}
+
+/**
+ * A holder of a role of a roster a Kader was taken over into (docs/kaderplaner.md
+ * "Übernahme"): the handler puts them into the Kader as provisional unless they
+ * are planned there already. The gateway echo of a role the tool gave itself
+ * (memberRoles.recentWrite) is skipped: only a role given by hand counts, so a
+ * late echo of the takeover's own write can never undo an orga decision made
+ * in between (player moved back to Vorauswahl). Never throws.
+ */
+function roleGained(roster, userId, member) {
+    if (!roster.kaderId || !roleGainedHandler) return;
+    if (toolGave(roster, userId)) return;
+    try {
+        roleGainedHandler(roster, userId, { name: memberName(member) });
+    } catch (e) {
+        logger.warn(`could not put ${userId} of roster ${roster.id} into the Kader:`, e && (e.code || e.message));
+    }
+}
+
+/**
+ * Remove a member who lost every role of the roster in Discord. A roster a
+ * Kader was taken over into (docs/kaderplaner.md "Übernahme") also moves the
+ * player back to provisional in the Kader - no roster write, so it never
+ * comes back here.
+ */
 function removeFromDiscord(roster, userId) {
-    return rosterStore.removeMember(roster.id, userId, { actor: "", via: "discord" });
+    const removed = rosterStore.removeMember(roster.id, userId, { actor: "", via: "discord" });
+    if (removed && roster.kaderId && roleLostHandler) {
+        try {
+            roleLostHandler(roster, userId);
+        } catch (e) {
+            logger.warn(`could not move ${userId} of roster ${roster.id} back in the Kader:`, e && (e.code || e.message));
+        }
+    }
+    return removed;
 }
 
 /** The open rosters of a server that name at least one role (a closed one never syncs, #739). */
@@ -213,7 +272,12 @@ function onGuildMemberUpdate(oldMember, newMember) {
             const gained = before ? roster.roleIds.some((r) => after.has(r) && !before.has(r)) : null;
             const isMember = !!roster.members[uid];
             if (has && !isMember && (gained === true || (gained === null && !takeFailedPending(roster, uid)))) {
-                if (addFromDiscord(roster, uid)) changes.push({ rosterId: roster.id, userId: uid, action: "added" });
+                if (addFromDiscord(roster, uid)) {
+                    changes.push({ rosterId: roster.id, userId: uid, action: "added" });
+                    roleGained(roster, uid, newMember);
+                }
+            } else if (has && isMember && gained === true) {
+                roleGained(roster, uid, newMember);
             } else if (!has && isMember && had === true) {
                 if (removeFromDiscord(roster, uid)) changes.push({ rosterId: roster.id, userId: uid, action: "removed" });
             }
@@ -248,12 +312,22 @@ function reconcileRoster(rosterId, humans, { roleExists, holds }, out) {
     const roleIds = roster.roleIds.filter(roleExists);
     if (!roleIds.length) return; // every role of it deleted on the server: leave the roster alone
     const sig = roster.roleIds.join(",");
-    const holders = new Set(humans.filter((m) => roleIds.some((r) => holds(m, r))).map((m) => String(m.id)));
-    for (const uid of holders) {
-        if (roster.members[uid] || takeFailedPending(roster, uid)) continue;
-        if (addFromDiscord(roster, uid)) out.added += 1;
-    }
+    const holding = humans.filter((m) => roleIds.some((r) => holds(m, r)));
+    const holders = new Set(holding.map((m) => String(m.id)));
     const prev = snapshots.get(roster.id);
+    const seen = prev && prev.sig === sig ? prev.holders : new Set();
+    for (const m of holding) {
+        const uid = String(m.id);
+        if (roster.members[uid]) {
+            if (!seen.has(uid)) roleGained(roster, uid, m);
+            continue;
+        }
+        if (takeFailedPending(roster, uid)) continue;
+        if (addFromDiscord(roster, uid)) {
+            out.added += 1;
+            roleGained(roster, uid, m);
+        }
+    }
     if (prev && prev.sig === sig) {
         const lost = Object.keys(roster.members).filter((uid) => prev.holders.has(uid) && !holders.has(uid));
         const memberCount = Object.keys(roster.members).length;
@@ -358,7 +432,7 @@ function _resetForTests() {
 module.exports = {
     applyMemberAdded, applyStatusChange, applyMemberRemoved, applyRoleChange,
     onGuildMemberUpdate, onGuildMemberAdd, reconcile, reconcileAll, lastReconcile,
-    takeFailedPending, memberRoleSet,
+    takeFailedPending, memberRoleSet, setRoleLostHandler, setRoleGainedHandler,
     startRosterRoleSync, stopRosterRoleSync, _resetForTests,
     MASS_REMOVAL_SHARE, MASS_REMOVAL_MIN,
 };

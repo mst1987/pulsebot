@@ -180,7 +180,8 @@ export type KaderPlan = { specs: Record<string, KaderWish>; excluded: string[]; 
 export type KaderActivityType =
     | "created" | "added" | "removed" | "state" | "decision" | "interview" | "lead" | "interview_completed" | "interview_reopened"
     | "vote" | "comment" | "comment_deleted" | "questions" | "setups" | "settings" | "character"
-    | "plan" | "plan_applied" | "plan_discarded";
+    | "plan" | "plan_applied" | "plan_discarded"
+    | "takeover" | "role_given" | "role_removed_kader" | "role_removed_discord" | "role_added_discord";
 /** One line of the activity log: several players moved at once are one line with `count`. */
 export type KaderActivityItem = {
     rev: number;

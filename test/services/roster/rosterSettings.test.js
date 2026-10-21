@@ -123,6 +123,20 @@ describe("services/roster/rosterSettings updateRosterSettings (admin)", () => {
         expect(updateRosterSettings(roster.id, { kaderId: "" }, { isAdmin: true }).roster.kaderId).toBeNull();
     });
 
+    it("leaves the link of a Kader taken over into Discord as it is (kader_taken_over)", () => {
+        const known = () => true;
+        const locked = (id) => id === "k1";
+        expect(updateRosterSettings(roster.id, { kaderId: "k1" }, { isAdmin: true, kaderKnown: known }).ok).toBe(true);
+        // neither unlinking nor moving to another Kader
+        expect(updateRosterSettings(roster.id, { kaderId: "" }, { isAdmin: true, kaderLocked: locked }).code).toBe("kader_taken_over");
+        expect(updateRosterSettings(roster.id, { kaderId: "k2" }, { isAdmin: true, kaderKnown: known, kaderLocked: locked }).code).toBe("kader_taken_over");
+        // nor linking it to another roster; the unchanged link passes
+        const other = rosterStore.createRoster({ name: "B" });
+        expect(updateRosterSettings(other.id, { kaderId: "k1" }, { isAdmin: true, kaderKnown: known, kaderLocked: locked }).code).toBe("kader_taken_over");
+        expect(updateRosterSettings(roster.id, { kaderId: "k1", name: "X" }, { isAdmin: true, kaderKnown: known, kaderLocked: locked }).ok).toBe(true);
+        expect(rosterStore.getRoster(roster.id).kaderId).toBe("k1");
+    });
+
     it("a second roster of the category in another version is no conflict, the same version is (#739)", () => {
         const forever = rosterStore.createRoster({ name: "F", categoryId: "700000000000000002", versionId: "forever" });
         expect(updateRosterSettings(forever.id, { categoryId: "700000000000000001" }, { isAdmin: true }).ok).toBe(true);

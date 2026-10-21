@@ -169,7 +169,14 @@ describe("the Kaderplaner's data stays in the Kaderplaner", () => {
         // rosterCreate.js builds a roster from a Kader (#657) - through kaderRoster.js and nothing else (next test);
         // categoryLifecycle.js closes a raid category (#744) - through kaderCategories.js and nothing else;
         // contentVersions.js offers the versions the planner holds Kader for - through kaderVersions.js, version ids only
-        expect(users.filter((rel) => !OWN(rel))).toEqual(["services/events/categoryLifecycle.js", "services/events/contentVersions.js", "services/roster/rosterCreate.js", "stores/settingsMigration.js"]);
+        // rosterTakeover.js takes a Kader over into Discord - through kaderRoster.js and nothing else too
+        expect(users.filter((rel) => !OWN(rel))).toEqual(["services/events/categoryLifecycle.js", "services/events/contentVersions.js", "services/roster/rosterCreate.js", "services/roster/rosterTakeover.js", "stores/settingsMigration.js"]);
+    });
+
+    it("lets the takeover in through kaderRoster.js only", () => {
+        const src = fs.readFileSync(path.join(SRC, "services", "roster", "rosterTakeover.js"), "utf8");
+        const kaderRequires = [...src.matchAll(/require\(\s*["']([^"']*kader[^"']*)["']\s*\)/gi)].map((m) => m[1]);
+        expect(kaderRequires).toEqual(["../kader/kaderRoster"]);
     });
 
     it("lets a closed category in through kaderCategories.js only (#744)", () => {

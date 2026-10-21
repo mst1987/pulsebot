@@ -7,6 +7,8 @@ jest.mock("../../../src/stores/rosterStore", () => ({ getRoster: jest.fn() }));
 jest.mock("../../../src/services/roster/rosterAccess", () => ({ canManageRosterLive: jest.fn(async () => true), isRosterOrga: jest.fn(async () => true) }));
 jest.mock("../../../src/services/roster/rosterRoleSync", () => ({
     applyRoleChange: jest.fn(async (roster, userId, roleId, give) => ({ roleId, roleName: "Raider", give, ok: true, code: "done", changed: true })),
+    setRoleLostHandler: jest.fn(),
+    setRoleGainedHandler: jest.fn(),
 }));
 jest.mock("../../../src/services/roster/rosterSyncView", () => ({
     rosterSyncView: jest.fn(async (roster) => ({ rosterId: roster.id, inRosterWithoutRole: [], roleWithoutRoster: [], withoutChar: [], logCharsWithoutPerson: [], mirrored: [] })),

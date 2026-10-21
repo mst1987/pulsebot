@@ -239,6 +239,8 @@
     "/api/kader/roster": "kader",
     "/api/kader/roster/link": "kader",
     "/api/kader/roster/sync": "kader",
+    "/api/kader/takeover": "kader",
+    "/api/kader/takeover/role": "kader",
     "/api/availability": "signup",
     "/api/availability/attendance": "signup",
     "/api/availability/overview": "roster",

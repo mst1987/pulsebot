@@ -19,6 +19,8 @@ jest.mock("../../../src/services/roster/rosterRoleSync", () => ({
     applyMemberRemoved: jest.fn(async () => ({ ok: true, results: [] })),
     applyStatusChange: jest.fn(async () => ({ ok: true, results: [] })),
     applyRoleChange: jest.fn(),
+    setRoleLostHandler: jest.fn(),
+    setRoleGainedHandler: jest.fn(),
     takeFailedPending: jest.fn(() => false),
 }));
 jest.mock("../../../src/services/discord/categoryNames", () => ({
@@ -268,6 +270,12 @@ describe("POST /api/rosters/update", () => {
         expect([status(res), code(res)]).toEqual([409, "kader_taken"]);
         res = await post("/api/rosters/update", { rosterId: roster.id, kaderId: null });
         expect(data(res).roster.kaderId).toBeNull();
+        // once taken over into Discord the link stays as it is
+        await post("/api/rosters/update", { rosterId: roster.id, kaderId: "k1" });
+        require("../../../src/services/kader/kaderRoster").saveTakeover("g1", "k1", { rosterId: roster.id, roleId: "role1", roleName: "Raider", categoryId: "", channelIds: [] });
+        res = await post("/api/rosters/update", { rosterId: roster.id, kaderId: null });
+        expect([status(res), code(res)]).toEqual([409, "kader_taken_over"]);
+        expect(rosterStore.getRoster(roster.id).kaderId).toBe("k1");
     });
 });
 
@@ -352,7 +360,7 @@ describe("GET /api/rosters/options", () => {
         expect(d.kaders).toEqual([]);
         expect(d.defaultVersion).toBe("tbc");
         const forever = data(await get("/api/rosters/options", { version: "forever" }));
-        expect(forever.kaders).toEqual([{ id: "k1", name: "Forever-Kader", versionId: "forever", inRoster: 1, candidates: 1, attendanceCategories: [], rosterId: null, rosterName: "" }]);
+        expect(forever.kaders).toEqual([{ id: "k1", name: "Forever-Kader", versionId: "forever", inRoster: 1, candidates: 1, attendanceCategories: [], rosterId: null, rosterName: "", takenOver: false }]);
         expect(forever.categories).toEqual([]);
         expect(forever.defaultVersion).toBe("forever");
         expect(d.isAdmin).toBe(true);

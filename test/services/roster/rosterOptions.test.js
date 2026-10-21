@@ -101,7 +101,7 @@ describe("services/roster/rosterOptions", () => {
         const opts = rosterOptions({ guildId: "g1", config: {}, canSeeKader: true });
         expect(opts).toEqual(expect.objectContaining({
             guildId: "g1", defaultVersion: "tbc", canManageRoles: true, online: true,
-            kaders: [{ id: "k1", name: "K", versionId: "forever", inRoster: 1, candidates: 1, attendanceCategories: [], rosterId: null, rosterName: "" }],
+            kaders: [{ id: "k1", name: "K", versionId: "forever", inRoster: 1, candidates: 1, attendanceCategories: [], rosterId: null, rosterName: "", takenOver: false }],
         }));
         // the dialog of one version (#741): only its Kader; a hidden version offers nothing (#563)
         expect(rosterOptions({ guildId: "g1", config: {}, canSeeKader: true, versionId: "tbc" })).toEqual(expect.objectContaining({ kaders: [], defaultVersion: "tbc" }));
