@@ -35,6 +35,13 @@
 // is "nachzuziehen" (`kaderRoster.pendingOf`) until the orga presses
 // "Rolle nachziehen" (`pullRole`).
 //
+// A Kader without a linked roster gets one (only full admins, the route checks
+// that): the takeover creates it with the new role as its main role, the Kader's
+// name (the orga may change it), the Kader's version, the Kader's leads as
+// managers and optionally a raid category of that version without a roster.
+// The role is made first: should the roster then fail (category_taken ...),
+// the role is deleted again - nothing is left half made.
+//
 // Only the Kader's own server, and every read or write of the planner goes
 // through services/kader/kaderRoster.js (test/stores/kaderStore.test.js).
 const { ChannelType, PermissionsBitField } = require("discord.js");
@@ -52,6 +59,9 @@ const kaderRoster = require("../kader/kaderRoster");
 const rosterMembers = require("./rosterMembers");
 const rosterRoleSync = require("./rosterRoleSync");
 const { kaderCharacter } = require("./rosterCreate");
+const { rosterCategories } = require("./rosterOptions");
+const { mirrorCategoryRoles } = require("./categoryRoles");
+const { isVersionVisible } = require("../events/mainVersion");
 
 const Flags = PermissionsBitField.Flags;
 
@@ -138,6 +148,38 @@ function rosterOf(guildId, kader) {
 }
 
 /**
+ * The raid categories a new roster of `versionId` may take: active ones that
+ * play that version and have no roster of it yet, in Discord's order -
+ * `[{ id, name, suggested }]`, `suggested` for the Kader's attendance categories.
+ */
+function freeCategoriesOf(guildId, versionId, suggestedIds = []) {
+    const suggested = new Set((suggestedIds || []).map(str));
+    return rosterCategories(guildId, getConfig() || {})
+        .filter((c) => c.active && c.versionId === versionId && !rosterStore.rosterForCategory(c.id, versionId))
+        .map((c) => ({ id: c.id, name: c.name, suggested: suggested.has(c.id) }));
+}
+
+/**
+ * The precheck's roster part: its blockers (no_roster for a recorded takeover
+ * whose roster is gone, roster_closed, version_hidden for a roster to create)
+ * and - without a roster - what the takeover would create.
+ */
+function rosterSideOf(gid, kader, roster, withCategories) {
+    const blockers = [];
+    const createsRoster = !roster && !kader.takeover;
+    const versionId = kaderRoster.kaderVersion(kader.versionId);
+    if (!roster && kader.takeover) blockers.push("no_roster");
+    else if (roster && roster.closedAt) blockers.push("roster_closed");
+    if (createsRoster && !isVersionVisible(versionId, getConfig() || {})) blockers.push("version_hidden");
+    return {
+        blockers,
+        createsRoster,
+        newRoster: createsRoster ? { name: str(kader.name).slice(0, rosterStore.LIMITS.name), versionId } : null,
+        rosterCategories: createsRoster && withCategories ? freeCategoriesOf(gid, versionId, kader.attendanceCategories) : [],
+    };
+}
+
+/**
  * GET side: what a takeover would do or did. `blockers` keep the start
  * refused, `notes` only inform ("icon_not_possible", "roster_members_outside"
  * with `outsideCount` roster members the Kader does not plan - they stay in the
@@ -146,7 +188,11 @@ function rosterOf(guildId, kader) {
  * this process - the bot restarted while handing out, the rest is
  * "nachzuziehen". `role` / `category`: what the takeover made, as Discord has
  * it now (madeOf). `categories` only with `opts.withCategories` (the caller
- * may start the takeover).
+ * may start the takeover). Without a roster (and no takeover yet) the
+ * takeover creates one: `createsRoster`, the note "creates_roster",
+ * `newRoster` { name (the Kader's), versionId } and - with
+ * `opts.withCategories` - `rosterCategories` (freeCategoriesOf); a hidden
+ * version blocks ("version_hidden").
  */
 async function precheck(guildId, kaderId, opts = {}) {
     const gid = str(guildId);
@@ -156,9 +202,7 @@ async function precheck(guildId, kaderId, opts = {}) {
     const guild = discord.isOnline() ? discord.getGuild(gid) : null;
     const manageRoles = !!guild && canManageRoles(gid);
     const manageChannels = guild ? botCanManageChannels(gid) : null;
-    const blockers = [];
-    if (!roster) blockers.push("no_roster");
-    else if (roster.closedAt) blockers.push("roster_closed");
+    const { blockers, ...rosterSide } = rosterSideOf(gid, kader, roster, opts.withCategories);
     if (!guild) blockers.push("offline");
     else {
         if (!manageRoles) blockers.push("no_manage_roles");
@@ -167,6 +211,7 @@ async function precheck(guildId, kaderId, opts = {}) {
     if (!kader.players.length) blockers.push("no_players");
     if (kader.takeover) blockers.push("already_taken");
     const notes = guild && !iconPossible(guild) ? ["icon_not_possible"] : [];
+    if (rosterSide.createsRoster) notes.push("creates_roster");
     const planned = new Set(kader.players.map((p) => p.userId));
     const outsideCount = roster ? Object.keys(roster.members || {}).filter((uid) => !planned.has(uid)).length : 0;
     if (outsideCount) notes.push("roster_members_outside");
@@ -204,6 +249,7 @@ async function precheck(guildId, kaderId, opts = {}) {
         ...pullableOf(kader.pending, members),
         players,
         categories: opts.withCategories ? categoriesOf(guild) : [],
+        ...rosterSide,
     };
 }
 
@@ -366,15 +412,57 @@ function whenIdle(guildId, kaderId) {
     return running.get(keyOf(guildId, kaderId)) || Promise.resolve();
 }
 
-/** The common refusals of start and pullRole: lock, roster, server, rights. */
-function assertCanWrite(gid, kader, roster) {
+/**
+ * The common refusals of start and pullRole: lock, roster, server, rights.
+ * `createsRoster`: the start creates the roster, none is needed yet.
+ */
+function assertCanWrite(gid, kader, roster, { createsRoster = false } = {}) {
     if (running.has(keyOf(gid, kader.id))) throw refuse("running", 409, "Die Übernahme läuft gerade.");
-    if (!roster) throw refuse("no_roster", 409, "Der Kader hat kein verknüpftes Roster.");
-    if (roster.closedAt) throw refuse("roster_closed", 409, "Das Roster ist geschlossen.");
+    if (!roster && !createsRoster) throw refuse("no_roster", 409, "Der Kader hat kein verknüpftes Roster.");
+    if (roster && roster.closedAt) throw refuse("roster_closed", 409, "Das Roster ist geschlossen.");
     const guild = discord.isOnline() ? discord.getGuild(gid) : null;
     if (!guild) throw refuse("offline", 503, "Der Bot ist gerade nicht mit Discord verbunden.");
     if (!canManageRoles(gid)) throw refuse("no_manage_roles", 409, "Dem Bot fehlt das Recht „Rollen verwalten“.");
     return guild;
+}
+
+/**
+ * The checked roster a start without one creates: `{ name, versionId,
+ * categoryId }` from `body.roster` { name?, categoryId? } - the name falls back
+ * to the Kader's, the version is the Kader's, the category (optional) must be a
+ * free one of that version (freeCategoriesOf).
+ */
+function newRosterOf(gid, kader, body) {
+    const input = (body && body.roster) || {};
+    const name = (str(input.name) || str(kader.name)).slice(0, rosterStore.LIMITS.name);
+    if (!name) throw refuse("invalid_name", 400, "Das Roster braucht einen Namen.");
+    const versionId = kaderRoster.kaderVersion(kader.versionId);
+    if (!isVersionVisible(versionId, getConfig() || {})) {
+        throw refuse("version_hidden", 409, "Diese Spielversion ist ausgeblendet – ein Roster bekommt eine sichtbare Spielversion.");
+    }
+    const categoryId = str(input.categoryId) || null;
+    if (categoryId && !freeCategoriesOf(gid, versionId).some((c) => c.id === categoryId)) {
+        if (rosterStore.rosterForCategory(categoryId, versionId)) throw refuse("category_taken", 409, "Diese Kategorie hat schon ein Roster dieser Spielversion.");
+        throw refuse("invalid_roster_category", 400, "Diese Raid-Kategorie spielt die Version des Kaders nicht.");
+    }
+    return { name, versionId, categoryId };
+}
+
+/** Step 2 without a linked roster: the new roster, linked to the Kader, the new role its main role. */
+function createRosterFor(gid, kader, newRoster, roleId, { actor = "" } = {}) {
+    const created = rosterStore.createRoster({
+        guildId: gid,
+        name: newRoster.name,
+        versionId: newRoster.versionId,
+        categoryId: newRoster.categoryId,
+        kaderId: kader.id,
+        source: { kind: "kader", kaderId: kader.id },
+        roleIds: [roleId],
+        managers: { roleIds: [], userIds: [...(kader.leads || [])] },
+    }, { actor });
+    // the category's raider roles follow the roster, as when it is created by hand
+    mirrorCategoryRoles(created);
+    return created;
 }
 
 /** Step 1: the role, below the bot's role. Refuses (and cleans up) otherwise. */
@@ -441,9 +529,11 @@ async function makeChannels(guild, plan, kader, roleId, orgaIds, steps) {
 /**
  * POST side: starts the takeover. `body`: `{ confirm: true, baseRev, role: {
  * name, color?: "#rrggbb", unicodeEmoji? }, category: { id } | { name, emoji? },
- * channels: [{ name, emoji?, orgaOnlyWrite? }] }`. Creates role, category and
- * channels right away (each step reports on its own), records the takeover
- * and hands out the role in the background.
+ * channels: [{ name, emoji?, orgaOnlyWrite? }], roster?: { name?, categoryId? } }`.
+ * Creates role, category and channels right away (each step reports on its
+ * own), records the takeover and hands out the role in the background.
+ * `roster` only counts for a Kader without a linked roster: the roster the
+ * takeover creates (newRosterOf); with one it is ignored.
  * @returns {Promise<{ takeover, steps: object[], assigning: number }>}
  */
 async function start(guildId, kaderId, body = {}, { actor = "", gapMs = ROLE_GAP_MS } = {}) {
@@ -458,9 +548,10 @@ async function start(guildId, kaderId, body = {}, { actor = "", gapMs = ROLE_GAP
     kaderRoster.assertTakeoverFresh(kader, body);
     if (kader.takeover) throw refuse("already_taken", 409, "Dieser Kader wurde schon übernommen.");
     if (!kader.players.length) throw refuse("no_players", 409, "Im Kader ist niemand ab vorläufig.");
-    const roster = rosterOf(gid, kader);
-    const guild = assertCanWrite(gid, kader, roster);
+    const linked = rosterOf(gid, kader);
+    const guild = assertCanWrite(gid, kader, linked, { createsRoster: true });
     const plan = planOf(body, guild);
+    const newRoster = linked ? null : newRosterOf(gid, kader, body);
     if ((plan.category.name !== undefined && !plan.category.id) || plan.channels.length) {
         if (botCanManageChannels(gid) === false) throw refuse("no_manage_channels", 409, "Dem Bot fehlt das Recht „Kanäle verwalten“.");
     }
@@ -475,15 +566,22 @@ async function start(guildId, kaderId, body = {}, { actor = "", gapMs = ROLE_GAP
         const roleId = String(role.id);
         steps.push(made.step);
 
-        // 2. the roster's main role
+        // 2. the roster's main role - or the new roster with it
+        let roster = linked;
         try {
-            // the new role replaces the old ones: they stay in Discord, the sync no
-            // longer follows them (a changed role set never removes anybody)
-            rosterStore.updateRoster(roster.id, { roleIds: [roleId] }, { actor });
-            steps.push({ step: "roster", ok: true, id: roster.id });
+            if (roster) {
+                // the new role replaces the old ones: they stay in Discord, the sync no
+                // longer follows them (a changed role set never removes anybody)
+                rosterStore.updateRoster(roster.id, { roleIds: [roleId] }, { actor });
+                steps.push({ step: "roster", ok: true, id: roster.id, name: roster.name, created: false });
+            } else {
+                roster = createRosterFor(gid, kader, newRoster, roleId, { actor });
+                steps.push({ step: "roster", ok: true, id: roster.id, name: roster.name, created: true });
+            }
         } catch (e) {
             await Promise.resolve(role.delete && role.delete("EventHelper: Roster nicht beschreibbar")).catch(() => {});
-            throw refuse((e && e.code) || "roster_failed", 409, `Roster nicht beschreibbar: ${(e && e.message) || "?"}`);
+            const what = linked ? "Roster nicht beschreibbar" : "Roster nicht angelegt";
+            throw refuse((e && e.code) || "roster_failed", 409, `${what}: ${(e && e.message) || "?"}`);
         }
 
         // 3. category and channels, only the new role and the orga see them

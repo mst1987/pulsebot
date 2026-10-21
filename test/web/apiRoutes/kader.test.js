@@ -680,11 +680,38 @@ describe("web/apiRoutes/kader the takeover (docs/kaderplaner.md \"Übernahme\")"
         expect(status(await get("/api/kader/takeover", { kader: kaderId }))).toBe(403);
     });
 
-    it("POST: full admins and roster managers with kader write only", async () => {
-        const { kaderId: bare } = await kaderWithPlayers();
-        let res = await post("/api/kader/takeover", { kaderId: bare, ...START });
+    it("without a linked roster the takeover creates one: full admins with kader write only", async () => {
+        const { kaderId } = await kaderWithPlayers();
+        let res = await post("/api/kader/takeover", { kaderId: "nope", ...START });
         expect([status(res), body(res).error.code]).toEqual([404, "not_found"]);
+        // a writer of the Kader who is no full admin: neither start nor canStart
+        const writer = granted("write");
+        auth.getUser.mockReturnValue(writer);
+        res = await post("/api/kader/takeover", { kaderId, ...START });
+        expect([status(res), body(res).error.code]).toEqual([403, "admin_only"]);
+        expect(body(await get("/api/kader/takeover", { kader: kaderId })).canStart).toBe(false);
+        expect(takeover.precheck).toHaveBeenLastCalledWith("g1", kaderId, { withCategories: false });
+        // a full admin may - and "Rolle nachziehen" still needs a roster
+        auth.getUser.mockReturnValue(ADMIN);
+        expect(body(await get("/api/kader/takeover", { kader: kaderId })).canStart).toBe(true);
+        expect(takeover.precheck).toHaveBeenLastCalledWith("g1", kaderId, { withCategories: true });
+        expect(status(await post("/api/kader/takeover/role", { kaderId }))).toBe(404);
+        res = await post("/api/kader/takeover", { kaderId, ...START, roster: { name: "Neu", categoryId: "" } });
+        expect(status(res)).toBe(200);
+        expect(takeover.start).toHaveBeenCalledWith("g1", kaderId, expect.objectContaining({ roster: { name: "Neu", categoryId: "" } }), { actor: LEAD });
+    });
+
+    it("a recorded takeover whose roster is gone creates none (404, no admin path)", async () => {
+        const { kaderId } = await kaderWithPlayers();
+        kaderRoster.saveTakeover("g1", kaderId, { rosterId: "gone", roleId: "role1", roleName: "Raider", categoryId: "", channelIds: [] });
+        expect(body(await get("/api/kader/takeover", { kader: kaderId })).canStart).toBe(false);
+        expect(status(await post("/api/kader/takeover", { kaderId, ...START }))).toBe(404);
+        expect(takeover.start).not.toHaveBeenCalled();
+    });
+
+    it("POST: full admins and roster managers with kader write only", async () => {
         const { kaderId, roster } = await linkedKader();
+        let res;
         const writer = granted("write");
         auth.getUser.mockReturnValue(writer);
         res = await post("/api/kader/takeover", { kaderId, ...START });

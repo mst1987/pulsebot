@@ -1,8 +1,10 @@
 // The Kader's takeover into Discord (docs/kaderplaner.md "Übernahme"): on the
 // composition page the orga opens the assistant "In Discord übernehmen" and goes
 // through four steps — the role (name, colour, icon where the server can show
-// one), the category and channels, who gets the role (with the switch that unlocks
-// the start), the result (each Discord step, then the role hand-out as it runs).
+// one; without a linked roster also the new roster's name and optional raid
+// category - only full admins get that far), the category and channels, who gets
+// the role (with the switch that unlocks the start), the result (each Discord
+// step, then the role hand-out as it runs).
 // After the takeover the Kader's head shows one line instead: the role, how many
 // of the planned players have it, the category, and "Rolle nachziehen (n)" for
 // the players who reached provisional afterwards. The logic sits in
@@ -22,7 +24,7 @@ import { useApi } from "../../hooks/useApi";
 import { useT } from "../../i18n";
 import { playerName } from "../../lib/kader/model";
 import {
-    MAX_TAKEOVER_CHANNELS, TAKEOVER_NAME_MAX, TAKEOVER_STATES, TAKEOVER_STEPS, bodyOf, canStartDraft, categoryPreview, channelKey, channelPreview,
+    MAX_TAKEOVER_CHANNELS, ROSTER_NAME_MAX, TAKEOVER_NAME_MAX, TAKEOVER_STATES, TAKEOVER_STEPS, bodyOf, canStartDraft, categoryPreview, channelKey, channelPreview,
     defaultDraft, isHexColor, pendingOf, progressOf, startBlocker, stepProblems, takeoverErrorKey,
     type TakeoverDraft, type TakeoverStep,
 } from "../../lib/kader/takeover";
@@ -89,6 +91,37 @@ function Problems({ draft, step }: { draft: TakeoverDraft; step: TakeoverStep })
     );
 }
 
+/**
+ * Without a linked roster: the roster the takeover creates - its name (the
+ * Kader's, changeable) and optionally a raid category of the Kader's version
+ * that has no roster yet ("none" by default, the Kader's attendance categories
+ * marked as suggestion).
+ */
+function NewRosterBlock({ draft, set, check }: { draft: TakeoverDraft; set: (p: Partial<TakeoverDraft>) => void; check: KaderTakeoverCheck }) {
+    const t = useT();
+    const nr = draft.newRoster;
+    if (!nr) return null;
+    const cats = check.rosterCategories || [];
+    const setNr = (p: Partial<NonNullable<TakeoverDraft["newRoster"]>>) => set({ newRoster: { ...nr, ...p } });
+    return (
+        <div className="kp-tk-block">
+            <span className="kicker">{t("kader.takeover.roster.title")}</span>
+            <Field label={t("kader.takeover.roster.name")} htmlFor="kp-tk-roster">
+                <input id="kp-tk-roster" value={nr.name} maxLength={ROSTER_NAME_MAX} onChange={(e) => setNr({ name: e.target.value })} />
+            </Field>
+            <Field label={t("kader.takeover.roster.category")} htmlFor="kp-tk-rostercat">
+                <select id="kp-tk-rostercat" value={nr.categoryId} disabled={!cats.length} onChange={(e) => setNr({ categoryId: e.target.value })}>
+                    <option value="">{t("kader.takeover.roster.noCategory")}</option>
+                    {cats.map((c) => (
+                        <option key={c.id} value={c.id}>{c.suggested ? t("kader.takeover.roster.suggested", { name: c.name }) : c.name}</option>
+                    ))}
+                </select>
+            </Field>
+            <span className="hint">{cats.length ? t("kader.takeover.roster.categoryHint") : t("kader.takeover.roster.noFreeCategory")}</span>
+        </div>
+    );
+}
+
 function RoleStep({ draft, set, check }: { draft: TakeoverDraft; set: (p: Partial<TakeoverDraft>) => void; check: KaderTakeoverCheck }) {
     const t = useT();
     const old = check.roster ? check.roster.roleIds.length : 0;
@@ -120,8 +153,11 @@ function RoleStep({ draft, set, check }: { draft: TakeoverDraft; set: (p: Partia
                 <span className="kp-tk-rolechip"><RoleSwatch color={isHexColor(draft.roleColor) ? draft.roleColor : ""} />
                     {check.iconPossible && draft.roleEmoji && <span aria-hidden="true">{draft.roleEmoji}</span>}@{draft.roleName.trim() || "…"}</span>
             </div>
+            <NewRosterBlock draft={draft} set={set} check={check} />
             <p className="kp-tk-note">
-                {check.roster ? t("kader.takeover.role.becomes", { roster: check.roster.name }) : t("kader.takeover.blocker.no_roster")}
+                {check.roster ? t("kader.takeover.role.becomes", { roster: check.roster.name })
+                    : draft.newRoster ? t("kader.takeover.role.createsRoster", { roster: draft.newRoster.name.trim() || "…" })
+                        : t("kader.takeover.blocker.no_roster")}
                 {old > 0 && <> {t("kader.takeover.role.replaces", { count: old })}</>}
             </p>
             <Problems draft={draft} step="role" />
@@ -197,6 +233,14 @@ function ChannelsStep({ draft, set, check }: { draft: TakeoverDraft; set: (p: Pa
     );
 }
 
+/** The "who" step's line about the roster the takeover creates. */
+function newRosterFact(nr: NonNullable<TakeoverDraft["newRoster"]>, check: KaderTakeoverCheck, t: T): string {
+    const category = nr.categoryId ? (check.rosterCategories || []).find((c) => c.id === nr.categoryId)?.name : "";
+    return category
+        ? t("kader.takeover.who.newRosterIn", { roster: nr.name.trim(), category })
+        : t("kader.takeover.who.newRoster", { roster: nr.name.trim() });
+}
+
 type WhoKey = "name" | "state" | "discord";
 const DISCORD_ORDER = (p: KaderTakeoverPlayer) => (p.onServer === false ? 0 : p.hasRole ? 2 : 1);
 
@@ -235,6 +279,7 @@ function WhoStep({ draft, set, check, blocker }: { draft: TakeoverDraft; set: (p
                     {check.outsideCount > 0 && <li>{t("kader.takeover.who.outside", { count: check.outsideCount })}</li>}
                     {inRoster > 0 && <li>{t("kader.takeover.who.inRoster", { count: inRoster })}</li>}
                     {away > 0 && <li className="kp-tk-bad">{t("kader.takeover.who.away", { count: away })}</li>}
+                    {draft.newRoster && <li>{newRosterFact(draft.newRoster, check, t)}</li>}
                     <li>{t("kader.takeover.who.made", {
                         role: draft.roleName.trim(),
                         category: draft.categoryMode === "new" ? categoryPreview(draft) : (check.categories.find((c) => c.id === draft.categoryId)?.name || ""),
@@ -267,7 +312,7 @@ function StepLine({ s }: { s: KaderTakeoverStep }) {
         <li className={`kp-tk-res${s.ok ? "" : " kp-tk-bad"}`}>
             <span className="kp-tk-resicon" aria-hidden="true">{s.ok ? <CheckIcon /> : <AlertIcon />}</span>
             <span className="kp-grow">
-                {t(`kader.takeover.result.step.${s.step}`)}{s.name ? `: ${s.name}` : ""}
+                {t(s.step === "roster" && s.created ? "kader.takeover.result.step.rosterCreated" : `kader.takeover.result.step.${s.step}`)}{s.name ? `: ${s.name}` : ""}
                 {extra && <span className="kp-sub"> · {extra}</span>}
                 {!s.ok && <span className="kp-sub"> · {s.error ? (takeoverErrorKey(s.error) ? t(takeoverErrorKey(s.error) as string) : s.error) : t("kader.takeover.result.failed")}</span>}
             </span>
@@ -311,7 +356,7 @@ export function TakeoverWizard({ check, reload, onClose }: { check: KaderTakeove
     const t = useT();
     const { kader, refresh } = useKader();
     const [step, setStep] = useState<TakeoverStep>("role");
-    const [draft, setDraft] = useState<TakeoverDraft>(() => defaultDraft(kader.name, { announce: t("kader.takeover.channels.announce"), chat: t("kader.takeover.channels.chat") }));
+    const [draft, setDraft] = useState<TakeoverDraft>(() => defaultDraft(kader.name, { announce: t("kader.takeover.channels.announce"), chat: t("kader.takeover.channels.chat") }, check.newRoster));
     const [busy, setBusy] = useState(false);
     const [problem, setProblem] = useState("");
     const [result, setResult] = useState<KaderTakeoverStart | null>(null);
@@ -405,7 +450,7 @@ export function TakeoverEntry() {
         <>
             {!taken && c && (
                 <span className="kp-tk-entry" data-tip={blocker ? t(`kader.takeover.blocker.${blocker}`) : t("kader.takeover.entryTip")}
-                    data-tip-sub={blocker ? undefined : t("kader.takeover.entryTipSub")}>
+                    data-tip-sub={blocker ? undefined : t(c.createsRoster ? "kader.takeover.entryTipSubNew" : "kader.takeover.entryTipSub")}>
                     <Button variant="go" icon={<DiscordIcon />} className="kp-stage-act" disabled={!!blocker} onClick={() => setShown(true)}>
                         {t("kader.takeover.entry")}
                     </Button>

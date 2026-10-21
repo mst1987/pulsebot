@@ -1020,6 +1020,7 @@
         "entry": "Take over to Discord",
         "entryTip": "Take the Kader over to Discord",
         "entryTipSub": "Create role, category and channels, hand the role to everybody from provisional up",
+        "entryTipSubNew": "Create a new roster, role, category and channels, hand the role to everybody from provisional up",
         "kicker": "Takeover · {name}",
         "title": {
             "role": "Which role does the Kader get?",
@@ -1050,10 +1051,20 @@
             "iconHint": "Shown in Discord next to the name.",
             "iconOff": "Role icons need boost level 2 – this server is at level {tier}.",
             "becomes": "The role becomes the roster role of “{roster}”.",
+            "createsRoster": "A new roster “{roster}” is created; the role becomes its roster role, the Kader's leads its managers.",
             "replaces": {
                 "one": "It replaces {count} former roster role; that one stays in Discord.",
                 "other": "It replaces {count} former roster roles; those stay in Discord."
             }
+        },
+        "roster": {
+            "title": "New roster",
+            "name": "Roster name",
+            "category": "Raid category",
+            "noCategory": "None",
+            "suggested": "{name} (suggested)",
+            "categoryHint": "Optional. You can pick categories of this game version that have no roster yet.",
+            "noFreeCategory": "No raid category of this game version is free – the roster starts without one."
         },
         "channels": {
             "category": "Category",
@@ -1115,6 +1126,8 @@
                 "one": "To be created: @{role}, category “{category}” and {count} channel.",
                 "other": "To be created: @{role}, category “{category}” and {count} channels."
             },
+            "newRoster": "New roster “{roster}” without a raid category.",
+            "newRosterIn": "New roster “{roster}” in the raid category “{category}”.",
             "player": "Player",
             "state": "Status",
             "discord": "Discord",
@@ -1133,6 +1146,7 @@
             "step": {
                 "role": "Role",
                 "roster": "Roster role switched",
+                "rosterCreated": "Roster created",
                 "category": "Category",
                 "channel": "Channel"
             },
@@ -1184,10 +1198,12 @@
         },
         "blocker": {
             "already_taken": "This Kader was already taken over.",
-            "no_roster": "The Kader is not linked to a roster – link it under “Roster” first.",
+            "no_roster": "The roster of this takeover no longer exists.",
             "roster_closed": "The linked roster is closed.",
+            "version_hidden": "The Kader's game version is hidden – a new roster needs a visible game version.",
             "no_players": "Nobody in the Kader is provisional or further.",
             "no_rights": "Only someone who may edit the roster can take over.",
+            "admin_only": "Without a linked roster the takeover creates a new one – only full admins may do that.",
             "offline": "The bot is not connected to Discord right now.",
             "no_manage_roles": "The bot lacks the permission “Manage Roles”.",
             "no_manage_channels": "The bot lacks the permission “Manage Channels”."
@@ -1196,6 +1212,7 @@
             "role_name": "The role needs a name.",
             "role_color": "The colour must look like #rrggbb.",
             "role_emoji": "Only a single emoji works as icon.",
+            "roster_name": "The roster needs a name.",
             "category": "The category needs a name or a choice.",
             "category_emoji": "Only a single emoji works before the category.",
             "channel_name": "Every channel needs a name of letters or digits.",
@@ -1222,7 +1239,12 @@
             "not_manager": "Only someone who may edit the roster can take over.",
             "running": "The role is already being handed out.",
             "not_taken": "This Kader has not been taken over yet.",
-            "role_gone": "The role no longer exists in Discord."
+            "role_gone": "The role no longer exists in Discord.",
+            "admin_only": "Only full admins create a new roster.",
+            "version_hidden": "The Kader's game version is hidden.",
+            "category_taken": "This raid category already has a roster of this game version by now.",
+            "invalid_roster_category": "This raid category does not play the Kader's version.",
+            "invalid_name": "The roster needs a name."
         }
     }
 }

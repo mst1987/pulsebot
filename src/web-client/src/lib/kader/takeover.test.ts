@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { KaderTakeover } from "../../api";
 import { kader as kaderData, entry, U } from "../../pages/kader/kader.fixture";
 import {
-    bodyOf, canStartDraft, categoryPreview, channelPreview, defaultDraft, draftProblems, emojiOk, MAX_TAKEOVER_CHANNELS, pendingOf, progressOf,
+    bodyOf, canStartDraft, categoryPreview, channelPreview, defaultDraft, draftProblems, emojiOk, MAX_TAKEOVER_CHANNELS, pendingOf, progressOf, ROSTER_NAME_MAX,
     startBlocker, stepProblems, takeoverErrorKey,
 } from "./takeover";
 
@@ -86,6 +86,40 @@ describe("takeover start", () => {
         expect(takeoverErrorKey("stale")).toBe("kader.takeover.error.stale");
         expect(takeoverErrorKey("role_too_high")).toBe("kader.takeover.error.role_too_high");
         expect(takeoverErrorKey("something_new")).toBeNull();
+    });
+});
+
+describe("takeover without a linked roster", () => {
+    it("starts with the roster the server proposes, cut to the roster limit, without a category", () => {
+        expect(defaultDraft("K", NAMES).newRoster).toBeNull();
+        expect(defaultDraft("K", NAMES, null).newRoster).toBeNull();
+        expect(defaultDraft("K", NAMES, { name: " Forever " }).newRoster).toEqual({ name: "Forever", categoryId: "" });
+        expect(defaultDraft("K", NAMES, { name: "x".repeat(ROSTER_NAME_MAX + 5) }).newRoster?.name).toHaveLength(ROSTER_NAME_MAX);
+    });
+
+    it("needs a roster name in the role step", () => {
+        const d = defaultDraft("K", NAMES, { name: "K" });
+        expect(stepProblems(d, "role")).toEqual([]);
+        expect(stepProblems({ ...d, newRoster: { name: "  ", categoryId: "" } }, "role")).toEqual(["roster_name"]);
+        expect(canStartDraft({ ...d, confirmed: true, newRoster: { name: "", categoryId: "" } }, { ...OPEN, createsRoster: true })).toBe(false);
+        expect(canStartDraft({ ...d, confirmed: true }, { ...OPEN, createsRoster: true })).toBe(true);
+    });
+
+    it("sends the new roster only when one is created, no category as null", () => {
+        const d = defaultDraft("K", NAMES, { name: "K" });
+        expect(bodyOf(d, 1, false).roster).toEqual({ name: "K", categoryId: null });
+        expect(bodyOf({ ...d, newRoster: { name: " Neu ", categoryId: "rc2" } }, 1, false).roster).toEqual({ name: "Neu", categoryId: "rc2" });
+        expect("roster" in bodyOf(defaultDraft("K", NAMES), 1, false)).toBe(false);
+    });
+
+    it("locks for anyone but full admins, and on a hidden version", () => {
+        expect(startBlocker({ blockers: [], canStart: false, createsRoster: true })).toBe("admin_only");
+        expect(startBlocker({ blockers: [], canStart: false, createsRoster: false })).toBe("no_rights");
+        expect(startBlocker({ blockers: ["no_players", "version_hidden"], canStart: true, createsRoster: true })).toBe("version_hidden");
+        expect(startBlocker({ blockers: [], canStart: true, createsRoster: true })).toBeNull();
+        for (const code of ["admin_only", "version_hidden", "category_taken", "invalid_roster_category", "invalid_name"]) {
+            expect(takeoverErrorKey(code)).toBe(`kader.takeover.error.${code}`);
+        }
     });
 });
 

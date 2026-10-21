@@ -1020,6 +1020,7 @@
         "entry": "In Discord übernehmen",
         "entryTip": "Kader in Discord übernehmen",
         "entryTipSub": "Rolle, Kategorie und Kanäle anlegen, Rolle an alle ab Vorläufig verteilen",
+        "entryTipSubNew": "Neues Roster, Rolle, Kategorie und Kanäle anlegen, Rolle an alle ab Vorläufig verteilen",
         "kicker": "Übernahme · {name}",
         "title": {
             "role": "Welche Rolle bekommt der Kader?",
@@ -1050,10 +1051,20 @@
             "iconHint": "Erscheint in Discord neben dem Namen.",
             "iconOff": "Rollen-Icons gibt es erst ab Boost-Stufe 2 – dieser Server hat Stufe {tier}.",
             "becomes": "Die Rolle wird die Roster-Rolle von „{roster}“.",
+            "createsRoster": "Neues Roster „{roster}“ wird angelegt; die Rolle wird seine Roster-Rolle, die Leads des Kaders seine Manager.",
             "replaces": {
                 "one": "Sie ersetzt {count} bisherige Roster-Rolle; die bleibt in Discord bestehen.",
                 "other": "Sie ersetzt {count} bisherige Roster-Rollen; die bleiben in Discord bestehen."
             }
+        },
+        "roster": {
+            "title": "Neues Roster",
+            "name": "Name des Rosters",
+            "category": "Raid-Kategorie",
+            "noCategory": "Keine",
+            "suggested": "{name} (Vorschlag)",
+            "categoryHint": "Optional. Zur Auswahl stehen Kategorien dieser Spielversion, die noch kein Roster haben.",
+            "noFreeCategory": "Keine Raid-Kategorie dieser Spielversion ist frei – das Roster kommt ohne Kategorie."
         },
         "channels": {
             "category": "Kategorie",
@@ -1115,6 +1126,8 @@
                 "one": "Angelegt werden: @{role}, Kategorie „{category}“ und {count} Kanal.",
                 "other": "Angelegt werden: @{role}, Kategorie „{category}“ und {count} Kanäle."
             },
+            "newRoster": "Neues Roster „{roster}“ ohne Raid-Kategorie.",
+            "newRosterIn": "Neues Roster „{roster}“ in der Raid-Kategorie „{category}“.",
             "player": "Spieler",
             "state": "Status",
             "discord": "Discord",
@@ -1133,6 +1146,7 @@
             "step": {
                 "role": "Rolle",
                 "roster": "Roster-Rolle umgestellt",
+                "rosterCreated": "Roster angelegt",
                 "category": "Kategorie",
                 "channel": "Kanal"
             },
@@ -1184,10 +1198,12 @@
         },
         "blocker": {
             "already_taken": "Dieser Kader wurde schon übernommen.",
-            "no_roster": "Der Kader ist mit keinem Roster verknüpft – erst unter „Roster“ verknüpfen.",
+            "no_roster": "Das Roster dieser Übernahme gibt es nicht mehr.",
             "roster_closed": "Das verknüpfte Roster ist geschlossen.",
+            "version_hidden": "Die Spielversion des Kaders ist ausgeblendet – ein neues Roster braucht eine sichtbare Spielversion.",
             "no_players": "Im Kader ist niemand ab Vorläufig.",
             "no_rights": "Übernehmen darf nur, wer das Roster bearbeiten darf.",
+            "admin_only": "Ohne verknüpftes Roster legt die Übernahme ein neues an – das dürfen nur Voll-Admins.",
             "offline": "Der Bot ist gerade nicht mit Discord verbunden.",
             "no_manage_roles": "Dem Bot fehlt das Recht „Rollen verwalten“.",
             "no_manage_channels": "Dem Bot fehlt das Recht „Kanäle verwalten“."
@@ -1196,6 +1212,7 @@
             "role_name": "Die Rolle braucht einen Namen.",
             "role_color": "Die Farbe muss die Form #rrggbb haben.",
             "role_emoji": "Als Icon geht nur ein einzelnes Emoji.",
+            "roster_name": "Das Roster braucht einen Namen.",
             "category": "Die Kategorie braucht einen Namen bzw. eine Auswahl.",
             "category_emoji": "Vor der Kategorie geht nur ein einzelnes Emoji.",
             "channel_name": "Jeder Kanal braucht einen Namen aus Buchstaben oder Zahlen.",
@@ -1222,7 +1239,12 @@
             "not_manager": "Übernehmen darf nur, wer das Roster bearbeiten darf.",
             "running": "Die Rolle wird gerade schon verteilt.",
             "not_taken": "Dieser Kader ist noch nicht übernommen.",
-            "role_gone": "Die Rolle gibt es in Discord nicht mehr."
+            "role_gone": "Die Rolle gibt es in Discord nicht mehr.",
+            "admin_only": "Ein neues Roster legen nur Voll-Admins an.",
+            "version_hidden": "Die Spielversion des Kaders ist ausgeblendet.",
+            "category_taken": "Diese Raid-Kategorie hat inzwischen schon ein Roster dieser Spielversion.",
+            "invalid_roster_category": "Diese Raid-Kategorie spielt die Version des Kaders nicht.",
+            "invalid_name": "Das Roster braucht einen Namen."
         }
     }
 }

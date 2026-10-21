@@ -27,6 +27,14 @@ jest.mock("../../../src/stores/raiderProfileStore", () => ({
     firstCharacter: jest.fn(() => null),
     charactersOfVersion: jest.fn(() => []),
 }));
+jest.mock("../../../src/services/roster/rosterOptions", () => ({
+    ...jest.requireActual("../../../src/services/roster/rosterOptions"),
+    rosterCategories: jest.fn(() => []),
+}));
+jest.mock("../../../src/services/roster/categoryRoles", () => ({
+    ...jest.requireActual("../../../src/services/roster/categoryRoles"),
+    mirrorCategoryRoles: jest.fn(() => true),
+}));
 jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({ adminRoleIds: ["adm"], orgaRoleIds: ["orga", "gone"] })),
 }));
@@ -42,6 +50,9 @@ const rosterStore = require("../../../src/stores/rosterStore");
 const kaderRoster = require("../../../src/services/kader/kaderRoster");
 const rosterRoleSync = require("../../../src/services/roster/rosterRoleSync");
 const takeover = require("../../../src/services/roster/rosterTakeover");
+const { rosterCategories } = require("../../../src/services/roster/rosterOptions");
+const { mirrorCategoryRoles } = require("../../../src/services/roster/categoryRoles");
+const { getConfig } = require("../../../src/stores/settingsStore");
 
 const Flags = PermissionsBitField.Flags;
 const U = { a: "111111111111111111", b: "222222222222222222", c: "333333333333333333", d: "444444444444444444", e: "555555555555555555" };
@@ -196,18 +207,25 @@ describe("services/roster/rosterTakeover precheck", () => {
         expect(await takeover.precheck("g1", "k1")).toMatchObject({ role: null, category: null });
     });
 
-    it("names every blocker: no roster, offline, no rights, nobody, already taken", async () => {
-        rosterStore.deleteRoster(roster.id);
+    it("names every blocker: offline, no rights, nobody, already taken", async () => {
         discord.isOnline.mockReturnValue(false);
         let pre = await takeover.precheck("g1", "k1");
-        expect(pre.blockers).toEqual(["no_roster", "offline"]);
+        expect(pre.blockers).toEqual(["offline"]);
         expect(pre.online).toBe(false);
         expect(pre.categories).toEqual([]);
         discord.isOnline.mockReturnValue(true);
         canManageRoles.mockReturnValue(false);
         botCanManageChannels.mockReturnValue(false);
         pre = await takeover.precheck("g1", "k1");
-        expect(pre.blockers).toEqual(["no_roster", "no_manage_roles", "no_manage_channels"]);
+        expect(pre.blockers).toEqual(["no_manage_roles", "no_manage_channels"]);
+        // a recorded takeover whose roster is gone: no_roster (nothing is created then)
+        kaderRoster.saveTakeover("g1", "k1", { rosterId: roster.id, roleId: "r9", roleName: "R", categoryId: "", channelIds: [] });
+        rosterStore.deleteRoster(roster.id);
+        canManageRoles.mockReturnValue(true);
+        botCanManageChannels.mockReturnValue(true);
+        pre = await takeover.precheck("g1", "k1");
+        expect(pre.blockers).toEqual(["no_roster", "already_taken"]);
+        expect(pre.createsRoster).toBe(false);
         await expect(takeover.precheck("g1", "nope")).rejects.toMatchObject({ code: "kader_not_found", status: 404 });
     });
 
@@ -456,7 +474,7 @@ describe("services/roster/rosterTakeover start", () => {
         expect(guild.roles.create).not.toHaveBeenCalled();
     });
 
-    it("refuses what cannot work: no roster, closed, offline, no rights, nobody, twice, running", async () => {
+    it("refuses what cannot work: offline, no rights, nobody, twice, running", async () => {
         const refused = (b = body()) => takeover.start("g1", "k1", b, { gapMs: 0 });
         canManageRoles.mockReturnValue(false);
         await expect(refused()).rejects.toMatchObject({ code: "no_manage_roles", status: 409 });
@@ -467,11 +485,7 @@ describe("services/roster/rosterTakeover start", () => {
         discord.isOnline.mockReturnValue(false);
         await expect(refused()).rejects.toMatchObject({ code: "offline", status: 503 });
         discord.isOnline.mockReturnValue(true);
-        // closing a roster unlinks it from its Kader: the Kader has no roster then
-        rosterStore.closeRoster(roster.id, { actor: "o1" });
-        await expect(refused()).rejects.toMatchObject({ code: "no_roster", status: 409 });
         expect(guild.roles.create).not.toHaveBeenCalled();
-        roster = rosterStore.createRoster({ name: "Forever", guildId: "g1", roleIds: [], versionId: "forever", kaderId: "k1" });
         // a second start while the first is still making the role
         const first = refused();
         await expect(refused()).rejects.toMatchObject({ code: "running", status: 409 });
@@ -511,6 +525,105 @@ describe("services/roster/rosterTakeover start", () => {
         await expect(takeover.start("g1", "k1", body())).rejects.toMatchObject({ code: "role_failed", status: 502 });
         expect(kaderNow().takeover).toBeNull();
         expect((await takeover.precheck("g1", "k1")).running).toBe(false);
+    });
+});
+
+describe("services/roster/rosterTakeover without a linked roster", () => {
+    const CATS = [
+        { id: "rc1", name: "Forever Main", active: true, versionId: "forever" },
+        { id: "rc2", name: "Forever Twink", active: true, versionId: "forever" },
+        { id: "rc3", name: "Classic", active: true, versionId: "classic" },
+        { id: "rc4", name: "Alt", active: false, versionId: "forever" },
+    ];
+    const SETTINGS = { adminRoleIds: ["adm"], orgaRoleIds: ["orga", "gone"] };
+    const withLeads = () => {
+        const p = kaderStore.readPlanner("g1");
+        p.kaders[0].leads = [U.e];
+        p.kaders[0].attendanceCategories = ["rc2"];
+        kaderStore.writePlanner("g1", p);
+    };
+    beforeEach(() => {
+        rosterStore.deleteRoster(roster.id);
+        rosterCategories.mockReturnValue(CATS);
+        getConfig.mockReturnValue(SETTINGS);
+        withLeads();
+    });
+    const newRosters = () => rosterStore.listRosters("g1");
+
+    it("precheck: no blocker, the note and the roster it would create with the free categories", async () => {
+        rosterStore.createRoster({ name: "Twink", guildId: "g1", roleIds: [], versionId: "forever", categoryId: "rc1" });
+        let pre = await takeover.precheck("g1", "k1");
+        expect(pre.blockers).toEqual([]);
+        expect(pre.notes).toEqual(["creates_roster"]);
+        expect(pre.roster).toBeNull();
+        expect(pre.createsRoster).toBe(true);
+        expect(pre.newRoster).toEqual({ name: "Forever 2027", versionId: "forever" });
+        // the categories only for a caller who may start: active, this version, without a roster of it
+        expect(pre.rosterCategories).toEqual([]);
+        pre = await takeover.precheck("g1", "k1", { withCategories: true });
+        expect(pre.rosterCategories).toEqual([{ id: "rc2", name: "Forever Twink", suggested: true }]);
+    });
+
+    it("precheck: a hidden version blocks", async () => {
+        getConfig.mockReturnValue({ ...SETTINGS, hideOtherVersions: true, mainVersion: "classic" });
+        const pre = await takeover.precheck("g1", "k1");
+        expect(pre.blockers).toEqual(["version_hidden"]);
+        await expect(takeover.start("g1", "k1", body())).rejects.toMatchObject({ code: "version_hidden", status: 409 });
+        expect(guild.roles.create).not.toHaveBeenCalled();
+    });
+
+    it("start creates the roster: linked, the new role its main role, the leads its managers, everyone core", async () => {
+        const res = await startAndWait(body({ roster: { name: "  Forever Main  ", categoryId: "rc2" } }));
+        const [made] = newRosters();
+        expect(made).toMatchObject({
+            name: "Forever Main", versionId: "forever", categoryId: "rc2", kaderId: "k1", guildId: "g1",
+            roleIds: ["role1"], managers: { roleIds: [], userIds: [U.e] },
+        });
+        expect(res.steps.find((st) => st.step === "roster")).toEqual({ step: "roster", ok: true, id: made.id, name: "Forever Main", created: true });
+        expect(mirrorCategoryRoles).toHaveBeenCalledWith(expect.objectContaining({ id: made.id }));
+        expect(kaderNow().takeover.rosterId).toBe(made.id);
+        expect(rosterStore.rosterForKader("k1", "g1").id).toBe(made.id);
+        const members = rosterStore.getRoster(made.id).members;
+        expect(Object.keys(members).sort()).toEqual([U.a, U.b, U.c].sort());
+        expect(Object.values(members).every((m) => m.status === "core")).toBe(true);
+    });
+
+    it("the name falls back to the Kader's, the category is optional", async () => {
+        await startAndWait(body());
+        const [made] = newRosters();
+        expect(made).toMatchObject({ name: "Forever 2027", categoryId: null, kaderId: "k1" });
+    });
+
+    it("refuses a category of another version or with a roster before any role is made", async () => {
+        await expect(takeover.start("g1", "k1", body({ roster: { categoryId: "rc3" } }))).rejects.toMatchObject({ code: "invalid_roster_category", status: 400 });
+        await expect(takeover.start("g1", "k1", body({ roster: { categoryId: "rc4" } }))).rejects.toMatchObject({ code: "invalid_roster_category", status: 400 });
+        rosterStore.createRoster({ name: "Twink", guildId: "g1", roleIds: [], versionId: "forever", categoryId: "rc1" });
+        await expect(takeover.start("g1", "k1", body({ roster: { categoryId: "rc1" } }))).rejects.toMatchObject({ code: "category_taken", status: 409 });
+        expect(guild.roles.create).not.toHaveBeenCalled();
+        expect(newRosters()).toHaveLength(1);
+        expect(kaderNow().takeover).toBeNull();
+    });
+
+    it("a roster that cannot be created deletes the new role again and leaves nothing behind", async () => {
+        const { RosterError } = rosterStore;
+        const spy = jest.spyOn(rosterStore, "createRoster").mockImplementationOnce(() => {
+            throw new RosterError("category_taken", "taken meanwhile");
+        });
+        await expect(takeover.start("g1", "k1", body({ roster: { categoryId: "rc2" } }))).rejects.toMatchObject({ code: "category_taken", status: 409 });
+        spy.mockRestore();
+        const made = [...guild.roles.cache.values()].find((r) => r.name === "Forever Raider");
+        expect(made.delete).toHaveBeenCalled();
+        expect(newRosters()).toEqual([]);
+        expect(kaderNow().takeover).toBeNull();
+        expect(guild.channels.create).not.toHaveBeenCalled();
+        expect((await takeover.precheck("g1", "k1")).running).toBe(false);
+    });
+
+    it("a failed role creates no roster", async () => {
+        guild = fakeGuild({ failRole: true });
+        await expect(takeover.start("g1", "k1", body())).rejects.toMatchObject({ code: "role_failed", status: 502 });
+        expect(newRosters()).toEqual([]);
+        expect(kaderNow().takeover).toBeNull();
     });
 });
 
