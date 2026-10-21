@@ -13,6 +13,8 @@
 //                     questions: [{ id, text, type, options: [{ id, label }], required, rev? }],
 //                     players:   { [userId]: entry },
 //                     setups:    [{ id, name, size: 10|20, groups: [[{ userId, spec }|null x5] x8] }],
+//                     plan:      { specs: { [userId]: { className, spec } }, excluded: [userId], by, at, rev? } | null
+//                                the shared draft of the composition page (kaderPlan.js),
 //                     rev?, activity?: [{ rev, at, by, type, playerId?, count?, from?, to?, questionId? }] }] }
 //
 // The revisions are stamps of the planner's change counter `rev`, set by
@@ -109,6 +111,7 @@ const LIMITS = {
 const ACTIVITY_TYPES = [
     "created", "added", "removed", "state", "decision", "interview", "lead", "interview_completed", "interview_reopened",
     "vote", "comment", "comment_deleted", "questions", "setups", "settings", "character",
+    "plan", "plan_applied", "plan_discarded",
 ];
 // An id typed by hand must look like a real Discord user id; one from the member list is taken as it is.
 const DISCORD_ID = /^\d{17,20}$/;
@@ -336,6 +339,33 @@ function normalizeVariant(v, players) {
     };
 }
 
+/** The specs a player may be planned with: their decision and their wishes (kaderSetups.specsOf, as pairs). */
+function plannableSpecs(entry) {
+    return [entry.decision, ...entry.wishes].filter(Boolean);
+}
+
+/**
+ * The draft of the composition page (kaderPlan.js): a planned spec only for a
+ * player of the composition (SETUP_STATES) and only one of their decision and
+ * wishes; excluded players likewise, each once. A draft without `at` is none.
+ */
+function normalizePlan(raw, players) {
+    if (!isObject(raw) || !str(raw.at)) return null;
+    const inComp = (id) => !!players[id] && SETUP_STATES.includes(players[id].state);
+    const specs = {};
+    if (isObject(raw.specs)) {
+        for (const [id, w] of Object.entries(raw.specs)) {
+            const pick = normalizeWish(w);
+            if (!pick || !inComp(id)) continue;
+            if (plannableSpecs(players[id]).some((p) => p.className === pick.className && p.spec === pick.spec)) specs[id] = pick;
+        }
+    }
+    const excluded = [...new Set((Array.isArray(raw.excluded) ? raw.excluded : []).map(str))].filter(inComp);
+    const out = { specs, excluded, by: str(raw.by), at: str(raw.at) };
+    if (revOf(raw.rev)) out.rev = raw.rev;
+    return out;
+}
+
 /** Category ids as strings, each once, at most LIMITS.attendanceCategories. */
 function categoryIds(raw) {
     return [...new Set((Array.isArray(raw) ? raw : []).map((id) => str(id).trim()).filter(Boolean))].slice(0, LIMITS.attendanceCategories);
@@ -374,6 +404,7 @@ function normalizeKader(k) {
         questions,
         players,
         setups,
+        plan: normalizePlan(k.plan, players),
     };
     // Live (kaderActivity.js): the revision of the last change and what changed.
     // A Kader stored before they existed has neither (= revision 0, no log).
@@ -685,6 +716,7 @@ module.exports = {
     GROUP_COUNT, GROUP_SIZE, LIMITS, ACTIVITY_TYPES, setupSizesOf, setupCompositionOf, kaderVersion, kaderInVersion,
     clone, str, isObject, invalid, notFound, conflict, forbidden, revOf, stale, assertFresh,
     emptyPlanner, emptyGroups, normalizePlanner, normalizeQuestion, normalizeAnswer, normalizeKader, normalizeActivity,
+    normalizePlan, plannableSpecs,
     cleanLabel, getKader, withKader, checkUserId, isKnown, classOf, cleanClassSpec,
     cleanCharacter, setAssignment, resetAssignment, addAccount, removeAccount,
     createKader, updateKader, deleteKader,

@@ -831,6 +831,9 @@
         "setups": "{by} hat die Beispiel-Setups geändert",
         "settings": "{by} hat die Einstellungen des Kaders geändert",
         "character": "{by} hat die Charaktere von {who} geändert",
+        "plan": "{by} hat das Planspiel geändert",
+        "plan_applied": "{by} hat das Planspiel für {who} als Entscheidung übernommen",
+        "plan_discarded": "{by} hat das Planspiel verworfen",
         "summary": {
             "one": "{by} hat {count} Änderung gemacht",
             "other": "{by} hat {count} Änderungen gemacht"
@@ -938,6 +941,65 @@
             "other": "{count} Spender"
         },
         "noBuffs": "Der Regelsatz kennt keine Buffs.",
-        "empty": "Noch niemand in Vorläufig oder Roster. Spieler kommen über die Gespräche hierher."
+        "empty": "Noch niemand in Vorläufig oder Roster. Spieler kommen über die Gespräche hierher.",
+        "plan": {
+            "title": "Planspiel",
+            "changes": {
+                "one": "{count} Änderung",
+                "other": "{count} Änderungen"
+            },
+            "by": "Entwurf von {name} · {ago}",
+            "ago": {
+                "now": "gerade eben",
+                "minutes": "vor {count} Min.",
+                "hours": "vor {count} Std.",
+                "days": {
+                    "one": "vor {count} Tag",
+                    "other": "vor {count} Tagen"
+                }
+            },
+            "note": "ändert keinen Status, bis es übernommen wird",
+            "noteTip": "Ein gemeinsamer Entwurf je Kader. Alle mit Schreibrecht im Kaderplaner sehen und bearbeiten ihn live.",
+            "noDiff": "ändert keine Rollen und keine Buffs",
+            "excluded": {
+                "one": "{count} ausgeklammert",
+                "other": "{count} ausgeklammert"
+            },
+            "buffNow": "{name} jetzt vorhanden",
+            "buffGone": "{name} fehlt jetzt",
+            "buffDouble": "{name} jetzt doppelt",
+            "markNow": "jetzt",
+            "markGone": "fehlt jetzt",
+            "markDouble": "jetzt doppelt",
+            "before": "vorher {text}",
+            "was": "vorher",
+            "colSpec": "Spec (Planspiel)",
+            "colPlan": "Planspiel",
+            "exclude": "Ausklammern",
+            "include": "Einklammern",
+            "excludeTip": "Zählt im Planspiel nicht mit. Der Status bleibt.",
+            "excludedRow": "ausgeklammert",
+            "specOf": "Spec von {name} im Planspiel",
+            "discard": "Verwerfen",
+            "discardTitle": "Planspiel verwerfen?",
+            "discardText": "Der Entwurf wird für alle gelöscht. Entscheidungen und Status bleiben, wie sie sind.",
+            "apply": "Als Entscheidung übernehmen",
+            "applyTitle": "Planspiel als Entscheidung übernehmen?",
+            "applyText": {
+                "one": "{count} Entscheidung wird gesetzt, der Status bleibt.",
+                "other": "{count} Entscheidungen werden gesetzt, der Status bleibt."
+            },
+            "applyExcluded": {
+                "one": "{count} ausgeklammerter Spieler bleibt, wie er ist.",
+                "other": "{count} ausgeklammerte Spieler bleiben, wie sie sind."
+            },
+            "applyNone": "Keine geplante Spec weicht von der Entscheidung ab.",
+            "applied": {
+                "one": "{count} Entscheidung übernommen",
+                "other": "{count} Entscheidungen übernommen"
+            },
+            "discarded": "Planspiel verworfen",
+            "stale": "Jemand hat den Entwurf inzwischen geändert. Bitte noch einmal ansehen."
+        }
     }
 }

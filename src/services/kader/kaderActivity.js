@@ -13,6 +13,7 @@
 //   kader.rev             something in this Kader changed
 //   entry.interview.rev   wishes, answers, note, interviewer or completion of this interview
 //   question.rev          this question
+//   kader.plan.rev        the composition draft (kaderPlan.js)
 //   assignment.rev/by/at  the planner's characters of this account
 //
 // Being stamps of one counter they only grow, so "the stored revision is not
@@ -30,7 +31,7 @@
 const { LIMITS } = require("./kaderModel");
 
 /** The line types an edit can repeat quickly; the same one again within COALESCE_MS replaces the older line. */
-const COALESCE = new Set(["interview", "lead", "questions", "setups", "settings", "character"]);
+const COALESCE = new Set(["interview", "lead", "questions", "setups", "settings", "character", "plan"]);
 const COALESCE_MS = 10 * 60 * 1000;
 /** At most this many lines answer one poll (the page shows one toast for them anyway). */
 const CHANGES_MAX = 20;
@@ -100,6 +101,26 @@ function playerLines(id, was, now, rev, questionsChanged) {
 }
 
 /**
+ * The line of the composition draft, stamping its revision when it changed:
+ * `plan` for a draft started or changed, `plan_applied` (with the player or
+ * the number of decisions it set) when it went and decisions changed with it,
+ * `plan_discarded` when it went alone. null = unchanged.
+ */
+function planLine(prev, next, rev) {
+    const was = prev.plan || null;
+    const now = next.plan || null;
+    if (same(was, now)) return null;
+    if (now) {
+        now.rev = rev;
+        // a player who left the composition drops out of the draft by itself: that is the move, not a draft change
+        return was && was.at === now.at ? null : { type: "plan" };
+    }
+    const decided = Object.keys(next.players).filter((id) => prev.players[id] && !same(prev.players[id].decision, next.players[id].decision));
+    if (!decided.length) return { type: "plan_discarded" };
+    return decided.length === 1 ? { type: "plan_applied", playerId: decided[0] } : { type: "plan_applied", count: decided.length };
+}
+
+/**
  * The lines of one Kader that was there before and after (without who and
  * when), stamping the revisions of what changed in it.
  */
@@ -132,7 +153,11 @@ function kaderLines(prev, next, rev) {
     for (const [to, list] of moves) {
         lines.push(list.length === 1 ? { type: "state", playerId: list[0].id, from: list[0].from, to } : { type: "state", count: list.length, to });
     }
-    lines.push(...per);
+    // the draft (kaderPlan.js): changed = "plan", gone with decisions set = taken over, gone without = thrown away
+    const planned = planLine(prev, next, rev);
+    // the decisions a take-over sets are its one line, not one per player
+    lines.push(...(planned && planned.type === "plan_applied" ? per.filter((l) => l.type !== "decision") : per));
+    if (planned) lines.push(planned);
     // a move out of the setup states drops the player's slots by itself: that is the move, not a setup change
     if (!same(prev.setups, next.setups) && !moves.size && !removed.length) lines.push({ type: "setups" });
     return lines;

@@ -8,6 +8,7 @@ const model = require("../../../src/services/kader/kaderModel");
 const players = require("../../../src/services/kader/kaderPlayers");
 const questions = require("../../../src/services/kader/kaderQuestions");
 const setups = require("../../../src/services/kader/kaderSetups");
+const plan = require("../../../src/services/kader/kaderPlan");
 const { recordChanges, changesSince, CHANGES_MAX, COALESCE_MS } = require("../../../src/services/kader/kaderActivity");
 const { U, NOW, kaderCtx } = require("../../helpers/kaderFixtures");
 
@@ -194,6 +195,62 @@ describe("services/kader/kaderActivity", () => {
             expect(kaderOf(p).activity.filter((a) => a.type === "interview")).toHaveLength(1);
             // the answer it took moved the interview's revision: an open editor must not overwrite it
             expect(kaderOf(p).players[U.a].interview.rev).toBeGreaterThan(revBefore);
+        });
+    });
+
+    describe("composition draft", () => {
+        const FIRE = { className: "Mage", spec: "Mage-Fire" };
+        /** Aldric and Bea provisional, both with Frost and Fire as wishes. */
+        function inComposition() {
+            const { planner, kaderId } = stored();
+            let p = write(planner, players.setState(planner, { kaderId, userIds: [U.a, U.b], to: "selected" }, ctx));
+            p = write(p, players.setState(p, { kaderId, userIds: [U.a, U.b], to: "provisional" }, ctx));
+            for (const userId of [U.a, U.b]) {
+                p = write(p, players.saveInterview(p, { kaderId, userId, wishes: [{ className: "Mage", spec: "Mage-Frost" }, FIRE] }, ctx));
+            }
+            return { planner: p, kaderId };
+        }
+
+        it("stamps the draft and folds one person's draft changes into one line", () => {
+            const { planner, kaderId } = inComposition();
+            let p = write(planner, plan.savePlan(planner, { kaderId, userId: U.a, spec: FIRE }, ctx));
+            expect(kaderOf(p).plan.rev).toBe(p.rev);
+            expect(lastLine(p)).toEqual({ rev: p.rev, at: NOW, by: U.lead, type: "plan" });
+            const count = kaderOf(p).activity.length;
+            p = write(p, plan.savePlan(p, { kaderId, userId: U.b, excluded: true }, { ...ctx, now: at(2) }), { now: at(2) });
+            expect(kaderOf(p).activity).toHaveLength(count);
+            expect(lastLine(p)).toMatchObject({ type: "plan", rev: p.rev, at: at(2) });
+        });
+
+        it("writes the take-over as one line instead of a decision line per player", () => {
+            const { planner, kaderId } = inComposition();
+            let p = write(planner, plan.savePlan(planner, { kaderId, userId: U.a, spec: FIRE }, ctx));
+            p = write(p, plan.savePlan(p, { kaderId, userId: U.b, spec: FIRE }, ctx));
+            const before = kaderOf(p).activity.length;
+            p = write(p, plan.applyPlan(p, { kaderId }, ctx), { now: at(30) });
+            const lines = kaderOf(p).activity.slice(before);
+            expect(lines.map((l) => l.type)).toEqual(["plan_applied"]);
+            expect(lines[0]).toMatchObject({ count: 2 });
+            expect(kaderOf(p).plan).toBeNull();
+        });
+
+        it("names the one player of a take-over, and tells a thrown-away draft apart", () => {
+            const { planner, kaderId } = inComposition();
+            let p = write(planner, plan.savePlan(planner, { kaderId, userId: U.a, spec: FIRE }, ctx));
+            p = write(p, plan.applyPlan(p, { kaderId }, ctx), { now: at(30) });
+            expect(lastLine(p)).toMatchObject({ type: "plan_applied", playerId: U.a });
+            p = write(p, plan.savePlan(p, { kaderId, userId: U.b, excluded: true }, ctx), { now: at(31) });
+            p = write(p, plan.discardPlan(p, { kaderId }), { now: at(32) });
+            expect(lastLine(p)).toMatchObject({ type: "plan_discarded", at: at(32) });
+            expect(kaderOf(p).players[U.b].decision).toBeNull();
+        });
+
+        it("writes no draft line when a player only drops out of the draft by a move", () => {
+            const { planner, kaderId } = inComposition();
+            let p = write(planner, plan.savePlan(planner, { kaderId, userId: U.b, excluded: true }, ctx));
+            p = write(p, players.setState(p, { kaderId, userIds: [U.b], to: "selected" }, ctx), { now: at(30) });
+            expect(kaderOf(p).plan.excluded).toEqual([]);
+            expect(lastLine(p).type).toBe("state");
         });
     });
 

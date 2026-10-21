@@ -224,3 +224,35 @@ describe("services/kader/kaderModel", () => {
         expect(refusal(() => model.cleanClassSpec({ className: "Monk", spec: "x" }, ctx)).status).toBe(400);
     });
 });
+
+describe("services/kader/kaderModel normalizePlan", () => {
+    const FROST = { className: "Mage", spec: "Mage-Frost" };
+    const FIRE = { className: "Mage", spec: "Mage-Fire" };
+    const players = {
+        [U.a]: { state: "roster", decision: FROST, wishes: [FIRE] },
+        [U.b]: { state: "provisional", decision: null, wishes: [FROST] },
+        [U.c]: { state: "selected", decision: null, wishes: [FROST, FIRE] },
+    };
+
+    it("is null without a draft or without its time", () => {
+        expect(model.normalizePlan(null, players)).toBeNull();
+        expect(model.normalizePlan({ specs: {}, excluded: [] }, players)).toBeNull();
+    });
+
+    it("keeps specs out of decision and wishes, players of the composition, and the revision", () => {
+        const plan = model.normalizePlan({
+            specs: { [U.a]: FIRE, [U.b]: FIRE, [U.c]: FIRE, nobody: FROST },
+            excluded: [U.a, U.a, U.c, "nobody"],
+            by: U.lead,
+            at: NOW,
+            rev: 7,
+        }, players);
+        expect(plan).toEqual({ specs: { [U.a]: FIRE }, excluded: [U.a], by: U.lead, at: NOW, rev: 7 });
+        expect(model.plannableSpecs(players[U.a])).toEqual([FROST, FIRE]);
+    });
+
+    it("gives every Kader a draft field", () => {
+        const { planner } = withKader();
+        expect(model.normalizePlanner(planner).kaders[0].plan).toBeNull();
+    });
+});

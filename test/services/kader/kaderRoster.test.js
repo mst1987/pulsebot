@@ -39,6 +39,8 @@ function plannerWithSecrets() {
                 [U.c]: entry("tentative"),
                 [U.d]: entry("pool"),
             },
+            // the composition draft ("Planspiel") stays in the planner, too
+            plan: { specs: { [U.b]: { className: "Mage", spec: "Mage-Frost" } }, excluded: [U.c], by: "PLANSPIEL-Autor", at: "2026-10-02T10:00:00.000Z" },
         }],
     };
 }
@@ -68,6 +70,17 @@ describe("services/kader/kaderRoster rosterPlayers", () => {
         const text = JSON.stringify(rosterPlayers("g1", "k1"));
         expect(text).not.toContain(SECRET);
         for (const word of ["wishes", "interview", "votes", "comments", "history", "Mage-Frost\"}]"]) expect(text).not.toContain(word);
+    });
+
+    it("keeps the composition draft inside the planner: neither a planned spec nor a left-out player reaches a roster", () => {
+        expect(kaderStore.readPlanner("g1").kaders[0].plan).toMatchObject({ excluded: [U.c], by: "PLANSPIEL-Autor" });
+        const kader = rosterPlayers("g1", "k1");
+        const text = JSON.stringify(kader);
+        for (const word of ["plan", "excluded", "PLANSPIEL"]) expect(text).not.toContain(word);
+        // b's planned Mage-Frost is no decision, c is still in the roster list
+        expect(kader.players.find((p) => p.userId === U.b).decision).toBeNull();
+        expect(kader.players.map((p) => p.userId)).toContain(U.c);
+        expect(JSON.stringify(kaderSummaries("g1"))).not.toContain("PLANSPIEL");
     });
 
     it("answers null for an unknown Kader or server", () => {

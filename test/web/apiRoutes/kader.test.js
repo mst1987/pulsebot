@@ -445,6 +445,63 @@ describe("web/apiRoutes/kader", () => {
             expect(body(res).kaders.map((k) => k.id)).toEqual([kaderId]);
         });
 
+        it("plays a composition draft through: plan a spec, leave a player out, take it over without a state change", async () => {
+            const { kaderId } = await kaderWithPlayers();
+            await post("/api/kader/players/state", { kaderId, userIds: [U1, U2], to: "selected" });
+            await put("/api/kader/interview", { kaderId, userId: U1, wishes: [{ className: "Warrior", spec: "Warrior-Protection" }, { className: "Warrior", spec: "Warrior-Fury" }] });
+            await post("/api/kader/players/state", { kaderId, userIds: [U1, U2], to: "provisional" });
+
+            let res = await put("/api/kader/plan", { kaderId, userId: U1, spec: { className: "Warrior", spec: "Warrior-Fury" } });
+            expect(status(res)).toBe(200);
+            const draft = body(res).kader.plan;
+            expect(draft).toMatchObject({ specs: { [U1]: { className: "Warrior", spec: "Warrior-Fury" } }, excluded: [], by: LEAD, rev: expect.any(Number) });
+            res = await put("/api/kader/plan", { kaderId, userId: U2, excluded: true });
+            expect(body(res).kader.plan.excluded).toEqual([U2]);
+            // a spec outside the wishes, and a player outside the composition
+            expect(status(await put("/api/kader/plan", { kaderId, userId: U1, spec: { className: "Warrior", spec: "Warrior-Arms" } }))).toBe(400);
+
+            // the confirmation was shown for the first draft: somebody changed it since
+            res = await post("/api/kader/plan/apply", { kaderId, baseRev: draft.rev });
+            expect(status(res)).toBe(409);
+            expect(body(res).error).toMatchObject({ code: "stale", by: LEAD });
+            res = await post("/api/kader/plan/apply", { kaderId, baseRev: body(await get("/api/kader", { kader: kaderId })).kader.plan.rev });
+            expect(status(res)).toBe(200);
+            expect(body(res)).toMatchObject({ applied: 1 });
+            expect(body(res).kader.plan).toBeNull();
+            expect(body(res).kader.players[U1]).toMatchObject({ state: "provisional", decision: { className: "Warrior", spec: "Warrior-Fury" } });
+            expect(body(res).kader.players[U2]).toMatchObject({ state: "provisional", decision: null });
+            expect(body(res).kader.activity.at(-1)).toMatchObject({ type: "plan_applied", playerId: U1 });
+
+            // nothing left to take over or to throw away
+            expect(status(await post("/api/kader/plan/apply", { kaderId }))).toBe(409);
+            expect(status(await post("/api/kader/plan/discard", { kaderId }))).toBe(409);
+            await put("/api/kader/plan", { kaderId, userId: U2, excluded: true });
+            expect(body(await post("/api/kader/plan/apply", { kaderId })).error.message).toMatch(/keine Entscheidung/);
+            res = await post("/api/kader/plan/discard", { kaderId });
+            expect(body(res).kader.plan).toBeNull();
+            expect(body(res).kader.activity.at(-1).type).toBe("plan_discarded");
+        });
+
+        it("lets a reader see the draft but neither change, take over nor throw it away; and checks the CSRF token", async () => {
+            const { kaderId } = await kaderWithPlayers();
+            await post("/api/kader/players/state", { kaderId, userIds: [U1], to: "selected" });
+            await post("/api/kader/players/state", { kaderId, userIds: [U1], to: "provisional" });
+            await put("/api/kader/plan", { kaderId, userId: U1, excluded: true });
+            auth.getUser.mockReturnValue(granted("read"));
+            expect(body(await get("/api/kader", { kader: kaderId })).kader.plan.excluded).toEqual([U1]);
+            expect(status(await put("/api/kader/plan", { kaderId, userId: U1, excluded: false }))).toBe(403);
+            expect(status(await post("/api/kader/plan/apply", { kaderId }))).toBe(403);
+            expect(status(await post("/api/kader/plan/discard", { kaderId }))).toBe(403);
+            auth.getUser.mockReturnValue(OUTSIDER);
+            expect(status(await put("/api/kader/plan", { kaderId, userId: U1, excluded: false }))).toBe(403);
+            auth.getUser.mockReturnValue(null);
+            expect(status(await post("/api/kader/plan/discard", { kaderId }))).toBe(401);
+            auth.getUser.mockReturnValue(ADMIN);
+            auth.checkCsrf.mockReturnValue(false);
+            expect(status(await post("/api/kader/plan/discard", { kaderId }))).toBe(403);
+            expect(kaderStore.readPlanner("g1").kaders[0].plan.excluded).toEqual([U1]);
+        });
+
         it("saves and resets the planner's character data, answering the whole view", async () => {
             await kaderWithPlayers();
             let res = await put("/api/kader/assignments", { userId: U1, characters: [{ id: "c1", name: "Aldric Sturmwind", className: "Warrior", onlineKey: "forever~aldric sturmwind", specs: [{ spec: "Warrior-Fury", main: true, gear: "usable" }] }], activeCharacterId: "c1" });
