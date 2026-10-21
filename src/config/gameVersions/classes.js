@@ -87,8 +87,8 @@ const CLASSES = [
         specs: [
             { id: "Balance", label: "Gleichgewicht", labelEn: "Balance", role: "ranged", buffRole: "caster", icon: "spell_nature_starfall" },
             // Raid-Helper keeps cat and bear apart; the talent tree is one.
-            { id: "Feral", label: "Wilder Kampf (Katze)", labelEn: "Feral (Cat)", role: "melee", buffRole: "melee", icon: "ability_druid_catform", canTank: true },
-            { id: "Guardian", label: "Wilder Kampf (Bär)", labelEn: "Feral (Bear)", role: "tank", buffRole: "tank", icon: "ability_racial_bearform", canTank: true },
+            { id: "Feral", label: "Feral (Katze)", labelEn: "Feral (Cat)", role: "melee", buffRole: "melee", icon: "ability_druid_catform", canTank: true },
+            { id: "Guardian", label: "Feral (Bär)", labelEn: "Feral (Bear)", role: "tank", buffRole: "tank", icon: "ability_racial_bearform", canTank: true },
             { id: "Restoration", label: "Wiederherstellung", labelEn: "Restoration", role: "healer", buffRole: "healer", icon: "spell_nature_healingtouch", canHeal: true },
         ],
     },
