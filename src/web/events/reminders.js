@@ -175,7 +175,7 @@ async function runReminders({ now = Date.now(), config = getConfig() } = {}) {
                 }
             }
         }
-        reminderStore.prune();
+        reminderStore.prune(undefined, now);
         // Only every guild's events failing to load makes the whole sweep an error.
         if (loadErrors.length === guildIds.length) summary.error = loadErrors[0];
         return summary;
