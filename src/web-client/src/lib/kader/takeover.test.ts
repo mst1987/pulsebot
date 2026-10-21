@@ -1,0 +1,104 @@
+// The takeover assistant's logic: the start draft, what keeps a step, why the
+// start is locked, the body sent, and who still waits for the role.
+import { describe, expect, it } from "vitest";
+import type { KaderTakeover } from "../../api";
+import { kader as kaderData, entry, U } from "../../pages/kader/kader.fixture";
+import {
+    bodyOf, canStartDraft, categoryPreview, channelPreview, defaultDraft, draftProblems, emojiOk, MAX_TAKEOVER_CHANNELS, pendingOf, progressOf,
+    startBlocker, stepProblems, takeoverErrorKey,
+} from "./takeover";
+
+const NAMES = { announce: "ankündigungen", chat: "chat" };
+const OPEN = { blockers: [], canStart: true };
+const taken = (results: KaderTakeover["results"]): KaderTakeover => ({
+    rosterId: "r", roleId: "role", roleName: "Raider", categoryId: "cat", channelIds: [], by: "u1", at: "2026-10-20T18:00:00.000Z", status: "done", results,
+});
+
+describe("takeover draft", () => {
+    it("starts with the Kader's name, a new category and an announcement channel only the orga writes in", () => {
+        const d = defaultDraft("  Forever-Kader ", NAMES);
+        expect(d).toMatchObject({ roleName: "Forever-Kader", categoryMode: "new", categoryName: "forever-kader", confirmed: false });
+        expect(d.channels.map((c) => [c.name, c.orgaOnlyWrite])).toEqual([["ankündigungen", true], ["chat", false]]);
+        expect(new Set(d.channels.map((c) => c.key)).size).toBe(2);
+        expect(draftProblems(d)).toEqual([]);
+    });
+
+    it("names what keeps each step: role name, colour, icon; category, channel names and emojis, the limit", () => {
+        const d = defaultDraft("K", NAMES);
+        expect(stepProblems({ ...d, roleName: " ", roleColor: "#12", roleEmoji: ":x:" }, "role")).toEqual(["role_name", "role_color", "role_emoji"]);
+        expect(stepProblems({ ...d, roleColor: "#3366CC", roleEmoji: "⚔️" }, "role")).toEqual([]);
+        expect(stepProblems({ ...d, categoryName: "" }, "channels")).toEqual(["category"]);
+        expect(stepProblems({ ...d, categoryMode: "existing" }, "channels")).toEqual(["category"]);
+        expect(stepProblems({ ...d, categoryMode: "existing", categoryId: "c1", categoryEmoji: "abc" }, "channels")).toEqual([]);
+        const many = Array.from({ length: MAX_TAKEOVER_CHANNELS + 1 }, (_, i) => ({ key: `k${i}`, name: `c${i}`, emoji: "", orgaOnlyWrite: false }));
+        expect(stepProblems({ ...d, channels: many }, "channels")).toEqual(["too_many_channels"]);
+        expect(stepProblems({ ...d, channels: [{ key: "a", name: "!!", emoji: "", orgaOnlyWrite: false }, { key: "b", name: "x", emoji: "<:x:1>", orgaOnlyWrite: false }] }, "channels")).toEqual(["channel_name", "channel_emoji"]);
+        expect(stepProblems({ ...d, roleName: "" }, "who")).toEqual([]);
+    });
+
+    it("takes a short Unicode emoji, refuses text and custom emojis like the server", () => {
+        expect(emojiOk("")).toBe(true);
+        expect(emojiOk("🛡️")).toBe(true);
+        expect(emojiOk("a")).toBe(false);
+        expect(emojiOk("<:x:123>")).toBe(false);
+        expect(emojiOk("🛡️".repeat(9))).toBe(false);
+    });
+
+    it("previews the names as Discord shows them", () => {
+        expect(channelPreview({ name: "Ankündigungen Raid", emoji: "📢" })).toBe("📢・ankündigungen-raid");
+        expect(channelPreview({ name: "Chat", emoji: "" })).toBe("chat");
+        expect(categoryPreview({ ...defaultDraft("K", NAMES), categoryName: "Forever Kader", categoryEmoji: "⚔️" })).toBe("⚔️・Forever Kader");
+    });
+});
+
+describe("takeover start", () => {
+    it("is locked until the switch is on, and by every problem of the draft", () => {
+        const d = defaultDraft("K", NAMES);
+        expect(canStartDraft(d, OPEN)).toBe(false);
+        expect(canStartDraft({ ...d, confirmed: true }, OPEN)).toBe(true);
+        expect(canStartDraft({ ...d, confirmed: true, roleName: "" }, OPEN)).toBe(false);
+        expect(canStartDraft({ ...d, confirmed: true }, { blockers: ["offline"], canStart: true })).toBe(false);
+        expect(canStartDraft({ ...d, confirmed: true }, { blockers: [], canStart: false })).toBe(false);
+    });
+
+    it("gives the first reason: roster first, then nobody, own rights, what the bot lacks", () => {
+        expect(startBlocker(OPEN)).toBeNull();
+        expect(startBlocker({ blockers: ["offline", "no_roster"], canStart: false })).toBe("no_roster");
+        expect(startBlocker({ blockers: ["no_players", "offline"], canStart: true })).toBe("no_players");
+        expect(startBlocker({ blockers: ["offline"], canStart: false })).toBe("no_rights");
+        expect(startBlocker({ blockers: ["no_manage_channels"], canStart: true })).toBe("no_manage_channels");
+        expect(startBlocker({ blockers: ["already_taken"], canStart: true })).toBe("already_taken");
+    });
+
+    it("sends the role icon only where the server can show it, an existing category by id", () => {
+        const d = { ...defaultDraft("K", NAMES), roleColor: "#3366CC", roleEmoji: "⚔️", categoryEmoji: "🛡️" };
+        expect(bodyOf(d, 7, true)).toEqual({
+            baseRev: 7,
+            role: { name: "K", color: "#3366cc", unicodeEmoji: "⚔️" },
+            category: { name: "k", emoji: "🛡️" },
+            channels: [{ name: "ankündigungen", orgaOnlyWrite: true }, { name: "chat", orgaOnlyWrite: false }],
+        });
+        expect(bodyOf(d, 7, false).role).toEqual({ name: "K", color: "#3366cc" });
+        expect(bodyOf({ ...d, roleColor: "", categoryMode: "existing", categoryId: "c9" }, 1, false)).toMatchObject({ role: { name: "K" }, category: { id: "c9" } });
+    });
+
+    it("says the known refusals in its own words, leaves the rest to the server", () => {
+        expect(takeoverErrorKey("stale")).toBe("kader.takeover.error.stale");
+        expect(takeoverErrorKey("role_too_high")).toBe("kader.takeover.error.role_too_high");
+        expect(takeoverErrorKey("something_new")).toBeNull();
+    });
+});
+
+describe("after the takeover", () => {
+    it("waits for everybody from provisional upwards without the role, bench and tentative too", () => {
+        const k = kaderData();
+        expect(pendingOf(k)).toEqual([]);
+        const t = taken({ [U.tank]: "ok", [U.sham]: "removed", [U.heal]: "missing" });
+        expect(pendingOf({ ...k, takeover: t }).sort()).toEqual([U.heal, U.tent].sort());
+    });
+
+    it("counts the hand-out of the planned players", () => {
+        const k = kaderData({ players: { ...kaderData().players, x: entry({ state: "roster" }) } });
+        expect(progressOf(k, taken({ [U.tank]: "ok", [U.heal]: "missing", x: "failed" }))).toEqual({ given: 1, total: 5, missing: 1, failed: 1, open: 2 });
+    });
+});

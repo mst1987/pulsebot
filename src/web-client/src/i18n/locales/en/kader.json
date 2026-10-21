@@ -1015,5 +1015,208 @@
             "discarded": "Draft plan discarded",
             "stale": "Someone changed the draft in the meantime. Please take another look."
         }
+    },
+    "takeover": {
+        "entry": "Take over to Discord",
+        "entryTip": "Take the Kader over to Discord",
+        "entryTipSub": "Create role, category and channels, hand the role to everybody from provisional up",
+        "kicker": "Takeover · {name}",
+        "title": {
+            "role": "Which role does the Kader get?",
+            "channels": "Category and channels",
+            "who": "Who gets the role?",
+            "result": "Result"
+        },
+        "stepsAria": "Steps of the takeover",
+        "step": {
+            "role": "Role",
+            "channels": "Channels",
+            "who": "Who",
+            "result": "Result"
+        },
+        "back": "Back",
+        "next": "Next",
+        "start": "Start takeover",
+        "close": "Close",
+        "preview": "Preview",
+        "emojiClear": "Remove emoji",
+        "role": {
+            "name": "Role name",
+            "color": "Colour",
+            "colorPick": "Pick a colour",
+            "noColor": "No colour",
+            "icon": "Role icon",
+            "iconPick": "Pick an emoji as role icon",
+            "iconHint": "Shown in Discord next to the name.",
+            "iconOff": "Role icons need boost level 2 – this server is at level {tier}.",
+            "becomes": "The role becomes the roster role of “{roster}”.",
+            "replaces": {
+                "one": "It replaces {count} former roster role; that one stays in Discord.",
+                "other": "It replaces {count} former roster roles; those stay in Discord."
+            }
+        },
+        "channels": {
+            "category": "Category",
+            "newCategory": "New category",
+            "existingCategory": "Existing",
+            "noCategories": "The server has no category yet.",
+            "categoryEmoji": "Category emoji",
+            "categoryName": "Category name",
+            "categoryPick": "Pick a category",
+            "newHint": "Created as “{name}”.",
+            "existingHint": "The channels go into this category; its permissions stay as they are.",
+            "title": {
+                "one": "{count} channel",
+                "other": "{count} channels"
+            },
+            "emoji": "Channel emoji",
+            "name": "Name of channel {n}",
+            "remove": "Remove channel",
+            "orgaOnly": "Only orga writes",
+            "orgaOnlyTip": "The role reads along, only the orga writes.",
+            "add": "Channel",
+            "who": "Only the new role and the orga can see the channels.",
+            "announce": "announcements",
+            "chat": "chat"
+        },
+        "who": {
+            "count": {
+                "one": "{count} player gets the role",
+                "other": "{count} players get the role"
+            },
+            "byState": {
+                "provisional": {
+                    "one": "{count} provisional",
+                    "other": "{count} provisional"
+                },
+                "roster": {
+                    "one": "{count} in the roster",
+                    "other": "{count} in the roster"
+                },
+                "bench": {
+                    "one": "{count} on the bench",
+                    "other": "{count} on the bench"
+                },
+                "tentative": {
+                    "one": "{count} tentative",
+                    "other": "{count} tentative"
+                }
+            },
+            "core": "Everybody becomes core in the roster – bench and tentative too.",
+            "outside": {
+                "one": "{count} roster member is not in the Kader and stays in the roster.",
+                "other": "{count} roster members are not in the Kader and stay in the roster."
+            },
+            "away": {
+                "one": "{count} player is not on the server and gets the role later.",
+                "other": "{count} players are not on the server and get the role later."
+            },
+            "made": {
+                "one": "To be created: @{role}, category “{category}” and {count} channel.",
+                "other": "To be created: @{role}, category “{category}” and {count} channels."
+            },
+            "player": "Player",
+            "state": "Status",
+            "discord": "Discord",
+            "notOnServer": "not on the server",
+            "hasRole": "already has the role",
+            "inRoster": {
+                "one": "{count} player is already in the roster and becomes core there.",
+                "other": "{count} players are already in the roster and become core there."
+            },
+            "getsRole": "gets the role",
+            "confirm": "I checked the list – release the takeover",
+            "confirmTip": "Only then can the takeover start."
+        },
+        "result": {
+            "step": {
+                "role": "Role",
+                "roster": "Roster role switched",
+                "category": "Category",
+                "channel": "Channel"
+            },
+            "iconSet": "icon set",
+            "iconNotPossible": "icon not possible on this server",
+            "existing": "existing",
+            "failed": "failed",
+            "notRecorded": "The takeover was not saved. Please reload the page and check the result.",
+            "open": {
+                "one": "{count} player still open",
+                "other": "{count} players still open"
+            },
+            "finished": "Hand-out finished",
+            "missing": {
+                "one": "{count} not on the server",
+                "other": "{count} not on the server"
+            },
+            "failedCount": {
+                "one": "{count} error",
+                "other": "{count} errors"
+            },
+            "missingHint": "Whoever joins the server later gets the role via “Pull role” in the Kader head."
+        },
+        "progress": "{given} of {total} planned players have the role",
+        "lineKicker": "In Discord",
+        "lineCategory": "Category {name}",
+        "lineRunning": "Handing out the role …",
+        "lineAborted": "Hand-out aborted",
+        "roleGone": "This role no longer exists in Discord.",
+        "pull": {
+            "one": "Pull role ({count})",
+            "other": "Pull role ({count})"
+        },
+        "pullTip": "Give the role to everybody from provisional up who does not have it yet",
+        "pullTitle": "Pull @{role}?",
+        "pullText": {
+            "one": "{count} player gets the role and becomes core in the roster.",
+            "other": "{count} players get the role and become core in the roster."
+        },
+        "pullAction": "Pull role",
+        "pulled": {
+            "one": "{count} player got the role",
+            "other": "{count} players got the role"
+        },
+        "blocker": {
+            "already_taken": "This Kader was already taken over.",
+            "no_roster": "The Kader is not linked to a roster – link it under “Roster” first.",
+            "roster_closed": "The linked roster is closed.",
+            "no_players": "Nobody in the Kader is provisional or further.",
+            "no_rights": "Only someone who may edit the roster can take over.",
+            "offline": "The bot is not connected to Discord right now.",
+            "no_manage_roles": "The bot lacks the permission “Manage Roles”.",
+            "no_manage_channels": "The bot lacks the permission “Manage Channels”."
+        },
+        "problem": {
+            "role_name": "The role needs a name.",
+            "role_color": "The colour must look like #rrggbb.",
+            "role_emoji": "Only a single emoji works as icon.",
+            "category": "The category needs a name or a choice.",
+            "category_emoji": "Only a single emoji works before the category.",
+            "channel_name": "Every channel needs a name of letters or digits.",
+            "channel_emoji": "Only a single emoji works before a channel.",
+            "too_many_channels": "At most {max} channels."
+        },
+        "error": {
+            "stale": "Someone changed the Kader in the meantime. The list is reloaded – please check it and release again.",
+            "already_taken": "This Kader was already taken over.",
+            "no_players": "Nobody in the Kader is provisional or further.",
+            "no_roster": "The Kader is not linked to a roster.",
+            "roster_closed": "The linked roster is closed.",
+            "offline": "The bot is not connected to Discord right now.",
+            "no_manage_roles": "The bot lacks the permission “Manage Roles”.",
+            "no_manage_channels": "The bot lacks the permission “Manage Channels”.",
+            "invalid_role": "That role name does not work.",
+            "invalid_color": "That colour does not work.",
+            "invalid_emoji": "That emoji does not work.",
+            "invalid_category": "That category does not exist (any more).",
+            "too_many_channels": "Too many channels.",
+            "invalid_channel": "A channel name does not work.",
+            "role_failed": "Discord did not create the role.",
+            "role_too_high": "The new role would sit above the bot's role – move the bot's role up in Discord.",
+            "not_manager": "Only someone who may edit the roster can take over.",
+            "running": "The role is already being handed out.",
+            "not_taken": "This Kader has not been taken over yet.",
+            "role_gone": "The role no longer exists in Discord."
+        }
     }
 }

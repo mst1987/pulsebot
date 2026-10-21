@@ -1015,5 +1015,208 @@
             "discarded": "Planspiel verworfen",
             "stale": "Jemand hat den Entwurf inzwischen geändert. Bitte noch einmal ansehen."
         }
+    },
+    "takeover": {
+        "entry": "In Discord übernehmen",
+        "entryTip": "Kader in Discord übernehmen",
+        "entryTipSub": "Rolle, Kategorie und Kanäle anlegen, Rolle an alle ab Vorläufig verteilen",
+        "kicker": "Übernahme · {name}",
+        "title": {
+            "role": "Welche Rolle bekommt der Kader?",
+            "channels": "Kategorie und Kanäle",
+            "who": "Wer bekommt die Rolle?",
+            "result": "Ergebnis"
+        },
+        "stepsAria": "Schritte der Übernahme",
+        "step": {
+            "role": "Rolle",
+            "channels": "Kanäle",
+            "who": "Wer",
+            "result": "Ergebnis"
+        },
+        "back": "Zurück",
+        "next": "Weiter",
+        "start": "Übernahme starten",
+        "close": "Schließen",
+        "preview": "Vorschau",
+        "emojiClear": "Emoji entfernen",
+        "role": {
+            "name": "Name der Rolle",
+            "color": "Farbe",
+            "colorPick": "Farbe wählen",
+            "noColor": "Ohne Farbe",
+            "icon": "Rollen-Icon",
+            "iconPick": "Emoji als Rollen-Icon wählen",
+            "iconHint": "Erscheint in Discord neben dem Namen.",
+            "iconOff": "Rollen-Icons gibt es erst ab Boost-Stufe 2 – dieser Server hat Stufe {tier}.",
+            "becomes": "Die Rolle wird die Roster-Rolle von „{roster}“.",
+            "replaces": {
+                "one": "Sie ersetzt {count} bisherige Roster-Rolle; die bleibt in Discord bestehen.",
+                "other": "Sie ersetzt {count} bisherige Roster-Rollen; die bleiben in Discord bestehen."
+            }
+        },
+        "channels": {
+            "category": "Kategorie",
+            "newCategory": "Neue Kategorie",
+            "existingCategory": "Bestehende",
+            "noCategories": "Der Server hat noch keine Kategorie.",
+            "categoryEmoji": "Emoji der Kategorie",
+            "categoryName": "Name der Kategorie",
+            "categoryPick": "Kategorie wählen",
+            "newHint": "Wird angelegt als „{name}“.",
+            "existingHint": "Die Kanäle kommen in diese Kategorie; ihre Rechte bleiben, wie sie sind.",
+            "title": {
+                "one": "{count} Kanal",
+                "other": "{count} Kanäle"
+            },
+            "emoji": "Emoji des Kanals",
+            "name": "Name von Kanal {n}",
+            "remove": "Kanal entfernen",
+            "orgaOnly": "Nur Orga schreibt",
+            "orgaOnlyTip": "Die Rolle liest nur mit, schreiben darf die Orga.",
+            "add": "Kanal",
+            "who": "Sehen können die Kanäle nur die neue Rolle und die Orga.",
+            "announce": "ankündigungen",
+            "chat": "chat"
+        },
+        "who": {
+            "count": {
+                "one": "{count} Spieler bekommt die Rolle",
+                "other": "{count} Spieler bekommen die Rolle"
+            },
+            "byState": {
+                "provisional": {
+                    "one": "{count} vorläufig",
+                    "other": "{count} vorläufig"
+                },
+                "roster": {
+                    "one": "{count} im Roster",
+                    "other": "{count} im Roster"
+                },
+                "bench": {
+                    "one": "{count} auf der Bank",
+                    "other": "{count} auf der Bank"
+                },
+                "tentative": {
+                    "one": "{count} tentative",
+                    "other": "{count} tentative"
+                }
+            },
+            "core": "Alle werden Stamm im Roster – auch Bank und Tentative.",
+            "outside": {
+                "one": "{count} Roster-Mitglied ist nicht im Kader und bleibt im Roster.",
+                "other": "{count} Roster-Mitglieder sind nicht im Kader und bleiben im Roster."
+            },
+            "away": {
+                "one": "{count} Spieler ist nicht auf dem Server und bekommt die Rolle erst später.",
+                "other": "{count} Spieler sind nicht auf dem Server und bekommen die Rolle erst später."
+            },
+            "made": {
+                "one": "Angelegt werden: @{role}, Kategorie „{category}“ und {count} Kanal.",
+                "other": "Angelegt werden: @{role}, Kategorie „{category}“ und {count} Kanäle."
+            },
+            "player": "Spieler",
+            "state": "Status",
+            "discord": "Discord",
+            "notOnServer": "nicht auf dem Server",
+            "hasRole": "hat die Rolle schon",
+            "inRoster": {
+                "one": "{count} Spieler ist schon im Roster und wird dort Stamm.",
+                "other": "{count} Spieler sind schon im Roster und werden dort Stamm."
+            },
+            "getsRole": "bekommt die Rolle",
+            "confirm": "Ich habe die Liste geprüft – Übernahme freigeben",
+            "confirmTip": "Erst danach lässt sich die Übernahme starten."
+        },
+        "result": {
+            "step": {
+                "role": "Rolle",
+                "roster": "Roster-Rolle umgestellt",
+                "category": "Kategorie",
+                "channel": "Kanal"
+            },
+            "iconSet": "Icon gesetzt",
+            "iconNotPossible": "Icon auf diesem Server nicht möglich",
+            "existing": "bestehende",
+            "failed": "fehlgeschlagen",
+            "notRecorded": "Die Übernahme wurde nicht gespeichert. Bitte die Seite neu laden und das Ergebnis prüfen.",
+            "open": {
+                "one": "{count} Spieler noch offen",
+                "other": "{count} Spieler noch offen"
+            },
+            "finished": "Verteilung abgeschlossen",
+            "missing": {
+                "one": "{count} nicht auf dem Server",
+                "other": "{count} nicht auf dem Server"
+            },
+            "failedCount": {
+                "one": "{count} Fehler",
+                "other": "{count} Fehler"
+            },
+            "missingHint": "Wer später auf den Server kommt, bekommt die Rolle über „Rolle nachziehen“ im Kader-Kopf."
+        },
+        "progress": "{given} von {total} Eingeplanten haben die Rolle",
+        "lineKicker": "In Discord",
+        "lineCategory": "Kategorie {name}",
+        "lineRunning": "Rolle wird verteilt …",
+        "lineAborted": "Verteilung abgebrochen",
+        "roleGone": "Diese Rolle gibt es in Discord nicht mehr.",
+        "pull": {
+            "one": "Rolle nachziehen ({count})",
+            "other": "Rolle nachziehen ({count})"
+        },
+        "pullTip": "Die Rolle an alle ab Vorläufig geben, die sie noch nicht haben",
+        "pullTitle": "@{role} nachziehen?",
+        "pullText": {
+            "one": "{count} Spieler bekommt die Rolle und wird Stamm im Roster.",
+            "other": "{count} Spieler bekommen die Rolle und werden Stamm im Roster."
+        },
+        "pullAction": "Rolle nachziehen",
+        "pulled": {
+            "one": "{count} Spieler hat die Rolle bekommen",
+            "other": "{count} Spieler haben die Rolle bekommen"
+        },
+        "blocker": {
+            "already_taken": "Dieser Kader wurde schon übernommen.",
+            "no_roster": "Der Kader ist mit keinem Roster verknüpft – erst unter „Roster“ verknüpfen.",
+            "roster_closed": "Das verknüpfte Roster ist geschlossen.",
+            "no_players": "Im Kader ist niemand ab Vorläufig.",
+            "no_rights": "Übernehmen darf nur, wer das Roster bearbeiten darf.",
+            "offline": "Der Bot ist gerade nicht mit Discord verbunden.",
+            "no_manage_roles": "Dem Bot fehlt das Recht „Rollen verwalten“.",
+            "no_manage_channels": "Dem Bot fehlt das Recht „Kanäle verwalten“."
+        },
+        "problem": {
+            "role_name": "Die Rolle braucht einen Namen.",
+            "role_color": "Die Farbe muss die Form #rrggbb haben.",
+            "role_emoji": "Als Icon geht nur ein einzelnes Emoji.",
+            "category": "Die Kategorie braucht einen Namen bzw. eine Auswahl.",
+            "category_emoji": "Vor der Kategorie geht nur ein einzelnes Emoji.",
+            "channel_name": "Jeder Kanal braucht einen Namen aus Buchstaben oder Zahlen.",
+            "channel_emoji": "Vor einem Kanal geht nur ein einzelnes Emoji.",
+            "too_many_channels": "Höchstens {max} Kanäle."
+        },
+        "error": {
+            "stale": "Jemand hat den Kader inzwischen geändert. Die Liste ist neu geladen – bitte noch einmal prüfen und freigeben.",
+            "already_taken": "Dieser Kader wurde schon übernommen.",
+            "no_players": "Im Kader ist niemand ab Vorläufig.",
+            "no_roster": "Der Kader ist mit keinem Roster verknüpft.",
+            "roster_closed": "Das verknüpfte Roster ist geschlossen.",
+            "offline": "Der Bot ist gerade nicht mit Discord verbunden.",
+            "no_manage_roles": "Dem Bot fehlt das Recht „Rollen verwalten“.",
+            "no_manage_channels": "Dem Bot fehlt das Recht „Kanäle verwalten“.",
+            "invalid_role": "Der Rollenname geht so nicht.",
+            "invalid_color": "Die Farbe geht so nicht.",
+            "invalid_emoji": "Das Emoji geht so nicht.",
+            "invalid_category": "Die Kategorie gibt es nicht (mehr).",
+            "too_many_channels": "Zu viele Kanäle.",
+            "invalid_channel": "Ein Kanalname geht so nicht.",
+            "role_failed": "Discord hat die Rolle nicht angelegt.",
+            "role_too_high": "Die neue Rolle läge über der Bot-Rolle – in Discord die Bot-Rolle nach oben ziehen.",
+            "not_manager": "Übernehmen darf nur, wer das Roster bearbeiten darf.",
+            "running": "Die Rolle wird gerade schon verteilt.",
+            "not_taken": "Dieser Kader ist noch nicht übernommen.",
+            "role_gone": "Die Rolle gibt es in Discord nicht mehr."
+        }
     }
 }
