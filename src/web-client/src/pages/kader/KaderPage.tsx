@@ -2,7 +2,8 @@
 // at a time. Every player of a Kader has a state that stays until somebody
 // changes it — Pool → Vorauswahl (interviews) → Vorläufig (the leads discuss) →
 // Roster / Bench / Tentative. The pages of a Kader live at /kader/<id>/<page>:
-// pool, vorauswahl (Gespräche), uebersicht, roster, fragen, setups; /kader
+// pool, vorauswahl (Gespräche), uebersicht, roster, fragen, setups,
+// zusammensetzung (who plays what from Vorläufig on, read-only); /kader
 // is the overview of all Kader (KaderOverview), the one opened last marked.
 //
 // One view model from GET /api/kader?kader=<id>. A change inside the Kader
@@ -44,6 +45,7 @@ import OverviewView from "./OverviewView";
 import DecisionView from "./DecisionView";
 import QuestionsView from "./QuestionsView";
 import SetupsView from "./SetupsView";
+import CompositionView from "./CompositionView";
 import AccountModal from "./AccountModal";
 import AddAccountModal from "./AddAccountModal";
 import ImportModal from "./ImportModal";
@@ -239,6 +241,7 @@ export default function KaderPage() {
                 {sub === "roster" && <DecisionView />}
                 {sub === "fragen" && <QuestionsView />}
                 {sub === "setups" && <SetupsView />}
+                {sub === "zusammensetzung" && <CompositionView />}
             </div>
             {modal && modal.type === "account" && <AccountModal key={modal.userId} userId={modal.userId} onClose={close} />}
             {modal && modal.type === "import" && <ImportModal onClose={close} onById={() => setModal({ type: "addById" })} />}

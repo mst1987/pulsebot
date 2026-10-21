@@ -56,6 +56,20 @@ function setupSizesOf(versionId) {
     return sizes.size ? [...sizes].sort((a, b) => a - b) : [10, 20];
 }
 
+/**
+ * The rule set's own targets per setup size ({ 20: { tanks, healers } }), only the sizes it names:
+ * nothing is derived or guessed, a size without its own entry is left out (the composition page).
+ */
+function setupCompositionOf(versionId) {
+    const own = (rulesFor(versionId) || {}).composition || {};
+    const out = {};
+    for (const size of setupSizesOf(versionId)) {
+        const c = own[size];
+        if (c && Number.isFinite(c.tanks) && Number.isFinite(c.healers)) out[size] = { tanks: c.tanks, healers: c.healers };
+    }
+    return out;
+}
+
 const FORMAT = 2;
 const ROLES = ["tank", "healer", "melee", "ranged"];
 const STATES = ["pool", "selected", "provisional", "roster", "bench", "tentative"];
@@ -77,6 +91,7 @@ const GROUP_SIZE = 5;
 // instances keeps 10 and 20. A variant stores as many groups as the biggest size shows.
 const SETUP_SIZES = setupSizesOf(PLANNER_VERSION);
 const GROUP_COUNT = Math.max(...SETUP_SIZES) / GROUP_SIZE;
+const SETUP_COMPOSITION = setupCompositionOf(PLANNER_VERSION);
 // A nickname: letters (umlauts too), digits, space, hyphen, apostrophe.
 const NICK = /^[\p{L}\p{N}' -]+$/u;
 const NICK_MIN = 2;
@@ -666,8 +681,8 @@ function deleteKader(planner, kaderId) {
 }
 
 module.exports = {
-    FORMAT, ROLES, STATES, SETUP_STATES, QUESTION_TYPES, OPTION_COLORS, VOTES, NAME_STYLES, GEAR_LEVELS, SETUP_SIZES,
-    GROUP_COUNT, GROUP_SIZE, LIMITS, ACTIVITY_TYPES, setupSizesOf, kaderVersion, kaderInVersion,
+    FORMAT, ROLES, STATES, SETUP_STATES, QUESTION_TYPES, OPTION_COLORS, VOTES, NAME_STYLES, GEAR_LEVELS, SETUP_SIZES, SETUP_COMPOSITION,
+    GROUP_COUNT, GROUP_SIZE, LIMITS, ACTIVITY_TYPES, setupSizesOf, setupCompositionOf, kaderVersion, kaderInVersion,
     clone, str, isObject, invalid, notFound, conflict, forbidden, revOf, stale, assertFresh,
     emptyPlanner, emptyGroups, normalizePlanner, normalizeQuestion, normalizeAnswer, normalizeKader, normalizeActivity,
     cleanLabel, getKader, withKader, checkUserId, isKnown, classOf, cleanClassSpec,

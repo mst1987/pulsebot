@@ -28,8 +28,8 @@ profile.
 | `src/services/kader/kaderActivity.js` | Live: what a write changed — revisions and the Kader's activity log (`recordChanges`), the lines after a revision (`changesSince`) |
 | `src/web/kader/kaderPresence.js` | Live: who is in which Kader right now, in memory only |
 | `src/stores/kaderStore.js` | `data/settings/kader.json`, one planner per Discord server; `liveState` for the poll |
-| `src/web-client/src/pages/kader/` | the page (`KaderPage.tsx`): the overview of all Kader (`KaderOverview.tsx`), header, status bar, the six views and the dialogs; live: `useKaderLive.ts` (the poll), `useInterviewDraft.ts` (the interview's draft and its conflicts), `Presence.tsx` (who is here, the conflict banner), `ActivityLog.tsx` (Verlauf, Aktivität) |
-| `src/web-client/src/lib/kader/` | client logic: `model.ts` (names, icons, states, counts, the attendance sum over the Kader's raid categories), `interview.ts` (progress, draft/patch), `filters.ts`, `sort.ts` (the sort keys of the planner's tables), `colors.ts` (the colours of the answers), `setup.ts` (slots, buff hints, Discord text), `names.ts`, `live.ts` (activity lines as sentences, the toast, presence in words) |
+| `src/web-client/src/pages/kader/` | the page (`KaderPage.tsx`): the overview of all Kader (`KaderOverview.tsx`), header, status bar, the seven views (`CompositionView.tsx` the read-only "Zusammensetzung") and the dialogs; live: `useKaderLive.ts` (the poll), `useInterviewDraft.ts` (the interview's draft and its conflicts), `Presence.tsx` (who is here, the conflict banner), `ActivityLog.tsx` (Verlauf, Aktivität) |
+| `src/web-client/src/lib/kader/` | client logic: `model.ts` (names, icons, states, counts, the attendance sum over the Kader's raid categories), `interview.ts` (progress, draft/patch), `filters.ts`, `sort.ts` (the sort keys of the planner's tables), `colors.ts` (the colours of the answers), `setup.ts` (slots, buff hints, Discord text), `composition.ts` (who counts with which spec and role, per class, the buffs they bring, the nearest setup size), `names.ts`, `live.ts` (activity lines as sentences, the toast, presence in words) |
 | `src/web-client/src/styles/kader.css` | the module stylesheet, prefix `kp-` (modifiers too) |
 
 ## Access
@@ -255,7 +255,7 @@ An answer is recognised at a glance before it is read (`lib/kader/colors.ts`):
 ### Example setups
 
 A variant is always eight groups of five (`GROUP_COUNT`); `size` shows the first `size / 5` of them and keeps the others untouched (switching the size is
-non-destructive). The sizes are those of the planner version's instances (`kaderModel.setupSizesOf`: Forever 10, 20, 40, #751); the view sends them as `setupSizes`. A variant stored with four groups is padded to eight. A slot is `{ userId, spec }` — the spec is one of the player's wishes (or the decision). Only
+non-destructive). The sizes are those of the planner version's instances (`kaderModel.setupSizesOf`: Forever 10, 20, 40, #751); the view sends them as `setupSizes`, and the rule set's tanks/healers guide per size as `setupComposition` (`kaderModel.setupCompositionOf`, only sizes the rule set names; the "Zusammensetzung" page shows it). A variant stored with four groups is padded to eight. A slot is `{ userId, spec }` — the spec is one of the player's wishes (or the decision). Only
 players in `roster`, `provisional`, `bench` or `tentative` may stand in a setup, each once; a setup **never changes a
 state**. "Automatisch verteilen" (sources: roster + provisional by default, bench/tentative switchable) fills the
 visible groups — roster before provisional, then by attendance over the Kader's raid categories — with the heuristic of `kaderAutoAssign.js` (tanks
@@ -500,13 +500,23 @@ Deleting a Kader and switching the menu's version away from the open one land on
   ohne Gruppe" (with the wishes as icons), the groups with the spec picker per slot (class colour, role counts and buff
   hints follow the chosen spec), buff hints ("kein Totem der Manaquelle"), drag or pick-and-place, "Automatisch
   verteilen", "Als Text kopieren" (for Discord; a dialog with the text when the clipboard is refused).
+- **`zusammensetzung`** (`CompositionView.tsx`, linked from the decision page, read-only — it writes nothing):
+  Vorläufig and Roster grouped by class (icon, name in class colour, "n gezählt"), columns Spieler / Spec / Rolle /
+  Status / Wünsche, sortable (`kader-composition-sort`). The spec is the decision, else the first wish, else the
+  prefill (`lib/kader/composition.ts`); a player without a spec stands in the list as "kein Spec" and counts toward
+  no role. The line above counts the roles with their words ("1 Tank · 3 Heiler · … · 12 Spieler") and, when the
+  rule set has one, the guide of the nearest setup size (`setupComposition` in the view model, "Richtwert 10er:
+  2 Tanks · 3 Heiler"). The switch "Bench und Tentative mitzählen (n weitere)" is off by default and remembered
+  per Kader (`kader-composition-extra`); off, bench and tentative stand greyed out as "nicht gezählt". The side
+  lists the raid and party buffs of the version: "n Spender" in `--good` (the names in the tooltip) or "fehlt" in
+  `--high`, with who could bring it. Below 700 px the table folds into two lines per player without wishes.
 - **Dialogs** share one rhythm (`kp-dialog`, `kp-stack`): 24 px body padding and between field groups, 8 px between
   a label and its control and between list rows, the hint set apart; buttons carry an icon where it helps (Speichern,
   Übernehmen, Löschen, In den Pool) and never get a width that cuts their label.
 - **WoW icons** everywhere a class, spec or role is named (rule set icons, `ROLE_ICON` from
   `lib/raidplan/assign.ts`), each with its name as label and tooltip (`pages/kader/parts.tsx`).
 - Remembered per browser: the last Kader, the pool scope and filters, the interview list, the overview grouping and
-  filters, the sort column of every table, the setup sources and the variant per Kader. The attendance pick is not a
+  filters, the sort column of every table, the setup sources and the variant per Kader, and the composition switch per Kader. The attendance pick is not a
   browser setting: it is stored on the Kader.
 
 ## Umstellung vom alten Kaderplaner (#566)

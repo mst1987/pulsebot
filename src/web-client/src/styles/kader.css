@@ -1047,3 +1047,48 @@ dialog.dlg.kp-dialog .dlg-foot .kp-foot-left { margin-right: auto; }
     .kp-ov-card { padding: 16px; }
     .kp-ov-n b { font-size: 24px; }
 }
+
+/* ---- Zusammensetzung (CompositionView): the table grouped by class, the buffs beside it ---- */
+.kp-comp-bar { row-gap: 8px; }
+.kp-comp-sum { margin: 0; font-size: 15px; color: var(--text); }
+.kp-comp-sum b { font-weight: 700; }
+.kp-comp-nospec { color: var(--muted); }
+.kp-comp-guide { font-size: 13px; }
+.kp-comp-body { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; align-items: start; }
+.kp-comp-table { --minw: 640px; }
+.kp-comp-grid { grid-template-columns: minmax(150px, 1.4fr) minmax(150px, 1.3fr) 112px 120px minmax(90px, .8fr); }
+.kp-comp-class { grid-template-columns: minmax(0, 1fr); background: var(--panel2); padding-top: 6px; padding-bottom: 6px; }
+.kp-comp-classcell { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.kp-comp-classcell b { font-size: 14px; }
+.kp-comp-off { color: var(--muted); }
+.kp-comp-off .kp-pava, .kp-comp-off img { opacity: .55; }
+.kp-comp-role { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.kp-comp-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.kp-comp-side section { display: flex; flex-direction: column; gap: 6px; }
+.kp-comp-side h3 { margin: 0; }
+.kp-comp-buffs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.kp-comp-buff {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; row-gap: 1px;
+    padding: 6px 0; border-top: 1px solid var(--line-soft); font-size: 13px;
+}
+.kp-comp-buff:first-child { border-top: 0; }
+.kp-comp-buffname { font-weight: 600; min-width: 0; }
+.kp-comp-have { color: var(--good); font-weight: 600; cursor: help; }
+.kp-comp-miss { color: var(--high); font-weight: 700; }
+.kp-comp-src { grid-column: 1 / -1; }
+@media (max-width: 900px) {
+    .kp-comp-body { grid-template-columns: minmax(0, 1fr); }
+}
+/* a phone: name and status on top, spec, role and wishes below; the head a bar of sort buttons */
+@media (max-width: 700px) {
+    .kp-scroll-x .kp-trow.kp-comp-grid, .kp-scroll-x .kp-trow.kp-comp-class { min-width: 0; }
+    .kp-comp-grid { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "who state" "spec role"; row-gap: 4px; }
+    .kp-comp-grid > :nth-child(1) { grid-area: who; }
+    .kp-comp-grid > :nth-child(2) { grid-area: spec; min-width: 0; }
+    .kp-comp-grid > :nth-child(3) { grid-area: role; }
+    .kp-comp-grid > :nth-child(4) { grid-area: state; }
+    .kp-comp-grid:not(.kp-thead) > :nth-child(5) { display: none; }
+    .kp-thead.kp-comp-grid { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+    .kp-thead.kp-comp-grid .kp-th { flex-direction: row; align-items: center; gap: 8px; max-width: 100%; }
+    .kp-thead.kp-comp-grid > .kp-comp-wishes { display: none; }
+}

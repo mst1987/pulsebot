@@ -5,8 +5,8 @@ import { createContext, useContext, useEffect } from "react";
 import type { ApiError, KaderData, KaderPlayer, KaderPresence, KaderPresenceWhat, KaderView } from "../../api";
 
 /** The pages of one Kader, as they stand in the address (/kader/<id>/<sub>). */
-export type KaderSub = "pool" | "vorauswahl" | "uebersicht" | "roster" | "fragen" | "setups";
-export const SUBS: KaderSub[] = ["pool", "vorauswahl", "uebersicht", "roster", "fragen", "setups"];
+export type KaderSub = "pool" | "vorauswahl" | "uebersicht" | "roster" | "fragen" | "setups" | "zusammensetzung";
+export const SUBS: KaderSub[] = ["pool", "vorauswahl", "uebersicht", "roster", "fragen", "setups", "zusammensetzung"];
 
 export type KaderModal =
     | { type: "account"; userId: string }

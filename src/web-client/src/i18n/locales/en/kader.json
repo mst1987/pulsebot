@@ -95,6 +95,7 @@
         "vorauswahl": "Interviews",
         "uebersicht": "Overview",
         "setups": "Build an example setup",
+        "composition": "Composition",
         "kicker": "Players per status",
         "count": {
             "pool": {
@@ -849,7 +850,8 @@
             "uebersicht": "Overview",
             "roster": "Provisional & roster",
             "fragen": "Questions",
-            "setups": "Example setups"
+            "setups": "Example setups",
+            "zusammensetzung": "Composition"
         },
         "presence": {
             "where": "{name} · now in {where}",
@@ -890,5 +892,52 @@
             "one": "{count} change",
             "other": "{count} changes"
         }
+    },
+    "composition": {
+        "title": "Composition",
+        "tableLabel": "Composition of {name}",
+        "colPlayer": "Player",
+        "colSpec": "Spec",
+        "colRole": "Role",
+        "colState": "Status",
+        "colWishes": "Wishes",
+        "specSub": "The decision, else the first wish, else the prefilled character",
+        "extra": {
+            "one": "Count bench and tentative ({count} more)",
+            "other": "Count bench and tentative ({count} more)"
+        },
+        "extraTip": "Off: only provisional and roster count. Bench and tentative still show greyed out in the list.",
+        "players": {
+            "one": "{count} player",
+            "other": "{count} players"
+        },
+        "noSpec": {
+            "one": "{count} without spec",
+            "other": "{count} without spec"
+        },
+        "noSpecTip": "Not counted in the roles until a decision or a wish is set.",
+        "target": "Guide {size}-man: {tanks} · {healers}",
+        "targetTip": "From the game version's rule set, for the nearest setup size",
+        "classCount": {
+            "one": "{count} counted",
+            "other": "{count} counted"
+        },
+        "classExtra": {
+            "one": "+{count} not counted",
+            "other": "+{count} not counted"
+        },
+        "noClass": "No class",
+        "notCounted": "not counted",
+        "noSpecRow": "no spec",
+        "buffs": "Buffs",
+        "raidBuffs": "Whole raid",
+        "partyBuffs": "Per group",
+        "missing": "missing",
+        "donors": {
+            "one": "{count} provider",
+            "other": "{count} providers"
+        },
+        "noBuffs": "The rule set knows no buffs.",
+        "empty": "Nobody in provisional or roster yet. Players get here through the interviews."
     }
 }

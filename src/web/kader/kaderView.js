@@ -22,7 +22,7 @@
 // written back to the profile.
 //
 // `differs` codes: "class", "mainSpec", "gear", "tank", "heal", "notInProfile".
-const { STATES, SETUP_SIZES, kaderVersion, kaderInVersion } = require("../../services/kader/kaderModel");
+const { STATES, SETUP_SIZES, SETUP_COMPOSITION, kaderVersion, kaderInVersion } = require("../../services/kader/kaderModel");
 
 const mainSpecOf = (char) => (char.specs.find((s) => s.main) || char.specs[0] || null);
 
@@ -292,6 +292,8 @@ function buildKaderView({ source, planner, kaderId = "", versionId = "" }) {
         buffs: source.buffs,
         // the sizes an example setup can have: the raid sizes of the planner version's instances (#751)
         setupSizes: SETUP_SIZES,
+        // the rule set's own tank/healer targets of those sizes, only where it names them (composition page)
+        setupComposition: SETUP_COMPOSITION,
         raidCategories: source.raidCategories || [],
         players,
         members: memberList,

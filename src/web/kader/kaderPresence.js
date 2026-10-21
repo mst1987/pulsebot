@@ -12,7 +12,7 @@
 const TTL_MS = 25000;
 /** A safety cap: an entry per open tab; the oldest goes first when it is reached. */
 const MAX_ENTRIES = 2000;
-const SUBS = ["pool", "vorauswahl", "uebersicht", "roster", "fragen", "setups"];
+const SUBS = ["pool", "vorauswahl", "uebersicht", "roster", "fragen", "setups", "zusammensetzung"];
 const WHATS = ["interview", "drawer", "account"];
 const ID = /^[\w-]{1,40}$/;
 

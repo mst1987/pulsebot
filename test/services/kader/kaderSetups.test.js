@@ -114,6 +114,13 @@ describe("services/kader/kaderSetups sizes from the version's instances (#751)",
         expect(model.setupSizesOf("nope")).toEqual([10, 20]);
     });
 
+    it("hands on only the rule set's own tank/healer targets of the setup sizes, nothing derived", () => {
+        expect(model.SETUP_COMPOSITION).toEqual({ 10: { tanks: 2, healers: 3 }, 20: { tanks: 2, healers: 5 }, 40: { tanks: 2, healers: 8 } });
+        // TBC has no version-wide composition: nothing is made up
+        expect(model.setupCompositionOf("tbc")).toEqual({});
+        expect(model.setupCompositionOf("nope")).toEqual({});
+    });
+
     it("saves a 40er, refuses other sizes and shows all eight groups when auto-assigning", () => {
         const { planner, kaderId, variantId } = setup();
         let p = setups.saveVariant(planner, { kaderId, variantId, size: 40 });

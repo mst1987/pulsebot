@@ -64,6 +64,13 @@ describe("web/kader/kaderPresence", () => {
         expect(presence.present({ guildId: "g1", kaderId: "../k1", except: KURT }, T0)).toEqual([]);
     });
 
+    it("knows the composition page", () => {
+        beat({ sub: "zusammensetzung", playerId: "", what: "", edit: false });
+        expect(presence.present({ guildId: "g1", kaderId: "k1", except: KURT }, T0)).toEqual([
+            { userId: LENA, name: "Lena", sub: "zusammensetzung", playerId: "", what: "", edit: false },
+        ]);
+    });
+
     it("keeps at most MAX_ENTRIES pages", () => {
         for (let i = 0; i <= presence.MAX_ENTRIES; i++) beat({ userId: String(i), tab: `t${i}` }, T0);
         expect(presence.present({ guildId: "g1", kaderId: "k1" }, T0)).toHaveLength(presence.MAX_ENTRIES);
