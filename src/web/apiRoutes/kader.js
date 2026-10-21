@@ -38,6 +38,8 @@ const questions = require("../../services/kader/kaderQuestions");
 const setups = require("../../services/kader/kaderSetups");
 const plan = require("../../services/kader/kaderPlan");
 const { recordChanges, changesSince } = require("../../services/kader/kaderActivity");
+const { takeoverDrops } = require("../../services/kader/kaderRoster");
+const rosterTakeover = require("../../services/roster/rosterTakeover");
 const { loadKaderSource, loadKaderRules, listRaidCategories, plannerVersion } = require("../kader/kaderSource");
 const { buildKaderView, kaderPayload, mutationContext, lightContext } = require("../kader/kaderView");
 const presence = require("../kader/kaderPresence");
@@ -67,7 +69,13 @@ function sourceFor(guildId, planner, versionId) {
  * `planEmptied` from kaderPlan.savePlan).
  */
 function store(guildId, before, next, { actor, now, planEmptied }) {
-    return kaderStore.writePlanner(guildId, recordChanges(before, model.normalizePlanner(next), { actor, now, planEmptied }));
+    const normalized = model.normalizePlanner(next);
+    // a taken-over Kader (docs/kaderplaner.md "Übernahme"): who left it or fell below
+    // provisional loses the roster and its roles - carried out after the write
+    const { drops, lines } = takeoverDrops(before, normalized, { actor, now });
+    const stored = kaderStore.writePlanner(guildId, recordChanges(before, normalized, { actor, now, planEmptied, extra: lines }));
+    if (drops.length) setImmediate(() => rosterTakeover.dropPlayers(drops, { actor }).catch(() => {}));
+    return stored;
 }
 
 /**
@@ -382,11 +390,93 @@ const syncKaderRoster = withUser(WRITE, async ({ req, res, body, user }) => {
     return ok(res, { rosterId: roster.id, added: result.added, skipped: result.skipped, kept: result.kept, roleFailures: result.roleFailures });
 });
 
+/**
+ * May `user` run the takeover of this Kader? `kader` write and a manager of the
+ * roster linked to it (full admins always). Answers the roster too.
+ */
+async function takeoverRights(user, guildId, kaderId) {
+    const roster = rosterOfKader(guildId, kaderId);
+    const may = !!roster && userCan(user, "kader", "write") && await canManageRosterLive(user, roster).catch(() => false);
+    return { roster, may };
+}
+
+/** A refusal of rosterTakeover (an AppError, or kaderModel.stale) as the answer of a route. */
+function takeoverRefusal(res, e) {
+    if (e && e.code === "stale") return sendJson(res, 409, { error: { code: "stale", message: e.message, ...(e.details || {}) } });
+    if (e instanceof AppError) return apiError(res, e.status, e.code, e.message);
+    throw e;
+}
+
+/**
+ * GET /api/kader/takeover?kader=<id> — the takeover dialog (docs/kaderplaner.md
+ * "Übernahme"): what is missing (`blockers`: no_roster, roster_closed, offline,
+ * no_manage_roles, no_manage_channels, no_players, already_taken; `notes`:
+ * icon_not_possible), the players from provisional upwards with
+ * onServer / hasRole / inRoster / result, the server's categories, a recorded
+ * takeover and who is still `pending` ("Rolle nachziehen"). Area `kader` read;
+ * `canStart` = may start or pull the role. 404 for an unknown Kader.
+ */
+const getTakeover = withUser({}, async ({ req, res, query, user }) => {
+    const guildId = activeGuildFor(req);
+    const kaderId = str(query, "kader");
+    try {
+        const check = await rosterTakeover.precheck(guildId, kaderId);
+        const { may } = await takeoverRights(user, guildId, kaderId);
+        return ok(res, { ...check, canStart: may });
+    } catch (e) {
+        return takeoverRefusal(res, e);
+    }
+});
+
+/**
+ * POST /api/kader/takeover — body: { kaderId, confirm: true, baseRev, role: {
+ * name, color?: "#rrggbb", unicodeEmoji? }, category: { id } | { name, emoji? },
+ * channels: [{ name, emoji?, orgaOnlyWrite? }] }: the takeover. Area `kader`
+ * write + CSRF, then manager of the linked roster, else 403 `not_manager`; 404
+ * `not_found` without a linked roster. 400 confirm_required / base_rev_required
+ * / invalid_*, 409 stale / already_taken / running / role_too_high, 503 offline.
+ * Answer: `{ takeover, steps: [{ step, ok, id?, name, error? }], assigning }` -
+ * the roles go out in the background, GET shows the results.
+ */
+const startTakeover = withUser(WRITE, async ({ req, res, body, user }) => {
+    const guildId = activeGuildFor(req);
+    const kaderId = str(body, "kaderId");
+    const { roster, may } = await takeoverRights(user, guildId, kaderId);
+    if (!roster) return apiError(res, 404, "not_found", "Kein Roster zu diesem Kader.");
+    if (!may) return apiError(res, 403, "not_manager", "Nur Manager dieses Rosters.");
+    try {
+        return ok(res, await rosterTakeover.start(guildId, kaderId, body, { actor: String(user.id || "") }));
+    } catch (e) {
+        return takeoverRefusal(res, e);
+    }
+});
+
+/**
+ * POST /api/kader/takeover/role — body: { kaderId }: "Rolle nachziehen", the
+ * role for every player still pending. Rights as the takeover; 409 not_taken /
+ * running / role_gone. Answer: `{ count }` - the roles go out in the background.
+ */
+const pullTakeoverRole = withUser(WRITE, async ({ req, res, body, user }) => {
+    const guildId = activeGuildFor(req);
+    const kaderId = str(body, "kaderId");
+    const { roster, may } = await takeoverRights(user, guildId, kaderId);
+    if (!roster) return apiError(res, 404, "not_found", "Kein Roster zu diesem Kader.");
+    if (!may) return apiError(res, 403, "not_manager", "Nur Manager dieses Rosters.");
+    try {
+        return ok(res, rosterTakeover.pullRole(guildId, kaderId, { actor: String(user.id || "") }));
+    } catch (e) {
+        return takeoverRefusal(res, e);
+    }
+});
+
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "GET", path: "/api/kader/roster", handler: getKaderRoster, area: "kader" },
     { method: "POST", path: "/api/kader/roster/sync", handler: syncKaderRoster, area: "kader" },
     { method: "POST", path: "/api/kader/roster/link", handler: linkKaderRoster, area: "kader" },
+    { method: "GET", path: "/api/kader/takeover", handler: getTakeover, area: "kader" },
+    { method: "POST", path: "/api/kader/takeover", handler: startTakeover, area: "kader" },
+    { method: "POST", path: "/api/kader/takeover/role", handler: pullTakeoverRole, area: "kader" },
     { method: "GET", path: "/api/kader", handler: getKader, area: "kader" },
     { method: "GET", path: "/api/kader/kader", handler: getKaderOnly, area: "kader" },
     { method: "GET", path: "/api/kader/live", handler: getLive, area: "kader" },
@@ -425,5 +515,6 @@ module.exports = {
     saveInterview, completeInterview, reopenInterview, setVote, addComment, deleteComment,
     addQuestion, updateQuestion, deleteQuestion, orderQuestions, copyQuestions,
     addVariant, saveVariant, deleteVariant, autoVariant, savePlan, discardPlan, applyPlan,
-    addAccount, removeAccount, saveAssignment, resetAssignment, getKaderRoster, syncKaderRoster, linkKaderRoster, routes,
+    addAccount, removeAccount, saveAssignment, resetAssignment, getKaderRoster, syncKaderRoster, linkKaderRoster,
+    getTakeover, startTakeover, pullTakeoverRole, routes,
 };

@@ -177,8 +177,23 @@ function addFromDiscord(roster, userId) {
     }
 }
 
+/**
+ * Remove a member who lost every role of the roster in Discord. A roster a
+ * Kader was taken over into (docs/kaderplaner.md "Übernahme") also moves the
+ * player back to provisional in the Kader - no roster write, so it never
+ * comes back here.
+ */
 function removeFromDiscord(roster, userId) {
-    return rosterStore.removeMember(roster.id, userId, { actor: "", via: "discord" });
+    const removed = rosterStore.removeMember(roster.id, userId, { actor: "", via: "discord" });
+    if (removed && roster.kaderId) {
+        try {
+            // lazy: rosterTakeover requires this module
+            require("./rosterTakeover").onRoleLost(roster, userId);
+        } catch (e) {
+            logger.warn(`could not move ${userId} of roster ${roster.id} back in the Kader:`, e && (e.code || e.message));
+        }
+    }
+    return removed;
 }
 
 /** The open rosters of a server that name at least one role (a closed one never syncs, #739). */

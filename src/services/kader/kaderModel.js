@@ -16,6 +16,8 @@
 //                     setups:    [{ id, name, size: 10|20, groups: [[{ userId, spec }|null x5] x8] }],
 //                     plan:      { specs: { [userId]: { className, spec } }, excluded: [userId], by, at, rev? } | null
 //                                the shared draft of the composition page (kaderPlan.js),
+//                     takeover:  { rosterId, roleId, roleName, categoryId, channelIds, by, at, status, results } | null
+//                                the takeover into Discord (rosterTakeover.js), null before it ran,
 //                     rev?, activity?: [{ rev, at, by, type, playerId?, count?, from?, to?, questionId? }] }] }
 //
 // The revisions are stamps of the planner's change counter `rev`, set by
@@ -113,7 +115,11 @@ const ACTIVITY_TYPES = [
     "created", "added", "removed", "state", "decision", "interview", "lead", "interview_completed", "interview_reopened",
     "vote", "comment", "comment_deleted", "questions", "setups", "settings", "character",
     "plan", "plan_applied", "plan_discarded",
+    "takeover", "role_given", "role_removed_kader", "role_removed_discord",
 ];
+/** What the takeover (rosterTakeover.js) noted per player: role given, not on the server, failed. */
+const TAKEOVER_RESULTS = ["ok", "missing", "failed", "removed"];
+const TAKEOVER_STATUS = ["running", "done"];
 // An id typed by hand must look like a real Discord user id; one from the member list is taken as it is.
 const DISCORD_ID = /^\d{17,20}$/;
 
@@ -371,6 +377,30 @@ function normalizePlan(raw, players) {
     return out;
 }
 
+/**
+ * The takeover of a Kader into Discord (rosterTakeover.js, docs/kaderplaner.md
+ * "Übernahme"): the roster it filled, the role and category it made, who
+ * started it and what came of every player. None (null) until it ran.
+ */
+function normalizeTakeover(raw) {
+    if (!isObject(raw) || !str(raw.rosterId) || !str(raw.roleId)) return null;
+    const results = {};
+    if (isObject(raw.results)) {
+        for (const [uid, r] of Object.entries(raw.results)) if (uid && TAKEOVER_RESULTS.includes(r)) results[uid] = r;
+    }
+    return {
+        rosterId: str(raw.rosterId),
+        roleId: str(raw.roleId),
+        roleName: str(raw.roleName).slice(0, 100),
+        categoryId: str(raw.categoryId),
+        channelIds: [...new Set((Array.isArray(raw.channelIds) ? raw.channelIds : []).map(str).filter(Boolean))].slice(0, 20),
+        by: str(raw.by),
+        at: str(raw.at),
+        status: TAKEOVER_STATUS.includes(raw.status) ? raw.status : "done",
+        results,
+    };
+}
+
 /** Category ids as strings, each once, at most LIMITS.attendanceCategories. */
 function categoryIds(raw) {
     return [...new Set((Array.isArray(raw) ? raw : []).map((id) => str(id).trim()).filter(Boolean))].slice(0, LIMITS.attendanceCategories);
@@ -410,6 +440,8 @@ function normalizeKader(k) {
         players,
         setups,
         plan: normalizePlan(k.plan, players),
+        // The takeover into Discord (rosterTakeover.js), null before it ran.
+        takeover: normalizeTakeover(k.takeover),
     };
     // Live (kaderActivity.js): the revision of the last change and what changed.
     // A Kader stored before they existed has neither (= revision 0, no log).
@@ -720,7 +752,7 @@ function deleteKader(planner, kaderId) {
 
 module.exports = {
     FORMAT, ROLES, STATES, SETUP_STATES, QUESTION_TYPES, OPTION_COLORS, VOTES, NAME_STYLES, GEAR_LEVELS, SETUP_SIZES, SETUP_COMPOSITION,
-    GROUP_COUNT, GROUP_SIZE, LIMITS, ACTIVITY_TYPES, setupSizesOf, setupCompositionOf, kaderVersion, kaderInVersion,
+    GROUP_COUNT, GROUP_SIZE, LIMITS, ACTIVITY_TYPES, TAKEOVER_RESULTS, normalizeTakeover, setupSizesOf, setupCompositionOf, kaderVersion, kaderInVersion,
     clone, str, isObject, invalid, notFound, conflict, forbidden, revOf, stale, assertFresh,
     emptyPlanner, emptyGroups, normalizePlanner, normalizeQuestion, normalizeAnswer, normalizeKader, normalizeActivity,
     normalizePlan, plannableSpecs,

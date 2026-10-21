@@ -214,8 +214,10 @@ function assignmentChanges(before, after, { rev, actor, now }) {
  * and account that changed with it, writes the activity lines. Nothing changed
  * = `after` as it is. `planEmptied` = the Kader whose draft went because its
  * last change was taken back (kaderPlan.savePlan): a `plan` line, not `plan_discarded`.
+ * `extra` = lines per Kader id the caller knows and the comparison cannot see
+ * (the takeover, a role given or taken: rosterTakeover.js via kaderRoster.js).
  */
-function recordChanges(before, after, { actor = "", now = new Date().toISOString(), planEmptied = "" } = {}) {
+function recordChanges(before, after, { actor = "", now = new Date().toISOString(), planEmptied = "", extra = {} } = {}) {
     const rev = (before.rev || 0) + 1;
     const stamp = { rev, actor, now };
     let changed = false;
@@ -239,6 +241,7 @@ function recordChanges(before, after, { actor = "", now = new Date().toISOString
         }
         const lines = kaderLines(prev, kader, rev, planEmptied);
         for (const id of characters) if (prev.players[id] && kader.players[id]) lines.push({ type: "character", playerId: id });
+        if (Array.isArray(extra[kader.id])) lines.push(...extra[kader.id]);
         if (!lines.length && same(prev, kader)) continue;
         kader.rev = rev;
         appendActivity(kader, lines.map((line) => ({ rev, at: now, by: actor, ...line })));

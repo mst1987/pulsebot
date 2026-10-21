@@ -28,6 +28,12 @@ jest.mock("../../../src/services/roster/rosterRoleSync", () => ({
     applyMemberRemoved: jest.fn(async () => ({ ok: true, results: [] })),
     applyStatusChange: jest.fn(async () => ({ ok: true, results: [] })),
 }));
+jest.mock("../../../src/services/roster/rosterTakeover", () => ({
+    precheck: jest.fn(async () => ({ blockers: [], notes: [], players: [] })),
+    start: jest.fn(async () => ({ takeover: { roleId: "role1" }, steps: [], assigning: 1 })),
+    pullRole: jest.fn(() => ({ count: 2 })),
+    dropPlayers: jest.fn(async () => 0),
+}));
 jest.mock("../../../src/web/characters/profileLogs", () => ({
     ...jest.requireActual("../../../src/web/characters/profileLogs"),
     logIndex: jest.fn(() => new Map()),
@@ -635,5 +641,106 @@ describe("web/apiRoutes/kader the raid roster (#658)", () => {
         const held = rosterStore.createRoster({ guildId: "g1", name: "Belegt", kaderId: "other-kader" });
         const res = await post("/api/kader/roster/link", { kaderId, rosterId: held.id });
         expect([status(res), body(res).error.code]).toEqual([409, "kader_taken"]);
+    });
+});
+
+describe("web/apiRoutes/kader the takeover (docs/kaderplaner.md \"Übernahme\")", () => {
+    const takeover = require("../../../src/services/roster/rosterTakeover");
+    const { AppError } = require("../../../src/web/http/apiResult");
+    const model = require("../../../src/services/kader/kaderModel");
+    const kaderRoster = require("../../../src/services/kader/kaderRoster");
+    const START = { confirm: true, baseRev: 3, role: { name: "Raider" }, category: { name: "Forever" }, channels: [] };
+
+    async function linkedKader() {
+        const { kaderId } = await kaderWithPlayers();
+        const roster = rosterStore.createRoster({ guildId: "g1", name: "Forever-Roster", versionId: "forever", kaderId });
+        return { kaderId, roster };
+    }
+
+    it("GET: the precheck and whether this user may start", async () => {
+        const { kaderId, roster } = await linkedKader();
+        let res = await get("/api/kader/takeover", { kader: kaderId });
+        expect(status(res)).toBe(200);
+        expect(body(res)).toEqual({ blockers: [], notes: [], players: [], canStart: true });
+        expect(takeover.precheck).toHaveBeenCalledWith("g1", kaderId);
+        // a reader sees the dialog and may not start
+        auth.getUser.mockReturnValue(granted("read"));
+        expect(body(await get("/api/kader/takeover", { kader: kaderId })).canStart).toBe(false);
+        // a writer only as a manager of the roster
+        const writer = granted("write");
+        auth.getUser.mockReturnValue(writer);
+        expect(body(await get("/api/kader/takeover", { kader: kaderId })).canStart).toBe(false);
+        rosterStore.updateRoster(roster.id, { managers: { roleIds: [], userIds: [writer.id] } });
+        expect(body(await get("/api/kader/takeover", { kader: kaderId })).canStart).toBe(true);
+        takeover.precheck.mockRejectedValueOnce(new AppError("kader_not_found", 404, "Kader nicht gefunden."));
+        res = await get("/api/kader/takeover", { kader: "nope" });
+        expect([status(res), body(res).error.code]).toEqual([404, "kader_not_found"]);
+        auth.getUser.mockReturnValue(OUTSIDER);
+        expect(status(await get("/api/kader/takeover", { kader: kaderId }))).toBe(403);
+    });
+
+    it("POST: full admins and roster managers with kader write only", async () => {
+        const { kaderId: bare } = await kaderWithPlayers();
+        let res = await post("/api/kader/takeover", { kaderId: bare, ...START });
+        expect([status(res), body(res).error.code]).toEqual([404, "not_found"]);
+        const { kaderId, roster } = await linkedKader();
+        const writer = granted("write");
+        auth.getUser.mockReturnValue(writer);
+        res = await post("/api/kader/takeover", { kaderId, ...START });
+        expect([status(res), body(res).error.code]).toEqual([403, "not_manager"]);
+        auth.getUser.mockReturnValue(granted("read", writer.id));
+        rosterStore.updateRoster(roster.id, { managers: { roleIds: [], userIds: [writer.id] } });
+        expect(status(await post("/api/kader/takeover", { kaderId, ...START }))).toBe(403);
+        expect(takeover.start).not.toHaveBeenCalled();
+        auth.getUser.mockReturnValue(writer);
+        res = await post("/api/kader/takeover", { kaderId, ...START });
+        expect(status(res)).toBe(200);
+        expect(body(res)).toEqual({ takeover: { roleId: "role1" }, steps: [], assigning: 1 });
+        expect(takeover.start).toHaveBeenCalledWith("g1", kaderId, expect.objectContaining({ confirm: true, baseRev: 3 }), { actor: writer.id });
+    });
+
+    it("POST: answers a refusal with its code, a stale one with the current rev", async () => {
+        const { kaderId } = await linkedKader();
+        takeover.start.mockRejectedValueOnce(new AppError("base_rev_required", 400, "baseRev fehlt"));
+        let res = await post("/api/kader/takeover", { kaderId, confirm: true });
+        expect([status(res), body(res).error.code]).toEqual([400, "base_rev_required"]);
+        let stale;
+        try {
+            model.assertFresh({ baseRev: 1 }, 4, "Der Kader hat sich geändert.", { kaderId });
+        } catch (e) {
+            stale = e;
+        }
+        takeover.start.mockRejectedValueOnce(stale);
+        res = await post("/api/kader/takeover", { kaderId, ...START });
+        expect(status(res)).toBe(409);
+        expect(body(res).error).toMatchObject({ code: "stale", kaderId });
+    });
+
+    it("POST role: the count of players the role goes to", async () => {
+        const { kaderId } = await linkedKader();
+        let res = await post("/api/kader/takeover/role", { kaderId });
+        expect([status(res), body(res)]).toEqual([200, { count: 2 }]);
+        expect(takeover.pullRole).toHaveBeenCalledWith("g1", kaderId, { actor: LEAD });
+        takeover.pullRole.mockImplementationOnce(() => { throw new AppError("not_taken", 409, "Noch nicht übernommen."); });
+        res = await post("/api/kader/takeover/role", { kaderId });
+        expect([status(res), body(res).error.code]).toEqual([409, "not_taken"]);
+        auth.getUser.mockReturnValue(granted("write"));
+        expect(status(await post("/api/kader/takeover/role", { kaderId }))).toBe(403);
+    });
+
+    it("a player of a taken-over Kader moved below provisional is dropped after the write", async () => {
+        const { kaderId, roster } = await linkedKader();
+        await post("/api/kader/players/state", { kaderId, userIds: [U1, U2], to: "selected" });
+        await post("/api/kader/players/state", { kaderId, userIds: [U1, U2], to: "provisional" });
+        kaderRoster.saveTakeover("g1", kaderId, { rosterId: roster.id, roleId: "role1", roleName: "Raider", categoryId: "", channelIds: [] });
+        const res = await post("/api/kader/players/state", { kaderId, userIds: [U1], to: "selected" });
+        expect(status(res)).toBe(200);
+        await new Promise((r) => setImmediate(r));
+        expect(takeover.dropPlayers).toHaveBeenCalledWith([{ kaderId, rosterId: roster.id, userId: U1 }], { actor: LEAD });
+        const kader = kaderStore.readPlanner("g1").kaders.find((k) => k.id === kaderId);
+        expect(kader.activity.slice(-1)[0]).toMatchObject({ type: "role_removed_kader", playerId: U1 });
+        expect(kader.players[U1].history.slice(-1)[0]).toMatchObject({ type: "role_removed_kader", from: "provisional", to: "selected" });
+        // U2 stays: nothing for them
+        expect(takeover.dropPlayers).toHaveBeenCalledTimes(1);
     });
 });
