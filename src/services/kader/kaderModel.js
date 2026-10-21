@@ -115,9 +115,13 @@ const ACTIVITY_TYPES = [
     "created", "added", "removed", "state", "decision", "interview", "lead", "interview_completed", "interview_reopened",
     "vote", "comment", "comment_deleted", "questions", "setups", "settings", "character",
     "plan", "plan_applied", "plan_discarded",
-    "takeover", "role_given", "role_removed_kader", "role_removed_discord",
+    "takeover", "role_given", "role_removed_kader", "role_removed_discord", "role_added_discord",
 ];
-/** What the takeover (rosterTakeover.js) noted per player: role given, not on the server, failed. */
+/**
+ * What the takeover (rosterTakeover.js) noted per player: role given, not on
+ * the server, failed, or taken in Discord ("removed": back to provisional, not
+ * nachzuziehen until the orga moves them again).
+ */
 const TAKEOVER_RESULTS = ["ok", "missing", "failed", "removed"];
 const TAKEOVER_STATUS = ["running", "done"];
 // An id typed by hand must look like a real Discord user id; one from the member list is taken as it is.

@@ -215,7 +215,9 @@ function assignmentChanges(before, after, { rev, actor, now }) {
  * = `after` as it is. `planEmptied` = the Kader whose draft went because its
  * last change was taken back (kaderPlan.savePlan): a `plan` line, not `plan_discarded`.
  * `extra` = lines per Kader id the caller knows and the comparison cannot see
- * (the takeover, a role given or taken: rosterTakeover.js via kaderRoster.js).
+ * (the takeover, a role given or taken: rosterTakeover.js via kaderRoster.js);
+ * one with `replaces: true` stands in for the compared "state"/"added" line of
+ * the same player, so a change shows once.
  */
 function recordChanges(before, after, { actor = "", now = new Date().toISOString(), planEmptied = "", extra = {} } = {}) {
     const rev = (before.rev || 0) + 1;
@@ -241,7 +243,15 @@ function recordChanges(before, after, { actor = "", now = new Date().toISOString
         }
         const lines = kaderLines(prev, kader, rev, planEmptied);
         for (const id of characters) if (prev.players[id] && kader.players[id]) lines.push({ type: "character", playerId: id });
-        if (Array.isArray(extra[kader.id])) lines.push(...extra[kader.id]);
+        for (const line of Array.isArray(extra[kader.id]) ? extra[kader.id] : []) {
+            const { replaces, ...rest } = line;
+            if (replaces) {
+                for (let i = lines.length - 1; i >= 0; i--) {
+                    if ((lines[i].type === "state" || lines[i].type === "added") && lines[i].playerId === rest.playerId) lines.splice(i, 1);
+                }
+            }
+            lines.push(rest);
+        }
         if (!lines.length && same(prev, kader)) continue;
         kader.rev = rev;
         appendActivity(kader, lines.map((line) => ({ rev, at: now, by: actor, ...line })));

@@ -4,6 +4,15 @@
 // role of the roster linked to the Kader, takes every player from provisional
 // upwards into that roster (as core) and hands them the role - one by one in
 // the background, the server has one vCPU and Discord rate-limits role writes.
+// Players already in the roster are set to core as well.
+//
+// The new role replaces the roster's roles (`roleIds = [new]`): the old roles
+// stay in Discord, but the sync no longer follows them. A changed role set
+// never removes anybody (rosterRoleSync only removes against a snapshot of the
+// same set), so roster members outside the Kader simply stay in the roster -
+// the precheck counts them ("roster_members_outside"). Should one of them get
+// the new role later (the roster's role sync, by hand), "Discord → Kader"
+// below takes him into the Kader as provisional.
 //
 // After that the two sides stay in step:
 //   - Kader → Discord: a player of a taken-over Kader who falls below
@@ -15,6 +24,11 @@
 //     removed by rosterRoleSync (gateway event or the 10-minute reconcile),
 //     which calls `onRoleLost`: the player goes back to provisional in the
 //     Kader. Provisional is still a takeover state, so that write drops nobody.
+//     A member who gains the role (by hand in Discord) and is not planned in
+//     the Kader comes in as provisional (`onRoleGained`); one already planned
+//     stays as he is, which also keeps the takeover's own role writes quiet.
+// A deleted Kader leaves roster, role and channels as they are; nothing
+// follows it any more.
 // A player who comes into the Kader later does not get the role on his own; he
 // is "nachzuziehen" (`kaderRoster.pendingOf`) until the orga presses
 // "Rolle nachziehen" (`pullRole`).
@@ -106,8 +120,13 @@ function rosterOf(guildId, kader) {
 
 /**
  * GET side: what a takeover would do or did. `blockers` keep the start
- * refused, `notes` only inform ("icon_not_possible"). The players carry
- * whether they are on the server and hold the role - null when unknown.
+ * refused, `notes` only inform ("icon_not_possible", "roster_members_outside"
+ * with `outsideCount` roster members the Kader does not plan - they stay in the
+ * roster). The players carry whether they are on the server and hold the role -
+ * null when unknown. `aborted`: a takeover still "running" without a job in
+ * this process - the bot restarted while handing out, the rest is
+ * "nachzuziehen". `categories` only with `opts.withCategories` (the caller
+ * may start the takeover).
  */
 async function precheck(guildId, kaderId, opts = {}) {
     const gid = str(guildId);
@@ -128,6 +147,10 @@ async function precheck(guildId, kaderId, opts = {}) {
     if (!kader.players.length) blockers.push("no_players");
     if (kader.takeover) blockers.push("already_taken");
     const notes = guild && !iconPossible(guild) ? ["icon_not_possible"] : [];
+    const planned = new Set(kader.players.map((p) => p.userId));
+    const outsideCount = roster ? Object.keys(roster.members || {}).filter((uid) => !planned.has(uid)).length : 0;
+    if (outsideCount) notes.push("roster_members_outside");
+    const isRunning = running.has(keyOf(gid, kader.id));
     const members = await membersOf(gid, guild, opts);
     const roleId = kader.takeover ? kader.takeover.roleId : "";
     const results = kader.takeover ? kader.takeover.results : {};
@@ -151,12 +174,14 @@ async function precheck(guildId, kaderId, opts = {}) {
         premiumTier: guild ? Number(guild.premiumTier) || 0 : null,
         blockers,
         notes,
+        outsideCount,
         takeover: kader.takeover,
-        running: running.has(keyOf(gid, kader.id)),
+        running: isRunning,
+        aborted: !!(kader.takeover && kader.takeover.status === "running" && !isRunning),
         pending: kader.pending,
         pendingCount: kader.pending.length,
         players,
-        categories: categoriesOf(guild),
+        categories: opts.withCategories ? categoriesOf(guild) : [],
     };
 }
 
@@ -230,16 +255,21 @@ function resultOf(change) {
 }
 
 /**
- * Hands the role to `userIds` one by one: a player who is no roster member
+ * Hands the role to `players` one by one: a player who is no roster member
  * yet joins as core (with the Kader's character) and gets the roster's main
- * role that way, a member gets the role alone. Never throws.
+ * role that way; a member already in the roster is set to core and gets the
+ * role. With `guildId`/`kaderId` each player is checked against the Kader
+ * right before his turn - the orga can move players while the role is handed
+ * out, and a player no longer planned is skipped (no result). Never throws.
  * @returns {Promise<Object<string, "ok"|"missing"|"failed">>}
  */
-async function handOut(rosterId, roleId, players, { actor = "", gapMs = ROLE_GAP_MS } = {}) {
+async function handOut(rosterId, roleId, players, { actor = "", gapMs = ROLE_GAP_MS, guildId = "", kaderId = "" } = {}) {
     const results = {};
     for (const [i, player] of players.entries()) {
         const uid = player.userId;
+        if (i > 0 && gapMs) await sleep(gapMs);
         try {
+            if (guildId && kaderId && !kaderRoster.stillPlanned(guildId, kaderId, uid)) continue;
             const roster = rosterStore.getRoster(rosterId);
             if (!roster || roster.closedAt) {
                 results[uid] = "failed";
@@ -250,13 +280,13 @@ async function handOut(rosterId, roleId, players, { actor = "", gapMs = ROLE_GAP
                 const change = added.ok ? ((added.roles && added.roles.results) || []).find((r) => r.roleId === roleId) : null;
                 results[uid] = added.ok ? resultOf(change) : "failed";
             } else {
-                results[uid] = resultOf(await rosterRoleSync.applyRoleChange(roster, uid, roleId, true, { actor }));
+                if (roster.members[uid].status !== "core") await rosterMembers.setStatus(rosterId, uid, "core", { actor });
+                results[uid] = resultOf(await rosterRoleSync.applyRoleChange(rosterStore.getRoster(rosterId), uid, roleId, true, { actor }));
             }
         } catch (e) {
             logger.warn(`takeover: role for ${uid} failed:`, e && (e.code || e.message));
             results[uid] = "failed";
         }
-        if (gapMs && i < players.length - 1) await sleep(gapMs);
     }
     return results;
 }
@@ -388,7 +418,9 @@ async function start(guildId, kaderId, body = {}, { actor = "", gapMs = ROLE_GAP
 
         // 2. the roster's main role
         try {
-            rosterStore.updateRoster(roster.id, { roleIds: [roleId, ...roster.roleIds.filter((r) => r !== roleId)] }, { actor });
+            // the new role replaces the old ones: they stay in Discord, the sync no
+            // longer follows them (a changed role set never removes anybody)
+            rosterStore.updateRoster(roster.id, { roleIds: [roleId] }, { actor });
             steps.push({ step: "roster", ok: true, id: roster.id });
         } catch (e) {
             await Promise.resolve(role.delete && role.delete("EventHelper: Roster nicht beschreibbar")).catch(() => {});
@@ -404,12 +436,17 @@ async function start(guildId, kaderId, body = {}, { actor = "", gapMs = ROLE_GAP
             rosterId: roster.id, roleId, roleName: role.name, categoryId, channelIds,
         }, { actor });
         running.delete(key);
+        if (!saved) {
+            // the Kader is gone (or no longer writable): nothing to hand out
+            logger.warn(`takeover ${key}: record not saved, no roles handed out`);
+            return { takeover: null, steps, assigning: 0 };
+        }
         locked(gid, kader.id, async () => {
-            const results = await handOut(roster.id, roleId, kader.players, { actor, gapMs });
+            const results = await handOut(roster.id, roleId, kader.players, { actor, gapMs, guildId: gid, kaderId: kader.id });
             kaderRoster.finishTakeover(gid, kader.id, results, { actor });
             logger.info(`takeover ${key}: ${Object.values(results).filter((r) => r === "ok").length}/${kader.players.length} roles given`);
         });
-        return { takeover: saved ? saved.takeover : null, steps, assigning: kader.players.length };
+        return { takeover: saved.takeover, steps, assigning: kader.players.length };
     } catch (e) {
         // every throw lies before the background job took the lock over
         running.delete(key);
@@ -435,7 +472,7 @@ function pullRole(guildId, kaderId, { actor = "", gapMs = ROLE_GAP_MS } = {}) {
     const players = kader.players.filter((p) => pending.has(p.userId));
     if (!players.length) return { count: 0 };
     locked(gid, kader.id, async () => {
-        const results = await handOut(roster.id, roleId, players, { actor, gapMs });
+        const results = await handOut(roster.id, roleId, players, { actor, gapMs, guildId: gid, kaderId: kader.id });
         kaderRoster.markRoleGiven(gid, kader.id, results, { actor });
     });
     return { count: players.length };
@@ -475,10 +512,28 @@ function onRoleLost(roster, userId) {
     return changed;
 }
 
-// Discord -> Kader: rosterRoleSync calls this when a member loses the role
-// (registered, not required back - that would be a require cycle). Loaded at
-// start through web/apiRoutes/kader.js.
+/**
+ * rosterRoleSync saw a member gain a role of the roster in Discord (by hand or
+ * through the roster): in the Kader taken over into this roster, a player who
+ * is not (or below provisional) in the Kader comes in as provisional. A player
+ * already planned stays as he is - that also covers the role the takeover
+ * hands out itself, so there is no loop.
+ * @returns {boolean} whether the Kader changed
+ */
+function onRoleGained(roster, userId, { name = "" } = {}) {
+    if (!roster || !roster.kaderId || !roster.guildId) return false;
+    const kader = kaderRoster.takeoverPlayers(roster.guildId, roster.kaderId);
+    if (!kader || !kader.takeover || kader.takeover.rosterId !== roster.id) return false;
+    const changed = kaderRoster.roleGainedFromDiscord(roster.guildId, kader.id, userId, { name, actor: "" });
+    if (changed) logger.info(`${userId} got the role of roster ${roster.id} in Discord - provisional in Kader ${kader.id}`);
+    return changed;
+}
+
+// Discord -> Kader: rosterRoleSync calls these when a member loses or gains
+// the role (registered, not required back - that would be a require cycle).
+// Loaded at start through web/apiRoutes/kader.js.
 rosterRoleSync.setRoleLostHandler(onRoleLost);
+rosterRoleSync.setRoleGainedHandler(onRoleGained);
 
 /** Test-only: forget the locks. */
 function _resetForTests() {
@@ -486,7 +541,7 @@ function _resetForTests() {
 }
 
 module.exports = {
-    precheck, start, pullRole, dropPlayers, onRoleLost, whenIdle,
+    precheck, start, pullRole, dropPlayers, onRoleLost, onRoleGained, whenIdle,
     planOf, overwritesOf, resultOf, handOut, membersOf,
     MEMBER_FETCH_MS, ROLE_GAP_MS, MAX_CHANNELS, _resetForTests,
 };

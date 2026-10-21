@@ -309,6 +309,63 @@ describe("services/roster/rosterRoleSync reconcile", () => {
     });
 });
 
+describe("services/roster/rosterRoleSync role gained (Kader takeover)", () => {
+    let kr;
+    const gained = jest.fn();
+    beforeEach(() => {
+        gained.mockReset();
+        sync.setRoleGainedHandler(gained);
+        discord.getGuild.mockReturnValue({ id: "g1", roles: { cache: new Map(["main", "alt", "trial", "kr", "kr2"].map((r) => [r, {}])) } });
+        kr =rosterStore.createRoster({ name: "Forever", guildId: "g1", roleIds: ["kr"], versionId: "forever", kaderId: "k1" });
+    });
+    afterAll(() => {
+        sync.setRoleGainedHandler(null);
+        discord.getGuild.mockReturnValue({ id: "g1", roles: { cache: new Map([["main", {}], ["alt", {}], ["trial", {}]]) } });
+    });
+
+    it("tells the handler about a newcomer and a member who gains the role, with the Discord name", () => {
+        sync.onGuildMemberUpdate(member("100001", []), member("100001", ["kr"]));
+        rosterStore.upsertMember(kr.id, "100002", {});
+        sync.onGuildMemberUpdate(member("100002", []), member("100002", ["kr"]));
+        expect(gained.mock.calls.map(([r, uid, opts]) => [r.id, uid, opts.name])).toEqual([[kr.id, "100001", "N100001"], [kr.id, "100002", "N100002"]]);
+        // a roster without Kader, and no gain at all, call nothing
+        gained.mockClear();
+        sync.onGuildMemberUpdate(member("100003", []), member("100003", ["main"]));
+        sync.onGuildMemberUpdate(member("100002", ["kr"]), member("100002", ["kr", "x"]));
+        expect(gained).not.toHaveBeenCalled();
+    });
+
+    it("the reconcile tells it about new holders once, not again on the next run", async () => {
+        rosterStore.upsertMember(kr.id, "100002", {});
+        discord.fetchGuildMembersCached.mockResolvedValue([member("100001", ["kr"]), member("100002", ["kr"])]);
+        await sync.reconcile("g1");
+        expect(gained.mock.calls.map((c) => c[1]).sort()).toEqual(["100001", "100002"]);
+        gained.mockClear();
+        await sync.reconcile("g1");
+        expect(gained).not.toHaveBeenCalled();
+        discord.fetchGuildMembersCached.mockResolvedValue([]);
+    });
+
+    it("a throwing handler only logs; the member is in the roster anyway", () => {
+        gained.mockImplementation(() => { throw new Error("boom"); });
+        expect(sync.onGuildMemberUpdate(member("100001", []), member("100001", ["kr"]))).toEqual([{ rosterId: kr.id, userId: "100001", action: "added" }]);
+        expect(rosterStore.getRoster(kr.id).members["100001"]).toBeTruthy();
+    });
+
+    it("a new signature removes nobody, even with every holder gone", async () => {
+        const ids = ["100001", "100002", "100003", "100004", "100005", "100006"];
+        for (const uid of ids) rosterStore.upsertMember(kr.id, uid, {});
+        discord.fetchGuildMembersCached.mockResolvedValue(ids.map((uid) => member(uid, ["kr"])));
+        await sync.reconcile("g1");
+        rosterStore.updateRoster(kr.id, { roleIds: ["kr2"] });
+        discord.fetchGuildMembersCached.mockResolvedValue([member("100001", ["kr2"])]);
+        expect(await sync.reconcile("g1")).toMatchObject({ removed: 0, held: [] });
+        expect((await sync.reconcile("g1")).removed).toBe(0);
+        expect(Object.keys(rosterStore.getRoster(kr.id).members)).toHaveLength(6);
+        discord.fetchGuildMembersCached.mockResolvedValue([]);
+    });
+});
+
 describe("services/roster/rosterRoleSync and a closed roster (#739)", () => {
     beforeEach(() => {
         rosterStore.upsertMember(roster.id, "100001", { status: "trial" });

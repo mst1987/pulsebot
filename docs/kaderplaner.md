@@ -112,13 +112,24 @@ interview note and a comment with a marker and asserts neither reaches the roste
 
 When the Kader is decided, the orga takes it over into Discord in **one confirmed step**
 (`src/services/roster/rosterTakeover.js`, every planner access through `kaderRoster.js`): a new role, a category (an
-existing one or a new one) and channels that only the new role and the orga see; the role becomes `roleIds[0]` (the
-main role) of the **linked roster**, and every player from provisional upwards (`provisional`, `roster`, `bench`,
-`tentative`) joins that roster as **core** with the Kader's character and gets the role — one by one in the background
-(300 ms apart, the server has one vCPU). A Kader that is only provisional goes too. Only the Kader's own server.
+existing one or a new one) and channels that only the new role and the orga see; the role becomes the
+**only** role of the **linked roster** (`roleIds = [newRole]`: older roster roles stay in Discord but are no longer
+synced — the new role signature removes nobody, see docs/roster-profile.md), and every player from provisional upwards
+(`provisional`, `roster`, `bench`, `tentative`) joins that roster as **core** with the Kader's character and gets the
+role — one by one in the background (300 ms apart, the server has one vCPU). A member already in the roster whom the
+Kader plans becomes `core` too. Before each player the job checks again that the Kader still plans him
+(`kaderRoster.stillPlanned`), and the results only count for players still planned — a player the orga dropped
+meanwhile gets nothing and his `removed` stays. A Kader that is only provisional goes too. Only the Kader's own server.
+When the record cannot be saved, no role goes out (`{ takeover: null, assigning: 0 }`).
 
-- **Rights:** full admins and the managers of the linked roster (`canManageRosterLive`), with `kader` write; a
-  reader gets the precheck only. Without a linked roster there is a blocker (`no_roster`).
+- **Rights:** full admins and the managers of the roster the takeover writes into (`canManageRosterLive`) — the one
+  a recorded `takeover.rosterId` names, else the linked one — with `kader` write; a reader gets the precheck only,
+  without the server's categories. Without a linked roster there is a blocker (`no_roster`).
+- **The link is locked** once a takeover is recorded: relinking or unlinking answers 409 `kader_taken_over`, through
+  `/api/kader/roster/link` and through `/api/rosters/update` (`rosterCreate.kaderTakenOver`, option `kaderLocked`).
+- **Precheck notes:** `roster_members_outside` with `outsideCount` — roster members the Kader does not plan; they stay
+  in the roster as they are. `aborted`: the record still says `running` but no job runs (the bot restarted); "Rolle
+  nachziehen" finishes it and sets `done`.
 - **The role:** name, colour `#rrggbb`, optional Unicode emoji. The emoji becomes the role icon only when the server
   has `ROLE_ICONS` (boost level 2); otherwise the precheck shows the note `icon_not_possible` and the role is made
   without it. A role that would lie above the bot's role is deleted again (409 `role_too_high`).
@@ -135,14 +146,16 @@ Routes (area `kader`, writes with CSRF):
 
 | Route | Body / answer |
 |---|---|
-| `GET /api/kader/takeover?kader=<id>` | precheck: `{ kader {id,name,versionId,rev}, roster, online, canManageRoles, canManageChannels, iconPossible, premiumTier, blockers[], notes[], takeover, running, pending[], pendingCount, players[{userId, state, …, onServer, hasRole, inRoster, result}], categories[{id,name}], canStart }` |
+| `GET /api/kader/takeover?kader=<id>` | precheck: `{ kader {id,name,versionId,rev}, roster, online, canManageRoles, canManageChannels, iconPossible, premiumTier, blockers[], notes[], outsideCount, takeover, running, aborted, pending[], pendingCount, players[{userId, state, …, onServer, hasRole, inRoster, result}], categories[{id,name}], canStart }` |
 | `POST /api/kader/takeover` | `{ kaderId, confirm: true, baseRev, role: { name, color?, unicodeEmoji? }, category: { id } \| { name, emoji? }, channels: [{ name, emoji?, orgaOnlyWrite? }] }` → `{ takeover, steps, assigning }` |
 | `POST /api/kader/takeover/role` | "Rolle nachziehen" `{ kaderId }` → `{ count }`: the role for every player who reached provisional after the takeover (`kaderRoster.pendingOf`), in the background; 409 `not_taken` / `role_gone` |
 
 The record is the Kader's field **`takeover`**: `{ rosterId, roleId, roleName, categoryId, channelIds, by, at,
-status: "running" | "done", results: { [userId]: "ok" | "missing" | "failed" } }` (`missing` = not on the server).
-The activity log gets `takeover`, `role_given`, `role_removed_kader`, `role_removed_discord`; the player's Verlauf
-`role_given`, `role_removed_kader {from,to}`, `role_removed_discord {from,to}`.
+status: "running" | "done", results: { [userId]: "ok" | "missing" | "failed" | "removed" } }` (`missing` = not on
+the server, `removed` = lost the role in Discord afterwards).
+The activity log gets `takeover`, `role_given`, `role_removed_kader`, `role_removed_discord`, `role_added_discord`
+(one line per event: the line replaces the automatic state line); the player's Verlauf `role_given`,
+`role_removed_kader {from,to}`, `role_removed_discord {from,to}`, `role_added_discord {from?,to}`.
 
 **Both sides stay in step afterwards, without a loop:**
 
@@ -155,11 +168,20 @@ The activity log gets `takeover`, `role_given`, `role_removed_kader`, `role_remo
   takeover state, so that write drops nobody. `rosterTakeover` registers that handler with
   `rosterRoleSync.setRoleLostHandler` when it loads (through `web/apiRoutes/kader.js`); a `require` back would be a
   require cycle (`test/web/noCycles.test.js` counts lazy requires too).
-- A player who reaches provisional later gets nothing on his own; he counts as "nachzuziehen" until the orga presses
-  "Rolle nachziehen".
+- **Role given by hand in Discord:** `rosterRoleSync` adds the member to the roster (as for every roster role) and
+  calls the handler of `setRoleGainedHandler` → `rosterTakeover.onRoleGained` → `kaderRoster.roleGainedFromDiscord`:
+  a player not in the Kader or below provisional joins as **provisional** (activity + Verlauf `role_added_discord`,
+  result `ok`); a player already provisional or above stays as he is (no write, no loop). It fires on the gateway
+  event and on the reconcile for every new holder of the current signature.
+- A player who reaches provisional later in the planner gets nothing on his own; he counts as "nachzuziehen" until
+  the orga presses "Rolle nachziehen".
 
-Known limits: deleting a Kader drops nobody; members holding an older `roleIds` entry keep their roster place; members
-already in the roster keep their status; when recording fails after Discord was written, role and channels stay.
+Known limits: deleting a Kader does nothing — roster, role, channels and members stay (the record goes with the
+Kader); a member outside the Kader who holds only an old roster role keeps his roster place, one who gets the new role
+joins the Kader as provisional; when recording fails after Discord was written, role and channels stay. Races left
+open: a role event of the takeover's own write that arrives after the orga moved the player to the pool puts him back
+to provisional; after a restart the first reconcile treats every holder as new, so a holder the Kader no longer plans
+(e.g. a failed role removal) comes back as provisional.
 
 ## The version and the server
 

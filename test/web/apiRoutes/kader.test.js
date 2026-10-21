@@ -662,10 +662,11 @@ describe("web/apiRoutes/kader the takeover (docs/kaderplaner.md \"Übernahme\")"
         let res = await get("/api/kader/takeover", { kader: kaderId });
         expect(status(res)).toBe(200);
         expect(body(res)).toEqual({ blockers: [], notes: [], players: [], canStart: true });
-        expect(takeover.precheck).toHaveBeenCalledWith("g1", kaderId);
-        // a reader sees the dialog and may not start
+        expect(takeover.precheck).toHaveBeenCalledWith("g1", kaderId, { withCategories: true });
+        // a reader sees the dialog and may not start - and gets no categories
         auth.getUser.mockReturnValue(granted("read"));
         expect(body(await get("/api/kader/takeover", { kader: kaderId })).canStart).toBe(false);
+        expect(takeover.precheck).toHaveBeenLastCalledWith("g1", kaderId, { withCategories: false });
         // a writer only as a manager of the roster
         const writer = granted("write");
         auth.getUser.mockReturnValue(writer);
@@ -697,6 +698,32 @@ describe("web/apiRoutes/kader the takeover (docs/kaderplaner.md \"Übernahme\")"
         expect(status(res)).toBe(200);
         expect(body(res)).toEqual({ takeover: { roleId: "role1" }, steps: [], assigning: 1 });
         expect(takeover.start).toHaveBeenCalledWith("g1", kaderId, expect.objectContaining({ confirm: true, baseRev: 3 }), { actor: writer.id });
+    });
+
+    it("the rights follow the roster a recorded takeover writes into, not the one linked now", async () => {
+        const { kaderId, roster } = await linkedKader();
+        const target = rosterStore.createRoster({ guildId: "g1", name: "Ziel", versionId: "forever" });
+        kaderRoster.saveTakeover("g1", kaderId, { rosterId: target.id, roleId: "role1", roleName: "Raider", categoryId: "", channelIds: [] });
+        const writer = granted("write");
+        auth.getUser.mockReturnValue(writer);
+        // a manager of the linked roster only: no rights for the takeover's roster
+        rosterStore.updateRoster(roster.id, { managers: { roleIds: [], userIds: [writer.id] } });
+        expect(body(await get("/api/kader/takeover", { kader: kaderId })).canStart).toBe(false);
+        expect(status(await post("/api/kader/takeover/role", { kaderId }))).toBe(403);
+        rosterStore.updateRoster(target.id, { managers: { roleIds: [], userIds: [writer.id] } });
+        expect(body(await get("/api/kader/takeover", { kader: kaderId })).canStart).toBe(true);
+        expect(status(await post("/api/kader/takeover/role", { kaderId }))).toBe(200);
+    });
+
+    it("a taken-over Kader can neither be relinked nor unlinked (409 kader_taken_over)", async () => {
+        const { kaderId, roster } = await linkedKader();
+        kaderRoster.saveTakeover("g1", kaderId, { rosterId: roster.id, roleId: "role1", roleName: "Raider", categoryId: "", channelIds: [] });
+        const other = rosterStore.createRoster({ guildId: "g1", name: "Andere", versionId: "forever" });
+        let res = await post("/api/kader/roster/link", { kaderId, rosterId: other.id });
+        expect([status(res), body(res).error.code]).toEqual([409, "kader_taken_over"]);
+        res = await post("/api/kader/roster/link", { kaderId, rosterId: "" });
+        expect([status(res), body(res).error.code]).toEqual([409, "kader_taken_over"]);
+        expect(rosterStore.getRoster(roster.id).kaderId).toBe(kaderId);
     });
 
     it("POST: answers a refusal with its code, a stale one with the current rev", async () => {

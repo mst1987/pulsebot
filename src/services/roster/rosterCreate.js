@@ -240,6 +240,12 @@ function rosterFitsKader(roster, kader) {
     return !own || !roster || roster.versionId === own;
 }
 
+/** Whether a Kader of the server was taken over into Discord (its roster link is locked then). */
+function kaderTakenOver(guildId, kaderId) {
+    const id = str(kaderId);
+    return !!id && kaderSummaries(str(guildId)).some((k) => k.id === id && k.takenOver);
+}
+
 /** Whether the server's planner has this Kader (names only, through kaderRoster.js). */
 function kaderExists(guildId, kaderId) {
     const id = str(kaderId);
@@ -282,7 +288,8 @@ function kaderLinkChoices(guildId, kaderId) {
  * `kaderId` (a history line on both). Nothing of the Kader is copied.
  * @returns {{ ok: true, roster: object|null } | { ok: false, code: string }}
  *   codes: "kader_not_found", "not_found" (no such roster on that server), "kader_taken",
- *   "version_mismatch" (the roster plays another game version than the Kader, #741)
+ *   "version_mismatch" (the roster plays another game version than the Kader, #741),
+ *   "kader_taken_over" (the Kader was taken over into its roster: the link stays as it is)
  */
 function linkRosterToKader(kaderId, rosterId, { guildId = "", actor = "" } = {}) {
     const id = str(kaderId);
@@ -290,9 +297,11 @@ function linkRosterToKader(kaderId, rosterId, { guildId = "", actor = "" } = {})
     if (!id || !kader) return { ok: false, code: "kader_not_found" };
     const target = str(rosterId) ? rosterStore.getRoster(str(rosterId)) : null;
     if (str(rosterId) && (!target || (str(guildId) && target.guildId !== str(guildId)))) return { ok: false, code: "not_found" };
+    const previous = rosterOfKader(guildId, id);
+    // the takeover writes into the roster it recorded - relinking or unlinking would split the two
+    if (kader.takenOver && (!target || !previous || previous.id !== target.id)) return { ok: false, code: "kader_taken_over" };
     if (target && target.kaderId && target.kaderId !== id) return { ok: false, code: "kader_taken" };
     if (target && !rosterFitsKader(target, kader)) return { ok: false, code: "version_mismatch" };
-    const previous = rosterOfKader(guildId, id);
     try {
         if (previous && (!target || previous.id !== target.id)) rosterStore.updateRoster(previous.id, { kaderId: null }, { actor });
         if (target && target.kaderId !== id) rosterStore.updateRoster(target.id, { kaderId: id }, { actor });
@@ -365,6 +374,6 @@ function createRosterFromKader(kaderId, opts = {}) {
 
 module.exports = {
     createRosterWithSource, createRosterFromKader, kaderChoices, presentInRaids, kaderCharacter, categoryName,
-    rosterOfKader, kaderRosterState, syncRosterFromKader, kaderExists, kaderLinkChoices, linkRosterToKader, rosterFitsKader, kaderFitsVersion,
+    rosterOfKader, kaderRosterState, syncRosterFromKader, kaderExists, kaderTakenOver, kaderLinkChoices, linkRosterToKader, rosterFitsKader, kaderFitsVersion,
     SOURCES, RAIDS_BACK, STATUS_OF_KADER_STATE,
 };
