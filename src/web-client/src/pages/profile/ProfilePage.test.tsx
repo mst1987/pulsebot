@@ -171,7 +171,7 @@ describe("Reiter statt Chips", () => {
         expect(screen.getByRole("tab", { name: /Frosti/, selected: true })).toBeInTheDocument();
         const borka = screen.getByRole("tab", { name: /Borka/ });
         // the spec's own word (lib/wow/wowNames), then the class
-        expect(borka).toHaveAttribute("data-tip-sub", "Wilder Kampf (Bär) · Druide");
+        expect(borka).toHaveAttribute("data-tip-sub", "Feral (Bär) · Druide");
         expect(screen.getByRole("tab", { name: /Frosti/ })).toHaveAttribute("data-tip-sub", `${t("profile.tabs.noSpec")} · Magier`);
         await user.click(borka);
         expect(screen.getByRole("tab", { name: /Borka/, selected: true })).toBeInTheDocument();

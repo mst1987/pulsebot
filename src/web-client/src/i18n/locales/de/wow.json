@@ -51,8 +51,8 @@
         "Demonology": "Dämonologie",
         "Destruction": "Zerstörung",
         "Balance": "Gleichgewicht",
-        "Feral": "Wilder Kampf (Katze)",
-        "Guardian": "Wilder Kampf (Bär)"
+        "Feral": "Feral (Katze)",
+        "Guardian": "Feral (Bär)"
     },
     "instance": {
         "kara": "Karazhan",

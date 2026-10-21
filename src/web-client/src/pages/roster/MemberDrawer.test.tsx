@@ -177,7 +177,7 @@ describe("MemberDrawer — Spec in diesem Roster", () => {
         const chosen = { ...OWL, resolved: { ...OWL.resolved!, spec: "Druid-Feral", specLabel: "Wildheit", source: "override" as const, override: "Druid-Feral" } };
         open(detail([chosen], { canManage: true, roster: head() }));
         const group = within(owlDrawer()).getByRole("group", { name: "Spec in diesem Roster" });
-        expect(within(group).getByRole("button", { name: /Wilder Kampf/ })).toHaveAttribute("aria-pressed", "true");
+        expect(within(group).getByRole("button", { name: /Feral/ })).toHaveAttribute("aria-pressed", "true");
         await userEvent.click(within(group).getByRole("button", { name: "automatisch" }));
         expect(api.saveRosterMember).toHaveBeenCalledWith("raid-mo-do-abc", "u-thorgrim", { spec: "" }, "update");
     });
