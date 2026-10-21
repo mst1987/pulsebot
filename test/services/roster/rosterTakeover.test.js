@@ -180,6 +180,22 @@ describe("services/roster/rosterTakeover precheck", () => {
         expect(pre.aborted).toBe(false);
     });
 
+    it("answers the role and category of a takeover as Discord has them now", async () => {
+        expect(await takeover.precheck("g1", "k1")).toMatchObject({ role: null, category: null });
+        guild.roles.cache.set("old", { id: "old", name: "Raider 2027", color: 0x3366cc, hexColor: "#3366cc" });
+        kaderRoster.saveTakeover("g1", "k1", { rosterId: roster.id, roleId: "old", roleName: "Alt", categoryId: "cat1", channelIds: [] }, { actor: "o1" });
+        let pre = await takeover.precheck("g1", "k1");
+        expect(pre.role).toEqual({ id: "old", name: "Raider 2027", color: "#3366cc", gone: false });
+        expect(pre.category).toEqual({ id: "cat1", name: "Bestand", gone: false });
+        guild.roles.cache.delete("old");
+        guild.channels.cache.delete("cat1");
+        pre = await takeover.precheck("g1", "k1");
+        expect(pre.role).toEqual({ id: "old", name: "Alt", color: "", gone: true });
+        expect(pre.category).toEqual({ id: "cat1", name: "", gone: true });
+        discord.isOnline.mockReturnValue(false);
+        expect(await takeover.precheck("g1", "k1")).toMatchObject({ role: null, category: null });
+    });
+
     it("names every blocker: no roster, offline, no rights, nobody, already taken", async () => {
         rosterStore.deleteRoster(roster.id);
         discord.isOnline.mockReturnValue(false);

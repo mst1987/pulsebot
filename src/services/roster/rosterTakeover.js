@@ -103,6 +103,23 @@ function categoriesOf(guild) {
         .map((c) => ({ id: String(c.id), name: String(c.name || "") }));
 }
 
+/**
+ * What a recorded takeover made, as Discord has it now: `role` { id, name,
+ * color ("#rrggbb", "" for none), gone } and `category` { id, name, gone },
+ * null when nothing was made or the bot is offline (the Kader head shows them).
+ */
+function madeOf(guild, takeover) {
+    if (!guild || !takeover) return { role: null, category: null };
+    const role = takeover.roleId && guild.roles && guild.roles.cache ? guild.roles.cache.get(takeover.roleId) : null;
+    const cat = takeover.categoryId && guild.channels && guild.channels.cache ? guild.channels.cache.get(takeover.categoryId) : null;
+    return {
+        role: takeover.roleId
+            ? { id: takeover.roleId, name: role ? String(role.name || "") : takeover.roleName, color: role && role.color ? String(role.hexColor || "") : "", gone: !role }
+            : null,
+        category: takeover.categoryId ? { id: takeover.categoryId, name: cat ? String(cat.name || "") : "", gone: !cat } : null,
+    };
+}
+
 /** The orga's roles on this server: admin and orga roles of the settings plus the roster's manager roles. */
 function orgaRoleIdsOf(guild, roster) {
     const config = getConfig() || {};
@@ -127,7 +144,8 @@ function rosterOf(guildId, kader) {
  * roster). The players carry whether they are on the server and hold the role -
  * null when unknown. `aborted`: a takeover still "running" without a job in
  * this process - the bot restarted while handing out, the rest is
- * "nachzuziehen". `categories` only with `opts.withCategories` (the caller
+ * "nachzuziehen". `role` / `category`: what the takeover made, as Discord has
+ * it now (madeOf). `categories` only with `opts.withCategories` (the caller
  * may start the takeover).
  */
 async function precheck(guildId, kaderId, opts = {}) {
@@ -178,6 +196,7 @@ async function precheck(guildId, kaderId, opts = {}) {
         notes,
         outsideCount,
         takeover: kader.takeover,
+        ...madeOf(guild, kader.takeover),
         running: isRunning,
         aborted: !!(kader.takeover && kader.takeover.status === "running" && !isRunning),
         pending: kader.pending,
