@@ -1119,6 +1119,7 @@
             "state": "Status",
             "discord": "Discord",
             "notOnServer": "nicht auf dem Server",
+            "notOnServerShort": "nicht auf Server",
             "hasRole": "hat die Rolle schon",
             "inRoster": {
                 "one": "{count} Spieler ist schon im Roster und wird dort Stamm.",
@@ -1146,8 +1147,8 @@
             },
             "finished": "Verteilung abgeschlossen",
             "missing": {
-                "one": "{count} nicht auf dem Server",
-                "other": "{count} nicht auf dem Server"
+                "one": "{count} ist nicht auf dem Server",
+                "other": "{count} sind nicht auf dem Server"
             },
             "failedCount": {
                 "one": "{count} Fehler",
@@ -1160,6 +1161,11 @@
         "lineCategory": "Kategorie {name}",
         "lineRunning": "Rolle wird verteilt …",
         "lineAborted": "Verteilung abgebrochen",
+        "lineAway": {
+            "one": "{count} nicht auf dem Server",
+            "other": "{count} nicht auf dem Server"
+        },
+        "lineAwayTip": "Noch ohne Rolle, weil nicht auf dem Discord-Server. Sobald sie beitreten, zählt „Rolle nachziehen“ sie mit.",
         "roleGone": "Diese Rolle gibt es in Discord nicht mehr.",
         "pull": {
             "one": "Rolle nachziehen ({count})",

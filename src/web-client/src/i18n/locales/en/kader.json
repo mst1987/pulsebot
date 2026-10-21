@@ -1119,6 +1119,7 @@
             "state": "Status",
             "discord": "Discord",
             "notOnServer": "not on the server",
+            "notOnServerShort": "not on server",
             "hasRole": "already has the role",
             "inRoster": {
                 "one": "{count} player is already in the roster and becomes core there.",
@@ -1146,8 +1147,8 @@
             },
             "finished": "Hand-out finished",
             "missing": {
-                "one": "{count} not on the server",
-                "other": "{count} not on the server"
+                "one": "{count} is not on the server",
+                "other": "{count} are not on the server"
             },
             "failedCount": {
                 "one": "{count} error",
@@ -1160,6 +1161,11 @@
         "lineCategory": "Category {name}",
         "lineRunning": "Handing out the role …",
         "lineAborted": "Hand-out aborted",
+        "lineAway": {
+            "one": "{count} not on the server",
+            "other": "{count} not on the server"
+        },
+        "lineAwayTip": "Still without the role because they are not on the Discord server. Once they join, “Pull role” counts them.",
         "roleGone": "This role no longer exists in Discord.",
         "pull": {
             "one": "Pull role ({count})",

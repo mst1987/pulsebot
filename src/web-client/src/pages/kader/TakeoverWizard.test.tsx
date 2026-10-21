@@ -40,7 +40,7 @@ function check(over: Partial<KaderTakeoverCheck> = {}): KaderTakeoverCheck {
         roster: { id: "forever-raid", name: "Forever-Raid", closed: false, roleIds: ["old"] },
         online: true, canManageRoles: true, canManageChannels: true, iconPossible: false, premiumTier: 1,
         blockers: [], notes: [], outsideCount: 2, takeover: null, role: null, category: null, running: false, aborted: false,
-        pending: [], pendingCount: 0,
+        pending: [], pendingCount: 0, pullCount: 0, pendingAway: 0,
         players: [
             { userId: U.heal, state: "provisional", onServer: true, hasRole: null, inRoster: false, result: null },
             { userId: U.tank, state: "roster", characterName: "Aldric Sturmwind", onServer: true, hasRole: null, inRoster: true, result: null },
@@ -135,9 +135,38 @@ describe("Kaderplaner · In Discord übernehmen", () => {
         await waitFor(() => expect(dialog.querySelector(".dlg-title")).toHaveTextContent(T("title.result")));
         const items = within(dialog).getAllByRole("listitem");
         expect(items.some((li) => li.className.includes("kp-tk-bad") && li.textContent?.includes("chat"))).toBe(true);
-        expect(await within(dialog).findByText(T("progress", { given: 2, total: 4 }))).toBeInTheDocument();
+        // while the role goes out: the loader with its line, no "0 of n … still open"
+        expect(await within(dialog).findByText(T("lineRunning"))).toBeInTheDocument();
+        expect(within(dialog).queryByText(T("progress", { given: 2, total: 4 }))).not.toBeInTheDocument();
+        expect(within(dialog).queryByText(T("result.open", { count: 2 }), { exact: false })).not.toBeInTheDocument();
         await userEvent.click(within(dialog).getAllByRole("button", { name: T("close") }).at(-1)!);
         await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    });
+
+    it("once done shows the final count and names the players not on the server apart, not as open", async () => {
+        vi.mocked(api.startKaderTakeover).mockImplementation(async () => {
+            current = taken({ results: { [U.tank]: "ok", [U.heal]: "ok", [U.sham]: "ok", [U.tent]: "missing" } });
+            return { takeover: current, steps: STEPS, assigning: 4 };
+        });
+        await show();
+        const dialog = await openWizard();
+        await toWho(dialog);
+        await userEvent.click(within(dialog).getByRole("switch", { name: T("who.confirm") }));
+        await userEvent.click(within(dialog).getByRole("button", { name: T("start") }));
+        expect(await within(dialog).findByText(T("progress", { given: 3, total: 4 }))).toBeInTheDocument();
+        const sum = within(dialog).getByText(T("result.finished"), { exact: false });
+        expect(sum).toHaveTextContent(T("result.missing", { count: 1 }));
+        expect(sum).not.toHaveTextContent(T("result.open", { count: 1 }));
+        expect(within(dialog).queryByText(T("lineRunning"))).not.toBeInTheDocument();
+    });
+
+    it("keeps \"not on the server\" in one short line in the who table, the whole text as tooltip", async () => {
+        await show();
+        const dialog = await openWizard();
+        await toWho(dialog);
+        const cell = dialog.querySelector(".kp-tk-away");
+        expect(cell).toHaveAttribute("data-tip", T("who.notOnServer"));
+        expect(cell?.querySelector(".kp-tk-short")).toHaveTextContent(T("who.notOnServerShort"));
     });
 
     it("offers the role icon only where the server can show one", async () => {
@@ -211,11 +240,11 @@ describe("Kaderplaner · Kopf nach der Übernahme", () => {
         current = waiting();
         vi.mocked(api.getKaderTakeover).mockResolvedValue(check({
             takeover: current, blockers: ["already_taken"], role: { id: "role1", name: "Forever-Kader", color: "#3366cc", gone: false },
-            category: { id: "cat1", name: "forever-kader", gone: false }, pending: [U.heal, U.tent], pendingCount: 2,
+            category: { id: "cat1", name: "forever-kader", gone: false }, pending: [U.heal, U.tent], pendingCount: 2, pullCount: 2, pendingAway: 0,
         }));
         vi.mocked(api.pullKaderTakeoverRole).mockImplementation(async () => {
             current = taken();
-            return { count: 2 };
+            return { count: 2, away: 0 };
         });
         await show("/kader/k1/pool");
         expect(await screen.findByText(T("progress", { given: 2, total: 4 }))).toBeInTheDocument();
@@ -232,9 +261,31 @@ describe("Kaderplaner · Kopf nach der Übernahme", () => {
 
     it("shows no pull button without the right, nor when nobody waits; marks an aborted hand-out", async () => {
         current = waiting();
-        vi.mocked(api.getKaderTakeover).mockResolvedValue(check({ takeover: current, canStart: false, aborted: true, pending: [U.heal], pendingCount: 1 }));
+        vi.mocked(api.getKaderTakeover).mockResolvedValue(check({ takeover: current, canStart: false, aborted: true, pending: [U.heal], pendingCount: 1, pullCount: 1, pendingAway: 0 }));
         await show("/kader/k1/pool");
         expect(await screen.findByText(T("lineAborted"))).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /nachziehen/ })).not.toBeInTheDocument();
+    });
+
+    it("counts only players on the server for the pull; the others as text without a button", async () => {
+        current = waiting();
+        vi.mocked(api.getKaderTakeover).mockResolvedValue(check({
+            takeover: current, blockers: ["already_taken"], role: { id: "role1", name: "Forever-Kader", color: "", gone: false },
+            pending: [U.heal, U.tent], pendingCount: 2, pullCount: 1, pendingAway: 1,
+        }));
+        await show("/kader/k1/pool");
+        expect(await screen.findByRole("button", { name: T("pull", { count: 1 }) })).toBeInTheDocument();
+        const away = screen.getByText(T("lineAway", { count: 1 }));
+        expect(away).toHaveAttribute("data-tip", T("lineAwayTip"));
+        cleanup();
+
+        // nobody on the server waits: no green button, only the text
+        vi.mocked(api.getKaderTakeover).mockResolvedValue(check({
+            takeover: current, blockers: ["already_taken"], role: { id: "role1", name: "Forever-Kader", color: "", gone: false },
+            pending: [U.tent], pendingCount: 1, pullCount: 0, pendingAway: 1,
+        }));
+        await show("/kader/k1/pool");
+        expect(await screen.findByText(T("lineAway", { count: 1 }))).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: /nachziehen/ })).not.toBeInTheDocument();
     });
 });

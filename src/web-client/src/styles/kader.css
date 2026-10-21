@@ -1178,8 +1178,13 @@ dialog.dlg.kp-tk .dlg-body { display: flex; flex-direction: column; gap: 20px; }
 /* narrow: the three columns fit the dialog - tighter cells, the Discord note wraps */
 @media (max-width: 480px) {
     .kp-tk-table th, .kp-tk-table td { padding: 8px 6px; }
-    .kp-tk-table td .kp-sub, .kp-tk-table td .kp-tk-bad { white-space: normal; overflow-wrap: anywhere; }
+    .kp-tk-table td .kp-sub { white-space: normal; overflow-wrap: anywhere; }
+    /* "nicht auf Server" in one line, the whole text as tooltip */
+    .kp-tk-away { white-space: nowrap; }
+    .kp-tk-away .kp-tk-long { display: none; }
+    .kp-tk-away .kp-tk-short { display: inline; }
 }
+.kp-tk-short { display: none; }
 .kp-tk-who { display: flex; flex-direction: column; min-width: 0; }
 .kp-tk-reslist { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
 .kp-tk-res { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }

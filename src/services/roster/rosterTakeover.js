@@ -201,9 +201,22 @@ async function precheck(guildId, kaderId, opts = {}) {
         aborted: !!(kader.takeover && kader.takeover.status === "running" && !isRunning),
         pending: kader.pending,
         pendingCount: kader.pending.length,
+        ...pullableOf(kader.pending, members),
         players,
         categories: opts.withCategories ? categoriesOf(guild) : [],
     };
+}
+
+/**
+ * Who "Rolle nachziehen" can reach: `pullCount` pending players on the server
+ * (all of them when the member list is unknown), `pendingAway` those not on it.
+ * Joining the server later gives nobody the role by itself (rosterRoleSync only
+ * reads roles from Discord), so they wait here until they join and the orga pulls.
+ */
+function pullableOf(pending, members) {
+    if (!members) return { pullCount: pending.length, pendingAway: 0 };
+    const away = pending.filter((uid) => !members.has(uid)).length;
+    return { pullCount: pending.length - away, pendingAway: away };
 }
 
 /** "#rrggbb" as a number, null for none; anything else is refused. */
@@ -502,10 +515,12 @@ async function start(guildId, kaderId, body = {}, { actor = "", gapMs = ROLE_GAP
 
 /**
  * "Rolle nachziehen": the role for every player still waiting for it
- * (kaderRoster.pendingOf), in the background like the takeover.
- * @returns {{ count: number }}
+ * (kaderRoster.pendingOf) who is on the server, in the background like the
+ * takeover. Players known to be away are skipped (`away`); with the member
+ * list unknown everybody pending is tried.
+ * @returns {Promise<{ count: number, away: number }>}
  */
-function pullRole(guildId, kaderId, { actor = "", gapMs = ROLE_GAP_MS } = {}) {
+async function pullRole(guildId, kaderId, { actor = "", gapMs = ROLE_GAP_MS, timeoutMs = MEMBER_FETCH_MS } = {}) {
     const gid = str(guildId);
     const kader = kaderRoster.takeoverPlayers(gid, kaderId);
     if (!kader) throw refuse("kader_not_found", 404, "Kader nicht gefunden.");
@@ -514,14 +529,18 @@ function pullRole(guildId, kaderId, { actor = "", gapMs = ROLE_GAP_MS } = {}) {
     const guild = assertCanWrite(gid, kader, roster);
     const roleId = kader.takeover.roleId;
     if (guild.roles && guild.roles.cache && !guild.roles.cache.has(roleId)) throw refuse("role_gone", 409, "Die Rolle der Übernahme gibt es nicht mehr.");
+    const members = await membersOf(gid, guild, { timeoutMs });
     const pending = new Set(kader.pending);
-    const players = kader.players.filter((p) => pending.has(p.userId));
-    if (!players.length) return { count: 0 };
+    const waiting = kader.players.filter((p) => pending.has(p.userId));
+    const players = members ? waiting.filter((p) => members.has(p.userId)) : waiting;
+    const away = waiting.length - players.length;
+    if (!players.length) return { count: 0, away };
+    assertCanWrite(gid, kader, roster); // again: another pull may have started while the list loaded
     locked(gid, kader.id, async () => {
         const results = await handOut(roster.id, roleId, players, { actor, gapMs, guildId: gid, kaderId: kader.id });
         kaderRoster.markRoleGiven(gid, kader.id, results, { actor });
     });
-    return { count: players.length };
+    return { count: players.length, away };
 }
 
 /**

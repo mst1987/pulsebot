@@ -173,7 +173,7 @@ describe("services/roster/rosterTakeover precheck", () => {
         expect(pre.takeover.status).toBe("running");
         expect(pre).toMatchObject({ running: false, aborted: true });
         // "Rolle nachziehen" finishes it
-        expect(takeover.pullRole("g1", "k1", { actor: "o1", gapMs: 0 })).toEqual({ count: 3 });
+        expect(await takeover.pullRole("g1", "k1", { actor: "o1", gapMs: 0 })).toEqual({ count: 3, away: 0 });
         await takeover.whenIdle("g1", "k1");
         pre = await takeover.precheck("g1", "k1");
         expect(pre.takeover.status).toBe("done");
@@ -524,22 +524,52 @@ describe("services/roster/rosterTakeover Rolle nachziehen", () => {
         kaderStore.writePlanner("g1", p);
         expect(kaderRoster.takeoverPlayers("g1", "k1").pending).toEqual([U.d, U.e]);
         memberRoles.giveRole.mockClear();
-        expect(takeover.pullRole("g1", "k1", { actor: "o1", gapMs: 0 })).toEqual({ count: 2 });
+        expect(await takeover.pullRole("g1", "k1", { actor: "o1", gapMs: 0 })).toEqual({ count: 2, away: 0 });
         await takeover.whenIdle("g1", "k1");
         expect(memberRoles.giveRole.mock.calls).toEqual([["g1", U.d, roleId], ["g1", U.e, roleId]]);
         expect(kaderRoster.takeoverPlayers("g1", "k1").pending).toEqual([]);
         expect(rosterNow().members[U.e].status).toBe("core");
-        expect(takeover.pullRole("g1", "k1", { gapMs: 0 })).toEqual({ count: 0 });
+        expect(await takeover.pullRole("g1", "k1", { gapMs: 0 })).toEqual({ count: 0, away: 0 });
+    });
+
+    it("pulls only players on the server; the away ones wait and are counted", async () => {
+        const res = await startAndWait();
+        const roleId = res.steps[0].id;
+        const p = kaderStore.readPlanner("g1");
+        p.kaders[0].players[U.d].state = "provisional";
+        p.kaders[0].players[U.e] = { state: "roster" };
+        kaderStore.writePlanner("g1", p);
+        // U.e is on the server, U.d is not (joining later gives nobody the role by itself)
+        discord.fetchGuildMembersCached.mockResolvedValue([{ id: U.e, roles: { cache: new Map() } }]);
+        const pre = await takeover.precheck("g1", "k1");
+        expect(pre).toMatchObject({ pendingCount: 2, pullCount: 1, pendingAway: 1 });
+        memberRoles.giveRole.mockClear();
+        expect(await takeover.pullRole("g1", "k1", { gapMs: 0 })).toEqual({ count: 1, away: 1 });
+        await takeover.whenIdle("g1", "k1");
+        expect(memberRoles.giveRole.mock.calls).toEqual([["g1", U.e, roleId]]);
+        expect(kaderRoster.takeoverPlayers("g1", "k1").pending).toEqual([U.d]);
+        // nobody on the server left to pull: nothing goes out
+        expect(await takeover.pullRole("g1", "k1", { gapMs: 0 })).toEqual({ count: 0, away: 1 });
+    });
+
+    it("with the member list unknown every pending player counts as pullable", async () => {
+        await startAndWait();
+        const p = kaderStore.readPlanner("g1");
+        p.kaders[0].players[U.d].state = "provisional";
+        kaderStore.writePlanner("g1", p);
+        discord.fetchGuildMembersCached.mockRejectedValue(new Error("no intent"));
+        const pre = await takeover.precheck("g1", "k1");
+        expect(pre).toMatchObject({ pendingCount: 1, pullCount: 1, pendingAway: 0 });
     });
 
     it("refuses before a takeover, for a deleted role and offline", async () => {
-        expect(() => takeover.pullRole("g1", "k1")).toThrow(expect.objectContaining({ code: "not_taken", status: 409 }));
-        expect(() => takeover.pullRole("g1", "nope")).toThrow(expect.objectContaining({ code: "kader_not_found" }));
+        await expect(takeover.pullRole("g1", "k1")).rejects.toMatchObject({ code: "not_taken", status: 409 });
+        await expect(takeover.pullRole("g1", "nope")).rejects.toMatchObject({ code: "kader_not_found" });
         const res = await startAndWait();
         guild.roles.cache.delete(res.steps[0].id);
-        expect(() => takeover.pullRole("g1", "k1")).toThrow(expect.objectContaining({ code: "role_gone" }));
+        await expect(takeover.pullRole("g1", "k1")).rejects.toMatchObject({ code: "role_gone" });
         discord.isOnline.mockReturnValue(false);
-        expect(() => takeover.pullRole("g1", "k1")).toThrow(expect.objectContaining({ code: "offline", status: 503 }));
+        await expect(takeover.pullRole("g1", "k1")).rejects.toMatchObject({ code: "offline", status: 503 });
     });
 });
 

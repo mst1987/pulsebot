@@ -551,6 +551,9 @@ export type KaderTakeoverCheck = {
     aborted: boolean;
     pending: string[];
     pendingCount: number;
+    /** Of the pending players, those on the server ("Rolle nachziehen" reaches them) and those not on it. */
+    pullCount: number;
+    pendingAway: number;
     players: KaderTakeoverPlayer[];
     categories: { id: string; name: string }[];
     /** May the caller start it (kader write + manager of the roster)? */
@@ -588,7 +591,7 @@ export function startKaderTakeover(kaderId: string, body: KaderTakeoverBody): Pr
     return send("POST", "/api/kader/takeover", { kaderId, confirm: true, ...body });
 }
 
-/** "Rolle nachziehen": the role for everyone still waiting; `count` = how many get it now. */
-export function pullKaderTakeoverRole(kaderId: string): Promise<{ count: number }> {
+/** "Rolle nachziehen": the role for everyone still waiting on the server; `count` = how many get it now, `away` = waiting but not on the server. */
+export function pullKaderTakeoverRole(kaderId: string): Promise<{ count: number; away: number }> {
     return send("POST", "/api/kader/takeover/role", { kaderId });
 }

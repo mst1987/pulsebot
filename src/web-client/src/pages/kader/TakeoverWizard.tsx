@@ -14,6 +14,7 @@ import {
 } from "../../api";
 import { Button, DataTable, Field, IconButton, Modal, Segment, Switch, type Column } from "../../components/ui";
 import EmojiPicker from "../../components/ui/EmojiPicker";
+import RaidLoader from "../../components/ui/RaidLoader";
 import { useConfirm } from "../../components/ui/Modal";
 import { AlertIcon, ArrowLeftIcon, CheckIcon, ChevronRightIcon, DiscordIcon, PlusIcon, RefreshIcon, TrashIcon, XIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
@@ -215,7 +216,12 @@ function WhoStep({ draft, set, check, blocker }: { draft: TakeoverDraft; set: (p
         { id: "state", label: t("kader.takeover.who.state"), sortKey: "state", cell: (p) => <StateBadge state={p.state} /> },
         { id: "discord", label: t("kader.takeover.who.discord"), sortKey: "discord", cell: (p) => (
             p.onServer === false
-                ? <span className="kp-tk-bad">{t("kader.takeover.who.notOnServer")}</span>
+                ? (
+                <span className="kp-tk-bad kp-tk-away" data-tip={t("kader.takeover.who.notOnServer")}>
+                    <span className="kp-tk-long">{t("kader.takeover.who.notOnServer")}</span>
+                    <span className="kp-tk-short" aria-hidden="true">{t("kader.takeover.who.notOnServerShort")}</span>
+                </span>
+            )
                 : p.hasRole ? <span className="kp-sub">{t("kader.takeover.who.hasRole")}</span> : <span className="kp-sub">{t("kader.takeover.who.getsRole")}</span>
         ) },
     ];
@@ -274,17 +280,21 @@ function ResultStep({ result, check }: { result: KaderTakeoverStart; check: Kade
     const { kader } = useKader();
     const taken = check?.takeover || result.takeover;
     const p = taken ? progressOf(kader, taken) : null;
+    // while the job runs only the loader; the numbers once it is done
+    const running = !!check?.running || taken?.status === "running";
     return (
         <div className="kp-stack">
             <ul className="kp-tk-reslist">{result.steps.map((s, i) => <StepLine key={`${s.step}${i}`} s={s} />)}</ul>
             {!result.takeover ? (
                 <p className="kp-livehint" role="alert">{t("kader.takeover.result.notRecorded")}</p>
+            ) : running ? (
+                <div className="kp-tk-sum"><RaidLoader compact text={t("kader.takeover.lineRunning")} /></div>
             ) : p && (
                 <div className="kp-tk-sum">
                     <p className="kp-tk-big">{t("kader.takeover.progress", { given: p.given, total: p.total })}</p>
                     <p className="kp-sub">
                         {[
-                            check?.running || p.open > 0 ? t("kader.takeover.result.open", { count: p.open }) : t("kader.takeover.result.finished"),
+                            p.open > 0 ? t("kader.takeover.result.open", { count: p.open }) : t("kader.takeover.result.finished"),
                             p.missing > 0 ? t("kader.takeover.result.missing", { count: p.missing }) : "",
                             p.failed > 0 ? t("kader.takeover.result.failedCount", { count: p.failed }) : "",
                         ].filter(Boolean).join(" · ")}
@@ -430,7 +440,9 @@ export function TakeoverLine() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [running]);
     if (!taken || !progress) return null;
-    const pending = c ? c.pendingCount : waiting;
+    // only who is on the server: a later join gives nobody the role by itself, pulling does nothing for the others
+    const pending = c ? c.pullCount : waiting;
+    const away = c?.pendingAway || 0;
     const roleName = c?.role?.name || taken.roleName;
 
     const pull = async () => {
@@ -466,6 +478,7 @@ export function TakeoverLine() {
             )}
             {running && <span className="kp-sub">{t("kader.takeover.lineRunning")}</span>}
             {c?.aborted && <span className="kp-tk-bad">{t("kader.takeover.lineAborted")}</span>}
+            {away > 0 && !running && <span className="kp-sub" data-tip={t("kader.takeover.lineAwayTip")}>{t("kader.takeover.lineAway", { count: away })}</span>}
             <span className="kp-grow" />
             {pending > 0 && c?.canStart && !running && (
                 <Button variant="go" size="sm" icon={<RefreshIcon />} running={busy} disabled={!!c.role?.gone} onClick={() => void pull()}
