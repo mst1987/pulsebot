@@ -90,7 +90,7 @@ export function CharacterNumber({ order }: { order: number }) {
 
 /**
  * One raider line — nothing on it to click but the line itself (pick, drag,
- * right click): fixing, the check and "Anmeldung bearbeiten" are buttons in the
+ * double click out of the raid, right click): fixing, the check and "Anmeldung bearbeiten" are buttons in the
  * raider panel (SlotTip), so they can never sit under the name or the mark.
  * `inPool` (#517): signed up, not in the setup, a "Bank" signup marked.
  * `inGroup`: a place in a group — only there a Confirm/Cancel is drawn (green resp. red, the mark as a big icon behind the line).
@@ -133,6 +133,8 @@ export function Slot({ p, ui, inPool = false, inGroup = false, as, order }: { p:
             // the raider's info beside the line while the mouse rests on it or the focus is here (peek.ts)
             {...peekHandlers(ui, p.userId, as)}
             onClick={ui.editable ? () => (held ? ui.onHeld?.(p.userId) : ui.onPick(p.userId, as)) : undefined}
+            // a double click on somebody in a group or on the bench takes them out of the raid, back into "Angemeldet"
+            onDoubleClick={movable && !inPool ? () => ui.onDrop({ pool: true }, p.userId) : undefined}
             onKeyDown={movable ? keyDown : undefined}
             // the dimmed look is set a tick later: changing the dragged element inside dragstart makes Chrome cancel the drag;
             // the peek goes at once, so it never covers where the raider is dropped

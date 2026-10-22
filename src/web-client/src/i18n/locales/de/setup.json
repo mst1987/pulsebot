@@ -7,6 +7,7 @@
         "tip": {
             "peekAria": "Kurzinfo zum Raider",
             "peekHint": "Klick: auswählen, verschieben, bearbeiten",
+            "peekHintPlaced": "Klick: auswählen, verschieben, bearbeiten · Doppelklick: aus dem Raid nehmen",
             "attendance": "Anwesenheit",
             "attendanceNone": "noch keine Raids gezählt",
             "attendanceDetails": "Details",
@@ -243,7 +244,10 @@
         "done": "Fertig"
     },
     "drawer": {
-        "kicker": "Raider"
+        "kicker": "Raider",
+        "picked": "{name} gewählt – Ziel antippen",
+        "details": "Details",
+        "less": "Ziel wählen"
     },
     "poolPanel": {
         "statusFilter": "Nach Status filtern",

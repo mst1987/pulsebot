@@ -19,8 +19,9 @@
 // Moving: drag a raider onto a group, onto the bench, back into "Angemeldet"
 // (the pool of who signed up and is neither placed nor benched, #517) or onto
 // another raider (swap — inside one group that reorders it; every group always
-// shows its five places). Without a mouse: activate a raider (click, Enter),
-// then the target. Every move is saved at once and comes back valued by the
+// shows its five places). A double click on somebody in a group or on the bench
+// takes them out of the raid, back into "Angemeldet". Without a mouse: activate
+// a raider (click, Enter), then the target. Every move is saved at once and comes back valued by the
 // server. Posting carries the bench only with "Bank mitposten" on.
 //
 // A raid group (#811): an overbooked raid gets further raids ("Weiteren Raid
@@ -107,6 +108,9 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     // drop the pick, the drawer stays, and the next click on a raider just picks
     // that one. Esc or its close button lets go.
     const [pinned, setPinned] = useState<string | null>(null);
+    // a phone: the sheet stays one slim line while a raider is picked, until "Details" opens it — closed again at every new pick
+    const [sheetOpen, setSheetOpen] = useState(false);
+    useEffect(() => setSheetOpen(false), [selected]);
 
     // The peek (peek.ts): the raider whose line the mouse rests on or the focus is on —
     // their info beside the line, PEEK_DELAY_MS later, so passing over draws nothing.
@@ -809,7 +813,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     } : undefined;
 
     return (
-        <div className={`se-editor${compact ? " se-compact" : ""}`}>
+        <div className={`se-editor${compact ? " se-compact" : ""}${selected ? " se-picking" : ""}`}>
             {/* a raid group (#811): one tab per raid of the evening, a drop target while a raider moves */}
             {group && (
                 <RaidTabs
@@ -874,10 +878,11 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                 </div>
             )}
 
-            {/* a container of its own: the side column for "Angemeldet" or, where too narrow, its dock at the bottom (setup-editor.css) */}
+            {/* a container of its own: "Angemeldet" lies under the setup, or — where too narrow — docks at the bottom (setup-editor.css) */}
             <div className="se-stage">
-                <div className={`se-layout${poolCount > 0 ? " se-with-pool" : ""}`}>
-                    {/* the groups right under the bar, the bench as a row under them, then one summary line — "Angemeldet" (#517) beside them */}
+                {/* the groups right under the bar, the bench as a row under them, "Angemeldet" (#517) under the setup — never
+                    beside it, so the groups keep their width whether somebody is left or not — then one summary line */}
+                <div className="se-layout">
                     <div className="se-main">
                         <GroupGrid count={groups.length}>
                             {groups.map((g) => (
@@ -885,18 +890,28 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                             ))}
                         </GroupGrid>
                         <BenchCard bench={setup.bench} ui={ui} />
-                        <SummaryLine data={data} setup={setup} onDetails={() => setDialog("details")} />
-                        <ActivityFeed activity={presence.activity} />
                     </div>
                     <PoolPanel pool={setup.pool || []} ui={ui} absent={data.absent || 0} />
+                    <SummaryLine data={data} setup={setup} onDetails={() => setDialog("details")} />
+                    <ActivityFeed activity={presence.activity} />
                 </div>
             </div>
 
             {/* the raider's details: a side drawer that a click opens, never an empty box */}
+            {/* on a phone, while the raider is picked, the sheet is one slim line ("… gewählt – Ziel antippen"), so the
+                places to tap stay in view; "Details" opens it in full */}
             {inspectedPerson && (
-                <div className="se-drawer">
+                <div className={`se-drawer${selected === shownId ? " se-drawer-picking" : ""}${sheetOpen ? " se-drawer-open" : ""}`}>
                     <div className="se-drawer-head">
-                        <span className="kicker">{t("setup.drawer.kicker")}</span>
+                        <span className="kicker se-drawer-kicker">{t("setup.drawer.kicker")}</span>
+                        {selected === shownId && (
+                            <>
+                                <span className="se-drawer-pick">{t("setup.drawer.picked", { name: inspectedPerson.character })}</span>
+                                <Button variant="ghost" size="sm" className="se-drawer-more" aria-expanded={sheetOpen} onClick={() => setSheetOpen((o) => !o)}>
+                                    {sheetOpen ? t("setup.drawer.less") : t("setup.drawer.details")}
+                                </Button>
+                            </>
+                        )}
                         <IconButton icon={<XIcon />} tip={t("common.close")} size="sm" onClick={closeDrawer} />
                     </div>
                     <SlotTip
@@ -916,6 +931,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                     <SlotTip
                         p={peekPerson} attendance={data.attendance ? data.attendance[peekPerson.userId] : undefined}
                         extra={(data.extraRoles || {})[peekPerson.userId] || []} peek
+                        removable={!(setup.pool || []).some((x) => x.userId === peekPerson.userId)}
                     />
                 </Popover>
             )}

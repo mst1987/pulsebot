@@ -14,8 +14,9 @@ import { MARKED_STATUSES, markedStatus, matchesQuery, statusLabel, statusRank, t
 
 // "Angemeldet" (#517): everybody signed up who is neither in a group nor on the
 // bench — where the setup starts from, since the editor no longer needs a
-// proposal first. A panel of its own beside the groups, by role (tank, healer,
-// melee, ranged) with a search and role filters, so dragging is a short way.
+// proposal first. A panel of its own under the setup (never beside it, so the
+// groups keep their width), by role (tank, healer, melee, ranged) with a search
+// and role filters.
 // Where the editor is too narrow for a side column it docks at the bottom of the
 // window instead (setup-editor.css, container query): one row to scroll sideways,
 // folded away by its arrow — and folded by itself while a raider of it is picked,

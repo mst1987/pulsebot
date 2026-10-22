@@ -61,7 +61,8 @@ describe("the peek: a raider's info on hover and focus", () => {
         expect(peek.closest(".se-peek")).toHaveAttribute("role", "tooltip");
         expect(within(peek).getByText("Ignis")).toBeInTheDocument();
         expect(within(peek).getByText("80 %")).toBeInTheDocument();
-        expect(within(peek).getByText(t("setup.person.tip.peekHint"))).toBeInTheDocument();
+        // in a group: the hint names the double click that takes them out
+        expect(within(peek).getByText(t("setup.person.tip.peekHintPlaced"))).toBeInTheDocument();
         // read only: the actions stay with the drawer a click opens
         expect(within(peek).queryByRole("button")).not.toBeInTheDocument();
         expect(drawer()).not.toBeInTheDocument();
@@ -128,6 +129,8 @@ describe("the peek: a raider's info on hover and focus", () => {
         const peek = await findPeek();
         expect(within(peek).getByText("Zibbowar")).toBeInTheDocument();
         expect(within(peek).getByText(t("signups.status.late"))).toBeInTheDocument();
+        // in "Angemeldet" a double click takes nobody out: the plain hint
+        expect(within(peek).getByText(t("setup.person.tip.peekHint"))).toBeInTheDocument();
     });
 
     it("names a tentative signup with the one word of the app — line, peek and pool alike — and drops the reason that only repeats it", async () => {

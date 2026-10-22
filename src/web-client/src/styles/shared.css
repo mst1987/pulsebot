@@ -332,6 +332,10 @@ nav.menu::-webkit-scrollbar { display: none; }
     .tiles { grid-template-columns: repeat(2, 1fr); }
     .dash-card-head h3 { font-size: 17px; }
 }
+/* a phone: the top bar wraps into three rows — it scrolls away with the page instead of holding a fifth of the screen */
+@media (max-width: 600px) {
+    .topbar { position: static; }
+}
 
 /* ===== recruitment: sub-nav, emoji picker, spec picker, application cards ===== */
 .subnav { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin: 0 0 18px; flex-wrap: wrap; }

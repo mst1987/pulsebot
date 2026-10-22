@@ -62,7 +62,10 @@
     position: fixed; top: 16px; right: 16px; bottom: 16px; z-index: 50; width: min(440px, calc(100vw - 32px));
     display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--accent); border-radius: 12px;
     box-shadow: 0 24px 60px -16px var(--shade-55); overflow: hidden;
+    /* a double click opens it with its first click: the second one goes through to the raider under it (out of the raid) */
+    animation: se-drawer-arm .3s;
 }
+@keyframes se-drawer-arm { from, to { pointer-events: none; } }
 .se-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px 8px 18px; border-bottom: 1px solid var(--line-soft); }
 .se-drawer > .se-tip { flex: 1 1 auto; min-height: 0; overflow-y: auto; border: 0; border-radius: 0; }
 
@@ -285,7 +288,7 @@
 .se-fill-opt:hover, .se-fill-opt:focus-visible { border-color: var(--accent); outline: none; }
 .se-fill-opt.is-on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
 
-/* "Angemeldet" (#517), where the setup starts from: a column beside the groups where the editor is wide enough,
+/* "Angemeldet" (#517), where the setup starts from: under the setup where the editor is wide enough,
    else docked at the bottom of the window (one row to scroll sideways). Decided on the editor's own width — the
    page's side menu makes the window width a poor guide. The container sits around the layout only: containment on
    the editor itself would trap the fixed raider drawer. */
@@ -348,13 +351,18 @@
 .se-pp-empty { margin: 0; color: var(--muted); font-size: 13px; }
 .se-pp-absent { margin: 0; padding-top: 8px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; }
 
-/* wide: the groups left, "Angemeldet" as a column on the right that stays in view while the page scrolls —
-   only while somebody is in it; once everybody is placed it is one quiet line under the groups */
+/* wide: "Angemeldet" under the bench across the full width, never beside the groups — so they keep their width
+   whether somebody is left or not. The search and the chips on one row, then one row per role like the bench:
+   its name on the left, the raiders side by side */
 @container se-stage (min-width: 1080px) {
-    .se-layout.se-with-pool { grid-template-columns: minmax(0, 1fr) clamp(280px, 24%, 360px); }
-    /* five groups still side by side next to the column: a little narrower cards while it stands there */
-    .se-with-pool .se-groups { grid-template-columns: repeat(auto-fit, minmax(164px, 1fr)); }
-    .se-with-pool .se-poolpanel { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+    .se-pp-tools { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+    .se-pp-search { flex: 0 1 280px; }
+    .se-pp-filterrow { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+    .se-pp-stfilters { padding-left: 10px; border-left: 1px solid var(--line-soft); }
+    .se-pp-sec { flex-direction: row; align-items: flex-start; gap: 12px; }
+    .se-pp-sec-head { flex: 0 0 96px; min-height: var(--se-row); }
+    .se-pp-sec-head::after { display: none; }
+    .se-pp-grid { flex: 1 1 auto; min-width: 0; grid-template-columns: repeat(auto-fill, minmax(200px, 220px)); }
 }
 /* narrow: docked at the bottom of the window — one row to scroll sideways, folded by its arrow, and folded by
    itself while one of its raiders is picked, so the free places to tap stay in view */
@@ -456,12 +464,44 @@
     .se-search-row { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* a phone: the drawer is a sheet from the bottom, the buffs sit two by two */
+/* the pick line and its "Details" exist on a phone only (below) */
+.se-drawer-pick, .se-drawer-more { display: none; }
+
+/* a phone: the drawer is a sheet from the bottom, the buffs sit two by two. While a raider is picked the sheet is
+   one slim line ("… gewählt – Ziel antippen · Details · ✕") so the places to tap stay in view, and the docked
+   "Angemeldet" moves up above it. Two groups side by side, so the five groups are not one long column. */
 @media (max-width: 600px) {
     .se-drawer { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 85vh; }
     .se-tip { padding: 14px 14px; }
     .se-tip-buffs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 12px; }
     .se-tip-name { font-size: 18px; }
+    .se-drawer-picking .se-drawer-head { padding: 6px 6px 6px 14px; border-bottom: 0; }
+    .se-drawer-picking .se-drawer-kicker { display: none; }
+    .se-drawer-picking .se-drawer-pick { display: block; flex: 1 1 auto; min-width: 0; font-size: 13.5px; font-weight: 700; line-height: 1.25; color: var(--accent); }
+    .se-drawer-picking .se-drawer-more { display: inline-flex; flex: 0 0 auto; }
+    .se-drawer-picking:not(.se-drawer-open) > .se-tip { display: none; }
+    .se-picking .se-poolpanel { bottom: 60px; }
+
+    .se-bar { gap: 8px; }
+    .se-bar-act { width: 100%; justify-content: flex-start; }
+    .se-bar-act .se-post { margin-left: auto; }
+
+    .se-groups { --se-gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .se-group-head-top { padding: 8px 34px 8px 8px; justify-content: flex-start; }
+    .se-group-head-top .se-count.se-num { right: 8px; font-size: 16px; }
+    .se-group-buffs-row { padding: 0 8px 6px; }
+    .se-slots { padding: 4px; }
+    .se-slot { gap: 7px; padding: 0 5px; }
+    .se-slot .se-slot-tile img, .se-slot .se-slot-tile [class*="spec-ph"] { width: 28px; height: 28px; }
+    .se-name { font-size: 14px; }
+
+    /* the dock: the head and the role chips on as few rows as possible, the search beside the chips */
+    .se-pp-sub { display: none; }
+    .se-pp-tools { flex-wrap: nowrap; overflow-x: auto; }
+    .se-pp-search { flex: 0 0 180px; }
+    .se-pp-filterrow { flex-wrap: nowrap; }
+    .se-pp-filters { flex-wrap: nowrap; }
+    .se-pp-chip { white-space: nowrap; }
 }
 
 /* editing the search: a count with - / +, specs that can be taken in or out, buffs that can be dropped, roles that can be added */
