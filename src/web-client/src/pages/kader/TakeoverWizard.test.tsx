@@ -291,6 +291,23 @@ describe("Kaderplaner · Übernahme ohne Roster", () => {
         expect(api.startKaderTakeover).toHaveBeenCalledWith("k1", expect.objectContaining({ roster: { name: "Forever-Kader", categoryId: null } }));
     });
 
+    it("on 409 roster_linked loads again, drops the new roster and wants the switch once more", async () => {
+        vi.mocked(api.getKaderTakeover).mockResolvedValueOnce(noRoster()).mockResolvedValue(check());
+        vi.mocked(api.startKaderTakeover).mockRejectedValueOnce({ code: "roster_linked", message: "linked" }).mockResolvedValue({ takeover: null, steps: [], assigning: 0 });
+        await show();
+        const dialog = await openWizard();
+        await toWho(dialog);
+        expect(within(dialog).getByText(T("who.newRoster", { roster: "Forever-Kader" }))).toBeInTheDocument();
+        await userEvent.click(within(dialog).getByRole("switch", { name: T("who.confirm") }));
+        await userEvent.click(within(dialog).getByRole("button", { name: T("start") }));
+        expect(await within(dialog).findByText(T("error.roster_linked"))).toBeInTheDocument();
+        await waitFor(() => expect(within(dialog).queryByText(T("who.newRoster", { roster: "Forever-Kader" }))).not.toBeInTheDocument());
+        expect(within(dialog).getByRole("switch", { name: T("who.confirm") })).not.toBeChecked();
+        await userEvent.click(within(dialog).getByRole("switch", { name: T("who.confirm") }));
+        await userEvent.click(within(dialog).getByRole("button", { name: T("start") }));
+        expect(vi.mocked(api.startKaderTakeover).mock.calls[1][1]).not.toHaveProperty("roster");
+    });
+
     it("locks the entry for anyone but full admins with its own reason", async () => {
         vi.mocked(api.getKaderTakeover).mockResolvedValue(noRoster({ canStart: false, rosterCategories: undefined }));
         await show();

@@ -25,7 +25,7 @@ import { useT } from "../../i18n";
 import { playerName } from "../../lib/kader/model";
 import {
     MAX_TAKEOVER_CHANNELS, ROSTER_NAME_MAX, TAKEOVER_NAME_MAX, TAKEOVER_STATES, TAKEOVER_STEPS, bodyOf, canStartDraft, categoryPreview, channelKey, channelPreview,
-    defaultDraft, isHexColor, pendingOf, progressOf, startBlocker, stepProblems, takeoverErrorKey,
+    defaultDraft, isHexColor, pendingOf, progressOf, startBlocker, stepProblems, takeoverErrorKey, withCheckRoster,
     type TakeoverDraft, type TakeoverStep,
 } from "../../lib/kader/takeover";
 import { useTableSort } from "../../lib/ui/tableSort";
@@ -351,6 +351,9 @@ function ResultStep({ result, check }: { result: KaderTakeoverStart; check: Kade
     );
 }
 
+/** Refusals after which the assistant reloads: the Kader or its roster link changed meanwhile. */
+const RELOAD_ON = ["stale", "roster_linked", "kader_taken", "no_roster"];
+
 /** The four-step assistant; mounted while open. */
 export function TakeoverWizard({ check, reload, onClose }: { check: KaderTakeoverCheck; reload: () => Promise<unknown> | void; onClose: () => void }) {
     const t = useT();
@@ -364,6 +367,11 @@ export function TakeoverWizard({ check, reload, onClose }: { check: KaderTakeove
     const at = TAKEOVER_STEPS.indexOf(step);
     const blocker = startBlocker(check);
     const running = !!result?.takeover && (check.running || check.takeover?.status === "running");
+
+    // a roster linked or unlinked since the assistant opened: the draft follows the check
+    useEffect(() => {
+        setDraft((d) => withCheckRoster(d, check));
+    }, [check]);
 
     // the role goes out in the background: look again while it runs
     useEffect(() => {
@@ -385,8 +393,8 @@ export function TakeoverWizard({ check, reload, onClose }: { check: KaderTakeove
         } catch (e) {
             const err = e as ApiError;
             setProblem(errorText(e, t));
-            if (err && err.code === "stale") {
-                // somebody planned meanwhile: show the new state, the switch has to go on again
+            if (err && RELOAD_ON.includes(err.code)) {
+                // somebody planned or linked a roster meanwhile: show the new state, the switch has to go on again
                 set({ confirmed: false });
                 await refresh();
                 await reload();

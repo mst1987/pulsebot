@@ -458,7 +458,9 @@ const getTakeover = withUser({}, async ({ req, res, query, user }) => {
  * from `roster` - full admins only, else 403 `admin_only`; 404 `not_found`
  * for an unknown Kader. 400 confirm_required / base_rev_required / invalid_*,
  * 409 stale / already_taken / running / role_too_high / category_taken /
- * version_hidden, 503 offline.
+ * version_hidden, 503 offline. The checked path goes to the service
+ * (`createsRoster`): a roster linked or unlinked during the rights check is
+ * 409 `roster_linked` / `no_roster`, never a silent switch.
  * Answer: `{ takeover, steps: [{ step, ok, id?, name, error? }], assigning }` -
  * the roles go out in the background, GET shows the results.
  */
@@ -470,7 +472,7 @@ const startTakeover = withUser(WRITE, async ({ req, res, body, user }) => {
     if (!may && createsRoster) return apiError(res, 403, "admin_only", "Ein neues Roster legen nur Voll-Admins an.");
     if (!may) return apiError(res, 403, "not_manager", "Nur Manager dieses Rosters.");
     try {
-        return ok(res, await rosterTakeover.start(guildId, kaderId, body, { actor: String(user.id || "") }));
+        return ok(res, await rosterTakeover.start(guildId, kaderId, body, { actor: String(user.id || ""), createsRoster }));
     } catch (e) {
         return takeoverRefusal(res, e);
     }

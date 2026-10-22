@@ -133,10 +133,18 @@ When the record cannot be saved, no role goes out (`{ takeover: null, assigning:
   **raid category** — default none; offered are only active categories of that version without a roster of it
   (`rosterCategories [{id, name, suggested}]`, only for a caller who may start; `suggested` = the Kader's
   `attendanceCategories`, marked, not preselected). A taken category answers 409 `category_taken`, one of another
-  version 400 `invalid_roster_category`. The role is made first; should the roster then fail, the role is deleted
-  again (no half-made roster). After that everything runs as with a linked roster (`takeover.rosterId` = the new
-  one). `no_roster` is left only for a recorded takeover whose roster is gone. With a linked roster nothing changes
-  (no name, no category choice; `roster` in the body is ignored).
+  version 400 `invalid_roster_category` (a category not offered). The role is made first; should the roster then
+  fail, the role is deleted again (no half-made roster). After that everything runs as with a linked roster
+  (`takeover.rosterId` = the new one). With a linked roster nothing changes (no name, no category choice).
+- **The path the route checked:** the route checks the rights for the roster it sees and hands `createsRoster` to
+  `rosterTakeover.start`; `start` reads the link again and refuses when it changed meanwhile — a link gone without
+  `createsRoster` 409 `no_roster`, a roster linked meanwhile while `createsRoster` or `roster` in the body is set 409
+  `roster_linked` (nothing made, the roster's roles untouched). The assistant reloads on both (and on `stale` /
+  `kader_taken`), the draft follows the new precheck. `no_roster` in the precheck still means a recorded takeover
+  whose roster is gone.
+- **Category roles:** after the roster got the new role (linked or created) its raid category's roles are mirrored
+  (`categoryRoles.mirrorCategoryRoles`), else `syncRosterRoleIds` would put the old roles back; a failed mirror is
+  only logged.
 - **The link is locked** once a takeover is recorded: relinking or unlinking answers 409 `kader_taken_over`, through
   `/api/kader/roster/link` and through `/api/rosters/update` (`rosterCreate.kaderTakenOver`, option `kaderLocked`).
 - **Precheck notes:** `roster_members_outside` with `outsideCount` — roster members the Kader does not plan; they stay

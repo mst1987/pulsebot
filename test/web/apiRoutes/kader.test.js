@@ -698,7 +698,7 @@ describe("web/apiRoutes/kader the takeover (docs/kaderplaner.md \"Übernahme\")"
         expect(status(await post("/api/kader/takeover/role", { kaderId }))).toBe(404);
         res = await post("/api/kader/takeover", { kaderId, ...START, roster: { name: "Neu", categoryId: "" } });
         expect(status(res)).toBe(200);
-        expect(takeover.start).toHaveBeenCalledWith("g1", kaderId, expect.objectContaining({ roster: { name: "Neu", categoryId: "" } }), { actor: LEAD });
+        expect(takeover.start).toHaveBeenCalledWith("g1", kaderId, expect.objectContaining({ roster: { name: "Neu", categoryId: "" } }), { actor: LEAD, createsRoster: true });
     });
 
     it("a recorded takeover whose roster is gone creates none (404, no admin path)", async () => {
@@ -724,7 +724,7 @@ describe("web/apiRoutes/kader the takeover (docs/kaderplaner.md \"Übernahme\")"
         res = await post("/api/kader/takeover", { kaderId, ...START });
         expect(status(res)).toBe(200);
         expect(body(res)).toEqual({ takeover: { roleId: "role1" }, steps: [], assigning: 1 });
-        expect(takeover.start).toHaveBeenCalledWith("g1", kaderId, expect.objectContaining({ confirm: true, baseRev: 3 }), { actor: writer.id });
+        expect(takeover.start).toHaveBeenCalledWith("g1", kaderId, expect.objectContaining({ confirm: true, baseRev: 3 }), { actor: writer.id, createsRoster: false });
     });
 
     it("the rights follow the roster a recorded takeover writes into, not the one linked now", async () => {

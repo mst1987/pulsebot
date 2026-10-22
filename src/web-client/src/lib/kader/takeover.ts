@@ -85,6 +85,17 @@ export function emojiOk(value: string): boolean {
     return !s || (s.length <= 16 && !/[\w<>:#@]/.test(s));
 }
 
+/**
+ * The draft after a reloaded check: a roster linked meanwhile drops the new
+ * roster (the server refuses one with `roster_linked`), a link removed meanwhile
+ * brings it in as the server proposes it. Unchanged drafts come back as they are.
+ */
+export function withCheckRoster(d: TakeoverDraft, check: Pick<KaderTakeoverCheck, "createsRoster" | "newRoster">): TakeoverDraft {
+    if (!check.createsRoster) return d.newRoster ? { ...d, newRoster: null } : d;
+    if (d.newRoster || !check.newRoster) return d;
+    return { ...d, newRoster: { name: check.newRoster.name.trim().slice(0, ROSTER_NAME_MAX), categoryId: "" } };
+}
+
 /** The channel's name as Discord will show it: `emoji・name`, lower case, dashes. */
 export function channelPreview(c: { name: string; emoji: string }): string {
     const emoji = c.emoji.trim();
@@ -167,6 +178,7 @@ export const TAKEOVER_ERRORS = [
     "invalid_role", "invalid_color", "invalid_emoji", "invalid_category", "too_many_channels", "invalid_channel",
     "role_failed", "role_too_high", "not_manager", "running", "not_taken", "role_gone",
     "admin_only", "version_hidden", "category_taken", "invalid_roster_category", "invalid_name",
+    "kader_taken", "roster_linked",
 ];
 
 /** The i18n key of a refusal, null when the server's message is shown instead. */

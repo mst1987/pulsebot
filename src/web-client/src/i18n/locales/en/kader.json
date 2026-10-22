@@ -1243,8 +1243,10 @@
             "admin_only": "Only full admins create a new roster.",
             "version_hidden": "The Kader's game version is hidden.",
             "category_taken": "This raid category already has a roster of this game version by now.",
-            "invalid_roster_category": "This raid category does not play the Kader's version.",
-            "invalid_name": "The roster needs a name."
+            "invalid_roster_category": "This raid category is not available for the new roster.",
+            "invalid_name": "The roster needs a name.",
+            "kader_taken": "Another roster has been linked to this Kader in the meantime. The assistant is reloaded – please check again.",
+            "roster_linked": "A roster has been linked to the Kader in the meantime. The assistant is reloaded – please check again."
         }
     }
 }

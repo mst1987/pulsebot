@@ -5,7 +5,7 @@ import type { KaderTakeover } from "../../api";
 import { kader as kaderData, entry, U } from "../../pages/kader/kader.fixture";
 import {
     bodyOf, canStartDraft, categoryPreview, channelPreview, defaultDraft, draftProblems, emojiOk, MAX_TAKEOVER_CHANNELS, pendingOf, progressOf, ROSTER_NAME_MAX,
-    startBlocker, stepProblems, takeoverErrorKey,
+    startBlocker, stepProblems, takeoverErrorKey, withCheckRoster,
 } from "./takeover";
 
 const NAMES = { announce: "ankündigungen", chat: "chat" };
@@ -117,9 +117,22 @@ describe("takeover without a linked roster", () => {
         expect(startBlocker({ blockers: [], canStart: false, createsRoster: false })).toBe("no_rights");
         expect(startBlocker({ blockers: ["no_players", "version_hidden"], canStart: true, createsRoster: true })).toBe("version_hidden");
         expect(startBlocker({ blockers: [], canStart: true, createsRoster: true })).toBeNull();
-        for (const code of ["admin_only", "version_hidden", "category_taken", "invalid_roster_category", "invalid_name"]) {
+        for (const code of ["admin_only", "version_hidden", "category_taken", "invalid_roster_category", "invalid_name", "kader_taken", "roster_linked"]) {
             expect(takeoverErrorKey(code)).toBe(`kader.takeover.error.${code}`);
         }
+    });
+
+    it("follows a reloaded check: a roster linked meanwhile drops the new one, an unlinked one brings it", () => {
+        const withNew = { ...defaultDraft("K", NAMES, { name: "Forever" }), roleName: "Raider" };
+        const linked = withCheckRoster(withNew, { createsRoster: false, newRoster: null });
+        expect(linked).toMatchObject({ newRoster: null, roleName: "Raider" });
+        expect("roster" in bodyOf(linked, 1, false)).toBe(false);
+        const unlinked = withCheckRoster(linked, { createsRoster: true, newRoster: { name: " Forever 2027 ", versionId: "forever" } });
+        expect(unlinked.newRoster).toEqual({ name: "Forever 2027", categoryId: "" });
+        // unchanged: the same draft, the typed name and category stay
+        const typed = { ...unlinked, newRoster: { name: "Mein Name", categoryId: "rc2" } };
+        expect(withCheckRoster(typed, { createsRoster: true, newRoster: { name: "Forever 2027", versionId: "forever" } })).toBe(typed);
+        expect(withCheckRoster(linked, { createsRoster: false })).toBe(linked);
     });
 });
 

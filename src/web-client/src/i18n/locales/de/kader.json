@@ -1243,8 +1243,10 @@
             "admin_only": "Ein neues Roster legen nur Voll-Admins an.",
             "version_hidden": "Die Spielversion des Kaders ist ausgeblendet.",
             "category_taken": "Diese Raid-Kategorie hat inzwischen schon ein Roster dieser Spielversion.",
-            "invalid_roster_category": "Diese Raid-Kategorie spielt die Version des Kaders nicht.",
-            "invalid_name": "Das Roster braucht einen Namen."
+            "invalid_roster_category": "Diese Raid-Kategorie steht für das neue Roster nicht zur Auswahl.",
+            "invalid_name": "Das Roster braucht einen Namen.",
+            "kader_taken": "Inzwischen ist schon ein Roster mit diesem Kader verknüpft. Der Assistent ist neu geladen – bitte noch einmal prüfen.",
+            "roster_linked": "Inzwischen ist ein Roster mit dem Kader verknüpft. Der Assistent ist neu geladen – bitte noch einmal prüfen."
         }
     }
 }

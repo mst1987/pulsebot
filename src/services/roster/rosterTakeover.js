@@ -443,14 +443,18 @@ function newRosterOf(gid, kader, body) {
     const categoryId = str(input.categoryId) || null;
     if (categoryId && !freeCategoriesOf(gid, versionId).some((c) => c.id === categoryId)) {
         if (rosterStore.rosterForCategory(categoryId, versionId)) throw refuse("category_taken", 409, "Diese Kategorie hat schon ein Roster dieser Spielversion.");
-        throw refuse("invalid_roster_category", 400, "Diese Raid-Kategorie spielt die Version des Kaders nicht.");
+        throw refuse("invalid_roster_category", 400, "Diese Raid-Kategorie steht für das neue Roster nicht zur Auswahl.");
     }
     return { name, versionId, categoryId };
 }
 
-/** Step 2 without a linked roster: the new roster, linked to the Kader, the new role its main role. */
+/**
+ * Step 2 without a linked roster: the new roster, linked to the Kader, the new
+ * role its main role. The category roles are mirrored by the caller, after the
+ * roster stands (a failed mirror must not delete the role of a made roster).
+ */
 function createRosterFor(gid, kader, newRoster, roleId, { actor = "" } = {}) {
-    const created = rosterStore.createRoster({
+    return rosterStore.createRoster({
         guildId: gid,
         name: newRoster.name,
         versionId: newRoster.versionId,
@@ -460,9 +464,32 @@ function createRosterFor(gid, kader, newRoster, roleId, { actor = "" } = {}) {
         roleIds: [roleId],
         managers: { roleIds: [], userIds: [...(kader.leads || [])] },
     }, { actor });
-    // the category's raider roles follow the roster, as when it is created by hand
-    mirrorCategoryRoles(created);
-    return created;
+}
+
+/**
+ * The category's raider roles follow the roster's new role, as when a roster is
+ * created or its roles are saved by hand - else a later save of the category
+ * roles (syncRosterRoleIds) would bring the old ones back. Only logs on failure:
+ * the roster and the role already stand.
+ */
+function mirrorRolesOf(rosterId, key) {
+    try {
+        mirrorCategoryRoles(rosterStore.getRoster(rosterId));
+    } catch (e) {
+        logger.warn(`takeover ${key}: category roles not mirrored: ${(e && e.message) || e}`);
+    }
+}
+
+/**
+ * The start's path must be the one the route checked the rights for
+ * (`createsRoster`): a roster linked or unlinked in between refuses, so neither
+ * a manager creates a roster nor a chosen new roster is silently dropped.
+ */
+function assertRosterPath(linked, body, createsRoster) {
+    if (!linked && !createsRoster) throw refuse("no_roster", 409, "Der Kader hat kein verknüpftes Roster.");
+    if (linked && (createsRoster || (body && body.roster))) {
+        throw refuse("roster_linked", 409, "Inzwischen ist ein Roster mit dem Kader verknüpft – bitte neu laden.");
+    }
 }
 
 /** Step 1: the role, below the bot's role. Refuses (and cleans up) otherwise. */
@@ -533,10 +560,12 @@ async function makeChannels(guild, plan, kader, roleId, orgaIds, steps) {
  * Creates role, category and channels right away (each step reports on its
  * own), records the takeover and hands out the role in the background.
  * `roster` only counts for a Kader without a linked roster: the roster the
- * takeover creates (newRosterOf); with one it is ignored.
+ * takeover creates (newRosterOf). `createsRoster` is what the caller checked
+ * the rights for (true: no roster linked, a new one is made); a linked roster
+ * that differs from it refuses (assertRosterPath).
  * @returns {Promise<{ takeover, steps: object[], assigning: number }>}
  */
-async function start(guildId, kaderId, body = {}, { actor = "", gapMs = ROLE_GAP_MS } = {}) {
+async function start(guildId, kaderId, body = {}, { actor = "", gapMs = ROLE_GAP_MS, createsRoster = false } = {}) {
     const gid = str(guildId);
     if (!body || body.confirm !== true) throw refuse("confirm_required", 400, "Bitte die Übernahme bestätigen.");
     if (body.baseRev === undefined || body.baseRev === null || body.baseRev === "") {
@@ -549,7 +578,8 @@ async function start(guildId, kaderId, body = {}, { actor = "", gapMs = ROLE_GAP
     if (kader.takeover) throw refuse("already_taken", 409, "Dieser Kader wurde schon übernommen.");
     if (!kader.players.length) throw refuse("no_players", 409, "Im Kader ist niemand ab vorläufig.");
     const linked = rosterOf(gid, kader);
-    const guild = assertCanWrite(gid, kader, linked, { createsRoster: true });
+    assertRosterPath(linked, body, createsRoster);
+    const guild = assertCanWrite(gid, kader, linked, { createsRoster });
     const plan = planOf(body, guild);
     const newRoster = linked ? null : newRosterOf(gid, kader, body);
     if ((plan.category.name !== undefined && !plan.category.id) || plan.channels.length) {
@@ -583,6 +613,7 @@ async function start(guildId, kaderId, body = {}, { actor = "", gapMs = ROLE_GAP
             const what = linked ? "Roster nicht beschreibbar" : "Roster nicht angelegt";
             throw refuse((e && e.code) || "roster_failed", 409, `${what}: ${(e && e.message) || "?"}`);
         }
+        mirrorRolesOf(roster.id, key);
 
         // 3. category and channels, only the new role and the orga see them
         const orgaIds = orgaRoleIdsOf(guild, rosterStore.getRoster(roster.id));
