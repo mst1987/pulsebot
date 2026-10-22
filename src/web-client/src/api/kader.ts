@@ -531,6 +531,9 @@ export type KaderTakeoverPlayer = {
 
 export type KaderTakeoverBlocker = "no_roster" | "roster_closed" | "version_hidden" | "offline" | "no_manage_roles" | "no_manage_channels" | "no_players" | "already_taken";
 
+/** A server emoji the takeover's role may wear as icon (animated ones as their still PNG). */
+export type KaderServerEmoji = { id: string; name: string; animated: boolean; url: string };
+
 /** GET /api/kader/takeover: the check of the dialog and the head's line after a takeover. */
 export type KaderTakeoverCheck = {
     kader: { id: string; name: string; versionId?: string; rev: number };
@@ -556,6 +559,8 @@ export type KaderTakeoverCheck = {
     pendingAway: number;
     players: KaderTakeoverPlayer[];
     categories: { id: string; name: string }[];
+    /** The server's emojis for the role icon (only with iconPossible and canStart); `url` is always the PNG. */
+    emojis?: KaderServerEmoji[];
     /** No linked roster (and no takeover yet): the takeover creates one - for full admins only. */
     createsRoster?: boolean;
     /** The roster it would create: the Kader's name (changeable) and version; null with a linked roster. */
@@ -583,7 +588,8 @@ export type KaderTakeoverStep = {
 
 export type KaderTakeoverBody = {
     baseRev: number;
-    role: { name: string; color?: string; unicodeEmoji?: string };
+    /** The icon: a Unicode emoji or a server emoji's id, never both. */
+    role: { name: string; color?: string; unicodeEmoji?: string; emojiId?: string };
     category: { id: string } | { name: string; emoji?: string };
     channels: { name: string; emoji?: string; orgaOnlyWrite?: boolean }[];
     /** Only without a linked roster: the roster the takeover creates (categoryId null = none). */

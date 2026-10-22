@@ -25,6 +25,13 @@ vi.mock("../../api", async (orig) => ({
     pullKaderTakeoverRole: vi.fn(),
 }));
 
+// a few real emojis instead of the whole grid (test/emoji.ts)
+vi.mock("../../lib/discord/emoji", async (importOriginal) => {
+    const real = await importOriginal<typeof import("../../lib/discord/emoji")>();
+    const { fewEmojis } = await import("../../test/emoji");
+    return { ...real, loadEmojis: (lang: string) => real.loadEmojis(lang).then(fewEmojis) };
+});
+
 const PATH = "/kader/:kaderId?/:sub?";
 const T = (k: string, v?: Record<string, unknown>) => t(`kader.takeover.${k}`, v);
 
@@ -183,6 +190,29 @@ describe("Kaderplaner · In Discord übernehmen", () => {
         dialog = await openWizard();
         expect(within(dialog).getByRole("button", { name: T("role.iconPick") })).toBeEnabled();
         expect(within(dialog).getByText(T("role.iconHint"))).toBeInTheDocument();
+    });
+
+    it("offers the server's emojis first as the role icon and sends the picked one as emojiId", async () => {
+        const ZWERG = { id: "e2", name: "zwerg", animated: false, url: "https://cdn.discordapp.com/emojis/e2.png?size=64" };
+        vi.mocked(api.getKaderTakeover).mockResolvedValue(check({ iconPossible: true, premiumTier: 2, emojis: [ZWERG] }));
+        vi.mocked(api.startKaderTakeover).mockResolvedValue({ takeover: null, steps: [], assigning: 0 });
+        await show();
+        const dialog = await openWizard();
+        await userEvent.click(within(dialog).getByRole("button", { name: T("role.iconPick") }));
+        const panel = await screen.findByRole("dialog", { name: T("role.iconPick") });
+        const regions = await within(panel).findAllByRole("region");
+        expect(regions[0]).toHaveAccessibleName(t("emoji.server"));
+        await userEvent.click(within(regions[0]).getByRole("button", { name: ":zwerg:" }));
+        // the preview shows the picture, the picker button too
+        expect(dialog.querySelector(".kp-tk-rolechip img")).toHaveAttribute("src", ZWERG.url);
+        expect(within(dialog).getByRole("button", { name: T("role.iconPick") }).querySelector("img")).toHaveAttribute("src", ZWERG.url);
+        await userEvent.click(within(dialog).getByRole("button", { name: T("next") }));
+        // names only take Unicode: said where the category is named
+        expect(within(dialog).getByText(T("channels.unicodeOnly"))).toBeInTheDocument();
+        await userEvent.click(within(dialog).getByRole("button", { name: T("next") }));
+        await userEvent.click(within(dialog).getByRole("switch", { name: T("who.confirm") }));
+        await userEvent.click(within(dialog).getByRole("button", { name: T("start") }));
+        expect(api.startKaderTakeover).toHaveBeenCalledWith("k1", expect.objectContaining({ role: { name: "Forever-Kader", emojiId: "e2" } }));
     });
 
     it("on 409 stale says so, loads again and wants the switch once more", async () => {

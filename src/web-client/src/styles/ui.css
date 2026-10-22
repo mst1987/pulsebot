@@ -337,6 +337,8 @@ dialog.dlg.dlg-w { width: min(var(--dlg-w), calc(100vw - 32px)); }
 .emo-trigger:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); border-color: var(--accent); }
 .emo-trigger:disabled { opacity: .5; cursor: not-allowed; }
 .emo-glyph { font-size: 18px; line-height: 1; }
+/* a server emoji is a picture as big as the text around it */
+.emo-img { display: block; width: 1em; height: 1em; object-fit: contain; }
 .emo-panel {
     position: fixed; z-index: 80; width: var(--pop-width, 360px); max-height: var(--pop-max-h, 430px); display: flex;
     background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 16px 40px -8px var(--shade-50); overflow: hidden;

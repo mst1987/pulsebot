@@ -1132,20 +1132,17 @@ dialog.dlg.kp-tk .dlg-body { display: flex; flex-direction: column; gap: 20px; }
 .kp-tk-step.kp-done .kp-tk-stepn { border-color: var(--good); color: var(--good); }
 .kp-tk-stepn svg { width: 12px; height: 12px; }
 .kp-tk-color { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.kp-tk-color input.kp-tk-colorpick {
-    flex: 0 0 48px; width: 48px; min-height: 0; height: var(--ctl-h-sm); padding: 2px;
-    border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--bg); cursor: pointer;
+/* every control of a line is one height (--ctl-h): the colour well beside the
+   hex field, the emoji button and its clear button beside a name field */
+.kp-tk-color input[type=color].kp-tk-colorpick {
+    flex: 0 0 48px; width: 48px; height: var(--ctl-h); min-height: var(--ctl-h); padding: 3px; cursor: pointer;
 }
 .kp-tk-color input.kp-tk-hex { flex: 0 0 120px; width: 120px; font-family: var(--font-mono); }
 .kp-tk-iconrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .kp-tk-iconrow .hint { margin: 0; flex: 1 1 200px; min-width: 0; }
 .kp-tk-emoji { display: inline-flex; align-items: center; gap: 4px; flex: none; }
-.kp-tk-clear {
-    display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--ctl-radius);
-    background: none; color: var(--muted); cursor: pointer;
-}
-.kp-tk-clear:hover, .kp-tk-clear:focus-visible { color: var(--high); }
-.kp-tk-clear svg { width: 12px; height: 12px; }
+/* the emoji trigger (shared ui class, not named here — one namespace per module) at the row height */
+.kp-tk-emoji > button:not(.ibtn) { width: var(--ctl-h); height: var(--ctl-h); }
 .kp-tk-preview { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .kp-tk-rolechip {
     display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; padding: 2px 8px 2px 6px;

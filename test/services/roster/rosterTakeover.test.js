@@ -70,6 +70,13 @@ function fakeGuild({ features = ["ROLE_ICONS"], failChannels = [], failCategory 
         features,
         premiumTier: features.includes("ROLE_ICONS") ? 2 : 0,
         members: { me: { id: "bot" } },
+        emojis: {
+            cache: new Map([
+                ["e2", { id: "e2", name: "zwerg", animated: true }],
+                ["e1", { id: "e1", name: "axt", animated: false }],
+                ["e3", { id: "e3", name: "weg", available: false }],
+            ]),
+        },
         roles: {
             cache: roles,
             create: jest.fn(async (opts) => {
@@ -164,6 +171,12 @@ describe("services/roster/rosterTakeover precheck", () => {
         // the server's categories only for a caller who may start the takeover
         expect(pre.categories).toEqual([]);
         expect((await takeover.precheck("g1", "k1", { withCategories: true })).categories).toEqual([{ id: "cat0", name: "Oben" }, { id: "cat1", name: "Bestand" }]);
+        // the server emojis likewise (by name, unavailable ones left out, always the PNG)
+        expect(pre.emojis).toEqual([]);
+        expect((await takeover.precheck("g1", "k1", { withCategories: true })).emojis).toEqual([
+            { id: "e1", name: "axt", animated: false, url: "https://cdn.discordapp.com/emojis/e1.png?size=64" },
+            { id: "e2", name: "zwerg", animated: true, url: "https://cdn.discordapp.com/emojis/e2.png?size=64" },
+        ]);
         expect(pre.running).toBe(false);
         expect(pre.aborted).toBe(false);
         expect(pre.outsideCount).toBe(0);
@@ -235,6 +248,8 @@ describe("services/roster/rosterTakeover precheck", () => {
         const pre = await takeover.precheck("g1", "k1");
         expect(pre.notes).toEqual(["icon_not_possible"]);
         expect(pre.iconPossible).toBe(false);
+        // no role icons: no server emojis to pick from, even for a caller who may start
+        expect((await takeover.precheck("g1", "k1", { withCategories: true })).emojis).toEqual([]);
         expect(pre.players.every((p) => p.onServer === null && p.hasRole === null)).toBe(true);
     });
 
@@ -294,6 +309,29 @@ describe("services/roster/rosterTakeover start", () => {
         kaderStore.writePlanner("g1", p);
         await startAndWait();
         expect(Object.keys(rosterNow().members)).toHaveLength(3);
+    });
+
+    it("a server emoji becomes the role icon as its PNG", async () => {
+        const res = await startAndWait(body({ role: { name: "Forever Raider", emojiId: "e2" } }));
+        const roleOpts = guild.roles.create.mock.calls[0][0];
+        expect(roleOpts.icon).toBe("https://cdn.discordapp.com/emojis/e2.png?size=128");
+        expect(roleOpts.unicodeEmoji).toBeUndefined();
+        expect(res.steps[0].icon).toBe("set");
+    });
+
+    it("a server emoji without ROLE_ICONS is left out, too", async () => {
+        guild = fakeGuild({ features: [] });
+        const res = await startAndWait(body({ role: { name: "Forever Raider", emojiId: "e1" } }));
+        expect(guild.roles.create.mock.calls[0][0].icon).toBeUndefined();
+        expect(res.steps[0].icon).toBe("not_possible");
+    });
+
+    it("refuses a server emoji of another server and both icon kinds at once", async () => {
+        const go = (role) => takeover.start("g1", "k1", body({ role }), { actor: "o1", gapMs: 0 });
+        await expect(go({ name: "R", emojiId: "999" })).rejects.toMatchObject({ code: "invalid_emoji", status: 400 });
+        await expect(go({ name: "R", emojiId: "e3" })).rejects.toMatchObject({ code: "invalid_emoji", status: 400 });
+        await expect(go({ name: "R", emojiId: "e1", unicodeEmoji: "⚔️" })).rejects.toMatchObject({ code: "invalid_emoji", status: 400 });
+        expect(guild.roles.create).not.toHaveBeenCalled();
     });
 
     it("without ROLE_ICONS the icon is left out and the step says so", async () => {

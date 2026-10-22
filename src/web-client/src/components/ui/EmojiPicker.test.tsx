@@ -103,3 +103,47 @@ describe("EmojiPicker", () => {
         expect(panel.querySelector(".emo-foot")).toHaveTextContent("Setzt das Emoji an den Anfang.");
     });
 });
+
+describe("EmojiPicker with the server's emojis", () => {
+    const AXT = { id: "e1", name: "axt", url: "https://cdn.discordapp.com/emojis/e1.png?size=64" };
+    const ZWERG = { id: "e2", name: "zwerg", url: "https://cdn.discordapp.com/emojis/e2.png?size=64" };
+    const custom = { label: "Server", emojis: [AXT, ZWERG] };
+
+    it("puts them first as pictures and picks them by id, not into the Unicode pick", async () => {
+        const onPickCustom = vi.fn();
+        const { onPick, user, panel } = await openPicker({ custom, onPickCustom, sections: [{ key: "raid", label: "Passt zu Zul'Aman", emojis: ["🐻"] }] });
+        const regions = within(panel).getAllByRole("region");
+        expect(regions[0]).toHaveAccessibleName("Server");
+        const axt = within(regions[0]).getByRole("button", { name: ":axt:" });
+        expect(axt.querySelector("img")).toHaveAttribute("src", AXT.url);
+        await user.click(axt);
+        expect(onPickCustom).toHaveBeenCalledWith(AXT);
+        expect(onPick).not.toHaveBeenCalled();
+        // never into "zuletzt benutzt"
+        await user.click(screen.getByRole("button", { name: "Emoji wählen" }));
+        await within(screen.getByRole("dialog")).findAllByRole("button", { name: "Bär" });
+        expect(within(screen.getByRole("dialog")).queryByRole("region", { name: "Zuletzt benutzt" })).toBeNull();
+    });
+
+    it("finds them by name before Unicode's hits, Enter picks the first", async () => {
+        const onPickCustom = vi.fn();
+        const { user, panel } = await openPicker({ custom, onPickCustom });
+        await user.type(within(panel).getByRole("searchbox"), "zwe");
+        const results = within(panel).getByRole("region", { name: "Suchergebnisse" });
+        expect(within(results).getAllByRole("button")[0]).toHaveAccessibleName(":zwerg:");
+        await user.keyboard("{Enter}");
+        expect(onPickCustom).toHaveBeenCalledWith(ZWERG);
+    });
+
+    it("shows the current server emoji on the button and marks it", async () => {
+        const { panel } = await openPicker({ custom, onPickCustom: vi.fn(), currentCustom: ZWERG });
+        expect(screen.getByRole("button", { name: "Emoji wählen" }).querySelector("img")).toHaveAttribute("src", ZWERG.url);
+        expect(within(panel).getByRole("button", { name: ":zwerg:" })).toHaveAttribute("aria-pressed", "true");
+        expect(within(panel).getByRole("button", { name: ":axt:" })).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("leaves them out without onPickCustom", async () => {
+        const { panel } = await openPicker({ custom });
+        expect(within(panel).queryByRole("region", { name: "Server" })).toBeNull();
+    });
+});

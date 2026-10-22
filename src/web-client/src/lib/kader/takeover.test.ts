@@ -82,6 +82,14 @@ describe("takeover start", () => {
         expect(bodyOf({ ...d, roleColor: "", categoryMode: "existing", categoryId: "c9" }, 1, false)).toMatchObject({ role: { name: "K" }, category: { id: "c9" } });
     });
 
+    it("sends a server emoji as emojiId, never together with a Unicode one", () => {
+        const d = { ...defaultDraft("K", NAMES), roleEmojiId: "e1" };
+        expect(defaultDraft("K", NAMES).roleEmojiId).toBe("");
+        expect(bodyOf(d, 7, true).role).toEqual({ name: "K", emojiId: "e1" });
+        expect(bodyOf({ ...d, roleEmoji: "⚔️" }, 7, true).role).toEqual({ name: "K", emojiId: "e1" });
+        expect(bodyOf(d, 7, false).role).toEqual({ name: "K" });
+    });
+
     it("says the known refusals in its own words, leaves the rest to the server", () => {
         expect(takeoverErrorKey("stale")).toBe("kader.takeover.error.stale");
         expect(takeoverErrorKey("role_too_high")).toBe("kader.takeover.error.role_too_high");
