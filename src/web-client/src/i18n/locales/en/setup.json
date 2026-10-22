@@ -7,6 +7,7 @@
         "tip": {
             "peekAria": "Raider info",
             "peekHint": "Click to select, move, edit",
+            "peekHintPlaced": "Click to select, move, edit · double-click to take out of the raid",
             "attendance": "Attendance",
             "attendanceNone": "no raids counted yet",
             "attendanceDetails": "Details",
@@ -243,7 +244,10 @@
         "done": "Done"
     },
     "drawer": {
-        "kicker": "Raider"
+        "kicker": "Raider",
+        "picked": "{name} picked – tap a target",
+        "details": "Details",
+        "less": "Pick target"
     },
     "poolPanel": {
         "statusFilter": "Filter by status",
