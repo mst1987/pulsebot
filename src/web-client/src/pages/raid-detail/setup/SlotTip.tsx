@@ -122,14 +122,14 @@ function ActionRow({ a }: { a: SlotActions }) {
  * the pointer touches on its way, so the actions stay put.
  * `peek`: the same panel read only, beside the line the mouse rests on or the
  * focus is on (SetupEditor.tsx' peek) — no actions, a short hint that a click
- * holds it with them.
+ * holds it with them (`removable`: in a group or on the bench, a double click takes them out).
  */
-export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, actions = {}, pinned = false, peek = false }: {
+export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, actions = {}, pinned = false, peek = false, removable = false }: {
     p: SetupPerson; attendance: SetupAttendance | undefined | null; extra: string[];
     onSpec?: (specKey: string) => void; onExtra?: (role: "tank" | "healer", on: boolean) => void;
     /** "Charakter wechseln" (#293): play another character they signed up with — groups and bench, not "Angemeldet". */
     onCharacter?: (c: SetupCharacter) => void;
-    actions?: SlotActions; pinned?: boolean; peek?: boolean;
+    actions?: SlotActions; pinned?: boolean; peek?: boolean; removable?: boolean;
 }) {
     const t = useT();
     // the other characters they signed up with, in their order
@@ -258,7 +258,7 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, ac
                 )}
                 {attendance !== null && <AttendanceDetails a={attendance} />}
             </div>
-            {peek && <p className="se-tip-peekhint">{t("setup.person.tip.peekHint")}</p>}
+            {peek && <p className="se-tip-peekhint">{t(removable ? "setup.person.tip.peekHintPlaced" : "setup.person.tip.peekHint")}</p>}
         </aside>
     );
 }

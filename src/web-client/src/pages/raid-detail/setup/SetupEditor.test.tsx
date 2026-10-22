@@ -122,6 +122,57 @@ describe("the setup editor: bench and pool \"Angemeldet\" (#517)", () => {
         expect(body.bench.map((b) => b.userId)).toEqual([ROGUE.userId]);
         expect(body).not.toHaveProperty("pool");
     });
+
+    const line = (userId: string) => document.querySelector<HTMLElement>(`.se-slot[data-user="${userId}"]`)!;
+
+    it("takes a raider out of the raid with a double click on their line in a group", async () => {
+        const user = userEvent.setup();
+        await show(editorData({}, { pool: [WARLOCK] }));
+        await user.dblClick(line(MAGE.userId));
+        await waitFor(() => expect(calls("PUT", "/api/raids/setup")).toHaveLength(1));
+        const body = savedBody();
+        expect(groupOf(body, MAGE.userId)).toBeUndefined();
+        expect(body.bench.map((b) => b.userId)).toEqual([ROGUE.userId]);
+        // nothing stays picked: the next click is no swap
+        expect(screen.queryByText(t("setup.editor.pickTarget"))).not.toBeInTheDocument();
+    });
+
+    it("takes a raider off the bench with a double click, and does nothing on a double click in \"Angemeldet\"", async () => {
+        const user = userEvent.setup();
+        await show(editorData({}, { pool: [WARLOCK] }));
+        await user.dblClick(line(WARLOCK.userId));
+        expect(calls("PUT", "/api/raids/setup")).toHaveLength(0);
+        await user.dblClick(line(ROGUE.userId));
+        await waitFor(() => expect(calls("PUT", "/api/raids/setup")).toHaveLength(1));
+        expect(savedBody().bench).toEqual([]);
+    });
+
+    it("lays \"Angemeldet\" under the setup, never beside it — the groups keep their width", async () => {
+        await show(editorData({}, { pool: [WARLOCK] }));
+        const bench = screen.getByRole("region", { name: t("setup.bench.aria") });
+        const pool = screen.getByRole("region", { name: t("setup.pool.aria") });
+        expect(bench.compareDocumentPosition(pool) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(document.querySelector(".se-with-pool")).toBeNull();
+    });
+});
+
+// a phone: while a raider is picked the sheet is one slim line, so the places to tap stay in view
+describe("the setup editor: the pick line of the raider sheet", () => {
+    it("says who is picked and opens the details on demand, closed again at the next pick", async () => {
+        const user = userEvent.setup();
+        await show();
+        await user.click(slot("Ignis"));
+        const sheet = document.querySelector(".se-drawer")!;
+        expect(sheet).toHaveClass("se-drawer-picking");
+        expect(within(sheet as HTMLElement).getByText(t("setup.drawer.picked", { name: "Ignis" }))).toBeInTheDocument();
+        await user.click(within(sheet as HTMLElement).getByRole("button", { name: t("setup.drawer.details") }));
+        expect(sheet).toHaveClass("se-drawer-open");
+        expect(within(sheet as HTMLElement).getByRole("button", { name: t("setup.drawer.less") })).toHaveAttribute("aria-expanded", "true");
+        // the pick done (here: dropped again), the sheet is the plain drawer
+        await user.click(slot("Ignis"));
+        await user.click(slot("Ignis"));
+        expect(document.querySelector(".se-drawer")).not.toHaveClass("se-drawer-open");
+    });
 });
 
 // No proposal needed: the editor opens on empty groups with everybody under "Angemeldet"
