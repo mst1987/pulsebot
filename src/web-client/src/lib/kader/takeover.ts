@@ -23,7 +23,10 @@ export type TakeoverDraft = {
     roleName: string;
     /** "#rrggbb", "" = no colour */
     roleColor: string;
+    /** The icon: a Unicode emoji or (roleEmojiId) a server emoji - setting one clears the other. */
     roleEmoji: string;
+    /** A server emoji as icon (check.emojis), "" = none. */
+    roleEmojiId: string;
     categoryMode: "new" | "existing";
     categoryName: string;
     categoryEmoji: string;
@@ -62,6 +65,7 @@ export function defaultDraft(kaderName: string, names: { announce: string; chat:
         roleName: name,
         roleColor: "",
         roleEmoji: "",
+        roleEmojiId: "",
         categoryMode: "new",
         categoryName: name.toLowerCase(),
         categoryEmoji: "",
@@ -153,13 +157,14 @@ export function canStartDraft(d: TakeoverDraft, check: Pick<KaderTakeoverCheck, 
 }
 
 /**
- * The body of POST /api/kader/takeover; the role icon only where the server can
- * show it, the new roster (name, optional category) only when one is created.
+ * The body of POST /api/kader/takeover; the role icon (a server emoji before a
+ * Unicode one, never both) only where the server can show it, the new roster (name, optional category) only when one is created.
  */
 export function bodyOf(d: TakeoverDraft, baseRev: number, iconPossible: boolean): KaderTakeoverBody {
     const role: KaderTakeoverBody["role"] = { name: d.roleName.trim() };
     if (d.roleColor) role.color = d.roleColor.toLowerCase();
-    if (iconPossible && d.roleEmoji.trim()) role.unicodeEmoji = d.roleEmoji.trim();
+    if (iconPossible && d.roleEmojiId) role.emojiId = d.roleEmojiId;
+    else if (iconPossible && d.roleEmoji.trim()) role.unicodeEmoji = d.roleEmoji.trim();
     const category: KaderTakeoverBody["category"] = d.categoryMode === "existing"
         ? { id: d.categoryId }
         : { name: d.categoryName.trim(), ...(d.categoryEmoji.trim() ? { emoji: d.categoryEmoji.trim() } : {}) };

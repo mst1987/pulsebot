@@ -7,6 +7,7 @@
     "loading": "Loading emojis …",
     "loadError": "The emojis could not be loaded.",
     "recent": "Recently used",
+    "server": "Server",
     "groups": {
         "smileys": "Smileys & Emotion",
         "people": "People & Body",

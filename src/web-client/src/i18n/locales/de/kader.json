@@ -1048,7 +1048,7 @@
             "noColor": "Ohne Farbe",
             "icon": "Rollen-Icon",
             "iconPick": "Emoji als Rollen-Icon wählen",
-            "iconHint": "Erscheint in Discord neben dem Namen.",
+            "iconHint": "Erscheint in Discord neben dem Namen. Die Emojis des Servers stehen vorn, animierte als Standbild.",
             "iconOff": "Rollen-Icons gibt es erst ab Boost-Stufe 2 – dieser Server hat Stufe {tier}.",
             "becomes": "Die Rolle wird die Roster-Rolle von „{roster}“.",
             "createsRoster": "Neues Roster „{roster}“ wird angelegt; die Rolle wird seine Roster-Rolle, die Leads des Kaders seine Manager.",
@@ -1076,6 +1076,7 @@
             "categoryPick": "Kategorie wählen",
             "newHint": "Wird angelegt als „{name}“.",
             "existingHint": "Die Kanäle kommen in diese Kategorie; ihre Rechte bleiben, wie sie sind.",
+            "unicodeOnly": "In Kategorie- und Kanalnamen gehen nur Unicode-Emojis – Discord zeigt Server-Emojis in Namen nicht an.",
             "title": {
                 "one": "{count} Kanal",
                 "other": "{count} Kanäle"

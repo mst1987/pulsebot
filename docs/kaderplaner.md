@@ -150,9 +150,15 @@ When the record cannot be saved, no role goes out (`{ takeover: null, assigning:
 - **Precheck notes:** `roster_members_outside` with `outsideCount` — roster members the Kader does not plan; they stay
   in the roster as they are. `aborted`: the record still says `running` but no job runs (the bot restarted); "Rolle
   nachziehen" finishes it and sets `done`.
-- **The role:** name, colour `#rrggbb`, optional Unicode emoji. The emoji becomes the role icon only when the server
-  has `ROLE_ICONS` (boost level 2); otherwise the precheck shows the note `icon_not_possible` and the role is made
-  without it. A role that would lie above the bot's role is deleted again (409 `role_too_high`).
+- **The role:** name, colour `#rrggbb`, optional icon — a Unicode emoji (`unicodeEmoji`) **or** one of the server's
+  own emojis (`emojiId`), never both (400 `invalid_emoji`, as for an id that is not the server's). The icon is set
+  only when the server has `ROLE_ICONS` (boost level 2); otherwise the precheck shows the note `icon_not_possible`
+  and the role is made without it. Only then, and only for a caller who may start, the precheck lists the server's
+  emojis (`emojis[{id,name,animated,url}]`). A server emoji goes in as its static PNG
+  (`cdn.discordapp.com/emojis/<id>.png`, 128 px): role icons are still images in Discord, and the picker shows the
+  same still beforehand, so an animated emoji is offered but becomes its first frame. Category and channel names take
+  only Unicode emojis (Discord shows `<:name:id>` there as text); the assistant says so in the Kanäle step. A role
+  that would lie above the bot's role is deleted again (409 `role_too_high`).
 - **Category and channels:** an existing category is used as it is (not changed); a new one and every channel get
   `@everyone` deny View, the new role View (with `orgaOnlyWrite` no Send), the orga roles (admin/orga roles of the
   settings + the roster's manager roles) View + Send, the bot View/Send/Manage. Names follow docs/channels.md
@@ -166,8 +172,8 @@ Routes (area `kader`, writes with CSRF):
 
 | Route | Body / answer |
 |---|---|
-| `GET /api/kader/takeover?kader=<id>` | precheck: `{ kader {id,name,versionId,rev}, roster, online, canManageRoles, canManageChannels, iconPossible, premiumTier, blockers[], notes[], outsideCount, takeover, role, category, running, aborted, pending[], pendingCount, pullCount, pendingAway, players[{userId, state, …, onServer, hasRole, inRoster, result}], categories[{id,name}], canStart, createsRoster, newRoster, rosterCategories[{id,name,suggested}] }` |
-| `POST /api/kader/takeover` | `{ kaderId, confirm: true, baseRev, role: { name, color?, unicodeEmoji? }, category: { id } \| { name, emoji? }, channels: [{ name, emoji?, orgaOnlyWrite? }], roster?: { name?, categoryId? } }` → `{ takeover, steps, assigning }`; the `roster` step carries `created` |
+| `GET /api/kader/takeover?kader=<id>` | precheck: `{ kader {id,name,versionId,rev}, roster, online, canManageRoles, canManageChannels, iconPossible, premiumTier, blockers[], notes[], outsideCount, takeover, role, category, running, aborted, pending[], pendingCount, pullCount, pendingAway, players[{userId, state, …, onServer, hasRole, inRoster, result}], categories[{id,name}], canStart, createsRoster, newRoster, rosterCategories[{id,name,suggested}], emojis? }` |
+| `POST /api/kader/takeover` | `{ kaderId, confirm: true, baseRev, role: { name, color?, unicodeEmoji? \| emojiId? }, category: { id } \| { name, emoji? }, channels: [{ name, emoji?, orgaOnlyWrite? }], roster?: { name?, categoryId? } }` → `{ takeover, steps, assigning }`; the `roster` step carries `created` |
 | `POST /api/kader/takeover/role` | "Rolle nachziehen" `{ kaderId }` → `{ count, away }`: the role for every player who reached provisional after the takeover (`kaderRoster.pendingOf`) and is on the server, in the background; `away` = pending but not on the server (skipped; with the member list unknown everybody counts); 409 `not_taken` / `role_gone` |
 
 `role` / `category` in the precheck: what the takeover made, as Discord has it now (`madeOf`) — `role { id, name,
@@ -177,7 +183,8 @@ offline.
 **The web assistant** (`pages/kader/TakeoverWizard.tsx`, logic in `lib/kader/takeover.ts`): the button "In Discord
 übernehmen" in the stage bar of "Zusammensetzung" (only with `kader` write; locked with the blocker as tooltip while
 `canStart` is false) opens four steps — **Rolle** (name, colour, emoji; the emoji field is off with the boost-level
-reason unless `iconPossible`; without a linked roster also the block "Neues Roster" with its name and the optional
+reason unless `iconPossible`, otherwise the picker has the section "Server" with the server's emojis first and the
+preview shows the picked picture; without a linked roster also the block "Neues Roster" with its name and the optional
 raid category, "Keine" by default, the select off when no category is free), **Kanäle** (new or existing category, channels with "Nur Orga schreibt"), **Wer**
 (everybody from provisional upwards in a sortable table with status and "nicht auf dem Server", plus the
 `outsideCount` note; "Übernahme starten" stays locked until the confirm switch is on) and **Ergebnis** (one line per

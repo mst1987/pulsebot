@@ -104,6 +104,24 @@ function iconPossible(guild) {
     return !!(guild && Array.isArray(guild.features) && guild.features.includes("ROLE_ICONS"));
 }
 
+/**
+ * The image of a server emoji as a role icon takes it: always the static PNG.
+ * A role icon cannot move, so an animated emoji gives its first frame - the
+ * picker shows that same PNG, the orga sees what the role will carry.
+ */
+function emojiImageUrl(id, size = 64) {
+    return `https://cdn.discordapp.com/emojis/${id}.png?size=${size}`;
+}
+
+/** The server's own emojis for the role icon: `[{ id, name, animated, url }]` by name, the PNG as `url`. */
+function serverEmojisOf(guild) {
+    if (!guild || !guild.emojis || !guild.emojis.cache) return [];
+    return [...guild.emojis.cache.values()]
+        .filter((e) => e && e.id && e.available !== false)
+        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
+        .map((e) => ({ id: String(e.id), name: String(e.name || ""), animated: !!e.animated, url: emojiImageUrl(String(e.id)) }));
+}
+
 /** The categories of a server, in Discord's order: `[{ id, name }]`. */
 function categoriesOf(guild) {
     if (!guild || !guild.channels || !guild.channels.cache) return [];
@@ -188,7 +206,8 @@ function rosterSideOf(gid, kader, roster, withCategories) {
  * this process - the bot restarted while handing out, the rest is
  * "nachzuziehen". `role` / `category`: what the takeover made, as Discord has
  * it now (madeOf). `categories` only with `opts.withCategories` (the caller
- * may start the takeover). Without a roster (and no takeover yet) the
+ * may start the takeover), `emojis` (serverEmojisOf, for the role icon) only
+ * with it and a server that can show role icons. Without a roster (and no takeover yet) the
  * takeover creates one: `createsRoster`, the note "creates_roster",
  * `newRoster` { name (the Kader's), versionId } and - with
  * `opts.withCategories` - `rosterCategories` (freeCategoriesOf); a hidden
@@ -249,6 +268,7 @@ async function precheck(guildId, kaderId, opts = {}) {
         ...pullableOf(kader.pending, members),
         players,
         categories: opts.withCategories ? categoriesOf(guild) : [],
+        emojis: opts.withCategories && iconPossible(guild) ? serverEmojisOf(guild) : [],
         ...rosterSide,
     };
 }
@@ -287,14 +307,27 @@ function prefixed(emoji, name) {
 }
 
 /**
- * The checked body of a start: `{ role: { name, color, unicodeEmoji },
- * category: { id } | { name }, channels: [{ name, orgaOnlyWrite }] }`.
+ * The role icon from a server emoji: its id, checked against the server's
+ * emojis - "" for none, 400 `invalid_emoji` for one the server does not have.
+ */
+function serverEmojiOf(raw, guild) {
+    const id = str(raw);
+    if (!id) return "";
+    if (!serverEmojisOf(guild).some((e) => e.id === id)) throw refuse("invalid_emoji", 400, "Dieses Emoji gibt es auf dem Server nicht.");
+    return id;
+}
+
+/**
+ * The checked body of a start: `{ role: { name, color, unicodeEmoji, emojiId },
+ * category: { id } | { name }, channels: [{ name, orgaOnlyWrite }] }`. The role
+ * icon is a Unicode emoji or a server emoji, never both (400 `invalid_emoji`).
  */
 function planOf(body, guild) {
     const role = (body && body.role) || {};
     const roleName = str(role.name).slice(0, NAME_MAX);
     if (!roleName) throw refuse("invalid_role", 400, "Die Rolle braucht einen Namen.");
-    const plan = { role: { name: roleName, color: colorOf(role.color), unicodeEmoji: emojiOf(role.unicodeEmoji) } };
+    if (str(role.unicodeEmoji) && str(role.emojiId)) throw refuse("invalid_emoji", 400, "Entweder ein Unicode-Emoji oder ein Server-Emoji.");
+    const plan = { role: { name: roleName, color: colorOf(role.color), unicodeEmoji: emojiOf(role.unicodeEmoji), emojiId: serverEmojiOf(role.emojiId, guild) } };
     const cat = (body && body.category) || {};
     if (str(cat.id)) {
         const found = categoriesOf(guild).find((c) => c.id === str(cat.id));
@@ -494,13 +527,16 @@ function assertRosterPath(linked, body, createsRoster) {
 
 /** Step 1: the role, below the bot's role. Refuses (and cleans up) otherwise. */
 async function makeRole(guild, plan, kader) {
-    const icon = plan.role.unicodeEmoji && iconPossible(guild) ? plan.role.unicodeEmoji : "";
+    const able = iconPossible(guild);
+    const icon = plan.role.unicodeEmoji && able ? plan.role.unicodeEmoji : "";
+    const image = plan.role.emojiId && able ? emojiImageUrl(plan.role.emojiId, 128) : "";
     let role;
     try {
         role = await guild.roles.create({
             name: plan.role.name,
             ...(plan.role.color !== null ? { colors: { primaryColor: plan.role.color } } : {}),
             ...(icon ? { unicodeEmoji: icon } : {}),
+            ...(image ? { icon: image } : {}),
             permissions: [],
             reason: `EventHelper: Übernahme des Kaders ${kader.name}`,
         });
@@ -511,7 +547,7 @@ async function makeRole(guild, plan, kader) {
         await Promise.resolve(role.delete && role.delete("EventHelper: Rolle über der Bot-Rolle")).catch(() => {});
         throw refuse("role_too_high", 409, "Die neue Rolle läge über der Bot-Rolle.");
     }
-    const iconState = icon ? "set" : (plan.role.unicodeEmoji ? "not_possible" : "none");
+    const iconState = icon || image ? "set" : (plan.role.unicodeEmoji || plan.role.emojiId ? "not_possible" : "none");
     return { role, step: { step: "role", ok: true, id: String(role.id), name: role.name, icon: iconState } };
 }
 
@@ -555,7 +591,7 @@ async function makeChannels(guild, plan, kader, roleId, orgaIds, steps) {
 
 /**
  * POST side: starts the takeover. `body`: `{ confirm: true, baseRev, role: {
- * name, color?: "#rrggbb", unicodeEmoji? }, category: { id } | { name, emoji? },
+ * name, color?: "#rrggbb", unicodeEmoji? | emojiId? }, category: { id } | { name, emoji? },
  * channels: [{ name, emoji?, orgaOnlyWrite? }], roster?: { name?, categoryId? } }`.
  * Creates role, category and channels right away (each step reports on its
  * own), records the takeover and hands out the role in the background.

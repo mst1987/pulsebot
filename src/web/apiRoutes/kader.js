@@ -432,7 +432,8 @@ function takeoverRefusal(res, e) {
  * roster_members_outside with `outsideCount`, creates_roster with `newRoster`
  * and - for a caller who may start - the free `rosterCategories`), the players
  * from provisional upwards with onServer / hasRole / inRoster / result, the
- * server's categories (only for a caller who may start), a recorded takeover,
+ * server's categories and - with role icons possible - its `emojis` for the
+ * role icon (both only for a caller who may start), a recorded takeover,
  * `aborted` (still running without a job - the bot restarted) and who is
  * still `pending` ("Rolle nachziehen"). Area `kader` read; `canStart` = may
  * start or pull the role. 404 for an unknown Kader.
@@ -451,9 +452,10 @@ const getTakeover = withUser({}, async ({ req, res, query, user }) => {
 
 /**
  * POST /api/kader/takeover — body: { kaderId, confirm: true, baseRev, role: {
- * name, color?: "#rrggbb", unicodeEmoji? }, category: { id } | { name, emoji? },
+ * name, color?: "#rrggbb", unicodeEmoji? | emojiId? }, category: { id } | { name, emoji? },
  * channels: [{ name, emoji?, orgaOnlyWrite? }], roster?: { name?, categoryId? } }:
- * the takeover. Area `kader` write + CSRF, then manager of the linked roster,
+ * the takeover (`emojiId`: a server emoji as role icon, 400 `invalid_emoji` for
+ * a foreign one or together with `unicodeEmoji`). Area `kader` write + CSRF, then manager of the linked roster,
  * else 403 `not_manager`. Without a linked roster the takeover creates one
  * from `roster` - full admins only, else 403 `admin_only`; 404 `not_found`
  * for an unknown Kader. 400 confirm_required / base_rev_required / invalid_*,

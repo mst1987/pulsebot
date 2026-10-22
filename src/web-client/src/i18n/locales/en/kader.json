@@ -1048,7 +1048,7 @@
             "noColor": "No colour",
             "icon": "Role icon",
             "iconPick": "Pick an emoji as role icon",
-            "iconHint": "Shown in Discord next to the name.",
+            "iconHint": "Shown in Discord next to the name. The server's emojis come first, animated ones as a still.",
             "iconOff": "Role icons need boost level 2 – this server is at level {tier}.",
             "becomes": "The role becomes the roster role of “{roster}”.",
             "createsRoster": "A new roster “{roster}” is created; the role becomes its roster role, the Kader's leads its managers.",
@@ -1076,6 +1076,7 @@
             "categoryPick": "Pick a category",
             "newHint": "Created as “{name}”.",
             "existingHint": "The channels go into this category; its permissions stay as they are.",
+            "unicodeOnly": "Category and channel names only take Unicode emojis – Discord does not show server emojis in names.",
             "title": {
                 "one": "{count} channel",
                 "other": "{count} channels"

@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
     getKaderTakeover, pullKaderTakeoverRole, startKaderTakeover,
-    type ApiError, type KaderTakeoverCheck, type KaderTakeoverPlayer, type KaderTakeoverStart, type KaderTakeoverStep,
+    type ApiError, type KaderServerEmoji, type KaderTakeoverCheck, type KaderTakeoverPlayer, type KaderTakeoverStart, type KaderTakeoverStep,
 } from "../../api";
 import { Button, DataTable, Field, IconButton, Modal, Segment, Switch, type Column } from "../../components/ui";
 import EmojiPicker from "../../components/ui/EmojiPicker";
@@ -65,16 +65,34 @@ function StepBar({ step }: { step: TakeoverStep }) {
     );
 }
 
-/** An emoji field: the picker and, with an emoji set, a button that clears it. */
-function EmojiField({ value, onChange, label, disabled = false }: { value: string; onChange: (v: string) => void; label: string; disabled?: boolean }) {
+/**
+ * An emoji field: the picker and, with an emoji set, a button that clears it.
+ * With `server` the server's own emojis come first ("Server"); picking one sets
+ * `serverValue` (its id) and clears the Unicode one, and the other way round.
+ */
+function EmojiField({ value, onChange, label, disabled = false, server, serverValue = "", onServerChange }: {
+    value: string;
+    onChange: (v: string) => void;
+    label: string;
+    disabled?: boolean;
+    server?: KaderServerEmoji[];
+    serverValue?: string;
+    onServerChange?: (id: string) => void;
+}) {
     const t = useT();
+    const currentCustom = (serverValue && server?.find((e) => e.id === serverValue)) || null;
+    const set = !!(value || currentCustom);
+    const clear = () => {
+        onChange("");
+        onServerChange?.("");
+    };
     return (
         <span className="kp-tk-emoji">
-            <EmojiPicker label={label} current={value} host="dialog" disabled={disabled} onPick={onChange} />
-            {value && !disabled && (
-                <button type="button" className="kp-tk-clear" aria-label={t("kader.takeover.emojiClear")} data-tip={t("kader.takeover.emojiClear")} onClick={() => onChange("")}>
-                    <XIcon />
-                </button>
+            <EmojiPicker label={label} current={value} host="dialog" disabled={disabled} onPick={onChange}
+                custom={server && server.length ? { label: t("emoji.server"), emojis: server } : undefined}
+                onPickCustom={onServerChange ? (e) => onServerChange(e.id) : undefined} currentCustom={currentCustom} />
+            {set && !disabled && (
+                <IconButton icon={<XIcon />} tone="ghost" tip={t("kader.takeover.emojiClear")} onClick={clear} />
             )}
         </span>
     );
@@ -125,6 +143,8 @@ function NewRosterBlock({ draft, set, check }: { draft: TakeoverDraft; set: (p: 
 function RoleStep({ draft, set, check }: { draft: TakeoverDraft; set: (p: Partial<TakeoverDraft>) => void; check: KaderTakeoverCheck }) {
     const t = useT();
     const old = check.roster ? check.roster.roleIds.length : 0;
+    const icon = check.iconPossible;
+    const serverIcon = icon && draft.roleEmojiId ? (check.emojis || []).find((e) => e.id === draft.roleEmojiId) : undefined;
     return (
         <div className="kp-stack">
             <Field label={t("kader.takeover.role.name")} htmlFor="kp-tk-role">
@@ -136,13 +156,15 @@ function RoleStep({ draft, set, check }: { draft: TakeoverDraft; set: (p: Partia
                         value={isHexColor(draft.roleColor) ? draft.roleColor : "#99aab5"} onChange={(e) => set({ roleColor: e.target.value })} />
                     <input id="kp-tk-color" className="kp-tk-hex" value={draft.roleColor} placeholder="#rrggbb" maxLength={7}
                         onChange={(e) => set({ roleColor: e.target.value.trim() })} />
-                    <Button variant="ghost" size="sm" disabled={!draft.roleColor} onClick={() => set({ roleColor: "" })}>{t("kader.takeover.role.noColor")}</Button>
+                    <Button variant="ghost" disabled={!draft.roleColor} onClick={() => set({ roleColor: "" })}>{t("kader.takeover.role.noColor")}</Button>
                 </span>
             </Field>
             <Field label={t("kader.takeover.role.icon")} htmlFor="kp-tk-icon">
                 <span className="kp-tk-iconrow" id="kp-tk-icon">
-                    <EmojiField value={check.iconPossible ? draft.roleEmoji : ""} onChange={(v) => set({ roleEmoji: v })}
-                        label={t("kader.takeover.role.iconPick")} disabled={!check.iconPossible} />
+                    <EmojiField value={icon ? draft.roleEmoji : ""} onChange={(v) => set({ roleEmoji: v, roleEmojiId: "" })}
+                        label={t("kader.takeover.role.iconPick")} disabled={!icon}
+                        server={icon ? check.emojis : undefined} serverValue={icon ? draft.roleEmojiId : ""}
+                        onServerChange={(id) => set({ roleEmojiId: id, roleEmoji: "" })} />
                     <span className="hint">
                         {check.iconPossible ? t("kader.takeover.role.iconHint") : t("kader.takeover.role.iconOff", { tier: check.premiumTier ?? 0 })}
                     </span>
@@ -151,7 +173,8 @@ function RoleStep({ draft, set, check }: { draft: TakeoverDraft; set: (p: Partia
             <div className="kp-tk-preview">
                 <span className="kicker">{t("kader.takeover.preview")}</span>
                 <span className="kp-tk-rolechip"><RoleSwatch color={isHexColor(draft.roleColor) ? draft.roleColor : ""} />
-                    {check.iconPossible && draft.roleEmoji && <span aria-hidden="true">{draft.roleEmoji}</span>}@{draft.roleName.trim() || "…"}</span>
+                    {serverIcon ? <img className="emo-img" src={serverIcon.url} alt="" aria-hidden="true" />
+                        : icon && draft.roleEmoji && <span aria-hidden="true">{draft.roleEmoji}</span>}@{draft.roleName.trim() || "…"}</span>
             </div>
             <NewRosterBlock draft={draft} set={set} check={check} />
             <p className="kp-tk-note">
@@ -183,7 +206,7 @@ function ChannelsStep({ draft, set, check }: { draft: TakeoverDraft; set: (p: Pa
                     ]}
                 />
                 {draft.categoryMode === "new" ? (
-                    <div className="kp-tk-row">
+                    <div className="field is-last kp-tk-row">
                         <EmojiField value={draft.categoryEmoji} onChange={(v) => set({ categoryEmoji: v })} label={t("kader.takeover.channels.categoryEmoji")} />
                         <input className="kp-grow" aria-label={t("kader.takeover.channels.categoryName")} value={draft.categoryName} maxLength={TAKEOVER_NAME_MAX}
                             onChange={(e) => set({ categoryName: e.target.value })} />
@@ -199,17 +222,21 @@ function ChannelsStep({ draft, set, check }: { draft: TakeoverDraft; set: (p: Pa
                         ? t("kader.takeover.channels.newHint", { name: categoryPreview(draft) || "…" })
                         : t("kader.takeover.channels.existingHint")}
                 </span>
+                {/* the role may have a server emoji; names only take Unicode - say why where it matters */}
+                {draft.categoryMode === "new" && (check.emojis || []).length > 0 && (
+                    <span className="hint">{t("kader.takeover.channels.unicodeOnly")}</span>
+                )}
             </div>
             <div className="kp-tk-block">
                 <span className="kicker">{t("kader.takeover.channels.title", { count: draft.channels.length })}</span>
                 <ul className="kp-tk-chlist">
                     {draft.channels.map((c, i) => (
                         <li key={c.key} className="kp-tk-ch">
-                            <div className="kp-tk-row">
+                            <div className="field is-last kp-tk-row">
                                 <EmojiField value={c.emoji} onChange={(v) => setChannel(c.key, { emoji: v })} label={t("kader.takeover.channels.emoji")} />
                                 <input className="kp-grow" aria-label={t("kader.takeover.channels.name", { n: i + 1 })} value={c.name} maxLength={TAKEOVER_NAME_MAX}
                                     onChange={(e) => setChannel(c.key, { name: e.target.value })} />
-                                <IconButton icon={<TrashIcon />} tone="no" size="sm" tip={t("kader.takeover.channels.remove")}
+                                <IconButton icon={<TrashIcon />} tone="no" tip={t("kader.takeover.channels.remove")}
                                     onClick={() => set({ channels: draft.channels.filter((x) => x.key !== c.key) })} />
                             </div>
                             <div className="kp-tk-chmeta">
