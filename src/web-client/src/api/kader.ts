@@ -529,7 +529,7 @@ export type KaderTakeoverPlayer = {
     result: KaderTakeoverResult | null;
 };
 
-export type KaderTakeoverBlocker = "no_roster" | "roster_closed" | "offline" | "no_manage_roles" | "no_manage_channels" | "no_players" | "already_taken";
+export type KaderTakeoverBlocker = "no_roster" | "roster_closed" | "version_hidden" | "offline" | "no_manage_roles" | "no_manage_channels" | "no_players" | "already_taken";
 
 /** GET /api/kader/takeover: the check of the dialog and the head's line after a takeover. */
 export type KaderTakeoverCheck = {
@@ -556,7 +556,13 @@ export type KaderTakeoverCheck = {
     pendingAway: number;
     players: KaderTakeoverPlayer[];
     categories: { id: string; name: string }[];
-    /** May the caller start it (kader write + manager of the roster)? */
+    /** No linked roster (and no takeover yet): the takeover creates one - for full admins only. */
+    createsRoster?: boolean;
+    /** The roster it would create: the Kader's name (changeable) and version; null with a linked roster. */
+    newRoster?: { name: string; versionId: string } | null;
+    /** The raid categories the new roster may take (only for a caller who may start); `suggested` = an attendance category of the Kader. */
+    rosterCategories?: { id: string; name: string; suggested: boolean }[];
+    /** May the caller start it (kader write + manager of the roster; without one: full admins)? */
     canStart: boolean;
 };
 
@@ -571,6 +577,8 @@ export type KaderTakeoverStep = {
     icon?: "set" | "not_possible" | "none";
     /** category only: an existing one was used */
     existing?: boolean;
+    /** roster only: the takeover created the roster */
+    created?: boolean;
 };
 
 export type KaderTakeoverBody = {
@@ -578,6 +586,8 @@ export type KaderTakeoverBody = {
     role: { name: string; color?: string; unicodeEmoji?: string };
     category: { id: string } | { name: string; emoji?: string };
     channels: { name: string; emoji?: string; orgaOnlyWrite?: boolean }[];
+    /** Only without a linked roster: the roster the takeover creates (categoryId null = none). */
+    roster?: { name: string; categoryId: string | null };
 };
 
 export type KaderTakeoverStart = { takeover: KaderTakeover | null; steps: KaderTakeoverStep[]; assigning: number };

@@ -396,7 +396,11 @@ const syncKaderRoster = withUser(WRITE, async ({ req, res, body, user }) => {
 /**
  * May `user` run the takeover of this Kader? `kader` write and a manager of the
  * roster it writes into - the one a recorded takeover names, else the one
- * linked to the Kader (full admins always). Answers the roster too.
+ * linked to the Kader (full admins always). Without a roster (and no takeover
+ * yet) the takeover creates one (`createsRoster`): like creating a roster by
+ * hand (rosterAdmin.js) that is for full admins only, plus `kader` write - a
+ * roster manager cannot exist yet, and a Kader lead alone may not open a roster.
+ * Answers the roster too.
  */
 async function takeoverRights(user, guildId, kaderId) {
     const kader = takeoverPlayers(guildId, kaderId);
@@ -404,8 +408,13 @@ async function takeoverRights(user, guildId, kaderId) {
     const roster = kader && kader.takeover && kader.takeover.rosterId
         ? rosterStore.getRoster(kader.takeover.rosterId)
         : rosterOfKader(guildId, kaderId);
-    const may = !!roster && userCan(user, "kader", "write") && await canManageRosterLive(user, roster).catch(() => false);
-    return { roster, may };
+    const writer = userCan(user, "kader", "write");
+    if (!roster) {
+        const createsRoster = !!kader && !kader.takeover;
+        return { roster: null, createsRoster, may: createsRoster && writer && user.isAdmin === true };
+    }
+    const may = writer && await canManageRosterLive(user, roster).catch(() => false);
+    return { roster, createsRoster: false, may };
 }
 
 /** A refusal of rosterTakeover (an AppError, or kaderModel.stale) as the answer of a route. */
@@ -417,9 +426,11 @@ function takeoverRefusal(res, e) {
 
 /**
  * GET /api/kader/takeover?kader=<id> — the takeover dialog (docs/kaderplaner.md
- * "Übernahme"): what is missing (`blockers`: no_roster, roster_closed, offline,
- * no_manage_roles, no_manage_channels, no_players, already_taken; `notes`:
- * icon_not_possible, roster_members_outside with `outsideCount`), the players
+ * "Übernahme"): what is missing (`blockers`: no_roster (a recorded takeover whose
+ * roster is gone), roster_closed, version_hidden, offline, no_manage_roles,
+ * no_manage_channels, no_players, already_taken; `notes`: icon_not_possible,
+ * roster_members_outside with `outsideCount`, creates_roster with `newRoster`
+ * and - for a caller who may start - the free `rosterCategories`), the players
  * from provisional upwards with onServer / hasRole / inRoster / result, the
  * server's categories (only for a caller who may start), a recorded takeover,
  * `aborted` (still running without a job - the bot restarted) and who is
@@ -441,21 +452,27 @@ const getTakeover = withUser({}, async ({ req, res, query, user }) => {
 /**
  * POST /api/kader/takeover — body: { kaderId, confirm: true, baseRev, role: {
  * name, color?: "#rrggbb", unicodeEmoji? }, category: { id } | { name, emoji? },
- * channels: [{ name, emoji?, orgaOnlyWrite? }] }: the takeover. Area `kader`
- * write + CSRF, then manager of the linked roster, else 403 `not_manager`; 404
- * `not_found` without a linked roster. 400 confirm_required / base_rev_required
- * / invalid_*, 409 stale / already_taken / running / role_too_high, 503 offline.
+ * channels: [{ name, emoji?, orgaOnlyWrite? }], roster?: { name?, categoryId? } }:
+ * the takeover. Area `kader` write + CSRF, then manager of the linked roster,
+ * else 403 `not_manager`. Without a linked roster the takeover creates one
+ * from `roster` - full admins only, else 403 `admin_only`; 404 `not_found`
+ * for an unknown Kader. 400 confirm_required / base_rev_required / invalid_*,
+ * 409 stale / already_taken / running / role_too_high / category_taken /
+ * version_hidden, 503 offline. The checked path goes to the service
+ * (`createsRoster`): a roster linked or unlinked during the rights check is
+ * 409 `roster_linked` / `no_roster`, never a silent switch.
  * Answer: `{ takeover, steps: [{ step, ok, id?, name, error? }], assigning }` -
  * the roles go out in the background, GET shows the results.
  */
 const startTakeover = withUser(WRITE, async ({ req, res, body, user }) => {
     const guildId = activeGuildFor(req);
     const kaderId = str(body, "kaderId");
-    const { roster, may } = await takeoverRights(user, guildId, kaderId);
-    if (!roster) return apiError(res, 404, "not_found", "Kein Roster zu diesem Kader.");
+    const { roster, createsRoster, may } = await takeoverRights(user, guildId, kaderId);
+    if (!roster && !createsRoster) return apiError(res, 404, "not_found", "Kein Roster zu diesem Kader.");
+    if (!may && createsRoster) return apiError(res, 403, "admin_only", "Ein neues Roster legen nur Voll-Admins an.");
     if (!may) return apiError(res, 403, "not_manager", "Nur Manager dieses Rosters.");
     try {
-        return ok(res, await rosterTakeover.start(guildId, kaderId, body, { actor: String(user.id || "") }));
+        return ok(res, await rosterTakeover.start(guildId, kaderId, body, { actor: String(user.id || ""), createsRoster }));
     } catch (e) {
         return takeoverRefusal(res, e);
     }

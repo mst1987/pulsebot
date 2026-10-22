@@ -99,9 +99,10 @@ function pendingOf(kader) {
 }
 
 /**
- * One Kader for the takeover: `{ id, name, versionId, rev, takeover, pending,
- * players: [{ userId, state, decision, characterName }] }` - the players of
- * TAKEOVER_STATES only; null for an unknown Kader.
+ * One Kader for the takeover: `{ id, name, versionId, rev, leads, attendanceCategories,
+ * takeover, pending, players: [{ userId, state, decision, characterName }] }` - the
+ * players of TAKEOVER_STATES only; null for an unknown Kader. `leads` and
+ * `attendanceCategories` are what a roster the takeover creates starts from.
  */
 function takeoverPlayers(guildId, kaderId) {
     const planner = kaderStore.readPlanner(guildId);
@@ -116,6 +117,8 @@ function takeoverPlayers(guildId, kaderId) {
         name: kader.name,
         versionId: kader.versionId,
         rev: model.revOf(kader.rev),
+        leads: [...(kader.leads || [])],
+        attendanceCategories: [...(kader.attendanceCategories || [])],
         takeover: kader.takeover ? model.clone(kader.takeover) : null,
         pending: pendingOf(kader),
         players,
@@ -329,4 +332,6 @@ module.exports = {
     rosterPlayers, kaderSummaries, ROSTER_STATES,
     TAKEOVER_STATES, pendingOf, takeoverPlayers, assertTakeoverFresh, saveTakeover, stillPlanned, finishTakeover, markRoleGiven,
     backToProvisional, roleGainedFromDiscord, takeoverDrops,
+    // a roster the takeover creates plays the Kader's version (rosterTakeover reaches the planner only through here)
+    kaderVersion: model.kaderVersion,
 };

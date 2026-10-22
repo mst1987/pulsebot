@@ -231,6 +231,90 @@ describe("Kaderplaner · In Discord übernehmen", () => {
         expect(btn).toBeDisabled();
         expect(btn.closest("[data-tip]")).toHaveAttribute("data-tip", T("blocker.no_rights"));
     });
+
+    it("with a linked roster offers no new roster", async () => {
+        await show();
+        const dialog = await openWizard();
+        expect(within(dialog).queryByLabelText(T("roster.name"))).not.toBeInTheDocument();
+        expect(within(dialog).queryByLabelText(T("roster.category"))).not.toBeInTheDocument();
+    });
+});
+
+describe("Kaderplaner · Übernahme ohne Roster", () => {
+    const noRoster = (over: Partial<KaderTakeoverCheck> = {}) => check({
+        roster: null, createsRoster: true, notes: ["creates_roster"],
+        newRoster: { name: "Forever-Kader", versionId: "forever" },
+        rosterCategories: [{ id: "rc1", name: "Donnerstag", suggested: true }, { id: "rc2", name: "Sonntag", suggested: false }],
+        ...over,
+    });
+
+    it("creates a roster named after the Kader, the raid category optional, and sends both", async () => {
+        vi.mocked(api.getKaderTakeover).mockResolvedValue(noRoster());
+        vi.mocked(api.startKaderTakeover).mockImplementation(async () => {
+            current = taken({ rosterId: "new-roster" });
+            return { takeover: current, steps: [{ step: "role", ok: true, id: "role1", name: "Forever-Kader", icon: "none" }, { step: "roster", ok: true, created: true, name: "Forever-Kader" }], assigning: 4 };
+        });
+        await show();
+        const entryTip = (await screen.findByRole("button", { name: T("entry") })).closest("[data-tip-sub]");
+        expect(entryTip).toHaveAttribute("data-tip-sub", T("entryTipSubNew"));
+        const dialog = await openWizard();
+        expect(within(dialog).getByLabelText(T("roster.name"))).toHaveValue("Forever-Kader");
+        const cat = within(dialog).getByLabelText(T("roster.category")) as HTMLSelectElement;
+        expect(cat).toHaveValue("");
+        expect([...cat.options].map((o) => o.textContent)).toEqual([T("roster.noCategory"), T("roster.suggested", { name: "Donnerstag" }), "Sonntag"]);
+        expect(within(dialog).getByText(T("role.createsRoster", { roster: "Forever-Kader" }), { exact: false })).toBeInTheDocument();
+        // an empty roster name keeps the step
+        await userEvent.clear(within(dialog).getByLabelText(T("roster.name")));
+        expect(within(dialog).getByRole("button", { name: T("next") })).toBeDisabled();
+        expect(within(dialog).getByRole("alert")).toHaveTextContent(T("problem.roster_name"));
+        await userEvent.type(within(dialog).getByLabelText(T("roster.name")), "Forever-Raid");
+        await userEvent.selectOptions(cat, "rc2");
+        await toWho(dialog);
+        expect(within(dialog).getByText(T("who.newRosterIn", { roster: "Forever-Raid", category: "Sonntag" }))).toBeInTheDocument();
+        await userEvent.click(within(dialog).getByRole("switch", { name: T("who.confirm") }));
+        await userEvent.click(within(dialog).getByRole("button", { name: T("start") }));
+        expect(api.startKaderTakeover).toHaveBeenCalledWith("k1", expect.objectContaining({ roster: { name: "Forever-Raid", categoryId: "rc2" } }));
+        expect(await within(dialog).findByText(T("result.step.rosterCreated"), { exact: false })).toBeInTheDocument();
+    });
+
+    it("without a free category keeps the select off and sends no category", async () => {
+        vi.mocked(api.getKaderTakeover).mockResolvedValue(noRoster({ rosterCategories: [] }));
+        vi.mocked(api.startKaderTakeover).mockResolvedValue({ takeover: null, steps: [], assigning: 0 });
+        await show();
+        const dialog = await openWizard();
+        expect(within(dialog).getByLabelText(T("roster.category"))).toBeDisabled();
+        expect(within(dialog).getByText(T("roster.noFreeCategory"))).toBeInTheDocument();
+        await toWho(dialog);
+        expect(within(dialog).getByText(T("who.newRoster", { roster: "Forever-Kader" }))).toBeInTheDocument();
+        await userEvent.click(within(dialog).getByRole("switch", { name: T("who.confirm") }));
+        await userEvent.click(within(dialog).getByRole("button", { name: T("start") }));
+        expect(api.startKaderTakeover).toHaveBeenCalledWith("k1", expect.objectContaining({ roster: { name: "Forever-Kader", categoryId: null } }));
+    });
+
+    it("on 409 roster_linked loads again, drops the new roster and wants the switch once more", async () => {
+        vi.mocked(api.getKaderTakeover).mockResolvedValueOnce(noRoster()).mockResolvedValue(check());
+        vi.mocked(api.startKaderTakeover).mockRejectedValueOnce({ code: "roster_linked", message: "linked" }).mockResolvedValue({ takeover: null, steps: [], assigning: 0 });
+        await show();
+        const dialog = await openWizard();
+        await toWho(dialog);
+        expect(within(dialog).getByText(T("who.newRoster", { roster: "Forever-Kader" }))).toBeInTheDocument();
+        await userEvent.click(within(dialog).getByRole("switch", { name: T("who.confirm") }));
+        await userEvent.click(within(dialog).getByRole("button", { name: T("start") }));
+        expect(await within(dialog).findByText(T("error.roster_linked"))).toBeInTheDocument();
+        await waitFor(() => expect(within(dialog).queryByText(T("who.newRoster", { roster: "Forever-Kader" }))).not.toBeInTheDocument());
+        expect(within(dialog).getByRole("switch", { name: T("who.confirm") })).not.toBeChecked();
+        await userEvent.click(within(dialog).getByRole("switch", { name: T("who.confirm") }));
+        await userEvent.click(within(dialog).getByRole("button", { name: T("start") }));
+        expect(vi.mocked(api.startKaderTakeover).mock.calls[1][1]).not.toHaveProperty("roster");
+    });
+
+    it("locks the entry for anyone but full admins with its own reason", async () => {
+        vi.mocked(api.getKaderTakeover).mockResolvedValue(noRoster({ canStart: false, rosterCategories: undefined }));
+        await show();
+        const btn = await screen.findByRole("button", { name: T("entry") });
+        expect(btn).toBeDisabled();
+        expect(btn.closest("[data-tip]")).toHaveAttribute("data-tip", T("blocker.admin_only"));
+    });
 });
 
 describe("Kaderplaner · Kopf nach der Übernahme", () => {

@@ -124,7 +124,27 @@ When the record cannot be saved, no role goes out (`{ takeover: null, assigning:
 
 - **Rights:** full admins and the managers of the roster the takeover writes into (`canManageRosterLive`) — the one
   a recorded `takeover.rosterId` names, else the linked one — with `kader` write; a reader gets the precheck only,
-  without the server's categories. Without a linked roster there is a blocker (`no_roster`).
+  without the server's categories. Without a linked roster only **full admins** with `kader` write (else 403
+  `admin_only`): like creating a roster by hand (`rosterAdmin.js`), and a roster manager cannot exist yet.
+- **Without a linked roster** (and no takeover yet) the takeover **creates the roster** (precheck `createsRoster`,
+  note `creates_roster`, `newRoster { name, versionId }`): named after the Kader (changeable in step "Rolle", at most
+  40 characters), the Kader's version (`kaderVersion`; a hidden version blocks with `version_hidden`), linked to the
+  Kader (`kaderId`, source `kader`), the new role as its only role, the Kader's leads as managers, and optionally a
+  **raid category** — default none; offered are only active categories of that version without a roster of it
+  (`rosterCategories [{id, name, suggested}]`, only for a caller who may start; `suggested` = the Kader's
+  `attendanceCategories`, marked, not preselected). A taken category answers 409 `category_taken`, one of another
+  version 400 `invalid_roster_category` (a category not offered). The role is made first; should the roster then
+  fail, the role is deleted again (no half-made roster). After that everything runs as with a linked roster
+  (`takeover.rosterId` = the new one). With a linked roster nothing changes (no name, no category choice).
+- **The path the route checked:** the route checks the rights for the roster it sees and hands `createsRoster` to
+  `rosterTakeover.start`; `start` reads the link again and refuses when it changed meanwhile — a link gone without
+  `createsRoster` 409 `no_roster`, a roster linked meanwhile while `createsRoster` or `roster` in the body is set 409
+  `roster_linked` (nothing made, the roster's roles untouched). The assistant reloads on both (and on `stale` /
+  `kader_taken`), the draft follows the new precheck. `no_roster` in the precheck still means a recorded takeover
+  whose roster is gone.
+- **Category roles:** after the roster got the new role (linked or created) its raid category's roles are mirrored
+  (`categoryRoles.mirrorCategoryRoles`), else `syncRosterRoleIds` would put the old roles back; a failed mirror is
+  only logged.
 - **The link is locked** once a takeover is recorded: relinking or unlinking answers 409 `kader_taken_over`, through
   `/api/kader/roster/link` and through `/api/rosters/update` (`rosterCreate.kaderTakenOver`, option `kaderLocked`).
 - **Precheck notes:** `roster_members_outside` with `outsideCount` — roster members the Kader does not plan; they stay
@@ -146,8 +166,8 @@ Routes (area `kader`, writes with CSRF):
 
 | Route | Body / answer |
 |---|---|
-| `GET /api/kader/takeover?kader=<id>` | precheck: `{ kader {id,name,versionId,rev}, roster, online, canManageRoles, canManageChannels, iconPossible, premiumTier, blockers[], notes[], outsideCount, takeover, role, category, running, aborted, pending[], pendingCount, pullCount, pendingAway, players[{userId, state, …, onServer, hasRole, inRoster, result}], categories[{id,name}], canStart }` |
-| `POST /api/kader/takeover` | `{ kaderId, confirm: true, baseRev, role: { name, color?, unicodeEmoji? }, category: { id } \| { name, emoji? }, channels: [{ name, emoji?, orgaOnlyWrite? }] }` → `{ takeover, steps, assigning }` |
+| `GET /api/kader/takeover?kader=<id>` | precheck: `{ kader {id,name,versionId,rev}, roster, online, canManageRoles, canManageChannels, iconPossible, premiumTier, blockers[], notes[], outsideCount, takeover, role, category, running, aborted, pending[], pendingCount, pullCount, pendingAway, players[{userId, state, …, onServer, hasRole, inRoster, result}], categories[{id,name}], canStart, createsRoster, newRoster, rosterCategories[{id,name,suggested}] }` |
+| `POST /api/kader/takeover` | `{ kaderId, confirm: true, baseRev, role: { name, color?, unicodeEmoji? }, category: { id } \| { name, emoji? }, channels: [{ name, emoji?, orgaOnlyWrite? }], roster?: { name?, categoryId? } }` → `{ takeover, steps, assigning }`; the `roster` step carries `created` |
 | `POST /api/kader/takeover/role` | "Rolle nachziehen" `{ kaderId }` → `{ count, away }`: the role for every player who reached provisional after the takeover (`kaderRoster.pendingOf`) and is on the server, in the background; `away` = pending but not on the server (skipped; with the member list unknown everybody counts); 409 `not_taken` / `role_gone` |
 
 `role` / `category` in the precheck: what the takeover made, as Discord has it now (`madeOf`) — `role { id, name,
@@ -157,7 +177,8 @@ offline.
 **The web assistant** (`pages/kader/TakeoverWizard.tsx`, logic in `lib/kader/takeover.ts`): the button "In Discord
 übernehmen" in the stage bar of "Zusammensetzung" (only with `kader` write; locked with the blocker as tooltip while
 `canStart` is false) opens four steps — **Rolle** (name, colour, emoji; the emoji field is off with the boost-level
-reason unless `iconPossible`), **Kanäle** (new or existing category, channels with "Nur Orga schreibt"), **Wer**
+reason unless `iconPossible`; without a linked roster also the block "Neues Roster" with its name and the optional
+raid category, "Keine" by default, the select off when no category is free), **Kanäle** (new or existing category, channels with "Nur Orga schreibt"), **Wer**
 (everybody from provisional upwards in a sortable table with status and "nicht auf dem Server", plus the
 `outsideCount` note; "Übernahme starten" stays locked until the confirm switch is on) and **Ergebnis** (one line per
 `steps` entry; while the job runs only the loader with "Rolle wird verteilt …" (polled), once done "n von m Eingeplanten
