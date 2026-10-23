@@ -56,4 +56,14 @@ describe("roleHygiene", () => {
         expect(roleHygiene(G).known).toBe(false);
         expect(roleHygiene("").known).toBe(false);
     });
+
+    it("asks comparePositionTo where the role has it (equal positions by id)", () => {
+        const top = mockGuild.members.me.roles.highest;
+        // r1 sits at position 1 but compares above the bot's role, r3 (position 8) below.
+        mockGuild.roles.cache.get("r1").comparePositionTo = (other) => (other === top ? 1 : 0);
+        mockGuild.roles.cache.get("r3").comparePositionTo = (other) => (other === top ? -1 : 0);
+        expect(roleHygiene(G).aboveBot).toBe(1);
+        mockGuild.roles.cache.get("r3").comparePositionTo = () => 1;
+        expect(roleHygiene(G).aboveBot).toBe(2);
+    });
 });

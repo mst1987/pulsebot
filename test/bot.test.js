@@ -151,6 +151,8 @@ describe("joins and leaves", () => {
         expect(mockMemberAdd).toHaveBeenCalledWith(member);
         expect(mockMemberRemove).toHaveBeenCalledWith(member);
         expect(rosterSpy).toHaveBeenCalledWith(member);
+        // The join is noted before the roster role sync runs.
+        expect(mockMemberAdd.mock.invocationCallOrder.at(-1)).toBeLessThan(rosterSpy.mock.invocationCallOrder[0]);
         await new Promise((r) => setImmediate(r));
         rosterSpy.mockRestore();
     });

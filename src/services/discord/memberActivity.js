@@ -7,8 +7,11 @@
 // to see, a bare name is not.
 //
 // Nothing here calls Discord: a leave's roles come from the member object the
-// event hands over (the member cache; a partial member brings none), names and
-// relations from the stores.
+// event hands over (the member cache), names and relations from the stores.
+// The client has no Partials.GuildMember (src/bot.js), so discord.js only emits
+// guildMemberRemove for a member it has cached: a leave of a member that was
+// not cached is not noted (a known gap, accepted; the overview is a hint, not
+// a register).
 const guildRoles = require("./guildRoles");
 const memberActivityStore = require("../../stores/memberActivityStore");
 const rosterStore = require("../../stores/rosterStore");
@@ -56,16 +59,26 @@ function recordSafe(entry) {
     }
 }
 
-/** guildMemberAdd: note the join. Never throws. */
+/** guildMemberAdd: note the join. Never throws (it runs before the role syncs in bot.js). */
 function onMemberAdd(member) {
-    if (!relevant(member)) return null;
-    return recordSafe({ guildId: guildIdOf(member), userId: str(member.id), name: nameOf(member), kind: "join" });
+    try {
+        if (!relevant(member)) return null;
+        return recordSafe({ guildId: guildIdOf(member), userId: str(member.id), name: nameOf(member), kind: "join" });
+    } catch (e) {
+        logger.warn("could not note a join:", (e && e.message) || e);
+        return null;
+    }
 }
 
 /** guildMemberRemove: note the leave with the roles the member had. Never throws. */
 function onMemberRemove(member) {
-    if (!relevant(member)) return null;
-    return recordSafe({ guildId: guildIdOf(member), userId: str(member.id), name: nameOf(member), kind: "leave", roles: rolesOf(member) });
+    try {
+        if (!relevant(member)) return null;
+        return recordSafe({ guildId: guildIdOf(member), userId: str(member.id), name: nameOf(member), kind: "leave", roles: rolesOf(member) });
+    } catch (e) {
+        logger.warn("could not note a leave:", (e && e.message) || e);
+        return null;
+    }
 }
 
 /**

@@ -31,6 +31,15 @@ function holders(role, guild) {
 }
 
 /**
+ * Whether a role stands above the bot's highest role. comparePositionTo breaks
+ * ties of equal positions by id, as Discord does; plain positions only as a fallback.
+ */
+function isAbove(role, top) {
+    if (typeof role.comparePositionTo === "function") return role.comparePositionTo(top) > 0;
+    return Number(role.position) > Number(top.position);
+}
+
+/**
  * `{ known, total, empty, aboveBot, sensitive }` of one server. @everyone and
  * integration roles (bots, boosts) are left out. `known` false = bot offline or
  * not on the server, every count null. `empty` null = member cache incomplete.
@@ -41,14 +50,14 @@ function roleHygiene(guildId) {
     if (!guild || !guild.roles || !guild.roles.cache) return { known: false, total: null, empty: null, aboveBot: null, sensitive: null };
     const roles = [...guild.roles.cache.values()].filter((r) => r && r.id !== gid && !r.managed);
     const me = guild.members ? guild.members.me : null;
-    const top = me && me.roles && me.roles.highest ? Number(me.roles.highest.position) : null;
+    const top = me && me.roles && me.roles.highest ? me.roles.highest : null;
     const flags = SENSITIVE.map((k) => PermissionsBitField.Flags[k]);
     const complete = membersComplete(guild);
     return {
         known: true,
         total: roles.length,
         empty: complete ? roles.filter((r) => holders(r, guild) === 0).length : null,
-        aboveBot: top === null ? null : roles.filter((r) => Number(r.position) > top).length,
+        aboveBot: top === null ? null : roles.filter((r) => isAbove(r, top)).length,
         sensitive: roles.filter((r) => r.permissions && flags.some((f) => r.permissions.has(f))).length,
     };
 }

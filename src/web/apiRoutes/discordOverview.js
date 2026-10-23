@@ -8,10 +8,14 @@
 //                           relation: { rosters: [{ id, name, categoryId, status }], characters } }],
 //               botCheck: { guildId, known, functions: [...], channels: [...], rolesAboveBot: [...] },
 //               messages: [{ kind, kindLabel, title, categoryId, categoryName, guildId, channelId,
-//                            channelName, messageId, link, status: "ok"|"deleted"|"channel_missing"|"unknown" }],
+//                            channelName, messageId, link,
+//                            status: "ok"|"deleted"|"channel_missing"|"no_access"|"unknown" }],
 //               hygiene: { known, total, empty, aboveBot, sensitive } } }
-//   members: the last 7 days, newest first. messages: cached 10 minutes per server;
-//   `fresh=1` checks again at once. Counts are null where the bot cannot say
+//   members: the last 7 days, newest first. messages: each answer is kept 10 minutes
+//   per message, "unknown" (offline, timeout, 5xx) never; one check stops after 5 s and
+//   what has not answered reads "unknown". `fresh=1` asks Discord again for every
+//   message of the side. botCheck.channels leaves out a channel that lies on another
+//   server than the side's. Counts are null where the bot cannot say
 //   (offline, or `empty` while the member cache is incomplete).
 //   400 bad_side for any other side.
 const { ok, error: apiError } = require("../http/apiResponse");

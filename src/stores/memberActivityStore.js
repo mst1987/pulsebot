@@ -12,7 +12,7 @@
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 
-const KEEP_DAYS = 30;
+const KEEP_DAYS = 14;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_ENTRIES = 2000;
 const MAX_ROLES = 50;

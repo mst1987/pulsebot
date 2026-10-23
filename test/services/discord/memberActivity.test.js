@@ -63,6 +63,14 @@ describe("onMemberAdd / onMemberRemove", () => {
         expect(memberActivity.onMemberAdd(member())).toBeNull();
         spy.mockRestore();
     });
+
+    it("never throws on a member object that breaks while it is read", () => {
+        const broken = { get user() { throw new Error("partial"); }, guild: { id: EVENT } };
+        expect(() => memberActivity.onMemberAdd(broken)).not.toThrow();
+        expect(memberActivity.onMemberAdd(broken)).toBeNull();
+        expect(memberActivity.onMemberRemove(broken)).toBeNull();
+        expect(store.listEntries()).toEqual([]);
+    });
 });
 
 describe("relationOf / recentActivity", () => {

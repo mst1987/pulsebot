@@ -15,7 +15,8 @@ jest.mock("../../../src/services/discord/discord", () => ({
 }));
 jest.mock("../../../src/stores/rosterStore", () => ({ listRosters: () => mockRosters, isClosed: (r) => !!r.closedAt }));
 jest.mock("../../../src/stores/roleMessageStore", () => ({ listMessages: () => mockRoleMessages }));
-jest.mock("../../../src/stores/addonCenterStore", () => ({ getSettings: () => ({ channelId: "" }) }));
+const mockAddon = { channelId: "", roleId: "" };
+jest.mock("../../../src/stores/addonCenterStore", () => ({ getSettings: () => ({ ...mockAddon }) }));
 
 const { botCheck, channelPurposes, BOT_FUNCTIONS } = require("../../../src/services/discord/botCheck");
 
@@ -45,6 +46,8 @@ beforeEach(() => {
     mockGuild = guild({ rights: ALL });
     mockRosters.length = 0;
     mockRoleMessages.length = 0;
+    mockAddon.channelId = "";
+    mockAddon.roleId = "";
 });
 
 describe("functions", () => {
@@ -98,6 +101,18 @@ describe("channels", () => {
         expect(keys).toEqual(["talkPings", "guildBank"]);
     });
 
+    it("leaves out a channel on a server that is neither side (a second event server)", () => {
+        const SECOND = "900000000000000003";
+        mockClient.channels.cache.set("300000000000000003", { guildId: SECOND });
+        const withOverview = { ...config, discordServers: { ...config.discordServers, eventGuilds: [{ guildId: SECOND, overviewGuildId: SECOND, overviewChannelId: "300000000000000004" }] } };
+        const eventKeys = botCheck("event", EVENT, withOverview, GUILDS).channels.map((c) => c.key);
+        const talkKeys = botCheck("talk", TALK, withOverview, GUILDS).channels.map((c) => c.key);
+        expect(eventKeys).not.toContain("guildBank");
+        expect(eventKeys).not.toContain("overview");
+        expect(talkKeys).not.toContain("guildBank");
+        expect(talkKeys).not.toContain("overview");
+    });
+
     it("lists only purposes with a channel, plus the required applications channel", () => {
         expect(channelPurposes({}).map((p) => p.key)).toEqual(["applications"]);
         mockOnline = false;
@@ -125,6 +140,16 @@ describe("rolesAboveBot", () => {
         expect(botCheck("event", EVENT, { roleSync: [{ eventRoleId: "200000000000000002" }] }, GUILDS).rolesAboveBot).toEqual([
             { id: "200000000000000004", name: "Booster", usedBy: ["Rollen-Nachricht"] },
             { id: "200000000000000001", name: "Raider", usedBy: ["Roster TBC"] },
+        ]);
+    });
+
+    it("counts the addon centre's ping role and compares by comparePositionTo", () => {
+        mockAddon.roleId = "200000000000000005";
+        const highest = { position: 5, comparePositionTo: (r) => (r.id === "200000000000000005" ? -1 : 1) };
+        mockGuild = guild({ rights: ALL, roles: [{ id: "200000000000000005", name: "Addon-Ping", position: 5 }] });
+        mockGuild.members.me.roles.highest = highest;
+        expect(botCheck("event", EVENT, {}, GUILDS).rolesAboveBot).toEqual([
+            { id: "200000000000000005", name: "Addon-Ping", usedBy: ["Addon-Zentrale"] },
         ]);
     });
 

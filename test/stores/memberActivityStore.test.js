@@ -1,5 +1,5 @@
 // Joins and leaves of the configured servers (src/stores/memberActivityStore.js):
-// validation, roles only on a leave, 30 days and the entry cap.
+// validation, roles only on a leave, KEEP_DAYS (14) and the entry cap.
 const store = require("../../src/stores/memberActivityStore");
 const { tempStoreFile } = require("../helpers/tempStore");
 
@@ -29,8 +29,9 @@ describe("record", () => {
         expect(store.listEntries()).toEqual([]);
     });
 
-    it("drops entries older than 30 days on the next write", () => {
-        store.record({ guildId: G1, userId: U1, kind: "join" }, { now: NOW - 31 * DAY });
+    it("drops entries older than 14 days on the next write", () => {
+        expect(store.KEEP_DAYS).toBe(14);
+        store.record({ guildId: G1, userId: U1, kind: "join" }, { now: NOW - 15 * DAY });
         store.record({ guildId: G1, userId: U2, kind: "join" }, { now: NOW });
         expect(store.listEntries().map((e) => e.userId)).toEqual([U2]);
     });

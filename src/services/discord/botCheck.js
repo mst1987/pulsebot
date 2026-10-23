@@ -8,6 +8,7 @@
 // bot offline or not on the server a check reads "unknown", never "missing".
 const { PermissionsBitField } = require("discord.js");
 const discord = require("./discord");
+const { roleBelowBot } = require("./memberRoles");
 const rosterStore = require("../../stores/rosterStore");
 const roleMessageStore = require("../../stores/roleMessageStore");
 const addonCenterStore = require("../../stores/addonCenterStore");
@@ -107,14 +108,19 @@ function checkFunctions(guild, side) {
     });
 }
 
-/** Which side a configured channel shows on: its pinned side, its server, or event. */
+/**
+ * Which side a configured channel shows on: its pinned side, its server, or
+ * event when its server is unknown. "other" = it lies on a server that is
+ * neither side (a second event server) — left out, it is not "missing" here.
+ */
 function sideOfChannel(purpose, guildIds) {
     if (purpose.side) return purpose.side;
     const client = discord.getClient();
     const channel = client && client.channels && client.channels.cache ? client.channels.cache.get(purpose.channelId) : null;
     const gid = purpose.guildId || (channel && str(channel.guildId));
-    if (gid && gid === guildIds.talk && gid !== guildIds.event) return "talk";
-    return "event";
+    if (!gid || gid === guildIds.event) return "event";
+    if (gid === guildIds.talk) return "talk";
+    return "other";
 }
 
 /** One configured channel of this side: found, rights, or why not. */
@@ -150,6 +156,8 @@ function rolesInUse(side, config) {
         for (const r of m.roles || []) add(r.roleId, "Rollen-Nachricht");
     }
     for (const entry of config.roleSync || []) add(side === "talk" ? entry.talkRoleId : entry.eventRoleId, "Rollen-Abgleich");
+    // The addon centre hands its ping role out per button; it counts where it exists.
+    add(addonCenterStore.getSettings().roleId, "Addon-Zentrale");
     return uses;
 }
 
@@ -160,13 +168,12 @@ function rolesInUse(side, config) {
  */
 function rolesAboveBot(guild, side, config) {
     const me = ownMember(guild);
-    const top = me && me.roles && me.roles.highest ? Number(me.roles.highest.position) : null;
-    if (!guild || !guild.roles || !guild.roles.cache || top === null) return [];
+    if (!guild || !guild.roles || !guild.roles.cache || !me || !me.roles || !me.roles.highest) return [];
     const out = [];
     for (const [id, what] of rolesInUse(side, config)) {
         const role = guild.roles.cache.get(id);
         if (!role) continue;
-        if (role.managed || Number(role.position) >= top) out.push({ id, name: str(role.name), usedBy: [...what].sort() });
+        if (!roleBelowBot(guild, role)) out.push({ id, name: str(role.name), usedBy: [...what].sort() });
     }
     return out.sort((a, b) => a.name.localeCompare(b.name));
 }

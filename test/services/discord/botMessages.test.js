@@ -1,18 +1,22 @@
 // The fixed bot messages of one server (src/services/discord/botMessages.js):
-// what is collected per side, the four states, the link only for a standing
-// message, and the ten-minute cache.
+// what is collected per side, the states (ok, deleted, channel missing, no
+// access, unknown), the link only for a standing message, the ten-minute cache
+// that never keeps "unknown", and the time limit of one check.
+const { PermissionsBitField } = require("discord.js");
+
 let mockOnline = true;
-const mockStates = {};
+let mockGuild = null;
 const mockMissingChannels = new Set();
 const mockData = {};
 jest.mock("../../../src/services/discord/discord", () => ({
     isOnline: () => mockOnline,
+    getGuild: () => mockGuild,
     getClient: () => ({ channels: { cache: new Map([["300000000000000001", { name: "orga" }]]) } }),
 }));
 jest.mock("../../../src/services/discord/linkCheck", () => ({
-    checkMessage: jest.fn(async (g, c, m) => mockStates[m] || "ok"),
     channelState: (g, c) => (mockMissingChannels.has(c) ? "missing" : "ok"),
     messageLink: (g, c, m) => `link:${g}/${c}/${m}`,
+    messageFound: jest.fn(),
 }));
 jest.mock("../../../src/services/discord/categoryNames", () => ({ listKnownCategories: () => [{ id: "c1", name: "TBC" }] }));
 jest.mock("../../../src/stores/orgaHubStore", () => ({ listHubs: () => mockData.hubs || [] }));
@@ -24,19 +28,41 @@ jest.mock("../../../src/stores/addonCenterStore", () => ({ getCenter: () => mock
 jest.mock("../../../src/stores/recruitmentStore", () => ({ listRecruitmentPosts: () => mockData.recruitment || [] }));
 
 const linkCheck = require("../../../src/services/discord/linkCheck");
-const { botMessages, collect, clearCache, CACHE_MS } = require("../../../src/services/discord/botMessages");
+const { botMessages, collect, clearCache, statusOfError, CACHE_MS } = require("../../../src/services/discord/botMessages");
 
 const EVENT = "900000000000000001";
 const TALK = "900000000000000002";
 const OTHER = "900000000000000009";
 const CH = "300000000000000001";
+const CH2 = "300000000000000002";
 const msg = (n) => `40000000000000000${n}`;
+const F = PermissionsBitField.Flags;
+const READ = [F.ViewChannel, F.ReadMessageHistory];
+
+/** A channel whose fetch answers per message id: an error object rejects, "hang" never answers. */
+function channel({ rights = READ, answers = {}, cached = [] } = {}) {
+    return {
+        permissionsFor: () => new PermissionsBitField(rights),
+        messages: {
+            cache: new Map(cached.map((id) => [id, { id }])),
+            fetch: jest.fn((id) => {
+                const a = answers[id];
+                if (a === "hang") return new Promise(() => {});
+                return a ? Promise.reject(a) : Promise.resolve({ id });
+            }),
+        },
+    };
+}
+
+function guild(channels) {
+    return { channels: { cache: new Map(Object.entries(channels)) }, members: { me: { id: "bot" } } };
+}
 
 beforeEach(() => {
     jest.clearAllMocks();
     clearCache();
     mockOnline = true;
-    for (const k of Object.keys(mockStates)) delete mockStates[k];
+    mockGuild = guild({ [CH]: channel() });
     for (const k of Object.keys(mockData)) delete mockData[k];
     mockMissingChannels.clear();
 });
@@ -63,51 +89,125 @@ describe("collect", () => {
     });
 });
 
-describe("botMessages", () => {
-    beforeEach(() => {
-        mockData.hubs = [
-            { categoryId: "c1", guildId: EVENT, channelId: CH, messageId: msg(1) },
-            { categoryId: "c2", guildId: EVENT, channelId: CH, messageId: msg(2) },
-            { categoryId: "c3", guildId: EVENT, channelId: "300000000000000002", messageId: msg(3) },
-            { categoryId: "c4", guildId: EVENT, channelId: CH, messageId: msg(4) },
-        ];
+describe("statusOfError", () => {
+    it("maps Discord errors; anything else is unknown", () => {
+        expect(statusOfError({ code: 10008 })).toBe("deleted");
+        expect(statusOfError({ status: 404 })).toBe("deleted");
+        expect(statusOfError({ code: 10003 })).toBe("channel_missing");
+        expect(statusOfError({ code: 50001 })).toBe("no_access");
+        expect(statusOfError({ code: 50013 })).toBe("no_access");
+        expect(statusOfError({ status: 403 })).toBe("no_access");
+        expect(statusOfError({ status: 503 })).toBe("unknown");
+        expect(statusOfError(new Error("timeout"))).toBe("unknown");
+        expect(statusOfError(null)).toBe("unknown");
     });
+});
 
-    it("tells standing, deleted, channel missing and unknown apart; links only standing ones", async () => {
-        mockStates[msg(2)] = "missing";
-        mockStates[msg(3)] = "missing";
-        mockMissingChannels.add("300000000000000002");
-        mockStates[msg(4)] = "unknown";
+describe("botMessages", () => {
+    const hub = (n, channelId = CH) => ({ categoryId: "c1", guildId: EVENT, channelId, messageId: msg(n) });
+
+    it("tells ok, deleted, channel missing and unknown apart; links only standing ones", async () => {
+        mockGuild = guild({ [CH]: channel({ answers: { [msg(2)]: { code: 10008 }, [msg(4)]: { status: 502 } } }) });
+        mockMissingChannels.add(CH2);
+        mockData.hubs = [hub(1), hub(2), hub(3, CH2), hub(4), hub(5, "300000000000000005")];
         const list = await botMessages("event", EVENT, {});
-        expect(list.map((m) => m.status)).toEqual(["ok", "deleted", "channel_missing", "unknown"]);
+        expect(list.map((m) => m.status)).toEqual(["ok", "deleted", "channel_missing", "unknown", "unknown"]);
         expect(list[0]).toEqual(expect.objectContaining({ kindLabel: "Orga-Zentrale", categoryName: "TBC", channelName: "orga", link: `link:${EVENT}/${CH}/${msg(1)}` }));
         expect(list[1].link).toBe("");
+        expect(linkCheck.messageFound).toHaveBeenCalledWith(msg(1));
+        expect(linkCheck.messageFound).toHaveBeenCalledTimes(1);
+    });
+
+    it("reads no_access when the bot cannot see or read the channel, without fetching", async () => {
+        const noHistory = channel({ rights: [F.ViewChannel] });
+        const hidden = channel({ rights: [] });
+        mockGuild = guild({ [CH]: noHistory, [CH2]: hidden });
+        mockData.hubs = [hub(1), hub(2, CH2)];
+        expect((await botMessages("event", EVENT, {})).map((m) => m.status)).toEqual(["no_access", "no_access"]);
+        expect(noHistory.messages.fetch).not.toHaveBeenCalled();
+        expect(hidden.messages.fetch).not.toHaveBeenCalled();
+    });
+
+    it("reads no_access on a 50001 from the fetch, not deleted", async () => {
+        mockGuild = guild({ [CH]: channel({ answers: { [msg(1)]: { code: 50001 } } }) });
+        mockData.hubs = [hub(1)];
+        expect((await botMessages("event", EVENT, {}))[0].status).toBe("no_access");
+    });
+
+    it("takes a message from the message cache without fetching", async () => {
+        const ch = channel({ cached: [msg(1)] });
+        mockGuild = guild({ [CH]: ch });
+        mockData.hubs = [hub(1)];
+        expect((await botMessages("event", EVENT, {}))[0].status).toBe("ok");
+        expect(ch.messages.fetch).not.toHaveBeenCalled();
     });
 
     it("reads unknown without asking while the bot is offline, and does not keep that", async () => {
+        const ch = channel();
+        mockGuild = guild({ [CH]: ch });
+        mockData.hubs = [hub(1)];
         mockOnline = false;
-        expect((await botMessages("event", EVENT, {})).map((m) => m.status)).toEqual(["unknown", "unknown", "unknown", "unknown"]);
-        expect(linkCheck.checkMessage).not.toHaveBeenCalled();
+        expect((await botMessages("event", EVENT, {}))[0].status).toBe("unknown");
+        expect(ch.messages.fetch).not.toHaveBeenCalled();
         mockOnline = true;
         expect((await botMessages("event", EVENT, {}))[0].status).toBe("ok");
     });
 
-    it("keeps a result ten minutes unless the list changed or fresh is asked", async () => {
+    it("keeps a result ten minutes per message unless fresh is asked", async () => {
+        const ch = channel();
+        mockGuild = guild({ [CH]: ch });
+        mockData.hubs = [hub(1), hub(2)];
         const now = Date.now();
         await botMessages("event", EVENT, {}, { now });
         await botMessages("event", EVENT, {}, { now: now + CACHE_MS - 1 });
-        expect(linkCheck.checkMessage).toHaveBeenCalledTimes(4);
+        expect(ch.messages.fetch).toHaveBeenCalledTimes(2);
         await botMessages("event", EVENT, {}, { now: now + 1, fresh: true });
-        expect(linkCheck.checkMessage).toHaveBeenCalledTimes(8);
-        mockData.hubs.pop();
+        expect(ch.messages.fetch).toHaveBeenCalledTimes(4);
+        mockData.hubs.push(hub(3));
         await botMessages("event", EVENT, {}, { now: now + 2 });
-        expect(linkCheck.checkMessage).toHaveBeenCalledTimes(11);
+        expect(ch.messages.fetch).toHaveBeenCalledTimes(5);
         await botMessages("event", EVENT, {}, { now: now + CACHE_MS + 5 });
-        expect(linkCheck.checkMessage).toHaveBeenCalledTimes(14);
+        expect(ch.messages.fetch).toHaveBeenCalledTimes(8);
     });
 
-    it("reads unknown when a check throws", async () => {
-        linkCheck.checkMessage.mockRejectedValueOnce(new Error("boom"));
+    it("does not keep a deleted message for good: fresh finds it again", async () => {
+        const answers = { [msg(1)]: { code: 10008 } };
+        mockGuild = guild({ [CH]: channel({ answers }) });
+        mockData.hubs = [hub(1)];
+        const now = Date.now();
+        expect((await botMessages("event", EVENT, {}, { now }))[0].status).toBe("deleted");
+        delete answers[msg(1)];
+        expect((await botMessages("event", EVENT, {}, { now: now + 1 }))[0].status).toBe("deleted");
+        expect((await botMessages("event", EVENT, {}, { now: now + 2, fresh: true }))[0].status).toBe("ok");
+    });
+
+    it("never keeps unknown (a 5xx is asked again on the next view)", async () => {
+        const ch = channel({ answers: { [msg(1)]: { status: 503 } } });
+        mockGuild = guild({ [CH]: ch });
+        mockData.hubs = [hub(1)];
+        const now = Date.now();
+        await botMessages("event", EVENT, {}, { now });
+        await botMessages("event", EVENT, {}, { now: now + 1 });
+        expect(ch.messages.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("stops at the time limit: what has not answered reads unknown and is not kept", async () => {
+        const answers = { [msg(2)]: "hang" };
+        const ch = channel({ answers });
+        mockGuild = guild({ [CH]: ch });
+        mockData.hubs = [hub(1), hub(2)];
+        const now = Date.now();
+        const list = await botMessages("event", EVENT, {}, { now, checkMs: 20 });
+        expect(list.map((m) => m.status)).toEqual(["ok", "unknown"]);
+        delete answers[msg(2)];
+        const again = await botMessages("event", EVENT, {}, { now: now + 1, checkMs: 20 });
+        expect(again.map((m) => m.status)).toEqual(["ok", "ok"]);
+        expect(ch.messages.fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("reads unknown when the own member is not known", async () => {
+        mockGuild = { channels: { cache: new Map([[CH, channel()]]) }, members: {} };
+        mockData.hubs = [hub(1)];
         expect((await botMessages("event", EVENT, {}))[0].status).toBe("unknown");
     });
 });
