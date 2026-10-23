@@ -171,6 +171,8 @@ Okt 2026: one look per meaning on every page, so a button reads before it is hov
 
 ## The menu and the icon rail (`components/shell/Shell.tsx`, `components/ui/SectionRail.tsx`)
 
+**Person circles show the Discord picture**, the initial only while there is none: the user circle in the sidebar foot (`user.avatarUrl` of `GET /api/session` — stored at the login from `users/@me` in `auth.js`, else `discord.avatarUrlFor(guild, id)` from the bot's cache; the SSR chrome in `adminChrome.js` takes the login's), the others in the setup editor (`editors[].avatarUrl` of the presence heartbeat), the per-account rows under *Berechtigungen* (`userAvatars` of `GET /api/settings`) and the Kader leads (`AvatarFace`, docs/kaderplaner.md). `avatarUrlFor` never fetches; an id the bot has not seen gets "" and keeps its initial.
+
 The sidebar draws `src/config/menu.json` (the SSR chrome of the report pages, `src/web/report/adminChrome.js`, draws the same top-level list). It is **short and flat** (design "C · Schmale Icon-Leiste", replacing the fold-out menu of #588): one line per entry, no chevrons, no children. A page with sub sections carries them itself, in a narrow **icon rail** left of its content:
 
 - **Which lines** (`menuLines()` in `lib/app/menu.ts`): every entry without `sub: true` whose family the account may open. The `sub: true` entries (*Raidplan-Vorlagen*, *Raidplan-Katalog*, whose `href` lies under Raid-Events') have no line of their own; they are pages of their parent's family (`menuFamily("raids")`). An account that may open only the sub pages (the `raidplan` area without `raids`) gets the first of them as the family's line, so the family stays reachable.

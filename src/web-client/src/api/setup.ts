@@ -348,8 +348,11 @@ export function getRaidSetup(eventId: string, { light = false }: { light?: boole
 /** What an orga member in the setup editor holds right now: a raider dragged or picked, or one whose signup they edit. */
 export type SetupPresenceAction = { kind: "drag" | "edit"; userId: string };
 
-/** Somebody else in the same setup editor (services/setup/setupPresence.js). */
-export type SetupPresenceEditor = { userId: string; name: string; action: SetupPresenceAction | null };
+/**
+ * Somebody else in the same setup editor (services/setup/setupPresence.js); `avatarUrl` is their Discord picture,
+ * "" (or missing from an older server) = the initials.
+ */
+export type SetupPresenceEditor = { userId: string; name: string; action: SetupPresenceAction | null; avatarUrl?: string };
 
 /** One line of "Gerade eben": who changed what. */
 export type SetupActivity = {

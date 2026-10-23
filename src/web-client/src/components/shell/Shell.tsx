@@ -167,7 +167,7 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                     <AdminNav user={user} onNavigate={() => setMenuOpen(false)} />
                     <DeployLine user={user} />
                     <div className="side-foot">
-                        <div className="avatar">{initial}</div>
+                        <div className="avatar">{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : initial}</div>
                         <div className="ub-meta">
                             <div className="u-name">{user.name}</div>
                             <div className="u-role">

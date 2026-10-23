@@ -292,6 +292,22 @@ describe("web/apiRoutes/session", () => {
             expect(data.areas.map((a) => a.id)).toEqual(AREA_IDS);
         });
 
+        it("sends the Discord picture of the login, else the one the bot knows", async () => {
+            auth.csrfToken.mockReturnValue("csrf-abc");
+            activeGuildFor.mockReturnValue("g1");
+            auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true, avatarUrl: "https://cdn/login.png" });
+            let res = mockRes();
+            await handle("/api/session", { method: "GET" }, res);
+            expect(json(res).data.user.avatarUrl).toBe("https://cdn/login.png");
+
+            auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });
+            discord.avatarUrlFor.mockReturnValueOnce("https://cdn/member.png");
+            res = mockRes();
+            await handle("/api/session", { method: "GET" }, res);
+            expect(discord.avatarUrlFor).toHaveBeenCalledWith("g1", "42");
+            expect(json(res).data.user.avatarUrl).toBe("https://cdn/member.png");
+        });
+
         // The content switch of the menu (#563): main version, hiding, the versions offered.
         it("sends the content switch to a menu user, nothing to a caller without menu", async () => {
             auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });

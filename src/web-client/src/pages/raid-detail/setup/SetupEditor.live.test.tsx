@@ -68,6 +68,19 @@ describe("the setup editor with others in it", () => {
         });
         expect(chip).toHaveTextContent(t("setup.live.one", { name: "Exitus" }));
         expect(chip.getAttribute("data-tip-sub")).toBe(t("setup.live.holdsTip", { name: "Exitus", character: "Ignis" }));
+        // no picture known: the initials
+        expect(chip.querySelector(".se-avatar")).toHaveTextContent("E");
+    });
+
+    it("shows another editor's Discord picture in their colour ring", async () => {
+        presence = { editors: [{ userId: "o1", name: "Exitus", action: null, avatarUrl: "https://cdn/o1.png" }], version: 3, activity: [] };
+        await show();
+        const picture = await waitFor(() => {
+            const el = document.querySelector(".se-bar .se-live .se-avatar img");
+            if (!el) throw new Error("no picture");
+            return el;
+        });
+        expect(picture).toHaveAttribute("src", "https://cdn/o1.png");
     });
 
     it("rings a raider somebody else holds — not to be picked or dragged, a click says who has them", async () => {

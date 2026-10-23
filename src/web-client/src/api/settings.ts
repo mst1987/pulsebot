@@ -242,6 +242,8 @@ export type SettingsData = {
     // permissions tab shows people instead of 18-digit ids. Best-effort: an id
     // Discord could not resolve simply has no entry.
     userNames?: Record<string, string>;
+    // Their Discord pictures, only for the accounts the bot knows one of.
+    userAvatars?: Record<string, string>;
     raidsheets: Raidsheet[];
     // The raid templates, for the default-template select per category.
     raidTemplates?: { id: string; name: string; versionId: string; size: number | null }[];

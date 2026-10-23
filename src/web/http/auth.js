@@ -254,6 +254,8 @@ async function completeLogin(code) {
     const user = {
         id: me.data.id,
         name: me.data.global_name || me.data.username,
+        // The account's Discord picture for the menu's user circle; none when it has no own picture.
+        ...(me.data.avatar ? { avatarUrl: `https://cdn.discordapp.com/avatars/${me.data.id}/${me.data.avatar}.png?size=64` } : {}),
         isAdmin,
         ...(isOrga ? { isOrga: true } : {}),
         access,

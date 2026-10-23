@@ -27,6 +27,9 @@ async function getSession(req, res) {
             ? {
                 id: user.id,
                 name: user.name,
+                // The Discord picture for the menu's user circle (from the login, else the bot's cache); left
+                // out when there is none - the circle shows the initial then.
+                ...avatarField(user, req),
                 isAdmin: !!user.isAdmin,
                 // The client hides areas/actions accordingly; the server gates
                 // them for real in apiAccess.js.
@@ -92,6 +95,11 @@ function audienceFields(user) {
     } catch {
         return { audience: {}, orgaRoles: [] };
     }
+}
+
+function avatarField(user, req) {
+    const avatarUrl = user.avatarUrl || discord.avatarUrlFor(activeGuildFor(req) || envGuildId, user.id);
+    return avatarUrl ? { avatarUrl } : {};
 }
 
 function langField(userId) {
