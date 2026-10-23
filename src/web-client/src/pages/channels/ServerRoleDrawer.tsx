@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties } from "react";
+import { Link } from "react-router-dom";
 import { getServerRoleDetail, type DiscordSide, type ServerRoleChannel, type ServerRoleDetail, type ServerRoleMember } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { IconButton, Switch } from "../../components/ui";
@@ -63,7 +64,7 @@ export default function ServerRoleDrawer({ side, roleId, guildName, rank, counte
                     )}
                     {!data && !state.error && <RaidLoader compact text={t("discord.roles.drawer.loading")} />}
                     {data && !role && <p className="drl-empty">{t("discord.roles.drawer.gone")}</p>}
-                    {data && role && <Detail data={data} rank={rank} counted={counted} />}
+                    {data && role && <Detail side={side} data={data} rank={rank} counted={counted} />}
                 </div>
             </aside>
         </>
@@ -72,7 +73,7 @@ export default function ServerRoleDrawer({ side, roleId, guildName, rank, counte
 
 const WHERE_KEY = { below: "belowBot", above: "aboveBot", own: "ownRole" } as const;
 
-function Detail({ data, rank, counted }: { data: ServerRoleDetail; rank: number | null; counted: number }) {
+function Detail({ side, data, rank, counted }: { side: DiscordSide; data: ServerRoleDetail; rank: number | null; counted: number }) {
     const t = useT();
     const role = data.role!;
     const botName = data.botRole ? data.botRole.name : "";
@@ -96,7 +97,7 @@ function Detail({ data, rank, counted }: { data: ServerRoleDetail; rank: number 
             </dl>
             <Permissions set={role.permissions} />
             <Channels channels={data.channels} />
-            <Members members={data.members} total={data.membersTotal ?? data.members.length} count={role.memberCount} />
+            <Members side={side} members={data.members} total={data.membersTotal ?? data.members.length} count={role.memberCount} />
         </>
     );
 }
@@ -164,7 +165,8 @@ function Channels({ channels }: { channels: ServerRoleChannel[] }) {
     );
 }
 
-function Members({ members, total, count }: {
+function Members({ side, members, total, count }: {
+    side: DiscordSide;
     /** for @everyone only the first EVERYONE_MEMBERS_MAX (src/services/discord/serverRoles.js) */
     members: ServerRoleMember[];
     /** everyone with the role, also those not sent */
@@ -194,7 +196,7 @@ function Members({ members, total, count }: {
                             {shown.map((m) => (
                                 <li key={m.id}>
                                     <span className="drl-av" aria-hidden="true">{m.avatarUrl ? <img src={m.avatarUrl} alt="" loading="lazy" /> : initialsOf(m.name)}</span>
-                                    <span className="drl-person">{m.name}</span>
+                                    <Link className="drl-person" to={`/channels/members?user=${encodeURIComponent(m.id)}${side === "talk" ? "&side=talk" : ""}`} data-tip={t("discord.members.drawer.showMember")}>{m.name}</Link>
                                     {m.bot && <span className="drl-tag">{t("discord.roles.members.bot")}</span>}
                                 </li>
                             ))}

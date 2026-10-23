@@ -27,15 +27,17 @@
 //       404 not_found: the server is online but has no such role
 //
 // GET /api/discord/tab-counts?side=event|talk
-//     → { data: { channels: number|null, serverRoles: number|null, roleMessages: number } }
+//     → { data: { channels: number|null, serverRoles: number|null, members: number|null, roleMessages: number } }
 //       keyed by the menu ids of the tabs (config/menu.json); channels: the active server's
 //       channels without categories and threads; serverRoles: the side's roles without
-//       @everyone; null = unknown (bot offline)
+//       @everyone; members: the side's members as Discord counts them (bots included);
+//       null = unknown (bot offline)
 const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
 const discord = require("../../services/discord/discord");
 const serverRoles = require("../../services/discord/serverRoles");
+const serverMembers = require("../../services/discord/serverMembers");
 const roleMessageStore = require("../../stores/roleMessageStore");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
@@ -67,7 +69,8 @@ const tabCounts = withUser(async ({ query, req, res }) => {
     } catch {
         roleMessages = 0;
     }
-    ok(res, { channels, serverRoles: serverRoles.roleCount(sideOf(query)), roleMessages });
+    const side = sideOf(query);
+    ok(res, { channels, serverRoles: serverRoles.roleCount(side), members: serverMembers.memberCount(side), roleMessages });
 });
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */

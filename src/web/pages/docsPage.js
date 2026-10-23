@@ -86,6 +86,7 @@ const GUIDES = [
             "log-auswertung-clarpb": "cla",
             "kanäle": "channels",
             "rollen": "channels",
+            "mitglieder": "channels",
             "rollen-nachrichten": "channels",
             "systemstatus": "system",
             "einstellungen": "settings",

@@ -1,0 +1,150 @@
+/* System › Discord › Mitglieder (pages/channels/MembersPage.tsx + MemberDrawer.tsx).
+   A dense list like Discord's member list: avatar and name, the roles in their own
+   colour (the only colour that is not a meaning), the character in its class
+   colour; orange only for a roster role without the roster behind it. On a phone
+   the roles, the join date and the roster columns go, a small second line under
+   the name carries the roster and the highest role, and the drawer becomes a
+   bottom sheet over a dimmed backdrop — as on the roles page. */
+
+.dmb-page { max-width: 1240px; }
+
+.dmb-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 0 0 10px; }
+.dmb-switches { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; margin: 0 0 12px; }
+.dmb-note { color: var(--muted); font-size: 12.5px; }
+.dmb-n { font-family: var(--font-mono); font-size: 12px; color: var(--muted); margin-left: 2px; }
+.dmb-page > .dmb-note { margin: 0 0 6px; }
+
+.dmb-search {
+    display: flex; align-items: center; gap: 8px; min-height: var(--ctl-h); padding: 0 12px;
+    flex: 0 1 300px; min-width: 0;
+    border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--bg); color: var(--muted);
+}
+.dmb-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.dmb-search svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.dmb-search input {
+    flex: 1; min-width: 0; border: 0; background: none; color: var(--text); font: inherit; font-size: 14px;
+    outline: none; padding: 0; min-height: 0; box-shadow: none;
+}
+.dmb-role-select, .dmb-controls select { max-width: 220px; }
+
+/* the table scrolls inside itself if it must, never the page */
+.dmb-wrap { overflow-x: auto; }
+.dmb-table { width: 100%; }
+.dmb-table td { vertical-align: middle; }
+.dmb-row { cursor: pointer; }
+.dmb-row:hover td { background: var(--line-soft); }
+.dmb-open td { background: var(--accent-soft); }
+
+.dmb-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.dmb-names { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+.dmb-name {
+    padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--text);
+    cursor: pointer; text-align: left; overflow-wrap: anywhere;
+}
+.dmb-name:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+.dmb-user { color: var(--muted); font-size: 12.5px; }
+.dmb-tag { color: var(--muted); font-size: 11.5px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; }
+
+.dmb-av {
+    width: 28px; height: 28px; flex: 0 0 auto; border-radius: 50%; overflow: hidden;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--line-soft); color: var(--muted); font-size: 11px; font-weight: 700;
+}
+.dmb-av img { width: 100%; height: 100%; object-fit: cover; }
+.dmb-av-lg { width: 44px; height: 44px; font-size: 15px; margin-top: 2px; }
+
+.dmb-roles { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; font-size: 13px; }
+.dmb-role { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.dmb-coloured { color: var(--dmb-color, var(--text)); }
+.dmb-dot {
+    width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%;
+    background: var(--dmb-color, var(--muted)); box-shadow: inset 0 0 0 1px var(--line);
+}
+.dmb-morer { color: var(--muted); cursor: help; white-space: nowrap; }
+.dmb-c-joined { white-space: nowrap; font-size: 13px; font-variant-numeric: tabular-nums; }
+.dmb-c-roster { font-size: 13.5px; }
+
+.dmb-rost { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+.dmb-rost > .class-colored { font-weight: 600; }
+.dmb-rname { color: var(--text); }
+.dmb-muted { color: var(--muted); }
+.dmb-missing { color: var(--medium); font-weight: 600; cursor: help; }
+.dmb-missing[data-tip] { border-bottom: 1px dotted currentColor; }
+
+/* a second, small line under the name: what the hidden columns say (phone only) */
+.dmb-meta { display: none; flex-basis: 100%; margin-top: 2px; font-size: 12px; font-weight: 400; }
+.dmb-meta .dmb-roles { font-size: 12px; }
+.dmb-meta .dmb-rost + .dmb-roles::before { content: "·"; color: var(--muted); margin-right: 4px; }
+
+.dmb-table .dmb-short { display: none; }
+
+.dmb-more {
+    margin: 8px 0 0; padding: 0; border: 0; background: none; font: inherit; font-size: 13.5px;
+    color: var(--accent); font-weight: 600; cursor: pointer;
+}
+.dmb-more:hover { text-decoration: underline; }
+.dmb-more:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+.dmb-foot { margin: 10px 0 0; color: var(--muted); font-size: 12.5px; }
+.dmb-empty { color: var(--muted); margin: 0; }
+
+/* ---- drawer ---- */
+.dmb-drawer {
+    position: fixed; top: 16px; right: 16px; bottom: 16px; z-index: 50;
+    width: min(440px, calc(100vw - 32px));
+    display: flex; flex-direction: column;
+    background: var(--panel); border: 1px solid var(--accent); border-radius: 12px;
+    box-shadow: 0 24px 60px -16px var(--shade-55); overflow: hidden;
+}
+.dmb-drawer-head {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 10px 12px 18px; border-bottom: 1px solid var(--line-soft);
+}
+.dmb-drawer-title { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.dmb-drawer-title h2 { margin: 2px 0 0; font-size: 19px; line-height: 1.25; overflow-wrap: anywhere; }
+.dmb-drawer-body {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto;
+    padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 18px;
+}
+
+.dmb-sec { display: flex; flex-direction: column; gap: 6px; }
+.dmb-sec-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.dmb-sec-head h3 { margin: 0; font-size: 15px; }
+
+.dmb-rolelist { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; }
+
+.dmb-chars { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.dmb-chars th { text-align: left; color: var(--muted); font-size: 12px; font-weight: 600; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); }
+.dmb-chars td { padding: 5px 8px 5px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+.dmb-chars .class-colored { font-weight: 600; }
+.dmb-croster { display: block; }
+.dmb-missing-line { margin: 4px 0 0; font-size: 13px; cursor: default; }
+
+.dmb-groups { display: flex; flex-direction: column; }
+.dmb-group { border-bottom: 1px solid var(--line-soft); }
+.dmb-group summary {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+    padding: 6px 0; cursor: pointer; font-size: 14px;
+}
+.dmb-gname { font-weight: 600; }
+.dmb-group.dmb-muted .dmb-gname { font-weight: 400; color: var(--muted); }
+.dmb-chlist { list-style: none; margin: 0 0 6px; padding: 0 0 0 14px; font-size: 13.5px; }
+.dmb-chlist li { padding: 2px 0; }
+
+/* the phone's bottom sheet dims the page behind it; a tap there closes it */
+.dmb-backdrop { display: none; }
+
+@media (max-width: 900px) {
+    .dmb-c-joined { display: none; }
+    .dmb-table .dmb-long { display: none; }
+    .dmb-table .dmb-short { display: inline; }
+}
+@media (max-width: 600px) {
+    .dmb-c-roles, .dmb-c-roster { display: none; }
+    .dmb-meta { display: flex; flex-wrap: wrap; gap: 2px 6px; }
+    .dmb-user { display: none; }
+    .dmb-search { flex: 1 1 100%; }
+    .dmb-controls select { flex: 1 1 100%; max-width: none; }
+    .dmb-drawer { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 85vh; }
+    .dmb-backdrop { display: block; position: fixed; inset: 0; z-index: 49; background: var(--shade-55); }
+}

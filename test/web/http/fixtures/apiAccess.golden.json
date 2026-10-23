@@ -14,6 +14,8 @@
     "/api/channels/config": "channels",
     "/api/role-messages": "channels",
     "/api/role-messages/options": "channels",
+    "/api/discord/members": "channels",
+    "/api/discord/members/detail": "channels",
     "/api/discord/roles": "channels",
     "/api/discord/roles/detail": "channels",
     "/api/discord/tab-counts": "channels",

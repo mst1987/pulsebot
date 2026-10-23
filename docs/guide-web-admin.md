@@ -389,7 +389,19 @@ Alle Rollen des Event- oder Talk-Servers in der Reihenfolge von Discord, nur zum
 - **Tabelle:** Farbe und Name, Position (1 = ganz oben), „N Mitglieder“, was die Rolle für den Bot bedeutet (Orga-Rolle, Raider-Rolle einer Kategorie, Roster, Rollen-Nachricht …), heikle Rechte (z. B. Administrator, Rollen verwalten) und ob der Bot sie vergeben kann — mit Grund, wenn nicht. Spalten mit Pfeil lassen sich sortieren.
 - **Trennlinie:** Bei Sortierung nach Position markiert eine Linie die Rolle des Bots. Alles darunter kann er vergeben; steht eine Rolle, die er vergeben soll, darüber, steht in Rot „PulseBot darüber ziehen“.
 - **Nur Rollen mit Hinweis** blendet alle Rollen aus, bei denen nichts zu tun ist.
-- **Klick auf eine Rolle** öffnet rechts die Details: Position, Mitglieder, Bedeutung, Vergabe; die gesetzten Rechte nach Gruppen wie in Discord („Alle Rechte zeigen“ zeigt auch die nicht gesetzten); Kanäle mit eigener Freigabe oder Sperre für diese Rolle; die Mitglieder mit Suche.
+- **Klick auf eine Rolle** öffnet rechts die Details: Position, Mitglieder, Bedeutung, Vergabe; die gesetzten Rechte nach Gruppen wie in Discord („Alle Rechte zeigen“ zeigt auch die nicht gesetzten); Kanäle mit eigener Freigabe oder Sperre für diese Rolle; die Mitglieder mit Suche. Ein Klick auf einen Namen öffnet das Mitglied auf der Seite *Mitglieder*.
+
+## Mitglieder
+
+Technik: [channels.md](channels.md)
+
+*Bereich "channels"* · Menü *System › Discord*, Reiter *Mitglieder* (`/channels/members`)
+
+Alle Mitglieder des Event- oder Talk-Servers mit ihren Rollen und dem, was der EventHelper über sie weiß — nur zum Ansehen; Rollen vergibt man weiter in Discord oder über Rollen-Nachrichten.
+
+- **Tabelle:** Avatar und Name, die Rollen in ihrer Farbe (drei, dann „+N“ mit den übrigen im Tooltip), wann jemand beigetreten ist und das Roster mit dem Charakter in Klassenfarbe. Wer in keinem Roster steht, zeigt seinen Charakter mit „nicht im Roster“. Orange heißt: Die Person hat die Raider-Rolle eines Rosters, steht dort aber nicht drin. Spalten mit Pfeil lassen sich sortieren.
+- **Filter:** Suche nach Name, Discord-Name oder Charakter, eine Rolle auswählen, dazu die Schalter „ohne Rolle“, „nicht im Roster“ und „Bots ausblenden“ (Standard an). Erst 50 Zeilen, „alle zeigen“ zeigt den Rest.
+- **Klick auf ein Mitglied** öffnet rechts die Details (am Handy von unten): Rollen, Charaktere je Spielversion mit ihrem Roster und welche Kanäle die Person sehen kann, nach Kategorien.
 
 ## Rollen-Nachrichten
 

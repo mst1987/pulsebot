@@ -9,12 +9,14 @@ jest.mock("../../../src/services/discord/serverRoles", () => ({
     serverRoleDetail: jest.fn(),
     roleCount: jest.fn(() => 12),
 }));
+jest.mock("../../../src/services/discord/serverMembers", () => ({ memberCount: jest.fn(() => 186) }));
 jest.mock("../../../src/services/discord/discord", () => ({
     getGuild: jest.fn(() => ({ id: "900000000000000001" })),
     listAllChannels: jest.fn(() => [{ id: "1", isThread: false }, { id: "2", isThread: false }, { id: "3", isThread: true }]),
 }));
 
 const svc = require("../../../src/services/discord/serverRoles");
+const members = require("../../../src/services/discord/serverMembers");
 const discord = require("../../../src/services/discord/discord");
 const store = require("../../../src/stores/roleMessageStore");
 const route = require("../../../src/web/apiRoutes/discordRoles");
@@ -81,10 +83,11 @@ describe("GET /api/discord/roles/detail", () => {
 });
 
 describe("GET /api/discord/tab-counts", () => {
-    it("counts channels without threads, the roles and the role messages", async () => {
+    it("counts channels without threads, the roles, the members and the role messages", async () => {
         store.saveMessage({ id: "a", guildSide: "event", channelId: "1", title: "A", roles: [{ roleId: "200000000000000002" }] });
-        expect(body(await get("/api/discord/tab-counts", { side: "talk" }))).toEqual({ channels: 2, serverRoles: 12, roleMessages: 1 });
+        expect(body(await get("/api/discord/tab-counts", { side: "talk" }))).toEqual({ channels: 2, serverRoles: 12, members: 186, roleMessages: 1 });
         expect(svc.roleCount).toHaveBeenCalledWith("talk");
+        expect(members.memberCount).toHaveBeenCalledWith("talk");
     });
 
     it("is null for the channels offline", async () => {

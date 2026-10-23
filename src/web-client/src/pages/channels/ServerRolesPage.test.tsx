@@ -208,6 +208,8 @@ describe("Rollen: drawer", () => {
         expect(within(drawer).getAllByRole("listitem")).toHaveLength(12);
         await user.type(within(drawer).getByRole("searchbox", { name: "Mitglied suchen" }), "thr");
         expect(within(drawer).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["THThrall"]);
+        // a name leads to the member in the member list
+        expect(within(drawer).getByRole("link", { name: "Thrall" })).toHaveAttribute("href", "/channels/members?user=u0");
         await user.type(within(drawer).getByRole("searchbox"), "x");
         expect(within(drawer).getByText("Niemand passt zu „thrx“.")).toBeInTheDocument();
 

@@ -79,6 +79,7 @@ describe("one menu for both front ends", () => {
         expect(Object.fromEntries(MENU.filter((e) => e.sub).map((e) => [e.id, e.wowIcon]))).toEqual({
             planTemplates: "inv_misc_map02", planCatalog: "inv_misc_book_11", dungeons: "spell_holy_borrowedtime",
             roleMessages: "inv_shirt_guildtabard_01",
+            members: "achievement_reputation_01",
             serverRoles: "achievement_guildperk_everybodysfriend",
         });
         expect(icons).toEqual({

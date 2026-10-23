@@ -14,9 +14,7 @@
 // a register).
 const guildRoles = require("./guildRoles");
 const memberActivityStore = require("../../stores/memberActivityStore");
-const rosterStore = require("../../stores/rosterStore");
-const raiderCharactersStore = require("../../stores/raiderCharactersStore");
-const raiderProfileStore = require("../../stores/raiderProfileStore");
+const memberRelation = require("./memberRelation");
 const logger = require("../../logger").child("memberActivity");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -82,22 +80,16 @@ function onMemberRemove(member) {
 }
 
 /**
- * How a Discord account is tied to the raids: the rosters it is in (open ones;
- * `{ id, name, categoryId, status }`) and how many characters it has (profile
- * characters and category assignments, each name once).
+ * How a Discord account is tied to the raids, in the overview's short form: the
+ * open rosters it is in (`{ id, name, categoryId, status }`) and how many
+ * characters it has (memberRelation.js, each name once).
  */
 function relationOf(userId) {
-    const uid = str(userId);
-    if (!uid) return { rosters: [], characters: 0 };
-    const rosters = rosterStore.listRosters("")
-        .filter((r) => !rosterStore.isClosed(r) && r.members && r.members[uid])
-        .map((r) => ({ id: r.id, name: r.name, categoryId: r.categoryId || "", status: r.members[uid].status }));
-    const names = new Set();
-    const profile = raiderProfileStore.hasProfile(uid) ? raiderProfileStore.getProfile(uid) : null;
-    for (const c of (profile && profile.characters) || []) names.add(str(c.name).toLowerCase());
-    for (const c of raiderCharactersStore.charactersForUser(uid)) names.add(str(c.character).toLowerCase());
-    names.delete("");
-    return { rosters, characters: names.size };
+    const full = memberRelation.relationOf(userId);
+    return {
+        rosters: full.rosters.map(({ id, name, categoryId, status }) => ({ id, name, categoryId, status })),
+        characters: full.characters.length,
+    };
 }
 
 /**
