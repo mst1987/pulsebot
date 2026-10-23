@@ -95,6 +95,17 @@ describe("serverRoles permissionKeys", () => {
     });
 });
 
+describe("serverRoles sensitive list", () => {
+    it("is the one list of roleHygiene, and the web client's copy matches it", () => {
+        const { SENSITIVE } = require("../../../src/services/discord/roleHygiene");
+        expect(SENSITIVE_PERMISSIONS).toEqual(SENSITIVE);
+        const ts = require("fs").readFileSync(require("path").join(__dirname, "../../../src/web-client/src/lib/discord/permissions.ts"), "utf8");
+        const block = ts.slice(ts.indexOf("export const SENSITIVE_PERMISSIONS"));
+        const copy = [...block.slice(0, block.indexOf("]);")).matchAll(/"([A-Za-z]+)"/g)].map((m) => m[1]);
+        expect([...copy].sort()).toEqual([...SENSITIVE].sort());
+    });
+});
+
 describe("serverRoles listServerRoles", () => {
     it("lists every role highest first with counts, uses, assignability and hints", async () => {
         const out = await listServerRoles("event");

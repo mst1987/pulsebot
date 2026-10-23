@@ -163,6 +163,15 @@ function channelCreated(channelId, now = Date.now()) {
     if (id) channels.set(id, { state: "ok", at: now });
 }
 
+/**
+ * A message that exists for sure (a caller fetched it): it reads "ok" again,
+ * also after an earlier "missing" (e.g. a 50001 while the bot lacked access).
+ */
+function messageFound(messageId, now = Date.now()) {
+    const id = str(messageId);
+    if (id) remember(messages, id, "ok", now);
+}
+
 /** The gateway saw the message go. */
 function messageDeleted(messageId, now = Date.now()) {
     const id = str(messageId);
@@ -295,7 +304,7 @@ function _reset() {
 module.exports = {
     TTL_MS, isGone,
     channelState, checkChannel, checkChannels, messageState, checkMessage,
-    channelDeleted, channelCreated, messageDeleted,
+    channelDeleted, channelCreated, messageFound, messageDeleted,
     channelLink, messageLink, eventLink, channelInfo, withChannelState,
     webBase, webLink, webTarget, externalLink,
     _reset,

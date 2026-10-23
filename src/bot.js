@@ -18,6 +18,7 @@ const { autoLinkAllGuilds } = require("./services/logcheck/logAutoLink.js");
 const softresDetect = require("./services/loot/softresDetect.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/roleSync.js");
 const rosterRoleSync = require("./services/roster/rosterRoleSync.js");
+const memberActivity = require("./services/discord/memberActivity.js");
 const { guardInteraction } = require("./services/discord/botAccess.js");
 const { trackAck } = require("./services/discord/ackTiming.js");
 const { runMode } = require("./config/runMode.js");
@@ -114,11 +115,14 @@ client.on("guildMemberUpdate", (oldMember, newMember) => {
     Promise.resolve(handleMemberUpdate(oldMember, newMember))
         .catch((error) => console.error("guildMemberUpdate handler error:", error.message));
 });
+// Joins and leaves are noted for the Discord overview (services/discord/memberActivity.js).
 client.on("guildMemberAdd", (member) => {
+    memberActivity.onMemberAdd(member);
     rosterRoleSync.onGuildMemberAdd(member);
     Promise.resolve(handleMemberAdd(member))
         .catch((error) => console.error("guildMemberAdd handler error:", error.message));
 });
+client.on("guildMemberRemove", (member) => memberActivity.onMemberRemove(member));
 
 // Role messages: a reaction on one gives its role, removing it takes the role back
 // (services/discord/roleMessages.js; bots are ignored, nothing is answered; the Bot-Befehle

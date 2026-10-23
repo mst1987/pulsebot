@@ -337,5 +337,6 @@
   "DELETE /api/role-messages",
   "GET /api/discord/roles",
   "GET /api/discord/roles/detail",
-  "GET /api/discord/tab-counts"
+  "GET /api/discord/tab-counts",
+  "GET /api/discord/overview"
 ]

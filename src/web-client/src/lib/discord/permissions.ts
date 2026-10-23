@@ -47,14 +47,14 @@ export const PERMISSION_GROUPS: { id: PermissionGroup; keys: string[] }[] = [
 export const ALL_PERMISSIONS: string[] = PERMISSION_GROUPS.flatMap((g) => g.keys);
 
 /**
- * The permissions that let a role change the server or reach everybody — the same
- * set as SENSITIVE_PERMISSIONS in src/services/discord/serverRoles.js (the server
- * marks them per role; this copy highlights them in the full list).
+ * The permissions that let a role change or harm the server — the same list as
+ * SENSITIVE in src/services/discord/roleHygiene.js (the server marks them per role
+ * and counts them for the overview; this copy highlights them in the full list).
+ * test/services/discord/serverRoles.test.js keeps both lists equal.
  */
 export const SENSITIVE_PERMISSIONS: ReadonlySet<string> = new Set([
-    "Administrator", "ManageGuild", "ManageRoles", "ManageChannels", "ManageWebhooks", "MentionEveryone",
-    "BanMembers", "KickMembers", "ModerateMembers", "ManageMessages", "ManageNicknames", "ManageGuildExpressions",
-    "ManageEvents", "ManageThreads", "ViewAuditLog",
+    "Administrator", "ManageGuild", "ManageRoles", "ManageChannels",
+    "BanMembers", "KickMembers", "MentionEveryone", "ManageWebhooks",
 ]);
 
 /** The label of a permission in the active language; an unknown key stays as it is. */

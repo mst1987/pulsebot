@@ -17,6 +17,8 @@ const { PermissionsBitField } = require("discord.js");
 const discord = require("./discord");
 const { eventGuildId, talkGuildId } = require("./guildRoles");
 const { roleUses } = require("./selfRole");
+const { SENSITIVE: SENSITIVE_LIST } = require("./roleHygiene");
+const { roleBelowBot } = require("./memberRoles");
 const { listKnownCategories } = require("./categoryNames");
 const roleMessageStore = require("../../stores/roleMessageStore");
 const addonCenterStore = require("../../stores/addonCenterStore");
@@ -24,13 +26,9 @@ const { getConfig } = require("../../stores/configStore");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
-// The permissions a raid server should hand out with care: whoever holds one can change the
-// server, its roles or channels, remove people or ping everybody. The page marks them "heikel".
-const SENSITIVE_PERMISSIONS = [
-    "Administrator", "ManageGuild", "ManageRoles", "ManageChannels", "ManageWebhooks",
-    "MentionEveryone", "BanMembers", "KickMembers", "ModerateMembers", "ManageMessages",
-    "ManageNicknames", "ManageGuildExpressions", "ManageEvents", "ManageThreads", "ViewAuditLog",
-];
+// The permissions a raid server should hand out with care ("heikel" on the page): the one list of
+// roleHygiene.js, so the Discord overview and this page count the same roles.
+const SENSITIVE_PERMISSIONS = SENSITIVE_LIST;
 const SENSITIVE = new Set(SENSITIVE_PERMISSIONS);
 
 // What a bot use means for handing the role out: these the bot gives members itself (sign-up,
@@ -128,9 +126,7 @@ function assignOf(role, guild, me) {
     if (role.id === guild.id) return { ok: false, reason: "everyone" };
     if (role.managed) return { ok: false, reason: me && me.roles && me.roles.highest && me.roles.highest.id === role.id ? "botRole" : "managed" };
     if (!me || !me.permissions || !me.permissions.has(PermissionsBitField.Flags.ManageRoles)) return { ok: false, reason: "noManageRoles" };
-    const top = me.roles && me.roles.highest ? Number(me.roles.highest.position) : 0;
-    const editable = typeof role.editable === "boolean" ? role.editable : Number(role.position) < top;
-    return editable ? { ok: true, reason: "" } : { ok: false, reason: "above" };
+    return roleBelowBot(guild, role) ? { ok: true, reason: "" } : { ok: false, reason: "above" };
 }
 
 /** One role as the page reads it. */
