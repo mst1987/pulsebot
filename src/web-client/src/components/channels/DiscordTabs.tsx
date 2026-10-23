@@ -1,7 +1,8 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { canAccessAny, getDiscordTabCounts, type DiscordSide, type DiscordTabCounts, type SessionUser } from "../../api";
 import { useApi } from "../../hooks/useApi";
-import { matchesHref, menuFamily } from "../../lib/app/menu";
+import { menuFamily } from "../../lib/app/menu";
+import { activeTab } from "../../lib/discord/tabs";
 import { tOr, useT } from "../../i18n";
 import "../../styles/discord-tabs.css";
 
@@ -12,11 +13,6 @@ import "../../styles/discord-tabs.css";
 // /api/discord/tab-counts; a count the server does not know (bot offline) or a
 // failed call simply leaves the number out. On a phone the line scrolls sideways
 // instead of wrapping or widening the page.
-
-/** The id of the tab a path belongs to: the longest href it lies under. */
-export function activeTab(items: { id: string; href: string }[], pathname: string): string {
-    return [...items].sort((a, b) => b.href.length - a.href.length).find((i) => matchesHref(i.href, pathname))?.id || "";
-}
 
 type Props = {
     user: SessionUser | null;

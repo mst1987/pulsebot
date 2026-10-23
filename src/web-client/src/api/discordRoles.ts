@@ -35,6 +35,8 @@ export type ServerRole = {
     /** discord.js permission flag names ("ManageRoles"); the labels are in lib/discord/permissions.ts. */
     permissions: string[];
     sensitive: string[];
+    /** the sensitive permissions most roles of the server do not have (empty for @everyone) */
+    unusual: string[];
     uses: ServerRoleUse[];
     assign: { ok: boolean; reason: AssignReason };
     hints: ServerRoleHint[];
@@ -50,7 +52,10 @@ export type ServerRolesHead = {
     membersError: string | null;
 };
 
-export type ServerRoles = ServerRolesHead & { total: number; roles: ServerRole[] };
+/** A sensitive permission that is common on the server: @everyone has it, or most roles do. */
+export type CommonSensitive = { key: string; roles: number; everyone: boolean };
+
+export type ServerRoles = ServerRolesHead & { total: number; roles: ServerRole[]; commonSensitive: CommonSensitive[] };
 
 export type ServerRoleChannel = {
     id: string;
@@ -66,7 +71,9 @@ export type ServerRoleMember = { id: string; name: string; avatarUrl: string | n
 export type ServerRoleDetail = ServerRolesHead & {
     role: ServerRole | null;
     channels: ServerRoleChannel[];
+    /** at most EVERYONE_MEMBERS_MAX for @everyone; membersTotal counts them all */
     members: ServerRoleMember[];
+    membersTotal: number;
 };
 
 /** Keyed by the menu ids of the Discord tabs (config/menu.json); null = unknown (bot offline). */

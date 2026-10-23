@@ -1,8 +1,11 @@
 /* System › Discord › Rollen (pages/channels/ServerRolesPage.tsx + ServerRoleDrawer.tsx).
    One dense table like Discord's own role list: the role name in its own colour
    (the only colour per row that is not a meaning), the bot's role as a divider
-   line, red only where the bot should but cannot act, orange for sensitive
-   permissions. The drawer on the right follows the absences' raider drawer. */
+   line, red only where the bot should but cannot act, orange only for sensitive
+   permissions that are unusual on the server (the common ones stay grey and are
+   named once above the table). On a phone a small second line under the name
+   carries what the hidden columns say, and the drawer becomes a bottom sheet over
+   a dimmed backdrop. The drawer follows the absences' raider drawer. */
 
 .drl-page { max-width: 1240px; }
 
@@ -47,6 +50,26 @@
     font-size: 12px; font-weight: 600; letter-spacing: .02em;
     border-top: 2px solid var(--accent); cursor: default;
 }
+/* the text stays in view while the table scrolls sideways on a phone */
+.drl-divider-text { position: sticky; left: 10px; display: inline-block; white-space: nowrap; }
+
+/* "Bot-Rolle" next to the name when no divider line shows it (sorted by anything else) */
+.drl-botmark {
+    margin-left: 8px; padding: 0 6px; border: 1px solid var(--accent); border-radius: 3px;
+    color: var(--accent); font-size: 11.5px; font-weight: 600; white-space: nowrap; vertical-align: middle;
+}
+
+/* the calm line above the table: sensitive permissions that are normal here */
+.drl-common { margin: 0 0 10px; color: var(--muted); font-size: 12.5px; }
+.drl-common [data-tip] { cursor: help; border-bottom: 1px dotted currentColor; }
+
+/* a second, small line under the name: what the hidden columns say (phone/tablet only) */
+.drl-meta { display: none; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--text); }
+.drl-meta-sens { display: none; color: var(--medium); }
+.drl-meta-uses + .drl-meta-sens::before { content: " · "; color: var(--muted); }
+
+/* long text on wide screens, one word or the number on a phone */
+.drl-table .drl-short { display: none; }
 
 .drl-foot { margin: 10px 0 0; color: var(--muted); font-size: 12.5px; }
 .drl-empty { color: var(--muted); margin: 0; }
@@ -122,10 +145,19 @@
 .drl-person { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .drl-tag { margin-left: auto; color: var(--muted); font-size: 12px; }
 
+/* the phone's bottom sheet dims the page behind it; a tap there closes it */
+.drl-backdrop { display: none; }
+
 @media (max-width: 900px) {
     .drl-c-uses { display: none; }
+    .drl-meta { display: block; }
 }
 @media (max-width: 600px) {
     .drl-c-sens { display: none; }
+    .drl-meta-sens { display: inline; }
+    .drl-table .drl-long { display: none; }
+    .drl-table .drl-short { display: inline; }
+    .drl-short[data-tip] { cursor: help; }
     .drl-drawer { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 85vh; }
+    .drl-backdrop { display: block; position: fixed; inset: 0; z-index: 49; background: var(--shade-55); }
 }

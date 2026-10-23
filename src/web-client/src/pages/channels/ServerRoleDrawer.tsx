@@ -5,7 +5,7 @@ import { IconButton, Switch } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { SearchIcon, XIcon } from "../../components/ui/icons";
 import { ALL_PERMISSIONS, groupPermissions, permissionLabel } from "../../lib/discord/permissions";
-import { assignView, initialsOf, matchesMember, roleUseLines } from "../../lib/discord/serverRoles";
+import { assignView, botRelation, initialsOf, matchesMember, roleUseLines } from "../../lib/discord/serverRoles";
 import { useT } from "../../i18n";
 
 // One role in a drawer at the right edge (like the absences' raider drawer): the
@@ -17,12 +17,14 @@ import { useT } from "../../i18n";
 /** Members shown before the search has to narrow it down. */
 const MEMBERS_SHOWN = 60;
 
-export default function ServerRoleDrawer({ side, roleId, guildName, total, onClose }: {
+export default function ServerRoleDrawer({ side, roleId, guildName, rank, counted, onClose }: {
     side: DiscordSide;
     roleId: string;
     guildName: string;
-    /** all roles of the server, for "5 von 15" */
-    total: number;
+    /** the rank the table shows for the role (1 = highest; null for @everyone) */
+    rank: number | null;
+    /** the roles without @everyone, for "5 von 15" */
+    counted: number;
     onClose: () => void;
 }) {
     const t = useT();
@@ -40,45 +42,47 @@ export default function ServerRoleDrawer({ side, roleId, guildName, total, onClo
     const data = state.data;
     const role = data && data.role;
     return (
-        <aside className="drl-drawer" aria-label={role ? role.name : t("discord.roles.drawer.loading")}>
-            <div className="drl-drawer-head">
-                <div className="drl-drawer-title">
-                    <span className="kicker">{t("discord.roles.drawer.kicker", { guild: guildName })}</span>
-                    {role && (
-                        <h2 className={role.color ? "drl-coloured" : undefined} style={role.color ? ({ "--drl-color": role.color } as CSSProperties) : undefined}>
-                            <span className="drl-dot" aria-hidden="true" />{role.everyone ? "@everyone" : role.name}
-                        </h2>
-                    )}
+        <>
+            {/* on a phone the drawer is a bottom sheet over the table: a tap beside it closes it */}
+            <div className="drl-backdrop" aria-hidden="true" onClick={onClose} />
+            <aside className="drl-drawer" aria-label={role ? role.name : t("discord.roles.drawer.loading")}>
+                <div className="drl-drawer-head">
+                    <div className="drl-drawer-title">
+                        <span className="kicker">{t("discord.roles.drawer.kicker", { guild: guildName })}</span>
+                        {role && (
+                            <h2 className={role.color ? "drl-coloured" : undefined} style={role.color ? ({ "--drl-color": role.color } as CSSProperties) : undefined}>
+                                <span className="drl-dot" aria-hidden="true" />{role.everyone ? "@everyone" : role.name}
+                            </h2>
+                        )}
+                    </div>
+                    <IconButton icon={<XIcon />} tip={t("common.close")} size="sm" onClick={onClose} />
                 </div>
-                <IconButton icon={<XIcon />} tip={t("common.close")} size="sm" onClick={onClose} />
-            </div>
-            <div className="drl-drawer-body">
-                {state.error && !data && (
-                    <p className="drl-empty">{state.error.code === "not_found" ? t("discord.roles.drawer.gone") : t("discord.roles.drawer.loadError", { message: state.error.message })}</p>
-                )}
-                {!data && !state.error && <RaidLoader compact text={t("discord.roles.drawer.loading")} />}
-                {data && !role && <p className="drl-empty">{t("discord.roles.drawer.gone")}</p>}
-                {data && role && <Detail data={data} total={total} />}
-            </div>
-        </aside>
+                <div className="drl-drawer-body">
+                    {state.error && !data && (
+                        <p className="drl-empty">{state.error.code === "not_found" ? t("discord.roles.drawer.gone") : t("discord.roles.drawer.loadError", { message: state.error.message })}</p>
+                    )}
+                    {!data && !state.error && <RaidLoader compact text={t("discord.roles.drawer.loading")} />}
+                    {data && !role && <p className="drl-empty">{t("discord.roles.drawer.gone")}</p>}
+                    {data && role && <Detail data={data} rank={rank} counted={counted} />}
+                </div>
+            </aside>
+        </>
     );
 }
 
-function Detail({ data, total }: { data: ServerRoleDetail; total: number }) {
+const WHERE_KEY = { below: "belowBot", above: "aboveBot", own: "ownRole" } as const;
+
+function Detail({ data, rank, counted }: { data: ServerRoleDetail; rank: number | null; counted: number }) {
     const t = useT();
     const role = data.role!;
     const botName = data.botRole ? data.botRole.name : "";
     const assign = assignView(role, botName);
-    const counted = Math.max(0, total - 1);
-    // the rank as the table shows it: 1 is the highest; @everyone has none
-    const rank = counted > 0 ? counted - role.position + 1 : 0;
-    const where = data.botRole && !role.everyone
-        ? (role.position < data.botRole.position ? t("discord.roles.drawer.belowBot") : role.position > data.botRole.position ? t("discord.roles.drawer.aboveBot") : "")
-        : "";
+    const relation = botRelation(role);
+    const where = relation ? t(`discord.roles.drawer.${WHERE_KEY[relation]}`) : "";
     return (
         <>
             <dl className="drl-facts">
-                {!role.everyone && rank > 0 && (
+                {!role.everyone && rank !== null && rank > 0 && (
                     <><dt>{t("discord.roles.drawer.position")}</dt><dd>{t("discord.roles.drawer.positionOf", { pos: rank, total: counted })}{where ? `, ${where}` : ""}</dd></>
                 )}
                 <dt>{t("discord.roles.drawer.members")}</dt>
@@ -92,7 +96,7 @@ function Detail({ data, total }: { data: ServerRoleDetail; total: number }) {
             </dl>
             <Permissions set={role.permissions} />
             <Channels channels={data.channels} />
-            <Members members={data.members} count={role.memberCount} />
+            <Members members={data.members} total={data.membersTotal ?? data.members.length} count={role.memberCount} />
         </>
     );
 }
@@ -160,7 +164,13 @@ function Channels({ channels }: { channels: ServerRoleChannel[] }) {
     );
 }
 
-function Members({ members, count }: { members: ServerRoleMember[]; count: number | null }) {
+function Members({ members, total, count }: {
+    /** for @everyone only the first EVERYONE_MEMBERS_MAX (src/services/discord/serverRoles.js) */
+    members: ServerRoleMember[];
+    /** everyone with the role, also those not sent */
+    total: number;
+    count: number | null;
+}) {
     const t = useT();
     const [query, setQuery] = useState("");
     const hits = members.filter((m) => matchesMember(m.name, query));
@@ -191,6 +201,7 @@ function Members({ members, count }: { members: ServerRoleMember[]; count: numbe
                         </ul>
                     )}
                     {hits.length > shown.length && <p className="drl-note">{t("discord.roles.members.more", { count: hits.length - shown.length })}</p>}
+                    {total > members.length && <p className="drl-note">{t("discord.roles.members.capped", { count: members.length, total })}</p>}
                 </>
             )}
         </section>

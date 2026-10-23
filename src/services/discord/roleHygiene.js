@@ -8,10 +8,16 @@
 const { PermissionsBitField } = require("discord.js");
 const discord = require("./discord");
 
-/** Rights that let a role change or harm the server. */
+/**
+ * Rights that let a role change or harm the server, or act on other members
+ * (time-outs, deleting messages, renaming, events, threads, the audit log).
+ * The roles page (serverRoles.js) and its client copy use this one list.
+ */
 const SENSITIVE = [
     "Administrator", "ManageGuild", "ManageRoles", "ManageChannels",
     "BanMembers", "KickMembers", "MentionEveryone", "ManageWebhooks",
+    "ModerateMembers", "ManageMessages", "ManageNicknames", "ManageEvents",
+    "ManageThreads", "ViewAuditLog",
 ];
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();

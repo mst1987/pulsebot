@@ -2,13 +2,13 @@
 // the bot divider, the member filter and initials; plus the permission groups.
 import { describe, expect, it } from "vitest";
 import type { ServerRole } from "../../api";
-import { assignView, dividerAt, initialsOf, matchesMember, ranks, roleUseLabel, roleUseLines } from "./serverRoles";
+import { assignView, botRelation, commonSensitiveItems, dividerAt, initialsOf, matchesMember, ranks, roleUseLabel, roleUseLines } from "./serverRoles";
 import { ALL_PERMISSIONS, groupPermissions, permissionLabel } from "./permissions";
 
 function role(over: Partial<ServerRole> = {}): ServerRole {
     return {
         id: "r1", name: "Raider", color: "", position: 3, managed: false, everyone: false, isBotRole: false,
-        memberCount: 4, permissions: [], sensitive: [], uses: [], assign: { ok: true, reason: "" }, hints: [],
+        memberCount: 4, permissions: [], sensitive: [], unusual: [], uses: [], assign: { ok: true, reason: "" }, hints: [],
         ...over,
     };
 }
@@ -35,12 +35,36 @@ describe("roleUseLabel / roleUseLines", () => {
 
 describe("assignView", () => {
     it("gives yes, the plain reasons and the ones to fix", () => {
-        expect(assignView(role(), "PulseBot")).toEqual({ text: "ja", tone: "ok" });
+        expect(assignView(role(), "PulseBot")).toEqual({ text: "ja", short: "ja", tone: "ok" });
         expect(assignView(role({ assign: { ok: false, reason: "everyone" } }), "PulseBot").tone).toBe("plain");
         expect(assignView(role({ assign: { ok: false, reason: "managed" } }), "PulseBot")).toMatchObject({ text: "Integration, fest", tone: "plain" });
         expect(assignView(role({ assign: { ok: false, reason: "noManageRoles" } }), "PulseBot")).toMatchObject({ text: "nein, Recht fehlt", tone: "fix" });
-        expect(assignView(role({ assign: { ok: false, reason: "above" } }), "PulseBot")).toEqual({ text: "nein, steht darüber", tone: "plain" });
-        expect(assignView(role({ assign: { ok: false, reason: "above" }, hints: ["aboveBot"] }), "PulseBot")).toMatchObject({ text: "nein, PulseBot darüber ziehen", tone: "fix" });
+        expect(assignView(role({ assign: { ok: false, reason: "above" } }), "PulseBot")).toEqual({ text: "nein, steht darüber", short: "nein", tone: "plain" });
+        expect(assignView(role({ assign: { ok: false, reason: "above" }, hints: ["aboveBot"] }), "PulseBot")).toMatchObject({ text: "nein, PulseBot darüber ziehen", short: "zu hoch", tone: "fix" });
+        expect(assignView(role({ assign: { ok: false, reason: "noManageRoles" } }), "PulseBot").short).toBe("Recht fehlt");
+        expect(assignView(role({ assign: { ok: false, reason: "botRole" } }), "PulseBot").short).toBe("fest");
+    });
+});
+
+describe("botRelation", () => {
+    it("reads where a role stands to the bot from the assign answer", () => {
+        expect(botRelation(role())).toBe("below");
+        expect(botRelation(role({ assign: { ok: false, reason: "above" } }))).toBe("above");
+        expect(botRelation(role({ assign: { ok: false, reason: "botRole" } }))).toBe("own");
+        expect(botRelation(role({ assign: { ok: false, reason: "noManageRoles" } }))).toBe("");
+        expect(botRelation(role({ assign: { ok: false, reason: "managed" } }))).toBe("");
+        expect(botRelation(role({ everyone: true, assign: { ok: false, reason: "everyone" } }))).toBe("");
+    });
+});
+
+describe("commonSensitiveItems", () => {
+    it("names @everyone or the share of roles", () => {
+        const items = commonSensitiveItems([
+            { key: "MentionEveryone", roles: 0, everyone: true },
+            { key: "ManageMessages", roles: 4, everyone: false },
+        ], 6, (k) => k);
+        expect(items).toEqual(["MentionEveryone (alle über @everyone)", "ManageMessages (4 von 6 Rollen)"]);
+        expect(commonSensitiveItems([], 6, (k) => k)).toEqual([]);
     });
 });
 

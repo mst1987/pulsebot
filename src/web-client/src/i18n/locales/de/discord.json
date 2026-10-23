@@ -89,7 +89,13 @@
             "hintCount": { "one": "{count} mit Hinweis", "other": "{count} mit Hinweis" },
             "footnote": "Klick auf eine Zeile öffnet die Rolle. Rollen anlegen und verschieben bleibt in Discord.",
             "empty": "Auf diesem Server gibt es keine Rolle.",
-            "emptyHints": "Keine Rolle mit Hinweis."
+            "emptyHints": "Keine Rolle mit Hinweis.",
+            "eventMissing": "Kein Event-Server eingestellt (Einstellungen › Discord).",
+            "commonLead": "Üblich auf diesem Server, daher grau:",
+            "commonRoles": "{perm} ({count} von {total} Rollen)",
+            "commonEveryone": "{perm} (alle über @everyone)",
+            "commonTip": "Gebräuchliche heikle Rechte",
+            "commonTipSub": "Hat @everyone ein heikles Recht oder haben es die meisten Rollen, ist es hier normal. Orange steht nur an Rollen, die ein heikles Recht haben, das sonst kaum eine Rolle hat."
         },
         "side": {
             "event": "Event-Server",
@@ -114,7 +120,9 @@
             "everyone": "Grundrechte aller",
             "botRole": "eigene Bot-Rolle",
             "integration": "Integration einer App",
-            "more": "+{count} weitere"
+            "more": "+{count} weitere",
+            "botMarker": "Bot-Rolle",
+            "membersShortTip": "Mitglieder"
         },
         "divider": "Bot-Rolle {name} · alles darunter kann der Bot vergeben",
         "assign": {
@@ -160,7 +168,8 @@
             "forBot": "Für den Bot",
             "assign": "Vergeben",
             "assignYes": "Bot kann die Rolle vergeben",
-            "assignNo": "Bot kann die Rolle nicht vergeben"
+            "assignNo": "Bot kann die Rolle nicht vergeben",
+            "ownRole": "die Bot-Rolle selbst"
         },
         "perms": {
             "title": "Rechte",
@@ -188,7 +197,18 @@
             "none": "Niemand hat diese Rolle.",
             "noMatch": "Niemand passt zu „{query}“.",
             "bot": "Bot",
-            "more": "und {count} weitere – die Suche grenzt ein."
+            "more": "und {count} weitere – die Suche grenzt ein.",
+            "capped": "Geladen sind die ersten {count} von {total} Mitgliedern; die Suche durchsucht nur diese."
+        },
+        "dividerShort": "Bot-Rolle {name}",
+        "assignShort": {
+            "yes": "ja",
+            "everyone": "alle",
+            "managed": "fest",
+            "botRole": "fest",
+            "noManageRoles": "Recht fehlt",
+            "above": "nein",
+            "aboveFix": "zu hoch"
         }
     }
 }

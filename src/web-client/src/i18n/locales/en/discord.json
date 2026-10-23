@@ -89,7 +89,13 @@
             "hintCount": { "one": "{count} with a note", "other": "{count} with a note" },
             "footnote": "Click a row to open the role. Creating and moving roles stays in Discord.",
             "empty": "This server has no roles.",
-            "emptyHints": "No role with a note."
+            "emptyHints": "No role with a note.",
+            "eventMissing": "No event server set (Settings › Discord).",
+            "commonLead": "Common on this server, so in grey:",
+            "commonRoles": "{perm} ({count} of {total} roles)",
+            "commonEveryone": "{perm} (everyone via @everyone)",
+            "commonTip": "Common sensitive permissions",
+            "commonTipSub": "When @everyone has a sensitive permission or most roles do, it is normal here. Orange marks only roles with a sensitive permission hardly any other role has."
         },
         "side": {
             "event": "Event server",
@@ -114,7 +120,9 @@
             "everyone": "base permissions of all",
             "botRole": "the bot's own role",
             "integration": "an app's integration",
-            "more": "+{count} more"
+            "more": "+{count} more",
+            "botMarker": "Bot role",
+            "membersShortTip": "Members"
         },
         "divider": "Bot role {name} · the bot can assign everything below",
         "assign": {
@@ -160,7 +168,8 @@
             "forBot": "For the bot",
             "assign": "Assigning",
             "assignYes": "The bot can assign the role",
-            "assignNo": "The bot cannot assign the role"
+            "assignNo": "The bot cannot assign the role",
+            "ownRole": "the bot role itself"
         },
         "perms": {
             "title": "Permissions",
@@ -188,7 +197,18 @@
             "none": "Nobody has this role.",
             "noMatch": "Nobody matches “{query}”.",
             "bot": "Bot",
-            "more": "and {count} more – the search narrows it down."
+            "more": "and {count} more – the search narrows it down.",
+            "capped": "The first {count} of {total} members are loaded; the search looks through these only."
+        },
+        "dividerShort": "Bot role {name}",
+        "assignShort": {
+            "yes": "yes",
+            "everyone": "all",
+            "managed": "fixed",
+            "botRole": "fixed",
+            "noManageRoles": "no right",
+            "above": "no",
+            "aboveFix": "too high"
         }
     }
 }

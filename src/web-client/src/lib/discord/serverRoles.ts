@@ -38,6 +38,8 @@ export function roleUseLines(role: ServerRole): string[] {
 
 export type AssignView = {
     text: string;
+    /** one word for a phone; the full text goes into its tooltip there */
+    short: string;
     /** the tooltip's explanation, when the short text needs one */
     sub?: string;
     /** "ok" the bot can; "fix" it should but cannot (a note); "plain" expected or fixed */
@@ -46,17 +48,44 @@ export type AssignView = {
 
 /** "Bot kann vergeben": yes, or the reason in words. */
 export function assignView(role: ServerRole, botName: string): AssignView {
-    if (role.assign.ok) return { text: t("discord.roles.assign.yes"), tone: "ok" };
+    const short = (key: string) => t(`discord.roles.assignShort.${key}`);
+    if (role.assign.ok) return { text: t("discord.roles.assign.yes"), short: short("yes"), tone: "ok" };
     switch (role.assign.reason) {
-        case "everyone": return { text: t("discord.roles.assign.everyone"), tone: "plain" };
+        case "everyone": return { text: t("discord.roles.assign.everyone"), short: short("everyone"), tone: "plain" };
         case "managed":
-        case "botRole": return { text: t(`discord.roles.assign.${role.assign.reason}`), sub: t("discord.roles.assign.managedSub"), tone: "plain" };
-        case "noManageRoles": return { text: t("discord.roles.assign.noManageRoles"), sub: t("discord.roles.assign.noManageRolesSub"), tone: "fix" };
+        case "botRole":
+            return { text: t(`discord.roles.assign.${role.assign.reason}`), short: short(role.assign.reason), sub: t("discord.roles.assign.managedSub"), tone: "plain" };
+        case "noManageRoles":
+            return { text: t("discord.roles.assign.noManageRoles"), short: short("noManageRoles"), sub: t("discord.roles.assign.noManageRolesSub"), tone: "fix" };
         default:
             return role.hints.includes("aboveBot")
-                ? { text: t("discord.roles.assign.aboveFix", { bot: botName }), sub: t("discord.roles.assign.aboveFixSub"), tone: "fix" }
-                : { text: t("discord.roles.assign.above"), tone: "plain" };
+                ? { text: t("discord.roles.assign.aboveFix", { bot: botName }), short: short("aboveFix"), sub: t("discord.roles.assign.aboveFixSub"), tone: "fix" }
+                : { text: t("discord.roles.assign.above"), short: short("above"), tone: "plain" };
     }
+}
+
+/**
+ * Where a role stands to the bot's own one, read from what the server says about
+ * handing it out: below (the bot can give it), above, or the bot role itself.
+ * "" when that answer does not tell (the bot lacks the right, @everyone, an app's role).
+ */
+export function botRelation(role: ServerRole): "below" | "above" | "own" | "" {
+    if (role.everyone) return "";
+    if (role.assign.ok) return "below";
+    if (role.assign.reason === "above") return "above";
+    if (role.assign.reason === "botRole") return "own";
+    return "";
+}
+
+/**
+ * The calm line above the table: the sensitive permissions that are normal on
+ * this server (@everyone has them, or most roles do), so the table shows them in
+ * grey and keeps orange for the outliers. `total` = the roles without @everyone.
+ */
+export function commonSensitiveItems(common: { key: string; roles: number; everyone: boolean }[], total: number, label: (key: string) => string): string[] {
+    return common.map((c) => (c.everyone
+        ? t("discord.roles.page.commonEveryone", { perm: label(c.key) })
+        : t("discord.roles.page.commonRoles", { perm: label(c.key), count: c.roles, total })));
 }
 
 /**

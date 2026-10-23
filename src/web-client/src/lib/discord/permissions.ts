@@ -55,6 +55,8 @@ export const ALL_PERMISSIONS: string[] = PERMISSION_GROUPS.flatMap((g) => g.keys
 export const SENSITIVE_PERMISSIONS: ReadonlySet<string> = new Set([
     "Administrator", "ManageGuild", "ManageRoles", "ManageChannels",
     "BanMembers", "KickMembers", "MentionEveryone", "ManageWebhooks",
+    "ModerateMembers", "ManageMessages", "ManageNicknames", "ManageEvents",
+    "ManageThreads", "ViewAuditLog",
 ]);
 
 /** The label of a permission in the active language; an unknown key stays as it is. */

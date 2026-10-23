@@ -10,7 +10,7 @@ import type { ServerRole, ServerRoleDetail, ServerRoles } from "../../api";
 import { adminUser, renderPage } from "../../test/render";
 import { switchLang } from "../../test/i18n";
 import ServerRolesPage from "./ServerRolesPage";
-import { activeTab } from "../../components/channels/DiscordTabs";
+import { activeTab } from "../../lib/discord/tabs";
 
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
@@ -22,23 +22,23 @@ vi.mock("../../api", async (orig) => ({
 function role(over: Partial<ServerRole>): ServerRole {
     return {
         id: "r", name: "Rolle", color: "", position: 1, managed: false, everyone: false, isBotRole: false,
-        memberCount: 3, permissions: [], sensitive: [], uses: [], assign: { ok: true, reason: "" }, hints: [],
+        memberCount: 3, permissions: [], sensitive: [], unusual: [], uses: [], assign: { ok: true, reason: "" }, hints: [],
         ...over,
     };
 }
 
 const ROLES: ServerRole[] = [
-    role({ id: "admin", name: "Admin", color: "#e74c3c", position: 5, memberCount: 2, permissions: ["Administrator"], sensitive: ["Administrator"], uses: [{ code: "admin" }], assign: { ok: false, reason: "above" }, hints: ["sensitive"] }),
+    role({ id: "admin", name: "Admin", color: "#e74c3c", position: 5, memberCount: 2, permissions: ["Administrator"], sensitive: ["Administrator"], unusual: ["Administrator"], uses: [{ code: "admin" }], assign: { ok: false, reason: "above" }, hints: ["sensitive"] }),
     role({ id: "naxx", name: "Naxx-Raider", position: 4, memberCount: 0, uses: [{ code: "categoryRaider", categoryIds: ["c1"], categories: [{ id: "c1", name: "Naxx" }] }], assign: { ok: false, reason: "above" }, hints: ["empty", "aboveBot"] }),
-    role({ id: "bot", name: "PulseBot", position: 3, memberCount: 1, managed: true, isBotRole: true, permissions: ["ManageRoles"], sensitive: ["ManageRoles"], assign: { ok: false, reason: "botRole" }, hints: ["sensitive"] }),
-    role({ id: "kochen", name: "Kochen", color: "#2ecc71", position: 2, memberCount: 12, permissions: ["SendMessages"], uses: [{ code: "roleMessage", messageId: "m1", title: "Berufe" }] }),
+    role({ id: "bot", name: "PulseBot", position: 3, memberCount: 1, managed: true, isBotRole: true, permissions: ["ManageRoles"], sensitive: ["ManageRoles"], unusual: ["ManageRoles"], assign: { ok: false, reason: "botRole" }, hints: ["sensitive"] }),
+    role({ id: "kochen", name: "Kochen", color: "#2ecc71", position: 2, memberCount: 12, permissions: ["SendMessages", "MentionEveryone"], sensitive: ["MentionEveryone"], uses: [{ code: "roleMessage", messageId: "m1", title: "Berufe" }] }),
     role({ id: "angeln", name: "Angeln", position: 1, memberCount: 7 }),
     role({ id: "every", name: "@everyone", position: 0, memberCount: 22, everyone: true, permissions: ["SendMessages"], assign: { ok: false, reason: "everyone" } }),
 ];
 
 const HEAD = { guildId: "g1", guildName: "Testgilde", online: true, botRole: { id: "bot", name: "PulseBot", position: 3 }, manageRoles: true, membersError: null };
-const EVENT: ServerRoles = { side: "event", ...HEAD, total: ROLES.length, roles: ROLES };
-const TALK: ServerRoles = { side: "talk", guildId: "", guildName: "", online: true, botRole: null, manageRoles: null, membersError: null, total: 0, roles: [] };
+const EVENT: ServerRoles = { side: "event", ...HEAD, total: ROLES.length, roles: ROLES, commonSensitive: [{ key: "MentionEveryone", roles: 4, everyone: false }] };
+const TALK: ServerRoles = { side: "talk", guildId: "", guildName: "", online: true, botRole: null, manageRoles: null, membersError: null, total: 0, roles: [], commonSensitive: [] };
 
 const MEMBERS = Array.from({ length: 12 }, (_, i) => ({ id: `u${i}`, name: i === 0 ? "Thrall" : `Raider ${i}`, avatarUrl: i === 1 ? "https://cdn.example/a.png" : null, bot: false }));
 const DETAIL: ServerRoleDetail = {
@@ -48,6 +48,7 @@ const DETAIL: ServerRoleDetail = {
         { id: "c1", name: "kochen", kind: "text", parentName: "Berufe", allow: [], deny: ["SendMessages"] },
     ],
     members: MEMBERS,
+    membersTotal: MEMBERS.length,
 };
 
 beforeEach(() => {
@@ -57,7 +58,7 @@ beforeEach(() => {
     vi.mocked(api.getDiscordTabCounts).mockReset().mockResolvedValue({ channels: 31, serverRoles: 5, roleMessages: 2 });
 });
 
-const names = () => screen.getAllByRole("row").slice(1).map((r) => (r.querySelector(".drl-name") || r).textContent || "");
+const names = () => screen.getAllByRole("row").slice(1).map((r) => (r.querySelector(".drl-name") || r.querySelector(".drl-long") || r).textContent || "");
 
 describe("Rollen: table", () => {
     it("shows the tabs with counts, the roles top first and the bot divider", async () => {
@@ -70,10 +71,16 @@ describe("Rollen: table", () => {
         expect(screen.getByText("5 Rollen")).toBeInTheDocument();
         const naxx = screen.getByText("Naxx-Raider").closest("tr")!;
         expect(within(naxx).getByText("0 Mitglieder")).toBeInTheDocument();
-        expect(within(naxx).getByText("Raider-Rolle Naxx")).toBeInTheDocument();
+        expect(naxx.querySelector(".drl-c-uses")!.textContent).toBe("Raider-Rolle Naxx");
+        expect(naxx.querySelector(".drl-meta")!.textContent).toBe("Raider-Rolle Naxx");
+        expect(within(naxx).getByText("zu hoch")).toHaveAttribute("data-tip", "nein, PulseBot darüber ziehen");
         expect(within(naxx).getByText("nein, PulseBot darüber ziehen")).toHaveAttribute("data-tip-sub", expect.stringMatching(/Bot-Rolle über diese Rolle ziehen/));
         const admin = screen.getByText("Admin").closest("tr")!;
-        expect(within(admin).getByText("Administrator")).toBeInTheDocument();
+        // an outlier: orange in the column and in the phone's second line
+        expect(admin.querySelector(".drl-c-sens .drl-sens")!.textContent).toBe("Administrator");
+        expect(admin.querySelector(".drl-meta-sens")!.textContent).toBe("Administrator");
+        expect(screen.getByText("Bot-Rolle PulseBot")).toHaveClass("drl-short");
+        expect(screen.queryByText("Bot-Rolle", { selector: ".drl-botmark" })).not.toBeInTheDocument();
         expect(within(admin).getByText("1")).toBeInTheDocument();
         expect(screen.getByText("@everyone").closest("tr")!.querySelector(".drl-pos")!.textContent).toBe("–");
     });
@@ -84,6 +91,43 @@ describe("Rollen: table", () => {
         await screen.findByText("Admin");
         await user.click(screen.getByRole("button", { name: /^Mitglieder/ }));
         expect(names()).toEqual(["@everyone", "Kochen", "Angeln", "Admin", "PulseBot", "Naxx-Raider"]);
+        // without the divider the bot's own role says so at its name
+        const bot = screen.getByRole("button", { name: "PulseBot" }).closest("tr")!;
+        expect(within(bot).getByText("Bot-Rolle")).toHaveClass("drl-botmark");
+        expect(document.querySelectorAll(".drl-botmark")).toHaveLength(1);
+    });
+
+    it("keeps sensitive permissions normal on the server grey and names them once above the table", async () => {
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
+        await screen.findByText("Admin");
+        const line = document.querySelector(".drl-common")!;
+        expect(line.textContent).toBe("Üblich auf diesem Server, daher grau: @everyone, @here und alle Rollen erwähnen (4 von 5 Rollen)");
+        const kochen = screen.getByRole("button", { name: "Kochen" }).closest("tr")!;
+        expect(within(kochen).getByText("@everyone, @here und alle Rollen erwähnen")).toHaveClass("drl-muted");
+        expect(kochen.querySelector(".drl-meta-sens")).toBeNull();
+        expect(kochen.querySelector(".drl-sens")).toBeNull();
+    });
+
+    it("keeps the phone's second line short: two outliers, then the rest as a number", async () => {
+        const many = role({ id: "mee6", name: "MEE6", position: 6, managed: true, permissions: ["KickMembers", "BanMembers", "ManageGuild", "ManageChannels"], sensitive: ["KickMembers", "BanMembers", "ManageGuild", "ManageChannels"], unusual: ["KickMembers", "BanMembers", "ManageGuild", "ManageChannels"], assign: { ok: false, reason: "managed" }, hints: [] });
+        vi.mocked(api.getServerRoles).mockImplementation(async (side) => (side === "event" ? { ...EVENT, roles: [many, ...ROLES] } : TALK));
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
+        const row = (await screen.findByRole("button", { name: "MEE6" })).closest("tr")!;
+        expect(row.querySelector(".drl-meta-sens")!.textContent).toMatch(/^[^,]+, [^,]+ \+2 weitere$/);
+    });
+
+    it("leaves out the line when nothing sensitive is common", async () => {
+        vi.mocked(api.getServerRoles).mockResolvedValue({ ...EVENT, commonSensitive: [] });
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
+        await screen.findByText("Admin");
+        expect(document.querySelector(".drl-common")).toBeNull();
+    });
+
+    it("says when no event server is set", async () => {
+        vi.mocked(api.getServerRoles).mockResolvedValue({ ...TALK, side: "event" });
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
+        expect(await screen.findByText(/Kein Event-Server eingestellt/)).toBeInTheDocument();
+        expect(screen.queryByText(/Kein Talk-Server/)).not.toBeInTheDocument();
     });
 
     it("filters to the roles with a hint", async () => {
@@ -151,7 +195,7 @@ describe("Rollen: drawer", () => {
         expect(within(drawer).getByText("4 von 5, unter der Bot-Rolle")).toBeInTheDocument();
         expect(within(drawer).getByText("Rollen-Nachricht „Berufe“")).toBeInTheDocument();
         expect(within(drawer).getByText("Bot kann die Rolle vergeben")).toBeInTheDocument();
-        expect(within(drawer).getByText(/^1 von \d+ Rechten gesetzt\. Gezeigt sind nur die gesetzten\.$/)).toBeInTheDocument();
+        expect(within(drawer).getByText(/^2 von \d+ Rechten gesetzt\. Gezeigt sind nur die gesetzten\.$/)).toBeInTheDocument();
         expect(within(drawer).getAllByText("gesetzt")).toHaveLength(1);
 
         await user.click(within(drawer).getByRole("switch", { name: /Alle Rechte zeigen/ }));
@@ -169,6 +213,27 @@ describe("Rollen: drawer", () => {
 
         await user.keyboard("{Escape}");
         await waitFor(() => expect(screen.queryByRole("complementary")).not.toBeInTheDocument());
+    });
+
+    it("says when only part of @everyone's members is loaded and closes on a tap beside it", async () => {
+        vi.mocked(api.getServerRoleDetail).mockResolvedValue({ ...DETAIL, role: ROLES[5], membersTotal: 340 });
+        const user = userEvent.setup();
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
+        await user.click(await screen.findByRole("button", { name: "@everyone" }));
+        const drawer = await screen.findByRole("complementary", { name: "@everyone" });
+        expect(await within(drawer).findByText("Geladen sind die ersten 12 von 340 Mitgliedern; die Suche durchsucht nur diese.")).toBeInTheDocument();
+        expect(within(drawer).queryByText("Position")).not.toBeInTheDocument();
+        await user.click(document.querySelector(".drl-backdrop")!);
+        expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    });
+
+    it("tells the bot's own role and a role above it", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getServerRoleDetail).mockResolvedValue({ ...DETAIL, role: ROLES[2] });
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
+        await user.click(await screen.findByRole("button", { name: "PulseBot" }));
+        const drawer = await screen.findByRole("complementary", { name: "PulseBot" });
+        expect(await within(drawer).findByText("3 von 5, die Bot-Rolle selbst")).toBeInTheDocument();
     });
 
     it("says when the role is gone", async () => {

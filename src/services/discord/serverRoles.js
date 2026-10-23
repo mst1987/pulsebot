@@ -7,7 +7,7 @@
 //                                the role messages + the addon update role), whether the bot can
 //                                hand it out, and hints (empty, sensitive, needed but above the bot)
 // - serverRoleDetail(side, id)   one role plus the channels with an overwrite for it (allow/deny)
-//                                and its members (name, avatar)
+//                                and its members (name, avatar; @everyone cut at 200)
 //
 // The member list comes from discord.fetchGuildMembersCached — the GuildMembers intent, and a
 // first fetch can take a while, so it is raced against NAME_FETCH_MS: on a timeout or a failure
@@ -32,9 +32,18 @@ const SENSITIVE_PERMISSIONS = SENSITIVE_LIST;
 const SENSITIVE = new Set(SENSITIVE_PERMISSIONS);
 
 // What a bot use means for handing the role out: these the bot gives members itself (sign-up,
-// sync, roster, a role message's button, the addon centre's subscribe button), so a role of one
-// of them the bot cannot give is a problem; an admin or orga role above the bot is expected.
-const HANDED_OUT = new Set(["categoryRaider", "roleSync", "roster", "roleMessage", "addonUpdates"]);
+// sync, a role message's button, the addon centre's subscribe button, a roster's member or trial
+// role), so a role of one of them the bot cannot give is a problem; an admin or orga role above
+// the bot is expected, a roster's manager role too (the bot never hands that out).
+const HANDED_OUT = new Set(["categoryRaider", "roleSync", "roleMessage", "addonUpdates"]);
+const handedOut = (use) => HANDED_OUT.has(use.code)
+    || (use.code === "roster" && (use.kinds || []).some((k) => k === "member" || k === "trial"));
+
+/** Members of @everyone the drawer gets at most; the rest only as a count (`membersTotal`). */
+const EVERYONE_MEMBERS_MAX = 200;
+
+// Old names discord.js keeps for the same bit: the newer name is the one shown.
+const ALIASES = new Set(["ManageEmojisAndStickers"]);
 
 function guildIdOf(side, config) {
     return side === "talk" ? talkGuildId(config) : eventGuildId(config);
@@ -45,13 +54,18 @@ const bitsOf = (perms) => {
     return b === undefined || b === null ? 0n : BigInt(b);
 };
 
-/** The permission keys of a bitfield ("Administrator", "ManageRoles" …), in Discord's flag order. */
+/** The permission keys of a bitfield ("Administrator", "ManageRoles" …), in Discord's flag order, each bit once. */
 function permissionKeys(bits) {
     const value = typeof bits === "bigint" ? bits : bitsOf(bits);
     if (value === 0n) return [];
-    return Object.entries(PermissionsBitField.Flags)
-        .filter(([, flag]) => (value & flag) === flag)
-        .map(([key]) => key);
+    const seen = new Set();
+    const out = [];
+    for (const [key, flag] of Object.entries(PermissionsBitField.Flags)) {
+        if ((value & flag) !== flag || ALIASES.has(key) || seen.has(flag)) continue;
+        seen.add(flag);
+        out.push(key);
+    }
+    return out;
 }
 
 /** Race a promise against a timer: the value, or `fallback` once `ms` have passed. */
@@ -124,24 +138,59 @@ function usesOf(config, roleId, side, categoryNames) {
  */
 function assignOf(role, guild, me) {
     if (role.id === guild.id) return { ok: false, reason: "everyone" };
-    if (role.managed) return { ok: false, reason: me && me.roles && me.roles.highest && me.roles.highest.id === role.id ? "botRole" : "managed" };
+    if (isBotRoleOf(role, me)) return { ok: false, reason: "botRole" };
+    if (role.managed) return { ok: false, reason: "managed" };
     if (!me || !me.permissions || !me.permissions.has(PermissionsBitField.Flags.ManageRoles)) return { ok: false, reason: "noManageRoles" };
     return roleBelowBot(guild, role) ? { ok: true, reason: "" } : { ok: false, reason: "above" };
 }
 
+/** Whether the role is the bot's own highest role. */
+function isBotRoleOf(role, me) {
+    return !!(me && me.roles && me.roles.highest && me.roles.highest.id === role.id);
+}
+
+const sensitiveOf = (role) => permissionKeys(bitsOf(role.permissions)).filter((k) => SENSITIVE.has(k));
+
+/**
+ * The sensitive permissions that are the server's normal, not one role's oddity: those
+ * @everyone has (every member has them anyway) and those more than half of the other roles
+ * have (from three roles on). `[{ key, roles, everyone }]`, most roles first; the page names
+ * them once above the table and shows them muted in the rows.
+ */
+function commonSensitiveOf(guild) {
+    const all = [...guild.roles.cache.values()];
+    const everyoneRole = all.find((r) => r.id === guild.id);
+    const others = all.filter((r) => r.id !== guild.id);
+    const fromEveryone = new Set(everyoneRole ? sensitiveOf(everyoneRole) : []);
+    const count = new Map();
+    for (const r of others) for (const k of sensitiveOf(r)) count.set(k, (count.get(k) || 0) + 1);
+    const out = [];
+    for (const key of SENSITIVE_PERMISSIONS) {
+        const roles = count.get(key) || 0;
+        const everyone = fromEveryone.has(key);
+        if (everyone || (others.length >= 3 && roles * 2 > others.length)) out.push({ key, roles, everyone });
+    }
+    return out.sort((a, b) => b.roles - a.roles);
+}
+
 /** One role as the page reads it. */
 function roleView(role, ctx) {
-    const { guild, me, config, side, counts, categoryNames } = ctx;
+    const { guild, me, config, side, counts, categoryNames, common } = ctx;
     const everyone = role.id === guild.id;
+    const isBotRole = isBotRoleOf(role, me);
     const permissions = permissionKeys(bitsOf(role.permissions));
     const sensitive = permissions.filter((k) => SENSITIVE.has(k));
+    // the outliers: sensitive permissions most roles do not have, the only ones in orange
+    const usual = new Set((common || []).map((c) => c.key));
+    const unusual = everyone ? [] : sensitive.filter((k) => !usual.has(k));
     const uses = everyone ? [] : usesOf(config, role.id, side, categoryNames);
     const assign = assignOf(role, guild, me);
     const memberCount = counts ? (everyone ? counts.total : counts.byRole.get(role.id) || 0) : null;
     const hints = [];
     if (!everyone && !role.managed && memberCount === 0) hints.push("empty");
-    if (!everyone && !role.managed && sensitive.length) hints.push("sensitive");
-    if (!assign.ok && assign.reason === "above" && uses.some((u) => HANDED_OUT.has(u.code))) hints.push("aboveBot");
+    // an integration's role (another bot) counts too; the bot's own rights are what it needs
+    if (!everyone && !isBotRole && unusual.length) hints.push("sensitive");
+    if (!assign.ok && assign.reason === "above" && uses.some(handedOut)) hints.push("aboveBot");
     return {
         id: role.id,
         name: everyone ? "@everyone" : str(role.name),
@@ -149,10 +198,11 @@ function roleView(role, ctx) {
         position: Number(role.position) || 0,
         managed: role.managed === true,
         everyone,
-        isBotRole: !!(me && me.roles && me.roles.highest && me.roles.highest.id === role.id),
+        isBotRole,
         memberCount,
         permissions,
         sensitive,
+        unusual,
         uses,
         assign,
         hints,
@@ -177,7 +227,11 @@ async function contextFor(side, config, { waitMs }) {
         }
         counts = { total: members.length, byRole };
     }
-    return { guildSide, guildId, guild, me, config, side: guildSide, members, membersError: error, counts, categoryNames: categoryNamesFor(eventGuildId(config) || "") };
+    return {
+        guildSide, guildId, guild, me, config, side: guildSide, members, membersError: error, counts,
+        categoryNames: categoryNamesFor(eventGuildId(config) || ""),
+        common: commonSensitiveOf(guild),
+    };
 }
 
 const byPosition = (a, b) => (Number(b.position) || 0) - (Number(a.position) || 0) || str(a.name).localeCompare(str(b.name));
@@ -209,9 +263,9 @@ function head(ctx) {
  */
 async function listServerRoles(side, { config = getConfig(), waitMs = discord.NAME_FETCH_MS } = {}) {
     const ctx = await contextFor(side, config, { waitMs });
-    if (!ctx.guild) return { ...head(ctx), total: 0, roles: [] };
+    if (!ctx.guild) return { ...head(ctx), total: 0, roles: [], commonSensitive: [] };
     const roles = [...ctx.guild.roles.cache.values()].sort(byPosition).map((r) => roleView(r, ctx));
-    return { ...head(ctx), total: roles.length, roles };
+    return { ...head(ctx), total: roles.length, roles, commonSensitive: ctx.common };
 }
 
 /** The channel's kind for the page: "category" | "voice" | "text" (forum, news, stage count by their nearest). */
@@ -256,11 +310,11 @@ function overwritesFor(guild, roleId) {
 async function serverRoleDetail(side, roleId, { config = getConfig(), waitMs = discord.NAME_FETCH_MS } = {}) {
     const id = str(roleId);
     const ctx = await contextFor(side, config, { waitMs });
-    if (!ctx.guild) return { ...head(ctx), total: 0, role: null, channels: [], members: [] };
+    if (!ctx.guild) return { ...head(ctx), total: 0, role: null, channels: [], members: [], membersTotal: 0 };
     const role = id ? ctx.guild.roles.cache.get(id) : null;
     if (!role) return null;
     const everyone = role.id === ctx.guild.id;
-    const members = ctx.members
+    const holders = ctx.members
         ? ctx.members
             .filter((m) => everyone || (m && m.roles && m.roles.cache && m.roles.cache.has(id)))
             .map((m) => ({
@@ -276,7 +330,9 @@ async function serverRoleDetail(side, roleId, { config = getConfig(), waitMs = d
         total: ctx.guild.roles.cache.size,
         role: roleView(role, ctx),
         channels: overwritesFor(ctx.guild, id),
-        members,
+        // @everyone is the whole server: a big one would make the answer heavy, so it is cut
+        members: everyone ? holders.slice(0, EVERYONE_MEMBERS_MAX) : holders,
+        membersTotal: holders.length,
     };
 }
 
@@ -288,4 +344,4 @@ function roleCount(side = "event", config = getConfig()) {
     return Math.max(0, guild.roles.cache.size - (guild.roles.cache.has(guild.id) ? 1 : 0));
 }
 
-module.exports = { listServerRoles, serverRoleDetail, roleCount, permissionKeys, SENSITIVE_PERMISSIONS };
+module.exports = { listServerRoles, serverRoleDetail, roleCount, permissionKeys, SENSITIVE_PERMISSIONS, EVERYONE_MEMBERS_MAX };
