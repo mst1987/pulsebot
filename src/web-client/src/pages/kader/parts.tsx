@@ -11,7 +11,7 @@
 // of every step back.
 import type { ComponentType, CSSProperties, ReactNode } from "react";
 import { Link } from "react-router-dom";
-import type { KaderEntry, KaderPrefill, KaderQuestion, KaderAnswer, KaderRole, KaderState, KaderVote, KaderWish } from "../../api";
+import type { KaderEntry, KaderPrefill, KaderQuestion, KaderAnswer, KaderRole, KaderState, KaderView, KaderVote, KaderWish } from "../../api";
 import { classColorProps } from "../../components/character/ClassSpec";
 import { SortLabel, ariaSort } from "../../components/ui/SortTh";
 import type { TableSort } from "../../lib/ui/tableSort";
@@ -22,7 +22,7 @@ import { BackButton as SharedBackButton, WowIcon } from "../../components/ui";
 import { useT } from "../../i18n";
 import { ROLE_ICON } from "../../lib/raidplan/assign";
 import { roleLabel } from "../../lib/wow/wowNames";
-import { classColor, classIconOf, className, dayOf, historyText, nameOf, playerName, specIconOf, specName, wishLabel } from "../../lib/kader/model";
+import { avatarOf, classColor, classIconOf, className, dayOf, historyText, nameOf, playerName, specIconOf, specName, wishLabel } from "../../lib/kader/model";
 import { dayShort, isAnswered, isWeekdays, progress, statusOf } from "../../lib/kader/interview";
 import { toneAttrs, toneOf } from "../../lib/kader/colors";
 import { useKader, type KaderSub } from "./kaderContext";
@@ -126,6 +126,12 @@ export function PlayerAvatar({ userId, entry }: { userId: string; entry?: KaderE
     const color = classColor(view.classes, p && p.prefill ? p.prefill.className : "");
     const initial = (playerName(view, userId, entry).trim()[0] || "?").toUpperCase();
     return <span className="kp-pava" style={color ? { "--av": color } as CSSProperties : undefined} aria-hidden="true">{initial}</span>;
+}
+
+/** Inside a person's coloured circle (a lead, somebody here right now): their Discord picture, else their initial. */
+export function AvatarFace({ view, userId, name }: { view: KaderView; userId: string; name: string }) {
+    const url = avatarOf(view, userId);
+    return url ? <img src={url} alt="" loading="lazy" /> : <>{(name.trim()[0] || "?").toUpperCase()}</>;
 }
 
 const STATE_ICONS: Record<KaderState, ComponentType> = {

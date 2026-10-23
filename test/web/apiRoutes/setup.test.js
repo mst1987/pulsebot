@@ -297,6 +297,20 @@ describe("who else is in the editor (presence)", () => {
         expect(body(await call(route.postPresence, ORGA, { event: ID })).activity.map((e) => e.kind)).toEqual(["propose", "post"]);
     });
 
+    it("carries the Confirm/Cancel marks — a raider's click in Discord changes no version", async () => {
+        expect(body(await call(route.postPresence, ORGA, { event: ID })).confirmations).toEqual({});
+        await call(route.postPropose, ORGA, { event: ID });
+        await call(route.postApprove, ORGA, { event: ID, version: mockEvents.get(ID).setup.version });
+        const raider = mockEvents.get(ID).setup.approved.groups[0].slots[0].userId;
+        const version = body(await call(route.postPresence, ORGA, { event: ID })).version;
+        // what setupConfirmBot stores on the click under the message
+        mockEvents.set(ID, { ...mockEvents.get(ID), setupPost: { channelId: "c", messageId: "sm", confirmations: { [raider]: { status: "confirmed", at: 1, by: raider } } } });
+
+        const beat = body(await call(route.postPresence, ORGA, { event: ID }));
+        expect(beat.version).toBe(version);
+        expect(beat.confirmations).toEqual({ [raider]: "confirmed" });
+    });
+
     it("is for the orga only, and fetches the editor light on request", async () => {
         expect(status(await call(route.postPresence, READER, { event: ID }))).toBe(403);
         const light = body(await call(route.getSetup, ORGA, null, `event=${ID}&light=1`));

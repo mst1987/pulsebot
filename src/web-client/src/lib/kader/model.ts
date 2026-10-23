@@ -125,6 +125,11 @@ export function nameOf(view: KaderView, userId: string): string {
     return view.names[userId] || userId;
 }
 
+/** Any user id's Discord picture: the member's, else the player's; "" = none (the initial is drawn). */
+export function avatarOf(view: KaderView, userId: string): string {
+    return (view.avatars || {})[userId] || view.players.find((p) => p.userId === userId)?.avatarUrl || "";
+}
+
 /** "30.09." of an ISO time, "" without one. */
 export function dayOf(iso: string): string {
     const ms = Date.parse(iso);

@@ -13,22 +13,22 @@ import { PlusIcon } from "../../components/ui/icons";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { useT } from "../../i18n";
 import { leadHue } from "../../lib/kader/leads";
-import { StateIcon } from "./parts";
+import { AvatarFace, StateIcon } from "./parts";
 
 const CHAIN: KaderState[] = ["pool", "selected", "provisional", "roster"];
 const SIDE: KaderState[] = ["bench", "tentative"];
 
-function LeadDots({ kader, names }: { kader: KaderSummary; names: Record<string, string> }) {
+function LeadDots({ kader, view }: { kader: KaderSummary; view: KaderView }) {
     const t = useT();
     if (!kader.leads.length) return <span className="kp-ov-noleads">{t("kader.header.noLeads")}</span>;
-    const all = kader.leads.map((id) => names[id] || id).join(", ");
+    const all = kader.leads.map((id) => view.names[id] || id).join(", ");
     return (
         <span className="kp-ov-leads" role="img" aria-label={`${t("kader.header.leads")}: ${all}`} data-tip={all}>
             {kader.leads.slice(0, 4).map((id) => {
                 const hue = leadHue(kader.leads, id);
                 return (
                     <span key={id} className={`kp-avatar kp-avatar-sized kp-hue-${hue}`} style={{ "--av": "24px" } as CSSProperties} aria-hidden="true">
-                        {((names[id] || "?").trim()[0] || "?").toUpperCase()}
+                        <AvatarFace view={view} userId={id} name={view.names[id] || "?"} />
                     </span>
                 );
             })}
@@ -37,7 +37,7 @@ function LeadDots({ kader, names }: { kader: KaderSummary; names: Record<string,
     );
 }
 
-function KaderCard({ kader, names, last }: { kader: KaderSummary; names: Record<string, string>; last: boolean }) {
+function KaderCard({ kader, view, last }: { kader: KaderSummary; view: KaderView; last: boolean }) {
     const t = useT();
     const { versions } = useContentVersion();
     const versionId = kader.versionId || "";
@@ -67,7 +67,7 @@ function KaderCard({ kader, names, last }: { kader: KaderSummary; names: Record<
                     {SIDE.map((s) => <span key={s}>{t(`kader.kaders.side.${s}`, { count: kader.counts[s] || 0 })}</span>)}
                 </div>
                 <div className="kp-ov-foot">
-                    <LeadDots kader={kader} names={names} />
+                    <LeadDots kader={kader} view={view} />
                     <span className="kp-ov-q">{t("kader.kaders.questions", { count: kader.questions })}</span>
                     <span className={buttonClass("ghost", "sm", false, "kp-ov-open")}>{t("kader.kaders.open")}</span>
                 </div>
@@ -88,7 +88,7 @@ export default function KaderOverview({ view, last, canWrite, onCreate }: { view
                 action={canWrite ? <Button icon={<PlusIcon />} onClick={onCreate}>{t("kader.header.new")}</Button> : undefined}
             />
             <ul className="kp-ov-cards" aria-label={t("kader.kaders.cardsAria")}>
-                {view.kaders.map((k) => <KaderCard key={k.id} kader={k} names={view.names} last={k.id === last} />)}
+                {view.kaders.map((k) => <KaderCard key={k.id} kader={k} view={view} last={k.id === last} />)}
                 {canWrite && (
                     <li>
                         <button type="button" className="kp-ov-card kp-ov-new" onClick={onCreate}>

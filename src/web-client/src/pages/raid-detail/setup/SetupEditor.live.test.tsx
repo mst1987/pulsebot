@@ -123,6 +123,18 @@ describe("the setup editor with others in it", () => {
         expect(await screen.findByText(t("setup.live.rebased"))).toBeInTheDocument();
     });
 
+    it("ticks a raider who confirmed in Discord — the heartbeat brings the marks, no version changed", async () => {
+        page = editorData({ confirmations: {} }, { status: "approved" });
+        const user = userEvent.setup();
+        await show();
+        expect(slot("Ignis")).not.toHaveClass("se-confirmed");
+        presence = { ...presence, confirmations: { [MAGE.userId]: "confirmed" } };
+        // the next heartbeat (here: set off by a pick)
+        await user.click(slot("Bruno"));
+        await waitFor(() => expect(slot("Ignis")).toHaveClass("se-confirmed"));
+        expect(getCalls("/api/raids/setup?event=ev1&light=1")).toHaveLength(0);
+    });
+
     it("lists what the others did under \"Gerade eben\" and lets the raider they moved glow with their name", async () => {
         presence = {
             editors: [{ userId: "o2", name: "Taccop", action: null }], version: 3,
