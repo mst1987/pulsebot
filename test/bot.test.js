@@ -15,12 +15,17 @@ jest.mock("../src/stores/settingsMigration", () => ({ migrateSettings: mockMigra
 const mockGuard = jest.fn(async () => true);
 jest.mock("../src/services/discord/botAccess", () => ({ guardInteraction: (...args) => mockGuard(...args) }));
 jest.mock("dotenv", () => ({ config: jest.fn() }));
+const mockHandleReaction = jest.fn(async () => "given");
+jest.mock("../src/services/discord/roleMessages", () => ({
+    ...jest.requireActual("../src/services/discord/roleMessages"),
+    handleReaction: (...args) => mockHandleReaction(...args),
+}));
 jest.mock("discord.js", () => {
     // Keep the real exports (ChannelType, builders, Collection, …) so the real
     // command modules load; only replace Client so no gateway connection is made.
     const actual = jest.requireActual("discord.js");
     class Client {
-        constructor() { this.commands = null; this._h = {}; this.login = mockLogin; }
+        constructor(options) { this.options = options; this.commands = null; this._h = {}; this.login = mockLogin; }
         on(evt, cb) { this._h[evt] = cb; }
     }
     return { ...actual, Client };
@@ -128,6 +133,29 @@ describe("bot start()", () => {
         expect(mockStartWebServer).toHaveBeenCalledWith(bot.client);
         expect(mockLogin).not.toHaveBeenCalled();
         expect(console.warn).toHaveBeenCalled();
+    });
+});
+
+describe("role message reactions", () => {
+    const { Events, GatewayIntentBits, Partials } = jest.requireActual("discord.js");
+
+    it("asks for the reaction events and the partials of messages from before a restart", () => {
+        expect(bot.client.options.intents).toContain(GatewayIntentBits.GuildMessageReactions);
+        expect(bot.client.options.partials).toEqual(expect.arrayContaining([Partials.Message, Partials.Reaction, Partials.User]));
+    });
+
+    it("hands an added reaction (give) and a removed one (take) to the role messages", async () => {
+        const reaction = { emoji: { name: "x" } };
+        const user = { id: "1" };
+        await bot.client._h[Events.MessageReactionAdd](reaction, user);
+        await bot.client._h[Events.MessageReactionRemove](reaction, user);
+        expect(mockHandleReaction.mock.calls).toEqual([[reaction, user, true], [reaction, user, false]]);
+    });
+
+    it("never lets a failing reaction escape the listener", async () => {
+        mockHandleReaction.mockRejectedValueOnce(new Error("boom"));
+        expect(() => bot.client._h[Events.MessageReactionAdd]({}, {})).not.toThrow();
+        await new Promise((r) => setImmediate(r));
     });
 });
 

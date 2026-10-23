@@ -22,7 +22,7 @@ const guildRoles = require("../../services/discord/guildRoles");
 const linkCheck = require("../../services/discord/linkCheck");
 const { mainVersionFor, isVersionVisible, visibleVersions } = require("../../services/events/mainVersion");
 const { versionLabel } = require("../../services/events/versionSettings");
-const { privilegedReason } = require("../../services/addons/updateRole");
+const { privilegedReason } = require("../../services/discord/selfRole");
 
 function centerView(center) {
     if (!center) return null;
@@ -63,7 +63,7 @@ function channelsOf(config) {
  * The roles of every configured server (the update role lives on the centre's server),
  * each with `privileged`: it grants bot rights, Discord permissions beyond @everyone or
  * unlocks channels, so the centre hides "Updates abonnieren" for it and the card warns
- * (services/addons/updateRole.js); and `officer`: it is pinged on applications
+ * (services/discord/selfRole.js); and `officer`: it is pinged on applications
  * (config.officerRoleId), the card says subscribers would get those pings too.
  */
 function rolesOf(config) {

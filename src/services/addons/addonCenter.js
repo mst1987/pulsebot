@@ -30,7 +30,7 @@ const { mainVersionFor, isVersionVisible, knownVersion } = require("../events/ma
 const { enabledAddons, releaseFor } = require("./addonReleases");
 const { assetMatches } = require("./addonConfig");
 const { centerPayload, patchNotesUrl, escapeMd } = require("./addonCenterPanel");
-const { privilegedReason } = require("./updateRole");
+const { privilegedReason } = require("../discord/selfRole");
 const { tr } = require("../../utils/i18n/botText");
 const log = require("../../logger").child("addonCenter");
 
@@ -113,7 +113,7 @@ function payloadHash(payload) {
 
 /**
  * Whether the centre offers "Updates abonnieren": only with an update role that carries
- * no rights (updateRole.js) — the bot rights from the config and the rosters always,
+ * no rights (services/discord/selfRole.js) — the bot rights from the config and the rosters always,
  * what it grants in Discord when the channel's server is in the cache.
  */
 function offersSubscribe(channelId, config) {

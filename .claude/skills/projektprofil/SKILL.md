@@ -150,11 +150,11 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
 14. Kein `git stash` und kein `git add -A` neben parallelen Agenten; PowerShell-`[IO.File]` nur mit
     absoluten Pfaden (relativ schreibt in den Hauptcheckout).
 15. Kein hartkodiertes Discord-ID/API-Key in Commands/Utils — über `src/config/` oder Settings-Store.
-16. Selbstvergabe einer Rolle per Knopf: Rolle darf nichts freischalten — keine Bot-Rechte
+16. Selbstvergabe einer Rolle per Knopf oder Reaktion (Addon-Abo, Rollen-Nachrichten): Rolle darf nichts freischalten — keine Bot-Rechte
     (adminRoleIds/ADMIN_ROLE_IDS, orgaRoleIds, rolePermissions, botCommandAccess[*].roleIds,
     categoryRoles, Roster roleIds/trialRoleId/managers.roleIds, roleSync beide Seiten), keine
     Discord-Berechtigungen über @everyone hinaus, keine Kanal-Overwrites mit allow
-    (`services/addons/updateRole.js`; neue rollenbasierte Rechte dort nachtragen).
+    (`services/discord/selfRole.js`; neue rollenbasierte Rechte dort nachtragen).
 17. Login-Rücksprünge und interne Umleitungen: `server.js` dekodiert den pathname, daher kann jede
     Route, die aus dem Pfad weiterleitet (`legacyMount` `/admin`, `/admin2`), aus einem harmlosen
     Pfad `//host` machen. Jedes Umleitungsziel durch `safeReturnPath` schicken und Ketten

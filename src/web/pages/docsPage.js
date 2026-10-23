@@ -54,6 +54,7 @@ const GUIDES = [
             "übersicht--nachschlagen": "home",
             "event-verwaltung-nur-orga": "raids",
             "was-der-bot-sonst-noch-automatisch-macht": "auto",
+            "rollen-nachrichten": "auto",
             "neue-spielversion": "settings",
             "umstieg-von-raid-helper": "settings",
         },

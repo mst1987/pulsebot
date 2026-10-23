@@ -12,6 +12,8 @@
     "/api/channels/batch": "channels",
     "/api/channels/schema": "channels",
     "/api/channels/config": "channels",
+    "/api/role-messages": "channels",
+    "/api/role-messages/options": "channels",
     "/api/settings": "settings",
     "/api/settings/item-search": "settings",
     "/api/settings/raidsheets": "settings",
