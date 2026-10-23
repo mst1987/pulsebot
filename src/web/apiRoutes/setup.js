@@ -61,6 +61,7 @@ const { explainSetup } = require("../../utils/setup/explainText");
 const setupSignup = require("../../services/setup/setupSignup");
 const setupConfirm = require("../../services/setup/setupConfirm");
 const setupPresence = require("../../services/setup/setupPresence");
+const { approvedSetupOf, confirmationsFor } = require("../../services/setup/setupCore");
 const raidGroup = require("../../services/events/raidGroup");
 const { signupEventIdOf } = require("../../utils/raidGroup");
 
@@ -186,7 +187,8 @@ const placedCount = (setup) => ((setup && setup.groups) || []).reduce((n, g) => 
  * open editor's heartbeat (every few seconds). `action` = `{ kind: "drag"|"edit",
  * userId }`, what the caller holds right now. Answers who else is in the editor,
  * the stored version (newer than the page's = somebody else changed it: fetch it
- * `light`) and what the others did after `since`. `leave: true` when the editor closes.
+ * `light`), the Confirm/Cancel marks (a raider's click in Discord changes no
+ * version) and what the others did after `since`. `leave: true` when the editor closes.
  */
 const postPresence = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
@@ -199,6 +201,7 @@ const postPresence = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true
     ok(res, {
         editors: setupPresence.editorsOf(event.id, { exceptUserId: user.id }),
         version: (event.setup && Number(event.setup.version)) || 0,
+        confirmations: confirmationsFor(event, approvedSetupOf(event)),
         // only what the others did: one's own moves are on the page already
         activity: setupPresence.activityOf(event.id, { since: body.since }).filter((e) => e.by !== String(user.id)),
     });

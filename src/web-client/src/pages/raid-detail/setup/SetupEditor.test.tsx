@@ -750,9 +750,16 @@ describe("the setup editor: state, approval and posting", () => {
 
         it("lets the orga set and take away the check in the panel — drawn at once, saved on the server", async () => {
             const user = userRef.current;
-            vi.mocked(client.send).mockImplementation((_m: string, path: string, body?: unknown) => (path === "/api/raids/setup/confirm"
-                ? Promise.resolve({ confirmations: (body as { status: string }).status ? { "u-mage": "confirmed" } : {} })
-                : Promise.resolve(page)));
+            // the heartbeat carries the marks as stored, like the server
+            let stored: Record<string, string> = {};
+            vi.mocked(client.send).mockImplementation((_m: string, path: string, body?: unknown) => {
+                if (path === "/api/raids/setup/confirm") {
+                    stored = (body as { status: string }).status ? { "u-mage": "confirmed" } : {};
+                    return Promise.resolve({ confirmations: stored });
+                }
+                if (path === "/api/raids/setup/presence") return Promise.resolve({ editors: [], version: 3, confirmations: stored, activity: [] });
+                return Promise.resolve(page);
+            });
             await show(editorData({ confirmations: {} }, { status: "approved" }));
             await user.click(await confirmButton("Ignis"));
             expect(slot("Ignis")).toHaveClass("se-confirmed");

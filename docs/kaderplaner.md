@@ -546,7 +546,7 @@ Parameters in the body; `kaderId` names the Kader.
 `/kader/:kaderId/:sub` — `/kader` is the **overview** (`pages/kader/KaderOverview.tsx`, like the roster overview):
 one card per Kader of the shown version, built from the server's `kaderSummary` only (counts, leads' names, number
 of questions — never wishes, answers, notes or votes). A card shows the name, the version, the players per state
-(Pool → Vorauswahl → Vorläufig → Roster big, Bench and Tentative small), the leads as coloured initials and the
+(Pool → Vorauswahl → Vorläufig → Roster big, Bench and Tentative small), the leads as avatars and the
 questions; the whole card is a link to `/kader/<id>/pool`. The Kader opened last (`kader-last`) carries "Zuletzt
 geöffnet"; there is no automatic jump into it any more. The head's "Neuer Kader" and a dashed card at the end open
 the create dialog (write access only). Without any Kader the start page shows the flow and "Ersten Kader anlegen".
@@ -566,7 +566,10 @@ Deleting a Kader and switching the menu's version away from the open one land on
   in a small space are numbered icons ("1 [icon] 2 [icon]", `WishIcons`). Player names stay text.
 - **Discord picture beside the name** (`PlayerAvatar`, `pages/kader/parts.tsx`): the rows of Pool and Übersicht
   start with the player's round Discord avatar (`avatarUrl` of the player view), like the roster's member list;
-  without one the initial stands on the prefilled class's colour.
+  without one the initial stands on the prefilled class's colour. Leads and visitors (overview card, header,
+  „Gespräch führt“, presence marks) show their Discord picture too (`AvatarFace`, from the view's `avatars` — every
+  member with a picture, by user id), inside the circle with a thin ring in their lead colour; without one the
+  initial.
 - **Status icons** (`pages/kader/parts.tsx`): interview open = empty circle, running = a ring filled to x/n, held =
   check (also beside the name); answered question = check, required and open = "!"; state icons Pool = people,
   Vorauswahl = checklist, Vorläufig = hourglass, Roster = shield, Bench, Tentative = question mark; votes dafür =

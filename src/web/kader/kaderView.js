@@ -299,6 +299,8 @@ function buildKaderView({ source, planner, kaderId = "", versionId = "" }) {
         members: memberList,
         discordRoles: source.discordRoles || [],
         names,
+        // the Discord picture of every member that has one: leads and visitors are drawn with it
+        avatars: Object.fromEntries(source.members.filter((m) => m.avatarUrl).map((m) => [m.userId, m.avatarUrl])),
         kaders,
         kader,
         warnings: source.warnings,

@@ -1,14 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { leaveSetupPresence, setupPresence, type SetupActivity, type SetupPresenceAction, type SetupPresenceEditor } from "../../../api";
+import { leaveSetupPresence, setupPresence, type SetupActivity, type SetupConfirmation, type SetupPresenceAction, type SetupPresenceEditor } from "../../../api";
 
 // Who else is in this setup editor (services/setup/setupPresence.js): a heartbeat
 // every PRESENCE_POLL_MS while the tab is visible — and at once whenever what the
 // orga member holds changes (a raider dragged or picked, a signup opened), so the
 // others see it within a moment. The answer carries the others, the stored
-// version (newer than the page's = somebody else changed the setup) and the
-// activity since the last heartbeat. Closing the editor says goodbye.
+// version (newer than the page's = somebody else changed the setup), the
+// Confirm/Cancel marks (a click in Discord changes no version; `sentAt` lets the
+// editor drop an answer older than its own last mark) and the activity since the
+// last heartbeat. Closing the editor says goodbye.
 
 export const PRESENCE_POLL_MS = 3000;
+
+/** The stored marks and when the heartbeat that read them was sent. */
+export type PresenceMarks = { sentAt: number; confirmations: Record<string, SetupConfirmation> };
 /** How many lines of "Gerade eben" the page keeps. */
 const ACTIVITY_KEEP = 20;
 
@@ -33,6 +38,7 @@ export function usePresence(eventId: string, action: SetupPresenceAction | null,
     const [editors, setEditors] = useState<SetupPresenceEditor[]>([]);
     const [activity, setActivity] = useState<SetupActivity[]>([]);
     const [version, setVersion] = useState(0);
+    const [marks, setMarks] = useState<PresenceMarks | null>(null);
     const since = useRef(0);
     const first = useRef(true);
     const actionRef = useRef(action);
@@ -42,9 +48,11 @@ export function usePresence(eventId: string, action: SetupPresenceAction | null,
     const beatRef = useRef<() => Promise<void>>(async () => undefined);
     beatRef.current = async () => {
         try {
+            const sentAt = Date.now();
             const answer = await setupPresence(eventId, { action: actionRef.current, since: since.current });
             setEditors(Array.isArray(answer?.editors) ? answer.editors : []);
             setVersion(Number(answer?.version) || 0);
+            if (answer?.confirmations && typeof answer.confirmations === "object") setMarks({ sentAt, confirmations: answer.confirmations });
             const fresh = Array.isArray(answer?.activity) ? answer.activity : [];
             if (fresh.length) {
                 since.current = Math.max(since.current, ...fresh.map((e) => e.id));
@@ -86,5 +94,5 @@ export function usePresence(eventId: string, action: SetupPresenceAction | null,
         void beatRef.current();
     }, [enabled, key]);
 
-    return { editors, activity, version };
+    return { editors, activity, version, marks };
 }
