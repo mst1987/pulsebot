@@ -163,7 +163,11 @@ function RolesView({ data, rankOf, counted, sideSegment, onlyHints, setOnlyHints
                                 <SortTh sortKey="members" label={t("discord.roles.col.members")} sort={sort.sort} dir={sort.dir} onSort={sort.onSort} />
                                 <th className="drl-c-uses">{t("discord.roles.col.uses")}</th>
                                 <th className="drl-c-sens"><span data-tip={t("discord.roles.col.sensitive")} data-tip-sub={t("discord.roles.col.sensitiveSub")}>{t("discord.roles.col.sensitive")}</span></th>
-                                <SortTh sortKey="assign" label={t("discord.roles.col.assign")} sort={sort.sort} dir={sort.dir} onSort={sort.onSort} tip={t("discord.roles.col.assign")} />
+                                <SortTh
+                                    sortKey="assign"
+                                    label={<><span className="drl-long">{t("discord.roles.col.assign")}</span><span className="drl-short">{t("discord.roles.col.assignShort")}</span></>}
+                                    sort={sort.sort} dir={sort.dir} onSort={sort.onSort} tip={t("discord.roles.col.assign")}
+                                />
                             </tr>
                         </thead>
                         <tbody>

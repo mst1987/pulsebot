@@ -234,6 +234,22 @@ describe("Rollen: drawer", () => {
         await user.click(await screen.findByRole("button", { name: "PulseBot" }));
         const drawer = await screen.findByRole("complementary", { name: "PulseBot" });
         expect(await within(drawer).findByText("3 von 5, die Bot-Rolle selbst")).toBeInTheDocument();
+        // its own reason, not the app integration's "fixed"
+        expect(within(drawer).getByText(/nein, eigene Rolle/)).toBeInTheDocument();
+        expect(within(drawer).getByText("Das ist die Rolle des Bots selbst. Er kann sie sich weder geben noch nehmen.")).toBeInTheDocument();
+        const row = screen.getByRole("button", { name: "PulseBot" }).closest("tr")!;
+        expect(row.querySelector(".drl-assign")!.textContent).toContain("eigene");
+        expect(row.textContent).not.toContain("Integration, fest");
+    });
+
+    it("keeps the phone's header short: one word for the bot column, the full text in its tooltip", async () => {
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
+        await screen.findByRole("button", { name: "PulseBot" });
+        const head = screen.getByText("Bot", { selector: ".drl-short" }).closest("button")!;
+        expect(head).toHaveAttribute("data-tip", "Bot kann vergeben");
+        expect(head.querySelector(".drl-long")!.textContent).toBe("Bot kann vergeben");
+        // the position column carries the class the phone hides
+        expect(screen.getByText("Pos.").closest("th")).toHaveClass("drl-c-pos");
     });
 
     it("says when the role is gone", async () => {

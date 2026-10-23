@@ -153,7 +153,8 @@
     .drl-meta { display: block; }
 }
 @media (max-width: 600px) {
-    .drl-c-sens { display: none; }
+    /* the position only says what the order and the divider line already show */
+    .drl-c-sens, .drl-c-pos { display: none; }
     .drl-meta-sens { display: inline; }
     .drl-table .drl-long { display: none; }
     .drl-table .drl-short { display: inline; }

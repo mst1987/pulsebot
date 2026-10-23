@@ -42,7 +42,13 @@ describe("assignView", () => {
         expect(assignView(role({ assign: { ok: false, reason: "above" } }), "PulseBot")).toEqual({ text: "nein, steht darüber", short: "nein", tone: "plain" });
         expect(assignView(role({ assign: { ok: false, reason: "above" }, hints: ["aboveBot"] }), "PulseBot")).toMatchObject({ text: "nein, PulseBot darüber ziehen", short: "zu hoch", tone: "fix" });
         expect(assignView(role({ assign: { ok: false, reason: "noManageRoles" } }), "PulseBot").short).toBe("Recht fehlt");
-        expect(assignView(role({ assign: { ok: false, reason: "botRole" } }), "PulseBot").short).toBe("fest");
+        // the bot's own role says so, not "integration, fixed" like an app's role
+        expect(assignView(role({ assign: { ok: false, reason: "botRole" } }), "PulseBot")).toEqual({
+            text: "nein, eigene Rolle",
+            short: "eigene",
+            sub: "Das ist die Rolle des Bots selbst. Er kann sie sich weder geben noch nehmen.",
+            tone: "plain",
+        });
     });
 });
 

@@ -53,8 +53,10 @@ export function assignView(role: ServerRole, botName: string): AssignView {
     switch (role.assign.reason) {
         case "everyone": return { text: t("discord.roles.assign.everyone"), short: short("everyone"), tone: "plain" };
         case "managed":
+            return { text: t("discord.roles.assign.managed"), short: short("managed"), sub: t("discord.roles.assign.managedSub"), tone: "plain" };
+        // the bot's own role is an integration too, but "integration" says nothing to the reader
         case "botRole":
-            return { text: t(`discord.roles.assign.${role.assign.reason}`), short: short(role.assign.reason), sub: t("discord.roles.assign.managedSub"), tone: "plain" };
+            return { text: t("discord.roles.assign.botRole"), short: short("botRole"), sub: t("discord.roles.assign.botRoleSub"), tone: "plain" };
         case "noManageRoles":
             return { text: t("discord.roles.assign.noManageRoles"), short: short("noManageRoles"), sub: t("discord.roles.assign.noManageRolesSub"), tone: "fix" };
         default:

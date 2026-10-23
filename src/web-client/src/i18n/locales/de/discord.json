@@ -110,7 +110,8 @@
             "uses": "Bedeutung für den Bot",
             "sensitive": "Heikle Rechte",
             "sensitiveSub": "Rechte, mit denen jemand den Server ändern oder alle erreichen kann – Administrator, Rollen verwalten, @everyone erwähnen …",
-            "assign": "Bot kann vergeben"
+            "assign": "Bot kann vergeben",
+            "assignShort": "Bot"
         },
         "cell": {
             "members": { "one": "{count} Mitglied", "other": "{count} Mitglieder" },
@@ -129,13 +130,14 @@
             "yes": "ja",
             "everyone": "gilt für alle",
             "managed": "Integration, fest",
-            "botRole": "Integration, fest",
+            "botRole": "nein, eigene Rolle",
             "noManageRoles": "nein, Recht fehlt",
             "above": "nein, steht darüber",
             "aboveFix": "nein, {bot} darüber ziehen",
             "aboveFixSub": "Der Bot soll diese Rolle vergeben, sie steht aber über seiner eigenen. In Discord die Bot-Rolle über diese Rolle ziehen.",
             "noManageRolesSub": "Der Bot-Rolle fehlt „Rollen verwalten“.",
-            "managedSub": "Discord vergibt die Rolle einer App selbst; niemand kann sie von Hand geben."
+            "managedSub": "Discord vergibt die Rolle einer App selbst; niemand kann sie von Hand geben.",
+            "botRoleSub": "Das ist die Rolle des Bots selbst. Er kann sie sich weder geben noch nehmen."
         },
         "use": {
             "admin": "Voll-Admin-Rolle",
@@ -205,7 +207,7 @@
             "yes": "ja",
             "everyone": "alle",
             "managed": "fest",
-            "botRole": "fest",
+            "botRole": "eigene",
             "noManageRoles": "Recht fehlt",
             "above": "nein",
             "aboveFix": "zu hoch"

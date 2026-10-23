@@ -110,7 +110,8 @@
             "uses": "Meaning for the bot",
             "sensitive": "Sensitive permissions",
             "sensitiveSub": "Permissions that let someone change the server or reach everybody – Administrator, Manage roles, mention @everyone …",
-            "assign": "Bot can assign"
+            "assign": "Bot can assign",
+            "assignShort": "Bot"
         },
         "cell": {
             "members": { "one": "{count} member", "other": "{count} members" },
@@ -129,13 +130,14 @@
             "yes": "yes",
             "everyone": "applies to all",
             "managed": "integration, fixed",
-            "botRole": "integration, fixed",
+            "botRole": "no, its own role",
             "noManageRoles": "no, permission missing",
             "above": "no, sits above",
             "aboveFix": "no, drag {bot} above it",
             "aboveFixSub": "The bot should hand this role out, but it sits above the bot's own. In Discord, drag the bot role above this role.",
             "noManageRolesSub": "The bot role lacks “Manage roles”.",
-            "managedSub": "Discord hands out an app's role itself; nobody can give it by hand."
+            "managedSub": "Discord hands out an app's role itself; nobody can give it by hand.",
+            "botRoleSub": "This is the bot's own role. It can neither give it to itself nor take it away."
         },
         "use": {
             "admin": "Full admin role",
@@ -205,7 +207,7 @@
             "yes": "yes",
             "everyone": "all",
             "managed": "fixed",
-            "botRole": "fixed",
+            "botRole": "own",
             "noManageRoles": "no right",
             "above": "no",
             "aboveFix": "too high"
