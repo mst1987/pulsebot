@@ -22,6 +22,9 @@ jest.mock("../src/services/discord/roleMessages", () => ({
     handleReactionsCleared: (...args) => mockReactionsCleared(...args),
 }));
 const mockReactionsCleared = jest.fn(async () => "synced");
+const mockMemberAdd = jest.fn();
+const mockMemberRemove = jest.fn();
+jest.mock("../src/services/discord/memberActivity", () => ({ onMemberAdd: (...a) => mockMemberAdd(...a), onMemberRemove: (...a) => mockMemberRemove(...a) }));
 jest.mock("discord.js", () => {
     // Keep the real exports (ChannelType, builders, Collection, …) so the real
     // command modules load; only replace Client so no gateway connection is made.
@@ -135,6 +138,21 @@ describe("bot start()", () => {
         expect(mockStartWebServer).toHaveBeenCalledWith(bot.client);
         expect(mockLogin).not.toHaveBeenCalled();
         expect(console.warn).toHaveBeenCalled();
+    });
+});
+
+describe("joins and leaves", () => {
+    it("notes a join before the role syncs and a leave", async () => {
+        const rosterRoleSync = require("../src/services/roster/rosterRoleSync");
+        const rosterSpy = jest.spyOn(rosterRoleSync, "onGuildMemberAdd").mockImplementation(() => {});
+        const member = { id: "100000000000000001", guild: { id: "900000000000000001" } };
+        bot.client._h.guildMemberAdd(member);
+        bot.client._h.guildMemberRemove(member);
+        expect(mockMemberAdd).toHaveBeenCalledWith(member);
+        expect(mockMemberRemove).toHaveBeenCalledWith(member);
+        expect(rosterSpy).toHaveBeenCalledWith(member);
+        await new Promise((r) => setImmediate(r));
+        rosterSpy.mockRestore();
     });
 });
 
