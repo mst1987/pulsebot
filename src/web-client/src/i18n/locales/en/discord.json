@@ -1,5 +1,8 @@
 {
     "tabs": {
+        "short": { "roleMessages": "Messages" },
+        "moreLeft": "More tabs to the left",
+        "moreRight": "More tabs to the right",
         "aria": "Discord sections",
         "channels": "Channels",
         "serverRoles": "Roles",

@@ -1,5 +1,8 @@
 {
     "tabs": {
+        "short": { "roleMessages": "Nachrichten" },
+        "moreLeft": "Weitere Reiter links",
+        "moreRight": "Weitere Reiter rechts",
         "aria": "Bereiche von Discord",
         "channels": "Kanäle",
         "serverRoles": "Rollen",
