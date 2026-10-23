@@ -40,8 +40,10 @@
 @media (max-width: 900px) {
     .rm-table th:nth-child(2), .rm-table td:nth-child(2), .rm-table th:nth-child(5), .rm-table td:nth-child(5) { display: none; }
 }
+.rm-cell.rm-meta { display: none; }
 @media (max-width: 640px) {
     .rm-table th:nth-child(3), .rm-table td:nth-child(3) { display: none; }
+    .rm-cell.rm-meta { display: block; margin-top: 2px; white-space: normal; overflow-wrap: anywhere; }
 }
 .rm-cell { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rm-title { font-weight: 600; }

@@ -111,7 +111,15 @@ function RoleMessagesView() {
     const columns: Column<RoleMessage, SortKey>[] = [
         {
             id: "title", label: t("roleMessages.col.title"), sortKey: "title",
-            cell: (m) => <span className="rm-cell rm-title">{m.title}</span>,
+            cell: (m) => (
+                <>
+                    <span className="rm-cell rm-title">{m.title}</span>
+                    {/* phones hide the server and channel columns; this line carries them instead */}
+                    <span className="rm-cell rm-sub rm-meta">
+                        {t(`roleMessages.side.${m.guildSide}`)} · {channelName(m) ? `#${channelName(m)}` : t("roleMessages.list.unknownChannel")}
+                    </span>
+                </>
+            ),
         },
         {
             id: "server", label: t("roleMessages.col.server"), sortKey: "server", width: 130,
