@@ -431,6 +431,29 @@ describe("services/discord/discord channel management", () => {
         });
     });
 
+    describe("avatarUrlFor", () => {
+        const account = (url) => ({ displayAvatarURL: jest.fn(() => url) });
+
+        it("takes the guild member's picture, else the account's from the user cache", () => {
+            const guild = guildWithMemberFetch(jest.fn(), [dc.makeMember({ id: "1", displayAvatarURL: () => "https://cdn/m1.png" })]);
+            const client = setClientWithGuild(guild);
+            client.users = { cache: new Map([["2", account("https://cdn/u2.png")]]) };
+            expect(discord.avatarUrlFor("g1", "1")).toBe("https://cdn/m1.png");
+            expect(discord.avatarUrlFor("g1", "2")).toBe("https://cdn/u2.png");
+            expect(client.users.cache.get("2").displayAvatarURL).toHaveBeenCalledWith({ size: 64 });
+        });
+
+        it("is empty for an unknown id, a missing client or a failing lookup", () => {
+            const client = setClientWithGuild(guildWithMemberFetch(jest.fn()));
+            client.users = { cache: new Map([["3", { displayAvatarURL: () => { throw new Error("x"); } }]]) };
+            expect(discord.avatarUrlFor("g1", "9")).toBe("");
+            expect(discord.avatarUrlFor("g1", "3")).toBe("");
+            expect(discord.avatarUrlFor("g1", "")).toBe("");
+            discord.setClient(null);
+            expect(discord.avatarUrlFor("g1", "1")).toBe("");
+        });
+    });
+
     describe("resolveUserNames", () => {
         beforeEach(() => discord._resetAbsentNamesForTests());
 

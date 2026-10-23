@@ -14,6 +14,8 @@ export type RolePermissions = Record<string, Record<string, AreaAccess>>;
 export type ViewAs = { roleIds: string[]; roleNames: string[]; at: number };
 export type SessionUser = {
     id: string; name: string; isAdmin: boolean; access: Access; lang?: "de" | "en";
+    /** The Discord picture for the user circle; missing when there is none (the circle shows the initial). */
+    avatarUrl?: string;
     /** A real full admin — may look at the menu as a role (also while doing so). */
     canViewAs?: boolean;
     /** Set while the menu shows the rights of these roles instead of the own ones. */

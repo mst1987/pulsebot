@@ -215,12 +215,17 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
     // all, so only they trigger the lookup — and a failed lookup must not cost
     // anyone the settings page, since the ids alone still work.
     let userNames = {};
+    let userAvatars = {};
     if (user.isAdmin) {
         try {
             userNames = await discord.resolveUserNames(guildId, Object.keys(config.userPermissions || {}));
         } catch (e) {
             console.warn("resolveUserNames failed:", e.message);
         }
+        // their Discord pictures, from the cache the name lookup just filled; none = the row shows the initial
+        userAvatars = Object.fromEntries(Object.keys(config.userPermissions || {})
+            .map((id) => [id, discord.avatarUrlFor(guildId, id)])
+            .filter(([, url]) => url));
     }
     ok(res, {
         // The access config and the credentials are admin-only; a limited
@@ -229,6 +234,7 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         canManageAccess: !!user.isAdmin,
         areas: AREAS,
         userNames,
+        userAvatars,
         raidsheets: listRaidsheets(),
         // For the default-template select per category — names only, so a
         // settings user needs no raid rights to pick one.

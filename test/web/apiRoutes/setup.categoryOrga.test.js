@@ -44,6 +44,7 @@ jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAtt
 const mockMemberRoleIds = jest.fn(async () => []);
 jest.mock("../../../src/services/discord/discord", () => ({
     resolveUserNames: jest.fn(async () => ({})),
+    avatarUrlFor: () => "",
     listAllChannels: () => [],
     listGuilds: () => [],
     memberRoleIds: (...a) => mockMemberRoleIds(...a),

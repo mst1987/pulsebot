@@ -13,6 +13,7 @@ import { useT } from "../../i18n";
 import { nameOf, togglePick } from "../../lib/kader/model";
 import { changedSince } from "../../lib/kader/live";
 import { CategoryChecklist } from "./Attendance";
+import { AvatarFace } from "./parts";
 
 type Props = {
     mode: "create" | "edit";
@@ -96,7 +97,7 @@ export default function KaderSettingsModal({ mode, view, me = "", onClose, run, 
                                 const lead = nameOf(view, id);
                                 return (
                                     <li key={id}>
-                                        <span className={`kp-avatar kp-hue-${i % 4}`} aria-hidden="true">{(lead.trim()[0] || "?").toUpperCase()}</span>
+                                        <span className={`kp-avatar kp-hue-${i % 4}`} aria-hidden="true"><AvatarFace view={view} userId={id} name={lead} /></span>
                                         <span className="kp-grow kp-strong">{lead}</span>
                                         <IconButton icon={<XIcon />} size="sm" tip={t("kader.settings.removeLead", { name: lead })} disabled={leads.length <= 1} onClick={() => setLeads(leads.filter((x) => x !== id))} />
                                     </li>

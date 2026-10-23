@@ -77,6 +77,16 @@ describe("the sidebar", () => {
             view.unmount();
         }
     });
+
+    it("shows the account's Discord picture in the user circle, else its initial", () => {
+        const view = showShell({ ...adminUser(), name: "Devihra", avatarUrl: "https://cdn/me.png" });
+        const circle = view.container.querySelector(".side-foot .avatar");
+        expect(circle?.querySelector("img")).toHaveAttribute("src", "https://cdn/me.png");
+        view.unmount();
+        const plain = showShell({ ...adminUser(), name: "Devihra" });
+        expect(plain.container.querySelector(".side-foot .avatar")).toHaveTextContent("D");
+        expect(plain.container.querySelector(".side-foot .avatar img")).toBeNull();
+    });
 });
 
 describe("the orga mark in the top bar", () => {

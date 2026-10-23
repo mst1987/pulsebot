@@ -51,6 +51,7 @@ const CHROME_STYLE = `
 ${AREA_STYLE}
   .side-foot { padding:12px 14px; border-top:1px solid var(--line-soft); display:flex; align-items:center; gap:10px; }
   .avatar { width:34px; height:34px; border-radius:50%; background:var(--panel2); display:grid; place-items:center; font-weight:800; color:var(--accent); border:1px solid var(--line); flex:0 0 auto; }
+  .avatar > img { display:block; width:100%; height:100%; border-radius:50%; object-fit:cover; }
   .ub-meta { min-width:0; flex:1; }
   .u-name { font-size:13.5px; font-weight:700; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .u-role { font-size:11.5px; color:var(--muted); }
@@ -108,6 +109,8 @@ function navHtml(activeTab) {
 function renderAdminChrome({ user, activeTab, crumbs = [], body = "", actions = "", esc }) {
     const name = (user && user.name) || "Admin";
     const initial = name.slice(0, 1).toUpperCase() || "A";
+    // the Discord picture from the login (auth.js), else the initial
+    const face = user && user.avatarUrl ? `<img src="${esc(user.avatarUrl)}" alt="">` : esc(initial);
     const crumbHtml = crumbs.map((c, i) => {
         const last = i === crumbs.length - 1;
         const label = esc(c.label);
@@ -126,7 +129,7 @@ function renderAdminChrome({ user, activeTab, crumbs = [], body = "", actions = 
     </a>
     <nav class="menu">${navHtml(activeTab)}</nav>
     <div class="side-foot">
-      <div class="avatar">${esc(initial)}</div>
+      <div class="avatar">${face}</div>
       <div class="ub-meta">
         <div class="u-name">${esc(name)}</div>
         <div class="u-role">Administrator</div>

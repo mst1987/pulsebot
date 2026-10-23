@@ -250,6 +250,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 .side-version.v-bad { color: var(--high); }
 .side-foot { padding: 12px 14px; border-top: 1px solid var(--line-soft); display: flex; align-items: center; gap: 10px; }
 .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--panel2); display: grid; place-items: center; font-weight: 800; color: var(--accent); border: 1px solid var(--line); flex: 0 0 auto; }
+.avatar > img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .ub-meta { min-width: 0; flex: 1; }
 .u-name { font-size: 13.5px; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .u-role { font-size: var(--fs-label); color: var(--muted); }

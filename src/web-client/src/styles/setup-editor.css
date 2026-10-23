@@ -395,6 +395,7 @@
 .se-live { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; padding: 3px 12px 3px 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel2); cursor: help; }
 .se-live-avatars { display: inline-flex; }
 .se-avatar { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--se-who); background: color-mix(in srgb, var(--se-who) 22%, var(--panel)); color: var(--text); font-size: var(--fs-label); font-weight: 800; box-sizing: border-box; }
+.se-avatar > img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .se-avatar + .se-avatar { margin-left: -7px; }
 .se-live-text { display: flex; flex-direction: column; line-height: 1.15; white-space: nowrap; }
 .se-live-text b { font-size: 12.5px; }

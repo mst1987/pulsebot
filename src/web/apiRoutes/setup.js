@@ -199,7 +199,8 @@ const postPresence = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true
     }
     setupPresence.beat(event.id, user, { action: body.action });
     ok(res, {
-        editors: setupPresence.editorsOf(event.id, { exceptUserId: user.id }),
+        // each with their Discord picture ("" = the editor shows the initial)
+        editors: setupPresence.editorsOf(event.id, { exceptUserId: user.id }).map((e) => ({ ...e, avatarUrl: discord.avatarUrlFor(event.guildId, e.userId) })),
         version: (event.setup && Number(event.setup.version)) || 0,
         confirmations: confirmationsFor(event, approvedSetupOf(event)),
         // only what the others did: one's own moves are on the page already

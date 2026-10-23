@@ -148,6 +148,19 @@ describe("KaderPage · Kader", () => {
         expect(within(dialog).getByText("Gast")).toBeInTheDocument();
     });
 
+    it("shows each lead in the settings with their Discord picture, else the initial", async () => {
+        vi.mocked(api.getKader).mockImplementation(async (id = "") => kaderView({ avatars: { [ME]: "https://cdn/admin.png" }, ...(id === "k1" ? {} : { kader: null }) }));
+        await show("/kader/k1/pool");
+        await userEvent.click(screen.getByRole("button", { name: t("kader.header.settings") }));
+        const dialog = await screen.findByRole("dialog");
+        await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: t("kader.settings.addLead") }), U.guest);
+        await userEvent.click(within(dialog).getByRole("button", { name: t("common.add") }));
+        const rows = dialog.querySelectorAll(".kp-leadlist .kp-avatar");
+        expect(rows[0].querySelector("img")).toHaveAttribute("src", "https://cdn/admin.png");
+        expect(rows[1].querySelector("img")).toBeNull();
+        expect(rows[1]).toHaveTextContent("G");
+    });
+
     it("counts the players per state in the status bar, every count with the words behind it", async () => {
         await show("/kader/k1/pool");
         const nav = screen.getByRole("navigation", { name: t("kader.nav.aria") });

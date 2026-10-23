@@ -130,7 +130,7 @@ function grantSummary(areas: Area[], grants: Grants | undefined): string {
 
 export default function RolePermissionsEditor({
     areas, roles, adminRoleIds, onAdminRoleIds, value, onChange, baseAccess, onBaseAccessChange,
-    userPermissions, onUserPermissionsChange, userNames, icon, crumb, viewSwitch, orgaRoleIds = [], onOrgaRoleIds,
+    userPermissions, onUserPermissionsChange, userNames, userAvatars = {}, icon, crumb, viewSwitch, orgaRoleIds = [], onOrgaRoleIds,
 }: {
     /** The roles that count as orga (the rest are raider roles); missing = no switch (an older caller). */
     orgaRoleIds?: string[];
@@ -148,6 +148,8 @@ export default function RolePermissionsEditor({
     userPermissions: RolePermissions;
     onUserPermissionsChange: (next: RolePermissions) => void;
     userNames: Record<string, string>;
+    /** Discord pictures of those accounts; one without = its initial. */
+    userAvatars?: Record<string, string>;
     icon: string;
     crumb: string;
 }) {
@@ -351,7 +353,7 @@ export default function RolePermissionsEditor({
                                         <RowName
                                             label={name}
                                             sub={`Discord · ${id}`}
-                                            avatar={<span className="perm-avatar round">{name.slice(0, 1).toUpperCase()}</span>}
+                                            avatar={<span className="perm-avatar round">{userAvatars[id] ? <img src={userAvatars[id]} alt="" /> : name.slice(0, 1).toUpperCase()}</span>}
                                             onAll={(lv) => setUser(id, allOf(lv))}
                                         />
                                     </td>
