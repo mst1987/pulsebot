@@ -378,6 +378,20 @@ Alle Server-Kanäle als Liste; umbenennen, archivieren, löschen (einzeln oder p
 
 **Emoji im Kanalnamen:** Neben dem Kanalnamen (Event anlegen, Kanal bearbeiten, Schnellanlage, Namensschema) sitzt ein Smiley-Knopf. Er öffnet eine Emoji-Auswahl wie in Discord, mit Suche („bär“, „drache“ …) und Kategorien. Ganz oben stehen Vorschläge für den Raid (z. B. 🐻 für Zul'Aman) und die Emojis, die die Kategorie schon nutzt. Ein Klick ersetzt das Emoji am Anfang des Namens, z. B. `🐍・mi-14-10-za` → `🐻・mi-14-10-za`.
 
+## Rollen-Nachrichten
+
+Technik: [role-messages.md](role-messages.md)
+
+*Bereich "channels"* · Menü *System › Rollen-Nachrichten* (`/channels/roles`)
+
+Eine Nachricht des Bots, über die sich Mitglieder eine Rolle selbst holen: je Rolle ein Knopf, mit Emoji auch eine Reaktion. Ein Klick (oder die Reaktion) gibt die Rolle, ein zweiter nimmt sie wieder.
+
+- **Neue Rollen-Nachricht:** Server (Event oder Talk), Kanal, Titel, optional Text, Bild-Link (https) und eigene Farbe. Rechts siehst du die Nachricht so, wie sie in Discord aussehen wird.
+- **Rolle hinzufügen:** sucht eine Rolle. Rollen mit Rechten (Admin, Orga, Raider-, Roster- und Abgleich-Rollen, Rollen mit Discord-Rechten oder Kanal-Freigaben) sind ausgegraut und sagen, warum. Je Rolle wählst du ein Emoji und den Text auf dem Knopf (vorbelegt mit dem Rollennamen). Höchstens 25 Rollen, davon 20 mit Emoji.
+- **Posten / Speichern:** Solange etwas fehlt, steht es über dem Knopf. Geht beim Posten etwas nur halb (z. B. darf der Bot im Kanal nicht reagieren), kommt ein Hinweis; die Nachricht steht trotzdem.
+- **Löschen** nimmt die Nachricht auch aus Discord. Bereits vergebene Rollen bleiben.
+- Der Bot braucht auf dem Server „Rollen verwalten“, und seine Rolle muss über den vergebenen Rollen stehen — sonst steht oben ein Hinweis.
+
 ## Systemstatus
 
 Technik: [system-status.md](system-status.md)

@@ -85,6 +85,7 @@ const GUIDES = [
             "addons": "system",
             "log-auswertung-clarpb": "cla",
             "kanäle": "channels",
+            "rollen-nachrichten": "channels",
             "systemstatus": "system",
             "einstellungen": "settings",
             "raidplan-im-detail": "raids",

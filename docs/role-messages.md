@@ -4,8 +4,8 @@ Endnutzer-Sicht: [guide-discord.md](guide-discord.md#rollen-nachrichten).
 
 Eine Rollen-Nachricht ist eine Karte des Bots mit Titel, Text, großem Bild und je Rolle einem Knopf und einer
 Reaktion. Vorbild: Titel „WoW Forever Role“, ein Bild, Knopf „✅ WoW Forever Role“ — wer klickt oder mit ✅
-reagiert, holt sich die Rolle selbst. Die Orga legt die Nachricht im Web an (Bereich `channels`); die Web-Seite
-dafür kommt in einem zweiten Schritt, die API steht.
+reagiert, holt sich die Rolle selbst. Die Orga legt die Nachricht im Web an: *System › Rollen-Nachrichten*
+(`/channels/roles`, Bereich `channels`, Abschnitt [Web-Seite](#web-seite)).
 
 ## Verhalten
 
@@ -59,6 +59,28 @@ Befehlsrollen, Raider-Rollen der Kategorien, Roster-Rollen, Rollen des Rollen-Ab
 | `src/services/discord/selfRole.js` | `privilegedReason`, `roleProblem`, `changeSelfRole` — der eine Weg, eine Rolle selbst zu holen |
 | `src/commands/channels/roleMessageButton.js` | Einstieg der Knöpfe (Komponente ohne Slash-Befehl) |
 | `src/web/apiRoutes/roleMessages.js` | Die API, Antwortform im Kopfkommentar |
+| `src/web-client/src/pages/channels/RoleMessagesPage.tsx` | Die Web-Seite: Liste + Editor-Dialog (`?edit=<id\|new>`) |
+| `src/web-client/src/pages/channels/RoleMessagePreview.tsx` | Vorschau der Discord-Karte (Knöpfe zu je 5, Reaktionszeile) |
+| `src/web-client/src/lib/discord/roleMessages.ts` | Client-Logik ohne React: gesperrte Rollen, Formular-Probleme, Fehlercodes und Gründe in Worten |
+
+## Web-Seite
+
+*System › Rollen-Nachrichten* (`/channels/roles`, im Menü versionsneutral wie *Kanäle*; mit `channels: read`
+nur die Liste, ohne Knöpfe).
+
+- **Liste:** Titel, Server, Kanal, Rollen als Zahl mit Wort (Tooltip mit den Namen), Link nach Discord;
+  Bearbeiten und Löschen (Löschen über den Bestätigungsdialog, nimmt auch die Discord-Nachricht weg).
+- **Editor** als Dialog über der Liste, links die Felder, rechts die Vorschau. Server (Event/Talk), Kanal nach
+  Kategorie gruppiert (Hinweis, wenn der Bot dort nicht reagieren darf — `canReact`), Titel, Text, Bild-URL,
+  eigene Farbe als Schalter. Rollen über „Rolle hinzufügen“: Suche, „Wählbar“ und „Nicht wählbar“; gesperrte
+  Rollen sind ausgegraut und nennen den Grund (die englischen Gründe aus `selfRole.js` übersetzt die Client-Lib).
+  Je Rolle Emoji (Unicode oder Server-Emoji), Knopf-Text (vorbelegt mit dem Rollennamen), Reihenfolge, Entfernen.
+- **Prüfen vor dem Klick:** dieselben Grenzen wie der Server; was fehlt, steht als Liste über dem Speichern-Knopf,
+  der bis dahin gesperrt bleibt. Ist der Bot offline oder fehlt „Rollen verwalten“, steht ein Hinweis oben.
+- **Antworten:** `warnings` des Servers erscheinen als Toast „Hinweis: …“; jeder Fehlercode hat einen Text in
+  de und en (`roleMessages.error.*`), bei `privileged_role`/`role_unusable` mit Rollenname und Grund.
+  `lib/discord/roleMessages.test.ts` prüft, dass jeder Code der Route und jeder Grund aus `selfRole.js`
+  übersetzt ist.
 
 ## API (Bereich `channels`: GET lesen, sonst schreiben)
 

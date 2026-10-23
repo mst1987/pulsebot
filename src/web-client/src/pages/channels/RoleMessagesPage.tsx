@@ -1,0 +1,520 @@
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useOutletContext } from "react-router-dom";
+import {
+    canAccess, createRoleMessage, deleteRoleMessage, getRoleMessageOptions, getRoleMessages, updateRoleMessage,
+    type RoleMessage, type RoleMessageInput, type RoleMessageLimits, type RoleMessageOptions, type RoleMessageRoleOption,
+    type RoleMessageSaved, type RoleMessageSide,
+} from "../../api";
+import { useApi } from "../../hooks/useApi";
+import type { ShellContext } from "../../components/shell/Shell";
+import { useToast } from "../../components/shell/Jobs";
+import { Badge, Button, DataTable, Field, IconButton, Modal, PageHead, Segment, Switch, useConfirm, type Column } from "../../components/ui";
+import { MenuRailPage } from "../../components/ui/SectionRail";
+import EmojiPicker from "../../components/ui/EmojiPicker";
+import RaidLoader from "../../components/ui/RaidLoader";
+import { AlertIcon, ChevronUpIcon, ExternalIcon, PenIcon, PlusIcon, SaveIcon, TrashIcon, XIcon } from "../../components/ui/icons";
+import { useCollectionEditor } from "../../lib/ui/collectionEditor";
+import { useDraftState } from "../../lib/ui/persistedState";
+import { useTableSort, type Dir } from "../../lib/ui/tableSort";
+import { previewEmoji } from "../../lib/discord/buttonEmoji";
+import {
+    ROLE_MESSAGE_LIMITS, colorToHex, groupChannels, problemText, roleBlockReason, roleMessageErrorText,
+    roleMessageProblems, toInput, type RoleMessageError,
+} from "../../lib/discord/roleMessages";
+import RoleMessagePreview from "./RoleMessagePreview";
+import "../../styles/role-messages.css";
+import { tParts, useT } from "../../i18n";
+
+// Rollen-Nachrichten (docs/role-messages.md): a message with a picture and one
+// button per role — a click gives or takes the role, an emoji adds the same as a
+// reaction. The list first, the editor as a dialog over it (?edit=<id|new>, as
+// every collection editor), with the Discord message it will post next to the
+// fields. Roles that carry rights (or that the bot cannot reach) are shown, but
+// greyed out with the reason — the server refuses them anyway.
+
+type SortKey = "title" | "server" | "channel" | "roles";
+const SORT_DEFAULTS: Record<SortKey, Dir> = { title: "asc", server: "asc", channel: "asc", roles: "desc" };
+const FORM_ID = "role-message-form";
+const EMPTY_OPTIONS = (side: RoleMessageSide): RoleMessageOptions => ({ guildSide: side, guildId: "", online: false, manageRoles: null, roles: [], channels: [], emojis: [] });
+
+/** The options of both servers, keyed by side. */
+type SideOptions = Record<RoleMessageSide, RoleMessageOptions>;
+
+function roleStyle(color: string): CSSProperties | undefined {
+    return color ? ({ "--rm-role": color } as CSSProperties) : undefined;
+}
+
+export default function RoleMessagesPage() {
+    const { user } = useOutletContext<ShellContext>();
+    return <MenuRailPage user={user} parent="channels"><RoleMessagesView /></MenuRailPage>;
+}
+
+function RoleMessagesView() {
+    const { user } = useOutletContext<ShellContext>();
+    const canWrite = canAccess(user, "channels", "write");
+    const t = useT();
+    const ask = useConfirm();
+    const toast = useToast();
+    const editor = useCollectionEditor("edit");
+    const sort = useTableSort<SortKey>("role-messages-sort", SORT_DEFAULTS, "title");
+
+    const loaded = useApi(() => getRoleMessages(), []);
+    const eventOpts = useApi(() => getRoleMessageOptions("event"), []);
+    const talkOpts = useApi(() => getRoleMessageOptions("talk"), []);
+    const options: SideOptions = {
+        event: eventOpts.data || EMPTY_OPTIONS("event"),
+        talk: talkOpts.data || EMPTY_OPTIONS("talk"),
+    };
+    const optionsReady = (!!eventOpts.data || !!eventOpts.error) && (!!talkOpts.data || !!talkOpts.error);
+
+    const [state, setState] = useState<FormState>({ dirty: false, problems: 0, saving: false, offline: false });
+    const clearDraftRef = useRef<(() => void) | null>(null);
+
+    if (loaded.error) return <div className="empty">{tParts("roleMessages.page.loadError", { message: loaded.error.message })}</div>;
+    if (!loaded.data || !optionsReady) return <RaidLoader text={t("roleMessages.page.loading")} />;
+
+    const { messages } = loaded.data;
+    const limits = loaded.data.limits || ROLE_MESSAGE_LIMITS;
+    const entry = editor.editId ? messages.find((m) => m.id === editor.editId) || null : null;
+
+    const channelName = (m: RoleMessage) => options[m.guildSide].channels.find((c) => c.id === m.channelId)?.name || "";
+    const roleOf = (side: RoleMessageSide, id: string) => options[side].roles.find((r) => r.id === id);
+    const roleName = (side: RoleMessageSide) => (id: string) => roleOf(side, id)?.name || t("roleMessages.list.unknownRole");
+
+    const close = () => {
+        clearDraftRef.current = null;
+        setState({ dirty: false, problems: 0, saving: false, offline: false });
+        editor.close();
+    };
+    const cancel = () => {
+        clearDraftRef.current?.();
+        close();
+    };
+    const afterSave = (saved: RoleMessageSaved, wasNew: boolean) => {
+        toast(wasNew ? t("roleMessages.toast.created") : saved.reposted ? t("roleMessages.toast.reposted") : t("roleMessages.toast.saved"));
+        for (const w of saved.warnings || []) toast(t("roleMessages.toast.warning", { warning: w }), "warn");
+        close();
+        loaded.reload();
+    };
+    const remove = async (m: RoleMessage) => {
+        if (!(await ask({ title: t("roleMessages.delete.title"), text: t("roleMessages.delete.text", { title: m.title }), action: t("common.delete") }))) return;
+        try {
+            const res = await deleteRoleMessage(m.id);
+            toast(res.messageDeleted ? t("roleMessages.toast.deleted") : t("roleMessages.toast.deletedGone"));
+            if (editor.open) close();
+            loaded.reload();
+        } catch (err) {
+            toast(roleMessageErrorText(err as RoleMessageError, roleName(m.guildSide), limits), "err");
+        }
+    };
+
+    const columns: Column<RoleMessage, SortKey>[] = [
+        {
+            id: "title", label: t("roleMessages.col.title"), sortKey: "title",
+            cell: (m) => <span className="rm-cell rm-title">{m.title}</span>,
+        },
+        {
+            id: "server", label: t("roleMessages.col.server"), sortKey: "server", width: 130,
+            cell: (m) => <span className="rm-cell rm-sub">{t(`roleMessages.side.${m.guildSide}`)}</span>,
+        },
+        {
+            id: "channel", label: t("roleMessages.col.channel"), sortKey: "channel", width: 190,
+            cell: (m) => <span className="rm-cell">{channelName(m) ? `#${channelName(m)}` : <span className="rm-sub">{t("roleMessages.list.unknownChannel")}</span>}</span>,
+        },
+        {
+            id: "roles", label: t("roleMessages.col.roles"), sortKey: "roles", width: 140,
+            tip: t("roleMessages.col.rolesTip"), tipSub: t("roleMessages.col.rolesSub"),
+            cell: (m) => (
+                <span className="rm-cell" data-tip={m.roles.map((r) => `@${roleName(m.guildSide)(r.roleId)}`).join(", ")}>
+                    {t("roleMessages.list.roles", { count: m.roles.length })}
+                </span>
+            ),
+        },
+        {
+            id: "link", width: 150,
+            cell: (m) => (m.url
+                ? <a className="rm-link" href={m.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}><ExternalIcon />{t("roleMessages.list.open")}</a>
+                : <span className="rm-sub">{t("roleMessages.list.notPosted")}</span>),
+        },
+    ];
+    if (canWrite) {
+        columns.push({
+            id: "acts", width: 84, actions: true,
+            cell: (m) => (
+                <div className="rm-acts">
+                    <IconButton icon={<PenIcon />} size="sm" tip={t("common.edit")} onClick={() => editor.startEdit(m.id)} />
+                    <IconButton icon={<TrashIcon />} size="sm" tone="danger" tip={t("common.delete")} onClick={() => remove(m)} />
+                </div>
+            ),
+        });
+    }
+
+    const sortValue = (m: RoleMessage, key: SortKey) => {
+        if (key === "server") return m.guildSide;
+        if (key === "channel") return channelName(m).toLowerCase();
+        if (key === "roles") return m.roles.length;
+        return m.title.toLowerCase();
+    };
+
+    // Notes over the list: a server the bot is not on, or on which it lacks Manage Roles.
+    const sides: RoleMessageSide[] = options.talk.guildId ? ["event", "talk"] : ["event"];
+    const notes = sides.flatMap((side) => {
+        const o = options[side];
+        const name = t(`roleMessages.side.${side}`);
+        if (!o.online) return [{ key: `${side}-off`, side: name, text: t("roleMessages.hint.offline") }];
+        if (o.manageRoles === false) return [{ key: `${side}-mr`, side: name, text: t("roleMessages.hint.manageRoles") }];
+        return [];
+    });
+
+    const saveDisabled = !canWrite || state.problems > 0 || state.offline || state.saving;
+
+    return (
+        <div className="rm-page">
+            <PageHead
+                icon="inv_shirt_guildtabard_01"
+                tone="channels"
+                kicker={t("roleMessages.page.kicker")}
+                title={t("roleMessages.page.title")}
+                meta={(
+                    <>
+                        <Badge tip={t("roleMessages.page.title")} tipSub={t("roleMessages.page.infoSub")}>{t("roleMessages.page.count", { count: messages.length })}</Badge>
+                        {!canWrite && <Badge tone="mid">{t("roleMessages.page.readOnly")}</Badge>}
+                    </>
+                )}
+                action={canWrite ? <Button variant="ghost" icon={<PlusIcon />} onClick={editor.startNew}>{t("roleMessages.page.new")}</Button> : undefined}
+            />
+
+            {notes.length > 0 && (
+                <ul className="rm-notes">
+                    {notes.map((n) => <li key={n.key} className="rm-note"><AlertIcon /><span><b>{n.side}:</b> {n.text}</span></li>)}
+                </ul>
+            )}
+
+            <div className="rm-table">
+                <DataTable
+                    rows={messages}
+                    columns={columns}
+                    rowKey={(m) => m.id}
+                    sort={sort}
+                    sortValue={sortValue}
+                    onRowClick={canWrite ? (m) => editor.startEdit(m.id) : undefined}
+                    rowClassName={canWrite ? "clickable" : undefined}
+                    empty={<div className="empty">{t("roleMessages.page.empty")}</div>}
+                />
+            </div>
+
+            <Modal
+                open={canWrite && !!editor.open}
+                onClose={close}
+                icon="inv_shirt_guildtabard_01"
+                tone="channels"
+                kicker={entry ? t("roleMessages.modal.kickerEdit") : t("roleMessages.modal.kickerNew")}
+                title={entry ? entry.title : t("roleMessages.page.new")}
+                width={1000}
+                hint={entry
+                    ? <Button variant="danger" size="sm" icon={<TrashIcon />} onClick={() => remove(entry)}>{t("common.delete")}</Button>
+                    : undefined}
+                footer={(
+                    <>
+                        {state.dirty && <Badge tone="mid" className="rm-draft" tip={t("roleMessages.modal.draft")} tipSub={t("roleMessages.modal.draftSub")}>{t("roleMessages.modal.draft")}</Badge>}
+                        {state.problems > 0 && <Badge tone="bad" icon={<AlertIcon />}>{t("roleMessages.modal.problems", { count: state.problems })}</Badge>}
+                        <Button variant="ghost" onClick={cancel}>{t("common.cancel")}</Button>
+                        <Button type="submit" variant="go" icon={<SaveIcon />} form={FORM_ID} disabled={saveDisabled} running={state.saving}>
+                            {entry ? t("common.save") : t("roleMessages.modal.saveNew")}
+                        </Button>
+                    </>
+                )}
+            >
+                {canWrite && editor.open && (
+                    <RoleMessageForm
+                        key={entry?.id ?? "new"}
+                        editing={entry}
+                        options={options}
+                        limits={limits}
+                        onSaved={afterSave}
+                        onState={(s, clear) => {
+                            clearDraftRef.current = clear;
+                            if (s.dirty !== state.dirty || s.problems !== state.problems || s.saving !== state.saving || s.offline !== state.offline) setState(s);
+                        }}
+                    />
+                )}
+            </Modal>
+        </div>
+    );
+}
+
+// ---- editor -------------------------------------------------------------------------
+
+type FormState = { dirty: boolean; problems: number; saving: boolean; offline: boolean };
+
+function initialInput(m: RoleMessage | null): RoleMessageInput {
+    return {
+        guildSide: m?.guildSide ?? "event",
+        channelId: m?.channelId ?? "",
+        title: m?.title ?? "",
+        body: m?.body ?? "",
+        imageUrl: m?.imageUrl ?? "",
+        color: colorToHex(m?.color),
+        roles: (m?.roles ?? []).map((r) => ({ roleId: r.roleId, emoji: r.emoji || "", label: r.label || "" })),
+    };
+}
+
+function Count({ count, max, label }: { count: number; max: number; label: string }) {
+    const t = useT();
+    return <span className={`rm-count${count > max ? " over" : ""}`}>{t(label, { count, max })}</span>;
+}
+
+export function RoleMessageForm({ editing, options, limits, onSaved, onState }: {
+    editing: RoleMessage | null;
+    options: SideOptions;
+    limits: RoleMessageLimits;
+    onSaved: (saved: RoleMessageSaved, wasNew: boolean) => void;
+    onState: (state: FormState, clearDraft: () => void) => void;
+}) {
+    const t = useT();
+    const toast = useToast();
+    const initial = useMemo(() => initialInput(editing), [editing]);
+    const [draft, patch, clearDraft] = useDraftState<RoleMessageInput>(`role-message:${editing?.id ?? "new"}`, initial);
+    const [saving, setSaving] = useState(false);
+    const [picking, setPicking] = useState(false);
+    const [search, setSearch] = useState("");
+
+    const side = options[draft.guildSide];
+    const roles = side.roles;
+    const problems = roleMessageProblems(draft, roles, limits);
+    const offline = !side.online;
+    const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
+    const roleName = (id: string) => roles.find((r) => r.id === id)?.name || t("roleMessages.list.unknownRole");
+
+    useEffect(() => { onState({ dirty, problems: problems.length, saving, offline }, clearDraft); });
+
+    const channel = side.channels.find((c) => c.id === draft.channelId);
+    const groups = groupChannels(side.channels);
+    const used = new Set(draft.roles.map((r) => r.roleId));
+    const full = draft.roles.length >= limits.roles;
+    const reactions = draft.roles.filter((r) => r.emoji.trim()).length;
+
+    const setSide = (s: RoleMessageSide) => {
+        if (s === draft.guildSide) return;
+        // channels and roles belong to a server: another server starts them empty
+        patch({ guildSide: s, channelId: "", roles: [] });
+    };
+    const setRole = (index: number, fields: Partial<RoleMessageInput["roles"][number]>) =>
+        patch({ roles: draft.roles.map((r, i) => (i === index ? { ...r, ...fields } : r)) });
+    const removeRole = (index: number) => patch({ roles: draft.roles.filter((_, i) => i !== index) });
+    const moveUp = (index: number) => {
+        const next = [...draft.roles];
+        [next[index - 1], next[index]] = [next[index], next[index - 1]];
+        patch({ roles: next });
+    };
+    const addRole = (role: RoleMessageRoleOption) => {
+        if (roleBlockReason(role) || used.has(role.id) || full) return;
+        patch({ roles: [...draft.roles, { roleId: role.id, emoji: "", label: role.name }] });
+        setSearch("");
+        if (draft.roles.length + 1 >= limits.roles) setPicking(false);
+    };
+
+    const submit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (problems.length || offline || saving) return;
+        setSaving(true);
+        try {
+            const input = toInput(draft, roles);
+            const saved = editing ? await updateRoleMessage(editing.id, input) : await createRoleMessage(input);
+            clearDraft();
+            onSaved(saved, !editing);
+        } catch (err) {
+            toast(roleMessageErrorText(err as RoleMessageError, roleName, limits), "err");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const q = search.trim().toLowerCase();
+    const matching = roles.filter((r) => r.name !== "@everyone" && (!q || r.name.toLowerCase().includes(q)));
+    const pickable = matching.filter((r) => !roleBlockReason(r));
+    const blocked = matching.filter((r) => roleBlockReason(r));
+
+    const sideOptions = (["event", "talk"] as RoleMessageSide[]).map((s) => ({
+        value: s,
+        label: t(`roleMessages.side.${s}`),
+        disabled: s === "talk" && !options.talk.guildId,
+        tip: s === "talk" && !options.talk.guildId ? t("roleMessages.side.talkMissing") : undefined,
+    }));
+
+    const previewRoles = draft.roles.map((r) => ({ ...r, name: roles.find((x) => x.id === r.roleId)?.name || "" }));
+
+    return (
+        <form id={FORM_ID} className="rm-grid" onSubmit={submit} noValidate>
+            <div>
+                {offline && <div className="rm-note"><AlertIcon /><span>{t("roleMessages.hint.offline")}</span></div>}
+                <div className="rm-pair">
+                    <Field label={t("roleMessages.form.server")}>
+                        <Segment options={sideOptions} value={draft.guildSide} onChange={setSide} ariaLabel={t("roleMessages.form.server")} />
+                    </Field>
+                    <Field label={t("roleMessages.form.channel")} htmlFor="rm-channel">
+                        <select id="rm-channel" value={draft.channelId} onChange={(e) => patch({ channelId: e.target.value })} disabled={offline}>
+                            <option value="">{t("roleMessages.form.channelPick")}</option>
+                            {draft.channelId && !channel && <option value={draft.channelId}>{t("roleMessages.list.unknownChannel")}</option>}
+                            {groups.map((g) => (
+                                <optgroup key={g.category || "-"} label={g.category || t("roleMessages.form.noCategory")}>
+                                    {g.channels.map((c) => <option key={c.id} value={c.id}>#{c.name}</option>)}
+                                </optgroup>
+                            ))}
+                        </select>
+                        {channel && channel.canReact === false && reactions > 0 && (
+                            <div className="rm-cant"><AlertIcon /><span>{t("roleMessages.form.cantReact")}</span></div>
+                        )}
+                    </Field>
+                </div>
+
+                <Field label={t("roleMessages.form.title")} htmlFor="rm-title" hint={<Count count={draft.title.trim().length} max={limits.title} label="roleMessages.form.length" />}>
+                    <input id="rm-title" type="text" value={draft.title} onChange={(e) => patch({ title: e.target.value })} placeholder={t("roleMessages.form.titlePlaceholder")} />
+                </Field>
+                <Field label={t("roleMessages.form.body")} htmlFor="rm-body" tip={t("roleMessages.form.body")} tipSub={t("roleMessages.form.bodySub")}
+                    hint={<Count count={draft.body.trim().length} max={limits.body} label="roleMessages.form.length" />}
+                >
+                    <textarea id="rm-body" value={draft.body} onChange={(e) => patch({ body: e.target.value })} placeholder={t("roleMessages.form.bodyPlaceholder")} />
+                </Field>
+                <div className="rm-pair">
+                    <Field label={t("roleMessages.form.image")} htmlFor="rm-image" tip={t("roleMessages.form.image")} tipSub={t("roleMessages.form.imageSub")}>
+                        <input id="rm-image" type="url" inputMode="url" value={draft.imageUrl} onChange={(e) => patch({ imageUrl: e.target.value })} placeholder={t("roleMessages.form.imagePlaceholder")} />
+                    </Field>
+                    <Field label={t("roleMessages.form.colorField")} tip={t("roleMessages.form.colorField")} tipSub={t("roleMessages.form.colorSub")}>
+                        <div className="rm-color">
+                            <Switch checked={draft.color !== null} onChange={(on) => patch({ color: on ? draft.color || "#8a7cff" : null })} label={t("roleMessages.form.color")} />
+                            {draft.color !== null && (
+                                <input type="color" value={draft.color} onChange={(e) => patch({ color: e.target.value })} aria-label={t("roleMessages.form.colorPick")} data-tip={t("roleMessages.form.colorPick")} />
+                            )}
+                        </div>
+                    </Field>
+                </div>
+
+                <div className="field">
+                    <div className="rm-roles-head">
+                        <div className="field-label">
+                            <span>{t("roleMessages.form.roles")}</span>
+                            <span className="info" tabIndex={0} role="img" aria-label={t("roleMessages.form.roles")} data-tip={t("roleMessages.form.roles")} data-tip-sub={t("roleMessages.form.rolesSub")}>i</span>
+                        </div>
+                        <div className="rm-counts">
+                            <Count count={draft.roles.length} max={limits.roles} label="roleMessages.form.rolesCount" />
+                            <Count count={reactions} max={limits.reactions} label="roleMessages.form.reactionsCount" />
+                        </div>
+                    </div>
+                    {draft.roles.length
+                        ? (
+                            <ol className="rm-rows">
+                                {draft.roles.map((r, i) => {
+                                    const opt = roles.find((x) => x.id === r.roleId);
+                                    const name = opt?.name || t("roleMessages.list.unknownRole");
+                                    const bad = roles.length > 0 && (!opt || !!roleBlockReason(opt));
+                                    return (
+                                        <li key={r.roleId + i} className={`rm-row${bad ? " rm-row-bad" : ""}`}>
+                                            <span className="rm-role-name" data-tip={bad && opt ? roleBlockReason(opt) : undefined}>
+                                                <span className="rm-dot" style={roleStyle(opt?.color || "")} />
+                                                <span>@{name}</span>
+                                            </span>
+                                            <EmojiField value={r.emoji} emojis={side.emojis} label={t("roleMessages.form.emoji", { role: name })} onChange={(emoji) => setRole(i, { emoji })} />
+                                            <input
+                                                type="text"
+                                                value={r.label}
+                                                onChange={(e) => setRole(i, { label: e.target.value })}
+                                                placeholder={name}
+                                                aria-label={t("roleMessages.form.label", { role: name })}
+                                                data-tip={t("roleMessages.form.label", { role: name })}
+                                            />
+                                            <span className="rm-row-acts">
+                                                {i > 0 && <IconButton icon={<ChevronUpIcon />} size="sm" tone="ghost" tip={t("roleMessages.form.moveUp", { role: name })} onClick={() => moveUp(i)} />}
+                                                <IconButton icon={<XIcon />} size="sm" tone="danger" tip={t("roleMessages.form.remove", { role: name })} onClick={() => removeRole(i)} />
+                                            </span>
+                                        </li>
+                                    );
+                                })}
+                            </ol>
+                        )
+                        : <div className="rm-empty-roles">{t("roleMessages.form.noRoles")}</div>}
+
+                    <span className="rm-add" data-tip={offline ? t("roleMessages.form.addRoleOffline") : full ? t("roleMessages.form.addRoleFull", { max: limits.roles }) : undefined}>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            icon={<PlusIcon />}
+                            pressed={picking}
+                            disabled={offline || full}
+                            onClick={() => setPicking(!picking)}
+                        >
+                            {t("roleMessages.form.addRole")}
+                        </Button>
+                    </span>
+                    {picking && !offline && !full && (
+                        <div className="rm-pick">
+                            <input
+                                type="search"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder={t("roleMessages.form.searchPlaceholder")}
+                                aria-label={t("roleMessages.form.search")}
+                                autoFocus
+                            />
+                            <div className="rm-pick-list">
+                                {!matching.length && <div className="rm-empty-roles">{t("roleMessages.form.noMatch")}</div>}
+                                {pickable.length > 0 && <div className="rm-pick-head">{t("roleMessages.form.pickable")}</div>}
+                                {pickable.map((r) => (
+                                    <button key={r.id} type="button" className="rm-opt" disabled={used.has(r.id)} onClick={() => addRole(r)}>
+                                        <span className="rm-dot" style={roleStyle(r.color)} />
+                                        <span className="rm-opt-name">@{r.name}</span>
+                                        <span className="rm-opt-why">{used.has(r.id) ? t("roleMessages.form.used") : ""}</span>
+                                    </button>
+                                ))}
+                                {blocked.length > 0 && <div className="rm-pick-head">{t("roleMessages.form.blocked")}</div>}
+                                {blocked.map((r) => (
+                                    <button key={r.id} type="button" className="rm-opt" disabled data-tip={roleBlockReason(r)}>
+                                        <span className="rm-dot" style={roleStyle(r.color)} />
+                                        <span className="rm-opt-name">@{r.name}</span>
+                                        <span className="rm-opt-why">{roleBlockReason(r)}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {problems.length > 0 && (
+                    <ul className="rm-problems" role="alert">
+                        {problems.map((p, i) => <li key={`${p.code}-${i}`}><AlertIcon />{problemText(p, limits, roleName)}</li>)}
+                    </ul>
+                )}
+            </div>
+            <aside>
+                <div className="field-label"><span>{t("roleMessages.form.preview")}</span></div>
+                <RoleMessagePreview title={draft.title} body={draft.body} imageUrl={draft.imageUrl} color={draft.color} roles={previewRoles} emojis={side.emojis} />
+            </aside>
+        </form>
+    );
+}
+
+/** A role's emoji: a Unicode emoji or one of the server's own (stored as its <:name:id> code). */
+function EmojiField({ value, emojis, label, onChange }: {
+    value: string;
+    emojis: RoleMessageOptions["emojis"];
+    label: string;
+    onChange: (emoji: string) => void;
+}) {
+    const t = useT();
+    const parsed = previewEmoji(value);
+    const currentCustom = parsed?.kind === "custom" ? emojis.find((e) => e.id === parsed.id) || { id: parsed.id, name: parsed.name, url: parsed.url } : null;
+    return (
+        <span className="rm-emoji">
+            <EmojiPicker
+                label={label}
+                current={parsed?.kind === "unicode" ? parsed.text : ""}
+                host="dialog"
+                onPick={onChange}
+                custom={emojis.length ? { label: t("emoji.server"), emojis } : undefined}
+                onPickCustom={(e) => onChange(emojis.find((x) => x.id === e.id)?.code || `<:${e.name}:${e.id}>`)}
+                currentCustom={currentCustom}
+            />
+            {value && <IconButton icon={<XIcon />} size="sm" tone="ghost" tip={t("roleMessages.form.emojiClear")} onClick={() => onChange("")} />}
+        </span>
+    );
+}

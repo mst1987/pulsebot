@@ -1,0 +1,170 @@
+/* Rollen-Nachrichten (pages/channels/RoleMessagesPage.tsx): the list, the editor
+   dialog and its Discord preview. Everything is scoped under .rm-page or named rm-*;
+   the editor is a <dialog> rendered inside the page, so the variables reach it.
+   The preview follows the theme like Discord itself (dark / light palette). */
+.rm-page {
+    --rm-bg: var(--discord-dark-bg); --rm-text: var(--discord-dark-text); --rm-strong: var(--discord-dark-strong);
+    --rm-muted: var(--discord-dark-muted); --rm-code: var(--discord-dark-code); --rm-quote: var(--discord-dark-quote);
+    --rm-mention: var(--discord-dark-mention); --rm-mention-text: var(--discord-dark-mention-text);
+    --rm-card: var(--discord-dark-card); --rm-secondary: var(--discord-dark-secondary); --rm-reaction: var(--discord-dark-reaction);
+}
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .rm-page {
+        --rm-bg: var(--discord-light-bg); --rm-text: var(--discord-light-text); --rm-strong: var(--discord-light-strong);
+        --rm-muted: var(--discord-light-muted); --rm-code: var(--discord-light-code); --rm-quote: var(--discord-light-quote);
+        --rm-mention: var(--discord-light-mention); --rm-mention-text: var(--discord-light-mention-text);
+        --rm-card: var(--discord-light-card); --rm-secondary: var(--discord-light-secondary); --rm-reaction: var(--discord-light-reaction);
+    }
+}
+:root[data-theme="light"] .rm-page {
+    --rm-bg: var(--discord-light-bg); --rm-text: var(--discord-light-text); --rm-strong: var(--discord-light-strong);
+    --rm-muted: var(--discord-light-muted); --rm-code: var(--discord-light-code); --rm-quote: var(--discord-light-quote);
+    --rm-mention: var(--discord-light-mention); --rm-mention-text: var(--discord-light-mention-text);
+    --rm-card: var(--discord-light-card); --rm-secondary: var(--discord-light-secondary); --rm-reaction: var(--discord-light-reaction);
+}
+
+/* ---- notes over the list (bot offline, Manage Roles missing) ---- */
+.rm-notes { display: flex; flex-direction: column; gap: 6px; margin: 0 0 14px; padding: 0; list-style: none; max-width: 860px; }
+.rm-note {
+    display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; font-size: 13.5px; line-height: 1.45;
+    border-left: 3px solid var(--medium); background: var(--medium-bg);
+}
+.rm-note svg { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--medium); }
+.rm-note b { font-weight: 600; }
+
+/* ---- list ---- */
+.rm-table { max-width: 1100px; }
+.rm-table table { table-layout: fixed; }
+.rm-table td { vertical-align: middle; }
+/* narrow: fewer columns instead of a page that scrolls sideways (columns: title, server, channel, roles, link, actions) */
+@media (max-width: 900px) {
+    .rm-table th:nth-child(2), .rm-table td:nth-child(2), .rm-table th:nth-child(5), .rm-table td:nth-child(5) { display: none; }
+}
+@media (max-width: 640px) {
+    .rm-table th:nth-child(3), .rm-table td:nth-child(3) { display: none; }
+}
+.rm-cell { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rm-title { font-weight: 600; }
+.rm-sub { color: var(--muted); font-size: 12.5px; }
+.rm-acts { display: flex; gap: 4px; justify-content: flex-end; }
+.rm-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text); font-size: 13px; }
+.rm-link svg { width: 14px; height: 14px; }
+.rm-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--rm-role, var(--muted)); flex: none; }
+
+/* ---- editor ---- */
+.rm-grid { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 24px; align-items: start; }
+.rm-grid > aside { position: sticky; top: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+@media (max-width: 1000px) {
+    .rm-grid { grid-template-columns: minmax(0, 1fr); }
+    .rm-grid > aside { position: static; }
+}
+.rm-grid .field input:not([type=checkbox]):not([type=radio]), .rm-grid .field select { max-width: none; }
+.rm-grid .field textarea { min-height: 110px; }
+.rm-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 16px; }
+@media (max-width: 560px) { .rm-pair { grid-template-columns: minmax(0, 1fr); } }
+.rm-count { color: var(--muted); font-size: var(--fs-label); font-variant-numeric: tabular-nums; }
+.rm-count.over { color: var(--high); font-weight: 600; }
+.rm-cant { display: flex; align-items: flex-start; gap: 6px; color: var(--medium); font-size: 12.5px; margin-top: 6px; line-height: 1.4; }
+.rm-cant svg { width: 14px; height: 14px; flex: none; margin-top: 1px; }
+.rm-color { display: flex; align-items: center; gap: 12px; min-height: var(--ctl-h); flex-wrap: wrap; }
+/* a switch inside a .field: undo the block label of base.css (.field label) */
+.rm-color .switch-row { display: flex; margin: 0; font-size: 13.5px; color: var(--text); }
+.rm-grid .field .rm-color input[type=color] {
+    width: 44px; height: var(--ctl-h-sm); min-height: 0; padding: 2px; border: 1px solid var(--line); border-radius: var(--ctl-radius);
+    background: var(--panel2); cursor: pointer;
+}
+
+/* the role rows: colour + name, emoji, button text, order, remove */
+.rm-roles-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.rm-roles-head .field-label { margin-bottom: 0; }
+.rm-counts { display: flex; gap: 12px; }
+.rm-rows { display: flex; flex-direction: column; margin: 0 0 8px; padding: 0; list-style: none; border-top: 1px solid var(--line-soft); }
+.rm-row {
+    display: grid; grid-template-columns: minmax(0, .9fr) auto minmax(0, 1.2fr) auto; gap: 8px; align-items: center;
+    padding: 6px 0; border-bottom: 1px solid var(--line-soft);
+}
+.rm-row.rm-row-bad .rm-role-name { color: var(--high); }
+.rm-row input { width: 100%; min-height: var(--ctl-h-sm); padding: 5px 10px; }
+.rm-role-name { display: flex; align-items: center; gap: 7px; min-width: 0; font-weight: 600; font-size: 14px; }
+.rm-role-name > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rm-row-acts { display: flex; gap: 2px; }
+.rm-emoji { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+/* the emoji trigger (shared ui class, not named here) at the row height */
+.rm-emoji > button:not(.ibtn) { width: var(--ctl-h-sm); height: var(--ctl-h-sm); }
+@media (max-width: 560px) {
+    .rm-row { grid-template-columns: auto minmax(0, 1fr) auto; }
+    .rm-row .rm-role-name { grid-column: 1 / -1; }
+}
+.rm-empty-roles { color: var(--muted); font-size: 13px; padding: 10px 0; }
+.rm-add { display: inline-block; margin-top: 8px; }
+
+/* the role picker under the rows */
+.rm-pick { border: 1px solid var(--line); background: var(--panel2); padding: 10px; margin-top: 6px; }
+.rm-pick input { width: 100%; min-height: var(--ctl-h-sm); padding: 5px 10px; margin-bottom: 8px; }
+.rm-pick-list { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; }
+.rm-pick-head { font-size: var(--fs-label); color: var(--muted); font-weight: 600; padding: 6px 4px 2px; }
+.rm-opt {
+    display: grid; grid-template-columns: auto minmax(0, auto) minmax(0, 1fr); gap: 8px; align-items: center; text-align: left;
+    padding: 5px 6px; border: 0; background: none; color: var(--text); font: inherit; font-size: 13.5px; cursor: pointer; border-radius: 3px;
+}
+.rm-opt:hover:not(:disabled), .rm-opt:focus-visible { background: var(--panel3); }
+.rm-opt:disabled { cursor: not-allowed; color: var(--muted); }
+.rm-opt-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rm-opt-why { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rm-opt:disabled .rm-dot { opacity: .45; }
+
+.rm-problems { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 0; padding: 0; list-style: none; font-size: 13px; color: var(--high); }
+.rm-problems li { display: flex; align-items: center; gap: 6px; }
+.rm-problems svg { width: 14px; height: 14px; flex: none; }
+.rm-draft { margin-right: auto; }
+
+/* ---- Discord preview: the bot's message, a card with accent bar, picture, buttons; reactions under it ---- */
+.rm-dc {
+    background: var(--rm-bg); color: var(--rm-text); border: 1px solid var(--line); border-radius: 8px; padding: 14px 14px 16px;
+    font-family: "gg sans", "Noto Sans", "Segoe UI", sans-serif; font-size: 15px; line-height: 1.375; min-width: 0;
+}
+.rm-dc-row { display: flex; gap: 12px; }
+.rm-dc-ava {
+    width: 40px; height: 40px; border-radius: 50%; flex: none; display: grid; place-items: center;
+    background: var(--accent); color: var(--accent-ink);
+}
+.rm-dc-ava svg { width: 22px; height: 22px; }
+.rm-dc-msg { min-width: 0; flex: 1; }
+.rm-dc-meta { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; }
+.rm-dc-name { font-weight: 600; color: var(--rm-strong); }
+.rm-dc-tag { background: var(--discord-blurple); color: var(--on-fill); font-size: 10px; font-weight: 700; border-radius: 3px; padding: 0 4px; line-height: 15px; }
+.rm-dc-time { color: var(--rm-muted); font-size: 12px; }
+.rm-dc-card {
+    margin-top: 6px; background: var(--rm-card); border-radius: 8px; border-left: 4px solid var(--rm-accent, var(--discord-card-accent));
+    padding: 12px 14px 14px; min-width: 0;
+}
+.rm-dc-h { color: var(--rm-strong); font-weight: 700; line-height: 1.3; margin: 0 0 4px; overflow-wrap: anywhere; }
+.rm-dc-h1 { font-size: 22px; }
+.rm-dc-h2 { font-size: 19px; }
+.rm-dc-h3 { font-size: 16px; }
+.rm-dc-h.rm-dc-empty { color: var(--rm-muted); font-style: italic; font-weight: 600; }
+.rm-dc-p { margin: 4px 0 0; overflow-wrap: anywhere; }
+.rm-dc-sub { color: var(--rm-muted); font-size: 13px; margin-top: 4px; }
+.rm-dc-list { margin: 4px 0 0; padding-left: 22px; }
+.rm-dc-quote { margin: 6px 0 0; padding-left: 12px; border-left: 4px solid var(--rm-quote); }
+.rm-dc strong { color: var(--rm-strong); }
+.rm-dc-code { background: var(--rm-code); border-radius: 4px; padding: 0 4px; font-family: var(--font-mono); font-size: 13px; }
+.rm-dc-uni { font-size: 1.15em; line-height: 1; }
+.rm-dc-emo { width: 22px; height: 22px; object-fit: contain; vertical-align: -5px; display: inline-block; }
+.rm-dc-mention { background: var(--rm-mention); color: var(--rm-mention-text); border-radius: 3px; padding: 0 2px; font-weight: 500; }
+.rm-dc-img { display: block; margin-top: 10px; max-width: 100%; max-height: 260px; border-radius: 6px; object-fit: cover; }
+.rm-dc-sep { border: 0; border-top: 1px solid var(--rm-quote); margin: 12px 0 10px; opacity: .6; }
+.rm-dc-btns { display: flex; flex-direction: column; gap: 8px; }
+.rm-dc-btnrow { display: flex; flex-wrap: wrap; gap: 8px; }
+.rm-dc-btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: 6px; max-width: 100%;
+    background: var(--rm-secondary); color: var(--on-fill); font-size: 14px; font-weight: 500; min-width: 0;
+}
+.rm-dc-btn > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rm-dc-btn .rm-dc-emo { width: 18px; height: 18px; vertical-align: 0; }
+.rm-dc-reacts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.rm-dc-react {
+    display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 7px; border-radius: 8px;
+    background: var(--rm-reaction); border: 1px solid transparent; font-size: 14px; font-weight: 600; color: var(--rm-muted);
+}
+.rm-dc-react .rm-dc-emo { width: 16px; height: 16px; vertical-align: 0; }
