@@ -393,7 +393,7 @@
         },
         "channels": {
             "label": "Discord",
-            "description": "Create and duplicate Discord channels, post role messages."
+            "description": "Create and duplicate Discord channels, post role messages. Also shows the member list of both servers with roster status and characters from all categories."
         },
         "settings": {
             "label": "Settings",

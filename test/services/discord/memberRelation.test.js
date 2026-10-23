@@ -1,6 +1,6 @@
 // How an account is tied to the raids (src/services/discord/memberRelation.js): open rosters
-// with status, characters from profile, rosters and category assignments (each name once,
-// class from the profile), and the index for a whole server answering the same.
+// with status, characters from profile, rosters and category assignments (once per version
+// and name, class from the profile, the open rosters each stands in), and the index for a whole server answering the same.
 const mockRosters = [];
 const mockProfiles = {};
 const mockAssignments = {};
@@ -51,10 +51,28 @@ describe("memberRelation relationOf", () => {
 
     it("lists each character once, the class from the profile, a roster name without one, assignments last", () => {
         expect(relationOf(U1).characters).toEqual([
-            { name: "Ostrava", className: "Shaman", versionId: "tbc" },
-            { name: "Heiltrank", className: "", versionId: "tbc" },
-            { name: "Dritter", className: "", versionId: "" },
+            { name: "Ostrava", className: "Shaman", versionId: "tbc", rosterIds: ["r1"] },
+            { name: "Heiltrank", className: "", versionId: "tbc", rosterIds: ["r1"] },
+            { name: "Dritter", className: "", versionId: "", rosterIds: [] },
         ]);
+    });
+
+    it("keeps a TBC and a Forever character of the same name apart, each with its own rosters", () => {
+        mockProfiles[U1].characters.push({ key: "ostrava-forever", name: "Ostrava", className: "Evoker", versionId: "forever" });
+        mockRosters[2].members[U1].chars = ["ostrava-forever"];
+        mockRosters.push({ id: "r4", name: "TBC Twink", categoryId: "c4", versionId: "tbc", members: { [U1]: { status: "core", chars: ["ostrava-tbc"] } } });
+        const chars = relationOf(U1).characters;
+        expect(chars.filter((c) => c.name === "Ostrava")).toEqual([
+            { name: "Ostrava", className: "Shaman", versionId: "tbc", rosterIds: ["r1", "r4"] },
+            { name: "Ostrava", className: "Evoker", versionId: "forever", rosterIds: ["r3"] },
+        ]);
+        // the assignment "ostrava" (no version) adds nothing: the name is known
+        expect(chars.map((c) => c.name)).toEqual(["Ostrava", "Ostrava", "Heiltrank", "Dritter"]);
+    });
+
+    it("takes the open rosters from the caller when given", () => {
+        const rosters = [mockRosters[2]];
+        expect(relationOf(U1, { rosters }).rosters.map((r) => r.id)).toEqual(["r3"]);
     });
 
     it("is empty for no id and for an account without anything", () => {
@@ -73,7 +91,7 @@ describe("memberRelation relationIndex", () => {
     it("answers like relationOf for every account, the stores read once", () => {
         const index = relationIndex();
         expect(index.of(U1)).toEqual(relationOf(U1));
-        expect(index.of(U2)).toEqual({ rosters: [], characters: [{ name: "Fremder", className: "", versionId: "" }] });
+        expect(index.of(U2)).toEqual({ rosters: [], characters: [{ name: "Fremder", className: "", versionId: "", rosterIds: [] }] });
         expect(index.of("")).toEqual({ rosters: [], characters: [] });
         expect(index.rosters.map((r) => r.id)).toEqual(["r1", "r3"]);
     });

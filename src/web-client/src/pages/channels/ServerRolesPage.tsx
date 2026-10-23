@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useSearchParams } from "react-router-dom";
 import { getServerRoles, type DiscordSide, type ServerRole, type ServerRoles } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import type { ShellContext } from "../../components/shell/Shell";
@@ -10,6 +10,7 @@ import RaidLoader from "../../components/ui/RaidLoader";
 import { useTableSort, type TableSort } from "../../lib/ui/tableSort";
 import { permissionLabel } from "../../lib/discord/permissions";
 import { assignView, commonSensitiveItems, dividerAt, ranks, roleUseLines } from "../../lib/discord/serverRoles";
+import { roleColorVars } from "../../lib/discord/roleColor";
 import ServerRoleDrawer from "./ServerRoleDrawer";
 import "../../styles/server-roles.css";
 import { useT } from "../../i18n";
@@ -32,9 +33,16 @@ const SENSITIVE_SHOWN = 2;
 export default function ServerRolesPage() {
     const { user } = useOutletContext<ShellContext>();
     const t = useT();
-    const [side, setSide] = useState<DiscordSide>("event");
+    // the open role lives in the URL (`?role=<id>`, `&side=talk` on the talk server): opening adds a
+    // history step the browser's back button undoes (push), closing and switching the side replace
+    // it — as on the members page
+    const [params, setParams] = useSearchParams();
+    const [side, setSide] = useState<DiscordSide>(() => (params.get("side") === "talk" ? "talk" : "event"));
     const [onlyHints, setOnlyHints] = useState(false);
-    const [openId, setOpenId] = useState<string | null>(null);
+    const openId = params.get("role");
+    const query = (next: DiscordSide, id: string | null) => ({ ...(id ? { role: id } : {}), ...(next === "talk" ? { side: "talk" } : {}) });
+    const open = (id: string) => setParams(query(side, id));
+    const close = () => setParams(query(side, null), { replace: true });
     const state = useApi(() => getServerRoles(side), [side]);
     const sort = useTableSort<SortKey>("server-roles-sort", SORT_DEFAULTS, "pos");
     const data = state.data && state.data.side === side ? state.data : null;
@@ -42,7 +50,7 @@ export default function ServerRolesPage() {
     const rankOf = useMemo(() => ranks(data ? data.roles : []), [data]);
     const counted = data ? data.roles.filter((r) => !r.everyone).length : 0;
 
-    const pickSide = (next: DiscordSide) => { setSide(next); setOpenId(null); };
+    const pickSide = (next: DiscordSide) => { setSide(next); setParams(query(next, null), { replace: true }); };
     const sideSegment = (
         <Segment<DiscordSide>
             ariaLabel={t("discord.roles.page.server")}
@@ -70,13 +78,13 @@ export default function ServerRolesPage() {
             {data && (
                 <RolesView
                     data={data} rankOf={rankOf} counted={counted} sideSegment={sideSegment} onlyHints={onlyHints} setOnlyHints={setOnlyHints}
-                    sort={sort} openId={openId} onOpen={setOpenId}
+                    sort={sort} openId={openId} onOpen={open}
                 />
             )}
-            {data && openId && (
+            {data && data.guildId && openId && (
                 <ServerRoleDrawer
                     side={side} roleId={openId} guildName={data.guildName}
-                    rank={rankOf.get(openId) ?? null} counted={counted} onClose={() => setOpenId(null)}
+                    rank={rankOf.get(openId) ?? null} counted={counted} onClose={close}
                 />
             )}
         </div>
@@ -217,12 +225,12 @@ function RoleRow({ role, rank, botName, open, onOpen, botMarker }: {
         ...role.sensitive.filter((k) => !outliers.has(k)),
     ].map((k) => ({ key: k, label: permissionLabel(k), outlier: outliers.has(k) }));
     const outlierLabels = sensitive.filter((s) => s.outlier).map((s) => s.label);
-    const colour = role.color ? ({ "--drl-color": role.color } as CSSProperties) : undefined;
+    const colour = roleColorVars("drl", role.color) as CSSProperties | undefined;
     return (
         <tr className={`drl-row${open ? " drl-open" : ""}`} onClick={() => onOpen(role.id)}>
             <td className="drl-c-pos drl-pos">{rank === null ? "–" : rank}</td>
             <td className="drl-c-role">
-                <button type="button" className={`drl-name${role.color ? " drl-coloured" : ""}`} style={colour} onClick={(e) => { e.stopPropagation(); onOpen(role.id); }} aria-expanded={open}>
+                <button type="button" className={`drl-name${colour ? " drl-coloured" : ""}`} style={colour} onClick={(e) => { e.stopPropagation(); onOpen(role.id); }} aria-expanded={open}>
                     <span className="drl-dot" aria-hidden="true" />
                     {role.everyone ? "@everyone" : role.name}
                 </button>

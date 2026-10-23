@@ -393,7 +393,7 @@
         },
         "channels": {
             "label": "Discord",
-            "description": "Discord-Kanäle anlegen und duplizieren, Rollen-Nachrichten posten."
+            "description": "Discord-Kanäle anlegen und duplizieren, Rollen-Nachrichten posten. Zeigt auch die Mitgliederliste beider Server mit Roster-Status und Charakteren aus allen Kategorien."
         },
         "settings": {
             "label": "Einstellungen",

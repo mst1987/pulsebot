@@ -17,7 +17,12 @@ const mockDiscord = {
 };
 jest.mock("../../../src/services/discord/discord", () => mockDiscord);
 const mockRelation = { rosters: [], of: jest.fn(() => ({ rosters: [], characters: [] })) };
-jest.mock("../../../src/services/discord/memberRelation", () => ({ relationIndex: () => mockRelation }));
+const mockRelationIndex = jest.fn(() => mockRelation);
+jest.mock("../../../src/services/discord/memberRelation", () => ({
+    relationIndex: () => mockRelationIndex(),
+    relationOf: (uid, opts) => mockRelation.of(uid, opts),
+    openRosters: () => mockRelation.rosters,
+}));
 
 const { listServerMembers, serverMemberDetail, memberCount, visibleChannels } = require("../../../src/services/discord/serverMembers");
 
@@ -125,7 +130,10 @@ describe("serverMembers listServerMembers", () => {
 describe("serverMembers serverMemberDetail", () => {
     it("gives the member, its roles and the channels it sees, by category", async () => {
         const out = await serverMemberDetail("event", "2");
-        expect(out.member).toMatchObject({ id: "2", name: "Anna" });
+        expect(out.member).toMatchObject({ id: "2", name: "Anna", missingRosters: [{ id: "r1", name: "TBC Main" }] });
+        // one account: its relation alone, with the open rosters read once, never the whole index
+        expect(mockRelationIndex).not.toHaveBeenCalled();
+        expect(mockRelation.of).toHaveBeenCalledWith("2", { rosters: mockRelation.rosters });
         expect(out.roles).toEqual([{ id: TRIAL, name: "Probe", color: "", position: 3 }]);
         expect(out.channels).toEqual([
             { id: "", name: "", visible: 1, total: 1, channels: [{ id: "300000000000000010", name: "willkommen", kind: "text" }] },
@@ -139,14 +147,16 @@ describe("serverMembers serverMemberDetail", () => {
         expect(out.channels[1].channels.map((c) => c.kind)).toEqual(["text", "voice", "forum"]);
     });
 
-    it("finds a member in the guild cache when the list timed out, null when unknown", async () => {
+    it("finds a member in the guild cache when the list timed out, gone when unknown", async () => {
         const guild = makeGuild();
         guild.members.cache.set("7", member("7", "Gast", []));
         mockDiscord.getGuild.mockReturnValue(guild);
         mockDiscord.fetchGuildMembersCached.mockReturnValue(new Promise(() => {}));
         expect((await serverMemberDetail("event", "7", { waitMs: 5 })).member.name).toBe("Gast");
-        expect(await serverMemberDetail("event", "8", { waitMs: 5 })).toBeNull();
-        expect(await serverMemberDetail("event", "", { waitMs: 5 })).toBeNull();
+        const gone = await serverMemberDetail("event", "8", { waitMs: 5 });
+        expect(gone).toMatchObject({ online: true, guildId: GUILD, gone: true, member: null, roles: [], channels: [] });
+        expect(await serverMemberDetail("event", "", { waitMs: 5 })).toMatchObject({ gone: true, member: null });
+        expect((await serverMemberDetail("event", "7", { waitMs: 5 })).gone).toBeUndefined();
     });
 
     it("is empty offline", async () => {
@@ -163,10 +173,31 @@ describe("serverMembers visibleChannels / memberCount", () => {
         expect(visibleChannels({}, { id: "1" })).toEqual([]);
     });
 
-    it("counts Discord's members, null offline or for a side without server", () => {
+    it("counts the people without bots, null offline or for a side without server", () => {
+        // nothing cached: Discord's own count
         expect(memberCount("event")).toBe(186);
         expect(memberCount("talk")).toBeNull();
         mockDiscord.getGuild.mockReturnValue(null);
         expect(memberCount()).toBeNull();
+    });
+
+    it("leaves the bots out: the whole cache counted, a partial cache minus its bots", () => {
+        const full = makeGuild();
+        full.memberCount = 3;
+        full.members.cache = new Map([
+            ["1", member("1", "Zora", [])],
+            ["2", member("2", "Anna", [])],
+            ["3", member("3", "PulseBot", [], { user: { username: "pulsebot", bot: true } })],
+        ]);
+        mockDiscord.getGuild.mockReturnValue(full);
+        expect(memberCount("event")).toBe(2);
+        const partial = makeGuild();
+        partial.members.cache = new Map([["3", member("3", "PulseBot", [], { user: { username: "pulsebot", bot: true } })]]);
+        mockDiscord.getGuild.mockReturnValue(partial);
+        expect(memberCount("event")).toBe(185);
+        // no count from Discord: the cache alone
+        partial.memberCount = undefined;
+        partial.members.cache.set("1", member("1", "Zora", []));
+        expect(memberCount("event")).toBe(1);
     });
 });

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { MemberRole, ServerMember } from "../../api";
 import {
     NO_FILTER, classColorOf, filterCounts, filterMembers, isOutsideRoster, joinedDate, matchesQuery,
-    memberFromQuery, memberSortValue, rosterView, splitRoles, versionShort,
+    memberFromQuery, memberSortValue, rosterView, rostersOfCharacter, splitRoles, versionShort,
 } from "./members";
 
 function member(over: Partial<ServerMember>): ServerMember {
@@ -22,9 +22,9 @@ const BY_ID = new Map(ROLES.map((r) => [r.id, r]));
 const THRALL = member({
     id: "t", name: "Thrall", username: "thrall_99", roleIds: ["orga", "raider"], joinedAt: Date.UTC(2026, 5, 2, 12),
     rosters: [{ id: "r1", name: "Naxx-Kader", categoryId: "c1", versionId: "forever", status: "core" }],
-    characters: [{ name: "Gromm", className: "Warrior", versionId: "tbc" }, { name: "Thrallo", className: "Shaman", versionId: "forever" }],
+    characters: [{ name: "Gromm", className: "Warrior", versionId: "tbc", rosterIds: [] }, { name: "Thrallo", className: "Shaman", versionId: "forever", rosterIds: ["r1"] }],
 });
-const JAINA = member({ id: "j", name: "Jaina", username: "jaina", roleIds: ["koch"], characters: [{ name: "Proudmoore", className: "Mage", versionId: "tbc" }] });
+const JAINA = member({ id: "j", name: "Jaina", username: "jaina", roleIds: ["koch"], characters: [{ name: "Proudmoore", className: "Mage", versionId: "tbc", rosterIds: [] }] });
 const NOBODY = member({ id: "n", name: "Neu", username: "neu" });
 const BOT = member({ id: "b", name: "PulseBot", username: "pulsebot", bot: true, roleIds: ["raider"] });
 const ALL = [THRALL, JAINA, NOBODY, BOT];
@@ -106,6 +106,30 @@ describe("members: cells", () => {
         expect(rosterView(two)).toEqual({ kind: "roster", character: null, roster: THRALL.rosters[0], more: 1 });
         expect(rosterView(JAINA)).toEqual({ kind: "outside", character: JAINA.characters[0] });
         expect(rosterView(NOBODY)).toEqual({ kind: "none" });
+    });
+
+    it("takes the character that stands in the roster, not the first of the version", () => {
+        // two characters of the same version: only the second is in the roster
+        const twin = member({
+            rosters: [THRALL.rosters[0]],
+            characters: [
+                { name: "Erster", className: "Warrior", versionId: "forever", rosterIds: [] },
+                { name: "Zweiter", className: "Shaman", versionId: "forever", rosterIds: ["r1"] },
+            ],
+        });
+        expect(rosterView(twin)).toMatchObject({ kind: "roster", character: { name: "Zweiter" } });
+        // no character in the roster: the first one stands for the member
+        const loose = member({ rosters: [THRALL.rosters[0]], characters: [twin.characters[0]] });
+        expect(rosterView(loose)).toMatchObject({ character: { name: "Erster" } });
+    });
+
+    it("lists the rosters a character stands in, in the member's order", () => {
+        const both = member({
+            rosters: [THRALL.rosters[0], { ...THRALL.rosters[0], id: "r2", name: "Zweit" }],
+            characters: [{ name: "Thrallo", className: "Shaman", versionId: "forever", rosterIds: ["r2", "r1"] }],
+        });
+        expect(rostersOfCharacter(both, both.characters[0]).map((r) => r.id)).toEqual(["r1", "r2"]);
+        expect(rostersOfCharacter(THRALL, THRALL.characters[0])).toEqual([]);
     });
 
     it("finds the member of a deep link only when it is on the list", () => {

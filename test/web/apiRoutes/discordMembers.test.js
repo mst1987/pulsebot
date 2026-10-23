@@ -1,5 +1,5 @@
 // The members API (src/web/apiRoutes/discordMembers.js) through the real router: area
-// `channels` read, the side passed on, the detail's 400/404.
+// `channels` read, the side passed on, the detail's 400 and its `gone` answer.
 let mockUser = null;
 jest.mock("../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true, getActiveGuild: () => "" }));
 jest.mock("../../../src/services/discord/serverMembers", () => ({
@@ -51,7 +51,7 @@ describe("GET /api/discord/members", () => {
 });
 
 describe("GET /api/discord/members/detail", () => {
-    it("answers the member, 400 without an id, 404 for an unknown one", async () => {
+    it("answers the member, 400 without an id, 200 with gone for an unknown one", async () => {
         svc.serverMemberDetail.mockResolvedValueOnce({ member: { id: "5" }, roles: [], channels: [] });
         expect(body(await get("/api/discord/members/detail", { side: "talk", userId: "5" }))).toEqual({ member: { id: "5" }, roles: [], channels: [] });
         expect(svc.serverMemberDetail).toHaveBeenCalledWith("talk", "5");
@@ -60,9 +60,9 @@ describe("GET /api/discord/members/detail", () => {
         expect(status(missing)).toBe(400);
         expect(json(missing).error.code).toBe("missing_user");
 
-        svc.serverMemberDetail.mockResolvedValueOnce(null);
+        svc.serverMemberDetail.mockResolvedValueOnce({ online: true, gone: true, member: null, roles: [], channels: [] });
         const unknown = await get("/api/discord/members/detail", { userId: "6" });
-        expect(status(unknown)).toBe(404);
-        expect(json(unknown).error.code).toBe("not_found");
+        expect(status(unknown)).toBe(200);
+        expect(body(unknown)).toMatchObject({ gone: true, member: null });
     });
 });

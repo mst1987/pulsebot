@@ -7,6 +7,7 @@ import RaidLoader from "../../components/ui/RaidLoader";
 import { SearchIcon, XIcon } from "../../components/ui/icons";
 import { ALL_PERMISSIONS, groupPermissions, permissionLabel } from "../../lib/discord/permissions";
 import { assignView, botRelation, initialsOf, matchesMember, roleUseLines } from "../../lib/discord/serverRoles";
+import { roleColorVars } from "../../lib/discord/roleColor";
 import { useT } from "../../i18n";
 
 // One role in a drawer at the right edge (like the absences' raider drawer): the
@@ -42,6 +43,7 @@ export default function ServerRoleDrawer({ side, roleId, guildName, rank, counte
 
     const data = state.data;
     const role = data && data.role;
+    const colour = role ? (roleColorVars("drl", role.color) as CSSProperties | undefined) : undefined;
     return (
         <>
             {/* on a phone the drawer is a bottom sheet over the table: a tap beside it closes it */}
@@ -51,7 +53,7 @@ export default function ServerRoleDrawer({ side, roleId, guildName, rank, counte
                     <div className="drl-drawer-title">
                         <span className="kicker">{t("discord.roles.drawer.kicker", { guild: guildName })}</span>
                         {role && (
-                            <h2 className={role.color ? "drl-coloured" : undefined} style={role.color ? ({ "--drl-color": role.color } as CSSProperties) : undefined}>
+                            <h2 className={colour ? "drl-coloured" : undefined} style={colour}>
                                 <span className="drl-dot" aria-hidden="true" />{role.everyone ? "@everyone" : role.name}
                             </h2>
                         )}

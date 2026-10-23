@@ -10,17 +10,20 @@
 //                  roleIds: [id] (highest first), rosters: [Roster], characters: [Char],
 //                  missingRosters: [{ id, name }] }
 //       Roster = { id, name, categoryId, versionId, status }  the open rosters the member is in
-//       Char = { name, className: ""|class id, versionId: ""|version id }   each name once
+//       Char = { name, className: ""|class id, versionId: ""|version id, rosterIds: [id] }
+//              once per version and name; rosterIds = the open rosters it stands in
 //       missingRosters: rosters whose member or trial role the member holds without being in it
 //       members by name; membersError set (and members empty) when the list cannot be had in
 //       time; offline: online false and empty lists
 //
 // GET /api/discord/members/detail?side=event|talk&userId=
-//     → { data: { ...head as above, member: Member|null, roles: [Role],
+//     → { data: { ...head as above, gone?: true, member: Member|null, roles: [Role],
 //                 channels: [{ id, name, visible, total, channels: [{ id, name, kind: "text"|"voice"|"forum" }] }] } }
 //       channels: grouped by category in Discord's order (id "" = without category), only those
 //       the member can see (ViewChannel); total counts every text, voice and forum channel
-//       400 missing_user: no userId · 404 not_found: the server is online but has no such member
+//       gone: true (member null) when the server is online but has no such member (left, or an
+//       old link) — an answer, not an error
+//       400 missing_user: no userId
 const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const serverMembers = require("../../services/discord/serverMembers");
@@ -37,9 +40,7 @@ const listMembers = withUser(async ({ query, res }) => {
 const memberDetail = withUser(async ({ query, res }) => {
     const userId = str(query.get("userId"));
     if (!userId) return apiError(res, 400, "missing_user", "Welches Mitglied? Die userId fehlt.");
-    const detail = await serverMembers.serverMemberDetail(sideOf(query), userId);
-    if (!detail) return apiError(res, 404, "not_found", "Dieses Mitglied ist nicht (mehr) auf dem Server.");
-    ok(res, detail);
+    ok(res, await serverMembers.serverMemberDetail(sideOf(query), userId));
     return undefined;
 });
 

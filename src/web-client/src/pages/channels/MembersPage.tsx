@@ -15,6 +15,7 @@ import {
     MEMBER_SORT_DEFAULTS, NO_FILTER, classColorOf, filterCounts, filterMembers, joinedDate, memberSortValue,
     memberFromQuery, rosterView, splitRoles, type MemberFilter, type MemberSortKey,
 } from "../../lib/discord/members";
+import { roleColorVars } from "../../lib/discord/roleColor";
 import MemberDrawer from "./MemberDrawer";
 import "../../styles/discord-members.css";
 import { useT } from "../../i18n";
@@ -44,7 +45,9 @@ export default function MembersPage() {
     const openId = params.get("user");
 
     const query = (next: DiscordSide, id: string | null) => ({ ...(id ? { user: id } : {}), ...(next === "talk" ? { side: "talk" } : {}) });
-    const open = (id: string | null) => setParams(query(side, id), { replace: true });
+    // opening a member is a step back can undo (push); closing and switching the side replace it
+    const open = (id: string) => setParams(query(side, id));
+    const close = () => setParams(query(side, null), { replace: true });
     const pickSide = (next: DiscordSide) => { setSide(next); setFilter((f) => ({ ...f, roleId: "" })); setParams(query(next, null), { replace: true }); };
     const sideSegment = (
         <Segment<DiscordSide>
@@ -72,8 +75,9 @@ export default function MembersPage() {
             {state.error && !data && <p className="empty">{t("discord.members.page.loadError", { message: state.error.message })}</p>}
             {!data && !state.error && <><div className="dmb-controls">{sideSegment}</div><RaidLoader text={t("discord.members.page.loading")} /></>}
             {data && <MembersView data={data} sideSegment={sideSegment} filter={filter} setFilter={setFilter} sort={sort} openId={openId} onOpen={open} />}
-            {data && openId && (
-                <MemberDrawer side={side} userId={openId} guildName={data.guildName} listed={listed} onClose={() => open(null)} />
+            {/* no drawer for a server that is not set up (?side=talk&user=… without a talk server) */}
+            {data && data.guildId && openId && (
+                <MemberDrawer side={side} userId={openId} guildName={data.guildName} listed={listed} onClose={close} />
             )}
         </div>
     );
@@ -84,8 +88,14 @@ function HeadBadges({ data }: { data: ServerMembers }) {
     const t = useT();
     if (!data.guildId) return null;
     if (!data.online) return <Badge tone="bad" tip={t("discord.members.page.offline")} tipSub={t("discord.members.page.offlineSub")}>{t("discord.members.page.offline")}</Badge>;
-    if (data.membersError) return <Badge tone="mid" tip={t("discord.members.page.membersError")} tipSub={t("discord.members.page.membersErrorSub")}>{t("discord.members.page.membersError")}</Badge>;
-    return <Badge>{t("discord.members.page.count", { count: data.total })}</Badge>;
+    if (data.membersError) return <Badge tone="mid" tip={t("discord.members.page.membersError")} tipSub={membersErrorText(data, t)}>{t("discord.members.page.membersError")}</Badge>;
+    // people, like the list below with its bots hidden
+    return <Badge>{t("discord.members.page.count", { count: data.members.filter((m) => !m.bot).length })}</Badge>;
+}
+
+/** Why the list is missing: Discord was too slow, or it does not hand the list out at all (the GuildMembers intent). */
+function membersErrorText(data: ServerMembers, t: ReturnType<typeof useT>): string {
+    return t(data.membersError === "timeout" ? "discord.members.page.membersErrorSub" : "discord.members.page.membersErrorIntent");
 }
 
 function MembersView({ data, sideSegment, filter, setFilter, sort, openId, onOpen }: {
@@ -146,12 +156,17 @@ function MembersView({ data, sideSegment, filter, setFilter, sort, openId, onOpe
 
     if (!data.guildId) return <>{controls}<p className="empty">{t(data.side === "event" ? "discord.members.page.eventMissing" : "discord.members.page.talkMissing")}</p></>;
     if (!data.online) return <>{controls}<p className="empty">{t("discord.members.page.offlineSub")}</p></>;
-    if (data.membersError) return <>{controls}<p className="empty">{t("discord.members.page.membersErrorSub")}</p></>;
+    if (data.membersError) return <>{controls}<p className="empty">{membersErrorText(data, t)}</p></>;
 
     const kept = filterMembers(data.members, filter);
     const rows = sort.apply(kept, (m, key) => memberSortValue(m, key, rolesById));
     const shown = all ? rows : rows.slice(0, ROWS_SHOWN);
     const pool = filter.hideBots ? data.members.filter((m) => !m.bot).length : data.members.length;
+    // without a search or filter: how many, and how many bots are left out; with one: "N von M"
+    const narrowed = !!(filter.query.trim() || filter.roleId || filter.noRole || filter.notInRoster);
+    const note = narrowed
+        ? t("discord.members.page.shown", { count: rows.length, total: pool })
+        : [t("discord.members.page.count", { count: rows.length }), filter.hideBots && counts.bots > 0 ? t("discord.members.page.botsHidden", { count: counts.bots }) : ""].filter(Boolean).join(" · ");
 
     return (
         <>
@@ -161,7 +176,7 @@ function MembersView({ data, sideSegment, filter, setFilter, sort, openId, onOpe
                 <p className="empty">{t("discord.members.page.emptyFilter")}</p>
             ) : (
                 <>
-                    <p className="dmb-note">{t("discord.members.page.shown", { count: rows.length, total: pool })}</p>
+                    <p className="dmb-note">{note}</p>
                     <div className="dmb-wrap">
                         <table className="idx dmb-table">
                             <thead>
@@ -232,11 +247,14 @@ function Roles({ roleIds, rolesById, max }: { roleIds: string[]; rolesById: Map<
     const { shown, more } = splitRoles(roleIds, rolesById, max);
     return (
         <span className="dmb-roles">
-            {shown.map((r) => (
-                <span key={r.id} className={`dmb-role${r.color ? " dmb-coloured" : ""}`} style={r.color ? ({ "--dmb-color": r.color } as CSSProperties) : undefined}>
-                    <span className="dmb-dot" aria-hidden="true" />{r.name}
-                </span>
-            ))}
+            {shown.map((r) => {
+                const colour = roleColorVars("dmb", r.color);
+                return (
+                    <span key={r.id} className={`dmb-role${colour ? " dmb-coloured" : ""}`} style={colour as CSSProperties | undefined}>
+                        <span className="dmb-dot" aria-hidden="true" />{r.name}
+                    </span>
+                );
+            })}
             {more.length > 0 && (
                 <span className="dmb-morer" data-tip={t("discord.members.cell.moreTip", { count: more.length })} data-tip-sub={more.map((r) => r.name).join(", ")}>
                     {t("discord.members.cell.more", { count: more.length })}

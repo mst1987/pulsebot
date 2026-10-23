@@ -30,7 +30,7 @@
 //     → { data: { channels: number|null, serverRoles: number|null, members: number|null, roleMessages: number } }
 //       keyed by the menu ids of the tabs (config/menu.json); channels: the active server's
 //       channels without categories and threads; serverRoles: the side's roles without
-//       @everyone; members: the side's members as Discord counts them (bots included);
+//       @everyone; members: the side's people (bots left out, as on the list);
 //       null = unknown (bot offline)
 const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");

@@ -143,7 +143,9 @@ function visibleChannels(guild, member) {
 
 /**
  * One member with its roles, rosters, characters and the channels it can see.
- * @returns {Promise<object|null>} null when the server is online but has no such member
+ * When the server is online but has no such member the answer carries `gone: true` and
+ * `member: null`.
+ * @returns {Promise<object>}
  */
 async function serverMemberDetail(side, userId, { config = getConfig(), waitMs = discord.NAME_FETCH_MS } = {}) {
     const id = str(userId);
@@ -152,10 +154,14 @@ async function serverMemberDetail(side, userId, { config = getConfig(), waitMs =
     const fromList = (ctx.members || []).find((m) => m && str(m.id) === id);
     const cache = ctx.guild.members && ctx.guild.members.cache;
     const member = fromList || (id && cache && typeof cache.get === "function" ? cache.get(id) : null);
-    if (!member) return null;
-    const view = viewContext(ctx);
-    const shown = memberView(member, view);
-    const byId = new Map(view.roles.map((r) => [r.id, r]));
+    // gone: the server is online but has no such member (left, or a stale link)
+    if (!member) return { ...serverRoles.head(ctx), gone: true, member: null, roles: [], channels: [] };
+    const roles = rolesOf(ctx.guild);
+    const rosters = memberRelation.openRosters();
+    // one account: its relation alone, not the index of the whole server
+    const relations = { of: (uid) => memberRelation.relationOf(uid, { rosters }) };
+    const shown = memberView(member, { roles, guildId: str(ctx.guild.id), order: roles.map((r) => r.id), relations, rosters });
+    const byId = new Map(roles.map((r) => [r.id, r]));
     return {
         ...serverRoles.head(ctx),
         member: shown,
@@ -164,13 +170,22 @@ async function serverMemberDetail(side, userId, { config = getConfig(), waitMs =
     };
 }
 
-/** How many members the side's server has (Discord's own count, bots included), null offline: the tab's count. */
+/**
+ * How many people the side's server has (bots left out, as on the list), null offline: the
+ * tab's count. With the whole member cache the people are counted there; with a partial cache
+ * (no GuildMembers intent) Discord's own count minus the bots the cache knows.
+ */
 function memberCount(side = "event", config = getConfig()) {
     const guildId = serverRoles.guildIdOf(side === "talk" ? "talk" : "event", config);
     const guild = guildId ? discord.getGuild(guildId) : null;
     if (!guild) return null;
     const n = Number(guild.memberCount);
-    return Number.isFinite(n) && n >= 0 ? n : null;
+    const cache = guild.members && guild.members.cache;
+    const cached = cache && typeof cache.values === "function" ? [...cache.values()].filter(Boolean) : [];
+    const bots = cached.filter((m) => m.user && m.user.bot).length;
+    if (!Number.isFinite(n) || n < 0) return cached.length ? cached.length - bots : null;
+    if (cached.length >= n) return cached.length - bots;
+    return Math.max(0, n - bots);
 }
 
 module.exports = { listServerMembers, serverMemberDetail, memberCount, visibleChannels };

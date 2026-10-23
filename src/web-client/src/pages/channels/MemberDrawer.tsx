@@ -6,7 +6,8 @@ import RaidLoader from "../../components/ui/RaidLoader";
 import { XIcon } from "../../components/ui/icons";
 import { classColorProps } from "../../components/character/ClassSpec";
 import { initialsOf } from "../../lib/discord/serverRoles";
-import { classColorOf, joinedDate, versionShort } from "../../lib/discord/members";
+import { classColorOf, joinedDate, rostersOfCharacter, versionShort } from "../../lib/discord/members";
+import { roleColorVars } from "../../lib/discord/roleColor";
 import { useT } from "../../i18n";
 
 // One member in a drawer at the right edge (a bottom sheet on a phone), like the
@@ -57,11 +58,12 @@ export default function MemberDrawer({ side, userId, guildName, listed, onClose 
                 </div>
                 <div className="dmb-drawer-body">
                     {state.error && !data && (
-                        <p className="dmb-empty">{state.error.code === "not_found" ? t("discord.members.drawer.gone") : t("discord.members.drawer.loadError", { message: state.error.message })}</p>
+                        <p className="dmb-empty">{t("discord.members.drawer.loadError", { message: state.error.message })}</p>
                     )}
                     {!data && !state.error && <RaidLoader compact text={t("discord.members.drawer.loading")} />}
-                    {data && !data.member && <p className="dmb-empty">{t("discord.members.drawer.gone")}</p>}
-                    {data && data.member && <Detail data={data} member={data.member} />}
+                    {/* an account that is not on the server: 200 with gone, member null */}
+                    {data && (data.gone || !data.member) && <p className="dmb-empty">{t("discord.members.drawer.gone")}</p>}
+                    {data && !data.gone && data.member && <Detail data={data} member={data.member} />}
                 </div>
             </aside>
         </>
@@ -73,14 +75,17 @@ function Detail({ data, member }: { data: ServerMemberDetail; member: ServerMemb
     return (
         <>
             <section className="dmb-sec">
-                <div className="dmb-sec-head"><h3>{t("discord.members.drawer.roles")}</h3><span className="dmb-note">{data.roles.length}</span></div>
+                <div className="dmb-sec-head"><h3>{t("discord.members.drawer.rolesCount", { count: data.roles.length })}</h3></div>
                 {data.roles.length === 0 ? <p className="dmb-empty">{t("discord.members.drawer.rolesNone")}</p> : (
                     <ul className="dmb-rolelist">
-                        {data.roles.map((r) => (
-                            <li key={r.id} className={`dmb-role${r.color ? " dmb-coloured" : ""}`} style={r.color ? ({ "--dmb-color": r.color } as CSSProperties) : undefined}>
-                                <span className="dmb-dot" aria-hidden="true" />{r.name}
-                            </li>
-                        ))}
+                        {data.roles.map((r) => {
+                            const colour = roleColorVars("dmb", r.color);
+                            return (
+                                <li key={r.id} className={`dmb-role${colour ? " dmb-coloured" : ""}`} style={colour as CSSProperties | undefined}>
+                                    <span className="dmb-dot" aria-hidden="true" />{r.name}
+                                </li>
+                            );
+                        })}
                     </ul>
                 )}
             </section>
@@ -92,10 +97,9 @@ function Detail({ data, member }: { data: ServerMemberDetail; member: ServerMemb
 
 function Characters({ member }: { member: ServerMember }) {
     const t = useT();
-    const rosterFor = (versionId: string) => member.rosters.filter((r) => r.versionId === versionId);
     return (
         <section className="dmb-sec">
-            <div className="dmb-sec-head"><h3>{t("discord.members.drawer.characters")}</h3><span className="dmb-note">{member.characters.length}</span></div>
+            <div className="dmb-sec-head"><h3>{t("discord.members.drawer.charactersCount", { count: member.characters.length })}</h3></div>
             {member.characters.length === 0 ? <p className="dmb-empty">{t("discord.members.drawer.charactersNone")}</p> : (
                 <table className="dmb-chars">
                     <thead>
@@ -103,7 +107,7 @@ function Characters({ member }: { member: ServerMember }) {
                     </thead>
                     <tbody>
                         {member.characters.map((c) => {
-                            const rosters = c.versionId ? rosterFor(c.versionId) : [];
+                            const rosters = rostersOfCharacter(member, c);
                             return (
                                 <tr key={`${c.name}-${c.versionId}`}>
                                     <td><span {...classColorProps(classColorOf(c.className))}>{c.name}</span></td>

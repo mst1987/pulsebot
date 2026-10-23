@@ -97,7 +97,7 @@ export function classColorOf(className: string): string {
 
 /**
  * What the roster column says about a member: the character that best stands for
- * it (one of a roster's version first) and the roster it is in — or that it has
+ * it (one standing in that roster first) and the roster it is in — or that it has
  * characters but no roster, or nothing at all.
  */
 export type RosterView =
@@ -108,11 +108,17 @@ export type RosterView =
 export function rosterView(m: ServerMember): RosterView {
     if (m.rosters.length) {
         const roster = m.rosters[0];
-        const character = m.characters.find((c) => c.versionId === roster.versionId) || m.characters[0] || null;
+        const character = m.characters.find((c) => (c.rosterIds || []).includes(roster.id)) || m.characters[0] || null;
         return { kind: "roster", character, roster, more: m.rosters.length - 1 };
     }
     if (m.characters.length) return { kind: "outside", character: m.characters[0] };
     return { kind: "none" };
+}
+
+/** The rosters a character stands in, in the member's roster order. */
+export function rostersOfCharacter(m: ServerMember, c: MemberCharacter): MemberRoster[] {
+    const ids = c.rosterIds || [];
+    return m.rosters.filter((r) => ids.includes(r.id));
 }
 
 /** The member a link opens (`?user=`), when it is on the list. */

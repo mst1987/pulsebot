@@ -11,8 +11,14 @@ export type MemberRole = { id: string; name: string; color: string; position: nu
 /** An open roster the member is in. */
 export type MemberRoster = { id: string; name: string; categoryId: string; versionId: string; status: string };
 
-/** A character of the member, each name once; class and version "" when unknown. */
-export type MemberCharacter = { name: string; className: string; versionId: string };
+/** A character of the member, once per version and name; class and version "" when unknown. */
+export type MemberCharacter = {
+    name: string;
+    className: string;
+    versionId: string;
+    /** the open rosters it stands in (ids of `ServerMember.rosters`) */
+    rosterIds: string[];
+};
 
 export type ServerMember = {
     id: string;
@@ -37,6 +43,8 @@ export type MemberChannel = { id: string; name: string; kind: "text" | "voice" |
 export type MemberChannelGroup = { id: string; name: string; visible: number; total: number; channels: MemberChannel[] };
 
 export type ServerMemberDetail = ServerRolesHead & {
+    /** the account is not (or no longer) on the server; `member` is null then */
+    gone?: boolean;
     member: ServerMember | null;
     roles: MemberRole[];
     channels: MemberChannelGroup[];

@@ -1,9 +1,10 @@
 // System › Discord › Mitglieder: the tab with its count, the table with roles,
 // join date and roster, bots hidden by default, the switches, search, role filter,
 // sorting, "alle zeigen", the talk server, offline, and the drawer by click and by
-// link (?user=, &side=talk).
+// link (?user=, &side=talk) — opening pushes a history entry, closing replaces it.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { MemberRole, ServerMember, ServerMemberDetail, ServerMembers } from "../../api";
@@ -32,9 +33,9 @@ const ROLES: MemberRole[] = [
 const THRALL = member({
     id: "t", name: "Thrall", username: "thrall_99", roleIds: ["orga", "raider", "koch", "angel"], joinedAt: Date.UTC(2026, 5, 2, 12),
     rosters: [{ id: "r1", name: "Naxx-Kader", categoryId: "c1", versionId: "forever", status: "member" }],
-    characters: [{ name: "Gromm", className: "Warrior", versionId: "tbc" }, { name: "Thrallo", className: "Shaman", versionId: "forever" }],
+    characters: [{ name: "Gromm", className: "Warrior", versionId: "tbc", rosterIds: [] }, { name: "Thrallo", className: "Shaman", versionId: "forever", rosterIds: ["r1"] }],
 });
-const JAINA = member({ id: "j", name: "Jaina", username: "jaina", roleIds: ["raider"], joinedAt: Date.UTC(2025, 0, 10, 12), characters: [{ name: "Proudmoore", className: "Mage", versionId: "tbc" }], missingRosters: [{ id: "r1", name: "Naxx-Kader" }] });
+const JAINA = member({ id: "j", name: "Jaina", username: "jaina", roleIds: ["raider"], joinedAt: Date.UTC(2025, 0, 10, 12), characters: [{ name: "Proudmoore", className: "Mage", versionId: "tbc", rosterIds: [] }], missingRosters: [{ id: "r1", name: "Naxx-Kader" }] });
 const NEU = member({ id: "n", name: "Neu", username: "neu" });
 const BOT = member({ id: "b", name: "PulseBot", username: "pulsebot", bot: true, roleIds: ["raider"] });
 
@@ -57,6 +58,20 @@ beforeEach(() => {
     vi.mocked(api.getDiscordTabCounts).mockReset().mockResolvedValue({ channels: 31, serverRoles: 5, members: 4, roleMessages: 2 });
 });
 
+/** The router's view of the history next to the page: the query, how it got there, and a back button. */
+function HistoryProbe() {
+    const location = useLocation();
+    const type = useNavigationType();
+    const navigate = useNavigate();
+    return (
+        <>
+            <span data-testid="search">{location.search}</span>
+            <span data-testid="type">{type}</span>
+            <button type="button" onClick={() => navigate(-1)}>probe-back</button>
+        </>
+    );
+}
+
 const names = () => screen.getAllByRole("row").slice(1).map((r) => r.querySelector(".dmb-name")!.textContent);
 
 describe("Mitglieder: table", () => {
@@ -66,7 +81,19 @@ describe("Mitglieder: table", () => {
         const tabs = screen.getByRole("navigation", { name: "Bereiche von Discord" });
         expect(within(tabs).getByRole("link", { name: "Mitglieder 4" })).toHaveAttribute("aria-current", "page");
         expect(names()).toEqual(["Jaina", "Neu", "Thrall"]);
-        expect(screen.getByText("3 von 3 Mitgliedern")).toBeInTheDocument();
+        // the badge counts people like the list; the note says how many bots are left out
+        expect(screen.getByText("3 Mitglieder")).toBeInTheDocument();
+        expect(screen.getByText("3 Mitglieder · 1 Bot ausgeblendet")).toBeInTheDocument();
+    });
+
+    it("says \"N von M\" once a search or filter narrows the list", async () => {
+        const user = userEvent.setup();
+        renderPage(<MembersPage />, { route: "/channels/members" });
+        await screen.findByText("Thrall");
+        await user.type(screen.getByRole("searchbox"), "jai");
+        expect(screen.getByText("1 von 3 Mitgliedern")).toBeInTheDocument();
+        await user.clear(screen.getByRole("searchbox"));
+        await user.click(screen.getByRole("switch", { name: /Bots ausblenden/ }));
         expect(screen.getByText("4 Mitglieder")).toBeInTheDocument();
     });
 
@@ -163,7 +190,13 @@ describe("Mitglieder: table", () => {
         vi.mocked(api.getServerMembers).mockResolvedValueOnce({ ...EVENT, membersError: "timeout", members: [] });
         const second = renderPage(<MembersPage />, { route: "/channels/members" });
         expect(await screen.findByText("Mitgliederliste fehlt")).toBeInTheDocument();
+        expect(screen.getByText(/nicht rechtzeitig/)).toBeInTheDocument();
         second.unmount();
+        // anything but a timeout: Discord does not hand the list out — the intent is missing
+        vi.mocked(api.getServerMembers).mockResolvedValueOnce({ ...EVENT, membersError: "Used disallowed intents", members: [] });
+        const third = renderPage(<MembersPage />, { route: "/channels/members" });
+        expect(await screen.findByText(/Server-Members-Intent/)).toBeInTheDocument();
+        third.unmount();
         vi.mocked(api.getServerMembers).mockResolvedValueOnce({ ...EVENT, guildId: "", members: [] });
         renderPage(<MembersPage />, { route: "/channels/members" });
         expect(await screen.findByText(/Kein Event-Server eingestellt/)).toBeInTheDocument();
@@ -174,7 +207,7 @@ describe("Mitglieder: table", () => {
         try {
             renderPage(<MembersPage />, { route: "/channels/members" });
             expect(await screen.findByText("Thrall")).toBeInTheDocument();
-            expect(screen.getByText("3 of 3 members")).toBeInTheDocument();
+            expect(screen.getByText("3 members · 1 bot hidden")).toBeInTheDocument();
             expect(screen.getByRole("switch", { name: /Hide bots/ })).toBeChecked();
             expect(screen.getByText("not in a roster", { selector: ".dmb-c-roster *" })).toBeInTheDocument();
         } finally {
@@ -198,6 +231,9 @@ describe("Mitglieder: drawer", () => {
         expect(rows[1][0]).toBe("Thrallo");
         expect(rows[1][1]).toBe("Forever");
         expect(rows[1][2]).toMatch(/^Naxx-Kader /);
+        // the section heads carry the number with its word
+        expect(within(drawer).getByText("4 Rollen")).toBeInTheDocument();
+        expect(within(drawer).getByText("2 Charaktere")).toBeInTheDocument();
         expect(within(drawer).getByText("2 von 5 Kanälen")).toBeInTheDocument();
         expect(within(drawer).getByText("#anmeldung")).toBeInTheDocument();
         expect(drawer.querySelector(".dmb-group.dmb-muted")!.textContent).toMatch(/Offiziere/);
@@ -219,5 +255,41 @@ describe("Mitglieder: drawer", () => {
         vi.mocked(api.getServerMemberDetail).mockResolvedValue({ ...DETAIL, member: null, roles: [], channels: [] });
         renderPage(<MembersPage />, { route: "/channels/members?user=gone" });
         expect(await screen.findByText("Dieses Mitglied ist nicht mehr auf dem Server.")).toBeInTheDocument();
+    });
+
+    it("says the same for an account the server marks as gone", async () => {
+        vi.mocked(api.getServerMemberDetail).mockResolvedValue({ ...DETAIL, gone: true, roles: [], channels: [] });
+        renderPage(<MembersPage />, { route: "/channels/members?user=t" });
+        expect(await screen.findByText("Dieses Mitglied ist nicht mehr auf dem Server.")).toBeInTheDocument();
+        expect(screen.queryByText("4 Rollen")).not.toBeInTheDocument();
+    });
+
+    it("opens as a history step: back closes it, Esc replaces it", async () => {
+        const user = userEvent.setup();
+        renderPage(<><MembersPage /><HistoryProbe /></>, { route: "/channels/members" });
+        await user.click(await screen.findByRole("button", { name: "Thrall" }));
+        expect(await screen.findByRole("complementary", { name: "Thrall" })).toBeInTheDocument();
+        expect(screen.getByTestId("search")).toHaveTextContent("?user=t");
+        // the browser's back button closes the drawer instead of leaving the page
+        await user.click(screen.getByRole("button", { name: "probe-back" }));
+        await waitFor(() => expect(screen.queryByRole("complementary", { name: "Thrall" })).not.toBeInTheDocument());
+        expect(screen.getByTestId("search")).toHaveTextContent(/^$/);
+        expect(screen.getByText("Thrall")).toBeInTheDocument();
+        expect(screen.getByTestId("type")).toHaveTextContent("POP");
+        // closing by Esc replaces the entry instead of stacking one more
+        await user.click(screen.getByRole("button", { name: "Thrall" }));
+        await screen.findByRole("complementary", { name: "Thrall" });
+        expect(screen.getByTestId("type")).toHaveTextContent("PUSH");
+        await user.keyboard("{Escape}");
+        await waitFor(() => expect(screen.getByTestId("search")).toHaveTextContent(/^$/));
+        expect(screen.getByTestId("type")).toHaveTextContent("REPLACE");
+    });
+
+    it("opens no drawer without a server", async () => {
+        vi.mocked(api.getServerMembers).mockResolvedValue({ ...EVENT, guildId: "", members: [] });
+        renderPage(<MembersPage />, { route: "/channels/members?user=t" });
+        expect(await screen.findByText(/Kein Event-Server eingestellt/)).toBeInTheDocument();
+        expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+        expect(api.getServerMemberDetail).not.toHaveBeenCalled();
     });
 });
