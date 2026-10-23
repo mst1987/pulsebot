@@ -211,7 +211,7 @@ Zugangsdaten, Token oder Sitzungen.
 | `settings/raidplan-templates.json` | `raidplanTemplateStore.js` | Raidplan-Vorlagen | nein |
 | `settings/raidplan-profiles.json` | `raidplanProfileStore.js` | Taktik-Profile | nein |
 | `settings/raidplan-catalog.json` | `raidplanCatalogStore.js` | Eigene/überschriebene Mobs und Zauber des Katalogs | nein |
-| `settings/loot.json` | `lootStore.js` | Importierter Loot (Gargul/RCLootcouncil/Addon) | nein |
+| `settings/loot.json` | `lootStore.js` | Importierter Loot (Gargul/RCLootcouncil/Addon), dazu `deleted`: Schlüssel von Hand gelöschter Einträge, damit kein Import sie zurückbringt | nein |
 | `settings/loot-inbox.json` | `lootInboxStore.js` | Addon-Uploads, die noch auf Bestätigung warten, und erledigte Sessions | nein |
 | `settings/logs.json` | `logStore.js` | Ausgewertete WCL-Reports (damit keiner zweimal läuft) | nein |
 | `reports/<id>.json` | `reportStore.js` | Die gespeicherten Log-Auswertungen (Report-Seiten `/r/`) | nein |

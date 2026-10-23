@@ -24,7 +24,7 @@ const { parseLoot, buildManualItem, detectImportDate, nameKeyOf, LootParseError 
 const { bestDayMatch, formatDayDisplay, dayKey } = require("../loot/lootEventMatch");
 const {
     listPending: listPendingSessions, getPending: getPendingSession, resolvePending: resolvePendingSession,
-    listLinked: listLinkedSessions,
+    listLinked: listLinkedSessions, unlinkEvent: unlinkInboxEvent,
 } = require("../../stores/lootInboxStore");
 const { sessionContentLabel } = require("../loot/lootSessionContent");
 const { previewImport } = require("../loot/lootImportPreview");
@@ -507,10 +507,16 @@ const deleteLootItems = withUser({ csrf: true, body: true }, async ({ body, res 
     ok(res, { removed });
 });
 
-/** POST /api/history/clear — body: { event }. Deletes all loot stored for one event. */
+/**
+ * POST /api/history/clear — body: { event }. Deletes all loot stored for one
+ * event and unlinks the addon sessions accepted into it (`unlinked`), so the
+ * sync tool's next upload lands in the inbox again instead of refilling it.
+ */
 const clearHistoryEvent = withUser({ csrf: true, body: true }, async ({ body, res }) => {
-    const removed = clearLootEvent(String(body.event || "").trim());
-    ok(res, { removed });
+    const eventId = String(body.event || "").trim();
+    const removed = clearLootEvent(eventId);
+    const unlinked = unlinkInboxEvent(eventId);
+    ok(res, { removed, unlinked });
 });
 
 // ---- addon inbox: sessions uploaded by the loot-sync tool, awaiting a decision ----

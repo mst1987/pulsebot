@@ -222,9 +222,9 @@ describe("stores/lootStore", () => {
         });
     });
 
-    describe("removeItems", () => {
-        const idOf = (eventId, rawId) => listByEvent(eventId).find((r) => r.rawId === rawId).id;
+    const idOf = (eventId, rawId) => listByEvent(eventId).find((r) => r.rawId === rawId).id;
 
+    describe("removeItems", () => {
         it("removes exactly the rows whose id was given", () => {
             addImport("e1", [item({ rawId: "a" }), item({ rawId: "b" }), item({ rawId: "c" })]);
             expect(removeItems([idOf("e1", "a"), idOf("e1", "c")])).toBe(2);
@@ -262,12 +262,40 @@ describe("stores/lootStore", () => {
             expect(written.items.map((i) => i.rawId)).toEqual(["b"]);
         });
 
-        // Deleting is not a permanent blocklist: the import dedupes against what
-        // is stored, so importing the same export again brings the row back.
-        it("does not stop the same row from being imported again", () => {
+        // The sync tool re-sends the whole raid on every flush and an accepted
+        // session appends by itself — a deletion has to outlive that.
+        it("keeps a deleted row from coming back with the next import of the same raid", () => {
+            addImport("e1", [item({ rawId: "a" }), item({ rawId: "b" })]);
+            removeItems(idOf("e1", "a"));
+            expect(addImport("e1", [item({ rawId: "a" }), item({ rawId: "b" }), item({ rawId: "c" })]))
+                .toEqual({ added: 1, skipped: 2 });
+            expect(listByEvent("e1").map((i) => i.rawId).sort()).toEqual(["b", "c"]);
+        });
+
+        it("blocks the deleted row in its own event only", () => {
             addImport("e1", [item({ rawId: "a" })]);
             removeItems(idOf("e1", "a"));
-            expect(addImport("e1", [item({ rawId: "a" })])).toEqual({ added: 1, skipped: 0 });
+            expect(addImport("e2", [item({ rawId: "a" })])).toEqual({ added: 1, skipped: 0 });
+        });
+
+        it("remembers the deleted key once, also when it is deleted again", () => {
+            addImport("e1", [item({ rawId: "a" })]);
+            removeItems(idOf("e1", "a"));
+            fs.__store.set([...fs.__store.keys()].find((k) => k.endsWith("loot.json")), JSON.stringify({
+                items: [{ ...item({ rawId: "a" }), id: "x1", eventId: "e1" }], deleted: ["e1::rclc::a"],
+            }));
+            removeItems("x1");
+            const written = JSON.parse(fs.__store.get([...fs.__store.keys()].find((k) => k.endsWith("loot.json"))));
+            expect(written.deleted).toEqual(["e1::rclc::a"]);
+        });
+
+        it("reads a file from before the deleted list", () => {
+            addImport("e1", [item({ rawId: "a" })]);
+            const file = [...fs.__store.keys()].find((k) => k.endsWith("loot.json"));
+            fs.__store.set(file, JSON.stringify({ items: JSON.parse(fs.__store.get(file)).items }));
+            expect(listByEvent("e1")).toHaveLength(1);
+            expect(removeItems(idOf("e1", "a"))).toBe(1);
+            expect(JSON.parse(fs.__store.get(file)).deleted).toEqual(["e1::rclc::a"]);
         });
     });
 
@@ -278,6 +306,18 @@ describe("stores/lootStore", () => {
             expect(clearEvent("e1")).toBe(1);
             expect(listByEvent("e1")).toHaveLength(0);
             expect(listByEvent("e2")).toHaveLength(1);
+        });
+
+        // Clearing is a clean slate: importing the raid again brings back all
+        // of it, also what was deleted row by row before.
+        it("forgets the rows deleted one by one from the event, and only those", () => {
+            addImport("e1", [item({ rawId: "a" }), item({ rawId: "b" })]);
+            addImport("e2", [item({ rawId: "a" })]);
+            removeItems(idOf("e1", "a"));
+            removeItems(idOf("e2", "a"));
+            expect(clearEvent("e1")).toBe(1);
+            expect(addImport("e1", [item({ rawId: "a" }), item({ rawId: "b" })])).toEqual({ added: 2, skipped: 0 });
+            expect(addImport("e2", [item({ rawId: "a" })])).toEqual({ added: 0, skipped: 1 });
         });
     });
 
