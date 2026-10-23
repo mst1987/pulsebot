@@ -76,6 +76,26 @@ describe("KaderPage · Kader", () => {
         expect(within(within(cards).getByRole("link", { name: /Zweiter Kader/ })).getByText(t("kader.kaders.last"))).toBeInTheDocument();
     });
 
+    it("draws a lead with their Discord picture, in the overview and the header — else the initial", async () => {
+        const PIC = "https://cdn.discordapp.com/avatars/admin.png";
+        vi.mocked(api.getKader).mockImplementation(async (id = "") => kaderView({ avatars: { [ME]: PIC }, ...(id === "k1" ? {} : { kader: null }) }));
+        const overview = renderPage(<KaderPage />, { route: "/kader", path: PATH });
+        const cards = await screen.findByRole("list", { name: t("kader.kaders.cardsAria") });
+        const lead = within(within(cards).getByRole("link", { name: /Forever-Kader/ })).getByRole("img", { name: /Admin/ });
+        expect(lead.querySelector(".kp-avatar img")).toHaveAttribute("src", PIC);
+        expect(lead.querySelector(".kp-avatar")).not.toHaveTextContent("A");
+        overview.unmount();
+
+        const page = await show("/kader/k1/pool");
+        expect(document.querySelector(".kp-leads .kp-avatar[aria-label=Admin] img")).toHaveAttribute("src", PIC);
+        page.unmount();
+        // without a picture the initial stands in
+        vi.mocked(api.getKader).mockImplementation(async (id = "") => kaderView(id === "k1" ? {} : { kader: null }));
+        await show("/kader/k1/pool");
+        expect(document.querySelector(".kp-leads .kp-avatar[aria-label=Admin] img")).toBeNull();
+        expect(document.querySelector(".kp-leads .kp-avatar[aria-label=Admin]")).toHaveTextContent("A");
+    });
+
     it("creates a Kader from the overview, the head's button and the dashed card, only with write access", async () => {
         vi.mocked(api.createKader).mockResolvedValue({ ...change(), kaderId: "k1" });
         const view = renderPage(<KaderPage />, { route: "/kader", path: PATH });

@@ -159,6 +159,11 @@ describe("web/kader/kaderView", () => {
         const view = buildKaderView({ source: source(), planner: planner(), kaderId: "k1" });
         expect(view.members.find((m) => m.userId === U.a)).toMatchObject({ displayName: "Aldric", roleIds: ["r1"], prefill: { spec: "Druid-Restoration" } });
         expect(view.names).toMatchObject({ [U.lead]: "Kurt", [U.hand]: "Hand", [U.c]: "Oldie", [U.b]: "Bea" });
+        // only members with a Discord picture
+        expect(view.avatars).toEqual({});
+        const pictured = source();
+        pictured.members[2] = { ...pictured.members[2], avatarUrl: "https://cdn.discordapp.com/avatars/kurt.png" };
+        expect(buildKaderView({ source: pictured, planner: planner(), kaderId: "k1" }).avatars).toEqual({ [U.lead]: "https://cdn.discordapp.com/avatars/kurt.png" });
         expect(view.kaders).toEqual([
             { id: "k1", name: "Forever-Kader", leads: [U.lead], createdAt: "", createdBy: "", versionId: "forever", counts: { pool: 1, selected: 1, provisional: 0, roster: 1, bench: 0, tentative: 0 }, questions: 0 },
             { id: "k2", name: "Zweiter", leads: [], createdAt: "", createdBy: "", versionId: "forever", counts: { pool: 0, selected: 0, provisional: 0, roster: 0, bench: 1, tentative: 0 }, questions: 0 },

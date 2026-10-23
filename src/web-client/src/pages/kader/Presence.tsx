@@ -15,15 +15,16 @@ import { leadHue } from "../../lib/kader/leads";
 import { personName, presenceOn, presenceText, presenceTip } from "../../lib/kader/live";
 import { nameOf } from "../../lib/kader/model";
 import { useKader } from "./kaderContext";
+import { AvatarFace } from "./parts";
 
-/** A person's initial in their colour, with the dot that says "here right now". */
+/** A person's Discord picture (else the initial) in their colour, with the dot that says "here right now". */
 function PresenceInitial({ p, size = 18 }: { p: KaderPresence; size?: number }) {
     const { view, kader } = useKader();
     const name = personName(view, p.userId, p.name);
     const hue = leadHue(kader.leads, p.userId);
     return (
         <span className={`kp-avatar kp-avatar-sized kp-hue-${hue} kp-online kp-presence-av`} style={{ "--av": `${size}px` } as CSSProperties} aria-hidden="true">
-            {(name.trim()[0] || "?").toUpperCase()}
+            <AvatarFace view={view} userId={p.userId} name={name} />
         </span>
     );
 }
@@ -93,7 +94,7 @@ function HeadAvatar({ userId, here }: { userId: string; here: KaderPresence | nu
     const tip = here ? presenceTip(name, here) : name;
     return (
         <span className={`kp-avatar kp-hue-${leadHue(kader.leads, userId)}${here ? " kp-online" : ""}`} role="img" aria-label={tip} data-tip={tip}>
-            {(name.trim()[0] || "?").toUpperCase()}
+            <AvatarFace view={view} userId={userId} name={name} />
         </span>
     );
 }

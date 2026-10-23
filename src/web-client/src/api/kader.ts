@@ -242,6 +242,8 @@ export type KaderView = {
     members: KaderMember[];
     discordRoles: KaderDiscordRole[];
     names: Record<string, string>;
+    /** The Discord picture of every member that has one, by user id; absent from an older server. */
+    avatars?: Record<string, string>;
     kaders: KaderSummary[];
     kader: KaderData | null;
     warnings: string[];

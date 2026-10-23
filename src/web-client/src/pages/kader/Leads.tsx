@@ -1,5 +1,5 @@
-// Who conducts an interview, made visible: LeadAvatar (the initial in the lead's
-// colour, the same one the Kader header shows), LeadBadge (avatar plus name, or
+// Who conducts an interview, made visible: LeadAvatar (the lead's Discord picture,
+// else the initial, in the lead's colour, the same one the Kader header shows), LeadBadge (avatar plus name, or
 // the warning "Niemand" when nobody is assigned) and LeadMenu, the small menu
 // that picks one of them — the "Gespräch führt" select of the interview and the
 // filter of the Gespräche list. The colour never stands alone: initial and name
@@ -10,10 +10,10 @@ import { useDismiss } from "../../hooks/useDismiss";
 import { useT } from "../../i18n";
 import { nameOf } from "../../lib/kader/model";
 import { leadHue } from "../../lib/kader/leads";
-import { Count } from "./parts";
+import { AvatarFace, Count } from "./parts";
 import { useKader } from "./kaderContext";
 
-/** The initial of a lead in a circle of their colour; `size` in px. */
+/** A lead's Discord picture (else the initial) in a circle of their colour; `size` in px. */
 export function LeadAvatar({ userId, size = 20 }: { userId: string; size?: number }) {
     const { view, kader } = useKader();
     if (!userId) return <span className="kp-avatar kp-avatar-sized kp-avatar-none" style={{ "--av": `${size}px` } as CSSProperties} aria-hidden="true"><UserQuestionIcon /></span>;
@@ -21,7 +21,7 @@ export function LeadAvatar({ userId, size = 20 }: { userId: string; size?: numbe
     const hue = leadHue(kader.leads, userId);
     return (
         <span className={`kp-avatar kp-avatar-sized kp-hue-${hue}`} data-lead-hue={hue} style={{ "--av": `${size}px` } as CSSProperties} aria-hidden="true">
-            {(name.trim()[0] || "?").toUpperCase()}
+            <AvatarFace view={view} userId={userId} name={name} />
         </span>
     );
 }

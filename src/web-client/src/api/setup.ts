@@ -365,9 +365,10 @@ export type SetupActivity = {
     userIds?: string[];
 };
 
-export type SetupPresenceAnswer = { editors: SetupPresenceEditor[]; version: number; activity: SetupActivity[] };
+/** `confirmations`: the Confirm/Cancel marks as stored — a raider's click in Discord changes no version. */
+export type SetupPresenceAnswer = { editors: SetupPresenceEditor[]; version: number; confirmations?: Record<string, SetupConfirmation>; activity: SetupActivity[] };
 
-/** The open editor's heartbeat: who else is in it, the stored version, what changed after `since`. */
+/** The open editor's heartbeat: who else is in it, the stored version and marks, what changed after `since`. */
 export function setupPresence(eventId: string, body: { action?: SetupPresenceAction | null; since?: number }): Promise<SetupPresenceAnswer> {
     return send("POST", "/api/raids/setup/presence", { event: eventId, ...body });
 }

@@ -557,9 +557,29 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         }
         return out;
     };
+    // When the last own mark was answered, and whether "Alle bestätigen" is on its way: a heartbeat
+    // sent before either knows nothing of it and would turn the checks back for a moment.
+    const lastMarkAt = useRef(0);
+    const markingAll = useRef(false);
     const settle = (userId: string, sent: SetupConfirmation | "") => {
         if (pendingMarks.current.get(userId) === sent) pendingMarks.current.delete(userId);
+        lastMarkAt.current = Date.now();
     };
+
+    // A raider answered under the setup message in Discord: that changes no version, so the
+    // heartbeat brings the stored marks along — taken over unless they are older than our own.
+    useEffect(() => {
+        const marks = presence.marks;
+        if (!marks || markingAll.current || marks.sentAt <= lastMarkAt.current) return;
+        setData((prev) => {
+            if (!prev) return prev;
+            const next = withPending(marks.confirmations);
+            const was = prev.confirmations || {};
+            const same = Object.keys(next).length === Object.keys(was).length && Object.entries(next).every(([id, s]) => was[id] === s);
+            return same ? prev : { ...prev, confirmations: next };
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [presence.marks]);
 
     /** The check in the raider panel: confirmed ↔ none (a "Cancel" turns into confirmed). */
     const toggleConfirm = (userId: string) => {
@@ -598,12 +618,16 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         });
         if (!ok) return;
         await markChain.current;
+        markingAll.current = true;
         try {
             const answer = await confirmAllSetup(eventId);
             setData((prev) => (prev ? { ...prev, confirmations: withPending(answer.confirmations || {}) } : prev));
             jobs.notify(answer.count ? t("setup.editor.confirmAllDone", { count: answer.count }) : t("setup.editor.confirmAllNone"));
         } catch (e) {
             jobs.notify((e as ApiError).message || t("setup.editor.confirmFailed"), "err");
+        } finally {
+            markingAll.current = false;
+            lastMarkAt.current = Date.now();
         }
     };
 
