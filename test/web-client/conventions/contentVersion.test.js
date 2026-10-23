@@ -100,7 +100,7 @@ describe("one game version per page (#741)", () => {
     });
 
     it("keeps the one list of neutral pages in menu.json: Kanäle, Rollen, Rollen-Nachrichten, Einstellungen, Systemstatus", () => {
-        expect(MENU.filter((e) => e.neutral === true).map((e) => e.id).sort()).toEqual(["channels", "roleMessages", "serverRoles", "settings", "system"]);
+        expect(MENU.filter((e) => e.neutral === true).map((e) => e.id).sort()).toEqual(["channels", "members", "roleMessages", "serverRoles", "settings", "system"]);
     });
 
     it("lets every other page follow the content switch", () => {

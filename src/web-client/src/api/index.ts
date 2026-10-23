@@ -18,6 +18,7 @@ export * from "./raidTemplates";
 export * from "./notifyTemplates";
 export * from "./roleMessages";
 export * from "./discordRoles";
+export * from "./discordMembers";
 export * from "./raidDetail";
 export * from "./raidManage";
 export * from "./eventSeries";

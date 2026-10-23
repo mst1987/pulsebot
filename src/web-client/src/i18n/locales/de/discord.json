@@ -3,6 +3,7 @@
         "aria": "Bereiche von Discord",
         "channels": "Kanäle",
         "serverRoles": "Rollen",
+        "members": "Mitglieder",
         "roleMessages": "Rollen-Nachrichten"
     },
     "permGroup": {
@@ -211,6 +212,79 @@
             "noManageRoles": "Recht fehlt",
             "above": "nein",
             "aboveFix": "zu hoch"
+        }
+    },
+    "members": {
+        "page": {
+            "kicker": "Discord-Server",
+            "title": "Mitglieder",
+            "loading": "Mitglieder werden geladen",
+            "loadError": "Fehler beim Laden der Mitglieder: {message}",
+            "count": { "one": "{count} Mitglied", "other": "{count} Mitglieder" },
+            "offline": "Bot nicht verbunden",
+            "offlineSub": "Mitglieder kommen live aus Discord – ohne Verbindung bleibt die Liste leer.",
+            "eventMissing": "Kein Event-Server eingestellt (Einstellungen › Discord).",
+            "talkMissing": "Kein Talk-Server eingestellt (Einstellungen › Discord).",
+            "membersError": "Mitgliederliste fehlt",
+            "membersErrorSub": "Discord hat die Mitgliederliste nicht rechtzeitig geliefert. Beim nächsten Laden kommt sie wieder.",
+            "membersErrorIntent": "Discord gibt die Mitgliederliste nicht heraus. Meist fehlt dem Bot der Server-Members-Intent (Developer Portal › Bot › Privileged Gateway Intents).",
+            "search": "Name, Discord-Name oder Charakter",
+            "role": "Rolle",
+            "allRoles": "Alle Rollen",
+            "noRole": "ohne Rolle",
+            "noRoleSub": "Nur Mitglieder, die außer @everyone keine Rolle haben.",
+            "notInRoster": "nicht im Roster",
+            "notInRosterSub": "Nur Mitglieder, die in keinem offenen Roster stehen.",
+            "hideBots": "Bots ausblenden",
+            "hideBotsSub": "Bots und Apps auf dem Server aus der Liste nehmen.",
+            "shown": "{count} von {total} Mitgliedern",
+            "botsHidden": { "one": "{count} Bot ausgeblendet", "other": "{count} Bots ausgeblendet" },
+            "showAll": { "one": "{count} weiteres · alle zeigen", "other": "{count} weitere · alle zeigen" },
+            "empty": "Auf diesem Server gibt es kein Mitglied.",
+            "emptyFilter": "Kein Mitglied passt zu den Filtern.",
+            "footnote": "Klick auf eine Zeile öffnet das Mitglied. Rollen vergeben bleibt in Discord und im Roster."
+        },
+        "col": {
+            "member": "Mitglied",
+            "roles": "Rollen",
+            "joined": "Beigetreten",
+            "joinedTip": "Seit wann auf dem Server",
+            "roster": "Roster und Charakter",
+            "rosterShort": "Roster"
+        },
+        "cell": {
+            "noRole": "keine Rolle",
+            "noCharacter": "kein Charakter verknüpft",
+            "outside": "nicht im Roster",
+            "more": "+{count}",
+            "moreTip": { "one": "{count} weitere Rolle", "other": "{count} weitere Rollen" },
+            "rosterMore": "+{count} Roster",
+            "bot": "Bot",
+            "unknown": "unbekannt",
+            "missing": "Rolle ohne Roster",
+            "missingSub": "Hat die Raider- oder Probe-Rolle von {rosters}, steht dort aber nicht im Roster."
+        },
+        "drawer": {
+            "kicker": "Mitglied · {guild}",
+            "loading": "Mitglied wird geladen",
+            "loadError": "Fehler beim Laden: {message}",
+            "gone": "Dieses Mitglied ist nicht mehr auf dem Server.",
+            "joined": "beigetreten {date}",
+            "rolesCount": { "one": "{count} Rolle", "other": "{count} Rollen" },
+            "rolesNone": "Keine Rolle außer @everyone.",
+            "charactersCount": { "one": "{count} Charakter", "other": "{count} Charaktere" },
+            "charactersNone": "Kein Charakter verknüpft.",
+            "character": "Charakter",
+            "version": "Version",
+            "roster": "Roster",
+            "channels": "Sichtbare Kanäle",
+            "channelsCount": "{visible} von {total} Kanälen",
+            "noCategory": "Ohne Kategorie",
+            "voice": "Sprache",
+            "forum": "Forum",
+            "channelsNone": "Keine Kanäle auf dem Server.",
+            "channelsFoot": "Berechnet aus Rollen und Kanal-Sonderrechten.",
+            "showMember": "In der Mitgliederliste öffnen"
         }
     }
 }

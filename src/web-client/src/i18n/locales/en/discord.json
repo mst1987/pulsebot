@@ -3,6 +3,7 @@
         "aria": "Discord sections",
         "channels": "Channels",
         "serverRoles": "Roles",
+        "members": "Members",
         "roleMessages": "Role messages"
     },
     "permGroup": {
@@ -211,6 +212,79 @@
             "noManageRoles": "no right",
             "above": "no",
             "aboveFix": "too high"
+        }
+    },
+    "members": {
+        "page": {
+            "kicker": "Discord server",
+            "title": "Members",
+            "loading": "Loading members",
+            "loadError": "Could not load the members: {message}",
+            "count": { "one": "{count} member", "other": "{count} members" },
+            "offline": "Bot not connected",
+            "offlineSub": "Members come live from Discord – without a connection the list stays empty.",
+            "eventMissing": "No event server set up (Settings › Discord).",
+            "talkMissing": "No talk server set up (Settings › Discord).",
+            "membersError": "Member list missing",
+            "membersErrorSub": "Discord did not deliver the member list in time. It comes back on the next load.",
+            "membersErrorIntent": "Discord does not hand out the member list. Usually the bot lacks the Server Members intent (Developer Portal › Bot › Privileged Gateway Intents).",
+            "search": "Name, Discord name or character",
+            "role": "Role",
+            "allRoles": "All roles",
+            "noRole": "without role",
+            "noRoleSub": "Only members without any role besides @everyone.",
+            "notInRoster": "not in a roster",
+            "notInRosterSub": "Only members who are in no open roster.",
+            "hideBots": "Hide bots",
+            "hideBotsSub": "Leave the server's bots and apps out of the list.",
+            "shown": "{count} of {total} members",
+            "botsHidden": { "one": "{count} bot hidden", "other": "{count} bots hidden" },
+            "showAll": { "one": "{count} more · show all", "other": "{count} more · show all" },
+            "empty": "This server has no members.",
+            "emptyFilter": "No member matches the filters.",
+            "footnote": "Click a row to open the member. Roles are still given in Discord and in the roster."
+        },
+        "col": {
+            "member": "Member",
+            "roles": "Roles",
+            "joined": "Joined",
+            "joinedTip": "On the server since",
+            "roster": "Roster and character",
+            "rosterShort": "Roster"
+        },
+        "cell": {
+            "noRole": "no role",
+            "noCharacter": "no character linked",
+            "outside": "not in a roster",
+            "more": "+{count}",
+            "moreTip": { "one": "{count} more role", "other": "{count} more roles" },
+            "rosterMore": "+{count} rosters",
+            "bot": "Bot",
+            "unknown": "unknown",
+            "missing": "role without roster",
+            "missingSub": "Has the raider or trial role of {rosters} but is not in that roster."
+        },
+        "drawer": {
+            "kicker": "Member · {guild}",
+            "loading": "Loading member",
+            "loadError": "Could not load: {message}",
+            "gone": "This member is no longer on the server.",
+            "joined": "joined {date}",
+            "rolesCount": { "one": "{count} role", "other": "{count} roles" },
+            "rolesNone": "No role besides @everyone.",
+            "charactersCount": { "one": "{count} character", "other": "{count} characters" },
+            "charactersNone": "No character linked.",
+            "character": "Character",
+            "version": "Version",
+            "roster": "Roster",
+            "channels": "Visible channels",
+            "channelsCount": "{visible} of {total} channels",
+            "noCategory": "Without category",
+            "voice": "Voice",
+            "forum": "Forum",
+            "channelsNone": "No channels on the server.",
+            "channelsFoot": "Worked out from roles and channel overrides.",
+            "showMember": "Open in the member list"
         }
     }
 }
