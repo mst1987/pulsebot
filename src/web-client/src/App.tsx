@@ -4,7 +4,7 @@ import { JobsProvider } from "./components/shell/Jobs";
 import { ConfirmProvider } from "./components/ui/Modal";
 import { canAccessAny, getAddonName, getSession, type AddonName, type ApiError, type Session, type SessionUser } from "./api";
 import { getLang, langReady, setLang, useT } from "./i18n";
-import { firstAllowedTab } from "./lib/app/menu";
+import { entryHref, firstAllowedTab } from "./lib/app/menu";
 import RaidLoader from "./components/ui/RaidLoader";
 import WowIcon from "./components/ui/WowIcon";
 import { BrandIcon, DiscordIcon, LockIcon } from "./components/ui/icons";
@@ -259,7 +259,7 @@ function MenuApp() {
                                     canAccessAny(user, homeAreas)
                                         ? <DashboardPage />
                                         : home
-                                            ? <Navigate to={home.href} replace />
+                                            ? <Navigate to={entryHref(user, home)} replace />
                                             : <NoAreaNotice />
                                 } />
                                 <Route path="channels" element={<Guard user={user} areas={["channels"]}><ChannelsPage /></Guard>} />

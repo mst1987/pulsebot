@@ -1,4 +1,4 @@
-import type { BotFunction, BotMessage, DiscordOverview, SessionUser } from "../../api";
+import type { BotChannel, BotFunction, BotMessage, DiscordOverview, SessionUser } from "../../api";
 import { MENU, matchesHref, mayOpen } from "../app/menu";
 import { t, tOr } from "../../i18n";
 import { permissionLabel } from "./permissions";
@@ -69,12 +69,32 @@ export function messageName(m: BotMessage): string {
     return extra ? `${messageKindLabel(m)} · ${extra}` : messageKindLabel(m);
 }
 
+/** The rights a channel lacks in the active language: from their keys when the server sends them, else its German labels. */
+export function channelMissing(c: Pick<BotChannel, "missing" | "missingKeys">): string[] {
+    if (!c.missingKeys || c.missingKeys.length !== c.missing.length) return c.missing;
+    return c.missingKeys.map((key, i) => rightLabel({ key, label: c.missing[i] }));
+}
+
+/** "3 Nachrichten nicht geprüft": the fixed messages whose state the bot could not read, as a calm line ("" = none). */
+export function uncheckedLine(messages: BotMessage[]): string {
+    const n = messages.filter((m) => m.status === "unknown").length;
+    return n ? t("discord.overview.attention.unchecked", { count: n }) : "";
+}
+
 /**
  * The points of one side that need attention, the bad ones first. Empty while the
  * bot cannot say anything (offline, no server) — the page shows that state itself.
  */
 export function attentionItems(data: DiscordOverview, user: SessionUser | null): AttentionItem[] {
     if (!data.guildId || !data.online) return [];
+    // Online, but the bot is not on this server (or misses its own member): nothing
+    // below could be checked — one bad point instead of a false "Alles in Ordnung".
+    if (!data.botCheck.known) {
+        return [{
+            id: "bot-absent", tone: "bad", status: t("discord.overview.status.unchecked"),
+            what: t("discord.overview.attention.bot"), why: t("discord.overview.why.botAbsent"), action: null,
+        }];
+    }
     const link = (label: string, to: string) => (mayOpenHref(user, to) ? { label, to } : null);
     const out: AttentionItem[] = [];
 
@@ -94,7 +114,7 @@ export function attentionItems(data: DiscordOverview, user: SessionUser | null):
             ? t("discord.overview.why.channelNotSet")
             : c.state === "channel_missing"
                 ? t("discord.overview.why.channelGone")
-                : t("discord.overview.why.channelRights", { channel: c.channelName || c.channelId, rights: c.missing.join(", ") });
+                : t("discord.overview.why.channelRights", { channel: c.channelName || c.channelId, rights: channelMissing(c).join(", ") });
         out.push({
             id: `ch-${c.key}-${i}`, tone: "bad",
             status: t(c.state === "channel_missing" ? "discord.overview.status.deleted" : "discord.overview.status.missing"),
@@ -120,19 +140,14 @@ export function attentionItems(data: DiscordOverview, user: SessionUser | null):
             status: t(gone ? "discord.overview.status.deleted" : "discord.overview.status.noAccess"),
             what: messageName(m),
             why: t(m.status === "deleted" ? "discord.overview.why.messageGone" : m.status === "channel_missing" ? "discord.overview.why.messageChannelGone" : "discord.overview.why.messageNoAccess"),
-            action: home ? link(t("discord.overview.action.repost"), home) : null,
+            // a message the bot cannot see is not reposted: the channel's rights are what is wrong
+            action: gone
+                ? (home ? link(t("discord.overview.action.repost"), home) : null)
+                : link(t("discord.overview.action.checkChannelRights"), "/channels"),
         });
     }
 
-    const empty = data.hygiene.empty;
-    if (typeof empty === "number" && empty > 0) {
-        out.push({
-            id: "hygiene-empty", tone: "calm", status: t("discord.overview.status.tidy"),
-            what: t("discord.overview.why.emptyRoles", { count: empty }), why: t("discord.overview.why.emptyRolesSub"),
-            action: link(t("discord.overview.action.toRoles"), "/channels/server-roles"),
-        });
-    }
-
+    // Empty roles are no point of their own: the hygiene line under the list counts them.
     return out.map((item, i) => ({ item, i }))
         .sort((a, b) => TONE_ORDER[a.item.tone] - TONE_ORDER[b.item.tone] || a.i - b.i)
         .map((x) => x.item);

@@ -1,7 +1,7 @@
 // The adminOnly menu entry (Systemstatus, docs/system-status.md): only a full
 // admin gets its line, whatever areas a role holds.
 import { describe, expect, it } from "vitest";
-import { MENU, firstAllowedTab, isNeutralPage, mayOpen, menuLines } from "./menu";
+import { MENU, entryHref, firstAllowedTab, isNeutralPage, mayOpen, menuLines } from "./menu";
 import type { SessionUser } from "../../api";
 
 const system = MENU.find((e) => e.id === "system")!;
@@ -57,5 +57,20 @@ describe("version-neutral pages (#742)", () => {
         expect(isNeutralPage(addon, "/addon/a/b")).toBe(false);
         expect(isNeutralPage(settings, "/settings")).toBe(true);
         expect(isNeutralPage(undefined, "/")).toBe(false);
+    });
+});
+
+describe("where a limited account lands", () => {
+    const channelsOnly: SessionUser = { id: "3", name: "C", isAdmin: false, access: { channels: { read: true, write: false } } };
+
+    it("follows an entry's landing page: the channels area alone opens the Discord overview", () => {
+        const start = firstAllowedTab(channelsOnly)!;
+        expect(start.id).toBe("channels");
+        expect(entryHref(channelsOnly, start)).toBe("/channels/overview");
+    });
+
+    it("keeps the entry's own href when it has no landing page", () => {
+        const settings = MENU.find((e) => e.id === "settings")!;
+        expect(entryHref(everyArea, settings)).toBe("/settings");
     });
 });

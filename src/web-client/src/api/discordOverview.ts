@@ -23,6 +23,8 @@ export type BotChannel = {
     state: BotChannelState;
     /** the labels of the rights the bot lacks in that channel */
     missing: string[];
+    /** the missing rights as keys (Discord permission flags), for the label in the client language; older servers may leave it out */
+    missingKeys?: string[];
 };
 
 export type BotCheck = {

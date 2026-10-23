@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { BotMessage, DiscordOverview } from "../../api";
 import { adminUser } from "../../test/render";
 import { switchLang } from "../../test/i18n";
-import { attentionItems, botCheckRank, botCheckRows, functionState, hygieneLine, messageStatus, purposeLabel, refreshWait } from "./overview";
+import { attentionItems, botCheckRank, botCheckRows, channelMissing, functionState, hygieneLine, messageStatus, purposeLabel, refreshWait, uncheckedLine } from "./overview";
 
 function overview(over: Partial<DiscordOverview> = {}): DiscordOverview {
     return {
@@ -48,7 +48,7 @@ const BAD = overview({
 afterEach(async () => { await switchLang("de"); });
 
 describe("attentionItems", () => {
-    it("lists the bad points first, then the hints, then tidying up", () => {
+    it("lists the bad points first, then the hints; empty roles only in the hygiene line", () => {
         const items = attentionItems(BAD, adminUser());
         expect(items.map((i) => [i.tone, i.status, i.what])).toEqual([
             ["bad", "fehlt", "Raider-Rollen, Rollen-Nachrichten, Rollen-Abgleich"],
@@ -56,21 +56,28 @@ describe("attentionItems", () => {
             ["bad", "gelöscht", "Rollen-Nachricht · Berufe"],
             ["mid", "Hinweis", "Naxx-Raider"],
             ["mid", "kein Zugriff", "Rekrutierung"],
-            ["calm", "Aufräumen", "3 Rollen ohne Mitglieder"],
         ]);
         expect(items[0].why).toBe("Recht fehlt: Rollen verwalten");
         expect(items[0].action).toEqual({ label: "Recht prüfen", to: "#bot-check" });
         expect(items[1].action).toEqual({ label: "Kanal zuordnen", to: "/channels" });
         expect(items[2].action).toEqual({ label: "Neu posten", to: "/channels/roles" });
-        expect(items[4].action).toEqual({ label: "Neu posten", to: "/recruitment" });
+        // a message the bot cannot see is not reposted: the channel's rights are what is wrong
+        expect(items[4].action).toEqual({ label: "Kanalrechte prüfen", to: "/channels" });
     });
 
     it("hides a link the account may not open, keeps the in-page one", () => {
-        const user = adminUser({ isAdmin: false, access: { channels: { read: true, write: false } } });
+        const user = adminUser({ isAdmin: false, access: {} });
         const items = attentionItems(BAD, user);
         expect(items.find((i) => i.what === "Rekrutierung")!.action).toBeNull();
-        expect(items.find((i) => i.what === "Bewerbungen")!.action).toEqual({ label: "Kanal zuordnen", to: "/channels" });
+        expect(items.find((i) => i.what === "Bewerbungen")!.action).toBeNull();
         expect(items[0].action).toEqual({ label: "Recht prüfen", to: "#bot-check" });
+    });
+
+    it("says the bot is absent instead of everything being fine when it cannot check", () => {
+        const data = overview({ botCheck: { guildId: "g1", known: false, functions: [], channels: [], rolesAboveBot: [] } });
+        const items = attentionItems(data, adminUser());
+        expect(items.map((i) => [i.id, i.tone, i.status, i.what])).toEqual([["bot-absent", "bad", "nicht prüfbar", "Bot"]]);
+        expect(items[0].action).toBeNull();
     });
 
     it("says nothing while the bot is offline or no server is set", () => {
@@ -143,6 +150,25 @@ describe("messages and hygiene", () => {
         expect(hygieneLine({ known: true, total: 40, empty: 3, aboveBot: 1, sensitive: 1 })).toBe("40 Rollen · 3 ohne Mitglieder · 1 mit heiklen Rechten");
         expect(hygieneLine({ known: true, total: 1, empty: null, aboveBot: null, sensitive: null })).toBe("1 Rolle");
         expect(hygieneLine({ known: false, total: null, empty: null, aboveBot: null, sensitive: null })).toBe("");
+    });
+
+    it("counts the messages the bot could not check as one calm line", () => {
+        expect(uncheckedLine([message({ status: "unknown" }), message({ messageId: "m2", status: "unknown" }), message({ status: "ok" })])).toBe("2 Nachrichten nicht geprüft");
+        expect(uncheckedLine([message({ status: "unknown" })])).toBe("1 Nachricht nicht geprüft");
+        expect(uncheckedLine([message({ status: "deleted" })])).toBe("");
+    });
+});
+
+describe("channelMissing", () => {
+    it("names the missing rights from their keys in the active language", async () => {
+        const c = { missing: ["Links einbetten", "Verlauf (Server)"], missingKeys: ["EmbedLinks", "ReadMessageHistory"] };
+        expect(channelMissing(c)).toEqual(["Links einbetten", "Nachrichtenverlauf anzeigen"]);
+        await switchLang("en");
+        expect(channelMissing(c)).toEqual(["Embed links", "Read message history"]);
+    });
+
+    it("keeps the server's labels when no keys came along", () => {
+        expect(channelMissing({ missing: ["Links einbetten"] })).toEqual(["Links einbetten"]);
     });
 });
 

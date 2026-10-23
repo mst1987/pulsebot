@@ -246,14 +246,19 @@
                 "one": "{count} Punkt",
                 "other": "{count} Punkte"
             },
-            "allGood": "Alles in Ordnung"
+            "allGood": "Alles in Ordnung",
+            "bot": "Bot",
+            "unchecked": {
+                "one": "{count} Nachricht nicht geprüft",
+                "other": "{count} Nachrichten nicht geprüft"
+            }
         },
         "status": {
             "missing": "fehlt",
             "deleted": "gelöscht",
             "hint": "Hinweis",
             "noAccess": "kein Zugriff",
-            "tidy": "Aufräumen"
+            "unchecked": "nicht prüfbar"
         },
         "why": {
             "rights": "Recht fehlt: {rights}",
@@ -264,18 +269,14 @@
             "messageGone": "Die Nachricht wurde in Discord gelöscht",
             "messageChannelGone": "Der Kanal der Nachricht existiert nicht mehr",
             "messageNoAccess": "Der Bot sieht den Kanal nicht",
-            "emptyRoles": {
-                "one": "{count} Rolle ohne Mitglieder",
-                "other": "{count} Rollen ohne Mitglieder"
-            },
-            "emptyRolesSub": "Kann weg, wenn sie niemand braucht"
+            "botAbsent": "Der Bot ist nicht auf diesem Server oder findet sich dort nicht – nichts lässt sich prüfen"
         },
         "action": {
             "checkRight": "Recht prüfen",
             "assignChannel": "Kanal zuordnen",
             "toRole": "Zur Rolle",
             "repost": "Neu posten",
-            "toRoles": "Zu den Rollen"
+            "checkChannelRights": "Kanalrechte prüfen"
         },
         "state": {
             "ok": "ok",
@@ -345,7 +346,11 @@
             "empty": "Der Bot kann gerade nichts prüfen.",
             "fn": "Funktion",
             "rights": "Braucht",
-            "stateTip": "Nach Zustand sortieren: fehlende Rechte zuerst"
+            "stateTip": "Nach Zustand sortieren: fehlende Rechte zuerst",
+            "okFold": {
+                "one": "{count} Funktion ok",
+                "other": "{count} Funktionen ok"
+            }
         },
         "right": {
             "GuildMembers": "Mitglieder lesen (Intent)",

@@ -246,14 +246,19 @@
                 "one": "{count} item",
                 "other": "{count} items"
             },
-            "allGood": "All good"
+            "allGood": "All good",
+            "bot": "Bot",
+            "unchecked": {
+                "one": "{count} message not checked",
+                "other": "{count} messages not checked"
+            }
         },
         "status": {
             "missing": "missing",
             "deleted": "deleted",
             "hint": "Note",
             "noAccess": "no access",
-            "tidy": "Tidy up"
+            "unchecked": "cannot check"
         },
         "why": {
             "rights": "Missing right: {rights}",
@@ -264,18 +269,14 @@
             "messageGone": "The message was deleted in Discord",
             "messageChannelGone": "The message's channel no longer exists",
             "messageNoAccess": "The bot cannot see the channel",
-            "emptyRoles": {
-                "one": "{count} role without members",
-                "other": "{count} roles without members"
-            },
-            "emptyRolesSub": "Can go if nobody needs it"
+            "botAbsent": "The bot is not on this server or cannot find itself there – nothing can be checked"
         },
         "action": {
             "checkRight": "Check right",
             "assignChannel": "Assign channel",
             "toRole": "To the role",
             "repost": "Post again",
-            "toRoles": "To the roles"
+            "checkChannelRights": "Check channel rights"
         },
         "state": {
             "ok": "ok",
@@ -345,7 +346,11 @@
             "empty": "The bot cannot check anything right now.",
             "fn": "Function",
             "rights": "Needs",
-            "stateTip": "Sort by state: missing rights first"
+            "stateTip": "Sort by state: missing rights first",
+            "okFold": {
+                "one": "{count} function ok",
+                "other": "{count} functions ok"
+            }
         },
         "right": {
             "GuildMembers": "Read members (intent)",

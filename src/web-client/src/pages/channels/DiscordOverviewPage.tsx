@@ -12,7 +12,7 @@ import { useTableSort } from "../../lib/ui/tableSort";
 import { formatDateTime } from "../../lib/format";
 import {
     attentionItems, botCheckRank, botCheckRows, functionState, hygieneLine, mayOpenHref, messageKindLabel,
-    messageStatus, refreshWait, type AttentionItem, type BotCheckRow,
+    messageStatus, refreshWait, uncheckedLine, type AttentionItem, type BotCheckRow,
 } from "../../lib/discord/overview";
 import "../../styles/discord-overview.css";
 import { useT } from "../../i18n";
@@ -38,17 +38,33 @@ export default function DiscordOverviewPage() {
     const { user } = useOutletContext<ShellContext>();
     const t = useT();
     const [side, setSide] = useState<DiscordSide>("event");
-    const fresh = useRef(false);
-    const [lastFresh, setLastFresh] = useState(0);
+    // Each server keeps its own answer: switching shows what is already there and
+    // asks nothing again. A side loads once it is chosen, or (for the bot check
+    // side by side) once the chosen one answered with its bot online; after that
+    // it stays loaded.
+    const [wanted, setWanted] = useState<Record<DiscordSide, boolean>>({ event: true, talk: false });
+    // "Neu prüfen" asks Discord afresh only for the side it was clicked on
+    const fresh = useRef<Record<DiscordSide, boolean>>({ event: false, talk: false });
+    const [lastFresh, setLastFresh] = useState<Record<DiscordSide, number>>({ event: 0, talk: 0 });
     const [now, setNow] = useState(() => Date.now());
-    const state = useApi(() => getDiscordOverview(side, fresh.current), [side]);
-    const data = state.data && state.data.side === side ? state.data : null;
-    // the other server, for the bot check side by side (only once this one answered and the bot is there)
+    const states = {
+        event: useApi(() => getDiscordOverview("event", fresh.current.event), [], { enabled: wanted.event }),
+        talk: useApi(() => getDiscordOverview("talk", fresh.current.talk), [], { enabled: wanted.talk }),
+    };
     const otherSide: DiscordSide = side === "event" ? "talk" : "event";
-    const other = useApi(() => getDiscordOverview(otherSide), [otherSide], { enabled: !!(data && data.online) });
-    const otherData = other.data && other.data.side === otherSide ? other.data : null;
+    const state = states[side];
+    const data = state.data;
+    const otherData = states[otherSide].data;
+    const online = !!(data && data.online);
+    useEffect(() => {
+        if (online) setWanted((w) => (w[otherSide] ? w : { ...w, [otherSide]: true }));
+    }, [online, otherSide]);
+    const choose = (next: DiscordSide) => {
+        setSide(next);
+        setWanted((w) => (w[next] ? w : { ...w, [next]: true }));
+    };
 
-    const wait = refreshWait(lastFresh, now, REFRESH_GAP_MS);
+    const wait = refreshWait(lastFresh[side], now, REFRESH_GAP_MS);
     // tick while the button waits, so its countdown moves
     useEffect(() => {
         if (!wait) return undefined;
@@ -57,12 +73,13 @@ export default function DiscordOverviewPage() {
     }, [wait]);
 
     const refresh = () => {
-        if (refreshWait(lastFresh, Date.now(), REFRESH_GAP_MS)) return;
         const at = Date.now();
-        setLastFresh(at);
+        if (refreshWait(lastFresh[side], at, REFRESH_GAP_MS)) return;
+        const clicked = side;
+        setLastFresh((l) => ({ ...l, [clicked]: at }));
         setNow(at);
-        fresh.current = true;
-        state.reload().finally(() => { fresh.current = false; });
+        fresh.current[clicked] = true;
+        states[clicked].reload().finally(() => { fresh.current[clicked] = false; });
     };
 
     const controls = (
@@ -70,7 +87,7 @@ export default function DiscordOverviewPage() {
             <Segment<DiscordSide>
                 ariaLabel={t("discord.roles.page.server")}
                 value={side}
-                onChange={setSide}
+                onChange={choose}
                 options={[
                     { value: "event", label: t("discord.roles.side.event") },
                     { value: "talk", label: t("discord.roles.side.talk") },
@@ -134,6 +151,8 @@ function Attention({ data, user }: { data: DiscordOverview; user: SessionUser | 
     const t = useT();
     const items = attentionItems(data, user);
     const hygiene = hygieneLine(data.hygiene);
+    // messages the bot could not read are no point to fix: one calm line, like the hygiene
+    const unchecked = data.botCheck.known ? uncheckedLine(data.messages) : "";
     return (
         <section className="dov-attention" aria-labelledby="dov-attention-h">
             <div className="dov-head">
@@ -147,6 +166,7 @@ function Attention({ data, user }: { data: DiscordOverview; user: SessionUser | 
                     {items.map((item) => <AttentionRow key={item.id} item={item} />)}
                 </ul>
             )}
+            {unchecked && <p className="dov-hygiene">{unchecked}</p>}
             {hygiene && <p className="dov-hygiene">{hygiene}</p>}
         </section>
     );
@@ -286,11 +306,14 @@ function BotCheck({ rows, showTalk }: { rows: BotCheckRow[]; showTalk: boolean }
     const sorted = sort.apply(rows, (r, key) => (key === "fn" ? r.label.toLowerCase() : botCheckRank(r)));
     const eventLabel = t("discord.roles.side.event");
     const talkLabel = t("discord.roles.side.talk");
+    // on a phone the fine functions fold into one line, the problems stay in view (CSS decides by width)
+    const [open, setOpen] = useState(false);
+    const okCount = rows.filter((r) => botCheckRank(r) >= 2).length;
     return (
         <section className="dov-botcheck">
             <SectionHead id="bot-check" title={t("discord.overview.botCheck.title")} note={t("discord.overview.botCheck.note")} />
             {rows.length === 0 ? <p className="dov-empty">{t("discord.overview.botCheck.empty")}</p> : (
-                <table className={`idx dov-fn-table${showTalk ? " dov-fn-two" : ""}`}>
+                <table className={`idx dov-fn-table${showTalk ? " dov-fn-two" : ""}${open ? " dov-fn-open" : ""}`}>
                     <thead>
                         <tr>
                             <SortTh sortKey="fn" label={t("discord.overview.botCheck.fn")} sort={sort.sort} dir={sort.dir} onSort={sort.onSort} />
@@ -301,7 +324,7 @@ function BotCheck({ rows, showTalk }: { rows: BotCheckRow[]; showTalk: boolean }
                     </thead>
                     <tbody>
                         {sorted.map((r) => (
-                            <tr key={r.key}>
+                            <tr key={r.key} className={botCheckRank(r) >= 2 ? "dov-fn-okrow" : undefined}>
                                 <td className="dov-fn-name">{r.label}</td>
                                 <td className="dov-fn-rights" data-label={t("discord.overview.botCheck.rights")}>
                                     {r.rights.length ? r.rights.map((x) => x.label).join(", ") : <span className="dov-muted">–</span>}
@@ -310,6 +333,15 @@ function BotCheck({ rows, showTalk }: { rows: BotCheckRow[]; showTalk: boolean }
                                 {showTalk && <StateCell row={r} side="talk" label={talkLabel} />}
                             </tr>
                         ))}
+                        {okCount > 0 && (
+                            <tr className="dov-fn-fold">
+                                <td colSpan={showTalk ? 4 : 3}>
+                                    <Button variant="ghost" size="sm" icon={<ChevronRightIcon />} aria-expanded={open} onClick={() => setOpen(!open)}>
+                                        {t("discord.overview.botCheck.okFold", { count: okCount })}
+                                    </Button>
+                                </td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             )}

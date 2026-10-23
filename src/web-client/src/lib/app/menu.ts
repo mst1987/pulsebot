@@ -117,3 +117,12 @@ export function menuLines(user: SessionUser): MenuLine[] {
 export function firstAllowedTab(user: SessionUser): MenuEntry | null {
     return MENU.find((t) => mayOpen(user, t)) || null;
 }
+
+/**
+ * Where opening an entry leads: its landing page (System › Discord → the
+ * Übersicht) when the account may open that page, else its own href.
+ */
+export function entryHref(user: SessionUser, entry: MenuEntry): string {
+    const landing = entry.landing ? MENU.find((e) => e.href === entry.landing) : undefined;
+    return landing && mayOpen(user, landing) ? landing.href : entry.href;
+}

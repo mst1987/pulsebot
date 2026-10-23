@@ -126,15 +126,18 @@ function sideOfChannel(purpose, guildIds) {
 /** One configured channel of this side: found, rights, or why not. */
 function checkChannel(purpose, guild, online) {
     const base = { key: purpose.key, label: purpose.label, channelId: purpose.channelId, channelName: "" };
-    if (!purpose.channelId) return { ...base, state: "not_set", missing: [] };
-    if (!online || !guild) return { ...base, state: "unknown", missing: [] };
+    if (!purpose.channelId) return { ...base, state: "not_set", missing: [], missingKeys: [] };
+    if (!online || !guild) return { ...base, state: "unknown", missing: [], missingKeys: [] };
     const channel = guild.channels && guild.channels.cache ? guild.channels.cache.get(purpose.channelId) : null;
-    if (!channel) return { ...base, state: "channel_missing", missing: [] };
+    if (!channel) return { ...base, state: "channel_missing", missing: [], missingKeys: [] };
     const me = ownMember(guild);
     const perms = me && typeof channel.permissionsFor === "function" ? channel.permissionsFor(me) : null;
     const rights = me ? rightsOf(purpose.needs, perms || { has: () => false }) : rightsOf(purpose.needs, null);
-    const missing = rights.filter((r) => r.ok === false).map((r) => r.label);
-    return { ...base, channelName: str(channel.name), state: me ? (missing.length ? "missing" : "ok") : "unknown", missing };
+    const lacking = rights.filter((r) => r.ok === false);
+    const missing = lacking.map((r) => r.label);
+    // missingKeys: the same rights as keys, for a client that names them in its own language
+    const missingKeys = lacking.map((r) => r.key);
+    return { ...base, channelName: str(channel.name), state: me ? (missing.length ? "missing" : "ok") : "unknown", missing, missingKeys };
 }
 
 /** The ids of the roles the bot hands out on this server, each with what uses it. */

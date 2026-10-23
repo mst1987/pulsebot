@@ -75,6 +75,11 @@
 .dov-fn-rights { font-size: 13px; color: var(--muted); }
 .dov-fn-state { font-size: 13px; white-space: nowrap; }
 .dov-fn-missing { display: block; color: var(--high); font-size: 12.5px; white-space: normal; }
+/* the state column sorts by default: its head in text colour, not the accent of an active sort */
+.dov-fn-table th .sort-link.active { color: var(--text); }
+/* the fold of the fine functions exists on a phone only */
+.dov-fn-fold { display: none; }
+.dov-fn-open .dov-fn-fold svg { transform: rotate(90deg); }
 
 @media (max-width: 900px) {
     .dov-cols { grid-template-columns: minmax(0, 1fr); }
@@ -97,4 +102,7 @@
         content: attr(data-label) ": "; color: var(--muted); font-size: 12px; font-weight: 400;
     }
     .dov-fn-missing { display: inline; margin-left: 6px; }
+    /* the fine functions behind one line, the problems stay in view */
+    .dov-fn-table:not(.dov-fn-open) .dov-fn-okrow { display: none; }
+    .dov-fn-table .dov-fn-fold { display: block; border-bottom: 0; padding-top: 6px; }
 }
