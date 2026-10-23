@@ -197,6 +197,29 @@ function noteAppended(sessionId, added) {
 }
 
 /**
+ * Forget every session whose last decision accepted it into `eventId` — called
+ * when that event's loot is cleared. Otherwise the next upload would append the
+ * whole raid straight back into the event that was just emptied; forgotten, the
+ * session arrives as a new inbox card and someone decides again.
+ * @returns {number} how many sessions were unlinked
+ */
+function unlinkEvent(eventId) {
+    const id = String(eventId || "");
+    if (!id) return 0;
+    const state = readState();
+    const lastBySession = new Map();
+    for (const r of state.resolved) lastBySession.set(r.sessionId, r);
+    const unlinked = new Set();
+    for (const [sessionId, r] of lastBySession) {
+        if (r.action === "accepted" && r.eventId === id) unlinked.add(sessionId);
+    }
+    if (!unlinked.size) return 0;
+    state.resolved = state.resolved.filter((r) => !unlinked.has(r.sessionId));
+    writeState(state);
+    return unlinked.size;
+}
+
+/**
  * Accepted sessions, newest decision first, one per session: the quiet list
  * under the inbox cards that says which raids keep flowing in by themselves.
  */
@@ -224,5 +247,5 @@ function listLinked(limit = 10) {
 }
 
 module.exports = {
-    listPending, getPending, upsertPending, resolvePending, resolutionFor, noteAppended, listLinked,
+    listPending, getPending, upsertPending, resolvePending, resolutionFor, noteAppended, listLinked, unlinkEvent,
 };

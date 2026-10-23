@@ -97,7 +97,7 @@
     },
     "event": {
         "clearTitle": "Event-Loot löschen?",
-        "clearText": "Der gesamte Loot dieses Events ({count} Einträge) wird gelöscht. Ein erneuter Import bringt ihn zurück.",
+        "clearText": "Der gesamte Loot dieses Events ({count} Einträge) wird gelöscht. Ein erneuter Import bringt ihn zurück, Uploads des Sync-Tools landen wieder in der Addon-Inbox.",
         "clearAction": "Loot löschen",
         "cleared": "{count} Loot-Eintrag/-Einträge gelöscht.",
         "loading": "Raid wird geladen",
@@ -309,7 +309,7 @@
     },
     "awards": {
         "deleteTitle": "Vergabe löschen?",
-        "deleteText": "„{item}\" von {character} wird aus dem Loot gelöscht. Ein erneuter Import desselben Exports bringt sie zurück.",
+        "deleteText": "„{item}\" von {character} wird aus dem Loot gelöscht. Weder ein erneuter Import noch das Sync-Tool bringen sie zurück.",
         "deleted": "„{item}\" von {character} gelöscht.",
         "kickerFallback": "Item",
         "hint": "Klick auf einen Namen öffnet seine Loot-Historie",

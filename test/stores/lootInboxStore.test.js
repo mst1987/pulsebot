@@ -3,7 +3,7 @@ jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
 const {
-    listPending, getPending, upsertPending, resolvePending, resolutionFor, noteAppended, listLinked,
+    listPending, getPending, upsertPending, resolvePending, resolutionFor, noteAppended, listLinked, unlinkEvent,
 } = require("../../src/stores/lootInboxStore.js");
 
 beforeEach(() => {
@@ -202,6 +202,51 @@ describe("stores/lootInboxStore", () => {
                 resolvePending(entry.id, "accepted", { eventId: `e${i}` });
             }
             expect(listLinked(2)).toHaveLength(2);
+        });
+    });
+
+    // Clearing an event's loot unlinks its sessions: otherwise the next upload
+    // appends the whole raid straight back into the event that was emptied.
+    describe("unlinkEvent", () => {
+        it("forgets the sessions accepted into the event, so the next upload is a new card", () => {
+            const a = upsertPending(session({ sessionId: "a" }));
+            resolvePending(a.entry.id, "accepted", { eventId: "e1" });
+            const b = upsertPending(session({ sessionId: "b" }));
+            resolvePending(b.entry.id, "accepted", { eventId: "e2" });
+
+            expect(unlinkEvent("e1")).toBe(1);
+            expect(resolutionFor("a")).toBeNull();
+            expect(resolutionFor("b")).toMatchObject({ action: "accepted", eventId: "e2" });
+            expect(upsertPending(session({ sessionId: "a" })).created).toBe(true);
+        });
+
+        // An older dismissal must not take over once the accept is forgotten —
+        // the session would then vanish instead of returning to the inbox.
+        it("drops every decision of an unlinked session, not just the accept", () => {
+            const first = upsertPending(session());
+            resolvePending(first.entry.id, "dismissed");
+            const second = upsertPending(session());
+            resolvePending(second.entry.id, "accepted", { eventId: "e1" });
+            expect(unlinkEvent("e1")).toBe(1);
+            expect(resolutionFor("s1")).toBeNull();
+        });
+
+        it("leaves a session alone whose last decision went elsewhere", () => {
+            const first = upsertPending(session());
+            resolvePending(first.entry.id, "accepted", { eventId: "e1" });
+            const second = upsertPending(session());
+            resolvePending(second.entry.id, "dismissed");
+            expect(unlinkEvent("e1")).toBe(0);
+            expect(resolutionFor("s1")).toMatchObject({ action: "dismissed" });
+        });
+
+        it("does nothing for an unknown or blank event and writes nothing", () => {
+            const { entry } = upsertPending(session());
+            resolvePending(entry.id, "accepted", { eventId: "e1" });
+            fs.writeFileSync.mockClear();
+            expect(unlinkEvent("nope")).toBe(0);
+            expect(unlinkEvent("")).toBe(0);
+            expect(fs.writeFileSync).not.toHaveBeenCalled();
         });
     });
 });
