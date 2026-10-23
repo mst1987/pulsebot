@@ -38,7 +38,8 @@
         "roleMessages": "Role messages",
         "planCatalog": "Raid plan catalog",
         "absences": "Absences",
-        "system": "System status"
+        "system": "System status",
+        "discordOverview": "Overview"
     },
     "group": {
         "Start": "Start",
@@ -60,7 +61,8 @@
         "planCatalog": "Raid plan catalog",
         "roleMessages": "Role messages",
         "serverRoles": "Roles",
-        "allCharacters": "All characters"
+        "allCharacters": "All characters",
+        "discordOverview": "Overview"
     },
     "noArea": {
         "label": "No area unlocked",

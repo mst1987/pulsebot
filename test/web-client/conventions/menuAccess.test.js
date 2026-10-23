@@ -41,6 +41,8 @@ describe("one menu for both front ends", () => {
                 ...(entry.adminOnly ? { adminOnly: true } : {}),
                 // a version-neutral page keeps the brand colour whichever version is shown (#742)
                 ...(entry.neutral ? { neutral: true } : {}),
+                // the menu line may lead to a landing page of its family (Discord → its overview)
+                ...(entry.landing ? { landing: expect.stringMatching(/^\//) } : {}),
                 id: expect.stringMatching(/^[a-zA-Z]+$/),
                 label: expect.any(String),
                 href: expect.stringMatching(/^\//),
@@ -80,6 +82,7 @@ describe("one menu for both front ends", () => {
             planTemplates: "inv_misc_map02", planCatalog: "inv_misc_book_11", dungeons: "spell_holy_borrowedtime",
             roleMessages: "inv_shirt_guildtabard_01",
             serverRoles: "achievement_guildperk_everybodysfriend",
+            discordOverview: "inv_misc_spyglass_02",
         });
         expect(icons).toEqual({
             home: "inv_misc_map_01",

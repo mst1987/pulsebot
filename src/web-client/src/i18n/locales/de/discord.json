@@ -3,7 +3,8 @@
         "aria": "Bereiche von Discord",
         "channels": "Kanäle",
         "serverRoles": "Rollen",
-        "roleMessages": "Rollen-Nachrichten"
+        "roleMessages": "Rollen-Nachrichten",
+        "discordOverview": "Übersicht"
     },
     "permGroup": {
         "general": "Allgemeine Serverrechte",
@@ -74,7 +75,10 @@
             "title": "Rollen",
             "loading": "Rollen werden geladen",
             "loadError": "Fehler beim Laden der Rollen: {message}",
-            "count": { "one": "{count} Rolle", "other": "{count} Rollen" },
+            "count": {
+                "one": "{count} Rolle",
+                "other": "{count} Rollen"
+            },
             "server": "Server",
             "offline": "Bot nicht verbunden",
             "offlineSub": "Rollen kommen live aus Discord – ohne Verbindung bleibt die Liste leer.",
@@ -86,7 +90,10 @@
             "onlyHints": "Nur Rollen mit Hinweis",
             "onlyHintsTip": "Hinweis",
             "onlyHintsSub": "Rollen ohne Mitglieder, mit heiklen Rechten oder die der Bot vergeben soll, aber nicht erreicht.",
-            "hintCount": { "one": "{count} mit Hinweis", "other": "{count} mit Hinweis" },
+            "hintCount": {
+                "one": "{count} mit Hinweis",
+                "other": "{count} mit Hinweis"
+            },
             "footnote": "Klick auf eine Zeile öffnet die Rolle. Rollen anlegen und verschieben bleibt in Discord.",
             "empty": "Auf diesem Server gibt es keine Rolle.",
             "emptyHints": "Keine Rolle mit Hinweis.",
@@ -114,7 +121,10 @@
             "assignShort": "Bot"
         },
         "cell": {
-            "members": { "one": "{count} Mitglied", "other": "{count} Mitglieder" },
+            "members": {
+                "one": "{count} Mitglied",
+                "other": "{count} Mitglieder"
+            },
             "membersUnknown": "unbekannt",
             "none": "keine",
             "unused": "nicht genutzt",
@@ -186,7 +196,10 @@
         },
         "channels": {
             "title": "Kanäle mit Sonderrechten",
-            "count": { "one": "{count} Kanal", "other": "{count} Kanäle" },
+            "count": {
+                "one": "{count} Kanal",
+                "other": "{count} Kanäle"
+            },
             "channel": "Kanal",
             "allow": "erlaubt",
             "deny": "verweigert",
@@ -211,6 +224,162 @@
             "noManageRoles": "Recht fehlt",
             "above": "nein",
             "aboveFix": "zu hoch"
+        }
+    },
+    "overview": {
+        "kicker": "Discord-Server",
+        "title": "Übersicht",
+        "loading": "Discord wird geprüft …",
+        "loadError": "Die Übersicht ließ sich nicht laden: {message}",
+        "offline": "Bot offline",
+        "offlineSub": "Der Bot ist gerade nicht mit Discord verbunden. Sobald er wieder online ist, steht hier, was Aufmerksamkeit braucht.",
+        "refresh": "Neu prüfen",
+        "refreshWait": {
+            "one": "Neu prüfen in {count} s",
+            "other": "Neu prüfen in {count} s"
+        },
+        "refreshTip": "Discord neu fragen",
+        "refreshSub": "Prüft alle festen Nachrichten sofort statt aus dem Zwischenspeicher. Höchstens alle 30 Sekunden.",
+        "attention": {
+            "title": "Braucht Aufmerksamkeit",
+            "count": {
+                "one": "{count} Punkt",
+                "other": "{count} Punkte"
+            },
+            "allGood": "Alles in Ordnung"
+        },
+        "status": {
+            "missing": "fehlt",
+            "deleted": "gelöscht",
+            "hint": "Hinweis",
+            "noAccess": "kein Zugriff",
+            "tidy": "Aufräumen"
+        },
+        "why": {
+            "rights": "Recht fehlt: {rights}",
+            "channelNotSet": "Kein Kanal eingestellt",
+            "channelGone": "Der eingestellte Kanal existiert nicht mehr",
+            "channelRights": "In #{channel} fehlt: {rights}",
+            "aboveBot": "Steht über der Bot-Rolle – der Bot kann sie nicht vergeben ({uses})",
+            "messageGone": "Die Nachricht wurde in Discord gelöscht",
+            "messageChannelGone": "Der Kanal der Nachricht existiert nicht mehr",
+            "messageNoAccess": "Der Bot sieht den Kanal nicht",
+            "emptyRoles": {
+                "one": "{count} Rolle ohne Mitglieder",
+                "other": "{count} Rollen ohne Mitglieder"
+            },
+            "emptyRolesSub": "Kann weg, wenn sie niemand braucht"
+        },
+        "action": {
+            "checkRight": "Recht prüfen",
+            "assignChannel": "Kanal zuordnen",
+            "toRole": "Zur Rolle",
+            "repost": "Neu posten",
+            "toRoles": "Zu den Rollen"
+        },
+        "state": {
+            "ok": "ok",
+            "notNeeded": "nicht nötig",
+            "unknown": "unbekannt"
+        },
+        "msgStatus": {
+            "ok": "steht",
+            "deleted": "gelöscht",
+            "channelMissing": "Kanal weg",
+            "noAccess": "kein Zugriff",
+            "unknown": "unbekannt"
+        },
+        "hygiene": {
+            "total": {
+                "one": "{count} Rolle",
+                "other": "{count} Rollen"
+            },
+            "empty": {
+                "one": "{count} ohne Mitglieder",
+                "other": "{count} ohne Mitglieder"
+            },
+            "sensitive": {
+                "one": "{count} mit heiklen Rechten",
+                "other": "{count} mit heiklen Rechten"
+            }
+        },
+        "members": {
+            "title": "Neu und gegangen",
+            "joins": {
+                "one": "{count} neu",
+                "other": "{count} neu"
+            },
+            "leaves": {
+                "one": "{count} gegangen",
+                "other": "{count} gegangen"
+            },
+            "join": "neu",
+            "leave": "gegangen",
+            "empty": "In den letzten 7 Tagen ist niemand gekommen oder gegangen.",
+            "characters": {
+                "one": "{count} Charakter, kein Roster",
+                "other": "{count} Charaktere, kein Roster"
+            },
+            "noRelation": "nicht im Roster",
+            "all": {
+                "one": "Alle {count} zeigen",
+                "other": "Alle {count} zeigen"
+            },
+            "less": "Weniger zeigen"
+        },
+        "messages": {
+            "title": "Feste Bot-Nachrichten",
+            "count": {
+                "one": "{count} Nachricht",
+                "other": "{count} Nachrichten"
+            },
+            "empty": "Auf diesem Server steht keine feste Nachricht des Bots.",
+            "kind": "Art",
+            "channel": "Kanal",
+            "status": "Status",
+            "open": "In Discord öffnen"
+        },
+        "botCheck": {
+            "title": "Bot-Check",
+            "note": "Was der Bot darf, je Funktion",
+            "empty": "Der Bot kann gerade nichts prüfen.",
+            "fn": "Funktion",
+            "rights": "Braucht",
+            "stateTip": "Nach Zustand sortieren: fehlende Rechte zuerst"
+        },
+        "right": {
+            "GuildMembers": "Mitglieder lesen (Intent)",
+            "MessageContent": "Nachrichteninhalt lesen (Intent)"
+        },
+        "fn": {
+            "channels": "Kanäle anlegen und archivieren",
+            "posts": "Event-Posts, Anmelder-Nachricht, Setup, Pings",
+            "reactions": "Rollen-Nachrichten mit Reaktionen",
+            "roles": "Raider-Rollen, Rollen-Nachrichten, Rollen-Abgleich",
+            "members": "Mitglieder- und Rollen-Abgleich, Neu und gegangen",
+            "events": "Raids als Discord-Server-Event",
+            "applications": "Bewerbungen als Thread",
+            "logLinks": "Warcraft-Logs-Links in Log-Kanälen erkennen"
+        },
+        "purpose": {
+            "applications": "Bewerbungen",
+            "logs": "Log-Kanal",
+            "talkPings": "Pings auf dem Talk-Server",
+            "signupNotes": "Vielleicht und Absagen",
+            "guildBank": "Gildenbank-Anfragen",
+            "overview": "Raid-Übersicht",
+            "dungeonRecords": "Dungeon-Bestzeiten",
+            "addonCenter": "Addon-Zentrale",
+            "category": "Kategorie"
+        },
+        "kind": {
+            "orgaHub": "Orga-Zentrale",
+            "availability": "Raid-Zentrale",
+            "raidOverview": "Raid-Übersicht",
+            "talkOverview": "Raid-Übersicht (Talk)",
+            "roleMessage": "Rollen-Nachricht",
+            "addonCenter": "Addon-Zentrale",
+            "recruitment": "Rekrutierung"
         }
     }
 }

@@ -39,6 +39,12 @@ export type MenuEntry = {
      * list of version-neutral pages.
      */
     neutral?: boolean;
+    /**
+     * where the menu line leads instead of `href` (Discord opens its overview
+     * /channels/overview); the family still lies under `href`, and the page at
+     * `landing` is a sub entry of its own (the first tab of the family).
+     */
+    landing?: string;
 };
 
 export const MENU: MenuEntry[] = MENU_JSON;
@@ -82,8 +88,8 @@ export function menuFamily(id: string): MenuEntry[] {
     return MENU.filter((e) => (e.id === id && !e.sub) || parentEntry(e)?.id === id);
 }
 
-/** One line of the main menu: the entry it shows and every page it stays active on. */
-export type MenuLine = { top: MenuEntry; entry: MenuEntry; hrefs: string[] };
+/** One line of the main menu: the entry it shows, where it leads, and every page it stays active on. */
+export type MenuLine = { top: MenuEntry; entry: MenuEntry; href: string; hrefs: string[] };
 
 /**
  * The main menu of an account: one line per top-level entry whose family it
@@ -94,7 +100,11 @@ export type MenuLine = { top: MenuEntry; entry: MenuEntry; hrefs: string[] };
 export function menuLines(user: SessionUser): MenuLine[] {
     return MENU.filter((e) => !e.sub).flatMap((top) => {
         const allowed = menuFamily(top.id).filter((e) => mayOpen(user, e));
-        return allowed.length ? [{ top, entry: allowed[0], hrefs: allowed.map((e) => e.href) }] : [];
+        if (!allowed.length) return [];
+        const entry = allowed[0];
+        // the top entry's landing page, when the account may open it (same family, so normally always)
+        const landing = entry === top && top.landing && allowed.some((e) => e.href === top.landing) ? top.landing : "";
+        return [{ top, entry, href: landing || entry.href, hrefs: allowed.map((e) => e.href) }];
     });
 }
 

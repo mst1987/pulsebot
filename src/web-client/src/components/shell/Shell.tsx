@@ -44,6 +44,7 @@ function subCrumb(pathname: string, search: URLSearchParams): string | null {
     if (pathname === "/raids/plan-catalog") return tr("shell.crumb.planCatalog");
     if (pathname === "/channels/roles") return tr("shell.crumb.roleMessages");
     if (pathname === "/channels/server-roles") return tr("shell.crumb.serverRoles");
+    if (pathname === "/channels/overview") return tr("shell.crumb.discordOverview");
     if (pathname === "/history/event") return tr("shell.crumb.eventLoot");
     if (pathname === "/history/char" || pathname === "/roster/char") return search.get("name") || tr("shell.crumb.character");
     if (pathname === "/roster/chars") return tr("shell.crumb.allCharacters");
@@ -78,7 +79,7 @@ function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => v
     }
     return (
         <nav className="menu">
-            {lines.map(({ top, entry, hrefs }) => {
+            {lines.map(({ top, entry, href, hrefs }) => {
                 const label = top.group !== lastGroup ? top.group : null;
                 lastGroup = top.group;
                 const active = hrefs.some((href) => matchesHref(href, pathname));
@@ -86,7 +87,7 @@ function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => v
                     <div key={top.id}>
                         {label && <div className="menu-label">{tOr(`shell.group.${label}`, label)}</div>}
                         <Link
-                            to={entry.href}
+                            to={href}
                             onClick={onNavigate}
                             aria-current={active ? "page" : undefined}
                             className={`nav-item area-${entry.area || entry.id}${active ? " active" : ""}`}

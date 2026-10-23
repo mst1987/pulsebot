@@ -10,6 +10,18 @@ const everyArea: SessionUser = {
     access: Object.fromEntries(["dashboard", "signup", "raids", "raidplan", "cla", "history", "loot", "lootcouncil", "roster", "kader", "recruitment", "channels", "settings"].map((a) => [a, { read: true, write: true }])),
 };
 
+describe("menu line landing page", () => {
+    it("leads the Discord line to its overview and stays active on the whole family", () => {
+        const line = menuLines(everyArea).find((l) => l.top.id === "channels")!;
+        expect(line.href).toBe("/channels/overview");
+        expect(line.hrefs).toEqual(expect.arrayContaining(["/channels", "/channels/overview", "/channels/server-roles"]));
+    });
+
+    it("leads a line without landing page to its own href", () => {
+        expect(menuLines(everyArea).find((l) => l.top.id === "roster")!.href).toBe("/roster");
+    });
+});
+
 describe("adminOnly menu entries", () => {
     it("has the system status as one, with no area", () => {
         expect(system).toMatchObject({ href: "/system", group: "System", areas: [], adminOnly: true });
@@ -33,7 +45,7 @@ describe("adminOnly menu entries", () => {
 
 describe("version-neutral pages (#742)", () => {
     it("are Kanaele, Rollen, Rollen-Nachrichten, Einstellungen and Systemstatus - the one list; every other page follows the version", () => {
-        expect(MENU.filter((e) => e.neutral).map((e) => e.id).sort()).toEqual(["channels", "roleMessages", "serverRoles", "settings", "system"]);
+        expect(MENU.filter((e) => e.neutral).map((e) => e.id).sort()).toEqual(["channels", "discordOverview", "roleMessages", "serverRoles", "settings", "system"]);
     });
 
     it("count an addon's detail page as neutral, while the page Addons itself follows the version", () => {

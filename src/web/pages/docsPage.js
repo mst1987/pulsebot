@@ -84,6 +84,7 @@ const GUIDES = [
             "dungeon-bestzeiten": "roster",
             "addons": "system",
             "log-auswertung-clarpb": "cla",
+            "discord-übersicht": "channels",
             "kanäle": "channels",
             "rollen": "channels",
             "rollen-nachrichten": "channels",

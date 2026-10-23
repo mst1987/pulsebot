@@ -2,7 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { canAccessAny, getDiscordTabCounts, type DiscordSide, type DiscordTabCounts, type SessionUser } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { menuFamily } from "../../lib/app/menu";
-import { activeTab } from "../../lib/discord/tabs";
+import { activeTab, discordTabOrder } from "../../lib/discord/tabs";
 import { tOr, useT } from "../../i18n";
 import "../../styles/discord-tabs.css";
 
@@ -26,7 +26,7 @@ export default function DiscordTabs({ user, side = "event", guildKey = "" }: Pro
     const t = useT();
     const { pathname } = useLocation();
     const counts = useApi<DiscordTabCounts>(() => getDiscordTabCounts(side).catch(() => ({})), [side, guildKey]);
-    const items = menuFamily("channels").filter((e) => canAccessAny(user, e.areas));
+    const items = discordTabOrder(menuFamily("channels").filter((e) => canAccessAny(user, e.areas)));
     if (items.length < 2) return null;
     const active = activeTab(items, pathname);
     const data = counts.data || {};

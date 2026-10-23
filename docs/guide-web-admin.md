@@ -368,6 +368,21 @@ Technik: [logcheck.md](logcheck.md)
 - Empfehlungen je Raider prüfen, per KI umformulieren lassen, freigeben und per DM verschicken.
 - Ein Schutz verhindert versehentlich die Auswertung eines noch laufenden Raids (lässt sich mit Bestätigung übergehen). Details: [docs/logcheck.md](logcheck.md).
 
+## Discord-Übersicht
+
+Technik: [channels.md](channels.md), Daten: [discord-servers.md](discord-servers.md)
+
+*Bereich "channels"* · Menü *System › Discord*, Reiter *Übersicht* (`/channels/overview`) — hier landet der Menüpunkt *Discord*.
+
+Auf einen Blick, ob auf dem Event- oder Talk-Server (Umschalter oben) etwas zu tun ist. Die Seite ändert nichts, sie zeigt nur und führt zur richtigen Stelle.
+
+- **Braucht Aufmerksamkeit:** je Punkt ein Wort wie *fehlt*, *gelöscht*, *Hinweis* oder *Aufräumen*, worum es geht, warum, und ein Knopf dorthin, wo man es behebt (z. B. *Kanal zuordnen*, *Neu posten*, *Zu den Rollen*). Ist nichts offen, steht dort **Alles in Ordnung**. Darunter eine Zeile zu den Rollen: wie viele es gibt, wie viele niemand hat und wie viele heikle Rechte haben.
+- **Neu und gegangen:** wer in den letzten 7 Tagen auf den Server gekommen ist oder ihn verlassen hat, mit Roster bzw. Zahl der Charaktere. Ein Klick auf den Namen öffnet die Person auf der Mitglieder-Seite.
+- **Feste Bot-Nachrichten:** Orga- und Raid-Zentralen, Raid-Übersichten, Rollen-Nachrichten, Addon-Zentrale, Rekrutierung — ob sie noch stehen, mit Link nach Discord. Spalten mit Pfeil lassen sich sortieren.
+- **Bot-Check:** je Funktion des Bots die Rechte, die sie braucht, und ob er sie auf dem Event- und dem Talk-Server hat. Fehlende Rechte stehen oben und sind genannt. *Recht prüfen* in der Liste oben springt hierher.
+- **Neu prüfen** fragt Discord sofort neu, ob die festen Nachrichten noch stehen (sonst gilt das Ergebnis bis zu 10 Minuten). Danach wartet der Knopf 30 Sekunden.
+- Ist der Bot gerade offline, sagt die Seite das, statt alte Punkte zu zeigen.
+
 ## Kanäle
 
 Technik: [channels.md](channels.md)
