@@ -378,6 +378,19 @@ Alle Server-Kanäle als Liste; umbenennen, archivieren, löschen (einzeln oder p
 
 **Emoji im Kanalnamen:** Neben dem Kanalnamen (Event anlegen, Kanal bearbeiten, Schnellanlage, Namensschema) sitzt ein Smiley-Knopf. Er öffnet eine Emoji-Auswahl wie in Discord, mit Suche („bär“, „drache“ …) und Kategorien. Ganz oben stehen Vorschläge für den Raid (z. B. 🐻 für Zul'Aman) und die Emojis, die die Kategorie schon nutzt. Ein Klick ersetzt das Emoji am Anfang des Namens, z. B. `🐍・mi-14-10-za` → `🐻・mi-14-10-za`.
 
+## Rollen
+
+Technik: [channels.md](channels.md)
+
+*Bereich "channels"* · Menü *System › Discord*, Reiter *Rollen* (`/channels/server-roles`)
+
+Alle Rollen des Event- oder Talk-Servers in der Reihenfolge von Discord, nur zum Ansehen — Rollen anlegen und verschieben geht weiter in Discord.
+
+- **Tabelle:** Farbe und Name, Position (1 = ganz oben), „N Mitglieder“, was die Rolle für den Bot bedeutet (Orga-Rolle, Raider-Rolle einer Kategorie, Roster, Rollen-Nachricht …), heikle Rechte (z. B. Administrator, Rollen verwalten) und ob der Bot sie vergeben kann — mit Grund, wenn nicht. Spalten mit Pfeil lassen sich sortieren.
+- **Trennlinie:** Bei Sortierung nach Position markiert eine Linie die Rolle des Bots. Alles darunter kann er vergeben; steht eine Rolle, die er vergeben soll, darüber, steht in Rot „PulseBot darüber ziehen“.
+- **Nur Rollen mit Hinweis** blendet alle Rollen aus, bei denen nichts zu tun ist.
+- **Klick auf eine Rolle** öffnet rechts die Details: Position, Mitglieder, Bedeutung, Vergabe; die gesetzten Rechte nach Gruppen wie in Discord („Alle Rechte zeigen“ zeigt auch die nicht gesetzten); Kanäle mit eigener Freigabe oder Sperre für diese Rolle; die Mitglieder mit Suche.
+
 ## Rollen-Nachrichten
 
 Technik: [role-messages.md](role-messages.md)

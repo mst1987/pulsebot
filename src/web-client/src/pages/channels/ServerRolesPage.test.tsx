@@ -1,0 +1,183 @@
+// System › Discord › Rollen: the tabs with their counts, the table in Discord's
+// order with the bot divider, sorting, the "Nur Rollen mit Hinweis" switch, the
+// talk segment, offline and missing talk server, and the drawer with facts,
+// permissions, channels and the member search.
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as api from "../../api";
+import type { ServerRole, ServerRoleDetail, ServerRoles } from "../../api";
+import { adminUser, renderPage } from "../../test/render";
+import { switchLang } from "../../test/i18n";
+import ServerRolesPage from "./ServerRolesPage";
+import { activeTab } from "../../components/channels/DiscordTabs";
+
+vi.mock("../../api", async (orig) => ({
+    ...(await orig<typeof import("../../api")>()),
+    getServerRoles: vi.fn(),
+    getServerRoleDetail: vi.fn(),
+    getDiscordTabCounts: vi.fn(),
+}));
+
+function role(over: Partial<ServerRole>): ServerRole {
+    return {
+        id: "r", name: "Rolle", color: "", position: 1, managed: false, everyone: false, isBotRole: false,
+        memberCount: 3, permissions: [], sensitive: [], uses: [], assign: { ok: true, reason: "" }, hints: [],
+        ...over,
+    };
+}
+
+const ROLES: ServerRole[] = [
+    role({ id: "admin", name: "Admin", color: "#e74c3c", position: 5, memberCount: 2, permissions: ["Administrator"], sensitive: ["Administrator"], uses: [{ code: "admin" }], assign: { ok: false, reason: "above" }, hints: ["sensitive"] }),
+    role({ id: "naxx", name: "Naxx-Raider", position: 4, memberCount: 0, uses: [{ code: "categoryRaider", categoryIds: ["c1"], categories: [{ id: "c1", name: "Naxx" }] }], assign: { ok: false, reason: "above" }, hints: ["empty", "aboveBot"] }),
+    role({ id: "bot", name: "PulseBot", position: 3, memberCount: 1, managed: true, isBotRole: true, permissions: ["ManageRoles"], sensitive: ["ManageRoles"], assign: { ok: false, reason: "botRole" }, hints: ["sensitive"] }),
+    role({ id: "kochen", name: "Kochen", color: "#2ecc71", position: 2, memberCount: 12, permissions: ["SendMessages"], uses: [{ code: "roleMessage", messageId: "m1", title: "Berufe" }] }),
+    role({ id: "angeln", name: "Angeln", position: 1, memberCount: 7 }),
+    role({ id: "every", name: "@everyone", position: 0, memberCount: 22, everyone: true, permissions: ["SendMessages"], assign: { ok: false, reason: "everyone" } }),
+];
+
+const HEAD = { guildId: "g1", guildName: "Testgilde", online: true, botRole: { id: "bot", name: "PulseBot", position: 3 }, manageRoles: true, membersError: null };
+const EVENT: ServerRoles = { side: "event", ...HEAD, total: ROLES.length, roles: ROLES };
+const TALK: ServerRoles = { side: "talk", guildId: "", guildName: "", online: true, botRole: null, manageRoles: null, membersError: null, total: 0, roles: [] };
+
+const MEMBERS = Array.from({ length: 12 }, (_, i) => ({ id: `u${i}`, name: i === 0 ? "Thrall" : `Raider ${i}`, avatarUrl: i === 1 ? "https://cdn.example/a.png" : null, bot: false }));
+const DETAIL: ServerRoleDetail = {
+    side: "event", ...HEAD, role: ROLES[3],
+    channels: [
+        { id: "k1", name: "Berufe", kind: "category", parentName: "", allow: ["ViewChannel"], deny: [] },
+        { id: "c1", name: "kochen", kind: "text", parentName: "Berufe", allow: [], deny: ["SendMessages"] },
+    ],
+    members: MEMBERS,
+};
+
+beforeEach(() => {
+    localStorage.clear();
+    vi.mocked(api.getServerRoles).mockReset().mockImplementation(async (side) => (side === "event" ? EVENT : TALK));
+    vi.mocked(api.getServerRoleDetail).mockReset().mockResolvedValue(DETAIL);
+    vi.mocked(api.getDiscordTabCounts).mockReset().mockResolvedValue({ channels: 31, serverRoles: 5, roleMessages: 2 });
+});
+
+const names = () => screen.getAllByRole("row").slice(1).map((r) => (r.querySelector(".drl-name") || r).textContent || "");
+
+describe("Rollen: table", () => {
+    it("shows the tabs with counts, the roles top first and the bot divider", async () => {
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
+        expect(await screen.findByText("Admin")).toBeInTheDocument();
+        const tabs = screen.getByRole("navigation", { name: "Bereiche von Discord" });
+        expect(within(tabs).getByRole("link", { name: "Rollen 5" })).toHaveAttribute("aria-current", "page");
+        expect(within(tabs).getByRole("link", { name: "Kanäle 31" })).toHaveAttribute("href", "/channels");
+        expect(names()).toEqual(["Admin", "Naxx-Raider", "Bot-Rolle PulseBot · alles darunter kann der Bot vergeben", "PulseBot", "Kochen", "Angeln", "@everyone"]);
+        expect(screen.getByText("5 Rollen")).toBeInTheDocument();
+        const naxx = screen.getByText("Naxx-Raider").closest("tr")!;
+        expect(within(naxx).getByText("0 Mitglieder")).toBeInTheDocument();
+        expect(within(naxx).getByText("Raider-Rolle Naxx")).toBeInTheDocument();
+        expect(within(naxx).getByText("nein, PulseBot darüber ziehen")).toHaveAttribute("data-tip-sub", expect.stringMatching(/Bot-Rolle über diese Rolle ziehen/));
+        const admin = screen.getByText("Admin").closest("tr")!;
+        expect(within(admin).getByText("Administrator")).toBeInTheDocument();
+        expect(within(admin).getByText("1")).toBeInTheDocument();
+        expect(screen.getByText("@everyone").closest("tr")!.querySelector(".drl-pos")!.textContent).toBe("–");
+    });
+
+    it("sorts by members and drops the divider", async () => {
+        const user = userEvent.setup();
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
+        await screen.findByText("Admin");
+        await user.click(screen.getByRole("button", { name: /^Mitglieder/ }));
+        expect(names()).toEqual(["@everyone", "Kochen", "Angeln", "Admin", "PulseBot", "Naxx-Raider"]);
+    });
+
+    it("filters to the roles with a hint", async () => {
+        const user = userEvent.setup();
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
+        await screen.findByText("Admin");
+        await user.click(screen.getByRole("switch", { name: /Nur Rollen mit Hinweis/ }));
+        expect(names()).toEqual(["Admin", "Naxx-Raider", "Bot-Rolle PulseBot · alles darunter kann der Bot vergeben", "PulseBot"]);
+    });
+
+    it("switches to the talk server and says when none is set", async () => {
+        const user = userEvent.setup();
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
+        await screen.findByText("Admin");
+        await user.click(screen.getByRole("radio", { name: "Talk-Server" }));
+        expect(await screen.findByText(/Kein Talk-Server eingestellt/)).toBeInTheDocument();
+        expect(api.getServerRoles).toHaveBeenLastCalledWith("talk");
+        await waitFor(() => expect(api.getDiscordTabCounts).toHaveBeenLastCalledWith("talk"));
+    });
+
+    it("says when the bot is offline or cannot hand out roles", async () => {
+        vi.mocked(api.getServerRoles).mockResolvedValue({ ...EVENT, online: false, roles: [] });
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
+        expect(await screen.findByText("Bot nicht verbunden")).toBeInTheDocument();
+        expect(screen.getByText(/ohne Verbindung bleibt die Liste leer/)).toBeInTheDocument();
+    });
+
+    it("marks a missing Manage Roles and missing member counts", async () => {
+        vi.mocked(api.getServerRoles).mockResolvedValue({ ...EVENT, manageRoles: false, membersError: "timeout", roles: [role({ id: "x", name: "X", memberCount: null })] });
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
+        expect(await screen.findByText("Bot darf keine Rollen vergeben")).toBeInTheDocument();
+        expect(screen.getByText("Mitgliederzahlen fehlen")).toBeInTheDocument();
+        expect(screen.getByText("unbekannt")).toBeInTheDocument();
+    });
+
+    it("reads in English", async () => {
+        await switchLang("en");
+        try {
+            renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
+            expect(await screen.findByText("Admin")).toBeInTheDocument();
+            expect(screen.queryByText("Rollen")).not.toBeInTheDocument();
+            expect(screen.getByText("12 members")).toBeInTheDocument();
+        } finally {
+            await switchLang("de");
+        }
+    });
+
+    it("finds the active tab and shows the tabs to a read-only account", async () => {
+        expect(activeTab([{ id: "channels", href: "/channels" }, { id: "serverRoles", href: "/channels/server-roles" }], "/channels/server-roles")).toBe("serverRoles");
+        expect(activeTab([{ id: "channels", href: "/channels" }, { id: "serverRoles", href: "/channels/server-roles" }], "/channels")).toBe("channels");
+        expect(activeTab([{ id: "channels", href: "/channels" }], "/raids")).toBe("");
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles", user: adminUser({ isAdmin: false, access: { channels: { read: true, write: false } } }) });
+        expect(await screen.findByRole("navigation", { name: "Bereiche von Discord" })).toBeInTheDocument();
+    });
+});
+
+describe("Rollen: drawer", () => {
+    it("opens a role with facts, permissions, channels and members", async () => {
+        const user = userEvent.setup();
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
+        await user.click(await screen.findByRole("button", { name: "Kochen" }));
+        const drawer = await screen.findByRole("complementary", { name: "Kochen" });
+        expect(api.getServerRoleDetail).toHaveBeenCalledWith("event", "kochen");
+        expect(within(drawer).getByText("Rolle · Testgilde")).toBeInTheDocument();
+        expect(within(drawer).getByText("4 von 5, unter der Bot-Rolle")).toBeInTheDocument();
+        expect(within(drawer).getByText("Rollen-Nachricht „Berufe“")).toBeInTheDocument();
+        expect(within(drawer).getByText("Bot kann die Rolle vergeben")).toBeInTheDocument();
+        expect(within(drawer).getByText(/^1 von \d+ Rechten gesetzt\. Gezeigt sind nur die gesetzten\.$/)).toBeInTheDocument();
+        expect(within(drawer).getAllByText("gesetzt")).toHaveLength(1);
+
+        await user.click(within(drawer).getByRole("switch", { name: /Alle Rechte zeigen/ }));
+        expect(within(drawer).getAllByText("nicht gesetzt").length).toBeGreaterThan(40);
+
+        expect(within(drawer).getByText("Kategorie Berufe")).toBeInTheDocument();
+        const row = within(drawer).getByText("#kochen").closest("tr")!;
+        expect(within(row).getAllByText("–")).toHaveLength(1);
+
+        expect(within(drawer).getAllByRole("listitem")).toHaveLength(12);
+        await user.type(within(drawer).getByRole("searchbox", { name: "Mitglied suchen" }), "thr");
+        expect(within(drawer).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["THThrall"]);
+        await user.type(within(drawer).getByRole("searchbox"), "x");
+        expect(within(drawer).getByText("Niemand passt zu „thrx“.")).toBeInTheDocument();
+
+        await user.keyboard("{Escape}");
+        await waitFor(() => expect(screen.queryByRole("complementary")).not.toBeInTheDocument());
+    });
+
+    it("says when the role is gone", async () => {
+        vi.mocked(api.getServerRoleDetail).mockResolvedValue({ ...DETAIL, role: null, channels: [], members: [] });
+        const user = userEvent.setup();
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
+        await user.click(await screen.findByRole("button", { name: "Angeln" }));
+        expect(await screen.findByText("Diese Rolle gibt es auf dem Server nicht mehr.")).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Schließen" }));
+        expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    });
+});

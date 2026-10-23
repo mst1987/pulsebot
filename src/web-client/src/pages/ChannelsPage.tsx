@@ -8,7 +8,7 @@ import { useApi } from "../hooks/useApi";
 import type { ShellContext } from "../components/shell/Shell";
 import { Badge, Button, PageHead, Segment, SplitButton, useConfirm } from "../components/ui";
 import { useJobs } from "../components/shell/Jobs";
-import { MenuRailPage } from "../components/ui/SectionRail";
+import DiscordTabs from "../components/channels/DiscordTabs";
 import {
     AssignChannelDialog, CreateChannelDialog, DuplicateChannelDialog, PurposeDialog } from "../components/channels/ChannelDialogs";
 import { ChannelTree } from "../components/channels/ChannelTree";
@@ -49,13 +49,8 @@ type Dialog =
 
 type ArchiveSettingsInput = { archiveCategoryId?: string; archiveDeleteHintDays: number; createArchiveCategory?: string };
 
-/** Kanaele inside its family's rail (Kanaele, Rollen-Nachrichten - menu.json). */
+/** Kanaele, the first tab of System > Discord (components/channels/DiscordTabs.tsx). */
 export default function ChannelsPage() {
-    const { user } = useOutletContext<ShellContext>();
-    return <MenuRailPage user={user} parent="channels"><ChannelsView /></MenuRailPage>;
-}
-
-function ChannelsView() {
     const { user } = useOutletContext<ShellContext>();
     const channels = useApi(() => getChannels(), []);
     const { data, setData } = channels;
@@ -192,6 +187,7 @@ function ChannelsView() {
         return (
             <>
                 <PageHead icon="inv_letter_15" tone="channels" kicker={t("channels.page.kicker")} title={t("channels.page.title")} />
+                <DiscordTabs user={user} />
                 <div className="empty">{t("channels.page.pickServer")}</div>
             </>
         );
@@ -224,6 +220,7 @@ function ChannelsView() {
                     />
                 ) : undefined}
             />
+            <DiscordTabs user={user} guildKey={data.activeGuildId} />
 
             <div className="kn-tabs">
                 <Segment

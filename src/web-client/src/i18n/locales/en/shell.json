@@ -32,6 +32,7 @@
         "kader": "Roster planner",
         "recruitment": "Recruitment",
         "channels": "Discord",
+        "serverRoles": "Roles",
         "settings": "Settings",
         "planTemplates": "Raid plan templates",
         "roleMessages": "Role messages",
@@ -58,6 +59,7 @@
         "editPost": "Edit message",
         "planCatalog": "Raid plan catalog",
         "roleMessages": "Role messages",
+        "serverRoles": "Roles",
         "allCharacters": "All characters"
     },
     "noArea": {

@@ -99,8 +99,8 @@ describe("one game version per page (#741)", () => {
         for (const r of routes) expect({ page: r.page, file: !!r.file }).toEqual({ page: r.page, file: true });
     });
 
-    it("keeps the one list of neutral pages in menu.json: Kanäle, Rollen-Nachrichten, Einstellungen, Systemstatus", () => {
-        expect(MENU.filter((e) => e.neutral === true).map((e) => e.id).sort()).toEqual(["channels", "roleMessages", "settings", "system"]);
+    it("keeps the one list of neutral pages in menu.json: Kanäle, Rollen, Rollen-Nachrichten, Einstellungen, Systemstatus", () => {
+        expect(MENU.filter((e) => e.neutral === true).map((e) => e.id).sort()).toEqual(["channels", "roleMessages", "serverRoles", "settings", "system"]);
     });
 
     it("lets every other page follow the content switch", () => {

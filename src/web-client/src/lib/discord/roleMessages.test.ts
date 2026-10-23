@@ -42,7 +42,7 @@ describe("roleBlockReason", () => {
 describe("reasonText", () => {
     it("has words for every reason the server gives, in German and English", async () => {
         const src = backendSource("services/discord/selfRole.js");
-        const reasons = [...src.matchAll(/return "(the role [^"]+|missing Manage Roles)"/g)].map((m) => m[1]);
+        const reasons = [...src.matchAll(/(?:return|=>) "(the role [^"]+|missing Manage Roles)"/g)].map((m) => m[1]);
         expect(reasons.length).toBeGreaterThan(8);
         for (const r of reasons) expect(reasonText(r), r).not.toBe(r);
         const en = await inLang("en", () => reasons.map(reasonText));

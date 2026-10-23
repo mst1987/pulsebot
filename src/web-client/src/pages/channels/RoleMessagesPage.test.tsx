@@ -15,6 +15,7 @@ import RoleMessagesPage from "./RoleMessagesPage";
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
     getRoleMessages: vi.fn(),
+    getDiscordTabCounts: vi.fn().mockResolvedValue({}),
     getRoleMessageOptions: vi.fn(),
     createRoleMessage: vi.fn(),
     updateRoleMessage: vi.fn(),
@@ -132,7 +133,7 @@ describe("Rollen-Nachrichten: editor", () => {
         expect(alert).toHaveTextContent("Ein Kanal fehlt.");
         expect(alert).toHaveTextContent("Ein Titel fehlt.");
         expect(alert).toHaveTextContent("Mindestens eine Rolle ist nötig.");
-        expect(within(dialog).getByText("3 Punkte fehlen noch")).toBeInTheDocument();
+        expect(await within(dialog).findByText("3 Punkte fehlen noch")).toBeInTheDocument();
         expect(within(dialog).getByRole("button", { name: /Posten/ })).toBeDisabled();
 
         await user.selectOptions(within(dialog).getByLabelText("Kanal"), "c1");
