@@ -1070,6 +1070,24 @@ function nullAfter(ms) {
 }
 
 /**
+ * The Discord picture of a user id from the bot's cache, no fetch: the guild member's (server avatar first),
+ * else the account's, "" while the bot knows neither — the web shows the initial then.
+ */
+function avatarUrlFor(guildId, userId) {
+    const id = String(userId || "");
+    if (!client || !id) return "";
+    const member = getGuild(guildId)?.members?.cache?.get(id);
+    if (member) return avatarUrlOf(member) || "";
+    const account = client.users?.cache?.get(id);
+    if (!account || typeof account.displayAvatarURL !== "function") return "";
+    try {
+        return account.displayAvatarURL({ size: 64 }) || "";
+    } catch {
+        return "";
+    }
+}
+
+/**
  * Display names for a set of user ids, best-effort.
  *
  * Used for the per-account permission grants (config.userPermissions, a
@@ -1173,7 +1191,7 @@ function embed() {
 module.exports = {
     setClient, getClient, isOnline, fetchTextChannel, textChannelOf, listGuilds, getGuild, listTextChannels, listEmojis,
     sendDirectMessage, embed,
-    resolveUserNames, NAME_FETCH_MS, ABSENT_MS, _resetAbsentNamesForTests,
+    resolveUserNames, avatarUrlFor, NAME_FETCH_MS, ABSENT_MS, _resetAbsentNamesForTests,
     memberRoleIds,
     listCategories, listAllChannels, listVoiceChannels, botCanManageEvents, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,

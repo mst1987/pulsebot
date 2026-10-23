@@ -197,6 +197,14 @@ describe("web/http/auth", () => {
             const sid = await auth.completeLogin("code2");
             const user = auth.getUser({ headers: { cookie: `sid=${sid}` } });
             expect(user).toMatchObject({ id: "999", name: "plainuser", isAdmin: false });
+            // no own Discord picture: none stored, the menu shows the initial
+            expect(user).not.toHaveProperty("avatarUrl");
+        });
+
+        it("keeps the account's Discord picture for the menu", async () => {
+            axios.get.mockResolvedValue({ data: { id: "999", username: "plainuser", avatar: "abc123" } });
+            const sid = await auth.completeLogin("code3");
+            expect(auth.getUser({ headers: { cookie: `sid=${sid}` } }).avatarUrl).toBe("https://cdn.discordapp.com/avatars/999/abc123.png?size=64");
         });
 
         it("propagates a failed token exchange", async () => {

@@ -163,7 +163,7 @@ export function setLootCategory(
     return send("POST", "/api/history/loot-category", input);
 }
 
-export function clearHistoryEvent(event: string): Promise<{ removed: number }> {
+export function clearHistoryEvent(event: string): Promise<{ removed: number; unlinked: number }> {
     return send("POST", "/api/history/clear", { event });
 }
 

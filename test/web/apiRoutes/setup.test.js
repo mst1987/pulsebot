@@ -36,7 +36,7 @@ jest.mock("../../../src/services/events/eventSources", () => ({
     listStoredEvents: () => [],
     specNameFor: jest.requireActual("../../../src/services/events/eventSources").specNameFor,
 }));
-jest.mock("../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({})) }));
+jest.mock("../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({})), avatarUrlFor: jest.fn(() => "") }));
 jest.mock("../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
 jest.mock("../../../src/services/setup/setupMessage", () => ({
     publishSetup: jest.fn(async () => ({ post: { action: "posted" }, dms: null })),
@@ -280,7 +280,7 @@ describe("who else is in the editor (presence)", () => {
         expect(mine.activity).toEqual([expect.objectContaining({ kind: "move", byName: "Taccop", userId: tank.userId, to: { group: 2 } })]);
         // the one who moved sees the other editor, and not their own move
         const theirs = body(await call(route.postPresence, OTHER, { event: ID }));
-        expect(theirs.editors).toEqual([{ userId: "orga", name: "Exitus", action: null }]);
+        expect(theirs.editors).toEqual([{ userId: "orga", name: "Exitus", action: null, avatarUrl: "" }]);
         expect(theirs.activity).toEqual([]);
         // only what came after the last id the page has
         expect(body(await call(route.postPresence, { ...ORGA, name: "Exitus" }, { event: ID, since: mine.activity[0].id })).activity).toEqual([]);
@@ -288,13 +288,21 @@ describe("who else is in the editor (presence)", () => {
 
     it("drops one on leaving and notes a proposal and a post", async () => {
         await call(route.postPresence, OTHER, { event: ID, action: { kind: "edit", userId: "heal1" } });
-        expect(body(await call(route.postPresence, ORGA, { event: ID })).editors).toEqual([{ userId: "orga2", name: "Taccop", action: { kind: "edit", userId: "heal1" } }]);
+        expect(body(await call(route.postPresence, ORGA, { event: ID })).editors).toEqual([{ userId: "orga2", name: "Taccop", action: { kind: "edit", userId: "heal1" }, avatarUrl: "" }]);
         expect(body(await call(route.postPresence, OTHER, { event: ID, leave: true }))).toEqual({ left: true });
         expect(body(await call(route.postPresence, ORGA, { event: ID })).editors).toEqual([]);
 
         await call(route.postPropose, OTHER, { event: ID });
         await call(route.postPublish, OTHER, { event: ID, version: mockEvents.get(ID).setup.version });
         expect(body(await call(route.postPresence, ORGA, { event: ID })).activity.map((e) => e.kind)).toEqual(["propose", "post"]);
+    });
+
+    it("hands each other editor's Discord picture along", async () => {
+        const discord = require("../../../src/services/discord/discord");
+        discord.avatarUrlFor.mockImplementation((guildId, userId) => (userId === "orga2" ? "https://cdn/orga2.png" : ""));
+        await call(route.postPresence, OTHER, { event: ID });
+        expect(body(await call(route.postPresence, ORGA, { event: ID })).editors).toEqual([expect.objectContaining({ userId: "orga2", avatarUrl: "https://cdn/orga2.png" })]);
+        discord.avatarUrlFor.mockImplementation(() => "");
     });
 
     it("carries the Confirm/Cancel marks — a raider's click in Discord changes no version", async () => {

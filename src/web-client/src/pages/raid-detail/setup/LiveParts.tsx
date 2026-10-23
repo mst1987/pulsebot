@@ -8,10 +8,11 @@ import { initials, presenceColor } from "./usePresence";
 // ("Exitus ist auch hier" / "3 im Setup", what each holds in the tooltip) and
 // "Gerade eben", the changes the others made (the server leaves one's own out).
 
-function Avatar({ userId, name }: { userId: string; name: string }) {
+// The Discord picture inside the editor's colour ring, else the initials.
+function Avatar({ userId, name, avatarUrl }: { userId: string; name: string; avatarUrl?: string }) {
     return (
         <span className="se-avatar" style={{ "--se-who": presenceColor(userId) } as CSSProperties} aria-hidden="true">
-            {initials(name)}
+            {avatarUrl ? <img src={avatarUrl} alt="" /> : initials(name)}
         </span>
     );
 }
@@ -29,7 +30,7 @@ export function PresenceChip({ editors, names }: { editors: SetupPresenceEditor[
     return (
         <span className="se-live" role="status" data-tip={label} data-tip-sub={editors.map(doing).join(" · ")}>
             <span className="se-live-avatars">
-                {editors.slice(0, 4).map((e) => <Avatar key={e.userId} userId={e.userId} name={e.name} />)}
+                {editors.slice(0, 4).map((e) => <Avatar key={e.userId} userId={e.userId} name={e.name} avatarUrl={e.avatarUrl} />)}
             </span>
             <span className="se-live-text">
                 <b>{label}</b>

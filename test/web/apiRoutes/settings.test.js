@@ -278,6 +278,18 @@ describe("web/apiRoutes/settings", () => {
                 expect(data.versionCapabilities.versions.forever.raidSheet).toMatchObject({ possible: false, reason: "no_sheet_layout" });
             });
 
+            it("sends the Discord pictures of the accounts with a per-user grant, only those the bot knows", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                activeGuildFor.mockReturnValue("guild-1");
+                settingsStore.getConfig.mockReturnValue({ userPermissions: { u1: { loot: { read: true } }, u2: { loot: { read: true } } } });
+                discord.avatarUrlFor.mockImplementation((guildId, id) => (id === "u1" ? "https://cdn/u1.png" : ""));
+                const res = mockRes();
+                await handle("/api/settings", { method: "GET" }, res);
+                expect(json(res).data.userAvatars).toEqual({ u1: "https://cdn/u1.png" });
+                expect(discord.avatarUrlFor).toHaveBeenCalledWith("guild-1", "u2");
+                discord.avatarUrlFor.mockImplementation(() => "");
+            });
+
             // A role with write on "Einstellungen" may edit the bot config, but must
             // not see (nor save) who has access — that would let it escalate itself.
             it("hides the access config from a non-admin settings user", async () => {

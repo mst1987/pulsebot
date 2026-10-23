@@ -11,22 +11,41 @@ const { newId } = require("../utils/ids");
 // event it was awarded in, so the event-history and per-character pages can query
 // it. Imports dedupe on (eventId, source, rawId) so re-importing the same log is
 // idempotent.
+//
+// `deleted` holds the dedup keys of rows someone removed by hand. The sync tool
+// re-sends the whole raid on every SavedVariables flush and an accepted session
+// appends by itself, so without it a deleted row would be back minutes later.
 const LOOT_FILE = settingsPath("loot.json");
+
+// How many deleted keys to remember; the oldest go first. A key only matters
+// while some export of that raid may still be imported again.
+const MAX_DELETED = 5000;
 
 const store = createJsonStore({
     file: LOOT_FILE,
-    defaults: () => [],
-    normalize: (data) => (Array.isArray(data.items) ? data.items : []),
+    defaults: () => ({ items: [], deleted: [] }),
+    normalize: (data) => ({
+        items: Array.isArray(data.items) ? data.items : [],
+        deleted: Array.isArray(data.deleted) ? data.deleted : [],
+    }),
     // Read on every page that lists it: parsed once per change, not per call.
     cache: true,
 });
 
-function readAll() {
+function readState() {
     return store.read();
 }
 
+function readAll() {
+    return readState().items;
+}
+
+function writeState(items, deleted) {
+    store.write({ items, deleted: deleted.slice(-MAX_DELETED) });
+}
+
 function writeAll(items) {
-    store.write({ items });
+    writeState(items, readState().deleted);
 }
 
 function dedupKey(item) {
@@ -35,14 +54,16 @@ function dedupKey(item) {
 
 /**
  * Add a batch of normalized loot items to an event. Deduplicates against loot
- * already stored for that event (same source + rawId), so a re-import only adds
- * genuinely new rows. Returns { added, skipped }.
+ * already stored for that event (same source + rawId) and against rows removed
+ * from it by hand, so a re-import only adds genuinely new rows. Returns
+ * { added, skipped }.
  */
 function addImport(eventId, items, meta = {}) {
     const id = String(eventId || "").trim();
     if (!id || !Array.isArray(items) || !items.length) return { added: 0, skipped: 0 };
-    const all = readAll();
+    const { items: all, deleted } = readState();
     const seen = new Set(all.filter((it) => it.eventId === id).map(dedupKey));
+    for (const key of deleted) seen.add(key);
     const now = Date.now();
     let added = 0;
     let skipped = 0;
@@ -223,30 +244,37 @@ function setEventCategory(eventId, categoryId) {
  *
  * The counterpart to clearEvent() for the everyday case of one wrong row — an
  * item the addon logged twice, one awarded to the wrong raider, a test entry —
- * where dropping the whole import and redoing it is far too coarse. A deletion
- * only holds until the *same* export is imported again: addImport() dedupes
- * against what is stored, and a removed row is no longer there to dedupe
- * against, so it comes back.
+ * where dropping the whole import and redoing it is far too coarse. The
+ * deletion sticks: the row's dedup key is remembered, so neither the sync
+ * tool's next upload nor a hand-pasted export of the same raid brings it back.
  */
 function removeItems(ids) {
     const wanted = new Set(
         (Array.isArray(ids) ? ids : [ids]).map((id) => String(id || "").trim()).filter(Boolean),
     );
     if (!wanted.size) return 0;
-    const all = readAll();
-    const next = all.filter((it) => !wanted.has(it.id));
-    const removed = all.length - next.length;
-    if (removed) writeAll(next);
-    return removed;
+    const { items: all, deleted } = readState();
+    const gone = all.filter((it) => wanted.has(it.id));
+    if (!gone.length) return 0;
+    const known = new Set(deleted);
+    const keys = gone.map(dedupKey).filter((key) => !known.has(key));
+    writeState(all.filter((it) => !wanted.has(it.id)), [...deleted, ...keys]);
+    return gone.length;
 }
 
-/** Remove all loot stored for an event. Returns how many rows were removed. */
+/**
+ * Remove all loot stored for an event. Returns how many rows were removed.
+ * A clean slate: the keys of rows deleted one by one from it are forgotten as
+ * well, so importing the raid again afterwards brings back all of it.
+ */
 function clearEvent(eventId) {
     const id = String(eventId || "").trim();
-    const all = readAll();
+    const { items: all, deleted } = readState();
     const next = all.filter((it) => it.eventId !== id);
     const removed = all.length - next.length;
-    if (removed) writeAll(next);
+    const prefix = `${id}::`;
+    const keep = deleted.filter((key) => !key.startsWith(prefix));
+    if (removed || keep.length !== deleted.length) writeState(next, keep);
     return removed;
 }
 

@@ -63,6 +63,11 @@ describe("web/report/adminChrome", () => {
         expect(html).toContain("href=\"/auth/logout\"");
     });
 
+    it("shows the Discord picture of the login instead of the initial", () => {
+        const html = render({ user: { name: "marc", avatarUrl: "https://cdn.discordapp.com/avatars/1/a.png?size=64" } });
+        expect(html).toContain("<div class=\"avatar\"><img src=\"https://cdn.discordapp.com/avatars/1/a.png?size=64\" alt=\"\"></div>");
+    });
+
     it("falls back to a generic name when the user has none", () => {
         const html = render({ user: null });
         expect(html).toContain("<div class=\"u-name\">Admin</div>");

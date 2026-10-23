@@ -336,6 +336,7 @@ export default function SettingsPage() {
                     orgaRoleIds={draft.orgaRoleIds}
                     onOrgaRoleIds={(orgaRoleIds) => patch({ orgaRoleIds })}
                     userNames={data.userNames || {}}
+                    userAvatars={data.userAvatars || {}}
                     icon={activeSection.icon}
                     crumb={activeCrumb}
                 />

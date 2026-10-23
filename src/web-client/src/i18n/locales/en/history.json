@@ -97,7 +97,7 @@
     },
     "event": {
         "clearTitle": "Delete the event's loot?",
-        "clearText": "All loot of this event ({count} entries) will be deleted. A new import brings it back.",
+        "clearText": "All loot of this event ({count} entries) will be deleted. A new import brings it back, uploads of the sync tool land in the addon inbox again.",
         "clearAction": "Delete loot",
         "cleared": "{count} loot entries deleted.",
         "loading": "Loading raid",
@@ -309,7 +309,7 @@
     },
     "awards": {
         "deleteTitle": "Delete award?",
-        "deleteText": "“{item}” for {character} will be deleted from the loot. Importing the same export again brings it back.",
+        "deleteText": "“{item}” for {character} will be deleted from the loot. Neither a new import nor the sync tool brings it back.",
         "deleted": "“{item}” for {character} deleted.",
         "kickerFallback": "Item",
         "hint": "Clicking a name opens their loot history",

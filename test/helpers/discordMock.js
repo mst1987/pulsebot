@@ -13,6 +13,8 @@ function withClientHelpers(mock) {
         const client = mock.getClient();
         return !!client && (typeof client.isReady !== "function" || client.isReady());
     });
+    // No picture unless a suite hands one: the routes fall back to the initial then.
+    if (!mock.avatarUrlFor) mock.avatarUrlFor = jest.fn(() => "");
     mock.fetchTextChannel = jest.fn((channelId, notFound) => actual.textChannelOf(mock.getClient(), channelId, notFound));
     return mock;
 }

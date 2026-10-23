@@ -1,4 +1,4 @@
-const { json, mockRes, routerClient } = require("../../helpers/http");
+const { json, jsonRequest, mockRes, routerClient } = require("../../helpers/http");
 
 jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
@@ -900,7 +900,34 @@ describe("web/apiRoutes/history", () => {
             lootStore.clearEvent.mockReturnValue(4);
             const res = await post("/api/history/clear", { event: "e1" });
             expect(lootStore.clearEvent).toHaveBeenCalledWith("e1");
-            expect(json(res)).toEqual({ data: { removed: 4 } });
+            expect(json(res)).toEqual({ data: { removed: 4, unlinked: 0 } });
+        });
+
+        // Otherwise the sync tool's next upload appends the whole raid straight
+        // back into the event that was just emptied.
+        it("unlinks the addon sessions accepted into the event", async () => {
+            const unlinkEvent = jest.fn(() => 2);
+            let route;
+            let isolatedAuth;
+            let isolatedLoot;
+            // the inbox store reads its file; here it is a stand-in, in a registry of its own
+            jest.isolateModules(() => {
+                jest.doMock("../../../src/stores/lootInboxStore", () => ({
+                    listPending: () => [], listLinked: () => [], unlinkEvent,
+                    getPending: jest.fn(), resolvePending: jest.fn(), upsertPending: jest.fn(), resolutionFor: jest.fn(), noteAppended: jest.fn(),
+                }));
+                route = require("../../../src/web/apiRoutes/history");
+                isolatedAuth = require("../../../src/web/http/auth");
+                isolatedLoot = require("../../../src/stores/lootStore");
+            });
+            isolatedAuth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            isolatedAuth.checkCsrf.mockReturnValue(true);
+            isolatedLoot.clearEvent.mockReturnValue(3);
+            const res = mockRes();
+            await route.clearHistoryEvent(jsonRequest("POST", "/api/history/clear", { event: "e1" }, { "x-csrf-token": "tok" }), res);
+            expect(isolatedLoot.clearEvent).toHaveBeenCalledWith("e1");
+            expect(unlinkEvent).toHaveBeenCalledWith("e1");
+            expect(json(res)).toEqual({ data: { removed: 3, unlinked: 2 } });
         });
     });
 
