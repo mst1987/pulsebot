@@ -33,6 +33,7 @@
         "recruitment": "Recruitment",
         "channels": "Discord",
         "serverRoles": "Roles",
+        "members": "Members",
         "settings": "Settings",
         "planTemplates": "Raid plan templates",
         "roleMessages": "Role messages",
@@ -61,6 +62,7 @@
         "planCatalog": "Raid plan catalog",
         "roleMessages": "Role messages",
         "serverRoles": "Roles",
+        "members": "Members",
         "allCharacters": "All characters",
         "discordOverview": "Overview"
     },

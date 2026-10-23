@@ -17,6 +17,7 @@
     { "id": "channels", "label": "Discord", "href": "/channels", "group": "System", "areas": ["channels"], "neutral": true, "wowIcon": "inv_letter_15", "landing": "/channels/overview" },
     { "id": "discordOverview", "label": "Übersicht", "href": "/channels/overview", "group": "System", "areas": ["channels"], "neutral": true, "wowIcon": "inv_misc_spyglass_02", "area": "channels", "sub": true },
     { "id": "serverRoles", "label": "Rollen", "href": "/channels/server-roles", "group": "System", "areas": ["channels"], "neutral": true, "wowIcon": "achievement_guildperk_everybodysfriend", "area": "channels", "sub": true },
+    { "id": "members", "label": "Mitglieder", "href": "/channels/members", "group": "System", "areas": ["channels"], "neutral": true, "wowIcon": "achievement_reputation_01", "area": "channels", "sub": true },
     { "id": "roleMessages", "label": "Rollen-Nachrichten", "href": "/channels/roles", "group": "System", "areas": ["channels"], "neutral": true, "wowIcon": "inv_shirt_guildtabard_01", "area": "channels", "sub": true },
     { "id": "addon", "label": "Addons", "href": "/addon", "group": "System", "areas": ["signup", "history"], "area": "system", "wowIcon": "inv_gizmo_01" },
     { "id": "settings", "label": "Einstellungen", "href": "/settings", "group": "System", "areas": ["settings"], "neutral": true, "wowIcon": "trade_engineering" },

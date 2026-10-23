@@ -88,6 +88,16 @@ describe("relationOf / recentActivity", () => {
         expect(memberActivity.relationOf("")).toEqual({ rosters: [], characters: 0 });
     });
 
+    it("counts a roster character too, once per version and name (docs/discord-servers.md)", () => {
+        mockRosters.push(
+            { id: "r1", name: "TBC Main", versionId: "tbc", members: { [U1]: { status: "raider", chars: ["heiltrank-tbc"], charNames: { "heiltrank-tbc": "Heiltrank" } } } },
+            { id: "r3", name: "Forever", versionId: "forever", members: { [U1]: { status: "raider", chars: ["ostrava-forever"], charNames: { "ostrava-forever": "Ostrava" } } } },
+        );
+        mockProfiles[U1] = { characters: [{ name: "Ostrava", versionId: "tbc" }] };
+        // Ostrava (TBC), Heiltrank (TBC, roster only), Ostrava (Forever)
+        expect(memberActivity.relationOf(U1).characters).toBe(3);
+    });
+
     it("lists the last days of one server with the relation", () => {
         const now = Date.now();
         store.record({ guildId: EVENT, userId: U1, kind: "join" }, { now: now - 8 * 24 * 3600 * 1000 });

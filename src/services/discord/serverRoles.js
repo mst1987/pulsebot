@@ -344,4 +344,8 @@ function roleCount(side = "event", config = getConfig()) {
     return Math.max(0, guild.roles.cache.size - (guild.roles.cache.has(guild.id) ? 1 : 0));
 }
 
-module.exports = { listServerRoles, serverRoleDetail, roleCount, permissionKeys, SENSITIVE_PERMISSIONS, EVERYONE_MEMBERS_MAX };
+module.exports = {
+    listServerRoles, serverRoleDetail, roleCount, permissionKeys, SENSITIVE_PERMISSIONS, EVERYONE_MEMBERS_MAX,
+    // shared with serverMembers.js (the member page reads the same server context)
+    contextFor, head, channelKind, guildIdOf,
+};

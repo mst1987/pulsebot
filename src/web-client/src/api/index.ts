@@ -19,6 +19,7 @@ export * from "./notifyTemplates";
 export * from "./roleMessages";
 export * from "./discordRoles";
 export * from "./discordOverview";
+export * from "./discordMembers";
 export * from "./raidDetail";
 export * from "./raidManage";
 export * from "./eventSeries";

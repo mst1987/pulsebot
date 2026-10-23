@@ -87,6 +87,7 @@ const GUIDES = [
             "discord-übersicht": "channels",
             "kanäle": "channels",
             "rollen": "channels",
+            "mitglieder": "channels",
             "rollen-nachrichten": "channels",
             "systemstatus": "system",
             "einstellungen": "settings",

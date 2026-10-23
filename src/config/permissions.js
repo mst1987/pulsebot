@@ -50,7 +50,7 @@ const AREAS = [
     // and the few people they name: never part of a base access by default, so
     // only full admins and explicit role or single-account grants open it.
     { id: "kader", tab: "kader", label: "Kaderplaner", description: "Raidkader für WoW Forever planen: Spieler-Pool, Kader je Raid, Gruppen-Setups. Die Zuweisungen gelten nur im Planer, das Raider-Profil bleibt unverändert." },
-    { id: "channels", tab: "channels", label: "Discord", description: "Discord-Kanäle anlegen und duplizieren, Rollen-Nachrichten posten." },
+    { id: "channels", tab: "channels", label: "Discord", description: "Discord-Kanäle anlegen und duplizieren, Rollen-Nachrichten posten. Zeigt auch die Mitgliederliste beider Server mit Roster-Status und Charakteren aus allen Kategorien." },
     { id: "settings", tab: "settings", label: "Einstellungen", description: "Bot-Konfiguration. Admin-Rollen und Berechtigungen bleiben Voll-Admins vorbehalten." },
 ];
 

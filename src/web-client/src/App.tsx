@@ -26,6 +26,7 @@ const ChannelsPage = lazyWithReload(() => import("./pages/ChannelsPage"));
 const RoleMessagesPage = lazyWithReload(() => import("./pages/channels/RoleMessagesPage"));
 const ServerRolesPage = lazyWithReload(() => import("./pages/channels/ServerRolesPage"));
 const DiscordOverviewPage = lazyWithReload(() => import("./pages/channels/DiscordOverviewPage"));
+const MembersPage = lazyWithReload(() => import("./pages/channels/MembersPage"));
 const SettingsPage = lazyWithReload(() => import("./pages/settings/SettingsPage"));
 const RaidsPage = lazyWithReload(() => import("./pages/raids/RaidsPage"));
 const RaidCreatePage = lazyWithReload(() => import("./pages/RaidCreatePage"));
@@ -268,6 +269,7 @@ function MenuApp() {
                                 {/* Rollen: every server role read-only (docs/channels.md) */}
                                 <Route path="channels/server-roles" element={<Guard user={user} areas={["channels"]}><ServerRolesPage /></Guard>} />
                                 <Route path="channels/overview" element={<Guard user={user} areas={["channels"]}><DiscordOverviewPage /></Guard>} />
+                                <Route path="channels/members" element={<Guard user={user} areas={["channels"]}><MembersPage /></Guard>} />
                                 <Route path="settings" element={<Guard user={user} areas={["settings"]}><SettingsPage /></Guard>} />
                                 <Route path="raids" element={<Guard user={user} areas={["raids"]}><RaidsPage /></Guard>} />
                                 {/* the list with the create dialog over it: the dialog opens by the server's `canCreate` (#729 - the orga of a category creates without `raids` write) */}
