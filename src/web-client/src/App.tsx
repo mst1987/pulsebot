@@ -24,6 +24,7 @@ const PlanPublicPage = lazyWithReload(() => import("./pages/raidplan/PlanPublicP
 const DashboardPage = lazyWithReload(() => import("./pages/dashboard/DashboardPage"));
 const ChannelsPage = lazyWithReload(() => import("./pages/ChannelsPage"));
 const RoleMessagesPage = lazyWithReload(() => import("./pages/channels/RoleMessagesPage"));
+const ServerRolesPage = lazyWithReload(() => import("./pages/channels/ServerRolesPage"));
 const SettingsPage = lazyWithReload(() => import("./pages/settings/SettingsPage"));
 const RaidsPage = lazyWithReload(() => import("./pages/raids/RaidsPage"));
 const RaidCreatePage = lazyWithReload(() => import("./pages/RaidCreatePage"));
@@ -263,6 +264,8 @@ function MenuApp() {
                                 <Route path="channels" element={<Guard user={user} areas={["channels"]}><ChannelsPage /></Guard>} />
                                 {/* Rollen-Nachrichten: a page of the Kanaele family (docs/role-messages.md) */}
                                 <Route path="channels/roles" element={<Guard user={user} areas={["channels"]}><RoleMessagesPage /></Guard>} />
+                                {/* Rollen: every server role read-only (docs/channels.md) */}
+                                <Route path="channels/server-roles" element={<Guard user={user} areas={["channels"]}><ServerRolesPage /></Guard>} />
                                 <Route path="settings" element={<Guard user={user} areas={["settings"]}><SettingsPage /></Guard>} />
                                 <Route path="raids" element={<Guard user={user} areas={["raids"]}><RaidsPage /></Guard>} />
                                 {/* the list with the create dialog over it: the dialog opens by the server's `canCreate` (#729 - the orga of a category creates without `raids` write) */}

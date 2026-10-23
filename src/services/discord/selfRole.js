@@ -27,30 +27,79 @@ const rosterStore = require("../../stores/rosterStore");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const ids = (list) => (Array.isArray(list) ? list.map(str) : []);
-const values = (map) => (map && typeof map === "object" && !Array.isArray(map) ? Object.values(map) : []);
+const entries = (map) => (map && typeof map === "object" && !Array.isArray(map) ? Object.entries(map) : []);
+
+function rostersOrEmpty() {
+    try {
+        return rosterStore.listRosters();
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Every bot right the role carries from the config and the rosters, machine-readable and
+ * in the order privilegedReason checks them (the first one is its reason):
+ *   { code: "admin" } | { code: "orga" } | { code: "officer" }
+ *   { code: "rolePermissions", areas: string[] }      the areas granted to the role
+ *   { code: "botCommand", commands: string[] }       the bot commands the role may run
+ *   { code: "categoryRaider", categoryIds: string[] } the categories it is a raider role of
+ *   { code: "roleSync", sides: ("event"|"talk")[] }  the side(s) of the role sync it is on
+ *   { code: "roster", rosterId, name, kinds: ("member"|"trial"|"manager")[] }  one per roster
+ * Empty when the role carries none. The roles page (services/discord/serverRoles.js) shows
+ * them as "Bedeutung für den Bot".
+ * @param {object} cfg the bot config
+ * @param {string} roleId
+ * @returns {object[]}
+ */
+function roleUses(cfg, roleId) {
+    const c = cfg || {};
+    const id = str(roleId);
+    const out = [];
+    if (!id) return out;
+    if ([...ids(c.adminRoleIds), ...ids(envAdminRoleIds)].includes(id)) out.push({ code: "admin" });
+    if (ids(c.orgaRoleIds).includes(id)) out.push({ code: "orga" });
+    if (str(c.officerRoleId) === id) out.push({ code: "officer" });
+    const grants = normalizeRolePermissions(c.rolePermissions || {})[id];
+    if (grants) out.push({ code: "rolePermissions", areas: Object.keys(grants).sort() });
+    const commands = entries(c.botCommandAccess).filter(([, rule]) => rule && ids(rule.roleIds).includes(id)).map(([name]) => name).sort();
+    if (commands.length) out.push({ code: "botCommand", commands });
+    const categoryIds = entries(c.categoryRoles).filter(([, list]) => ids(list).includes(id)).map(([catId]) => catId);
+    if (categoryIds.length) out.push({ code: "categoryRaider", categoryIds });
+    const sides = new Set();
+    for (const s of Array.isArray(c.roleSync) ? c.roleSync : []) {
+        if (!s) continue;
+        if (str(s.eventRoleId) === id) sides.add("event");
+        if (str(s.talkRoleId) === id) sides.add("talk");
+    }
+    if (sides.size) out.push({ code: "roleSync", sides: ["event", "talk"].filter((x) => sides.has(x)) });
+    for (const r of rostersOrEmpty()) {
+        const managers = r.managers && Array.isArray(r.managers.roleIds) ? r.managers.roleIds : [];
+        const kinds = [];
+        if (ids(r.roleIds).includes(id)) kinds.push("member");
+        if (str(r.trialRoleId) === id) kinds.push("trial");
+        if (ids(managers).includes(id)) kinds.push("manager");
+        if (kinds.length) out.push({ code: "roster", rosterId: str(r.id), name: str(r.name), kinds });
+    }
+    return out;
+}
+
+// The log/refusal text of the first use (privilegedReason's wording, unchanged).
+const USE_TEXT = {
+    admin: () => "the role is a full-admin role",
+    orga: () => "the role is an orga role",
+    officer: () => "the role is pinged on new applications (officer role)",
+    rolePermissions: () => "the role has rights under Einstellungen -> Berechtigungen",
+    botCommand: () => "the role may run bot commands (botCommandAccess)",
+    categoryRaider: () => "the role is a raider role of a category",
+    roleSync: () => "the role is part of the role sync between the servers",
+    roster: (u) => `the role belongs to the roster ${u.name || u.rosterId}`,
+};
 
 /** Why the role carries bot rights of the config or a roster, "" when it carries none. */
 function configReason(cfg, id) {
-    if ([...ids(cfg.adminRoleIds), ...ids(envAdminRoleIds)].includes(id)) return "the role is a full-admin role";
-    if (ids(cfg.orgaRoleIds).includes(id)) return "the role is an orga role";
-    if (str(cfg.officerRoleId) === id) return "the role is pinged on new applications (officer role)";
-    if (normalizeRolePermissions(cfg.rolePermissions || {})[id]) return "the role has rights under Einstellungen -> Berechtigungen";
-    if (values(cfg.botCommandAccess).some((rule) => rule && ids(rule.roleIds).includes(id))) return "the role may run bot commands (botCommandAccess)";
-    if (values(cfg.categoryRoles).some((list) => ids(list).includes(id))) return "the role is a raider role of a category";
-    if ((Array.isArray(cfg.roleSync) ? cfg.roleSync : []).some((s) => s && (str(s.talkRoleId) === id || str(s.eventRoleId) === id))) {
-        return "the role is part of the role sync between the servers";
-    }
-    let rosters;
-    try {
-        rosters = rosterStore.listRosters();
-    } catch {
-        rosters = [];
-    }
-    for (const r of rosters) {
-        const managers = r.managers && Array.isArray(r.managers.roleIds) ? r.managers.roleIds : [];
-        if ([...ids(r.roleIds), str(r.trialRoleId), ...ids(managers)].includes(id)) return `the role belongs to the roster ${r.name || r.id}`;
-    }
-    return "";
+    const first = roleUses(cfg, id)[0];
+    return first ? USE_TEXT[first.code](first) : "";
 }
 
 const bitsOf = (perms) => {
@@ -176,4 +225,4 @@ async function changeSelfRole({ guild, roleId, member = null, userId = "", mode 
     return { ok: true, role, on, changed: on !== has };
 }
 
-module.exports = { privilegedReason, roleProblem, botMember, isUnknownRole, changeSelfRole };
+module.exports = { privilegedReason, roleUses, roleProblem, botMember, isUnknownRole, changeSelfRole };

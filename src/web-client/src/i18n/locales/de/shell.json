@@ -32,6 +32,7 @@
         "kader": "Kaderplaner",
         "recruitment": "Recruitment",
         "channels": "Discord",
+        "serverRoles": "Rollen",
         "settings": "Einstellungen",
         "planTemplates": "Raidplan-Vorlagen",
         "roleMessages": "Rollen-Nachrichten",
@@ -58,6 +59,7 @@
         "editPost": "Nachricht bearbeiten",
         "planCatalog": "Raidplan-Katalog",
         "roleMessages": "Rollen-Nachrichten",
+        "serverRoles": "Rollen",
         "allCharacters": "Alle Charaktere"
     },
     "noArea": {

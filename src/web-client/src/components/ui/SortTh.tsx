@@ -9,7 +9,8 @@ import { ChevronDownIcon } from "./icons";
 
 export type SortLabelProps<K extends string> = {
     sortKey: K;
-    label: string;
+    /** usually text; a page may pass a long and a short form for a phone */
+    label: React.ReactNode;
     sort: K;
     dir: Dir;
     onSort: (key: K) => void;

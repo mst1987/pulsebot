@@ -43,6 +43,7 @@ function subCrumb(pathname: string, search: URLSearchParams): string | null {
     if (pathname === "/raids/plan-templates") return tr("shell.crumb.planTemplates");
     if (pathname === "/raids/plan-catalog") return tr("shell.crumb.planCatalog");
     if (pathname === "/channels/roles") return tr("shell.crumb.roleMessages");
+    if (pathname === "/channels/server-roles") return tr("shell.crumb.serverRoles");
     if (pathname === "/history/event") return tr("shell.crumb.eventLoot");
     if (pathname === "/history/char" || pathname === "/roster/char") return search.get("name") || tr("shell.crumb.character");
     if (pathname === "/roster/chars") return tr("shell.crumb.allCharacters");

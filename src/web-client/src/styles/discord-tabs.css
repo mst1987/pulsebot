@@ -1,0 +1,21 @@
+/* The tabs of System › Discord (components/channels/DiscordTabs.tsx): one line of
+   text links under the page head, the active one underlined in the area colour,
+   the count small and muted next to the label. The line never wraps: on a phone
+   it scrolls sideways inside itself, the page stays as wide as the screen. */
+.dtab-bar {
+    display: flex; gap: 22px; margin: -6px 0 18px; border-bottom: 1px solid var(--line);
+    overflow-x: auto; overflow-y: hidden; scrollbar-width: none; white-space: nowrap;
+}
+.dtab-bar::-webkit-scrollbar { display: none; }
+.dtab-tab {
+    display: inline-flex; align-items: baseline; gap: 6px; flex: 0 0 auto;
+    padding: 8px 0 9px; margin-bottom: -1px; border-bottom: 2px solid transparent;
+    color: var(--muted); font-weight: 600; font-size: 14px; text-decoration: none;
+}
+.dtab-tab:hover { color: var(--text); }
+.dtab-tab:focus-visible { outline: 2px solid var(--area-channels); outline-offset: 2px; border-radius: 2px; }
+.dtab-on { color: var(--text); border-bottom-color: var(--area-channels); }
+.dtab-n { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--muted); }
+@media (max-width: 600px) {
+    .dtab-bar { gap: 18px; }
+}

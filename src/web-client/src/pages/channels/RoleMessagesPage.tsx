@@ -9,7 +9,7 @@ import { useApi } from "../../hooks/useApi";
 import type { ShellContext } from "../../components/shell/Shell";
 import { useToast } from "../../components/shell/Jobs";
 import { Badge, Button, DataTable, Field, IconButton, Modal, PageHead, Segment, Switch, useConfirm, type Column } from "../../components/ui";
-import { MenuRailPage } from "../../components/ui/SectionRail";
+import DiscordTabs from "../../components/channels/DiscordTabs";
 import EmojiPicker from "../../components/ui/EmojiPicker";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { AlertIcon, ChevronUpIcon, ExternalIcon, PenIcon, PlusIcon, SaveIcon, TrashIcon, XIcon } from "../../components/ui/icons";
@@ -45,11 +45,6 @@ function roleStyle(color: string): CSSProperties | undefined {
 }
 
 export default function RoleMessagesPage() {
-    const { user } = useOutletContext<ShellContext>();
-    return <MenuRailPage user={user} parent="channels"><RoleMessagesView /></MenuRailPage>;
-}
-
-function RoleMessagesView() {
     const { user } = useOutletContext<ShellContext>();
     const canWrite = canAccess(user, "channels", "write");
     const t = useT();
@@ -191,6 +186,7 @@ function RoleMessagesView() {
                 )}
                 action={canWrite ? <Button variant="ghost" icon={<PlusIcon />} onClick={editor.startNew}>{t("roleMessages.page.new")}</Button> : undefined}
             />
+            <DiscordTabs user={user} />
 
             {notes.length > 0 && (
                 <ul className="rm-notes">

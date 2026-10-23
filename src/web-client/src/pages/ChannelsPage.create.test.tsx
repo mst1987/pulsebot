@@ -14,6 +14,7 @@ import { switchLang } from "../test/i18n";
 vi.mock("../api", async (orig) => ({
     ...(await orig<typeof import("../api")>()),
     getChannels: vi.fn(),
+    getDiscordTabCounts: vi.fn().mockResolvedValue({}),
     quickCreateChannels: vi.fn(),
     saveChannelSchema: vi.fn(),
     duplicateChannel: vi.fn(),

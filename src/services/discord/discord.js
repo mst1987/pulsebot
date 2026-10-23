@@ -1191,7 +1191,7 @@ function embed() {
 module.exports = {
     setClient, getClient, isOnline, fetchTextChannel, textChannelOf, listGuilds, getGuild, listTextChannels, listEmojis,
     sendDirectMessage, embed,
-    resolveUserNames, avatarUrlFor, NAME_FETCH_MS, ABSENT_MS, _resetAbsentNamesForTests,
+    resolveUserNames, avatarUrlFor, avatarUrlOf, NAME_FETCH_MS, ABSENT_MS, _resetAbsentNamesForTests,
     memberRoleIds,
     listCategories, listAllChannels, listVoiceChannels, botCanManageEvents, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,

@@ -4,7 +4,7 @@
 jest.mock("../../../src/config/variables", () => ({ adminRoleIds: ["900000000000000009"] }));
 
 const rosterStore = require("../../../src/stores/rosterStore");
-const { privilegedReason } = require("../../../src/services/discord/selfRole");
+const { privilegedReason, roleUses } = require("../../../src/services/discord/selfRole");
 
 const ROLE = "200000000000000002";
 const OTHER = "200000000000000003";
@@ -83,6 +83,50 @@ describe("selfRole privilegedReason", () => {
     it("keeps working when the roster store cannot be read", () => {
         jest.spyOn(rosterStore, "listRosters").mockImplementation(() => { throw new Error("broken"); });
         expect(privilegedReason({}, ROLE)).toBe("");
+    });
+});
+
+describe("selfRole roleUses", () => {
+    it("lists every use with its context, in privilegedReason's order", () => {
+        jest.spyOn(rosterStore, "listRosters").mockReturnValue([
+            { id: "r-a", name: "Andere", roleIds: [OTHER], trialRoleId: null, managers: { roleIds: [], userIds: [] } },
+            { id: "r-main", name: "Main", roleIds: [ROLE], trialRoleId: ROLE, managers: { roleIds: [ROLE], userIds: [] } },
+        ]);
+        const config = {
+            adminRoleIds: [ROLE],
+            orgaRoleIds: [ROLE],
+            officerRoleId: ROLE,
+            rolePermissions: { [ROLE]: { signup: { read: true }, loot: { read: true, write: true } } },
+            botCommandAccess: { setup: { mode: "roles", roleIds: [ROLE] }, absence: { mode: "roles", roleIds: [OTHER] }, kader: { mode: "roles", roleIds: [ROLE] } },
+            categoryRoles: { "cat-1": [ROLE], "cat-2": [OTHER], "cat-3": [ROLE] },
+            roleSync: [{ eventRoleId: ROLE, talkRoleId: OTHER }, { eventRoleId: OTHER, talkRoleId: ROLE }],
+        };
+        expect(roleUses(config, ROLE)).toEqual([
+            { code: "admin" },
+            { code: "orga" },
+            { code: "officer" },
+            { code: "rolePermissions", areas: ["loot", "signup"] },
+            { code: "botCommand", commands: ["kader", "setup"] },
+            { code: "categoryRaider", categoryIds: ["cat-1", "cat-3"] },
+            { code: "roleSync", sides: ["event", "talk"] },
+            { code: "roster", rosterId: "r-main", name: "Main", kinds: ["member", "trial", "manager"] },
+        ]);
+        // the first use stays privilegedReason's reason
+        expect(privilegedReason(config, ROLE)).toBe("the role is a full-admin role");
+    });
+
+    it("is empty for a plain role, no id or no config", () => {
+        jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
+        expect(roleUses({ categoryRoles: { c: [OTHER] } }, ROLE)).toEqual([]);
+        expect(roleUses({}, "")).toEqual([]);
+        expect(roleUses(null, ROLE)).toEqual([]);
+        expect(roleUses({ botCommandAccess: [], categoryRoles: null, roleSync: [null] }, ROLE)).toEqual([]);
+    });
+
+    it("names a roster by its id when it has no name", () => {
+        jest.spyOn(rosterStore, "listRosters").mockReturnValue([{ id: "r-x", roleIds: [ROLE] }]);
+        expect(roleUses({}, ROLE)).toEqual([{ code: "roster", rosterId: "r-x", name: "", kinds: ["member"] }]);
+        expect(privilegedReason({}, ROLE)).toBe("the role belongs to the roster r-x");
     });
 });
 
