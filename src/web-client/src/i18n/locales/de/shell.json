@@ -31,9 +31,10 @@
         "addon": "Addons",
         "kader": "Kaderplaner",
         "recruitment": "Recruitment",
-        "channels": "Kanäle",
+        "channels": "Discord",
         "settings": "Einstellungen",
         "planTemplates": "Raidplan-Vorlagen",
+        "roleMessages": "Rollen-Nachrichten",
         "planCatalog": "Raidplan-Katalog",
         "absences": "Abwesenheiten",
         "system": "Systemstatus"
@@ -56,6 +57,7 @@
         "character": "Charakter",
         "editPost": "Nachricht bearbeiten",
         "planCatalog": "Raidplan-Katalog",
+        "roleMessages": "Rollen-Nachrichten",
         "allCharacters": "Alle Charaktere"
     },
     "noArea": {

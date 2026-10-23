@@ -32,8 +32,8 @@ describe("adminOnly menu entries", () => {
 });
 
 describe("version-neutral pages (#742)", () => {
-    it("are Kanaele, Einstellungen and Systemstatus - the one list; every other page follows the version", () => {
-        expect(MENU.filter((e) => e.neutral).map((e) => e.id).sort()).toEqual(["channels", "settings", "system"]);
+    it("are Kanaele, Rollen-Nachrichten, Einstellungen and Systemstatus - the one list; every other page follows the version", () => {
+        expect(MENU.filter((e) => e.neutral).map((e) => e.id).sort()).toEqual(["channels", "roleMessages", "settings", "system"]);
     });
 
     it("count an addon's detail page as neutral, while the page Addons itself follows the version", () => {

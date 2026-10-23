@@ -392,8 +392,8 @@
             "description": "Raidkader für WoW Forever planen: Spieler-Pool, Kader je Raid, Gruppen-Setups. Die Zuweisungen gelten nur im Planer, das Raider-Profil bleibt unverändert."
         },
         "channels": {
-            "label": "Kanäle",
-            "description": "Discord-Kanäle anlegen und duplizieren."
+            "label": "Discord",
+            "description": "Discord-Kanäle anlegen und duplizieren, Rollen-Nachrichten posten."
         },
         "settings": {
             "label": "Einstellungen",

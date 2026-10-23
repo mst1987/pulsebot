@@ -27,11 +27,12 @@ const { redrawPendingCards } = require("./services/signups/guildBank");
 const linkWatch = require("./services/discord/linkWatch.js");
 const discord = require("./services/discord/discord.js");
 const { configuredGuildIds } = require("./services/discord/guildRoles.js");
+const { handleReaction, handleReactionsCleared } = require("./services/discord/roleMessages.js");
 const { loadCommandModules, kindOf } = require("./commands/loader.js");
 const { startJobs } = require("./web/http/jobs.js");
 const logger = require("./logger.js").child("bot");
 
-const { Events, Client, GatewayIntentBits, Collection } = require("discord.js");
+const { Events, Client, GatewayIntentBits, Partials, Collection } = require("discord.js");
 
 const client = new Client({
     intents: [
@@ -44,12 +45,16 @@ const client = new Client({
         // against event signups (attendance / ping missing raiders). Requires the
         // "Server Members Intent" to be enabled in the Discord Developer Portal.
         GatewayIntentBits.GuildMembers,
+        // the reactions on the role messages (services/discord/roleMessages.js): a reaction
+        // gives its role, taking it back takes the role
+        GatewayIntentBits.GuildMessageReactions,
     ],
-    // No listener reads a partial MESSAGE/REACTION (no messageReactionAdd
-    // handler, no `.partial` check anywhere) — the v13 string form here was a
-    // no-op, so it is dropped instead of migrated to Partials.Message /
-    // Partials.Reaction (#430). Re-add with the v14 enum if such a handler
-    // is introduced later.
+    // The role messages' reactions must work on messages from before a restart too, which
+    // are not in the cache: without these partials discord.js drops such reaction events
+    // (#430 had removed the old v13 string form because nothing read partials then).
+    // roleMessages.handleReaction fetches what is partial; every other listener reads
+    // whole messages (messageCreate) or the raw gateway packets (linkWatch).
+    partials: [Partials.Message, Partials.Reaction, Partials.User],
 });
 
 client.commands = new Collection();
@@ -113,6 +118,22 @@ client.on("guildMemberAdd", (member) => {
     rosterRoleSync.onGuildMemberAdd(member);
     Promise.resolve(handleMemberAdd(member))
         .catch((error) => console.error("guildMemberAdd handler error:", error.message));
+});
+
+// Role messages: a reaction on one gives its role, removing it takes the role back
+// (services/discord/roleMessages.js; bots are ignored, nothing is answered; the Bot-Befehle
+// rule of `rolemsg` counts as for its button). Cleared reactions: the bot sets its own again.
+client.on(Events.MessageReactionAdd, (reaction, user) => {
+    handleReaction(reaction, user, true, { commands: client.commands }).catch((error) => logger.warn("role message reaction failed:", error.message));
+});
+client.on(Events.MessageReactionRemove, (reaction, user) => {
+    handleReaction(reaction, user, false, { commands: client.commands }).catch((error) => logger.warn("role message reaction failed:", error.message));
+});
+client.on(Events.MessageReactionRemoveAll, (message) => {
+    handleReactionsCleared(message).catch((error) => logger.warn("role message re-react failed:", error.message));
+});
+client.on(Events.MessageReactionRemoveEmoji, (reaction) => {
+    handleReactionsCleared(reaction && reaction.message).catch((error) => logger.warn("role message re-react failed:", error.message));
 });
 
 // A deleted channel or tracked message (#537): links to it go at once, the

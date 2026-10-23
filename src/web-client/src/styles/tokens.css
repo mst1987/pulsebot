@@ -122,6 +122,11 @@
     --discord-light-code: #ebedef; --discord-light-quote: #c4c9ce;
     --discord-light-mention: rgba(88, 101, 242, .15); --discord-light-mention-text: #505cdc;
     --discord-blurple: #5865f2; --discord-green: #248046;
+    /* a card's container, a grey (Secondary) button and the bot's own accent bar
+       (EMBED_ACCENT_COLOR in src/config/constants.js) — the role-message preview */
+    --discord-dark-card: #2b2d31; --discord-dark-secondary: #4e5058; --discord-dark-reaction: #2b2d31;
+    --discord-light-card: #f2f3f5; --discord-light-secondary: #6d6f78; --discord-light-reaction: #ebedef;
+    --discord-card-accent: #8a7cff;
     /* ---- raid plan (styles/raidplan.css, rp-): the board is a dark picture in both themes ---- */
     --rp-role-tank: #60a5fa; --rp-role-healer: #35d6c4; --rp-role-melee: #f97316; --rp-role-ranged: #a78bfa; --rp-role-dps: #f5c542;
     --rp-glyph-bg: #12161a; /* the dark disc of a role glyph (RoleGlyph, #559) */

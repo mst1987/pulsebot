@@ -16,6 +16,7 @@ export * from "./rosterEdit";
 export * from "./raids";
 export * from "./raidTemplates";
 export * from "./notifyTemplates";
+export * from "./roleMessages";
 export * from "./raidDetail";
 export * from "./raidManage";
 export * from "./eventSeries";

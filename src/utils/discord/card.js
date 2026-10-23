@@ -3,7 +3,7 @@
 // facts ("**Gruppe** 3 · **Rolle** Heiler"), an optional picture on the right, the buttons INSIDE the card and a small grey note
 // at its foot. One card replaces the old "text plus embed" pair, which Discord showed as two blocks.
 //
-//   card({ kind, color, kicker, title, text, facts, fields, parts, thumbnail, buttons, note, mentions, allowedMentions, ephemeral })
+//   card({ kind, color, kicker, title, text, facts, fields, parts, thumbnail, image, buttons, note, mentions, allowedMentions, ephemeral })
 //
 // - parts: a body of its own between the facts and the buttons, in order — a string is a text display, "---" a thin
 //   divider, an action row (builder or JSON, a select menu say) stays a row. For cards that interleave headings and
@@ -12,12 +12,14 @@
 // - mentions: "<@1> <@2>" — the card's first line. A mention pings from a container as from a text message (tried on the
 //   dev server); without `mentions` nothing in the card pings (`allowedMentions: { parse: [] }`) unless the caller says so.
 // - buttons: ButtonBuilders (five to a row) and/or ready action rows (ActionRowBuilder or its JSON, select menus too).
+// - image: a link to a big picture across the card's width (a media gallery), under the body and above the buttons —
+//   what an embed's `image` was (the role messages, services/discord/roleMessages.js). https only; anything else is left out.
 // - fields: an embed's fields — the inline ones become the facts line, the others a bold name over their value.
 //
 // The payload carries `content: ""` and `embeds: []`, so the same card sends a new message and turns an old text or embed
 // message into the card on edit (both tried on the dev server). Text is cut to Discord's limit of 4000 characters per message.
 const {
-    ActionRowBuilder, ButtonBuilder, ContainerBuilder, MessageFlags, SectionBuilder, SeparatorBuilder, SeparatorSpacingSize,
+    ActionRowBuilder, ButtonBuilder, ContainerBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, MessageFlags, SectionBuilder, SeparatorBuilder, SeparatorSpacingSize,
     TextDisplayBuilder, ThumbnailBuilder,
 } = require("discord.js");
 const { embedAccentColor } = require("../../config/variables");
@@ -61,12 +63,18 @@ function buttonRows(buttons) {
     return rows;
 }
 
+/** A big https picture across the card (a media gallery); anything else is left out. */
+function addImage(c, image) {
+    const big = str(image).trim();
+    if (/^https:\/\/\S+$/i.test(big)) c.addMediaGalleryComponents(new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(big)));
+}
+
 /**
  * The card as a message payload (see the head comment).
  * @returns {{ flags: number, components: object[], content: "", embeds: [], allowedMentions: object }}
  */
 function card({
-    kind = "info", color, kicker, title, text, facts, fields, parts, thumbnail, buttons, note, mentions, allowedMentions, ephemeral = false,
+    kind = "info", color, kicker, title, text, facts, fields, parts, thumbnail, image, buttons, note, mentions, allowedMentions, ephemeral = false,
 } = {}) {
     let budget = CARD_TEXT_LIMIT;
     const take = (s) => { const out = cut(s, budget); budget -= out.length; return out; };
@@ -102,6 +110,8 @@ function card({
         else if (typeof part === "string") add(part);
         else c.addActionRowComponents(buttonRows([part]));
     }
+
+    addImage(c, image);
 
     const rows = buttonRows(buttons);
     const foot = str(note).trim();

@@ -95,6 +95,17 @@ Technik: [discord-servers.md](discord-servers.md), [raidhelper-retirement.md](ra
 - Optional ein **natives Discord-Event** (Kalendereintrag) pro Raid.
 - Farbige **App-Emojis** für Klassen, Specs und Status in allen Bot-Nachrichten.
 
+## Rollen-Nachrichten
+
+Technik: [role-messages.md](role-messages.md)
+
+Manche Nachrichten des Bots haben je Rolle einen Knopf und eine Reaktion (z. B. „✅ WoW Forever Role“):
+
+- **Knopf:** holt die Rolle, ein zweiter Klick gibt sie wieder ab. Die Antwort siehst nur du.
+- **Reaktion:** mit dem Emoji reagieren gibt die Rolle, die Reaktion entfernen nimmt sie wieder.
+- Zwischen zwei Änderungen derselben Rolle liegen mindestens 2 Sekunden; was schneller kommt, zählt nicht.
+- Klappt es nicht, sag der Orga Bescheid — der Bot schreibt den Grund in sein Log.
+
 ## Neue Spielversion
 
 Technik: [game-versions.md](game-versions.md)

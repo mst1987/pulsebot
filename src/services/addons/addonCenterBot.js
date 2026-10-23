@@ -11,7 +11,7 @@
 //   addonhub:unsub                    "Abo beenden" under the confirmation
 //
 // The button never touches a role with rights (bot rights or Discord permissions,
-// updateRole.js), in neither direction. Otherwise the bot may hand out the role only
+// services/discord/selfRole.js), in neither direction. Otherwise the bot may hand out the role only
 // with Manage Roles, when the role sits below its highest role and belongs to no
 // integration; else (and when the role is gone) the member gets one clear line and
 // the log a warning saying why.
@@ -22,7 +22,7 @@
 // then the size against what Discord lets the bot upload here. It is logged like
 // the web's download, marked "via discord"; the token never reaches a log line.
 const {
-    ActionRowBuilder, ButtonBuilder, ButtonStyle, FileBuilder, MessageFlags, PermissionsBitField, TextDisplayBuilder,
+    ActionRowBuilder, ButtonBuilder, ButtonStyle, FileBuilder, MessageFlags, TextDisplayBuilder,
 } = require("discord.js");
 const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
@@ -38,7 +38,7 @@ const { openAssetStream } = require("../../classes/githubReleases");
 const { publicBaseUrl } = require("../../utils/publicUrl");
 const { tr } = require("../../utils/i18n/botText");
 const { parseCenterId, fileId, UNSUBSCRIBE_ID } = require("./addonCenterPanel");
-const { privilegedReason } = require("./updateRole");
+const { changeSelfRole, roleProblem } = require("../discord/selfRole");
 const log = require("../../logger").child("addons");
 
 /** The areas whose holders may download (the web's rule). */
@@ -220,40 +220,6 @@ function subscribedPayload(lang, roleId) {
 
 const unsubscribedPayload = (lang) => notice("🔕", tr(lang, "Subscription ended – no more update pings."));
 
-/** Discord's "Unknown Role": the role was deleted. */
-const isUnknownRole = (e) => !!(e && (e.code === 10011 || /unknown role/i.test(str(e && e.message))));
-
-/** The bot as a member of the guild; fetched when it is not cached. */
-async function botMember(guild) {
-    const members = guild && guild.members;
-    if (!members) return null;
-    if (members.me) return members.me;
-    if (typeof members.fetchMe !== "function") return null;
-    try {
-        return await members.fetchMe();
-    } catch {
-        return null;
-    }
-}
-
-/**
- * Why the role must not be toggled by the button, "" when it may: a role with rights
- * (bot rights or Discord permissions, updateRole.js — refused in both directions), then
- * what Discord's `role.editable` checks, each with its own reason for the log: the bot's
- * Manage Roles, a managed role, the role's place below the bot's highest role.
- */
-async function roleProblem(guild, role, config = {}) {
-    const privileged = privilegedReason(config, role.id, role, guild);
-    if (privileged) return privileged;
-    const me = await botMember(guild);
-    if (!me || !me.permissions || !me.permissions.has(PermissionsBitField.Flags.ManageRoles)) return "missing Manage Roles";
-    if (role.managed) return "the role belongs to an integration";
-    const top = me.roles && me.roles.highest ? Number(me.roles.highest.position) : 0;
-    const editable = typeof role.editable === "boolean" ? role.editable : Number(role.position) < top;
-    if (!editable) return "the role is above the bot's highest role";
-    return "";
-}
-
 /**
  * "Updates abonnieren" (`sub`, toggles) and "Abo beenden" (`unsub`, only off, replaces
  * the ephemeral confirmation it sits under).
@@ -267,42 +233,25 @@ async function subscription(interaction, action) {
     const sorry = notice("❌", tr(lang, "Subscribing does not work right now. Please tell the orga."));
     if (!roleId || !interaction.guild) return interaction.editReply(notice("❌", tr(lang, "There is no update role to subscribe to.")));
     const guild = interaction.guild;
-    let role = null;
-    let member;
-    try {
-        role = guild.roles.cache.get(roleId) || await guild.roles.fetch(roleId);
-    } catch (e) {
-        if (!isUnknownRole(e)) {
-            log.warn(`subscription: the update role ${roleId} could not be read on ${guild.id}: ${str(e && e.message) || e}`);
-            return interaction.editReply(sorry);
-        }
-    }
-    if (!role) {
-        log.warn(`subscription: the update role ${roleId} is missing on ${guild.id} (deleted, or on another server) - pick another one in the settings`);
+    const result = await changeSelfRole({
+        guild,
+        roleId,
+        member: interaction.member,
+        userId: str(interaction.user && interaction.user.id),
+        mode: action === "sub" ? "toggle" : "remove",
+        config: getConfig(),
+        reasons: { add: "Addon-Updates abonniert", remove: "Addon-Updates abbestellt" },
+    });
+    if (!result.ok) {
+        const name = result.role ? `@${result.role.name} (${roleId})` : roleId;
+        if (result.code === "role_unreadable") log.warn(`subscription: the update role ${roleId} could not be read on ${guild.id}: ${result.detail}`);
+        else if (result.code === "role_missing") log.warn(`subscription: the update role ${roleId} is missing on ${guild.id} (deleted, or on another server) - pick another one in the settings`);
+        else if (result.code === "member_missing") log.warn(`subscription: member ${whoOf(interaction)} not found on ${guild.id}: ${result.detail}`);
+        else if (result.code === "refused") log.warn(`subscription: cannot hand out ${name}: ${result.detail}`);
+        else log.warn(`subscription: ${name} not ${result.on ? "given to" : "taken from"} ${whoOf(interaction)}: ${result.detail}`);
         return interaction.editReply(sorry);
     }
-    try {
-        member = interaction.member && interaction.member.roles && interaction.member.roles.cache
-            ? interaction.member
-            : await guild.members.fetch(str(interaction.user && interaction.user.id));
-    } catch (e) {
-        log.warn(`subscription: member ${whoOf(interaction)} not found on ${guild.id}: ${str(e && e.message) || e}`);
-        return interaction.editReply(sorry);
-    }
-    const problem = await roleProblem(guild, role, getConfig());
-    if (problem) {
-        log.warn(`subscription: cannot hand out @${role.name} (${roleId}): ${problem}`);
-        return interaction.editReply(sorry);
-    }
-    const has = member.roles.cache.has(roleId);
-    const on = action === "sub" && !has;
-    try {
-        if (on) await member.roles.add(roleId, "Addon-Updates abonniert");
-        else if (has) await member.roles.remove(roleId, "Addon-Updates abbestellt");
-    } catch (e) {
-        log.warn(`subscription: @${role.name} not ${on ? "given to" : "taken from"} ${whoOf(interaction)}: ${str(e && e.message) || e}`);
-        return interaction.editReply(sorry);
-    }
+    const { on } = result;
     log.info(`subscription ${on ? "on" : "off"}: ${whoOf(interaction)}`);
     return interaction.editReply(on ? subscribedPayload(lang, roleId) : unsubscribedPayload(lang));
 }

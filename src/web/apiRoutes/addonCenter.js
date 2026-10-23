@@ -22,7 +22,7 @@ const guildRoles = require("../../services/discord/guildRoles");
 const linkCheck = require("../../services/discord/linkCheck");
 const { mainVersionFor, isVersionVisible, visibleVersions } = require("../../services/events/mainVersion");
 const { versionLabel } = require("../../services/events/versionSettings");
-const { privilegedReason } = require("../../services/addons/updateRole");
+const { privilegedReason } = require("../../services/discord/selfRole");
 
 function centerView(center) {
     if (!center) return null;
@@ -63,8 +63,8 @@ function channelsOf(config) {
  * The roles of every configured server (the update role lives on the centre's server),
  * each with `privileged`: it grants bot rights, Discord permissions beyond @everyone or
  * unlocks channels, so the centre hides "Updates abonnieren" for it and the card warns
- * (services/addons/updateRole.js); and `officer`: it is pinged on applications
- * (config.officerRoleId), the card says subscribers would get those pings too.
+ * (services/discord/selfRole.js). The officer role pinged on applications
+ * (config.officerRoleId) counts as privileged too: a subscriber would read every application.
  */
 function rolesOf(config) {
     const out = {};
@@ -74,8 +74,7 @@ function rolesOf(config) {
             const cache = guild && guild.roles ? guild.roles.cache : null;
             out[guildId] = (discord.listRoles(guildId) || []).map((r) => {
                 const role = cache && typeof cache.get === "function" ? cache.get(r.id) || null : null;
-                const officer = !!config.officerRoleId && String(config.officerRoleId) === r.id;
-                return { ...r, privileged: !!privilegedReason(config, r.id, role, guild), officer };
+                return { ...r, privileged: !!privilegedReason(config, r.id, role, guild) };
             });
         }
     } catch (e) {

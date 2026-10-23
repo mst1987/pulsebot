@@ -45,6 +45,14 @@ describe("card", () => {
         expect(sec.accessory).toMatchObject({ type: ComponentType.Thumbnail, media: { url: "https://x/y.png" } });
     });
 
+    it("shows a big picture as a media gallery above the buttons, https only", () => {
+        const comps = container(card({ title: "Rolle", text: "x", image: "https://x/big.png", buttons: [btn("a")] })).components;
+        const gallery = comps.findIndex((c) => c.type === ComponentType.MediaGallery);
+        expect(comps[gallery].items).toEqual([expect.objectContaining({ media: { url: "https://x/big.png" } })]);
+        expect(gallery).toBeLessThan(comps.findIndex((c) => c.type === ComponentType.ActionRow));
+        expect(container(card({ title: "a", image: "http://x/big.png" })).components.some((c) => c.type === ComponentType.MediaGallery)).toBe(false);
+    });
+
     it("puts buttons five to a row and keeps ready rows (a select menu too)", () => {
         const select = new ActionRowBuilder().addComponents(new StringSelectMenuBuilder().setCustomId("s").addOptions({ label: "a", value: "a" }));
         const rows = container(card({ title: "a", buttons: [1, 2, 3, 4, 5, 6].map((n) => btn(`b${n}`)).concat([select]) })).components.filter((c) => c.type === ComponentType.ActionRow);

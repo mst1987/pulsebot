@@ -329,5 +329,10 @@
   "PUT /api/raids/series",
   "PUT /api/raids/setup",
   "PUT /api/raids/setup/signup",
-  "PUT /api/signups"
+  "PUT /api/signups",
+  "GET /api/role-messages",
+  "GET /api/role-messages/options",
+  "POST /api/role-messages",
+  "PUT /api/role-messages",
+  "DELETE /api/role-messages"
 ]
