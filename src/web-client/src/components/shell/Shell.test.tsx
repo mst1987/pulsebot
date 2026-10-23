@@ -41,10 +41,11 @@ const entry = (name: string) => within(nav()).getByRole("link", { name });
 describe("the sidebar", () => {
     it("is rendered from the shared menu file, every top-level entry with its WoW icon", () => {
         showShell(adminUser());
-        expect(hrefs()).toEqual(MENU.filter((e) => !e.sub).map((e) => e.href));
+        // a line with a landing page (Discord → its overview) leads there
+        expect(hrefs()).toEqual(MENU.filter((e) => !e.sub).map((e) => e.landing ?? e.href));
         for (const e of MENU.filter((m) => !m.sub)) {
             const link = entry(tOr(`shell.menu.${e.id}`, e.label));
-            expect(link).toHaveAttribute("href", e.href);
+            expect(link).toHaveAttribute("href", e.landing ?? e.href);
             expect(link.querySelector("img")?.getAttribute("src")).toContain(e.wowIcon);
         }
     });

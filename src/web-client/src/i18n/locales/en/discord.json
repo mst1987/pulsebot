@@ -1,10 +1,14 @@
 {
     "tabs": {
+        "short": { "roleMessages": "Messages" },
+        "moreLeft": "More tabs to the left",
+        "moreRight": "More tabs to the right",
         "aria": "Discord sections",
         "channels": "Channels",
         "serverRoles": "Roles",
+        "roleMessages": "Role messages",
         "members": "Members",
-        "roleMessages": "Role messages"
+        "discordOverview": "Overview"
     },
     "permGroup": {
         "general": "General server permissions",
@@ -75,7 +79,10 @@
             "title": "Roles",
             "loading": "Loading roles",
             "loadError": "Could not load the roles: {message}",
-            "count": { "one": "{count} role", "other": "{count} roles" },
+            "count": {
+                "one": "{count} role",
+                "other": "{count} roles"
+            },
             "server": "Server",
             "offline": "Bot not connected",
             "offlineSub": "Roles come live from Discord – without a connection the list stays empty.",
@@ -87,7 +94,10 @@
             "onlyHints": "Only roles with a note",
             "onlyHintsTip": "Note",
             "onlyHintsSub": "Roles without members, with sensitive permissions, or that the bot should hand out but cannot reach.",
-            "hintCount": { "one": "{count} with a note", "other": "{count} with a note" },
+            "hintCount": {
+                "one": "{count} with a note",
+                "other": "{count} with a note"
+            },
             "footnote": "Click a row to open the role. Creating and moving roles stays in Discord.",
             "empty": "This server has no roles.",
             "emptyHints": "No role with a note.",
@@ -115,7 +125,10 @@
             "assignShort": "Bot"
         },
         "cell": {
-            "members": { "one": "{count} member", "other": "{count} members" },
+            "members": {
+                "one": "{count} member",
+                "other": "{count} members"
+            },
             "membersUnknown": "unknown",
             "none": "none",
             "unused": "not used",
@@ -187,7 +200,10 @@
         },
         "channels": {
             "title": "Channels with overrides",
-            "count": { "one": "{count} channel", "other": "{count} channels" },
+            "count": {
+                "one": "{count} channel",
+                "other": "{count} channels"
+            },
             "channel": "Channel",
             "allow": "allowed",
             "deny": "denied",
@@ -212,6 +228,167 @@
             "noManageRoles": "no right",
             "above": "no",
             "aboveFix": "too high"
+        }
+    },
+    "overview": {
+        "kicker": "Discord server",
+        "title": "Overview",
+        "loading": "Checking Discord …",
+        "loadError": "The overview could not be loaded: {message}",
+        "offline": "Bot offline",
+        "offlineSub": "The bot is not connected to Discord right now. Once it is back online, this page shows what needs attention.",
+        "refresh": "Check again",
+        "refreshWait": {
+            "one": "Check again in {count} s",
+            "other": "Check again in {count} s"
+        },
+        "refreshTip": "Ask Discord again",
+        "refreshSub": "Checks every fixed message right away instead of from the cache. At most every 30 seconds.",
+        "attention": {
+            "title": "Needs attention",
+            "count": {
+                "one": "{count} item",
+                "other": "{count} items"
+            },
+            "allGood": "All good",
+            "bot": "Bot",
+            "unchecked": {
+                "one": "{count} message not checked",
+                "other": "{count} messages not checked"
+            }
+        },
+        "status": {
+            "missing": "missing",
+            "deleted": "deleted",
+            "hint": "Note",
+            "noAccess": "no access",
+            "unchecked": "cannot check"
+        },
+        "why": {
+            "rights": "Missing right: {rights}",
+            "channelNotSet": "No channel set",
+            "channelGone": "The channel set no longer exists",
+            "channelRights": "Missing in #{channel}: {rights}",
+            "aboveBot": "Sits above the bot's role – the bot cannot hand it out ({uses})",
+            "messageGone": "The message was deleted in Discord",
+            "messageChannelGone": "The message's channel no longer exists",
+            "messageNoAccess": "The bot cannot see the channel",
+            "botAbsent": "The bot is not on this server or cannot find itself there – nothing can be checked"
+        },
+        "action": {
+            "checkRight": "Check right",
+            "assignChannel": "Assign channel",
+            "toRole": "To the role",
+            "repost": "Post again",
+            "checkChannelRights": "Check channel rights"
+        },
+        "state": {
+            "ok": "ok",
+            "notNeeded": "not needed",
+            "unknown": "unknown"
+        },
+        "msgStatus": {
+            "ok": "in place",
+            "deleted": "deleted",
+            "channelMissing": "channel gone",
+            "noAccess": "no access",
+            "unknown": "unknown"
+        },
+        "hygiene": {
+            "total": {
+                "one": "{count} role",
+                "other": "{count} roles"
+            },
+            "empty": {
+                "one": "{count} without members",
+                "other": "{count} without members"
+            },
+            "sensitive": {
+                "one": "{count} with sensitive rights",
+                "other": "{count} with sensitive rights"
+            }
+        },
+        "members": {
+            "title": "Joined and left",
+            "joins": {
+                "one": "{count} joined",
+                "other": "{count} joined"
+            },
+            "leaves": {
+                "one": "{count} left",
+                "other": "{count} left"
+            },
+            "join": "joined",
+            "leave": "left",
+            "empty": "Nobody joined or left in the last 7 days.",
+            "characters": {
+                "one": "{count} character, no roster",
+                "other": "{count} characters, no roster"
+            },
+            "noRelation": "not in a roster",
+            "all": {
+                "one": "Show all {count}",
+                "other": "Show all {count}"
+            },
+            "less": "Show fewer"
+        },
+        "messages": {
+            "title": "Fixed bot messages",
+            "count": {
+                "one": "{count} message",
+                "other": "{count} messages"
+            },
+            "empty": "The bot has no fixed message on this server.",
+            "kind": "Kind",
+            "channel": "Channel",
+            "status": "Status",
+            "open": "Open in Discord"
+        },
+        "botCheck": {
+            "title": "Bot check",
+            "note": "What the bot may do, per function",
+            "empty": "The bot cannot check anything right now.",
+            "fn": "Function",
+            "rights": "Needs",
+            "stateTip": "Sort by state: missing rights first",
+            "okFold": {
+                "one": "{count} function ok",
+                "other": "{count} functions ok"
+            }
+        },
+        "right": {
+            "GuildMembers": "Read members (intent)",
+            "MessageContent": "Read message content (intent)"
+        },
+        "fn": {
+            "channels": "Create and archive channels",
+            "posts": "Event posts, signup message, setup, pings",
+            "reactions": "Role messages with reactions",
+            "roles": "Raider roles, role messages, role sync",
+            "members": "Member and role sync, joined and left",
+            "events": "Raids as Discord server events",
+            "applications": "Applications as threads",
+            "logLinks": "Spot Warcraft Logs links in log channels"
+        },
+        "purpose": {
+            "applications": "Applications",
+            "logs": "Log channel",
+            "talkPings": "Pings on the talk server",
+            "signupNotes": "Maybe and declines",
+            "guildBank": "Guild bank requests",
+            "overview": "Raid overview",
+            "dungeonRecords": "Dungeon records",
+            "addonCenter": "Addon hub",
+            "category": "category"
+        },
+        "kind": {
+            "orgaHub": "Orga hub",
+            "availability": "Raid hub",
+            "raidOverview": "Raid overview",
+            "talkOverview": "Raid overview (talk)",
+            "roleMessage": "Role message",
+            "addonCenter": "Addon hub",
+            "recruitment": "Recruitment"
         }
     },
     "members": {

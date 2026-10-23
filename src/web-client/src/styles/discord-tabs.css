@@ -1,9 +1,13 @@
 /* The tabs of System › Discord (components/channels/DiscordTabs.tsx): one line of
    text links under the page head, the active one underlined in the area colour,
    the count small and muted next to the label. The line never wraps: on a phone
-   it scrolls sideways inside itself, the page stays as wide as the screen. */
+   the tabs drop their counts and the long name its short word, so all five fit;
+   should the line still be wider, it scrolls sideways inside itself (the page
+   stays as wide as the screen) and a plain chevron button sits at each edge with
+   more tabs behind it. */
+.dtab-wrap { position: relative; margin: -6px 0 18px; }
 .dtab-bar {
-    display: flex; gap: 22px; margin: -6px 0 18px; border-bottom: 1px solid var(--line);
+    display: flex; gap: 22px; border-bottom: 1px solid var(--line);
     overflow-x: auto; overflow-y: hidden; scrollbar-width: none; white-space: nowrap;
 }
 .dtab-bar::-webkit-scrollbar { display: none; }
@@ -16,6 +20,25 @@
 .dtab-tab:focus-visible { outline: 2px solid var(--area-channels); outline-offset: 2px; border-radius: 2px; }
 .dtab-on { color: var(--text); border-bottom-color: var(--area-channels); }
 .dtab-n { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--muted); }
+.dtab-short { display: none; }
+/* The edge button: solid page background, a hairline towards the tabs, no fade. */
+.dtab-more {
+    position: absolute; top: 0; bottom: 1px; z-index: 1;
+    display: inline-flex; align-items: center; justify-content: center; width: 28px; padding: 0;
+    border: 0; background: var(--bg); color: var(--text); cursor: pointer;
+}
+.dtab-more svg { width: 16px; height: 16px; }
+.dtab-more:hover { color: var(--area-channels); }
+.dtab-more:focus-visible { outline: 2px solid var(--area-channels); outline-offset: -2px; }
+.dtab-more-left { left: 0; border-right: 1px solid var(--line); }
+.dtab-more-right { right: 0; border-left: 1px solid var(--line); }
 @media (max-width: 600px) {
-    .dtab-bar { gap: 18px; }
+    .dtab-bar { gap: 16px; }
+    .dtab-tab { font-size: 13px; }
+    .dtab-n { display: none; }
+    .dtab-full {
+        position: absolute; width: 1px; height: 1px; overflow: hidden;
+        clip-path: inset(50%); white-space: nowrap;
+    }
+    .dtab-short { display: inline; }
 }

@@ -1,0 +1,108 @@
+/* System › Discord › Übersicht (pages/channels/DiscordOverviewPage.tsx).
+   Typographic sections instead of cards: a heading, a count in words beside
+   it, then a list or a dense table. One main element — what needs attention —
+   in full width; joins/leaves and the fixed messages side by side below it;
+   the bot check in full width at the end. Colour only with a meaning: red =
+   missing or deleted, orange = a hint, green = fine, the rest neutral. On a
+   phone everything is one column and the bot check turns into a list. */
+
+.dov-page { max-width: 1240px; }
+
+.dov-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 0 0 6px; }
+
+.dov-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 22px 0 8px; scroll-margin-top: 16px; }
+.dov-head h2 { margin: 0; font-size: 17px; }
+.dov-note { color: var(--muted); font-size: 13px; }
+.dov-muted { color: var(--muted); }
+.dov-empty { margin: 0; color: var(--muted); }
+
+/* ---- attention: the main element ---- */
+.dov-attention .dov-head h2 { font-size: 20px; }
+.dov-att-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.dov-att {
+    display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; gap: 4px 14px;
+    padding: 9px 0; border-bottom: 1px solid var(--line-soft);
+}
+.dov-att-status { font-size: 13px; font-weight: 700; }
+.dov-tone-bad .dov-att-status { color: var(--high); }
+.dov-tone-mid .dov-att-status { color: var(--medium); }
+.dov-tone-calm .dov-att-status { color: var(--muted); }
+.dov-att-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; min-width: 0; }
+.dov-att-what { font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
+.dov-att-why { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.dov-att-btn { white-space: nowrap; }
+
+.dov-allgood {
+    display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 0;
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line-soft);
+    color: var(--good); font-size: 16px; font-weight: 600;
+}
+.dov-hygiene { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+
+/* ---- joins/leaves and fixed messages side by side ---- */
+.dov-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 32px; align-items: start; }
+
+.dov-mem-list { list-style: none; margin: 0 0 8px; padding: 0; border-top: 1px solid var(--line); }
+.dov-mem {
+    display: grid; grid-template-columns: 82px minmax(0, 1fr) auto; align-items: baseline; gap: 2px 10px;
+    padding: 6px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px;
+}
+.dov-mem-kind { font-size: 12.5px; font-weight: 600; }
+.dov-mem-join { color: var(--good); }
+.dov-mem-leave { color: var(--muted); }
+.dov-mem-main { display: flex; flex-wrap: wrap; gap: 0 8px; min-width: 0; }
+.dov-mem-name { font-weight: 600; overflow-wrap: anywhere; }
+.dov-mem-rel { font-size: 13px; overflow-wrap: anywhere; }
+.dov-mem-at { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+
+.dov-msg-table { width: 100%; }
+.dov-msg-kind { font-weight: 600; }
+.dov-msg-extra { display: block; color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; }
+.dov-msg-channel { font-size: 13px; overflow-wrap: anywhere; }
+.dov-msg-status { white-space: nowrap; font-size: 13px; }
+.dov-msg-link { display: inline-flex; vertical-align: middle; margin-left: 8px; color: var(--muted); }
+.dov-msg-link:hover, .dov-msg-link:focus-visible { color: var(--accent); }
+.dov-msg-link svg { width: 15px; height: 15px; }
+
+.dov-st-ok { color: var(--good); font-weight: 600; }
+.dov-st-bad { color: var(--high); font-weight: 600; }
+.dov-st-mid { color: var(--medium); font-weight: 600; }
+.dov-st-muted { color: var(--muted); }
+
+/* ---- bot check ---- */
+.dov-fn-table { width: 100%; }
+.dov-fn-name { font-weight: 600; white-space: nowrap; }
+.dov-fn-rights { font-size: 13px; color: var(--muted); }
+.dov-fn-state { font-size: 13px; white-space: nowrap; }
+.dov-fn-missing { display: block; color: var(--high); font-size: 12.5px; white-space: normal; }
+/* the state column sorts by default: its head in text colour, not the accent of an active sort */
+.dov-fn-table th .sort-link.active { color: var(--text); }
+/* the fold of the fine functions exists on a phone only */
+.dov-fn-fold { display: none; }
+.dov-fn-open .dov-fn-fold svg { transform: rotate(90deg); }
+
+@media (max-width: 900px) {
+    .dov-cols { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 640px) {
+    .dov-att { grid-template-columns: minmax(0, 1fr) auto; }
+    .dov-att-status { grid-column: 1 / -1; }
+    .dov-att-text { flex-direction: column; gap: 2px; }
+
+    .dov-mem { grid-template-columns: minmax(0, 1fr) auto; }
+    .dov-mem-kind { grid-column: 1 / -1; }
+
+    /* the bot check as a list: the function as the line's head, the rest labelled below */
+    .dov-fn-table thead { display: none; }
+    .dov-fn-table, .dov-fn-table tbody, .dov-fn-table tr, .dov-fn-table td { display: block; }
+    .dov-fn-table tr { padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+    .dov-fn-table td { padding: 1px 0; border: 0; white-space: normal; }
+    .dov-fn-table td[data-label]::before {
+        content: attr(data-label) ": "; color: var(--muted); font-size: 12px; font-weight: 400;
+    }
+    .dov-fn-missing { display: inline; margin-left: 6px; }
+    /* the fine functions behind one line, the problems stay in view */
+    .dov-fn-table:not(.dov-fn-open) .dov-fn-okrow { display: none; }
+    .dov-fn-table .dov-fn-fold { display: block; border-bottom: 0; padding-top: 6px; }
+}

@@ -4,7 +4,7 @@ import { JobsProvider } from "./components/shell/Jobs";
 import { ConfirmProvider } from "./components/ui/Modal";
 import { canAccessAny, getAddonName, getSession, type AddonName, type ApiError, type Session, type SessionUser } from "./api";
 import { getLang, langReady, setLang, useT } from "./i18n";
-import { firstAllowedTab } from "./lib/app/menu";
+import { entryHref, firstAllowedTab } from "./lib/app/menu";
 import RaidLoader from "./components/ui/RaidLoader";
 import WowIcon from "./components/ui/WowIcon";
 import { BrandIcon, DiscordIcon, LockIcon } from "./components/ui/icons";
@@ -25,6 +25,7 @@ const DashboardPage = lazyWithReload(() => import("./pages/dashboard/DashboardPa
 const ChannelsPage = lazyWithReload(() => import("./pages/ChannelsPage"));
 const RoleMessagesPage = lazyWithReload(() => import("./pages/channels/RoleMessagesPage"));
 const ServerRolesPage = lazyWithReload(() => import("./pages/channels/ServerRolesPage"));
+const DiscordOverviewPage = lazyWithReload(() => import("./pages/channels/DiscordOverviewPage"));
 const MembersPage = lazyWithReload(() => import("./pages/channels/MembersPage"));
 const SettingsPage = lazyWithReload(() => import("./pages/settings/SettingsPage"));
 const RaidsPage = lazyWithReload(() => import("./pages/raids/RaidsPage"));
@@ -259,7 +260,7 @@ function MenuApp() {
                                     canAccessAny(user, homeAreas)
                                         ? <DashboardPage />
                                         : home
-                                            ? <Navigate to={home.href} replace />
+                                            ? <Navigate to={entryHref(user, home)} replace />
                                             : <NoAreaNotice />
                                 } />
                                 <Route path="channels" element={<Guard user={user} areas={["channels"]}><ChannelsPage /></Guard>} />
@@ -267,6 +268,7 @@ function MenuApp() {
                                 <Route path="channels/roles" element={<Guard user={user} areas={["channels"]}><RoleMessagesPage /></Guard>} />
                                 {/* Rollen: every server role read-only (docs/channels.md) */}
                                 <Route path="channels/server-roles" element={<Guard user={user} areas={["channels"]}><ServerRolesPage /></Guard>} />
+                                <Route path="channels/overview" element={<Guard user={user} areas={["channels"]}><DiscordOverviewPage /></Guard>} />
                                 <Route path="channels/members" element={<Guard user={user} areas={["channels"]}><MembersPage /></Guard>} />
                                 <Route path="settings" element={<Guard user={user} areas={["settings"]}><SettingsPage /></Guard>} />
                                 <Route path="raids" element={<Guard user={user} areas={["raids"]}><RaidsPage /></Guard>} />

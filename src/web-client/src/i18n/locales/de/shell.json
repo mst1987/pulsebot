@@ -39,7 +39,8 @@
         "roleMessages": "Rollen-Nachrichten",
         "planCatalog": "Raidplan-Katalog",
         "absences": "Abwesenheiten",
-        "system": "Systemstatus"
+        "system": "Systemstatus",
+        "discordOverview": "Übersicht"
     },
     "group": {
         "Start": "Start",
@@ -62,7 +63,8 @@
         "roleMessages": "Rollen-Nachrichten",
         "serverRoles": "Rollen",
         "members": "Mitglieder",
-        "allCharacters": "Alle Charaktere"
+        "allCharacters": "Alle Charaktere",
+        "discordOverview": "Übersicht"
     },
     "noArea": {
         "label": "Kein Bereich freigegeben",

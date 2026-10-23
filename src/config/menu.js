@@ -10,6 +10,8 @@
 //   id       — the nav item's class suffix (`area-<id>`, see the --area-* tokens)
 //   label    — what the menu says
 //   href     — the route at the site root
+//   landing  — optional: where the menu line leads instead of href (Discord opens
+//              its overview /channels/overview; the family still lies under href)
 //   group    — the heading the entry sits under
 //   areas    — permission areas (config/permissions.js); one of them opens it
 //   adminOnly — full admins only, whatever areas an account holds (Systemstatus,

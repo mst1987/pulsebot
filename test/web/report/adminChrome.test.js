@@ -26,7 +26,8 @@ describe("web/report/adminChrome", () => {
         // Same wording as the React shell's brand-sub (Shell.tsx).
         expect(html).toContain("Gildenmenü");
         for (const tab of TABS) {
-            expect(html).toContain(`href="${tab.href}"`);
+            // a line with a landing page (Discord) leads there instead of its family root
+            expect(html).toContain(`href="${tab.landing || tab.href}"`);
             expect(html).toContain(`<span>${tab.label}</span>`);
         }
         expect(html).toContain("<div class=\"content\"><p>inhalt</p></div>");
@@ -98,7 +99,8 @@ describe("web/report/adminChrome", () => {
         const html = render();
         const links = [...html.matchAll(/<a class="nav-item[^"]*" href="([^"]+)"><img class="wi" src="([^"]+)" alt=""><span>([^<]+)<\/span><\/a>/g)]
             .map((m) => ({ href: m[1], icon: m[2], label: m[3] }));
-        expect(links).toEqual(MENU.map((e) => ({ href: e.href, icon: wowIconUrl(e.wowIcon, 24), label: e.label })));
+        // a line with a landing page (Discord → its overview) leads there
+        expect(links).toEqual(MENU.map((e) => ({ href: e.landing || e.href, icon: wowIconUrl(e.wowIcon, 24), label: e.label })));
         expect(html).toContain("<span>Roster</span>");
         expect(html).toContain("<span>Loot-Council</span>");
         expect(html).toContain("inv_misc_coin_02.jpg");

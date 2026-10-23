@@ -1,7 +1,7 @@
 // The adminOnly menu entry (Systemstatus, docs/system-status.md): only a full
 // admin gets its line, whatever areas a role holds.
 import { describe, expect, it } from "vitest";
-import { MENU, firstAllowedTab, isNeutralPage, mayOpen, menuLines } from "./menu";
+import { MENU, entryHref, firstAllowedTab, isNeutralPage, mayOpen, menuLines } from "./menu";
 import type { SessionUser } from "../../api";
 
 const system = MENU.find((e) => e.id === "system")!;
@@ -9,6 +9,18 @@ const everyArea: SessionUser = {
     id: "u9", name: "Viel", isAdmin: false,
     access: Object.fromEntries(["dashboard", "signup", "raids", "raidplan", "cla", "history", "loot", "lootcouncil", "roster", "kader", "recruitment", "channels", "settings"].map((a) => [a, { read: true, write: true }])),
 };
+
+describe("menu line landing page", () => {
+    it("leads the Discord line to its overview and stays active on the whole family", () => {
+        const line = menuLines(everyArea).find((l) => l.top.id === "channels")!;
+        expect(line.href).toBe("/channels/overview");
+        expect(line.hrefs).toEqual(expect.arrayContaining(["/channels", "/channels/overview", "/channels/server-roles"]));
+    });
+
+    it("leads a line without landing page to its own href", () => {
+        expect(menuLines(everyArea).find((l) => l.top.id === "roster")!.href).toBe("/roster");
+    });
+});
 
 describe("adminOnly menu entries", () => {
     it("has the system status as one, with no area", () => {
@@ -33,7 +45,7 @@ describe("adminOnly menu entries", () => {
 
 describe("version-neutral pages (#742)", () => {
     it("are Kanaele, Rollen, Rollen-Nachrichten, Einstellungen and Systemstatus - the one list; every other page follows the version", () => {
-        expect(MENU.filter((e) => e.neutral).map((e) => e.id).sort()).toEqual(["channels", "members", "roleMessages", "serverRoles", "settings", "system"]);
+        expect(MENU.filter((e) => e.neutral).map((e) => e.id).sort()).toEqual(["channels", "discordOverview", "members", "roleMessages", "serverRoles", "settings", "system"]);
     });
 
     it("count an addon's detail page as neutral, while the page Addons itself follows the version", () => {
@@ -45,5 +57,20 @@ describe("version-neutral pages (#742)", () => {
         expect(isNeutralPage(addon, "/addon/a/b")).toBe(false);
         expect(isNeutralPage(settings, "/settings")).toBe(true);
         expect(isNeutralPage(undefined, "/")).toBe(false);
+    });
+});
+
+describe("where a limited account lands", () => {
+    const channelsOnly: SessionUser = { id: "3", name: "C", isAdmin: false, access: { channels: { read: true, write: false } } };
+
+    it("follows an entry's landing page: the channels area alone opens the Discord overview", () => {
+        const start = firstAllowedTab(channelsOnly)!;
+        expect(start.id).toBe("channels");
+        expect(entryHref(channelsOnly, start)).toBe("/channels/overview");
+    });
+
+    it("keeps the entry's own href when it has no landing page", () => {
+        const settings = MENU.find((e) => e.id === "settings")!;
+        expect(entryHref(everyArea, settings)).toBe("/settings");
     });
 });

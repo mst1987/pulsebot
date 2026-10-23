@@ -92,7 +92,7 @@ function navHtml(activeTab) {
         const label = tab.group !== lastGroup ? `<div class="menu-label">${tab.group}</div>` : "";
         lastGroup = tab.group;
         const active = tab.id === activeTab ? " active" : "";
-        return `${label}<a class="nav-item area-${tab.area || tab.id}${active}" href="${tab.href}"><img class="wi" src="${tab.iconUrl}" alt=""><span>${tab.label}</span></a>`;
+        return `${label}<a class="nav-item area-${tab.area || tab.id}${active}" href="${tab.landing || tab.href}"><img class="wi" src="${tab.iconUrl}" alt=""><span>${tab.label}</span></a>`;
     }).join("");
 }
 

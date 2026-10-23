@@ -90,7 +90,8 @@ describe("channels", () => {
         const channels = botCheck("event", EVENT, config, GUILDS).channels;
         const byKey = Object.fromEntries(channels.map((c) => [c.key, c]));
         expect(byKey.applications.state).toBe("not_set");
-        expect(byKey.logs).toEqual(expect.objectContaining({ state: "missing", channelName: "logs", missing: ["Nachrichtenverlauf lesen"] }));
+        expect(byKey.logs).toEqual(expect.objectContaining({ state: "missing", channelName: "logs", missing: ["Nachrichtenverlauf lesen"], missingKeys: ["ReadMessageHistory"] }));
+        expect(byKey.guildBank.missingKeys).toEqual([]);
         expect(byKey.guildBank.state).toBe("channel_missing");
         expect(byKey.talkPings).toBeUndefined();
     });
