@@ -334,5 +334,6 @@
   "GET /api/role-messages/options",
   "POST /api/role-messages",
   "PUT /api/role-messages",
-  "DELETE /api/role-messages"
+  "DELETE /api/role-messages",
+  "GET /api/discord/overview"
 ]

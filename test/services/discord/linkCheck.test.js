@@ -125,6 +125,15 @@ describe("services/discord/linkCheck — messages", () => {
         expect(linkCheck.messageLink("g1", "c1", "")).toBe("");
     });
 
+    it("links a message again once it is found standing", () => {
+        online(["c1"]);
+        linkCheck.messageDeleted("m1");
+        expect(linkCheck.messageLink("g1", "c1", "m1")).toBe("");
+        linkCheck.messageFound("m1");
+        expect(linkCheck.messageLink("g1", "c1", "m1")).toBe("https://discord.com/channels/g1/c1/m1");
+        linkCheck.messageFound("");
+    });
+
     it("gives no message link when its channel is gone", () => {
         online([]);
         expect(linkCheck.messageLink("g1", "c1", "m1")).toBe("");
