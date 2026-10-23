@@ -372,7 +372,7 @@ Technik: [logcheck.md](logcheck.md)
 
 Technik: [channels.md](channels.md)
 
-*Bereich "channels"*
+*Bereich "channels"* · Menü *System › Discord*, Reiter *Kanäle* (`/channels`)
 
 Alle Server-Kanäle als Liste; umbenennen, archivieren, löschen (einzeln oder per Mehrfachauswahl). Schnellanlage mehrerer Event-Kanäle nach Namensschema, optional gleich mit Event. Details: [docs/channels.md](channels.md).
 
@@ -382,7 +382,7 @@ Alle Server-Kanäle als Liste; umbenennen, archivieren, löschen (einzeln oder p
 
 Technik: [role-messages.md](role-messages.md)
 
-*Bereich "channels"* · Menü *System › Rollen-Nachrichten* (`/channels/roles`)
+*Bereich "channels"* · Menü *System › Discord*, Reiter *Rollen-Nachrichten* (`/channels/roles`)
 
 Eine Nachricht des Bots, über die sich Mitglieder eine Rolle selbst holen: je Rolle ein Knopf, mit Emoji auch eine Reaktion. Ein Klick (oder die Reaktion) gibt die Rolle, ein zweiter nimmt sie wieder.
 

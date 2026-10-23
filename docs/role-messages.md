@@ -79,7 +79,7 @@ Befehlsrollen, Raider-Rollen der Kategorien, Roster-Rollen, Rollen des Rollen-Ab
 
 ## Web-Seite
 
-*System › Rollen-Nachrichten* (`/channels/roles`, im Menü versionsneutral wie *Kanäle*; mit `channels: read`
+*System › Discord*, Reiter *Rollen-Nachrichten* (`/channels/roles`, im Menü versionsneutral wie der Reiter *Kanäle*; mit `channels: read`
 nur die Liste, ohne Knöpfe).
 
 - **Liste:** Titel, Server, Kanal, Rollen als Zahl mit Wort (Tooltip mit den Namen), Link nach Discord;

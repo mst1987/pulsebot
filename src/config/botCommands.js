@@ -18,7 +18,7 @@
 const BOT_COMMAND_GROUPS = [
     { id: "raids", label: "Raids & Events", icon: "inv_misc_note_02" },
     { id: "signup", label: "Anmeldung", icon: "inv_misc_book_09" },
-    { id: "channels", label: "Kanäle", icon: "inv_letter_15" },
+    { id: "channels", label: "Discord", icon: "inv_letter_15" },
     { id: "logs", label: "Logs & Auswertung", icon: "inv_misc_pocketwatch_01" },
     { id: "loot", label: "Loot", icon: "inv_misc_bag_10" },
     { id: "recruitment", label: "Recruitment", icon: "inv_misc_grouplooking" },

@@ -31,7 +31,7 @@ const CAT = {
     history: { varName: "--area-history", label: "Historie & Loot" },
     bank: { varName: "--area-bank", label: "Gildenbank" },
     cla: { varName: "--area-cla", label: "Log-Auswertung" },
-    channels: { varName: "--area-channels", label: "Kanäle" },
+    channels: { varName: "--area-channels", label: "Discord" },
     settings: { varName: "--area-settings", label: "Einstellungen" },
     system: { varName: "--area-system", label: "System" },
     home: { varName: "--area-home", label: "Übersicht" },

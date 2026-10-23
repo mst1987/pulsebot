@@ -1,6 +1,6 @@
 {
     "page": {
-        "kicker": "Channels › Roles",
+        "kicker": "Discord › Roles",
         "title": "Role messages",
         "infoSub": "A message with a picture and one button per role: a click (or the reaction under it) gives or takes the role. Roles with rights are locked.",
         "new": "New role message",
