@@ -22,6 +22,7 @@ export type RoleMessageError = ApiError & { roleId?: string; reason?: string };
 const REASONS: Record<string, string> = {
     "the role is a full-admin role": "admin",
     "the role is an orga role": "orga",
+    "the role is pinged on new applications (officer role)": "officer",
     "the role has rights under Einstellungen -> Berechtigungen": "permissions",
     "the role may run bot commands (botCommandAccess)": "botCommands",
     "the role is a raider role of a category": "raider",

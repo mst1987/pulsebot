@@ -18,9 +18,21 @@ reagiert, holt sich die Rolle selbst. Die Orga legt die Nachricht im Web an: *Sy
   Nutzer) werden nachgeladen — so wirken auch Nachrichten von vor einem Neustart.
 - Der Bot setzt die Reaktionen beim Posten und Bearbeiten selbst (Reihenfolge wie die Rollen), nimmt eigene
   Reaktionen nicht mehr gewollter Emojis zurück und lässt die der Mitglieder stehen.
+- **Emoji-Tausch beim Bearbeiten:** bekommt ein Emoji eine andere Rolle oder fällt es weg, leert der Bot
+  **alle** Reaktionen dieses Emojis (auch die der Mitglieder — sonst stünde eine alte ✅ für die falsche Rolle)
+  und setzt seine eigene neu. Das braucht im Kanal **Nachrichten verwalten**; fehlt es, kommt eine Warnung mit
+  diesem Hinweis, die Mitglieder-Reaktionen bleiben stehen. Rollen werden dabei nicht genommen.
+- **Alle Reaktionen entfernt** (`MessageReactionRemoveAll`) oder alle eines Emojis (`MessageReactionRemoveEmoji`,
+  z. B. ein Mod räumt auf): der Bot setzt seine eigenen wieder; niemandes Rolle ändert sich (Discord schickt dafür
+  keine Einzel-Entfernungen).
 - Knopf und Reaktion sind unabhängig: Wer per Knopf umschaltet, behält oder verliert seine Reaktion nicht.
-- Reaktionen laufen nicht durch das Bot-Befehle-Recht; der Knopf erscheint dort als Befehl `rolemsg` unter
-  „Kanäle“ (Standard: alle dürfen).
+- **Recht:** Knopf und Reaktion folgen derselben Bot-Befehle-Regel, dem Befehl `rolemsg` unter „Kanäle“
+  (Standard: alle dürfen; gezählt werden die Rollen auf dem Event-Server). Wer nicht darf, bekommt beim Knopf
+  die übliche Absage, bei der Reaktion nichts (nur `log.info`).
+- **Abklingzeit:** je Mitglied und Rolle eine Änderung pro 2 Sekunden, Knopf und Reaktion zusammen (im
+  Speicher). Ein zweiter Klick antwortet „Einen Moment bitte …“, eine zweite Reaktion wird nur geloggt. Folge:
+  Wer eine Reaktion innerhalb von 2 Sekunden wieder abnimmt, behält die Rolle (und umgekehrt) — Reaktion
+  neu setzen bzw. den Knopf nehmen.
 
 ## Grenzen
 
@@ -45,7 +57,9 @@ Befehlsrollen, Raider-Rollen der Kategorien, Roster-Rollen, Rollen des Rollen-Ab
 ## Rechte des Bots
 
 - Im Kanal: **Nachrichten senden**, **Reaktionen hinzufügen**, **Nachrichtenverlauf lesen** (sonst kommen beim
-  Speichern Warnungen, gespeichert wird trotzdem).
+  Speichern Warnungen, gespeichert wird trotzdem); für den Emoji-Tausch zusätzlich **Nachrichten verwalten**.
+- Lässt sich eine frisch gepostete Nachricht nicht speichern, löscht der Bot sie gleich wieder (keine Nachricht,
+  die niemand mehr bearbeiten kann). Schlägt das Neu-Posten beim Bearbeiten fehl, bleibt der alte Eintrag.
 - Auf dem Server: **Rollen verwalten**, und eine Bot-Rolle, die **über** allen vergebenen Rollen steht.
 - Intent `GuildMessageReactions` und die Partials Message/Reaction/User (`src/bot.js`); kein privilegierter
   Intent nötig.

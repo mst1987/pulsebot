@@ -19,7 +19,9 @@ const mockHandleReaction = jest.fn(async () => "given");
 jest.mock("../src/services/discord/roleMessages", () => ({
     ...jest.requireActual("../src/services/discord/roleMessages"),
     handleReaction: (...args) => mockHandleReaction(...args),
+    handleReactionsCleared: (...args) => mockReactionsCleared(...args),
 }));
+const mockReactionsCleared = jest.fn(async () => "synced");
 jest.mock("discord.js", () => {
     // Keep the real exports (ChannelType, builders, Collection, …) so the real
     // command modules load; only replace Client so no gateway connection is made.
@@ -149,12 +151,24 @@ describe("role message reactions", () => {
         const user = { id: "1" };
         await bot.client._h[Events.MessageReactionAdd](reaction, user);
         await bot.client._h[Events.MessageReactionRemove](reaction, user);
-        expect(mockHandleReaction.mock.calls).toEqual([[reaction, user, true], [reaction, user, false]]);
+        const opts = { commands: bot.client.commands };
+        expect(mockHandleReaction.mock.calls).toEqual([[reaction, user, true, opts], [reaction, user, false, opts]]);
+    });
+
+    it("hands cleared reactions (all, or one emoji) to the role messages with the message", async () => {
+        const message = { id: "m1" };
+        await bot.client._h[Events.MessageReactionRemoveAll](message);
+        await bot.client._h[Events.MessageReactionRemoveEmoji]({ message });
+        expect(mockReactionsCleared.mock.calls).toEqual([[message], [message]]);
     });
 
     it("never lets a failing reaction escape the listener", async () => {
         mockHandleReaction.mockRejectedValueOnce(new Error("boom"));
         expect(() => bot.client._h[Events.MessageReactionAdd]({}, {})).not.toThrow();
+        mockReactionsCleared.mockRejectedValueOnce(new Error("boom"));
+        expect(() => bot.client._h[Events.MessageReactionRemoveAll]({})).not.toThrow();
+        mockReactionsCleared.mockRejectedValueOnce(new Error("boom"));
+        expect(() => bot.client._h[Events.MessageReactionRemoveEmoji](null)).not.toThrow();
         await new Promise((r) => setImmediate(r));
     });
 });

@@ -27,7 +27,7 @@ const { redrawPendingCards } = require("./services/signups/guildBank");
 const linkWatch = require("./services/discord/linkWatch.js");
 const discord = require("./services/discord/discord.js");
 const { configuredGuildIds } = require("./services/discord/guildRoles.js");
-const { handleReaction } = require("./services/discord/roleMessages.js");
+const { handleReaction, handleReactionsCleared } = require("./services/discord/roleMessages.js");
 const { loadCommandModules, kindOf } = require("./commands/loader.js");
 const { startJobs } = require("./web/http/jobs.js");
 const logger = require("./logger.js").child("bot");
@@ -121,12 +121,19 @@ client.on("guildMemberAdd", (member) => {
 });
 
 // Role messages: a reaction on one gives its role, removing it takes the role back
-// (services/discord/roleMessages.js; bots are ignored, nothing is answered).
+// (services/discord/roleMessages.js; bots are ignored, nothing is answered; the Bot-Befehle
+// rule of `rolemsg` counts as for its button). Cleared reactions: the bot sets its own again.
 client.on(Events.MessageReactionAdd, (reaction, user) => {
-    handleReaction(reaction, user, true).catch((error) => logger.warn("role message reaction failed:", error.message));
+    handleReaction(reaction, user, true, { commands: client.commands }).catch((error) => logger.warn("role message reaction failed:", error.message));
 });
 client.on(Events.MessageReactionRemove, (reaction, user) => {
-    handleReaction(reaction, user, false).catch((error) => logger.warn("role message reaction failed:", error.message));
+    handleReaction(reaction, user, false, { commands: client.commands }).catch((error) => logger.warn("role message reaction failed:", error.message));
+});
+client.on(Events.MessageReactionRemoveAll, (message) => {
+    handleReactionsCleared(message).catch((error) => logger.warn("role message re-react failed:", error.message));
+});
+client.on(Events.MessageReactionRemoveEmoji, (reaction) => {
+    handleReactionsCleared(reaction && reaction.message).catch((error) => logger.warn("role message re-react failed:", error.message));
 });
 
 // A deleted channel or tracked message (#537): links to it go at once, the

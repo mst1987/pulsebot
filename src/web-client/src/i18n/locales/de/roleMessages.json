@@ -116,6 +116,7 @@
     "reason": {
         "admin": "Das ist eine Voll-Admin-Rolle.",
         "orga": "Das ist eine Orga-Rolle.",
+        "officer": "Das ist die Offizier-Rolle, die bei neuen Bewerbungen gepingt wird.",
         "permissions": "Die Rolle hat Rechte unter Einstellungen › Berechtigungen.",
         "botCommands": "Die Rolle darf Bot-Befehle ausführen.",
         "raider": "Das ist die Raider-Rolle einer Kategorie.",

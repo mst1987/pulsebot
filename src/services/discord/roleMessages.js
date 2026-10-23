@@ -12,6 +12,11 @@
 // - handleRoleButton()  the `rolemsg:<entryId>:<roleId>` button (ephemeral answer in the clicker's language)
 // - handleReaction()    MessageReactionAdd/Remove (no answer; partials are fetched, so
 //                       messages from before a restart work — the store maps messageId → entry)
+// - handleReactionsCleared() MessageReactionRemoveAll/RemoveEmoji: the bot sets its own
+//                       reactions again; nobody's role changes
+//
+// Button and reaction follow the same Bot-Befehle rule (command `rolemsg`, everyone by
+// default) and share a short cooldown per member and role (COOLDOWN_MS, in memory).
 //
 // The store is stores/roleMessageStore.js, the API web/apiRoutes/roleMessages.js,
 // docs/role-messages.md the overview.
@@ -19,6 +24,7 @@ const { ButtonBuilder, ButtonStyle, MessageFlags, PermissionsBitField, TextDispl
 const discord = require("./discord");
 const { eventGuildId, talkGuildId } = require("./guildRoles");
 const { privilegedReason, roleProblem, changeSelfRole } = require("./selfRole");
+const { ruleFor, resolveBotAccess, eventMemberRoles } = require("./botAccess");
 const { langOfInteraction } = require("./botLanguage");
 const store = require("../../stores/roleMessageStore");
 const { getConfig } = require("../../stores/configStore");
@@ -168,11 +174,39 @@ function rolePayload(entry) {
 }
 
 /**
+ * The emoji keys whose meaning an edit changed: an emoji that now stands for another
+ * role, or is gone. Members' old reactions of these would give the wrong role or none.
+ */
+function changedEmojiKeys(oldRoles, newRoles) {
+    const now = new Map(newRoles.filter((r) => r.emoji).map((r) => [emojiKey(r.emoji), r.roleId]));
+    const changed = new Set();
+    for (const r of oldRoles) {
+        const key = r.emoji ? emojiKey(r.emoji) : "";
+        if (key && now.get(key) !== r.roleId) changed.add(key);
+    }
+    return changed;
+}
+
+/** Remove every reaction (members' too) of an emoji; Discord wants Manage Messages for it. */
+async function clearReaction(reaction, warnings) {
+    try {
+        await reaction.remove();
+        return true;
+    } catch (e) {
+        const name = reaction.emoji && (reaction.emoji.name || reaction.emoji.id);
+        warnings.push(`Alte Reaktionen ${name} nicht geleert: ${str(e && e.message)} (der Bot braucht im Kanal „Nachrichten verwalten“; wer noch die alte Reaktion hat, sollte sie selbst abnehmen).`);
+        return false;
+    }
+}
+
+/**
  * Bring the bot's own reactions in line with the entry: add the missing ones in the
- * roles' order, take back its own of emojis no longer wanted. Members' reactions stay.
+ * roles' order, take back its own of emojis no longer wanted. Members' reactions stay —
+ * except those of `clear` (emoji keys an edit gave another meaning): they all go, the
+ * bot then sets its own again where the emoji is still wanted.
  * @returns {Promise<string[]>} warnings (German), one per reaction that failed
  */
-async function syncReactions(entry) {
+async function syncReactions(entry, { clear = new Set() } = {}) {
     const warnings = [];
     let message;
     try {
@@ -186,15 +220,21 @@ async function syncReactions(entry) {
     const wanted = entry.roles.filter((r) => r.emoji);
     const wantedKeys = new Set(wanted.map((r) => emojiKey(r.emoji)));
     const cache = message.reactions && message.reactions.cache ? [...message.reactions.cache.values()] : [];
+    const cleared = new Set();
     for (const reaction of cache) {
-        if (!reaction.me || wantedKeys.has(reactionKey(reaction.emoji))) continue;
+        const key = reactionKey(reaction.emoji);
+        if (clear.has(key) && (await clearReaction(reaction, warnings))) {
+            cleared.add(key);
+            continue;
+        }
+        if (!reaction.me || wantedKeys.has(key)) continue;
         try {
             await reaction.users.remove(botId);
         } catch (e) {
             warnings.push(`Reaktion ${reaction.emoji && reaction.emoji.name} nicht entfernt: ${str(e && e.message)}`);
         }
     }
-    const mine = new Set(cache.filter((r) => r.me).map((r) => reactionKey(r.emoji)));
+    const mine = new Set(cache.filter((r) => r.me && !cleared.has(reactionKey(r.emoji))).map((r) => reactionKey(r.emoji)));
     for (const r of wanted) {
         if (mine.has(emojiKey(r.emoji))) continue;
         try {
@@ -209,7 +249,14 @@ async function syncReactions(entry) {
 /** Post an entry's message and set its reactions; returns the stored entry with its messageId plus warnings. */
 async function postEntry(entry) {
     const posted = await discord.postPayload(entry.channelId, rolePayload(entry));
-    const saved = store.saveMessage({ ...entry, messageId: posted.messageId });
+    let saved;
+    try {
+        saved = store.saveMessage({ ...entry, messageId: posted.messageId });
+    } catch (e) {
+        // Not stored = nobody could ever edit or delete it in the editor: take it down again.
+        await discord.deleteMessage(entry.channelId, posted.messageId);
+        throw e;
+    }
     const warnings = await syncReactions(saved);
     return { entry: saved, url: posted.url, warnings };
 }
@@ -245,7 +292,8 @@ async function updateRoleMessage(id, input, { config = getConfig() } = {}) {
         try {
             const edited = await discord.editPayload(old.channelId, old.messageId, rolePayload(next));
             const saved = store.saveMessage(next);
-            return { entry: saved, url: edited.url, warnings: await syncReactions(saved), reposted: false };
+            const clear = changedEmojiKeys(old.roles, saved.roles);
+            return { entry: saved, url: edited.url, warnings: await syncReactions(saved, { clear }), reposted: false };
         } catch (e) {
             if (!isUnknownMessage(e)) throw fail("edit_failed", `Bearbeiten hat nicht geklappt: ${str(e && e.message)}`, {}, 502);
         }
@@ -346,6 +394,40 @@ function notice(emoji, line) {
 
 const REASONS = { add: "Rollen-Nachricht: selbst geholt", remove: "Rollen-Nachricht: selbst abgegeben" };
 
+/** One change per member and role within this time; button and reaction share it. */
+const COOLDOWN_MS = 2000;
+const recent = new Map();
+
+/** Whether the member changed this role a moment ago; otherwise notes now and says no. */
+function onCooldown(userId, roleId, now = Date.now()) {
+    const key = `${userId}:${roleId}`;
+    const last = recent.get(key);
+    if (last !== undefined && now - last < COOLDOWN_MS) return true;
+    if (recent.size > 500) {
+        for (const [k, at] of recent) if (now - at >= COOLDOWN_MS) recent.delete(k);
+    }
+    recent.set(key, now);
+    return false;
+}
+
+/** Tests start without anybody on cooldown. */
+function resetCooldowns() {
+    recent.clear();
+}
+
+/**
+ * Whether the user may use the role messages: the Bot-Befehle rule of `rolemsg`, the
+ * same one bot.js checks before the button (botAccess.guardInteraction). "everyone"
+ * needs no lookup; otherwise the roles on the event server count.
+ */
+async function mayUse(user, guild, { commands, config }) {
+    const rule = ruleFor(BUTTON_PREFIX, { commands, config });
+    if (rule.mode === "everyone") return true;
+    const member = guild.members && guild.members.cache ? guild.members.cache.get(str(user.id)) : null;
+    const roleIds = await eventMemberRoles({ user, guild, member }, eventGuildId(config));
+    return resolveBotAccess(BUTTON_PREFIX, { id: str(user.id), roleIds }, { commands, config }).allowed;
+}
+
 /** The `rolemsg:<entryId>:<roleId>` button: toggles the role, answers only the clicker. */
 async function handleRoleButton(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -355,6 +437,9 @@ async function handleRoleButton(interaction) {
     const known = entry && entry.roles.some((r) => r.roleId === roleId);
     const stale = entry && entry.messageId && interaction.message && interaction.message.id && interaction.message.id !== entry.messageId;
     if (!known || stale || !interaction.guild) return interaction.editReply(notice("❌", tr(lang, "This button is no longer in use.")));
+    if (onCooldown(str(interaction.user && interaction.user.id), roleId)) {
+        return interaction.editReply(notice("⏳", tr(lang, "One moment, please …")));
+    }
 
     const who = whoOf(interaction.user, interaction.member);
     const result = await changeSelfRole({
@@ -389,10 +474,13 @@ async function full(thing) {
 
 /**
  * A reaction was added (`added`) or removed: give or take the role of its emoji on a
- * role message. Bots (the bot's own reactions too) are ignored; no answer.
- * @returns {Promise<string>} what happened, for the tests: "ignored", "given", "taken", "unchanged", "failed"
+ * role message. Bots (the bot's own reactions too) are ignored; no answer. Who the
+ * `rolemsg` rule (Bot-Befehle) shuts out, or who changed the role a moment ago, is only
+ * logged — the reaction itself stays (taking it would need Manage Messages).
+ * `commands` = bot.js's client.commands (the rule's owner), else the client's.
+ * @returns {Promise<string>} what happened, for the tests: "ignored", "cooldown", "denied", "given", "taken", "unchanged", "failed"
  */
-async function handleReaction(reaction, user, added) {
+async function handleReaction(reaction, user, added, opts = {}) {
     if (!reaction || !user || user.bot) return "ignored";
     const messageId = reaction.message ? reaction.message.id : "";
     const entry = messageId ? store.findByMessageId(messageId) : null;
@@ -408,12 +496,22 @@ async function handleReaction(reaction, user, added) {
     if (!role || !guild) return "ignored";
 
     const who = whoOf(u);
+    if (onCooldown(str(u.id), role.roleId)) {
+        log.debug(`role message ${entry.id}: ${who} changed ${role.roleId} a moment ago, reaction ignored`);
+        return "cooldown";
+    }
+    const config = getConfig();
+    const commands = opts.commands || (discord.getClient() || {}).commands;
+    if (!(await mayUse(u, guild, { commands, config }))) {
+        log.info(`role message ${entry.id}: ${who} may not use role messages (Bot-Befehle), reaction ignored`);
+        return "denied";
+    }
     const result = await changeSelfRole({
         guild,
         roleId: role.roleId,
         userId: str(u.id),
         mode: added ? "add" : "remove",
-        config: getConfig(),
+        config,
         reasons: REASONS,
     });
     if (!result.ok) {
@@ -425,7 +523,23 @@ async function handleReaction(reaction, user, added) {
     return result.on ? "given" : "taken";
 }
 
+/**
+ * Someone (with Manage Messages) removed all reactions or all of one emoji from a
+ * message. On a role message the bot sets its own again; nobody's role changes —
+ * Discord sends no per-member removals for this.
+ * @returns {Promise<string>} "ignored" or "synced"
+ */
+async function handleReactionsCleared(message) {
+    const entry = message && message.id ? store.findByMessageId(message.id) : null;
+    if (!entry) return "ignored";
+    const warnings = await syncReactions(entry);
+    for (const w of warnings) log.warn(`role message ${entry.id}: ${w}`);
+    log.info(`role message ${entry.id}: reactions were cleared, the bot's own set again`);
+    return "synced";
+}
+
 module.exports = {
     validate, rolePayload, syncReactions, createRoleMessage, updateRoleMessage, deleteRoleMessage, roleMessageOptions, guildIdOf,
-    handleRoleButton, handleReaction, parseButtonId, buttonId, emojiKey, reactionKey, LIMITS, BUTTON_PREFIX,
+    handleRoleButton, handleReaction, handleReactionsCleared, resetCooldowns, changedEmojiKeys,
+    parseButtonId, buttonId, emojiKey, reactionKey, LIMITS, BUTTON_PREFIX, COOLDOWN_MS,
 };

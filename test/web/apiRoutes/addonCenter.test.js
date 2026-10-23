@@ -55,8 +55,9 @@ describe("apiRoutes/addonCenter rolesOf", () => {
         }));
         mockRights = { rolePermissions: { r1: { signup: { read: true } } }, orgaRoleIds: ["r2"], officerRoleId: "r6" };
         const roles = body(await get("/api/addon-center")).roles.g1;
-        expect(roles.map((r) => [r.id, r.privileged, r.officer])).toEqual([
-            ["r1", true, false], ["r2", true, false], ["r3", true, false], ["r4", false, false], ["r5", true, false], ["r6", false, true],
+        // r6 is the officer role pinged on applications: whoever took it would read every application
+        expect(roles.map((r) => [r.id, r.privileged])).toEqual([
+            ["r1", true], ["r2", true], ["r3", true], ["r4", false], ["r5", true], ["r6", true],
         ]);
         discord.listRoles.mockImplementation((guildId) => (guildId === "g1" ? [{ id: "r1", name: "Addon-Updates" }] : []));
         discord.getGuild.mockImplementation(() => null);
@@ -79,7 +80,7 @@ describe("apiRoutes/addonCenter", () => {
                 { id: "111111111111111111", name: "addon-downloads", guildId: "g1", category: "WoW Forever" },
                 { id: "222222222222222222", name: "tbc-chat", guildId: "g1", category: "TBC Anniversary" },
             ],
-            roles: { g1: [{ id: "r1", name: "Addon-Updates", privileged: false, officer: false }] },
+            roles: { g1: [{ id: "r1", name: "Addon-Updates", privileged: false }] },
             versions: [{ id: "tbc", label: "TBC Anniversary" }, { id: "classic", label: "Classic Era" }, { id: "forever", label: "WoW Forever" }],
             autoVersion: null,
         });
@@ -128,7 +129,7 @@ describe("apiRoutes/addonCenter", () => {
         const res = await request("PUT", "/api/addon-center", { channelId: "123456789012345678", roleId: "223456789012345678", announce: true, other: 1 });
         expect(status(res)).toBe(200);
         expect(addonCenter.saveSettings).toHaveBeenCalledWith({ channelId: "123456789012345678", roleId: "223456789012345678" }, { by: "1" });
-        expect(body(res).roles).toEqual({ g1: [{ id: "r1", name: "Addon-Updates", privileged: false, officer: false }] });
+        expect(body(res).roles).toEqual({ g1: [{ id: "r1", name: "Addon-Updates", privileged: false }] });
         expect(body(res).settings).toEqual({ channelId: "", roleId: "", versionId: "" });
     });
 

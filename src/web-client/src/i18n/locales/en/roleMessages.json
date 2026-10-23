@@ -116,6 +116,7 @@
     "reason": {
         "admin": "It is a full-admin role.",
         "orga": "It is an orga role.",
+        "officer": "It is the officer role, pinged on new applications.",
         "permissions": "The role has rights under Settings › Permissions.",
         "botCommands": "The role may run bot commands.",
         "raider": "It is the raider role of a category.",

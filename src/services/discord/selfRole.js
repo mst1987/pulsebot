@@ -4,7 +4,8 @@
 // (services/discord/roleMessages.js). A role that grants anything must never be
 // handed out that way (`privilegedReason`):
 //   - bot rights: a full-admin role (config.adminRoleIds or ADMIN_ROLE_IDS), an orga role
-//     (config.orgaRoleIds), a role with area grants (config.rolePermissions), a role a bot
+//     (config.orgaRoleIds), the officer role pinged on applications (config.officerRoleId:
+//     whoever takes it reads every new application), a role with area grants (config.rolePermissions), a role a bot
 //     command allows (config.botCommandAccess[*].roleIds), a raider role of a category
 //     (config.categoryRoles), a role of a roster (roleIds, trialRoleId, managers.roleIds),
 //     a role of the role sync between the servers (config.roleSync, both sides: the sync
@@ -32,6 +33,7 @@ const values = (map) => (map && typeof map === "object" && !Array.isArray(map) ?
 function configReason(cfg, id) {
     if ([...ids(cfg.adminRoleIds), ...ids(envAdminRoleIds)].includes(id)) return "the role is a full-admin role";
     if (ids(cfg.orgaRoleIds).includes(id)) return "the role is an orga role";
+    if (str(cfg.officerRoleId) === id) return "the role is pinged on new applications (officer role)";
     if (normalizeRolePermissions(cfg.rolePermissions || {})[id]) return "the role has rights under Einstellungen -> Berechtigungen";
     if (values(cfg.botCommandAccess).some((rule) => rule && ids(rule.roleIds).includes(id))) return "the role may run bot commands (botCommandAccess)";
     if (values(cfg.categoryRoles).some((list) => ids(list).includes(id))) return "the role is a raider role of a category";

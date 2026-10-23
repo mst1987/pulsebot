@@ -75,6 +75,31 @@ describe("stores/roleMessageStore", () => {
         expect(store.listMessages().map((m) => m.id)).toEqual(["a"]);
     });
 
+    it("answers a reaction lookup from memory: no file read for unknown messages, fresh after save/remove/useFile", () => {
+        const saved = store.saveMessage(ENTRY);
+        expect(store.findByMessageId("300000000000000003")).toMatchObject({ id: saved.id });
+        const read = jest.spyOn(fs, "readFileSync");
+        const stat = jest.spyOn(fs, "statSync");
+        expect(store.findByMessageId("399999999999999999")).toBeNull();
+        expect(read).not.toHaveBeenCalled();
+        expect(stat).not.toHaveBeenCalled();
+        read.mockRestore();
+        stat.mockRestore();
+
+        // a save with a new message id is found at once, the old one no longer
+        store.saveMessage({ ...saved, messageId: "300000000000000004" });
+        expect(store.findByMessageId("300000000000000003")).toBeNull();
+        expect(store.findByMessageId("300000000000000004")).toMatchObject({ id: saved.id });
+        store.removeMessage(saved.id);
+        expect(store.findByMessageId("300000000000000004")).toBeNull();
+
+        // another file: the set is built again from it
+        const other = tempStoreFile("role-messages-2.json");
+        fs.writeFileSync(other, JSON.stringify({ messages: [{ id: "b", messageId: "300000000000000005", roles: [] }] }));
+        store.useFile(other);
+        expect(store.findByMessageId("300000000000000005")).toMatchObject({ id: "b" });
+    });
+
     it("reads colours as numbers or #hex", () => {
         expect(store.colorOf("#ff0000")).toBe(0xff0000);
         expect(store.colorOf(255)).toBe(255);

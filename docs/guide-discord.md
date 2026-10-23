@@ -103,6 +103,7 @@ Manche Nachrichten des Bots haben je Rolle einen Knopf und eine Reaktion (z. B. 
 
 - **Knopf:** holt die Rolle, ein zweiter Klick gibt sie wieder ab. Die Antwort siehst nur du.
 - **Reaktion:** mit dem Emoji reagieren gibt die Rolle, die Reaktion entfernen nimmt sie wieder.
+- Zwischen zwei Änderungen derselben Rolle liegen mindestens 2 Sekunden; was schneller kommt, zählt nicht.
 - Klappt es nicht, sag der Orga Bescheid — der Bot schreibt den Grund in sein Log.
 
 ## Neue Spielversion

@@ -13,8 +13,11 @@ jest.mock("../../../src/services/discord/guildRoles", () => ({
     eventGuildId: () => "900000000000000001",
     talkGuildId: () => "900000000000000002",
 }));
+// the loaded commands as bot.js has them: the rule of `rolemsg` is its button's
+const mockClient = { user: { id: "999999999999999999" }, commands: new Map([["rolemsg", { name: "rolemsg", defaultAccess: "everyone" }]]) };
 const mockDiscord = {
-    getClient: jest.fn(() => ({ user: { id: "999999999999999999" } })),
+    getClient: jest.fn(() => mockClient),
+    fetchGuildMembersCached: jest.fn(async () => []),
     getGuild: jest.fn(),
     listTextChannels: jest.fn(() => [{ id: "100000000000000001", name: "rollen", category: "Info", parentId: "" }]),
     listEmojis: jest.fn(() => [{ id: "700000000000000007", name: "forever", animated: false, code: "<:forever:700000000000000007>", url: "https://cdn/e.png" }]),
@@ -95,6 +98,7 @@ let guild;
 let posted;
 beforeEach(() => {
     jest.clearAllMocks();
+    svc.resetCooldowns();
     store.useFile(tempStoreFile("role-messages.json"));
     jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
     mockConfig = {};
@@ -275,6 +279,7 @@ describe("the role button", () => {
         expect(reply.allowedMentions).toEqual({ parse: [] });
 
         mockLang = "en";
+        svc.resetCooldowns();
         const second = await click(entry, ROLE);
         expect(member.roles.cache.has(ROLE)).toBe(false);
         expect(cardText(second.editReply.mock.calls[0][0])).toContain(`The role <@&${ROLE}> was removed.`);
@@ -302,6 +307,7 @@ describe("the role button", () => {
         await click(entry, ROLE);
         expect(mockLog.warn).toHaveBeenCalledWith(expect.stringContaining("not found"));
         guild.roles.cache.delete(ROLE);
+        svc.resetCooldowns();
         await click(entry, ROLE);
         expect(mockLog.warn).toHaveBeenCalledWith(expect.stringContaining("missing"));
     });
@@ -316,7 +322,9 @@ describe("reactions", () => {
         const user = { id: "500000000000000005", bot: false };
         expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), user, true)).toBe("given");
         expect(member.roles.cache.has(ROLE)).toBe(true);
+        svc.resetCooldowns();
         expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), user, true)).toBe("unchanged");
+        svc.resetCooldowns();
         expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), user, false)).toBe("taken");
         expect(member.roles.cache.has(ROLE)).toBe(false);
     });
@@ -358,6 +366,119 @@ describe("reactions", () => {
         expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), { id: "500000000000000005" }, false)).toBe("failed");
         expect(member.roles.remove).not.toHaveBeenCalled();
         expect(mockLog.warn).toHaveBeenCalledWith(expect.stringContaining("raider role"));
+    });
+
+    it("follows the Bot-Befehle rule of the button: who lacks the role gets nothing, only a log", async () => {
+        const { entry } = await svc.createRoleMessage(INPUT);
+        const member = guild.addMember("500000000000000005");
+        mockConfig = { botCommandAccess: { rolemsg: { mode: "roles", roleIds: [ROLE2] } } };
+        const user = { id: "500000000000000005" };
+        expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), user, true)).toBe("denied");
+        expect(member.roles.add).not.toHaveBeenCalled();
+        expect(mockLog.info).toHaveBeenCalledWith(expect.stringContaining("may not use role messages"));
+
+        member.roles.cache.add(ROLE2);
+        svc.resetCooldowns();
+        expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), user, true, { commands: mockClient.commands })).toBe("given");
+    });
+
+    it("ignores a second change of the same role within the cooldown, button and reaction alike", async () => {
+        const { entry } = await svc.createRoleMessage(INPUT);
+        const member = guild.addMember("500000000000000005");
+        const user = { id: "500000000000000005" };
+        expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), user, true)).toBe("given");
+        expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), user, false)).toBe("cooldown");
+        expect(member.roles.cache.has(ROLE)).toBe(true);
+
+        const interaction = mockInteraction({ userId: "500000000000000005", customId: svc.buttonId(entry.id, ROLE), guild, message: { id: entry.messageId } });
+        await svc.handleRoleButton(interaction);
+        expect(cardText(interaction.editReply.mock.calls[0][0])).toContain("Einen Moment bitte");
+        expect(member.roles.remove).not.toHaveBeenCalled();
+        expect(svc.COOLDOWN_MS).toBe(2000);
+    });
+});
+
+describe("reactions cleared and emoji swaps", () => {
+    it("sets the bot's own reactions again after a remove-all, roles untouched", async () => {
+        const { entry } = await svc.createRoleMessage(INPUT);
+        posted = makeMessage(posted.id);
+        expect(await svc.handleReactionsCleared({ id: entry.messageId })).toBe("synced");
+        expect(posted.react).toHaveBeenCalledWith("✅");
+        expect(await svc.handleReactionsCleared({ id: "300000000000000099" })).toBe("ignored");
+        expect(await svc.handleReactionsCleared(null)).toBe("ignored");
+    });
+
+    it("logs the warnings when the bot cannot react again", async () => {
+        const { entry } = await svc.createRoleMessage(INPUT);
+        posted = makeMessage(posted.id);
+        posted.react.mockRejectedValueOnce(new Error("Missing Permissions"));
+        await svc.handleReactionsCleared({ id: entry.messageId });
+        expect(mockLog.warn).toHaveBeenCalledWith(expect.stringContaining("nicht gesetzt"));
+    });
+
+    it("clears all reactions of an emoji that now means another role, then reacts again", async () => {
+        const { entry } = await svc.createRoleMessage(INPUT);
+        posted = makeMessage(posted.id, [{ emoji: { name: "✅" }, me: true, remove: jest.fn(async () => {}) }]);
+        mockDiscord.editPayload.mockResolvedValue({ url: "u" });
+        const res = await svc.updateRoleMessage(entry.id, { ...INPUT, roles: [{ roleId: ROLE2, emoji: "✅", label: "TBC" }] });
+        expect(res.warnings).toEqual([]);
+        expect(posted.reactions.cache.get("✅").remove).toHaveBeenCalled();
+        expect(posted.react).toHaveBeenCalledWith("✅");
+    });
+
+    it("warns with a hint when Manage Messages is missing, and keeps the bot's reaction", async () => {
+        const { entry } = await svc.createRoleMessage(INPUT);
+        posted = makeMessage(posted.id, [{ emoji: { name: "✅" }, me: true, remove: jest.fn(async () => { throw new Error("Missing Permissions"); }) }]);
+        mockDiscord.editPayload.mockResolvedValue({ url: "u" });
+        const res = await svc.updateRoleMessage(entry.id, { ...INPUT, roles: [{ roleId: ROLE2, emoji: "✅", label: "TBC" }] });
+        expect(res.warnings[0]).toContain("Nachrichten verwalten");
+        expect(posted.react).not.toHaveBeenCalled();
+    });
+
+    it("names the changed emojis: another role or gone, not the unchanged", () => {
+        const old = [{ roleId: ROLE, emoji: "✅" }, { roleId: ROLE2, emoji: "🔥" }, { roleId: ADMIN_ROLE, emoji: "" }];
+        expect([...svc.changedEmojiKeys(old, [{ roleId: ROLE2, emoji: "✅" }])]).toEqual(["✅", "🔥"]);
+        expect([...svc.changedEmojiKeys(old, old)]).toEqual([]);
+    });
+});
+
+describe("failures around posting", () => {
+    it("takes the message down again when it cannot be stored", async () => {
+        const save = store.saveMessage;
+        let calls = 0;
+        jest.spyOn(store, "saveMessage").mockImplementation((e) => {
+            calls += 1;
+            if (calls === 2) throw new Error("disk full");
+            return save(e);
+        });
+        expect(await codeOf(svc.createRoleMessage(INPUT))).toBe("post_failed");
+        expect(mockDiscord.deleteMessage).toHaveBeenCalledWith(CHANNEL, posted.id);
+        store.saveMessage.mockRestore();
+    });
+
+    it("keeps the old entry when the repost fails", async () => {
+        const { entry } = await svc.createRoleMessage(INPUT);
+        mockDiscord.listTextChannels.mockReturnValue([{ id: CHANNEL }, { id: "100000000000000002" }]);
+        mockDiscord.postPayload.mockRejectedValueOnce(new Error("Missing Access"));
+        expect(await codeOf(svc.updateRoleMessage(entry.id, { ...INPUT, channelId: "100000000000000002" }))).toBe("post_failed");
+        expect(store.getMessage(entry.id)).toMatchObject({ channelId: CHANNEL, messageId: entry.messageId });
+        expect(mockDiscord.deleteMessage).not.toHaveBeenCalled();
+    });
+
+    it("answers edit_failed for other edit errors", async () => {
+        const { entry } = await svc.createRoleMessage(INPUT);
+        mockDiscord.editPayload.mockRejectedValueOnce(new Error("Missing Access"));
+        expect(await codeOf(svc.updateRoleMessage(entry.id, INPUT))).toBe("edit_failed");
+    });
+
+    it("warns when the message cannot be read or its own old reaction not taken back", async () => {
+        const entry = { channelId: CHANNEL, messageId: posted.id, roles: [{ roleId: ROLE, emoji: "🔥" }] };
+        mockDiscord.fetchTextChannel.mockRejectedValueOnce(new Error("Unknown Channel"));
+        expect((await svc.syncReactions(entry))[0]).toContain("Nachricht nicht lesbar");
+        posted = makeMessage(posted.id, [{ emoji: { name: "✅" }, me: true, users: { remove: jest.fn(async () => { throw new Error("nope"); }) } }]);
+        const warnings = await svc.syncReactions(entry);
+        expect(warnings[0]).toContain("nicht entfernt");
+        expect(posted.react).toHaveBeenCalledWith("🔥");
     });
 });
 

@@ -61,8 +61,11 @@ function normalizeMessage(raw) {
     };
 }
 
+// Cached: every reaction on both servers asks `findByMessageId` (the server has one
+// vCPU), so the file is read once and again only after it changed.
 const store = createJsonStore({
     file: settingsPath("role-messages.json"),
+    cache: true,
     defaults: () => ({ messages: [] }),
     normalize: (data) => {
         const list = data && Array.isArray(data.messages) ? data.messages : [];
@@ -77,26 +80,40 @@ const store = createJsonStore({
     },
 });
 
+// The Discord message ids of all role messages: almost every reaction is on some other
+// message, and this set answers that without even a stat of the file. Built on the first
+// lookup from the cache, dropped on every save, remove and useFile (the next lookup builds
+// it again). A file swapped by hand while the bot runs is seen after the next save or start.
+let knownIds = null;
+
+function messageIds() {
+    if (!knownIds) knownIds = new Set(store.peek().messages.map((m) => m.messageId).filter(Boolean));
+    return knownIds;
+}
+
 /** Tests point the store at a file of their own; null = the default again. */
-const useFile = store.useFile;
+function useFile(file) {
+    knownIds = null;
+    store.useFile(file);
+}
 
 const copy = (m) => (m ? { ...m, roles: m.roles.map((r) => ({ ...r })) } : null);
 
 /** Every role message, oldest first. */
 function listMessages() {
-    return store.read().messages.map(copy);
+    return store.peek().messages.map(copy);
 }
 
 /** One role message by our id, or null. */
 function getMessage(id) {
-    return copy(store.read().messages.find((m) => m.id === str(id)));
+    return copy(store.peek().messages.find((m) => m.id === str(id)));
 }
 
-/** The role message posted as this Discord message, or null. */
+/** The role message posted as this Discord message, or null — from memory, never the disk per reaction. */
 function findByMessageId(messageId) {
     const mid = str(messageId);
-    if (!mid) return null;
-    return copy(store.read().messages.find((m) => m.messageId === mid));
+    if (!mid || !messageIds().has(mid)) return null;
+    return copy(store.peek().messages.find((m) => m.messageId === mid));
 }
 
 /** A new id: short, URL- and customId-safe. */
@@ -120,6 +137,7 @@ function saveMessage(entry = {}, { now = Date.now() } = {}) {
     });
     if (at >= 0) d.messages[at] = saved;
     else d.messages.push(saved);
+    knownIds = null;
     store.write(d);
     return copy(saved);
 }
@@ -130,6 +148,7 @@ function removeMessage(id) {
     const at = d.messages.findIndex((m) => m.id === str(id));
     if (at < 0) return null;
     const [old] = d.messages.splice(at, 1);
+    knownIds = null;
     store.write(d);
     return copy(old);
 }
