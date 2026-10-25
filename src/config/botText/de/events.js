@@ -4,9 +4,10 @@
 // DMs and the public event page (web/pages/eventPublicPage.js).
 module.exports = {
     // the raid plan's link post (services/raidplan/raidplanPost.js)
-    "Raid assignments": "Raid-Einteilung",
+    "Raid assignments": "Raid-Einteilungen",
     "Open assignments": "Einteilung öffnen",
     "Start": "Start",
+    "You'll find the raid assignments at the link below. Please take a look before the raid starts.": "Die Raid-Einteilungen findet ihr unten im Link. Bitte vor Raidstart reinschauen.",
     "The raid assignments are not shared right now.": "Die Raid-Einteilung ist gerade nicht freigegeben.",
     // the signup message
     "{count} signed up": "{count} angemeldet",

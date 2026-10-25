@@ -307,6 +307,97 @@ function raidUrls(raidId, token) {
     return { url, editUrl: token ? `${url}?adminToken=${token}` : url };
 }
 
+const NAMED_ENTITIES = { quot: "\"", amp: "&", apos: "'", lt: "<", gt: ">", nbsp: " " };
+
+/** Decode the HTML entities softres.it (Laravel `e()`) puts into the `data-page` attribute. */
+function decodeEntities(text) {
+    return String(text || "").replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (all, code) => {
+        if (code[0] === "#") {
+            const hex = code[1] === "x" || code[1] === "X";
+            const n = hex ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
+            return Number.isFinite(n) ? String.fromCodePoint(n) : all;
+        }
+        const named = NAMED_ENTITIES[code.toLowerCase()];
+        return named === undefined ? all : named;
+    });
+}
+
+function instanceCode(entry) {
+    if (entry && typeof entry === "object") return String(entry.code || entry.name || entry.id || "");
+    return String(entry || "");
+}
+
+function optString(value) {
+    return value === undefined || value === null ? "" : String(value);
+}
+
+function normalizeReserve(r = {}) {
+    return {
+        id: optString(r.id),
+        name: String(r.name || "").trim(),
+        spec: optString(r.spec),
+        items: Array.isArray(r.items) ? r.items : [],
+        userId: optString(r.user_id),
+        discordId: optString(r.discord_id),
+        discordUsername: optString(r.discord_username),
+    };
+}
+
+function dataPageOf(html) {
+    const text = String(html || "");
+    const m = /<div[^>]*\bid="app"[^>]*\bdata-page="([^"]*)"/i.exec(text)
+        || /<div[^>]*\bdata-page="([^"]*)"[^>]*\bid="app"/i.exec(text);
+    if (!m) return null;
+    try {
+        return JSON.parse(decodeEntities(m[1]));
+    } catch (error) {
+        logger.debug("could not parse softres data-page:", error.message);
+        return null;
+    }
+}
+
+/**
+ * Read the raid out of a softres.it raid page. The page is an Inertia app: the
+ * props sit HTML-escaped in `<div id="app" data-page="…">`. Returns null when the
+ * page does not carry a raid (layout changed, raid deleted).
+ * @returns {{ raidId, reserves, hideReserves, reserveLimit, locked, instances, isManager } | null}
+ */
+function parseRaidPage(html) {
+    const page = dataPageOf(html);
+    const props = (page && page.props) || {};
+    const raid = props.raid;
+    if (!raid || typeof raid !== "object") return null;
+    return {
+        raidId: optString(raid.raidId || raid.raid_id || raid.id),
+        reserves: (Array.isArray(raid.reserves) ? raid.reserves : []).map(normalizeReserve).filter((r) => r.name || r.discordId),
+        hideReserves: Boolean(raid.hide_reserves),
+        reserveLimit: Number(raid.reserve_limit || raid.amount || 0),
+        locked: Boolean(raid.locked),
+        instances: (Array.isArray(raid.instances) ? raid.instances : []).map(instanceCode).filter(Boolean),
+        isManager: Boolean(raid.isManager || props.isManager),
+    };
+}
+
+/**
+ * Read a raid from softres.it (one GET). With the admin token the page also
+ * carries hidden reserves (`isManager: true`). Throws a German error when the
+ * site is unreachable or the page has no raid.
+ */
+async function fetchRaid(raidId, token = "") {
+    const id = String(raidId || "").trim();
+    if (!/^[A-Za-z0-9]+$/.test(id)) throw new Error("Ungültige Softres-Raid-ID.");
+    const url = `${SOFTRES_BASE}/raid/${id}${token ? `?adminToken=${encodeURIComponent(token)}` : ""}`;
+    let res;
+    try {
+        res = await axios.get(url, { httpsAgent, timeout: TIMEOUT, responseType: "text", headers: { Accept: "text/html" } });
+    } catch (err) {
+        throw softresError(err);
+    }
+    const raid = parseRaidPage(res && res.data);
+    if (!raid) throw new Error("softres.it lieferte keine Raid-Daten — Seite geändert?");
+    return raid;
+}
+
 /**
  * Create a soft-reserve list on softres.it. Returns the ids and the shareable
  * URLs. Throws on a validation error or a network failure.
@@ -353,5 +444,5 @@ module.exports = {
     normalizeTitle, titleHasKeyword, parseInstancesFromTitle,
     instancesForEdition, listEditions, editionOf, nameOf, catalogue, targetSizeForInstances, codesForRulesetInstances, RULESET_TO_SOFTRES,
     instanceIdsForCodes, buildItemNotes, hardReserveIds, buildCreatePayload,
-    parseCreatedLocation, raidUrls, createRaid,
+    parseCreatedLocation, raidUrls, createRaid, decodeEntities, parseRaidPage, fetchRaid,
 };

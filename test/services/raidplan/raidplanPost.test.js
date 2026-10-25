@@ -37,11 +37,21 @@ describe("services/raidplan/raidplanPost", () => {
                 url: "https://x/p/t", kicker: "Karazhan", title: "Raid assignments", message: "Bitte lesen",
                 facts: [["Start", "<t:1800000000:d> <t:1800000000:t> · <t:1800000000:R>"]], color: 0x2bb39b, label: "Open assignments",
             });
-            expect(linkMessage({ url: "u", title: "Karazhan", startTime: 1800000000, lang: "de" })).toMatchObject({ title: "Raid-Einteilung", label: "Einteilung öffnen" });
+            expect(linkMessage({ url: "u", title: "Karazhan", startTime: 1800000000, lang: "de" })).toMatchObject({ title: "Raid-Einteilungen", label: "Einteilung öffnen" });
         });
 
-        it("does without title, start and message", () => {
-            expect(linkMessage({ url: "u", lang: "en" })).toMatchObject({ kicker: "", title: "Raid assignments", message: "", facts: [] });
+        it("does without title and start, and says a default line without the orga's message", () => {
+            expect(linkMessage({ url: "u", lang: "en" })).toMatchObject({
+                kicker: "", title: "Raid assignments", facts: [],
+                message: "You'll find the raid assignments at the link below. Please take a look before the raid starts.",
+            });
+            expect(linkMessage({ url: "u", message: "  ", lang: "de" }).message).toBe("Die Raid-Einteilungen findet ihr unten im Link. Bitte vor Raidstart reinschauen.");
+        });
+
+        it("carries the instance icon and no boss list — the raid's name above says which raids", () => {
+            const card = linkMessage({ url: "u", title: "Hyjal+BT", thumbnail: "https://icon", lang: "de" });
+            expect(card).toMatchObject({ kicker: "Hyjal+BT", title: "Raid-Einteilungen", thumbnail: "https://icon" });
+            expect(card.lines).toBeUndefined();
         });
     });
 
@@ -91,12 +101,22 @@ describe("services/raidplan/raidplanPost", () => {
             const url = `https://eh.example/p/${plan.publicToken}`;
             // the server language (German by default), the start short as a fact
             expect(discord.postLink).toHaveBeenCalledWith("chan1", expect.objectContaining({
-                url, kicker: "Karazhan", title: "Raid-Einteilung", message: "Bitte lesen",
+                url, kicker: "Karazhan", title: "Raid-Einteilungen", message: "Bitte lesen",
                 facts: [["Start", "<t:1800000000:d> <t:1800000000:t> · <t:1800000000:R>"]],
             }));
             expect(r.body).toMatchObject({ updated: false, url, published: true });
             expect(r.body.message).toMatch(/gepostet.*freigegeben/);
             expect(getRaidplanPost("eh-1")).toMatchObject({ channelId: "chan1", messageId: "m1", message: "Bitte lesen", postedBy: "u9" });
+        });
+
+        it("shows the instance icon and the default line, but keeps no orga text for it", async () => {
+            savePlan("eh-1");
+            await postRaidplanLink({ event: { ...OWN, instanceIds: ["kara"] } });
+            const opts = discord.postLink.mock.calls[0][1];
+            expect(opts.thumbnail).toMatch(/^https:\/\/\S+$/);
+            expect(opts.lines).toBeUndefined();
+            expect(opts.message).toMatch(/link below|unten im Link/);
+            expect(getRaidplanPost("eh-1").message || "").toBe("");
         });
 
         it("edits the message it posted before, keeps the token and the last text", async () => {
@@ -116,7 +136,7 @@ describe("services/raidplan/raidplanPost", () => {
             discord.editLink.mockRejectedValue(new Error("Unknown Message"));
             discord.postLink.mockResolvedValue({ channelId: "chan1", messageId: "m2" });
             const r = await postRaidplanLink({ event: OWN, message: "" });
-            expect(discord.postLink).toHaveBeenCalledWith("chan1", expect.objectContaining({ message: "" }));
+            expect(discord.postLink).toHaveBeenCalledWith("chan1", expect.objectContaining({ message: expect.stringMatching(/unten im Link/) }));
             expect(r.body.updated).toBe(false);
             expect(getRaidplanPost("eh-1")).toMatchObject({ messageId: "m2", message: "" });
         });
@@ -136,7 +156,7 @@ describe("services/raidplan/raidplanPost", () => {
             discord.postLink.mockResolvedValue({ channelId: "chan2", messageId: "m7" });
             const r = await postRaidplanLink({ event: RH });
             expect(r.body).toBeTruthy();
-            expect(discord.postLink).toHaveBeenCalledWith("chan2", expect.objectContaining({ kicker: "Gruul", title: "Raid-Einteilung" }));
+            expect(discord.postLink).toHaveBeenCalledWith("chan2", expect.objectContaining({ kicker: "Gruul", title: "Raid-Einteilungen" }));
         });
     });
 

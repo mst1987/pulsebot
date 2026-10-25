@@ -202,6 +202,8 @@ jest.mock("../../../src/stores/eventSoftresStore", () => ({
     saveEventSoftres: jest.fn(),
     setEventSoftresLink: jest.fn(),
     markEventSoftresPosted: jest.fn(),
+    setEventSoftresStatus: jest.fn(),
+    listEventSoftres: jest.fn(() => []),
 }));
 jest.mock("../../../src/stores/eventLootSystemStore", () => ({
     setEventLootSystem: jest.fn(),

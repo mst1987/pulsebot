@@ -48,6 +48,7 @@ const AREAS = {
     "dungeons.js": require("../../../src/config/botText/de/dungeons"),
     "addons.js": require("../../../src/config/botText/de/addons"),
     "roleMessages.js": require("../../../src/config/botText/de/roleMessages"),
+    "softres.js": require("../../../src/config/botText/de/softres"),
 };
 
 describe("config/botText/de", () => {

@@ -298,4 +298,68 @@ describe("utils/loot/softres", () => {
             expect(axios.get).not.toHaveBeenCalled();
         });
     });
+
+    describe("parseRaidPage / fetchRaid", () => {
+        // Shaped like a real softres.it raid page (checked 25.10.2026): Inertia
+        // props HTML-escaped in data-page, one reserve with Discord data, one without.
+        function raidPage(raid, managerProp = false) {
+            const json = JSON.stringify({ component: "Raid/Show", props: { raid, ...(managerProp ? { isManager: true } : {}) } });
+            const escaped = json.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+            return `<!DOCTYPE html><html><body><div id="app" data-page="${escaped}"></div></body></html>`;
+        }
+        const RAID = {
+            raidId: "Le3KEOe6",
+            hide_reserves: false,
+            reserve_limit: 2,
+            locked: false,
+            instances: ["kara", "gruul"],
+            reserves: [
+                { id: 1, name: "Thrall", spec: "Enhancement", items: [28588], user_id: 9, discord_id: "111", discord_username: "thrall" },
+                { id: 2, name: "Jaína & O'Neil", spec: null, items: [], user_id: null },
+            ],
+        };
+
+        it("decodes named and numeric entities", () => {
+            expect(softres.decodeEntities("&quot;a&quot; &amp; &#039;b&#039; &#x41; &lt;&gt; &unknown;")).toBe("\"a\" & 'b' A <> &unknown;");
+        });
+
+        it("reads the raid from the escaped Inertia props", () => {
+            const raid = softres.parseRaidPage(raidPage(RAID));
+            expect(raid).toMatchObject({ raidId: "Le3KEOe6", hideReserves: false, reserveLimit: 2, locked: false, instances: ["kara", "gruul"], isManager: false });
+            expect(raid.reserves).toEqual([
+                { id: "1", name: "Thrall", spec: "Enhancement", items: [28588], userId: "9", discordId: "111", discordUsername: "thrall" },
+                { id: "2", name: "Jaína & O'Neil", spec: "", items: [], userId: "", discordId: "", discordUsername: "" },
+            ]);
+        });
+
+        it("sees manager access and hidden reserves", () => {
+            const raid = softres.parseRaidPage(raidPage({ ...RAID, hide_reserves: true, isManager: true }));
+            expect(raid.hideReserves).toBe(true);
+            expect(raid.isManager).toBe(true);
+            expect(softres.parseRaidPage(raidPage(RAID, true)).isManager).toBe(true);
+        });
+
+        it("returns null for pages without a raid", () => {
+            expect(softres.parseRaidPage("<html></html>")).toBeNull();
+            expect(softres.parseRaidPage("<div id=\"app\" data-page=\"{broken\"></div>")).toBeNull();
+            expect(softres.parseRaidPage("<div id=\"app\" data-page=\"{&quot;props&quot;:{}}\"></div>")).toBeNull();
+        });
+
+        it("fetches with the admin token and parses the answer", async () => {
+            axios.get.mockResolvedValue({ data: raidPage(RAID) });
+            const raid = await softres.fetchRaid("Le3KEOe6", "f637dc");
+            expect(raid.reserves).toHaveLength(2);
+            expect(axios.get.mock.calls[0][0]).toBe("https://softres.it/raid/Le3KEOe6?adminToken=f637dc");
+            await softres.fetchRaid("Le3KEOe6");
+            expect(axios.get.mock.calls[1][0]).toBe("https://softres.it/raid/Le3KEOe6");
+        });
+
+        it("rejects bad ids, unreachable sites and changed pages", async () => {
+            await expect(softres.fetchRaid("../x")).rejects.toThrow("Raid-ID");
+            axios.get.mockRejectedValueOnce(new Error("ETIMEDOUT"));
+            await expect(softres.fetchRaid("abc")).rejects.toThrow("nicht erreichbar");
+            axios.get.mockResolvedValueOnce({ data: "<html></html>" });
+            await expect(softres.fetchRaid("abc")).rejects.toThrow("keine Raid-Daten");
+        });
+    });
 });

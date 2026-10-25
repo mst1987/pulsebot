@@ -16,7 +16,7 @@ const { planningRefusal } = require("../../services/events/planning");
 const { getEventSheet, markEventSheetFilled, markEventSheetPosted } = require("../../stores/eventSheetStore");
 const { sourceOfEventId } = require("../../services/events/eventSources");
 const {
-    getEventSoftres, saveEventSoftres, setEventSoftresLink, markEventSoftresPosted,
+    getEventSoftres, saveEventSoftres, setEventSoftresLink,
 } = require("../../stores/eventSoftresStore");
 const softres = require("../../utils/loot/softres");
 const { setEventLootSystem, lootSystemOf } = require("../../stores/eventLootSystemStore");
@@ -34,6 +34,7 @@ const SheetsClient = require("../../classes/sheets");
 const { fillSetupSheet } = require("../../utils/setup/fillSetup");
 const { formatTimestampToDateString } = require("../../utils/time");
 const discord = require("../../services/discord/discord");
+const { postSoftresCard } = require("../../services/loot/softresStatus");
 const { getEvent } = require("../../stores/eventStore");
 const { raidHelperSlots } = require("../../services/setup/setupEditor");
 const { invitePlan, callInvite } = require("../../services/setup/inviteCall");
@@ -357,24 +358,13 @@ const postPostSoftres = withUser(ORGA, async ({ body, req, res }) => {
     if (!sr || !sr.url) return error(res, 400, "no_softres", "Für dieses Event gibt es noch keine Softres-Liste.");
     // Resolve the event's channel + title server-side; never trust posted ids.
     // Past raids included — the detail page is reachable for them too.
-    const { found, errorMessage, code } = await resolveEventForPost(req, eventId);
+    const { found, categoryId, errorMessage, code } = await resolveEventForPost(req, eventId);
     if (errorMessage) return error(res, code === "not_found" ? 404 : 400, code, errorMessage);
     const message = body.message !== undefined ? body.message : (sr.postedMessage || "");
-    const linkOpts = { ...linkCardOf(found), url: sr.url, title: "Softres", message, label: "Softres öffnen" };
-    const alreadyPosted = Boolean(sr.postedChannelId && sr.postedMessageId);
     try {
-        let posted;
-        if (alreadyPosted) {
-            try {
-                posted = await discord.editLink(sr.postedChannelId, sr.postedMessageId, linkOpts);
-            } catch {
-                posted = await discord.postLink(found.channelId, linkOpts);
-            }
-        } else {
-            posted = await discord.postLink(found.channelId, linkOpts);
-        }
-        markEventSoftresPosted(eventId, { channelId: posted.channelId, messageId: posted.messageId, message });
-        ok(res, { message: alreadyPosted ? "Softres-Nachricht aktualisiert." : "Softres-Link in den Channel gepostet." });
+        // The card reads softres.it fresh (softresStatus.js): "Signed up x / y" and "Who is missing?".
+        const { edited } = await postSoftresCard({ eventId, event: { ...found, categoryId: found.categoryId || categoryId }, message });
+        ok(res, { message: edited ? "Softres-Nachricht aktualisiert." : "Softres-Link in den Channel gepostet." });
     } catch (e) {
         throw new AppError("post_failed", 500, e.message || "Posten fehlgeschlagen.");
     }

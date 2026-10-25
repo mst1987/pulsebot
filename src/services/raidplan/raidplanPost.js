@@ -13,11 +13,13 @@ const { getRaidplanPost, markRaidplanPosted } = require("../../stores/raidplanPo
 const discord = require("../discord/discord");
 const linkCheck = require("../discord/linkCheck");
 const { serverLang, eventLang } = require("../discord/botLanguage");
-const { embedColor } = require("../events/embedLook");
+const { embedColor, ruleSetLook } = require("../events/embedLook");
 const { tr } = require("../../utils/i18n/botText");
 
 // What the post says while the plan is not shared (#537): the link would lead nowhere, so it goes.
 const NOT_SHARED = "The raid assignments are not shared right now.";
+// The line under the heading when the orga gives none.
+const DEFAULT_LINE = "You'll find the raid assignments at the link below. Please take a look before the raid starts.";
 
 /** Whether an event (as loadEventGroups lists it) has a raid plan: an own event always, a Raid-Helper event once switched on. */
 function eventHasPlan(event, plan) {
@@ -33,20 +35,32 @@ function planFilled(plan) {
 
 /**
  * What the raider reads in Discord, in the server language (a public message, CLAUDE.md "Language"): the raid's name small
- * over the heading, the orga's optional line, the start SHORT as Discord timestamps (date + time + "in 3 hours" — the long
- * `:F` form read like a sentence nobody reads), in the event's colour (discord.buildLinkMessage makes the card).
+ * over the heading, the orga's line or else a short default line (without any text the card looked odd — the user's call,
+ * Oct 2026), the start SHORT as Discord timestamps (date + time + "in 3 hours" — the long `:F` form read like a sentence
+ * nobody reads), in the event's colour (discord.buildLinkMessage makes the card).
  */
-function linkMessage({ url, title, startTime, message, color, lang = serverLang() }) {
+function linkMessage({ url, title, startTime, message, color, lang = serverLang(), thumbnail = "" }) {
     const start = Number(startTime) || 0;
     return {
         url,
         kicker: String(title || "").trim(),
         title: tr(lang, "Raid assignments"),
-        message: String(message || "").trim(),
+        message: String(message || "").trim() || tr(lang, DEFAULT_LINE),
         facts: start ? [[tr(lang, "Start"), `<t:${start}:d> <t:${start}:t> · <t:${start}:R>`]] : [],
         color,
         label: tr(lang, "Open assignments"),
+        ...(thumbnail ? { thumbnail } : {}),
     };
+}
+
+/**
+ * The look of the card (Oct 2026): the instance icon as thumbnail. No boss list — the raid's name above the heading says
+ * which raids it is.
+ */
+function cardLook(event) {
+    let thumbnail;
+    try { thumbnail = ruleSetLook(event && event.instanceIds).thumbnail || ""; } catch { thumbnail = ""; }
+    return { thumbnail };
 }
 
 /** The card's colour: the event's own, its instance's, or the accent colour (services/events/embedLook). */
@@ -84,7 +98,7 @@ async function postRaidplanLink({ event, message, userId = "" }) {
     const wasPublished = plan.status === "published" && !!plan.publicToken;
     const current = wasPublished ? plan : raidplanStore.setPublished(event.id, true, { userId }).plan;
     const url = `${base}/p/${current.publicToken}`;
-    const opts = linkMessage({ url, title: event.title, startTime: event.startTime, message: text, color: colorOf(event), lang: eventLang(event) });
+    const opts = linkMessage({ url, title: event.title, startTime: event.startTime, message: text, color: colorOf(event), lang: eventLang(event), ...cardLook(event) });
 
     const hadPost = !!(before && before.channelId && before.messageId);
     let posted;
@@ -147,7 +161,7 @@ async function syncRaidplanPost(event) {
     const post = getRaidplanPost(event && event.id);
     if (!post || !post.channelId || !post.messageId) return "none";
     const url = linkCheck.webTarget("raidplan", event.id);
-    const base = { title: event.title, startTime: event.startTime, color: colorOf(event), lang: eventLang(event) };
+    const base = { title: event.title, startTime: event.startTime, color: colorOf(event), lang: eventLang(event), ...cardLook(event) };
     const opts = url
         ? linkMessage({ ...base, url, message: post.message })
         : linkMessage({ ...base, url: "", message: tr(base.lang, NOT_SHARED) });

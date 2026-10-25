@@ -16,6 +16,7 @@ const AREAS = [
     require("./dungeons"),
     require("./addons"),
     require("./roleMessages"),
+    require("./softres"),
 ];
 
 const merged = {};
