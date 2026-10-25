@@ -371,7 +371,14 @@ async function postMissingPing(channelId, userIds = [], text = "") {
     let first = null;
     const messageIds = [];
     for (const part of pingParts(users, body)) {
-        const posted = await channel.send(pingCard({ kind: "warn", ...part, allowedMentions: { users } }));
+        let posted;
+        try {
+            posted = await channel.send(pingCard({ kind: "warn", ...part, allowedMentions: { users } }));
+        } catch (e) {
+            // A later chunk failed: the earlier ones did ping — the caller may count that.
+            if (messageIds.length && e && typeof e === "object") e.sentMessageIds = messageIds.slice();
+            throw e;
+        }
         if (!first) first = posted;
         messageIds.push(String(posted.id));
     }

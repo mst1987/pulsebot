@@ -130,6 +130,13 @@ describe("services/loot/softresMissingBot", () => {
             await handleSoftresComponent(i, "g1");
             expect(i.reply).toHaveBeenCalledTimes(1);
             expect(asEmbed(i.reply.mock.calls[0][0]).title).toBe("Geht gerade nicht");
+            expect(asEmbed(i.reply.mock.calls[0][0]).text).toContain("gibt es nicht (mehr)");
+            eventLang.mockReturnValue("en");
+            const en = mockInteraction({ customId: "softres-missing:eh-1" });
+            await handleSoftresComponent(en, "g1");
+            const enCard = asEmbed(en.reply.mock.calls[0][0]);
+            expect(enCard.title).toBe("Not possible right now");
+            expect(enCard.text).toContain("This event no longer exists or belongs to another server.");
             status.resolveEvent.mockReturnValue({ event: EVENT });
             const other = mockInteraction({ customId: "softres-missing:eh-1" });
             await handleSoftresComponent(other, "g2");
@@ -203,6 +210,16 @@ describe("services/loot/softresMissingBot", () => {
             expect(asEmbed(c.editReply.mock.calls[0][0]).text).toContain("Missing Permissions");
             expect(_internal.inFlight.size).toBe(0);
             expect(_internal.lastPing.size).toBe(0);
+        });
+
+        it("counts a ping that failed after its first part, so the cooldown holds", async () => {
+            status.readStatus.mockResolvedValue(okStatus(1));
+            discord.postMissingPing.mockRejectedValueOnce(Object.assign(new Error("Missing Access"), { sentMessageIds: ["m1"] }));
+            await handleSoftresComponent(click(), "g1");
+            expect(_internal.lastPing.has("eh-1")).toBe(true);
+            const again = click();
+            await handleSoftresComponent(again, "g1");
+            expect(asEmbed(again.update.mock.calls[0][0]).title).toBe("Schon gepingt");
         });
 
         it("answers an unknown event by updating the list", async () => {

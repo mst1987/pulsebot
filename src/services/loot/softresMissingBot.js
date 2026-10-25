@@ -109,7 +109,10 @@ function missingCard(event, status, lang, canPing = false) {
     });
 }
 
-const errorCard = (event, message) => answer({ kind: "error", kicker: event ? kickerOf(event) : "", title: "Geht gerade nicht", text: message });
+/** An error answer; with `lang` (the raider's "Who is missing?") the title is translated, the ping's orga answers stay German. */
+const errorCard = (event, message, lang) => answer({
+    kind: "error", kicker: event ? kickerOf(event) : "", title: lang ? tr(lang, "Not possible right now") : "Geht gerade nicht", text: message,
+});
 
 /** "Who is missing?": defer first (softres.it is a web request), then the list. */
 async function showMissing(interaction, eventId, event) {
@@ -150,6 +153,8 @@ async function confirmPing(interaction, eventId, event, now = Date.now()) {
             text: event.channelId ? `Im Event-Kanal <#${event.channelId}>.` : "",
         })));
     } catch (e) {
+        // Some chunks went out before the error: that was a ping, the cooldown holds.
+        if (e && Array.isArray(e.sentMessageIds) && e.sentMessageIds.length) lastPing.set(eventId, { at: now });
         return interaction.editReply(asEdit(errorCard(event, e.message)));
     } finally {
         inFlight.delete(eventId);
@@ -162,8 +167,10 @@ async function handleSoftresComponent(interaction, guildId) {
     const eventId = parseEventId(interaction.customId);
     const { event } = eventId ? resolveEvent(eventId) : { event: null };
     if (!event || (event.guildId && event.guildId !== guildId)) {
-        const gone = errorCard(null, "Das Event gibt es nicht (mehr) oder es gehört zu einem anderen Server.");
-        return isPing ? interaction.update(asEdit(gone)) : interaction.reply(gone);
+        if (isPing) return interaction.update(asEdit(errorCard(null, "Das Event gibt es nicht (mehr) oder es gehört zu einem anderen Server.")));
+        // "Who is missing?" is a raider's click: the answer in the bot's language.
+        const lang = eventLang(event);
+        return interaction.reply(errorCard(null, tr(lang, "This event no longer exists or belongs to another server."), lang));
     }
     const ev = { ...event, id: eventId };
     return isPing ? confirmPing(interaction, eventId, ev) : showMissing(interaction, eventId, ev);

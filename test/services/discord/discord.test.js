@@ -951,6 +951,20 @@ describe("services/discord/discord ping helpers", () => {
         for (const [payload] of send.mock.calls) expect(payload.allowedMentions).toEqual({ users });
     });
 
+    it("hands the ids of the parts already sent on with the error of a later part", async () => {
+        const send = jest.fn();
+        send.mockResolvedValueOnce({ id: "m1", url: "u" }).mockRejectedValueOnce(new Error("Missing Access"));
+        discordMod.setClient(dc.makeClient({ channels: [dc.makeChannel({ id: "chan", send })] }));
+        const users = Array.from({ length: 240 }, (_, i) => String(100000000000000000n + BigInt(i)));
+        const err = await discordMod.postMissingPing("chan", users, "Bitte melden").catch((e) => e);
+        expect(err.message).toBe("Missing Access");
+        expect(err.sentMessageIds).toEqual(["m1"]);
+        const first = jest.fn(async () => { throw new Error("nope"); });
+        discordMod.setClient(dc.makeClient({ channels: [dc.makeChannel({ id: "chan", send: first })] }));
+        const none = await discordMod.postMissingPing("chan", ["1"], "x").catch((e) => e);
+        expect(none.sentMessageIds).toBeUndefined();
+    });
+
     it("mentions single users next to the roles of an announcement", async () => {
         const send = jest.fn(async () => ({ id: "m", url: "u" }));
         discordMod.setClient(dc.makeClient({ channels: [dc.makeChannel({ id: "chan", guildId: "g", send })] }));

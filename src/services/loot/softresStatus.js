@@ -110,8 +110,10 @@ function expectedRaiders(event, raw) {
 }
 
 /**
- * Which expected raiders have a reserve: first by the reserve's Discord id, then
- * by character name. A reserve counts once. `{ filled, missing }` of the expected.
+ * Which expected raiders have a reserve. A reserve counts once, in three passes:
+ * Discord id AND character name, then the name alone, then the Discord id alone —
+ * so one account entering for a friend too (two reserves with its id) does not
+ * take the friend's reserve. `{ filled, missing }` of the expected.
  */
 function matchReserves(expected = [], reserves = []) {
     const open = reserves.slice();
@@ -121,19 +123,51 @@ function matchReserves(expected = [], reserves = []) {
         open.splice(i, 1);
         return true;
     };
-    const filled = [];
-    const rest = [];
-    for (const r of expected) (take((res) => res.discordId && res.discordId === r.userId) ? filled : rest).push(r);
-    const missing = [];
-    for (const r of rest) {
+    const byId = (r) => (res) => Boolean(res.discordId) && res.discordId === r.userId;
+    const byName = (r) => {
         const keys = new Set(r.names.map(nameKey).filter(Boolean));
-        (take((res) => keys.has(nameKey(res.name))) ? filled : missing).push(r);
+        return (res) => keys.has(nameKey(res.name));
+    };
+    const passes = [
+        (r) => { const id = byId(r); const name = byName(r); return (res) => id(res) && name(res); },
+        byName,
+        byId,
+    ];
+    let rest = expected.slice();
+    const filled = [];
+    for (const pass of passes) {
+        const next = [];
+        for (const r of rest) (take(pass(r)) ? filled : next).push(r);
+        rest = next;
     }
-    return { filled, missing };
+    // Both lists in the order of `expected`, whichever pass found them.
+    const done = new Set(filled);
+    return { filled: expected.filter((r) => done.has(r)), missing: rest };
 }
 
 /** The missing raiders as a stable key — the job edits the card only when it changes. */
 const missingKeyOf = (missing) => missing.map((m) => m.userId).sort().join("|");
+
+/** One softres.it read serves every click within this window (25 clicks ≠ 25 requests). */
+const FETCH_CACHE_MS = 60 * 1000;
+// raidId → { at, promise } of the last read; a failed read is dropped at once.
+const fetchCache = new Map();
+
+function clearFetchCache() {
+    fetchCache.clear();
+}
+
+/** softres.fetchRaid, shared for FETCH_CACHE_MS per raid — also by clicks arriving while it runs. */
+function fetchRaidCached(raidId, token, now = Date.now()) {
+    const key = `${raidId}|${token ? "t" : ""}`;
+    const hit = fetchCache.get(key);
+    if (hit && now - hit.at < FETCH_CACHE_MS) return hit.promise;
+    const promise = softres.fetchRaid(raidId, token);
+    fetchCache.set(key, { at: now, promise });
+    promise.catch(() => { if (fetchCache.get(key) && fetchCache.get(key).promise === promise) fetchCache.delete(key); });
+    for (const [k, v] of fetchCache) if (now - v.at >= FETCH_CACHE_MS) fetchCache.delete(k);
+    return promise;
+}
 
 /**
  * Read softres.it once and count. `{ ok: false, reason }` when there is nothing to
@@ -147,7 +181,7 @@ async function readStatus(eventId, { event, raw, sr } = {}) {
     if (!record || !record.raidId) return { ok: false, reason: "no_softres", checkedAt };
     let raid;
     try {
-        raid = await softres.fetchRaid(record.raidId, record.token);
+        raid = await fetchRaidCached(record.raidId, record.token);
     } catch (e) {
         logger.warn(`softres ${record.raidId} for ${eventId}: ${e.message}`);
         return { ok: false, reason: "fetch_failed", checkedAt };
@@ -221,7 +255,11 @@ async function postSoftresCard({ eventId, event, message = "" }) {
     if (!sr || !sr.url) throw new Error("Für dieses Event gibt es noch keine Softres-Liste.");
     const ev = { ...event, id: (event && event.id) || eventId };
     const status = await readStatus(eventId, { event: { ...(resolveEvent(eventId).event || {}), ...ev }, sr });
-    const opts = softresCardOpts(ev, sr, status, { message });
+    // softres.it unreachable: post with the last known count (and its button) instead
+    // of taking them away — like refreshSoftresCard; the stored count stays as it is.
+    const unreachable = status.reason === "fetch_failed";
+    const shown = unreachable && sr.status && sr.status.ok ? { ...sr.status } : status;
+    const opts = softresCardOpts(ev, sr, shown, { message });
     const alreadyPosted = Boolean(sr.postedChannelId && sr.postedMessageId);
     let posted;
     if (alreadyPosted) {
@@ -234,7 +272,7 @@ async function postSoftresCard({ eventId, event, message = "" }) {
         posted = await discord.postLink(ev.channelId, opts);
     }
     markEventSoftresPosted(eventId, { channelId: posted.channelId, messageId: posted.messageId, message });
-    rememberStatus(eventId, status);
+    if (!unreachable) rememberStatus(eventId, status);
     return { posted, edited: alreadyPosted, status };
 }
 
@@ -312,4 +350,5 @@ module.exports = {
     SOFTRES_ICON, SOFTRES_MISSING_PREFIX, SOFTRES_PING_PREFIX,
     nameKey, resolveEvent, expectedRaiders, matchReserves, readStatus, softresCardOpts,
     postSoftresCard, refreshSoftresCard, cardsInWindow, sweep, startSoftresStatus, stopSoftresStatus,
+    clearFetchCache, FETCH_CACHE_MS,
 };

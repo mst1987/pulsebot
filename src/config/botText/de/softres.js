@@ -17,4 +17,6 @@ module.exports = {
     "Ping now": "Jetzt pingen",
     "Only the orga can ping them.": "Pingen kann nur die Orga.",
     "Please enter your soft reserves: {url}": "Bitte Softres eintragen: {url}",
+    "Not possible right now": "Geht gerade nicht",
+    "This event no longer exists or belongs to another server.": "Das Event gibt es nicht (mehr) oder es gehört zu einem anderen Server.",
 };

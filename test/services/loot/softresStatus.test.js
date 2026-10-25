@@ -58,6 +58,7 @@ beforeEach(() => {
     store.getEventSoftres.mockReset().mockReturnValue(null);
     store.listEventSoftres.mockReset().mockReturnValue([]);
     softres.fetchRaid.mockReset();
+    s.clearFetchCache();
 });
 
 describe("services/loot/softresStatus", () => {
@@ -129,6 +130,18 @@ describe("services/loot/softresStatus", () => {
             const twins = [{ userId: "a", names: ["Same"] }, { userId: "b", names: ["Same"] }];
             expect(s.matchReserves(twins, [reserve("Same")]).filled).toHaveLength(1);
         });
+
+        it("does not let an account that enters for others take their reserve", () => {
+            const two = [{ userId: "A", names: ["Aa"], label: "Aa" }, { userId: "B", names: ["Bb"], label: "Bb" }];
+            const { filled, missing } = s.matchReserves(two, [reserve("Bb", "A"), reserve("Aa", "A")]);
+            expect(filled.map((r) => r.userId).sort()).toEqual(["A", "B"]);
+            expect(missing).toEqual([]);
+        });
+
+        it("still takes a reserve by Discord id alone when no name fits", () => {
+            const { filled } = s.matchReserves([{ userId: "A", names: ["Aa"] }], [reserve("Other", "A")]);
+            expect(filled).toHaveLength(1);
+        });
     });
 
     describe("readStatus", () => {
@@ -153,10 +166,38 @@ describe("services/loot/softresStatus", () => {
             expect(await s.readStatus("eh-1", { event, sr: null })).toMatchObject({ ok: false, reason: "no_softres" });
             softres.fetchRaid.mockResolvedValue(raid([], { hideReserves: true }));
             expect(await s.readStatus("eh-1", { event, raw: null, sr: SR })).toMatchObject({ ok: false, reason: "hidden" });
+            s.clearFetchCache();
             softres.fetchRaid.mockRejectedValue(new Error("HTTP 500"));
             expect(await s.readStatus("eh-1", { event, raw: null, sr: SR })).toMatchObject({ ok: false, reason: "fetch_failed" });
             softres.fetchRaid.mockResolvedValue(raid([]));
+            s.clearFetchCache();
             expect(await s.readStatus("eh-1", { event: { signUps: [] }, raw: null, sr: SR })).toMatchObject({ ok: false, reason: "nobody_expected" });
+        });
+    });
+
+    describe("the short cache", () => {
+        const event = { id: "eh-1", signUps: [signup("u1", "Alpha")] };
+
+        it("reads softres.it once for many clicks within a minute, again after it", async () => {
+            const now = jest.spyOn(Date, "now").mockReturnValue(1000000);
+            try {
+                softres.fetchRaid.mockResolvedValue(raid([reserve("Alpha")]));
+                await Promise.all([1, 2, 3].map(() => s.readStatus("eh-1", { event, raw: null, sr: SR })));
+                expect(softres.fetchRaid).toHaveBeenCalledTimes(1);
+                now.mockReturnValue(1000000 + s.FETCH_CACHE_MS);
+                await s.readStatus("eh-1", { event, raw: null, sr: SR });
+                expect(softres.fetchRaid).toHaveBeenCalledTimes(2);
+            } finally {
+                now.mockRestore();
+            }
+        });
+
+        it("does not keep a failed read, and keeps lists with and without token apart", async () => {
+            softres.fetchRaid.mockRejectedValueOnce(new Error("down")).mockResolvedValue(raid([reserve("Alpha")]));
+            expect((await s.readStatus("eh-1", { event, raw: null, sr: SR })).reason).toBe("fetch_failed");
+            expect((await s.readStatus("eh-1", { event, raw: null, sr: SR })).ok).toBe(true);
+            await s.readStatus("eh-1", { event, raw: null, sr: { ...SR, token: "t" } });
+            expect(softres.fetchRaid).toHaveBeenCalledTimes(3);
         });
     });
 
@@ -215,6 +256,17 @@ describe("services/loot/softresStatus", () => {
             discord.editLink.mockRejectedValueOnce(new Error("Unknown Message"));
             await s.postSoftresCard({ eventId: "eh-1", event });
             expect(discord.postLink).toHaveBeenCalledWith("chan1", expect.any(Object));
+        });
+
+        it("keeps the last known count and button when softres.it is down", async () => {
+            const known = { ok: true, filled: 4, expected: 5, missingKey: "u9", reserveLimit: 2, instances: ["kara"], checkedAt: 1799990000 };
+            store.getEventSoftres.mockReturnValue({ ...SR, postedChannelId: "chan1", postedMessageId: "m1", status: known });
+            softres.fetchRaid.mockRejectedValue(new Error("down"));
+            await s.postSoftresCard({ eventId: "eh-1", event });
+            const opts = discord.editLink.mock.calls[0][2];
+            expect(opts.facts).toContainEqual(["Eingetragen", "4 / 5"]);
+            expect(opts.buttons).toHaveLength(1);
+            expect(store.setEventSoftresStatus).not.toHaveBeenCalled();
         });
 
         it("refuses without a list", async () => {
