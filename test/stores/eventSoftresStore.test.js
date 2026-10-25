@@ -4,7 +4,7 @@ jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 const fs = require("fs");
 const {
     listEventSoftres, getEventSoftres, saveEventSoftres, setEventSoftresLink,
-    markEventSoftresPosted, deleteEventSoftres,
+    markEventSoftresPosted, setEventSoftresStatus, deleteEventSoftres,
 } = require("../../src/stores/eventSoftresStore.js");
 
 beforeEach(() => {
@@ -73,6 +73,21 @@ describe("stores/eventSoftresStore", () => {
 
     it("ignores a blank event id when setting a manual link", () => {
         expect(setEventSoftresLink("", { url: "https://softres.it/raid/xyz" })).toBeNull();
+    });
+
+    describe("setEventSoftresStatus", () => {
+        it("returns null without a record or id", () => {
+            expect(setEventSoftresStatus("evt1", { ok: true })).toBeNull();
+            expect(setEventSoftresStatus("", { ok: true })).toBeNull();
+        });
+
+        it("keeps the last fill count next to the record", () => {
+            saveEventSoftres("evt1", { raidId: "abc" });
+            setEventSoftresStatus("evt1", { ok: true, filled: 14, expected: 25, missingKey: "a|b", checkedAt: 5 });
+            expect(getEventSoftres("evt1").status).toEqual({ ok: true, filled: 14, expected: 25, missingKey: "a|b", checkedAt: 5 });
+            setEventSoftresStatus("evt1", {});
+            expect(getEventSoftres("evt1").status).toMatchObject({ ok: false, filled: 0, expected: 0, missingKey: "" });
+        });
     });
 
     describe("markEventSoftresPosted", () => {

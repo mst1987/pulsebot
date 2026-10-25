@@ -13,7 +13,7 @@ const { getRaidplanPost, markRaidplanPosted } = require("../../stores/raidplanPo
 const discord = require("../discord/discord");
 const linkCheck = require("../discord/linkCheck");
 const { serverLang, eventLang } = require("../discord/botLanguage");
-const { embedColor } = require("../events/embedLook");
+const { embedColor, ruleSetLook } = require("../events/embedLook");
 const { tr } = require("../../utils/i18n/botText");
 
 // What the post says while the plan is not shared (#537): the link would lead nowhere, so it goes.
@@ -36,7 +36,7 @@ function planFilled(plan) {
  * over the heading, the orga's optional line, the start SHORT as Discord timestamps (date + time + "in 3 hours" — the long
  * `:F` form read like a sentence nobody reads), in the event's colour (discord.buildLinkMessage makes the card).
  */
-function linkMessage({ url, title, startTime, message, color, lang = serverLang() }) {
+function linkMessage({ url, title, startTime, message, color, lang = serverLang(), thumbnail = "", bosses = [] }) {
     const start = Number(startTime) || 0;
     return {
         url,
@@ -46,7 +46,27 @@ function linkMessage({ url, title, startTime, message, color, lang = serverLang(
         facts: start ? [[tr(lang, "Start"), `<t:${start}:d> <t:${start}:t> · <t:${start}:R>`]] : [],
         color,
         label: tr(lang, "Open assignments"),
+        ...(thumbnail ? { thumbnail } : {}),
+        ...(bosses.length ? { lines: [bosses.join(" · ")] } : {}),
     };
+}
+
+/**
+ * The bosses the plan has assignments for, in the raid's order and named as in
+ * the raid plan (raidplanStore.bossesForInstances; only boards with content are stored).
+ */
+function plannedBosses(event, plan) {
+    const keys = new Set(Object.keys((plan && plan.bosses) || {}));
+    return raidplanStore.bossesForInstances(event && event.instanceIds)
+        .filter((b) => !b.general && !b.trash && keys.has(b.key))
+        .map((b) => b.name);
+}
+
+/** The look of the card (Oct 2026): the instance icon as thumbnail and the planned bosses as one line. */
+function cardLook(event, plan) {
+    let thumbnail;
+    try { thumbnail = ruleSetLook(event && event.instanceIds).thumbnail || ""; } catch { thumbnail = ""; }
+    return { thumbnail, bosses: plannedBosses(event, plan) };
 }
 
 /** The card's colour: the event's own, its instance's, or the accent colour (services/events/embedLook). */
@@ -84,7 +104,7 @@ async function postRaidplanLink({ event, message, userId = "" }) {
     const wasPublished = plan.status === "published" && !!plan.publicToken;
     const current = wasPublished ? plan : raidplanStore.setPublished(event.id, true, { userId }).plan;
     const url = `${base}/p/${current.publicToken}`;
-    const opts = linkMessage({ url, title: event.title, startTime: event.startTime, message: text, color: colorOf(event), lang: eventLang(event) });
+    const opts = linkMessage({ url, title: event.title, startTime: event.startTime, message: text, color: colorOf(event), lang: eventLang(event), ...cardLook(event, current) });
 
     const hadPost = !!(before && before.channelId && before.messageId);
     let posted;
@@ -147,7 +167,7 @@ async function syncRaidplanPost(event) {
     const post = getRaidplanPost(event && event.id);
     if (!post || !post.channelId || !post.messageId) return "none";
     const url = linkCheck.webTarget("raidplan", event.id);
-    const base = { title: event.title, startTime: event.startTime, color: colorOf(event), lang: eventLang(event) };
+    const base = { title: event.title, startTime: event.startTime, color: colorOf(event), lang: eventLang(event), ...cardLook(event, raidplanStore.getPlan(event.id)) };
     const opts = url
         ? linkMessage({ ...base, url, message: post.message })
         : linkMessage({ ...base, url: "", message: tr(base.lang, NOT_SHARED) });
@@ -159,4 +179,4 @@ async function syncRaidplanPost(event) {
     }
 }
 
-module.exports = { postRaidplanLink, raidplanPostState, syncRaidplanPost, linkMessage, eventHasPlan, planFilled, NOT_SHARED };
+module.exports = { postRaidplanLink, raidplanPostState, syncRaidplanPost, linkMessage, plannedBosses, eventHasPlan, planFilled, NOT_SHARED };

@@ -181,9 +181,13 @@ The read link as one message in the event's channel, like "Sheet posten" for the
   eventId, channelId, messageId, message, postedAt, postedBy }] }`) remembers where it went; a second post edits
   that message (`discord.editLink`), and only when that fails (deleted by hand) posts a new one. Without
   `message` in the body the text of the last post stays, `""` clears it. Deleting the event forgets the record.
-- **What the raider reads** (English, CLAUDE.md "Language"): `🗺️ **Raid assignments – <title>**`, the orga's
-  line, `Raid start: <t:…:F>` (a Discord timestamp) and a link button "Open assignments" — the same
-  `buildLinkMessage` as the sheet and softres posts.
+- **What the raider reads** (a card, `discord.buildLinkMessage` like the sheet and softres posts, in the event's
+  language — `eventLang`): the raid's name small over the heading **"Raid-Einteilungen"** (`tr(lang, "Raid
+  assignments")`), the **instance icon** as thumbnail (`ruleSetLook(instanceIds).thumbnail`), **one line with the
+  planned bosses** joined by " · " — named as in the raid plan, in the raid's order, only bosses with a stored board
+  (`plannedBosses()`; general and trash boards do not count) — the orga's line, the start short (`<t:…:d> <t:…:t> ·
+  <t:…:R>`) and the link button "Open assignments". No counter. A Raid-Helper event has no `instanceIds`, so it gets
+  neither icon nor boss line. `syncRaidplanPost()` draws the same look when the share changes.
 - **Web:** the raid detail's payload carries `raidplanPost` (`raidplanPostState()`: `filled`, `published`,
   `publicPath` only while published, where and when it was posted; `null` without a plan). The own event's
   cockpit has the step *Einteilungen* (docs/events.md, "Das Raid-Cockpit"), a Raid-Helper event with a plan gets

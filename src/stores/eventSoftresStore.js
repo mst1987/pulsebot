@@ -73,6 +73,28 @@ function markEventSoftresPosted(eventId, { channelId, messageId, message } = {})
 }
 
 /**
+ * Remember the last fill count read from softres.it for the posted card
+ * (`{ ok, filled, expected, missingKey, checkedAt }`), so the status job only
+ * edits the Discord message when the count or the missing names changed.
+ */
+function setEventSoftresStatus(eventId, status = {}) {
+    const id = String(eventId || "").trim();
+    if (!id) return null;
+    const events = listEventSoftres();
+    const match = events.find((e) => e.eventId === id);
+    if (!match) return null;
+    match.status = {
+        ok: Boolean(status.ok),
+        filled: Number(status.filled || 0),
+        expected: Number(status.expected || 0),
+        missingKey: String(status.missingKey || ""),
+        checkedAt: Number(status.checkedAt || Date.now()),
+    };
+    store.write({ events });
+    return match;
+}
+
+/**
  * Point an event at a manually chosen softres.it link instead of one created
  * via the API — e.g. a list already set up directly on softres.it. Keeps any
  * existing metadata (instances/amount/edition/hardReserveCount) and only
@@ -108,5 +130,5 @@ function deleteEventSoftres(eventId) {
 
 module.exports = {
     listEventSoftres, getEventSoftres, saveEventSoftres, setEventSoftresLink,
-    markEventSoftresPosted, deleteEventSoftres, useFile: store.useFile,
+    markEventSoftresPosted, setEventSoftresStatus, deleteEventSoftres, useFile: store.useFile,
 };

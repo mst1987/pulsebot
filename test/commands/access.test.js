@@ -71,7 +71,7 @@ describe("bot command access declarations", () => {
     it("hangs Event verwalten under /event: subcommand, buttons, modals and the message context menu (#288)", () => {
         // "invite-call": the Invite-callen button under the setup message — the orga's, like /event;
         // "event-missing": Fehlende pingen under the signup message — everyone sees it, only the orga may click
-        for (const name of ["event-manage", "event-manage-form", "Event verwalten", "invite-call", "event-missing"]) {
+        for (const name of ["event-manage", "event-manage-form", "Event verwalten", "invite-call", "event-missing", "softres-ping"]) {
             expect({ name, accessOf: byName.get(name).accessOf }).toEqual({ name, accessOf: "event" });
         }
         const commands = commandDefinitions();
@@ -108,6 +108,7 @@ describe("bot command access declarations", () => {
 
     it("hangs the buttons, selects and modals under their command", () => {
         expect(byName.get("apply-class").accessOf).toBe("apply");
+        expect(byName.get("softres-missing").accessOf).toBe("event-signup");
         expect(byName.get("apply-spec").accessOf).toBe("apply");
         expect(byName.get("apply-modal").accessOf).toBe("apply");
         expect(byName.get("logcheck-eval").accessOf).toBe("logcheck");

@@ -1009,11 +1009,15 @@ async function finishLogButton(channelId, messageId, opts = {}) {
  * colour. Before it was plain `content` with an emoji heading, because text plus embed showed as two stacked blocks; a card
  * is one block. The card carries `content: ""` and `embeds: []`, so editing an older text post turns it into the card.
  */
-function buildLinkMessage({ url, title, kicker, message, facts, color, label = "Öffnen" } = {}) {
+function buildLinkMessage({ url, title, kicker, message, facts, color, label = "Öffnen", lines, thumbnail, note, buttons } = {}) {
     // Without a url (a withdrawn share, #537) the message keeps its text and loses the button.
     const button = url ? new ButtonBuilder().setLabel(label).setStyle(ButtonStyle.Link).setURL(url) : null;
+    // `lines`: short lines above the orga's message (the softres instances, the planned bosses); `buttons`: more
+    // buttons after the link (softres "Wer fehlt?"); `thumbnail`/`note` as in card().
+    const text = [...(Array.isArray(lines) ? lines : []), message].map((l) => String(l || "").trim()).filter(Boolean);
+    const extra = Array.isArray(buttons) ? buttons : [];
     return card({
-        kind: "raid", color, kicker, title, text: String(message || "").trim(), facts, buttons: button ? [button] : [],
+        kind: "raid", color, kicker, title, text, facts, thumbnail, note, buttons: [...(button ? [button] : []), ...extra],
     });
 }
 

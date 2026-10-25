@@ -30,6 +30,7 @@ const orgaHub = require("../../services/events/orgaHub");
 const raidOverview = require("../../services/events/raidOverview");
 const addonCenter = require("../../services/addons/addonCenter");
 const softresDetect = require("../../services/loot/softresDetect");
+const softresStatus = require("../../services/loot/softresStatus");
 const guildBankItemMeta = require("../../services/guildbank/itemMeta");
 const systemMonitor = require("../../services/system/systemMonitor");
 const backupSnapshots = require("../../services/backup/snapshotJob");
@@ -79,6 +80,8 @@ const JOBS = [
     { name: "guildBankItemMeta", start: () => guildBankItemMeta.startMetaRefresh(), stop: () => guildBankItemMeta.stopMetaRefresh() },
     // Softres lists the raid leads made on softres.it and posted into the raid channel while the bot was away.
     { name: "softresDetect", start: () => softresDetect.startSoftresDetect(), stop: () => softresDetect.stopSoftresDetect() },
+    // the softres cards in the raid channels: "Signed up x / y" kept current (every 10 min)
+    { name: "softresStatus", start: () => softresStatus.startSoftresStatus(), stop: () => softresStatus.stopSoftresStatus() },
     // Hourly snapshot of DATA_DIR into BACKUP_DIR (#691, docs/data-storage.md); only on the live bot unless BACKUP_ENABLED=1.
     { name: "backupSnapshots", start: () => backupSnapshots.startBackupJob({ commit: () => versionInfo().commit }), stop: () => backupSnapshots.stopBackupJob() },
     // Every 30 minutes: DM to ADMIN_USER_ID when a backup part failed or turned red (#696), at most once a day per part.
