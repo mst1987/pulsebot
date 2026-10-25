@@ -93,7 +93,7 @@ Technik: [discord-servers.md](discord-servers.md), [raidhelper-retirement.md](ra
 - **Automatische Ankündigung** neuer Events mit Rollenping (falls für die Kategorie aktiviert).
 - **Rollen-Synchronisierung** zwischen Event- und Talk-Server.
 - **Softres-Karte im Raid-Kanal:** zeigt, wie viele schon eingetragen sind („Eingetragen 14 / 25“), und aktualisiert sich etwa alle 10 Minuten. Der Knopf **„Wer fehlt?“** zeigt dir (nur für dich sichtbar) die Namen, die noch fehlen; „Jetzt pingen“ darunter kann nur die Orga nutzen.
-- **Raid-Einteilungen:** die Karte mit dem Link zum Raidplan zeigt den Raid klein über der Überschrift und das Instanz-Icon.
+- **Raid-Einteilungen:** die Karte mit dem Link zum Raidplan zeigt den Raid klein über der Überschrift, das Instanz-Icon und den Hinweis, vor Raidstart reinzuschauen.
 - Optional ein **natives Discord-Event** (Kalendereintrag) pro Raid.
 - Farbige **App-Emojis** für Klassen, Specs und Status in allen Bot-Nachrichten.
 

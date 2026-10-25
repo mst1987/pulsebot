@@ -18,6 +18,8 @@ const { tr } = require("../../utils/i18n/botText");
 
 // What the post says while the plan is not shared (#537): the link would lead nowhere, so it goes.
 const NOT_SHARED = "The raid assignments are not shared right now.";
+// The line under the heading when the orga gives none.
+const DEFAULT_LINE = "You'll find the raid assignments at the link below. Please take a look before the raid starts.";
 
 /** Whether an event (as loadEventGroups lists it) has a raid plan: an own event always, a Raid-Helper event once switched on. */
 function eventHasPlan(event, plan) {
@@ -33,8 +35,9 @@ function planFilled(plan) {
 
 /**
  * What the raider reads in Discord, in the server language (a public message, CLAUDE.md "Language"): the raid's name small
- * over the heading, the orga's optional line, the start SHORT as Discord timestamps (date + time + "in 3 hours" — the long
- * `:F` form read like a sentence nobody reads), in the event's colour (discord.buildLinkMessage makes the card).
+ * over the heading, the orga's line or else a short default line (without any text the card looked odd — the user's call,
+ * Oct 2026), the start SHORT as Discord timestamps (date + time + "in 3 hours" — the long `:F` form read like a sentence
+ * nobody reads), in the event's colour (discord.buildLinkMessage makes the card).
  */
 function linkMessage({ url, title, startTime, message, color, lang = serverLang(), thumbnail = "" }) {
     const start = Number(startTime) || 0;
@@ -42,7 +45,7 @@ function linkMessage({ url, title, startTime, message, color, lang = serverLang(
         url,
         kicker: String(title || "").trim(),
         title: tr(lang, "Raid assignments"),
-        message: String(message || "").trim(),
+        message: String(message || "").trim() || tr(lang, DEFAULT_LINE),
         facts: start ? [[tr(lang, "Start"), `<t:${start}:d> <t:${start}:t> · <t:${start}:R>`]] : [],
         color,
         label: tr(lang, "Open assignments"),
@@ -51,8 +54,8 @@ function linkMessage({ url, title, startTime, message, color, lang = serverLang(
 }
 
 /**
- * The look of the card (Oct 2026): the instance icon as thumbnail. No text under the heading — the raid's name above it
- * says which raids it is (the user's call: no boss list, no "assignments are ready" sentence).
+ * The look of the card (Oct 2026): the instance icon as thumbnail. No boss list — the raid's name above the heading says
+ * which raids it is.
  */
 function cardLook(event) {
     let thumbnail;
