@@ -5,7 +5,7 @@ module.exports = {
     "Entered": "Eingetragen",
     "Open Softres": "Softres öffnen",
     "Who is missing?": "Wer fehlt?",
-    "As of {time}": "Stand {time}",
+    "Last changed {time}": "Zuletzt geändert {time}",
     "No count available": "Kein Zähler verfügbar",
     "The soft reserves of this list are hidden — the bot cannot see who has entered.": "Die Reserves dieser Liste sind versteckt — der Bot sieht nicht, wer eingetragen hat.",
     "Nobody is signed up for this raid yet.": "Für diesen Raid ist noch niemand angemeldet.",
@@ -15,6 +15,6 @@ module.exports = {
     "1 still missing": "1 fehlt noch",
     "{n} still missing": "{n} fehlen noch",
     "Ping now": "Jetzt pingen",
-    "Only the orga can ping · as of {time}": "Pingen kann nur die Orga · Stand {time}",
+    "Only the orga can ping them.": "Pingen kann nur die Orga.",
     "Please enter your soft reserves: {url}": "Bitte Softres eintragen: {url}",
 };

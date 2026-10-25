@@ -174,7 +174,7 @@ describe("services/loot/softresStatus", () => {
                 ["Eingetragen", "14 / 25"],
             ]);
             expect(o.buttons.map((b) => b.toJSON())).toEqual([expect.objectContaining({ custom_id: "softres-missing:eh-1", label: "Wer fehlt?" })]);
-            expect(o.note).toBe("Stand <t:1799990000:t>");
+            expect(o.note).toBe("Zuletzt geändert <t:1799990000:R>");
         });
 
         it("speaks the event's language", () => {

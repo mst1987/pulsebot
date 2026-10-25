@@ -8,9 +8,9 @@
 //   softres-ping:<eventId>      "Ping now" under the list → the ping (the orga,
 //                               access as "Fehlende pingen": accessOf "event")
 //
-// A component cannot be hidden per viewer, so a raider sees "Ping now" too; the
-// router (botAccess.guardInteraction) answers them with the friendly no in their
-// language. Against a double ping: the list's buttons go at once, one ping per
+// The list goes to exactly one person, so "Ping now" is only on it when the clicker
+// passes the same Bot-Befehle rule the router checks for the ping button (`mayPing`);
+// the router (botAccess.guardInteraction) still guards the click itself. Against a double ping: the list's buttons go at once, one ping per
 // event runs at a time, and a second one within two minutes is refused.
 // The list is a raider text (tr + eventLang), the ping's answers are orga texts
 // and stay German; the ping in the channel speaks the event's language.
@@ -21,6 +21,8 @@ const discord = require("../discord/discord");
 const { eventLang } = require("../discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
 const { eventVersionTag } = require("../events/versionTag");
+const { ruleFor, resolveBotAccess, eventMemberRoles, eventGuildId } = require("../discord/botAccess");
+const { getConfig } = require("../../stores/configStore");
 const { SOFTRES_MISSING_PREFIX, SOFTRES_PING_PREFIX, resolveEvent, readStatus, refreshSoftresCard } = require("./softresStatus");
 
 /** Own events (eh-…) and Raid-Helper events (numeric ids). */
@@ -72,8 +74,26 @@ function noCountText(status, lang) {
     return tr(lang, "softres.it cannot be reached right now — please try again later.");
 }
 
-/** The list a click on "Who is missing?" answers with. */
-function missingCard(event, status, lang) {
+/**
+ * Whether the clicker may press "Ping now": the rule of the ping button (accessOf "event"),
+ * resolved like botAccess.guardInteraction does. Never throws — on doubt the button stays away.
+ */
+async function mayPing(interaction) {
+    try {
+        const config = getConfig();
+        const commands = (interaction.client && interaction.client.commands) || (discord.getClient && (discord.getClient() || {}).commands);
+        const rule = ruleFor(SOFTRES_PING_PREFIX, { commands, config });
+        if (rule.mode === "everyone") return true;
+        const userId = String(interaction.user && interaction.user.id);
+        const roleIds = await eventMemberRoles(interaction, eventGuildId(config));
+        return resolveBotAccess(SOFTRES_PING_PREFIX, { id: userId, roleIds }, { commands, config }).allowed;
+    } catch {
+        return false;
+    }
+}
+
+/** The list a click on "Who is missing?" answers with; `canPing` = the clicker is orga. */
+function missingCard(event, status, lang, canPing = false) {
     const kicker = kickerOf(event);
     if (!status.ok) return answer({ kind: "info", kicker, title: tr(lang, "No count available"), text: noCountText(status, lang) });
     const n = status.missing.length;
@@ -83,8 +103,9 @@ function missingCard(event, status, lang) {
         kicker,
         title: n === 1 ? tr(lang, "1 still missing") : tr(lang, "{n} still missing", { n }),
         text: namesLine(status.missing, lang),
-        buttons: [new ButtonBuilder().setCustomId(`${SOFTRES_PING_PREFIX}:${event.id}`).setLabel(tr(lang, "Ping now")).setStyle(ButtonStyle.Primary)],
-        note: tr(lang, "Only the orga can ping · as of {time}", { time: `<t:${status.checkedAt}:t>` }),
+        ...(canPing
+            ? { buttons: [new ButtonBuilder().setCustomId(`${SOFTRES_PING_PREFIX}:${event.id}`).setLabel(tr(lang, "Ping now")).setStyle(ButtonStyle.Primary)] }
+            : { note: tr(lang, "Only the orga can ping them.") }),
     });
 }
 
@@ -96,7 +117,8 @@ async function showMissing(interaction, eventId, event) {
     const lang = eventLang(event);
     const status = await readStatus(eventId, { event });
     await refreshSoftresCard(eventId, { status });
-    return interaction.editReply(asEdit(missingCard(event, status, lang)));
+    const canPing = status.ok && status.missing.length > 0 ? await mayPing(interaction) : false;
+    return interaction.editReply(asEdit(missingCard(event, status, lang, canPing)));
 }
 
 /** "Ping now": the buttons go at once, then a fresh read, then the ping in the event channel. */
@@ -150,5 +172,5 @@ async function handleSoftresComponent(interaction, guildId) {
 module.exports = {
     SOFTRES_MISSING_PREFIX, SOFTRES_PING_PREFIX, handleSoftresComponent,
     // only for the tests: not part of the module's API
-    _internal: { parseEventId, namesLine, missingCard, resetCooldowns, inFlight, lastPing, MAX_NAMES, COOLDOWN_MS },
+    _internal: { parseEventId, namesLine, missingCard, mayPing, resetCooldowns, inFlight, lastPing, MAX_NAMES, COOLDOWN_MS },
 };

@@ -14,11 +14,19 @@ jest.mock("../../../src/stores/eventSoftresStore", () => ({
 jest.mock("../../../src/services/discord/discord", () => ({ postMissingPing: jest.fn(async () => undefined) }));
 jest.mock("../../../src/services/discord/botLanguage", () => ({ eventLang: jest.fn(() => "de") }));
 jest.mock("../../../src/services/events/versionTag", () => ({ eventVersionTag: jest.fn(() => "") }));
+jest.mock("../../../src/services/discord/botAccess", () => ({
+    ruleFor: jest.fn(),
+    resolveBotAccess: jest.fn(),
+    eventMemberRoles: jest.fn(),
+    eventGuildId: jest.fn(() => "g1"),
+}));
+jest.mock("../../../src/stores/configStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
 const { MessageFlags } = require("discord.js");
 const status = require("../../../src/services/loot/softresStatus");
 const discord = require("../../../src/services/discord/discord");
 const { eventLang } = require("../../../src/services/discord/botLanguage");
+const botAccess = require("../../../src/services/discord/botAccess");
 const { handleSoftresComponent, _internal } = require("../../../src/services/loot/softresMissingBot");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { asEmbed, cardButtons } = require("../../helpers/card");
@@ -32,6 +40,9 @@ beforeEach(() => {
     _internal.resetCooldowns();
     eventLang.mockReturnValue("de");
     status.resolveEvent.mockReturnValue({ event: EVENT, raw: null });
+    botAccess.ruleFor.mockReset().mockReturnValue({ mode: "roles", roleIds: ["orga"] });
+    botAccess.resolveBotAccess.mockReset().mockReturnValue({ allowed: true });
+    botAccess.eventMemberRoles.mockReset().mockResolvedValue(["orga"]);
 });
 
 describe("services/loot/softresMissingBot", () => {
@@ -67,8 +78,32 @@ describe("services/loot/softresMissingBot", () => {
             const card = asEmbed(payload);
             expect(card.title).toBe("2 fehlen noch");
             expect(card.text).toContain("Raider0 · Raider1");
-            expect(card.footer.text).toBe("Pingen kann nur die Orga · Stand <t:1799990000:t>");
             expect(cardButtons(payload)).toEqual([expect.objectContaining({ custom_id: "softres-ping:eh-1", label: "Jetzt pingen" })]);
+            expect(botAccess.resolveBotAccess).toHaveBeenCalledWith("softres-ping", { id: String(interaction.user.id), roleIds: ["orga"] }, expect.any(Object));
+        });
+
+        it("shows a raider the list without \"Jetzt pingen\", with a note instead", async () => {
+            botAccess.resolveBotAccess.mockReturnValue({ allowed: false });
+            status.readStatus.mockResolvedValue(okStatus(2));
+            const i = mockInteraction({ customId: "softres-missing:eh-1" });
+            await handleSoftresComponent(i, "g1");
+            const payload = i.editReply.mock.calls[0][0];
+            expect(cardButtons(payload)).toEqual([]);
+            expect(asEmbed(payload).footer.text).toBe("Pingen kann nur die Orga.");
+        });
+
+        it("keeps the button away when the access lookup fails, and skips the lookup for \"everyone\"", async () => {
+            status.readStatus.mockResolvedValue(okStatus(1));
+            botAccess.eventMemberRoles.mockRejectedValue(new Error("boom"));
+            const a = mockInteraction({ customId: "softres-missing:eh-1" });
+            await handleSoftresComponent(a, "g1");
+            expect(cardButtons(a.editReply.mock.calls[0][0])).toEqual([]);
+
+            botAccess.ruleFor.mockReturnValue({ mode: "everyone", roleIds: [] });
+            const b = mockInteraction({ customId: "softres-missing:eh-1" });
+            await handleSoftresComponent(b, "g1");
+            expect(cardButtons(b.editReply.mock.calls[0][0])).toHaveLength(1);
+            expect(botAccess.eventMemberRoles).toHaveBeenCalledTimes(1);
         });
 
         it("says one missing, everyone in, or why there is no count — in the event's language", async () => {

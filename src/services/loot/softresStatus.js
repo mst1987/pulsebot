@@ -200,7 +200,7 @@ function softresCardOpts(event, sr, status, { message = "", lang } = {}) {
         buttons: ok && event && event.id
             ? [new ButtonBuilder().setCustomId(`${SOFTRES_MISSING_PREFIX}:${event.id}`).setLabel(tr(l, "Who is missing?")).setStyle(ButtonStyle.Secondary)]
             : [],
-        note: checkedAt ? tr(l, "As of {time}", { time: `<t:${checkedAt}:t>` }) : "",
+        note: checkedAt ? tr(l, "Last changed {time}", { time: `<t:${checkedAt}:R>` }) : "",
     };
 }
 
