@@ -15,6 +15,7 @@ const linkCheck = require("../discord/linkCheck");
 const { serverLang, eventLang } = require("../discord/botLanguage");
 const { embedColor, ruleSetLook } = require("../events/embedLook");
 const { tr } = require("../../utils/i18n/botText");
+const { instanceById } = require("../../config/gameVersions");
 
 // What the post says while the plan is not shared (#537): the link would lead nowhere, so it goes.
 const NOT_SHARED = "The raid assignments are not shared right now.";
@@ -36,7 +37,7 @@ function planFilled(plan) {
  * over the heading, the orga's optional line, the start SHORT as Discord timestamps (date + time + "in 3 hours" — the long
  * `:F` form read like a sentence nobody reads), in the event's colour (discord.buildLinkMessage makes the card).
  */
-function linkMessage({ url, title, startTime, message, color, lang = serverLang(), thumbnail = "", bosses = [] }) {
+function linkMessage({ url, title, startTime, message, color, lang = serverLang(), thumbnail = "", raids = [] }) {
     const start = Number(startTime) || 0;
     return {
         url,
@@ -47,26 +48,31 @@ function linkMessage({ url, title, startTime, message, color, lang = serverLang(
         color,
         label: tr(lang, "Open assignments"),
         ...(thumbnail ? { thumbnail } : {}),
-        ...(bosses.length ? { lines: [bosses.join(" · ")] } : {}),
+        lines: [readyLine(raids, lang)],
     };
 }
 
-/**
- * The bosses the plan has assignments for, in the raid's order and named as in
- * the raid plan (raidplanStore.bossesForInstances; only boards with content are stored).
- */
-function plannedBosses(event, plan) {
-    const keys = new Set(Object.keys((plan && plan.bosses) || {}));
-    return raidplanStore.bossesForInstances(event && event.instanceIds)
-        .filter((b) => !b.general && !b.trash && keys.has(b.key))
-        .map((b) => b.name);
+/** One plain sentence that the assignments are there, naming the evening's raids when the event lists them — no boss list. */
+function readyLine(raids, lang) {
+    const names = (Array.isArray(raids) ? raids : []).map((r) => String(r || "").trim()).filter(Boolean);
+    if (!names.length) return tr(lang, "The raid assignments are ready.");
+    const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} ${tr(lang, "and")} ${names[names.length - 1]}`;
+    return tr(lang, "The raid assignments are ready for: {raids}.", { raids: list });
 }
 
-/** The look of the card (Oct 2026): the instance icon as thumbnail and the planned bosses as one line. */
-function cardLook(event, plan) {
+/** The names of the event's raids, in its order (a Raid-Helper event has no instance ids, so none). */
+function raidNames(event) {
+    return (Array.isArray(event && event.instanceIds) ? event.instanceIds : [])
+        .map((id) => instanceById(id))
+        .filter(Boolean)
+        .map((inst) => inst.name);
+}
+
+/** The look of the card (Oct 2026): the instance icon as thumbnail and the evening's raids in one sentence. */
+function cardLook(event) {
     let thumbnail;
     try { thumbnail = ruleSetLook(event && event.instanceIds).thumbnail || ""; } catch { thumbnail = ""; }
-    return { thumbnail, bosses: plannedBosses(event, plan) };
+    return { thumbnail, raids: raidNames(event) };
 }
 
 /** The card's colour: the event's own, its instance's, or the accent colour (services/events/embedLook). */
@@ -104,7 +110,7 @@ async function postRaidplanLink({ event, message, userId = "" }) {
     const wasPublished = plan.status === "published" && !!plan.publicToken;
     const current = wasPublished ? plan : raidplanStore.setPublished(event.id, true, { userId }).plan;
     const url = `${base}/p/${current.publicToken}`;
-    const opts = linkMessage({ url, title: event.title, startTime: event.startTime, message: text, color: colorOf(event), lang: eventLang(event), ...cardLook(event, current) });
+    const opts = linkMessage({ url, title: event.title, startTime: event.startTime, message: text, color: colorOf(event), lang: eventLang(event), ...cardLook(event) });
 
     const hadPost = !!(before && before.channelId && before.messageId);
     let posted;
@@ -167,7 +173,7 @@ async function syncRaidplanPost(event) {
     const post = getRaidplanPost(event && event.id);
     if (!post || !post.channelId || !post.messageId) return "none";
     const url = linkCheck.webTarget("raidplan", event.id);
-    const base = { title: event.title, startTime: event.startTime, color: colorOf(event), lang: eventLang(event), ...cardLook(event, raidplanStore.getPlan(event.id)) };
+    const base = { title: event.title, startTime: event.startTime, color: colorOf(event), lang: eventLang(event), ...cardLook(event) };
     const opts = url
         ? linkMessage({ ...base, url, message: post.message })
         : linkMessage({ ...base, url: "", message: tr(base.lang, NOT_SHARED) });
@@ -179,4 +185,4 @@ async function syncRaidplanPost(event) {
     }
 }
 
-module.exports = { postRaidplanLink, raidplanPostState, syncRaidplanPost, linkMessage, plannedBosses, eventHasPlan, planFilled, NOT_SHARED };
+module.exports = { postRaidplanLink, raidplanPostState, syncRaidplanPost, linkMessage, readyLine, raidNames, eventHasPlan, planFilled, NOT_SHARED };

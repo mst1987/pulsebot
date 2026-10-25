@@ -8,6 +8,9 @@ module.exports = {
     "Open assignments": "Einteilung öffnen",
     "Start": "Start",
     "The raid assignments are not shared right now.": "Die Raid-Einteilung ist gerade nicht freigegeben.",
+    "The raid assignments are ready.": "Die Einteilungen sind da.",
+    "The raid assignments are ready for: {raids}.": "Die Einteilungen sind da für: {raids}.",
+    "and": "und",
     // the signup message
     "{count} signed up": "{count} angemeldet",
     // a raid group (#811): one signup for several raids of the evening

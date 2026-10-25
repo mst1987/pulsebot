@@ -9,7 +9,7 @@ const discord = require("../../../src/services/discord/discord");
 const { publicBaseUrl } = require("../../../src/utils/publicUrl");
 const raidplanStore = require("../../../src/stores/raidplanStore");
 const { getRaidplanPost, markRaidplanPosted } = require("../../../src/stores/raidplanPostStore");
-const { postRaidplanLink, raidplanPostState, syncRaidplanPost, linkMessage, eventHasPlan, planFilled, NOT_SHARED } = require("../../../src/services/raidplan/raidplanPost");
+const { postRaidplanLink, raidplanPostState, syncRaidplanPost, linkMessage, readyLine, raidNames, eventHasPlan, planFilled, NOT_SHARED } = require("../../../src/services/raidplan/raidplanPost");
 const { knownChannels, deletedChannels, linkCheck } = require("../../helpers/linkCheck");
 
 const OWN = { id: "eh-1", source: "eventhelper", title: "Karazhan", channelId: "chan1", startTime: 1800000000 };
@@ -36,12 +36,31 @@ describe("services/raidplan/raidplanPost", () => {
             expect(linkMessage({ url: "https://x/p/t", title: "Karazhan", startTime: 1800000000, message: " Bitte lesen ", color: 0x2bb39b, lang: "en" })).toEqual({
                 url: "https://x/p/t", kicker: "Karazhan", title: "Raid assignments", message: "Bitte lesen",
                 facts: [["Start", "<t:1800000000:d> <t:1800000000:t> · <t:1800000000:R>"]], color: 0x2bb39b, label: "Open assignments",
+                lines: ["The raid assignments are ready."],
             });
             expect(linkMessage({ url: "u", title: "Karazhan", startTime: 1800000000, lang: "de" })).toMatchObject({ title: "Raid-Einteilungen", label: "Einteilung öffnen" });
         });
 
         it("does without title, start and message", () => {
             expect(linkMessage({ url: "u", lang: "en" })).toMatchObject({ kicker: "", title: "Raid assignments", message: "", facts: [] });
+        });
+
+        it("says in one sentence that the assignments are there, naming the evening's raids — no boss list", () => {
+            expect(readyLine([], "de")).toBe("Die Einteilungen sind da.");
+            expect(readyLine(["Karazhan"], "de")).toBe("Die Einteilungen sind da für: Karazhan.");
+            expect(readyLine(["Hyjalgipfel", "Der Schwarze Tempel", "Gruuls Unterschlupf"], "de"))
+                .toBe("Die Einteilungen sind da für: Hyjalgipfel, Der Schwarze Tempel und Gruuls Unterschlupf.");
+            expect(readyLine(["Karazhan", " ", "Gruuls Unterschlupf"], "en")).toBe("The raid assignments are ready for: Karazhan and Gruuls Unterschlupf.");
+            expect(linkMessage({ url: "u", raids: ["Karazhan"], thumbnail: "https://icon", lang: "de" }))
+                .toMatchObject({ lines: ["Die Einteilungen sind da für: Karazhan."], thumbnail: "https://icon" });
+        });
+    });
+
+    describe("raidNames", () => {
+        it("names the event's raids in its order and skips unknown ids; a Raid-Helper event has none", () => {
+            expect(raidNames({ instanceIds: ["hyjal", "nope", "bt"] })).toEqual(["Hyjalgipfel", "Der Schwarze Tempel"]);
+            expect(raidNames({})).toEqual([]);
+            expect(raidNames(null)).toEqual([]);
         });
     });
 
@@ -97,6 +116,14 @@ describe("services/raidplan/raidplanPost", () => {
             expect(r.body).toMatchObject({ updated: false, url, published: true });
             expect(r.body.message).toMatch(/gepostet.*freigegeben/);
             expect(getRaidplanPost("eh-1")).toMatchObject({ channelId: "chan1", messageId: "m1", message: "Bitte lesen", postedBy: "u9" });
+        });
+
+        it("shows the instance icon and names the evening's raids in one sentence", async () => {
+            savePlan("eh-1");
+            await postRaidplanLink({ event: { ...OWN, instanceIds: ["kara"] } });
+            const opts = discord.postLink.mock.calls[0][1];
+            expect(opts.lines).toEqual(["Die Einteilungen sind da für: Karazhan."]);
+            expect(opts.thumbnail).toMatch(/^https:\/\/\S+$/);
         });
 
         it("edits the message it posted before, keeps the token and the last text", async () => {
