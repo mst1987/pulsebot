@@ -183,12 +183,11 @@ The read link as one message in the event's channel, like "Sheet posten" for the
   `message` in the body the text of the last post stays, `""` clears it. Deleting the event forgets the record.
 - **What the raider reads** (a card, `discord.buildLinkMessage` like the sheet and softres posts, in the event's
   language — `eventLang`): the raid's name small over the heading **"Raid-Einteilungen"** (`tr(lang, "Raid
-  assignments")`), the **instance icon** as thumbnail (`ruleSetLook(instanceIds).thumbnail`), **one sentence that the
-  assignments are there**, naming the evening's raids from `instanceIds` (`readyLine()` / `raidNames()`: "Die
-  Einteilungen sind da für: Hyjalgipfel, Der Schwarze Tempel und Gruuls Unterschlupf." — deliberately no boss list,
-  the user's call, Oct 2026), the orga's line, the start short (`<t:…:d> <t:…:t> · <t:…:R>`) and the link button
-  "Open assignments". No counter. A Raid-Helper event has no `instanceIds`, so it gets no icon and the sentence
-  without raid names ("Die Einteilungen sind da."). `syncRaidplanPost()` draws the same look when the share changes.
+  assignments")`), the **instance icon** as thumbnail (`ruleSetLook(instanceIds).thumbnail`), the orga's line,
+  the start short (`<t:…:d> <t:…:t> · <t:…:R>`) and the link button "Open assignments". **No text of its own** under
+  the heading — the raid's name above it already says which raids it is (the user's call, Oct 2026: no boss list, no
+  "assignments are ready" sentence). No counter. A Raid-Helper event has no `instanceIds`, so it gets no icon.
+  `syncRaidplanPost()` draws the same look when the share changes.
 - **Web:** the raid detail's payload carries `raidplanPost` (`raidplanPostState()`: `filled`, `published`,
   `publicPath` only while published, where and when it was posted; `null` without a plan). The own event's
   cockpit has the step *Einteilungen* (docs/events.md, "Das Raid-Cockpit"), a Raid-Helper event with a plan gets
