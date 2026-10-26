@@ -192,7 +192,7 @@ describe("services/logcheck/logChannel — evaluateLog", () => {
         const res = await evaluateLog("l1", "rpb");
         expect(res).toMatchObject({ ok: true, section: "rpb" });
         // merges into the page the CLA run created rather than making a second one
-        expect(buildReport).toHaveBeenCalledWith("x", { versionId: "tbc", sections: ["rpb"], mergeIntoId: "abc123", force: false });
+        expect(buildReport).toHaveBeenCalledWith("x", { versionId: "tbc", sections: ["rpb"], mergeIntoId: "abc123", force: false, plannedIds: [] });
     });
 
     it("builds, marks evaluated and returns the url on success", async () => {
@@ -203,12 +203,30 @@ describe("services/logcheck/logChannel — evaluateLog", () => {
         const res = await evaluateLog("l1");
         expect(buildReport).toHaveBeenCalledWith(
             "https://classic.warcraftlogs.com/reports/RPT1",
-            { versionId: "tbc", sections: ["cla"], mergeIntoId: undefined, force: false },
+            { versionId: "tbc", sections: ["cla"], mergeIntoId: undefined, force: false, plannedIds: [] },
         );
         expect(logStore.markEvaluated).toHaveBeenCalledWith("l1", expect.objectContaining({
             reportRefId: "abc123", reportUrl: "/r/abc123", title: "SSC + TK", sections: ["cla"],
         }));
         expect(res).toMatchObject({ ok: true, id: "abc123", url: "/r/abc123", section: "cla" });
+    });
+
+    it("hands the guard the instances the log's own raid planned", async () => {
+        const eventStore = require("../../../src/stores/eventStore.js");
+        const spy = jest.spyOn(eventStore, "getEvent").mockReturnValue({ id: "eh-1", instanceIds: ["hyjal", "bt"] });
+        logStore.getLog.mockReturnValue({ id: "l1", status: "open", link: "x", eventId: "eh-1" });
+        buildReport.mockRejectedValue(new ReportError("egal"));
+        await evaluateLog("l1");
+        expect(spy).toHaveBeenCalledWith("eh-1");
+        expect(buildReport).toHaveBeenCalledWith("x", expect.objectContaining({ plannedIds: ["hyjal", "bt"] }));
+        spy.mockRestore();
+    });
+
+    it("plans nothing for a log linked to a Raid-Helper event", async () => {
+        logStore.getLog.mockReturnValue({ id: "l1", status: "open", link: "x", eventId: "1234567890" });
+        buildReport.mockRejectedValue(new ReportError("egal"));
+        await evaluateLog("l1");
+        expect(buildReport).toHaveBeenCalledWith("x", expect.objectContaining({ plannedIds: [] }));
     });
 
     it("defaults to the CLA half when no section is given", async () => {

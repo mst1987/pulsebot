@@ -4,6 +4,7 @@
 
 const { getConfig } = require("../../stores/settingsStore");
 const logStore = require("../../stores/logStore");
+const eventStore = require("../../stores/eventStore");
 const discord = require("../discord/discord");
 const { extractWclLinks } = require("../../utils/logcheck/logLinks");
 const { buildReport, ReportError } = require("../../utils/logcheck/report");
@@ -139,6 +140,18 @@ const SECTION_RPB = "rpb";
 const SECTION_LABEL = { [SECTION_CLA]: "CLA", [SECTION_RPB]: "RPB" };
 
 /**
+ * The instances the log's own raid planned ("Hyjal + BT" → hyjal, bt), so the
+ * guard also waits for a raid the log has not reached yet. [] for a log without
+ * a raid or linked to a Raid-Helper event, which names no instances.
+ */
+function plannedInstances(log) {
+    const id = (log && log.eventId) || "";
+    if (!eventStore.isOwnEventId(id)) return [];
+    const event = eventStore.getEvent(id);
+    return (event && Array.isArray(event.instanceIds)) ? event.instanceIds : [];
+}
+
+/**
  * Evaluate one half of a tracked log — the CLA (gear/consumables) or the RPB
  * (performance) analysis. Each half runs at most once; the second one merges into
  * the page the first one created, so the link stays the same and just gains tabs.
@@ -183,6 +196,7 @@ async function evaluateLog(logId, section = SECTION_CLA, opts = {}) {
                 // fold into the page the other half already created, if there is one
                 mergeIntoId: log.reportRefId || undefined,
                 force: !!opts.force,
+                plannedIds: plannedInstances(log),
             });
         } catch (e) {
             // The raid is still running: a refusal to answer, not a failure —

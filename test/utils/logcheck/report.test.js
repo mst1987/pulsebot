@@ -138,7 +138,7 @@ describe("logcheck/report — buildReport dedup", () => {
     it("clears the in-flight guard even when the build fails, so a retry is not stuck", async () => {
         mockGetFights.mockRejectedValueOnce(new Error("boom"));
         await expect(buildReport("RPT1")).rejects.toThrow(ReportError);
-        mockGetFights.mockResolvedValueOnce({ title: "T", zoneName: "Z", start: 0, end: 1 });
+        mockGetFights.mockResolvedValueOnce({ title: "T", zoneName: "Z", start: 0, end: 1, fights: [{ id: 1, boss: 628, name: "Lady Vashj", kill: true }] });
         await expect(buildReport("RPT1")).resolves.toMatchObject({ id: expect.any(String) });
         expect(mockGetFights).toHaveBeenCalledTimes(2);
     });

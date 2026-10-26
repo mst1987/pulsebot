@@ -220,10 +220,11 @@ describe("config/gameVersions", () => {
             }
         });
 
-        it("never block an evaluation", () => {
+        it("never block an evaluation over their unknown final boss", () => {
+            // a kill of some boss: a log without any kill is refused everywhere (raidProgress.js)
             const p = analyzeRaidProgress({
                 zoneName: "Barrow Deeps",
-                fights: [{ id: 1, boss: 9001, name: "Unknown Barrow Lord", kill: false }],
+                fights: [{ id: 1, boss: 9001, name: "Unknown Barrow Lord", kill: true }],
             });
             expect(p.complete).toBe(true);
             expect(p.raids).toEqual([expect.objectContaining({ contentId: "forever-barrow", done: true })]);
