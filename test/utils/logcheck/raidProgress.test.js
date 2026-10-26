@@ -100,10 +100,19 @@ describe("raidProgress — what it refuses to judge", () => {
         // A raid this table does not know (a fresh tier, a private server's own
         // encounter) must not become unevaluatable.
         const p = analyzeRaidProgress(report([
-            { name: "Some Unknown Boss", kill: false },
+            { name: "Some Unknown Boss", kill: true },
         ], "Neue Instanz"));
         expect(p.complete).toBe(true);
         expect(p.known).toBe(false);
+    });
+
+    it("never calls a log without a single kill finished, even in an unknown zone", () => {
+        // A log posted at the first pull: no boss, no zone it knows — and still
+        // not a raid night that is over (Oct 2026, "Raider: 0" evaluations).
+        const p = analyzeRaidProgress(report([{ name: "Some Unknown Boss", kill: false }], "Neue Instanz"));
+        expect(p.complete).toBe(false);
+        expect(p.raids).toEqual([]);
+        expect(progressSummary(p)).toBe("Im Log ist noch kein Boss gelegt (1 Pull ohne Kill).");
     });
 
     it("blocks a zone it knows even when no boss was pulled at all", () => {
@@ -113,9 +122,35 @@ describe("raidProgress — what it refuses to judge", () => {
         expect(p.pending).toEqual(["Der Schwarze Tempel"]);
     });
 
-    it("survives a report with no fights at all", () => {
-        expect(analyzeRaidProgress({}).complete).toBe(true);
-        expect(analyzeRaidProgress(null).complete).toBe(true);
+    it("survives a report with no fights at all — and does not call it finished", () => {
+        expect(analyzeRaidProgress({}).complete).toBe(false);
+        expect(analyzeRaidProgress(null).complete).toBe(false);
+        expect(progressSummary(analyzeRaidProgress({}))).toBe("Im Log ist noch kein Boss gelegt.");
+    });
+});
+
+describe("raidProgress — the raids the linked event planned", () => {
+    it("waits for a planned raid the log has not reached yet", () => {
+        // "Hyjal + BT": Hyjal is done, Black Temple not entered — not over yet.
+        const p = analyzeRaidProgress(report([{ name: "Archimonde", kill: true }], "Hyjal Summit"), { plannedIds: ["hyjal", "bt"] });
+        expect(p.complete).toBe(false);
+        expect(p.raids.map((r) => r.contentId)).toEqual(["hyjal", "bt"]);
+        expect(p.pending).toEqual(["Der Schwarze Tempel"]);
+        expect(progressSummary(p)).toContain("Illidan Stormrage");
+    });
+
+    it("is complete once every planned raid's final boss lies", () => {
+        const p = analyzeRaidProgress(report([
+            { name: "Archimonde", kill: true },
+            { name: "Illidan Stormrage", kill: true },
+        ]), { plannedIds: ["hyjal", "bt"] });
+        expect(p.complete).toBe(true);
+    });
+
+    it("ignores planned ids it does not know", () => {
+        const p = analyzeRaidProgress(report([{ name: "Archimonde", kill: true }]), { plannedIds: ["nope", ""] });
+        expect(p.raids.map((r) => r.contentId)).toEqual(["hyjal"]);
+        expect(p.complete).toBe(true);
     });
 });
 

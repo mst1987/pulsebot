@@ -96,6 +96,8 @@ function normalizeSections(sections) {
  * @param {object} [opts.event]  the raid the log is linked to: its version is the report's
  * @param {string} [opts.versionId]  the stored version of a tracked log (logStore);
  *   without event or version the link's host decides, else TBC (logVersion.js)
+ * @param {string[]} [opts.plannedIds]  the instances the linked raid planned: each
+ *   one has to be finished too, even before the log reached it (raidProgress.js)
  * @throws {ReportError} with a user-friendly message on any expected failure
  * @throws {IncompleteRaidError} when the raid is still running and force is not set
  * @throws {UnsupportedVersionError} for a version the log check has no rules for — before any WCL request
@@ -113,13 +115,13 @@ async function buildReport(link, opts = {}) {
     const key = `${reportId}:${sections.join("+")}${opts.force ? ":force" : ""}`;
     const running = inFlight.get(key);
     if (running) return running;
-    const build = buildReportForId(reportId, sections, opts.mergeIntoId, !!opts.force, { host, versionId })
+    const build = buildReportForId(reportId, sections, opts.mergeIntoId, !!opts.force, { host, versionId, plannedIds: opts.plannedIds })
         .finally(() => inFlight.delete(key));
     inFlight.set(key, build);
     return build;
 }
 
-async function buildReportForId(reportId, sections, mergeIntoId, force, { host, versionId }) {
+async function buildReportForId(reportId, sections, mergeIntoId, force, { host, versionId, plannedIds }) {
     // The version's rule set (#747): its classes, its role mapping and which
     // analyzers run. TBC runs every one, exactly as before.
     const rules = logcheckRules(versionId);
@@ -129,7 +131,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force, { host, 
     // Before anything expensive: has the raid actually ended? The fight list is
     // the one request this needs, and it is the one already made — so a refusal
     // costs a single call instead of the dozens the analysis would spend.
-    const progress = analyzeRaidProgress(fights, { versionId });
+    const progress = analyzeRaidProgress(fights, { versionId, plannedIds });
     if (!force && !progress.complete) throw new IncompleteRaidError(progress);
 
     const table = await loadFromWcl(() => wcl.getCasts(reportId, 0, fights.end || 999999999999));

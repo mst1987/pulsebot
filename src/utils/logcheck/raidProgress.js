@@ -71,14 +71,19 @@ function bossGrid(contentId, killedKeys, finalKilled) {
 // unknown zone, an encounter list it has no final boss for) is never blocked:
 // being unable to see the end of a raid is not evidence that it has not
 // happened, and a guard nobody can get past is worse than one that misses a
-// case.
+// case. Two exceptions: a log without a single kill is never a finished raid
+// night (a log posted at the first pull, Oct 2026), and the raids the linked
+// event planned count even before the log reached them ("Hyjal + BT" with BT
+// not entered yet).
 
 /**
  * Which raids a WCL report covers and whether each one was finished.
  *
  * @param {object} fights  the report/fights response (`fights`, `zoneName`)
+ * @param {{versionId?: string, plannedIds?: string[]}} [opts]  plannedIds: the
+ *   instances of the raid the log is linked to; each one is expected in the log
  * @returns {{
- *   complete: boolean,      // nothing left to kill (or nothing we can judge)
+ *   complete: boolean,      // nothing left to kill (or nothing we can judge), and at least one kill
  *   known: boolean,         // at least one raid was identified
  *   raids: {contentId,label,finalBosses,done,killed,wiped}[],
  *   pending: string[],      // labels of the raids still missing their final boss
@@ -100,6 +105,10 @@ function analyzeRaidProgress(fights, opts = {}) {
     }
     const zoneId = contentForInstance((fights && fights.zoneName) || "", versionId);
     if (zoneId && !contentIds.includes(zoneId)) contentIds.push(zoneId);
+    // The linked raid's instances, in its order, after what the log itself shows.
+    for (const id of (opts && Array.isArray(opts.plannedIds)) ? opts.plannedIds : []) {
+        if (id && content(id) && !contentIds.includes(id)) contentIds.push(id);
+    }
 
     const killedNames = new Set(bossFights.filter((f) => f.kill).map((f) => normalizeBoss(f.name)));
     const killedKeys = new Set(bossFights.filter((f) => f.kill).map((f) => encounterKey(f.name)));
@@ -129,7 +138,7 @@ function analyzeRaidProgress(fights, opts = {}) {
     const kills = bossFights.filter((f) => f.kill);
 
     return {
-        complete: !pending.length,
+        complete: !pending.length && kills.length > 0,
         known: raids.some((r) => r.finalBosses.length > 0),
         raids,
         pending,
@@ -147,6 +156,11 @@ function analyzeRaidProgress(fights, opts = {}) {
 function progressSummary(progress) {
     if (!progress || progress.complete) return "";
     const missing = progress.raids.filter((r) => !r.done);
+    // no raid to name, only no kill: the log has just started
+    if (!missing.length) {
+        const pulls = progress.bossCount ? ` (${progress.bossCount} ${progress.bossCount === 1 ? "Pull" : "Pulls"} ohne Kill)` : "";
+        return `Im Log ist noch kein Boss gelegt${pulls}.`;
+    }
     const parts = missing.map((r) => `**${r.label}** (Endboss: ${r.finalBosses[0] || "?"})`);
     const kills = `${progress.killCount} von ${progress.bossCount} Pulls waren Kills`;
     const last = progress.lastKill

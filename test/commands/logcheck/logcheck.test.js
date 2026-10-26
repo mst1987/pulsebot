@@ -53,6 +53,8 @@ function primeAnalyzers() {
         zoneName: "AQ40",
         start: Date.now(),
         end: 1000,
+        // a raid that got to the end: a log without a kill is refused as still running
+        fights: [{ id: 1, boss: 709, name: "C'Thun", kill: true }],
     });
     WarcraftLogs.__getCasts.mockResolvedValue({});
 }
