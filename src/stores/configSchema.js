@@ -81,8 +81,9 @@ const CONFIG_DEFAULTS = {
     // Per-category expected raider roles: { [categoryId]: [roleId, ...] }. Used to
     // compare who signed up to an event against who is expected to (attendance).
     categoryRoles: {},
-    // Channels the bot watches for Warcraft-Logs links to offer auto-evaluation.
-    logChannelIds: [],
+    // The log channels are per server now (#921): serverSettings[guildId].logChannels.
+    // An old stored logChannelIds stays readable (legacyLogChannelIds) until the bot hands it
+    // to the servers once it is online (services/logcheck/logChannelMigration.js).
     // Defaults pre-filled into the raid-event form. The default *template* is
     // per category now (categoryRaidTemplate); an old raidDefaults.templateId
     // is handed to the categories once at start (settingsMigration.js).
@@ -915,10 +916,25 @@ function blizzardCredentials(raw) {
 }
 
 /**
+ * The global log-channel list of before #921, while it waits for the bot to hand
+ * it to the servers (logChannelMigration.js): { logChannelIds: [ids] } when the
+ * file still holds one (a malformed value reads as none), else nothing, so an
+ * install without it never shows the key again.
+ */
+function legacyLogChannelIds(stored) {
+    if (!Object.prototype.hasOwnProperty.call(stored, "logChannelIds")) return {};
+    const ids = Array.isArray(stored.logChannelIds) ? stored.logChannelIds.map((id) => String(id || "").trim()).filter(Boolean) : [];
+    return { logChannelIds: [...new Set(ids)] };
+}
+
+/**
  * The keys a server block may hold, with the default each part reads when a
- * server has none (#917). Empty for now: the parts 4-8 of epic #926 add theirs.
+ * server has none (#917). The parts 4-8 of epic #926 add theirs, one block each.
  */
 const SERVER_SETTING_DEFAULTS = Object.freeze({
+    // #921: the channels watched for Warcraft Logs links, each with the game
+    // version its logs belong to: [{ channelId, versionId }].
+    logChannels: Object.freeze([]),
     // #927 Raid-Helper je Server (utils/raidhelper/servers.js): off unless a
     // server switches it on; serverId empty = the guild's own id; apiKey is only
     // ever set from the settings page (never copied from .env); envKey marks the
@@ -1004,7 +1020,7 @@ function normalizeConfig(raw) {
         botCommandAccess: normalizeBotCommandAccess(stored.botCommandAccess),
         categoryIds: Array.isArray(stored.categoryIds) ? stored.categoryIds : CONFIG_DEFAULTS.categoryIds,
         categoryRoles: normalizeCategoryRoles(stored.categoryRoles),
-        logChannelIds: Array.isArray(stored.logChannelIds) ? stored.logChannelIds : CONFIG_DEFAULTS.logChannelIds,
+        ...legacyLogChannelIds(stored),
         // Only the credentials: the realm fields of before #542 live in versionSettings.
         blizzard: blizzardCredentials(stored.blizzard),
         versionSettings: versionSettingsOf(stored),

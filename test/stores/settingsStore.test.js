@@ -161,26 +161,28 @@ describe("stores/settingsStore", () => {
             expect(def).toHaveProperty("applicationChannelId");
             expect(def).toHaveProperty("officerRoleId");
             expect(Array.isArray(def.categoryIds)).toBe(true);
-            expect(Array.isArray(def.logChannelIds)).toBe(true);
+            // #921: the log channels live per server, no global list any more
+            expect(def).not.toHaveProperty("logChannelIds");
+            expect(def.serverSettings).toEqual({});
 
             saveConfig({
                 applicationChannelId: "app-1",
                 officerRoleId: "role-1",
                 categoryIds: ["c1", "c2"],
-                logChannelIds: ["log-1", "log-2"],
             });
             const cfg = getConfig();
             expect(cfg.applicationChannelId).toBe("app-1");
             expect(cfg.officerRoleId).toBe("role-1");
             expect(cfg.categoryIds).toEqual(["c1", "c2"]);
-            expect(cfg.logChannelIds).toEqual(["log-1", "log-2"]);
         });
 
-        it("guards logChannelIds to an array when the stored value is malformed", () => {
+        it("keeps an old stored logChannelIds readable until its migration, guarded to a clean id list (#921)", () => {
             saveConfig({});
-            fs.__store.set([...fs.__store.keys()].find((k) => k.endsWith("config.json")),
-                JSON.stringify({ logChannelIds: "nope" }));
+            const file = [...fs.__store.keys()].find((k) => k.endsWith("config.json"));
+            fs.__store.set(file, JSON.stringify({ logChannelIds: "nope" }));
             expect(getConfig().logChannelIds).toEqual([]);
+            fs.__store.set(file, JSON.stringify({ logChannelIds: [" a ", "a", "", 7] }));
+            expect(getConfig().logChannelIds).toEqual(["a", "7"]);
         });
 
         it("exposes blizzard defaults and a categoryLootTool map", () => {

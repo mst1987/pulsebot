@@ -111,7 +111,7 @@ const getChannels = withUser({}, async ({ user, req, res }) => {
     // The lists are only live while the bot is connected to this guild; without
     // it every stored channel would read "nicht gefunden".
     const connected = !!guild;
-    const purposes = resolvePurposes(getConfig(), channels, categories, connected);
+    const purposes = resolvePurposes(getConfig(), channels, categories, connected, guildId);
     const config = archiveStore.getChannelConfig(guildId);
     const eventScope = await eventCategoryScope(user, req);
     ok(res, {

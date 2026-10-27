@@ -30,6 +30,12 @@ export type BlizzardConfig = {
 /** The switches of the drawn pictures in bot messages (Einstellungen → Raid-Standardwerte). */
 export type DiscordVisuals = { overviewWeekStrip: boolean; setupImage: boolean; eventCover: boolean };
 
+/** A log channel of a server and the game version its logs count for (#921); "" = the log's site decides. */
+export type LogChannel = { channelId: string; versionId: string };
+
+/** A log channel as the settings page sends it: without a version the server derives it (#921). */
+export type LogChannelInput = { channelId: string; versionId?: string };
+
 export type AdminConfig = {
     adminRoleIds: string[];
     // Per-role area rights; only sent to (and savable by) full admins.
@@ -51,7 +57,8 @@ export type AdminConfig = {
     applicationChannelId: string;
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
-    logChannelIds: string[];
+    /** Settings per Discord server (#917); the log channels with their version (#921). */
+    serverSettings?: Record<string, { logChannels?: LogChannel[] }>;
     raidDefaults: { channelId: string };
     // The default raid template per category (category id → template id).
     categoryRaidTemplate: Record<string, string>;
@@ -372,7 +379,13 @@ export type SettingsUpdate = {
     missingCategories?: MissingCategory[];
 } & ServerCategories;
 
-export function updateSettings(partial: Partial<AdminConfig>): Promise<SettingsUpdate> {
+/**
+ * PATCH /api/settings. Server-bound keys (logChannels #921, raidhelper #927)
+ * go with `serverSettingsGuildId` — the server the page loaded; a session
+ * switched to another server since answers 409 `server_switched`. The answer's
+ * categories are narrowed to the active server (#926).
+ */
+export function updateSettings(partial: Partial<AdminConfig> & { logChannels?: LogChannelInput[]; serverSettingsGuildId?: string }): Promise<SettingsUpdate> {
     return send<SettingsUpdate>("PATCH", "/api/settings", partial).then(forServer);
 }
 

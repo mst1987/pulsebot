@@ -130,6 +130,13 @@ describe("services/logcheck/logVersion — the version of a report", () => {
         expect(lv.resolveReportVersion({ versionId: "nope", config })).toEqual({ versionId: "tbc", from: "default" });
     });
 
+    it("takes a log channel's version before the host, after the raid and the log (#921)", () => {
+        expect(lv.resolveReportVersion({ channelVersionId: "forever", host: "fresh.warcraftlogs.com", config })).toEqual({ versionId: "forever", from: "channel" });
+        expect(lv.resolveReportVersion({ versionId: "classic", channelVersionId: "forever", config })).toEqual({ versionId: "classic", from: "log" });
+        expect(lv.resolveReportVersion({ event: { versionId: "tbc" }, channelVersionId: "forever", config })).toEqual({ versionId: "tbc", from: "event" });
+        expect(lv.resolveReportVersion({ channelVersionId: "nope", host: "forever.warcraftlogs.com", config })).toEqual({ versionId: "forever", from: "host" });
+    });
+
     it("counts a stored log or report without a version as TBC", () => {
         expect(lv.recordVersion({})).toBe("tbc");
         expect(lv.recordVersion(null)).toBe("tbc");
@@ -148,6 +155,8 @@ describe("services/logcheck/logVersion — the version of a report", () => {
         expect(lv.categoryVersion({ categoryId: "catF" }, { config })).toBe("forever");
         expect(lv.categoryVersion({ categoryId: "catT" }, { config })).toBe("tbc");
         expect(lv.categoryVersion({}, { config })).toBe("");
+        // #921: the channel's own version comes first
+        expect(lv.categoryVersion({ channelVersionId: "classic", categoryId: "catF" }, { config })).toBe("classic");
     });
 });
 

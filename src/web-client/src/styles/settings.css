@@ -156,6 +156,15 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .topitem-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-width: 520px; }
 .topitem { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 6px 5px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); }
 .topitem-name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; cursor: default; }
+.logchan-list { max-width: 640px; margin: 0 0 10px; }
+.logchan-name { display: flex; align-items: baseline; gap: 8px; flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.logchan-name small { font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+.logchan-version { flex: 0 1 190px; min-width: 0; }
+@media (max-width: 560px) {
+    .logchan { flex-wrap: wrap; }
+    .logchan-name { flex-basis: 100%; }
+    .logchan-version { flex: 1 1 0; }
+}
 .topitem-name img { width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--line); }
 
 /* ---- Verbindungen ---- */
