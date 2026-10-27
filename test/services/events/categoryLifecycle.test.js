@@ -1,6 +1,8 @@
 // categoryLifecycle (#744): active, deactivated, deleted in Discord and closed.
-jest.mock("../../../src/services/discord/discord", () => ({ isOnline: jest.fn(() => true), getGuild: jest.fn(), listCategories: jest.fn() }));
+// #926: "deleted" only with a proven, configured, reachable server (categoryGuild.js, real here).
+jest.mock("../../../src/services/discord/discord", () => ({ isOnline: jest.fn(() => true), getGuild: jest.fn(), listCategories: jest.fn(), listGuilds: jest.fn() }));
 jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["g1"]) }));
+jest.mock("../../../src/services/discord/serverOf", () => ({ storedCategoryGuilds: jest.fn(() => new Map()), firstServerId: jest.fn(() => "g1") }));
 jest.mock("../../../src/stores/eventSeriesStore", () => ({ getSeries: jest.fn(), listSeries: jest.fn(() => ({})), deleteSeries: jest.fn(() => true) }));
 jest.mock("../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []) }));
 jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
@@ -16,6 +18,8 @@ jest.mock("../../../src/stores/configStore", () => ({ dropCategoryEntries: jest.
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
 const discord = require("../../../src/services/discord/discord");
+const guildRoles = require("../../../src/services/discord/guildRoles");
+const serverOf = require("../../../src/services/discord/serverOf");
 const seriesStore = require("../../../src/stores/eventSeriesStore");
 const eventStore = require("../../../src/stores/eventStore");
 const { listRaidEvents } = require("../../../src/stores/raidEventStore");
@@ -33,11 +37,16 @@ beforeEach(() => {
     jest.clearAllMocks();
     discord.isOnline.mockReturnValue(true);
     discord.getGuild.mockImplementation((id) => (id === "g1" ? { id } : null));
-    discord.listCategories.mockReturnValue([{ id: "mon", name: "Montag" }, { id: "thu", name: "Donnerstag" }]);
+    discord.listGuilds.mockReturnValue([{ id: "g1", name: "Gilde" }]);
+    discord.listCategories.mockImplementation((id) => (id === "g1" ? [{ id: "mon", name: "Montag" }, { id: "thu", name: "Donnerstag" }] : []));
+    guildRoles.eventGuildIds.mockReturnValue(["g1"]);
+    // the name snapshot proves the server of the categories Discord no longer has
+    serverOf.storedCategoryGuilds.mockReturnValue(new Map([["gone", "g1"], ["old", "g1"], ["council", "g1"]]));
     seriesStore.getSeries.mockImplementation((id) => (id === "mon" ? SERIES : null));
     seriesStore.listSeries.mockReturnValue({ mon: SERIES });
     eventStore.listEvents.mockReturnValue([]);
     listRaidEvents.mockReturnValue([]);
+    rosterStore.listRosters.mockReturnValue([]);
 });
 
 describe("services/events/categoryLifecycle", () => {
@@ -97,15 +106,6 @@ describe("services/events/categoryLifecycle", () => {
             categoryVersion: { past: "tbc" },
         };
 
-        it("knows Discord's categories only when the bot sees every event server", () => {
-            expect([...lifecycle.discordCategoryIds(config)]).toEqual(["mon", "thu"]);
-            discord.isOnline.mockReturnValue(false);
-            expect(lifecycle.discordCategoryIds(config)).toBeNull();
-            discord.isOnline.mockReturnValue(true);
-            discord.getGuild.mockReturnValue(null);
-            expect(lifecycle.discordCategoryIds(config)).toBeNull();
-        });
-
         it("marks every configured category Discord no longer has, with what closing removes", () => {
             councilProfiles.categoryProfiles.mockReturnValue({ council: "p1" });
             rosterStore.listRosters.mockReturnValue([{ id: "ros1", name: "Gone-Roster", categoryId: "gone" }, { id: "ros2", name: "Mo", categoryId: "mon" }]);
@@ -114,7 +114,7 @@ describe("services/events/categoryLifecycle", () => {
             expect(out.map((c) => c.categoryId).sort()).toEqual(["council", "gone", "old"]);
             const gone = out.find((c) => c.categoryId === "gone");
             expect(gone).toMatchObject({
-                name: "TBC Montag", active: true, series: null, reminders: true, settings: ["categoryRoles", "categoryReminders"],
+                name: "TBC Montag", guildId: "g1", active: true, series: null, reminders: true, settings: ["categoryRoles", "categoryReminders"],
                 councilProfile: false, kaders: [{ kaderId: "k1", name: "Kader" }], rosters: [{ id: "ros1", name: "Gone-Roster", versionId: "", closed: false }],
             });
         });
@@ -122,6 +122,60 @@ describe("services/events/categoryLifecycle", () => {
         it("guesses nothing while Discord's state is unknown", () => {
             discord.isOnline.mockReturnValue(false);
             expect(lifecycle.missingCategories({ config })).toEqual([]);
+        });
+
+        it("filters by server and names the server of each", () => {
+            expect(lifecycle.missingCategories({ config, guildId: "g1" }).map((c) => c.guildId)).toEqual(["g1", "g1", "g1"]);
+            expect(lifecycle.missingCategories({ config, guildId: "g2" })).toEqual([]);
+        });
+
+        it("never marks a category whose server is unproven, not configured or not reachable", () => {
+            serverOf.storedCategoryGuilds.mockReturnValue(new Map([["gone", "g2"]]));
+            expect(lifecycle.missingCategories({ config })).toEqual([]); // old, council: no server; gone: g2 not configured
+            guildRoles.eventGuildIds.mockReturnValue(["g1", "g2"]);
+            expect(lifecycle.missingCategories({ config })).toEqual([]); // g2 configured, but the bot has not cached it
+            discord.getGuild.mockImplementation((id) => ({ id }));
+            expect(lifecycle.missingCategories({ config }).map((c) => c.categoryId)).toEqual(["gone"]);
+        });
+
+        it("finds the server of a category in the raids and rosters when the snapshot does not know it", () => {
+            serverOf.storedCategoryGuilds.mockReturnValue(new Map());
+            eventStore.listEvents.mockReturnValue([{ id: "e1", guildId: "g1", categoryId: "gone" }]);
+            listRaidEvents.mockReturnValue([{ id: "r1", guildId: "g1", categoryId: "old" }]);
+            rosterStore.listRosters.mockReturnValue([{ id: "ros1", guildId: "g1", categoryId: "council" }]);
+            expect(lifecycle.missingCategories({ config }).map((c) => c.categoryId).sort()).toEqual(["council", "gone", "old"]);
+        });
+
+        // Prod 2026-10-27: discordServers.servers held only the PuG server B; the
+        // categories of Pulse Fresh (A) read as deleted and closing wiped them.
+        describe("regression: a server missing from the server list", () => {
+            const prod = { categoryIds: ["catA"], categoryRoles: { catA: ["r1"] }, categoryReminders: { catA: { missingHours: 24 } } };
+            beforeEach(() => {
+                guildRoles.eventGuildIds.mockReturnValue(["B"]);
+                discord.getGuild.mockImplementation((id) => ({ id }));
+                discord.listCategories.mockImplementation((id) => (id === "A" ? [{ id: "catA", name: "TBC Montag" }] : id === "B" ? [{ id: "catB", name: "PuGs" }] : []));
+                serverOf.storedCategoryGuilds.mockReturnValue(new Map([["catA", "A"], ["catB", "B"]]));
+            });
+
+            it("bot still on A: the category is live, not missing, and closing is refused", () => {
+                discord.listGuilds.mockReturnValue([{ id: "A", name: "Pulse Fresh" }, { id: "B", name: "PuGs" }]);
+                expect(lifecycle.missingCategories({ config: prod })).toEqual([]);
+                expect(lifecycle.closeCategory("catA", { config: prod }).error).toMatchObject({ status: 409, code: "category_exists" });
+                expect(configStore.dropCategoryEntries).not.toHaveBeenCalled();
+            });
+
+            it("bot not on A (or A not cached): unknown, never missing, closing is refused and nothing is deleted", () => {
+                discord.listGuilds.mockReturnValue([{ id: "B", name: "PuGs" }]);
+                expect(lifecycle.missingCategories({ config: prod })).toEqual([]);
+                const out = lifecycle.closeCategory("catA", { config: prod, actor: "u1" });
+                expect(out.error).toMatchObject({ status: 409, code: "category_server_unknown" });
+                expect(out.error.message).toMatch(/Discord-Server/);
+                expect(seriesStore.deleteSeries).not.toHaveBeenCalled();
+                expect(configStore.dropCategoryEntries).not.toHaveBeenCalled();
+                expect(councilProfiles.setCategoryProfile).not.toHaveBeenCalled();
+                expect(kaderCategories.dropAttendanceCategory).not.toHaveBeenCalled();
+                expect(rosterStore.closeRoster).not.toHaveBeenCalled();
+            });
         });
     });
 
@@ -131,6 +185,9 @@ describe("services/events/categoryLifecycle", () => {
             discord.isOnline.mockReturnValue(false);
             expect(lifecycle.closeCategory("gone", { config: {} }).error).toMatchObject({ status: 503, code: "bot_offline" });
             expect(lifecycle.closeCategory("", { config: {} }).error).toMatchObject({ status: 400 });
+            discord.isOnline.mockReturnValue(true);
+            serverOf.storedCategoryGuilds.mockReturnValue(new Map());
+            expect(lifecycle.closeCategory("gone", { config: {} }).error).toMatchObject({ status: 409, code: "category_server_unknown" });
             expect(seriesStore.deleteSeries).not.toHaveBeenCalled();
             expect(configStore.dropCategoryEntries).not.toHaveBeenCalled();
         });

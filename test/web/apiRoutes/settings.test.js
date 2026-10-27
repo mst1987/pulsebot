@@ -454,6 +454,8 @@ describe("web/apiRoutes/settings", () => {
                     auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                     auth.checkCsrf.mockReturnValue(true);
                     settingsStore.getConfig.mockReturnValue(BEFORE);
+                    // #926: a save edits the active server's categories (g1, the only one here)
+                    activeGuildFor.mockReturnValue("g1");
                     discord.listCategories.mockReturnValue([{ id: "cat1", name: "TBC Montag" }, { id: "cat2", name: "Freitag" }]);
                 });
                 afterEach(() => {

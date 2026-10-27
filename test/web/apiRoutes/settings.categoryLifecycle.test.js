@@ -17,6 +17,9 @@ jest.mock("../../../src/stores/settingsStore", () => ({
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
 jest.mock("../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []) }));
+jest.mock("../../../src/stores/rosterStore", () => ({ ...jest.requireActual("../../../src/stores/rosterStore"), listRosters: jest.fn(() => []) }));
+// #926: the category-name snapshot (which server a category was seen on) without touching the disk
+jest.mock("../../../src/services/discord/serverOf", () => ({ ...jest.requireActual("../../../src/services/discord/serverOf"), storedCategoryGuilds: jest.fn(() => new Map()) }));
 jest.mock("../../../src/services/discord/categoryNames", () => ({
     listKnownCategories: jest.fn(() => [{ id: "mon", name: "Montag" }, { id: "gone", name: "TBC Montag" }]),
 }));
@@ -24,7 +27,7 @@ jest.mock("../../../src/services/discord/discord", () => require("../../helpers/
     getClient: jest.fn(() => ({ isReady: () => true })),
     getGuild: jest.fn((id) => (id === "g1" ? { id } : null)),
     listCategories: jest.fn(() => [{ id: "mon", name: "Montag" }]),
-    listRoles: jest.fn(() => []), listTextChannels: jest.fn(() => []), listVoiceChannels: jest.fn(() => []), listGuilds: jest.fn(() => []),
+    listRoles: jest.fn(() => []), listTextChannels: jest.fn(() => []), listVoiceChannels: jest.fn(() => []), listGuilds: jest.fn(() => [{ id: "g1" }]),
     resolveUserNames: jest.fn(async () => ({})),
 }));
 jest.mock("../../../src/services/events/contentVersions", () => ({
@@ -47,6 +50,8 @@ const { listRaidEvents } = require("../../../src/stores/raidEventStore");
 const discord = require("../../../src/services/discord/discord");
 const seriesStore = require("../../../src/stores/eventSeriesStore");
 const configStore = require("../../../src/stores/configStore");
+const { storedCategoryGuilds } = require("../../../src/services/discord/serverOf");
+const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const { post, patch, get } = routerClient(require("../../../src/web/apiRoutes/settings"));
 
 const CONFIG = {
@@ -61,6 +66,12 @@ beforeEach(() => {
     settingsStore.getConfig.mockReturnValue(CONFIG);
     listRaidEvents.mockReturnValue([{ id: "r1", categoryId: "mon", startTime: 1 }]);
     discord.getClient.mockReturnValue({ isReady: () => true });
+    discord.listGuilds.mockReturnValue([{ id: "g1" }]);
+    discord.listCategories.mockImplementation(() => [{ id: "mon", name: "Montag" }]);
+    discord.getGuild.mockImplementation((id) => (id === "g1" ? { id } : null));
+    activeGuildFor.mockReturnValue("g1");
+    // #926: "gone" was seen on g1 - only then may it read as deleted
+    storedCategoryGuilds.mockReturnValue(new Map([["gone", "g1"]]));
 });
 
 describe("web/apiRoutes/settings: a category's life (#744)", () => {
@@ -126,5 +137,127 @@ describe("web/apiRoutes/settings: a category's life (#744)", () => {
         const res = await post("/api/settings/category-close", { categoryId: "gone" });
         expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
         expect(seriesStore.deleteSeries).not.toHaveBeenCalled();
+    });
+
+    it("never reads a category as deleted without a proven server", async () => {
+        storedCategoryGuilds.mockReturnValue(new Map());
+        const data = json(await get("/api/settings")).data;
+        expect(data.missingCategories).toEqual([]);
+        expect(data.unprovenCategoryIds).toEqual(["gone"]);
+        const res = await post("/api/settings/category-close", { categoryId: "gone" });
+        expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+        expect(json(res).error.code).toBe("category_server_unknown");
+        expect(seriesStore.deleteSeries).not.toHaveBeenCalled();
+        expect(configStore.dropCategoryEntries).not.toHaveBeenCalled();
+    });
+});
+
+// #926: config.categoryIds is one list over every server - each server sees and edits only its part.
+describe("web/apiRoutes/settings: raid categories per server (#926)", () => {
+    const TWO = {
+        guildId: "A",
+        discordServers: { servers: [{ guildId: "A" }, { guildId: "B" }], links: [] },
+        categoryIds: ["a1", "b1", "bx"],
+        categoryVersion: { a1: "tbc", a2: "tbc", b1: "tbc", bx: "tbc" },
+    };
+    beforeEach(() => {
+        settingsStore.getConfig.mockReturnValue(TWO);
+        listRaidEvents.mockReturnValue([]);
+        discord.listGuilds.mockReturnValue([{ id: "A" }, { id: "B" }]);
+        discord.getGuild.mockImplementation((id) => ({ id }));
+        discord.listCategories.mockImplementation((id) => (id === "A" ? [{ id: "a1" }, { id: "a2" }] : id === "B" ? [{ id: "b1" }] : []));
+        // bx was seen on B and is gone there now
+        storedCategoryGuilds.mockReturnValue(new Map([["bx", "B"]]));
+    });
+
+    it("lists only the active server's categories and its deleted ones", async () => {
+        activeGuildFor.mockReturnValue("A");
+        const onA = json(await get("/api/settings")).data;
+        expect(onA.serverCategoryIds).toEqual(["a1"]);
+        expect(onA.unprovenCategoryIds).toEqual([]);
+        expect(onA.missingCategories).toEqual([]);
+        expect(onA.otherServerCategoryIds).toEqual(expect.arrayContaining(["b1", "bx"]));
+        expect(onA.otherServerCategoryIds).not.toContain("a1");
+        activeGuildFor.mockReturnValue("B");
+        const onB = json(await get("/api/settings")).data;
+        expect(onB.serverCategoryIds).toEqual(["b1", "bx"]);
+        expect(onB.otherServerCategoryIds).toEqual(expect.arrayContaining(["a1"]));
+        expect(onB.missingCategories.map((c) => [c.categoryId, c.guildId])).toEqual([["bx", "B"]]);
+    });
+
+    it("a save on A never removes or adds a category of B", async () => {
+        activeGuildFor.mockReturnValue("A");
+        // A takes a1 out, adds a2, and a list naming b1 cannot reach B
+        let res = await patch("/api/settings", { categoryIds: ["a2", "b1"] });
+        expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ categoryIds: ["b1", "bx", "a2"] });
+        // B empties its list: A's stay
+        activeGuildFor.mockReturnValue("B");
+        res = await patch("/api/settings", { categoryIds: [] });
+        expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ categoryIds: ["a1"] });
+    });
+
+    it("previews a deactivation only for the active server's categories", async () => {
+        activeGuildFor.mockReturnValue("A");
+        const res = await get("/api/settings/category-deactivate", { next: "" });
+        expect(json(res).data.categories.map((c) => c.categoryId)).toEqual(["a1"]);
+        expect(json(res).data.emptyBlocked).toBe(false);
+    });
+
+    it("closes a category deleted on B, and answers with B's list", async () => {
+        activeGuildFor.mockReturnValue("B");
+        const res = await post("/api/settings/category-close", { categoryId: "bx" });
+        expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        expect(json(res).data.serverCategoryIds).toEqual(["b1", "bx"]);
+        // A cannot close B's category
+        activeGuildFor.mockReturnValue("A");
+        const fromA = await post("/api/settings/category-close", { categoryId: "bx" });
+        expect(fromA.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+        expect(json(fromA).error.code).toBe("category_other_server");
+    });
+
+    describe("regression: prod 2026-10-27, a server missing from the server list", () => {
+        // Only the PuG server P is listed; Pulse Fresh F (with its raid categories f1, f2) is not.
+        const PROD = {
+            guildId: "P",
+            discordServers: { servers: [{ guildId: "P" }], links: [] },
+            categoryIds: ["p1", "f1", "f2"],
+            categoryVersion: { p1: "forever", f1: "tbc", f2: "tbc" },
+        };
+        beforeEach(() => {
+            settingsStore.getConfig.mockReturnValue(PROD);
+            activeGuildFor.mockReturnValue("P");
+            listRaidEvents.mockReturnValue([{ id: "r1", guildId: "F", categoryId: "f2", startTime: 1 }]);
+            discord.listCategories.mockImplementation((id) => (id === "P" ? [{ id: "p1" }] : id === "F" ? [{ id: "f1" }] : []));
+            storedCategoryGuilds.mockReturnValue(new Map([["f1", "F"]]));
+        });
+
+        it("bot on F: nothing reads as deleted, nothing can be closed", async () => {
+            discord.listGuilds.mockReturnValue([{ id: "P" }, { id: "F" }]);
+            const data = json(await get("/api/settings")).data;
+            expect(data.missingCategories).toEqual([]);
+            // F's categories show on the first server, marked as without proven server
+            expect(data.serverCategoryIds).toEqual(["p1", "f1", "f2"]);
+            expect(data.unprovenCategoryIds).toEqual(["f1", "f2"]);
+            const live = await post("/api/settings/category-close", { categoryId: "f1" });
+            expect(live.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+            expect(json(live).error.code).toBe("category_exists");
+            const known = await post("/api/settings/category-close", { categoryId: "f2" });
+            expect(json(known).error.code).toBe("category_server_unknown");
+            expect(configStore.dropCategoryEntries).not.toHaveBeenCalled();
+            expect(seriesStore.deleteSeries).not.toHaveBeenCalled();
+        });
+
+        it("bot not on F: still nothing reads as deleted or can be closed", async () => {
+            discord.listGuilds.mockReturnValue([{ id: "P" }]);
+            expect(json(await get("/api/settings")).data.missingCategories).toEqual([]);
+            for (const categoryId of ["f1", "f2"]) {
+                const res = await post("/api/settings/category-close", { categoryId });
+                expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                expect(json(res).error.code).toBe("category_server_unknown");
+            }
+            expect(configStore.dropCategoryEntries).not.toHaveBeenCalled();
+        });
     });
 });
