@@ -3,6 +3,8 @@ const { tempStoreFile } = require("../../helpers/tempStore");
 const steps = require("../../../src/services/raidplan/raidplanSteps");
 const board = require("../../../src/services/raidplan/raidplanBoard");
 const profiles = require("../../../src/stores/raidplanProfileStore");
+// the library is per server (#945)
+const S = "100000000000000001";
 
 const step = (over) => ({ id: "s1", action: "tank", participants: [], sentence: "tankt den Boss", targets: [], timing: { kind: "" }, ...over });
 
@@ -73,13 +75,13 @@ describe("migration of the old tactic profiles", () => {
         const fs = require("fs");
         const file = tempStoreFile("raidplan-profiles-steps.json");
         profiles.useFile(file);
-        fs.writeFileSync(file, JSON.stringify({ profiles: [{ id: "p1", name: "Alt", category: "Tank", bossKey: "", targets: [{ title: "Main-Tank" }, { title: "Off-Tank" }], notes: "Notiz" }] }));
-        const p = profiles.getProfile("p1");
+        fs.writeFileSync(file, JSON.stringify({ profiles: [{ id: "p1", serverId: S, name: "Alt", category: "Tank", bossKey: "", targets: [{ title: "Main-Tank" }, { title: "Off-Tank" }], notes: "Notiz" }] }));
+        const p = profiles.getProfile(S, "p1");
         expect(p.steps.map((s) => [s.id, s.action, s.sentence, s.participants])).toEqual([["t1", "note", "Main-Tank", []], ["t2", "note", "Off-Tank", []]]);
         expect(p.notes).toBe("Notiz");
-        expect(profiles.getProfile("p1")).toEqual(p);
-        const made = profiles.createProfile({ name: "Kiten", category: "Kiten", steps: [step({ action: "kite", participants: ["user:u1", "slot:tank:2"], sentence: "kitet" })] });
+        expect(profiles.getProfile(S, "p1")).toEqual(p);
+        const made = profiles.createProfile(S, { name: "Kiten", category: "Kiten", steps: [step({ action: "kite", participants: ["user:u1", "slot:tank:2"], sentence: "kitet" })] });
         expect(made.profile.steps[0]).toMatchObject({ action: "kite", participants: ["slot:tank:2"], sentence: "kitet" });
-        expect(profiles.createProfile({ name: "x", steps: "no" }).code).toBe("invalid");
+        expect(profiles.createProfile(S, { name: "x", steps: "no" }).code).toBe("invalid");
     });
 });

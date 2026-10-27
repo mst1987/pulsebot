@@ -1,6 +1,8 @@
 // The Standard of a template (src/services/raidplan/raidplanInherit.js): inherited by every boss, deviated from, applied to an event.
 const { tempStoreFile } = require("../../helpers/tempStore");
 const templates = require("../../../src/stores/raidplanTemplateStore");
+// the library is per server (#945)
+const S = "100000000000000001";
 const plans = require("../../../src/stores/raidplanStore");
 const inherit = require("../../../src/services/raidplan/raidplanInherit");
 const raidplan = require("../../../src/web/raidplan/raidplan");
@@ -28,8 +30,8 @@ const DEFAULT_ROWS = [
 const layout = { slots: [{ kind: "tank", n: 1 }, { kind: "healer", n: 1 }] };
 
 function template(defaults = DEFAULT_ROWS, bosses = {}) {
-    const t = templates.createTemplate({ name: "Montag", category: "Raid", instanceIds: ["bt"] }).template;
-    const r = templates.updateTemplate(t.id, { version: 1, bosses: { [inherit.DEFAULTS_KEY]: { assignments: defaults, slots: layout.slots }, ...bosses } });
+    const t = templates.createTemplate(S, { name: "Montag", category: "Raid", instanceIds: ["bt"] }).template;
+    const r = templates.updateTemplate(S, t.id, { version: 1, bosses: { [inherit.DEFAULTS_KEY]: { assignments: defaults, slots: layout.slots }, ...bosses } });
     return r.template;
 }
 const apply = (t) => plans.applyTemplate("e1", t, { version: 0, bossKeys: [BOSS, OTHER, TRASH, "general"], roster, userId: "orga" });
@@ -116,7 +118,7 @@ describe("applying a template with a Standard to an event (#524)", () => {
     it("the event's Standard is its own: a later change of the template does not reach it, a change of the event's Standard reaches every boss", () => {
         const t = template();
         apply(t);
-        templates.updateTemplate(t.id, { version: 2, bosses: { [inherit.DEFAULTS_KEY]: { assignments: [row("d1", "tank", ["slot:tank:3"], [])] } } });
+        templates.updateTemplate(S, t.id, { version: 2, bosses: { [inherit.DEFAULTS_KEY]: { assignments: [row("d1", "tank", ["slot:tank:3"], [])] } } });
         const plan = plans.getPlan("e1");
         expect(eff(plan, BOSS, "Supremus")[0].assignees).toEqual(["slot:tank:1"]);
         const std = plan.bosses[inherit.DEFAULTS_KEY];
@@ -169,7 +171,7 @@ describe("validation", () => {
         expect(board.cleanBoard({ inheritOff: ["d1"] }, { allowedUserIds: [] }).board.inheritOff).toEqual(["d1"]);
     });
     it("a template from before has no Standard: nothing is lost, nothing appears", () => {
-        const t = templates.createTemplate({ name: "Alt", instanceIds: ["bt"] }).template;
+        const t = templates.createTemplate(S, { name: "Alt", instanceIds: ["bt"] }).template;
         expect(t.bosses).toEqual({});
         const view = raidplan.templateView(t);
         expect(view.bossList.filter((b) => b.defaults)).toHaveLength(1);

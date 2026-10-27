@@ -1,7 +1,12 @@
 // Raid plan templates ("Raidplan-Vorlagen", docs/raidplan.md): a named layout the
 // orga makes once ("Montags-Raid") and picks when an event's plan is made.
 //
-// { id, name, category, description, guildId, versionId, instanceIds, bosses, version, updatedAt }
+// { id, serverId, originId, name, category, description, guildId, versionId, instanceIds, bosses, version, updatedAt }
+//   serverId   the Discord server the template belongs to (#945): the library is per server, a template is read and
+//              written only through its own server; an entry without one is an old global entry (never listed, the
+//              start copies it onto every server, migrateToServers)
+//   originId   the id of the global template this one was copied from (#945, "" = made on this server): a plan that
+//              still names the old id finds its own server's copy through it
 //   versionId  the game version (#544): its instances only; an event is offered the templates of its own version
 //   guildId    "" = for every server, else the Discord server (raid server) it is for
 //   instanceIds the instances it covers; only their bosses can have a board
@@ -13,6 +18,8 @@
 // changing or deleting it later never reaches a plan that already exists. Its own
 // room maps live beside the default ones (raidplanStore, key t/<id>/<boss>) and
 // go away with it.
+const fs = require("fs");
+const path = require("path");
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { instanceById, rulesFor, LEGACY_VERSION } = require("../config/gameVersions");
@@ -24,6 +31,7 @@ const { str } = require("../utils/text");
 const { isSnowflake, newId } = require("../utils/ids");
 
 const DEFAULT_FILE = settingsPath("raidplan-templates.json");
+const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const LIMITS = { templates: 100, name: 40, category: 30, description: 200 };
 
 
@@ -58,6 +66,8 @@ function normalize(raw) {
     const r = raw && typeof raw === "object" ? raw : {};
     return {
         id: str(r.id),
+        serverId: isSnowflake(str(r.serverId)) ? str(r.serverId) : "",
+        originId: ID_RE.test(str(r.originId)) ? str(r.originId) : "",
         name: str(r.name).slice(0, LIMITS.name),
         category: str(r.category).slice(0, LIMITS.category),
         description: str(r.description).slice(0, LIMITS.description),
@@ -73,15 +83,42 @@ function normalize(raw) {
     };
 }
 
-/** All templates, by category then name. */
-function listTemplates() {
-    return readAll().map(normalize).filter((t) => t.id && t.name)
+/** The server id a call names, "" when it is none (fail closed: no server, no templates). */
+function serverKey(serverId) {
+    const key = str(serverId);
+    return isSnowflake(key) ? key : "";
+}
+
+/** The templates of one server, by category then name; [] without a server. */
+function listTemplates(serverId) {
+    const server = serverKey(serverId);
+    if (!server) return [];
+    return readAll().map(normalize).filter((t) => t.id && t.name && t.serverId === server)
         .sort((a, b) => a.category.localeCompare(b.category, "de") || a.name.localeCompare(b.name, "de"));
 }
 
-function getTemplate(id) {
+/**
+ * A template of the server: by its id, else the copy made from the global template of that id (`originId`, #945 - a
+ * plan made before the library was per server names the old id). null on another server.
+ */
+function getTemplate(serverId, id) {
     const key = str(id);
-    return key ? listTemplates().find((t) => t.id === key) || null : null;
+    if (!key) return null;
+    const list = listTemplates(serverId);
+    return list.find((t) => t.id === key) || list.find((t) => t.originId === key) || null;
+}
+
+/** The index of a template of the server in the raw list, -1 when it has none of that id. */
+function indexOn(all, serverId, id) {
+    const server = serverKey(serverId);
+    const key = str(id);
+    if (!server || !key) return -1;
+    return all.findIndex((t) => t && t.id === key && str(t.serverId) === server);
+}
+
+/** How many templates the server has (the limit counts per server). */
+function countOn(all, server) {
+    return all.filter((t) => t && str(t.serverId) === server).length;
 }
 
 /** The boss keys a template with these instances can have a board for. */
@@ -142,7 +179,9 @@ function versionMismatch(versionId, instanceIds) {
 }
 
 /** Creates a template. Needs a name and at least one instance. Returns `{ template }` or `{ code, error }`. */
-function createTemplate(input, { now = Date.now() } = {}) {
+function createTemplate(serverId, input, { now = Date.now() } = {}) {
+    const server = serverKey(serverId);
+    if (!server) return { code: "invalid", error: "Kein Discord-Server." };
     const checked = validate(input);
     if (checked.error) return checked;
     if (!checked.value.instanceIds) return { code: "invalid", error: "Wähle mindestens eine Instanz." };
@@ -150,8 +189,8 @@ function createTemplate(input, { now = Date.now() } = {}) {
     const mismatch = versionMismatch(versionId, checked.value.instanceIds);
     if (mismatch) return mismatch;
     const all = readAll();
-    if (all.length >= LIMITS.templates) return { code: "invalid", error: `Höchstens ${LIMITS.templates} Vorlagen.` };
-    const template = normalize({ ...checked.value, versionId, id: newId(), bosses: {}, version: 1, updatedAt: now });
+    if (countOn(all, server) >= LIMITS.templates) return { code: "invalid", error: `Höchstens ${LIMITS.templates} Vorlagen.` };
+    const template = normalize({ ...checked.value, versionId, id: newId(), serverId: server, bosses: {}, version: 1, updatedAt: now });
     all.push(template);
     writeAll(all);
     return { template };
@@ -164,10 +203,9 @@ function createTemplate(input, { now = Date.now() } = {}) {
  * (no players in a template). Changing the instances drops the boards of bosses
  * that are no longer covered.
  */
-function updateTemplate(id, input, { now = Date.now() } = {}) {
-    const key = str(id);
+function updateTemplate(serverId, id, input, { now = Date.now() } = {}) {
     const all = readAll();
-    const idx = all.findIndex((t) => t && t.id === key);
+    const idx = indexOn(all, serverId, id);
     if (idx === -1) return { code: "not_found", error: "Vorlage nicht gefunden." };
     const current = normalize(all[idx]);
     const body = input && typeof input === "object" ? input : {};
@@ -203,16 +241,17 @@ function updateTemplate(id, input, { now = Date.now() } = {}) {
  * A copy of a template under a new id ("<name> (Kopie)"), with its boards (new ids on
  * every object) and its own room maps. Returns `{ template }` or `{ code, error }`.
  */
-function duplicateTemplate(id, { now = Date.now() } = {}) {
-    const source = getTemplate(id);
-    if (!source) return { code: "not_found", error: "Vorlage nicht gefunden." };
+function duplicateTemplate(serverId, id, { now = Date.now() } = {}) {
     const all = readAll();
-    if (all.length >= LIMITS.templates) return { code: "invalid", error: `Höchstens ${LIMITS.templates} Vorlagen.` };
+    const idx = indexOn(all, serverId, id);
+    if (idx === -1) return { code: "not_found", error: "Vorlage nicht gefunden." };
+    const source = normalize(all[idx]);
+    if (countOn(all, source.serverId) >= LIMITS.templates) return { code: "invalid", error: `Höchstens ${LIMITS.templates} Vorlagen.` };
     const suffix = " (Kopie)";
     const bosses = {};
     for (const [key, b] of Object.entries(source.bosses)) bosses[key] = board.reidBoard(b);
     const copy = normalize({
-        ...source, id: newId(), name: source.name.slice(0, LIMITS.name - suffix.length) + suffix,
+        ...source, id: newId(), originId: "", name: source.name.slice(0, LIMITS.name - suffix.length) + suffix,
         bosses, version: 1, updatedAt: now,
     });
     all.push(copy);
@@ -224,14 +263,19 @@ function duplicateTemplate(id, { now = Date.now() } = {}) {
     return { template: copy };
 }
 
-/** Deletes a template and its own room maps. True when there was one. */
-function deleteTemplate(id) {
-    const key = str(id);
+/** Deletes a template of the server and its own room maps. True when there was one. */
+function deleteTemplate(serverId, id) {
     const all = readAll();
-    const template = all.find((t) => t && t.id === key);
-    if (!template) return false;
-    writeAll(all.filter((t) => t !== template));
-    for (const b of planStore.bossesForInstances(normalize(template).instanceIds)) planStore.deleteMap(planStore.templateMapKey(key, b.key));
+    const idx = indexOn(all, serverId, id);
+    if (idx === -1) return false;
+    const template = all[idx];
+    const rest = all.filter((t) => t !== template);
+    writeAll(rest);
+    // a map key is shared only while an old global entry of the same id is still on disk (a failed migration): keep it then
+    const key = str(template.id);
+    if (!rest.some((t) => t && t.id === key)) {
+        for (const b of planStore.bossesForInstances(normalize(template).instanceIds)) planStore.deleteMap(planStore.templateMapKey(key, b.key));
+    }
     return true;
 }
 
@@ -251,4 +295,60 @@ function migrateVersions() {
     return changed;
 }
 
-module.exports = { migrateVersions, useFile, LIMITS, listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, duplicateTemplate, bossKeysOf };
+/**
+ * One-off upgrade at start (#945, settingsMigration.js): the library is per server. Every old global template (no
+ * `serverId`) is copied onto each server in `serverIds` (an old one made for one listed server - its `guildId` -
+ * onto that one only). The first copy keeps the id (its room maps stay where they are), the others get a new id, the
+ * old one as `originId` and a copy of the room maps; from then on the copies are independent.
+ * Idempotent: a server that already has a template of that id or origin gets no second copy. The file is backed up once
+ * (`<file>.pre-945`) before the first write; the global entries go only after the copies were read back from disk,
+ * else they stay (never listed) and the next start tries again.
+ * @param {string[]} serverIds the servers, the main one first
+ * @returns {string[]} log lines
+ */
+function migrateToServers(serverIds) {
+    const servers = [...new Set((Array.isArray(serverIds) ? serverIds : []).map(str).filter(isSnowflake))];
+    const legacyOf = (list) => list.filter((t) => t && typeof t === "object" && !isSnowflake(str(t.serverId)) && ID_RE.test(str(t.id)));
+    const all = readAll();
+    const legacy = legacyOf(all);
+    if (!legacy.length) return [];
+    if (!servers.length) return ["raidplan-templates.json: WARNUNG - Vorlagen (#945) nicht je Server übernommen: kein Discord-Server eingetragen; sie bleiben gespeichert, bis ein Server eingetragen ist"];
+    const file = store.file;
+    const backup = `${file}.pre-945`;
+    if (fs.existsSync(file) && !fs.existsSync(backup)) fs.writeFileSync(backup, fs.readFileSync(file));
+    const next = all.slice();
+    const targetsOf = (t) => (servers.includes(str(t.guildId)) ? [str(t.guildId)] : servers);
+    const has = (list, server, id) => list.some((x) => x && str(x.serverId) === server && (x.id === id || x.originId === id));
+    const maps = [];
+    let copies = 0;
+    for (const t of legacy) {
+        const id = str(t.id);
+        for (const server of targetsOf(t)) {
+            if (has(next, server, id)) continue;
+            // the id stays with one server only: a map key (t/<id>/<boss>) belongs to one template
+            const keep = !next.some((x) => x && x !== t && x.id === id);
+            const copy = { ...t, serverId: server, originId: keep ? "" : id, id: keep ? id : newId() };
+            next.push(copy);
+            copies += 1;
+            if (!keep) maps.push({ from: id, to: copy.id, instanceIds: normalize(t).instanceIds });
+        }
+    }
+    if (copies) writeAll(next);
+    const bossMaps = (m) => planStore.bossesForInstances(m.instanceIds).map((b) => [planStore.templateMapKey(m.from, b.key), planStore.templateMapKey(m.to, b.key)]);
+    for (const m of maps) {
+        for (const [from, to] of bossMaps(m)) {
+            const map = planStore.readMap(from);
+            if (map) planStore.saveMap(to, map.buffer);
+        }
+    }
+    // read back: every global template on every target server, every room map copied
+    const written = readAll();
+    const complete = legacy.every((t) => targetsOf(t).every((server) => has(written, server, str(t.id))))
+        && maps.every((m) => bossMaps(m).every(([from, to]) => !planStore.mapVersion(from) || planStore.mapVersion(to)));
+    if (!complete) return ["raidplan-templates.json: WARNUNG - Vorlagen je Server (#945) nicht vollständig gespeichert; die bisherigen bleiben, der nächste Start versucht es erneut"];
+    const gone = new Set(legacyOf(written));
+    writeAll(written.filter((t) => !gone.has(t)));
+    return [`raidplan-templates.json: ${legacy.length} Vorlage(n) je Server übernommen (#945) - ${copies} Kopie(n) auf ${servers.length} Server, globale Einträge entfernt (Sicherung ${path.basename(backup)})`];
+}
+
+module.exports = { migrateToServers, migrateVersions, useFile, LIMITS, listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, duplicateTemplate, bossKeysOf };

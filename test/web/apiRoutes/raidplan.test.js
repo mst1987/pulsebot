@@ -45,7 +45,7 @@ const body = (r) => { const p = json(r); return p.data || p.error; };
 
 async function call(handler, user, payload, query = "") {
     mockUser = user;
-    readJsonBody.mockResolvedValue(payload || {});
+    readJsonBody.mockResolvedValue(payload ? { libraryGuildId: "500000", ...payload } : {});
     const r = mockRes();
     await handler({ headers: {} }, r, new URL(`http://x/api/raidplan${query ? `?${query}` : ""}`));
     return r;
@@ -199,7 +199,7 @@ describe("PUT /api/raidplan", () => {
     });
 
     it("only keeps a profile id that exists", async () => {
-        const { profile } = profiles.createProfile({ name: "Tanks" });
+        const { profile } = profiles.createProfile("500000", { name: "Tanks" });
         const d = body(await call(route.putPlan, ORGA, {
             event: "eh_1", version: 0,
             bosses: { "bt/supremus": { profileId: profile.id }, "bt/shade-of-akama": { profileId: "ghost", notes: "x" } },
@@ -249,7 +249,7 @@ describe("room map upload", () => {
         mockUser = user;
         readRawBody.mockResolvedValue(buffer);
         const r = mockRes();
-        await route.postMap({ headers: {} }, r, new URL(`http://x/api/raidplan/map?key=${encodeURIComponent(key)}`));
+        await route.postMap({ headers: {} }, r, new URL(`http://x/api/raidplan/map?key=${encodeURIComponent(key)}&libraryGuildId=500000`));
         return r;
     };
 
@@ -288,11 +288,11 @@ describe("tactic profiles", () => {
     it("answers 400 for a bad profile and refuses a reader", async () => {
         expect(status(await call(route.postProfile, ORGA, { name: "" }))).toBe(400);
         expect(status(await call(route.postProfile, READER, { name: "x" }))).toBe(403);
-        expect(profiles.listProfiles()).toEqual([]);
+        expect(profiles.listProfiles("500000")).toEqual([]);
     });
 
     it("also arrives in the editor payload", async () => {
-        profiles.createProfile({ name: "Heiler", category: "Heiler" });
+        profiles.createProfile("500000", { name: "Heiler", category: "Heiler" });
         expect(body(await call(route.getPlan, ORGA, null, "event=eh_1")).profiles).toHaveLength(1);
     });
 });
@@ -350,7 +350,7 @@ describe("GET /api/raidplan/public", () => {
     });
 
     it("shows the name of the profile the board was built from", async () => {
-        const { profile } = profiles.createProfile({ name: "Tanks P1" });
+        const { profile } = profiles.createProfile("500000", { name: "Tanks P1" });
         await call(route.putPlan, ORGA, { event: "eh_1", version: 0, bosses: { "bt/supremus": { profileId: profile.id, notes: "x" } } });
         const on = body(await call(route.postPublish, ORGA, { event: "eh_1", published: true }));
         expect(body(await publicGet(on.plan.publicPath.replace("/p/", ""))).bosses[0].profileName).toBe("Tanks P1");

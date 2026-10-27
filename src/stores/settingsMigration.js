@@ -31,6 +31,10 @@
 //     boss's version (TBC for all of them so far). Existing plans are not
 //     touched (their event carries the version).
 //
+//   - raidplan-templates.json, raidplan-profiles.json (#945): the library is per
+//     server. Every global template / profile is copied onto every listed server
+//     (backup <file>.pre-945 first); the globals go after the copies are read back.
+//
 //   - config.json, versionSettings (#542): the single values of before (the
 //     Battle.net realm block in `blizzard`, the armory/WCL templates of the env,
 //     Wowhead "tbc", softres "tbc") become `versionSettings.tbc`; Forever and
@@ -437,6 +441,20 @@ function migrateRaidplanVersions() {
     const profiles = raidplanProfileStore.migrateVersions();
     if (profiles) out.push(`raidplan-profiles.json: ${profiles} Taktik-Profil(e) ohne Spielversion mit versionId versehen (#544)`);
     return out;
+}
+
+/**
+ * The raid plan library per server (#945): the old global templates and tactic profiles are copied onto every listed
+ * server (discordServers.servers, the home guild without a list), then the global entries go. Runs after
+ * migrateRaidplanVersions (the copies carry the game version) and after the federation step (settles the server list).
+ */
+function migrateRaidplanServers() {
+    const cfg = normalizeConfig(configStore.readStored());
+    const listed = (cfg.discordServers && Array.isArray(cfg.discordServers.servers) ? cfg.discordServers.servers : [])
+        .map((s) => String((s && s.guildId) || "")).filter(isSnowflake);
+    const home = String(cfg.guildId || "").trim();
+    const servers = listed.length ? listed : (isSnowflake(home) ? [home] : []);
+    return [...raidplanTemplateStore.migrateToServers(servers), ...raidplanProfileStore.migrateToServers(servers)];
 }
 
 /** Characters per game version (#543): profile characters and imported specs without one become TBC ones. */
@@ -903,6 +921,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         const plans = raidplanStore.migrateEventDefaults({ instanceIdsOf: (plan) => (eventStore.getEvent(plan.eventId) || {}).instanceIds || [] });
         if (plans) changes.push(raidplanDefaultsLine(plans));
         changes.push(...migrateRaidplanVersions());
+        changes.push(...migrateRaidplanServers());
         changes.push(...migrateCharacterVersions());
         changes.push(...migrateRecruitmentVersions());
         changes.push(...migrateKaderPlanner());
@@ -926,6 +945,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateReportGuilds, migrateDiscordFederation, migrateServerDefaults, migrateServerPermissions, raidplanDefaultsLine, migrateRaidhelperServers,
+    migrateSettings, migrateRaidplanVersions, migrateRaidplanServers, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateReportGuilds, migrateDiscordFederation, migrateServerDefaults, migrateServerPermissions, raidplanDefaultsLine, migrateRaidhelperServers,
     migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

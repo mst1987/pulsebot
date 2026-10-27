@@ -37,7 +37,7 @@ const APPROVED = {
 const body = (r) => { const p = json(r); return p.data || p.error; };
 async function call(handler, user, payload, query = "") {
     mockUser = user;
-    readJsonBody.mockResolvedValue(payload || {});
+    readJsonBody.mockResolvedValue(payload ? { libraryGuildId: "500000", ...payload } : {});
     const r = mockRes();
     await handler({ headers: {} }, r, new URL(`http://x/api/raidplan${query ? `?${query}` : ""}`));
     return r;

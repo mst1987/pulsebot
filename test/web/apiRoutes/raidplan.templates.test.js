@@ -43,7 +43,7 @@ const { mockRes, status, json } = require("../../helpers/http");
 const body = (r) => { const p = json(r); return p.data || p.error; };
 async function call(handler, user, payload, query = "") {
     mockUser = user;
-    readJsonBody.mockResolvedValue(payload || {});
+    readJsonBody.mockResolvedValue(payload ? { libraryGuildId: "500000", ...payload } : {});
     const r = mockRes();
     await handler({ headers: {} }, r, new URL(`http://x/api/raidplan${query ? `?${query}` : ""}`));
     return r;
@@ -106,7 +106,7 @@ describe("template CRUD", () => {
         const t = await makeTemplate();
         expect(status(await call(route.patchTemplate, ORGA, { id: t.id, version: 1, bosses: {} }))).toBe(409);
         expect(status(await call(route.patchTemplate, ORGA, { id: "nope", name: "x" }))).toBe(404);
-        expect(templates.listTemplates()).toHaveLength(1);
+        expect(templates.listTemplates("500000")).toHaveLength(1);
     });
 });
 
@@ -144,7 +144,7 @@ describe("scoped map uploads", () => {
         mockUser = ORGA;
         readRawBody.mockResolvedValue(buffer);
         const r = mockRes();
-        await route.postMap({ headers: {} }, r, new URL(`http://x/api/raidplan/map?key=${encodeURIComponent(key)}`));
+        await route.postMap({ headers: {} }, r, new URL(`http://x/api/raidplan/map?key=${encodeURIComponent(key)}&libraryGuildId=500000`));
         return r;
     };
 
@@ -254,7 +254,7 @@ describe("duplicating and deleting a template", () => {
         expect(r.template.bosses[BOSS].zones[0]).toMatchObject({ label: "Feuer" });
         expect(r.template.bosses[BOSS].zones[0].id).not.toBe(t.bosses[BOSS].zones[0].id);
         expect(r.template.bossList.find((b) => b.key === BOSS).templateMap).toBe(true);
-        expect(templates.getTemplate(t.id).bosses[BOSS].zones).toHaveLength(1);
+        expect(templates.getTemplate("500000", t.id).bosses[BOSS].zones).toHaveLength(1);
     });
 
     it("cuts a long name so the copy still fits, refuses a reader and answers 404 for a missing one", async () => {

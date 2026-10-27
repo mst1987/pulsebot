@@ -6,6 +6,8 @@ const board = require("../../../src/services/raidplan/raidplanBoard");
 const assign = require("../../../src/services/raidplan/raidplanAssign");
 const raidplan = require("../../../src/web/raidplan/raidplan");
 const templateStore = require("../../../src/stores/raidplanTemplateStore");
+// the library is per server (#945)
+const S = "100000000000000001";
 const { tempStoreFile } = require("../../helpers/tempStore");
 
 describe("defaultBesetzung", () => {
@@ -87,20 +89,20 @@ describe("the task rows read as assignments", () => {
 describe("a template is a raid type", () => {
     beforeAll(() => templateStore.useFile(tempStoreFile("besetzung-templates.json")));
     it("keeps size and counts, and shows the effective Besetzung", () => {
-        const { template } = templateStore.createTemplate({ name: "BT", instanceIds: ["bt"], size: 25, counts: { tank: 2, healer: 6, dps: 17 } });
+        const { template } = templateStore.createTemplate(S, { name: "BT", instanceIds: ["bt"], size: 25, counts: { tank: 2, healer: 6, dps: 17 } });
         expect(template).toMatchObject({ size: 25, counts: { tank: 2, healer: 6, dps: 17, melee: 0, ranged: 0 } });
         expect(raidplan.templateView(template).besetzung).toEqual({ size: 25, counts: { tank: 2, healer: 6, dps: 17, melee: 0, ranged: 0 }, groups: 5, split: false });
-        const plain = templateStore.createTemplate({ name: "Old", instanceIds: ["bt"] }).template;
+        const plain = templateStore.createTemplate(S, { name: "Old", instanceIds: ["bt"] }).template;
         expect(plain).toMatchObject({ size: 0, counts: null });
         expect(raidplan.templateView(plain).besetzung.counts).toEqual({ tank: 3, healer: 7, dps: 15, melee: 0, ranged: 0 });
-        expect(templateStore.updateTemplate(plain.id, { size: 10 }).template.size).toBe(10);
-        expect(templateStore.updateTemplate(plain.id, { size: 99 }).code).toBe("invalid");
-        expect(templateStore.updateTemplate(plain.id, { counts: "x" }).code).toBe("invalid");
-        const dup = templateStore.duplicateTemplate(template.id).template;
+        expect(templateStore.updateTemplate(S, plain.id, { size: 10 }).template.size).toBe(10);
+        expect(templateStore.updateTemplate(S, plain.id, { size: 99 }).code).toBe("invalid");
+        expect(templateStore.updateTemplate(S, plain.id, { counts: "x" }).code).toBe("invalid");
+        const dup = templateStore.duplicateTemplate(S, template.id).template;
         expect(dup).toMatchObject({ size: 25, counts: { tank: 2 } });
     });
     it("an old template with melee / ranged counts keeps every slot", () => {
-        const old = templateStore.createTemplate({ name: "Legacy", instanceIds: ["bt"], size: 25, counts: { tank: 3, healer: 7, melee: 8, ranged: 7 } }).template;
+        const old = templateStore.createTemplate(S, { name: "Legacy", instanceIds: ["bt"], size: 25, counts: { tank: 3, healer: 7, melee: 8, ranged: 7 } }).template;
         expect(old.counts).toEqual({ tank: 3, healer: 7, dps: 15, melee: 8, ranged: 7 });
         expect(raidplan.templateView(old).besetzung.split).toBe(true);
     });

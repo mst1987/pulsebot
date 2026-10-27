@@ -23,6 +23,28 @@ const besetzungOf = require("../../services/raidplan/raidplanBesetzung");
 const catalogStore = require("../../stores/raidplanCatalogStore");
 const { catalogEnabled } = require("../../services/events/versionCapabilities");
 const { versionColor } = require("../../services/events/versionSettings");
+const { serverOfEntry } = require("../../services/events/eventServer");
+const { firstServerId } = require("../../services/discord/serverOf");
+const { getConfig } = require("../../stores/configStore");
+
+/**
+ * The server whose raid plan library (templates, tactic profiles) a plan uses (#945): the raid's own server, else the
+ * main one (a raid whose server nobody knows - a stray Raid-Helper event - still finds the library it always had).
+ */
+function planServer(event) {
+    return serverOfEntry(event && event.id ? String(event.id) : "") || firstServerId(getConfig());
+}
+
+/** The id of the template a plan uses on its server (the copy's for an old global id), "" without one. */
+function planTemplateId(event, plan) {
+    const template = planTemplate(event, plan);
+    return template ? template.id : "";
+}
+
+/** The template a plan names, as its server has it (a plan made before #945 names the global id: its copy is found). */
+function planTemplate(event, plan) {
+    return plan && plan.templateId ? templateStore.getTemplate(planServer(event), plan.templateId) : null;
+}
 
 /** The version as the public page needs it for its colour: id, colour, and whether that colour is the setting's own (#742). */
 function publicVersion(versionId) {
@@ -113,7 +135,7 @@ function editorRoster(event) {
 
 /** The Besetzung of an event's plan: the template's when the plan came from one, else the event's own size and composition. */
 function planBesetzung(event, plan) {
-    const template = plan && plan.templateId ? templateStore.getTemplate(plan.templateId) : null;
+    const template = planTemplate(event, plan);
     return template ? besetzungOf.effectiveBesetzung(template.instanceIds, template.size, template.counts) : eventBesetzung(event);
 }
 
@@ -211,7 +233,7 @@ function planVersion(event) {
  * `allVersions`: also those of other versions (the editor lists them apart, applying one asks first).
  */
 function templatesFor(event, { allVersions = false } = {}) {
-    const own = templateStore.listTemplates().filter((t) => (!t.guildId || t.guildId === String(event.guildId || "")) && (allVersions || t.versionId === planVersion(event)));
+    const own = templateStore.listTemplates(planServer(event)).filter((t) => (!t.guildId || t.guildId === String(event.guildId || "")) && (allVersions || t.versionId === planVersion(event)));
     // Other versions hidden (#563): the templates of a hidden version are no choice, not even "of another version".
     return visibleRows(own, (t) => t.versionId);
 }
@@ -223,7 +245,7 @@ function templatesFor(event, { allVersions = false } = {}) {
  */
 function editorView(event, { canWrite, canWriteLibrary = false, me = "" }) {
     const plan = store.getPlan(event.id) || store.emptyPlan(event.id);
-    const template = plan.templateId ? templateStore.getTemplate(plan.templateId) : null;
+    const template = planTemplate(event, plan);
     return {
         eventId: event.id,
         event: { id: event.id, title: event.title, startTime: event.startTime },
@@ -252,7 +274,9 @@ function editorView(event, { canWrite, canWriteLibrary = false, me = "" }) {
         hasApprovedSetup: event.rosterSource ? !!event.rosterSource.available : !!approvedSetupOf(event),
         // where the players of a Raid-Helper event come from (the header shows it); null for an own event
         rosterSource: event.rosterSource || null,
-        profiles: visibleRows(profileStore.listProfiles(), (p) => p.versionId),
+        // the server whose library (profiles, templates) the editor shows: its writes name it (#945)
+        libraryGuildId: planServer(event),
+        profiles: visibleRows(profileStore.listProfiles(planServer(event)), (p) => p.versionId),
         templates: templatesFor(event, { allVersions: true }).map(templateSummary),
         catalog: catalogFor(planVersion(event)),
         limits: { ...store.LIMITS, profileName: profileStore.LIMITS.name, profileCategory: profileStore.LIMITS.category },
@@ -295,7 +319,9 @@ function publicView(plan, event, { me = "" } = {}) {
     const catalogMobs = catalogStore.listMobs();
     // a boss without a board of its own still shows what it inherits from the Standard (#524)
     const inheritsRows = (b) => inherit.inherits(b.key) && sectionRows(plan.bosses, b, catalogMobs).length > 0;
-    const bosses = bossList(event, { templateId: plan.templateId })
+    const server = planServer(event);
+    const templateId = planTemplateId(event, plan);
+    const bosses = bossList(event, { templateId })
         // a section switched off for the sheet is not delivered at all (no chip, no data): filtered before anything else is built from it
         .filter((b) => (plan.bosses[b.key] || inheritsRows(b)) && (plan.bosses[b.key] || {}).inSheet !== false)
         .map((b) => {
@@ -350,7 +376,7 @@ function publicView(plan, event, { me = "" } = {}) {
                 // the animations move objects of the map: none without it (a reference to an object left out above simply moves nothing)
                 scenes: mapOn ? board.scenes || [] : [],
                 notes: board.notes,
-                profileName: (profileStore.getProfile(board.profileId) || {}).name || "",
+                profileName: (profileStore.getProfile(server, board.profileId) || {}).name || "",
             };
         });
     const used = new Set();
@@ -382,7 +408,7 @@ function publicView(plan, event, { me = "" } = {}) {
         // the raid's game version and its colour: the page takes it as its accent like every page with a version (#742)
         version: publicVersion(planVersion(event)),
         // how many sections hold something but are left out of the sheet (a number only, nothing of them)
-        hiddenCount: bossList(event, { templateId: plan.templateId }).filter((b) => plan.bosses[b.key] && plan.bosses[b.key].inSheet === false).length,
+        hiddenCount: bossList(event, { templateId }).filter((b) => plan.bosses[b.key] && plan.bosses[b.key].inSheet === false).length,
         bosses,
         // a raider outside the plan only when a row names him, marked `outOfPlan` (the page leaves him out of groups and auto tokens)
         roster: [...roster, ...outside].filter((r) => used.has(r.userId)),
@@ -436,4 +462,4 @@ function eventBesetzung(event) {
     return { ...base, counts: { tank, healer, dps: Math.max(0, base.size - tank - healer), melee: 0, ranged: 0 }, split: false };
 }
 
-module.exports = { planVersion, planBesetzung, planIncluded, withStandard, planKeys, sectionRows, identify, suggestFor, editorView, publicView, editorRoster, publicRoster, bossList, rosterFrom, resolveRole, templateSummary, templatesFor, templateView };
+module.exports = { planServer, planTemplate, planVersion, planBesetzung, planIncluded, withStandard, planKeys, sectionRows, identify, suggestFor, editorView, publicView, editorRoster, publicRoster, bossList, rosterFrom, resolveRole, templateSummary, templatesFor, templateView };

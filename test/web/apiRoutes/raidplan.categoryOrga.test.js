@@ -16,11 +16,11 @@ jest.mock("../../../src/web/http/auth", () => ({
     setActiveGuild: jest.fn(),
     getActiveGuild: jest.fn(() => ""),
 }));
-jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "700000") }));
 // Every category plays TBC now. cat1's TBC roster is managed by the account "mgr" and the role
 // "role-mgr"; cat2 has no roster.
 jest.mock("../../../src/stores/rosterStore", () => {
-    const roster = (id, categoryId, versionId, userIds, roleIds = []) => ({ id, categoryId, versionId, guildId: "g1", managers: { userIds, roleIds }, members: {}, roleIds: [] });
+    const roster = (id, categoryId, versionId, userIds, roleIds = []) => ({ id, categoryId, versionId, guildId: "700000", managers: { userIds, roleIds }, members: {}, roleIds: [] });
     const rosters = { "cat1:tbc": roster("r1", "cat1", "tbc", ["mgr"], ["role-mgr"]) };
     return {
         listRosters: jest.fn(() => Object.values(rosters)),
@@ -101,7 +101,7 @@ let foreign;
 
 function raid(categoryId, title) {
     return eventStore.createEvent({
-        guildId: "g1", channelId: "c1", categoryId, title, startTime: START, versionId: "tbc", instanceIds: ["bt"],
+        guildId: "700000", channelId: "c1", categoryId, title, startTime: START, versionId: "tbc", instanceIds: ["bt"],
         size: 10, composition: { tank: 1, healer: 2, melee: 0, ranged: 0 },
     }).event;
 }
@@ -139,9 +139,9 @@ beforeEach(() => {
     templateStore.useFile(tempStoreFile("templates.json"));
     rosterSource._resetForTests();
     for (const k of Object.keys(mockSnapshots)) delete mockSnapshots[k];
-    // #925: both Raid-Helper events are in the synced list of the active server g1 (the groups are read from it)
+    // #925: both Raid-Helper events are in the synced list of the active server 700000 (the groups are read from it)
     rhEvents.useFile(tempStoreFile("raidhelper-events.json"));
-    rhEvents.saveSnapshot("g1", { syncedAt: 1, since: 0, events: [{ id: RH_OWN }, { id: RH_FOREIGN }] });
+    rhEvents.saveSnapshot("700000", { syncedAt: 1, since: 0, events: [{ id: RH_OWN }, { id: RH_FOREIGN }] });
     own = raid("cat1", "Black Temple");
     foreign = raid("cat2", "Black Temple II");
     mockGroups.list = [
@@ -176,7 +176,7 @@ describe("the orga of a category (a manager of its roster)", () => {
         expect(status(await api.post("/api/raidplan/map/delete", { key: `e/${own.id}/${BOSS}` }))).toBe(200);
         expect(status(await detail.post("/api/raids/post-raidplan", { event: own.id }))).toBe(200);
 
-        const template = templateStore.createTemplate({ name: "BT Standard", instanceIds: ["bt"], versionId: "tbc" }).template;
+        const template = templateStore.createTemplate("700000", { name: "BT Standard", instanceIds: ["bt"], versionId: "tbc" }).template;
         r = await api.post("/api/raidplan/apply", { event: own.id, templateId: template.id, version: planStore.getPlan(own.id).version });
         expect(status(r)).toBe(200);
         expect(planStore.getPlan(own.id).templateId).toBe(template.id);
@@ -196,7 +196,7 @@ describe("the orga of a category (a manager of its roster)", () => {
         expect(status(await api.post("/api/raidplan/publish", { event: foreign.id, published: true }))).toBe(200);
         expect(status(await api.post("/api/raidplan/groups", { event: foreign.id, includedGroups: [1, 2] }))).toBe(200);
         expect(status(await uploadMap(`e/${foreign.id}/${BOSS}`))).toBe(200);
-        const template = templateStore.createTemplate({ name: "BT Standard", instanceIds: ["bt"], versionId: "tbc" }).template;
+        const template = templateStore.createTemplate("700000", { name: "BT Standard", instanceIds: ["bt"], versionId: "tbc" }).template;
         const before = JSON.parse(JSON.stringify(planStore.getPlan(foreign.id)));
         const mapBefore = planStore.mapVersion(`e/${foreign.id}/${BOSS}`);
         expect(mapBefore).toBeTruthy();
@@ -253,8 +253,8 @@ describe("the orga of a category (a manager of its roster)", () => {
             const r = await send();
             expect([status(r), code(r)]).toEqual([403, "forbidden"]);
         }
-        expect(templateStore.listTemplates()).toEqual([]);
-        expect(profileStore.listProfiles()).toEqual([]);
+        expect(templateStore.listTemplates("700000")).toEqual([]);
+        expect(profileStore.listProfiles("700000")).toEqual([]);
         // a default map (boss, instance) and a template's map are the library's: no event named, refused
         for (const key of [BOSS, "bt", "t/abcdef/bt/supremus"]) {
             const r = await uploadMap(key);
@@ -351,7 +351,7 @@ describe("`raidplan` write, the global orga and everybody else", () => {
                 expect(view.canWrite).toBe(true);
                 expect(view.canWriteLibrary).toBe(true);
             }
-            expect(status(await api.post("/api/raidplan/profiles", { name: `Taktik ${user.id}` }))).toBe(200);
+            expect(status(await api.post("/api/raidplan/profiles", { libraryGuildId: "700000", name: `Taktik ${user.id}` }))).toBe(200);
             expect(status(await uploadMap(BOSS))).toBe(200);
             expect(status(await detail.post("/api/raids/post-raidplan", { event: foreign.id }))).toBe(200);
         }
