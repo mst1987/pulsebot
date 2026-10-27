@@ -2,7 +2,10 @@
 // and the signup message's "Fehlende pingen" share — and the ping on top of it.
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 0) }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ categoryRoles: { cat1: ["500000"] } })) }));
-jest.mock("../../../src/services/discord/discord", () => ({ listMembersWithRoles: jest.fn(), listHumanMembers: jest.fn(), postMissingPing: jest.fn() }));
+jest.mock("../../../src/services/discord/discord", () => ({
+    listMembersWithRoles: jest.fn(), listHumanMembers: jest.fn(), postMissingPing: jest.fn(),
+    getGuild: jest.fn(), fetchGuildMembersCached: jest.fn(), sendDirectMessage: jest.fn(),
+}));
 jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn(() => null) }));
 jest.mock("../../../src/services/discord/botLanguage", () => ({ serverLang: jest.fn(() => "de"), eventLang: jest.fn(() => "de"), langOf: jest.fn(() => "de") }));
 
@@ -21,6 +24,9 @@ beforeEach(() => {
     loadEventGroups.mockResolvedValue(groups(event()));
     discord.listMembersWithRoles.mockResolvedValue({ members: [{ id: "1", displayName: "A" }, { id: "2", displayName: "B" }], error: null });
     discord.postMissingPing.mockResolvedValue({ channelId: "110000", messageId: "m1" });
+    // #894: the ping goes to the raid's server only; both raiders are members there
+    discord.getGuild.mockReturnValue({ id: "100000" });
+    discord.fetchGuildMembersCached.mockResolvedValue([{ id: "1" }, { id: "2" }]);
     jest.spyOn(console, "log").mockImplementation(() => {});
 });
 
@@ -67,15 +73,47 @@ describe("findMissingRaiders with a roster (#658)", () => {
 
 describe("pingMissingRaiders", () => {
     it("pings exactly the derived list in the event channel", async () => {
-        const r = await pingMissingRaiders({ guildId: "100000", eventId: "eh-1", target: "event" });
+        const r = await pingMissingRaiders({ guildId: "100000", eventId: "eh-1" });
         expect(discord.postMissingPing).toHaveBeenCalledTimes(1);
         expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["2"], expect.stringContaining("Bitte melde dich"));
-        expect(r).toEqual({ message: "1 fehlende Raider gepingt.", count: 1 });
+        expect(r).toMatchObject({ message: "1 fehlende Raider gepingt.", count: 1, delivery: { mentioned: 1, dm: null } });
+        expect(discord.fetchGuildMembersCached).toHaveBeenCalledWith("100000", expect.anything());
+    });
+
+    it("DMs a missing raider who is not on the raid's server (#894)", async () => {
+        discord.fetchGuildMembersCached.mockResolvedValue([{ id: "1" }]);
+        discord.sendDirectMessage.mockResolvedValue({ ok: true, messageId: "dm" });
+        const r = await pingMissingRaiders({ guildId: "100000", eventId: "eh-1" });
+        expect(discord.postMissingPing).not.toHaveBeenCalled();
+        expect(discord.sendDirectMessage).toHaveBeenCalledWith("2", expect.any(Object));
+        expect(r.message).toBe("1 fehlende Raider gepingt · 1 per DM.");
+    });
+
+    it("answers 500 and posts nothing when the bot is not on the raid's server", async () => {
+        discord.getGuild.mockReturnValue(null);
+        const r = await pingMissingRaiders({ guildId: "100000", eventId: "eh-1" });
+        expect(r.error).toMatchObject({ status: 500, code: "post_failed" });
+        expect(discord.postMissingPing).not.toHaveBeenCalled();
+    });
+
+    it("mentions everyone and says so when the raid server's member list is unreadable (#894)", async () => {
+        discord.fetchGuildMembersCached.mockRejectedValue(new Error("Intent fehlt"));
+        const r = await pingMissingRaiders({ guildId: "100000", eventId: "eh-1" });
+        expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["2"], expect.any(String));
+        expect(discord.sendDirectMessage).not.toHaveBeenCalled();
+        expect(r.message).toBe("1 fehlende Raider gepingt · Mitgliederliste nicht lesbar, alle im Kanal erwähnt.");
+    });
+
+    it("answers with a default message when the post fails without one", async () => {
+        jest.spyOn(console, "error").mockImplementation(() => {});
+        discord.postMissingPing.mockRejectedValue(new Error(""));
+        const r = await pingMissingRaiders({ guildId: "100000", eventId: "eh-1" });
+        expect(r.error).toMatchObject({ status: 500, code: "post_failed", message: "Posten fehlgeschlagen." });
     });
 
     it("pings nobody when everybody reacted", async () => {
         discord.listMembersWithRoles.mockResolvedValue({ members: [{ id: "1", displayName: "A" }], error: null });
-        const r = await pingMissingRaiders({ guildId: "100000", eventId: "eh-1", target: "event" });
+        const r = await pingMissingRaiders({ guildId: "100000", eventId: "eh-1" });
         expect(r.count).toBe(0);
         expect(discord.postMissingPing).not.toHaveBeenCalled();
     });

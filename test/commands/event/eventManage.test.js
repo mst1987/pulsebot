@@ -201,7 +201,7 @@ describe("actions", () => {
     it("pings the missing raiders in the event channel and logs it", async () => {
         const i = interaction({ customId: bot._internal.manageId("p", event.id) });
         await stepCommand.execute(i);
-        expect(pingMissingRaiders).toHaveBeenCalledWith({ guildId: GUILD, eventId: event.id, target: "event" });
+        expect(pingMissingRaiders).toHaveBeenCalledWith({ guildId: GUILD, eventId: event.id });
         expect(eventStore.getEvent(event.id).log.at(-1)).toMatchObject({ action: "ping", detail: "3 Raider" });
     });
 

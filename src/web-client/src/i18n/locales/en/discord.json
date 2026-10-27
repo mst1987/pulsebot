@@ -371,7 +371,6 @@
         "purpose": {
             "applications": "Applications",
             "logs": "Log channel",
-            "talkPings": "Pings on the talk server",
             "signupNotes": "Maybe and declines",
             "guildBank": "Guild bank requests",
             "overview": "Raid overview",

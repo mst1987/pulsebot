@@ -330,7 +330,7 @@ async function handleComponent(interaction, guildId) {
         return edit(overview(event.id, noticeOf(result)));
     }
     if (f === "p") {
-        const result = await pingMissingRaiders({ guildId, eventId: event.id, target: "event" });
+        const result = await pingMissingRaiders({ guildId, eventId: event.id });
         if (!result.error && result.count) eventStore.appendEventLog(event.id, { action: "ping", by: actor.user.id, byName: actor.byName, detail: `${result.count} Raider` });
         return edit(overview(event.id, result.error ? { notice: `⚠️ ${result.error.message}`, tone: "err" } : { notice: result.message, tone: "ok" }));
     }

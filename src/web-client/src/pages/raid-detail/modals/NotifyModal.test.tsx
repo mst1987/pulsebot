@@ -1,12 +1,11 @@
 // "Anmelde-Aufruf" (NotifyModal): posts a call from a template into the event
-// channel, on the talk server or both (#264), and says where to create a
-// template when there is none (#435: formerly scans in
-// test/web-client/pingsRoleSync.test.js and i18n-raidModals.test.js).
+// channel of the raid's server (#894: no other target any more; #264), and says
+// where to create a template when there is none (#435).
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../../api";
-import type { PingTargetInfo, RaidDetailData } from "../../../api";
+import type { RaidDetailData } from "../../../api";
 import { t } from "../../../i18n";
 import { renderPage } from "../../../test/render";
 import type { RaidCtx } from "../meta";
@@ -16,8 +15,6 @@ vi.mock("../../../api", async (orig) => ({
     ...(await orig<typeof import("../../../api")>()),
     notifyRaid: vi.fn(),
 }));
-
-const TALK: PingTargetInfo = { talk: true, talkGuildName: "Pulse Talk", talkChannelName: "pings" };
 
 function ctx(over: Partial<RaidDetailData> = {}): RaidCtx {
     const data = {
@@ -41,32 +38,30 @@ beforeEach(() => {
 });
 
 describe("NotifyModal", () => {
-    it("sends the chosen target, template and roles with the call", async () => {
+    it("sends template and roles into the event channel, without a target", async () => {
         const user = userEvent.setup();
-        const c = ctx({ pingTargets: TALK });
+        const c = ctx();
         const onClose = show(c);
         expect(screen.getByText("in #kara-mittwoch")).toBeInTheDocument();
+        expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
 
-        await user.click(screen.getByRole("radio", { name: t("raidModals.target.both") }));
-        expect(screen.getByText("in #kara-mittwoch + #pings")).toBeInTheDocument();
         await user.click(screen.getByRole("checkbox", { name: "@Raider" }));
         await user.click(screen.getByRole("button", { name: t("raidModals.notify.post") }));
 
         await waitFor(() => expect(api.notifyRaid).toHaveBeenCalledWith({
-            event: "e1", templateId: "tpl1", channelId: "c1", roleIds: ["r1"], target: "both",
+            event: "e1", templateId: "tpl1", channelId: "c1", roleIds: ["r1"],
         }));
         await waitFor(() => expect(c.onChanged).toHaveBeenCalledWith("Aufruf gepostet."));
         expect(onClose).toHaveBeenCalled();
     });
 
-    it("offers no target without the talk server's ping channel and posts to the event channel", async () => {
+    it("posts without roles too", async () => {
         const user = userEvent.setup();
-        show(ctx({ pingTargets: { talk: false, talkGuildName: "", talkChannelName: "" } }));
-        expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
-        expect(screen.queryByText(t("raidModals.target.label"))).not.toBeInTheDocument();
-
+        show(ctx());
         await user.click(screen.getByRole("button", { name: t("raidModals.notify.post") }));
-        await waitFor(() => expect(api.notifyRaid).toHaveBeenCalledWith(expect.objectContaining({ target: "event", roleIds: [] })));
+        await waitFor(() => expect(api.notifyRaid).toHaveBeenCalledWith({
+            event: "e1", templateId: "tpl1", channelId: "c1", roleIds: [],
+        }));
     });
 
     it("keeps the call-template link sentence whole in German", () => {

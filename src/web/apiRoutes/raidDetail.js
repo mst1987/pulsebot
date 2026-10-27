@@ -38,9 +38,6 @@ const { postSoftresCard } = require("../../services/loot/softresStatus");
 const { getEvent } = require("../../stores/eventStore");
 const { raidHelperSlots } = require("../../services/setup/setupEditor");
 const { invitePlan, callInvite } = require("../../services/setup/inviteCall");
-const {
-    normalizePingTarget, deliverAnnouncement, dmSummary, TARGET_LABELS,
-} = require("../../services/discord/pingDelivery");
 const { pingMissingRaiders } = require("../../services/events/missingPing");
 const { buildRaidDetail } = require("../events/raidDetailView");
 const { postRaidplanLink } = require("../../services/raidplan/raidplanPost");
@@ -159,9 +156,8 @@ const postNotify = withUser(ORGA, async ({ user, body, req, res }) => {
     const eventId = q.str(body, "event");
     let channelId = q.str(body, "channelId");
     const roleIds = (Array.isArray(body.roleIds) ? body.roleIds : []).map((id) => String(id || "").trim()).filter(Boolean);
-    let lookup = null;
     if (!isGlobalRaidOrga(user)) {
-        lookup = await resolveEventForPost(req, eventId);
+        const lookup = await resolveEventForPost(req, eventId);
         if (!lookup.found) return error(res, lookup.code === "not_found" ? 404 : 400, lookup.code || "not_found", lookup.errorMessage || "Event nicht gefunden.");
         channelId = String(lookup.found.channelId || "");
         // ... and pings only the raider roles of the raid's category (in the raid's version): a role
@@ -175,20 +171,11 @@ const postNotify = withUser(ORGA, async ({ user, body, req, res }) => {
             return error(res, 400, "role_not_allowed", "Du kannst nur die Raider-Rollen der Kategorie dieses Raids pingen.");
         }
     }
-    const target = normalizePingTarget(body.target);
-    if (!template || (target !== "talk" && !channelId)) return error(res, 400, "missing_fields", "Vorlage oder Channel fehlt.");
+    if (!template || !channelId) return error(res, 400, "missing_fields", "Vorlage oder Channel fehlt.");
     try {
-        if (target === "event") {
-            await discord.postAnnouncement(channelId, template, roleIds);
-            return ok(res, { message: "Anmelde-Aufruf gepostet." });
-        }
-        // The DM fallback names the raid, so the event is resolved server-side;
-        // a failed lookup only costs the DM its title.
-        const { found } = lookup || (eventId ? await resolveEventForPost(req, eventId) : { found: null });
-        const result = await deliverAnnouncement({
-            target, event: found, channelId, template, roleIds, guildId: activeGuildFor(req),
-        });
-        ok(res, { message: `Anmelde-Aufruf gepostet (${TARGET_LABELS[target]})${dmSummary(result.dm)}.`, delivery: result });
+        // the raid channel only (#894): the roles are the raid server's, so everyone who holds one is reached there
+        await discord.postAnnouncement(channelId, template, roleIds);
+        return ok(res, { message: "Anmelde-Aufruf gepostet." });
     } catch (e) {
         throw new AppError("post_failed", 500, e.message || "Posten fehlgeschlagen.");
     }
@@ -203,7 +190,7 @@ const postNotify = withUser(ORGA, async ({ user, body, req, res }) => {
 const postPingMissing = withUser(ORGA, async ({ body, req, res }) => {
     const eventId = q.str(body, "event");
     const guildId = activeGuildFor(req);
-    const result = await pingMissingRaiders({ guildId, eventId, target: body.target, text: body.text });
+    const result = await pingMissingRaiders({ guildId, eventId, text: body.text });
     if (result.error) return sendResult(res, result);
     ok(res, result.delivery ? { message: result.message, delivery: result.delivery } : { message: result.message });
 });

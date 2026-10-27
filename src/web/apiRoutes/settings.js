@@ -5,7 +5,11 @@ const { activeGuildFor } = require("../http/activeGuild");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates, getRaidTemplate,
 } = require("../../stores/settingsStore");
-const { normalizeCategoryLanguagePatch, attendanceSettings, normalizeCategoryVersion, DISCORD_VISUALS_DEFAULT } = require("../../stores/configSchema");
+const {
+    normalizeCategoryLanguagePatch, attendanceSettings, normalizeCategoryVersion, DISCORD_VISUALS_DEFAULT, MAX_SERVERS,
+    EVENT_GUILD_LABEL_MAX,
+} = require("../../stores/configSchema");
+const { isSnowflake } = require("../../utils/ids");
 const { switchPreview, versionSwitches, applySeriesFix, notifyCategoryVersionSwitch } = require("../../services/events/categorySwitch");
 const categoryLifecycle = require("../../services/events/categoryLifecycle");
 const {
@@ -19,7 +23,6 @@ const availabilityPanel = require("../../services/signups/availabilityPanel");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
 const { normalizeLootSystem } = require("../../services/loot/lootSystem");
 const { lastReminderRun } = require("../events/reminders");
-const { pingTargetInfo } = require("../../services/discord/pingDelivery");
 const wowhead = require("../../utils/loot/wowhead");
 const {
     AREAS, normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,
@@ -201,7 +204,7 @@ const ROLE_SYNC_KEYS = ["roleSync"];
 // Everything a non-admin settings user may neither read nor write.
 const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS, ...ADDON_KEYS];
 
-const DISCORD_SERVER_FIELDS = ["talkGuildId", "talkPingChannelId", "signupNoteChannelId", "guildBankChannelId"];
+const DISCORD_SERVER_FIELDS = ["talkGuildId", "signupNoteChannelId", "guildBankChannelId"];
 
 /** The guild bank's orga channel of a config ("" = none). */
 const guildBankOf = (config) => String(((config && config.discordServers) || {}).guildBankChannelId || "");
@@ -304,36 +307,127 @@ function serverCards(config) {
     }
 }
 
-/**
- * Transition until the new Discord-Server page (#891): the stored block
- * (`servers` + `links`) plus the old `eventGuilds` list the current dialog
- * still reads and sends back (saveConfig turns it into servers/links again).
- */
-function legacyDiscordServers(config) {
-    return { ...(config.discordServers || {}), eventGuilds: guildRoles.legacyEventGuilds(config) };
+/** A Discord locale ("de", "en-US", "en-GB") as the link language it suggests: "de", "en" or "" (unknown). */
+function localeLang(locale) {
+    const lang = String(locale || "").toLowerCase().split("-")[0];
+    return lang === "de" || lang === "en" ? lang : "";
+}
+
+/** How many of the configured raid categories (config.categoryIds) live on `guildId`. */
+function raidCategoryCount(guildId, config) {
+    const wanted = new Set(asStringArray(config.categoryIds));
+    if (!wanted.size) return 0;
+    try {
+        return (discord.listCategories(guildId) || []).filter((c) => wanted.has(String(c.id))).length;
+    } catch (e) {
+        console.warn("raid categories failed:", e.message);
+        return 0;
+    }
 }
 
 /**
- * GET /api/settings/discord-servers — everything the "Discord-Server" section
- * shows and edits: the stored ids, both status cards, the member overlap, and
- * every server the bot is on with its role and text channels (the pickers of
- * the edit dialog, so switching the talk server there lists that server's
- * channels without another request).
+ * GET /api/settings/discord-servers — everything the "Discord-Server" page
+ * (#891) shows and edits:
+ *   - `discordServers`: servers, links and the two global channels; the talk
+ *     fields stay out (they live on until #897, the page neither shows nor
+ *     sends them, and saveConfig keeps them).
+ *   - `servers`: one row per configured server — Discord name, status, missing
+ *     bot rights, members, raid categories (0 is a normal state: such a server
+ *     only shows lists) and its Discord language.
+ *   - `guilds`: every server the bot is on with its text channels and language
+ *     (the pickers of the "add server" and "add link" dialogs).
+ *   - `versions`: the game versions for the link's version chips.
+ *   - `talk`: still the talk server's card, only for the role sync block (#896).
  */
-const getDiscordServers = withUser({ full: true }, async ({ res }) => {
+const getDiscordServers = withUser({ full: true }, ({ res }) => {
     const config = getConfig();
-    const guilds = (discord.listGuilds() || []).map((g) => ({
-        ...g,
-        role: guildRoles.guildRole(g.id, config),
-        channels: discord.listTextChannels(g.id),
-    }));
+    const block = config.discordServers || {};
+    const servers = (block.servers || []).map((entry) => {
+        const card = guildRoles.describeGuild(entry.guildId, "event");
+        const guild = discord.getGuild(entry.guildId);
+        return {
+            ...card,
+            label: entry.label || "",
+            raidCategories: raidCategoryCount(entry.guildId, config),
+            lang: localeLang(guild && guild.preferredLocale),
+        };
+    });
+    const guilds = (discord.listGuilds() || []).map((g) => {
+        const guild = discord.getGuild(g.id);
+        return { id: g.id, name: g.name, lang: localeLang(guild && guild.preferredLocale), channels: discord.listTextChannels(g.id) };
+    });
     ok(res, {
-        discordServers: legacyDiscordServers(config),
-        ...serverCards(config),
-        overlap: await guildRoles.memberOverlap(config),
+        discordServers: {
+            servers: block.servers || [],
+            links: block.links || [],
+            signupNoteChannelId: block.signupNoteChannelId || "",
+            guildBankChannelId: block.guildBankChannelId || "",
+        },
+        servers,
         guilds,
+        versions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short })),
+        talk: serverCards(config).talk,
     });
 });
+
+/**
+ * Check the servers/links of a PATCH (#891) and return them cleaned, or
+ * `{ error }` with the reason. Unlike normalizeLinks(), which silently drops a
+ * bad link on read, a save says what is wrong: an unknown source server, a
+ * missing channel, a duplicate `from:to` pair. `links` are checked against the
+ * servers sent along, or the stored ones when only the links are sent.
+ */
+function checkServersAndLinks(sent, stored) {
+    const out = {};
+    let serverIds = (stored.servers || []).map((s) => s.guildId);
+    if (sent.servers !== undefined) {
+        if (!Array.isArray(sent.servers)) return { error: "Die Serverliste fehlt." };
+        if (sent.servers.length > MAX_SERVERS) return { error: `Höchstens ${MAX_SERVERS} Server.` };
+        const seen = new Set();
+        out.servers = [];
+        for (const raw of sent.servers) {
+            const guildId = String((raw && raw.guildId) || "").trim();
+            if (!isSnowflake(guildId)) return { error: "Unbekannter Server." };
+            if (seen.has(guildId)) return { error: "Server doppelt eingetragen." };
+            seen.add(guildId);
+            out.servers.push({ guildId, label: String((raw && raw.label) || "").trim().slice(0, EVENT_GUILD_LABEL_MAX) });
+        }
+        // The old ping server (talkGuildId, until #897) is re-added by
+        // normalizeDiscordServers(): removing it would only drop its links.
+        const talk = String((sent.talkGuildId !== undefined ? sent.talkGuildId : stored.talkGuildId) || "").trim();
+        if (talk && !seen.has(talk)) return { error: "Dieser Server ist noch als Ping-Server eingetragen und lässt sich erst später entfernen." };
+        // Only servers sent: a stored link whose source goes away would be
+        // dropped silently on save — say so instead.
+        if (sent.links === undefined && (stored.links || []).some((l) => !seen.has(l.from))) {
+            return { error: "Der Server ist noch Quelle einer Verknüpfung – erst die Verknüpfung entfernen." };
+        }
+        serverIds = out.servers.map((s) => s.guildId);
+    }
+    if (sent.links !== undefined) {
+        if (!Array.isArray(sent.links)) return { error: "Die Verknüpfungen fehlen." };
+        const known = new Set(serverIds);
+        const versionIds = new Set(VERSIONS.map((v) => v.id));
+        const pairs = new Set();
+        out.links = [];
+        for (const raw of sent.links) {
+            const link = raw && typeof raw === "object" ? raw : {};
+            const from = String(link.from || "").trim();
+            const to = String(link.to || "").trim();
+            const channelId = String(link.channelId || "").trim();
+            if (!known.has(from)) return { error: "Unbekannter Quell-Server." };
+            if (!isSnowflake(to)) return { error: "Unbekannter Ziel-Server." };
+            if (!isSnowflake(channelId)) return { error: "Kanal fehlt." };
+            if (pairs.has(`${from}:${to}`)) return { error: "Diese Verknüpfung gibt es schon." };
+            pairs.add(`${from}:${to}`);
+            const lang = String(link.lang || "");
+            if (!["", "de", "en"].includes(lang)) return { error: "Unbekannte Sprache." };
+            const versions = link.versions === undefined ? [] : link.versions;
+            if (!Array.isArray(versions) || versions.some((v) => !versionIds.has(String(v)))) return { error: "Unbekannte Spielversion." };
+            out.links.push({ from, to, channelId, lang, versions: [...new Set(versions.map(String))] });
+        }
+    }
+    return out;
+}
 
 /**
  * GET /api/settings/role-sync — the role sync block of the Discord-Server
@@ -347,8 +441,7 @@ const getRoleSync = withUser({ full: true }, async ({ res }) => {
 
 /**
  * GET /api/settings/reminders — the reminder block: the stored rules, every
- * configured event server's raid categories with names, whether the talk
- * server's ping channel exists as a target, and the last sweep.
+ * configured event server's raid categories with names and the last sweep.
  */
 const getReminders = withUser({}, async ({ res }) => {
     const config = getConfig();
@@ -364,7 +457,6 @@ const getReminders = withUser({}, async ({ res }) => {
         categoryReminders: config.categoryReminders || {},
         // `active: false`: a deactivated category (#744) — its rule stays, but it reminds nobody.
         categories: ids.map((id) => ({ id, name: names.get(id) || "", roleCount: expectedRoleIds(id, config).length, active: categoryLifecycle.isCategoryActive(id, config) })),
-        pingTargets: pingTargetInfo(config),
         lastRun: lastReminderRun(),
     });
 });
@@ -513,10 +605,15 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         for (const k of DISCORD_SERVER_FIELDS) {
             if (body.discordServers[k] !== undefined) partial.discordServers[k] = String(body.discordServers[k] || "").trim();
         }
-        // Transition until #891: the old dialog's whole `eventGuilds` list, raw —
-        // configStore.saveConfig turns it into servers + links (configSchema
-        // legacyServersAndLinks: dedup, snowflake checks, half-set target).
-        if (Array.isArray(body.discordServers.eventGuilds)) partial.discordServers.eventGuilds = body.discordServers.eventGuilds;
+        // The old dialog's `eventGuilds` list is gone with #891: a tab still
+        // open on it must not overwrite the links it knows nothing about.
+        if (body.discordServers.eventGuilds !== undefined) {
+            return error(res, 400, "invalid_discord_servers", "Veraltetes Format – bitte die Seite neu laden.");
+        }
+        const checked = checkServersAndLinks(body.discordServers, getConfig().discordServers || {});
+        if (checked.error) return error(res, 400, "invalid_discord_servers", checked.error);
+        if (checked.servers) partial.discordServers.servers = checked.servers;
+        if (checked.links) partial.discordServers.links = checked.links;
     }
     if (body.raidhelperServerId !== undefined) partial.raidhelperServerId = String(body.raidhelperServerId).trim();
     if (body.officerRoleId !== undefined) partial.officerRoleId = String(body.officerRoleId).trim();

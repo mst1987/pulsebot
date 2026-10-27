@@ -135,8 +135,8 @@ export type AdminConfig = {
     // Only what differs from the default is listed.
     categoryMessageLook?: Record<string, { raidArt?: boolean; titleSize?: string }>;
     // "Beim Anlegen ankündigen" per category (#306): only switched-on ones are
-    // listed; `target` is a ping target ("event" | "talk" | "both").
-    categoryAnnounce?: Record<string, { enabled: boolean; target: string }>;
+    // listed; the announcement always goes to the event channel (#894).
+    categoryAnnounce?: Record<string, { enabled: boolean }>;
     // The message with "Vielleicht" / "Absagen" per category: "required" |
     // "none"; a category without an entry is "optional".
     categorySignupNotes?: Record<string, string>;
@@ -161,12 +161,10 @@ export type AdminConfig = {
     categoryReminders?: Record<string, ReminderRule>;
 };
 
-export type PingTarget = "event" | "talk" | "both";
 /** One role pair between two servers of the list (#896): toTarget copies from -> to, toSource to -> from. */
 export type RoleSyncRule = { fromGuildId: string; fromRoleId: string; toGuildId: string; toRoleId: string; direction: "toTarget" | "toSource" | "both" };
-export type ReminderRule = { missingHours: number; signedHours: number; target: PingTarget };
-/** Whether the talk server's ping channel exists as a target of pings and reminders. */
-export type PingTargetInfo = { talk: boolean; talkGuildName: string; talkChannelName: string };
+/** Reminders go to the raid's own server; whoever is not on it gets a DM (#894). */
+export type ReminderRule = { missingHours: number; signedHours: number };
 
 export type RoleSyncDriftGroup = {
     ruleIndex: number;
@@ -210,7 +208,6 @@ export type RemindersData = {
     categoryReminders: Record<string, ReminderRule>;
     /** `active: false`: a deactivated category (#744) — its rule stays but reminds nobody. */
     categories: { id: string; name: string; roleCount: number; active?: boolean }[];
-    pingTargets: PingTargetInfo;
     lastRun: { at: number; sent: number; failed: number; skipped: number; error: string | null } | null;
 };
 

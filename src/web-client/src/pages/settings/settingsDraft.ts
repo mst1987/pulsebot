@@ -39,7 +39,7 @@ export type Draft = {
     /** The look of the signup message; missing = raid picture on, title "large". */
     categoryMessageLook: Record<string, { raidArt?: boolean; titleSize?: string }>;
     /** "Beim Anlegen ankündigen" per category (#306); missing = off. */
-    categoryAnnounce: Record<string, { enabled: boolean; target: string }>;
+    categoryAnnounce: Record<string, { enabled: boolean }>;
     /** The message with "Vielleicht" / "Absagen"; missing = "optional". */
     categorySignupNotes: Record<string, string>;
     /** Where those messages go (#335); missing = the default channel. */

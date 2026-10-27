@@ -67,7 +67,6 @@ module.exports = {
     roleSyncContext: schema.roleSyncContext,
     normalizeCategoryReminders: schema.normalizeCategoryReminders,
     ROLE_SYNC_DIRECTIONS: schema.ROLE_SYNC_DIRECTIONS,
-    REMINDER_TARGETS: schema.REMINDER_TARGETS,
     normalizeCategorySignupSource: schema.normalizeCategorySignupSource,
     signupSourcesOf: schema.signupSourcesOf,
     normalizeRaidhelperRetirement: schema.normalizeRaidhelperRetirement,

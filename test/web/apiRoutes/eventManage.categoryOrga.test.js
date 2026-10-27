@@ -137,7 +137,7 @@ const callsFor = (event) => ({
     "GET /api/raids/manage/raider": { event },
     "POST /api/raids/manage/raider": { event, userId: "200000000000000001", character: "Neu", spec: "Mage-Fire" },
     "POST /api/raids/manage/raider/remove": { event, userId: "h1" },
-    "POST /api/raids/notify": { event, templateId: "tpl", channelId: "c-elsewhere", roleIds: [], target: "event" },
+    "POST /api/raids/notify": { event, templateId: "tpl", channelId: "c-elsewhere", roleIds: [] },
     "POST /api/raids/ping-missing": { event, text: "Bitte anmelden" },
     "POST /api/raids/invite-call": { event },
 });
@@ -160,20 +160,20 @@ describe("the orga of a category (a manager of its roster)", () => {
     });
 
     it("posts the Anmelde-Aufruf into their raid's own channel, whatever channel the request names", async () => {
-        const r = await detailApi.post("/api/raids/notify", { event: own.id, templateId: "tpl", channelId: "c-elsewhere", roleIds: ["r-raider"], target: "event" });
+        const r = await detailApi.post("/api/raids/notify", { event: own.id, templateId: "tpl", channelId: "c-elsewhere", roleIds: ["r-raider"] });
         expect(status(r)).toBe(200);
         expect(discord.postAnnouncement).toHaveBeenCalledWith("c-kara", expect.objectContaining({ id: "tpl" }), ["r-raider"]);
     });
 
     it("pings only the raider roles of the raid's category: any other role refuses the whole call", async () => {
         for (const roleIds of [["r-other"], ["r-raider", "r-other"], ["role-mgr"]]) {
-            const r = await detailApi.post("/api/raids/notify", { event: own.id, templateId: "tpl", roleIds, target: "event" });
+            const r = await detailApi.post("/api/raids/notify", { event: own.id, templateId: "tpl", roleIds });
             expect([roleIds, status(r), code(r)]).toEqual([roleIds, 400, "role_not_allowed"]);
         }
         expect(discord.postAnnouncement).not.toHaveBeenCalled();
         // the own role and no role at all are fine
-        expect(status(await detailApi.post("/api/raids/notify", { event: own.id, templateId: "tpl", roleIds: ["r-raider"], target: "event" }))).toBe(200);
-        expect(status(await detailApi.post("/api/raids/notify", { event: own.id, templateId: "tpl", target: "event" }))).toBe(200);
+        expect(status(await detailApi.post("/api/raids/notify", { event: own.id, templateId: "tpl", roleIds: ["r-raider"] }))).toBe(200);
+        expect(status(await detailApi.post("/api/raids/notify", { event: own.id, templateId: "tpl" }))).toBe(200);
         expect(discord.postAnnouncement.mock.calls.map((c) => c[2])).toEqual([["r-raider"], []]);
     });
 
@@ -214,7 +214,7 @@ describe("the orga of a category (a manager of its roster)", () => {
     it("names no event: refused before anything is looked up", async () => {
         const r = await manageApi.post("/api/raids/manage/signups", { open: false });
         expect(code(r)).toBe("not_category_orga");
-        expect(code(await detailApi.post("/api/raids/notify", { templateId: "tpl", channelId: "c-kara", target: "event" }))).toBe("not_category_orga");
+        expect(code(await detailApi.post("/api/raids/notify", { templateId: "tpl", channelId: "c-kara" }))).toBe("not_category_orga");
         expect(discord.postAnnouncement).not.toHaveBeenCalled();
     });
 
@@ -241,7 +241,7 @@ describe("the global orga and everybody else", () => {
         }
         expect(discord.postAnnouncement).toHaveBeenCalledWith("c-elsewhere", expect.anything(), []);
         // any role of the server, as before
-        const r = await detailApi.post("/api/raids/notify", { event: own.id, templateId: "tpl", channelId: "c-elsewhere", roleIds: ["r-other"], target: "event" });
+        const r = await detailApi.post("/api/raids/notify", { event: own.id, templateId: "tpl", channelId: "c-elsewhere", roleIds: ["r-other"] });
         expect(status(r)).toBe(200);
         expect(discord.postAnnouncement).toHaveBeenLastCalledWith("c-elsewhere", expect.anything(), ["r-other"]);
         // no roster was asked for the global orga

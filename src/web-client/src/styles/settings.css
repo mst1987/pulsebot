@@ -182,24 +182,36 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .dlg-field .note { margin-top: 6px; }
 .fresh-token { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
 
-/* Discord-Server (#251, #361): one card per event server plus the talk server card */
-.srv-title { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.srv-title .kicker { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; white-space: nowrap; cursor: help; }
-.srv-label { font-weight: 600; opacity: .8; }
-.srv-name { font-size: 17px; font-weight: 800; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.srv-state { display: flex; margin-top: 6px; }
-.srv-empty { color: var(--muted); font-size: 13px; line-height: 1.4; }
-.srv-icon { width: 22px; height: 22px; border-radius: 6px; display: block; }
-.srv-initials { font-size: 12px; font-weight: 800; letter-spacing: .02em; }
+/* Discord-Server (#891): the links table (main element) and the servers table */
+.srv-table { max-width: 1100px; }
+.srv-table table { table-layout: fixed; }
+.srv-table td { vertical-align: middle; }
+.srv-table .row-actions { justify-content: flex-end; flex-wrap: nowrap; }
+.srv-table .srv-remove-off { opacity: 0.45; cursor: not-allowed; }
+.srv-links th:nth-child(2) { width: 18%; }
+.srv-links th:nth-child(3) { width: 20%; }
+.srv-links th:nth-child(4) { width: 20%; }
+.srv-links th:last-child { width: 170px; }
+/* a long status ("noch nicht gepostet") wraps in its column instead of running under the buttons */
+.srv-links td:nth-child(3) .badge { white-space: normal; max-width: 100%; }
+.srv-servers th:nth-child(2) { width: 22%; }
+.srv-servers th:nth-child(3), .srv-servers th:nth-child(4) { width: 16%; }
+.srv-servers th:last-child { width: 84px; }
+.srv-link, .srv-server { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.srv-link { flex-wrap: wrap; gap: 0 4px; }
+.srv-server-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; min-width: 0; }
+.srv-server-text > * { min-width: 0; overflow-wrap: break-word; }
+.srv-sub { display: none; flex-basis: 100%; font-size: 12px; color: var(--muted); }
+.srv-sub > span { white-space: nowrap; }
+.srv-sub > span + span::before { content: " · "; }
+.srv-muted { color: var(--muted); }
+.srv-arrow { color: var(--muted); }
+.srv-name { font-weight: 700; }
+.srv-icon { width: 22px; height: 22px; border-radius: 6px; display: block; flex: 0 0 auto; }
+.srv-initials { flex: 0 0 auto; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--panel2); font-size: 10.5px; font-weight: 800; letter-spacing: .02em; }
 .srv-channels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.srv-add-row { margin-top: 12px; }
-/* The edit dialog's list of event-server rows (#361): one small panel per row. */
-.srv-guild-rows { display: flex; flex-direction: column; gap: 12px; margin-top: -4px; }
-.srv-guild-row { display: flex; flex-direction: column; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); }
-.srv-guild-row-head { display: flex; align-items: flex-end; gap: 10px; }
-.srv-guild-row-head > .dlg-field { flex: 1 1 auto; min-width: 0; }
-.srv-guild-row-head > .ibtn { flex: 0 0 auto; }
-.srv-guild-row-target { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.srv-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.srv-hint svg { flex: 0 0 auto; color: var(--medium); }
 
 /* Rollen-Abgleich and Erinnerungen (#264): compact lists under the two cards */
 .sync-part { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
@@ -259,9 +271,14 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 
 @media (max-width: 760px) {
     .conn-grid { grid-template-columns: 1fr; }
-    .srv-channels { grid-template-columns: 1fr; }
-    .srv-guild-row-head { flex-wrap: wrap; }
-    .srv-guild-row-target { grid-template-columns: 1fr; }
+    .srv-channels, .srv-pair { grid-template-columns: 1fr; }
+    .srv-links th:nth-child(2), .srv-links td:nth-child(2), .srv-links th:nth-child(4), .srv-links td:nth-child(4) { display: none; }
+    .srv-servers th:nth-child(3), .srv-servers td:nth-child(3), .srv-servers th:nth-child(4), .srv-servers td:nth-child(4) { display: none; }
+    .srv-sub { display: flex; flex-wrap: wrap; }
+    .srv-server-text > .srv-muted { font-size: 13px; }
+    .srv-links th:nth-child(3) { width: 34%; }
+    .srv-links th:last-child { width: 132px; }
+    .srv-servers th:nth-child(2) { width: 112px; }
     .rhr-item { grid-template-columns: auto minmax(0, 1fr); }
     .rhr-value, .rhr-act { justify-self: start; }
     .rhr-foot > .badge { display: none; }

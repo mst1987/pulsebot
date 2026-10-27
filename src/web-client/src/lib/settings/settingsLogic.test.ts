@@ -207,15 +207,15 @@ describe("save bar change list", () => {
         ]);
     });
 
-    it("names the create announcement and its target, missing = off (#306)", () => {
+    it("names the create announcement, missing = off (#306; #894: always the event channel)", () => {
         const draft = base();
-        draft.categoryAnnounce = { c1: { enabled: true, target: "both" } };
-        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Ankündigung → beide Server"]);
-        const saved = { ...base(), categoryAnnounce: { c1: { enabled: true, target: "event" } } };
-        expect(logic.draftChanges(saved, { ...base(), categoryAnnounce: { c1: { enabled: false, target: "event" } } }, names))
+        draft.categoryAnnounce = { c1: { enabled: true } };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Ankündigung → Event-Kanal"]);
+        const saved = { ...base(), categoryAnnounce: { c1: { enabled: true } } };
+        expect(logic.draftChanges(saved, { ...base(), categoryAnnounce: { c1: { enabled: false } } }, names))
             .toEqual(["Hyjal & BT · Ankündigung → aus"]);
         expect(logic.announceMode(undefined)).toBe("");
-        expect(logic.announceMode({ enabled: true, target: "" })).toBe("event");
+        expect(logic.announceMode({ enabled: true })).toBe("event");
     });
 
     it("names the characters per signup, missing = 8, clamped into 1..8", () => {
@@ -341,43 +341,36 @@ describe("Discord-Server cards (#251, #361)", () => {
         expect(logic.serverIssues({ events: [card({ missing: ["x"] }), card()], talk: card({ connected: false }) })).toBe(2);
     });
 
-    it("cleans an event-server list: trims fields, drops a blank row, clears a half-set overview target", () => {
-        expect(logic.discordServersPatch({
-            eventGuilds: [
-                { guildId: " 1 ", label: " PvE ", overviewGuildId: "9", overviewChannelId: "" },
-                { guildId: "", label: "leer", overviewGuildId: "", overviewChannelId: "" },
-                { guildId: "2", label: "", overviewGuildId: "9", overviewChannelId: "91" },
-            ],
-            talkGuildId: "9", talkPingChannelId: "92", signupNoteChannelId: " 7 ", guildBankChannelId: " 8 ",
-        })).toEqual({
-            discordServers: {
-                eventGuilds: [
-                    { guildId: "1", label: "PvE", overviewGuildId: "", overviewChannelId: "" },
-                    { guildId: "2", label: "", overviewGuildId: "9", overviewChannelId: "91" },
-                ],
-                talkGuildId: "9", talkPingChannelId: "92", signupNoteChannelId: "7", guildBankChannelId: "8",
-            },
-        });
+    it("says a link's language and versions in one short line (#891)", () => {
+        const versions = [{ id: "tbc", short: "TBC" }, { id: "forever", short: "Forever" }];
+        const link = { from: "1", to: "2", channelId: "21", lang: "", versions: [] };
+        expect(logic.linkSummary(link, versions)).toBe("Serversprache · alle Versionen");
+        expect(logic.linkSummary({ ...link, lang: "en", versions: ["tbc"] }, versions)).toBe("Englisch · nur TBC");
+        expect(logic.linkSummary({ ...link, lang: "de", versions: ["tbc", "forever", "x"] }, versions)).toBe("Deutsch · nur TBC, Forever, x");
     });
 
-    it("clears a talk server equal to one of the event servers — never the note channel", () => {
-        expect(logic.discordServersPatch({
-            eventGuilds: [{ guildId: "1", label: "", overviewGuildId: "", overviewChannelId: "" }],
-            talkGuildId: "1", talkPingChannelId: "6", signupNoteChannelId: "7", guildBankChannelId: "",
-        })).toEqual({
-            discordServers: {
-                eventGuilds: [{ guildId: "1", label: "", overviewGuildId: "", overviewChannelId: "" }],
-                talkGuildId: "", talkPingChannelId: "6", signupNoteChannelId: "7", guildBankChannelId: "",
-            },
-        });
+    it("finds a link's status by its key from:to, a second link of the same source keeping its own, and words it", () => {
+        const link = { from: "1", to: "2", channelId: "21", lang: "", versions: [] };
+        const second = { ...link, to: "3", channelId: "31" };
+        const base = { key: "1:2", from: "1", to: "2", guildId: "1", label: "", configured: true, channelId: "21", messageId: "m", messageUrl: "", postedAt: 1000, editedAt: 0, checkedAt: 0, error: "" };
+        const other = { ...base, key: "1:3", to: "3", channelId: "31", messageId: "", error: "x" };
+        expect(logic.linkKey(link)).toBe("1:2");
+        expect(logic.linkStatusOf(link, [other])).toBeNull();
+        expect(logic.linkStatusOf(link, [other, base])).toBe(base);
+        expect(logic.linkStatusOf(second, [base, other])).toBe(other);
+        // No fallback to the source alone: same source and channel but another key is not this link's status.
+        expect(logic.linkStatusOf(link, [{ ...base, key: "1:9" }])).toBeNull();
+        expect(logic.linkStatusBadge(null, 2000).label).toBe("noch nicht gepostet");
+        expect(logic.linkStatusBadge({ ...base, messageId: "" }, 2000).label).toBe("noch nicht gepostet");
+        expect(logic.linkStatusBadge(base, 2000)).toMatchObject({ label: "Aktuell", tone: "ok" });
+        expect(logic.linkStatusBadge({ ...base, error: "Bot darf nicht schreiben" }, 2000))
+            .toMatchObject({ label: "Fehler", tone: "mid", tipSub: "Bot darf nicht schreiben" });
     });
 
-    it("words the member overlap and flags a large gap", () => {
-        expect(logic.overlapBadge(null)).toBeNull();
-        expect(logic.overlapBadge({ eventCount: 212, talkCount: 208, both: 198, error: null })).toMatchObject({ label: "198 von 212", tone: "ok" });
-        expect(logic.overlapBadge({ eventCount: 100, talkCount: 50, both: 50, error: null }).tone).toBe("mid");
-        expect(logic.overlapBadge({ eventCount: null, talkCount: null, both: null, error: "Intent fehlt" }))
-            .toEqual({ label: "Überschneidung unbekannt", tone: "", tip: "Intent fehlt" });
+    it("words the raid categories of a server, none being a normal state", () => {
+        expect(logic.raidCategoriesText(0)).toBe("keine");
+        expect(logic.raidCategoriesText(1)).toBe("1 Raid-Kategorie");
+        expect(logic.raidCategoriesText(3)).toBe("3 Raid-Kategorien");
     });
 });
 
@@ -418,21 +411,9 @@ describe("category list", () => {
 
 // Pings, reminders and role sync across both servers (#264).
 describe("ping targets, role sync and reminders", () => {
-    it("offers no Wohin segment without a talk ping channel", () => {
-        expect(logic.pingTargetOptions(null)).toEqual([]);
-        expect(logic.pingTargetOptions({ talk: false })).toEqual([]);
-        const options = logic.pingTargetOptions({ talk: true, talkGuildName: "Pulse Talk", talkChannelName: "pings" });
-        expect(options.map((o) => o.value)).toEqual(["event", "talk", "both"]);
-        expect(options[1].tip).toContain("#pings auf Pulse Talk");
-        expect(options[1].tip).toContain("DM");
-    });
-
-    it("says in the modal head where the ping goes", () => {
-        const info = { talk: true, talkGuildName: "Pulse Talk", talkChannelName: "pings" };
-        expect(logic.targetHint("event", "kara-mi", info)).toBe("in #kara-mi");
-        expect(logic.targetHint("talk", "kara-mi", info)).toBe("in #pings");
-        expect(logic.targetHint("both", "kara-mi", info)).toBe("in #kara-mi + #pings");
-        expect(logic.targetHint("event", "", undefined)).toBeUndefined();
+    it("says in the modal head which channel the ping goes to (#894: always the raid's own)", () => {
+        expect(logic.channelHint("kara-mi")).toBe("in #kara-mi");
+        expect(logic.channelHint("")).toBeUndefined();
     });
 
     it("sends only complete role pairs between two servers, once per pair", () => {
@@ -483,16 +464,16 @@ describe("ping targets, role sync and reminders", () => {
 
     it("sums a reminder rule up in one short line", () => {
         expect(logic.reminderSummary(undefined)).toBe("aus");
-        expect(logic.reminderSummary({ missingHours: 24, signedHours: 1, target: "talk" })).toBe("24 h vor Schluss · 1 h vor Raid");
-        expect(logic.reminderSummary({ missingHours: 0, signedHours: 2, target: "event" })).toBe("2 h vor Raid");
+        expect(logic.reminderSummary({ missingHours: 24, signedHours: 1 })).toBe("24 h vor Schluss · 1 h vor Raid");
+        expect(logic.reminderSummary({ missingHours: 0, signedHours: 2 })).toBe("2 h vor Raid");
     });
 
     it("sets one category's reminders and removes a switched-off one", () => {
-        const current = { a: { missingHours: 24, signedHours: 0, target: "event" } };
-        expect(logic.remindersPatch(current, "b", { missingHours: "12", signedHours: 999, target: "both" })).toEqual({
-            categoryReminders: { a: current.a, b: { missingHours: 12, signedHours: 168, target: "both" } },
+        const current = { a: { missingHours: 24, signedHours: 0 } };
+        expect(logic.remindersPatch(current, "b", { missingHours: "12", signedHours: 999 })).toEqual({
+            categoryReminders: { a: current.a, b: { missingHours: 12, signedHours: 168 } },
         });
-        expect(logic.remindersPatch(current, "a", { missingHours: 0, signedHours: -1, target: "event" })).toEqual({ categoryReminders: {} });
+        expect(logic.remindersPatch(current, "a", { missingHours: 0, signedHours: -1 })).toEqual({ categoryReminders: {} });
         expect(current.a.missingHours).toBe(24);
     });
 });
@@ -535,7 +516,7 @@ describe("the labels in English", () => {
             expect(logic.connectionState("lootsync", { tokenCount: 2 }).label).toBe("2 tokens");
             expect(logic.serverCardState({ connected: true, permissions: [], missing: ["a", "b"] }, false).label).toBe("2 permissions missing");
             expect(logic.driftBadge(1, null).label).toBe("1 drift");
-            expect(logic.reminderSummary({ missingHours: 24, signedHours: 1, target: "talk" })).toBe("24 h before close · 1 h before raid");
+            expect(logic.reminderSummary({ missingHours: 24, signedHours: 1 })).toBe("24 h before close · 1 h before raid");
             expect(logic.reminderSummary(undefined)).toBe("off");
             expect(logic.agoText(NOW - 5 * 60000, NOW)).toBe("5 min ago");
             expect(logic.noteChannelPick([], "", "").defaultLabel).toBe("Default (not set)");
@@ -546,7 +527,7 @@ describe("the labels in English", () => {
 
     it("tells an unset reminder apart without reading its text", () => {
         expect(logic.reminderOff(undefined)).toBe(true);
-        expect(logic.reminderOff({ missingHours: 0, signedHours: 0, target: "event" })).toBe(true);
-        expect(logic.reminderOff({ missingHours: 0, signedHours: 2, target: "event" })).toBe(false);
+        expect(logic.reminderOff({ missingHours: 0, signedHours: 0 })).toBe(true);
+        expect(logic.reminderOff({ missingHours: 0, signedHours: 2 })).toBe(false);
     });
 });

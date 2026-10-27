@@ -78,8 +78,8 @@ function eventGuildId(config = getConfig()) {
 
 /**
  * The talk server's id, "" when none is set. Since #890 it may be a server
- * with raids too (even the primary one) — callers that send to "event and
- * talk" check for the same server themselves (pingDelivery: no double ping).
+ * with raids too (even the primary one). Pings never go here: they stay on
+ * the raid's own server (#894, pingDelivery).
  */
 function talkGuildId(config = getConfig()) {
     return String(blockOf(config).talkGuildId || "").trim();

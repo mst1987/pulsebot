@@ -1,11 +1,9 @@
 // "Anmelde-Aufruf": posts a call-to-signup message from a template into the
-// event channel and pings the chosen roles — or on the talk server, where a
-// synced role becomes its talk counterpart and everyone else a mention or a DM (#264).
+// event channel and pings the chosen roles there (#894: no other server any more).
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { canAccess, notifyRaid, type ApiError, type PingTarget } from "../../../api";
-import TargetField from "./TargetField";
-import { targetHint } from "../../../lib/settings/settingsLogic";
+import { canAccess, notifyRaid, type ApiError } from "../../../api";
+import { channelHint } from "../../../lib/settings/settingsLogic";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
 import { useToast } from "../../../components/shell/Jobs";
@@ -18,7 +16,6 @@ export default function NotifyModal({ ctx, open, onClose }: { ctx: RaidCtx; open
     const { notifyTemplates, roles, event: ev } = data;
     const [templateId, setTemplateId] = useState(notifyTemplates[0]?.id ?? "");
     const [roleIds, setRoleIds] = useState<string[]>([]);
-    const [target, setTarget] = useState<PingTarget>("event");
     const [busy, setBusy] = useState(false);
     const toast = useToast();
 
@@ -28,7 +25,7 @@ export default function NotifyModal({ ctx, open, onClose }: { ctx: RaidCtx; open
         e.preventDefault();
         setBusy(true);
         try {
-            const r = await notifyRaid({ event: eventId, templateId: templateId || notifyTemplates[0]?.id || "", channelId: ev.channelId, roleIds, target });
+            const r = await notifyRaid({ event: eventId, templateId: templateId || notifyTemplates[0]?.id || "", channelId: ev.channelId, roleIds });
             onClose();
             onChanged(r.message);
         } catch (err) {
@@ -43,7 +40,7 @@ export default function NotifyModal({ ctx, open, onClose }: { ctx: RaidCtx; open
         <Modal
             open={open} onClose={onClose} icon="inv_letter_15" tone="raids"
             kicker={ev.title} title={t("raidModals.notify.title")} width={560}
-            hint={targetHint(target, channel, data.pingTargets)}
+            hint={channelHint(channel)}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
@@ -62,7 +59,6 @@ export default function NotifyModal({ ctx, open, onClose }: { ctx: RaidCtx; open
                 ) : <p className="rd-empty">{t("raidModals.notify.noTemplatesOrga")}</p>
             ) : (
                 <form id="rd-notify-form" className="rd-form" onSubmit={submit}>
-                    <TargetField info={data.pingTargets} value={target} onChange={setTarget} />
                     <div className="field">
                         <label htmlFor="rd-notify-template">{t("raidModals.notify.template")}</label>
                         <select id="rd-notify-template" value={templateId} onChange={(e) => setTemplateId(e.target.value)} required>
@@ -70,9 +66,7 @@ export default function NotifyModal({ ctx, open, onClose }: { ctx: RaidCtx; open
                         </select>
                     </div>
                     <div className="field">
-                        <label data-tip={t("raidModals.notify.rolesTip")} data-tip-sub={target === "event"
-                            ? t("raidModals.notify.rolesTipEvent")
-                            : t("raidModals.notify.rolesTipTalk")} className="tipped">{t("raidModals.notify.rolesLabel")}</label>
+                        <label data-tip={t("raidModals.notify.rolesTip")} data-tip-sub={t("raidModals.notify.rolesTipEvent")} className="tipped">{t("raidModals.notify.rolesLabel")}</label>
                         {roles.length
                             ? (
                                 <div className="rd-checks">

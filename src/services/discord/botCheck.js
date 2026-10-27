@@ -15,7 +15,7 @@ const rosterStore = require("../../stores/rosterStore");
 const roleMessageStore = require("../../stores/roleMessageStore");
 const addonCenterStore = require("../../stores/addonCenterStore");
 const eventStore = require("../../stores/eventStore");
-const { serverIds, talkGuildId, roleMessageGuild } = require("./guildRoles");
+const { serverIds, roleMessageGuild } = require("./guildRoles");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -56,9 +56,10 @@ const POST = ["ViewChannel", "SendMessages", "EmbedLinks"];
 
 /**
  * The channels the settings name, by purpose. `guildId` pins a purpose to one
- * server; without it the channel counts for the server it lies on (a channel
- * that cannot be found then shows on the first server). `required` purposes
- * show "not_set" when no channel is configured.
+ * server (a link's overview to its target server); without it the channel
+ * counts for the server it lies on (a channel that cannot be found then shows
+ * on the first server). `required` purposes show "not_set" when no channel is
+ * configured.
  */
 function channelPurposes(config) {
     const servers = config.discordServers || {};
@@ -66,7 +67,6 @@ function channelPurposes(config) {
     const add = (key, label, channelId, needs, extra = {}) => out.push({ key, label, channelId: str(channelId), needs, ...extra });
     add("applications", "Bewerbungen", config.applicationChannelId, [...POST, "CreatePublicThreads", "SendMessagesInThreads"], { required: true });
     (config.logChannelIds || []).forEach((id) => add("logs", "Log-Kanal", id, [...POST, "ReadMessageHistory"]));
-    add("talkPings", "Pings auf dem Talk-Server", servers.talkPingChannelId, POST, { guildId: str(talkGuildId(config)) });
     add("signupNotes", "Vielleicht und Absagen", servers.signupNoteChannelId, POST);
     for (const id of new Set(Object.values(config.categorySignupNoteChannel || {}).map(str))) add("signupNotes", "Vielleicht und Absagen (Kategorie)", id, POST);
     add("guildBank", "Gildenbank-Anfragen", servers.guildBankChannelId, POST);

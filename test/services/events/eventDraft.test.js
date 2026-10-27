@@ -89,13 +89,13 @@ describe("services/events/eventDraft — step 1", () => {
         expect(off.payload.embeds[0].description).toContain("**Ankündigung:** aus");
         expect(draft.applyStep(state(), "a").ann).toBe("1");
 
-        // Kategorie an: die Zeile nennt das Ziel, der Knopf schaltet aus.
+        // Kategorie an: die Zeile nennt den Event-Kanal (#894: ein altes Ziel zählt nicht), der Knopf schaltet aus.
         settings.getConfig.mockReturnValue({
             categoryIds: [CAT_EH, CAT_RH], categoryRaidTemplate: { [CAT_EH]: T5.id },
             categoryAnnounce: { [CAT_EH]: { enabled: true, target: "both" } },
         });
         const on = await draft.stepMessage("g1", state());
-        expect(on.payload.embeds[0].description).toContain("**Ankündigung:** Raider-Rolle pingen (beide Server)");
+        expect(on.payload.embeds[0].description).toContain("**Ankündigung:** Raider-Rolle pingen (Event-Kanal)");
         const buttons = on.payload.components[on.payload.components.length - 1].components;
         expect(buttons.map((b) => b.label)).toContain("Ankündigung: an");
         expect(draft.applyStep(state(), "a").ann).toBe("0");

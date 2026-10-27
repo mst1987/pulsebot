@@ -157,7 +157,9 @@ describe("moving an event", () => {
         expect(reminderStore.getSent(event.id).missing).toBeUndefined();
         expect(refreshEventMessage).toHaveBeenCalledWith(event.id);
         expect(scheduleOverviewSync).toHaveBeenCalled();
-        expect(deliverUserPing).toHaveBeenCalledWith(expect.objectContaining({ target: "event", userIds: [RAIDER], text: expect.any(Function) }));
+        expect(deliverUserPing).toHaveBeenCalledWith(expect.objectContaining({ userIds: [RAIDER], text: expect.any(Function) }));
+        // #894: always the raid's server, there is no target any more
+        expect(deliverUserPing.mock.calls[0][0]).not.toHaveProperty("target");
         // the note in the channel comes in the server language (pingDelivery picks it)
         const note = deliverUserPing.mock.calls[0][0].text;
         expect(note("en")).toContain("has been moved");

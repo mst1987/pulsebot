@@ -145,10 +145,11 @@ describe("channels", () => {
         expect(byKey.talkPings).toBeUndefined();
     });
 
-    it("puts the talk ping channel on the talk server and a channel by the server it lies on", () => {
+    // #894: there is no talk ping channel any more - an old value is not checked
+    it("puts a channel by its server and checks no talk ping channel", () => {
         mockClient.channels.cache.set("300000000000000003", { guildId: TALK });
         const keys = botCheck(TALK, config).channels.map((c) => c.key);
-        expect(keys).toEqual(["talkPings", "guildBank"]);
+        expect(keys).toEqual(["guildBank"]);
     });
 
     it("puts an overview channel on the target of its link", () => {
@@ -167,6 +168,15 @@ describe("channels", () => {
         expect(eventKeys).not.toContain("overview");
         expect(talkKeys).not.toContain("guildBank");
         expect(talkKeys).not.toContain("overview");
+    });
+
+    it("shows a link's overview channel on the link's target server only", () => {
+        const withLink = { ...config, discordServers: { ...config.discordServers, links: [{ from: EVENT, to: TALK, channelId: "300000000000000005" }, { to: TALK }] } };
+        expect(channelPurposes(withLink).filter((p) => p.key === "overview")).toEqual([
+            expect.objectContaining({ channelId: "300000000000000005", guildId: TALK }),
+        ]);
+        expect(botCheck(TALK, withLink).channels.map((c) => c.key)).toContain("overview");
+        expect(botCheck(EVENT, withLink).channels.map((c) => c.key)).not.toContain("overview");
     });
 
     it("lists only purposes with a channel, plus the required applications channel", () => {

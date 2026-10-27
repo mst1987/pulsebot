@@ -70,7 +70,7 @@ export type CategorySettings = {
     voiceChannels?: { id: string; name: string; category?: string }[];
     categoryMessageLook?: Record<string, { raidArt?: boolean; titleSize?: string }>;
     onMessageLook?: (categoryId: string, look: { raidArt: boolean; titleSize: string }) => void;
-    categoryAnnounce?: Record<string, { enabled: boolean; target: string }>;
+    categoryAnnounce?: Record<string, { enabled: boolean }>;
     categorySheets: Record<string, CategorySheet>;
     /** Raid plan or sheet per category (picked modes only); missing = the default of planningOf(). */
     categoryPlanning?: Record<string, PlanningMode>;
@@ -99,7 +99,7 @@ const lootTools = () => ["gargul", "rclc", ""].map((value) => ({ value, label: l
 // automatic: RCLootcouncil as the addon means Loot-Council, anything else Softres.
 const lootSystems = () => ["", "softres", "lootcouncil", "gdkp", "other"].map((value) => ({ value, label: lootSystemLabel(value) }));
 
-// "Beim Anlegen ankündigen" (#306) as one control: off, or where the ping goes.
+// "Beim Anlegen ankündigen" (#306) as one control: off, or in the event channel (#894).
 // The language of the category's posts in the channel: the server's, or its own (PuGs in English).
 const languageModes = () => [
     { value: "", label: translate("settings.categories.languageServer") },
@@ -110,8 +110,6 @@ const languageModes = () => [
 const announceModes = () => [
     { value: "", label: translate("settings.categories.announceMode.off") },
     { value: "event", label: translate("settings.categories.announceMode.event") },
-    { value: "talk", label: translate("settings.categories.announceMode.talk") },
-    { value: "both", label: translate("settings.categories.announceMode.both") },
 ];
 
 // The message with "Vielleicht" / "Absagen" (src/web/signupNotes.js).
@@ -315,7 +313,7 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
             out.push({ key: "announce", node: (
                 <CategoryField label={t("settings.categories.announce")} sub={t("settings.categories.announceShort")} more={t("settings.categories.announceSub")}>
                     <Segment ariaLabel={t("settings.categories.announceAria", { name })}
-                        value={entry && entry.enabled ? (entry.target || "event") : ""}
+                        value={entry && entry.enabled ? "event" : ""}
                         onChange={(v) => onAnnounce(cat.id, v)} options={announceModes()} />
                 </CategoryField>
             ) });
