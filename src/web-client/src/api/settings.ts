@@ -155,42 +155,49 @@ export type AdminConfig = {
     // The drops the guild counts as "big", picked from the Wowhead search in
     // Einstellungen → Loot. The dashboard highlights their awards.
     topItems: TopItem[];
-    // Role sync between event and talk server (#264); full admins only.
+    // Role sync between pairs of servers (#264, pairs since #896); full admins only.
     roleSync?: RoleSyncRule[];
     // Automatic reminders per raid category (#264).
     categoryReminders?: Record<string, ReminderRule>;
 };
 
 export type PingTarget = "event" | "talk" | "both";
-export type RoleSyncRule = { eventRoleId: string; talkRoleId: string; direction: "toTalk" | "toEvent" | "both" };
+/** One role pair between two servers of the list (#896): toTarget copies from -> to, toSource to -> from. */
+export type RoleSyncRule = { fromGuildId: string; fromRoleId: string; toGuildId: string; toRoleId: string; direction: "toTarget" | "toSource" | "both" };
 export type ReminderRule = { missingHours: number; signedHours: number; target: PingTarget };
 /** Whether the talk server's ping channel exists as a target of pings and reminders. */
 export type PingTargetInfo = { talk: boolean; talkGuildName: string; talkChannelName: string };
 
 export type RoleSyncDriftGroup = {
     ruleIndex: number;
-    /** The server the members kept the synced role on. */
-    side: "event" | "talk";
+    /** The server the members kept the synced role on, and the server of the source role. */
+    guildId: string;
+    sourceGuildId: string;
     roleId: string;
     roleName: string;
     sourceRoleId: string;
     sourceRoleName: string;
     guildName: string;
+    sourceGuildName: string;
     members: { userId: string; name: string; notOnSource: boolean; profileUrl: string }[];
 };
 export type RoleSyncRun = {
     at: number;
     added: number;
     failed: number;
-    missingPermission: ("event" | "talk")[];
+    /** The servers the bot may not manage roles on (guild ids). */
+    missingPermission: string[];
     errors: string[];
     error: string | null;
 };
+export type RoleSyncServer = { guildId: string; label: string; name: string; connected: boolean; canManage: boolean; roles: Role[] };
+export type RoleSyncOverlap = { fromGuildId: string; toGuildId: string; fromCount: number | null; toCount: number | null; both: number | null; error: string | null };
 export type RoleSyncData = {
     roleSync: RoleSyncRule[];
-    eventRoles: Role[];
-    talkRoles: Role[];
-    canManage: { event: boolean; talk: boolean };
+    /** Every server of the list with its roles; a pair picks two of them. */
+    servers: RoleSyncServer[];
+    /** Member overlap per server pair of the mapping; the pair is sorted. */
+    overlaps: RoleSyncOverlap[];
     drift: RoleSyncDriftGroup[];
     driftTotal: number;
     driftError: string | null;

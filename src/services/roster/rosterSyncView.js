@@ -28,24 +28,33 @@ const MAX_LOG_CHARS = 50;
 const titleCase = (key) => String(key || "").replace(/(^|[\s-])(\p{L})/gu, (m, sep, ch) => sep + ch.toUpperCase());
 
 /**
- * Which roster roles the role sync (config.roleSync) touches:
- * `[{ roleId, otherRoleId, direction, side, incoming, outgoing }]`. `incoming`:
- * the sync gives this role from the other server - a role taken here comes
- * back as long as the person holds the other one. `outgoing`: it is copied to
- * the other server, where taking it here never removes it (the sync only adds).
+ * Which roster roles the role sync (config.roleSync, pairs of servers since
+ * #896) touches on the roster's server:
+ * `[{ roleId, otherRoleId, otherGuildId, direction, side, incoming, outgoing }]`.
+ * `side`: "from" / "to" - which end of the pair the roster's server is.
+ * `incoming`: the sync gives this role from the other server - a role taken
+ * here comes back as long as the person holds the other one. `outgoing`: it is
+ * copied to the other server, where taking it here never removes it (the sync
+ * only adds). A pair between two other servers is no hint, even when it names
+ * the same role id.
  */
 function mirroredRoles(roster, config = {}) {
     const ids = new Set([...roster.roleIds, roster.trialRoleId].filter(Boolean));
+    const gid = String(roster.guildId || "");
     const out = [];
     for (const rule of Array.isArray(config.roleSync) ? config.roleSync : []) {
-        for (const side of ["event", "talk"]) {
-            const roleId = side === "event" ? rule.eventRoleId : rule.talkRoleId;
-            if (!ids.has(roleId)) continue;
-            const toThisSide = side === "event" ? "toEvent" : "toTalk";
-            const fromThisSide = side === "event" ? "toTalk" : "toEvent";
+        if (!rule || !gid) continue;
+        for (const side of ["from", "to"]) {
+            const here = side === "from" ? rule.fromGuildId : rule.toGuildId;
+            const roleId = side === "from" ? rule.fromRoleId : rule.toRoleId;
+            if (String(here || "") !== gid || !ids.has(roleId)) continue;
+            // toTarget copies from -> to, toSource to -> from
+            const toThisSide = side === "from" ? "toSource" : "toTarget";
+            const fromThisSide = side === "from" ? "toTarget" : "toSource";
             out.push({
                 roleId,
-                otherRoleId: side === "event" ? rule.talkRoleId : rule.eventRoleId,
+                otherRoleId: side === "from" ? rule.toRoleId : rule.fromRoleId,
+                otherGuildId: side === "from" ? rule.toGuildId : rule.fromGuildId,
                 direction: rule.direction,
                 side,
                 incoming: rule.direction === toThisSide || rule.direction === "both",

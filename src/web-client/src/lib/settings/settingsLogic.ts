@@ -693,11 +693,11 @@ export function splitCategoryRows(rows: CategoryRow[], activeIds: string[], show
     return { shown, folded };
 }
 
-// ---- pings, reminders and role sync across both servers (#264) ----
+// ---- pings, reminders and role sync between servers (#264, pairs of servers since #896) ----
 
-export type RoleSyncDirection = "toTalk" | "toEvent" | "both";
+export type RoleSyncDirection = RoleSyncRule["direction"];
 
-export const DIRECTION_LABEL: Record<RoleSyncDirection, string> = { toTalk: "→", toEvent: "←", both: "↔" };
+export const DIRECTION_LABEL: Record<RoleSyncDirection, string> = { toTarget: "→", toSource: "←", both: "↔" };
 export function directionText(direction: RoleSyncDirection): string {
     return t(`settings.direction.${direction}`);
 }
@@ -735,14 +735,34 @@ export function roleSyncPatch(rules: RoleSyncRule[]): { roleSync: RoleSyncRule[]
     const seen: Set<string> = new Set();
     const out: RoleSyncRule[] = [];
     for (const r of rules) {
-        const eventRoleId = String(r.eventRoleId || "").trim();
-        const talkRoleId = String(r.talkRoleId || "").trim();
-        const key = eventRoleId + ":" + talkRoleId;
-        if (!eventRoleId || !talkRoleId || seen.has(key)) continue;
+        const fromGuildId = String(r.fromGuildId || "").trim();
+        const fromRoleId = String(r.fromRoleId || "").trim();
+        const toGuildId = String(r.toGuildId || "").trim();
+        const toRoleId = String(r.toRoleId || "").trim();
+        const key = [fromGuildId, fromRoleId, toGuildId, toRoleId].join(":");
+        // #896: two different servers, one role on each; the server drops the rest as well
+        if (!fromGuildId || !toGuildId || fromGuildId === toGuildId || !fromRoleId || !toRoleId || seen.has(key)) continue;
         seen.add(key);
-        out.push({ eventRoleId, talkRoleId, direction: r.direction || "toTalk" });
+        out.push({ fromGuildId, fromRoleId, toGuildId, toRoleId, direction: r.direction || "toTarget" });
     }
     return { roleSync: out };
+}
+
+/** Whether a pair is complete enough to save: two different servers and a role on each. */
+export function roleRuleReady(rule: RoleSyncRule): boolean {
+    return !!(rule.fromGuildId && rule.toGuildId && rule.fromGuildId !== rule.toGuildId && rule.fromRoleId && rule.toRoleId);
+}
+
+/** The member overlap of a pair's two servers (the server sorts each pair). */
+export function overlapOf<T extends { fromGuildId: string; toGuildId: string }>(overlaps: T[], rule: RoleSyncRule): T | null {
+    const [a, b] = [rule.fromGuildId, rule.toGuildId].sort();
+    return overlaps.find((o) => o.fromGuildId === a && o.toGuildId === b) || null;
+}
+
+/** The servers a pair writes to: toTarget the second, toSource the first, both both. */
+export function writtenGuilds(rule: RoleSyncRule): string[] {
+    if (rule.direction === "both") return [rule.fromGuildId, rule.toGuildId];
+    return [rule.direction === "toSource" ? rule.fromGuildId : rule.toGuildId];
 }
 
 /** The mapping with one entry replaced (index) or appended (index -1). */

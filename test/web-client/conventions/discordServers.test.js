@@ -44,8 +44,10 @@ describe("Discord-Server section", () => {
 
     it("keeps role sync and reminders in their own parts below the cards", () => {
         expect(section).not.toMatch(/Zuordnung|Anmeldung pro Kategorie/);
-        // The role sync needs a talk server; reminders also work on one server.
-        expect(section).toContain("{data.talk && <RoleSyncPart");
+        // #896: the role sync pairs any two servers of the list and is always
+        // mounted (it says itself when there is only one); reminders too.
+        expect(section).toContain("<RoleSyncPart onConfig={onConfig} />");
+        expect(section).not.toContain("{data.talk && <RoleSyncPart");
         expect(section).toContain("<RemindersPart onConfig={onConfig} />");
     });
 

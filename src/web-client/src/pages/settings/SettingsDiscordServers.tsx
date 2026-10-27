@@ -177,8 +177,8 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
                 </div>
             )}
 
-            {/* #264: the role sync needs a talk server; reminders work with one server as well. */}
-            {data.talk && <RoleSyncPart onConfig={onConfig} />}
+            {/* #896: the role sync pairs any two servers of the list and says so itself when there is only one. */}
+            <RoleSyncPart onConfig={onConfig} />
             <RemindersPart onConfig={onConfig} />
 
             {editing && (

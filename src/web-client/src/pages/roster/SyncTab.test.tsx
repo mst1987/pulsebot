@@ -113,7 +113,7 @@ describe("SyncTab — a manager", () => {
     it("warns about mirrored roles, a missing member list and a missing permission", () => {
         open(sync({
             membersError: "offline",
-            mirrored: [{ roleId: "role-main", otherRoleId: "x", direction: "both", side: "event", incoming: true, outgoing: true }],
+            mirrored: [{ roleId: "role-main", otherRoleId: "x", otherGuildId: "g2", direction: "both", side: "from", incoming: true, outgoing: true }],
         }));
         expect(screen.getByText(/auf den anderen Server übertragen/)).toBeInTheDocument();
         expect(screen.getByText(/kommt per Rollen-Abgleich vom anderen Server/)).toBeInTheDocument();

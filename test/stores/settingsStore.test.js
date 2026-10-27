@@ -758,19 +758,65 @@ describe("stores/settingsStore roleSync and categoryReminders", () => {
         expect(getConfig().categoryReminders).toEqual({});
     });
 
+    // #896: pairs of any two configured servers.
+    const S1 = "900001";
+    const S2 = "900002";
+    const S3 = "900003";
+    const ctx = { serverIds: [S1, S2, S3], talkGuildId: S2 };
+    const pair = (from, fromRole, to, toRole, direction = "toTarget") => ({ fromGuildId: from, fromRoleId: fromRole, toGuildId: to, toRoleId: toRole, direction });
+
     it("keeps only complete role pairs with a known direction, once per pair", () => {
         expect(normalizeRoleSync([
-            { eventRoleId: " 111111 ", talkRoleId: "222222", direction: "both" },
-            { eventRoleId: "111111", talkRoleId: "222222", direction: "toEvent" },
-            { eventRoleId: "333333", talkRoleId: "444444", direction: "sideways" },
-            { eventRoleId: "555555", talkRoleId: "" },
-            { eventRoleId: "@Raider", talkRoleId: "666666" },
+            { ...pair(S1, " 111111 ", S3, "222222"), direction: "both" },
+            pair(S1, "111111", S3, "222222", "toSource"),
+            { ...pair(S2, "333333", S3, "444444"), direction: "sideways" },
+            pair(S1, "555555", S3, ""),
+            pair(S1, "@Raider", S3, "666666"),
             null,
-        ])).toEqual([
-            { eventRoleId: "111111", talkRoleId: "222222", direction: "both" },
-            { eventRoleId: "333333", talkRoleId: "444444", direction: "toTalk" },
+        ], ctx)).toEqual([
+            pair(S1, "111111", S3, "222222", "both"),
+            pair(S2, "333333", S3, "444444", "toTarget"),
         ]);
-        expect(normalizeRoleSync("x")).toEqual([]);
+        expect(normalizeRoleSync("x", ctx)).toEqual([]);
+    });
+
+    it("migrates the old event/talk pairs with their directions", () => {
+        expect(normalizeRoleSync([
+            { eventRoleId: "111111", talkRoleId: "222222", direction: "toTalk" },
+            { eventRoleId: "333333", talkRoleId: "444444", direction: "toEvent" },
+            { eventRoleId: "555555", talkRoleId: "666666", direction: "both" },
+            { eventRoleId: "777777", talkRoleId: "888888" },
+        ], ctx)).toEqual([
+            pair(S1, "111111", S2, "222222", "toTarget"),
+            pair(S1, "333333", S2, "444444", "toSource"),
+            pair(S1, "555555", S2, "666666", "both"),
+            pair(S1, "777777", S2, "888888", "toTarget"),
+        ]);
+    });
+
+    it("drops old pairs without a talk server or with the talk server as the first one", () => {
+        const old = [{ eventRoleId: "111111", talkRoleId: "222222", direction: "toTalk" }];
+        expect(normalizeRoleSync(old, { serverIds: [S1], talkGuildId: "" })).toEqual([]);
+        expect(normalizeRoleSync(old, { serverIds: [S1], talkGuildId: S1 })).toEqual([]);
+    });
+
+    it("drops a pair on one server and a pair with a server not in the list", () => {
+        expect(normalizeRoleSync([
+            pair(S1, "111111", S1, "222222"),
+            pair(S1, "111111", "900009", "222222"),
+            pair("900009", "111111", S2, "222222"),
+        ], ctx)).toEqual([]);
+        // without a server list only the shape is checked
+        expect(normalizeRoleSync([pair(S1, "111111", "900009", "222222")])).toHaveLength(1);
+    });
+
+    it("checks pairs against the servers on save", () => {
+        saveConfig({ discordServers: { servers: [{ guildId: S1 }, { guildId: S3 }], talkGuildId: S2 } });
+        saveConfig({ roleSync: [pair(S1, "111111", S3, "222222"), pair(S2, "333333", S3, "444444", "both")] });
+        expect(getConfig().roleSync).toHaveLength(2);
+        // a server leaves the list: its pairs go with it
+        const saved = saveConfig({ discordServers: { servers: [{ guildId: S1 }, { guildId: S3 }], talkGuildId: "" } });
+        expect(saved.roleSync).toEqual([pair(S1, "111111", S3, "222222")]);
     });
 
     it("clamps reminder hours, drops switched-off categories and defaults the target", () => {
@@ -787,7 +833,7 @@ describe("stores/settingsStore roleSync and categoryReminders", () => {
     });
 
     it("replaces both as a whole on save", () => {
-        saveConfig({ roleSync: [{ eventRoleId: "111111", talkRoleId: "222222" }], categoryReminders: { 123456: { signedHours: 2 } } });
+        saveConfig({ roleSync: [pair(S1, "111111", S3, "222222")], categoryReminders: { 123456: { signedHours: 2 } } });
         const saved = saveConfig({ roleSync: [], categoryReminders: { 234567: { missingHours: 12, target: "both" } } });
         expect(saved.roleSync).toEqual([]);
         expect(saved.categoryReminders).toEqual({ 234567: { missingHours: 12, signedHours: 0, target: "both" } });

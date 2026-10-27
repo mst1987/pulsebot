@@ -194,14 +194,27 @@ async function deliverUserPing({ target, event, userIds, text = "", guildId = ""
     return result;
 }
 
-/** The event-server roles that have a talk-server counterpart, and those that do not. */
-function mapRoles(roleIds, config) {
+/**
+ * The roles of the raid server that have a counterpart on the talk server, and
+ * those that do not. A role-sync pair (#896) between exactly these two servers
+ * counts in either orientation and any direction - the ping only needs the
+ * counterpart, not the sync.
+ */
+function mapRoles(roleIds, config, fromGuildId = "", toGuildId = "") {
     const mapping = Array.isArray(config && config.roleSync) ? config.roleSync : [];
+    const from = String(fromGuildId || "");
+    const to = String(toGuildId || "");
+    const counterparts = (id) => mapping.flatMap((m) => {
+        if (!m) return [];
+        if (String(m.fromGuildId) === from && String(m.toGuildId) === to && m.fromRoleId === id) return [m.toRoleId];
+        if (String(m.toGuildId) === from && String(m.fromGuildId) === to && m.toRoleId === id) return [m.fromRoleId];
+        return [];
+    });
     const talkRoleIds = [];
     const unmapped = [];
     for (const id of roleIds) {
-        const pairs = mapping.filter((m) => m.eventRoleId === id);
-        if (pairs.length) pairs.forEach((m) => talkRoleIds.push(m.talkRoleId));
+        const found = from && to ? counterparts(id) : [];
+        if (found.length) talkRoleIds.push(...found);
         else unmapped.push(id);
     }
     return { talkRoleIds: [...new Set(talkRoleIds)], unmapped };
@@ -228,7 +241,7 @@ async function deliverAnnouncement({ target, event, channelId, template, roleIds
         const talk = talkPingChannel(config);
         if (!talk) throw new Error("Auf dem Kommunikations-Discord ist kein Ping-Kanal eingestellt.");
         const onTalk = roles.length ? await talkMemberIds(talk.guildId) : new Set();
-        const { talkRoleIds, unmapped } = mapRoles(roles, config);
+        const { talkRoleIds, unmapped } = mapRoles(roles, config, guildId, talk.guildId);
         let userIds = [];
         let absent = [];
         if (roles.length) {
