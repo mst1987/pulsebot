@@ -71,6 +71,24 @@ export type Draft = {
     topItems: TopItem[];
 };
 
+/** The fields of the active server (#924) as the PATCH body names them. */
+export type ServerDefaultsBody = Partial<Pick<AdminConfig, "officerRoleId" | "applicationChannelId" | "raidDefaults" | "botLanguage">>;
+
+/**
+ * The active server's own values (#924) the draft changed, nothing else: the
+ * server saves them into the server active for the session, so a tab opened
+ * before another server was picked must not send values it never touched — it
+ * would overwrite that other server's values.
+ */
+export function serverDefaultsChanges(saved: Draft, draft: Draft): ServerDefaultsBody {
+    const out: ServerDefaultsBody = {};
+    if (draft.officerRoleId.trim() !== saved.officerRoleId.trim()) out.officerRoleId = draft.officerRoleId.trim();
+    if (draft.applicationChannelId.trim() !== saved.applicationChannelId.trim()) out.applicationChannelId = draft.applicationChannelId.trim();
+    if (draft.raidChannelId.trim() !== saved.raidChannelId.trim()) out.raidDefaults = { channelId: draft.raidChannelId.trim() };
+    if (draft.botLanguage !== saved.botLanguage) out.botLanguage = draft.botLanguage;
+    return out;
+}
+
 export function toDraft(config: AdminConfig): Draft {
     return {
         // The access keys are absent for a non-admin who only holds write on "Einstellungen".

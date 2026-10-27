@@ -209,6 +209,10 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .srv-servers th:nth-child(2) { width: 22%; }
 .srv-servers th:nth-child(3), .srv-servers th:nth-child(4) { width: 16%; }
 .srv-servers th:last-child { width: 84px; }
+/* the signup channels per server (#924): server | note | bank | edit */
+.srv-signup-ch { max-width: 900px; }
+.srv-signup-ch th:last-child { width: 56px; }
+.srv-signup-ch td { overflow-wrap: anywhere; }
 .srv-link, .srv-server { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
 .srv-link { flex-wrap: wrap; gap: 0 4px; }
 .srv-server-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; min-width: 0; }

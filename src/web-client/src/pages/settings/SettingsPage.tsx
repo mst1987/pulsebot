@@ -26,7 +26,7 @@ import IconTile from "../../components/ui/IconTile";
 import PartHead from "../../components/ui/PartHead";
 import "../../styles/settings.css";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { type Draft, toDraft } from "./settingsDraft";
+import { type Draft, toDraft, serverDefaultsChanges } from "./settingsDraft";
 import { RaidsheetsSection } from "./RaidsheetsSection";
 import { ChannelListField, TopItemsField } from "./SettingsFields";
 import GameVersionSection, { VersionSettingsCard } from "./SettingsGameVersion";
@@ -212,12 +212,11 @@ export default function SettingsPage() {
                     userPermissions: draft.userPermissions,
                     orgaRoleIds: draft.orgaRoleIds,
                 } : {}),
-                officerRoleId: draft.officerRoleId.trim(),
-                applicationChannelId: draft.applicationChannelId.trim(),
+                // #924: the active server's own values, only the ones changed here.
+                ...serverDefaultsChanges(saved, draft),
                 categoryIds: draft.categoryIds,
                 categoryRoles: draft.categoryRoles,
                 logChannelIds: draft.logChannelIds,
-                raidDefaults: { channelId: draft.raidChannelId.trim() },
                 categoryLootTool: draft.categoryLootTool,
                 // Merged on the server: "automatisch" is sent as "" and drops the entry.
                 categoryLootSystem: draft.categoryLootSystem,
@@ -250,7 +249,6 @@ export default function SettingsPage() {
                 categorySwitchFixes: switchFixesToSend(draft.categorySwitchFixes, data.config, draft.categoryVersion),
                 // #563: only the main version everywhere while it is on.
                 hideOtherVersions: draft.hideOtherVersions,
-                botLanguage: draft.botLanguage,
                 // the drawn pictures (a test): every switch, merged on the server
                 discordVisuals: draft.discordVisuals,
                 // the dungeon record post: both fields, merged on the server

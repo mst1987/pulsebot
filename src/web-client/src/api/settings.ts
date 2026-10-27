@@ -47,6 +47,7 @@ export type AdminConfig = {
     // The servers and their links (#890); full admins only, like the access keys.
     discordServers?: DiscordServers;
     raidhelperServerId: string;
+    // #924: these four are the active server's values (serverSettings); a PATCH writes them there.
     officerRoleId: string;
     applicationChannelId: string;
     categoryIds: string[];
@@ -73,7 +74,7 @@ export type AdminConfig = {
     categorySwitchFixes?: Record<string, { series: string; roster?: RosterSwitchChoice }>;
     /** "Andere Versionen ausblenden" (#563): only the main version everywhere. */
     hideOtherVersions?: boolean;
-    /** Language of the bot's public messages and default for every raider; missing = "de". */
+    /** Language of the bot's public messages on the active server (#924), default for its raiders; missing = "de". */
     botLanguage?: "de" | "en";
     /** The drawn pictures in bot messages (a test); missing switch = on. */
     discordVisuals?: Partial<DiscordVisuals>;
@@ -140,7 +141,7 @@ export type AdminConfig = {
     // The message with "Vielleicht" / "Absagen" per category: "required" |
     // "none"; a category without an entry is "optional".
     categorySignupNotes?: Record<string, string>;
-    // Where a category's messages go instead of discordServers.signupNoteChannelId (#335).
+    // Where a category's messages go instead of its server's signup note channel (#335, #924).
     categorySignupNoteChannel?: Record<string, string>;
     // How many own characters one signup may name per category (1..8); a
     // category without an entry allows 8 (signupCharacters.maxCharactersFor).

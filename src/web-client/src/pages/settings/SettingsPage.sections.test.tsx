@@ -305,6 +305,11 @@ describe("the save bar", () => {
         expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({
             discordVisuals: { overviewWeekStrip: false, setupImage: false, eventCover: true },
         });
+        // #924: the per-server fields only go out when changed, so another server's values stay untouched
+        const body = vi.mocked(api.updateSettings).mock.calls[0][0];
+        for (const field of ["raidDefaults", "botLanguage", "officerRoleId", "applicationChannelId"]) {
+            expect({ field, sent: field in body }).toEqual({ field, sent: false });
+        }
     });
 
     it("names the picture switches in English", async () => {
