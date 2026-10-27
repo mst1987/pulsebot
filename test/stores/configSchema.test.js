@@ -180,7 +180,15 @@ function after924Migrated(config, stored) {
     for (const [key, value] of Object.entries(one)) if (snowflake(value)) set(known[0], key, snowflake(value));
     return { ...config, serverSettings: next };
 }
-const schemaOnly = frozen.map((g) => ({ ...g, config: after924(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))))))))))) }));
+// #921 moves the log channels into the server settings: the global logChannelIds is no default any more,
+// a file that still holds one reads it (as a clean id list) until the bot hands it to the servers after login.
+function after921(config, stored = {}) {
+    if (stored && Object.prototype.hasOwnProperty.call(stored, "logChannelIds")) return config;
+    const rest = { ...config };
+    delete rest.logChannelIds;
+    return rest;
+}
+const schemaOnly = frozen.map((g, i) => ({ ...g, config: after921(after924(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))))))))))), cases[i].config) }));
 // #927: the start hands Raid-Helper to the server it ran for (the stored raidhelperServerId, else the first
 // server) with the old switch and the .env key (`envKey`, the key itself is never copied) - only for a
 // stored file naming that id; every other server keeps no block and so has Raid-Helper off.

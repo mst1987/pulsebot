@@ -161,9 +161,8 @@ describe("functions", () => {
 describe("channels", () => {
     // #924: the applications and guild bank channels are per server (serverSettings)
     const config = {
-        logChannelIds: ["300000000000000001"],
+        serverSettings: { [EVENT]: { guildBankChannelId: "300000000000000003", logChannels: [{ channelId: "300000000000000001", versionId: "tbc" }] } },
         discordServers: { ...SERVERS, talkPingChannelId: "300000000000000002" },
-        serverSettings: { [EVENT]: { guildBankChannelId: "300000000000000003" } },
     };
 
     it("checks the configured channels of the server (a channel not found shows on the first server)", () => {
@@ -175,6 +174,15 @@ describe("channels", () => {
         expect(byKey.guildBank.missingKeys).toEqual([]);
         expect(byKey.guildBank.state).toBe("channel_missing");
         expect(byKey.talkPings).toBeUndefined();
+    });
+
+    // #921: until the bot has moved the old global list, its channels are checked where they lie, each once
+    it("checks the old global log channel list until it is moved", () => {
+        mockGuild = guild({ rights: ALL, channels: { "300000000000000005": { name: "alt-logs", rights: [...POST, "ReadMessageHistory"] } } });
+        const legacy = { ...config, logChannelIds: ["300000000000000005", "300000000000000001", "300000000000000005"] };
+        const logs = botCheck(EVENT, legacy).channels.filter((c) => c.key === "logs");
+        expect(logs.map((c) => c.channelId).sort()).toEqual(["300000000000000001", "300000000000000005"]);
+        expect(logs.find((c) => c.channelId === "300000000000000005").state).toBe("ok");
     });
 
     // #894: there is no talk ping channel any more - an old value is not checked

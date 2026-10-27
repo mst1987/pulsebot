@@ -19,6 +19,7 @@ const inviteStore = require("../../stores/discordInviteStore");
 const { serverIds, roleMessageGuild, links } = require("./guildRoles");
 const pugRoleGuard = require("./pugRoleGuard");
 const serverDefaults = require("./serverDefaults");
+const { allLogChannels } = require("../logcheck/logChannelSettings");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -77,7 +78,14 @@ function channelPurposes(config) {
     const ids = serverIds(config);
     const opts = { config };
     ids.forEach((gid, i) => add("applications", "Bewerbungen", serverDefaults.applicationChannelId(gid, opts), [...POST, "CreatePublicThreads", "SendMessagesInThreads"], { guildId: gid, required: i === 0 }));
-    (config.logChannelIds || []).forEach((id) => add("logs", "Log-Kanal", id, [...POST, "ReadMessageHistory"]));
+    // #921: each server's own log channels, pinned to that server
+    const logs = allLogChannels({ config });
+    for (const c of logs) add("logs", "Log-Kanal", c.channelId, [...POST, "ReadMessageHistory"], { guildId: c.guildId });
+    // the old global list until the bot has moved it (logChannelMigration.js): on the server it lies on
+    const moved = new Set(logs.map((c) => c.channelId));
+    for (const id of new Set((Array.isArray(config.logChannelIds) ? config.logChannelIds : []).map(str))) {
+        if (!moved.has(id)) add("logs", "Log-Kanal", id, [...POST, "ReadMessageHistory"]);
+    }
     for (const gid of ids) add("signupNotes", "Vielleicht und Absagen", serverDefaults.signupNoteChannelId(gid, opts), POST, { guildId: gid });
     for (const id of new Set(Object.values(config.categorySignupNoteChannel || {}).map(str))) add("signupNotes", "Vielleicht und Absagen (Kategorie)", id, POST);
     for (const gid of ids) add("guildBank", "Gildenbank-Anfragen", serverDefaults.guildBankChannelId(gid, opts), POST, { guildId: gid });

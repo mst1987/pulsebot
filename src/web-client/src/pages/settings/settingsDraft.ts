@@ -1,4 +1,4 @@
-import type { AdminConfig, RolePermissions, Access, TopItem, EventSource, PlanningMode } from "../../api";
+import type { AdminConfig, LogChannelInput, RolePermissions, Access, TopItem, EventSource, PlanningMode } from "../../api";
 import { type CategorySheet } from "./CategoryMatrix";
 import { blockOf, type VersionSettingsBlock } from "../../lib/settings/versionLinks";
 import { disabledFromConfig } from "../../lib/settings/versionFeatures";
@@ -23,7 +23,8 @@ export type Draft = {
     applicationChannelId: string;
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
-    logChannelIds: string[];
+    /** The log channels of the active server (#921); a channel without a version gets it from its category on save. */
+    logChannels: LogChannelInput[];
     raidChannelId: string;
     categoryLootTool: Record<string, string>;
     categoryLootSystem: Record<string, string>;
@@ -89,7 +90,8 @@ export function serverDefaultsChanges(saved: Draft, draft: Draft): ServerDefault
     return out;
 }
 
-export function toDraft(config: AdminConfig): Draft {
+/** `guildId`: the active server, whose log channels the draft holds (#921). */
+export function toDraft(config: AdminConfig, guildId = ""): Draft {
     return {
         // The access keys are absent for a non-admin who only holds write on "Einstellungen".
         adminRoleIds: config.adminRoleIds || [],
@@ -101,7 +103,7 @@ export function toDraft(config: AdminConfig): Draft {
         applicationChannelId: config.applicationChannelId || "",
         categoryIds: config.categoryIds || [],
         categoryRoles: config.categoryRoles || {},
-        logChannelIds: config.logChannelIds || [],
+        logChannels: (guildId && config.serverSettings?.[guildId]?.logChannels) || [],
         raidChannelId: config.raidDefaults?.channelId || "",
         categoryLootTool: config.categoryLootTool || {},
         categoryLootSystem: config.categoryLootSystem || {},

@@ -19,7 +19,7 @@ import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import {
     SECTION_PARAM_IDS, visibleSections, resolveSection, groupedSections, savesWithForm, groupLabel, sectionCrumb, sectionLabel,
     type SettingsSection } from "../../lib/settings/settingsSections";
-import { areaLabel, draftChanges } from "../../lib/settings/settingsLogic";
+import { areaLabel, draftChanges, logChannelsChanged } from "../../lib/settings/settingsLogic";
 import { sectionBadge, settingsNavCounts } from "../../lib/settings/settingsNav";
 import { tParts, useT } from "../../i18n";
 import { Button } from "../../components/ui/Button";
@@ -29,7 +29,7 @@ import "../../styles/settings.css";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { type Draft, toDraft, serverDefaultsChanges } from "./settingsDraft";
 import { RaidsheetsSection } from "./RaidsheetsSection";
-import { ChannelListField, TopItemsField } from "./SettingsFields";
+import { LogChannelsField, TopItemsField } from "./SettingsFields";
 import GameVersionSection, { VersionSettingsCard } from "./SettingsGameVersion";
 import CategorySwitchDialog, { type CategorySwitchChoice } from "./CategorySwitchDialog";
 import CategoryDeactivateDialog from "./CategoryDeactivateDialog";
@@ -61,7 +61,7 @@ export default function SettingsPage() {
     // The draft is cut from the answer as it lands — not from `data`: the parts
     // that save themselves update `data` without touching an unsaved draft.
     const [draft, setDraft] = useState<Draft | null>(null);
-    const settingsData = useApi(() => getSettings().then((d) => { setDraft(toDraft(d.config)); return d; }), []);
+    const settingsData = useApi(() => getSettings().then((d) => { setDraft(toDraft(d.config, d.activeGuildId)); return d; }), []);
     const { data, setData } = settingsData;
     const [saving, setSaving] = useState(false);
     const toast = useToast();
@@ -169,7 +169,7 @@ export default function SettingsPage() {
         patch({ categoryRoles: { ...draft.categoryRoles, [catId]: [...current] } });
     };
 
-    const saved = toDraft(data.config);
+    const saved = toDraft(data.config, data.activeGuildId);
     const roleNames = new Map(data.roles.map((r) => [r.id, r.name]));
     const areaNames = new Map(data.areas.map((a) => [a.id, areaLabel(a)]));
     const categoryNames = new Map(data.categories.map((c) => [c.id, c.name]));
@@ -194,7 +194,7 @@ export default function SettingsPage() {
     // "Kategorie abschließen" is only offered without unsaved changes, so the draft can follow the server.
     const afterClose = (result: CategoryCloseResult) => {
         setData({ ...data, config: result.config, missingCategories: result.missingCategories });
-        setDraft(toDraft(result.config));
+        setDraft(toDraft(result.config, data.activeGuildId));
         setClosing(null);
         toast(t("settings.categoryClose.done", { name: result.name || t("settings.categoryClose.unknownName") }));
     };
@@ -217,7 +217,10 @@ export default function SettingsPage() {
                 ...serverDefaultsChanges(saved, draft),
                 categoryIds: draft.categoryIds,
                 categoryRoles: draft.categoryRoles,
-                logChannelIds: draft.logChannelIds,
+                // #921: the log channels belong to the server this page loaded — sent only when changed,
+                // with that server, so a tab left on another server is refused (409) instead of writing there.
+                ...(data.activeGuildId && logChannelsChanged(saved, draft)
+                    ? { logChannels: draft.logChannels, serverSettingsGuildId: data.activeGuildId } : {}),
                 categoryLootTool: draft.categoryLootTool,
                 // Merged on the server: "automatisch" is sent as "" and drops the entry.
                 categoryLootSystem: draft.categoryLootSystem,
@@ -267,7 +270,7 @@ export default function SettingsPage() {
                 topItems: draft.topItems,
             });
             setData({ ...data, config });
-            setDraft(toDraft(config));
+            setDraft(toDraft(config, data.activeGuildId));
             toast(t("settings.savedToast"));
             // #738: each switched category started a new section.
             for (const sw of switchedCategories) {
@@ -290,7 +293,9 @@ export default function SettingsPage() {
                 void content.refresh();
             }
         } catch (err) {
-            toast((err as ApiError).message, "err");
+            const e = err as ApiError;
+            // #921: another tab switched the session's server since this page loaded
+            toast(e.code === "server_switched" ? t("settings.serverSwitched") : e.message, "err");
         } finally {
             setSaving(false);
         }
@@ -530,7 +535,13 @@ export default function SettingsPage() {
                     <ModuleCard>
                         <div className="set-field">
                             <FieldLabel tip={t("settings.page.logChannels")} tipSub={t("settings.page.logChannelsSub")}>{t("settings.page.logChannels")}</FieldLabel>
-                            <ChannelListField ids={draft.logChannelIds} channels={channels} onChange={(logChannelIds) => patch({ logChannelIds })} />
+                            {data.activeGuildId ? (
+                                <LogChannelsField
+                                    entries={draft.logChannels} channels={channels}
+                                    versions={(data.gameVersions || []).map((v) => ({ id: v.id, label: v.label }))}
+                                    onChange={(logChannels) => patch({ logChannels })}
+                                />
+                            ) : <p className="muted">{t("settings.fields.logNoServer")}</p>}
                         </div>
                     </ModuleCard>
                 </>
@@ -620,7 +631,7 @@ export default function SettingsPage() {
                             {changes.slice(0, 2).join(", ")}{changes.length > 2 ? ` +${changes.length - 2}` : ""}
                         </span>
                         <span className="grow" />
-                        <Button variant="no" icon={<XIcon />} onClick={() => setDraft(toDraft(data.config))} disabled={saving}>{t("common.discard")}</Button>
+                        <Button variant="no" icon={<XIcon />} onClick={() => setDraft(toDraft(data.config, data.activeGuildId))} disabled={saving}>{t("common.discard")}</Button>
                         <Button variant="go" icon={<SaveIcon />} onClick={submit} disabled={saving}>{saving ? t("settings.saving") : t("common.save")}</Button>
                     </div>
                 )}
