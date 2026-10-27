@@ -427,7 +427,7 @@ async function createAtRaidHelper(rh, { body, date, title, channel }) {
         if (result && result.status === "failed") {
             return fail(400, "create_failed", result.reason || result.message || "Raid-Helper hat die Erstellung abgelehnt.");
         }
-        // The talk server's overview lists it once Raid-Helper's cached list has it.
+        // The raid lists of the links show it once Raid-Helper's cached list has it.
         scheduleOverviewSync({ delayMs: RAIDHELPER_CREATE_DELAY_MS });
         // channelId: where it landed — a cloned or new channel is unknown to the caller otherwise.
         return {
@@ -663,7 +663,7 @@ async function updateEvent({ guildId, body = {}, user = null, byName = "" }) {
     }
     // Title, description, time and place also belong on the Discord event (#305).
     const discordEventError = warningOf(await discordEvent.syncForEvent(id).catch((e) => ({ warning: (e && e.message) || "Fehler" })));
-    // Title and time also show in the talk server's overview (#257).
+    // Title and time also show in the links' raid lists (#257).
     scheduleOverviewSync();
     followAvailability(id, current, patch);
     return { status: 200, body: { id, source: "eventhelper", event: updated.event, messageError, discordEventError } };

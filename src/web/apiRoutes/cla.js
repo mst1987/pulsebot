@@ -321,7 +321,7 @@ const linkLog = withUser({ csrf: true, body: true }, async ({ body, req, res }) 
     const log = getLog(logId);
     if (!log) return error(res, 400, "not_found", "Log nicht gefunden.");
     if (!eventId) return error(res, 400, "no_event", "Kein Event gewählt.");
-    // Re-resolve the event server-side; never trust the label posted by the client.
+    // Re-resolve the event on the server; never trust the label posted by the client.
     const { events, error: loadError } = await loadMatchableEvents(activeGuildFor(req));
     if (loadError) return error(res, 400, "events_unavailable", loadError);
     const event = events.find((e) => e.id === eventId);
@@ -346,7 +346,7 @@ const linkLog = withUser({ csrf: true, body: true }, async ({ body, req, res }) 
 const linkLogUrl = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const eventId = q.str(body, "eventId");
     if (!eventId) return error(res, 400, "no_event", "Kein Event gewählt.");
-    // Re-resolve the event server-side, same as linkLog above.
+    // Re-resolve the event on the server, same as linkLog above.
     const { events, error: loadError } = await loadMatchableEvents(activeGuildFor(req));
     if (loadError) return error(res, 400, "events_unavailable", loadError);
     const event = events.find((e) => e.id === eventId);

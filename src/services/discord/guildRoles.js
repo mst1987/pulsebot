@@ -5,8 +5,8 @@
 //   links   — directed: `{ from, to, channelId }` posts the raid list of `from`
 //             to channelId on `to` (from = to is allowed).
 // All come from settingsStore's `discordServers`; no server at all falls back
-// to the old single `guildId`. There is no separate talk server any more (#897):
-// a server that used to be one is an ordinary server of the list. The web
+// to the old single `guildId`. Since #897 there is one kind of server:
+// each is an ordinary server of the list. The web
 // menu's server switcher is independent of this: it still picks any server the
 // bot is on, and only shows these roles as a badge.
 const discord = require("./discord");

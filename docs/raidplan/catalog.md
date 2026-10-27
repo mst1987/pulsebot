@@ -153,7 +153,7 @@ bosses, version, updatedAt }`.
   (`raidplan.templatesFor(event)` is the event's version only, `{ allVersions: true }` for the editor's list).
   Templates from before #544 got their version once at start (`raidplanTemplateStore.migrateVersions`).
 
-- `guildId` is optional (the Discord event server it is for; "" = every server). A template made for another
+- `guildId` is optional (the Discord raid server it is for; "" = every server). A template made for another
   server is not offered for an event on this one and cannot be applied to it. `instanceIds` (at least one)
   decide which bosses can have a board; changing them drops the boards of bosses no longer covered.
 - **No players in a template:** `cleanBoard` runs with an empty set of allowed players and no free tokens, so

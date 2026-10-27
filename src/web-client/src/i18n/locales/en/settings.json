@@ -453,7 +453,7 @@
         "loading": "Loading reminders",
         "empty": "No raid categories yet — they are switched on under Settings → Categories.",
         "unknownCategory": "Unknown category",
-        "unknownCategorySub": "Category ID {id} — not found (anymore) on the event Discord.",
+        "unknownCategorySub": "Category ID {id} — not found (anymore) on any server of the list.",
         "noRole": "No raider role",
         "noRoleSub": "Without a raider role for the category the bot does not know who is missing — the reminder to missing raiders then does not go out.",
         "noRoleBadge": "no role",
@@ -485,8 +485,6 @@
         "rightMissing": "Permission missing",
         "manageMissing": "\"Manage Roles\" is missing on {servers} — the sync gives nothing there.",
         "serverJoin": " and ",
-        "eventDiscord": "Event Discord",
-        "talkDiscord": "Communication Discord",
         "empty": "No mapping yet. Without a mapping no roles are given.",
         "edit": "Edit mapping",
         "delete": "Delete mapping",
@@ -815,7 +813,7 @@
         "switchSub": "Channels of this category hold raid events.",
         "switchAria": "{name} as raid category",
         "unknownTip": "Unknown category",
-        "unknownSub": "This ID is configured, but Discord does not know it right now (bot offline?). Once the bot sees every event server, a deleted category is marked “deleted in Discord” and can be closed.",
+        "unknownSub": "This ID is configured, but Discord does not know it right now (bot offline?). Once the bot sees every server, a deleted category is marked “deleted in Discord” and can be closed.",
         "unknown": "unknown",
         "roleCount": {
             "one": "{count} role",
@@ -1003,7 +1001,7 @@
         },
         "modeTip": {
             "everyone": "Every member may use the command.",
-            "roles": "Only members with one of the chosen roles (on the event server).",
+            "roles": "Only members with one of the chosen roles (on the first server of the list).",
             "admins": "Admins only: ADMIN_USER_ID and the admin roles from \"Access\"."
         },
         "commands": {
@@ -1014,7 +1012,7 @@
         "adminsAll": "admins only",
         "adminsSome": "{count} admins only",
         "unknownRole": "Unknown role",
-        "unknownRoleSub": "Role ID {id} — no longer exists on the event server.",
+        "unknownRoleSub": "Role ID {id} — no longer exists on the first server.",
         "membersUnknown": "Member count unknown",
         "members": {
             "one": "{count} member",
@@ -1026,7 +1024,7 @@
         "loading": "Loading bot commands",
         "adminsAlways": "Admins may always do everything",
         "rolesOf": "roles of",
-        "noRoles": "No roles loaded — is the bot online and the event server chosen?",
+        "noRoles": "No roles loaded — is the bot online and a server listed?",
         "changedTip": "Customized",
         "changedSub": "{changed} of {total} differ from the default.",
         "changed": "{count} customized",
@@ -1041,7 +1039,7 @@
         },
         "whoAria": "Who may",
         "roles": "Roles",
-        "rolesSub": "Roles of the event server. Whoever has one of them may use the command.",
+        "rolesSub": "Roles of the first server of the list. Whoever has one of them may use the command.",
         "removeTip": "Remove {name}",
         "addRole": "+ Role",
         "noRolesLoaded": "No roles loaded",
@@ -1051,7 +1049,7 @@
     },
     "guildBanks": {
         "title": "Guild banks",
-        "infoSub": "The EventHelper addon scans the guild bank, the sync tool uploads the scan. A bank belongs to an event server: with just one event server it lands there by itself, otherwise it waits here for the assignment.",
+        "infoSub": "The EventHelper addon scans the guild bank, the sync tool uploads the scan. A bank belongs to a server: with just one server it lands there by itself, otherwise it waits here for the assignment.",
         "loading": "Loading the guild banks …",
         "none": "No scan has arrived yet.",
         "waiting": {
@@ -1326,8 +1324,8 @@
                 "why": "Record loot and a bank scan once on the new client and upload them. Does the version arrive correctly?"
             },
             "talk": {
-                "label": "Talk overview and reminders checked",
-                "why": "The raid overview on the talk server and the reminders show raids of every version. Take a look whether the new raids appear correctly."
+                "label": "Raid lists and reminders checked",
+                "why": "The raid lists of the links and the reminders show raids of every version. Take a look whether the new raids appear correctly."
             },
             "mainVersion": {
                 "label": "Main version switched, others hidden",

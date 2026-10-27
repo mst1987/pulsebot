@@ -367,7 +367,7 @@ export function getGuildBankHandedOut(key: string): Promise<{ requests: GuildBan
     return get<{ requests: GuildBankHandedOut[] }>(`/api/guildbank/handedout?key=${encodeURIComponent(key)}`);
 }
 
-/** An event server a bank can be assigned to. */
+/** A server a bank can be assigned to. */
 export type GuildBankServer = { guildId: string; name: string; label: string };
 
 /** A bank as the settings list it (no items). */
@@ -386,12 +386,12 @@ export type GuildBankAdminRow = {
 
 export type GuildBankSettings = { banks: GuildBankAdminRow[]; servers: GuildBankServer[]; pending: number };
 
-/** Every bank (waiting ones first) and the event servers to pick from. */
+/** Every bank (waiting ones first) and the servers to pick from. */
 export function getGuildBankSettings(): Promise<GuildBankSettings> {
     return get<GuildBankSettings>("/api/settings/guild-banks");
 }
 
-/** Assign a bank to an event server; "" takes the assignment back. */
+/** Assign a bank to a server; "" takes the assignment back. */
 export function assignGuildBank(key: string, guildId: string): Promise<{ bank: GuildBankAdminRow }> {
     return send<{ bank: GuildBankAdminRow }>("POST", "/api/settings/guild-banks/assign", { key, guildId });
 }

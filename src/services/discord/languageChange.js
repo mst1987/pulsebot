@@ -7,7 +7,7 @@
 //   eventMessages  the signup messages of the last two days and the coming
 //                  ones: their stored hash carries the language, so the sweep
 //                  redraws each one (eventMessage.sweepEventMessages)
-//   talkOverview   the raid overview of every event server (talkOverview.syncOverview,
+//   talkOverview   the raid list of every link (talkOverview.syncOverview,
 //                  queued behind a running sync; its hash carries the language too)
 //   setupMessages  the posted setup messages of those events (setupMessage.refreshSetupMessages)
 const logger = require("../../logger");

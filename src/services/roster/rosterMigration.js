@@ -13,7 +13,7 @@
 //   2. a stored event of that category (own events and Raid-Helper events
 //      carry guildId + categoryId),
 //   3. the first configured server (discordServers.servers, else the
-//      old single guildId) - the "primary event server" other per-server code
+//      old single guildId) - the "primary server" other per-server code
 //      falls back to as well (guildRoles.serverIds()[0]).
 // None at all leaves "" (listRosters("") still lists it; the roster page can
 // set it later).
@@ -26,7 +26,7 @@ const { mainVersionFor } = require("../events/mainVersion");
 const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 
-/** The first configured event server of a config, "" for none. */
+/** The first configured server of a config, "" for none. */
 function primaryEventGuild(config) {
     const servers = (config && config.discordServers) || {};
     // `servers` since #890; a raw file from before still has `eventGuilds`.

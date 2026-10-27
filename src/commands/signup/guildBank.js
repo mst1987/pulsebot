@@ -21,7 +21,7 @@
 //
 // Only the orga with write access to `raids` may — the same rights model as
 // the web menu (config/permissions.js), resolved by services/discord/userAccess.js
-// from the member's roles on the event servers. The bot gate (botAccess.js)
+// from the member's roles on the configured servers. The bot gate (botAccess.js)
 // lets every click through (`defaultAccess: "everyone"`): the channel is the
 // orga's, and the real check is the area right below, not a role list of its
 // own. Every answer is ephemeral and German (orga text).

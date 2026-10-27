@@ -53,12 +53,12 @@ describe("VersionLaunchCard (#745)", () => {
     it("stores a mark at once and shows the fresh list", async () => {
         const user = userEvent.setup();
         renderPage(<VersionLaunchCard versions={VERSIONS} canExport={false} />);
-        const mark = await screen.findByRole("switch", { name: /Talk-Übersicht und Erinnerungen geprüft: erledigt/ });
+        const mark = await screen.findByRole("switch", { name: /Raid-Listen und Erinnerungen geprüft: erledigt/ });
         expect(mark).not.toBeChecked();
         await user.click(mark);
         expect(api.markVersionLaunch).toHaveBeenCalledWith("forever", "talk", true);
         expect(await screen.findByText("3 von 10 erledigt")).toBeInTheDocument();
-        expect(screen.getByRole("switch", { name: /Talk-Übersicht/ })).toBeChecked();
+        expect(screen.getByRole("switch", { name: /Raid-Listen und Erinnerungen/ })).toBeChecked();
     });
 
     it("switches the target version", async () => {

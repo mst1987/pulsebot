@@ -96,7 +96,7 @@ Bereichswissen steht in `docs/` — die passende Datei öffnen, Neues dorthin sc
 | [docs/bot-commands.md](docs/bot-commands.md) | Befehlssystem, Befehlsrechte, Core Utilities, API-Clients, Patterns |
 | [docs/web-admin.md](docs/web-admin.md) | React-SPA und `/api`-Routen: Aufbau, Stores, Styles, i18n, Bausteine |
 | [docs/permissions.md](docs/permissions.md) | Bereiche und Level, Basiszugang, Einzelkonten, `apiAccess.js` |
-| [docs/discord-servers.md](docs/discord-servers.md) | Event- und Talk-Server, Pings, Erinnerungen, Rollen-Abgleich |
+| [docs/discord-servers.md](docs/discord-servers.md) | Server-Verbund: Server und Verknüpfungen, Pings, Erinnerungen, Rollen-Abgleich |
 | [docs/pug-server.md](docs/pug-server.md) | PuG-Server: Entscheidungen, Aufbau, Bot-Rechte, Einrichtungs-Checkliste |
 | [docs/role-messages.md](docs/role-messages.md) | Rollen-Nachrichten: Rolle per Knopf oder Reaktion selbst holen, Sicherheit, API |
 | [docs/events.md](docs/events.md) | Eigene Events: Store, Anlegen, Raid-Cockpit, Serien, öffentliche Seite |

@@ -4,7 +4,7 @@
 //   button / modal   event-rename:<channelId>
 //
 // The channel id comes back from the client, so it is read as untrusted: only a
-// channel that exists on the event server *and* sits in one of the event
+// channel that exists on the raid server *and* sits in one of the event
 // categories can be renamed here (the button is no way to rename any channel).
 // Access: the router has already checked the rule of /event (accessOf); on top
 // of that the rename needs `channels` write — the area that gates renaming in
@@ -31,7 +31,7 @@ function channelIdOf(customId) {
     return prefix === RENAME_PREFIX && isSnowflake(id) ? id : "";
 }
 
-/** `{ channel }` of the event server's cache, or `{ error }` when it is not one this flow may rename. */
+/** `{ channel }` of the raid server's cache, or `{ error }` when it is not one this flow may rename. */
 function renamable(guildId, channelId) {
     if (!channelId) return { error: "Den Kanal gibt es nicht." };
     const channel = (discord.listAllChannels(guildId) || []).find((c) => String(c.id) === channelId);

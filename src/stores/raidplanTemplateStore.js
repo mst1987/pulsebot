@@ -3,7 +3,7 @@
 //
 // { id, name, category, description, guildId, versionId, instanceIds, bosses, version, updatedAt }
 //   versionId  the game version (#544): its instances only; an event is offered the templates of its own version
-//   guildId    "" = for every server, else the Discord server (event server) it is for
+//   guildId    "" = for every server, else the Discord server (raid server) it is for
 //   instanceIds the instances it covers; only their bosses can have a board
 //   bosses     { [bossKey]: board } — the coarse layout WITHOUT players: placeholder
 //              slots (tank 1..n, healer 1..n, dps, group n, free labels), raid marks,

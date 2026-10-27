@@ -12,7 +12,7 @@ const { versionShort } = require("../../services/events/versionTag");
 const guildRoles = require("../../services/discord/guildRoles");
 const { getConfig } = require("../../stores/settingsStore");
 
-// "Mehrere Raids wählen …" under the raid overview on the talk server (#293):
+// "Mehrere Raids wählen …" under a link's raid list (#293):
 // step 1, only for the member — the coming raids of the list's server (nothing
 // preselected, the member picks), the status for all of them and "Weiter:
 // Charaktere" (commands/signup/signupMulti.js). The button carries the list's
@@ -64,7 +64,7 @@ function sourceServer(from, here, config = getConfig()) {
 }
 
 /**
- * The raids a talk-server button offers: those of the list's server (customId,
+ * The raids a raid-list button offers: those of the list's server (customId,
  * #904) and of the version in its customId, of the only version there is, else
  * the question which one (`reply`) — its buttons keep the source.
  * @returns {{ raids: object[] } | { reply: object }}

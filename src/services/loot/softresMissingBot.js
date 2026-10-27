@@ -162,7 +162,7 @@ async function confirmPing(interaction, eventId, event, now = Date.now()) {
     }
 }
 
-/** Both buttons; `guildId` is the event server the click came from (componentRoute). */
+/** Both buttons; `guildId` is the server the click came from (componentRoute). */
 async function handleSoftresComponent(interaction, guildId) {
     const isPing = String(interaction.customId || "").startsWith(`${SOFTRES_PING_PREFIX}:`);
     const eventId = parseEventId(interaction.customId);

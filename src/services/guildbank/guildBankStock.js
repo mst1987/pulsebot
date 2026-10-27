@@ -6,7 +6,7 @@
 // several it belongs to no server yet and waits for an assignment ("Wartet auf
 // Zuordnung") — it is stored all the same, so nothing scanned is lost. An
 // ingest token bound to a server (`token.guildId`; tokens carry none today)
-// assigns a new bank right away. Only an event server can own a bank: that is
+// assigns a new bank right away. Only a raid server can own a bank: that is
 // where the requests are made.
 //
 // A scan whose client names no game version (#737) is never filed under the
@@ -32,7 +32,7 @@ function serverOfToken(token) {
 /**
  * The one raid server, else "". Only servers with raids set up count (the
  * first server, a stored raid event, a configured raid category on it —
- * botCheck.raidServerIds), so a plain talk server next to it changes nothing.
+ * botCheck.raidServerIds), so a server that only shows lists changes nothing.
  * A bank seen for the first time goes there right away — with several raid
  * servers nobody can know which guild it belongs to, so it waits for the
  * assignment.
@@ -80,7 +80,7 @@ function ingestScan(body, { token = {}, now = Date.now(), config } = {}) {
     return { scan, ...result, lookups };
 }
 
-/** The servers a bank can be assigned to: every event server, with its name and label. */
+/** The servers a bank can be assigned to: every raid server, with its name and label. */
 function bankServers(config = getConfig()) {
     const names = new Map(discord.listGuilds().map((g) => [g.id, g.name]));
     return guildRoles.eventGuildIds(config).map((guildId) => ({
@@ -91,7 +91,7 @@ function bankServers(config = getConfig()) {
 }
 
 /**
- * Assign a bank to an event server; "" takes the assignment back.
+ * Assign a bank to a raid server; "" takes the assignment back.
  * @returns {{ bank: object } | { code: string, error: string }}
  */
 function assignBank(key, guildId, { config = getConfig() } = {}) {

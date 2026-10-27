@@ -31,7 +31,7 @@ const SWEEP_MS = 5 * 60 * 1000;
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
-/** The Discord name of a raid category (on any event server), "" when unknown. */
+/** The Discord name of a raid category (on any server), "" when unknown. */
 function categoryNameFor(categoryId, { config } = {}) {
     const cfg = config || settingsStore.getConfig();
     for (const guildId of eventGuildIds(cfg)) {

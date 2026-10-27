@@ -143,7 +143,7 @@ async function confirmPing(interaction, guildId, event, now = Date.now()) {
     }
 }
 
-/** Every click of the three; `guildId` is the event server the click came from (componentRoute). */
+/** Every click of the three; `guildId` is the server the click came from (componentRoute). */
 async function handleMissingComponent(interaction, guildId) {
     const { eventId, step } = parseMissingId(interaction.customId);
     const event = eventId ? eventStore.getEvent(eventId) : null;

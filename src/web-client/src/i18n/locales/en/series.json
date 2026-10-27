@@ -77,7 +77,7 @@
         "titleSub": "Empty = name of the raid template.",
         "titlePlaceholder": "Template name",
         "next": "Next 4 dates",
-        "nextHint": "Channel, signup message and the entry in the talk overview are created at the time shown.",
+        "nextHint": "Channel, signup message and the entry in the raid lists of the links are created at the time shown.",
         "computing": "Calculating dates"
     },
     "row": {

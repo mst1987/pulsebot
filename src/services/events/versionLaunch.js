@@ -7,7 +7,7 @@
 //
 // Computed on every read from the real data. Only the items nothing can check
 // (VERSION_LAUNCH_MANUAL in stores/configSchema.js: the archive export, the loot
-// addon on the new client, the talk overview and reminders, and the backup on an
+// addon on the new client, the raid lists and reminders, and the backup on an
 // instance that takes none) are marked by hand, stored per target version in
 // `config.versionLaunch` = { [versionId]: { [itemId]: { at, byName } } }.
 //
@@ -226,7 +226,7 @@ function buildChecklist(inputs) {
     };
 }
 
-/** The Discord names of the event servers' categories ("" when unknown — the id still says which). */
+/** The Discord names of the servers' categories ("" when unknown — the id still says which). */
 function categoryNames(config) {
     const names = new Map();
     try {
