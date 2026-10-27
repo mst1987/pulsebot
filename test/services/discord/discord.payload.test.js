@@ -16,6 +16,16 @@ describe("services/discord/discord postPayload / editPayload", () => {
         expect(res).toMatchObject({ guildId: "g1", channelId: "c1", messageId: "m-new" });
     });
 
+    it("posts only into a channel of the given server (#924)", async () => {
+        const channel = dc.makeChannel({ id: "c1", guildId: "g1" });
+        discord.setClient(dc.makeClient({ channels: [channel], user: { id: BOT } }));
+        await expect(discord.postPayload("c1", { content: "x" }, { guildId: "g2" })).rejects.toMatchObject({ code: "wrong_guild" });
+        await expect(discord.postNotice("c1", { content: "x" }, { guildId: "g2" })).rejects.toMatchObject({ code: "wrong_guild" });
+        expect(channel.send).not.toHaveBeenCalled();
+        await expect(discord.postPayload("c1", { content: "x" }, { guildId: "g1" })).resolves.toMatchObject({ guildId: "g1" });
+        await expect(discord.postNotice("c1", { content: "x" }, { guildId: "g1" })).resolves.toMatchObject({ channelId: "c1" });
+    });
+
     it("edits only the bot's own message", async () => {
         const own = { id: "m1", author: { id: BOT }, url: "u1", edit: jest.fn(async () => {}) };
         const foreign = { id: "m2", author: { id: "someone" }, edit: jest.fn() };

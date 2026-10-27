@@ -11,9 +11,18 @@ export type ServerLink = { from: string; to: string; channelId: string; lang: "d
 export type DiscordServers = {
     servers: ServerEntry[];
     links: ServerLink[];
-    /** Where the messages of "Vielleicht" / "Absagen" are posted — a channel on any server. */
+    /** PATCH only (#924): the signup channels of single servers, merged per server and field. */
+    channels?: Record<string, Partial<ServerChannels>>;
+};
+
+/**
+ * The two signup channels of one server (#924), "" = none: nothing is posted
+ * then, no other server's channel stands in.
+ */
+export type ServerChannels = {
+    /** Where the messages of "Vielleicht" / "Absagen" of this server's raids are posted. */
     signupNoteChannelId: string;
-    /** Where the guild bank requests of every raider organizer land; "" = no guild bank button. */
+    /** Where the guild bank requests of this server's raider organizers land; "" = no guild bank button. */
     guildBankChannelId: string;
 };
 
@@ -48,6 +57,8 @@ export type VersionOption = { id: string; label: string; short: string };
 
 export type DiscordServersData = {
     discordServers: DiscordServers;
+    /** The signup channels of every server that may hold its own settings, keyed by guild id. */
+    channels: Record<string, ServerChannels>;
     servers: ServerRow[];
     guilds: GuildOption[];
     versions: VersionOption[];

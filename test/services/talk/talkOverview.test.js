@@ -620,6 +620,16 @@ describe("services/talk/talkOverview — syncOverview", () => {
         expect(bySource.lang).toBe("en");
     });
 
+    it("asks the language of the server the list is posted on, not the first server (#924)", async () => {
+        const botLanguage = require("../../../src/services/discord/botLanguage");
+        botLanguage.serverLang.mockClear();
+        await currentPayload({ config, key: "111:222" });
+        expect(botLanguage.serverLang).toHaveBeenCalledWith(config, "222");
+        botLanguage.serverLang.mockClear();
+        await currentPayload({ config, guildId: "333" });
+        expect(botLanguage.serverLang).toHaveBeenCalledWith(config, "333");
+    });
+
     it("never falls back to another link of the source for an unknown key", async () => {
         const home = await currentPayload({ config, key: "111:111" });
         const known = await currentPayload({ config, key: "111:222" });

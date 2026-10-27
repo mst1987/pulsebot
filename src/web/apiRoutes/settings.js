@@ -9,8 +9,11 @@ const {
 } = require("../../stores/settingsStore");
 const {
     normalizeCategoryLanguagePatch, attendanceSettings, normalizeCategoryVersion, DISCORD_VISUALS_DEFAULT, MAX_SERVERS,
-    EVENT_GUILD_LABEL_MAX,
+    EVENT_GUILD_LABEL_MAX, serverSettingGuildIds,
 } = require("../../stores/configSchema");
+const { serverSetting } = require("../../services/discord/serverSettings");
+const serverDefaults = require("../../services/discord/serverDefaults");
+const { serverLang, defaultLang } = require("../../services/discord/botLanguage");
 const { isSnowflake } = require("../../utils/ids");
 const { switchPreview, versionSwitches, applySeriesFix, notifyCategoryVersionSwitch } = require("../../services/events/categorySwitch");
 const categoryLifecycle = require("../../services/events/categoryLifecycle");
@@ -214,21 +217,103 @@ const RAIDHELPER_KEYS = ["raidhelper"];
 // Everything a non-admin settings user may neither read nor write.
 const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS, ...ADDON_KEYS, ...RAIDHELPER_KEYS];
 
-const DISCORD_SERVER_FIELDS = ["signupNoteChannelId", "guildBankChannelId"];
+// #924: the two signup channels of a server ("Vielleicht"/"Absagen" notes, guild bank requests).
+const SERVER_CHANNEL_FIELDS = ["signupNoteChannelId", "guildBankChannelId"];
 
-/** The guild bank's orga channel of a config ("" = none). */
-const guildBankOf = (config) => String(((config && config.discordServers) || {}).guildBankChannelId || "");
+/** The guild bank's orga channel of every server, as one comparable string. */
+const guildBankOf = (config) => JSON.stringify(serverDefaults.everyServer("guildBankChannelId", { config: config || {} }));
+
+/** The servers that may hold their own settings (#924): the servers, the link targets, the home guild. */
+const settingGuildsOf = (config) => serverSettingGuildIds((config && config.discordServers) || {}, (config && config.guildId) || "");
+
+/** The bot language of every server, as one comparable string. */
+const serverLangsOf = (config) => [...settingGuildsOf(config)].sort().map((id) => `${id}:${serverLang(config, id)}`).join(",");
+
+/**
+ * The values of one server the settings form edits (#924), flat like the
+ * global fields of before: the application channel, the officer role, the raid
+ * form's preset channel and the bot language. No server = the defaults.
+ * The language also has a global default (config.botLanguage): `botLanguage`
+ * is what the server speaks (its own value, else the default),
+ * `botLanguageOwn` whether it has an own value; without a server the form
+ * edits the default itself.
+ */
+function serverDefaultsOf(config, guildId) {
+    const cfg = config || {};
+    const id = String(guildId || "").trim();
+    const read = (key) => serverSetting(id, key, { config: cfg });
+    const fallback = defaultLang(cfg);
+    const own = id ? ((cfg.serverSettings || {})[id] || {}).botLanguage : undefined;
+    const ownLang = own === "en" || own === "de" ? own : "";
+    return {
+        applicationChannelId: String(read("applicationChannelId") || ""),
+        officerRoleId: String(read("officerRoleId") || ""),
+        raidDefaults: { channelId: String((read("raidDefaults") || {}).channelId || "") },
+        botLanguage: ownLang || fallback,
+        botLanguageDefault: fallback,
+        botLanguageOwn: !!ownLang,
+    };
+}
+
+/** The answer's config: the stored one plus the active server's values (#924). */
+const withServerDefaults = (shown, full, guildId) => publicConfig({ ...shown, ...serverDefaultsOf(full, guildId) });
+
+/**
+ * The four per-server fields of a PATCH body (#924), cleaned; {} = none sent.
+ * `botLanguage: null` removes the server's own language ("use the default"):
+ * the key stays with the value undefined, which the store's merge drops.
+ */
+function serverDefaultsPatch(body) {
+    const out = {};
+    if (body.applicationChannelId !== undefined) out.applicationChannelId = String(body.applicationChannelId || "").trim();
+    if (body.officerRoleId !== undefined) out.officerRoleId = String(body.officerRoleId || "").trim();
+    if (body.raidDefaults !== undefined && body.raidDefaults && typeof body.raidDefaults === "object") {
+        out.raidDefaults = { channelId: String(body.raidDefaults.channelId || "").trim() };
+    }
+    if (body.botLanguage === null) out.botLanguage = undefined;
+    else if (body.botLanguage !== undefined) out.botLanguage = String(body.botLanguage || "").trim().toLowerCase() === "en" ? "en" : "de";
+    return out;
+}
+
+/**
+ * The signup channels per server of a PATCH (#924): `{ [guildId]: { signupNoteChannelId, guildBankChannelId } }`,
+ * only known servers, each channel a snowflake or "" (= none, nothing is posted). `{ error }` names the reason.
+ */
+function checkServerChannels(sent, known) {
+    if (!sent || typeof sent !== "object" || Array.isArray(sent)) return { error: "Die Kanäle fehlen." };
+    const out = {};
+    for (const [rawId, raw] of Object.entries(sent)) {
+        const guildId = String(rawId).trim();
+        if (!known.has(guildId)) return { error: "Unbekannter Server." };
+        const block = raw && typeof raw === "object" ? raw : {};
+        const next = {};
+        for (const key of SERVER_CHANNEL_FIELDS) {
+            if (block[key] === undefined) continue;
+            const value = String(block[key] || "").trim();
+            if (value && !isSnowflake(value)) return { error: "Unbekannter Kanal." };
+            next[key] = value;
+        }
+        if (Object.keys(next).length) out[guildId] = next;
+    }
+    return { channels: out };
+}
 
 // Body keys stored per Discord server (config.serverSettings[guildId]). Each
 // part of the "data per server" epic (#926) that moves a setting there adds
 // its key here, so its PATCH is checked by serverSettingsTarget() below.
 // categoryIds (#926) is one list over every server, but a save changes only the
 // saving server's part (mergedCategoryIds) - so it is bound to the tab's server too.
-const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper", "versionOverrides", "categoryIds", "wclGuilds"];
+const SERVER_SCOPED_KEYS = [
+    "logChannels", "raidhelper", "versionOverrides", "categoryIds",
+    "applicationChannelId", "officerRoleId", "raidDefaults", "botLanguage", "wclGuilds",
+];
 // Server-bound keys that, without an active server, edit the first server
 // (#927 Raid-Helper, as its section shows; #926 the categories, shown on the
 // first server then); every other key then needs one.
 const FIRST_SERVER_FALLBACK_KEYS = ["raidhelper", "categoryIds"];
+// Server-bound keys with a global default besides (#924 bot language): without
+// an active server they write that default (full admins only, updateSettings).
+const GLOBAL_DEFAULT_KEYS = ["botLanguage"];
 
 /**
  * The server a PATCH of server-bound settings writes to — guarded against a
@@ -238,7 +323,9 @@ const FIRST_SERVER_FALLBACK_KEYS = ["raidhelper", "categoryIds"];
  * (`serverSettingsGuildId`, GET's `activeGuildId`, "" when none was active)
  * with every server-bound key, and a mismatch is refused with 409 instead of
  * overwriting.
- * @returns {{ guildId: string } | { status: number, code: string, message: string } | null}
+ * Without an active server a key of GLOBAL_DEFAULT_KEYS writes the global
+ * default (`global: true`); removing a server's own value (null) needs one.
+ * @returns {{ guildId: string, global: boolean } | { status: number, code: string, message: string } | null}
  *   null when the body holds no server-bound key
  */
 function serverSettingsTarget(req, body, config) {
@@ -248,10 +335,13 @@ function serverSettingsTarget(req, body, config) {
     if (String(body.serverSettingsGuildId || "") !== active) {
         return { status: 409, code: "server_switched", message: "Der Discord-Server wurde gewechselt – bitte die Seite neu laden." };
     }
-    const fallback = keys.every((k) => FIRST_SERVER_FALLBACK_KEYS.includes(k)) ? String(firstServerId(config) || "") : "";
-    const guildId = active || fallback;
-    if (!guildId) return { status: 400, code: "no_active_server", message: "Kein aktiver Discord-Server." };
-    return { guildId };
+    const noServer = { status: 400, code: "no_active_server", message: "Kein aktiver Discord-Server." };
+    if (active) return { guildId: active, global: false };
+    if (GLOBAL_DEFAULT_KEYS.some((k) => body[k] === null)) return noServer;
+    const rest = keys.filter((k) => !GLOBAL_DEFAULT_KEYS.includes(k));
+    if (!rest.length) return { guildId: "", global: true };
+    const fallback = rest.every((k) => FIRST_SERVER_FALLBACK_KEYS.includes(k)) ? String(firstServerId(config) || "") : "";
+    return fallback ? { guildId: fallback, global: true } : noServer;
 }
 
 /** GET /api/settings — config + raidsheets + the active guild's roles/categories. */
@@ -278,7 +368,8 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
     ok(res, {
         // The access config and the credentials are admin-only; a limited
         // settings user never sees (nor can save) them.
-        config: publicConfig(user.isAdmin ? config : omit(config, FULL_ADMIN_KEYS)),
+        // #924: the per-server fields as the active server holds them, flat like before.
+        config: withServerDefaults(user.isAdmin ? config : omit(config, FULL_ADMIN_KEYS), config, guildId),
         canManageAccess: !!user.isAdmin,
         areas: AREAS,
         userNames,
@@ -306,7 +397,7 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // The voice channel a category's raids meet in (#305); empty = bot offline.
         voiceChannels: typeof discord.listVoiceChannels === "function" ? discord.listVoiceChannels(guildId) : [],
         // The channel picker of "Nachricht bei Vielleicht/Absage" per category (#335).
-        noteChannels: noteChannels(config),
+        noteChannels: noteChannels(config, guildId),
         bot: botStatus(guildId),
         // #744: configured categories Discord no longer has (only when the bot sees
         // every server), each with what "Kategorie abschließen" would remove.
@@ -327,11 +418,12 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
 /**
  * Where the messages of "Vielleicht" / "Absagen" may go (#335): the text
  * channels of every server, named with their server when there are several
- * (like the Discord-Server dialog), plus the default channel's id — a
- * limited settings user does not see `discordServers`, the card still names it.
+ * (like the Discord-Server dialog), plus the active server's default channel
+ * (#924: one per server) — a limited settings user does not see the server
+ * blocks, the card still names it.
  * An empty list means the bot is offline (the card then marks nothing).
  */
-function noteChannels(config) {
+function noteChannels(config, activeGuildId = "") {
     try {
         const guildIds = guildRoles.configuredGuildIds(config);
         const list = typeof discord.listTextChannels === "function" ? discord.listTextChannels : () => [];
@@ -341,7 +433,7 @@ function noteChannels(config) {
             name: c.name,
             category: guildIds.length > 1 ? [names.get(id) || "", c.category].filter(Boolean).join(" · ") : c.category || "",
         })));
-        return { defaultId: String(((config && config.discordServers) || {}).signupNoteChannelId || ""), channels };
+        return { defaultId: serverDefaults.signupNoteChannelId(activeGuildId, { config }), channels };
     } catch (e) {
         console.warn("note channels failed:", e.message);
         return { defaultId: "", channels: [] };
@@ -379,7 +471,9 @@ function raidCategoryCount(guildId, config) {
 /**
  * GET /api/settings/discord-servers — everything the "Discord-Server" page
  * (#891) shows and edits:
- *   - `discordServers`: servers, links and the two global channels.
+ *   - `discordServers`: servers and links.
+ *   - `channels`: the two signup channels of every server that may hold its own
+ *     settings (#924), "" = none (nothing is posted there).
  *   - `servers`: one row per configured server — Discord name, status, missing
  *     bot rights, members, raid categories (0 is a normal state: such a server
  *     only shows lists) and its Discord language.
@@ -405,12 +499,11 @@ const getDiscordServers = withUser({ full: true }, ({ res }) => {
         return { id: g.id, name: g.name, lang: localeLang(guild && guild.preferredLocale), channels: discord.listTextChannels(g.id) };
     });
     ok(res, {
-        discordServers: {
-            servers: block.servers || [],
-            links: block.links || [],
-            signupNoteChannelId: block.signupNoteChannelId || "",
-            guildBankChannelId: block.guildBankChannelId || "",
-        },
+        discordServers: { servers: block.servers || [], links: block.links || [] },
+        channels: Object.fromEntries([...settingGuildsOf(config)].map((guildId) => [guildId, {
+            signupNoteChannelId: serverDefaults.signupNoteChannelId(guildId, { config }),
+            guildBankChannelId: serverDefaults.guildBankChannelId(guildId, { config }),
+        }])),
         servers,
         guilds,
         versions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short })),
@@ -686,7 +779,7 @@ function addonListPatch(body) {
 
 /**
  * PATCH /api/settings — merge-updates the admin config. Only keys present in
- * the body are changed (saveConfig() itself merges raidDefaults/blizzard).
+ * the body are changed (saveConfig() itself merges serverSettings/blizzard).
  * blizzard.clientSecret: omit to keep the stored secret, send "" to clear it,
  * send a value to replace it (the client only includes it when the admin
  * actually chose to change it — see BlizzardSecretField in SettingsPage.tsx).
@@ -698,7 +791,10 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (touchesGuarded && !requireFullAdmin(req, res)) return;
     // checked before anything else, so a stale tab changes nothing at all
     const server = serverSettingsTarget(req, body, getConfig());
-    if (server && !server.guildId) return error(res, server.status, server.code, server.message);
+    if (server && server.status) return error(res, server.status, server.code, server.message);
+    // #924: without an active server the language is the default of every server - full admins only
+    const writesDefault = !!(server && server.global) && GLOBAL_DEFAULT_KEYS.some((k) => body[k] !== undefined);
+    if (writesDefault && !requireFullAdmin(req, res)) return;
     const partial = {};
     if (body.adminRoleIds !== undefined) partial.adminRoleIds = asStringArray(body.adminRoleIds);
     // which roles count as orga (the rest are raider roles) — guarded like the access keys
@@ -715,20 +811,45 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // normalises the result, so a PATCH of one channel keeps both servers.
     if (body.discordServers !== undefined && body.discordServers && typeof body.discordServers === "object") {
         partial.discordServers = {};
-        for (const k of DISCORD_SERVER_FIELDS) {
-            if (body.discordServers[k] !== undefined) partial.discordServers[k] = String(body.discordServers[k] || "").trim();
-        }
-        // The old dialog's `eventGuilds` list is gone with #891: a tab still
-        // open on it must not overwrite the links it knows nothing about.
-        if (body.discordServers.eventGuilds !== undefined) {
+        // The old dialog's `eventGuilds` list is gone with #891, the two global channels
+        // with #924: a tab still open on them must not overwrite what it knows nothing about.
+        if (body.discordServers.eventGuilds !== undefined || SERVER_CHANNEL_FIELDS.some((k) => body.discordServers[k] !== undefined)) {
             return error(res, 400, "invalid_discord_servers", "Veraltetes Format – bitte die Seite neu laden.");
         }
-        const checked = checkServersAndLinks(body.discordServers, getConfig().discordServers || {});
+        const stored = getConfig();
+        const checked = checkServersAndLinks(body.discordServers, stored.discordServers || {});
         if (checked.error) return error(res, 400, "invalid_discord_servers", checked.error);
         if (checked.servers) partial.discordServers.servers = checked.servers;
         if (checked.links) partial.discordServers.links = checked.links;
+        // #924: the signup channels per server, for the servers known after this save.
+        if (body.discordServers.channels !== undefined) {
+            const storedBlock = stored.discordServers || {};
+            const known = serverSettingGuildIds(
+                { servers: checked.servers || storedBlock.servers || [], links: checked.links || storedBlock.links || [] }, stored.guildId || "",
+            );
+            const channels = checkServerChannels(body.discordServers.channels, known);
+            if (channels.error) return error(res, 400, "invalid_discord_servers", channels.error);
+            partial.serverSettings = channels.channels;
+        }
+        if (!Object.keys(partial.discordServers).length) delete partial.discordServers;
     }
     if (body.raidhelperServerId !== undefined) partial.raidhelperServerId = String(body.raidhelperServerId).trim();
+    // #924: application channel, officer role, raid defaults and bot language belong to the active
+    // server — the one checked by serverSettingsTarget() (no first-server fallback for these).
+    // Without one the language goes to the global default (checked above).
+    const ownServer = serverDefaultsPatch(body);
+    if (writesDefault) {
+        partial.botLanguage = ownServer.botLanguage;
+        delete ownServer.botLanguage;
+    }
+    if (Object.keys(ownServer).length) {
+        const guildId = server ? server.guildId : "";
+        if (!guildId || !settingGuildsOf(getConfig()).has(guildId)) {
+            return error(res, 400, "unknown_server", "Der gewählte Server ist nicht eingetragen – erst unter Discord-Server hinzufügen.");
+        }
+        const merged = { ...((partial.serverSettings || {})[guildId] || {}), ...ownServer };
+        partial.serverSettings = { ...(partial.serverSettings || {}), [guildId]: merged };
+    }
     // #927: the active server's Raid-Helper block, merged here (the store replaces a server's key whole)
     let raidhelperGuild = "";
     if (body.raidhelper !== undefined) {
@@ -740,8 +861,6 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         servers[raidhelperGuild] = { ...(servers[raidhelperGuild] || {}), raidhelper: patch.block };
         partial.serverSettings = servers;
     }
-    if (body.officerRoleId !== undefined) partial.officerRoleId = String(body.officerRoleId).trim();
-    if (body.applicationChannelId !== undefined) partial.applicationChannelId = String(body.applicationChannelId).trim();
     if (body.categoryIds !== undefined) partial.categoryIds = asStringArray(body.categoryIds);
     if (body.categoryRoles !== undefined && typeof body.categoryRoles === "object") partial.categoryRoles = body.categoryRoles;
     // #921: the log channels of the server the tab loaded, sent whole (ids or { channelId, versionId }).
@@ -763,7 +882,6 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         partial.serverSettings = { ...(partial.serverSettings || {}) };
         partial.serverSettings[guildId] = { ...(partial.serverSettings[guildId] || {}), wclGuilds };
     }
-    if (body.raidDefaults !== undefined && typeof body.raidDefaults === "object") partial.raidDefaults = body.raidDefaults;
     // blizzard: only the known fields, the secret only when sent (omit = keep, "" = clear)
     if (body.blizzard !== undefined && typeof body.blizzard === "object") {
         partial.blizzard = {};
@@ -833,7 +951,6 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         partial.categoryVersion = body.categoryVersion && typeof body.categoryVersion === "object" ? body.categoryVersion : {};
     }
     if (body.hideOtherVersions !== undefined) partial.hideOtherVersions = body.hideOtherVersions === true;
-    if (body.botLanguage !== undefined) partial.botLanguage = String(body.botLanguage || "").trim();
     // The drawn pictures in bot messages (a test): only the known switches, as booleans, merged by the store.
     if (body.discordVisuals !== undefined && body.discordVisuals && typeof body.discordVisuals === "object") {
         partial.discordVisuals = Object.fromEntries(Object.keys(DISCORD_VISUALS_DEFAULT)
@@ -881,7 +998,7 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // #930: a role of the PuG onboarding (everyone takes it) must not gain a right here.
     const pugGrants = pugGrantsOf(before, partial, versions.switches, body.categorySwitchFixes);
     if (pugGrants.found.length) return error(res, 409, "pug_onboarding_role", pugRoleGuard.refusalMessage(pugGrants.found, { reopened: pugGrants.reopened }));
-    const langBefore = before.botLanguage;
+    const langBefore = serverLangsOf(before);
     // #744: what deactivating pauses (series, reminders), for the save's answer.
     const deactivated = deactivationOf(partial, before);
     const saved = saveConfig(partial);
@@ -894,8 +1011,8 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         afterCategorySwitches(versions.switches, body.categorySwitchFixes, { user }),
         { config: saved, user, fixes: body.categorySwitchFixes && typeof body.categorySwitchFixes === "object" ? body.categorySwitchFixes : {} },
     );
-    // A new server language, or a category's own, redraws the bot's public messages (not awaited).
-    if (saved.botLanguage !== langBefore || JSON.stringify(saved.categoryLanguage || {}) !== JSON.stringify(before.categoryLanguage || {})) {
+    // A new server language (#924: of any server), or a category's own, redraws the bot's public messages (not awaited).
+    if (serverLangsOf(saved) !== langBefore || JSON.stringify(saved.categoryLanguage || {}) !== JSON.stringify(before.categoryLanguage || {})) {
         void languageChange.afterServerLangChange({ config: saved });
     }
     // The guild bank area of the raider organizers comes and goes with its channel:
@@ -904,7 +1021,7 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // a switch may have changed the raider roles (#739: they mirror the new roster) - answer what is stored now
     const after = switchedCategories.length ? getConfig() : saved;
     ok(res, {
-        config: publicConfig(after),
+        config: withServerDefaults(after, after, activeGuildFor(req)),
         switchedCategories,
         deactivatedCategories: deactivated,
         ...(raidhelperGuild ? { raidhelper: maskedRaidhelper(raidhelperGuild, saved) } : {}),

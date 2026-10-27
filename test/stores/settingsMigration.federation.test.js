@@ -76,9 +76,9 @@ describe("stores/settingsMigration migrateDiscordFederation (#897)", () => {
         expect(raw.discordServers).toEqual({
             servers: [{ guildId: EVENT, label: "Raids" }, { guildId: THIRD, label: "" }, { guildId: TALK, label: "" }],
             links: OLD_CONFIG.discordServers.links,
-            signupNoteChannelId: "1400000000000000021",
-            guildBankChannelId: "",
         });
+        // #924: the note channel is unknown to the stores, so it went to the first server
+        expect(raw.serverSettings[EVENT]).toEqual({ signupNoteChannelId: "1400000000000000021" });
         expect(raw.roleSync).toEqual(EXPECTED_PAIRS);
 
         // a later save of something unrelated writes the normalised config: nothing is lost
@@ -124,7 +124,7 @@ describe("stores/settingsMigration migrateDiscordFederation (#897)", () => {
         expect(raw.discordServers.servers.map((s) => s.guildId)).toEqual([EVENT, TALK]);
         expect(raw.discordServers.links).toEqual([{ from: EVENT, to: TALK, channelId: CH_TALK, lang: "", versions: [] }]);
         expect(raw.roleSync).toEqual([EXPECTED_PAIRS[0]]);
-        expect(Object.keys(raw.discordServers).sort()).toEqual(["guildBankChannelId", "links", "servers", "signupNoteChannelId"]);
+        expect(Object.keys(raw.discordServers).sort()).toEqual(["links", "servers"]);
     });
 
     it("upgrades an old eventGuilds list of #251 with the talk server", () => {

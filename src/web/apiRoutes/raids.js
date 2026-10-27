@@ -2,6 +2,7 @@ const { ok } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { sendResult } = require("../http/apiResult");
 const { activeGuildFor } = require("../http/activeGuild");
+const { serverSetting } = require("../../services/discord/serverSettings");
 const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 const { upcomingRows, loadPastRaids, raidContentIds } = require("../../services/events/raidListing");
 const { getConfig, listRaidTemplates } = require("../../stores/settingsStore");
@@ -255,7 +256,10 @@ const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
     const channels = safeList(() => discord.listTextChannels(guildId)).filter((c) => inScope(c.parentId));
     const presetVoice = config.categoryVoiceChannel || {};
     const ownPresets = new Set(Object.entries(presetVoice).filter(([catId]) => inScope(catId)).map(([, id]) => String(id)));
-    const channelId = channels.some((c) => c.id === (config.raidDefaults || {}).channelId) ? (config.raidDefaults || {}).channelId : "";
+    // The preset channel of the active server (#924): another server's preset is no channel here,
+    // and only a channel of the offered list counts.
+    const presetChannel = String((serverSetting(guildId, "raidDefaults", { config }) || {}).channelId || "");
+    const channelId = presetChannel && channels.some((c) => c.id === presetChannel) ? presetChannel : "";
     const defaultChannel = channels.find((c) => c.id === channelId);
     ok(res, {
         defaults: {

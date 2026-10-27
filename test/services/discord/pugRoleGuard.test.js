@@ -41,7 +41,7 @@ describe("pugRoleGuard newGrants: every field", () => {
     it.each([
         ["adminRoleIds", { adminRoleIds: [VERSION_ROLE] }, "admin"],
         ["orgaRoleIds", { orgaRoleIds: [CLASS_ROLE] }, "orga"],
-        ["officerRoleId", { officerRoleId: VERSION_ROLE }, "officer"],
+        ["officerRoleId", { serverSettings: { "900000000000000009": { officerRoleId: VERSION_ROLE } } }, "officer"],
         ["rolePermissions", { rolePermissions: { [CLASS_ROLE]: { roster: { read: true, write: false } } } }, "rolePermissions:roster:read"],
         ["botCommandAccess", { botCommandAccess: { event: { roleIds: [VERSION_ROLE] } } }, "botCommand:event"],
         ["categoryRoles", { categoryRoles: { cat1: [CLASS_ROLE] } }, "categoryRaider:cat1"],
@@ -72,7 +72,7 @@ describe("pugRoleGuard newGrants: every field", () => {
         const before = { orgaRoleIds: [VERSION_ROLE] };
         expect(added({ ...pug(), orgaRoleIds: [VERSION_ROLE] }, before)).toEqual([]);
         // the right is old, only the onboarding is new: the Bot-Check reports it, the save passes
-        expect(added({ ...pug(), orgaRoleIds: [VERSION_ROLE], officerRoleId: VERSION_ROLE }, before)).toEqual([`${VERSION_ROLE}:officer`]);
+        expect(added({ ...pug(), orgaRoleIds: [VERSION_ROLE], serverSettings: { "900000000000000009": { officerRoleId: VERSION_ROLE } } }, before)).toEqual([`${VERSION_ROLE}:officer`]);
     });
 
     it("does not block a right the role already had, only a new one", () => {

@@ -16,7 +16,7 @@ const {
     normalizeConfig, normalizeDiscordServers, normalizeRaidhelperRetirement, normalizeVersionLaunch, normalizeCategorySignupSource,
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryAttendance, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupCharacters, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeCategoryPlanning, normalizeTopItems,
-    normalizeRoleSync, roleSyncContext, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings, normalizeBotLanguage,
+    normalizeRoleSync, roleSyncContext, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings,
     normalizeDiscordVisuals, normalizeDungeonRecords, mergeServerSettings,
 } = require("./configSchema");
 const { planningOf } = require("../services/events/planning");
@@ -117,7 +117,7 @@ const MERGED_CATEGORY_MAPS = [
 
 // Blocks a PATCH sends only partly: the fields sent are merged over the stored
 // block (a secret left out stays — the credentials' "omit = keep").
-const MERGED_FIELDS = ["raidDefaults", "blizzard", "anthropic", "warcraftlogsV2", "github", "categoryLootTool"];
+const MERGED_FIELDS = ["blizzard", "anthropic", "warcraftlogsV2", "github", "categoryLootTool"];
 
 /**
  * Small blocks merged per field before they are normalised: the drawn pictures
@@ -184,7 +184,6 @@ function saveConfig(partial) {
     // #541: the main version replaces the stored one; the category map is sent
     // whole (a category back on the main version is left out), like the templates.
     if (partial.mainVersion !== undefined) next.mainVersion = normalizeMainVersion(partial.mainVersion);
-    if (partial.botLanguage !== undefined) next.botLanguage = normalizeBotLanguage(partial.botLanguage);
     for (const [key, normalize] of MERGED_BLOCKS) mergeBlock(next, current, partial[key], key, normalize);
     if (partial.categoryVersion !== undefined) next.categoryVersion = normalizeCategoryVersion(partial.categoryVersion);
     // #738: the section history is replaced whole (the settings route appends a section on a switch).

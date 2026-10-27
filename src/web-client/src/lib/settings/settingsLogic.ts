@@ -152,6 +152,8 @@ export type DraftShape = {
     /** "Andere Versionen ausblenden" (#563): only the main version everywhere. */
     hideOtherVersions?: boolean;
     botLanguage?: "de" | "en";
+    /** Whether the active server keeps its own bot language (#924). */
+    botLanguageOwn?: boolean;
     /** The drawn pictures in bot messages (a test); missing switch = on. */
     discordVisuals?: Partial<Record<DiscordVisualKey, boolean>>;
     /** "Neue Gildenrekorde posten" (Dungeon-Bestzeiten); missing = off. */
@@ -442,8 +444,12 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
     const recIs = draft.dungeonRecords || {};
     if (!!recWas.post !== !!recIs.post) out.push(t(recIs.post ? "settings.changes.dungeonRecordsOn" : "settings.changes.dungeonRecordsOff"));
     if (recIs.post && (recWas.channelId || "") !== (recIs.channelId || "")) out.push(t("settings.changes.dungeonRecordsChannel"));
-    if ((saved.botLanguage || "de") !== (draft.botLanguage || "de")) {
-        out.push(t("settings.changes.botLanguage", { value: t(draft.botLanguage === "en" ? "settings.botLanguage.en" : "settings.botLanguage.de") }));
+    const langLabel = t(draft.botLanguage === "en" ? "settings.botLanguage.en" : "settings.botLanguage.de");
+    if (saved.botLanguageOwn && !draft.botLanguageOwn) {
+        // #924: the server drops its own value and follows the default again
+        out.push(t("settings.changes.botLanguageUseDefault", { value: langLabel }));
+    } else if ((saved.botLanguage || "de") !== (draft.botLanguage || "de") || (!saved.botLanguageOwn && draft.botLanguageOwn)) {
+        out.push(t("settings.changes.botLanguage", { value: langLabel }));
     }
     const verWas = saved.categoryVersion || {};
     const verIs = draft.categoryVersion || {};

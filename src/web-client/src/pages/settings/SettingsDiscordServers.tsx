@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
     getDiscordServers, getPugInvites, getTalkOverview, postInviteChannel, postPugInvite, repostTalkOverview, updateSettings,
     type AdminConfig, type ApiError, type DiscordServers, type DiscordServersData, type PugInvites, type PugServerInvite,
-    type ServerEntry, type ServerLink, type ServerRow, type TalkOverviewStatus, type TextChannel,
+    type ServerChannels, type ServerEntry, type ServerLink, type ServerRow, type TalkOverviewStatus, type TextChannel,
 } from "../../api";
 import { linkKey, linkStatusBadge, linkStatusOf, linkSummary, raidCategoriesText, serverCardState } from "../../lib/settings/settingsLogic";
 import { useTableSort } from "../../lib/ui/tableSort";
@@ -28,7 +28,8 @@ import { t as translate, useT } from "../../i18n";
 // row per link with its status in words and "Neu posten" — it replaces the
 // former per-server overview row (SettingsTalkOverview). Below it the servers
 // the bot works with (Discord name first, the label an optional extra title)
-// and the two channels that apply to every server. Each change saves at once,
+// and each server's own two signup channels (#924: no shared default, a server
+// without one posts nothing there). Each change saves at once,
 // only the fields it touches. Every server can be removed (#897).
 
 const MAX_SERVERS = 10;
@@ -38,6 +39,9 @@ type LinkSortKey = "link" | "channel" | "status" | "summary" | "invite";
 /** What an invite cell shows: the invite itself, or why there is none. */
 type InviteView = { code: string; url: string; error: string; deleted: boolean };
 type ServerSortKey = "server" | "status" | "categories" | "members";
+/** One server's two signup channels (#924) as a row of the channels table. */
+type ChannelRow = ServerChannels & { guildId: string };
+type ChannelSortKey = "server" | "note" | "bank";
 
 function initials(name: string): string {
     const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -62,20 +66,6 @@ function guildChannels(data: DiscordServersData, id: string): TextChannel[] {
     return data.guilds.find((g) => g.id === id)?.channels || [];
 }
 
-/**
- * The channels the messages of "Vielleicht" / "Absagen" and the guild bank may
- * go to: those of every configured server (every server of the bot while none
- * is configured yet), named with their server when there are several.
- */
-function noteChannels(guilds: DiscordServersData["guilds"], guildIds: string[]): TextChannel[] {
-    const ids = guildIds.filter(Boolean);
-    const picked = ids.length ? guilds.filter((g) => ids.includes(g.id)) : guilds;
-    return picked.flatMap((g) => g.channels.map((c) => ({
-        ...c,
-        category: picked.length > 1 ? [g.name, c.category].filter(Boolean).join(" · ") : c.category,
-    })));
-}
-
 // The server allows one link per source and target ("from:to"), so the client compares the same way.
 const sameLink = (a: ServerLink, b: ServerLink) => a.from === b.from && a.to === b.to;
 
@@ -92,6 +82,7 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
     const [error, setError] = useState("");
     const [dialog, setDialog] = useState<"link" | "server" | "channels" | null>(null);
     const [editServer, setEditServer] = useState<ServerEntry | null>(null);
+    const [editChannels, setEditChannels] = useState("");
     const [posting, setPosting] = useState("");
     // #905: the invite per link and who joined through it; null = not loaded (or failed), the columns show "—".
     const [invites, setInvites] = useState<PugInvites | null>(null);
@@ -100,6 +91,7 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
         link: "asc", channel: "asc", status: "asc", summary: "asc", invite: "desc",
     }, "link");
     const serverSort = useTableSort<ServerSortKey>("settings-servers-sort", { server: "asc", status: "desc", categories: "desc", members: "desc" }, "server");
+    const channelSort = useTableSort<ChannelSortKey>("settings-signup-channels-sort", { server: "asc", note: "asc", bank: "asc" }, "server");
 
     const load = () => {
         getDiscordServers().then((d) => { setData(d); setError(""); }).catch((err: ApiError) => setError(err.message));
@@ -364,7 +356,36 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
         return (s.name || s.id).toLowerCase();
     };
 
-    const allChannels = data.guilds.flatMap((g) => g.channels);
+    // #924: the two signup channels per server; a server without one posts nothing there, no other server stands in.
+    const channelRows: ChannelRow[] = Object.entries(data.channels || {}).map(([guildId, ch]) => ({ guildId, ...ch }));
+    const missingNote = channelRows.filter((r) => !r.signupNoteChannelId);
+    const unsetCell = (tip: string) => <span className="srv-muted" data-tip={tip}>{t("settings.discordServers.channelUnset")}</span>;
+    const channelText = (r: ChannelRow, id: string) => (id ? channelName(guildChannels(data, r.guildId), id).toLowerCase() : "~");
+    const channelSortValue = (r: ChannelRow, key: ChannelSortKey) => {
+        if (key === "note") return channelText(r, r.signupNoteChannelId);
+        if (key === "bank") return channelText(r, r.guildBankChannelId);
+        return guildName(data, r.guildId).toLowerCase();
+    };
+    const channelColumns: Column<ChannelRow, ChannelSortKey>[] = [
+        { id: "server", label: t("settings.discordServers.colServer"), sortKey: "server", cell: (r) => <b>{guildName(data, r.guildId)}</b> },
+        {
+            id: "note", sortKey: "note", label: t("settings.discordServers.noteRow"), tip: t("settings.discordServers.noteTip"), tipSub: t("settings.discordServers.noteTipSub"),
+            cell: (r) => (r.signupNoteChannelId ? channelName(guildChannels(data, r.guildId), r.signupNoteChannelId) : unsetCell(t("settings.discordServers.noteUnsetTip"))),
+        },
+        {
+            id: "bank", sortKey: "bank", label: t("settings.discordServers.bankRow"), tip: t("settings.discordServers.bankTip"), tipSub: t("settings.discordServers.bankTipSub"),
+            cell: (r) => (r.guildBankChannelId ? channelName(guildChannels(data, r.guildId), r.guildBankChannelId) : unsetCell(t("settings.discordServers.bankUnsetTip"))),
+        },
+        {
+            id: "actions", actions: true, className: "srv-actions",
+            cell: (r) => (
+                <span className="row-actions">
+                    <IconButton size="sm" icon={<PenIcon />} tip={t("settings.discordServers.editChannels")}
+                        onClick={() => { setEditChannels(r.guildId); setDialog("channels"); }} />
+                </span>
+            ),
+        },
+    ];
 
     return (
         <>
@@ -426,18 +447,20 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
                     title={t("settings.discordServers.channelsTitle")}
                     tip={t("settings.discordServers.channelsTitle")}
                     tipSub={t("settings.discordServers.channelsSub")}
-                    action={<Button variant="ghost" size="sm" icon={<PenIcon />} onClick={() => setDialog("channels")}>{t("settings.discordServers.editChannels")}</Button>}
                 />
-                <ul className="sync-list">
-                    <li className="sync-row">
-                        <span className="sync-role" tabIndex={0} data-tip={t("settings.discordServers.noteTip")} data-tip-sub={t("settings.discordServers.noteTipSub")}>{t("settings.discordServers.noteRow")}</span>
-                        <span className="sync-muted">{channelName(allChannels, config.signupNoteChannelId)}</span>
-                    </li>
-                    <li className="sync-row">
-                        <span className="sync-role" tabIndex={0} data-tip={t("settings.discordServers.bankTip")} data-tip-sub={t("settings.discordServers.bankTipSub")}>{t("settings.discordServers.bankRow")}</span>
-                        <span className="sync-muted">{channelName(allChannels, config.guildBankChannelId)}</span>
-                    </li>
-                </ul>
+                {missingNote.length > 0 && (
+                    <p className="note">{t("settings.discordServers.channelsMissing", { list: missingNote.map((r) => guildName(data, r.guildId)).join(", ") })}</p>
+                )}
+                <div className="srv-table srv-signup-ch">
+                    <DataTable
+                        rows={channelRows}
+                        columns={channelColumns}
+                        rowKey={(r) => r.guildId}
+                        sort={channelSort}
+                        sortValue={channelSortValue}
+                        empty={<div className="sync-empty">{t("settings.discordServers.channelsEmpty")}</div>}
+                    />
+                </div>
             </section>
 
             {/* #896: the role sync pairs any two servers of the list and says so itself when there is only one. */}
@@ -465,10 +488,10 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
                         if (await save({ servers }, editing ? t("settings.discordServers.saved") : t("settings.discordServers.serverAdded"))) setDialog(null);
                     }} />
             )}
-            {dialog === "channels" && (
-                <ChannelsModal data={data} onClose={() => setDialog(null)}
+            {dialog === "channels" && editChannels && (
+                <ChannelsModal data={data} guildId={editChannels} onClose={() => setDialog(null)}
                     onSave={async (fields) => {
-                        if (await save(fields, t("settings.discordServers.saved"))) setDialog(null);
+                        if (await save({ channels: { [editChannels]: fields } }, t("settings.discordServers.saved"))) setDialog(null);
                     }} />
             )}
         </>
@@ -750,19 +773,21 @@ function ServerModal({ data, entry, invite, inviteBusy, onCopy, onInvite, onInvi
     );
 }
 
-/** The two channels that apply to every server, saved on their own. */
-function ChannelsModal({ data, onClose, onSave }: {
+/** The two signup channels of one server (#924), saved on their own; only that server's channels are offered. */
+function ChannelsModal({ data, guildId, onClose, onSave }: {
     data: DiscordServersData;
+    guildId: string;
     onClose: () => void;
-    onSave: (fields: Pick<DiscordServers, "signupNoteChannelId" | "guildBankChannelId">) => Promise<void>;
+    onSave: (fields: ServerChannels) => Promise<void>;
 }) {
     const t = useT();
-    const [fields, setFields] = useState({
-        signupNoteChannelId: data.discordServers.signupNoteChannelId,
-        guildBankChannelId: data.discordServers.guildBankChannelId,
+    const current = data.channels?.[guildId];
+    const [fields, setFields] = useState<ServerChannels>({
+        signupNoteChannelId: current?.signupNoteChannelId || "",
+        guildBankChannelId: current?.guildBankChannelId || "",
     });
     const [busy, setBusy] = useState(false);
-    const picks = noteChannels(data.guilds, data.discordServers.servers.map((s) => s.guildId));
+    const picks = guildChannels(data, guildId);
     const submit = async () => {
         setBusy(true);
         try { await onSave(fields); } finally { setBusy(false); }
@@ -775,7 +800,7 @@ function ChannelsModal({ data, onClose, onSave }: {
             icon="inv_misc_note_02"
             tone="settings"
             kicker={t("settings.editKicker")}
-            title={t("settings.discordServers.channelsTitle")}
+            title={t("settings.discordServers.channelsDialogTitle", { name: guildName(data, guildId) })}
             width={520}
             className="srv-dlg"
             initialFocus="select, input"

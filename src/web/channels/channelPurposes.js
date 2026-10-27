@@ -63,16 +63,23 @@ const PURPOSES = [
     },
 ];
 
+// The raid preset channel and the application channel are per server (#924):
+// they are read from the active server's block, never from another server's.
+const PER_SERVER = { "raidDefaults.channelId": true, applicationChannelId: true };
+
 function asIds(value) {
     const list = Array.isArray(value) ? value : [value];
     return [...new Set(list.map((v) => String(v || "").trim()).filter(Boolean))];
 }
 
-/** The ids a purpose currently holds in the config (log channels: those of `guildId`, #921). */
+/** The ids a purpose currently holds in the config (`guildId`: the server of the page, for the per-server purposes and its own log channels, #921/#924). */
 function idsFor(purpose, config, guildId = "") {
     const cfg = config || {};
+    if (PER_SERVER[purpose.key]) {
+        const block = (cfg.serverSettings || {})[String(guildId || "").trim()] || {};
+        return purpose.key === "raidDefaults.channelId" ? asIds((block.raidDefaults || {}).channelId) : asIds(block[purpose.key]);
+    }
     switch (purpose.key) {
-        case "raidDefaults.channelId": return asIds((cfg.raidDefaults || {}).channelId);
         case "logChannels": return guildId ? logChannelsOf(guildId, { config: cfg }).map((c) => c.channelId) : [];
         default: return asIds(cfg[purpose.key]);
     }
@@ -105,7 +112,7 @@ function channelStatus(channel, need, connected = true) {
  * @param {Array} channels    discord.listAllChannels() — with botCanView/botCanSend
  * @param {Array} categories  discord.listCategories()
  * @param {boolean} connected whether the channel lists are live (bot connected, guild known)
- * @param {string} guildId    the server the lists belong to (its own log channels, #921)
+ * @param {string} guildId    the page's server: the per-server purposes read its block (#924), the log channels its own list (#921)
  */
 function resolvePurposes(config, channels = [], categories = [], connected = true, guildId = "") {
     const channelById = new Map((channels || []).map((c) => [c.id, c]));

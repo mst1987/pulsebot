@@ -28,7 +28,8 @@ const { parseGuildBankScan, GB_FORMAT } = require("../../../src/utils/guildbank/
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { cardText, cardButtons } = require("../../helpers/cardText");
 
-const CONFIG = { botLanguage: "de", discordServers: { eventGuilds: [{ guildId: "g1" }], guildBankChannelId: "900000" } };
+// #924: the guild bank channel is per server; g1 is the first server
+const CONFIG = { guildId: "g1", discordServers: { eventGuilds: [{ guildId: "g1" }] }, serverSettings: { g1: { botLanguage: "de", guildBankChannelId: "900000" } } };
 const PYRESTONE = 23440;
 const SPINEL = 32227;
 let KEY;

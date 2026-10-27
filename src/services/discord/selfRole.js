@@ -4,8 +4,8 @@
 // (services/discord/roleMessages.js). A role that grants anything must never be
 // handed out that way (`privilegedReason`):
 //   - bot rights: a full-admin role (config.adminRoleIds or ADMIN_ROLE_IDS), an orga role
-//     (config.orgaRoleIds), the officer role pinged on applications (config.officerRoleId:
-//     whoever takes it reads every new application), a role with area grants (config.rolePermissions), a role a bot
+//     (config.orgaRoleIds), the officer role pinged on applications (per server since #924,
+//     serverSettings[guildId].officerRoleId: whoever takes it reads every new application), a role with area grants (config.rolePermissions), a role a bot
 //     command allows (config.botCommandAccess[*].roleIds), a raider role of a category
 //     (config.categoryRoles), a role of a roster (roleIds, trialRoleId, managers.roleIds),
 //     a role of the role sync between the servers (config.roleSync, both sides: the sync
@@ -24,6 +24,7 @@ const { PermissionsBitField } = require("discord.js");
 const { normalizeRolePermissions } = require("../../config/permissions");
 const { adminRoleIds: envAdminRoleIds } = require("../../config/variables");
 const rosterStore = require("../../stores/rosterStore");
+const { officerRoleIds } = require("./serverDefaults");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const ids = (list) => (Array.isArray(list) ? list.map(str) : []);
@@ -77,7 +78,7 @@ function roleUses(cfg, roleId, { rosters } = {}) {
     if (!id) return out;
     if ([...ids(c.adminRoleIds), ...ids(envAdminRoleIds)].includes(id)) out.push({ code: "admin" });
     if (ids(c.orgaRoleIds).includes(id)) out.push({ code: "orga" });
-    if (str(c.officerRoleId) === id) out.push({ code: "officer" });
+    if (officerRoleIds({ config: c }).includes(id)) out.push({ code: "officer" });
     const grants = normalizeRolePermissions(c.rolePermissions || {})[id];
     if (grants) {
         const areas = Object.keys(grants).sort();

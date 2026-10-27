@@ -123,11 +123,14 @@ async function onGuildBankModal(interaction, categoryId, config, lang) {
     };
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const result = await guildBank.createRequest(interaction.user.id, { item: read("item"), amount: read("amount"), purpose: read("purpose") }, {
-        userName: displayName(interaction), categoryId, config,
+        userName: displayName(interaction), categoryId, guildId: guildOf(interaction), config,
     });
     if (result.error) return interaction.editReply(answerPayload(`⚠️ ${serviceText(lang, result.error)}`, { lang }));
     return interaction.editReply(answerPayload(`✅ ${tr(lang, "Request sent – the orga will get back to you by DM.")}\n${requestSummary(result.request, lang)}`, { lang }));
 }
+
+/** The server an interaction ran on (#924: the guild bank channel is per server). */
+const guildOf = (interaction) => String(interaction.guildId || (interaction.guild && interaction.guild.id) || "");
 
 /** The guild bank offer for an organizer click: the clicked server's bank first, then the other servers'. */
 const offerOf = (interaction, categoryId, config) => guildBank.offerFor({ guildIds: [interaction.guildId], categoryId, config });
@@ -135,7 +138,8 @@ const offerOf = (interaction, categoryId, config) => guildBank.offerFor({ guildI
 /** "Make a request": the pick card when the bank offers something, else the free-text modal as before. */
 function onGuildBankButton(interaction, categoryId, config, lang) {
     // a panel drawn before the channel was cleared still has the button
-    if (!guildBank.guildBankChannelId(config)) return ephemeral(interaction, answerPayload(tr(lang, "The guild bank is not set up right now."), { lang }));
+    const guildId = guildBank.requestGuildId({ guildId: guildOf(interaction), categoryId, config });
+    if (!guildBank.guildBankChannelId(config, guildId)) return ephemeral(interaction, answerPayload(tr(lang, "The guild bank is not set up right now."), { lang }));
     const offer = offerOf(interaction, categoryId, config);
     if (offer.bank && offer.groups.length) return interaction.reply(pickPayload({ categoryId, bank: offer.bank, groups: offer.groups, lang }));
     return interaction.showModal(requestModal(categoryId, lang));
@@ -178,7 +182,7 @@ async function onGuildBankItemModal(interaction, categoryId, config, lang) {
         amount: read("amount"),
         purpose: read("purpose"),
         characterKey: modalValues(interaction, "character")[0] || "",
-    }, { userName: displayName(interaction), categoryId, config });
+    }, { userName: displayName(interaction), categoryId, guildId: guildOf(interaction), config });
     if (result.error) return interaction.editReply(answerPayload(`⚠️ ${serviceText(lang, result.error)}`, { lang }));
     // what went out as a request now and what waits (#775), each in its own block
     const parts = [];

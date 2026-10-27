@@ -18,7 +18,7 @@ jest.mock("../../../src/web/http/auth", () => ({
 }));
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 // cat1's voice preset sits in a shared voice category, cat2's inside cat2
-const mockConfig = { categoryVoiceChannel: { cat1: "v-shared", cat2: "v-cat2" }, raidDefaults: { channelId: "c-gruul" } };
+const mockConfig = { categoryVoiceChannel: { cat1: "v-shared", cat2: "v-cat2" }, serverSettings: { g1: { raidDefaults: { channelId: "c-gruul" } } } };
 jest.mock("../../../src/stores/settingsStore", () => ({
     ...jest.requireActual("../../../src/stores/settingsStore"),
     getConfig: () => mockConfig,

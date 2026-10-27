@@ -58,12 +58,14 @@ const RENAME_NAME_MAX = 25;
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
 /**
- * The guild bank's orga channel of a config (`discordServers.guildBankChannelId`),
- * "" when none is set — then the organizers show no guild bank. Here, below
- * both, because the organizer (availabilityPanel.js) and the service ask it.
+ * The guild bank's orga channel of one server (#924:
+ * `serverSettings[guildId].guildBankChannelId`), "" when none is set there —
+ * then that server's organizers show no guild bank. Here, below both, because
+ * the organizer (availabilityPanel.js) and the service ask it.
  */
-function guildBankChannelId(config) {
-    const id = str(((config && config.discordServers) || {}).guildBankChannelId);
+function guildBankChannelId(config, guildId = "") {
+    const block = ((config && config.serverSettings) || {})[str(guildId)] || {};
+    const id = str(block.guildBankChannelId);
     return isSnowflake(id) ? id : "";
 }
 const seconds = (ms) => Math.floor((Number(ms) || 0) / 1000);
