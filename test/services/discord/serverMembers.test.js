@@ -4,10 +4,16 @@
 const { PermissionsBitField } = require("discord.js");
 
 jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => ({}) }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({
-    eventGuildId: () => "900000000000000001",
-    talkGuildId: () => "",
-}));
+jest.mock("../../../src/services/discord/guildRoles", () => {
+    const actual = jest.requireActual("../../../src/services/discord/guildRoles");
+    const cfg = { discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], talkGuildId: "900000000000000002", links: [] } };
+    return {
+        ...actual,
+        eventGuildId: () => "900000000000000001",
+        talkGuildId: () => "900000000000000002",
+        roleMessageGuild: (entry) => actual.roleMessageGuild(entry, cfg),
+    };
+});
 jest.mock("../../../src/services/discord/categoryNames", () => ({ listKnownCategories: () => [] }));
 const mockDiscord = {
     getGuild: jest.fn(),
@@ -89,8 +95,8 @@ beforeEach(() => {
 
 describe("serverMembers listServerMembers", () => {
     it("lists the members by name with roles highest first, relation and hints", async () => {
-        const out = await listServerMembers("event");
-        expect(out).toMatchObject({ online: true, side: "event", guildId: GUILD, guildName: "Test-Server", membersError: null, total: 3 });
+        const out = await listServerMembers(GUILD);
+        expect(out).toMatchObject({ online: true, guildId: GUILD, guildName: "Test-Server", membersError: null, total: 3 });
         expect(out.roles).toEqual([
             { id: OFFIZIER, name: "Offizier", color: "#3366ff", position: 10 },
             { id: RAIDER, name: "TBC-Raider", color: "", position: 5 },
@@ -113,23 +119,23 @@ describe("serverMembers listServerMembers", () => {
 
     it("is empty with the reason when the member list takes too long or fails", async () => {
         mockDiscord.fetchGuildMembersCached.mockReturnValue(new Promise(() => {}));
-        const slow = await listServerMembers("event", { waitMs: 5 });
+        const slow = await listServerMembers(GUILD, { waitMs: 5 });
         expect(slow).toMatchObject({ online: true, membersError: "timeout", total: 0, members: [] });
         expect(slow.roles).toHaveLength(3);
         mockDiscord.fetchGuildMembersCached.mockRejectedValue(new Error("Missing intent"));
-        expect(await listServerMembers("event")).toMatchObject({ membersError: "Missing intent", members: [] });
+        expect(await listServerMembers(GUILD)).toMatchObject({ membersError: "Missing intent", members: [] });
     });
 
-    it("is empty offline and for a talk server that is not set up", async () => {
+    it("is empty offline and without a server", async () => {
         mockDiscord.getGuild.mockReturnValue(null);
-        expect(await listServerMembers("event")).toMatchObject({ online: false, total: 0, roles: [], members: [] });
-        expect(await listServerMembers("talk")).toMatchObject({ online: false, side: "talk", guildId: "", members: [] });
+        expect(await listServerMembers(GUILD)).toMatchObject({ online: false, guildId: GUILD, total: 0, roles: [], members: [] });
+        expect(await listServerMembers("")).toMatchObject({ online: false, guildId: "", members: [] });
     });
 });
 
 describe("serverMembers serverMemberDetail", () => {
     it("gives the member, its roles and the channels it sees, by category", async () => {
-        const out = await serverMemberDetail("event", "2");
+        const out = await serverMemberDetail(GUILD, "2");
         expect(out.member).toMatchObject({ id: "2", name: "Anna", missingRosters: [{ id: "r1", name: "TBC Main" }] });
         // one account: its relation alone, with the open rosters read once, never the whole index
         expect(mockRelationIndex).not.toHaveBeenCalled();
@@ -143,7 +149,7 @@ describe("serverMembers serverMemberDetail", () => {
     });
 
     it("names voice and forum channels as such", async () => {
-        const out = await serverMemberDetail("event", "1");
+        const out = await serverMemberDetail(GUILD, "1");
         expect(out.channels[1].channels.map((c) => c.kind)).toEqual(["text", "voice", "forum"]);
     });
 
@@ -152,16 +158,16 @@ describe("serverMembers serverMemberDetail", () => {
         guild.members.cache.set("7", member("7", "Gast", []));
         mockDiscord.getGuild.mockReturnValue(guild);
         mockDiscord.fetchGuildMembersCached.mockReturnValue(new Promise(() => {}));
-        expect((await serverMemberDetail("event", "7", { waitMs: 5 })).member.name).toBe("Gast");
-        const gone = await serverMemberDetail("event", "8", { waitMs: 5 });
+        expect((await serverMemberDetail(GUILD, "7", { waitMs: 5 })).member.name).toBe("Gast");
+        const gone = await serverMemberDetail(GUILD, "8", { waitMs: 5 });
         expect(gone).toMatchObject({ online: true, guildId: GUILD, gone: true, member: null, roles: [], channels: [] });
-        expect(await serverMemberDetail("event", "", { waitMs: 5 })).toMatchObject({ gone: true, member: null });
-        expect((await serverMemberDetail("event", "7", { waitMs: 5 })).gone).toBeUndefined();
+        expect(await serverMemberDetail(GUILD, "", { waitMs: 5 })).toMatchObject({ gone: true, member: null });
+        expect((await serverMemberDetail(GUILD, "7", { waitMs: 5 })).gone).toBeUndefined();
     });
 
     it("is empty offline", async () => {
         mockDiscord.getGuild.mockReturnValue(null);
-        expect(await serverMemberDetail("event", "1")).toMatchObject({ online: false, member: null, roles: [], channels: [] });
+        expect(await serverMemberDetail(GUILD, "1")).toMatchObject({ online: false, member: null, roles: [], channels: [] });
     });
 });
 
@@ -173,10 +179,10 @@ describe("serverMembers visibleChannels / memberCount", () => {
         expect(visibleChannels({}, { id: "1" })).toEqual([]);
     });
 
-    it("counts the people without bots, null offline or for a side without server", () => {
+    it("counts the people without bots, null offline or without a server", () => {
         // nothing cached: Discord's own count
-        expect(memberCount("event")).toBe(186);
-        expect(memberCount("talk")).toBeNull();
+        expect(memberCount(GUILD)).toBe(186);
+        expect(memberCount("")).toBeNull();
         mockDiscord.getGuild.mockReturnValue(null);
         expect(memberCount()).toBeNull();
     });
@@ -190,14 +196,14 @@ describe("serverMembers visibleChannels / memberCount", () => {
             ["3", member("3", "PulseBot", [], { user: { username: "pulsebot", bot: true } })],
         ]);
         mockDiscord.getGuild.mockReturnValue(full);
-        expect(memberCount("event")).toBe(2);
+        expect(memberCount(GUILD)).toBe(2);
         const partial = makeGuild();
         partial.members.cache = new Map([["3", member("3", "PulseBot", [], { user: { username: "pulsebot", bot: true } })]]);
         mockDiscord.getGuild.mockReturnValue(partial);
-        expect(memberCount("event")).toBe(185);
+        expect(memberCount(GUILD)).toBe(185);
         // no count from Discord: the cache alone
         partial.memberCount = undefined;
         partial.members.cache.set("1", member("1", "Zora", []));
-        expect(memberCount("event")).toBe(1);
+        expect(memberCount(GUILD)).toBe(1);
     });
 });

@@ -1,5 +1,5 @@
 import { useEffect, type CSSProperties } from "react";
-import { getServerMemberDetail, type DiscordSide, type MemberChannel, type MemberChannelGroup, type ServerMember, type ServerMemberDetail } from "../../api";
+import { getServerMemberDetail, type MemberChannel, type MemberChannelGroup, type ServerMember, type ServerMemberDetail } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { IconButton } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
@@ -15,8 +15,9 @@ import { useT } from "../../i18n";
 // characters by version with the roster each is in, and the channels it can see,
 // by category. Esc or the X closes it.
 
-export default function MemberDrawer({ side, userId, guildName, listed, onClose }: {
-    side: DiscordSide;
+export default function MemberDrawer({ guildId, userId, guildName, listed, onClose }: {
+    /** the server of the server list the member is shown for */
+    guildId: string;
     userId: string;
     guildName: string;
     /** the member from the list, so the head shows before the detail is loaded */
@@ -24,7 +25,7 @@ export default function MemberDrawer({ side, userId, guildName, listed, onClose 
     onClose: () => void;
 }) {
     const t = useT();
-    const state = useApi(() => getServerMemberDetail(side, userId), [side, userId]);
+    const state = useApi(() => getServerMemberDetail(guildId, userId), [guildId, userId]);
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {

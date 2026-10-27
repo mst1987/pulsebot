@@ -1,0 +1,11 @@
+/* The server picker of System › Discord (components/channels/ServerPicker.tsx):
+   a small segment in the page head with the Discord name of each server, its
+   icon in front; a long name is shortened (the full one in the tooltip) so the head never grows
+   wider than the screen. More than three servers are a plain select. */
+.srvp-icon { width: 16px; height: 16px; border-radius: 50%; flex: 0 0 auto; }
+.srvp-pick { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.srvp-lbl { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.srvp-select { max-width: 240px; min-width: 0; background-color: var(--panel2); }
+@media (max-width: 600px) {
+    .srvp-select { max-width: 200px; }
+}

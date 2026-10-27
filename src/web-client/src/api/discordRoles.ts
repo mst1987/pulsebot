@@ -1,9 +1,11 @@
 import { get } from "./client";
+import { guildQuery } from "./discordOverview";
 
-// The roles of the event and the talk server (System › Discord › Rollen) and the
+// The roles of one server of the server list (System › Discord › Rollen) and the
 // counts of the Discord tabs: the contract is the header of
 // src/web/apiRoutes/discordRoles.js, the overview docs/channels.md.
 
+/** The two roles of the role sync (#896 replaces it with server pairs). */
 export type DiscordSide = "event" | "talk";
 
 /** What the bot does with a role (services/discord/selfRole.js roleUses, plus role messages and addon updates). */
@@ -43,7 +45,6 @@ export type ServerRole = {
 };
 
 export type ServerRolesHead = {
-    side: DiscordSide;
     guildId: string;
     guildName: string;
     online: boolean;
@@ -79,14 +80,19 @@ export type ServerRoleDetail = ServerRolesHead & {
 /** Keyed by the menu ids of the Discord tabs (config/menu.json); null = unknown (bot offline). */
 export type DiscordTabCounts = Partial<Record<string, number | null>>;
 
-export function getServerRoles(side: DiscordSide): Promise<ServerRoles> {
-    return get(`/api/discord/roles?side=${side}`);
+const withQuery = (path: string, ...parts: string[]) => {
+    const q = parts.filter(Boolean).join("&");
+    return q ? `${path}?${q}` : path;
+};
+
+export function getServerRoles(guildId: string): Promise<ServerRoles> {
+    return get(withQuery("/api/discord/roles", guildQuery(guildId)));
 }
 
-export function getServerRoleDetail(side: DiscordSide, roleId: string): Promise<ServerRoleDetail> {
-    return get(`/api/discord/roles/detail?side=${side}&roleId=${encodeURIComponent(roleId)}`);
+export function getServerRoleDetail(guildId: string, roleId: string): Promise<ServerRoleDetail> {
+    return get(withQuery("/api/discord/roles/detail", guildQuery(guildId), `roleId=${encodeURIComponent(roleId)}`));
 }
 
-export function getDiscordTabCounts(side: DiscordSide = "event"): Promise<DiscordTabCounts> {
-    return get(`/api/discord/tab-counts?side=${side}`);
+export function getDiscordTabCounts(guildId = ""): Promise<DiscordTabCounts> {
+    return get(withQuery("/api/discord/tab-counts", guildQuery(guildId)));
 }

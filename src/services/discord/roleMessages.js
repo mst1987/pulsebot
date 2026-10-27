@@ -8,7 +8,7 @@
 // - createRoleMessage() validate, store, post, set the reactions
 // - updateRoleMessage() validate, edit (or repost on a new channel/server), sync the reactions
 // - deleteRoleMessage() delete the Discord message (best-effort) and the entry
-// - roleMessageOptions() roles, channels, emojis and the bot's rights of one server side
+// - roleMessageOptions() roles, channels, emojis and the bot's rights of one server
 // - handleRoleButton()  the `rolemsg:<entryId>:<roleId>` button (ephemeral answer in the clicker's language)
 // - handleReaction()    MessageReactionAdd/Remove (no answer; partials are fetched, so
 //                       messages from before a restart work — the store maps messageId → entry)
@@ -22,7 +22,7 @@
 // docs/role-messages.md the overview.
 const { ButtonBuilder, ButtonStyle, MessageFlags, PermissionsBitField, TextDisplayBuilder } = require("discord.js");
 const discord = require("./discord");
-const { eventGuildId, talkGuildId } = require("./guildRoles");
+const { eventGuildId, resolveServer, roleMessageGuild } = require("./guildRoles");
 const { privilegedReason, roleProblem, changeSelfRole } = require("./selfRole");
 const { ruleFor, resolveBotAccess, eventMemberRoles } = require("./botAccess");
 const { langOfInteraction } = require("./botLanguage");
@@ -44,9 +44,9 @@ function fail(code, message, details = {}, status = 400) {
     return Object.assign(new Error(message), { code, status, details });
 }
 
-/** The server of a side: "event" → the event server, "talk" → the talk server. */
-function guildIdOf(side, config) {
-    return side === "talk" ? talkGuildId(config) : eventGuildId(config);
+/** The server a stored entry belongs to (its guildId, or its legacy guildSide read as a server). */
+function guildIdOf(entry, config = getConfig()) {
+    return roleMessageGuild(entry, config);
 }
 
 /** The key a reaction and a stored emoji share: a custom emoji's id, a Unicode emoji without its variation selector. */
@@ -117,16 +117,15 @@ async function checkRole(r, { guild, config, serverEmojis, seenRoles, seenEmojis
 
 /**
  * Check the orga's input. Returns the clean entry (without id/messageId) plus its
- * guildId; throws `fail(code, …)` otherwise. Codes: bad_side, no_guild, bot_offline,
+ * guildId; throws `fail(code, …)` otherwise. Codes: unknown_guild, no_guild, bot_offline,
  * unknown_channel, missing_title, no_roles, too_many_roles, too_many_reactions,
  * duplicate_role, duplicate_emoji, bad_emoji, unknown_emoji, unknown_role,
  * privileged_role (details: roleId, reason), role_unusable (details: roleId, reason), bad_image.
  */
 async function validate(input = {}, { config = getConfig() } = {}) {
-    const side = str(input.guildSide) || "event";
-    if (!store.SIDES.includes(side)) throw fail("bad_side", "Server-Seite muss „event“ oder „talk“ sein.");
-    const guildId = guildIdOf(side, config);
-    if (!guildId) throw fail("no_guild", side === "talk" ? "Es ist kein Talk-Server eingestellt." : "Es ist kein Event-Server eingestellt.");
+    const guildId = resolveServer({ guildId: input.guildId, side: input.guildSide }, config);
+    if (guildId === null) throw fail("unknown_guild", "Diesen Server gibt es in der Serverliste nicht.");
+    if (!guildId) throw fail("no_guild", "Es ist kein Discord-Server eingestellt.");
     const guild = discord.getGuild(guildId);
     if (!guild) throw fail("bot_offline", "Der Bot ist nicht verbunden oder nicht auf diesem Server.", {}, 503);
 
@@ -154,7 +153,7 @@ async function validate(input = {}, { config = getConfig() } = {}) {
     const roles = [];
     for (const r of raw) roles.push(await checkRole(r, { guild, config, serverEmojis, seenRoles, seenEmojis }));
 
-    return { guildId, entry: { guildSide: side, channelId, title, body, imageUrl, color, roles } };
+    return { guildId, entry: { guildId, channelId, title, body, imageUrl, color, roles } };
 }
 
 /** The message: a card with the picture and one button per role (5 per row). */
@@ -287,7 +286,8 @@ async function updateRoleMessage(id, input, { config = getConfig() } = {}) {
     if (!old) throw fail("not_found", "Diese Rollen-Nachricht gibt es nicht.", {}, 404);
     const { entry } = await validate(input, { config });
     const next = { ...old, ...entry };
-    const moved = !old.messageId || old.channelId !== next.channelId || old.guildSide !== next.guildSide;
+    delete next.guildSide; // legacy (before #895): the entry carries its guildId now
+    const moved = !old.messageId || old.channelId !== next.channelId || guildIdOf(old, config) !== next.guildId;
     if (!moved) {
         try {
             const edited = await discord.editPayload(old.channelId, old.messageId, rolePayload(next));
@@ -330,15 +330,13 @@ function botHas(me, flag, channel = null) {
 }
 
 /**
- * What the editor offers for one server side: its roles (with why one must not be
+ * What the editor offers for one server (a guildId of the server list): its roles (with why one must not be
  * handed out, and whether the bot can), its text channels (and whether the bot may
  * react there), its emojis, the bot's Manage Roles.
  */
-function roleMessageOptions(side, { config = getConfig() } = {}) {
-    const guildSide = side === "talk" ? "talk" : "event";
-    const guildId = guildIdOf(guildSide, config);
+function roleMessageOptions(guildId, { config = getConfig() } = {}) {
     const guild = guildId ? discord.getGuild(guildId) : null;
-    if (!guild) return { guildSide, guildId: guildId || "", online: false, manageRoles: null, roles: [], channels: [], emojis: [] };
+    if (!guild) return { guildId: guildId || "", online: false, manageRoles: null, roles: [], channels: [], emojis: [] };
     const me = guild.members ? guild.members.me : null;
     const roles = discord.listRoles(guildId).map((r) => {
         const role = guild.roles.cache.get(r.id) || null;
@@ -353,7 +351,6 @@ function roleMessageOptions(side, { config = getConfig() } = {}) {
         return { ...c, canReact: react === null || history === null ? null : react && history };
     });
     return {
-        guildSide,
         guildId,
         online: true,
         manageRoles: botHas(me, PermissionsBitField.Flags.ManageRoles),

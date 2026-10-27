@@ -1,7 +1,8 @@
 import { get } from "./client";
-import type { DiscordSide, ServerRolesHead } from "./discordRoles";
+import type { ServerRolesHead } from "./discordRoles";
+import { guildQuery } from "./discordOverview";
 
-// The members of the event and the talk server (System › Discord › Mitglieder):
+// The members of one server of the server list (System › Discord › Mitglieder):
 // the contract is the header of src/web/apiRoutes/discordMembers.js, the
 // overview docs/channels.md. Read only.
 
@@ -50,10 +51,11 @@ export type ServerMemberDetail = ServerRolesHead & {
     channels: MemberChannelGroup[];
 };
 
-export function getServerMembers(side: DiscordSide): Promise<ServerMembers> {
-    return get(`/api/discord/members?side=${side}`);
+export function getServerMembers(guildId: string): Promise<ServerMembers> {
+    const q = guildQuery(guildId);
+    return get(`/api/discord/members${q ? `?${q}` : ""}`);
 }
 
-export function getServerMemberDetail(side: DiscordSide, userId: string): Promise<ServerMemberDetail> {
-    return get(`/api/discord/members/detail?side=${side}&userId=${encodeURIComponent(userId)}`);
+export function getServerMemberDetail(guildId: string, userId: string): Promise<ServerMemberDetail> {
+    return get(`/api/discord/members/detail?${[guildQuery(guildId), `userId=${encodeURIComponent(userId)}`].filter(Boolean).join("&")}`);
 }

@@ -3,14 +3,12 @@ import { get, send } from "./client";
 // Rollen-Nachrichten (self-service roles): the contract is the header of
 // src/web/apiRoutes/roleMessages.js, the overview docs/role-messages.md.
 
-export type RoleMessageSide = "event" | "talk";
-
 /** One role of a message: its button label and (optionally) its reaction emoji ("🛡️" or "<:name:id>"). */
 export type RoleMessageRole = { roleId: string; emoji: string; label: string };
 
 export type RoleMessage = {
     id: string;
-    guildSide: RoleMessageSide;
+    /** the server of the server list it stands on (#895; older entries are read by their side) */
     guildId: string;
     channelId: string;
     messageId: string;
@@ -46,8 +44,7 @@ export type RoleMessageChannelOption = { id: string; name: string; category: str
 export type RoleMessageEmojiOption = { id: string; name: string; animated: boolean; code: string; url: string };
 
 export type RoleMessageOptions = {
-    guildSide: RoleMessageSide;
-    /** "" when no server is set for the side. */
+    /** "" when no server is set. */
     guildId: string;
     online: boolean;
     manageRoles: boolean | null;
@@ -57,7 +54,8 @@ export type RoleMessageOptions = {
 };
 
 export type RoleMessageInput = {
-    guildSide: RoleMessageSide;
+    /** a server of the server list; "" = the first one */
+    guildId: string;
     channelId: string;
     title: string;
     body: string;
@@ -72,8 +70,8 @@ export function getRoleMessages(): Promise<{ messages: RoleMessage[]; limits: Ro
     return get("/api/role-messages");
 }
 
-export function getRoleMessageOptions(side: RoleMessageSide): Promise<RoleMessageOptions> {
-    return get(`/api/role-messages/options?side=${side}`);
+export function getRoleMessageOptions(guildId: string): Promise<RoleMessageOptions> {
+    return get(`/api/role-messages/options${guildId ? `?guildId=${encodeURIComponent(guildId)}` : ""}`);
 }
 
 export function createRoleMessage(input: RoleMessageInput): Promise<RoleMessageSaved> {

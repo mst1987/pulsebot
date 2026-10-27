@@ -4,12 +4,15 @@
 let mockUser = null;
 jest.mock("../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true }));
 jest.mock("../../../src/services/discord/linkCheck", () => ({ messageLink: (g, c, m) => `https://discord.com/channels/${g}/${c}/${m}` }));
-jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => ({}) }));
+// the server list (#895): the first server and the talk server
+jest.mock("../../../src/stores/configStore", () => ({
+    getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], talkGuildId: "900000000000000002", links: [] } }),
+}));
 jest.mock("../../../src/services/discord/roleMessages", () => {
     const actual = jest.requireActual("../../../src/services/discord/roleMessages");
     return {
         LIMITS: actual.LIMITS,
-        guildIdOf: (side) => (side === "talk" ? "900000000000000002" : "900000000000000001"),
+        guildIdOf: actual.guildIdOf,
         roleMessageOptions: jest.fn(),
         createRoleMessage: jest.fn(),
         updateRoleMessage: jest.fn(),
@@ -43,9 +46,9 @@ afterAll(() => store.useFile(null));
 describe("access (area channels)", () => {
     it("lets a reader list and read the options, but not write", async () => {
         mockUser = READER;
-        svc.roleMessageOptions.mockReturnValue({ guildSide: "event", online: true, roles: [] });
+        svc.roleMessageOptions.mockReturnValue({ guildId: "900000000000000001", online: true, roles: [] });
         expect(status(await get("/api/role-messages"))).toBe(200);
-        expect(status(await get("/api/role-messages/options", { side: "event" }))).toBe(200);
+        expect(status(await get("/api/role-messages/options"))).toBe(200);
         expect(status(await post("/api/role-messages", {}))).toBe(403);
         expect(status(await request("PUT", "/api/role-messages", { id: "abc" }))).toBe(403);
         expect(status(await request("DELETE", "/api/role-messages", { id: "abc" }))).toBe(403);
@@ -68,10 +71,28 @@ describe("GET", () => {
         expect(data.messages[0]).toMatchObject({ id: "abc", guildId: "900000000000000001", url: expect.stringContaining("300000000000000003") });
     });
 
-    it("hands the side to the options", async () => {
-        svc.roleMessageOptions.mockReturnValue({ guildSide: "talk" });
-        expect(body(await get("/api/role-messages/options", { side: "talk" }))).toEqual({ guildSide: "talk" });
-        expect(svc.roleMessageOptions).toHaveBeenCalledWith("talk");
+    it("hands the server to the options, the first one by default", async () => {
+        svc.roleMessageOptions.mockReturnValue({ guildId: "900000000000000002" });
+        expect(body(await get("/api/role-messages/options", { guildId: "900000000000000002" }))).toEqual({ guildId: "900000000000000002" });
+        expect(svc.roleMessageOptions).toHaveBeenLastCalledWith("900000000000000002");
+        await get("/api/role-messages/options");
+        expect(svc.roleMessageOptions).toHaveBeenLastCalledWith("900000000000000001");
+    });
+
+    it("refuses options for a server outside the list", async () => {
+        const res = await get("/api/role-messages/options", { guildId: "900000000000000099" });
+        expect(status(res)).toBe(400);
+        expect(json(res).error.code).toBe("unknown_guild");
+        expect(svc.roleMessageOptions).not.toHaveBeenCalled();
+    });
+
+    it("reads an entry from before #895 by its side and one by its own server", async () => {
+        store.saveMessage({ ...ENTRY, id: "old", guildSide: "talk" });
+        store.saveMessage({ ...ENTRY, id: "new", guildSide: undefined, guildId: "900000000000000002" });
+        const byId = Object.fromEntries(body(await get("/api/role-messages")).messages.map((m) => [m.id, m]));
+        expect(byId.old.guildId).toBe("900000000000000002");
+        expect(byId.new.guildId).toBe("900000000000000002");
+        expect(byId.old).not.toHaveProperty("guildSide");
     });
 });
 
