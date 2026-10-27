@@ -160,6 +160,11 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .logchan-name { display: flex; align-items: baseline; gap: 8px; flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .logchan-name small { font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
 .logchan-version { flex: 0 1 190px; min-width: 0; }
+@media (max-width: 560px) {
+    .logchan { flex-wrap: wrap; }
+    .logchan-name { flex-basis: 100%; }
+    .logchan-version { flex: 1 1 0; }
+}
 .topitem-name img { width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--line); }
 
 /* ---- Verbindungen ---- */
