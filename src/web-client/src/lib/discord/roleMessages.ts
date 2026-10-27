@@ -118,7 +118,7 @@ export function problemText(p: RoleMessageProblem, limits: RoleMessageLimits, ro
 // ---- the server's errors --------------------------------------------------------
 
 const ERROR_CODES = new Set([
-    "bad_side", "no_guild", "unknown_channel", "missing_title", "bad_image", "no_roles", "too_many_roles",
+    "unknown_guild", "no_guild", "unknown_channel", "missing_title", "bad_image", "no_roles", "too_many_roles",
     "too_many_reactions", "duplicate_role", "unknown_role", "bad_emoji", "unknown_emoji", "duplicate_emoji",
     "privileged_role", "role_unusable", "missing_id", "not_found", "post_failed", "edit_failed", "bot_offline",
 ]);

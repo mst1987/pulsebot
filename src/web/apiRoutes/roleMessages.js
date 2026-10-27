@@ -5,13 +5,14 @@
 //
 // GET    /api/role-messages
 //        → { data: { messages: [Entry], limits: { roles, reactions, title, body, label } } }
-//          Entry = { id, guildSide: "event"|"talk", guildId, channelId, messageId, url,
+//          Entry = { id, guildId, channelId, messageId, url,
 //                    title, body, imageUrl, color: number|null,
 //                    roles: [{ roleId, emoji, label }], createdBy, createdAt, updatedAt }
-//          url: the Discord link of the message ("" while not posted)
+//          url: the Discord link of the message ("" while not posted); guildId: the server
+//          (an entry from before #895 with only guildSide: the talk server resp. the first server)
 //
-// GET    /api/role-messages/options?side=event|talk
-//        → { data: { guildSide, guildId, online, manageRoles: boolean|null,
+// GET    /api/role-messages/options?guildId=<one of the servers>   (none: the first server)
+//        → { data: { guildId, online, manageRoles: boolean|null,
 //                    roles: [{ id, name, color, managed, ..., privileged: string, editable: boolean }],
 //                    channels: [{ id, name, category, parentId, canReact: boolean|null }],
 //                    emojis: [{ id, name, animated, code, url }] } }
@@ -21,7 +22,7 @@
 //          emojis[].code is what goes into roles[].emoji ("<:name:id>"); offline: empty lists
 //
 // POST   /api/role-messages
-//        body { guildSide, channelId, title, body?, imageUrl?, color?, roles: [{ roleId, emoji?, label? }] }
+//        body { guildId, channelId, title, body?, imageUrl?, color?, roles: [{ roleId, emoji?, label? }] }
 //        → 201 { data: { entry: Entry, url, warnings: [string] } }   posted with its reactions
 //
 // PUT    /api/role-messages
@@ -33,7 +34,7 @@
 //        → { data: { id, messageDeleted: boolean } }   the entry goes even when the message is gone
 //
 // Errors: { error: { code, message, roleId?, reason? } } with the HTTP status of the check —
-// 400 bad_side, no_guild, unknown_channel, missing_title, bad_image, no_roles, too_many_roles,
+// 400 unknown_guild (not in the server list), no_guild, unknown_channel, missing_title, bad_image, no_roles, too_many_roles,
 // too_many_reactions, duplicate_role, unknown_role, bad_emoji, unknown_emoji, duplicate_emoji,
 // privileged_role (roleId + reason: the role carries rights), role_unusable (roleId + reason:
 // the bot cannot hand it out); 404 not_found; 502 post_failed, edit_failed; 503 bot_offline.
@@ -45,14 +46,17 @@ const { getConfig } = require("../../stores/configStore");
 const store = require("../../stores/roleMessageStore");
 const roleMessages = require("../../services/discord/roleMessages");
 const linkCheck = require("../../services/discord/linkCheck");
+const { serverFromQuery } = require("../http/serverQuery");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
 /** An entry as the page reads it: with its server and the link to the message. */
 function entryView(entry, config = getConfig()) {
-    const guildId = roleMessages.guildIdOf(entry.guildSide, config) || "";
+    const rest = { ...entry };
+    delete rest.guildSide; // legacy (before #895): the client only knows guildId
+    const guildId = roleMessages.guildIdOf(entry, config) || "";
     const url = guildId && entry.messageId ? linkCheck.messageLink(guildId, entry.channelId, entry.messageId) || "" : "";
-    return { ...entry, guildId, url };
+    return { ...rest, guildId, url };
 }
 
 /** A failed check or Discord call as the JSON error, with the role and the reason where there is one. */
@@ -77,9 +81,12 @@ const listMessages = withUser(async ({ res }) => {
     ok(res, { messages: store.listMessages().map((m) => entryView(m, config)), limits: roleMessages.LIMITS });
 });
 
-/** GET /api/role-messages/options?side= */
+/** GET /api/role-messages/options?guildId= */
 const getOptions = withUser(async ({ query, res }) => {
-    ok(res, roleMessages.roleMessageOptions(str(query.get("side")) || "event"));
+    const guildId = serverFromQuery(query, res);
+    if (guildId === null) return undefined;
+    ok(res, roleMessages.roleMessageOptions(guildId));
+    return undefined;
 });
 
 /** POST /api/role-messages — create and post. */

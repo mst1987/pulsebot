@@ -19,7 +19,7 @@ const role = (over: Partial<RoleMessageRoleOption> = {}): RoleMessageRoleOption 
 const ROLES = [role(), role({ id: "r2", name: "Angeln", color: "" }), role({ id: "r9", name: "Orga", privileged: "the role is an orga role" })];
 
 const input = (over: Partial<RoleMessageInput> = {}): RoleMessageInput => ({
-    guildSide: "event", channelId: "c1", title: "Berufe", body: "", imageUrl: "", color: null,
+    guildId: "", channelId: "c1", title: "Berufe", body: "", imageUrl: "", color: null,
     roles: [{ roleId: "r1", emoji: "", label: "" }],
     ...over,
 });

@@ -83,10 +83,8 @@
                 "one": "{count} role",
                 "other": "{count} roles"
             },
-            "server": "Server",
             "offline": "Bot not connected",
             "offlineSub": "Roles come live from Discord – without a connection the list stays empty.",
-            "talkMissing": "No talk server set (Settings › Discord).",
             "membersError": "Member counts missing",
             "membersErrorSub": "Discord did not deliver the member list in time. The counts come back on the next load.",
             "noManageRoles": "Bot may not hand out roles",
@@ -101,7 +99,6 @@
             "footnote": "Click a row to open the role. Creating and moving roles stays in Discord.",
             "empty": "This server has no roles.",
             "emptyHints": "No role with a note.",
-            "eventMissing": "No event server set (Settings › Discord).",
             "commonLead": "Common on this server, so in grey:",
             "commonRoles": "{perm} ({count} of {total} roles)",
             "commonEveryone": "{perm} (everyone via @everyone)",
@@ -350,6 +347,7 @@
             "empty": "The bot cannot check anything right now.",
             "fn": "Function",
             "rights": "Needs",
+            "state": "State",
             "stateTip": "Sort by state: missing rights first",
             "okFold": {
                 "one": "{count} function ok",
@@ -399,8 +397,6 @@
             "count": { "one": "{count} member", "other": "{count} members" },
             "offline": "Bot not connected",
             "offlineSub": "Members come live from Discord – without a connection the list stays empty.",
-            "eventMissing": "No event server set up (Settings › Discord).",
-            "talkMissing": "No talk server set up (Settings › Discord).",
             "membersError": "Member list missing",
             "membersErrorSub": "Discord did not deliver the member list in time. It comes back on the next load.",
             "membersErrorIntent": "Discord does not hand out the member list. Usually the bot lacks the Server Members intent (Developer Portal › Bot › Privileged Gateway Intents).",
@@ -462,5 +458,11 @@
             "channelsFoot": "Worked out from roles and channel overrides.",
             "showMember": "Open in the member list"
         }
+    },
+    "server": {
+        "label": "Server",
+        "none": "No server set (Settings › Discord).",
+        "offline": "bot missing",
+        "offlineSub": "The bot is not on this server – there is nothing to show here."
     }
 }

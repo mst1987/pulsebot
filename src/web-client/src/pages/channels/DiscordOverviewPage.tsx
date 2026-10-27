@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useOutletContext } from "react-router-dom";
-import { getDiscordOverview, type BotMessage, type DiscordOverview, type DiscordSide, type MemberActivity, type SessionUser } from "../../api";
+import { getDiscordOverview, type BotMessage, type DiscordOverview, type MemberActivity, type SessionUser } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import type { ShellContext } from "../../components/shell/Shell";
-import { Badge, Button, PageHead, Segment, buttonClass } from "../../components/ui";
+import { Badge, Button, PageHead, buttonClass } from "../../components/ui";
 import { SortTh } from "../../components/ui/SortTh";
 import { CheckIcon, ChevronRightIcon, ExternalIcon, RefreshIcon } from "../../components/ui/icons";
 import DiscordTabs from "../../components/channels/DiscordTabs";
+import ServerPicker from "../../components/channels/ServerPicker";
+import { pickSearch, useServerPick } from "../../hooks/useServerPick";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { useTableSort } from "../../lib/ui/tableSort";
 import { formatDateTime } from "../../lib/format";
@@ -22,8 +24,9 @@ import { useT } from "../../i18n";
 // with its status word, why, and a button to where it is fixed; "Alles in
 // Ordnung" when nothing is open. Below it who joined or left in the last seven
 // days, the bot's fixed messages, and the bot check: every function against the
-// rights it needs, event and talk server side by side. "Neu prüfen" asks Discord
-// again for the fixed messages, at most every 30 seconds. Display only.
+// rights it needs on that server (only what is set up there). A picker in the
+// controls switches between the servers of the server list (#895). "Neu prüfen"
+// asks Discord again for the fixed messages, at most every 30 seconds. Display only.
 
 const REFRESH_GAP_MS = 30000;
 /** Joins and leaves shown before "Alle zeigen". */
@@ -37,34 +40,17 @@ const FN_SORT: Record<FnSort, "asc" | "desc"> = { fn: "asc", state: "asc" };
 export default function DiscordOverviewPage() {
     const { user } = useOutletContext<ShellContext>();
     const t = useT();
-    const [side, setSide] = useState<DiscordSide>("event");
-    // Each server keeps its own answer: switching shows what is already there and
-    // asks nothing again. A side loads once it is chosen, or (for the bot check
-    // side by side) once the chosen one answered with its bot online; after that
-    // it stays loaded.
-    const [wanted, setWanted] = useState<Record<DiscordSide, boolean>>({ event: true, talk: false });
-    // "Neu prüfen" asks Discord afresh only for the side it was clicked on
-    const fresh = useRef<Record<DiscordSide, boolean>>({ event: false, talk: false });
-    const [lastFresh, setLastFresh] = useState<Record<DiscordSide, number>>({ event: 0, talk: 0 });
+    const pick = useServerPick();
+    const guildId = pick.guildId;
+    // "Neu prüfen" asks Discord afresh once; the 30-second gap is kept per server
+    const fresh = useRef(false);
+    const [lastFresh, setLastFresh] = useState<Record<string, number>>({});
     const [now, setNow] = useState(() => Date.now());
-    const states = {
-        event: useApi(() => getDiscordOverview("event", fresh.current.event), [], { enabled: wanted.event }),
-        talk: useApi(() => getDiscordOverview("talk", fresh.current.talk), [], { enabled: wanted.talk }),
-    };
-    const otherSide: DiscordSide = side === "event" ? "talk" : "event";
-    const state = states[side];
-    const data = state.data;
-    const otherData = states[otherSide].data;
-    const online = !!(data && data.online);
-    useEffect(() => {
-        if (online) setWanted((w) => (w[otherSide] ? w : { ...w, [otherSide]: true }));
-    }, [online, otherSide]);
-    const choose = (next: DiscordSide) => {
-        setSide(next);
-        setWanted((w) => (w[next] ? w : { ...w, [next]: true }));
-    };
+    const state = useApi(() => getDiscordOverview(guildId, fresh.current), [guildId], { enabled: pick.ready });
+    // an answer for the server picked before stays hidden until the new one is in
+    const data = state.data && (!guildId || state.data.guildId === guildId) ? state.data : null;
 
-    const wait = refreshWait(lastFresh[side], now, REFRESH_GAP_MS);
+    const wait = refreshWait(lastFresh[guildId] || 0, now, REFRESH_GAP_MS);
     // tick while the button waits, so its countdown moves
     useEffect(() => {
         if (!wait) return undefined;
@@ -74,25 +60,16 @@ export default function DiscordOverviewPage() {
 
     const refresh = () => {
         const at = Date.now();
-        if (refreshWait(lastFresh[side], at, REFRESH_GAP_MS)) return;
-        const clicked = side;
-        setLastFresh((l) => ({ ...l, [clicked]: at }));
+        if (refreshWait(lastFresh[guildId] || 0, at, REFRESH_GAP_MS)) return;
+        setLastFresh((l) => ({ ...l, [guildId]: at }));
         setNow(at);
-        fresh.current[clicked] = true;
-        states[clicked].reload().finally(() => { fresh.current[clicked] = false; });
+        fresh.current = true;
+        state.reload().finally(() => { fresh.current = false; });
     };
 
     const controls = (
         <div className="dov-controls">
-            <Segment<DiscordSide>
-                ariaLabel={t("discord.roles.page.server")}
-                value={side}
-                onChange={choose}
-                options={[
-                    { value: "event", label: t("discord.roles.side.event") },
-                    { value: "talk", label: t("discord.roles.side.talk") },
-                ]}
-            />
+            <ServerPicker pick={pick} />
             <Button
                 variant="ghost" size="sm" icon={<RefreshIcon />} onClick={refresh}
                 disabled={wait > 0 || state.loading || !data || !data.guildId || !data.online}
@@ -102,9 +79,6 @@ export default function DiscordOverviewPage() {
             </Button>
         </div>
     );
-
-    const eventData = side === "event" ? data : otherData;
-    const talkData = side === "talk" ? data : otherData;
 
     return (
         <div className="dov-page">
@@ -116,21 +90,21 @@ export default function DiscordOverviewPage() {
                     ? <Badge tone="bad" tip={t("discord.overview.offline")} tipSub={t("discord.overview.offlineSub")}>{t("discord.overview.offline")}</Badge>
                     : undefined}
             />
-            <DiscordTabs user={user} side={side} guildKey={data ? data.guildId : ""} />
+            <DiscordTabs user={user} guildId={guildId} search={pickSearch(pick)} />
             {controls}
 
             {state.error && !data && <p className="empty">{t("discord.overview.loadError", { message: state.error.message })}</p>}
             {!data && !state.error && <RaidLoader text={t("discord.overview.loading")} />}
-            {data && !data.guildId && <p className="empty">{t(side === "event" ? "discord.roles.page.eventMissing" : "discord.roles.page.talkMissing")}</p>}
+            {data && !data.guildId && <p className="empty">{t("discord.server.none")}</p>}
             {data && data.guildId && !data.online && <p className="empty">{t("discord.overview.offlineSub")}</p>}
             {data && data.guildId && data.online && (
                 <>
                     <Attention data={data} user={user} />
                     <div className="dov-cols">
-                        <Members members={data.members} user={user} />
+                        <Members members={data.members} user={user} guildParams={pick.param(data.guildId)} />
                         <Messages messages={data.messages} />
                     </div>
-                    <BotCheck rows={botCheckRows(eventData, talkData && talkData.guildId ? talkData : null)} showTalk={!!(talkData && talkData.guildId)} />
+                    <BotCheck rows={botCheckRows(data)} />
                 </>
             )}
         </div>
@@ -200,7 +174,7 @@ function relationText(m: MemberActivity, t: ReturnType<typeof useT>): string {
     return t("discord.overview.members.noRelation");
 }
 
-function Members({ members, user }: { members: MemberActivity[]; user: SessionUser | null }) {
+function Members({ members, user, guildParams }: { members: MemberActivity[]; user: SessionUser | null; guildParams: Record<string, string> }) {
     const t = useT();
     const [all, setAll] = useState(false);
     const joins = members.filter((m) => m.kind === "join").length;
@@ -220,7 +194,7 @@ function Members({ members, user }: { members: MemberActivity[]; user: SessionUs
                             <span className={`dov-mem-kind dov-mem-${m.kind}`}>{t(`discord.overview.members.${m.kind}`)}</span>
                             <span className="dov-mem-main">
                                 {linked
-                                    ? <Link className="dov-mem-name" to={`/channels/members?user=${encodeURIComponent(m.userId)}`}>{m.name || m.userId}</Link>
+                                    ? <Link className="dov-mem-name" to={`/channels/members?${new URLSearchParams({ user: m.userId, ...guildParams }).toString()}`}>{m.name || m.userId}</Link>
                                     : <span className="dov-mem-name">{m.name || m.userId}</span>}
                                 <span className={`dov-mem-rel${m.relation.rosters.length ? "" : " dov-muted"}`}>{relationText(m, t)}</span>
                             </span>
@@ -290,8 +264,8 @@ function Messages({ messages }: { messages: BotMessage[] }) {
     );
 }
 
-function StateCell({ row, side, label }: { row: BotCheckRow; side: "event" | "talk"; label: string }) {
-    const st = functionState(row[side]);
+function StateCell({ row, label }: { row: BotCheckRow; label: string }) {
+    const st = functionState(row.fn);
     return (
         <td className="dov-fn-state" data-label={label}>
             <span className={`dov-st-${st.tone}`}>{st.text}</span>
@@ -300,12 +274,11 @@ function StateCell({ row, side, label }: { row: BotCheckRow; side: "event" | "ta
     );
 }
 
-function BotCheck({ rows, showTalk }: { rows: BotCheckRow[]; showTalk: boolean }) {
+function BotCheck({ rows }: { rows: BotCheckRow[] }) {
     const t = useT();
     const sort = useTableSort<FnSort>("discord-overview-fn-sort", FN_SORT, "state");
     const sorted = sort.apply(rows, (r, key) => (key === "fn" ? r.label.toLowerCase() : botCheckRank(r)));
-    const eventLabel = t("discord.roles.side.event");
-    const talkLabel = t("discord.roles.side.talk");
+    const stateLabel = t("discord.overview.botCheck.state");
     // on a phone the fine functions fold into one line, the problems stay in view (CSS decides by width)
     const [open, setOpen] = useState(false);
     const okCount = rows.filter((r) => botCheckRank(r) >= 2).length;
@@ -313,13 +286,12 @@ function BotCheck({ rows, showTalk }: { rows: BotCheckRow[]; showTalk: boolean }
         <section className="dov-botcheck">
             <SectionHead id="bot-check" title={t("discord.overview.botCheck.title")} note={t("discord.overview.botCheck.note")} />
             {rows.length === 0 ? <p className="dov-empty">{t("discord.overview.botCheck.empty")}</p> : (
-                <table className={`idx dov-fn-table${showTalk ? " dov-fn-two" : ""}${open ? " dov-fn-open" : ""}`}>
+                <table className={`idx dov-fn-table${open ? " dov-fn-open" : ""}`}>
                     <thead>
                         <tr>
                             <SortTh sortKey="fn" label={t("discord.overview.botCheck.fn")} sort={sort.sort} dir={sort.dir} onSort={sort.onSort} />
                             <th>{t("discord.overview.botCheck.rights")}</th>
-                            <SortTh sortKey="state" label={eventLabel} sort={sort.sort} dir={sort.dir} onSort={sort.onSort} tip={t("discord.overview.botCheck.stateTip")} />
-                            {showTalk && <th>{talkLabel}</th>}
+                            <SortTh sortKey="state" label={stateLabel} sort={sort.sort} dir={sort.dir} onSort={sort.onSort} tip={t("discord.overview.botCheck.stateTip")} />
                         </tr>
                     </thead>
                     <tbody>
@@ -329,13 +301,12 @@ function BotCheck({ rows, showTalk }: { rows: BotCheckRow[]; showTalk: boolean }
                                 <td className="dov-fn-rights" data-label={t("discord.overview.botCheck.rights")}>
                                     {r.rights.length ? r.rights.map((x) => x.label).join(", ") : <span className="dov-muted">–</span>}
                                 </td>
-                                <StateCell row={r} side="event" label={eventLabel} />
-                                {showTalk && <StateCell row={r} side="talk" label={talkLabel} />}
+                                <StateCell row={r} label={stateLabel} />
                             </tr>
                         ))}
                         {okCount > 0 && (
                             <tr className="dov-fn-fold">
-                                <td colSpan={showTalk ? 4 : 3}>
+                                <td colSpan={3}>
                                     <Button variant="ghost" size="sm" icon={<ChevronRightIcon />} aria-expanded={open} onClick={() => setOpen(!open)}>
                                         {t("discord.overview.botCheck.okFold", { count: okCount })}
                                     </Button>

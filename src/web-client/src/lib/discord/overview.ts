@@ -153,34 +153,27 @@ export function attentionItems(data: DiscordOverview, user: SessionUser | null):
         .map((x) => x.item);
 }
 
-/** One line of the bot check: a function, the rights it needs, and its state on each server that is set up. */
+/** One line of the bot check: a function, the rights it needs, and its state on the shown server. */
 export type BotCheckRow = {
     key: string;
     label: string;
     rights: { key: string; label: string }[];
-    event: BotFunction | null;
-    talk: BotFunction | null;
+    fn: BotFunction;
 };
 
 /**
- * The bot check of both servers side by side: one row per function (in the
- * server's order), the rights as the union of both sides. A side that is not
- * set up (or not loaded) passes null and its cells stay empty.
+ * The bot check of one server (#895): one row per function the server uses, in
+ * the server's order — the API only lists what is set up there. No rows for a
+ * server that is not set up (or not loaded).
  */
-export function botCheckRows(event: DiscordOverview | null, talk: DiscordOverview | null): BotCheckRow[] {
-    const rows = new Map<string, BotCheckRow>();
-    const add = (data: DiscordOverview | null, side: "event" | "talk") => {
-        if (!data || !data.guildId) return;
-        for (const f of data.botCheck.functions) {
-            const row = rows.get(f.key) || { key: f.key, label: functionLabel(f), rights: [], event: null, talk: null };
-            row[side] = f;
-            for (const r of f.rights) if (!row.rights.some((x) => x.key === r.key)) row.rights.push({ key: r.key, label: rightLabel(r) });
-            rows.set(f.key, row);
-        }
-    };
-    add(event, "event");
-    add(talk, "talk");
-    return [...rows.values()];
+export function botCheckRows(data: DiscordOverview | null): BotCheckRow[] {
+    if (!data || !data.guildId) return [];
+    return data.botCheck.functions.map((f) => ({
+        key: f.key,
+        label: functionLabel(f),
+        rights: f.rights.map((r) => ({ key: r.key, label: rightLabel(r) })),
+        fn: f,
+    }));
 }
 
 /** How a function reads on one server: a word with its meaning colour, and the missing rights. */
@@ -194,10 +187,10 @@ export function functionState(f: BotFunction | null): { tone: "ok" | "bad" | "mu
 
 /** Sort rank of a bot-check row: a missing right first, then unknown, then fine. */
 export function botCheckRank(row: BotCheckRow): number {
-    const states = [row.event, row.talk].filter(Boolean).map((f) => f!.state);
-    if (states.includes("missing")) return 0;
-    if (states.includes("unknown")) return 1;
-    return states.includes("ok") ? 2 : 3;
+    const state = row.fn.state;
+    if (state === "missing") return 0;
+    if (state === "unknown") return 1;
+    return state === "ok" ? 2 : 3;
 }
 
 /** A fixed message's status: a word with its meaning colour; sort rank = worst first. */
