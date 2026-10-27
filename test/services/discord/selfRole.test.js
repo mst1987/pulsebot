@@ -127,6 +127,18 @@ describe("selfRole roleUses", () => {
         expect(roleUses({ roleSync: [pair(ROLE, OTHER), third] }, ROLE)).toEqual([{ code: "roleSync", guildIds: [TO_GUILD] }]);
     });
 
+    it("names a PuG version role with its versions; a class role is no use (#906)", () => {
+        jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
+        const config = { pugRoles: {
+            "g-1": { versions: { tbc: ROLE, forever: OTHER }, classes: { Mage: OTHER } },
+            "g-2": { versions: { forever: ROLE, tbc: ROLE }, classes: {} },
+            broken: null,
+        } };
+        expect(roleUses(config, ROLE)).toEqual([{ code: "pugVersion", versionIds: ["tbc", "forever"] }]);
+        expect(privilegedReason(config, ROLE)).toBe("the role is a PuG version role (Rollen & Onboarding)");
+        expect(roleUses({ pugRoles: { "g-1": { versions: {}, classes: { Mage: ROLE } } } }, ROLE)).toEqual([]);
+    });
+
     it("is empty for a plain role, no id or no config", () => {
         jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
         expect(roleUses({ categoryRoles: { c: [OTHER] } }, ROLE)).toEqual([]);

@@ -73,8 +73,7 @@ const COUNT_TEXT = {
 };
 
 const SELECT_ID = "talk-signup";
-// "Für alle Raids anmelden" / "Mehrere Raids wählen …" (#293, commands/signup/talkSignupAll|Multi.js)
-const ALL_BUTTON_ID = "talk-signup-all";
+// "Mehrere Raids wählen …" (#293, commands/signup/talkSignupMulti.js); "Für alle Raids" is gone (#904)
 const MULTI_BUTTON_ID = "talk-signup-multi";
 const MAX_FIELDS = 25;
 const MAX_FIELD_VALUE = 1024;
@@ -124,7 +123,7 @@ function plain(text) {
  * exists (linkCheck), "channel missing" as plain text when it is gone, the bare
  * name while nothing is known (bot offline since the start). On another
  * server than the list (#892) a known channel names its server: "#do-ssc on
- * PuG-Server".
+ * <server>".
  */
 function channelPart(event, eventGuildId, { channelInfo, lang, serverName, crossServer }) {
     if (!event.channelId) return "";
@@ -385,10 +384,11 @@ function buildOverviewMessage(groups, opts = {}) {
 
     const components = [];
     // Several raids at once (#293) — only EventHelper events take a signup here.
+    // The button names the list's server (#904), so it offers this list's raids.
     if (signable.some((e) => e.source === "eventhelper")) {
+        const multiId = eventGuildId ? `${MULTI_BUTTON_ID}:${eventGuildId}` : MULTI_BUTTON_ID;
         components.push(new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(ALL_BUTTON_ID).setStyle(ButtonStyle.Primary).setLabel(tr(lang, "Sign up for all raids")),
-            new ButtonBuilder().setCustomId(MULTI_BUTTON_ID).setStyle(ButtonStyle.Secondary).setLabel(tr(lang, "Pick several raids …")),
+            new ButtonBuilder().setCustomId(multiId).setStyle(ButtonStyle.Secondary).setLabel(tr(lang, "Pick several raids …")),
         ));
     }
     if (signable.length) {
@@ -713,7 +713,7 @@ function stopTalkOverview() {
 }
 
 module.exports = {
-    SELECT_ID, ALL_BUTTON_ID, MULTI_BUTTON_ID, RAIDHELPER_CREATE_DELAY_MS, CHANNEL_MISSING, currentPayload, syncOverview, overviewStatus,
+    SELECT_ID, MULTI_BUTTON_ID, RAIDHELPER_CREATE_DELAY_MS, CHANNEL_MISSING, currentPayload, syncOverview, overviewStatus,
     scheduleOverviewSync, startTalkOverview, stopTalkOverview,
     // the counter the category overviews (events/raidOverview.js) show as well
     attendingCount,

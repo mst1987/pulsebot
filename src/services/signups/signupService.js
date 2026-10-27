@@ -53,8 +53,9 @@ const maxCharactersFor = (target, config) => characterRules.maxCharactersFor(tar
 const pickLimitFor = (target, previous, config) => characterRules.pickLimitFor(target, previous, config || settingsStore.getConfig());
 const profiles = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
-const discord = require("../discord/discord");
 const signupNotes = require("./signupNotes");
+const discord = require("../discord/discord");
+const { signupRoleIds } = require("./partnerJoinHint");
 const { validateCharacterName } = require("../../utils/signup/characterNames");
 const { SIGNUP_STATUSES } = require("../../utils/attendance");
 const { ROLES } = require("../../config/gameVersions/classes");
@@ -315,11 +316,13 @@ const ROSTER_ONLY_ERROR = "Für diesen Raid melden sich nur Mitglieder des Roste
  * The raider-role rule for one member and one own event — signupAccess.js
  * says who may sign up (the same rule the raider's lists of raids use, so a
  * raid listed is a raid that takes the signup). Reads the config and the
- * member's roles on the event's server (discord.memberRoleIds: one member
- * fetch, no privileged intent) only when the category asks for roles, unless
- * the caller hands them in. The orga (`byOrga`) and a member who already has
- * a signup for the event always pass; roles that cannot be read let the
- * signup through — a Discord hiccup never refuses a raider.
+ * member's roles on the event's server (partnerJoinHint.signupRoleIds: one
+ * member fetch, no privileged intent) only when the category asks for roles,
+ * unless the caller hands them in. The orga (`byOrga`) and a member who already
+ * has a signup for the event always pass; roles that cannot be read let the
+ * signup through — a Discord hiccup never refuses a raider. Someone surely not
+ * on the raid's server (Discord: "unknown member") has no roles (#904: anyone
+ * may click in a partner server's list).
  * @returns {Promise<{ ok: true } | { code: "raider_role"|"roster_only", error: string }>}
  */
 async function checkRaiderRole(event, userId, { byOrga = false, previous, roleIds, config } = {}) {
@@ -333,7 +336,7 @@ async function checkRaiderRole(event, userId, { byOrga = false, previous, roleId
     const prev = previous === undefined ? signupStore.getSignup(event.id, uid) : previous;
     if (prev) return { ok: true };
     // "Anmeldung nur für das Roster" (#658): the roster decides, no Discord role is read
-    const ids = rule === "roles" ? (roleIds !== undefined ? roleIds : await discord.memberRoleIds(event.guildId || cfg.guildId, uid)) : null;
+    const ids = rule === "roles" ? (roleIds !== undefined ? roleIds : await signupRoleIds(event.guildId || cfg.guildId, uid)) : null;
     const access = signupAccess(event.categoryId, { userId: uid, roleIds: ids, config: cfg, versionId });
     if (access.allowed !== false) return { ok: true };
     return access.code === "roster_only" ? fail("roster_only", ROSTER_ONLY_ERROR) : fail("raider_role", RAIDER_ROLE_ERROR);
@@ -663,7 +666,7 @@ function limitCharacters(fit, previous, max) {
 
 /**
  * Sign one user up for several own events at once (#293) — the bot's
- * "Für alle Raids" / "Mehrere Raids" and the web's "Für alle gewählten". Every
+ * "Mehrere Raids" and the web's "Für alle gewählten". Every
  * event runs the full submitSignup (raider role, deadline, start, profile), so
  * one refused raid never stops the others. Characters that do not fit a raid
  * are skipped there with a reason — and so are those beyond the raid's limit
@@ -722,7 +725,7 @@ async function submitSignups(userId, entries, { byOrga = false, now = Date.now()
         const needsRoles = expectedRoleIds(event.categoryId, cfg, { versionId: versionOfEvent(event, { config: cfg }) }).length > 0;
         if (needsRoles && !exempt) {
             const guild = event.guildId || cfg.guildId || "";
-            if (!roleCache.has(guild)) roleCache.set(guild, await discord.memberRoleIds(guild, uid));
+            if (!roleCache.has(guild)) roleCache.set(guild, await signupRoleIds(guild, uid));
             roleIds = roleCache.get(guild);
         }
         const result = await submitSignup(event.id, uid, {

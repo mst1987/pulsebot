@@ -38,6 +38,20 @@ function rostersOrEmpty() {
 }
 
 /**
+ * The versions whose PuG version role (#906) this role is: such a role unlocks the PuG
+ * categories of its version, so handing it out by a role message would bypass the
+ * onboarding. Class roles unlock nothing.
+ */
+function pugVersionIdsOf(c, id) {
+    const versionIds = [];
+    for (const entry of Object.values(c.pugRoles && typeof c.pugRoles === "object" ? c.pugRoles : {})) {
+        const versions = entry && entry.versions && typeof entry.versions === "object" ? entry.versions : {};
+        for (const [versionId, roleId] of Object.entries(versions)) if (str(roleId) === id && !versionIds.includes(versionId)) versionIds.push(versionId);
+    }
+    return versionIds;
+}
+
+/**
  * Every bot right the role carries from the config and the rosters, machine-readable and
  * in the order privilegedReason checks them (the first one is its reason):
  *   { code: "admin" } | { code: "orga" } | { code: "officer" }
@@ -45,6 +59,7 @@ function rostersOrEmpty() {
  *   { code: "botCommand", commands: string[] }       the bot commands the role may run
  *   { code: "categoryRaider", categoryIds: string[] } the categories it is a raider role of
  *   { code: "roleSync", guildIds: string[] }         the partner servers of its role-sync pairs
+ *   { code: "pugVersion", versionIds: string[] }      the PuG version role of these versions (#906)
  *   { code: "roster", rosterId, name, kinds: ("member"|"trial"|"manager")[] }  one per roster
  * Empty when the role carries none. The roles page (services/discord/serverRoles.js) shows
  * them as "Bedeutung für den Bot".
@@ -76,6 +91,8 @@ function roleUses(cfg, roleId) {
         if (str(s.toRoleId) === id) { inSync = true; partners.push(str(s.fromGuildId)); }
     }
     if (inSync) out.push({ code: "roleSync", guildIds: [...new Set(partners.filter(Boolean))] });
+    const versionIds = pugVersionIdsOf(c, id);
+    if (versionIds.length) out.push({ code: "pugVersion", versionIds });
     for (const r of rostersOrEmpty()) {
         const managers = r.managers && Array.isArray(r.managers.roleIds) ? r.managers.roleIds : [];
         const kinds = [];
@@ -96,6 +113,7 @@ const USE_TEXT = {
     botCommand: () => "the role may run bot commands (botCommandAccess)",
     categoryRaider: () => "the role is a raider role of a category",
     roleSync: () => "the role is part of the role sync between the servers",
+    pugVersion: () => "the role is a PuG version role (Rollen & Onboarding)",
     roster: (u) => `the role belongs to the roster ${u.name || u.rosterId}`,
 };
 

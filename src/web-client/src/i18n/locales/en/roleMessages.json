@@ -119,6 +119,7 @@
         "botCommands": "The role may run bot commands.",
         "raider": "It is the raider role of a category.",
         "roleSync": "The role is part of the role sync between the servers.",
+        "pugVersion": "It is a PuG version role, handed out by the onboarding (Settings › Discord servers › Roles & onboarding).",
         "discordPermissions": "The role has more Discord permissions than @everyone.",
         "manageRoles": "The bot lacks the “Manage Roles” permission.",
         "integration": "The role belongs to a bot or an integration.",

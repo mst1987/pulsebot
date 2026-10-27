@@ -340,6 +340,8 @@
   "GET /api/discord/roles",
   "GET /api/discord/roles/detail",
   "GET /api/discord/tab-counts",
+  "GET /api/discord/pug-onboarding",
+  "POST /api/discord/pug-onboarding",
   "GET /api/discord/overview",
   "GET /api/discord/servers"
 ]

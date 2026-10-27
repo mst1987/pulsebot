@@ -395,6 +395,7 @@
         "editSub": "Rename {name} or link it to a character from the logs.",
         "removeTitle": "Take {name} out of {owner}'s profile?",
         "removeText": "The character leaves the profile. Logs, loot and past signups stay.",
+        "removeSub": "Say, a mistyped second entry. Logs, loot and signups stay.",
         "noHit": "No character matches the search.",
         "none": "No raider has a character in their profile yet."
     }
