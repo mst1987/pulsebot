@@ -8,8 +8,11 @@ const { postGuildOf, firstServerId } = require("../services/discord/serverOf");
 //   host           the Warcraft-Logs host of its link ("fresh.warcraftlogs.com")
 //   hostVersionId  the version that host belonged to when the log was detected,
 //                  "" when the host told nothing; read once and kept
+//   channelVersionId  the version of the log channel it was posted in (#921,
+//                  serverSettings[guildId].logChannels), "" for none; kept
 //   versionId      the log's version: its raid's while it is linked, else
-//                  hostVersionId, else TBC (`versionFrom` says which)
+//                  channelVersionId, else hostVersionId, else TBC
+//                  (`versionFrom`: "event" | "channel" | "host" | "default")
 // A log stored before #746 has none of them and counts as TBC.
 //
 // Every log knows its Discord server (#917, services/discord/serverOf.js):
@@ -58,11 +61,24 @@ function dropEventGuild(log) {
     if (first) log.guildFrom = "first"; else delete log.guildFrom;
 }
 
-/** Host and version of a fresh log's link (late: logVersion reads the settings, which load more stores). */
-function versionFieldsOf(link) {
+/** The version a log falls back to without its raid (#921): its channel's, else its host's, else TBC. */
+function fallbackVersionOf(log) {
+    if (log.channelVersionId) return { versionId: log.channelVersionId, versionFrom: "channel" };
+    if (log.hostVersionId) return { versionId: log.hostVersionId, versionFrom: "host" };
+    return { versionId: LEGACY_VERSION, versionFrom: "default" };
+}
+
+/**
+ * Host and version of a fresh log: its link's host, the version of the channel
+ * it was posted in (#921), and the one those give (late: logVersion reads the
+ * settings, which load more stores).
+ */
+function versionFieldsOf(link, channelVersionId) {
     const { linkVersion } = require("../services/logcheck/logVersion");
+    const { knownVersion } = require("../services/events/mainVersion");
     const { host, hostVersionId } = linkVersion(link);
-    return { host, hostVersionId, versionId: hostVersionId || LEGACY_VERSION, versionFrom: hostVersionId ? "host" : "default" };
+    const fields = { host, hostVersionId, channelVersionId: knownVersion(channelVersionId) };
+    return { ...fields, ...fallbackVersionOf(fields) };
 }
 
 // Detected/evaluated Warcraft-Logs from the log channels are tracked here so a
@@ -132,7 +148,7 @@ function saveLog(data) {
             { id: newId(), status: "open", detectedAt: now, updatedAt: now,
                 buttonChannelId: "", buttonMessageId: "", reportRefId: "", reportUrl: "" },
             fields,
-            versionFieldsOf(fields.link || fields.reportId),
+            versionFieldsOf(fields.link || fields.reportId, data.channelVersionId),
         );
         logs.push(saved);
     }
@@ -352,11 +368,8 @@ function unlinkEvent(id) {
     delete log.eventStartTime;
     delete log.eventLinkSource;
     delete log.eventLinkedAt;
-    // back to the version its host told, else TBC
-    if (log.versionFrom === "event") {
-        log.versionId = log.hostVersionId || LEGACY_VERSION;
-        log.versionFrom = log.hostVersionId ? "host" : "default";
-    }
+    // back to the version of its channel, else its host, else TBC (#921)
+    if (log.versionFrom === "event") Object.assign(log, fallbackVersionOf(log));
     dropEventGuild(log);
     log.updatedAt = Date.now();
     writeAll(logs);

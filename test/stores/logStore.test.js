@@ -389,6 +389,19 @@ describe("stores/logStore", () => {
             expect(unlinkEvent(b.id)).toMatchObject({ versionId: "tbc", versionFrom: "default" });
         });
 
+        it("the channel's version wins over the host, the raid's over the channel's (#921)", () => {
+            const a = saveLog(base({ reportId: "T1", link: "https://fresh.warcraftlogs.com/reports/T1", channelVersionId: "forever" }));
+            expect(a).toMatchObject({ hostVersionId: "tbc", channelVersionId: "forever", versionId: "forever", versionFrom: "channel" });
+            expect(linkEvent(a.id, { eventId: "ev1", versionId: "classic" })).toMatchObject({ versionId: "classic", versionFrom: "event" });
+            // unlinked it goes back to its channel's version, not to the host's
+            expect(unlinkEvent(a.id)).toMatchObject({ versionId: "forever", versionFrom: "channel" });
+        });
+
+        it("a channel without a known version leaves it to the host (#921)", () => {
+            const a = saveLog(base({ reportId: "F1", link: "https://forever.warcraftlogs.com/reports/F1", channelVersionId: "nope" }));
+            expect(a).toMatchObject({ channelVersionId: "", versionId: "forever", versionFrom: "host" });
+        });
+
         it("a link without a version leaves the log's version alone", () => {
             const a = saveLog(base({ reportId: "F1", link: "https://forever.warcraftlogs.com/reports/F1" }));
             expect(linkEvent(a.id, { eventId: "ev1" })).toMatchObject({ versionId: "forever", versionFrom: "host" });

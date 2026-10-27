@@ -15,6 +15,7 @@ const { langOfInteraction } = require("./services/discord/botLanguage.js");
 const { startWebServer } = require("./web/http/server.js");
 const { handleLogMessage } = require("./services/logcheck/logChannel.js");
 const { autoLinkAllGuilds } = require("./services/logcheck/logAutoLink.js");
+const { runLogChannelMigration } = require("./services/logcheck/logChannelMigration.js");
 const softresDetect = require("./services/loot/softresDetect.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/roleSync.js");
 const rosterRoleSync = require("./services/roster/rosterRoleSync.js");
@@ -84,6 +85,9 @@ client.on(Events.ClientReady, () => {
     // Logs waiting for their raid: the job's first sweep runs at web start, before the
     // login, when there are no guilds yet — without this the next try is 10 min away.
     autoLinkAllGuilds().catch((error) => logger.warn("log auto-link after login failed:", error.message));
+    // The old global log-channel list goes to the servers the channels lie on (#921) - only
+    // Discord knows that, so it runs here and not with the start migrations.
+    runLogChannelMigration(client, { log: (line) => logger.info(line), warn: (line) => logger.warn(line) }).catch(() => {});
     // The member lists of the configured servers, in the background: the first raid detail,
     // roster or dashboard after a restart then finds them cached (services/discord/discord.js).
     try {

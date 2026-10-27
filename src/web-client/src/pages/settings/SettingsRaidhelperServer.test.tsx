@@ -68,7 +68,7 @@ describe("RaidhelperServerSection", () => {
         await user.type(field("rh-server-id"), "123456789012345678");
         await user.type(field("rh-server-key"), " fake-key-ABCD ");
         await user.click(screen.getByRole("button", { name: t("common.save") }));
-        expect(api.updateSettings).toHaveBeenCalledWith({ raidhelper: { enabled: true, serverId: "123456789012345678", apiKey: "fake-key-ABCD" } });
+        expect(api.updateSettings).toHaveBeenCalledWith({ raidhelper: { enabled: true, serverId: "123456789012345678", apiKey: "fake-key-ABCD" }, serverSettingsGuildId: GUILD });
         expect(onSaved).toHaveBeenCalledWith(saved);
         expect(field("rh-server-key")).toHaveValue("");
     });
@@ -82,7 +82,7 @@ describe("RaidhelperServerSection", () => {
 
         await user.click(screen.getByRole("button", { name: t("common.delete") }));
         await user.click(screen.getByRole("button", { name: t("common.save") }));
-        expect(api.updateSettings).toHaveBeenLastCalledWith({ raidhelper: { apiKey: "" } });
+        expect(api.updateSettings).toHaveBeenLastCalledWith({ raidhelper: { apiKey: "" }, serverSettingsGuildId: GUILD });
     });
 
     // epic #926: the active server is per session, so a stale tab must not send
@@ -94,7 +94,7 @@ describe("RaidhelperServerSection", () => {
         renderPage(<RaidhelperServerSection value={value} activeGuildId={GUILD} onSaved={vi.fn()} />);
         await user.click(screen.getByRole("switch", { name: t("settings.raidhelperServer.enabled") }));
         await user.click(screen.getByRole("button", { name: t("common.save") }));
-        expect(api.updateSettings).toHaveBeenCalledWith({ raidhelper: { enabled: false } });
+        expect(api.updateSettings).toHaveBeenCalledWith({ raidhelper: { enabled: false }, serverSettingsGuildId: GUILD });
     });
 
     it("refuses a server id with letters before asking the server", async () => {
@@ -105,5 +105,27 @@ describe("RaidhelperServerSection", () => {
         await user.click(screen.getByRole("button", { name: t("common.save") }));
         expect(screen.getByRole("button", { name: t("common.save") })).toBeEnabled();
         expect(api.updateSettings).not.toHaveBeenCalled();
+    });
+
+    // #921: the server is per session, not per tab — a switch in another tab is
+    // refused with 409 and named, nothing is taken over
+    it("names a server switch in another tab instead of the raw error", async () => {
+        vi.mocked(api.updateSettings).mockRejectedValue({ code: "server_switched", message: "raw" });
+        const onSaved = vi.fn();
+        const user = userEvent.setup();
+        renderPage(<RaidhelperServerSection value={null} activeGuildId={GUILD} onSaved={onSaved} />);
+        await user.click(screen.getByRole("switch", { name: t("settings.raidhelperServer.enabled") }));
+        await user.click(screen.getByRole("button", { name: t("common.save") }));
+        expect(await screen.findByText(t("settings.serverSwitched"))).toBeInTheDocument();
+        expect(onSaved).not.toHaveBeenCalled();
+    });
+
+    it("sends an empty server id when the page loaded without an active server", async () => {
+        vi.mocked(api.updateSettings).mockResolvedValue({ raidhelper: server({ enabled: true }) } as never);
+        const user = userEvent.setup();
+        renderPage(<RaidhelperServerSection value={null} onSaved={vi.fn()} />);
+        await user.click(screen.getByRole("switch", { name: t("settings.raidhelperServer.enabled") }));
+        await user.click(screen.getByRole("button", { name: t("common.save") }));
+        expect(api.updateSettings).toHaveBeenCalledWith({ raidhelper: { enabled: true }, serverSettingsGuildId: "" });
     });
 });

@@ -68,9 +68,20 @@ describe("save bar change list", () => {
         adminRoleIds: ["a1"], rolePermissions: { raidlead: { history: { read: true, write: false } } },
         baseAccess: {}, userPermissions: {},
         officerRoleId: "", applicationChannelId: "",
-        categoryIds: ["c1"], categoryRoles: { c1: ["r1", "r2"] }, logChannelIds: ["l1", "l2"],
+        categoryIds: ["c1"], categoryRoles: { c1: ["r1", "r2"] }, logChannels: [{ channelId: "l1", versionId: "tbc" }, { channelId: "l2", versionId: "" }],
         raidChannelId: "",
         categoryLootTool: {}, categorySheets: {}, categoryRaidTemplate: { c1: "tpl1" }, topItems: [{ id: 1 }],
+    });
+
+    it("tells a changed log channel list from an unchanged one, version included (#921)", () => {
+        expect(logic.logChannelsChanged(base(), base())).toBe(false);
+        // the order does not count
+        expect(logic.logChannelsChanged(base(), { ...base(), logChannels: [...base().logChannels].reverse() })).toBe(false);
+        expect(logic.logChannelsChanged(base(), { ...base(), logChannels: [{ channelId: "l1", versionId: "forever" }, { channelId: "l2", versionId: "" }] })).toBe(true);
+        // "Nach Log-Seite" ("") is not "Aus der Kategorie" (no version)
+        expect(logic.logChannelsChanged(base(), { ...base(), logChannels: [{ channelId: "l1", versionId: "tbc" }, { channelId: "l2" }] })).toBe(true);
+        expect(logic.logChannelsChanged(base(), { ...base(), logChannels: [] })).toBe(true);
+        expect(logic.logChannelsChanged({}, {})).toBe(false);
     });
 
     it("names a role made orga and one set back to a raider role", () => {
@@ -128,10 +139,22 @@ describe("save bar change list", () => {
     it("is empty when nothing changed, even if the order of a list or an empty entry differs", () => {
         const draft = base();
         draft.categoryRoles = { c1: ["r2", "r1"] };
-        draft.logChannelIds = ["l2", "l1"];
+        draft.logChannels = [{ channelId: "l2", versionId: "" }, { channelId: "l1", versionId: "tbc" }];
         draft.categoryLootTool = { c1: "" };
         draft.categorySheets = { c1: { url: " ", name: "" } };
         expect(logic.draftChanges(base(), draft, names)).toEqual([]);
+    });
+
+    it("names the log channels once a channel or its version changes (#921)", () => {
+        const versioned = base();
+        versioned.logChannels = [{ channelId: "l1", versionId: "forever" }, { channelId: "l2", versionId: "" }];
+        expect(logic.draftChanges(base(), versioned, names)).toEqual(["Log-Kanäle"]);
+        const added = base();
+        added.logChannels = [...base().logChannels, { channelId: "l3" }];
+        expect(logic.draftChanges(base(), added, names)).toEqual(["Log-Kanäle"]);
+        const auto = base();
+        auto.logChannels = [{ channelId: "l1" }, { channelId: "l2", versionId: "" }];
+        expect(logic.draftChanges(base(), auto, names)).toEqual(["Log-Kanäle"]);
     });
 
     it("names each change once", () => {
@@ -506,7 +529,7 @@ describe("the labels in English", () => {
     const NOW = 10_000_000;
     const names = { role: (id: string) => `@${id}`, user: (id: string) => id, area: (id: string) => id, category: () => "Hyjal & BT" };
     const draft = () => ({ adminRoleIds: [], rolePermissions: {}, baseAccess: {}, userPermissions: {}, officerRoleId: "", applicationChannelId: "",
-        categoryIds: [], categoryRoles: {}, logChannelIds: [], raidChannelId: "", categoryLootTool: {}, categorySheets: {}, topItems: [] });
+        categoryIds: [], categoryRoles: {}, logChannels: [], raidChannelId: "", categoryLootTool: {}, categorySheets: {}, topItems: [] });
 
     it("words the save bar, the badges and the times in English once the page is switched", async () => {
         await inLang("en", () => {

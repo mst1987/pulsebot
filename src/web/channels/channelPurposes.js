@@ -5,6 +5,7 @@
 // This module only reads them and resolves them against the live channel list,
 // so the page can show each purpose with its channels and a status that says
 // whether it actually works (set at all? channel still there? may the bot post?).
+const { logChannelsOf } = require("../../services/logcheck/logChannelSettings");
 
 /**
  * The five purposes, in page order. `key` is the config path, `need` what the
@@ -28,7 +29,7 @@ const PURPOSES = [
         id: "logs",
         label: "Log-Auswertung",
         icon: "inv_misc_pocketwatch_01",
-        key: "logChannelIds",
+        key: "logChannels",
         kind: "channel",
         multiple: true,
         need: "read",
@@ -67,11 +68,12 @@ function asIds(value) {
     return [...new Set(list.map((v) => String(v || "").trim()).filter(Boolean))];
 }
 
-/** The ids a purpose currently holds in the config. */
-function idsFor(purpose, config) {
+/** The ids a purpose currently holds in the config (log channels: those of `guildId`, #921). */
+function idsFor(purpose, config, guildId = "") {
     const cfg = config || {};
     switch (purpose.key) {
         case "raidDefaults.channelId": return asIds((cfg.raidDefaults || {}).channelId);
+        case "logChannels": return guildId ? logChannelsOf(guildId, { config: cfg }).map((c) => c.channelId) : [];
         default: return asIds(cfg[purpose.key]);
     }
 }
@@ -103,13 +105,14 @@ function channelStatus(channel, need, connected = true) {
  * @param {Array} channels    discord.listAllChannels() — with botCanView/botCanSend
  * @param {Array} categories  discord.listCategories()
  * @param {boolean} connected whether the channel lists are live (bot connected, guild known)
+ * @param {string} guildId    the server the lists belong to (its own log channels, #921)
  */
-function resolvePurposes(config, channels = [], categories = [], connected = true) {
+function resolvePurposes(config, channels = [], categories = [], connected = true, guildId = "") {
     const channelById = new Map((channels || []).map((c) => [c.id, c]));
     const categoryById = new Map((categories || []).map((c) => [c.id, c]));
 
     return PURPOSES.map((purpose) => {
-        const ids = idsFor(purpose, config);
+        const ids = idsFor(purpose, config, guildId);
         // `key` goes out with it: the page stores a changed assignment through
         // PATCH /api/settings under exactly that config key.
         const { missing, ...pub } = purpose;

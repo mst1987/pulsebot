@@ -61,14 +61,17 @@ export default function RaidhelperServerSection({ value, activeGuildId, onSaved 
         if (!dirty) return;
         setBusy(true);
         try {
-            const res = await updateSettings({ raidhelper: patch });
+            // the server this page loaded ("" when none was active): a tab left
+            // open after a server switch elsewhere gets 409, not the other server (#921)
+            const res = await updateSettings({ raidhelper: patch, serverSettingsGuildId: activeGuildId || "" });
             setNewKey("");
             setClearKey(false);
             if (res.raidhelper) onSaved(res.raidhelper);
             setRound((r) => r + 1);
             toast(t("settings.raidhelperServer.saved"));
         } catch (err) {
-            toast((err as ApiError).message, "err");
+            const e = err as ApiError;
+            toast(e.code === "server_switched" ? t("settings.serverSwitched") : e.message, "err");
         } finally {
             setBusy(false);
         }

@@ -185,6 +185,7 @@ function claRowFromLog(log, report) {
         // never from wclUrl, which for a log without a link is built on the TBC site
         versionId: recordVersion(l),
         hostVersionId: knownLogVersion(l),
+        channelVersionId: l.channelVersionId || "",
         postedAt: logPostedAt(l),
         source: l.messageId ? "channel" : "link",
         guildId: l.guildId || "",
