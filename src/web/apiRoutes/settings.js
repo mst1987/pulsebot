@@ -40,7 +40,7 @@ const { normalizeCategorySignupCharacters } = require("../../services/signups/si
 const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../services/events/contentVersions");
 // Makes Excel read the umlauts of an archive CSV as UTF-8.
 const BOM = String.fromCharCode(0xfeff);
-const { defaultVersionSettings, defaultColorOf } = require("../../stores/versionSettingsSchema");
+const { defaultVersionSettings, defaultColorOf, normalizeVersionOverrides, overrideProblems } = require("../../stores/versionSettingsSchema");
 const { expectedRoleIds, syncRosterRoleIds } = require("../../services/roster/categoryRoles");
 const { switchRosterPreview, rostersAfterSwitches } = require("../../services/roster/rosterVersionSwitch");
 
@@ -545,6 +545,45 @@ function versionSettingsPatch(raw) {
     return { partial };
 }
 
+// --- per-server version overrides (#923, epic #926) ---
+/**
+ * The armory/log templates and Blizzard realm a server sets for itself, from
+ * `body.serverSettings[guildId].versionOverrides` (sent whole per server; an
+ * empty field falls back to the version's standard). A filled value the
+ * schema would throw away is an error with its field, like versionSettingsPatch.
+ * Other keys of a server block are left to their own parts of epic #926.
+ * @returns {{ partial: object } | { error: string }}
+ */
+function versionOverridesPatch(raw) {
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const partial = {};
+    for (const [guildId, block] of Object.entries(src)) {
+        if (!isSnowflake(String(guildId)) || !block || typeof block !== "object" || block.versionOverrides === undefined) continue;
+        const problem = overrideProblems(block.versionOverrides)[0];
+        if (problem) {
+            const label = (VERSIONS.find((v) => v.id === problem.versionId) || { label: problem.versionId }).label;
+            return { error: `${label}: ${problem.field} ist ungültig.`, field: problem.field, versionId: problem.versionId };
+        }
+        partial[guildId] = { versionOverrides: normalizeVersionOverrides(block.versionOverrides) };
+    }
+    return { partial };
+}
+
+/**
+ * Lays the overrides of a PATCH into the config partial, next to whatever
+ * other server keys it already holds; answers the error text, "" when fine.
+ */
+function mergeVersionOverrides(raw, partial) {
+    const overrides = versionOverridesPatch(raw);
+    if (overrides.error) return overrides.error;
+    for (const [guildId, block] of Object.entries(overrides.partial)) {
+        partial.serverSettings = partial.serverSettings || {};
+        partial.serverSettings[guildId] = { ...(partial.serverSettings[guildId] || {}), ...block };
+    }
+    return "";
+}
+// --- end per-server version overrides ---
+
 /**
  * The addon list of a PATCH (#818). Einstellungen -> Module -> Addons is the
  * only sender and saves it on its own: the list sent whole (an edit, so the
@@ -703,6 +742,9 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         if (patch.error) return error(res, 400, "invalid_version_settings", patch.error);
         partial.versionSettings = patch.partial;
     }
+    // Per server (#923): a server's own armory/log templates and realm per version.
+    const overridesError = body.serverSettings === undefined ? "" : mergeVersionOverrides(body.serverSettings, partial);
+    if (overridesError) return error(res, 400, "invalid_version_settings", overridesError);
     // Sent as the complete list; settingsStore normalises it and replaces the
     // stored one, so removing an item is just leaving it out.
     if (body.topItems !== undefined) partial.topItems = Array.isArray(body.topItems) ? body.topItems : [];

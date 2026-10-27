@@ -916,9 +916,13 @@ function blizzardCredentials(raw) {
 
 /**
  * The keys a server block may hold, with the default each part reads when a
- * server has none (#917). Empty for now: the parts 4-8 of epic #926 add theirs.
+ * server has none (#917). The parts 4-8 of epic #926 add theirs here.
  */
-const SERVER_SETTING_DEFAULTS = Object.freeze({});
+const SERVER_SETTING_DEFAULTS = Object.freeze({
+    // #923: own realm/armory/log templates per version, field by field over
+    // config.versionSettings (stores/versionSettingsSchema.js normalizeVersionOverrides)
+    versionOverrides: {},
+});
 
 /**
  * The guild ids that may hold a serverSettings block: every server, every pure

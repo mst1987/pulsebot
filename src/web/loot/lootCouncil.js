@@ -930,7 +930,8 @@ function councilRoster(opts = {}) {
     const excluded = excludedKeys();
 
     // One read of the version's links for every row (#542): the category's version, else the main one.
-    const links = versionLinks(opts.versionId);
+    // The server's own armory/log templates win (#923).
+    const links = versionLinks(opts.versionId, { guildId: opts.guildId });
     const mainVersion = opts.mainVersion || mainVersionFor({ config: opts.config });
     // How items and the need parts weigh (#668): the profile of the roster or
     // category (#676, services/loot/councilProfiles.js), else the default

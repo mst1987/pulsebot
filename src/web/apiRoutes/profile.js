@@ -22,6 +22,7 @@ const { getConfig } = require("../../stores/settingsStore");
 const { userIsOrga } = require("../../config/permissions");
 const { ROLE_LABELS } = require("../../config/gameVersions/classes");
 const { editProfileCharacter } = require("../../services/characters/characterEdit");
+const { activeGuildFor } = require("../http/activeGuild");
 
 const WEEKDAY_LABELS = { mo: "Mo", di: "Di", mi: "Mi", do: "Do", fr: "Fr", sa: "Sa", so: "So" };
 const GEAR_LABELS = { none: "keins", usable: "brauchbar", ready: "raidbereit" };
@@ -94,16 +95,19 @@ function nearOf(userId, key) {
     return c ? { name: c.name, className: c.className } : null;
 }
 
-/** The caller's own profile in its member shape. */
-function ownView(user) {
+/** The server a request is shown for (#923), "" without a request. */
+const guildOfRequest = (req) => (req ? activeGuildFor(req) : "");
+
+/** The caller's own profile in its member shape; `req` picks the server whose armory links count (#923). */
+function ownView(user, req) {
     const profile = profiles.getProfile(user.id);
-    return profileView({ ...profile, name: profile.name || user.name || "" });
+    return profileView({ ...profile, name: profile.name || user.name || "" }, { guildId: guildOfRequest(req) });
 }
 
 /** GET /api/profile — the caller's own profile plus the page context. */
-const getProfile = withUser({}, async ({ user, res }) => {
+const getProfile = withUser({}, async ({ user, req, res }) => {
     ok(res, {
-        profile: ownView(user),
+        profile: ownView(user, req),
         isNew: !profiles.hasProfile(user.id),
         // #291: the own specs imported from Raid-Helper — "Von Hand" prefills from them.
         specHistory: specHistory.specHistoryOf(user.id).slice(0, 8),
@@ -138,7 +142,7 @@ async function withWishItems(userId, edits) {
  * profile-wide switches are not taken any more — they live on the characters. The body never
  * names an account: whatever `userId` it carries is ignored.
  */
-const putProfile = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+const putProfile = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const patch = {};
     for (const key of ["availability", "availabilityFrom", "preferredRaids", "wishes", "avoidEnabled", "avoid", "note", "characters", "order"]) {
         if (body[key] !== undefined) patch[key] = body[key];
@@ -154,7 +158,7 @@ const putProfile = withUser({ csrf: true, body: true }, async ({ user, body, res
         if (failure) return apiError(res, failure.status, failure.code, failure.error);
     }
     profiles.saveProfile(user.id, patch, { name: user.name });
-    ok(res, { profile: ownView(user) });
+    ok(res, { profile: ownView(user, req) });
 });
 
 /**
@@ -180,10 +184,10 @@ const getLogCharacters = withUser({}, async ({ user, res, url }) => {
  * character another account already has is added all the same — the answer
  * carries `claimedBy`, and the orga sees it on the roster.
  */
-const postProfileCharacter = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+const postProfileCharacter = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     if (body.remove !== undefined) {
         const removed = profiles.removeCharacter(user.id, String(body.remove || ""));
-        return ok(res, { removed, profile: ownView(user) });
+        return ok(res, { removed, profile: ownView(user, req) });
     }
     if (body.edit !== undefined) {
         const key = String(body.edit || "");
@@ -191,7 +195,7 @@ const postProfileCharacter = withUser({ csrf: true, body: true }, async ({ user,
         if (asked.error) return apiError(res, asked.status, asked.code, asked.error);
         const edited = editProfileCharacter(user.id, key, asked.input, { actor: user.id });
         if (edited.error) return apiError(res, edited.code === "not_found" ? 404 : 400, edited.code, edited.error);
-        const profile = ownView(user);
+        const profile = ownView(user, req);
         return ok(res, { character: profile.characters.find((c) => c.key === edited.character.key), renamed: edited.renamed, moved: edited.moved, profile });
     }
 
@@ -214,7 +218,7 @@ const postProfileCharacter = withUser({ csrf: true, body: true }, async ({ user,
         input.className = entry.className;
         if (entry.specKey) input.specs = [{ key: entry.specKey, gear: "ready" }];
     } else if (source === "armory") {
-        armory = await lookupArmory(name, input.realm, versionId);
+        armory = await lookupArmory(name, input.realm, versionId, { guildId: guildOfRequest(req) });
         if (armory.className) input.className = armory.className;
         if (armory.fetched) input.armory = { level: armory.level, guild: armory.guild, fetchedAt: Date.now() };
         if (!profiles.normalizeClass(input.className)) {
@@ -227,7 +231,7 @@ const postProfileCharacter = withUser({ csrf: true, body: true }, async ({ user,
 
     const result = profiles.addCharacter(user.id, input, { name: user.name });
     if (result.error) return apiError(res, 400, "bad_request", result.error);
-    const profile = ownView(user);
+    const profile = ownView(user, req);
     ok(res, {
         character: profile.characters.find((c) => c.key === result.character.key),
         armory: armory && { linked: !!armory.url, fetched: armory.fetched },
@@ -272,11 +276,11 @@ const getRaiderSearch = withUser({}, async ({ user, res, url }) => {
 });
 
 /** GET /api/profile/user?id= — one raider's profile for the orga, read-only, with wishes. 403 "orga_only" for everybody else (epic #723). */
-const getUserProfile = withUser({}, async ({ user, res, url }) => {
+const getUserProfile = withUser({}, async ({ user, req, res, url }) => {
     if (!userIsOrga(user)) return apiError(res, 403, "orga_only", "Nur die Orga sieht das.");
     const id = String(url.searchParams.get("id") || "").trim();
     if (!id || !profiles.hasProfile(id)) return apiError(res, 404, "not_found", "Kein Profil für dieses Konto.");
-    ok(res, { profile: profileView(profiles.getProfile(id), { forOrga: true }) });
+    ok(res, { profile: profileView(profiles.getProfile(id), { forOrga: true, guildId: guildOfRequest(req) }) });
 });
 
 /** GET /api/roster/character-claims — characters more than one account has added (orga only, epic #723). */

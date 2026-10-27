@@ -647,7 +647,7 @@ const resolveCharacters = withUser({ csrf: true }, async ({ res }) => {
  * game version (armory, realm, Wowhead of versionSettings); `versionIds` says which
  * versions the character has.
  */
-const getHistoryChar = withUser({}, async ({ res, url }) => {
+const getHistoryChar = withUser({}, async ({ req, res, url }) => {
     const name = url.searchParams.get("name") || "";
     const cfg = getConfig();
     // While other versions are hidden (#563) the page's version is the main one, whatever is asked.
@@ -663,11 +663,13 @@ const getHistoryChar = withUser({}, async ({ res, url }) => {
     // plays it; else its own — the page then switches the menu to that one.
     const asked = askedVersion && (!versionIds.length || versionIds.includes(askedVersion)) ? askedVersion : "";
     const versionId = asked || (versionIds.includes(mainVersion) ? mainVersion : versionIds[0]) || mainVersion;
-    const links = versionLinks(versionId, { config: cfg });
-    const bz = blizzardFor(versionId, { config: cfg });
+    // the server the page is shown for (#923): its own realm and templates win
+    const guildId = activeGuildFor(req);
+    const links = versionLinks(versionId, { config: cfg, guildId });
+    const bz = blizzardFor(versionId, { config: cfg, guildId });
     const realm = (items[0] && items[0].realm) || links.settings.blizzardRealmSlug || "";
-    const armoryUrl = armoryUrlFor(name, versionId);
-    const wclUrl = wclUrlFor(name, versionId);
+    const armoryUrl = armoryUrlFor(name, versionId, guildId);
+    const wclUrl = wclUrlFor(name, versionId, guildId);
     const client = bz.client;
     const gearConfigured = !!client;
     const gearNamespace = bz.namespace;

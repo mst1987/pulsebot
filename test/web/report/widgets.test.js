@@ -137,7 +137,7 @@ describe("web/report/widgets", () => {
             armoryUrlFor.mockReturnValue("https://armory.test/c/Br%C3%B6kk");
             const link = w.armoryLink("Brökk", "btn btn-ghost");
             // a report reads TBC logs, so it links the TBC armory (#542)
-            expect(armoryUrlFor).toHaveBeenCalledWith("Brökk", "tbc");
+            expect(armoryUrlFor).toHaveBeenCalledWith("Brökk", "tbc", "");
             expect(link).toContain("inv_shirt_guildtabard_01");
             expect(link).toMatch(/^<a class="btn btn-ghost" href="https:\/\/armory\.test\/c\/Br%C3%B6kk"/);
             expect(link).toMatch(/alt="">Armory<\/a>$/);
@@ -154,18 +154,29 @@ describe("web/report/widgets", () => {
                 // Forever's own Wowhead section (#750), never the TBC one
                 expect(w.wowheadItemLink(28830)).toContain("/forever/item=28830");
             });
-            expect(armoryUrlFor).toHaveBeenLastCalledWith("Brokk", "forever");
+            expect(armoryUrlFor).toHaveBeenLastCalledWith("Brokk", "forever", "");
             w.withReportVersion({}, () => {
                 w.armoryLink("Brokk", "btn");
                 expect(w.wowheadItemLink(28830)).toContain("/tbc/item=28830");
             });
-            expect(armoryUrlFor).toHaveBeenLastCalledWith("Brokk", "tbc");
+            expect(armoryUrlFor).toHaveBeenLastCalledWith("Brokk", "tbc", "");
         });
 
         it("goes back to TBC after the page, also when rendering throws", () => {
             expect(() => w.withReportVersion({ versionId: "forever" }, () => { throw new Error("boom"); })).toThrow("boom");
             expect(w.reportLinks().versionId).toBe("tbc");
             expect(w.withReportVersion({ versionId: "classic" }, () => "html")).toBe("html");
+        });
+
+        it("links with the report's server, so its own armory template wins (#923)", () => {
+            w.withReportVersion({ versionId: "tbc", guildId: "g9" }, () => {
+                w.armoryLink("Brokk", "btn");
+            });
+            expect(armoryUrlFor).toHaveBeenLastCalledWith("Brokk", "tbc", "g9");
+            w.withReportVersion({ versionId: "tbc" }, () => {
+                w.armoryLink("Brokk", "btn");
+            });
+            expect(armoryUrlFor).toHaveBeenLastCalledWith("Brokk", "tbc", "");
         });
     });
 

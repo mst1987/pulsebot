@@ -1097,6 +1097,41 @@ describe("web/apiRoutes/settings", () => {
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
 
+            // --- per-server overrides (#923) ---
+            it("stores a server's own armory/log templates and realm per version, cleaned (#923)", async () => {
+                const res = await patch("/api/settings", { serverSettings: {
+                    "111111111111111111": { versionOverrides: {
+                        tbc: { armoryUrlTemplate: " https://own.test/{char} ", wclUrlTemplate: "", wowheadPath: "classic" },
+                        forever: { blizzardRealmSlug: "Everlook", blizzardRegion: "us" },
+                        wotlk: {},
+                    } },
+                } });
+                expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: {
+                    "111111111111111111": { versionOverrides: {
+                        tbc: { armoryUrlTemplate: "https://own.test/{char}" },
+                        forever: { blizzardRealmSlug: "everlook", blizzardRegion: "us" },
+                    } },
+                } });
+            });
+
+            it("refuses an invalid server template with invalid_version_settings and stores nothing (#923)", async () => {
+                const res = await patch("/api/settings", { serverSettings: {
+                    "111111111111111111": { versionOverrides: { forever: { wclUrlTemplate: "https://wcl.test/no-placeholder" } } },
+                } });
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(json(res).error).toEqual({ code: "invalid_version_settings", message: "WoW Forever: wclUrlTemplate ist ungültig." });
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            it("ignores a server block without overrides and a key that is no server id (#923)", async () => {
+                const res = await patch("/api/settings", { serverSettings: { "not-a-server": { versionOverrides: { tbc: { armoryUrlTemplate: "https://x.test/{char}" } } }, "111111111111111111": {} } });
+                expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                const saved = settingsStore.saveConfig.mock.calls.map((c) => c[0]);
+                expect(saved.some((p) => p && p.serverSettings)).toBe(false);
+            });
+            // --- end per-server overrides (#923) ---
+
             it("takes a version colour as lower-case #rrggbb, an empty one resets it, a bad one is refused", async () => {
                 const ok = await patch("/api/settings", { versionSettings: { forever: { color: "#AA3377" }, tbc: { color: "" } } });
                 expect(ok.writeHead).toHaveBeenCalledWith(200, expect.any(Object));

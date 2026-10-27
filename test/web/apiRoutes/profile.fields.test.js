@@ -2,6 +2,7 @@
 // professions of the page context and a character's wish items - only the
 // session's own account writes, wish items only in a Loot-Council roster and
 // only items the version's Wowhead knows.
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "" }));
 jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     getRealUser: jest.fn(),

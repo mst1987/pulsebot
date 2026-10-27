@@ -83,6 +83,8 @@ function councilOptsFromQuery(searchParams, { guildId = "", allowAll = false } =
         config,
         mainVersion,
         charVersion,
+        // The server asked for (#923): its own armory/log templates in the rows' links.
+        guildId,
     };
 }
 

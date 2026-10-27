@@ -130,7 +130,7 @@ describe("apiRoutes/guildBank — confirmed characters", () => {
         expect(status(res)).toBe(200);
         expect(body(res)).toEqual({ found: true, choice: expect.objectContaining({ characterName: "Gentle", verified: true, evidence: "armory" }) });
         // the character's realm is empty: the bank's realm is asked, in the character's version
-        expect(lookupArmory).toHaveBeenCalledWith("Gentle", "Spineshatter", "tbc");
+        expect(lookupArmory).toHaveBeenCalledWith("Gentle", "Spineshatter", "tbc", { guildId: "g1" });
         expect(profiles.getProfile("u3").characters.find((c) => c.key === "gentle").armory).toMatchObject({ level: 70, guild: "Die Gilde", fetchedAt: expect.any(Number) });
         const list = await call(getGuildBankWaitlist, { url: q("waitlist", { key: KEY }) });
         expect(body(list).entries).toEqual([expect.objectContaining({ id: entry.id, linked: true, linkProblem: "" })]);

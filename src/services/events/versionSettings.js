@@ -40,18 +40,36 @@ function configOf(config) {
 }
 
 /**
- * The settings of one version — the interface #543 calls with a character's
- * own version. An unknown or missing id reads the main version.
- * @param {string} [versionId]
- * @param {{ config?: object }} [opts]
- * @returns {{ versionId: string, blizzardRegion: string, blizzardRealmSlug: string, blizzardNamespace: string,
- *   armoryUrlTemplate: string, wclUrlTemplate: string, wowheadPath: string, softresEdition: string, raidsheetId: string, color: string }}
+ * The overrides one server set for one version (#923): `{ field: value }`,
+ * {} without a server or without an entry. Read straight from the config
+ * handed in, like the version block, so a caller's config is the one source.
  */
-function settingsForVersion(versionId, { config } = {}) {
+function overridesOf(cfg, guildId, versionId) {
+    const id = str(guildId);
+    if (!id) return {};
+    const block = cfg.serverSettings && typeof cfg.serverSettings === "object" ? cfg.serverSettings[id] : null;
+    const map = block && block.versionOverrides;
+    return schema.normalizeVersionOverrides(map)[versionId] || {};
+}
+
+/**
+ * The settings of one version - the interface #543 calls with a character's
+ * own version. An unknown or missing id reads the main version.
+ * With a `guildId` (#923) the server's own realm and armory/log templates
+ * win field by field over the version block; `overridden` names the fields
+ * that came from the server (only there when there are any).
+ * @param {string} [versionId]
+ * @param {{ config?: object, guildId?: string }} [opts]
+ * @returns {{ versionId: string, blizzardRegion: string, blizzardRealmSlug: string, blizzardNamespace: string,
+ *   armoryUrlTemplate: string, wclUrlTemplate: string, wowheadPath: string, softresEdition: string, raidsheetId: string, color: string,
+ *   overridden?: string[] }}
+ */
+function settingsForVersion(versionId, { config, guildId } = {}) {
     const cfg = configOf(config);
     const id = knownVersion(versionId) || mainVersionFor({ config: cfg });
     const map = cfg.versionSettings && typeof cfg.versionSettings === "object" ? cfg.versionSettings : schema.versionSettingsOf(cfg);
-    return { versionId: id, ...schema.normalizeBlock(map[id]) };
+    const { block, overridden } = schema.applyVersionOverrides(schema.normalizeBlock(map[id]), overridesOf(cfg, guildId, id));
+    return { versionId: id, ...block, ...(overridden.length ? { overridden } : {}) };
 }
 
 /**
@@ -96,7 +114,7 @@ const { wclSiteOf } = schema;
  * The links of one version. Every builder answers "" where the version has no
  * setting — the caller leaves the link out.
  * @param {string} [versionId] see settingsForVersion
- * @param {{ config?: object }} [opts]
+ * @param {{ config?: object, guildId?: string }} [opts] guildId: the server whose overrides count (#923)
  */
 function versionLinks(versionId, opts = {}) {
     const s = settingsForVersion(versionId, opts);
@@ -147,11 +165,11 @@ function versionLabel(versionId) {
  *   { client: null, reason: "not_configured", message }                  no client id/secret
  * Whether the version may ask at all is the feature "armory" of versionCapabilities.js.
  * @param {string} [versionId]
- * @param {{ config?: object }} [opts]
+ * @param {{ config?: object, guildId?: string }} [opts] guildId: a server's own realm wins (#923)
  */
 function blizzardFor(versionId, opts = {}) {
     const cfg = configOf(opts.config);
-    const s = settingsForVersion(versionId, { config: cfg });
+    const s = settingsForVersion(versionId, { config: cfg, guildId: opts.guildId });
     const creds = cfg.blizzard && typeof cfg.blizzard === "object" ? cfg.blizzard : {};
     const base = { versionId: s.versionId, namespace: s.blizzardNamespace, realmSlug: s.blizzardRealmSlug, region: s.blizzardRegion };
     const armory = capabilities.featureState(s.versionId, "armory", { config: cfg });

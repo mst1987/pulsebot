@@ -135,10 +135,11 @@ function buildRoster(guildId, { versionId = "", mainVersion = "", config } = {})
     }));
     const versions = versionChoices(all, mainVersion);
     // Armory/WCL per game version (#542): the filtered one, else each character's own (#543) — read once per version.
+    // The roster's server picks its own realm/templates (#923).
     const linkCache = new Map();
     const linksOf = (id) => {
         const key = id || "";
-        if (!linkCache.has(key)) linkCache.set(key, versionLinks(key || undefined, config ? { config } : undefined));
+        if (!linkCache.has(key)) linkCache.set(key, versionLinks(key || undefined, { config, guildId }));
         return linkCache.get(key);
     };
     const chars = all.filter((row) => !versionId || row.versionIds.includes(versionId)).map(({ raiderIdsByCategory, ...row }) => {

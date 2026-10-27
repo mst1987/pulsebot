@@ -221,9 +221,68 @@ function versionSettingsOf(stored) {
     return normalizeVersionSettings(blocks);
 }
 
+// --- per-server overrides (#923, epic #926) ---------------------------------
+// serverSettings[guildId].versionOverrides = { [versionId]: { <field>: value } }:
+// a server may use its own realm and its own armory/log templates for a
+// version. Overridden per field, not per block - a field the server has not
+// set reads the version block above (config.versionSettings, the standard of
+// every server). Wowhead path, softres edition, raidsheet, colour and the
+// namespace stay one per version.
+const OVERRIDE_FIELDS = ["armoryUrlTemplate", "wclUrlTemplate", "blizzardRegion", "blizzardRealmSlug"];
+
+/**
+ * The overrides of one server in their final shape: known versions only, the
+ * four fields only, valid and filled values only; a version left without a
+ * field drops out. An invalid value is dropped here - the settings route
+ * rejects it before it is ever stored (overrideProblems).
+ */
+function normalizeVersionOverrides(raw) {
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const out = {};
+    for (const v of VERSIONS) {
+        const own = src[v.id];
+        if (!own || typeof own !== "object" || Array.isArray(own)) continue;
+        const clean = normalizeBlock(own);
+        const block = {};
+        for (const f of OVERRIDE_FIELDS) if (str(own[f]) && clean[f]) block[f] = clean[f];
+        if (Object.keys(block).length) out[v.id] = block;
+    }
+    return out;
+}
+
+/**
+ * The fields of a raw override map that are filled but do not pass, as
+ * `[{ versionId, field }]` - what the settings route answers with a 400.
+ */
+function overrideProblems(raw) {
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const out = [];
+    for (const v of VERSIONS) {
+        const own = src[v.id];
+        if (!own || typeof own !== "object" || Array.isArray(own)) continue;
+        const clean = normalizeBlock(own);
+        for (const f of OVERRIDE_FIELDS) if (str(own[f]) && !clean[f]) out.push({ versionId: v.id, field: f });
+    }
+    return out;
+}
+
+/** A version block with a server's overrides laid over it field by field; `overridden` names them. */
+function applyVersionOverrides(block, overrides) {
+    const own = overrides && typeof overrides === "object" && !Array.isArray(overrides) ? overrides : {};
+    const clean = normalizeBlock(own);
+    const out = { ...block };
+    const overridden = [];
+    for (const f of OVERRIDE_FIELDS) {
+        if (str(own[f]) && clean[f]) { out[f] = clean[f]; overridden.push(f); }
+    }
+    return { block: out, overridden };
+}
+// --- end per-server overrides (#923) ----------------------------------------
+
 module.exports = {
     FIELDS, REGIONS, SOFTRES_EDITIONS,
     normalizeTemplate, normalizeBlock, normalizeVersionSettings, legacyTbcBlock, versionSettingsOf, wclSiteOf,
     defaultColorOf, colorOf,
     settingsDefaultsOf, versionsWithDefaults, defaultBlock, defaultVersionSettings, fillDefaults,
+    OVERRIDE_FIELDS, normalizeVersionOverrides, overrideProblems, applyVersionOverrides,
 };

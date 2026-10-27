@@ -26,11 +26,14 @@ function tagClass(severity) {
 // synchronously, so the page entry sets the version for the time it renders
 // (withReportVersion) instead of every widget taking the report. Read once per
 // second and version, not per icon - a report renders hundreds.
+// The report's server (`report.guildId`, #917) picks the server's own
+// armory/log templates (#923); a report without one gets the standard.
 let pageVersion = LEGACY_VERSION;
-let linksMemo = { at: 0, versionId: "", links: null };
+let pageGuild = "";
+let linksMemo = { at: 0, versionId: "", guildId: "", links: null };
 function reportLinks(now = Date.now()) {
-    if (!linksMemo.links || linksMemo.versionId !== pageVersion || now - linksMemo.at > 1000) {
-        linksMemo = { at: now, versionId: pageVersion, links: versionLinks(pageVersion) };
+    if (!linksMemo.links || linksMemo.versionId !== pageVersion || linksMemo.guildId !== pageGuild || now - linksMemo.at > 1000) {
+        linksMemo = { at: now, versionId: pageVersion, guildId: pageGuild, links: versionLinks(pageVersion, { guildId: pageGuild }) };
     }
     return linksMemo.links;
 }
@@ -38,20 +41,23 @@ function reportLinks(now = Date.now()) {
 /**
  * Render with the links of a report's version: `fn()` runs with it set and the
  * version goes back to TBC afterwards, also when `fn` throws.
- * @param {{ versionId?: string }} report
+ * @param {{ versionId?: string, guildId?: string }} report
  * @param {() => T} fn  a synchronous renderer
  * @returns {T}
  * @template T
  */
 function withReportVersion(report, fn) {
     const before = pageVersion;
+    const beforeGuild = pageGuild;
     pageVersion = recordVersion(report);
+    pageGuild = String((report && report.guildId) || "");
     // the page's accent follows the same version (#742)
     const shown = setPageVersion(pageVersion);
     try {
         return fn();
     } finally {
         pageVersion = before;
+        pageGuild = beforeGuild;
         setPageVersion(shown);
     }
 }
@@ -63,7 +69,7 @@ function wowheadItemLink(itemId, params) {
 
 /** The armory of a raider in a report (the report's version), "" without a template. */
 function armoryUrlFor(character) {
-    return charLinks.armoryUrlFor(character, pageVersion);
+    return charLinks.armoryUrlFor(character, pageVersion, pageGuild);
 }
 
 function issueRow(issue) {

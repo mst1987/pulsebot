@@ -3,6 +3,7 @@
 // Charaktere, und dass die Wünsche anderer nie bei einem Mitglied ankommen.
 
 let mockUser = null;
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "" }));
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
 
