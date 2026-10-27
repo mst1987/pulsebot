@@ -228,8 +228,62 @@ async function guildOverlap(fromId, toId) {
     }
 }
 
+/**
+ * The server a web request means (#895): `guildId` must be one of the servers,
+ * else null (the route answers 400 unknown_guild). Without one, a legacy
+ * `side=talk` still means the talk server; otherwise the first server. "" when no
+ * server is configured at all.
+ * @param {{ guildId?: string, side?: string }} wanted
+ * @returns {string|null}
+ */
+function resolveServer({ guildId = "", side = "" } = {}, config = getConfig()) {
+    const ids = serverIds(config);
+    const wanted = String(guildId || "").trim();
+    if (wanted) return ids.includes(wanted) ? wanted : null;
+    if (String(side || "").trim() === "talk") {
+        const talk = talkGuildId(config);
+        if (talk && ids.includes(talk)) return talk;
+    }
+    return ids[0] || "";
+}
+
+/**
+ * The servers a page offers to pick from (#895), in the order of the server list:
+ * the Discord name is the main text, the label an optional extra title.
+ * `legacyTalk` marks the old talk server (until #897), so an old `?side=talk`
+ * link opens the same server in the client as in resolveServer.
+ * @returns {Array<{ guildId, name, label, online, iconUrl, legacyTalk? }>}
+ */
+function serverChoices(config = getConfig()) {
+    const talk = talkGuildId(config);
+    return serverIds(config).map((guildId) => {
+        const guild = discord.getGuild(guildId);
+        return {
+            ...(talk && guildId === talk ? { legacyTalk: true } : {}),
+            guildId,
+            name: guild ? String(guild.name || "") : "",
+            label: serverLabel(guildId, config),
+            online: !!guild,
+            iconUrl: guild && typeof guild.iconURL === "function" ? (guild.iconURL({ size: 64 }) || "") : "",
+        };
+    });
+}
+
+/**
+ * The server a role message belongs to: its `guildId`, or (for an entry saved
+ * before #895 with only `guildSide`) the talk server for "talk", else the first
+ * server. The start writes that server down once (settingsMigration.js,
+ * migrateRoleMessageGuilds); this fallback only covers an entry it could not place.
+ */
+function roleMessageGuild(entry, config = getConfig()) {
+    const own = String((entry && entry.guildId) || "").trim();
+    if (own) return own;
+    if (entry && entry.guildSide === "talk") return talkGuildId(config);
+    return serverIds(config)[0] || "";
+}
+
 module.exports = {
-    serverIds, serverLabel, links, linkedSources, linkedTargets,
+    serverIds, serverLabel, resolveServer, serverChoices, roleMessageGuild, links, linkedSources, linkedTargets,
     eventGuildId, eventGuildIds, talkGuildId, configuredGuildIds,
     isEventGuild, isTalkGuild, guildRole, legacyEventGuilds,
     eventGuild, eventGuildCards, talkGuild, describeGuild, memberOverlap, guildOverlap,

@@ -1,11 +1,11 @@
 // The members of a Discord server as the web shows them (System › Discord › Mitglieder,
 // web/apiRoutes/discordMembers.js): read-only, nothing here changes a member.
 //
-// - listServerMembers(side)          every member of the event or the talk server: name, user
+// - listServerMembers(guildId)       every member of one server of the list (#895): name, user
 //                                    name, avatar, bot, joined, role ids (highest first), the
 //                                    rosters and characters (memberRelation.js) and hints; the
 //                                    server's roles once (name, colour) for the role column
-// - serverMemberDetail(side, id)     one member plus the channels it can see (ViewChannel),
+// - serverMemberDetail(guildId, id)  one member plus the channels it can see (ViewChannel),
 //                                    grouped by category: text, voice and forum only
 //
 // The member list is discord.fetchGuildMembersCached, raced against NAME_FETCH_MS like the role
@@ -82,12 +82,12 @@ function viewContext(ctx) {
 }
 
 /**
- * Every member of the side's server, by name.
- * @param {"event"|"talk"} side
+ * Every member of one server, by name.
+ * @param {string} guildId  one of the server list (the route checks it)
  * @param {{ config?: object, waitMs?: number }} [opts]
  */
-async function listServerMembers(side, { config = getConfig(), waitMs = discord.NAME_FETCH_MS } = {}) {
-    const ctx = await serverRoles.contextFor(side, config, { waitMs });
+async function listServerMembers(guildId, { config = getConfig(), waitMs = discord.NAME_FETCH_MS } = {}) {
+    const ctx = await serverRoles.contextFor(guildId, config, { waitMs });
     if (!ctx.guild) return { ...serverRoles.head(ctx), total: 0, roles: [], members: [] };
     const view = viewContext(ctx);
     const members = (ctx.members || [])
@@ -147,9 +147,9 @@ function visibleChannels(guild, member) {
  * `member: null`.
  * @returns {Promise<object>}
  */
-async function serverMemberDetail(side, userId, { config = getConfig(), waitMs = discord.NAME_FETCH_MS } = {}) {
+async function serverMemberDetail(guildId, userId, { config = getConfig(), waitMs = discord.NAME_FETCH_MS } = {}) {
     const id = str(userId);
-    const ctx = await serverRoles.contextFor(side, config, { waitMs });
+    const ctx = await serverRoles.contextFor(guildId, config, { waitMs });
     if (!ctx.guild) return { ...serverRoles.head(ctx), member: null, roles: [], channels: [] };
     const fromList = (ctx.members || []).find((m) => m && str(m.id) === id);
     const cache = ctx.guild.members && ctx.guild.members.cache;
@@ -171,12 +171,11 @@ async function serverMemberDetail(side, userId, { config = getConfig(), waitMs =
 }
 
 /**
- * How many people the side's server has (bots left out, as on the list), null offline: the
+ * How many people the server has (bots left out, as on the list), null offline: the
  * tab's count. With the whole member cache the people are counted there; with a partial cache
  * (no GuildMembers intent) Discord's own count minus the bots the cache knows.
  */
-function memberCount(side = "event", config = getConfig()) {
-    const guildId = serverRoles.guildIdOf(side === "talk" ? "talk" : "event", config);
+function memberCount(guildId) {
     const guild = guildId ? discord.getGuild(guildId) : null;
     if (!guild) return null;
     const n = Number(guild.memberCount);

@@ -1,6 +1,6 @@
 const auth = require("../http/auth");
 const discord = require("../../services/discord/discord");
-const { guildRole } = require("../../services/discord/guildRoles");
+const { guildRole, serverLabel } = require("../../services/discord/guildRoles");
 const { activeGuildFor } = require("../http/activeGuild");
 const { ok, error } = require("../http/apiResponse");
 const { requireCsrf } = require("../http/apiMiddleware");
@@ -107,9 +107,9 @@ function langField(userId) {
     return lang ? { lang } : {};
 }
 
-/** The servers the bot is on, each tagged with its role from the settings. */
+/** The servers the bot is on, each tagged with its role and its own label (#895) from the settings. */
 function sessionGuilds() {
-    return discord.listGuilds().map((g) => ({ ...g, role: guildRole(g.id) }));
+    return discord.listGuilds().map((g) => ({ ...g, role: guildRole(g.id), label: serverLabel(g.id) }));
 }
 
 /** POST /api/session/guild — switch which guild the admin is managing. Body: { guildId }. */

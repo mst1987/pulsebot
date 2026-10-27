@@ -7,7 +7,11 @@
 //   {
 //     messages: [{
 //       id,                          our id (random, also in the buttons' customId)
-//       guildSide: "event"|"talk",   the server the message, its roles and emojis belong to
+//       guildId,                     the server the message, its roles and emojis belong to (#895)
+//       guildSide: "event"|"talk",   only on entries saved before #895 (no guildId): read as
+//                                    the talk server resp. the first server
+//                                    (guildRoles.roleMessageGuild); written down as guildId once
+//                                    at start (migrateGuildSides, settingsMigration.js)
 //       channelId, messageId,        where it is posted ("" messageId = not posted)
 //       title, body, imageUrl,       what it shows (imageUrl https or "")
 //       color,                       the bar colour (0..0xFFFFFF) or null = the card's default
@@ -45,9 +49,12 @@ function normalizeMessage(raw) {
     const id = str(raw.id);
     if (!id) return null;
     const imageUrl = str(raw.imageUrl);
+    const guildId = snowflake(raw.guildId);
     return {
         id,
-        guildSide: SIDES.includes(str(raw.guildSide)) ? str(raw.guildSide) : "event",
+        guildId,
+        // Legacy (before #895): kept only while there is no guildId yet.
+        ...(guildId ? {} : { guildSide: SIDES.includes(str(raw.guildSide)) ? str(raw.guildSide) : "event" }),
         channelId: snowflake(raw.channelId),
         messageId: snowflake(raw.messageId),
         title: str(raw.title),
@@ -153,4 +160,30 @@ function removeMessage(id) {
     return copy(old);
 }
 
-module.exports = { useFile, listMessages, getMessage, findByMessageId, saveMessage, removeMessage, colorOf, SIDES };
+/**
+ * The one-off switch of #895, run at start by settingsMigration.js: every entry
+ * saved before #895 (a `guildSide`, no `guildId`) gets the server its side means
+ * today written down (`guildOf(entry)`), so a later removal of `talkGuildId` or a
+ * new order of the server list moves no role message. An entry whose server is
+ * not known yet ("" from guildOf) stays as it is. Writes only when something
+ * changed; returns how many entries got their server.
+ */
+function migrateGuildSides(guildOf) {
+    const d = store.read();
+    let changed = 0;
+    d.messages = d.messages.map((m) => {
+        if (m.guildId) return m;
+        const guildId = snowflake(guildOf(m));
+        if (!guildId) return m;
+        changed += 1;
+        const rest = { ...m };
+        delete rest.guildSide;
+        return { ...rest, guildId };
+    });
+    if (!changed) return 0;
+    knownIds = null;
+    store.write(d);
+    return changed;
+}
+
+module.exports = { useFile, listMessages, getMessage, findByMessageId, saveMessage, removeMessage, migrateGuildSides, colorOf, SIDES };

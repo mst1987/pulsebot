@@ -20,6 +20,7 @@
     "/api/discord/roles/detail": "channels",
     "/api/discord/tab-counts": "channels",
     "/api/discord/overview": "channels",
+    "/api/discord/servers": "channels",
     "/api/settings": "settings",
     "/api/settings/item-search": "settings",
     "/api/settings/pug-invites": "settings",

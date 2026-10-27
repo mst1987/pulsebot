@@ -1,11 +1,13 @@
 import { Fragment, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
-import { getServerRoles, type DiscordSide, type ServerRole, type ServerRoles } from "../../api";
+import { getServerRoles, type ServerRole, type ServerRoles } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import type { ShellContext } from "../../components/shell/Shell";
-import { Badge, PageHead, Segment, Switch } from "../../components/ui";
+import { Badge, PageHead, Switch } from "../../components/ui";
 import { SortTh } from "../../components/ui/SortTh";
 import DiscordTabs from "../../components/channels/DiscordTabs";
+import ServerPicker from "../../components/channels/ServerPicker";
+import { pickSearch, useServerPick } from "../../hooks/useServerPick";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { useTableSort, type TableSort } from "../../lib/ui/tableSort";
 import { permissionLabel } from "../../lib/discord/permissions";
@@ -15,8 +17,8 @@ import ServerRoleDrawer from "./ServerRoleDrawer";
 import "../../styles/server-roles.css";
 import { useT } from "../../i18n";
 
-// System › Discord › Rollen (docs/channels.md): every role of the event or the
-// talk server as Discord orders it — the colour and name, how many have it, what
+// System › Discord › Rollen (docs/channels.md): every role of one server of the
+// server list (picker in the controls, #895) as Discord orders it — the colour and name, how many have it, what
 // it means for the bot, its sensitive permissions and whether the bot can hand it
 // out. A line marks the bot's own role: everything below it the bot can give.
 // Sensitive permissions that are normal on the server (@everyone or most roles
@@ -33,35 +35,25 @@ const SENSITIVE_SHOWN = 2;
 export default function ServerRolesPage() {
     const { user } = useOutletContext<ShellContext>();
     const t = useT();
-    // the open role lives in the URL (`?role=<id>`, `&side=talk` on the talk server): opening adds a
-    // history step the browser's back button undoes (push), closing and switching the side replace
-    // it — as on the members page
+    // the open role lives in the URL (`?role=<id>`, `&guild=<id>` beyond the first server): opening
+    // adds a history step the browser's back button undoes (push), closing and switching the server
+    // replace it — as on the members page
     const [params, setParams] = useSearchParams();
-    const [side, setSide] = useState<DiscordSide>(() => (params.get("side") === "talk" ? "talk" : "event"));
+    const pick = useServerPick();
+    const guildId = pick.guildId;
     const [onlyHints, setOnlyHints] = useState(false);
     const openId = params.get("role");
-    const query = (next: DiscordSide, id: string | null) => ({ ...(id ? { role: id } : {}), ...(next === "talk" ? { side: "talk" } : {}) });
-    const open = (id: string) => setParams(query(side, id));
-    const close = () => setParams(query(side, null), { replace: true });
-    const state = useApi(() => getServerRoles(side), [side]);
+    const query = (id: string | null) => ({ ...(id ? { role: id } : {}), ...pick.param(guildId) });
+    const open = (id: string) => setParams(query(id));
+    const close = () => setParams(query(null), { replace: true });
+    const state = useApi(() => getServerRoles(guildId), [guildId], { enabled: pick.ready });
     const sort = useTableSort<SortKey>("server-roles-sort", SORT_DEFAULTS, "pos");
-    const data = state.data && state.data.side === side ? state.data : null;
+    const data = state.data && (!guildId || state.data.guildId === guildId) ? state.data : null;
     // the rank the table shows (1 = highest), shared with the drawer so both say the same
     const rankOf = useMemo(() => ranks(data ? data.roles : []), [data]);
     const counted = data ? data.roles.filter((r) => !r.everyone).length : 0;
 
-    const pickSide = (next: DiscordSide) => { setSide(next); setParams(query(next, null), { replace: true }); };
-    const sideSegment = (
-        <Segment<DiscordSide>
-            ariaLabel={t("discord.roles.page.server")}
-            value={side}
-            onChange={pickSide}
-            options={[
-                { value: "event", label: t("discord.roles.side.event") },
-                { value: "talk", label: t("discord.roles.side.talk") },
-            ]}
-        />
-    );
+    const sideSegment = <ServerPicker pick={pick} drop={["role"]} />;
 
     return (
         <div className="drl-page">
@@ -71,7 +63,7 @@ export default function ServerRolesPage() {
                 title={t("discord.roles.page.title")}
                 meta={data ? <HeadBadges data={data} /> : undefined}
             />
-            <DiscordTabs user={user} side={side} guildKey={data ? data.guildId : ""} />
+            <DiscordTabs user={user} guildId={guildId} search={pickSearch(pick)} />
 
             {state.error && !data && <p className="empty">{t("discord.roles.page.loadError", { message: state.error.message })}</p>}
             {!data && !state.error && <><div className="drl-controls">{sideSegment}</div><RaidLoader text={t("discord.roles.page.loading")} /></>}
@@ -83,7 +75,7 @@ export default function ServerRolesPage() {
             )}
             {data && data.guildId && openId && (
                 <ServerRoleDrawer
-                    side={side} roleId={openId} guildName={data.guildName}
+                    guildId={data.guildId} guildParams={pick.param(data.guildId)} roleId={openId} guildName={data.guildName}
                     rank={rankOf.get(openId) ?? null} counted={counted} onClose={close}
                 />
             )}
@@ -136,7 +128,7 @@ function RolesView({ data, rankOf, counted, sideSegment, onlyHints, setOnlyHints
         </div>
     );
 
-    if (!data.guildId) return <>{controls}<p className="empty">{t(data.side === "event" ? "discord.roles.page.eventMissing" : "discord.roles.page.talkMissing")}</p></>;
+    if (!data.guildId) return <>{controls}<p className="empty">{t("discord.server.none")}</p></>;
     if (!data.online) return <>{controls}<p className="empty">{t("discord.roles.page.offlineSub")}</p></>;
 
     const shown = onlyHints ? data.roles.filter((r) => r.hints.length > 0) : data.roles;
