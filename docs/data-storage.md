@@ -175,7 +175,7 @@ Zugangsdaten, Token oder Sitzungen.
 | Datei (unter `DATA_DIR`) | Eigentümer | Inhalt | Sensibel |
 |---|---|---|---|
 | `sessions.json` | `web/http/auth.js` | Web-Sitzungen: sid → `{ id, name, isAdmin, access, csrf, createdAt, adminCheckedAt }` | **ja** (eine sid ist ein Login) |
-| `settings/config.json` | `settingsStore.js` | Bot-Einstellungen aus dem Web: Server, Kanäle, Rollen, Rechte, API-Zugänge (u. a. Blizzard-, WCL-v2- und Anthropic-Schlüssel, GitHub-Token der Addon-Downloads), die Addon-Liste (`addonDownloads`) | **ja** |
+| `settings/config.json` | `settingsStore.js` | Bot-Einstellungen aus dem Web: Server, Kanäle, Rollen, Rechte, API-Zugänge (u. a. Blizzard-, WCL-v2- und Anthropic-Schlüssel, GitHub-Token der Addon-Downloads), die Addon-Liste (`addonDownloads`), Einstellungen je Discord-Server (`serverSettings`, #917) | **ja** |
 | `settings/ingest-tokens.json` | `ingestTokenStore.js` | Token des Loot-Sync-Tools, nur als sha256-Hash | **ja** (Hashes) |
 | `settings/kader.json` | `kaderStore.js` | Kaderplaner je Discord-Server (`v: 2`): von Hand hinzugefügte Accounts, Charakter-Zuweisungen des Planers und die Kader mit Leitung, Fragen, Beispiel-Setups und je Spieler Status samt Verlauf, Wünschen, Gespräch (Antworten, Notiz), Stimmen und Kommentaren; dazu Revisionen (`rev`, `sharedRev`, je Kader/Gespräch/Frage/Zuweisung) und je Kader ein Aktivitäts-Log der letzten 50 Änderungen (nur Typen, Ids, wer, wann — keine Antworten, Notizen, Kommentare). Fehlende Revisionen gelten als 0. Je Kader hält `takeover` die Übernahme nach Discord fest (Roster-, Rollen-, Kategorie- und Kanal-IDs, wer, wann, Status und je Spieler `ok`/`missing`/`failed`; `null` vorher). Die Markierung `decisionsCleared` hält fest, dass alte Entscheidungen außerhalb des Rosters einmal aufgeräumt wurden. Wer gerade im Kader ist, liegt nur im Speicher, nie auf der Platte — intern, verlässt den Kaderplaner nie; siehe [kaderplaner.md](kaderplaner.md) | nein |
 | `settings/calendar-tokens.json` | `calendarTokenStore.js` | Abo-Token des Raider-Kalenders, nur als sha256-Hash | **ja** (Hashes) |
@@ -217,7 +217,7 @@ Zugangsdaten, Token oder Sitzungen.
 | `settings/raidplan-catalog.json` | `raidplanCatalogStore.js` | Eigene/überschriebene Mobs und Zauber des Katalogs | nein |
 | `settings/loot.json` | `lootStore.js` | Importierter Loot (Gargul/RCLootcouncil/Addon), dazu `deleted`: Schlüssel von Hand gelöschter Einträge, damit kein Import sie zurückbringt | nein |
 | `settings/loot-inbox.json` | `lootInboxStore.js` | Addon-Uploads, die noch auf Bestätigung warten, und erledigte Sessions | nein |
-| `settings/logs.json` | `logStore.js` | Ausgewertete WCL-Reports (damit keiner zweimal läuft) | nein |
+| `settings/logs.json` | `logStore.js` | Ausgewertete WCL-Reports (damit keiner zweimal läuft); jeder Log mit seinem Discord-Server (`guildId`, `guildFrom`, `postGuildId`, #917, siehe [discord-servers.md](discord-servers.md#daten-je-server-einstellungen-und-zuordnung-917-epic-926)) | nein |
 | `reports/<id>.json` | `reportStore.js` | Die gespeicherten Log-Auswertungen (Report-Seiten `/r/`) | nein |
 | `settings/logGear.json` | `logGearStore.js` | Aus einem WCL-Report geladenes Gear je Raider | nein |
 | `settings/characters.json` | `characterStore.js` | Klasse/Spec je Charakter (Cache aus Loot und Logs) | nein |

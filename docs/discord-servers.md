@@ -66,6 +66,23 @@ The bot can work with several **servers** at once (#251, #361, server network #8
 - **The select** (`commands/signup/talkSignup.js`, `group: "signup"`, `defaultAccess: "everyone"`) opens the Discord signup dialog for an own event and links a Raid-Helper event into its event channel — see "Anmeldung (Bot)" in docs/signups.md. A Raid-Helper event without its own guild id falls back to the first configured server (see the "deliberately still scoped" bullet above).
 - **Web**: the links table in Einstellungen → Discord-Server shows each link's raid-list status from one shared fetch (`linkStatusOf` matches by the link's `key` = `from:to`, so two links of the same source each show their own status; no fallback to the source) as a badge in words linking to the message, the times and any error in its tooltip, and "Neu posten" per row (`repostTalkOverview(linkKey(link))`, sends `{ key, repost: true }`). The former per-card row `SettingsTalkOverview.tsx` is folded into that table (#891). `GET /api/settings/talk-overview` without a parameter returns every link's status (`{ statuses }`, each with `key`, `from`, `to`, `lang`, `versions`, message and times); with `?key=from:to` (or the older `?guildId=`, the source's first link) one status plus `preview` (the payload a sync would post now, a dry run; `?preview=0` skips it). `POST` takes `{ key | guildId, repost? }` and syncs just that link — 400 „Keine Verknüpfung angegeben.“ without either, „Für diese Verknüpfung ist keine Raid-Liste eingestellt.“ for an unknown one; both full-admin-only.
 
+## Daten je Server: Einstellungen und Zuordnung (#917, Epic #926)
+
+Grundlage dafür, dass Loot, Logs und Einstellungen strikt je Discord-Server getrennt sind.
+
+- **`config.serverSettings = { [guildId]: { key: value } }`**: Einstellungen je Server. `configSchema.normalizeServerSettings` behält nur Blöcke von Servern aus `discordServers.servers`, von reinen Link-Zielen (`links[].to`) und vom Heimserver (`config.guildId`, für Installationen ohne Serverliste). Erlaubt sind nur die Schlüssel aus `SERVER_SETTING_DEFAULTS`; die Liste ist noch leer, die Teile 4–8 des Epics tragen ihre ein. Ein leerer Block bleibt leer, alle anderen Felder der Config bleiben unangetastet.
+- **Lesen** nur über `services/discord/serverSettings.serverSetting(guildId, key, { config, fallback })`. Reihenfolge: Wert des Servers, sonst `fallback`, sonst der Standard des Teils. Es gibt keinen globalen Rückfall: Ein Wert eines Servers antwortet nie für einen anderen.
+- **Erster Server** = `discordServers.servers[0]`, ersatzweise `config.guildId` (`serverOf.firstServerId`).
+- **Server eines Raids** (`serverOf.guildOfEvent`): `event.guildId`; bei Raid-Helper-Events ohne `guildId` der Server seiner Kategorie (aus `category-names.json`). Loot hängt über seinen Raid am Server, dafür wird nichts zusätzlich gespeichert.
+- **Server eines Logs** (`serverOf.logGuild`): Regel *verknüpfter Raid → Kanal des Posts → erster Server*.
+  - Gespeichert in `log.guildId`.
+  - `guildFrom` nennt die Regel, die gegriffen hat: `event`, `channel` oder `first`.
+  - `postGuildId` hält den Server des Posts fest. Vor #917 war `guildId` bei jedem Log mit `channelId` genau dieser Server.
+  - Ein Log, dessen Raid entknüpft wird, fällt dadurch wieder auf seinen Kanal-Server zurück.
+  - Ein Log mit Raid, dessen Event nicht mehr gefunden wird, behält den Raid-Server.
+- **Startlauf** `settingsMigration.migrateLogGuilds`: Rechnet bei jedem Start alle Logs nach der Regel neu und schreibt nur bei einer Änderung. Danach folgt eine Zeile „logs.json: N Log(s) ihrem Discord-Server fest zugeordnet (#917)“. Die Serverliste wird dabei nur gelesen. `linkEvent`/`unlinkEvent` ändern `guildId` nicht sofort; das erledigt der nächste Start.
+- **Aktiver Server einer Web-Anfrage**: weiterhin nur `web/http/activeGuild.activeGuildFor(req)`.
+
 ## Raid-Übersicht je Kategorie (`/createoverview`)
 
 Eine Karte je Kategorie, die die kommenden Raids der Kategorie zeigt und sich selbst aktuell hält — die Kategorie-Variante der Raid-Liste einer Verknüpfung oben. Entwurf „C“ (Okt 2026), ohne Knöpfe.

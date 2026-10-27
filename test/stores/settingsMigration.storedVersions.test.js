@@ -5,7 +5,7 @@
 jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 // Attendance without evaluated logs: the signups decide (the report directory needs a real disk).
 jest.mock("../../src/stores/reportStore", () => ({ listReports: () => [], getReport: () => null }));
-jest.mock("../../src/stores/logStore", () => ({ listLogs: () => [] }));
+jest.mock("../../src/stores/logStore", () => ({ listLogs: () => [], migrateGuilds: () => 0 }));
 
 const fs = require("fs");
 const { settingsPath } = require("../../src/config/paths");

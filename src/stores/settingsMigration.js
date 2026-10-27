@@ -116,6 +116,14 @@
 //     is gone. Without it a later saveConfig() (which writes the normalised
 //     config) would lose the talk server's pairs. Runs after the role messages.
 //
+//   - logs.json (#917): every log knows its server. `guildId` follows the rule
+//     linked raid -> channel of the post -> first server
+//     (services/discord/serverOf.js); `guildFrom` names the rule, `postGuildId`
+//     keeps the server of the post (before #917 `guildId` was exactly that for
+//     every log with a channel). Runs on every start after the federation step,
+//     so a log linked or unlinked since is set right again; the server list
+//     itself is only read, never written.
+//
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
 const path = require("path");
@@ -149,6 +157,8 @@ const councilProfilesStore = require("./councilProfilesStore");
 const councilWeightsStore = require("./councilWeightsStore");
 const councilStore = require("./councilStore");
 const roleMessageStore = require("./roleMessageStore");
+const logStore = require("./logStore");
+const { firstServerId, guildOfEvent, logGuild, categoryGuildIndex } = require("../services/discord/serverOf");
 
 /**
  * The event-server list an old single-server block stands for: its
@@ -548,6 +558,23 @@ function migrateRoleMessageGuilds() {
 }
 
 /**
+ * logs.json (#917): the server of every log by the rule raid -> post -> first
+ * server, written down. Reads the server list, never writes it. One line, or none.
+ */
+function migrateLogGuilds() {
+    const firstGuildId = firstServerId(configStore.getConfig());
+    const categoryGuilds = categoryGuildIndex(categoryNameSnapshot());
+    const eventGuildOf = (eventId) => {
+        const id = String(eventId || "").trim();
+        if (!id) return "";
+        const event = eventStore.getEvent(id) || raidEventStore.getRaidEvent(id);
+        return guildOfEvent(event, { categoryGuilds });
+    };
+    const changed = logStore.migrateGuilds((log) => logGuild(log, { eventGuildId: eventGuildOf(log.eventId), firstGuildId }));
+    return changed ? [`logs.json: ${changed} Log(s) ihrem Discord-Server fest zugeordnet (#917)`] : [];
+}
+
+/**
  * Run every upgrade once. Never throws - a start must not fail over an old
  * file; the error is logged and the bot comes up with what it can read.
  * @returns {{ changes: string[], error?: Error }}
@@ -578,6 +605,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateStoredVersions());
         changes.push(...migrateCategoryVersions());
         changes.push(...migrateCouncilProfiles());
+        changes.push(...migrateLogGuilds());
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
         return { changes, error };
@@ -589,6 +617,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateDiscordFederation, raidplanDefaultsLine,
+    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateDiscordFederation, raidplanDefaultsLine,
     migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };
