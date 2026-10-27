@@ -46,7 +46,8 @@ describe("Discord-Server section", () => {
         expect(section).not.toMatch(/Zuordnung|Anmeldung pro Kategorie/);
         // #896: the role sync pairs any two servers of the list and is always
         // mounted (it says itself when there is only one); reminders too.
-        expect(section).toContain("<RoleSyncPart onConfig={onConfig} />");
+        // reloadKey: a saved server list reloads the pair selects (#896 review)
+        expect(section).toContain("<RoleSyncPart onConfig={onConfig} reloadKey={data.discordServers} />");
         expect(section).not.toContain("{data.talk && <RoleSyncPart");
         expect(section).toContain("<RemindersPart onConfig={onConfig} />");
     });

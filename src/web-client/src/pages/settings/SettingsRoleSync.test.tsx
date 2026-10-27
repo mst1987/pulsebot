@@ -4,6 +4,7 @@
 // plus a fold-out with profile links per pair, never a remove action.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { AdminConfig, RoleSyncData, RoleSyncServer } from "../../api";
@@ -54,6 +55,37 @@ beforeEach(() => {
 afterEach(() => switchLang("de"));
 
 describe("Rollen-Abgleich part", () => {
+    it("reloads its servers when the server list was saved", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getRoleSync).mockResolvedValue(roleSync());
+        // stands in for the server section: its key changes once the server list is saved
+        function Harness() {
+            const [key, setKey] = useState(1);
+            const [other, setOther] = useState(0);
+            return (
+                <>
+                    <button type="button" onClick={() => setKey((k) => k + 1)}>servers saved</button>
+                    <button type="button" onClick={() => setOther((n) => n + 1)}>other render {other}</button>
+                    <RoleSyncPart onConfig={vi.fn()} reloadKey={key} />
+                </>
+            );
+        }
+        renderPage(<Harness />);
+        await screen.findByText("@Raider");
+        expect(api.getRoleSync).toHaveBeenCalledTimes(1);
+        // a render with the same key: no reload
+        await user.click(screen.getByRole("button", { name: /other render/ }));
+        expect(api.getRoleSync).toHaveBeenCalledTimes(1);
+        const fresh = server("g4", "Neu", [{ id: "n1", name: "Neu-Raider" }]);
+        vi.mocked(api.getRoleSync).mockResolvedValue(roleSync({ servers: [...roleSync().servers, fresh] }));
+        await user.click(screen.getByRole("button", { name: "servers saved" }));
+        await waitFor(() => expect(api.getRoleSync).toHaveBeenCalledTimes(2));
+        // the new server is offered in the pair modal without a page reload
+        await user.click(screen.getByRole("button", { name: "Zuordnung" }));
+        const dialog = screen.getByRole("dialog");
+        await waitFor(() => expect(within(within(dialog).getByLabelText("Zweiter Server")).getByRole("option", { name: /Neu/ })).toBeInTheDocument());
+    });
+
     it("shows one line per pair with both servers, the arrow and the member overlap", async () => {
         await show(roleSync());
         const row = screen.getByText("@Raider").closest("li")!;

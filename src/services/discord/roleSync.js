@@ -274,7 +274,7 @@ async function syncMember(member, { config = getConfig() } = {}) {
     }
     if (memberObjects.size < 2) return null;
     const adds = planRoleSync(pairs.rules, lists);
-    if (!adds.length) return noRun({ error: undefined });
+    if (!adds.length) return noRun();
     const result = await applyAdds(adds, { guilds: pairs.guilds, memberObjects });
     if (result.missingPermission.length) console.warn("[roleSync] Rollen verwalten fehlt auf:", result.missingPermission.join(", "));
     return result;
@@ -336,14 +336,18 @@ async function roleSyncView(config = getConfig()) {
         drift: drift.groups,
         driftTotal: drift.total,
         driftError: drift.error,
+        driftErrors: drift.errors,
         lastRun,
     };
 }
 
-/** The drift groups with names, plus the member total. `{ groups, total, error }`. */
+/**
+ * The drift groups with names, plus the member total. `{ groups, total, errors, error }`:
+ * `errors` names servers that could not be read while others could, `error` is set when none could.
+ */
 async function loadDrift(config = getConfig()) {
     const mapping = (config.roleSync || []).filter((r) => r.direction !== "both");
-    const empty = { groups: [], total: 0, error: null };
+    const empty = { groups: [], total: 0, errors: [], error: null };
     if (!mapping.length) return empty;
     const pairs = resolvePairs(config, mapping);
     if (pairs.error) return { ...empty, error: pairs.error };
@@ -366,8 +370,11 @@ async function loadDrift(config = getConfig()) {
             members: g.members.map((m) => ({ ...m, profileUrl: `https://discord.com/users/${m.userId}` })),
         }));
         const total = new Set(groups.flatMap((g) => g.members.map((m) => m.userId))).size;
-        const errors = [...pairs.errors, ...loaded.errors];
-        return { groups, total, error: errors.length ? errors.join(" ") : null };
+        // Partial failures (one server unreadable) leave the loaded groups valid: they go to
+        // `errors`; `error` (drift unknown) only when no member list loaded at all.
+        const errors = [...new Set([...pairs.errors, ...loaded.errors])];
+        if (!loaded.lists.size && errors.length) return { ...empty, error: errors.join(" ") };
+        return { groups, total, errors, error: null };
     } catch (e) {
         return { ...empty, error: (e && e.message) || "Mitglieder konnten nicht geladen werden." };
     }

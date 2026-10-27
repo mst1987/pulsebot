@@ -315,11 +315,20 @@ function normalizeRoleSync(raw, ctx = {}) {
     return out;
 }
 
-/** The context normalizeRoleSync() checks pairs against, from a normalised discordServers block. */
+/**
+ * The context normalizeRoleSync() checks pairs against, from a normalised
+ * discordServers block. Until #897 drops `talkGuildId`, the talk server counts
+ * as a valid server even when it is not in `servers` (with the full ten event
+ * servers normalizeDiscordServers() has no room left for it) - otherwise its
+ * migrated pairs would be dropped on the next save. It goes last, so the first
+ * server stays the old event server of the migration.
+ */
 function roleSyncContext(discordServers) {
     const block = discordServers || {};
     const serverIds = (Array.isArray(block.servers) ? block.servers : []).map((s) => String((s && s.guildId) || "")).filter(Boolean);
-    return { serverIds, talkGuildId: String(block.talkGuildId || "") };
+    const talkGuildId = String(block.talkGuildId || "").trim();
+    if (talkGuildId && serverIds.length && !serverIds.includes(talkGuildId)) serverIds.push(talkGuildId);
+    return { serverIds, talkGuildId };
 }
 
 /** Normalise { [categoryId]: templateId }: trimmed strings, empty entries dropped. */

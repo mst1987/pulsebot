@@ -306,7 +306,7 @@ describe("drift", () => {
 
     it("has no drift for a two-way pair, since the sync gives the role back", async () => {
         withMembers({ [A]: [member("2", [])], [B]: [member("2", [ROLE_B])] });
-        expect(await roleSync.loadDrift(config([pair(A, ROLE_A, B, ROLE_B, "both")]))).toEqual({ groups: [], total: 0, error: null });
+        expect(await roleSync.loadDrift(config([pair(A, ROLE_A, B, ROLE_B, "both")]))).toEqual({ groups: [], total: 0, errors: [], error: null });
         expect(discord.fetchGuildMembersCached).not.toHaveBeenCalled();
     });
 
@@ -315,6 +315,35 @@ describe("drift", () => {
         const drift = await roleSync.loadDrift(config([pair(A, ROLE_A, B, ROLE_B)]));
         expect(drift.groups).toEqual([]);
         expect(drift.error).toContain("Intent fehlt");
+        expect(drift.errors).toEqual([]);
+    });
+
+    // One unreadable server must not turn the whole badge into "unknown".
+    it("keeps the groups and names partial failures apart", async () => {
+        delete guilds[C];
+        discord.fetchGuildMembersCached.mockImplementation(async (id) => {
+            if (id === B) return [member("2", [ROLE_B])];
+            return [member("2", [])];
+        });
+        const cfg = config([pair(A, ROLE_A, B, ROLE_B), pair(A, ROLE_A2, C, ROLE_C)]);
+        const drift = await roleSync.loadDrift(cfg);
+        expect(drift.error).toBeNull();
+        expect(drift.total).toBe(1);
+        expect(drift.errors).toEqual([`Der Bot ist nicht auf ${C}.`]);
+        const view = await roleSync.roleSyncView(cfg);
+        expect(view.driftError).toBeNull();
+        expect(view.driftErrors).toEqual([`Der Bot ist nicht auf ${C}.`]);
+    });
+
+    it("names a failed member list among partial failures when another loaded", async () => {
+        discord.fetchGuildMembersCached.mockImplementation(async (id) => {
+            if (id === C) throw new Error("Intent fehlt");
+            return id === B ? [member("2", [ROLE_B])] : [member("2", [])];
+        });
+        const drift = await roleSync.loadDrift(config([pair(A, ROLE_A, B, ROLE_B), pair(A, ROLE_A2, C, ROLE_C)]));
+        expect(drift.error).toBeNull();
+        expect(drift.total).toBe(1);
+        expect(drift.errors.join(" ")).toContain("Intent fehlt");
     });
 });
 

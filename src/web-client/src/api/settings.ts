@@ -200,7 +200,10 @@ export type RoleSyncData = {
     overlaps: RoleSyncOverlap[];
     drift: RoleSyncDriftGroup[];
     driftTotal: number;
+    /** Set when no member list could be read: the drift is unknown. */
     driftError: string | null;
+    /** Servers that could not be read while others could; the drift above still counts. */
+    driftErrors?: string[];
     lastRun: RoleSyncRun | null;
 };
 export type RemindersData = {

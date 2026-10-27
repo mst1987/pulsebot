@@ -49,8 +49,10 @@ const roleName = (servers: RoleSyncServer[], guildId: string, id: string) => {
 /** "Pulse @Raider → Talk @Raider-Talk": a pair in one line of text. */
 const pairText = (servers: RoleSyncServer[], rule: RoleSyncRule) => `${serverName(servers, rule.fromGuildId)} ${roleName(servers, rule.fromGuildId, rule.fromRoleId)} ${DIRECTION_LABEL[rule.direction]} ${serverName(servers, rule.toGuildId)} ${roleName(servers, rule.toGuildId, rule.toRoleId)}`;
 
-export default function RoleSyncPart({ onConfig }: {
+export default function RoleSyncPart({ onConfig, reloadKey }: {
     onConfig: (config: AdminConfig) => void;
+    /** Changes when the server list was saved: the server selects reload without a page reload. */
+    reloadKey?: unknown;
 }) {
     const [data, setData] = useState<RoleSyncData | null>(null);
     const [error, setError] = useState("");
@@ -63,7 +65,7 @@ export default function RoleSyncPart({ onConfig }: {
     const load = () => {
         getRoleSync().then((d) => { setData(d); setError(""); }).catch((err: ApiError) => setError(err.message));
     };
-    useEffect(load, []);
+    useEffect(load, [reloadKey]);
 
     const save = async (rules: RoleSyncRule[], message: string) => {
         const { config } = await updateSettings(roleSyncPatch(rules) as Partial<AdminConfig>);
@@ -84,7 +86,7 @@ export default function RoleSyncPart({ onConfig }: {
     };
 
     const canAdd = !!data && data.servers.length >= 2;
-    const drift = data ? driftBadge(data.driftTotal, data.driftError) : null;
+    const drift = data ? driftBadge(data.driftTotal, data.driftError, data.driftErrors) : null;
     const head = (
         <PartHead
             icon="inv_misc_groupneedmore"

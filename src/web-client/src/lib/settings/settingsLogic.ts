@@ -771,14 +771,18 @@ export function withRoleRule(rules: RoleSyncRule[], index: number, rule: RoleSyn
     return rules.map((r, i) => (i === index ? rule : r));
 }
 
-/** The small badge of the role sync head: how many members kept a synced role the source lost. */
-export function driftBadge(total: number, error: string | null): { label: string; tone: "ok" | "mid" | ""; tip: string } {
+/**
+ * The small badge of the role sync head: how many members kept a synced role the source lost.
+ * `errors`: servers that could not be read while others could; the count stands, the tip names them.
+ */
+export function driftBadge(total: number, error: string | null, errors: string[] = []): { label: string; tone: "ok" | "mid" | ""; tip: string } {
     if (error) return { label: t("settings.drift.unknown"), tone: "", tip: error };
-    if (!total) return { label: t("settings.drift.none"), tone: "ok", tip: t("settings.drift.noneTip") };
+    const partial = errors.length ? ` ${errors.join(" ")}` : "";
+    if (!total) return { label: t("settings.drift.none"), tone: "ok", tip: t("settings.drift.noneTip") + partial };
     return {
         label: t("settings.drift.count", { count: total }),
         tone: "mid",
-        tip: t("settings.drift.tip"),
+        tip: t("settings.drift.tip") + partial,
     };
 }
 

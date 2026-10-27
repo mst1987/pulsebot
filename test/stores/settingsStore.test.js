@@ -819,6 +819,41 @@ describe("stores/settingsStore roleSync and categoryReminders", () => {
         expect(saved.roleSync).toEqual([pair(S1, "111111", S3, "222222")]);
     });
 
+    // A config.json from before #896: event/talk pairs and the old server block.
+    const LEGACY_ROLE_SYNC = [
+        { eventRoleId: "111111", talkRoleId: "222222", direction: "toTalk" },
+        { eventRoleId: "333333", talkRoleId: "444444", direction: "toEvent" },
+    ];
+    const writeLegacy = (discordServers) => {
+        saveConfig({});
+        const key = [...fs.__store.keys()].find((k) => k.endsWith("config.json"));
+        fs.__store.set(key, JSON.stringify({ discordServers, roleSync: LEGACY_ROLE_SYNC }));
+        return key;
+    };
+    const MIGRATED = [pair(S1, "111111", S2, "222222", "toTarget"), pair(S1, "333333", S2, "444444", "toSource")];
+
+    it("writes old pairs in the new form when a foreign key is saved", () => {
+        const key = writeLegacy({ eventGuilds: [{ guildId: S1 }], talkGuildId: S2 });
+        saveConfig({ eventLang: "en" });
+        expect(JSON.parse(fs.__store.get(key)).roleSync).toEqual(MIGRATED);
+        expect(getConfig().roleSync).toEqual(MIGRATED);
+    });
+
+    it("keeps old pairs when the old server dialog saves without servers", () => {
+        const key = writeLegacy({ eventGuilds: [{ guildId: S1 }], talkGuildId: S2 });
+        saveConfig({ discordServers: { eventGuilds: [{ guildId: S1 }], talkGuildId: S2 } });
+        expect(JSON.parse(fs.__store.get(key)).roleSync).toEqual(MIGRATED);
+    });
+
+    it("keeps an old pair with ten servers and an own talk server", () => {
+        const ten = Array.from({ length: 10 }, (_, i) => ({ guildId: String(910000 + i) }));
+        const key = writeLegacy({ servers: ten, talkGuildId: S2 });
+        saveConfig({ eventLang: "en" });
+        const saved = JSON.parse(fs.__store.get(key)).roleSync;
+        expect(saved).toHaveLength(2);
+        expect(saved[0]).toMatchObject({ fromGuildId: "910000", toGuildId: S2, direction: "toTarget" });
+    });
+
     it("clamps reminder hours, drops switched-off categories and defaults the target", () => {
         expect(normalizeCategoryReminders({
             123456: { missingHours: "24", signedHours: 1.4, target: "talk" },

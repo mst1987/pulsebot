@@ -474,6 +474,13 @@ describe("ping targets, role sync and reminders", () => {
         expect(logic.driftBadge(0, "Intent fehlt")).toMatchObject({ tone: "", tip: "Intent fehlt" });
     });
 
+    it("keeps the count when only some servers could not be read and names them in the tip", () => {
+        const partial = logic.driftBadge(3, null, ["Der Bot ist nicht auf PuG."]);
+        expect(partial).toMatchObject({ tone: "mid", label: "3 Abweichungen" });
+        expect(partial.tip).toContain("Der Bot ist nicht auf PuG.");
+        expect(logic.driftBadge(0, null, ["Intent fehlt"])).toMatchObject({ tone: "ok", label: "Keine Abweichung" });
+    });
+
     it("sums a reminder rule up in one short line", () => {
         expect(logic.reminderSummary(undefined)).toBe("aus");
         expect(logic.reminderSummary({ missingHours: 24, signedHours: 1, target: "talk" })).toBe("24 h vor Schluss · 1 h vor Raid");

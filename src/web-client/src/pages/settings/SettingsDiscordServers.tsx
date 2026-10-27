@@ -178,7 +178,7 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
             )}
 
             {/* #896: the role sync pairs any two servers of the list and says so itself when there is only one. */}
-            <RoleSyncPart onConfig={onConfig} />
+            <RoleSyncPart onConfig={onConfig} reloadKey={data.discordServers} />
             <RemindersPart onConfig={onConfig} />
 
             {editing && (
