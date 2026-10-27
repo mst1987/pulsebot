@@ -38,6 +38,7 @@ const versionSettings = require("../../services/events/versionSettings");
 const { capabilityMatrix } = require("../../services/events/versionCapabilities");
 const { isVersionFeature, normalizeDisabled } = require("../../config/versionFeatures");
 const { mainVersionFor } = require("../../services/events/mainVersion");
+const { logChannelsOf, logChannelsFromBody } = require("../../services/logcheck/logChannelSettings");
 const { normalizeCategoryPlanning } = require("../../services/events/planning");
 const { normalizeCategorySignupCharacters } = require("../../services/signups/signupCharacters");
 const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../services/events/contentVersions");
@@ -219,6 +220,39 @@ const DISCORD_SERVER_FIELDS = ["signupNoteChannelId", "guildBankChannelId"];
 
 /** The guild bank's orga channel of a config ("" = none). */
 const guildBankOf = (config) => String(((config && config.discordServers) || {}).guildBankChannelId || "");
+
+// Body keys stored per Discord server (config.serverSettings[guildId]). Each
+// part of the "data per server" epic (#926) that moves a setting there adds
+// its key here, so its PATCH is checked by serverSettingsTarget() below.
+// #925: the rights of a server (all but the global adminRoleIds) are guarded the same way.
+const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper", "rolePermissions", "baseAccess", "userPermissions", "orgaRoleIds", "botCommandAccess"];
+// Server-bound keys that, without an active server, edit the first server
+// (#927 Raid-Helper, as its section shows); every other key then needs one.
+const FIRST_SERVER_FALLBACK_KEYS = ["raidhelper"];
+
+/**
+ * The server a PATCH of server-bound settings writes to — guarded against a
+ * stale tab. The active server is per session, not per tab: a tab loaded on
+ * server A whose session has since switched to B (another tab) would
+ * otherwise write A's values into B. So the client sends the server it loaded
+ * (`serverSettingsGuildId`, GET's `activeGuildId`, "" when none was active)
+ * with every server-bound key, and a mismatch is refused with 409 instead of
+ * overwriting.
+ * @returns {{ guildId: string } | { status: number, code: string, message: string } | null}
+ *   null when the body holds no server-bound key
+ */
+function serverSettingsTarget(req, body, config) {
+    const keys = SERVER_SCOPED_KEYS.filter((k) => body[k] !== undefined);
+    if (!keys.length) return null;
+    const active = String(activeGuildFor(req) || "");
+    if (String(body.serverSettingsGuildId || "") !== active) {
+        return { status: 409, code: "server_switched", message: "Der Discord-Server wurde gewechselt – bitte die Seite neu laden." };
+    }
+    const fallback = keys.every((k) => FIRST_SERVER_FALLBACK_KEYS.includes(k)) ? String(firstServerId(config) || "") : "";
+    const guildId = active || fallback;
+    if (!guildId) return { status: 400, code: "no_active_server", message: "Kein aktiver Discord-Server." };
+    return { guildId };
+}
 
 /** GET /api/settings — config + raidsheets + the active guild's roles/categories. */
 const getSettings = withUser({}, async ({ user, req, res }) => {
@@ -693,6 +727,9 @@ function addonListPatch(body) {
 const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, res, user }) => {
     const touchesGuarded = FULL_ADMIN_KEYS.some((k) => body[k] !== undefined) || touchesServerAccess(body.serverSettings);
     if (touchesGuarded && !requireFullAdmin(req, res)) return;
+    // checked before anything else, so a stale tab changes nothing at all
+    const server = serverSettingsTarget(req, body, getConfig());
+    if (server && !server.guildId) return error(res, server.status, server.code, server.message);
     const partial = {};
     // global: the full-admin roles count on every server
     if (body.adminRoleIds !== undefined) partial.adminRoleIds = asStringArray(body.adminRoleIds);
@@ -706,9 +743,9 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // Sent as the whole map: a command left out follows its defaultAccess again.
     if (body.botCommandAccess !== undefined) access.botCommandAccess = normalizeBotCommandAccess(body.botCommandAccess);
     if (Object.keys(access).length) {
-        const accessGuild = activeGuildFor(req);
-        if (!accessGuild) return error(res, 400, "no_active_server", "Kein Server gewählt – die Rechte gelten je Server.");
-        partial.serverSettings = { [accessGuild]: access };
+        // serverSettingsTarget() checked the tab's server against the active one (409) and that
+        // one is active at all (400) - rights never fall back to the first server
+        partial.serverSettings = { [server.guildId]: access };
     }
     if (body.guildId !== undefined) partial.guildId = String(body.guildId).trim();
     // Only the fields sent: settingsStore merges them into the stored block and
@@ -732,7 +769,8 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // #927: the active server's Raid-Helper block, merged here (the store replaces a server's key whole)
     let raidhelperGuild = "";
     if (body.raidhelper !== undefined) {
-        raidhelperGuild = raidhelperGuildOf(req, getConfig());
+        // the server checked by serverSettingsTarget() (active, else the first one)
+        raidhelperGuild = server.guildId;
         const patch = raidhelperPatch(body.raidhelper, raidhelperGuild, getConfig());
         if (patch.error) return error(res, 400, "invalid_raidhelper", patch.error);
         const servers = { ...(partial.serverSettings || {}) };
@@ -743,7 +781,17 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (body.applicationChannelId !== undefined) partial.applicationChannelId = String(body.applicationChannelId).trim();
     if (body.categoryIds !== undefined) partial.categoryIds = asStringArray(body.categoryIds);
     if (body.categoryRoles !== undefined && typeof body.categoryRoles === "object") partial.categoryRoles = body.categoryRoles;
-    if (body.logChannelIds !== undefined) partial.logChannelIds = asStringArray(body.logChannelIds);
+    // #921: the log channels of the server the tab loaded, sent whole (ids or { channelId, versionId }).
+    if (body.logChannels !== undefined) {
+        const { guildId } = server;
+        const config = getConfig();
+        const parents = new Map((discord.listAllChannels(guildId) || []).map((c) => [c.id, c.parentId || ""]));
+        const logChannels = logChannelsFromBody(body.logChannels, {
+            current: logChannelsOf(guildId, { config }), parentOf: (id) => parents.get(id) || "", config,
+        });
+        partial.serverSettings = { ...(partial.serverSettings || {}) };
+        partial.serverSettings[guildId] = { ...(partial.serverSettings[guildId] || {}), logChannels };
+    }
     if (body.raidDefaults !== undefined && typeof body.raidDefaults === "object") partial.raidDefaults = body.raidDefaults;
     // blizzard: only the known fields, the secret only when sent (omit = keep, "" = clear)
     if (body.blizzard !== undefined && typeof body.blizzard === "object") {
@@ -1137,6 +1185,6 @@ module.exports = {
     getSettings, updateSettings, getItemSearch, getArchiveExport, getCategorySwitch, saveRaidsheetHandler, deleteRaidsheetHandler,
     getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers,
     getRoleSync, getReminders,
-    publicConfig, viewConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, ADDON_KEYS, FULL_ADMIN_KEYS,
+    publicConfig, viewConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, ADDON_KEYS, FULL_ADMIN_KEYS, SERVER_SCOPED_KEYS,
     routes,
 };

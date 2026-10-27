@@ -206,6 +206,7 @@ describe("web/apiRoutes/settings", () => {
             requireAdmin.mockReset().mockImplementation(realMiddleware.requireAdmin);
             requireFullAdmin.mockReset().mockImplementation(realMiddleware.requireFullAdmin);
             readJsonBody.mockReset().mockImplementation(realBody.readJsonBody);
+            activeGuildFor.mockReturnValue("");
         });
 
         // Routed end to end: the handler has to be imported, not only listed (#251).
@@ -444,6 +445,76 @@ describe("web/apiRoutes/settings", () => {
                 expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ mainVersion: "forever", categoryVersion: { cat1: "tbc" } });
                 await patch("/api/settings", { categoryVersion: null });
                 expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ categoryVersion: {} });
+            });
+
+            describe("the log channels of the active server (#921)", () => {
+                const discord = require("../../../src/services/discord/discord");
+                beforeEach(() => {
+                    auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                    auth.checkCsrf.mockReturnValue(true);
+                    settingsStore.getConfig.mockReturnValue({
+                        mainVersion: "tbc",
+                        categoryVersion: { catF: "forever" },
+                        serverSettings: { "guild-1": { logChannels: [{ channelId: "old", versionId: "classic" }] } },
+                    });
+                    discord.listAllChannels.mockReturnValue([{ id: "inF", parentId: "catF" }, { id: "loose", parentId: null }]);
+                });
+                afterEach(() => {
+                    activeGuildFor.mockReturnValue("");
+                    settingsStore.getConfig.mockReturnValue({});
+                    discord.listAllChannels.mockReturnValue([]);
+                });
+
+                it("saves the list under the active server: bare ids keep or derive their version, objects set it", async () => {
+                    activeGuildFor.mockReturnValue("guild-1");
+                    await patch("/api/settings", { serverSettingsGuildId: "guild-1", logChannels: ["old", "inF", "loose", { channelId: "set", versionId: "forever" }] });
+                    expect(discord.listAllChannels).toHaveBeenCalledWith("guild-1");
+                    expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({
+                        serverSettings: { "guild-1": { logChannels: [
+                            { channelId: "old", versionId: "classic" },
+                            { channelId: "inF", versionId: "forever" },
+                            { channelId: "loose", versionId: "tbc" },
+                            { channelId: "set", versionId: "forever" },
+                        ] } },
+                    });
+                });
+
+                it("an empty list clears the server's channels", async () => {
+                    activeGuildFor.mockReturnValue("guild-1");
+                    await patch("/api/settings", { serverSettingsGuildId: "guild-1", logChannels: [] });
+                    expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ serverSettings: { "guild-1": { logChannels: [] } } });
+                });
+
+                it("refuses the list without an active server", async () => {
+                    const res = await patch("/api/settings", { logChannels: ["old"] });
+                    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    expect(json(res).error.code).toBe("no_active_server");
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                // #921 review: the active server is per session; a tab loaded on another server must not write into this one
+                it("refuses with 409 when the tab loaded another server, and changes nothing", async () => {
+                    activeGuildFor.mockReturnValue("guild-B");
+                    const res = await patch("/api/settings", { serverSettingsGuildId: "guild-1", logChannels: ["a1"], officerRoleId: "r1" });
+                    expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                    expect(json(res).error.code).toBe("server_switched");
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                it("refuses with 409 when the tab sends no server", async () => {
+                    activeGuildFor.mockReturnValue("guild-1");
+                    const res = await patch("/api/settings", { logChannels: ["old"] });
+                    expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                    expect(json(res).error.code).toBe("server_switched");
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                it("a save without server-bound keys needs no server", async () => {
+                    activeGuildFor.mockReturnValue("guild-B");
+                    const res = await patch("/api/settings", { officerRoleId: "r1" });
+                    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                    expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ officerRoleId: "r1" });
+                });
             });
 
             describe("a fixed version per category (#738)", () => {
@@ -876,8 +947,9 @@ describe("web/apiRoutes/settings", () => {
             it("normalises rolePermissions before saving them", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
+                activeGuildFor.mockReturnValue("guild-1");
 
-                await patch("/api/settings", {
+                await patch("/api/settings", { serverSettingsGuildId: "guild-1",
                     rolePermissions: {
                         role1: { raids: { write: true }, unknownArea: { read: true } },
                         role2: { cla: { read: false, write: false } },
@@ -893,8 +965,9 @@ describe("web/apiRoutes/settings", () => {
             it("normalises the base access before saving it", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
+                activeGuildFor.mockReturnValue("guild-1");
 
-                await patch("/api/settings", {
+                await patch("/api/settings", { serverSettingsGuildId: "guild-1",
                     baseAccess: { loot: { read: true }, history: { write: true }, nonsense: { read: true }, cla: { read: false } },
                 });
 
@@ -907,12 +980,13 @@ describe("web/apiRoutes/settings", () => {
             it("saves which roles count as orga, trimmed - and only for a full admin", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
-                await patch("/api/settings", { orgaRoleIds: [" r-lead ", "", "r-officer"] });
+                activeGuildFor.mockReturnValue("guild-1");
+                await patch("/api/settings", { serverSettingsGuildId: "guild-1", orgaRoleIds: [" r-lead ", "", "r-officer"] });
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { "guild-1": { orgaRoleIds: ["r-lead", "r-officer"] } } });
 
                 settingsStore.saveConfig.mockClear();
                 auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), settings: { read: true, write: true } } });
-                const res = await patch("/api/settings", { orgaRoleIds: ["r-mo"] });
+                const res = await patch("/api/settings", { serverSettingsGuildId: "guild-1", orgaRoleIds: ["r-mo"] });
                 // a settings writer must not make their own raider role orga
                 expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
@@ -923,16 +997,17 @@ describe("web/apiRoutes/settings", () => {
                 jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
+                activeGuildFor.mockReturnValue("guild-1");
                 const pugRoles = { g1: { versions: { tbc: "r-pug-tbc" }, classes: { Mage: "r-pug-mage" } } };
                 settingsStore.getConfig.mockReturnValue({ pugRoles, serverSettings: { "guild-1": { orgaRoleIds: ["r-pug-tbc"] } } });
                 try {
-                    const res = await patch("/api/settings", { orgaRoleIds: ["r-pug-tbc", "r-pug-mage"] });
+                    const res = await patch("/api/settings", { serverSettingsGuildId: "guild-1", orgaRoleIds: ["r-pug-tbc", "r-pug-mage"] });
                     expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
                     expect(json(res)).toMatchObject({ error: { code: "pug_onboarding_role", message: expect.stringContaining("Orga-Rolle") } });
                     expect(json(res).error.message).toContain("Magier");
                     expect(settingsStore.saveConfig).not.toHaveBeenCalled();
                     // the old orga entry does not block another save
-                    await patch("/api/settings", { orgaRoleIds: ["r-pug-tbc", "r-lead"] });
+                    await patch("/api/settings", { serverSettingsGuildId: "guild-1", orgaRoleIds: ["r-pug-tbc", "r-lead"] });
                     expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { "guild-1": { orgaRoleIds: ["r-pug-tbc", "r-lead"] } } });
                 } finally {
                     settingsStore.getConfig.mockReturnValue({});
@@ -945,6 +1020,7 @@ describe("web/apiRoutes/settings", () => {
                 jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
+                activeGuildFor.mockReturnValue("guild-1");
                 const R = "300000000000000001";
                 const sync = (toRoleId) => ({ fromGuildId: "100000000000000001", fromRoleId: R, toGuildId: "100000000000000002", toRoleId, direction: "both" });
                 settingsStore.getConfig.mockReturnValue({
@@ -953,7 +1029,7 @@ describe("web/apiRoutes/settings", () => {
                     roleSync: [sync("300000000000000002")],
                 });
                 try {
-                    const res = await patch("/api/settings", { rolePermissions: { [R]: { raids: { read: true, write: true } } } });
+                    const res = await patch("/api/settings", { serverSettingsGuildId: "guild-1", rolePermissions: { [R]: { raids: { read: true, write: true } } } });
                     expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
                     expect(json(res).error.message).toContain("Bereichsrecht raids (schreiben)");
                     const res2 = await patch("/api/settings", { roleSync: [sync("300000000000000002"), sync("300000000000000003")] });
@@ -974,8 +1050,9 @@ describe("web/apiRoutes/settings", () => {
                     access: { ...emptyAccess(), settings: { read: true, write: true } },
                 });
                 auth.checkCsrf.mockReturnValue(true);
+                activeGuildFor.mockReturnValue("guild-1");
 
-                const res = await patch("/api/settings", { rolePermissions: { role1: { raids: { write: true } } } });
+                const res = await patch("/api/settings", { serverSettingsGuildId: "guild-1", rolePermissions: { role1: { raids: { write: true } } } });
 
                 expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
@@ -989,8 +1066,9 @@ describe("web/apiRoutes/settings", () => {
                     access: { ...emptyAccess(), settings: { read: true, write: true } },
                 });
                 auth.checkCsrf.mockReturnValue(true);
+                activeGuildFor.mockReturnValue("guild-1");
 
-                const res = await patch("/api/settings", { baseAccess: { settings: { write: true } } });
+                const res = await patch("/api/settings", { serverSettingsGuildId: "guild-1", baseAccess: { settings: { write: true } } });
 
                 expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
@@ -1400,6 +1478,7 @@ describe("web/apiRoutes/settings", () => {
         describe("PATCH /api/settings userPermissions", () => {
             it("normalises and stores the per-account grants", async () => {
                 readJsonBody.mockResolvedValue({
+                    serverSettingsGuildId: "g1",
                     userPermissions: { "123456789012345678": { lootcouncil: { write: true } } },
                 });
                 const res = mockRes();
@@ -1421,6 +1500,7 @@ describe("web/apiRoutes/settings", () => {
         describe("PATCH /api/settings botCommandAccess", () => {
             it("normalises and stores the bot command rules", async () => {
                 readJsonBody.mockResolvedValue({
+                    serverSettingsGuildId: "g1",
                     botCommandAccess: {
                         fillsetup: { mode: "roles", roleIds: ["123456789012345678", "nope"] },
                         logcheck: { mode: "bogus" },
@@ -1483,18 +1563,41 @@ describe("web/apiRoutes/settings", () => {
 
             it("PATCH: writes the rights to the active server and nowhere else, adminRoleIds globally", async () => {
                 activeGuildFor.mockReturnValue("g2");
-                readJsonBody.mockResolvedValue({ orgaRoleIds: ["r-new"], adminRoleIds: ["r-admin", "r-admin2"] });
+                readJsonBody.mockResolvedValue({ serverSettingsGuildId: "g2", orgaRoleIds: ["r-new"], adminRoleIds: ["r-admin", "r-admin2"] });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ adminRoleIds: ["r-admin", "r-admin2"], serverSettings: { g2: { orgaRoleIds: ["r-new"] } } });
             });
 
             it("PATCH: refuses rights without an active server", async () => {
                 activeGuildFor.mockReturnValue("");
-                readJsonBody.mockResolvedValue({ rolePermissions: { "r-x": { raids: { write: true } } } });
+                readJsonBody.mockResolvedValue({ serverSettingsGuildId: "", rolePermissions: { "r-x": { raids: { write: true } } } });
                 const res = mockRes();
                 await updateSettings({ headers: {} }, res);
                 expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(body(res).error.code).toBe("no_active_server");
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            // A tab loaded on g1 whose session has switched to g2 (another tab) must not
+            // write g1's rights into g2 - the same 409 as the log channels (#921).
+            it("PATCH: refuses rights from a tab loaded on another server (409)", async () => {
+                for (const key of ["rolePermissions", "baseAccess", "userPermissions", "orgaRoleIds", "botCommandAccess"]) {
+                    activeGuildFor.mockReturnValue("g2");
+                    settingsStore.saveConfig.mockClear();
+                    readJsonBody.mockResolvedValue({ serverSettingsGuildId: "g1", [key]: key === "orgaRoleIds" ? ["r-x"] : {} });
+                    const res = mockRes();
+                    await updateSettings({ headers: {} }, res);
+                    expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                    expect(body(res).error.code).toBe("server_switched");
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                }
+            });
+
+            it("PATCH: adminRoleIds alone stays global and needs no server", async () => {
+                activeGuildFor.mockReturnValue("");
+                readJsonBody.mockResolvedValue({ adminRoleIds: ["r-admin"] });
+                await updateSettings({ headers: {} }, mockRes());
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ adminRoleIds: ["r-admin"] });
             });
 
             it("PATCH: a limited settings user can not write rights through serverSettings either", async () => {
@@ -1564,7 +1667,7 @@ describe("web/apiRoutes/settings", () => {
 
             it("sets a key, switches on and answers masked", async () => {
                 settingsStore.getConfig.mockReturnValue(stored(null));
-                readJsonBody.mockResolvedValue({ raidhelper: { enabled: true, apiKey: ` ${KEY} ` } });
+                readJsonBody.mockResolvedValue({ raidhelper: { enabled: true, apiKey: ` ${KEY} ` }, serverSettingsGuildId: "200" });
                 const res = mockRes();
                 await updateSettings({ headers: {} }, res);
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { 200: { raidhelper: expect.objectContaining({ enabled: true, apiKey: KEY, envKey: false }) } } });
@@ -1574,18 +1677,18 @@ describe("web/apiRoutes/settings", () => {
 
             it("keeps the key when none is sent and clears it on an empty one", async () => {
                 settingsStore.getConfig.mockReturnValue(stored({ enabled: true, apiKey: KEY, envKey: false }));
-                readJsonBody.mockResolvedValue({ raidhelper: { enabled: false } });
+                readJsonBody.mockResolvedValue({ raidhelper: { enabled: false }, serverSettingsGuildId: "200" });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig.mock.calls[0][0].serverSettings[200].raidhelper).toMatchObject({ enabled: false, apiKey: KEY });
 
-                readJsonBody.mockResolvedValue({ raidhelper: { apiKey: "" } });
+                readJsonBody.mockResolvedValue({ raidhelper: { apiKey: "" }, serverSettingsGuildId: "200" });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig.mock.calls[1][0].serverSettings[200].raidhelper).toMatchObject({ apiKey: "" });
             });
 
             it("keeps the .env key mark until a key is entered", async () => {
                 settingsStore.getConfig.mockReturnValue(stored({ enabled: true, envKey: true }));
-                readJsonBody.mockResolvedValue({ raidhelper: { serverId: "123456789012345678" } });
+                readJsonBody.mockResolvedValue({ raidhelper: { serverId: "123456789012345678" }, serverSettingsGuildId: "200" });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig.mock.calls[0][0].serverSettings[200].raidhelper).toMatchObject({ envKey: true, serverId: "123456789012345678", apiKey: "" });
             });
@@ -1593,7 +1696,7 @@ describe("web/apiRoutes/settings", () => {
             it("refuses a bad server id or key and saves nothing", async () => {
                 settingsStore.getConfig.mockReturnValue(stored(null));
                 for (const raidhelper of [{ serverId: "abc" }, { apiKey: "two words" }, { apiKey: "x".repeat(201) }]) {
-                    readJsonBody.mockResolvedValue({ raidhelper });
+                    readJsonBody.mockResolvedValue({ raidhelper, serverSettingsGuildId: "200" });
                     const res = mockRes();
                     await updateSettings({ headers: {} }, res);
                     expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
@@ -1609,6 +1712,57 @@ describe("web/apiRoutes/settings", () => {
                 const res = mockRes();
                 await updateSettings({ headers: {} }, res);
                 expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            });
+
+            // #921: the active server is per session, not per tab — a tab loaded
+            // on 200 whose session switched to 300 must not write 300's block
+            it("refuses a PATCH for another server than the active one (409) and leaves its block alone", async () => {
+                const before = { enabled: true, serverId: "", apiKey: KEY, envKey: false };
+                settingsStore.getConfig.mockReturnValue({
+                    discordServers: { servers: [{ guildId: "200" }, { guildId: "300" }] },
+                    serverSettings: { 300: { raidhelper: before } },
+                });
+                activeGuildFor.mockReturnValue("300");
+                for (const sent of [{ serverSettingsGuildId: "200" }, {}]) {
+                    readJsonBody.mockResolvedValue({ raidhelper: { enabled: false }, ...sent });
+                    const res = mockRes();
+                    await updateSettings({ headers: {} }, res);
+                    expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                    expect(body(res).error.code).toBe("server_switched");
+                    expect(leaks(body(res))).toBe(false);
+                }
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                expect(settingsStore.getConfig().serverSettings[300].raidhelper).toEqual(before);
+            });
+
+            it("saves for the server the page loaded when it is still the active one", async () => {
+                settingsStore.getConfig.mockReturnValue(stored(null));
+                activeGuildFor.mockReturnValue("300");
+                readJsonBody.mockResolvedValue({ raidhelper: { enabled: true }, serverSettingsGuildId: "300" });
+                const res = mockRes();
+                await updateSettings({ headers: {} }, res);
+                expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { 300: { raidhelper: expect.objectContaining({ enabled: true }) } } });
+            });
+
+            it("without an active server edits the first server, as the page shows it (#927)", async () => {
+                settingsStore.getConfig.mockReturnValue(stored(null));
+                activeGuildFor.mockReturnValue("");
+                readJsonBody.mockResolvedValue({ raidhelper: { enabled: true }, serverSettingsGuildId: "" });
+                const res = mockRes();
+                await updateSettings({ headers: {} }, res);
+                expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                expect(settingsStore.saveConfig.mock.calls[0][0].serverSettings[200].raidhelper).toMatchObject({ enabled: true });
+            });
+
+            it("still needs an active server when log channels go along (no first-server fallback)", async () => {
+                settingsStore.getConfig.mockReturnValue(stored(null));
+                activeGuildFor.mockReturnValue("");
+                readJsonBody.mockResolvedValue({ raidhelper: { enabled: true }, logChannels: [], serverSettingsGuildId: "" });
+                const res = mockRes();
+                await updateSettings({ headers: {} }, res);
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
         });
 

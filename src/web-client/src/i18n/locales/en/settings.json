@@ -2,6 +2,7 @@
     "crumb": "Settings › {crumb}",
     "saving": "Saving…",
     "savedToast": "Saved.",
+    "serverSwitched": "The Discord server was switched in another tab – please reload the page. Nothing was saved.",
     "account": "Account {id}",
     "noName": "(no name)",
     "editKicker": "Edit connection",
@@ -86,7 +87,7 @@
         "raidsheetsSub": "Google Sheets by content (tier 4/5 etc.). When filling, the matching sheet is suggested by its keywords. A fixed sheet for a whole raid category is assigned under Categories.",
         "topItemsSub": "The really big drops — weapons, legendary parts, anything the guild values highly. When a raid awards one of them, the dashboard highlights the award. Which loot addon a category uses is set under Categories.",
         "logChannels": "Log channels",
-        "logChannelsSub": "Channels where Warcraft Logs are posted automatically. The bot adds the evaluation buttons there.",
+        "logChannelsSub": "Channels of this server where Warcraft Logs are posted. The bot adds the evaluation buttons there. The game version decides what a log counts for as long as it is not linked to a raid; \"By log site\" takes the version of the Warcraft Logs site.",
         "appChannel": "Application channel",
         "appChannelSub": "Channel where new applications are posted as a thread.",
         "officerRole": "Officer role",
@@ -410,7 +411,11 @@
         "noTopItem": "No top item yet.",
         "unknownChannel": "Unknown channel",
         "removeChannel": "Remove channel",
-        "addChannel": "+ Add channel"
+        "addChannel": "+ Add channel",
+        "logVersionAuto": "From the category",
+        "logVersionHost": "By log site",
+        "logVersionFor": "Game version for {name}",
+        "logNoServer": "Log channels are set per server. Pick a server first."
     },
     "raiderChars": {
         "saved": "Assignment for {name} saved.",
