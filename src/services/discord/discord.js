@@ -90,6 +90,17 @@ function getGuild(guildId) {
     return client && guildId ? client.guilds.cache.get(guildId) : null;
 }
 
+/** A server's own icon from Discord's CDN, "" when it has none or the bot does not know it. */
+function guildIconUrl(guildId) {
+    const guild = getGuild(guildId);
+    if (!guild || typeof guild.iconURL !== "function") return "";
+    try {
+        return guild.iconURL({ size: 64 }) || "";
+    } catch {
+        return "";
+    }
+}
+
 /**
  * Whether the bot has a server cached AND usable (#926). During a Discord
  * outage discord.js v14 keeps a server in the cache with `available === false`
@@ -1249,7 +1260,7 @@ function embed() {
 }
 
 module.exports = {
-    setClient, getClient, isOnline, fetchTextChannel, textChannelOf, listGuilds, getGuild, isGuildAvailable, listTextChannels, listEmojis,
+    setClient, getClient, isOnline, fetchTextChannel, textChannelOf, listGuilds, getGuild, guildIconUrl, isGuildAvailable, listTextChannels, listEmojis,
     sendDirectMessage, embed,
     resolveUserNames, avatarUrlFor, avatarUrlOf, NAME_FETCH_MS, ABSENT_MS, _resetAbsentNamesForTests,
     memberRoleIds, guildMembership,

@@ -135,6 +135,21 @@ describe("services/discord/discord channel management", () => {
             expect(discord.listGuilds()).toEqual([{ id: "g1", name: "" }]);
         });
 
+        it("guildIconUrl: the server's Discord icon, \"\" without one, an unknown server or a client", () => {
+            expect(discord.guildIconUrl("g1")).toBe(""); // no client
+            const guild = makeGuild([]);
+            setClientWithGuild(guild);
+            expect(discord.guildIconUrl("g1")).toBe(""); // the mock guild has no iconURL
+            guild.iconURL = jest.fn(() => "https://cdn.discordapp.com/icons/g1/abc.png?size=64");
+            expect(discord.guildIconUrl("g1")).toBe("https://cdn.discordapp.com/icons/g1/abc.png?size=64");
+            expect(guild.iconURL).toHaveBeenCalledWith({ size: 64 });
+            guild.iconURL = jest.fn(() => null); // a server without an icon
+            expect(discord.guildIconUrl("g1")).toBe("");
+            guild.iconURL = jest.fn(() => { throw new Error("broken"); });
+            expect(discord.guildIconUrl("g1")).toBe("");
+            expect(discord.guildIconUrl("nope")).toBe("");
+        });
+
         it("returns [] when the guild is unknown or the bot is not connected", () => {
             discord.setClient(null);
             expect(discord.listCategories("g1")).toEqual([]);

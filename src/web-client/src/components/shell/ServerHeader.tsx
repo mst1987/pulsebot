@@ -7,8 +7,15 @@ import Badge from "../ui/Badge";
 import { ChevronDownIcon, CheckIcon } from "../ui/icons";
 import { t, useT } from "../../i18n";
 
-// The guild crest in front of the server's name.
+// The crest in front of a server's name when it has no Discord icon (or it does not load).
 const GUILD_ICON = "inv_misc_tabardpvp_01";
+
+/** The server's own Discord icon, as in Discord's server list; the crest without one. */
+function GuildIcon({ guild, size }: { guild: SessionGuild; size: number }) {
+    const [broken, setBroken] = useState(false);
+    if (!guild.iconUrl || broken) return <WowIcon name={GUILD_ICON} size={size} />;
+    return <img className="srv-icon" src={guild.iconUrl} alt="" width={size} height={size} onError={() => setBroken(true)} />;
+}
 
 /** The list's options in order (the buttons carrying role="option"). */
 function options(list: HTMLElement): HTMLElement[] {
@@ -75,7 +82,7 @@ export default function ServerHeader({ guilds, activeGuildId }: {
         const only = guilds[0];
         return (
             <div className="srv-head is-single">
-                <WowIcon name={GUILD_ICON} size={24} />
+                <GuildIcon guild={only} size={24} />
                 <div className="srv-head-text">
                     <div className="srv-head-name">{only.name}</div>
                     {only.label && (
@@ -139,7 +146,7 @@ export default function ServerHeader({ guilds, activeGuildId }: {
                 onClick={() => setOpen((o) => !o)}
                 onKeyDown={onHeadKey}
             >
-                <WowIcon name={GUILD_ICON} size={24} />
+                {active ? <GuildIcon key={active.id} guild={active} size={24} /> : <WowIcon name={GUILD_ICON} size={24} />}
                 <span className="srv-head-text">
                     <span className="srv-head-name">{active ? active.name : t("shell.guild.choose")}</span>
                     <span className="srv-head-sub">{sub}</span>
@@ -161,6 +168,7 @@ export default function ServerHeader({ guilds, activeGuildId }: {
                                     type="button" role="option" aria-selected={on} tabIndex={-1}
                                     className={on ? "srv-opt is-on" : "srv-opt"} onClick={() => void pick(g.id)}
                                 >
+                                    <GuildIcon guild={g} size={20} />
                                     <span className="srv-head-text">
                                         <span className="srv-head-name">{g.name}</span>
                                         {g.label && <span className="srv-head-sub">{g.label}</span>}
