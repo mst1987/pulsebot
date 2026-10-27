@@ -151,6 +151,39 @@ function switchRosterPreview(categoryId, { fromVersion, toVersion } = {}) {
     };
 }
 
+/**
+ * The rosters and raider roles as `switches` would leave them, without writing anything -
+ * the same steps as applyRosterSwitch, for a check before the save (#930: pugRoleGuard).
+ * A roster to be created has the id "" and only what grants a right: server and roles
+ * (its managers come from the old roster and are no new right).
+ * @param {{ categoryId: string, fromVersion: string, toVersion: string }[]} switches
+ * @param {object} [fixes] the dialog's choices (`fixes[categoryId].roster`)
+ * @returns {{ rosters: object[], categoryRoles: { [categoryId: string]: string[] } }}
+ */
+function rostersAfterSwitches(switches, fixes = {}) {
+    const byId = new Map(rosterStore.listRosters().map((r) => [r.id, r]));
+    const created = [];
+    const categoryRoles = {};
+    for (const sw of Array.isArray(switches) ? switches : []) {
+        const categoryId = str(sw && sw.categoryId);
+        if (!categoryId || !sw.toVersion || sw.toVersion === sw.fromVersion) continue;
+        const fix = isMap(fixes) && isMap(fixes[categoryId]) ? fixes[categoryId] : {};
+        const wanted = cleanChoice(fix.roster);
+        const old = sw.fromVersion ? rosterStore.rosterForCategory(categoryId, sw.fromVersion) : null;
+        if (old && !old.closedAt) byId.set(old.id, { ...old, closedAt: "pending", closedReason: REASON });
+        let next = rosterStore.rosterForCategory(categoryId, sw.toVersion);
+        if (next && next.closedAt && next.closedReason === REASON) {
+            next = { ...next, closedAt: null, closedReason: null };
+            byId.set(next.id, next);
+        } else if (!next && old && wanted.create) {
+            next = { id: "", guildId: old.guildId, name: old.name, categoryId, versionId: sw.toVersion, roleIds: wanted.roleIds, trialRoleId: null, managers: [], members: {} };
+            created.push(next);
+        }
+        if (old || (next && !next.closedAt)) categoryRoles[categoryId] = next && !next.closedAt ? (next.roleIds || []).map(String) : [];
+    }
+    return { rosters: [...byId.values(), ...created], categoryRoles };
+}
+
 /** The listener (categorySwitch hook): the dialog's choice from `ctx.fixes`, the result merged into the switch. */
 function onSwitch(sw, ctx = {}) {
     const fixes = isMap(ctx.fixes) ? ctx.fixes : {};
@@ -180,4 +213,4 @@ function registerRosterVersionSwitch() {
     return unregister;
 }
 
-module.exports = { applyRosterSwitch, switchRosterPreview, registerRosterVersionSwitch, onSwitch, cleanChoice, REASON };
+module.exports = { applyRosterSwitch, switchRosterPreview, rostersAfterSwitches, registerRosterVersionSwitch, onSwitch, cleanChoice, REASON };

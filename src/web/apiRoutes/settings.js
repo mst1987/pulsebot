@@ -42,7 +42,7 @@ const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = requi
 const BOM = String.fromCharCode(0xfeff);
 const { defaultVersionSettings, defaultColorOf } = require("../../stores/versionSettingsSchema");
 const { expectedRoleIds, syncRosterRoleIds } = require("../../services/roster/categoryRoles");
-const { switchRosterPreview } = require("../../services/roster/rosterVersionSwitch");
+const { switchRosterPreview, rostersAfterSwitches } = require("../../services/roster/rosterVersionSwitch");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
 
@@ -719,7 +719,7 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     const versions = categoryVersionPatch(body, partial, before);
     if (versions.error) return error(res, 400, "category_version_missing", versions.error);
     // #930: a role of the PuG onboarding (everyone takes it) must not gain a right here.
-    const pugGrants = pugRoleGuard.newGrants({ before, after: { ...before, ...partial } });
+    const pugGrants = pugGrantsOf(before, partial, versions.switches, body.categorySwitchFixes);
     if (pugGrants.length) return error(res, 409, "pug_onboarding_role", pugRoleGuard.refusalMessage(pugGrants));
     const langBefore = before.botLanguage;
     // #744: what deactivating pauses (series, reminders), for the save's answer.
@@ -754,6 +754,22 @@ function deactivationOf(partial, before) {
         console.log(`[settings] Kategorie ${d.categoryId} deaktiviert (#744)${paused ? `, pausiert: ${paused}` : ""}`);
     }
     return list;
+}
+
+/**
+ * The rights the PATCH would give a PuG onboarding role (#930) - including what a version
+ * switch does after the save: the roster it creates with the dialog's roles and the raider
+ * roles mirrored from it (rosterVersionSwitch), checked before anything is written.
+ */
+function pugGrantsOf(before, partial, switches, fixes) {
+    const after = { ...before, ...partial };
+    let rostersAfter;
+    if (switches.length) {
+        const sim = rostersAfterSwitches(switches, fixes);
+        rostersAfter = sim.rosters;
+        after.categoryRoles = { ...(after.categoryRoles || {}), ...sim.categoryRoles };
+    }
+    return pugRoleGuard.newGrants({ before, after, rostersAfter });
 }
 
 /** Whether a PATCH takes the last active category away although raids exist (#744). */

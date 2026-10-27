@@ -69,10 +69,13 @@ function grantsOf(config, roleId, { item = null, rosters } = {}) {
 // One key per single right, so a save that adds one more is told apart from an old one.
 function keysOf(use) {
     switch (use.code) {
-        case "rolePermissions": return use.areas.map((a) => ({ key: `rolePermissions:${a}`, code: use.code, detail: a }));
+        // write implies read: read -> read+write adds the key ":write"
+        case "rolePermissions": return use.areas.flatMap((a) => (((use.levels || {})[a] === "write") ? ["read", "write"] : ["read"])
+            .map((level) => ({ key: `rolePermissions:${a}:${level}`, code: use.code, detail: a, level })));
         case "botCommand": return use.commands.map((c) => ({ key: `botCommand:${c}`, code: use.code, detail: c }));
         case "categoryRaider": return use.categoryIds.map((c) => ({ key: `categoryRaider:${c}`, code: use.code, detail: c }));
-        case "roleSync": return [{ key: "roleSync", code: use.code, detail: "" }];
+        // one key per pair: a second partner role is a new right
+        case "roleSync": return (use.pairs || []).map((p) => ({ key: `roleSync:${p.guildId}:${p.roleId}`, code: use.code, detail: p.guildId, partnerRoleId: p.roleId }));
         case "roster": return use.kinds.map((k) => ({ key: `roster:${use.rosterId}:${k}`, code: use.code, detail: use.name || use.rosterId, kind: k }));
         default: return [{ key: use.code, code: use.code, detail: "" }];
     }
@@ -86,10 +89,12 @@ function storedRosters() {
     }
 }
 
-// The rights of an onboarding role of `guildId`; a roster of another server does not count.
+// The rights of an onboarding role of `guildId`; a roster of another server does not count,
+// nor does a closed one (it unlocks nothing; reopening it then counts as a new right).
 // `rosters` undefined = the stored ones.
 function usesOn(config, roleId, guildId, rosters) {
-    const own = (rosters === undefined ? storedRosters() : rosters || []).filter((r) => !r || !str(r.guildId) || !guildId || str(r.guildId) === guildId);
+    const own = (rosters === undefined ? storedRosters() : rosters || [])
+        .filter((r) => r && !r.closedAt && (!str(r.guildId) || !guildId || str(r.guildId) === guildId));
     return grantsOf(config, roleId, { rosters: own });
 }
 
@@ -99,10 +104,10 @@ const GRANT_TEXT = {
     admin: () => "Voll-Admin-Rolle",
     orga: () => "Orga-Rolle",
     officer: () => "Offiziers-Rolle (Bewerbungen)",
-    rolePermissions: (g) => `Bereichsrecht ${g.detail}`,
+    rolePermissions: (g) => `Bereichsrecht ${g.detail}${g.level ? ` (${g.level === "write" ? "schreiben" : "lesen"})` : ""}`,
     botCommand: (g) => `Bot-Befehl /${g.detail}`,
     categoryRaider: () => "Raider-Rolle einer Kategorie",
-    roleSync: () => "Rollen-Abgleich zwischen den Servern",
+    roleSync: (g) => `Rollen-Abgleich zwischen den Servern${g.partnerRoleId ? ` (mit Rolle ${g.partnerRoleId})` : ""}`,
     roster: (g) => `Roster ${g.detail} (${ROSTER_KIND_TEXT[g.kind] || g.kind})`,
 };
 
@@ -147,7 +152,10 @@ function leftovers(config, guildId = "", rosters = undefined) {
         if (gid && info.guildId !== gid) continue;
         const uses = usesOn(config, roleId, info.guildId, rosters);
         if (!uses.length) continue;
-        out.push({ id: roleId, guildId: info.guildId, kind: info.kind, itemId: info.id, label: info.label, uses, grants: uses.flatMap(keysOf).map(grantText) });
+        const keys = uses.flatMap(keysOf);
+        // an area with write shows once, as write
+        const shown = keys.filter((g) => g.level !== "read" || !keys.some((o) => o.code === g.code && o.detail === g.detail && o.level === "write"));
+        out.push({ id: roleId, guildId: info.guildId, kind: info.kind, itemId: info.id, label: info.label, uses, grants: shown.map(grantText) });
     }
     return out;
 }

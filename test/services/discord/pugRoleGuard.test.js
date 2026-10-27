@@ -42,10 +42,10 @@ describe("pugRoleGuard newGrants: every field", () => {
         ["adminRoleIds", { adminRoleIds: [VERSION_ROLE] }, "admin"],
         ["orgaRoleIds", { orgaRoleIds: [CLASS_ROLE] }, "orga"],
         ["officerRoleId", { officerRoleId: VERSION_ROLE }, "officer"],
-        ["rolePermissions", { rolePermissions: { [CLASS_ROLE]: { roster: { read: true, write: false } } } }, "rolePermissions:roster"],
+        ["rolePermissions", { rolePermissions: { [CLASS_ROLE]: { roster: { read: true, write: false } } } }, "rolePermissions:roster:read"],
         ["botCommandAccess", { botCommandAccess: { event: { roleIds: [VERSION_ROLE] } } }, "botCommand:event"],
         ["categoryRoles", { categoryRoles: { cat1: [CLASS_ROLE] } }, "categoryRaider:cat1"],
-        ["roleSync", { roleSync: [{ fromGuildId: GID, fromRoleId: VERSION_ROLE, toGuildId: OTHER_GID, toRoleId: "x", direction: "both" }] }, "roleSync"],
+        ["roleSync", { roleSync: [{ fromGuildId: GID, fromRoleId: VERSION_ROLE, toGuildId: OTHER_GID, toRoleId: "x", direction: "both" }] }, `roleSync:${OTHER_GID}:x`],
     ])("refuses an onboarding role in %s", (_field, extra, key) => {
         const found = added(pug(extra));
         expect(found).toHaveLength(1);
@@ -68,7 +68,7 @@ describe("pugRoleGuard newGrants: every field", () => {
         expect(added(pug(), {})).toEqual([]);
     });
 
-    it("refuses a role that becomes an onboarding role while it carries a right", () => {
+    it("lets an old right through when the role only now becomes an onboarding role, refuses a new one", () => {
         const before = { orgaRoleIds: [VERSION_ROLE] };
         expect(added({ ...pug(), orgaRoleIds: [VERSION_ROLE] }, before)).toEqual([]);
         // the right is old, only the onboarding is new: the Bot-Check reports it, the save passes
@@ -80,6 +80,32 @@ describe("pugRoleGuard newGrants: every field", () => {
         expect(added(before, before)).toEqual([]);
         expect(added(pug({ botCommandAccess: { event: { roleIds: [VERSION_ROLE] }, raidplan: { roleIds: [VERSION_ROLE] } } }), before))
             .toEqual([`${VERSION_ROLE}:botCommand:raidplan`]);
+    });
+
+    it("refuses raising an area right from read to write", () => {
+        const perm = (write) => ({ rolePermissions: { [VERSION_ROLE]: { raids: { read: true, write } } } });
+        expect(added(pug(perm(false)), pug(perm(false)))).toEqual([]);
+        expect(added(pug(perm(true)), pug(perm(false)))).toEqual([`${VERSION_ROLE}:rolePermissions:raids:write`]);
+        // lowering is no new right
+        expect(added(pug(perm(false)), pug(perm(true)))).toEqual([]);
+    });
+
+    it("refuses a new role-sync pair next to an old one", () => {
+        const sync = (toRoleId) => ({ fromGuildId: GID, fromRoleId: VERSION_ROLE, toGuildId: OTHER_GID, toRoleId, direction: "both" });
+        const before = pug({ roleSync: [sync("300000000000000001")] });
+        expect(added(before, before)).toEqual([]);
+        expect(added(pug({ roleSync: [sync("300000000000000001"), sync("300000000000000002")] }), before))
+            .toEqual([`${VERSION_ROLE}:roleSync:${OTHER_GID}:300000000000000002`]);
+        // the onboarding role on the partner side of a pair counts as well
+        const reverse = { fromGuildId: OTHER_GID, fromRoleId: "300000000000000003", toGuildId: GID, toRoleId: CLASS_ROLE, direction: "toTarget" };
+        expect(added(pug({ roleSync: [reverse] }))).toEqual([`${CLASS_ROLE}:roleSync:${OTHER_GID}:300000000000000003`]);
+    });
+
+    it("does not count a closed roster, so reopening it is a new right", () => {
+        const closed = roster({ roleIds: [VERSION_ROLE], closedAt: "2026-10-01T00:00:00.000Z" });
+        expect(guard.newGrants({ before: pug(), after: pug(), rostersBefore: [], rostersAfter: [closed] })).toEqual([]);
+        const found = guard.newGrants({ before: pug(), after: pug(), rostersBefore: [closed], rostersAfter: [{ ...closed, closedAt: null }] });
+        expect(found[0].grants.map((g) => g.key)).toEqual(["roster:ro1:member"]);
     });
 
     it("changes nothing without pugRoles", () => {
@@ -126,7 +152,8 @@ describe("pugRoleGuard texts", () => {
         expect(text).toContain("PuG-Onboarding");
         expect(text).toContain("„TBC Anniversary“ (PuG-Versionsrolle)");
         expect(text).toContain("Orga-Rolle");
-        expect(text).toContain("Bereichsrecht roster");
+        expect(text).toContain("Bereichsrecht roster (lesen)");
+        expect(text).toContain("Bereichsrecht roster (schreiben)");
         expect(text).toContain("Roster Kara (Manager)");
     });
 
@@ -136,6 +163,8 @@ describe("pugRoleGuard texts", () => {
         expect(guard.grantText({ code: "botCommand", detail: "event" })).toBe("Bot-Befehl /event");
         expect(guard.grantText({ code: "categoryRaider", detail: "c" })).toBe("Raider-Rolle einer Kategorie");
         expect(guard.grantText({ code: "roleSync", detail: "" })).toBe("Rollen-Abgleich zwischen den Servern");
+        expect(guard.grantText({ code: "roleSync", detail: OTHER_GID, partnerRoleId: "3" })).toBe("Rollen-Abgleich zwischen den Servern (mit Rolle 3)");
+        expect(guard.grantText({ code: "rolePermissions", detail: "raids" })).toBe("Bereichsrecht raids");
         expect(guard.grantText({ code: "something" })).toBe("something");
     });
 });
@@ -149,6 +178,15 @@ describe("pugRoleGuard leftovers (Bot-Check)", () => {
             uses: [{ code: "orga" }, { code: "roster", rosterId: "ro1", name: "Kara", kinds: ["member"] }],
             grants: ["Orga-Rolle", "Roster Kara (Mitglied)"],
         }]);
+    });
+
+    it("skips a closed roster and shows an area with write once", () => {
+        const cfg = pug({ rolePermissions: { [CLASS_ROLE]: { raids: { read: true, write: true } } } });
+        const rosters = [roster({ roleIds: [CLASS_ROLE], closedAt: "2026-10-01T00:00:00.000Z" })];
+        const [found] = guard.leftovers(cfg, GID, rosters);
+        expect(found.uses.map((u) => u.code)).toEqual(["rolePermissions"]);
+        expect(found.grants).toEqual(["Bereichsrecht raids (schreiben)"]);
+        expect(guard.leftovers(pug(), GID, rosters)).toEqual([]);
     });
 
     it("skips other servers and clean roles, reads all servers without a guild", () => {

@@ -541,6 +541,34 @@ describe("web/apiRoutes/settings", () => {
                     }
                 });
 
+                it("refuses a PuG onboarding role as the new roster's role before anything is written (#930)", async () => {
+                    const rosterStore = require("../../../src/stores/rosterStore");
+                    const PUG = "500000000000000009";
+                    rosterStore.useFile(tempStoreFile("switch-pug-rosters.json"));
+                    settingsStore.getConfig.mockReturnValue({ ...BEFORE, pugRoles: { g1: { versions: { tbc: PUG }, classes: {} } } });
+                    const seen = [];
+                    const off = onCategoryVersionSwitch((sw) => { seen.push(sw.categoryId); });
+                    try {
+                        const old = rosterStore.createRoster({ guildId: "g1", name: "Montag", categoryId: "cat1", versionId: "tbc", roleIds: [] });
+                        const body = (roleIds) => ({ categoryVersion: { cat1: "forever" }, categorySwitchFixes: { cat1: { roster: { create: true, roleIds } } } });
+                        const res = await patch("/api/settings", body([PUG]));
+                        expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                        expect(json(res).error).toMatchObject({ code: "pug_onboarding_role", message: expect.stringContaining("Roster Montag (Mitglied)") });
+                        // nothing written: no save, no switch, the old roster open, no new one
+                        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                        expect(seen).toEqual([]);
+                        expect(rosterStore.getRoster(old.id).closedAt).toBeFalsy();
+                        expect(rosterStore.rosterForCategory("cat1", "forever")).toBeNull();
+                        // a plain role passes
+                        const ok = await patch("/api/settings", body(["500000000000000001"]));
+                        expect(ok.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                        expect(seen).toEqual(["cat1"]);
+                    } finally {
+                        off();
+                        rosterStore.useFile(null);
+                    }
+                });
+
                 it("previews a switch for the dialog", async () => {
                     settingsStore.listRaidTemplates.mockReturnValue([{ id: "t-fe", name: "Onyxia", versionId: "forever" }, { id: "t-tbc", name: "Kara", versionId: "tbc" }]);
                     const res = await get("/api/settings/category-switch", { categoryId: "cat1", versionId: "forever" });
@@ -861,6 +889,32 @@ describe("web/apiRoutes/settings", () => {
                     // the old orga entry does not block another save
                     await patch("/api/settings", { orgaRoleIds: ["r-pug-tbc", "r-lead"] });
                     expect(settingsStore.saveConfig).toHaveBeenCalledWith({ orgaRoleIds: ["r-pug-tbc", "r-lead"] });
+                } finally {
+                    settingsStore.getConfig.mockReturnValue({});
+                    rosterStore.listRosters.mockRestore();
+                }
+            });
+
+            it("refuses raising an onboarding role's area right and a new role-sync pair (#930)", async () => {
+                const rosterStore = require("../../../src/stores/rosterStore");
+                jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                const R = "300000000000000001";
+                const sync = (toRoleId) => ({ fromGuildId: "100000000000000001", fromRoleId: R, toGuildId: "100000000000000002", toRoleId, direction: "both" });
+                settingsStore.getConfig.mockReturnValue({
+                    pugRoles: { "100000000000000001": { versions: { tbc: R }, classes: {} } },
+                    rolePermissions: { [R]: { raids: { read: true, write: false } } },
+                    roleSync: [sync("300000000000000002")],
+                });
+                try {
+                    const res = await patch("/api/settings", { rolePermissions: { [R]: { raids: { read: true, write: true } } } });
+                    expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                    expect(json(res).error.message).toContain("Bereichsrecht raids (schreiben)");
+                    const res2 = await patch("/api/settings", { roleSync: [sync("300000000000000002"), sync("300000000000000003")] });
+                    expect(res2.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                    expect(json(res2).error.message).toContain("mit Rolle 300000000000000003");
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
                 } finally {
                     settingsStore.getConfig.mockReturnValue({});
                     rosterStore.listRosters.mockRestore();
