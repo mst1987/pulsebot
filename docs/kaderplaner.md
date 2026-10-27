@@ -111,7 +111,8 @@ interview note and a comment with a marker and asserts neither reaches the roste
 ### Übernahme (Kader → Discord, October 2026)
 
 When the Kader is decided, the orga takes it over into Discord in **one confirmed step**
-(`src/services/roster/rosterTakeover.js`, every planner access through `kaderRoster.js`): a new role, a category (an
+(`src/services/roster/rosterTakeover.js`, every planner access through `kaderRoster.js`): a new role (with its own group
+in the member list instead of "Online"), a category (an
 existing one or a new one) and channels that only the new role and the orga see; the role becomes the
 **only** role of the **linked roster** (`roleIds = [newRole]`: older roster roles stay in Discord but are no longer
 synced — the new role signature removes nobody, see docs/roster-profile.md), and every player from provisional upwards
