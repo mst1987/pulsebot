@@ -13,7 +13,7 @@ let mockMembership = null;
 jest.mock("../../../src/services/discord/discord", () => ({ guildMembership: jest.fn(async () => mockMembership) }));
 
 const discord = require("../../../src/services/discord/discord");
-const { checkPugMember, markMembersOnly, pugInviteUrl, safeInviteUrl, holdsSignup, serverOf, PUG_MEMBERS_ERROR } = require("../../../src/services/signups/pugMembership");
+const { checkPugMember, markMembersOnly, membershipByServer, isOpenRaid, pugInviteUrl, safeInviteUrl, holdsSignup, serverOf, PUG_MEMBERS_ERROR } = require("../../../src/services/signups/pugMembership");
 
 const ANNA = "200000000000000001";
 const event = { id: "eh-pug", guildId: "g-pug", categoryId: "cat-pug", versionId: "tbc" };
@@ -105,6 +105,49 @@ describe("markMembersOnly (GET /api/signups)", () => {
         expect(await markMembersOnly([row()], ANNA, { isOrga: async (ev) => ev.id === "eh-pug" })).toEqual([row()]);
         expect(discord.guildMembership).not.toHaveBeenCalled();
         expect((await markMembersOnly([row({ mine: { status: "absence" } })], ANNA))[0].membersOnly).toBe(true);
+    });
+
+    // a hanging Discord costs one time limit (5 s), not one per server
+    it("asks all servers at once, so a slow Discord costs one time limit", async () => {
+        jest.useFakeTimers();
+        try {
+            discord.guildMembership.mockImplementation((guildId) => new Promise((resolve) => setTimeout(() => resolve(guildId !== "g-pug"), 5000)));
+            let out = null;
+            markMembersOnly([row(), row({ id: "eh-pug2" }), row({ id: "eh-other" })], ANNA).then((rows) => { out = rows; });
+            await jest.advanceTimersByTimeAsync(5000);
+            expect(out.map((r) => [r.id, Boolean(r.membersOnly)])).toEqual([["eh-pug", true], ["eh-pug2", true], ["eh-other", false]]);
+            expect(discord.guildMembership.mock.calls).toEqual([["g-pug", ANNA], ["g-other", ANNA]]);
+        } finally {
+            jest.useRealTimers();
+            discord.guildMembership.mockImplementation(async () => mockMembership);
+        }
+    });
+});
+
+describe("membershipByServer", () => {
+    it("one lookup per distinct server, all started before any answers", async () => {
+        jest.useFakeTimers();
+        try {
+            discord.guildMembership.mockImplementation((guildId) => new Promise((resolve) => setTimeout(() => resolve(guildId === "g-pug" ? false : null), 5000)));
+            const pending = membershipByServer([event, { ...event, id: "eh-pug2" }, { ...event, id: "eh-other", guildId: "g-other" }], ANNA, { config: {} });
+            expect(discord.guildMembership).toHaveBeenCalledTimes(2);
+            let members = null;
+            pending.then((m) => { members = m; });
+            await jest.advanceTimersByTimeAsync(4999);
+            expect(members).toBeNull();
+            await jest.advanceTimersByTimeAsync(1);
+            expect([...members]).toEqual([["g-pug", false], ["g-other", null]]);
+        } finally {
+            jest.useRealTimers();
+            discord.guildMembership.mockImplementation(async () => mockMembership);
+        }
+    });
+
+    it("an empty list asks nobody; isOpenRaid follows the category rule", async () => {
+        expect((await membershipByServer([], ANNA)).size).toBe(0);
+        expect(discord.guildMembership).not.toHaveBeenCalled();
+        expect(isOpenRaid(event, {})).toBe(true);
+        expect(isOpenRaid(event, { categoryRoles: { "cat-pug": ["role-raider"] } })).toBe(false);
     });
 });
 

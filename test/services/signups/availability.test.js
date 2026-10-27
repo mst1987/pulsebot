@@ -291,6 +291,27 @@ describe("createEntry – Anwesenheit", () => {
         }
     });
 
+    it("an attendance from the web asks each PuG server once, all servers at once (#907)", async () => {
+        mockEvents.set("eh-b", raid("eh-b", 4, { guildId: "g-other" }));
+        jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
+        try {
+            discord.guildMembership.mockClear();
+            discord.guildMembership.mockImplementation((guildId) => new Promise((resolve) => setTimeout(() => resolve(guildId !== "g-other"), 5000)));
+            let res = null;
+            availability.createEntry(ANNA, { kind: "presence", from: today, to: dayPlus(10), character: "nerathil", spec: "Mage-Arcane" }, { now: NOW, by: ANNA, via: "web" })
+                .then((r) => { res = r; });
+            // three raids on two servers: two lookups, one time limit
+            await jest.advanceTimersByTimeAsync(5000);
+            expect(res).not.toBeNull();
+            expect(discord.guildMembership).toHaveBeenCalledTimes(2);
+            expect(discord.guildMembership.mock.calls.map((c) => c[0]).sort()).toEqual(["", "g-other"]);
+            expect(res.results.map((r) => [r.eventId, r.ok])).toEqual([["eh-a", true], ["eh-b", false], ["eh-c", true]]);
+        } finally {
+            jest.useRealTimers();
+            discord.guildMembership.mockImplementation(async () => null);
+        }
+    });
+
     it("die Orga ist an den Anmeldeschluss nicht gebunden", async () => {
         mockEvents.set("eh-a", raid("eh-a", 2, { signupDeadline: sec(NOW) - 60 }));
         const res = await availability.createEntry(ANNA, { kind: "presence", from: today, to: dayPlus(3), character: "nerathil", spec: "Mage-Arcane" }, { now: NOW, by: ORGA });

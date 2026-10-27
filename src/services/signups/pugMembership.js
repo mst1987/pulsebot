@@ -86,24 +86,44 @@ async function checkPugMember(event, userId, { byOrga = false, previous, config,
  */
 async function markMembersOnly(rows, userId, { config, isOrga = () => false } = {}) {
     const cfg = config || settingsStore.getConfig();
-    const uid = String(userId || "");
-    const cache = new Map();
-    const out = [];
-    for (const row of rows || []) {
+    const list = Array.isArray(rows) ? rows : [];
+    // the raid of each row that needs the check (null: the row stays as it is)
+    const events = [];
+    for (const row of list) {
         const candidate = row && row.source === "eventhelper" && row.openToAll && !row.started && !row.cancelled && !holdsSignup(row.mine);
         const event = candidate ? eventStore.getEvent(row.id) : null;
-        if (!event || (await isOrga(event)) === true) {
-            out.push(row);
-            continue;
-        }
-        const guild = serverOf(event, cfg);
-        if (!cache.has(guild)) cache.set(guild, await discord.guildMembership(guild, uid));
-        const member = cache.get(guild);
-        if (member === false) out.push({ ...row, membersOnly: true, inviteUrl: pugInviteUrl(event, { config: cfg }) });
-        else if (member === null) out.push({ ...row, membershipUnknown: true });
-        else out.push(row);
+        events.push(event && (await isOrga(event)) !== true ? event : null);
     }
-    return out;
+    const members = await membershipByServer(events.filter(Boolean), userId, { config: cfg });
+    return list.map((row, i) => {
+        const event = events[i];
+        if (!event) return row;
+        const member = members.get(serverOf(event, cfg));
+        if (member === false) return { ...row, membersOnly: true, inviteUrl: pugInviteUrl(event, { config: cfg }) };
+        if (member === null) return { ...row, membershipUnknown: true };
+        return row;
+    });
 }
 
-module.exports = { checkPugMember, markMembersOnly, pugInviteUrl, safeInviteUrl, holdsSignup, serverOf, PUG_MEMBERS_ERROR };
+/** Whether the raid's category takes everyone - the only case the members check applies to. */
+function isOpenRaid(event, cfg) {
+    return accessRule(event.categoryId, { config: cfg, versionId: versionOfEvent(event, { config: cfg }) }).rule === "open";
+}
+
+/**
+ * The user's membership on every server of the given raids: one lookup per
+ * server, all servers at once - a hanging Discord then costs one time limit
+ * (guildMembership), not one per server.
+ * @returns {Promise<Map<string, boolean | null>>} server id -> true / false / null
+ */
+async function membershipByServer(events, userId, { config } = {}) {
+    const cfg = config || settingsStore.getConfig();
+    const uid = String(userId || "");
+    const guilds = [...new Set((events || []).map((e) => serverOf(e, cfg)))];
+    const answers = await Promise.all(guilds.map((g) => discord.guildMembership(g, uid)));
+    return new Map(guilds.map((g, i) => [g, answers[i]]));
+}
+
+module.exports = {
+    checkPugMember, markMembersOnly, membershipByServer, isOpenRaid, pugInviteUrl, safeInviteUrl, holdsSignup, serverOf, PUG_MEMBERS_ERROR,
+};

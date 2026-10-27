@@ -29,6 +29,7 @@ const settingsStore = require("../../stores/settingsStore");
 const discord = require("../discord/discord");
 const linkCheck = require("../discord/linkCheck");
 const { submitSignup, signupWindow, checkRaiderRole } = require("./signupService");
+const { membershipByServer, isOpenRaid, serverOf } = require("./pugMembership");
 const { versionOfEvent, mainVersionFor, isVersionVisible } = require("../events/mainVersion");
 const { archiveOf } = require("../events/eventArchive");
 const { spec: specOf, rulesFor, LEGACY_VERSION } = require("../../config/gameVersions");
@@ -178,13 +179,13 @@ function absentFor(userId, event) {
  * Apply one entry to one raid. Returns `{ eventId, ok, skipped?, error? }`
  * and marks the raid as done for this entry, whatever came out.
  */
-async function applyToRaid(entry, event, { now = Date.now(), config } = {}) {
-    const result = await applyOutcome(entry, event, { now, config });
+async function applyToRaid(entry, event, { now = Date.now(), config, members } = {}) {
+    const result = await applyOutcome(entry, event, { now, config, members });
     store.markApplied(entry.id, event.id, result, { now });
     return { eventId: event.id, title: event.title || "", startTime: Number(event.startTime) || 0, ...result };
 }
 
-async function applyOutcome(entry, event, { now, config }) {
+async function applyOutcome(entry, event, { now, config, members }) {
     const previous = signupStore.getSignup(event.id, entry.userId);
     const byOrga = !!entry.createdBy && entry.createdBy !== entry.userId;
     if (entry.kind === "absence") {
@@ -212,8 +213,21 @@ async function applyOutcome(entry, event, { now, config }) {
         characters: [{ character: entry.character, spec: entry.spec }],
         status: "signed",
     // an attendance from the web signs up like the web signup does: a PuG raid only for members of its server (#907)
-    }, { byOrga, now, config, memberOnly: entry.via === "web" });
+    // `members` (createEntry): the membership asked once per server up front; a server missing there asks itself
+    }, { byOrga, now, config, memberOnly: entry.via === "web", membership: members ? members.get(serverOf(event, config)) : undefined });
     return saved.error ? { ok: false, error: saved.error } : { ok: true };
+}
+
+/**
+ * A web attendance's membership on the servers of its open (PuG) raids, all
+ * asked at once and each server once (#907) - null when no lookup is needed
+ * (not from the web, an absence, entered by the orga).
+ */
+async function membersFor(entry, raids, cfg) {
+    if (entry.via !== "web" || entry.kind === "absence") return null;
+    if (entry.createdBy && entry.createdBy !== entry.userId) return null;
+    const open = raids.filter((e) => !signupStore.getSignup(e.id, entry.userId) && isOpenRaid(e, cfg));
+    return open.length ? membershipByServer(open, entry.userId, { config: cfg }) : null;
 }
 
 /**
@@ -235,11 +249,10 @@ async function createEntry(userId, input = {}, { by = "", via = "", eventIds, no
     store.prune(today(now), KEEP_DAYS);
     const added = store.addEntry({ ...checked.value, skip, createdBy: str(by) || checked.value.userId, via }, { now });
     if (added.error) return added;
+    const targets = raids.filter((e) => !skip.includes(e.id));
+    const members = await membersFor(added.entry, targets, cfg);
     const results = [];
-    for (const event of raids) {
-        if (skip.includes(event.id)) continue;
-        results.push(await applyToRaid(added.entry, event, { now, config: cfg }));
-    }
+    for (const event of targets) results.push(await applyToRaid(added.entry, event, { now, config: cfg, members }));
     const entry = store.getEntry(added.entry.id) || added.entry;
     const sent = dm ? await sendDm(entry.userId, entryDm(entry, results, langOf(entry.userId, { config: cfg }))) : false;
     return { entry, results, dm: sent };
