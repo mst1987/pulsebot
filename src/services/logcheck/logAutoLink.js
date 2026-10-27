@@ -41,7 +41,7 @@ async function autoLinkLogs(guildId) {
     // candidates, and its version breaks a tie for a log whose host told none (#746).
     const catMap = categoryMap(guildId);
     const logs = logStore.listLogs()
-        .filter((l) => (!l.guildId || l.guildId === guildId) && !l.eventId)
+        .filter((l) => l.guildId === guildId && !l.eventId)
         .map((l) => ({ ...l, categoryId: (catMap[l.channelId] && catMap[l.channelId].categoryId) || l.categoryId || "" }));
     if (!logs.length) return { linked: 0, remaining: 0, error: null };
 

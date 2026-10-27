@@ -278,6 +278,19 @@ describe("logcheck/report — merging the two halves", () => {
         expect(report.roster.find((p) => p.name === "Alice").potions).toEqual({ destruction: 2, haste: 0, mana: 5 });
     });
 
+    it("stores the server it was evaluated on, and a merged page keeps its own (#920)", async () => {
+        mockGetReport.mockReturnValue(null);
+        const fresh = await buildReport("RPT1", { sections: ["cla"], guildId: "g1" });
+        expect(fresh.report.guildId).toBe("g1");
+        mockGetReport.mockReturnValue({ id: "old1", sections: ["cla"], guildId: "g2" });
+        const merged = await buildReport("RPT1", { sections: ["rpb"], mergeIntoId: "old1", guildId: "g1" });
+        expect(merged.report.guildId).toBe("g2");
+        // without a server the field stays away - the golden master is byte for byte the same
+        mockGetReport.mockReturnValue(null);
+        const none = await buildReport("RPT2", { sections: ["cla"] });
+        expect(none.report).not.toHaveProperty("guildId");
+    });
+
     it("creates a new page when the id to merge into no longer exists", async () => {
         mockGetReport.mockReturnValue(null);
         await buildReport("RPT1", { sections: ["rpb"], mergeIntoId: "gone" });

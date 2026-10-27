@@ -92,16 +92,16 @@ describe("stores/logGearStore — loading and keeping", () => {
 
     it("walks the bot's newest logs until one has the raider", async () => {
         mockListLogs.mockReturnValue([
-            { reportId: "old", title: "Alt", postedAt: 1000 },
-            { reportId: "new", title: "Neu", postedAt: 3000 },
-            { reportId: "mid", title: "Mitte", postedAt: 2000 },
+            { guildId: "g1", reportId: "old", title: "Alt", postedAt: 1000 },
+            { guildId: "g1", reportId: "new", title: "Neu", postedAt: 3000 },
+            { guildId: "g1", reportId: "mid", title: "Mitte", postedAt: 2000 },
         ]);
         const wcl = fakeWcl({
             new: { title: "Neu", start: 3, players: [player("Andere", "Mage")] },
             mid: { title: "Mitte", start: 2, players: [player("Devihra")] },
             old: { title: "Alt", start: 1, players: [player("Devihra")] },
         });
-        const { snapshot, tried } = await loadLogGear("Devihra", { wcl });
+        const { snapshot, tried } = await loadLogGear("Devihra", { wcl, guildId: "g1" });
         // Newest first, and the walk stops at the first hit.
         expect(snapshot.reportId).toBe("mid");
         expect(tried).toBe(2);
@@ -110,23 +110,39 @@ describe("stores/logGearStore — loading and keeping", () => {
 
     it("skips a log it cannot read rather than giving up", async () => {
         mockListLogs.mockReturnValue([
-            { reportId: "broken", title: "Kaputt", postedAt: 3000 },
-            { reportId: "fine", title: "Gut", postedAt: 2000 },
+            { guildId: "g1", reportId: "broken", title: "Kaputt", postedAt: 3000 },
+            { guildId: "g1", reportId: "fine", title: "Gut", postedAt: 2000 },
         ]);
         const wcl = fakeWcl({ fine: { title: "Gut", start: 2, players: [player("Devihra")] } });
-        const { snapshot } = await loadLogGear("Devihra", { wcl });
+        const { snapshot } = await loadLogGear("Devihra", { wcl, guildId: "g1" });
         expect(snapshot.reportId).toBe("fine");
     });
 
     it("names how many logs it tried when none has the raider", async () => {
-        mockListLogs.mockReturnValue(Array.from({ length: MAX_LOGS + 3 }, (_, i) => ({ reportId: `r${i}`, title: `Log ${i}`, postedAt: 100 - i })));
+        mockListLogs.mockReturnValue(Array.from({ length: MAX_LOGS + 3 }, (_, i) => ({ guildId: "g1", reportId: `r${i}`, title: `Log ${i}`, postedAt: 100 - i })));
         const reports = {};
         for (let i = 0; i < MAX_LOGS + 3; i += 1) reports[`r${i}`] = { title: `Log ${i}`, start: i, players: [player("Andere", "Mage")] };
         const wcl = fakeWcl(reports);
-        await expect(loadLogGear("Devihra", { wcl })).rejects.toMatchObject({
+        await expect(loadLogGear("Devihra", { wcl, guildId: "g1" })).rejects.toMatchObject({
             message: expect.stringContaining(`keinem der letzten ${MAX_LOGS} Logs`),
         });
         expect(wcl.getFights).toHaveBeenCalledTimes(MAX_LOGS);
+    });
+
+    it("walks only the active server's logs (#920)", async () => {
+        mockListLogs.mockReturnValue([
+            { guildId: "g2", reportId: "theirs", title: "Fremd", postedAt: 3000 },
+            { guildId: "g1", reportId: "mine", title: "Eigen", postedAt: 1000 },
+        ]);
+        const wcl = fakeWcl({
+            theirs: { title: "Fremd", start: 3, players: [player("Devihra")] },
+            mine: { title: "Eigen", start: 1, players: [player("Devihra")] },
+        });
+        const { snapshot } = await loadLogGear("Devihra", { wcl, guildId: "g1" });
+        expect(snapshot.reportId).toBe("mine");
+        expect(wcl.getFights).not.toHaveBeenCalledWith("theirs");
+        // no server: no walk, a link is asked for
+        await expect(loadLogGear("Devihra", { wcl })).rejects.toMatchObject({ message: expect.stringContaining("kein Log") });
     });
 
     it("asks for a link when the bot knows no log at all", async () => {
@@ -157,17 +173,29 @@ describe("stores/logGearStore — loading and keeping", () => {
 describe("stores/logGearStore — the logs offered to pick from", () => {
     it("lists the newest posted first, without logs that have no report id", () => {
         mockListLogs.mockReturnValue([
-            { reportId: "", title: "Ohne Report", postedAt: 9000 },
-            { reportId: "a", title: "A", postedAt: 1000, eventLabel: "Raid Mo", link: "https://…/a" },
-            { reportId: "b", title: "B", detectedAt: 2000 },
+            { guildId: "g1", reportId: "", title: "Ohne Report", postedAt: 9000 },
+            { guildId: "g1", reportId: "a", title: "A", postedAt: 1000, eventLabel: "Raid Mo", link: "https://…/a" },
+            { guildId: "g1", reportId: "b", title: "B", detectedAt: 2000 },
         ]);
-        const logs = recentLogs(5);
+        const logs = recentLogs(5, { guildId: "g1" });
         expect(logs.map((l) => l.reportId)).toEqual(["b", "a"]);
         expect(logs[1]).toEqual({ reportId: "a", title: "A", postedAt: 1000, eventLabel: "Raid Mo", link: "https://…/a" });
     });
 
+    it("lists only the active server's logs, and none without a server (#920)", () => {
+        mockListLogs.mockReturnValue([
+            { guildId: "g1", reportId: "mine", postedAt: 1000 },
+            { guildId: "g2", reportId: "theirs", postedAt: 2000 },
+            { reportId: "nobody", postedAt: 3000 },
+        ]);
+        expect(recentLogs(5, { guildId: "g1" }).map((l) => l.reportId)).toEqual(["mine"]);
+        expect(recentLogs(5, { guildId: "g2" }).map((l) => l.reportId)).toEqual(["theirs"]);
+        expect(recentLogs(5, { guildId: "" })).toEqual([]);
+        expect(recentLogs(5)).toEqual([]);
+    });
+
     it("caps the list", () => {
-        mockListLogs.mockReturnValue(Array.from({ length: 20 }, (_, i) => ({ reportId: `r${i}`, postedAt: i })));
-        expect(recentLogs(3)).toHaveLength(3);
+        mockListLogs.mockReturnValue(Array.from({ length: 20 }, (_, i) => ({ guildId: "g1", reportId: `r${i}`, postedAt: i })));
+        expect(recentLogs(3, { guildId: "g1" })).toHaveLength(3);
     });
 });

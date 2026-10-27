@@ -43,6 +43,19 @@ describe("web/logcheck/manualLog — linkLogByUrl", () => {
         expect(logStore.listLogsForEvent("e1")).toHaveLength(1);
     });
 
+    it("gives a pasted log the raid's server, not the active one, and keeps it after an unlink (#920)", () => {
+        const raidOnB = { ...EVENT, guildId: "gB" };
+        const result = linkLogByUrl("https://classic.warcraftlogs.com/reports/OnServerB", raidOnB, "gA");
+        expect(result.log).toMatchObject({ guildId: "gB", postGuildId: "gB", eventId: "e1" });
+        logStore.unlinkEvent(result.log.id);
+        expect(logStore.getLog(result.log.id).guildId).toBe("gB");
+    });
+
+    it("falls back to the active server when the raid's server is unknown (#920)", () => {
+        const result = linkLogByUrl("https://classic.warcraftlogs.com/reports/NoServer", EVENT, "gA");
+        expect(result.log.guildId).toBe("gA");
+    });
+
     it("accepts links carrying a fight fragment or query", () => {
         const result = linkLogByUrl("https://www.warcraftlogs.com/reports/ZZtop99?fight=12#boss", EVENT, "g1");
         expect(result.log.reportId).toBe("ZZtop99");
