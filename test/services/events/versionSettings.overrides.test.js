@@ -53,11 +53,14 @@ describe("services/events/versionSettings - per-server overrides (#923)", () => 
         expect(vs.versionLinks("tbc", { config: cfg, guildId: G1 }).armory("Brokk")).toBe("https://armory.test/eu/thunderstrike/Brokk");
     });
 
-    it("hands the server's own realm and region to the Blizzard client, the namespace stays the version's", () => {
+    it("hands the server's own realm and region to the Blizzard client, the namespace follows the region", () => {
         const cfg = config({ tbc: { blizzardRealmSlug: "spineshatter", blizzardRegion: "us" } });
         const own = vs.blizzardFor("tbc", { config: cfg, guildId: G1 });
-        expect(own).toMatchObject({ realmSlug: "spineshatter", region: "us", namespace: "profile-classicann-eu" });
-        expect(vs.blizzardFor("tbc", { config: cfg, guildId: G2 })).toMatchObject({ realmSlug: "thunderstrike", region: "eu" });
+        // an EU namespace on us.api.blizzard.com would be a 404
+        expect(own).toMatchObject({ realmSlug: "spineshatter", region: "us", namespace: "profile-classicann-us" });
+        expect(vs.blizzardFor("tbc", { config: cfg, guildId: G2 })).toMatchObject({ realmSlug: "thunderstrike", region: "eu", namespace: "profile-classicann-eu" });
+        const realmOnly = config({ tbc: { blizzardRealmSlug: "spineshatter" } });
+        expect(vs.blizzardFor("tbc", { config: realmOnly, guildId: G1 })).toMatchObject({ region: "eu", namespace: "profile-classicann-eu" });
     });
 
     it("ignores an invalid stored override instead of breaking the link", () => {

@@ -68,7 +68,7 @@ function settingsForVersion(versionId, { config, guildId } = {}) {
     const cfg = configOf(config);
     const id = knownVersion(versionId) || mainVersionFor({ config: cfg });
     const map = cfg.versionSettings && typeof cfg.versionSettings === "object" ? cfg.versionSettings : schema.versionSettingsOf(cfg);
-    const { block, overridden } = schema.applyVersionOverrides(schema.normalizeBlock(map[id]), overridesOf(cfg, guildId, id));
+    const { block, overridden } = schema.applyVersionOverrides(schema.normalizeBlock(map[id]), overridesOf(cfg, guildId, id), id);
     return { versionId: id, ...block, ...(overridden.length ? { overridden } : {}) };
 }
 

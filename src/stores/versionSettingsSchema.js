@@ -226,8 +226,9 @@ function versionSettingsOf(stored) {
 // a server may use its own realm and its own armory/log templates for a
 // version. Overridden per field, not per block - a field the server has not
 // set reads the version block above (config.versionSettings, the standard of
-// every server). Wowhead path, softres edition, raidsheet, colour and the
-// namespace stay one per version.
+// every server). Wowhead path, softres edition, raidsheet and colour stay one
+// per version; the namespace is no field of its own but follows an own region
+// (namespaceForRegion).
 const OVERRIDE_FIELDS = ["armoryUrlTemplate", "wclUrlTemplate", "blizzardRegion", "blizzardRealmSlug"];
 
 /**
@@ -266,8 +267,33 @@ function overrideProblems(raw) {
     return out;
 }
 
-/** A version block with a server's overrides laid over it field by field; `overridden` names them. */
-function applyVersionOverrides(block, overrides) {
+/**
+ * The Battle.net namespace for a region a server chose over the version's.
+ * The stored namespace is written out ("profile-classicann-eu") and the
+ * Blizzard client sends it as is - kept, a US server would ask
+ * us.api.blizzard.com for an EU namespace and get a 404. So the namespace
+ * follows the region: the standard region's suffix is swapped ("-eu" ->
+ * "-us"), else the rule set's template with {region} is written out; a
+ * namespace neither way can tell stays as it is.
+ */
+function namespaceForRegion(block, region, versionId) {
+    const ns = str(block.blizzardNamespace);
+    const stdRegion = str(block.blizzardRegion);
+    if (!region || region === stdRegion) return ns;
+    if (ns && stdRegion && ns.endsWith(`-${stdRegion}`)) return `${ns.slice(0, -stdRegion.length)}${region}`;
+    const template = str(settingsDefaultsOf(versionId).blizzardNamespace);
+    if (template.includes("{region}")) return template.replace(/\{region\}/g, region);
+    return ns;
+}
+
+/**
+ * A version block with a server's overrides laid over it field by field;
+ * `overridden` names them. An own region takes the namespace along.
+ * @param {object} block the version's normalised block (the standard)
+ * @param {object} [overrides] the server's overrides of that version
+ * @param {string} [versionId] the version, for its namespace template
+ */
+function applyVersionOverrides(block, overrides, versionId) {
     const own = overrides && typeof overrides === "object" && !Array.isArray(overrides) ? overrides : {};
     const clean = normalizeBlock(own);
     const out = { ...block };
@@ -275,6 +301,7 @@ function applyVersionOverrides(block, overrides) {
     for (const f of OVERRIDE_FIELDS) {
         if (str(own[f]) && clean[f]) { out[f] = clean[f]; overridden.push(f); }
     }
+    if (overridden.includes("blizzardRegion")) out.blizzardNamespace = namespaceForRegion(block, out.blizzardRegion, versionId);
     return { block: out, overridden };
 }
 // --- end per-server overrides (#923) ----------------------------------------

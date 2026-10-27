@@ -64,5 +64,20 @@ describe("stores/versionSettingsSchema - per-server overrides (#923)", () => {
             expect(schema.applyVersionOverrides(BLOCK, undefined)).toEqual({ block: BLOCK, overridden: [] });
             expect(schema.applyVersionOverrides(BLOCK, { wowheadPath: "classic", softresEdition: "" })).toEqual({ block: BLOCK, overridden: [] });
         });
+
+        it("takes the namespace along with an own region", () => {
+            const withNs = { ...BLOCK, blizzardNamespace: "profile-classicann-eu" };
+            // suffix of the standard region swapped
+            expect(schema.applyVersionOverrides(withNs, { blizzardRegion: "us" }).block.blizzardNamespace).toBe("profile-classicann-us");
+            // same region as the standard: untouched
+            expect(schema.applyVersionOverrides(withNs, { blizzardRegion: "eu" }).block.blizzardNamespace).toBe("profile-classicann-eu");
+            // no suffix to swap: the rule set's {region} template
+            const odd = { ...BLOCK, blizzardNamespace: "custom-ns" };
+            expect(schema.applyVersionOverrides(odd, { blizzardRegion: "kr" }, "tbc").block.blizzardNamespace).toBe("profile-classicann-kr");
+            // neither suffix nor template: kept
+            expect(schema.applyVersionOverrides(odd, { blizzardRegion: "kr" }, "nope").block.blizzardNamespace).toBe("custom-ns");
+            // realm alone keeps the namespace
+            expect(schema.applyVersionOverrides(withNs, { blizzardRealmSlug: "spineshatter" }).block.blizzardNamespace).toBe("profile-classicann-eu");
+        });
     });
 });
