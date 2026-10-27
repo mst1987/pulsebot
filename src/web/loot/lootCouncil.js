@@ -890,7 +890,7 @@ function councilRoster(opts = {}) {
     const contentFilter = content.tiers ? resolveContentFilter(opts) : null;
     const info = new Map(annotatedCharacters().map((c) => [c.key, c]));
     const { roleByKey, planned } = judgedRoles();
-    const gearMap = gearByCharacter({ roleFor: (key) => roleByKey.get(key) || "" });
+    const gearMap = gearByCharacter({ roleFor: (key) => roleByKey.get(key) || "", versionId: opts.versionId, guildId: opts.guildId });
     // Class colour and spec icon are resolved server-side, like everywhere else
     // in the app — the client never keeps a second copy of the WoW palette.
     const charStore = characterMap();

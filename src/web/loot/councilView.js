@@ -29,7 +29,7 @@ async function buildCouncilView(opts) {
     const needArmory = built.rows.filter((r) => r.gear && r.gear.dropped && r.gear.dropped.length).map((r) => r.character);
     if (needArmory.length) {
         try {
-            const primed = await primeArmoryGear(needArmory, { versionId: opts.versionId });
+            const primed = await primeArmoryGear(needArmory, { versionId: opts.versionId, guildId: opts.guildId });
             if (primed && primed.answered) built = councilRoster(opts);
         } catch (e) {
             console.error("armory gear failed:", e.message);

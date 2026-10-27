@@ -613,12 +613,13 @@ const getItemSearch = withUser({}, async ({ user, res, url }) => {
  * would spend somebody else's rate limit on a page nobody is reading. And it is
  * a decision — "nimm den Stand von jetzt" — which belongs to the reader.
  */
-const postArmoryRefresh = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ body, res }) => {
+const postArmoryRefresh = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ body, req, res }) => {
     const characters = Array.isArray(body.characters) ? body.characters : [];
     if (!characters.length) return apiError(res, 400, "bad_request", "Keine Charaktere angegeben.");
 
     const versionId = mainVersionFor({ categoryId: String(body.category || ""), config: getConfig() });
-    const result = await primeArmoryGear(characters, { full: true, force: true, versionId });
+    // the active server's own realm/region asks its characters (#923)
+    const result = await primeArmoryGear(characters, { full: true, force: true, versionId, guildId: activeGuildFor(req) });
     if (!result.configured) {
         if (result.reason === "feature_off") {
             return apiError(res, 400, "armory_off", "Der Armory-Abruf ist für diese Spielversion ausgeschaltet (Einstellungen → Spielversion).");
