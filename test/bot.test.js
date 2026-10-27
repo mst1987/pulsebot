@@ -25,6 +25,13 @@ const mockReactionsCleared = jest.fn(async () => "synced");
 const mockMemberAdd = jest.fn();
 const mockMemberRemove = jest.fn();
 jest.mock("../src/services/discord/memberActivity", () => ({ onMemberAdd: (...a) => mockMemberAdd(...a), onMemberRemove: (...a) => mockMemberRemove(...a) }));
+const mockPugInvites = { onMemberAdd: jest.fn(), onInviteCreate: jest.fn(), onInviteDelete: jest.fn(), ensureAllInvites: jest.fn(async () => {}) };
+jest.mock("../src/services/discord/pugInvites", () => ({
+    onMemberAdd: (...a) => mockPugInvites.onMemberAdd(...a),
+    onInviteCreate: (...a) => mockPugInvites.onInviteCreate(...a),
+    onInviteDelete: (...a) => mockPugInvites.onInviteDelete(...a),
+    ensureAllInvites: (...a) => mockPugInvites.ensureAllInvites(...a),
+}));
 jest.mock("discord.js", () => {
     // Keep the real exports (ChannelType, builders, Collection, …) so the real
     // command modules load; only replace Client so no gateway connection is made.
@@ -153,8 +160,23 @@ describe("joins and leaves", () => {
         expect(rosterSpy).toHaveBeenCalledWith(member);
         // The join is noted before the roster role sync runs.
         expect(mockMemberAdd.mock.invocationCallOrder.at(-1)).toBeLessThan(rosterSpy.mock.invocationCallOrder[0]);
+        // ...and its origin is looked up (#905)
+        expect(mockPugInvites.onMemberAdd).toHaveBeenCalledWith(member);
         await new Promise((r) => setImmediate(r));
         rosterSpy.mockRestore();
+    });
+});
+
+describe("invites (#905)", () => {
+    const { Events, GatewayIntentBits } = jest.requireActual("discord.js");
+
+    it("asks for the invite events and hands them to pugInvites", () => {
+        expect(bot.client.options.intents).toContain(GatewayIntentBits.GuildInvites);
+        const invite = { code: "abc", guild: { id: "900000000000000001" } };
+        bot.client._h[Events.InviteCreate](invite);
+        bot.client._h[Events.InviteDelete](invite);
+        expect(mockPugInvites.onInviteCreate).toHaveBeenCalledWith(invite);
+        expect(mockPugInvites.onInviteDelete).toHaveBeenCalledWith(invite);
     });
 });
 

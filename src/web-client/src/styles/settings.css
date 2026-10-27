@@ -188,10 +188,19 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .srv-table td { vertical-align: middle; }
 .srv-table .row-actions { justify-content: flex-end; flex-wrap: nowrap; }
 .srv-table .srv-remove-off { opacity: 0.45; cursor: not-allowed; }
-.srv-links th:nth-child(2) { width: 18%; }
-.srv-links th:nth-child(3) { width: 20%; }
-.srv-links th:nth-child(4) { width: 20%; }
+/* link | channel | status | language | invite | joined | signed up | actions (#905 added 5-7) */
+.srv-links { max-width: 1280px; }
+.srv-links th:nth-child(2) { width: 13%; }
+.srv-links th:nth-child(3) { width: 15%; }
+.srv-links th:nth-child(4) { width: 12%; }
+.srv-links th:nth-child(5) { width: 176px; }
+.srv-links th:nth-child(6), .srv-links th:nth-child(7) { width: 84px; }
 .srv-links th:last-child { width: 170px; }
+.srv-num { text-align: right; font-variant-numeric: tabular-nums; }
+.srv-invite { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; max-width: 100%; }
+.srv-code { font-family: var(--font-mono); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.srv-invite .badge { white-space: normal; }
+.srv-links .srv-sub { margin-top: 4px; }
 /* a long status ("noch nicht gepostet") wraps in its column instead of running under the buttons */
 .srv-links td:nth-child(3) .badge { white-space: normal; max-width: 100%; }
 .srv-servers th:nth-child(2) { width: 22%; }
@@ -273,6 +282,8 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
     .conn-grid { grid-template-columns: 1fr; }
     .srv-channels, .srv-pair { grid-template-columns: 1fr; }
     .srv-links th:nth-child(2), .srv-links td:nth-child(2), .srv-links th:nth-child(4), .srv-links td:nth-child(4) { display: none; }
+    .srv-links th:nth-child(6), .srv-links td:nth-child(6), .srv-links th:nth-child(7), .srv-links td:nth-child(7) { display: none; }
+    .srv-links th:nth-child(5) { width: 128px; }
     .srv-servers th:nth-child(3), .srv-servers td:nth-child(3), .srv-servers th:nth-child(4), .srv-servers td:nth-child(4) { display: none; }
     .srv-sub { display: flex; flex-wrap: wrap; }
     .srv-server-text > .srv-muted { font-size: 13px; }

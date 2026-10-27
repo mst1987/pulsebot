@@ -19,6 +19,7 @@ const softresDetect = require("./services/loot/softresDetect.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/roleSync.js");
 const rosterRoleSync = require("./services/roster/rosterRoleSync.js");
 const memberActivity = require("./services/discord/memberActivity.js");
+const pugInvites = require("./services/discord/pugInvites.js");
 const { guardInteraction } = require("./services/discord/botAccess.js");
 const { trackAck } = require("./services/discord/ackTiming.js");
 const { runMode } = require("./config/runMode.js");
@@ -49,6 +50,9 @@ const client = new Client({
         // the reactions on the role messages (services/discord/roleMessages.js): a reaction
         // gives its role, taking it back takes the role
         GatewayIntentBits.GuildMessageReactions,
+        // not privileged: inviteCreate / inviteDelete keep the invite counters current
+        // (services/discord/pugInvites.js — through which invite a member joined, #905)
+        GatewayIntentBits.GuildInvites,
     ],
     // The role messages' reactions must work on messages from before a restart too, which
     // are not in the cache: without these partials discord.js drops such reaction events
@@ -87,6 +91,9 @@ client.on(Events.ClientReady, () => {
     } catch (error) {
         logger.warn("member list warm-up failed:", error.message);
     }
+    // The invite of every link and the general one per source server (#905): missing or deleted
+    // ones are created again, then the use counters are read for the origin of new members.
+    pugInvites.ensureAllInvites().catch((error) => logger.warn("invites not ensured:", error.message));
 });
 
 // Watch the configured log channels for Warcraft-Logs links and offer to evaluate them.
@@ -118,11 +125,16 @@ client.on("guildMemberUpdate", (oldMember, newMember) => {
 // Joins and leaves are noted for the Discord overview (services/discord/memberActivity.js).
 client.on("guildMemberAdd", (member) => {
     memberActivity.onMemberAdd(member);
+    // through which invite the member came (#905); never throws
+    pugInvites.onMemberAdd(member);
     rosterRoleSync.onGuildMemberAdd(member);
     Promise.resolve(handleMemberAdd(member))
         .catch((error) => console.error("guildMemberAdd handler error:", error.message));
 });
 client.on("guildMemberRemove", (member) => memberActivity.onMemberRemove(member));
+// The invite counters (#905): a new invite starts at its uses, a deleted one of ours is made again.
+client.on(Events.InviteCreate, (invite) => pugInvites.onInviteCreate(invite));
+client.on(Events.InviteDelete, (invite) => pugInvites.onInviteDelete(invite));
 
 // Role messages: a reaction on one gives its role, removing it takes the role back
 // (services/discord/roleMessages.js; bots are ignored, nothing is answered; the Bot-Befehle

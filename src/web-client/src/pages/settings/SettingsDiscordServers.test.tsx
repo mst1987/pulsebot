@@ -10,6 +10,8 @@ import DiscordServersSection from "./SettingsDiscordServers";
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
     getDiscordServers: vi.fn(),
+    getPugInvites: vi.fn(),
+    postPugInvite: vi.fn(),
     getTalkOverview: vi.fn(),
     repostTalkOverview: vi.fn(),
     getRoleSync: vi.fn(),
@@ -55,6 +57,8 @@ beforeEach(() => {
     vi.mocked(api.getReminders).mockResolvedValue({ categoryReminders: {}, categories: [], lastRun: null });
     vi.mocked(api.updateSettings).mockReset();
     vi.mocked(api.updateSettings).mockResolvedValue({ config: {} as AdminConfig });
+    vi.mocked(api.getPugInvites).mockResolvedValue({ links: [], servers: [] });
+    vi.mocked(api.postPugInvite).mockReset();
 });
 
 describe("Discord-Server: Verknüpfungen", () => {
@@ -191,6 +195,50 @@ describe("Discord-Server: Server", () => {
         render();
         await screen.findAllByText("12 Mitglieder");
         expect(document.querySelector(".srv-sub")?.textContent).toContain("0 Raid-Kategorien");
+    });
+});
+
+describe("Discord-Server: Einladungen (#905)", () => {
+    const invite = (extra: Partial<api.PugLinkInvite> = {}): api.PugLinkInvite => ({
+        key: "10001:20002", from: "10001", to: "20002", code: "abc123", url: "https://discord.gg/abc123",
+        channelId: "c2", createdAt: 1, error: "", joined: 3, signedUp: 1, ...extra,
+    });
+
+    it("shows the link's invite code with copy and its joined/signed-up numbers", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [LINK] }));
+        vi.mocked(api.getPugInvites).mockResolvedValue({ links: [invite()], servers: [] });
+        render();
+        expect(await screen.findByText("abc123")).toBeInTheDocument();
+        const tr = screen.getByText("abc123").closest("tr") as HTMLElement;
+        expect(within(tr).getByRole("button", { name: "Einladung kopieren" })).toBeInTheDocument();
+        expect(within(tr).getByText("3 beigetreten")).toBeInTheDocument();
+        expect(within(tr).getByText("1 angemeldet")).toBeInTheDocument();
+    });
+
+    it("creates a missing invite by the link's key and names a missing right", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [LINK] }));
+        vi.mocked(api.getPugInvites).mockResolvedValue({ links: [invite({ code: "", url: "", error: "Bot fehlt das Recht „Einladung erstellen“" })], servers: [] });
+        vi.mocked(api.postPugInvite).mockResolvedValue({ links: [invite()], servers: [] });
+        render();
+        expect(await screen.findByText("Keine Einladung")).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Erzeugen" }));
+        await waitFor(() => expect(api.postPugInvite).toHaveBeenCalledWith({ key: "10001:20002" }, false));
+        expect(await screen.findByText("abc123")).toBeInTheDocument();
+        expect(screen.queryByText("Keine Einladung")).toBeNull();
+    });
+
+    it("asks before regenerating an invite", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [LINK] }));
+        vi.mocked(api.getPugInvites).mockResolvedValue({ links: [invite()], servers: [] });
+        vi.mocked(api.postPugInvite).mockResolvedValue({ links: [invite({ code: "new999", url: "https://discord.gg/new999" })], servers: [] });
+        render();
+        await screen.findByText("abc123");
+        fireEvent.click(screen.getByRole("button", { name: "Neu erzeugen" }));
+        const dialog = await screen.findByRole("dialog");
+        expect(api.postPugInvite).not.toHaveBeenCalled();
+        fireEvent.click(within(dialog).getByRole("button", { name: "Neu erzeugen" }));
+        await waitFor(() => expect(api.postPugInvite).toHaveBeenCalledWith({ key: "10001:20002" }, true));
+        expect(await screen.findByText("new999")).toBeInTheDocument();
     });
 });
 

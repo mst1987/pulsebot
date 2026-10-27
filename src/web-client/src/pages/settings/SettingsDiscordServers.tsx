@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import {
-    getDiscordServers, getTalkOverview, repostTalkOverview, updateSettings,
-    type AdminConfig, type ApiError, type DiscordServers, type DiscordServersData,
+    getDiscordServers, getPugInvites, getTalkOverview, postInviteChannel, postPugInvite, repostTalkOverview, updateSettings,
+    type AdminConfig, type ApiError, type DiscordServers, type DiscordServersData, type PugInvites, type PugServerInvite,
     type ServerEntry, type ServerLink, type ServerRow, type TalkOverviewStatus, type TextChannel,
 } from "../../api";
 import { linkKey, linkStatusBadge, linkStatusOf, linkSummary, raidCategoriesText, serverCardState } from "../../lib/settings/settingsLogic";
 import { useTableSort } from "../../lib/ui/tableSort";
 import { useToast } from "../../components/shell/Jobs";
-import { CheckMark, PenIcon, PlusIcon, SaveIcon, SendIcon, TrashIcon, WarnIcon } from "../../components/ui/icons";
+import { CheckMark, CopyIcon, PenIcon, PlusIcon, RefreshIcon, SaveIcon, SendIcon, TrashIcon, WarnIcon } from "../../components/ui/icons";
 import RoleSyncPart from "./SettingsRoleSync";
 import RemindersPart from "./SettingsReminders";
 import { Modal, useConfirm } from "../../components/ui/Modal";
@@ -32,7 +32,10 @@ import { t as translate, useT } from "../../i18n";
 
 const MAX_SERVERS = 10;
 
-type LinkSortKey = "link" | "channel" | "status" | "summary";
+type LinkSortKey = "link" | "channel" | "status" | "summary" | "invite" | "joined" | "signedUp";
+
+/** What an invite cell shows: the invite itself, or why there is none. */
+type InviteView = { code: string; url: string; error: string };
 type ServerSortKey = "server" | "status" | "categories" | "members";
 
 function initials(name: string): string {
@@ -89,13 +92,19 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
     const [dialog, setDialog] = useState<"link" | "server" | "channels" | null>(null);
     const [editServer, setEditServer] = useState<ServerEntry | null>(null);
     const [posting, setPosting] = useState("");
-    const linkSort = useTableSort<LinkSortKey>("settings-links-sort", { link: "asc", channel: "asc", status: "asc", summary: "asc" }, "link");
+    // #905: the invite per link and who joined through it; null = not loaded (or failed), the columns show "—".
+    const [invites, setInvites] = useState<PugInvites | null>(null);
+    const [inviteBusy, setInviteBusy] = useState("");
+    const linkSort = useTableSort<LinkSortKey>("settings-links-sort", {
+        link: "asc", channel: "asc", status: "asc", summary: "asc", invite: "asc", joined: "desc", signedUp: "desc",
+    }, "link");
     const serverSort = useTableSort<ServerSortKey>("settings-servers-sort", { server: "asc", status: "desc", categories: "desc", members: "desc" }, "server");
 
     const load = () => {
         getDiscordServers().then((d) => { setData(d); setError(""); }).catch((err: ApiError) => setError(err.message));
         // One shared fetch for every link's status instead of one per row.
         getTalkOverview().then((d) => setStatuses(d.statuses)).catch(() => setStatuses([]));
+        getPugInvites().then(setInvites).catch(() => setInvites(null));
     };
     useEffect(load, []);
 
@@ -180,6 +189,45 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
     };
 
     const statusOf = (link: ServerLink) => linkStatusOf(link, statuses);
+    const inviteOf = (link: ServerLink) => invites?.links.find((i) => i.key === linkKey(link)) || null;
+
+    const copyInvite = async (url: string) => {
+        try {
+            await navigator.clipboard.writeText(url);
+            toast(t("settings.discordServers.inviteCopied"));
+        } catch {
+            toast(url);
+        }
+    };
+
+    /** Creates or (after asking) replaces a link's or a server's general invite; `busyKey` marks the row. */
+    const runInvite = async (target: { key: string } | { guildId: string }, regenerate: boolean, busyKey: string) => {
+        if (regenerate) {
+            const ok = await ask({
+                title: t("settings.discordServers.regenerateTitle"),
+                text: t("settings.discordServers.regenerateText"),
+                action: t("settings.discordServers.regenerateInvite"),
+                tone: "danger",
+            });
+            if (!ok) return;
+        }
+        setInviteBusy(busyKey);
+        try {
+            const next = await postPugInvite(target, regenerate);
+            setInvites(next);
+            const rec = "key" in target ? next.links.find((l) => l.key === target.key) : next.servers.find((s) => s.guildId === target.guildId);
+            if (rec && rec.error) toast(rec.error, "err");
+            else toast(regenerate ? t("settings.discordServers.inviteRegenerated") : t("settings.discordServers.inviteCreated"));
+        } catch (err) {
+            toast((err as ApiError).message, "err");
+        } finally {
+            setInviteBusy("");
+        }
+    };
+
+    const saveInviteChannel = async (guildId: string, channelId: string) => {
+        setInvites(await postInviteChannel(guildId, channelId));
+    };
 
     const linkColumns: Column<ServerLink, LinkSortKey>[] = [
         {
@@ -211,6 +259,33 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
         },
         { id: "summary", label: t("settings.discordServers.colLangVersions"), sortKey: "summary", className: "srv-muted", cell: (l) => linkSummary(l, data.versions) },
         {
+            id: "invite", label: t("settings.discordServers.colInvite"), sortKey: "invite",
+            cell: (l) => {
+                const inv = inviteOf(l);
+                if (!inv) return <span className="srv-muted">—</span>;
+                const key = linkKey(l);
+                return (
+                    <>
+                        <InviteCell invite={inv} busy={inviteBusy === key} disabled={!!inviteBusy} onCopy={copyInvite}
+                            onCreate={() => runInvite({ key }, false, key)} onRegenerate={() => runInvite({ key }, true, key)} />
+                        {/* Narrow screens hide the two number columns; this line carries them instead. */}
+                        <span className="srv-sub">
+                            <span>{t("settings.discordServers.joinedCount", { count: inv.joined })}</span>
+                            <span>{t("settings.discordServers.signedUpCount", { count: inv.signedUp })}</span>
+                        </span>
+                    </>
+                );
+            },
+        },
+        {
+            id: "joined", label: t("settings.discordServers.colJoined"), sortKey: "joined", className: "srv-num",
+            cell: (l) => <span data-tip={t("settings.discordServers.joinedTip")}>{inviteOf(l)?.joined ?? "—"}</span>,
+        },
+        {
+            id: "signedUp", label: t("settings.discordServers.colSignedUp"), sortKey: "signedUp", className: "srv-num",
+            cell: (l) => <span data-tip={t("settings.discordServers.signedUpTip")}>{inviteOf(l)?.signedUp ?? "—"}</span>,
+        },
+        {
             id: "actions", actions: true, className: "srv-actions",
             cell: (l) => {
                 const busy = posting === linkKey(l);
@@ -230,6 +305,9 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
         if (key === "channel") return channelName(guildChannels(data, l.to), l.channelId).toLowerCase();
         if (key === "status") return linkStatusBadge(statusOf(l), now).label;
         if (key === "summary") return linkSummary(l, data.versions);
+        if (key === "invite") return inviteOf(l)?.error ? "0" : inviteOf(l)?.url ? "1" : "2";
+        if (key === "joined") return inviteOf(l)?.joined ?? -1;
+        if (key === "signedUp") return inviteOf(l)?.signedUp ?? -1;
         return `${guildName(data, l.from)} ${guildName(data, l.to)}`.toLowerCase();
     };
 
@@ -378,6 +456,11 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
             )}
             {dialog === "server" && (
                 <ServerModal data={data} entry={editServer} onClose={() => setDialog(null)}
+                    invite={editServer ? invites?.servers.find((s) => s.guildId === editServer.guildId) : undefined}
+                    inviteBusy={!!editServer && inviteBusy === `server:${editServer.guildId}`}
+                    onCopy={copyInvite}
+                    onInvite={(guildId, regenerate) => runInvite({ guildId }, regenerate, `server:${guildId}`)}
+                    onInviteChannel={saveInviteChannel}
                     onSave={async (entry) => {
                         const editing = config.servers.some((s) => s.guildId === entry.guildId);
                         const servers = editing ? config.servers.map((s) => (s.guildId === entry.guildId ? entry : s)) : [...config.servers, entry];
@@ -518,22 +601,73 @@ function LinkModal({ data, onClose, onSave }: {
     );
 }
 
-/** Adding a server (a bot server not configured yet) or changing a server's label. */
-function ServerModal({ data, entry, onClose, onSave }: {
+/**
+ * A link's or a server's invite (#905): the code with copy and "Neu erzeugen", "Erzeugen" while there is
+ * none, and the reason (a missing bot right, the bot not on the server) as a red badge.
+ */
+function InviteCell({ invite, busy, disabled, onCopy, onCreate, onRegenerate }: {
+    invite: InviteView;
+    busy: boolean;
+    disabled: boolean;
+    onCopy: (url: string) => void;
+    onCreate: () => void;
+    onRegenerate: () => void;
+}) {
+    const t = useT();
+    return (
+        <span className="srv-invite">
+            {invite.url ? (
+                <>
+                    <code className="srv-code" data-tip={invite.url}>{invite.code}</code>
+                    <IconButton size="sm" icon={<CopyIcon />} tip={t("settings.discordServers.copyInvite")} tipSub={invite.url} onClick={() => onCopy(invite.url)} />
+                    <IconButton size="sm" icon={<RefreshIcon />} tip={t("settings.discordServers.regenerateInvite")} tipSub={t("settings.discordServers.regenerateSub")}
+                        onClick={onRegenerate} disabled={disabled} aria-busy={busy || undefined} />
+                </>
+            ) : (
+                <Button size="sm" icon={<PlusIcon />} onClick={onCreate} disabled={disabled} running={busy}>{t("settings.discordServers.createInvite")}</Button>
+            )}
+            {invite.error && (
+                <Badge tone="bad" icon={<WarnIcon />} tip={t("settings.discordServers.inviteProblem")} tipSub={invite.error}>{t("settings.discordServers.inviteProblem")}</Badge>
+            )}
+        </span>
+    );
+}
+
+/** Adding a server (a bot server not configured yet) or changing a server's label, invite channel and general invite. */
+function ServerModal({ data, entry, invite, inviteBusy, onCopy, onInvite, onInviteChannel, onClose, onSave }: {
     data: DiscordServersData;
     /** null = add a new server. */
     entry: ServerEntry | null;
+    /** The server's invites (#905); only a link source gets them. */
+    invite?: PugServerInvite;
+    inviteBusy: boolean;
+    onCopy: (url: string) => void;
+    onInvite: (guildId: string, regenerate: boolean) => void;
+    onInviteChannel: (guildId: string, channelId: string) => Promise<void>;
     onClose: () => void;
     onSave: (entry: ServerEntry) => Promise<void>;
 }) {
     const t = useT();
+    const toast = useToast();
     const [fields, setFields] = useState<ServerEntry>(entry || { guildId: "", label: "" });
+    const [inviteChannel, setInviteChannel] = useState(invite?.inviteChannelId || "");
     const [busy, setBusy] = useState(false);
     const taken = new Set(data.discordServers.servers.map((s) => s.guildId));
     const free = data.guilds.filter((g) => !taken.has(g.id));
+    const withInvites = !!(entry && invite && invite.source);
     const submit = async () => {
         setBusy(true);
-        try { await onSave({ guildId: fields.guildId, label: fields.label.trim() }); } finally { setBusy(false); }
+        try {
+            if (withInvites && invite && inviteChannel !== invite.inviteChannelId) {
+                try {
+                    await onInviteChannel(fields.guildId, inviteChannel);
+                } catch (err) {
+                    toast((err as ApiError).message, "err");
+                    return;
+                }
+            }
+            await onSave({ guildId: fields.guildId, label: fields.label.trim() });
+        } finally { setBusy(false); }
     };
 
     return (
@@ -578,6 +712,24 @@ function ServerModal({ data, entry, onClose, onSave }: {
                     <input id="srv-add-label" type="text" maxLength={60} value={fields.label} placeholder={t("settings.discordServers.labelPlaceholder")}
                         onChange={(e) => setFields({ ...fields, label: e.target.value })} />
                 </div>
+                {withInvites && invite && (
+                    <>
+                        <div className="dlg-field">
+                            <FieldLabel htmlFor="srv-invite-channel" tip={t("settings.discordServers.inviteChannel")} tipSub={t("settings.discordServers.inviteChannelSub")}>
+                                {t("settings.discordServers.inviteChannel")}
+                            </FieldLabel>
+                            <ChannelPicker id="srv-invite-channel" value={inviteChannel} channels={guildChannels(data, invite.guildId)}
+                                placeholder={t("settings.discordServers.inviteChannelAuto")} onChange={setInviteChannel} />
+                        </div>
+                        <div className="dlg-field">
+                            <FieldLabel tip={t("settings.discordServers.generalInvite")} tipSub={t("settings.discordServers.generalInviteSub")}>
+                                {t("settings.discordServers.generalInvite")}
+                            </FieldLabel>
+                            <InviteCell invite={invite} busy={inviteBusy} disabled={inviteBusy || busy} onCopy={onCopy}
+                                onCreate={() => onInvite(invite.guildId, false)} onRegenerate={() => onInvite(invite.guildId, true)} />
+                        </div>
+                    </>
+                )}
             </div>
         </Modal>
     );

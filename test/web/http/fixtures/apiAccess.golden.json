@@ -22,6 +22,8 @@
     "/api/discord/overview": "channels",
     "/api/settings": "settings",
     "/api/settings/item-search": "settings",
+    "/api/settings/pug-invites": "settings",
+    "/api/settings/pug-invites/channel": "settings",
     "/api/settings/raidsheets": "settings",
     "/api/settings/raidsheets/delete": "settings",
     "/api/settings/ingest-tokens": "settings",
