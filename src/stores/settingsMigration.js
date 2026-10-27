@@ -159,6 +159,8 @@ const councilWeightsStore = require("./councilWeightsStore");
 const councilStore = require("./councilStore");
 const roleMessageStore = require("./roleMessageStore");
 const logStore = require("./logStore");
+const reportStore = require("./reportStore");
+const migrationMarkStore = require("./migrationMarkStore");
 const { firstServerId, guildOfEvent, logGuild, categoryGuildIndex } = require("../services/discord/serverOf");
 
 /**
@@ -703,6 +705,28 @@ function migrateLogGuilds() {
 }
 
 /**
+ * reports (#920): every evaluation from before #920 gets a server of its own, once -
+ * the server of its log (logs are stamped just before), or the first server for one
+ * without a log (a link evaluated by hand). From then on a deleted log cannot take
+ * the server of its report with it. Listing the reports reads every file, so the run
+ * leaves a mark (migrationMarkStore) and later starts skip it. One line, or none.
+ */
+function migrateReportGuilds() {
+    if (migrationMarkStore.isDone("reportGuilds")) return [];
+    const firstGuildId = firstServerId(configStore.getConfig());
+    if (!firstGuildId) return [];
+    const logGuildOf = new Map();
+    for (const l of logStore.listLogs()) {
+        if (l && l.reportRefId && l.guildId) logGuildOf.set(String(l.reportRefId), String(l.guildId));
+    }
+    const changed = reportStore.assignGuilds((meta) => logGuildOf.get(String(meta.id)) || firstGuildId);
+    // no reports folder yet (a fresh install): nothing to stamp, and nothing written either
+    if (changed === null) return [];
+    migrationMarkStore.markDone("reportGuilds");
+    return changed ? [`reports: ${changed} Auswertung(en) ihrem Discord-Server fest zugeordnet (#920)`] : [];
+}
+
+/**
  * Run every upgrade once. Never throws - a start must not fail over an old
  * file; the error is logged and the bot comes up with what it can read.
  * @returns {{ changes: string[], error?: Error }}
@@ -736,6 +760,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateCategoryVersions());
         changes.push(...migrateCouncilProfiles());
         changes.push(...migrateLogGuilds());
+        changes.push(...migrateReportGuilds());
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
         return { changes, error };
@@ -747,6 +772,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateDiscordFederation, migrateServerDefaults, raidplanDefaultsLine,
+    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateReportGuilds, migrateDiscordFederation, migrateServerDefaults, raidplanDefaultsLine,
     migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

@@ -283,6 +283,17 @@ describe("web/apiRoutes/dashboard", () => {
             expect(json(res)).toEqual({ error: { code: "unauthorized", message: expect.any(String) } });
         });
 
+        it("asks for the latest report of the active server only (#920)", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-2");
+            await get("/api/dashboard");
+            expect(dashboardData.loadLatestReport).toHaveBeenLastCalledWith(expect.objectContaining({ guildId: "guild-2" }));
+            // no active server: "" - loadLatestReport then has no report at all, never another server's
+            activeGuildFor.mockReturnValue("");
+            await get("/api/dashboard");
+            expect(dashboardData.loadLatestReport).toHaveBeenLastCalledWith(expect.objectContaining({ guildId: "" }));
+        });
+
         it("lists a raid whose channel is gone as a task with \"Kanal neu anlegen\" (#537)", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             activeGuildFor.mockReturnValue("guild-1");
@@ -494,7 +505,7 @@ describe("web/apiRoutes/dashboard", () => {
             expect(dashboardData.loadNextRaids).toHaveBeenCalledWith("guild-1", 2, { versionId: "tbc", categoryIds: null });
             expect(dashboardData.loadRecentEvents).toHaveBeenCalledWith("guild-1", 5, { versionId: "tbc", categoryIds: null });
             // "Neuer Loot" counts from the newest past raid's start
-            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(1000, { versionId: "tbc" });
+            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(1000, { versionId: "tbc", guildId: "guild-1" });
             const data = json(res).data;
             expect(data.kicker).toEqual({ guild: "Pulse", realm: "Thunderstrike EU" });
             expect(data.nextRaid).toEqual(next);
@@ -537,10 +548,10 @@ describe("web/apiRoutes/dashboard", () => {
 
             expect(dashboardData.loadNextRaids).toHaveBeenCalledWith("guild-1", 2, { versionId: "forever", categoryIds: null });
             expect(dashboardData.loadRecentEvents).toHaveBeenCalledWith("guild-1", 5, { versionId: "forever", categoryIds: null });
-            expect(dashboardData.loadTopLoot).toHaveBeenCalledWith(5, "forever");
+            expect(dashboardData.loadTopLoot).toHaveBeenCalledWith(5, "forever", "guild-1");
             // the latest report, the new loot and the roster figures follow it too (#741)
-            expect(dashboardData.loadLatestReport).toHaveBeenCalledWith({ versionId: "forever" });
-            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(0, { versionId: "forever" });
+            expect(dashboardData.loadLatestReport).toHaveBeenCalledWith({ guildId: "guild-1", versionId: "forever" });
+            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(0, { versionId: "forever", guildId: "guild-1" });
             expect(dashboardData.loadRosterFigures).toHaveBeenCalledWith("guild-1", { versionId: "forever" });
             const data = json(res).data;
             expect(data.version).toBe("forever");
@@ -564,7 +575,7 @@ describe("web/apiRoutes/dashboard", () => {
             expect(data.nextRaid).toBeNull();
             expect(data.nextRaidError).toBe("Raid-Helper down");
             expect(data.tasks).toEqual([]);
-            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(0, { versionId: "tbc" });
+            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(0, { versionId: "tbc", guildId: "guild-1" });
         });
     });
 

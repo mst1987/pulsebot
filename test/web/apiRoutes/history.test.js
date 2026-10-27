@@ -14,6 +14,7 @@ jest.mock("../../../src/stores/reportStore", () => ({
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
+    setReportGuild: jest.fn(() => false),
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
@@ -271,6 +272,8 @@ const dashboardData = require("../../../src/web/dashboard/dashboardData");
 const discord = require("../../../src/services/discord/discord");
 const raidEventGroups = require("../../../src/services/events/raidEventGroups");
 const logStore = require("../../../src/stores/logStore");
+const { reportsOfGuild } = require("../../../src/services/logcheck/reportGuild");
+const reportStore = require("../../../src/stores/reportStore");
 const lootStore = require("../../../src/stores/lootStore");
 const lootAwards = require("../../../src/web/loot/lootAwards");
 const characterInfo = require("../../../src/services/characters/characterInfo");
@@ -317,9 +320,12 @@ describe("web/apiRoutes/history", () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc" });
             logStore.listLogs.mockReturnValue([
-                { id: "tbc-log", eventId: "rh-1", versionId: "tbc" },
-                { id: "forever-log", eventId: "rh-2", versionId: "forever" },
-                { id: "waiting", eventId: "" },
+                { id: "tbc-log", guildId: "guild-1", eventId: "rh-1", versionId: "tbc" },
+                { id: "forever-log", guildId: "guild-1", eventId: "rh-2", versionId: "forever" },
+                { id: "waiting", guildId: "guild-1", eventId: "" },
+                // another server's log, and one without a server: in no version (#920)
+                { id: "foreign", guildId: "guild-2", eventId: "" },
+                { id: "serverless", eventId: "" },
             ]);
             try {
                 const forever = json(await get("/api/history", { version: "forever" })).data;
@@ -368,6 +374,126 @@ describe("web/apiRoutes/history", () => {
             expect(tbc.linked.map((s) => s.sessionId)).toEqual(["l-tbc"]);
         });
 
+        // #919, through the real router: a card shows on the server of its
+        // suggested raid, one without a suggestion everywhere; server A can
+        // neither file nor dismiss B's card, and without a server nothing shows.
+        it("shows, files and dismisses addon inbox cards only on their server (#919)", async () => {
+            const pending = [
+                { id: "p-a", items: [], match: { suggested: { eventId: "rh-a", guildId: "gA" } } },
+                { id: "p-b", items: [], match: { suggested: { eventId: "rh-b", guildId: "gB" } } },
+                { id: "p-open", items: [], match: null },
+            ];
+            const linked = [{ sessionId: "l-a", eventId: "rh-a", guildId: "gA" }, { sessionId: "l-b", eventId: "rh-b", guildId: "gB" }];
+            const resolvePending = jest.fn((id) => ({ id, sessionId: id }));
+            let router;
+            let isolatedAuth;
+            let isolatedGuild;
+            jest.isolateModules(() => {
+                jest.doMock("../../../src/stores/lootInboxStore", () => ({
+                    listPending: () => pending, listLinked: () => linked,
+                    getPending: (id) => pending.find((s) => s.id === id) || null,
+                    resolvePending, upsertPending: jest.fn(), resolutionFor: jest.fn(), noteAppended: jest.fn(), unlinkEvent: jest.fn(() => 0),
+                }));
+                router = require("../../../src/web/http/apiRouter");
+                isolatedAuth = require("../../../src/web/http/auth");
+                isolatedGuild = require("../../../src/web/http/activeGuild");
+            });
+            isolatedAuth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            isolatedAuth.checkCsrf.mockReturnValue(true);
+            const send = async (method, path, payload) => {
+                const res = mockRes();
+                if (method === "GET") await router.handle(path, { method: "GET", headers: {} }, res, new URL(`http://localhost${path}`));
+                else await router.handle(path, jsonRequest(method, path, payload, { "x-csrf-token": "tok" }), res);
+                return res;
+            };
+
+            isolatedGuild.activeGuildFor.mockReturnValue("gA");
+            const onA = json(await send("GET", "/api/history/inbox")).data;
+            expect(onA.sessions.map((s) => s.id)).toEqual(["p-a", "p-open"]);
+            expect(onA.linked.map((s) => s.sessionId)).toEqual(["l-a"]);
+
+            const accept = await send("POST", "/api/history/inbox-accept", { id: "p-b" });
+            expect(accept.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(json(accept).error.code).toBe("other_server");
+            const dismissB = await send("POST", "/api/history/inbox-dismiss", { id: "p-b" });
+            expect(dismissB.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(resolvePending).not.toHaveBeenCalled();
+            const dismissOpen = await send("POST", "/api/history/inbox-dismiss", { id: "p-open" });
+            expect(json(dismissOpen).data).toEqual({ id: "p-open", sessionId: "p-open" });
+            expect(resolvePending).toHaveBeenCalledWith("p-open", "dismissed");
+
+            isolatedGuild.activeGuildFor.mockReturnValue("gB");
+            expect(json(await send("GET", "/api/history/inbox")).data.sessions.map((s) => s.id)).toEqual(["p-b", "p-open"]);
+
+            isolatedGuild.activeGuildFor.mockReturnValue("");
+            const none = json(await send("GET", "/api/history/inbox")).data;
+            expect(none).toEqual({ sessions: [], linked: [] });
+        });
+
+        // #919, through the real router: every loot view of the history area -
+        // the buckets, the characters, the stats, the awards and the picker -
+        // shows server A's loot on A, B's on B and nothing without a server.
+        it("shows only the active server's loot in every loot view (#919)", async () => {
+            const rows = [
+                { id: "a1", eventId: "rh-a", guildId: "gA", categoryId: "", itemId: 30000, itemName: "Klinge A", character: "Arthas", characterKey: "arthas", reason: "ms" },
+                { id: "b1", eventId: "rh-b", guildId: "gB", categoryId: "", itemId: 30001, itemName: "Klinge B", character: "Bolvar", characterKey: "bolvar", reason: "ms" },
+            ];
+            const buckets = [
+                { eventId: "rh-a", label: "Raid A", categoryId: "", guildId: "gA", count: 1, sources: [] },
+                { eventId: "rh-b", label: "Raid B", categoryId: "", guildId: "gB", count: 1, sources: [] },
+            ];
+            let router;
+            let isolatedAuth;
+            let isolatedGuild;
+            jest.isolateModules(() => {
+                // no raid is known: the rows' own server decides (rule 2)
+                jest.doMock("../../../src/stores/eventStore", () => ({ ...jest.requireActual("../../../src/stores/eventStore"), getEvent: () => null }));
+                // the file-wide mocks are module factories, so the isolated
+                // registry has its own instances: give those the two servers' loot
+                // (before the router loads, as the loot views destructure the store)
+                const store = require("../../../src/stores/lootStore");
+                store.charLootPreview = (it) => ({ itemId: it.itemId, itemName: it.itemName, eventId: it.eventId, reason: it.reason });
+                router = require("../../../src/web/http/apiRouter");
+                isolatedAuth = require("../../../src/web/http/auth");
+                isolatedGuild = require("../../../src/web/http/activeGuild");
+                store.listAll.mockImplementation(() => rows);
+                store.listByEvent.mockImplementation((id) => rows.filter((r) => r.eventId === id));
+                store.listByCharacter.mockImplementation((name) => rows.filter((r) => r.character === name));
+                store.eventsWithLoot.mockImplementation(() => buckets);
+                require("../../../src/web/loot/lootAwards").listAwards
+                    .mockImplementation(jest.requireActual("../../../src/web/loot/lootAwards").listAwards);
+                require("../../../src/services/characters/characterInfo").annotatedCharacters
+                    .mockImplementation(({ rows: given } = {}) => (given || []).map((r) => ({ character: r.character, realm: "", count: 1, items: [r], categoryIds: [] })));
+            });
+            isolatedAuth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            const getJson = async (path) => {
+                const res = mockRes();
+                await router.handle(path.split("?")[0], { method: "GET", headers: {} }, res, new URL(`http://localhost${path}`));
+                return json(res).data;
+            };
+            const views = async () => {
+                const history = await getJson("/api/history?version=tbc");
+                const stats = await getJson("/api/history/loot-stats?version=tbc");
+                const awards = await getJson("/api/history/loot-awards?top=0&version=tbc");
+                const pickerA = await getJson("/api/history/loot-picker?event=rh-a&version=tbc");
+                const pickerB = await getJson("/api/history/loot-picker?event=rh-b&version=tbc");
+                return {
+                    buckets: history.lootEvents.map((e) => e.eventId),
+                    chars: history.chars.map((c) => c.character),
+                    stats: stats.characters.map((c) => c.character),
+                    awards: awards.items.map((it) => it.itemName),
+                    picker: [...pickerA.characters, ...pickerB.characters].map((c) => c.character),
+                };
+            };
+
+            isolatedGuild.activeGuildFor.mockReturnValue("gA");
+            expect(await views()).toEqual({ buckets: ["rh-a"], chars: ["Arthas"], stats: ["Arthas"], awards: ["Klinge A"], picker: ["Arthas", "Arthas"] });
+            isolatedGuild.activeGuildFor.mockReturnValue("gB");
+            expect(await views()).toEqual({ buckets: ["rh-b"], chars: ["Bolvar"], stats: ["Bolvar"], awards: ["Klinge B"], picker: ["Bolvar", "Bolvar"] });
+            isolatedGuild.activeGuildFor.mockReturnValue("");
+            expect(await views()).toEqual({ buckets: [], chars: [], stats: [], awards: [], picker: [] });
+        });
+
         it("returns 401 for an anonymous caller", async () => {
             auth.getUser.mockReturnValue(null);
             const res = await get("/api/history");
@@ -384,7 +510,7 @@ describe("web/apiRoutes/history", () => {
             dashboardData.annotateUpcomingExtras.mockReturnValue([{ id: "e1", title: "Kara", lootCount: 2 }]);
             dashboardData.loadRecentEvents.mockResolvedValue({ events: [{ id: "e0", title: "Old Kara" }], error: null });
             lootStore.eventsWithLoot.mockReturnValue([{ eventId: "e1", label: "Kara", count: 2 }]);
-            logStore.listLogs.mockReturnValue([{ id: "l1", title: "Log 1" }]);
+            logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "guild-1", title: "Log 1" }]);
             discord.listCategories.mockReturnValue([{ id: "cat1", name: "Raids" }]);
             settingsStore.getConfig.mockReturnValue({ categoryLootTool: { cat1: "gargul" } });
 
@@ -396,8 +522,8 @@ describe("web/apiRoutes/history", () => {
                 upcomingRaids: { events: [{ id: "e1", title: "Kara", lootCount: 2 }], error: null },
                 pastRaids: { events: [{ id: "e0", title: "Old Kara" }], error: null },
                 // #563: each bucket names the version of its raid (no own event = TBC)
-                lootEvents: [{ eventId: "e1", label: "Kara", count: 2, versionId: "tbc" }],
-                logs: [{ id: "l1", title: "Log 1", postedAt: 0 }],
+                lootEvents: [{ eventId: "e1", label: "Kara", count: 2, versionId: "tbc", guildId: "" }],
+                logs: [{ id: "l1", guildId: "guild-1", title: "Log 1", postedAt: 0 }],
                 categories: [{ id: "cat1", name: "Raids" }],
                 categoryLootTool: { cat1: "gargul" },
                 activeGuildId: "guild-1",
@@ -426,7 +552,7 @@ describe("web/apiRoutes/history", () => {
                 events: [],
                 upcomingRaids: { events: [], error: null },
                 pastRaids: { events: [], error: null },
-                lootEvents: [{ eventId: "e1", label: "Kara", count: 2, versionId: "tbc" }],
+                lootEvents: [{ eventId: "e1", label: "Kara", count: 2, versionId: "tbc", guildId: "" }],
                 logs: [],
                 categories: [{ id: "cat1", name: "Raids" }],
                 categoryLootTool: {},
@@ -440,11 +566,11 @@ describe("web/apiRoutes/history", () => {
 
         it("computes each log's posted-date via logPostedAt (falls back through messageId/detectedAt)", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
-            logStore.listLogs.mockReturnValue([{ id: "l1", title: "Log 1", detectedAt: 555 }]);
+            logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "guild-1", title: "Log 1", detectedAt: 555 }]);
             reportList.logPostedAt.mockReturnValueOnce(555);
             const res = await get("/api/history");
-            expect(reportList.logPostedAt).toHaveBeenCalledWith({ id: "l1", title: "Log 1", detectedAt: 555 });
-            expect(json(res).data.logs).toEqual([{ id: "l1", title: "Log 1", detectedAt: 555, postedAt: 555 }]);
+            expect(reportList.logPostedAt).toHaveBeenCalledWith({ id: "l1", guildId: "guild-1", title: "Log 1", detectedAt: 555 });
+            expect(json(res).data.logs).toEqual([{ id: "l1", guildId: "guild-1", title: "Log 1", detectedAt: 555, postedAt: 555 }]);
         });
 
         it("annotates loot characters with their class color and spec icon", async () => {
@@ -478,6 +604,25 @@ describe("web/apiRoutes/history", () => {
             const res = await post("/api/history/log-delete", { logId: "l1" });
             expect(logStore.deleteLog).toHaveBeenCalledWith("l1");
             expect(json(res)).toEqual({ data: { id: "l1" } });
+        });
+
+        // #920: the report keeps the server of its deleted log instead of falling to another one
+        it("writes the log's server onto its report before the log goes", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const report = { id: "abc111" }; // an old report without a server of its own
+            let logs = [{ id: "l1", guildId: "B", reportRefId: "abc111" }];
+            logStore.getLog.mockImplementation((id) => logs.find((l) => l.id === id) || null);
+            logStore.deleteLog.mockImplementation((id) => { logs = logs.filter((l) => l.id !== id); return true; });
+            reportStore.setReportGuild.mockImplementation((id, guildId) => { if (id === report.id) report.guildId = guildId; return true; });
+            await post("/api/history/log-delete", { logId: "l1" });
+            expect(reportStore.setReportGuild).toHaveBeenCalledWith("abc111", "B");
+            expect(logs).toEqual([]);
+            expect(reportsOfGuild([report], "A", logs)).toEqual([]);
+            expect(reportsOfGuild([report], "B", logs)).toEqual([report]);
+            logStore.getLog.mockReset();
+            logStore.deleteLog.mockReset();
+            reportStore.setReportGuild.mockReset();
         });
     });
 
@@ -526,7 +671,7 @@ describe("web/apiRoutes/history", () => {
             expect(lootStore.addImport).toHaveBeenCalledWith(
                 "manual-ssc-tk-12-07",
                 [{ itemName: "Sword" }],
-                { categoryId: "", eventLabel: "SSC/TK — 12.07." },
+                { categoryId: "", eventLabel: "SSC/TK — 12.07.", guildId: "" },
             );
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
             expect(json(res)).toEqual({ data: { eventId: "manual-ssc-tk-12-07", eventLabel: "SSC/TK — 12.07.", categoryId: "", added: 1, skipped: 0 } });
@@ -548,7 +693,7 @@ describe("web/apiRoutes/history", () => {
             expect(lootStore.addImport).toHaveBeenCalledWith(
                 "manual-pug-raid",
                 [{ itemName: "Sword" }],
-                { categoryId: "cat-pug", eventLabel: "Pug-Raid" },
+                { categoryId: "cat-pug", eventLabel: "Pug-Raid", guildId: "guild-1" },
             );
             expect(json(res).data).toMatchObject({ eventId: "manual-pug-raid", categoryId: "cat-pug" });
         });
@@ -580,7 +725,7 @@ describe("web/apiRoutes/history", () => {
             await post("/api/history/import", { data: "text", event: "__manual__", manualLabel: "Pug-Raid", categoryId: "cat-pug" });
 
             expect(lootStore.addImport).toHaveBeenCalledWith(
-                "manual-pug-raid", [{ itemName: "Sword" }], { categoryId: "cat-pug", eventLabel: "Pug-Raid" },
+                "manual-pug-raid", [{ itemName: "Sword" }], { categoryId: "cat-pug", eventLabel: "Pug-Raid", guildId: "guild-1" },
             );
         });
 
@@ -621,7 +766,7 @@ describe("web/apiRoutes/history", () => {
 
             const res = await post("/api/history/import", { data: "text", event: "__auto__", tool: "gargul" });
 
-            expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara" });
+            expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara", guildId: "" });
             expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryLootTool: { cat1: "gargul" } });
             expect(json(res)).toEqual({ data: { eventId: "e1", eventLabel: "Kara", categoryId: "cat1", added: 3, skipped: 1 } });
         });
@@ -642,7 +787,7 @@ describe("web/apiRoutes/history", () => {
 
             const res = await post("/api/history/import", { data: "text", event: "e1", categoryId: "cat-pug" });
 
-            expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara" });
+            expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara", guildId: "guild-1" });
             expect(json(res).data.categoryId).toBe("cat1");
         });
 
@@ -658,7 +803,7 @@ describe("web/apiRoutes/history", () => {
 
             const res = await post("/api/history/import", { data: "text", event: "e1" });
 
-            expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara" });
+            expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara", guildId: "" });
             expect(json(res)).toEqual({ data: { eventId: "e1", eventLabel: "Kara", categoryId: "cat1", added: 1, skipped: 0 } });
         });
     });
@@ -685,6 +830,7 @@ describe("web/apiRoutes/history", () => {
         it("clears the category for an empty id", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             auth.checkCsrf.mockReturnValue(true);
+            activeGuildFor.mockReturnValue("guild-1");
             lootStore.setEventCategory.mockReturnValue(2);
 
             const res = await post("/api/history/loot-category", { event: "e1", categoryId: "" });
@@ -734,6 +880,16 @@ describe("web/apiRoutes/history", () => {
     });
 
     describe("POST /api/history/loot-delete", () => {
+        // Only rows of the active server can be deleted (#919).
+        beforeEach(() => {
+            activeGuildFor.mockReturnValue("guild-1");
+            lootStore.listAll.mockReturnValue([{ id: "a1", guildId: "guild-1" }, { id: "b2", guildId: "guild-1" }, { id: "x9", guildId: "guild-2" }]);
+        });
+        afterEach(() => {
+            activeGuildFor.mockReturnValue("");
+            lootStore.listAll.mockReturnValue([]);
+        });
+
         it("deletes single rows by id and returns the removed count", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             auth.checkCsrf.mockReturnValue(true);
@@ -771,6 +927,17 @@ describe("web/apiRoutes/history", () => {
             expect(json(res)).toEqual({ error: { code: "not_found", message: expect.any(String) } });
         });
 
+        it("never deletes a row of another server, nor anything without an active server (#919)", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/history/loot-delete", { ids: ["x9"] });
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+            activeGuildFor.mockReturnValue("");
+            const none = await post("/api/history/loot-delete", { ids: ["a1"] });
+            expect(none.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+            expect(lootStore.removeItems).not.toHaveBeenCalled();
+        });
+
         it("returns 401 for an anonymous caller", async () => {
             auth.getUser.mockReturnValue(null);
             const res = await post("/api/history/loot-delete", { id: "a1" });
@@ -788,8 +955,10 @@ describe("web/apiRoutes/history", () => {
     });
 
     describe("GET /api/history/loot-picker", () => {
+        afterEach(() => activeGuildFor.mockReturnValue(""));
         beforeEach(() => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
             lootStore.listByEvent.mockReturnValue([]);
             characterInfo.annotatedCharacters.mockReturnValue([]);
         });
@@ -853,7 +1022,7 @@ describe("web/apiRoutes/history", () => {
                 response: "Mainspec",
                 offspec: false,
                 awardedAt: 5000,
-            })], { categoryId: "cat1", eventLabel: "SSC/TK" });
+            })], { categoryId: "cat1", eventLabel: "SSC/TK", guildId: "" });
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
             expect(json(res).data).toMatchObject({ eventId: "e1", eventLabel: "SSC/TK", added: 1 });
         });
@@ -894,6 +1063,18 @@ describe("web/apiRoutes/history", () => {
     });
 
     describe("POST /api/history/clear", () => {
+        beforeEach(() => activeGuildFor.mockReturnValue("guild-1"));
+        afterEach(() => activeGuildFor.mockReturnValue(""));
+
+        it("refuses without an active server (#919, fail closed)", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            activeGuildFor.mockReturnValue("");
+            const res = await post("/api/history/clear", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(lootStore.clearEvent).not.toHaveBeenCalled();
+        });
+
         it("clears the event's loot and returns the removed count", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             auth.checkCsrf.mockReturnValue(true);
@@ -910,6 +1091,7 @@ describe("web/apiRoutes/history", () => {
             let route;
             let isolatedAuth;
             let isolatedLoot;
+            let isolatedGuild;
             // the inbox store reads its file; here it is a stand-in, in a registry of its own
             jest.isolateModules(() => {
                 jest.doMock("../../../src/stores/lootInboxStore", () => ({
@@ -919,7 +1101,9 @@ describe("web/apiRoutes/history", () => {
                 route = require("../../../src/web/apiRoutes/history");
                 isolatedAuth = require("../../../src/web/http/auth");
                 isolatedLoot = require("../../../src/stores/lootStore");
+                isolatedGuild = require("../../../src/web/http/activeGuild");
             });
+            isolatedGuild.activeGuildFor.mockReturnValue("guild-1");
             isolatedAuth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             isolatedAuth.checkCsrf.mockReturnValue(true);
             isolatedLoot.clearEvent.mockReturnValue(3);
@@ -932,6 +1116,9 @@ describe("web/apiRoutes/history", () => {
     });
 
     describe("GET /api/history/event", () => {
+        beforeEach(() => activeGuildFor.mockReturnValue("guild-1"));
+        afterEach(() => activeGuildFor.mockReturnValue(""));
+
         it("returns the loot items and label for an event", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             lootStore.listByEvent.mockReturnValue([{ eventLabel: "Kara", itemName: "Sword" }]);
@@ -979,7 +1166,7 @@ describe("web/apiRoutes/history", () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             await get("/api/history/loot-awards", {});
             expect(lootAwards.listAwards).toHaveBeenCalledWith({
-                topOnly: true, search: "", categoryId: "", contentId: "", reason: "", page: 1, sort: "date", dir: "desc", versionId: "tbc",
+                topOnly: true, search: "", categoryId: "", contentId: "", reason: "", page: 1, sort: "date", dir: "desc", versionId: "tbc", guildId: "",
             });
         });
 
@@ -989,7 +1176,7 @@ describe("web/apiRoutes/history", () => {
                 top: "0", q: "vashj", category: "cat1", content: "ssc", reason: "offspec", page: "3",
             });
             expect(lootAwards.listAwards).toHaveBeenCalledWith({
-                topOnly: false, search: "vashj", categoryId: "cat1", contentId: "ssc", reason: "offspec", page: 3, sort: "date", dir: "desc", versionId: "tbc",
+                topOnly: false, search: "vashj", categoryId: "cat1", contentId: "ssc", reason: "offspec", page: 3, sort: "date", dir: "desc", versionId: "tbc", guildId: "",
             });
         });
 
@@ -1090,8 +1277,10 @@ describe("web/apiRoutes/history", () => {
     });
 
     describe("GET /api/history/char", () => {
+        afterEach(() => activeGuildFor.mockReturnValue(""));
         beforeEach(() => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
             mockIsConfigured.mockReturnValue(false);
             mockGetCharacterSummary.mockResolvedValue(null);
             mockGetEquipment.mockResolvedValue(null);
@@ -1312,6 +1501,7 @@ describe("web/apiRoutes/history", () => {
             raidEventStore.versionOfRaidEvent = jest.fn((id) => STORED[id] || "");
             characterInfo.annotatedCharacters.mockReturnValue(chars);
             settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc" });
+            activeGuildFor.mockReturnValue("guild-1");
         });
         afterEach(() => {
             delete raidEventStore.versionOfRaidEvent;

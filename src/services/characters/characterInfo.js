@@ -44,11 +44,12 @@ function rememberFromLoot(items) {
 
 /**
  * The loot characters plus what is known about their class/spec.
+ * `rows` narrows it to some loot rows (#919: the active server's, see services/loot/lootServer.js).
  * @returns [{ key, character, realm, count, categoryIds, className, spec, source, reportId }]
  */
-function annotatedCharacters() {
+function annotatedCharacters({ rows } = {}) {
     const known = charStore.characterMap();
-    return lootCharacters().map((c) => {
+    return (rows ? lootCharacters(rows) : lootCharacters()).map((c) => {
         const info = known[c.key] || {};
         return {
             ...c,

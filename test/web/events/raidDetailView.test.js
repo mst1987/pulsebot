@@ -326,7 +326,7 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         loadEventGroups.mockResolvedValue(groupsWith(rhEvent()));
         const own = { id: "l1", eventId: "rh1", status: "done" };
         logStore.listLogsForEvent.mockReturnValue([own]);
-        logStore.listLogs.mockReturnValue([own, { id: "l2", guildId: "g1" }, { id: "l3", guildId: "g2" }, { id: "l4", sections: ["rpb"] }]);
+        logStore.listLogs.mockReturnValue([own, { id: "l2", guildId: "g1" }, { id: "l3", guildId: "g2" }, { id: "l4", guildId: "g1", sections: ["rpb"] }, { id: "l5" }]);
         const { body } = await buildRaidDetail({ guildId: "g1", eventId: "rh1" });
         expect(body.eventLogs).toEqual([{ id: "l1", eventId: "rh1", status: "done", sections: ["cla"] }]);
         expect(body.unlinkedLogs.map((l) => [l.id, l.sections])).toEqual([["l2", []], ["l4", ["rpb"]]]);

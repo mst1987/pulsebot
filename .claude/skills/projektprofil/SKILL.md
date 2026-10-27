@@ -165,6 +165,12 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     Route, die aus dem Pfad weiterleitet (`legacyMount` `/admin`, `/admin2`), aus einem harmlosen
     Pfad `//host` machen. Jedes Umleitungsziel durch `safeReturnPath` schicken und Ketten
     (Rücksprung → zweite Umleitung) im Test prüfen.
+18. Server-Bezug von Auswertungen (#920): Er hängt nicht nur an `logStore.listLogs()`. Jede Liste,
+    jede Kachel und jeder Slash-Befehl, der Reports zeigt, muss über die Report-Regel
+    (`services/logcheck/reportGuild.js`: Log per `reportRefId` entscheidet, sonst `report.guildId`)
+    nach Server filtern; ohne aktiven Server leer, nie alle Server. Neue Report-Auswahl → Negativ-Test
+    mit einem Report eines anderen Servers. Wer ein Log löscht oder umhängt, schreibt den Server auf
+    den Report (`deleteLogKeepingReportGuild` / `reportStore.setReportGuild`).
 
 ## Fach-Agenten
 

@@ -83,7 +83,7 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
     const globalWrite = isGlobalRaidOrga(user);
     const actionRaids = (rows, idOf = (r) => r.id) => (globalWrite ? rows : onlyOrgaRaids(user, rows, idOf, req));
     const claWrite = userCanAny(user, ["cla"], "write");
-    const report = globalOrga || userCanAny(user, ["cla"], "read") ? loadLatestReport({ versionId }) : null;
+    const report = globalOrga || userCanAny(user, ["cla"], "read") ? loadLatestReport({ guildId, versionId }) : null;
     const lastRaid = recentEvents.events[0];
     // Role-sync drift is a full admin's task: only they can open the section it
     // links to. Nothing configured means no member fetch at all.
@@ -118,7 +118,7 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
             nextRaids: await actionRaids(next.raids),
             recentEvents: globalWrite ? recentRows : (claWrite ? await actionRaids(recentRows) : []),
             report: userCanAny(user, ["cla"], "write") ? report : null,
-            inbox: userCanAny(user, ["history"], "write") ? loadInbox() : [],
+            inbox: userCanAny(user, ["history"], "write") ? loadInbox(guildId) : [],
             // Only for whoever can open the archive the task leads to.
             archive: userCanAny(user, ["channels"], "read") ? loadChannelArchive(guildId) : null,
             roleDrift,
@@ -134,11 +134,11 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
         areas: globalOrga
             ? {
                 lastReport: report,
-                newLoot: loadNewLoot(lastRaid ? lastRaid.startTime : 0, { versionId }),
+                newLoot: loadNewLoot(lastRaid ? lastRaid.startTime : 0, { versionId, guildId }),
                 roster: loadRosterFigures(guildId, { versionId }),
             }
             : null,
-        topLoot: loadTopLoot(5, versionId),
+        topLoot: loadTopLoot(5, versionId, guildId),
         recentEvents: {
             ...recentEvents,
             events: linkCheck.withChannelState(guildId, recentRows).map((ev) => ({ ...ev, icon: zoneFor(ev.title).icon })),

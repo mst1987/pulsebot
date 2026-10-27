@@ -461,29 +461,52 @@ describe("web/dashboard/dashboardData loadNextRaidDetails", () => {
 
 describe("web/dashboard/dashboardData area loaders", () => {
     it("reads the newest report with how many raiders have gear problems", () => {
-        reportStore.listReports.mockReturnValue([{ id: "r2", zone: "Black Temple", generatedAt: 9 }, { id: "r1" }]);
+        reportStore.listReports.mockReturnValue([{ id: "r2", zone: "Black Temple", generatedAt: 9, guildId: "g1" }, { id: "r1", guildId: "g1" }]);
         reportStore.getReport.mockReturnValue({
             players: [{ issues: [1] }],
             recommendations: { raid: [{ key: "a" }], players: [{ name: "X", items: [{ key: "b" }, { key: "c" }] }] },
             recommendationReview: { raid: {}, players: { X: { b: { approved: true } } } },
         });
-        expect(loadLatestReport()).toMatchObject({ id: "r2", zone: "Black Temple", problems: 1, gearRaiders: 1 });
-        expect(loadLatestReport()).not.toHaveProperty("open");
+        expect(loadLatestReport({ guildId: "g1" })).toMatchObject({ id: "r2", zone: "Black Temple", problems: 1, gearRaiders: 1 });
+        expect(loadLatestReport({ guildId: "g1" })).not.toHaveProperty("open");
         expect(reportStore.getReport).toHaveBeenCalledWith("r2");
     });
 
     it("reads the newest report of the shown game version (#741)", () => {
         reportStore.getReport.mockReturnValue({ players: [] });
         reportStore.listReports.mockReturnValue([
-            { id: "r-forever", zone: "Barrow Deeps", generatedAt: 9, versionId: "forever" },
-            { id: "r-tbc", zone: "Black Temple", generatedAt: 5, versionId: "tbc" },
+            { id: "r-forever", zone: "Barrow Deeps", generatedAt: 9, versionId: "forever", guildId: "g1" },
+            { id: "r-tbc", zone: "Black Temple", generatedAt: 5, versionId: "tbc", guildId: "g1" },
             // stored before #746: TBC
-            { id: "r-old", zone: "Karazhan", generatedAt: 1 },
+            { id: "r-old", zone: "Karazhan", generatedAt: 1, guildId: "g1" },
         ]);
-        expect(loadLatestReport({ versionId: "tbc" })).toMatchObject({ id: "r-tbc" });
-        expect(loadLatestReport({ versionId: "forever" })).toMatchObject({ id: "r-forever" });
-        expect(loadLatestReport({ versionId: "classic" })).toBeNull();
-        expect(loadLatestReport()).toMatchObject({ id: "r-forever" });
+        expect(loadLatestReport({ guildId: "g1", versionId: "tbc" })).toMatchObject({ id: "r-tbc" });
+        expect(loadLatestReport({ guildId: "g1", versionId: "forever" })).toMatchObject({ id: "r-forever" });
+        expect(loadLatestReport({ guildId: "g1", versionId: "classic" })).toBeNull();
+        expect(loadLatestReport({ guildId: "g1" })).toMatchObject({ id: "r-forever" });
+    });
+
+    it("reads only the active server's newest report (#920)", () => {
+        const logStore = require("../../../src/stores/logStore");
+        reportStore.getReport.mockReturnValue({ players: [] });
+        reportStore.listReports.mockReturnValue([
+            // newest: evaluated on the other server
+            { id: "r-other", generatedAt: 9, guildId: "g2" },
+            // its log moved to g2: the report goes along, whatever it carries itself
+            { id: "r-moved", generatedAt: 8, guildId: "g1" },
+            { id: "r-own", generatedAt: 5, guildId: "g1" },
+        ]);
+        logStore.listLogs.mockReturnValue([{ id: "l1", reportRefId: "r-moved", guildId: "g2" }]);
+        try {
+            expect(loadLatestReport({ guildId: "g1" })).toMatchObject({ id: "r-own" });
+            expect(loadLatestReport({ guildId: "g2" })).toMatchObject({ id: "r-other" });
+            // no active server: no report, so no gear task from another server either
+            expect(loadLatestReport({ guildId: "" })).toBeNull();
+            expect(loadLatestReport()).toBeNull();
+            expect(reportStore.getReport).not.toHaveBeenCalledWith("r-moved");
+        } finally {
+            logStore.listLogs.mockReturnValue([]);
+        }
     });
 
     it("builds the roster figures and the new loot of the shown version (#741)", () => {
@@ -513,10 +536,10 @@ describe("web/dashboard/dashboardData area loaders", () => {
     it("has no report tile without reports or on an unreadable one", () => {
         reportStore.listReports.mockReturnValue([]);
         expect(loadLatestReport()).toBeNull();
-        reportStore.listReports.mockReturnValue([{ id: "r1" }]);
+        reportStore.listReports.mockReturnValue([{ id: "r1", guildId: "g1" }]);
         reportStore.getReport.mockImplementation(() => { throw new Error("broken"); });
         jest.spyOn(console, "error").mockImplementation(() => {});
-        expect(loadLatestReport()).toBeNull();
+        expect(loadLatestReport({ guildId: "g1" })).toBeNull();
         console.error.mockRestore();
     });
 
@@ -528,6 +551,18 @@ describe("web/dashboard/dashboardData area loaders", () => {
     it("hands out the pending inbox sessions", () => {
         lootInboxStore.listPending.mockReturnValue([{ id: "s1", items: [1, 2] }, { id: "s2" }]);
         expect(loadInbox()).toEqual([{ id: "s1", items: [1, 2] }, { id: "s2", items: [] }]);
+    });
+
+    // #919: the task count matches the cards the inbox shows on that server.
+    it("counts only the inbox cards of the active server", () => {
+        lootInboxStore.listPending.mockReturnValue([
+            { id: "on-a", match: { suggested: { eventId: "rh-a", guildId: "gA" } } },
+            { id: "on-b", match: { suggested: { eventId: "rh-b", guildId: "gB" } } },
+            { id: "open", match: null },
+        ]);
+        expect(loadInbox("gA").map((s) => s.id)).toEqual(["on-a", "open"]);
+        expect(loadInbox("gB").map((s) => s.id)).toEqual(["on-b", "open"]);
+        expect(loadInbox("")).toEqual([]);
     });
 
     it("counts top-item awards since the last raid", () => {
@@ -616,5 +651,28 @@ describe("web/dashboard/dashboardData loadTrialEndings (#658)", () => {
         rosterStore.listRosters.mockImplementationOnce(() => { throw new Error("disk"); });
         jest.spyOn(console, "error").mockImplementationOnce(() => {});
         expect(await loadTrialEndings("g1", { id: "9", isAdmin: true }, { now: NOW })).toEqual([]);
+    });
+});
+
+describe("web/dashboard/dashboardData logs of the active server only (#920)", () => {
+    const { listLogs } = require("../../../src/stores/logStore");
+    const { buildRecentEvents, matchLogsForEvent } = require("../../../src/services/events/recentEvents");
+    const { loadRecentEvents, annotateUpcomingExtras } = require("../../../src/web/dashboard/dashboardData");
+    const logs = [
+        { id: "a", guildId: "gA" },
+        { id: "b", guildId: "gB" },
+        { id: "none", guildId: "" },
+    ];
+
+    it("hands the past raids only server A's logs, not B's or a serverless one", async () => {
+        listLogs.mockReturnValue(logs);
+        await loadRecentEvents("gA");
+        expect(buildRecentEvents.mock.calls[0][1].logs.map((l) => l.id)).toEqual(["a"]);
+    });
+
+    it("matches the upcoming raids only against server A's logs", () => {
+        listLogs.mockReturnValue(logs);
+        annotateUpcomingExtras([{ id: "e1" }], "gA");
+        expect(matchLogsForEvent.mock.calls[0][1].map((l) => l.id)).toEqual(["a"]);
     });
 });

@@ -1,10 +1,16 @@
 // The lookup commands answer for one game version (#743): the option, else the channel's category, else the main version.
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 0) }));
 jest.mock("../../../src/services/discord/guildRoles", () => ({ serverIds: jest.fn(() => ["event-guild"]) }));
-jest.mock("../../../src/stores/lootStore", () => ({ listByCharacter: jest.fn(() => []) }));
+jest.mock("../../../src/stores/lootStore", () => ({ listByCharacter: jest.fn(() => []), listAll: jest.fn(() => []) }));
+jest.mock("../../../src/services/loot/lootServer", () => ({
+    serverContext: () => ({}),
+    lootOfGuild: jest.fn((rows, guildId) => (rows || []).filter((r) => !r.guildId || r.guildId === guildId)),
+    serverOfInteraction: jest.fn((i) => i.guildId || (i.guild && i.guild.id) || "first"),
+}));
 jest.mock("../../../src/services/loot/lootStats", () => ({ itemCatalog: jest.fn(() => []) }));
 jest.mock("../../../src/services/characters/userCharacters", () => ({ myCharacters: jest.fn(() => []) }));
 jest.mock("../../../src/stores/reportStore", () => ({ listReports: jest.fn(() => []) }));
+jest.mock("../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
 jest.mock("../../../src/services/events/storedVersion", () => ({ storedVersionOf: (id) => (String(id).startsWith("f") ? "forever" : "tbc") }));
 jest.mock("../../../src/stores/configStore", () => ({ getConfig: jest.fn(() => ({ categoryVersion: { catF: "forever" } })) }));
 
@@ -120,9 +126,9 @@ describe("/loot", () => {
 describe("/report", () => {
     it("lists the reports of the version only", async () => {
         listReports.mockReturnValue([
-            { id: "r1", title: "TBC Log", generatedAt: 5, versionId: "tbc" },
-            { id: "r2", title: "Forever Log", generatedAt: 6, versionId: "forever" },
-            { id: "r3", title: "Old Log", generatedAt: 4 },
+            { id: "r1", title: "TBC Log", generatedAt: 5, versionId: "tbc", guildId: "guild-1" },
+            { id: "r2", title: "Forever Log", generatedAt: 6, versionId: "forever", guildId: "guild-1" },
+            { id: "r3", title: "Old Log", generatedAt: 4, guildId: "guild-1" },
         ]);
         const i = mockInteraction({ channel: inForever });
         await report.execute(i);
@@ -142,5 +148,17 @@ describe("/council", () => {
         await council.execute(i);
         expect(sent(i).url).toBe("https://www.wowhead.com/forever/item=32837");
         expect(footer(i)).toBe("Version: WoW Forever");
+    });
+
+    // #919: how often an item went out - and the suggestions - from this server's loot only.
+    it("counts and suggests from the loot of the server it was used on", async () => {
+        const { listAll } = require("../../../src/stores/lootStore");
+        listAll.mockReturnValue([{ itemId: 7, guildId: "guild-1" }, { itemId: 8, guildId: "guild-2" }]);
+        await council.execute(mockInteraction({ channel: inTbc, options: { item: "7", version: "tbc" } }));
+        expect(itemCatalog).toHaveBeenLastCalledWith([{ itemId: 7, guildId: "guild-1" }]);
+        itemCatalog.mockClear();
+        await council.autocomplete(mockInteraction({ channel: inTbc, focused: { name: "item", value: "" }, options: { version: "tbc" } }));
+        expect(itemCatalog).toHaveBeenCalledWith([{ itemId: 7, guildId: "guild-1" }]);
+        listAll.mockReturnValue([]);
     });
 });

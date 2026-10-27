@@ -56,6 +56,9 @@ jest.mock("../../../src/services/discord/discord", () => ({
     listCategories: () => [{ id: "c1", name: "Mittwoch" }, { id: "c2", name: "Sonntag" }],
 }));
 const mockConfig = {
+    // the home server: the sync tool has no session, so its loot and category
+    // names come from the first server (serverWithoutSession, #919)
+    guildId: "g1",
     categoryIds: ["c1", "c2", "c3"],
     categoryLootSystem: { c1: "lootcouncil", c3: "softres" },
     categoryLootTool: { c2: "rclc" },

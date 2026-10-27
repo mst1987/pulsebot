@@ -161,6 +161,8 @@ function resolvePending(id, action, link = {}) {
         eventId: link.eventId || "",
         eventLabel: link.eventLabel || "",
         categoryId: link.categoryId || "",
+        // The Discord server it was accepted on (#919): appended loot keeps it.
+        guildId: link.guildId || "",
         // What the inbox's "Verknüpft" list shows for an accepted session: the
         // raid it was, when it started and how much came with the first accept.
         contentLabel: link.contentLabel || "",

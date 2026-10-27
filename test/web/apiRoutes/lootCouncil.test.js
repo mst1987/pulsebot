@@ -63,7 +63,7 @@ let mockBody = {};
 const lc = require("../../../src/web/loot/lootCouncil");
 const { bisLists } = require("../../../src/web/loot/bisLists");
 const { primeArmoryGear, clearArmoryFor } = require("../../../src/services/loot/armoryGear");
-const { loadLogGear, clearLogGear } = require("../../../src/stores/logGearStore");
+const { loadLogGear, clearLogGear, recentLogs } = require("../../../src/stores/logGearStore");
 const { sourceForItem } = require("../../../src/config/tbcContent");
 const { startCouncilSim, getJob } = require("../../../src/stores/simStore");
 const { searchItems } = require("../../../src/config/wowsims");
@@ -288,13 +288,15 @@ describe("GET /api/lootcouncil", () => {
         const res = await call(getLootCouncil, "/api/lootcouncil", "?role=caster&tiers=t5, t6,&contents=ssc&category=c1");
         expect(status(res)).toBe(200);
         expect(lc.councilRoster).toHaveBeenCalledWith({
-            role: "caster", tierIds: ["t5", "t6"], contentIds: ["ssc"], categoryId: "c1", rosterId: "", bisTier: "", showBench: false, versionId: "tbc",
+            role: "caster", tierIds: ["t5", "t6"], contentIds: ["ssc"], categoryId: "c1", rosterId: "", bisTier: "", showBench: false, versionId: "tbc", guildId: "g1",
             config: { categoryIds: ["c1", "c2"] }, mainVersion: "tbc", charVersion: "tbc",
         });
         expect(lc.resolveContentFilter).toHaveBeenCalledWith({ tierIds: ["t5", "t6"], contentIds: ["ssc"] });
         expect(lc.bisGaps).toHaveBeenCalledWith(rows, { contentIds: ["ssc"] });
         expect(primeArmoryGear).not.toHaveBeenCalled();
         expect(discord.listCategories).toHaveBeenCalledWith("g1");
+        // the logs offered to pick from: the active server's only (#920)
+        expect(recentLogs).toHaveBeenCalledWith(undefined, { guildId: "g1" });
 
         const data = body(res);
         expect(data).toMatchObject({
@@ -753,7 +755,7 @@ describe("POST /api/lootcouncil/loggear", () => {
             tried: ["abc"],
         });
         const res = await call(postLogGear, "/api/lootcouncil/loggear");
-        expect(loadLogGear).toHaveBeenCalledWith("Alpha", { reportId: "abc", link: "https://wcl/abc" });
+        expect(loadLogGear).toHaveBeenCalledWith("Alpha", { reportId: "abc", link: "https://wcl/abc", guildId: "g1" });
         expect(clearArmoryFor).toHaveBeenCalledWith("Alpha");
         expect(body(res)).toEqual({ reportId: "abc", reportTitle: "SSC", reportStart: 1700, items: 3, tried: ["abc"] });
     });

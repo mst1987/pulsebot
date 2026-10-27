@@ -6,6 +6,9 @@ const { webUrl, respondChoices, clip } = require("../../utils/discord/botLookup"
 const { addVersionOption } = require("../../services/events/commandVersion");
 const { attendanceReply, versionOfInteraction } = require("./anwesenheit");
 
+/** The server the command was used on; in a DM the first server (#919). */
+const serverOf = (interaction) => interaction.guildId || serverIds()[0] || "";
+
 module.exports = {
     name: "anwesenheit-raider",
     description: "Anwesenheit eines Raiders in den letzten Raids je Raid-Kategorie.",
@@ -19,12 +22,13 @@ module.exports = {
         const name = String(interaction.options.getString("raider") || "").trim();
         // within one version (#740): the picked one, else the channel's category's
         const versionId = versionOfInteraction(interaction);
-        const result = characterAttendance(serverIds()[0] || "", name, { versionId });
+        const result = characterAttendance(serverOf(interaction), name, { versionId });
         const title = clip(result.character || name || "Raider", 100);
         const links = [{ label: "Im Web öffnen", url: webUrl(`/roster/char?name=${encodeURIComponent(result.character || name)}`) }];
         return attendanceReply(interaction, `Anwesenheit ${title}`, [result], links, versionId);
     },
     async autocomplete(interaction) {
-        return respondChoices(interaction, knownCharacterNames({ versionId: versionOfInteraction(interaction) }).map((name) => ({ name, value: name })));
+        const names = knownCharacterNames({ versionId: versionOfInteraction(interaction), guildId: serverOf(interaction) });
+        return respondChoices(interaction, names.map((name) => ({ name, value: name })));
     },
 };

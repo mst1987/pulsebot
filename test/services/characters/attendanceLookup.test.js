@@ -3,6 +3,8 @@ jest.mock("../../../src/stores/raiderCharactersStore", () => ({ listAllAssignmen
 jest.mock("../../../src/services/characters/characterInfo", () => ({ annotatedCharacters: jest.fn() }));
 jest.mock("../../../src/services/discord/categoryNames", () => ({ listKnownCategories: jest.fn() }));
 jest.mock("../../../src/services/events/categoryLifecycle", () => ({ isCategoryActive: jest.fn(() => true) }));
+jest.mock("../../../src/stores/lootStore", () => ({ listAll: jest.fn(() => []) }));
+jest.mock("../../../src/services/loot/lootServer", () => ({ lootOfGuild: jest.fn((rows) => rows) }));
 
 const { buildAttendanceContext, attendanceFor } = require("../../../src/services/characters/rosterAttendance");
 const { listAllAssignments } = require("../../../src/stores/raiderCharactersStore");
@@ -56,6 +58,24 @@ describe("services/characters/attendanceLookup", () => {
         } finally {
             isCategoryActive.mockImplementation(() => true);
         }
+    });
+
+    // #919: only the loot of the asked server is evidence (names and categories).
+    it("reads the loot of the asked server only", () => {
+        const { listAll } = require("../../../src/stores/lootStore");
+        const { lootOfGuild } = require("../../../src/services/loot/lootServer");
+        listAll.mockReturnValue([{ id: "r1" }]);
+        lootOfGuild.mockReturnValueOnce([{ id: "r1" }]);
+        characterAttendance("g1", "elesham", { versionId: "tbc" });
+        expect(lootOfGuild).toHaveBeenCalledWith([{ id: "r1" }], "g1");
+        expect(annotatedCharacters).toHaveBeenLastCalledWith({ rows: [{ id: "r1" }] });
+        lootOfGuild.mockClear();
+        knownCharacterNames({ guildId: "g2" });
+        expect(lootOfGuild).toHaveBeenCalledWith([{ id: "r1" }], "g2");
+        lootOfGuild.mockClear();
+        knownCharacterNames();
+        expect(lootOfGuild).not.toHaveBeenCalled();
+        expect(annotatedCharacters).toHaveBeenLastCalledWith();
     });
 
     it("reuses a given context and answers nothing for no name", () => {

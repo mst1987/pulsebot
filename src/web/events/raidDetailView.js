@@ -32,6 +32,7 @@ const { getEventSoftres } = require("../../stores/eventSoftresStore");
 const softres = require("../../utils/loot/softres");
 const { lootSystemOf } = require("../../stores/eventLootSystemStore");
 const { listByEvent: listLootByEvent, listAll: listAllLoot } = require("../../stores/lootStore");
+const { lootOfGuild } = require("../../services/loot/lootServer");
 const { raidSteps, eventSteps } = require("./raidDetailSteps");
 const { summarizePlayers } = require("./raidPlayerSummary");
 const { withClassLook: withLootClassLook } = require("../loot/lootClassLook");
@@ -257,7 +258,7 @@ function softresPart(found, eventId, { attendanceSource, attendance }, edition =
  */
 async function logsPart(guildId, eventId) {
     const eventLogs = listLogsForEvent(eventId);
-    const unlinkedLogs = listLogs().filter((l) => (!l.guildId || l.guildId === guildId) && !l.eventId);
+    const unlinkedLogs = listLogs().filter((l) => l.guildId === guildId && !l.eventId);
     await backfillLogTitles([...eventLogs, ...unlinkedLogs]);
     for (const l of [...eventLogs, ...unlinkedLogs]) l.sections = evaluatedSections(l);
     return { eventLogs, unlinkedLogs };
@@ -305,7 +306,8 @@ function playerSummariesPart(guildId, found, { setup, attendance }) {
         ...((setup && setup.groups) || []).flatMap((g) => g.players.map((p) => p.name)),
         ...[...attendance.responded, ...attendance.missing].map((p) => p.character || ""),
     ];
-    return summarizePlayers(names, listAllLoot(), listStoredEvents(guildId), { categoryId: found.g.categoryId });
+    // Only the loot of this Discord server (#919).
+    return summarizePlayers(names, lootOfGuild(listAllLoot(), guildId), listStoredEvents(guildId), { categoryId: found.g.categoryId });
 }
 
 /**
