@@ -111,7 +111,7 @@
 // the second start finds nothing to do and writes nothing.
 const path = require("path");
 const { isSnowflake } = require("../utils/ids");
-const { CONFIG_DEFAULTS, normalizeCategoryVersion } = require("./configSchema");
+const { CONFIG_DEFAULTS, normalizeCategoryVersion, normalizeDiscordServers } = require("./configSchema");
 const { versionSettingsOf, versionsWithDefaults, fillDefaults } = require("./versionSettingsSchema");
 const { LEGACY_VERSION } = require("../config/gameVersions");
 const { mainVersionFor } = require("../services/events/mainVersion");
@@ -469,18 +469,27 @@ function migrateCouncilProfiles({ now = Date.now() } = {}) {
 }
 
 /**
+ * role-messages.json (#895): every old entry gets the server its side means
+ * today - the talk server for "talk", else the first server of the list. The
+ * same rule as guildRoles.roleMessageGuild, computed here from configSchema
+ * (guildRoles requires settingsStore, which requires this file: a cycle).
+ */
+function migrateRoleMessageGuilds() {
+    const config = configStore.getConfig();
+    const raw = (config && config.discordServers) || {};
+    const block = Array.isArray(raw.servers) ? raw : normalizeDiscordServers(raw, { fallbackGuildId: (config && config.guildId) || "" });
+    const firstId = (Array.isArray(block.servers) ? block.servers : []).map((s) => String((s && s.guildId) || "").trim()).find(Boolean)
+        || String((config && config.guildId) || "").trim();
+    const talkId = String(block.talkGuildId || "").trim();
+    const moved = roleMessageStore.migrateGuildSides((entry) => (entry.guildSide === "talk" ? talkId : firstId));
+    return moved ? [`role-messages.json: ${moved} Rollen-Nachricht(en) ihrem Server fest zugeordnet (#895)`] : [];
+}
+
+/**
  * Run every upgrade once. Never throws - a start must not fail over an old
  * file; the error is logged and the bot comes up with what it can read.
  * @returns {{ changes: string[], error?: Error }}
  */
-/** role-messages.json (#895): every old entry gets the server its side means today. */
-function migrateRoleMessageGuilds() {
-    // lazy: the Discord helpers are only needed for this one switch
-    const { roleMessageGuild } = require("../services/discord/guildRoles");
-    const config = configStore.getConfig();
-    const moved = roleMessageStore.migrateGuildSides((entry) => roleMessageGuild(entry, config));
-    return moved ? [`role-messages.json: ${moved} Rollen-Nachricht(en) ihrem Server fest zugeordnet (#895)`] : [];
-}
 
 function migrateSettings({ log = console.log, warn = console.error } = {}) {
     const changes = [];
