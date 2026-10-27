@@ -54,6 +54,14 @@ function clientSources() {
 //     switch in each cell; sorting would move a row away under the cursor.
 const ALLOWED_PLAIN_HEADERS = new Set(["Links", "WCL", "Token", "Wer", "Slot", "Item", "Mitglied · Quote", "Funktion"]);
 
+// Whole tables that are an edit form, one input per cell, so none of their
+// headers is a sort control:
+//   * the Warcraft-Logs guilds of a server (#922, Einstellungen → Log-Auswertung):
+//     each row is a draft being typed into, a new row is still empty, and the
+//     inputs are labelled "Gilde von Zeile n"; sorting would move a row away
+//     under the cursor and renumber the rows mid-edit.
+const EDIT_FORM_TABLES = new Set(["pages/settings/SettingsWclGuilds.tsx"]);
+
 describe("table sorting", () => {
     it("reads a translated header by its German text", () => {
         expect(headerText("{t(\"raids.table.links\")}")).toBe("Links");
@@ -62,6 +70,7 @@ describe("table sorting", () => {
 
     it("sorts every column that isn't a button or link column", () => {
         for (const [name, src] of clientSources()) {
+            if (EDIT_FORM_TABLES.has(name)) continue;
             // <th>Label</th> — an empty <th /> is the actions column and fine.
             // A <th scope="row"> is skipped: it labels its own row (the slot in
             // the BiS matrix), so it is not a column header and can never be a

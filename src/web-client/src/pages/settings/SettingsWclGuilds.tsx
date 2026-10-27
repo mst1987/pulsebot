@@ -52,9 +52,9 @@ export default function WclGuildsSection({ value, activeGuildId, versions, onSav
         versionId: versions[0]?.id || "", guildName: "", realm: "", region: "EU", interval: WCL_GUILD_DEFAULT_INTERVAL,
     }]);
 
-    const failed = (err: unknown) => {
+    const failText = (err: unknown) => {
         const e = err as ApiError;
-        toast(e.code === "server_switched" ? t("settings.serverSwitched") : e.message, "err");
+        return e.code === "server_switched" ? t("settings.serverSwitched") : e.message;
     };
 
     const save = async () => {
@@ -65,7 +65,7 @@ export default function WclGuildsSection({ value, activeGuildId, versions, onSav
             onSaved(res.wclGuilds || []);
             toast(t("settings.wclGuilds.saved"));
         } catch (err) {
-            failed(err);
+            toast(failText(err), "err");
         } finally {
             setBusy(false);
         }
@@ -81,7 +81,7 @@ export default function WclGuildsSection({ value, activeGuildId, versions, onSav
             if (res.result.error) toast(res.result.error, "err");
             else toast(t("settings.wclGuilds.fetched", { count: res.result.found }));
         } catch (err) {
-            failed(err);
+            toast(failText(err), "err");
         } finally {
             setFetching("");
         }
