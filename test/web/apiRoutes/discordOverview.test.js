@@ -1,13 +1,16 @@
 // The Discord overview's API (src/web/apiRoutes/discordOverview.js) through the real
-// router: area `channels` read only, the side picks the server, `fresh` reaches the
-// message check, an unknown side is refused.
+// router: area `channels` read only, `guildId` picks one server of the list (#895),
+// `fresh` reaches the message check, a server outside the list is refused.
 let mockUser = null;
 jest.mock("../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true }));
-jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => ({ marker: 1 }) }));
-jest.mock("../../../src/services/discord/discord", () => ({ isOnline: () => true }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({
-    eventGuildId: () => "900000000000000001",
-    talkGuildId: () => "900000000000000002",
+const mockConfig = {
+    marker: 1,
+    discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002", label: "Talk" }], talkGuildId: "900000000000000002", links: [] },
+};
+jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/services/discord/discord", () => ({
+    isOnline: () => true,
+    getGuild: (id) => (id === "900000000000000001" ? { id, name: "Gilde", iconURL: () => "https://cdn/icon.png" } : null),
 }));
 jest.mock("../../../src/services/discord/memberActivity", () => ({ recentActivity: jest.fn(() => [{ kind: "join" }]) }));
 jest.mock("../../../src/services/discord/botCheck", () => ({ botCheck: jest.fn(() => ({ known: true })) }));
@@ -25,6 +28,7 @@ const { get, post } = routerClient(route);
 const user = (level) => ({ id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), ...(level ? { channels: level } : {}) } });
 const READER = user({ read: true, write: false });
 const GUILDS = { event: "900000000000000001", talk: "900000000000000002" };
+const CONFIG = mockConfig;
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -41,16 +45,15 @@ describe("access (area channels)", () => {
     });
 
     it("has no writing route", async () => {
-        expect(route.routes.map((r) => r.method)).toEqual(["GET"]);
+        expect(route.routes.map((r) => r.method)).toEqual(["GET", "GET"]);
         expect(status(await post("/api/discord/overview", {}))).not.toBe(200);
     });
 });
 
 describe("GET", () => {
-    it("answers the event side by default with every part", async () => {
+    it("answers the first server by default with every part", async () => {
         const data = body(await get("/api/discord/overview"));
         expect(data).toEqual({
-            side: "event",
             guildId: GUILDS.event,
             online: true,
             members: [{ kind: "join" }],
@@ -59,20 +62,38 @@ describe("GET", () => {
             hygiene: { known: true, empty: 1 },
         });
         expect(recentActivity).toHaveBeenCalledWith(GUILDS.event, { days: 7 });
-        expect(botCheck).toHaveBeenCalledWith("event", GUILDS.event, { marker: 1 }, GUILDS);
-        expect(botMessages).toHaveBeenCalledWith("event", GUILDS.event, { marker: 1 }, { fresh: false });
+        expect(botCheck).toHaveBeenCalledWith(GUILDS.event, CONFIG);
+        expect(botMessages).toHaveBeenCalledWith(GUILDS.event, CONFIG, { fresh: false });
     });
 
-    it("takes the talk server and hands fresh on", async () => {
-        const data = body(await get("/api/discord/overview", { side: "talk", fresh: "1" }));
+    it("takes the server by guildId and hands fresh on", async () => {
+        const data = body(await get("/api/discord/overview", { guildId: GUILDS.talk, fresh: "1" }));
         expect(data.guildId).toBe(GUILDS.talk);
-        expect(botMessages).toHaveBeenCalledWith("talk", GUILDS.talk, { marker: 1 }, { fresh: true });
+        expect(botMessages).toHaveBeenCalledWith(GUILDS.talk, CONFIG, { fresh: true });
     });
 
-    it("refuses an unknown side", async () => {
-        const res = await get("/api/discord/overview", { side: "voice" });
+    it("still reads an old side=talk link as the talk server", async () => {
+        expect(body(await get("/api/discord/overview", { side: "talk" })).guildId).toBe(GUILDS.talk);
+    });
+
+    it("refuses a server outside the list", async () => {
+        const res = await get("/api/discord/overview", { guildId: "900000000000000099" });
         expect(status(res)).toBe(400);
-        expect(json(res).error).toEqual(expect.objectContaining({ code: "bad_side" }));
+        expect(json(res).error).toEqual(expect.objectContaining({ code: "unknown_guild" }));
         expect(botMessages).not.toHaveBeenCalled();
+    });
+});
+
+describe("GET /api/discord/servers", () => {
+    it("lists the servers in their order with name and label", async () => {
+        expect(body(await get("/api/discord/servers"))).toEqual([
+            { guildId: GUILDS.event, name: "Gilde", label: "", online: true, iconUrl: "https://cdn/icon.png" },
+            { guildId: GUILDS.talk, name: "", label: "Talk", online: false, iconUrl: "" },
+        ]);
+    });
+
+    it("keeps out accounts without the area", async () => {
+        mockUser = user(null);
+        expect(status(await get("/api/discord/servers"))).toBe(403);
     });
 });

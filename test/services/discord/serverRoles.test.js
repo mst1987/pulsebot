@@ -5,10 +5,16 @@ const { PermissionsBitField } = require("discord.js");
 
 let mockConfig = {};
 jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({
-    eventGuildId: () => "900000000000000001",
-    talkGuildId: () => "900000000000000002",
-}));
+jest.mock("../../../src/services/discord/guildRoles", () => {
+    const actual = jest.requireActual("../../../src/services/discord/guildRoles");
+    const cfg = { discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], talkGuildId: "900000000000000002", links: [] } };
+    return {
+        ...actual,
+        eventGuildId: () => "900000000000000001",
+        talkGuildId: () => "900000000000000002",
+        roleMessageGuild: (entry) => actual.roleMessageGuild(entry, cfg),
+    };
+});
 jest.mock("../../../src/services/discord/categoryNames", () => ({
     listKnownCategories: () => [{ id: "cat-1", name: "WoW Forever" }],
 }));
@@ -27,6 +33,7 @@ const { listServerRoles, serverRoleDetail, roleCount, permissionKeys, SENSITIVE_
 
 const F = PermissionsBitField.Flags;
 const GUILD = "900000000000000001";
+const TALK = "900000000000000002";
 const ADMIN = "200000000000000001";
 const BOT = "200000000000000002";
 const RAIDER = "200000000000000003";
@@ -112,8 +119,8 @@ describe("serverRoles sensitive list", () => {
 
 describe("serverRoles listServerRoles", () => {
     it("lists every role highest first with counts, uses, assignability and hints", async () => {
-        const out = await listServerRoles("event");
-        expect(out).toMatchObject({ online: true, side: "event", guildId: GUILD, guildName: "Test-Server", manageRoles: true, membersError: null, total: 7 });
+        const out = await listServerRoles(GUILD);
+        expect(out).toMatchObject({ online: true, guildId: GUILD, guildName: "Test-Server", manageRoles: true, membersError: null, total: 7 });
         expect(out.botRole).toEqual({ id: BOT, name: "PulseBot", position: 10 });
         expect(out.roles.map((r) => r.name)).toEqual(["Gildenrat", "Admin", "PulseBot", "Raid-Helper", "Raider", "Alt", "@everyone"]);
         const by = Object.fromEntries(out.roles.map((r) => [r.id, r]));
@@ -134,34 +141,37 @@ describe("serverRoles listServerRoles", () => {
 
     it("says the bot lacks Manage Roles", async () => {
         mockDiscord.getGuild.mockReturnValue(makeGuild({ manage: false }));
-        const out = await listServerRoles("event");
+        const out = await listServerRoles(GUILD);
         expect(out.manageRoles).toBe(false);
         expect(out.roles.find((r) => r.id === RAIDER).assign).toEqual({ ok: false, reason: "noManageRoles" });
     });
 
     it("keeps the roles when the member list fails or takes too long", async () => {
         mockDiscord.fetchGuildMembersCached.mockRejectedValueOnce(new Error("Missing intent"));
-        const failed = await listServerRoles("event");
+        const failed = await listServerRoles(GUILD);
         expect(failed.membersError).toBe("Missing intent");
         expect(failed.roles.every((r) => r.memberCount === null)).toBe(true);
         expect(failed.roles.find((r) => r.id === EMPTY).hints).toEqual([]);
 
         mockDiscord.fetchGuildMembersCached.mockReturnValueOnce(new Promise(() => {}));
-        const slow = await listServerRoles("event", { waitMs: 5 });
+        const slow = await listServerRoles(GUILD, { waitMs: 5 });
         expect(slow.membersError).toBe("timeout");
         expect(slow.total).toBe(7);
     });
 
-    it("is empty and offline without the server, and reads the talk side", async () => {
+    it("is empty and offline without the server, and reads another server of the list", async () => {
         mockDiscord.getGuild.mockReturnValue(null);
-        expect(await listServerRoles("talk")).toEqual({ side: "talk", guildId: "900000000000000002", guildName: "", online: false, botRole: null, manageRoles: null, membersError: null, total: 0, roles: [], commonSensitive: [] });
+        expect(await listServerRoles(TALK)).toEqual({ guildId: "900000000000000002", guildName: "", online: false, botRole: null, manageRoles: null, membersError: null, total: 0, roles: [], commonSensitive: [] });
         expect(mockDiscord.getGuild).toHaveBeenCalledWith("900000000000000002");
     });
 
-    it("counts only the role messages of its own side", async () => {
+    it("counts only the role messages of its own server (an old guildSide entry by its side)", async () => {
         mockDiscord.getGuild.mockReturnValue(makeGuild());
-        const out = await listServerRoles("talk");
-        expect(out.roles.find((r) => r.id === RAIDER).uses).toContainEqual({ code: "roleMessage", messageId: "rm-2", title: "Anderer Server" });
+        const out = await listServerRoles(TALK);
+        const uses = out.roles.find((r) => r.id === RAIDER).uses;
+        expect(uses).toContainEqual({ code: "roleMessage", messageId: "rm-2", title: "Anderer Server" });
+        expect(uses.some((u) => u.messageId === "rm-1")).toBe(false);
+        expect(out.side).toBeUndefined();
     });
 
     it("hints aboveBot for a roster's member or trial role, never for its manager role", async () => {
@@ -172,7 +182,7 @@ describe("serverRoles listServerRoles", () => {
         g.roles.cache.set(TRIAL, role(TRIAL, "Probe", 31));
         mockDiscord.getGuild.mockReturnValue(g);
         rosterStore.listRosters.mockReturnValue([{ id: "r1", name: "Kern", roleIds: [], trialRoleId: TRIAL, managers: { roleIds: [MGR] } }]);
-        const by = Object.fromEntries((await listServerRoles("event")).roles.map((r) => [r.id, r]));
+        const by = Object.fromEntries((await listServerRoles(GUILD)).roles.map((r) => [r.id, r]));
         expect(by[MGR].uses).toContainEqual({ code: "roster", rosterId: "r1", name: "Kern", kinds: ["manager"] });
         expect(by[MGR].hints).not.toContain("aboveBot");
         expect(by[TRIAL].hints).toContain("aboveBot");
@@ -182,7 +192,7 @@ describe("serverRoles listServerRoles", () => {
         const g = makeGuild();
         g.roles.cache.get(BOT).managed = false;
         mockDiscord.getGuild.mockReturnValue(g);
-        const out = await listServerRoles("event");
+        const out = await listServerRoles(GUILD);
         expect(out.roles.find((r) => r.id === BOT)).toMatchObject({ assign: { ok: false, reason: "botRole" }, hints: [] });
     });
 
@@ -194,7 +204,7 @@ describe("serverRoles listServerRoles", () => {
         g.roles.cache.get(EMPTY).permissions = { bitfield: F.ManageNicknames | F.MentionEveryone };
         g.roles.cache.get(INTEGRATION).permissions = { bitfield: F.ManageNicknames | F.BanMembers };
         mockDiscord.getGuild.mockReturnValue(g);
-        const out = await listServerRoles("event");
+        const out = await listServerRoles(GUILD);
         expect(out.commonSensitive).toEqual([
             { key: "ManageNicknames", roles: 4, everyone: false },
             { key: "MentionEveryone", roles: 1, everyone: true },
@@ -214,14 +224,14 @@ describe("serverRoles listServerRoles", () => {
     it("survives broken stores", async () => {
         roleMessageStore.listMessages.mockImplementation(() => { throw new Error("broken"); });
         addonCenterStore.getSettings.mockImplementation(() => { throw new Error("broken"); });
-        const out = await listServerRoles("event");
+        const out = await listServerRoles(GUILD);
         expect(out.roles.find((r) => r.id === EMPTY).uses).toEqual([]);
     });
 });
 
 describe("serverRoles serverRoleDetail", () => {
     it("lists the overwrites in Discord order and the members by name", async () => {
-        const out = await serverRoleDetail("event", RAIDER);
+        const out = await serverRoleDetail(GUILD, RAIDER);
         expect(out.role).toMatchObject({ id: RAIDER, memberCount: 2 });
         expect(out.channels).toEqual([
             { id: "300000000000000003", name: "Lobby", kind: "voice", parentName: "", allow: [], deny: [] },
@@ -235,7 +245,7 @@ describe("serverRoles serverRoleDetail", () => {
     });
 
     it("gives every member for @everyone and marks bots", async () => {
-        const out = await serverRoleDetail("event", GUILD);
+        const out = await serverRoleDetail(GUILD, GUILD);
         expect(out.members.map((m) => [m.name, m.bot])).toEqual([["Anna", false], ["PulseBot", true], ["Zora", false]]);
         expect(out.membersTotal).toBe(3);
     });
@@ -243,20 +253,20 @@ describe("serverRoles serverRoleDetail", () => {
     it("cuts @everyone at EVERYONE_MEMBERS_MAX and says how many there are", async () => {
         const many = Array.from({ length: EVERYONE_MEMBERS_MAX + 5 }, (_, i) => member(String(1000 + i), `M${String(i).padStart(3, "0")}`, [GUILD]));
         mockDiscord.fetchGuildMembersCached.mockResolvedValue(many);
-        const out = await serverRoleDetail("event", GUILD);
+        const out = await serverRoleDetail(GUILD, GUILD);
         expect(out.members).toHaveLength(EVERYONE_MEMBERS_MAX);
         expect(out.membersTotal).toBe(EVERYONE_MEMBERS_MAX + 5);
     });
 
     it("is null for an unknown role, empty offline, no members on a failed list", async () => {
-        expect(await serverRoleDetail("event", "1")).toBeNull();
-        expect(await serverRoleDetail("event", "")).toBeNull();
+        expect(await serverRoleDetail(GUILD, "1")).toBeNull();
+        expect(await serverRoleDetail(GUILD, "")).toBeNull();
         mockDiscord.fetchGuildMembersCached.mockRejectedValueOnce(new Error("x"));
-        const failed = await serverRoleDetail("event", RAIDER);
+        const failed = await serverRoleDetail(GUILD, RAIDER);
         expect(failed.members).toEqual([]);
         expect(failed.membersError).toBe("x");
         mockDiscord.getGuild.mockReturnValue(null);
-        expect(await serverRoleDetail("event", RAIDER)).toMatchObject({ online: false, role: null, channels: [], members: [] });
+        expect(await serverRoleDetail(GUILD, RAIDER)).toMatchObject({ online: false, role: null, channels: [], members: [] });
     });
 
     it("falls back to the user name and the id", async () => {
@@ -264,15 +274,15 @@ describe("serverRoles serverRoleDetail", () => {
             { id: "7", displayName: "", roles: { cache: new Set([RAIDER]) }, user: { globalName: "", username: "raidlead" } },
             { id: "8", roles: { cache: new Set([RAIDER]) } },
         ]);
-        const out = await serverRoleDetail("event", RAIDER);
+        const out = await serverRoleDetail(GUILD, RAIDER);
         expect(out.members.map((m) => m.name)).toEqual(["8", "raidlead"]);
     });
 });
 
 describe("serverRoles roleCount", () => {
     it("counts the roles without @everyone, null offline", () => {
-        expect(roleCount("event")).toBe(6);
+        expect(roleCount(GUILD)).toBe(6);
         mockDiscord.getGuild.mockReturnValue(null);
-        expect(roleCount("talk")).toBeNull();
+        expect(roleCount(TALK)).toBeNull();
     });
 });

@@ -1,7 +1,6 @@
 import { get } from "./client";
-import type { DiscordSide } from "./discordRoles";
 
-// The Discord overview of one server side (System › Discord › Übersicht): the
+// The Discord overview of one server of the server list (System › Discord › Übersicht, #895): the
 // contract is the header of src/web/apiRoutes/discordOverview.js, the page
 // docs/channels.md.
 
@@ -78,8 +77,7 @@ export type RoleHygiene = {
 };
 
 export type DiscordOverview = {
-    side: DiscordSide;
-    /** "" = that side has no server set */
+    /** "" = no server is set */
     guildId: string;
     online: boolean;
     members: MemberActivity[];
@@ -88,7 +86,29 @@ export type DiscordOverview = {
     hygiene: RoleHygiene;
 };
 
+/** A server of the server list as the server picker shows it (GET /api/discord/servers). */
+export type DiscordServerChoice = {
+    guildId: string;
+    /** the Discord name, "" while the bot is not on that server */
+    name: string;
+    /** the orga's own short label, "" when none is set */
+    label: string;
+    online: boolean;
+    iconUrl: string;
+};
+
+/** The query part for one server ("" = the server's default, the first of the list). */
+export function guildQuery(guildId?: string): string {
+    return guildId ? `guildId=${encodeURIComponent(guildId)}` : "";
+}
+
+/** GET /api/discord/servers — the servers of the list in their order. */
+export function getServerChoices(): Promise<DiscordServerChoice[]> {
+    return get("/api/discord/servers");
+}
+
 /** GET /api/discord/overview — `fresh` asks Discord again for every fixed message. */
-export function getDiscordOverview(side: DiscordSide = "event", fresh = false): Promise<DiscordOverview> {
-    return get(`/api/discord/overview?side=${side}${fresh ? "&fresh=1" : ""}`);
+export function getDiscordOverview(guildId = "", fresh = false): Promise<DiscordOverview> {
+    const q = [guildQuery(guildId), fresh ? "fresh=1" : ""].filter(Boolean).join("&");
+    return get(`/api/discord/overview${q ? `?${q}` : ""}`);
 }

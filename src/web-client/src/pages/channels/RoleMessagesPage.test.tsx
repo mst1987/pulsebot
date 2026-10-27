@@ -2,7 +2,8 @@
 // with the Discord message next to the fields, roles with rights greyed out with
 // their reason, saving (create / update with the trimmed input, warnings as a
 // toast), deleting through the confirm dialog, the server's errors in words, and
-// the note when the bot is offline.
+// the note when the bot is offline; with several servers in the server list (#895)
+// the server column, the editor's server choice and the start server from ?guild=.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,6 +11,7 @@ import * as api from "../../api";
 import type { RoleMessage, RoleMessageOptions } from "../../api";
 import { adminUser, renderPage } from "../../test/render";
 import { switchLang } from "../../test/i18n";
+import { resetServerPickCache } from "../../hooks/useServerPick";
 import RoleMessagesPage from "./RoleMessagesPage";
 
 vi.mock("../../api", async (orig) => ({
@@ -20,12 +22,16 @@ vi.mock("../../api", async (orig) => ({
     createRoleMessage: vi.fn(),
     updateRoleMessage: vi.fn(),
     deleteRoleMessage: vi.fn(),
+    getServerChoices: vi.fn(),
 }));
+
+const ONE: api.DiscordServerChoice = { guildId: "g1", name: "Testgilde", label: "", online: true, iconUrl: "" };
+const TWO: api.DiscordServerChoice = { guildId: "g2", name: "Talkgilde", label: "Talk", online: true, iconUrl: "" };
 
 const LIMITS = { roles: 25, reactions: 20, title: 200, body: 3000, label: 80 };
 
 const EVENT: RoleMessageOptions = {
-    guildSide: "event", guildId: "g1", online: true, manageRoles: true,
+    guildId: "g1", online: true, manageRoles: true,
     roles: [
         { id: "r1", name: "Kochen", color: "#e67e22", managed: false, privileged: "", editable: true },
         { id: "r2", name: "Angeln", color: "", managed: false, privileged: "", editable: true },
@@ -38,17 +44,31 @@ const EVENT: RoleMessageOptions = {
     ],
     emojis: [],
 };
-const TALK: RoleMessageOptions = { guildSide: "talk", guildId: "", online: false, manageRoles: null, roles: [], channels: [], emojis: [] };
+const TALK: RoleMessageOptions = {
+    guildId: "g2", online: true, manageRoles: true,
+    roles: [{ id: "r5", name: "Musik", color: "", managed: false, privileged: "", editable: true }],
+    channels: [{ id: "c5", name: "talk-rollen", category: "Talk", parentId: "p5", canReact: true }],
+    emojis: [],
+};
 
 const BERUFE: RoleMessage = {
-    id: "m1", guildSide: "event", guildId: "g1", channelId: "c1", messageId: "d1", url: "https://discord.com/channels/g1/c1/d1",
+    id: "m1", guildId: "g1", channelId: "c1", messageId: "d1", url: "https://discord.com/channels/g1/c1/d1",
     title: "Berufe", body: "Klick dich rein", imageUrl: "", color: null,
     roles: [{ roleId: "r1", emoji: "🍳", label: "Kochen" }, { roleId: "r2", emoji: "", label: "" }],
 };
 
-function setup({ messages = [BERUFE], event = EVENT }: { messages?: RoleMessage[]; event?: RoleMessageOptions } = {}) {
+const MUSIK: RoleMessage = {
+    id: "m5", guildId: "g2", channelId: "c5", messageId: "d5", url: "https://discord.com/channels/g2/c5/d5",
+    title: "Musik", body: "", imageUrl: "", color: null, roles: [{ roleId: "r5", emoji: "", label: "Musik" }],
+};
+
+function setup({ messages = [BERUFE], event = EVENT, servers = [ONE] }: {
+    messages?: RoleMessage[]; event?: RoleMessageOptions; servers?: api.DiscordServerChoice[];
+} = {}) {
+    resetServerPickCache();
+    vi.mocked(api.getServerChoices).mockReset().mockResolvedValue(servers);
     vi.mocked(api.getRoleMessages).mockReset().mockResolvedValue({ messages, limits: LIMITS });
-    vi.mocked(api.getRoleMessageOptions).mockReset().mockImplementation(async (side) => (side === "event" ? event : TALK));
+    vi.mocked(api.getRoleMessageOptions).mockReset().mockImplementation(async (guildId) => (guildId === "g2" ? TALK : event));
 }
 
 beforeEach(() => {
@@ -71,11 +91,13 @@ describe("Rollen-Nachrichten: list", () => {
         expect(screen.getByRole("button", { name: /Neue Rollen-Nachricht/ })).toBeInTheDocument();
     });
 
-    it("lists server, channel, the roles in words and the Discord link", async () => {
+    it("lists channel, the roles in words and the Discord link, without a server column for one server", async () => {
         renderPage(<RoleMessagesPage />, { route: "/channels/roles" });
         const row = (await screen.findByText("Berufe")).closest("tr")!;
-        expect(within(row).getByText("Event-Server")).toBeInTheDocument();
-        expect(within(row).getByText("#rollen")).toBeInTheDocument();
+        expect(screen.queryByRole("columnheader", { name: /Server/ })).not.toBeInTheDocument();
+        expect(within(row).queryByText("Testgilde")).not.toBeInTheDocument();
+        // once in the channel column, once in the phone line under the title
+        expect(within(row).getAllByText("#rollen")).toHaveLength(2);
         expect(within(row).getByText("2 Rollen")).toHaveAttribute("data-tip", "@Kochen, @Angeln");
         expect(within(row).getByRole("link", { name: /In Discord öffnen/ })).toHaveAttribute("href", BERUFE.url);
     });
@@ -160,7 +182,7 @@ describe("Rollen-Nachrichten: editor", () => {
 
         await waitFor(() => expect(api.createRoleMessage).toHaveBeenCalledTimes(1));
         expect(api.createRoleMessage).toHaveBeenCalledWith({
-            guildSide: "event", channelId: "c1", title: "Berufe", body: "", imageUrl: "", color: null,
+            guildId: "g1", channelId: "c1", title: "Berufe", body: "", imageUrl: "", color: null,
             roles: [{ roleId: "r1", emoji: "", label: "Kochen" }],
         });
         expect(await screen.findByText("Rollen-Nachricht gepostet.")).toBeInTheDocument();
@@ -204,6 +226,59 @@ describe("Rollen-Nachrichten: editor", () => {
         await user.selectOptions(within(dialog).getByLabelText("Kanal"), "c2");
         expect(within(dialog).getByText(/die Knöpfe gehen, die Reaktionen nicht/)).toBeInTheDocument();
         expect(within(preview()).getByLabelText("Reaktionen unter der Nachricht")).toBeInTheDocument();
+    });
+});
+
+describe("Rollen-Nachrichten: several servers", () => {
+    it("names each message's server in its own column and reads every server's options", async () => {
+        setup({ messages: [BERUFE, MUSIK], servers: [ONE, TWO] });
+        renderPage(<RoleMessagesPage />, { route: "/channels/roles" });
+        const row = (await screen.findByText("Musik", { selector: "tr *" })).closest("tr")!;
+        expect(screen.getByRole("columnheader", { name: /Server/ })).toBeInTheDocument();
+        await waitFor(() => expect(within(row).getByText("#talk-rollen")).toBeInTheDocument());
+        expect(within(row).getAllByText("Talkgilde").length).toBeGreaterThan(0);
+        const berufe = screen.getByText("Berufe").closest("tr")!;
+        expect(within(berufe).getAllByText("Testgilde").length).toBeGreaterThan(0);
+        expect(api.getRoleMessageOptions).toHaveBeenCalledWith("g1");
+        expect(api.getRoleMessageOptions).toHaveBeenCalledWith("g2");
+    });
+
+    it("starts a new message on the server picked on the other tabs and posts it there", async () => {
+        const user = userEvent.setup();
+        setup({ servers: [ONE, TWO] });
+        vi.mocked(api.createRoleMessage).mockResolvedValue({ entry: { ...MUSIK, id: "m6" }, url: "", warnings: [] });
+        renderPage(<RoleMessagesPage />, { route: "/channels/roles?edit=new&guild=g2" });
+        const dialog = await screen.findByRole("dialog");
+        const radio = await within(dialog).findByRole("radio", { name: "Talkgilde" });
+        expect(radio).toBeChecked();
+        await user.selectOptions(within(dialog).getByLabelText("Kanal"), "c5");
+        await user.type(within(dialog).getByLabelText(/^Titel/), "Musik");
+        await user.click(within(dialog).getByRole("button", { name: /Rolle hinzufügen/ }));
+        await user.click(within(dialog).getByRole("button", { name: /@Musik/ }));
+        await user.click(within(dialog).getByRole("button", { name: /Posten/ }));
+        await waitFor(() => expect(api.createRoleMessage).toHaveBeenCalledTimes(1));
+        expect(api.createRoleMessage).toHaveBeenCalledWith(expect.objectContaining({ guildId: "g2", channelId: "c5" }));
+    });
+
+    it("empties channel and roles when the editor switches the server", async () => {
+        const user = userEvent.setup();
+        setup({ servers: [ONE, TWO] });
+        renderPage(<RoleMessagesPage />, { route: "/channels/roles?edit=m1" });
+        const dialog = await screen.findByRole("dialog");
+        expect(await within(dialog).findByRole("radio", { name: "Testgilde" })).toBeChecked();
+        expect(within(dialog).getByLabelText("Kanal")).toHaveValue("c1");
+        await user.click(within(dialog).getByRole("radio", { name: "Talkgilde" }));
+        expect(within(dialog).getByRole("radio", { name: "Talkgilde" })).toBeChecked();
+        expect(within(dialog).getByLabelText("Kanal")).toHaveValue("");
+        expect(within(dialog).queryByLabelText("Knopf-Text für @Kochen")).not.toBeInTheDocument();
+        expect(within(dialog).getByRole("option", { name: /talk-rollen/ })).toBeInTheDocument();
+    });
+
+    it("offers no server choice in the editor with a single server", async () => {
+        renderPage(<RoleMessagesPage />, { route: "/channels/roles?edit=new" });
+        const dialog = await screen.findByRole("dialog");
+        await within(dialog).findByLabelText("Kanal");
+        expect(within(dialog).queryByRole("radiogroup", { name: "Server" })).not.toBeInTheDocument();
     });
 });
 

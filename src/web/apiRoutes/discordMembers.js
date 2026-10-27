@@ -1,9 +1,9 @@
-// The members of the event and the talk server (System › Discord › Mitglieder,
+// The members of one server of the list (#895, System › Discord › Mitglieder,
 // services/discord/serverMembers.js, docs/channels.md). Area `channels`, read only:
 // nothing here changes a member or a role.
 //
-// GET /api/discord/members?side=event|talk
-//     → { data: { side, guildId, guildName, online, botRole, manageRoles, membersError: string|null,
+// GET /api/discord/members?guildId=<one of the servers>   (none: the first server)
+//     → { data: { guildId, guildName, online, botRole, manageRoles, membersError: string|null,
 //                 total, roles: [Role], members: [Member] } }
 //       Role = { id, name, color: "#rrggbb"|"", position }   highest first, without @everyone
 //       Member = { id, name, username, avatarUrl: string|null, bot, joinedAt: ms|null,
@@ -16,31 +16,36 @@
 //       members by name; membersError set (and members empty) when the list cannot be had in
 //       time; offline: online false and empty lists
 //
-// GET /api/discord/members/detail?side=event|talk&userId=
+// GET /api/discord/members/detail?guildId=&userId=
 //     → { data: { ...head as above, gone?: true, member: Member|null, roles: [Role],
 //                 channels: [{ id, name, visible, total, channels: [{ id, name, kind: "text"|"voice"|"forum" }] }] } }
 //       channels: grouped by category in Discord's order (id "" = without category), only those
 //       the member can see (ViewChannel); total counts every text, voice and forum channel
 //       gone: true (member null) when the server is online but has no such member (left, or an
 //       old link) — an answer, not an error
-//       400 missing_user: no userId
+//       400 missing_user: no userId; 400 unknown_guild: a guildId outside the server list
 const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const serverMembers = require("../../services/discord/serverMembers");
+const { serverFromQuery } = require("../http/serverQuery");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
-const sideOf = (query) => (str(query.get("side")) === "talk" ? "talk" : "event");
 
 /** GET /api/discord/members */
 const listMembers = withUser(async ({ query, res }) => {
-    ok(res, await serverMembers.listServerMembers(sideOf(query)));
+    const guildId = serverFromQuery(query, res);
+    if (guildId === null) return undefined;
+    ok(res, await serverMembers.listServerMembers(guildId));
+    return undefined;
 });
 
 /** GET /api/discord/members/detail */
 const memberDetail = withUser(async ({ query, res }) => {
     const userId = str(query.get("userId"));
     if (!userId) return apiError(res, 400, "missing_user", "Welches Mitglied? Die userId fehlt.");
-    ok(res, await serverMembers.serverMemberDetail(sideOf(query), userId));
+    const guildId = serverFromQuery(query, res);
+    if (guildId === null) return undefined;
+    ok(res, await serverMembers.serverMemberDetail(guildId, userId));
     return undefined;
 });
 

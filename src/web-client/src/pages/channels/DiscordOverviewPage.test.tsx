@@ -1,24 +1,32 @@
 // System › Discord › Übersicht: the overview as the first tab, "Alles in Ordnung"
 // or the points that need attention with their buttons, joins and leaves, the
-// fixed messages, the bot check of both servers, the bot offline, a talk server
-// that is not set up, and the throttled "Neu prüfen".
+// fixed messages, the bot check of the picked server, the bot offline, no server
+// set, the server picker (#895) and the throttled "Neu prüfen" per server.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { DiscordOverview } from "../../api";
 import { renderPage } from "../../test/render";
+import { resetServerPickCache } from "../../hooks/useServerPick";
 import DiscordOverviewPage from "./DiscordOverviewPage";
 
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
     getDiscordOverview: vi.fn(),
     getDiscordTabCounts: vi.fn(),
+    getServerChoices: vi.fn(),
 }));
+
+const SERVERS: api.DiscordServerChoice[] = [
+    { guildId: "g1", name: "Testgilde", label: "", online: true, iconUrl: "" },
+    { guildId: "g2", name: "Talkgilde", label: "Talk", online: true, iconUrl: "" },
+];
 
 function overview(over: Partial<DiscordOverview> = {}): DiscordOverview {
     return {
-        side: "event", guildId: "g1", online: true, members: [],
+        guildId: "g1", online: true, members: [],
         botCheck: {
             guildId: "g1", known: true, channels: [], rolesAboveBot: [],
             functions: [
@@ -33,7 +41,7 @@ function overview(over: Partial<DiscordOverview> = {}): DiscordOverview {
 }
 
 const TALK = overview({
-    side: "talk", guildId: "g2",
+    guildId: "g2",
     botCheck: {
         guildId: "g2", known: true, channels: [], rolesAboveBot: [],
         functions: [
@@ -42,7 +50,7 @@ const TALK = overview({
         ],
     },
 });
-const NO_TALK = overview({ side: "talk", guildId: "", botCheck: { guildId: "", known: false, functions: [], channels: [], rolesAboveBot: [] } });
+const NONE = overview({ guildId: "", botCheck: { guildId: "", known: false, functions: [], channels: [], rolesAboveBot: [] } });
 
 const BUSY = overview({
     members: [
@@ -67,11 +75,18 @@ beforeEach(() => {
     localStorage.clear();
     event = overview();
     talk = TALK;
-    vi.mocked(api.getDiscordOverview).mockReset().mockImplementation(async (side) => (side === "talk" ? talk : event));
+    resetServerPickCache();
+    vi.mocked(api.getServerChoices).mockReset().mockResolvedValue(SERVERS);
+    vi.mocked(api.getDiscordOverview).mockReset().mockImplementation(async (guildId) => (guildId === "g2" ? talk : event));
     vi.mocked(api.getDiscordTabCounts).mockReset().mockResolvedValue({ channels: 31, serverRoles: 5, roleMessages: 2 });
 });
 
 const open = () => renderPage(<DiscordOverviewPage />, { route: "/channels/overview" });
+
+function SearchProbe() {
+    const location = useLocation();
+    return <span data-testid="search">{location.search}</span>;
+}
 
 describe("Discord-Übersicht", () => {
     it("is the first tab and says all is well when nothing is open", async () => {
@@ -108,12 +123,26 @@ describe("Discord-Übersicht", () => {
         expect(screen.getByRole("link", { name: "In Discord öffnen" })).toHaveAttribute("href", "https://discord.com/channels/g1/c2/m2");
     });
 
-    it("shows the bot check of both servers side by side", async () => {
+    it("shows the bot check of the picked server in one column", async () => {
         open();
         const check = (await screen.findByRole("heading", { name: "Bot-Check" })).closest("section")!;
-        await waitFor(() => expect(within(check).getAllByRole("columnheader")).toHaveLength(4));
+        expect(within(check).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(
+            expect.arrayContaining([expect.stringMatching(/Funktion/), expect.stringMatching(/Stand/)]),
+        );
+        expect(within(check).getAllByRole("columnheader")).toHaveLength(3);
+        expect(within(check).getAllByText("ok")).toHaveLength(2);
+    });
+
+    it("shows the other server's bot check after picking it, sorted by state", async () => {
+        const user = userEvent.setup();
+        renderPage(<><DiscordOverviewPage /><SearchProbe /></>, { route: "/channels/overview" });
+        await screen.findByText("Alles in Ordnung");
+        expect(api.getDiscordOverview).toHaveBeenCalledWith("g1", false);
+        await user.click(screen.getByRole("radio", { name: "Talkgilde" }));
+        await waitFor(() => expect(api.getDiscordOverview).toHaveBeenLastCalledWith("g2", false));
+        expect(screen.getByTestId("search")).toHaveTextContent(/^\?guild=g2$/);
+        const check = (await screen.findByRole("heading", { name: "Bot-Check" })).closest("section")!;
         const posts = within(check).getByText("Event-Posts, Anmelder-Nachricht, Setup, Pings").closest("tr")!;
-        expect(within(posts).getByText("ok")).toBeInTheDocument();
         expect(within(posts).getByText("fehlt")).toBeInTheDocument();
         expect(posts.querySelector(".dov-fn-missing")!.textContent).toBe("Nachrichten senden");
         expect(within(check).getByText("nicht nötig")).toBeInTheDocument();
@@ -121,14 +150,28 @@ describe("Discord-Übersicht", () => {
         expect(within(check).getAllByRole("row")[1]).toBe(posts);
     });
 
-    it("leaves the talk column out when the talk server is not set up", async () => {
-        talk = NO_TALK;
+    it("opens the server from the link, also from an old talk-server link", async () => {
+        renderPage(<DiscordOverviewPage />, { route: "/channels/overview?side=talk" });
+        expect(await screen.findByText("Recht fehlt: Nachrichten senden")).toBeInTheDocument();
+        expect(screen.getByRole("radio", { name: "Talkgilde" })).toBeChecked();
+        expect(api.getDiscordOverview).not.toHaveBeenCalledWith("g1", false);
+    });
+
+    it("says when no server is set and hides the picker", async () => {
+        vi.mocked(api.getServerChoices).mockResolvedValue([]);
+        event = NONE;
         open();
-        const check = (await screen.findByRole("heading", { name: "Bot-Check" })).closest("section")!;
-        await waitFor(() => expect(api.getDiscordOverview).toHaveBeenCalledWith("talk", false));
-        expect(within(check).getAllByRole("columnheader")).toHaveLength(3);
-        await userEvent.click(screen.getByRole("radio", { name: "Talk-Server" }));
-        expect(await screen.findByText(/kein Talk-Server/i)).toBeInTheDocument();
+        expect(await screen.findByText(/Kein Server eingestellt/)).toBeInTheDocument();
+        expect(api.getDiscordOverview).toHaveBeenCalledWith("", false);
+        expect(screen.queryByRole("radiogroup", { name: "Server" })).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Neu prüfen/ })).toBeDisabled();
+    });
+
+    it("keeps the member links on the picked server", async () => {
+        event = BUSY;
+        talk = { ...BUSY, guildId: "g2" };
+        renderPage(<DiscordOverviewPage />, { route: "/channels/overview?guild=g2" });
+        expect(await screen.findByRole("link", { name: "Thrall" })).toHaveAttribute("href", "/channels/members?user=u7&guild=g2");
     });
 
     it("says when the bot is offline instead of listing points", async () => {
@@ -143,35 +186,29 @@ describe("Discord-Übersicht", () => {
     it("asks Discord again at most every 30 seconds", async () => {
         open();
         await screen.findByText("Alles in Ordnung");
-        expect(api.getDiscordOverview).toHaveBeenCalledWith("event", false);
+        expect(api.getDiscordOverview).toHaveBeenCalledWith("g1", false);
         await userEvent.click(screen.getByRole("button", { name: "Neu prüfen" }));
-        await waitFor(() => expect(api.getDiscordOverview).toHaveBeenCalledWith("event", true));
+        await waitFor(() => expect(api.getDiscordOverview).toHaveBeenCalledWith("g1", true));
         const button = await screen.findByRole("button", { name: /Neu prüfen in \d+ s/ });
         expect(button).toBeDisabled();
     });
 
-    it("asks afresh only for the server it was clicked on, and switching asks nothing again", async () => {
-        let answer: (v: DiscordOverview) => void = () => {};
-        vi.mocked(api.getDiscordOverview).mockImplementation((side, fresh) => {
-            if (side === "event" && fresh) return new Promise((resolve) => { answer = resolve; });
-            return Promise.resolve(side === "talk" ? talk : event);
-        });
+    it("asks afresh only for the server it was clicked on and keeps the wait per server", async () => {
+        const user = userEvent.setup();
         open();
         await screen.findByText("Alles in Ordnung");
-        await waitFor(() => expect(api.getDiscordOverview).toHaveBeenCalledWith("talk", false));
-        await userEvent.click(screen.getByRole("button", { name: "Neu prüfen" }));
-        expect(api.getDiscordOverview).toHaveBeenCalledWith("event", true);
-        const calls = vi.mocked(api.getDiscordOverview).mock.calls.length;
-        // switch while the event server is still being checked: the talk server is shown from what it had
-        await userEvent.click(screen.getByRole("radio", { name: "Talk-Server" }));
+        await user.click(screen.getByRole("button", { name: "Neu prüfen" }));
+        await waitFor(() => expect(api.getDiscordOverview).toHaveBeenCalledWith("g1", true));
+        expect(await screen.findByRole("button", { name: /Neu prüfen in \d+ s/ })).toBeDisabled();
+        // the other server has its own gap: it may be checked right away
+        await user.click(screen.getByRole("radio", { name: "Talkgilde" }));
         expect(await screen.findByText("Recht fehlt: Nachrichten senden")).toBeInTheDocument();
-        expect(vi.mocked(api.getDiscordOverview).mock.calls.length).toBe(calls);
-        expect(api.getDiscordOverview).not.toHaveBeenCalledWith("talk", true);
-        answer(event);
-        // back to the event server: no new request either
-        await userEvent.click(screen.getByRole("radio", { name: "Event-Server" }));
+        expect(api.getDiscordOverview).not.toHaveBeenCalledWith("g2", true);
+        expect(screen.getByRole("button", { name: "Neu prüfen" })).toBeEnabled();
+        // back to the first server: its wait is still running
+        await user.click(screen.getByRole("radio", { name: "Testgilde" }));
         await screen.findByText("Alles in Ordnung");
-        expect(vi.mocked(api.getDiscordOverview).mock.calls.length).toBe(calls);
+        expect(screen.getByRole("button", { name: /Neu prüfen in \d+ s/ })).toBeDisabled();
     });
 
     it("says the bot cannot check instead of all being well when it is not on the server", async () => {
@@ -193,6 +230,12 @@ describe("Discord-Übersicht", () => {
     });
 
     it("folds the fine functions into one line that opens", async () => {
+        event = overview({
+            botCheck: {
+                guildId: "g1", known: true, channels: [], rolesAboveBot: [],
+                functions: [TALK.botCheck.functions[0], overview().botCheck.functions[1]],
+            },
+        });
         open();
         const check = (await screen.findByRole("heading", { name: "Bot-Check" })).closest("section")!;
         const fold = await within(check).findByRole("button", { name: "1 Funktion ok" });

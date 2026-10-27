@@ -7,7 +7,10 @@
 //   {
 //     messages: [{
 //       id,                          our id (random, also in the buttons' customId)
-//       guildSide: "event"|"talk",   the server the message, its roles and emojis belong to
+//       guildId,                     the server the message, its roles and emojis belong to (#895)
+//       guildSide: "event"|"talk",   only on entries saved before #895 (no guildId): read as
+//                                    the talk server resp. the first server
+//                                    (guildRoles.roleMessageGuild), dropped on the next save
 //       channelId, messageId,        where it is posted ("" messageId = not posted)
 //       title, body, imageUrl,       what it shows (imageUrl https or "")
 //       color,                       the bar colour (0..0xFFFFFF) or null = the card's default
@@ -45,9 +48,12 @@ function normalizeMessage(raw) {
     const id = str(raw.id);
     if (!id) return null;
     const imageUrl = str(raw.imageUrl);
+    const guildId = snowflake(raw.guildId);
     return {
         id,
-        guildSide: SIDES.includes(str(raw.guildSide)) ? str(raw.guildSide) : "event",
+        guildId,
+        // Legacy (before #895): kept only while there is no guildId yet.
+        ...(guildId ? {} : { guildSide: SIDES.includes(str(raw.guildSide)) ? str(raw.guildSide) : "event" }),
         channelId: snowflake(raw.channelId),
         messageId: snowflake(raw.messageId),
         title: str(raw.title),

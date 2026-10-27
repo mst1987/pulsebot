@@ -37,7 +37,8 @@ export type AreaAudience = { everyone: boolean; roles: string[]; writers: string
 export type ViewAsRole = { id: string; name: string; color: string; admin: boolean; configured: boolean };
 /** "event" | "talk" = the server's fixed role from Einstellungen → Discord-Server, "" = none. */
 export type GuildRole = "event" | "talk" | "";
-export type SessionGuild = { id: string; name: string; role?: GuildRole };
+/** A server of the server list; `label` is the orga's own short name ("" = none, missing from an older server). */
+export type SessionGuild = { id: string; name: string; role?: GuildRole; label?: string };
 /** A game version the content switch offers (#563). */
 export type ContentVersionRef = {
     id: string; label: string; short: string;

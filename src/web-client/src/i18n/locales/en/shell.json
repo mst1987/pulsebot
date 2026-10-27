@@ -93,12 +93,8 @@
         "tipSub": "Also applies to the messages the bot sends you."
     },
     "guild": {
-        "roleEvent": "Event",
-        "roleEventTip": "Event Discord",
-        "roleEventSub": "Event channels and Raid-Helper live on this server.",
-        "roleTalk": "Talk",
-        "roleTalkTip": "Community Discord",
-        "roleTalkSub": "Raid overview, bot signups and reminders run on this server.",
+        "labelTip": "The server's own name",
+        "labelSub": "Set under Settings › Discord servers.",
         "none": "No server",
         "noneTip": "No server connected",
         "noneSub": "The bot is not connected to any Discord server – it is probably not ready yet.",

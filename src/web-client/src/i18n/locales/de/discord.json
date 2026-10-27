@@ -83,10 +83,8 @@
                 "one": "{count} Rolle",
                 "other": "{count} Rollen"
             },
-            "server": "Server",
             "offline": "Bot nicht verbunden",
             "offlineSub": "Rollen kommen live aus Discord – ohne Verbindung bleibt die Liste leer.",
-            "talkMissing": "Kein Talk-Server eingestellt (Einstellungen › Discord).",
             "membersError": "Mitgliederzahlen fehlen",
             "membersErrorSub": "Discord hat die Mitgliederliste nicht rechtzeitig geliefert. Beim nächsten Laden kommen die Zahlen wieder.",
             "noManageRoles": "Bot darf keine Rollen vergeben",
@@ -101,7 +99,6 @@
             "footnote": "Klick auf eine Zeile öffnet die Rolle. Rollen anlegen und verschieben bleibt in Discord.",
             "empty": "Auf diesem Server gibt es keine Rolle.",
             "emptyHints": "Keine Rolle mit Hinweis.",
-            "eventMissing": "Kein Event-Server eingestellt (Einstellungen › Discord).",
             "commonLead": "Üblich auf diesem Server, daher grau:",
             "commonRoles": "{perm} ({count} von {total} Rollen)",
             "commonEveryone": "{perm} (alle über @everyone)",
@@ -350,6 +347,7 @@
             "empty": "Der Bot kann gerade nichts prüfen.",
             "fn": "Funktion",
             "rights": "Braucht",
+            "state": "Stand",
             "stateTip": "Nach Zustand sortieren: fehlende Rechte zuerst",
             "okFold": {
                 "one": "{count} Funktion ok",
@@ -400,8 +398,6 @@
             "count": { "one": "{count} Mitglied", "other": "{count} Mitglieder" },
             "offline": "Bot nicht verbunden",
             "offlineSub": "Mitglieder kommen live aus Discord – ohne Verbindung bleibt die Liste leer.",
-            "eventMissing": "Kein Event-Server eingestellt (Einstellungen › Discord).",
-            "talkMissing": "Kein Talk-Server eingestellt (Einstellungen › Discord).",
             "membersError": "Mitgliederliste fehlt",
             "membersErrorSub": "Discord hat die Mitgliederliste nicht rechtzeitig geliefert. Beim nächsten Laden kommt sie wieder.",
             "membersErrorIntent": "Discord gibt die Mitgliederliste nicht heraus. Meist fehlt dem Bot der Server-Members-Intent (Developer Portal › Bot › Privileged Gateway Intents).",
@@ -463,5 +459,11 @@
             "channelsFoot": "Berechnet aus Rollen und Kanal-Sonderrechten.",
             "showMember": "In der Mitgliederliste öffnen"
         }
+    },
+    "server": {
+        "label": "Server",
+        "none": "Kein Server eingestellt (Einstellungen › Discord).",
+        "offline": "Bot nicht da",
+        "offlineSub": "Der Bot ist nicht auf diesem Server – hier ist nichts zu sehen."
     }
 }

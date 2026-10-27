@@ -3,13 +3,14 @@ import { useOutletContext } from "react-router-dom";
 import {
     canAccess, createRoleMessage, deleteRoleMessage, getRoleMessageOptions, getRoleMessages, updateRoleMessage,
     type RoleMessage, type RoleMessageInput, type RoleMessageLimits, type RoleMessageOptions, type RoleMessageRoleOption,
-    type RoleMessageSaved, type RoleMessageSide,
+    type DiscordServerChoice, type RoleMessageSaved,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import type { ShellContext } from "../../components/shell/Shell";
 import { useToast } from "../../components/shell/Jobs";
 import { Badge, Button, DataTable, Field, IconButton, Modal, PageHead, Segment, Switch, useConfirm, type Column } from "../../components/ui";
 import DiscordTabs from "../../components/channels/DiscordTabs";
+import { pickSearch, useServerPick } from "../../hooks/useServerPick";
 import EmojiPicker from "../../components/ui/EmojiPicker";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { AlertIcon, ChevronUpIcon, ExternalIcon, PenIcon, PlusIcon, SaveIcon, TrashIcon, XIcon } from "../../components/ui/icons";
@@ -17,6 +18,7 @@ import { useCollectionEditor } from "../../lib/ui/collectionEditor";
 import { useDraftState } from "../../lib/ui/persistedState";
 import { useTableSort, type Dir } from "../../lib/ui/tableSort";
 import { previewEmoji } from "../../lib/discord/buttonEmoji";
+import { serverExtra, serverName, shortName } from "../../lib/discord/serverPick";
 import {
     ROLE_MESSAGE_LIMITS, colorToHex, groupChannels, problemText, roleBlockReason, roleMessageErrorText,
     roleMessageProblems, toInput, type RoleMessageError,
@@ -30,15 +32,27 @@ import { tParts, useT } from "../../i18n";
 // reaction. The list first, the editor as a dialog over it (?edit=<id|new>, as
 // every collection editor), with the Discord message it will post next to the
 // fields. Roles that carry rights (or that the bot cannot reach) are shown, but
-// greyed out with the reason — the server refuses them anyway.
+// greyed out with the reason — the server refuses them anyway. The list holds the
+// messages of every server of the server list (#895); the editor picks the server,
+// a new message starts on the one picked on the other Discord tabs.
 
 type SortKey = "title" | "server" | "channel" | "roles";
 const SORT_DEFAULTS: Record<SortKey, Dir> = { title: "asc", server: "asc", channel: "asc", roles: "desc" };
 const FORM_ID = "role-message-form";
-const EMPTY_OPTIONS = (side: RoleMessageSide): RoleMessageOptions => ({ guildSide: side, guildId: "", online: false, manageRoles: null, roles: [], channels: [], emojis: [] });
+const EMPTY_OPTIONS = (guildId: string): RoleMessageOptions => ({ guildId, online: false, manageRoles: null, roles: [], channels: [], emojis: [] });
 
-/** The options of both servers, keyed by side. */
-type SideOptions = Record<RoleMessageSide, RoleMessageOptions>;
+/** The servers of the server list with their channels, roles and emojis. */
+type ServerOptions = {
+    servers: DiscordServerChoice[];
+    /** keyed by guild id; a server whose call failed has empty options (bot "offline") */
+    byGuild: Record<string, RoleMessageOptions>;
+};
+
+/** The options of a server; "" (or an unknown id) = the first of the list, as the API does. */
+function optionsOf(options: ServerOptions, guildId: string): RoleMessageOptions {
+    const id = guildId && options.servers.some((s) => s.guildId === guildId) ? guildId : options.servers[0]?.guildId || "";
+    return options.byGuild[id] || EMPTY_OPTIONS(id);
+}
 
 function roleStyle(color: string): CSSProperties | undefined {
     return color ? ({ "--rm-role": color } as CSSProperties) : undefined;
@@ -54,13 +68,22 @@ export default function RoleMessagesPage() {
     const sort = useTableSort<SortKey>("role-messages-sort", SORT_DEFAULTS, "title");
 
     const loaded = useApi(() => getRoleMessages(), []);
-    const eventOpts = useApi(() => getRoleMessageOptions("event"), []);
-    const talkOpts = useApi(() => getRoleMessageOptions("talk"), []);
-    const options: SideOptions = {
-        event: eventOpts.data || EMPTY_OPTIONS("event"),
-        talk: talkOpts.data || EMPTY_OPTIONS("talk"),
+    const pick = useServerPick();
+    const servers = pick.servers || [];
+    // every server's options in one go: the list names channels and roles of all of them
+    const serverKey = servers.map((s) => s.guildId).join(",");
+    const opts = useApi(
+        () => Promise.all(servers.map((s) => getRoleMessageOptions(s.guildId).catch(() => EMPTY_OPTIONS(s.guildId))))
+            .then((list) => Object.fromEntries(list.map((o, i) => [servers[i].guildId, { ...o, guildId: servers[i].guildId }]))),
+        [serverKey], { enabled: pick.ready },
+    );
+    const options: ServerOptions = { servers, byGuild: opts.data || {} };
+    const optionsReady = pick.ready && (!!opts.data || !!opts.error);
+    const nameOf = (guildId: string) => {
+        const s = servers.find((x) => x.guildId === guildId);
+        return s ? serverName(s) : t("roleMessages.list.unknownServer");
     };
-    const optionsReady = (!!eventOpts.data || !!eventOpts.error) && (!!talkOpts.data || !!talkOpts.error);
+    const many = servers.length > 1;
 
     const [state, setState] = useState<FormState>({ dirty: false, problems: 0, saving: false, offline: false });
     const clearDraftRef = useRef<(() => void) | null>(null);
@@ -72,9 +95,9 @@ export default function RoleMessagesPage() {
     const limits = loaded.data.limits || ROLE_MESSAGE_LIMITS;
     const entry = editor.editId ? messages.find((m) => m.id === editor.editId) || null : null;
 
-    const channelName = (m: RoleMessage) => options[m.guildSide].channels.find((c) => c.id === m.channelId)?.name || "";
-    const roleOf = (side: RoleMessageSide, id: string) => options[side].roles.find((r) => r.id === id);
-    const roleName = (side: RoleMessageSide) => (id: string) => roleOf(side, id)?.name || t("roleMessages.list.unknownRole");
+    const channelName = (m: RoleMessage) => optionsOf(options, m.guildId).channels.find((c) => c.id === m.channelId)?.name || "";
+    const roleOf = (guildId: string, id: string) => optionsOf(options, guildId).roles.find((r) => r.id === id);
+    const roleName = (guildId: string) => (id: string) => roleOf(guildId, id)?.name || t("roleMessages.list.unknownRole");
 
     const close = () => {
         clearDraftRef.current = null;
@@ -99,7 +122,7 @@ export default function RoleMessagesPage() {
             if (editor.open) close();
             loaded.reload();
         } catch (err) {
-            toast(roleMessageErrorText(err as RoleMessageError, roleName(m.guildSide), limits), "err");
+            toast(roleMessageErrorText(err as RoleMessageError, roleName(m.guildId), limits), "err");
         }
     };
 
@@ -111,15 +134,15 @@ export default function RoleMessagesPage() {
                     <span className="rm-cell rm-title">{m.title}</span>
                     {/* phones hide the server and channel columns; this line carries them instead */}
                     <span className="rm-cell rm-sub rm-meta">
-                        {t(`roleMessages.side.${m.guildSide}`)} · {channelName(m) ? `#${channelName(m)}` : t("roleMessages.list.unknownChannel")}
+                        {many ? `${nameOf(m.guildId)} · ` : ""}{channelName(m) ? `#${channelName(m)}` : t("roleMessages.list.unknownChannel")}
                     </span>
                 </>
             ),
         },
-        {
-            id: "server", label: t("roleMessages.col.server"), sortKey: "server", width: 130,
-            cell: (m) => <span className="rm-cell rm-sub">{t(`roleMessages.side.${m.guildSide}`)}</span>,
-        },
+        ...(many ? [{
+            id: "server", label: t("roleMessages.col.server"), sortKey: "server" as const, width: 160,
+            cell: (m: RoleMessage) => <span className="rm-cell rm-sub" data-tip={nameOf(m.guildId)}>{shortName(nameOf(m.guildId))}</span>,
+        }] : []),
         {
             id: "channel", label: t("roleMessages.col.channel"), sortKey: "channel", width: 190,
             cell: (m) => <span className="rm-cell">{channelName(m) ? `#${channelName(m)}` : <span className="rm-sub">{t("roleMessages.list.unknownChannel")}</span>}</span>,
@@ -128,7 +151,7 @@ export default function RoleMessagesPage() {
             id: "roles", label: t("roleMessages.col.roles"), sortKey: "roles", width: 140,
             tip: t("roleMessages.col.rolesTip"), tipSub: t("roleMessages.col.rolesSub"),
             cell: (m) => (
-                <span className="rm-cell" data-tip={m.roles.map((r) => `@${roleName(m.guildSide)(r.roleId)}`).join(", ")}>
+                <span className="rm-cell" data-tip={m.roles.map((r) => `@${roleName(m.guildId)(r.roleId)}`).join(", ")}>
                     {t("roleMessages.list.roles", { count: m.roles.length })}
                 </span>
             ),
@@ -153,19 +176,18 @@ export default function RoleMessagesPage() {
     }
 
     const sortValue = (m: RoleMessage, key: SortKey) => {
-        if (key === "server") return m.guildSide;
+        if (key === "server") return nameOf(m.guildId).toLowerCase();
         if (key === "channel") return channelName(m).toLowerCase();
         if (key === "roles") return m.roles.length;
         return m.title.toLowerCase();
     };
 
     // Notes over the list: a server the bot is not on, or on which it lacks Manage Roles.
-    const sides: RoleMessageSide[] = options.talk.guildId ? ["event", "talk"] : ["event"];
-    const notes = sides.flatMap((side) => {
-        const o = options[side];
-        const name = t(`roleMessages.side.${side}`);
-        if (!o.online) return [{ key: `${side}-off`, side: name, text: t("roleMessages.hint.offline") }];
-        if (o.manageRoles === false) return [{ key: `${side}-mr`, side: name, text: t("roleMessages.hint.manageRoles") }];
+    const notes = servers.flatMap((s) => {
+        const o = optionsOf(options, s.guildId);
+        const name = serverName(s);
+        if (!o.online) return [{ key: `${s.guildId}-off`, side: name, text: t("roleMessages.hint.offline") }];
+        if (o.manageRoles === false) return [{ key: `${s.guildId}-mr`, side: name, text: t("roleMessages.hint.manageRoles") }];
         return [];
     });
 
@@ -186,7 +208,7 @@ export default function RoleMessagesPage() {
                 )}
                 action={canWrite ? <Button variant="ghost" icon={<PlusIcon />} onClick={editor.startNew}>{t("roleMessages.page.new")}</Button> : undefined}
             />
-            <DiscordTabs user={user} />
+            <DiscordTabs user={user} guildId={pick.guildId} search={pickSearch(pick)} />
 
             {notes.length > 0 && (
                 <ul className="rm-notes">
@@ -229,11 +251,12 @@ export default function RoleMessagesPage() {
                     </>
                 )}
             >
-                {canWrite && editor.open && (
+                {canWrite && editor.open && pick.ready && (
                     <RoleMessageForm
                         key={entry?.id ?? "new"}
                         editing={entry}
                         options={options}
+                        startGuild={pick.guildId}
                         limits={limits}
                         onSaved={afterSave}
                         onState={(s, clear) => {
@@ -251,9 +274,9 @@ export default function RoleMessagesPage() {
 
 type FormState = { dirty: boolean; problems: number; saving: boolean; offline: boolean };
 
-function initialInput(m: RoleMessage | null): RoleMessageInput {
+function initialInput(m: RoleMessage | null, startGuild: string): RoleMessageInput {
     return {
-        guildSide: m?.guildSide ?? "event",
+        guildId: m ? m.guildId : startGuild,
         channelId: m?.channelId ?? "",
         title: m?.title ?? "",
         body: m?.body ?? "",
@@ -268,40 +291,44 @@ function Count({ count, max, label }: { count: number; max: number; label: strin
     return <span className={`rm-count${count > max ? " over" : ""}`}>{t(label, { count, max })}</span>;
 }
 
-export function RoleMessageForm({ editing, options, limits, onSaved, onState }: {
+export function RoleMessageForm({ editing, options, startGuild = "", limits, onSaved, onState }: {
     editing: RoleMessage | null;
-    options: SideOptions;
+    options: ServerOptions;
+    /** the server a new message starts on ("" = the first of the list) */
+    startGuild?: string;
     limits: RoleMessageLimits;
     onSaved: (saved: RoleMessageSaved, wasNew: boolean) => void;
     onState: (state: FormState, clearDraft: () => void) => void;
 }) {
     const t = useT();
     const toast = useToast();
-    const initial = useMemo(() => initialInput(editing), [editing]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the start server counts only when the form opens
+    const initial = useMemo(() => initialInput(editing, startGuild), [editing]);
     const [draft, patch, clearDraft] = useDraftState<RoleMessageInput>(`role-message:${editing?.id ?? "new"}`, initial);
     const [saving, setSaving] = useState(false);
     const [picking, setPicking] = useState(false);
     const [search, setSearch] = useState("");
 
-    const side = options[draft.guildSide];
-    const roles = side.roles;
+    // a draft kept from before the server list has no guildId: it starts on the first server
+    const opts = optionsOf(options, draft.guildId || "");
+    const roles = opts.roles;
     const problems = roleMessageProblems(draft, roles, limits);
-    const offline = !side.online;
+    const offline = !opts.online;
     const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
     const roleName = (id: string) => roles.find((r) => r.id === id)?.name || t("roleMessages.list.unknownRole");
 
     useEffect(() => { onState({ dirty, problems: problems.length, saving, offline }, clearDraft); });
 
-    const channel = side.channels.find((c) => c.id === draft.channelId);
-    const groups = groupChannels(side.channels);
+    const channel = opts.channels.find((c) => c.id === draft.channelId);
+    const groups = groupChannels(opts.channels);
     const used = new Set(draft.roles.map((r) => r.roleId));
     const full = draft.roles.length >= limits.roles;
     const reactions = draft.roles.filter((r) => r.emoji.trim()).length;
 
-    const setSide = (s: RoleMessageSide) => {
-        if (s === draft.guildSide) return;
+    const setServer = (guildId: string) => {
+        if (guildId === opts.guildId) return;
         // channels and roles belong to a server: another server starts them empty
-        patch({ guildSide: s, channelId: "", roles: [] });
+        patch({ guildId, channelId: "", roles: [] });
     };
     const setRole = (index: number, fields: Partial<RoleMessageInput["roles"][number]>) =>
         patch({ roles: draft.roles.map((r, i) => (i === index ? { ...r, ...fields } : r)) });
@@ -323,7 +350,7 @@ export function RoleMessageForm({ editing, options, limits, onSaved, onState }: 
         if (problems.length || offline || saving) return;
         setSaving(true);
         try {
-            const input = toInput(draft, roles);
+            const input = toInput({ ...draft, guildId: opts.guildId }, roles);
             const saved = editing ? await updateRoleMessage(editing.id, input) : await createRoleMessage(input);
             clearDraft();
             onSaved(saved, !editing);
@@ -339,12 +366,11 @@ export function RoleMessageForm({ editing, options, limits, onSaved, onState }: 
     const pickable = matching.filter((r) => !roleBlockReason(r));
     const blocked = matching.filter((r) => roleBlockReason(r));
 
-    const sideOptions = (["event", "talk"] as RoleMessageSide[]).map((s) => ({
-        value: s,
-        label: t(`roleMessages.side.${s}`),
-        disabled: s === "talk" && !options.talk.guildId,
-        tip: s === "talk" && !options.talk.guildId ? t("roleMessages.side.talkMissing") : undefined,
-    }));
+    const serverOptions = options.servers.map((s) => {
+        const name = serverName(s);
+        const extra = serverExtra(s);
+        return { value: s.guildId, label: shortName(name), tip: extra ? `${name} · ${extra}` : name };
+    });
 
     const previewRoles = draft.roles.map((r) => ({ ...r, name: roles.find((x) => x.id === r.roleId)?.name || "" }));
 
@@ -353,9 +379,17 @@ export function RoleMessageForm({ editing, options, limits, onSaved, onState }: 
             <div>
                 {offline && <div className="rm-note"><AlertIcon /><span>{t("roleMessages.hint.offline")}</span></div>}
                 <div className="rm-pair">
-                    <Field label={t("roleMessages.form.server")}>
-                        <Segment options={sideOptions} value={draft.guildSide} onChange={setSide} ariaLabel={t("roleMessages.form.server")} />
-                    </Field>
+                    {serverOptions.length > 1 && (
+                        <Field label={t("roleMessages.form.server")}>
+                            {serverOptions.length > 3 ? (
+                                <select value={opts.guildId} onChange={(e) => setServer(e.target.value)} aria-label={t("roleMessages.form.server")}>
+                                    {serverOptions.map((o) => <option key={o.value} value={o.value}>{o.tip}</option>)}
+                                </select>
+                            ) : (
+                                <Segment options={serverOptions} value={opts.guildId} onChange={setServer} ariaLabel={t("roleMessages.form.server")} />
+                            )}
+                        </Field>
+                    )}
                     <Field label={t("roleMessages.form.channel")} htmlFor="rm-channel">
                         <select id="rm-channel" value={draft.channelId} onChange={(e) => patch({ channelId: e.target.value })} disabled={offline}>
                             <option value="">{t("roleMessages.form.channelPick")}</option>
@@ -418,7 +452,7 @@ export function RoleMessageForm({ editing, options, limits, onSaved, onState }: 
                                                 <span className="rm-dot" style={roleStyle(opt?.color || "")} />
                                                 <span>@{name}</span>
                                             </span>
-                                            <EmojiField value={r.emoji} emojis={side.emojis} label={t("roleMessages.form.emoji", { role: name })} onChange={(emoji) => setRole(i, { emoji })} />
+                                            <EmojiField value={r.emoji} emojis={opts.emojis} label={t("roleMessages.form.emoji", { role: name })} onChange={(emoji) => setRole(i, { emoji })} />
                                             <input
                                                 type="text"
                                                 value={r.label}
@@ -491,7 +525,7 @@ export function RoleMessageForm({ editing, options, limits, onSaved, onState }: 
             </div>
             <aside>
                 <div className="field-label"><span>{t("roleMessages.form.preview")}</span></div>
-                <RoleMessagePreview title={draft.title} body={draft.body} imageUrl={draft.imageUrl} color={draft.color} roles={previewRoles} emojis={side.emojis} />
+                <RoleMessagePreview title={draft.title} body={draft.body} imageUrl={draft.imageUrl} color={draft.color} roles={previewRoles} emojis={opts.emojis} />
             </aside>
         </form>
     );

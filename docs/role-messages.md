@@ -38,7 +38,7 @@ reagiert, holt sich die Rolle selbst. Die Orga legt die Nachricht im Web an: *Sy
 
 25 Rollen (Knöpfe, 5 je Zeile), davon höchstens 20 mit Emoji (Reaktionen); Titel 200, Text 3000, Beschriftung
 80 Zeichen. Emoji: ein Unicode-Emoji oder ein Server-Emoji `<:name:id>` / `<a:name:id>` des gewählten Servers;
-ohne Emoji gibt es nur den Knopf. Server: Event- oder Talk-Server, beim Anlegen gewählt (`guildSide`).
+ohne Emoji gibt es nur den Knopf. Server: einer aus der Serverliste (`discordServers.servers`), beim Anlegen gewählt (`guildId`); ein gespeichertes altes `side` (`event`/`talk`) wird beim Lesen zur Guild-ID (`guildRoles.roleMessageGuild`).
 
 ## Sicherheit
 
@@ -68,7 +68,7 @@ Befehlsrollen, Raider-Rollen der Kategorien, Roster-Rollen, Rollen des Rollen-Ab
 
 | Wo | Was |
 |---|---|
-| `src/stores/roleMessageStore.js` | `data/settings/role-messages.json`: die Nachrichten mit Server-Seite, Kanal, Nachricht, Inhalt, Rollen |
+| `src/stores/roleMessageStore.js` | `data/settings/role-messages.json`: die Nachrichten mit Server (Guild-ID), Kanal, Nachricht, Inhalt, Rollen |
 | `src/services/discord/roleMessages.js` | Prüfen, Posten, Bearbeiten (bei Kanal- oder Serverwechsel neu posten, alte löschen), Löschen, Auswahl-Listen, Knopf und Reaktionen |
 | `src/services/discord/selfRole.js` | `privilegedReason`, `roleProblem`, `changeSelfRole` — der eine Weg, eine Rolle selbst zu holen |
 | `src/commands/channels/roleMessageButton.js` | Einstieg der Knöpfe (Komponente ohne Slash-Befehl) |
@@ -101,8 +101,8 @@ nur die Liste, ohne Knöpfe).
 | Route | Antwort |
 |---|---|
 | `GET /api/role-messages` | `{ messages: [Entry], limits }`; Entry mit `guildId` und `url` (Link zur Nachricht, `""` wenn nicht gepostet oder nicht prüfbar) |
-| `GET /api/role-messages/options?side=event\|talk` | Rollen (mit `privileged` = Grund oder `""`, `editable`), Textkanäle (mit `canReact`), Server-Emojis (`code` für `roles[].emoji`), `manageRoles`, `online` |
-| `POST /api/role-messages` | Body `{ guildSide, channelId, title, body?, imageUrl?, color?, roles: [{ roleId, emoji?, label? }] }` → 201 `{ entry, url, warnings }` |
+| `GET /api/role-messages/options?guildId=<id>` | Rollen (mit `privileged` = Grund oder `""`, `editable`), Textkanäle (mit `canReact`), Server-Emojis (`code` für `roles[].emoji`), `manageRoles`, `online` |
+| `POST /api/role-messages` | Body `{ guildId, channelId, title, body?, imageUrl?, color?, roles: [{ roleId, emoji?, label? }] }` → 201 `{ entry, url, warnings }` |
 | `PUT /api/role-messages` | Body `{ id, ...wie POST }` (ganze Nachricht) → `{ entry, url, warnings, reposted }` |
 | `DELETE /api/role-messages` | Body `{ id }` oder `?id=` → `{ id, messageDeleted }` |
 

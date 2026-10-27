@@ -1,4 +1,4 @@
-// The fixed messages the bot keeps on one server (event or talk side), for the
+// The fixed messages the bot keeps on one server of the list (#895), for the
 // Discord overview of the web admin (docs/discord-servers.md "Discord-Übersicht"):
 // Orga-Zentralen, Raid-Zentralen, raid overviews, role messages, the addon
 // centre, recruitment posts. Each one says whether it still stands.
@@ -17,6 +17,7 @@ const raidOverviewStore = require("../../stores/raidOverviewStore");
 const talkOverviewStore = require("../../stores/talkOverviewStore");
 const roleMessageStore = require("../../stores/roleMessageStore");
 const addonCenterStore = require("../../stores/addonCenterStore");
+const { roleMessageGuild } = require("./guildRoles");
 const recruitmentStore = require("../../stores/recruitmentStore");
 const availabilityStore = require("../../stores/availabilityStore");
 
@@ -53,7 +54,7 @@ function entry(kind, raw, extra = {}) {
 }
 
 /** Every fixed message the stores know on this server (unchecked). */
-function collect(side, guildId, config) {
+function collect(guildId, config) {
     const gid = str(guildId);
     if (!gid) return [];
     const onGuild = (x) => x && str(x.guildId) === gid && str(x.messageId);
@@ -73,7 +74,7 @@ function collect(side, guildId, config) {
         if (state.messageId) out.push(entry("talkOverview", state, { guildId: gid, title: labels.get(str(l.from)) || "" }));
     }
     for (const m of roleMessageStore.listMessages()) {
-        if (m.guildSide === side && str(m.messageId)) out.push(entry("roleMessage", m, { guildId: gid, title: m.title }));
+        if (roleMessageGuild(m, config || undefined) === gid && str(m.messageId)) out.push(entry("roleMessage", m, { guildId: gid, title: m.title }));
     }
     const center = addonCenterStore.getCenter();
     if (onGuild(center)) out.push(entry("addonCenter", center));
@@ -159,9 +160,9 @@ function after(ms) {
  * check stops after `checkMs` — what has not answered by then reads "unknown".
  * Never throws.
  */
-async function botMessages(side, guildId, config, { now = Date.now(), fresh = false, checkMs = CHECK_MS } = {}) {
+async function botMessages(guildId, config, { now = Date.now(), fresh = false, checkMs = CHECK_MS } = {}) {
     const gid = str(guildId);
-    const list = collect(side, gid, config);
+    const list = collect(gid, config);
     const online = discord.isOnline();
     const keyOf = (m) => `${m.guildId}:${m.channelId}:${m.messageId}`;
     const states = list.map(() => "unknown");

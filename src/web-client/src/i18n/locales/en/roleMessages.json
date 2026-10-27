@@ -24,12 +24,8 @@
         "open": "Open in Discord",
         "notPosted": "not posted",
         "unknownChannel": "unknown channel",
-        "unknownRole": "unknown role"
-    },
-    "side": {
-        "event": "Event server",
-        "talk": "Talk server",
-        "talkMissing": "No talk server set (Settings › Discord)."
+        "unknownRole": "unknown role",
+        "unknownServer": "no longer in the server list"
     },
     "hint": {
         "offline": "The bot is not connected right now – channels, roles and emojis are missing. Saving works again once it is online.",
@@ -92,7 +88,7 @@
         "unknownRole": "A role no longer exists on the server – please remove it."
     },
     "error": {
-        "bad_side": "Unknown server.",
+        "unknown_guild": "This server is no longer in the server list.",
         "no_guild": "No server is set for this side.",
         "unknown_channel": "The channel no longer exists, or the bot may not write there.",
         "missing_title": "A title is missing.",

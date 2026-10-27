@@ -116,8 +116,9 @@ describe("Discord-Server edit dialog: event-server rows (#361)", () => {
 });
 
 describe("server switcher", () => {
-    it("badges the event and the talk server and still lists every server", () => {
-        expect(switcher).toContain("<RoleBadge role={guilds.find((g) => g.id === activeGuildId)?.role} />");
+    it("shows the server's own label instead of an event/talk badge and still lists every server (#895)", () => {
+        expect(switcher).toContain("<LabelBadge guild={guilds.find((g) => g.id === activeGuildId)} />");
+        expect(switcher).not.toContain("roleEvent");
         expect(switcher).toContain("{guilds.map((g) => <option key={g.id} value={g.id}>");
         expect(switcher).not.toMatch(/guilds\.filter\(/);
     });

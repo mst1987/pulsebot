@@ -236,3 +236,34 @@ describe("services/discord/guildRoles memberOverlap", () => {
         expect(discord.fetchGuildMembersCached).not.toHaveBeenCalled();
     });
 });
+
+describe("services/discord/guildRoles server pick (#895)", () => {
+    const cfg = { guildId: "", discordServers: block({ servers: [server(E1), server(T, "Talk")], talkGuildId: T }) };
+
+    it("takes a guildId of the list, refuses one outside it", () => {
+        expect(guildRoles.resolveServer({ guildId: T }, cfg)).toBe(T);
+        expect(guildRoles.resolveServer({ guildId: X }, cfg)).toBeNull();
+    });
+
+    it("falls back to the first server, an old side=talk to the talk server", () => {
+        expect(guildRoles.resolveServer({}, cfg)).toBe(E1);
+        expect(guildRoles.resolveServer({ side: "event" }, cfg)).toBe(E1);
+        expect(guildRoles.resolveServer({ side: "talk" }, cfg)).toBe(T);
+        expect(guildRoles.resolveServer({}, { guildId: "", discordServers: block() })).toBe("");
+    });
+
+    it("lists the servers with Discord name, label, icon and whether the bot is there", () => {
+        discord.getGuild.mockImplementation((id) => (id === E1 ? { id, name: "Gilde", iconURL: () => "https://cdn/i.png" } : null));
+        expect(guildRoles.serverChoices(cfg)).toEqual([
+            { guildId: E1, name: "Gilde", label: "", online: true, iconUrl: "https://cdn/i.png" },
+            { guildId: T, name: "", label: "Talk", online: false, iconUrl: "" },
+        ]);
+    });
+
+    it("places a role message by its guildId, an old one by its side", () => {
+        expect(guildRoles.roleMessageGuild({ guildId: X }, cfg)).toBe(X);
+        expect(guildRoles.roleMessageGuild({ guildSide: "talk" }, cfg)).toBe(T);
+        expect(guildRoles.roleMessageGuild({ guildSide: "event" }, cfg)).toBe(E1);
+        expect(guildRoles.roleMessageGuild(null, cfg)).toBe(E1);
+    });
+});

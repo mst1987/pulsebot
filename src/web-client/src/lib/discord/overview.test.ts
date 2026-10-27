@@ -1,5 +1,5 @@
 // System › Discord › Übersicht: what needs attention (order, tone, links the
-// account may open), the bot check of both servers, the role-hygiene line and
+// account may open), the bot check of the shown server, the role-hygiene line and
 // the throttle of "Neu prüfen".
 import { afterEach, describe, expect, it } from "vitest";
 import type { BotMessage, DiscordOverview } from "../../api";
@@ -9,7 +9,7 @@ import { attentionItems, botCheckRank, botCheckRows, channelMissing, functionSta
 
 function overview(over: Partial<DiscordOverview> = {}): DiscordOverview {
     return {
-        side: "event", guildId: "g1", online: true, members: [],
+        guildId: "g1", online: true, members: [],
         botCheck: { guildId: "g1", known: true, functions: [], channels: [], rolesAboveBot: [] },
         messages: [],
         hygiene: { known: true, total: 12, empty: 0, aboveBot: 0, sensitive: 1 },
@@ -106,7 +106,7 @@ describe("attentionItems", () => {
 
 describe("bot check", () => {
     const talk = overview({
-        side: "talk", guildId: "g2",
+        guildId: "g2",
         botCheck: {
             guildId: "g2", known: true, channels: [], rolesAboveBot: [],
             functions: [
@@ -116,23 +116,23 @@ describe("bot check", () => {
         },
     });
 
-    it("joins both servers into one row per function", () => {
-        const rows = botCheckRows(BAD, talk);
-        expect(rows.map((r) => [r.key, !!r.event, !!r.talk])).toEqual([["posts", true, false], ["roles", true, true], ["members", false, true]]);
-        expect(rows.map(botCheckRank)).toEqual([2, 0, 2]);
-        expect(functionState(rows[1].event)).toEqual({ tone: "bad", text: "fehlt", missing: ["Rollen verwalten"] });
-        expect(functionState(rows[1].talk)).toMatchObject({ tone: "ok", text: "ok" });
+    it("lists one row per function of the shown server, a missing right first", () => {
+        const rows = botCheckRows(BAD);
+        expect(rows.map((r) => r.key)).toEqual(["posts", "roles"]);
+        expect(rows.map(botCheckRank)).toEqual([2, 0]);
+        expect(functionState(rows[1].fn)).toEqual({ tone: "bad", text: "fehlt", missing: ["Rollen verwalten"] });
+        expect(functionState(botCheckRows(talk)[0].fn)).toMatchObject({ tone: "ok", text: "ok" });
         expect(functionState(null)).toMatchObject({ tone: "muted", text: "–" });
     });
 
-    it("skips a server that is not set up", () => {
-        expect(botCheckRows(BAD, overview({ side: "talk", guildId: "" })).every((r) => r.talk === null)).toBe(true);
-        expect(botCheckRows(null, null)).toEqual([]);
+    it("has no rows for a server that is not set up", () => {
+        expect(botCheckRows(overview({ guildId: "" }))).toEqual([]);
+        expect(botCheckRows(null)).toEqual([]);
     });
 
     it("translates functions and rights to English", async () => {
         await switchLang("en");
-        const rows = botCheckRows(BAD, talk);
+        const rows = [...botCheckRows(BAD), ...botCheckRows(talk).slice(1)];
         expect(rows[1].label).toBe("Raider roles, role messages, role sync");
         expect(rows[2].rights).toEqual([{ key: "GuildMembers", label: "Read members (intent)" }]);
         expect(purposeLabel({ key: "signupNotes", label: "Vielleicht und Absagen (Kategorie)" })).toBe("Maybe and declines (category)");
