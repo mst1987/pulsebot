@@ -123,6 +123,18 @@ describe("services/discord/discord channel management", () => {
             ]);
         });
 
+        it("isGuildAvailable: cached and not flagged unavailable (#926)", () => {
+            expect(discord.isGuildAvailable("g1")).toBe(false); // no client
+            const guild = makeGuild([]);
+            setClientWithGuild(guild);
+            expect(discord.isGuildAvailable("g1")).toBe(true);
+            expect(discord.isGuildAvailable("nope")).toBe(false);
+            guild.available = false; // discord.js v14 during an outage: cached, no channels
+            expect(discord.isGuildAvailable("g1")).toBe(false);
+            guild.name = undefined; // and no name: listGuilds still lists it
+            expect(discord.listGuilds()).toEqual([{ id: "g1", name: "" }]);
+        });
+
         it("returns [] when the guild is unknown or the bot is not connected", () => {
             discord.setClient(null);
             expect(discord.listCategories("g1")).toEqual([]);

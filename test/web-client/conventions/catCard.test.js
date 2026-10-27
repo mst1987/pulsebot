@@ -59,7 +59,9 @@ describe("Kategorien list", () => {
     });
 
     it("keeps an unknown category id visible with a bad badge", () => {
-        expect(matrix).toMatch(/\{cat\.unknown && !gone && \(\s*<Badge tone="bad"/);
+        expect(matrix).toMatch(/\{cat\.unknown && !gone && !unprovenIds\.has\(cat\.id\) && \(\s*<Badge tone="bad"/);
+        // #926: an id without a proven server reads as unclear, never as unknown or deleted
+        expect(matrix).toMatch(/\{cat\.unknown && !gone && unprovenIds\.has\(cat\.id\) && \(\s*<Badge tone="mid"/);
         // #744: one Discord really deleted says so and offers to close it
         expect(matrix).toMatch(/\{cat\.unknown && gone && \(\s*<Badge tone="bad"/);
         expect(matrix).toContain("t(\"settings.categoryClose.action\")");

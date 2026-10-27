@@ -524,6 +524,8 @@ describe("web/apiRoutes/settings", () => {
                     auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                     auth.checkCsrf.mockReturnValue(true);
                     settingsStore.getConfig.mockReturnValue(BEFORE);
+                    // #926: a save edits the active server's categories (g1, the only one here)
+                    activeGuildFor.mockReturnValue("g1");
                     discord.listCategories.mockReturnValue([{ id: "cat1", name: "TBC Montag" }, { id: "cat2", name: "Freitag" }]);
                 });
                 afterEach(() => {
@@ -532,20 +534,20 @@ describe("web/apiRoutes/settings", () => {
                 });
 
                 it("refuses an active category without a version", async () => {
-                    const res = await patch("/api/settings", { categoryIds: ["cat1", "cat2"], categoryVersion: { cat1: "tbc" } });
+                    const res = await patch("/api/settings", { categoryIds: ["cat1", "cat2"], serverSettingsGuildId: "g1", categoryVersion: { cat1: "tbc" } });
                     expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
                     expect(json(res)).toMatchObject({ error: { code: "category_version_missing", message: expect.stringContaining("Freitag") } });
                     // an unknown version counts as none
                     const res2 = await patch("/api/settings", { categoryVersion: { cat1: "wotlk" } });
                     expect(res2.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
                     // the active list alone is checked against the stored map too
-                    const res3 = await patch("/api/settings", { categoryIds: ["cat1", "cat2"] });
+                    const res3 = await patch("/api/settings", { categoryIds: ["cat1", "cat2"], serverSettingsGuildId: "g1" });
                     expect(res3.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
                     expect(settingsStore.saveConfig).not.toHaveBeenCalled();
                 });
 
                 it("takes a new category with its version, without a new section", async () => {
-                    const res = await patch("/api/settings", { categoryIds: ["cat1", "cat2"], categoryVersion: { cat1: "tbc", cat2: "forever" } });
+                    const res = await patch("/api/settings", { categoryIds: ["cat1", "cat2"], serverSettingsGuildId: "g1", categoryVersion: { cat1: "tbc", cat2: "forever" } });
                     expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
                     expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ categoryIds: ["cat1", "cat2"], categoryVersion: { cat1: "tbc", cat2: "forever" } });
                     expect(json(res).data.switchedCategories).toEqual([]);
