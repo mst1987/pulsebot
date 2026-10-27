@@ -93,6 +93,7 @@ describe("stores/settingsStore", () => {
 
             it("keeps snowflakes and drops anything that is not one", () => {
                 const saved = saveConfig({
+                    guildId: "111111",
                     discordServers: {
                         servers: [{ guildId: " 111111 ", label: "PvE" }, { guildId: "nope" }],
                         talkPingChannelId: 333333, signupNoteChannelId: "444444", guildBankChannelId: " 666666 ",
@@ -132,7 +133,7 @@ describe("stores/settingsStore", () => {
             });
 
             it("merges a partial update instead of replacing the block", () => {
-                saveConfig({ discordServers: { servers: [{ guildId: "111111" }, { guildId: "222222" }] } });
+                saveConfig({ guildId: "111111", discordServers: { servers: [{ guildId: "111111" }, { guildId: "222222" }] } });
                 const saved = saveConfig({ discordServers: { signupNoteChannelId: "444444" } });
                 expect(saved.discordServers).toMatchObject({
                     servers: [{ guildId: "111111" }, { guildId: "222222" }], signupNoteChannelId: "444444",
@@ -144,8 +145,12 @@ describe("stores/settingsStore", () => {
 
             // guildId stays the fallback: the first event server wins, and clearing
             // every event server falls back to the server that was last in use.
+            // The first server added to an empty list keeps the fallback in front.
             it("reports the first event server as guildId and keeps it as the fallback", () => {
                 saveConfig({ guildId: "999999" });
+                const added = saveConfig({ discordServers: { servers: [{ guildId: "111111" }] } });
+                expect(added.discordServers.servers.map((s) => s.guildId)).toEqual(["999999", "111111"]);
+                expect(added.guildId).toBe("999999");
                 expect(saveConfig({ discordServers: { servers: [{ guildId: "111111" }] } }).guildId).toBe("111111");
                 expect(saveConfig({ discordServers: { servers: [] } }).guildId).toBe("111111");
             });

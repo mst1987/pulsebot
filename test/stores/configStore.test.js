@@ -97,7 +97,7 @@ describe("stores/configStore saveConfig", () => {
             categoryAnnounce: { a: { enabled: true, target: "talk" } }, categorySignupNotes: { a: "none" },
             categorySignupNoteChannel: { a: "1300000000000000002" }, categoryRaidTemplate: { a: "t" },
             categorySheets: { a: { url: "https://x" } }, topItems: [{ id: 1 }], roleSync: [], categoryReminders: {},
-            discordServers: { servers: [{ guildId: "1100000000000000001" }] },
+            guildId: "1100000000000000001", discordServers: { servers: [{ guildId: "1100000000000000001" }] },
         });
         expect(saved.blizzard).toEqual({ clientId: "id", clientSecret: "s" });
         // per version and per field (#542): the TBC block keeps what it had, Forever gets its path
@@ -119,7 +119,7 @@ describe("stores/configStore saveConfig", () => {
         const A = "1100000000000000011";
         const B = "1100000000000000012";
         const C = "1100000000000000013";
-        configStore.saveConfig({ discordServers: {
+        configStore.saveConfig({ guildId: A, discordServers: {
             servers: [{ guildId: A }, { guildId: B }, { guildId: C }],
             links: [{ from: A, to: B, channelId: "1200000000000000001", lang: "en", versions: ["tbc", "nope"] }],
         } });
@@ -134,6 +134,20 @@ describe("stores/configStore saveConfig", () => {
         expect(saved.discordServers).not.toHaveProperty("talkGuildId");
     });
 
+    // Prod, Oct 2026: the list was empty (main server only through guildId), adding a
+    // second server saved just that one and the main server lost its rights and loops.
+    it("keeps the implicit main server first when a server is added to an empty list", () => {
+        const MAIN = "1100000000000000031";
+        const NEW = "1100000000000000032";
+        configStore.saveConfig({ guildId: MAIN, discordServers: { servers: [] } });
+        expect(configStore.getConfig().discordServers.servers).toEqual([]);
+        const saved = configStore.saveConfig({ discordServers: { servers: [{ guildId: NEW, label: "PuGs" }] } });
+        expect(saved.discordServers.servers.map((s) => s.guildId)).toEqual([MAIN, NEW]);
+        expect(saved.guildId).toBe(MAIN);
+        // once listed, the main server can be removed like any other
+        expect(configStore.saveConfig({ discordServers: { servers: [{ guildId: NEW }] } }).guildId).toBe(NEW);
+    });
+
     // A pure link target is no server: it must not gain the rights of a
     // raid server (userAccess, reminders, category lifecycle ...).
     describe("link targets stay outside the servers (#890)", () => {
@@ -142,6 +156,8 @@ describe("stores/configStore saveConfig", () => {
         const X = "1100000000000000023";
         const CH = "1200000000000000021";
         const ids = (cfg) => cfg.discordServers.servers.map((s) => s.guildId);
+        // A is the main server, so it is not added in front of the first list
+        beforeEach(() => configStore.saveConfig({ guildId: A }));
 
         it("a removed link target X stays gone, also after a second save", () => {
             configStore.saveConfig({ discordServers: { servers: [{ guildId: A }], links: [{ from: A, to: X, channelId: CH }] } });
