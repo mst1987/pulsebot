@@ -17,7 +17,6 @@ Every loot view shows **only the loot of the active Discord server** (`activeGui
 - **Writing only into raids of the active server:** import, inbox accept, clear and loot-category on another server's raid or bucket answer **403 `other_server`**; deleting another server's row answers 404 (it is not visible). A hand-made bucket on a server other than the first gets the suffix `-s<guildId>` (`manualBucketId`), so two servers never share one `manual-pug` bucket.
 - **Addon-Inbox across servers:** the upload has no session and the addon does not know the server, so the raid suggestion searches the raids of every server and stores the found raid's `guildId`. A card shows on the server of its suggested raid; a card **without** a suggestion shows on every server. Accepting or dismissing a card of another server answers **403 `other_server`** (`sessionInGuild`).
 - **Addon-Inbox:** an accepted session remembers its server (`lootInboxStore.resolvePending(…, { guildId })`), so the sync's follow-up uploads into a raidless bucket keep that server.
-- ⚠️ Not filtered yet: the Discord commands `/loot` and `/anwesenheit`, the inbox count on the dashboard and pending (unmatched) inbox cards — they show on every server.
 
 ## Addon loot sync (`/api/ingest/loot` → Addon-Inbox)
 
