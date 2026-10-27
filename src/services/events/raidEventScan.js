@@ -46,9 +46,10 @@ const probedAt = new Map(); // event id -> ms of the last probe that found no se
 async function scanRaidEvents(guildId, { windowDays = RECENT_WINDOW_DAYS, probeSetups = isBackground() } = {}) {
     if (!guildId) return { scanned: 0, error: null };
     // Switched off (#291): nothing is asked, the stored snapshots stay as they are.
-    if (raidhelperDisabled()) return { scanned: 0, error: null, disabled: true };
+    // #927: per Discord server - a server without Raid-Helper sends no request.
+    if (raidhelperDisabled(undefined, guildId)) return { scanned: 0, error: null, disabled: true };
     try {
-        const rh = createRaidhelperClient();
+        const rh = createRaidhelperClient({ guildId });
         const sinceSeconds = Math.floor(Date.now() / 1000) - windowDays * 86400;
         const events = await rh.getPastEvents(sinceSeconds);
         const catMap = discord.getChannelCategoryMap(guildId);

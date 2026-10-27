@@ -573,3 +573,9 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 .gv-hide-export .btn svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .gv-hide-preview { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
 .gv-hide-bar { display: flex; align-items: center; min-height: 52px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); }
+
+/* #927 Einstellungen > Server > Raid-Helper */
+.rh-server { display: flex; flex-direction: column; gap: 16px; }
+.rh-server-form { padding: 14px 16px 4px; display: flex; flex-direction: column; gap: 14px; }
+.rh-server-form input.mono { max-width: 440px; width: 100%; }
+.cat-source-fixed { font-weight: 600; color: var(--text); }

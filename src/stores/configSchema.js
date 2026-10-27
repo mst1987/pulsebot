@@ -935,6 +935,11 @@ const SERVER_SETTING_DEFAULTS = Object.freeze({
     // #921: the channels watched for Warcraft Logs links, each with the game
     // version its logs belong to: [{ channelId, versionId }].
     logChannels: Object.freeze([]),
+    // #927 Raid-Helper je Server (utils/raidhelper/servers.js): off unless a
+    // server switches it on; serverId empty = the guild's own id; apiKey is only
+    // ever set from the settings page (never copied from .env); envKey marks the
+    // one server the start migration lets use RAIDHELPER_API_KEY from .env.
+    raidhelper: Object.freeze({ enabled: false, serverId: "", apiKey: "", envKey: false, at: 0, byName: "" }),
 });
 
 /**
