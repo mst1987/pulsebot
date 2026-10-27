@@ -114,6 +114,15 @@ describe("services/characters/characterInfo", () => {
         });
     });
 
+    describe("annotatedCharacters of some rows (#919)", () => {
+        it("builds the list from the rows handed in", () => {
+            const rows = [{ characterKey: "gemli" }];
+            mockLootCharacters.mockReturnValue([lootChar("Gemli", 1)]);
+            expect(annotatedCharacters({ rows })).toHaveLength(1);
+            expect(mockLootCharacters).toHaveBeenLastCalledWith(rows);
+        });
+    });
+
     describe("reportIdsForCharacter", () => {
         it("collects the reports of the logs assigned to the character's events", () => {
             mockListByCharacter.mockReturnValue([{ eventId: "e1" }, { eventId: "e2" }, { eventId: "e1" }]);

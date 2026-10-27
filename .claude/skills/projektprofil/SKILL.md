@@ -177,8 +177,8 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     zieht den Blizzard-Namespace mit (`profile-classicann-eu` → `-us`), nie den Standard-Namespace
     mit fremder Region kombinieren. Caches von Blizzard-/Armory-Antworten brauchen Region, Realm und
     Namespace im Schlüssel (`region|realm|namespace|name`), sonst liefert ein Server die Ausrüstung
-    eines gleichnamigen Charakters vom anderen Realm. Der Server einer Kategorie kommt aus
-    `guildOfCategory`, der eines Reports aus `reportGuild`.
+    eines gleichnamigen Charakters vom anderen Realm. Ohne Session kommt der Server einer Kategorie
+    aus `serverWithoutSession` (`services/loot/lootServer.js`), der eines Reports aus `reportGuild`.
 
 ## Fach-Agenten
 

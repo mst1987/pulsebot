@@ -288,8 +288,8 @@ describe("GET /api/lootcouncil", () => {
         const res = await call(getLootCouncil, "/api/lootcouncil", "?role=caster&tiers=t5, t6,&contents=ssc&category=c1");
         expect(status(res)).toBe(200);
         expect(lc.councilRoster).toHaveBeenCalledWith({
-            role: "caster", tierIds: ["t5", "t6"], contentIds: ["ssc"], categoryId: "c1", rosterId: "", bisTier: "", showBench: false, versionId: "tbc",
-            config: { categoryIds: ["c1", "c2"] }, mainVersion: "tbc", charVersion: "tbc", guildId: "g1",
+            role: "caster", tierIds: ["t5", "t6"], contentIds: ["ssc"], categoryId: "c1", rosterId: "", bisTier: "", showBench: false, versionId: "tbc", guildId: "g1",
+            config: { categoryIds: ["c1", "c2"] }, mainVersion: "tbc", charVersion: "tbc",
         });
         expect(lc.resolveContentFilter).toHaveBeenCalledWith({ tierIds: ["t5", "t6"], contentIds: ["ssc"] });
         expect(lc.bisGaps).toHaveBeenCalledWith(rows, { contentIds: ["ssc"] });

@@ -37,6 +37,8 @@ export type RecentEvent = {
 // that character's class/spec look (colour + spec icon, resolved server-side
 // from the character store — empty when nobody resolved the class yet).
 export type TopLootAward = {
+    /** The Discord server of the raid (#919) - the client's second filter (lib/discord/ofServer). */
+    guildId?: string;
     itemId: number;
     itemName: string;
     itemIconUrl: string;

@@ -348,3 +348,21 @@ describe("stores/lootStore", () => {
         });
     });
 });
+
+// Loot of the active Discord server only (#919): a bucket without a raid keeps
+// the server it was imported on, and the character list can be narrowed to rows.
+describe("stores/lootStore per server", () => {
+    it("stores the import server only when one is given", () => {
+        addImport("manual-a", [item()], { guildId: "gB" });
+        addImport("manual-b", [item()]);
+        expect(listByEvent("manual-a")[0].guildId).toBe("gB");
+        expect(listByEvent("manual-b")[0]).not.toHaveProperty("guildId");
+    });
+
+    it("builds the character list from the rows handed in", () => {
+        addImport("e1", [item(), item({ rawId: "r2", character: "Bar", characterKey: "bar" })]);
+        const onlyBar = listAll().filter((it) => it.characterKey === "bar");
+        expect(characters(onlyBar).map((c) => c.key)).toEqual(["bar"]);
+        expect(characters().map((c) => c.key).sort()).toEqual(["bar", "foo"]);
+    });
+});

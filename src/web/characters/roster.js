@@ -13,6 +13,8 @@
 // Everything else (class/spec, colours, icons) is read from the caches the loot
 // history already fills, so this never hits an external API.
 const { annotatedCharacters } = require("../../services/characters/characterInfo");
+const { listAll: listAllLoot } = require("../../stores/lootStore");
+const { lootOfGuild } = require("../../services/loot/lootServer");
 const { listAllAssignments } = require("../../stores/raiderCharactersStore");
 const { characterMap } = require("../../stores/characterStore");
 const { latestIssuesByCharacter } = require("./charGearIssues");
@@ -94,8 +96,10 @@ function buildRoster(guildId, { versionId = "", mainVersion = "", config } = {})
         if (id && !row.categoryIds.includes(id)) row.categoryIds.push(id);
     };
 
-    // 1. everyone who ever received loot, with the categories they got it in
-    for (const c of annotatedCharacters()) {
+    // 1. everyone who ever received loot, with the categories they got it in -
+    //    on this Discord server only (#919): loot of another server's raids
+    //    neither adds a character nor counts towards one
+    for (const c of annotatedCharacters({ rows: lootOfGuild(listAllLoot(), guildId) })) {
         const row = ensure(c.character);
         if (!row) continue;
         row.character = c.character || row.character;

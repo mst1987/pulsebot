@@ -66,7 +66,8 @@ module.exports = {
                 footer: { text: versionNote(versionId) },
             }, [{ label: "Im Web öffnen", url: webUrl("/roster") }]);
         }
-        const guildId = serverIds()[0] || "";
+        // the server it was used on; in a DM the first server (#919)
+        const guildId = interaction.guildId || serverIds()[0] || "";
         const ctx = buildAttendanceContext(guildId, { versionId });
         const results = chars.map((c) => characterAttendance(guildId, c.character, { ctx, versionId }));
         const links = chars.slice(0, 5).map((c) => ({

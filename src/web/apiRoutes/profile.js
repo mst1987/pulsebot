@@ -19,10 +19,10 @@ const { mainVersionFor, knownVersion, isVersionVisible, resolveVersionQuery } = 
 const { profileRaiding } = require("../../services/characters/profileRaiding");
 const { anyWishItemsAllowed, resolveWishItems, searchWishItems } = require("../../services/characters/wishItems");
 const { getConfig } = require("../../stores/settingsStore");
+const { activeGuildFor } = require("../http/activeGuild");
 const { userIsOrga } = require("../../config/permissions");
 const { ROLE_LABELS } = require("../../config/gameVersions/classes");
 const { editProfileCharacter } = require("../../services/characters/characterEdit");
-const { activeGuildFor } = require("../http/activeGuild");
 
 const WEEKDAY_LABELS = { mo: "Mo", di: "Di", mi: "Mi", do: "Do", fr: "Fr", sa: "Sa", so: "So" };
 const GEAR_LABELS = { none: "keins", usable: "brauchbar", ready: "raidbereit" };
@@ -247,10 +247,11 @@ const postProfileCharacter = withUser({ csrf: true, body: true }, async ({ user,
  * names another account. Without `version` (or with other versions hidden)
  * the main version.
  */
-const getProfileRaiding = withUser({}, async ({ user, res, url }) => {
+const getProfileRaiding = withUser({}, async ({ user, req, res, url }) => {
     const config = getConfig();
     const { versionId } = resolveVersionQuery(url.searchParams.get("version"), { config });
-    ok(res, profileRaiding(user.id, versionId, { config }));
+    // Only the loot of the active Discord server (#919).
+    ok(res, profileRaiding(user.id, versionId, { config, guildId: activeGuildFor(req) }));
 });
 
 /**

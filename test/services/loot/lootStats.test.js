@@ -213,3 +213,15 @@ describe("services/loot/lootStats", () => {
         });
     });
 });
+
+// Only the loot of the active Discord server (#919): a bucket imported on
+// server gB never counts for gA.
+describe("lootStats per server", () => {
+    it("leaves out another server's loot", () => {
+        addImport("manual-b", [item({ rawId: "b" })], { guildId: "gB" });
+        addImport("manual-a", [item({ rawId: "a", itemId: 28830, itemName: "Dragonspine Trophy" })], { guildId: "gA" });
+        expect(lootStats({ guildId: "gA" }).items.map((i) => i.itemId)).toEqual([28830]);
+        expect(lootStats({ guildId: "gB" }).items.map((i) => i.itemId)).toEqual([30105]);
+        expect(lootStats().items).toHaveLength(2);
+    });
+});

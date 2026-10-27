@@ -23,9 +23,10 @@ jest.mock("../../../src/stores/settingsStore", () => ({
 jest.mock("../../../src/services/discord/discord", () => ({
     listCategories: jest.fn(() => [{ id: "c1", name: "SSC/TK Mittwoch" }]),
 }));
+// Category c2 lives on server gB (the category-name snapshot, #919).
 jest.mock("../../../src/services/discord/serverOf", () => ({
     ...jest.requireActual("../../../src/services/discord/serverOf"),
-    guildOfCategory: jest.fn(() => "g-cat"),
+    storedCategoryGuilds: jest.fn(() => new Map([["c2", "gB"]])),
 }));
 jest.mock("../../../src/web/loot/lootCouncil", () => ({
     ...jest.requireActual("../../../src/web/loot/lootCouncil"),
@@ -35,6 +36,7 @@ jest.mock("../../../src/web/loot/lootCouncil", () => ({
 const { verifyToken, touchToken } = require("../../../src/stores/ingestTokenStore");
 const { councilRoster } = require("../../../src/web/loot/lootCouncil");
 const { getConfig } = require("../../../src/stores/settingsStore");
+const { listCategories } = require("../../../src/services/discord/discord");
 const ingest = require("../../../src/web/apiRoutes/ingest");
 
 const { get, handle, urlFor } = routerClient(ingest);
@@ -59,7 +61,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     verifyToken.mockReturnValue({ id: "t1", name: "Raidlead-PC" });
     councilRoster.mockReturnValue({ rows: [ROW], avgLootCount: 0, bisTier: "t6" });
-    getConfig.mockReturnValue({ categoryIds: ["c1", "c2"] });
+    getConfig.mockReturnValue({ categoryIds: ["c1", "c2"], guildId: "g1" });
 });
 
 describe("GET /api/ingest/council", () => {
@@ -94,6 +96,18 @@ describe("GET /api/ingest/council", () => {
         expect(data.raiders[0]).toMatchObject({ character: "Gemli", classFile: "PRIEST", need: 50, daysSinceLoot: -1, bis: { missing: [7] } });
     });
 
+    // #919: no session behind the token - the asked category's server, else
+    // the first server; never the server of whoever is logged in elsewhere.
+    it("works on the asked category's server, else on the first server", async () => {
+        getConfig.mockReturnValue({ categoryIds: ["c1", "c2"], discordServers: { servers: [{ guildId: "gA" }, { guildId: "gB" }] } });
+        await authed("/api/ingest/council", { category: "c2" });
+        expect(listCategories).toHaveBeenLastCalledWith("gB");
+        // the same server reads the gear in its own realm (#923)
+        expect(councilRoster.mock.calls[0][0]).toMatchObject({ categoryId: "c2", guildId: "gB" });
+        await authed("/api/ingest/council");
+        expect(listCategories).toHaveBeenLastCalledWith("gA");
+    });
+
     it("answers ?v=2 with every Loot-Council category (version 2), none here", async () => {
         const res = await authed("/api/ingest/council", { v: "2" });
         expect(status(res)).toBe(200);
@@ -102,7 +116,7 @@ describe("GET /api/ingest/council", () => {
     });
 
     it("builds a v2 entry per Loot-Council category with the raider key", async () => {
-        getConfig.mockReturnValue({ categoryIds: ["c1", "c2"], categoryLootSystem: { c1: "lootcouncil" } });
+        getConfig.mockReturnValue({ categoryIds: ["c1", "c2"], guildId: "g1", categoryLootSystem: { c1: "lootcouncil" } });
         const res = await authed("/api/ingest/council", { v: "2" });
         const data = body(res);
         expect(data.categories.map((c) => [c.id, c.name])).toEqual([["c1", "SSC/TK Mittwoch"]]);
@@ -111,7 +125,7 @@ describe("GET /api/ingest/council", () => {
     });
 
     it("answers ?v=3 with version 3: every role, status and the category's weighting (#670)", async () => {
-        getConfig.mockReturnValue({ categoryIds: ["c1", "c2"], categoryLootSystem: { c1: "lootcouncil" } });
+        getConfig.mockReturnValue({ categoryIds: ["c1", "c2"], guildId: "g1", categoryLootSystem: { c1: "lootcouncil" } });
         councilRoster.mockReturnValue({
             rows: [ROW, { ...ROW, key: "hauer", character: "Hauer", className: "Warrior", specLabel: "Fury", role: "melee", status: "trial", lootPoints: 0 }],
             avgLootCount: 0, avgLootPoints: 0, bisTier: "t6",
@@ -134,8 +148,6 @@ describe("GET /api/ingest/council", () => {
     it("passes category and role through to the roster", async () => {
         const res = await authed("/api/ingest/council", { category: "c1", role: "healer", tiers: "t5" });
         expect(councilRoster).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "c1", role: "healer", tierIds: [], bisTier: "" }));
-        // gear and links in the realm of the category's server (#923)
-        expect(councilRoster).toHaveBeenCalledWith(expect.objectContaining({ guildId: "g-cat" }));
         expect(body(res).filter).toMatchObject({ category: "c1", categoryName: "SSC/TK Mittwoch", role: "healer" });
     });
 });

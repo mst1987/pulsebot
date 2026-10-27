@@ -169,6 +169,19 @@ describe("/anwesenheit-raider", () => {
         await other.autocomplete(i);
         expect(i.respond.mock.calls[0][0]).toHaveLength(25);
         // only those of the command's version (#741)
-        expect(knownCharacterNames).toHaveBeenCalledWith({ versionId: "tbc" });
+        expect(knownCharacterNames).toHaveBeenCalledWith({ versionId: "tbc", guildId: "event-guild" });
+    });
+
+    // #919: on a Discord server the command answers for that server; in a DM for the first one.
+    it("answers for the server the command was used on", async () => {
+        characterAttendance.mockReturnValue({ character: "Dorn", categories: [category()] });
+        const i = mockInteraction({ options: { raider: "dorn" } });
+        i.guildId = "guild-b";
+        await other.execute(i);
+        expect(characterAttendance).toHaveBeenCalledWith("guild-b", "dorn", { versionId: "tbc" });
+        const ac = mockInteraction({ focused: { name: "raider", value: "" } });
+        ac.guildId = "guild-b";
+        await other.autocomplete(ac);
+        expect(knownCharacterNames).toHaveBeenLastCalledWith({ versionId: "tbc", guildId: "guild-b" });
     });
 });

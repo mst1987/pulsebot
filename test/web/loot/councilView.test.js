@@ -11,7 +11,7 @@ jest.mock("../../../src/services/loot/councilProfiles", () => ({
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/services/discord/discord", () => ({ listCategories: jest.fn(() => []) }));
-jest.mock("../../../src/services/discord/serverOf", () => ({ guildOfCategory: jest.fn(() => "g-cat") }));
+jest.mock("../../../src/services/loot/lootServer", () => ({ serverContext: jest.fn(() => ({})), guildOfLootEvent: jest.fn(() => "g-cat") }));
 
 const { councilRoster } = require("../../../src/web/loot/lootCouncil");
 const { primeArmoryGear } = require("../../../src/services/loot/armoryGear");
@@ -113,7 +113,7 @@ describe("categoryCouncil", () => {
         expect(opts).toMatchObject({ role: "healer", tierIds: ["t6"], categoryId: "c1", bisTier: "t6" });
         // the armory and the links read the realm of the category's server (#923)
         expect(opts.guildId).toBe("g-cat");
-        expect(require("../../../src/services/discord/serverOf").guildOfCategory).toHaveBeenCalledWith("c1", expect.anything());
+        expect(require("../../../src/services/loot/lootServer").guildOfLootEvent).toHaveBeenCalledWith(expect.anything(), "", "c1");
         expect(councilRoster).toHaveBeenCalledWith(opts);
         expect(profile).toEqual({ id: "p-1", name: "Main T6", isDefault: false, source: "roster" });
         expect(roster).toEqual({ id: "r1", name: "Mittwoch" });

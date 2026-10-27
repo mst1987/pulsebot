@@ -21,6 +21,7 @@ import { LootEventsTab } from "./LootEventsTab";
 import { LogsTab } from "./LogsTab";
 import { CharactersTab } from "./CharactersTab";
 import { tParts, useT } from "../../i18n";
+import { ofServer } from "../../lib/discord/ofServer";
 
 // One tab row (Vergaben | Items | Raids | Charaktere) instead of an area switch
 // over a second row of views. What used to be a tab of its own is a switch
@@ -168,7 +169,8 @@ export default function HistoryPage() {
     const ofVersion = <T extends { versionId?: string }>(rows: T[]) => (version ? rows.filter((e) => (e.versionId || "tbc") === version) : rows);
     const pastEvents = ofVersion(data.pastRaids.events);
     const upcomingEvents = ofVersion(data.upcomingRaids.events);
-    const lootEvents = ofVersion(data.lootEvents);
+    // second filter (#919): never a loot bucket of another Discord server
+    const lootEvents = ofServer(ofVersion(data.lootEvents), data.activeGuildId);
     const statsItems = !stats ? [] : (!version ? stats.items : stats.items
         .map((it) => {
             const awards = it.awards.filter((a) => (a.versionId || "tbc") === version);

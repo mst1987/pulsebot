@@ -118,7 +118,7 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
             nextRaids: await actionRaids(next.raids),
             recentEvents: globalWrite ? recentRows : (claWrite ? await actionRaids(recentRows) : []),
             report: userCanAny(user, ["cla"], "write") ? report : null,
-            inbox: userCanAny(user, ["history"], "write") ? loadInbox() : [],
+            inbox: userCanAny(user, ["history"], "write") ? loadInbox(guildId) : [],
             // Only for whoever can open the archive the task leads to.
             archive: userCanAny(user, ["channels"], "read") ? loadChannelArchive(guildId) : null,
             roleDrift,
@@ -134,11 +134,11 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
         areas: globalOrga
             ? {
                 lastReport: report,
-                newLoot: loadNewLoot(lastRaid ? lastRaid.startTime : 0, { versionId }),
+                newLoot: loadNewLoot(lastRaid ? lastRaid.startTime : 0, { versionId, guildId }),
                 roster: loadRosterFigures(guildId, { versionId }),
             }
             : null,
-        topLoot: loadTopLoot(5, versionId),
+        topLoot: loadTopLoot(5, versionId, guildId),
         recentEvents: {
             ...recentEvents,
             events: linkCheck.withChannelState(guildId, recentRows).map((ev) => ({ ...ev, icon: zoneFor(ev.title).icon })),

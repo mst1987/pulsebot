@@ -10,13 +10,12 @@
 // "lootcouncil" (services/loot/lootSystem.js).
 const { councilRoster } = require("./lootCouncil");
 const { councilOptsFromQuery } = require("./councilQuery");
+const { serverContext, guildOfLootEvent } = require("../../services/loot/lootServer");
 const { primeArmoryGear } = require("../../services/loot/armoryGear");
 const { categoryLootSystem } = require("../../services/loot/lootSystem");
 const councilProfiles = require("../../services/loot/councilProfiles");
 const { getRaidTemplate } = require("../../stores/raidTemplateStore");
 const { instanceById } = require("../../config/gameVersions");
-const { guildOfCategory } = require("../../services/discord/serverOf");
-const { getConfig } = require("../../stores/settingsStore");
 
 /**
  * councilRoster() for these options, plus the armory step of the page: a set
@@ -91,8 +90,9 @@ async function categoryCouncil(categoryId) {
     const { profile, roster, source } = councilProfiles.resolveProfile({ categoryId });
     const view = councilProfiles.viewFor({ categoryId });
     // A view stored before the web was split by version (#741) may still say "all": the sync tool keeps it.
-    // The category's server (#923): its own realm and armory templates for the armory step.
-    const guildId = guildOfCategory(categoryId, { config: getConfig() });
+    // The category's own Discord server (#919): only its loot counts - the
+    // token request of the sync tool has no session to name an active server.
+    const guildId = guildOfLootEvent(serverContext(), "", categoryId);
     const opts = councilOptsFromQuery(viewQuery(categoryId, view), { allowAll: true, guildId });
     const built = await buildCouncilView(opts);
     return {
