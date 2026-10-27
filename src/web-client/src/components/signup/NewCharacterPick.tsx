@@ -1,6 +1,6 @@
-import type { CSSProperties } from "react";
 import type { SignupClass } from "../../api";
 import { WowIcon } from "../ui";
+import { classColorProps } from "../character/ClassSpec";
 import { useT } from "../../i18n";
 import type { NewCharacter } from "../../lib/signups/newCharacter";
 
@@ -32,11 +32,13 @@ export default function NewCharacterPick({ classes, value, onChange, version = "
                 <div className="an-also" role="radiogroup" aria-labelledby="an-new-class">
                     {classes.map((c) => {
                         const on = c.id === value.classId;
+                        // the class colour through --cc, darkened on the light theme (white priest, yellow rogue)
+                        const cc = classColorProps(c.color);
                         return (
                             <button
                                 key={c.id} type="button" role="radio" aria-checked={on} disabled={disabled}
-                                className={`an-chip an-cls${on ? " is-on" : ""}`}
-                                style={{ "--an-cls": c.color } as CSSProperties}
+                                className={`an-chip an-cls${on ? " is-on" : ""}${cc.className ? ` ${cc.className}` : ""}`}
+                                style={cc.style}
                                 onClick={() => onChange({ ...value, classId: c.id, spec: on ? value.spec : "" })}
                             >
                                 <WowIcon name={c.icon} size={20} />

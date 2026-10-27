@@ -77,8 +77,14 @@
 
 /* #907: a new character (class -> spec -> name) and the PuG server's refusal */
 .an-newchar .an-note { margin-bottom: 10px; }
-.an-chip.an-cls { color: var(--an-cls); }
-.an-chip.an-cls.is-on { border-color: var(--an-cls); }
+/* class colour as text (--cc); on the light theme the darkened --cc-l, as .class-colored in shared.css,
+   so a white priest or yellow rogue stays readable; the picked chip's rim follows the same colour */
+.an-chip.an-cls { --an-cc: var(--cc); color: var(--an-cc); }
+.an-chip.an-cls.is-on { color: var(--an-cc); border-color: var(--an-cc); }
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .an-chip.an-cls { --an-cc: var(--cc-l, var(--cc)); }
+}
+:root[data-theme="light"] .an-chip.an-cls { --an-cc: var(--cc-l, var(--cc)); }
 .an-dlg .an-newchar .field input:not([type=checkbox]) { max-width: 16em; }
 .an-pug {
     display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0 0 14px; padding: 8px 12px;
