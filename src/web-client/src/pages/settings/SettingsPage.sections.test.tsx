@@ -70,7 +70,7 @@ function config(over: Partial<AdminConfig> = {}): AdminConfig {
         adminRoleIds: ["r1"], rolePermissions: {}, baseAccess: {}, userPermissions: {},
         guildId: "g1", raidhelperServerId: "", officerRoleId: "", applicationChannelId: "",
         highestBidsChannelId: "", highestBidsMessageId: "",
-        categoryIds: ["cat1"], categoryRoles: {}, logChannelIds: [], raidDefaults: { channelId: "" },
+        categoryIds: ["cat1"], categoryRoles: {}, raidDefaults: { channelId: "" },
         categoryRaidTemplate: {}, blizzard: { clientId: "", region: "eu", realmSlug: "thunderstrike", namespace: "" },
         categoryLootTool: {},
         categorySheets: { cat1: { url: "https://docs.google.com/a", name: "Montag-Sheet" }, cat2: { url: " https://docs.google.com/b ", name: "Mittwoch" } },
@@ -143,6 +143,56 @@ describe("the section rail", () => {
         await user.click(entry("Log-Auswertung"));
         expect(await screen.findByText("Log-Kanäle")).toBeInTheDocument();
         expect(screen.getByText("1 ungespeicherte Änderung")).toBeInTheDocument();
+    });
+});
+
+describe("the log channels of the active server (#921)", () => {
+    const versions = [{ id: "tbc", label: "TBC Anniversary", short: "TBC" }, { id: "forever", label: "WoW Forever", short: "Forever" }];
+    const withLogs = (over: Partial<SettingsData> = {}) => settings({
+        config: config({ serverSettings: { g1: { logChannels: [{ channelId: "ch1", versionId: "tbc" }] }, g2: { logChannels: [{ channelId: "x", versionId: "" }] } } }),
+        gameVersions: versions,
+        ...over,
+    });
+
+    it("shows the active server's channels with their version and sends a changed version", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(withLogs());
+        renderPage(<SettingsPage />, { route: "/settings?section=logs" });
+
+        const version = await screen.findByRole("combobox", { name: "Spielversion für #raids" });
+        expect(version).toHaveValue("tbc");
+        // the other server's channel stays out of this page
+        expect(screen.queryByText("x")).not.toBeInTheDocument();
+
+        await user.selectOptions(version, "forever");
+        expect(screen.getByText("1 ungespeicherte Änderung")).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0].logChannels).toEqual([{ channelId: "ch1", versionId: "forever" }]);
+    });
+
+    it("removes a channel", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(withLogs());
+        renderPage(<SettingsPage />, { route: "/settings?section=logs" });
+        await user.click(await screen.findByRole("button", { name: "Kanal entfernen" }));
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0].logChannels).toEqual([]);
+    });
+
+    it("without an active server shows a hint and sends no log channels", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(withLogs({ activeGuildId: "" }));
+        renderPage(<SettingsPage />, { route: "/settings?section=logs" });
+        expect(await screen.findByText("Log-Kanäle gelten je Server. Wähle zuerst einen Server aus.")).toBeInTheDocument();
+        expect(screen.queryByRole("combobox", { name: /Spielversion für/ })).not.toBeInTheDocument();
+
+        await user.click(entry("Raid-Standardwerte"));
+        await user.selectOptions(await screen.findByRole("combobox", { name: "Standard-Kanal" }), "ch1");
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        expect("logChannels" in vi.mocked(api.updateSettings).mock.calls[0][0]).toBe(false);
     });
 });
 

@@ -78,7 +78,7 @@
         "raidsheetsSub": "Google-Sheets nach Content (Tier 4/5 usw.). Beim Füllen wird anhand der Keywords das passende Sheet vorgeschlagen. Ein festes Sheet für eine ganze Raid-Kategorie wird unter Kategorien zugewiesen.",
         "topItemsSub": "Die richtig großen Drops — Waffen, Legendary-Teile, alles, was die Gilde als besonders wertet. Vergibt ein Raid eines davon, hebt das Dashboard die Vergabe hervor. Welches Loot-Addon eine Kategorie benutzt, steht unter Kategorien.",
         "logChannels": "Log-Kanäle",
-        "logChannelsSub": "Kanäle, in denen automatisch Warcraft-Logs gepostet werden. Der Bot hängt dort die Auswertungs-Knöpfe an.",
+        "logChannelsSub": "Kanäle dieses Servers, in denen Warcraft-Logs gepostet werden. Der Bot hängt dort die Auswertungs-Knöpfe an. Die Spielversion legt fest, wofür ein Log zählt, solange er keinem Raid zugeordnet ist; „Nach Log-Seite“ nimmt die Version der Warcraft-Logs-Seite.",
         "appChannel": "Bewerbungs-Kanal",
         "appChannelSub": "Kanal, in dem neue Bewerbungen als Thread gepostet werden.",
         "officerRole": "Offizier-Rolle",
@@ -402,7 +402,11 @@
         "noTopItem": "Noch kein Top-Item.",
         "unknownChannel": "Unbekannter Kanal",
         "removeChannel": "Kanal entfernen",
-        "addChannel": "+ Kanal hinzufügen"
+        "addChannel": "+ Kanal hinzufügen",
+        "logVersionAuto": "Aus der Kategorie",
+        "logVersionHost": "Nach Log-Seite",
+        "logVersionFor": "Spielversion für {name}",
+        "logNoServer": "Log-Kanäle gelten je Server. Wähle zuerst einen Server aus."
     },
     "raiderChars": {
         "saved": "Zuordnung für {name} gespeichert.",

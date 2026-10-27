@@ -116,7 +116,7 @@ export type DraftShape = {
     applicationChannelId: string;
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
-    logChannelIds: string[];
+    logChannels: { channelId: string; versionId?: string }[];
     raidChannelId: string;
     categoryLootTool: Record<string, string>;
     /** The loot system per category; missing/"" = automatic from the loot addon. */
@@ -457,7 +457,9 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
     for (const [key, labelKey] of SIMPLE_FIELDS) {
         if (String(saved[key] || "").trim() !== String(draft[key] || "").trim()) out.push(t(labelKey));
     }
-    if (!sameList(saved.logChannelIds, draft.logChannelIds)) out.push(t("settings.page.logChannels"));
+    // #921: a channel and its version; "*" = not picked yet (the category decides on save).
+    const logKeys = (list: DraftShape["logChannels"] | undefined) => (list || []).map((c) => `${c.channelId}:${c.versionId ?? "*"}`);
+    if (!sameList(logKeys(saved.logChannels), logKeys(draft.logChannels))) out.push(t("settings.page.logChannels"));
     const itemsWas = (saved.topItems || []).map((i) => String(i.id));
     const itemsIs = (draft.topItems || []).map((i) => String(i.id));
     if (itemsWas.join(",") !== itemsIs.join(",")) out.push(t("settings.changes.topItems"));

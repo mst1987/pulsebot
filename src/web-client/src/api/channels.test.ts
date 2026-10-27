@@ -21,7 +21,7 @@ beforeEach(() => {
 });
 
 const purpose = (over: Partial<ChannelPurpose>): ChannelPurpose => ({
-    id: "p", label: "Zweck", icon: "inv_misc_note_02", key: "logChannelIds", kind: "channel", multiple: false, need: "send",
+    id: "p", label: "Zweck", icon: "inv_misc_note_02", key: "logChannels", kind: "channel", multiple: false, need: "send",
     section: "raids", hint: "", ids: [], items: [], status: { tone: "", label: "", tip: "" }, ...over,
 });
 
@@ -86,8 +86,8 @@ describe("channel api", () => {
 
 describe("purposes are settings", () => {
     it("stores a purpose under its config key through PATCH /api/settings, without duplicates", async () => {
-        await saveChannelPurpose(purpose({ key: "logChannelIds", multiple: true }), ["a", "b", "a", ""]);
-        expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { logChannelIds: ["a", "b"] });
+        await saveChannelPurpose(purpose({ key: "logChannels", multiple: true }), ["a", "b", "a", ""]);
+        expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { logChannels: ["a", "b"] });
         await saveChannelPurpose(purpose({ key: "applicationChannelId" }), []);
         expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { applicationChannelId: "" });
     });

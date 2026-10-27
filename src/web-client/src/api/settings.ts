@@ -30,6 +30,12 @@ export type BlizzardConfig = {
 /** The switches of the drawn pictures in bot messages (Einstellungen → Raid-Standardwerte). */
 export type DiscordVisuals = { overviewWeekStrip: boolean; setupImage: boolean; eventCover: boolean };
 
+/** A log channel of a server and the game version its logs count for (#921); "" = the log's site decides. */
+export type LogChannel = { channelId: string; versionId: string };
+
+/** A log channel as the settings page sends it: without a version the server derives it (#921). */
+export type LogChannelInput = { channelId: string; versionId?: string };
+
 export type AdminConfig = {
     adminRoleIds: string[];
     // Per-role area rights; only sent to (and savable by) full admins.
@@ -51,7 +57,8 @@ export type AdminConfig = {
     applicationChannelId: string;
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
-    logChannelIds: string[];
+    /** Settings per Discord server (#917); the log channels with their version (#921). */
+    serverSettings?: Record<string, { logChannels?: LogChannel[] }>;
     raidDefaults: { channelId: string };
     // The default raid template per category (category id → template id).
     categoryRaidTemplate: Record<string, string>;
@@ -310,7 +317,7 @@ export type SwitchedCategory = {
     roster?: SwitchRosterResult;
 };
 
-export function updateSettings(partial: Partial<AdminConfig>): Promise<{ config: AdminConfig; switchedCategories?: SwitchedCategory[]; deactivatedCategories?: DeactivatedCategory[] }> {
+export function updateSettings(partial: Partial<AdminConfig> & { logChannels?: LogChannelInput[] }): Promise<{ config: AdminConfig; switchedCategories?: SwitchedCategory[]; deactivatedCategories?: DeactivatedCategory[] }> {
     return send("PATCH", "/api/settings", partial);
 }
 

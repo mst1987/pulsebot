@@ -296,7 +296,7 @@ describe("ChannelsPage — purposes", () => {
         const user = userEvent.setup();
         const data = channelsData();
         data.purposes.push(purpose({
-            id: "logs", label: "Log-Auswertung", key: "logChannelIds", multiple: true, need: "read", ids: ["c-app", "999"],
+            id: "logs", label: "Log-Auswertung", key: "logChannels", multiple: true, need: "read", ids: ["c-app", "999"],
             items: [
                 { id: "c-app", name: "bewerbungen", found: true, status: { tone: "ok", label: "Bot liest mit", tip: "" } },
                 { id: "999", name: "", found: false, status: { tone: "mid", label: "Kanal nicht gefunden", tip: "Anderer Server." } },
@@ -314,7 +314,7 @@ describe("ChannelsPage — purposes", () => {
         expect(within(within(dialog).getByRole("checkbox", { name: /bewerbungen/ }).closest("label")!).getByText("Bot liest mit")).toHaveClass("ok");
         await user.click(within(dialog).getByRole("checkbox", { name: /mi-17-09-ssc/ }));
         await user.click(within(dialog).getByRole("button", { name: "Zuordnung speichern" }));
-        await waitFor(() => expect(api.saveChannelPurpose).toHaveBeenCalledWith(expect.objectContaining({ key: "logChannelIds" }), ["c-app", "999", "c-mi"]));
+        await waitFor(() => expect(api.saveChannelPurpose).toHaveBeenCalledWith(expect.objectContaining({ key: "logChannels" }), ["c-app", "999", "c-mi"]));
     });
 });
 
