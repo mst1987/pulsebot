@@ -28,7 +28,12 @@
 // detail page like Wowhead's or Raid-Helper's — one column, hierarchy through
 // size and weight, lines instead of cards; the game version's colour is the
 // only accent, the green "go" button the only coloured control.
-const { rosterEntries, classesOf, rosterCounts, messagePhase } = require("../../services/events/eventMessage");
+const { rosterEntries, classesOf, messagePhase } = require("../../services/events/eventMessage");
+const { roleCounts } = require("../../services/signups/signupService");
+const { versionOfEvent } = require("../../services/events/mainVersion");
+const { categoryNameAt } = require("../../services/events/categoryEras");
+const { listKnownCategories } = require("../../services/discord/categoryNames");
+const log = require("../../logger").child("eventPublicPage");
 const { approvedSetupOf, benchPosted } = require("../../services/setup/setupCore");
 const { getEvent } = require("../../stores/eventStore");
 const { listSignups } = require("../../stores/signupStore");
@@ -56,8 +61,9 @@ const VIEW_KEYS = [
     "signupDeadline", "size", "status", "phase", "cancelReason", "signupsClosed",
     "icsUrl", "signupUrl", "versionId",
     "raids", "counts", "classes", "other", "setup",
-    // #908: PuG or guild raid, the leader's character, the seats and what happens when they are taken
-    "pug", "leader", "places", "full", "overflow", "targets",
+    // #908: PuG or guild raid, its category's name, the leader's character, the
+    // seats and what happens when a raid with a limit is full
+    "pug", "category", "leader", "places", "full", "overflow", "targets",
     // a raid group (#811): which raid this is and the links to the others
     "group", "count", "url", "current",
     // raids[]
@@ -97,9 +103,10 @@ const PHASE_NOTE = {
     closed: { label: "Signups closed", tone: "medium" },
     deadline: { label: "Signup deadline passed", tone: "medium" },
 };
-// A full raid by overflow mode (utils/signup/capacity.js): what a new signup gets.
+// A full raid by overflow mode (utils/signup/capacity.js): what a new signup
+// gets. "none" (the default since #516) has no limit — the raid is never full,
+// anyone may sign up and the orga adds raids when there are more (#811).
 const FULL_NOTE = {
-    none: "The raid is full – the leader decides who comes along.",
     waitlist: "The raid is full – new signups go to the waiting list.",
     refuse: "The raid is full – no new signups.",
 };
@@ -137,38 +144,70 @@ function leaderCharacter(event, entries) {
 }
 
 /**
- * The role targets "Tanks 1/2 · Heiler 1/6 · DPS 0/17": tanks and healers from
- * the composition, DPS the rest of the size. null without a composition, and in
- * a raid group (its counts are the whole group's, the composition one raid's).
+ * The role targets "Tanks 1/2 · Heiler 1/6 · DPS 0/17" from signupService.roleCounts().
+ * null without a composition, and in a raid group (its counts are the whole
+ * group's, the composition one raid's).
  */
-function targetsOf(event, size, grouped) {
-    const comp = event.composition || {};
-    const tank = Number(comp.tank) || 0;
-    const healer = Number(comp.healer) || 0;
-    if (grouped || (!tank && !healer)) return null;
-    return { tank, healer, dps: size ? Math.max(0, size - tank - healer) : 0 };
+function targetsOf(rc, grouped) {
+    if (grouped || (!rc.tank.target && !rc.healer.target)) return null;
+    return { tank: rc.tank.target, healer: rc.healer.target, dps: rc.dps.target };
+}
+
+/**
+ * The phase the signup follows. In a raid group (#811) the raiders sign up at
+ * its first raid, so that raid's phase decides — only a cancelled raid itself
+ * says so; the first raid cancelled takes no signups (closed).
+ */
+function signupPhase(event, first, now) {
+    if (event.status === "cancelled") return "cancelled";
+    if (first === event) return messagePhase(event, now);
+    const base = first.status === "cancelled" ? { ...first, status: "closed" } : first;
+    return messagePhase(base, now);
+}
+
+/**
+ * The viewer's own signup on the page: the first character of it (character and
+ * spec in words), null when they are not signed up or signed off. Only the
+ * character leaves here — the account id the lookup ran with stays behind.
+ * @param {object} event   the displayed event (its rule set names the spec)
+ * @param {object[]} signups the signups of the event's first raid
+ * @param {string} userId  the viewer's Discord id
+ */
+function ownSignupOf(event, signups, userId, lang = "de") {
+    const uid = str(userId);
+    if (!uid) return null;
+    const mine = rosterEntries((signups || []).filter((s) => s && String(s.userId) === uid))
+        .filter((e) => e.status !== "absence" && str(e.character));
+    if (!mine.length) return null;
+    const m = member(mine[0], specTable(event), lang);
+    return { character: m.character, specLabel: m.specLabel || roleLabel(m.role, lang) };
 }
 
 /**
  * What the public page shows — pure and deliberately narrow (see VIEW_KEYS).
  * @param {object} event   an eventStore event
  * @param {object[]} signups signupStore signups of that event
- * @param {{ now?: number, lang?: string, group?: object|null, pug?: boolean, places?: number }} [opts]
+ * @param {{ now?: number, lang?: string, group?: object|null, pug?: boolean, places?: number, category?: string, signupEvent?: object|null }} [opts]
  *   `lang`: the labels' language (German by default); `pug`: an open category
- *   (signupAccess.openToAll); `places`: the seats of the raid group (its own size by default)
+ *   (signupAccess.openToAll); `places`: the seats of the raid group (its own size by default);
+ *   `category`: the category's name for the breadcrumb; `signupEvent`: the raid
+ *   the signup runs at — a group's first raid (#811), the event itself by default
  * @returns {object|null} null without an event
  */
-function publicEventView(event, signups, { now = Date.now(), lang = "de", group = null, pug = false, places = 0 } = {}) {
+function publicEventView(event, signups, { now = Date.now(), lang = "de", group = null, pug = false, places = 0, category = "", signupEvent = null } = {}) {
     if (!event || !event.id) return null;
+    const first = signupEvent && signupEvent.id ? signupEvent : event;
     const list = (signups || []).filter((s) => s && s.userId);
     const entries = rosterEntries(list);
     const table = specTable(event);
-    const counts = rosterCounts(list);
-    const phase = messagePhase(event, now);
+    const rc = roleCounts(event, list);
+    const phase = signupPhase(event, first, now);
     const toMember = (e) => member(e, table, lang);
     const size = Number(event.size) || 0;
     const seats = Number(places) || size;
     const groupInfo = groupView(event, group);
+    // a limit only where the category has one: "none" takes every signup (#516)
+    const overflow = normalizeOverflow(first.overflow);
 
     // The signed-up characters, one row per class of the rule set — the
     // message's order, so the page reads like the channel.
@@ -209,19 +248,20 @@ function publicEventView(event, signups, { now = Date.now(), lang = "de", group 
         startTime: Number(event.startTime) || 0,
         endTime: eventEndTime(event),
         durationMinutes: durationOf(event.durationMinutes),
-        signupDeadline: Number(event.signupDeadline) || 0,
+        signupDeadline: Number(first.signupDeadline) || 0,
         size,
         versionId: str(event.versionId),
         status: event.status === "cancelled" ? "cancelled" : "active",
-        signupsClosed: !!event.signupsClosed,
+        signupsClosed: !!first.signupsClosed,
         cancelReason: clip(str(event.cancel && event.cancel.reason), 300),
         phase,
         pug: !!pug,
+        category: clip(str(category), 100),
         leader: leaderCharacter(event, entries),
         places: seats,
-        full: seats > 0 && counts.attending >= seats,
-        overflow: normalizeOverflow(event.overflow),
-        targets: targetsOf(event, size, !!groupInfo),
+        full: overflow !== "none" && seats > 0 && rc.attending >= seats,
+        overflow,
+        targets: targetsOf(rc, !!groupInfo),
         icsUrl: `/r/cal/${encodeURIComponent(event.id)}.ics`,
         // a raid of a group (#811): the raiders sign up at its first raid
         signupUrl: `/signups?event=${encodeURIComponent(signupEventIdOf(event))}`,
@@ -231,15 +271,15 @@ function publicEventView(event, signups, { now = Date.now(), lang = "de", group 
             return { id: str(id), label: (inst && (inst.short || inst.name)) || str(id), icon: (inst && inst.icon) || "" };
         }),
         counts: {
-            attending: counts.attending,
-            // the single Discord accounts (#520) — what "12 of 25 signed up" counts
-            accounts: counts.accounts,
-            tank: counts.tank,
-            healer: counts.healer,
-            dps: counts.dps,
-            tentative: counts.tentative,
-            bench: counts.bench,
-            absence: counts.absence,
+            attending: rc.attending,
+            // the single Discord accounts (#520) — "25 signed up", one number, never "x/25"
+            accounts: rc.accounts,
+            tank: rc.tank.n,
+            healer: rc.healer.n,
+            dps: rc.dps.n,
+            tentative: rc.tentative,
+            bench: rc.bench,
+            absence: rc.absence,
         },
         classes,
         other,
@@ -295,7 +335,7 @@ const PAGE_STYLE = `
   .ev-signup { margin:18px 0 0; padding:16px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
   .ev-count { font-size:15px; color:var(--muted); }
   .ev-count b { font-size:28px; font-weight:800; color:var(--text); margin-right:4px; font-variant-numeric:tabular-nums; }
-  .ev-count .of { color:var(--text); font-weight:700; }
+  .ev-own { margin:12px 0 0; font-size:15px; font-weight:600; }
   .ev-roles { margin:4px 0 0; font-size:14px; font-variant-numeric:tabular-nums; }
   .ev-roles > span + span::before { content:"·"; margin:0 8px; color:var(--muted); }
   .ev-roles .low { color:var(--medium); }
@@ -365,17 +405,21 @@ function rowHtml(group, lang = "de") {
         + `<dd>${group.members.map((m) => memberHtml(m, lang)).join("")}</dd></div>`;
 }
 
-/** "Tanks 1/2 · Heiler 1/6 · DPS 0/17", a role still short of its target in the warning tone. */
+/**
+ * "Tanks 1/2 · Heiler 1/6 · DPS 0/17", a role still short of its target in the
+ * warning tone; without targets "1 Tank · 3 Heiler · 12 DPS" (the number with its word).
+ */
 function rolesHtml(view, lang) {
     const t = view.targets;
-    const part = (key, label) => {
+    const part = (key) => {
         const have = view.counts[key];
-        if (!t) return `<span>${esc(`${have} ${label}`)}</span>`;
+        const words = key === "dps" ? ["DPS", "DPS"] : word(lang, key);
+        if (!t) return `<span>${esc(`${have} ${words[have === 1 ? 0 : 1]}`)}</span>`;
         const want = t[key];
         const low = want && have < want ? " class=\"low\"" : "";
-        return `<span${low}>${esc(`${label} ${have}/${want || "–"}`)}</span>`;
+        return `<span${low}>${esc(`${words[1]} ${have}/${want || "–"}`)}</span>`;
     };
-    return `<div class="ev-roles">${part("tank", word(lang, "tank")[1])}${part("healer", word(lang, "healer")[1])}${part("dps", "DPS")}</div>`;
+    return `<div class="ev-roles">${part("tank")}${part("healer")}${part("dps")}</div>`;
 }
 
 /** The line "Raid 2 of 2 · Zul'Aman · Zul'Aman 2" with the other raids linked, "" outside a group. */
@@ -394,23 +438,38 @@ function noteHtml(view, lang) {
         const reason = view.phase === "cancelled" && view.cancelReason ? ` ${esc(view.cancelReason)}` : "";
         return `<div class="ev-note ${phase.tone}"><b>${esc(tr(lang, phase.label))}</b>${reason}</div>`;
     }
-    if (view.full) return `<div class="ev-note medium">${esc(tr(lang, FULL_NOTE[view.overflow] || FULL_NOTE.none))}</div>`;
+    if (view.full && FULL_NOTE[view.overflow]) return `<div class="ev-note medium">${esc(tr(lang, FULL_NOTE[view.overflow]))}</div>`;
     return "";
 }
 
 /** Whether the page offers a signup: an open phase, and a full raid only when it still takes signups. */
 const offersSignup = (view) => view.phase === "open" && !(view.full && view.overflow === "refuse");
+// A signed-up raider may still change their signup (sign off, "Spät") after the
+// deadline and once it was closed (signupService) — not once the raid began.
+const CHANGE_PHASES = ["open", "deadline", "closed"];
 
 /**
- * The sign-up control for the viewer: logged in → the signup in the menu;
- * logged out → "Mit Discord anmelden", back here afterwards. A PuG raid with an
- * invite adds the way onto the PuG server — as a notice with a button when the
- * viewer is known not to be on it, as a small line while that is unknown.
+ * The sign-up control for the viewer: signed up already → "Du bist angemeldet
+ * als …" and "Anmeldung ändern" (even when a full raid refuses new ones);
+ * logged in → the signup in the menu; logged out → "Mit Discord anmelden",
+ * back here afterwards. A PuG raid with an invite adds the way onto the PuG
+ * server — as a notice with a button when the viewer is known not to be on it,
+ * as a small line while that is unknown.
  */
 function actionsHtml(view, lang, { viewer, loginUrl, inviteUrl }) {
     const loggedIn = !!(viewer && viewer.loggedIn);
     const isMember = viewer ? viewer.isMember : null;
+    const own = loggedIn && viewer.own && viewer.own.character ? viewer.own : null;
     const cal = `<a class="ev-link" href="${esc(view.icsUrl)}">${esc(tr(lang, "Add to calendar"))}</a>`;
+    if (own) {
+        const line = own.specLabel
+            ? tr(lang, "You are signed up as {character} ({spec})", { character: own.character, spec: own.specLabel })
+            : tr(lang, "You are signed up as {character}", { character: own.character });
+        const change = CHANGE_PHASES.includes(view.phase)
+            ? `<a class="ev-go" href="${esc(view.signupUrl)}">${esc(tr(lang, "Change signup"))}</a>`
+            : "";
+        return `<p class="ev-own">${esc(line)}</p><div class="ev-actions">${change}${cal}</div>`;
+    }
     let go = "";
     if (offersSignup(view)) {
         go = loggedIn
@@ -430,14 +489,16 @@ function actionsHtml(view, lang, { viewer, loginUrl, inviteUrl }) {
 /**
  * The page body for a view, in `lang` (German by default).
  * @param {object} view publicEventView()
- * @param {{ lang?: string, viewer?: { loggedIn?: boolean, isMember?: boolean|null }, loginUrl?: string, inviteUrl?: string }} [opts]
- *   `viewer`: who looks (isMember: on the PuG server — null while unknown);
+ * @param {{ lang?: string, viewer?: { loggedIn?: boolean, isMember?: boolean|null, own?: object|null }, loginUrl?: string, inviteUrl?: string }} [opts]
+ *   `viewer`: who looks (isMember: on the PuG server — null while unknown;
+ *   own: their signup, ownSignupOf() — never their id);
  *   `loginUrl`: the Discord login coming back here (built from the id by default);
  *   `inviteUrl`: the PuG server's invite, "" for none (#905)
  */
 function renderPublicEventBody(view, { lang = "de", viewer = null, loginUrl = "", inviteUrl = "" } = {}) {
     const login = loginUrl || `/auth/login?returnTo=${encodeURIComponent(`/e/${view.id}`)}`;
-    const kind = word(lang, view.pug ? "pugRaid" : "guildRaid");
+    // the category's name ("PUG Raids TBC"), the kind of raid where it has none
+    const kind = view.category || word(lang, view.pug ? "pugRaid" : "guildRaid");
     const raidNames = view.raids.map((r) => r.label).join(" + ");
     const crumb = `EventHelper<span class="sep">›</span>${esc(kind)}${raidNames ? `<span class="sep">›</span><b>${esc(raidNames)}</b>` : ""}`;
 
@@ -451,7 +512,6 @@ function renderPublicEventBody(view, { lang = "de", viewer = null, loginUrl = ""
     const deadline = view.signupDeadline && view.phase === "open"
         ? `<div class="ev-deadline">${esc(word(lang, "deadline"))} ${esc(fmtDate(view.signupDeadline, lang))}</div>`
         : "";
-    const ofSize = view.places ? ` <span class="of">${esc(tr(lang, "of {size}", { size: view.places }))}</span>` : "";
     const description = view.description ? `<p class="ev-desc">${esc(view.description)}</p>` : "";
 
     const roster = [...view.classes, ...view.other];
@@ -459,7 +519,7 @@ function renderPublicEventBody(view, { lang = "de", viewer = null, loginUrl = ""
         ? `<dl class="ev-rows">${roster.map((g) => rowHtml(g, lang)).join("")}</dl>`
         : `<p class="ev-empty">${esc(tr(lang, "Nobody has signed up yet."))}</p>`;
 
-    return `<div class="ev-bar"><nav class="ev-crumb">${crumb}</nav>${themeToggleBtn()}</div>
+    return `<div class="ev-bar"><nav class="ev-crumb">${crumb}</nav>${themeToggleBtn(normalizeLang(lang))}</div>
     <header class="ev-head">
       <h1 class="ev-title">${esc(view.title)}</h1>
       <p class="ev-when"><b>${esc(fmtDate(view.startTime, lang))}</b><span>${esc(until)}</span></p>
@@ -468,7 +528,7 @@ function renderPublicEventBody(view, { lang = "de", viewer = null, loginUrl = ""
     </header>
     ${noteHtml(view, lang)}
     <section class="ev-signup">
-      <div class="ev-count"><b>${view.counts.accounts}</b>${ofSize} ${esc(tr(lang, "signed up"))}</div>
+      <div class="ev-count"><b>${view.counts.accounts}</b> ${esc(tr(lang, "signed up"))}</div>
       ${rolesHtml(view, lang)}
       ${deadline}
       ${actionsHtml(view, lang, { viewer, loginUrl: login, inviteUrl })}
@@ -508,20 +568,42 @@ ${renderPublicEventBody(view, { lang, ...opts })}
  * `null` for an unknown event (the route answers 404 then) — a Raid-Helper id
  * never resolves here.
  * @param {string} eventId
- * @param {{ now?: number, lang?: string, viewer?: object, loginUrl?: string, inviteUrl?: string }} [opts] see renderPublicEventBody()
+ * @param {{ now?: number, lang?: string, viewer?: { loggedIn?: boolean, isMember?: boolean|null, userId?: string }, loginUrl?: string, inviteUrl?: string }} [opts]
+ *   see renderPublicEventBody(); `viewer.userId` (the session's Discord id) only
+ *   looks up the viewer's own signup and is never rendered
  */
 function renderEventPage(eventId, { now = Date.now(), lang: wanted = "", viewer = null, loginUrl = "", inviteUrl = "" } = {}) {
     const event = getEvent(eventId);
     // the event's language (its category's), unless the caller asks for one
     const lang = wanted || (event ? eventLang(event) : serverLang());
     if (!event) return null;
-    const pug = openToAll(event.categoryId, { config: getConfig(), versionId: event.versionId || "" });
-    // a raid of a group (#811): the signups of its first raid, the seats of the
-    // whole group, and the links to the evening's other raids
-    const view = publicEventView(event, listSignups(signupEventIdOf(event)), {
+    const config = getConfig();
+    const pug = openToAll(event.categoryId, { config, versionId: versionOfEvent(event, { config }) });
+    // a raid of a group (#811): the signups, phase and limit of its first raid,
+    // the seats of the whole group, and the links to the evening's other raids
+    const firstId = signupEventIdOf(event);
+    const first = (firstId !== event.id && getEvent(firstId)) || event;
+    const signups = listSignups(firstId);
+    const view = publicEventView(event, signups, {
         now, lang, group: groupSummary(event), pug, places: groupPlaces(event),
+        category: categoryOf(event, config), signupEvent: first,
     });
-    return renderPublicEventPage(view, { lang, viewer, loginUrl, inviteUrl });
+    const { userId, ...shown } = viewer || {};
+    const own = shown.loggedIn ? ownSignupOf(event, signups, userId, lang) : null;
+    return renderPublicEventPage(view, { lang, viewer: viewer ? { ...shown, own } : null, loginUrl, inviteUrl });
 }
 
-module.exports = { VIEW_KEYS, publicEventView, renderPublicEventBody, renderPublicEventPage, renderEventPage };
+/** The event's category name in its own section (#744), "" when unknown — the breadcrumb falls back then. */
+function categoryOf(event, config) {
+    if (!event.categoryId) return "";
+    let live = "";
+    try {
+        const hit = listKnownCategories(event.guildId).find((c) => c.id === String(event.categoryId));
+        live = (hit && hit.name) || "";
+    } catch (err) {
+        log.warn(`category name of ${event.id}: ${err.message}`);
+    }
+    return categoryNameAt(event.categoryId, event.startTime, live || event.categoryName || "", { config });
+}
+
+module.exports = { VIEW_KEYS, publicEventView, ownSignupOf, renderPublicEventBody, renderPublicEventPage, renderEventPage };

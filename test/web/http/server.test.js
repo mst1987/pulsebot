@@ -411,7 +411,7 @@ describe("web/http/server", () => {
             auth.getUser.mockReturnValueOnce(null);
             const res = await request({ url: "/e/eh-1", method: "GET", headers: {} });
             expect(eventPublicPage.renderEventPage).toHaveBeenCalledWith("eh-1", expect.objectContaining({
-                viewer: { loggedIn: false, isMember: null },
+                viewer: { loggedIn: false, isMember: null, userId: "" },
                 loginUrl: "/auth/login?returnTo=%2Fe%2Feh-1",
                 inviteUrl: "",
             }));
@@ -420,12 +420,12 @@ describe("web/http/server", () => {
             expect(staticClient.serve).not.toHaveBeenCalled();
         });
 
-        it("GET /e/<id> tells the page a logged-in viewer is there, so it links the signups", async () => {
+        it("GET /e/<id> tells the page a logged-in viewer is there and who, so it finds their own signup", async () => {
             eventPublicPage.renderEventPage.mockReturnValue("EVENT_PAGE");
             auth.getUser.mockReturnValueOnce({ id: "u1", name: "Raider" });
             await request({ url: "/e/eh-1", method: "GET", headers: {} });
             expect(eventPublicPage.renderEventPage).toHaveBeenCalledWith("eh-1", expect.objectContaining({
-                viewer: { loggedIn: true, isMember: null },
+                viewer: { loggedIn: true, isMember: null, userId: "u1" },
             }));
         });
 

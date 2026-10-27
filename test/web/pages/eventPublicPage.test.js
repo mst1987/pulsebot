@@ -115,8 +115,9 @@ describe("web/pages/eventPublicPage", () => {
             const view = publicEventView(event(), [...many, su("x", "Maybe", "Mage-Fire", "ranged", "tentative")], { now: NOW });
             expect(view.counts.accounts).toBe(27);
             const html = renderPublicEventPage(view);
-            expect(html).toMatch(/<b>27<\/b> <span class="of">of 25<\/span> signed up/);
-            expect(html).not.toMatch(/25 \/ 25|\(\+2\)/);
+            // one number, never "of 25" (#908 rework): the seats are no promise
+            expect(html).toMatch(/<b>27<\/b> signed up/);
+            expect(html).not.toMatch(/of 25|25 \/ 25|\(\+2\)/);
         });
 
         it("groups the signups by class, with the character and the spec and nothing else", () => {
@@ -242,7 +243,7 @@ describe("web/pages/eventPublicPage", () => {
             expect(html).toMatch(/Do\.?, 24\. Sept?\.? 2026, 19:30/);
             expect(html).toContain("bis 22:30 Serverzeit");
             expect(html).toContain("25er");
-            for (const word of ["von 25</span> angemeldet", "Anmeldeschluss", "Priester", "Krieger", "Anmeldungen", "Zum Kalender hinzufügen", "Mit Discord anmelden", "Gilden-Raid", "Tanks 1/2"]) {
+            for (const word of ["<b>2</b> angemeldet", "Anmeldeschluss", "Priester", "Krieger", "Anmeldungen", "Zum Kalender hinzufügen", "Mit Discord anmelden", "Gilden-Raid", "Tanks 1/2"]) {
                 expect(html).toContain(word);
             }
             for (const english of ["signed up", "Signup deadline", "Add to calendar", "server time"]) expect(html).not.toContain(english);
@@ -263,7 +264,7 @@ describe("web/pages/eventPublicPage", () => {
             expect(html).toContain("until 22:30 server time");
             expect(html).toContain("Wed 23 Sep 2026, 19:30");
             expect(html).toContain("25-man");
-            for (const word of ["of 25</span> signed up", "Signup deadline", "Priest", "Warrior", "Bench", "Signups", "Healers 1/6", "DPS 0/17"]) expect(html).toContain(word);
+            for (const word of ["<b>2</b> signed up", "Signup deadline", "Priest", "Warrior", "Bench", "Signups", "Healers 1/6", "DPS 0/17"]) expect(html).toContain(word);
             for (const german of ["Angemeldet", "Anmeldeschluss", "Priester", "Krieger", "Bank", " Uhr", "Termin"]) expect(html).not.toContain(german);
             expect(html).not.toContain("<t:");
         });
@@ -344,8 +345,12 @@ describe("web/pages/eventPublicPage", () => {
             expect(waitlist).toContain("new signups go to the waiting list");
             expect(waitlist).toContain("class=\"ev-go\"");
 
-            const none = render(publicEventView(event({ overflow: "none" }), full, { now: NOW }));
-            expect(none).toContain("the leader decides");
+            // no limit: never full, no note, the button stays
+            const noneView = publicEventView(event({ overflow: "none" }), full, { now: NOW });
+            expect(noneView.full).toBe(false);
+            const none = render(noneView);
+            expect(none).not.toContain("The raid is full");
+            expect(none).not.toContain("the leader decides");
             expect(none).toContain("class=\"ev-go\"");
 
             expect(publicEventView(event(), many(24), { now: NOW }).full).toBe(false);
@@ -372,12 +377,96 @@ describe("web/pages/eventPublicPage", () => {
         it("sets role targets only outside a raid group", () => {
             expect(publicEventView(event(), signups(), { now: NOW }).targets).toEqual({ tank: 2, healer: 6, dps: 17 });
             expect(publicEventView(event({ composition: {} }), signups(), { now: NOW }).targets).toBe(null);
+            // the same raid with targets, but in a group: its seats are shared, no targets
+            const group = { id: "eh-1", primaryId: "eh-1", count: 2, places: 50, raids: [{ id: "eh-1", title: "SSC + TK", index: 1 }, { id: "eh-2", title: "SSC 2", index: 2 }] };
+            const grouped = publicEventView(event({ raidGroupId: "eh-1", raidGroupIndex: 1 }), signups(), { now: NOW, group });
+            expect(grouped.targets).toBe(null);
+            expect(renderPublicEventPage(grouped)).toContain("1 Tank");
+        });
+
+        it("counts single roles in the singular", () => {
+            const out = renderPublicEventPage(publicEventView(event({ composition: {} }), signups(), { now: NOW }));
+            expect(out).toContain("<span>1 Tank</span>");
+            expect(out).toContain("<span>1 Healer</span>");
+            expect(out).toContain("<span>0 DPS</span>");
+            const de = page.renderPublicEventPage(page.publicEventView(event({ composition: {} }), [...signups(), su("u9", "Tank2", "Warrior-Protection", "tank")], { now: NOW }));
+            expect(de).toContain("<span>2 Tanks</span>");
+            expect(de).toContain("<span>1 Heiler</span>");
+        });
+
+        it("names the category in the bar, the kind of raid without one", () => {
+            const out = html({}, null, { pug: true, category: "PUG Raids TBC" });
+            expect(out).toMatch(/PUG Raids TBC<span class="sep">›<\/span><b>/);
+            expect(out).not.toContain("PuG raid");
+            expect(html({}, null, { pug: true })).toContain("PuG raid");
+        });
+
+        it("labels the theme switch in the page language", () => {
+            expect(html()).toContain("aria-label=\"Toggle theme\"");
+            expect(page.renderPublicEventPage(page.publicEventView(event(), signups(), { now: NOW }))).toContain("aria-label=\"Design umschalten\"");
+        });
+
+        describe("a viewer who is signed up already", () => {
+            const own = { character: "Brokk", specLabel: "Protection" };
+
+            it("says as whom and offers to change it, instead of a new signup", () => {
+                const out = render(publicEventView(event(), signups(), { now: NOW }), { viewer: { loggedIn: true, isMember: null, own } });
+                expect(out).toContain("You are signed up as Brokk (Protection)");
+                expect(out).toMatch(/class="ev-go" href="\/signups\?event=eh-1">Change signup</);
+                expect(out).not.toMatch(/>Sign up</);
+            });
+
+            it("keeps the change even when a full raid refuses new signups", () => {
+                const view = publicEventView(event({ overflow: "refuse" }), many(25), { now: NOW });
+                const out = render(view, { viewer: { loggedIn: true, isMember: null, own } });
+                expect(out).toContain("The raid is full – no new signups.");
+                expect(out).toContain("Change signup");
+            });
+
+            it("still names the signup once the raid is cancelled or running, without the change", () => {
+                for (const over of [{ status: "cancelled" }, { startTime: Math.floor(NOW / 1000) - 600 }]) {
+                    const out = render(publicEventView(event(over), signups(), { now: NOW }), { viewer: { loggedIn: true, own } });
+                    expect(out).toContain("You are signed up as Brokk");
+                    expect(out).not.toContain("class=\"ev-go\"");
+                }
+            });
+
+            it("ownSignupOf names the first character, never a sign-off, and nothing without an id", () => {
+                const list = [...signups(), su("u7", "Gone", "Mage-Fire", "ranged", "absence")];
+                expect(page.ownSignupOf(event(), list, IDS.brokk, "en")).toEqual({ character: "Brokk", specLabel: "Protection" });
+                expect(page.ownSignupOf(event(), list, "u7", "en")).toBe(null);
+                expect(page.ownSignupOf(event(), list, "", "en")).toBe(null);
+                expect(page.ownSignupOf(event(), list, "nobody", "en")).toBe(null);
+            });
+
+            it("renderEventPage finds the signup by the viewer's id and never writes the id", () => {
+                eventStore.getEvent.mockReturnValue(event());
+                signupStore.listSignups.mockReturnValue(signups());
+                const out = renderEventPage("eh-1", { now: NOW, viewer: { loggedIn: true, isMember: null, userId: IDS.zibbo } });
+                expect(out).toContain("You are signed up as Zibbo (Holy)");
+                for (const id of Object.values(IDS)) expect(out).not.toContain(id);
+            });
+        });
+
+        it("in a raid group the first raid decides: closed there, no signup on the second raid", () => {
+            const first = event({ id: "eh-1", raidGroupId: "eh-1", raidGroupIndex: 1, signupsClosed: true });
+            const second = event({ id: "eh-2", title: "SSC 2", raidGroupId: "eh-1", raidGroupIndex: 2, signupsClosed: false });
+            eventStore.getEvent.mockImplementation((id) => ({ "eh-1": first, "eh-2": second })[id] || null);
+            eventStore.listEvents.mockReturnValue([first, second]);
+            signupStore.listSignups.mockReturnValue(signups());
+            const out = renderEventPage("eh-2", { now: NOW, viewer: { loggedIn: true, isMember: null, userId: "" } });
+            expect(signupStore.listSignups).toHaveBeenCalledWith("eh-1");
+            expect(out).toContain("SSC 2");
+            expect(out).not.toContain("class=\"ev-go\"");
+            expect(out).not.toContain("/signups?event=");
+            eventStore.getEvent.mockReset();
+            eventStore.listEvents.mockReturnValue([]);
         });
 
         it("speaks German on the new parts too", () => {
             const view = page.publicEventView(event({ overflow: "refuse", leaderId: "u0" }), many(25), { now: NOW, pug: true });
             const de = page.renderPublicEventPage(view, { inviteUrl: "https://discord.gg/x" });
-            for (const word of ["PuG-Raid", "Raidleitung <b>Raider0</b>", "Der Raid ist voll – keine neuen Anmeldungen.", "<b>25</b> <span class=\"of\">von 25</span> angemeldet"]) {
+            for (const word of ["PuG-Raid", "Raidleitung <b>Raider0</b>", "Der Raid ist voll – keine neuen Anmeldungen.", "<b>25</b> angemeldet"]) {
                 expect(de).toContain(word);
             }
         });
@@ -387,7 +476,8 @@ describe("web/pages/eventPublicPage", () => {
             signupStore.listSignups.mockReturnValue(signups());
             signupAccess.openToAll.mockReturnValueOnce(true);
             const out = renderEventPage("eh-1", { now: NOW, viewer: { loggedIn: true, isMember: null } });
-            expect(signupAccess.openToAll).toHaveBeenCalledWith("cat-pug", expect.objectContaining({ versionId: expect.any(String) }));
+            // the event's own version decides (versionOfEvent)
+            expect(signupAccess.openToAll).toHaveBeenCalledWith("cat-pug", expect.objectContaining({ versionId: "tbc", config: expect.any(Object) }));
             expect(out).toContain("PuG raid");
             expect(out).toContain("href=\"/signups?event=eh-1\"");
         });
