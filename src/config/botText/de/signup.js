@@ -109,8 +109,6 @@ module.exports = {
     "Step 1 of 2 · only visible to you": "Schritt 1 von 2 · nur für dich sichtbar",
     "Pick the raids you want to join. Next you pick your characters per raid.":
         "Wähle die Raids, bei denen du dabei sein willst. Danach wählst du deine Charaktere je Raid.",
-    "All coming raids are selected – remove what does not suit you. Next you pick your characters per raid.":
-        "Alle kommenden Raids sind gewählt – nimm raus, was dir nicht passt. Danach wählst du deine Charaktere je Raid.",
     "{count} raids per window – after submitting, “Next” takes you to the following ones.":
         "{count} Raids pro Fenster – nach dem Absenden bringt dich „Weiter“ zu den nächsten.",
     "Which raids?": "Welche Raids?",
@@ -119,9 +117,6 @@ module.exports = {
     "Next: characters ({range})": "Weiter: Charaktere ({range})",
     "Next: characters": "Weiter: Charaktere",
     "Topmost pick = 1st choice, the others = “can also come with”": "Oberste Wahl = 1. Wahl, die anderen = „kann auch mit“",
-    "Sign up for all {count} raids": "Für alle {count} Raids anmelden",
-    "Characters · specs for all raids": "Charaktere · Specs für alle Raids",
-    "What does not fit a raid is skipped.": "Was nicht zu einem Raid passt, wird übersprungen.",
     "empty = skip": "leer = überspringen",
     "Which characters?": "Welche Charaktere?",
     "{character} skipped: {reason}": "{character} übersprungen: {reason}",
@@ -160,4 +155,7 @@ module.exports = {
     "Notification received!": "Benachrichtigung erhalten!",
     "{who} signed up as {status} with the following reason:": "{who} hat sich als {status} gemeldet, mit folgender Begründung:",
     "Absent": "Abgemeldet",
+    // a signup from a partner server's raid list by someone not on the raid's server (#904)
+    "Join the PuG server, otherwise you will not get pings and info.": "Tritt dem PuG-Server bei, sonst bekommst du keine Pings und Infos.",
+    "Join the PuG server": "PuG-Server beitreten",
 };

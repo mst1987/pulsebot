@@ -596,7 +596,7 @@ function limitCharacters(fit, previous, max) {
 
 /**
  * Sign one user up for several own events at once (#293) — the bot's
- * "Für alle Raids" / "Mehrere Raids" and the web's "Für alle gewählten". Every
+ * "Mehrere Raids" and the web's "Für alle gewählten". Every
  * event runs the full submitSignup (raider role, deadline, start, profile), so
  * one refused raid never stops the others. Characters that do not fit a raid
  * are skipped there with a reason — and so are those beyond the raid's limit

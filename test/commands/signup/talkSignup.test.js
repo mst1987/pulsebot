@@ -62,6 +62,34 @@ describe("commands/signup/talkSignup", () => {
         expect(mocks.memberRoleIds).toHaveBeenCalledWith("event-guild", "200000000000000009");
     });
 
+    describe("from a partner server's list (#904)", () => {
+        const PARTNER = "300000000000000002";
+        const STRANGER = "200000000000000009";
+
+        it("opens an open PuG for a member who is not on the raid's server", async () => {
+            mocks.events.set("eh-pug", mocks.ownEvent({ id: "eh-pug", title: "PuG Gruul", categoryId: "cat-pug" }));
+            mocks.access.config = { botLanguage: "en", guildId: "event-guild", categoryRoles: { "cat-kara": ["role-kara"] } };
+            mocks.access.roleIds = [];
+            const interaction = mockInteraction({ customId: "talk-signup", values: ["eh-pug"], userId: STRANGER });
+            interaction.guildId = PARTNER;
+            await command.execute(interaction);
+            const payload = interaction.reply.mock.calls[0][0];
+            expect(payload.embeds[0].title).toBe("PuG Gruul");
+            expect(JSON.stringify(payload)).not.toContain("raider role");
+        });
+
+        it("refuses a raid whose category wants a raider role - read on the raid's server, not the partner's", async () => {
+            mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-kara" }));
+            mocks.access.config = { botLanguage: "en", guildId: "event-guild", categoryRoles: { "cat-kara": ["role-kara"] } };
+            mocks.access.roleIds = [];
+            const interaction = mockInteraction({ customId: "talk-signup", values: ["eh-kara"], userId: STRANGER });
+            interaction.guildId = PARTNER;
+            await command.execute(interaction);
+            expect(answerOf(interaction.reply.mock.calls[0][0]).description).toBe("You need a raider role for this raid.");
+            expect(mocks.memberRoleIds).toHaveBeenCalledWith("event-guild", STRANGER);
+        });
+    });
+
     it("links a Raid-Helper event into its event channel", async () => {
         getStoredEvent.mockReturnValue({ id: "123456", title: "Gruul", guildId: "g-1", channelId: "c-1", source: "raidhelper" });
         const interaction = mockInteraction({ values: ["123456"] });

@@ -1,6 +1,6 @@
 // Signing up for several raids at once, in Discord (#293). Started from the raid
-// overview on the talk server ("Für alle Raids anmelden" / "Mehrere Raids
-// wählen …") or from an event's character select ("Mehrere Charaktere …"):
+// overview of a server link ("Mehrere Raids wählen …") or from an event's
+// character select ("Mehrere Charaktere …"):
 //
 //   Schritt 1  (only "Mehrere Raids"): an ephemeral message with a multi-select
 //              of the coming raids (nothing preselected — the member picks),
@@ -10,8 +10,7 @@
 //              "kann auch mit"; nothing picked skips the raid. At most five raids
 //              per modal (Discord's limit of five fields); with more, the answer
 //              carries "Weiter: Raids 6–10", because a modal cannot open the next
-//              modal by itself. "Für alle Raids" asks once: one character select
-//              for every raid plus the status.
+//              modal by itself.
 //   Ergebnis   one line per raid: saved with its characters, skipped characters
 //              with the reason, refused raids with the service's reason.
 //
@@ -60,9 +59,8 @@ function createSession(userId, { mode, eventIds, status = "signed" }, now = Date
     let token;
     do token = crypto.randomBytes(4).toString("hex"); while (sessions.has(token));
     sessions.set(token, {
-        // "all" (Sign up for all raids) starts with everything picked; "multi"
-        // (Pick several raids …) starts empty — the member chooses, nothing is
-        // assumed on their behalf.
+        // "multi" (Pick several raids …) starts empty — the member chooses,
+        // nothing is assumed on their behalf; "one" is its single raid.
         userId: String(userId), mode, eventIds: [...eventIds], selected: mode === "multi" ? [] : [...eventIds],
         status: STATUS_CODES[status] ? status : "signed", results: [], at: now,
     });
@@ -197,7 +195,7 @@ function statusSelect(customId, status, emojis, lang = "de") {
 
 /** How many modals a flow needs. */
 function pageCount(session) {
-    return session.mode === "all" ? 1 : Math.max(1, Math.ceil(session.selected.length / PER_MODAL));
+    return Math.max(1, Math.ceil(session.selected.length / PER_MODAL));
 }
 
 /** "Raids 6–10" for page 1. */
@@ -213,9 +211,7 @@ function buildRaidPicker(token, session, events, { emojis = {}, notice = "", lan
     const raids = session.eventIds.map((id) => byId.get(id)).filter(Boolean);
     const lines = [
         tr(lang, "Step 1 of 2 · only visible to you"),
-        session.mode === "multi"
-            ? tr(lang, "Pick the raids you want to join. Next you pick your characters per raid.")
-            : tr(lang, "All coming raids are selected – remove what does not suit you. Next you pick your characters per raid."),
+        tr(lang, "Pick the raids you want to join. Next you pick your characters per raid."),
     ];
     if (session.selected.length > PER_MODAL) {
         lines.push(tr(lang, "{count} raids per window – after submitting, “Next” takes you to the following ones.", { count: PER_MODAL }));
@@ -298,19 +294,6 @@ function buildCharacterModal(token, session, page, events, profile, { emojis = {
         session.orders[`${page}:${field}`] = list.map((o) => o.value);
         return list;
     };
-    if (session.mode === "all") {
-        return {
-            custom_id: multiId(token, "m", 0),
-            title: tr(lang, "Sign up for all {count} raids", { count: session.selected.length }).slice(0, 45),
-            components: [
-                labelled(tr(lang, "Characters · specs for all raids"), `${hint}. ${tr(lang, "What does not fit a raid is skipped.")}`, {
-                    type: 3, custom_id: "all", min_values: 1, max_values: max, required: true,
-                    options: select("all", ""),
-                }),
-                labelled(tr(lang, "Status for all"), "", { ...statusSelect("status", session.status, emojis, lang), required: true }),
-            ],
-        };
-    }
     const byId = byEvent;
     const ids = session.selected.slice(page * PER_MODAL, (page + 1) * PER_MODAL);
     const pages = pageCount(session);
@@ -351,12 +334,6 @@ function modalValues(interaction, id) {
  */
 function entriesFromModal(interaction, session, page) {
     const order = (field) => ((session.orders || {})[`${page}:${field}`] || []).map((value) => ({ value }));
-    if (session.mode === "all") {
-        const picked = modalValues(interaction, "status")[0];
-        const status = STATUS_CODES[picked] ? picked : session.status;
-        const characters = orderedPicks(modalValues(interaction, "all"), order("all"));
-        return { status, entries: session.selected.map((eventId) => ({ eventId, characters, status })) };
-    }
     const ids = session.selected.slice(page * PER_MODAL, (page + 1) * PER_MODAL);
     return {
         status: session.status,
@@ -396,9 +373,10 @@ function resultLine(result, profile, lang = "de") {
 
 /**
  * The answer after a modal page: every result so far, and "Weiter" when pages are left.
+ * `joinHint` ({ line, buttons }) is the note of services/signups/partnerJoinHint.js (#904).
  * @returns {{ embeds: object[], components: object[] }}
  */
-function buildResults(token, session, { nextPage = null, profile = null, lang = "de" } = {}) {
+function buildResults(token, session, { nextPage = null, profile = null, lang = "de", joinHint = null } = {}) {
     const results = session.results;
     const saved = results.filter((r) => r.ok).length;
     const lines = results.map((r) => resultLine(r, profile, lang));
@@ -406,6 +384,8 @@ function buildResults(token, session, { nextPage = null, profile = null, lang = 
     const title = nextPage === null
         ? tr(lang, "Signup: {saved} of {total} raids saved", counts)
         : tr(lang, "So far {saved} of {total} raids saved", counts);
+    // not on the raid's server after a signup from a partner list (#904): the note below the lines
+    if (joinHint && joinHint.line) lines.push("", joinHint.line);
     let description = lines.join("\n");
     if (description.length > 4000) description = `${description.slice(0, 3990)}…`;
     const components = [];
@@ -414,6 +394,7 @@ function buildResults(token, session, { nextPage = null, profile = null, lang = 
         buttons.push({ type: 2, style: 1, custom_id: multiId(token, "go", nextPage), label: tr(lang, "Next: {range}", { range: pageRange(session, nextPage, lang) }) });
     }
     if (/^https?:\/\//.test(publicBaseUrl())) buttons.push({ type: 2, style: 5, label: tr(lang, "My signups"), url: `${publicBaseUrl()}/signups` });
+    for (const button of (joinHint && joinHint.buttons) || []) if (buttons.length < 5) buttons.push(button);
     if (buttons.length) components.push({ type: 1, components: buttons });
     return {
         embeds: [{ color: embedAccentColor, title, description: description || tr(lang, "Nothing picked.") }],

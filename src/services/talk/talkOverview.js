@@ -73,8 +73,7 @@ const COUNT_TEXT = {
 };
 
 const SELECT_ID = "talk-signup";
-// "Für alle Raids anmelden" / "Mehrere Raids wählen …" (#293, commands/signup/talkSignupAll|Multi.js)
-const ALL_BUTTON_ID = "talk-signup-all";
+// "Mehrere Raids wählen …" (#293, commands/signup/talkSignupMulti.js); "Für alle Raids" is gone (#904)
 const MULTI_BUTTON_ID = "talk-signup-multi";
 const MAX_FIELDS = 25;
 const MAX_FIELD_VALUE = 1024;
@@ -387,7 +386,6 @@ function buildOverviewMessage(groups, opts = {}) {
     // Several raids at once (#293) — only EventHelper events take a signup here.
     if (signable.some((e) => e.source === "eventhelper")) {
         components.push(new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(ALL_BUTTON_ID).setStyle(ButtonStyle.Primary).setLabel(tr(lang, "Sign up for all raids")),
             new ButtonBuilder().setCustomId(MULTI_BUTTON_ID).setStyle(ButtonStyle.Secondary).setLabel(tr(lang, "Pick several raids …")),
         ));
     }
@@ -713,7 +711,7 @@ function stopTalkOverview() {
 }
 
 module.exports = {
-    SELECT_ID, ALL_BUTTON_ID, MULTI_BUTTON_ID, RAIDHELPER_CREATE_DELAY_MS, CHANNEL_MISSING, currentPayload, syncOverview, overviewStatus,
+    SELECT_ID, MULTI_BUTTON_ID, RAIDHELPER_CREATE_DELAY_MS, CHANNEL_MISSING, currentPayload, syncOverview, overviewStatus,
     scheduleOverviewSync, startTalkOverview, stopTalkOverview,
     // the counter the category overviews (events/raidOverview.js) show as well
     attendingCount,

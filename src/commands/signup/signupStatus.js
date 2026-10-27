@@ -9,6 +9,7 @@ const {
 } = require("../../utils/signup/signupDialog");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr, specLabel } = require("../../utils/i18n/botText");
+const { joinHintFor } = require("../../services/signups/partnerJoinHint");
 
 // The status buttons of the signup dialog (utils/signup/signupDialog.js):
 // `signup-status:<eventId>:<code>:<state>` — Dabei / Vielleicht / Spät / Bank /
@@ -39,7 +40,13 @@ async function save(interaction, event, status, picks, character) {
     const profile = profiles.getProfile(uid);
     // The waiting list (#306) rides on the same line as the confirmation.
     const notice = [savedNotice(result.signup, profile, versionOfEvent(event), lang), result.notice ? `⏳ ${result.notice}` : ""].filter(Boolean).join("\n");
-    return interaction.update(buildSignupDialog(event, uid, { state: picks, notice, lang }));
+    await interaction.update(buildSignupDialog(event, uid, { state: picks, notice, lang }));
+    // From a partner server's list (#904): someone not on the raid's server hears nothing of it
+    // there, so the answer says so - checked only now, the click is answered already.
+    if (result.signup.status === "absence") return undefined;
+    const hint = await joinHintFor(interaction, event, { lang });
+    if (!hint) return undefined;
+    return interaction.editReply(buildSignupDialog(event, uid, { state: picks, notice: `${notice}\n${hint.line}`, lang, joinButton: hint.button }));
 }
 
 module.exports = {

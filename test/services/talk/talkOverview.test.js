@@ -105,7 +105,7 @@ describe("services/talk/talkOverview — buildOverviewMessage", () => {
         expect(embed.fields[0].value).toContain("~~SSC + TK~~ · abgesagt");
         expect(embed.footer.text).toMatch(/^\+\d+ weitere Raids in der Web-Übersicht$/);
         const labels = payload.components.flatMap((row) => row.components.map((c) => c.label || c.placeholder));
-        expect(labels).toEqual(["Für alle Raids anmelden", "Mehrere Raids wählen …", "Einzelnen Raid wählen …", "Web-Übersicht", "Meine Anmeldungen", "Mein Profil"]);
+        expect(labels).toEqual(["Mehrere Raids wählen …", "Einzelnen Raid wählen …", "Web-Übersicht", "Meine Anmeldungen", "Mein Profil"]);
         expect(buildOverviewMessage([], german).embeds[0].description).toBe("Gerade sind keine Raids geplant. Neue Raids erscheinen hier von selbst.");
     });
 
@@ -311,18 +311,18 @@ describe("services/talk/talkOverview — buildOverviewMessage", () => {
         expect(overviewLinks("https://x.y").profile).toBe("https://x.y/profile");
     });
 
-    it("puts „Für alle Raids anmelden“ and „Mehrere Raids wählen …“ above the select once an own event is listed (#293)", () => {
+    it("puts only „Mehrere Raids wählen …“ above the select once an own event is listed - no „Für alle“ (#293, #904)", () => {
         const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev(), ev({ id: "eh-1", source: "eventhelper", title: "Kara" })] }], opts);
         const [signupRow, selectRow, linkRow] = payload.components;
         expect(signupRow.components.map((b) => [b.custom_id, b.label, b.style])).toEqual([
-            ["talk-signup-all", "Sign up for all raids", 1],
             ["talk-signup-multi", "Pick several raids …", 2],
         ]);
+        expect(JSON.stringify(payload)).not.toContain("talk-signup-all");
         expect(selectRow.components[0].custom_id).toBe("talk-signup");
         expect(linkRow.components).toHaveLength(3);
         // only Raid-Helper events: nothing to sign up for here, so no buttons
         const rhOnly = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev()] }], opts);
-        expect(JSON.stringify(rhOnly)).not.toContain("talk-signup-all");
+        expect(JSON.stringify(rhOnly)).not.toContain("talk-signup-multi");
     });
 
     it("keeps only the configured event categories when there are any", () => {

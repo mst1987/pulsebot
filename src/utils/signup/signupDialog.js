@@ -264,10 +264,11 @@ function pickRows(event, chars, picks, lang) {
  * The dialog payload for one member and one own event, in the member's language.
  * @param {object} event  an eventStore event
  * @param {string} userId
- * @param {{ state?: object|null, notice?: string, now?: number, lang?: string }} opts
+ * @param {{ state?: object|null, notice?: string, now?: number, lang?: string, joinButton?: object|null }} opts
+ *   joinButton: the link button of partnerJoinHint.buildJoinHint (#904), in the last row
  * @returns {{ embeds: object[], components: object[] }}
  */
-function buildSignupDialog(event, userId, { state = null, notice = "", now = Date.now(), lang = "de" } = {}) {
+function buildSignupDialog(event, userId, { state = null, notice = "", now = Date.now(), lang = "de", joinButton = null } = {}) {
     const uid = String(userId || "");
     const signups = listSignups(event.id);
     const mine = getSignup(event.id, uid);
@@ -317,6 +318,8 @@ function buildSignupDialog(event, userId, { state = null, notice = "", now = Dat
         const label = missing ? tr(lang, "Add a {version} character", { version: versionLabel(versionId) }).slice(0, 80) : tr(lang, "Create profile");
         extra.push(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(label).setURL(`${publicBaseUrl()}/profile`));
     }
+    // "PuG-Server beitreten" after a signup from a partner list (#904, services/signups/partnerJoinHint.js)
+    if (joinButton && joinButton.url) extra.push(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(String(joinButton.label || "").slice(0, 80)).setURL(joinButton.url));
     rows.push(new ActionRowBuilder().addComponents(extra));
 
     return { embeds: [embed.toJSON()], components: rows.map((r) => r.toJSON()) };

@@ -1,8 +1,10 @@
-// Mehrere Raids auf einmal anmelden (#293): „Für alle Raids anmelden“ und
-// „Mehrere Raids wählen …“ an der Raid-Übersicht, Schritt 1 (Raids + Status),
-// das Charakter-Modal mit höchstens fünf Raids, „Weiter“ zur nächsten Seite,
-// das Ergebnis je Raid mit Gründen, abgelaufene Auswahl und „Mehrere Charaktere …“
-// an einem einzelnen Event.
+// Mehrere Raids auf einmal anmelden (#293): „Mehrere Raids wählen …“ an der
+// Raid-Übersicht, Schritt 1 (Raids + Status), das Charakter-Modal mit höchstens
+// fünf Raids, „Weiter“ zur nächsten Seite, das Ergebnis je Raid mit Gründen,
+// abgelaufene Auswahl und „Mehrere Charaktere …“ an einem einzelnen Event.
+// „Für alle Raids anmelden“ gibt es nicht mehr (#904); dafür der Hinweis
+// „PuG-Server beitreten“ unter dem Ergebnis, wenn der Raid auf einem Server
+// läuft, auf dem das Mitglied nicht ist.
 const { MessageFlags } = require("discord.js");
 const { answerOf } = require("../../helpers/signupMocks");
 
@@ -10,13 +12,13 @@ jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupM
 jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
 jest.mock("../../../src/stores/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/signupMocks").discord());
-jest.mock("../../../src/services/talk/talkOverview", () => ({ SELECT_ID: "talk-signup", ALL_BUTTON_ID: "talk-signup-all", MULTI_BUTTON_ID: "talk-signup-multi" }));
+jest.mock("../../../src/services/talk/talkOverview", () => ({ SELECT_ID: "talk-signup", MULTI_BUTTON_ID: "talk-signup-multi" }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
 const mocks = require("../../helpers/signupMocks");
 const profiles = require("../../../src/stores/raiderProfileStore");
 const multi = require("../../../src/utils/signup/multiSignup");
-const all = require("../../../src/commands/signup/talkSignupAll");
+const discord = require("../../../src/services/discord/discord");
 const pickRaids = require("../../../src/commands/signup/talkSignupMulti");
 const step = require("../../../src/commands/signup/signupMulti");
 const { mockInteraction } = require("../../helpers/mockInteraction");
@@ -64,34 +66,24 @@ function modalSubmit(customId, values, { message = null, userId = ANNA } = {}) {
 
 const tokenOf = (customId) => customId.split(":")[1];
 
+/** A session with the picked raids whose modal page 0 was shown (that keeps the listed order). */
+function shownSession(eventIds, { mode = "multi", status } = {}) {
+    const token = multi.createSession(ANNA, { mode, eventIds, status });
+    const session = multi.getSession(token, ANNA);
+    session.selected = [...eventIds];
+    multi.buildCharacterModal(token, session, 0, eventIds.map((id) => mocks.events.get(id)), profiles.getProfile(ANNA), { lang: "en" });
+    return token;
+}
+
 describe("talk overview buttons (#293)", () => {
-    it("are components of the overview select and inherit its access", () => {
-        expect(all).toMatchObject({ name: "talk-signup-all", accessOf: "talk-signup" });
+    it("are components of the overview select and inherit its access; „Für alle Raids“ is gone (#904)", () => {
         expect(pickRaids).toMatchObject({ name: "talk-signup-multi", accessOf: "talk-signup" });
         expect(step).toMatchObject({ name: "signup-multi", accessOf: "talk-signup" });
+        expect(() => require("../../../src/commands/signup/talkSignupAll")).toThrow(/Cannot find module/);
+        expect(multi.parseMultiId("signup-multi:0123abcd:m:0").action).toBe("m");
     });
 
-    it("„Für alle Raids“ opens one modal with one character select and the status for every raid", async () => {
-        characters();
-        raids(7);
-        mocks.events.set("eh-begun", mocks.ownEvent({ id: "eh-begun", startTime: sec() - 60 }));
-        const i = mockInteraction({ customId: "talk-signup-all", userId: ANNA });
-        await all.execute(i);
-        const modal = i.showModal.mock.calls[0][0];
-        expect(modal.title).toBe("Sign up for all 7 raids");
-        expect(modal.custom_id).toMatch(/^signup-multi:[a-f0-9]{8}:m:0$/);
-        expect(modal.custom_id.length).toBeLessThanOrEqual(100);
-        expect(modal.components.map((c) => [c.type, c.label, c.component.custom_id])).toEqual([
-            [18, "Characters · specs for all raids", "all"],
-            [18, "Status for all", "status"],
-        ]);
-        const select = modal.components[0].component;
-        expect(select).toMatchObject({ type: 3, min_values: 1, max_values: 2 });
-        expect(select.options.map((o) => [o.label, o.default])).toEqual([["Zibbo · Holy", true], ["Zibbowar · Protection", false]]);
-        expect(modal.components[0].description).toContain("Topmost pick = 1st choice");
-    });
-
-    it("offers per raid as many characters as its category allows; „alle“ the lowest limit of the chosen raids", () => {
+    it("offers per raid as many characters as its category allows", () => {
         characters();
         profiles.addCharacter(ANNA, { name: "Zibbomage", className: "Mage", specs: [{ key: "Mage-Frost", gear: "ready" }] });
         profiles.addCharacter(ANNA, { name: "Zibborog", className: "Rogue", specs: [{ key: "Rogue-Combat", gear: "ready" }] });
@@ -105,9 +97,6 @@ describe("talk overview buttons (#293)", () => {
         const perRaid = multi.buildCharacterModal(token, session, 0, events, profile, { lang: "en" });
         // cat-a allows 2, cat-b nothing set = the default 8, capped by the 4 options
         expect(perRaid.components.map((c) => c.component.max_values)).toEqual([2, 4]);
-        const allToken = multi.createSession(ANNA, { mode: "all", eventIds: ["eh-r1", "eh-r2"] });
-        const allModal = multi.buildCharacterModal(allToken, multi.getSession(allToken, ANNA), 0, events, profile, { lang: "en" });
-        expect(allModal.components[0].component.max_values).toBe(2);
         // a signup stored before the limit dropped may pick its characters again
         mocks.signups.set(`eh-r1/${ANNA}`, { userId: ANNA, status: "signed", characters: [
             { character: "Zibbo", spec: "Priest-Holy" }, { character: "Zibbowar", spec: "Warrior-Protection" }, { character: "Zibbomage", spec: "Mage-Frost" },
@@ -117,8 +106,8 @@ describe("talk overview buttons (#293)", () => {
 
     it("without characters or raids answers only the member, with where to go", async () => {
         raids(1);
-        const none = mockInteraction({ customId: "talk-signup-all", userId: ANNA });
-        await all.execute(none);
+        const none = mockInteraction({ customId: "talk-signup-multi", userId: ANNA });
+        await pickRaids.execute(none);
         expect(none.showModal).not.toHaveBeenCalled();
         expect(answerOf(none.reply.mock.calls[0][0])).toMatchObject({ flags: MessageFlags.Ephemeral, title: "", description: "To sign up for several raids you need characters with a spec in your profile." });
         expect(cardButtons(none.reply.mock.calls[0][0])[0].url).toBe("https://eh.example/profile");
@@ -130,27 +119,66 @@ describe("talk overview buttons (#293)", () => {
         expect(answerOf(empty.reply.mock.calls[0][0]).text).toContain("no coming raids");
     });
 
-    it("saves „alle“ per raid: first pick = choice, class and deadline refusals named per raid", async () => {
+    it("saves per raid: first listed pick = choice, refusals named per raid", async () => {
         characters();
-        raids(3, (n) => (n === 3 ? { signupDeadline: sec() - 60 } : n === 2 ? { versionId: "andere-version" } : {}));
-        const open = mockInteraction({ customId: "talk-signup-all", userId: ANNA });
-        await all.execute(open);
-        const id = open.showModal.mock.calls[0][0].custom_id;
-        // the modal was opened from the public overview message: that message must never be edited
-        const submit = modalSubmit(id, { all: ["zibbowar|Warrior-Protection", "zibbo|Priest-Holy"], status: ["signed"] }, { message: { id: "overview" } });
+        raids(2, (n) => (n === 2 ? { signupDeadline: sec() - 60 } : {}));
+        const token = shownSession(["eh-r1", "eh-r2"]);
+        const submit = modalSubmit(`signup-multi:${token}:m:0`, { r0: ["zibbowar|Warrior-Protection", "zibbo|Priest-Holy"], r1: ["zibbo|Priest-Holy"] }, { message: { id: "step1" } });
         await step.execute(submit);
-        expect(submit.deferUpdate).not.toHaveBeenCalled();
-        expect(submit.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
         const payload = submit.editReply.mock.calls[0][0];
-        expect(payload.embeds[0].title).toBe("Signup: 1 of 3 raids saved");
+        expect(payload.embeds[0].title).toBe("Signup: 1 of 2 raids saved");
         const lines = payload.embeds[0].description.split("\n");
         // the listed order decides: Zibbo was listed first, so Zibbo is the choice
         expect(lines[0]).toMatch(/^✅ \*\*Raid 1\*\* · <t:\d+:D>: Zibbo · Holy, \+Zibbowar · Protection$/);
-        expect(lines[1]).toMatch(/^⛔ \*\*Raid 2\*\*.*None of the picked characters fits \(Zibbo · Holy skipped: class does not fit this raid; /);
-        expect(lines[2]).toMatch(/^⛔ \*\*Raid 3\*\*.*signup deadline/);
+        expect(lines[1]).toMatch(/^⛔ \*\*Raid 2\*\*.*signup deadline/);
         expect(mocks.signups.get(`eh-r1/${ANNA}`).characters.map((c) => c.character)).toEqual(["Zibbo", "Zibbowar"]);
         // done: the token is gone
-        expect(multi.getSession(tokenOf(id), ANNA)).toBeNull();
+        expect(multi.getSession(token, ANNA)).toBeNull();
+    });
+});
+
+describe("PuG-Server beitreten under the results (#904)", () => {
+    const RAID_SERVER = "300000000000000001";
+    const PARTNER = "300000000000000002";
+    let members;
+
+    beforeEach(() => {
+        members = { cache: new Map(), fetch: jest.fn(async () => { throw Object.assign(new Error("Unknown Member"), { code: 10007 }); }) };
+        discord.getGuild = jest.fn((id) => (id === RAID_SERVER ? { id, members } : null));
+    });
+    afterEach(() => { delete discord.getGuild; });
+
+    async function submitFrom(guildId) {
+        characters();
+        raids(2, () => ({ guildId: RAID_SERVER }));
+        const token = shownSession(["eh-r1", "eh-r2"]);
+        const submit = modalSubmit(`signup-multi:${token}:m:0`, { r0: ["zibbo|Priest-Holy"], r1: ["zibbo|Priest-Holy"] }, { message: { id: "step1" } });
+        submit.guildId = guildId;
+        await step.execute(submit);
+        return submit;
+    }
+
+    it("tells a member not on the raid's server to join it - one line, one check per server, after the defer", async () => {
+        const submit = await submitFrom(PARTNER);
+        expect(submit.deferUpdate.mock.invocationCallOrder[0]).toBeLessThan(members.fetch.mock.invocationCallOrder[0]);
+        expect(members.fetch).toHaveBeenCalledTimes(1);
+        const desc = submit.editReply.mock.calls[0][0].embeds[0].description;
+        expect(desc).toContain("Join the PuG server, otherwise you will not get pings and info.");
+        expect(desc.match(/Join the PuG server/g)).toHaveLength(1);
+        // no invite yet (#905): no link button, only "My signups"
+        expect(cardButtons(submit.editReply.mock.calls[0][0]).map((b) => b.label)).toEqual(["My signups"]);
+    });
+
+    it("says nothing to a member of the raid's server", async () => {
+        members.cache.set(ANNA, {});
+        const member = await submitFrom(PARTNER);
+        expect(member.editReply.mock.calls[0][0].embeds[0].description).not.toContain("PuG server");
+    });
+
+    it("says nothing on the raid's own server - not even a member check", async () => {
+        const home = await submitFrom(RAID_SERVER);
+        expect(members.fetch).not.toHaveBeenCalled();
+        expect(home.editReply.mock.calls[0][0].embeds[0].description).not.toContain("PuG server");
     });
 });
 
@@ -296,19 +324,14 @@ describe("Deutsch als Standard (Server-Sprache)", () => {
         mocks.access.config = {};
         characters();
         raids(2, (n) => (n === 2 ? { versionId: "andere-version" } : {}));
-        const open = mockInteraction({ customId: "talk-signup-all", userId: ANNA });
-        await all.execute(open);
-        const modal = open.showModal.mock.calls[0][0];
-        expect(modal.title).toBe("Für alle 2 Raids anmelden");
-        expect(modal.components[1].label).toBe("Status für alle");
-        expect(modal.components[1].component.options.map((o) => o.label)).toEqual(["Anmelden", "Vielleicht", "Spät", "Bank", "Abmelden"]);
-        const submit = modalSubmit(modal.custom_id, { all: ["zibbo|Priest-Holy"], status: ["late"] }, { message: { id: "overview" } });
+        const token = shownSession(["eh-r1", "eh-r2"], { status: "late" });
+        const submit = modalSubmit(`signup-multi:${token}:m:0`, { r0: ["zibbo|Priest-Holy"], r1: ["zibbo|Priest-Holy"] }, { message: { id: "step1" } });
         await step.execute(submit);
         const payload = submit.editReply.mock.calls[0][0];
         expect(payload.embeds[0].title).toBe("Anmeldung: 1 von 2 Raids gespeichert");
         const lines = payload.embeds[0].description.split("\n");
         expect(lines[0]).toMatch(/^✅ \*\*Raid 1\*\* · <t:\d+:D>: Zibbo · Heilig – Spät$/);
-        expect(lines[1]).toContain("Keiner der gewählten Charaktere passt (Zibbo · Heilig übersprungen: Klasse passt nicht zu diesem Raid");
+        expect(lines[1]).toMatch(/^⛔ \*\*Raid 2\*\*/);
     });
 
     it("zeigt Schritt 1 auf Deutsch", async () => {
