@@ -395,6 +395,7 @@
         "editSub": "{name} umbenennen oder einem Charakter aus den Logs zuordnen.",
         "removeTitle": "{name} aus dem Profil von {owner} nehmen?",
         "removeText": "Der Charakter verschwindet aus dem Profil. Logs, Loot und vergangene Anmeldungen bleiben.",
+        "removeSub": "Etwa ein vertippter zweiter Eintrag. Logs, Loot und Anmeldungen bleiben.",
         "noHit": "Kein Charakter passt zur Suche.",
         "none": "Noch hat kein Raider einen Charakter im Profil."
     }

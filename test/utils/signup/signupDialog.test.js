@@ -85,6 +85,17 @@ describe("buildSignupDialog", () => {
         expect(flat(payload).find((c) => c.label === "Open on the web").url).toBe("https://eh.example/signups?event=eh-kara");
     });
 
+    it("adds the „<server> beitreten“ link button to the last row when given one (#904)", () => {
+        const joinButton = { type: 2, style: 5, label: "Join the PuG server", url: "https://discord.gg/abcdef" };
+        const payload = dialog.buildSignupDialog(mocks.events.get("eh-kara"), ANNA, { lang: "en", joinButton });
+        expect(payload.components.length).toBeLessThanOrEqual(5);
+        const last = payload.components[payload.components.length - 1].components;
+        expect(last.length).toBeLessThanOrEqual(5);
+        expect(last.find((c) => c.label === "Join the PuG server")).toMatchObject({ style: 5, url: "https://discord.gg/abcdef" });
+        const without = dialog.buildSignupDialog(mocks.events.get("eh-kara"), ANNA, { lang: "en" });
+        expect(JSON.stringify(without)).not.toContain("PuG server");
+    });
+
     it("prefills the current signup and names the status", () => {
         mocks.signups.set(`eh-kara/${ANNA}`, { userId: ANNA, character: "Nerasol", spec: "Priest-Holy", role: "healer", status: "late", canAlso: [], comment: "später" });
         const payload = dialog.buildSignupDialog(mocks.events.get("eh-kara"), ANNA, { lang: "en" });
