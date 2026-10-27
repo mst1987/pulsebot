@@ -1,5 +1,7 @@
 const { json, jsonRequest, mockRes, routerClient, status } = require("../../helpers/http");
 
+// #927: Raid-Helper on for every server, as before it was set per server
+jest.mock("../../../src/utils/raidhelper/servers", () => require("../../helpers/raidhelperOn").serversMock());
 jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view

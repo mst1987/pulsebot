@@ -1,7 +1,13 @@
 // The dev-only Raid-Helper stand-in (src/utils/raidhelper/fixture.js): off in production whatever the variable says, never a network
 // request, refuses every write.
 jest.mock("../../../src/classes/raidhelper", () => jest.fn().mockImplementation(() => ({ real: true })));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+// one server with Raid-Helper switched on (#927): without one the client asks nothing at all
+jest.mock("../../../src/stores/settingsStore", () => ({
+    getConfig: jest.fn(() => ({
+        discordServers: { servers: [{ guildId: "111111111111111111" }] },
+        serverSettings: { "111111111111111111": { raidhelper: { enabled: true, apiKey: "fake-key-for-tests" } } },
+    })),
+}));
 
 const fs = require("fs");
 const { tempStoreFile } = require("../../helpers/tempStore");

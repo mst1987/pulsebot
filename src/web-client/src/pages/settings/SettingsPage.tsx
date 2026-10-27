@@ -15,6 +15,7 @@ import CategoryMatrix from "./CategoryMatrix";
 import ConnectionsSection from "./SettingsConnections";
 import AddonsSection from "./AddonsSection";
 import DiscordServersSection from "./SettingsDiscordServers";
+import RaidhelperServerSection from "./SettingsRaidhelperServer";
 import { ChannelPicker, RolePicker } from "../../components/settings/settingsUi";
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import {
@@ -379,6 +380,7 @@ export default function SettingsPage() {
                     onLootSystem={(id, system) => patch({ categoryLootSystem: { ...draft.categoryLootSystem, [id]: system } })}
                     categorySignupSource={draft.categorySignupSource}
                     signupSourceDefault={draft.signupSourceDefault}
+                    raidhelperActive={data.raidhelperActive}
                     categorySetupDms={draft.categorySetupDms}
                     categoryLanguage={draft.categoryLanguage}
                     categoryAttendance={draft.categoryAttendance}
@@ -565,6 +567,17 @@ export default function SettingsPage() {
                 <>
                     {head(activeSection, undefined, sectionLabel(activeSection), t("addon.settings.sectionSub"))}
                     <AddonsSection data={data} onConfig={(config) => setData({ ...data, config })} />
+                </>
+            );
+
+            case "raidhelper": return (
+                <>
+                    {head(activeSection, undefined, sectionLabel(activeSection), t("settings.raidhelperServer.sectionSub"))}
+                    <RaidhelperServerSection
+                        value={data.raidhelper || null}
+                        activeGuildId={data.activeGuildId}
+                        onSaved={(raidhelper) => setData({ ...data, raidhelper, raidhelperActive: raidhelper.active })}
+                    />
                 </>
             );
 

@@ -74,7 +74,7 @@ The groundwork for keeping loot, logs and settings strictly per Discord server.
 - **Saving**: `configStore.saveConfig` merges `serverSettings` per server and per key (`configSchema.mergeServerSettings`, like `versionSettings`): a save that sends the block of one server leaves the blocks of the other servers untouched, a save without `serverSettings` keeps them all.
 - **Reading** only through `services/discord/serverSettings.serverSetting(guildId, key, { config, fallback })`. Order: the server's value, else `fallback`, else the part's default. There is no global fallback: one server's value never answers for another.
 - **First server** = `discordServers.servers[0]`, else `config.guildId` (`serverOf.firstServerId`).
-- **Server of a raid** (`serverOf.guildOfEvent`): `event.guildId`; for Raid-Helper events without a `guildId` the server of their category (from `category-names.json`). `logcheck/matchableEvents.loadMatchableEvents` stamps the server it loads for on every row. Loot belongs to a server through its raid; nothing extra is stored for it.
+- **Server of a raid** (`serverOf.guildOfEvent`): `event.guildId`; for Raid-Helper events without a `guildId` the server of their category (from `category-names.json`). `logcheck/matchableEvents.loadMatchableEvents` stamps the server it loads for on every row. Loot belongs to a server through its raid; only a raidless bucket stores the server it was imported on (#919, rule in docs/loot-import.md „Loot je Discord-Server“).
 - **Server of a log** (`serverOf.logGuild`): rule *linked raid → origin server → first server*.
   - Stored in `log.guildId`.
   - `guildFrom` names the rule that applied: `event`, `channel` (the origin server) or `first`.
@@ -84,6 +84,7 @@ The groundwork for keeping loot, logs and settings strictly per Discord server.
 - **Linking at once**: `logStore.linkEvent(id, { …, guildId })` moves the log to its raid's server right away (`guildId`, `guildFrom: "event"`, the origin server stays in `postGuildId`); without a known raid server the log's server stays as it is. `unlinkEvent` falls back to the origin server at once, else to the first server. Every caller (`/api/cla` log-link and automatch, `logAutoLink`, `manualLog`) passes the raid's server through `matchableEvents.eventLinkFields`.
 - **Start run** `settingsMigration.migrateLogGuilds`: recomputes every log by the rule on each start and writes only on a change, followed by the line „logs.json: N Log(s) ihrem Discord-Server fest zugeordnet (#917)“. The server list is only read.
 - **Active server of a web request**: still only `web/http/activeGuild.activeGuildFor(req)`.
+- **Raid-Helper per server (#927)**: `serverSettings[guildId].raidhelper = { enabled, serverId, apiKey }`, off by default; own key, own synced list and own daily budget per server, a 429 pauses only that server. A server without Raid-Helper sends no request and offers only EventHelper. Details and migration: [raidhelper-retirement.md](raidhelper-retirement.md).
 
 ## Raid-Übersicht je Kategorie (`/createoverview`)
 

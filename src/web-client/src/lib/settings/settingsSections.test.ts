@@ -39,7 +39,7 @@ describe("the sections", () => {
 
     it("puts what belongs to one server in its block and what the bot shares under Alle Server", () => {
         const of = (group: SettingsGroup) => SETTINGS_SECTIONS.filter((s) => s.group === group).map((s) => s.id);
-        expect(of("server")).toEqual(["berechtigungen", "kategorien", "raids", "logs", "recruitment", "raidsheets"]);
+        expect(of("server")).toEqual(["berechtigungen", "kategorien", "raids", "logs", "recruitment", "raidsheets", "raidhelper"]);
         expect(of("global")).toEqual(["discordserver", "vollAdmins", "verbindungen", "spielversion", "topitems", "dungeons", "addons"]);
     });
 

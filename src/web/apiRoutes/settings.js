@@ -2,6 +2,8 @@ const { ok, error } = require("../http/apiResponse");
 const { requireFullAdmin } = require("../http/apiMiddleware");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
+const { maskedRaidhelper, raidhelperSettingOf, raidhelperActive } = require("../../utils/raidhelper/servers");
+const { firstServerId } = require("../../services/discord/serverOf");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates, getRaidTemplate,
 } = require("../../stores/settingsStore");
@@ -206,8 +208,12 @@ const GUILD_KEYS = ["discordServers"];
 // which role on the other server.
 const ROLE_SYNC_KEYS = ["roleSync"];
 
+// Raid-Helper per server (#927): its key is a credential like the ones above.
+// `raidhelper` is no config key, only the body's block for the active server.
+const RAIDHELPER_KEYS = ["raidhelper"];
+
 // Everything a non-admin settings user may neither read nor write.
-const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS, ...ADDON_KEYS];
+const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS, ...ADDON_KEYS, ...RAIDHELPER_KEYS];
 
 const DISCORD_SERVER_FIELDS = ["signupNoteChannelId", "guildBankChannelId"];
 
@@ -280,6 +286,10 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // the roles of all servers, named with their server. Full admins only.
         adminRoles: user.isAdmin ? adminRolesOf(config) : [],
         activeGuildId: guildId,
+        // Einstellungen → Server → Raid-Helper (#927): the active server's block, masked (never the key).
+        raidhelper: user.isAdmin ? maskedRaidhelper(raidhelperGuildOf(req, config), config) : null,
+        // whether the active server reads Raid-Helper at all - without it a category offers only EventHelper
+        raidhelperActive: raidhelperActive(raidhelperGuildOf(req, config), config),
     });
 });
 
@@ -558,7 +568,55 @@ function publicConfig(config) {
     if (config.github !== undefined) {
         out.github = { hasToken: !!(config.github && config.github.token) };
     }
+    if (config.serverSettings !== undefined) out.serverSettings = publicServerSettings(config.serverSettings);
     return out;
+}
+
+/** The per-server settings without a Raid-Helper key (#927): only whether one is set. */
+function publicServerSettings(serverSettings) {
+    const out = {};
+    for (const [guildId, block] of Object.entries(serverSettings || {})) {
+        if (!block || typeof block !== "object" || !block.raidhelper) {
+            out[guildId] = block;
+            continue;
+        }
+        const { apiKey, ...rest } = block.raidhelper || {};
+        out[guildId] = { ...block, raidhelper: { ...rest, hasKey: !!apiKey } };
+    }
+    return out;
+}
+
+/** The server the Raid-Helper section edits (#927): the active one, else the first. */
+function raidhelperGuildOf(req, config) {
+    return String(activeGuildFor(req) || firstServerId(config) || "");
+}
+
+const RAIDHELPER_KEY_MAX = 200;
+
+/**
+ * The stored Raid-Helper block of a server after a PATCH (#927): `enabled`,
+ * `serverId` (empty = the guild's own id) and `apiKey` (omit = keep, "" =
+ * clear) taken from the body, the rest kept. `{ error }` on a bad value.
+ */
+function raidhelperPatch(body, guildId, config) {
+    if (!guildId) return { error: "Kein Discord-Server bekannt." };
+    const raw = body && typeof body === "object" ? body : {};
+    const current = raidhelperSettingOf(guildId, config);
+    const next = { ...current };
+    if (raw.enabled !== undefined) next.enabled = raw.enabled === true;
+    if (raw.serverId !== undefined) {
+        const serverId = String(raw.serverId || "").trim();
+        if (serverId && !isSnowflake(serverId)) return { error: "Die Raid-Helper-Server-ID ist keine Discord-ID." };
+        next.serverId = serverId;
+    }
+    if (raw.apiKey !== undefined) {
+        const apiKey = String(raw.apiKey || "").trim();
+        if (apiKey.length > RAIDHELPER_KEY_MAX || /\s/.test(apiKey)) return { error: "Der Raid-Helper-Schlüssel ist ungültig." };
+        next.apiKey = apiKey;
+        // a key entered here replaces the .env fallback of the migrated server
+        if (apiKey) next.envKey = false;
+    }
+    return { block: next };
 }
 
 // The blizzard fields taken from a PATCH body besides the secret. The realm
@@ -671,6 +729,16 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         if (checked.links) partial.discordServers.links = checked.links;
     }
     if (body.raidhelperServerId !== undefined) partial.raidhelperServerId = String(body.raidhelperServerId).trim();
+    // #927: the active server's Raid-Helper block, merged here (the store replaces a server's key whole)
+    let raidhelperGuild = "";
+    if (body.raidhelper !== undefined) {
+        raidhelperGuild = raidhelperGuildOf(req, getConfig());
+        const patch = raidhelperPatch(body.raidhelper, raidhelperGuild, getConfig());
+        if (patch.error) return error(res, 400, "invalid_raidhelper", patch.error);
+        const servers = { ...(partial.serverSettings || {}) };
+        servers[raidhelperGuild] = { ...(servers[raidhelperGuild] || {}), raidhelper: patch.block };
+        partial.serverSettings = servers;
+    }
     if (body.officerRoleId !== undefined) partial.officerRoleId = String(body.officerRoleId).trim();
     if (body.applicationChannelId !== undefined) partial.applicationChannelId = String(body.applicationChannelId).trim();
     if (body.categoryIds !== undefined) partial.categoryIds = asStringArray(body.categoryIds);
@@ -804,8 +872,12 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // redraw them now instead of at the next five-minute sweep (not awaited, never throws).
     else if (guildBankOf(saved) !== guildBankOf(before)) void availabilityPanel.refreshPanels({ config: saved }).catch(() => {});
     // a switch may have changed the raider roles (#739: they mirror the new roster) - answer what is stored now
-    const answer = viewConfig(switchedCategories.length ? getConfig() : saved, { isAdmin: !!(user && user.isAdmin), guildId: activeGuildFor(req) });
-    ok(res, { config: answer, switchedCategories, deactivatedCategories: deactivated });
+    ok(res, {
+        config: viewConfig(switchedCategories.length ? getConfig() : saved, { isAdmin: !!(user && user.isAdmin), guildId: activeGuildFor(req) }),
+        switchedCategories,
+        deactivatedCategories: deactivated,
+        ...(raidhelperGuild ? { raidhelper: maskedRaidhelper(raidhelperGuild, saved) } : {}),
+    });
 });
 
 /** The categories a PATCH takes out of the active list, with what pauses (#744) — logged once. */
@@ -882,7 +954,7 @@ const getCategoryDeactivate = withUser({}, async ({ res, url }) => {
  * closed (#739: readable, no role sync); raids, loot and
  * logs stay. 409 while Discord still has it, 503 while that is unknown.
  */
-const closeCategoryHandler = withUser({ csrf: true, body: true }, async ({ body, res, user }) => {
+const closeCategoryHandler = withUser({ csrf: true, body: true }, async ({ body, req, res, user }) => {
     const categoryId = String((body && body.categoryId) || "").trim();
     const config = getConfig();
     const name = categoryNamesOf(config).get(categoryId) || "";
@@ -890,7 +962,7 @@ const closeCategoryHandler = withUser({ csrf: true, body: true }, async ({ body,
     const result = categoryLifecycle.closeCategory(categoryId, { config, actor: String((user && user.id) || "") });
     if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
     console.log(`[settings] Kategorie ${name || categoryId} abgeschlossen (#744) von ${(user && (user.name || user.id)) || "?"}`);
-    ok(res, { ...result, name, config: publicConfig(getConfig()), missingCategories: missingCategoriesOf(getConfig()) });
+    ok(res, { ...result, name, config: viewConfig(getConfig(), { isAdmin: !!(user && user.isAdmin), guildId: activeGuildFor(req) }), missingCategories: missingCategoriesOf(getConfig()) });
 });
 
 /** Category id → name over every server (live list backed by the snapshot); "" when unknown. */

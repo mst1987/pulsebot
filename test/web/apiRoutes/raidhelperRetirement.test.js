@@ -1,7 +1,7 @@
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: { id: "1", name: "Orga", isAdmin: true } }));
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "active-guild") }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ discordServers: { servers: [{ guildId: "first-guild" }] } })) }));
 jest.mock("../../../src/services/discord/guildRoles", () => ({ serverIds: jest.fn(() => ["event-guild"]) }));
 jest.mock("../../../src/web/events/raidhelperRetirement", () => ({
     loadChecklist: jest.fn(async () => ({ ready: true, items: [] })),
@@ -17,6 +17,7 @@ jest.mock("../../../src/services/events/raidhelperSync", () => ({
 }));
 
 const { requireFullAdmin, requireCsrf } = require("../../../src/web/http/apiMiddleware");
+const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const raidhelperSync = require("../../../src/services/events/raidhelperSync");
 const { readJsonBody } = require("../../../src/web/http/apiBody");
 const retirement = require("../../../src/web/events/raidhelperRetirement");
@@ -38,13 +39,24 @@ describe("apiRoutes/raidhelperRetirement (#291)", () => {
         const res = mockRes();
         await getRetirement({}, res);
         expect(body(res)).toEqual({ checklist: { ready: true, items: [] } });
+        expect(retirement.loadChecklist).toHaveBeenCalledWith({ guildId: "active-guild" });
+    });
+
+    // #927: Raid-Helper is set per server; without an active one the first server counts
+    it("works on the active server, else the first", async () => {
+        activeGuildFor.mockReturnValueOnce("");
+        await getRetirement({}, mockRes());
+        expect(retirement.loadChecklist).toHaveBeenCalledWith({ guildId: "first-guild" });
+        activeGuildFor.mockReturnValueOnce("");
+        await getSync({}, mockRes());
+        expect(raidhelperSync.syncStatus).toHaveBeenCalledWith("first-guild");
     });
 
     it("POST switches with the admin's name and answers 409 when not ready", async () => {
         readJsonBody.mockResolvedValueOnce({ disabled: true });
         const res = mockRes();
         await postRetirement({}, res);
-        expect(retirement.setRaidhelperDisabled).toHaveBeenCalledWith(true, { byName: "Orga" });
+        expect(retirement.setRaidhelperDisabled).toHaveBeenCalledWith(true, { guildId: "active-guild", byName: "Orga" });
         expect(body(res).checklist.disabled).toBe(true);
 
         retirement.setRaidhelperDisabled.mockResolvedValueOnce({ error: "Erst die Pflichtpunkte", code: "not_ready", blockers: ["categories"] });
@@ -87,12 +99,13 @@ describe("apiRoutes/raidhelperRetirement (#291)", () => {
             const res = mockRes();
             await getSync({}, res);
             expect(body(res)).toEqual({ syncedAt: 5, events: 2 });
+            expect(raidhelperSync.syncStatus).toHaveBeenCalledWith("active-guild");
         });
 
         it("POST syncs now", async () => {
             const res = mockRes();
             await postSync({}, res);
-            expect(raidhelperSync.refreshNow).toHaveBeenCalledTimes(1);
+            expect(raidhelperSync.refreshNow).toHaveBeenCalledWith("active-guild");
             expect(body(res)).toEqual({ syncedAt: 6, throttled: false });
         });
 

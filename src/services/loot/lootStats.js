@@ -7,6 +7,7 @@
 // the numbers are what gets tested: the route only adds class colours and icons.
 
 const { listAll, charLootPreview } = require("../../stores/lootStore");
+const { serverContext, lootOfGuild, guildOfLootEvent } = require("./lootServer");
 const { wowheadLink } = require("../../config/wowheadItemAliases");
 const { annotatedCharacters } = require("../characters/characterInfo");
 const { reasonCatalog, reasonMeta } = require("../../utils/loot/lootReasons");
@@ -97,7 +98,7 @@ function reasonsByCharacter(rows = listAll()) {
 
 // One award of one item, as the item table's raider badge needs it: who got it,
 // when, in which raid and for what reason.
-function award(it, known, versionCtx) {
+function award(it, known, versionCtx, serverCtx) {
     return {
         // The stored row's id: the item-details dialog deletes a single award
         // through it (POST /api/history/loot-delete).
@@ -119,6 +120,9 @@ function award(it, known, versionCtx) {
         // version (#737, own event or Raid-Helper snapshot), else TBC
         // ("ohne Event = tbc") — the "Items" tab filters awards by it.
         versionId: eventVersion(versionCtx, it.eventId),
+        // The Discord server of the award's raid (#919): the client drops an
+        // award of another server as a second line of defence.
+        guildId: guildOfLootEvent(serverCtx, it.eventId, it.categoryId, it.guildId),
     };
 }
 
@@ -137,7 +141,7 @@ function award(it, known, versionCtx) {
  *             tier, boss, tokenTier, categoryIds, count, lastAwardedAt,
  *             awards: [...] }]
  */
-function itemCatalog(rows = listAll()) {
+function itemCatalog(rows = listAll(), serverCtx = serverContext()) {
     const info = new Map(annotatedCharacters().map((c) => [c.key, c]));
     const versionCtx = { eventCache: new Map() };
     const byItem = new Map();
@@ -173,7 +177,7 @@ function itemCatalog(rows = listAll()) {
         if (it.categoryId) entry.categoryIds.add(it.categoryId);
         entry.count += 1;
         entry.lastAwardedAt = Math.max(entry.lastAwardedAt, it.awardedAt || 0);
-        entry.awards.push(award(it, info.get(it.characterKey) || {}, versionCtx));
+        entry.awards.push(award(it, info.get(it.characterKey) || {}, versionCtx, serverCtx));
     }
     return [...byItem.values()]
         .map((e) => ({
@@ -190,11 +194,14 @@ function itemCatalog(rows = listAll()) {
  * hard-codes a reason colour or a raid name — same rule the class colours
  * already follow.
  */
-function lootStats({ versionId = "" } = {}) {
+function lootStats({ versionId = "", guildId } = {}) {
     // One game version only (#563, the content switch): the loot of its raids.
+    // One Discord server only (#919): the loot of the active server's raids.
     const ctx = { eventCache: new Map() };
-    const rows = versionId ? listAll().filter((it) => eventVersion(ctx, it.eventId) === versionId) : listAll();
-    const items = itemCatalog(rows);
+    const serverCtx = serverContext();
+    const ofGuild = lootOfGuild(listAll(), guildId, serverCtx);
+    const rows = versionId ? ofGuild.filter((it) => eventVersion(ctx, it.eventId) === versionId) : ofGuild;
+    const items = itemCatalog(rows, serverCtx);
     // Only offer filters that actually match something — a dropdown full of
     // raids the guild has never set foot in is noise.
     const usedContents = new Set(items.map((i) => i.contentId).filter(Boolean));

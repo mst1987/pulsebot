@@ -464,7 +464,7 @@ describe("classes/Raidhelper", () => {
 
         it("sends nothing once the budget is used up, and says why", async () => {
             const hour = String(Math.floor(Date.now() / 3600000));
-            budgetStore.writeBudget({ hours: { [hour]: budget.capFor("read") } });
+            budgetStore.writeBudget("", { hours: { [hour]: budget.capFor("read") } });
             respondWith({ postedEvents: [] });
             await expect(new Raidhelper().fetchEvents(1)).rejects.toMatchObject({ code: "raidhelper_budget" });
             expect(await new Raidhelper().getSetup("e1")).toBeUndefined();

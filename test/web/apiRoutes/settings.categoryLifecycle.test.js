@@ -121,6 +121,25 @@ describe("web/apiRoutes/settings: a category's life (#744)", () => {
         expect(json(still).error.code).toBe("category_exists");
     });
 
+    // #925: the answer carries the config like GET does - a limited settings user
+    // never sees the rights of any server, a full admin those of the active one only.
+    it("answers a close with the config as the caller may see it (#925)", async () => {
+        settingsStore.getConfig.mockReturnValue({
+            ...CONFIG, adminRoleIds: ["adm"],
+            serverSettings: { g1: { orgaRoleIds: ["o1"] }, g2: { orgaRoleIds: ["o2"], userPermissions: { u9: { loot: { read: true } } } } },
+        });
+        auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, access: { settings: { read: true, write: true } } });
+        const limited = json(await post("/api/settings/category-close", { categoryId: "gone" })).data.config;
+        expect(limited.adminRoleIds).toBeUndefined();
+        expect(limited.orgaRoleIds).toBeUndefined();
+        expect(JSON.stringify(limited.serverSettings)).not.toMatch(/o1|o2|u9/);
+
+        auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+        const full = json(await post("/api/settings/category-close", { categoryId: "gone" })).data.config;
+        expect(full.orgaRoleIds).toEqual(["o1"]);
+        expect(JSON.stringify(full.serverSettings)).not.toMatch(/o2|u9/);
+    });
+
     it("needs settings write for closing", async () => {
         auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, access: { settings: { read: true, write: false } } });
         const res = await post("/api/settings/category-close", { categoryId: "gone" });
