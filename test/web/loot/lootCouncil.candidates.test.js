@@ -393,6 +393,26 @@ describe("web/loot/lootCouncil — wer das Item überhaupt tragen kann", () => {
         expect(owned).toEqual([expect.objectContaining({ key: "magier", source: "awarded" })]);
     });
 
+    // #923: a Classic category on a server whose main version is TBC. The armory
+    // answer was fetched for Classic (its realm), so only the Classic scope sees
+    // that the mage already wears the staff; without it the TBC gear counts.
+    it("candidateSplit sieht das mit versionId geprimte Armory", () => {
+        const rows = mixedRoster();
+        const classicGear = new Map(rows.map((r) => [r.key, r.key === "magier"
+            ? gearOf([item(15, ZHARDOOM)], { key: "magier", character: "Magier", className: "Mage" })
+            : gearOf([], { key: r.key, character: r.character, className: r.className })]));
+        mockGearByCharacter.mockImplementation(({ versionId, guildId } = {}) => (
+            versionId === "classic" && guildId === "G1" ? classicGear : new Map()));
+        const scoped = candidateSplit(ZHARDOOM, rows, null, { versionId: "classic", guildId: "G1" });
+        expect(scoped.owned).toEqual([expect.objectContaining({ key: "magier", source: "worn" })]);
+        expect(mockGearByCharacter).toHaveBeenLastCalledWith(expect.objectContaining({ versionId: "classic", guildId: "G1" }));
+        // without the scope: another version's gear, the mage is a candidate again
+        expect(candidateSplit(ZHARDOOM, rows).owned).toEqual([]);
+        // the BiS overview hands the same scope on
+        bisGaps(rows, { versionId: "classic", guildId: "G1" });
+        expect(mockGearByCharacter).toHaveBeenLastCalledWith(expect.objectContaining({ versionId: "classic", guildId: "G1" }));
+    });
+
     it("hat niemanden unter „schon da“, wenn keiner das Item hat", () => {
         expect(candidateSplit(ZHARDOOM, mixedRoster()).owned).toEqual([]);
     });

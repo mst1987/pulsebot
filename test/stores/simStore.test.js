@@ -164,6 +164,14 @@ describe("stores/simStore", () => {
             expect(roleFor("wer?")).toBe("");
         });
 
+        // #923: the caller's council version and server decide whose armory answers
+        // count - a Classic council on a TBC-main server simulates Classic's gear
+        it("reads the gear in the caller's version and server", async () => {
+            simStore.startCouncilSim("job1c", subjects, [], { versionId: "classic", guildId: "G1" });
+            await settle("job1c");
+            expect(mockGearByCharacter.mock.calls[0][0]).toMatchObject({ versionId: "classic", guildId: "G1" });
+        });
+
         it("reports each item as a delta against that one baseline", async () => {
             mockSimulate
                 .mockResolvedValueOnce({ dps: 1800, available: true, supported: true, error: "", warnings: [] })

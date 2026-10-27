@@ -932,6 +932,9 @@ function legacyLogChannelIds(stored) {
  * server has none (#917). The parts 4-8 of epic #926 add theirs, one block each.
  */
 const SERVER_SETTING_DEFAULTS = Object.freeze({
+    // #923: own realm/armory/log templates per version, field by field over
+    // config.versionSettings (stores/versionSettingsSchema.js normalizeVersionOverrides)
+    versionOverrides: {},
     // #921: the channels watched for Warcraft Logs links, each with the game
     // version its logs belong to: [{ channelId, versionId }].
     logChannels: Object.freeze([]),

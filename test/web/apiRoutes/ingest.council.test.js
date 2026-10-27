@@ -102,7 +102,8 @@ describe("GET /api/ingest/council", () => {
         getConfig.mockReturnValue({ categoryIds: ["c1", "c2"], discordServers: { servers: [{ guildId: "gA" }, { guildId: "gB" }] } });
         await authed("/api/ingest/council", { category: "c2" });
         expect(listCategories).toHaveBeenLastCalledWith("gB");
-        expect(councilRoster.mock.calls[0][0]).toMatchObject({ categoryId: "c2" });
+        // the same server reads the gear in its own realm (#923)
+        expect(councilRoster.mock.calls[0][0]).toMatchObject({ categoryId: "c2", guildId: "gB" });
         await authed("/api/ingest/council");
         expect(listCategories).toHaveBeenLastCalledWith("gA");
     });

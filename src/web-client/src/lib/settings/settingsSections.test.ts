@@ -39,7 +39,7 @@ describe("the sections", () => {
 
     it("puts what belongs to one server in its block and what the bot shares under Alle Server", () => {
         const of = (group: SettingsGroup) => SETTINGS_SECTIONS.filter((s) => s.group === group).map((s) => s.id);
-        expect(of("server")).toEqual(["berechtigungen", "kategorien", "raids", "logs", "recruitment", "raidsheets", "raidhelper"]);
+        expect(of("server")).toEqual(["berechtigungen", "kategorien", "raids", "logs", "recruitment", "versionlinks", "raidsheets", "raidhelper"]);
         expect(of("global")).toEqual(["discordserver", "verbindungen", "spielversion", "topitems", "dungeons", "addons"]);
     });
 
@@ -98,7 +98,7 @@ describe("merged-away section ids", () => {
 
 describe("the save bar", () => {
     it("leaves out the sections that save themselves", () => {
-        for (const id of ["verbindungen", "discordserver", "raidsheets"]) {
+        for (const id of ["verbindungen", "discordserver", "raidsheets", "versionlinks"]) {
             expect({ id, standalone: byId(id)?.standalone, inForm: savesWithForm(id) }).toEqual({ id, standalone: true, inForm: false });
         }
         for (const id of ["berechtigungen", "kategorien", "raids", "topitems", "logs", "recruitment"]) {

@@ -44,7 +44,7 @@ const { normalizeCategorySignupCharacters } = require("../../services/signups/si
 const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../services/events/contentVersions");
 // Makes Excel read the umlauts of an archive CSV as UTF-8.
 const BOM = String.fromCharCode(0xfeff);
-const { defaultVersionSettings, defaultColorOf } = require("../../stores/versionSettingsSchema");
+const { defaultVersionSettings, defaultColorOf, normalizeVersionOverrides, overrideProblems } = require("../../stores/versionSettingsSchema");
 const { expectedRoleIds, syncRosterRoleIds } = require("../../services/roster/categoryRoles");
 const { switchRosterPreview, rostersAfterSwitches } = require("../../services/roster/rosterVersionSwitch");
 
@@ -223,7 +223,7 @@ const guildBankOf = (config) => String(((config && config.discordServers) || {})
 // its key here, so its PATCH is checked by serverSettingsTarget() below.
 // categoryIds (#926) is one list over every server, but a save changes only the
 // saving server's part (mergedCategoryIds) - so it is bound to the tab's server too.
-const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper", "categoryIds"];
+const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper", "versionOverrides", "categoryIds"];
 // Server-bound keys that, without an active server, edit the first server
 // (#927 Raid-Helper, as its section shows; #926 the categories, shown on the
 // first server then); every other key then needs one.
@@ -642,6 +642,25 @@ function versionSettingsPatch(raw) {
     return { partial };
 }
 
+// --- per-server version overrides (#923, epic #926) ---
+/**
+ * The armory/log templates and Blizzard realm the active server sets for
+ * itself, from `body.versionOverrides` (sent whole for the server the page
+ * loaded; an empty field falls back to the version's standard). A filled value
+ * the schema would throw away is an error with its field, like
+ * versionSettingsPatch. Which server it is decides serverSettingsTarget().
+ * @returns {{ block: object } | { error: string, field: string, versionId: string }}
+ */
+function versionOverridesPatch(raw) {
+    const problem = overrideProblems(raw)[0];
+    if (problem) {
+        const label = (VERSIONS.find((v) => v.id === problem.versionId) || { label: problem.versionId }).label;
+        return { error: `${label}: ${problem.field} ist ungültig.`, field: problem.field, versionId: problem.versionId };
+    }
+    return { block: normalizeVersionOverrides(raw) };
+}
+// --- end per-server version overrides ---
+
 /**
  * The addon list of a PATCH (#818). Einstellungen -> Module -> Addons is the
  * only sender and saves it on its own: the list sent whole (an edit, so the
@@ -823,6 +842,13 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         const patch = versionSettingsPatch(body.versionSettings);
         if (patch.error) return error(res, 400, "invalid_version_settings", patch.error);
         partial.versionSettings = patch.partial;
+    }
+    // Per server (#923): the active server's own armory/log templates and realm per version.
+    if (body.versionOverrides !== undefined) {
+        const overrides = versionOverridesPatch(body.versionOverrides);
+        if (overrides.error) return error(res, 400, "invalid_version_settings", overrides.error);
+        partial.serverSettings = { ...(partial.serverSettings || {}) };
+        partial.serverSettings[server.guildId] = { ...(partial.serverSettings[server.guildId] || {}), versionOverrides: overrides.block };
     }
     // Sent as the complete list; settingsStore normalises it and replaces the
     // stored one, so removing an item is just leaving it out.

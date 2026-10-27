@@ -5,7 +5,7 @@ import type { DiscordServers, DiscordServerCard } from "./discordServers";
 import type { EventSource, PlanningMode } from "./raidDetail";
 import type { TextChannel } from "./recruitment";
 import type { BotAccessRule } from "./botCommands";
-import type { VersionSettingsBlock } from "../lib/settings/versionLinks";
+import type { VersionOverrides, VersionSettingsBlock } from "../lib/settings/versionLinks";
 import type { CapabilityMatrix } from "../lib/settings/versionFeatures";
 import type { AddonSetting } from "./addons";
 
@@ -57,8 +57,11 @@ export type AdminConfig = {
     applicationChannelId: string;
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
-    /** Settings per Discord server (#917); the log channels with their version (#921). */
-    serverSettings?: Record<string, { logChannels?: LogChannel[] }>;
+    /**
+     * Settings per Discord server (#917): the log channels with their version
+     * (#921), its own armory/log templates and realm per version (#923).
+     */
+    serverSettings?: Record<string, { logChannels?: LogChannel[]; versionOverrides?: VersionOverrides }>;
     raidDefaults: { channelId: string };
     // The default raid template per category (category id → template id).
     categoryRaidTemplate: Record<string, string>;
@@ -507,4 +510,15 @@ export function createIngestToken(
 
 export function deleteIngestToken(id: string): Promise<{ id: string }> {
     return send("POST", "/api/settings/ingest-tokens/delete", { id });
+}
+
+/**
+ * Saves the active server's own armory/log templates and realm per version
+ * (#923). The map is sent whole for that server: a version left out falls back
+ * to the standard. A wrong template comes back as 400 invalid_version_settings.
+ * `guildId` is the server the page loaded (`serverSettingsGuildId`): a session
+ * switched to another server since answers 409 `server_switched` (#921).
+ */
+export function saveVersionOverrides(guildId: string, versionOverrides: VersionOverrides): Promise<{ config: AdminConfig }> {
+    return send("PATCH", "/api/settings", { versionOverrides, serverSettingsGuildId: guildId });
 }

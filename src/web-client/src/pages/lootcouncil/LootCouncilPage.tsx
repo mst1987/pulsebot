@@ -153,7 +153,8 @@ function CouncilPage() {
     const loaded = useRef(false);
     // Sim results live next to the data, not in it: the page is complete
     // without them and they are only ever an improvement laid over the top.
-    const { sim, setSim, simRunning, runSim } = useCouncilSim({ roster: view.roster || "", category: view.category, version: contentVersion });
+    const councilScope = { roster: view.roster || "", category: view.category, version: contentVersion };
+    const { sim, setSim, simRunning, runSim } = useCouncilSim(councilScope);
     // The open WoWSims export, if any — one raider at a time.
     const [exportData, setExportData] = useState<CouncilExport | null>(null);
     // Which per-raider actions are in flight, as "action:character" — two
@@ -280,7 +281,7 @@ function CouncilPage() {
     /** That raider's loadout as a WoWSims import, to check our number with. */
     const showExport = (character: string) => runFor(
         `export:${character}`,
-        async () => setExportData(await getCouncilExport(character)),
+        async () => setExportData(await getCouncilExport(character, councilScope)),
     );
 
     /** Als was ein Raider eingeplant wird — reicht bis ins Gear durch, also danach alles neu. */
@@ -303,7 +304,7 @@ function CouncilPage() {
     const loadArmory = (characters: string[], key: string) => runFor(key, async () => {
         const result = await jobs.run(
             { label: t("lootcouncil.page.armoryLoading"), detail: characters.length === 1 ? characters[0] : t("lootcouncil.page.armoryRaiders", { count: characters.length }), quiet: true },
-            () => refreshCouncilArmory(characters),
+            () => refreshCouncilArmory(characters, councilScope),
         );
         // A failure is already on the toast.
         if (!result) return;

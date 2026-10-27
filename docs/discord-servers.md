@@ -85,6 +85,7 @@ The groundwork for keeping loot, logs and settings strictly per Discord server.
 - **Start run** `settingsMigration.migrateLogGuilds`: recomputes every log by the rule on each start and writes only on a change, followed by the line „logs.json: N Log(s) ihrem Discord-Server fest zugeordnet (#917)“. The server list is only read.
 - **Active server of a web request**: still only `web/http/activeGuild.activeGuildFor(req)`.
 - **Raid categories per server** (`services/events/categoryGuild.js`, prod incident 2026-10-27): `config.categoryIds` stays one global list; the settings page shows and saves only the active server's part. A category counts as deleted only when its server is **proven and configured** and the bot sees that server — a server missing from `servers` makes its categories "Server unklar", never deleted and never closable. Details: docs/events.md "Which server a category belongs to".
+- **Armory/log links and realm per server (#923)**: `serverSettings[<guildId>].versionOverrides`, field by field over `versionSettings` (Einstellungen → Server → Links & Realm) — see docs/game-versions.md.
 - **Raid-Helper per server (#927)**: `serverSettings[guildId].raidhelper = { enabled, serverId, apiKey }`, off by default; own key, own synced list and own daily budget per server, a 429 pauses only that server. A server without Raid-Helper sends no request and offers only EventHelper. Details and migration: [raidhelper-retirement.md](raidhelper-retirement.md).
 
 ## Raid-Übersicht je Kategorie (`/createoverview`)
