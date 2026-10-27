@@ -134,11 +134,11 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
         areas: globalOrga
             ? {
                 lastReport: report,
-                newLoot: loadNewLoot(lastRaid ? lastRaid.startTime : 0, { versionId }),
+                newLoot: loadNewLoot(lastRaid ? lastRaid.startTime : 0, { versionId, guildId }),
                 roster: loadRosterFigures(guildId, { versionId }),
             }
             : null,
-        topLoot: loadTopLoot(5, versionId),
+        topLoot: loadTopLoot(5, versionId, guildId),
         recentEvents: {
             ...recentEvents,
             events: linkCheck.withChannelState(guildId, recentRows).map((ev) => ({ ...ev, icon: zoneFor(ev.title).icon })),

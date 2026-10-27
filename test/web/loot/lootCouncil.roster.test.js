@@ -408,3 +408,20 @@ describe("web/loot/lootCouncil — raiders the council set aside", () => {
         expect(councilRoster({}).rows.map((r) => r.character)).toEqual(["Weg"]);
     });
 });
+
+// Only the loot of the active Discord server counts (#919): a raider whose only
+// loot came from server gB's raid is no candidate on gA.
+describe("councilRoster per server", () => {
+    it("drops a raider known only from another server's loot", () => {
+        mockListAll.mockReturnValue([
+            lootRow({ eventId: "manual-a", guildId: "gA" }),
+            lootRow({ eventId: "manual-b", guildId: "gB", characterKey: "hauer", character: "Hauer" }),
+        ]);
+        mockAnnotated.mockReturnValue([
+            { key: "devihra", className: "Priest", spec: "Shadow" },
+            { key: "hauer", className: "Warrior", spec: "Fury" },
+        ]);
+        expect(councilRoster({ guildId: "gA" }).rows.map((r) => r.character)).toEqual(["Devihra"]);
+        expect(councilRoster().rows.map((r) => r.character).sort()).toEqual(["Devihra", "Hauer"]);
+    });
+});

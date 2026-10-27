@@ -526,7 +526,7 @@ describe("web/apiRoutes/history", () => {
             expect(lootStore.addImport).toHaveBeenCalledWith(
                 "manual-ssc-tk-12-07",
                 [{ itemName: "Sword" }],
-                { categoryId: "", eventLabel: "SSC/TK — 12.07." },
+                { categoryId: "", eventLabel: "SSC/TK — 12.07.", guildId: "" },
             );
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
             expect(json(res)).toEqual({ data: { eventId: "manual-ssc-tk-12-07", eventLabel: "SSC/TK — 12.07.", categoryId: "", added: 1, skipped: 0 } });
@@ -548,7 +548,7 @@ describe("web/apiRoutes/history", () => {
             expect(lootStore.addImport).toHaveBeenCalledWith(
                 "manual-pug-raid",
                 [{ itemName: "Sword" }],
-                { categoryId: "cat-pug", eventLabel: "Pug-Raid" },
+                { categoryId: "cat-pug", eventLabel: "Pug-Raid", guildId: "guild-1" },
             );
             expect(json(res).data).toMatchObject({ eventId: "manual-pug-raid", categoryId: "cat-pug" });
         });
@@ -580,7 +580,7 @@ describe("web/apiRoutes/history", () => {
             await post("/api/history/import", { data: "text", event: "__manual__", manualLabel: "Pug-Raid", categoryId: "cat-pug" });
 
             expect(lootStore.addImport).toHaveBeenCalledWith(
-                "manual-pug-raid", [{ itemName: "Sword" }], { categoryId: "cat-pug", eventLabel: "Pug-Raid" },
+                "manual-pug-raid", [{ itemName: "Sword" }], { categoryId: "cat-pug", eventLabel: "Pug-Raid", guildId: "guild-1" },
             );
         });
 
@@ -621,7 +621,7 @@ describe("web/apiRoutes/history", () => {
 
             const res = await post("/api/history/import", { data: "text", event: "__auto__", tool: "gargul" });
 
-            expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara" });
+            expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara", guildId: "" });
             expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryLootTool: { cat1: "gargul" } });
             expect(json(res)).toEqual({ data: { eventId: "e1", eventLabel: "Kara", categoryId: "cat1", added: 3, skipped: 1 } });
         });
@@ -642,7 +642,7 @@ describe("web/apiRoutes/history", () => {
 
             const res = await post("/api/history/import", { data: "text", event: "e1", categoryId: "cat-pug" });
 
-            expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara" });
+            expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara", guildId: "guild-1" });
             expect(json(res).data.categoryId).toBe("cat1");
         });
 
@@ -658,7 +658,7 @@ describe("web/apiRoutes/history", () => {
 
             const res = await post("/api/history/import", { data: "text", event: "e1" });
 
-            expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara" });
+            expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara", guildId: "" });
             expect(json(res)).toEqual({ data: { eventId: "e1", eventLabel: "Kara", categoryId: "cat1", added: 1, skipped: 0 } });
         });
     });
@@ -853,7 +853,7 @@ describe("web/apiRoutes/history", () => {
                 response: "Mainspec",
                 offspec: false,
                 awardedAt: 5000,
-            })], { categoryId: "cat1", eventLabel: "SSC/TK" });
+            })], { categoryId: "cat1", eventLabel: "SSC/TK", guildId: "" });
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
             expect(json(res).data).toMatchObject({ eventId: "e1", eventLabel: "SSC/TK", added: 1 });
         });
@@ -979,7 +979,7 @@ describe("web/apiRoutes/history", () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             await get("/api/history/loot-awards", {});
             expect(lootAwards.listAwards).toHaveBeenCalledWith({
-                topOnly: true, search: "", categoryId: "", contentId: "", reason: "", page: 1, sort: "date", dir: "desc", versionId: "tbc",
+                topOnly: true, search: "", categoryId: "", contentId: "", reason: "", page: 1, sort: "date", dir: "desc", versionId: "tbc", guildId: "",
             });
         });
 
@@ -989,7 +989,7 @@ describe("web/apiRoutes/history", () => {
                 top: "0", q: "vashj", category: "cat1", content: "ssc", reason: "offspec", page: "3",
             });
             expect(lootAwards.listAwards).toHaveBeenCalledWith({
-                topOnly: false, search: "vashj", categoryId: "cat1", contentId: "ssc", reason: "offspec", page: 3, sort: "date", dir: "desc", versionId: "tbc",
+                topOnly: false, search: "vashj", categoryId: "cat1", contentId: "ssc", reason: "offspec", page: 3, sort: "date", dir: "desc", versionId: "tbc", guildId: "",
             });
         });
 

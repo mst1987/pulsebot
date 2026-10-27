@@ -6,6 +6,7 @@
 // and paged). Both therefore show identical rows — the tab is the card's full
 // version, not a second implementation of it.
 const { listAll: listAllLoot, charLootPreview } = require("../../stores/lootStore");
+const { lootOfGuild } = require("../../services/loot/lootServer");
 const { characterMap } = require("../../stores/characterStore");
 const { getConfig } = require("../../stores/settingsStore");
 const { classLook } = require("./lootClassLook");
@@ -94,15 +95,16 @@ function sortAwards(rows, sort, dir) {
  *   versionId  restrict to awards of one game version (#545, "" = every one)
  *              — derived from the item's event like the roster does (#543):
  *              the raid's stored version (#737), else TBC.
+ *   guildId    the active Discord server (#919): only the loot of its raids
+ *              ("" = every server).
  */
 function listAwards({
-    topOnly = true, search = "", categoryId = "", contentId = "", reason = "", versionId = "",
+    topOnly = true, search = "", categoryId = "", contentId = "", reason = "", versionId = "", guildId = "",
     page = 1, pageSize = PAGE_SIZE, sort = "date", dir = "desc",
 } = {}) {
     const ids = topItemIds();
-    const scoped = topOnly
-        ? listAllLoot().filter((it) => ids.has(Number(it.itemId)))
-        : listAllLoot();
+    const all = lootOfGuild(listAllLoot(), guildId);
+    const scoped = topOnly ? all.filter((it) => ids.has(Number(it.itemId))) : all;
 
     // Built only when actually filtering — every other call pays nothing for this.
     const versionCtx = versionId ? { eventCache: new Map() } : null;

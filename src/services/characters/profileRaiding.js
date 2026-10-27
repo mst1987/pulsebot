@@ -25,6 +25,7 @@
 const profiles = require("../../stores/raiderProfileStore");
 const rosterStore = require("../../stores/rosterStore");
 const lootStore = require("../../stores/lootStore");
+const { serverContext, lootOfGuild } = require("../loot/lootServer");
 const dungeonRuns = require("../../stores/dungeonRunStore");
 const { characterTable, dungeonTables } = require("../dungeons/dungeonBoard");
 const { eventVersion } = require("./characterVersions");
@@ -64,8 +65,9 @@ function rosterMemberships(userId, versionId) {
 }
 
 /** The loot of one character in raids of `versionId`, newest first. */
-function lootOf(character, versionId, ctx) {
-    const rows = lootStore.listByCharacter(character.name).filter((it) => eventVersion(ctx, it.eventId) === versionId);
+function lootOf(character, versionId, ctx, guildId = "") {
+    // Only the loot of the active Discord server (#919, "" = every server).
+    const rows = lootOfGuild(lootStore.listByCharacter(character.name), guildId, ctx.server).filter((it) => eventVersion(ctx, it.eventId) === versionId);
     return {
         count: rows.length,
         lastAt: rows.length ? rows[0].awardedAt || 0 : 0,
@@ -152,11 +154,11 @@ function dungeonsOf(character, { runs, stored, ranked, places }) {
  * @param {string} versionId  a known version (the route resolves it)
  * @param {{ config?: object }} [opts]  the settings the feature "dungeonTimes" is read from
  */
-function profileRaiding(userId, versionId, { config } = {}) {
+function profileRaiding(userId, versionId, { config, guildId = "" } = {}) {
     const profile = profiles.getProfile(String(userId || ""));
     const chars = (profile.characters || []).filter((c) => versionOf(c) === versionId);
     // the raid of a loot row decides its version (the stored one, #737), read once per raid - as /loot does
-    const ctx = { eventCache: new Map() };
+    const ctx = { eventCache: new Map(), server: guildId ? serverContext({ config }) : null };
     // dungeon best times only where the version has them (feature "dungeonTimes": the rule set, not switched off)
     const dungeonTimes = featureOn(versionId, "dungeonTimes", { config });
     const runs = dungeonTimes ? dungeonRuns.listRuns(versionId) : [];
@@ -166,7 +168,7 @@ function profileRaiding(userId, versionId, { config } = {}) {
     const characters = {};
     for (const c of chars) {
         characters[c.key] = {
-            loot: lootOf(c, versionId, ctx),
+            loot: lootOf(c, versionId, ctx, guildId),
             // the category runs as Loot-Council: the character may keep wish items (services/characters/wishItems.js)
             lootCouncil: wishItemsAllowed(userId, c, { config }),
             dungeons: runs.length || stored.length ? dungeonsOf(c, { runs, stored, ranked, places }) : null,

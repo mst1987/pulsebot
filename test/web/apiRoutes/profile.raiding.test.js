@@ -7,6 +7,7 @@ jest.mock("../../../src/web/http/auth", () => ({
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
+    getActiveGuild: jest.fn(() => ""),
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({
     ...jest.requireActual("../../../src/stores/settingsStore"),

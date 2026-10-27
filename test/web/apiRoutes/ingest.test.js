@@ -186,7 +186,7 @@ describe("POST /api/ingest/loot", () => {
             const res = await upload(payload());
             expect(upsertPending).not.toHaveBeenCalled();
             expect(addImport).toHaveBeenCalledWith("e1", expect.any(Array), {
-                categoryId: "cat1", eventLabel: "SSC",
+                categoryId: "cat1", eventLabel: "SSC", guildId: "",
             });
             expect(json(res).data.results[0]).toMatchObject({
                 status: "appended", eventId: "e1", added: 1,

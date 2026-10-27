@@ -4,6 +4,8 @@ Endnutzer-Sicht: siehe [guide-web-admin.md#loot-council](guide-web-admin.md#loot
 
 The loot council — casters, healers, tanks, melee and hunters: per raider, what they were given lately, how far their gear still is from BiS, and what a given drop would be worth to them — the page a council argues over when a boss dies. `src/web/loot/lootCouncil.js` derives all of it **on read** from data the bot already keeps; nothing is stored.
 
+- **Only the loot of the active Discord server** (#919): `councilRoster({ guildId })` reads the loot through `lootOfGuild` (rule in [loot-import.md](loot-import.md#loot-je-discord-server-919-epic-926)), so drought, share, tenure and the category members count only that server's raids — also for linked servers. A raider known only from another server's loot is no candidate. The page passes the active server (`councilQuery.js`); `GET /api/ingest/council` has no session: `activeGuildFor` gives it the configured home server (`config.guildId`), so the addon gets that server's loot.
+
 - **The raid-category filter narrows the *roster*, not just the loot** (a category without a roster; with one, see the next point). Filtering only the items left every other raid's casters standing there with "0 Items" and a maximum drought — on top of the very ranking the page exists for. `categoryMembers()` decides who belongs, from three sources unioned because none is complete on its own:
   1. **the logs of that category's raids** (`categoryFromReports()`: Report → Log `reportRefId` → `eventId` → raid event → `categoryId`) — the strongest, because nobody maintains it: whoever stands in a Monday log raids on Mondays;
   2. **the loot awarded there** — covers raids that were never evaluated, but is blind to anyone who never won something;

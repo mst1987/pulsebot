@@ -135,6 +135,7 @@ async function ingestLoot(req, res) {
             const { added, skipped } = addLootImport(prior.eventId, session.items, {
                 categoryId: prior.categoryId,
                 eventLabel: prior.eventLabel,
+                guildId: prior.guildId || "",
             });
             if (added) {
                 rememberFromLoot(session.items);
@@ -319,7 +320,7 @@ async function ingestCouncil(req, res, url) {
     const opts = councilOptsFromQuery(new URLSearchParams({
         category: params.get("category") || "",
         role: params.get("role") || "",
-    }));
+    }), { guildId: activeGuildFor(req) });
     const built = councilRoster(opts);
     ok(res, councilSyncPayload(built, {
         categoryId: opts.categoryId,

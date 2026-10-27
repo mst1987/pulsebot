@@ -14,6 +14,7 @@
 // runs as a background job, while everything here answers in one page load.
 
 const { listAll } = require("../../stores/lootStore");
+const { lootOfGuild } = require("../../services/loot/lootServer");
 const { annotatedCharacters } = require("../../services/characters/characterInfo");
 const { classLook } = require("./lootClassLook");
 const { characterMap } = require("../../stores/characterStore");
@@ -883,6 +884,7 @@ function rosterContent(opts) {
  *               known, else the stored version of a raid it won loot in, else
  *               its category's, else TBC.
  *   manualIndex the hand lists' index (#760) instead of the store's (tests)
+ *   guildId     only the loot of this Discord server counts (#919, "" = all)
  */
 function councilRoster(opts = {}) {
     const { role = "", categoryId = "", charVersion = "" } = opts;
@@ -896,7 +898,8 @@ function councilRoster(opts = {}) {
     const charStore = characterMap();
     const now = Date.now();
 
-    const allLoot = listAll();
+    // Only the loot of the active Discord server (#919): need, drought and candidates.
+    const allLoot = lootOfGuild(listAll(), opts.guildId);
     const bisTier = content.bis ? (opts.bisTier || currentTier(allLoot)) : "";
     // Every candidate's game version (#545), read once — cheap (no network),
     // so it is always known: the version filter's own choices come from it

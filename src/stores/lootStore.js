@@ -76,6 +76,9 @@ function addImport(eventId, items, meta = {}) {
             categoryId: meta.categoryId || "",
             importedAt: now,
         };
+        // The server a bucket without a raid was imported on (#919): such a
+        // bucket would else count towards the first server (services/loot/lootServer.js).
+        if (meta.guildId) enriched.guildId = String(meta.guildId);
         const key = dedupKey(enriched);
         if (seen.has(key)) { skipped += 1; continue; }
         seen.add(key);
@@ -193,9 +196,9 @@ function charLootPreview(it) {
  * shape above, so the tab can show what someone actually won on hover instead
  * of only how many pieces — no extra round trip per row.
  */
-function characters() {
+function characters(rows = listAll()) {
     const byChar = new Map();
-    for (const it of listAll()) {
+    for (const it of rows) {
         const key = it.characterKey;
         if (!key) continue;
         if (!byChar.has(key)) byChar.set(key, { key, character: it.character, realm: it.realm || "", count: 0, categoryIds: new Set(), items: [] });

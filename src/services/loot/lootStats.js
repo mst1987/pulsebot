@@ -7,6 +7,7 @@
 // the numbers are what gets tested: the route only adds class colours and icons.
 
 const { listAll, charLootPreview } = require("../../stores/lootStore");
+const { lootOfGuild } = require("./lootServer");
 const { wowheadLink } = require("../../config/wowheadItemAliases");
 const { annotatedCharacters } = require("../characters/characterInfo");
 const { reasonCatalog, reasonMeta } = require("../../utils/loot/lootReasons");
@@ -190,10 +191,12 @@ function itemCatalog(rows = listAll()) {
  * hard-codes a reason colour or a raid name — same rule the class colours
  * already follow.
  */
-function lootStats({ versionId = "" } = {}) {
+function lootStats({ versionId = "", guildId = "" } = {}) {
     // One game version only (#563, the content switch): the loot of its raids.
+    // One Discord server only (#919): the loot of the active server's raids.
     const ctx = { eventCache: new Map() };
-    const rows = versionId ? listAll().filter((it) => eventVersion(ctx, it.eventId) === versionId) : listAll();
+    const ofGuild = lootOfGuild(listAll(), guildId);
+    const rows = versionId ? ofGuild.filter((it) => eventVersion(ctx, it.eventId) === versionId) : ofGuild;
     const items = itemCatalog(rows);
     // Only offer filters that actually match something — a dropdown full of
     // raids the guild has never set foot in is noise.
