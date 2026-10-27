@@ -1,7 +1,7 @@
 import { get, send } from "./client";
 import type { ChannelState } from "../lib/discord/discordLinks";
 import type { LootSystemKey, LootSystem } from "./dashboard";
-import type { Role, PingTarget, PingTargetInfo, ItemSearchResult, Raidsheet } from "./settings";
+import type { Role, ItemSearchResult, Raidsheet } from "./settings";
 import type { NotifyTemplate } from "./notifyTemplates";
 import type { LootItem } from "./history";
 import type { EventSignupEntry } from "./signups";
@@ -195,8 +195,6 @@ export type RaidDetailData = {
     eventsWarning: string | null;
     notifyTemplates: NotifyTemplate[];
     roles: Role[];
-    /** Whether the ping/notify modals may offer the talk server (#264). */
-    pingTargets?: PingTargetInfo;
     raidsheets: Raidsheet[];
     matchedSheetId: string;
     setup: EventSetup;
@@ -283,14 +281,14 @@ export function getRaidDetail(eventId: string): Promise<RaidDetailData> {
 // ---- Raid detail Part B: mutating actions (Anmeldung & Sheet, Softres tabs, header quick-posts) ----
 
 export function notifyRaid(
-    input: { event: string; templateId: string; channelId: string; roleIds: string[]; target?: PingTarget },
+    input: { event: string; templateId: string; channelId: string; roleIds: string[] },
 ): Promise<{ message: string }> {
     return send("POST", "/api/raids/notify", input);
 }
 
 export function pingMissingRaiders(
-    input: { event: string; text: string; target?: PingTarget },
-): Promise<{ message: string }> {
+    input: { event: string; text: string },
+): Promise<{ message: string; delivery?: { mentioned: number; dm: { sent: string[]; failed: string[] } | null } }> {
     return send("POST", "/api/raids/ping-missing", input);
 }
 

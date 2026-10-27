@@ -1,42 +1,37 @@
-// Where a ping or a sign-up call goes (#264): the event channel, the talk
-// server's ping channel, or both.
+// How a ping or a sign-up call reaches the raiders (#264, server network #894):
+// always on the raid's own server, and a DM for whoever is not there.
 //
 // Two Discord rules shape this module. A mention only notifies someone who is
 // on the server the message is posted on, and a role mention only works on the
-// server the role belongs to. So on the talk server
+// server the role belongs to. So a ping
 //
-//   - raiders are mentioned one by one, and only those who are there;
-//   - an event-server role becomes its talk-server counterpart from the role
-//     sync mapping (`roleSync`), and a role without one becomes the mentions of
-//     its members who are on the talk server;
-//   - whoever is not on the talk server gets a DM instead — but only when the
-//     event channel is not part of the target: with "both" they were already
-//     reached there, and a DM on top would be the same ping twice.
+//   1. reads the raid server's member list first (`fetchGuildMembersCached`,
+//      at most MEMBER_FETCH_MS) — when it cannot be read in time, everyone is
+//      mentioned in the raid channel as before #894 and nobody gets a DM
+//      (`membersUnreadable` in the result, a warning in the log);
+//   2. mentions the raiders who are on the raid server in the raid channel;
+//   3. sends everyone else a DM (`dmCard`) with a link to the raid's web page —
+//      they are not on the raid server, so a link into it would lead nowhere.
 //
-// The language: a ping in a channel is public — the server language
-// (botLanguage.serverLang); a DM is the recipient's own (botLanguage.langOf).
-// So a text may come as a function `(lang) => string`, drawn once per
-// language; a plain string (the orga's own words) goes out as it is.
+// A sign-up call mentions roles, and only on the raid server: whoever holds the
+// role is on that server, so there is nobody to DM.
+//
+// The language: a ping in a channel is public — the event's language
+// (botLanguage.eventLang, its category's); a DM is the recipient's own
+// (botLanguage.langOf). So a text may come as a function `(lang) => string`,
+// drawn once per language; a plain string (the orga's own words) goes out as it is.
 //
 // A DM is a card (utils/discord/card.js, kind "warn", `dmCard`): the raid as
-// its heading, the text, the start short (`<t:…:d> <t:…:t>`) and a button to
-// the event channel. The channel pings themselves are discord.postMissingPing's.
+// its heading, the text, the start short (`<t:…:d> <t:…:t>`) and a button to the
+// web page. The channel pings themselves are discord.postMissingPing's.
 const { ButtonBuilder, ButtonStyle } = require("discord.js");
 const discord = require("./discord");
+const logger = require("../../logger").child("pingDelivery");
 const { card } = require("../../utils/discord/card");
 const linkCheck = require("./linkCheck");
-const guildRoles = require("./guildRoles");
 const { getConfig } = require("../../stores/settingsStore");
 const { tr } = require("../../utils/i18n/botText");
 const { langOf, eventLang } = require("./botLanguage");
-
-const PING_TARGETS = ["event", "talk", "both"];
-
-const TARGET_LABELS = {
-    event: "Event-Kanal",
-    talk: "Kommunikations-Discord",
-    both: "Event-Kanal und Kommunikations-Discord",
-};
 
 /** The ping's default text in a channel, when the orga wrote none. */
 function missingPingText(lang = "de") {
@@ -48,62 +43,38 @@ function textIn(text, lang) {
     return String((typeof text === "function" ? text(lang) : text) || "").trim();
 }
 
-/** A known target, else "event" — the old behaviour is the safe default. */
-function normalizePingTarget(raw) {
-    return PING_TARGETS.includes(raw) ? raw : "event";
+/** The raid's server: the caller's guild, else the event's own. */
+function raidGuildId(event, guildId) {
+    return String(guildId || (event && event.guildId) || "").trim();
 }
 
-/** The talk server's ping channel, or null when there is no talk server or no channel picked. */
-function talkPingChannel(config = getConfig()) {
-    const guildId = guildRoles.talkGuildId(config);
-    const channelId = String(((config && config.discordServers) || {}).talkPingChannelId || "").trim();
-    return guildId && channelId ? { guildId, channelId } : null;
-}
-
-/** What the raid-detail modals need to offer the "Wohin" segment. */
-function pingTargetInfo(config = getConfig()) {
-    const talk = talkPingChannel(config);
-    let channelName = "";
-    let guildName = "";
-    if (talk) {
-        const guild = discord.getGuild(talk.guildId);
-        guildName = guild ? guild.name : "";
-        const channel = guild && guild.channels && guild.channels.cache ? guild.channels.cache.get(talk.channelId) : null;
-        channelName = channel ? channel.name : "";
-    }
-    return { talk: !!talk, talkGuildName: guildName, talkChannelName: channelName };
-}
-
-const includesEvent = (target) => target === "event" || target === "both";
-const includesTalk = (target) => target === "talk" || target === "both";
+/** How long a ping waits for the raid server's member list (a first fetch can hang up to 120 s). */
+const MEMBER_FETCH_MS = 10 * 1000;
 
 /**
- * The target as it is delivered (#890): a server may be event and talk server
- * at once — then "both" would ping the same people twice on one server, so it
- * goes to the event channel only.
+ * The ids of the raid server's members, or null when they cannot be read in
+ * time (missing GuildMembers intent, timeout) — the caller then mentions
+ * everyone in the channel. Throws when the bot is not on the server at all:
+ * then the channel cannot be posted to either.
  */
-function effectiveTarget(mode, guildId, config) {
-    if (mode !== "both") return mode;
-    const talkId = guildRoles.talkGuildId(config);
-    const eventId = String(guildId || "").trim() || guildRoles.eventGuildId(config);
-    return talkId && talkId === eventId ? "event" : mode;
-}
-
-/** The ids of the talk server's members; throws with a German message when they cannot be read. */
-async function talkMemberIds(guildId) {
-    const guild = discord.getGuild(guildId);
-    if (!guild) throw new Error("Der Bot ist nicht auf dem Kommunikations-Discord.");
+async function raidMemberIds(guildId, timeoutMs = MEMBER_FETCH_MS) {
+    const guild = guildId ? discord.getGuild(guildId) : null;
+    if (!guild) throw new Error("Der Bot ist nicht auf dem Server des Raids.");
+    let timer;
     try {
-        const members = await discord.fetchGuildMembersCached(guildId, guild);
+        const timeout = new Promise((resolve) => { timer = setTimeout(() => resolve(null), timeoutMs); });
+        const members = await Promise.race([discord.fetchGuildMembersCached(guildId, guild), timeout]);
+        if (!Array.isArray(members)) {
+            logger.warn(`member list of ${guildId} not read within ${timeoutMs} ms, mentioning everyone in the channel`);
+            return null;
+        }
         return new Set(members.map((m) => String(m.id)));
     } catch (e) {
-        throw new Error(`Mitglieder des Kommunikations-Discords nicht lesbar: ${(e && e.message) || "GuildMembers-Intent aktiv?"}`, { cause: e });
+        logger.warn(`member list of ${guildId} unreadable, mentioning everyone in the channel:`, (e && e.message) || e);
+        return null;
+    } finally {
+        clearTimeout(timer);
     }
-}
-
-/** A jump link to the event channel, or "" when a part is unknown. */
-function eventChannelUrl(event, guildId) {
-    return event ? linkCheck.channelLink(guildId, event.channelId) : "";
 }
 
 /** A short start: "<t:…:d> <t:…:t> · <t:…:R>" — each reader's own date format and time zone; "" without one. */
@@ -112,20 +83,27 @@ function shortStart(start) {
     return sec ? `<t:${sec}:d> <t:${sec}:t> · <t:${sec}:R>` : "";
 }
 
+/** A link button, or null without a url. */
+function linkButton(label, url) {
+    return url ? new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(label).setURL(url) : null;
+}
+
 /**
  * The DM as a card (kind "warn", nothing in it pings): the raid as its heading —
  * a DM has no channel to say which one —, the ping, the start and a button to
- * the event channel, labelled in the reader's language.
+ * the raid's web page, labelled in the reader's language. No link to the signup
+ * message: a DM goes only to whoever is not on the raid server (#894), and a
+ * link into that server leads them nowhere.
  */
-function dmCard(text, event, guildId, lang = "de") {
+function dmCard(text, event, lang = "de") {
     const when = shortStart(event && event.startTime);
-    const url = eventChannelUrl(event, guildId);
+    const buttons = event ? [linkButton(tr(lang, "Open on the web"), linkCheck.webTarget("signup", event.id))].filter(Boolean) : [];
     return card({
         kind: "warn",
         title: event && event.title,
         text: String(text || "").trim(),
         facts: when ? [["", when]] : [],
-        buttons: url ? [new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "To the channel")).setURL(url)] : [],
+        buttons,
     });
 }
 
@@ -153,138 +131,79 @@ async function sendDms(userIds, payload, { config } = {}) {
 }
 
 /**
- * Ping the given users (the missing raiders, or a reminder's recipients).
+ * Ping the given users (the missing raiders, a reminder's recipients, a move
+ * note): mentioned in the raid channel when they are on the raid server, else a DM.
  *
  * @param {object} p
- * @param {string} p.target   "event" | "talk" | "both"
- * @param {object} p.event    { title, startTime, channelId }
+ * @param {object} p.event    { id, title, startTime, channelId, guildId?, message? }
  * @param {string[]} p.userIds
  * @param {string|function} p.text the message, or `(lang) => message`; empty = missingPingText()
- * @param {string} p.guildId  the event server (for the jump link in a DM)
- * @returns {Promise<{ target, event: object|null, talk: object|null, mentioned: number, dm: { sent: string[], failed: string[] } | null }>}
+ * @param {string} p.guildId  the raid's server (default: event.guildId)
+ * @param {number} [p.memberTimeoutMs] how long to wait for the member list (tests)
+ * @returns {Promise<{ event: object|null, mentioned: number, dm: { sent: string[], failed: string[] } | null, membersUnreadable: boolean }>}
+ *   `membersUnreadable`: the member list could not be read, so everyone was mentioned in the channel and nobody got a DM
  */
-async function deliverUserPing({ target, event, userIds, text = "", guildId = "", config = getConfig() }) {
-    const mode = effectiveTarget(normalizePingTarget(target), guildId, config);
+async function deliverUserPing({ event, userIds, text = "", guildId = "", config = getConfig(), memberTimeoutMs = MEMBER_FETCH_MS }) {
+    if (!event || !event.channelId) throw new Error("Das Event hat keinen Kanal.");
     const users = [...new Set((userIds || []).map(String).filter(Boolean))];
-    const talk = includesTalk(mode) ? talkPingChannel(config) : null;
-    if (includesTalk(mode) && !talk) throw new Error("Auf dem Kommunikations-Discord ist kein Ping-Kanal eingestellt.");
-    // Read the talk members before posting anything, so a failure there never
-    // leaves a half-delivered ping behind.
-    const onTalk = talk ? await talkMemberIds(talk.guildId) : null;
+    const raidGuild = raidGuildId(event, guildId);
+    // Read the members before posting anything; without a list everyone is
+    // mentioned in the channel (the behaviour before #894) rather than nobody.
+    const onServer = await raidMemberIds(raidGuild, memberTimeoutMs);
+    const present = onServer ? users.filter((id) => onServer.has(id)) : users;
+    const absent = onServer ? users.filter((id) => !onServer.has(id)) : [];
 
-    const result = { target: mode, event: null, talk: null, mentioned: 0, dm: null };
-    // in a channel: the event's language (its category's)
+    const result = { event: null, mentioned: 0, dm: null, membersUnreadable: !onServer };
+    // in the channel: the event's language (its category's)
     const lang = eventLang(event, config);
-    const posted = textIn(text, lang) || missingPingText(lang);
-    if (includesEvent(mode)) {
-        if (!event || !event.channelId) throw new Error("Das Event hat keinen Kanal.");
-        result.event = await discord.postMissingPing(event.channelId, users, posted);
-    }
-    if (talk) {
-        const present = users.filter((id) => onTalk.has(id));
-        const absent = users.filter((id) => !onTalk.has(id));
-        if (present.length) result.talk = await discord.postMissingPing(talk.channelId, present, posted);
+    if (present.length) {
+        result.event = await discord.postMissingPing(event.channelId, present, textIn(text, lang) || missingPingText(lang));
         result.mentioned = present.length;
-        if (!includesEvent(mode) && absent.length) {
-            // a DM: each raider's own language
-            const dm = (dmLang) => dmCard(textIn(text, dmLang) || tr(dmLang, "Please sign up or sign off for the raid."), event, guildId, dmLang);
-            result.dm = await sendDms(absent, dm, { config });
-        }
+    }
+    if (absent.length) {
+        // a DM: each raider's own language
+        const dm = (dmLang) => dmCard(textIn(text, dmLang) || tr(dmLang, "Please sign up or sign off for the raid."), event, dmLang);
+        result.dm = await sendDms(absent, dm, { config });
     }
     return result;
 }
 
 /**
- * The roles of the raid server that have a counterpart on the talk server, and
- * those that do not. A role-sync pair (#896) between exactly these two servers
- * counts in either orientation and any direction - the ping only needs the
- * counterpart, not the sync.
- */
-function mapRoles(roleIds, config, fromGuildId = "", toGuildId = "") {
-    const mapping = Array.isArray(config && config.roleSync) ? config.roleSync : [];
-    const from = String(fromGuildId || "");
-    const to = String(toGuildId || "");
-    const counterparts = (id) => mapping.flatMap((m) => {
-        if (!m) return [];
-        if (String(m.fromGuildId) === from && String(m.toGuildId) === to && m.fromRoleId === id) return [m.toRoleId];
-        if (String(m.toGuildId) === from && String(m.fromGuildId) === to && m.toRoleId === id) return [m.fromRoleId];
-        return [];
-    });
-    const talkRoleIds = [];
-    const unmapped = [];
-    for (const id of roleIds) {
-        const found = from && to ? counterparts(id) : [];
-        if (found.length) talkRoleIds.push(...found);
-        else unmapped.push(id);
-    }
-    return { talkRoleIds: [...new Set(talkRoleIds)], unmapped };
-}
-
-/**
- * Post a sign-up call (a notify template) with role pings.
+ * Post a sign-up call (a notify template) with role pings in the raid channel.
+ * The roles are the raid server's, and whoever holds one is on that server —
+ * so the role mention reaches all of them and no DM is needed.
  *
  * @param {object} p
- * @param {string} p.target      "event" | "talk" | "both"
- * @param {object} p.event       { title, startTime, channelId }
- * @param {string} p.channelId   the event channel the call goes to
+ * @param {string} p.channelId   the raid channel the call goes to
  * @param {object} p.template    { title, body }
- * @param {string[]} p.roleIds   event-server roles
- * @param {string} p.guildId     the server those roles belong to
+ * @param {string[]} p.roleIds   roles of the raid server
+ * @returns {Promise<{ event: object, mentioned: number, dm: null }>}
  */
-async function deliverAnnouncement({ target, event, channelId, template, roleIds, guildId = "", config = getConfig() }) {
-    const mode = effectiveTarget(normalizePingTarget(target), guildId, config);
+async function deliverAnnouncement({ channelId, template, roleIds }) {
+    if (!channelId || !template) throw new Error("Vorlage oder Channel fehlt.");
     const roles = [...new Set((roleIds || []).map(String).filter(Boolean))];
-    const result = { target: mode, event: null, talk: null, mentioned: 0, dm: null };
-
-    let talkPlan = null;
-    if (includesTalk(mode)) {
-        const talk = talkPingChannel(config);
-        if (!talk) throw new Error("Auf dem Kommunikations-Discord ist kein Ping-Kanal eingestellt.");
-        const onTalk = roles.length ? await talkMemberIds(talk.guildId) : new Set();
-        const { talkRoleIds, unmapped } = mapRoles(roles, config, guildId, talk.guildId);
-        let userIds = [];
-        let absent = [];
-        if (roles.length) {
-            const all = await discord.listMembersWithRoles(guildId, roles);
-            if (all.error) throw new Error(all.error);
-            const covered = new Set();
-            if (talkRoleIds.length && unmapped.length < roles.length) {
-                const mapped = await discord.listMembersWithRoles(guildId, roles.filter((r) => !unmapped.includes(r)));
-                if (mapped.error) throw new Error(mapped.error);
-                mapped.members.forEach((m) => covered.add(String(m.id)));
-            }
-            userIds = all.members.map((m) => String(m.id)).filter((id) => onTalk.has(id) && !covered.has(id));
-            absent = all.members.map((m) => String(m.id)).filter((id) => !onTalk.has(id));
-        }
-        talkPlan = { talk, talkRoleIds, userIds, absent };
-    }
-
-    if (includesEvent(mode)) {
-        if (!channelId) throw new Error("Vorlage oder Channel fehlt.");
-        result.event = await discord.postAnnouncement(channelId, template, roles);
-    }
-    if (talkPlan) {
-        result.talk = await discord.postAnnouncement(talkPlan.talk.channelId, template, talkPlan.talkRoleIds, talkPlan.userIds);
-        result.mentioned = talkPlan.userIds.length;
-        if (!includesEvent(mode) && talkPlan.absent.length) {
-            const text = [template.title ? `**${template.title}**` : "", template.body || ""].filter(Boolean).join("\n");
-            result.dm = await sendDms(talkPlan.absent, (dmLang) => dmCard(text, event, guildId, dmLang), { config });
-        }
-    }
-    return result;
+    const posted = await discord.postAnnouncement(channelId, template, roles);
+    return { event: posted, mentioned: 0, dm: null };
 }
 
-/** " · 3 per DM" / " · 2 DMs fehlgeschlagen" — the tail of the success message. */
-function dmSummary(dm) {
-    if (!dm) return "";
+/** The orga's note when the member list could not be read (orga text, German). */
+const MEMBERS_UNREADABLE_NOTE = "Mitgliederliste nicht lesbar, alle im Kanal erwähnt";
+
+/**
+ * " · 3 per DM" / " · 2 DMs fehlgeschlagen" / " · Mitgliederliste nicht lesbar, …" —
+ * the tail of the success message, from deliverUserPing's result.
+ */
+function dmSummary(delivery) {
+    if (!delivery) return "";
+    const dm = delivery.dm;
     const parts = [];
-    if (dm.sent.length) parts.push(`${dm.sent.length} per DM`);
-    if (dm.failed.length) parts.push(`${dm.failed.length} ${dm.failed.length === 1 ? "DM" : "DMs"} fehlgeschlagen`);
+    if (delivery.membersUnreadable) parts.push(MEMBERS_UNREADABLE_NOTE);
+    if (dm && dm.sent.length) parts.push(`${dm.sent.length} per DM`);
+    if (dm && dm.failed.length) parts.push(`${dm.failed.length} ${dm.failed.length === 1 ? "DM" : "DMs"} fehlgeschlagen`);
     return parts.length ? ` · ${parts.join(" · ")}` : "";
 }
 
 module.exports = {
-    PING_TARGETS, TARGET_LABELS,
-    normalizePingTarget, effectiveTarget, talkPingChannel, pingTargetInfo,
-    deliverUserPing, deliverAnnouncement, dmSummary, dmCard, shortStart, mapRoles, sendDms, missingPingText,
+    deliverUserPing, deliverAnnouncement, dmSummary, dmCard, shortStart, sendDms, missingPingText,
+    MEMBER_FETCH_MS, MEMBERS_UNREADABLE_NOTE,
 };

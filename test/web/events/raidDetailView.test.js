@@ -41,7 +41,6 @@ jest.mock("../../../src/stores/logStore", () => ({
     listLogsForEvent: jest.fn(() => []),
 }));
 jest.mock("../../../src/services/logcheck/logChannel", () => ({ backfillLogTitles: jest.fn(async () => {}) }));
-jest.mock("../../../src/services/discord/pingDelivery", () => ({ ...jest.requireActual("../../../src/services/discord/pingDelivery"), pingTargetInfo: jest.fn(() => ({ talk: false })) }));
 
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const settingsStore = require("../../../src/stores/settingsStore");
@@ -106,7 +105,7 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         raidhelperDisabled.mockReturnValue(true);
         const { body } = await buildRaidDetail({ guildId: "g1", eventId: "rh1" });
         expect(Object.keys(body)).toEqual([
-            "event", "planning", "setupFromSnapshot", "categoryName", "openToAll", "guildId", "eventsWarning", "notifyTemplates", "roles", "pingTargets",
+            "event", "planning", "setupFromSnapshot", "categoryName", "openToAll", "guildId", "eventsWarning", "notifyTemplates", "roles",
             "raidsheets", "matchedSheetId", "setup", "setupError", "tankCandidates", "eventSheet", "sheetLink", "raidplanPost", "eventSoftres",
             "softresCatalogue", "softresEdition", "softresOff", "versionId", "wowheadPath", "archived", "softresSuggested", "attendance", "ownSignups", "ownSetup", "raidGroup", "ownSetupPost",
             "ownSetupEditors", "attendanceRoleIds", "attendanceSource", "membersError", "signupTarget", "roleTargets", "lootItems", "lootTool", "lootSystem", "eventLogs", "unlinkedLogs",

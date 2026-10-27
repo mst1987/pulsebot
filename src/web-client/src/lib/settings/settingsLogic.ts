@@ -5,7 +5,7 @@
 // every function is `export function name(params): Result {` on one line, and
 // no body uses type syntax (no `as`, no generics, no annotated locals). The test
 // relies on exactly that; keep it when adding a function here.
-import type { AreaAccess, PingTarget, PingTargetInfo, ReminderRule, RoleSyncRule, TalkOverviewStatus } from "../../api";
+import type { AreaAccess, ReminderRule, RoleSyncRule, TalkOverviewStatus } from "../../api";
 import { t, tOr } from "../../i18n";
 import { changedFeatureVersions } from "./versionFeatures";
 
@@ -134,7 +134,7 @@ export type DraftShape = {
     categoryVoiceChannel?: Record<string, string>;
     /** The look of the signup message; missing = raid picture on, title "large". */
     categoryMessageLook?: Record<string, { raidArt?: boolean; titleSize?: string }>;
-    categoryAnnounce?: Record<string, { enabled: boolean; target: string }>;
+    categoryAnnounce?: Record<string, { enabled: boolean }>;
     /** The message with "Vielleicht" / "Absagen"; missing = "optional". */
     categorySignupNotes?: Record<string, string>;
     /** Where those messages go (#335); missing = the default channel. */
@@ -188,14 +188,13 @@ export function lootSystemLabel(system: string): string {
     return system ? system : t("settings.lootSystem.auto");
 }
 
-/** "Beim Anlegen ankündigen" (#306) as one value: "" = off, else the ping target. */
+/** "Beim Anlegen ankündigen" (#306) as one value: "" = off, "event" = in the event channel (#894: no other target). */
 export function announceLabel(mode: string): string {
-    if (mode === "event" || mode === "talk" || mode === "both") return t(`settings.announce.${mode}`);
-    return mode ? mode : t("settings.announce.off");
+    return mode ? t("settings.announce.event") : t("settings.announce.off");
 }
 
-export function announceMode(entry: { enabled: boolean; target: string } | undefined): string {
-    return entry && entry.enabled ? String(entry.target || "event") : "";
+export function announceMode(entry: { enabled: boolean } | undefined): string {
+    return entry && entry.enabled ? "event" : "";
 }
 
 /** The message with "Vielleicht" / "Absagen" per category: required, optional (the default) or not asked. */
@@ -685,32 +684,9 @@ export function directionText(direction: RoleSyncDirection): string {
     return t(`settings.direction.${direction}`);
 }
 
-export function targetText(target: PingTarget): string {
-    return t(`settings.target.${target}`);
-}
-
-/**
- * The options of the "Wohin" segment. Without a talk server and its ping
- * channel only the event channel exists, and the segment is not shown at all.
- */
-export function pingTargetOptions(info: { talk: boolean; talkGuildName?: string; talkChannelName?: string } | null | undefined): { value: PingTarget; label: string; tip: string }[] {
-    if (!info || !info.talk) return [];
-    const where = info.talkChannelName ? `#${info.talkChannelName}` : t("raidModals.target.pingChannel");
-    const server = info.talkGuildName || t("raidModals.target.talkServer");
-    return [
-        { value: "event", label: t("raidModals.target.event"), tip: t("raidModals.target.eventTip") },
-        { value: "talk", label: t("raidModals.target.talk"), tip: t("raidModals.target.talkTip", { where, server }) },
-        { value: "both", label: t("raidModals.target.both"), tip: t("raidModals.target.bothTip", { where }) },
-    ];
-}
-
-/** The modal hint of ping and sign-up call: where the message goes, so the head says it without a second line. */
-export function targetHint(target: PingTarget, eventChannel: string, info: PingTargetInfo | undefined): string | undefined {
-    const talk = info && info.talkChannelName ? `#${info.talkChannelName}` : "Talk";
-    const event = eventChannel ? `#${eventChannel}` : "";
-    if (target === "talk") return t("raidModals.target.in", { where: talk });
-    if (target === "both") return t("raidModals.target.in", { where: event ? `${event} + ${talk}` : talk });
-    return event ? t("raidModals.target.in", { where: event }) : undefined;
+/** The modal hint of ping and sign-up call: both always go to the raid's own channel (#894). */
+export function channelHint(eventChannel: string): string | undefined {
+    return eventChannel ? t("raidModals.shared.inChannel", { channel: eventChannel }) : undefined;
 }
 
 /** The PATCH body of the role mapping: complete pairs only, one per pair, the list replaces the stored one. */
@@ -796,7 +772,7 @@ export function remindersPatch(current: Record<string, ReminderRule>, categoryId
     const missingHours = reminderHours(rule.missingHours);
     const signedHours = reminderHours(rule.signedHours);
     if (!missingHours && !signedHours) delete next[categoryId];
-    else next[categoryId] = { missingHours, signedHours, target: rule.target || "event" };
+    else next[categoryId] = { missingHours, signedHours };
     return { categoryReminders: next };
 }
 

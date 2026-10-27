@@ -153,7 +153,7 @@ export type RaidCreateContext = {
     /** category id → "eventhelper" for categories whose new events live in the EventHelper */
     signupSources?: Record<string, EventSource>;
     /** category id → "Beim Anlegen ankündigen" (#306); only switched-on categories are listed */
-    categoryAnnounce?: Record<string, { enabled: boolean; target: string }>;
+    categoryAnnounce?: Record<string, { enabled: boolean }>;
     // The planning step (#261).
     categories?: { id: string; name: string }[];
     /** category id → raid template id of its default */

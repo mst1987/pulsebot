@@ -249,9 +249,7 @@
     },
     "announce": {
         "off": "off",
-        "event": "Event channel",
-        "talk": "Talk server",
-        "both": "both servers"
+        "event": "Event channel"
     },
     "signupNote": {
         "required": "Required",
@@ -298,11 +296,6 @@
         "toTarget": "First → second server",
         "toSource": "Second → first server",
         "both": "both directions"
-    },
-    "target": {
-        "event": "Event channel",
-        "talk": "Communication Discord",
-        "both": "Both"
     },
     "drift": {
         "unknown": "Sync unknown",
@@ -461,10 +454,6 @@
         "empty": "No raid categories yet — they are switched on under Settings → Categories.",
         "unknownCategory": "Unknown category",
         "unknownCategorySub": "Category ID {id} — not found (anymore) on the event Discord.",
-        "where": "Where",
-        "whereSub": "Event channel, ping channel of the communication Discord or both. With \"Talk\", anyone not on the communication Discord gets a DM.",
-        "targetTalk": "Talk",
-        "targetBoth": "Both",
         "noRole": "No raider role",
         "noRoleSub": "Without a raider role for the category the bot does not know who is missing — the reminder to missing raiders then does not go out.",
         "noRoleBadge": "no role",
@@ -783,9 +772,7 @@
     "categories": {
         "announceMode": {
             "off": "off",
-            "event": "Event channel",
-            "talk": "Talk",
-            "both": "both"
+            "event": "Event channel"
         },
         "stillRhTip": "{count} still on Raid-Helper",
         "stillRhSub": "New events of {names} are still created on Raid-Helper. To switch: open the category › New events. The switch-off checklist is under Connections › Raid-Helper.",
@@ -838,7 +825,7 @@
         "absences": "Show in absences",
         "absencesSub": "This category's raids and absences that only apply to it appear in the timeline, under \"Per raid\" and in the hints. Off: the category stays out of it.",
         "absencesAria": "Show in absences {name}",
-        "announceSub": "A new EventHelper event posts a short line with title, date and signup link and pings the raider roles of this category — exactly once per event, series events included. \"Talk\"/\"both\" need a ping channel on the communication Discord.",
+        "announceSub": "A new EventHelper event posts a short line with title, date and signup link and pings the raider roles of this category — exactly once per event, series events included.",
         "announce": "Announcement",
         "announceAria": "Announcement {name}",
         "notes": "Message on tentative/decline",

@@ -25,20 +25,6 @@
     "itemSearch": {
         "placeholder": "Item-Namen suchen (Wowhead) …"
     },
-    "target": {
-        "tip": "Wohin",
-        "tipSub": "Event-Kanal wie bisher, der Ping-Kanal des Kommunikations-Discords oder beides. Wer nicht auf dem Kommunikations-Discord ist, bekommt bei „Talk“ eine DM.",
-        "label": "Wohin",
-        "event": "Event-Kanal",
-        "eventTip": "Nur im Kanal des Events",
-        "talk": "Talk",
-        "talkTip": "In {where} auf {server}; wer dort nicht ist, bekommt eine DM",
-        "both": "Beides",
-        "bothTip": "Im Event-Kanal und in {where}; keine DMs zusätzlich",
-        "pingChannel": "den Ping-Kanal",
-        "talkServer": "dem Kommunikations-Discord",
-        "in": "in {where}"
-    },
     "logAssign": {
         "title": "Log zuordnen",
         "hint": {
@@ -117,7 +103,6 @@
         "unnamed": "(ohne Name)",
         "rolesTip": "Rollen pingen",
         "rolesTipEvent": "Die ausgewählten Rollen werden im Event-Channel angepingt.",
-        "rolesTipTalk": "Auf dem Kommunikations-Discord wird eine abgeglichene Rolle zu ihrem Gegenstück; Mitglieder anderer Rollen werden einzeln erwähnt, wer nicht dort ist, bekommt eine DM (nur bei „Talk“).",
         "rolesLabel": "Rollen pingen",
         "noRoles": "Keine Rollen gefunden (Server gewählt?)."
     },
@@ -127,7 +112,8 @@
             "one": "{count} Raider pingen",
             "other": "{count} Raider pingen"
         },
-        "placeholder": "Bitte meldet euch für den Raid an oder ab."
+        "placeholder": "Bitte meldet euch für den Raid an oder ab.",
+        "dmNote": "Wer nicht auf dem Server des Raids ist, bekommt eine DM."
     },
     "player": {
         "kicker": "Raider",

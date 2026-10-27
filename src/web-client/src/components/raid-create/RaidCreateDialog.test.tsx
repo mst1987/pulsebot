@@ -54,7 +54,7 @@ const CONTEXT: RaidCreateContext = {
         categoryId: "c1", categoryName: "T4", startTime: Math.floor(Date.UTC(2026, 8, 17, 17, 45) / 1000), contentIds: ["kara"],
     }],
     signupSources: { c2: "eventhelper" },
-    categoryAnnounce: { c2: { enabled: true, target: "talk" } },
+    categoryAnnounce: { c2: { enabled: true } },
     categories: [{ id: "c1", name: "T4" }, { id: "c2", name: "T6" }, { id: "c3", name: "Sonstiges" }],
     raidTemplates: [],
     versions: [],

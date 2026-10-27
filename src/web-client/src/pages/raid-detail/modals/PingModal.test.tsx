@@ -1,12 +1,11 @@
-// "Fehlende pingen" (PingModal): pings the raiders who have not reacted, in the
-// event channel, on the talk server or both — one compact "Wohin" segment that
-// only appears with the talk server's ping channel (#264; #435: formerly scans
-// in test/web-client/pingsRoleSync.test.js).
-import { screen, waitFor, within } from "@testing-library/react";
+// "Fehlende pingen" (PingModal): pings the raiders who have not reacted in the
+// event channel of the raid's server; whoever is not on that server gets a DM
+// (#894: no "Wohin" segment any more; #264, #435).
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../../api";
-import type { AttendancePerson, PingTargetInfo, RaidDetailData } from "../../../api";
+import type { AttendancePerson, RaidDetailData } from "../../../api";
 import { t } from "../../../i18n";
 import { renderPage } from "../../../test/render";
 import type { RaidCtx } from "../meta";
@@ -17,7 +16,6 @@ vi.mock("../../../api", async (orig) => ({
     pingMissingRaiders: vi.fn(),
 }));
 
-const TALK: PingTargetInfo = { talk: true, talkGuildName: "Pulse Talk", talkChannelName: "pings" };
 const person = (id: string): AttendancePerson => ({ id, displayName: id, profile: null });
 
 function ctx(over: Partial<RaidDetailData> = {}): RaidCtx {
@@ -34,34 +32,22 @@ beforeEach(() => {
 });
 
 describe("PingModal", () => {
-    it("is one compact segment, rendered only when the server offers the talk server", () => {
-        renderPage(<PingModal ctx={ctx({ pingTargets: TALK })} open onClose={vi.fn()} />);
-        const segment = screen.getByRole("radiogroup", { name: "Wohin" });
-        expect(within(segment).getAllByRole("radio").map((r) => r.textContent)).toEqual([
-            t("raidModals.target.event"), t("raidModals.target.talk"), t("raidModals.target.both"),
-        ]);
-        expect(within(segment).getByRole("radio", { name: t("raidModals.target.event") })).toHaveAttribute("aria-checked", "true");
-        expect(within(segment).getByRole("radio", { name: t("raidModals.target.talk") }))
-            .toHaveAttribute("data-tip", t("raidModals.target.talkTip", { where: "#pings", server: "Pulse Talk" }));
-    });
-
-    it("renders no segment without the talk server", () => {
+    it("has no target segment, names the raid channel and says who gets a DM", () => {
         renderPage(<PingModal ctx={ctx()} open onClose={vi.fn()} />);
         expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
         expect(screen.getByText("in #kara-mittwoch")).toBeInTheDocument();
+        expect(screen.getByText(t("raidModals.ping.dmNote"))).toBeInTheDocument();
     });
 
-    it("sends the target and the text, and says in the head where it goes", async () => {
+    it("sends only the event and the text", async () => {
         const user = userEvent.setup();
-        const c = ctx({ pingTargets: TALK });
+        const c = ctx();
         renderPage(<PingModal ctx={c} open onClose={vi.fn()} />);
 
-        await user.click(screen.getByRole("radio", { name: t("raidModals.target.talk") }));
-        expect(screen.getByText("in #pings")).toBeInTheDocument();
         await user.type(screen.getByRole("textbox"), "Bitte reagieren");
         await user.click(screen.getByRole("button", { name: t("raidModals.ping.submit", { count: 2 }) }));
 
-        await waitFor(() => expect(api.pingMissingRaiders).toHaveBeenCalledWith({ event: "e1", text: "Bitte reagieren", target: "talk" }));
+        await waitFor(() => expect(api.pingMissingRaiders).toHaveBeenCalledWith({ event: "e1", text: "Bitte reagieren" }));
         await waitFor(() => expect(c.onChanged).toHaveBeenCalledWith("2 gepingt."));
     });
 

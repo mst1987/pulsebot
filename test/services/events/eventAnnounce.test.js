@@ -1,10 +1,9 @@
 // "Beim Anlegen ankündigen" (#306): ein neues eigenes Event pingt einmal die
 // Raider-Rolle seiner Kategorie — über pingDelivery (#264), nicht über einen
-// zweiten Weg. Der Store läuft echt auf einem In-Memory-fs, Discord ist Mock.
+// zweiten Weg, und immer im Kanal des Raids (#894). Der Store läuft echt auf einem In-Memory-fs, Discord ist Mock.
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 jest.mock("../../../src/services/discord/pingDelivery", () => ({
-    normalizePingTarget: jest.requireActual("../../../src/services/discord/pingDelivery").normalizePingTarget,
-    deliverAnnouncement: jest.fn(async ({ target }) => ({ target, event: { messageId: "m1" }, talk: null, mentioned: 0, dm: null })),
+    deliverAnnouncement: jest.fn(async () => ({ event: { messageId: "m1" }, mentioned: 0, dm: null })),
 }));
 let mockConfig = {};
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
@@ -34,20 +33,20 @@ function makeEvent(over = {}) {
 beforeEach(() => {
     fs.__store.clear();
     deliverAnnouncement.mockClear();
-    mockConfig = { categoryAnnounce: { [CAT]: { enabled: true, target: "event" } }, categoryRoles: { [CAT]: ["r-raider"] } };
+    mockConfig = { categoryAnnounce: { [CAT]: { enabled: true } }, categoryRoles: { [CAT]: ["r-raider"] } };
 });
 
 describe("announceSetting", () => {
     it("folgt der Kategorie, der Dialog-Schalter sticht sie", () => {
-        expect(announce.announceSetting(CAT)).toEqual({ enabled: true, target: "event" });
-        expect(announce.announceSetting(CAT, { want: false })).toEqual({ enabled: false, target: "event" });
-        expect(announce.announceSetting("andere")).toEqual({ enabled: false, target: "event" });
-        expect(announce.announceSetting("andere", { want: true })).toEqual({ enabled: true, target: "event" });
+        expect(announce.announceSetting(CAT)).toEqual({ enabled: true });
+        expect(announce.announceSetting(CAT, { want: false })).toEqual({ enabled: false });
+        expect(announce.announceSetting("andere")).toEqual({ enabled: false });
+        expect(announce.announceSetting("andere", { want: true })).toEqual({ enabled: true });
     });
 
-    it("macht aus einem unbekannten Ziel den Event-Kanal", () => {
-        mockConfig = { categoryAnnounce: { [CAT]: { enabled: true, target: "irgendwo" } } };
-        expect(announce.announceSetting(CAT).target).toBe("event");
+    it("kennt kein Ziel mehr – ein altes talk/both wird übergangen (#894)", () => {
+        mockConfig = { categoryAnnounce: { [CAT]: { enabled: true, target: "talk" } } };
+        expect(announce.announceSetting(CAT)).toEqual({ enabled: true });
     });
 });
 
@@ -79,10 +78,11 @@ describe("announceEvent", () => {
     it("pingt die Raider-Rolle der Kategorie im Event-Kanal und merkt sich den Zeitpunkt", async () => {
         const event = makeEvent();
         const res = await announce.announceEvent(event.id, { now: 1234 });
-        expect(res).toMatchObject({ announced: true, target: "event" });
-        expect(deliverAnnouncement).toHaveBeenCalledWith(expect.objectContaining({
-            target: "event", channelId: "c1", roleIds: ["r-raider"], guildId: "g1",
-        }));
+        expect(res).toMatchObject({ announced: true });
+        expect(res).not.toHaveProperty("target");
+        expect(deliverAnnouncement).toHaveBeenCalledWith({
+            channelId: "c1", roleIds: ["r-raider"], template: expect.objectContaining({ title: "Neuer Raid: SSC + TK" }),
+        });
         const stored = eventStore.getEvent(event.id);
         expect(stored.announcedAt).toBe(1234);
         expect(stored.log.map((l) => l.action)).toContain("announce");
@@ -106,20 +106,21 @@ describe("announceEvent", () => {
         expect(eventStore.getEvent(event.id).announcedAt).toBe(0);
     });
 
-    it.each(["event", "talk", "both"])("reicht das Ziel %s an pingDelivery durch", async (target) => {
+    it.each(["event", "talk", "both"])("postet auch mit einem alten Ziel %s nur im Kanal des Raids (#894)", async (target) => {
         mockConfig = { categoryAnnounce: { [CAT]: { enabled: true, target } }, categoryRoles: { [CAT]: ["r-raider"] } };
         const event = makeEvent();
         const res = await announce.announceEvent(event.id);
         expect(res.announced).toBe(true);
-        expect(deliverAnnouncement).toHaveBeenCalledWith(expect.objectContaining({ target }));
+        expect(deliverAnnouncement).toHaveBeenCalledWith(expect.objectContaining({ channelId: "c1" }));
+        expect(deliverAnnouncement.mock.calls[0][0]).not.toHaveProperty("target");
     });
 
     it("merkt einen Fehlschlag nicht vor – er lässt sich später von Hand nachholen", async () => {
-        deliverAnnouncement.mockRejectedValueOnce(new Error("Auf dem Kommunikations-Discord ist kein Ping-Kanal eingestellt."));
+        deliverAnnouncement.mockRejectedValueOnce(new Error("Vorlage oder Channel fehlt."));
         const event = makeEvent();
         const res = await announce.announceEvent(event.id);
         expect(res.announced).toBe(false);
-        expect(res.error).toContain("Ping-Kanal");
+        expect(res.error).toContain("Channel fehlt");
         expect(eventStore.getEvent(event.id).announcedAt).toBe(0);
     });
 

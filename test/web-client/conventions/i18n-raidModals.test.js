@@ -6,7 +6,7 @@
 // pages/raid-detail/modals/NotifyModal.test.tsx).
 const { read } = require("../clientSource");
 
-const MODALS = ["LogAssignModal", "LootAddModal", "LootSystemModal", "NotifyModal", "PingModal", "PlayerModal", "SheetModal", "SoftresModal", "TargetField"]
+const MODALS = ["LogAssignModal", "LootAddModal", "LootSystemModal", "NotifyModal", "PingModal", "PlayerModal", "SheetModal", "SoftresModal"]
     .map((m) => `pages/raid-detail/modals/${m}.tsx`);
 const MANAGE = ["CancelModal", "DeleteModal", "HistoryModal", "MoveModal", "RaiderModal"]
     .map((m) => `pages/raid-detail/manage/${m}.tsx`);

@@ -1,5 +1,5 @@
-// Where a ping goes (#264): event channel, talk server, or both — and who gets
-// a DM because they are not on the talk server.
+// How a ping reaches the raiders (#264, server network #894): on the raid's own
+// server only — a mention for whoever is there, a DM for everyone else.
 jest.mock("../../../src/services/discord/discord", () => ({
     getGuild: jest.fn(),
     fetchGuildMembersCached: jest.fn(),
@@ -17,15 +17,13 @@ jest.mock("../../../src/services/discord/botLanguage", () => {
 
 const { ButtonStyle, ComponentType, MessageFlags } = require("discord.js");
 const discord = require("../../../src/services/discord/discord");
+const variables = require("../../../src/config/variables");
 const { KIND_COLORS } = require("../../../src/utils/discord/card");
 const botLanguage = require("../../../src/services/discord/botLanguage");
 const ping = require("../../../src/services/discord/pingDelivery");
 const { event: baseEvent } = require("../../factories/events");
-const { makeGuild, makeChannel } = require("../../helpers/discordClient");
+const { makeGuild } = require("../../helpers/discordClient");
 const { knownChannels } = require("../../helpers/linkCheck");
-
-// The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
-beforeEach(() => knownChannels("110000", "x"));
 
 /** A DM card's text (every text display, joined) — the DMs are cards since Oct 2026. */
 const cardText = (payload) => {
@@ -39,86 +37,48 @@ const cardLinks = (payload) => payload.components[0].components
     .filter((b) => b.style === ButtonStyle.Link);
 const dmTexts = () => Object.fromEntries(discord.sendDirectMessage.mock.calls.map(([id, payload]) => [id, cardText(payload)]));
 
+const RAID_GUILD = "100000";
 const config = (over = {}) => ({
-    guildId: "100000",
-    discordServers: { eventGuildId: "100000", talkGuildId: "200000", talkOverviewChannelId: "", talkPingChannelId: "210000" },
+    guildId: RAID_GUILD,
+    discordServers: { servers: [{ guildId: RAID_GUILD, label: "" }, { guildId: "200000", label: "" }], links: [] },
     roleSync: [],
     ...over,
 });
-const event = baseEvent({ title: "Karazhan", startTime: 1900000000, channelId: "110000" });
+const event = baseEvent({ id: "e1", title: "Karazhan", startTime: 1900000000, channelId: "110000", guildId: RAID_GUILD });
 
+let baseUrl;
 beforeEach(() => {
     jest.resetAllMocks();
-    // built after the reset, so the guilds' own mocks keep their implementations
-    const talkGuild = makeGuild({ id: "200000", name: "Pulse Talk", channels: [makeChannel({ id: "210000", name: "pings", guildId: "200000" })] });
-    const eventGuild = makeGuild({ id: "100000", name: "Event" });
-    discord.getGuild.mockImplementation((id) => (id === "200000" ? talkGuild : eventGuild));
-    // Users 1 and 2 are on the talk server, 3 is not.
+    // The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
+    knownChannels("110000");
+    baseUrl = variables.publicBaseUrl;
+    variables.publicBaseUrl = "https://eh.example";
+    const raidGuild = makeGuild({ id: RAID_GUILD, name: "Raid" });
+    discord.getGuild.mockImplementation((id) => (id === RAID_GUILD ? raidGuild : null));
+    // Users 1 and 2 are on the raid server, 3 and 4 are not.
     discord.fetchGuildMembersCached.mockResolvedValue([{ id: "1" }, { id: "2" }]);
-    discord.postMissingPing.mockResolvedValue({ channelId: "x", messageId: "m" });
-    discord.postAnnouncement.mockResolvedValue({ channelId: "x", messageId: "m" });
+    discord.postMissingPing.mockResolvedValue({ channelId: "110000", messageId: "m" });
+    discord.postAnnouncement.mockResolvedValue({ channelId: "110000", messageId: "m" });
     discord.sendDirectMessage.mockResolvedValue({ ok: true, messageId: "dm" });
 });
-
-describe("pingDelivery targets", () => {
-    it("falls back to the event channel for an unknown target", () => {
-        expect(ping.normalizePingTarget("talk")).toBe("talk");
-        expect(ping.normalizePingTarget("bogus")).toBe("event");
-        expect(ping.normalizePingTarget(undefined)).toBe("event");
-    });
-
-    it("offers the talk server only with a talk server and a ping channel", () => {
-        expect(ping.pingTargetInfo(config())).toEqual({ talk: true, talkGuildName: "Pulse Talk", talkChannelName: "pings" });
-        const noChannel = config({ discordServers: { eventGuildId: "100000", talkGuildId: "200000", talkPingChannelId: "" } });
-        expect(ping.pingTargetInfo(noChannel).talk).toBe(false);
-        expect(ping.pingTargetInfo({ guildId: "100000" }).talk).toBe(false);
-    });
-});
+afterEach(() => { variables.publicBaseUrl = baseUrl; });
 
 describe("deliverUserPing", () => {
-    it("writes the default ping in the server language (German by default)", async () => {
-        await ping.deliverUserPing({ target: "event", event, userIds: ["1"], config: config() });
+    it("writes the default ping in the event language (German by default)", async () => {
+        await ping.deliverUserPing({ event, userIds: ["1"], config: config() });
         expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["1"], "Bitte melde dich für den Raid an oder ab, damit das Roster vollständig ist.");
         expect(ping.missingPingText("en")).toBe("Please sign up or sign off for the raid, so the roster is complete.");
     });
 
-    it("takes a text per language: the channel gets the server language, each DM the raider's own", async () => {
-        botLanguage.langOf.mockImplementation((id) => (id === "3" ? "en" : "de"));
-        const text = (lang) => (lang === "en" ? "Reminder in English" : "Erinnerung auf Deutsch");
-        await ping.deliverUserPing({ target: "talk", event, userIds: ["1", "3", "4"], text, guildId: "100000", config: config() });
-        expect(discord.postMissingPing).toHaveBeenCalledWith("210000", ["1"], "Erinnerung auf Deutsch");
-        const dms = dmTexts();
-        expect(dms["3"]).toContain("Reminder in English");
-        expect(dms["4"]).toContain("Erinnerung auf Deutsch");
-        // the channel button in the reader's language, too
-        const labels = Object.fromEntries(discord.sendDirectMessage.mock.calls.map(([id, payload]) => [id, cardLinks(payload)[0].label]));
-        expect(labels).toEqual({ 3: "To the channel", 4: "Zum Kanal" });
-    });
-
-    it("falls back to the default DM text in each raider's language", async () => {
-        botLanguage.langOf.mockImplementation((id) => (id === "3" ? "en" : "de"));
-        await ping.deliverUserPing({ target: "talk", event, userIds: ["3", "4"], guildId: "100000", config: config() });
-        const dms = dmTexts();
-        expect(dms["3"]).toContain("Please sign up or sign off for the raid.");
-        expect(dms["4"]).toContain("Bitte melde dich für den Raid an oder ab.");
-    });
-
-    it("pings only in the event channel for target event, without touching the talk server", async () => {
-        const r = await ping.deliverUserPing({ target: "event", event, userIds: ["1", "3"], text: "Hallo", config: config() });
+    it("mentions the raiders on the raid server in the raid channel and DMs the rest", async () => {
+        const r = await ping.deliverUserPing({ event, userIds: ["1", "2", "3"], text: "Bitte melden", guildId: RAID_GUILD, config: config() });
+        expect(discord.fetchGuildMembersCached).toHaveBeenCalledWith(RAID_GUILD, expect.anything());
         expect(discord.postMissingPing).toHaveBeenCalledTimes(1);
-        expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["1", "3"], "Hallo");
-        expect(discord.fetchGuildMembersCached).not.toHaveBeenCalled();
-        expect(r.dm).toBeNull();
-    });
-
-    it("mentions talk members in the ping channel and DMs the rest for target talk", async () => {
-        const r = await ping.deliverUserPing({ target: "talk", event, userIds: ["1", "2", "3"], text: "Bitte melden", guildId: "100000", config: config() });
-        expect(discord.postMissingPing).toHaveBeenCalledTimes(1);
-        expect(discord.postMissingPing).toHaveBeenCalledWith("210000", ["1", "2"], "Bitte melden");
+        expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["1", "2"], "Bitte melden");
         expect(discord.sendDirectMessage).toHaveBeenCalledTimes(1);
         const [userId, payload] = discord.sendDirectMessage.mock.calls[0];
         expect(userId).toBe("3");
-        // a warn card: the raid as its heading, the text, the start short, a button to the channel — nothing pings
+        // a warn card: the raid as its heading, the text, the start short — nothing pings
         expect(payload.flags & MessageFlags.IsComponentsV2).toBe(MessageFlags.IsComponentsV2);
         expect(payload.components[0].accent_color).toBe(KIND_COLORS.warn);
         expect(payload.allowedMentions).toEqual({ parse: [] });
@@ -127,120 +87,136 @@ describe("deliverUserPing", () => {
         expect(text).toContain("Bitte melden");
         expect(text).toContain("<t:1900000000:d> <t:1900000000:t> · <t:1900000000:R>");
         expect(text).not.toMatch(/:[fF]>/);
-        expect(cardLinks(payload).map((b) => b.url)).toEqual(["https://discord.com/channels/100000/110000"]);
-        expect(r).toMatchObject({ target: "talk", mentioned: 2, dm: { sent: ["3"], failed: [] } });
+        // only a button to the web: a link into the raid server leads someone not on it nowhere
+        expect(cardLinks(payload).map((b) => b.url)).toEqual(["https://eh.example/signups?event=e1"]);
+        expect(r).toMatchObject({ mentioned: 2, dm: { sent: ["3"], failed: [] }, membersUnreadable: false });
+        expect(r).not.toHaveProperty("target");
     });
 
-    it("posts in both channels for target both and sends no DM on top", async () => {
-        const r = await ping.deliverUserPing({ target: "both", event, userIds: ["1", "3"], config: config({ botLanguage: "en" }) });
-        const fallback = "Please sign up or sign off for the raid, so the roster is complete.";
-        expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["1", "3"], fallback);
-        expect(discord.postMissingPing).toHaveBeenCalledWith("210000", ["1"], fallback);
+    it("takes the raid server from the event when the caller names none", async () => {
+        await ping.deliverUserPing({ event, userIds: ["1"], config: config() });
+        expect(discord.getGuild).toHaveBeenCalledWith(RAID_GUILD);
+    });
+
+    it("posts nothing in the channel when nobody is on the raid server", async () => {
+        const r = await ping.deliverUserPing({ event, userIds: ["3", "4"], config: config() });
+        expect(discord.postMissingPing).not.toHaveBeenCalled();
+        expect(r.event).toBeNull();
+        expect(r.mentioned).toBe(0);
+        expect(r.dm.sent).toEqual(["3", "4"]);
+    });
+
+    it("sends no DM when everybody is on the raid server", async () => {
+        const r = await ping.deliverUserPing({ event, userIds: ["1", "2", "2"], config: config() });
+        expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["1", "2"], expect.any(String));
         expect(discord.sendDirectMessage).not.toHaveBeenCalled();
         expect(r.dm).toBeNull();
     });
 
-    // #890: one server may be event and talk server at once - no double ping there.
-    it("pings once in the event channel when the talk server is the event server", async () => {
-        const same = config({ discordServers: { servers: [{ guildId: "100000" }], links: [], talkGuildId: "100000", talkPingChannelId: "120000" } });
-        const r = await ping.deliverUserPing({ target: "both", event, userIds: ["1", "3"], guildId: "100000", config: same });
-        expect(discord.postMissingPing).toHaveBeenCalledTimes(1);
-        expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["1", "3"], expect.any(String));
-        expect(discord.fetchGuildMembersCached).not.toHaveBeenCalled();
-        expect(discord.sendDirectMessage).not.toHaveBeenCalled();
-        expect(r.target).toBe("event");
+    it("takes a text per language: the channel gets the event language, each DM the raider's own", async () => {
+        botLanguage.langOf.mockImplementation((id) => (id === "3" ? "en" : "de"));
+        const text = (lang) => (lang === "en" ? "Reminder in English" : "Erinnerung auf Deutsch");
+        await ping.deliverUserPing({ event, userIds: ["1", "3", "4"], text, config: config() });
+        expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["1"], "Erinnerung auf Deutsch");
+        const dms = dmTexts();
+        expect(dms["3"]).toContain("Reminder in English");
+        expect(dms["4"]).toContain("Erinnerung auf Deutsch");
+        // the buttons in the reader's language, too
+        const labels = Object.fromEntries(discord.sendDirectMessage.mock.calls.map(([id, payload]) => [id, cardLinks(payload).map((b) => b.label)]));
+        expect(labels).toEqual({ 3: ["Open on the web"], 4: ["Im Web öffnen"] });
     });
 
-    it("keeps both for two different servers", () => {
-        const cfg = config({ discordServers: { servers: [{ guildId: "100000" }, { guildId: "200000" }], links: [], talkGuildId: "200000" } });
-        expect(ping.effectiveTarget("both", "100000", cfg)).toBe("both");
-        expect(ping.effectiveTarget("both", "", cfg)).toBe("both");
-        expect(ping.effectiveTarget("both", "200000", cfg)).toBe("event");
-        expect(ping.effectiveTarget("talk", "200000", cfg)).toBe("talk");
+    it("falls back to the default DM text in each raider's language", async () => {
+        botLanguage.langOf.mockImplementation((id) => (id === "3" ? "en" : "de"));
+        await ping.deliverUserPing({ event, userIds: ["3", "4"], config: config() });
+        const dms = dmTexts();
+        expect(dms["3"]).toContain("Please sign up or sign off for the raid.");
+        expect(dms["4"]).toContain("Bitte melde dich für den Raid an oder ab.");
     });
 
     it("counts failed DMs instead of failing the ping", async () => {
         discord.sendDirectMessage.mockResolvedValue({ ok: false, error: "DMs geschlossen" });
-        const r = await ping.deliverUserPing({ target: "talk", event, userIds: ["3"], config: config() });
+        const r = await ping.deliverUserPing({ event, userIds: ["3"], config: config() });
         expect(discord.postMissingPing).not.toHaveBeenCalled();
         expect(r.dm).toEqual({ sent: [], failed: ["3"] });
-        expect(ping.dmSummary(r.dm)).toBe(" · 1 DM fehlgeschlagen");
+        expect(ping.dmSummary(r)).toBe(" · 1 DM fehlgeschlagen");
     });
 
-    it("refuses the talk server without a ping channel, before posting anything", async () => {
-        const cfg = config({ discordServers: { eventGuildId: "100000", talkGuildId: "", talkPingChannelId: "" } });
-        await expect(ping.deliverUserPing({ target: "both", event, userIds: ["1"], config: cfg }))
-            .rejects.toThrow("kein Ping-Kanal");
+    it("refuses when the bot is not on the raid server, before posting anything", async () => {
+        await expect(ping.deliverUserPing({ event, userIds: ["1"], guildId: "999999", config: config() }))
+            .rejects.toThrow("Der Bot ist nicht auf dem Server des Raids.");
         expect(discord.postMissingPing).not.toHaveBeenCalled();
+        expect(discord.sendDirectMessage).not.toHaveBeenCalled();
     });
 
-    it("posts nothing when the talk members cannot be read", async () => {
+    it("mentions everyone in the channel and DMs nobody when the members cannot be read", async () => {
         discord.fetchGuildMembersCached.mockRejectedValue(new Error("intent"));
-        await expect(ping.deliverUserPing({ target: "both", event, userIds: ["1"], config: config() }))
-            .rejects.toThrow("Kommunikations-Discords nicht lesbar");
-        expect(discord.postMissingPing).not.toHaveBeenCalled();
+        const r = await ping.deliverUserPing({ event, userIds: ["1", "3"], config: config() });
+        expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["1", "3"], expect.any(String));
+        expect(discord.sendDirectMessage).not.toHaveBeenCalled();
+        expect(r).toMatchObject({ mentioned: 2, dm: null, membersUnreadable: true });
+        expect(ping.dmSummary(r)).toBe(` · ${ping.MEMBERS_UNREADABLE_NOTE}`);
+        expect(ping.MEMBERS_UNREADABLE_NOTE).toBe("Mitgliederliste nicht lesbar, alle im Kanal erwähnt");
+    });
+
+    it("falls back the same way when the member list does not come in time", async () => {
+        discord.fetchGuildMembersCached.mockReturnValue(new Promise(() => {}));
+        const r = await ping.deliverUserPing({ event, userIds: ["1", "3"], config: config(), memberTimeoutMs: 5 });
+        expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["1", "3"], expect.any(String));
+        expect(discord.sendDirectMessage).not.toHaveBeenCalled();
+        expect(r.membersUnreadable).toBe(true);
+        expect(ping.MEMBER_FETCH_MS).toBe(10000);
+    });
+
+    it("treats a member list that is no list as unreadable", async () => {
+        discord.fetchGuildMembersCached.mockResolvedValue(null);
+        const r = await ping.deliverUserPing({ event, userIds: ["3"], config: config() });
+        expect(r).toMatchObject({ mentioned: 1, dm: null, membersUnreadable: true });
+    });
+
+    it("sums up DMs sent and failed, and nothing without a delivery", () => {
+        expect(ping.dmSummary(null)).toBe("");
+        expect(ping.dmSummary({ dm: null, membersUnreadable: false })).toBe("");
+        expect(ping.dmSummary({ dm: { sent: ["3", "4"], failed: ["5", "6"] } })).toBe(" · 2 per DM · 2 DMs fehlgeschlagen");
+    });
+
+    it("refuses an event without a channel", async () => {
+        await expect(ping.deliverUserPing({ event: { ...event, channelId: "" }, userIds: ["1"], config: config() }))
+            .rejects.toThrow("Das Event hat keinen Kanal.");
     });
 });
 
 describe("deliverAnnouncement", () => {
     const template = { title: "Anmeldung", body: "Bitte eintragen" };
 
-    it("keeps the old call for the event channel", async () => {
-        await ping.deliverAnnouncement({ target: "event", channelId: "110000", template, roleIds: ["500000"], config: config() });
+    it("posts the call with the role mentions in the raid channel and DMs nobody", async () => {
+        const r = await ping.deliverAnnouncement({ channelId: "110000", template, roleIds: ["500000", "500000", ""] });
         expect(discord.postAnnouncement).toHaveBeenCalledWith("110000", template, ["500000"]);
         expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
-    });
-
-    it("maps a synced role to its talk role, mentions members of unmapped roles and DMs who is not there", async () => {
-        const cfg = config({ roleSync: [{ fromGuildId: "100000", fromRoleId: "500000", toGuildId: "200000", toRoleId: "600000", direction: "toTarget" }] });
-        discord.listMembersWithRoles.mockImplementation(async (guildId, roleIds) => {
-            if (roleIds.length === 2) return { members: [{ id: "1" }, { id: "2" }, { id: "3" }], error: null };
-            return { members: [{ id: "1" }], error: null }; // holders of the mapped role 500000
-        });
-        const r = await ping.deliverAnnouncement({
-            target: "talk", event, channelId: "", template, roleIds: ["500000", "700000"], guildId: "100000", config: cfg,
-        });
-        // 1 is reached by the talk role, 2 by a mention, 3 is not on the talk server.
-        expect(discord.postAnnouncement).toHaveBeenCalledTimes(1);
-        expect(discord.postAnnouncement).toHaveBeenCalledWith("210000", template, ["600000"], ["2"]);
-        expect(discord.sendDirectMessage).toHaveBeenCalledTimes(1);
-        expect(discord.sendDirectMessage.mock.calls[0][0]).toBe("3");
-        expect(dmTexts()["3"]).toContain("**Anmeldung**\nBitte eintragen");
-        expect(r.dm).toEqual({ sent: ["3"], failed: [] });
-    });
-
-    // #896: a pair counts in either orientation, but only between this raid server and the talk server.
-    it("maps a pair the other way round and ignores a pair to a third server", async () => {
-        const cfg = config({ roleSync: [
-            { fromGuildId: "200000", fromRoleId: "600000", toGuildId: "100000", toRoleId: "500000", direction: "toSource" },
-            { fromGuildId: "100000", fromRoleId: "700000", toGuildId: "300000", toRoleId: "800000", direction: "both" },
-        ] });
-        expect(ping.mapRoles(["500000", "700000"], cfg, "100000", "200000")).toEqual({ talkRoleIds: ["600000"], unmapped: ["700000"] });
-        expect(ping.mapRoles(["500000"], cfg, "", "200000")).toEqual({ talkRoleIds: [], unmapped: ["500000"] });
-    });
-
-    it("posts in both places and sends no DM for target both", async () => {
-        discord.listMembersWithRoles.mockResolvedValue({ members: [{ id: "1" }, { id: "3" }], error: null });
-        await ping.deliverAnnouncement({ target: "both", event, channelId: "110000", template, roleIds: ["700000"], guildId: "100000", config: config() });
-        expect(discord.postAnnouncement).toHaveBeenCalledWith("110000", template, ["700000"]);
-        expect(discord.postAnnouncement).toHaveBeenCalledWith("210000", template, [], ["1"]);
         expect(discord.sendDirectMessage).not.toHaveBeenCalled();
+        expect(r).toEqual({ event: { channelId: "110000", messageId: "m" }, mentioned: 0, dm: null });
     });
 
-    it("fails before posting when the role members cannot be read", async () => {
-        discord.listMembersWithRoles.mockResolvedValue({ members: [], error: "GuildMembers-Intent fehlt." });
-        await expect(ping.deliverAnnouncement({ target: "both", event, channelId: "110000", template, roleIds: ["700000"], config: config() }))
-            .rejects.toThrow("GuildMembers-Intent fehlt.");
+    it("refuses without a template or a channel", async () => {
+        await expect(ping.deliverAnnouncement({ channelId: "", template, roleIds: [] })).rejects.toThrow("Vorlage oder Channel fehlt.");
+        await expect(ping.deliverAnnouncement({ channelId: "110000", template: null, roleIds: [] })).rejects.toThrow("Vorlage oder Channel fehlt.");
         expect(discord.postAnnouncement).not.toHaveBeenCalled();
     });
 });
 
 describe("dmCard", () => {
-    it("leaves the date and the button out when the event has neither start nor channel", () => {
-        const payload = ping.dmCard("Hallo", { title: "Gruul" }, "100000");
+    it("leaves the date and the buttons out when the event has neither start nor channel nor id", () => {
+        const payload = ping.dmCard("Hallo", { title: "Gruul" });
         expect(cardText(payload)).toBe("## Gruul\nHallo");
         expect(cardLinks(payload)).toEqual([]);
         expect(ping.shortStart(0)).toBe("");
         expect(ping.shortStart(1900000000)).toBe("<t:1900000000:d> <t:1900000000:t> · <t:1900000000:R>");
+    });
+
+    it("never links into the raid server, not even to the signup message", () => {
+        knownChannels("110000");
+        const withMessage = { ...event, message: { channelId: "110000", messageId: "130000" } };
+        const links = cardLinks(ping.dmCard("Hallo", withMessage, "en"));
+        expect(links.map((b) => [b.label, b.url])).toEqual([["Open on the web", "https://eh.example/signups?event=e1"]]);
     });
 });

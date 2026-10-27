@@ -277,9 +277,10 @@ async function moveEvent({ guildId, eventId, date, time, renameChannel = true, n
         const event = eventStore.getEvent(plan.eventId);
         const start = plan.to.startTime;
         try {
-            // a note in the event channel: the server language (pingDelivery)
+            // a note in the event channel (the event's language), a DM for whoever
+            // is not on the raid's server (#894, pingDelivery)
             await deliverUserPing({
-                target: "event", event, userIds: recipients, guildId,
+                event, userIds: recipients, guildId,
                 text: (lang) => tr(lang, "📅 **{title}** has been moved: now {when} ({relative}).", { title: event.title, when: shortWhen(start), relative: `<t:${start}:R>` }),
             });
             notified = recipients.length;
