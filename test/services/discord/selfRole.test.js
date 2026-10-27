@@ -21,6 +21,10 @@ function guild({ everyone = 0n, overwrites = [] } = {}) {
         channels: { cache: new Map(channels.map((c) => [c.id, c])) },
     };
 }
+const EVENT_GUILD = "100000";
+const TALK_GUILD = "300000";
+/** A role-sync pair (#896): fromRoleId on the event server, toRoleId on the talk server. */
+const pair = (fromRoleId, toRoleId, direction = "both") => ({ fromGuildId: EVENT_GUILD, fromRoleId, toGuildId: TALK_GUILD, toRoleId, direction });
 const role = (bitfield = 0n) => ({ id: ROLE, permissions: { bitfield } });
 
 afterEach(() => jest.restoreAllMocks());
@@ -30,7 +34,7 @@ describe("selfRole privilegedReason", () => {
         expect(privilegedReason({}, ROLE)).toBe("");
         expect(privilegedReason({}, ROLE, role(0n), guild())).toBe("");
         expect(privilegedReason({ rolePermissions: { [ROLE]: { signup: { read: false } } } }, ROLE)).toBe("");
-        expect(privilegedReason({ categoryRoles: { cat: [OTHER] }, roleSync: [{ eventRoleId: OTHER, talkRoleId: OTHER }] }, ROLE)).toBe("");
+        expect(privilegedReason({ categoryRoles: { cat: [OTHER] }, roleSync: [pair(OTHER, OTHER)] }, ROLE)).toBe("");
         expect(privilegedReason({ officerRoleId: "" }, ROLE)).toBe("");
         expect(privilegedReason({ officerRoleId: OTHER }, ROLE)).toBe("");
         expect(privilegedReason({}, "")).toBe("");
@@ -45,8 +49,8 @@ describe("selfRole privilegedReason", () => {
         ["a role with area grants", { rolePermissions: { [ROLE]: { signup: { read: true } } } }, ROLE, "Berechtigungen"],
         ["a role a bot command allows", { botCommandAccess: { setup: { mode: "roles", roleIds: [OTHER, ROLE] } } }, ROLE, "botCommandAccess"],
         ["a raider role of a category", { categoryRoles: { "cat-1": [ROLE] } }, ROLE, "raider role"],
-        ["the talk side of the role sync", { roleSync: [{ eventRoleId: OTHER, talkRoleId: ROLE, direction: "toTalk" }] }, ROLE, "role sync"],
-        ["the event side of the role sync", { roleSync: [{ eventRoleId: ROLE, talkRoleId: OTHER, direction: "toEvent" }] }, ROLE, "role sync"],
+        ["the talk side of the role sync", { roleSync: [pair(OTHER, ROLE, "toTarget")] }, ROLE, "role sync"],
+        ["the event side of the role sync", { roleSync: [pair(ROLE, OTHER, "toSource")] }, ROLE, "role sync"],
     ])("refuses %s", (_name, config, roleId, reason) => {
         expect(privilegedReason(config, roleId)).toContain(reason);
     });
@@ -99,7 +103,8 @@ describe("selfRole roleUses", () => {
             rolePermissions: { [ROLE]: { signup: { read: true }, loot: { read: true, write: true } } },
             botCommandAccess: { setup: { mode: "roles", roleIds: [ROLE] }, absence: { mode: "roles", roleIds: [OTHER] }, kader: { mode: "roles", roleIds: [ROLE] } },
             categoryRoles: { "cat-1": [ROLE], "cat-2": [OTHER], "cat-3": [ROLE] },
-            roleSync: [{ eventRoleId: ROLE, talkRoleId: OTHER }, { eventRoleId: OTHER, talkRoleId: ROLE }],
+            discordServers: { talkGuildId: TALK_GUILD },
+            roleSync: [pair(ROLE, OTHER), pair(OTHER, ROLE)],
         };
         expect(roleUses(config, ROLE)).toEqual([
             { code: "admin" },
@@ -113,6 +118,12 @@ describe("selfRole roleUses", () => {
         ]);
         // the first use stays privilegedReason's reason
         expect(privilegedReason(config, ROLE)).toBe("the role is a full-admin role");
+    });
+
+    it("names a role-sync side by its server: only the talk server reads talk (#896)", () => {
+        jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
+        expect(roleUses({ roleSync: [pair(OTHER, ROLE)] }, ROLE)).toEqual([{ code: "roleSync", sides: ["event"] }]);
+        expect(roleUses({ discordServers: { talkGuildId: TALK_GUILD }, roleSync: [pair(OTHER, ROLE)] }, ROLE)).toEqual([{ code: "roleSync", sides: ["talk"] }]);
     });
 
     it("is empty for a plain role, no id or no config", () => {

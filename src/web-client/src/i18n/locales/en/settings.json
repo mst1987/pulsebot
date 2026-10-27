@@ -299,8 +299,8 @@
         "tip": "{both} of {total} members of the event Discord are on the communication Discord too. Whoever is missing gets pings as a DM later."
     },
     "direction": {
-        "toTalk": "Event → Talk",
-        "toEvent": "Talk → Event",
+        "toTarget": "First → second server",
+        "toSource": "Second → first server",
         "both": "both directions"
     },
     "drift": {
@@ -479,9 +479,9 @@
     },
     "roleSync": {
         "title": "Role sync",
-        "tipSub": "Maps a role of the event Discord to a role of the communication Discord. Runs on every role change and every 10 minutes. It only adds and never removes.",
-        "dirToTalkTip": "Whoever has the role on the event Discord gets it on the communication Discord.",
-        "dirToEventTip": "Whoever has the role on the communication Discord gets it on the event Discord.",
+        "tipSub": "Maps a role of one server to a role of another server of the list. Runs on every role change and every 10 minutes. It only adds and never removes.",
+        "dirToTargetTip": "Whoever has the role on the first server gets it on the second.",
+        "dirToSourceTip": "Whoever has the role on the second server gets it on the first.",
         "dirBoth": "Both",
         "dirBothTip": "In both directions.",
         "deleteAsk": "Delete mapping {label}?",
@@ -504,16 +504,24 @@
             "other": "members have"
         },
         "driftOnlyOn": "only on {where}",
-        "driftTalk": "the communication Discord",
-        "driftEvent": "the event Discord",
         "who": "Who",
         "removeTip": "Remove @{role}",
         "notOnSource": "No longer on the other server. Remove in Discord.",
         "lostSource": "No longer has @{role}. Remove in Discord.",
-        "eventTip": "Role on the event Discord",
-        "talkTip": "Role on the communication Discord",
         "direction": "Direction",
-        "directionSub": "The sync only adds. A lost role stays on the other side and shows up as drift."
+        "directionSub": "The sync only adds. A lost role stays on the other side and shows up as drift.",
+        "fromServer": "First server",
+        "toServer": "Second server",
+        "fromServerTip": "The server of the first role",
+        "toServerTip": "The server of the second role, another one than the first",
+        "role": "Role",
+        "pickServer": "— pick a server —",
+        "sameServer": "Pick two different servers.",
+        "notConnected": "Bot not on the server",
+        "needTwo": "The role sync needs at least two servers in the list.",
+        "overlap": "{both} of {count} on both",
+        "overlapTip": "{both} members of {from} are on {to} as well. Only they can get the role there.",
+        "overlapError": "Overlap unknown"
     },
     "discordServers": {
         "eventTipSub": "The event channels and Raid-Helper live here. The menu's admin role check runs against the first configured event server.",

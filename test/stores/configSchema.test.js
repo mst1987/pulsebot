@@ -128,7 +128,19 @@ function after894(config) {
         categoryReminders: dropTarget(config.categoryReminders), categoryAnnounce: dropTarget(config.categoryAnnounce),
     };
 }
-const schemaOnly = frozen.map((g) => ({ ...g, config: after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))))))) }));
+// #896 turns the role sync into pairs of servers: the event role belongs to the first server, the talk role to
+// the talk server, "toTalk"/"toEvent" become "toTarget"/"toSource". Without a talk server, or when the talk
+// server is the first server, the old pair names no two servers and is dropped.
+const DIRECTION_896 = { toTalk: "toTarget", toEvent: "toSource", both: "both" };
+function after896(config) {
+    const from = (config.discordServers.servers[0] || {}).guildId || "";
+    const to = config.discordServers.talkGuildId || "";
+    const roleSync = from && to && from !== to
+        ? config.roleSync.map((r) => ({ fromGuildId: from, fromRoleId: r.eventRoleId, toGuildId: to, toRoleId: r.talkRoleId, direction: DIRECTION_896[r.direction] }))
+        : [];
+    return { ...config, roleSync };
+}
+const schemaOnly = frozen.map((g) => ({ ...g, config: after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))))))) }));
 const golden = schemaOnly.map((g, i) => ({ ...g, config: afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config) }));
 const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)"));
 

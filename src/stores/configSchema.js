@@ -244,9 +244,10 @@ const CONFIG_DEFAULTS = {
     // Addons sets it, "Standard wiederherstellen" clears it. Only then does an empty
     // list stay empty; without it an empty list reads as the defaults (storedAddonList).
     addonDownloadsCustomized: false,
-    // Role sync between the two servers (#264): [{ eventRoleId, talkRoleId,
-    // direction }] with direction "toTalk" | "toEvent" | "both". The sync only
-    // ever ADDS roles (src/services/discord/roleSync.js); a role lost on one side stays on
+    // Role sync between any two configured servers (#264, pairs since #896):
+    // [{ fromGuildId, fromRoleId, toGuildId, toRoleId, direction }] with direction
+    // "toTarget" | "toSource" | "both" (normalizeRoleSync). The sync only ever ADDS
+    // roles (src/services/discord/roleSync.js); a role lost on one server stays on
     // the other and shows up as a hint in the admin menu.
     roleSync: [],
     // Automatic reminders per raid category (#264): { [categoryId]:
@@ -261,30 +262,73 @@ const CONFIG_DEFAULTS = {
     backup: normalizeBackupSettings(null),
 };
 
-const ROLE_SYNC_DIRECTIONS = ["toTalk", "toEvent", "both"];
+const ROLE_SYNC_DIRECTIONS = ["toTarget", "toSource", "both"];
+// The directions of the event/talk pairs before the federation (#896).
+const LEGACY_ROLE_SYNC_DIRECTIONS = { toTalk: "toTarget", toEvent: "toSource" };
 
 /**
- * Normalise the role-sync mapping to `[{ eventRoleId, talkRoleId, direction }]`:
- * both ids snowflakes, the direction one of ROLE_SYNC_DIRECTIONS (default
- * "toTalk"), one entry per role pair (the first wins). An entry missing either
- * role is dropped — a half mapping can sync nothing.
+ * One role-sync entry in the pair shape, or null. An entry of before #896
+ * (`eventRoleId`/`talkRoleId`) becomes a pair from the first server to the old
+ * talk server: eventRoleId -> fromRoleId, talkRoleId -> toRoleId, toTalk ->
+ * toTarget, toEvent -> toSource - it keeps syncing exactly as before.
  */
-function normalizeRoleSync(raw) {
+function roleSyncPair(entry, { serverIds, talkGuildId }) {
+    const legacy = entry.fromRoleId === undefined && entry.toRoleId === undefined
+        && (entry.eventRoleId !== undefined || entry.talkRoleId !== undefined);
+    const pick = (key) => String(entry[key] || "").trim();
+    const pair = legacy
+        ? { fromGuildId: (serverIds && serverIds[0]) || "", fromRoleId: pick("eventRoleId"), toGuildId: String(talkGuildId || "").trim(), toRoleId: pick("talkRoleId") }
+        : { fromGuildId: pick("fromGuildId"), fromRoleId: pick("fromRoleId"), toGuildId: pick("toGuildId"), toRoleId: pick("toRoleId") };
+    const direction = LEGACY_ROLE_SYNC_DIRECTIONS[entry.direction] || entry.direction;
+    return { ...pair, direction: ROLE_SYNC_DIRECTIONS.includes(direction) ? direction : "toTarget" };
+}
+
+/**
+ * Normalise the role-sync mapping (#896) to
+ * `[{ fromGuildId, fromRoleId, toGuildId, toRoleId, direction }]` with
+ * direction "toTarget" (from -> to) | "toSource" (to -> from) | "both".
+ * Every id a snowflake, the two servers different and - when `serverIds` is
+ * given - both of the configured servers (no link between them needed); one
+ * entry per pair (the first wins). Anything else is dropped: a half or broken
+ * pair can sync nothing. Old event/talk entries are migrated (roleSyncPair),
+ * which needs the context: `serverIds` (the first is the old event server) and
+ * the old `talkGuildId`.
+ * @param {*} raw
+ * @param {{ serverIds?: string[], talkGuildId?: string }} [ctx]
+ */
+function normalizeRoleSync(raw, ctx = {}) {
     if (!Array.isArray(raw)) return [];
+    const known = Array.isArray(ctx.serverIds) ? new Set(ctx.serverIds.map(String)) : null;
     const out = [];
     const seen = new Set();
     for (const entry of raw) {
         if (!entry || typeof entry !== "object") continue;
-        const eventRoleId = String(entry.eventRoleId || "").trim();
-        const talkRoleId = String(entry.talkRoleId || "").trim();
-        if (!isSnowflake(eventRoleId) || !isSnowflake(talkRoleId)) continue;
-        const key = `${eventRoleId}:${talkRoleId}`;
+        const pair = roleSyncPair(entry, ctx);
+        const ids = [pair.fromGuildId, pair.fromRoleId, pair.toGuildId, pair.toRoleId];
+        if (!ids.every(isSnowflake) || pair.fromGuildId === pair.toGuildId) continue;
+        if (known && (!known.has(pair.fromGuildId) || !known.has(pair.toGuildId))) continue;
+        const key = ids.join(":");
         if (seen.has(key)) continue;
         seen.add(key);
-        const direction = ROLE_SYNC_DIRECTIONS.includes(entry.direction) ? entry.direction : "toTalk";
-        out.push({ eventRoleId, talkRoleId, direction });
+        out.push(pair);
     }
     return out;
+}
+
+/**
+ * The context normalizeRoleSync() checks pairs against, from a normalised
+ * discordServers block. Until #897 drops `talkGuildId`, the talk server counts
+ * as a valid server even when it is not in `servers` (with the full ten event
+ * servers normalizeDiscordServers() has no room left for it) - otherwise its
+ * migrated pairs would be dropped on the next save. It goes last, so the first
+ * server stays the old event server of the migration.
+ */
+function roleSyncContext(discordServers) {
+    const block = discordServers || {};
+    const serverIds = (Array.isArray(block.servers) ? block.servers : []).map((s) => String((s && s.guildId) || "")).filter(Boolean);
+    const talkGuildId = String(block.talkGuildId || "").trim();
+    if (talkGuildId && serverIds.length && !serverIds.includes(talkGuildId)) serverIds.push(talkGuildId);
+    return { serverIds, talkGuildId };
 }
 
 /** Normalise { [categoryId]: templateId }: trimmed strings, empty entries dropped. */
@@ -922,7 +966,7 @@ function normalizeConfig(raw) {
         discordVisuals: normalizeDiscordVisuals(stored.discordVisuals),
         dungeonRecords: normalizeDungeonRecords(stored.dungeonRecords),
         topItems: normalizeTopItems(stored.topItems),
-        roleSync: normalizeRoleSync(stored.roleSync),
+        roleSync: normalizeRoleSync(stored.roleSync, roleSyncContext(discordServers)),
         categoryReminders: normalizeCategoryReminders(stored.categoryReminders),
         backup: normalizeBackupSettings(stored.backup),
     };
@@ -932,7 +976,7 @@ module.exports = {
     CONFIG_DEFAULTS, ROLE_SYNC_DIRECTIONS,
     normalizeConfig, normalizeDiscordServers, normalizeEventGuilds, normalizeEventGuildEntry,
     normalizeServers, normalizeLinks, legacyServersAndLinks, MAX_SERVERS: MAX_EVENT_GUILDS,
-    normalizeRoleSync, normalizeCategoryRaidTemplate, normalizeCategoryReminders, normalizeTopItems,
+    normalizeRoleSync, roleSyncContext, normalizeCategoryRaidTemplate, normalizeCategoryReminders, normalizeTopItems,
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryLanguagePatch,
     normalizeCategoryAttendance, attendanceSettings, categoryAttendanceFor, ATTENDANCE_WINDOW_MIN, ATTENDANCE_WINDOW_MAX, ATTENDANCE_DEFAULT_WINDOW, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupCharacters, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,

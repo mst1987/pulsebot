@@ -29,6 +29,7 @@ const noop = () => undefined;
 beforeEach(async () => {
     await switchLang("en");
     vi.mocked(api.getTalkOverview).mockResolvedValue({ statuses: [] });
+    vi.mocked(api.getRoleSync).mockResolvedValue({ roleSync: [], servers: [], overlaps: [], drift: [], driftTotal: 0, driftError: null, lastRun: null });
     vi.mocked(api.getReminders).mockResolvedValue({ categoryReminders: {}, categories: [], lastRun: null });
     vi.mocked(api.getRaiderCharacters).mockRejectedValue(new Error("offline"));
 });
