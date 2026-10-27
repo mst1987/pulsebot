@@ -1,4 +1,5 @@
-import { get, send } from "./client";
+import { get, send, type ApiError } from "./client";
+import { t } from "../i18n";
 import type { AdminConfig } from "./settings";
 
 export type Category = { id: string; name: string };
@@ -178,14 +179,23 @@ export function saveChannelConfig(
 /**
  * Store a purpose's channels (or categories). The assignment is a setting, so
  * it goes through PATCH /api/settings and needs write access to Einstellungen.
+ * A purpose stored per Discord server (SERVER_SCOPED_KEYS) carries the server
+ * the page loaded (`guildId`); the server refuses it with 409 `server_switched`
+ * when the session has switched since (#921).
  */
-export function saveChannelPurpose(purpose: ChannelPurpose, ids: string[]): Promise<{ config: AdminConfig }> {
+export function saveChannelPurpose(purpose: ChannelPurpose, ids: string[], guildId = ""): Promise<{ config: AdminConfig }> {
     const clean = [...new Set(ids.filter(Boolean))];
     const partial: Record<string, unknown> = purpose.key === "raidDefaults.channelId"
         ? { raidDefaults: { channelId: clean[0] || "" } }
         : { [purpose.key]: purpose.multiple ? clean : (clean[0] || "") };
-    return send("PATCH", "/api/settings", partial);
+    if (SERVER_SCOPED_KEYS.includes(purpose.key)) partial.serverSettingsGuildId = guildId;
+    return send<{ config: AdminConfig }>("PATCH", "/api/settings", partial).catch((err: ApiError) => {
+        throw err && err.code === "server_switched" ? { ...err, message: t("settings.serverSwitched") } : err;
+    });
 }
+
+/** Setting keys stored per Discord server — mirrors SERVER_SCOPED_KEYS in src/web/apiRoutes/settings.js. */
+export const SERVER_SCOPED_KEYS = ["logChannels"];
 
 export function getChannels(): Promise<ChannelsData> {
     return get<ChannelsData>("/api/channels");

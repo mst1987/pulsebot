@@ -75,7 +75,13 @@ function channelPurposes(config) {
     const add = (key, label, channelId, needs, extra = {}) => out.push({ key, label, channelId: str(channelId), needs, ...extra });
     add("applications", "Bewerbungen", config.applicationChannelId, [...POST, "CreatePublicThreads", "SendMessagesInThreads"], { required: true });
     // #921: each server's own log channels, pinned to that server
-    for (const c of allLogChannels({ config })) add("logs", "Log-Kanal", c.channelId, [...POST, "ReadMessageHistory"], { guildId: c.guildId });
+    const logs = allLogChannels({ config });
+    for (const c of logs) add("logs", "Log-Kanal", c.channelId, [...POST, "ReadMessageHistory"], { guildId: c.guildId });
+    // the old global list until the bot has moved it (logChannelMigration.js): on the server it lies on
+    const moved = new Set(logs.map((c) => c.channelId));
+    for (const id of new Set((Array.isArray(config.logChannelIds) ? config.logChannelIds : []).map(str))) {
+        if (!moved.has(id)) add("logs", "Log-Kanal", id, [...POST, "ReadMessageHistory"]);
+    }
     add("signupNotes", "Vielleicht und Absagen", servers.signupNoteChannelId, POST);
     for (const id of new Set(Object.values(config.categorySignupNoteChannel || {}).map(str))) add("signupNotes", "Vielleicht und Absagen (Kategorie)", id, POST);
     add("guildBank", "Gildenbank-Anfragen", servers.guildBankChannelId, POST);

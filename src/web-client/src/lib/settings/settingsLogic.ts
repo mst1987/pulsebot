@@ -308,6 +308,16 @@ function sameList(a: string[] | undefined, b: string[] | undefined): boolean {
 }
 
 /**
+ * Whether the log-channel list of the draft differs from the saved one (#921).
+ * Only a changed list is sent: it belongs to one Discord server, so a save of
+ * another field must not write it at all.
+ */
+export function logChannelsChanged(saved: Pick<DraftShape, "logChannels">, draft: Pick<DraftShape, "logChannels">): boolean {
+    const keys = (list: DraftShape["logChannels"] | undefined) => (list || []).map((c) => `${c.channelId}:${c.versionId ?? "*"}`);
+    return !sameList(keys(saved.logChannels), keys(draft.logChannels));
+}
+
+/**
  * The unsaved changes, one line each — the save bar counts them and shows the
  * first few. An empty list means the draft equals the saved state and the bar
  * stays away.
@@ -458,8 +468,7 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         if (String(saved[key] || "").trim() !== String(draft[key] || "").trim()) out.push(t(labelKey));
     }
     // #921: a channel and its version; "*" = not picked yet (the category decides on save).
-    const logKeys = (list: DraftShape["logChannels"] | undefined) => (list || []).map((c) => `${c.channelId}:${c.versionId ?? "*"}`);
-    if (!sameList(logKeys(saved.logChannels), logKeys(draft.logChannels))) out.push(t("settings.page.logChannels"));
+    if (logChannelsChanged(saved, draft)) out.push(t("settings.page.logChannels"));
     const itemsWas = (saved.topItems || []).map((i) => String(i.id));
     const itemsIs = (draft.topItems || []).map((i) => String(i.id));
     if (itemsWas.join(",") !== itemsIs.join(",")) out.push(t("settings.changes.topItems"));

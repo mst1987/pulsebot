@@ -110,7 +110,9 @@ const getClaData = withUser({}, async ({ req, res, query }) => {
         counts,
         autoMatchCount: matchEvents.error ? 0 : autoMatches(logs.filter((l) => !l.eventId && inVersion(l)), matchEvents.events).length,
         matchEventsError: matchEvents.error,
-        logChannelsConfigured: logChannelsOf(guildId, { config }).length > 0,
+        // #921: the old global list still counts until the bot has moved it to the servers (like isLogChannel)
+        logChannelsConfigured: logChannelsOf(guildId, { config }).length > 0
+            || (Array.isArray(config.logChannelIds) && config.logChannelIds.length > 0),
         activeGuildId: guildId,
         version: versionId,
     });

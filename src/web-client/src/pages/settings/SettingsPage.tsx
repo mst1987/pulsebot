@@ -18,7 +18,7 @@ import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import {
     SECTION_PARAM_IDS, visibleSections, resolveSection, groupedSections, savesWithForm, groupLabel, sectionCrumb, sectionLabel,
     type SettingsSection } from "../../lib/settings/settingsSections";
-import { areaLabel, draftChanges } from "../../lib/settings/settingsLogic";
+import { areaLabel, draftChanges, logChannelsChanged } from "../../lib/settings/settingsLogic";
 import { sectionBadge, settingsNavCounts } from "../../lib/settings/settingsNav";
 import { tParts, useT } from "../../i18n";
 import { Button } from "../../components/ui/Button";
@@ -216,8 +216,10 @@ export default function SettingsPage() {
                 applicationChannelId: draft.applicationChannelId.trim(),
                 categoryIds: draft.categoryIds,
                 categoryRoles: draft.categoryRoles,
-                // #921: the log channels belong to the active server; without one there is nothing to send.
-                ...(data.activeGuildId ? { logChannels: draft.logChannels } : {}),
+                // #921: the log channels belong to the server this page loaded — sent only when changed,
+                // with that server, so a tab left on another server is refused (409) instead of writing there.
+                ...(data.activeGuildId && logChannelsChanged(saved, draft)
+                    ? { logChannels: draft.logChannels, serverSettingsGuildId: data.activeGuildId } : {}),
                 raidDefaults: { channelId: draft.raidChannelId.trim() },
                 categoryLootTool: draft.categoryLootTool,
                 // Merged on the server: "automatisch" is sent as "" and drops the entry.
@@ -292,7 +294,9 @@ export default function SettingsPage() {
                 void content.refresh();
             }
         } catch (err) {
-            toast((err as ApiError).message, "err");
+            const e = err as ApiError;
+            // #921: another tab switched the session's server since this page loaded
+            toast(e.code === "server_switched" ? t("settings.serverSwitched") : e.message, "err");
         } finally {
             setSaving(false);
         }

@@ -466,7 +466,7 @@ describe("web/apiRoutes/settings", () => {
 
                 it("saves the list under the active server: bare ids keep or derive their version, objects set it", async () => {
                     activeGuildFor.mockReturnValue("guild-1");
-                    await patch("/api/settings", { logChannels: ["old", "inF", "loose", { channelId: "set", versionId: "forever" }] });
+                    await patch("/api/settings", { serverSettingsGuildId: "guild-1", logChannels: ["old", "inF", "loose", { channelId: "set", versionId: "forever" }] });
                     expect(discord.listAllChannels).toHaveBeenCalledWith("guild-1");
                     expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({
                         serverSettings: { "guild-1": { logChannels: [
@@ -480,15 +480,39 @@ describe("web/apiRoutes/settings", () => {
 
                 it("an empty list clears the server's channels", async () => {
                     activeGuildFor.mockReturnValue("guild-1");
-                    await patch("/api/settings", { logChannels: [] });
+                    await patch("/api/settings", { serverSettingsGuildId: "guild-1", logChannels: [] });
                     expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ serverSettings: { "guild-1": { logChannels: [] } } });
                 });
 
                 it("refuses the list without an active server", async () => {
                     const res = await patch("/api/settings", { logChannels: ["old"] });
                     expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-                    expect(json(res).error.code).toBe("invalid_log_channels");
+                    expect(json(res).error.code).toBe("no_active_server");
                     expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                // #921 review: the active server is per session; a tab loaded on another server must not write into this one
+                it("refuses with 409 when the tab loaded another server, and changes nothing", async () => {
+                    activeGuildFor.mockReturnValue("guild-B");
+                    const res = await patch("/api/settings", { serverSettingsGuildId: "guild-1", logChannels: ["a1"], officerRoleId: "r1" });
+                    expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                    expect(json(res).error.code).toBe("server_switched");
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                it("refuses with 409 when the tab sends no server", async () => {
+                    activeGuildFor.mockReturnValue("guild-1");
+                    const res = await patch("/api/settings", { logChannels: ["old"] });
+                    expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                    expect(json(res).error.code).toBe("server_switched");
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                it("a save without server-bound keys needs no server", async () => {
+                    activeGuildFor.mockReturnValue("guild-B");
+                    const res = await patch("/api/settings", { officerRoleId: "r1" });
+                    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                    expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ officerRoleId: "r1" });
                 });
             });
 

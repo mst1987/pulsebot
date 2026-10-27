@@ -135,6 +135,59 @@ describe("services/logcheck/logChannelMigration migrateLogChannels (#921)", () =
         expect(readFile().serverSettings).toBeUndefined();
         expect(lines[0]).toContain("kam nicht an");
     });
+
+    // #921 review: the web server runs while the lookups wait
+    it("keeps what is saved while a lookup waits", async () => {
+        writeFile(base({ logChannelIds: ["c1"], officerRoleId: "old" }));
+        const lookup = jest.fn(async () => {
+            writeFile({ ...readFile(), officerRoleId: "new", serverSettings: { [B]: { logChannels: [{ channelId: "b1", versionId: "" }] } } });
+            return { guildId: A };
+        });
+        await migrateLogChannels({ lookup });
+
+        const stored = readFile();
+        expect(stored.officerRoleId).toBe("new");
+        expect(stored.serverSettings[B].logChannels).toEqual([{ channelId: "b1", versionId: "" }]);
+        expect(stored.serverSettings[A].logChannels).toEqual([{ channelId: "c1", versionId: "tbc" }]);
+        expect(stored.logChannelIds).toBeUndefined();
+    });
+
+    it("does nothing when another run moved the list while a lookup waited", async () => {
+        writeFile(base({ logChannelIds: ["c1"] }));
+        const lookup = jest.fn(async () => {
+            const rest = { ...readFile() };
+            delete rest.logChannelIds;
+            writeFile({ ...rest, serverSettings: { [A]: { logChannels: [{ channelId: "c1", versionId: "classic" }] } } });
+            return { guildId: A };
+        });
+        expect(await migrateLogChannels({ lookup })).toEqual([]);
+        expect(readFile().serverSettings[A].logChannels).toEqual([{ channelId: "c1", versionId: "classic" }]);
+    });
+
+    it("on a failed read-back only puts logChannelIds back and takes the moved channels out", async () => {
+        writeFile(base({
+            logChannelIds: ["c1", "c2"],
+            serverSettings: { [A]: { logChannels: [{ channelId: "c1", versionId: "classic" }] } },
+        }));
+        const realGet = configStore.getConfig;
+        const realWrite = configStore.writeStored;
+        const writeSpy = jest.spyOn(configStore, "writeStored").mockImplementationOnce((value) => {
+            realWrite(value);
+            // saved by the web between the write and the read back
+            writeFile({ ...readFile(), officerRoleId: "saved" });
+        });
+        const spy = jest.spyOn(configStore, "getConfig")
+            .mockImplementationOnce(() => realGet())
+            .mockImplementationOnce(() => ({ serverSettings: {} }));
+        await migrateLogChannels({ lookup: lookupFrom({ c1: { guildId: A }, c2: { guildId: A } }) });
+        spy.mockRestore();
+        writeSpy.mockRestore();
+
+        const stored = readFile();
+        expect(stored.logChannelIds).toEqual(["c1", "c2"]);
+        expect(stored.officerRoleId).toBe("saved");
+        expect(stored.serverSettings[A].logChannels).toEqual([{ channelId: "c1", versionId: "classic" }]);
+    });
 });
 
 describe("services/logcheck/logChannelMigration lookupWithClient", () => {

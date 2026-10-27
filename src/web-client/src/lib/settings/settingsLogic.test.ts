@@ -73,6 +73,17 @@ describe("save bar change list", () => {
         categoryLootTool: {}, categorySheets: {}, categoryRaidTemplate: { c1: "tpl1" }, topItems: [{ id: 1 }],
     });
 
+    it("tells a changed log channel list from an unchanged one, version included (#921)", () => {
+        expect(logic.logChannelsChanged(base(), base())).toBe(false);
+        // the order does not count
+        expect(logic.logChannelsChanged(base(), { ...base(), logChannels: [...base().logChannels].reverse() })).toBe(false);
+        expect(logic.logChannelsChanged(base(), { ...base(), logChannels: [{ channelId: "l1", versionId: "forever" }, { channelId: "l2", versionId: "" }] })).toBe(true);
+        // "Nach Log-Seite" ("") is not "Aus der Kategorie" (no version)
+        expect(logic.logChannelsChanged(base(), { ...base(), logChannels: [{ channelId: "l1", versionId: "tbc" }, { channelId: "l2" }] })).toBe(true);
+        expect(logic.logChannelsChanged(base(), { ...base(), logChannels: [] })).toBe(true);
+        expect(logic.logChannelsChanged({}, {})).toBe(false);
+    });
+
     it("names a role made orga and one set back to a raider role", () => {
         const saved = { ...base(), orgaRoleIds: ["raidlead"] };
         const draft = { ...base(), orgaRoleIds: ["officer"] };

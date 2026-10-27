@@ -2,6 +2,7 @@
     "crumb": "Einstellungen › {crumb}",
     "saving": "Speichert…",
     "savedToast": "Gespeichert.",
+    "serverSwitched": "Der Discord-Server wurde in einem anderen Tab gewechselt – bitte die Seite neu laden. Nichts wurde gespeichert.",
     "account": "Konto {id}",
     "noName": "(ohne Name)",
     "editKicker": "Verbindung bearbeiten",

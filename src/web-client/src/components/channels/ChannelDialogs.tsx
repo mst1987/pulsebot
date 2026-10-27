@@ -58,7 +58,7 @@ export function PurposeDialog({ purpose, data, onClose, onSaved }: {
     const save = async () => {
         setBusy(true);
         try {
-            await saveChannelPurpose(purpose, selected);
+            await saveChannelPurpose(purpose, selected, data.activeGuildId);
             toast(t("channels.purposeDialog.saved", { label }));
             onSaved();
         } catch (err) {
@@ -175,7 +175,7 @@ export function AssignChannelDialog({ channel, data, onClose, onSaved }: {
                 const ids = on.includes(p.id)
                     ? (p.multiple ? [...p.ids, channel.id] : [channel.id])
                     : p.ids.filter((id) => id !== channel.id);
-                await saveChannelPurpose(p, ids);
+                await saveChannelPurpose(p, ids, data.activeGuildId);
             }
             toast(t("channels.assignDialog.saved", { name: channel.name }));
             onSaved();
@@ -291,7 +291,7 @@ export function CreateChannelDialog({ data, canAssign, onClose, onDone }: {
             const purpose = canAssign && textLike ? purposes.find((p) => p.id === purposeId) : undefined;
             if (purpose) {
                 try {
-                    await saveChannelPurpose(purpose, purpose.multiple ? [...purpose.ids, created.id] : [created.id]);
+                    await saveChannelPurpose(purpose, purpose.multiple ? [...purpose.ids, created.id] : [created.id], data.activeGuildId);
                     toast(t("channels.createDialog.createdAssigned", { name: created.name, purpose: purposeLabel(purpose) }));
                 } catch (err) {
                     toast(t("channels.createDialog.createdAssignFailed", { name: created.name, error: (err as ApiError).message }), "err");

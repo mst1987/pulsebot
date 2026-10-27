@@ -4,8 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "./client";
 import {
     archiveChannels, createChannel, deleteChannels, duplicateChannel, getChannels, patchChannels, quickCreateChannels,
-    renamePreview, saveChannelConfig, saveChannelPurpose, saveChannelSchema, type ChannelPurpose,
+    renamePreview, saveChannelConfig, saveChannelPurpose, saveChannelSchema, SERVER_SCOPED_KEYS, type ChannelPurpose,
 } from "./channels";
+import { t } from "../i18n";
 import { getChannelNameSuggestion } from "./raids";
 import { requireBackend } from "../test/backend";
 
@@ -86,10 +87,24 @@ describe("channel api", () => {
 
 describe("purposes are settings", () => {
     it("stores a purpose under its config key through PATCH /api/settings, without duplicates", async () => {
-        await saveChannelPurpose(purpose({ key: "logChannels", multiple: true }), ["a", "b", "a", ""]);
-        expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { logChannels: ["a", "b"] });
-        await saveChannelPurpose(purpose({ key: "applicationChannelId" }), []);
+        await saveChannelPurpose(purpose({ key: "logChannels", multiple: true }), ["a", "b", "a", ""], "g1");
+        expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { logChannels: ["a", "b"], serverSettingsGuildId: "g1" });
+        await saveChannelPurpose(purpose({ key: "applicationChannelId" }), [], "g1");
         expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { applicationChannelId: "" });
+    });
+
+    it("names the server switch in plain words and passes other errors on (#921)", async () => {
+        vi.mocked(client.send).mockRejectedValueOnce({ code: "server_switched", message: "raw" });
+        await expect(saveChannelPurpose(purpose({ key: "logChannels", multiple: true }), ["a"], "g1"))
+            .rejects.toMatchObject({ code: "server_switched", message: t("settings.serverSwitched") });
+        vi.mocked(client.send).mockRejectedValueOnce({ code: "forbidden", message: "nope" });
+        await expect(saveChannelPurpose(purpose({ key: "logChannels", multiple: true }), ["a"], "g1"))
+            .rejects.toEqual({ code: "forbidden", message: "nope" });
+    });
+
+    it("scopes the same keys per server as the backend", () => {
+        const { SERVER_SCOPED_KEYS: backend } = requireBackend("web/apiRoutes/settings");
+        expect([...SERVER_SCOPED_KEYS].sort()).toEqual([...backend].sort());
     });
 
     it("nests the signup channel under raidDefaults, the key the server names", async () => {

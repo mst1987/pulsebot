@@ -168,7 +168,35 @@ describe("the log channels of the active server (#921)", () => {
         expect(screen.getByText("1 ungespeicherte Änderung")).toBeInTheDocument();
         await user.click(screen.getByRole("button", { name: "Speichern" }));
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
-        expect(vi.mocked(api.updateSettings).mock.calls[0][0].logChannels).toEqual([{ channelId: "ch1", versionId: "forever" }]);
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({
+            logChannels: [{ channelId: "ch1", versionId: "forever" }],
+            // the server the page loaded, so a switch in another tab is refused (409)
+            serverSettingsGuildId: "g1",
+        });
+    });
+
+    it("leaves the log channels out when another field is saved, so a switched session cannot overwrite them", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(withLogs());
+        renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+        await user.selectOptions(await screen.findByRole("combobox", { name: "Standard-Kanal" }), "ch1");
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        const body = vi.mocked(api.updateSettings).mock.calls[0][0];
+        expect("logChannels" in body).toBe(false);
+        expect("serverSettingsGuildId" in body).toBe(false);
+    });
+
+    it("says the server was switched when the save is refused for it", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(withLogs());
+        vi.mocked(api.updateSettings).mockRejectedValue({ code: "server_switched", message: "raw" });
+        renderPage(<SettingsPage />, { route: "/settings?section=logs" });
+        await user.selectOptions(await screen.findByRole("combobox", { name: "Spielversion für #raids" }), "forever");
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        expect(await screen.findByText(/in einem anderen Tab gewechselt/)).toBeInTheDocument();
+        // the draft stays, nothing was saved
+        expect(screen.getByText("1 ungespeicherte Änderung")).toBeInTheDocument();
     });
 
     it("removes a channel", async () => {

@@ -41,6 +41,34 @@ async function lookupWithClient(client, channelId) {
     }
 }
 
+const asServerSettings = (v) => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
+
+/**
+ * A failed read-back undone on the file as it is now: logChannelIds set again
+ * and each server's added channels taken out (those it held before stay). A
+ * block or map the run created and left empty goes again.
+ * @param {object} stored the file now
+ * @param {object} before the file the run patched
+ * @param {Record<string, {channelId: string}[]>} additions
+ */
+function undoMove(stored, before, additions) {
+    const had = asServerSettings(before.serverSettings);
+    const settings = { ...asServerSettings(stored.serverSettings) };
+    for (const [guildId, list] of Object.entries(additions)) {
+        const block = settings[guildId];
+        if (!block || typeof block !== "object") continue;
+        const kept = new Set(normalizeLogChannels(had[guildId] && had[guildId].logChannels).map((c) => c.channelId));
+        const added = new Set(list.map((c) => c.channelId).filter((id) => !kept.has(id)));
+        const rest = { ...block, logChannels: normalizeLogChannels(block.logChannels).filter((c) => !added.has(c.channelId)) };
+        if (!rest.logChannels.length && !(had[guildId] && "logChannels" in had[guildId])) delete rest.logChannels;
+        if (Object.keys(rest).length || had[guildId]) settings[guildId] = rest;
+        else delete settings[guildId];
+    }
+    const out = { ...stored, logChannelIds: before.logChannelIds, serverSettings: settings };
+    if (!Object.keys(settings).length && !("serverSettings" in before)) delete out.serverSettings;
+    return out;
+}
+
 /**
  * Hand logChannelIds to the servers. Never throws for a single channel; a
  * failed lookup ends the run without writing.
@@ -82,25 +110,32 @@ async function migrateLogChannels({ lookup }) {
         placed.push({ guildId, channelId });
     }
 
+    // The web server already runs while the lookups wait: the file is read
+    // again after them and the patch applied without another await up to the
+    // write, so nothing saved in the meantime is overwritten.
+    const fresh = configStore.readStored();
+    if (!Object.prototype.hasOwnProperty.call(fresh, "logChannelIds")) return [];
     // Lists already set on a server stay first; a channel they hold is not added twice.
-    const current = stored.serverSettings && typeof stored.serverSettings === "object" && !Array.isArray(stored.serverSettings) ? stored.serverSettings : {};
+    const current = asServerSettings(fresh.serverSettings);
     const patch = {};
     for (const [guildId, list] of Object.entries(additions)) {
         const before = current[guildId] && Array.isArray(current[guildId].logChannels) ? current[guildId].logChannels : [];
         patch[guildId] = { logChannels: normalizeLogChannels([...before, ...list]) };
     }
-    const next = { ...stored, serverSettings: mergeServerSettings(current, patch) };
+    const next = { ...fresh, serverSettings: mergeServerSettings(current, patch) };
     delete next.logChannelIds;
     configStore.writeStored(next);
 
-    // Read back: a channel that did not arrive (a block getConfig() dropped) brings the old list back.
+    // Read back: a channel that did not arrive (a block getConfig() dropped)
+    // brings logChannelIds back and takes the moved channels out again - only
+    // those, the rest of the file stays as it is.
     const after = configStore.getConfig();
     const missing = placed.filter(({ guildId, channelId }) => {
         const block = (after.serverSettings || {})[guildId];
         return !block || !normalizeLogChannels(block.logChannels).some((c) => c.channelId === channelId);
     });
     if (missing.length) {
-        configStore.writeStored(stored);
+        configStore.writeStored(undoMove(configStore.readStored(), fresh, additions));
         return [`config.json: WARNUNG Log-Kanäle nicht verteilt, ${missing.map((m) => m.channelId).join(", ")} kam nicht an - logChannelIds bleibt (#921)`];
     }
     const counts = Object.entries(additions).map(([g, list]) => `${g}: ${list.length}`);

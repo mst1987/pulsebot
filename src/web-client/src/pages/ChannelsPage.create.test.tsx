@@ -263,7 +263,7 @@ describe("ChannelsPage — purposes", () => {
         expect(within(dialog).getByRole("link", { name: "Einstellungen" })).toHaveAttribute("href", "/settings?section=raids");
         await user.click(within(dialog).getByRole("radio", { name: /regeln/ }));
         await user.click(within(dialog).getByRole("button", { name: "Zuordnung speichern" }));
-        await waitFor(() => expect(api.saveChannelPurpose).toHaveBeenCalledWith(expect.objectContaining({ key: "raidDefaults.channelId" }), ["c-loose"]));
+        await waitFor(() => expect(api.saveChannelPurpose).toHaveBeenCalledWith(expect.objectContaining({ key: "raidDefaults.channelId" }), ["c-loose"], "g1"));
     });
 
     it("links to Einstellungen instead for someone without write access there", async () => {
@@ -289,7 +289,7 @@ describe("ChannelsPage — purposes", () => {
         expect(within(dialog).getByRole("button", { name: /Bewerbungen/, pressed: true })).toBeInTheDocument();
         await user.click(within(dialog).getByRole("button", { name: /Höchstgebote/ }));
         await user.click(within(dialog).getByRole("button", { name: "Zuordnung speichern" }));
-        await waitFor(() => expect(api.saveChannelPurpose).toHaveBeenCalledWith(expect.objectContaining({ key: "highestBidsChannelId" }), ["c-app"]));
+        await waitFor(() => expect(api.saveChannelPurpose).toHaveBeenCalledWith(expect.objectContaining({ key: "highestBidsChannelId" }), ["c-app"], "g1"));
     });
 
     it("keeps the ids of other servers when a multi-channel purpose is saved", async () => {
@@ -314,7 +314,7 @@ describe("ChannelsPage — purposes", () => {
         expect(within(within(dialog).getByRole("checkbox", { name: /bewerbungen/ }).closest("label")!).getByText("Bot liest mit")).toHaveClass("ok");
         await user.click(within(dialog).getByRole("checkbox", { name: /mi-17-09-ssc/ }));
         await user.click(within(dialog).getByRole("button", { name: "Zuordnung speichern" }));
-        await waitFor(() => expect(api.saveChannelPurpose).toHaveBeenCalledWith(expect.objectContaining({ key: "logChannels" }), ["c-app", "999", "c-mi"]));
+        await waitFor(() => expect(api.saveChannelPurpose).toHaveBeenCalledWith(expect.objectContaining({ key: "logChannels" }), ["c-app", "999", "c-mi"], "g1"));
     });
 });
 

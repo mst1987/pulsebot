@@ -317,7 +317,12 @@ export type SwitchedCategory = {
     roster?: SwitchRosterResult;
 };
 
-export function updateSettings(partial: Partial<AdminConfig> & { logChannels?: LogChannelInput[] }): Promise<{ config: AdminConfig; switchedCategories?: SwitchedCategory[]; deactivatedCategories?: DeactivatedCategory[] }> {
+/**
+ * PATCH /api/settings. Server-bound keys (logChannels, #921) go with
+ * `serverSettingsGuildId` — the server the page loaded; a session switched
+ * to another server since answers 409 `server_switched`.
+ */
+export function updateSettings(partial: Partial<AdminConfig> & { logChannels?: LogChannelInput[]; serverSettingsGuildId?: string }): Promise<{ config: AdminConfig; switchedCategories?: SwitchedCategory[]; deactivatedCategories?: DeactivatedCategory[] }> {
     return send("PATCH", "/api/settings", partial);
 }
 

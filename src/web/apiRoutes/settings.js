@@ -211,6 +211,31 @@ const DISCORD_SERVER_FIELDS = ["signupNoteChannelId", "guildBankChannelId"];
 /** The guild bank's orga channel of a config ("" = none). */
 const guildBankOf = (config) => String(((config && config.discordServers) || {}).guildBankChannelId || "");
 
+// Body keys stored per Discord server (config.serverSettings[guildId]). Each
+// part of the "data per server" epic (#926) that moves a setting there adds
+// its key here, so its PATCH is checked by serverSettingsTarget() below.
+const SERVER_SCOPED_KEYS = ["logChannels"];
+
+/**
+ * The server a PATCH of server-bound settings writes to — guarded against a
+ * stale tab. The active server is per session, not per tab: a tab loaded on
+ * server A whose session has since switched to B (another tab) would
+ * otherwise write A's values into B. So the client sends the server it loaded
+ * (`serverSettingsGuildId`, GET's `activeGuildId`) with every server-bound key,
+ * and a mismatch is refused with 409 instead of overwriting.
+ * @returns {{ guildId: string } | { status: number, code: string, message: string } | null}
+ *   null when the body holds no server-bound key
+ */
+function serverSettingsTarget(req, body) {
+    if (!SERVER_SCOPED_KEYS.some((k) => body[k] !== undefined)) return null;
+    const guildId = activeGuildFor(req);
+    if (!guildId) return { status: 400, code: "no_active_server", message: "Kein aktiver Discord-Server." };
+    if (String(body.serverSettingsGuildId || "") !== guildId) {
+        return { status: 409, code: "server_switched", message: "Der Discord-Server wurde gewechselt – bitte die Seite neu laden." };
+    }
+    return { guildId };
+}
+
 /** GET /api/settings — config + raidsheets + the active guild's roles/categories. */
 const getSettings = withUser({}, async ({ user, req, res }) => {
     const guildId = activeGuildFor(req);
@@ -580,6 +605,9 @@ function addonListPatch(body) {
 const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, res, user }) => {
     const touchesGuarded = FULL_ADMIN_KEYS.some((k) => body[k] !== undefined);
     if (touchesGuarded && !requireFullAdmin(req, res)) return;
+    // checked before anything else, so a stale tab changes nothing at all
+    const server = serverSettingsTarget(req, body);
+    if (server && !server.guildId) return error(res, server.status, server.code, server.message);
     const partial = {};
     if (body.adminRoleIds !== undefined) partial.adminRoleIds = asStringArray(body.adminRoleIds);
     // which roles count as orga (the rest are raider roles) — guarded like the access keys
@@ -614,10 +642,9 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (body.applicationChannelId !== undefined) partial.applicationChannelId = String(body.applicationChannelId).trim();
     if (body.categoryIds !== undefined) partial.categoryIds = asStringArray(body.categoryIds);
     if (body.categoryRoles !== undefined && typeof body.categoryRoles === "object") partial.categoryRoles = body.categoryRoles;
-    // #921: the log channels of the active server, sent whole (ids or { channelId, versionId }).
+    // #921: the log channels of the server the tab loaded, sent whole (ids or { channelId, versionId }).
     if (body.logChannels !== undefined) {
-        const guildId = activeGuildFor(req);
-        if (!guildId) return error(res, 400, "invalid_log_channels", "Kein aktiver Discord-Server.");
+        const { guildId } = server;
         const config = getConfig();
         const parents = new Map((discord.listAllChannels(guildId) || []).map((c) => [c.id, c.parentId || ""]));
         const logChannels = logChannelsFromBody(body.logChannels, {
@@ -1012,6 +1039,6 @@ module.exports = {
     getSettings, updateSettings, getItemSearch, getArchiveExport, getCategorySwitch, saveRaidsheetHandler, deleteRaidsheetHandler,
     getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers,
     getRoleSync, getReminders,
-    publicConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, ADDON_KEYS, FULL_ADMIN_KEYS,
+    publicConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, ADDON_KEYS, FULL_ADMIN_KEYS, SERVER_SCOPED_KEYS,
     routes,
 };

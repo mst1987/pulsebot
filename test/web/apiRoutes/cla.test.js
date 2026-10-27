@@ -309,6 +309,13 @@ describe("web/apiRoutes/cla", () => {
             expect(json(res).data.logChannelsConfigured).toBe(true);
         });
 
+        it("logChannelsConfigured counts the old global list until it is moved (#921)", async () => {
+            activeGuildFor.mockReturnValue("guild-2");
+            settingsStore.getConfig.mockReturnValue({ logChannelIds: ["c-old"], serverSettings: {} });
+            const res = await get("/api/cla");
+            expect(json(res).data.logChannelsConfigured).toBe(true);
+        });
+
         it("logChannelsConfigured counts only the active server's channels (#921)", async () => {
             activeGuildFor.mockReturnValue("guild-2");
             settingsStore.getConfig.mockReturnValue({ serverSettings: { "guild-1": { logChannels: [{ channelId: "c1", versionId: "tbc" }] } } });
