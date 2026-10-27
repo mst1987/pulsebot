@@ -126,5 +126,5 @@ function renderError(title, message) {
 }
 
 module.exports = {
-    esc, themeToggleBtn, setPageVersion, layout, shellPage, authBar, renderNotFound, renderError,
+    esc, themeToggleBtn, setPageVersion, layout, shellPage, authBar, renderNotFound, renderError, DISCORD_LOGO,
 };
