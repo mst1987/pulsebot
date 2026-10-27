@@ -264,7 +264,7 @@ describe("stores/settingsMigration standard values and recruitment versions (#55
     });
 });
 
-// #917: every log is written down with its server - raid, else post, else first server.
+// #917: every log is written down with its server - raid, else origin server, else first server.
 describe("stores/settingsMigration log servers (#917)", () => {
     const LOGS_FILE = settingsPath("logs.json");
     const A = "1100000000000000001";
@@ -276,7 +276,7 @@ describe("stores/settingsMigration log servers (#917)", () => {
         { id: "l2", reportId: "R2", guildId: A, channelId: "ch1", eventId: "rh-9" }, // Raid-Helper raid, category on B
         { id: "l3", reportId: "R3", guildId: B, channelId: "ch2" }, // post on B, no raid
         { id: "l4", reportId: "R4", guildId: "" }, // neither: first server
-        { id: "l5", reportId: "R5", guildId: B, eventId: "gone" }, // manual log, its raid is not found: first server
+        { id: "l5", reportId: "R5", guildId: B, eventId: "gone" }, // manual log, its raid is not found: keeps the server it was added on
     ] };
 
     function load() {
@@ -289,7 +289,7 @@ describe("stores/settingsMigration log servers (#917)", () => {
     const byId = () => Object.fromEntries(stored(LOGS_FILE).logs.map((l) => [l.id, l]));
     const line = (n) => `logs.json: ${n} Log(s) ihrem Discord-Server fest zugeordnet (#917)`;
 
-    it("assigns raid before channel before first server", () => {
+    it("assigns raid before origin server before first server", () => {
         load();
         const { changes } = migrateSettings(quiet);
         expect(changes).toContain(line(5));
@@ -298,7 +298,7 @@ describe("stores/settingsMigration log servers (#917)", () => {
         expect(logs.l2).toMatchObject({ guildId: B, guildFrom: "event", postGuildId: A });
         expect(logs.l3).toMatchObject({ guildId: B, guildFrom: "channel", postGuildId: B });
         expect(logs.l4).toMatchObject({ guildId: A, guildFrom: "first" });
-        expect(logs.l5).toMatchObject({ guildId: A, guildFrom: "first" });
+        expect(logs.l5).toMatchObject({ guildId: B, guildFrom: "channel", postGuildId: B });
         expect(logs.l4).not.toHaveProperty("postGuildId");
     });
 

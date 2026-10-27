@@ -217,7 +217,7 @@ Zugangsdaten, Token oder Sitzungen.
 | `settings/raidplan-catalog.json` | `raidplanCatalogStore.js` | Eigene/überschriebene Mobs und Zauber des Katalogs | nein |
 | `settings/loot.json` | `lootStore.js` | Importierter Loot (Gargul/RCLootcouncil/Addon), dazu `deleted`: Schlüssel von Hand gelöschter Einträge, damit kein Import sie zurückbringt | nein |
 | `settings/loot-inbox.json` | `lootInboxStore.js` | Addon-Uploads, die noch auf Bestätigung warten, und erledigte Sessions | nein |
-| `settings/logs.json` | `logStore.js` | Ausgewertete WCL-Reports (damit keiner zweimal läuft); jeder Log mit seinem Discord-Server (`guildId`, `guildFrom`, `postGuildId`, #917, siehe [discord-servers.md](discord-servers.md#daten-je-server-einstellungen-und-zuordnung-917-epic-926)) | nein |
+| `settings/logs.json` | `logStore.js` | Ausgewertete WCL-Reports (damit keiner zweimal läuft); jeder Log mit seinem Discord-Server (`guildId`, `guildFrom`, `postGuildId`, #917, siehe [discord-servers.md](discord-servers.md#data-per-server-settings-and-assignment-917-epic-926)) | nein |
 | `reports/<id>.json` | `reportStore.js` | Die gespeicherten Log-Auswertungen (Report-Seiten `/r/`) | nein |
 | `settings/logGear.json` | `logGearStore.js` | Aus einem WCL-Report geladenes Gear je Raider | nein |
 | `settings/characters.json` | `characterStore.js` | Klasse/Spec je Charakter (Cache aus Loot und Logs) | nein |
