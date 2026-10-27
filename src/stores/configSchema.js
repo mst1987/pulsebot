@@ -918,7 +918,13 @@ function blizzardCredentials(raw) {
  * The keys a server block may hold, with the default each part reads when a
  * server has none (#917). Empty for now: the parts 4-8 of epic #926 add theirs.
  */
-const SERVER_SETTING_DEFAULTS = Object.freeze({});
+const SERVER_SETTING_DEFAULTS = Object.freeze({
+    // #927 Raid-Helper je Server (utils/raidhelper/servers.js): off unless a
+    // server switches it on; serverId empty = the guild's own id; apiKey is only
+    // ever set from the settings page (never copied from .env); envKey marks the
+    // one server the start migration lets use RAIDHELPER_API_KEY from .env.
+    raidhelper: Object.freeze({ enabled: false, serverId: "", apiKey: "", envKey: false, at: 0, byName: "" }),
+});
 
 /**
  * The guild ids that may hold a serverSettings block: every server, every pure
