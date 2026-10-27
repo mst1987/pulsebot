@@ -7,7 +7,7 @@ jest.mock("../../../src/services/events/eventMessage", () => ({ redrawEventMessa
 jest.mock("../../../src/services/events/orgaHub", () => ({ onHubMessageDeleted: jest.fn((id) => id === "hub-msg") }));
 jest.mock("../../../src/services/events/raidOverview", () => ({ onOverviewMessageDeleted: jest.fn((id) => id === "ov-msg") }));
 jest.mock("../../../src/services/addons/addonCenter", () => ({ onCenterMessageDeleted: jest.fn((id) => id === "center-msg") }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ discordServers: { eventGuilds: [{ guildId: "g1" }] } })) }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ discordServers: { servers: [{ guildId: "g1" }], links: [{ from: "g1", to: "g1", channelId: "ov" }] } })) }));
 
 const fs = require("fs");
 const { EventEmitter } = require("events");
@@ -49,7 +49,7 @@ describe("services/discord/linkWatch", () => {
     it("notes a deleted raid category (#744) and nothing for any other category", () => {
         const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
         const settingsStore = require("../../../src/stores/settingsStore");
-        settingsStore.getConfig.mockReturnValue({ categoryIds: ["cat"], discordServers: { eventGuilds: [{ guildId: "g1" }] } });
+        settingsStore.getConfig.mockReturnValue({ categoryIds: ["cat"], discordServers: { servers: [{ guildId: "g1" }], links: [{ from: "g1", to: "g1", channelId: "ov" }] } });
         try {
             expect(linkWatch.onChannelDelete({ id: "cat", type: 4, name: "TBC Montag" })).toEqual([]);
             expect(linkWatch.onChannelDelete({ id: "other", type: 4, name: "Off-Topic" })).toEqual([]);
@@ -58,7 +58,7 @@ describe("services/discord/linkWatch", () => {
             expect(warn.mock.calls[0].join(" ")).toContain("TBC Montag");
         } finally {
             warn.mockRestore();
-            settingsStore.getConfig.mockReturnValue({ discordServers: { eventGuilds: [{ guildId: "g1" }] } });
+            settingsStore.getConfig.mockReturnValue({ discordServers: { servers: [{ guildId: "g1" }], links: [{ from: "g1", to: "g1", channelId: "ov" }] } });
         }
     });
 

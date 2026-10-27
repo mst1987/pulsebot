@@ -1212,7 +1212,7 @@ describe("web/apiRoutes/settings", () => {
             });
 
             it("lists the text channels of both servers, named with their server, and the default channel", async () => {
-                settingsStore.getConfig.mockReturnValue({ discordServers: { eventGuilds: [{ guildId: "200" }], talkGuildId: "300", signupNoteChannelId: "2001" } });
+                settingsStore.getConfig.mockReturnValue({ discordServers: { servers: [{ guildId: "200" }, { guildId: "300" }], links: [], talkGuildId: "300", signupNoteChannelId: "2001" } });
                 discord.listGuilds.mockReturnValue([{ id: "200", name: "Pulse Events" }, { id: "300", name: "Pulse Talk" }, { id: "400", name: "Andere" }]);
                 discord.listTextChannels.mockImplementation((id) => [{ id: `${id}1`, name: "abmeldungen", category: id === "200" ? "Raids" : "" }]);
                 requireAdmin.mockReturnValue({ id: "7", isAdmin: false });
@@ -1294,7 +1294,16 @@ describe("web/apiRoutes/settings", () => {
         describe("Discord-Server settings", () => {
             const stored = {
                 guildId: "200",
-                discordServers: { eventGuilds: [{ guildId: "200", label: "", overviewGuildId: "300", overviewChannelId: "301" }], talkGuildId: "300", talkPingChannelId: "" },
+                discordServers: {
+                    servers: [{ guildId: "200", label: "" }, { guildId: "300", label: "" }],
+                    links: [{ from: "200", to: "300", channelId: "301", lang: "en", versions: ["tbc"] }],
+                    talkGuildId: "300", talkPingChannelId: "",
+                },
+            };
+            // Transition until #891: GET hands the old dialog its eventGuilds list next to servers/links.
+            const servedBlock = {
+                ...stored.discordServers,
+                eventGuilds: [{ guildId: "200", label: "", overviewGuildId: "300", overviewChannelId: "301" }],
             };
             const guild = (id, name, memberCount) => ({ id, name, memberCount });
 
@@ -1369,7 +1378,7 @@ describe("web/apiRoutes/settings", () => {
                 const res = mockRes();
                 await getDiscordServers({}, res);
                 const data = body(res);
-                expect(data.discordServers).toEqual(stored.discordServers);
+                expect(data.discordServers).toEqual(servedBlock);
                 expect(data.events[0].name).toBe("Pulse Events");
                 expect(data.talk.name).toBe("Pulse Talk");
                 expect(data.overlap).toEqual({ eventCount: 2, talkCount: 1, both: 1, error: null });

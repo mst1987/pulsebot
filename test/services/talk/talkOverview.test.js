@@ -257,8 +257,9 @@ function fakeDiscord({ fetchError, sendId = "m-new" } = {}) {
     return { channel, message };
 }
 
-const eventGuild = (guildId, extra = {}) => ({ guildId, label: "", overviewGuildId: "222", overviewChannelId: "ov", ...extra });
-const config = { guildId: "111", discordServers: { eventGuilds: [eventGuild("111")], talkGuildId: "222" } };
+// The server federation (#890): the overview target is the first link of a server.
+const federation = (servers, links, talkGuildId = "") => ({ servers, links, talkGuildId });
+const config = { guildId: "111", discordServers: federation([{ guildId: "111", label: "" }, { guildId: "222", label: "" }], [{ from: "111", to: "222", channelId: "ov" }], "222") };
 
 describe("services/talk/talkOverview — syncOverview", () => {
     beforeEach(() => {
@@ -269,7 +270,7 @@ describe("services/talk/talkOverview — syncOverview", () => {
     });
 
     it("does nothing for a guild with no overview target configured", async () => {
-        getConfig.mockReturnValue({ guildId: "111", discordServers: { eventGuilds: [] } });
+        getConfig.mockReturnValue({ guildId: "111", discordServers: federation([], []) });
         expect(await syncOverview({ guildId: "111" })).toEqual({ status: "unconfigured" });
         expect(loadEventGroups).not.toHaveBeenCalled();
     });
@@ -337,12 +338,15 @@ describe("services/talk/talkOverview — syncOverview", () => {
 
     it("loops every configured entry without a guildId — one's failure never blocks another's", async () => {
         getConfig.mockReturnValue({
-            discordServers: { eventGuilds: [eventGuild("111", { label: "PvE" }), eventGuild("112", { label: "PvP", overviewChannelId: "ov2" })] },
+            discordServers: federation(
+                [{ guildId: "111", label: "PvE" }, { guildId: "112", label: "PvP" }, { guildId: "222", label: "" }],
+                [{ from: "111", to: "222", channelId: "ov" }, { from: "112", to: "222", channelId: "ov2" }, { from: "111", to: "111", channelId: "ov3" }],
+            ),
         });
         discord.getClient.mockReturnValue(null); // guild 111 fails ("Bot nicht verbunden.")
         loadEventGroups.mockResolvedValue({ groups: [], error: null });
         const { results } = await syncOverview({});
-        expect(results).toHaveLength(2);
+        expect(results).toHaveLength(2); // the first link of each server only, until #892
         expect(results[0]).toMatchObject({ guildId: "111", label: "PvE", status: "error" });
         expect(results[1]).toMatchObject({ guildId: "112", label: "PvP" });
     });

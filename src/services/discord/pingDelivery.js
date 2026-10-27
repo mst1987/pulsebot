@@ -77,6 +77,18 @@ function pingTargetInfo(config = getConfig()) {
 const includesEvent = (target) => target === "event" || target === "both";
 const includesTalk = (target) => target === "talk" || target === "both";
 
+/**
+ * The target as it is delivered (#890): a server may be event and talk server
+ * at once — then "both" would ping the same people twice on one server, so it
+ * goes to the event channel only.
+ */
+function effectiveTarget(mode, guildId, config) {
+    if (mode !== "both") return mode;
+    const talkId = guildRoles.talkGuildId(config);
+    const eventId = String(guildId || "").trim() || guildRoles.eventGuildId(config);
+    return talkId && talkId === eventId ? "event" : mode;
+}
+
 /** The ids of the talk server's members; throws with a German message when they cannot be read. */
 async function talkMemberIds(guildId) {
     const guild = discord.getGuild(guildId);
@@ -152,7 +164,7 @@ async function sendDms(userIds, payload, { config } = {}) {
  * @returns {Promise<{ target, event: object|null, talk: object|null, mentioned: number, dm: { sent: string[], failed: string[] } | null }>}
  */
 async function deliverUserPing({ target, event, userIds, text = "", guildId = "", config = getConfig() }) {
-    const mode = normalizePingTarget(target);
+    const mode = effectiveTarget(normalizePingTarget(target), guildId, config);
     const users = [...new Set((userIds || []).map(String).filter(Boolean))];
     const talk = includesTalk(mode) ? talkPingChannel(config) : null;
     if (includesTalk(mode) && !talk) throw new Error("Auf dem Kommunikations-Discord ist kein Ping-Kanal eingestellt.");
@@ -207,7 +219,7 @@ function mapRoles(roleIds, config) {
  * @param {string} p.guildId     the server those roles belong to
  */
 async function deliverAnnouncement({ target, event, channelId, template, roleIds, guildId = "", config = getConfig() }) {
-    const mode = normalizePingTarget(target);
+    const mode = effectiveTarget(normalizePingTarget(target), guildId, config);
     const roles = [...new Set((roleIds || []).map(String).filter(Boolean))];
     const result = { target: mode, event: null, talk: null, mentioned: 0, dm: null };
 
@@ -260,6 +272,6 @@ function dmSummary(dm) {
 
 module.exports = {
     PING_TARGETS, TARGET_LABELS,
-    normalizePingTarget, talkPingChannel, pingTargetInfo,
+    normalizePingTarget, effectiveTarget, talkPingChannel, pingTargetInfo,
     deliverUserPing, deliverAnnouncement, dmSummary, dmCard, shortStart, mapRoles, sendDms, missingPingText,
 };

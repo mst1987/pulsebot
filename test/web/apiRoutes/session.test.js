@@ -328,7 +328,7 @@ describe("web/apiRoutes/session", () => {
         // The switcher shows the fixed role of a server as a badge (#251).
         it("tags the event and the talk server in the guild list", async () => {
             auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });
-            settingsStore.getConfig.mockReturnValue({ guildId: "g1", discordServers: { talkGuildId: "g2" } });
+            settingsStore.getConfig.mockReturnValue({ guildId: "g1", discordServers: { servers: [{ guildId: "g1" }, { guildId: "g2" }], links: [], talkGuildId: "g2" } });
             discord.listGuilds.mockReturnValue([{ id: "g1", name: "Events" }, { id: "g2", name: "Talk" }, { id: "g3", name: "Andere" }]);
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);

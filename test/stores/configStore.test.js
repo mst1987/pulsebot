@@ -113,6 +113,77 @@ describe("stores/configStore saveConfig", () => {
         expect(saved.categorySignupNoteChannel).toEqual({ a: "1300000000000000002" });
     });
 
+    // Until #891 the settings dialog still sends the old eventGuilds list: it
+    // replaces servers + links, but a link it sends back keeps lang + versions.
+    it("keeps lang and versions of a link the old dialog sends back (#890)", () => {
+        const A = "1100000000000000011";
+        const B = "1100000000000000012";
+        const C = "1100000000000000013";
+        configStore.saveConfig({ discordServers: {
+            servers: [{ guildId: A }, { guildId: B }, { guildId: C }],
+            links: [{ from: A, to: B, channelId: "1200000000000000001", lang: "en", versions: ["tbc", "nope"] }],
+        } });
+        expect(configStore.getConfig().discordServers.links).toEqual([
+            { from: A, to: B, channelId: "1200000000000000001", lang: "en", versions: ["tbc"] },
+        ]);
+        const saved = configStore.saveConfig({ discordServers: { eventGuilds: [
+            { guildId: A, overviewGuildId: B, overviewChannelId: "1200000000000000002" },
+            { guildId: C, overviewGuildId: C, overviewChannelId: "1200000000000000003" },
+        ] } });
+        expect(saved.discordServers.servers.map((s) => s.guildId)).toEqual([A, C]);
+        expect(saved.discordServers.links).toEqual([
+            { from: A, to: B, channelId: "1200000000000000002", lang: "en", versions: ["tbc"] },
+            { from: C, to: C, channelId: "1200000000000000003", lang: "", versions: [] },
+        ]);
+    });
+
+    // A pure overview target is no server: it must not gain the rights of a
+    // raid server (userAccess, reminders, category lifecycle ...).
+    describe("overview targets stay outside the servers (#890)", () => {
+        const A = "1100000000000000021";
+        const B = "1100000000000000022";
+        const X = "1100000000000000023";
+        const T1 = "1100000000000000024";
+        const T2 = "1100000000000000025";
+        const CH = "1200000000000000021";
+        const ids = (cfg) => cfg.discordServers.servers.map((s) => s.guildId);
+
+        it("a removed overview target X stays gone, also after a second save", () => {
+            configStore.saveConfig({ discordServers: { eventGuilds: [{ guildId: A, overviewGuildId: X, overviewChannelId: CH }] } });
+            expect(ids(configStore.getConfig())).toEqual([A]);
+            expect(configStore.getConfig().discordServers.links).toHaveLength(1);
+            configStore.saveConfig({ discordServers: { eventGuilds: [{ guildId: A }] } });
+            configStore.saveConfig({ discordServers: { eventGuilds: [{ guildId: A }] } });
+            expect(ids(configStore.getConfig())).toEqual([A]);
+            expect(configStore.getConfig().discordServers.links).toEqual([]);
+        });
+
+        it("a removed event server B with a remaining link A -> B does not come back as a server", () => {
+            configStore.saveConfig({ discordServers: { eventGuilds: [
+                { guildId: A, overviewGuildId: B, overviewChannelId: CH }, { guildId: B },
+            ] } });
+            expect(ids(configStore.getConfig())).toEqual([A, B]);
+            const saved = configStore.saveConfig({ discordServers: { eventGuilds: [
+                { guildId: A, overviewGuildId: B, overviewChannelId: CH },
+            ] } });
+            expect(ids(saved)).toEqual([A]);
+            expect(saved.discordServers.links).toEqual([{ from: A, to: B, channelId: CH, lang: "", versions: [] }]);
+        });
+
+        it("after switching the talk server T1 -> T2 with a link A -> T1, T1 is no server", () => {
+            configStore.saveConfig({ discordServers: {
+                eventGuilds: [{ guildId: A, overviewGuildId: T1, overviewChannelId: CH }], talkGuildId: T1,
+            } });
+            expect(ids(configStore.getConfig())).toEqual([A, T1]);
+            const saved = configStore.saveConfig({ discordServers: {
+                eventGuilds: [{ guildId: A, overviewGuildId: T1, overviewChannelId: CH }], talkGuildId: T2,
+            } });
+            expect(ids(saved)).toEqual([A, T2]);
+            expect(saved.discordServers.talkGuildId).toBe(T2);
+            expect(saved.discordServers.links).toEqual([{ from: A, to: T1, channelId: CH, lang: "", versions: [] }]);
+        });
+    });
+
     it("merges the characters per signup per category; 8 sets a category back to the default", () => {
         configStore.saveConfig({ categorySignupCharacters: { a: 3, b: 2 } });
         expect(configStore.saveConfig({ categorySignupCharacters: { a: 8, c: 5 } }).categorySignupCharacters).toEqual({ b: 2, c: 5 });

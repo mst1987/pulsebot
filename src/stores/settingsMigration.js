@@ -152,7 +152,8 @@ function legacyEventGuilds(raw) {
 /** A servers block with its legacy event server as `eventGuilds`, or null when there is nothing to upgrade. */
 function migrateDiscordServers(servers) {
     if (!servers || typeof servers !== "object" || Array.isArray(servers)) return null;
-    if (Array.isArray(servers.eventGuilds)) return null;
+    // Already a list (or the federation shape of #890, which configSchema reads).
+    if (Array.isArray(servers.eventGuilds) || Array.isArray(servers.servers)) return null;
     const eventGuilds = legacyEventGuilds(servers);
     return eventGuilds.length ? { ...servers, eventGuilds } : null;
 }

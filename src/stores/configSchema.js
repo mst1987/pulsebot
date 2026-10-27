@@ -15,7 +15,7 @@ const { normalizeCategoryMessageLook } = require("../services/events/embedLook")
 const { normalizeCategoryPlanning } = require("../services/events/planning");
 const { normalizeCategorySignupCharacters } = require("../services/signups/signupCharacters");
 const { isSnowflake } = require("../utils/ids");
-const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
+const { rulesFor, DEFAULT_VERSION, VERSIONS } = require("../config/gameVersions");
 const { versionSettingsOf, normalizeVersionSettings, versionsWithDefaults } = require("./versionSettingsSchema");
 const { normalizeBackupSettings } = require("../services/backup/backupConfig");
 const { defaultAddons, storedAddonList, normalizeGithub } = require("../services/addons/addonConfig");
@@ -52,19 +52,20 @@ const CONFIG_DEFAULTS = {
     // own defaultAccess (see config/botCommands.js and services/discord/botAccess.js).
     botCommandAccess: {},
     // Home guild used to verify admin-role membership (resolveIsAdmin in auth.js).
-    // With discordServers.eventGuilds set, getConfig() reports the first one
-    // here — this key is only the fallback for an install that never picked one.
+    // With discordServers.servers set, getConfig() reports the first one here —
+    // this key is only the fallback for an install that never picked one.
     guildId: guildId || "",
     // The Discord servers the bot works with (Einstellungen → Verbindungen →
-    // Discord-Server): any number of event servers (event channels,
-    // Raid-Helper), each optionally posting its own raid overview to a channel
-    // on another server (the talk server or another event server), plus one
-    // talk server for pings and sign-up-per-bot. All empty = no server
-    // configured yet. `signupNoteChannelId` is where the messages of
+    // Discord-Server), the server federation of #893: `servers` lists every
+    // server as an equal ({ guildId, label }), `links` are directed
+    // ({ from, to, channelId }: the raid list of `from` is posted to channelId
+    // on `to`; from = to is allowed). The talk server (pings, sign-up-per-bot)
+    // stays a scalar for now and is always one of `servers`. All empty = no
+    // server configured yet. `signupNoteChannelId` is where the messages of
     // "Vielleicht" / "Absagen" land (src/services/signups/signupNotes.js) — a channel on
     // any server. `guildBankChannelId` is where the guild bank requests of every
     // raider organizer land (src/services/signups/guildBank.js); empty = no guild bank.
-    discordServers: { eventGuilds: [], talkGuildId: "", talkPingChannelId: "", signupNoteChannelId: "", guildBankChannelId: "" },
+    discordServers: { servers: [], links: [], talkGuildId: "", talkPingChannelId: "", signupNoteChannelId: "", guildBankChannelId: "" },
     // Raid-Helper server id (raid-helper.xyz), used for all Raid-Helper API calls.
     // RAIDHELPER_API_KEY stays in .env — it's a real secret, this id isn't.
     raidhelperServerId: raidhelperServerId || "",
@@ -398,6 +399,10 @@ const MAX_EVENT_GUILDS = 10;
 const EVENT_GUILD_LABEL_MAX = 60;
 
 /**
+ * The old event-server list (before #890), still read by the migration in
+ * normalizeDiscordServers() and by the settings route's transition format
+ * until the new Discord-Server page (#891) replaces it.
+ *
  * Normalise one event-server entry: `guildId` must be a snowflake (the entry
  * is dropped otherwise), `label` trimmed/capped. `overviewGuildId` +
  * `overviewChannelId` name where this server's own raid overview gets posted
@@ -440,22 +445,128 @@ function normalizeEventGuilds(list) {
     return out;
 }
 
+/** One server of the federation (#890): `{ guildId, label }`, null when the id is no snowflake. */
+function normalizeServerEntry(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    const guildId = String(raw.guildId || "").trim();
+    if (!isSnowflake(guildId)) return null;
+    return { guildId, label: String(raw.label || "").trim().slice(0, EVENT_GUILD_LABEL_MAX) };
+}
+
+/** The server list: deduped by guildId (first wins), capped at MAX_EVENT_GUILDS. */
+function normalizeServers(list) {
+    const out = [];
+    const seen = new Set();
+    for (const entry of Array.isArray(list) ? list : []) {
+        const normalized = normalizeServerEntry(entry);
+        if (!normalized || seen.has(normalized.guildId)) continue;
+        seen.add(normalized.guildId);
+        out.push(normalized);
+        if (out.length >= MAX_EVENT_GUILDS) break;
+    }
+    return out;
+}
+
 /**
- * Normalise the servers block to `{ eventGuilds, talkGuildId,
- * talkPingChannelId, signupNoteChannelId, guildBankChannelId }`. The scalars stay single
- * snowflakes or ""; `eventGuilds` is the list normalised above. A talk server
- * equal to one of the event servers is no second server: it is cleared, so
- * "one server for everything" is stored the same way however it was entered.
+ * The directed links (#890): a link counts only when `from` is in `serverIds`,
+ * `to` is a snowflake and `channelId` (the raid list's channel on `to`) is a
+ * snowflake — anything else is dropped. `to` need not be one of `servers`: a
+ * server that only shows a raid list holds no raids (no access, reminders or
+ * category checks there), and removing it from `servers` must not bring it
+ * back. `from` = `to` is allowed; a second link for the same `from:to` pair is
+ * dropped (first wins).
+ *
+ * `lang` is the language of the list on `to` (heading, buttons, day lines):
+ * "de" | "en", or "" = the target server's language (serverLang). `versions`
+ * are the game versions the list shows, [] = all. Both are only stored here;
+ * the raid list reads them (#892).
  */
-function normalizeDiscordServers(raw) {
+const LINK_LANGS = new Set(["de", "en"]);
+
+function normalizeLinkLang(raw) {
+    const lang = String(raw || "").trim().toLowerCase();
+    return LINK_LANGS.has(lang) ? lang : "";
+}
+
+function normalizeLinkVersions(raw) {
+    const known = new Set(VERSIONS.map((v) => v.id));
+    const out = [];
+    for (const entry of Array.isArray(raw) ? raw : []) {
+        const id = String(entry || "").trim();
+        if (known.has(id) && !out.includes(id)) out.push(id);
+    }
+    return out;
+}
+
+function normalizeLinks(list, serverIds) {
+    const known = new Set(serverIds);
+    const out = [];
+    const seen = new Set();
+    for (const raw of Array.isArray(list) ? list : []) {
+        if (!raw || typeof raw !== "object") continue;
+        const from = String(raw.from || "").trim();
+        const to = String(raw.to || "").trim();
+        const channelId = String(raw.channelId || "").trim();
+        if (!known.has(from) || !isSnowflake(to) || !isSnowflake(channelId)) continue;
+        const key = `${from}:${to}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ from, to, channelId, lang: normalizeLinkLang(raw.lang), versions: normalizeLinkVersions(raw.versions) });
+    }
+    return out;
+}
+
+/**
+ * The servers and links an old `eventGuilds` list stands for (#890): every
+ * event server keeps its label; its overview target becomes the link
+ * `{ from: guildId, to: overviewGuildId, channelId: overviewChannelId }`. A
+ * target that is no event server stays outside `servers` (only the event
+ * servers and the talk server become servers): it never held raids.
+ */
+function legacyServersAndLinks(eventGuilds) {
+    const entries = normalizeEventGuilds(eventGuilds);
+    const servers = entries.map((e) => ({ guildId: e.guildId, label: e.label }));
+    const links = [];
+    for (const e of entries) {
+        if (!e.overviewGuildId || !e.overviewChannelId) continue;
+        links.push({ from: e.guildId, to: e.overviewGuildId, channelId: e.overviewChannelId, lang: "", versions: [] });
+    }
+    return { servers, links };
+}
+
+/**
+ * Normalise the servers block to `{ servers, links, talkGuildId,
+ * talkPingChannelId, signupNoteChannelId, guildBankChannelId }` (#890). The
+ * scalars stay single snowflakes or "". A block with a `servers` array is
+ * the current shape; one without it is an old `eventGuilds` block, migrated
+ * here on every read (idempotent: the result has `servers`, so a second run
+ * takes the first path and changes nothing). The talk server is always one of
+ * `servers` (added at the end when missing and there is room) — a server may
+ * hold raids and be the talk server at once. Nothing configured stays
+ * `servers: []` (guildRoles.serverIds() then falls back to config.guildId).
+ * `fallbackGuildId` (config.guildId) only matters for an old block with a
+ * talk server but no event server: it worked on that home guild, which stays
+ * the first server, so adding the talk server does not make it the home.
+ */
+function normalizeDiscordServers(raw, { fallbackGuildId = "" } = {}) {
     const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
     const out = {};
     for (const key of DISCORD_SERVER_KEYS) {
         const value = String(src[key] === undefined || src[key] === null ? "" : src[key]).trim();
         out[key] = isSnowflake(value) ? value : "";
     }
-    out.eventGuilds = normalizeEventGuilds(src.eventGuilds);
-    if (out.talkGuildId && out.eventGuilds.some((e) => e.guildId === out.talkGuildId)) out.talkGuildId = "";
+    const current = Array.isArray(src.servers);
+    const legacy = current ? null : legacyServersAndLinks(src.eventGuilds);
+    const fallback = String(fallbackGuildId || "").trim();
+    if (legacy && !legacy.servers.length && out.talkGuildId && isSnowflake(fallback) && fallback !== out.talkGuildId) {
+        legacy.servers.push({ guildId: fallback, label: "" });
+    }
+    const servers = current ? normalizeServers(src.servers) : normalizeServers(legacy.servers);
+    if (out.talkGuildId && !servers.some((s) => s.guildId === out.talkGuildId) && servers.length < MAX_EVENT_GUILDS) {
+        servers.push({ guildId: out.talkGuildId, label: "" });
+    }
+    out.servers = servers;
+    out.links = normalizeLinks(current ? src.links : legacy.links, servers.map((s) => s.guildId));
     return out;
 }
 
@@ -757,7 +868,7 @@ function blizzardCredentials(raw) {
 /** A stored config.json merged over the defaults, every field in its final shape. */
 function normalizeConfig(raw) {
     const stored = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
-    const discordServers = normalizeDiscordServers(stored.discordServers);
+    const discordServers = normalizeDiscordServers(stored.discordServers, { fallbackGuildId: String(stored.guildId || "").trim() || CONFIG_DEFAULTS.guildId });
     return {
         ...CONFIG_DEFAULTS,
         ...stored,
@@ -768,7 +879,7 @@ function normalizeConfig(raw) {
         // no admin-role check, no preselected server in the menu.
         // The first event server, once picked, *is* the home guild; the old key
         // stays the fallback for installs that never configured one.
-        guildId: (discordServers.eventGuilds[0] && discordServers.eventGuilds[0].guildId)
+        guildId: (discordServers.servers[0] && discordServers.servers[0].guildId)
             || String(stored.guildId || "").trim() || CONFIG_DEFAULTS.guildId,
         discordServers,
         adminRoleIds: Array.isArray(stored.adminRoleIds) ? stored.adminRoleIds : CONFIG_DEFAULTS.adminRoleIds,
@@ -825,6 +936,7 @@ function normalizeConfig(raw) {
 module.exports = {
     CONFIG_DEFAULTS, ROLE_SYNC_DIRECTIONS, REMINDER_TARGETS,
     normalizeConfig, normalizeDiscordServers, normalizeEventGuilds, normalizeEventGuildEntry,
+    normalizeServers, normalizeLinks, legacyServersAndLinks, MAX_SERVERS: MAX_EVENT_GUILDS,
     normalizeRoleSync, normalizeCategoryRaidTemplate, normalizeCategoryReminders, normalizeTopItems,
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryLanguagePatch,
     normalizeCategoryAttendance, attendanceSettings, categoryAttendanceFor, ATTENDANCE_WINDOW_MIN, ATTENDANCE_WINDOW_MAX, ATTENDANCE_DEFAULT_WINDOW, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,

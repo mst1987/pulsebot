@@ -12,7 +12,7 @@
 //      services/discord/categoryNames.js writes it on every live read),
 //   2. a stored event of that category (own events and Raid-Helper events
 //      carry guildId + categoryId),
-//   3. the first configured event server (discordServers.eventGuilds, else the
+//   3. the first configured server (discordServers.servers, else the
 //      old single guildId) - the "primary event server" other per-server code
 //      falls back to as well (guildRoles.eventGuildId).
 // None at all leaves "" (listRosters("") still lists it; the roster page can
@@ -29,7 +29,9 @@ const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 /** The first configured event server of a config, "" for none. */
 function primaryEventGuild(config) {
     const servers = (config && config.discordServers) || {};
-    const list = Array.isArray(servers.eventGuilds) ? servers.eventGuilds : [];
+    // `servers` since #890; a raw file from before still has `eventGuilds`.
+    const list = Array.isArray(servers.servers) ? servers.servers
+        : Array.isArray(servers.eventGuilds) ? servers.eventGuilds : [];
     const first = list.map((e) => str(e && e.guildId)).find(Boolean);
     return first || str(config && config.guildId);
 }

@@ -1,7 +1,6 @@
-// The raid overview (#257, #361): one bot message per configured event server
-// that has an overview target set (`discordServers.eventGuilds[].
-// overviewGuildId`/`overviewChannelId` — the talk server, another event
-// server, or its own), listing that server's upcoming raids, grouped by
+// The raid overview (#257, #361, #890): one bot message per server that is
+// the source of a link (`discordServers.links[]` `{ from, to, channelId }` —
+// posted on the talk server, another server, or its own), listing that server's upcoming raids, grouped by
 // category, each with a link into its event channel over there — plus a
 // select "Raid wählen, um dich anzumelden" and three link buttons into the
 // web.
@@ -313,11 +312,26 @@ function isUnknownMessage(e) {
 
 const OVERVIEW_CHANNEL_MISSING = "Übersichts-Kanal nicht gefunden oder kein Textkanal.";
 
-/** Every configured event server that has an overview target set (both guild and channel). */
+/**
+ * Every server whose raid list is posted somewhere, from the links (#890):
+ * `{ guildId: from, label, overviewGuildId: to, overviewChannelId }`.
+ * Transition until #892: the overview store is still keyed by the source's
+ * guild id, so only the first link of each source counts here.
+ */
 function overviewEntries(config = getConfig()) {
-    const servers = (config && config.discordServers) || {};
-    const entries = Array.isArray(servers.eventGuilds) ? servers.eventGuilds : [];
-    return entries.filter((e) => e && e.guildId && e.overviewGuildId && e.overviewChannelId);
+    const seen = new Set();
+    const entries = [];
+    for (const link of guildRoles.links(config)) {
+        if (seen.has(link.from)) continue;
+        seen.add(link.from);
+        entries.push({
+            guildId: link.from,
+            label: guildRoles.serverLabel(link.from, config),
+            overviewGuildId: link.to,
+            overviewChannelId: link.channelId,
+        });
+    }
+    return entries;
 }
 
 /**

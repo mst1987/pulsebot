@@ -113,7 +113,7 @@ describe("the discord helpers used here", () => {
 
 describe("eventGuildId", () => {
     it("is the first configured event server, then the configured guild", () => {
-        expect(eventGuildId({ discordServers: { eventGuilds: [{ guildId: "1" }] }, guildId: "2" })).toBe("1");
+        expect(eventGuildId({ discordServers: { servers: [{ guildId: "1" }], links: [] }, guildId: "2" })).toBe("1");
         expect(eventGuildId({ guildId: "2" })).toBe("2");
     });
 });

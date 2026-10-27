@@ -21,7 +21,7 @@ const { parseGuildBankScan, GB_FORMAT } = require("../../../src/utils/guildbank/
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { cardText, cardButtons } = require("../../helpers/cardText");
 
-const CONFIG = { botLanguage: "de", discordServers: { eventGuilds: [{ guildId: "g1" }], guildBankChannelId: "900000" } };
+const CONFIG = { botLanguage: "de", discordServers: { servers: [{ guildId: "g1" }], links: [], guildBankChannelId: "900000" } };
 const RUBY = 32193;
 const FLASK = 22854;
 let KEY;
@@ -72,7 +72,7 @@ describe("services/signups/guildBank — requests from the stock", () => {
         expect(offer.groups[0].items[0]).toMatchObject({ available: 12, maxPerRequest: 5 });
         // the talk server has no bank: the event server's is offered
         expect(guildBank.offerFor({ guildIds: ["talk"] }).bank.key).toBe(KEY);
-        settingsStore.getConfig.mockReturnValue({ ...CONFIG, discordServers: { ...CONFIG.discordServers, eventGuilds: [] } });
+        settingsStore.getConfig.mockReturnValue({ ...CONFIG, discordServers: { ...CONFIG.discordServers, servers: [], links: [] } });
         expect(guildBank.offerFor({ guildIds: [undefined, "talk"] })).toEqual({ bank: null, groups: [] });
     });
 

@@ -60,8 +60,9 @@ function onChannelDelete(channel, { now = Date.now() } = {}) {
 
 /** Whether a message is one of the raid overview messages. */
 function isOverviewMessage(messageId, config = getConfig()) {
-    const entries = (((config && config.discordServers) || {}).eventGuilds) || [];
-    return entries.some((e) => e && e.guildId && getOverviewState(e.guildId).messageId === messageId);
+    // The overview store is keyed by the link's source server (until #892).
+    const sources = new Set(((((config && config.discordServers) || {}).links) || []).map((l) => l && l.from).filter(Boolean));
+    return [...sources].some((guildId) => getOverviewState(guildId).messageId === messageId);
 }
 
 /** A message was deleted in Discord. Returns what was done about it. */

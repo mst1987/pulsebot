@@ -20,7 +20,7 @@ jest.mock("../../../src/services/events/raidEventGroups", () => ({
 jest.mock("../../../src/services/signups/availabilityPanel", () => ({ categoryNameFor: jest.fn(() => "Fallback Name") }));
 jest.mock("../../../src/services/talk/talkOverview", () => ({ attendingCount: (e) => (e.signUps || []).length }));
 jest.mock("../../../src/stores/settingsStore", () => ({
-    getConfig: () => ({ discordServers: { eventGuilds: [{ guildId: "g1" }, { guildId: "g2" }] }, categoryLanguage: { cat1: "en" }, discordVisuals: mockVisuals }),
+    getConfig: () => ({ discordServers: { servers: [{ guildId: "g1" }, { guildId: "g2" }], links: [] }, categoryLanguage: { cat1: "en" }, discordVisuals: mockVisuals }),
 }));
 jest.mock("../../../src/stores/eventStore", () => ({
     onEventsChanged: (fn) => {
