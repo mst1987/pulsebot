@@ -2,6 +2,7 @@
 // aller Profile lesen, bearbeiten, Gear/Schalter setzen, herausnehmen — nur die Orga.
 
 let mockUser = null;
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "" }));
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
 jest.mock("../../../src/stores/reportStore", () => ({ listReports: () => [], getReportRoster: () => null }));

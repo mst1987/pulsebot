@@ -44,6 +44,7 @@ import DiscordVisualsCard from "./DiscordVisualsCard";
 import DungeonRecordsCard from "./DungeonRecordsCard";
 import VersionFeaturesCard from "./VersionFeaturesCard";
 import VersionLaunchCard from "./VersionLaunchCard";
+import ServerVersionLinksSection from "./ServerVersionLinksSection";
 import { withDisabled } from "../../lib/settings/versionFeatures";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { XIcon, SaveIcon } from "../../components/ui/icons";
@@ -513,6 +514,23 @@ export default function SettingsPage() {
                             <ChannelPicker id="set-raid-channel" value={draft.raidChannelId} channels={channels} onChange={(raidChannelId) => patch({ raidChannelId })} />
                         </div>
                     </ModuleCard>
+                </>
+            );
+
+            // #923: the server's own armory/log links and realm, field by field over "Spielversion"
+            case "versionlinks": return (
+                <>
+                    {head(activeSection, undefined, sectionLabel(activeSection), t("settings.serverVersionLinks.sub"))}
+                    <ServerVersionLinksSection
+                        key={data.activeGuildId}
+                        versions={data.gameVersions || []}
+                        mainVersion={draft.mainVersion}
+                        standard={data.config.versionSettings || {}}
+                        saved={data.config.serverSettings?.[data.activeGuildId]?.versionOverrides}
+                        serverName={(data.bot && data.bot.guildName) || data.activeGuildId}
+                        guildId={data.activeGuildId}
+                        onSaved={(config) => setData({ ...data, config })}
+                    />
                 </>
             );
 

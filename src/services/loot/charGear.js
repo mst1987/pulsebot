@@ -91,12 +91,12 @@ function trimItem(entry) {
  * icons, and "head, neck, shoulders, …" is the order a raider reads their own
  * gear in.
  */
-function armoryItems(entry, character = "") {
+function armoryItems(entry, character = "", scope) {
     const items = (entry.armory || [])
         .filter((it) => it && Number(it.itemId) > 0)
         .map((it) => ({ ...trimItem(it), alternate: it.alternate || null }))
         .sort((a, b) => DISPLAY_ORDER.indexOf(a.slot) - DISPLAY_ORDER.indexOf(b.slot));
-    return replaceSituational(items, character || entry.name || "");
+    return replaceSituational(items, character || entry.name || "", scope);
 }
 
 /**
@@ -112,13 +112,14 @@ function armoryItems(entry, character = "") {
  * that one needs the whole walk. And if none of the three answers, the piece is
  * dropped rather than shown — see dropSituational().
  */
-function replaceSituational(items, character) {
+function replaceSituational(items, character, scope) {
     if (!items.some((it) => it.situational)) return items;
     const equipped = new Set(items.map((it) => it.itemId));
     return items.map((it) => {
         if (!it.situational) return it;
-        const source = armoryItemInSlot(character, it.slot)
-            ? { row: armoryItemInSlot(character, it.slot), from: "armory" }
+        const fromArmory = armoryItemInSlot(character, it.slot, scope);
+        const source = fromArmory
+            ? { row: fromArmory, from: "armory" }
             : (it.alternate ? { row: it.alternate, from: "sameRaid" } : null);
         if (!source) return it;
         const alt = trimItem(source.row);
@@ -184,7 +185,7 @@ function replaceSituational(items, character) {
  * @param {object} snapshot the log-derived set, replaced in place
  * @param {{at: number, rows: object[]}} set the armory answer
  */
-function useArmorySet(snapshot, set) {
+function useArmorySet(snapshot, set, scope) {
     const byLog = new Map(snapshot.items.map((it) => [it.slot, it]));
     let unverified = 0;
     const items = set.rows
@@ -212,7 +213,7 @@ function useArmorySet(snapshot, set) {
         })
         .sort((a, b) => DISPLAY_ORDER.indexOf(a.slot) - DISPLAY_ORDER.indexOf(b.slot));
 
-    snapshot.items = replaceSituational(items, snapshot.character);
+    snapshot.items = replaceSituational(items, snapshot.character, scope);
     snapshot.source = "armory";
     snapshot.armoryAt = set.at;
     snapshot.unverifiedEnchants = unverified;
@@ -271,8 +272,8 @@ function dropSituational(snapshot) {
  * @param {object} report the older report
  * @param {string} wanted the role the raider is judged as, "" for any
  */
-function fillSituational(snapshot, want, entry, report, wanted) {
-    const items = armoryItems(entry);
+function fillSituational(snapshot, want, entry, report, wanted, scope) {
+    const items = armoryItems(entry, "", scope);
     if (!items.length) return;
     if (wanted && !fitsRole(gearProfile({ items }), wanted)) return;
     // An arena set is no source for what somebody wears on a raid night.
@@ -336,16 +337,21 @@ function fillSituational(snapshot, want, entry, report, wanted) {
  * @param {(key: string) => string} [opts.roleFor] the role a character is judged
  *        as (a council role: caster, healer, tank, melee, ranged — compared by
  *        gear family, see gearProfile.fitsRole), by character key. Omit to take any set.
+ * @param {string} [opts.versionId] the version whose armory answers count (#923)
+ * @param {string} [opts.guildId] the server whose own realm/region counts (#923)
  * @returns {Map<string, {key, character, className, seenAt, reportId, reportTitle,
  *          items, profile, skippedReports, roleMismatch}>}
  */
-function gearByCharacter({ roleFor } = {}) {
+function gearByCharacter({ roleFor, versionId, guildId } = {}) {
     // The evaluations, newest first (walkReports); the fallbacks for raiders
     // with no fitting set anywhere; a log loaded by hand; the armory.
-    const { out, rejected } = walkReports(roleFor);
+    // The armory answers of the realm the page reads (#923): a server's own
+    // realm or region asks other characters than the standard one.
+    const scope = versionId || guildId ? { versionId, guildId } : undefined;
+    const { out, rejected } = walkReports(roleFor, scope);
     addRejectedFallbacks(out, rejected, roleFor);
-    applyLoadedLogs(out, roleFor);
-    applyArmoryAndDrop(out, roleFor);
+    applyLoadedLogs(out, roleFor, scope);
+    applyArmoryAndDrop(out, roleFor, scope);
     return out;
 }
 
@@ -384,7 +390,7 @@ function logSnapshot(key, entry, report, meta, items) {
  * their role and is no PvP set (`out`), and the newest one that did not
  * (`rejected`, with how many were passed over).
  */
-function walkReports(roleFor) {
+function walkReports(roleFor, scope) {
     const out = new Map();
     // Sets rejected for the wrong role, kept as a fallback: a raider who has
     // *only* ever been logged healing must still get gear, or the page would
@@ -405,10 +411,10 @@ function walkReports(roleFor) {
                 // older raid of theirs is a slot still held by a situational
                 // piece.
                 const want = pending.get(key);
-                if (want && want.size) fillSituational(out.get(key), want, entry, report, roleFor ? roleFor(key) : "");
+                if (want && want.size) fillSituational(out.get(key), want, entry, report, roleFor ? roleFor(key) : "", scope);
                 continue;
             }
-            const items = armoryItems(entry);
+            const items = armoryItems(entry, "", scope);
             // A roster row without a single item is a player the log saw but
             // whose gear it could not read — keeping it would look like a raider
             // in no gear at all.
@@ -459,13 +465,13 @@ function addRejectedFallbacks(out, rejected, roleFor) {
  * a refused set stays on the snapshot as `logRejected` so the page can say
  * why the button changed nothing.
  */
-function applyLoadedLogs(out, roleFor) {
+function applyLoadedLogs(out, roleFor, scope) {
     for (const snap of listLogGear()) {
         const key = snap && snap.key;
         if (!key) continue;
         const existing = out.get(key);
         if (existing && existing.seenAt > (Number(snap.fetchedAt) || 0)) continue;
-        const items = armoryItems({ name: snap.character, armory: snap.armory }, snap.character);
+        const items = armoryItems({ name: snap.character, armory: snap.armory }, snap.character, scope);
         if (!items.length) continue;
         const loaded = {
             key,
@@ -511,9 +517,9 @@ function applyLoadedLogs(out, roleFor) {
  * piece worth zero in every comparison must not sit in a raider's gear
  * pretending otherwise.
  */
-function applyArmoryAndDrop(out, roleFor) {
+function applyArmoryAndDrop(out, roleFor, scope) {
     for (const snapshot of out.values()) {
-        const set = armorySetFor(snapshot.character);
+        const set = armorySetFor(snapshot.character, scope);
         if (set) {
             const rows = set.rows.map(trimItem);
             if (isPvpSet({ items: rows })) {
@@ -521,7 +527,7 @@ function applyArmoryAndDrop(out, roleFor) {
             } else if (!fitsRole(gearProfile({ items: rows }), roleFor ? roleFor(snapshot.key) : "")) {
                 snapshot.armoryRejected = "role";
             } else {
-                useArmorySet(snapshot, set);
+                useArmorySet(snapshot, set, scope);
             }
         }
         dropSituational(snapshot);
