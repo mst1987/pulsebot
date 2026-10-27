@@ -208,8 +208,9 @@ function storedFederation(stored) {
  * servers. `talkGuildId` is gone afterwards. Must run after
  * migrateRoleMessageGuilds(), which still needs the talk server.
  *
- * With the full ten servers there is no room for a separate talk server: its
- * links and the pairs to it are lost (a warning line names how many).
+ * With the full ten servers there is no room for a separate talk server: the
+ * role pairs to it are lost (a warning line names how many, also on warn).
+ * Links onto it stay - a link target need not be in the list; a link from it goes.
  * @returns {string[]}
  */
 function migrateDiscordFederation() {
@@ -226,7 +227,7 @@ function migrateDiscordFederation() {
     const out = [`config.json: Discord-Server ohne Talk-Server-Feld gespeichert (#897) - ${block.servers.length} Server, ${block.links.length} Verknüpfung(en), ${roleSync.length} Rollen-Paar(e)`];
     if (talkGuildId && !serverIds.includes(talkGuildId)) {
         const kept = normalizeRoleSync(rawSync, roleSyncContext(block, talkGuildId)).length;
-        out.push(`config.json: WARNUNG - der bisherige Talk-Server ${talkGuildId} passt nicht mehr in die Serverliste (höchstens ${MAX_EVENT_GUILDS}); ${kept - roleSync.length} Rollen-Paar(e) zu ihm und seine Verknüpfungen entfallen (#897)`);
+        out.push(`config.json: WARNUNG - der bisherige Talk-Server ${talkGuildId} passt nicht mehr in die Serverliste (höchstens ${MAX_EVENT_GUILDS}); ${kept - roleSync.length} Rollen-Paar(e) zu ihm entfallen; Verknüpfungen auf ihn bleiben, nur solche von ihm aus entfallen (#897)`);
     }
     return out;
 }
@@ -582,6 +583,8 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         return { changes, error };
     }
     for (const change of changes) log(`[settings] Migration: ${change}`);
+    // A warning line (data the upgrade could not keep) also goes to the error log.
+    for (const change of changes) if (/: WARNUNG /.test(change)) warn(`[settings] Migration: ${change}`);
     return { changes };
 }
 

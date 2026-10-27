@@ -159,7 +159,7 @@ describe("stores/settingsMigration migrateDiscordFederation (#897)", () => {
         expect(fs.writeFileSync).not.toHaveBeenCalled();
     });
 
-    it("warns when the talk server no longer fits beside ten servers: its pairs and links go", () => {
+    it("warns when the talk server no longer fits beside ten servers: its pairs go, links onto it stay", () => {
         const ten = Array.from({ length: 10 }, (_, i) => `17000000000000000${String(i).padStart(2, "0")}`);
         fs.__store.set(CONFIG_FILE, JSON.stringify({
             discordServers: {
@@ -172,11 +172,27 @@ describe("stores/settingsMigration migrateDiscordFederation (#897)", () => {
         const out = migrateDiscordFederation();
         expect(out).toHaveLength(2);
         expect(out[0]).toContain("10 Server, 1 Verknüpfung(en), 0 Rollen-Paar(e)");
-        expect(out[1]).toContain(`WARNUNG - der bisherige Talk-Server ${TALK} passt nicht mehr in die Serverliste (höchstens 10); 1 Rollen-Paar(e)`);
+        expect(out[1]).toContain(`WARNUNG - der bisherige Talk-Server ${TALK} passt nicht mehr in die Serverliste (höchstens 10); 1 Rollen-Paar(e) zu ihm entfallen; Verknüpfungen auf ihn bleiben`);
+        expect(out[1]).not.toContain("und seine Verknüpfungen entfallen");
         const raw = stored(CONFIG_FILE);
         expect(raw.discordServers.servers).toHaveLength(10);
         // a link onto the talk server stays (a raid list may go to any server), one from it cannot
         expect(raw.discordServers.links).toEqual([{ from: ten[0], to: TALK, channelId: CH_TALK, lang: "", versions: [] }]);
         expect(raw.roleSync).toEqual([]);
+    });
+
+    it("also sends the warning line to warn on start, the plain lines only to log", () => {
+        const ten = Array.from({ length: 10 }, (_, i) => `17000000000000000${String(i).padStart(2, "0")}`);
+        fs.__store.set(CONFIG_FILE, JSON.stringify({
+            discordServers: { servers: ten.map((guildId) => ({ guildId, label: "" })), links: [], talkGuildId: TALK },
+            roleSync: [{ eventRoleId: R(1), talkRoleId: R(2), direction: "toTalk" }],
+        }));
+        const log = jest.fn();
+        const warn = jest.fn();
+        migrateSettings({ log, warn });
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0][0]).toMatch(/^\[settings\] Migration: config\.json: WARNUNG - der bisherige Talk-Server /);
+        expect(log).toHaveBeenCalledWith(warn.mock.calls[0][0]);
+        expect(log.mock.calls.length).toBeGreaterThan(1);
     });
 });

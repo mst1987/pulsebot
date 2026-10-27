@@ -2,7 +2,7 @@
 // Discord server a bank belongs to (Einstellungen, /api/settings/guild-banks).
 //
 // A bank is known by game version + realm + guild. A bank seen for the first
-// time goes to the one event server when exactly one is configured; with
+// time goes to the one raid server when exactly one has raids set up; with
 // several it belongs to no server yet and waits for an assignment ("Wartet auf
 // Zuordnung") — it is stored all the same, so nothing scanned is lost. An
 // ingest token bound to a server (`token.guildId`; tokens carry none today)
@@ -21,6 +21,7 @@ const { parseGuildBankScan, bankKeyOf, GuildBankParseError } = require("../../ut
 const itemMeta = require("./itemMeta");
 const guildRoles = require("../discord/guildRoles");
 const discord = require("../discord/discord");
+const { raidServerIds } = require("../discord/botCheck");
 const { getConfig } = require("../../stores/settingsStore");
 
 /** The server an ingest token is bound to, "" when none. */
@@ -29,13 +30,16 @@ function serverOfToken(token) {
 }
 
 /**
- * The one server when exactly one is configured, else "". A bank seen
- * for the first time goes there right away — with several servers nobody can
- * know which guild it belongs to, so it waits for the assignment.
+ * The one raid server, else "". Only servers with raids set up count (the
+ * first server, a stored raid event, a configured raid category on it —
+ * botCheck.raidServerIds), so a plain talk server next to it changes nothing.
+ * A bank seen for the first time goes there right away — with several raid
+ * servers nobody can know which guild it belongs to, so it waits for the
+ * assignment.
  */
 function onlyEventServer(config = getConfig()) {
     const cfg = config || getConfig();
-    const ids = guildRoles.eventGuildIds(cfg);
+    const ids = raidServerIds(cfg);
     return ids.length === 1 ? ids[0] : "";
 }
 

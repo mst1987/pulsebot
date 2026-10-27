@@ -26,7 +26,7 @@ jest.mock("../../../src/services/discord/categoryNames", () => ({
 const mockAddon = { channelId: "", roleId: "" };
 jest.mock("../../../src/stores/addonCenterStore", () => ({ getSettings: () => ({ ...mockAddon }) }));
 
-const { botCheck, channelPurposes, BOT_FUNCTIONS } = require("../../../src/services/discord/botCheck");
+const { botCheck, channelPurposes, raidServerIds, BOT_FUNCTIONS } = require("../../../src/services/discord/botCheck");
 
 const EVENT = "900000000000000001";
 const TALK = "900000000000000002";
@@ -109,6 +109,18 @@ describe("functions", () => {
         expect(botCheck(TALK, { ...SRV, categoryIds: ["700000000000000003"] }).functions.find((f) => f.key === "events").state).toBe("not_needed");
         mockClient.channels.cache.set("700000000000000004", { id: "700000000000000004", guildId: TALK });
         expect(botCheck(TALK, { ...SRV, categoryRoles: { "700000000000000004": [] } }).functions.find((f) => f.key === "events").state).toBe("ok");
+    });
+
+    // #897: the guild bank sends a new bank to the one raid server.
+    it("lists the raid servers: the first one plus servers with a raid event or raid category", () => {
+        expect(raidServerIds(SRV)).toEqual([EVENT]);
+        mockEvents.push({ id: "e1", guildId: TALK, categoryId: "" });
+        expect(raidServerIds(SRV)).toEqual([EVENT]);
+        mockClient.channels.cache.set("700000000000000005", { id: "700000000000000005", guildId: TALK });
+        expect(raidServerIds({ ...SRV, categoryIds: ["700000000000000005"] })).toEqual([EVENT, TALK]);
+        mockEvents.push({ id: "e2", guildId: TALK, categoryId: "700000000000000006" });
+        expect(raidServerIds(SRV)).toEqual([EVENT, TALK]);
+        expect(raidServerIds({})).toEqual([]);
     });
 
     it("needs nothing raid-wise without a server", () => {

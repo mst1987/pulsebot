@@ -1,6 +1,10 @@
+let mockEvents = [];
+let mockChannels = new Map();
 jest.mock("../../../src/services/discord/discord", () => ({
     listGuilds: jest.fn(() => [{ id: "11111", name: "Event-Server" }, { id: "22222", name: "PvP" }, { id: "33333", name: "Talk" }]),
+    getClient: () => ({ channels: { cache: mockChannels } }),
 }));
+jest.mock("../../../src/stores/eventStore", () => ({ listEvents: (gid) => mockEvents.filter((e) => !gid || e.guildId === gid) }));
 
 const fs = require("fs");
 const stock = require("../../../src/services/guildbank/guildBankStock");
@@ -29,10 +33,13 @@ beforeAll(() => store.useFile(FILE));
 afterAll(() => store.useFile(null));
 beforeEach(() => {
     for (const b of store.listBanks()) store.removeBank(b.key);
+    mockEvents = [];
+    mockChannels = new Map();
 });
 
 describe("services/guildbank/guildBankStock", () => {
     it("stores a scan as a bank waiting for its server, local names filled, the rest to look up", () => {
+        mockEvents = [{ guildId: "22222", categoryId: "c2" }];
         const result = stock.ingestScan(body(), { token: { id: "t1", name: "Raidlead-PC" }, now: NOW, config: CONFIG });
         expect(result.status).toBe("created");
         expect(result.bank).toMatchObject({ key: "tbc:spineshatter:die gilde", pending: true, uploadedBy: "Raidlead-PC" });
@@ -68,13 +75,35 @@ describe("services/guildbank/guildBankStock", () => {
         const result = stock.ingestScan(body(), { now: NOW, config: single });
         expect(result.bank).toMatchObject({ guildId: "11111", pending: false });
         expect(stock.onlyEventServer({ guildId: "77777" })).toBe("77777");
-        expect(stock.onlyEventServer(CONFIG)).toBe("");
-        // #897: the old talk server is an ordinary server, two servers leave the bank to the orga
-        expect(stock.onlyEventServer({ discordServers: { servers: [{ guildId: "11111" }, { guildId: "33333" }], links: [] } })).toBe("");
         expect(stock.onlyEventServer({ discordServers: { servers: [{ guildId: "11111" }], links: [] } })).toBe("11111");
+        // no config given: the stored one counts, null the same as left out
+        expect(stock.onlyEventServer(null)).toBe(stock.onlyEventServer());
+    });
+
+    // #897: after the migration prod has [raid server, old talk server]. The
+    // talk server without raids must not send new banks to the assignment queue.
+    const PAIR = { discordServers: { servers: [{ guildId: "11111" }, { guildId: "33333" }], links: [] } };
+
+    it("gives a new bank to the raid server when the other server has no raids", () => {
+        mockEvents = [{ guildId: "33333", categoryId: "" }]; // an event without category is no raid source
+        expect(stock.onlyEventServer(PAIR)).toBe("11111");
+        expect(stock.onlyEventServer(CONFIG)).toBe("11111");
+        const result = stock.ingestScan(body(), { now: NOW, config: PAIR });
+        expect(result.bank).toMatchObject({ guildId: "11111", pending: false });
+    });
+
+    it("leaves a new bank to the orga with two raid servers", () => {
+        mockEvents = [{ guildId: "33333", categoryId: "c3" }];
+        expect(stock.onlyEventServer(PAIR)).toBe("");
+        mockEvents = [];
+        mockChannels = new Map([["c9", { guildId: "33333" }]]);
+        expect(stock.onlyEventServer({ ...PAIR, categoryIds: ["c9"] })).toBe("");
+        const result = stock.ingestScan(body(), { now: NOW, config: { ...PAIR, categoryIds: ["c9"] } });
+        expect(result.bank).toMatchObject({ guildId: "", pending: true });
     });
 
     it("leaves a known bank's assignment alone, also one taken back on purpose", () => {
+        mockEvents = [{ guildId: "22222", categoryId: "c2" }];
         const single = { ...CONFIG, discordServers: { eventGuilds: [{ guildId: "11111", label: "PvE" }] } };
         const { bank } = stock.ingestScan(body(), { now: NOW, config: CONFIG });
         expect(bank.pending).toBe(true);
