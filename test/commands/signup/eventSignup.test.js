@@ -52,7 +52,7 @@ describe("commands/signup/eventSignup", () => {
         let interaction = mockInteraction({ customId: "event-signup:eh-kara", userId: ANNA });
         await command.execute(interaction);
         expect(answerOf(interaction.reply.mock.calls[0][0])).toMatchObject({ title: "", description: "You need a raider role for this raid.", flags: MessageFlags.Ephemeral, embedCount: 1 });
-        expect(mocks.memberRoleIds).toHaveBeenCalledWith("g-event", ANNA);
+        expect(mocks.memberRoleIds).toHaveBeenCalledWith("g-event", ANNA, { absentAs: [] });
 
         // …an own signup from before may still be changed
         mocks.signups.set(`eh-kara/${ANNA}`, { userId: ANNA, character: "Nerathil", spec: "Mage-Arcane", status: "signed" });

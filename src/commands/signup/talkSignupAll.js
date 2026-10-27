@@ -1,33 +1,26 @@
-const profiles = require("../../stores/raiderProfileStore");
-const { ALL_BUTTON_ID } = require("../../services/talk/talkOverview");
-const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
-const { characterOptions } = require("../../utils/signup/joinPicker");
-const { createSession, getSession, buildCharacterModal } = require("../../utils/signup/multiSignup");
-const { noCharacterReply, noRaidsReply, raidsForButton } = require("./talkSignupMulti");
+const { answerPayload } = require("../../utils/signup/signupReply");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
+const { tr } = require("../../utils/i18n/botText");
 const { asEphemeral } = require("../../utils/discord/card");
 
-// "Für alle Raids anmelden" under the raid overview on the talk server (#293):
-// skips step 1 — every coming raid with an EventHelper signup is chosen — and
-// opens the modal with one character select and the status for all of them
-// right away (a modal can only answer a click, never a deferred one).
+// "Für alle Raids anmelden" was removed in #904 (too easy to sign up for raids one
+// never meant). Overview messages posted before still carry the button
+// ("talk-signup-all", "talk-signup-all:v:<version>"); a click only says it is gone
+// and points to "Mehrere Raids wählen …" - nothing is signed up.
+
+const OLD_BUTTON_ID = "talk-signup-all";
+
+/** The answer to a click on the old button (ephemeral). */
+function goneReply(lang = "de") {
+    return asEphemeral(answerPayload(tr(lang, "This button no longer exists – use “Pick several raids …”."), { lang }));
+}
+
 module.exports = {
-    name: ALL_BUTTON_ID,
-    description: "Button „Für alle Raids anmelden“ unter der Raid-Übersicht",
+    name: OLD_BUTTON_ID,
+    description: "Alter Button „Für alle Raids anmelden“ (entfernt in #904)",
     accessOf: "talk-signup",
+    goneReply,
     async execute(interaction) {
-        const uid = interaction.user.id;
-        const lang = langOfInteraction(interaction);
-        const profile = profiles.getProfile(uid) || { characters: [] };
-        if (!characterOptions(profile).length) return interaction.reply(noCharacterReply(lang));
-        const picked = raidsForButton(interaction, ALL_BUTTON_ID, lang);
-        if (picked.reply) return interaction.reply(asEphemeral(picked.reply));
-        const raids = picked.raids;
-        if (!raids.length) return interaction.reply(noRaidsReply(lang));
-        const token = createSession(uid, { mode: "all", eventIds: raids.map((e) => e.id) });
-        if (interaction.client) await loadAppEmojis(interaction.client);
-        const modal = buildCharacterModal(token, getSession(token, uid), 0, raids, profile, { emojis: appEmojiMap(), lang });
-        if (!modal) return interaction.reply(asEphemeral(noCharacterReply(lang)));
-        return interaction.showModal(modal);
+        return interaction.reply(goneReply(langOfInteraction(interaction)));
     },
 };

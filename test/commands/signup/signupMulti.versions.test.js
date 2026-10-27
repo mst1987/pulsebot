@@ -6,13 +6,12 @@ jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupM
 jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
 jest.mock("../../../src/stores/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/signupMocks").discord());
-jest.mock("../../../src/services/talk/talkOverview", () => ({ SELECT_ID: "talk-signup", ALL_BUTTON_ID: "talk-signup-all", MULTI_BUTTON_ID: "talk-signup-multi" }));
+jest.mock("../../../src/services/talk/talkOverview", () => ({ SELECT_ID: "talk-signup", MULTI_BUTTON_ID: "talk-signup-multi" }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
 const mocks = require("../../helpers/signupMocks");
 const profiles = require("../../../src/stores/raiderProfileStore");
 const multi = require("../../../src/utils/signup/multiSignup");
-const all = require("../../../src/commands/signup/talkSignupAll");
 const pickRaids = require("../../../src/commands/signup/talkSignupMulti");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");
@@ -58,40 +57,16 @@ describe("signableRaids / signableVersions", () => {
 });
 
 describe("talk overview buttons with two versions", () => {
-    it("ask which version first - for both buttons", async () => {
+    it("ask which version first", async () => {
         raid("eh-t1", "tbc");
         raid("eh-f1", "forever", 2);
-        for (const [command, id] of [[all, "talk-signup-all"], [pickRaids, "talk-signup-multi"]]) {
-            const i = mockInteraction({ customId: id, userId: ANNA });
-            await command.execute(i);
-            expect(i.showModal).not.toHaveBeenCalled();
-            const payload = i.reply.mock.calls[0][0];
-            expect(answerOf(payload).text).toContain("Which game version");
-            expect(cardButtons(payload).map((b) => [b.label, b.custom_id])).toEqual([["TBC", `${id}:v:tbc`], ["Forever", `${id}:v:forever`]]);
-        }
-    });
-
-    it("\"all\" with the version in the customId offers only that version's raids", async () => {
-        raid("eh-t1", "tbc");
-        raid("eh-f1", "forever", 2);
-        raid("eh-f2", "forever", 3);
-        profiles.addCharacter(ANNA, { name: "Devi Res", className: "Priest", specs: [{ key: "Priest-Shadow", gear: "ready" }], versionId: "forever" });
-        const i = mockInteraction({ customId: "talk-signup-all:v:forever", userId: ANNA });
-        await all.execute(i);
-        const modal = i.showModal.mock.calls[0][0];
-        expect(modal.title).toBe("Sign up for all 2 raids");
-        // only the Forever character - nobody signs up with a TBC character for a Forever raid (#741)
-        const text = JSON.stringify(modal);
-        expect(text).toContain("Devi Res");
-        expect(text).not.toContain("Zibbo");
-    });
-
-    it("\"all\" for Forever without a Forever character opens no modal and says what is missing", async () => {
-        raid("eh-f1", "forever", 2);
-        const i = mockInteraction({ customId: "talk-signup-all:v:forever", userId: ANNA });
-        await all.execute(i);
+        const id = "talk-signup-multi";
+        const i = mockInteraction({ customId: id, userId: ANNA });
+        await pickRaids.execute(i);
         expect(i.showModal).not.toHaveBeenCalled();
-        expect(answerOf(i.reply.mock.calls[0][0]).text).toContain("characters with a spec");
+        const payload = i.reply.mock.calls[0][0];
+        expect(answerOf(payload).text).toContain("Which game version");
+        expect(cardButtons(payload).map((b) => [b.label, b.custom_id])).toEqual([["TBC", `${id}:v:tbc`], ["Forever", `${id}:v:forever`]]);
     });
 
     it("the per-raid modal offers each raid only its own version's characters, never a stand-in", () => {
@@ -117,11 +92,83 @@ describe("talk overview buttons with two versions", () => {
         expect(text).not.toContain("eh-f1");
     });
 
+    describe("the list's source server in the button (#904)", () => {
+        const GUILD = "100000000000000001";
+        const PUG = "100000000000000002";
+        const PARTNER = "100000000000000003";
+        const onServer = (id, guildId, versionId = "tbc", day = 1) => {
+            raid(id, versionId, day);
+            mocks.events.get(id).guildId = guildId;
+        };
+        const click = async (customId, guildId = PARTNER) => {
+            const i = mockInteraction({ customId, userId: ANNA });
+            i.guildId = guildId;
+            await pickRaids.execute(i);
+            return i.reply.mock.calls[0][0];
+        };
+        beforeEach(() => {
+            mocks.access.config = {
+                botLanguage: "en",
+                discordServers: {
+                    servers: [{ guildId: GUILD }, { guildId: PUG }, { guildId: PARTNER }],
+                    links: [{ from: PUG, to: PARTNER, channelId: "100000000000000009", versions: [] }],
+                },
+            };
+            onServer("eh-gilde", GUILD);
+            onServer("eh-pug", PUG, "tbc", 2);
+        });
+
+        it("offers only the PuG raids on the partner's PuG list", async () => {
+            const text = JSON.stringify(await click(`talk-signup-multi:${PUG}`));
+            expect(text).toContain("eh-pug");
+            expect(text).not.toContain("eh-gilde");
+        });
+
+        it("an old button without a source keeps offering the first server's raids", async () => {
+            const text = JSON.stringify(await click("talk-signup-multi"));
+            expect(text).toContain("eh-gilde");
+            expect(text).not.toContain("eh-pug");
+        });
+
+        it("a source that is not linked to the clicked server falls back to the first server", async () => {
+            const text = JSON.stringify(await click(`talk-signup-multi:${PUG}`, "100000000000000077"));
+            expect(text).toContain("eh-gilde");
+            expect(text).not.toContain("eh-pug");
+        });
+
+        it("keeps to the link's versions and keeps the source in the version question", async () => {
+            onServer("eh-pugf", PUG, "forever", 3);
+            const payload = await click(`talk-signup-multi:${PUG}`);
+            expect(answerOf(payload).text).toContain("Which game version");
+            expect(cardButtons(payload).map((b) => b.custom_id))
+                .toEqual([`talk-signup-multi:${PUG}:v:tbc`, `talk-signup-multi:${PUG}:v:forever`]);
+            const forever = JSON.stringify(await click(`talk-signup-multi:${PUG}:v:forever`));
+            expect(forever).toContain("eh-pugf");
+            expect(forever).not.toContain("eh-gilde");
+            expect(forever).not.toMatch(/eh-pug[^f]/);
+
+            mocks.access.config.discordServers.links[0].versions = ["forever"];
+            const linked = JSON.stringify(await click(`talk-signup-multi:${PUG}`));
+            expect(linked).not.toContain("Which game version");
+            expect(linked).toContain("eh-pugf");
+            expect(linked).not.toMatch(/eh-pug[^f]/);
+        });
+
+        it("parses every customId form", () => {
+            expect(pickRaids.parseButtonId("talk-signup-multi")).toEqual({ from: "", version: "" });
+            expect(pickRaids.parseButtonId("talk-signup-multi:v:tbc")).toEqual({ from: "", version: "tbc" });
+            expect(pickRaids.parseButtonId(`talk-signup-multi:${PUG}`)).toEqual({ from: PUG, version: "" });
+            expect(pickRaids.parseButtonId(`talk-signup-multi:${PUG}:v:forever`)).toEqual({ from: PUG, version: "forever" });
+        });
+    });
+
     it("do not ask while only one version has raids", async () => {
         raid("eh-f1", "forever");
         profiles.addCharacter(ANNA, { name: "Devi Res", className: "Priest", specs: [{ key: "Priest-Shadow", gear: "ready" }], versionId: "forever" });
-        const i = mockInteraction({ customId: "talk-signup-all", userId: ANNA });
-        await all.execute(i);
-        expect(i.showModal).toHaveBeenCalled();
+        const i = mockInteraction({ customId: "talk-signup-multi", userId: ANNA });
+        await pickRaids.execute(i);
+        const text = JSON.stringify(i.reply.mock.calls[0][0]);
+        expect(text).not.toContain("Which game version");
+        expect(text).toContain("eh-f1");
     });
 });
