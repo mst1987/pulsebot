@@ -602,6 +602,36 @@ function knownPlaces924(stored, block) {
 }
 
 /**
+ * The two signup channels were one channel for every server: when the stores
+ * cannot tell which server it lives on, every known server keeps it (as it
+ * worked before), so no server loses its channel to a guess.
+ * @returns {string[]} the log line, or none for an empty value
+ */
+function placeSignupChannel924(key, value, { known, channels, set }) {
+    const id = String(value || "").trim();
+    if (!isSnowflake(id)) return [];
+    const guildId = channels.get(id);
+    if (guildId && known.includes(guildId)) {
+        set(guildId, key, id);
+        return [`${key} -> ${guildId}`];
+    }
+    for (const each of known) set(each, key, id);
+    return [`${key} -> ${known.length} Server (Server des Kanals unbekannt)`];
+}
+
+/** The stored config with the server blocks and without the global #924 fields. */
+function withoutGlobals924(stored, serverSettings) {
+    const out = { ...stored, serverSettings };
+    for (const key of [...SERVER_CHANNEL_FIELDS_924, ...SERVER_ROLE_FIELDS_924, ...SERVER_COPY_FIELDS_924]) delete out[key];
+    if (stored.discordServers && typeof stored.discordServers === "object" && !Array.isArray(stored.discordServers)) {
+        const servers = { ...stored.discordServers };
+        for (const key of DISCORD_SERVER_FIELDS_924) delete servers[key];
+        out.discordServers = servers;
+    }
+    return out;
+}
+
+/**
  * config.json (#924): applicationChannelId, officerRoleId, raidDefaults,
  * botLanguage and discordServers.signupNoteChannelId / guildBankChannelId move
  * into serverSettings. A channel or role goes to the server it lives on (as far
@@ -660,30 +690,8 @@ function migrateServerDefaults() {
             lines.push(`${key} -> ${known.length} Server`);
         }
     }
-    // The two signup channels were one channel for every server: when the stores
-    // cannot tell which server it lives on, every known server keeps it (as it
-    // worked before), so no server loses its channel to a guess.
-    for (const key of fromServers) {
-        const id = String(src[key] || "").trim();
-        if (!isSnowflake(id)) continue;
-        const guildId = places.channels.get(id);
-        if (guildId && known.includes(guildId)) {
-            set(guildId, key, id);
-            lines.push(`${key} -> ${guildId}`);
-        } else {
-            for (const each of known) set(each, key, id);
-            lines.push(`${key} -> ${known.length} Server (Server des Kanals unbekannt)`);
-        }
-    }
-
-    const out = { ...stored, serverSettings: next };
-    for (const key of [...SERVER_CHANNEL_FIELDS_924, ...SERVER_ROLE_FIELDS_924, ...SERVER_COPY_FIELDS_924]) delete out[key];
-    if (stored.discordServers && typeof stored.discordServers === "object" && !Array.isArray(stored.discordServers)) {
-        const servers = { ...stored.discordServers };
-        for (const key of DISCORD_SERVER_FIELDS_924) delete servers[key];
-        out.discordServers = servers;
-    }
-    configStore.writeStored(out);
+    for (const key of fromServers) lines.push(...placeSignupChannel924(key, src[key], { known, channels: places.channels, set }));
+    configStore.writeStored(withoutGlobals924(stored, next));
     return [`config.json: Bewerbungen, Raid-Standardwerte, Sprache und Kanäle je Server gespeichert (#924)${lines.length ? ` - ${lines.join(", ")}` : " - globale Altfelder entfernt"}`];
 }
 
