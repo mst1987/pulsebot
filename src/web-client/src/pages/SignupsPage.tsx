@@ -61,12 +61,14 @@ export default function SignupsPage() {
         setParams(next, { replace: true });
     };
 
-    const onSaved = (eventId: string, signup: OwnSignup, counts: SignupCounts) => {
+    const onSaved = (eventId: string, signup: OwnSignup, counts: SignupCounts, created?: boolean) => {
         setData((d) => d && ({
             ...d,
             events: d.events.map((e) => (e.id === eventId && e.source === "eventhelper" ? { ...e, mine: signup, counts, attending: counts.attending, accounts: counts.accounts } : e)),
         }));
         open("");
+        // The dialog added a character to the profile (#907): load it, so the next raid offers it.
+        if (created) void signups.reload();
     };
 
     const onBulkDone = (results: BulkSignupResult[]) => {
@@ -162,6 +164,7 @@ export default function SignupsPage() {
                 classes={classesForRows(data, openRow ? [openRow] : [])}
                 onClose={() => open("")}
                 onSaved={onSaved}
+                accountName={user.name}
             />
         </div>
     );

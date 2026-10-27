@@ -37,11 +37,15 @@ jest.mock("../../../src/stores/signupStore", () => {
 let mockConfig = {};
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockRoleIds = null;
+let mockMembership = null;
 // Discord said "Unknown Member": memberRoleIds answers the caller's absentAs
 let mockAbsent = false;
 let mockGuild = null;
 jest.mock("../../../src/services/discord/discord", () => ({
-    memberRoleIds: jest.fn(async (g, u, opts) => (mockAbsent ? opts && opts.absentAs : mockRoleIds)), postNotice: jest.fn(async () => ({})), getGuild: jest.fn(() => mockGuild),
+    memberRoleIds: jest.fn(async (g, u, opts) => (mockAbsent ? opts && opts.absentAs : mockRoleIds)),
+    guildMembership: jest.fn(async () => mockMembership),
+    postNotice: jest.fn(async () => ({})),
+    getGuild: jest.fn(() => mockGuild),
 }));
 
 const profiles = require("../../../src/stores/raiderProfileStore");
@@ -71,10 +75,12 @@ beforeEach(() => {
     mockChanged.mockClear();
     mockConfig = {};
     mockRoleIds = null;
+    mockMembership = null;
     mockAbsent = false;
     mockGuild = null;
     mockLog.mockClear();
     discord.memberRoleIds.mockClear();
+    discord.guildMembership.mockClear();
     discord.getGuild.mockClear();
     mockEvents.set("eh-kara", event());
     profiles.addCharacter(ANNA, { name: "Nerathil", className: "Mage", specs: ["Mage-Arcane", "Mage-Fire"] }, { name: "Anna" });
@@ -417,6 +423,75 @@ describe("submitSignups (#293)", () => {
         expect(results.every((r) => r.ok)).toBe(true);
         expect(discord.memberRoleIds).toHaveBeenCalledTimes(1);
         expect(mockSignups.get(`eh-kara/${ANNA}`)).toMatchObject({ status: "late", comment: "bleibt", canAlso: [] });
+    });
+});
+
+describe("PuG-Raids im Web nur für Mitglieder (#907)", () => {
+    const BERTHOLT = { name: "Bertholt", spec: "Warrior-Protection" };
+    const chars = [{ character: "Nerathil", spec: "Mage-Fire" }];
+    const charsOf = (uid) => (profiles.getProfile(uid) || { characters: [] }).characters;
+    beforeEach(() => {
+        mockConfig = { guildId: "g" };
+        mockEvents.set("eh-ssc", event({ id: "eh-ssc", title: "SSC" }));
+    });
+
+    it("submitSignups mit memberOnly: fragt je Server einmal und lehnt Nicht-Mitglieder ab – auch nach einer Abmeldung", async () => {
+        mockMembership = false;
+        mockSignups.set(`eh-ssc/${ANNA}`, { userId: ANNA, status: "absence", characters: [], comment: "", at: 1 });
+        const results = await service.submitSignups(ANNA, [
+            { eventId: "eh-kara", characters: chars, status: "signed" },
+            { eventId: "eh-ssc", characters: chars, status: "signed" },
+        ], { now: NOW, memberOnly: true });
+        expect(results.map((r) => [r.eventId, r.ok, r.code, r.inviteUrl])).toEqual([
+            ["eh-kara", false, "pug_members_only", ""],
+            ["eh-ssc", false, "pug_members_only", ""],
+        ]);
+        expect(discord.guildMembership).toHaveBeenCalledTimes(1);
+        expect(mockSignups.has(`eh-kara/${ANNA}`)).toBe(false);
+        expect(mockSignups.get(`eh-ssc/${ANNA}`).status).toBe("absence");
+    });
+
+    it("submitSignups: eine echte Anmeldung und die Orga sind ausgenommen, ohne memberOnly fragt niemand", async () => {
+        mockMembership = false;
+        mockSignups.set(`eh-kara/${ANNA}`, { userId: ANNA, character: "Nerathil", spec: "Mage-Arcane", role: "ranged", status: "signed", canAlso: [], comment: "", at: 1 });
+        const results = await service.submitSignups(ANNA, [
+            { eventId: "eh-kara", characters: chars, status: "late" },
+            { eventId: "eh-ssc", characters: chars, status: "signed" },
+        ], { now: NOW, memberOnly: true, byOrga: (ev) => ev.id === "eh-ssc" });
+        expect(results.map((r) => [r.eventId, r.ok])).toEqual([["eh-kara", true], ["eh-ssc", true]]);
+        expect(discord.guildMembership).not.toHaveBeenCalled();
+        mockSignups.clear();
+        const plain = await service.submitSignups(ANNA, [{ eventId: "eh-ssc", characters: chars, status: "signed" }], { now: NOW });
+        expect(plain[0].ok).toBe(true);
+        expect(discord.guildMembership).not.toHaveBeenCalled();
+    });
+
+    it("ein Nicht-Mitglied mit neuem Charakter legt keinen Charakter an", async () => {
+        mockMembership = false;
+        const res = await service.submitSignup("eh-kara", BERT, { newCharacter: BERTHOLT, status: "signed" }, { now: NOW, memberOnly: true });
+        expect(res.code).toBe("pug_members_only");
+        expect(charsOf(BERT)).toHaveLength(0);
+    });
+
+    it("eine abgelehnte Anmeldung legt keinen Charakter an, eine angenommene schon", async () => {
+        mockEvents.set("eh-alt", event({ id: "eh-alt", signupDeadline: sec(NOW) - 60 }));
+        const late = await service.submitSignup("eh-alt", BERT, { newCharacter: BERTHOLT, status: "signed" }, { now: NOW });
+        expect(late.code).toBe("deadline");
+        expect(charsOf(BERT)).toHaveLength(0);
+        const ok = await service.submitSignup("eh-kara", BERT, { newCharacter: BERTHOLT, status: "signed" }, { now: NOW, accountName: "Bert" });
+        expect(ok.signup).toMatchObject({ character: "Bertholt", spec: "Warrior-Protection" });
+        expect(charsOf(BERT).map((c) => c.name)).toEqual(["Bertholt"]);
+    });
+
+    it("ein neuer Spec eines vorhandenen Charakters kommt erst mit der Anmeldung ins Profil", async () => {
+        mockEvents.set("eh-alt", event({ id: "eh-alt", signupDeadline: sec(NOW) - 60 }));
+        const specsOf = () => charsOf(ANNA).find((c) => c.name === "Nerathil").specs.map((s) => s.key);
+        const late = await service.submitSignup("eh-alt", ANNA, { newCharacter: { name: "nerathil", spec: "Mage-Frost" }, status: "signed" }, { now: NOW });
+        expect(late.code).toBe("deadline");
+        expect(specsOf()).not.toContain("Mage-Frost");
+        const ok = await service.submitSignup("eh-kara", ANNA, { newCharacter: { name: "nerathil", spec: "Mage-Frost" }, status: "signed" }, { now: NOW });
+        expect(ok.signup).toMatchObject({ character: "Nerathil", spec: "Mage-Frost" });
+        expect(specsOf()).toContain("Mage-Frost");
     });
 });
 

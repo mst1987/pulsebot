@@ -34,7 +34,11 @@
 //   * "Anmeldung nur für das Roster" (#658): where the category's roster has
 //     `signupOnly`, the roster replaces the role rule — only members with status
 //     core, trial or bench take a new signup (`roster_only`; paused members do
-//     not). Same exemptions: the orga, and an existing own signup.
+//     not). Same exemptions: the orga, and an existing own signup;
+//   * the web only (`memberOnly`, #907): an open (PuG) category takes members of
+//     the raid's server (`pug_members_only`, pugMembership.js), and
+//     `input.newCharacter` { name, spec } goes into the profile first
+//     (signupNewCharacter.js).
 //
 // Saving goes through signupStore.saveSignup, whose change event already edits
 // the event message (eventMessage.js) and feeds every other listener.
@@ -50,6 +54,7 @@ const pickLimitFor = (target, previous, config) => characterRules.pickLimitFor(t
 const profiles = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
 const signupNotes = require("./signupNotes");
+const discord = require("../discord/discord");
 const { signupRoleIds } = require("./partnerJoinHint");
 const { validateCharacterName } = require("../../utils/signup/characterNames");
 const { SIGNUP_STATUSES } = require("../../utils/attendance");
@@ -61,6 +66,8 @@ const { normalizeOverflow, accountCount } = require("../../utils/signup/capacity
 const { expectedRoleIds } = require("../roster/categoryRoles");
 const { accessRule, signupAccess, rosterOnlyAccess } = require("./signupAccess");
 const { isRaidSibling, signupEventIdOf } = require("../../utils/raidGroup");
+const { checkPugMember, holdsSignup, serverOf } = require("./pugMembership");
+const { planSignupCharacter, addSignupCharacter } = require("./signupNewCharacter");
 const { groupPlaces } = require("../events/raidGroup");
 
 // Statuses a member may still pick once the deadline has passed.
@@ -546,7 +553,9 @@ function requestedCharacters(input, previous) {
  * learns it right there, not from the roster.
  * @returns {Promise<{ signup?: object, event?: object, waitlisted?: boolean, locked?: boolean, notice?: string, error?: string, code?: string }>}
  */
-async function submitSignup(eventId, userId, input = {}, { byOrga = false, offProfile = false, now = Date.now(), roleIds, config, roleCheck = true } = {}) {
+async function submitSignup(eventId, userId, input = {}, {
+    byOrga = false, offProfile = false, now = Date.now(), roleIds, config, roleCheck = true, memberOnly = false, membership, accountName = "",
+} = {}) {
     const uid = String(userId || "").trim();
     if (!uid) return fail("bad_request", "Kein Nutzer.");
     if (!isOwnEventId(eventId)) {
@@ -560,15 +569,35 @@ async function submitSignup(eventId, userId, input = {}, { byOrga = false, offPr
     // An event of a hidden game version is an archive (#563): readable, never changed.
     const archive = archiveOf(event, { config });
     if (archive) return fail("archived", `Dieser Raid ist archiviert (${archive.label} ist ausgeblendet) – Anmeldungen sind geschlossen.`);
-    const profile = profiles.getProfile(uid);
+    let profile = profiles.getProfile(uid);
     const previous = signupStore.getSignup(event.id, uid);
     // `roleCheck: false`: an absence entered at a category's panel (availability.js) - saying "I am away" needs no raider role
     const access = roleCheck ? await checkRaiderRole(event, uid, { byOrga, previous, roleIds, config }) : { ok: true };
     if (access.error) return access;
-    const checked = validateSignup(event, input, { profile, previous, byOrga, offProfile: byOrga && offProfile, now, config });
+    // `memberOnly` (#907, the web routes only): a PuG raid takes members of its server (pugMembership.js)
+    if (memberOnly) {
+        const member = await checkPugMember(event, uid, { byOrga, previous, config, membership });
+        if (member.error) return member;
+    }
+    // A character not in the profile yet (#907, the web dialog's class -> spec -> name):
+    // the signup is checked against the profile as it would be with it, and the
+    // character goes into the profile only once the signup is accepted.
+    let request = input;
+    const newCharacter = input.newCharacter && typeof input.newCharacter === "object" ? input.newCharacter : null;
+    if (newCharacter) {
+        const plan = planSignupCharacter(event, uid, newCharacter);
+        if (plan.error) return plan;
+        profile = plan.profile;
+        request = { ...input, characters: [{ character: plan.character, spec: plan.spec }] };
+    }
+    const checked = validateSignup(event, request, { profile, previous, byOrga, offProfile: byOrga && offProfile, now, config });
     if (checked.error) return checked;
     const overflow = applyOverflow(event, checked.value, { previous, byOrga, userId: uid });
     if (overflow.error) return overflow;
+    if (newCharacter) {
+        const added = addSignupCharacter(event, uid, newCharacter, { accountName });
+        if (added.error) return added;
+    }
     const saved = signupStore.saveSignup(event.id, uid, overflow.value, { versionId: event.versionId });
     if (saved.error) return fail("bad_request", saved.error);
     const lock = lockIfFull(event, { now });
@@ -649,11 +678,19 @@ function limitCharacters(fit, previous, max) {
  * `byOrga`: a boolean for every raid, or `(event) => boolean | Promise<boolean>` asked per raid
  * @returns {Promise<{ eventId: string, title: string, startTime: number, ok: boolean, signup?: object, skipped: object[], error?: string, code?: string }[]>}
  */
-async function submitSignups(userId, entries, { byOrga = false, now = Date.now(), config } = {}) {
+async function submitSignups(userId, entries, { byOrga = false, now = Date.now(), config, memberOnly = false } = {}) {
     const uid = String(userId || "").trim();
     const cfg = config || settingsStore.getConfig();
     const profile = profiles.getProfile(uid);
     const roleCache = new Map();
+    // `memberOnly` (#907): one membership lookup per server, not per raid
+    const memberCache = new Map();
+    const membershipOf = async (event) => {
+        const guild = serverOf(event, cfg);
+        if (!memberCache.has(guild)) memberCache.set(guild, await discord.guildMembership(guild, uid));
+        return memberCache.get(guild);
+    };
+    const isOpen = (event) => accessRule(event.categoryId, { config: cfg, versionId: versionOfEvent(event, { config: cfg }) }).rule === "open";
     const results = [];
     const seen = new Set();
     for (const entry of Array.isArray(entries) ? entries : []) {
@@ -696,8 +733,11 @@ async function submitSignups(userId, entries, { byOrga = false, now = Date.now()
             status,
             canAlso: previous ? previous.canAlso : undefined,
             comment: previous ? previous.comment : "",
-        }, { byOrga: exempt, now, roleIds, config: cfg });
-        if (result.error) results.push({ ...base, ok: false, skipped: fit.skipped, code: result.code, error: result.error });
+        }, { byOrga: exempt, now, roleIds, config: cfg, memberOnly, membership: memberOnly && !exempt && !holdsSignup(previous) && isOpen(event) ? await membershipOf(event) : undefined });
+        if (result.error) {
+            const invite = result.inviteUrl !== undefined ? { inviteUrl: result.inviteUrl } : {};
+            results.push({ ...base, ok: false, skipped: fit.skipped, code: result.code, error: result.error, ...invite });
+        }
         else {
             results.push({
                 ...base, ok: true, signup: result.signup, skipped: fit.skipped,
@@ -711,7 +751,7 @@ async function submitSignups(userId, entries, { byOrga = false, now = Date.now()
 /** HTTP status for a service error code. */
 function httpStatusFor(code) {
     if (code === "not_found") return 404;
-    if (code === "raider_role" || code === "roster_only") return 403;
+    if (code === "raider_role" || code === "roster_only" || code === "pug_members_only") return 403;
     if (code === "deadline" || code === "started" || code === "raidhelper" || code === "closed" || code === "cancelled" || code === "full") return 409;
     return 400;
 }

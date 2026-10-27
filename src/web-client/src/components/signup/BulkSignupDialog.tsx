@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import {
-    saveSignupsBulk,
-    type ApiError, type BulkSignupResult, type OwnSignupRow, type SignupClass, type SignupProfile, type SignupStatus,
+    PUG_MEMBERS_ONLY, saveSignupsBulk,
+    type BulkSignupResult, type OwnSignupRow, type SignupClass, type SignupProfile, type SignupStatus,
 } from "../../api";
 import { Badge, Button, Modal } from "../ui";
 import { CheckIcon, XIcon } from "../ui/icons";
@@ -11,6 +11,7 @@ import { formatEventTime } from "../../lib/format";
 import { SIGNUP_STATUS, SIGNUP_STATUS_ORDER } from "../../lib/signups/status";
 import { bulkMaxCharacters, initialPicks, picksToInput, type CharacterPick } from "../../lib/signups/signupPicks";
 import { specLabel } from "../../lib/wow/wowNames";
+import { errorText, safeInviteUrl } from "../../lib/signups/pugMembers";
 import { useT } from "../../i18n";
 
 // "Für alle gewählten anmelden" (#293): one choice of characters and status for
@@ -61,7 +62,7 @@ export default function BulkSignupDialog({ rows, profile, classes, onClose, onDo
             const saved = res.results.filter((r) => r.ok).length;
             toast(t("signups.bulk.toast", { saved, total: res.results.length }), saved === res.results.length ? undefined : "err");
         } catch (e) {
-            toast((e as ApiError).message, "err");
+            toast(errorText(e, t("signups.dialog.saveFailed")), "err");
         } finally {
             setBusy(false);
         }
@@ -128,6 +129,7 @@ function ResultRow({ result }: { result: BulkSignupResult }) {
     const t = useT();
     const s = result.signup;
     const chars = s ? s.characters.map((c, i) => `${i ? "+" : ""}${c.character} · ${specLabel(c.spec, c.specLabel)}`).join(", ") : "";
+    const invite = safeInviteUrl(result.inviteUrl);
     const skipped = result.skipped.map((x) => t("signups.bulk.skipped", { character: x.character, reason: x.reason })).join(" · ");
     return (
         <li className="an-result">
@@ -136,7 +138,10 @@ function ResultRow({ result }: { result: BulkSignupResult }) {
             </Badge>
             <span className="an-result-title">{result.title}</span>
             <span className="an-result-text">
-                {result.ok ? (s && s.status === "absence" ? t("signups.bulk.absent") : `${chars}${s && s.status !== "signed" ? ` – ${SIGNUP_STATUS[s.status].label}` : ""}`) : result.code === "roster_only" ? t("signups.dialog.rosterOnly") : result.error}
+                {result.ok ? (s && s.status === "absence" ? t("signups.bulk.absent") : `${chars}${s && s.status !== "signed" ? ` – ${SIGNUP_STATUS[s.status].label}` : ""}`) : result.code === "roster_only" ? t("signups.dialog.rosterOnly") : result.code === PUG_MEMBERS_ONLY ? (invite ? t("signups.dialog.pugMembersOnly") : t("signups.dialog.pugMembersOnlyNoLink")) : errorText(result.error, t("signups.dialog.saveFailed"))}
+                {result.code === PUG_MEMBERS_ONLY && invite && (
+                    <a className="an-result-skip" href={invite} target="_blank" rel="noreferrer">{t("signups.dialog.pugJoin")}</a>
+                )}
                 {result.notice && <span className="an-result-skip">{result.notice}</span>}
                 {skipped && <span className="an-result-skip">{skipped}</span>}
             </span>
