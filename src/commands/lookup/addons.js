@@ -62,7 +62,7 @@ module.exports = {
         const { versionId } = versionOfCommand(interaction, { config });
         // orga-only addons only for the orga; a failed role lookup falls back to the base access (= not orga)
         const hasOrgaOnly = enabledAddons(config, versionId, { orga: true }).some((a) => a.orgaOnly);
-        const orga = hasOrgaOnly && userIsOrga(await resolveAccess(interaction.user.id, { guildId: interactionGuildId(interaction, config) }));
+        const orga = hasOrgaOnly && userIsOrga(await resolveAccess(interaction.user.id, { guildId: interactionGuildId(interaction) }));
         const addons = enabledAddons(config, versionId, { orga });
         const results = await Promise.all(addons.map((addon) => releaseFor(addon, { config })));
         const { embed, link } = addonsCard(addons.map((addon, i) => ({ addon, result: results[i] })), versionId);

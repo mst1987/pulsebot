@@ -87,12 +87,15 @@ describe("services/discord/serverAccess (#925)", () => {
 
     describe("interactionGuildId", () => {
         it("judges an interaction by the server it happened on", () => {
-            expect(interactionGuildId({ guildId: "B" }, config)).toBe("B");
-            expect(interactionGuildId({ guild: { id: "B" } }, config)).toBe("B");
+            expect(interactionGuildId({ guildId: "B" })).toBe("B");
+            expect(interactionGuildId({ guild: { id: "B" } })).toBe("B");
         });
 
-        it("judges a DM by the home server", () => {
-            expect(interactionGuildId({ guildId: null }, config)).toBe("A");
+        it("judges a DM by the record's server, else by none - never the home server (fail closed)", () => {
+            expect(interactionGuildId({ guildId: null })).toBe("");
+            expect(interactionGuildId({ guildId: null }, { recordGuildId: " B " })).toBe("B");
+            // the click wins over a record
+            expect(interactionGuildId({ guildId: "A" }, { recordGuildId: "B" })).toBe("A");
         });
     });
 });

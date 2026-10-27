@@ -83,7 +83,7 @@ async function mayPing(interaction) {
     try {
         // the rule and the roles of the server the click came from (#925)
         const stored = getConfig();
-        const guildId = interactionGuildId(interaction, stored);
+        const guildId = interactionGuildId(interaction);
         const config = configForGuild(stored, guildId);
         const commands = (interaction.client && interaction.client.commands) || (discord.getClient && (discord.getClient() || {}).commands);
         const rule = ruleFor(SOFTRES_PING_PREFIX, { commands, config });

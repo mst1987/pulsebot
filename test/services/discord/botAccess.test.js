@@ -12,6 +12,7 @@ const discord = require("../../../src/services/discord/discord");
 const { logcheckAdminIds } = require("../../../src/config/variables");
 const {
     resolveBotAccess, ruleFor, accessOwner, eventMemberRoles, denyMessage, guardInteraction,
+    isFullAdminAnywhere, resetAdminCache, recordGuildOf,
 } = require("../../../src/services/discord/botAccess");
 const { mockInteraction, makeCollection } = require("../../helpers/mockInteraction");
 const userAccess = require("../../../src/services/discord/userAccess");
@@ -35,6 +36,7 @@ const member = (roleIds = [], id = "555") => ({ id, roleIds });
 
 beforeEach(() => {
     jest.clearAllMocks();
+    resetAdminCache();
     settingsStore.getConfig.mockReturnValue({ guildId: GUILD, botLanguage: "en" });
     discord.getGuild.mockReturnValue(null);
     discord.fetchGuildMembersCached.mockResolvedValue([]);
@@ -241,6 +243,7 @@ describe("guardInteraction", () => {
             expect(await guardInteraction(interaction, COMMANDS.get("fillsetup"), COMMANDS)).toBe(true);
             expect(spy).toHaveBeenCalledWith("555");
             spy.mockResolvedValue({ isAdmin: false, guilds: {} });
+            resetAdminCache();
             const again = mockInteraction({ userId: "555", guild: { id: OTHER } });
             again.guildId = OTHER;
             again.member = { roles: { cache: makeCollection([]) } };
@@ -257,14 +260,91 @@ describe("guardInteraction", () => {
             spy.mockRestore();
         });
 
-        it("judges a DM by the home server", async () => {
-            settingsStore.getConfig.mockReturnValue({ guildId: GUILD, discordServers: servers });
-            const interaction = mockInteraction({ userId: "555", customId: "event-next" });
+        const dm = (userId = "555") => {
+            const interaction = mockInteraction({ userId, customId: "event-next" });
             interaction.guild = null;
             interaction.guildId = null;
             interaction.member = null;
+            return interaction;
+        };
+        // the orga of OTHER (the first server of the list, formerly the "home server")
+        const orgaOnOther = () => discord.getGuild.mockImplementation((id) => (id === OTHER ? {
+            id: OTHER,
+            members: { fetch: jest.fn(async () => ({ roles: { cache: makeCollection([[ORGA, {}]]) } })) },
+        } : null));
+
+        it("judges a DM without a record by no server: the orga of the first server is refused (fail closed)", async () => {
+            settingsStore.getConfig.mockReturnValue({ guildId: GUILD, discordServers: servers });
+            orgaOnOther();
+            const interaction = dm();
             expect(await guardInteraction(interaction, COMMANDS.get("event-next"), COMMANDS)).toBe(false);
+            expect(discord.getGuild).not.toHaveBeenCalledWith(OTHER);
+            expect(interaction.reply).toHaveBeenCalled();
+            // an everyone command still runs in a DM
+            expect(await guardInteraction(dm(), COMMANDS.get("signup"), COMMANDS)).toBe(true);
+        });
+
+        it("lets a full admin through in a DM without a record", async () => {
+            settingsStore.getConfig.mockReturnValue({ guildId: GUILD, discordServers: servers, adminRoleIds: [ADMIN_ROLE] });
+            const spy = jest.spyOn(userAccess, "resolveGuildAccess").mockResolvedValue({ isAdmin: true, guilds: {} });
+            expect(await guardInteraction(dm(), COMMANDS.get("fillsetup"), COMMANDS)).toBe(true);
+            spy.mockRestore();
+            // ADMIN_USER_ID / LOGCHECK_ADMIN_IDS need no role at all
+            const envAdmin = logcheckAdminIds[0];
+            if (envAdmin) expect(await guardInteraction(dm(envAdmin), COMMANDS.get("fillsetup"), COMMANDS)).toBe(true);
+        });
+
+        it("judges a DM by the server of its record when the command names it", async () => {
+            settingsStore.getConfig.mockReturnValue({ guildId: GUILD, discordServers: servers });
+            orgaOnOther();
+            const onOther = { ...COMMANDS.get("event-next"), guildIdOf: jest.fn(async () => OTHER) };
+            expect(await guardInteraction(dm(), onOther, COMMANDS)).toBe(true);
             expect(discord.getGuild).toHaveBeenCalledWith(OTHER);
+            // a record of GUILD: the orga role held on OTHER opens nothing there
+            const onGuild = { ...COMMANDS.get("event-next"), guildIdOf: () => GUILD };
+            expect(await guardInteraction(dm(), onGuild, COMMANDS)).toBe(false);
+            // a failing lookup counts as no server
+            const broken = { ...COMMANDS.get("event-next"), guildIdOf: () => { throw new Error("gone"); } };
+            expect(await guardInteraction(dm(), broken, COMMANDS)).toBe(false);
+        });
+
+        it("asks the record hook in a DM only - a click on a server names its server itself", async () => {
+            const hook = jest.fn(() => OTHER);
+            expect(await recordGuildOf({ guildIdOf: hook }, { guildId: GUILD })).toBe("");
+            expect(hook).not.toHaveBeenCalled();
+            expect(await recordGuildOf({ guildIdOf: hook }, { guildId: null })).toBe(OTHER);
+            expect(await recordGuildOf({}, { guildId: null })).toBe("");
+        });
+    });
+
+    describe("full admin on another server: fast and cached (#925)", () => {
+        beforeEach(() => settingsStore.getConfig.mockReturnValue({ guildId: GUILD, adminRoleIds: [ADMIN_ROLE] }));
+
+        it("asks the role lookup once a minute per user", async () => {
+            const spy = jest.spyOn(userAccess, "resolveGuildAccess").mockResolvedValue({ isAdmin: true, guilds: {} });
+            expect(await isFullAdminAnywhere("555")).toBe(true);
+            expect(await isFullAdminAnywhere("555")).toBe(true);
+            expect(spy).toHaveBeenCalledTimes(1);
+            expect(await isFullAdminAnywhere("556")).toBe(true);
+            expect(spy).toHaveBeenCalledTimes(2);
+            spy.mockRestore();
+        });
+
+        it("counts a slow lookup as no (fail closed) and keeps its answer for the next click", async () => {
+            let finish;
+            const spy = jest.spyOn(userAccess, "resolveGuildAccess").mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+            expect(await isFullAdminAnywhere("555", { timeoutMs: 5 })).toBe(false);
+            finish({ isAdmin: true, guilds: {} });
+            await new Promise((resolve) => setImmediate(resolve));
+            expect(await isFullAdminAnywhere("555", { timeoutMs: 5 })).toBe(true);
+            expect(spy).toHaveBeenCalledTimes(1);
+            spy.mockRestore();
+        });
+
+        it("counts a failing lookup as no", async () => {
+            const spy = jest.spyOn(userAccess, "resolveGuildAccess").mockRejectedValue(new Error("down"));
+            expect(await isFullAdminAnywhere("555")).toBe(false);
+            spy.mockRestore();
         });
     });
 

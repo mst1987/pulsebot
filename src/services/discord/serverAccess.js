@@ -13,8 +13,9 @@
 //                                     in use anywhere; never a right of its own)
 //   fullAdminRoleIds(config)          the global full-admin roles, settings + .env
 //   accessGuildIds(config)            the servers that may hold such settings
-//   interactionGuildId(interaction)   the server whose rights a bot interaction is
-//                                     judged by: where it happened, a DM the home server
+//   interactionGuildId(interaction, { recordGuildId })   the server whose rights a bot
+//                                     interaction is judged by: where it happened, a DM the
+//                                     server of the record it is about, else none (fail closed)
 //
 // A server without settings grants nothing: there is no global fallback, so a
 // right given on one server never opens anything on another.
@@ -104,11 +105,12 @@ function fullAdminRoleIds(config) {
  * The server whose rights a bot interaction is judged by: the server it happened
  * on; a DM (no server) the home server, the first of the list - as before #925.
  */
-function interactionGuildId(interaction, config) {
+function interactionGuildId(interaction, { recordGuildId = "" } = {}) {
     const clicked = interaction && (interaction.guildId || (interaction.guild && interaction.guild.id));
     if (clicked) return String(clicked).trim();
-    const { serverIds } = require("./guildRoles");
-    return serverIds(cfgOf(config))[0] || "";
+    // a DM (#925): the rights of the record's server - without one, no server at all, so only a
+    // full admin passes an orga rule (never the first server of the list as before)
+    return String(recordGuildId || "").trim();
 }
 
 module.exports = {
