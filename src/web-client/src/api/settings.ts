@@ -8,6 +8,7 @@ import type { BotAccessRule } from "./botCommands";
 import type { VersionOverrides, VersionSettingsBlock } from "../lib/settings/versionLinks";
 import type { CapabilityMatrix } from "../lib/settings/versionFeatures";
 import type { AddonSetting } from "./addons";
+import type { WclGuild, WclGuildInput } from "./wclGuilds";
 
 /**
  * `color`: the role's Discord colour as hex, "" when it has none. `managed`: a
@@ -60,9 +61,10 @@ export type AdminConfig = {
     categoryRoles: Record<string, string[]>;
     /**
      * Settings per Discord server (#917): the log channels with their version
-     * (#921), its own armory/log templates and realm per version (#923).
+     * (#921), its own armory/log templates and realm per version (#923), the
+     * Warcraft Logs guilds per version (#922).
      */
-    serverSettings?: Record<string, { logChannels?: LogChannel[]; versionOverrides?: VersionOverrides }>;
+    serverSettings?: Record<string, { logChannels?: LogChannel[]; versionOverrides?: VersionOverrides; wclGuilds?: WclGuild[] }>;
     raidDefaults: { channelId: string };
     // The default raid template per category (category id → template id).
     categoryRaidTemplate: Record<string, string>;
@@ -388,6 +390,7 @@ export type SwitchedCategory = {
 export type SettingsUpdate = {
     config: AdminConfig;
     raidhelper?: RaidhelperServer;
+    wclGuilds?: WclGuild[];
     switchedCategories?: SwitchedCategory[];
     deactivatedCategories?: DeactivatedCategory[];
     missingCategories?: MissingCategory[];
@@ -399,7 +402,7 @@ export type SettingsUpdate = {
  * switched to another server since answers 409 `server_switched`. The answer's
  * categories are narrowed to the active server (#926).
  */
-export function updateSettings(partial: Partial<AdminConfig> & { logChannels?: LogChannelInput[]; serverSettingsGuildId?: string }): Promise<SettingsUpdate> {
+export function updateSettings(partial: Partial<AdminConfig> & { logChannels?: LogChannelInput[]; wclGuilds?: WclGuildInput[]; serverSettingsGuildId?: string }): Promise<SettingsUpdate> {
     return send<SettingsUpdate>("PATCH", "/api/settings", partial).then(forServer);
 }
 

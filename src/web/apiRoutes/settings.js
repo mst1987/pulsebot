@@ -42,6 +42,7 @@ const { capabilityMatrix } = require("../../services/events/versionCapabilities"
 const { isVersionFeature, normalizeDisabled } = require("../../config/versionFeatures");
 const { mainVersionFor } = require("../../services/events/mainVersion");
 const { logChannelsOf, logChannelsFromBody } = require("../../services/logcheck/logChannelSettings");
+const { wclGuildsOf, wclGuildsFromBody } = require("../../services/logcheck/wclGuildSettings");
 const { normalizeCategoryPlanning } = require("../../services/events/planning");
 const { normalizeCategorySignupCharacters } = require("../../services/signups/signupCharacters");
 const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../services/events/contentVersions");
@@ -304,7 +305,7 @@ function checkServerChannels(sent, known) {
 // saving server's part (mergedCategoryIds) - so it is bound to the tab's server too.
 const SERVER_SCOPED_KEYS = [
     "logChannels", "raidhelper", "versionOverrides", "categoryIds",
-    "applicationChannelId", "officerRoleId", "raidDefaults", "botLanguage",
+    "applicationChannelId", "officerRoleId", "raidDefaults", "botLanguage", "wclGuilds",
 ];
 // Server-bound keys that, without an active server, edit the first server
 // (#927 Raid-Helper, as its section shows; #926 the categories, shown on the
@@ -873,6 +874,14 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         partial.serverSettings = { ...(partial.serverSettings || {}) };
         partial.serverSettings[guildId] = { ...(partial.serverSettings[guildId] || {}), logChannels };
     }
+    // #922 the WCL guilds of the active server: version, guild, realm, region,
+    // interval from the page; lastRunAt/lastResult stay the job's.
+    if (body.wclGuilds !== undefined) {
+        const { guildId } = server;
+        const wclGuilds = wclGuildsFromBody(body.wclGuilds, { current: wclGuildsOf(guildId, { config: getConfig() }) });
+        partial.serverSettings = { ...(partial.serverSettings || {}) };
+        partial.serverSettings[guildId] = { ...(partial.serverSettings[guildId] || {}), wclGuilds };
+    }
     // blizzard: only the known fields, the secret only when sent (omit = keep, "" = clear)
     if (body.blizzard !== undefined && typeof body.blizzard === "object") {
         partial.blizzard = {};
@@ -1016,6 +1025,7 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         switchedCategories,
         deactivatedCategories: deactivated,
         ...(raidhelperGuild ? { raidhelper: maskedRaidhelper(raidhelperGuild, saved) } : {}),
+        ...(body.wclGuilds !== undefined && server ? { wclGuilds: wclGuildsOf(server.guildId, { config: saved }) } : {}),
         // #926: with the active server's part of categoryIds, so the page keeps showing only its own
         ...serverCategoriesOf(after, server ? server.guildId : activeGuildFor(req)),
     });

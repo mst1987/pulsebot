@@ -39,6 +39,8 @@ const REQUEST_TIMEOUT_MS = 60000;
  *                                 boss/kill/zoneName), so a v2 path would need
  *                                 this one as fallback: two paths for one list
  *   - services/logcheck/logTitles.js  getFights for the list's titles, per version
+ *   - services/logcheck/wclGuildSync.js  getGuildReports: the new reports of a
+ *                                 server's WCL guild (#922), only on v1
  *   - logLinks.parseReportLink    host + id of a link (also as a static here), no request
  */
 // The v1 site a client asks when nobody names one: the classic host the CLA
@@ -141,6 +143,20 @@ class WarcraftLogs {
     /** One page of report/events/{view}/{id} (use nextPageTimestamp for paging). */
     getEvents(reportId, view, start, end, extra = {}) {
         return this.#get(`report/events/${view}/${reportId}`, { start, end, ...extra });
+    }
+
+    /**
+     * reports/guild/{guild}/{server}/{region} (#922): the reports a WCL guild
+     * uploaded, each `{ id, title, owner, start, end, zone }` (ms timestamps),
+     * on this client's site. `start`/`end` narrow the window (ms); WCL answers
+     * 400 "Invalid guild name/server/region specified." for an unknown guild.
+     */
+    getGuildReports(guildName, serverName, region, { start, end } = {}) {
+        const params = {};
+        if (Number.isFinite(start)) params.start = start;
+        if (Number.isFinite(end)) params.end = end;
+        const path = `reports/guild/${encodeURIComponent(guildName)}/${encodeURIComponent(serverName)}/${encodeURIComponent(region)}`;
+        return this.#get(path, params);
     }
 
     /**

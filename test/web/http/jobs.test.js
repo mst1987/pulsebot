@@ -10,6 +10,7 @@ function mockJob(startName, stopName) {
 jest.mock("../../../src/services/discord/discord", () => ({ setClient: jest.fn() }));
 jest.mock("../../../src/utils/setup/sheetCleanup", () => mockJob("startSheetCleanup", "stopSheetCleanup"));
 jest.mock("../../../src/services/events/raidhelperSync", () => mockJob("startRaidhelperSync", "stopRaidhelperSync"));
+jest.mock("../../../src/services/logcheck/wclGuildSync", () => mockJob("startWclGuildSync", "stopWclGuildSync"));
 jest.mock("../../../src/services/logcheck/logAutoLink", () => mockJob("startLogAutoLink", "stopLogAutoLink"));
 jest.mock("../../../src/services/events/eventMessage", () => mockJob("startEventMessageSync", "stopEventMessageSync"));
 jest.mock("../../../src/web/events/reminders", () => mockJob("startReminders", "stopReminders"));
@@ -34,7 +35,7 @@ const discord = require("../../../src/services/discord/discord");
 const { startJobs, stopJobs, JOBS } = require("../../../src/web/http/jobs");
 
 const START_ORDER = [
-    "start", "startSheetCleanup", "startRaidhelperSync", "startLogAutoLink", "startEventMessageSync",
+    "start", "startSheetCleanup", "startRaidhelperSync", "startLogAutoLink", "startWclGuildSync", "startEventMessageSync",
     "startReminders", "startRoleSync", "startRosterRoleSync", "startTalkOverview", "startEventSeries", "start", "startPanelRefresh", "startOrgaHubs", "startRaidOverviews", "startAddonCenter", "startMetaRefresh", "startSoftresDetect", "startSoftresStatus", "startBackupJob", "startRestoreTestJob", "startBackupAlerts",
 ];
 
@@ -50,7 +51,7 @@ describe("web/http/jobs", () => {
         const names = startJobs();
         expect(mockCalls).toEqual(START_ORDER.map((n) => `start:${n}`));
         expect(names).toEqual([
-            "systemMonitor", "sheetCleanup", "raidhelperSync", "logAutoLink", "eventMessageSync",
+            "systemMonitor", "sheetCleanup", "raidhelperSync", "logAutoLink", "wclGuildSync", "eventMessageSync",
             "reminders", "roleSync", "rosterRoleSync", "talkOverview", "eventSeries", "applicationState", "availabilityPanels", "orgaHubs", "raidOverviews", "addonCenter", "guildBankItemMeta", "softresDetect", "softresStatus", "backupSnapshots", "backupRestoreTest", "backupAlerts",
         ]);
         expect(JOBS.map((j) => j.name)).toEqual(names);
@@ -60,7 +61,7 @@ describe("web/http/jobs", () => {
         startJobs();
         startJobs();
         const lines = console.log.mock.calls.map((c) => c[0]).filter((l) => /Background jobs started/.test(l));
-        expect(lines).toEqual(["Background jobs started: systemMonitor, sheetCleanup, raidhelperSync, logAutoLink, eventMessageSync, reminders, roleSync, rosterRoleSync, talkOverview, eventSeries, applicationState, availabilityPanels, orgaHubs, raidOverviews, addonCenter, guildBankItemMeta, softresDetect, softresStatus, backupSnapshots, backupRestoreTest, backupAlerts"]);
+        expect(lines).toEqual(["Background jobs started: systemMonitor, sheetCleanup, raidhelperSync, logAutoLink, wclGuildSync, eventMessageSync, reminders, roleSync, rosterRoleSync, talkOverview, eventSeries, applicationState, availabilityPanels, orgaHubs, raidOverviews, addonCenter, guildBankItemMeta, softresDetect, softresStatus, backupSnapshots, backupRestoreTest, backupAlerts"]);
     });
 
     // #608: what a job asks Raid-Helper counts as background work (utils/raidhelper/budget.js)
@@ -106,7 +107,7 @@ describe("web/http/jobs", () => {
         stopJobs();
         expect(mockCalls).toEqual([
             "stop:stopBackupAlerts", "stop:stopRestoreTestJob", "stop:stopBackupJob", "stop:stopSoftresStatus", "stop:stopSoftresDetect", "stop:stopMetaRefresh", "stop:stopAddonCenter", "stop:stopRaidOverviews", "stop:stopOrgaHubs", "stop:stopPanelRefresh", "stop:stop", "stop:stopEventSeries", "stop:stopTalkOverview", "stop:stopRosterRoleSync", "stop:stopRoleSync", "stop:stopReminders",
-            "stop:stopEventMessageSync", "stop:stopLogAutoLink", "stop:stopRaidhelperSync", "stop:stopSheetCleanup", "stop:stop",
+            "stop:stopEventMessageSync", "stop:stopWclGuildSync", "stop:stopLogAutoLink", "stop:stopRaidhelperSync", "stop:stopSheetCleanup", "stop:stop",
         ]);
         mockCalls.length = 0;
         startJobs();

@@ -519,6 +519,60 @@ describe("web/apiRoutes/settings", () => {
                     expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ categoryRoles: { c9: "r9" } });
                 });
             });
+            describe("the WCL guilds of the active server (#922)", () => {
+                const stored = { versionId: "tbc", guildName: "Pulse", realm: "Thunderstrike", region: "EU", interval: 60, lastRunAt: 500, lastSuccessAt: 450, lastResult: { found: 1, error: "", at: 500 } };
+                beforeEach(() => {
+                    auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                    auth.checkCsrf.mockReturnValue(true);
+                    settingsStore.getConfig.mockReturnValue({ serverSettings: { "guild-1": { logChannels: [{ channelId: "c", versionId: "tbc" }], wclGuilds: [stored] } } });
+                });
+                afterEach(() => {
+                    activeGuildFor.mockReturnValue("");
+                    settingsStore.getConfig.mockReturnValue({});
+                });
+
+                it("saves the list under the active server only; the job's fields stay and come back", async () => {
+                    activeGuildFor.mockReturnValue("guild-1");
+                    const res = await patch("/api/settings", {
+                        serverSettingsGuildId: "guild-1",
+                        wclGuilds: [
+                            { versionId: "tbc", guildName: "pulse", realm: "Thunderstrike", region: "eu", interval: 15, lastRunAt: 1, lastSuccessAt: 1, lastResult: { found: 9 } },
+                            { versionId: "classic", guildName: " Alt ", realm: "Thunderstrike", region: "EU", interval: 0 },
+                        ],
+                    });
+                    const wclGuilds = [
+                        { versionId: "tbc", guildName: "pulse", realm: "Thunderstrike", region: "EU", interval: 15, lastRunAt: 500, lastSuccessAt: 450, lastResult: { found: 1, error: "", at: 500 } },
+                        { versionId: "classic", guildName: "Alt", realm: "Thunderstrike", region: "EU", interval: 0, lastRunAt: 0, lastSuccessAt: 0, lastResult: null },
+                    ];
+                    expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ serverSettings: { "guild-1": { wclGuilds } } });
+                    expect(body(res).wclGuilds).toEqual(wclGuilds);
+                });
+
+                it("refuses the list without an active server", async () => {
+                    const res = await patch("/api/settings", { wclGuilds: [] });
+                    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    expect(json(res).error.code).toBe("no_active_server");
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                it("refuses with 409 when the tab loaded another server or sends none", async () => {
+                    activeGuildFor.mockReturnValue("guild-B");
+                    let res = await patch("/api/settings", { serverSettingsGuildId: "guild-1", wclGuilds: [] });
+                    expect(json(res).error.code).toBe("server_switched");
+                    activeGuildFor.mockReturnValue("guild-1");
+                    res = await patch("/api/settings", { wclGuilds: [] });
+                    expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                it("a save without the list leaves it alone and sends none back", async () => {
+                    activeGuildFor.mockReturnValue("guild-1");
+                    // #924: officerRoleId is per server now, so a global key stands in for "another field"
+                    const res = await patch("/api/settings", { hideOtherVersions: true });
+                    expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ hideOtherVersions: true });
+                    expect(body(res)).not.toHaveProperty("wclGuilds");
+                });
+            });
 
             describe("a fixed version per category (#738)", () => {
                 const seriesStore = require("../../../src/stores/eventSeriesStore");
@@ -1585,6 +1639,16 @@ describe("web/apiRoutes/settings", () => {
                 it("keeps channels and roles strictly per server: with the language but no server it is 400", async () => {
                     activeGuildFor.mockReturnValue("");
                     readJsonBody.mockResolvedValue({ botLanguage: "en", applicationChannelId: "1800000000000000031", serverSettingsGuildId: "" });
+                    const res = mockRes();
+                    await updateSettings({ headers: {} }, res);
+                    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    expect(json(res).error).toMatchObject({ code: "no_active_server" });
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                it("never lets the WCL guilds ride along with the language onto the first server (#922)", async () => {
+                    activeGuildFor.mockReturnValue("");
+                    readJsonBody.mockResolvedValue({ botLanguage: "en", wclGuilds: [], serverSettingsGuildId: "" });
                     const res = mockRes();
                     await updateSettings({ headers: {} }, res);
                     expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
