@@ -49,7 +49,9 @@ describe("stores/settingsMigration migrateSettings (#420)", () => {
         // everything else stays as it was
         expect(config.raidDefaults).toEqual(OLD_CONFIG.raidDefaults);
         expect(getConfig().categoryRaidTemplate).toEqual({ c1: "rh-3", c2: "rh-3" });
-        expect(getConfig().discordServers.eventGuilds).toHaveLength(1);
+        // read as the server federation (#890): the event server, its overview target as a link
+        expect(getConfig().discordServers.servers.map((s) => s.guildId)).toContain("1100000000000000001");
+        expect(getConfig().discordServers.links).toEqual([{ from: "1100000000000000001", to: "1100000000000000002", channelId: "1100000000000000003", lang: "", versions: [] }]);
         expect(listRaidTemplates()[0].id).toBe("rh-3");
     });
 

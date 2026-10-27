@@ -32,7 +32,7 @@ function normalizeEventGuilds(list, raw) {
 /** The servers block (configSchema), an old single-server block included. */
 function normalizeDiscordServers(raw) {
     const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
-    if (Array.isArray(src.eventGuilds)) return schema.normalizeDiscordServers(src);
+    if (Array.isArray(src.servers) || Array.isArray(src.eventGuilds)) return schema.normalizeDiscordServers(src);
     return schema.normalizeDiscordServers({ ...src, eventGuilds: legacyEventGuilds(src) });
 }
 

@@ -140,6 +140,25 @@ describe("deliverUserPing", () => {
         expect(r.dm).toBeNull();
     });
 
+    // #890: one server may be event and talk server at once - no double ping there.
+    it("pings once in the event channel when the talk server is the event server", async () => {
+        const same = config({ discordServers: { servers: [{ guildId: "100000" }], links: [], talkGuildId: "100000", talkPingChannelId: "120000" } });
+        const r = await ping.deliverUserPing({ target: "both", event, userIds: ["1", "3"], guildId: "100000", config: same });
+        expect(discord.postMissingPing).toHaveBeenCalledTimes(1);
+        expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["1", "3"], expect.any(String));
+        expect(discord.fetchGuildMembersCached).not.toHaveBeenCalled();
+        expect(discord.sendDirectMessage).not.toHaveBeenCalled();
+        expect(r.target).toBe("event");
+    });
+
+    it("keeps both for two different servers", () => {
+        const cfg = config({ discordServers: { servers: [{ guildId: "100000" }, { guildId: "200000" }], links: [], talkGuildId: "200000" } });
+        expect(ping.effectiveTarget("both", "100000", cfg)).toBe("both");
+        expect(ping.effectiveTarget("both", "", cfg)).toBe("both");
+        expect(ping.effectiveTarget("both", "200000", cfg)).toBe("event");
+        expect(ping.effectiveTarget("talk", "200000", cfg)).toBe("talk");
+    });
+
     it("counts failed DMs instead of failing the ping", async () => {
         discord.sendDirectMessage.mockResolvedValue({ ok: false, error: "DMs geschlossen" });
         const r = await ping.deliverUserPing({ target: "talk", event, userIds: ["3"], config: config() });

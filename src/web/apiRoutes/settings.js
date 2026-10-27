@@ -305,6 +305,15 @@ function serverCards(config) {
 }
 
 /**
+ * Transition until the new Discord-Server page (#891): the stored block
+ * (`servers` + `links`) plus the old `eventGuilds` list the current dialog
+ * still reads and sends back (saveConfig turns it into servers/links again).
+ */
+function legacyDiscordServers(config) {
+    return { ...(config.discordServers || {}), eventGuilds: guildRoles.legacyEventGuilds(config) };
+}
+
+/**
  * GET /api/settings/discord-servers — everything the "Discord-Server" section
  * shows and edits: the stored ids, both status cards, the member overlap, and
  * every server the bot is on with its role and text channels (the pickers of
@@ -319,7 +328,7 @@ const getDiscordServers = withUser({ full: true }, async ({ res }) => {
         channels: discord.listTextChannels(g.id),
     }));
     ok(res, {
-        discordServers: config.discordServers,
+        discordServers: legacyDiscordServers(config),
         ...serverCards(config),
         overlap: await guildRoles.memberOverlap(config),
         guilds,
@@ -504,8 +513,9 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         for (const k of DISCORD_SERVER_FIELDS) {
             if (body.discordServers[k] !== undefined) partial.discordServers[k] = String(body.discordServers[k] || "").trim();
         }
-        // Raw pass-through: real validation happens in settingsStore's
-        // normalizeEventGuilds() (dedup, snowflake checks, half-set target).
+        // Transition until #891: the old dialog's whole `eventGuilds` list, raw —
+        // configStore.saveConfig turns it into servers + links (configSchema
+        // legacyServersAndLinks: dedup, snowflake checks, half-set target).
         if (Array.isArray(body.discordServers.eventGuilds)) partial.discordServers.eventGuilds = body.discordServers.eventGuilds;
     }
     if (body.raidhelperServerId !== undefined) partial.raidhelperServerId = String(body.raidhelperServerId).trim();

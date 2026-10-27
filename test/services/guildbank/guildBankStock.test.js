@@ -1,5 +1,5 @@
 jest.mock("../../../src/services/discord/discord", () => ({
-    listGuilds: jest.fn(() => [{ id: "g1", name: "Event-Server" }, { id: "g2", name: "PvP" }, { id: "talk", name: "Talk" }]),
+    listGuilds: jest.fn(() => [{ id: "11111", name: "Event-Server" }, { id: "22222", name: "PvP" }, { id: "33333", name: "Talk" }]),
 }));
 
 const fs = require("fs");
@@ -10,9 +10,9 @@ const { tempStoreFile } = require("../../helpers/tempStore");
 
 const NOW = 1_800_000_000_000;
 const CONFIG = {
-    guildId: "g1",
+    guildId: "11111",
     mainVersion: "tbc",
-    discordServers: { eventGuilds: [{ guildId: "g1", label: "PvE" }, { guildId: "g2", label: "" }], talkGuildId: "talk" },
+    discordServers: { eventGuilds: [{ guildId: "11111", label: "PvE" }, { guildId: "22222", label: "" }], talkGuildId: "33333" },
 };
 
 const body = (over = {}) => ({
@@ -58,21 +58,23 @@ describe("services/guildbank/guildBankStock", () => {
     });
 
     it("assigns right away with a token bound to a server", () => {
-        const result = stock.ingestScan(body(), { token: { id: "t1", guildId: "g2" }, now: NOW, config: CONFIG });
-        expect(result.bank).toMatchObject({ guildId: "g2", pending: false });
+        const result = stock.ingestScan(body(), { token: { id: "t1", guildId: "22222" }, now: NOW, config: CONFIG });
+        expect(result.bank).toMatchObject({ guildId: "22222", pending: false });
         expect(stock.serverOfToken(null)).toBe("");
     });
 
     it("gives a new bank to the one event server when exactly one is configured", () => {
-        const single = { ...CONFIG, discordServers: { eventGuilds: [{ guildId: "g1", label: "PvE" }] } };
+        const single = { ...CONFIG, discordServers: { eventGuilds: [{ guildId: "11111", label: "PvE" }] } };
         const result = stock.ingestScan(body(), { now: NOW, config: single });
-        expect(result.bank).toMatchObject({ guildId: "g1", pending: false });
-        expect(stock.onlyEventServer({ guildId: "g7" })).toBe("g7");
+        expect(result.bank).toMatchObject({ guildId: "11111", pending: false });
+        expect(stock.onlyEventServer({ guildId: "77777" })).toBe("77777");
         expect(stock.onlyEventServer(CONFIG)).toBe("");
+        // one raid server plus the talk server (#890): still the one raid server
+        expect(stock.onlyEventServer({ discordServers: { servers: [{ guildId: "11111" }, { guildId: "33333" }], links: [], talkGuildId: "33333" } })).toBe("11111");
     });
 
     it("leaves a known bank's assignment alone, also one taken back on purpose", () => {
-        const single = { ...CONFIG, discordServers: { eventGuilds: [{ guildId: "g1", label: "PvE" }] } };
+        const single = { ...CONFIG, discordServers: { eventGuilds: [{ guildId: "11111", label: "PvE" }] } };
         const { bank } = stock.ingestScan(body(), { now: NOW, config: CONFIG });
         expect(bank.pending).toBe(true);
         const again = stock.ingestScan(body({ scannedAt: 1791003600 }), { now: NOW + 1, config: single });
@@ -118,17 +120,18 @@ describe("services/guildbank/guildBankStock", () => {
 
     it("offers every event server with its name and label", () => {
         expect(stock.bankServers(CONFIG)).toEqual([
-            { guildId: "g1", name: "Event-Server", label: "PvE" },
-            { guildId: "g2", name: "PvP", label: "" },
+            { guildId: "11111", name: "Event-Server", label: "PvE" },
+            { guildId: "22222", name: "PvP", label: "" },
+            { guildId: "33333", name: "Talk", label: "" },
         ]);
-        expect(stock.bankServers({ guildId: "g9" })).toEqual([{ guildId: "g9", name: "", label: "" }]);
+        expect(stock.bankServers({ guildId: "99999" })).toEqual([{ guildId: "99999", name: "", label: "" }]);
     });
 
     it("assigns only to an event server, and takes an assignment back", () => {
         const { bank } = stock.ingestScan(body(), { now: NOW, config: CONFIG });
-        expect(stock.assignBank(bank.key, "talk", { config: CONFIG })).toEqual({ code: "invalid", error: "Nur ein Event-Server kann eine Gildenbank bekommen." });
-        expect(stock.assignBank("nope", "g1", { config: CONFIG })).toEqual({ code: "not_found", error: "Gildenbank nicht gefunden." });
-        expect(stock.assignBank(bank.key, " g2 ", { config: CONFIG }).bank).toMatchObject({ guildId: "g2", pending: false });
+        expect(stock.assignBank(bank.key, "44444", { config: CONFIG })).toEqual({ code: "invalid", error: "Nur ein Event-Server kann eine Gildenbank bekommen." });
+        expect(stock.assignBank("nope", "11111", { config: CONFIG })).toEqual({ code: "not_found", error: "Gildenbank nicht gefunden." });
+        expect(stock.assignBank(bank.key, " 22222 ", { config: CONFIG }).bank).toMatchObject({ guildId: "22222", pending: false });
         expect(stock.assignBank(bank.key, "", { config: CONFIG }).bank).toMatchObject({ guildId: "", pending: true });
     });
 

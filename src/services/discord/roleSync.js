@@ -111,6 +111,8 @@ function canManageRoles(guildId) {
 function servers(config) {
     const ids = { event: guildRoles.eventGuildId(config), talk: guildRoles.talkGuildId(config) };
     if (!ids.event || !ids.talk) return { error: "Kein zweiter Server eingestellt." };
+    // One server as event and talk server at once (#890): nothing to sync between them.
+    if (ids.event === ids.talk) return { error: "Event- und Talk-Server sind derselbe Server." };
     const guilds = { event: discord.getGuild(ids.event), talk: discord.getGuild(ids.talk) };
     if (!guilds.event || !guilds.talk) return { error: "Der Bot ist nicht auf beiden Servern." };
     return { ids, guilds };

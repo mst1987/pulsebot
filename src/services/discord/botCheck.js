@@ -65,8 +65,8 @@ function channelPurposes(config) {
     add("signupNotes", "Vielleicht und Absagen", servers.signupNoteChannelId, POST);
     for (const id of new Set(Object.values(config.categorySignupNoteChannel || {}).map(str))) add("signupNotes", "Vielleicht und Absagen (Kategorie)", id, POST);
     add("guildBank", "Gildenbank-Anfragen", servers.guildBankChannelId, POST);
-    for (const g of servers.eventGuilds || []) {
-        if (g && g.overviewChannelId) add("overview", "Raid-Übersicht", g.overviewChannelId, [...POST, "ReadMessageHistory"], { guildId: str(g.overviewGuildId) });
+    for (const l of servers.links || []) {
+        if (l && l.channelId) add("overview", "Raid-Übersicht", l.channelId, [...POST, "ReadMessageHistory"], { guildId: str(l.to) });
     }
     const dungeon = config.dungeonRecords || {};
     if (dungeon.post) add("dungeonRecords", "Dungeon-Bestzeiten", dungeon.channelId, POST);

@@ -1,51 +1,93 @@
-// The fixed roles a Discord server can have for this bot (issue #251, #361):
+// The Discord servers this bot works with (issue #251, #361; federation #890):
 //
-//   event — an event server: event channels, Raid-Helper, the admin-role check.
-//           There can be several (each with its own raids); each may post its
-//           own raid overview to a channel on any server, including another
-//           event server.
-//   talk  — the communication server: sign-up per bot, pings. A single,
-//           separate role from "event" — it is not itself an overview target,
-//           just where those other cross-cutting features point by default.
+//   servers — every server, as equals (`discordServers.servers`). Each may hold
+//             raids (event channels, Raid-Helper, the admin-role check).
+//   links   — directed: `{ from, to, channelId }` posts the raid list of `from`
+//             to channelId on `to` (from = to is allowed).
+//   talk    — the communication server: sign-up per bot, pings. Still a single
+//             scalar for now (until #892), and always one of `servers` — a
+//             server may hold raids and be the talk server at once.
 //
-// Both come from settingsStore's `discordServers`; no event server falls back
+// All come from settingsStore's `discordServers`; no server at all falls back
 // to the old single `guildId`, an empty talk server means "no separate
 // communication server" — which is exactly how the bot behaved before. The web
 // menu's server switcher is independent of this: it still picks any server the
 // bot is on, and only shows these roles as a badge.
 const discord = require("./discord");
 const { getConfig } = require("../../stores/settingsStore");
+const { normalizeDiscordServers } = require("../../stores/configSchema");
 
-/** Every configured event server's id, in the order they were added. */
-function eventGuildIds(config = getConfig()) {
-    const servers = (config && config.discordServers) || {};
-    const ids = Array.isArray(servers.eventGuilds) ? servers.eventGuilds.map((e) => String(e.guildId || "").trim()) : [];
+// getConfig() always hands over the federation shape; a block without
+// `servers` (an old `eventGuilds` block handed in directly) is migrated the
+// same way configSchema reads it, so every reader sees one shape.
+function blockOf(config) {
+    const block = (config && config.discordServers) || {};
+    if (Array.isArray(block.servers)) return block;
+    return normalizeDiscordServers(block, { fallbackGuildId: (config && config.guildId) || "" });
+}
+
+/** Every configured server's id, in the order they were added (fallback: the old single guildId). */
+function serverIds(config = getConfig()) {
+    const list = blockOf(config).servers;
+    const ids = Array.isArray(list) ? list.map((s) => String((s && s.guildId) || "").trim()) : [];
     const deduped = [...new Set(ids.filter(Boolean))];
     // Bootstrap path for an install that only ever set the env GUILD_ID.
     return deduped.length ? deduped : [String((config && config.guildId) || "").trim()].filter(Boolean);
 }
 
+/** The label a server was given in the settings ("" = none). */
+function serverLabel(guildId, config = getConfig()) {
+    const list = blockOf(config).servers;
+    const entry = Array.isArray(list) ? list.find((s) => s && String(s.guildId) === String(guildId)) : null;
+    return (entry && entry.label) || "";
+}
+
+/** Every stored link `{ from, to, channelId, lang, versions }` (normalised by configSchema). */
+function links(config = getConfig()) {
+    const list = blockOf(config).links;
+    return Array.isArray(list) ? list.filter((l) => l && l.from && l.to && l.channelId) : [];
+}
+
+/** The links whose raid list is posted on `guildId` (it is their `to`). */
+function linkedSources(guildId, config = getConfig()) {
+    const id = String(guildId || "");
+    return id ? links(config).filter((l) => l.to === id) : [];
+}
+
+/** The links that post the raid list of `guildId` elsewhere (it is their `from`). */
+function linkedTargets(guildId, config = getConfig()) {
+    const id = String(guildId || "");
+    return id ? links(config).filter((l) => l.from === id) : [];
+}
+
+/** Every server that may hold raids — since #890 simply every server. */
+function eventGuildIds(config = getConfig()) {
+    return serverIds(config);
+}
+
 /**
- * The first configured event server's id — kept for call sites that
- * intentionally still operate on "the primary event server" rather than
- * looping over all of them (role sync, Raid-Helper retirement, a series'
- * default guild, the talk-overview sign-up fallback). Check those call sites
- * before "fixing" this to loop — it is deliberate, not an oversight.
+ * The first configured server's id — kept for call sites that intentionally
+ * still operate on "the primary event server" rather than looping over all of
+ * them (role sync, Raid-Helper retirement, a series' default guild, the
+ * talk-overview sign-up fallback). Check those call sites before "fixing" this
+ * to loop — it is deliberate, not an oversight.
  */
 function eventGuildId(config = getConfig()) {
     return eventGuildIds(config)[0] || "";
 }
 
-/** The talk server's id, "" when none is set or it is one of the event servers. */
+/**
+ * The talk server's id, "" when none is set. Since #890 it may be a server
+ * with raids too (even the primary one) — callers that send to "event and
+ * talk" check for the same server themselves (pingDelivery: no double ping).
+ */
 function talkGuildId(config = getConfig()) {
-    const servers = (config && config.discordServers) || {};
-    const id = String(servers.talkGuildId || "").trim();
-    return id && !eventGuildIds(config).includes(id) ? id : "";
+    return String(blockOf(config).talkGuildId || "").trim();
 }
 
-/** Every configured server id, event servers first, without duplicates or blanks. */
+/** Every configured server id, servers first, without duplicates or blanks. */
 function configuredGuildIds(config = getConfig()) {
-    return [...new Set([...eventGuildIds(config), talkGuildId(config)].filter(Boolean))];
+    return [...new Set([...serverIds(config), talkGuildId(config)].filter(Boolean))];
 }
 
 function isEventGuild(guildId, config = getConfig()) {
@@ -57,11 +99,38 @@ function isTalkGuild(guildId, config = getConfig()) {
     return !!guildId && !!talk && String(guildId) === talk;
 }
 
-/** "event" | "talk" | "" — the badge the server switcher shows at a server. */
+/**
+ * "event" | "talk" | "" — the badge the server switcher shows at a server.
+ * The talk server is named "talk" first: it is one of `servers` now, and the
+ * role sync tells its sides apart by this badge.
+ */
 function guildRole(guildId, config = getConfig()) {
-    if (isEventGuild(guildId, config)) return "event";
     if (isTalkGuild(guildId, config)) return "talk";
+    if (isEventGuild(guildId, config)) return "event";
     return "";
+}
+
+/**
+ * Transition until the new Discord-Server page (#891): the servers as the old
+ * `eventGuilds` list — every server but the talk server (unless the talk
+ * server posts a raid list of its own), each with the first link of its own
+ * as the overview target. Read by the settings route and eventGuildCards().
+ */
+function legacyEventGuilds(config = getConfig()) {
+    const list = Array.isArray(blockOf(config).servers) ? blockOf(config).servers : [];
+    const talk = talkGuildId(config);
+    return list
+        .filter((s) => s && s.guildId)
+        .map((s) => {
+            const first = linkedTargets(s.guildId, config)[0];
+            return {
+                guildId: s.guildId,
+                label: s.label || "",
+                overviewGuildId: first ? first.to : "",
+                overviewChannelId: first ? first.channelId : "",
+            };
+        })
+        .filter((e) => e.guildId !== talk || e.overviewGuildId);
 }
 
 /**
@@ -89,11 +158,9 @@ function eventGuild(config = getConfig()) {
     return describeGuild(eventGuildId(config), "event");
 }
 
-/** Every configured event server's card, plus its overview target (settings UI). */
+/** Every event server's card, plus its overview target (settings UI; old shape until #891). */
 function eventGuildCards(config = getConfig()) {
-    const servers = (config && config.discordServers) || {};
-    const entries = Array.isArray(servers.eventGuilds) ? servers.eventGuilds : [];
-    return entries.map((entry) => {
+    return legacyEventGuilds(config).map((entry) => {
         const card = describeGuild(entry.guildId, "event");
         if (!card) return null;
         const overviewGuild = entry.overviewGuildId ? discord.getGuild(entry.overviewGuildId) : null;
@@ -107,7 +174,7 @@ function eventGuildCards(config = getConfig()) {
     }).filter(Boolean);
 }
 
-/** The talk server's card, or null in the one-server setup. */
+/** The talk server's card, or null without a talk server. */
 function talkGuild(config = getConfig()) {
     return describeGuild(talkGuildId(config), "talk");
 }
@@ -118,12 +185,13 @@ function talkGuild(config = getConfig()) {
  * both servers; any failure comes back as `error` instead of a throw, because a
  * missing overlap must never cost anyone the settings page.
  *
- * @returns {Promise<null | { eventCount, talkCount, both, error }>} null without two servers
+ * @returns {Promise<null | { eventCount, talkCount, both, error }>} null without two different servers
  */
 async function memberOverlap(config = getConfig()) {
     const eventId = eventGuildId(config);
     const talkId = talkGuildId(config);
-    if (!eventId || !talkId) return null;
+    // One server for both: everybody is "on both", nothing to fetch.
+    if (!eventId || !talkId || eventId === talkId) return null;
     const eventG = discord.getGuild(eventId);
     const talkG = discord.getGuild(talkId);
     if (!eventG || !talkG) {
@@ -150,7 +218,8 @@ async function memberOverlap(config = getConfig()) {
 }
 
 module.exports = {
+    serverIds, serverLabel, links, linkedSources, linkedTargets,
     eventGuildId, eventGuildIds, talkGuildId, configuredGuildIds,
-    isEventGuild, isTalkGuild, guildRole,
+    isEventGuild, isTalkGuild, guildRole, legacyEventGuilds,
     eventGuild, eventGuildCards, talkGuild, describeGuild, memberOverlap,
 };

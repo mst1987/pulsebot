@@ -11,7 +11,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
     listGuilds: jest.fn(() => [{ id: "g1", name: "Event-Server" }]),
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({
-    getConfig: jest.fn(() => ({ guildId: "g1", discordServers: { eventGuilds: [{ guildId: "g1", label: "PvE" }, { guildId: "g2", label: "" }] } })),
+    getConfig: jest.fn(() => ({ guildId: "g1", discordServers: { servers: [{ guildId: "g1", label: "PvE" }, { guildId: "g2", label: "" }], links: [] } })),
 }));
 
 const fs = require("fs");

@@ -34,8 +34,14 @@ function serverOfToken(token) {
  * know which guild it belongs to, so it waits for the assignment.
  */
 function onlyEventServer(config = getConfig()) {
-    const ids = guildRoles.eventGuildIds(config || getConfig());
-    return ids.length === 1 ? ids[0] : "";
+    const cfg = config || getConfig();
+    const ids = guildRoles.eventGuildIds(cfg);
+    if (ids.length === 1) return ids[0];
+    // Since #890 the talk server is one of the servers too; "one raid server
+    // plus a talk server" still means exactly one candidate, as before.
+    const talk = guildRoles.talkGuildId(cfg);
+    const raidServers = ids.filter((id) => id !== talk);
+    return raidServers.length === 1 ? raidServers[0] : "";
 }
 
 /**
@@ -77,14 +83,11 @@ function ingestScan(body, { token = {}, now = Date.now(), config } = {}) {
 
 /** The servers a bank can be assigned to: every event server, with its name and label. */
 function bankServers(config = getConfig()) {
-    const entries = (config && config.discordServers && Array.isArray(config.discordServers.eventGuilds))
-        ? config.discordServers.eventGuilds : [];
-    const labels = new Map(entries.map((e) => [String((e && e.guildId) || ""), String((e && e.label) || "")]));
     const names = new Map(discord.listGuilds().map((g) => [g.id, g.name]));
     return guildRoles.eventGuildIds(config).map((guildId) => ({
         guildId,
         name: names.get(guildId) || "",
-        label: labels.get(guildId) || "",
+        label: guildRoles.serverLabel(guildId, config),
     }));
 }
 

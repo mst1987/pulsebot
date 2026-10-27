@@ -83,7 +83,7 @@ describe("collect", () => {
 
     it("finds the talk overview of an event server on the server it is posted to", () => {
         mockData.talk = { [EVENT]: { channelId: CH, messageId: msg(9) } };
-        const config = { discordServers: { eventGuilds: [{ guildId: EVENT, label: "TBC", overviewGuildId: TALK, overviewChannelId: CH }] } };
+        const config = { discordServers: { servers: [{ guildId: EVENT, label: "TBC" }, { guildId: TALK, label: "" }], links: [{ from: EVENT, to: TALK, channelId: CH }] } };
         expect(collect("talk", TALK, config)).toEqual([expect.objectContaining({ kind: "talkOverview", guildId: TALK, title: "TBC", messageId: msg(9) })]);
         expect(collect("event", EVENT, config)).toEqual([]);
     });

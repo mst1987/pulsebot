@@ -133,6 +133,13 @@ describe("runRoleSync", () => {
         expect((await roleSync.runRoleSync({ config: oneServer })).error).toBe("Kein zweiter Server eingestellt.");
         expect(discord.fetchGuildMembersCached).not.toHaveBeenCalled();
     });
+
+    // #890: a server may be event and talk server at once - nothing to sync with itself.
+    it("refuses a talk server that is the event server", async () => {
+        const same = { ...config("toTalk"), discordServers: { servers: [{ guildId: EVENT }], links: [], talkGuildId: EVENT } };
+        expect((await roleSync.runRoleSync({ config: same })).error).toBe("Event- und Talk-Server sind derselbe Server.");
+        expect(discord.fetchGuildMembersCached).not.toHaveBeenCalled();
+    });
 });
 
 describe("member events", () => {
