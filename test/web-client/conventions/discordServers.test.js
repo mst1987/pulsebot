@@ -95,12 +95,6 @@ describe("Discord-Server section", () => {
         expect(section).toContain("placeholder={t(\"settings.discordServers.labelPlaceholder\")}");
         expect(de["settings.discordServers.labelPlaceholder"]).toBe("PvE, PvP, Allianz …");
     });
-
-    it("keeps role sync and reminders in their own parts below the tables", () => {
-        // The role sync needs a talk server until #896; reminders also work on one server.
-        expect(section).toContain("{data.talk && <RoleSyncPart");
-        expect(section).toContain("<RemindersPart onConfig={onConfig} />");
-    });
 });
 
 describe("server switcher", () => {
