@@ -15,6 +15,7 @@ export type ServerRoleUse =
     | { code: "botCommand"; commands: string[] }
     | { code: "categoryRaider"; categoryIds: string[]; categories?: { id: string; name: string }[] }
     | { code: "roleSync"; sides: DiscordSide[] }
+    | { code: "pugVersion"; versionIds: string[] }
     | { code: "roster"; rosterId: string; name: string; kinds: ("member" | "trial" | "manager")[] }
     | { code: "roleMessage"; messageId: string; title: string };
 

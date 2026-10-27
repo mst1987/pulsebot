@@ -119,6 +119,7 @@
         "botCommands": "Die Rolle darf Bot-Befehle ausführen.",
         "raider": "Das ist die Raider-Rolle einer Kategorie.",
         "roleSync": "Die Rolle gehört zum Rollen-Abgleich zwischen den Servern.",
+        "pugVersion": "Das ist eine PuG-Versionsrolle; sie wird über das Onboarding vergeben (Einstellungen › Discord-Server › Rollen & Onboarding).",
         "discordPermissions": "Die Rolle hat in Discord mehr Rechte als @everyone.",
         "manageRoles": "Dem Bot fehlt das Recht „Rollen verwalten“.",
         "integration": "Die Rolle gehört zu einem Bot oder einer Integration.",

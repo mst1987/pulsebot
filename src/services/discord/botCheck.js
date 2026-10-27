@@ -266,4 +266,4 @@ function botCheck(guildId, config) {
     };
 }
 
-module.exports = { botCheck, channelPurposes, BOT_FUNCTIONS, RIGHT_LABELS };
+module.exports = { botCheck, channelPurposes, configuredRaidCategories, BOT_FUNCTIONS, RIGHT_LABELS };

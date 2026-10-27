@@ -1,0 +1,66 @@
+{
+    "title": "Rollen & Onboarding",
+    "tipSub": "Für PuG-Server: Versions- und Klassenrollen, PuG-Kategorien nur für die passende Versionsrolle sichtbar, zwei Onboarding-Fragen. Erst der Knopf schreibt in Discord. Nur Voll-Admins.",
+    "loading": "Lese Discord …",
+    "server": "Server",
+    "apply": "In Discord übernehmen",
+    "applyTip": "Zeigt erst, was sich ändert",
+    "offline": "Der Bot ist gerade nicht mit Discord verbunden. Die Übersicht kommt, sobald er wieder online ist.",
+    "noPug": "Auf diesem Server gibt es keine PuG-Kategorie: eine Raid-Kategorie, für die sich alle anmelden dürfen (ohne Raider-Rolle und ohne Roster).",
+    "otherCategories": "Nicht betroffen (mit Raider-Rolle oder Roster): {names}",
+    "open": { "one": "{count} Änderung offen", "other": "{count} Änderungen offen" },
+    "allSet": "Alles übernommen",
+    "lastApplied": "Zuletzt übernommen am {when} von {by}",
+    "neverApplied": "Noch nie übernommen",
+    "blocked": "Gesperrt",
+    "prereq": {
+        "community": "Der Server ist keine Community. Onboarding gibt es erst danach (Server-Einstellungen › Community aktivieren).",
+        "manageRoles": "Dem Bot fehlt das Recht „Rollen verwalten“.",
+        "manageGuild": "Dem Bot fehlt das Recht „Server verwalten“.",
+        "roleOrder": "Diese Rollen stehen über der Bot-Rolle: {roles}. Zieh die Bot-Rolle in Discord darüber."
+    },
+    "onboardingError": "Das Onboarding ließ sich nicht lesen ({error}). Übernehmen ist gesperrt, damit nichts überschrieben wird.",
+    "onboardingOff": "Das Onboarding ist in Discord noch aus. Nach dem Übernehmen in Discord einschalten (Server-Einstellungen › Onboarding); Discord verlangt dafür mindestens 7 Standard-Kanäle.",
+    "col": {
+        "what": "Was",
+        "want": "Soll",
+        "have": "Ist in Discord",
+        "status": "Status"
+    },
+    "kind": {
+        "version": "Versionsrolle",
+        "class": "Klassenrolle",
+        "prompt": "Frage",
+        "category": "Kategorie"
+    },
+    "missing": "fehlt",
+    "foreign": "nicht vom Bot",
+    "required": "Pflicht",
+    "answers": { "one": "{count} Antwort", "other": "{count} Antworten" },
+    "categoryWant": "nur @{role} und der Bot sehen sie",
+    "gap": {
+        "everyone": "für alle sichtbar",
+        "version": "@{role} sieht sie nicht",
+        "bot": "Bot sieht sie nicht"
+    },
+    "rightsOk": "Rechte passen",
+    "status": {
+        "same": "passt",
+        "new": "neu",
+        "changed": "ändert sich",
+        "lost": "fällt weg"
+    },
+    "preview": {
+        "title": "Das ändert sich in Discord",
+        "newRoles": "Rollen anlegen",
+        "changedRoles": "Rollen anpassen",
+        "categories": "Kategorie-Rechte setzen",
+        "prompts": "Onboarding-Fragen setzen",
+        "lostPrompts": "Diese Fragen fallen weg",
+        "lostOptions": "Diese Antworten fallen weg",
+        "lostWarn": "Discord ersetzt das Onboarding als Ganzes: Fragen und Antworten, die nicht vom Bot kommen, gehen dabei verloren.",
+        "noColor": "ohne Farbe",
+        "onboardingStays": "Ein- und Ausschalten und die Standard-Kanäle des Onboardings bleiben, wie sie in Discord sind."
+    },
+    "done": { "zero": "Nichts zu übernehmen", "one": "{count} Änderung in Discord übernommen", "other": "{count} Änderungen in Discord übernommen" }
+}
