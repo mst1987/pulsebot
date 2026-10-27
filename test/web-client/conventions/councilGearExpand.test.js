@@ -75,7 +75,7 @@ describe("loot council — candidate gear expand", () => {
     });
 
     it("reloading gear after Log/Armory refreshes the focus and reports refusals, same wording as the raider dialog", () => {
-        expect(drop).toMatch(/refreshCouncilArmory\(\[character\]\)/);
+        expect(drop).toMatch(/refreshCouncilArmory\(\[character\], councilScope\)/);
         expect(drop).toMatch(/loadCouncilLogGear\(\{ character \}\)/);
         expect(drop).toMatch(/armoryRejected === "pvp"/);
         expect(drop).toMatch(/logRejected === "pvp"/);
