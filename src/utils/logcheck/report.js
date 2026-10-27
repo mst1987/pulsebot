@@ -98,6 +98,7 @@ function normalizeSections(sections) {
  *   without event or version the link's host decides, else TBC (logVersion.js)
  * @param {string[]} [opts.plannedIds]  the instances the linked raid planned: each
  *   one has to be finished too, even before the log reached it (raidProgress.js)
+ * @param {string} [opts.guildId]  the Discord server the evaluation is made on (#920); a merged page keeps its own
  * @throws {ReportError} with a user-friendly message on any expected failure
  * @throws {IncompleteRaidError} when the raid is still running and force is not set
  * @throws {UnsupportedVersionError} for a version the log check has no rules for — before any WCL request
@@ -111,17 +112,18 @@ async function buildReport(link, opts = {}) {
     if (!logcheckSupported(versionId)) throw new UnsupportedVersionError(versionId);
     const sections = normalizeSections(opts.sections);
     // A forced build must not join an in-flight one that is about to refuse, and
-    // vice versa — they answer different questions about the same report.
-    const key = `${reportId}:${sections.join("+")}${opts.force ? ":force" : ""}`;
+    // vice versa — they answer different questions about the same report. The same
+    // log built for two servers at once is two evaluations, one per server (#920).
+    const key = `${reportId}:${sections.join("+")}${opts.force ? ":force" : ""}:${opts.guildId || ""}`;
     const running = inFlight.get(key);
     if (running) return running;
-    const build = buildReportForId(reportId, sections, opts.mergeIntoId, !!opts.force, { host, versionId, plannedIds: opts.plannedIds })
+    const build = buildReportForId(reportId, sections, opts.mergeIntoId, !!opts.force, { host, versionId, plannedIds: opts.plannedIds, guildId: opts.guildId })
         .finally(() => inFlight.delete(key));
     inFlight.set(key, build);
     return build;
 }
 
-async function buildReportForId(reportId, sections, mergeIntoId, force, { host, versionId, plannedIds }) {
+async function buildReportForId(reportId, sections, mergeIntoId, force, { host, versionId, plannedIds, guildId }) {
     // The version's rule set (#747): its classes, its role mapping and which
     // analyzers run. TBC runs every one, exactly as before.
     const rules = logcheckRules(versionId);
@@ -178,7 +180,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force, { host, 
         roster,
         icons: collectIcons(cla),
     };
-    return finishReport(report, sections, mergeIntoId);
+    return finishReport(report, sections, mergeIntoId, guildId);
 }
 
 // ---- buildReportForId's phases (#431) ---------------------------------------
@@ -311,7 +313,7 @@ function buildRoster(playerEntries, players, potions) {
 }
 
 /** Merge into an existing page if asked, rebuild the recommendations, save. */
-function finishReport(fresh, sections, mergeIntoId) {
+function finishReport(fresh, sections, mergeIntoId, guildId = "") {
     // When the other half of this log was already evaluated, fold this result into
     // that page instead of creating a second one — the Discord link stays valid and
     // simply gains the new tabs.
@@ -323,6 +325,10 @@ function finishReport(fresh, sections, mergeIntoId) {
     // (recommendationReview, keyed by player and finding) and survives the rebuild.
     report.recommendations = buildRecommendations(report);
     if (existing && existing.recommendationReview) report.recommendationReview = existing.recommendationReview;
+    // The Discord server the evaluation belongs to (#920): a merged page keeps the server it already had.
+    // Only set when known, so a build without a server stays byte for byte as before (golden master).
+    const ownGuild = String((existing && existing.guildId) || guildId || "");
+    if (ownGuild) report.guildId = ownGuild;
 
     const id = saveReport(report, existing ? mergeIntoId : undefined);
     const url = `${publicBaseUrl}/r/${id}`;

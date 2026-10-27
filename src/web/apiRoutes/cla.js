@@ -11,9 +11,10 @@ const { q } = require("../http/apiParams");
 const { activeGuildFor } = require("../http/activeGuild");
 const { listReports, deleteReport, getReport, saveReport } = require("../../stores/reportStore");
 const { prepareClaList, claRowFromLog, annotateLogCategories } = require("../../services/logcheck/reportList");
+const { deleteLogKeepingReportGuild } = require("../../services/logcheck/reportGuild");
 const { contentsForText } = require("../../config/tbcContent");
 const {
-    listLogs, getLog, getByReportRefId, deleteLog, clearEvaluation, clearSection, evaluatedSections,
+    listLogs, getLog, getByReportRefId, clearEvaluation, clearSection, evaluatedSections,
     linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent,
 } = require("../../stores/logStore");
 const { annotateMatches, autoMatches } = require("../../services/logcheck/logEventMatch");
@@ -60,7 +61,8 @@ const getClaData = withUser({}, async ({ req, res, query }) => {
     const config = getConfig();
     const inVersion = (record) => inVersionList(record, versionId, { config });
     const allLogs = listLogs();
-    const logs = guildId ? allLogs.filter((l) => !l.guildId || l.guildId === guildId) : allLogs;
+    // Only the active server's logs (#920); without one, none.
+    const logs = allLogs.filter((l) => !!guildId && l.guildId === guildId);
     // which analyses already ran, normalised for legacy entries
     for (const l of logs) l.sections = evaluatedSections(l);
     annotateLogCategories(logs, discord.getChannelCategoryMap(guildId));
@@ -72,7 +74,7 @@ const getClaData = withUser({}, async ({ req, res, query }) => {
     };
     const reports = listReports();
     const { page, filter, counts } = prepareClaList(logs, reports, listQuery, {
-        allLogs, inVersion,
+        allLogs, inVersion, guildId,
     });
 
     // Title and boss count of the logs on this page, read from WCL once, then
@@ -126,7 +128,7 @@ const REPORT_SECTION = "report";
  * connection open. Answers with a job id; the client polls report-status and
  * can navigate away in the meantime.
  */
-const createReport = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const createReport = withUser({ csrf: true, body: true }, async ({ req, body, res }) => {
     const link = q.str(body, "link");
     if (!link) return error(res, 400, "build_failed", "Kein Report-Link angegeben.");
     // Sent once the client has asked whether a raid that is still running should
@@ -135,10 +137,12 @@ const createReport = withUser({ csrf: true, body: true }, async ({ body, res }) 
     // Which halves to build: both by default, or the one the form picked.
     const sections = Array.isArray(body.sections) ? body.sections.filter((s) => s === "cla" || s === "rpb") : undefined;
 
+    // A link evaluated here belongs to the server the page is on (#920).
+    const guildId = activeGuildFor(req);
     const jobId = crypto.randomBytes(8).toString("hex");
     startJob(jobId, REPORT_SECTION, async () => {
         try {
-            const result = await buildReport(link, sections && sections.length ? { force, sections } : { force });
+            const result = await buildReport(link, sections && sections.length ? { force, sections, guildId } : { force, guildId });
             return { ok: true, id: result.id, url: result.url };
         } catch (e) {
             if (e && e.incomplete) return { ok: false, incomplete: true, progress: e.progress, error: e.message };
@@ -311,7 +315,7 @@ const scanLogs = withUser({ csrf: true }, async ({ req, res }) => {
 /** POST /api/cla/log-delete — body: { logId }. Removes a tracked log from the list. */
 const deleteLogHandler = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     const logId = q.str(body, "logId");
-    deleteLog(logId);
+    deleteLogKeepingReportGuild(logId);
     ok(res, { logId });
 });
 
@@ -385,7 +389,7 @@ const autoMatchLogs = withUser({ csrf: true }, async ({ req, res, query }) => {
     // version breaks a tie for a log of unknown version (#746). Only the logs
     // this version's list shows — an SSC log is never matched to a Forever raid.
     const config = getConfig();
-    const logs = annotateLogCategories((guildId ? listLogs().filter((l) => !l.guildId || l.guildId === guildId) : listLogs())
+    const logs = annotateLogCategories(listLogs().filter((l) => !!guildId && l.guildId === guildId)
         .filter((l) => !l.eventId).map((l) => ({ ...l })), discord.getChannelCategoryMap(guildId))
         .filter((l) => inVersionList(l, versionId, { config }));
     const matches = autoMatches(logs, events);

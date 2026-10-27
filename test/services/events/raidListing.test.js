@@ -170,8 +170,8 @@ describe("services/events/raidListing", () => {
                 { id: "c", title: "Hyjal", startTime: at(20, 17) }, // still to come
             ]);
             listLogs.mockReturnValue([
-                { id: "l1", title: "BT Teil 1", eventId: "b", status: "done", reportRefId: "r1", zone: "Black Temple", postedAt: at(13, 18) * 1000 },
-                { id: "l2", title: "BT Teil 2", postedAt: at(13, 19) * 1000 },
+                { id: "l1", guildId: "g1", title: "BT Teil 1", eventId: "b", status: "done", reportRefId: "r1", zone: "Black Temple", postedAt: at(13, 18) * 1000 },
+                { id: "l2", guildId: "g1", title: "BT Teil 2", postedAt: at(13, 19) * 1000 },
                 { id: "l3", title: "fremd", guildId: "other", eventId: "b", postedAt: at(13, 19) * 1000 },
             ]);
             listByEvent.mockImplementation((id) => (id === "b" ? [{ contentId: "bt" }, { contentId: "bt" }] : []));
@@ -195,7 +195,7 @@ describe("services/events/raidListing", () => {
                 { id: "x", title: "Kara", startTime: at(13, 17) },
                 { id: "y", title: "Gruul", startTime: at(13, 18), categoryId: "c-mi" },
             ]);
-            listLogs.mockReturnValue([{ id: "l", title: "Abendlog", postedAt: at(13, 19) * 1000 }]);
+            listLogs.mockReturnValue([{ id: "l", guildId: "g1", title: "Abendlog", postedAt: at(13, 19) * 1000 }]);
             const { events } = await loadPastRaids("g1", { now });
             // with their categories, so the route can tell a category's orga only of its own raids (#729)
             expect(events.find((e) => e.id === "x").pendingLogs).toEqual([{ title: "Abendlog", alsoFits: ["Gruul"], alsoFitsCategoryIds: ["c-mi"] }]);
