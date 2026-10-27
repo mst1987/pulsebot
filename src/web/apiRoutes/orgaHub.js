@@ -12,6 +12,7 @@ const { withUser } = require("../http/apiHandler");
 const orgaHubStore = require("../../stores/orgaHubStore");
 const orgaHub = require("../../services/events/orgaHub");
 const linkCheck = require("../../services/discord/linkCheck");
+const { mayUseServer, mayUseChannel, OTHER_SERVER } = require("../http/serverQuery");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -24,13 +25,23 @@ function hubView(hub) {
     };
 }
 
+// Rights per server (#925, docs/permissions.md): a category is a Discord channel, so the bot's
+// channel cache names its server. Everybody but a full admin sees and changes the hubs and links
+// of the active server only; an unknown category (bot offline) counts as another server.
+const onActiveServer = (user, req, categoryId) => mayUseChannel(user, req, str(categoryId));
+const otherServer = (res) => apiError(res, 403, "other_server", OTHER_SERVER);
+
 /** GET /api/orga-hubs — the posted hubs. */
-const getHubs = withUser({}, async ({ res }) => {
-    ok(res, { hubs: orgaHubStore.listHubs().map(hubView), links: orgaHubStore.listLinks(), maxLinks: orgaHubStore.MAX_LINKS });
+const getHubs = withUser({}, async ({ user, req, res }) => {
+    const hubs = orgaHubStore.listHubs().filter((h) => mayUseServer(user, req, h.guildId));
+    const links = Object.fromEntries(Object.entries(orgaHubStore.listLinks()).filter(([categoryId]) => onActiveServer(user, req, categoryId)));
+    ok(res, { hubs: hubs.map(hubView), links, maxLinks: orgaHubStore.MAX_LINKS });
 });
 
 /** POST /api/orga-hub — post (or move) a category's hub. */
-const postHub = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+const postHub = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
+    if (!onActiveServer(user, req, body.categoryId)) return otherServer(res);
+    if (str(body.channelId) && !mayUseChannel(user, req, str(body.channelId))) return otherServer(res);
     const result = await orgaHub.postHub({ categoryId: body.categoryId, channelId: body.channelId, by: user.id });
     if (result.error) return apiError(res, 400, "bad_request", result.error);
     const view = hubView(result.hub);
@@ -38,14 +49,17 @@ const postHub = withUser({ csrf: true, body: true }, async ({ user, body, res })
 });
 
 /** DELETE /api/orga-hub — take a category's hub down. */
-const deleteHub = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const deleteHub = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
+    const hub = orgaHubStore.listHubs().find((h) => h.categoryId === str(body.categoryId));
+    if (hub && !mayUseServer(user, req, hub.guildId)) return apiError(res, 404, "not_found", "Für diese Kategorie ist keine Orga-Zentrale gepostet.");
     const removed = await orgaHub.removeHub(str(body.categoryId));
     if (!removed) return apiError(res, 404, "not_found", "Für diese Kategorie ist keine Orga-Zentrale gepostet.");
     ok(res, { categoryId: removed.categoryId });
 });
 
 /** PUT /api/orga-hub/links — replace the category's orga links and redraw its hub; body { categoryId, links }. */
-const putLinks = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const putLinks = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
+    if (!onActiveServer(user, req, body.categoryId)) return otherServer(res);
     const result = await orgaHub.saveLinks(str(body.categoryId), body.links);
     if (result.error) return apiError(res, 400, "bad_request", result.error);
     ok(res, { categoryId: str(body.categoryId), links: result.links });

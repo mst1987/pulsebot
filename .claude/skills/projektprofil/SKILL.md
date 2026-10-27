@@ -200,6 +200,22 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
 22. `client.channels.fetch` und `discord.channelVisible` arbeiten über Servergrenzen hinweg. Ein Post
     in einen Kanal aus den Einstellungen eines Servers geht über `postNotice`/`postPayload` mit
     `{ guildId }` (`assertChannelGuild`, Code `wrong_guild`) oder prüft `channel.guildId` selbst.
+23. Rechte je Server (#925): Jede Route, die eine Datensatz-ID oder `?guildId=`/`body.guildId`
+    annimmt, prüft, ob der Datensatz zum aktiven Server gehört (Voll-Admins ausgenommen). Muster:
+    `cla.js` `onActiveServer`, `eventManage.ownEvent`. Fremder Datensatz → 404 `not_found`,
+    fremdes Ziel → 403 `other_server` (`web/http/serverQuery.js` `mayUseServer`/`mayUseChannel`).
+    Bot: `interaction.guildId` zählt, eine DM den Server des Datensatzes (`guildIdOf`), sonst nur
+    Voll-Admins. Negativ-Test: Orga auf B öffnet nichts auf A.
+24. Kanal-IDs aus dem Body (#925): Jede Route, die `channelId`/`voiceChannelId`, eine Kategorie oder ein
+    Quell-Event aus dem Request nimmt und darüber postet, klont oder anlegt, prüft jede davon per
+    `mayUseChannel`/`mayUseServer` (Muster `eventCreateAccess.foreignChannelRefusal`). Der
+    Kanal-Cache des Bots und `linkCheck` sind keine Server-Prüfung. Ein unbekannter Server zählt auf
+    schreibenden Routen als fremd (fail closed, `eventServer.allOnServer`).
+25. Bereinigungen je Server verschieben statt löschen (#925): Ein Eintrag, der aus dem Block eines
+    Servers fliegt, weil er nachweislich einem anderen Server gehört, wandert in dessen Block — nur
+    wenn der Zielblock ihn noch nicht hat (Ziel gewinnt), sonst nur aus dem falschen Block entfernen
+    (Muster `foreignRoleCleanup.cleanForeignRoles`). Ohne Nachweis (Server offline, nirgends gefunden)
+    bleibt alles, wie es ist.
 
 ## Fach-Agenten
 

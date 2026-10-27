@@ -28,6 +28,8 @@ const { find, methodsFor } = require("./routeTable");
  */
 async function handle(pathname, req, res, url) {
     try {
+        // a session from before #925 gets its per-server rights before the gate looks at them
+        if (typeof auth.ensureAccess === "function") await auth.ensureAccess(req);
         const denied = await gate(pathname, req.method, auth.getUser(req), req);
         if (denied) {
             error(res, denied.status, denied.code, denied.message);

@@ -411,7 +411,7 @@ describe("reactions", () => {
     it("follows the Bot-Befehle rule of the button: who lacks the role gets nothing, only a log", async () => {
         const { entry } = await svc.createRoleMessage(INPUT);
         const member = guild.addMember("500000000000000005");
-        mockConfig = { botCommandAccess: { rolemsg: { mode: "roles", roleIds: [ROLE2] } } };
+        mockConfig = { serverSettings: { [EVENT_GUILD]: { botCommandAccess: { rolemsg: { mode: "roles", roleIds: [ROLE2] } } } } };
         const user = { id: "500000000000000005" };
         expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), user, true)).toBe("denied");
         expect(member.roles.add).not.toHaveBeenCalled();
@@ -420,6 +420,26 @@ describe("reactions", () => {
         member.roles.cache.add(ROLE2);
         svc.resetCooldowns();
         expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), user, true, { commands: mockClient.commands })).toBe("given");
+    });
+
+    // #925: the rule of the server the message is on counts - a rule of another
+    // server neither opens nor closes anything here
+    it("judges a reaction by the rule of its own server, never by another server's", async () => {
+        const { entry } = await svc.createRoleMessage(INPUT);
+        const member = guild.addMember("500000000000000005", [ROLE2]);
+        const user = { id: "500000000000000005" };
+        mockConfig = { serverSettings: {
+            [EVENT_GUILD]: { botCommandAccess: { rolemsg: { mode: "roles", roleIds: [ADMIN_ROLE] } } },
+            [TALK_GUILD]: { botCommandAccess: { rolemsg: { mode: "roles", roleIds: [ROLE2] } } },
+        } };
+        expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), user, true, { commands: mockClient.commands })).toBe("denied");
+        expect(member.roles.add).not.toHaveBeenCalled();
+        // the old global field (before the start migration) opens nothing either
+        mockConfig = { botCommandAccess: { rolemsg: { mode: "everyone", roleIds: [] } }, serverSettings: {
+            [EVENT_GUILD]: { botCommandAccess: { rolemsg: { mode: "roles", roleIds: [ADMIN_ROLE] } } },
+        } };
+        svc.resetCooldowns();
+        expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), user, true, { commands: mockClient.commands })).toBe("denied");
     });
 
     it("ignores a second change of the same role within the cooldown, button and reaction alike", async () => {

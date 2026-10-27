@@ -46,7 +46,7 @@ const { getConfig } = require("../../stores/configStore");
 const store = require("../../stores/roleMessageStore");
 const roleMessages = require("../../services/discord/roleMessages");
 const linkCheck = require("../../services/discord/linkCheck");
-const { serverFromQuery } = require("../http/serverQuery");
+const { serverFromQuery, mayUseServer } = require("../http/serverQuery");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -75,36 +75,59 @@ function resultView(result) {
     return { ...result, entry, url: result.url || entry.url };
 }
 
-/** GET /api/role-messages */
-const listMessages = withUser(async ({ res }) => {
+/**
+ * The stored entry `id` names, when the caller may reach its server (#925: a full admin every
+ * server, everybody else the active one) - else null after the 404 has been sent: a role
+ * message of another server does not exist here.
+ */
+function ownEntry(id, { user, req, res }) {
+    const entry = store.getMessage(id);
+    if (entry && mayUseServer(user, req, roleMessages.guildIdOf(entry))) return entry;
+    apiError(res, 404, "not_found", "Diese Rollen-Nachricht gibt es nicht.");
+    return null;
+}
+
+/** GET /api/role-messages - the role messages of the servers the caller may reach (#925). */
+const listMessages = withUser(async ({ user, req, res }) => {
     const config = getConfig();
-    ok(res, { messages: store.listMessages().map((m) => entryView(m, config)), limits: roleMessages.LIMITS });
+    const mine = store.listMessages().filter((m) => mayUseServer(user, req, roleMessages.guildIdOf(m, config)));
+    ok(res, { messages: mine.map((m) => entryView(m, config)), limits: roleMessages.LIMITS });
 });
 
 /** GET /api/role-messages/options?guildId= */
-const getOptions = withUser(async ({ query, res }) => {
-    const guildId = serverFromQuery(query, res);
+const getOptions = withUser(async ({ user, req, query, res }) => {
+    const guildId = serverFromQuery(query, res, { user, req });
     if (guildId === null) return undefined;
     ok(res, roleMessages.roleMessageOptions(guildId));
     return undefined;
 });
 
 /** POST /api/role-messages — create and post. */
-const createMessage = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+const createMessage = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
+    // the server the message goes to: one the caller may reach (#925), else 403 other_server
+    const guildId = serverFromQuery(new URLSearchParams({ guildId: str(body.guildId) }), res, { user, req });
+    if (guildId === null) return undefined;
     try {
-        const result = await roleMessages.createRoleMessage(body, { userId: user.id });
+        const result = await roleMessages.createRoleMessage({ ...body, guildId }, { userId: user.id });
         ok(res, resultView(result), 201);
     } catch (e) {
         sendFailure(res, e);
     }
+    return undefined;
 });
 
 /** PUT /api/role-messages — change (edit in place or post anew). */
-const updateMessage = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const updateMessage = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const id = str(body.id);
     if (!id) return apiError(res, 400, "missing_id", "Welche Rollen-Nachricht? Die id fehlt.");
+    const entry = ownEntry(id, { user, req, res });
+    if (!entry) return undefined;
+    // a move goes to a server the caller may reach as well (#925); without one the entry stays on its own
+    const wanted = str(body.guildId) || str(roleMessages.guildIdOf(entry));
+    const guildId = serverFromQuery(new URLSearchParams({ guildId: wanted }), res, { user, req });
+    if (guildId === null) return undefined;
     try {
-        const result = await roleMessages.updateRoleMessage(id, body);
+        const result = await roleMessages.updateRoleMessage(id, { ...body, guildId });
         ok(res, resultView(result));
     } catch (e) {
         sendFailure(res, e);
@@ -113,9 +136,10 @@ const updateMessage = withUser({ csrf: true, body: true }, async ({ body, res })
 });
 
 /** DELETE /api/role-messages — delete the message and the entry. */
-const deleteMessage = withUser({ csrf: true, body: true }, async ({ body, query, res }) => {
+const deleteMessage = withUser({ csrf: true, body: true }, async ({ user, req, body, query, res }) => {
     const id = str(body.id) || str(query.get("id"));
     if (!id) return apiError(res, 400, "missing_id", "Welche Rollen-Nachricht? Die id fehlt.");
+    if (!ownEntry(id, { user, req, res })) return undefined;
     try {
         ok(res, await roleMessages.deleteRoleMessage(id));
     } catch (e) {

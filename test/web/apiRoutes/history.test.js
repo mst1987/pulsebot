@@ -1,4 +1,4 @@
-const { json, jsonRequest, mockRes, routerClient } = require("../../helpers/http");
+const { json, status, jsonRequest, mockRes, routerClient } = require("../../helpers/http");
 
 jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
@@ -601,9 +601,28 @@ describe("web/apiRoutes/history", () => {
         it("deletes the log and returns its id", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             auth.checkCsrf.mockReturnValue(true);
+            logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "B" }]);
             const res = await post("/api/history/log-delete", { logId: "l1" });
             expect(logStore.deleteLog).toHaveBeenCalledWith("l1");
             expect(json(res)).toEqual({ data: { id: "l1" } });
+            logStore.listLogs.mockReturnValue([]);
+        });
+
+        // #925: rights hold per server - a log of another server does not exist for its orga
+        it("answers 404 for a log of another server and an unknown log", async () => {
+            auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, isOrga: true, access: { history: { read: true, write: true } } });
+            auth.checkCsrf.mockReturnValue(true);
+            activeGuildFor.mockReturnValue("B");
+            logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "A" }, { id: "l2", guildId: "B" }]);
+            const other = await post("/api/history/log-delete", { logId: "l1" });
+            expect(status(other)).toBe(404);
+            expect(json(other).error.code).toBe("not_found");
+            expect(status(await post("/api/history/log-delete", { logId: "nope" }))).toBe(404);
+            expect(logStore.deleteLog).not.toHaveBeenCalled();
+            await post("/api/history/log-delete", { logId: "l2" });
+            expect(logStore.deleteLog).toHaveBeenCalledWith("l2");
+            logStore.listLogs.mockReturnValue([]);
+            activeGuildFor.mockReturnValue("");
         });
 
         // #920: the report keeps the server of its deleted log instead of falling to another one
@@ -612,6 +631,7 @@ describe("web/apiRoutes/history", () => {
             auth.checkCsrf.mockReturnValue(true);
             const report = { id: "abc111" }; // an old report without a server of its own
             let logs = [{ id: "l1", guildId: "B", reportRefId: "abc111" }];
+            logStore.listLogs.mockImplementation(() => logs);
             logStore.getLog.mockImplementation((id) => logs.find((l) => l.id === id) || null);
             logStore.deleteLog.mockImplementation((id) => { logs = logs.filter((l) => l.id !== id); return true; });
             reportStore.setReportGuild.mockImplementation((id, guildId) => { if (id === report.id) report.guildId = guildId; return true; });
@@ -622,6 +642,8 @@ describe("web/apiRoutes/history", () => {
             expect(reportsOfGuild([report], "B", logs)).toEqual([report]);
             logStore.getLog.mockReset();
             logStore.deleteLog.mockReset();
+            logStore.listLogs.mockReset();
+            logStore.listLogs.mockReturnValue([]);
             reportStore.setReportGuild.mockReset();
         });
     });

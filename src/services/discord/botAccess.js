@@ -8,18 +8,30 @@
 // Buttons, selects and modals name their command with `accessOf` and are judged
 // by that command's rule.
 //
-// Roles are always resolved against the first server of the list (where the
-// access roles are set up), whichever server the interaction came from.
+// Since #925 the rules are per Discord server: an interaction on a server is
+// judged by that server's botCommandAccess and the member's roles there - a role
+// on server B opens nothing on server A. The full admins (.env, the admin roles
+// of Zugang on ANY server) pass everywhere. A DM has no server: it is judged by
+// the server of the record it is about (the command's optional
+// `guildIdOf(interaction)`), and without one by no server at all - then only a
+// full admin passes a rule that is not "everyone" (fail closed).
 const { card } = require("../../utils/discord/card");
 const { getConfig } = require("../../stores/settingsStore");
 const discord = require("./discord");
 const { logcheckAdminIds, adminRoleIds: envAdminRoleIds } = require("../../config/variables");
-const { serverIds } = require("./guildRoles");
+const { configForGuild, fullAdminRoleIds, interactionGuildId } = require("./serverAccess");
+const userAccess = require("./userAccess");
 const { normalizeRule, normalizeBotCommandAccess } = require("../../config/botCommands");
 const { langOfInteraction } = require("./botLanguage");
 const { tr } = require("../../utils/i18n/botText");
 
 // accessOf chains are one link deep in practice; the cap only guards a loop.
+// The "full admin on another server" answer: remembered a short while per user, and never
+// waited for longer than Discord leaves to answer an interaction (3 s) allows.
+const ADMIN_CACHE_MS = 60 * 1000;
+const ADMIN_LOOKUP_MS = 1500;
+const ADMIN_CACHE_MAX = 500;
+const adminAnywhere = new Map(); // userId -> { at, value } | { pending }
 const MAX_ACCESS_OF_DEPTH = 5;
 
 /** A Collection, Map, array or plain object of command modules as a name → module lookup. */
@@ -67,7 +79,7 @@ function ruleFor(commandName, { commands, config = {} } = {}) {
 function isBotAdmin(member, config = {}) {
     if (!member) return false;
     if (logcheckAdminIds.includes(String(member.id))) return true;
-    const adminRoles = new Set([...(config.adminRoleIds || []), ...(envAdminRoleIds || [])].map(String));
+    const adminRoles = new Set([...fullAdminRoleIds(config), ...(envAdminRoleIds || [])].map(String));
     return (member.roleIds || []).some((id) => adminRoles.has(String(id)));
 }
 
@@ -151,16 +163,20 @@ function denyMessage(rule, guildId, lang = "de") {
  * whether the command may run.
  */
 async function guardInteraction(interaction, command, commands) {
-    const config = getConfig();
+    const stored = getConfig();
+    // the server the interaction came from; a DM: the record's server, else none (#925)
+    const guildId = interactionGuildId(interaction, { recordGuildId: await recordGuildOf(command, interaction) });
+    const config = configForGuild(stored, guildId);
     const name = command && command.name;
     // "Jeder" needs no Discord lookup at all.
     const rule = ruleFor(name, { commands, config });
     const userId = String(interaction.user && interaction.user.id);
     if (rule.mode === "everyone") return true;
-    const guildId = serverIds(config)[0] || "";
     const roleIds = await eventMemberRoles(interaction, guildId);
     const result = resolveBotAccess(name, { id: userId, roleIds }, { commands, config });
     if (result.allowed) return true;
+    // a full admin through an admin role on another server (#925): asked only on a refusal
+    if (await isFullAdminAnywhere(userId)) return true;
     console.log(`Bot access denied: ${name} for ${userId}`);
     try {
         if (typeof interaction.isAutocomplete === "function" && interaction.isAutocomplete()) {
@@ -175,7 +191,70 @@ async function guardInteraction(interaction, command, commands) {
     return false;
 }
 
+/**
+ * The server of the record a DM interaction is about: the command's own
+ * `guildIdOf(interaction)` (sync or async). "" in a server (the click names it),
+ * without the hook, or when it fails.
+ */
+async function recordGuildOf(command, interaction) {
+    if (interaction && (interaction.guildId || interaction.guild)) return "";
+    if (!command || typeof command.guildIdOf !== "function") return "";
+    try {
+        return String((await command.guildIdOf(interaction)) || "").trim();
+    } catch (e) {
+        console.warn("botAccess: record server unknown:", e.message);
+        return "";
+    }
+}
+
+/** The role lookup behind isFullAdminAnywhere, shared by every caller while it runs. */
+function adminLookup(userId) {
+    const hit = adminAnywhere.get(userId);
+    if (hit && hit.pending) return hit.pending;
+    const pending = Promise.resolve()
+        .then(() => userAccess.resolveGuildAccess(userId))
+        .then((ga) => !!(ga && ga.isAdmin), () => false)
+        .then((value) => {
+            if (adminAnywhere.size >= ADMIN_CACHE_MAX) adminAnywhere.clear();
+            adminAnywhere.set(userId, { at: Date.now(), value });
+            return value;
+        });
+    adminAnywhere.set(userId, { pending });
+    return pending;
+}
+
+/**
+ * Whether the account is a full admin through an admin role on any server
+ * (userAccess). Asked only after a refusal; the interaction's own roles were
+ * already checked by isBotAdmin. The answer is cached for a minute, and a
+ * lookup slower than ADMIN_LOOKUP_MS counts as "no" (fail closed) while it
+ * goes on filling the cache - so the refusal still reaches Discord in time.
+ */
+async function isFullAdminAnywhere(userId, { timeoutMs = ADMIN_LOOKUP_MS } = {}) {
+    if (!fullAdminRoleIds(getConfig()).length && !(envAdminRoleIds || []).length) return false;
+    const id = String(userId || "");
+    if (!id) return false;
+    const hit = adminAnywhere.get(id);
+    if (hit && !hit.pending && Date.now() - hit.at < ADMIN_CACHE_MS) return hit.value;
+    let timer;
+    const late = new Promise((resolve) => {
+        timer = setTimeout(() => resolve(false), timeoutMs);
+        if (timer.unref) timer.unref();
+    });
+    try {
+        return await Promise.race([adminLookup(id), late]);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+/** Tests: forget the cached admin answers. */
+function resetAdminCache() {
+    adminAnywhere.clear();
+}
+
 module.exports = {
+    isFullAdminAnywhere, resetAdminCache, recordGuildOf,
     accessOwner, ruleFor, isBotAdmin, resolveBotAccess,
     eventMemberRoles, denyMessage, guardInteraction,
 };

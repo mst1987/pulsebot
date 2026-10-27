@@ -25,8 +25,8 @@ function parseCustomId(customId) {
 }
 
 /** Whether the user is the orga of the category: global orga, or a manager of the roster it plays now. */
-function isCategoryOrga(userId, categoryId) {
-    return categoryOrga.isCategoryOrgaById(userId, categoryId);
+function isCategoryOrga(userId, categoryId, guildId) {
+    return categoryOrga.isCategoryOrgaById(userId, categoryId, { guildId });
 }
 
 /** The button's answer: the create flow with the category chosen, or the refusal. */
@@ -35,7 +35,7 @@ async function openCreateFlow(interaction, guildId) {
     if (action !== "new" || !categoryId) return interaction.reply(card({ kind: "error", title: "Diese Aktion gibt es nicht.", ephemeral: true }));
     // The role lookup and the category's events can take longer than Discord's three seconds.
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-    if (!(await isCategoryOrga(interaction.user && interaction.user.id, categoryId))) {
+    if (!(await isCategoryOrga(interaction.user && interaction.user.id, categoryId, guildId))) {
         return interaction.editReply(card({ kind: "error", title: DENIED }));
     }
     const userId = String((interaction.user && interaction.user.id) || "");

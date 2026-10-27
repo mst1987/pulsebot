@@ -1,4 +1,4 @@
-const { json, routerClient } = require("../../helpers/http");
+const { json, status, routerClient } = require("../../helpers/http");
 
 jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
@@ -342,5 +342,58 @@ describe("web/apiRoutes/recruitment", () => {
             expect(settingsStore.saveRecruitmentPost).toHaveBeenCalledWith(expect.objectContaining({ channelId: "c1", source: "scan" }));
             expect(json(res)).toEqual({ data: { count: 2 } });
         });
+    });
+});
+
+// Rights hold per server (#925, docs/permissions.md): the orga of server B posts into, edits and
+// stops tracking nothing of server A; a full admin reaches every server.
+describe("web/apiRoutes/recruitment - rights per server (#925)", () => {
+    const orgaOfB = { id: "7", name: "Bob", isAdmin: false, isOrga: true, access: { recruitment: { read: true, write: true } } };
+    const admin = { id: "1", name: "Admin", isAdmin: true };
+    const channels = new Map([["cA", { id: "cA", guildId: "A" }], ["cB", { id: "cB", guildId: "B" }]]);
+
+    beforeEach(() => {
+        auth.checkCsrf.mockReturnValue(true);
+        activeGuildFor.mockReturnValue("B");
+        discord.getClient.mockReturnValue({ channels: { cache: channels } });
+        settingsStore.getRecruitment.mockReturnValue({ id: "t1", content: "hi", title: "", body: "", buttonLabel: "", versionId: "tbc" });
+        settingsStore.getRecruitmentPost.mockImplementation((id) => ({ pA: { id: "pA", guildId: "A", channelId: "cA", messageId: "m1" }, pB: { id: "pB", guildId: "B", channelId: "cB", messageId: "m2" } })[id] || null);
+        settingsStore.deleteRecruitmentPost.mockReturnValue(true);
+        discord.postRecruitment.mockResolvedValue({ guildId: "B", channelId: "cB", messageId: "m9" });
+    });
+
+    afterEach(() => {
+        activeGuildFor.mockReturnValue("");
+        discord.getClient.mockReturnValue(null);
+        settingsStore.getRecruitmentPost.mockReset();
+    });
+
+    it("refuses posting into a channel of another server or an unknown one with 403", async () => {
+        auth.getUser.mockReturnValue(orgaOfB);
+        for (const channelId of ["cA", "c-unknown"]) {
+            const res = await post("/api/recruitment/post", { templateId: "t1", channelId });
+            expect(status(res)).toBe(403);
+            expect(json(res).error.code).toBe("other_server");
+        }
+        expect(discord.postRecruitment).not.toHaveBeenCalled();
+        await post("/api/recruitment/post", { templateId: "t1", channelId: "cB" });
+        expect(discord.postRecruitment).toHaveBeenCalledWith("cB", expect.any(Object));
+    });
+
+    it("answers 404 for editing or untracking a post of another server", async () => {
+        auth.getUser.mockReturnValue(orgaOfB);
+        expect(status(await post("/api/recruitment/post-update", { id: "pA", content: "x" }))).toBe(404);
+        expect(status(await post("/api/recruitment/post-delete", { id: "pA" }))).toBe(404);
+        expect(discord.editRecruitment).not.toHaveBeenCalled();
+        expect(settingsStore.deleteRecruitmentPost).not.toHaveBeenCalled();
+        expect(status(await post("/api/recruitment/post-delete", { id: "pB" }))).toBe(200);
+        expect(settingsStore.deleteRecruitmentPost).toHaveBeenCalledWith("pB");
+    });
+
+    it("lets a full admin act on every server", async () => {
+        auth.getUser.mockReturnValue(admin);
+        await post("/api/recruitment/post", { templateId: "t1", channelId: "cA" });
+        expect(discord.postRecruitment).toHaveBeenCalledWith("cA", expect.any(Object));
+        expect(status(await post("/api/recruitment/post-delete", { id: "pA" }))).toBe(200);
     });
 });

@@ -24,6 +24,10 @@
             "label": "Discord-Server",
             "crumb": "Verbindungen · Server und Verknüpfungen"
         },
+        "vollAdmins": {
+            "label": "Voll-Admins",
+            "crumb": "Zugang · gilt auf allen Servern"
+        },
         "kategorien": {
             "label": "Kategorien",
             "crumb": "Raid-Kategorien · alles, was pro Raidtag gilt"
@@ -795,7 +799,7 @@
         "columnCounts": "Lesen: {read} · Schreiben: {write}",
         "actions": "Aktionen",
         "admins": "Voll-Admins",
-        "adminsSub": "Mitglieder mit einer dieser Rollen haben jeden Bereich mit Schreibrecht und als Einzige Zugriff auf Berechtigungen und Verbindungs-Secrets. Änderungen greifen innerhalb von ca. 5 Minuten ohne erneuten Login.",
+        "adminsSub": "Mitglieder mit einer dieser Rollen haben auf jedem Server jeden Bereich mit Schreibrecht und als Einzige Zugriff auf Berechtigungen und Verbindungs-Secrets. Änderungen greifen innerhalb von ca. 5 Minuten ohne erneuten Login.",
         "adminsAside": "alles · Schreiben",
         "removeTip": "{name} entfernen",
         "roleId": "Rollen-ID {id}",
@@ -814,7 +818,13 @@
         "rolesSub": "Rollen ohne Admin-Rechte bekommen hier gezielt Zugriff auf einzelne Bereiche. Lesen = ansehen, Schreiben = dort auch handeln. Berechtigungen und Admin-Rollen bleiben Voll-Admins vorbehalten — eine Rolle mit Schreibrecht auf Einstellungen kann sich keine Rechte selbst geben.",
         "rolesEmpty": "Noch keine Rolle mit eigenen Rechten — über „Rolle oder Konto“ hinzufügen.",
         "rolesNotLoaded": "Keine Rollen geladen (Server gewählt und Bot online?).",
-        "notOnServer": "nicht mehr auf dem Server",
+        "notOnServer": "auf keinem Server mehr",
+        "notOnServerSub": "Die Rolle gibt es auf keinem Server des Bots mehr — sie wirkt nirgends und kann weg.",
+        "roleOnServer": "@{name} · {server}",
+        "foreignRole": "Rolle von {server} – greift hier nicht",
+        "foreignRoleSub": "Die Rolle gehört zu {server}. Auf diesem Server hat sie niemand, die Rechte hier wirken also nicht. Entfernen nimmt sie nur aus den Rechten dieses Servers.",
+        "removeHereTip": "{name} aus den Rechten dieses Servers entfernen",
+        "adminOtherServer": "Voll-Admin-Rolle von {server} – gilt auf allen Servern, ändern unter Alle Server › Voll-Admins",
         "users": "Einzelne Konten",
         "usersSub": "Rechte für ein bestimmtes Discord-Konto — für Bereiche, die an benannte Personen gehen statt an eine Gruppe (etwa den Loot-Council). Kommt oben drauf wie der Basiszugang und nimmt nie etwas weg.",
         "usersEmpty": "Noch kein einzelnes Konto freigeschaltet.",
@@ -831,7 +841,11 @@
         "discordIdSub": "In Discord per Rechtsklick auf den Nutzer → „ID kopieren“ (Entwicklermodus muss an sein).",
         "idPlaceholder": "z. B. 123456789012345678",
         "invalidId": "Das sieht nicht nach einer Discord-ID aus (17–20 Ziffern).",
-        "duplicate": "Dieses Konto ist bereits eingetragen."
+        "duplicate": "Dieses Konto ist bereits eingetragen.",
+        "adminsAllServers": "alle Server · alles",
+        "adminsElsewhere": "gelten auf allen Servern · ändern unter Alle Server › Voll-Admins",
+        "noAdminRoles": "Noch keine Admin-Rolle eingetragen.",
+        "server": "Server"
     },
     "categories": {
         "announceMode": {

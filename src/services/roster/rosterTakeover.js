@@ -53,7 +53,7 @@ const { botCanManageChannels, discordErrorText } = require("../discord/discordCh
 const { normalizeChannelName } = require("../../utils/channelNames");
 const rosterStore = require("../../stores/rosterStore");
 const { getConfig } = require("../../stores/settingsStore");
-const { adminRoleIds: envAdminRoleIds } = require("../../config/variables");
+const { accessSettings, fullAdminRoleIds } = require("../discord/serverAccess");
 const { AppError } = require("../../web/http/apiResult");
 const kaderRoster = require("../kader/kaderRoster");
 const rosterMembers = require("./rosterMembers");
@@ -152,7 +152,8 @@ function madeOf(guild, takeover) {
 function orgaRoleIdsOf(guild, roster) {
     const config = getConfig() || {};
     const ids = [
-        ...(config.adminRoleIds || []), ...(envAdminRoleIds || []), ...(config.orgaRoleIds || []),
+        // the full-admin roles and the orga roles of THIS server (#925)
+        ...fullAdminRoleIds(config), ...accessSettings(guild && guild.id, config).orgaRoleIds,
         ...((roster && roster.managers && roster.managers.roleIds) || []),
     ].map(str).filter(Boolean);
     const cache = guild && guild.roles && guild.roles.cache;

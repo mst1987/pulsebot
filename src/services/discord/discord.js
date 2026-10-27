@@ -137,6 +137,32 @@ function listRoles(guildId) {
 }
 
 /**
+ * Where role ids live (#925): looks each id up in the role cache of EVERY
+ * server the bot is on, not only the configured ones. A full admin role is
+ * global, so a server page shows it as "role · its server" instead of
+ * "unknown". Ids found nowhere (deleted role, bot not on that server) are
+ * missing from the result. @everyone counts as no role.
+ * @param {string[]} roleIds
+ * @returns {Record<string, { id: string, name: string, color: string, guildId: string, guildName: string }>}
+ */
+function findRolesAnywhere(roleIds) {
+    const wanted = new Set((Array.isArray(roleIds) ? roleIds : []).map(String).filter(Boolean));
+    const out = {};
+    if (!client || !wanted.size) return out;
+    for (const guild of client.guilds.cache.values()) {
+        const cache = guild && guild.roles && guild.roles.cache;
+        if (!cache || typeof cache.get !== "function") continue;
+        for (const id of wanted) {
+            if (out[id] || id === guild.id) continue;
+            const r = cache.get(id);
+            if (!r) continue;
+            out[id] = { id, name: r.name || "", color: r.color ? r.hexColor : "", guildId: guild.id, guildName: guild.name || "" };
+        }
+    }
+    return out;
+}
+
+/**
  * Map every channel of a guild to its parent category, so event channelIds can
  * be grouped by Discord category. Returns { [channelId]: { name, categoryId, categoryName } }.
  */
@@ -1280,7 +1306,7 @@ module.exports = {
     resolveUserNames, avatarUrlFor, avatarUrlOf, NAME_FETCH_MS, ABSENT_MS, _resetAbsentNamesForTests,
     memberRoleIds, guildMembership,
     listCategories, listAllChannels, listVoiceChannels, botCanManageEvents, createChannel, duplicateChannel,
-    listRoles, getChannelCategoryMap, postAnnouncement,
+    listRoles, findRolesAnywhere, getChannelCategoryMap, postAnnouncement,
     listMembersWithRoles, listHumanMembers, postMissingPing, editPingMessages, postNotice, channelVisible, mentionChunks, _resetMembersCacheForTests,
     fetchGuildMembersCached, warmGuildMembers, MEMBERS_CACHE_TTL_MS, MEMBERS_STALE_MAX_MS, botPermissionsIn, REQUIRED_BOT_PERMISSIONS,
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,

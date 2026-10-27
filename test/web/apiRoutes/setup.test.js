@@ -6,6 +6,7 @@ jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/ht
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
 let mockConfig = {};
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig, getRaidTemplate: () => null }));
+const { onSyncedList } = require("../../helpers/raidhelperList");
 const mockEvents = new Map();
 jest.mock("../../../src/stores/eventStore", () => ({
     getEvent: (id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null),
@@ -36,7 +37,7 @@ jest.mock("../../../src/services/events/eventSources", () => ({
     listStoredEvents: () => [],
     specNameFor: jest.requireActual("../../../src/services/events/eventSources").specNameFor,
 }));
-jest.mock("../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({})), avatarUrlFor: jest.fn(() => "") }));
+jest.mock("../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({})), avatarUrlFor: jest.fn(() => ""), listGuilds: () => [{ id: "g1" }] }));
 jest.mock("../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
 jest.mock("../../../src/services/setup/setupMessage", () => ({
     publishSetup: jest.fn(async () => ({ post: { action: "posted" }, dms: null })),
@@ -495,7 +496,13 @@ describe("the draft stays with the orga", () => {
     });
 
     it("refuses Raid-Helper events and unknown ids", async () => {
-        expect(status(await call(route.getSetup, ORGA, null, "event=12345"))).toBe(409);
+        // #925: a Raid-Helper event of the active server (on its synced list) - one of no known server answers 404
+        const restore = onSyncedList("g1", ["12345"]);
+        try {
+            expect(status(await call(route.getSetup, ORGA, null, "event=12345"))).toBe(409);
+        } finally {
+            restore();
+        }
         expect(status(await call(route.getSetup, ORGA, null, "event=eh-nope"))).toBe(404);
     });
 });

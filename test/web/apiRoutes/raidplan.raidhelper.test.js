@@ -40,6 +40,7 @@ const store = require("../../../src/stores/raidplanStore");
 const profiles = require("../../../src/stores/raidplanProfileStore");
 const route = require("../../../src/web/apiRoutes/raidplan");
 const rosterSource = require("../../../src/web/raidplan/raidplanRosterSource");
+const rhEvents = require("../../../src/stores/raidhelperEventsStore");
 const { checkAccess, areasFor } = require("../../../src/web/http/apiAccess");
 
 // The orga is a role setting (permissions.userIsOrga), no area right: raider roles hold "raids" too.
@@ -67,6 +68,9 @@ beforeEach(() => {
     store.useFile(tempStoreFile("raidplans.json"));
     profiles.useFile(tempStoreFile("profiles.json"));
     rosterSource._resetForTests();
+    // #925: the event is in the synced Raid-Helper list of the active server - an event of no known server answers 404.
+    rhEvents.useFile(tempStoreFile("raidhelper-events.json"));
+    rhEvents.saveSnapshot("111111111111111111", { syncedAt: 1, since: 0, events: [{ id: EV }] });
     mockViewer = null;
     Object.assign(mockRh, { event: { id: EV, title: "BT 25er Montag", signUps: [] }, slots: SLOTS.slice(), down: false, disabled: false });
     mockGroups.list = [{ id: EV, source: "raidhelper", title: "BT 25er Montag", startTime: 1900000000 }];
@@ -76,6 +80,7 @@ beforeEach(() => {
 afterAll(() => {
     store.useFile();
     profiles.useFile();
+    rhEvents.useFile();
 });
 
 describe("the switch", () => {
@@ -138,7 +143,9 @@ describe("the switch", () => {
     });
 
     it("refuses own events, unknown events and a reader", async () => {
-        expect(status(await call(route.postLink, ORGA, { event: "eh_1", enabled: true }))).toBe(400);
+        // #925: an own event of no known server stays hidden from the orga (fail closed); a full admin sees the 400.
+        expect(status(await call(route.postLink, ORGA, { event: "eh_1", enabled: true }))).toBe(404);
+        expect(status(await call(route.postLink, { ...ORGA, isAdmin: true }, { event: "eh_1", enabled: true }))).toBe(400);
         mockGroups.list = [];
         expect(status(await activate())).toBe(404);
         mockGroups.list = [{ id: EV, source: "raidhelper", title: "BT" }];

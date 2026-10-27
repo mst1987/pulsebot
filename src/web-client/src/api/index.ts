@@ -42,4 +42,4 @@ export * from "./setup";
 export * from "./raidplan";
 export * from "./kader";
 export * from "./system";
-export { canAccess, canAccessAny } from "../lib/app/access";
+export { canAccess, canAccessAny, canAccessAnywhere } from "../lib/app/access";

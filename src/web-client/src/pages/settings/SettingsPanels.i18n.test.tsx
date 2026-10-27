@@ -42,7 +42,6 @@ describe("the Einstellungen panels in English", () => {
                 areas={[{ id: "history", tab: "history", label: "Historie & Loot", description: "Loot-Import, Event- und Charakter-Historie." }]}
                 roles={[{ id: "r1", name: "Raidlead" }]}
                 adminRoleIds={[]}
-                onAdminRoleIds={noop}
                 value={{ r1: { history: { read: true, write: false } } }}
                 onChange={noop}
                 baseAccess={{}}

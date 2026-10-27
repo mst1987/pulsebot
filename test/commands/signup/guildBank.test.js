@@ -54,7 +54,7 @@ describe("guildbank (Orga-Knöpfe)", () => {
         i.member = { displayName: "Orga-Olli" };
         await command.execute(i);
         expect(i.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
-        expect(userMayAny).toHaveBeenCalledWith(ORGA, ["raids"], "write");
+        expect(userMayAny).toHaveBeenCalledWith(ORGA, ["raids"], "write", { guildId: "guild-1" });
         expect(guildBank.resolveRequest).toHaveBeenCalledWith(open.id, { by: ORGA, byName: "Orga-Olli", status: "done", reason: "" });
         expect(said(i.editReply)).toContain("Erledigt");
         expect(said(i.editReply)).toContain("Anna bekommt eine DM.");

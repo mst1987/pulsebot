@@ -13,7 +13,14 @@ export type RolePermissions = Record<string, Record<string, AreaAccess>>;
 /** "Ansicht als Rolle" (src/web/viewAs.js): the roles the menu is shown as right now. */
 export type ViewAs = { roleIds: string[]; roleNames: string[]; at: number };
 export type SessionUser = {
-    id: string; name: string; isAdmin: boolean; access: Access; lang?: "de" | "en";
+    id: string; name: string; isAdmin: boolean; lang?: "de" | "en";
+    /** The rights on the active Discord server (#925): every page of that server goes by these. */
+    access: Access;
+    /**
+     * The rights over every server together (#925): only the pages under "Alle Server"
+     * (Mein Profil, Addons) go by these. Missing from an older server: read as `access`.
+     */
+    allAccess?: Access;
     /** The Discord picture for the user circle; missing when there is none (the circle shows the initial). */
     avatarUrl?: string;
     /** A real full admin — may look at the menu as a role (also while doing so). */

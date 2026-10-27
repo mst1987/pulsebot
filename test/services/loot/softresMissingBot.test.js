@@ -21,6 +21,10 @@ jest.mock("../../../src/services/discord/botAccess", () => ({
     serverIds: jest.fn(() => ["g1"]),
 }));
 jest.mock("../../../src/stores/configStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/services/discord/serverAccess", () => ({
+    configForGuild: jest.fn((cfg, gid) => ({ ...cfg, forGuild: gid })),
+    interactionGuildId: jest.fn((i) => String((i && i.guildId) || "home")),
+}));
 
 const { MessageFlags } = require("discord.js");
 const status = require("../../../src/services/loot/softresStatus");
@@ -80,6 +84,16 @@ describe("services/loot/softresMissingBot", () => {
             expect(card.text).toContain("Raider0 · Raider1");
             expect(cardButtons(payload)).toEqual([expect.objectContaining({ custom_id: "softres-ping:eh-1", label: "Jetzt pingen" })]);
             expect(botAccess.resolveBotAccess).toHaveBeenCalledWith("softres-ping", { id: String(interaction.user.id), roleIds: ["orga"] }, expect.any(Object));
+        });
+
+        it("judges the ping by the rule and the roles of the server the click came from (#925)", async () => {
+            status.readStatus.mockResolvedValue(okStatus(1));
+            const i = mockInteraction({ customId: "softres-missing:eh-1" });
+            status.resolveEvent.mockReturnValue({ event: { ...EVENT, guildId: "guild-b" }, raw: null });
+            i.guildId = "guild-b";
+            await handleSoftresComponent(i, "guild-b");
+            expect(botAccess.ruleFor).toHaveBeenCalledWith("softres-ping", expect.objectContaining({ config: expect.objectContaining({ forGuild: "guild-b" }) }));
+            expect(botAccess.eventMemberRoles).toHaveBeenCalledWith(i, "guild-b");
         });
 
         it("shows a raider the list without \"Jetzt pingen\", with a note instead", async () => {

@@ -48,18 +48,18 @@ const { serverFromQuery } = require("../http/serverQuery");
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
 /** GET /api/discord/roles */
-const listRoles = withUser(async ({ query, res }) => {
-    const guildId = serverFromQuery(query, res);
+const listRoles = withUser(async ({ user, req, query, res }) => {
+    const guildId = serverFromQuery(query, res, { user, req });
     if (guildId === null) return undefined;
     ok(res, await serverRoles.listServerRoles(guildId));
     return undefined;
 });
 
 /** GET /api/discord/roles/detail */
-const roleDetail = withUser(async ({ query, res }) => {
+const roleDetail = withUser(async ({ user, req, query, res }) => {
     const roleId = str(query.get("roleId"));
     if (!roleId) return apiError(res, 400, "missing_role", "Welche Rolle? Die roleId fehlt.");
-    const guildId = serverFromQuery(query, res);
+    const guildId = serverFromQuery(query, res, { user, req });
     if (guildId === null) return undefined;
     const detail = await serverRoles.serverRoleDetail(guildId, roleId);
     if (!detail) return apiError(res, 404, "not_found", "Diese Rolle gibt es auf dem Server nicht (mehr).");
@@ -68,9 +68,9 @@ const roleDetail = withUser(async ({ query, res }) => {
 });
 
 /** GET /api/discord/tab-counts */
-const tabCounts = withUser(async ({ query, req, res }) => {
+const tabCounts = withUser(async ({ user, query, req, res }) => {
     const config = getConfig();
-    const serverId = serverFromQuery(query, res, config);
+    const serverId = serverFromQuery(query, res, { user, req, config });
     if (serverId === null) return undefined;
     const active = activeGuildFor(req);
     const online = !!active && !!discord.getGuild(active);

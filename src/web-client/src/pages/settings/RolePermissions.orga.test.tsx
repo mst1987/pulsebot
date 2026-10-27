@@ -12,7 +12,7 @@ const roles = [{ id: "r-lead", name: "Raidleitung" }, { id: "r-mo", name: "Mo Ra
 function show(orgaRoleIds: string[], onOrgaRoleIds = vi.fn(), onChange = vi.fn()) {
     render(
         <RolePermissionsEditor
-            areas={areas} roles={roles} adminRoleIds={[]} onAdminRoleIds={vi.fn()}
+            areas={areas} roles={roles} adminRoleIds={[]}
             value={{ "r-lead": { raids: { read: true, write: true } }, "r-mo": { raids: { read: true, write: false } } }}
             onChange={onChange} baseAccess={{}} onBaseAccessChange={vi.fn()}
             userPermissions={{}} onUserPermissionsChange={vi.fn()} userNames={{}}

@@ -39,9 +39,18 @@ const absenceOverview = require("../../services/signups/absenceOverview");
 const { raiderAttendance } = require("../availability/raiderAttendance");
 const { entryCategories, entryCategoryIds } = require("../availability/entryCategories");
 const { canEditAnyAttendance } = require("../../services/characters/attendanceAccess");
+const { mayUseServer, mayUseChannel, OTHER_SERVER } = require("../http/serverQuery");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const isOrga = (user) => userCanAny(user, ["raids"], "write");
+
+/**
+ * Rights per server (#925, docs/permissions.md): a raid category is a Discord channel, so the bot's
+ * channel cache names its server. The orga acts for others, and on panels and links, only in the
+ * categories of the active server; a full admin everywhere. An unknown category counts as foreign.
+ */
+const categoryOnActiveServer = (user, req, categoryId) => mayUseChannel(user, req, str(categoryId));
+const otherServer = (res) => apiError(res, 403, "other_server", OTHER_SERVER);
 
 /** Whose entries a call is about: the caller, or (for the orga) the raider named in it. */
 function targetOf(user, requested) {
@@ -149,11 +158,13 @@ const postPreview = withUser({ csrf: true, body: true }, async ({ user, body, re
 });
 
 /** POST /api/availability — enter an absence or attendance and apply it at once. */
-const postEntry = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+const postEntry = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const target = targetOf(user, body.userId);
     if (target.error) return apiError(res, 403, "forbidden", target.error);
     const config = getConfig();
     if (!knownCategory(body, config)) return apiError(res, 400, "bad_request", UNKNOWN_CATEGORY);
+    // for somebody else only in a category of the active server (#925)
+    if (target.userId !== str(user.id) && str(body.categoryId) && !categoryOnActiveServer(user, req, body.categoryId)) return otherServer(res);
     const eventIds = Array.isArray(body.eventIds) ? body.eventIds.map(str).filter(Boolean) : undefined;
     const result = await availability.createEntry(target.userId, body, { by: user.id, via: "web", eventIds, config });
     if (result.error) return apiError(res, 400, "bad_request", result.error);
@@ -161,7 +172,12 @@ const postEntry = withUser({ csrf: true, body: true }, async ({ user, body, res 
 });
 
 /** DELETE /api/availability — remove an entry (the signups it made stay). */
-const deleteEntry = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+const deleteEntry = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
+    // somebody else's entry for a category of another server does not exist here (#925)
+    const entry = availabilityStore.getEntry(str(body.id));
+    if (entry && entry.userId !== str(user.id) && str(entry.categoryId) && !categoryOnActiveServer(user, req, entry.categoryId)) {
+        return apiError(res, 404, "not_found", "Eintrag nicht gefunden.");
+    }
     const removed = availability.deleteEntry(str(body.id), { userId: user.id, orga: isOrga(user) });
     if (removed.error) return apiError(res, 404, removed.code, removed.error);
     ok(res, { id: removed.entry.id });
@@ -177,12 +193,15 @@ function panelView(panel) {
 }
 
 /** GET /api/availability/panels — the posted panels and every category's links. */
-const getPanels = withUser({}, async ({ res }) => {
-    ok(res, { panels: availabilityStore.listPanels().map(panelView), links: availabilityStore.listLinks(), maxLinks: availabilityStore.MAX_LINKS });
+const getPanels = withUser({}, async ({ user, req, res }) => {
+    const panels = availabilityStore.listPanels().filter((panel) => mayUseServer(user, req, panel.guildId));
+    const links = Object.fromEntries(Object.entries(availabilityStore.listLinks()).filter(([categoryId]) => categoryOnActiveServer(user, req, categoryId)));
+    ok(res, { panels: panels.map(panelView), links, maxLinks: availabilityStore.MAX_LINKS });
 });
 
 /** PUT /api/availability/links — replace a category's link buttons; its posted panel is redrawn at once. */
-const putLinks = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const putLinks = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
+    if (str(body.categoryId) && !categoryOnActiveServer(user, req, body.categoryId)) return otherServer(res);
     const result = availabilityStore.setLinks(body.categoryId, body.links);
     if (result.error) return apiError(res, 400, "bad_request", result.error);
     // not awaited: a Discord edit is slow and never holds up the save
@@ -191,14 +210,18 @@ const putLinks = withUser({ csrf: true, body: true }, async ({ body, res }) => {
 });
 
 /** POST /api/availability/panel — post (or move) a category's panel. */
-const postPanel = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+const postPanel = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
+    if (!categoryOnActiveServer(user, req, body.categoryId)) return otherServer(res);
+    if (str(body.channelId) && !mayUseChannel(user, req, str(body.channelId))) return otherServer(res);
     const result = await availabilityPanel.postPanel({ categoryId: body.categoryId, channelId: body.channelId, by: user.id });
     if (result.error) return apiError(res, 400, "bad_request", result.error);
     ok(res, { panel: { ...panelView(result.panel), url: result.url || panelView(result.panel).url } });
 });
 
 /** DELETE /api/availability/panel — take a category's panel down. */
-const deletePanel = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const deletePanel = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
+    const panel = availabilityStore.listPanels().find((x) => x.categoryId === str(body.categoryId));
+    if (panel && !mayUseServer(user, req, panel.guildId)) return apiError(res, 404, "not_found", "Für diese Kategorie ist kein Panel gepostet.");
     const removed = await availabilityPanel.removePanel(str(body.categoryId));
     if (!removed) return apiError(res, 404, "not_found", "Für diese Kategorie ist kein Panel gepostet.");
     ok(res, { categoryId: removed.categoryId });

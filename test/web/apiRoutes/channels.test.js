@@ -366,6 +366,15 @@ describe("web/apiRoutes/channels", () => {
                 expect(discord.duplicateChannel).not.toHaveBeenCalled();
             });
 
+            it("refuses a channel of another server with 403, a full admin copies everywhere (#925)", async () => {
+                auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, isOrga: true, access: { channels: { read: true, write: true } } });
+                auth.checkCsrf.mockReturnValue(true);
+                const res = await post("/api/channels/duplicate", { channelId: "c-of-A", name: "clone" });
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                expect(json(res).error.code).toBe("other_server");
+                expect(discord.duplicateChannel).not.toHaveBeenCalled();
+            });
+
             it("duplicates the channel and returns it on success", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
@@ -511,6 +520,25 @@ describe("web/apiRoutes/channels", () => {
         });
 
         describe("POST /api/channels/batch", () => {
+            it("refuses a category or template channel of another server unless a full admin asks (#925)", async () => {
+                const orga = { id: "7", name: "Bob", isAdmin: false, isOrga: true, access: { channels: { read: true, write: true } } };
+                requireAdmin.mockReturnValue(orga);
+                readJsonBody.mockResolvedValue({ categoryId: "cat-of-A", schema: "{raid}", raid: "ssc", from: "2026-09-23", count: 1, dryRun: true });
+                let res = mockRes();
+                await routes.batchCreate({}, res);
+                expect([status(res), json(res).error.code]).toEqual([403, "other_server"]);
+                readJsonBody.mockResolvedValue({ categoryId: "cat1", schema: "{raid}", raid: "ssc", from: "2026-09-23", count: 1, templateChannelId: "chan-of-A", dryRun: true });
+                res = mockRes();
+                await routes.batchCreate({}, res);
+                expect([status(res), json(res).error.code]).toEqual([403, "other_server"]);
+                expect(dc.createFromTemplate).not.toHaveBeenCalled();
+                requireAdmin.mockReturnValue(ADMIN);
+                readJsonBody.mockResolvedValue({ categoryId: "cat-of-A", schema: "{raid}", raid: "ssc", from: "2026-09-23", count: 1, dryRun: true });
+                res = mockRes();
+                await routes.batchCreate({}, res);
+                expect(status(res)).toBe(200);
+            });
+
             it("previews without creating and marks existing names", async () => {
                 discord.listAllChannels.mockReturnValue([...CHANNELS, { id: "x", name: "mi-23-09-ssc", type: 0, parentId: "cat1" }]);
                 readJsonBody.mockResolvedValue({ categoryId: "cat1", schema: "{tag}-{dd}-{mm}-{raid}", raid: "ssc", from: "2026-09-23", count: 2, interval: "weekly", dryRun: true });
@@ -717,6 +745,9 @@ describe("web/apiRoutes/channels", () => {
 
                     it("lets the orga of a category create in their category, with the guard - not in another one", async () => {
                         requireAdmin.mockReturnValue(MANAGER);
+                        // cat2 and its template channel are on this server, the manager just has no rank there
+                        discord.listCategories.mockReturnValue([{ id: "cat1", name: "Raids" }, { id: "cat2", name: "Andere" }]);
+                        discord.listAllChannels.mockReturnValue([...CHANNELS, { id: "t-cat2", name: "vorlage", type: 0, parentId: "cat2" }]);
                         readJsonBody.mockResolvedValue({ ...input, categoryId: "cat2" });
                         let res = mockRes();
                         await routes.batchCreate({}, res);

@@ -46,6 +46,8 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
 
     // the block "Alle Server"
     { id: "discordserver", group: "global", icon: "inv_letter_15", adminOnly: true, standalone: true },
+    // #925: the one access setting every server shares - the rest is per server (berechtigungen)
+    { id: "vollAdmins", group: "global", icon: "spell_holy_sealofwisdom", adminOnly: true },
     { id: "verbindungen", group: "global", icon: "inv_misc_horn_01", standalone: true },
     // #541: the main game version and the categories that play another one
     { id: "spielversion", group: "global", icon: "inv_misc_book_09" },

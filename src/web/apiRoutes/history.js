@@ -1,6 +1,7 @@
 const { ok, error } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
+const { mayUseServer } = require("../http/serverQuery");
 const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 const { loadRecentEvents, annotateUpcomingExtras } = require("../dashboard/dashboardData");
 const { getConfig, saveConfig } = require("../../stores/settingsStore");
@@ -248,9 +249,13 @@ const getLootAwards = withUser({}, async ({ req, res, url }) => {
 });
 
 /** POST /api/history/log-delete — body: { logId }. */
-const deleteHistoryLog = withUser({ csrf: true, body: true }, async ({ body, res }) => {
-    deleteLogKeepingReportGuild(String(body.logId || "").trim());
-    ok(res, { id: body.logId });
+const deleteHistoryLog = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
+    const logId = String(body.logId || "").trim();
+    // a log of another server does not exist here (#925): only a full admin reaches every server
+    const log = listLogs().find((l) => String(l.id) === logId);
+    if (!log || !mayUseServer(user, req, log.guildId)) return error(res, 404, "not_found", "Log nicht gefunden.");
+    deleteLogKeepingReportGuild(logId);
+    return ok(res, { id: body.logId });
 });
 
 /**

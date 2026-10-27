@@ -41,7 +41,7 @@ const { mainVersionFor } = require("../events/mainVersion");
 const { roleBelowBot } = require("./memberRoles");
 const { discordErrorText } = require("./discordChannels");
 const { grantsOf } = require("./pugRoleGuard");
-const { adminRoleIds: envAdminRoleIds } = require("../../config/variables");
+const { accessSettings, fullAdminRoleIds } = require("./serverAccess");
 const rosterStore = require("../../stores/rosterStore");
 
 const Flags = PermissionsBitField.Flags;
@@ -284,7 +284,8 @@ function orgaRoleIdsOf(guild, config, category) {
         roster = null;
     }
     const ids = [
-        ...(config.adminRoleIds || []), ...(envAdminRoleIds || []), ...(config.orgaRoleIds || []),
+        // the full-admin roles and the orga roles of THIS server (#925)
+        ...fullAdminRoleIds(config), ...accessSettings(guild.id, config).orgaRoleIds,
         ...((roster && roster.managers && roster.managers.roleIds) || []),
     ].map(str).filter(Boolean);
     const cache = guild.roles && guild.roles.cache;

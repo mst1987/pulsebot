@@ -38,6 +38,38 @@ describe("services/discord/discord listRoles", () => {
     });
 });
 
+// findRolesAnywhere resolves a role over every server of the bot (#925): a
+// global full admin role of server A shows on server B as "role · server A".
+describe("services/discord/discord findRolesAnywhere", () => {
+    const fresh = () => makeGuild({ id: "g1", name: "Pulse Fresh", roles: [role("g1", "@everyone", 0), role("r1", "Orga", 3, 0x35d6c4, "#35d6c4")] });
+    const pugs = () => makeGuild({ id: "g2", name: "Pulse PuGs", roles: [role("g2", "@everyone", 0), role("r2", "PuG-Lead", 2)] });
+    // a server the bot is on that is not configured anywhere still counts
+    const other = () => makeGuild({ id: "g3", name: "Elsewhere", roles: [role("r3", "Gast", 1)] });
+
+    it("finds each role on its own server with the server name", () => {
+        discord.setClient(makeClient({ guilds: [fresh(), pugs(), other()] }));
+        expect(discord.findRolesAnywhere(["r1", "r2", "r3"])).toEqual({
+            r1: { id: "r1", name: "Orga", color: "#35d6c4", guildId: "g1", guildName: "Pulse Fresh" },
+            r2: { id: "r2", name: "PuG-Lead", color: "", guildId: "g2", guildName: "Pulse PuGs" },
+            r3: { id: "r3", name: "Gast", color: "", guildId: "g3", guildName: "Elsewhere" },
+        });
+    });
+
+    it("leaves out ids no server knows and @everyone", () => {
+        discord.setClient(makeClient({ guilds: [fresh(), pugs()] }));
+        expect(discord.findRolesAnywhere(["gone", "g1", "r2"])).toEqual({
+            r2: { id: "r2", name: "PuG-Lead", color: "", guildId: "g2", guildName: "Pulse PuGs" },
+        });
+    });
+
+    it("returns {} without a client or without ids", () => {
+        expect(discord.findRolesAnywhere(["r1"])).toEqual({});
+        discord.setClient(makeClient({ guilds: [fresh()] }));
+        expect(discord.findRolesAnywhere([])).toEqual({});
+        expect(discord.findRolesAnywhere(undefined)).toEqual({});
+    });
+});
+
 // memberRoleIds feeds the raider-role check; `absentAs` lets a signup tell
 // "surely not on the server" from "unknown" with one fetch (#904).
 describe("services/discord/discord memberRoleIds", () => {

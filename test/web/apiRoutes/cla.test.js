@@ -1,4 +1,4 @@
-const { json, jsonRequest, mockRes, routerClient } = require("../../helpers/http");
+const { json, jsonRequest, mockRes, routerClient, status } = require("../../helpers/http");
 
 // #927: Raid-Helper on for every server, as before it was set per server
 jest.mock("../../../src/utils/raidhelper/servers", () => require("../../helpers/raidhelperOn").serversMock());
@@ -1095,6 +1095,106 @@ describe("web/apiRoutes/cla", () => {
             await post("/api/cla/log-automatch", {});
 
             expect(logEventMatch.autoMatches).toHaveBeenCalledWith([], []);
+        });
+    });
+
+    // #925: the rights of an orga hold on their own server only. A log or an
+    // evaluation of another server answers like an unknown one; a full admin
+    // acts on every server.
+    describe("rights per server (#925)", () => {
+        const ORGA = { id: "2", name: "Orga B", isAdmin: false, access: { cla: { read: true, write: true } } };
+        const LOG_A = { id: "l1", guildId: "guild-a", status: "done", sections: ["cla"], reportRefId: "r1", reportUrl: "/r/r1" };
+        beforeEach(() => {
+            jest.clearAllMocks();
+            auth.getUser.mockReturnValue(ORGA);
+            activeGuildFor.mockReturnValue("guild-b");
+            logStore.getLog.mockReturnValue(LOG_A);
+            logStore.getByReportRefId.mockReturnValue(LOG_A);
+            logStore.listLogs.mockReturnValue([LOG_A]);
+            reportStore.getReport.mockReturnValue({ id: "r1", title: "Raid", recommendations: { raid: [], players: [] } });
+        });
+        afterEach(() => {
+            logStore.getLog.mockReset();
+            logStore.getByReportRefId.mockReset();
+            logStore.listLogs.mockReturnValue([]);
+            reportStore.getReport.mockReturnValue(null);
+            activeGuildFor.mockReturnValue("");
+        });
+
+        const WRITES = [
+            ["/api/cla/eval", { logId: "l1", section: "rpb" }],
+            ["/api/cla/eval-reset", { logId: "l1", section: "cla" }],
+            ["/api/cla/log-delete", { logId: "l1" }],
+            ["/api/cla/log-link", { logId: "l1", eventId: "e1" }],
+            ["/api/cla/log-unlink", { logId: "l1" }],
+            ["/api/cla/report-delete", { reportId: "r1" }],
+            ["/api/cla/report-unlink", { reportId: "r1" }],
+            ["/api/cla/recommendations", { reportId: "r1", scope: "raid", key: "k", approved: true }],
+            ["/api/cla/recommendations/send", { reportId: "r1" }],
+            ["/api/cla/recommendations/phrase", { reportId: "r1" }],
+        ];
+
+        it.each(WRITES)("an orga of server B can not touch a log of server A: %s answers 404", async (path, body) => {
+            const res = await post(path, body);
+            expect(status(res)).toBe(404);
+            expect(logStore.deleteLog).not.toHaveBeenCalled();
+            expect(logStore.linkEvent).not.toHaveBeenCalled();
+            expect(logStore.unlinkEvent).not.toHaveBeenCalled();
+            expect(logStore.clearSection).not.toHaveBeenCalled();
+            expect(logStore.clearEvaluation).not.toHaveBeenCalled();
+            expect(reportStore.deleteReport).not.toHaveBeenCalled();
+            expect(reportStore.saveReport).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ["/api/cla/eval-status", { logId: "l1", section: "cla" }],
+            ["/api/cla/recommendations", { id: "r1" }],
+            ["/api/cla/recommendations/send", { id: "r1" }],
+            ["/api/cla/recommendations/phrase", { id: "r1" }],
+        ])("an orga of server B reads nothing of server A: %s answers 404", async (path, query) => {
+            const res = await get(path, query);
+            expect(status(res)).toBe(404);
+        });
+
+        it("without an active server an orga touches no log at all", async () => {
+            activeGuildFor.mockReturnValue("");
+            const res = await post("/api/cla/log-unlink", { logId: "l1" });
+            expect(status(res)).toBe(404);
+            expect(logStore.unlinkEvent).not.toHaveBeenCalled();
+        });
+
+        it("the orga of server A acts on its own log", async () => {
+            activeGuildFor.mockReturnValue("guild-a");
+            logStore.unlinkEvent.mockReturnValue(true);
+            const res = await post("/api/cla/log-unlink", { logId: "l1" });
+            expect(status(res)).toBe(200);
+            expect(logStore.unlinkEvent).toHaveBeenCalledWith("l1");
+            const st = await get("/api/cla/eval-status", { logId: "l1", section: "cla" });
+            expect(json(st).data).toMatchObject({ status: "done", id: "r1" });
+        });
+
+        it("a full admin on server B may act on a log of server A", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            logStore.unlinkEvent.mockReturnValue(true);
+            const res = await post("/api/cla/log-unlink", { logId: "l1" });
+            expect(status(res)).toBe(200);
+            const del = await post("/api/cla/log-delete", { logId: "l1" });
+            expect(status(del)).toBe(200);
+            expect(logStore.deleteLog).toHaveBeenCalledWith("l1");
+            const rec = await get("/api/cla/recommendations", { id: "r1" });
+            expect(status(rec)).toBe(200);
+        });
+
+        it("an evaluation without a log belongs to the server stored on it", async () => {
+            logStore.getByReportRefId.mockReturnValue(undefined);
+            logStore.listLogs.mockReturnValue([]);
+            reportStore.getReport.mockReturnValue({ id: "r2", guildId: "guild-b", recommendations: { raid: [], players: [] } });
+            const own = await get("/api/cla/recommendations", { id: "r2" });
+            expect(status(own)).toBe(200);
+            reportStore.getReport.mockReturnValue({ id: "r2", guildId: "guild-a", recommendations: { raid: [], players: [] } });
+            const foreign = await post("/api/cla/report-delete", { reportId: "r2" });
+            expect(status(foreign)).toBe(404);
+            expect(reportStore.deleteReport).not.toHaveBeenCalled();
         });
     });
 });

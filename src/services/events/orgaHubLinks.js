@@ -166,7 +166,7 @@ async function handleLinkAction(interaction, guildId, isCategoryOrga = categoryO
     else return interaction.reply(card({ kind: "error", title: "Diese Aktion gibt es nicht.", ephemeral: true }));
 
     if (!hubOnServer(categoryId, guildId)) return interaction.editReply(gone());
-    if (!(await isCategoryOrga(userId, categoryId))) return interaction.editReply(errorCard(DENIED));
+    if (!(await isCategoryOrga(userId, categoryId, { guildId }))) return interaction.editReply(errorCard(DENIED));
 
     const links = store.getLinks(categoryId);
     if (action === ACTIONS.show) return interaction.editReply(linksCard(categoryId));

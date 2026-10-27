@@ -37,6 +37,30 @@ describe("web/http/apiAccess", () => {
             expect(denied.message).toContain("Schreibrechte");
         });
 
+        // #925: `access` is the active server, `allAccess` the union over every server.
+        describe("rights per server", () => {
+            const elsewhere = (grants) => ({ id: "8", name: "Eve", isAdmin: false, access: emptyAccess(), allAccess: { ...emptyAccess(), ...grants } });
+
+            it("refuses a server route for rights on another server only", () => {
+                const user = elsewhere({ raids: { read: true, write: true } });
+                expect(checkAccess("/api/raids", "GET", user)).toMatchObject({ status: 403, code: "forbidden" });
+                expect(checkAccess("/api/raids/notify", "POST", user)).toMatchObject({ status: 403, code: "forbidden" });
+            });
+
+            it("lets a route under All servers go by the rights over every server", () => {
+                const user = elsewhere({ signup: { read: true, write: true } });
+                expect(checkAccess("/api/profile", "GET", user)).toBeNull();
+                expect(checkAccess("/api/profile", "PUT", user)).toBeNull();
+                // but not a server route of the same area
+                expect(checkAccess("/api/availability", "GET", user)).toMatchObject({ status: 403, code: "forbidden" });
+            });
+
+            it("keeps a route under All servers closed without the area anywhere", () => {
+                const user = elsewhere({ raids: { read: true, write: true } });
+                expect(checkAccess("/api/profile", "GET", user)).toMatchObject({ status: 403, code: "forbidden" });
+            });
+        });
+
         it("allows both for a write area", () => {
             const user = limited({ raids: { read: true, write: true } });
             expect(checkAccess("/api/raids", "GET", user)).toBeNull();

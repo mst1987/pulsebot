@@ -23,7 +23,16 @@ jest.mock("../../../src/services/signups/availabilityPanel", () => ({
     refreshPanels: jest.fn(async () => ({ edited: 1, failed: 0, unchanged: 0 })),
 }));
 
-jest.mock("../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({ u1: "Bananajoe#discord" })) }));
+// #925: the bot's channel cache names a category's server; "g" is the active server, "A" another one
+const mockChannels = new Map([
+    ["cat1", { id: "cat1", guildId: "g" }], ["c1", { id: "c1", guildId: "g" }], ["c2", { id: "c2", guildId: "g" }],
+    ["catA", { id: "catA", guildId: "A" }], ["cA", { id: "cA", guildId: "A" }],
+]);
+jest.mock("../../../src/services/discord/discord", () => ({
+    resolveUserNames: jest.fn(async () => ({ u1: "Bananajoe#discord" })),
+    getClient: () => ({ channels: { cache: mockChannels } }),
+}));
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "g" }));
 jest.mock("../../../src/services/signups/absenceOverview", () => ({
     buildOverview: jest.fn(() => ({ from: "2030-03-18", raiders: [{ userId: "u1", name: "u1" }], hints: [{ userId: "u2", name: "u2" }], raids: [], tiles: {} })),
     raiderDetail: jest.fn((userId) => ({ userId, name: userId, entries: [], history: [] })),
@@ -335,5 +344,57 @@ describe("one game version per view (#740)", () => {
         expect(absenceOverview.buildOverview).toHaveBeenLastCalledWith(expect.objectContaining({ versionId: "forever" }));
         await call("GET", "/api/availability/overview/raider", ORGA, { query: "userId=u1&version=forever" });
         expect(absenceOverview.raiderDetail).toHaveBeenLastCalledWith("u1", expect.objectContaining({ versionId: "forever" }));
+    });
+});
+
+// Rights per server (#925): the orga of the active server sees and changes nothing of another server.
+describe("rights per server (#925)", () => {
+    const ADMIN = { id: "1", name: "Admin", isAdmin: true, access: {} };
+    beforeEach(() => {
+        for (const id of Object.keys(store.listLinks())) store.setLinks(id, []);
+        store.setPanel({ categoryId: "cat1", guildId: "g", channelId: "c1", messageId: "m1" }, { now: 5 });
+        store.setPanel({ categoryId: "catA", guildId: "A", channelId: "cA", messageId: "m2" }, { now: 6 });
+        store.setLinks("cat1", [{ label: "G", url: "https://g.example" }]);
+        store.setLinks("catA", [{ label: "A", url: "https://a.example" }]);
+    });
+
+    it("lists panels and links of the active server only, a full admin sees all", async () => {
+        let data = json(await call("GET", "/api/availability/panels", ORGA)).data;
+        expect(data.panels.map((p) => p.categoryId)).toEqual(["cat1"]);
+        expect(Object.keys(data.links)).toEqual(["cat1"]);
+        data = json(await call("GET", "/api/availability/panels", ADMIN)).data;
+        expect(data.panels.map((p) => p.categoryId).sort()).toEqual(["cat1", "catA"]);
+    });
+
+    it("refuses posting, removing and linking for another server", async () => {
+        expect(status(await call("POST", "/api/availability/panel", ORGA, { json: { categoryId: "catA", channelId: "c1" } }))).toBe(403);
+        expect(status(await call("POST", "/api/availability/panel", ORGA, { json: { categoryId: "cat1", channelId: "cA" } }))).toBe(403);
+        expect(status(await call("POST", "/api/availability/panel", ORGA, { json: { categoryId: "unknown", channelId: "c1" } }))).toBe(403);
+        expect(status(await call("DELETE", "/api/availability/panel", ORGA, { json: { categoryId: "catA" } }))).toBe(404);
+        expect(status(await call("PUT", "/api/availability/links", ORGA, { json: { categoryId: "catA", links: [] } }))).toBe(403);
+        expect(panel.postPanel).not.toHaveBeenCalled();
+        expect(panel.removePanel).not.toHaveBeenCalled();
+        expect(store.listLinks().catA).toHaveLength(1);
+    });
+
+    it("lets a full admin act on every server", async () => {
+        panel.removePanel.mockResolvedValueOnce({ categoryId: "catA" });
+        expect(status(await call("DELETE", "/api/availability/panel", ADMIN, { json: { categoryId: "catA" } }))).toBe(200);
+    });
+
+    it("hides somebody else's entry of another server from the orga, its owner still deletes it", async () => {
+        const other = store.addEntry({ userId: ANNA.id, kind: "absence", from: "2030-03-20", to: "2030-03-25", categoryId: "catA", createdBy: ANNA.id });
+        const id = (other.entry || other).id;
+        expect(status(await call("DELETE", "/api/availability", ORGA, { json: { id } }))).toBe(404);
+        expect(availability.deleteEntry).not.toHaveBeenCalled();
+        availability.deleteEntry.mockReturnValueOnce({ entry: { id } });
+        expect(status(await call("DELETE", "/api/availability", ANNA, { json: { id } }))).toBe(200);
+    });
+
+    it("refuses an entry for somebody else in a category of another server", async () => {
+        entryCats.entryCategoryIds.mockReturnValueOnce(["cat1", "catA"]);
+        const res = await call("POST", "/api/availability", ORGA, { json: { userId: ANNA.id, kind: "absence", from: "2030-03-20", to: "2030-03-25", categoryId: "catA" } });
+        expect([status(res), json(res).error.code]).toEqual([403, "other_server"]);
+        expect(availability.createEntry).not.toHaveBeenCalled();
     });
 });

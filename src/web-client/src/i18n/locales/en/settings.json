@@ -24,6 +24,10 @@
             "label": "Discord servers",
             "crumb": "Connections · servers and links"
         },
+        "vollAdmins": {
+            "label": "Full admins",
+            "crumb": "Access · applies on every server"
+        },
         "kategorien": {
             "label": "Categories",
             "crumb": "Raid categories · everything that applies per raid day"
@@ -795,7 +799,7 @@
         "columnCounts": "Read: {read} · Write: {write}",
         "actions": "Actions",
         "admins": "Full admins",
-        "adminsSub": "Members with one of these roles have write access to every area and are the only ones with access to permissions and connection secrets. Changes apply within about 5 minutes without signing in again.",
+        "adminsSub": "Members with one of these roles have write access to every area on every server and are the only ones with access to permissions and connection secrets. Changes apply within about 5 minutes without signing in again.",
         "adminsAside": "everything · write",
         "removeTip": "Remove {name}",
         "roleId": "Role ID {id}",
@@ -814,7 +818,13 @@
         "rolesSub": "Roles without admin rights get targeted access to single areas here. Read = view, write = act there too. Permissions and admin roles stay reserved for full admins — a role with write access to Settings cannot grant itself any rights.",
         "rolesEmpty": "No role with its own permissions yet — add one via \"Role or account\".",
         "rolesNotLoaded": "No roles loaded (server chosen and bot online?).",
-        "notOnServer": "no longer on the server",
+        "notOnServer": "on no server any more",
+        "notOnServerSub": "No server of the bot has this role any more — it works nowhere and can go.",
+        "roleOnServer": "@{name} · {server}",
+        "foreignRole": "Role of {server} – has no effect here",
+        "foreignRoleSub": "The role belongs to {server}. Nobody holds it on this server, so the permissions here have no effect. Removing it only takes it out of this server's permissions.",
+        "removeHereTip": "Remove {name} from this server's permissions",
+        "adminOtherServer": "Full admin role of {server} – applies on every server, change under All servers › Full admins",
         "users": "Single accounts",
         "usersSub": "Permissions for one specific Discord account — for areas that go to named people instead of a group (such as the loot council). Comes on top like the base access and never takes anything away.",
         "usersEmpty": "No single account unlocked yet.",
@@ -831,7 +841,11 @@
         "discordIdSub": "In Discord, right-click the user → \"Copy ID\" (developer mode must be on).",
         "idPlaceholder": "e.g. 123456789012345678",
         "invalidId": "That does not look like a Discord ID (17–20 digits).",
-        "duplicate": "This account is already listed."
+        "duplicate": "This account is already listed.",
+        "adminsAllServers": "all servers · everything",
+        "adminsElsewhere": "apply on every server · change under All servers › Full admins",
+        "noAdminRoles": "No admin role added yet.",
+        "server": "Server"
     },
     "categories": {
         "announceMode": {

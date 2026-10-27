@@ -72,6 +72,7 @@ const { archiveOf } = require("../../services/events/eventArchive");
 const { userSeesEvent } = require("../../services/signups/eventVisibility");
 const raidplanAccess = require("../raidplan/raidplanAccess");
 const { requestCache } = require("../../services/roster/categoryOrga");
+const { allOnServer } = require("../../services/events/eventServer");
 
 // The plan of one event (#726): `raidplan` write for every raid (the area goes to the people who write the
 // tactics, orga rank or not), else the manager of the raid's category - raidplanAccess.js mirrors it per event.
@@ -415,6 +416,10 @@ async function getProgress(req, res, url) {
         // `raidplan` read, or the orga of the raid's category, who opens its plan without it (#729, as GET /api/raidplan)
         if (!userCan(user, "raidplan", "read") && !(await raidplanAccess.managesRaid(user, url.searchParams.get("event"), req))) {
             return error(res, 403, "forbidden", "Kein Zugriff auf diesen Bereich.");
+        }
+        // a raid of another server does not exist here (#925) - only a full admin reads every server
+        if (!user.isAdmin && !allOnServer(url.searchParams.get("event") || "", () => activeGuildFor(req))) {
+            return error(res, 404, "not_found", "Raid nicht gefunden.");
         }
         const found = await eventOf(res, url.searchParams.get("event"));
         if (!found) return;

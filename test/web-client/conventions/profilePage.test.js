@@ -15,7 +15,7 @@ const css = read("styles", "profile.css");
 
 describe("ProfilePage conventions", () => {
     it("is routed under /profile for the signup area and listed in the menu", () => {
-        expect(app).toMatch(/<Route path="profile" element=\{<Guard user=\{user\} areas=\{\["signup"\]\}><ProfilePage \/><\/Guard>\} \/>/);
+        expect(app).toMatch(/<Route path="profile" element=\{<Guard user=\{user\} areas=\{\["signup"\]\} scope="all"><ProfilePage \/><\/Guard>\} \/>/);
         const { MENU } = require("../../../src/config/menu");
         expect(MENU.find((e) => e.id === "profile")).toMatchObject({ href: "/profile", areas: ["signup"] });
     });

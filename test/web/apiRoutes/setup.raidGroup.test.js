@@ -10,7 +10,7 @@ jest.mock("../../../src/web/http/auth", () => ({
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
-    getActiveGuild: jest.fn(() => ""),
+    getActiveGuild: jest.fn(() => "g1"),
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [], firstCharacter: () => null, getProfile: () => null }));
@@ -25,6 +25,7 @@ jest.mock("../../../src/services/setup/setupMessage", () => ({
     refreshLiveSetup: jest.fn(async () => ({})),
 }));
 
+const { onSyncedList } = require("../../helpers/raidhelperList");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const eventStore = require("../../../src/stores/eventStore");
 const signupStore = require("../../../src/stores/signupStore");
@@ -88,7 +89,13 @@ describe("POST /api/raids/setup/raid-add", () => {
     });
 
     it("refuses a Raid-Helper id", async () => {
-        expect(status(await api.post("/api/raids/setup/raid-add", { event: "12345" }))).toBe(409);
+        // #925: a Raid-Helper event of the active server (on its synced list) - one of no known server answers 404
+        const restore = onSyncedList("g1", ["12345"]);
+        try {
+            expect(status(await api.post("/api/raids/setup/raid-add", { event: "12345" }))).toBe(409);
+        } finally {
+            restore();
+        }
     });
 });
 

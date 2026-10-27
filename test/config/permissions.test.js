@@ -159,6 +159,14 @@ describe("config/permissions", () => {
             expect(userCan(null, "raids")).toBe(false);
         });
 
+        // #925: rights on another server only open the menu (the pages under
+        // "All servers"), never an area of the active server.
+        it("opens the menu for rights on another server only, without an area here", () => {
+            const user = { isAdmin: false, access: emptyAccess(), allAccess: { ...emptyAccess(), raids: { read: true, write: false } } };
+            expect(userHasMenuAccess(user)).toBe(true);
+            expect(userCan(user, "raids")).toBe(false);
+        });
+
         it("userIsOrga: a full admin or an orga role - no area makes anybody orga", () => {
             expect(userIsOrga({ isAdmin: true })).toBe(true);
             expect(userIsOrga({ isAdmin: false, isOrga: true, access: emptyAccess() })).toBe(true);

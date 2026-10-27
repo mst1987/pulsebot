@@ -36,13 +36,20 @@ describe("stores/settingsStore", () => {
             expect(cfg.serverSettings["111111"].raidDefaults).toEqual({ channelId: "ch" });
         });
 
-        // config.baseAccess is what every logged-in account holds without any
-        // role. Read back through the same normaliser the API saves with, so a
-        // hand-edited config.json cannot smuggle in an area that does not exist.
-        it("normalises baseAccess and defaults it to nothing granted", () => {
-            expect(getConfig().baseAccess).toEqual({});
-            saveConfig({ baseAccess: { loot: { read: true }, nonsense: { read: true, write: true } } });
-            expect(getConfig().baseAccess).toEqual({ loot: { read: true, write: false } });
+        // The base access lives per server since #925 (serverSettings[guildId]):
+        // the top level has none, and a server's value is read back through the
+        // normaliser, so a hand-edited config.json cannot smuggle in an area that
+        // does not exist.
+        it("keeps baseAccess per server and normalises it on read (#925)", () => {
+            const { accessSettings } = require("../../src/services/discord/serverAccess");
+            expect(getConfig().baseAccess).toBeUndefined();
+            saveConfig({
+                guildId: "1200000000000000001",
+                serverSettings: { "1200000000000000001": { baseAccess: { loot: { read: true }, nonsense: { read: true, write: true } } } },
+            });
+            const cfg = getConfig();
+            expect(cfg.baseAccess).toBeUndefined();
+            expect(accessSettings("1200000000000000001", cfg).baseAccess).toEqual({ loot: { read: true, write: false } });
         });
 
         it("guards adminRoleIds to an array when the stored value is malformed", () => {

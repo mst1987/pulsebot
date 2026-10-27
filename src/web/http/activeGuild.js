@@ -1,27 +1,16 @@
 // Shared by server.js's SSR routes and apiRouter.js's JSON routes: which guild
-// the admin is currently managing.
-const discord = require("../../services/discord/discord");
+// the admin is currently managing. The rule itself is guildChoice.js, which
+// auth.js uses too: the rights of a request are those of this server (#925).
 const auth = require("./auth");
-const { getConfig } = require("../../stores/settingsStore");
+const { pickActiveGuild } = require("./guildChoice");
 
 /**
- * The server the admin is managing, in this order:
- *   1. the guild explicitly selected in this session (the topbar switcher),
- *   2. the configured guild (Einstellungen → Discord & Raid-Helper, default in
- *      config/variables.js) — the guild this bot is installed in, so it is what
- *      the switcher shows without anyone picking a server first,
- *   3. the bot's only guild, when it is in exactly one.
- * The configured guild only counts when the bot is actually a member of it:
- * otherwise every request would carry a guild id whose channels/roles can never
- * be loaded, which reads as "everything is empty" instead of "wrong server".
+ * The server the admin is managing: the guild selected in this session, else
+ * the configured guild when the bot is on it, else the bot's only guild ("" when
+ * none fits). See guildChoice.pickActiveGuild.
  */
 function activeGuildFor(req) {
-    const selected = auth.getActiveGuild(req);
-    if (selected) return selected;
-    const guilds = discord.listGuilds();
-    const configured = String(getConfig().guildId || "").trim();
-    if (configured && guilds.some((g) => g.id === configured)) return configured;
-    return guilds.length === 1 ? guilds[0].id : "";
+    return pickActiveGuild(auth.getActiveGuild(req));
 }
 
 module.exports = { activeGuildFor };

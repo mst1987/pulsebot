@@ -18,8 +18,6 @@ jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(
 jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
 jest.mock("../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []) }));
 jest.mock("../../../src/stores/rosterStore", () => ({ ...jest.requireActual("../../../src/stores/rosterStore"), listRosters: jest.fn(() => []) }));
-// #926: the category-name snapshot (which server a category was seen on) without touching the disk
-jest.mock("../../../src/services/discord/serverOf", () => ({ ...jest.requireActual("../../../src/services/discord/serverOf"), storedCategoryGuilds: jest.fn(() => new Map()) }));
 jest.mock("../../../src/services/discord/categoryNames", () => ({
     listKnownCategories: jest.fn(() => [{ id: "mon", name: "Montag" }, { id: "gone", name: "TBC Montag" }]),
 }));
@@ -41,6 +39,11 @@ jest.mock("../../../src/stores/eventSeriesStore", () => ({
 jest.mock("../../../src/stores/configStore", () => ({
     ...jest.requireActual("../../../src/stores/configStore"),
     dropCategoryEntries: jest.fn(() => ({ config: {}, removed: ["categoryIds", "categoryReminders"] })),
+}));
+// #925: the stored name snapshot - "gone" (deleted in Discord) and "mon" on g1, "far" on another server
+jest.mock("../../../src/services/discord/serverOf", () => ({
+    ...jest.requireActual("../../../src/services/discord/serverOf"),
+    storedCategoryGuilds: jest.fn(() => new Map([["mon", "g1"], ["gone", "g1"], ["far", "g2"]])),
 }));
 jest.mock("../../../src/services/kader/kaderCategories", () => ({ kadersCountingCategory: jest.fn(() => []), dropAttendanceCategory: jest.fn(() => 1) }));
 
@@ -73,7 +76,53 @@ beforeEach(() => {
     activeGuildFor.mockReturnValue("g1");
     rosterStore.listRosters.mockReturnValue([]);
     // #926: "gone" was seen on g1 - only then may it read as deleted
-    storedCategoryGuilds.mockReturnValue(new Map([["gone", "g1"]]));
+    // #925: and "mon" on g1, "far" on another server
+    storedCategoryGuilds.mockReturnValue(new Map([["mon", "g1"], ["gone", "g1"], ["far", "g2"]]));
+});
+
+describe("web/apiRoutes/settings: categories per server (#925)", () => {
+    const LIMITED = { id: "7", name: "Bob", isAdmin: false, access: { settings: { read: true, write: true } } };
+    const FOREIGN = {
+        ...CONFIG, categoryIds: ["mon", "gone", "far"], categoryVersion: { mon: "tbc", gone: "tbc", far: "tbc" },
+        categoryReminders: { ...CONFIG.categoryReminders, far: { missingHours: 12, signedHours: 0, target: "event" } },
+    };
+
+    it("lets a limited settings user change nothing of a category on another server", async () => {
+        settingsStore.getConfig.mockReturnValue(FOREIGN);
+        auth.getUser.mockReturnValue(LIMITED);
+        const tries = [
+            { categoryPlanning: { far: "sheet" } },
+            { categoryIds: ["mon", "gone"], serverSettingsGuildId: "g1" },
+            { categoryIds: ["mon", "gone", "far", "unknown"], categoryVersion: { ...FOREIGN.categoryVersion, unknown: "tbc" }, serverSettingsGuildId: "g1" },
+            { categoryVersion: { mon: "tbc", gone: "tbc" } },
+            { categoryReminders: { gone: CONFIG.categoryReminders.gone } },
+        ];
+        for (const body of tries) {
+            const res = await patch("/api/settings", body);
+            expect([res.writeHead.mock.calls[0][0], json(res).error.code]).toEqual([403, "other_server"]);
+        }
+        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+        // its own server's categories - and the whole maps sent back unchanged - are fine
+        settingsStore.saveConfig.mockReturnValue(FOREIGN);
+        const own = await patch("/api/settings", { categoryPlanning: { mon: "sheet" }, categoryVersion: FOREIGN.categoryVersion, categoryReminders: FOREIGN.categoryReminders });
+        expect(own.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        expect(settingsStore.saveConfig).toHaveBeenCalledTimes(1);
+    });
+
+    it("closes and previews the active server's categories only, a full admin all of them", async () => {
+        settingsStore.getConfig.mockReturnValue(FOREIGN);
+        auth.getUser.mockReturnValue(LIMITED);
+        const close = await post("/api/settings/category-close", { categoryId: "far" });
+        expect([close.writeHead.mock.calls[0][0], json(close).error.code]).toEqual([404, "not_found"]);
+        expect(configStore.dropCategoryEntries).not.toHaveBeenCalled();
+        const sw = await get("/api/settings/category-switch", { categoryId: "far", versionId: "tbc" });
+        expect(sw.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+        const deact = json(await get("/api/settings/category-deactivate", { next: "mon", guild: "g1" })).data.categories.map((c) => c.categoryId);
+        expect(deact).not.toContain("far");
+        auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+        expect(json(await get("/api/settings/category-deactivate", { next: "mon", guild: "g1" })).data.categories.map((c) => c.categoryId)).toContain("far");
+        expect((await get("/api/settings/category-switch", { categoryId: "far", versionId: "tbc" })).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+    });
 });
 
 describe("web/apiRoutes/settings: a category's life (#744)", () => {
@@ -132,6 +181,53 @@ describe("web/apiRoutes/settings: a category's life (#744)", () => {
         const still = await post("/api/settings/category-close", { categoryId: "mon" });
         expect(still.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
         expect(json(still).error.code).toBe("category_exists");
+    });
+
+    // #925: the answer carries the config like GET does - a limited settings user
+    // never sees the rights of any server, a full admin those of the active one only.
+    it("answers a close with the config as the caller may see it (#925)", async () => {
+        settingsStore.getConfig.mockReturnValue({
+            ...CONFIG, adminRoleIds: ["adm"],
+            serverSettings: { g1: { orgaRoleIds: ["o1"] }, g2: { orgaRoleIds: ["o2"], userPermissions: { u9: { loot: { read: true } } } } },
+        });
+        auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, access: { settings: { read: true, write: true } } });
+        const limited = json(await post("/api/settings/category-close", { categoryId: "gone" })).data.config;
+        expect(limited.adminRoleIds).toBeUndefined();
+        expect(limited.orgaRoleIds).toBeUndefined();
+        expect(JSON.stringify(limited.serverSettings)).not.toMatch(/o1|o2|u9/);
+
+        auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+        const full = json(await post("/api/settings/category-close", { categoryId: "gone" })).data.config;
+        expect(full.orgaRoleIds).toEqual(["o1"]);
+        expect(JSON.stringify(full.serverSettings)).not.toMatch(/o2|u9/);
+    });
+
+    it("shows a limited settings user the settings of the active server only, a full admin those of all (#925)", async () => {
+        const { activeGuildFor } = require("../../../src/web/http/activeGuild");
+        settingsStore.getConfig.mockReturnValue({
+            ...CONFIG,
+            serverSettings: {
+                g1: { logChannels: [{ channelId: "log-a", versionId: "tbc" }], raidhelper: { serverId: "rh-a", apiKey: "k-a" } },
+                g2: { logChannels: [{ channelId: "log-b", versionId: "tbc" }], raidhelper: { serverId: "rh-b", apiKey: "k-b" } },
+            },
+        });
+        // rights on B only, B active: nothing of A
+        activeGuildFor.mockReturnValue("g2");
+        auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, access: { settings: { read: true, write: true } } });
+        const limited = json(await get("/api/settings")).data.config.serverSettings;
+        expect(Object.keys(limited)).toEqual(["g2"]);
+        expect(JSON.stringify(limited)).not.toMatch(/log-a|rh-a|k-a|k-b/);
+        expect(limited.g2.raidhelper).toEqual({ serverId: "rh-b", hasKey: true });
+        // no active server: no server's settings at all
+        activeGuildFor.mockReturnValue("");
+        expect(json(await get("/api/settings")).data.config.serverSettings).toEqual({});
+        // a full admin sees every server, keys still masked
+        activeGuildFor.mockReturnValue("g2");
+        auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+        const full = json(await get("/api/settings")).data.config.serverSettings;
+        expect(Object.keys(full).sort()).toEqual(["g1", "g2"]);
+        expect(JSON.stringify(full)).not.toMatch(/k-a|k-b/);
+        activeGuildFor.mockReturnValue("g1");
     });
 
     it("needs settings write for closing", async () => {

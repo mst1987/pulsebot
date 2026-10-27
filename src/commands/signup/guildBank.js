@@ -30,6 +30,7 @@ const { card } = require("../../utils/discord/card");
 const store = require("../../stores/guildBankStore");
 const guildBank = require("../../services/signups/guildBank");
 const { userMayAny } = require("../../services/discord/userAccess");
+const { interactionGuildId } = require("../../services/discord/serverAccess");
 const { PREFIX, parseOrgaId, rejectModal, renameModal, plain, recipientName } = require("../../utils/signup/guildBankPost");
 
 const NO_RIGHTS = "Das darf nur die Orga mit Raid-Rechten.";
@@ -44,7 +45,8 @@ function displayName(interaction) {
     return String((member && (member.displayName || member.nick)) || user.globalName || user.username || "").trim();
 }
 
-const mayHandle = (interaction) => userMayAny(interaction.user.id, ["raids"], "write");
+// the right on the server of the click (#925)
+const mayHandle = (interaction) => userMayAny(interaction.user.id, ["raids"], "write", { guildId: interactionGuildId(interaction) });
 
 /** The DM line of an answer. */
 function dmLine(result) {

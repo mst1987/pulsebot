@@ -3,14 +3,16 @@ const { requireFullAdmin } = require("../http/apiMiddleware");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
 const { maskedRaidhelper, raidhelperSettingOf, raidhelperActive } = require("../../utils/raidhelper/servers");
-const { firstServerId } = require("../../services/discord/serverOf");
+const { firstServerId, storedCategoryGuilds } = require("../../services/discord/serverOf");
+const { mayUseServer, guildOfChannel, OTHER_SERVER } = require("../http/serverQuery");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates, getRaidTemplate,
 } = require("../../stores/settingsStore");
 const {
     normalizeCategoryLanguagePatch, attendanceSettings, normalizeCategoryVersion, DISCORD_VISUALS_DEFAULT, MAX_SERVERS,
-    EVENT_GUILD_LABEL_MAX, serverSettingGuildIds,
+    EVENT_GUILD_LABEL_MAX, mergeServerSettings, serverSettingGuildIds,
 } = require("../../stores/configSchema");
+const { accessSettings, ACCESS_KEYS: SERVER_ACCESS_KEYS } = require("../../services/discord/serverAccess");
 const { serverSetting } = require("../../services/discord/serverSettings");
 const serverDefaults = require("../../services/discord/serverDefaults");
 const { serverLang, defaultLang } = require("../../services/discord/botLanguage");
@@ -184,6 +186,9 @@ function normalizeCategorySheets(raw) {
 
 // Config keys that decide who gets into the menu — only full admins may change
 // them, so a role with write access to "Einstellungen" can't grant itself more.
+// adminRoleIds is global; the other five belong to one server since #925: the
+// API reads and writes them as top-level fields, but they are the ones of the
+// active server (config.serverSettings[guildId]), never of another.
 const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess", "userPermissions", "botCommandAccess", "orgaRoleIds"];
 
 // Config keys that hold a credential to a foreign system the bot pays for or
@@ -255,8 +260,11 @@ function serverDefaultsOf(config, guildId) {
     };
 }
 
-/** The answer's config: the stored one plus the active server's values (#924). */
-const withServerDefaults = (shown, full, guildId) => publicConfig({ ...shown, ...serverDefaultsOf(full, guildId) });
+/**
+ * The answer's config: the stored one plus the active server's values (#924), narrowed by viewConfig
+ * (#925: rights of the active server for a full admin only, no credentials for anybody else).
+ */
+const viewWithDefaults = (config, view) => viewConfig({ ...config, ...serverDefaultsOf(config, view.guildId) }, view);
 
 /**
  * The four per-server fields of a PATCH body (#924), cleaned; {} = none sent.
@@ -303,9 +311,11 @@ function checkServerChannels(sent, known) {
 // its key here, so its PATCH is checked by serverSettingsTarget() below.
 // categoryIds (#926) is one list over every server, but a save changes only the
 // saving server's part (mergedCategoryIds) - so it is bound to the tab's server too.
+// #925: the rights of a server (all but the global adminRoleIds) are guarded the same way.
 const SERVER_SCOPED_KEYS = [
     "logChannels", "raidhelper", "versionOverrides", "categoryIds",
     "applicationChannelId", "officerRoleId", "raidDefaults", "botLanguage", "wclGuilds",
+    "rolePermissions", "baseAccess", "userPermissions", "orgaRoleIds", "botCommandAccess",
 ];
 // Server-bound keys that, without an active server, edit the first server
 // (#927 Raid-Helper, as its section shows; #926 the categories, shown on the
@@ -355,21 +365,24 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
     let userNames = {};
     let userAvatars = {};
     if (user.isAdmin) {
+        // the accounts with a grant on the active server (#925)
+        const accountIds = Object.keys(accessSettings(guildId, config).userPermissions);
         try {
-            userNames = await discord.resolveUserNames(guildId, Object.keys(config.userPermissions || {}));
+            userNames = await discord.resolveUserNames(guildId, accountIds);
         } catch (e) {
             console.warn("resolveUserNames failed:", e.message);
         }
         // their Discord pictures, from the cache the name lookup just filled; none = the row shows the initial
-        userAvatars = Object.fromEntries(Object.keys(config.userPermissions || {})
+        userAvatars = Object.fromEntries(accountIds
             .map((id) => [id, discord.avatarUrlFor(guildId, id)])
             .filter(([, url]) => url));
     }
     ok(res, {
         // The access config and the credentials are admin-only; a limited
         // settings user never sees (nor can save) them.
-        // #924: the per-server fields as the active server holds them, flat like before.
-        config: withServerDefaults(user.isAdmin ? config : omit(config, FULL_ADMIN_KEYS), config, guildId),
+        // #924: the per-server fields as the active server holds them, flat like before; #925 the rights
+        // of the active server for a full admin only.
+        config: viewWithDefaults(config, { isAdmin: !!user.isAdmin, guildId }),
         canManageAccess: !!user.isAdmin,
         areas: AREAS,
         userNames,
@@ -407,6 +420,12 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // One card per server (cheap: names, member counts, rights). The member
         // overlap needs a full member fetch and loads with the section itself.
         servers: user.isAdmin ? serverCards(config) : null,
+        // The full admin roles hold on every server (#925): their picker lists
+        // the roles of all servers, named with their server. Full admins only.
+        adminRoles: user.isAdmin ? adminRolesOf(config) : [],
+        // Where the roles of this page live (#925): a global full admin role of
+        // another server reads "role · server" there, not "unknown". Full admins only.
+        roleOrigins: user.isAdmin ? roleOriginsOf(config, guildId) : {},
         activeGuildId: guildId,
         // Einstellungen → Server → Raid-Helper (#927): the active server's block, masked (never the key).
         raidhelper: user.isAdmin ? maskedRaidhelper(raidhelperGuildOf(req, config), config) : null,
@@ -437,6 +456,44 @@ function noteChannels(config, activeGuildId = "") {
     } catch (e) {
         console.warn("note channels failed:", e.message);
         return { defaultId: "", channels: [] };
+    }
+}
+
+/**
+ * The roles a full admin role can be picked from (#925): those of every
+ * configured server, each with its server's name. A bot's own role is held by
+ * no member and left out. A failure reads as "none known".
+ */
+function adminRolesOf(config) {
+    try {
+        const names = new Map((typeof discord.listGuilds === "function" ? discord.listGuilds() || [] : []).map((g) => [g.id, g.name]));
+        return guildRoles.configuredGuildIds(config).flatMap((gid) => (discord.listRoles(gid) || [])
+            .filter((r) => !r.managed)
+            .map((r) => ({ id: r.id, name: r.name, color: r.color, guildId: gid, guildName: names.get(gid) || "" })));
+    } catch (e) {
+        console.warn("admin roles failed:", e.message);
+        return [];
+    }
+}
+
+/**
+ * The server of each role the rights page of `guildId` names (#925): the
+ * global full admin roles plus the role grants and orga roles stored for this
+ * server, looked up over every server the bot is on. A role found nowhere is
+ * missing - only that one reads "unknown". A failure reads as "none known".
+ */
+function roleOriginsOf(config, guildId) {
+    try {
+        if (typeof discord.findRolesAnywhere !== "function") return {};
+        const access = accessSettings(guildId, config);
+        return discord.findRolesAnywhere([
+            ...asStringArray(config.adminRoleIds),
+            ...Object.keys(access.rolePermissions || {}),
+            ...(access.orgaRoleIds || []),
+        ]);
+    } catch (e) {
+        console.warn("role origins failed:", e.message);
+        return {};
     }
 }
 
@@ -623,6 +680,42 @@ function omit(obj, keys) {
 }
 
 /**
+ * serverSettings without the rights of any server (#925): those reach the
+ * browser only as the top-level fields of the active server, and only for a
+ * full admin - a limited settings user must not read who may do what.
+ */
+function serverSettingsWithoutAccess(serverSettings) {
+    const blocks = serverSettings && typeof serverSettings === "object" && !Array.isArray(serverSettings) ? serverSettings : {};
+    return Object.fromEntries(Object.entries(blocks).map(([gid, block]) => [gid, omit(block || {}, SERVER_ACCESS_KEYS)]));
+}
+
+/**
+ * The config the settings page gets (GET and the PATCH answer): a full admin
+ * sees the rights of the active server as top-level fields (an empty server =
+ * empty rights; the old top-level fields of before the migration never show),
+ * a limited settings user sees no access key and no credential at all.
+ * serverSettings: a full admin gets every server's block, anybody else only
+ * the active server's - the settings of another server are not theirs (#925).
+ */
+function viewConfig(config, { isAdmin, guildId }) {
+    const base = { ...config };
+    if (base.serverSettings !== undefined) {
+        const blocks = serverSettingsWithoutAccess(base.serverSettings);
+        const gid = String(guildId || "");
+        base.serverSettings = isAdmin ? blocks : (gid && blocks[gid] ? { [gid]: blocks[gid] } : {});
+    }
+    const view = isAdmin ? { ...base, ...accessSettings(guildId, config) } : omit(base, FULL_ADMIN_KEYS);
+    return publicConfig(view);
+}
+
+/** Whether a body's serverSettings touches a rights key of any server (#925). */
+function touchesServerAccess(serverSettings) {
+    if (!serverSettings || typeof serverSettings !== "object") return false;
+    return Object.values(serverSettings).some((block) => block && typeof block === "object"
+        && SERVER_ACCESS_KEYS.some((k) => block[k] !== undefined));
+}
+
+/**
  * The config as the browser may see it: the Battle.net client secret, the
  * Anthropic key and the WCL v2 client secret never leave the server, only
  * whether one is set (`hasClientSecret` / `hasApiKey`). A credential block
@@ -787,7 +880,7 @@ function addonListPatch(body) {
  * credentials (CREDENTIAL_KEYS) are full-admin-only.
  */
 const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, res, user }) => {
-    const touchesGuarded = FULL_ADMIN_KEYS.some((k) => body[k] !== undefined);
+    const touchesGuarded = FULL_ADMIN_KEYS.some((k) => body[k] !== undefined) || touchesServerAccess(body.serverSettings);
     if (touchesGuarded && !requireFullAdmin(req, res)) return;
     // checked before anything else, so a stale tab changes nothing at all
     const server = serverSettingsTarget(req, body, getConfig());
@@ -796,16 +889,22 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     const writesDefault = !!(server && server.global) && GLOBAL_DEFAULT_KEYS.some((k) => body[k] !== undefined);
     if (writesDefault && !requireFullAdmin(req, res)) return;
     const partial = {};
+    // global: the full-admin roles count on every server
     if (body.adminRoleIds !== undefined) partial.adminRoleIds = asStringArray(body.adminRoleIds);
+    // #925: the other rights belong to the active server and are written there only
+    const access = {};
     // which roles count as orga (the rest are raider roles) — guarded like the access keys
-    if (body.orgaRoleIds !== undefined) partial.orgaRoleIds = asStringArray(body.orgaRoleIds);
-    if (body.rolePermissions !== undefined) partial.rolePermissions = normalizeRolePermissions(body.rolePermissions);
-    if (body.baseAccess !== undefined) partial.baseAccess = normalizeAreaAccess(body.baseAccess);
-    // Guarded like the other access keys above, but it was never taken over
-    // into `partial` — a per-account grant set in the menu was silently dropped.
-    if (body.userPermissions !== undefined) partial.userPermissions = normalizeUserPermissions(body.userPermissions);
+    if (body.orgaRoleIds !== undefined) access.orgaRoleIds = asStringArray(body.orgaRoleIds);
+    if (body.rolePermissions !== undefined) access.rolePermissions = normalizeRolePermissions(body.rolePermissions);
+    if (body.baseAccess !== undefined) access.baseAccess = normalizeAreaAccess(body.baseAccess);
+    if (body.userPermissions !== undefined) access.userPermissions = normalizeUserPermissions(body.userPermissions);
     // Sent as the whole map: a command left out follows its defaultAccess again.
-    if (body.botCommandAccess !== undefined) partial.botCommandAccess = normalizeBotCommandAccess(body.botCommandAccess);
+    if (body.botCommandAccess !== undefined) access.botCommandAccess = normalizeBotCommandAccess(body.botCommandAccess);
+    if (Object.keys(access).length) {
+        // serverSettingsTarget() checked the tab's server against the active one (409) and that
+        // one is active at all (400) - rights never fall back to the first server
+        partial.serverSettings = { [server.guildId]: access };
+    }
     if (body.guildId !== undefined) partial.guildId = String(body.guildId).trim();
     // Only the fields sent: settingsStore merges them into the stored block and
     // normalises the result, so a PATCH of one channel keeps both servers.
@@ -829,7 +928,10 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
             );
             const channels = checkServerChannels(body.discordServers.channels, known);
             if (channels.error) return error(res, 400, "invalid_discord_servers", channels.error);
-            partial.serverSettings = channels.channels;
+            // merged per server: rights sent in the same body (above) must not get lost
+            const servers = { ...(partial.serverSettings || {}) };
+            for (const [gid, block] of Object.entries(channels.channels || {})) servers[gid] = { ...(servers[gid] || {}), ...block };
+            partial.serverSettings = servers;
         }
         if (!Object.keys(partial.discordServers).length) delete partial.discordServers;
     }
@@ -990,6 +1092,9 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // The server is the tab's (checked by serverSettingsTarget()), never the session's alone:
     // a tab on A saving after another tab switched to B would otherwise empty B's part.
     if (partial.categoryIds !== undefined) partial.categoryIds = mergedCategoryIds(partial.categoryIds, before, server.guildId);
+    // #925: everybody but a full admin changes the categories of the active server only
+    // (after the merge, so the other servers' kept part is no "edit")
+    if (foreignCategoryEdits(partial, before, { user, req }).length) return error(res, 403, "other_server", OTHER_SERVER);
     // #744: no active category at all would read as "every category" — refused while raids exist.
     if (emptiesActiveCategories(partial, before)) return error(res, 400, "categories_empty", categoryLifecycle.EMPTY_LIST_MESSAGE);
     // #738: every active category plays an explicit version; a changed one starts a new section.
@@ -1021,7 +1126,7 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // a switch may have changed the raider roles (#739: they mirror the new roster) - answer what is stored now
     const after = switchedCategories.length ? getConfig() : saved;
     ok(res, {
-        config: withServerDefaults(after, after, activeGuildFor(req)),
+        config: viewWithDefaults(after, { isAdmin: !!(user && user.isAdmin), guildId: activeGuildFor(req) }),
         switchedCategories,
         deactivatedCategories: deactivated,
         ...(raidhelperGuild ? { raidhelper: maskedRaidhelper(raidhelperGuild, saved) } : {}),
@@ -1030,6 +1135,61 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         ...serverCategoriesOf(after, server ? server.guildId : activeGuildFor(req)),
     });
 });
+
+// ---- rights per server (#925, docs/permissions.md) ----
+// The category maps the store replaces whole: a category left out of them is changed too.
+const WHOLE_CATEGORY_MAPS = new Set(["categoryRaidTemplate", "categoryVersion", "categoryReminders"]);
+// Derived by this route (from categoryVersion, which is checked), not sent by the client.
+const DERIVED_CATEGORY_MAPS = new Set(["categoryEras"]);
+
+/** Key order does not make a value different. */
+function stableJson(value) {
+    return JSON.stringify(value, (_k, v) => (v && typeof v === "object" && !Array.isArray(v)
+        ? Object.fromEntries(Object.keys(v).sort().map((key) => [key, v[key]]))
+        : v));
+}
+
+/** The server of a category: Discord's cache, else the stored name snapshot (a deleted one); "" = unknown. */
+function categoryGuildOf(categoryId) {
+    const id = String(categoryId || "").trim();
+    if (!id) return "";
+    const live = guildOfChannel(id);
+    if (live) return live;
+    try {
+        return String(storedCategoryGuilds().get(id) || "");
+    } catch {
+        return "";
+    }
+}
+
+/** May user change the category's settings: a full admin always, else only one of the active server. */
+const mayEditCategory = (user, req, categoryId) => mayUseServer(user, req, categoryGuildOf(categoryId));
+
+/**
+ * The categories of another server (or an unknown one) a PATCH would change - [] for a full
+ * admin. Compared with the stored values, so a tab that sends a whole map back unchanged passes;
+ * an entry that differs, is new, or (a map replaced whole, the active list) goes, counts.
+ */
+function foreignCategoryEdits(partial, before, { user, req }) {
+    if (user && user.isAdmin) return [];
+    const touched = new Set();
+    if (Array.isArray(partial.categoryIds)) {
+        const was = new Set(asStringArray(before.categoryIds));
+        const now = new Set(partial.categoryIds);
+        for (const id of now) if (!was.has(id)) touched.add(id);
+        for (const id of was) if (!now.has(id)) touched.add(id);
+    }
+    for (const [key, map] of Object.entries(partial)) {
+        if (!/^category[A-Z]/.test(key) || DERIVED_CATEGORY_MAPS.has(key)) continue;
+        if (!map || typeof map !== "object" || Array.isArray(map)) continue;
+        const stored = before[key] && typeof before[key] === "object" ? before[key] : {};
+        for (const [id, value] of Object.entries(map)) {
+            if (stableJson(value) !== stableJson(stored[id])) touched.add(String(id));
+        }
+        if (WHOLE_CATEGORY_MAPS.has(key)) for (const id of Object.keys(stored)) if (!(id in map)) touched.add(String(id));
+    }
+    return [...touched].filter((id) => !mayEditCategory(user, req, id));
+}
 
 /** The categories a PATCH takes out of the active list, with what pauses (#744) — logged once. */
 function deactivationOf(partial, before) {
@@ -1050,6 +1210,8 @@ function deactivationOf(partial, before) {
  */
 function pugGrantsOf(before, partial, switches, fixes) {
     const after = { ...before, ...partial };
+    // the rights of a server are merged into the stored blocks, as saveConfig does (#925)
+    if (partial.serverSettings) after.serverSettings = mergeServerSettings(before.serverSettings, partial.serverSettings);
     let rostersAfter;
     let reopened = [];
     if (switches.length) {
@@ -1124,7 +1286,7 @@ function mergedCategoryIds(sent, before, guildId) {
  * categories `next` pauses (#744): per category taken out its series and
  * reminders, and whether the list would be empty although raids exist.
  */
-const getCategoryDeactivate = withUser({}, async ({ req, res, url }) => {
+const getCategoryDeactivate = withUser({}, async ({ user, req, res, url }) => {
     const config = getConfig();
     // #926: `next` is the active server's list; the other servers' categories stay as stored
     const sent = String(url.searchParams.get("next") || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -1135,7 +1297,9 @@ const getCategoryDeactivate = withUser({}, async ({ req, res, url }) => {
     const preview = categoryLifecycle.deactivationPreview({ config, nextIds: next });
     const names = categoryNamesOf(config);
     ok(res, {
-        categories: preview.categories.map((c) => ({ ...c, name: names.get(c.categoryId) || "" })),
+        // #925: what pauses on another server is not this caller's business (a full admin sees all)
+        categories: preview.categories.filter((c) => mayEditCategory(user, req, c.categoryId))
+            .map((c) => ({ ...c, name: names.get(c.categoryId) || "" })),
         emptyBlocked: !next.length && !!(config.categoryIds || []).length && preview.emptyBlocked,
     });
 });
@@ -1149,6 +1313,8 @@ const getCategoryDeactivate = withUser({}, async ({ req, res, url }) => {
  */
 const closeCategoryHandler = withUser({ csrf: true, body: true }, async ({ body, req, res, user }) => {
     const categoryId = String((body && body.categoryId) || "").trim();
+    // #925: a category of another server (or an unknown one) is not there for everybody but a full admin
+    if (categoryId && !mayEditCategory(user, req, categoryId)) return error(res, 404, "not_found", "Kategorie nicht gefunden.");
     const config = getConfig();
     const name = categoryNamesOf(config).get(categoryId) || "";
     // #739: its rosters are closed too, by this caller
@@ -1156,7 +1322,7 @@ const closeCategoryHandler = withUser({ csrf: true, body: true }, async ({ body,
     const result = categoryLifecycle.closeCategory(categoryId, { config, actor: String((user && user.id) || ""), guildId: activeGuildFor(req) });
     if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
     console.log(`[settings] Kategorie ${name || categoryId} abgeschlossen (#744) von ${(user && (user.name || user.id)) || "?"}`);
-    ok(res, { ...result, name, config: publicConfig(getConfig()), ...serverCategoriesOf(getConfig(), activeGuildFor(req)) });
+    ok(res, { ...result, name, config: viewConfig(getConfig(), { isAdmin: !!(user && user.isAdmin), guildId: activeGuildFor(req) }), ...serverCategoriesOf(getConfig(), activeGuildFor(req)) });
 });
 
 /** Category id → name over every server (live list backed by the snapshot); "" when unknown. */
@@ -1215,10 +1381,12 @@ function afterCategorySwitches(switches, fixes, { user }) {
  * coming raids that keep the old version, the series and default template
  * whose template no longer fits, the templates of the new version.
  */
-const getCategorySwitch = withUser({}, async ({ res, url }) => {
+const getCategorySwitch = withUser({}, async ({ user, req, res, url }) => {
     const categoryId = String(url.searchParams.get("categoryId") || "").trim();
     const versionId = String(url.searchParams.get("versionId") || "").trim();
     if (!categoryId) return error(res, 400, "invalid", "Keine Kategorie angegeben.");
+    // #925: like the PATCH, the active server's categories only (a full admin all)
+    if (!mayEditCategory(user, req, categoryId)) return error(res, 404, "not_found", "Kategorie nicht gefunden.");
     if (!VERSIONS.some((v) => v.id === versionId)) return error(res, 400, "invalid", "Unbekannte Spielversion.");
     const config = getConfig();
     const preview = switchPreview({ categoryId, versionId, config, listTemplates: listRaidTemplates });
@@ -1331,6 +1499,6 @@ module.exports = {
     getSettings, updateSettings, getItemSearch, getArchiveExport, getCategorySwitch, saveRaidsheetHandler, deleteRaidsheetHandler,
     getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers,
     getRoleSync, getReminders,
-    publicConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, ADDON_KEYS, FULL_ADMIN_KEYS, SERVER_SCOPED_KEYS,
+    publicConfig, viewConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, ADDON_KEYS, FULL_ADMIN_KEYS, SERVER_SCOPED_KEYS,
     routes,
 };

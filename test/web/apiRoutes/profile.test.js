@@ -3,7 +3,15 @@
 // Charaktere, und dass die Wünsche anderer nie bei einem Mitglied ankommen.
 
 let mockUser = null;
-jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "" }));
+let mockActive = "g1";
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => mockActive }));
+// the members of each server, for the raider search (#925)
+let mockMembers = {};
+jest.mock("../../../src/services/discord/discord", () => ({
+    listHumanMembers: jest.fn(async (guildId) => (mockMembers[guildId]
+        ? { members: mockMembers[guildId].map((id) => ({ id })), error: null }
+        : { members: [], error: "Server nicht gefunden oder Bot nicht verbunden." })),
+}));
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
 
@@ -54,6 +62,8 @@ beforeEach(() => {
     for (const k of Object.keys(mockAssignments)) delete mockAssignments[k];
     mockSummary.mockReset();
     mockConfigured = true;
+    mockActive = "g1";
+    mockMembers = { g1: ["200000000000000001", "200000000000000002"] };
 });
 
 describe("GET/PUT /api/profile", () => {
@@ -197,6 +207,25 @@ describe("Wünsche bleiben bei der Orga", () => {
     it("liefert in der Raider-Suche nur Namen", async () => {
         const data = json(await call(route.getRaiderSearch, ANNA, { query: "q=ys" })).data;
         expect(data.raiders).toEqual([{ userId: BERT.id, name: "Bert", character: "Ysolde", className: "Mage" }]);
+    });
+
+    it("findet in der Raider-Suche nur Mitglieder des aktiven Servers, der Voll-Admin alle (#925)", async () => {
+        const search = async (user) => json(await call(route.getRaiderSearch, user, { query: "q=" })).data.raiders.map((r) => r.userId);
+        mockMembers = { g1: [ANNA.id], g2: [BERT.id] };
+        expect(await search(ANNA)).toEqual([]);
+        mockActive = "g2";
+        expect(await search(ANNA)).toEqual([BERT.id]);
+        // the full admin finds everybody, whatever the server
+        mockActive = "g1";
+        expect(await search(ORGA)).toEqual([ANNA.id, BERT.id]);
+    });
+
+    it("findet niemanden, wenn Server oder Mitgliederliste unbekannt sind (fail closed, #925)", async () => {
+        const search = async () => json(await call(route.getRaiderSearch, ANNA, { query: "q=" })).data.raiders;
+        mockActive = "";
+        expect(await search()).toEqual([]);
+        mockActive = "g9";
+        expect(await search()).toEqual([]);
     });
 
     it("zeigt der Orga das Profil mit gegenseitigen Wünschen und wer sich wen wünscht", async () => {

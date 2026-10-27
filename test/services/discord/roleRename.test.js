@@ -22,9 +22,13 @@ const RAIDER = "900000000000000001";
 const ORGA = "900000000000000002";
 const TALK_RAIDER = "900000000000000003";
 const TALK_GUILD = "300000";
+const G1 = { guildId: "g1" };
 const CONFIG = {
-    orgaRoleIds: [ORGA],
-    rolePermissions: { [RAIDER]: { signup: { read: true, write: true } }, [ORGA]: { raids: { read: true, write: true } } },
+    guildId: "g1",
+    serverSettings: { g1: {
+        orgaRoleIds: [ORGA],
+        rolePermissions: { [RAIDER]: { signup: { read: true, write: true } }, [ORGA]: { raids: { read: true, write: true } } },
+    } },
     categoryRoles: { "700000000000000001": [RAIDER] },
     roleSync: [{ fromGuildId: "g1", fromRoleId: RAIDER, toGuildId: TALK_GUILD, toRoleId: TALK_RAIDER, direction: "toTarget" }],
 };
@@ -57,9 +61,9 @@ afterEach(() => {
 describe("a renamed role (#744)", () => {
     it("keeps every right and the orga mark", async () => {
         discord.setClient(makeClient({ guilds: [guildNamed("TBC Raider", "Raidleitung")] }));
-        const before = { raider: await userAccess.computeAccess("u-raider"), orga: await userAccess.computeAccess("u-orga") };
+        const before = { raider: await userAccess.computeAccess("u-raider", G1), orga: await userAccess.computeAccess("u-orga", G1) };
         discord.setClient(makeClient({ guilds: [guildNamed("Forever Raider", "Orga")] }));
-        const after = { raider: await userAccess.computeAccess("u-raider"), orga: await userAccess.computeAccess("u-orga") };
+        const after = { raider: await userAccess.computeAccess("u-raider", G1), orga: await userAccess.computeAccess("u-orga", G1) };
         expect(after).toEqual(before);
         expect(after.orga).toMatchObject({ isOrga: true, access: { raids: { read: true, write: true } } });
         expect(after.raider.access.signup).toEqual({ read: true, write: true });

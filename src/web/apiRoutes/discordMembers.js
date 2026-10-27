@@ -32,18 +32,18 @@ const { serverFromQuery } = require("../http/serverQuery");
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
 /** GET /api/discord/members */
-const listMembers = withUser(async ({ query, res }) => {
-    const guildId = serverFromQuery(query, res);
+const listMembers = withUser(async ({ user, req, query, res }) => {
+    const guildId = serverFromQuery(query, res, { user, req });
     if (guildId === null) return undefined;
     ok(res, await serverMembers.listServerMembers(guildId));
     return undefined;
 });
 
 /** GET /api/discord/members/detail */
-const memberDetail = withUser(async ({ query, res }) => {
+const memberDetail = withUser(async ({ user, req, query, res }) => {
     const userId = str(query.get("userId"));
     if (!userId) return apiError(res, 400, "missing_user", "Welches Mitglied? Die userId fehlt.");
-    const guildId = serverFromQuery(query, res);
+    const guildId = serverFromQuery(query, res, { user, req });
     if (guildId === null) return undefined;
     ok(res, await serverMembers.serverMemberDetail(guildId, userId));
     return undefined;

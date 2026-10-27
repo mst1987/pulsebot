@@ -6,6 +6,8 @@ import { useApi } from "../../hooks/useApi";
 import { usePersistedSearchParam } from "../../lib/ui/persistedState";
 import RolePermissionsEditor from "./RolePermissions";
 import BotCommandAccess from "./BotCommandAccess";
+import FullAdminRoles from "./FullAdminRoles";
+import { accessPatch } from "../../lib/settings/accessPatch";
 import Segment from "../../components/ui/Segment";
 import { useToast } from "../../components/shell/Jobs";
 import SectionRail, { RailLayout } from "../../components/ui/SectionRail";
@@ -212,14 +214,12 @@ export default function SettingsPage() {
         try {
             const answer = await updateSettings({
                 // Access config is full-admin-only; sending it as anyone else
-                // would (rightly) be rejected with a 403.
-                ...(data.canManageAccess ? {
-                    adminRoleIds: draft.adminRoleIds,
-                    rolePermissions: draft.rolePermissions,
-                    baseAccess: draft.baseAccess,
-                    userPermissions: draft.userPermissions,
-                    orgaRoleIds: draft.orgaRoleIds,
-                } : {}),
+                // would (rightly) be rejected with a 403. Only the fields the
+                // draft changed (#925): the active server is per session, and
+                // an untouched field from an old tab would overwrite the rights
+                // of the server another tab switched to.
+                // A server's rights go with the server this page loaded: a switched session answers 409.
+                ...(data.canManageAccess ? accessPatch(draft, saved, data.activeGuildId || "") : {}),
                 // #924: the active server's own values, only the ones changed here.
                 ...serverDefaults,
                 // #926: the categories (only this server's part changes), #921 the log channels and #924 the
@@ -343,8 +343,8 @@ export default function SettingsPage() {
                     viewSwitch={permSwitch}
                     areas={data.areas}
                     roles={data.roles}
+                    roleOrigins={data.roleOrigins || {}}
                     adminRoleIds={draft.adminRoleIds}
-                    onAdminRoleIds={(adminRoleIds) => patch({ adminRoleIds })}
                     value={draft.rolePermissions}
                     onChange={(rolePermissions) => patch({ rolePermissions })}
                     baseAccess={draft.baseAccess}
@@ -615,6 +615,18 @@ export default function SettingsPage() {
                         </div>
                     </ModuleCard>
                 </>
+            );
+
+            case "vollAdmins": return (
+                <FullAdminRoles
+                    roles={data.adminRoles || []}
+                    roleOrigins={data.roleOrigins || {}}
+                    value={draft.adminRoleIds}
+                    onChange={(adminRoleIds) => patch({ adminRoleIds })}
+                    icon={activeSection.icon}
+                    title={sectionLabel(activeSection)}
+                    crumb={activeCrumb}
+                />
             );
 
             case "addons": return (

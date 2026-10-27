@@ -5,7 +5,7 @@ let mockUser = null;
 let mockViewer = null;
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
-jest.mock("../../../src/web/http/auth", () => ({ getUser: jest.fn(() => mockViewer) }));
+jest.mock("../../../src/web/http/auth", () => ({ getUser: jest.fn(() => mockViewer), getActiveGuild: jest.fn(() => "500000") }));
 const mockEvents = {};
 jest.mock("../../../src/stores/eventStore", () => ({
     ...jest.requireActual("../../../src/stores/eventStore"),
@@ -36,7 +36,8 @@ const APPROVED = {
 };
 
 function eventWith(setup) {
-    return ownEvent({ id: "eh_1", title: "Black Temple", startTime: 1800000000, instanceIds: ["bt"], setup });
+    // #925: a raid of the active server (auth.getActiveGuild above); an unknown server would answer 404.
+    return ownEvent({ id: "eh_1", guildId: "500000", title: "Black Temple", startTime: 1800000000, instanceIds: ["bt"], setup });
 }
 
 const { mockRes, status, json } = require("../../helpers/http");
@@ -150,7 +151,9 @@ describe("GET /api/raidplan", () => {
     });
 
     it("answers 409 for a Raid-Helper event and 404 for a missing one", async () => {
-        expect(status(await call(route.getPlan, ORGA, null, "event=12345"))).toBe(409);
+        // #925: a Raid-Helper id no server knows is foreign to the orga (404, fail closed); a full admin learns it is one (409).
+        expect(status(await call(route.getPlan, ORGA, null, "event=12345"))).toBe(404);
+        expect(status(await call(route.getPlan, { ...ORGA, isAdmin: true }, null, "event=12345"))).toBe(409);
         expect(status(await call(route.getPlan, ORGA, null, "event=eh_nope"))).toBe(404);
     });
 
@@ -191,7 +194,8 @@ describe("PUT /api/raidplan", () => {
         const r = await call(route.putPlan, ORGA, { event: "eh_1", version: 0, bosses: {} });
         expect(r.writeHead).not.toHaveBeenCalled();
         expect(store.getPlan("eh_1")).toBeNull();
-        expect(status(await call(route.putPlan, ORGA, { event: "999", version: 0, bosses: {} }))).toBe(409);
+        expect(status(await call(route.putPlan, ORGA, { event: "999", version: 0, bosses: {} }))).toBe(404); // #925: unknown server
+        expect(status(await call(route.putPlan, { ...ORGA, isAdmin: true }, { event: "999", version: 0, bosses: {} }))).toBe(409);
     });
 
     it("only keeps a profile id that exists", async () => {

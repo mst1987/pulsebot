@@ -17,6 +17,9 @@ import type { WclGuild, WclGuildInput } from "./wclGuilds";
  */
 export type Role = { id: string; name: string; color?: string; managed?: boolean };
 
+/** A role of any configured server, for the full admin roles (#925): named with its server. */
+export type AdminRole = Role & { guildId?: string; guildName?: string };
+
 // The Battle.net client. The secret never comes back from the server — only
 // whether one is stored. Read: { …, hasClientSecret }. Write: { …, clientSecret? }
 // — omit clientSecret to keep the stored one, "" to clear it. The realm the
@@ -331,6 +334,10 @@ export type SettingsData = {
     /** #744: configured categories Discord no longer has (only known while the bot sees every server). */
     missingCategories?: MissingCategory[];
     activeGuildId: string;
+    /** Full admins only (#925): the roles of every server, for Alle Server › Voll-Admins; [] for anyone else. */
+    adminRoles?: AdminRole[];
+    /** Full admins only (#925): the server a listed role lives on, resolved over every server of the bot. */
+    roleOrigins?: Record<string, AdminRole>;
 } & ServerCategories;
 
 /**

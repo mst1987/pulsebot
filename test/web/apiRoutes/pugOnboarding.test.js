@@ -4,6 +4,8 @@
 let mockUser = null;
 let mockCsrf = true;
 jest.mock("../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => mockCsrf, getActiveGuild: () => "" }));
+let mockActive = "900000000000000001";
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => mockActive, pickActiveGuild: async () => mockActive }));
 jest.mock("../../../src/stores/configStore", () => ({
     getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000003" }], links: [] } }),
 }));
@@ -36,6 +38,7 @@ const settingsWriter = { id: "7", name: "Bob", isAdmin: false, access: { ...empt
 
 beforeEach(() => {
     jest.clearAllMocks();
+    mockActive = "900000000000000001";
     mockUser = ADMIN;
     mockCsrf = true;
 });

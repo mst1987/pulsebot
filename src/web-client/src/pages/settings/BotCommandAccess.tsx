@@ -102,7 +102,8 @@ export default function BotCommandAccess({ viewSwitch, icon, crumb }: {
     const save = async (next: AccessMap, message: string) => {
         setSaving(true);
         try {
-            const { config } = await updateSettings({ botCommandAccess: next });
+            // #925: the rules belong to the server this panel loaded; a session switched since is refused (409)
+            const { config } = await updateSettings({ botCommandAccess: next, serverSettingsGuildId: data.guildId || "" });
             const stored = config.botCommandAccess || {};
             setData({
                 ...data,
@@ -114,7 +115,8 @@ export default function BotCommandAccess({ viewSwitch, icon, crumb }: {
             setEditing("");
             toast(message);
         } catch (err) {
-            toast((err as ApiError).message, "err");
+            const e = err as ApiError;
+            toast(e.code === "server_switched" ? t("settings.serverSwitched") : e.message, "err");
         } finally {
             setSaving(false);
         }

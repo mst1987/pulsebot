@@ -155,10 +155,10 @@ const downloadAddon = withUser({}, async ({ user, query, res }) => {
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
-    { method: "GET", path: "/api/addons", handler: getAddons, area: AREAS },
-    { method: "GET", path: "/api/addons/detail", handler: getAddonDetail, area: AREAS },
+    { method: "GET", path: "/api/addons", handler: getAddons, area: AREAS, scope: "all" },
+    { method: "GET", path: "/api/addons/detail", handler: getAddonDetail, area: AREAS, scope: "all" },
     { method: "GET", path: "/api/addons/name", handler: getAddonName, auth: "none" },
-    { method: "GET", path: "/api/addons/download", handler: downloadAddon, area: AREAS },
+    { method: "GET", path: "/api/addons/download", handler: downloadAddon, area: AREAS, scope: "all" },
 ];
 
 module.exports = { getAddons, getAddonDetail, getAddonName, downloadAddon, contentTypeOf, dispositionOf, routes };

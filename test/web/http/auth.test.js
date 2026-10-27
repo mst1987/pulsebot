@@ -34,6 +34,21 @@ const storedSessions = () => JSON.parse(fs.readFileSync(dataPath("sessions.json"
 // Flush the background admin re-check kicked off by sessionFor().
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
+// Since #925 the rights live per server (serverSettings[<guild>]); only the full
+// admin roles stay global. onServer() moves the rights of a fixture onto the
+// given servers, the way the start migration does.
+const ACCESS = ["rolePermissions", "baseAccess", "userPermissions", "orgaRoleIds", "botCommandAccess"];
+function onServer(cfg, guildIds = ["guild-1", "guild-2"]) {
+    const rest = { ...cfg };
+    const block = {};
+    for (const key of ACCESS) {
+        if (rest[key] === undefined) continue;
+        block[key] = rest[key];
+        delete rest[key];
+    }
+    return { ...rest, serverSettings: Object.fromEntries(guildIds.map((gid) => [gid, block])) };
+}
+
 /** A fake bot client whose guild resolves members via the given fetch impl. */
 function fakeClient(memberFetch) {
     const guild = guildWith("guild-1", memberFetch);
@@ -110,7 +125,7 @@ describe("web/http/auth", () => {
         const RAIDER = "111111111111111111";
         beforeEach(() => {
             axios.post.mockResolvedValue({ data: { access_token: "tok-abc" } });
-            getConfig.mockReturnValue({ adminRoleIds: [], rolePermissions: { [RAIDER]: { signup: { read: true, write: true } } } });
+            getConfig.mockReturnValue(onServer({ adminRoleIds: [], rolePermissions: { [RAIDER]: { signup: { read: true, write: true } } } }));
         });
         afterEach(() => getConfig.mockReturnValue({ adminRoleIds: [] }));
 
@@ -118,6 +133,7 @@ describe("web/http/auth", () => {
             axios.get.mockResolvedValue({ data: { id: "233598324022837249", username: "adminuser" } });
             const sid = await auth.completeLogin("code-va");
             const req = { headers: { cookie: `sid=${sid}` } };
+            auth.setActiveGuild(req, "guild-1");
             expect(auth.getUser(req).isAdmin).toBe(true);
 
             expect(auth.setViewAs(req, [RAIDER])).toBe(true);
@@ -227,7 +243,7 @@ describe("web/http/auth", () => {
         afterEach(() => {
             nowSpy.mockRestore();
             discord.setClient(null);
-            getConfig.mockImplementation(() => ({ adminRoleIds: [] }));
+            getConfig.mockImplementation(() => onServer({ adminRoleIds: [] }));
         });
 
         async function loginAs(id) {
@@ -237,7 +253,7 @@ describe("web/http/auth", () => {
         }
 
         it("grants admin at login when the member has a configured role", async () => {
-            getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
+            getConfig.mockImplementation(() => onServer({ adminRoleIds: ["role-1"] }));
             const fetch = jest.fn().mockResolvedValue(memberWithRoles("role-1"));
             discord.setClient(fakeClient(fetch).client);
 
@@ -251,7 +267,7 @@ describe("web/http/auth", () => {
             expect(auth.getUser(req).isAdmin).toBe(false);
 
             // Admin adds a role id in the settings afterwards:
-            getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
+            getConfig.mockImplementation(() => onServer({ adminRoleIds: ["role-1"] }));
             const fetch = jest.fn().mockResolvedValue(memberWithRoles("role-1"));
             discord.setClient(fakeClient(fetch).client);
 
@@ -271,7 +287,7 @@ describe("web/http/auth", () => {
 
         it("marks an orga role at login and takes the mark away when the role is no orga role any more", async () => {
             let orgaRoleIds = ["role-lead"];
-            getConfig.mockImplementation(() => ({ orgaRoleIds }));
+            getConfig.mockImplementation(() => onServer({ orgaRoleIds }));
             const fetch = jest.fn().mockResolvedValue(memberWithRoles("role-lead"));
             discord.setClient(fakeClient(fetch).client);
 
@@ -287,7 +303,7 @@ describe("web/http/auth", () => {
         });
 
         it("re-checks only once per cache window", async () => {
-            getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
+            getConfig.mockImplementation(() => onServer({ adminRoleIds: ["role-1"] }));
             const fetch = jest.fn().mockResolvedValue(memberWithRoles("role-1"));
             discord.setClient(fakeClient(fetch).client);
 
@@ -304,7 +320,7 @@ describe("web/http/auth", () => {
         });
 
         it("keeps the last known status when the re-check lookup fails", async () => {
-            getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
+            getConfig.mockImplementation(() => onServer({ adminRoleIds: ["role-1"] }));
             const fetch = jest.fn().mockResolvedValue(memberWithRoles("role-1"));
             discord.setClient(fakeClient(fetch).client);
             const { req } = await loginAs("558");
@@ -318,7 +334,7 @@ describe("web/http/auth", () => {
         });
 
         it("demotes a session whose user left the guild (Unknown Member)", async () => {
-            getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
+            getConfig.mockImplementation(() => onServer({ adminRoleIds: ["role-1"] }));
             const fetch = jest.fn().mockResolvedValue(memberWithRoles("role-1"));
             discord.setClient(fakeClient(fetch).client);
             const { req } = await loginAs("559");
@@ -334,13 +350,13 @@ describe("web/http/auth", () => {
         });
 
         it("demotes an admin whose role was removed from the config", async () => {
-            getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
+            getConfig.mockImplementation(() => onServer({ adminRoleIds: ["role-1"] }));
             const fetch = jest.fn().mockResolvedValue(memberWithRoles("role-1"));
             discord.setClient(fakeClient(fetch).client);
             const { req } = await loginAs("560");
             expect(auth.getUser(req).isAdmin).toBe(true);
 
-            getConfig.mockImplementation(() => ({ adminRoleIds: [] }));
+            getConfig.mockImplementation(() => onServer({ adminRoleIds: [] }));
             now += FIVE_MIN + 1000;
             auth.getUser(req);
             await flush();
@@ -363,17 +379,20 @@ describe("web/http/auth", () => {
         afterEach(() => {
             nowSpy.mockRestore();
             discord.setClient(null);
-            getConfig.mockImplementation(() => ({ adminRoleIds: [] }));
+            getConfig.mockImplementation(() => onServer({ adminRoleIds: [] }));
         });
 
+        // the rights of guild-1, the server these tests work on (#925)
         async function loginAs(id) {
             axios.get.mockResolvedValue({ data: { id, username: `user-${id}` } });
             const sid = await auth.completeLogin(`code-${id}`);
-            return { sid, req: { headers: { cookie: `sid=${sid}` } } };
+            const req = { headers: { cookie: `sid=${sid}` } };
+            auth.setActiveGuild(req, "guild-1");
+            return { sid, req };
         }
 
         it("resolves the union of the member's role permissions, without admin", async () => {
-            getConfig.mockImplementation(() => ({
+            getConfig.mockImplementation(() => onServer({
                 adminRoleIds: [],
                 rolePermissions: {
                     "role-a": { raids: { read: true, write: false }, cla: { read: true, write: false } },
@@ -392,7 +411,7 @@ describe("web/http/auth", () => {
         });
 
         it("gives a full admin every area regardless of role permissions", async () => {
-            getConfig.mockImplementation(() => ({
+            getConfig.mockImplementation(() => onServer({
                 adminRoleIds: ["role-admin"],
                 rolePermissions: { "role-a": { raids: { read: true, write: false } } },
             }));
@@ -406,7 +425,7 @@ describe("web/http/auth", () => {
         });
 
         it("grants nothing when the member holds no configured role", async () => {
-            getConfig.mockImplementation(() => ({
+            getConfig.mockImplementation(() => onServer({
                 adminRoleIds: [],
                 rolePermissions: { "role-a": { raids: { read: true, write: false } } },
             }));
@@ -420,7 +439,7 @@ describe("web/http/auth", () => {
         });
 
         it("skips the Discord lookup entirely when nothing is configured", async () => {
-            getConfig.mockImplementation(() => ({ adminRoleIds: [], rolePermissions: {} }));
+            getConfig.mockImplementation(() => onServer({ adminRoleIds: [], rolePermissions: {} }));
             const fetch = jest.fn();
             discord.setClient(fakeClient(fetch).client);
 
@@ -435,7 +454,7 @@ describe("web/http/auth", () => {
         // of the guild" and a lookup that fails outright.
         describe("base access", () => {
             it("grants it without any role and unions the role grants on top", async () => {
-                getConfig.mockImplementation(() => ({
+                getConfig.mockImplementation(() => onServer({
                     adminRoleIds: [],
                     baseAccess: { loot: { read: true, write: false } },
                     rolePermissions: { "role-a": { raids: { read: true, write: true } } },
@@ -452,7 +471,7 @@ describe("web/http/auth", () => {
             });
 
             it("still applies when nothing else is configured — without a Discord lookup", async () => {
-                getConfig.mockImplementation(() => ({
+                getConfig.mockImplementation(() => onServer({
                     adminRoleIds: [], rolePermissions: {}, baseAccess: { loot: { read: true, write: false } },
                 }));
                 const fetch = jest.fn();
@@ -465,7 +484,7 @@ describe("web/http/auth", () => {
             });
 
             it("applies to someone who is not a member of the guild", async () => {
-                getConfig.mockImplementation(() => ({
+                getConfig.mockImplementation(() => onServer({
                     adminRoleIds: ["role-admin"],
                     baseAccess: { loot: { read: true, write: false } },
                 }));
@@ -479,7 +498,7 @@ describe("web/http/auth", () => {
             });
 
             it("falls back to it when the role lookup fails outright", async () => {
-                getConfig.mockImplementation(() => ({
+                getConfig.mockImplementation(() => onServer({
                     adminRoleIds: ["role-admin"],
                     baseAccess: { loot: { read: true, write: false } },
                 }));
@@ -493,7 +512,7 @@ describe("web/http/auth", () => {
             });
 
             it("leaves an unconfigured base access closed", async () => {
-                getConfig.mockImplementation(() => ({ adminRoleIds: [], rolePermissions: {} }));
+                getConfig.mockImplementation(() => onServer({ adminRoleIds: [], rolePermissions: {} }));
                 const { req } = await loginAs("610");
                 expect(auth.getUser(req).access.loot).toEqual({ read: false, write: false });
             });
@@ -503,7 +522,7 @@ describe("web/http/auth", () => {
         // go to people rather than to a group (the loot council). Sits next to
         // the base access and is likewise independent of Discord.
         describe("per-account grants", () => {
-            const councilFor = (id) => ({
+            const councilFor = (id) => onServer({
                 adminRoleIds: [], rolePermissions: {}, baseAccess: {},
                 userPermissions: { [id]: { lootcouncil: { read: true, write: true } } },
             });
@@ -549,7 +568,7 @@ describe("web/http/auth", () => {
 
             // The Kaderplaner is handed to named people only (docs/kaderplaner.md).
             it("opens the Kaderplaner to exactly the named account", async () => {
-                getConfig.mockImplementation(() => ({
+                getConfig.mockImplementation(() => onServer({
                     adminRoleIds: [], rolePermissions: {}, baseAccess: { loot: { read: true } },
                     userPermissions: { "617": { kader: { read: true, write: true } } },
                 }));
@@ -560,7 +579,7 @@ describe("web/http/auth", () => {
             });
 
             it("unions with the role grants instead of replacing them", async () => {
-                getConfig.mockImplementation(() => ({
+                getConfig.mockImplementation(() => onServer({
                     adminRoleIds: [],
                     userPermissions: { "616": { lootcouncil: { read: true, write: false } } },
                     rolePermissions: { "role-a": { raids: { read: true, write: true } } },
@@ -576,11 +595,11 @@ describe("web/http/auth", () => {
         });
 
         it("picks up permissions added after login once the cache expires", async () => {
-            getConfig.mockImplementation(() => ({ adminRoleIds: [], rolePermissions: {} }));
+            getConfig.mockImplementation(() => onServer({ adminRoleIds: [], rolePermissions: {} }));
             const { req } = await loginAs("605");
             expect(auth.getUser(req).access.history).toEqual({ read: false, write: false });
 
-            getConfig.mockImplementation(() => ({
+            getConfig.mockImplementation(() => onServer({
                 adminRoleIds: [],
                 rolePermissions: { "role-a": { history: { read: true, write: true } } },
             }));
@@ -609,7 +628,7 @@ describe("web/http/auth", () => {
         afterEach(() => {
             nowSpy.mockRestore();
             discord.setClient(null);
-            getConfig.mockImplementation(() => ({ adminRoleIds: [] }));
+            getConfig.mockImplementation(() => onServer({ adminRoleIds: [] }));
             guildRoles.eventGuildIds.mockReturnValue(["guild-1"]);
         });
 
@@ -620,7 +639,7 @@ describe("web/http/auth", () => {
         }
 
         it("grants access via a role on a secondary event server when not even a member of the first", async () => {
-            getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
+            getConfig.mockImplementation(() => onServer({ adminRoleIds: ["role-1"] }));
             discord.setClient(fakeMultiGuildClient({
                 "guild-1": jest.fn().mockRejectedValue(NOT_A_MEMBER),
                 "guild-2": jest.fn().mockResolvedValue(memberWithRoles("role-1")),
@@ -629,27 +648,65 @@ describe("web/http/auth", () => {
             expect(auth.getUser(req).isAdmin).toBe(true);
         });
 
-        it("unions role permissions across every event server the member belongs to", async () => {
-            getConfig.mockImplementation(() => ({
-                adminRoleIds: [],
-                rolePermissions: {
-                    "role-a": { raids: { read: true, write: false } },
-                    "role-b": { cla: { read: true, write: true } },
-                },
-            }));
+        // #925: the rights of a server hold on that server only; the union over
+        // every server is allAccess (pages under "All servers"), never access.
+        it("keeps the rights of each server apart and unions them only in allAccess", async () => {
+            const RIGHTS = {
+                "role-a": { raids: { read: true, write: false } },
+                "role-b": { cla: { read: true, write: true } },
+            };
+            getConfig.mockImplementation(() => ({ adminRoleIds: [], serverSettings: { "guild-1": { rolePermissions: RIGHTS }, "guild-2": { rolePermissions: RIGHTS } } }));
             discord.setClient(fakeMultiGuildClient({
                 "guild-1": jest.fn().mockResolvedValue(memberWithRoles("role-a")),
                 "guild-2": jest.fn().mockResolvedValue(memberWithRoles("role-b")),
             }));
             const { req } = await loginAs("702");
+            // on guild-1: only what role-a gives there
+            auth.setActiveGuild(req, "guild-1");
             const user = auth.getUser(req);
             expect(user.isAdmin).toBe(false);
             expect(user.access.raids).toEqual({ read: true, write: false });
-            expect(user.access.cla).toEqual({ read: true, write: true });
+            expect(user.access.cla).toEqual({ read: false, write: false });
+            expect(user.allAccess.raids).toEqual({ read: true, write: false });
+            expect(user.allAccess.cla).toEqual({ read: true, write: true });
+            // on guild-2 it is the other way round
+            auth.setActiveGuild(req, "guild-2");
+            const there = auth.getUser(req);
+            expect(there.access.cla).toEqual({ read: true, write: true });
+            expect(there.access.raids).toEqual({ read: false, write: false });
+        });
+
+        it("an orga role of guild-2 opens nothing on guild-1, a full admin role of guild-1 opens guild-2 too", async () => {
+            getConfig.mockImplementation(() => ({
+                adminRoleIds: ["role-admin"],
+                serverSettings: { "guild-2": { rolePermissions: { "role-orga": { raids: { read: true, write: true } } }, orgaRoleIds: ["role-orga"] } },
+            }));
+            discord.setClient(fakeMultiGuildClient({
+                "guild-1": jest.fn().mockResolvedValue(memberWithRoles()),
+                "guild-2": jest.fn().mockResolvedValue(memberWithRoles("role-orga")),
+            }));
+            const orga = await loginAs("705");
+            auth.setActiveGuild(orga.req, "guild-1");
+            const onA = auth.getUser(orga.req);
+            expect(onA.isAdmin).toBe(false);
+            expect(onA.isOrga).toBeFalsy();
+            expect(onA.access.raids).toEqual({ read: false, write: false });
+            auth.setActiveGuild(orga.req, "guild-2");
+            expect(auth.getUser(orga.req)).toMatchObject({ isOrga: true, access: { raids: { read: true, write: true } } });
+
+            discord.setClient(fakeMultiGuildClient({
+                "guild-1": jest.fn().mockResolvedValue(memberWithRoles("role-admin")),
+                "guild-2": jest.fn().mockRejectedValue(NOT_A_MEMBER),
+            }));
+            const admin = await loginAs("706");
+            auth.setActiveGuild(admin.req, "guild-2");
+            const onB = auth.getUser(admin.req);
+            expect(onB.isAdmin).toBe(true);
+            expect(onB.access.settings).toEqual({ read: true, write: true });
         });
 
         it("keeps only the base access without a throw when a member of no configured event server", async () => {
-            getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
+            getConfig.mockImplementation(() => onServer({ adminRoleIds: ["role-1"] }));
             discord.setClient(fakeMultiGuildClient({
                 "guild-1": jest.fn().mockRejectedValue(NOT_A_MEMBER),
                 "guild-2": jest.fn().mockRejectedValue(NOT_A_MEMBER),
@@ -659,7 +716,7 @@ describe("web/http/auth", () => {
         });
 
         it("falls back to base access, not a crash, when no configured event server can be reached at all", async () => {
-            getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
+            getConfig.mockImplementation(() => onServer({ adminRoleIds: ["role-1"] }));
             discord.setClient(fakeMultiGuildClient({ "guild-1": "offline", "guild-2": "offline" }));
             const { req } = await loginAs("704");
             // resolveAccess() swallows the "no guild reachable" throw at login time,
