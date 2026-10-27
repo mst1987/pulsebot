@@ -1,6 +1,7 @@
 // The server head at the top of the sidebar (#918, design A "Discord-Kopf"):
 // which server the menu below belongs to, and the switch to the others.
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { SessionGuild } from "../../api";
@@ -103,6 +104,69 @@ describe("ServerHeader", () => {
         expect(await screen.findByText("Kein Zugriff")).toBeInTheDocument();
         expect(reload).not.toHaveBeenCalled();
         expect(headButton()).not.toBeDisabled();
+    });
+
+    describe("keyboard (listbox pattern)", () => {
+        const option = (name: string) => within(screen.getByRole("listbox")).getByRole("option", { name: new RegExp(name) });
+        const key = (k: string) => fireEvent.keyDown(document.activeElement!, { key: k });
+
+        it("puts the focus on the active server when the list opens", () => {
+            renderPage(<ServerHeader guilds={GUILDS} activeGuildId="g2" />);
+            fireEvent.click(headButton());
+            expect(option("Pulse PuGs")).toHaveFocus();
+        });
+
+        it("puts the focus on the first server when none is active yet", () => {
+            renderPage(<ServerHeader guilds={GUILDS} activeGuildId="" />);
+            fireEvent.click(headButton());
+            expect(option("Pulse Raids")).toHaveFocus();
+        });
+
+        it("moves with the arrows, stops at both ends, and jumps with Home and End", () => {
+            renderPage(<ServerHeader guilds={GUILDS} activeGuildId="g1" />);
+            fireEvent.click(headButton());
+            key("ArrowDown");
+            expect(option("Pulse PuGs")).toHaveFocus();
+            key("ArrowDown");
+            key("ArrowDown");
+            expect(option("Pulse Forever")).toHaveFocus();
+            key("ArrowUp");
+            expect(option("Pulse PuGs")).toHaveFocus();
+            key("Home");
+            expect(option("Pulse Raids")).toHaveFocus();
+            key("ArrowUp");
+            expect(option("Pulse Raids")).toHaveFocus();
+            key("End");
+            expect(option("Pulse Forever")).toHaveFocus();
+        });
+
+        it("opens the closed list with arrow down on the head", () => {
+            renderPage(<ServerHeader guilds={GUILDS} activeGuildId="g3" />);
+            headButton().focus();
+            key("ArrowDown");
+            expect(option("Pulse Forever")).toHaveFocus();
+        });
+
+        it.each([["Enter", "{Enter}"], ["Space", " "]])("picks the focused server with %s", async (_name, keys) => {
+            vi.mocked(api.switchGuild).mockResolvedValue({ activeGuildId: "g3" });
+            const user = userEvent.setup();
+            renderPage(<ServerHeader guilds={GUILDS} activeGuildId="g1" />);
+            await user.click(headButton());
+            await user.keyboard("{End}");
+            expect(option("Pulse Forever")).toHaveFocus();
+            await user.keyboard(keys);
+            await waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+            expect(api.switchGuild).toHaveBeenCalledWith("g3");
+        });
+
+        it("closes on Escape and hands the focus back to the head", () => {
+            renderPage(<ServerHeader guilds={GUILDS} activeGuildId="g1" />);
+            fireEvent.click(headButton());
+            key("ArrowDown");
+            key("Escape");
+            expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+            expect(headButton()).toHaveFocus();
+        });
     });
 
     it("asks to choose a server when none is active yet", () => {

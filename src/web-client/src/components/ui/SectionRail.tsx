@@ -12,7 +12,7 @@ import { useT } from "../../i18n";
 // Einstellungen its settings sections, Raid-Events its raid plan pages.
 //
 //   * one 44 px button per section with the section's WoW icon, groups apart
-//     by a thin line; the name is the tooltip (the shell's data-tip layer, to
+//     by a thin line and their small heading (#918); the name is the tooltip (the shell's data-tip layer, to
 //     the right of the rail) and the accessible name;
 //   * a count on the icon's corner for what is open there ("1 Verbindung
 //     fehlt"); the count's sentence is in the tooltip and the accessible name too;
@@ -26,8 +26,12 @@ import { useT } from "../../i18n";
 export type NavBadge = { count: number; tone?: Tone; tip?: string };
 /** One section: a button that reports `onSelect`, or a link when it has an `href`. */
 export type RailItem = { id: string; label: string; icon?: string; badge?: NavBadge | null; href?: string };
-/** A run of sections; `group` is the heading the chip row prints above it. */
-export type RailGroup = { group?: string; items: RailItem[] };
+/**
+ * A run of sections; `group` is the small heading above it (rail and chip row,
+ * #918). `sub` names what the group belongs to ("Eventdiscord Test"): written
+ * after the heading on the chip row, the heading's tooltip in the narrow rail.
+ */
+export type RailGroup = { group?: string; sub?: string; items: RailItem[] };
 
 export default function SectionRail({ groups, active, onSelect, ariaLabel, area }: {
     groups: RailGroup[];
@@ -40,14 +44,28 @@ export default function SectionRail({ groups, active, onSelect, ariaLabel, area 
     return (
         <nav className={`srail${area ? ` area-${area}` : ""}`} aria-label={ariaLabel}>
             <div className="srail-list">
-                {groups.map(({ group, items }, i) => (
+                {groups.map(({ group, sub, items }, i) => (
                     <div className="srail-group" key={group || i}>
-                        {group && <div className="srail-label">{group}</div>}
+                        {group && <GroupLabel group={group} sub={sub} />}
                         {items.map((item) => <RailButton key={item.id} item={item} on={item.id === active} onSelect={onSelect} />)}
                     </div>
                 ))}
             </div>
         </nav>
+    );
+}
+
+/**
+ * A group's heading: a small label, in the rail too (#918). Its `sub` is
+ * written out on the chip row; the rail is too narrow for it, so there the
+ * heading's tooltip carries it (the tip stays away while the sub is shown).
+ */
+function GroupLabel({ group, sub }: { group: string; sub?: string }) {
+    if (!sub) return <div className="srail-label">{group}</div>;
+    return (
+        <div className="srail-label" data-tip={`${group} · ${sub}`} data-tip-side="right" data-tip-repeats="">
+            {group}<span className="srail-label-sub" data-tip-label=""> · {sub}</span>
+        </div>
     );
 }
 

@@ -62,7 +62,7 @@
     "page": {
         "loadError": "Could not load the settings: {message}",
         "loading": "Loading settings",
-        "kicker": "System · applies without a bot restart",
+        "kicker": "System · per server and for all servers",
         "infoSub": "All values are stored in the database and apply without a bot restart.\nYou get IDs in Discord with a right-click → \"Copy ID\" (developer mode).",
         "navAria": "Settings sections",
         "permView": {

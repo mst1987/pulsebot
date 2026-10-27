@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { switchGuild, type ApiError, type SessionGuild } from "../../api";
 import { useDismiss } from "../../hooks/useDismiss";
 import { useToast } from "./Jobs";
@@ -9,6 +9,11 @@ import { t, useT } from "../../i18n";
 
 // The guild crest in front of the server's name.
 const GUILD_ICON = "inv_misc_tabardpvp_01";
+
+/** The list's options in order (the buttons carrying role="option"). */
+function options(list: HTMLElement): HTMLElement[] {
+    return Array.from(list.querySelectorAll<HTMLElement>("[role='option']"));
+}
 
 /**
  * The server head at the top of the sidebar (#918, design A "Discord-Kopf"):
@@ -31,10 +36,28 @@ export default function ServerHeader({ guilds, activeGuildId }: {
     const [busy, setBusy] = useState(false);
     const toast = useToast();
     const box = useRef<HTMLDivElement>(null);
+    const head = useRef<HTMLButtonElement>(null);
+    const list = useRef<HTMLUListElement>(null);
     useT();
 
+    // Closing while the focus is in the list hands it back to the head button,
+    // so the keyboard does not land on the page's start.
+    const close = () => {
+        const inList = !!list.current && list.current.contains(document.activeElement);
+        setOpen(false);
+        if (inList) head.current?.focus();
+    };
+
     // Escape and a click beside the list close it, as with every popover here.
-    useDismiss(box, open, () => setOpen(false));
+    useDismiss(box, open, close);
+
+    // The listbox pattern: opening puts the focus on the active server (the
+    // first one when none is active yet), so the arrows start from there.
+    useEffect(() => {
+        if (!open || !list.current) return;
+        const opts = options(list.current);
+        (opts.find((o) => o.getAttribute("aria-selected") === "true") || opts[0])?.focus();
+    }, [open]);
 
     if (!guilds.length) {
         return (
@@ -78,11 +101,35 @@ export default function ServerHeader({ guilds, activeGuildId }: {
         }
     };
 
+    // Up and down move through the servers, Home and End jump to the first and
+    // the last; Enter and Space pick the focused one (the option is a button).
+    const onListKey = (e: KeyboardEvent<HTMLUListElement>) => {
+        const opts = options(e.currentTarget);
+        if (!opts.length) return;
+        const at = opts.indexOf(document.activeElement as HTMLElement);
+        const next = e.key === "ArrowDown" ? Math.min(at + 1, opts.length - 1)
+            : e.key === "ArrowUp" ? Math.max(at - 1, 0)
+                : e.key === "Home" ? 0
+                    : e.key === "End" ? opts.length - 1
+                        : -1;
+        if (next < 0) return;
+        e.preventDefault();
+        opts[next].focus();
+    };
+
+    // Arrow down or up on the closed head opens the list, as on a select.
+    const onHeadKey = (e: KeyboardEvent<HTMLButtonElement>) => {
+        if (open || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) return;
+        e.preventDefault();
+        setOpen(true);
+    };
+
     const sub = [active && active.label, t("shell.guild.switch")].filter(Boolean).join(" · ");
 
     return (
         <div className="srv-head" ref={box}>
             <button
+                ref={head}
                 type="button"
                 className="srv-head-btn"
                 aria-haspopup="listbox"
@@ -90,6 +137,7 @@ export default function ServerHeader({ guilds, activeGuildId }: {
                 aria-label={t("shell.guild.choose")}
                 disabled={busy}
                 onClick={() => setOpen((o) => !o)}
+                onKeyDown={onHeadKey}
             >
                 <WowIcon name={GUILD_ICON} size={24} />
                 <span className="srv-head-text">
@@ -104,12 +152,15 @@ export default function ServerHeader({ guilds, activeGuildId }: {
                 </Badge>
             )}
             {open && (
-                <ul className="srv-list" role="listbox" aria-label={t("shell.guild.choose")}>
+                <ul ref={list} className="srv-list" role="listbox" aria-label={t("shell.guild.choose")} onKeyDown={onListKey}>
                     {guilds.map((g) => {
                         const on = g.id === activeGuildId;
                         return (
-                            <li key={g.id} role="option" aria-selected={on}>
-                                <button type="button" className={on ? "srv-opt is-on" : "srv-opt"} onClick={() => void pick(g.id)}>
+                            <li key={g.id} role="none">
+                                <button
+                                    type="button" role="option" aria-selected={on} tabIndex={-1}
+                                    className={on ? "srv-opt is-on" : "srv-opt"} onClick={() => void pick(g.id)}
+                                >
                                     <span className="srv-head-text">
                                         <span className="srv-head-name">{g.name}</span>
                                         {g.label && <span className="srv-head-sub">{g.label}</span>}
