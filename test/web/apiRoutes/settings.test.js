@@ -569,6 +569,51 @@ describe("web/apiRoutes/settings", () => {
                     }
                 });
 
+                it("counts the managers the new roster takes over only from a closed old roster (#930)", async () => {
+                    const rosterStore = require("../../../src/stores/rosterStore");
+                    const PUG = "500000000000000009";
+                    settingsStore.getConfig.mockReturnValue({ ...BEFORE, pugRoles: { g1: { versions: { tbc: PUG }, classes: {} } } });
+                    const body = { categoryVersion: { cat1: "forever" }, categorySwitchFixes: { cat1: { roster: { create: true, roleIds: [] } } } };
+                    const managed = () => rosterStore.createRoster({ guildId: "g1", name: "Montag", categoryId: "cat1", versionId: "tbc", managers: { userIds: [], roleIds: [PUG] } });
+                    try {
+                        // open old roster: the manager role is an old entry, the switch passes
+                        rosterStore.useFile(tempStoreFile("switch-managers-open.json"));
+                        managed();
+                        expect((await patch("/api/settings", body)).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                        // closed old roster: the new one would bring the manager role back to life
+                        rosterStore.useFile(tempStoreFile("switch-managers-closed.json"));
+                        rosterStore.closeRoster(managed().id, { reason: "manual" });
+                        settingsStore.saveConfig.mockClear();
+                        const res = await patch("/api/settings", body);
+                        expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                        expect(json(res).error).toMatchObject({ code: "pug_onboarding_role", message: expect.stringContaining("Roster Montag (Manager)") });
+                        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                    } finally {
+                        rosterStore.useFile(null);
+                    }
+                });
+
+                it("names the way out when switching back would reopen a roster with a PuG role (#930)", async () => {
+                    const rosterStore = require("../../../src/stores/rosterStore");
+                    const PUG = "500000000000000009";
+                    rosterStore.useFile(tempStoreFile("switch-back-pug.json"));
+                    settingsStore.getConfig.mockReturnValue({ ...BEFORE, pugRoles: { g1: { versions: { tbc: PUG }, classes: {} } } });
+                    try {
+                        // the Forever roster a former switch closed, its role became an onboarding role since
+                        const back = rosterStore.createRoster({ guildId: "g1", name: "Forever Montag", categoryId: "cat1", versionId: "forever", roleIds: [PUG] });
+                        rosterStore.closeRoster(back.id, { reason: "version_switch" });
+                        const res = await patch("/api/settings", { categoryVersion: { cat1: "forever" } });
+                        expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                        const { message } = json(res).error;
+                        expect(message).toContain("Roster Forever Montag (Mitglied)");
+                        expect(message).toContain("abgeschlossenen Roster „Forever Montag“");
+                        expect(message).toContain("das Roster löschen (Voll-Admin)");
+                        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                    } finally {
+                        rosterStore.useFile(null);
+                    }
+                });
+
                 it("previews a switch for the dialog", async () => {
                     settingsStore.listRaidTemplates.mockReturnValue([{ id: "t-fe", name: "Onyxia", versionId: "forever" }, { id: "t-tbc", name: "Kara", versionId: "tbc" }]);
                     const res = await get("/api/settings/category-switch", { categoryId: "cat1", versionId: "forever" });

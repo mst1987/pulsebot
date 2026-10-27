@@ -155,6 +155,21 @@ describe("pugRoleGuard texts", () => {
         expect(text).toContain("Bereichsrecht roster (lesen)");
         expect(text).toContain("Bereichsrecht roster (schreiben)");
         expect(text).toContain("Roster Kara (Manager)");
+        expect(text).not.toContain("Ausweg");
+    });
+
+    it("names the way out when the right comes from a roster a switch back reopens", () => {
+        const viaRoster = guard.newGrants({ before: pug(), after: pug(), rostersBefore: [], rostersAfter: [roster({ roleIds: [VERSION_ROLE] })] });
+        const reopened = [{ id: "ro1", name: "Kara", categoryId: "c1" }];
+        const text = guard.refusalMessage(viaRoster, { reopened });
+        expect(text).toContain("abgeschlossenen Roster „Kara“");
+        expect(text).toContain("das Roster löschen (Voll-Admin)");
+        expect(text).toContain("andere Onboarding-Rolle");
+        // the mirrored raider role of the reopened roster's category counts too
+        const viaCategory = guard.newGrants({ before: pug(), after: pug({ categoryRoles: { c1: [VERSION_ROLE] } }), rostersBefore: [], rostersAfter: [] });
+        expect(guard.refusalMessage(viaCategory, { reopened })).toContain("Ausweg");
+        // another roster reopened: no way out named
+        expect(guard.refusalMessage(viaRoster, { reopened: [{ id: "ro2", name: "Gruul", categoryId: "c2" }] })).not.toContain("Ausweg");
     });
 
     it("words every right", () => {

@@ -76,7 +76,7 @@ function keysOf(use) {
         case "categoryRaider": return use.categoryIds.map((c) => ({ key: `categoryRaider:${c}`, code: use.code, detail: c }));
         // one key per pair: a second partner role is a new right
         case "roleSync": return (use.pairs || []).map((p) => ({ key: `roleSync:${p.guildId}:${p.roleId}`, code: use.code, detail: p.guildId, partnerRoleId: p.roleId }));
-        case "roster": return use.kinds.map((k) => ({ key: `roster:${use.rosterId}:${k}`, code: use.code, detail: use.name || use.rosterId, kind: k }));
+        case "roster": return use.kinds.map((k) => ({ key: `roster:${use.rosterId}:${k}`, code: use.code, detail: use.name || use.rosterId, kind: k, rosterId: use.rosterId }));
         default: return [{ key: use.code, code: use.code, detail: "" }];
     }
 }
@@ -133,10 +133,20 @@ function newGrants({ before = {}, after = {}, rostersBefore, rostersAfter } = {}
     return out;
 }
 
-/** The refusal text of `newGrants`' findings (German, like every settings error). */
-function refusalMessage(found) {
+/**
+ * The refusal text of `newGrants`' findings (German, like every settings error).
+ * `reopened`: the rosters a switch back would open again (rosterVersionSwitch.rostersAfterSwitches).
+ * A closed roster cannot be edited, so when the right comes from one the text names the ways out.
+ */
+function refusalMessage(found, { reopened = [] } = {}) {
     const parts = (found || []).map((f) => `„${f.label}“ (${KIND_TEXT[f.kind] || f.kind}): ${f.grants.map(grantText).join(", ")}`);
-    return `Rollen aus dem PuG-Onboarding holt sich jeder selbst – sie dürfen nichts freischalten. Betroffen: ${parts.join("; ")}.`;
+    const text = `Rollen aus dem PuG-Onboarding holt sich jeder selbst – sie dürfen nichts freischalten. Betroffen: ${parts.join("; ")}.`;
+    const grants = (found || []).flatMap((f) => f.grants || []);
+    const from = (reopened || []).filter((r) => grants.some((g) => (g.code === "roster" && g.rosterId === r.id) || (g.code === "categoryRaider" && g.detail === r.categoryId)));
+    if (!from.length) return text;
+    const names = from.map((r) => `„${r.name || r.id}“`).join(", ");
+    return `${text} Die Rolle steckt im abgeschlossenen Roster ${names}, das der Wechsel wieder öffnen würde, und ein abgeschlossenes Roster lässt sich nicht bearbeiten. `
+        + "Ausweg: das Roster löschen (Voll-Admin) oder in den PuG-Einstellungen eine andere Onboarding-Rolle wählen.";
 }
 
 /**

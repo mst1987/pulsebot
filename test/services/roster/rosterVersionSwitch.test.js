@@ -153,15 +153,28 @@ describe("services/roster/rosterVersionSwitch rostersAfterSwitches (#930)", () =
         expect(rostersAfterSwitches([SW], { c1: { roster: { create: false } } })).toMatchObject({ categoryRoles: { c1: [] } });
     });
 
+    it("the manager roles carried into the new roster count only from a closed old roster", () => {
+        const M = "500000000000000007";
+        const old = tbcRoster();
+        rosterStore.updateRoster(old.id, { managers: { userIds: [U3], roleIds: [M] } });
+        // open old roster: its managers are no new right, the guard knows them under the old id
+        expect(rostersAfterSwitches([SW]).rosters.find((r) => r.id === "").managers).toEqual({ userIds: [U3], roleIds: [] });
+        // closed old roster (not by a switch): createFrom brings its manager role back to life
+        rosterStore.closeRoster(old.id, { reason: "manual", now: NOW });
+        expect(rostersAfterSwitches([SW]).rosters.find((r) => r.id === "").managers).toEqual({ userIds: [U3], roleIds: [M] });
+    });
+
     it("switching back reopens the roster a switch closed; no roster, no switch: nothing", () => {
         const old = tbcRoster();
         applyRosterSwitch(SW, { now: NOW });
         const sim = rostersAfterSwitches([{ ...SW, fromVersion: "forever", toVersion: "tbc" }]);
         expect(sim.rosters.find((r) => r.id === old.id).closedAt).toBeNull();
         expect(sim.categoryRoles).toEqual({ c1: ["500000000000000001"] });
+        expect(sim.reopened).toEqual([{ id: old.id, name: "Montag", categoryId: "c1" }]);
+        expect(rostersAfterSwitches([SW]).reopened).toEqual([]);
         fs.__store.clear();
         expect(rostersAfterSwitches([SW]).categoryRoles).toEqual({});
-        expect(rostersAfterSwitches(null)).toEqual({ rosters: [], categoryRoles: {} });
+        expect(rostersAfterSwitches(null)).toEqual({ rosters: [], categoryRoles: {}, reopened: [] });
         expect(rostersAfterSwitches([{ ...SW, toVersion: "tbc" }]).categoryRoles).toEqual({});
     });
 });
