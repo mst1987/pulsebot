@@ -54,12 +54,15 @@ export function isWebLink(url: string): boolean {
 /**
  * A template the server accepts: http(s), with a {char} placeholder; {region}
  * and {realm} may stand in for the block's own fields (#553). "" counts as
- * fine (= no link).
+ * fine (= no link). At most TEMPLATE_MAX characters, as on the server
+ * (src/stores/versionSettingsSchema.js), which drops a longer one.
  */
+export const TEMPLATE_MAX = 300;
+
 export function templateOk(tpl: string): boolean {
     const text = tpl.trim();
     if (!text) return true;
-    return text.includes("{char}") && isWebLink(text.replace(/\{(char|region|realm)\}/g, "x"));
+    return text.length <= TEMPLATE_MAX && text.includes("{char}") && isWebLink(text.replace(/\{(char|region|realm)\}/g, "x"));
 }
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,59}$/;
@@ -189,6 +192,24 @@ export function effectiveBlock(block: VersionSettingsBlock, override?: VersionOv
         if (own[f] && !bad.has(f)) out[f] = f === "blizzardRealmSlug" ? own[f]!.toLowerCase() : own[f]!;
     }
     return out;
+}
+
+/**
+ * The fields whose switch is on but whose value is empty: saving would quietly
+ * give the standard back, so the form asks for a value or the switch off.
+ */
+export function emptyOwnFields(override: VersionOverride | undefined): VersionOverrideField[] {
+    return VERSION_OVERRIDE_FIELDS.filter((f) => override && override[f] !== undefined && !String(override[f]).trim());
+}
+
+/**
+ * Whether a server's own realm/region reaches its links: only through a
+ * {realm}/{region} placeholder in the template it really uses. (The armory
+ * lookup takes them regardless.)
+ */
+export function placeInLinks(block: VersionSettingsBlock, field: "blizzardRegion" | "blizzardRealmSlug"): boolean {
+    const mark = field === "blizzardRegion" ? "{region}" : "{realm}";
+    return block.armoryUrlTemplate.includes(mark) || block.wclUrlTemplate.includes(mark);
 }
 
 /** What to send for one server: every version with at least one own value. */

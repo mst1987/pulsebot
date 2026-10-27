@@ -1496,6 +1496,12 @@
     "serverVersionLinks": {
         "sub": "Eigene Armory- und Warcraft-Logs-Links und ein eigener Realm je Spielversion, nur für diesen Server. Ohne eigenen Wert gilt der Standard aus Alle Server › Spielversion. Wowhead, Softres, Raidsheet und Farbe bleiben für alle Server gleich.",
         "hint": "Gilt nur für {server} und {version}. Aus = Standard aller Server.",
-        "saved": "Links und Realm für {server} gespeichert."
+        "saved": "Links und Realm für {server} gespeichert.",
+        "empty": "Eigener Wert ist an, aber leer. Wert eintragen oder Schalter ausschalten.",
+        "emptyBlocked": "Speichern geht erst, wenn jeder eingeschaltete Wert gefüllt ist.",
+        "placeHint": {
+            "blizzardRealmSlug": "In den Links wirkt der Realm nur, wenn die Vorlage {realm} enthält. Die Armory-Abfrage nutzt ihn immer.",
+            "blizzardRegion": "In den Links wirkt die Region nur, wenn die Vorlage {region} enthält. Die Armory-Abfrage nutzt sie immer."
+        }
     }
 }

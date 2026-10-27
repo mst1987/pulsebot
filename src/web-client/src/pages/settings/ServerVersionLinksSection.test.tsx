@@ -110,11 +110,76 @@ describe("ServerVersionLinksSection (#923)", () => {
         expect(screen.getByText("keine Armory")).toBeInTheDocument();
     });
 
+    it("asks for a value when a switch is on and the field empty, and does not save", async () => {
+        const user = userEvent.setup();
+        show();
+        await user.click(switchOf(/realm/));
+        const input = screen.getByRole("textbox", { name: "Realm" });
+        await user.clear(input);
+        expect(screen.getByText(/Eigener Wert ist an, aber leer/)).toBeInTheDocument();
+        expect(input).toHaveAttribute("aria-invalid", "true");
+        expect(screen.getByText(/Speichern geht erst/)).toBeInTheDocument();
+        expect(saveButton()).toBeDisabled();
+        await user.type(input, "spineshatter");
+        expect(screen.queryByText(/Eigener Wert ist an, aber leer/)).not.toBeInTheDocument();
+        expect(saveButton()).toBeEnabled();
+    });
+
+    it("offers no \"none\" region while the switch is on and starts with the standard region", async () => {
+        const user = userEvent.setup();
+        show();
+        await user.click(switchOf(/region/));
+        const select = screen.getByRole("combobox", { name: "Region" });
+        expect(select).toHaveValue("eu");
+        expect(within(select).getAllByRole("option").map((o) => o.textContent)).toEqual(["EU", "US", "KR", "TW"]);
+        await user.click(screen.getByRole("radio", { name: "Forever" }));
+        await user.click(switchOf(/region/));
+        // no standard region for Forever: the first one, never an empty "own" region
+        expect(screen.getByRole("combobox", { name: "Region" })).toHaveValue("eu");
+    });
+
+    it("takes the server's answer as the new saved state", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.saveVersionOverrides).mockResolvedValueOnce(
+            { config: { serverSettings: { [G1]: { versionOverrides: { tbc: { blizzardRealmSlug: "spineshatter" } } } } } as api.AdminConfig });
+        show();
+        await user.click(switchOf(/realm/));
+        const input = screen.getByRole("textbox", { name: "Realm" });
+        await user.clear(input);
+        await user.type(input, "Spineshatter");
+        await user.click(saveButton());
+        // the server keeps the slug lower-case; the form shows what the server kept
+        await waitFor(() => expect(screen.getByRole("textbox", { name: "Realm" })).toHaveValue("spineshatter"));
+    });
+
+    it("says when an own realm does not reach the links (no {realm} in the template)", async () => {
+        const user = userEvent.setup();
+        show({ tbc: { blizzardRealmSlug: "spineshatter" } });
+        // the standard armory template has {realm}: no hint
+        expect(screen.queryByText(/wirkt der Realm nur/)).not.toBeInTheDocument();
+        await user.click(switchOf(/armory/));
+        const input = screen.getByRole("textbox", { name: "Armory-Link" });
+        await user.clear(input);
+        await user.type(input, "https://own.test/{{char}");
+        expect(screen.getByText(/In den Links wirkt der Realm nur, wenn die Vorlage \{realm\} enth/)).toBeInTheDocument();
+    });
+
     it("speaks English", async () => {
         await inLang("en", () => {
             show();
             expect(screen.getByText(/Only for Pulse Raids and TBC Anniversary/)).toBeInTheDocument();
             expect(screen.getAllByRole("switch", { name: /Pulse Raids/ })).toHaveLength(4);
         });
+    });
+
+    it("asks for a value in English too", async () => {
+        const user = userEvent.setup();
+        // inLang does not wait for an async body; afterEach switches back to German
+        await switchLang("en");
+        show();
+        await user.click(screen.getByRole("radio", { name: "Forever" }));
+        await user.click(screen.getAllByRole("switch", { name: /Pulse Raids/ })[3]);
+        expect(screen.getByText("Own value is on but empty. Enter a value or switch it off.")).toBeInTheDocument();
+        expect(screen.getByText(/the realm only counts when the template contains \{realm\}/)).toBeInTheDocument();
     });
 });

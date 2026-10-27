@@ -3,7 +3,8 @@
 // fields, only valid filled values, field by field over the standard.
 import { describe, expect, it } from "vitest";
 import {
-    VERSION_OVERRIDE_FIELDS, blockOf, effectiveBlock, overrideProblems, overridesToSave, pickOverride, versionLinks,
+    TEMPLATE_MAX, VERSION_OVERRIDE_FIELDS, blockOf, effectiveBlock, emptyOwnFields, overrideProblems, overridesToSave,
+    pickOverride, placeInLinks, templateOk, versionLinks,
 } from "./versionLinks";
 
 const TBC = blockOf({
@@ -46,5 +47,27 @@ describe("lib/settings/versionLinks - per-server overrides (#923)", () => {
             .toEqual({ armoryUrlTemplate: "https://own.test/{char}" });
         expect(overridesToSave({ tbc: { blizzardRealmSlug: "everlook" }, classic: { wclUrlTemplate: "" }, forever: {} }))
             .toEqual({ tbc: { blizzardRealmSlug: "everlook" } });
+    });
+
+    it("refuses a template longer than the server keeps (300)", () => {
+        const head = "https://own.test/{char}?q=";
+        expect(templateOk(head + "x".repeat(TEMPLATE_MAX - head.length))).toBe(true);
+        expect(templateOk(head + "x".repeat(TEMPLATE_MAX - head.length + 1))).toBe(false);
+        expect(overrideProblems({ wclUrlTemplate: head + "x".repeat(TEMPLATE_MAX) })).toEqual(["wclUrlTemplate"]);
+    });
+
+    it("names the fields switched on but left empty", () => {
+        expect(emptyOwnFields({ blizzardRealmSlug: "", blizzardRegion: "us", wclUrlTemplate: "  " }))
+            .toEqual(["wclUrlTemplate", "blizzardRealmSlug"]);
+        expect(emptyOwnFields({})).toEqual([]);
+        expect(emptyOwnFields(undefined)).toEqual([]);
+    });
+
+    it("says whether realm and region reach the links at all", () => {
+        expect(placeInLinks(TBC, "blizzardRealmSlug")).toBe(true);
+        expect(placeInLinks(TBC, "blizzardRegion")).toBe(true);
+        const plain = effectiveBlock(TBC, { armoryUrlTemplate: "https://own.test/{char}" });
+        expect(placeInLinks(plain, "blizzardRealmSlug")).toBe(false);
+        expect(placeInLinks(plain, "blizzardRegion")).toBe(false);
     });
 });
