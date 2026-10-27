@@ -172,11 +172,12 @@ function after924Migrated(config, stored) {
     if (stored.raidDefaults !== undefined) for (const id of known) set(id, "raidDefaults", { channelId: String((stored.raidDefaults || {}).channelId || "").trim() });
     if (stored.botLanguage !== undefined) for (const id of known) set(id, "botLanguage", stored.botLanguage === "en" ? "en" : "de");
     const src = stored.discordServers && typeof stored.discordServers === "object" && !Array.isArray(stored.discordServers) ? stored.discordServers : {};
-    const one = { applicationChannelId: stored.applicationChannelId, officerRoleId: stored.officerRoleId };
+    // the fixtures prove no channel's server, so every channel and role goes onto the first server only
+    const one = {
+        applicationChannelId: stored.applicationChannelId, officerRoleId: stored.officerRoleId,
+        signupNoteChannelId: src.signupNoteChannelId, guildBankChannelId: src.guildBankChannelId,
+    };
     for (const [key, value] of Object.entries(one)) if (snowflake(value)) set(known[0], key, snowflake(value));
-    // the fixtures prove no channel's server, so the two signup channels go onto every known server
-    const every = { signupNoteChannelId: src.signupNoteChannelId, guildBankChannelId: src.guildBankChannelId };
-    for (const [key, value] of Object.entries(every)) if (snowflake(value)) for (const id of known) set(id, key, snowflake(value));
     return { ...config, serverSettings: next };
 }
 const schemaOnly = frozen.map((g) => ({ ...g, config: after924(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))))))))))) }));
@@ -198,6 +199,17 @@ function after927(config, stored) {
     return { ...config, serverSettings: { ...config.serverSettings, [owner]: { ...(config.serverSettings || {})[owner], raidhelper } } };
 }
 const golden = schemaOnly.map((g, i) => ({ ...g, config: after927(after924Migrated(afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config), cases[i].config), cases[i].config) }));
+// Read without the start migration: a global #924 field no server block carries yet stays visible (a save
+// in between must not lose it, the next start moves it).
+function unmoved924(config, stored) {
+    const src = stored || {};
+    const blocks = src.serverSettings && typeof src.serverSettings === "object" ? Object.values(src.serverSettings) : [];
+    const out = { ...config };
+    for (const key of GLOBAL_924) {
+        if (src[key] !== undefined && !blocks.some((b) => b && b[key] !== undefined)) out[key] = src[key];
+    }
+    return out;
+}
 const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)") && !line.includes("(#924)"));
 
 const CONFIG_FILE = settingsPath("config.json");
@@ -237,7 +249,7 @@ describe("stores/configSchema golden master (#420)", () => {
                 const { changes } = migrateSettings({ log: () => {} });
                 // every stored config predates #542's versionSettings (see after542) and the planning per category (afterPlanning)
                 expect(without542(changes)).toEqual([]);
-                expect(schema.normalizeConfig(c.config || {})).toEqual(readOnly.config);
+                expect(schema.normalizeConfig(c.config || {})).toEqual(unmoved924(readOnly.config, c.config));
             });
         }
 
@@ -258,6 +270,16 @@ describe("stores/configSchema normalisers", () => {
         expect(schema.normalizeConfig(null)).toEqual(empty);
         expect(schema.normalizeConfig([1, 2])).toEqual(empty);
         expect(schema.normalizeConfig("x")).toEqual(empty);
+    });
+
+    it("hides a global #924 field only once a server block carries it (#924)", () => {
+        const S = "1600000000000000001";
+        const before = schema.normalizeConfig({ guildId: S, botLanguage: "en", applicationChannelId: "1600000000000000011" });
+        expect(before.botLanguage).toBe("en");
+        expect(before.applicationChannelId).toBe("1600000000000000011");
+        const after = schema.normalizeConfig({ guildId: S, botLanguage: "en", applicationChannelId: "1600000000000000011", serverSettings: { [S]: { botLanguage: "de" } } });
+        expect(after).not.toHaveProperty("botLanguage");
+        expect(after.applicationChannelId).toBe("1600000000000000011");
     });
 
     it("normalizeVersionLaunch keeps known versions and the manual items only (#745)", () => {

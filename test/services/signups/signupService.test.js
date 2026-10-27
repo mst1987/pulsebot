@@ -153,7 +153,7 @@ describe("submitSignup", () => {
         discord.postNotice.mockClear();
         mockConfig = { guildId: "g1", serverSettings: { g1: { signupNoteChannelId: "777777" } } };
         await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "tentative", comment: "evtl. Spätschicht" }, { now: NOW });
-        expect(discord.postNotice).toHaveBeenCalledWith("777777", expect.objectContaining({ embeds: [expect.objectContaining({ description: expect.stringContaining("evtl. Spätschicht") })] }));
+        expect(discord.postNotice).toHaveBeenCalledWith("777777", expect.objectContaining({ embeds: [expect.objectContaining({ description: expect.stringContaining("evtl. Spätschicht") })] }), { guildId: "g1" });
         // the same again (e.g. "kann auch" edited) posts nothing new
         await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "tentative", comment: "evtl. Spätschicht", canAlso: [] }, { now: NOW });
         expect(discord.postNotice).toHaveBeenCalledTimes(1);

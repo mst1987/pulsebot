@@ -2,8 +2,7 @@
 // defaults, the bot language and the two signup channels of the server block
 // move from config.json's global fields into serverSettings. A channel or role
 // goes to the server it lives on (as far as the stores tell), else to the first
-// server (the two signup channels onto every server: nothing is lost to a
-// guess); raid defaults and language are copied onto every known server. The
+// server only (the other servers stay empty and show "no channel"); raid defaults and language are copied onto every known server. The
 // global fields go in the same write that stores the server blocks.
 jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 
@@ -80,16 +79,16 @@ describe("stores/settingsMigration — Standardwerte je Server (#924)", () => {
         expect(raw).not.toHaveProperty("botLanguage");
     });
 
-    it("moves the note and guild bank channel out of the server block, an unplaceable one onto every server", () => {
+    it("moves the note and guild bank channel out of the server block, an unplaceable one onto the first server only", () => {
         jest.spyOn(eventStore, "listEvents").mockReturnValue([{ id: "e1", guildId: PUGS, channelId: CH_BANK }]);
         save({ ...TWO_SERVERS, discordServers: { ...TWO_SERVERS.discordServers, signupNoteChannelId: CH_NOTES, guildBankChannelId: CH_BANK } });
         const changes = migrateServerDefaults();
-        expect(changes[0]).toContain("signupNoteChannelId -> 2 Server (Server des Kanals unbekannt)");
+        expect(changes[0]).toContain(`signupNoteChannelId -> ${MAIN} (erster Server)`);
         expect(changes[0]).toContain(`guildBankChannelId -> ${PUGS}`);
         const raw = stored();
         expect(raw.serverSettings).toEqual({
             [MAIN]: { signupNoteChannelId: CH_NOTES },
-            [PUGS]: { signupNoteChannelId: CH_NOTES, guildBankChannelId: CH_BANK },
+            [PUGS]: { guildBankChannelId: CH_BANK },
         });
         expect(raw.discordServers).not.toHaveProperty("signupNoteChannelId");
         expect(raw.discordServers).not.toHaveProperty("guildBankChannelId");
@@ -130,5 +129,38 @@ describe("stores/settingsMigration — Standardwerte je Server (#924)", () => {
         expect(cfg.serverSettings[PUGS]).toEqual({ botLanguage: "en" });
         expect(cfg).not.toHaveProperty("botLanguage");
         expect(migrateServerDefaults()).toEqual([]);
+    });
+
+    it("runs together with the Raid-Helper move (#927): both land in the same server blocks", () => {
+        save({ ...TWO_SERVERS, applicationChannelId: CH_UNKNOWN, botLanguage: "en", raidhelperServerId: PUGS });
+        const res = migrateSettings({ log: () => {}, warn: () => {} });
+        expect(res.error).toBeUndefined();
+        const raw = stored();
+        expect(raw.serverSettings[MAIN]).toEqual({ applicationChannelId: CH_UNKNOWN, botLanguage: "en" });
+        expect(raw.serverSettings[PUGS]).toMatchObject({ botLanguage: "en", raidhelper: { enabled: true, envKey: true, serverId: "" } });
+        expect(raw).not.toHaveProperty("applicationChannelId");
+        expect(raw).not.toHaveProperty("botLanguage");
+        expect(res.changes.some((c) => c.includes("(#924)"))).toBe(true);
+        expect(res.changes.some((c) => c.includes(`Raid-Helper dem Server ${PUGS}`))).toBe(true);
+    });
+
+    it("logs the old values when the move fails and keeps them readable", () => {
+        const write = configStore.writeStored;
+        jest.spyOn(configStore, "writeStored").mockImplementation((data) => {
+            if (data && data.serverSettings) throw new Error("disk full");
+            return write(data);
+        });
+        save({ ...TWO_SERVERS, applicationChannelId: CH_APPLY, botLanguage: "en", discordServers: { ...TWO_SERVERS.discordServers, guildBankChannelId: CH_BANK } });
+        const warn = jest.fn();
+        const res = migrateSettings({ log: () => {}, warn });
+        expect(res.error).toBeInstanceOf(Error);
+        const line = warn.mock.calls.map((c) => c[0]).find((l) => l.includes("Migration #924 fehlgeschlagen"));
+        expect(line).toContain(`"applicationChannelId":"${CH_APPLY}"`);
+        expect(line).toContain("\"botLanguage\":\"en\"");
+        expect(line).toContain(`"discordServers.guildBankChannelId":"${CH_BANK}"`);
+        // nothing moved, so the global fields stay visible and survive a save
+        const cfg = configStore.getConfig();
+        expect(cfg.applicationChannelId).toBe(CH_APPLY);
+        expect(cfg.botLanguage).toBe("en");
     });
 });

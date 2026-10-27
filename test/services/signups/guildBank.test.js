@@ -65,6 +65,15 @@ describe("services/signups/guildBank", () => {
         expect(discord.postPayload).toHaveBeenCalledTimes(5);
     });
 
+    it("posts only into a channel of the request's server and counts one elsewhere as no guild bank (#924)", async () => {
+        await create();
+        expect(discord.postPayload.mock.calls[0][2]).toEqual({ guildId: "111111" });
+        discord.postPayload.mockClear();
+        discord.postPayload.mockRejectedValueOnce(Object.assign(new Error("Kanal liegt auf einem anderen Server."), { code: "wrong_guild" }));
+        expect(await create()).toEqual({ error: "Die Gildenbank ist gerade nicht eingerichtet." });
+        expect(store.listRequests()).toHaveLength(1);
+    });
+
     it("takes a request back when the post fails", async () => {
         discord.postPayload.mockRejectedValueOnce(new Error("Missing Access"));
         expect(await create()).toEqual({ error: "Die Anfrage konnte nicht gepostet werden – versuch es später noch einmal." });

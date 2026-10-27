@@ -482,7 +482,8 @@ async function currentPayload({
     // Confirm every listed channel before a line links it (#537).
     await linkCheck.checkChannels((groups || []).flatMap((g) => (g.events || []).map((e) => ({ guildId: from, channelId: e.channelId }))));
     const guild = discord.getGuild(from);
-    const lang = (entry && entry.lang) || serverLang(config);
+    // without a link language: the language of the server the list is posted on (#924, per server)
+    const lang = (entry && entry.lang) || serverLang(config, entry ? entry.to : from);
     const payload = buildOverviewMessage(groups, {
         eventGuildId: from,
         serverName: guildRoles.serverLabel(from, config) || (guild ? guild.name : ""),

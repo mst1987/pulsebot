@@ -573,7 +573,8 @@ function migrateRoleMessageGuilds() {
 }
 
 // #924: config.json fields that are per server now. Channel and role values go
-// to the server they live on, the others are copied onto every known server.
+// to the server they live on (else to the first server), the others are copied
+// onto every known server.
 const SERVER_CHANNEL_FIELDS_924 = ["applicationChannelId"];
 const SERVER_ROLE_FIELDS_924 = ["officerRoleId"];
 const SERVER_COPY_FIELDS_924 = ["raidDefaults", "botLanguage"];
@@ -613,24 +614,6 @@ function knownPlaces924(stored, block) {
     return { channels, roles };
 }
 
-/**
- * The two signup channels were one channel for every server: when the stores
- * cannot tell which server it lives on, every known server keeps it (as it
- * worked before), so no server loses its channel to a guess.
- * @returns {string[]} the log line, or none for an empty value
- */
-function placeSignupChannel924(key, value, { known, channels, set }) {
-    const id = String(value || "").trim();
-    if (!isSnowflake(id)) return [];
-    const guildId = channels.get(id);
-    if (guildId && known.includes(guildId)) {
-        set(guildId, key, id);
-        return [`${key} -> ${guildId}`];
-    }
-    for (const each of known) set(each, key, id);
-    return [`${key} -> ${known.length} Server (Server des Kanals unbekannt)`];
-}
-
 /** The stored config with the server blocks and without the global #924 fields. */
 function withoutGlobals924(stored, serverSettings) {
     const out = { ...stored, serverSettings };
@@ -647,8 +630,8 @@ function withoutGlobals924(stored, serverSettings) {
  * config.json (#924): applicationChannelId, officerRoleId, raidDefaults,
  * botLanguage and discordServers.signupNoteChannelId / guildBankChannelId move
  * into serverSettings. A channel or role goes to the server it lives on (as far
- * as the stores tell, see knownPlaces924), else to the first server - the two
- * signup channels of discordServers onto every known server then; raid
+ * as the stores tell, see knownPlaces924), else to the first server only (the
+ * other servers stay empty and show "no channel"); raid
  * defaults and the bot language are copied onto every known server. A field a
  * server block already holds is left alone. The global fields are dropped in
  * the same write that stores the server blocks. Runs before
@@ -702,9 +685,38 @@ function migrateServerDefaults() {
             lines.push(`${key} -> ${known.length} Server`);
         }
     }
-    for (const key of fromServers) lines.push(...placeSignupChannel924(key, src[key], { known, channels: places.channels, set }));
+    for (const key of fromServers) placeOne(key, src[key], places.channels);
     configStore.writeStored(withoutGlobals924(stored, next));
     return [`config.json: Bewerbungen, Raid-Standardwerte, Sprache und Kanäle je Server gespeichert (#924)${lines.length ? ` - ${lines.join(", ")}` : " - globale Altfelder entfernt"}`];
+}
+
+/**
+ * The global #924 values as stored (channel and role ids, raid defaults, bot
+ * language - no secrets), for the error log when moving them failed.
+ */
+function legacyValues924(stored) {
+    const src = stored.discordServers && typeof stored.discordServers === "object" ? stored.discordServers : {};
+    const values = {};
+    for (const key of [...SERVER_CHANNEL_FIELDS_924, ...SERVER_ROLE_FIELDS_924, ...SERVER_COPY_FIELDS_924]) {
+        if (stored[key] !== undefined) values[key] = stored[key];
+    }
+    for (const key of DISCORD_SERVER_FIELDS_924) if (src[key] !== undefined) values[`discordServers.${key}`] = src[key];
+    return values;
+}
+
+/**
+ * migrateServerDefaults(), and when it throws the old values go to the error log
+ * first (by hand they can be set per server again), then the error goes on.
+ */
+function migrateServerDefaultsLogged(warn) {
+    try {
+        return migrateServerDefaults();
+    } catch (error) {
+        let values = {};
+        try { values = legacyValues924(configStore.readStored()); } catch { /* the error below says enough */ }
+        warn(`[settings] Migration #924 fehlgeschlagen, bisherige Werte: ${JSON.stringify(values)}`);
+        throw error;
+    }
 }
 
 /**
@@ -805,7 +817,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateRoleMessageGuilds());
         // #924: after migrateConfig (reads raidDefaults.templateId), before the federation step (drops the channel fields).
         changes.push(...migrateConfig());
-        changes.push(...migrateServerDefaults());
+        changes.push(...migrateServerDefaultsLogged(warn));
         changes.push(...migrateDiscordFederation());
         const plans = raidplanStore.migrateEventDefaults({ instanceIdsOf: (plan) => (eventStore.getEvent(plan.eventId) || {}).instanceIds || [] });
         if (plans) changes.push(raidplanDefaultsLine(plans));

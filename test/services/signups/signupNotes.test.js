@@ -75,7 +75,7 @@ describe("services/signups/signupNotes", () => {
     it("posts to the configured channel", async () => {
         await expect(notes.postSignupNote(EVENT, signup(), null, { config: CHANNEL })).resolves.toEqual({ posted: true, channelId: "777777" });
         expect(discord.postNotice).toHaveBeenCalledTimes(1);
-        expect(discord.postNotice).toHaveBeenCalledWith("777777", notePayload("Arbeit"));
+        expect(discord.postNotice).toHaveBeenCalledWith("777777", notePayload("Arbeit"), ON);
     });
 
     it("skips without a note, for the orga, a category without messages or without a channel", async () => {
@@ -118,6 +118,16 @@ describe("services/signups/signupNotes — Kanal je Server (#924)", () => {
         const two = { discordServers: { servers: [{ guildId: "10001" }, { guildId: "10000" }] }, serverSettings: { 10000: { signupNoteChannelId: "777777" }, 10001: { signupNoteChannelId: "888888" } } };
         const noServer = { ...EVENT, guildId: undefined, categoryId: undefined };
         await expect(notes.postSignupNote(noServer, signup(), null, { config: two })).resolves.toEqual({ posted: true, channelId: "888888" });
+        expect(discord.postNotice).toHaveBeenCalledWith("888888", expect.anything(), { guildId: "10001" });
+    });
+
+    it("posts nothing when the channel lives on another server than the raid", async () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+        // discord.postNotice refuses a channel of another server (code wrong_guild)
+        discord.postNotice.mockRejectedValueOnce(Object.assign(new Error("Kanal liegt auf einem anderen Server."), { code: "wrong_guild" }));
+        await expect(notes.postSignupNote(EVENT, signup(), null, { config: CHANNEL })).resolves.toEqual({ posted: false, error: "Kanal liegt auf einem anderen Server." });
+        expect(discord.postNotice).toHaveBeenCalledWith("777777", expect.anything(), ON);
+        warn.mockRestore();
     });
 });
 
@@ -148,14 +158,14 @@ describe("services/signups/signupNotes — Kanal je Kategorie (#335)", () => {
         await expect(notes.postSignupNote(EVENT, signup(), null, { config: OWN })).resolves.toEqual({ posted: true, channelId: "888888" });
         expect(discord.channelVisible).toHaveBeenCalledWith("888888");
         expect(discord.postNotice).toHaveBeenCalledTimes(1);
-        expect(discord.postNotice).toHaveBeenCalledWith("888888", notePayload("Arbeit"));
+        expect(discord.postNotice).toHaveBeenCalledWith("888888", notePayload("Arbeit"), ON);
     });
 
     it("posts into the default channel when the own one is out of reach", async () => {
         discord.channelVisible.mockReturnValue(false);
         await expect(notes.postSignupNote(EVENT, signup(), null, { config: OWN })).resolves.toEqual({ posted: true, channelId: "777777" });
         expect(discord.postNotice).toHaveBeenCalledTimes(1);
-        expect(discord.postNotice).toHaveBeenCalledWith("777777", notePayload("Arbeit"));
+        expect(discord.postNotice).toHaveBeenCalledWith("777777", notePayload("Arbeit"), ON);
     });
 
     it("tries the default channel when the own one refuses the post, and never throws", async () => {

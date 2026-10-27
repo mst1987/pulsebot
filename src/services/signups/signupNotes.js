@@ -139,13 +139,14 @@ async function postSignupNote(event, signup, previous, { config = getConfig(), b
     if (!channelId) return { posted: false, skipped: "no_channel" };
     const post = buildNotePost(event, signup, { emojis: appEmojiMap(), lang: eventLang(event, config) });
     // A category's own channel that refuses the post (gone, no rights) falls
-    // back to the default channel, so the message is not lost silently.
+    // back to the default channel, so the message is not lost silently. A
+    // channel on another server than the raid's never takes the post (#924).
     const fallback = noteChannelId(config, guildId);
     const targets = [...new Set([channelId, fallback].filter(Boolean))];
     let error = "";
     for (const target of targets) {
         try {
-            await discord.postNotice(target, post);
+            await discord.postNotice(target, post, { guildId });
             return { posted: true, channelId: target };
         } catch (e) {
             error = (e && e.message) || String(e);

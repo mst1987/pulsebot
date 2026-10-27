@@ -25,8 +25,6 @@ module.exports = {
     googleSheetName: env.googleSheetName,
     googleSheetGid: env.googleSheetGid,
     defaultTimeout: constants.REPLY_DELETE_AFTER_MS,
-    applicationChannelId: env.applicationChannelId,
-    officerRoleId: env.officerRoleId,
     applyArmoryUrlTemplate: env.applyArmoryUrlTemplate,
     applyWclUrlTemplate: env.applyWclUrlTemplate,
     blizzardClientId: env.blizzardClientId,

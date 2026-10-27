@@ -41,6 +41,17 @@ async function textChannelOf(c, channelId, notFound = "Kanal nicht gefunden oder
     return channel;
 }
 
+/**
+ * The bot fetches any channel it sees, across servers (#924): a channel set for
+ * one server must not take another server's posts. Throws code "wrong_guild"
+ * when `guildId` is given and the channel lives elsewhere; no `guildId`, no check.
+ */
+function assertChannelGuild(channel, guildId = "") {
+    const want = String(guildId || "").trim();
+    if (!want || String((channel && channel.guildId) || "") === want) return;
+    throw Object.assign(new Error("Kanal liegt auf einem anderen Server."), { code: "wrong_guild" });
+}
+
 /** A text channel of the bot, fetched through its client (see textChannelOf). */
 function fetchTextChannel(channelId, notFound) {
     return textChannelOf(client, channelId, notFound);
@@ -430,10 +441,12 @@ async function editPingMessages(channelId, messageIds = [], userIds = [], text =
  * A message that pings nobody, as one card (utils/discord/card.js): a `<@id>` in it shows the name without a notification.
  * `payload` is plain text (the card's text), or `{ content?, embeds? }` — an embed (a raw object or a builder, as elsewhere in
  * this file) becomes the card (cardFromEmbed), `content` its text.
+ * `guildId`: only post when the channel lives on that server (assertChannelGuild).
  * @returns {Promise<{ channelId, messageId, url }>}
  */
-async function postNotice(channelId, payload) {
+async function postNotice(channelId, payload, { guildId = "" } = {}) {
     const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
+    assertChannelGuild(channel, guildId);
     const data = typeof payload === "string" ? { content: payload } : (payload || {});
     const first = Array.isArray(data.embeds) && data.embeds[0] ? data.embeds[0] : null;
     const embed = first && typeof first.toJSON === "function" ? first.toJSON() : first;
@@ -447,11 +460,13 @@ async function postNotice(channelId, payload) {
 
 /**
  * Post a whole message (`{ content?, embeds?, components? }`) that pings
- * nobody — a panel with buttons, say.
+ * nobody — a panel with buttons, say. `guildId`: only post when the channel
+ * lives on that server (assertChannelGuild).
  * @returns {Promise<{ guildId, channelId, messageId, url }>}
  */
-async function postPayload(channelId, payload) {
+async function postPayload(channelId, payload, { guildId = "" } = {}) {
     const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
+    assertChannelGuild(channel, guildId);
     const posted = await channel.send({ ...payload, allowedMentions: { parse: [] } });
     return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url };
 }

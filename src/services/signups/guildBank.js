@@ -87,10 +87,16 @@ function requestGuildId({ bankGuildId = "", guildId = "", categoryId = "", confi
     return (category && str(storedCategoryGuilds().get(category))) || firstServerId(config);
 }
 
-/** The orga channel a stored request's cards go to: its bank's server, else its category's. */
-function channelOfRequest(request, config) {
+/** The server and orga channel of a request: `{ guildId, channelId }`, channelId "" when the server has none. */
+function targetOf(o) {
+    const guildId = requestGuildId(o);
+    return { guildId, channelId: guildBankChannelId(o.config, guildId) };
+}
+
+/** Where a stored request's cards go: its bank's server, else its category's (see targetOf). */
+function targetOfRequest(request, config) {
     const bank = request && request.bankKey ? stockStore.getBank(request.bankKey) : null;
-    return guildBankChannelId(config, requestGuildId({ bankGuildId: bank && bank.guildId, categoryId: request && request.categoryId, config }));
+    return targetOf({ bankGuildId: bank && bank.guildId, categoryId: request && request.categoryId, config });
 }
 
 /**
@@ -148,17 +154,22 @@ function charactersFor(userId, bank) {
         .map((c) => ({ key: c.key, name: c.name, realm: c.realm || "", className: c.className }));
 }
 
-/** Store a checked request and post its card; a post that does not reach the channel is taken back (nobody would see it). */
-async function storeAndPost(input, { channelId, config, now }) {
+/**
+ * Store a checked request and post its card; a post that does not reach the
+ * channel is taken back (nobody would see it). A channel that lives on another
+ * server than the request's (#924) counts as no guild bank there (NOT_SET_UP).
+ */
+async function storeAndPost(input, { channelId, guildId, config, now }) {
     store.prune({ now });
     const added = store.addRequest(input, { now });
     if (added.error) return added;
     try {
-        const posted = await discord.postPayload(channelId, postFor(added.request, { config }));
+        const posted = await discord.postPayload(channelId, postFor(added.request, { config }), { guildId });
         return { request: store.setMessage(added.request.id, posted) || added.request };
     } catch (e) {
         store.removeRequest(added.request.id);
         logger.warn(`[guildBank] Anfrage ${added.request.id} nicht in ${channelId} gepostet: ${(e && e.message) || e}`);
+        if (e && e.code === "wrong_guild") return { error: NOT_SET_UP };
         return { error: "Die Anfrage konnte nicht gepostet werden – versuch es später noch einmal." };
     }
 }
@@ -173,9 +184,9 @@ async function storeAndPost(input, { channelId, config, now }) {
  */
 async function createRequest(userId, input = {}, { userName = "", categoryId = "", guildId = "", config, now = Date.now() } = {}) {
     const cfg = config || settingsStore.getConfig();
-    const channelId = guildBankChannelId(cfg, requestGuildId({ guildId, categoryId, config: cfg }));
-    if (!channelId) return { error: NOT_SET_UP };
-    return storeAndPost({ ...input, userId, userName, categoryId }, { channelId, config: cfg, now });
+    const target = targetOf({ guildId, categoryId, config: cfg });
+    if (!target.channelId) return { error: NOT_SET_UP };
+    return storeAndPost({ ...input, userId, userName, categoryId }, { ...target, config: cfg, now });
 }
 
 /**
@@ -245,14 +256,14 @@ async function createStockRequest(userId, input = {}, { userName = "", categoryI
     const cfg = config || settingsStore.getConfig();
     const checked = checkStockRequest(userId, input);
     // the card goes to the orga of the bank's server (#924)
-    const channelId = guildBankChannelId(cfg, requestGuildId({ bankGuildId: checked.bank && checked.bank.guildId, guildId, categoryId, config: cfg }));
-    if (!channelId) return { error: NOT_SET_UP };
+    const target = targetOf({ bankGuildId: checked.bank && checked.bank.guildId, guildId, categoryId, config: cfg });
+    if (!target.channelId) return { error: NOT_SET_UP };
     if (checked.error) return checked;
     const { bank, item, split } = checked;
     const base = stockRequestBase(userId, input, checked, { userName, categoryId });
     let request = null;
     if (split.now) {
-        const posted = await storeAndPost({ ...base, amount: split.now }, { channelId, config: cfg, now });
+        const posted = await storeAndPost({ ...base, amount: split.now }, { ...target, config: cfg, now });
         if (posted.error) return posted;
         request = posted.request;
     }
@@ -549,10 +560,10 @@ async function linkRequest(id, { bankKey = "", userId = "", characterKey = "" } 
     return { request: linking.withLinked(result.request) };
 }
 
-/** Post the orga card of a request that moved up from the waiting list. Returns whether it reached the channel. */
-async function postMovedUp(request, { channelId, config }) {
+/** Post the orga card of a request that moved up from the waiting list (only into a channel of `guildId`). Returns whether it reached the channel. */
+async function postMovedUp(request, { channelId, guildId, config }) {
     try {
-        const posted = await discord.postPayload(channelId, postFor(request, { config }));
+        const posted = await discord.postPayload(channelId, postFor(request, { config }), { guildId });
         store.setMessage(request.id, posted);
         return true;
     } catch (e) {
@@ -590,8 +601,8 @@ function advanceWaitlist({ bankKey = "", itemId = 0, config, now = Date.now() } 
             .filter((r) => r.fromWaitlist && !r.messageId && keys.includes(r.bankKey));
         for (const request of unposted) {
             // each card goes to the orga of its bank's server; a server without a channel posts nothing (#924)
-            const channelId = channelOfRequest(request, cfg);
-            if (channelId && await postMovedUp(request, { channelId, config: cfg })) posted += 1;
+            const target = targetOfRequest(request, cfg);
+            if (target.channelId && await postMovedUp(request, { ...target, config: cfg })) posted += 1;
         }
         for (const { request, rest, restPosition } of moved) {
             const more = { rest: rest ? rest.amount : 0, position: restPosition || 0 };

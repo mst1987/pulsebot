@@ -35,7 +35,7 @@ function makeClient() {
     const threadDelete = jest.fn().mockResolvedValue(undefined);
     const thread = { send: threadSend, delete: threadDelete };
     const threadsCreate = jest.fn().mockResolvedValue(thread);
-    const channel = discordClient.makeChannel({ id: "applications", threads: { create: threadsCreate } });
+    const channel = discordClient.makeChannel({ id: "applications", guildId: "guild-1", threads: { create: threadsCreate } });
     const client = discordClient.makeClient({ channels: [channel] });
     // Any id answers the application channel (serverDefaults is mocked above).
     client.channels.fetch.mockResolvedValue(channel);
@@ -172,6 +172,17 @@ describe("commands/apply/applyModal", () => {
         await command.execute(interaction, client);
 
         expect(client.channels.fetch).not.toHaveBeenCalled();
+        expect(threadsCreate).not.toHaveBeenCalled();
+        expect(repliedText(interaction)).toContain("kein Bewerbungs-Kanal");
+    });
+
+    it("posts nothing when the set channel lives on another server and tells the applicant like without one (#924)", async () => {
+        const { client, threadsCreate } = makeClient();
+        client.channels.fetch.mockResolvedValueOnce(discordClient.makeChannel({ id: "elsewhere", guildId: "guild-9", threads: { create: threadsCreate } }));
+        const interaction = mockInteraction({ userId: "user-x", options: { characterName: "Wanderer", description: "x" } });
+
+        await command.execute(interaction, client);
+
         expect(threadsCreate).not.toHaveBeenCalled();
         expect(repliedText(interaction)).toContain("kein Bewerbungs-Kanal");
     });

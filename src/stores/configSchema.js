@@ -979,11 +979,19 @@ function mergeServerSettings(current, partial) {
     return merged;
 }
 
-/** `stored` without the global fields of before #924 (they are read per server only). */
+/**
+ * `stored` without the global fields of before #924 that a server block already
+ * carries (they are read per server only). A global field no block carries yet
+ * stays: the start migration has not moved it (it failed), and a save in between
+ * must not lose it - the next start moves it.
+ */
 function withoutGlobalFields924(stored) {
     if (!GLOBAL_FIELDS_924.some((key) => key in stored)) return stored;
+    const blocks = stored.serverSettings && typeof stored.serverSettings === "object" && !Array.isArray(stored.serverSettings)
+        ? Object.values(stored.serverSettings) : [];
+    const carried = (key) => blocks.some((b) => b && typeof b === "object" && b[key] !== undefined);
     const out = { ...stored };
-    for (const key of GLOBAL_FIELDS_924) delete out[key];
+    for (const key of GLOBAL_FIELDS_924) if (carried(key)) delete out[key];
     return out;
 }
 

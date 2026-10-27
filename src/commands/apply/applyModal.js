@@ -140,19 +140,25 @@ module.exports = {
         const guildId = interaction.guildId || (interaction.guild && interaction.guild.id) || "";
         const applicationChannelId = serverDefaults.applicationChannelId(guildId);
         const officerRoleId = serverDefaults.officerRoleId(guildId);
+        // this server has no application channel: nothing is posted, the applicant is told so
+        const noChannel = () => interaction.editReply(card({
+            kind: "error",
+            title: "Bewerbung nicht möglich",
+            text: "Auf diesem Server ist kein Bewerbungs-Kanal eingerichtet. Bitte wende dich an einen Officer.",
+        }));
         if (!applicationChannelId) {
-            // this server has no application channel: nothing is posted, the applicant is told so
-            await interaction.editReply(card({
-                kind: "error",
-                title: "Bewerbung nicht möglich",
-                text: "Auf diesem Server ist kein Bewerbungs-Kanal eingerichtet. Bitte wende dich an einen Officer.",
-            }));
+            await noChannel();
             return;
         }
 
         let thread = null;
         try {
             const channel = await client.channels.fetch(applicationChannelId);
+            // the bot sees channels of every server: one of another server counts as none here (#924)
+            if (!channel || String(channel.guildId || "") !== String(guildId)) {
+                await noChannel();
+                return;
+            }
             thread = await channel.threads.create({
                 name: threadTitle,
                 autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,

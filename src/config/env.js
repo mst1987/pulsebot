@@ -18,8 +18,7 @@ const guildId = process.env.GUILD_ID || defaults.guildId;
 const raidhelperServerId = process.env.RAIDHELPER_SERVER_ID || "";
 
 // Application system
-const applicationChannelId = process.env.APPLICATION_CHANNEL_ID || "";
-const officerRoleId = process.env.OFFICER_ROLE_ID || "";
+// (the application channel and officer role are per server since #924: Einstellungen, not .env)
 const applyArmoryUrlTemplate = process.env.APPLY_ARMORY_URL || defaults.applyArmoryUrlTemplate;
 const applyWclUrlTemplate = process.env.APPLY_WCL_URL || defaults.applyWclUrlTemplate;
 
@@ -116,8 +115,6 @@ module.exports = {
     adminUserId,
     guildId,
     raidhelperServerId,
-    applicationChannelId,
-    officerRoleId,
     applyArmoryUrlTemplate,
     applyWclUrlTemplate,
     blizzardClientId,
