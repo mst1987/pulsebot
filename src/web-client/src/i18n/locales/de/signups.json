@@ -109,7 +109,9 @@
         "required": "(Pflicht)",
         "notePlaceholderAbsent": "z. B. Arbeit, Urlaub, krank",
         "notePlaceholderTentative": "z. B. noch unsicher, evtl. später",
-        "roleMissing": "Für diesen Raid brauchst du eine Raider-Rolle."
+        "roleMissing": "Für diesen Raid brauchst du eine Raider-Rolle.",
+        "pugMembersOnly": "Nur für Mitglieder des PuG-Servers. Tritt dem Server bei, dann klappt die Anmeldung.",
+        "pugJoin": "PuG-Server beitreten"
     },
     "bulk": {
         "toast": "{saved} von {total} Raids gespeichert.",
@@ -245,5 +247,13 @@
         "label": "PuG",
         "tip": "Offen für alle – keine Raider-Rolle nötig"
     },
-    "rolesUnknown": "Deine Discord-Rollen konnten gerade nicht gelesen werden – evtl. fehlen Raids."
+    "rolesUnknown": "Deine Discord-Rollen konnten gerade nicht gelesen werden – evtl. fehlen Raids.",
+    "newChar": {
+        "intro": "Noch kein Charakter im Profil – wähle Klasse, Spec und Namen. Er landet danach in deinem Profil.",
+        "introVersion": "Noch kein {version}-Charakter im Profil – wähle Klasse, Spec und Namen. Er landet danach in deinem Profil.",
+        "class": "Klasse",
+        "spec": "Spec",
+        "name": "Name im Spiel",
+        "nameHint": "Vorbelegt mit deinem Discord-Namen – ändere ihn, wenn dein Charakter anders heißt."
+    }
 }

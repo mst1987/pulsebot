@@ -1174,6 +1174,26 @@ async function memberRoleIds(guildId, userId) {
 }
 
 /**
+ * Whether a user is a member of a server (#907: the web signup of a PuG raid):
+ * true / false, or null when it cannot be known — bot offline, the server not
+ * reachable, Discord answering with anything but "Unknown Member/User". Only a
+ * definite "not a member" is false, so a Discord hiccup never refuses anybody.
+ * @returns {Promise<boolean|null>}
+ */
+async function guildMembership(guildId, userId) {
+    const guild = getGuild(guildId);
+    if (!guild || !userId) return null;
+    const uid = String(userId);
+    if (guild.members.cache.get(uid)) return true;
+    try {
+        return (await guild.members.fetch(uid)) ? true : null;
+    } catch (e) {
+        const code = e && (e.code || (e.rawError && e.rawError.code));
+        return code === 10007 || code === 10013 ? false : null;
+    }
+}
+
+/**
  * Send a direct message to one Discord user. A single-user fetch needs no
  * privileged intent (see resolveUserNames). Fails when the user closed their
  * DMs or blocked the bot — that is reported, never retried.
@@ -1203,7 +1223,7 @@ module.exports = {
     setClient, getClient, isOnline, fetchTextChannel, textChannelOf, listGuilds, getGuild, listTextChannels, listEmojis,
     sendDirectMessage, embed,
     resolveUserNames, avatarUrlFor, avatarUrlOf, NAME_FETCH_MS, ABSENT_MS, _resetAbsentNamesForTests,
-    memberRoleIds,
+    memberRoleIds, guildMembership,
     listCategories, listAllChannels, listVoiceChannels, botCanManageEvents, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,
     listMembersWithRoles, listHumanMembers, postMissingPing, editPingMessages, postNotice, channelVisible, mentionChunks, _resetMembersCacheForTests,

@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import {
-    saveSignupsBulk,
+    PUG_MEMBERS_ONLY, saveSignupsBulk,
     type ApiError, type BulkSignupResult, type OwnSignupRow, type SignupClass, type SignupProfile, type SignupStatus,
 } from "../../api";
 import { Badge, Button, Modal } from "../ui";
@@ -136,7 +136,10 @@ function ResultRow({ result }: { result: BulkSignupResult }) {
             </Badge>
             <span className="an-result-title">{result.title}</span>
             <span className="an-result-text">
-                {result.ok ? (s && s.status === "absence" ? t("signups.bulk.absent") : `${chars}${s && s.status !== "signed" ? ` – ${SIGNUP_STATUS[s.status].label}` : ""}`) : result.code === "roster_only" ? t("signups.dialog.rosterOnly") : result.error}
+                {result.ok ? (s && s.status === "absence" ? t("signups.bulk.absent") : `${chars}${s && s.status !== "signed" ? ` – ${SIGNUP_STATUS[s.status].label}` : ""}`) : result.code === "roster_only" ? t("signups.dialog.rosterOnly") : result.code === PUG_MEMBERS_ONLY ? t("signups.dialog.pugMembersOnly") : result.error}
+                {result.code === PUG_MEMBERS_ONLY && result.inviteUrl && (
+                    <a className="an-result-skip" href={result.inviteUrl} target="_blank" rel="noreferrer">{t("signups.dialog.pugJoin")}</a>
+                )}
                 {result.notice && <span className="an-result-skip">{result.notice}</span>}
                 {skipped && <span className="an-result-skip">{skipped}</span>}
             </span>

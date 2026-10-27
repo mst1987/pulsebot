@@ -2,13 +2,16 @@
 //
 // GET /api/signups              area signup — upcoming events the caller may sign up for (or did), own status, profile;
 //                               `?scope=all`: every raid, only for the orga (userIsOrga)
-// PUT /api/signups              area signup — the caller's own signup; body { eventId, characters[] | character+spec, status, canAlso, comment }
+// PUT /api/signups              area signup — the caller's own signup; body { eventId, characters[] | character+spec | newCharacter{name,spec}, status, canAlso, comment }
 // POST /api/signups/bulk        area signup — the caller for several raids at once (#293); body { eventIds[], characters[], status }
 //
 // The PUT works on `user.id` from the session and nothing else: a `userId` in
 // the body is ignored, so nobody changes someone else's signup through it. The
 // rules themselves are signupService.js', shared with the Discord signup (#258).
-const { ok, error: apiError } = require("../http/apiResponse");
+// Only here (#907): a PuG raid takes members of its server (`memberOnly`,
+// pugMembership.js) - a refusal carries the server's `inviteUrl` -, and a
+// raider without a character of the raid's version names a new one.
+const { ok, error: apiError, sendJson } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups } = require("../../services/events/raidEventGroups");
@@ -22,8 +25,27 @@ const { viewerRoles } = require("../signups/viewerRoles");
 const { noteMode, isNoteStatus, MIN_NOTE } = require("../../services/signups/signupNotes");
 const { userIsOrga } = require("../../config/permissions");
 const { isGlobalRaidOrga, canOrgaRaid } = require("../events/raidOrgaAccess");
-const { VERSIONS } = require("../../config/gameVersions");
+const { VERSIONS, rulesFor } = require("../../config/gameVersions");
 const { mainVersionFor, classesOfVersion, resolveVersionQuery, versionOfEvent } = require("../../services/events/mainVersion");
+
+/**
+ * A version's classes for the picker, each with its specs (#907: the dialog's
+ * class -> spec -> name for a raider without a character of the raid's version).
+ */
+function classesWithSpecs(versionId, config) {
+    const specs = new Map(rulesFor(versionId).classes.map((c) => [c.id, c.specs]));
+    return classesOfVersion(versionId, { config }).map((c) => ({
+        ...c,
+        specs: (specs.get(c.id) || []).map((sp) => ({ key: sp.key, label: sp.label, icon: sp.icon, role: sp.role })),
+    }));
+}
+
+/** The refusal of a PuG raid to a non-member carries the invite link (#907). */
+function signupError(res, result) {
+    const status = httpStatusFor(result.code);
+    if (result.inviteUrl === undefined) return apiError(res, status, result.code, result.error);
+    return sendJson(res, status, { error: { code: result.code, message: result.error, inviteUrl: result.inviteUrl } });
+}
 
 /**
  * GET /api/signups[?version=<id>][&event=<id>] — the caller's upcoming raids of
@@ -73,7 +95,7 @@ const getSignups = withUser({}, async ({ user, req, res, url }) => {
         // the dialog takes the list of the event's version; `classes` is the
         // main version's, for a row without one (Raid-Helper).
         classes: classesOfVersion(mainVersionFor({ config }), { config }),
-        classesByVersion: Object.fromEntries(VERSIONS.map((v) => [v.id, classesOfVersion(v.id, { config })])),
+        classesByVersion: Object.fromEntries(VERSIONS.map((v) => [v.id, classesWithSpecs(v.id, config)])),
         // The names of the versions (#543): "Lege einen Forever-Charakter an" when the
         // profile has none of the event's version (the rows carry their versionId).
         versions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short || v.label })),
@@ -104,8 +126,12 @@ const putSignup = withUser({ csrf: true, body: true, archived: (body) => body.ev
         status: body.status,
         canAlso: body.canAlso,
         comment: body.comment,
-    }, { byOrga });
-    if (result.error) return apiError(res, httpStatusFor(result.code), result.code, result.error);
+        // no character of the raid's version yet (#907): { name, spec } goes into the profile first
+        newCharacter: body.newCharacter && typeof body.newCharacter === "object"
+            ? { name: String(body.newCharacter.name || ""), spec: String(body.newCharacter.spec || "") }
+            : undefined,
+    }, { byOrga, memberOnly: true, accountName: String(user.name || "") });
+    if (result.error) return signupError(res, result);
     ok(res, {
         signup: signupSummary(result.signup),
         counts: roleCounts(result.event, listSignups(result.event.id)),
@@ -135,6 +161,7 @@ const postSignupsBulk = withUser({ csrf: true, body: true, archived: (body) => (
     const results = await submitSignups(user.id, eventIds.map((eventId) => ({ eventId, characters, status })), {
         // per raid (#727): the orga of one raid's category is exempt there, not in the others
         byOrga: (event) => canOrgaRaid(user, event, req),
+        memberOnly: true,
     });
     ok(res, {
         results: results.map((r) => {
@@ -145,6 +172,7 @@ const postSignupsBulk = withUser({ csrf: true, body: true, archived: (body) => (
                 ok: r.ok,
                 error: r.error || "",
                 code: r.code || "",
+                inviteUrl: r.inviteUrl || "",
                 skipped: r.skipped || [],
                 waitlisted: !!r.waitlisted,
                 notice: r.notice || "",

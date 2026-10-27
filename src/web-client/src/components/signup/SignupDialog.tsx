@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import {
-    saveSignup,
-    type ApiError, type GameRole, type OwnSignup, type OwnSignupRow, type SignupClass, type SignupCounts, type SignupProfile, type SignupStatus,
+    PUG_MEMBERS_ONLY, saveSignup,
+    type SignupError, type GameRole, type OwnSignup, type OwnSignupRow, type SignupClass, type SignupCounts, type SignupProfile, type SignupStatus,
 } from "../../api";
-import { Badge, Button, Modal, WowIcon } from "../ui";
+import { Badge, Button, Modal, WowIcon, buttonClass } from "../ui";
 import { CheckIcon } from "../ui/icons";
 import { useToast } from "../shell/Jobs";
 import SignupCharacterPicks from "./SignupCharacterPicks";
+import NewCharacterPick from "./NewCharacterPick";
+import { nameFromAccount, newCharacterReady, type NewCharacter } from "../../lib/signups/newCharacter";
 import { formatEventTime } from "../../lib/format";
 import {
     CAN_ALSO, ROLE_ORDER, SIGNUP_STATUS, SIGNUP_STATUS_ORDER, defaultCanAlso, roleCountText, signedUpLabel,
@@ -31,7 +33,7 @@ import { useT } from "../../i18n";
 // segment option is marked and one small line says so, instead of pretending
 // one status held for everybody.
 
-export default function SignupDialog({ row, profile, classes, onClose, onSaved, missingVersion = "" }: {
+export default function SignupDialog({ row, profile, classes, onClose, onSaved, missingVersion = "", accountName = "" }: {
     row: OwnSignupRow | null;
     /** Only the characters of the event's game version (#543, lib/signups/status profileForRows). */
     profile: SignupProfile;
@@ -39,7 +41,10 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
     missingVersion?: string;
     classes: SignupClass[];
     onClose: () => void;
-    onSaved: (eventId: string, signup: OwnSignup, counts: SignupCounts) => void;
+    /** `created`: the signup added a new character to the profile (#907) — the page loads the profile again. */
+    onSaved: (eventId: string, signup: OwnSignup, counts: SignupCounts, created?: boolean) => void;
+    /** The member's Discord name: the new character's name to start from (#907). */
+    accountName?: string;
 }) {
     const t = useT();
     const toast = useToast();
@@ -51,6 +56,10 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
     const [canAlso, setCanAlso] = useState<GameRole[]>([]);
     const [comment, setComment] = useState("");
     const [busy, setBusy] = useState(false);
+    // No character of the raid's version (#907): class -> spec -> name right here.
+    const [newChar, setNewChar] = useState<NewCharacter>({ classId: "", spec: "", name: "" });
+    // A PuG raid refused a non-member of its server (#907): the hint, and the invite when known.
+    const [membersOnly, setMembersOnly] = useState<{ inviteUrl: string } | null>(null);
 
     // Start from the stored signup, else from the main character and its first spec.
     useEffect(() => {
@@ -65,6 +74,8 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
         setStatus(open);
         setCanAlso(mine ? mine.canAlso : (first ? defaultCanAlso(profile, first.key, role) : []));
         setComment(mine?.comment || "");
+        setNewChar({ classId: "", spec: "", name: nameFromAccount(accountName) });
+        setMembersOnly(null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [row?.id]);
 
@@ -77,6 +88,10 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
 
     const absent = status === "absence";
     const noCharacter = !profile.characters.length;
+    // Classes with their specs (classesByVersion): then a new character can be made here.
+    const canCreate = noCharacter && classes.some((c) => c.specs?.length);
+    const creating = canCreate && !absent;
+    const newReady = newCharacterReady(newChar);
     const closed = !row.allowedStatuses.length;
     // "Vielleicht" / "Absagen" turn the comment into a message to the raid lead,
     // which the bot posts in the orga's channel — required, optional or not asked
@@ -88,7 +103,7 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
     const rosterOnly = !!row.rosterOnly;
     // the category's raider role is missing (only "Alle Kategorien" lists such a raid) — the server refuses too
     const roleMissing = !!row.roleMissing;
-    const canSubmit = !busy && !closed && !rosterOnly && !roleMissing && !noteMissing && (absent || (!!character && !!spec));
+    const canSubmit = !busy && !closed && !rosterOnly && !roleMissing && !noteMissing && (absent || (creating ? newReady : !!character && !!spec));
     // What the segment shows as chosen: the status every character shares, "" when they differ (#320).
     const shared = absent ? "absence" : commonStatus(picks, status);
     const pickStatus = (s: SignupStatus) => {
@@ -110,19 +125,25 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
         try {
             const res = await saveSignup({
                 eventId: row.id,
-                characters: picksToInput(profile, picks),
+                characters: creating ? [] : picksToInput(profile, picks),
+                ...(creating ? { newCharacter: { name: newChar.name.trim(), spec: newChar.spec } } : {}),
                 // the signup's own status mirrors the first character's (#320)
                 status: signupStatusOf(picks, status),
                 canAlso: absent ? [] : canAlso.filter((r) => r !== ownRole),
                 comment,
             });
-            onSaved(row.id, res.signup, res.counts);
+            if (creating) onSaved(row.id, res.signup, res.counts, true);
+            else onSaved(row.id, res.signup, res.counts);
             // A full raid turned the "Dabei" into the waiting list (#306) — the
             // raider hears it here, not from the roster.
             if (res.notice) toast(res.notice, res.waitlisted ? "err" : undefined);
             else toast(absent ? t("signups.dialog.toastAbsent", { title: row.title }) : t("signups.dialog.toastSaved", { title: row.title, status: SIGNUP_STATUS[signupStatusOf(picks, status)].label }));
         } catch (e) {
-            const err = e as ApiError;
+            const err = e as SignupError;
+            if (err.code === PUG_MEMBERS_ONLY) {
+                setMembersOnly({ inviteUrl: err.inviteUrl || "" });
+                return;
+            }
             toast(err.code === "roster_only" ? t("signups.dialog.rosterOnly") : err.code === "raider_role" ? t("signups.dialog.roleMissing") : err.message, "err");
         } finally {
             setBusy(false);
@@ -160,7 +181,19 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
             )}
         >
             <div className="an-dlg">
-                {noCharacter && missingVersion ? (
+                {membersOnly && (
+                    <div className="an-pug" role="alert" data-pug-members-only>
+                        <span>{t("signups.dialog.pugMembersOnly")}</span>
+                        {membersOnly.inviteUrl && (
+                            <a className={buttonClass("go", "sm")} href={membersOnly.inviteUrl} target="_blank" rel="noreferrer">
+                                {t("signups.dialog.pugJoin")}
+                            </a>
+                        )}
+                    </div>
+                )}
+                {canCreate ? (
+                    <NewCharacterPick classes={classes} value={newChar} onChange={setNewChar} version={missingVersion} disabled={absent} />
+                ) : noCharacter && missingVersion ? (
                     <p className="an-note" data-version-missing>
                         {t("signups.dialog.noVersionChar", { version: missingVersion })}{" "}
                         <Link to="/profile">{t("signups.dialog.noVersionCharLink", { version: missingVersion })}</Link> {t("signups.dialog.noCharAfter")}
@@ -185,7 +218,7 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
                                 <button
                                     key={s} type="button" role="radio" aria-checked={shared === s}
                                     className={`seg-opt${shared === s ? " active" : ""}`}
-                                    disabled={!allowed || (noCharacter && s !== "absence")}
+                                    disabled={!allowed || (noCharacter && !canCreate && s !== "absence")}
                                     data-tip={SIGNUP_STATUS[s].label}
                                     data-tip-sub={allowed ? SIGNUP_STATUS[s].tip : t("signups.dialog.notAfterDeadline")}
                                     onClick={() => pickStatus(s)}

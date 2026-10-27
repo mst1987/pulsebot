@@ -1,4 +1,5 @@
 import { get, send } from "./client";
+import type { ApiError } from "./client";
 import type { SignupStatus } from "./raidDetail";
 import type { GameRole } from "./raidTemplates";
 import type { GearLevel } from "./profile";
@@ -111,7 +112,9 @@ export type SignupProfileCharacter = {
     canOfftank: boolean; canHeal: boolean;
 };
 export type SignupProfile = { characters: SignupProfileCharacter[]; canOfftank: boolean; canHeal: boolean };
-export type SignupClass = { id: string; label: string; color: string; icon: string };
+export type SignupClassSpec = { key: string; label: string; icon: string; role: GameRole | "" };
+/** `specs` only in `classesByVersion` (#907): the dialog's class -> spec -> name for a raider without a character. */
+export type SignupClass = { id: string; label: string; color: string; icon: string; specs?: SignupClassSpec[] };
 
 export type SignupsData = {
     events: SignupEventRow[];
@@ -146,7 +149,14 @@ export type SignupInput = {
     status: SignupStatus;
     canAlso: GameRole[];
     comment: string;
+    /** No character of the raid's version yet (#907): the server adds this one to the profile, then signs it up. */
+    newCharacter?: { name: string; spec: string };
 };
+
+/** The refusal of a PuG raid to a non-member of its server (#907). */
+export const PUG_MEMBERS_ONLY = "pug_members_only";
+/** `inviteUrl`: the PuG server's invite link, "" while none is known. */
+export type SignupError = ApiError & { inviteUrl?: string };
 
 /** One raid's answer to POST /api/signups/bulk (#293): saved, or refused with the reason. */
 export type BulkSignupResult = {
@@ -155,6 +165,8 @@ export type BulkSignupResult = {
     ok: boolean;
     error: string;
     code: string;
+    /** `pug_members_only` (#907): the PuG server's invite link, "" while none is known. */
+    inviteUrl?: string;
     /** Characters left out for this raid, each with why ("Klasse passt nicht zu diesem Raid"). */
     skipped: { character: string; spec: string; reason: string }[];
     /** the raid was full: the "Dabei" became the waiting list (#306) */

@@ -316,6 +316,71 @@ describe("SignupDialog je Spielversion (#543)", () => {
     });
 });
 
+describe("SignupDialog ohne Charakter: Klasse -> Spec -> Name (#907)", () => {
+    // the raid version's classes with their specs, as classesByVersion sends them
+    const WITH_SPECS: api.SignupClass[] = [
+        { ...CLASSES[0], specs: [{ key: "Priest-Holy", label: "Holy", icon: "spell_holy_guardianspirit", role: "healer" }] },
+        { ...CLASSES[1], specs: [
+            { key: "Warrior-Arms", label: "Arms", icon: "ability_warrior_savageblow", role: "dps" },
+            { key: "Warrior-Protection", label: "Protection", icon: "ability_warrior_defensivestance", role: "tank" },
+        ] },
+    ];
+    const open = (onSaved = vi.fn(), missingVersion = "") => {
+        renderPage(<SignupDialog row={ownRow()} profile={{ ...PROFILE, characters: [] }} classes={WITH_SPECS}
+            missingVersion={missingVersion} accountName="Bert the 2nd!" onClose={vi.fn()} onSaved={onSaved} />);
+        return onSaved;
+    };
+
+    it("fragt Klasse, Spec und Namen ab, der Name kommt aus Discord, und legt den Charakter mit der Anmeldung an", async () => {
+        const user = userEvent.setup();
+        const onSaved = open();
+        expect(screen.queryByRole("link", { name: t("signups.dialog.noCharLink") })).not.toBeInTheDocument();
+        expect(submitButton()).toBeDisabled();
+        // spec and name only once the step before is picked
+        expect(screen.queryByRole("radio", { name: /Protection/ })).not.toBeInTheDocument();
+        await user.click(screen.getByRole("radio", { name: /Krieger/ }));
+        expect(screen.queryByLabelText(t("signups.newChar.name"))).not.toBeInTheDocument();
+        await user.click(screen.getByRole("radio", { name: /Protection/ }));
+        const name = screen.getByLabelText(t("signups.newChar.name"));
+        expect(name).toHaveValue("Bertthend");
+        await user.clear(name);
+        await user.type(name, "Bertholt");
+        expect(radio("signed")).toBeEnabled();
+        await user.click(submitButton());
+        expect(api.saveSignup).toHaveBeenCalledWith(expect.objectContaining({
+            eventId: "eh-kara", characters: [], status: "signed", newCharacter: { name: "Bertholt", spec: "Warrior-Protection" },
+        }));
+        // the page loads the profile again, the new character is in it
+        expect(onSaved).toHaveBeenCalledWith("eh-kara", expect.anything(), expect.anything(), true);
+    });
+
+    it("nennt die Version des Raids und lässt Abmelden ohne Charakter zu", async () => {
+        const user = userEvent.setup();
+        open(vi.fn(), "Forever");
+        expect(screen.getByText(t("signups.newChar.introVersion", { version: "Forever" }))).toBeInTheDocument();
+        await user.click(radio("absence"));
+        await user.click(screen.getByRole("button", { name: t("signups.dialog.signOff") }));
+        expect(vi.mocked(api.saveSignup).mock.calls[0][0]).not.toHaveProperty("newCharacter");
+    });
+
+    it("zeigt bei einem PuG-Raid für Nicht-Mitglieder den Hinweis, den Beitreten-Knopf nur mit Einladung", async () => {
+        const user = userEvent.setup();
+        const refuse = (inviteUrl: string) => vi.mocked(api.saveSignup).mockRejectedValueOnce({ code: api.PUG_MEMBERS_ONLY, message: "Nur für Mitglieder des PuG-Servers.", inviteUrl });
+        refuse("");
+        const onSaved = vi.fn();
+        renderPage(<SignupDialog row={ownRow()} profile={PROFILE} classes={CLASSES} onClose={vi.fn()} onSaved={onSaved} />);
+        await user.click(submitButton());
+        expect(await screen.findByText(t("signups.dialog.pugMembersOnly"))).toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: t("signups.dialog.pugJoin") })).not.toBeInTheDocument();
+        refuse("https://discord.gg/pugs");
+        await user.click(submitButton());
+        const join = await screen.findByRole("link", { name: t("signups.dialog.pugJoin") });
+        expect(join).toHaveAttribute("href", "https://discord.gg/pugs");
+        expect(join).toHaveAttribute("target", "_blank");
+        expect(onSaved).not.toHaveBeenCalled();
+    });
+});
+
 describe("SignupDialog — characters per signup, per category", () => {
     // ten characters with a geared spec: more than any category allows
     const big = {

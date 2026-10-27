@@ -75,6 +75,16 @@
 .an-note { margin: 0 0 14px; color: var(--muted); }
 .an-wish { display: flex; }
 
+/* #907: a new character (class -> spec -> name) and the PuG server's refusal */
+.an-newchar .an-note { margin-bottom: 10px; }
+.an-chip.an-cls { color: var(--an-cls); }
+.an-chip.an-cls.is-on { border-color: var(--an-cls); }
+.an-dlg .an-newchar .field input:not([type=checkbox]) { max-width: 16em; }
+.an-pug {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0 0 14px; padding: 8px 12px;
+    border-left: 2px solid var(--high); color: var(--text);
+}
+
 /* #308: the calendar file and the public event page — quiet links, not buttons. */
 .an-links { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; }
 .an-links a { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); }
