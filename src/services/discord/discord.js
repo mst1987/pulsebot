@@ -82,12 +82,22 @@ const CHANNEL_TYPE_LABELS = {
 function listGuilds() {
     if (!client) return [];
     return [...client.guilds.cache.values()]
-        .map((g) => ({ id: g.id, name: g.name }))
+        .map((g) => ({ id: g.id, name: g.name || "" })) // an unavailable server (outage) has no name
         .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function getGuild(guildId) {
     return client && guildId ? client.guilds.cache.get(guildId) : null;
+}
+
+/**
+ * Whether the bot has a server cached AND usable (#926). During a Discord
+ * outage discord.js v14 keeps a server in the cache with `available === false`
+ * and no channels — being cached proves nothing about its channels then.
+ */
+function isGuildAvailable(guildId) {
+    const guild = getGuild(guildId);
+    return !!guild && guild.available !== false;
 }
 
 /** Roles of a guild that can be pinged (excludes @everyone), highest first. */
@@ -1239,7 +1249,7 @@ function embed() {
 }
 
 module.exports = {
-    setClient, getClient, isOnline, fetchTextChannel, textChannelOf, listGuilds, getGuild, listTextChannels, listEmojis,
+    setClient, getClient, isOnline, fetchTextChannel, textChannelOf, listGuilds, getGuild, isGuildAvailable, listTextChannels, listEmojis,
     sendDirectMessage, embed,
     resolveUserNames, avatarUrlFor, avatarUrlOf, NAME_FETCH_MS, ABSENT_MS, _resetAbsentNamesForTests,
     memberRoleIds, guildMembership,

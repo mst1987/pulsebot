@@ -59,7 +59,9 @@ const ALLOWED_PLAIN_HEADERS = new Set(["Links", "WCL", "Token", "Wer", "Slot", "
 //   * the Warcraft-Logs guilds of a server (#922, Einstellungen → Log-Auswertung):
 //     each row is a draft being typed into, a new row is still empty, and the
 //     inputs are labelled "Gilde von Zeile n"; sorting would move a row away
-//     under the cursor and renumber the rows mid-edit.
+//     under the cursor and renumber the rows mid-edit. The row order is the
+//     entry order on purpose (an edit form, not a list to read).
+// Only for such edit forms - a table people read stays sortable (SortTh).
 const EDIT_FORM_TABLES = new Set(["pages/settings/SettingsWclGuilds.tsx"]);
 
 describe("table sorting", () => {

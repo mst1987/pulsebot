@@ -179,6 +179,18 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     Namespace im Schlüssel (`region|realm|namespace|name`), sonst liefert ein Server die Ausrüstung
     eines gleichnamigen Charakters vom anderen Realm. Ohne Session kommt der Server einer Kategorie
     aus `serverWithoutSession` (`services/loot/lootServer.js`), der eines Reports aus `reportGuild`.
+20. „Kategorie gelöscht" nur mit nachgewiesenem Server (#926, Prod 27.10.2026: Pulse Fresh fehlte in
+    `discordServers.servers`, seine Kategorien galten als gelöscht, Abschließen löschte Daten). Nur
+    `categoryGuild.categoryState()` → `missing` (Bot online, Server konfiguriert und im Cache) darf
+    etwas als gelöscht zeigen oder abschließen lassen; fehlt der Nachweis → `unknown`, nie löschen.
+    `config.categoryIds` gilt für alle Server — Einstellungen zeigen und speichern nur den Teil des
+    aktiven Servers (`mergeServerCategoryIds`), nie die globale Liste je Server.
+    Jede serverbezogene Änderung im PATCH (auch der categoryIds-Merge) nimmt den Server aus dem Tab (`serverSettingsGuildId`, geprüft per `serverSettingsTarget`), nie allein aus `activeGuildFor(req)`.
+    Ein Server in `client.guilds.cache` beweist nicht, dass seine Kanäle bekannt sind: bei einem
+    Discord-Ausfall bleibt er mit `available === false` und ohne Kanäle im Cache
+    (`discord.isGuildAvailable()` prüfen). „In Discord gelöscht" gilt nur bei verfügbarem Server, der
+    überhaupt Kategorien liefert, und belastbarem Besitzer (live oder Namens-Snapshot) — nie aus
+    Roster-, Raid- oder Migrations-`guildId`s (die sind oft geraten und dienen nur der Anzeige).
 
 ## Fach-Agenten
 

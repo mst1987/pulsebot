@@ -14,6 +14,7 @@ const {
 const { isSnowflake } = require("../../utils/ids");
 const { switchPreview, versionSwitches, applySeriesFix, notifyCategoryVersionSwitch } = require("../../services/events/categorySwitch");
 const categoryLifecycle = require("../../services/events/categoryLifecycle");
+const categoryGuild = require("../../services/events/categoryGuild");
 const {
     listTokens: listIngestTokens, createToken: createIngestToken, revokeToken: revokeIngestToken,
 } = require("../../stores/ingestTokenStore");
@@ -221,10 +222,13 @@ const guildBankOf = (config) => String(((config && config.discordServers) || {})
 // Body keys stored per Discord server (config.serverSettings[guildId]). Each
 // part of the "data per server" epic (#926) that moves a setting there adds
 // its key here, so its PATCH is checked by serverSettingsTarget() below.
-const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper", "versionOverrides", "wclGuilds"];
+// categoryIds (#926) is one list over every server, but a save changes only the
+// saving server's part (mergedCategoryIds) - so it is bound to the tab's server too.
+const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper", "versionOverrides", "categoryIds", "wclGuilds"];
 // Server-bound keys that, without an active server, edit the first server
-// (#927 Raid-Helper, as its section shows); every other key then needs one.
-const FIRST_SERVER_FALLBACK_KEYS = ["raidhelper"];
+// (#927 Raid-Helper, as its section shows; #926 the categories, shown on the
+// first server then); every other key then needs one.
+const FIRST_SERVER_FALLBACK_KEYS = ["raidhelper", "categoryIds"];
 
 /**
  * The server a PATCH of server-bound settings writes to — guarded against a
@@ -306,7 +310,9 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         bot: botStatus(guildId),
         // #744: configured categories Discord no longer has (only when the bot sees
         // every server), each with what "Kategorie abschließen" would remove.
-        missingCategories: missingCategoriesOf(config),
+        // #926: only the active server's part of config.categoryIds, plus those
+        // without a proven configured server (shown on the first server, never closable).
+        ...serverCategoriesOf(config, guildId),
         // One card per server (cheap: names, member counts, rights). The member
         // overlap needs a full member fetch and loads with the section itself.
         servers: user.isAdmin ? serverCards(config) : null,
@@ -863,6 +869,10 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         partial.categoryReminders = body.categoryReminders && typeof body.categoryReminders === "object" ? body.categoryReminders : {};
     }
     const before = getConfig();
+    // #926: a save on one server never adds or removes a category of another one.
+    // The server is the tab's (checked by serverSettingsTarget()), never the session's alone:
+    // a tab on A saving after another tab switched to B would otherwise empty B's part.
+    if (partial.categoryIds !== undefined) partial.categoryIds = mergedCategoryIds(partial.categoryIds, before, server.guildId);
     // #744: no active category at all would read as "every category" — refused while raids exist.
     if (emptiesActiveCategories(partial, before)) return error(res, 400, "categories_empty", categoryLifecycle.EMPTY_LIST_MESSAGE);
     // #738: every active category plays an explicit version; a changed one starts a new section.
@@ -892,12 +902,15 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // redraw them now instead of at the next five-minute sweep (not awaited, never throws).
     else if (guildBankOf(saved) !== guildBankOf(before)) void availabilityPanel.refreshPanels({ config: saved }).catch(() => {});
     // a switch may have changed the raider roles (#739: they mirror the new roster) - answer what is stored now
+    const after = switchedCategories.length ? getConfig() : saved;
     ok(res, {
-        config: publicConfig(switchedCategories.length ? getConfig() : saved),
+        config: publicConfig(after),
         switchedCategories,
         deactivatedCategories: deactivated,
         ...(raidhelperGuild ? { raidhelper: maskedRaidhelper(raidhelperGuild, saved) } : {}),
         ...(body.wclGuilds !== undefined && server ? { wclGuilds: wclGuildsOf(server.guildId, { config: saved }) } : {}),
+        // #926: with the active server's part of categoryIds, so the page keeps showing only its own
+        ...serverCategoriesOf(after, server ? server.guildId : activeGuildFor(req)),
     });
 });
 
@@ -940,10 +953,11 @@ function emptiesActiveCategories(partial, before) {
 }
 
 /** The categories Discord no longer has, with their names (#744). Best-effort: [] on any trouble. */
-function missingCategoriesOf(config) {
+function missingCategoriesOf(config, guildId, ctx) {
     try {
+        const context = ctx || categoryGuild.categoryContext(config);
         const names = categoryNamesOf(config);
-        return categoryLifecycle.missingCategories({ config, nameOf: (id) => names.get(id) || "" });
+        return categoryLifecycle.missingCategories({ config, nameOf: (id) => names.get(id) || "", guildId: guildId || context.first, ctx: context });
     } catch (e) {
         console.warn("missingCategories failed:", e.message);
         return [];
@@ -951,13 +965,56 @@ function missingCategoriesOf(config) {
 }
 
 /**
- * GET /api/settings/category-deactivate?next=a,b — what saving the active
+ * The raid categories of one server (#926, prod incident 2026-10-27): the ids of
+ * config.categoryIds shown and edited on `guildId` (one without a proven,
+ * configured server shows on the first server), those of them without such a
+ * server (marked, never closable), and the ones proven deleted there.
+ * Best-effort: on any trouble nothing reads as deleted.
+ */
+function serverCategoriesOf(config, guildId) {
+    const stored = asStringArray(config.categoryIds);
+    try {
+        const ctx = categoryGuild.categoryContext(config);
+        const serverCategoryIds = categoryGuild.idsOnServer(stored, guildId, ctx);
+        const configured = [...new Set([...stored, ...categoryLifecycle.configuredCategoryIds(config)])];
+        const own = new Set(categoryGuild.idsOnServer(configured, guildId, ctx));
+        const gid = String(guildId || "").trim() || ctx.first;
+        return {
+            serverCategoryIds,
+            // every configured category shown here whose server is not a listed one (shown on the
+            // first server) or whose fate is not provable - never closable
+            unprovenCategoryIds: [...own].filter((id) => !categoryGuild.hasKnownServer(id, ctx)
+                || categoryGuild.categoryState(id, ctx).state === "unknown"),
+            // configured categories shown on another server: the page leaves their rows out
+            otherServerCategoryIds: configured.filter((id) => !own.has(id)),
+            missingCategories: missingCategoriesOf(config, guildId, ctx),
+            // a server outside discordServers.servers: a save keeps no activation there (merge drops it)
+            serverListed: !ctx.servers.length || ctx.servers.includes(gid),
+        };
+    } catch (e) {
+        console.warn("server categories failed:", e.message);
+        return { serverCategoryIds: stored, unprovenCategoryIds: stored, otherServerCategoryIds: [], missingCategories: [], serverListed: true };
+    }
+}
+
+/** A PATCH's categoryIds merged into the stored list: only the saving server's part changes (#926). */
+function mergedCategoryIds(sent, before, guildId) {
+    return categoryGuild.mergeServerCategoryIds({ stored: asStringArray(before.categoryIds), sent, guildId, ctx: categoryGuild.categoryContext(before) });
+}
+
+/**
+ * GET /api/settings/category-deactivate?next=a,b&guild=<id> — what saving the active
  * categories `next` pauses (#744): per category taken out its series and
  * reminders, and whether the list would be empty although raids exist.
  */
-const getCategoryDeactivate = withUser({}, async ({ res, url }) => {
-    const next = String(url.searchParams.get("next") || "").split(",").map((s) => s.trim()).filter(Boolean);
+const getCategoryDeactivate = withUser({}, async ({ req, res, url }) => {
     const config = getConfig();
+    // #926: `next` is the active server's list; the other servers' categories stay as stored
+    const sent = String(url.searchParams.get("next") || "").split(",").map((s) => s.trim()).filter(Boolean);
+    // the server the tab loaded (`guild`, "" = none active): 409 when the session switched since
+    const server = serverSettingsTarget(req, { categoryIds: sent, serverSettingsGuildId: url.searchParams.get("guild") || "" }, config);
+    if (!server.guildId) return error(res, server.status, server.code, server.message);
+    const next = mergedCategoryIds(sent, config, server.guildId);
     const preview = categoryLifecycle.deactivationPreview({ config, nextIds: next });
     const names = categoryNamesOf(config);
     ok(res, {
@@ -973,15 +1030,16 @@ const getCategoryDeactivate = withUser({}, async ({ res, url }) => {
  * closed (#739: readable, no role sync); raids, loot and
  * logs stay. 409 while Discord still has it, 503 while that is unknown.
  */
-const closeCategoryHandler = withUser({ csrf: true, body: true }, async ({ body, res, user }) => {
+const closeCategoryHandler = withUser({ csrf: true, body: true }, async ({ body, req, res, user }) => {
     const categoryId = String((body && body.categoryId) || "").trim();
     const config = getConfig();
     const name = categoryNamesOf(config).get(categoryId) || "";
     // #739: its rosters are closed too, by this caller
-    const result = categoryLifecycle.closeCategory(categoryId, { config, actor: String((user && user.id) || "") });
+    // #926: only a category of the active server
+    const result = categoryLifecycle.closeCategory(categoryId, { config, actor: String((user && user.id) || ""), guildId: activeGuildFor(req) });
     if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
     console.log(`[settings] Kategorie ${name || categoryId} abgeschlossen (#744) von ${(user && (user.name || user.id)) || "?"}`);
-    ok(res, { ...result, name, config: publicConfig(getConfig()), missingCategories: missingCategoriesOf(getConfig()) });
+    ok(res, { ...result, name, config: publicConfig(getConfig()), ...serverCategoriesOf(getConfig(), activeGuildFor(req)) });
 });
 
 /** Category id → name over every server (live list backed by the snapshot); "" when unknown. */
