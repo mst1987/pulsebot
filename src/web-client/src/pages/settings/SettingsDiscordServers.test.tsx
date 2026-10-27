@@ -1,6 +1,6 @@
 // Einstellungen → Discord-Server (#891): the links table with create/remove,
 // the hint for a source without a raid category, and the guild bank channel.
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { AdminConfig, DiscordServersData, ServerLink, ServerRow } from "../../api";
@@ -10,6 +10,8 @@ import DiscordServersSection from "./SettingsDiscordServers";
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
     getDiscordServers: vi.fn(),
+    getPugInvites: vi.fn(),
+    postPugInvite: vi.fn(),
     getTalkOverview: vi.fn(),
     repostTalkOverview: vi.fn(),
     getRoleSync: vi.fn(),
@@ -54,6 +56,8 @@ beforeEach(() => {
     vi.mocked(api.getReminders).mockResolvedValue({ categoryReminders: {}, categories: [], lastRun: null });
     vi.mocked(api.updateSettings).mockReset();
     vi.mocked(api.updateSettings).mockResolvedValue({ config: {} as AdminConfig });
+    vi.mocked(api.getPugInvites).mockResolvedValue({ links: [], servers: [] });
+    vi.mocked(api.postPugInvite).mockReset();
 });
 
 describe("Discord-Server: Verknüpfungen", () => {
@@ -186,6 +190,141 @@ describe("Discord-Server: Server", () => {
         render();
         await screen.findAllByText("12 Mitglieder");
         expect(document.querySelector(".srv-sub")?.textContent).toContain("0 Raid-Kategorien");
+    });
+});
+
+describe("Discord-Server: Einladungen (#905)", () => {
+    const invite = (extra: Partial<api.PugLinkInvite> = {}): api.PugLinkInvite => ({
+        key: "10001:20002", from: "10001", to: "20002", code: "abc123", url: "https://discord.gg/abc123",
+        channelId: "c2", createdAt: 1, error: "", deleted: false, joined: 3, signedUp: 1, ...extra,
+    });
+
+    it("shows the link's invite code with copy and its numbers in the same compact cell", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [LINK] }));
+        vi.mocked(api.getPugInvites).mockResolvedValue({ links: [invite()], servers: [] });
+        render();
+        expect(await screen.findByText("abc123")).toBeInTheDocument();
+        const td = screen.getByText("abc123").closest("td") as HTMLElement;
+        expect(within(td).getByRole("button", { name: "Einladung kopieren" })).toBeInTheDocument();
+        expect(within(td).getByText("3 beigetreten")).toBeInTheDocument();
+        expect(within(td).getByText("1 angemeldet")).toBeInTheDocument();
+        // six columns, every value cell labelled for the stacked narrow layout
+        const table = td.closest("table") as HTMLElement;
+        expect(table.querySelectorAll("thead th")).toHaveLength(6);
+        expect(td).toHaveAttribute("data-label", "Einladung");
+    });
+
+    it("offers a green Erzeugen without counting numbers while there is no invite", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [LINK] }));
+        vi.mocked(api.getPugInvites).mockResolvedValue({ links: [invite({ code: "", url: "", joined: 0, signedUp: 0 })], servers: [] });
+        render();
+        const create = await screen.findByRole("button", { name: "Erzeugen" });
+        expect(create).toHaveClass("btn-go");
+        expect(screen.getByRole("button", { name: /Neu posten/ })).not.toHaveClass("btn-go");
+        expect(screen.queryByText("0 beigetreten")).toBeNull();
+    });
+
+    it("says when the invite was deleted on Discord and creates a new one without asking", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [LINK] }));
+        vi.mocked(api.getPugInvites).mockResolvedValue({ links: [invite({ code: "", url: "", deleted: true })], servers: [] });
+        vi.mocked(api.postPugInvite).mockResolvedValue({ links: [invite()], servers: [] });
+        render();
+        expect(await screen.findByText("Einladung gelöscht – neu erzeugen?")).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Erzeugen" }));
+        await waitFor(() => expect(api.postPugInvite).toHaveBeenCalledWith({ key: "10001:20002" }, false));
+        expect(screen.queryByRole("dialog")).toBeNull();
+        expect(await screen.findByText("abc123")).toBeInTheDocument();
+    });
+
+    it("labels a problem with an existing invite differently from a missing invite", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [LINK] }));
+        vi.mocked(api.getPugInvites).mockResolvedValue({ links: [invite({ error: "Bot fehlt das Recht Server verwalten" })], servers: [] });
+        render();
+        expect(await screen.findByText("Einladung prüfen")).toBeInTheDocument();
+        expect(screen.queryByText("Keine Einladung")).toBeNull();
+        expect(screen.getByText("abc123")).toBeInTheDocument();
+    });
+
+    it("says in the remove dialog that the link's invite is deleted on Discord", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [LINK] }));
+        vi.mocked(api.getPugInvites).mockResolvedValue({ links: [invite()], servers: [] });
+        render();
+        await screen.findByText("abc123");
+        fireEvent.click(screen.getByRole("button", { name: "Verknüpfung entfernen" }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByText(/Ihre Einladung wird auf Discord gelöscht\./)).toBeInTheDocument();
+    });
+
+    it("leaves the invite sentence out of the remove dialog when there is none", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [LINK] }));
+        vi.mocked(api.getPugInvites).mockResolvedValue({ links: [invite({ code: "", url: "" })], servers: [] });
+        render();
+        fireEvent.click(await screen.findByRole("button", { name: "Verknüpfung entfernen" }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).queryByText(/Einladung wird auf Discord/)).toBeNull();
+    });
+
+    it("creates a missing invite by the link's key and names a missing right", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [LINK] }));
+        vi.mocked(api.getPugInvites).mockResolvedValue({ links: [invite({ code: "", url: "", error: "Bot fehlt das Recht „Einladung erstellen“" })], servers: [] });
+        vi.mocked(api.postPugInvite).mockResolvedValue({ links: [invite()], servers: [] });
+        render();
+        expect(await screen.findByText("Keine Einladung")).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Erzeugen" }));
+        await waitFor(() => expect(api.postPugInvite).toHaveBeenCalledWith({ key: "10001:20002" }, false));
+        expect(await screen.findByText("abc123")).toBeInTheDocument();
+        expect(screen.queryByText("Keine Einladung")).toBeNull();
+    });
+
+    it("asks before regenerating an invite", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [LINK] }));
+        vi.mocked(api.getPugInvites).mockResolvedValue({ links: [invite()], servers: [] });
+        vi.mocked(api.postPugInvite).mockResolvedValue({ links: [invite({ code: "new999", url: "https://discord.gg/new999" })], servers: [] });
+        render();
+        await screen.findByText("abc123");
+        fireEvent.click(screen.getByRole("button", { name: "Neu erzeugen" }));
+        const dialog = await screen.findByRole("dialog");
+        expect(api.postPugInvite).not.toHaveBeenCalled();
+        fireEvent.click(within(dialog).getByRole("button", { name: "Neu erzeugen" }));
+        await waitFor(() => expect(api.postPugInvite).toHaveBeenCalledWith({ key: "10001:20002" }, true));
+        expect(await screen.findByText("new999")).toBeInTheDocument();
+    });
+
+    const SERVER_INVITE_SENTENCE = "Die Einladungen des Bots auf diesem Server werden auf Discord gelöscht.";
+
+    it("says in the remove-server dialog that the invite of a link it is the source of is deleted", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [LINK] }));
+        vi.mocked(api.getPugInvites).mockResolvedValue({ links: [invite()], servers: [] });
+        render();
+        await screen.findByText("abc123");
+        fireEvent.click(screen.getByRole("button", { name: "Server entfernen" }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByText(new RegExp(SERVER_INVITE_SENTENCE))).toBeInTheDocument();
+    });
+
+    it("says in the remove-server dialog that the server's general invite is deleted", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData());
+        vi.mocked(api.getPugInvites).mockResolvedValue({ links: [], servers: [{
+            guildId: "10001", source: false, code: "gen777", url: "https://discord.gg/gen777",
+            channelId: "c1", inviteChannelId: "c1", error: "", deleted: false,
+        }] });
+        render();
+        // the general invite shows nowhere on the page, so let the loaded invites settle before opening the dialog
+        const remove = await screen.findByRole("button", { name: "Server entfernen" });
+        await waitFor(() => expect(api.getPugInvites).toHaveBeenCalled());
+        await act(async () => undefined);
+        fireEvent.click(remove);
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByText(new RegExp(SERVER_INVITE_SENTENCE))).toBeInTheDocument();
+        expect(within(dialog).queryByText(/Verknüpfung mit diesem Server als Quelle/)).toBeNull();
+    });
+
+    it("leaves the invite sentence out of the remove-server dialog without any invite", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData());
+        render();
+        fireEvent.click(await screen.findByRole("button", { name: "Server entfernen" }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).queryByText(/Einladungen des Bots/)).toBeNull();
     });
 });
 

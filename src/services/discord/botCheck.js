@@ -15,7 +15,8 @@ const rosterStore = require("../../stores/rosterStore");
 const roleMessageStore = require("../../stores/roleMessageStore");
 const addonCenterStore = require("../../stores/addonCenterStore");
 const eventStore = require("../../stores/eventStore");
-const { serverIds, roleMessageGuild } = require("./guildRoles");
+const inviteStore = require("../../stores/discordInviteStore");
+const { serverIds, roleMessageGuild, links } = require("./guildRoles");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -33,13 +34,17 @@ const RIGHT_LABELS = {
     SendMessagesInThreads: "Nachrichten in Threads senden",
     GuildMembers: "Mitglieder lesen (Intent)",
     MessageContent: "Nachrichteninhalt lesen (Intent)",
+    CreateInstantInvite: "Einladung erstellen",
+    ManageGuild: "Server verwalten",
 };
 const INTENTS = ["GuildMembers", "MessageContent"];
 
 /**
  * Function → the rights it needs on the server. `only` limits a function to
  * the servers where it is set up ("raids": raid categories or the first server,
- * "roleMessages": a role message stands there); elsewhere it reads "not_needed".
+ * "roleMessages": a role message stands there, "invites": the server is the
+ * source of a link or the bot made an invite there, #905); elsewhere it reads
+ * "not_needed".
  */
 const BOT_FUNCTIONS = [
     { key: "channels", label: "Kanäle anlegen und archivieren", needs: ["ManageChannels"], only: "raids" },
@@ -50,6 +55,7 @@ const BOT_FUNCTIONS = [
     { key: "events", label: "Raids als Discord-Server-Event", needs: ["ManageEvents"], only: "raids" },
     { key: "applications", label: "Bewerbungen als Thread", needs: ["CreatePublicThreads", "SendMessagesInThreads"], only: "raids" },
     { key: "logLinks", label: "Warcraft-Logs-Links in Log-Kanälen erkennen", needs: ["MessageContent"], only: "raids" },
+    { key: "invites", label: "Einladungen je Verknüpfung, Herkunft neuer Mitglieder", needs: ["CreateInstantInvite", "ManageGuild"], only: "invites" },
 ];
 
 const POST = ["ViewChannel", "SendMessages", "EmbedLinks"];
@@ -145,13 +151,16 @@ function raidCategoryOn(gid, config, guild) {
  */
 function setupOf(guildId, config, guild) {
     const gid = str(guildId);
-    if (!gid) return { raids: false, roleMessages: false };
+    if (!gid) return { raids: false, roleMessages: false, invites: false };
     const ids = serverIds(config);
     const raids = gid === ids[0]
         || safeList(() => eventStore.listEvents(gid)).some((e) => e && str(e.guildId) === gid && str(e.categoryId))
         || raidCategoryOn(gid, config, guild);
     const roleMessages = safeList(() => roleMessageStore.listMessages().filter((m) => roleMessageGuild(m, config) === gid));
-    return { raids, roleMessages: roleMessages.length > 0 };
+    // A link's source needs the rights before its first invite: the page shows the gap before the click.
+    const invites = safeList(() => links(config)).some((l) => str(l.from) === gid)
+        || safeList(() => inviteStore.knownCodes()).some((k) => k.guildId === gid);
+    return { raids, roleMessages: roleMessages.length > 0, invites };
 }
 
 /**

@@ -364,7 +364,8 @@
             "members": "Mitglieder- und Rollen-Abgleich, Neu und gegangen",
             "events": "Raids als Discord-Server-Event",
             "applications": "Bewerbungen als Thread",
-            "logLinks": "Warcraft-Logs-Links in Log-Kanälen erkennen"
+            "logLinks": "Warcraft-Logs-Links in Log-Kanälen erkennen",
+            "invites": "Einladungen je Verknüpfung, Herkunft neuer Mitglieder"
         },
         "purpose": {
             "applications": "Bewerbungen",

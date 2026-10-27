@@ -25,6 +25,8 @@ jest.mock("../../../src/services/discord/categoryNames", () => ({
 }));
 const mockAddon = { channelId: "", roleId: "" };
 jest.mock("../../../src/stores/addonCenterStore", () => ({ getSettings: () => ({ ...mockAddon }) }));
+const mockInviteCodes = [];
+jest.mock("../../../src/stores/discordInviteStore", () => ({ knownCodes: () => mockInviteCodes }));
 
 const { botCheck, channelPurposes, raidServerIds, BOT_FUNCTIONS } = require("../../../src/services/discord/botCheck");
 
@@ -58,6 +60,7 @@ beforeEach(() => {
     mockAddon.channelId = "";
     mockAddon.roleId = "";
     mockEvents.length = 0;
+    mockInviteCodes.length = 0;
 });
 
 describe("functions", () => {
@@ -136,6 +139,22 @@ describe("functions", () => {
         const byKey = Object.fromEntries(check.functions.map((f) => [f.key, f.state]));
         expect(byKey.roles).toBe("unknown");
         expect(byKey.members).toBe("ok");
+    });
+    it("asks for the invite rights only on a server where the bot made an invite (#905)", () => {
+        const byKey = () => Object.fromEntries(botCheck(EVENT, SRV).functions.map((f) => [f.key, f]));
+        expect(byKey().invites.state).toBe("not_needed");
+        mockInviteCodes.push({ code: "abc", guildId: EVENT, linkKey: `${EVENT}:${TALK}` });
+        const invites = byKey().invites;
+        expect(invites.state).toBe("missing");
+        expect(invites.rights.map((r) => r.label)).toEqual(["Einladung erstellen", "Server verwalten"]);
+        mockGuild = guild({ rights: [...ALL, F.CreateInstantInvite, F.ManageGuild] });
+        expect(byKey().invites.state).toBe("ok");
+    });
+    it("asks for the invite rights on a link's source server before its first invite (#905)", () => {
+        const withLink = { discordServers: { ...SERVERS, links: [{ from: EVENT, to: TALK, channelId: "300000000000000001" }] } };
+        expect(botCheck(EVENT, withLink).functions.find((f) => f.key === "invites").state).toBe("missing");
+        // the target of the link hands the invite out, it needs no rights for it
+        expect(botCheck(TALK, withLink).functions.find((f) => f.key === "invites").state).toBe("not_needed");
     });
 });
 

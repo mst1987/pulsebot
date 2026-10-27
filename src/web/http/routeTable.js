@@ -19,7 +19,7 @@
 // Paths are exact; the /api layer carries its parameters in the query and the
 // body (`/api/raids/detail?event=<id>`), never in the path.
 const MODULES = [
-    "session", "dashboard", "version", "channels", "settings", "talkOverview", "raidhelperRetirement", "versionLaunch",
+    "session", "dashboard", "version", "channels", "settings", "talkOverview", "pugInvites", "raidhelperRetirement", "versionLaunch",
     "ingest", "kader", "botCommands", "raiderCharacters", "roster", "rosters", "rosterRoles", "rosterMembers", "rosterAdmin", "profile", "characters", "signups", "lootCouncil", "lootCouncilBis",
     "raids", "raidDetail", "setup", "raidplan", "eventManage", "eventSeries", "gameVersions",
     "notifyTemplates", "raidTemplates", "recruitment", "history", "cla", "availability", "orgaHub", "attendance", "guildBank", "dungeons", "addons", "addonCenter", "roleMessages", "discordRoles", "discordMembers", "system", "discordOverview", "pugOnboarding",

@@ -93,6 +93,8 @@ export type ConfirmOptions = {
     tone?: "danger" | "run" | "primary" | "go";
     /** A WoW icon name or line icon for the head tile. */
     icon?: string | ReactNode;
+    /** The confirming button's icon instead of the tone's (e.g. a refresh icon on a red "replace" button). */
+    actionIcon?: ReactNode;
     cancelLabel?: string;
 };
 
@@ -155,7 +157,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                         </Button>
                         <Button
                             variant={tone}
-                            icon={tone === "danger" ? <TrashIcon /> : tone === "run" ? "spell_holy_borrowedtime" : tone === "go" ? <CheckIcon /> : undefined}
+                            icon={current.actionIcon ?? (tone === "danger" ? <TrashIcon /> : tone === "run" ? "spell_holy_borrowedtime" : tone === "go" ? <CheckIcon /> : undefined)}
                             onClick={() => answer(true)}
                         >
                             {current.action || t("common.ok")}

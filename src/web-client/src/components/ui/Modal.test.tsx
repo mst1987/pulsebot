@@ -84,6 +84,13 @@ describe("useConfirm — the page's own dialog instead of window.confirm", () =>
         expect(within(dialog).getByRole("button", { name: "Löschen" })).toHaveClass("btn-danger");
     });
 
+    it("puts its own icon on a red button when the action replaces rather than deletes", async () => {
+        const { dialog } = await askOnce({ title: "Neu erzeugen?", action: "Neu erzeugen", tone: "danger", actionIcon: <i data-testid="own-icon" /> });
+        const btn = within(dialog).getByRole("button", { name: "Neu erzeugen" });
+        expect(btn).toHaveClass("btn-danger");
+        expect(within(btn).getByTestId("own-icon")).toBeInTheDocument();
+    });
+
     it("confirms a positive step with a green button and a tick", async () => {
         const { dialog } = await askOnce({ title: "Übernehmen?", action: "Übernehmen", tone: "go" });
         const btn = within(dialog).getByRole("button", { name: "Übernehmen" });
