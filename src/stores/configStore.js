@@ -17,7 +17,7 @@ const {
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryAttendance, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupCharacters, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeCategoryPlanning, normalizeTopItems,
     normalizeRoleSync, roleSyncContext, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings, normalizeBotLanguage,
-    normalizeDiscordVisuals, normalizeDungeonRecords,
+    normalizeDiscordVisuals, normalizeDungeonRecords, mergeServerSettings,
 } = require("./configSchema");
 const { planningOf } = require("../services/events/planning");
 const { normalizeBackupSettings } = require("../services/backup/backupConfig");
@@ -194,6 +194,10 @@ function saveConfig(partial) {
         const merged = { ...current.versionSettings };
         for (const [id, block] of Object.entries(partial.versionSettings)) merged[id] = { ...(merged[id] || {}), ...(block || {}) };
         next.versionSettings = normalizeVersionSettings(merged);
+    }
+    // #917: merged per server and per key like versionSettings; getConfig() drops unknown servers and keys.
+    if (partial.serverSettings) {
+        next.serverSettings = mergeServerSettings(current.serverSettings, partial.serverSettings);
     }
     // A list, not a map: what is sent replaces the stored one (that is how an
     // item gets removed again), it is only cleaned up on the way in.

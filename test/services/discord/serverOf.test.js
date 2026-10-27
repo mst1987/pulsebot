@@ -60,35 +60,44 @@ describe("services/discord/serverOf (#917)", () => {
     });
 
     describe("postGuildOf", () => {
-        it("keeps the stored post server", () => {
+        it("keeps the stored origin server", () => {
             expect(postGuildOf({ postGuildId: B, guildId: A, guildFrom: "event" })).toBe(B);
         });
 
-        it("reads an old log with a channel as posted on its guildId", () => {
+        it("reads an old log as coming from its guildId, with or without a channel", () => {
             expect(postGuildOf({ guildId: A, channelId: "c1" })).toBe(A);
+            expect(postGuildOf({ guildId: A })).toBe(A);
         });
 
-        it("has no post server for a log without a channel or one already assigned", () => {
-            expect(postGuildOf({ guildId: A })).toBe("");
+        it("has no origin server for a log already assigned without one, or none at all", () => {
             expect(postGuildOf({ guildId: A, channelId: "c1", guildFrom: "event" })).toBe("");
+            expect(postGuildOf({ guildId: "" })).toBe("");
             expect(postGuildOf(null)).toBe("");
         });
     });
 
-    describe("logGuild: raid before channel before first server", () => {
+    describe("logGuild: raid before origin server before first server", () => {
         it("the linked raid wins over the channel", () => {
             expect(logGuild({ guildId: A, channelId: "c1", eventId: "e1" }, { eventGuildId: B, firstGuildId: C }))
                 .toEqual({ guildId: B, guildFrom: "event", postGuildId: A });
         });
 
-        it("the channel wins over the first server", () => {
+        it("the origin server wins over the first server", () => {
             expect(logGuild({ guildId: A, channelId: "c1" }, { firstGuildId: C }))
                 .toEqual({ guildId: A, guildFrom: "channel", postGuildId: A });
         });
 
-        it("a log without raid and channel gets the first server", () => {
+        it("a log without a channel keeps the server it was added on", () => {
+            expect(logGuild({ guildId: B }, { firstGuildId: C })).toEqual({ guildId: B, guildFrom: "channel", postGuildId: B });
+        });
+
+        it("a log whose raid is gone and that has no channel keeps its server", () => {
+            expect(logGuild({ guildId: B, eventId: "gone" }, { firstGuildId: C })).toEqual({ guildId: B, guildFrom: "channel", postGuildId: B });
+        });
+
+        it("only a log without any server gets the first server", () => {
             expect(logGuild({ eventId: "" }, { firstGuildId: C })).toEqual({ guildId: C, guildFrom: "first", postGuildId: "" });
-            expect(logGuild({ guildId: B }, { firstGuildId: C })).toEqual({ guildId: C, guildFrom: "first", postGuildId: "" });
+            expect(logGuild({ guildId: "  " }, { firstGuildId: C })).toEqual({ guildId: C, guildFrom: "first", postGuildId: "" });
         });
 
         it("without any server the log stays unassigned", () => {
@@ -96,7 +105,7 @@ describe("services/discord/serverOf (#917)", () => {
             expect(logGuild(undefined)).toEqual({ guildId: "", guildFrom: "", postGuildId: "" });
         });
 
-        it("a log whose raid is gone falls back to the channel it was posted in", () => {
+        it("a log whose raid is gone falls back to its origin server", () => {
             const assigned = { guildId: B, guildFrom: "event", postGuildId: A, channelId: "c1", eventId: "" };
             expect(logGuild(assigned, { firstGuildId: C })).toEqual({ guildId: A, guildFrom: "channel", postGuildId: A });
         });

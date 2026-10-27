@@ -428,11 +428,43 @@ describe("stores/logStore server of a log (#917)", () => {
         expect(saveLog(base())).toMatchObject({ guildId: "g1", guildFrom: "channel", postGuildId: "g1" });
     });
 
-    it("a log without a channel has no post server", () => {
+    it("a log without a channel keeps the server it was added on as its origin server", () => {
         const saved = saveLog(base({ channelId: "", messageId: "" }));
-        expect(saved.guildId).toBe("g1");
-        expect(saved).not.toHaveProperty("postGuildId");
+        expect(saved).toMatchObject({ guildId: "g1", guildFrom: "channel", postGuildId: "g1" });
+    });
+
+    it("a log saved without any server has none", () => {
+        const saved = saveLog(base({ guildId: "", channelId: "", messageId: "" }));
+        expect(saved.guildId).toBe("");
         expect(saved).not.toHaveProperty("guildFrom");
+        expect(saved).not.toHaveProperty("postGuildId");
+    });
+
+    it("linkEvent moves the log to its raid's server at once, unlinkEvent back to its origin", () => {
+        const a = saveLog(base());
+        expect(linkEvent(a.id, { eventId: "e1", guildId: "g2" })).toMatchObject({ guildId: "g2", guildFrom: "event", postGuildId: "g1" });
+        expect(getByReportId("RPT1")).toMatchObject({ guildId: "g2", guildFrom: "event", postGuildId: "g1" });
+        expect(unlinkEvent(a.id)).toMatchObject({ guildId: "g1", guildFrom: "channel", postGuildId: "g1" });
+    });
+
+    it("linkEvent without a known raid server leaves the log's server alone", () => {
+        const a = saveLog(base());
+        expect(linkEvent(a.id, { eventId: "e1", guildId: "" })).toMatchObject({ guildId: "g1", guildFrom: "channel", postGuildId: "g1" });
+        expect(unlinkEvent(a.id)).toMatchObject({ guildId: "g1", guildFrom: "channel" });
+    });
+
+    it("linkEvent keeps an old log's server as its origin server", () => {
+        const a = saveLog(base());
+        migrateGuilds(() => ({ guildId: "g1" }));
+        expect(linkEvent(a.id, { eventId: "e1", guildId: "g2" })).toMatchObject({ guildId: "g2", guildFrom: "event", postGuildId: "g1" });
+    });
+
+    it("unlinkEvent falls back to the first server for a log without an origin server", () => {
+        saveConfig({ guildId: "333333333333333333" });
+        const a = saveLog(base());
+        migrateGuilds(() => ({ guildId: "g2", guildFrom: "event" }));
+        linkEvent(a.id, { eventId: "e1" });
+        expect(unlinkEvent(a.id)).toMatchObject({ guildId: "333333333333333333", guildFrom: "first" });
     });
 
     it("a log of a raid keeps its raid's server when its post is seen again", () => {

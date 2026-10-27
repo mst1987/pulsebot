@@ -428,6 +428,16 @@ describe("stores/configSchema server settings (#917)", () => {
         expect([...schema.serverSettingGuildIds(undefined, "nope")]).toEqual([]);
     });
 
+    it("mergeServerSettings merges per server and per key", () => {
+        const current = { [A]: { lang: "en", pingRoleId: "1" }, [B]: { lang: "de" } };
+        expect(schema.mergeServerSettings(current, { [A]: { pingRoleId: "2" } })).toEqual({ [A]: { lang: "en", pingRoleId: "2" }, [B]: { lang: "de" } });
+        expect(schema.mergeServerSettings(current, { [T]: { lang: "fr" } })).toEqual({ ...current, [T]: { lang: "fr" } });
+        expect(schema.mergeServerSettings(current, { [A]: null })).toEqual(current);
+        expect(schema.mergeServerSettings(undefined, { [A]: { lang: "en" } })).toEqual({ [A]: { lang: "en" } });
+        expect(schema.mergeServerSettings(current, "x")).toEqual(current);
+        expect(current[A]).toEqual({ lang: "en", pingRoleId: "1" });
+    });
+
     it("normalizeConfig keeps every other field and reads serverSettings in its final shape", () => {
         const stored = { guildId: A, discordServers: servers, serverSettings: { [B]: {}, [U]: {} }, raidhelperServerId: "x" };
         const out = schema.normalizeConfig(stored);

@@ -956,6 +956,21 @@ function normalizeServerSettings(raw, discordServers, homeGuildId = "", keys = S
     return out;
 }
 
+/**
+ * A serverSettings update merged per server and per key: a block sent for one
+ * server leaves the others alone, a key sent replaces only that key. Cleaned
+ * up by normalizeServerSettings when the config is read.
+ */
+function mergeServerSettings(current, partial) {
+    const isMap = (value) => value && typeof value === "object" && !Array.isArray(value);
+    const merged = isMap(current) ? { ...current } : {};
+    if (!isMap(partial)) return merged;
+    for (const [guildId, block] of Object.entries(partial)) {
+        merged[guildId] = { ...(isMap(merged[guildId]) ? merged[guildId] : {}), ...(isMap(block) ? block : {}) };
+    }
+    return merged;
+}
+
 /** A stored config.json merged over the defaults, every field in its final shape. */
 function normalizeConfig(raw) {
     const stored = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
@@ -1028,7 +1043,7 @@ function normalizeConfig(raw) {
 
 module.exports = {
     CONFIG_DEFAULTS, ROLE_SYNC_DIRECTIONS,
-    normalizeConfig, normalizeDiscordServers, normalizeServerSettings, serverSettingGuildIds, SERVER_SETTING_DEFAULTS, normalizeEventGuilds, normalizeEventGuildEntry,
+    normalizeConfig, normalizeDiscordServers, normalizeServerSettings, mergeServerSettings, serverSettingGuildIds, SERVER_SETTING_DEFAULTS, normalizeEventGuilds, normalizeEventGuildEntry,
     normalizeServers, normalizeLinks, legacyServersAndLinks, MAX_SERVERS: MAX_EVENT_GUILDS, EVENT_GUILD_LABEL_MAX,
     normalizeRoleSync, roleSyncContext, normalizeCategoryRaidTemplate, normalizeCategoryReminders, normalizeTopItems,
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryLanguagePatch,

@@ -313,7 +313,7 @@ describe("web/apiRoutes/cla", () => {
             );
             expect(logEventMatch.annotateMatches).toHaveBeenCalledWith(
                 expect.any(Array),
-                [{ id: "e1", source: "raidhelper", title: "Kara", startTime: 100, channelId: "c1", channelName: "log-chan", categoryId: "cat1", categoryName: "Raids", versionId: "tbc" }],
+                [{ id: "e1", source: "raidhelper", title: "Kara", startTime: 100, channelId: "c1", channelName: "log-chan", categoryId: "cat1", categoryName: "Raids", versionId: "tbc", guildId: "guild-1" }],
             );
         });
 
@@ -896,7 +896,7 @@ describe("web/apiRoutes/cla", () => {
 
             const res = await post("/api/cla/log-link", { logId: "l1", eventId: "e2" });
 
-            expect(logStore.linkEvent).toHaveBeenCalledWith("l1", { eventId: "e2", eventLabel: "Other", eventStartTime: 100, source: "manual", versionId: "tbc" });
+            expect(logStore.linkEvent).toHaveBeenCalledWith("l1", { eventId: "e2", eventLabel: "Other", eventStartTime: 100, source: "manual", versionId: "tbc", guildId: "guild-1" });
             expect(json(res)).toEqual({
                 data: { logId: "l1", eventId: "e2", eventLabel: "Other", message: "Log „Other\" zugeordnet." },
             });
@@ -1015,7 +1015,7 @@ describe("web/apiRoutes/cla", () => {
             ]);
             discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "chan", categoryId: "cat1", categoryName: "Raids" } });
             mockGetPastEvents.mockResolvedValue([{ id: "e9", title: "Match Event", startTime: 500, channelId: "c1" }]);
-            const matchedEvent = { id: "e9", source: "raidhelper", title: "Match Event", startTime: 500, channelId: "c1", channelName: "chan", categoryId: "cat1", categoryName: "Raids", versionId: "tbc" };
+            const matchedEvent = { id: "e9", source: "raidhelper", title: "Match Event", startTime: 500, channelId: "c1", channelName: "chan", categoryId: "cat1", categoryName: "Raids", versionId: "tbc", guildId: "guild-1" };
             logEventMatch.autoMatches.mockReturnValue([{ log: { id: "l1" }, event: matchedEvent, diffMs: 1000 }]);
 
             const res = await post("/api/cla/log-automatch", {});
@@ -1024,7 +1024,7 @@ describe("web/apiRoutes/cla", () => {
                 [{ id: "l1", guildId: "guild-1" }, { id: "l3", guildId: "guild-1" }],
                 [matchedEvent],
             );
-            expect(logStore.linkEvent).toHaveBeenCalledWith("l1", { eventId: "e9", eventLabel: "Match Event", eventStartTime: 500, source: "auto", versionId: "tbc" });
+            expect(logStore.linkEvent).toHaveBeenCalledWith("l1", { eventId: "e9", eventLabel: "Match Event", eventStartTime: 500, source: "auto", versionId: "tbc", guildId: "guild-1" });
             expect(json(res)).toEqual({
                 data: { matched: 1, remaining: 1, message: "1 Log(s) automatisch zugeordnet, 1 ohne eindeutiges Event." },
             });

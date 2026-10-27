@@ -1,11 +1,12 @@
 // Which Discord server a piece of data belongs to (#917, epic #926).
 //
-//   - a log: its linked raid's server, else the server of the channel it was
-//     posted in, else the first server. `guildId` on the log holds the result,
-//     `guildFrom` says which rule gave it ("event" | "channel" | "first") and
-//     `postGuildId` keeps the server of the post, so a log that loses its raid
-//     falls back to the channel again. The start migration
-//     (settingsMigration.migrateLogGuilds) writes it down for every log.
+//   - a log: its linked raid's server, else its origin server (the server it
+//     was posted in or added on), else the first server. `guildId` on the log
+//     holds the result, `guildFrom` says which rule gave it ("event" |
+//     "channel" for the origin server | "first") and `postGuildId` keeps the
+//     origin server, so a log that loses its raid falls back to it again. The
+//     start migration (settingsMigration.migrateLogGuilds) writes it down for
+//     every log; linkEvent/unlinkEvent in logStore keep it current.
 //   - loot: over its raid (guildOfEvent); nothing extra is stored.
 //
 // No settingsStore here: settingsMigration needs these rules, and the settings
@@ -58,19 +59,20 @@ function guildOfEvent(event, { categoryGuilds } = {}) {
 }
 
 /**
- * The server of the post a log came from. Before #917 `guildId` was exactly
- * that for every log posted in Discord (it has a channel); a log without a
- * channel (added by URL) has no post.
+ * The origin server of a log: the server it was posted in or added on. Before
+ * #917 `guildId` was exactly that for every log, with or without a channel;
+ * a log that already has a `guildFrom` keeps it in `postGuildId`.
  */
 function postGuildOf(log) {
     if (!log) return "";
     if (log.postGuildId) return str(log.postGuildId);
-    if (str(log.channelId) && !log.guildFrom) return str(log.guildId);
+    if (!log.guildFrom) return str(log.guildId);
     return "";
 }
 
 /**
- * The server fields of a log by the rule raid -> channel -> first server.
+ * The server fields of a log by the rule raid -> origin server -> first server
+ * (the first server only when the log knows no server at all).
  * A log still linked to a raid that can no longer be found keeps the raid's
  * server it already has.
  * @param {object} log

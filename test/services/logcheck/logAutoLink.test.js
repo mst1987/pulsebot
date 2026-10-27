@@ -50,9 +50,10 @@ describe("services/logcheck/logAutoLink", () => {
             expect(mockLoadMatchableEvents).not.toHaveBeenCalled();
         });
 
-        it("persists the unambiguous match, snapshotting the event's label and start", async () => {
+        it("persists the unambiguous match, snapshotting the event's label, start and server", async () => {
             mockListLogs.mockReturnValue([log("l1", raidB.startTime * 1000 + HOUR)]);
-            mockLoadMatchableEvents.mockResolvedValue({ events: [raidA, raidB], error: null });
+            // loadMatchableEvents stamps the server on every row (#917)
+            mockLoadMatchableEvents.mockResolvedValue({ events: [{ ...raidA, guildId: "g1" }, { ...raidB, guildId: "g1" }], error: null });
 
             expect(await autoLinkLogs("g1")).toEqual({ linked: 1, remaining: 0, error: null });
             expect(mockLinkEvent).toHaveBeenCalledWith("l1", {
@@ -61,6 +62,7 @@ describe("services/logcheck/logAutoLink", () => {
                 eventStartTime: raidB.startTime,
                 source: "auto",
                 versionId: "",
+                guildId: "g1",
             });
         });
 
