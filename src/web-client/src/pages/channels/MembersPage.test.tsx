@@ -1,7 +1,7 @@
 // System › Discord › Mitglieder: the tab with its count, the table with roles,
 // join date and roster, bots hidden by default, the switches, search, role filter,
 // sorting, "alle zeigen", the server picker (#895), offline, and the drawer by click and by
-// link (?user=, &guild=, the old &side=talk) — opening pushes a history entry, closing replaces it.
+// link (?user=, &guild=) — opening pushes a history entry, closing replaces it.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
@@ -23,7 +23,7 @@ vi.mock("../../api", async (orig) => ({
 
 const SERVERS: api.DiscordServerChoice[] = [
     { guildId: "g1", name: "Testgilde", label: "", online: true, iconUrl: "" },
-    { guildId: "g2", name: "Talkgilde", label: "Talk", online: true, iconUrl: "", legacyTalk: true },
+    { guildId: "g2", name: "Talkgilde", label: "Talk", online: true, iconUrl: "" },
 ];
 
 /** No server in the server list: the API answers without a guild. */
@@ -269,7 +269,6 @@ describe("Mitglieder: drawer", () => {
 
     it.each([
         ["?user=x&guild=g2", "a link to the second server"],
-        ["?user=x&side=talk", "an old talk-server link"],
     ])("opens from %s (%s)", async (search) => {
         vi.mocked(api.getServerMemberDetail).mockResolvedValue({ ...DETAIL, guildId: "g2", member: TALK.members[0], roles: [], channels: [] });
         renderPage(<MembersPage />, { route: `/channels/members${search}` });

@@ -2,7 +2,7 @@
 // loadEventGroups() like every page of the web menu, so whatever feeds that
 // (Raid-Helper today, EventHelper's own events later) reaches the bot too.
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
-const { eventGuildId } = require("../discord/guildRoles");
+const { serverIds } = require("../discord/guildRoles");
 const { signupStatus } = require("../../utils/attendance");
 
 /** What a signup status reads as in a reply. */
@@ -19,7 +19,7 @@ const STATUS_ICONS = { signed: "✅", late: "🕒", tentative: "❔", bench: "�
  * The events as one flat list, oldest first: `{ events, error }`.
  * `past: true` includes the raids of the lookback window, else only upcoming ones.
  */
-async function listEvents({ past = false, guildId = eventGuildId() } = {}) {
+async function listEvents({ past = false, guildId = serverIds()[0] || "" } = {}) {
     const { groups, error } = await loadEventGroups(guildId, past ? { sinceSeconds: eventLookbackSince() } : {});
     const events = [];
     const seen = new Set();

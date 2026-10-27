@@ -423,6 +423,13 @@
         "notInProfile": "not in profile",
         "notInProfileHint": "{spec} is not in {character}'s profile - applies to this raid only.",
         "absenceHint": "Signed off: leaves groups and bench and is no longer listed under \"Signed up\".",
+        "other": "Other character …",
+        "otherName": "Name",
+        "otherNamePlaceholder": "Name in game",
+        "otherClass": "Class",
+        "otherHint": "Applies to this raid only - the profile stays unchanged.",
+        "otherTaken": "This character already exists - pick it above.",
+        "otherBadName": "Letters only, 2-12 characters.",
         "loading": "Loading signup …",
         "loadFailed": "Signup not loaded: {message}",
         "failed": "Signup not saved."

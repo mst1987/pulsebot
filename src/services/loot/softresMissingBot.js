@@ -21,7 +21,8 @@ const discord = require("../discord/discord");
 const { eventLang } = require("../discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
 const { eventVersionTag } = require("../events/versionTag");
-const { ruleFor, resolveBotAccess, eventMemberRoles, eventGuildId } = require("../discord/botAccess");
+const { ruleFor, resolveBotAccess, eventMemberRoles } = require("../discord/botAccess");
+const { serverIds } = require("../discord/guildRoles");
 const { getConfig } = require("../../stores/configStore");
 const { SOFTRES_MISSING_PREFIX, SOFTRES_PING_PREFIX, resolveEvent, readStatus, refreshSoftresCard } = require("./softresStatus");
 
@@ -85,7 +86,7 @@ async function mayPing(interaction) {
         const rule = ruleFor(SOFTRES_PING_PREFIX, { commands, config });
         if (rule.mode === "everyone") return true;
         const userId = String(interaction.user && interaction.user.id);
-        const roleIds = await eventMemberRoles(interaction, eventGuildId(config));
+        const roleIds = await eventMemberRoles(interaction, serverIds(config)[0] || "");
         return resolveBotAccess(SOFTRES_PING_PREFIX, { id: userId, roleIds }, { commands, config }).allowed;
     } catch {
         return false;

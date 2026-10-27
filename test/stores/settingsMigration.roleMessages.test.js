@@ -1,6 +1,7 @@
 // settingsMigration (#895): a role message saved before #895 names its server
 // only by its side. The start writes the server of that side down as guildId
-// once, so removing talkGuildId (#897) or reordering the servers moves nothing.
+// once, before the federation step (#897) drops talkGuildId, so reordering the
+// servers later moves nothing.
 jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
@@ -65,10 +66,19 @@ describe("stores/settingsMigration migrateRoleMessageGuilds (#895)", () => {
         expect(fs.__store.get(MESSAGES_FILE)).toBe(before);
     });
 
-    it("leaves an old talk entry alone while no talk server is known", () => {
-        fs.__store.set(CONFIG_FILE, JSON.stringify(servers([FIRST])));
+    it("puts an old talk entry on the first server when no talk server was set (#897: it meant the one server)", () => {
+        fs.__store.set(CONFIG_FILE, JSON.stringify(servers([FIRST, OTHER])));
         fs.__store.set(MESSAGES_FILE, JSON.stringify({ messages: [OLD_MESSAGES.messages[0]] }));
-        expect(migrateRoleMessageGuilds()).toEqual([]);
-        expect(stored(MESSAGES_FILE).messages[0]).toMatchObject({ id: "a", guildSide: "talk" });
+        expect(migrateRoleMessageGuilds()).toHaveLength(1);
+        const entry = stored(MESSAGES_FILE).messages[0];
+        expect(entry).toMatchObject({ id: "a", guildId: FIRST, channelId: "1300000000000000001", title: "Talk" });
+        expect("guildSide" in entry).toBe(false);
+    });
+
+    it("puts an old entry on the bot's own server while no server list is stored", () => {
+        const { CONFIG_DEFAULTS } = require("../../src/stores/configSchema");
+        fs.__store.set(MESSAGES_FILE, JSON.stringify({ messages: [OLD_MESSAGES.messages[1]] }));
+        migrateRoleMessageGuilds();
+        expect(stored(MESSAGES_FILE).messages[0].guildId).toBe(CONFIG_DEFAULTS.guildId);
     });
 });

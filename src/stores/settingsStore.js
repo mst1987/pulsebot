@@ -18,23 +18,6 @@ const notify = require("./notifyTemplateStore");
 const raidsheets = require("./raidsheetStore");
 const config = require("./configStore");
 const schema = require("./configSchema");
-const { legacyEventGuilds } = require("./settingsMigration");
-
-/**
- * The event-server list; as before #420 an old single-server block (`raw`
- * with `eventGuildId`, no list) still counts here. getConfig() no longer
- * relies on that: the start-up migration wrote the list down.
- */
-function normalizeEventGuilds(list, raw) {
-    return schema.normalizeEventGuilds(Array.isArray(list) ? list : legacyEventGuilds(raw));
-}
-
-/** The servers block (configSchema), an old single-server block included. */
-function normalizeDiscordServers(raw) {
-    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
-    if (Array.isArray(src.servers) || Array.isArray(src.eventGuilds)) return schema.normalizeDiscordServers(src);
-    return schema.normalizeDiscordServers({ ...src, eventGuilds: legacyEventGuilds(src) });
-}
 
 module.exports = {
     listRecruitment: recruitment.listRecruitment,
@@ -61,8 +44,7 @@ module.exports = {
     getConfig: config.getConfig,
     saveConfig: config.saveConfig,
     resolveEventSheetLink: config.resolveEventSheetLink,
-    normalizeDiscordServers,
-    normalizeEventGuilds,
+    normalizeDiscordServers: schema.normalizeDiscordServers,
     normalizeRoleSync: schema.normalizeRoleSync,
     roleSyncContext: schema.roleSyncContext,
     normalizeCategoryReminders: schema.normalizeCategoryReminders,

@@ -215,10 +215,20 @@ function eventCalendar({ res, params }) {
 }
 
 // The public event page (#308): /e/<eventId>, no login, nothing personal —
-// see eventPublicPage.js.
-function eventPage({ res, params }) {
-    const html = renderEventPage(params[0]);
-    return send(res, html ? 200 : 404, html || renderNotFound());
+// see eventPublicPage.js. Who looks only picks the sign-up button (#908):
+// logged in → the signup in the menu, else the Discord login coming back here;
+// already signed up → "Anmeldung ändern". The user id only finds that signup,
+// the page never shows it. Nothing is cached: the answer depends on who asks.
+function eventPage({ req, res, params }) {
+    const user = auth.getUser(req);
+    const html = renderEventPage(params[0], {
+        viewer: { loggedIn: !!user, isMember: null, userId: user ? String(user.id || "") : "" },
+        loginUrl: `/auth/login?returnTo=${encodeURIComponent(`/e/${params[0]}`)}`,
+        // TODO(#905): the PuG server's invite — services/discord/pugInvites.generalInviteUrl(event.guildId)
+        // once that module is on main; "" shows no join button. Membership (isMember) comes with #907.
+        inviteUrl: "",
+    });
+    return send(res, html ? 200 : 404, html || renderNotFound(), { "Cache-Control": "private, no-store" });
 }
 
 // The "Comp" link of the event message (#520): /e/<eventId>/comp. A Discord

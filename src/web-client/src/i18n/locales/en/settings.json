@@ -552,7 +552,6 @@
         "membersUnknown": "unknown",
         "addServer": "Add server",
         "removeServer": "Remove server",
-        "removePingServerLocked": "This server is still set as the ping server and can only be removed later.",
         "removeServerTitle": "Remove server?",
         "removeServerText": "{name} is removed from the server list.",
         "removeServerLinks": {

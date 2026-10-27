@@ -35,26 +35,6 @@ const store = createJsonStore({ file: FILE, defaults: fresh, normalize: normaliz
 // content (raidsheets, the start-up migration). Not cached: rarely read.
 const rawStore = createJsonStore({ file: FILE, defaults: {} });
 
-/**
- * `links` with `lang` and `versions` taken over from the link of the same
- * `from:to` in `previous` (#890: the old Discord-Server dialog cannot carry
- * them, so a save of it must not wipe them).
- */
-function keepLinkExtras(links, previous) {
-    const before = new Map((Array.isArray(previous) ? previous : [])
-        .filter((l) => l && l.from && l.to)
-        .map((l) => [`${l.from}:${l.to}`, l]));
-    return links.map((link) => {
-        const old = before.get(`${link.from}:${link.to}`);
-        if (!old) return link;
-        return {
-            ...link,
-            lang: typeof old.lang === "string" ? old.lang : link.lang,
-            versions: Array.isArray(old.versions) ? [...old.versions] : link.versions,
-        };
-    });
-}
-
 /** The current admin config, merged over the defaults (a copy of it). */
 function getConfig() {
     return store.read();
@@ -157,19 +137,7 @@ function mergeBlock(next, current, sent, key, normalize) {
 /** `next.discordServers` (and `next.guildId`) from the stored block with the sent one over it. */
 function mergeDiscordServers(next, current, sent) {
     const merged = { ...current.discordServers, ...sent };
-    // Transition until #891: the old Discord-Server dialog still sends the
-    // whole `eventGuilds` list. Then the stored servers/links are dropped, so
-    // normalizeDiscordServers() derives them from that list (its migration
-    // path) instead of keeping the old ones.
-    const fromOldDialog = Array.isArray(sent.eventGuilds) && !Array.isArray(sent.servers);
-    if (fromOldDialog) {
-        delete merged.servers;
-        delete merged.links;
-    }
     next.discordServers = normalizeDiscordServers(merged, { fallbackGuildId: current.guildId });
-    // The old dialog knows no link language or versions: a link it sends
-    // again keeps what the stored link of the same `from:to` had.
-    if (fromOldDialog) next.discordServers.links = keepLinkExtras(next.discordServers.links, (current.discordServers || {}).links);
     // Keep the fallback key in step, so clearing every server later falls
     // back to the server that was last in use, not to an older one.
     const first = next.discordServers.servers[0];

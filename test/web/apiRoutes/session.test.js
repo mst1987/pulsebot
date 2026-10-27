@@ -325,14 +325,14 @@ describe("web/apiRoutes/session", () => {
             settingsStore.getConfig.mockReturnValue({});
         });
 
-        // The switcher shows the fixed role of a server as a badge (#251).
-        it("tags the event and the talk server in the guild list", async () => {
+        // #897: every server of the list is an equal one, there is no talk role any more.
+        it("tags the configured servers in the guild list", async () => {
             auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });
-            settingsStore.getConfig.mockReturnValue({ guildId: "g1", discordServers: { servers: [{ guildId: "g1" }, { guildId: "g2" }], links: [], talkGuildId: "g2" } });
+            settingsStore.getConfig.mockReturnValue({ guildId: "g1", discordServers: { servers: [{ guildId: "g1" }, { guildId: "g2" }], links: [] } });
             discord.listGuilds.mockReturnValue([{ id: "g1", name: "Events" }, { id: "g2", name: "Talk" }, { id: "g3", name: "Andere" }]);
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
-            expect(json(res).data.guilds.map((g) => g.role)).toEqual(["event", "talk", ""]);
+            expect(json(res).data.guilds.map((g) => g.role)).toEqual(["event", "event", ""]);
             settingsStore.getConfig.mockReturnValue({});
         });
 

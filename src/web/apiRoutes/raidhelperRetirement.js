@@ -41,7 +41,7 @@ const postRetirement = withUser({ full: true, csrf: true, body: true }, async ({
  * `dryRun` defaults to true: the dialog shows what would be stored first.
  */
 const postHistoryImport = withUser({ full: true, csrf: true, body: true }, async ({ user, body, req, res }) => {
-    const guildId = guildRoles.eventGuildId(getConfig()) || activeGuildFor(req);
+    const guildId = guildRoles.serverIds(getConfig())[0] || activeGuildFor(req);
     const result = await historyImport.runImport({
         guildId,
         perCategory: body.perCategory,

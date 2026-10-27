@@ -2,7 +2,7 @@
 // order with the bot divider, sorting, the "Nur Rollen mit Hinweis" switch, the
 // server picker (#895), offline and no server set, and the drawer with facts,
 // permissions, channels and the member search — by click and by link (?role=,
-// &guild=, the old &side=talk); opening pushes a history entry, closing replaces it.
+// &guild=); opening pushes a history entry, closing replaces it.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
@@ -25,7 +25,7 @@ vi.mock("../../api", async (orig) => ({
 
 const SERVERS: api.DiscordServerChoice[] = [
     { guildId: "g1", name: "Testgilde", label: "", online: true, iconUrl: "" },
-    { guildId: "g2", name: "Talkgilde", label: "Talk", online: true, iconUrl: "", legacyTalk: true },
+    { guildId: "g2", name: "Talkgilde", label: "Talk", online: true, iconUrl: "" },
 ];
 
 function role(over: Partial<ServerRole>): ServerRole {
@@ -311,7 +311,6 @@ describe("Rollen: drawer", () => {
 
     it.each([
         ["?role=kochen&guild=g2", "a link to the second server"],
-        ["?role=kochen&side=talk", "an old talk-server link"],
     ])("opens from %s (%s)", async (search) => {
         const talk: ServerRoles = { ...EVENT, guildId: "g2", guildName: "Talkgilde" };
         vi.mocked(api.getServerRoles).mockImplementation(async (guildId) => (guildId === "g2" ? talk : EVENT));

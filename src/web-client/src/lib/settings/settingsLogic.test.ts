@@ -336,9 +336,9 @@ describe("Discord-Server cards (#251, #361)", () => {
 
     it("counts the cards that need attention for the sidebar badge, an empty event-server list scoring 0", () => {
         expect(logic.serverIssues(null)).toBe(0);
-        expect(logic.serverIssues({ events: [], talk: null })).toBe(0);
-        expect(logic.serverIssues({ events: [card()], talk: null })).toBe(0);
-        expect(logic.serverIssues({ events: [card({ missing: ["x"] }), card()], talk: card({ connected: false }) })).toBe(2);
+        expect(logic.serverIssues({ events: [] })).toBe(0);
+        expect(logic.serverIssues({ events: [card()] })).toBe(0);
+        expect(logic.serverIssues({ events: [card({ missing: ["x"] }), card(), card({ connected: false })] })).toBe(2);
     });
 
     it("says a link's language and versions in one short line (#891)", () => {

@@ -44,7 +44,7 @@ function rostersOrEmpty() {
  *   { code: "rolePermissions", areas: string[] }      the areas granted to the role
  *   { code: "botCommand", commands: string[] }       the bot commands the role may run
  *   { code: "categoryRaider", categoryIds: string[] } the categories it is a raider role of
- *   { code: "roleSync", sides: ("event"|"talk")[] }  the side(s) of the role sync it is on
+ *   { code: "roleSync", guildIds: string[] }         the partner servers of its role-sync pairs
  *   { code: "roster", rosterId, name, kinds: ("member"|"trial"|"manager")[] }  one per roster
  * Empty when the role carries none. The roles page (services/discord/serverRoles.js) shows
  * them as "Bedeutung für den Bot".
@@ -66,17 +66,16 @@ function roleUses(cfg, roleId) {
     if (commands.length) out.push({ code: "botCommand", commands });
     const categoryIds = entries(c.categoryRoles).filter(([, list]) => ids(list).includes(id)).map(([catId]) => catId);
     if (categoryIds.length) out.push({ code: "categoryRaider", categoryIds });
-    // A role-sync pair (#896) names two servers; the badge stays "event"/"talk":
-    // the talk server's role reads "talk", a role on any other server "event".
-    const talk = str(c.discordServers && c.discordServers.talkGuildId);
-    const sideOf = (guildId) => (talk && str(guildId) === talk ? "talk" : "event");
-    const sides = new Set();
+    // A role-sync pair (#896) names two servers: the role is on one side, the
+    // server on the other side is what the roles page names (#897).
+    const partners = [];
+    let inSync = false;
     for (const s of Array.isArray(c.roleSync) ? c.roleSync : []) {
         if (!s) continue;
-        if (str(s.fromRoleId) === id) sides.add(sideOf(s.fromGuildId));
-        if (str(s.toRoleId) === id) sides.add(sideOf(s.toGuildId));
+        if (str(s.fromRoleId) === id) { inSync = true; partners.push(str(s.toGuildId)); }
+        if (str(s.toRoleId) === id) { inSync = true; partners.push(str(s.fromGuildId)); }
     }
-    if (sides.size) out.push({ code: "roleSync", sides: ["event", "talk"].filter((x) => sides.has(x)) });
+    if (inSync) out.push({ code: "roleSync", guildIds: [...new Set(partners.filter(Boolean))] });
     for (const r of rostersOrEmpty()) {
         const managers = r.managers && Array.isArray(r.managers.roleIds) ? r.managers.roleIds : [];
         const kinds = [];

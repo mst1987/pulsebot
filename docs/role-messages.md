@@ -68,7 +68,7 @@ Befehlsrollen, Raider-Rollen der Kategorien, Roster-Rollen, Rollen des Rollen-Ab
 
 | Wo | Was |
 |---|---|
-| `src/stores/roleMessageStore.js` | `data/settings/role-messages.json`: die Nachrichten mit Server (Guild-ID), Kanal, Nachricht, Inhalt, Rollen. Alte Einträge mit `guildSide` (`event`/`talk`) schreibt der Start einmal auf `guildId` um (`migrateGuildSides`, aufgerufen aus `settingsMigration.migrateRoleMessageGuilds`, solange `talkGuildId` existiert) — danach verschiebt weder #897 noch eine neue Reihenfolge der Serverliste eine Nachricht |
+| `src/stores/roleMessageStore.js` | `data/settings/role-messages.json`: die Nachrichten mit Server (Guild-ID), Kanal, Nachricht, Inhalt, Rollen. Alte Einträge mit `guildSide` (`event`/`talk`) schreibt der Start einmal auf `guildId` um (`migrateGuildSides`, aufgerufen aus `settingsMigration.migrateRoleMessageGuilds`, solange die Datei noch ein `talkGuildId` trägt — die Migration läuft vor `migrateDiscordFederation`, #897) — danach verschiebt weder #897 noch eine neue Reihenfolge der Serverliste eine Nachricht |
 | `src/services/discord/roleMessages.js` | Prüfen, Posten, Bearbeiten (bei Kanal- oder Serverwechsel neu posten, alte löschen), Löschen, Auswahl-Listen, Knopf und Reaktionen |
 | `src/services/discord/selfRole.js` | `privilegedReason`, `roleProblem`, `changeSelfRole` — der eine Weg, eine Rolle selbst zu holen |
 | `src/commands/channels/roleMessageButton.js` | Einstieg der Knöpfe (Komponente ohne Slash-Befehl) |

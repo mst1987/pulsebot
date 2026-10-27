@@ -4,9 +4,9 @@
 let mockUser = null;
 jest.mock("../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true }));
 jest.mock("../../../src/services/discord/linkCheck", () => ({ messageLink: (g, c, m) => `https://discord.com/channels/${g}/${c}/${m}` }));
-// the server list (#895): the first server and the talk server
+// the server list (#895): two equal servers
 jest.mock("../../../src/stores/configStore", () => ({
-    getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], talkGuildId: "900000000000000002", links: [] } }),
+    getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], links: [] } }),
 }));
 jest.mock("../../../src/services/discord/roleMessages", () => {
     const actual = jest.requireActual("../../../src/services/discord/roleMessages");
@@ -86,11 +86,12 @@ describe("GET", () => {
         expect(svc.roleMessageOptions).not.toHaveBeenCalled();
     });
 
-    it("reads an entry from before #895 by its side and one by its own server", async () => {
+    // #897: an entry from before #895 goes to the first server, its side no longer counts
+    it("reads an entry from before #895 as the first server's and one by its own server", async () => {
         store.saveMessage({ ...ENTRY, id: "old", guildSide: "talk" });
         store.saveMessage({ ...ENTRY, id: "new", guildSide: undefined, guildId: "900000000000000002" });
         const byId = Object.fromEntries(body(await get("/api/role-messages")).messages.map((m) => [m.id, m]));
-        expect(byId.old.guildId).toBe("900000000000000002");
+        expect(byId.old.guildId).toBe("900000000000000001");
         expect(byId.new.guildId).toBe("900000000000000002");
         expect(byId.old).not.toHaveProperty("guildSide");
     });
