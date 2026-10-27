@@ -43,6 +43,11 @@ jest.mock("../../../src/stores/eventStore", () => ({
     ...jest.requireActual("../../../src/stores/eventStore"),
     getEvent: jest.fn(() => null),
 }));
+// Who looks at a PuG raid (#905, #907) — the lookup itself lives in pugMembership.test.js.
+jest.mock("../../../src/services/signups/pugMembership", () => ({
+    ...jest.requireActual("../../../src/services/signups/pugMembership"),
+    pugPageViewer: jest.fn(async () => ({ isMember: null, inviteUrl: "" })),
+}));
 
 const http = require("http");
 const store = require("../../../src/stores/reportStore");
@@ -426,6 +431,21 @@ describe("web/http/server", () => {
             await request({ url: "/e/eh-1", method: "GET", headers: {} });
             expect(eventPublicPage.renderEventPage).toHaveBeenCalledWith("eh-1", expect.objectContaining({
                 viewer: { loggedIn: true, isMember: null, userId: "u1" },
+            }));
+        });
+
+        it("GET /e/<id> hands a PuG raid's membership and invite to the page (#905, #907)", async () => {
+            const pugMembership = require("../../../src/services/signups/pugMembership");
+            const event = { id: "eh-pug", guildId: "g-pug" };
+            eventStore.getEvent.mockReturnValueOnce(event);
+            pugMembership.pugPageViewer.mockResolvedValueOnce({ isMember: false, inviteUrl: "https://discord.gg/pug" });
+            eventPublicPage.renderEventPage.mockReturnValue("EVENT_PAGE");
+            auth.getUser.mockReturnValueOnce({ id: "u1", name: "Raider" });
+            await request({ url: "/e/eh-pug", method: "GET", headers: {} });
+            expect(pugMembership.pugPageViewer).toHaveBeenCalledWith(event, "u1");
+            expect(eventPublicPage.renderEventPage).toHaveBeenCalledWith("eh-pug", expect.objectContaining({
+                viewer: { loggedIn: true, isMember: false, userId: "u1" },
+                inviteUrl: "https://discord.gg/pug",
             }));
         });
 
