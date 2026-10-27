@@ -30,4 +30,19 @@ describe("stores/migrationMarkStore (#920)", () => {
         fs.__store.set(FILE, JSON.stringify({ done: "x" }));
         expect(isDone("a")).toBe(false);
     });
+
+    it("writes to another file with useFile and returns to the default with null", () => {
+        const { useFile } = require("../../src/stores/migrationMarkStore");
+        const other = settingsPath("migrations-other.json");
+        useFile(other);
+        try {
+            markDone("reportGuilds");
+            expect(isDone("reportGuilds")).toBe(true);
+            expect(Number.isFinite(JSON.parse(fs.__store.get(other)).done.reportGuilds)).toBe(true);
+            expect(fs.__store.has(FILE)).toBe(false);
+        } finally {
+            useFile(null);
+        }
+        expect(isDone("reportGuilds")).toBe(false);
+    });
 });
