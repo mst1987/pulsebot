@@ -380,7 +380,7 @@ const getSignupEdit = withUser({ orgaScoped: BY_QUERY, write: "raids" }, async (
     ok(res, out);
 });
 
-/** PUT /api/raids/setup/signup — body `{ event, userId, status, character?, spec?, from? }`: the orga changes a raider's signup (#521). */
+/** PUT /api/raids/setup/signup — body `{ event, userId, status, character?, spec?, className?, from? }`: the orga changes a raider's signup (#521; `className` with a name outside the profile). */
 const putSignupEdit = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = await setupSignup.changeSignupFromSetup(String(body.event).trim(), body.userId, body, { user });

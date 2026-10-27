@@ -63,6 +63,14 @@ describe("commands/signup/signupComment", () => {
         expect(payloadOf(i).embeds[0].description).toContain("✅ Comment removed.");
     });
 
+    it("keeps a character the orga entered that is not in the profile (#521)", async () => {
+        signedUp({ character: "Frostzwerg", spec: "Mage-Frost" });
+        const i = mockInteraction({ customId: ID, userId: ANNA, modal: true, options: { comment: "bin dabei" } });
+        await command.execute(i);
+        expect(mocks.signups.get(`eh-kara/${ANNA}`)).toMatchObject({ character: "Frostzwerg", spec: "Mage-Frost", comment: "bin dabei" });
+        expect(payloadOf(i).embeds[0].description).toContain("✅ Comment saved.");
+    });
+
     it("asks to sign up first when there is no signup", async () => {
         const i = mockInteraction({ customId: ID, userId: ANNA, modal: true, options: { comment: "hi" } });
         await command.execute(i);

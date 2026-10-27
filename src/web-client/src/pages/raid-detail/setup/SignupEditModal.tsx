@@ -1,14 +1,16 @@
 // "Anmeldung bearbeiten" (#521): the orga changes one raider's signup right in
 // the setup editor — status, character, spec. Compact on purpose: the status as
-// a segment, the characters as chips (only when there is a choice), the specs of
-// the class as buttons, a spec the profile lacks dashed and named in one line.
+// a segment, the characters as chips, the specs of the class as buttons, a spec
+// the profile lacks dashed and named in one line. "Anderer Charakter …" names a
+// character the profile lacks: name, class of the event's rule set, spec of that
+// class — for this raid only, the profile stays as it is.
 // Deadline and profile do not bind the orga; the server saves it through the
 // signup service, so message, talk overview and log follow. Mounted only while
 // open, so every opening reads the signup as it is stored now.
 import { useEffect, useState } from "react";
 import { getSetupSignup, type ApiError, type SetupPerson, type SetupSignupEdit, type SetupSignupInput } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
-import { initialPick, optionOf, outsideProfile, pickChanged, pickCharacter, signupEditInput, type SignupEditPick } from "../../../lib/signups/setupSignupEdit";
+import { canSave, classOf, initialPick, optionOf, otherProblem, outsideProfile, pickCharacter, pickClass, pickOther, signupEditInput, type SignupEditPick } from "../../../lib/signups/setupSignupEdit";
 import { SIGNUP_STATUS } from "../../../lib/signups/status";
 import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { roleLabel, specLabel } from "../../../lib/wow/wowNames";
@@ -23,7 +25,7 @@ import RaidLoader from "../../../components/ui/RaidLoader";
 import { classColorProps } from "../../../components/character/ClassSpec";
 import SpecTile from "../SpecTile";
 
-function CharacterChips({ data, pick, onPick }: { data: SetupSignupEdit; pick: SignupEditPick; onPick: (key: string) => void }) {
+function CharacterChips({ data, pick, onPick, onOther }: { data: SetupSignupEdit; pick: SignupEditPick; onPick: (key: string) => void; onOther: () => void }) {
     const t = useT();
     const current = optionOf(data, pick);
     return (
@@ -39,13 +41,69 @@ function CharacterChips({ data, pick, onPick }: { data: SetupSignupEdit; pick: S
                         </button>
                     );
                 })}
+                <button type="button" role="radio" aria-checked={!!pick.other} className={`se-edit-opt se-edit-new${pick.other ? " is-on" : ""}`} onClick={onOther}>
+                    {t("setup.signupEdit.other")}
+                </button>
             </div>
         </Field>
     );
 }
 
+/** "Anderer Charakter …": the name as typed, the class as icons of the event's rule set. */
+function OtherCharacter({ data, pick, onName, onClass }: { data: SetupSignupEdit; pick: SignupEditPick; onName: (name: string) => void; onClass: (id: string) => void }) {
+    const t = useT();
+    const problem = otherProblem(data, pick);
+    const error = problem === "taken"
+        ? t("setup.signupEdit.otherTaken")
+        : problem === "name" && pick.character.trim() ? t("setup.signupEdit.otherBadName") : undefined;
+    const cls = classOf(data, pick.className);
+    return (
+        <>
+            <Field label={t("setup.signupEdit.otherName")} htmlFor="se-edit-name" error={error}>
+                <input
+                    id="se-edit-name" type="text" maxLength={25} autoFocus autoComplete="off" spellCheck={false}
+                    value={pick.character} placeholder={t("setup.signupEdit.otherNamePlaceholder")} onChange={(e) => onName(e.target.value)}
+                />
+            </Field>
+            <Field label={cls ? `${t("setup.signupEdit.otherClass")} · ${cls.label}` : t("setup.signupEdit.otherClass")}>
+                <div className="se-edit-row" role="radiogroup" aria-label={t("setup.signupEdit.otherClass")}>
+                    {data.classes.map((c) => {
+                        const on = c.id === pick.className;
+                        return (
+                            <button key={c.id} type="button" role="radio" aria-checked={on} aria-label={c.label} className={`se-edit-opt se-edit-cls${on ? " is-on" : ""}`} data-tip={c.label} onClick={() => onClass(c.id)}>
+                                <WowIcon name={c.icon || "inv_misc_questionmark"} size={22} />
+                            </button>
+                        );
+                    })}
+                </div>
+            </Field>
+        </>
+    );
+}
+
 function SpecChoice({ data, start, pick, onSpec }: { data: SetupSignupEdit; start: SignupEditPick; pick: SignupEditPick; onSpec: (key: string) => void }) {
     const t = useT();
+    if (pick.other) {
+        // a named character: the specs of its class — for this raid only, the profile stays as it is
+        const cls = classOf(data, pick.className);
+        if (!cls) return null;
+        return (
+            <Field label={t("setup.signupEdit.spec")} hint={t("setup.signupEdit.otherHint")}>
+                <div className="se-edit-row" role="radiogroup" aria-label={t("setup.signupEdit.spec")}>
+                    {cls.specs.map((s) => {
+                        const on = s.key === pick.spec;
+                        const name = specLabel(s.key, s.label);
+                        return (
+                            <button key={s.key} type="button" role="radio" aria-checked={on} className={`se-edit-opt${on ? " is-on" : ""}`} data-tip={name} data-tip-sub={roleLabel(s.role)} onClick={() => onSpec(s.key)}>
+                                <WowIcon name={s.icon || "inv_misc_questionmark"} size={18} />
+                                <span>{name}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </Field>
+        );
+    }
     const option = optionOf(data, pick);
     if (!option) return null;
     const chosen = option.specs.find((s) => s.key === pick.spec);
@@ -118,7 +176,7 @@ export function SignupEditModal({ eventId, person, onClose, onSave }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button variant="go" icon={<SaveIcon />} running={saving} disabled={!start || !pick || !pickChanged(start, pick)} onClick={save}>{t("common.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} running={saving} disabled={!data || !start || !pick || !canSave(data, start, pick)} onClick={save}>{t("common.save")}</Button>
                 </>
             )}
         >
@@ -134,7 +192,8 @@ export function SignupEditModal({ eventId, person, onClose, onSave }: {
                         />
                     </Field>
                     {absent && <p className="se-note">{t("setup.signupEdit.absenceHint")}</p>}
-                    {!absent && data.options.length > 1 && <CharacterChips data={data} pick={pick} onPick={(key) => setPick(pickCharacter(data, pick, key))} />}
+                    {!absent && <CharacterChips data={data} pick={pick} onPick={(key) => setPick(pickCharacter(data, pick, key))} onOther={() => setPick(pickOther(data, pick))} />}
+                    {!absent && pick.other && <OtherCharacter data={data} pick={pick} onName={(character) => setPick({ ...pick, character })} onClass={(id) => setPick(pickClass(data, pick, id))} />}
                     {!absent && start && <SpecChoice data={data} start={start} pick={pick} onSpec={(spec) => setPick({ ...pick, spec })} />}
                     {failed && <p className="field-error" role="alert">{failed}</p>}
                 </div>

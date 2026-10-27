@@ -578,6 +578,10 @@
 .se-edit-opt.se-edit-off { border-style: dashed; color: var(--muted); }
 .se-edit-opt.se-edit-off.is-on { color: var(--text); }
 .se-edit-opt .wi { border-radius: 3px; }
+/* "Anderer Charakter …": a text chip after the characters, the classes as bare icons */
+.se-edit-opt.se-edit-new { padding-left: 10px; color: var(--muted); }
+.se-edit-opt.se-edit-new.is-on { color: var(--text); }
+.se-edit-opt.se-edit-cls { padding: 3px; }
 
 /* A raid group (#811): one tab per raid of the evening above the bar ("Raid 1 | Raid 2").
    A tab is a drop target while a raider is dragged or picked; "Angemeldet" is one pool for all. */

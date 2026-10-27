@@ -98,4 +98,13 @@ describe("PUT /api/raids/setup/signup", () => {
         expect(status(r)).toBe(400);
         expect(body(r)).toMatchObject({ error: { code: "spec" } });
     });
+
+    it("hands an other character with its class to the service (Anderer Charakter)", async () => {
+        setupSignup.changeSignupFromSetup.mockResolvedValueOnce({ event: mockEvents.get(ID), signup: {}, message: "Anmeldung von Frostzwerg geändert.", warning: "" });
+        const r = await call(route.putSignupEdit, ORGA, { event: ID, userId: "u1", status: "signed", character: "Frostzwerg", className: "Mage", spec: "Mage-Frost", from: "Zibbo" });
+        expect(status(r)).toBe(200);
+        expect(setupSignup.changeSignupFromSetup).toHaveBeenCalledWith(ID, "u1", expect.objectContaining({ character: "Frostzwerg", className: "Mage", spec: "Mage-Frost", from: "Zibbo" }), { user: ORGA });
+        setupSignup.changeSignupFromSetup.mockResolvedValueOnce({ status: 400, code: "class", error: "Die Klasse gibt es nicht." });
+        expect(status(await call(route.putSignupEdit, ORGA, { event: ID, userId: "u1", status: "signed", character: "Frostzwerg", className: "Evoker", spec: "Mage-Frost" }))).toBe(400);
+    });
 });
