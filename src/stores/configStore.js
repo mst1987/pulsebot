@@ -137,6 +137,16 @@ function mergeBlock(next, current, sent, key, normalize) {
 /** `next.discordServers` (and `next.guildId`) from the stored block with the sent one over it. */
 function mergeDiscordServers(next, current, sent) {
     const merged = { ...current.discordServers, ...sent };
+    // An empty stored list works on the implicit main server (guildId, also one
+    // sent in the same save), which the page lists as a server; adding one more
+    // must not drop it - that took the main server's rights and loops away on
+    // prod (Oct 2026).
+    const stored = (current.discordServers && current.discordServers.servers) || [];
+    const main = String(next.guildId || "").trim();
+    if (!stored.length && main && Array.isArray(merged.servers) && merged.servers.length
+        && !merged.servers.some((s) => s && String(s.guildId).trim() === main)) {
+        merged.servers = [{ guildId: main, label: "" }, ...merged.servers];
+    }
     next.discordServers = normalizeDiscordServers(merged, { fallbackGuildId: current.guildId });
     // Keep the fallback key in step, so clearing every server later falls
     // back to the server that was last in use, not to an older one.

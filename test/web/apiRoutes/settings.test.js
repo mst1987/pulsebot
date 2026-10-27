@@ -1597,7 +1597,7 @@ describe("web/apiRoutes/settings", () => {
                     settingsStore.getConfig.mockImplementation(() => configStore.getConfig());
                     settingsStore.saveConfig.mockImplementation((p) => configStore.saveConfig(p));
                     try {
-                        configStore.saveConfig({ discordServers: patchStored.discordServers });
+                        configStore.saveConfig({ guildId: "20000", discordServers: patchStored.discordServers });
                         readJsonBody.mockResolvedValue({ discordServers: { servers: [{ guildId: "30000", label: "" }] } });
                         const refused = mockRes();
                         await updateSettings({ headers: {} }, refused);
