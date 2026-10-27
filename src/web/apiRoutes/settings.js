@@ -7,6 +7,7 @@ const {
 } = require("../../stores/settingsStore");
 const {
     normalizeCategoryLanguagePatch, attendanceSettings, normalizeCategoryVersion, DISCORD_VISUALS_DEFAULT, MAX_SERVERS,
+    EVENT_GUILD_LABEL_MAX,
 } = require("../../stores/configSchema");
 const { isSnowflake } = require("../../utils/ids");
 const { switchPreview, versionSwitches, applySeriesFix, notifyCategoryVersionSwitch } = require("../../services/events/categorySwitch");
@@ -390,7 +391,16 @@ function checkServersAndLinks(sent, stored) {
             if (!isSnowflake(guildId)) return { error: "Unbekannter Server." };
             if (seen.has(guildId)) return { error: "Server doppelt eingetragen." };
             seen.add(guildId);
-            out.servers.push({ guildId, label: String((raw && raw.label) || "").trim().slice(0, 40) });
+            out.servers.push({ guildId, label: String((raw && raw.label) || "").trim().slice(0, EVENT_GUILD_LABEL_MAX) });
+        }
+        // The old ping server (talkGuildId, until #897) is re-added by
+        // normalizeDiscordServers(): removing it would only drop its links.
+        const talk = String((sent.talkGuildId !== undefined ? sent.talkGuildId : stored.talkGuildId) || "").trim();
+        if (talk && !seen.has(talk)) return { error: "Dieser Server ist noch als Ping-Server eingetragen und lässt sich erst später entfernen." };
+        // Only servers sent: a stored link whose source goes away would be
+        // dropped silently on save — say so instead.
+        if (sent.links === undefined && (stored.links || []).some((l) => !seen.has(l.from))) {
+            return { error: "Der Server ist noch Quelle einer Verknüpfung – erst die Verknüpfung entfernen." };
         }
         serverIds = out.servers.map((s) => s.guildId);
     }

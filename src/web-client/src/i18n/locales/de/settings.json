@@ -22,7 +22,7 @@
         },
         "discordserver": {
             "label": "Discord-Server",
-            "crumb": "Verbindungen · Event- und Kommunikations-Discord"
+            "crumb": "Verbindungen · Server und Verknüpfungen"
         },
         "kategorien": {
             "label": "Kategorien",
@@ -328,7 +328,7 @@
     "overviewBadge": {
         "notSet": "nicht eingestellt",
         "title": "Raid-Übersicht",
-        "notSetSub": "Wähle einen Kommunikations-Discord und einen Kanal für die Übersicht.",
+        "notSetSub": "Lege unter Discord-Server eine Verknüpfung mit Kanal für die Übersicht an.",
         "posted": "Gepostet {ago}",
         "edited": "Zuletzt bearbeitet {ago}",
         "checked": "Zuletzt geprüft {ago}",
@@ -428,8 +428,6 @@
     "talkOverview": {
         "postFailed": "Übersicht konnte nicht gepostet werden.",
         "reposted": "Raid-Übersicht neu gepostet.",
-        "postedOn": "Wird gepostet auf {target}.",
-        "label": "Übersicht",
         "posting": "Postet…",
         "repost": "Neu posten"
     },
@@ -557,6 +555,7 @@
         "membersUnknown": "unbekannt",
         "addServer": "Server hinzufügen",
         "removeServer": "Server entfernen",
+        "removePingServerLocked": "Dieser Server ist noch als Ping-Server eingetragen und lässt sich erst später entfernen.",
         "removeServerTitle": "Server entfernen?",
         "removeServerText": "{name} wird aus der Serverliste entfernt.",
         "removeServerLinks": {
@@ -609,7 +608,7 @@
         "noPost": "— nicht posten —",
         "noBank": "— keine Gildenbank —"
     },
-"connections": {
+    "connections": {
         "crumb": "{crumb} · {ready} von {total} eingerichtet",
         "manageTokens": "Tokens verwalten",
         "setUp": "Einrichten",
@@ -623,8 +622,8 @@
         "noKey": "kein Key",
         "effect": "Wirkung",
         "model": "Modell",
-        "discordSub": "Ob der Bot verbunden ist und welcher Raid-Helper-Server die Events liefert. Welcher Discord-Server der Event- und welcher der Kommunikations-Discord ist, steht unter Verbindungen › Discord-Server. Der Raid-Helper-API-Key selbst bleibt in der .env.",
-        "eventServer": "Event-Server",
+        "discordSub": "Ob der Bot verbunden ist und welcher Raid-Helper-Server die Events liefert. Welche Server verknüpft sind, steht unter Verbindungen › Discord-Server. Der Raid-Helper-API-Key selbst bleibt in der .env.",
+        "eventServer": "Discord-Server",
         "botDefaultServer": "Standard-Server des Bots",
         "fromEnv": "aus der .env",
         "onlineSince": "online seit {since}",

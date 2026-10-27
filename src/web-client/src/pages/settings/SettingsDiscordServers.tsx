@@ -72,7 +72,8 @@ function noteChannels(guilds: DiscordServersData["guilds"], guildIds: string[]):
     })));
 }
 
-const sameLink = (a: ServerLink, b: ServerLink) => a.from === b.from && a.to === b.to && a.channelId === b.channelId;
+// The server allows one link per source and target ("from:to"), so the client compares the same way.
+const sameLink = (a: ServerLink, b: ServerLink) => a.from === b.from && a.to === b.to;
 
 export default function DiscordServersSection({ onConfig, icon, crumb }: {
     onConfig: (config: AdminConfig) => void;
@@ -258,7 +259,13 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
                 <span className="row-actions">
                     <IconButton size="sm" icon={<PenIcon />} tip={t("settings.discordServers.label")} tipSub={t("settings.discordServers.labelSub")}
                         onClick={() => { setEditServer({ guildId: s.id, label: s.label }); setDialog("server"); }} />
-                    <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("settings.discordServers.removeServer")} onClick={() => removeServer(s)} />
+                    {s.id === data.talk?.id ? (
+                        // Only aria-disabled: a really disabled button gets no hover, and the tooltip says why.
+                        <IconButton size="sm" tone="danger" icon={<TrashIcon />} aria-disabled="true" className="srv-remove-off"
+                            tip={t("settings.discordServers.removeServer")} tipSub={t("settings.discordServers.removePingServerLocked")} />
+                    ) : (
+                        <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("settings.discordServers.removeServer")} onClick={() => removeServer(s)} />
+                    )}
                 </span>
             ),
         },
@@ -556,7 +563,7 @@ function ServerModal({ data, entry, onClose, onSave }: {
                 )}
                 <div className="dlg-field">
                     <FieldLabel htmlFor="srv-add-label" tip={t("settings.discordServers.label")} tipSub={t("settings.discordServers.labelSub")}>{t("settings.discordServers.label")}</FieldLabel>
-                    <input id="srv-add-label" type="text" maxLength={40} value={fields.label} placeholder={t("settings.discordServers.labelPlaceholder")}
+                    <input id="srv-add-label" type="text" maxLength={60} value={fields.label} placeholder={t("settings.discordServers.labelPlaceholder")}
                         onChange={(e) => setFields({ ...fields, label: e.target.value })} />
                 </div>
             </div>

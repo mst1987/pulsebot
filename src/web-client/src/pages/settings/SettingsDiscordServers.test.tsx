@@ -132,6 +132,21 @@ describe("Discord-Server: Server", () => {
         expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toEqual({ discordServers: { servers: [], links: [] } });
     });
 
+    it("locks removing the old ping server and says why", async () => {
+        // normalizeDiscordServers() re-adds talkGuildId, so removing it would only drop its links
+        const data = serversData({ links: [LINK] });
+        data.talk = { role: "talk", id: "10001", name: "Pulse", connected: true } as DiscordServersData["talk"];
+        vi.mocked(api.getDiscordServers).mockResolvedValue(data);
+        vi.mocked(api.getRoleSync).mockReturnValue(new Promise(() => undefined));
+        render();
+        const remove = await screen.findByRole("button", { name: "Server entfernen" });
+        expect(remove).toHaveAttribute("aria-disabled", "true");
+        expect(remove).toHaveAttribute("data-tip-sub", "Dieser Server ist noch als Ping-Server eingetragen und lässt sich erst später entfernen.");
+        fireEvent.click(remove);
+        expect(screen.queryByRole("dialog")).toBeNull();
+        expect(api.updateSettings).not.toHaveBeenCalled();
+    });
+
     it("words members and raid categories with their noun", async () => {
         vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ raidCategories: 1 }));
         render();

@@ -22,7 +22,7 @@
         },
         "discordserver": {
             "label": "Discord servers",
-            "crumb": "Connections · event and communication Discord"
+            "crumb": "Connections · servers and links"
         },
         "kategorien": {
             "label": "Categories",
@@ -328,7 +328,7 @@
     "overviewBadge": {
         "notSet": "not set",
         "title": "Raid overview",
-        "notSetSub": "Pick a communication Discord and a channel for the overview.",
+        "notSetSub": "Add a link with a channel for the overview under Discord servers.",
         "posted": "Posted {ago}",
         "edited": "Last edited {ago}",
         "checked": "Last checked {ago}",
@@ -428,8 +428,6 @@
     "talkOverview": {
         "postFailed": "Could not post the overview.",
         "reposted": "Raid overview reposted.",
-        "postedOn": "Posted on {target}.",
-        "label": "Overview",
         "posting": "Posting…",
         "repost": "Repost"
     },
@@ -557,6 +555,7 @@
         "membersUnknown": "unknown",
         "addServer": "Add server",
         "removeServer": "Remove server",
+        "removePingServerLocked": "This server is still set as the ping server and can only be removed later.",
         "removeServerTitle": "Remove server?",
         "removeServerText": "{name} is removed from the server list.",
         "removeServerLinks": {
@@ -609,7 +608,7 @@
         "noPost": "— do not post —",
         "noBank": "— no guild bank —"
     },
-"connections": {
+    "connections": {
         "crumb": "{crumb} · {ready} of {total} set up",
         "manageTokens": "Manage tokens",
         "setUp": "Set up",
@@ -623,8 +622,8 @@
         "noKey": "no key",
         "effect": "Effect",
         "model": "Model",
-        "discordSub": "Whether the bot is connected and which Raid-Helper server supplies the events. Which Discord server is the event and which the communication Discord is set under Connections › Discord servers. The Raid-Helper API key itself stays in the .env.",
-        "eventServer": "Event server",
+        "discordSub": "Whether the bot is connected and which Raid-Helper server supplies the events. Which servers are linked is set under Connections › Discord servers. The Raid-Helper API key itself stays in the .env.",
+        "eventServer": "Discord server",
         "botDefaultServer": "Bot's default server",
         "fromEnv": "from the .env",
         "onlineSince": "online for {since}",

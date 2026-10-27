@@ -1446,11 +1446,57 @@ describe("web/apiRoutes/settings", () => {
                     ["a server twice", { servers: [{ guildId: "20000" }, { guildId: "20000" }] }, "Server doppelt eingetragen."],
                     ["more than ten servers", { servers: Array.from({ length: 11 }, (_, i) => ({ guildId: String(1000 + i) })) }, "Höchstens 10 Server."],
                     ["the old eventGuilds list", { eventGuilds: [{ guildId: "20000" }] }, "Veraltetes Format – bitte die Seite neu laden."],
+                    ["removing the old ping server (talkGuildId)", { servers: [{ guildId: "20000" }], links: [link] },
+                        "Dieser Server ist noch als Ping-Server eingetragen und lässt sich erst später entfernen."],
+                    ["servers alone that drop a link's source", { servers: [{ guildId: "30000" }] },
+                        "Der Server ist noch Quelle einer Verknüpfung – erst die Verknüpfung entfernen."],
                 ])("refuses %s with a 400", async (_name, block, message) => {
                     const res = await save(block);
                     expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
                     expect(json(res).error).toMatchObject({ code: "invalid_discord_servers", message });
                     expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                it("caps a label at the schema's 60 characters", async () => {
+                    await save({ servers: [{ guildId: "20000", label: "x".repeat(80) }, { guildId: "30000" }], links: patchStored.discordServers.links });
+                    const sent = settingsStore.saveConfig.mock.calls[0][0].discordServers.servers;
+                    expect(sent[0].label).toHaveLength(60);
+                });
+
+                it("keeps the stored state intact after the real normalisation", async () => {
+                    // saveConfig/getConfig go to the real configStore on a temp file:
+                    // the old ping server is re-added there, so a removal must be refused.
+                    const configStore = require("../../../src/stores/configStore");
+                    configStore.useFile(tempStoreFile("ds-891-config.json"));
+                    settingsStore.getConfig.mockImplementation(() => configStore.getConfig());
+                    settingsStore.saveConfig.mockImplementation((p) => configStore.saveConfig(p));
+                    try {
+                        configStore.saveConfig({ discordServers: patchStored.discordServers });
+                        readJsonBody.mockResolvedValue({ discordServers: { servers: [{ guildId: "20000", label: "" }], links: [] } });
+                        const refused = mockRes();
+                        await updateSettings({ headers: {} }, refused);
+                        expect(refused.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                        expect(configStore.getConfig().discordServers).toMatchObject({
+                            servers: [{ guildId: "20000" }, { guildId: "30000" }],
+                            links: [{ from: "20000", to: "30000", channelId: "30001" }],
+                        });
+
+                        // removing a plain server with its links goes through as sent
+                        configStore.saveConfig({ discordServers: { servers: [...patchStored.discordServers.servers, { guildId: "50000", label: "" }],
+                            links: [...patchStored.discordServers.links, { from: "50000", to: "30000", channelId: "30002", lang: "", versions: [] }] } });
+                        readJsonBody.mockResolvedValue({ discordServers: { servers: patchStored.discordServers.servers, links: patchStored.discordServers.links } });
+                        const ok = mockRes();
+                        await updateSettings({ headers: {} }, ok);
+                        expect(ok.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                        const stored = configStore.getConfig().discordServers;
+                        expect(stored.servers.map((s) => s.guildId)).toEqual(["20000", "30000"]);
+                        expect(stored.links).toEqual([{ from: "20000", to: "30000", channelId: "30001", lang: "en", versions: ["tbc"] }]);
+                        expect(stored.talkGuildId).toBe("30000");
+                    } finally {
+                        configStore.useFile(null);
+                        settingsStore.getConfig.mockImplementation(() => ({}));
+                        settingsStore.saveConfig.mockImplementation((partial) => ({ ...partial }));
+                    }
                 });
             });
 
