@@ -110,6 +110,7 @@ jest.mock("../../../src/services/discord/discord", () => require("../../helpers/
     listAllChannels: jest.fn(() => []),
     listTextChannels: jest.fn(() => []),
     listRoles: jest.fn(() => []),
+    findRolesAnywhere: jest.fn(() => ({})),
     createChannel: jest.fn(),
     duplicateChannel: jest.fn(),
     listEmojis: jest.fn(() => []),
@@ -1818,6 +1819,44 @@ describe("web/apiRoutes/settings", () => {
                 settingsStore.getConfig.mockReturnValue({});
                 discord.listRoles.mockReset().mockReturnValue([]);
                 discord.listGuilds.mockReset().mockReturnValue([]);
+            });
+
+            // #925: a global full admin role of another server reads "role · server" on this page
+            it("names the server of every role the page shows, for full admins only", async () => {
+                settingsStore.getConfig.mockReturnValue({
+                    discordServers: { servers: [{ guildId: "200" }, { guildId: "300" }], links: [] },
+                    adminRoleIds: ["2001"],
+                    serverSettings: {
+                        200: { rolePermissions: { 2002: { raids: { read: true, write: true } } }, orgaRoleIds: ["2002"] },
+                        300: { rolePermissions: { 3001: { raids: { read: true, write: false } } }, orgaRoleIds: ["3003"] },
+                    },
+                });
+                activeGuildFor.mockReturnValue("300");
+                const fresh = { id: "2001", name: "Orga", color: "", guildId: "200", guildName: "Pulse Fresh" };
+                discord.findRolesAnywhere.mockReturnValue({ 2001: fresh });
+                requireAdmin.mockReturnValue({ id: "1", isAdmin: true });
+                const res = mockRes();
+                await getSettings({}, res);
+                expect(body(res).roleOrigins).toEqual({ 2001: fresh });
+                // looked up: the global admin roles plus only THIS server's grants and orga roles
+                expect(discord.findRolesAnywhere).toHaveBeenLastCalledWith(["2001", "3001", "3003"]);
+
+                requireAdmin.mockReturnValue({ id: "7", isAdmin: false });
+                discord.findRolesAnywhere.mockClear();
+                const limited = mockRes();
+                await getSettings({}, limited);
+                expect(body(limited).roleOrigins).toEqual({});
+                expect(discord.findRolesAnywhere).not.toHaveBeenCalled();
+
+                // a failing lookup reads as none known
+                requireAdmin.mockReturnValue({ id: "1", isAdmin: true });
+                discord.findRolesAnywhere.mockImplementation(() => { throw new Error("offline"); });
+                const failed = mockRes();
+                await getSettings({}, failed);
+                expect(body(failed).roleOrigins).toEqual({});
+                discord.findRolesAnywhere.mockReset().mockReturnValue({});
+                activeGuildFor.mockReturnValue("");
+                settingsStore.getConfig.mockReturnValue({});
             });
 
             it("keeps the server name out with a single server and reads an offline bot as no channels", async () => {

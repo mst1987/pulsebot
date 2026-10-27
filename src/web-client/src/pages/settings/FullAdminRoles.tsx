@@ -16,7 +16,9 @@ const SORT_DEFAULTS: Record<SortKey, Dir> = { role: "asc", server: "asc" };
 // rest (Berechtigungen) belongs to one server each. The roles come from every
 // server the bot knows, so each row names its server.
 
-export default function FullAdminRoles({ roles, value, onChange, icon, crumb, title }: {
+export default function FullAdminRoles({ roles, value, onChange, icon, crumb, title, roleOrigins = {} }: {
+    /** Fallback for a role missing from roles: where the bot still finds it (GET /api/settings → roleOrigins). */
+    roleOrigins?: Record<string, AdminRole>;
     /** The roles of every configured server (GET /api/settings → adminRoles). */
     roles: AdminRole[];
     value: string[];
@@ -28,12 +30,13 @@ export default function FullAdminRoles({ roles, value, onChange, icon, crumb, ti
     const t = useT();
     const [adding, setAdding] = useState(false);
     const byId = new Map(roles.map((r) => [r.id, r]));
+    const roleOf = (id: string): AdminRole | undefined => byId.get(id) || roleOrigins[id];
     const { sort, dir, onSort, apply } = useTableSort<SortKey>("full-admins-sort", SORT_DEFAULTS, "role");
     const nameOf = (id: string) => {
-        const role = byId.get(id);
+        const role = roleOf(id);
         return role ? `@${role.name}` : t("settings.permissions.unknownRole", { id });
     };
-    const rows = apply(value, (id, key) => (key === "server" ? byId.get(id)?.guildName || "" : nameOf(id)).toLowerCase());
+    const rows = apply(value, (id, key) => (key === "server" ? roleOf(id)?.guildName || "" : nameOf(id)).toLowerCase());
 
     return (
         <>
@@ -64,7 +67,7 @@ export default function FullAdminRoles({ roles, value, onChange, icon, crumb, ti
                         </thead>
                         <tbody>
                             {rows.map((id) => {
-                                const role = byId.get(id);
+                                const role = roleOf(id);
                                 const name = nameOf(id);
                                 return (
                                     <tr key={id}>

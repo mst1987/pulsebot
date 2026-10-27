@@ -336,6 +336,8 @@ export type SettingsData = {
     activeGuildId: string;
     /** Full admins only (#925): the roles of every server, for Alle Server › Voll-Admins; [] for anyone else. */
     adminRoles?: AdminRole[];
+    /** Full admins only (#925): the server a listed role lives on, resolved over every server of the bot. */
+    roleOrigins?: Record<string, AdminRole>;
 } & ServerCategories;
 
 /**

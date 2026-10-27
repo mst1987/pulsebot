@@ -423,6 +423,9 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // The full admin roles hold on every server (#925): their picker lists
         // the roles of all servers, named with their server. Full admins only.
         adminRoles: user.isAdmin ? adminRolesOf(config) : [],
+        // Where the roles of this page live (#925): a global full admin role of
+        // another server reads "role · server" there, not "unknown". Full admins only.
+        roleOrigins: user.isAdmin ? roleOriginsOf(config, guildId) : {},
         activeGuildId: guildId,
         // Einstellungen → Server → Raid-Helper (#927): the active server's block, masked (never the key).
         raidhelper: user.isAdmin ? maskedRaidhelper(raidhelperGuildOf(req, config), config) : null,
@@ -470,6 +473,27 @@ function adminRolesOf(config) {
     } catch (e) {
         console.warn("admin roles failed:", e.message);
         return [];
+    }
+}
+
+/**
+ * The server of each role the rights page of `guildId` names (#925): the
+ * global full admin roles plus the role grants and orga roles stored for this
+ * server, looked up over every server the bot is on. A role found nowhere is
+ * missing - only that one reads "unknown". A failure reads as "none known".
+ */
+function roleOriginsOf(config, guildId) {
+    try {
+        if (typeof discord.findRolesAnywhere !== "function") return {};
+        const access = accessSettings(guildId, config);
+        return discord.findRolesAnywhere([
+            ...asStringArray(config.adminRoleIds),
+            ...Object.keys(access.rolePermissions || {}),
+            ...(access.orgaRoleIds || []),
+        ]);
+    } catch (e) {
+        console.warn("role origins failed:", e.message);
+        return {};
     }
 }
 

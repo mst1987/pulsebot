@@ -399,6 +399,7 @@ tr.perm-group td { background: var(--bg); padding: 12px 12px 6px; }
 .perm-group-aside { margin-left: auto; text-transform: none; letter-spacing: 0; }
 .perm-admin-list { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .perm-admin-role { font-size: 12.5px; font-family: var(--font-mono); color: var(--text); }
+.perm-admin-role.is-unknown { color: var(--high); }
 
 /* Alle Server › Voll-Admins (#925): one row per role, named with its server */
 .full-admins { display: flex; flex-direction: column; gap: 10px; max-width: 640px; }
@@ -409,6 +410,8 @@ tr.perm-group td { background: var(--bg); padding: 12px 12px 6px; }
 .full-admins-act { width: 1%; text-align: right; }
 td.perm-empty { color: var(--muted); font-size: 13px; }
 tr.perm-unknown .perm-who-label { color: var(--high); }
+/* a role of another server of the bot: no right here, shown muted with its server (#925) */
+tr.perm-foreign .perm-who-label { color: var(--muted); }
 
 .perm-who { display: flex; align-items: center; gap: 10px; position: relative; min-width: 0; }
 /* a role row: the name, then whether the role is orga or a raider role */

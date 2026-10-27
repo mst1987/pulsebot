@@ -1,7 +1,8 @@
 // settingsMigration (#925): the rights of before - role grants, base access,
-// account grants, orga roles, bot command rules - were global. The start copies
-// them onto every server, so no role gains or loses anything anywhere, and drops
-// the global fields only once the copies are on disk.
+// account grants, orga roles, bot command rules - were global. The start hands
+// base access to every server and the role-bound rights to the home guild only
+// (their roles are the home guild's), and drops the global fields only once the
+// copies are on disk. A second server so starts with base access only.
 jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
@@ -61,18 +62,30 @@ function rightsBefore(cfg) {
 }
 
 describe("stores/settingsMigration migrateServerPermissions (#925)", () => {
-    it("changes nothing for any role: every server holds the rights of before", () => {
+    it("the home guild keeps every right of before, the other servers get base access only", () => {
         fs.__store.set(CONFIG_FILE, JSON.stringify(OLD));
         const before = rightsBefore(OLD);
         const lines = migrateServerPermissions();
-        expect(lines).toEqual([expect.stringContaining("Rechte je Server (#925)")]);
+        expect(lines).toEqual([expect.stringContaining("Hauptserver " + A)]);
 
         const cfg = configStore.getConfig();
-        for (const gid of [A, B, LINKED]) {
+        const home = accessSettings(A, cfg);
+        expect(rightsBefore(home)).toEqual(before);
+        expect(home.rolePermissions).toEqual(normalizeRolePermissions(OLD.rolePermissions));
+        expect(home.userPermissions).toEqual(normalizeUserPermissions(OLD.userPermissions));
+        // PuGs and the link target: base access of before, no role, account, orga or bot rule
+        for (const gid of [B, LINKED]) {
             const one = accessSettings(gid, cfg);
-            expect(rightsBefore(one)).toEqual(before);
-            expect(one.rolePermissions).toEqual(normalizeRolePermissions(OLD.rolePermissions));
-            expect(one.userPermissions).toEqual(normalizeUserPermissions(OLD.userPermissions));
+            expect(one.rolePermissions).toEqual({});
+            expect(one.userPermissions).toEqual({});
+            expect(one.orgaRoleIds).toEqual([]);
+            expect(baseAccessMap(one.baseAccess)).toEqual(before.base);
+            expect(accessForRoles(one.rolePermissions, [R(2)])).toEqual(accessForRoles({}, [R(2)]));
+            expect(accessForUser(one.userPermissions, USER)).toEqual(accessForUser({}, USER));
+            const block = stored().serverSettings[gid];
+            for (const key of ["rolePermissions", "userPermissions", "orgaRoleIds", "botCommandAccess"]) {
+                expect(block).not.toHaveProperty(key);
+            }
         }
         // the full admins stay global, the rest of the file untouched
         const raw = stored();
@@ -90,8 +103,29 @@ describe("stores/settingsMigration migrateServerPermissions (#925)", () => {
         const raw = stored();
         expect(raw.serverSettings[B].rolePermissions).toEqual(own);
         expect(raw.serverSettings[B].ianaTimezone).toBe("Europe/Berlin");
-        expect(raw.serverSettings[B].orgaRoleIds).toEqual([R(4)]);
+        expect(raw.serverSettings[B]).not.toHaveProperty("orgaRoleIds");
+        expect(raw.serverSettings[B].baseAccess).toEqual(OLD.baseAccess);
         expect(raw.serverSettings[A].rolePermissions).toEqual(OLD.rolePermissions);
+    });
+
+    it("the home guild is the first listed server, whatever GUILD_ID said", () => {
+        fs.__store.set(CONFIG_FILE, JSON.stringify({ ...OLD, guildId: "1400000000000000077" }));
+        migrateServerPermissions();
+        const cfg = configStore.getConfig();
+        expect(rightsBefore(accessSettings(A, cfg))).toEqual(rightsBefore(OLD));
+        expect(accessSettings(B, cfg).rolePermissions).toEqual({});
+        expect(stored().serverSettings).not.toHaveProperty("1400000000000000077");
+    });
+
+    it("saving one server's rights later leaves the other servers' blocks as they are", () => {
+        fs.__store.set(CONFIG_FILE, JSON.stringify(OLD));
+        migrateServerPermissions();
+        const homeBefore = structuredClone(stored().serverSettings[A]);
+        // what the Berechtigungen page of PuGs saves: its own block only
+        configStore.saveConfig({ serverSettings: { [B]: { rolePermissions: { [R(6)]: { raids: { read: true, write: false } } } } } });
+        const raw = stored();
+        expect(raw.serverSettings[A]).toEqual(homeBefore);
+        expect(raw.serverSettings[B].rolePermissions).toEqual({ [R(6)]: { raids: { read: true, write: false } } });
     });
 
     it("is idempotent: a second start finds nothing and writes nothing", () => {
@@ -128,7 +162,8 @@ describe("stores/settingsMigration migrateServerPermissions (#925)", () => {
         expect(writes[0].serverSettings[A].rolePermissions).toEqual(OLD.rolePermissions);
         // second write: the global fields gone, the copies kept
         expect(writes[1]).not.toHaveProperty("rolePermissions");
-        expect(writes[1].serverSettings[B].botCommandAccess).toEqual(OLD.botCommandAccess);
+        expect(writes[1].serverSettings[A].botCommandAccess).toEqual(OLD.botCommandAccess);
+        expect(writes[1].serverSettings[B]).not.toHaveProperty("botCommandAccess");
         spy.mockRestore();
     });
 
@@ -172,6 +207,7 @@ describe("stores/settingsMigration migrateServerPermissions (#925)", () => {
         const { changes, error } = migrateSettings(quiet);
         expect(error).toBeUndefined();
         expect(changes.some((line) => line.includes("Rechte je Server (#925)"))).toBe(true);
-        expect(stored().serverSettings[LINKED].orgaRoleIds).toEqual([R(4)]);
+        expect(stored().serverSettings[A].orgaRoleIds).toEqual([R(4)]);
+        expect(stored().serverSettings[LINKED]).not.toHaveProperty("orgaRoleIds");
     });
 });

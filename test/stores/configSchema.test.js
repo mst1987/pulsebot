@@ -169,10 +169,15 @@ function migrated925(config, stored) {
     if (!guildIds.length) return config;
     const out = { ...config };
     for (const key of present) delete out[key];
+    // base access onto every server, the role-bound rights onto the home guild when it is a listed server
+    const home = String(config.guildId || "");
+    const listed = ((config.discordServers || {}).servers || []).map((x) => String(x.guildId));
+    const homeOnly = Boolean(home) && listed.includes(home) && guildIds.includes(home);
+    const targets = (key) => (homeOnly && key !== "baseAccess" ? [home] : guildIds);
     const serverSettings = { ...config.serverSettings };
     for (const gid of guildIds) {
         const block = { ...(serverSettings[gid] || {}) };
-        for (const key of present) if (block[key] === undefined) block[key] = stored[key];
+        for (const key of present) if (targets(key).includes(gid) && block[key] === undefined) block[key] = stored[key];
         serverSettings[gid] = block;
     }
     return { ...out, serverSettings };

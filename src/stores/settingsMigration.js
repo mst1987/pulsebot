@@ -262,14 +262,27 @@ function migrateDiscordFederation() {
 /** The rights that live per server since #925 (serverAccess.ACCESS_KEYS; listed here, that module would close a require cycle). */
 const SERVER_ACCESS_KEYS = ["rolePermissions", "baseAccess", "userPermissions", "orgaRoleIds", "botCommandAccess"];
 
+/** The rights bound to roles or accounts: those of before belong to the home guild (#925). */
+const HOME_ACCESS_KEYS = ["rolePermissions", "userPermissions", "orgaRoleIds", "botCommandAccess"];
+
 /**
  * config.json, rights per server (#925): the rights of before - role grants,
- * base access, account grants, orga roles, bot command rules, all global - are
- * copied onto every server (server list, link targets, home guild), so no role
- * gains or loses anything on any server. A server that already holds a key keeps
- * its value. The global fields are dropped only after the copies are written and
- * read back: a start that dies in between finds the copies and only drops then.
- * Nothing global left = nothing to do (idempotent, writes only on a change).
+ * base access, account grants, orga roles, bot command rules - were global.
+ * Base access ("everyone signed in") is copied onto every server (server list,
+ * link targets, home guild). Role grants, account grants, orga roles and bot
+ * command rules go to the home guild (config.guildId as read: the first listed
+ * server, GUILD_ID only while there is no list) only: their
+ * roles are the home guild's - a role of server A matches nobody on server B -
+ * and an account grant was given for the home guild's orga. A second server so
+ * starts with base access only and is set up on its own page; the home guild
+ * keeps everything. Without a server list (the home guild of
+ * .env alone) every key is copied onto
+ * every server as before (roles of other servers then leave once the bot is
+ * online, foreignRoleCleanup.js).
+ * A server that already holds a key keeps its value. The global fields are
+ * dropped only after the copies are written and read back: a start that dies in
+ * between finds the copies and only drops then. Nothing global left = nothing
+ * to do (idempotent, writes only on a change).
  * Must run after migrateDiscordFederation(), which settles the server list.
  * @returns {string[]}
  */
@@ -283,12 +296,19 @@ function migrateServerPermissions() {
         return ["config.json: WARNUNG - Rechte (#925) nicht je Server übernommen: kein Discord-Server eingetragen; die bisherigen Rechte bleiben gespeichert, bis ein Server eingetragen ist"];
     }
     const isMap = (value) => value && typeof value === "object" && !Array.isArray(value);
+    const home = String(cfg.guildId || "").trim();
+    // only a home guild that is one of the configured servers takes the role-bound rights
+    const listed = (cfg.discordServers && Array.isArray(cfg.discordServers.servers) ? cfg.discordServers.servers : [])
+        .map((s) => String((s && s.guildId) || ""));
+    const homeOnly = Boolean(home) && listed.includes(home) && guildIds.includes(home);
+    // the servers a key goes to: base access every server, the rest the home guild only
+    const targetsOf = (key) => (homeOnly && HOME_ACCESS_KEYS.includes(key) ? [home] : guildIds);
     const blocks = isMap(stored.serverSettings) ? { ...stored.serverSettings } : {};
     let copied = 0;
     for (const gid of guildIds) {
         const block = isMap(blocks[gid]) ? { ...blocks[gid] } : {};
         for (const key of present) {
-            if (block[key] !== undefined) continue;
+            if (!targetsOf(key).includes(gid) || block[key] !== undefined) continue;
             block[key] = structuredClone(stored[key]);
             copied += 1;
         }
@@ -298,14 +318,17 @@ function migrateServerPermissions() {
     // drop the global fields only once every server holds its copy on disk
     const written = configStore.readStored();
     const writtenBlocks = isMap(written.serverSettings) ? written.serverSettings : {};
-    const complete = guildIds.every((gid) => isMap(writtenBlocks[gid]) && present.every((key) => writtenBlocks[gid][key] !== undefined));
+    const complete = present.every((key) => targetsOf(key).every((gid) => isMap(writtenBlocks[gid]) && writtenBlocks[gid][key] !== undefined));
     if (!complete) {
         return ["config.json: WARNUNG - Rechte (#925) je Server nicht vollständig gespeichert; die bisherigen Rechte bleiben, der nächste Start versucht es erneut"];
     }
     const next = { ...written };
     for (const key of present) delete next[key];
     configStore.writeStored(next);
-    return ["config.json: Rechte je Server (#925) - " + present.join(", ") + " auf " + guildIds.length + " Server übernommen, globale Felder entfernt (Voll-Admin-Rollen bleiben global)"];
+    const where = homeOnly
+        ? "Rollen- und Einzelrechte auf den Hauptserver " + home + ", Basiszugang auf " + guildIds.length + " Server"
+        : "auf " + guildIds.length + " Server";
+    return ["config.json: Rechte je Server (#925) - " + present.join(", ") + " übernommen (" + where + "), globale Felder entfernt (Voll-Admin-Rollen bleiben global)"];
 }
 
 /**

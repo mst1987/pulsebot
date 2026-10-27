@@ -343,6 +343,7 @@ export default function SettingsPage() {
                     viewSwitch={permSwitch}
                     areas={data.areas}
                     roles={data.roles}
+                    roleOrigins={data.roleOrigins || {}}
                     adminRoleIds={draft.adminRoleIds}
                     value={draft.rolePermissions}
                     onChange={(rolePermissions) => patch({ rolePermissions })}
@@ -619,6 +620,7 @@ export default function SettingsPage() {
             case "vollAdmins": return (
                 <FullAdminRoles
                     roles={data.adminRoles || []}
+                    roleOrigins={data.roleOrigins || {}}
                     value={draft.adminRoleIds}
                     onChange={(adminRoleIds) => patch({ adminRoleIds })}
                     icon={activeSection.icon}

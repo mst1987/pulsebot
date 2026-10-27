@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import type { Access, Area, Role, RolePermissions } from "../../api";
+import type { Access, AdminRole, Area, Role, RolePermissions } from "../../api";
 import {
     areaCounts, areaDescription, areaLabel, isDiscordId, levelLabel, levelOf, nextLevel, withLevel, type Grants, type Level,
 } from "../../lib/settings/settingsLogic";
@@ -131,7 +131,10 @@ function grantSummary(areas: Area[], grants: Grants | undefined): string {
 export default function RolePermissionsEditor({
     areas, roles, adminRoleIds, value, onChange, baseAccess, onBaseAccessChange,
     userPermissions, onUserPermissionsChange, userNames, userAvatars = {}, icon, crumb, viewSwitch, orgaRoleIds = [], onOrgaRoleIds,
+    roleOrigins = {},
 }: {
+    /** Where a role this server lacks lives (GET /api/settings → roleOrigins, full admins only). */
+    roleOrigins?: Record<string, AdminRole>;
     /** The roles that count as orga (the rest are raider roles); missing = no switch (an older caller). */
     orgaRoleIds?: string[];
     onOrgaRoleIds?: (next: string[]) => void;
@@ -156,7 +159,16 @@ export default function RolePermissionsEditor({
     const t = useT();
     const [adding, setAdding] = useState(false);
     const roleById = useMemo(() => new Map(roles.map((r) => [r.id, r])), [roles]);
-    const roleName = (id: string) => (roleById.get(id) ? `@${roleById.get(id)!.name}` : t("settings.permissions.unknownRole", { id }));
+    // A role this server lacks: its own server's name when another server of the bot
+    // has it (roleOrigins), "unknown" only when no server has it any more (#925).
+    const originsKnown = Object.keys(roleOrigins).length > 0;
+    const originOf = (id: string) => (roleById.has(id) ? undefined : roleOrigins[id]);
+    const roleName = (id: string) => {
+        const role = roleById.get(id);
+        if (role) return `@${role.name}`;
+        const origin = roleOrigins[id];
+        return origin ? t("settings.permissions.roleOnServer", { name: origin.name, server: origin.guildName || "?" }) : t("settings.permissions.unknownRole", { id });
+    };
 
     // Configured roles in the guild's role order, then ids the guild no longer
     // has — kept visible so they can be cleaned up instead of lingering unseen.
@@ -247,9 +259,19 @@ export default function RolePermissionsEditor({
                         <tr className="perm-admins">
                             <td colSpan={span}>
                                 <div className="perm-admin-list">
-                                    {adminRoleIds.filter((id) => roleById.has(id)).map((id) => (
-                                        <span key={id} className="perm-admin-role" data-tip={roleName(id)} data-tip-sub={t("settings.permissions.roleId", { id })}>{roleName(id)}</span>
-                                    ))}
+                                    {/* read-only here: a full admin role of another server carries its server's name, never a remove button */}
+                                    {/* without roleOrigins (not a full admin) a role this server lacks stays hidden, as before */}
+                                    {adminRoleIds.filter((id) => roleById.has(id) || originsKnown).map((id) => {
+                                        const origin = originOf(id);
+                                        const unknown = !roleById.has(id) && !origin;
+                                        return (
+                                            <span key={id} className={`perm-admin-role${unknown ? " is-unknown" : ""}`} tabIndex={0} data-tip={roleName(id)}
+                                                data-tip-sub={origin ? t("settings.permissions.adminOtherServer", { server: origin.guildName || "?" })
+                                                    : unknown ? t("settings.permissions.notOnServerSub") : t("settings.permissions.roleId", { id })}>
+                                                {roleName(id)}
+                                            </span>
+                                        );
+                                    })}
                                     <span className="note">{t("settings.permissions.adminsElsewhere")}</span>
                                 </div>
                             </td>
@@ -282,14 +304,17 @@ export default function RolePermissionsEditor({
                         )}
                         {roleIds.map((id) => {
                             const role = roleById.get(id);
+                            const origin = originOf(id);
                             const name = roleName(id);
                             return (
-                                <tr key={id} className={role ? undefined : "perm-unknown"}>
+                                <tr key={id} className={role ? undefined : origin ? "perm-foreign" : "perm-unknown"}>
                                     <td>
                                         <div className="perm-who-row">
                                             <RowName
                                                 label={name}
-                                                sub={role ? grantSummary(areas, value[id]) : t("settings.permissions.notOnServer")}
+                                                sub={role ? grantSummary(areas, value[id])
+                                                    : origin ? t("settings.permissions.foreignRole", { server: origin.guildName || "?" })
+                                                        : t("settings.permissions.notOnServer")}
                                                 avatar={<span className="perm-avatar" style={role?.color ? { "--rc": role.color } as CSSProperties : undefined}>@</span>}
                                                 onAll={(lv) => setRole(id, allOf(lv))}
                                             />
@@ -310,7 +335,9 @@ export default function RolePermissionsEditor({
                                     </td>
                                     {cells("role", id, name, value[id])}
                                     <td className="cell-act">
-                                        <IconButton icon={<TrashIcon />} tip={t("settings.permissions.removeTip", { name })} size="sm" tone="danger" onClick={() => {
+                                        <IconButton icon={<TrashIcon />} tip={t(role ? "settings.permissions.removeTip" : "settings.permissions.removeHereTip", { name })}
+                                            tipSub={origin ? t("settings.permissions.foreignRoleSub", { server: origin.guildName || "?" }) : undefined}
+                                            size="sm" tone="danger" onClick={() => {
                                             const next = { ...value };
                                             delete next[id];
                                             onChange(next);
