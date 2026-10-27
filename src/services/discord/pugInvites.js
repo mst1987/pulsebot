@@ -19,8 +19,11 @@
 // The bot keeps the use counters of their invites in memory. Joins of a server
 // are collected and read together: when exactly one counter rose, and by as
 // many as joins are pending, they all came through it; anything else leaves
-// them unknown — and an unknown origin is not stored. Only the bot's own codes
-// are stored (memberOriginStore).
+// them unknown — and an unknown origin is not stored. Joins that arrive while
+// the counters are read join the running comparison. Only the codes of the
+// bot's link invites are stored (memberOriginStore); the general invite is
+// shown nowhere, so a join through it is not kept, and the origins of a link
+// that is gone are dropped by the check.
 //
 // Rights (docs/discord-servers.md): "Einladung erstellen" to create the
 // invites, "Server verwalten" to read them and their use counters and to
@@ -110,12 +113,22 @@ function onChain(guildId, step) {
     return next;
 }
 
+// Read failures already warned about: "<guildId>:<error code or message>". The
+// first of a kind per server goes to warn, repeats (every check) to debug.
+const warnedReads = new Set();
+
 /** The guild's invites as a discord.js collection, null when they cannot be read. */
 async function fetchInvites(guild) {
     try {
         return await guild.invites.fetch();
     } catch (error) {
-        log.debug(`invites of ${guild && guild.id} unreadable: ${error.message}`);
+        const kind = `${guild && guild.id}:${error.code || error.status || error.message}`;
+        const text = `invites of ${guild && guild.id} unreadable: ${error.message}`;
+        if (warnedReads.has(kind)) log.debug(text);
+        else {
+            warnedReads.add(kind);
+            log.warn(text);
+        }
         return null;
     }
 }
@@ -138,6 +151,14 @@ function markDeleted({ code, guildId, linkKey }) {
     return true;
 }
 
+/** A stored code found live on Discord: an old error on its record (from a failed click) is cleared. */
+function clearError({ code, guildId, linkKey }) {
+    const record = linkKey ? inviteStore.getLinkInvite(linkKey) : inviteStore.getGeneralInvite(guildId);
+    if (record.code !== code || record.deleted || !record.error) return;
+    if (linkKey) inviteStore.setLinkInvite(linkKey, { error: "" });
+    else inviteStore.setGeneralInvite(guildId, { error: "" });
+}
+
 /** The servers whose joins are attributed: those with a live stored invite of the bot. */
 function trackedGuildIds() {
     return [...new Set(inviteStore.knownCodes().map((k) => k.guildId))];
@@ -156,7 +177,10 @@ async function refreshGuild(guildId) {
     const invites = await fetchInvites(guild);
     if (!invites) return;
     for (const known of stored) {
-        if (invites.has(known.code)) continue;
+        if (invites.has(known.code)) {
+            clearError(known);
+            continue;
+        }
         if (markDeleted(known)) log.info(`invite ${known.code} of ${guildId} is gone on Discord, marked deleted`);
     }
     if (!(pendingByGuild.get(guildId) || []).length) usesByGuild.set(guildId, usesOf(invites));
@@ -169,8 +193,12 @@ async function warmUses() {
 
 /** Delete an invite on Discord as far as the bot may; never throws. */
 async function deleteOnDiscord(guildId, code) {
-    const guild = code ? discord.getGuild(guildId) : null;
-    if (!guild || !guild.invites || typeof guild.invites.delete !== "function") return;
+    if (!code) return;
+    const guild = discord.getGuild(guildId);
+    if (!guild || !guild.invites || typeof guild.invites.delete !== "function") {
+        log.info(`invite ${code} of ${guildId} dropped without deleting it on Discord: the bot is not on that server`);
+        return;
+    }
     try {
         await guild.invites.delete(code, REMOVED_REASON);
     } catch (error) {
@@ -201,8 +229,14 @@ function reconcileInvites() {
             const record = inviteStore.getGeneralInvite(guildId);
             if (!record.deleted) await deleteOnDiscord(guildId, record.code);
             inviteStore.removeGeneralInvite(guildId);
-            inviteStore.setInviteChannel(guildId, "");
         }
+        // The invite channel of a server that left the list, even one that never had an invite.
+        for (const guildId of inviteStore.channelGuildIds()) {
+            if (!servers.has(guildId)) inviteStore.setInviteChannel(guildId, "");
+        }
+        // Origins of a link that is gone: nothing shows them any more (data economy).
+        const dropped = originStore.removeOriginsExcept(linkKeys);
+        if (dropped) log.info(`${dropped} member origin(s) of removed links dropped`);
         for (const guildId of [...usesByGuild.keys()]) {
             if (!trackedGuildIds().includes(guildId)) usesByGuild.delete(guildId);
         }
@@ -357,6 +391,11 @@ async function settleJoins(guild) {
     if (!batch.length) return;
     const before = usesByGuild.get(guild.id) || null;
     const invites = await fetchInvites(guild);
+    // Joins that came in while the read ran: Discord may already count them in
+    // `after`, so they belong to this comparison, not to the next one.
+    const late = pendingByGuild.get(guild.id) || [];
+    pendingByGuild.delete(guild.id);
+    batch.push(...late);
     const after = invites ? usesOf(invites) : null;
     if (after) usesByGuild.set(guild.id, after);
     else usesByGuild.delete(guild.id);
@@ -368,8 +407,13 @@ async function settleJoins(guild) {
             .filter(([, delta]) => delta > 0);
         if (risen.length === 1 && risen[0][1] === batch.length) {
             const known = inviteStore.knownCodes().find((k) => k.code === risen[0][0] && k.guildId === guild.id);
-            if (known) origin = { inviteCode: known.code, linkKey: known.linkKey };
+            // Only a link's invite is stored: the general one is shown nowhere (data economy).
+            if (known && known.linkKey) origin = { inviteCode: known.code, linkKey: known.linkKey };
         }
+        // A late join Discord did not count yet would show up in the next
+        // comparison as somebody else's: start over from the next read instead.
+        const total = risen.reduce((sum, [, delta]) => sum + delta, 0);
+        if (late.length && total < batch.length) usesByGuild.delete(guild.id);
     }
     for (const join of batch) {
         let stored = null;
@@ -484,6 +528,7 @@ function resetForTests() {
     chains.clear();
     pendingByGuild.clear();
     inflight.clear();
+    warnedReads.clear();
     reconcileRunning = null;
 }
 

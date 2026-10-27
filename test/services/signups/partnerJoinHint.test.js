@@ -8,6 +8,8 @@ jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() =>
 
 const discord = require("../../../src/services/discord/discord");
 const hint = require("../../../src/services/signups/partnerJoinHint");
+const inviteStore = require("../../../src/stores/discordInviteStore");
+const { tempStoreFile } = require("../../helpers/tempStore");
 
 const MAIN = "100000000000000001";
 const PUG = "100000000000000002";
@@ -25,11 +27,14 @@ const unknownMember = (code = 10007) => async () => { throw Object.assign(new Er
 const click = (guildId, userId = ANNA) => ({ guildId, user: { id: userId } });
 
 beforeEach(() => {
+    inviteStore.useFile(tempStoreFile("discord-invites.json"));
     guilds = {};
     discord.getGuild.mockReset();
     discord.getGuild.mockImplementation((id) => guilds[id] || null);
     discord.memberRoleIds.mockReset();
 });
+
+afterAll(() => inviteStore.useFile(null));
 
 describe("raidGuildId", () => {
     it("is the event's server, else the configured main server", () => {
@@ -117,8 +122,13 @@ describe("buildJoinHint", () => {
         expect(hint.buildJoinHint({ inviteUrl: "javascript:alert(1)" }).button).toBeNull();
     });
 
-    it("has no invite until #905 brings them", () => {
-        expect(hint.inviteUrlForLink(`${PUG}:${PARTNER}`)).toBe("");
+    it("reads the invite of a link from the store (#905): none, live, deleted", () => {
+        const key = `${PUG}:${PARTNER}`;
+        expect(hint.inviteUrlForLink(key)).toBe("");
+        inviteStore.setLinkInvite(key, { code: "abcdef" });
+        expect(hint.inviteUrlForLink(key)).toBe(INVITE);
+        inviteStore.setLinkInvite(key, { deleted: true });
+        expect(hint.inviteUrlForLink(key)).toBe("");
     });
 });
 
@@ -131,6 +141,15 @@ describe("joinHintFor", () => {
         const res = await hint.joinHintFor(click(PARTNER), event, { lang: "de", inviteUrlOf });
         expect(inviteUrlOf).toHaveBeenCalledWith(`${PUG}:${PARTNER}`);
         expect(res).toEqual({ line: expect.stringContaining("Tritt dem Server **Pulse PuGs** bei"), button: expect.objectContaining({ url: INVITE, label: "Pulse PuGs beitreten" }), linkKey: `${PUG}:${PARTNER}` });
+    });
+
+    it("puts the stored invite of the link on the button by default (#905)", async () => {
+        guild(PUG, { fetch: unknownMember() });
+        inviteStore.setLinkInvite(`${PUG}:${PARTNER}`, { code: "abcdef" });
+        // another link's invite is not this one's
+        inviteStore.setLinkInvite(`${MAIN}:${PARTNER}`, { code: "zzz" });
+        const res = await hint.joinHintFor(click(PARTNER), event, { lang: "en" });
+        expect(res.button).toEqual(expect.objectContaining({ url: INVITE, label: "Join Pulse PuGs" }));
     });
 
     it("gives the line alone when there is no invite", async () => {

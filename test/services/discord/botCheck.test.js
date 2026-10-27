@@ -150,6 +150,12 @@ describe("functions", () => {
         mockGuild = guild({ rights: [...ALL, F.CreateInstantInvite, F.ManageGuild] });
         expect(byKey().invites.state).toBe("ok");
     });
+    it("asks for the invite rights on a link's source server before its first invite (#905)", () => {
+        const withLink = { discordServers: { ...SERVERS, links: [{ from: EVENT, to: TALK, channelId: "300000000000000001" }] } };
+        expect(botCheck(EVENT, withLink).functions.find((f) => f.key === "invites").state).toBe("missing");
+        // the target of the link hands the invite out, it needs no rights for it
+        expect(botCheck(TALK, withLink).functions.find((f) => f.key === "invites").state).toBe("not_needed");
+    });
 });
 
 describe("channels", () => {

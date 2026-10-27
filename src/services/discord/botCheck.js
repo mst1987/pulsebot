@@ -16,7 +16,7 @@ const roleMessageStore = require("../../stores/roleMessageStore");
 const addonCenterStore = require("../../stores/addonCenterStore");
 const eventStore = require("../../stores/eventStore");
 const inviteStore = require("../../stores/discordInviteStore");
-const { serverIds, roleMessageGuild } = require("./guildRoles");
+const { serverIds, roleMessageGuild, links } = require("./guildRoles");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -42,8 +42,9 @@ const INTENTS = ["GuildMembers", "MessageContent"];
 /**
  * Function → the rights it needs on the server. `only` limits a function to
  * the servers where it is set up ("raids": raid categories or the first server,
- * "roleMessages": a role message stands there, "invites": the bot made an
- * invite there, #905); elsewhere it reads "not_needed".
+ * "roleMessages": a role message stands there, "invites": the server is the
+ * source of a link or the bot made an invite there, #905); elsewhere it reads
+ * "not_needed".
  */
 const BOT_FUNCTIONS = [
     { key: "channels", label: "Kanäle anlegen und archivieren", needs: ["ManageChannels"], only: "raids" },
@@ -156,7 +157,9 @@ function setupOf(guildId, config, guild) {
         || safeList(() => eventStore.listEvents(gid)).some((e) => e && str(e.guildId) === gid && str(e.categoryId))
         || raidCategoryOn(gid, config, guild);
     const roleMessages = safeList(() => roleMessageStore.listMessages().filter((m) => roleMessageGuild(m, config) === gid));
-    const invites = safeList(() => inviteStore.knownCodes()).some((k) => k.guildId === gid);
+    // A link's source needs the rights before its first invite: the page shows the gap before the click.
+    const invites = safeList(() => links(config)).some((l) => str(l.from) === gid)
+        || safeList(() => inviteStore.knownCodes()).some((k) => k.guildId === gid);
     return { raids, roleMessages: roleMessages.length > 0, invites };
 }
 

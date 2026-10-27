@@ -1,4 +1,6 @@
 // Invites per link and the origin of each member (src/services/discord/pugInvites.js, #905).
+const mockLog = { warn: jest.fn(), info: jest.fn(), debug: jest.fn(), error: jest.fn() };
+jest.mock("../../../src/logger", () => ({ ...mockLog, child: () => mockLog }));
 jest.mock("../../../src/services/discord/discord", () => ({ getGuild: jest.fn() }));
 jest.mock("../../../src/services/discord/guildRoles", () => ({ links: jest.fn(), serverIds: jest.fn() }));
 jest.mock("../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []) }));
@@ -60,6 +62,7 @@ beforeEach(() => {
     inviteStore.useFile(tempStoreFile("discord-invites.json"));
     originStore.useFile(tempStoreFile("member-origins.json"));
     pugInvites.resetForTests();
+    for (const fn of Object.values(mockLog)) fn.mockClear();
     fake = makeGuild();
     discord.getGuild.mockImplementation((id) => (id === PUG ? fake.guild : null));
     guildRoles.links.mockReturnValue([{ from: PUG, to: PARTNER }]);
@@ -217,6 +220,51 @@ describe("the check against Discord", () => {
         expect(await pugInvites.onMemberAdd(member(fake.guild))).toBeNull();
     });
 
+    it("clears an old error of an invite found live on Discord", async () => {
+        await pugInvites.ensureLinkInvite(KEY);
+        inviteStore.setLinkInvite(KEY, { error: "Dem Bot fehlt das Recht \u201eServer verwalten\u201c." });
+        await pugInvites.reconcileInvites();
+        expect(inviteStore.getLinkInvite(KEY)).toEqual(expect.objectContaining({ code: "new1", error: "", deleted: false }));
+    });
+
+    it("warns once per server and kind of read failure, then only debugs", async () => {
+        await pugInvites.ensureLinkInvite(KEY);
+        fake.guild.fetchFails = true;
+        await pugInvites.reconcileInvites();
+        await pugInvites.reconcileInvites();
+        const unreadable = (fn) => fn.mock.calls.filter(([text]) => /unreadable/.test(text));
+        expect(unreadable(mockLog.warn)).toHaveLength(1);
+        expect(unreadable(mockLog.debug).length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("drops the origins of a removed link", async () => {
+        await pugInvites.ensureLinkInvite(KEY);
+        const other = `${PUG}:900000000000000003`;
+        originStore.recordOrigin({ guildId: PUG, userId: "100000000000000001", inviteCode: "new1", linkKey: KEY });
+        originStore.recordOrigin({ guildId: PUG, userId: "100000000000000002", inviteCode: "gone", linkKey: other });
+        await pugInvites.reconcileInvites();
+        expect(originStore.listOrigins()).toEqual([expect.objectContaining({ linkKey: KEY })]);
+        expect(mockLog.info).toHaveBeenCalledWith(expect.stringMatching(/1 member origin/));
+    });
+
+    it("clears the invite channel of a server that left the list, even without an invite", async () => {
+        const GONE = "900000000000000009";
+        inviteStore.setInviteChannel(GONE, CHANNEL);
+        inviteStore.setInviteChannel(PUG, CHANNEL);
+        await pugInvites.reconcileInvites();
+        expect(inviteStore.getInviteChannel(GONE)).toBe("");
+        expect(inviteStore.getInviteChannel(PUG)).toBe(CHANNEL);
+    });
+
+    it("logs when a removed link's invite cannot be deleted because the bot left the server", async () => {
+        await pugInvites.ensureLinkInvite(KEY);
+        discord.getGuild.mockReturnValue(null);
+        guildRoles.links.mockReturnValue([]);
+        await pugInvites.reconcileInvites();
+        expect(inviteStore.linkKeys()).toEqual([]);
+        expect(mockLog.info).toHaveBeenCalledWith(expect.stringMatching(/new1 .*not on that server/));
+    });
+
     it("runs one check at a time", async () => {
         await pugInvites.ensureLinkInvite(KEY);
         const a = pugInvites.reconcileInvites();
@@ -302,6 +350,62 @@ describe("the origin of a member", () => {
         expect(originStore.originsOfLink(KEY)).toHaveLength(2);
     });
 
+    /** The next read of the invites first runs `during`: Discord counts and sends joins while it is in flight. */
+    function whileReading(during) {
+        const read = fake.guild.invites.fetch.getMockImplementation();
+        fake.guild.invites.fetch.mockImplementationOnce(async () => {
+            await during();
+            return read();
+        });
+    }
+
+    it("leaves both unknown when a join through the link invite comes in during the read of a vanity join", async () => {
+        await warmWith({});
+        let second;
+        whileReading(async () => {
+            fake.invites.get("new1").uses = 1;
+            second = pugInvites.onMemberAdd(member(fake.guild, "100000000000000002"));
+        });
+        // A came through the vanity URL: no counter rose for A.
+        expect(await pugInvites.onMemberAdd(member(fake.guild, "100000000000000001"))).toBeNull();
+        expect(await second).toBeNull();
+        expect(originStore.listOrigins()).toEqual([]);
+        // Unsure whether a late join is counted yet, the counters start over:
+        // the next join only reads them, the one after is named again.
+        fake.invites.get("new1").uses = 2;
+        expect(await pugInvites.onMemberAdd(member(fake.guild, "100000000000000003"))).toBeNull();
+        fake.invites.get("new1").uses = 3;
+        expect((await pugInvites.onMemberAdd(member(fake.guild, "100000000000000004"))).inviteCode).toBe("new1");
+    });
+
+    it("names the invite for both when a second join through it comes in during the read", async () => {
+        await warmWith({});
+        fake.invites.get("new1").uses = 1;
+        let second;
+        whileReading(async () => {
+            fake.invites.get("new1").uses = 2;
+            second = pugInvites.onMemberAdd(member(fake.guild, "100000000000000002"));
+        });
+        expect((await pugInvites.onMemberAdd(member(fake.guild, "100000000000000001"))).inviteCode).toBe("new1");
+        expect((await second).inviteCode).toBe("new1");
+        expect(originStore.originsOfLink(KEY)).toHaveLength(2);
+    });
+
+    it("does not hand a late join's count to the next member when Discord counted it only later", async () => {
+        await warmWith({});
+        let second;
+        // A (vanity) is being read; B's join event arrives, but Discord has not counted B yet.
+        whileReading(async () => {
+            second = pugInvites.onMemberAdd(member(fake.guild, "100000000000000002"));
+        });
+        expect(await pugInvites.onMemberAdd(member(fake.guild, "100000000000000001"))).toBeNull();
+        expect(await second).toBeNull();
+        // Now Discord counts B; C comes through the vanity URL and must not get B's invite.
+        fake.invites.get("new1").uses = 1;
+        expect(await pugInvites.onMemberAdd(member(fake.guild, "100000000000000003"))).toBeNull();
+        expect(originStore.listOrigins()).toEqual([]);
+    });
+
     it("attributes two joins one after another", async () => {
         await warmWith({});
         fake.invites.get("new1").uses = 1;
@@ -312,11 +416,20 @@ describe("the origin of a member", () => {
 
     it("counts a new invite from its creation on", async () => {
         await warmWith({});
-        inviteStore.setGeneralInvite(PUG, { code: "fresh" });
+        inviteStore.setLinkInvite(KEY, { code: "fresh" });
         pugInvites.onInviteCreate({ code: "fresh", uses: 0, guild: { id: PUG } });
         fake.addInvite("fresh", 1);
         const origin = await pugInvites.onMemberAdd(member(fake.guild));
-        expect(origin).toEqual(expect.objectContaining({ inviteCode: "fresh", linkKey: "" }));
+        expect(origin).toEqual(expect.objectContaining({ inviteCode: "fresh", linkKey: KEY }));
+    });
+
+    it("does not store a join through the general invite (shown nowhere)", async () => {
+        await warmWith({});
+        await pugInvites.ensureGeneralInvite(PUG);
+        await pugInvites.warmUses();
+        fake.invites.get("new2").uses = 1;
+        expect(await pugInvites.onMemberAdd(member(fake.guild))).toBeNull();
+        expect(originStore.listOrigins()).toEqual([]);
     });
 
     it("skips bots and servers without an invite of the bot", async () => {

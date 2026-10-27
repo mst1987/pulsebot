@@ -9,7 +9,10 @@
 // who leaves and comes back through another invite keeps the partner that
 // brought them first. Only known origins are stored: a join whose invite is
 // unknown (none or several counters rose) leaves no record at all (data
-// economy). `linkKey` "" = the server's general invite. Records stay when a member leaves, so
+// economy), and neither is a join through the server's general invite: it is
+// shown nowhere, so every record has its link (`linkKey` "from:to"). The
+// origins of a link that is gone are dropped by the invite check
+// (removeOriginsExcept). Records stay when a member leaves, so
 // "joined" does not shrink (docs/data-storage.md). Beyond MAX_ENTRIES the
 // oldest drop out.
 const { settingsPath } = require("../config/paths");
@@ -32,6 +35,7 @@ function normalizeOrigin(raw) {
     const inviteCode = CODE.test(str(raw.inviteCode)) ? str(raw.inviteCode) : "";
     if (!inviteCode) return null;
     const linkKey = LINK_KEY.test(str(raw.linkKey)) ? str(raw.linkKey) : "";
+    if (!linkKey) return null;
     return { guildId, userId, inviteCode, linkKey, joinedAt };
 }
 
@@ -74,9 +78,22 @@ function originsOfLink(linkKey) {
     return key ? store.read().origins.filter((o) => o.linkKey === key) : [];
 }
 
+/**
+ * Drop every origin whose link is not in `linkKeys` (a Set or array of
+ * "from:to"): its link was removed. Returns how many were dropped.
+ */
+function removeOriginsExcept(linkKeys) {
+    const keep = new Set([...(linkKeys || [])].map(str));
+    const { origins } = store.read();
+    const left = origins.filter((o) => keep.has(o.linkKey));
+    if (left.length === origins.length) return 0;
+    store.write({ origins: left });
+    return origins.length - left.length;
+}
+
 /** Every stored origin (for a test or a full count). */
 function listOrigins() {
     return store.read().origins;
 }
 
-module.exports = { recordOrigin, originOf, originsOfLink, listOrigins, normalizeOrigin, MAX_ENTRIES, useFile };
+module.exports = { recordOrigin, originOf, originsOfLink, removeOriginsExcept, listOrigins, normalizeOrigin, MAX_ENTRIES, useFile };

@@ -57,7 +57,9 @@ describe("discordInviteStore", () => {
     it("sets and clears the invite channel of a server", () => {
         expect(store.setInviteChannel(PUG, "300000000000000009")).toBe("300000000000000009");
         expect(store.getInviteChannel(PUG)).toBe("300000000000000009");
+        expect(store.channelGuildIds()).toEqual([PUG]);
         expect(store.setInviteChannel(PUG, "")).toBe("");
+        expect(store.channelGuildIds()).toEqual([]);
         expect(store.getInviteChannel(PUG)).toBe("");
         expect(store.setInviteChannel("", "1")).toBe("");
     });

@@ -136,7 +136,8 @@ client.on("guildMemberAdd", (member) => {
         .catch((error) => console.error("guildMemberAdd handler error:", error.message));
 });
 client.on("guildMemberRemove", (member) => memberActivity.onMemberRemove(member));
-// The invite counters (#905): a new invite starts at its uses, a deleted one of ours is made again.
+// The invite counters (#905): a new invite starts at its uses, a deleted one of ours is only
+// marked deleted (never made again on its own, only by a click in the settings).
 client.on(Events.InviteCreate, (invite) => pugInvites.onInviteCreate(invite));
 client.on(Events.InviteDelete, (invite) => pugInvites.onInviteDelete(invite));
 

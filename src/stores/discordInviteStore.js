@@ -120,6 +120,11 @@ function generalGuildIds() {
     return Object.keys(read().general);
 }
 
+/** Every server with an invite channel set. */
+function channelGuildIds() {
+    return Object.keys(read().channels);
+}
+
 /** The channel set for the invites of a server ("" = none set). */
 function getInviteChannel(guildId) {
     return read().channels[String(guildId || "")] || "";
@@ -156,5 +161,5 @@ function knownCodes() {
 module.exports = {
     getLinkInvite, setLinkInvite, getGeneralInvite, setGeneralInvite,
     removeLinkInvite, removeGeneralInvite, linkKeys, generalGuildIds,
-    getInviteChannel, setInviteChannel, knownCodes, useFile,
+    channelGuildIds, getInviteChannel, setInviteChannel, knownCodes, useFile,
 };
