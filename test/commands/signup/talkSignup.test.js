@@ -59,7 +59,7 @@ describe("commands/signup/talkSignup", () => {
         await command.execute(interaction);
         expect(answerOf(interaction.reply.mock.calls[0][0])).toMatchObject({ title: "", description: "You need a raider role for this raid.", flags: MessageFlags.Ephemeral, embedCount: 1 });
         // no event guild on the event → the configured (event) server
-        expect(mocks.memberRoleIds).toHaveBeenCalledWith("event-guild", "200000000000000009");
+        expect(mocks.memberRoleIds).toHaveBeenCalledWith("event-guild", "200000000000000009", { absentAs: [] });
     });
 
     describe("from a partner server's list (#904)", () => {
@@ -86,7 +86,7 @@ describe("commands/signup/talkSignup", () => {
             interaction.guildId = PARTNER;
             await command.execute(interaction);
             expect(answerOf(interaction.reply.mock.calls[0][0]).description).toBe("You need a raider role for this raid.");
-            expect(mocks.memberRoleIds).toHaveBeenCalledWith("event-guild", STRANGER);
+            expect(mocks.memberRoleIds).toHaveBeenCalledWith("event-guild", STRANGER, { absentAs: [] });
         });
     });
 

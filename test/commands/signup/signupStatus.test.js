@@ -229,6 +229,25 @@ describe("<server> beitreten after „Gespeichert“ (#904)", () => {
         expect(older.editReply).not.toHaveBeenCalled();
     });
 
+    it("a sign-off after „Dabei“ on the same message counts as the newer click too", async () => {
+        let release;
+        members.fetch.mockImplementationOnce(() => new Promise((resolve, reject) => {
+            release = () => reject(Object.assign(new Error("Unknown Member"), { code: 10007 }));
+        }));
+        const signed = clickFrom(PARTNER, "s");
+        signed.message = { id: "dialog-2" };
+        const pending = command.execute(signed);
+        await new Promise((r) => setImmediate(r));
+        const off = clickFrom(PARTNER, "a");
+        off.message = { id: "dialog-2" };
+        await command.execute(off);
+        expect(mocks.signups.get(`eh-kara/${ANNA}`)).toMatchObject({ status: "absence" });
+        release();
+        await pending;
+        expect(signed.editReply).not.toHaveBeenCalled();
+        expect(off.editReply).not.toHaveBeenCalled();
+    });
+
     it("a failing edit (dialog gone) is only logged", async () => {
         const i = clickFrom(PARTNER);
         i.editReply = jest.fn(async () => { throw new Error("Unknown Message"); });

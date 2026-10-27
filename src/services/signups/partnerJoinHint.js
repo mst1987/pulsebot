@@ -56,17 +56,16 @@ async function isServerMember(guildId, userId, { waitMs = MEMBER_WAIT_MS } = {})
 
 /**
  * A member's roles on the raid's server for the raider-role check of a signup.
- * discord.memberRoleIds answers null for every failure — also for "unknown
- * member". Since anyone may sign up from a partner list (#904), a non-member
- * would slip past the role rule; so when the roles cannot be read, one more
- * check: surely not on the server → no roles ([]). Any other failure (bot
- * offline, timeout) stays null, the lenient "a hiccup never refuses a raider".
+ * Since anyone may sign up from a partner list (#904), a non-member would
+ * slip past the role rule if "unknown member" read as "unknown"; so one fetch
+ * that answers [] (no roles) when Discord says surely not on the server. Any
+ * other failure (bot offline, Discord error) stays null, the lenient "a hiccup
+ * never refuses a raider". One fetch only — this runs before some answers.
  * @returns {Promise<string[]|null>}
  */
-async function signupRoleIds(guildId, userId, { waitMs } = {}) {
-    const ids = await discord.memberRoleIds(guildId, userId);
-    if (ids !== null && ids !== undefined) return ids;
-    return (await isServerMember(guildId, userId, { waitMs })) === false ? [] : null;
+async function signupRoleIds(guildId, userId) {
+    const ids = await discord.memberRoleIds(guildId, userId, { absentAs: [] });
+    return ids === undefined ? null : ids;
 }
 
 // A button label holds 80 characters; "<name> beitreten" must fit.

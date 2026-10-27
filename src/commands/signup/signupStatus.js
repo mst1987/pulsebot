@@ -30,30 +30,32 @@ let clickSeq = 0;
 // character and saves right away. Everything in the member's language.
 async function save(interaction, event, status, picks, character) {
     const uid = interaction.user.id;
-    const lang = langOfInteraction(interaction);
-    const previous = getSignup(event.id, uid);
-    const result = await submitSignup(event.id, uid, {
-        character,
-        spec: picks.spec,
-        status,
-        canAlso: picks.canAlso,
-        // The comment is edited on its own; a status change keeps it.
-        comment: previous ? previous.comment : "",
-    });
-    if (result.error) {
-        return interaction.update(buildSignupDialog(event, uid, { state: picks, notice: `⚠️ ${result.error}`, lang }));
-    }
-    const profile = profiles.getProfile(uid);
-    // The waiting list (#306) rides on the same line as the confirmation.
-    const notice = [savedNotice(result.signup, profile, versionOfEvent(event), lang), result.notice ? `⏳ ${result.notice}` : ""].filter(Boolean).join("\n");
-    await interaction.update(buildSignupDialog(event, uid, { state: picks, notice, lang }));
-    // From a partner server's list (#904): someone not on the raid's server hears nothing of it
-    // there, so the answer says so - checked only now, the click is answered already.
-    if (result.signup.status === "absence") return undefined;
+    // Every click counts as the newest one from the start - also a sign-off or an
+    // error answer - so an older click's late hint never redraws over it.
     const key = (interaction.message && interaction.message.id) || `${event.id}:${uid}`;
     const click = ++clickSeq;
     latestClick.set(key, click);
     try {
+        const lang = langOfInteraction(interaction);
+        const previous = getSignup(event.id, uid);
+        const result = await submitSignup(event.id, uid, {
+            character,
+            spec: picks.spec,
+            status,
+            canAlso: picks.canAlso,
+            // The comment is edited on its own; a status change keeps it.
+            comment: previous ? previous.comment : "",
+        });
+        if (result.error) {
+            return interaction.update(buildSignupDialog(event, uid, { state: picks, notice: `⚠️ ${result.error}`, lang }));
+        }
+        const profile = profiles.getProfile(uid);
+        // The waiting list (#306) rides on the same line as the confirmation.
+        const notice = [savedNotice(result.signup, profile, versionOfEvent(event), lang), result.notice ? `⏳ ${result.notice}` : ""].filter(Boolean).join("\n");
+        await interaction.update(buildSignupDialog(event, uid, { state: picks, notice, lang }));
+        // From a partner server's list (#904): someone not on the raid's server hears nothing of it
+        // there, so the answer says so - checked only now, the click is answered already.
+        if (result.signup.status === "absence") return undefined;
         const hint = await joinHintFor(interaction, event, { lang });
         if (!hint || latestClick.get(key) !== click) return undefined;
         return await interaction.editReply(buildSignupDialog(event, uid, { state: picks, notice: `${notice}\n${hint.line}`, lang, joinButton: hint.button }))

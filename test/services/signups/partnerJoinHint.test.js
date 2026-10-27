@@ -77,19 +77,20 @@ describe("signupRoleIds", () => {
         expect(discord.getGuild).not.toHaveBeenCalled();
     });
 
-    it("gives no roles to someone surely not on the server (10007/10013)", async () => {
-        discord.memberRoleIds.mockResolvedValue(null);
-        guild(PUG, { fetch: unknownMember(10007) });
+    it("asks Discord once: surely not on the server (10007/10013) means no roles", async () => {
+        discord.memberRoleIds.mockImplementation(async (g, u, opts) => opts && opts.absentAs);
         await expect(hint.signupRoleIds(PUG, ANNA)).resolves.toEqual([]);
-        guild(PUG, { fetch: unknownMember(10013) });
-        await expect(hint.signupRoleIds(PUG, ANNA)).resolves.toEqual([]);
+        expect(discord.memberRoleIds).toHaveBeenCalledTimes(1);
+        expect(discord.memberRoleIds).toHaveBeenCalledWith(PUG, ANNA, { absentAs: [] });
+        expect(discord.getGuild).not.toHaveBeenCalled();
     });
 
     it("stays null (lenient) when the roles cannot be read for another reason", async () => {
         discord.memberRoleIds.mockResolvedValue(null);
-        guild(PUG, { fetch: unknownMember(50001) });
         await expect(hint.signupRoleIds(PUG, ANNA)).resolves.toBeNull();
-        await expect(hint.signupRoleIds("999", ANNA)).resolves.toBeNull();
+        discord.memberRoleIds.mockResolvedValue(undefined);
+        await expect(hint.signupRoleIds(PUG, ANNA)).resolves.toBeNull();
+        expect(discord.getGuild).not.toHaveBeenCalled();
     });
 });
 

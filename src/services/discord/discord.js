@@ -1159,17 +1159,21 @@ function _resetAbsentNamesForTests() {
  * this member see" (Anmeldungen, #256). A single-member fetch, no privileged
  * intent. Null when it cannot be known — bot offline, not a member, Discord
  * unreachable — so the caller can tell "no roles" from "unknown".
+ * `absentAs` is what to answer when Discord says the member is surely not on
+ * the server (Unknown Member/User) — a signup check passes [] so "not a member"
+ * needs no second fetch (#904); by default that stays null like every failure.
  * @returns {Promise<string[]|null>}
  */
-async function memberRoleIds(guildId, userId) {
+async function memberRoleIds(guildId, userId, { absentAs = null } = {}) {
     const guild = getGuild(guildId);
     if (!guild || !userId) return null;
     try {
         const member = guild.members.cache.get(String(userId)) || await guild.members.fetch(String(userId));
         const cache = member && member.roles && member.roles.cache;
         return cache && typeof cache.keys === "function" ? [...cache.keys()] : null;
-    } catch {
-        return null;
+    } catch (e) {
+        const code = e && (e.code || (e.rawError && e.rawError.code));
+        return code === 10007 || code === 10013 ? absentAs : null;
     }
 }
 

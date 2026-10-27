@@ -37,9 +37,11 @@ jest.mock("../../../src/stores/signupStore", () => {
 let mockConfig = {};
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockRoleIds = null;
+// Discord said "Unknown Member": memberRoleIds answers the caller's absentAs
+let mockAbsent = false;
 let mockGuild = null;
 jest.mock("../../../src/services/discord/discord", () => ({
-    memberRoleIds: jest.fn(async () => mockRoleIds), postNotice: jest.fn(async () => ({})), getGuild: jest.fn(() => mockGuild),
+    memberRoleIds: jest.fn(async (g, u, opts) => (mockAbsent ? opts && opts.absentAs : mockRoleIds)), postNotice: jest.fn(async () => ({})), getGuild: jest.fn(() => mockGuild),
 }));
 
 const profiles = require("../../../src/stores/raiderProfileStore");
@@ -69,9 +71,11 @@ beforeEach(() => {
     mockChanged.mockClear();
     mockConfig = {};
     mockRoleIds = null;
+    mockAbsent = false;
     mockGuild = null;
     mockLog.mockClear();
     discord.memberRoleIds.mockClear();
+    discord.getGuild.mockClear();
     mockEvents.set("eh-kara", event());
     profiles.addCharacter(ANNA, { name: "Nerathil", className: "Mage", specs: ["Mage-Arcane", "Mage-Fire"] }, { name: "Anna" });
     profiles.addCharacter(ANNA, { name: "Nerasol", className: "Priest", specs: ["Priest-Holy"] }, { name: "Anna" });
@@ -428,7 +432,7 @@ describe("Raider-Rollen der Kategorie", () => {
         mockRoleIds = ["role-other"];
         const res = await service.submitSignup("eh-kara", ANNA, signup, { now: NOW });
         expect(res).toEqual({ code: "raider_role", error: "Für diesen Raid brauchst du eine Raider-Rolle." });
-        expect(discord.memberRoleIds).toHaveBeenCalledWith("g-event", ANNA);
+        expect(discord.memberRoleIds).toHaveBeenCalledWith("g-event", ANNA, { absentAs: [] });
         expect(mockSignups.size).toBe(0);
         expect(service.httpStatusFor("raider_role")).toBe(403);
     });
@@ -447,27 +451,21 @@ describe("Raider-Rollen der Kategorie", () => {
     });
 
     describe("kein Mitglied des Raid-Servers (#904: Anmeldung aus einer Partner-Liste)", () => {
-        // memberRoleIds answers null for every failure; the guild says why
-        const guildFailing = (error) => ({
-            id: "g-event",
-            members: { cache: new Map(), fetch: jest.fn(async () => { throw error; }) },
-        });
-        const unknownMember = Object.assign(new Error("Unknown Member"), { code: 10007 });
-
+        // one fetch: memberRoleIds answers absentAs ([]) on Unknown Member/User
         it("lehnt im Dialog ab, wenn Discord „Unknown Member“ meldet", async () => {
             withRoles();
-            mockRoleIds = null;
-            mockGuild = guildFailing(unknownMember);
+            mockAbsent = true;
             const res = await service.submitSignup("eh-kara", ANNA, signup, { now: NOW });
             expect(res).toEqual({ code: "raider_role", error: "Für diesen Raid brauchst du eine Raider-Rolle." });
-            expect(mockGuild.members.fetch).toHaveBeenCalledWith(ANNA);
+            expect(discord.memberRoleIds).toHaveBeenCalledTimes(1);
+            expect(discord.memberRoleIds).toHaveBeenCalledWith("g-event", ANNA, { absentAs: [] });
+            expect(discord.getGuild).not.toHaveBeenCalled();
             expect(mockSignups.size).toBe(0);
         });
 
-        it("lehnt bei „Mehrere Raids“ ab, auch mit „Unknown User“ (10013)", async () => {
+        it("lehnt bei „Mehrere Raids“ ab", async () => {
             withRoles();
-            mockRoleIds = null;
-            mockGuild = guildFailing(Object.assign(new Error("Unknown User"), { rawError: { code: 10013 } }));
+            mockAbsent = true;
             const results = await service.submitSignups(ANNA, [{ eventId: "eh-kara", characters: [{ character: "Nerathil", spec: "Mage-Arcane" }], status: "signed" }], { now: NOW });
             expect(results[0]).toMatchObject({ ok: false, code: "raider_role" });
             expect(mockSignups.size).toBe(0);
@@ -476,10 +474,6 @@ describe("Raider-Rollen der Kategorie", () => {
         it("bleibt nachsichtig bei anderen Fehlern (Bot offline, Netz)", async () => {
             withRoles();
             mockRoleIds = null;
-            mockGuild = guildFailing(Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }));
-            expect((await service.submitSignup("eh-kara", ANNA, signup, { now: NOW })).signup).toBeTruthy();
-            mockSignups.clear();
-            mockGuild = null;
             expect((await service.submitSignup("eh-kara", ANNA, signup, { now: NOW })).signup).toBeTruthy();
         });
     });
