@@ -41,7 +41,7 @@ module.exports = {
 
         const event = getStoredEvent(eventId);
         const name = event && event.title ? `**${event.title}**` : tr(lang, "this raid");
-        const guildId = (event && event.guildId) || guildRoles.eventGuildId();
+        const guildId = (event && event.guildId) || guildRoles.serverIds()[0] || "";
         // Only a channel that exists (#537), else the web page — and that only with PUBLIC_BASE_URL.
         const channelUrl = event ? linkCheck.channelLink(guildId, event.channelId) : "";
         const url = channelUrl || linkCheck.webLink(`/raids/detail?event=${encodeURIComponent(eventId)}`);

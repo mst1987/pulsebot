@@ -86,7 +86,7 @@ function settings(over: Partial<SettingsData> = {}): SettingsData {
         categories: [{ id: "cat1", name: "Montag" }, { id: "cat2", name: "Mittwoch" }],
         channels: [{ id: "ch1", name: "raids", category: "" }],
         bot: { online: true, readySince: 0, guildName: "Pulse" },
-        servers: { events: [], talk: null },
+        servers: { events: [] },
         activeGuildId: "g1",
         ...over,
     };

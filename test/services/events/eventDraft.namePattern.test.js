@@ -5,7 +5,7 @@ jest.mock("../../../src/stores/channelArchiveStore", () => ({ getChannelConfig: 
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(), listRaidTemplates: jest.fn(), getRaidTemplate: jest.fn() }));
 jest.mock("../../../src/services/events/eventSources", () => ({ signupSourceFor: jest.fn() }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 1) }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "") }));
+jest.mock("../../../src/services/discord/guildRoles", () => ({ serverIds: jest.fn(() => []) }));
 jest.mock("../../../src/services/events/eventCreate", () => ({ createEvent: jest.fn() }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.test", embedAccentColor: 1 }));
 
@@ -258,11 +258,11 @@ describe("the next raid of the same kind inherits the new pattern", () => {
 });
 
 describe("the steps acknowledge first (no more \"Interaction failed\")", () => {
-    const { eventGuildId } = require("../../../src/services/discord/guildRoles");
+    const { serverIds } = require("../../../src/services/discord/guildRoles");
     const formCommand = require("../../../src/commands/event/eventCreateModal");
 
     it("a select defers before it even looks at the server, and a refusal edits the message", async () => {
-        eventGuildId.mockReturnValue("other-guild");
+        serverIds.mockReturnValue(["other-guild"]);
         const i = mockInteraction({ userId: USER, customId: draft._internal.stepId("c", state()), values: [CAT] });
         i.guild.id = "g1";
         i.deferUpdate.mockImplementation(async () => {
@@ -271,9 +271,9 @@ describe("the steps acknowledge first (no more \"Interaction failed\")", () => {
         });
         await stepCommand.execute(i);
         expect(i.deferUpdate).toHaveBeenCalledTimes(1);
-        expect(cardText(i.editReply.mock.calls[0][0])).toContain("Event-Server");
+        expect(cardText(i.editReply.mock.calls[0][0])).toContain("Raid-Server");
         expect(i.update).not.toHaveBeenCalled();
-        eventGuildId.mockReturnValue("");
+        serverIds.mockReturnValue([]);
     });
 
     it("the form submit defers first; the Weiter button opens the modal without deferring", async () => {
@@ -294,12 +294,12 @@ describe("the steps acknowledge first (no more \"Interaction failed\")", () => {
     });
 
     it("a refused server on the Weiter button is a reply, never a modal", async () => {
-        eventGuildId.mockReturnValue("other-guild");
+        serverIds.mockReturnValue(["other-guild"]);
         const weiter = mockInteraction({ userId: USER, customId: draft._internal.formId(state()) });
         weiter.guild.id = "g1";
         await formCommand.execute(weiter);
         expect(weiter.showModal).not.toHaveBeenCalled();
         expect(weiter.reply).toHaveBeenCalled();
-        eventGuildId.mockReturnValue("");
+        serverIds.mockReturnValue([]);
     });
 });

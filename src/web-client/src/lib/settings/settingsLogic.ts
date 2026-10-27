@@ -565,8 +565,7 @@ export function missingConnections(data: SettingsLike, tokens: unknown[] | null,
 export type ServerCardLike = { connected: boolean; permissions: { label: string; ok: boolean }[] | null; missing: string[] };
 
 /**
- * The status of one server row. `optional` is kept for the sidebar's old talk
- * card (until #897): not having one is the one-server setup, not a gap. Rights
+ * The status of one server row. `optional`: a missing card is no gap. Rights
  * that cannot be known (bot offline) are said as such, never counted as missing.
  */
 export function serverCardState(card: ServerCardLike | null, optional: boolean): ConnectionState {
@@ -583,10 +582,9 @@ export function serverCardState(card: ServerCardLike | null, optional: boolean):
  * empty list is not itself an issue (nothing configured yet is not the same as
  * a broken connection) — only entries that exist are scored.
  */
-export function serverIssues(servers: { events: ServerCardLike[]; talk: ServerCardLike | null } | null | undefined): number {
+export function serverIssues(servers: { events: ServerCardLike[] } | null | undefined): number {
     if (!servers) return 0;
-    const eventIssues = servers.events.filter((card) => serverCardState(card, false).missing).length;
-    return eventIssues + (serverCardState(servers.talk, true).missing ? 1 : 0);
+    return servers.events.filter((card) => serverCardState(card, false).missing).length;
 }
 
 export type LinkLike = { from: string; to: string; channelId: string; lang: string; versions: string[] };

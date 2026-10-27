@@ -28,7 +28,7 @@ import { t as translate, useT } from "../../i18n";
 // former per-server overview row (SettingsTalkOverview). Below it the servers
 // the bot works with (Discord name first, the label an optional extra title)
 // and the two channels that apply to every server. Each change saves at once,
-// only the fields it touches: the old talk fields stay stored until #897.
+// only the fields it touches. Every server can be removed (#897).
 
 const MAX_SERVERS = 10;
 
@@ -271,13 +271,7 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
                 <span className="row-actions">
                     <IconButton size="sm" icon={<PenIcon />} tip={t("settings.discordServers.label")} tipSub={t("settings.discordServers.labelSub")}
                         onClick={() => { setEditServer({ guildId: s.id, label: s.label }); setDialog("server"); }} />
-                    {s.id === data.talk?.id ? (
-                        // Only aria-disabled: a really disabled button gets no hover, and the tooltip says why.
-                        <IconButton size="sm" tone="danger" icon={<TrashIcon />} aria-disabled="true" className="srv-remove-off"
-                            tip={t("settings.discordServers.removeServer")} tipSub={t("settings.discordServers.removePingServerLocked")} />
-                    ) : (
-                        <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("settings.discordServers.removeServer")} onClick={() => removeServer(s)} />
-                    )}
+                    <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("settings.discordServers.removeServer")} onClick={() => removeServer(s)} />
                 </span>
             ),
         },

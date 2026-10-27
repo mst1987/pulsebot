@@ -105,10 +105,6 @@
             "commonTip": "Gebräuchliche heikle Rechte",
             "commonTipSub": "Hat @everyone ein heikles Recht oder haben es die meisten Rollen, ist es hier normal. Orange steht nur an Rollen, die ein heikles Recht haben, das sonst kaum eine Rolle hat."
         },
-        "side": {
-            "event": "Event-Server",
-            "talk": "Talk-Server"
-        },
         "col": {
             "pos": "Pos.",
             "posTip": "Position",
@@ -158,7 +154,8 @@
             "botCommand": "Bot-Befehle: {commands}",
             "categoryRaider": "Raider-Rolle {names}",
             "categoryRaiderAny": "Raider-Rolle einer Kategorie",
-            "roleSync": "Rollen-Abgleich ({sides})",
+            "roleSync": "Rollen-Abgleich ({servers})",
+            "roleSyncAny": "Rollen-Abgleich",
             "roster": "Roster {name}: {kinds}",
             "rosterKind": {
                 "member": "Mitglied",

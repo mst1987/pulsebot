@@ -17,8 +17,7 @@ vi.mock("../../api", async (orig) => ({
 }));
 
 const S = (guildId: string, name: string, label = "", online = true): api.DiscordServerChoice => ({ guildId, name, label, online, iconUrl: "" });
-// g2 is the old talk server of the backend (legacyTalk), which an old ?side=talk link means
-const TWO = [S("g1", "Testgilde"), { ...S("g2", "Talkgilde", "Talk"), legacyTalk: true }];
+const TWO = [S("g1", "Testgilde"), S("g2", "Talkgilde", "Talk")];
 
 function Probe({ drop }: { drop?: string[] }) {
     const pick = useServerPick();
@@ -67,12 +66,13 @@ describe("ServerPicker", () => {
         expect(screen.getByTestId("search")).toHaveTextContent(/^$/);
     });
 
-    it("drops the old side=talk and the named parameters of the old server", async () => {
+    // #897: an old ?side=talk link opens the first server and is dropped on the first switch
+    it("opens the first server from an old side=talk, drops it and the named parameters of the old server", async () => {
         const user = userEvent.setup();
         renderPage(<Probe drop={["role"]} />, { route: "/channels/server-roles?side=talk&role=kochen&q=a" });
-        expect(await screen.findByRole("radio", { name: "Talkgilde" })).toBeChecked();
-        await user.click(screen.getByRole("radio", { name: "Testgilde" }));
-        expect(screen.getByTestId("search")).toHaveTextContent(/^\?q=a$/);
+        expect(await screen.findByRole("radio", { name: "Testgilde" })).toBeChecked();
+        await user.click(screen.getByRole("radio", { name: "Talkgilde" }));
+        expect(screen.getByTestId("search")).toHaveTextContent(/^\?q=a&guild=g2$/);
     });
 
     it("takes a select beyond three servers, with label and a missing bot in words", async () => {

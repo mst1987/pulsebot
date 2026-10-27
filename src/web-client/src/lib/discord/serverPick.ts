@@ -3,16 +3,13 @@ import type { DiscordServerChoice } from "../../api";
 // Which server of the server list a page of System › Discord shows (#895).
 // The pick lives in the URL (`?guild=<id>`); the first server of the list is
 // the default and needs no parameter. An old link from before the server list
-// (`?side=talk`) still opens the old talk server - the one the API marks
-// `legacyTalk`, the same the backend resolves (guildRoles.resolveServer) -,
-// else the first server.
+// (`?side=talk`) opens the first server, as the backend does (#897).
 
-/** The server a page shows: a known `guild` from the URL, an old `side=talk`, else the first. "" = no server set. */
-export function pickedGuild(servers: DiscordServerChoice[], guild: string | null, side: string | null): string {
+/** The server a page shows: a known `guild` from the URL, else the first. "" = no server set. */
+export function pickedGuild(servers: DiscordServerChoice[], guild: string | null): string {
     if (!servers.length) return "";
     if (guild && servers.some((s) => s.guildId === guild)) return guild;
-    const talk = side === "talk" ? servers.find((s) => s.legacyTalk) : undefined;
-    return talk ? talk.guildId : servers[0].guildId;
+    return servers[0].guildId;
 }
 
 /** The URL parameter for a server: none for the first server of the list. */

@@ -5,16 +5,13 @@ import { guildQuery } from "./discordOverview";
 // counts of the Discord tabs: the contract is the header of
 // src/web/apiRoutes/discordRoles.js, the overview docs/channels.md.
 
-/** The two roles of the role sync (#896 replaces it with server pairs). */
-export type DiscordSide = "event" | "talk";
-
 /** What the bot does with a role (services/discord/selfRole.js roleUses, plus role messages and addon updates). */
 export type ServerRoleUse =
     | { code: "admin" | "orga" | "officer" | "addonUpdates" }
     | { code: "rolePermissions"; areas: string[] }
     | { code: "botCommand"; commands: string[] }
     | { code: "categoryRaider"; categoryIds: string[]; categories?: { id: string; name: string }[] }
-    | { code: "roleSync"; sides: DiscordSide[] }
+    | { code: "roleSync"; guildIds: string[]; servers?: { guildId: string; name: string }[] }
     | { code: "roster"; rosterId: string; name: string; kinds: ("member" | "trial" | "manager")[] }
     | { code: "roleMessage"; messageId: string; title: string };
 

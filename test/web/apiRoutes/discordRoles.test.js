@@ -5,9 +5,9 @@ let mockUser = null;
 jest.mock("../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true, getActiveGuild: () => "" }));
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => mockGuildId }));
 let mockGuildId = "900000000000000001";
-// the server list (#895): the first server and the talk server
+// the server list (#895): two equal servers
 jest.mock("../../../src/stores/configStore", () => ({
-    getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], talkGuildId: "900000000000000002", links: [] } }),
+    getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], links: [] } }),
 }));
 const EVENT = "900000000000000001";
 const TALK = "900000000000000002";
@@ -106,10 +106,11 @@ describe("GET /api/discord/tab-counts", () => {
         store.saveMessage({ id: "a", guildId: TALK, channelId: "1", title: "A", roles: [{ roleId: "200000000000000002" }] });
         store.saveMessage({ id: "b", guildSide: "talk", channelId: "1", title: "B (before #895)", roles: [{ roleId: "200000000000000002" }] });
         store.saveMessage({ id: "c", guildId: EVENT, channelId: "1", title: "C", roles: [{ roleId: "200000000000000002" }] });
-        expect(body(await get("/api/discord/tab-counts", { guildId: TALK }))).toEqual({ channels: 2, serverRoles: 12, members: 186, roleMessages: 2 });
+        expect(body(await get("/api/discord/tab-counts", { guildId: TALK }))).toEqual({ channels: 2, serverRoles: 12, members: 186, roleMessages: 1 });
         expect(svc.roleCount).toHaveBeenCalledWith(TALK);
         expect(members.memberCount).toHaveBeenCalledWith(TALK);
-        expect(body(await get("/api/discord/tab-counts")).roleMessages).toBe(1);
+        // #897: the old entry without guildId counts for the first server
+        expect(body(await get("/api/discord/tab-counts")).roleMessages).toBe(2);
     });
 
     it("is null for the channels offline", async () => {

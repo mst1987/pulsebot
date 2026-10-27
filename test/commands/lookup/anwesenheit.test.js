@@ -4,7 +4,7 @@ jest.mock("../../../src/services/characters/attendanceLookup", () => {
     return { ...actual, characterAttendance: jest.fn(), knownCharacterNames: jest.fn() };
 });
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: jest.fn(() => ({ ctx: 1 })) }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "event-guild") }));
+jest.mock("../../../src/services/discord/guildRoles", () => ({ serverIds: jest.fn(() => ["event-guild"]) }));
 
 const { MessageFlags } = require("discord.js");
 const own = require("../../../src/commands/lookup/anwesenheit");

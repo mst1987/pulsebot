@@ -18,7 +18,7 @@ jest.mock("../../../src/services/discord/botAccess", () => ({
     ruleFor: jest.fn(),
     resolveBotAccess: jest.fn(),
     eventMemberRoles: jest.fn(),
-    eventGuildId: jest.fn(() => "g1"),
+    serverIds: jest.fn(() => ["g1"]),
 }));
 jest.mock("../../../src/stores/configStore", () => ({ getConfig: jest.fn(() => ({})) }));
 

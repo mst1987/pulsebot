@@ -154,6 +154,14 @@ function setupOf(guildId, config, guild) {
     return { raids, roleMessages: roleMessages.length > 0 };
 }
 
+/**
+ * The servers of the list with raids set up (setupOf): the first server plus
+ * every server with a stored raid event or a configured raid category on it.
+ */
+function raidServerIds(config) {
+    return serverIds(config).filter((gid) => setupOf(gid, config, null).raids);
+}
+
 /** The server-wide table: one row per BOT_FUNCTIONS entry. */
 function checkFunctions(guild, setup) {
     const me = ownMember(guild);
@@ -266,4 +274,4 @@ function botCheck(guildId, config) {
     };
 }
 
-module.exports = { botCheck, channelPurposes, BOT_FUNCTIONS, RIGHT_LABELS };
+module.exports = { botCheck, channelPurposes, raidServerIds, BOT_FUNCTIONS, RIGHT_LABELS };

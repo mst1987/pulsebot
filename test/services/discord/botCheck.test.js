@@ -26,7 +26,7 @@ jest.mock("../../../src/services/discord/categoryNames", () => ({
 const mockAddon = { channelId: "", roleId: "" };
 jest.mock("../../../src/stores/addonCenterStore", () => ({ getSettings: () => ({ ...mockAddon }) }));
 
-const { botCheck, channelPurposes, BOT_FUNCTIONS } = require("../../../src/services/discord/botCheck");
+const { botCheck, channelPurposes, raidServerIds, BOT_FUNCTIONS } = require("../../../src/services/discord/botCheck");
 
 const EVENT = "900000000000000001";
 const TALK = "900000000000000002";
@@ -46,7 +46,7 @@ function guild({ rights = [], channels = {}, roles = [], top = 5 } = {}) {
 
 const ALL = [F.ViewChannel, F.ManageChannels, F.SendMessages, F.EmbedLinks, F.AddReactions, F.ReadMessageHistory, F.ManageRoles, F.ManageEvents, F.CreatePublicThreads, F.SendMessagesInThreads];
 const POST = [F.ViewChannel, F.SendMessages, F.EmbedLinks];
-const SERVERS = { servers: [{ guildId: EVENT }, { guildId: TALK }], talkGuildId: TALK, links: [] };
+const SERVERS = { servers: [{ guildId: EVENT }, { guildId: TALK }], links: [] };
 const SRV = { discordServers: SERVERS };
 
 beforeEach(() => {
@@ -82,9 +82,9 @@ describe("functions", () => {
         expect(byKey.reactions.state).toBe("not_needed");
     });
 
-    it("checks what is set up on a server: raid events, role messages (also an old entry by its side)", () => {
+    it("checks what is set up on a server: raid events, role messages", () => {
         mockEvents.push({ id: "e1", guildId: TALK, categoryId: "700000000000000001" });
-        mockRoleMessages.push({ guildSide: "talk", roles: [] });
+        mockRoleMessages.push({ guildId: TALK, roles: [] });
         const byKey = Object.fromEntries(botCheck(TALK, SRV).functions.map((f) => [f.key, f.state]));
         expect(byKey).toEqual(expect.objectContaining({ events: "ok", channels: "ok", reactions: "ok" }));
         expect(Object.fromEntries(botCheck(EVENT, SRV).functions.map((f) => [f.key, f.state])).reactions).toBe("not_needed");
@@ -109,6 +109,18 @@ describe("functions", () => {
         expect(botCheck(TALK, { ...SRV, categoryIds: ["700000000000000003"] }).functions.find((f) => f.key === "events").state).toBe("not_needed");
         mockClient.channels.cache.set("700000000000000004", { id: "700000000000000004", guildId: TALK });
         expect(botCheck(TALK, { ...SRV, categoryRoles: { "700000000000000004": [] } }).functions.find((f) => f.key === "events").state).toBe("ok");
+    });
+
+    // #897: the guild bank sends a new bank to the one raid server.
+    it("lists the raid servers: the first one plus servers with a raid event or raid category", () => {
+        expect(raidServerIds(SRV)).toEqual([EVENT]);
+        mockEvents.push({ id: "e1", guildId: TALK, categoryId: "" });
+        expect(raidServerIds(SRV)).toEqual([EVENT]);
+        mockClient.channels.cache.set("700000000000000005", { id: "700000000000000005", guildId: TALK });
+        expect(raidServerIds({ ...SRV, categoryIds: ["700000000000000005"] })).toEqual([EVENT, TALK]);
+        mockEvents.push({ id: "e2", guildId: TALK, categoryId: "700000000000000006" });
+        expect(raidServerIds(SRV)).toEqual([EVENT, TALK]);
+        expect(raidServerIds({})).toEqual([]);
     });
 
     it("needs nothing raid-wise without a server", () => {
@@ -194,7 +206,7 @@ describe("rolesAboveBot", () => {
         );
         mockRoleMessages.push(
             { guildSide: "event", roles: [{ roleId: "200000000000000004" }] },
-            { guildSide: "talk", roles: [{ roleId: "200000000000000001" }] },
+            { guildId: TALK, roles: [{ roleId: "200000000000000001" }] },
             { guildId: TALK, roles: [{ roleId: "200000000000000003" }] },
         );
         mockGuild = guild({

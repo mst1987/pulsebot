@@ -4,7 +4,8 @@ const { ok } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { getConfig } = require("../../stores/settingsStore");
 const discord = require("../../services/discord/discord");
-const { eventGuildId, ruleFor } = require("../../services/discord/botAccess");
+const { ruleFor } = require("../../services/discord/botAccess");
+const { serverIds } = require("../../services/discord/guildRoles");
 const { BOT_COMMAND_GROUPS, normalizeRule, normalizeBotCommandAccess } = require("../../config/botCommands");
 
 const COMMANDS_DIR = path.join(__dirname, "..", "..", "commands");
@@ -98,7 +99,8 @@ function buildBotCommandList(commands, config) {
 /** GET /api/bot-commands */
 const getBotCommands = withUser({ full: true }, async ({ res }) => {
     const config = getConfig();
-    const guildId = eventGuildId(config);
+    // the access roles live on the first server of the list (botAccess.guardInteraction)
+    const guildId = serverIds(config)[0] || "";
     const guild = typeof discord.getGuild === "function" ? discord.getGuild(guildId) : null;
     const commands = buildBotCommandList(loadedCommands(), config);
     const used = new Set(commands.map((c) => c.group));
