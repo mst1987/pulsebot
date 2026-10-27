@@ -10,9 +10,11 @@ const { listRaidEvents } = require("../../stores/raidEventStore");
 const { ownMatchableEvents, withEraName } = require("../events/eventSources");
 const { versionOfEvent } = require("../events/mainVersion");
 const { LOG_WINDOW_BEFORE_MS } = require("../events/recentEvents");
+const { guildOfEvent } = require("../discord/serverOf");
 
 // Every row carries its raid's game version (#746): a log is matched only to a
 // raid of its own version (logEventMatch.js) and takes that version when linked.
+// Every row also carries the server it was loaded for (#917): a linked log takes it.
 const withVersion = (row, stored) => ({ ...row, versionId: versionOfEvent({ versionId: (stored && stored.versionId) || row.versionId, categoryId: row.categoryId }) });
 
 // The live channel join, or {} when Discord cannot give one right now.
@@ -96,7 +98,7 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
             if (!seen.has(e.id)) out.push(withVersion(e));
         }
         out.sort((a, b) => (Number(b.startTime) || 0) - (Number(a.startTime) || 0));
-        return { events: out.map((ev) => withEraName(ev, { config: erasConfig })), error: null };
+        return { events: out.map((ev) => ({ ...withEraName(ev, { config: erasConfig }), guildId })), error: null };
     } catch (e) {
         // Raid-Helper unreachable: serve the local snapshot rather than nothing.
         // A time-based match only needs id/title/startTime/categoryId, all of
@@ -109,7 +111,7 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
             .map(fromPersisted)
             .concat(ownMatchableEvents(guildId, from, { catMap: safeCategoryMap(guildId), untilSeconds: until }).map((e) => withVersion(e)))
             .sort((a, b) => (Number(b.startTime) || 0) - (Number(a.startTime) || 0));
-        return { events: fallback.map((ev) => withEraName(ev, { config: erasConfig })), error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
+        return { events: fallback.map((ev) => ({ ...withEraName(ev, { config: erasConfig }), guildId })), error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
     }
 }
 
@@ -123,6 +125,8 @@ function eventLinkFields(event, source) {
         eventStartTime: Number(event.startTime) || 0,
         source,
         versionId: event.versionId || "",
+        // the log moves to its raid's server at once (#917)
+        guildId: guildOfEvent(event),
     };
 }
 

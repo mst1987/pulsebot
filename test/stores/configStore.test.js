@@ -406,3 +406,24 @@ describe("stores/configStore addon list (#818): never wiped by accident", () => 
         expect(configStore.getConfig().addonDownloadsCustomized).toBe(false);
     });
 });
+
+describe("stores/configStore serverSettings (#917)", () => {
+    const A = "111111111111111111";
+    const B = "222222222222222222";
+    const servers = { servers: [{ guildId: A, label: "" }, { guildId: B, label: "" }], links: [] };
+    const stored = () => JSON.parse(fs.__store.get(FILE)).serverSettings;
+
+    it("a block sent for one server leaves the other servers' blocks alone", () => {
+        writeFile({ guildId: A, discordServers: servers, serverSettings: { [A]: {} } });
+        configStore.saveConfig({ serverSettings: { [B]: { lang: "en" } } });
+        expect(stored()).toEqual({ [A]: {}, [B]: { lang: "en" } });
+        // read back in its final shape: no part owns a key yet
+        expect(configStore.getConfig().serverSettings).toEqual({ [A]: {}, [B]: {} });
+    });
+
+    it("a save without serverSettings keeps the stored blocks", () => {
+        writeFile({ guildId: A, discordServers: servers, serverSettings: { [A]: {}, [B]: {} } });
+        configStore.saveConfig({ adminRoleIds: ["1"] });
+        expect(stored()).toEqual({ [A]: {}, [B]: {} });
+    });
+});

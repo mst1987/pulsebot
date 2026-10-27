@@ -5,7 +5,7 @@ const fs = require("fs");
 const {
     listLogs, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
     markEvaluated, evaluatedSections, clearEvaluation, clearSection, setLogTitle, setReportStart, setLogRaids, deleteLog,
-    linkEvent, unlinkEvent, listLogsForEvent,
+    linkEvent, unlinkEvent, listLogsForEvent, migrateGuilds,
 } = require("../../src/stores/logStore.js");
 const { saveConfig } = require("../../src/stores/configStore.js");
 
@@ -420,5 +420,81 @@ describe("stores/logStore", () => {
 
     it("tolerates a missing/corrupt file", () => {
         expect(listLogs()).toEqual([]);
+    });
+});
+
+describe("stores/logStore server of a log (#917)", () => {
+    it("a posted log keeps the server of its post", () => {
+        expect(saveLog(base())).toMatchObject({ guildId: "g1", guildFrom: "channel", postGuildId: "g1" });
+    });
+
+    it("a log without a channel keeps the server it was added on as its origin server", () => {
+        const saved = saveLog(base({ channelId: "", messageId: "" }));
+        expect(saved).toMatchObject({ guildId: "g1", guildFrom: "channel", postGuildId: "g1" });
+    });
+
+    it("a log saved without any server has none", () => {
+        const saved = saveLog(base({ guildId: "", channelId: "", messageId: "" }));
+        expect(saved.guildId).toBe("");
+        expect(saved).not.toHaveProperty("guildFrom");
+        expect(saved).not.toHaveProperty("postGuildId");
+    });
+
+    it("linkEvent moves the log to its raid's server at once, unlinkEvent back to its origin", () => {
+        const a = saveLog(base());
+        expect(linkEvent(a.id, { eventId: "e1", guildId: "g2" })).toMatchObject({ guildId: "g2", guildFrom: "event", postGuildId: "g1" });
+        expect(getByReportId("RPT1")).toMatchObject({ guildId: "g2", guildFrom: "event", postGuildId: "g1" });
+        expect(unlinkEvent(a.id)).toMatchObject({ guildId: "g1", guildFrom: "channel", postGuildId: "g1" });
+    });
+
+    it("linkEvent without a known raid server leaves the log's server alone", () => {
+        const a = saveLog(base());
+        expect(linkEvent(a.id, { eventId: "e1", guildId: "" })).toMatchObject({ guildId: "g1", guildFrom: "channel", postGuildId: "g1" });
+        expect(unlinkEvent(a.id)).toMatchObject({ guildId: "g1", guildFrom: "channel" });
+    });
+
+    it("linkEvent keeps an old log's server as its origin server", () => {
+        const a = saveLog(base());
+        migrateGuilds(() => ({ guildId: "g1" }));
+        expect(linkEvent(a.id, { eventId: "e1", guildId: "g2" })).toMatchObject({ guildId: "g2", guildFrom: "event", postGuildId: "g1" });
+    });
+
+    it("unlinkEvent falls back to the first server for a log without an origin server", () => {
+        saveConfig({ guildId: "333333333333333333" });
+        const a = saveLog(base());
+        migrateGuilds(() => ({ guildId: "g2", guildFrom: "event" }));
+        linkEvent(a.id, { eventId: "e1" });
+        expect(unlinkEvent(a.id)).toMatchObject({ guildId: "333333333333333333", guildFrom: "first" });
+    });
+
+    it("a log of a raid keeps its raid's server when its post is seen again", () => {
+        const a = saveLog(base());
+        migrateGuilds(() => ({ guildId: "g2", guildFrom: "event", postGuildId: "g1" }));
+        const b = saveLog(base({ messageId: "m2" }));
+        expect(b.id).toBe(a.id);
+        expect(b).toMatchObject({ guildId: "g2", guildFrom: "event", postGuildId: "g1" });
+    });
+
+    it("migrateGuilds writes only the logs that change and returns their number", () => {
+        saveLog(base());
+        saveLog(base({ reportId: "RPT2", messageId: "m2", channelId: "" }));
+        const resolve = (log) => (log.reportId === "RPT1"
+            ? { guildId: "g1", guildFrom: "channel", postGuildId: "g1" }
+            : { guildId: "first", guildFrom: "first", postGuildId: "" });
+        expect(migrateGuilds(resolve)).toBe(1);
+        expect(getByReportId("RPT2")).toMatchObject({ guildId: "first", guildFrom: "first" });
+        fs.writeFileSync.mockClear();
+        expect(migrateGuilds(resolve)).toBe(0);
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
+    });
+
+    it("migrateGuilds drops empty rule fields", () => {
+        saveLog(base());
+        expect(migrateGuilds(() => ({}))).toBe(1);
+        const log = getByReportId("RPT1");
+        expect(log.guildId).toBe("");
+        expect(log).not.toHaveProperty("guildFrom");
+        expect(log).not.toHaveProperty("postGuildId");
+        expect(migrateGuilds(() => null)).toBe(0);
     });
 });

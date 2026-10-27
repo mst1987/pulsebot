@@ -19,7 +19,7 @@ jest.mock("../../src/stores/raiderCharactersStore", () => ({ getCategoryAssignme
 jest.mock("../../src/stores/raidEventStore", () => ({ listRaidEvents: () => [{ id: "e1", categoryId: "cD", categoryName: "Donnerstag PuG", startTime: 5 }] }));
 jest.mock("../../src/stores/eventStore", () => ({ listEvents: () => [], getEvent: () => null, isOwnEventId: () => false }));
 jest.mock("../../src/stores/signupStore", () => ({ listSignups: () => [] }));
-jest.mock("../../src/stores/logStore", () => ({ listLogs: () => [] }));
+jest.mock("../../src/stores/logStore", () => ({ listLogs: () => [], migrateGuilds: () => 0 }));
 jest.mock("../../src/stores/reportStore", () => ({ listReports: () => [], getReport: () => null, getReportRoster: () => null }));
 
 const fs = require("fs");

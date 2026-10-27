@@ -146,7 +146,9 @@ function after897(config) {
     delete servers.talkGuildId;
     return { ...config, discordServers: servers };
 }
-const schemaOnly = frozen.map((g) => ({ ...g, config: after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))))))))) }));
+// #917 adds the settings per Discord server (none stored: empty).
+const after917 = (config) => ({ ...config, serverSettings: {} });
+const schemaOnly = frozen.map((g) => ({ ...g, config: after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))))))))) }));
 const golden = schemaOnly.map((g, i) => ({ ...g, config: afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config) }));
 const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)"));
 
@@ -391,5 +393,58 @@ describe("stores/configSchema server federation (#890)", () => {
                 link(A, B, C1), link(A, A, C2), link(B, A, C2),
             ]);
         });
+    });
+});
+
+describe("stores/configSchema server settings (#917)", () => {
+    const A = "111111111111111111";
+    const B = "222222222222222222";
+    const T = "333333333333333333";
+    const U = "444444444444444444";
+    const servers = { servers: [{ guildId: A, label: "" }, { guildId: B, label: "" }], links: [{ from: A, to: T, channelId: "555555555555555555" }] };
+    const KEYS = { lang: "de", pingRoleId: "" };
+
+    it("keeps blocks of servers and pure link targets, drops unknown servers", () => {
+        const out = schema.normalizeServerSettings({ [A]: { lang: "en" }, [T]: { lang: "de" }, [U]: { lang: "fr" } }, servers, A, KEYS);
+        expect(out).toEqual({ [A]: { lang: "en" }, [T]: { lang: "de" } });
+    });
+
+    it("drops keys no part owns and keeps an empty block empty", () => {
+        expect(schema.normalizeServerSettings({ [A]: { lang: "en", nope: 1 }, [B]: {} }, servers, A, KEYS)).toEqual({ [A]: { lang: "en" }, [B]: {} });
+        // no part owns a key yet: every stored key is dropped, the block stays
+        expect(schema.normalizeServerSettings({ [A]: { lang: "en" } }, servers, A)).toEqual({ [A]: {} });
+    });
+
+    it("turns anything but an object into an empty block / an empty map", () => {
+        expect(schema.normalizeServerSettings({ [A]: "x", [B]: [1] }, servers, A, KEYS)).toEqual({ [A]: {}, [B]: {} });
+        expect(schema.normalizeServerSettings(null, servers, A)).toEqual({});
+        expect(schema.normalizeServerSettings([1], servers, A)).toEqual({});
+        expect(schema.normalizeServerSettings("x", servers, A)).toEqual({});
+    });
+
+    it("lets the home guild hold a block when no server is configured", () => {
+        expect(schema.normalizeServerSettings({ [A]: { lang: "en" }, [B]: {} }, { servers: [], links: [] }, A, KEYS)).toEqual({ [A]: { lang: "en" } });
+        expect([...schema.serverSettingGuildIds(servers, "")].sort()).toEqual([A, B, T]);
+        expect([...schema.serverSettingGuildIds(undefined, "nope")]).toEqual([]);
+    });
+
+    it("mergeServerSettings merges per server and per key", () => {
+        const current = { [A]: { lang: "en", pingRoleId: "1" }, [B]: { lang: "de" } };
+        expect(schema.mergeServerSettings(current, { [A]: { pingRoleId: "2" } })).toEqual({ [A]: { lang: "en", pingRoleId: "2" }, [B]: { lang: "de" } });
+        expect(schema.mergeServerSettings(current, { [T]: { lang: "fr" } })).toEqual({ ...current, [T]: { lang: "fr" } });
+        expect(schema.mergeServerSettings(current, { [A]: null })).toEqual(current);
+        expect(schema.mergeServerSettings(undefined, { [A]: { lang: "en" } })).toEqual({ [A]: { lang: "en" } });
+        expect(schema.mergeServerSettings(current, "x")).toEqual(current);
+        expect(current[A]).toEqual({ lang: "en", pingRoleId: "1" });
+    });
+
+    it("normalizeConfig keeps every other field and reads serverSettings in its final shape", () => {
+        const stored = { guildId: A, discordServers: servers, serverSettings: { [B]: {}, [U]: {} }, raidhelperServerId: "x" };
+        const out = schema.normalizeConfig(stored);
+        expect(out.serverSettings).toEqual({ [B]: {} });
+        expect(out.discordServers.servers.map((x) => x.guildId)).toEqual([A, B]);
+        expect(out.raidhelperServerId).toBe("x");
+        expect(schema.normalizeConfig(out)).toEqual(out);
+        expect(schema.normalizeConfig({}).serverSettings).toEqual({});
     });
 });

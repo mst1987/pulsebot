@@ -2,6 +2,7 @@ const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { newId } = require("../utils/ids");
 const { LEGACY_VERSION } = require("../config/gameVersions");
+const { postGuildOf, firstServerId } = require("../services/discord/serverOf");
 
 // Every log knows its game version (#746, services/logcheck/logVersion.js):
 //   host           the Warcraft-Logs host of its link ("fresh.warcraftlogs.com")
@@ -10,6 +11,52 @@ const { LEGACY_VERSION } = require("../config/gameVersions");
 //   versionId      the log's version: its raid's while it is linked, else
 //                  hostVersionId, else TBC (`versionFrom` says which)
 // A log stored before #746 has none of them and counts as TBC.
+//
+// Every log knows its Discord server (#917, services/discord/serverOf.js):
+//   guildId      the server it belongs to: its raid's, else its origin server, else the first server
+//   guildFrom    which rule gave it: "event" | "channel" (the origin server) | "first"
+//   postGuildId  its origin server: the server it was posted in or added on
+// The start migration (settingsMigration.migrateLogGuilds) fills them in;
+// linkEvent/unlinkEvent switch them at once.
+
+/**
+ * Server fields of a saved log (#917): its origin server (posted in or added
+ * on, with or without a channel), unless the log already belongs to its raid's
+ * server - that one stays when the log is seen again.
+ */
+function guildFieldsOf(data, existing) {
+    const origin = String(data.guildId || "").trim();
+    if (existing && existing.guildFrom === "event" && existing.guildId) {
+        return origin ? { guildId: existing.guildId, postGuildId: origin } : { guildId: existing.guildId };
+    }
+    if (origin) return { guildId: origin, guildFrom: "channel", postGuildId: origin };
+    return { guildId: (existing && existing.guildId) || "" };
+}
+
+/** A log takes its raid's server (#917); its origin server stays in postGuildId. */
+function takeEventGuild(log, guildId) {
+    const guild = String(guildId || "").trim();
+    if (!guild) return;
+    const origin = postGuildOf(log);
+    if (origin) log.postGuildId = origin;
+    log.guildId = guild;
+    log.guildFrom = "event";
+}
+
+/** A log that loses its raid goes back to its origin server, else the first server (#917). */
+function dropEventGuild(log) {
+    if (log.guildFrom !== "event") return;
+    const origin = String(log.postGuildId || "").trim();
+    if (origin) {
+        log.guildId = origin;
+        log.guildFrom = "channel";
+        return;
+    }
+    // late: the config store loads the settings schema, not needed for plain log reads
+    const first = firstServerId(require("./configStore").getConfig());
+    log.guildId = first;
+    if (first) log.guildFrom = "first"; else delete log.guildFrom;
+}
 
 /** Host and version of a fresh log's link (late: logVersion reads the settings, which load more stores). */
 function versionFieldsOf(link) {
@@ -65,7 +112,7 @@ function saveLog(data) {
     const existing = data.reportId && logs.find((l) => l.reportId === data.reportId);
     const now = Date.now();
     const fields = {
-        guildId: data.guildId || (existing && existing.guildId) || "",
+        ...guildFieldsOf(data, existing),
         channelId: data.channelId || (existing && existing.channelId) || "",
         messageId: data.messageId || (existing && existing.messageId) || "",
         reportId: data.reportId || (existing && existing.reportId) || "",
@@ -270,7 +317,7 @@ function setLogRaids(id, raids) {
  * log takes it while it is linked (#746). Returns the saved log, or null for an
  * unknown id / blank event id.
  */
-function linkEvent(id, { eventId, eventLabel, eventStartTime, source, versionId } = {}) {
+function linkEvent(id, { eventId, eventLabel, eventStartTime, source, versionId, guildId } = {}) {
     const cleanEvent = String(eventId || "").trim();
     if (!cleanEvent) return null;
     const logs = readAll();
@@ -286,6 +333,7 @@ function linkEvent(id, { eventId, eventLabel, eventStartTime, source, versionId 
         log.versionId = version;
         log.versionFrom = "event";
     }
+    takeEventGuild(log, guildId);
     log.updatedAt = Date.now();
     writeAll(logs);
     return log;
@@ -309,6 +357,7 @@ function unlinkEvent(id) {
         log.versionId = log.hostVersionId || LEGACY_VERSION;
         log.versionFrom = log.hostVersionId ? "host" : "default";
     }
+    dropEventGuild(log);
     log.updatedAt = Date.now();
     writeAll(logs);
     return log;
@@ -319,6 +368,29 @@ function listLogsForEvent(eventId) {
     const id = String(eventId || "").trim();
     if (!id) return [];
     return listLogs().filter((l) => l.eventId === id);
+}
+
+/**
+ * Write the server fields of every log (#917): `resolve(log)` returns
+ * `{ guildId, guildFrom, postGuildId }`. Only a log whose fields change is
+ * touched, and the file only when one did. Returns the number of changed logs.
+ */
+function migrateGuilds(resolve) {
+    const logs = readAll();
+    let changed = 0;
+    for (const log of logs) {
+        const next = resolve(log) || {};
+        const guildId = String(next.guildId || "");
+        const guildFrom = String(next.guildFrom || "");
+        const postGuildId = String(next.postGuildId || "");
+        if ((log.guildId || "") === guildId && (log.guildFrom || "") === guildFrom && (log.postGuildId || "") === postGuildId) continue;
+        log.guildId = guildId;
+        if (guildFrom) log.guildFrom = guildFrom; else delete log.guildFrom;
+        if (postGuildId) log.postGuildId = postGuildId; else delete log.postGuildId;
+        changed += 1;
+    }
+    if (changed) writeAll(logs);
+    return changed;
 }
 
 /** Delete a tracked log by id. Returns true if one was removed. */
@@ -333,5 +405,5 @@ function deleteLog(id) {
 module.exports = {
     listLogs, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
     markEvaluated, evaluatedSections, clearEvaluation, clearSection, setLogTitle, setReportStart, setLogRaids, deleteLog, LOGS_FILE,
-    linkEvent, unlinkEvent, listLogsForEvent, useFile: store.useFile,
+    linkEvent, unlinkEvent, listLogsForEvent, migrateGuilds, useFile: store.useFile,
 };

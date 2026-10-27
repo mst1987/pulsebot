@@ -64,6 +64,11 @@ const CONFIG_DEFAULTS = {
     // any server. `guildBankChannelId` is where the guild bank requests of every
     // raider organizer land (src/services/signups/guildBank.js); empty = no guild bank.
     discordServers: { servers: [], links: [], signupNoteChannelId: "", guildBankChannelId: "" },
+    // Settings per Discord server (#917, epic #926): { [guildId]: { key: value } }.
+    // Only servers of discordServers (or pure link targets) keep a block, only the
+    // keys of SERVER_SETTING_DEFAULTS survive. Read through
+    // services/discord/serverSettings.js; a missing key is that part's default.
+    serverSettings: {},
     // Raid-Helper server id (raid-helper.xyz), used for all Raid-Helper API calls.
     // RAIDHELPER_API_KEY stays in .env — it's a real secret, this id isn't.
     raidhelperServerId: raidhelperServerId || "",
@@ -909,10 +914,69 @@ function blizzardCredentials(raw) {
     return { clientId: pick("clientId"), clientSecret: pick("clientSecret") };
 }
 
+/**
+ * The keys a server block may hold, with the default each part reads when a
+ * server has none (#917). Empty for now: the parts 4-8 of epic #926 add theirs.
+ */
+const SERVER_SETTING_DEFAULTS = Object.freeze({});
+
+/**
+ * The guild ids that may hold a serverSettings block: every server, every pure
+ * link target and the home guild (config.guildId), which is the only server of
+ * an install that never configured the server list.
+ */
+function serverSettingGuildIds(discordServers, homeGuildId = "") {
+    const block = discordServers || {};
+    const ids = new Set();
+    for (const s of Array.isArray(block.servers) ? block.servers : []) if (s && s.guildId) ids.add(s.guildId);
+    for (const l of Array.isArray(block.links) ? block.links : []) if (l && l.to) ids.add(l.to);
+    const home = String(homeGuildId || "").trim();
+    if (isSnowflake(home)) ids.add(home);
+    return ids;
+}
+
+/**
+ * `serverSettings` in its final shape: blocks of unknown servers and keys of no
+ * part are dropped, a block that is kept stays (an empty one stays empty).
+ * `keys` defaults to SERVER_SETTING_DEFAULTS (tests hand in their own).
+ */
+function normalizeServerSettings(raw, discordServers, homeGuildId = "", keys = SERVER_SETTING_DEFAULTS) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const known = serverSettingGuildIds(discordServers, homeGuildId);
+    const out = {};
+    for (const [guildId, block] of Object.entries(raw)) {
+        if (!known.has(guildId)) continue;
+        const src = block && typeof block === "object" && !Array.isArray(block) ? block : {};
+        const clean = {};
+        for (const key of Object.keys(src)) {
+            if (Object.prototype.hasOwnProperty.call(keys, key) && src[key] !== undefined) clean[key] = src[key];
+        }
+        out[guildId] = clean;
+    }
+    return out;
+}
+
+/**
+ * A serverSettings update merged per server and per key: a block sent for one
+ * server leaves the others alone, a key sent replaces only that key. Cleaned
+ * up by normalizeServerSettings when the config is read.
+ */
+function mergeServerSettings(current, partial) {
+    const isMap = (value) => value && typeof value === "object" && !Array.isArray(value);
+    const merged = isMap(current) ? { ...current } : {};
+    if (!isMap(partial)) return merged;
+    for (const [guildId, block] of Object.entries(partial)) {
+        merged[guildId] = { ...(isMap(merged[guildId]) ? merged[guildId] : {}), ...(isMap(block) ? block : {}) };
+    }
+    return merged;
+}
+
 /** A stored config.json merged over the defaults, every field in its final shape. */
 function normalizeConfig(raw) {
     const stored = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
     const discordServers = normalizeDiscordServers(stored.discordServers, { fallbackGuildId: String(stored.guildId || "").trim() || CONFIG_DEFAULTS.guildId });
+    const homeGuildId = (discordServers.servers[0] && discordServers.servers[0].guildId)
+        || String(stored.guildId || "").trim() || CONFIG_DEFAULTS.guildId;
     return {
         ...CONFIG_DEFAULTS,
         ...stored,
@@ -923,9 +987,9 @@ function normalizeConfig(raw) {
         // no admin-role check, no preselected server in the menu.
         // The first server, once picked, *is* the home guild; the old key
         // stays the fallback for installs that never configured one.
-        guildId: (discordServers.servers[0] && discordServers.servers[0].guildId)
-            || String(stored.guildId || "").trim() || CONFIG_DEFAULTS.guildId,
+        guildId: homeGuildId,
         discordServers,
+        serverSettings: normalizeServerSettings(stored.serverSettings, discordServers, homeGuildId),
         adminRoleIds: Array.isArray(stored.adminRoleIds) ? stored.adminRoleIds : CONFIG_DEFAULTS.adminRoleIds,
         rolePermissions: normalizeRolePermissions(stored.rolePermissions),
         baseAccess: normalizeAreaAccess(stored.baseAccess),
@@ -979,7 +1043,7 @@ function normalizeConfig(raw) {
 
 module.exports = {
     CONFIG_DEFAULTS, ROLE_SYNC_DIRECTIONS,
-    normalizeConfig, normalizeDiscordServers, normalizeEventGuilds, normalizeEventGuildEntry,
+    normalizeConfig, normalizeDiscordServers, normalizeServerSettings, mergeServerSettings, serverSettingGuildIds, SERVER_SETTING_DEFAULTS, normalizeEventGuilds, normalizeEventGuildEntry,
     normalizeServers, normalizeLinks, legacyServersAndLinks, MAX_SERVERS: MAX_EVENT_GUILDS, EVENT_GUILD_LABEL_MAX,
     normalizeRoleSync, roleSyncContext, normalizeCategoryRaidTemplate, normalizeCategoryReminders, normalizeTopItems,
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryLanguagePatch,
