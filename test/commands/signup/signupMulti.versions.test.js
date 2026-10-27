@@ -92,6 +92,76 @@ describe("talk overview buttons with two versions", () => {
         expect(text).not.toContain("eh-f1");
     });
 
+    describe("the list's source server in the button (#904)", () => {
+        const GUILD = "100000000000000001";
+        const PUG = "100000000000000002";
+        const PARTNER = "100000000000000003";
+        const onServer = (id, guildId, versionId = "tbc", day = 1) => {
+            raid(id, versionId, day);
+            mocks.events.get(id).guildId = guildId;
+        };
+        const click = async (customId, guildId = PARTNER) => {
+            const i = mockInteraction({ customId, userId: ANNA });
+            i.guildId = guildId;
+            await pickRaids.execute(i);
+            return i.reply.mock.calls[0][0];
+        };
+        beforeEach(() => {
+            mocks.access.config = {
+                botLanguage: "en",
+                discordServers: {
+                    servers: [{ guildId: GUILD }, { guildId: PUG }, { guildId: PARTNER }],
+                    links: [{ from: PUG, to: PARTNER, channelId: "100000000000000009", versions: [] }],
+                },
+            };
+            onServer("eh-gilde", GUILD);
+            onServer("eh-pug", PUG, "tbc", 2);
+        });
+
+        it("offers only the PuG raids on the partner's PuG list", async () => {
+            const text = JSON.stringify(await click(`talk-signup-multi:${PUG}`));
+            expect(text).toContain("eh-pug");
+            expect(text).not.toContain("eh-gilde");
+        });
+
+        it("an old button without a source keeps offering the first server's raids", async () => {
+            const text = JSON.stringify(await click("talk-signup-multi"));
+            expect(text).toContain("eh-gilde");
+            expect(text).not.toContain("eh-pug");
+        });
+
+        it("a source that is not linked to the clicked server falls back to the first server", async () => {
+            const text = JSON.stringify(await click(`talk-signup-multi:${PUG}`, "100000000000000077"));
+            expect(text).toContain("eh-gilde");
+            expect(text).not.toContain("eh-pug");
+        });
+
+        it("keeps to the link's versions and keeps the source in the version question", async () => {
+            onServer("eh-pugf", PUG, "forever", 3);
+            const payload = await click(`talk-signup-multi:${PUG}`);
+            expect(answerOf(payload).text).toContain("Which game version");
+            expect(cardButtons(payload).map((b) => b.custom_id))
+                .toEqual([`talk-signup-multi:${PUG}:v:tbc`, `talk-signup-multi:${PUG}:v:forever`]);
+            const forever = JSON.stringify(await click(`talk-signup-multi:${PUG}:v:forever`));
+            expect(forever).toContain("eh-pugf");
+            expect(forever).not.toContain("eh-gilde");
+            expect(forever).not.toMatch(/eh-pug[^f]/);
+
+            mocks.access.config.discordServers.links[0].versions = ["forever"];
+            const linked = JSON.stringify(await click(`talk-signup-multi:${PUG}`));
+            expect(linked).not.toContain("Which game version");
+            expect(linked).toContain("eh-pugf");
+            expect(linked).not.toMatch(/eh-pug[^f]/);
+        });
+
+        it("parses every customId form", () => {
+            expect(pickRaids.parseButtonId("talk-signup-multi")).toEqual({ from: "", version: "" });
+            expect(pickRaids.parseButtonId("talk-signup-multi:v:tbc")).toEqual({ from: "", version: "tbc" });
+            expect(pickRaids.parseButtonId(`talk-signup-multi:${PUG}`)).toEqual({ from: PUG, version: "" });
+            expect(pickRaids.parseButtonId(`talk-signup-multi:${PUG}:v:forever`)).toEqual({ from: PUG, version: "forever" });
+        });
+    });
+
     it("do not ask while only one version has raids", async () => {
         raid("eh-f1", "forever");
         profiles.addCharacter(ANNA, { name: "Devi Res", className: "Priest", specs: [{ key: "Priest-Shadow", gear: "ready" }], versionId: "forever" });

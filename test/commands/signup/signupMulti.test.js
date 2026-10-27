@@ -3,7 +3,7 @@
 // fünf Raids, „Weiter“ zur nächsten Seite, das Ergebnis je Raid mit Gründen,
 // abgelaufene Auswahl und „Mehrere Charaktere …“ an einem einzelnen Event.
 // „Für alle Raids anmelden“ gibt es nicht mehr (#904); dafür der Hinweis
-// „PuG-Server beitreten“ unter dem Ergebnis, wenn der Raid auf einem Server
+// „<Server> beitreten“ unter dem Ergebnis, wenn der Raid auf einem Server
 // läuft, auf dem das Mitglied nicht ist.
 const { MessageFlags } = require("discord.js");
 const { answerOf } = require("../../helpers/signupMocks");
@@ -79,7 +79,8 @@ describe("talk overview buttons (#293)", () => {
     it("are components of the overview select and inherit its access; „Für alle Raids“ is gone (#904)", () => {
         expect(pickRaids).toMatchObject({ name: "talk-signup-multi", accessOf: "talk-signup" });
         expect(step).toMatchObject({ name: "signup-multi", accessOf: "talk-signup" });
-        expect(() => require("../../../src/commands/signup/talkSignupAll")).toThrow(/Cannot find module/);
+        // the old button only answers that it is gone (talkSignupAll.js), it signs nobody up
+        expect(require("../../../src/commands/signup/talkSignupAll")).toMatchObject({ name: "talk-signup-all", accessOf: "talk-signup" });
         expect(multi.parseMultiId("signup-multi:0123abcd:m:0").action).toBe("m");
     });
 
@@ -137,14 +138,14 @@ describe("talk overview buttons (#293)", () => {
     });
 });
 
-describe("PuG-Server beitreten under the results (#904)", () => {
+describe("<server> beitreten under the results (#904)", () => {
     const RAID_SERVER = "300000000000000001";
     const PARTNER = "300000000000000002";
     let members;
 
     beforeEach(() => {
         members = { cache: new Map(), fetch: jest.fn(async () => { throw Object.assign(new Error("Unknown Member"), { code: 10007 }); }) };
-        discord.getGuild = jest.fn((id) => (id === RAID_SERVER ? { id, members } : null));
+        discord.getGuild = jest.fn((id) => (id === RAID_SERVER ? { id, name: "Pulse PuGs", members } : null));
     });
     afterEach(() => { delete discord.getGuild; });
 
@@ -163,8 +164,8 @@ describe("PuG-Server beitreten under the results (#904)", () => {
         expect(submit.deferUpdate.mock.invocationCallOrder[0]).toBeLessThan(members.fetch.mock.invocationCallOrder[0]);
         expect(members.fetch).toHaveBeenCalledTimes(1);
         const desc = submit.editReply.mock.calls[0][0].embeds[0].description;
-        expect(desc).toContain("Join the PuG server, otherwise you will not get pings and info.");
-        expect(desc.match(/Join the PuG server/g)).toHaveLength(1);
+        expect(desc).toContain("Join the server **Pulse PuGs**, otherwise you will not get pings and info.");
+        expect(desc.match(/Join the server/g)).toHaveLength(1);
         // no invite yet (#905): no link button, only "My signups"
         expect(cardButtons(submit.editReply.mock.calls[0][0]).map((b) => b.label)).toEqual(["My signups"]);
     });
@@ -172,13 +173,13 @@ describe("PuG-Server beitreten under the results (#904)", () => {
     it("says nothing to a member of the raid's server", async () => {
         members.cache.set(ANNA, {});
         const member = await submitFrom(PARTNER);
-        expect(member.editReply.mock.calls[0][0].embeds[0].description).not.toContain("PuG server");
+        expect(member.editReply.mock.calls[0][0].embeds[0].description).not.toContain("Join the server");
     });
 
     it("says nothing on the raid's own server - not even a member check", async () => {
         const home = await submitFrom(RAID_SERVER);
         expect(members.fetch).not.toHaveBeenCalled();
-        expect(home.editReply.mock.calls[0][0].embeds[0].description).not.toContain("PuG server");
+        expect(home.editReply.mock.calls[0][0].embeds[0].description).not.toContain("Join the server");
     });
 });
 

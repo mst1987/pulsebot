@@ -37,7 +37,10 @@ jest.mock("../../../src/stores/signupStore", () => {
 let mockConfig = {};
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockRoleIds = null;
-jest.mock("../../../src/services/discord/discord", () => ({ memberRoleIds: jest.fn(async () => mockRoleIds), postNotice: jest.fn(async () => ({})) }));
+let mockGuild = null;
+jest.mock("../../../src/services/discord/discord", () => ({
+    memberRoleIds: jest.fn(async () => mockRoleIds), postNotice: jest.fn(async () => ({})), getGuild: jest.fn(() => mockGuild),
+}));
 
 const profiles = require("../../../src/stores/raiderProfileStore");
 const discord = require("../../../src/services/discord/discord");
@@ -66,6 +69,7 @@ beforeEach(() => {
     mockChanged.mockClear();
     mockConfig = {};
     mockRoleIds = null;
+    mockGuild = null;
     mockLog.mockClear();
     discord.memberRoleIds.mockClear();
     mockEvents.set("eh-kara", event());
@@ -440,6 +444,44 @@ describe("Raider-Rollen der Kategorie", () => {
         mockConfig = { categoryRoles: {} };
         mockRoleIds = [];
         expect((await service.submitSignup("eh-kara", ANNA, signup, { now: NOW })).signup).toBeTruthy();
+    });
+
+    describe("kein Mitglied des Raid-Servers (#904: Anmeldung aus einer Partner-Liste)", () => {
+        // memberRoleIds answers null for every failure; the guild says why
+        const guildFailing = (error) => ({
+            id: "g-event",
+            members: { cache: new Map(), fetch: jest.fn(async () => { throw error; }) },
+        });
+        const unknownMember = Object.assign(new Error("Unknown Member"), { code: 10007 });
+
+        it("lehnt im Dialog ab, wenn Discord „Unknown Member“ meldet", async () => {
+            withRoles();
+            mockRoleIds = null;
+            mockGuild = guildFailing(unknownMember);
+            const res = await service.submitSignup("eh-kara", ANNA, signup, { now: NOW });
+            expect(res).toEqual({ code: "raider_role", error: "Für diesen Raid brauchst du eine Raider-Rolle." });
+            expect(mockGuild.members.fetch).toHaveBeenCalledWith(ANNA);
+            expect(mockSignups.size).toBe(0);
+        });
+
+        it("lehnt bei „Mehrere Raids“ ab, auch mit „Unknown User“ (10013)", async () => {
+            withRoles();
+            mockRoleIds = null;
+            mockGuild = guildFailing(Object.assign(new Error("Unknown User"), { rawError: { code: 10013 } }));
+            const results = await service.submitSignups(ANNA, [{ eventId: "eh-kara", characters: [{ character: "Nerathil", spec: "Mage-Arcane" }], status: "signed" }], { now: NOW });
+            expect(results[0]).toMatchObject({ ok: false, code: "raider_role" });
+            expect(mockSignups.size).toBe(0);
+        });
+
+        it("bleibt nachsichtig bei anderen Fehlern (Bot offline, Netz)", async () => {
+            withRoles();
+            mockRoleIds = null;
+            mockGuild = guildFailing(Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }));
+            expect((await service.submitSignup("eh-kara", ANNA, signup, { now: NOW })).signup).toBeTruthy();
+            mockSignups.clear();
+            mockGuild = null;
+            expect((await service.submitSignup("eh-kara", ANNA, signup, { now: NOW })).signup).toBeTruthy();
+        });
     });
 
     it("lässt eine bestehende eigene Anmeldung ändern und zurückziehen", async () => {

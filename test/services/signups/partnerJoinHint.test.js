@@ -1,8 +1,9 @@
-// Hinweis „PuG-Server beitreten“ (#904): nach dem Speichern von einem Partner-
+// Hinweis „<Server> beitreten“ (#904): nach dem Speichern von einem Partner-
 // server prüft der Bot einmal, ob das Mitglied auf dem Server des Raids ist.
-// Mitglied → nichts; kein Mitglied (10007/10013) → Zeile, mit Einladung auch
-// Link-Knopf; nicht lesbar (andere Fehler, zu langsam, keine Guild) → nichts.
-jest.mock("../../../src/services/discord/discord", () => ({ getGuild: jest.fn() }));
+// Mitglied → nichts; kein Mitglied (10007/10013) → Zeile mit dem Servernamen,
+// mit Einladung auch Link-Knopf; nicht lesbar (andere Fehler, zu langsam, keine
+// Guild) → nichts. Dazu die Rollen für die Raider-Rolle: kein Mitglied → keine.
+jest.mock("../../../src/services/discord/discord", () => ({ getGuild: jest.fn(), memberRoleIds: jest.fn() }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ guildId: "100000000000000001" })) }));
 
 const discord = require("../../../src/services/discord/discord");
@@ -15,8 +16,8 @@ const ANNA = "200000000000000001";
 const INVITE = "https://discord.gg/abcdef";
 
 let guilds;
-function guild(id, { cached = [], fetch } = {}) {
-    const g = { id, members: { cache: new Set(cached), fetch: jest.fn(fetch || (async () => ({ id: ANNA }))) } };
+function guild(id, { cached = [], fetch, name = "Pulse PuGs" } = {}) {
+    const g = { id, name, members: { cache: new Set(cached), fetch: jest.fn(fetch || (async () => ({ id: ANNA }))) } };
     guilds[id] = g;
     return g;
 }
@@ -27,6 +28,7 @@ beforeEach(() => {
     guilds = {};
     discord.getGuild.mockReset();
     discord.getGuild.mockImplementation((id) => guilds[id] || null);
+    discord.memberRoleIds.mockReset();
 });
 
 describe("raidGuildId", () => {
@@ -68,13 +70,49 @@ describe("isServerMember", () => {
     });
 });
 
+describe("signupRoleIds", () => {
+    it("passes readable roles through", async () => {
+        discord.memberRoleIds.mockResolvedValue(["r1"]);
+        await expect(hint.signupRoleIds(PUG, ANNA)).resolves.toEqual(["r1"]);
+        expect(discord.getGuild).not.toHaveBeenCalled();
+    });
+
+    it("gives no roles to someone surely not on the server (10007/10013)", async () => {
+        discord.memberRoleIds.mockResolvedValue(null);
+        guild(PUG, { fetch: unknownMember(10007) });
+        await expect(hint.signupRoleIds(PUG, ANNA)).resolves.toEqual([]);
+        guild(PUG, { fetch: unknownMember(10013) });
+        await expect(hint.signupRoleIds(PUG, ANNA)).resolves.toEqual([]);
+    });
+
+    it("stays null (lenient) when the roles cannot be read for another reason", async () => {
+        discord.memberRoleIds.mockResolvedValue(null);
+        guild(PUG, { fetch: unknownMember(50001) });
+        await expect(hint.signupRoleIds(PUG, ANNA)).resolves.toBeNull();
+        await expect(hint.signupRoleIds("999", ANNA)).resolves.toBeNull();
+    });
+});
+
+describe("serverNameOf", () => {
+    it("takes the label, else the Discord server's name, else PuG - capped for the button", () => {
+        const config = { discordServers: { servers: [{ guildId: PUG, label: "PuG-Börse" }] } };
+        expect(hint.serverNameOf(PUG, config)).toBe("PuG-Börse");
+        guild(MAIN, { name: "Pulse Fresh" });
+        expect(hint.serverNameOf(MAIN, {})).toBe("Pulse Fresh");
+        expect(hint.serverNameOf("999", {})).toBe("PuG");
+        guild(PARTNER, { name: "x".repeat(100) });
+        expect(hint.serverNameOf(PARTNER, {})).toHaveLength(60);
+    });
+});
+
 describe("buildJoinHint", () => {
-    it("is the line in the member's language, with a link button only for an https invite", () => {
-        expect(hint.buildJoinHint({ lang: "de" })).toEqual({ line: "ℹ️ Tritt dem PuG-Server bei, sonst bekommst du keine Pings und Infos.", button: null });
-        const en = hint.buildJoinHint({ lang: "en", inviteUrl: INVITE });
-        expect(en.line).toBe("ℹ️ Join the PuG server, otherwise you will not get pings and info.");
-        expect(en.button).toEqual({ type: 2, style: 5, label: "Join the PuG server", url: INVITE });
-        expect(hint.buildJoinHint({ lang: "de", inviteUrl: INVITE }).button.label).toBe("PuG-Server beitreten");
+    it("is the line in the member's language naming the server, with a link button only for an https invite", () => {
+        expect(hint.buildJoinHint({ lang: "de", serverName: "Pulse PuGs" }))
+            .toEqual({ line: "ℹ️ Tritt dem Server **Pulse PuGs** bei, sonst bekommst du keine Pings und Infos.", button: null });
+        const en = hint.buildJoinHint({ lang: "en", inviteUrl: INVITE, serverName: "Pulse PuGs" });
+        expect(en.line).toBe("ℹ️ Join the server **Pulse PuGs**, otherwise you will not get pings and info.");
+        expect(en.button).toEqual({ type: 2, style: 5, label: "Join Pulse PuGs", url: INVITE });
+        expect(hint.buildJoinHint({ lang: "de", inviteUrl: INVITE, serverName: "Pulse PuGs" }).button.label).toBe("Pulse PuGs beitreten");
         expect(hint.buildJoinHint({ inviteUrl: "javascript:alert(1)" }).button).toBeNull();
     });
 
@@ -91,14 +129,14 @@ describe("joinHintFor", () => {
         const inviteUrlOf = jest.fn(() => INVITE);
         const res = await hint.joinHintFor(click(PARTNER), event, { lang: "de", inviteUrlOf });
         expect(inviteUrlOf).toHaveBeenCalledWith(`${PUG}:${PARTNER}`);
-        expect(res).toEqual({ line: expect.stringContaining("Tritt dem PuG-Server bei"), button: expect.objectContaining({ url: INVITE, label: "PuG-Server beitreten" }), linkKey: `${PUG}:${PARTNER}` });
+        expect(res).toEqual({ line: expect.stringContaining("Tritt dem Server **Pulse PuGs** bei"), button: expect.objectContaining({ url: INVITE, label: "Pulse PuGs beitreten" }), linkKey: `${PUG}:${PARTNER}` });
     });
 
     it("gives the line alone when there is no invite", async () => {
         guild(PUG, { fetch: unknownMember() });
         const res = await hint.joinHintFor(click(PARTNER), event, { lang: "en" });
         expect(res.button).toBeNull();
-        expect(res.line).toContain("Join the PuG server");
+        expect(res.line).toContain("Join the server **Pulse PuGs**");
     });
 
     it("says nothing to a member, when membership cannot be read, on the raid's own server or without a server", async () => {
@@ -126,7 +164,7 @@ describe("joinHintForEvents", () => {
         const inviteUrlOf = jest.fn((key) => `https://discord.gg/${key.split(":")[0].slice(-1)}`);
         const res = await hint.joinHintForEvents(click(PARTNER), [{ guildId: PUG }, { guildId: PUG }, { guildId: MAIN }], { lang: "en", inviteUrlOf });
         expect(pug.members.fetch).toHaveBeenCalledTimes(1);
-        expect(res.line).toContain("Join the PuG server");
+        expect(res.line).toContain("Join the server **Pulse PuGs**");
         expect(res.buttons.map((b) => b.url)).toEqual(["https://discord.gg/2", "https://discord.gg/1"]);
     });
 

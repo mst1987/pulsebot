@@ -10,6 +10,12 @@ const {
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr, specLabel } = require("../../utils/i18n/botText");
 const { joinHintFor } = require("../../services/signups/partnerJoinHint");
+const logger = require("../../logger");
+
+// The latest click per dialog message: the member check (#904) may wait a while,
+// so an older click's hint must never redraw over a newer answer.
+const latestClick = new Map();
+let clickSeq = 0;
 
 // The status buttons of the signup dialog (utils/signup/signupDialog.js):
 // `signup-status:<eventId>:<code>:<state>` — Dabei / Vielleicht / Spät / Bank /
@@ -44,9 +50,17 @@ async function save(interaction, event, status, picks, character) {
     // From a partner server's list (#904): someone not on the raid's server hears nothing of it
     // there, so the answer says so - checked only now, the click is answered already.
     if (result.signup.status === "absence") return undefined;
-    const hint = await joinHintFor(interaction, event, { lang });
-    if (!hint) return undefined;
-    return interaction.editReply(buildSignupDialog(event, uid, { state: picks, notice: `${notice}\n${hint.line}`, lang, joinButton: hint.button }));
+    const key = (interaction.message && interaction.message.id) || `${event.id}:${uid}`;
+    const click = ++clickSeq;
+    latestClick.set(key, click);
+    try {
+        const hint = await joinHintFor(interaction, event, { lang });
+        if (!hint || latestClick.get(key) !== click) return undefined;
+        return await interaction.editReply(buildSignupDialog(event, uid, { state: picks, notice: `${notice}\n${hint.line}`, lang, joinButton: hint.button }))
+            .catch((e) => logger.debug(`signup-status: join hint not shown (${e && e.message})`));
+    } finally {
+        if (latestClick.get(key) === click) latestClick.delete(key);
+    }
 }
 
 module.exports = {

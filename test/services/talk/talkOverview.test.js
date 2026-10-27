@@ -315,8 +315,11 @@ describe("services/talk/talkOverview — buildOverviewMessage", () => {
         const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev(), ev({ id: "eh-1", source: "eventhelper", title: "Kara" })] }], opts);
         const [signupRow, selectRow, linkRow] = payload.components;
         expect(signupRow.components.map((b) => [b.custom_id, b.label, b.style])).toEqual([
-            ["talk-signup-multi", "Pick several raids …", 2],
+            ["talk-signup-multi:111", "Pick several raids …", 2],
         ]);
+        // without a source server the button stays as before
+        const noSource = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev({ id: "eh-1", source: "eventhelper", title: "Kara" })] }], { ...opts, eventGuildId: "" });
+        expect(noSource.components[0].components[0].custom_id).toBe("talk-signup-multi");
         expect(JSON.stringify(payload)).not.toContain("talk-signup-all");
         expect(selectRow.components[0].custom_id).toBe("talk-signup");
         expect(linkRow.components).toHaveLength(3);

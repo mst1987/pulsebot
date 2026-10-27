@@ -156,6 +156,8 @@ module.exports = {
     "{who} signed up as {status} with the following reason:": "{who} hat sich als {status} gemeldet, mit folgender Begründung:",
     "Absent": "Abgemeldet",
     // a signup from a partner server's raid list by someone not on the raid's server (#904)
-    "Join the PuG server, otherwise you will not get pings and info.": "Tritt dem PuG-Server bei, sonst bekommst du keine Pings und Infos.",
-    "Join the PuG server": "PuG-Server beitreten",
+    "Join the server **{server}**, otherwise you will not get pings and info.": "Tritt dem Server **{server}** bei, sonst bekommst du keine Pings und Infos.",
+    "Join {server}": "{server} beitreten",
+    // a click on the old "Für alle Raids anmelden" button of an overview posted before #904
+    "This button no longer exists – use “Pick several raids …”.": "Diesen Knopf gibt es nicht mehr – nutze „Mehrere Raids wählen …“.",
 };

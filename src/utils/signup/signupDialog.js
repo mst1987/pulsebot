@@ -318,7 +318,7 @@ function buildSignupDialog(event, userId, { state = null, notice = "", now = Dat
         const label = missing ? tr(lang, "Add a {version} character", { version: versionLabel(versionId) }).slice(0, 80) : tr(lang, "Create profile");
         extra.push(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(label).setURL(`${publicBaseUrl()}/profile`));
     }
-    // "PuG-Server beitreten" after a signup from a partner list (#904, services/signups/partnerJoinHint.js)
+    // "<raid server> beitreten" after a signup from a partner list (#904, services/signups/partnerJoinHint.js)
     if (joinButton && joinButton.url) extra.push(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(String(joinButton.label || "").slice(0, 80)).setURL(joinButton.url));
     rows.push(new ActionRowBuilder().addComponents(extra));
 

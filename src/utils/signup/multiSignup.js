@@ -99,18 +99,34 @@ const shortDate = (value, lang = "de") => serverText(value, "ccc d LLL", lang);
 const plain = (text) => String(text || "").replace(/[*_`~|[\]\\]/g, "").replace(/\s+/g, " ").trim();
 
 /**
- * Every own raid a member could sign up for from the overview, unsliced: coming, not
- * begun, not cancelled or closed, of the event server and - when set - the event
- * categories, without the raids of a hidden game version; soonest first.
+ * The game versions the raid list of server `from` shows on server `here`
+ * (#904): the link's `versions` (#892; empty = all); null = no filter (no
+ * such link, or the list sits on its own server).
  */
-function signableAll({ config, now }) {
-    const guildId = guildRoles.eventGuildId(config);
+function linkVersions(config, from, here) {
+    if (!from || !here || from === here) return null;
+    const link = guildRoles.links(config).find((l) => String(l.from) === from && String(l.to) === here);
+    const versions = link && Array.isArray(link.versions) ? link.versions.map(String).filter(Boolean) : [];
+    return versions.length ? new Set(versions) : null;
+}
+
+/**
+ * Every own raid a member could sign up for from the overview, unsliced: coming, not
+ * begun, not cancelled or closed, of the list's source server `guildId` (default:
+ * the first server - the buttons before #904 carry no source) and - when set -
+ * the event categories, without the raids of a hidden game version or of one the
+ * link from `guildId` to `here` does not list; soonest first.
+ */
+function signableAll({ config, now, guildId = "", here = "" }) {
+    const from = String(guildId || guildRoles.eventGuildId(config) || "");
+    const linked = linkVersions(config, from, String(here || ""));
     const cats = Array.isArray(config.categoryIds) ? config.categoryIds.map(String) : [];
-    return eventStore.listEvents(guildId, { sinceSeconds: Math.floor(now / 1000) })
+    return eventStore.listEvents(from, { sinceSeconds: Math.floor(now / 1000) })
         .filter((e) => !signupWindow(e, now).started)
         .filter((e) => e.status !== "cancelled" && e.signupsClosed !== true)
         .filter((e) => !cats.length || cats.includes(String(e.categoryId || "")))
         .filter((e) => isVersionVisible(versionOfEvent(e, { config }), config))
+        .filter((e) => !linked || linked.has(String(versionOfEvent(e, { config }))))
         .sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0));
 }
 
@@ -120,15 +136,15 @@ function signableAll({ config, now }) {
  * server, one signup never mixes them); at most 25. Raider roles and the deadline
  * are not filtered here: the result says per raid why it was refused.
  */
-function signableRaids({ config = getConfig(), now = Date.now(), versionId = "" } = {}) {
-    return signableAll({ config, now })
+function signableRaids({ config = getConfig(), now = Date.now(), versionId = "", guildId = "", here = "" } = {}) {
+    return signableAll({ config, now, guildId, here })
         .filter((e) => !versionId || versionOfEvent(e, { config }) === versionId)
         .slice(0, MAX_RAIDS);
 }
 
 /** The game versions that have a signable raid right now, in rule-set order (#743): two = the bot asks first. */
-function signableVersions({ config = getConfig(), now = Date.now() } = {}) {
-    const present = new Set(signableAll({ config, now }).map((e) => versionOfEvent(e, { config })));
+function signableVersions({ config = getConfig(), now = Date.now(), guildId = "", here = "" } = {}) {
+    const present = new Set(signableAll({ config, now, guildId, here }).map((e) => versionOfEvent(e, { config })));
     return VERSIONS.map((v) => v.id).filter((id) => present.has(id));
 }
 
@@ -262,21 +278,21 @@ const labelled = (label, description, component) => ({
 });
 
 /**
- * Step 2: the modal of one page. "all": one character select for every raid
- * plus the status; otherwise one select per raid of the page.
+ * Step 2: the modal of one page: one character select per raid of the page
+ * (mode "one": the single raid of "Mehrere Charaktere …").
  * @returns {object|null} plain modal JSON, null without characters
  */
 function buildCharacterModal(token, session, page, events, profile, { emojis = {}, lang = "de" } = {}) {
     const byEvent = new Map(events.map((e) => [e.id, e]));
     // Only characters of the chosen raids' game version (#543, #741): a TBC
-    // character is never offered for a Forever raid. "all" lists the characters
-    // of the chosen raids' versions (one: raidsForButton asks which first).
+    // character is never offered for a Forever raid. The chosen raids share one
+    // version (raidsForButton asks which first); every select lists only its raid's.
     const chosen = (session.selected || []).map((id) => byEvent.get(id)).filter(Boolean);
     const versions = [...new Set(chosen.map((e) => versionOfEvent(e)))];
     const options = versions.length ? versions.flatMap((v) => characterOptions(profile, v)) : characterOptions(profile);
     if (!options.length) return null;
     // Each raid's category allows its own number of characters (signupCharacters.maxCharactersFor,
-    // default 8); "all" shares one select, so the lowest limit of the chosen raids holds there.
+    // default 8); `max` (the lowest limit of the chosen raids) only holds for a raid not in `events`.
     const config = getConfig();
     const limitOf = (event) => pickLimitFor(event, getSignup(event.id, session.userId), config);
     const max = Math.min(chosen.length ? Math.min(...chosen.map(limitOf)) : pickLimitFor("", null, config), options.length);

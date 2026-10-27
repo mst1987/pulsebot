@@ -9,10 +9,15 @@ const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
 const { asEphemeral } = require("../../utils/discord/card");
 const { versionShort } = require("../../services/events/versionTag");
+const guildRoles = require("../../services/discord/guildRoles");
+const { getConfig } = require("../../stores/settingsStore");
 
 // "Mehrere Raids wählen …" under the raid overview on the talk server (#293):
-// step 1, only for the member — the coming raids (all preselected), the status
-// for all of them and "Weiter: Charaktere" (commands/signup/signupMulti.js).
+// step 1, only for the member — the coming raids of the list's server (nothing
+// preselected, the member picks), the status for all of them and "Weiter:
+// Charaktere" (commands/signup/signupMulti.js). The button carries the list's
+// source server (#904): "talk-signup-multi:<from>"; one without (posted before
+// #904) offers the first server's raids as it always did.
 
 /** Without a profile character there is nothing to pick — the reply says where to add one. */
 function noCharacterReply(lang = "de") {
@@ -37,17 +42,44 @@ function versionQuestion(prefix, versions, lang = "de") {
 }
 
 /**
- * The raids a talk-server button offers: those of the version in its customId, of the only version
- * there is, else the question which one (`reply`).
+ * The parts of the button's customId: "<button>[:<from>][:v:<version>]".
+ * @returns {{ from: string, version: string }}
+ */
+function parseButtonId(customId) {
+    const parts = String(customId || "").split(":").slice(1);
+    const from = parts.length && parts[0] !== "v" ? parts.shift() : "";
+    const version = parts[0] === "v" ? String(parts[1] || "") : "";
+    return { from, version };
+}
+
+/**
+ * The source server a button may name: the clicked server itself or one linked
+ * to it (#892); anything else falls back to the first server (old buttons too).
+ */
+function sourceServer(from, here, config = getConfig()) {
+    const source = String(from || "");
+    if (!source) return "";
+    if (source === String(here || "")) return source;
+    return guildRoles.links(config).some((l) => String(l.from) === source && String(l.to) === String(here || "")) ? source : "";
+}
+
+/**
+ * The raids a talk-server button offers: those of the list's server (customId,
+ * #904) and of the version in its customId, of the only version there is, else
+ * the question which one (`reply`) — its buttons keep the source.
  * @returns {{ raids: object[] } | { reply: object }}
  */
 function raidsForButton(interaction, prefix, lang = "de") {
-    const versions = signableVersions();
+    const config = getConfig();
+    const here = String(interaction.guildId || "");
+    const parsed = parseButtonId(interaction.customId);
+    const guildId = sourceServer(parsed.from, here, config);
+    const scope = { config, guildId, here };
+    const versions = signableVersions(scope);
     if (!versions.length) return { reply: noRaidsReply(lang) };
-    const [, marker, asked] = String(interaction.customId || "").split(":");
-    const versionId = marker === "v" && versions.includes(asked) ? asked : (versions.length === 1 ? versions[0] : "");
-    if (!versionId) return { reply: versionQuestion(prefix, versions, lang) };
-    return { raids: signableRaids({ versionId }) };
+    const versionId = versions.includes(parsed.version) ? parsed.version : (versions.length === 1 ? versions[0] : "");
+    if (!versionId) return { reply: versionQuestion(guildId ? `${prefix}:${guildId}` : prefix, versions, lang) };
+    return { raids: signableRaids({ ...scope, versionId }) };
 }
 
 module.exports = {
@@ -57,6 +89,7 @@ module.exports = {
     noCharacterReply,
     noRaidsReply,
     versionQuestion,
+    parseButtonId,
     raidsForButton,
     async execute(interaction) {
         const uid = interaction.user.id;

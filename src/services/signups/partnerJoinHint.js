@@ -1,8 +1,9 @@
 // The note under "Gespeichert" for a raider who signed up from a partner
 // server's raid list without being on the raid's server (#904). Anyone may sign
 // up for an open PuG from a linked server; without being a member of the raid's
-// server they never see its pings and posts, so the answer says so — with a
-// link button "PuG-Server beitreten" when there is an invite for the link.
+// server they never see its pings and posts, so the answer says so — naming the
+// raid's server, with a link button "<server> beitreten" when there is an
+// invite for the link.
 //
 // One member fetch on the raid's server, AFTER the answer went out (the caller
 // acknowledges first, then edits): a single-user fetch needs no privileged
@@ -11,6 +12,7 @@
 // note, a Discord hiccup never nags a raider.
 const settingsStore = require("../../stores/settingsStore");
 const discord = require("../discord/discord");
+const guildRoles = require("../discord/guildRoles");
 const { tr } = require("../../utils/i18n/botText");
 const logger = require("../../logger").child("partner-join-hint");
 
@@ -29,7 +31,7 @@ function raidGuildId(event, config = settingsStore.getConfig()) {
  * @returns {Promise<true|false|null>} null = could not be read
  */
 async function isServerMember(guildId, userId, { waitMs = MEMBER_WAIT_MS } = {}) {
-    const guild = discord.getGuild(String(guildId || ""));
+    const guild = typeof discord.getGuild === "function" ? discord.getGuild(String(guildId || "")) : null;
     if (!guild || !userId) return null;
     const uid = String(userId);
     if (guild.members.cache.has(uid)) return true;
@@ -53,13 +55,45 @@ async function isServerMember(guildId, userId, { waitMs = MEMBER_WAIT_MS } = {})
 }
 
 /**
- * The note itself: the line, and a link button when an invite exists.
+ * A member's roles on the raid's server for the raider-role check of a signup.
+ * discord.memberRoleIds answers null for every failure — also for "unknown
+ * member". Since anyone may sign up from a partner list (#904), a non-member
+ * would slip past the role rule; so when the roles cannot be read, one more
+ * check: surely not on the server → no roles ([]). Any other failure (bot
+ * offline, timeout) stays null, the lenient "a hiccup never refuses a raider".
+ * @returns {Promise<string[]|null>}
+ */
+async function signupRoleIds(guildId, userId, { waitMs } = {}) {
+    const ids = await discord.memberRoleIds(guildId, userId);
+    if (ids !== null && ids !== undefined) return ids;
+    return (await isServerMember(guildId, userId, { waitMs })) === false ? [] : null;
+}
+
+// A button label holds 80 characters; "<name> beitreten" must fit.
+const NAME_MAX = 60;
+
+/**
+ * The raid server's name in the note: its label in discordServers.servers,
+ * else the Discord server's own name, else "PuG".
+ */
+function serverNameOf(guildId, config = settingsStore.getConfig()) {
+    const label = guildRoles.serverLabel(guildId, config);
+    const canAsk = !label && typeof discord.getGuild === "function";
+    const guild = canAsk ? discord.getGuild(String(guildId || "")) : null;
+    const name = String(label || (guild && guild.name) || "PuG").trim() || "PuG";
+    return name.length > NAME_MAX ? `${name.slice(0, NAME_MAX - 1).trimEnd()}…` : name;
+}
+
+/**
+ * The note itself: the line, and a link button when an invite exists — both
+ * name the raid's server.
  * @returns {{ line: string, button: object|null }}
  */
-function buildJoinHint({ lang = "de", inviteUrl = "" } = {}) {
-    const line = `ℹ️ ${tr(lang, "Join the PuG server, otherwise you will not get pings and info.")}`;
+function buildJoinHint({ lang = "de", inviteUrl = "", serverName = "PuG" } = {}) {
+    const server = String(serverName || "PuG");
+    const line = `ℹ️ ${tr(lang, "Join the server **{server}**, otherwise you will not get pings and info.", { server })}`;
     const url = /^https:\/\//.test(String(inviteUrl || "")) ? String(inviteUrl) : "";
-    return { line, button: url ? { type: 2, style: 5, label: tr(lang, "Join the PuG server"), url } : null };
+    return { line, button: url ? { type: 2, style: 5, label: tr(lang, "Join {server}", { server }), url } : null };
 }
 
 /**
@@ -80,12 +114,13 @@ function inviteUrlForLink(linkKey) {
  */
 async function joinHintFor(interaction, event, { lang = "de", inviteUrlOf = inviteUrlForLink, config, waitMs } = {}) {
     const here = String((interaction && interaction.guildId) || "");
-    const raidGuild = raidGuildId(event, config || settingsStore.getConfig());
+    const cfg = config || settingsStore.getConfig();
+    const raidGuild = raidGuildId(event, cfg);
     if (!here || !raidGuild || here === raidGuild) return null;
     const userId = interaction.user && interaction.user.id;
     if ((await isServerMember(raidGuild, userId, { waitMs })) !== false) return null;
     const linkKey = `${raidGuild}:${here}`;
-    return { ...buildJoinHint({ lang, inviteUrl: inviteUrlOf(linkKey) }), linkKey };
+    return { ...buildJoinHint({ lang, inviteUrl: inviteUrlOf(linkKey), serverName: serverNameOf(raidGuild, cfg) }), linkKey };
 }
 
 /**
@@ -106,7 +141,10 @@ async function joinHintForEvents(interaction, events, { lang = "de", inviteUrlOf
     if (!found.length) return null;
     const urls = new Set();
     const buttons = found.map((h) => h.button).filter((b) => b && !urls.has(b.url) && urls.add(b.url));
-    return { line: found[0].line, buttons };
+    return { line: found.map((h) => h.line).join("\n"), buttons };
 }
 
-module.exports = { raidGuildId, isServerMember, buildJoinHint, inviteUrlForLink, joinHintFor, joinHintForEvents, MEMBER_WAIT_MS };
+module.exports = {
+    raidGuildId, isServerMember, signupRoleIds, serverNameOf, buildJoinHint, inviteUrlForLink, joinHintFor, joinHintForEvents,
+    MEMBER_WAIT_MS,
+};

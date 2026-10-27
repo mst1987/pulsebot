@@ -123,7 +123,7 @@ function plain(text) {
  * exists (linkCheck), "channel missing" as plain text when it is gone, the bare
  * name while nothing is known (bot offline since the start). On another
  * server than the list (#892) a known channel names its server: "#do-ssc on
- * PuG-Server".
+ * <server>".
  */
 function channelPart(event, eventGuildId, { channelInfo, lang, serverName, crossServer }) {
     if (!event.channelId) return "";
@@ -384,9 +384,11 @@ function buildOverviewMessage(groups, opts = {}) {
 
     const components = [];
     // Several raids at once (#293) — only EventHelper events take a signup here.
+    // The button names the list's server (#904), so it offers this list's raids.
     if (signable.some((e) => e.source === "eventhelper")) {
+        const multiId = eventGuildId ? `${MULTI_BUTTON_ID}:${eventGuildId}` : MULTI_BUTTON_ID;
         components.push(new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(MULTI_BUTTON_ID).setStyle(ButtonStyle.Secondary).setLabel(tr(lang, "Pick several raids …")),
+            new ButtonBuilder().setCustomId(multiId).setStyle(ButtonStyle.Secondary).setLabel(tr(lang, "Pick several raids …")),
         ));
     }
     if (signable.length) {
