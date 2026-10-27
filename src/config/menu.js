@@ -16,7 +16,10 @@
 //   areas    — permission areas (config/permissions.js); one of them opens it
 //   adminOnly — full admins only, whatever areas an account holds (Systemstatus,
 //              docs/system-status.md); `areas` is then empty
-//   wowIcon  — the zamimg icon name drawn in front of the label
+//   scope    — "all": the page is not about one Discord server (Mein Profil, Addons,
+//              Systemstatus). Both menus draw it in the block "Alle Server" below the
+//              active server's block (#918); without it the entry is per server.
+//   wowIcon — the zamimg icon name drawn in front of the label
 const MENU = require("./menu.json");
 
 const ICON_BASE = "https://wow.zamimg.com/images/wow/icons";
@@ -40,4 +43,9 @@ function wowIconUrl(name, size = 56) {
     return `${ICON_BASE}/${variant}/${encodeURIComponent(clean).replace(/'/g, "%27")}.jpg`;
 }
 
-module.exports = { MENU, wowIconUrl, FALLBACK_ICON };
+/** Whether an entry belongs to the block "Alle Server" rather than to the active server (#918). */
+function isAllServers(entry) {
+    return !!entry && entry.scope === "all";
+}
+
+module.exports = { MENU, wowIconUrl, FALLBACK_ICON, isAllServers };

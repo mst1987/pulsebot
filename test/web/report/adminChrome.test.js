@@ -91,9 +91,11 @@ describe("web/report/adminChrome", () => {
     });
 
     it("renders exactly the top-level entries of config/menu.js, Roster and Loot-Council included", () => {
-        const { MENU: ALL, wowIconUrl } = require("../../../src/config/menu.js");
-        // the sub entries (the raid plan's pages) live in their parent's icon rail, as in the React shell
-        const MENU = ALL.filter((e) => !e.sub);
+        const { MENU: ALL, wowIconUrl, isAllServers } = require("../../../src/config/menu.js");
+        // the sub entries (the raid plan's pages) live in their parent's icon rail, as in the React shell;
+        // the pages without a server come last, in their own block (#918)
+        const TOP = ALL.filter((e) => !e.sub);
+        const MENU = [...TOP.filter((e) => !isAllServers(e)), ...TOP.filter(isAllServers)];
         expect(TABS.map((t) => t.id)).toEqual(MENU.map((e) => e.id));
         expect(render()).not.toContain("/raids/plan-templates");
         const html = render();
@@ -104,6 +106,18 @@ describe("web/report/adminChrome", () => {
         expect(html).toContain("<span>Roster</span>");
         expect(html).toContain("<span>Loot-Council</span>");
         expect(html).toContain("inv_misc_coin_02.jpg");
+    });
+
+    it("puts the pages without a server under one heading \"Alle Server\" below the server's block", () => {
+        const html = render();
+        expect(html.match(/class="menu-label menu-all">Alle Server</g)).toHaveLength(1);
+        const allAt = html.indexOf("menu-all");
+        // Mein Profil, Addons and Systemstatus belong to no server: below the heading
+        expect(html.indexOf("<span>Mein Profil</span>")).toBeGreaterThan(allAt);
+        expect(html.indexOf("<span>Systemstatus</span>")).toBeGreaterThan(allAt);
+        // the server's pages stay above it
+        expect(html.indexOf("<span>Roster</span>")).toBeLessThan(allAt);
+        expect(CHROME_STYLE).toContain(".menu-label.menu-all");
     });
 
     it("colours the active entry of every section with its own area token", () => {

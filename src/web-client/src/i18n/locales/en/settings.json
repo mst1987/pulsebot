@@ -6,10 +6,8 @@
     "noName": "(no name)",
     "editKicker": "Edit connection",
     "groups": {
-        "access": "Access",
-        "connections": "Connections",
-        "categories": "Raid categories",
-        "modules": "Modules"
+        "server": "Server",
+        "global": "All servers"
     },
     "sections": {
         "berechtigungen": {
