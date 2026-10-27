@@ -943,6 +943,10 @@ const SERVER_SETTING_DEFAULTS = Object.freeze({
     // ever set from the settings page (never copied from .env); envKey marks the
     // one server the start migration lets use RAIDHELPER_API_KEY from .env.
     raidhelper: Object.freeze({ enabled: false, serverId: "", apiKey: "", envKey: false, at: 0, byName: "" }),
+    // #922 WCL-Gilde je Server und Version (services/logcheck/wclGuildSettings.js):
+    // [{ versionId, guildName, realm, region, interval, lastRunAt, lastSuccessAt, lastResult }];
+    // the central job (wclGuildSync.js) fetches the guild's new reports as logs.
+    wclGuilds: Object.freeze([]),
 });
 
 /**
