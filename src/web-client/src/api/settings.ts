@@ -284,10 +284,37 @@ export type SettingsData = {
     /** #744: configured categories Discord no longer has (only known while the bot sees every server). */
     missingCategories?: MissingCategory[];
     activeGuildId: string;
+} & ServerCategories;
+
+/**
+ * #926: `config.categoryIds` is one list over every Discord server. The server
+ * answers with the active server's part of it; categories without a proven,
+ * configured server show on the first server and can never be closed.
+ */
+export type ServerCategories = {
+    serverCategoryIds?: string[];
+    unprovenCategoryIds?: string[];
+    /** Configured categories (any category setting) shown on another server — their rows stay off this page. */
+    otherServerCategoryIds?: string[];
 };
 
+/** Only the per-server category fields of an answer (to copy onto the page's data). */
+export function serverCategoriesOf(answer: ServerCategories): ServerCategories {
+    const out: ServerCategories = {};
+    if (answer.serverCategoryIds) out.serverCategoryIds = answer.serverCategoryIds;
+    if (answer.unprovenCategoryIds) out.unprovenCategoryIds = answer.unprovenCategoryIds;
+    if (answer.otherServerCategoryIds) out.otherServerCategoryIds = answer.otherServerCategoryIds;
+    return out;
+}
+
+/** The config as the active server sees it: `categoryIds` is only that server's part (#926). */
+export function forServer<T extends { config: AdminConfig } & ServerCategories>(answer: T): T {
+    if (!Array.isArray(answer.serverCategoryIds)) return answer;
+    return { ...answer, config: { ...answer.config, categoryIds: answer.serverCategoryIds } };
+}
+
 export function getSettings(): Promise<SettingsData> {
-    return get<SettingsData>("/api/settings");
+    return get<SettingsData>("/api/settings").then(forServer);
 }
 
 /** A section of a category (#738): `from` = ms of the switch (0 = always), `name` = the category name then. */
@@ -310,8 +337,15 @@ export type SwitchedCategory = {
     roster?: SwitchRosterResult;
 };
 
-export function updateSettings(partial: Partial<AdminConfig>): Promise<{ config: AdminConfig; switchedCategories?: SwitchedCategory[]; deactivatedCategories?: DeactivatedCategory[] }> {
-    return send("PATCH", "/api/settings", partial);
+export type SettingsUpdate = {
+    config: AdminConfig;
+    switchedCategories?: SwitchedCategory[];
+    deactivatedCategories?: DeactivatedCategory[];
+    missingCategories?: MissingCategory[];
+} & ServerCategories;
+
+export function updateSettings(partial: Partial<AdminConfig>): Promise<SettingsUpdate> {
+    return send<SettingsUpdate>("PATCH", "/api/settings", partial).then(forServer);
 }
 
 type SwitchVersion = { id: string; label: string; short: string };
@@ -363,6 +397,8 @@ export function getCategoryDeactivate(next: string[]): Promise<{ categories: Dea
 export type MissingCategory = {
     categoryId: string;
     name: string;
+    /** The Discord server the category was proven on (#926). */
+    guildId?: string;
     active: boolean;
     series: CategorySeriesInfo | null;
     reminders: boolean;
@@ -383,11 +419,11 @@ export type CategoryCloseResult = {
     rosters: { id: string; name: string; versionId?: string; closed?: boolean }[];
     config: AdminConfig;
     missingCategories: MissingCategory[];
-};
+} & ServerCategories;
 
 /** POST /api/settings/category-close: close a category deleted in Discord (#744). */
 export function closeCategory(categoryId: string): Promise<CategoryCloseResult> {
-    return send("POST", "/api/settings/category-close", { categoryId });
+    return send<CategoryCloseResult>("POST", "/api/settings/category-close", { categoryId }).then(forServer);
 }
 
 export function saveRaidsheet(input: Partial<Raidsheet>): Promise<Raidsheet> {

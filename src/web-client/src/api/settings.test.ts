@@ -3,7 +3,7 @@
 // formerly a source scan in test/web-client/pingsRoleSync.test.js).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { requireBackend } from "../test/backend";
-import { getReminders, getRoleSync } from "./settings";
+import { closeCategory, forServer, getReminders, getRoleSync, getSettings, serverCategoriesOf, updateSettings, type AdminConfig } from "./settings";
 
 const { AREA_BY_PATH } = requireBackend<{ AREA_BY_PATH: Record<string, string> }>("web/http/apiAccess");
 
@@ -26,5 +26,35 @@ describe("api/settings.ts", () => {
         await getReminders();
         expect(vi.mocked(fetch).mock.calls[0][0]).toBe("/api/settings/reminders");
         expect(AREA_BY_PATH["/api/settings/reminders"]).toBe("settings");
+    });
+});
+
+// #926: config.categoryIds spans every Discord server; the page only ever sees the active server's part.
+describe("raid categories per server", () => {
+    const config = { categoryIds: ["a1", "b1"] } as unknown as AdminConfig;
+    const answer = { config, serverCategoryIds: ["a1"], unprovenCategoryIds: [], otherServerCategoryIds: ["b1"] };
+    const respond = (data: unknown) => vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ data }), { status: 200 }));
+
+    it("narrows config.categoryIds to the active server", () => {
+        expect(forServer(answer).config.categoryIds).toEqual(["a1"]);
+        expect(config.categoryIds).toEqual(["a1", "b1"]);
+    });
+
+    it("leaves an answer without the server's part as it is", () => {
+        const plain = { config };
+        expect(forServer(plain)).toBe(plain);
+    });
+
+    it("copies only the per-server fields", () => {
+        expect(serverCategoriesOf(answer)).toEqual({ serverCategoryIds: ["a1"], unprovenCategoryIds: [], otherServerCategoryIds: ["b1"] });
+    });
+
+    it("applies it to load, save and close", async () => {
+        respond(answer);
+        expect((await getSettings()).config.categoryIds).toEqual(["a1"]);
+        respond(answer);
+        expect((await updateSettings({})).config.categoryIds).toEqual(["a1"]);
+        respond({ ...answer, ok: true, name: "x", removed: {}, rosters: [], missingCategories: [] });
+        expect((await closeCategory("gone")).config.categoryIds).toEqual(["a1"]);
     });
 });

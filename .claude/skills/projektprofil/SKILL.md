@@ -171,6 +171,12 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     nach Server filtern; ohne aktiven Server leer, nie alle Server. Neue Report-Auswahl → Negativ-Test
     mit einem Report eines anderen Servers. Wer ein Log löscht oder umhängt, schreibt den Server auf
     den Report (`deleteLogKeepingReportGuild` / `reportStore.setReportGuild`).
+19. „Kategorie gelöscht" nur mit nachgewiesenem Server (#926, Prod 27.10.2026: Pulse Fresh fehlte in
+    `discordServers.servers`, seine Kategorien galten als gelöscht, Abschließen löschte Daten). Nur
+    `categoryGuild.categoryState()` → `missing` (Bot online, Server konfiguriert und im Cache) darf
+    etwas als gelöscht zeigen oder abschließen lassen; fehlt der Nachweis → `unknown`, nie löschen.
+    `config.categoryIds` gilt für alle Server — Einstellungen zeigen und speichern nur den Teil des
+    aktiven Servers (`mergeServerCategoryIds`), nie die globale Liste je Server.
 
 ## Fach-Agenten
 

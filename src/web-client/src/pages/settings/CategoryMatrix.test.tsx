@@ -23,7 +23,11 @@ vi.mock("../../api", async (orig) => ({
 
 const noop = () => undefined;
 
-function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage, attendance, onAttendance, missing, onCloseCategory, closeBlocked, roles, categoryRoles, hubs, signupChars, onSignupCharacters }: {
+function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage, attendance, onAttendance, missing, onCloseCategory, closeBlocked, roles, categoryRoles, hubs, signupChars, onSignupCharacters, categoryIds, unproven, otherServer }: {
+    /** #926: the active server's categories, those without a proven server, and other servers' ones. */
+    categoryIds?: string[];
+    unproven?: string[];
+    otherServer?: string[];
     /** Characters per signup per category; with onSignupCharacters the card is offered. */
     signupChars?: Record<string, number>;
     onSignupCharacters?: (id: string, count: number) => void;
@@ -48,7 +52,9 @@ function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, langu
         <CategoryMatrix
             categories={[{ id: "c1", name: "Raids Mittwoch" }]}
             roles={roles || [{ id: "r1", name: "Raider" }]}
-            categoryIds={["c1"]}
+            categoryIds={categoryIds || ["c1"]}
+            unproven={unproven}
+            otherServer={otherServer}
             categoryRoles={categoryRoles || { c1: ["r1"] }}
             missing={missing}
             onCloseCategory={onCloseCategory}
@@ -354,6 +360,22 @@ describe("CategoryMatrix: a category's life (#744)", () => {
         expect(within(row).queryByText("unbekannt")).toBeNull();
         await user.click(within(row).getByRole("button", { name: "Kategorie abschließen" }));
         expect(onClose).toHaveBeenCalledWith(gone);
+    });
+
+    // #926 (prod incident 2026-10-27): a category without a proven server is never "deleted"
+    it("marks an active category without a proven server as unclear and never offers to close it", () => {
+        renderPage(<Harness categoryIds={["c1", "f1"]} categoryRoles={{ c1: ["r1"], f1: ["r1"] }} unproven={["f1"]} onCloseCategory={noop} />);
+        const row = document.querySelector('[data-category="f1"]') as HTMLElement;
+        expect(within(row).getByText("Server unklar")).toBeInTheDocument();
+        expect(within(row).queryByText("unbekannt")).toBeNull();
+        expect(within(row).queryByText("in Discord gelöscht")).toBeNull();
+        expect(within(row).queryByRole("button", { name: "Kategorie abschließen" })).toBeNull();
+    });
+
+    it("leaves another server's categories off the page", () => {
+        renderPage(<Harness categoryRoles={{ c1: ["r1"], b1: ["r1"] }} otherServer={["b1"]} />);
+        expect(document.querySelector('[data-category="b1"]')).toBeNull();
+        expect(document.querySelector('[data-category="c1"]')).not.toBeNull();
     });
 
     it("keeps the close action shut while the page has unsaved changes", () => {

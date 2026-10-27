@@ -84,6 +84,7 @@ The groundwork for keeping loot, logs and settings strictly per Discord server.
 - **Linking at once**: `logStore.linkEvent(id, { …, guildId })` moves the log to its raid's server right away (`guildId`, `guildFrom: "event"`, the origin server stays in `postGuildId`); without a known raid server the log's server stays as it is. `unlinkEvent` falls back to the origin server at once, else to the first server. Every caller (`/api/cla` log-link and automatch, `logAutoLink`, `manualLog`) passes the raid's server through `matchableEvents.eventLinkFields`.
 - **Start run** `settingsMigration.migrateLogGuilds`: recomputes every log by the rule on each start and writes only on a change, followed by the line „logs.json: N Log(s) ihrem Discord-Server fest zugeordnet (#917)“. The server list is only read.
 - **Active server of a web request**: still only `web/http/activeGuild.activeGuildFor(req)`.
+- **Raid categories per server** (`services/events/categoryGuild.js`, prod incident 2026-10-27): `config.categoryIds` stays one global list; the settings page shows and saves only the active server's part. A category counts as deleted only when its server is **proven and configured** and the bot sees that server — a server missing from `servers` makes its categories "Server unklar", never deleted and never closable. Details: docs/events.md "Which server a category belongs to".
 
 ## Raid-Übersicht je Kategorie (`/createoverview`)
 

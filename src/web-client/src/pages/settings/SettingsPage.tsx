@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import {
-    getSettings, updateSettings, getIngestTokens, getAvailabilityPanels, getOrgaHubs, type ApiError, type AvailabilityLink, type AvailabilityPanel, type OrgaHub, type OrgaLink,
+    getSettings, updateSettings, serverCategoriesOf, getIngestTokens, getAvailabilityPanels, getOrgaHubs, type ApiError, type AvailabilityLink, type AvailabilityPanel, type OrgaHub, type OrgaLink,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { usePersistedSearchParam } from "../../lib/ui/persistedState";
@@ -192,7 +192,7 @@ export default function SettingsPage() {
 
     // "Kategorie abschließen" is only offered without unsaved changes, so the draft can follow the server.
     const afterClose = (result: CategoryCloseResult) => {
-        setData({ ...data, config: result.config, missingCategories: result.missingCategories });
+        setData({ ...data, ...serverCategoriesOf(result), config: result.config, missingCategories: result.missingCategories });
         setDraft(toDraft(result.config));
         setClosing(null);
         toast(t("settings.categoryClose.done", { name: result.name || t("settings.categoryClose.unknownName") }));
@@ -202,7 +202,7 @@ export default function SettingsPage() {
         setDeactivating(false);
         setSaving(true);
         try {
-            const { config, switchedCategories = [], deactivatedCategories = [] } = await updateSettings({
+            const answer = await updateSettings({
                 // Access config is full-admin-only; sending it as anyone else
                 // would (rightly) be rejected with a 403.
                 ...(data.canManageAccess ? {
@@ -267,7 +267,9 @@ export default function SettingsPage() {
                 categoryPlanning: draft.categoryPlanning,
                 topItems: draft.topItems,
             });
-            setData({ ...data, config });
+            const { config, switchedCategories = [], deactivatedCategories = [] } = answer;
+            // #926: the active server's part of the categories, and what is proven gone there
+            setData({ ...data, ...serverCategoriesOf(answer), ...(answer.missingCategories ? { missingCategories: answer.missingCategories } : {}), config });
             setDraft(toDraft(config));
             toast(t("settings.savedToast"));
             // #738: each switched category started a new section.
@@ -373,6 +375,8 @@ export default function SettingsPage() {
                     roles={data.roles}
                     categoryIds={draft.categoryIds}
                     missing={data.missingCategories || []}
+                    unproven={data.unprovenCategoryIds || []}
+                    otherServer={data.otherServerCategoryIds || []}
                     onCloseCategory={setClosing}
                     closeBlocked={changes.length > 0}
                     categoryRoles={draft.categoryRoles}

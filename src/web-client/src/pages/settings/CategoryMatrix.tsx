@@ -30,6 +30,11 @@ import { WarnIcon } from "../../components/ui/icons";
 // When the bot sees every server and the id is really gone (#744,
 // `missing`), the badge says "in Discord gelöscht" and the row offers
 // "Kategorie abschließen" (CategoryCloseDialog.tsx).
+//
+// #926: the list is the active server's. Categories configured for another
+// server are left out (`otherServer`); one without a proven, configured server
+// shows on the first server with an "unproven" badge and is never closable —
+// the prod incident of 2026-10-27 closed a whole server's categories that way.
 
 export type { CategorySheet } from "./CategoryDetail";
 
@@ -42,6 +47,9 @@ export default function CategoryMatrix(props: CategorySettings & {
     missing?: MissingCategory[];
     onCloseCategory?: (category: MissingCategory) => void;
     closeBlocked?: boolean;
+    /** #926: active categories without a proven server (marked, never closable) and categories of other servers (left out). */
+    unproven?: string[];
+    otherServer?: string[];
     icon: string;
     crumb: string;
 }) {
@@ -50,9 +58,12 @@ export default function CategoryMatrix(props: CategorySettings & {
         categorySetupDms = {}, categoryLanguage = {}, categoryAttendance = {}, categoryAnnounce = {}, categorySheets, categoryPlanning = {}, savedCategoryRoles,
         categoryDiscordEvent = {}, categoryVoiceChannel = {}, categoryLootSystem = {}, categorySignupNotes = {}, categorySignupNoteChannel = {},
         categorySignupCharacters = {}, missing = [], onCloseCategory, closeBlocked = false,
+        unproven = [], otherServer = [],
         onToggleCategory, icon, crumb,
     } = props;
     const missingById = new Map(missing.map((m) => [m.categoryId, m]));
+    const unprovenIds = new Set(unproven);
+    const otherServerIds = new Set(otherServer);
     const t = useT();
     const [showAll, setShowAll] = usePersistedState("settings-categories-all", false);
     const [openId, setOpenId] = useState("");
@@ -82,7 +93,7 @@ export default function CategoryMatrix(props: CategorySettings & {
         ...Object.keys(categoryPlanning),
         // a series or a Loot-Council profile entry is enough to be listed as deleted in Discord (#744)
         ...missing.map((m) => m.categoryId),
-    ];
+    ].filter((id) => !otherServerIds.has(id)); // #926: another server's categories are edited there
     // A category deleted in Discord (#744) is an unknown row (always shown) under the last name the server knows.
     const rows = categoryRows(categories, configured)
         .map((r) => (r.unknown && missingById.has(r.id) ? { ...r, name: missingById.get(r.id)!.name || t("settings.categoryClose.unknownName") } : r));
@@ -194,7 +205,12 @@ export default function CategoryMatrix(props: CategorySettings & {
                                 <Button size="sm" variant="danger" disabled={closeBlocked} onClick={() => onCloseCategory(gone)}>{t("settings.categoryClose.action")}</Button>
                             </span>
                         )}
-                        {cat.unknown && !gone && (
+                        {cat.unknown && !gone && unprovenIds.has(cat.id) && (
+                            <Badge tone="mid" icon={<WarnIcon />} tip={t("settings.categories.unprovenTip")} tipSub={t("settings.categories.unprovenSub")}>
+                                {t("settings.categories.unproven")}
+                            </Badge>
+                        )}
+                        {cat.unknown && !gone && !unprovenIds.has(cat.id) && (
                             <Badge tone="bad" icon={<WarnIcon />} tip={t("settings.categories.unknownTip")} tipSub={t("settings.categories.unknownSub")}>
                                 {t("settings.categories.unknown")}
                             </Badge>
