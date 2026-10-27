@@ -107,9 +107,12 @@ function langField(userId) {
     return lang ? { lang } : {};
 }
 
-/** The servers the bot is on, each tagged with its role and its own label (#895) from the settings. */
+/**
+ * The servers the bot is on, each tagged with its role, its own label (#895)
+ * from the settings and its Discord icon (empty → the client's crest).
+ */
 function sessionGuilds() {
-    return discord.listGuilds().map((g) => ({ ...g, role: guildRole(g.id), label: serverLabel(g.id) }));
+    return discord.listGuilds().map((g) => ({ ...g, role: guildRole(g.id), label: serverLabel(g.id), iconUrl: discord.guildIconUrl(g.id) }));
 }
 
 /** POST /api/session/guild — switch which guild the admin is managing. Body: { guildId }. */

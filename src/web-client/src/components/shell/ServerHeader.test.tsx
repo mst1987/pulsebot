@@ -68,6 +68,22 @@ describe("ServerHeader", () => {
         expect(options.map((o) => o.getAttribute("aria-selected"))).toEqual(["true", "false", "false"]);
     });
 
+    it("shows each server's Discord icon in the head and the list, the crest without one or when it does not load", () => {
+        const withIcons: SessionGuild[] = [
+            { id: "g1", name: "Pulse Raids", iconUrl: "https://cdn.discordapp.com/icons/g1/a.png?size=64" },
+            { id: "g2", name: "Pulse PuGs" },
+        ];
+        renderPage(<ServerHeader guilds={withIcons} activeGuildId="g1" />);
+        const headIcon = headButton().querySelector("img.srv-icon");
+        expect(headIcon).toHaveAttribute("src", "https://cdn.discordapp.com/icons/g1/a.png?size=64");
+        fireEvent.click(headButton());
+        const options = within(screen.getByRole("listbox")).getAllByRole("option");
+        expect(options[0].querySelector("img.srv-icon")).toHaveAttribute("src", "https://cdn.discordapp.com/icons/g1/a.png?size=64");
+        expect(options[1].querySelector("img.srv-icon")).toBeNull(); // no icon: the crest
+        fireEvent.error(headIcon as HTMLImageElement); // the CDN fails: the crest instead
+        expect(headButton().querySelector("img.srv-icon")).toBeNull();
+    });
+
     it("closes the list on Escape and on a click beside it", () => {
         renderPage(<ServerHeader guilds={GUILDS} activeGuildId="g1" />);
         fireEvent.click(headButton());

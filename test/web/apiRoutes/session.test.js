@@ -287,7 +287,7 @@ describe("web/apiRoutes/session", () => {
             // a full admin gets who sees every area
             expect(Object.keys(data.user.audience)).toEqual(AREA_IDS);
             expect(data.csrfToken).toBe("csrf-abc");
-            expect(data.guilds).toEqual([{ id: "g1", name: "Meine Gilde", role: "", label: "" }]);
+            expect(data.guilds).toEqual([{ id: "g1", name: "Meine Gilde", role: "", label: "", iconUrl: "" }]);
             expect(data.activeGuildId).toBe("g1");
             expect(data.areas.map((a) => a.id)).toEqual(AREA_IDS);
         });
@@ -422,7 +422,7 @@ describe("web/apiRoutes/session", () => {
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
             const data = json(res).data;
-            expect(data.guilds).toEqual([{ id: "g1", name: "Meine Gilde", role: "", label: "" }]);
+            expect(data.guilds).toEqual([{ id: "g1", name: "Meine Gilde", role: "", label: "", iconUrl: "" }]);
             expect(data.activeGuildId).toBe("g1");
             expect(data.user.access.raids).toEqual({ read: true, write: false });
         });
