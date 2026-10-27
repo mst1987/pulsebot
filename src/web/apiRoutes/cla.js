@@ -28,6 +28,7 @@ const { listAllAssignments } = require("../../stores/raiderCharactersStore");
 const { loadMatchableEvents, eventLinkFields } = require("../../services/logcheck/matchableEvents");
 const { linkLogByUrl } = require("../logcheck/manualLog");
 const { linkConflict, inVersionList } = require("../../services/logcheck/logVersion");
+const { logChannelsOf } = require("../../services/logcheck/logChannelSettings");
 const { resolveVersionQuery } = require("../../services/events/mainVersion");
 const discord = require("../../services/discord/discord");
 
@@ -107,7 +108,7 @@ const getClaData = withUser({}, async ({ req, res, query }) => {
         counts,
         autoMatchCount: matchEvents.error ? 0 : autoMatches(logs.filter((l) => !l.eventId && inVersion(l)), matchEvents.events).length,
         matchEventsError: matchEvents.error,
-        logChannelsConfigured: (config.logChannelIds || []).length > 0,
+        logChannelsConfigured: logChannelsOf(guildId, { config }).length > 0,
         activeGuildId: guildId,
         version: versionId,
     });

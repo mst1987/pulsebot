@@ -3,11 +3,13 @@
 // of:
 //
 //   1. the raid it is linked to (versionOfEvent)
-//   2. the host of its link: the version whose Warcraft-Logs site
+//   2. the log channel it was posted in (#921): the version the orga set for
+//      that channel (serverSettings[guildId].logChannels, logChannelSettings.js)
+//   3. the host of its link: the version whose Warcraft-Logs site
 //      (Einstellungen → Spielversion, versionSettings' wclSite) is that host.
 //      Which host belongs to which version is a setting, never a table here; a
 //      host no version names, or one two versions share, tells nothing
-//   3. LEGACY_VERSION (TBC) — also what every log and report stored before
+//   4. LEGACY_VERSION (TBC) — also what every log and report stored before
 //      #746 counts as
 //
 // Whether the log check CAN read a version is logcheckCapability (#747): its
@@ -64,15 +66,17 @@ function linkVersion(link, { config } = {}) {
 
 /**
  * The version of a report about to be built: the linked raid's, else the
- * one handed in (a tracked log's stored version), else the link's host's,
- * else TBC.
- * @param {{ event?: object, versionId?: string, host?: string, config?: object }} src
- * @returns {{ versionId: string, from: "event"|"log"|"host"|"default" }}
+ * one handed in (a tracked log's stored version), else its log channel's
+ * (#921), else the link's host's, else TBC.
+ * @param {{ event?: object, versionId?: string, channelVersionId?: string, host?: string, config?: object }} src
+ * @returns {{ versionId: string, from: "event"|"log"|"channel"|"host"|"default" }}
  */
-function resolveReportVersion({ event, versionId, host, config } = {}) {
+function resolveReportVersion({ event, versionId, channelVersionId, host, config } = {}) {
     if (event) return { versionId: versionOfEvent(event, { config }), from: "event" };
     const own = knownVersion(versionId);
     if (own) return { versionId: own, from: "log" };
+    const byChannel = knownVersion(channelVersionId);
+    if (byChannel) return { versionId: byChannel, from: "channel" };
     const byHost = versionOfHost(host, { config });
     if (byHost) return { versionId: byHost, from: "host" };
     return { versionId: LEGACY_VERSION, from: "default" };
@@ -95,8 +99,14 @@ function knownLogVersion(log, { config } = {}) {
     return linkVersion(l.link || l.wclUrl || "", { config }).hostVersionId;
 }
 
-/** The version the category of a log's channel plays, "" without a category. */
+/**
+ * The version a log's channel suggests, for the tie-break of the raid match:
+ * the version set for the log channel itself (#921, `channelVersionId`), else
+ * the one its category plays, "" without either.
+ */
 function categoryVersion(log, { config } = {}) {
+    const own = knownVersion(log && log.channelVersionId);
+    if (own) return own;
     const cat = str(log && log.categoryId);
     return cat ? mainVersionFor({ categoryId: cat, config }) : "";
 }

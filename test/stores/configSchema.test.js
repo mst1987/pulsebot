@@ -148,7 +148,15 @@ function after897(config) {
 }
 // #917 adds the settings per Discord server (none stored: empty).
 const after917 = (config) => ({ ...config, serverSettings: {} });
-const schemaOnly = frozen.map((g) => ({ ...g, config: after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))))))))) }));
+// #921 moves the log channels into the server settings: the global logChannelIds is no default any more,
+// a file that still holds one reads it (as a clean id list) until the bot hands it to the servers after login.
+function after921(config, stored = {}) {
+    if (stored && Object.prototype.hasOwnProperty.call(stored, "logChannelIds")) return config;
+    const rest = { ...config };
+    delete rest.logChannelIds;
+    return rest;
+}
+const schemaOnly = frozen.map((g, i) => ({ ...g, config: after921(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))))))))), cases[i].config) }));
 const golden = schemaOnly.map((g, i) => ({ ...g, config: afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config) }));
 const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)"));
 

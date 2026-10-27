@@ -446,6 +446,52 @@ describe("web/apiRoutes/settings", () => {
                 expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ categoryVersion: {} });
             });
 
+            describe("the log channels of the active server (#921)", () => {
+                const discord = require("../../../src/services/discord/discord");
+                beforeEach(() => {
+                    auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                    auth.checkCsrf.mockReturnValue(true);
+                    settingsStore.getConfig.mockReturnValue({
+                        mainVersion: "tbc",
+                        categoryVersion: { catF: "forever" },
+                        serverSettings: { "guild-1": { logChannels: [{ channelId: "old", versionId: "classic" }] } },
+                    });
+                    discord.listAllChannels.mockReturnValue([{ id: "inF", parentId: "catF" }, { id: "loose", parentId: null }]);
+                });
+                afterEach(() => {
+                    activeGuildFor.mockReturnValue("");
+                    settingsStore.getConfig.mockReturnValue({});
+                    discord.listAllChannels.mockReturnValue([]);
+                });
+
+                it("saves the list under the active server: bare ids keep or derive their version, objects set it", async () => {
+                    activeGuildFor.mockReturnValue("guild-1");
+                    await patch("/api/settings", { logChannels: ["old", "inF", "loose", { channelId: "set", versionId: "forever" }] });
+                    expect(discord.listAllChannels).toHaveBeenCalledWith("guild-1");
+                    expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({
+                        serverSettings: { "guild-1": { logChannels: [
+                            { channelId: "old", versionId: "classic" },
+                            { channelId: "inF", versionId: "forever" },
+                            { channelId: "loose", versionId: "tbc" },
+                            { channelId: "set", versionId: "forever" },
+                        ] } },
+                    });
+                });
+
+                it("an empty list clears the server's channels", async () => {
+                    activeGuildFor.mockReturnValue("guild-1");
+                    await patch("/api/settings", { logChannels: [] });
+                    expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ serverSettings: { "guild-1": { logChannels: [] } } });
+                });
+
+                it("refuses the list without an active server", async () => {
+                    const res = await patch("/api/settings", { logChannels: ["old"] });
+                    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    expect(json(res).error.code).toBe("invalid_log_channels");
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+            });
+
             describe("a fixed version per category (#738)", () => {
                 const seriesStore = require("../../../src/stores/eventSeriesStore");
                 const { onCategoryVersionSwitch } = require("../../../src/services/events/categorySwitch");

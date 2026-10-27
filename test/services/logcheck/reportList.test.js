@@ -241,4 +241,9 @@ describe("prepareClaList — the Log-Auswertung's one list", () => {
         expect(row.hostVersionId).toBe("");
         expect(claRowFromLog({ id: "y", reportId: "Q", hostVersionId: "forever" }, null).hostVersionId).toBe("forever");
     });
+
+    it("carries the version of the log's channel (#921)", () => {
+        expect(claRowFromLog({ id: "x", reportId: "Q", channelVersionId: "forever" }, null).channelVersionId).toBe("forever");
+        expect(claRowFromLog({ id: "x", reportId: "Q" }, null).channelVersionId).toBe("");
+    });
 });

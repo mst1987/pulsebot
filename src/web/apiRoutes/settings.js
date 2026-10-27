@@ -35,6 +35,7 @@ const versionSettings = require("../../services/events/versionSettings");
 const { capabilityMatrix } = require("../../services/events/versionCapabilities");
 const { isVersionFeature, normalizeDisabled } = require("../../config/versionFeatures");
 const { mainVersionFor } = require("../../services/events/mainVersion");
+const { logChannelsOf, logChannelsFromBody } = require("../../services/logcheck/logChannelSettings");
 const { normalizeCategoryPlanning } = require("../../services/events/planning");
 const { normalizeCategorySignupCharacters } = require("../../services/signups/signupCharacters");
 const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../services/events/contentVersions");
@@ -613,7 +614,18 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (body.applicationChannelId !== undefined) partial.applicationChannelId = String(body.applicationChannelId).trim();
     if (body.categoryIds !== undefined) partial.categoryIds = asStringArray(body.categoryIds);
     if (body.categoryRoles !== undefined && typeof body.categoryRoles === "object") partial.categoryRoles = body.categoryRoles;
-    if (body.logChannelIds !== undefined) partial.logChannelIds = asStringArray(body.logChannelIds);
+    // #921: the log channels of the active server, sent whole (ids or { channelId, versionId }).
+    if (body.logChannels !== undefined) {
+        const guildId = activeGuildFor(req);
+        if (!guildId) return error(res, 400, "invalid_log_channels", "Kein aktiver Discord-Server.");
+        const config = getConfig();
+        const parents = new Map((discord.listAllChannels(guildId) || []).map((c) => [c.id, c.parentId || ""]));
+        const logChannels = logChannelsFromBody(body.logChannels, {
+            current: logChannelsOf(guildId, { config }), parentOf: (id) => parents.get(id) || "", config,
+        });
+        partial.serverSettings = { ...(partial.serverSettings || {}) };
+        partial.serverSettings[guildId] = { ...(partial.serverSettings[guildId] || {}), logChannels };
+    }
     if (body.raidDefaults !== undefined && typeof body.raidDefaults === "object") partial.raidDefaults = body.raidDefaults;
     // blizzard: only the known fields, the secret only when sent (omit = keep, "" = clear)
     if (body.blizzard !== undefined && typeof body.blizzard === "object") {

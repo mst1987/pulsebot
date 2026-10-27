@@ -161,7 +161,7 @@ describe("functions", () => {
 describe("channels", () => {
     const config = {
         applicationChannelId: "",
-        logChannelIds: ["300000000000000001"],
+        serverSettings: { [EVENT]: { logChannels: [{ channelId: "300000000000000001", versionId: "tbc" }] } },
         discordServers: { ...SERVERS, talkPingChannelId: "300000000000000002", guildBankChannelId: "300000000000000003" },
     };
 

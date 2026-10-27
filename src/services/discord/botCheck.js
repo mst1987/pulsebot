@@ -18,6 +18,7 @@ const eventStore = require("../../stores/eventStore");
 const inviteStore = require("../../stores/discordInviteStore");
 const { serverIds, roleMessageGuild, links } = require("./guildRoles");
 const pugRoleGuard = require("./pugRoleGuard");
+const { allLogChannels } = require("../logcheck/logChannelSettings");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -73,7 +74,8 @@ function channelPurposes(config) {
     const out = [];
     const add = (key, label, channelId, needs, extra = {}) => out.push({ key, label, channelId: str(channelId), needs, ...extra });
     add("applications", "Bewerbungen", config.applicationChannelId, [...POST, "CreatePublicThreads", "SendMessagesInThreads"], { required: true });
-    (config.logChannelIds || []).forEach((id) => add("logs", "Log-Kanal", id, [...POST, "ReadMessageHistory"]));
+    // #921: each server's own log channels, pinned to that server
+    for (const c of allLogChannels({ config })) add("logs", "Log-Kanal", c.channelId, [...POST, "ReadMessageHistory"], { guildId: c.guildId });
     add("signupNotes", "Vielleicht und Absagen", servers.signupNoteChannelId, POST);
     for (const id of new Set(Object.values(config.categorySignupNoteChannel || {}).map(str))) add("signupNotes", "Vielleicht und Absagen (Kategorie)", id, POST);
     add("guildBank", "Gildenbank-Anfragen", servers.guildBankChannelId, POST);
