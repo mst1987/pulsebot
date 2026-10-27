@@ -8,6 +8,8 @@
 //     becomes a template without size (raidTemplateStore.migrateLegacyTemplates).
 //   - role-messages.json (#895), then config.json, discordServers + roleSync
 //     (#897) - in this order, see the last two entries below.
+//   - config.json, rights (#925): the global role/base/account/orga/bot-command
+//     rights are copied onto every server block, then dropped from the top level.
 //   - config.json, raidDefaults.templateId: the old global default (a Raid-Helper
 //     template id) is handed to every raid category as `categoryRaidTemplate`.
 //
@@ -130,6 +132,7 @@ const path = require("path");
 const { isSnowflake } = require("../utils/ids");
 const {
     CONFIG_DEFAULTS, normalizeCategoryVersion, normalizeDiscordServers, normalizeRoleSync, roleSyncContext, MAX_SERVERS: MAX_EVENT_GUILDS,
+    normalizeConfig, serverSettingGuildIds,
 } = require("./configSchema");
 const { versionSettingsOf, versionsWithDefaults, fillDefaults } = require("./versionSettingsSchema");
 const { LEGACY_VERSION } = require("../config/gameVersions");
@@ -242,6 +245,55 @@ function migrateDiscordFederation() {
         out.push(`config.json: WARNUNG - der bisherige Talk-Server ${talkGuildId} passt nicht mehr in die Serverliste (höchstens ${MAX_EVENT_GUILDS}); ${kept - roleSync.length} Rollen-Paar(e) zu ihm entfallen; Verknüpfungen auf ihn bleiben, nur solche von ihm aus entfallen (#897)`);
     }
     return out;
+}
+
+/** The rights that live per server since #925 (serverAccess.ACCESS_KEYS; listed here, that module would close a require cycle). */
+const SERVER_ACCESS_KEYS = ["rolePermissions", "baseAccess", "userPermissions", "orgaRoleIds", "botCommandAccess"];
+
+/**
+ * config.json, rights per server (#925): the rights of before - role grants,
+ * base access, account grants, orga roles, bot command rules, all global - are
+ * copied onto every server (server list, link targets, home guild), so no role
+ * gains or loses anything on any server. A server that already holds a key keeps
+ * its value. The global fields are dropped only after the copies are written and
+ * read back: a start that dies in between finds the copies and only drops then.
+ * Nothing global left = nothing to do (idempotent, writes only on a change).
+ * Must run after migrateDiscordFederation(), which settles the server list.
+ * @returns {string[]}
+ */
+function migrateServerPermissions() {
+    const stored = configStore.readStored();
+    const present = SERVER_ACCESS_KEYS.filter((key) => stored[key] !== undefined);
+    if (!present.length) return [];
+    const cfg = normalizeConfig(stored);
+    const guildIds = [...serverSettingGuildIds(cfg.discordServers, cfg.guildId)];
+    if (!guildIds.length) {
+        return ["config.json: WARNUNG - Rechte (#925) nicht je Server übernommen: kein Discord-Server eingetragen; die bisherigen Rechte bleiben gespeichert, bis ein Server eingetragen ist"];
+    }
+    const isMap = (value) => value && typeof value === "object" && !Array.isArray(value);
+    const blocks = isMap(stored.serverSettings) ? { ...stored.serverSettings } : {};
+    let copied = 0;
+    for (const gid of guildIds) {
+        const block = isMap(blocks[gid]) ? { ...blocks[gid] } : {};
+        for (const key of present) {
+            if (block[key] !== undefined) continue;
+            block[key] = structuredClone(stored[key]);
+            copied += 1;
+        }
+        blocks[gid] = block;
+    }
+    if (copied) configStore.writeStored({ ...stored, serverSettings: blocks });
+    // drop the global fields only once every server holds its copy on disk
+    const written = configStore.readStored();
+    const writtenBlocks = isMap(written.serverSettings) ? written.serverSettings : {};
+    const complete = guildIds.every((gid) => isMap(writtenBlocks[gid]) && present.every((key) => writtenBlocks[gid][key] !== undefined));
+    if (!complete) {
+        return ["config.json: WARNUNG - Rechte (#925) je Server nicht vollständig gespeichert; die bisherigen Rechte bleiben, der nächste Start versucht es erneut"];
+    }
+    const next = { ...written };
+    for (const key of present) delete next[key];
+    configStore.writeStored(next);
+    return ["config.json: Rechte je Server (#925) - " + present.join(", ") + " auf " + guildIds.length + " Server übernommen, globale Felder entfernt (Voll-Admin-Rollen bleiben global)"];
 }
 
 /**
@@ -616,6 +668,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         // Order matters (#897): the role messages read the old talk server, the federation step drops it.
         changes.push(...migrateRoleMessageGuilds());
         changes.push(...migrateDiscordFederation());
+        changes.push(...migrateServerPermissions());
         changes.push(...migrateConfig());
         const plans = raidplanStore.migrateEventDefaults({ instanceIdsOf: (plan) => (eventStore.getEvent(plan.eventId) || {}).instanceIds || [] });
         if (plans) changes.push(raidplanDefaultsLine(plans));
@@ -642,6 +695,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateReportGuilds, migrateDiscordFederation, raidplanDefaultsLine,
+    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateReportGuilds, migrateDiscordFederation, migrateServerPermissions, raidplanDefaultsLine,
     migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

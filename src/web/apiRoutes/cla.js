@@ -11,7 +11,7 @@ const { q } = require("../http/apiParams");
 const { activeGuildFor } = require("../http/activeGuild");
 const { listReports, deleteReport, getReport, saveReport } = require("../../stores/reportStore");
 const { prepareClaList, claRowFromLog, annotateLogCategories } = require("../../services/logcheck/reportList");
-const { deleteLogKeepingReportGuild } = require("../../services/logcheck/reportGuild");
+const { deleteLogKeepingReportGuild, reportGuild } = require("../../services/logcheck/reportGuild");
 const { contentsForText } = require("../../config/tbcContent");
 const {
     listLogs, getLog, getByReportRefId, clearEvaluation, clearSection, evaluatedSections,
@@ -31,6 +31,35 @@ const { linkLogByUrl } = require("../logcheck/manualLog");
 const { linkConflict, inVersionList } = require("../../services/logcheck/logVersion");
 const { resolveVersionQuery } = require("../../services/events/mainVersion");
 const discord = require("../../services/discord/discord");
+
+/**
+ * Whether a log or an evaluation may be read or changed from the page (#925):
+ * only on the server it belongs to - the rights of an orga hold on their own
+ * server, never on another. A full admin may act on every server.
+ * @param {object} user the session user (withUser)
+ * @param {object} req the request (its active server)
+ * @param {string} recordGuildId the server of the log / report
+ */
+function onActiveServer(user, req, recordGuildId) {
+    if (user && user.isAdmin) return true;
+    const guildId = activeGuildFor(req);
+    return !!guildId && String(recordGuildId || "") === String(guildId);
+}
+
+/** The server a report belongs to (the log it came from decides, reportGuild.js). */
+function guildOfReport(reportId, report) {
+    return reportGuild(report || getReport(reportId) || { id: reportId }, listLogs());
+}
+
+/** A log of another server answers like an unknown one - it does not exist here. */
+function logNotHere(res) {
+    return error(res, 404, "not_found", "Log nicht gefunden.");
+}
+
+/** An evaluation of another server answers like an unknown one. */
+function reportNotHere(res) {
+    return error(res, 404, "not_found", "Auswertung nicht gefunden.");
+}
 
 /**
  * The game version a request of this page is about (#741): `?version=`, else
@@ -173,9 +202,10 @@ const reportStatus = withUser({}, async ({ res, query }) => {
  * The log it came from is kept but falls back to "offen", so the same log can be
  * evaluated again; its raid assignment is untouched.
  */
-const deleteReportHandler = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const deleteReportHandler = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const reportId = q.str(body, "reportId");
     const log = getByReportRefId(reportId);
+    if (!onActiveServer(user, req, log ? log.guildId : guildOfReport(reportId))) return reportNotHere(res);
     const removed = deleteReport(reportId);
     if (!removed && !log) return error(res, 400, "not_found", "Auswertung nicht gefunden.");
     if (log) clearEvaluation(log.id);
@@ -192,10 +222,11 @@ const deleteReportHandler = withUser({ csrf: true, body: true }, async ({ body, 
  * POST /api/cla/report-unlink — body: { reportId }. Removes the raid assignment
  * of the log this report was generated from. The report itself stays.
  */
-const unlinkReport = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const unlinkReport = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const reportId = q.str(body, "reportId");
     const log = getByReportRefId(reportId);
     if (!log) return error(res, 400, "not_found", "Zu dieser Auswertung gibt es kein Log.");
+    if (!onActiveServer(user, req, log.guildId)) return reportNotHere(res);
     if (!unlinkLogEvent(log.id)) return error(res, 400, "not_linked", "Keine Zuordnung vorhanden.");
     ok(res, { reportId, logId: log.id, message: "Zuordnung entfernt." });
 });
@@ -209,7 +240,7 @@ const unlinkReport = withUser({ csrf: true, body: true }, async ({ body, res }) 
  * timeout, which reached the client as a gateway error instead of a result. The
  * caller polls GET /api/cla/eval-status for the outcome.
  */
-const evalLog = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const evalLog = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const section = (q.str(body, "section") || "cla") === "rpb" ? "rpb" : "cla";
     const logId = q.str(body, "logId");
     if (!logId) return error(res, 400, "eval_failed", "Kein Log angegeben.");
@@ -218,6 +249,7 @@ const evalLog = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     // instead of having to poll for a failure that is already known.
     const log = getLog(logId);
     if (!log) return error(res, 400, "eval_failed", "Log nicht gefunden.");
+    if (!onActiveServer(user, req, log.guildId)) return logNotHere(res);
     if (evaluatedSections(log).includes(section)) {
         return ok(res, {
             alreadyEvaluated: true, url: log.reportUrl, section, status: "done",
@@ -240,12 +272,13 @@ const evalLog = withUser({ csrf: true, body: true }, async ({ body, res }) => {
  * result next to it. Was it the last half, the report page goes away entirely
  * and the log falls back to "offen".
  */
-const resetEval = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const resetEval = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const section = q.str(body, "section") === "rpb" ? "rpb" : "cla";
     const logId = q.str(body, "logId");
 
     const log = getLog(logId);
     if (!log) return error(res, 400, "not_found", "Log nicht gefunden.");
+    if (!onActiveServer(user, req, log.guildId)) return logNotHere(res);
     if (!evaluatedSections(log).includes(section)) {
         return error(res, 400, "not_evaluated", `Für dieses Log gibt es keine ${section.toUpperCase()}-Auswertung.`);
     }
@@ -281,9 +314,12 @@ const resetEval = withUser({ csrf: true, body: true }, async ({ body, res }) => 
  * A job that is gone (server restarted, or it finished long ago) is answered from
  * the persisted state instead, so the UI still resolves to the right result.
  */
-const evalStatus = withUser({}, async ({ res, query }) => {
+const evalStatus = withUser({}, async ({ user, req, res, query }) => {
     const logId = q.str(query, "logId");
     const section = (q.str(query, "section") || "cla") === "rpb" ? "rpb" : "cla";
+    // a log of another server: not even whether it is being evaluated (#925)
+    const tracked = getLog(logId);
+    if (tracked && !onActiveServer(user, req, tracked.guildId)) return logNotHere(res);
 
     const job = getJob(logId, section);
     if (job) {
@@ -294,9 +330,8 @@ const evalStatus = withUser({}, async ({ res, query }) => {
     }
 
     // no live job — fall back to what was persisted
-    const log = getLog(logId);
-    if (log && evaluatedSections(log).includes(section)) {
-        return ok(res, { status: "done", url: log.reportUrl, id: log.reportRefId, section });
+    if (tracked && evaluatedSections(tracked).includes(section)) {
+        return ok(res, { status: "done", url: tracked.reportUrl, id: tracked.reportRefId, section });
     }
     ok(res, { status: "unknown", section });
 });
@@ -312,18 +347,21 @@ const scanLogs = withUser({ csrf: true }, async ({ req, res }) => {
 });
 
 /** POST /api/cla/log-delete — body: { logId }. Removes a tracked log from the list. */
-const deleteLogHandler = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const deleteLogHandler = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const logId = q.str(body, "logId");
+    const log = getLog(logId);
+    if (log && !onActiveServer(user, req, log.guildId)) return logNotHere(res);
     deleteLogKeepingReportGuild(logId);
     ok(res, { logId });
 });
 
 /** POST /api/cla/log-link — body: { logId, eventId }. Assigns a log to its event. */
-const linkLog = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
+const linkLog = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
     const logId = q.str(body, "logId");
     const eventId = q.str(body, "eventId");
     const log = getLog(logId);
     if (!log) return error(res, 400, "not_found", "Log nicht gefunden.");
+    if (!onActiveServer(user, req, log.guildId)) return logNotHere(res);
     if (!eventId) return error(res, 400, "no_event", "Kein Event gewählt.");
     // Re-resolve the event on the server; never trust the label posted by the client.
     const { events, error: loadError } = await loadMatchableEvents(activeGuildFor(req));
@@ -367,8 +405,10 @@ const linkLogUrl = withUser({ csrf: true, body: true }, async ({ body, req, res 
 });
 
 /** POST /api/cla/log-unlink — body: { logId }. Removes a log's event assignment. */
-const unlinkLog = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const unlinkLog = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const logId = q.str(body, "logId");
+    const log = getLog(logId);
+    if (log && !onActiveServer(user, req, log.guildId)) return logNotHere(res);
     const removed = unlinkLogEvent(logId);
     if (!removed) return error(res, 400, "not_linked", "Keine Zuordnung vorhanden.");
     ok(res, { logId, message: "Zuordnung entfernt." });
@@ -402,10 +442,10 @@ const autoMatchLogs = withUser({ csrf: true }, async ({ req, res, query }) => {
  * GET /api/cla/recommendations?id=<reportId> — the report's recommendations with
  * the raid lead's review laid over them (approved / rejected / undecided, own text).
  */
-const getRecommendations = withUser({}, async ({ res, query }) => {
+const getRecommendations = withUser({}, async ({ user, req, res, query }) => {
     const reportId = q.str(query, "id");
     const report = reportId ? getReport(reportId) : null;
-    if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
+    if (!report || !onActiveServer(user, req, guildOfReport(reportId, report))) return reportNotHere(res);
     ok(res, {
         reportId,
         title: report.title || "",
@@ -419,10 +459,10 @@ const getRecommendations = withUser({}, async ({ res, query }) => {
  * lead's verdict on one finding. Nothing is sent to anyone from here; approval
  * is what the later send step reads.
  */
-const reviewRecommendation = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+const reviewRecommendation = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const reportId = q.str(body, "reportId");
     const report = reportId ? getReport(reportId) : null;
-    if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
+    if (!report || !onActiveServer(user, req, guildOfReport(reportId, report))) return reportNotHere(res);
     const scope = body.scope === "raid" ? "raid" : "player";
     const key = q.str(body, "key");
     const player = q.str(body, "player");
@@ -453,10 +493,10 @@ const reviewRecommendation = withUser({ csrf: true, body: true }, async ({ user,
  * GET /api/cla/recommendations/send?id=<reportId> — per raider: approved
  * points, whether a Discord account is assigned, when they were last sent.
  */
-const recommendationSendStatus = withUser({}, async ({ res, query }) => {
+const recommendationSendStatus = withUser({}, async ({ user, req, res, query }) => {
     const reportId = q.str(query, "id");
     const report = reportId ? getReport(reportId) : null;
-    if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
+    if (!report || !onActiveServer(user, req, guildOfReport(reportId, report))) return reportNotHere(res);
     ok(res, { reportId, players: sendStatus(report, listAllAssignments()) });
 });
 
@@ -466,10 +506,10 @@ const recommendationSendStatus = withUser({}, async ({ res, query }) => {
  * Already-sent, unchanged sets are skipped unless `force`; raiders without an
  * assigned account are listed, never guessed.
  */
-const sendRecommendations = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+const sendRecommendations = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const reportId = q.str(body, "reportId");
     const report = reportId ? getReport(reportId) : null;
-    if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
+    if (!report || !onActiveServer(user, req, guildOfReport(reportId, report))) return reportNotHere(res);
     if (!discord.getClient()) return error(res, 503, "bot_offline", "Bot nicht verbunden – DMs können gerade nicht gesendet werden.");
     const only = Array.isArray(body.players) ? body.players.map((n) => String(n || "").trim()).filter(Boolean) : null;
     const result = await sendApproved(report, {
@@ -490,10 +530,10 @@ const PHRASE_SECTION = "phrase";
  * background; the client polls the status. Needs the Anthropic key from
  * Einstellungen → Verbindungen → KI-Formulierung.
  */
-const phraseRecommendations = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const phraseRecommendations = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const reportId = q.str(body, "reportId");
     const report = reportId ? getReport(reportId) : null;
-    if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
+    if (!report || !onActiveServer(user, req, guildOfReport(reportId, report))) return reportNotHere(res);
     const settings = (getConfig().anthropic) || {};
     if (!settings.apiKey) return error(res, 400, "no_api_key", "Kein Anthropic-API-Key hinterlegt (Einstellungen → Verbindungen → KI-Formulierung).");
     const only = Array.isArray(body.players) ? body.players.map((n) => String(n || "").trim()).filter(Boolean) : null;
@@ -508,10 +548,10 @@ const phraseRecommendations = withUser({ csrf: true, body: true }, async ({ body
 });
 
 /** GET /api/cla/recommendations/phrase?id=<reportId> — the job state plus the report's last phrasing record. */
-const phraseStatus = withUser({}, async ({ res, query }) => {
+const phraseStatus = withUser({}, async ({ user, req, res, query }) => {
     const reportId = q.str(query, "id");
     const report = reportId ? getReport(reportId) : null;
-    if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
+    if (!report || !onActiveServer(user, req, guildOfReport(reportId, report))) return reportNotHere(res);
     const job = getJob(reportId, PHRASE_SECTION);
     ok(res, { reportId, job, last: report.recommendationPhrase || null, hasApiKey: !!((getConfig().anthropic || {}).apiKey) });
 });

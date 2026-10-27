@@ -22,9 +22,10 @@
 // docs/role-messages.md the overview.
 const { ButtonBuilder, ButtonStyle, MessageFlags, PermissionsBitField, TextDisplayBuilder } = require("discord.js");
 const discord = require("./discord");
-const { serverIds, resolveServer, roleMessageGuild } = require("./guildRoles");
+const { resolveServer, roleMessageGuild } = require("./guildRoles");
 const { privilegedReason, roleProblem, changeSelfRole } = require("./selfRole");
 const { ruleFor, resolveBotAccess, eventMemberRoles } = require("./botAccess");
+const { configForGuild } = require("./serverAccess");
 const { langOfInteraction } = require("./botLanguage");
 const store = require("../../stores/roleMessageStore");
 const { getConfig } = require("../../stores/configStore");
@@ -414,14 +415,17 @@ function resetCooldowns() {
 
 /**
  * Whether the user may use the role messages: the Bot-Befehle rule of `rolemsg`, the
- * same one bot.js checks before the button (botAccess.guardInteraction). "everyone"
- * needs no lookup; otherwise the roles on the first server count (as in botAccess).
+ * same one bot.js checks before the button (botAccess.guardInteraction). Since #925 the
+ * rule and the roles of the server the message is on count - a role on another server
+ * opens nothing here. "everyone" needs no lookup.
  */
-async function mayUse(user, guild, { commands, config }) {
+async function mayUse(user, guild, { commands, config: stored }) {
+    const guildId = str(guild && guild.id);
+    const config = configForGuild(stored, guildId);
     const rule = ruleFor(BUTTON_PREFIX, { commands, config });
     if (rule.mode === "everyone") return true;
     const member = guild.members && guild.members.cache ? guild.members.cache.get(str(user.id)) : null;
-    const roleIds = await eventMemberRoles({ user, guild, member }, serverIds(config)[0] || "");
+    const roleIds = await eventMemberRoles({ user, guild, member }, guildId);
     return resolveBotAccess(BUTTON_PREFIX, { id: str(user.id), roleIds }, { commands, config }).allowed;
 }
 
