@@ -55,6 +55,14 @@ describe("stores/roleMessageStore", () => {
         expect(saved.roles).toEqual([{ roleId: "200000000000000002", emoji: "✅", label: "Hi" }]);
     });
 
+    it("keeps the guildId and drops the old guildSide once a server is set (#895)", () => {
+        const saved = store.saveMessage({ ...ENTRY, guildId: "900000000000000002" });
+        expect(saved.guildId).toBe("900000000000000002");
+        expect(saved.guildSide).toBeUndefined();
+        const legacy = store.saveMessage(ENTRY);
+        expect(legacy).toMatchObject({ guildId: "", guildSide: "talk" });
+    });
+
     it("hands out copies: changing one never changes the store", () => {
         const saved = store.saveMessage(ENTRY);
         saved.roles[0].label = "changed";

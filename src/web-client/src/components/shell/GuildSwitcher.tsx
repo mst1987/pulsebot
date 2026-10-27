@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { switchGuild, type ApiError, type GuildRole, type SessionGuild } from "../../api";
+import { switchGuild, type ApiError, type SessionGuild } from "../../api";
 import { useToast } from "./Jobs";
 import WowIcon from "../ui/WowIcon";
 import Badge from "../ui/Badge";
@@ -8,20 +8,13 @@ import { t, useT } from "../../i18n";
 // The guild crest in front of every form of the switcher.
 const GUILD_ICON = "inv_misc_tabardpvp_01";
 
-// The fixed role a server has (Einstellungen → Verbindungen → Discord-Server).
-// The switcher still offers every server the bot is on; the badge only says
-// which of them is the event and which the talk server.
-function roleBadge(role: "event" | "talk"): { label: string; tip: string; tipSub: string } {
-    return role === "event"
-        ? { label: t("shell.guild.roleEvent"), tip: t("shell.guild.roleEventTip"), tipSub: t("shell.guild.roleEventSub") }
-        : { label: t("shell.guild.roleTalk"), tip: t("shell.guild.roleTalkTip"), tipSub: t("shell.guild.roleTalkSub") };
-}
-
-function RoleBadge({ role }: { role?: GuildRole }) {
-    if (!role) return null;
-    const b = roleBadge(role);
+// The orga's own short name of a server of the server list (Einstellungen →
+// Discord-Server, #895). The switcher still offers every server the bot is on;
+// servers have no fixed event/talk role any more, so only a label is shown.
+function LabelBadge({ guild }: { guild?: SessionGuild }) {
+    if (!guild || !guild.label) return null;
     // neutral (design C): which server this is, not a state; the colour stays free for states
-    return <Badge tip={b.tip} tipSub={b.tipSub}>{b.label}</Badge>;
+    return <Badge tip={t("shell.guild.labelTip")} tipSub={t("shell.guild.labelSub")}>{guild.label}</Badge>;
 }
 
 // Topbar server switcher — mirrors src/web/renderAdmin.js's renderServerBar(),
@@ -48,7 +41,7 @@ export default function GuildSwitcher({ guilds, activeGuildId }: {
             <span className="guild-sel is-single">
                 <WowIcon name={GUILD_ICON} size={22} />
                 <span>{guilds[0].name}</span>
-                <RoleBadge role={guilds[0].role} />
+                <LabelBadge guild={guilds[0]} />
             </span>
         );
     }
@@ -72,9 +65,9 @@ export default function GuildSwitcher({ guilds, activeGuildId }: {
             <WowIcon name={GUILD_ICON} size={22} />
             <select value={activeGuildId} onChange={onChange} disabled={busy} aria-label={t("shell.guild.choose")}>
                 {!activeGuildId && <option value="">{t("shell.guild.choose")}</option>}
-                {guilds.map((g) => <option key={g.id} value={g.id}>{g.name}{g.role ? ` · ${roleBadge(g.role).label}` : ""}</option>)}
+                {guilds.map((g) => <option key={g.id} value={g.id}>{g.name}{g.label ? ` · ${g.label}` : ""}</option>)}
             </select>
-            <RoleBadge role={guilds.find((g) => g.id === activeGuildId)?.role} />
+            <LabelBadge guild={guilds.find((g) => g.id === activeGuildId)} />
             {!activeGuildId && (
                 <Badge tone="mid" tip={t("shell.guild.notChosen")} tipSub={t("shell.guild.notChosenSub")}>
                     {t("shell.guild.notChosen")}

@@ -1,9 +1,16 @@
 // The members API (src/web/apiRoutes/discordMembers.js) through the real router: area
-// `channels` read, the side passed on, the detail's 400 and its `gone` answer.
+// `channels` read, the server (guildId) passed on, 400 unknown_guild, the detail's 400
+// and its `gone` answer.
 let mockUser = null;
 jest.mock("../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true, getActiveGuild: () => "" }));
+// the server list (#895): the first server and the talk server
+jest.mock("../../../src/stores/configStore", () => ({
+    getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], talkGuildId: "900000000000000002", links: [] } }),
+}));
+const EVENT = "900000000000000001";
+const TALK = "900000000000000002";
 jest.mock("../../../src/services/discord/serverMembers", () => ({
-    listServerMembers: jest.fn(async (side) => ({ side, online: true, total: 0, roles: [], members: [] })),
+    listServerMembers: jest.fn(async (guildId) => ({ guildId, online: true, total: 0, roles: [], members: [] })),
     serverMemberDetail: jest.fn(),
 }));
 
@@ -42,19 +49,30 @@ describe("access (area channels, read)", () => {
 });
 
 describe("GET /api/discord/members", () => {
-    it("passes the side on, event by default", async () => {
-        expect(body(await get("/api/discord/members", { side: "talk" }))).toEqual({ side: "talk", online: true, total: 0, roles: [], members: [] });
-        expect(svc.listServerMembers).toHaveBeenLastCalledWith("talk");
-        await get("/api/discord/members", { side: "nonsense" });
-        expect(svc.listServerMembers).toHaveBeenLastCalledWith("event");
+    it("passes the server on, the first server by default, an old side=talk as the talk server", async () => {
+        expect(body(await get("/api/discord/members", { guildId: TALK }))).toEqual({ guildId: TALK, online: true, total: 0, roles: [], members: [] });
+        expect(svc.listServerMembers).toHaveBeenLastCalledWith(TALK);
+        await get("/api/discord/members");
+        expect(svc.listServerMembers).toHaveBeenLastCalledWith(EVENT);
+        await get("/api/discord/members", { side: "talk" });
+        expect(svc.listServerMembers).toHaveBeenLastCalledWith(TALK);
+    });
+
+    it("refuses a server outside the list", async () => {
+        const res = await get("/api/discord/members", { guildId: "900000000000000099" });
+        expect(status(res)).toBe(400);
+        expect(json(res).error.code).toBe("unknown_guild");
+        expect(status(await get("/api/discord/members/detail", { guildId: "900000000000000099", userId: "5" }))).toBe(400);
+        expect(svc.listServerMembers).not.toHaveBeenCalled();
+        expect(svc.serverMemberDetail).not.toHaveBeenCalled();
     });
 });
 
 describe("GET /api/discord/members/detail", () => {
     it("answers the member, 400 without an id, 200 with gone for an unknown one", async () => {
         svc.serverMemberDetail.mockResolvedValueOnce({ member: { id: "5" }, roles: [], channels: [] });
-        expect(body(await get("/api/discord/members/detail", { side: "talk", userId: "5" }))).toEqual({ member: { id: "5" }, roles: [], channels: [] });
-        expect(svc.serverMemberDetail).toHaveBeenCalledWith("talk", "5");
+        expect(body(await get("/api/discord/members/detail", { guildId: TALK, userId: "5" }))).toEqual({ member: { id: "5" }, roles: [], channels: [] });
+        expect(svc.serverMemberDetail).toHaveBeenCalledWith(TALK, "5");
 
         const missing = await get("/api/discord/members/detail");
         expect(status(missing)).toBe(400);

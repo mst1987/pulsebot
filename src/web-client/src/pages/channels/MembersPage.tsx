@@ -1,13 +1,15 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
-import { getServerMembers, type DiscordSide, type MemberRole, type ServerMember, type ServerMembers } from "../../api";
+import { getServerMembers, type MemberRole, type ServerMember, type ServerMembers } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import type { ShellContext } from "../../components/shell/Shell";
-import { Badge, PageHead, Segment, Switch } from "../../components/ui";
+import { Badge, PageHead, Switch } from "../../components/ui";
 import { SortTh } from "../../components/ui/SortTh";
 import { SearchIcon } from "../../components/ui/icons";
 import { classColorProps } from "../../components/character/ClassSpec";
 import DiscordTabs from "../../components/channels/DiscordTabs";
+import ServerPicker from "../../components/channels/ServerPicker";
+import { pickSearch, useServerPick } from "../../hooks/useServerPick";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { useTableSort, type TableSort } from "../../lib/ui/tableSort";
 import { initialsOf } from "../../lib/discord/serverRoles";
@@ -20,14 +22,14 @@ import MemberDrawer from "./MemberDrawer";
 import "../../styles/discord-members.css";
 import { useT } from "../../i18n";
 
-// System › Discord › Mitglieder (docs/channels.md): everyone on the event or the
-// talk server with their roles in the role colour, since when they are there and
+// System › Discord › Mitglieder (docs/channels.md): everyone on one server of the
+// server list (picker in the controls, #895) with their roles in the role colour, since when they are there and
 // how they are tied to the raids — the character in its class colour and the
 // roster, or "nicht im Roster". A search (name, Discord name, character), a role
 // filter and three switches narrow it down; bots are hidden unless asked for. A
 // role of a roster without being in it is marked orange. A click on a row opens
-// the member in a drawer (`?user=<id>` opens it from a link, `&side=talk` on the
-// talk server). Display only —
+// the member in a drawer (`?user=<id>` opens it from a link, `&guild=<id>` beyond
+// the first server). Display only —
 // roles are given in Discord and in the roster.
 
 /** Rows before "alle zeigen". */
@@ -37,29 +39,21 @@ export default function MembersPage() {
     const { user } = useOutletContext<ShellContext>();
     const t = useT();
     const [params, setParams] = useSearchParams();
-    const [side, setSide] = useState<DiscordSide>(() => (params.get("side") === "talk" ? "talk" : "event"));
+    const pick = useServerPick();
+    const guildId = pick.guildId;
     const [filter, setFilter] = useState<MemberFilter>(NO_FILTER);
-    const state = useApi(() => getServerMembers(side), [side]);
+    const state = useApi(() => getServerMembers(guildId), [guildId], { enabled: pick.ready });
     const sort = useTableSort<MemberSortKey>("discord-members-sort", MEMBER_SORT_DEFAULTS, "name");
-    const data = state.data && state.data.side === side ? state.data : null;
+    const data = state.data && (!guildId || state.data.guildId === guildId) ? state.data : null;
     const openId = params.get("user");
+    // a role filter belongs to its server
+    useEffect(() => setFilter((f) => (f.roleId ? { ...f, roleId: "" } : f)), [guildId]);
 
-    const query = (next: DiscordSide, id: string | null) => ({ ...(id ? { user: id } : {}), ...(next === "talk" ? { side: "talk" } : {}) });
-    // opening a member is a step back can undo (push); closing and switching the side replace it
-    const open = (id: string) => setParams(query(side, id));
-    const close = () => setParams(query(side, null), { replace: true });
-    const pickSide = (next: DiscordSide) => { setSide(next); setFilter((f) => ({ ...f, roleId: "" })); setParams(query(next, null), { replace: true }); };
-    const sideSegment = (
-        <Segment<DiscordSide>
-            ariaLabel={t("discord.roles.page.server")}
-            value={side}
-            onChange={pickSide}
-            options={[
-                { value: "event", label: t("discord.roles.side.event") },
-                { value: "talk", label: t("discord.roles.side.talk") },
-            ]}
-        />
-    );
+    const query = (id: string | null) => ({ ...(id ? { user: id } : {}), ...pick.param(guildId) });
+    // opening a member is a step back can undo (push); closing and switching the server replace it
+    const open = (id: string) => setParams(query(id));
+    const close = () => setParams(query(null), { replace: true });
+    const sideSegment = <ServerPicker pick={pick} drop={["user"]} />;
     const listed = data ? memberFromQuery(data.members, openId) : null;
 
     return (
@@ -70,14 +64,14 @@ export default function MembersPage() {
                 title={t("discord.members.page.title")}
                 meta={data ? <HeadBadges data={data} /> : undefined}
             />
-            <DiscordTabs user={user} side={side} guildKey={data ? data.guildId : ""} />
+            <DiscordTabs user={user} guildId={guildId} search={pickSearch(pick)} />
 
             {state.error && !data && <p className="empty">{t("discord.members.page.loadError", { message: state.error.message })}</p>}
             {!data && !state.error && <><div className="dmb-controls">{sideSegment}</div><RaidLoader text={t("discord.members.page.loading")} /></>}
             {data && <MembersView data={data} sideSegment={sideSegment} filter={filter} setFilter={setFilter} sort={sort} openId={openId} onOpen={open} />}
-            {/* no drawer for a server that is not set up (?side=talk&user=… without a talk server) */}
+            {/* no drawer while no server is set up */}
             {data && data.guildId && openId && (
-                <MemberDrawer side={side} userId={openId} guildName={data.guildName} listed={listed} onClose={close} />
+                <MemberDrawer guildId={data.guildId} userId={openId} guildName={data.guildName} listed={listed} onClose={close} />
             )}
         </div>
     );
@@ -154,7 +148,7 @@ function MembersView({ data, sideSegment, filter, setFilter, sort, openId, onOpe
         </div>
     );
 
-    if (!data.guildId) return <>{controls}<p className="empty">{t(data.side === "event" ? "discord.members.page.eventMissing" : "discord.members.page.talkMissing")}</p></>;
+    if (!data.guildId) return <>{controls}<p className="empty">{t("discord.server.none")}</p></>;
     if (!data.online) return <>{controls}<p className="empty">{t("discord.members.page.offlineSub")}</p></>;
     if (data.membersError) return <>{controls}<p className="empty">{membersErrorText(data, t)}</p></>;
 

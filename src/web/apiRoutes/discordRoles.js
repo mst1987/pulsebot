@@ -1,9 +1,9 @@
-// The roles of the event and the talk server (System › Discord › Rollen,
+// The roles of one server of the list (#895, System › Discord › Rollen,
 // services/discord/serverRoles.js, docs/channels.md) and the counts of the Discord tabs.
 // Area `channels`, read only: nothing here changes a role.
 //
-// GET /api/discord/roles?side=event|talk
-//     → { data: { side, guildId, guildName, online, botRole: { id, name, position }|null,
+// GET /api/discord/roles?guildId=<one of the servers>   (none: the first server)
+//     → { data: { guildId, guildName, online, botRole: { id, name, position }|null,
 //                 manageRoles: boolean|null, membersError: string|null, total, roles: [Role] } }
 //       Role = { id, name, color: "#rrggbb"|"", position, managed, everyone, isBotRole,
 //                memberCount: number|null, permissions: [key], sensitive: [key],
@@ -19,19 +19,21 @@
 //       highest first, @everyone last; memberCount null (and membersError set) when the member
 //       list cannot be had in time; offline: online false and no roles
 //
-// GET /api/discord/roles/detail?side=event|talk&roleId=
+// GET /api/discord/roles/detail?guildId=&roleId=
 //     → { data: { ...as above without roles, role: Role|null,
 //                 channels: [{ id, name, kind: "category"|"text"|"voice", parentName, allow: [key], deny: [key] }],
 //                 members: [{ id, name, avatarUrl: string|null, bot }] } }
 //       channels: those with an overwrite for the role, in Discord's order; members by name
 //       404 not_found: the server is online but has no such role
 //
-// GET /api/discord/tab-counts?side=event|talk
+// GET /api/discord/tab-counts?guildId=<one of the servers>   (none: the first server)
 //     → { data: { channels: number|null, serverRoles: number|null, members: number|null, roleMessages: number } }
 //       keyed by the menu ids of the tabs (config/menu.json); channels: the active server's
-//       channels without categories and threads; serverRoles: the side's roles without
-//       @everyone; members: the side's people (bots left out, as on the list);
-//       null = unknown (bot offline)
+//       channels without categories and threads; serverRoles: the server's roles without
+//       @everyone; members: the server's people (bots left out, as on the list);
+//       roleMessages: the role messages of the server; null = unknown (bot offline)
+//
+// Every route here takes ?guildId= (#895); 400 unknown_guild outside the server list.
 const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
@@ -39,20 +41,27 @@ const discord = require("../../services/discord/discord");
 const serverRoles = require("../../services/discord/serverRoles");
 const serverMembers = require("../../services/discord/serverMembers");
 const roleMessageStore = require("../../stores/roleMessageStore");
+const { roleMessageGuild } = require("../../services/discord/guildRoles");
+const { getConfig } = require("../../stores/configStore");
+const { serverFromQuery } = require("../http/serverQuery");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
-const sideOf = (query) => (str(query.get("side")) === "talk" ? "talk" : "event");
 
 /** GET /api/discord/roles */
 const listRoles = withUser(async ({ query, res }) => {
-    ok(res, await serverRoles.listServerRoles(sideOf(query)));
+    const guildId = serverFromQuery(query, res);
+    if (guildId === null) return undefined;
+    ok(res, await serverRoles.listServerRoles(guildId));
+    return undefined;
 });
 
 /** GET /api/discord/roles/detail */
 const roleDetail = withUser(async ({ query, res }) => {
     const roleId = str(query.get("roleId"));
     if (!roleId) return apiError(res, 400, "missing_role", "Welche Rolle? Die roleId fehlt.");
-    const detail = await serverRoles.serverRoleDetail(sideOf(query), roleId);
+    const guildId = serverFromQuery(query, res);
+    if (guildId === null) return undefined;
+    const detail = await serverRoles.serverRoleDetail(guildId, roleId);
     if (!detail) return apiError(res, 404, "not_found", "Diese Rolle gibt es auf dem Server nicht (mehr).");
     ok(res, detail);
     return undefined;
@@ -60,17 +69,20 @@ const roleDetail = withUser(async ({ query, res }) => {
 
 /** GET /api/discord/tab-counts */
 const tabCounts = withUser(async ({ query, req, res }) => {
-    const guildId = activeGuildFor(req);
-    const online = !!guildId && !!discord.getGuild(guildId);
-    const channels = online ? discord.listAllChannels(guildId).filter((c) => !c.isThread).length : null;
+    const config = getConfig();
+    const serverId = serverFromQuery(query, res, config);
+    if (serverId === null) return undefined;
+    const active = activeGuildFor(req);
+    const online = !!active && !!discord.getGuild(active);
+    const channels = online ? discord.listAllChannels(active).filter((c) => !c.isThread).length : null;
     let roleMessages;
     try {
-        roleMessages = roleMessageStore.listMessages().length;
+        roleMessages = roleMessageStore.listMessages().filter((m) => roleMessageGuild(m, config) === serverId).length;
     } catch {
         roleMessages = 0;
     }
-    const side = sideOf(query);
-    ok(res, { channels, serverRoles: serverRoles.roleCount(side), members: serverMembers.memberCount(side), roleMessages });
+    ok(res, { channels, serverRoles: serverRoles.roleCount(serverId), members: serverMembers.memberCount(serverId), roleMessages });
+    return undefined;
 });
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */

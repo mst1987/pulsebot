@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { canAccessAny, getDiscordTabCounts, type DiscordSide, type DiscordTabCounts, type SessionUser } from "../../api";
+import { canAccessAny, getDiscordTabCounts, type DiscordTabCounts, type SessionUser } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { menuFamily } from "../../lib/app/menu";
 import { activeTab, discordTabOrder, scrollToShow } from "../../lib/discord/tabs";
@@ -24,16 +24,18 @@ import "../../styles/discord-tabs.css";
 
 type Props = {
     user: SessionUser | null;
-    /** the server whose roles the Rollen tab counts (the roles page passes its segment) */
-    side?: DiscordSide;
-    /** changes when the active server changes, so the channel count follows it */
+    /** the server whose roles and members the tabs count ("" = the first of the server list) */
+    guildId?: string;
+    /** the query string that keeps the picked server on every tab ("" or "?guild=…", see pickSearch) */
+    search?: string;
+    /** changes when the active server of the channels page changes, so the channel count follows it */
     guildKey?: string;
 };
 
-export default function DiscordTabs({ user, side = "event", guildKey = "" }: Props) {
+export default function DiscordTabs({ user, guildId = "", search = "", guildKey = "" }: Props) {
     const t = useT();
     const { pathname } = useLocation();
-    const counts = useApi<DiscordTabCounts>(() => getDiscordTabCounts(side).catch(() => ({})), [side, guildKey]);
+    const counts = useApi<DiscordTabCounts>(() => getDiscordTabCounts(guildId).catch(() => ({})), [guildId, guildKey]);
     const barRef = useRef<HTMLElement>(null);
     const [more, setMore] = useState({ left: false, right: false });
     const items = discordTabOrder(menuFamily("channels").filter((e) => canAccessAny(user, e.areas)));
@@ -93,7 +95,7 @@ export default function DiscordTabs({ user, side = "event", guildKey = "" }: Pro
                     const on = e.id === active;
                     return (
                         <NavLink
-                            key={e.id} to={e.href} end
+                            key={e.id} to={`${e.href}${search}`} end
                             className={`dtab-tab${on ? " dtab-on" : ""}`}
                             aria-current={on ? "page" : undefined}
                             data-tip={typeof n === "number" ? `${label}: ${n}` : label}

@@ -1,11 +1,18 @@
 // The roles API (src/web/apiRoutes/discordRoles.js) through the real router: area
-// `channels` read, the side passed on, the detail's 400/404 and the tab counts.
+// `channels` read, the server (guildId) passed on, 400 unknown_guild, the detail's
+// 400/404 and the tab counts per server.
 let mockUser = null;
 jest.mock("../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true, getActiveGuild: () => "" }));
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => mockGuildId }));
 let mockGuildId = "900000000000000001";
+// the server list (#895): the first server and the talk server
+jest.mock("../../../src/stores/configStore", () => ({
+    getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], talkGuildId: "900000000000000002", links: [] } }),
+}));
+const EVENT = "900000000000000001";
+const TALK = "900000000000000002";
 jest.mock("../../../src/services/discord/serverRoles", () => ({
-    listServerRoles: jest.fn(async (side) => ({ side, online: true, roles: [] })),
+    listServerRoles: jest.fn(async (guildId) => ({ guildId, online: true, roles: [] })),
     serverRoleDetail: jest.fn(),
     roleCount: jest.fn(() => 12),
 }));
@@ -57,19 +64,31 @@ describe("access (area channels, read)", () => {
 });
 
 describe("GET /api/discord/roles", () => {
-    it("passes the side on, event by default", async () => {
-        expect(body(await get("/api/discord/roles", { side: "talk" }))).toEqual({ side: "talk", online: true, roles: [] });
-        expect(svc.listServerRoles).toHaveBeenLastCalledWith("talk");
-        await get("/api/discord/roles", { side: "nonsense" });
-        expect(svc.listServerRoles).toHaveBeenLastCalledWith("event");
+    it("passes the server on, the first server by default", async () => {
+        expect(body(await get("/api/discord/roles", { guildId: TALK }))).toEqual({ guildId: TALK, online: true, roles: [] });
+        expect(svc.listServerRoles).toHaveBeenLastCalledWith(TALK);
+        await get("/api/discord/roles");
+        expect(svc.listServerRoles).toHaveBeenLastCalledWith(EVENT);
+    });
+
+    it("refuses a server outside the list on every route", async () => {
+        const bad = { guildId: "900000000000000099" };
+        for (const path of ["/api/discord/roles", "/api/discord/tab-counts"]) {
+            const res = await get(path, bad);
+            expect(status(res)).toBe(400);
+            expect(json(res).error.code).toBe("unknown_guild");
+        }
+        expect(status(await get("/api/discord/roles/detail", { ...bad, roleId: "5" }))).toBe(400);
+        expect(svc.listServerRoles).not.toHaveBeenCalled();
+        expect(svc.serverRoleDetail).not.toHaveBeenCalled();
     });
 });
 
 describe("GET /api/discord/roles/detail", () => {
     it("answers the role, 400 without an id, 404 for an unknown one", async () => {
         svc.serverRoleDetail.mockResolvedValueOnce({ role: { id: "5" }, channels: [], members: [] });
-        expect(body(await get("/api/discord/roles/detail", { side: "event", roleId: "5" }))).toEqual({ role: { id: "5" }, channels: [], members: [] });
-        expect(svc.serverRoleDetail).toHaveBeenCalledWith("event", "5");
+        expect(body(await get("/api/discord/roles/detail", { guildId: EVENT, roleId: "5" }))).toEqual({ role: { id: "5" }, channels: [], members: [] });
+        expect(svc.serverRoleDetail).toHaveBeenCalledWith(EVENT, "5");
 
         const missing = await get("/api/discord/roles/detail");
         expect(status(missing)).toBe(400);
@@ -84,10 +103,13 @@ describe("GET /api/discord/roles/detail", () => {
 
 describe("GET /api/discord/tab-counts", () => {
     it("counts channels without threads, the roles, the members and the role messages", async () => {
-        store.saveMessage({ id: "a", guildSide: "event", channelId: "1", title: "A", roles: [{ roleId: "200000000000000002" }] });
-        expect(body(await get("/api/discord/tab-counts", { side: "talk" }))).toEqual({ channels: 2, serverRoles: 12, members: 186, roleMessages: 1 });
-        expect(svc.roleCount).toHaveBeenCalledWith("talk");
-        expect(members.memberCount).toHaveBeenCalledWith("talk");
+        store.saveMessage({ id: "a", guildId: TALK, channelId: "1", title: "A", roles: [{ roleId: "200000000000000002" }] });
+        store.saveMessage({ id: "b", guildSide: "talk", channelId: "1", title: "B (before #895)", roles: [{ roleId: "200000000000000002" }] });
+        store.saveMessage({ id: "c", guildId: EVENT, channelId: "1", title: "C", roles: [{ roleId: "200000000000000002" }] });
+        expect(body(await get("/api/discord/tab-counts", { guildId: TALK }))).toEqual({ channels: 2, serverRoles: 12, members: 186, roleMessages: 2 });
+        expect(svc.roleCount).toHaveBeenCalledWith(TALK);
+        expect(members.memberCount).toHaveBeenCalledWith(TALK);
+        expect(body(await get("/api/discord/tab-counts")).roleMessages).toBe(1);
     });
 
     it("is null for the channels offline", async () => {

@@ -374,12 +374,12 @@ Technik: [channels.md](channels.md), Daten: [discord-servers.md](discord-servers
 
 *Bereich "channels"* · Menü *System › Discord*, Reiter *Übersicht* (`/channels/overview`) — hier landet der Menüpunkt *Discord*.
 
-Auf einen Blick, ob auf dem Event- oder Talk-Server (Umschalter oben) etwas zu tun ist. Die Seite ändert nichts, sie zeigt nur und führt zur richtigen Stelle.
+Auf einen Blick, ob auf einem Server etwas zu tun ist (Auswahl oben, sobald mindestens zwei Server eingestellt sind). Die Seite ändert nichts, sie zeigt nur und führt zur richtigen Stelle.
 
 - **Braucht Aufmerksamkeit:** je Punkt ein Wort wie *fehlt*, *gelöscht*, *Hinweis* oder *Aufräumen*, worum es geht, warum, und ein Knopf dorthin, wo man es behebt (z. B. *Kanal zuordnen*, *Neu posten*, *Zu den Rollen*). Ist nichts offen, steht dort **Alles in Ordnung**. Darunter eine Zeile zu den Rollen: wie viele es gibt, wie viele niemand hat und wie viele heikle Rechte haben.
 - **Neu und gegangen:** wer in den letzten 7 Tagen auf den Server gekommen ist oder ihn verlassen hat, mit Roster bzw. Zahl der Charaktere. Ein Klick auf den Namen öffnet die Person auf der Mitglieder-Seite.
 - **Feste Bot-Nachrichten:** Orga- und Raid-Zentralen, Raid-Übersichten, Rollen-Nachrichten, Addon-Zentrale, Rekrutierung — ob sie noch stehen, mit Link nach Discord. Spalten mit Pfeil lassen sich sortieren.
-- **Bot-Check:** je Funktion des Bots die Rechte, die sie braucht, und ob er sie auf dem Event- und dem Talk-Server hat. Fehlende Rechte stehen oben und sind genannt. *Recht prüfen* in der Liste oben springt hierher.
+- **Bot-Check:** je Funktion des Bots die Rechte, die sie braucht, und ob er sie auf dem gewählten Server hat; geprüft wird nur, was dort eingerichtet ist. Fehlende Rechte stehen oben und sind genannt. *Recht prüfen* in der Liste oben springt hierher.
 - **Neu prüfen** fragt Discord sofort neu, ob die festen Nachrichten noch stehen (sonst gilt das Ergebnis bis zu 10 Minuten). Danach wartet der Knopf 30 Sekunden.
 - Ist der Bot gerade offline, sagt die Seite das, statt alte Punkte zu zeigen.
 
@@ -399,7 +399,7 @@ Technik: [channels.md](channels.md)
 
 *Bereich "channels"* · Menü *System › Discord*, Reiter *Rollen* (`/channels/server-roles`)
 
-Alle Rollen des Event- oder Talk-Servers in der Reihenfolge von Discord, nur zum Ansehen — Rollen anlegen und verschieben geht weiter in Discord.
+Alle Rollen des gewählten Servers in der Reihenfolge von Discord, nur zum Ansehen — Rollen anlegen und verschieben geht weiter in Discord.
 
 - **Tabelle:** Farbe und Name, Position (1 = ganz oben), „N Mitglieder“, was die Rolle für den Bot bedeutet (Orga-Rolle, Raider-Rolle einer Kategorie, Roster, Rollen-Nachricht …), heikle Rechte (z. B. Administrator, Rollen verwalten) und ob der Bot sie vergeben kann — mit Grund, wenn nicht. Spalten mit Pfeil lassen sich sortieren.
 - **Trennlinie:** Bei Sortierung nach Position markiert eine Linie die Rolle des Bots. Alles darunter kann er vergeben; steht eine Rolle, die er vergeben soll, darüber, steht in Rot „PulseBot darüber ziehen“.
@@ -412,7 +412,7 @@ Technik: [channels.md](channels.md)
 
 *Bereich "channels"* · Menü *System › Discord*, Reiter *Mitglieder* (`/channels/members`)
 
-Alle Mitglieder des Event- oder Talk-Servers mit ihren Rollen und dem, was der EventHelper über sie weiß — nur zum Ansehen; Rollen vergibt man weiter in Discord oder über Rollen-Nachrichten.
+Alle Mitglieder des gewählten Servers mit ihren Rollen und dem, was der EventHelper über sie weiß — nur zum Ansehen; Rollen vergibt man weiter in Discord oder über Rollen-Nachrichten.
 
 - **Tabelle:** Avatar und Name, die Rollen in ihrer Farbe (drei, dann „+N“ mit den übrigen im Tooltip), wann jemand beigetreten ist und das Roster mit dem Charakter in Klassenfarbe. Wer in keinem Roster steht, zeigt seinen Charakter mit „nicht im Roster“. Orange heißt: Die Person hat die Raider-Rolle eines Rosters, steht dort aber nicht drin. Spalten mit Pfeil lassen sich sortieren.
 - **Filter:** Suche nach Name, Discord-Name oder Charakter, eine Rolle auswählen, dazu die Schalter „ohne Rolle“, „nicht im Roster“ und „Bots ausblenden“ (Standard an). Erst 50 Zeilen, „alle zeigen“ zeigt den Rest.
@@ -426,7 +426,7 @@ Technik: [role-messages.md](role-messages.md)
 
 Eine Nachricht des Bots, über die sich Mitglieder eine Rolle selbst holen: je Rolle ein Knopf, mit Emoji auch eine Reaktion. Ein Klick (oder die Reaktion) gibt die Rolle, ein zweiter nimmt sie wieder.
 
-- **Neue Rollen-Nachricht:** Server (Event oder Talk), Kanal, Titel, optional Text, Bild-Link (https) und eigene Farbe. Rechts siehst du die Nachricht so, wie sie in Discord aussehen wird.
+- **Neue Rollen-Nachricht:** Server (nur bei mehreren Servern), Kanal, Titel, optional Text, Bild-Link (https) und eigene Farbe. Rechts siehst du die Nachricht so, wie sie in Discord aussehen wird.
 - **Rolle hinzufügen:** sucht eine Rolle. Rollen mit Rechten (Admin, Orga, Raider-, Roster- und Abgleich-Rollen, Rollen mit Discord-Rechten oder Kanal-Freigaben) sind ausgegraut und sagen, warum. Je Rolle wählst du ein Emoji und den Text auf dem Knopf (vorbelegt mit dem Rollennamen). Höchstens 25 Rollen, davon 20 mit Emoji.
 - **Posten / Speichern:** Solange etwas fehlt, steht es über dem Knopf. Geht beim Posten etwas nur halb (z. B. darf der Bot im Kanal nicht reagieren), kommt ein Hinweis; die Nachricht steht trotzdem.
 - **Löschen** nimmt die Nachricht auch aus Discord. Bereits vergebene Rollen bleiben.

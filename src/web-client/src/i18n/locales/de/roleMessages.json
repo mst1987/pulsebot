@@ -24,16 +24,14 @@
         "open": "In Discord öffnen",
         "notPosted": "nicht gepostet",
         "unknownChannel": "unbekannter Kanal",
-        "unknownRole": "unbekannte Rolle"
-    },
-    "side": {
-        "event": "Event-Server",
-        "talk": "Talk-Server",
-        "talkMissing": "Kein Talk-Server eingestellt (Einstellungen › Discord)."
+        "unknownRole": "unbekannte Rolle",
+        "unknownServer": "nicht mehr in der Serverliste"
     },
     "hint": {
         "offline": "Der Bot ist gerade nicht verbunden – Kanäle, Rollen und Emojis fehlen. Speichern geht erst wieder, wenn er online ist.",
-        "manageRoles": "Dem Bot fehlt auf diesem Server das Recht „Rollen verwalten“ – Knöpfe und Reaktionen können dann keine Rolle vergeben."
+        "manageRoles": "Dem Bot fehlt auf diesem Server das Recht „Rollen verwalten“ – Knöpfe und Reaktionen können dann keine Rolle vergeben.",
+        "serversSide": "Serverliste",
+        "serversError": "Die Serverliste ließ sich nicht laden ({message}) – Server, Kanäle und Rollen fehlen. Speichern geht erst nach einem Neuladen der Seite."
     },
     "form": {
         "server": "Server",
@@ -92,8 +90,8 @@
         "unknownRole": "Eine Rolle gibt es auf dem Server nicht mehr – bitte entfernen."
     },
     "error": {
-        "bad_side": "Unbekannter Server.",
-        "no_guild": "Für diese Seite ist kein Server eingestellt.",
+        "unknown_guild": "Diesen Server gibt es in der Serverliste nicht mehr.",
+        "no_guild": "Es ist kein Discord-Server eingestellt.",
         "unknown_channel": "Den Kanal gibt es nicht mehr, oder der Bot darf dort nicht schreiben.",
         "missing_title": "Ein Titel fehlt.",
         "bad_image": "Das Bild muss ein https-Link sein.",
