@@ -74,6 +74,7 @@ const profileStore = require("../../../src/stores/raidplanProfileStore");
 const templateStore = require("../../../src/stores/raidplanTemplateStore");
 const settingsStore = require("../../../src/stores/settingsStore");
 const rosterSource = require("../../../src/web/raidplan/raidplanRosterSource");
+const rhEvents = require("../../../src/stores/raidhelperEventsStore");
 const { emptyAccess } = require("../../../src/config/permissions");
 const route = require("../../../src/web/apiRoutes/raidplan");
 const detailRoute = require("../../../src/web/apiRoutes/raidDetail");
@@ -138,6 +139,9 @@ beforeEach(() => {
     templateStore.useFile(tempStoreFile("templates.json"));
     rosterSource._resetForTests();
     for (const k of Object.keys(mockSnapshots)) delete mockSnapshots[k];
+    // #925: both Raid-Helper events are in the synced list of the active server g1 (the groups are read from it)
+    rhEvents.useFile(tempStoreFile("raidhelper-events.json"));
+    rhEvents.saveSnapshot("g1", { syncedAt: 1, since: 0, events: [{ id: RH_OWN }, { id: RH_FOREIGN }] });
     own = raid("cat1", "Black Temple");
     foreign = raid("cat2", "Black Temple II");
     mockGroups.list = [
@@ -149,6 +153,7 @@ afterAll(() => {
     planStore.useFile();
     profileStore.useFile();
     templateStore.useFile();
+    rhEvents.useFile();
 });
 
 describe("the orga of a category (a manager of its roster)", () => {

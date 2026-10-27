@@ -5,6 +5,11 @@ let mockUser = null;
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "g1" }));
+// #925: the event "eh-a" is one of the active server g1
+jest.mock("../../../src/stores/eventStore", () => ({
+    ...jest.requireActual("../../../src/stores/eventStore"),
+    getEvent: (id) => (id === "eh-a" ? { id, guildId: "g1" } : null),
+}));
 jest.mock("../../../src/services/events/eventManage", () => ({
     manageInfo: jest.fn(async () => ({ status: 200, body: { event: { id: "eh-a" } } })),
     movePlan: jest.fn(async () => ({ plan: { eventId: "eh-a", channel: { rename: true } } })),

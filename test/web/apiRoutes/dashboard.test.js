@@ -410,8 +410,8 @@ describe("web/apiRoutes/dashboard", () => {
                 spies.push(jest.spyOn(categoryRoster, "currentRoster").mockImplementation((cat) => (cat === "cat1" ? ROSTER : null)));
                 spies.push(jest.spyOn(categoryRoster, "rosterOfEvent").mockImplementation((ev) => (ev.categoryId === "cat1" ? ROSTER : null)));
                 spies.push(jest.spyOn(categoryRoster, "isCurrentRoster").mockImplementation((r) => r === ROSTER));
-                // the raids are Raid-Helper events with a snapshot: rh-1 of cat1, rh-2 of cat2
-                getRaidEvent.mockImplementation((id) => ({ "rh-1": { id: "rh-1", categoryId: "cat1" }, "rh-2": { id: "rh-2", categoryId: "cat2" } })[id] || null);
+                // the raids are Raid-Helper events with a snapshot: rh-1 of cat1, rh-2 of cat2, both on the active server (#925)
+                getRaidEvent.mockImplementation((id) => ({ "rh-1": { id: "rh-1", guildId: "guild-1", categoryId: "cat1" }, "rh-2": { id: "rh-2", guildId: "guild-1", categoryId: "cat2" } })[id] || null);
                 auth.getUser.mockReturnValue(MANAGER);
                 activeGuildFor.mockReturnValue("guild-1");
             });

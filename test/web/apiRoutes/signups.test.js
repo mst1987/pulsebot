@@ -19,6 +19,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
 }));
 jest.mock("../../../src/stores/eventSoftresStore", () => ({ getEventSoftres: () => null }));
 
+const { onSyncedList } = require("../../helpers/raidhelperList");
 const mockEvents = new Map();
 jest.mock("../../../src/stores/eventStore", () => ({
     getEvent: (id) => mockEvents.get(id) || null,
@@ -361,9 +362,15 @@ describe("PUT /api/signups", () => {
     });
 
     it("weist Raid-Helper-Events mit 409 ab", async () => {
-        const res = await call(route.putSignup, ANNA, { json: { eventId: "1400000000000000001", character: "Nerathil", spec: "Mage-Arcane" } });
-        expect(status(res)).toBe(409);
-        expect(json(res).error.code).toBe("raidhelper");
+        // #925: a Raid-Helper event of the active server (on its synced list) - one of no known server answers 404
+        const restore = onSyncedList("g1", ["1400000000000000001"]);
+        try {
+            const res = await call(route.putSignup, ANNA, { json: { eventId: "1400000000000000001", character: "Nerathil", spec: "Mage-Arcane" } });
+            expect(status(res)).toBe(409);
+            expect(json(res).error.code).toBe("raidhelper");
+        } finally {
+            restore();
+        }
     });
 
     it("weist ohne Raider-Rolle der Kategorie mit 403 ab – die Orga nicht", async () => {

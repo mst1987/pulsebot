@@ -52,7 +52,8 @@ beforeEach(() => {
     store.useFile(tempStoreFile("raidplans.json"));
     mockViewer = null;
     for (const k of Object.keys(mockEvents)) delete mockEvents[k];
-    mockEvents.eh_1 = ownEvent({ id: "eh_1", title: "Black Temple", startTime: 1800000000, instanceIds: ["bt"] });
+    // #925: a raid of the active server (auth.getActiveGuild above).
+    mockEvents.eh_1 = ownEvent({ id: "eh_1", guildId: "500000", title: "Black Temple", startTime: 1800000000, instanceIds: ["bt"] });
 });
 afterAll(() => store.useFile());
 

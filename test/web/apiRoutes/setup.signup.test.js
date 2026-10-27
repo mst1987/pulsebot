@@ -5,6 +5,7 @@ let mockUser = null;
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
+const { onSyncedList } = require("../../helpers/raidhelperList");
 const mockEvents = new Map();
 jest.mock("../../../src/stores/eventStore", () => ({
     getEvent: (id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null),
@@ -79,7 +80,13 @@ describe("GET /api/raids/setup/signup", () => {
     });
 
     it("refuses a Raid-Helper event", async () => {
-        expect(status(await call(route.getSignupEdit, ORGA, null, "event=12345&user=u1"))).toBe(409);
+        // #925: a Raid-Helper event of the active server (on its synced list) - one of no known server answers 404
+        const restore = onSyncedList("g1", ["12345"]);
+        try {
+            expect(status(await call(route.getSignupEdit, ORGA, null, "event=12345&user=u1"))).toBe(409);
+        } finally {
+            restore();
+        }
     });
 });
 

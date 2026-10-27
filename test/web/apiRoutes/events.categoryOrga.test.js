@@ -68,6 +68,8 @@ jest.mock("../../../src/services/discord/discord", () => ({
     listVoiceChannels: () => mockChannels.filter((c) => !c.text).map((c) => ({ id: c.id, name: c.id, category: c.parentId, parentId: c.parentId })),
     getChannelCategoryMap: () => Object.fromEntries(mockChannels.map((c) => [c.id, { name: c.id, categoryId: c.parentId, categoryName: c.parentId }])),
     postLink: jest.fn(async () => ({ channelId: "c", messageId: "m" })),
+    // #925: the bot sees every category and channel above on the active server g1 (a new raid is placed by its category)
+    getClient: () => ({ channels: { cache: new Map([...mockChannels.map((c) => c.id), "cat1", "cat2", "voice", "templates"].map((id) => [id, { id, guildId: "g1" }])) } }),
 }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({
     ...jest.requireActual("../../../src/services/events/raidEventGroups"),
