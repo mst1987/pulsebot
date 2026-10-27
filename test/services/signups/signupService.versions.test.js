@@ -92,6 +92,97 @@ describe("submitSignup je Spielversion", () => {
     it("die Orga im Setup-Editor (offProfile) bleibt in der Version des Events", async () => {
         const res = await service.submitSignup("eh-kara", ANNA, { character: "Devi Res", spec: "Priest-Shadow" }, { now: NOW, byOrga: true, offProfile: true });
         expect(res.code).toBe("character_version");
+        // naming a class does not lift it ("Anderer Charakter …")
+        const named = await service.submitSignup("eh-kara", ANNA, { characters: [{ character: "Devi Res", spec: "Priest-Shadow", className: "Priest" }] }, { now: NOW, byOrga: true, offProfile: true });
+        expect(named.code).toBe("character_version");
+    });
+});
+
+describe("Anderer Charakter: neuer Name mit Klasse (#521)", () => {
+    const orga = { now: NOW, byOrga: true, offProfile: true };
+    const named = (character, className, spec) => ({ characters: [{ character, spec, className }] });
+
+    it("nimmt für die Orga einen Namen außerhalb des Profils mit Klasse an, das Profil bleibt", async () => {
+        const res = await service.submitSignup("eh-kara", ANNA, named("frostzwerg", "Mage", "Mage-Frost"), orga);
+        expect(res.error).toBeUndefined();
+        expect(res.signup).toMatchObject({ character: "Frostzwerg", spec: "Mage-Frost", role: "ranged" });
+        expect(profiles.getProfile(ANNA).characters.map((c) => c.name).sort()).toEqual(["Devi", "Devi Res"]);
+    });
+
+    it("nimmt in WoW Forever Vor- und Nachname", async () => {
+        const res = await service.submitSignup("eh-barrow", ANNA, named("bruno stahl", "Warrior", "Warrior-Protection"), orga);
+        expect(res.error).toBeUndefined();
+        expect(res.signup).toMatchObject({ character: "Bruno Stahl", spec: "Warrior-Protection" });
+    });
+
+    it("nur mit offProfile und byOrga — sonst bleibt es „nicht in deinem Profil“", async () => {
+        const self = await service.submitSignup("eh-kara", ANNA, named("Frostzwerg", "Mage", "Mage-Frost"), { now: NOW });
+        expect(self.code).toBe("character");
+        const byOrgaOnly = await service.submitSignup("eh-kara", ANNA, named("Frostzwerg", "Mage", "Mage-Frost"), { now: NOW, byOrga: true });
+        expect(byOrgaOnly.code).toBe("character");
+        const notOrga = await service.submitSignup("eh-kara", ANNA, named("Frostzwerg", "Mage", "Mage-Frost"), { now: NOW, offProfile: true });
+        expect(notOrga.code).toBe("character");
+        // without a class no new name either
+        const noClass = await service.submitSignup("eh-kara", ANNA, { characters: [{ character: "Frostzwerg", spec: "Mage-Frost" }] }, orga);
+        expect(noClass.code).toBe("character");
+    });
+
+    it("lehnt einen ungültigen Namen, eine fremde Klasse und einen Spec der falschen Klasse ab", async () => {
+        expect((await service.submitSignup("eh-kara", ANNA, named("Fr0st", "Mage", "Mage-Frost"), orga)).code).toBe("character");
+        expect((await service.submitSignup("eh-kara", ANNA, named("Frost Zwerg", "Mage", "Mage-Frost"), orga)).code).toBe("character");
+        const cls = await service.submitSignup("eh-kara", ANNA, named("Frostzwerg", "Evoker", "Mage-Frost"), orga);
+        expect(cls).toMatchObject({ code: "character" });
+        expect(cls.error).toMatch(/Evoker/);
+        const spec = await service.submitSignup("eh-kara", ANNA, named("Frostzwerg", "Mage", "Priest-Holy"), orga);
+        expect(spec.code).toBe("spec");
+        expect(spec.error).toMatch(/passt nicht zur Klasse/);
+    });
+
+    describe("der Raider behält den Charakter der Orga", () => {
+        const orgaSets = async () => {
+            const res = await service.submitSignup("eh-kara", ANNA, {
+                characters: [
+                    { character: "Devi", spec: "Priest-Holy" },
+                    { character: "Frostzwerg", spec: "Mage-Frost", className: "Mage" },
+                ],
+            }, orga);
+            expect(res.error).toBeUndefined();
+        };
+
+        it("ein neuer Status mit demselben Charakter wird angenommen — auch an zweiter Stelle", async () => {
+            await orgaSets();
+            const late = await service.submitSignup("eh-kara", ANNA, {
+                characters: [{ character: "Devi", spec: "Priest-Holy" }, { character: "Frostzwerg", spec: "Mage-Frost" }],
+                status: "late",
+            }, { now: NOW });
+            expect(late.error).toBeUndefined();
+            expect(late.signup.characters.map((c) => c.character)).toEqual(["Devi", "Frostzwerg"]);
+            const first = await service.submitSignup("eh-kara", ANNA, { character: "Frostzwerg", spec: "Mage-Frost", status: "tentative" }, { now: NOW });
+            expect(first.error).toBeUndefined();
+            expect(first.signup).toMatchObject({ character: "Frostzwerg", spec: "Mage-Frost", status: "tentative" });
+        });
+
+        it("ein Kommentar allein wird angenommen", async () => {
+            await orgaSets();
+            const prev = mockSignups.get(`eh-kara/${ANNA}`);
+            const res = await service.submitSignup("eh-kara", ANNA, {
+                characters: prev.characters.map(({ character, spec }) => ({ character, spec })),
+                status: prev.status,
+                comment: "komme etwas später",
+            }, { now: NOW });
+            expect(res.error).toBeUndefined();
+            expect(res.signup.comment).toBe("komme etwas später");
+        });
+
+        it("einen anderen Spec wählt der Raider nur über das Profil, einen neuen Namen gar nicht", async () => {
+            await orgaSets();
+            const spec = await service.submitSignup("eh-kara", ANNA, { character: "Frostzwerg", spec: "Mage-Fire" }, { now: NOW });
+            expect(spec.code).toBe("spec");
+            const stranger = await service.submitSignup("eh-kara", ANNA, { character: "Feuerzwerg", spec: "Mage-Fire" }, { now: NOW });
+            expect(stranger).toMatchObject({ code: "character", error: "Dieser Charakter steht nicht in deinem Profil." });
+            const named2 = await service.submitSignup("eh-kara", ANNA, named("Feuerzwerg", "Mage", "Mage-Fire"), { now: NOW });
+            expect(named2.code).toBe("character");
+        });
     });
 
     it("findCharacter sucht auf Wunsch nur in einer Version", () => {

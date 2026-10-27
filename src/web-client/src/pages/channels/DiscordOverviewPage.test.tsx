@@ -21,7 +21,7 @@ vi.mock("../../api", async (orig) => ({
 
 const SERVERS: api.DiscordServerChoice[] = [
     { guildId: "g1", name: "Testgilde", label: "", online: true, iconUrl: "" },
-    { guildId: "g2", name: "Talkgilde", label: "Talk", online: true, iconUrl: "", legacyTalk: true },
+    { guildId: "g2", name: "Talkgilde", label: "Talk", online: true, iconUrl: "" },
 ];
 
 function overview(over: Partial<DiscordOverview> = {}): DiscordOverview {
@@ -150,11 +150,18 @@ describe("Discord-Übersicht", () => {
         expect(within(check).getAllByRole("row")[1]).toBe(posts);
     });
 
-    it("opens the server from the link, also from an old talk-server link", async () => {
-        renderPage(<DiscordOverviewPage />, { route: "/channels/overview?side=talk" });
+    it("opens the server from the link", async () => {
+        renderPage(<DiscordOverviewPage />, { route: "/channels/overview?guild=g2" });
         expect(await screen.findByText("Recht fehlt: Nachrichten senden")).toBeInTheDocument();
         expect(screen.getByRole("radio", { name: "Talkgilde" })).toBeChecked();
         expect(api.getDiscordOverview).not.toHaveBeenCalledWith("g1", false);
+    });
+
+    // #897: there is no talk server any more, an old link opens the first server
+    it("opens the first server from an old talk-server link", async () => {
+        renderPage(<DiscordOverviewPage />, { route: "/channels/overview?side=talk" });
+        expect(await screen.findByRole("radio", { name: "Testgilde" })).toBeChecked();
+        expect(api.getDiscordOverview).not.toHaveBeenCalledWith("g2", false);
     });
 
     it("says when no server is set and hides the picker", async () => {

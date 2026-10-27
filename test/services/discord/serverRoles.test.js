@@ -7,11 +7,10 @@ let mockConfig = {};
 jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/services/discord/guildRoles", () => {
     const actual = jest.requireActual("../../../src/services/discord/guildRoles");
-    const cfg = { discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], talkGuildId: "900000000000000002", links: [] } };
+    const cfg = { discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], links: [] } };
     return {
         ...actual,
-        eventGuildId: () => "900000000000000001",
-        talkGuildId: () => "900000000000000002",
+        serverIds: () => actual.serverIds(cfg),
         roleMessageGuild: (entry) => actual.roleMessageGuild(entry, cfg),
     };
 });
@@ -78,8 +77,8 @@ beforeEach(() => {
     mockConfig = { adminRoleIds: [ADMIN], categoryRoles: { "cat-1": [RAIDER, HIGH] } };
     jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
     jest.spyOn(roleMessageStore, "listMessages").mockReturnValue([
-        { id: "rm-1", guildSide: "event", title: "Spiele", roles: [{ roleId: RAIDER }] },
-        { id: "rm-2", guildSide: "talk", title: "Anderer Server", roles: [{ roleId: RAIDER }] },
+        { id: "rm-1", guildId: GUILD, title: "Spiele", roles: [{ roleId: RAIDER }] },
+        { id: "rm-2", guildId: TALK, title: "Anderer Server", roles: [{ roleId: RAIDER }] },
     ]);
     jest.spyOn(addonCenterStore, "getSettings").mockReturnValue({ roleId: EMPTY });
     mockDiscord.getGuild.mockReturnValue(makeGuild());
@@ -165,13 +164,32 @@ describe("serverRoles listServerRoles", () => {
         expect(mockDiscord.getGuild).toHaveBeenCalledWith("900000000000000002");
     });
 
-    it("counts only the role messages of its own server (an old guildSide entry by its side)", async () => {
+    it("counts only the role messages of its own server", async () => {
         mockDiscord.getGuild.mockReturnValue(makeGuild());
         const out = await listServerRoles(TALK);
         const uses = out.roles.find((r) => r.id === RAIDER).uses;
         expect(uses).toContainEqual({ code: "roleMessage", messageId: "rm-2", title: "Anderer Server" });
         expect(uses.some((u) => u.messageId === "rm-1")).toBe(false);
         expect(out.side).toBeUndefined();
+    });
+
+    it("names the partner server of a role-sync pair, by its Discord name or else its label (#897)", async () => {
+        const THIRD = "900000000000000003";
+        mockConfig = {
+            ...mockConfig,
+            discordServers: { servers: [{ guildId: GUILD }, { guildId: TALK }, { guildId: THIRD, label: "Gilde" }], links: [] },
+            roleSync: [
+                { fromGuildId: GUILD, fromRoleId: RAIDER, toGuildId: TALK, toRoleId: "200000000000000099", direction: "both" },
+                { fromGuildId: THIRD, fromRoleId: "200000000000000098", toGuildId: GUILD, toRoleId: RAIDER, direction: "toTarget" },
+            ],
+        };
+        mockDiscord.getGuild.mockImplementation((id) => (id === THIRD ? null : makeGuild()));
+        const out = await listServerRoles(GUILD);
+        expect(out.roles.find((r) => r.id === RAIDER).uses).toContainEqual({
+            code: "roleSync",
+            guildIds: [TALK, THIRD],
+            servers: [{ guildId: TALK, name: "Test-Server" }, { guildId: THIRD, name: "Gilde" }],
+        });
     });
 
     it("hints aboveBot for a roster's member or trial role, never for its manager role", async () => {

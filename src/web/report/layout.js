@@ -26,8 +26,10 @@ function setPageVersion(versionId) {
     return before;
 }
 
-function themeToggleBtn() {
-    return "<button class=\"theme-toggle\" id=\"themeBtn\" type=\"button\" aria-label=\"Design umschalten\" data-tip=\"Hell / Dunkel umschalten\"></button>";
+/** The light/dark switch; its label in the page's language (German by default, "en" for English). */
+function themeToggleBtn(lang = "de") {
+    const [label, tip] = lang === "en" ? ["Toggle theme", "Switch light / dark"] : ["Design umschalten", "Hell / Dunkel umschalten"];
+    return `<button class="theme-toggle" id="themeBtn" type="button" aria-label="${label}" data-tip="${tip}"></button>`;
 }
 
 function versionAttr(version) {
@@ -126,5 +128,5 @@ function renderError(title, message) {
 }
 
 module.exports = {
-    esc, themeToggleBtn, setPageVersion, layout, shellPage, authBar, renderNotFound, renderError,
+    esc, themeToggleBtn, setPageVersion, layout, shellPage, authBar, renderNotFound, renderError, DISCORD_LOGO,
 };

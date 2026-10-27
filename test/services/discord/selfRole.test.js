@@ -21,10 +21,10 @@ function guild({ everyone = 0n, overwrites = [] } = {}) {
         channels: { cache: new Map(channels.map((c) => [c.id, c])) },
     };
 }
-const EVENT_GUILD = "100000";
-const TALK_GUILD = "300000";
-/** A role-sync pair (#896): fromRoleId on the event server, toRoleId on the talk server. */
-const pair = (fromRoleId, toRoleId, direction = "both") => ({ fromGuildId: EVENT_GUILD, fromRoleId, toGuildId: TALK_GUILD, toRoleId, direction });
+const FROM_GUILD = "100000";
+const TO_GUILD = "300000";
+/** A role-sync pair (#896): fromRoleId on one server, toRoleId on the other. */
+const pair = (fromRoleId, toRoleId, direction = "both") => ({ fromGuildId: FROM_GUILD, fromRoleId, toGuildId: TO_GUILD, toRoleId, direction });
 const role = (bitfield = 0n) => ({ id: ROLE, permissions: { bitfield } });
 
 afterEach(() => jest.restoreAllMocks());
@@ -49,8 +49,8 @@ describe("selfRole privilegedReason", () => {
         ["a role with area grants", { rolePermissions: { [ROLE]: { signup: { read: true } } } }, ROLE, "Berechtigungen"],
         ["a role a bot command allows", { botCommandAccess: { setup: { mode: "roles", roleIds: [OTHER, ROLE] } } }, ROLE, "botCommandAccess"],
         ["a raider role of a category", { categoryRoles: { "cat-1": [ROLE] } }, ROLE, "raider role"],
-        ["the talk side of the role sync", { roleSync: [pair(OTHER, ROLE, "toTarget")] }, ROLE, "role sync"],
-        ["the event side of the role sync", { roleSync: [pair(ROLE, OTHER, "toSource")] }, ROLE, "role sync"],
+        ["the target side of the role sync", { roleSync: [pair(OTHER, ROLE, "toTarget")] }, ROLE, "role sync"],
+        ["the source side of the role sync", { roleSync: [pair(ROLE, OTHER, "toSource")] }, ROLE, "role sync"],
     ])("refuses %s", (_name, config, roleId, reason) => {
         expect(privilegedReason(config, roleId)).toContain(reason);
     });
@@ -103,7 +103,6 @@ describe("selfRole roleUses", () => {
             rolePermissions: { [ROLE]: { signup: { read: true }, loot: { read: true, write: true } } },
             botCommandAccess: { setup: { mode: "roles", roleIds: [ROLE] }, absence: { mode: "roles", roleIds: [OTHER] }, kader: { mode: "roles", roleIds: [ROLE] } },
             categoryRoles: { "cat-1": [ROLE], "cat-2": [OTHER], "cat-3": [ROLE] },
-            discordServers: { talkGuildId: TALK_GUILD },
             roleSync: [pair(ROLE, OTHER), pair(OTHER, ROLE)],
         };
         expect(roleUses(config, ROLE)).toEqual([
@@ -113,17 +112,19 @@ describe("selfRole roleUses", () => {
             { code: "rolePermissions", areas: ["loot", "signup"] },
             { code: "botCommand", commands: ["kader", "setup"] },
             { code: "categoryRaider", categoryIds: ["cat-1", "cat-3"] },
-            { code: "roleSync", sides: ["event", "talk"] },
+            { code: "roleSync", guildIds: [TO_GUILD, FROM_GUILD] },
             { code: "roster", rosterId: "r-main", name: "Main", kinds: ["member", "trial", "manager"] },
         ]);
         // the first use stays privilegedReason's reason
         expect(privilegedReason(config, ROLE)).toBe("the role is a full-admin role");
     });
 
-    it("names a role-sync side by its server: only the talk server reads talk (#896)", () => {
+    it("names the server on the other side of each role-sync pair, once (#897)", () => {
         jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
-        expect(roleUses({ roleSync: [pair(OTHER, ROLE)] }, ROLE)).toEqual([{ code: "roleSync", sides: ["event"] }]);
-        expect(roleUses({ discordServers: { talkGuildId: TALK_GUILD }, roleSync: [pair(OTHER, ROLE)] }, ROLE)).toEqual([{ code: "roleSync", sides: ["talk"] }]);
+        expect(roleUses({ roleSync: [pair(OTHER, ROLE)] }, ROLE)).toEqual([{ code: "roleSync", guildIds: [FROM_GUILD] }]);
+        expect(roleUses({ roleSync: [pair(ROLE, OTHER)] }, ROLE)).toEqual([{ code: "roleSync", guildIds: [TO_GUILD] }]);
+        const third = { fromGuildId: "500000", fromRoleId: ROLE, toGuildId: TO_GUILD, toRoleId: OTHER, direction: "both" };
+        expect(roleUses({ roleSync: [pair(ROLE, OTHER), third] }, ROLE)).toEqual([{ code: "roleSync", guildIds: [TO_GUILD] }]);
     });
 
     it("names a PuG version role with its versions; a class role is no use (#906)", () => {

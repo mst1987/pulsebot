@@ -191,12 +191,12 @@ const CREDENTIAL_KEYS = ["anthropic", "warcraftlogsV2", "github"];
 // wiederherstellen"; the edit mark is set by the server alone.
 const ADDON_KEYS = ["addonDownloads", "addonDownloadsCustomized", "addonDownloadsReset"];
 
-// Which Discord server is the event server and which the talk server (#251).
-// Full-admin only: the event server is where the admin-role check runs, so
-// whoever may move it decides whose roles count.
+// The Discord servers and their links (#251, #890). Full-admin only: the first
+// server is where the admin-role check runs, so whoever may move it decides
+// whose roles count.
 const GUILD_KEYS = ["discordServers"];
 
-// The role sync between both servers (#264): it hands out roles on its own, so
+// The role sync between servers (#264): it hands out roles on its own, so
 // it is guarded like the access keys — whoever may edit it decides who gets
 // which role on the other server.
 const ROLE_SYNC_KEYS = ["roleSync"];
@@ -204,7 +204,7 @@ const ROLE_SYNC_KEYS = ["roleSync"];
 // Everything a non-admin settings user may neither read nor write.
 const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS, ...ADDON_KEYS];
 
-const DISCORD_SERVER_FIELDS = ["talkGuildId", "signupNoteChannelId", "guildBankChannelId"];
+const DISCORD_SERVER_FIELDS = ["signupNoteChannelId", "guildBankChannelId"];
 
 /** The guild bank's orga channel of a config ("" = none). */
 const guildBankOf = (config) => String(((config && config.discordServers) || {}).guildBankChannelId || "");
@@ -266,7 +266,7 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // #744: configured categories Discord no longer has (only when the bot sees
         // every event server), each with what "Kategorie abschließen" would remove.
         missingCategories: missingCategoriesOf(config),
-        // The two server cards (cheap: names, member counts, rights). The member
+        // One card per server (cheap: names, member counts, rights). The member
         // overlap needs a full member fetch and loads with the section itself.
         servers: user.isAdmin ? serverCards(config) : null,
         activeGuildId: guildId,
@@ -275,8 +275,8 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
 
 /**
  * Where the messages of "Vielleicht" / "Absagen" may go (#335): the text
- * channels of the event and the talk server, named with their server when there
- * are two (like the Discord-Server dialog), plus the default channel's id — a
+ * channels of every server, named with their server when there are several
+ * (like the Discord-Server dialog), plus the default channel's id — a
  * limited settings user does not see `discordServers`, the card still names it.
  * An empty list means the bot is offline (the card then marks nothing).
  */
@@ -297,13 +297,13 @@ function noteChannels(config) {
     }
 }
 
-/** Every event server's status card plus the talk server's; a failure reads as "nothing known". */
+/** Every server's status card; a failure reads as "nothing known". */
 function serverCards(config) {
     try {
-        return { events: guildRoles.eventGuildCards(config), talk: guildRoles.talkGuild(config) };
+        return { events: guildRoles.eventGuildCards(config) };
     } catch (e) {
         console.warn("server status failed:", e.message);
-        return { events: [], talk: null };
+        return { events: [] };
     }
 }
 
@@ -328,16 +328,13 @@ function raidCategoryCount(guildId, config) {
 /**
  * GET /api/settings/discord-servers — everything the "Discord-Server" page
  * (#891) shows and edits:
- *   - `discordServers`: servers, links and the two global channels; the talk
- *     fields stay out (they live on until #897, the page neither shows nor
- *     sends them, and saveConfig keeps them).
+ *   - `discordServers`: servers, links and the two global channels.
  *   - `servers`: one row per configured server — Discord name, status, missing
  *     bot rights, members, raid categories (0 is a normal state: such a server
  *     only shows lists) and its Discord language.
  *   - `guilds`: every server the bot is on with its text channels and language
  *     (the pickers of the "add server" and "add link" dialogs).
  *   - `versions`: the game versions for the link's version chips.
- *   - `talk`: still the talk server's card, only for the role sync block (#896).
  */
 const getDiscordServers = withUser({ full: true }, ({ res }) => {
     const config = getConfig();
@@ -366,7 +363,6 @@ const getDiscordServers = withUser({ full: true }, ({ res }) => {
         servers,
         guilds,
         versions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short })),
-        talk: serverCards(config).talk,
     });
 });
 
@@ -392,10 +388,6 @@ function checkServersAndLinks(sent, stored) {
             seen.add(guildId);
             out.servers.push({ guildId, label: String((raw && raw.label) || "").trim().slice(0, EVENT_GUILD_LABEL_MAX) });
         }
-        // The old ping server (talkGuildId, until #897) is re-added by
-        // normalizeDiscordServers(): removing it would only drop its links.
-        const talk = String((sent.talkGuildId !== undefined ? sent.talkGuildId : stored.talkGuildId) || "").trim();
-        if (talk && !seen.has(talk)) return { error: "Dieser Server ist noch als Ping-Server eingetragen und lässt sich erst später entfernen." };
         // Only servers sent: a stored link whose source goes away would be
         // dropped silently on save — say so instead.
         if (sent.links === undefined && (stored.links || []).some((l) => !seen.has(l.from))) {

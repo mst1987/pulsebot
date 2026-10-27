@@ -187,13 +187,12 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .srv-table table { table-layout: fixed; }
 .srv-table td { vertical-align: middle; }
 .srv-table .row-actions { justify-content: flex-end; flex-wrap: nowrap; }
-.srv-table .srv-remove-off { opacity: 0.45; cursor: not-allowed; }
 .srv-links th:nth-child(2) { width: 18%; }
 .srv-links th:nth-child(3) { width: 20%; }
 .srv-links th:nth-child(4) { width: 20%; }
 .srv-links th:last-child { width: 170px; }
 /* a long status ("noch nicht gepostet") wraps in its column instead of running under the buttons */
-.srv-links td:nth-child(3) .badge { white-space: normal; max-width: 100%; }
+.srv-links td:nth-child(3) .badge, .srv-servers td:nth-child(2) .badge { white-space: normal; max-width: 100%; }
 .srv-servers th:nth-child(2) { width: 22%; }
 .srv-servers th:nth-child(3), .srv-servers th:nth-child(4) { width: 16%; }
 .srv-servers th:last-child { width: 84px; }
@@ -218,7 +217,7 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .sync-actions { display: inline-flex; align-items: center; gap: 8px; }
 /* one panel with divided rows rather than a stack of separate boxes */
 .sync-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
-.sync-row { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 6px 8px 6px 14px; border-bottom: 1px solid var(--line-soft); min-width: 0; }
+.sync-row { display: flex; align-items: center; gap: 4px 10px; min-height: 46px; padding: 6px 8px 6px 14px; border-bottom: 1px solid var(--line-soft); min-width: 0; }
 .sync-row:last-child { border-bottom: 0; }
 .sync-row:hover { background: var(--panel2); }
 .sync-role { font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
@@ -299,6 +298,8 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
     .srv-links th:nth-child(2), .srv-links td:nth-child(2), .srv-links th:nth-child(4), .srv-links td:nth-child(4) { display: none; }
     .srv-servers th:nth-child(3), .srv-servers td:nth-child(3), .srv-servers th:nth-child(4), .srv-servers td:nth-child(4) { display: none; }
     .srv-sub { display: flex; flex-wrap: wrap; }
+    /* a role pair with long names wraps; the edit and delete buttons stay in view */
+    .sync-row { flex-wrap: wrap; }
     .srv-server-text > .srv-muted { font-size: 13px; }
     .srv-links th:nth-child(3) { width: 34%; }
     .srv-links th:last-child { width: 132px; }

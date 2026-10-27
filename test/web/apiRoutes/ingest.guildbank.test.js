@@ -20,13 +20,13 @@ jest.mock("../../../src/services/guildbank/itemMeta", () => ({
     queueLookups: jest.fn(() => 0),
 }));
 jest.mock("../../../src/services/guildbank/itemEmojis", () => ({ queueItemEmojiSync: jest.fn() }));
-// Two event servers: a new bank cannot know its own and waits.
-jest.mock("../../../src/services/discord/guildRoles", () => ({
-    ...jest.requireActual("../../../src/services/discord/guildRoles"),
-    eventGuildIds: jest.fn(() => ["g1", "g2"]),
+// Two raid servers: a new bank cannot know its own and waits.
+jest.mock("../../../src/services/discord/botCheck", () => ({
+    ...jest.requireActual("../../../src/services/discord/botCheck"),
+    raidServerIds: jest.fn(() => ["g1", "g2"]),
 }));
 
-const { eventGuildIds } = require("../../../src/services/discord/guildRoles");
+const { raidServerIds } = require("../../../src/services/discord/botCheck");
 const { verifyToken, touchToken } = require("../../../src/stores/ingestTokenStore");
 const { queueLookups } = require("../../../src/services/guildbank/itemMeta");
 const { queueItemEmojiSync } = require("../../../src/services/guildbank/itemEmojis");
@@ -109,12 +109,12 @@ describe("POST /api/ingest/guildbank", () => {
         ]);
     });
 
-    it("gives a new bank to the only event server", async () => {
-        eventGuildIds.mockReturnValue(["g1"]);
+    it("gives a new bank to the only raid server", async () => {
+        raidServerIds.mockReturnValue(["g1"]);
         const res = await upload(scan());
         expect(json(res).data.pending).toBe(false);
         expect(store.getBank(KEY).guildId).toBe("g1");
-        eventGuildIds.mockReturnValue(["g1", "g2"]);
+        raidServerIds.mockReturnValue(["g1", "g2"]);
     });
 
     it("keeps the orga's decisions over the next upload", async () => {

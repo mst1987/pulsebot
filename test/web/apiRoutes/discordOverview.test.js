@@ -5,7 +5,7 @@ let mockUser = null;
 jest.mock("../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true }));
 const mockConfig = {
     marker: 1,
-    discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002", label: "Talk" }], talkGuildId: "900000000000000002", links: [] },
+    discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002", label: "Talk" }], links: [] },
 };
 jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/services/discord/discord", () => ({
@@ -72,8 +72,9 @@ describe("GET", () => {
         expect(botMessages).toHaveBeenCalledWith(GUILDS.talk, CONFIG, { fresh: true });
     });
 
-    it("still reads an old side=talk link as the talk server", async () => {
-        expect(body(await get("/api/discord/overview", { side: "talk" })).guildId).toBe(GUILDS.talk);
+    // #897: there is no talk server any more, an old link opens the first server
+    it("reads an old side=talk link as the first server", async () => {
+        expect(body(await get("/api/discord/overview", { side: "talk" })).guildId).toBe(GUILDS.event);
     });
 
     it("refuses a server outside the list", async () => {
@@ -85,10 +86,10 @@ describe("GET", () => {
 });
 
 describe("GET /api/discord/servers", () => {
-    it("lists the servers in their order with name and label, the old talk server marked for ?side=talk links", async () => {
+    it("lists the servers in their order with name and label", async () => {
         expect(body(await get("/api/discord/servers"))).toEqual([
             { guildId: GUILDS.event, name: "Gilde", label: "", online: true, iconUrl: "https://cdn/icon.png" },
-            { guildId: GUILDS.talk, name: "", label: "Talk", online: false, iconUrl: "", legacyTalk: true },
+            { guildId: GUILDS.talk, name: "", label: "Talk", online: false, iconUrl: "" },
         ]);
     });
 

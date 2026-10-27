@@ -14,7 +14,7 @@ const { listByCharacter } = require("../../stores/lootStore");
 const { characterAttendance, overall, attendanceFields } = require("../../services/characters/attendanceLookup");
 const { buildAttendanceContext } = require("../../services/characters/rosterAttendance");
 const { addVersionOption, versionOfCommand, versionNote } = require("../../services/events/commandVersion");
-const { eventGuildId } = require("../../services/discord/guildRoles");
+const { serverIds } = require("../../services/discord/guildRoles");
 const { webUrl, lookupReply } = require("../../utils/discord/botLookup");
 
 /** The game version a lookup counts: the picked `version` option, else the channel's category's, else the main version. */
@@ -66,7 +66,7 @@ module.exports = {
                 footer: { text: versionNote(versionId) },
             }, [{ label: "Im Web öffnen", url: webUrl("/roster") }]);
         }
-        const guildId = eventGuildId();
+        const guildId = serverIds()[0] || "";
         const ctx = buildAttendanceContext(guildId, { versionId });
         const results = chars.map((c) => characterAttendance(guildId, c.character, { ctx, versionId }));
         const links = chars.slice(0, 5).map((c) => ({

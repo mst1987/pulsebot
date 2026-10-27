@@ -9,7 +9,7 @@
 //                    title, body, imageUrl, color: number|null,
 //                    roles: [{ roleId, emoji, label }], createdBy, createdAt, updatedAt }
 //          url: the Discord link of the message ("" while not posted); guildId: the server
-//          (an entry from before #895 with only guildSide: the talk server resp. the first server)
+//          (the start placed every entry from before #895, settingsMigration.js)
 //
 // GET    /api/role-messages/options?guildId=<one of the servers>   (none: the first server)
 //        → { data: { guildId, online, manageRoles: boolean|null,

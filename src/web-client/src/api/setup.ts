@@ -313,10 +313,18 @@ export type SetupSignupEdit = {
     characters: { character: string; spec: string; status: string }[];
     statuses: SignupStatus[];
     options: SetupSignupOption[];
+    /** "Anderer Charakter …": every class of the event's rule set with its specs. */
+    classes: SetupSignupClass[];
 };
 
-/** PUT /api/raids/setup/signup: `from` = the character the setup shows, the one `character`/`spec` replace. */
-export type SetupSignupInput = { userId: string; status: SignupStatus; from?: string; character?: string; spec?: string };
+/** A class of the event's rule set, for a character the orga names by hand. */
+export type SetupSignupClass = { id: string; label: string; color: string; icon: string; specs: { key: string; label: string; icon: string; role: GameRole }[] };
+
+/**
+ * PUT /api/raids/setup/signup: `from` = the character the setup shows, the one `character`/`spec` replace.
+ * With `className` the orga names another character (a name outside the profile) of that class.
+ */
+export type SetupSignupInput = { userId: string; status: SignupStatus; from?: string; character?: string; spec?: string; className?: string };
 
 export function getSetupSignup(eventId: string, userId: string): Promise<SetupSignupEdit> {
     return get(`/api/raids/setup/signup?event=${encodeURIComponent(eventId)}&user=${encodeURIComponent(userId)}`);

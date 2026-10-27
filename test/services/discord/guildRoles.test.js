@@ -18,7 +18,7 @@ const X = "90000";
 const C1 = "90100";
 
 // The server federation (#890) as getConfig() hands it over.
-const block = (over = {}) => ({ servers: [], links: [], talkGuildId: "", talkPingChannelId: "", ...over });
+const block = (over = {}) => ({ servers: [], links: [], ...over });
 const server = (guildId, label = "") => ({ guildId, label });
 // An old event-server block (before #890).
 const legacy = (over = {}) => ({ eventGuilds: [], talkGuildId: "", talkPingChannelId: "", ...over });
@@ -30,12 +30,11 @@ beforeEach(() => {
     getConfig.mockReturnValue({ guildId: "", discordServers: block() });
 });
 
+
 describe("services/discord/guildRoles ids", () => {
     it("falls back to the old guildId when no server is set", () => {
         getConfig.mockReturnValue({ guildId: HOME, discordServers: block() });
         expect(guildRoles.serverIds()).toEqual([HOME]);
-        expect(guildRoles.eventGuildId()).toBe(HOME);
-        expect(guildRoles.talkGuildId()).toBe("");
         expect(guildRoles.configuredGuildIds()).toEqual([HOME]);
     });
 
@@ -43,34 +42,28 @@ describe("services/discord/guildRoles ids", () => {
         const config = { guildId: HOME, discordServers: block({ servers: [server(E1), server(E2), server(E1)] }) };
         expect(guildRoles.serverIds(config)).toEqual([E1, E2]);
         expect(guildRoles.eventGuildIds(config)).toEqual([E1, E2]);
-        expect(guildRoles.eventGuildId(config)).toBe(E1);
         expect(guildRoles.isEventGuild(E2, config)).toBe(true);
         expect(guildRoles.isEventGuild(X, config)).toBe(false);
     });
 
-    it("tells the role of a server, the talk server first", () => {
-        getConfig.mockReturnValue({ guildId: "", discordServers: block({ servers: [server(E1), server(T)], talkGuildId: T }) });
+    // #897: no talk role any more, every server of the list is an equal one.
+    it("tells the role of a server: one of the list or none", () => {
+        getConfig.mockReturnValue({ guildId: "", discordServers: block({ servers: [server(E1), server(T)] }) });
         expect(guildRoles.guildRole(E1)).toBe("event");
-        expect(guildRoles.guildRole(T)).toBe("talk");
+        expect(guildRoles.guildRole(T)).toBe("event");
         expect(guildRoles.guildRole(X)).toBe("");
         expect(guildRoles.guildRole("")).toBe("");
-        expect(guildRoles.isTalkGuild(T)).toBe(true);
-        expect(guildRoles.isTalkGuild(E1)).toBe(false);
     });
 
-    it("keeps a server that holds raids and is the talk server at once (#890)", () => {
-        const config = { discordServers: block({ servers: [server(E1)], talkGuildId: E1 }) };
-        expect(guildRoles.talkGuildId(config)).toBe(E1);
-        expect(guildRoles.eventGuildId(config)).toBe(E1);
-        expect(guildRoles.isEventGuild(E1, config)).toBe(true);
-        expect(guildRoles.isTalkGuild(E1, config)).toBe(true);
-        expect(guildRoles.configuredGuildIds(config)).toEqual([E1]);
+    it("no longer offers the talk-server readers (#897)", () => {
+        for (const name of ["eventGuildId", "talkGuildId", "isTalkGuild", "legacyEventGuilds", "eventGuild", "talkGuild", "memberOverlap"]) {
+            expect(guildRoles[name]).toBeUndefined();
+        }
     });
 
     it("has no configured server on a blank install", () => {
         expect(guildRoles.configuredGuildIds({})).toEqual([]);
-        expect(guildRoles.eventGuild({})).toBeNull();
-        expect(guildRoles.talkGuild({})).toBeNull();
+        expect(guildRoles.eventGuildCards({})).toEqual([]);
     });
 
     it("reads a server's label", () => {
@@ -78,6 +71,26 @@ describe("services/discord/guildRoles ids", () => {
         expect(guildRoles.serverLabel(E1, config)).toBe("PvE");
         expect(guildRoles.serverLabel(E2, config)).toBe("");
         expect(guildRoles.serverLabel(X, config)).toBe("");
+    });
+});
+
+// A block handed in directly in the old shape is read the way configSchema migrates it.
+describe("services/discord/guildRoles readers on an old block", () => {
+    it("the old talk server becomes an ordinary server after the event servers", () => {
+        const config = { guildId: HOME, discordServers: legacy({ eventGuilds: [eventGuild(E1)], talkGuildId: T }) };
+        expect(guildRoles.serverIds(config)).toEqual([E1, T]);
+        expect(guildRoles.guildRole(E1, config)).toBe("event");
+        expect(guildRoles.guildRole(T, config)).toBe("event");
+    });
+
+    it("only the old guildId", () => {
+        const config = { guildId: HOME, discordServers: legacy() };
+        expect(guildRoles.serverIds(config)).toEqual([HOME]);
+    });
+
+    it("the overview target becomes the link of its server", () => {
+        const config = { discordServers: legacy({ eventGuilds: [eventGuild(E1, { overviewGuildId: T, overviewChannelId: C1 })], talkGuildId: T }) };
+        expect(guildRoles.linkedTargets(E1, config)).toEqual([{ from: E1, to: T, channelId: C1, lang: "", versions: [] }]);
     });
 });
 
@@ -103,56 +116,6 @@ describe("services/discord/guildRoles links", () => {
     });
 });
 
-// Every reader returns for an old block what it returned before #890.
-describe("services/discord/guildRoles readers on an old block (same values as before #890)", () => {
-    it("event servers + talk server", () => {
-        const config = { guildId: HOME, discordServers: legacy({ eventGuilds: [eventGuild(E1)], talkGuildId: T }) };
-        expect(guildRoles.eventGuildId(config)).toBe(E1);
-        expect(guildRoles.talkGuildId(config)).toBe(T);
-        expect(guildRoles.configuredGuildIds(config)).toEqual([E1, T]);
-        expect(guildRoles.guildRole(E1, config)).toBe("event");
-        expect(guildRoles.guildRole(T, config)).toBe("talk");
-    });
-
-    it("only the old guildId", () => {
-        const config = { guildId: HOME, discordServers: legacy() };
-        expect(guildRoles.eventGuildId(config)).toBe(HOME);
-        expect(guildRoles.talkGuildId(config)).toBe("");
-        expect(guildRoles.configuredGuildIds(config)).toEqual([HOME]);
-    });
-
-    it("a talk server without event server keeps the old guildId as the event server", () => {
-        const config = { guildId: HOME, discordServers: legacy({ talkGuildId: T }) };
-        expect(guildRoles.eventGuildId(config)).toBe(HOME);
-        expect(guildRoles.talkGuildId(config)).toBe(T);
-    });
-
-    it("the overview target becomes the link of its server", () => {
-        const config = { discordServers: legacy({ eventGuilds: [eventGuild(E1, { overviewGuildId: T, overviewChannelId: C1 })], talkGuildId: T }) };
-        expect(guildRoles.linkedTargets(E1, config)).toEqual([{ from: E1, to: T, channelId: C1, lang: "", versions: [] }]);
-    });
-});
-
-describe("services/discord/guildRoles transition format until #891", () => {
-    it("shows every server but the talk server as an old event-server entry, the first own link as its target", () => {
-        const config = {
-            discordServers: block({
-                servers: [server(E1, "PvE"), server(E2, "PvP"), server(T)],
-                links: [{ from: E1, to: T, channelId: C1 }, { from: E1, to: E1, channelId: "90300" }],
-                talkGuildId: T,
-            }),
-        };
-        expect(guildRoles.legacyEventGuilds(config)).toEqual([
-            { guildId: E1, label: "PvE", overviewGuildId: T, overviewChannelId: C1 },
-            { guildId: E2, label: "PvP", overviewGuildId: "", overviewChannelId: "" },
-        ]);
-    });
-
-    it("keeps the talk server in the list when it posts a raid list of its own", () => {
-        const config = { discordServers: block({ servers: [server(E1)], links: [{ from: E1, to: E1, channelId: C1 }], talkGuildId: E1 }) };
-        expect(guildRoles.legacyEventGuilds(config)).toEqual([{ guildId: E1, label: "", overviewGuildId: E1, overviewChannelId: C1 }]);
-    });
-});
 
 describe("services/discord/guildRoles cards", () => {
     it("describes a connected server with its missing rights", () => {
@@ -161,7 +124,7 @@ describe("services/discord/guildRoles cards", () => {
             { key: "SendMessages", label: "Nachrichten senden", ok: true },
             { key: "ManageRoles", label: "Rollen verwalten", ok: false },
         ]);
-        const card = guildRoles.eventGuild({ discordServers: block({ servers: [server(E1)] }) });
+        const [card] = guildRoles.eventGuildCards({ discordServers: block({ servers: [server(E1)] }) });
         expect(card).toMatchObject({
             role: "event", id: E1, name: "Pulse Events", connected: true, memberCount: 212,
             iconUrl: "https://cdn/icon.png", missing: ["Rollen verwalten"],
@@ -172,26 +135,26 @@ describe("services/discord/guildRoles cards", () => {
     // A server the bot is not on: nothing is known, so nothing reads as missing.
     it("describes a server the bot is not on as not connected, rights unknown", () => {
         discord.getGuild.mockReturnValue(null);
-        const card = guildRoles.talkGuild({ discordServers: block({ servers: [server(E1), server(T)], talkGuildId: T }) });
-        expect(card).toEqual({
-            role: "talk", id: T, name: "", connected: false, memberCount: null, iconUrl: "", permissions: null, missing: [],
+        expect(guildRoles.describeGuild(T, "event")).toEqual({
+            role: "event", id: T, name: "", connected: false, memberCount: null, iconUrl: "", permissions: null, missing: [],
         });
+        expect(guildRoles.describeGuild("", "event")).toBeNull();
         expect(discord.botPermissionsIn).not.toHaveBeenCalled();
     });
 
-    it("lists a card per event server, with its overview target", () => {
+    it("lists a card per server, with its first own link as the overview target", () => {
         discord.getGuild.mockImplementation((id) => ({ id, name: id === E1 ? "PvE" : id === E2 ? "PvP" : "Talk", memberCount: 1, iconURL: () => "" }));
         discord.botPermissionsIn.mockReturnValue([]);
         const config = {
             discordServers: block({
                 servers: [server(E1, "PvE"), server(E2, "PvP"), server(T)],
                 links: [{ from: E1, to: T, channelId: C1 }],
-                talkGuildId: T,
             }),
         };
         expect(guildRoles.eventGuildCards(config)).toEqual([
             expect.objectContaining({ id: E1, label: "PvE", overviewGuildId: T, overviewChannelId: C1, overviewGuildName: "Talk" }),
             expect.objectContaining({ id: E2, label: "PvP", overviewGuildId: "", overviewChannelId: "", overviewGuildName: "" }),
+            expect.objectContaining({ id: T, label: "", overviewGuildId: "", overviewChannelId: "" }),
         ]);
     });
 
@@ -200,55 +163,18 @@ describe("services/discord/guildRoles cards", () => {
     });
 });
 
-describe("services/discord/guildRoles memberOverlap", () => {
-    const two = { discordServers: block({ servers: [server(E1), server(T)], talkGuildId: T }) };
-
-    it("is null without a second server", async () => {
-        expect(await guildRoles.memberOverlap({ guildId: E1, discordServers: block() })).toBeNull();
-    });
-
-    it("is null when the talk server is the event server (#890)", async () => {
-        expect(await guildRoles.memberOverlap({ discordServers: block({ servers: [server(E1)], talkGuildId: E1 }) })).toBeNull();
-        expect(discord.fetchGuildMembersCached).not.toHaveBeenCalled();
-    });
-
-    it("counts the human members that are on both servers", async () => {
-        discord.getGuild.mockImplementation((id) => ({ id }));
-        discord.fetchGuildMembersCached.mockImplementation(async (id) => (id === E1
-            ? [member("a"), member("b"), member("c"), member("bot", true)]
-            : [member("b"), member("c"), member("d"), member("bot", true)]));
-        expect(await guildRoles.memberOverlap(two)).toEqual({ eventCount: 3, talkCount: 3, both: 2, error: null });
-    });
-
-    it("reports a failed member fetch instead of throwing", async () => {
-        discord.getGuild.mockImplementation((id) => ({ id }));
-        discord.fetchGuildMembersCached.mockRejectedValue(new Error("Used disallowed intents"));
-        expect(await guildRoles.memberOverlap(two)).toEqual({
-            eventCount: null, talkCount: null, both: null, error: "Used disallowed intents",
-        });
-    });
-
-    it("says so when the bot is missing on one server", async () => {
-        discord.getGuild.mockImplementation((id) => (id === E1 ? { id } : null));
-        const out = await guildRoles.memberOverlap(two);
-        expect(out.both).toBeNull();
-        expect(out.error).toMatch(/nicht auf beiden/);
-        expect(discord.fetchGuildMembersCached).not.toHaveBeenCalled();
-    });
-});
-
 describe("services/discord/guildRoles server pick (#895)", () => {
-    const cfg = { guildId: "", discordServers: block({ servers: [server(E1), server(T, "Talk")], talkGuildId: T }) };
+    const cfg = { guildId: "", discordServers: block({ servers: [server(E1), server(T, "Talk")] }) };
 
     it("takes a guildId of the list, refuses one outside it", () => {
         expect(guildRoles.resolveServer({ guildId: T }, cfg)).toBe(T);
         expect(guildRoles.resolveServer({ guildId: X }, cfg)).toBeNull();
     });
 
-    it("falls back to the first server, an old side=talk to the talk server", () => {
+    // #897: an old ?side=talk link has no talk server to go to any more.
+    it("falls back to the first server, an old side too", () => {
         expect(guildRoles.resolveServer({}, cfg)).toBe(E1);
-        expect(guildRoles.resolveServer({ side: "event" }, cfg)).toBe(E1);
-        expect(guildRoles.resolveServer({ side: "talk" }, cfg)).toBe(T);
+        expect(guildRoles.resolveServer({ side: "talk" }, cfg)).toBe(E1);
         expect(guildRoles.resolveServer({}, { guildId: "", discordServers: block() })).toBe("");
     });
 
@@ -256,17 +182,15 @@ describe("services/discord/guildRoles server pick (#895)", () => {
         discord.getGuild.mockImplementation((id) => (id === E1 ? { id, name: "Gilde", iconURL: () => "https://cdn/i.png" } : null));
         expect(guildRoles.serverChoices(cfg)).toEqual([
             { guildId: E1, name: "Gilde", label: "", online: true, iconUrl: "https://cdn/i.png" },
-            { guildId: T, name: "", label: "Talk", online: false, iconUrl: "", legacyTalk: true },
+            { guildId: T, name: "", label: "Talk", online: false, iconUrl: "" },
         ]);
-        // without a talk server no entry is marked
-        expect(guildRoles.serverChoices({ ...cfg, discordServers: block({ servers: [server(E1), server(T)] }) }).some((s) => s.legacyTalk)).toBe(false);
     });
 
-    it("places a role message by its guildId, an old one by its side", () => {
+    it("places a role message by its guildId, one without by the first server", () => {
         expect(guildRoles.roleMessageGuild({ guildId: X }, cfg)).toBe(X);
-        expect(guildRoles.roleMessageGuild({ guildSide: "talk" }, cfg)).toBe(T);
-        expect(guildRoles.roleMessageGuild({ guildSide: "event" }, cfg)).toBe(E1);
+        expect(guildRoles.roleMessageGuild({ guildSide: "talk" }, cfg)).toBe(E1);
         expect(guildRoles.roleMessageGuild(null, cfg)).toBe(E1);
+        expect(guildRoles.roleMessageGuild(null, { guildId: "", discordServers: block() })).toBe("");
     });
 });
 
@@ -284,5 +208,20 @@ describe("services/discord/guildRoles guildOverlap", () => {
             ? [member("a"), member("b"), member("bot", true)]
             : [member("b")]));
         expect(await guildRoles.guildOverlap(T, "900077")).toEqual({ fromCount: 2, toCount: 1, both: 1, error: null });
+    });
+
+    // took over from the removed memberOverlap() (#897): a failed member list comes back as error, never thrown
+    it("returns a failed member list as error", async () => {
+        discord.getGuild.mockImplementation((id) => ({ id }));
+        discord.fetchGuildMembersCached.mockRejectedValue(new Error("Missing Access"));
+        expect(await guildRoles.guildOverlap(T, "900077")).toEqual({ fromCount: null, toCount: null, both: null, error: "Missing Access" });
+        discord.fetchGuildMembersCached.mockRejectedValue({});
+        expect((await guildRoles.guildOverlap(T, "900077")).error).toMatch(/GuildMembers-Intent/);
+    });
+
+    it("says so when the bot is not on both servers", async () => {
+        discord.getGuild.mockImplementation((id) => (id === T ? { id } : null));
+        expect(await guildRoles.guildOverlap(T, "900077")).toEqual({ fromCount: null, toCount: null, both: null, error: "Der Bot ist nicht auf beiden Servern." });
+        expect(discord.fetchGuildMembersCached).not.toHaveBeenCalled();
     });
 });

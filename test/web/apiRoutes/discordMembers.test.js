@@ -3,9 +3,9 @@
 // and its `gone` answer.
 let mockUser = null;
 jest.mock("../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true, getActiveGuild: () => "" }));
-// the server list (#895): the first server and the talk server
+// the server list (#895): two equal servers
 jest.mock("../../../src/stores/configStore", () => ({
-    getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], talkGuildId: "900000000000000002", links: [] } }),
+    getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], links: [] } }),
 }));
 const EVENT = "900000000000000001";
 const TALK = "900000000000000002";
@@ -49,13 +49,13 @@ describe("access (area channels, read)", () => {
 });
 
 describe("GET /api/discord/members", () => {
-    it("passes the server on, the first server by default, an old side=talk as the talk server", async () => {
+    it("passes the server on, the first server by default, an old side=talk too (#897)", async () => {
         expect(body(await get("/api/discord/members", { guildId: TALK }))).toEqual({ guildId: TALK, online: true, total: 0, roles: [], members: [] });
         expect(svc.listServerMembers).toHaveBeenLastCalledWith(TALK);
         await get("/api/discord/members");
         expect(svc.listServerMembers).toHaveBeenLastCalledWith(EVENT);
         await get("/api/discord/members", { side: "talk" });
-        expect(svc.listServerMembers).toHaveBeenLastCalledWith(TALK);
+        expect(svc.listServerMembers).toHaveBeenLastCalledWith(EVENT);
     });
 
     it("refuses a server outside the list", async () => {

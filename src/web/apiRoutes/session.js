@@ -53,7 +53,7 @@ async function getSession(req, res) {
             : null,
         csrfToken: user ? auth.csrfToken(req) : null,
         areas: AREAS,
-        // Each with its fixed role ("event" | "talk" | ""), the switcher's badge.
+        // Each with its role ("event" = one of the servers, "" = none), the switcher's badge.
         guilds: hasMenu ? sessionGuilds() : [],
         activeGuildId: hasMenu ? activeGuildFor(req) : "",
         // The content switch of the menu (#563): main version, whether the others are
