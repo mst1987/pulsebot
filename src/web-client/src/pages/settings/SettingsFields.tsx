@@ -77,7 +77,7 @@ export function LogChannelsField({ entries, channels, versions, onChange }: {
                         const name = ch ? `#${ch.name}` : e.channelId;
                         return (
                             <li key={e.channelId} className="topitem logchan">
-                                <span className="logchan-name" title={ch ? `ID ${e.channelId}` : t("settings.fields.unknownChannel")}>
+                                <span className="logchan-name" data-tip={ch ? `ID ${e.channelId}` : t("settings.fields.unknownChannel")}>
                                     {ch ? name : <span className="mono">{e.channelId}</span>}
                                     {ch?.category && <small className="muted">{ch.category}</small>}
                                 </span>
