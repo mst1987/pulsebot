@@ -3,6 +3,8 @@
 const { versionLinks } = require("../../services/events/versionSettings");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 const { recordVersion } = require("../../services/logcheck/logVersion");
+const { reportGuild } = require("../../services/logcheck/reportGuild");
+const logStore = require("../../stores/logStore");
 const charLinks = require("../characters/charLinks");
 const { CLASS_COLORS } = require("../../utils/setup/setupView");
 const rpbData = require("../../config/rpbData");
@@ -26,8 +28,9 @@ function tagClass(severity) {
 // synchronously, so the page entry sets the version for the time it renders
 // (withReportVersion) instead of every widget taking the report. Read once per
 // second and version, not per icon - a report renders hundreds.
-// The report's server (`report.guildId`, #917) picks the server's own
-// armory/log templates (#923); a report without one gets the standard.
+// The report's server picks the server's own armory/log templates (#923): the
+// tracked log's server when there is one, else the report's own (`reportGuild`,
+// #920); a report without either gets the standard.
 let pageVersion = LEGACY_VERSION;
 let pageGuild = "";
 let linksMemo = { at: 0, versionId: "", guildId: "", links: null };
@@ -50,7 +53,7 @@ function withReportVersion(report, fn) {
     const before = pageVersion;
     const beforeGuild = pageGuild;
     pageVersion = recordVersion(report);
-    pageGuild = String((report && report.guildId) || "");
+    pageGuild = report ? reportGuild(report, logStore.listLogs()) : "";
     // the page's accent follows the same version (#742)
     const shown = setPageVersion(pageVersion);
     try {

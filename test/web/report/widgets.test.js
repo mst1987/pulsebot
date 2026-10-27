@@ -1,6 +1,8 @@
 // The small HTML building blocks of the report pages (src/web/report/widgets.js),
 // tested on their own with hand-built inputs.
 jest.mock("../../../src/web/characters/charLinks", () => ({ armoryUrlFor: jest.fn(() => "") }));
+const mockListLogs = jest.fn(() => []);
+jest.mock("../../../src/stores/logStore", () => ({ listLogs: (...a) => mockListLogs(...a) }));
 
 const { armoryUrlFor } = require("../../../src/web/characters/charLinks");
 const w = require("../../../src/web/report/widgets");
@@ -177,6 +179,21 @@ describe("web/report/widgets", () => {
                 w.armoryLink("Brokk", "btn");
             });
             expect(armoryUrlFor).toHaveBeenLastCalledWith("Brokk", "tbc", "");
+        });
+
+        it("links with the tracked log's server when log and report disagree (#923, #920)", () => {
+            // the log decides while it exists - the report's own guildId is an old copy
+            mockListLogs.mockReturnValueOnce([{ id: "l1", reportRefId: "r1", guildId: "g-log" }]);
+            w.withReportVersion({ id: "r1", versionId: "tbc", guildId: "g-report" }, () => {
+                w.armoryLink("Brokk", "btn");
+            });
+            expect(armoryUrlFor).toHaveBeenLastCalledWith("Brokk", "tbc", "g-log");
+            // a report without a log keeps its own server
+            mockListLogs.mockReturnValueOnce([{ id: "l1", reportRefId: "other", guildId: "g-log" }]);
+            w.withReportVersion({ id: "r1", versionId: "tbc", guildId: "g-report" }, () => {
+                w.armoryLink("Brokk", "btn");
+            });
+            expect(armoryUrlFor).toHaveBeenLastCalledWith("Brokk", "tbc", "g-report");
         });
     });
 
