@@ -23,7 +23,9 @@ vi.mock("../../api", async (orig) => ({
 
 const noop = () => undefined;
 
-function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage, attendance, onAttendance, missing, onCloseCategory, closeBlocked, roles, categoryRoles, hubs, signupChars, onSignupCharacters }: {
+function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage, attendance, onAttendance, missing, onCloseCategory, closeBlocked, roles, categoryRoles, hubs, signupChars, onSignupCharacters, raidhelperActive }: {
+    /** #927: false = Raid-Helper is off on the active server. */
+    raidhelperActive?: boolean;
     /** Characters per signup per category; with onSignupCharacters the card is offered. */
     signupChars?: Record<string, number>;
     onSignupCharacters?: (id: string, count: number) => void;
@@ -63,6 +65,7 @@ function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, langu
             onLootTool={noop}
             onLootSystem={noop}
             onSignupSource={noop}
+            raidhelperActive={raidhelperActive}
             onSignupNotes={noop}
             categorySignupCharacters={signupChars}
             onSignupCharacters={onSignupCharacters}
@@ -126,6 +129,17 @@ describe("CategoryMatrix: the open card's tabs", () => {
         // nothing of the other tabs is rendered
         expect(screen.queryByRole("radiogroup", { name: t("settings.categories.newEventsAria", { name: "Raids Mittwoch" }) })).toBeNull();
         expect(screen.queryByRole("radiogroup", { name: t("settings.categories.lootAddonAria", { name: "Raids Mittwoch" }) })).toBeNull();
+    });
+
+    // #927: a server without Raid-Helper offers only EventHelper for new events
+    it("offers only EventHelper for new events when Raid-Helper is off on this server", async () => {
+        const user = await openCard({ raidhelperActive: false });
+        expect(screen.queryByText(t("settings.categories.stillRh", { count: 1 }))).toBeNull();
+        await user.click(tab("events"));
+        const events = screen.getByRole("tabpanel");
+        expect(within(events).queryByRole("radiogroup", { name: t("settings.categories.newEventsAria", { name: "Raids Mittwoch" }) })).toBeNull();
+        expect(within(events).getByText("EventHelper")).toHaveAttribute("data-source", "eventhelper");
+        expect(within(events).getByText(t("settings.categories.newEventsNoRh"))).toBeInTheDocument();
     });
 
     it("switches tabs by click and shows only that tab's fields", async () => {

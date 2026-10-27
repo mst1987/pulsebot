@@ -1,0 +1,128 @@
+import { useEffect, useState } from "react";
+import { updateSettings, type ApiError, type RaidhelperServer } from "../../api";
+import { useToast } from "../../components/shell/Jobs";
+import { Button } from "../../components/ui/Button";
+import Switch from "../../components/ui/Switch";
+import { FieldLabel } from "../../components/ui/Field";
+import { SaveIcon, TrashIcon } from "../../components/ui/icons";
+import { useT } from "../../i18n";
+import RaidhelperRetirementCard from "./SettingsRaidhelperRetirement";
+import RaidhelperSyncCard from "./SettingsRaidhelperSync";
+
+// Einstellungen → Server → Raid-Helper (#927): Raid-Helper per Discord server.
+// Off by default; a server without it sends Raid-Helper no request and offers
+// only EventHelper. The key is never shown: the page only learns whether there
+// is one and its last 4 characters, and can replace or clear it.
+
+const EMPTY: RaidhelperServer = { enabled: false, serverId: "", hasKey: false, keyLast4: "", envKey: false, active: false, at: 0, byName: "" };
+
+type Props = {
+    value: RaidhelperServer | null;
+    activeGuildId?: string;
+    onSaved: (raidhelper: RaidhelperServer) => void;
+};
+
+export default function RaidhelperServerSection({ value, activeGuildId, onSaved }: Props) {
+    const t = useT();
+    const toast = useToast();
+    const current = value || EMPTY;
+    const [enabled, setEnabled] = useState(current.enabled);
+    const [serverId, setServerId] = useState(current.serverId);
+    const [newKey, setNewKey] = useState("");
+    const [clearKey, setClearKey] = useState(false);
+    const [busy, setBusy] = useState(false);
+    // the retirement card reads its own state; remount it after a save here
+    const [round, setRound] = useState(0);
+
+    useEffect(() => {
+        setEnabled(current.enabled);
+        setServerId(current.serverId);
+    }, [current.enabled, current.serverId]);
+
+    const keyStatus = current.hasKey
+        ? current.keyLast4 ? t("settings.raidhelperServer.keyStored", { last4: current.keyLast4 })
+            : current.envKey ? t("settings.raidhelperServer.keyEnv") : t("settings.raidhelperServer.keyStoredShort")
+        : t("settings.raidhelperServer.keyNone");
+    const idValid = /^\d*$/.test(serverId.trim());
+    const willHaveKey = clearKey ? !!newKey.trim() : current.hasKey || !!newKey.trim();
+
+    const save = async () => {
+        if (!idValid) { toast(t("settings.raidhelperServer.serverIdInvalid"), "err"); return; }
+        setBusy(true);
+        try {
+            const apiKey = newKey.trim() ? newKey.trim() : clearKey ? "" : undefined;
+            const res = await updateSettings({ raidhelper: { enabled, serverId: serverId.trim(), ...(apiKey === undefined ? {} : { apiKey }) } });
+            setNewKey("");
+            setClearKey(false);
+            if (res.raidhelper) onSaved(res.raidhelper);
+            setRound((r) => r + 1);
+            toast(t("settings.raidhelperServer.saved"));
+        } catch (err) {
+            toast((err as ApiError).message, "err");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <div className="rh-server">
+            <section className="conn-card" data-conn="raidhelper-server">
+                <div className="conn-form rh-server-form">
+                    <Switch
+                        checked={enabled}
+                        onChange={setEnabled}
+                        label={t("settings.raidhelperServer.enabled")}
+                        tip={t("settings.raidhelperServer.enabledTip")}
+                    />
+                    <div className="dlg-field">
+                        <FieldLabel htmlFor="rh-server-id" tip={t("settings.raidhelperServer.serverId")} tipSub={t("settings.raidhelperServer.serverIdSub")}>
+                            {t("settings.raidhelperServer.serverId")}
+                        </FieldLabel>
+                        <input
+                            id="rh-server-id"
+                            className="mono"
+                            inputMode="numeric"
+                            value={serverId}
+                            placeholder={activeGuildId || ""}
+                            onChange={(e) => setServerId(e.target.value)}
+                        />
+                        <div className={idValid ? "note" : "note is-bad"}>
+                            {idValid ? t("settings.raidhelperServer.serverIdNote") : t("settings.raidhelperServer.serverIdInvalid")}
+                        </div>
+                    </div>
+                    <div className="dlg-field">
+                        <FieldLabel htmlFor="rh-server-key" tip={t("settings.raidhelperServer.key")} tipSub={t("settings.raidhelperServer.keySub")}>
+                            {t("settings.raidhelperServer.key")}
+                        </FieldLabel>
+                        <div className="secret-row">
+                            <input
+                                id="rh-server-key"
+                                type="password"
+                                className="mono"
+                                value={newKey}
+                                disabled={clearKey}
+                                autoComplete="new-password"
+                                placeholder={clearKey ? t("settings.connections.secretCleared") : current.hasKey ? t("settings.connections.secretKeep") : t("settings.connections.secretNone")}
+                                onChange={(e) => setNewKey(e.target.value)}
+                            />
+                            {current.hasKey && !current.envKey && (
+                                <Button variant={clearKey ? "ghost" : "danger"} size="sm" icon={clearKey ? undefined : <TrashIcon />} onClick={() => { setClearKey(!clearKey); setNewKey(""); }}>
+                                    {clearKey ? t("settings.connections.keep") : t("common.delete")}
+                                </Button>
+                            )}
+                        </div>
+                        <div className="note" data-key-status>{keyStatus}</div>
+                    </div>
+                    {enabled && !willHaveKey && <div className="note is-bad">{t("settings.raidhelperServer.noKeyHint")}</div>}
+                </div>
+                <div className="conn-foot">
+                    <Button variant="go" icon={<SaveIcon />} onClick={save} disabled={busy}>
+                        {busy ? t("settings.saving") : t("common.save")}
+                    </Button>
+                </div>
+            </section>
+            {current.enabled && <RaidhelperSyncCard key={`sync-${round}`} />}
+            {current.enabled && <RaidhelperRetirementCard key={`ret-${round}`} />}
+        </div>
+    );
+}

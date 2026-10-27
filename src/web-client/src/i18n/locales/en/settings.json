@@ -38,6 +38,10 @@
             "label": "Raidsheets",
             "crumb": "Modules · Google Sheets by content"
         },
+        "raidhelper": {
+            "label": "Raid-Helper",
+            "crumb": "Server · Raid-Helper on this server"
+        },
         "topitems": {
             "label": "Top items",
             "crumb": "Modules · the big drops for the dashboard"
@@ -671,7 +675,7 @@
         "discordMissing": "The bot is not connected right now — server and role lists are missing until it is back online.",
         "raidhelperId": "Raid-Helper server ID",
         "raidhelperIdPlaceholder": "Server ID from raid-helper.xyz",
-        "raidhelperIdSub": "Used for all Raid-Helper API calls (events, setups, signups). The API key itself stays in the .env.",
+        "raidhelperIdSub": "Old value from before #927, only used for the one-time takeover. Raid-Helper is now set per server: Settings › Server › Raid-Helper.",
         "battlenetMissing": "Without client ID and secret the character history shows no live gear.",
         "battlenetLink": "Create a client on develop.battle.net",
         "battlenetClientPlaceholder": "Client ID from develop.battle.net",
@@ -705,7 +709,25 @@
         "githubMissing": "Without a token the page \"Addons\" shows the private addons as \"not available right now\".",
         "githubLink": "Create a token on github.com",
         "githubTokenTip": "Fine-grained personal access token",
-        "githubTokenSub": "Create it on github.com under Settings > Developer settings > Fine-grained tokens: repository access \"Only select repositories\" with the addon repos, Permissions > Repository > Contents: \"Read-only\". Nothing else."
+        "githubTokenSub": "Create it on github.com under Settings > Developer settings > Fine-grained tokens: repository access \"Only select repositories\" with the addon repos, Permissions > Repository > Contents: \"Read-only\". Nothing else.",
+        "raidhelperPerServer": "per server (Settings › Server › Raid-Helper)"
+    },
+    "raidhelperServer": {
+        "sectionSub": "Raid-Helper is set per Discord server. Off means no requests to Raid-Helper, new events only in EventHelper.",
+        "enabled": "Raid-Helper on this server",
+        "enabledTip": "Off: the bot never asks Raid-Helper for this server, categories create events in EventHelper only. Old Raid-Helper raids stay readable.",
+        "serverId": "Raid-Helper server ID",
+        "serverIdSub": "Leave empty: Raid-Helper is asked under this Discord server's ID. Only fill in when Raid-Helper runs under another ID (e.g. a test instance).",
+        "serverIdNote": "Empty = this Discord server's ID.",
+        "serverIdInvalid": "Digits only.",
+        "key": "API key",
+        "keySub": "This server's Raid-Helper API key. It is never shown, only replaced or deleted.",
+        "keyStored": "Stored, ends in …{{last4}}",
+        "keyStoredShort": "Stored",
+        "keyEnv": "From the .env (previous server)",
+        "keyNone": "No key stored",
+        "noKeyHint": "Without a key Raid-Helper stays off here.",
+        "saved": "Raid-Helper saved"
     },
     "tokens": {
         "revokeAsk": "Revoke token \"{name}\"?",
@@ -989,7 +1011,8 @@
         "signupCharsAria": "Characters per signup {name}",
         "signupCharsLess": "One character less",
         "signupCharsMore": "One character more",
-        "signupCharsUnit": "characters"
+        "signupCharsUnit": "characters",
+        "newEventsNoRh": "Raid-Helper is off on this server, new events are created in EventHelper."
     },
     "botCommands": {
         "mode": {

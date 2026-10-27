@@ -17,8 +17,6 @@ import { CheckIcon, CheckMark, CopyIcon, ExternalIcon, PenIcon, TrashIcon, WarnI
 import { AdminOnlyBadge } from "../../components/settings/settingsUi";
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import RaidLoader from "../../components/ui/RaidLoader";
-import RaidhelperRetirementCard from "./SettingsRaidhelperRetirement";
-import RaidhelperSyncCard from "./SettingsRaidhelperSync";
 import GuildBanksCard from "./SettingsGuildBanks";
 import { tParts, t as translate, useT } from "../../i18n";
 
@@ -74,7 +72,8 @@ function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
             tipSub: t("settings.connections.discordSub"),
             rows: [
                 [t("settings.connections.eventServer"), data.servers?.events?.[0]?.name || data.bot?.guildName || c.guildId || t("settings.connections.botDefaultServer")],
-                ["Raid-Helper", c.raidhelperServerId || t("settings.connections.fromEnv")],
+                // #927: Raid-Helper is set per server now (Einstellungen > Server > Raid-Helper)
+                ["Raid-Helper", t("settings.connections.raidhelperPerServer")],
                 ["Bot", data.bot?.online ? (data.bot.readySince ? t("settings.connections.onlineSince", { since: since(data.bot.readySince) }) : "online") : "offline"],
             ],
         },
@@ -190,10 +189,7 @@ export default function ConnectionsSection({ data, tokens, onConfig, onTokensCha
                     );
                 })}
             </div>
-            {/* #291: the switch-over checklist — full admins only, like the API. */}
-            {/* #608: the one job that fetches Raid-Helper's event list, with "Jetzt aktualisieren". */}
-            {data.canManageAccess && <RaidhelperSyncCard />}
-            {data.canManageAccess && <RaidhelperRetirementCard />}
+            {/* #927: the Raid-Helper sync (#608) and the switch-over checklist (#291) moved to Server > Raid-Helper */}
             {/* #632: the guild banks the sync tool uploaded and their server */}
             <GuildBanksCard />
 
