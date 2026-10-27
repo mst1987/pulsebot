@@ -5,13 +5,15 @@ const mockSignups = new Map();
 jest.mock("../../../src/stores/signupStore", () => ({
     getSignup: (eventId, userId) => mockSignups.get(`${eventId}/${userId}`) || null,
 }));
+const mockEvents = new Map();
+jest.mock("../../../src/stores/eventStore", () => ({ getEvent: (id) => mockEvents.get(id) || null }));
 let mockConfig = {};
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockMembership = null;
 jest.mock("../../../src/services/discord/discord", () => ({ guildMembership: jest.fn(async () => mockMembership) }));
 
 const discord = require("../../../src/services/discord/discord");
-const { checkPugMember, pugInviteUrl, serverOf, PUG_MEMBERS_ERROR } = require("../../../src/services/signups/pugMembership");
+const { checkPugMember, markMembersOnly, pugInviteUrl, safeInviteUrl, holdsSignup, serverOf, PUG_MEMBERS_ERROR } = require("../../../src/services/signups/pugMembership");
 
 const ANNA = "200000000000000001";
 const event = { id: "eh-pug", guildId: "g-pug", categoryId: "cat-pug", versionId: "tbc" };
@@ -54,6 +56,65 @@ describe("checkPugMember", () => {
         expect(await checkPugMember(event, ANNA, { membership: false, previous: null })).toEqual(refused);
         expect(await checkPugMember(event, ANNA, { membership: true, previous: null })).toEqual({ ok: true });
         expect(discord.guildMembership).not.toHaveBeenCalled();
+    });
+
+    it("a stored absence (\"Abgemeldet\") is no signup that exempts", async () => {
+        mockMembership = false;
+        mockSignups.set(`eh-pug/${ANNA}`, { status: "absence" });
+        expect(await checkPugMember(event, ANNA)).toEqual(refused);
+        expect(await checkPugMember(event, ANNA, { previous: { status: "absence" }, membership: false })).toEqual(refused);
+        expect(holdsSignup({ status: "absence" })).toBe(false);
+        expect(holdsSignup({ status: "tentative" })).toBe(true);
+        expect(holdsSignup(null)).toBe(false);
+    });
+});
+
+describe("markMembersOnly (GET /api/signups)", () => {
+    const row = (over = {}) => ({ id: "eh-pug", source: "eventhelper", openToAll: true, started: false, cancelled: false, mine: null, ...over });
+    beforeEach(() => {
+        mockEvents.clear();
+        mockEvents.set("eh-pug", event);
+        mockEvents.set("eh-pug2", { ...event, id: "eh-pug2" });
+        mockEvents.set("eh-other", { ...event, id: "eh-other", guildId: "g-other" });
+    });
+
+    it("marks open raids of a non-member with the invite link, one lookup per server", async () => {
+        mockMembership = false;
+        const out = await markMembersOnly([row(), row({ id: "eh-pug2" }), row({ id: "eh-other" })], ANNA);
+        expect(out.map((r) => [r.id, r.membersOnly, r.inviteUrl])).toEqual([
+            ["eh-pug", true, ""], ["eh-pug2", true, ""], ["eh-other", true, ""],
+        ]);
+        expect(discord.guildMembership).toHaveBeenCalledTimes(2);
+    });
+
+    it("leaves members alone, says when Discord could not tell", async () => {
+        mockMembership = true;
+        expect((await markMembersOnly([row()], ANNA))[0]).toEqual(row());
+        mockMembership = null;
+        expect((await markMembersOnly([row()], ANNA))[0]).toMatchObject({ membershipUnknown: true });
+        expect((await markMembersOnly([row()], ANNA))[0].membersOnly).toBeUndefined();
+    });
+
+    it("skips guild raids, Raid-Helper, started/cancelled raids, own signups and the orga - an absence does not exempt", async () => {
+        mockMembership = false;
+        const rows = [
+            row({ openToAll: false }), row({ source: "raidhelper" }), row({ started: true }), row({ cancelled: true }),
+            row({ mine: { status: "tentative" } }), row({ id: "eh-unknown" }),
+        ];
+        expect(await markMembersOnly(rows, ANNA)).toEqual(rows);
+        expect(await markMembersOnly([row()], ANNA, { isOrga: async (ev) => ev.id === "eh-pug" })).toEqual([row()]);
+        expect(discord.guildMembership).not.toHaveBeenCalled();
+        expect((await markMembersOnly([row({ mine: { status: "absence" } })], ANNA))[0].membersOnly).toBe(true);
+    });
+});
+
+describe("safeInviteUrl", () => {
+    it("passes only an https link", () => {
+        expect(safeInviteUrl(" https://discord.gg/abc ")).toBe("https://discord.gg/abc");
+        expect(safeInviteUrl("http://discord.gg/abc")).toBe("");
+        expect(safeInviteUrl("javascript:alert(1)")).toBe("");
+        expect(safeInviteUrl("https://")).toBe("");
+        expect(safeInviteUrl(null)).toBe("");
     });
 });
 

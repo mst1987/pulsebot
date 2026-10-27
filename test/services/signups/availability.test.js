@@ -30,6 +30,7 @@ let mockConfig = {};
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/services/discord/discord", () => ({
     memberRoleIds: jest.fn(async () => null),
+    guildMembership: jest.fn(async () => null),
     postNotice: jest.fn(async () => ({})),
     sendDirectMessage: jest.fn(async () => ({ ok: true, messageId: "m1" })),
 }));
@@ -272,6 +273,22 @@ describe("createEntry – Anwesenheit", () => {
         expect(res.results[0]).toMatchObject({ ok: false, error: expect.stringContaining("Anmeldeschluss") });
         expect(dmText(discord.sendDirectMessage.mock.calls[0]).description).toContain("⛔");
         expect(dmText(discord.sendDirectMessage.mock.calls[0]).description).toContain("The signup deadline has passed");
+    });
+
+    it("an attendance from the web keeps PuG raids to members of their server (#907)", async () => {
+        discord.guildMembership.mockImplementation(async () => false);
+        try {
+            const web = await availability.createEntry(ANNA, { kind: "presence", from: today, to: dayPlus(3), character: "nerathil", spec: "Mage-Arcane" }, { now: NOW, by: ANNA, via: "web" });
+            expect(web.results[0]).toMatchObject({ eventId: "eh-a", ok: false, error: expect.stringContaining("PuG-Server") });
+            expect(mockSignups.get(`eh-a/${ANNA}`)).toBeUndefined();
+            // from Discord (the panel) whoever presses is on the server: no lookup
+            discord.guildMembership.mockClear();
+            const panel = await availability.createEntry(ANNA, { kind: "presence", from: today, to: dayPlus(3), character: "nerathil", spec: "Mage-Arcane" }, { now: NOW, via: "panel" });
+            expect(panel.results[0]).toMatchObject({ eventId: "eh-a", ok: true });
+            expect(discord.guildMembership).not.toHaveBeenCalled();
+        } finally {
+            discord.guildMembership.mockImplementation(async () => null);
+        }
     });
 
     it("die Orga ist an den Anmeldeschluss nicht gebunden", async () => {

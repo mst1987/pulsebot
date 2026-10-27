@@ -111,7 +111,10 @@
         "notePlaceholderTentative": "e.g. not sure yet, maybe later",
         "roleMissing": "You need a raider role for this raid.",
         "pugMembersOnly": "Only for members of the PuG server. Join the server, then you can sign up.",
-        "pugJoin": "Join the PuG server"
+        "pugMembersOnlyNoLink": "Signing up on the web is only for members of the PuG server.",
+        "pugUnknown": "Whether you are on the PuG server is checked when you save.",
+        "pugJoin": "Join the PuG server",
+        "saveFailed": "Saving did not work. Please try again."
     },
     "bulk": {
         "toast": "{saved} of {total} raids saved.",

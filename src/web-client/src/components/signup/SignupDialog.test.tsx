@@ -363,21 +363,48 @@ describe("SignupDialog ohne Charakter: Klasse -> Spec -> Name (#907)", () => {
         expect(vi.mocked(api.saveSignup).mock.calls[0][0]).not.toHaveProperty("newCharacter");
     });
 
-    it("zeigt bei einem PuG-Raid für Nicht-Mitglieder den Hinweis, den Beitreten-Knopf nur mit Einladung", async () => {
+    it("zeigt nach der Ablehnung beim Speichern nur den Hinweis, ohne Einladung ohne Link und ohne Absenden", async () => {
         const user = userEvent.setup();
-        const refuse = (inviteUrl: string) => vi.mocked(api.saveSignup).mockRejectedValueOnce({ code: api.PUG_MEMBERS_ONLY, message: "Nur für Mitglieder des PuG-Servers.", inviteUrl });
-        refuse("");
+        vi.mocked(api.saveSignup).mockRejectedValueOnce({ code: api.PUG_MEMBERS_ONLY, message: "Nur für Mitglieder des PuG-Servers.", inviteUrl: "" });
         const onSaved = vi.fn();
         renderPage(<SignupDialog row={ownRow()} profile={PROFILE} classes={CLASSES} onClose={vi.fn()} onSaved={onSaved} />);
         await user.click(submitButton());
-        expect(await screen.findByText(t("signups.dialog.pugMembersOnly"))).toBeInTheDocument();
+        expect(await screen.findByText(t("signups.dialog.pugMembersOnlyNoLink"))).toBeInTheDocument();
         expect(screen.queryByRole("link", { name: t("signups.dialog.pugJoin") })).not.toBeInTheDocument();
-        refuse("https://discord.gg/pugs");
-        await user.click(submitButton());
-        const join = await screen.findByRole("link", { name: t("signups.dialog.pugJoin") });
+        // the form is gone: nothing left to send, only Close
+        expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
+        // the modal's own X plus the footer's Close
+        expect(screen.getAllByRole("button", { name: t("common.close") }).length).toBeGreaterThan(1);
+        expect(screen.queryByRole("button", { name: t("signups.signUp") })).not.toBeInTheDocument();
+        expect(onSaved).not.toHaveBeenCalled();
+    });
+
+    it("zeigt den Hinweis schon beim Öffnen, wenn die Liste den Raid als nur für Mitglieder markiert", () => {
+        renderPage(<SignupDialog row={{ ...ownRow(), membersOnly: true, inviteUrl: "https://discord.gg/pugs" }} profile={PROFILE} classes={CLASSES} onClose={vi.fn()} onSaved={vi.fn()} />);
+        expect(screen.getByText(t("signups.dialog.pugMembersOnly"))).toBeInTheDocument();
+        const join = screen.getByRole("link", { name: t("signups.dialog.pugJoin") });
         expect(join).toHaveAttribute("href", "https://discord.gg/pugs");
         expect(join).toHaveAttribute("target", "_blank");
-        expect(onSaved).not.toHaveBeenCalled();
+    });
+
+    it("nimmt als Einladung nur einen https-Link", () => {
+        renderPage(<SignupDialog row={{ ...ownRow(), membersOnly: true, inviteUrl: "javascript:alert(1)" }} profile={PROFILE} classes={CLASSES} onClose={vi.fn()} onSaved={vi.fn()} />);
+        expect(screen.getByText(t("signups.dialog.pugMembersOnlyNoLink"))).toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: t("signups.dialog.pugJoin") })).not.toBeInTheDocument();
+    });
+
+    it("sagt leise Bescheid, wenn Discord die Mitgliedschaft nicht verraten hat, und lässt das Formular stehen", () => {
+        renderPage(<SignupDialog row={{ ...ownRow(), membershipUnknown: true }} profile={PROFILE} classes={CLASSES} onClose={vi.fn()} onSaved={vi.fn()} />);
+        expect(screen.getByText(t("signups.dialog.pugUnknown"))).toBeInTheDocument();
+        expect(submitButton()).toBeInTheDocument();
+    });
+
+    it("nennt bei einer unbekannten Fehlerform den Rückfalltext", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.saveSignup).mockRejectedValueOnce({});
+        renderPage(<SignupDialog row={ownRow()} profile={PROFILE} classes={CLASSES} onClose={vi.fn()} onSaved={vi.fn()} />);
+        await user.click(submitButton());
+        expect(await screen.findByText(t("signups.dialog.saveFailed"))).toBeInTheDocument();
     });
 });
 

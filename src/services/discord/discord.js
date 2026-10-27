@@ -1178,18 +1178,33 @@ async function memberRoleIds(guildId, userId) {
  * true / false, or null when it cannot be known — bot offline, the server not
  * reachable, Discord answering with anything but "Unknown Member/User". Only a
  * definite "not a member" is false, so a Discord hiccup never refuses anybody.
+ * It runs on page requests, so it waits at most `waitMs` (NAME_FETCH_MS) and
+ * answers null after that - the fetch is not awaited any further.
+ * @param {{ waitMs?: number }} [opts]
  * @returns {Promise<boolean|null>}
  */
-async function guildMembership(guildId, userId) {
+async function guildMembership(guildId, userId, { waitMs = NAME_FETCH_MS } = {}) {
     const guild = getGuild(guildId);
     if (!guild || !userId) return null;
     const uid = String(userId);
     if (guild.members.cache.get(uid)) return true;
+    const lookup = Promise.resolve()
+        .then(() => guild.members.fetch(uid))
+        .then((member) => (member ? true : null), (e) => {
+            const code = e && (e.code || (e.rawError && e.rawError.code));
+            if (code === 10007 || code === 10013) return false;
+            logger.warn(`membership lookup of ${uid} on ${guildId} failed:`, (e && e.message) || e);
+            return null;
+        });
+    let timer = null;
+    const timeout = new Promise((resolve) => {
+        timer = setTimeout(() => resolve(null), Math.max(0, waitMs));
+        if (timer.unref) timer.unref();
+    });
     try {
-        return (await guild.members.fetch(uid)) ? true : null;
-    } catch (e) {
-        const code = e && (e.code || (e.rawError && e.rawError.code));
-        return code === 10007 || code === 10013 ? false : null;
+        return await Promise.race([lookup, timeout]);
+    } finally {
+        clearTimeout(timer);
     }
 }
 

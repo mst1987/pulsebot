@@ -64,8 +64,8 @@ const { normalizeOverflow, accountCount } = require("../../utils/signup/capacity
 const { expectedRoleIds } = require("../roster/categoryRoles");
 const { accessRule, signupAccess, rosterOnlyAccess } = require("./signupAccess");
 const { isRaidSibling, signupEventIdOf } = require("../../utils/raidGroup");
-const { checkPugMember, serverOf } = require("./pugMembership");
-const { addSignupCharacter } = require("./signupNewCharacter");
+const { checkPugMember, holdsSignup, serverOf } = require("./pugMembership");
+const { planSignupCharacter, addSignupCharacter } = require("./signupNewCharacter");
 const { groupPlaces } = require("../events/raidGroup");
 
 // Statuses a member may still pick once the deadline has passed.
@@ -538,18 +538,24 @@ async function submitSignup(eventId, userId, input = {}, {
         if (member.error) return member;
     }
     // A character not in the profile yet (#907, the web dialog's class -> spec -> name):
-    // it goes into the profile of the raid's version first, then signs up.
+    // the signup is checked against the profile as it would be with it, and the
+    // character goes into the profile only once the signup is accepted.
     let request = input;
-    if (input.newCharacter && typeof input.newCharacter === "object") {
-        const added = addSignupCharacter(event, uid, input.newCharacter, { accountName });
-        if (added.error) return added;
-        profile = profiles.getProfile(uid);
-        request = { ...input, characters: [{ character: added.character, spec: added.spec }] };
+    const newCharacter = input.newCharacter && typeof input.newCharacter === "object" ? input.newCharacter : null;
+    if (newCharacter) {
+        const plan = planSignupCharacter(event, uid, newCharacter);
+        if (plan.error) return plan;
+        profile = plan.profile;
+        request = { ...input, characters: [{ character: plan.character, spec: plan.spec }] };
     }
     const checked = validateSignup(event, request, { profile, previous, byOrga, offProfile: byOrga && offProfile, now, config });
     if (checked.error) return checked;
     const overflow = applyOverflow(event, checked.value, { previous, byOrga, userId: uid });
     if (overflow.error) return overflow;
+    if (newCharacter) {
+        const added = addSignupCharacter(event, uid, newCharacter, { accountName });
+        if (added.error) return added;
+    }
     const saved = signupStore.saveSignup(event.id, uid, overflow.value, { versionId: event.versionId });
     if (saved.error) return fail("bad_request", saved.error);
     const lock = lockIfFull(event, { now });
@@ -685,7 +691,7 @@ async function submitSignups(userId, entries, { byOrga = false, now = Date.now()
             status,
             canAlso: previous ? previous.canAlso : undefined,
             comment: previous ? previous.comment : "",
-        }, { byOrga: exempt, now, roleIds, config: cfg, memberOnly, membership: memberOnly && !exempt && !previous && isOpen(event) ? await membershipOf(event) : undefined });
+        }, { byOrga: exempt, now, roleIds, config: cfg, memberOnly, membership: memberOnly && !exempt && !holdsSignup(previous) && isOpen(event) ? await membershipOf(event) : undefined });
         if (result.error) {
             const invite = result.inviteUrl !== undefined ? { inviteUrl: result.inviteUrl } : {};
             results.push({ ...base, ok: false, skipped: fit.skipped, code: result.code, error: result.error, ...invite });

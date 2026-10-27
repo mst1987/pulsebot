@@ -85,6 +85,11 @@
     :root:not([data-theme="dark"]) .an-chip.an-cls { --an-cc: var(--cc-l, var(--cc)); }
 }
 :root[data-theme="light"] .an-chip.an-cls { --an-cc: var(--cc-l, var(--cc)); }
+/* the shaman blue is too dark to read on the dark panel: lifted towards the text colour there */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .an-chip.an-cls[data-class="Shaman"] { --an-cc: color-mix(in srgb, var(--cc) 70%, var(--text)); }
+}
+:root[data-theme="dark"] .an-chip.an-cls[data-class="Shaman"] { --an-cc: color-mix(in srgb, var(--cc) 70%, var(--text)); }
 .an-dlg .an-newchar .field input:not([type=checkbox]) { max-width: 16em; }
 .an-pug {
     display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0 0 14px; padding: 8px 12px;

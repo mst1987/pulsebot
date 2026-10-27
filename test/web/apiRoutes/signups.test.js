@@ -303,6 +303,34 @@ describe("GET /api/signups", () => {
     });
 });
 
+describe("GET /api/signups: PuG-Raids nur für Mitglieder (#907)", () => {
+    const kara = (data) => data.events.find((e) => e.id === "eh-kara");
+
+    it("markiert offene PuG-Raids eines Nicht-Mitglieds vorab mit membersOnly und Einladungslink", async () => {
+        mockMembership = false;
+        const own = kara(json(await call(route.getSignups, ANNA)).data);
+        expect(own).toMatchObject({ membersOnly: true, inviteUrl: "" });
+        // the Raid-Helper raid stays as it was, one lookup for the server
+        expect(json(await call(route.getSignups, ANNA)).data.events[1].membersOnly).toBeUndefined();
+    });
+
+    it("Mitglieder, eine eigene Anmeldung und die Orga ohne Markierung; unlesbar = membershipUnknown", async () => {
+        mockMembership = true;
+        expect(kara(json(await call(route.getSignups, ANNA)).data).membersOnly).toBeUndefined();
+        mockMembership = null;
+        expect(kara(json(await call(route.getSignups, ANNA)).data)).toMatchObject({ membershipUnknown: true });
+        mockMembership = false;
+        expect(kara(json(await call(route.getSignups, ORGA)).data).membersOnly).toBeUndefined();
+        mockSignups.set(`eh-kara/${ANNA.id}`, { userId: ANNA.id, character: "Nerathil", spec: "Mage-Arcane", role: "ranged", status: "signed", canAlso: [], comment: "", at: 1 });
+        mockGroups = groups();
+        expect(kara(json(await call(route.getSignups, ANNA)).data).membersOnly).toBeUndefined();
+        // an absence ("Abgemeldet") is no exemption
+        mockSignups.set(`eh-kara/${ANNA.id}`, { userId: ANNA.id, status: "absence", characters: [], comment: "", at: 1 });
+        mockGroups = groups();
+        expect(kara(json(await call(route.getSignups, ANNA)).data).membersOnly).toBe(true);
+    });
+});
+
 describe("PUT /api/signups", () => {
     it("weist ein Event einer ausgeblendeten Spielversion mit 409 ab (#563)", async () => {
         mockConfig = { mainVersion: "forever", hideOtherVersions: true };

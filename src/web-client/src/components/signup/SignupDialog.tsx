@@ -10,6 +10,7 @@ import { useToast } from "../shell/Jobs";
 import SignupCharacterPicks from "./SignupCharacterPicks";
 import NewCharacterPick from "./NewCharacterPick";
 import { nameFromAccount, newCharacterReady, type NewCharacter } from "../../lib/signups/newCharacter";
+import { errorText, safeInviteUrl } from "../../lib/signups/pugMembers";
 import { formatEventTime } from "../../lib/format";
 import {
     CAN_ALSO, ROLE_ORDER, SIGNUP_STATUS, SIGNUP_STATUS_ORDER, defaultCanAlso, roleCountText, signedUpLabel,
@@ -59,7 +60,9 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
     // No character of the raid's version (#907): class -> spec -> name right here.
     const [newChar, setNewChar] = useState<NewCharacter>({ classId: "", spec: "", name: "" });
     // A PuG raid refused a non-member of its server (#907): the hint, and the invite when known.
-    const [membersOnly, setMembersOnly] = useState<{ inviteUrl: string } | null>(null);
+    const [refused, setRefused] = useState<{ inviteUrl: string } | null>(null);
+    // marked by GET /api/signups: the hint right away instead of a form that would be refused
+    const membersOnly = refused || (row?.membersOnly ? { inviteUrl: safeInviteUrl(row.inviteUrl) } : null);
 
     // Start from the stored signup, else from the main character and its first spec.
     useEffect(() => {
@@ -75,7 +78,7 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
         setCanAlso(mine ? mine.canAlso : (first ? defaultCanAlso(profile, first.key, role) : []));
         setComment(mine?.comment || "");
         setNewChar({ classId: "", spec: "", name: nameFromAccount(accountName) });
-        setMembersOnly(null);
+        setRefused(null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [row?.id]);
 
@@ -140,11 +143,12 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
             else toast(absent ? t("signups.dialog.toastAbsent", { title: row.title }) : t("signups.dialog.toastSaved", { title: row.title, status: SIGNUP_STATUS[signupStatusOf(picks, status)].label }));
         } catch (e) {
             const err = e as SignupError;
-            if (err.code === PUG_MEMBERS_ONLY) {
-                setMembersOnly({ inviteUrl: err.inviteUrl || "" });
+            if (err && err.code === PUG_MEMBERS_ONLY) {
+                setRefused({ inviteUrl: safeInviteUrl(err.inviteUrl) });
                 return;
             }
-            toast(err.code === "roster_only" ? t("signups.dialog.rosterOnly") : err.code === "raider_role" ? t("signups.dialog.roleMissing") : err.message, "err");
+            const code = err && typeof err === "object" ? err.code : "";
+            toast(code === "roster_only" ? t("signups.dialog.rosterOnly") : code === "raider_role" ? t("signups.dialog.roleMissing") : errorText(e, t("signups.dialog.saveFailed")), "err");
         } finally {
             setBusy(false);
         }
@@ -166,6 +170,8 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
             kicker={kicker}
             title={`${row.title} · ${mine ? t("signups.dialog.change") : t("signups.signUp")}`}
             width={720}
+            // the first class chip (#907), not the head's close button
+            initialFocus={canCreate && !membersOnly ? "[data-new-character] [role=radio][tabindex='0']" : undefined}
             hint={rosterOnly
                 ? t("signups.dialog.rosterOnly")
                 : roleMissing ? t("signups.dialog.roleMissing") : closed
@@ -173,24 +179,27 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
                     : row.deadlinePassed ? t("signups.dialog.deadlineHint") : undefined}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon={<CheckIcon />} disabled={!canSubmit} running={busy} onClick={submit} variant={absent ? "no" : "go"}>
-                        {absent ? t("signups.dialog.signOff") : mine ? t("common.save") : t("signups.signUp")}
-                    </Button>
+                    <Button variant="ghost" onClick={onClose}>{membersOnly ? t("common.close") : t("common.cancel")}</Button>
+                    {!membersOnly && (
+                        <Button icon={<CheckIcon />} disabled={!canSubmit} running={busy} onClick={submit} variant={absent ? "no" : "go"}>
+                            {absent ? t("signups.dialog.signOff") : mine ? t("common.save") : t("signups.signUp")}
+                        </Button>
+                    )}
                 </>
             )}
         >
             <div className="an-dlg">
-                {membersOnly && (
+                {membersOnly ? (
                     <div className="an-pug" role="alert" data-pug-members-only>
-                        <span>{t("signups.dialog.pugMembersOnly")}</span>
+                        <span>{membersOnly.inviteUrl ? t("signups.dialog.pugMembersOnly") : t("signups.dialog.pugMembersOnlyNoLink")}</span>
                         {membersOnly.inviteUrl && (
                             <a className={buttonClass("go", "sm")} href={membersOnly.inviteUrl} target="_blank" rel="noreferrer">
                                 {t("signups.dialog.pugJoin")}
                             </a>
                         )}
                     </div>
-                )}
+                ) : (<>
+                {row.membershipUnknown && <p className="hint" data-pug-unknown>{t("signups.dialog.pugUnknown")}</p>}
                 {canCreate ? (
                     <NewCharacterPick classes={classes} value={newChar} onChange={setNewChar} version={missingVersion} disabled={absent} />
                 ) : noCharacter && missingVersion ? (
@@ -278,6 +287,7 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
                         </Badge>
                     </div>
                 )}
+                </>)}
 
                 {/* #308: the raid in one's own calendar, and the page everyone can open. Both
                     are server-rendered and public — see src/web/icsFeed.js / eventPublicPage.js. */}

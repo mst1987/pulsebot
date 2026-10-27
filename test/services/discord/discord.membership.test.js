@@ -34,4 +34,36 @@ describe("services/discord/discord guildMembership", () => {
         guild.members.fetch = jest.fn(async () => null);
         expect(await discord.guildMembership("g1", "u1")).toBeNull();
     });
+
+    it("gives up after waitMs (NAME_FETCH_MS by default) with null", async () => {
+        jest.useFakeTimers();
+        try {
+            const guild = makeGuild({ id: "g1" });
+            discord.setClient(makeClient({ guilds: [guild] }));
+            guild.members.fetch = jest.fn(() => new Promise(() => {})); // Discord never answers
+            const pending = discord.guildMembership("g1", "u1");
+            await jest.advanceTimersByTimeAsync(discord.NAME_FETCH_MS);
+            await expect(pending).resolves.toBeNull();
+            const short = discord.guildMembership("g1", "u1", { waitMs: 100 });
+            await jest.advanceTimersByTimeAsync(100);
+            await expect(short).resolves.toBeNull();
+            expect(jest.getTimerCount()).toBe(0);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it("clears its timer when Discord answers in time", async () => {
+        jest.useFakeTimers();
+        try {
+            const guild = makeGuild({ id: "g1" });
+            discord.setClient(makeClient({ guilds: [guild] }));
+            guild.members.fetch = jest.fn(async () => makeMember({ id: "u1" }));
+            guild.members.cache.get = jest.fn(() => undefined);
+            await expect(discord.guildMembership("g1", "u1")).resolves.toBe(true);
+            expect(jest.getTimerCount()).toBe(0);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
 });

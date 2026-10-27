@@ -111,7 +111,10 @@
         "notePlaceholderTentative": "z. B. noch unsicher, evtl. später",
         "roleMissing": "Für diesen Raid brauchst du eine Raider-Rolle.",
         "pugMembersOnly": "Nur für Mitglieder des PuG-Servers. Tritt dem Server bei, dann klappt die Anmeldung.",
-        "pugJoin": "PuG-Server beitreten"
+        "pugMembersOnlyNoLink": "Die Anmeldung im Web ist nur für Mitglieder des PuG-Servers.",
+        "pugUnknown": "Ob du auf dem PuG-Server bist, prüfen wir beim Speichern.",
+        "pugJoin": "PuG-Server beitreten",
+        "saveFailed": "Speichern hat nicht geklappt. Bitte versuch es noch einmal."
     },
     "bulk": {
         "toast": "{saved} von {total} Raids gespeichert.",

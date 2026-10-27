@@ -211,7 +211,8 @@ async function applyOutcome(entry, event, { now, config }) {
     const saved = await submitSignup(event.id, entry.userId, {
         characters: [{ character: entry.character, spec: entry.spec }],
         status: "signed",
-    }, { byOrga, now, config });
+    // an attendance from the web signs up like the web signup does: a PuG raid only for members of its server (#907)
+    }, { byOrga, now, config, memberOnly: entry.via === "web" });
     return saved.error ? { ok: false, error: saved.error } : { ok: true };
 }
 

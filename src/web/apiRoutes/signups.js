@@ -21,6 +21,7 @@ const { getEvent, isOwnEventId } = require("../../stores/eventStore");
 const { listSignups } = require("../../stores/signupStore");
 const { submitSignup, submitSignups, httpStatusFor, roleCounts } = require("../../services/signups/signupService");
 const { memberEventList, profileForSignup, signupSummary } = require("../signups/signupView");
+const { markMembersOnly } = require("../../services/signups/pugMembership");
 const { viewerRoles } = require("../signups/viewerRoles");
 const { noteMode, isNoteStatus, MIN_NOTE } = require("../../services/signups/signupNotes");
 const { userIsOrga } = require("../../config/permissions");
@@ -82,8 +83,13 @@ const getSignups = withUser({}, async ({ user, req, res, url }) => {
     // so the page can switch to it when the menu shows another one.
     const linkedId = String((url && url.searchParams.get("event")) || "").trim();
     const linked = linkedId ? rows.find((e) => e.id === linkedId) : null;
+    // #907: open PuG raids of a server the caller is not on carry `membersOnly` + `inviteUrl` (the
+    // dialog shows the hint instead of the form); the save checks again (memberOnly below)
+    const events = await markMembersOnly(rows.filter((e) => versionOfEvent(e, { config }) === versionId), user.id, {
+        config, isOrga: (event) => canOrgaRaid(user, event, req),
+    });
     ok(res, {
-        events: rows.filter((e) => versionOfEvent(e, { config }) === versionId),
+        events,
         version: versionId,
         scope: all ? "all" : "mine",
         canShowAll,

@@ -99,6 +99,12 @@ export type OwnSignupRow = SignupEventBase & {
     rosterOnly?: boolean;
     /** The member lacks the category's raider role — only "Alle Kategorien" lists such a raid. */
     roleMissing?: boolean;
+    /** A PuG raid of a server the member is not on (#907): the dialog shows the hint instead of the form. */
+    membersOnly?: boolean;
+    /** With `membersOnly`: the PuG server's invite link, "" while none is known. */
+    inviteUrl?: string;
+    /** Discord could not tell whether the member is on the PuG server: the form stays, the save decides. */
+    membershipUnknown?: boolean;
 };
 
 export type SignupEventRow = RaidHelperSignupRow | OwnSignupRow;
