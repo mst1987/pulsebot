@@ -65,9 +65,11 @@ function pugVersionIdsOf(c, id) {
  * them as "Bedeutung für den Bot".
  * @param {object} cfg the bot config
  * @param {string} roleId
+ * @param {{ rosters?: object[] }} [opts] the rosters to read instead of the stored ones
+ *   (services/discord/pugRoleGuard.js checks a roster before it is saved)
  * @returns {object[]}
  */
-function roleUses(cfg, roleId) {
+function roleUses(cfg, roleId, { rosters } = {}) {
     const c = cfg || {};
     const id = str(roleId);
     const out = [];
@@ -93,7 +95,8 @@ function roleUses(cfg, roleId) {
     if (inSync) out.push({ code: "roleSync", guildIds: [...new Set(partners.filter(Boolean))] });
     const versionIds = pugVersionIdsOf(c, id);
     if (versionIds.length) out.push({ code: "pugVersion", versionIds });
-    for (const r of rostersOrEmpty()) {
+    for (const r of Array.isArray(rosters) ? rosters : rostersOrEmpty()) {
+        if (!r) continue;
         const managers = r.managers && Array.isArray(r.managers.roleIds) ? r.managers.roleIds : [];
         const kinds = [];
         if (ids(r.roleIds).includes(id)) kinds.push("member");

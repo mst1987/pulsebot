@@ -457,6 +457,7 @@
         "invalid_date": "Das Datum ist ungültig.",
         "category_taken": "Diese Kategorie hat für diese Spielversion schon ein Roster.",
         "roster_closed": "Dieses Roster ist abgeschlossen und nur noch lesbar.",
+        "pug_onboarding_role": "Eine Rolle aus dem PuG-Onboarding holt sich jeder selbst – sie kann keine Roster-Rolle sein.",
         "kader_not_found": "Diesen Kader gibt es nicht (mehr).",
         "invalid_name": "Bitte gib einen Namen ein oder wähle eine Kategorie.",
         "name_too_long": "Der Name ist zu lang (höchstens 40 Zeichen).",

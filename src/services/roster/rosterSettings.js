@@ -32,12 +32,14 @@
 // "name_too_long", "bad_request", "invalid_version", "invalid_roles",
 // "unknown_role", "invalid_managers", "invalid_slots", "admin_only",
 // "category_taken", "kader_taken", "kader_taken_over", "kader_not_found", "not_found",
-// "invalid_loot_system", "unknown_profile", "roster_closed" (#739, a closed roster).
+// "invalid_loot_system", "unknown_profile", "roster_closed" (#739, a closed roster),
+// "pug_onboarding_role" (#930, a role of the PuG onboarding as a roster role).
 const rosterStore = require("../../stores/rosterStore");
 const councilProfilesStore = require("../../stores/councilProfilesStore");
 const settingsStore = require("../../stores/settingsStore");
 const { knownVersion, isVersionVisible } = require("../events/mainVersion");
 const { mirrorCategoryRoles } = require("./categoryRoles");
+const pugRoleGuard = require("../discord/pugRoleGuard");
 const { normalizeLootSystem, rosterLootSystem } = require("../loot/lootSystem");
 
 const ADMIN_FIELDS = ["name", "categoryId", "versionId", "roleIds", "trialRoleId", "managers", "slots", "allowMultipleChars", "signupOnly", "publicRaids", "kaderId", "lootSystem", "lootProfileId"];
@@ -177,6 +179,23 @@ function adminOnlyChanges(fields, current) {
 }
 
 /**
+ * #930: whether the change makes a role of the PuG onboarding (everyone takes it) a role of
+ * this roster - a member, trial or manager role it was not before. `current` null = a new
+ * roster (rosterCreate.prepare; `fields` then carry its guildId).
+ */
+function grantsPugRole(current, fields, config) {
+    const cfg = config || settingsStore.getConfig();
+    if (!pugRoleGuard.onboardingRoles(cfg).size) return false;
+    const others = rosterStore.listRosters().filter((r) => !current || r.id !== current.id);
+    return pugRoleGuard.newGrants({
+        before: cfg,
+        after: cfg,
+        rostersBefore: current ? [...others, current] : others,
+        rostersAfter: [...others, { ...(current || { id: "" }), ...fields }],
+    }).length > 0;
+}
+
+/**
  * Change a roster's settings (POST /api/rosters/update). `isAdmin`: a full
  * admin; anyone else must already be known as a manager of this roster (the
  * route asks rosterAccess.canManageRosterLive before). `kaderFits(kaderId,
@@ -208,6 +227,7 @@ function updateRosterSettings(rosterId, raw, { isAdmin = false, actor = "", know
     const linked = kaderId !== undefined ? kaderId : current.kaderId;
     if (linked && (kaderId !== undefined || clean.fields.versionId !== undefined) && typeof kaderFits === "function" && !kaderFits(linked, versionId)) return { ok: false, code: "version_mismatch" };
     if (clean.fields.versionId !== undefined && clean.fields.versionId !== current.versionId && !isVersionVisible(clean.fields.versionId, config || settingsStore.getConfig())) return { ok: false, code: "version_hidden" };
+    if (grantsPugRole(current, clean.fields, config)) return { ok: false, code: "pug_onboarding_role" };
     // switching "mehrere Charaktere" off keeps each member's first character only (the store cuts the rest)
     const trimmedChars = clean.fields.allowMultipleChars === false && current.allowMultipleChars
         ? Object.values(current.members).filter((m) => m.chars.length > 1).length
@@ -271,4 +291,4 @@ function writeLootSystem(roster, system, { actor = "", saveConfig }) {
     return rosterStore.updateRoster(roster.id, { lootSystem: system }, { actor });
 }
 
-module.exports = { cleanSettings, cleanLoot, adminOnlyChanges, updateRosterSettings, ADMIN_FIELDS, MANAGER_FIELDS, SNOWFLAKE };
+module.exports = { cleanSettings, cleanLoot, adminOnlyChanges, grantsPugRole, updateRosterSettings, ADMIN_FIELDS, MANAGER_FIELDS, SNOWFLAKE };

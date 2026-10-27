@@ -1,0 +1,161 @@
+// PuG onboarding roles must not unlock anything (#930, src/services/discord/pugRoleGuard.js):
+// every field selfRole.roleUses reads is refused for a version or class role of the
+// onboarding, an old entry is no refusal (the Bot-Check reports it), a roster of another
+// server does not count, and without config.pugRoles nothing changes.
+jest.mock("../../../src/config/variables", () => ({ adminRoleIds: [] }));
+
+const rosterStore = require("../../../src/stores/rosterStore");
+const guard = require("../../../src/services/discord/pugRoleGuard");
+
+const GID = "100000000000000001";
+const OTHER_GID = "100000000000000002";
+const VERSION_ROLE = "200000000000000001";
+const CLASS_ROLE = "200000000000000002";
+const PLAIN = "200000000000000009";
+
+const pug = (extra = {}) => ({ pugRoles: { [GID]: { versions: { tbc: VERSION_ROLE }, classes: { Warrior: CLASS_ROLE } } }, ...extra });
+const roster = (over = {}) => ({ id: "ro1", name: "Kara", guildId: GID, roleIds: [], trialRoleId: "", managers: { roleIds: [], userIds: [] }, ...over });
+
+beforeEach(() => jest.spyOn(rosterStore, "listRosters").mockReturnValue([]));
+afterEach(() => jest.restoreAllMocks());
+
+/** What a config save adds to the onboarding roles, as keys. */
+const added = (after, before = pug()) => guard.newGrants({ before, after }).flatMap((f) => f.grants.map((g) => `${f.roleId}:${g.key}`));
+
+describe("pugRoleGuard onboardingRoles", () => {
+    it("maps every version and class role to its server and a readable name", () => {
+        const roles = guard.onboardingRoles(pug());
+        expect(roles.get(VERSION_ROLE)).toEqual({ guildId: GID, kind: "version", id: "tbc", label: "TBC Anniversary" });
+        expect(roles.get(CLASS_ROLE)).toEqual({ guildId: GID, kind: "class", id: "Warrior", label: "Krieger" });
+        expect(roles.size).toBe(2);
+    });
+
+    it("is empty without pugRoles and skips empty ids", () => {
+        expect(guard.onboardingRoles({}).size).toBe(0);
+        expect(guard.onboardingRoles(null).size).toBe(0);
+        expect(guard.onboardingRoles({ pugRoles: { [GID]: { versions: { tbc: "" }, classes: null } } }).size).toBe(0);
+    });
+});
+
+describe("pugRoleGuard newGrants: every field", () => {
+    it.each([
+        ["adminRoleIds", { adminRoleIds: [VERSION_ROLE] }, "admin"],
+        ["orgaRoleIds", { orgaRoleIds: [CLASS_ROLE] }, "orga"],
+        ["officerRoleId", { officerRoleId: VERSION_ROLE }, "officer"],
+        ["rolePermissions", { rolePermissions: { [CLASS_ROLE]: { roster: { read: true, write: false } } } }, "rolePermissions:roster"],
+        ["botCommandAccess", { botCommandAccess: { event: { roleIds: [VERSION_ROLE] } } }, "botCommand:event"],
+        ["categoryRoles", { categoryRoles: { cat1: [CLASS_ROLE] } }, "categoryRaider:cat1"],
+        ["roleSync", { roleSync: [{ fromGuildId: GID, fromRoleId: VERSION_ROLE, toGuildId: OTHER_GID, toRoleId: "x", direction: "both" }] }, "roleSync"],
+    ])("refuses an onboarding role in %s", (_field, extra, key) => {
+        const found = added(pug(extra));
+        expect(found).toHaveLength(1);
+        expect(found[0].endsWith(`:${key}`)).toBe(true);
+    });
+
+    it.each([
+        ["roleIds", { roleIds: [VERSION_ROLE] }, "member"],
+        ["trialRoleId", { trialRoleId: CLASS_ROLE }, "trial"],
+        ["managers", { managers: { roleIds: [VERSION_ROLE], userIds: [] } }, "manager"],
+    ])("refuses an onboarding role in a roster's %s", (_field, over, kind) => {
+        const found = guard.newGrants({ before: pug(), after: pug(), rostersBefore: [roster()], rostersAfter: [roster(over)] });
+        expect(found).toHaveLength(1);
+        expect(found[0].grants.map((g) => g.key)).toEqual([`roster:ro1:${kind}`]);
+    });
+
+    it("lets a plain role and the onboarding's own pugRoles through", () => {
+        expect(added(pug({ orgaRoleIds: [PLAIN], categoryRoles: { cat1: [PLAIN] } }))).toEqual([]);
+        // a new onboarding role on its own is no right
+        expect(added(pug(), {})).toEqual([]);
+    });
+
+    it("refuses a role that becomes an onboarding role while it carries a right", () => {
+        const before = { orgaRoleIds: [VERSION_ROLE] };
+        expect(added({ ...pug(), orgaRoleIds: [VERSION_ROLE] }, before)).toEqual([]);
+        // the right is old, only the onboarding is new: the Bot-Check reports it, the save passes
+        expect(added({ ...pug(), orgaRoleIds: [VERSION_ROLE], officerRoleId: VERSION_ROLE }, before)).toEqual([`${VERSION_ROLE}:officer`]);
+    });
+
+    it("does not block a right the role already had, only a new one", () => {
+        const before = pug({ botCommandAccess: { event: { roleIds: [VERSION_ROLE] } } });
+        expect(added(before, before)).toEqual([]);
+        expect(added(pug({ botCommandAccess: { event: { roleIds: [VERSION_ROLE] }, raidplan: { roleIds: [VERSION_ROLE] } } }), before))
+            .toEqual([`${VERSION_ROLE}:botCommand:raidplan`]);
+    });
+
+    it("changes nothing without pugRoles", () => {
+        expect(guard.newGrants({ before: {}, after: { orgaRoleIds: [VERSION_ROLE] }, rostersAfter: [roster({ roleIds: [VERSION_ROLE] })] })).toEqual([]);
+    });
+
+    it("ignores a roster of another server", () => {
+        const other = roster({ guildId: OTHER_GID, roleIds: [VERSION_ROLE] });
+        expect(guard.newGrants({ before: pug(), after: pug(), rostersBefore: [], rostersAfter: [other] })).toEqual([]);
+    });
+
+    it("reads the stored rosters when none are given", () => {
+        rosterStore.listRosters.mockReturnValue([roster({ roleIds: [CLASS_ROLE] })]);
+        // stored on both sides: nothing new
+        expect(guard.newGrants({ before: pug(), after: pug() })).toEqual([]);
+        expect(guard.newGrants({ before: pug(), after: pug(), rostersBefore: [] })[0].grants[0].key).toBe("roster:ro1:member");
+    });
+
+    it("treats a broken roster store as no rosters", () => {
+        rosterStore.listRosters.mockImplementation(() => { throw new Error("broken"); });
+        expect(guard.newGrants({ before: pug(), after: pug({ orgaRoleIds: [VERSION_ROLE] }) })).toHaveLength(1);
+    });
+});
+
+describe("pugRoleGuard grantsOf (pugOnboarding.privilegeOf)", () => {
+    it("keeps the version use of another version, drops the own one", () => {
+        const cfg = { pugRoles: { [GID]: { versions: { tbc: VERSION_ROLE, classic: CLASS_ROLE }, classes: {} } } };
+        expect(guard.grantsOf(cfg, VERSION_ROLE, { item: { kind: "version", id: "tbc" }, rosters: [] })).toEqual([]);
+        expect(guard.grantsOf(cfg, VERSION_ROLE, { item: { kind: "version", id: "classic" }, rosters: [] })).toEqual([{ code: "pugVersion", versionIds: ["tbc"] }]);
+        // a class role that is a version role carries a right
+        expect(guard.grantsOf(cfg, VERSION_ROLE, { item: { kind: "class", id: "Warrior" }, rosters: [] })).toHaveLength(1);
+        // without an item the onboarding itself is no right
+        expect(guard.grantsOf(cfg, VERSION_ROLE, { rosters: [] })).toEqual([]);
+    });
+});
+
+describe("pugRoleGuard texts", () => {
+    it("names the role, its kind and every new right in the refusal", () => {
+        const found = guard.newGrants({
+            before: pug(), after: pug({ orgaRoleIds: [VERSION_ROLE], rolePermissions: { [VERSION_ROLE]: { roster: { read: true, write: true } } } }),
+            rostersBefore: [], rostersAfter: [roster({ managers: { roleIds: [VERSION_ROLE], userIds: [] } })],
+        });
+        const text = guard.refusalMessage(found);
+        expect(text).toContain("PuG-Onboarding");
+        expect(text).toContain("„TBC Anniversary“ (PuG-Versionsrolle)");
+        expect(text).toContain("Orga-Rolle");
+        expect(text).toContain("Bereichsrecht roster");
+        expect(text).toContain("Roster Kara (Manager)");
+    });
+
+    it("words every right", () => {
+        expect(guard.grantText({ code: "admin" })).toBe("Voll-Admin-Rolle");
+        expect(guard.grantText({ code: "officer" })).toBe("Offiziers-Rolle (Bewerbungen)");
+        expect(guard.grantText({ code: "botCommand", detail: "event" })).toBe("Bot-Befehl /event");
+        expect(guard.grantText({ code: "categoryRaider", detail: "c" })).toBe("Raider-Rolle einer Kategorie");
+        expect(guard.grantText({ code: "roleSync", detail: "" })).toBe("Rollen-Abgleich zwischen den Servern");
+        expect(guard.grantText({ code: "something" })).toBe("something");
+    });
+});
+
+describe("pugRoleGuard leftovers (Bot-Check)", () => {
+    it("lists an onboarding role of the server that still carries a right", () => {
+        const cfg = pug({ orgaRoleIds: [CLASS_ROLE] });
+        const rosters = [roster({ roleIds: [CLASS_ROLE] }), roster({ id: "ro2", guildId: OTHER_GID, roleIds: [VERSION_ROLE] })];
+        expect(guard.leftovers(cfg, GID, rosters)).toEqual([{
+            id: CLASS_ROLE, guildId: GID, kind: "class", itemId: "Warrior", label: "Krieger",
+            uses: [{ code: "orga" }, { code: "roster", rosterId: "ro1", name: "Kara", kinds: ["member"] }],
+            grants: ["Orga-Rolle", "Roster Kara (Mitglied)"],
+        }]);
+    });
+
+    it("skips other servers and clean roles, reads all servers without a guild", () => {
+        const cfg = pug({ orgaRoleIds: [VERSION_ROLE] });
+        expect(guard.leftovers(cfg, OTHER_GID, [])).toEqual([]);
+        expect(guard.leftovers(cfg, "", []).map((r) => r.id)).toEqual([VERSION_ROLE]);
+        expect(guard.leftovers(pug(), GID)).toEqual([]);
+        expect(guard.leftovers({}, GID)).toEqual([]);
+    });
+});

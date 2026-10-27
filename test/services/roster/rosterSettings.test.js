@@ -167,6 +167,36 @@ describe("services/roster/rosterSettings updateRosterSettings (admin)", () => {
     });
 });
 
+describe("services/roster/rosterSettings PuG onboarding roles (#930)", () => {
+    const { grantsPugRole } = require("../../../src/services/roster/rosterSettings");
+    const PUG_VERSION = "900000000000000011";
+    const PUG_CLASS = "900000000000000012";
+    const config = { pugRoles: { g1: { versions: { tbc: PUG_VERSION }, classes: { Mage: PUG_CLASS } } } };
+
+    it.each([
+        ["roleIds", { roleIds: [R1, PUG_VERSION] }],
+        ["trialRoleId", { trialRoleId: PUG_CLASS }],
+        ["managers", { managers: { roleIds: [PUG_VERSION], userIds: [] } }],
+    ])("refuses an onboarding role as the roster's %s", (_field, raw) => {
+        expect(updateRosterSettings(roster.id, raw, { isAdmin: true, config }).code).toBe("pug_onboarding_role");
+        expect(rosterStore.getRoster(roster.id)).toEqual(expect.objectContaining({ roleIds: [R1], trialRoleId: null }));
+    });
+
+    it("lets plain roles through and changes nothing without pugRoles", () => {
+        expect(updateRosterSettings(roster.id, { roleIds: [R1, R2] }, { isAdmin: true, config }).ok).toBe(true);
+        expect(updateRosterSettings(roster.id, { roleIds: [PUG_VERSION] }, { isAdmin: true, config: {} }).ok).toBe(true);
+    });
+
+    it("keeps an old entry and ignores the onboarding of another server", () => {
+        const other = rosterStore.createRoster({ name: "Fremd", guildId: "g2", categoryId: "700000000000000002", roleIds: [PUG_VERSION] });
+        expect(grantsPugRole(other, { roleIds: [PUG_VERSION, R2] }, config)).toBe(false);
+        expect(grantsPugRole(roster, { name: "x" }, config)).toBe(false);
+        // a new roster (rosterCreate) carries its guildId in the fields
+        expect(grantsPugRole(null, { guildId: "g1", roleIds: [PUG_CLASS] }, config)).toBe(true);
+        expect(grantsPugRole(null, { guildId: "g2", roleIds: [PUG_CLASS] }, config)).toBe(false);
+    });
+});
+
 describe("services/roster/rosterSettings loot system and Loot-Council profile (#676)", () => {
     const councilProfilesStore = require("../../../src/stores/councilProfilesStore");
     const { rosterLootSystem } = require("../../../src/services/loot/lootSystem");

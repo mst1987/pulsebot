@@ -1,3 +1,4 @@
+import type { ServerRoleUse } from "./discordRoles";
 import { get } from "./client";
 
 // The Discord overview of one server of the server list (System › Discord › Übersicht, #895): the
@@ -34,6 +35,8 @@ export type BotCheck = {
     channels: BotChannel[];
     /** roles the bot hands out but cannot reach */
     rolesAboveBot: { id: string; name: string; usedBy: string[] }[];
+    /** #930: roles of the PuG onboarding (everyone takes them) that still carry a right; older servers leave it out */
+    pugRolesGranting?: { id: string; name: string; kind: "version" | "class"; itemId: string; label: string; uses: ServerRoleUse[] }[];
 };
 
 export type MemberActivity = {

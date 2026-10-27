@@ -91,6 +91,15 @@ describe("services/roster/rosterCreate settings", () => {
         for (const [input, code] of cases) expect({ input, code: (await createRosterWithSource(input, { guildId: "g1" })).code }).toEqual({ input, code });
     });
 
+    it("refuses a role of the PuG onboarding as a roster role (#930)", async () => {
+        const config = { pugRoles: { g1: { versions: { tbc: ROLE }, classes: {} } } };
+        expect((await createRosterWithSource({ name: "X", roleIds: [ROLE] }, { guildId: "g1", config })).code).toBe("pug_onboarding_role");
+        expect((await createRosterWithSource({ name: "X", trialRoleId: ROLE }, { guildId: "g1", config })).code).toBe("pug_onboarding_role");
+        expect(rosterStore.listRosters("")).toEqual([]);
+        // the onboarding of another server does not count
+        expect((await createRosterWithSource({ name: "X", roleIds: [ROLE] }, { guildId: "g2", config })).ok).toBe(true);
+    });
+
     it("answers the store's conflict as a code and passes other errors on", async () => {
         const spy = jest.spyOn(rosterStore, "createRoster").mockImplementationOnce(() => { throw new rosterStore.RosterError("category_taken"); });
         expect((await createRosterWithSource({ name: "X" }, { guildId: "g1" })).code).toBe("category_taken");

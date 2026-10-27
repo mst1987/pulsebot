@@ -280,3 +280,30 @@ describe("rolesAboveBot", () => {
         expect(botCheck(EVENT, SRV).rolesAboveBot).toEqual([]);
     });
 });
+
+describe("pugRolesGranting (#930)", () => {
+    const VERSION_ROLE = "200000000000000011";
+    const CLASS_ROLE = "200000000000000012";
+    const pugRoles = { [EVENT]: { versions: { tbc: VERSION_ROLE }, classes: { Mage: CLASS_ROLE } } };
+
+    it("names an onboarding role of this server that still unlocks something", () => {
+        mockRosters.push({ id: "ro1", name: "Kara", guildId: EVENT, roleIds: [CLASS_ROLE] });
+        mockGuild = guild({ rights: ALL, roles: [{ id: CLASS_ROLE, name: "Magier", position: 1 }] });
+        expect(botCheck(EVENT, { ...SRV, pugRoles, orgaRoleIds: [VERSION_ROLE] }).pugRolesGranting).toEqual([
+            { id: VERSION_ROLE, name: "", kind: "version", itemId: "tbc", label: "TBC Anniversary", uses: [{ code: "orga" }] },
+            { id: CLASS_ROLE, name: "Magier", kind: "class", itemId: "Mage", label: "Magier", uses: [{ code: "roster", rosterId: "ro1", name: "Kara", kinds: ["member"] }] },
+        ]);
+    });
+
+    it("leaves out clean roles, other servers and an unknown server", () => {
+        mockRosters.push({ id: "ro2", name: "Alt", guildId: TALK, roleIds: [CLASS_ROLE] });
+        expect(botCheck(EVENT, { ...SRV, pugRoles }).pugRolesGranting).toEqual([]);
+        expect(botCheck(TALK, { ...SRV, pugRoles, orgaRoleIds: [VERSION_ROLE] }).pugRolesGranting).toEqual([]);
+        expect(botCheck("", { ...SRV, pugRoles, orgaRoleIds: [VERSION_ROLE] }).pugRolesGranting).toEqual([]);
+    });
+
+    it("still reports while the bot is offline", () => {
+        mockOnline = false;
+        expect(botCheck(EVENT, { ...SRV, pugRoles, officerRoleId: VERSION_ROLE }).pugRolesGranting.map((r) => r.id)).toEqual([VERSION_ROLE]);
+    });
+});

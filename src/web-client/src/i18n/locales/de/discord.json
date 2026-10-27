@@ -265,6 +265,7 @@
             "channelGone": "Der eingestellte Kanal existiert nicht mehr",
             "channelRights": "In #{channel} fehlt: {rights}",
             "aboveBot": "Steht über der Bot-Rolle – der Bot kann sie nicht vergeben ({uses})",
+            "pugRoleGrants": "Rolle aus dem PuG-Onboarding, die sich jeder selbst holt – sie darf nichts freischalten ({uses})",
             "messageGone": "Die Nachricht wurde in Discord gelöscht",
             "messageChannelGone": "Der Kanal der Nachricht existiert nicht mehr",
             "messageNoAccess": "Der Bot sieht den Kanal nicht",

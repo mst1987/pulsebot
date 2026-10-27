@@ -33,12 +33,14 @@ const STATUS_OF_CODE = {
     not_found: 404, kader_not_found: 404,
     admin_only: 403, not_manager: 403,
     category_taken: 409, kader_taken: 409, kader_taken_over: 409, roster_closed: 409,
+    pug_onboarding_role: 409,
 };
 
 // The refusals of the game version (#741, #563) in words; the client says every code in its own language.
 const MESSAGE_OF_CODE = {
     version_mismatch: "Kader, Kategorie und Roster müssen dieselbe Spielversion spielen.",
     version_hidden: "Diese Spielversion ist ausgeblendet – ein Roster bekommt eine sichtbare Spielversion.",
+    pug_onboarding_role: "Eine Rolle aus dem PuG-Onboarding holt sich jeder selbst – sie kann keine Roster-Rolle sein.",
 };
 
 const refuse = (res, code) => apiError(res, STATUS_OF_CODE[code] || 400, code, MESSAGE_OF_CODE[code] || `Roster: ${code}`);

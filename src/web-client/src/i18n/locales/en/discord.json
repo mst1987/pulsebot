@@ -265,6 +265,7 @@
             "channelGone": "The channel set no longer exists",
             "channelRights": "Missing in #{channel}: {rights}",
             "aboveBot": "Sits above the bot's role – the bot cannot hand it out ({uses})",
+            "pugRoleGrants": "A role of the PuG onboarding that everyone takes themselves – it must not unlock anything ({uses})",
             "messageGone": "The message was deleted in Discord",
             "messageChannelGone": "The message's channel no longer exists",
             "messageNoAccess": "The bot cannot see the channel",

@@ -18,6 +18,7 @@ const {
 const discord = require("../../services/discord/discord");
 const guildRoles = require("../../services/discord/guildRoles");
 const roleSync = require("../../services/discord/roleSync");
+const pugRoleGuard = require("../../services/discord/pugRoleGuard");
 const languageChange = require("../../services/discord/languageChange");
 const availabilityPanel = require("../../services/signups/availabilityPanel");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
@@ -717,6 +718,9 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // #738: every active category plays an explicit version; a changed one starts a new section.
     const versions = categoryVersionPatch(body, partial, before);
     if (versions.error) return error(res, 400, "category_version_missing", versions.error);
+    // #930: a role of the PuG onboarding (everyone takes it) must not gain a right here.
+    const pugGrants = pugRoleGuard.newGrants({ before, after: { ...before, ...partial } });
+    if (pugGrants.length) return error(res, 409, "pug_onboarding_role", pugRoleGuard.refusalMessage(pugGrants));
     const langBefore = before.botLanguage;
     // #744: what deactivating pauses (series, reminders), for the save's answer.
     const deactivated = deactivationOf(partial, before);

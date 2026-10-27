@@ -17,6 +17,7 @@ const addonCenterStore = require("../../stores/addonCenterStore");
 const eventStore = require("../../stores/eventStore");
 const inviteStore = require("../../stores/discordInviteStore");
 const { serverIds, roleMessageGuild, links } = require("./guildRoles");
+const pugRoleGuard = require("./pugRoleGuard");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -262,7 +263,20 @@ function rolesAboveBot(guild, guildId, config) {
 }
 
 /**
- * The whole check of one server: `{ guildId, known, functions, channels, rolesAboveBot }`.
+ * Roles of the PuG onboarding on this server (#930) that carry a bot right anyway: everyone
+ * takes them, so whoever clicks gets that right. Saving refuses new ones; this finds the
+ * old ones. From the config and the rosters only, so it works with the bot offline too.
+ */
+function pugRolesGranting(guild, guildId, config) {
+    const roles = guild && guild.roles && guild.roles.cache;
+    return pugRoleGuard.leftovers(config, guildId).map((r) => {
+        const role = roles && typeof roles.get === "function" ? roles.get(r.id) : null;
+        return { id: r.id, name: role ? str(role.name) : "", kind: r.kind, itemId: r.itemId, label: r.label, uses: r.uses };
+    });
+}
+
+/**
+ * The whole check of one server: `{ guildId, known, functions, channels, rolesAboveBot, pugRolesGranting }`.
  * `known` false = bot offline or not on that server: every state is "unknown".
  */
 function botCheck(guildId, config) {
@@ -280,6 +294,7 @@ function botCheck(guildId, config) {
         functions: checkFunctions(guild, setupOf(gid, config, guild)),
         channels,
         rolesAboveBot: rolesAboveBot(guild, gid, config),
+        pugRolesGranting: gid ? pugRolesGranting(guild, gid, config) : [],
     };
 }
 

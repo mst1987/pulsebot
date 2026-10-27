@@ -152,6 +152,14 @@ describe("selfRole roleUses", () => {
         expect(roleUses({}, ROLE)).toEqual([{ code: "roster", rosterId: "r-x", name: "", kinds: ["member"] }]);
         expect(privilegedReason({}, ROLE)).toBe("the role belongs to the roster r-x");
     });
+
+    it("reads the given rosters instead of the store (#930)", () => {
+        const stored = jest.spyOn(rosterStore, "listRosters").mockReturnValue([{ id: "r-x", roleIds: [ROLE] }]);
+        expect(roleUses({}, ROLE, { rosters: [{ id: "r-y", name: "Neu", trialRoleId: ROLE }, null] }))
+            .toEqual([{ code: "roster", rosterId: "r-y", name: "Neu", kinds: ["trial"] }]);
+        expect(roleUses({}, ROLE, { rosters: [] })).toEqual([]);
+        expect(stored).not.toHaveBeenCalled();
+    });
 });
 
 describe("selfRole changeSelfRole", () => {

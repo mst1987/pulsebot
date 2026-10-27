@@ -42,7 +42,7 @@ const { mainVersionFor, knownVersion, isVersionVisible } = require("../events/ma
 const { buildAttendanceContext } = require("../characters/rosterAttendance");
 const { nameKeyOf } = require("../../utils/loot/lootImport");
 const { rosterPlayers, kaderSummaries } = require("../kader/kaderRoster");
-const { cleanSettings } = require("./rosterSettings");
+const { cleanSettings, grantsPugRole } = require("./rosterSettings");
 const { mirrorCategoryRoles } = require("./categoryRoles");
 const rosterMembers = require("./rosterMembers");
 
@@ -190,6 +190,8 @@ function prepare(input, { guildId, config, knownRoleIds }) {
     };
     // one roster per category and version (#739): another version's roster is no conflict
     if (categoryId && rosterStore.rosterForCategory(categoryId, data.versionId)) return { code: "category_taken" };
+    // #930: no role of the PuG onboarding (everyone takes it) as a role of the roster
+    if (grantsPugRole(null, data, config)) return { code: "pug_onboarding_role" };
     return { data, source, kader };
 }
 

@@ -845,6 +845,28 @@ describe("web/apiRoutes/settings", () => {
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
 
+            it("refuses a role of the PuG onboarding as orga role, keeps an old entry (#930)", async () => {
+                const rosterStore = require("../../../src/stores/rosterStore");
+                jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                const pugRoles = { g1: { versions: { tbc: "r-pug-tbc" }, classes: { Mage: "r-pug-mage" } } };
+                settingsStore.getConfig.mockReturnValue({ pugRoles, orgaRoleIds: ["r-pug-tbc"] });
+                try {
+                    const res = await patch("/api/settings", { orgaRoleIds: ["r-pug-tbc", "r-pug-mage"] });
+                    expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                    expect(json(res)).toMatchObject({ error: { code: "pug_onboarding_role", message: expect.stringContaining("Orga-Rolle") } });
+                    expect(json(res).error.message).toContain("Magier");
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                    // the old orga entry does not block another save
+                    await patch("/api/settings", { orgaRoleIds: ["r-pug-tbc", "r-lead"] });
+                    expect(settingsStore.saveConfig).toHaveBeenCalledWith({ orgaRoleIds: ["r-pug-tbc", "r-lead"] });
+                } finally {
+                    settingsStore.getConfig.mockReturnValue({});
+                    rosterStore.listRosters.mockRestore();
+                }
+            });
+
             // Otherwise a role with write access to "Einstellungen" could grant
             // itself (or anyone) full admin.
             it("refuses adminRoleIds/rolePermissions from a non-admin settings user", async () => {

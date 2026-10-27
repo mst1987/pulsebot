@@ -2,6 +2,7 @@ import type { BotChannel, BotFunction, BotMessage, DiscordOverview, SessionUser 
 import { MENU, matchesHref, mayOpen } from "../app/menu";
 import { t, tOr } from "../../i18n";
 import { permissionLabel } from "./permissions";
+import { roleUseLabel } from "./serverRoles";
 
 // System › Discord › Übersicht (pages/channels/DiscordOverviewPage.tsx): what of
 // one server side needs the orga's attention, derived from /api/discord/overview.
@@ -126,6 +127,15 @@ export function attentionItems(data: DiscordOverview, user: SessionUser | null):
         out.push({
             id: `role-${r.id}`, tone: "mid", status: t("discord.overview.status.hint"),
             what: r.name, why: t("discord.overview.why.aboveBot", { uses: r.usedBy.join(", ") }),
+            action: link(t("discord.overview.action.toRole"), "/channels/server-roles"),
+        });
+    }
+
+    // #930: everyone takes an onboarding role, so a right on it is a right for everyone
+    for (const r of data.botCheck.pugRolesGranting || []) {
+        out.push({
+            id: `pug-${r.id}`, tone: "bad", status: t("discord.overview.status.hint"),
+            what: r.name || r.label, why: t("discord.overview.why.pugRoleGrants", { uses: r.uses.map(roleUseLabel).join(", ") }),
             action: link(t("discord.overview.action.toRole"), "/channels/server-roles"),
         });
     }
