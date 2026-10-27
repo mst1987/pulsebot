@@ -1,6 +1,6 @@
 // Einstellungen → Discord-Server (#891): the links table with create/remove,
 // the hint for a source without a raid category, and the guild bank channel.
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { AdminConfig, DiscordServersData, ServerLink, ServerRow } from "../../api";
@@ -288,6 +288,43 @@ describe("Discord-Server: Einladungen (#905)", () => {
         fireEvent.click(within(dialog).getByRole("button", { name: "Neu erzeugen" }));
         await waitFor(() => expect(api.postPugInvite).toHaveBeenCalledWith({ key: "10001:20002" }, true));
         expect(await screen.findByText("new999")).toBeInTheDocument();
+    });
+
+    const SERVER_INVITE_SENTENCE = "Die Einladungen des Bots auf diesem Server werden auf Discord gelöscht.";
+
+    it("says in the remove-server dialog that the invite of a link it is the source of is deleted", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [LINK] }));
+        vi.mocked(api.getPugInvites).mockResolvedValue({ links: [invite()], servers: [] });
+        render();
+        await screen.findByText("abc123");
+        fireEvent.click(screen.getByRole("button", { name: "Server entfernen" }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByText(new RegExp(SERVER_INVITE_SENTENCE))).toBeInTheDocument();
+    });
+
+    it("says in the remove-server dialog that the server's general invite is deleted", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData());
+        vi.mocked(api.getPugInvites).mockResolvedValue({ links: [], servers: [{
+            guildId: "10001", source: false, code: "gen777", url: "https://discord.gg/gen777",
+            channelId: "c1", inviteChannelId: "c1", error: "", deleted: false,
+        }] });
+        render();
+        // the general invite shows nowhere on the page, so let the loaded invites settle before opening the dialog
+        const remove = await screen.findByRole("button", { name: "Server entfernen" });
+        await waitFor(() => expect(api.getPugInvites).toHaveBeenCalled());
+        await act(async () => undefined);
+        fireEvent.click(remove);
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByText(new RegExp(SERVER_INVITE_SENTENCE))).toBeInTheDocument();
+        expect(within(dialog).queryByText(/Verknüpfung mit diesem Server als Quelle/)).toBeNull();
+    });
+
+    it("leaves the invite sentence out of the remove-server dialog without any invite", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData());
+        render();
+        fireEvent.click(await screen.findByRole("button", { name: "Server entfernen" }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).queryByText(/Einladungen des Bots/)).toBeNull();
     });
 });
 
