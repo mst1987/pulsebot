@@ -172,8 +172,11 @@ function after924Migrated(config, stored) {
     if (stored.raidDefaults !== undefined) for (const id of known) set(id, "raidDefaults", { channelId: String((stored.raidDefaults || {}).channelId || "").trim() });
     if (stored.botLanguage !== undefined) for (const id of known) set(id, "botLanguage", stored.botLanguage === "en" ? "en" : "de");
     const src = stored.discordServers && typeof stored.discordServers === "object" && !Array.isArray(stored.discordServers) ? stored.discordServers : {};
-    const one = { applicationChannelId: stored.applicationChannelId, officerRoleId: stored.officerRoleId, signupNoteChannelId: src.signupNoteChannelId, guildBankChannelId: src.guildBankChannelId };
+    const one = { applicationChannelId: stored.applicationChannelId, officerRoleId: stored.officerRoleId };
     for (const [key, value] of Object.entries(one)) if (snowflake(value)) set(known[0], key, snowflake(value));
+    // the fixtures prove no channel's server, so the two signup channels go onto every known server
+    const every = { signupNoteChannelId: src.signupNoteChannelId, guildBankChannelId: src.guildBankChannelId };
+    for (const [key, value] of Object.entries(every)) if (snowflake(value)) for (const id of known) set(id, key, snowflake(value));
     return { ...config, serverSettings: next };
 }
 const schemaOnly = frozen.map((g) => ({ ...g, config: after924(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))))))))))) }));
