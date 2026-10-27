@@ -16,7 +16,8 @@ export type WclGuildResult = { found: number; error: string; at: number };
 
 export type WclGuildInput = { versionId: string; guildName: string; realm: string; region: string; interval: number };
 
-export type WclGuild = WclGuildInput & { lastRunAt: number; lastResult: WclGuildResult | null };
+/** lastRunAt: every fetch (when the next is due); lastSuccessAt: only answered fetches (where the next window starts). */
+export type WclGuild = WclGuildInput & { lastRunAt: number; lastSuccessAt: number; lastResult: WclGuildResult | null };
 
 /** The identity of an entry; mirrors entryKey() in wclGuildSettings.js. */
 export function wclGuildKey(e: Pick<WclGuildInput, "versionId" | "guildName" | "realm" | "region">): string {

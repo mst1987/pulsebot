@@ -191,6 +191,12 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     (`discord.isGuildAvailable()` prüfen). „In Discord gelöscht" gilt nur bei verfügbarem Server, der
     überhaupt Kategorien liefert, und belastbarem Besitzer (live oder Namens-Snapshot) — nie aus
     Roster-, Raid- oder Migrations-`guildId`s (die sind oft geraten und dienen nur der Anzeige).
+21. Zeitfenster bei externen Listen-APIs (#922): WCL v1 `reports/guild` filtert `start`/`end` nach der
+    **Startzeit** eines Reports, nicht nach dem Upload — ein Raid von 20 Uhr, um 23:30 hochgeladen,
+    liegt vor dem letzten Abruf. Nie „ab dem letzten Lauf" abfragen: großzügiges Rückblickfenster
+    (`wclGuildSync`: 48 h vor dem letzten **erfolgreichen** Abruf, erster Abruf 14 Tage) plus Dedup
+    (`logStore.getByReportId`); den Fensterbeginn (`lastSuccessAt`) nur bei Erfolg vorrücken, ein
+    Fehlerlauf rückt nur die Fälligkeit (`lastRunAt`). Gilt für jede Listenabfrage mit Zeitfilter.
 
 ## Fach-Agenten
 

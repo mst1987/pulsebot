@@ -36,7 +36,10 @@ export default function WclGuildsSection({ value, activeGuildId, versions, onSav
     const [fetching, setFetching] = useState<string>("");
     const [now, setNow] = useState(() => Date.now());
 
-    useEffect(() => { setRows(value.map(inputOf)); }, [value]);
+    // reset the rows only when the stored list really changed (saved, fetched with
+    // other names, server switched) — not on every parent render with a new array
+    const savedKey = JSON.stringify(value.map(inputOf));
+    useEffect(() => { setRows(JSON.parse(savedKey) as WclGuildInput[]); }, [savedKey]);
     // "vor 12 Min" ages while the page stays open
     useEffect(() => {
         const id = window.setInterval(() => setNow(Date.now()), 60000);

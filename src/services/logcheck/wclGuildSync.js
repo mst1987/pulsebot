@@ -16,13 +16,17 @@
 const logStore = require("../../stores/logStore");
 const { wclClientFor, wclApiSite, reportLink } = require("./logVersion");
 const { allWclGuilds, wclGuildsOf, entryKey, normalizeWclGuilds } = require("./wclGuildSettings");
+const { isLiveInstance } = require("../../config/runMode");
 const logger = require("../../logger").child("wclGuildSync");
 
 const TICK_MS = 60 * 1000;
 // how far back the first fetch of an entry looks
 const FIRST_LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000;
-// later fetches overlap the last one by this much (an upload that took a while)
-const OVERLAP_MS = 60 * 60 * 1000;
+// WCL v1 reports/guild filters `start` by the START time of a report, not by its
+// upload: a raid from 20:00 uploaded at 23:30 starts long before the last fetch.
+// So later fetches look this far back from the last SUCCESSFUL fetch (a failed
+// one never moves the window) and logStore.getByReportId drops the repeats.
+const LOOKBACK_MS = 48 * 60 * 60 * 1000;
 // a site that answered 429 is left alone this long
 const RATE_LIMIT_PAUSE_MS = 15 * 60 * 1000;
 
@@ -55,15 +59,34 @@ function errorMessage(e) {
     return "Warcraft Logs nicht erreichbar.";
 }
 
-/** Write lastRunAt/lastResult onto the one entry `key` of `guildId`, from a fresh config. */
+/**
+ * Write lastRunAt/lastResult onto the one entry `key` of `guildId`, from a fresh
+ * config; lastSuccessAt (the start of the next window) only when WCL answered.
+ */
 function writeResult(guildId, key, result) {
     const { getConfig, saveConfig } = settingsStore();
     const list = wclGuildsOf(guildId, { config: getConfig() });
     const idx = list.findIndex((e) => entryKey(e) === key);
     if (idx < 0) return null; // removed while WCL answered: nothing to note
-    list[idx] = { ...list[idx], lastRunAt: result.at, lastResult: result };
+    list[idx] = {
+        ...list[idx],
+        lastRunAt: result.at,
+        ...(result.error ? {} : { lastSuccessAt: result.at }),
+        lastResult: result,
+    };
     saveConfig({ serverSettings: { [guildId]: { wclGuilds: normalizeWclGuilds(list) } } });
     return list[idx];
+}
+
+/**
+ * Where the fetch window of an entry starts: LOOKBACK_MS before its last
+ * successful fetch, FIRST_LOOKBACK_MS back on its first (or after only failures),
+ * never further back than FIRST_LOOKBACK_MS.
+ */
+function windowStart(entry, now) {
+    const first = now - FIRST_LOOKBACK_MS;
+    const last = Number(entry && entry.lastSuccessAt) || 0;
+    return last > 0 ? Math.max(first, last - LOOKBACK_MS) : first;
 }
 
 async function fetchAndStore(guildId, entry, now) {
@@ -78,7 +101,7 @@ async function fetchAndStore(guildId, entry, now) {
         const e = new Error("no key"); e.code = "no_key"; throw e;
     }
     if (!client) { const e = new Error("no site"); e.code = "no_site"; throw e; }
-    const start = entry.lastRunAt > 0 ? entry.lastRunAt - OVERLAP_MS : now - FIRST_LOOKBACK_MS;
+    const start = windowStart(entry, now);
     let reports;
     try {
         reports = await client.getGuildReports(entry.guildName, entry.realm, entry.region, { start });
@@ -100,7 +123,9 @@ async function fetchAndStore(guildId, entry, now) {
             postedAt: Number(r.start) || now,
             channelVersionId: entry.versionId,
         });
-        if (log && Number(r.start) > 0) logStore.setReportStart(log.id, r.start);
+        if (!log) continue;
+        if (Number(r.start) > 0) logStore.setReportStart(log.id, r.start);
+        // saveLog runs synchronously right after getByReportId, so this is a new log
         found++;
     }
     if (found) {
@@ -165,9 +190,17 @@ function isFetching(guildId, key) {
     return inFlight.has(`${guildId}#${key}`);
 }
 
-/** Start the minute tick (idempotent; the timer is unref'd). */
-function startWclGuildSync({ intervalMs = TICK_MS } = {}) {
+/**
+ * Start the minute tick (idempotent; the timer is unref'd). Only on the live
+ * bot: a test instance shares the WCL key and its copied settings would fetch
+ * the same guilds again; there "Jetzt abrufen" (fetchEntry) still works.
+ */
+function startWclGuildSync({ intervalMs = TICK_MS, live = isLiveInstance() } = {}) {
     if (timer) return;
+    if (!live) {
+        logger.info("not the live bot: no automatic guild fetch (Jetzt abrufen still works)");
+        return;
+    }
     timer = setInterval(() => { runDue(); }, intervalMs);
     if (timer.unref) timer.unref();
 }
@@ -185,6 +218,6 @@ function _resetForTests() {
 }
 
 module.exports = {
-    isDue, errorMessage, fetchEntry, runDue, isFetching, startWclGuildSync, stopWclGuildSync,
-    RATE_LIMIT_PAUSE_MS, FIRST_LOOKBACK_MS, OVERLAP_MS, _resetForTests,
+    isDue, errorMessage, windowStart, fetchEntry, runDue, isFetching, startWclGuildSync, stopWclGuildSync,
+    RATE_LIMIT_PAUSE_MS, FIRST_LOOKBACK_MS, LOOKBACK_MS, _resetForTests,
 };

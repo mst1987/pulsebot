@@ -516,7 +516,7 @@ describe("web/apiRoutes/settings", () => {
                 });
             });
             describe("the WCL guilds of the active server (#922)", () => {
-                const stored = { versionId: "tbc", guildName: "Pulse", realm: "Thunderstrike", region: "EU", interval: 60, lastRunAt: 500, lastResult: { found: 1, error: "", at: 500 } };
+                const stored = { versionId: "tbc", guildName: "Pulse", realm: "Thunderstrike", region: "EU", interval: 60, lastRunAt: 500, lastSuccessAt: 450, lastResult: { found: 1, error: "", at: 500 } };
                 beforeEach(() => {
                     auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                     auth.checkCsrf.mockReturnValue(true);
@@ -532,13 +532,13 @@ describe("web/apiRoutes/settings", () => {
                     const res = await patch("/api/settings", {
                         serverSettingsGuildId: "guild-1",
                         wclGuilds: [
-                            { versionId: "tbc", guildName: "pulse", realm: "Thunderstrike", region: "eu", interval: 15, lastRunAt: 1, lastResult: { found: 9 } },
+                            { versionId: "tbc", guildName: "pulse", realm: "Thunderstrike", region: "eu", interval: 15, lastRunAt: 1, lastSuccessAt: 1, lastResult: { found: 9 } },
                             { versionId: "classic", guildName: " Alt ", realm: "Thunderstrike", region: "EU", interval: 0 },
                         ],
                     });
                     const wclGuilds = [
-                        { versionId: "tbc", guildName: "pulse", realm: "Thunderstrike", region: "EU", interval: 15, lastRunAt: 500, lastResult: { found: 1, error: "", at: 500 } },
-                        { versionId: "classic", guildName: "Alt", realm: "Thunderstrike", region: "EU", interval: 0, lastRunAt: 0, lastResult: null },
+                        { versionId: "tbc", guildName: "pulse", realm: "Thunderstrike", region: "EU", interval: 15, lastRunAt: 500, lastSuccessAt: 450, lastResult: { found: 1, error: "", at: 500 } },
+                        { versionId: "classic", guildName: "Alt", realm: "Thunderstrike", region: "EU", interval: 0, lastRunAt: 0, lastSuccessAt: 0, lastResult: null },
                     ];
                     expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ serverSettings: { "guild-1": { wclGuilds } } });
                     expect(body(res).wclGuilds).toEqual(wclGuilds);

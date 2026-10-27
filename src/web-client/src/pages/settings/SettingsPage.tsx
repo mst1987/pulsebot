@@ -36,7 +36,7 @@ import CategorySwitchDialog, { type CategorySwitchChoice } from "./CategorySwitc
 import CategoryDeactivateDialog from "./CategoryDeactivateDialog";
 import CategoryCloseDialog from "./CategoryCloseDialog";
 import { deactivatedIds } from "../../lib/settings/categoryLifecycle";
-import type { CategoryCloseResult, MissingCategory } from "../../api";
+import type { CategoryCloseResult, MissingCategory, WclGuild } from "../../api";
 import { categoryVersionsToSave, isVersionSwitch, savedCategoryVersion, switchFixesToSend } from "../../lib/settings/categoryVersions";
 import HideOtherVersionsCard from "./HideOtherVersionsCard";
 import BotLanguageCard from "./BotLanguageCard";
@@ -57,6 +57,8 @@ function ModuleCard({ children }: { children: ReactNode }) {
 type PermView = "areas" | "bot";
 
 const PERM_VIEWS: readonly PermView[] = ["areas", "bot"];
+// one stable empty list, so a server without WCL guilds hands the section the same array every render
+const NO_WCL_GUILDS: WclGuild[] = [];
 
 export default function SettingsPage() {
     const t = useT();
@@ -574,7 +576,7 @@ export default function SettingsPage() {
                         {/* #922 the WCL guild per version of the active server, saved on its own */}
                         {data.activeGuildId && (
                             <WclGuildsSection
-                                value={data.config.serverSettings?.[data.activeGuildId]?.wclGuilds || []}
+                                value={data.config.serverSettings?.[data.activeGuildId]?.wclGuilds || NO_WCL_GUILDS}
                                 activeGuildId={data.activeGuildId}
                                 versions={(data.gameVersions || []).map((v) => ({ id: v.id, label: v.label }))}
                                 onSaved={(wclGuilds) => setData((cur) => {

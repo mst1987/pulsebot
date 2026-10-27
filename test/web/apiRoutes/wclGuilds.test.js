@@ -75,6 +75,13 @@ describe("web/apiRoutes/wclGuilds (#922)", () => {
         expect(wclGuildSync.fetchEntry).not.toHaveBeenCalled();
     });
 
+    it("409 when the body names no server at all (like the settings PATCH)", async () => {
+        const res = await call({ key: KEY });
+        expect(status(res)).toBe(409);
+        expect(json(res).error.code).toBe("server_switched");
+        expect(wclGuildSync.fetchEntry).not.toHaveBeenCalled();
+    });
+
     it("404 for an entry the active server has not saved (another server's does not count)", async () => {
         let res = await call({ key: "tbc|other|thunderstrike|EU", serverSettingsGuildId: "g1" });
         expect(status(res)).toBe(404);

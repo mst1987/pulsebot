@@ -10,7 +10,7 @@ const { wclGuildsOf, entryKey } = require("../../services/logcheck/wclGuildSetti
 const wclGuildSync = require("../../services/logcheck/wclGuildSync");
 
 /**
- * POST /api/settings/wcl-guilds/fetch — body: { key, serverSettingsGuildId? }.
+ * POST /api/settings/wcl-guilds/fetch — body: { key, serverSettingsGuildId }.
  * Only on the active server; a tab that loaded another one gets 409
  * `server_switched` (like the settings PATCH). A double click or the minute job
  * fetching the same entry joins that fetch instead of asking WCL twice.
@@ -18,7 +18,8 @@ const wclGuildSync = require("../../services/logcheck/wclGuildSync");
 const postFetch = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const guildId = activeGuildFor(req);
     if (!guildId) return error(res, 400, "no_active_server", "Kein aktiver Server gewählt.");
-    if (typeof body.serverSettingsGuildId === "string" && body.serverSettingsGuildId !== guildId) {
+    // like serverSettingsTarget: a body without the loaded server counts as switched
+    if (String(body.serverSettingsGuildId || "") !== guildId) {
         return error(res, 409, "server_switched", "Der aktive Server wurde inzwischen gewechselt. Bitte die Seite neu laden.");
     }
     const key = typeof body.key === "string" ? body.key : "";

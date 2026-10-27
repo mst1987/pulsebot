@@ -1,6 +1,7 @@
 // Einstellungen → <Server> → Log-Auswertung → Warcraft-Logs-Gilde (#922): the
 // rows of the active server, saved with the server the page loaded, "Jetzt
 // abrufen" only for a stored row, a switched tab gets the server_switched toast.
+import { useState } from "react";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,7 +20,7 @@ vi.mock("../../api", async (orig) => ({
 const VERSIONS = [{ id: "tbc", label: "TBC Anniversary" }, { id: "classic", label: "Classic Era" }];
 const SAVED: WclGuild = {
     versionId: "tbc", guildName: "Pulse", realm: "Thunderstrike", region: "EU", interval: 60,
-    lastRunAt: Date.now() - 5 * 60000, lastResult: { found: 2, error: "", at: Date.now() - 5 * 60000 },
+    lastRunAt: Date.now() - 5 * 60000, lastSuccessAt: Date.now() - 5 * 60000, lastResult: { found: 2, error: "", at: Date.now() - 5 * 60000 },
 };
 const KEY = "tbc|pulse|thunderstrike|EU";
 
@@ -74,6 +75,26 @@ describe("WclGuildsSection (#922)", () => {
         });
         expect(onSaved).toHaveBeenCalledWith([{ ...SAVED, interval: 0 }]);
         expect(await screen.findByText(t("settings.wclGuilds.saved"))).toBeInTheDocument();
+    });
+
+    it("a typed, unsaved row survives a re-render of the page with a fresh empty list", async () => {
+        const user = userEvent.setup();
+        // like SettingsPage before the fix: a new [] on every render, and another field changing
+        function Parent() {
+            const [other, setOther] = useState(0);
+            return (
+                <>
+                    <button type="button" onClick={() => setOther(other + 1)}>other {other}</button>
+                    <WclGuildsSection value={[]} activeGuildId="g1" versions={VERSIONS} onSaved={() => {}} />
+                </>
+            );
+        }
+        renderPage(<Parent />);
+        await user.click(screen.getByRole("button", { name: t("settings.wclGuilds.add") }));
+        await user.type(screen.getByRole("textbox", { name: t("settings.wclGuilds.guildFor", { n: 1 }) }), "Pulse");
+        await user.click(screen.getByRole("button", { name: "other 0" }));
+        expect(screen.getByRole("button", { name: "other 1" })).toBeInTheDocument();
+        expect(screen.getByRole("textbox", { name: t("settings.wclGuilds.guildFor", { n: 1 }) })).toHaveValue("Pulse");
     });
 
     it("a new row needs a guild and a realm before it saves", async () => {

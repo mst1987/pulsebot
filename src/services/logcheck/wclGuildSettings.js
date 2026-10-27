@@ -1,14 +1,16 @@
 // The Warcraft Logs guild of a Discord server, per game version (#922, epic #926):
 //
 //   config.serverSettings[guildId].wclGuilds = [
-//       { versionId, guildName, realm, region, interval, lastRunAt, lastResult }
+//       { versionId, guildName, realm, region, interval, lastRunAt, lastSuccessAt, lastResult }
 //   ]
 //
 // The central job (wclGuildSync.js) asks WCL every `interval` minutes for the
 // guild's new reports on the site of the entry's version and keeps each new one
 // as a log of that server and version, like a link posted in a log channel.
-// `interval` is one of INTERVALS (0 = off); `lastRunAt` (ms) and `lastResult`
-// ({ found, error, at }) are written by the job only, never by a settings PATCH.
+// `interval` is one of INTERVALS (0 = off); `lastRunAt` (ms, every fetch: when
+// the next one is due), `lastSuccessAt` (ms, only a fetch WCL answered: where
+// the next fetch window starts) and `lastResult` ({ found, error, at }) are
+// written by the job only, never by a settings PATCH.
 const { serverSetting } = require("../discord/serverSettings");
 const { knownVersion } = require("../events/mainVersion");
 
@@ -66,6 +68,7 @@ function normalizeWclGuilds(raw) {
             region: regionOf(src.region),
             interval: intervalOf(src.interval),
             lastRunAt: Math.max(0, Number(src.lastRunAt) || 0),
+            lastSuccessAt: Math.max(0, Number(src.lastSuccessAt) || 0),
             lastResult: resultOf(src.lastResult),
         };
         if (!entry.versionId || !entry.guildName || !entry.realm) continue;
@@ -97,8 +100,8 @@ function allWclGuilds({ config } = {}) {
 
 /**
  * The list a settings PATCH sends for one server, in its final shape. The page
- * only edits version, guild, realm, region and interval: lastRunAt/lastResult
- * come from the stored entry with the same key, never from the body.
+ * only edits version, guild, realm, region and interval: lastRunAt,
+ * lastSuccessAt and lastResult come from the stored entry with the same key, never from the body.
  * @param {*} raw
  * @param {{ current?: Array }} [opts]
  */
@@ -108,7 +111,12 @@ function wclGuildsFromBody(raw, { current = [] } = {}) {
         const s = src && typeof src === "object" && !Array.isArray(src) ? src : {};
         const entry = { versionId: s.versionId, guildName: s.guildName, realm: s.realm, region: s.region, interval: s.interval };
         const old = before.get(entryKey({ ...entry, region: regionOf(entry.region), versionId: knownVersion(entry.versionId) }));
-        return { ...entry, lastRunAt: old ? old.lastRunAt : 0, lastResult: old ? old.lastResult : null };
+        return {
+            ...entry,
+            lastRunAt: old ? old.lastRunAt : 0,
+            lastSuccessAt: old ? old.lastSuccessAt : 0,
+            lastResult: old ? old.lastResult : null,
+        };
     });
     return normalizeWclGuilds(list);
 }

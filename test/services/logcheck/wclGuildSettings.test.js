@@ -29,11 +29,11 @@ describe("services/logcheck/wclGuildSettings (#922)", () => {
         it("trims, upper-cases the region and keeps the job's fields", () => {
             const out = normalizeWclGuilds([{
                 ...entry({ guildName: " Pulse ", realm: " Thunderstrike ", region: "us" }),
-                lastRunAt: 123, lastResult: { found: 2.7, error: "", at: 123 },
+                lastRunAt: 123, lastSuccessAt: 120, lastResult: { found: 2.7, error: "", at: 123 },
             }]);
             expect(out).toEqual([{
                 versionId: "tbc", guildName: "Pulse", realm: "Thunderstrike", region: "US", interval: 60,
-                lastRunAt: 123, lastResult: { found: 2, error: "", at: 123 },
+                lastRunAt: 123, lastSuccessAt: 120, lastResult: { found: 2, error: "", at: 123 },
             }]);
         });
 
@@ -99,19 +99,19 @@ describe("services/logcheck/wclGuildSettings (#922)", () => {
     });
 
     describe("wclGuildsFromBody", () => {
-        const current = [{ ...entry(), lastRunAt: 500, lastResult: { found: 1, error: "", at: 500 } }];
+        const current = [{ ...entry(), lastRunAt: 500, lastSuccessAt: 400, lastResult: { found: 1, error: "", at: 500 } }];
 
         it("keeps lastRunAt/lastResult of the stored entry with the same key, whatever the body says", () => {
-            const out = wclGuildsFromBody([{ ...entry({ guildName: "PULSE", region: "eu", interval: 15 }), lastRunAt: 9, lastResult: { found: 99 } }], { current });
+            const out = wclGuildsFromBody([{ ...entry({ guildName: "PULSE", region: "eu", interval: 15 }), lastRunAt: 9, lastSuccessAt: 9, lastResult: { found: 99 } }], { current });
             expect(out).toEqual([{
                 versionId: "tbc", guildName: "PULSE", realm: "Thunderstrike", region: "EU", interval: 15,
-                lastRunAt: 500, lastResult: { found: 1, error: "", at: 500 },
+                lastRunAt: 500, lastSuccessAt: 400, lastResult: { found: 1, error: "", at: 500 },
             }]);
         });
 
         it("a new entry starts unfetched", () => {
             const [e] = wclGuildsFromBody([{ ...entry({ guildName: "Neu" }), lastRunAt: 9, lastResult: { found: 3 } }], { current });
-            expect(e).toMatchObject({ guildName: "Neu", lastRunAt: 0, lastResult: null });
+            expect(e).toMatchObject({ guildName: "Neu", lastRunAt: 0, lastSuccessAt: 0, lastResult: null });
         });
 
         it("an empty or broken body clears the list", () => {

@@ -93,7 +93,7 @@ describe("services/logcheck/wclGuildSync (#922)", () => {
             });
             expect(logStore.setReportStart).toHaveBeenCalledWith("log-AbC123", 1700000000000);
             expect(autoLinkLogs).toHaveBeenCalledWith("g1");
-            expect(stored()[0]).toMatchObject({ lastRunAt: result.at, lastResult: { found: 1, error: "", at: result.at } });
+            expect(stored()[0]).toMatchObject({ lastRunAt: result.at, lastSuccessAt: result.at, lastResult: { found: 1, error: "", at: result.at } });
             // the server's other settings stay
             expect(mockConfig.serverSettings.g1.logChannels).toEqual([{ channelId: "c1", versionId: "tbc" }]);
         });
@@ -107,16 +107,55 @@ describe("services/logcheck/wclGuildSync (#922)", () => {
             expect(autoLinkLogs).not.toHaveBeenCalled();
         });
 
-        it("the first fetch looks 14 days back, later ones from the last fetch less an hour", async () => {
+        it("the first fetch looks 14 days back, later ones 48 h before the last successful fetch", async () => {
             const before = Date.now();
             await sync.fetchEntry("g1", KEY);
             const { start } = client.getGuildReports.mock.calls[0][3];
             expect(start).toBeGreaterThanOrEqual(before - sync.FIRST_LOOKBACK_MS);
             expect(start).toBeLessThanOrEqual(Date.now() - sync.FIRST_LOOKBACK_MS);
 
-            mockConfig.serverSettings.g1.wclGuilds = [entry({ lastRunAt: 10 * 3600 * 1000 })];
+            const success = Date.now() - 3600 * 1000;
+            mockConfig.serverSettings.g1.wclGuilds = [entry({ lastRunAt: success, lastSuccessAt: success })];
             await sync.fetchEntry("g1", KEY);
-            expect(client.getGuildReports.mock.calls[1][3]).toEqual({ start: 10 * 3600 * 1000 - sync.OVERLAP_MS });
+            expect(client.getGuildReports.mock.calls[1][3]).toEqual({ start: success - sync.LOOKBACK_MS });
+        });
+
+        it("the window never reaches further back than 14 days", () => {
+            const now = 100 * 24 * 3600 * 1000;
+            expect(sync.windowStart({ lastSuccessAt: now - 30 * 24 * 3600 * 1000 }, now)).toBe(now - sync.FIRST_LOOKBACK_MS);
+            expect(sync.windowStart({ lastSuccessAt: 0 }, now)).toBe(now - sync.FIRST_LOOKBACK_MS);
+            expect(sync.windowStart(null, now)).toBe(now - sync.FIRST_LOOKBACK_MS);
+        });
+
+        it("a raid that started hours before the last fetch but was uploaded later is still saved", async () => {
+            // WCL filters by the report START: raid from 20:00, last fetch 23:40, upload 23:30 seen only now
+            const lastFetch = Date.now() - 5 * MIN;
+            const raidStart = lastFetch - 3 * 3600 * 1000 - 40 * MIN;
+            mockConfig.serverSettings.g1.wclGuilds = [entry({ lastRunAt: lastFetch, lastSuccessAt: lastFetch })];
+            client.getGuildReports.mockImplementation(async (g, r, reg, { start }) => (raidStart >= start ? [{ id: "Late1", start: raidStart }] : []));
+            const result = await sync.fetchEntry("g1", KEY);
+            expect(result).toMatchObject({ found: 1, error: "" });
+            expect(logStore.saveLog).toHaveBeenCalledWith(expect.objectContaining({ reportId: "Late1", postedAt: raidStart }));
+        });
+
+        it("a failed fetch moves lastRunAt but not the window: the next one starts from the old success", async () => {
+            const success = Date.now() - 2 * 3600 * 1000;
+            mockConfig.serverSettings.g1.wclGuilds = [entry({ lastRunAt: success, lastSuccessAt: success })];
+            client.getGuildReports.mockRejectedValueOnce(new Error("ETIMEDOUT"));
+            const failed = await sync.fetchEntry("g1", KEY);
+            expect(stored()[0]).toMatchObject({ lastRunAt: failed.at, lastSuccessAt: success });
+
+            await sync.fetchEntry("g1", KEY);
+            expect(client.getGuildReports.mock.calls[1][3]).toEqual({ start: success - sync.LOOKBACK_MS });
+            expect(stored()[0].lastSuccessAt).toBeGreaterThan(success);
+        });
+
+        it("a report saveLog did not create is not counted", async () => {
+            client.getGuildReports.mockResolvedValue([{ id: "Gone1", start: 5 }]);
+            logStore.saveLog.mockReturnValueOnce(null);
+            await expect(sync.fetchEntry("g1", KEY)).resolves.toMatchObject({ found: 0, error: "" });
+            expect(logStore.setReportStart).not.toHaveBeenCalled();
+            expect(autoLinkLogs).not.toHaveBeenCalled();
         });
 
         it("a report without a start keeps the fetch time and sets no start", async () => {
@@ -257,12 +296,37 @@ describe("services/logcheck/wclGuildSync (#922)", () => {
     });
 
     describe("start/stop", () => {
+        it("a test instance starts no tick, a manual fetch still works", async () => {
+            jest.useFakeTimers();
+            try {
+                sync.startWclGuildSync({ live: false });
+                jest.advanceTimersByTime(5 * MIN);
+                expect(settingsStore.getConfig).not.toHaveBeenCalled();
+            } finally {
+                sync._resetForTests();
+                jest.useRealTimers();
+            }
+            await expect(sync.fetchEntry("g1", KEY)).resolves.toMatchObject({ error: "" });
+        });
+
+        it("without an option it asks runMode: Jest is not live", () => {
+            jest.useFakeTimers();
+            try {
+                sync.startWclGuildSync();
+                jest.advanceTimersByTime(5 * MIN);
+                expect(settingsStore.getConfig).not.toHaveBeenCalled();
+            } finally {
+                sync._resetForTests();
+                jest.useRealTimers();
+            }
+        });
+
         it("ticks every minute once started (idempotent), stops cleanly", () => {
             jest.useFakeTimers();
             mockConfig.serverSettings.g1.wclGuilds = [];
             try {
-                sync.startWclGuildSync();
-                sync.startWclGuildSync();
+                sync.startWclGuildSync({ live: true });
+                sync.startWclGuildSync({ live: true });
                 jest.advanceTimersByTime(MIN);
                 expect(settingsStore.getConfig).toHaveBeenCalledTimes(1);
                 sync.stopWclGuildSync();
