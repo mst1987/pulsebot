@@ -59,6 +59,10 @@
             "label": "Recruitment",
             "crumb": "Modules · applications"
         },
+        "versionlinks": {
+            "label": "Links & realm",
+            "crumb": "Game version · this server's armory, logs and realm"
+        },
         "dungeons": {
             "label": "Dungeon best times",
             "crumb": "Modules · guild records from the LevelHelper addon"
@@ -848,6 +852,11 @@
         "unknownTip": "Unknown category",
         "unknownSub": "This ID is configured, but Discord does not know it right now (bot offline?). Once the bot sees every server, a deleted category is marked “deleted in Discord” and can be closed.",
         "unknown": "unknown",
+        "unprovenTip": "Server not proven",
+        "unprovenSub": "Server not provable (bot offline or server unknown): which Discord server this category belongs to is not proven right now — or its server is not in the server list. That is why it shows here and cannot be closed. Add the server under Discord servers and it moves there.",
+        "unproven": "server unclear",
+        "notListed": "Server not in the server list",
+        "notListedSub": "This Discord server is not listed under Discord servers, so its categories can neither be detected as deleted nor closed. Add the server there.",
         "roleCount": {
             "one": "{count} role",
             "other": "{count} roles"
@@ -1524,5 +1533,16 @@
         "channel": "Channel for guild records",
         "channelSub": "The bot posts every new guild record here, in the bot language.",
         "noChannel": "Without a channel nothing is posted."
+    },
+    "serverVersionLinks": {
+        "sub": "Own armory and Warcraft Logs links and an own realm per game version, for this server only. Without an own value the standard from All servers › Game version applies. Wowhead, Softres, raid sheet and colour stay the same for every server.",
+        "hint": "Only for {server} and {version}. Off = the standard of all servers.",
+        "saved": "Links and realm saved for {server}.",
+        "empty": "Own value is on but empty. Enter a value or switch it off.",
+        "emptyBlocked": "Saving works once every value that is switched on is filled in.",
+        "placeHint": {
+            "blizzardRealmSlug": "In the links the realm only counts when the template contains {realm}. The armory lookup always uses it.",
+            "blizzardRegion": "In the links the region only counts when the template contains {region}. The armory lookup always uses it."
+        }
     }
 }

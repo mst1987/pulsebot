@@ -221,9 +221,95 @@ function versionSettingsOf(stored) {
     return normalizeVersionSettings(blocks);
 }
 
+// --- per-server overrides (#923, epic #926) ---------------------------------
+// serverSettings[guildId].versionOverrides = { [versionId]: { <field>: value } }:
+// a server may use its own realm and its own armory/log templates for a
+// version. Overridden per field, not per block - a field the server has not
+// set reads the version block above (config.versionSettings, the standard of
+// every server). Wowhead path, softres edition, raidsheet and colour stay one
+// per version; the namespace is no field of its own but follows an own region
+// (namespaceForRegion).
+const OVERRIDE_FIELDS = ["armoryUrlTemplate", "wclUrlTemplate", "blizzardRegion", "blizzardRealmSlug"];
+
+/**
+ * The overrides of one server in their final shape: known versions only, the
+ * four fields only, valid and filled values only; a version left without a
+ * field drops out. An invalid value is dropped here - the settings route
+ * rejects it before it is ever stored (overrideProblems).
+ */
+function normalizeVersionOverrides(raw) {
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const out = {};
+    for (const v of VERSIONS) {
+        const own = src[v.id];
+        if (!own || typeof own !== "object" || Array.isArray(own)) continue;
+        const clean = normalizeBlock(own);
+        const block = {};
+        for (const f of OVERRIDE_FIELDS) if (str(own[f]) && clean[f]) block[f] = clean[f];
+        if (Object.keys(block).length) out[v.id] = block;
+    }
+    return out;
+}
+
+/**
+ * The fields of a raw override map that are filled but do not pass, as
+ * `[{ versionId, field }]` - what the settings route answers with a 400.
+ */
+function overrideProblems(raw) {
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const out = [];
+    for (const v of VERSIONS) {
+        const own = src[v.id];
+        if (!own || typeof own !== "object" || Array.isArray(own)) continue;
+        const clean = normalizeBlock(own);
+        for (const f of OVERRIDE_FIELDS) if (str(own[f]) && !clean[f]) out.push({ versionId: v.id, field: f });
+    }
+    return out;
+}
+
+/**
+ * The Battle.net namespace for a region a server chose over the version's.
+ * The stored namespace is written out ("profile-classicann-eu") and the
+ * Blizzard client sends it as is - kept, a US server would ask
+ * us.api.blizzard.com for an EU namespace and get a 404. So the namespace
+ * follows the region: the standard region's suffix is swapped ("-eu" ->
+ * "-us"), else the rule set's template with {region} is written out; a
+ * namespace neither way can tell stays as it is.
+ */
+function namespaceForRegion(block, region, versionId) {
+    const ns = str(block.blizzardNamespace);
+    const stdRegion = str(block.blizzardRegion);
+    if (!region || region === stdRegion) return ns;
+    if (ns && stdRegion && ns.endsWith(`-${stdRegion}`)) return `${ns.slice(0, -stdRegion.length)}${region}`;
+    const template = str(settingsDefaultsOf(versionId).blizzardNamespace);
+    if (template.includes("{region}")) return template.replace(/\{region\}/g, region);
+    return ns;
+}
+
+/**
+ * A version block with a server's overrides laid over it field by field;
+ * `overridden` names them. An own region takes the namespace along.
+ * @param {object} block the version's normalised block (the standard)
+ * @param {object} [overrides] the server's overrides of that version
+ * @param {string} [versionId] the version, for its namespace template
+ */
+function applyVersionOverrides(block, overrides, versionId) {
+    const own = overrides && typeof overrides === "object" && !Array.isArray(overrides) ? overrides : {};
+    const clean = normalizeBlock(own);
+    const out = { ...block };
+    const overridden = [];
+    for (const f of OVERRIDE_FIELDS) {
+        if (str(own[f]) && clean[f]) { out[f] = clean[f]; overridden.push(f); }
+    }
+    if (overridden.includes("blizzardRegion")) out.blizzardNamespace = namespaceForRegion(block, out.blizzardRegion, versionId);
+    return { block: out, overridden };
+}
+// --- end per-server overrides (#923) ----------------------------------------
+
 module.exports = {
     FIELDS, REGIONS, SOFTRES_EDITIONS,
     normalizeTemplate, normalizeBlock, normalizeVersionSettings, legacyTbcBlock, versionSettingsOf, wclSiteOf,
     defaultColorOf, colorOf,
     settingsDefaultsOf, versionsWithDefaults, defaultBlock, defaultVersionSettings, fillDefaults,
+    OVERRIDE_FIELDS, normalizeVersionOverrides, overrideProblems, applyVersionOverrides,
 };

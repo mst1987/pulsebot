@@ -16,6 +16,7 @@ const { seenIndex } = require("../../services/characters/characterEvidence");
 const { editProfileCharacter } = require("../../services/characters/characterEdit");
 const { userIsOrga } = require("../../config/permissions");
 const { editInput, nearOf } = require("./profile");
+const { activeGuildFor } = require("../http/activeGuild");
 
 const notOrga = (res) => apiError(res, 403, "orga_only", "Nur die Orga darf das.");
 
@@ -38,10 +39,11 @@ function targetOf(body, res) {
 const raiderAfter = (userId) => raiderView(profiles.getProfile(userId), {});
 
 /** GET /api/characters — every raider with at least one character, by name. */
-const getCharacters = withUser({}, async ({ user, res }) => {
+const getCharacters = withUser({}, async ({ user, req, res }) => {
     if (!userIsOrga(user)) return notOrga(res);
     const all = profiles.listProfiles();
-    const ctx = { all, index: logIndex(), seen: seenIndex() };
+    // guildId (#923): armory links of the server the page is shown for
+    const ctx = { all, index: logIndex(), seen: seenIndex(), guildId: activeGuildFor(req) };
     const raiders = all
         .filter((p) => p.characters.length)
         .map((p) => raiderView(p, ctx))

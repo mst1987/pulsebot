@@ -77,9 +77,9 @@ function getEmojiString(guildEmojis, iconName) {
  * effort, on the realm and log site of the application's version (#553). A
  * version without that lookup says so instead of asking another realm.
  */
-async function postApplicantAnalysis(thread, characterName, pending, versionId) {
+async function postApplicantAnalysis(thread, characterName, pending, versionId, guildId = "") {
     try {
-        if (!applicantSource(versionId).ready) {
+        if (!applicantSource(versionId, { guildId }).ready) {
             await thread.send(card({
                 kind: "warn",
                 title: "Keine Log-Analyse",
@@ -91,7 +91,7 @@ async function postApplicantAnalysis(thread, characterName, pending, versionId) 
         const analysis = await analyzeApplicant(wcl, characterName, {
             className: pending.className,
             spec: pending.spec,
-        }, { versionId });
+        }, { versionId, guildId });
         if (analysis) {
             const embeds = buildApplicantEmbeds(characterName, analysis);
             for (const e of embeds) await thread.send({ embeds: [e] });
@@ -124,7 +124,8 @@ module.exports = {
 
         // auto-fill missing links from the version's templates ({char} placeholder);
         // a version without a template leaves the link out
-        const links = versionLinks(versionId);
+        // The server's own armory/log templates win (#923).
+        const links = versionLinks(versionId, { guildId: interaction.guildId });
         let armoryAuto = false;
         let logsAuto = false;
         if (!armoryLink && links.armory(characterName)) { armoryLink = links.armory(characterName); armoryAuto = true; }
@@ -199,7 +200,7 @@ module.exports = {
 
             await interaction.editReply(card({ kind: "ok", title: "Bewerbung eingereicht", text: "Deine Bewerbung wurde eingereicht! Wir melden uns bei dir." }));
 
-            await postApplicantAnalysis(thread, characterName, pending, links.versionId);
+            await postApplicantAnalysis(thread, characterName, pending, links.versionId, interaction.guildId);
         } catch (error) {
             console.error("Error creating application thread:", error.code || "", error.message, error);
             // an empty thread tells the officers nothing — drop it if we could not fill it

@@ -18,7 +18,7 @@
 // logs know. Nothing here is ever the only source of a raider's gear.
 
 const { getConfig } = require("../../stores/settingsStore");
-const { blizzardFor } = require("../events/versionSettings");
+const { blizzardFor, settingsForVersion } = require("../events/versionSettings");
 const { situationalItem } = require("../../config/situationalItems");
 const { isPvpItem } = require("./gearProfile");
 const wowsims = require("../../config/wowsims");
@@ -43,6 +43,28 @@ const TTL_MS = 10 * 60 * 1000;
 const CONCURRENCY = 5;
 
 const cache = new Map();
+
+/**
+ * Where an answer came from (#923): region, realm and namespace of the
+ * version - with a server's own realm or region, if it set one. The same name
+ * on two realms is two characters, so the cache key carries the place like
+ * services/characters/charGear.js' cacheKey. Cheap: reads settings, builds no
+ * client. The same scope object is read once (charGear asks with one scope
+ * per raider and slot).
+ * @param {{ versionId?: string, guildId?: string }} [scope]
+ */
+const placeMemo = new WeakMap();
+function placeOf(scope, config) {
+    const memo = scope && typeof scope === "object" ? placeMemo.get(scope) : undefined;
+    if (memo !== undefined) return memo;
+    const { versionId, guildId } = scope || {};
+    const s = settingsForVersion(versionId, { config: config || getConfig(), guildId });
+    const place = [s.blizzardRegion, s.blizzardRealmSlug, s.blizzardNamespace].join("|");
+    if (scope && typeof scope === "object") placeMemo.set(scope, place);
+    return place;
+}
+
+const keyOf = (place, character) => `${place}|${characterKeyOf(character)}`;
 
 /** The armory rows of one character, in the shape charGear reads. */
 function toArmoryRows(gear) {
@@ -75,20 +97,22 @@ function toArmoryRows(gear) {
  * Fetch the armory for these characters and keep it for a while.
  *
  * @param {string[]} characters names, as the reports spell them
- * @param {object} [opts] `versionId`: the realm of which version to ask (#542); default the main version
+ * @param {object} [opts] `versionId`: the realm of which version to ask (#542); default the main version.
+ *   `guildId`: the server whose own realm/region counts (#923)
  * @returns {Promise<{asked: number, answered: number, configured: boolean, reason?: string}>}
  */
-async function primeArmoryGear(characters, { full = false, force = false, versionId } = {}) {
+async function primeArmoryGear(characters, { full = false, force = false, versionId, guildId } = {}) {
     const config = getConfig();
     // A version without realm/namespace (Forever until it is known) asks nobody.
-    const { client, reason } = blizzardFor(versionId, { config });
+    const { client, reason } = blizzardFor(versionId, { config, guildId });
     if (!client) return { asked: 0, answered: 0, configured: false, reason };
+    const place = placeOf({ versionId, guildId }, config);
 
     const now = Date.now();
     const wanted = [...new Set((characters || []).map((c) => String(c || "").trim()).filter(Boolean))]
         .filter((name) => {
             if (force) return true;
-            const hit = cache.get(characterKeyOf(name));
+            const hit = cache.get(keyOf(place, name));
             if (!hit) return true;
             // An entry fetched for one slot does not satisfy a request for the
             // whole set — the caller wants more than it holds.
@@ -113,7 +137,7 @@ async function primeArmoryGear(characters, { full = false, force = false, versio
             // A failed lookup is cached too, as "no answer": otherwise every
             // page view retries a character the API does not know, and the
             // council waits for it every time.
-            cache.set(characterKeyOf(name), { at: Date.now(), rows, full });
+            cache.set(keyOf(place, name), { at: Date.now(), rows, full });
             if (rows && rows.length) answered += 1;
         }
     };
@@ -133,10 +157,12 @@ async function primeArmoryGear(characters, { full = false, force = false, versio
  * but it must not quietly swap out a raider's whole gear on a page load nobody
  * asked for.
  *
+ * @param {string} character
+ * @param {{ versionId?: string, guildId?: string }} [scope] the version and server it was fetched for (#923)
  * @returns {{at: number, rows: object[]}|null}
  */
-function armorySetFor(character) {
-    const hit = cache.get(characterKeyOf(character));
+function armorySetFor(character, scope) {
+    const hit = cache.get(keyOf(placeOf(scope), character));
     if (!hit || !hit.full || !hit.rows || !hit.rows.length) return null;
     return { at: hit.at, rows: hit.rows };
 }
@@ -147,8 +173,8 @@ function armorySetFor(character) {
  * log did), and null for a PvP piece: between two raid nights the armory shows
  * the arena trinket, and that is no answer to "what do they raid with".
  */
-function armoryItemInSlot(character, slot) {
-    const hit = cache.get(characterKeyOf(character));
+function armoryItemInSlot(character, slot, scope) {
+    const hit = cache.get(keyOf(placeOf(scope), character));
     if (!hit || !hit.rows) return null;
     const item = hit.rows.find((it) => it.slot === Number(slot));
     if (!item || situationalItem(item.itemId) || isPvpItem(item.itemId)) return null;
@@ -166,7 +192,10 @@ function clearArmoryCache() {
  * (charGear.js), and the button would look as if it had done nothing.
  */
 function clearArmoryFor(character) {
-    cache.delete(characterKeyOf(character));
+    // On every realm (#923): one answer too many dropped only costs a new
+    // lookup, a stale one kept would hide the loaded log.
+    const suffix = `|${characterKeyOf(character)}`;
+    for (const key of [...cache.keys()]) if (key.endsWith(suffix)) cache.delete(key);
 }
 
 module.exports = {

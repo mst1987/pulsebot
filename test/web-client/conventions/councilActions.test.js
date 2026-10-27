@@ -34,7 +34,7 @@ describe("loot council — busy state", () => {
 
     it("keeps the spinner until the reloaded list is on screen", () => {
         expect(main).toMatch(/await setCouncilExcluded\(character, excluded\);\s*await reloadAll\(\);/);
-        expect(main).toMatch(/\(\) => refreshCouncilArmory\(characters\),[\s\S]{0,200}const fresh = await reloadAll\(\);/);
+        expect(main).toMatch(/\(\) => refreshCouncilArmory\(characters, councilScope\),[\s\S]{0,200}const fresh = await reloadAll\(\);/);
         expect(main).toMatch(/const fetchData = \(\) => getLootCouncil\(/);
         expect(main).toMatch(/return request\s*\.then/);
     });

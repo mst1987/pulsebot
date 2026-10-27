@@ -83,7 +83,8 @@ function councilOptsFromQuery(searchParams, { guildId = "", allowAll = false } =
         config,
         mainVersion,
         charVersion,
-        // Only the loot of this Discord server counts (#919; undefined = every server, "" = none).
+        // Only the loot of this Discord server counts (#919; undefined = every server, "" = none),
+        // and its own armory/log templates go into the rows' links (#923).
         guildId,
     };
 }

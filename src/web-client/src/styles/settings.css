@@ -87,6 +87,10 @@
 .gv-preview-off { color: var(--muted); text-decoration: line-through; }
 .gv-links .set-field input:not([type=checkbox]) { max-width: 100%; }
 .gv-links .set-field input[aria-invalid] { border-color: var(--high); }
+/* #923: a server's own links and realm - save row of the standalone section */
+.svl-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+.svl .set-field select { max-width: 100%; }
+.svl-item { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 
 /* ---- Funktionen je Version (#761): features as rows, versions as columns, a switch where possible ---- */
 .vf-card { margin-top: 16px; gap: 12px; }

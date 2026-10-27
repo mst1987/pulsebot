@@ -15,8 +15,12 @@
 //                 and /anwesenheit no longer offer it. Switching it on again
 //                 resumes all of it. deactivationPreview() is the save dialog's
 //                 list of what pauses.
-//   deleted       configured, but Discord no longer has it (only judged when
-//                 the bot sees every server: discordCategoryIds()).
+//   deleted       configured, and PROVEN gone: its server (categoryGuild.js:
+//                 live, name snapshot, raids, rosters) is a configured server
+//                 the bot reaches, and that server no longer has it. A category
+//                 whose server is unknown or not configured is "unknown", never
+//                 deleted (#926: a server missing from discordServers.servers
+//                 once made all its categories read as deleted).
 //                 Einstellungen → Kategorien marks it "in Discord gelöscht"
 //                 and offers "Kategorie abschließen".
 //   closed        closeCategory(): its series is deleted, its settings and
@@ -27,8 +31,7 @@
 //                 loot, logs, the category's version (`categoryVersion`,
 //                 `categoryEras`) and its remembered name (category-names.json)
 //                 stay, so the history keeps reading under its version and name.
-const discord = require("../discord/discord");
-const guildRoles = require("../discord/guildRoles");
+const categoryGuild = require("./categoryGuild");
 const seriesStore = require("../../stores/eventSeriesStore");
 const eventStore = require("../../stores/eventStore");
 const { listRaidEvents } = require("../../stores/raidEventStore");
@@ -132,24 +135,6 @@ function deactivationPreview({ config, nextIds = [], now = Date.now() } = {}) {
     return { categories, emptyBlocked: emptyListBlocked([...next]) };
 }
 
-/**
- * The category ids Discord has on every server, or null when that is not
- * known (bot offline, a server not cached) — "deleted" is never guessed.
- * @returns {Set<string> | null}
- */
-function discordCategoryIds(config) {
-    const cfg = configOf(config);
-    if (typeof discord.isOnline === "function" && !discord.isOnline()) return null;
-    const guildIds = guildRoles.eventGuildIds(cfg);
-    if (!guildIds.length) return null;
-    const live = new Set();
-    for (const guildId of guildIds) {
-        if (!discord.getGuild(guildId)) return null;
-        for (const c of discord.listCategories(guildId) || []) live.add(str(c.id));
-    }
-    return live;
-}
-
 /** Every category the config, a series or a Loot-Council profile still holds something for. */
 function configuredCategoryIds(config) {
     const cfg = configOf(config);
@@ -206,31 +191,44 @@ function closePreview(categoryId, { config, now = Date.now() } = {}) {
 }
 
 /**
- * The configured categories Discord no longer has, each with what closing it
- * would remove. Empty while Discord's state is unknown.
- * @param {{ config?: object, nameOf?: (id: string) => string }} opts
+ * The configured categories PROVEN deleted in Discord (categoryGuild.js: their
+ * server is a configured, reachable one and no longer has them), each with
+ * what closing it would remove and its server. A category whose server is
+ * unknown, not configured or not reachable is never listed (#926).
+ * @param {{ config?: object, nameOf?: (id: string) => string, guildId?: string, ctx?: object }} opts
+ *   guildId: only the categories of that server ("" = all)
  */
-function missingCategories({ config, nameOf = () => "" } = {}) {
+function missingCategories({ config, nameOf = () => "", guildId = "", ctx } = {}) {
     const cfg = configOf(config);
-    const live = discordCategoryIds(cfg);
-    if (!live) return [];
+    const context = ctx || categoryGuild.categoryContext(cfg);
+    if (!context.online) return [];
+    const gid = str(guildId);
     return [...configuredCategoryIds(cfg)]
-        .filter((id) => !live.has(id))
-        .map((id) => ({ ...closePreview(id, { config: cfg }), name: str(nameOf(id)) }));
+        .map((id) => ({ id, judged: categoryGuild.categoryState(id, context) }))
+        .filter(({ judged }) => judged.state === "missing" && (!gid || judged.guildId === gid))
+        .map(({ id, judged }) => ({ ...closePreview(id, { config: cfg }), name: str(nameOf(id)), guildId: judged.guildId }));
 }
 
+const UNKNOWN_SERVER_MESSAGE = "Die Kategorie gehört zu keinem eingetragenen, erreichbaren Discord-Server — ob sie gelöscht ist, ist nicht belegt. Abschließen geht nicht; bitte zuerst ihren Server unter Discord-Server eintragen.";
+
 /**
- * Close a category for good. Refuses one Discord still has (409) and one whose
- * state is unknown (503). Returns what was removed.
+ * Close a category for good. Refuses one Discord still has (409), one whose
+ * state is unknown (503 while offline) and one whose server is not proven, not
+ * configured or not reachable (409 category_server_unknown, #926). Returns
+ * what was removed.
  * @returns {{ ok: true, removed: object } | { error: { status: number, code: string, message: string } }}
  */
-function closeCategory(categoryId, { config, actor = "" } = {}) {
+function closeCategory(categoryId, { config, actor = "", ctx, guildId = "" } = {}) {
     const cfg = configOf(config);
     const id = str(categoryId);
     if (!id) return { error: { status: 400, code: "invalid", message: "Keine Kategorie angegeben." } };
-    const live = discordCategoryIds(cfg);
-    if (!live) return { error: { status: 503, code: "bot_offline", message: "Discord ist gerade nicht erreichbar — ob die Kategorie noch existiert, ist unbekannt." } };
-    if (live.has(id)) return { error: { status: 409, code: "category_exists", message: "Die Kategorie gibt es in Discord noch. Abschließen geht nur für eine in Discord gelöschte Kategorie; sonst einfach deaktivieren." } };
+    const context = ctx || categoryGuild.categoryContext(cfg);
+    const judged = categoryGuild.categoryState(id, context);
+    if (judged.reason === "offline") return { error: { status: 503, code: "bot_offline", message: "Discord ist gerade nicht erreichbar — ob die Kategorie noch existiert, ist unbekannt." } };
+    if (judged.state === "live") return { error: { status: 409, code: "category_exists", message: "Die Kategorie gibt es in Discord noch. Abschließen geht nur für eine in Discord gelöschte Kategorie; sonst einfach deaktivieren." } };
+    if (judged.state !== "missing") return { error: { status: 409, code: "category_server_unknown", message: UNKNOWN_SERVER_MESSAGE } };
+    // #926: a server closes only its own categories (guildId "" = no restriction, e.g. a script)
+    if (str(guildId) && judged.guildId !== str(guildId)) return { error: { status: 409, code: "category_other_server", message: "Die Kategorie gehört zu einem anderen Discord-Server — bitte dort abschließen." } };
     const preview = closePreview(id, { config: cfg });
     const series = seriesStore.deleteSeries(id);
     const { removed: settings } = require("../../stores/configStore").dropCategoryEntries(id, SETTINGS_KEYS);
@@ -268,5 +266,5 @@ function closeCategory(categoryId, { config, actor = "" } = {}) {
 module.exports = {
     SETTINGS_KEYS, EMPTY_LIST_MESSAGE,
     activeCategoryIds, isCategoryActive, hasRaidData, emptyListBlocked, deactivationPreview,
-    discordCategoryIds, configuredCategoryIds, closePreview, missingCategories, closeCategory,
+    UNKNOWN_SERVER_MESSAGE, configuredCategoryIds, closePreview, missingCategories, closeCategory,
 };

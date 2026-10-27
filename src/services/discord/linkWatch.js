@@ -45,8 +45,15 @@ function onChannelDelete(channel, { now = Date.now() } = {}) {
     if (!channelId) return [];
     // A raid category deleted in Discord (#744): Einstellungen → Kategorien marks
     // it "in Discord gelöscht" and offers to close it (categoryLifecycle.js) — here it is only noted.
-    if (channel.type === CATEGORY_TYPE && ((getConfig() || {}).categoryIds || []).map(String).includes(channelId)) {
-        logger.warn(`Raid-Kategorie ${channel.name || channelId} in Discord gelöscht — Einstellungen → Kategorien → „Kategorie abschließen“`);
+    // #926: only on a configured server; elsewhere it is not proven gone (categoryGuild.js).
+    const config = getConfig() || {};
+    if (channel.type === CATEGORY_TYPE && (config.categoryIds || []).map(String).includes(channelId)) {
+        const guildId = String(channel.guildId || "");
+        if (require("./guildRoles").isEventGuild(guildId, config)) {
+            logger.warn(`Raid-Kategorie ${channel.name || channelId} in Discord gelöscht — Einstellungen → Kategorien → „Kategorie abschließen“`);
+        } else {
+            logger.info(`Kategorie ${channel.name || channelId} auf Server ${guildId || "?"} gelöscht — Server nicht eingetragen, nicht als gelöschte Raid-Kategorie gewertet`);
+        }
     }
     linkCheck.channelDeleted(channelId, now);
     const hit = recentOwnEvents(now).filter((e) => String(e.channelId) === channelId);

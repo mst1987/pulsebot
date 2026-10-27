@@ -14,9 +14,11 @@ import { useT } from "../../i18n";
  * save goes out (the same pattern as CategorySwitchDialog.tsx); an empty list
  * while raids exist is refused here as on the server.
  */
-export default function CategoryDeactivateDialog({ next, names, onCancel, onConfirm }: {
+export default function CategoryDeactivateDialog({ next, guildId = "", names, onCancel, onConfirm }: {
     /** The active categories the save would keep. */
     next: string[];
+    /** The server the page loaded ("" = none active): a session switched since answers 409 (#926). */
+    guildId?: string;
     /** Category id → name (the page's live list). */
     names: Map<string, string>;
     onCancel: () => void;
@@ -29,11 +31,14 @@ export default function CategoryDeactivateDialog({ next, names, onCancel, onConf
 
     useEffect(() => {
         let live = true;
-        getCategoryDeactivate(key ? key.split(",") : [])
+        getCategoryDeactivate(key ? key.split(",") : [], guildId)
             .then((p) => { if (live) setPreview(p); })
-            .catch((err) => { if (live) setLoadError((err as ApiError).message); });
+            .catch((err) => {
+                const e = err as ApiError;
+                if (live) setLoadError(e.code === "server_switched" ? t("settings.serverSwitched") : e.message);
+            });
         return () => { live = false; };
-    }, [key]);
+    }, [key, guildId, t]);
 
     const nameOf = (c: DeactivatedCategory) => names.get(c.categoryId) || c.name || c.categoryId;
 

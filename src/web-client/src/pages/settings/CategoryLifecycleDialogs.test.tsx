@@ -37,7 +37,7 @@ describe("CategoryDeactivateDialog (#744)", () => {
         const onConfirm = vi.fn();
         renderPage(<CategoryDeactivateDialog next={["thu"]} names={new Map([["mon", "Montag"]])} onCancel={() => {}} onConfirm={onConfirm} />);
         expect(await screen.findByText("Serie (Mo 19:30) pausiert – legt keine Events an")).toBeInTheDocument();
-        expect(api.getCategoryDeactivate).toHaveBeenCalledWith(["thu"]);
+        expect(api.getCategoryDeactivate).toHaveBeenCalledWith(["thu"], "");
         expect(screen.getByRole("heading", { name: "Montag" })).toBeInTheDocument();
         expect(screen.getByText("Erinnerungen pausieren")).toBeInTheDocument();
         expect(screen.getByText(/2 kommende Raids bleiben stehen/)).toBeInTheDocument();
@@ -52,6 +52,14 @@ describe("CategoryDeactivateDialog (#744)", () => {
         renderPage(<CategoryDeactivateDialog next={[]} names={new Map()} onCancel={() => {}} onConfirm={() => {}} />);
         expect(await screen.findByRole("alert")).toHaveTextContent("Mindestens eine Raid-Kategorie muss aktiv bleiben");
         expect(screen.getByText("Keine Serie")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Deaktivieren und speichern" })).toBeDisabled();
+    });
+
+    it("asks with the page's server and says so when another tab switched it (#926)", async () => {
+        vi.mocked(api.getCategoryDeactivate).mockRejectedValue({ code: "server_switched", message: "raw" });
+        renderPage(<CategoryDeactivateDialog next={["thu"]} guildId="g1" names={new Map()} onCancel={() => {}} onConfirm={() => {}} />);
+        expect(await screen.findByText(/in einem anderen Tab gewechselt/)).toBeInTheDocument();
+        expect(api.getCategoryDeactivate).toHaveBeenCalledWith(["thu"], "g1");
         expect(screen.getByRole("button", { name: "Deaktivieren und speichern" })).toBeDisabled();
     });
 });

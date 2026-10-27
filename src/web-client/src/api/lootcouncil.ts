@@ -894,8 +894,10 @@ export function setCouncilRole(
  */
 export function refreshCouncilArmory(
     characters: string[],
+    scope: CouncilSimScope = {},
 ): Promise<{ asked: number; answered: number; configured: boolean }> {
-    return send("POST", "/api/lootcouncil/armory", { characters });
+    // the council view decides the version, so the armory of its realm is asked (#923)
+    return send("POST", "/api/lootcouncil/armory", { characters, ...scope });
 }
 
 /**
@@ -930,8 +932,11 @@ export type CouncilExport = {
     json: string;
 };
 
-export function getCouncilExport(character: string): Promise<CouncilExport> {
-    return get<CouncilExport>(`/api/lootcouncil/export?character=${encodeURIComponent(character)}`);
+export function getCouncilExport(character: string, scope: CouncilSimScope = {}): Promise<CouncilExport> {
+    // the council view's version picks the armory snapshot of its realm (#923)
+    const q = new URLSearchParams({ character });
+    for (const [key, value] of Object.entries(scope)) if (value) q.set(key, value);
+    return get<CouncilExport>(`/api/lootcouncil/export?${q.toString()}`);
 }
 
 // ── Hand-maintained BiS lists (#760) ─────────────────────────────────────────

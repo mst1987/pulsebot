@@ -51,9 +51,12 @@ describe("services/discord/linkWatch", () => {
         const settingsStore = require("../../../src/stores/settingsStore");
         settingsStore.getConfig.mockReturnValue({ categoryIds: ["cat"], discordServers: { servers: [{ guildId: "g1" }], links: [{ from: "g1", to: "g1", channelId: "ov" }] } });
         try {
+            expect(linkWatch.onChannelDelete({ id: "cat", type: 4, guildId: "g1", name: "TBC Montag" })).toEqual([]);
+            expect(linkWatch.onChannelDelete({ id: "other", type: 4, guildId: "g1", name: "Off-Topic" })).toEqual([]);
+            expect(linkWatch.onChannelDelete({ id: "cat", type: 0, guildId: "g1" })).toEqual([]);
+            // #926: a server missing from the server list never reads as a deleted raid category
+            expect(linkWatch.onChannelDelete({ id: "cat", type: 4, guildId: "other-guild", name: "TBC Montag" })).toEqual([]);
             expect(linkWatch.onChannelDelete({ id: "cat", type: 4, name: "TBC Montag" })).toEqual([]);
-            expect(linkWatch.onChannelDelete({ id: "other", type: 4, name: "Off-Topic" })).toEqual([]);
-            expect(linkWatch.onChannelDelete({ id: "cat", type: 0 })).toEqual([]);
             expect(warn).toHaveBeenCalledTimes(1);
             expect(warn.mock.calls[0].join(" ")).toContain("TBC Montag");
         } finally {

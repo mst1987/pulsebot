@@ -338,9 +338,10 @@ async function ingestCouncil(req, res, url) {
     }
     // v1: only the two documented filters count; the tool never narrows by tier or version.
     // No session: the asked category's server, else the first server (#919).
-    const guildId = serverWithoutSession(params.get("category") || "");
+    const category = params.get("category") || "";
+    const guildId = serverWithoutSession(category);
     const opts = councilOptsFromQuery(new URLSearchParams({
-        category: params.get("category") || "",
+        category,
         role: params.get("role") || "",
     }), { guildId });
     const built = councilRoster(opts);

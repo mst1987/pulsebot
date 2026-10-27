@@ -171,7 +171,27 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     nach Server filtern; ohne aktiven Server leer, nie alle Server. Neue Report-Auswahl → Negativ-Test
     mit einem Report eines anderen Servers. Wer ein Log löscht oder umhängt, schreibt den Server auf
     den Report (`deleteLogKeepingReportGuild` / `reportStore.setReportGuild`).
-19. Rechte je Server (#925): Jede Route, die eine Datensatz-ID oder `?guildId=`/`body.guildId`
+19. Realm/Region je Server (#923): Spielwerte eines Raiders laufen über
+    `settingsForVersion(versionId, { guildId })` bzw. `blizzardFor` (`services/events/versionSettings.js`:
+    Standard der Version + `serverSettings[guildId].versionOverrides`). Eine abweichende Region
+    zieht den Blizzard-Namespace mit (`profile-classicann-eu` → `-us`), nie den Standard-Namespace
+    mit fremder Region kombinieren. Caches von Blizzard-/Armory-Antworten brauchen Region, Realm und
+    Namespace im Schlüssel (`region|realm|namespace|name`), sonst liefert ein Server die Ausrüstung
+    eines gleichnamigen Charakters vom anderen Realm. Ohne Session kommt der Server einer Kategorie
+    aus `serverWithoutSession` (`services/loot/lootServer.js`), der eines Reports aus `reportGuild`.
+20. „Kategorie gelöscht" nur mit nachgewiesenem Server (#926, Prod 27.10.2026: Pulse Fresh fehlte in
+    `discordServers.servers`, seine Kategorien galten als gelöscht, Abschließen löschte Daten). Nur
+    `categoryGuild.categoryState()` → `missing` (Bot online, Server konfiguriert und im Cache) darf
+    etwas als gelöscht zeigen oder abschließen lassen; fehlt der Nachweis → `unknown`, nie löschen.
+    `config.categoryIds` gilt für alle Server — Einstellungen zeigen und speichern nur den Teil des
+    aktiven Servers (`mergeServerCategoryIds`), nie die globale Liste je Server.
+    Jede serverbezogene Änderung im PATCH (auch der categoryIds-Merge) nimmt den Server aus dem Tab (`serverSettingsGuildId`, geprüft per `serverSettingsTarget`), nie allein aus `activeGuildFor(req)`.
+    Ein Server in `client.guilds.cache` beweist nicht, dass seine Kanäle bekannt sind: bei einem
+    Discord-Ausfall bleibt er mit `available === false` und ohne Kanäle im Cache
+    (`discord.isGuildAvailable()` prüfen). „In Discord gelöscht" gilt nur bei verfügbarem Server, der
+    überhaupt Kategorien liefert, und belastbarem Besitzer (live oder Namens-Snapshot) — nie aus
+    Roster-, Raid- oder Migrations-`guildId`s (die sind oft geraten und dienen nur der Anzeige).
+21. Rechte je Server (#925): Jede Route, die eine Datensatz-ID oder `?guildId=`/`body.guildId`
     annimmt, prüft, ob der Datensatz zum aktiven Server gehört (Voll-Admins ausgenommen). Muster:
     `cla.js` `onActiveServer`, `eventManage.ownEvent`. Fremder Datensatz → 404 `not_found`,
     fremdes Ziel → 403 `other_server` (`web/http/serverQuery.js` `mayUseServer`/`mayUseChannel`).
