@@ -171,6 +171,12 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     nach Server filtern; ohne aktiven Server leer, nie alle Server. Neue Report-Auswahl → Negativ-Test
     mit einem Report eines anderen Servers. Wer ein Log löscht oder umhängt, schreibt den Server auf
     den Report (`deleteLogKeepingReportGuild` / `reportStore.setReportGuild`).
+19. Rechte je Server (#925): Jede Route, die eine Datensatz-ID oder `?guildId=`/`body.guildId`
+    annimmt, prüft, ob der Datensatz zum aktiven Server gehört (Voll-Admins ausgenommen). Muster:
+    `cla.js` `onActiveServer`, `eventManage.ownEvent`. Fremder Datensatz → 404 `not_found`,
+    fremdes Ziel → 403 `other_server` (`web/http/serverQuery.js` `mayUseServer`/`mayUseChannel`).
+    Bot: `interaction.guildId` zählt, eine DM den Server des Datensatzes (`guildIdOf`), sonst nur
+    Voll-Admins. Negativ-Test: Orga auf B öffnet nichts auf A.
 
 ## Fach-Agenten
 
