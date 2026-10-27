@@ -57,8 +57,11 @@ export type AdminConfig = {
     applicationChannelId: string;
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
-    /** Settings per Discord server (#917); the log channels with their version (#921). */
-    serverSettings?: Record<string, { logChannels?: LogChannel[] }>;
+    /**
+     * Settings per Discord server (#917): the log channels with their version
+     * (#921), its own armory/log templates and realm per version (#923).
+     */
+    serverSettings?: Record<string, { logChannels?: LogChannel[]; versionOverrides?: VersionOverrides }>;
     raidDefaults: { channelId: string };
     // The default raid template per category (category id → template id).
     categoryRaidTemplate: Record<string, string>;
@@ -93,8 +96,6 @@ export type AdminConfig = {
      * `disabled` (#761): the features switched off for the version, only when there are any.
      */
     versionSettings?: Record<string, VersionSettingsBlock & { disabled?: string[] }>;
-    /** Per Discord server (#923, epic #926): e.g. its own armory/log templates and realm per version. */
-    serverSettings?: Record<string, { versionOverrides?: VersionOverrides }>;
     blizzard: BlizzardConfig;
     // Claude phrases the log recommendations for the raiders. The key itself
     // never comes back from the server — only whether one is stored.
