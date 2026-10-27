@@ -266,6 +266,41 @@ describe("apiRoutes/guildBank", () => {
         expect(status(res)).toBe(404);
     });
 
+    describe("rights per server (#925)", () => {
+        const ORGA = { id: "7", name: "Bob", isAdmin: false, isOrga: true, access: { settings: { read: true, write: true } } };
+
+        it("lists the banks and servers of the active server and the waiting banks only", async () => {
+            record("Alpha", "g1");
+            record("Beta");
+            record("Gamma", "g2");
+            mockUser = ORGA;
+            const data = body(await call(getGuildBanks, { url: "http://x/api/settings/guild-banks" }));
+            expect(data.servers.map((s) => s.guildId)).toEqual(["g1"]);
+            expect(data.banks.map((b) => b.guild).sort()).toEqual(["Alpha", "Beta"]);
+            expect(data.pending).toBe(1);
+        });
+
+        it("refuses a bank of another server and assigning to another server, a full admin may", async () => {
+            const foreign = record("Gamma", "g2");
+            const waiting = record("Beta");
+            mockUser = ORGA;
+            expect(status(await call(assignGuildBank, { payload: { key: foreign.key, guildId: "g1" } }))).toBe(404);
+            expect(status(await call(deleteGuildBank, { payload: { key: foreign.key } }))).toBe(404);
+            let res = await call(assignGuildBank, { payload: { key: waiting.key, guildId: "g2" } });
+            expect([status(res), body(res).error.code]).toEqual([403, "other_server"]);
+            res = await call(deleteGuildBank, { payload: { key: waiting.key } });
+            expect([status(res), body(res).error.code]).toEqual([403, "other_server"]);
+            expect(store.getBank(foreign.key).guildId).toBe("g2");
+            expect(store.getBank(waiting.key)).not.toBeNull();
+            // the own server is fine
+            res = await call(assignGuildBank, { payload: { key: waiting.key, guildId: "g1" } });
+            expect(body(res).bank.guildId).toBe("g1");
+            expect(status(await call(deleteGuildBank, { payload: { key: waiting.key } }))).toBe(200);
+            mockUser = { id: "1", isAdmin: true };
+            expect(status(await call(deleteGuildBank, { payload: { key: foreign.key } }))).toBe(200);
+        });
+    });
+
     it("POST delete forgets a bank, 404 for an unknown one", async () => {
         const bank = record("Alpha");
         let res = await call(deleteGuildBank, { payload: { key: bank.key } });

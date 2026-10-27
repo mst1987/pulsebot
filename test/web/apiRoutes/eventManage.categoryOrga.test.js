@@ -48,6 +48,8 @@ const mockMemberRoleIds = jest.fn(async () => []);
 jest.mock("../../../src/services/discord/discord", () => ({
     ...jest.requireActual("../../../src/services/discord/discord"),
     memberRoleIds: (...a) => mockMemberRoleIds(...a),
+    // #925: every channel of this test is on the active server g1, "x-..." on another one
+    getClient: () => ({ channels: { cache: { get: (id) => ({ id, guildId: String(id).startsWith("x-") ? "other" : "g1" }) } } }),
     postAnnouncement: jest.fn(async () => ({})),
     resolveUserNames: jest.fn(async () => ({})),
     listRoles: () => [],
@@ -243,6 +245,11 @@ describe("the global orga and everybody else", () => {
         // any role of the server, as before
         const r = await detailApi.post("/api/raids/notify", { event: own.id, templateId: "tpl", channelId: "c-elsewhere", roleIds: ["r-other"] });
         expect(status(r)).toBe(200);
+        // but no channel of another server (#925)
+        const calls = discord.postAnnouncement.mock.calls.length;
+        const other = await detailApi.post("/api/raids/notify", { event: own.id, templateId: "tpl", channelId: "x-chan", roleIds: ["r-other"] });
+        expect([status(other), code(other)]).toEqual([403, "other_server"]);
+        expect(discord.postAnnouncement.mock.calls).toHaveLength(calls);
         expect(discord.postAnnouncement).toHaveBeenLastCalledWith("c-elsewhere", expect.anything(), ["r-other"]);
         // no roster was asked for the global orga
         expect(mockMemberRoleIds).not.toHaveBeenCalled();

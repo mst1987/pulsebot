@@ -60,6 +60,7 @@ const { withUser } = require("../http/apiHandler");
 const { sendFailure, HTTP_BY_CODE } = require("../http/apiResult");
 const { q } = require("../http/apiParams");
 const { activeGuildFor } = require("../http/activeGuild");
+const { mayUseServer, OTHER_SERVER } = require("../http/serverQuery");
 const { resolveVersionQuery, isVersionVisible } = require("../../services/events/mainVersion");
 const { getConfig } = require("../../stores/settingsStore");
 const stockStore = require("../../stores/guildBankStockStore");
@@ -437,23 +438,41 @@ const postGuildBankTab = withUser({ write: "raids", csrf: true, body: true }, as
     ok(res, { tabs: result.bank.tabs });
 });
 
+// Rights per server (#925, docs/permissions.md): everybody but a full admin sees and changes the banks
+// of the active server and the waiting ones (no server yet), and assigns a bank to the active server
+// only. A waiting bank is forgotten by a full admin only - it may be any server's.
+const bankOnActiveServer = (user, req, bank) => !!bank && (bank.pending ? true : mayUseServer(user, req, bank.guildId));
+const BANK_NOT_FOUND = { code: "not_found", error: "Gildenbank nicht gefunden." };
+const BANK_OTHER_SERVER = { code: "other_server", error: OTHER_SERVER };
+
 /** GET /api/settings/guild-banks */
-const getGuildBanks = withUser(async ({ res }) => {
-    const servers = stock.bankServers();
+const getGuildBanks = withUser(async ({ user, req, res }) => {
+    const servers = stock.bankServers().filter((s) => mayUseServer(user, req, s.guildId));
     const names = new Map(servers.map((s) => [s.guildId, s.label || s.name]));
-    const banks = stockStore.listBanks().map((b) => ({ ...b, serverName: b.guildId ? names.get(b.guildId) || "" : "" }));
+    const banks = stockStore.listBanks()
+        .filter((b) => bankOnActiveServer(user, req, b))
+        .map((b) => ({ ...b, serverName: b.guildId ? names.get(b.guildId) || "" : "" }));
     ok(res, { banks, servers, pending: banks.filter((b) => b.pending).length });
 });
 
 /** POST /api/settings/guild-banks/assign — body: { key, guildId }. */
-const assignGuildBank = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const assignGuildBank = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
+    const bank = stockStore.getBank(String(body.key || ""));
+    if (bank && !bankOnActiveServer(user, req, bank)) return sendFailure(res, BANK_NOT_FOUND);
+    const target = String(body.guildId || "").trim();
+    if (bank && target && !mayUseServer(user, req, target)) return sendFailure(res, BANK_OTHER_SERVER, { other_server: 403 });
     const result = stock.assignBank(body.key, body.guildId);
     if (result.error) return sendFailure(res, result);
     ok(res, { bank: result.bank });
 });
 
 /** POST /api/settings/guild-banks/delete — body: { key }. */
-const deleteGuildBank = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const deleteGuildBank = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
+    const bank = stockStore.getBank(String(body.key || ""));
+    if (bank && !user.isAdmin) {
+        if (!bankOnActiveServer(user, req, bank)) return sendFailure(res, BANK_NOT_FOUND);
+        if (bank.pending) return sendFailure(res, BANK_OTHER_SERVER, { other_server: 403 });
+    }
     const result = stock.removeBank(body.key);
     if (result.error) return sendFailure(res, result);
     queueItemEmojiSync();

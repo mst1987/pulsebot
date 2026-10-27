@@ -830,6 +830,9 @@ describe("web/apiRoutes/raidDetail", () => {
             auth.checkCsrf.mockReturnValue(true);
             settingsStore.getNotify.mockReturnValue({ id: "t1", title: "Anmeldung", body: "Bitte anmelden" });
             discord.postAnnouncement.mockResolvedValue({ guildId: "g1", channelId: "c1", messageId: "m1" });
+            // #925: c1 is a channel of the active server g1
+            activeGuildFor.mockReturnValue("g1");
+            discord.getClient.mockReturnValue({ channels: { cache: new Map([["c1", { id: "c1", guildId: "g1" }]]) } });
             const res = await post("/api/raids/notify", { event: "e1", templateId: "t1", channelId: "c1" });
             expect(json(res)).toEqual({ data: { message: "Anmelde-Aufruf gepostet." } });
         });

@@ -47,6 +47,7 @@ const { isGlobalRaidOrga, canOrgaRaid } = require("../events/raidOrgaAccess");
 const { requestCache } = require("../../services/roster/categoryOrga");
 const { userCan } = require("../../config/permissions");
 const { expectedRoleIds } = require("../../services/roster/categoryRoles");
+const { mayUseChannel, OTHER_SERVER } = require("../http/serverQuery");
 
 // Every action of this file is the orga's (permissions.userIsOrga) as well as its area's write right:
 // raider roles may hold `raids` write and are still no orga. Posting the raid plan's link is the
@@ -172,6 +173,9 @@ const postNotify = withUser(ORGA, async ({ user, body, req, res }) => {
         }
     }
     if (!template || !channelId) return error(res, 400, "missing_fields", "Vorlage oder Channel fehlt.");
+    // rights per server (#925): the server-wide orga names the channel itself - one of the active server
+    // only (a full admin everywhere); the category orga's channel is the raid's own (looked up above)
+    if (isGlobalRaidOrga(user) && !mayUseChannel(user, req, channelId)) return error(res, 403, "other_server", OTHER_SERVER);
     try {
         // the raid channel only (#894): the roles are the raid server's, so everyone who holds one is reached there
         await discord.postAnnouncement(channelId, template, roleIds);
