@@ -3,6 +3,10 @@
 let mockUser = null;
 jest.mock("../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true }));
 jest.mock("../../../src/services/events/orgaHub", () => ({ postHub: jest.fn(), removeHub: jest.fn(), saveLinks: jest.fn() }));
+let mockActive = "";
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => mockActive }));
+let mockClient = null;
+jest.mock("../../../src/services/discord/discord", () => ({ getClient: () => mockClient }));
 
 const orgaHub = require("../../../src/services/events/orgaHub");
 const store = require("../../../src/stores/orgaHubStore");
@@ -21,6 +25,8 @@ beforeEach(() => {
     jest.clearAllMocks();
     for (const h of store.listHubs()) store.removeHub(h.categoryId);
     mockUser = ADMIN;
+    mockActive = "";
+    mockClient = null;
 });
 
 describe("apiRoutes/orgaHub", () => {
@@ -98,5 +104,55 @@ describe("apiRoutes/orgaHub", () => {
         mockUser = null;
         expect(status(await get("/api/orga-hubs"))).toBe(401);
         expect(orgaHub.postHub).not.toHaveBeenCalled();
+    });
+});
+
+// Rights per server (#925): the orga of server B sees and changes nothing of server A's hubs.
+describe("apiRoutes/orgaHub - rights per server (#925)", () => {
+    const orgaOfB = { id: "7", name: "Bob", isAdmin: false, isOrga: true, access: { ...emptyAccess(), settings: { read: true, write: true } } };
+    const channels = new Map([
+        ["catA", { id: "catA", guildId: "A" }], ["chA", { id: "chA", guildId: "A" }],
+        ["catB", { id: "catB", guildId: "B" }], ["chB", { id: "chB", guildId: "B" }],
+    ]);
+
+    beforeEach(() => {
+        mockActive = "B";
+        mockClient = { channels: { cache: channels } };
+        store.setHub({ categoryId: "catA", guildId: "A", channelId: "chA", messageId: "m1" }, { now: 1 });
+        store.setHub({ categoryId: "catB", guildId: "B", channelId: "chB", messageId: "m2" }, { now: 2 });
+        store.setLinks("catA", [{ label: "A", url: "https://a.example" }]);
+        store.setLinks("catB", [{ label: "B", url: "https://b.example" }]);
+    });
+    afterEach(() => {
+        store.setLinks("catA", []);
+        store.setLinks("catB", []);
+    });
+
+    it("lists only the hubs and links of the active server, a full admin sees all", async () => {
+        mockUser = orgaOfB;
+        let res = await get("/api/orga-hubs");
+        expect(body(res).hubs.map((h) => h.categoryId)).toEqual(["catB"]);
+        expect(Object.keys(body(res).links)).toEqual(["catB"]);
+        mockUser = ADMIN;
+        res = await get("/api/orga-hubs");
+        expect(body(res).hubs.map((h) => h.categoryId).sort()).toEqual(["catA", "catB"]);
+    });
+
+    it("refuses posting, removing and linking for a category of another server", async () => {
+        mockUser = orgaOfB;
+        expect(status(await post("/api/orga-hub", { categoryId: "catA", channelId: "chB" }))).toBe(403);
+        expect(status(await post("/api/orga-hub", { categoryId: "catB", channelId: "chA" }))).toBe(403);
+        expect(status(await request("DELETE", "/api/orga-hub", { categoryId: "catA" }))).toBe(404);
+        expect(status(await request("PUT", "/api/orga-hub/links", { categoryId: "catA", links: [] }))).toBe(403);
+        expect(orgaHub.postHub).not.toHaveBeenCalled();
+        expect(orgaHub.removeHub).not.toHaveBeenCalled();
+        expect(orgaHub.saveLinks).not.toHaveBeenCalled();
+        orgaHub.saveLinks.mockResolvedValue({ links: [] });
+        expect(status(await request("PUT", "/api/orga-hub/links", { categoryId: "catB", links: [] }))).toBe(200);
+    });
+
+    it("lets a full admin act on every server", async () => {
+        orgaHub.saveLinks.mockResolvedValue({ links: [] });
+        expect(status(await request("PUT", "/api/orga-hub/links", { categoryId: "catA", links: [] }))).toBe(200);
     });
 });

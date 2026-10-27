@@ -8,7 +8,7 @@
 //
 // Gate: the areas `roster` or `raids` at write level; then attendanceAccess:
 // a full admin, `raids` write, or a manager of the roster of the event's raid
-// category - else 403 "not_manager". Codes the client translates:
+// category - else 403 "not_manager". A raid of another server answers 404 (#925). Codes the client translates:
 // bad_request, invalid_status, reason_too_long (400), not_found (404, unknown event).
 const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
@@ -31,7 +31,8 @@ function eventOf(eventId) {
     }
 }
 
-const postOverride = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+// a raid of another server answers 404 before anything else (#925, withUser onServer)
+const postOverride = withUser({ csrf: true, body: true, onServer: (body) => str(body.eventId) }, async ({ user, body, res }) => {
     const eventId = str(body.eventId);
     const userId = str(body.userId);
     if (!eventId || !userId) return refuse(res, "bad_request");

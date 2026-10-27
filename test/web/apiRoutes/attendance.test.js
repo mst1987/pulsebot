@@ -25,6 +25,10 @@ jest.mock("../../../src/services/events/eventSources", () => ({
     getStoredEvent: (...a) => mockGetStoredEvent(...a),
 }));
 
+// #925: which server a raid belongs to; every raid on the active server unless a test says otherwise
+const mockOnServer = jest.fn(() => true);
+jest.mock("../../../src/services/events/eventServer", () => ({ allOnServer: (...a) => mockOnServer(...a), serverOfEntry: () => "" }));
+
 const auth = require("../../../src/web/http/auth");
 const discord = require("../../../src/services/discord/discord");
 const rosterStore = require("../../../src/stores/rosterStore");
@@ -147,5 +151,23 @@ describe("POST /api/attendance/override", () => {
         auth.checkCsrf.mockReturnValue(false);
         const res = await post("/api/attendance/override", { eventId: "e1", userId: "100001", status: "bench" });
         expect(status(res)).toBe(403);
+    });
+});
+
+// Rights per server (#925): a raid of another server does not exist for its orga.
+describe("apiRoutes/attendance - rights per server (#925)", () => {
+    afterEach(() => mockOnServer.mockReset().mockReturnValue(true));
+
+    it("answers 404 for a raid of another server, a full admin passes", async () => {
+        mockOnServer.mockReturnValue(false);
+        mockGetStoredEvent.mockReturnValue({ id: "e-other", categoryId: CAT });
+        mockUser = RAIDS;
+        let res = await post("/api/attendance/override", { eventId: "e-other", userId: "42", status: "present" });
+        expect(status(res)).toBe(404);
+        expect(mockOnServer.mock.calls[0][0]).toEqual(["e-other"]);
+        expect(overridesStore.getOverride ? overridesStore.getOverride("e-other", "42") : null).toBeFalsy();
+        mockUser = ADMIN;
+        res = await post("/api/attendance/override", { eventId: "e-other", userId: "42", status: "present" });
+        expect(status(res)).toBe(200);
     });
 });
