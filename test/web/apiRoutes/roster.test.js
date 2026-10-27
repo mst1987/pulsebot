@@ -209,6 +209,7 @@ describe("web/apiRoutes/roster", () => {
             raiderCharactersStore.listAllAssignments.mockReturnValue({});
             characterStore.characterMap.mockReturnValue({});
             charGearIssues.latestIssuesByCharacter.mockReturnValue({});
+            lootStore.listAll.mockReturnValue([]);
         });
 
         it("returns 401 for an anonymous caller", async () => {
@@ -280,6 +281,26 @@ describe("web/apiRoutes/roster", () => {
             } finally {
                 settingsStore.getConfig.mockReturnValue({});
             }
+        });
+
+        // #919, through the real router: the roster's loot characters come from the
+        // active server's loot only - A's raider on A, B's on B, nobody without a server.
+        it("lists only the loot characters of the active server (#919)", async () => {
+            auth.getUser.mockReturnValue(ADMIN);
+            lootStore.listAll.mockReturnValue([
+                { id: "a1", eventId: "rh-a", guildId: "gA", categoryId: "", itemId: 30000, character: "Arthas" },
+                { id: "b1", eventId: "rh-b", guildId: "gB", categoryId: "", itemId: 30001, character: "Bolvar" },
+            ]);
+            characterInfo.annotatedCharacters.mockImplementation(({ rows } = {}) => (rows || []).map((r) => ({
+                key: r.character.toLowerCase(), character: r.character, realm: "", count: 1, categoryIds: [], items: [r],
+            })));
+            const names = async (guildId) => {
+                activeGuildFor.mockReturnValue(guildId);
+                return json(await get("/api/roster")).data.chars.map((c) => c.character);
+            };
+            expect(await names("gA")).toEqual(["Arthas"]);
+            expect(await names("gB")).toEqual(["Bolvar"]);
+            expect(await names("")).toEqual([]);
         });
 
         it("backfills missing loot item names before answering", async () => {

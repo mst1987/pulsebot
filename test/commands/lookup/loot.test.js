@@ -1,11 +1,17 @@
-jest.mock("../../../src/stores/lootStore", () => ({ listByCharacter: jest.fn() }));
+jest.mock("../../../src/stores/lootStore", () => ({ listByCharacter: jest.fn(), listAll: jest.fn(() => []) }));
+// #919: the command answers with the loot of the server it was used on.
+jest.mock("../../../src/services/loot/lootServer", () => ({
+    serverContext: () => ({}),
+    lootOfGuild: jest.fn((rows, guildId) => (rows || []).filter((r) => !r.guildId || r.guildId === guildId)),
+    serverOfInteraction: jest.fn((i) => i.guildId || (i.guild && i.guild.id) || "first"),
+}));
 jest.mock("../../../src/services/loot/lootStats", () => ({ itemCatalog: jest.fn() }));
 jest.mock("../../../src/services/characters/characterInfo", () => ({ annotatedCharacters: jest.fn() }));
 jest.mock("../../../src/services/characters/userCharacters", () => ({ myCharacters: jest.fn() }));
 
 const { MessageFlags } = require("discord.js");
 const command = require("../../../src/commands/lookup/loot");
-const { listByCharacter } = require("../../../src/stores/lootStore");
+const { listByCharacter, listAll } = require("../../../src/stores/lootStore");
 const { itemCatalog } = require("../../../src/services/loot/lootStats");
 const { annotatedCharacters } = require("../../../src/services/characters/characterInfo");
 const { myCharacters: charactersForUser } = require("../../../src/services/characters/userCharacters");
@@ -28,6 +34,7 @@ beforeEach(() => {
     itemCatalog.mockReturnValue([]);
     annotatedCharacters.mockReturnValue([]);
     charactersForUser.mockReturnValue([]);
+    listAll.mockReturnValue([]);
 });
 
 describe("/loot", () => {
@@ -162,6 +169,36 @@ describe("/loot", () => {
             const i = mockInteraction({ focused: { name: "name", value: "" }, options: { version: "forever" } });
             await command.autocomplete(i);
             expect(i.respond).toHaveBeenCalledWith([{ name: "Fenja", value: "Fenja" }]);
+        });
+    });
+
+    // #919: loot of another Discord server never shows - not in an answer, not as a suggestion.
+    describe("only the server the command was used on", () => {
+        it("/loot raider leaves out the awards of another server", async () => {
+            listByCharacter.mockReturnValue([award({ itemName: "Hier", guildId: "guild-1" }), award({ itemName: "Anderswo", guildId: "guild-2" })]);
+            const i = mockInteraction({ options: { __subcommand: "raider", name: "Elesham" } });
+            await command.execute(i);
+            expect(embed(i).description).toContain("**1 Item**");
+            expect(embed(i).fields[0].value).toContain("Hier");
+            expect(embed(i).fields[0].value).not.toContain("Anderswo");
+        });
+
+        it("/loot ich counts only this server's awards", async () => {
+            charactersForUser.mockReturnValue([{ character: "Elesham", categoryIds: ["c1"] }]);
+            listByCharacter.mockReturnValue([award({ guildId: "guild-2" })]);
+            const i = mockInteraction({ userId: "u1", options: { __subcommand: "ich" } });
+            await command.execute(i);
+            expect(embed(i).description).toContain("**0 Items**");
+        });
+
+        it("builds the item catalogue and the raider suggestions from this server's loot", async () => {
+            listAll.mockReturnValue([{ itemId: 1, guildId: "guild-1" }, { itemId: 2, guildId: "guild-2" }]);
+            await command.autocomplete(mockInteraction({ focused: { name: "item", value: "" } }));
+            expect(itemCatalog).toHaveBeenLastCalledWith([{ itemId: 1, guildId: "guild-1" }]);
+            await command.autocomplete(mockInteraction({ focused: { name: "name", value: "" } }));
+            expect(annotatedCharacters).toHaveBeenLastCalledWith({ rows: [{ itemId: 1, guildId: "guild-1" }] });
+            await command.execute(mockInteraction({ options: { __subcommand: "item", item: "1" } }));
+            expect(itemCatalog).toHaveBeenLastCalledWith([{ itemId: 1, guildId: "guild-1" }]);
         });
     });
 

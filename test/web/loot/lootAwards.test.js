@@ -233,3 +233,15 @@ describe("web/loot/lootAwards listAwards", () => {
         });
     });
 });
+
+// Only the loot of the active Discord server (#919).
+describe("listAwards per server", () => {
+    it("keeps another server's awards off the active one", () => {
+        lootStore.listAll.mockReturnValue([
+            lootRow({ eventId: "manual-b", guildId: "gB" }),
+            lootRow({ eventId: "manual-a", itemId: 32235 }),
+        ]);
+        expect(listAwards({ guildId: "gA" }).items.map((it) => it.itemId)).toEqual([32235]);
+        expect(listAwards().total).toBe(2);
+    });
+});

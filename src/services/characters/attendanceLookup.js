@@ -8,22 +8,33 @@ const { mainVersionFor } = require("../events/mainVersion");
 const { isCategoryActive } = require("../events/categoryLifecycle");
 const { listAllAssignments } = require("../../stores/raiderCharactersStore");
 const { annotatedCharacters } = require("./characterInfo");
+const { listAll } = require("../../stores/lootStore");
+const { lootOfGuild } = require("../loot/lootServer");
 const { buildVersionContext, versionsOfCharacter } = require("./characterVersions");
 const { listKnownCategories } = require("../discord/categoryNames");
 const { splitPlayer, characterKeyOf } = require("../../utils/loot/lootImport");
 
 /**
+ * The characters of the loot of one server (#919) - `undefined` for all of it.
+ * Loot of another server is no evidence here: neither a name nor a category.
+ */
+function lootCharacters(guildId) {
+    return guildId === undefined ? annotatedCharacters() : annotatedCharacters({ rows: lootOfGuild(listAll(), guildId) });
+}
+
+/**
  * Every character name the roster knows (loot and assignments), for autocomplete -
- * with `versionId` only those that play that game version (#741).
- * @param {{ versionId?: string }} [opts]
+ * with `versionId` only those that play that game version (#741), with
+ * `guildId` only the loot of that server (#919).
+ * @param {{ versionId?: string, guildId?: string }} [opts]
  * @returns {string[]}
  */
-function knownCharacterNames({ versionId = "" } = {}) {
+function knownCharacterNames({ versionId = "", guildId } = {}) {
     const names = new Map();
     const seen = new Set(); // a name is judged once, by the strongest evidence (its loot), not again by its category
     const ctx = versionId ? buildVersionContext() : null;
     const plays = (name, items, categoryIds) => !ctx || versionsOfCharacter(ctx, { name, items, categoryIds }).includes(versionId);
-    for (const c of annotatedCharacters()) {
+    for (const c of lootCharacters(guildId)) {
         const key = characterKeyOf(c.character);
         if (!key || seen.has(key)) continue;
         seen.add(key);
@@ -67,7 +78,7 @@ function characterAttendance(guildId, name, { ctx, versionId } = {}) {
         }
     }
     const categoryIds = new Set(userIdsByCategory.keys());
-    const loot = annotatedCharacters().find((c) => characterKeyOf(c.character) === key);
+    const loot = lootCharacters(guildId).find((c) => characterKeyOf(c.character) === key);
     for (const id of (loot && loot.categoryIds) || []) categoryIds.add(id);
 
     const names = new Map(listKnownCategories(guildId).map((c) => [c.id, c.name]));

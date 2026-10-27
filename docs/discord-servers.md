@@ -74,7 +74,7 @@ The groundwork for keeping loot, logs and settings strictly per Discord server.
 - **Saving**: `configStore.saveConfig` merges `serverSettings` per server and per key (`configSchema.mergeServerSettings`, like `versionSettings`): a save that sends the block of one server leaves the blocks of the other servers untouched, a save without `serverSettings` keeps them all.
 - **Reading** only through `services/discord/serverSettings.serverSetting(guildId, key, { config, fallback })`. Order: the server's value, else `fallback`, else the part's default. There is no global fallback: one server's value never answers for another.
 - **First server** = `discordServers.servers[0]`, else `config.guildId` (`serverOf.firstServerId`).
-- **Server of a raid** (`serverOf.guildOfEvent`): `event.guildId`; for Raid-Helper events without a `guildId` the server of their category (from `category-names.json`). `logcheck/matchableEvents.loadMatchableEvents` stamps the server it loads for on every row. Loot belongs to a server through its raid; nothing extra is stored for it.
+- **Server of a raid** (`serverOf.guildOfEvent`): `event.guildId`; for Raid-Helper events without a `guildId` the server of their category (from `category-names.json`). `logcheck/matchableEvents.loadMatchableEvents` stamps the server it loads for on every row. Loot belongs to a server through its raid; only a raidless bucket stores the server it was imported on (#919, rule in docs/loot-import.md „Loot je Discord-Server“).
 - **Server of a log** (`serverOf.logGuild`): rule *linked raid → origin server → first server*.
   - Stored in `log.guildId`.
   - `guildFrom` names the rule that applied: `event`, `channel` (the origin server) or `first`.
