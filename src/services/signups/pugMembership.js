@@ -17,6 +17,7 @@ const settingsStore = require("../../stores/settingsStore");
 const signupStore = require("../../stores/signupStore");
 const eventStore = require("../../stores/eventStore");
 const discord = require("../discord/discord");
+const { generalInviteUrl } = require("../discord/pugInvites");
 const { accessRule } = require("./signupAccess");
 const { versionOfEvent } = require("../events/mainVersion");
 
@@ -28,14 +29,28 @@ function serverOf(event, cfg) {
 }
 
 /**
- * The invite link a refused user gets for the raid's server - "" while none is known.
- * Hook for #905: `require("../discord/pugInvites").generalInviteUrl(guildId)`
- * (synchronous, a URL or "") goes into the safeInviteUrl() call below.
+ * The invite link a refused user gets for the raid's server: its general
+ * invite (#905, made on a click in the settings) - "" while there is none.
  */
 function pugInviteUrl(event, { config } = {}) {
     const guildId = serverOf(event, config || settingsStore.getConfig());
     if (!guildId) return "";
-    return safeInviteUrl("");
+    return safeInviteUrl(generalInviteUrl(guildId));
+}
+
+/**
+ * What the public event page (/e/<id>, #908) needs about who looks:
+ * `isMember` on the raid's server (true / false / null while unknown or not
+ * logged in) and the server's invite. Only an open PuG raid asks Discord;
+ * every other raid gets `{ isMember: null, inviteUrl: "" }`.
+ * @returns {Promise<{ isMember: boolean|null, inviteUrl: string }>}
+ */
+async function pugPageViewer(event, userId, { config } = {}) {
+    const cfg = config || settingsStore.getConfig();
+    if (!event || !isOpenRaid(event, cfg)) return { isMember: null, inviteUrl: "" };
+    const uid = String(userId || "");
+    const isMember = uid ? await discord.guildMembership(serverOf(event, cfg), uid) : null;
+    return { isMember, inviteUrl: pugInviteUrl(event, { config: cfg }) };
 }
 
 /** Only an https link goes to the page as a link target ("" otherwise). */
@@ -125,5 +140,6 @@ async function membershipByServer(events, userId, { config } = {}) {
 }
 
 module.exports = {
-    checkPugMember, markMembersOnly, membershipByServer, isOpenRaid, pugInviteUrl, safeInviteUrl, holdsSignup, serverOf, PUG_MEMBERS_ERROR,
+    checkPugMember, markMembersOnly, membershipByServer, isOpenRaid, pugInviteUrl, pugPageViewer, safeInviteUrl, holdsSignup, serverOf,
+    PUG_MEMBERS_ERROR,
 };

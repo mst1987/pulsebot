@@ -11,9 +11,14 @@ let mockConfig = {};
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockMembership = null;
 jest.mock("../../../src/services/discord/discord", () => ({ guildMembership: jest.fn(async () => mockMembership) }));
+let mockInvites = {};
+jest.mock("../../../src/services/discord/pugInvites", () => ({ generalInviteUrl: jest.fn((guildId) => mockInvites[guildId] || "") }));
 
 const discord = require("../../../src/services/discord/discord");
-const { checkPugMember, markMembersOnly, membershipByServer, isOpenRaid, pugInviteUrl, safeInviteUrl, holdsSignup, serverOf, PUG_MEMBERS_ERROR } = require("../../../src/services/signups/pugMembership");
+const {
+    checkPugMember, markMembersOnly, membershipByServer, isOpenRaid, pugInviteUrl, pugPageViewer, safeInviteUrl, holdsSignup, serverOf,
+    PUG_MEMBERS_ERROR,
+} = require("../../../src/services/signups/pugMembership");
 
 const ANNA = "200000000000000001";
 const event = { id: "eh-pug", guildId: "g-pug", categoryId: "cat-pug", versionId: "tbc" };
@@ -23,6 +28,7 @@ beforeEach(() => {
     mockSignups.clear();
     mockConfig = {};
     mockMembership = null;
+    mockInvites = {};
     discord.guildMembership.mockClear();
 });
 
@@ -162,11 +168,48 @@ describe("safeInviteUrl", () => {
 });
 
 describe("serverOf / pugInviteUrl", () => {
-    it("the raid's own server, else the configured one; no invite link yet", () => {
+    it("the raid's own server, else the configured one; no invite link while the server has none", () => {
         expect(serverOf(event, { guildId: "g-main" })).toBe("g-pug");
         expect(serverOf({ id: "x" }, { guildId: "g-main" })).toBe("g-main");
         expect(serverOf(null, null)).toBe("");
         expect(pugInviteUrl(event, { config: {} })).toBe("");
         expect(pugInviteUrl({ id: "x" }, { config: {} })).toBe("");
+    });
+
+    it("hands out the general invite of the raid's server (#905), only as an https link", () => {
+        mockInvites = { "g-pug": "https://discord.gg/pug", "g-main": "http://discord.gg/plain" };
+        expect(pugInviteUrl(event, { config: {} })).toBe("https://discord.gg/pug");
+        expect(pugInviteUrl({ id: "x" }, { config: { guildId: "g-main" } })).toBe("");
+    });
+
+    it("puts the invite into the refusal", async () => {
+        mockInvites = { "g-pug": "https://discord.gg/pug" };
+        mockMembership = false;
+        expect(await checkPugMember(event, ANNA)).toEqual({ ...refused, inviteUrl: "https://discord.gg/pug" });
+    });
+});
+
+describe("pugPageViewer (/e/<id>)", () => {
+    it("asks the raid's server for a logged-in viewer of a PuG raid and adds its invite", async () => {
+        mockInvites = { "g-pug": "https://discord.gg/pug" };
+        mockMembership = false;
+        expect(await pugPageViewer(event, ANNA)).toEqual({ isMember: false, inviteUrl: "https://discord.gg/pug" });
+        expect(discord.guildMembership).toHaveBeenCalledWith("g-pug", ANNA);
+        mockMembership = true;
+        expect(await pugPageViewer(event, ANNA)).toEqual({ isMember: true, inviteUrl: "https://discord.gg/pug" });
+    });
+
+    it("leaves membership unknown without a login, but still offers the invite", async () => {
+        mockInvites = { "g-pug": "https://discord.gg/pug" };
+        expect(await pugPageViewer(event, "")).toEqual({ isMember: null, inviteUrl: "https://discord.gg/pug" });
+        expect(discord.guildMembership).not.toHaveBeenCalled();
+    });
+
+    it("asks nothing for a raid with raider role or an unknown event", async () => {
+        mockInvites = { "g-pug": "https://discord.gg/pug" };
+        mockConfig = { categoryRoles: { "cat-pug": ["role-raider"] } };
+        expect(await pugPageViewer(event, ANNA)).toEqual({ isMember: null, inviteUrl: "" });
+        expect(await pugPageViewer(null, ANNA)).toEqual({ isMember: null, inviteUrl: "" });
+        expect(discord.guildMembership).not.toHaveBeenCalled();
     });
 });

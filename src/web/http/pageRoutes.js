@@ -25,6 +25,7 @@ const raidplanStore = require("../../stores/raidplanStore");
 const { getEvent } = require("../../stores/eventStore");
 const { approvedSetupOf } = require("../../services/setup/setupCore");
 const { canWriteSetup } = require("../setup/setupAccess");
+const { pugPageViewer } = require("../../services/signups/pugMembership");
 const { versionInfo } = require("./version");
 const { runMode } = require("../../config/runMode");
 const auth = require("./auth");
@@ -219,14 +220,15 @@ function eventCalendar({ res, params }) {
 // logged in → the signup in the menu, else the Discord login coming back here;
 // already signed up → "Anmeldung ändern". The user id only finds that signup,
 // the page never shows it. Nothing is cached: the answer depends on who asks.
-function eventPage({ req, res, params }) {
+async function eventPage({ req, res, params }) {
     const user = auth.getUser(req);
+    const userId = user ? String(user.id || "") : "";
+    // a PuG raid: whether the viewer is on its server and its invite (#905, #907); "" shows no join button
+    const { isMember, inviteUrl } = await pugPageViewer(getEvent(params[0]), userId);
     const html = renderEventPage(params[0], {
-        viewer: { loggedIn: !!user, isMember: null, userId: user ? String(user.id || "") : "" },
+        viewer: { loggedIn: !!user, isMember, userId },
         loginUrl: `/auth/login?returnTo=${encodeURIComponent(`/e/${params[0]}`)}`,
-        // TODO(#905): the PuG server's invite — services/discord/pugInvites.generalInviteUrl(event.guildId)
-        // once that module is on main; "" shows no join button. Membership (isMember) comes with #907.
-        inviteUrl: "",
+        inviteUrl,
     });
     return send(res, html ? 200 : 404, html || renderNotFound(), { "Cache-Control": "private, no-store" });
 }
