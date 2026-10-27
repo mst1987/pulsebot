@@ -1,18 +1,17 @@
-// The layout of the Einstellungen page: one section per topic, grouped by *who
-// owns the setting* rather than by which feature happens to read it.
+// The layout of the Einstellungen page: one section per topic, in the same two
+// blocks as the menu (#918, Epic #926 "Daten je Server"):
 //
-//   Zugang          — who gets in at all (the admin roles are one group of the matrix)
-//   Verbindungen    — every external system the bot talks to, as status cards
-//   Raid-Kategorien — everything that is configured per raid category
-//   Module          — the behaviour of one single feature
+//   Server       — what belongs to the active Discord server: who gets in, its
+//                  raid categories, raid defaults, logs, recruitment, raid sheets
+//   Alle Server  — what the whole bot shares: the server list and its links,
+//                  the external connections, game versions, top items,
+//                  dungeons, addons
 //
-// Fifteen sections used to share this column, most of them with one or two
-// fields, and none said whether something was missing there. Ten are left, each
-// with a WoW icon, and the two that can be incomplete carry a count.
+// Each section carries a WoW icon, and the two that can be incomplete a count.
 
 import { t } from "../../i18n";
 
-export type SettingsGroup = "access" | "connections" | "categories" | "modules";
+export type SettingsGroup = "server" | "global";
 
 export type SettingsSection = {
     /** Also the key of its texts: settings.sections.<id>.label / .crumb. */
@@ -33,23 +32,23 @@ export type SettingsSection = {
 };
 
 export const SETTINGS_SECTIONS: SettingsSection[] = [
-    { id: "berechtigungen", group: "access", icon: "inv_scroll_11", adminOnly: true },
+    // the active server's block
+    { id: "berechtigungen", group: "server", icon: "inv_scroll_11", adminOnly: true },
+    { id: "kategorien", group: "server", icon: "inv_banner_03" },
+    { id: "raids", group: "server", icon: "inv_misc_note_02" },
+    { id: "logs", group: "server", icon: "inv_misc_pocketwatch_01" },
+    { id: "recruitment", group: "server", icon: "inv_misc_grouplooking" },
+    { id: "raidsheets", group: "server", icon: "inv_scroll_03", standalone: true },
 
-    { id: "verbindungen", group: "connections", icon: "inv_misc_horn_01", standalone: true },
-    { id: "discordserver", group: "connections", icon: "inv_letter_15", adminOnly: true, standalone: true },
-
-    { id: "kategorien", group: "categories", icon: "inv_banner_03" },
+    // the block "Alle Server"
+    { id: "discordserver", group: "global", icon: "inv_letter_15", adminOnly: true, standalone: true },
+    { id: "verbindungen", group: "global", icon: "inv_misc_horn_01", standalone: true },
     // #541: the main game version and the categories that play another one
-    { id: "spielversion", group: "categories", icon: "inv_misc_book_09" },
-
-    { id: "raids", group: "modules", icon: "inv_misc_note_02" },
-    { id: "raidsheets", group: "modules", icon: "inv_scroll_03", standalone: true },
-    { id: "topitems", group: "modules", icon: "inv_misc_bag_10" },
-    { id: "logs", group: "modules", icon: "inv_misc_pocketwatch_01" },
-    { id: "recruitment", group: "modules", icon: "inv_misc_grouplooking" },
-    { id: "dungeons", group: "modules", icon: "spell_holy_borrowedtime" },
+    { id: "spielversion", group: "global", icon: "inv_misc_book_09" },
+    { id: "topitems", group: "global", icon: "inv_misc_bag_10" },
+    { id: "dungeons", group: "global", icon: "spell_holy_borrowedtime" },
     // #818: the addons of the page "Addons" - saved on its own, full admins only (ADDON_KEYS)
-    { id: "addons", group: "modules", icon: "inv_gizmo_01", adminOnly: true, standalone: true },
+    { id: "addons", group: "global", icon: "inv_gizmo_01", adminOnly: true, standalone: true },
 ];
 
 /** Sidebar entry and the part head's title, in the active language. */

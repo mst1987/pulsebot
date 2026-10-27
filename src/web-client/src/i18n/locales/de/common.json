@@ -1,5 +1,11 @@
 {
     "loading": "Lade…",
+    "ownValue": {
+        "label": "Eigener Wert auf {server}",
+        "tip": "Aus: {server} nimmt den Standard aller Server. An: nur {server} bekommt einen eigenen Wert.",
+        "default": "Standard (alle Server)",
+        "unset": "nicht gesetzt"
+    },
     "cancel": "Abbrechen",
     "close": "Schließen",
     "ok": "OK",

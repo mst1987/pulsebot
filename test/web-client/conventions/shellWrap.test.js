@@ -43,7 +43,7 @@ describe("shell keeps inside a narrow viewport (#551)", () => {
         expect(declarations(".app", mediaBlock(900, ".app"))).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\)/);
     });
 
-    it.each([".main", ".content", ".crumbs", ".top-actions", ".guild-sel"])("%s may shrink (min-width: 0)", (sel) => {
+    it.each([".main", ".content", ".crumbs", ".top-actions", ".srv-head", ".srv-head-text"])("%s may shrink (min-width: 0)", (sel) => {
         expect(declarations(sel)).toMatch(/min-width:\s*0/);
     });
 

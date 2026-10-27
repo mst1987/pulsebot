@@ -43,6 +43,8 @@ describe("one menu for both front ends", () => {
                 ...(entry.neutral ? { neutral: true } : {}),
                 // the menu line may lead to a landing page of its family (Discord → its overview)
                 ...(entry.landing ? { landing: expect.stringMatching(/^\//) } : {}),
+                // a page without a server stands under "Alle Server" (#918)
+                ...(entry.scope ? { scope: "all" } : {}),
                 id: expect.stringMatching(/^[a-zA-Z]+$/),
                 label: expect.any(String),
                 href: expect.stringMatching(/^\//),
@@ -74,6 +76,11 @@ describe("one menu for both front ends", () => {
         // a group is one contiguous block, so its heading is printed once
         expect(new Set(groups.map((g) => g.name)).size).toBe(groups.length);
         for (const g of groups) expect(g.ids.length).toBeLessThanOrEqual(4);
+    });
+
+    it("marks exactly the pages without a server as \"Alle Server\" (#918)", () => {
+        // the own profile, the addon downloads and the bot's system status belong to no Discord server
+        expect(MENU.filter((e) => e.scope === "all").map((e) => e.id)).toEqual(["profile", "addon", "system"]);
     });
 
     it("uses the icons of the approved design", () => {

@@ -154,7 +154,8 @@ describe("the sections", () => {
         const labels = within(nav()).getAllByRole("button").map((b) => b.querySelector(".srail-text")?.textContent);
         expect(labels).toEqual(SETTINGS_SECTIONS.map(sectionLabel));
         expect(labels[0]).toBe("Berechtigungen");
-        for (const group of ["Zugang", "Raid-Kategorien", "Module"]) {
+        // the menu's two blocks (#918): the active server, then "Alle Server"
+        for (const group of ["Server", "Alle Server"]) {
             expect({ group, count: within(nav()).getAllByText(group).length }).toEqual({ group, count: 1 });
         }
     });
@@ -448,7 +449,7 @@ describe("in English", () => {
         const nav = await screen.findByRole("navigation", { name: "Settings sections" });
         expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Settings");
         expect(within(nav).getByRole("button", { name: /^Permissions/ })).toBeInTheDocument();
-        expect(within(nav).getByText("Raid categories")).toBeInTheDocument();
+        expect(within(nav).getByText("All servers")).toBeInTheDocument();
         expect(await screen.findByText("AI wording")).toBeInTheDocument();
         expect(screen.getAllByText("Full admins only").length).toBeGreaterThan(0);
 

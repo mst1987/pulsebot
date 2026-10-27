@@ -13,7 +13,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { SessionUser } from "../../api";
 import { t, tOr } from "../../i18n";
-import { MENU } from "../../lib/app/menu";
+import { MENU, isAllServers } from "../../lib/app/menu";
 import { adminUser, renderPage } from "../../test/render";
 import Shell from "./Shell";
 import { JobsProvider } from "./Jobs";
@@ -41,8 +41,11 @@ const entry = (name: string) => within(nav()).getByRole("link", { name });
 describe("the sidebar", () => {
     it("is rendered from the shared menu file, every top-level entry with its WoW icon", () => {
         showShell(adminUser());
-        // a line with a landing page (Discord → its overview) leads there
-        expect(hrefs()).toEqual(MENU.filter((e) => !e.sub).map((e) => e.landing ?? e.href));
+        // a line with a landing page (Discord → its overview) leads there; the server's
+        // pages come first, the pages without a server below "Alle Server" (#918)
+        const top = MENU.filter((e) => !e.sub);
+        const ordered = [...top.filter((e) => !isAllServers(e)), ...top.filter((e) => isAllServers(e))];
+        expect(hrefs()).toEqual(ordered.map((e) => e.landing ?? e.href));
         for (const e of MENU.filter((m) => !m.sub)) {
             const link = entry(tOr(`shell.menu.${e.id}`, e.label));
             expect(link).toHaveAttribute("href", e.landing ?? e.href);
@@ -54,6 +57,22 @@ describe("the sidebar", () => {
         showShell(adminUser());
         const groups = [...new Set(MENU.map((e) => e.group))];
         for (const group of groups) expect(within(nav()).getAllByText(tOr(`shell.group.${group}`, group))).toHaveLength(1);
+    });
+
+    it("splits the menu into the server's block and one block \"Alle Server\" below it (#918)", () => {
+        showShell(adminUser());
+        const heading = within(nav()).getByText(t("shell.group.allServers"));
+        expect(heading).toHaveClass("menu-label", "menu-all");
+        const below = (name: string) => Boolean(heading.compareDocumentPosition(entry(name)) & Node.DOCUMENT_POSITION_FOLLOWING);
+        // pages without a server: below the heading
+        for (const id of ["profile", "addon", "system"]) expect(below(t(`shell.menu.${id}`))).toBe(true);
+        // the server's pages, the settings included: above it
+        for (const id of ["home", "raids", "roster", "channels", "settings"]) expect(below(t(`shell.menu.${id}`))).toBe(false);
+    });
+
+    it("prints no \"Alle Server\" heading for an account that opens none of those pages", () => {
+        showShell({ id: "u5", name: "Rai", isAdmin: false, access: { raids: { read: true, write: false } } });
+        expect(within(nav()).queryByText(t("shell.group.allServers"))).not.toBeInTheDocument();
     });
 
     it("shows only the entries the account's areas open", () => {
