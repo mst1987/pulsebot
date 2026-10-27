@@ -5,7 +5,7 @@
 // every function is `export function name(params): Result {` on one line, and
 // no body uses type syntax (no `as`, no generics, no annotated locals). The test
 // relies on exactly that; keep it when adding a function here.
-import type { AreaAccess, EventGuildEntry, PingTarget, PingTargetInfo, ReminderRule, RoleSyncRule, TalkOverviewStatus } from "../../api";
+import type { AreaAccess, PingTarget, PingTargetInfo, ReminderRule, RoleSyncRule, TalkOverviewStatus } from "../../api";
 import { t, tOr } from "../../i18n";
 import { changedFeatureVersions } from "./versionFeatures";
 
@@ -516,7 +516,7 @@ export function connectionState(id: ConnectionId, input: ConnectionInputs): Conn
  */
 export function connectionPatch(id: ConnectionId, fields: Record<string, string>, secret: string | undefined): Record<string, unknown> {
     const v = (key: string) => String(fields[key] || "").trim();
-    // The server itself is picked under Discord-Server (discordServersPatch below).
+    // The server itself is picked under Discord-Server (settings page "Discord-Server").
     if (id === "discord") return { raidhelperServerId: v("raidhelperServerId") };
     if (id === "battlenet") {
         // Only the credentials: the realm is per game version (#542, Einstellungen → Spielversion).
@@ -561,22 +561,14 @@ export function missingConnections(data: SettingsLike, tokens: unknown[] | null,
     return visibleConnections(canManageAccess).filter((id) => connectionState(id, inputs).missing).length;
 }
 
-// ---- Discord-Server: several event servers, each with its own overview target, plus the talk server (#251, #361) ----
+// ---- Discord-Server: equal servers plus links that post a source's raid list to a target channel (#890, #891) ----
 
 export type ServerCardLike = { connected: boolean; permissions: { label: string; ok: boolean }[] | null; missing: string[] };
-export type ServerFields = {
-    eventGuilds: EventGuildEntry[];
-    talkGuildId: string;
-    talkPingChannelId: string;
-    signupNoteChannelId: string;
-    guildBankChannelId: string;
-};
-export type OverlapLike = { eventCount: number | null; talkCount: number | null; both: number | null; error: string | null };
 
 /**
- * The badge of one server card. `optional` is the talk server: not having one
- * is the one-server setup, not a gap. Rights that cannot be known (bot offline)
- * are said as such, never counted as missing.
+ * The status of one server row. `optional` is kept for the sidebar's old talk
+ * card (until #897): not having one is the one-server setup, not a gap. Rights
+ * that cannot be known (bot offline) are said as such, never counted as missing.
  */
 export function serverCardState(card: ServerCardLike | null, optional: boolean): ConnectionState {
     if (!card) return optional ? { tone: "", label: t("settings.state.noSecondServer"), missing: false } : { tone: "mid", label: t("settings.state.noServer"), missing: true };
@@ -588,9 +580,9 @@ export function serverCardState(card: ServerCardLike | null, optional: boolean):
 }
 
 /**
- * The sidebar badge of "Discord-Server": how many cards need attention. An
- * empty event-server list is not itself an issue (nothing configured yet is
- * not the same as a broken connection) — only entries that exist are scored.
+ * The sidebar badge of "Discord-Server": how many servers need attention. An
+ * empty list is not itself an issue (nothing configured yet is not the same as
+ * a broken connection) — only entries that exist are scored.
  */
 export function serverIssues(servers: { events: ServerCardLike[]; talk: ServerCardLike | null } | null | undefined): number {
     if (!servers) return 0;
@@ -598,56 +590,47 @@ export function serverIssues(servers: { events: ServerCardLike[]; talk: ServerCa
     return eventIssues + (serverCardState(servers.talk, true).missing ? 1 : 0);
 }
 
-/**
- * The PATCH body of the edit dialog. Mirrors the server's normaliser
- * (settingsStore.js's normalizeEventGuildEntry/normalizeDiscordServers) so the
- * body sent is already clean: every event-server entry's fields trimmed, a
- * half-set overview target (guild without channel or the reverse) cleared to
- * "", and a talk server equal to one of the event servers cleared to "" (it is
- * no second server). Blank rows (no guild picked yet) are dropped. The guild
- * bank channel, like the note channel, may sit on any server. The note
- * channel may sit on any server and is kept as it is.
- */
-export function discordServersPatch(fields: ServerFields): { discordServers: ServerFields } {
-    const v = (value: unknown) => String(value || "").trim();
-    const eventGuilds = fields.eventGuilds
-        .map((entry) => {
-            const overviewGuildId = v(entry.overviewGuildId);
-            const overviewChannelId = v(entry.overviewChannelId);
-            const hasTarget = !!overviewGuildId && !!overviewChannelId;
-            return {
-                guildId: v(entry.guildId),
-                label: v(entry.label),
-                overviewGuildId: hasTarget ? overviewGuildId : "",
-                overviewChannelId: hasTarget ? overviewChannelId : "",
-            };
-        })
-        .filter((entry) => entry.guildId);
-    const talkGuildIdRaw = v(fields.talkGuildId);
-    const talkGuildId = eventGuilds.some((e) => e.guildId === talkGuildIdRaw) ? "" : talkGuildIdRaw;
-    return {
-        discordServers: {
-            eventGuilds,
-            talkGuildId,
-            talkPingChannelId: v(fields.talkPingChannelId),
-            signupNoteChannelId: v(fields.signupNoteChannelId),
-            guildBankChannelId: v(fields.guildBankChannelId),
-        },
-    };
+export type LinkLike = { from: string; to: string; channelId: string; lang: string; versions: string[] };
+
+/** "Englisch · nur TBC" · "Serversprache · alle Versionen": a link's language and versions in one short line. */
+export function linkSummary(link: LinkLike, versions: { id: string; short: string }[]): string {
+    const lang = link.lang === "de" || link.lang === "en" ? t(`settings.discordServers.lang.${link.lang}`) : t("settings.discordServers.lang.server");
+    const names = link.versions.map((id) => {
+        const hit = versions.find((v) => v.id === id);
+        return hit ? hit.short : id;
+    });
+    const which = names.length ? t("settings.discordServers.onlyVersions", { list: names.join(", ") }) : t("settings.discordServers.allVersions");
+    return `${lang} · ${which}`;
 }
 
-/** "198 von 212" plus its tone: how many event members are on the talk server too. */
-export function overlapBadge(overlap: OverlapLike | null): { label: string; tone: "ok" | "mid" | ""; tip: string } | null {
-    if (!overlap) return null;
-    if (overlap.error || overlap.both === null || overlap.eventCount === null) {
-        return { label: t("settings.overlap.unknown"), tone: "", tip: overlap.error || t("settings.overlap.membersError") };
+/** A link's raid-list key, as the talk-overview store and API use it (#892). */
+export function linkKey(link: LinkLike): string {
+    return `${link.from}:${link.to}`;
+}
+
+/** The raid-list status that belongs to a link, matched by its key — no fallback to the source alone. */
+export function linkStatusOf(link: LinkLike, statuses: TalkOverviewStatus[]): TalkOverviewStatus | null {
+    const key = linkKey(link);
+    return statuses.find((s) => s.key === key) || null;
+}
+
+/**
+ * The status column of a link as words: "Aktuell", "Fehler: …" or "noch nicht
+ * gepostet"; the times sit in the tooltip (talkOverviewBadge below).
+ */
+export function linkStatusBadge(status: TalkOverviewStatus | null, now: number): { label: string; tone: "ok" | "mid" | ""; tip: string; tipSub: string } {
+    if (!status || !status.configured || (!status.messageId && !status.error)) {
+        return { label: t("settings.overviewBadge.notPosted"), tone: "", tip: t("settings.overviewBadge.title"), tipSub: t("settings.overviewBadge.notPostedSub") };
     }
-    const share = overlap.eventCount ? overlap.both / overlap.eventCount : 1;
-    return {
-        label: t("settings.overlap.label", { both: overlap.both, total: overlap.eventCount }),
-        tone: share >= 0.9 ? "ok" : "mid",
-        tip: t("settings.overlap.tip", { both: overlap.both, total: overlap.eventCount }),
-    };
+    const badge = talkOverviewBadge(status, now);
+    // The error text can be a long sentence: one word in the cell, the text in the tooltip.
+    if (status.error) return { ...badge, label: t("settings.discordServers.statusError"), tipSub: status.error };
+    return { ...badge, label: t("settings.discordServers.statusCurrent") };
+}
+
+/** "keine" · "1 Raid-Kategorie" · "3 Raid-Kategorien" — none is a normal state, a server may only show lists. */
+export function raidCategoriesText(count: number): string {
+    return count ? t("settings.discordServers.raidCategoryCount", { count }) : t("settings.discordServers.noRaidCategory");
 }
 
 // ---- categories: the raid ones as a list, the rest folded away ----

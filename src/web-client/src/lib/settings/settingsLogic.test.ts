@@ -341,43 +341,36 @@ describe("Discord-Server cards (#251, #361)", () => {
         expect(logic.serverIssues({ events: [card({ missing: ["x"] }), card()], talk: card({ connected: false }) })).toBe(2);
     });
 
-    it("cleans an event-server list: trims fields, drops a blank row, clears a half-set overview target", () => {
-        expect(logic.discordServersPatch({
-            eventGuilds: [
-                { guildId: " 1 ", label: " PvE ", overviewGuildId: "9", overviewChannelId: "" },
-                { guildId: "", label: "leer", overviewGuildId: "", overviewChannelId: "" },
-                { guildId: "2", label: "", overviewGuildId: "9", overviewChannelId: "91" },
-            ],
-            talkGuildId: "9", talkPingChannelId: "92", signupNoteChannelId: " 7 ", guildBankChannelId: " 8 ",
-        })).toEqual({
-            discordServers: {
-                eventGuilds: [
-                    { guildId: "1", label: "PvE", overviewGuildId: "", overviewChannelId: "" },
-                    { guildId: "2", label: "", overviewGuildId: "9", overviewChannelId: "91" },
-                ],
-                talkGuildId: "9", talkPingChannelId: "92", signupNoteChannelId: "7", guildBankChannelId: "8",
-            },
-        });
+    it("says a link's language and versions in one short line (#891)", () => {
+        const versions = [{ id: "tbc", short: "TBC" }, { id: "forever", short: "Forever" }];
+        const link = { from: "1", to: "2", channelId: "21", lang: "", versions: [] };
+        expect(logic.linkSummary(link, versions)).toBe("Serversprache · alle Versionen");
+        expect(logic.linkSummary({ ...link, lang: "en", versions: ["tbc"] }, versions)).toBe("Englisch · nur TBC");
+        expect(logic.linkSummary({ ...link, lang: "de", versions: ["tbc", "forever", "x"] }, versions)).toBe("Deutsch · nur TBC, Forever, x");
     });
 
-    it("clears a talk server equal to one of the event servers — never the note channel", () => {
-        expect(logic.discordServersPatch({
-            eventGuilds: [{ guildId: "1", label: "", overviewGuildId: "", overviewChannelId: "" }],
-            talkGuildId: "1", talkPingChannelId: "6", signupNoteChannelId: "7", guildBankChannelId: "",
-        })).toEqual({
-            discordServers: {
-                eventGuilds: [{ guildId: "1", label: "", overviewGuildId: "", overviewChannelId: "" }],
-                talkGuildId: "", talkPingChannelId: "6", signupNoteChannelId: "7", guildBankChannelId: "",
-            },
-        });
+    it("finds a link's status by its key from:to, a second link of the same source keeping its own, and words it", () => {
+        const link = { from: "1", to: "2", channelId: "21", lang: "", versions: [] };
+        const second = { ...link, to: "3", channelId: "31" };
+        const base = { key: "1:2", from: "1", to: "2", guildId: "1", label: "", configured: true, channelId: "21", messageId: "m", messageUrl: "", postedAt: 1000, editedAt: 0, checkedAt: 0, error: "" };
+        const other = { ...base, key: "1:3", to: "3", channelId: "31", messageId: "", error: "x" };
+        expect(logic.linkKey(link)).toBe("1:2");
+        expect(logic.linkStatusOf(link, [other])).toBeNull();
+        expect(logic.linkStatusOf(link, [other, base])).toBe(base);
+        expect(logic.linkStatusOf(second, [base, other])).toBe(other);
+        // No fallback to the source alone: same source and channel but another key is not this link's status.
+        expect(logic.linkStatusOf(link, [{ ...base, key: "1:9" }])).toBeNull();
+        expect(logic.linkStatusBadge(null, 2000).label).toBe("noch nicht gepostet");
+        expect(logic.linkStatusBadge({ ...base, messageId: "" }, 2000).label).toBe("noch nicht gepostet");
+        expect(logic.linkStatusBadge(base, 2000)).toMatchObject({ label: "Aktuell", tone: "ok" });
+        expect(logic.linkStatusBadge({ ...base, error: "Bot darf nicht schreiben" }, 2000))
+            .toMatchObject({ label: "Fehler", tone: "mid", tipSub: "Bot darf nicht schreiben" });
     });
 
-    it("words the member overlap and flags a large gap", () => {
-        expect(logic.overlapBadge(null)).toBeNull();
-        expect(logic.overlapBadge({ eventCount: 212, talkCount: 208, both: 198, error: null })).toMatchObject({ label: "198 von 212", tone: "ok" });
-        expect(logic.overlapBadge({ eventCount: 100, talkCount: 50, both: 50, error: null }).tone).toBe("mid");
-        expect(logic.overlapBadge({ eventCount: null, talkCount: null, both: null, error: "Intent fehlt" }))
-            .toEqual({ label: "Überschneidung unbekannt", tone: "", tip: "Intent fehlt" });
+    it("words the raid categories of a server, none being a normal state", () => {
+        expect(logic.raidCategoriesText(0)).toBe("keine");
+        expect(logic.raidCategoriesText(1)).toBe("1 Raid-Kategorie");
+        expect(logic.raidCategoriesText(3)).toBe("3 Raid-Kategorien");
     });
 });
 

@@ -210,16 +210,17 @@ describe("web/apiRoutes/settings", () => {
 
         // Routed end to end: the handler has to be imported, not only listed (#251).
         describe("GET /api/settings/discord-servers", () => {
-            it("serves the server cards to a full admin", async () => {
+            it("serves the server rows to a full admin", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
-                settingsStore.getConfig.mockReturnValue({ guildId: "g1", discordServers: { eventGuildId: "g1" } });
-                discord.listGuilds.mockReturnValue([{ id: "g1", name: "Events" }]);
+                settingsStore.getConfig.mockReturnValue({ guildId: "100000", discordServers: { servers: [{ guildId: "100000", label: "" }], links: [] } });
+                discord.listGuilds.mockReturnValue([{ id: "100000", name: "Events" }]);
                 const res = mockRes();
                 expect(await handle("/api/settings/discord-servers", { method: "GET" }, res)).toBe(true);
                 expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
                 const data = json(res).data;
-                expect(data.guilds.map((g) => g.role)).toEqual(["event"]);
-                expect(data.overlap).toBeNull();
+                expect(data.guilds.map((g) => g.id)).toEqual(["100000"]);
+                expect(data.servers.map((g) => g.id)).toEqual(["100000"]);
+                expect(data.overlap).toBeUndefined();
                 settingsStore.getConfig.mockReturnValue({});
             });
 
@@ -1300,11 +1301,6 @@ describe("web/apiRoutes/settings", () => {
                     talkGuildId: "300", talkPingChannelId: "",
                 },
             };
-            // Transition until #891: GET hands the old dialog its eventGuilds list next to servers/links.
-            const servedBlock = {
-                ...stored.discordServers,
-                eventGuilds: [{ guildId: "200", label: "", overviewGuildId: "300", overviewChannelId: "301" }],
-            };
             const guild = (id, name, memberCount) => ({ id, name, memberCount });
 
             it("keeps the server block full-admin-only", () => {
@@ -1367,25 +1363,141 @@ describe("web/apiRoutes/settings", () => {
                 settingsStore.getConfig.mockReturnValue({});
             });
 
-            it("serves the section: cards, overlap and every server with role and channels", async () => {
-                settingsStore.getConfig.mockReturnValue(stored);
-                discord.getGuild.mockImplementation((id) => guild(id, id === "200" ? "Pulse Events" : "Pulse Talk", 10));
+            it("serves the page: servers with categories and language, links, bot servers and versions (#891)", async () => {
+                settingsStore.getConfig.mockReturnValue({ ...stored, categoryIds: ["2009"] });
+                discord.getGuild.mockImplementation((id) => ({
+                    ...guild(id, id === "200" ? "Pulse Events" : "Pulse Talk", 10),
+                    preferredLocale: id === "300" ? "en-US" : "de",
+                }));
                 discord.listGuilds.mockReturnValue([{ id: "200", name: "Pulse Events" }, { id: "300", name: "Pulse Talk" }, { id: "400", name: "Andere" }]);
                 discord.listTextChannels.mockImplementation((id) => [{ id: `${id}1`, name: "chat", category: "" }]);
-                discord.fetchGuildMembersCached.mockImplementation(async (id) => (id === "200"
-                    ? [{ id: "a", user: {} }, { id: "b", user: {} }]
-                    : [{ id: "b", user: {} }]));
+                discord.listCategories.mockImplementation((id) => (id === "200" ? [{ id: "2009", name: "Raids" }, { id: "2008", name: "Chat" }] : []));
                 const res = mockRes();
                 await getDiscordServers({}, res);
                 const data = body(res);
-                expect(data.discordServers).toEqual(servedBlock);
-                expect(data.events[0].name).toBe("Pulse Events");
-                expect(data.talk.name).toBe("Pulse Talk");
-                expect(data.overlap).toEqual({ eventCount: 2, talkCount: 1, both: 1, error: null });
-                expect(data.guilds.map((g) => [g.id, g.role, g.channels[0].id])).toEqual([
-                    ["200", "event", "2001"], ["300", "talk", "3001"], ["400", "", "4001"],
+                // the talk fields stay off the page (#897 removes them), the global channels stay on it
+                expect(data.discordServers).toEqual({
+                    servers: stored.discordServers.servers,
+                    links: stored.discordServers.links,
+                    signupNoteChannelId: "",
+                    guildBankChannelId: "",
+                });
+                expect(data.servers.map((s) => [s.id, s.name, s.raidCategories, s.lang, s.memberCount])).toEqual([
+                    ["200", "Pulse Events", 1, "de", 10], ["300", "Pulse Talk", 0, "en", 10],
                 ]);
+                expect(data.guilds.map((g) => [g.id, g.lang, g.channels[0].id])).toEqual([
+                    ["200", "de", "2001"], ["300", "en", "3001"], ["400", "de", "4001"],
+                ]);
+                expect(data.versions.map((v) => v.id)).toEqual(expect.arrayContaining(["tbc"]));
+                expect(data.overlap).toBeUndefined();
+                expect(data.talk).toMatchObject({ id: "300" });
                 settingsStore.getConfig.mockReturnValue({});
+                discord.listCategories.mockReturnValue([]);
+            });
+
+            describe("PATCH servers and links (#891)", () => {
+                const patchStored = {
+                    discordServers: {
+                        servers: [{ guildId: "20000", label: "" }, { guildId: "30000", label: "" }],
+                        links: [{ from: "20000", to: "30000", channelId: "30001", lang: "en", versions: ["tbc"] }],
+                        talkGuildId: "30000", talkPingChannelId: "",
+                    },
+                };
+                const save = async (discordServers) => {
+                    settingsStore.getConfig.mockReturnValue(patchStored);
+                    readJsonBody.mockResolvedValue({ discordServers });
+                    const res = mockRes();
+                    await updateSettings({ headers: {} }, res);
+                    settingsStore.getConfig.mockReturnValue({});
+                    return res;
+                };
+                const link = { from: "20000", to: "40000", channelId: "40001", lang: "", versions: [] };
+
+                it("stores the servers and links as sent, without touching the talk fields", async () => {
+                    await save({
+                        servers: [{ guildId: "20000", label: " Raids " }, { guildId: "30000", label: "" }],
+                        links: [...patchStored.discordServers.links, { ...link, lang: "de", versions: ["tbc", "tbc"] }],
+                    });
+                    expect(settingsStore.saveConfig).toHaveBeenCalledWith({
+                        discordServers: {
+                            servers: [{ guildId: "20000", label: "Raids" }, { guildId: "30000", label: "" }],
+                            links: [
+                                { from: "20000", to: "30000", channelId: "30001", lang: "en", versions: ["tbc"] },
+                                { from: "20000", to: "40000", channelId: "40001", lang: "de", versions: ["tbc"] },
+                            ],
+                        },
+                    });
+                });
+
+                it("checks links sent alone against the stored servers", async () => {
+                    await save({ links: [link] });
+                    expect(settingsStore.saveConfig).toHaveBeenCalledWith({ discordServers: { links: [link] } });
+                });
+
+                it.each([
+                    ["an unknown source server", { links: [{ ...link, from: "99999" }] }, "Unbekannter Quell-Server."],
+                    ["a source removed in the same save", { servers: [{ guildId: "30000" }], links: [link] }, "Unbekannter Quell-Server."],
+                    ["a missing channel", { links: [{ ...link, channelId: "" }] }, "Kanal fehlt."],
+                    ["a target that is no server id", { links: [{ ...link, to: "abc" }] }, "Unbekannter Ziel-Server."],
+                    ["a duplicate link", { links: [link, { ...link, channelId: "40002" }] }, "Diese Verknüpfung gibt es schon."],
+                    ["an unknown language", { links: [{ ...link, lang: "fr" }] }, "Unbekannte Sprache."],
+                    ["an unknown version", { links: [{ ...link, versions: ["wotlk-x"] }] }, "Unbekannte Spielversion."],
+                    ["a server id that is no snowflake", { servers: [{ guildId: "x" }] }, "Unbekannter Server."],
+                    ["a server twice", { servers: [{ guildId: "20000" }, { guildId: "20000" }] }, "Server doppelt eingetragen."],
+                    ["more than ten servers", { servers: Array.from({ length: 11 }, (_, i) => ({ guildId: String(1000 + i) })) }, "Höchstens 10 Server."],
+                    ["the old eventGuilds list", { eventGuilds: [{ guildId: "20000" }] }, "Veraltetes Format – bitte die Seite neu laden."],
+                    ["removing the old ping server (talkGuildId)", { servers: [{ guildId: "20000" }], links: [link] },
+                        "Dieser Server ist noch als Ping-Server eingetragen und lässt sich erst später entfernen."],
+                    ["servers alone that drop a link's source", { servers: [{ guildId: "30000" }] },
+                        "Der Server ist noch Quelle einer Verknüpfung – erst die Verknüpfung entfernen."],
+                ])("refuses %s with a 400", async (_name, block, message) => {
+                    const res = await save(block);
+                    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    expect(json(res).error).toMatchObject({ code: "invalid_discord_servers", message });
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                it("caps a label at the schema's 60 characters", async () => {
+                    await save({ servers: [{ guildId: "20000", label: "x".repeat(80) }, { guildId: "30000" }], links: patchStored.discordServers.links });
+                    const sent = settingsStore.saveConfig.mock.calls[0][0].discordServers.servers;
+                    expect(sent[0].label).toHaveLength(60);
+                });
+
+                it("keeps the stored state intact after the real normalisation", async () => {
+                    // saveConfig/getConfig go to the real configStore on a temp file:
+                    // the old ping server is re-added there, so a removal must be refused.
+                    const configStore = require("../../../src/stores/configStore");
+                    configStore.useFile(tempStoreFile("ds-891-config.json"));
+                    settingsStore.getConfig.mockImplementation(() => configStore.getConfig());
+                    settingsStore.saveConfig.mockImplementation((p) => configStore.saveConfig(p));
+                    try {
+                        configStore.saveConfig({ discordServers: patchStored.discordServers });
+                        readJsonBody.mockResolvedValue({ discordServers: { servers: [{ guildId: "20000", label: "" }], links: [] } });
+                        const refused = mockRes();
+                        await updateSettings({ headers: {} }, refused);
+                        expect(refused.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                        expect(configStore.getConfig().discordServers).toMatchObject({
+                            servers: [{ guildId: "20000" }, { guildId: "30000" }],
+                            links: [{ from: "20000", to: "30000", channelId: "30001" }],
+                        });
+
+                        // removing a plain server with its links goes through as sent
+                        configStore.saveConfig({ discordServers: { servers: [...patchStored.discordServers.servers, { guildId: "50000", label: "" }],
+                            links: [...patchStored.discordServers.links, { from: "50000", to: "30000", channelId: "30002", lang: "", versions: [] }] } });
+                        readJsonBody.mockResolvedValue({ discordServers: { servers: patchStored.discordServers.servers, links: patchStored.discordServers.links } });
+                        const ok = mockRes();
+                        await updateSettings({ headers: {} }, ok);
+                        expect(ok.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                        const stored = configStore.getConfig().discordServers;
+                        expect(stored.servers.map((s) => s.guildId)).toEqual(["20000", "30000"]);
+                        expect(stored.links).toEqual([{ from: "20000", to: "30000", channelId: "30001", lang: "en", versions: ["tbc"] }]);
+                        expect(stored.talkGuildId).toBe("30000");
+                    } finally {
+                        configStore.useFile(null);
+                        settingsStore.getConfig.mockImplementation(() => ({}));
+                        settingsStore.saveConfig.mockImplementation((partial) => ({ ...partial }));
+                    }
+                });
             });
 
             it("answers the section to full admins only", async () => {
