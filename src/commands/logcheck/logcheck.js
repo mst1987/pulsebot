@@ -20,7 +20,7 @@ module.exports = {
 
         let result;
         try {
-            result = await buildReport(link);
+            result = await buildReport(link, { guildId: interaction.guildId || "" });
         } catch (e) {
             // A raid that is still running is not an error but a question: the
             // button under the refusal opens the confirmation modal that runs it

@@ -134,7 +134,7 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
         weights,
         // The bot's newest logs, so the log panel at a raider can offer them
         // to pick from instead of asking for a link every time.
-        recentLogs: recentLogs(),
+        recentLogs: recentLogs(undefined, { guildId }),
         // Who the council has set aside, so the page can offer them back — and
         // say why a familiar name is missing instead of looking broken. Only
         // those this view would otherwise list (`setAside`): the store is one
@@ -640,7 +640,7 @@ const postArmoryRefresh = withUser({ write: "lootcouncil", csrf: true, body: tru
  * replaces the armory's answer for that raider (it is the newer request), so
  * the armory cache entry is dropped with it.
  */
-const postLogGear = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ body, res }) => {
+const postLogGear = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ req, body, res }) => {
     const character = String(body.character || "").trim();
     if (!character) return apiError(res, 400, "bad_request", "Kein Charakter angegeben.");
     if (body.clear) {
@@ -651,7 +651,7 @@ const postLogGear = withUser({ write: "lootcouncil", csrf: true, body: true }, a
         return ok(res, { cleared });
     }
     try {
-        const { snapshot, tried } = await loadLogGear(character, { reportId: body.reportId, link: body.link });
+        const { snapshot, tried } = await loadLogGear(character, { reportId: body.reportId, link: body.link, guildId: activeGuildFor(req) });
         clearArmoryFor(character);
         ok(res, {
             reportId: snapshot.reportId,

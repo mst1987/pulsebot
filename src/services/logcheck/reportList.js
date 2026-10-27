@@ -4,6 +4,7 @@
 // query params.
 
 const { reportLink, recordVersion, knownLogVersion } = require("./logVersion");
+const { reportGuildResolver } = require("./reportGuild");
 
 const DEFAULT_PAGE_SIZE = 15;
 
@@ -215,7 +216,8 @@ function claRowFromReport(r) {
         versionId: recordVersion(r),
         postedAt: r.generatedAt || 0,
         source: "link",
-        guildId: "",
+        // the server it was evaluated on (#920)
+        guildId: String(r.guildId || ""),
         channelId: "",
         messageId: "",
         channelName: "",
@@ -261,16 +263,21 @@ const CLA_SORT_KEYS = {
  * @param {object} [opts]      { pageSize, allLogs, inVersion } — allLogs: every guild's logs, so a
  *   report whose log lives in another guild is not mistaken for a link report; inVersion(row):
  *   whether a row belongs to the version shown (#741, logVersion.inVersionList) — counted
- *   and listed are only those
+ *   and listed are only those; guildId: the active server (#920) - given, only the link reports
+ *   evaluated on it are listed (none for ""); left out, every one (as before)
  * @returns {{ page, filter, counts: {all,open,unlinked,done} }}
  */
 function prepareClaList(logs, reports, query = {}, opts = {}) {
     const reportById = new Map((reports || []).map((r) => [r.id, r]));
     const referenced = new Set((opts.allLogs || logs || []).map((l) => l && l.reportRefId).filter(Boolean));
     const inVersion = typeof opts.inVersion === "function" ? opts.inVersion : () => true;
+    // The one report rule (reportGuild.js): a report without a log carries its server itself; one with a log is
+    // listed by its log anyway.
+    const guildOf = reportGuildResolver(opts.allLogs || logs);
+    const ownServer = opts.guildId === undefined ? () => true : (r) => !!opts.guildId && guildOf(r) === String(opts.guildId);
     const rows = [
         ...(logs || []).map((l) => claRowFromLog(l, reportById.get(l.reportRefId))),
-        ...(reports || []).filter((r) => !referenced.has(r.id)).map(claRowFromReport),
+        ...(reports || []).filter((r) => !referenced.has(r.id) && ownServer(r)).map(claRowFromReport),
     ].filter(inVersion);
     const counts = {};
     for (const f of CLA_FILTERS) counts[f] = rows.filter(CLA_FILTER_TESTS[f]).length;

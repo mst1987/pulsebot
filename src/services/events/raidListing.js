@@ -164,7 +164,7 @@ async function loadPastRaids(guildId, opts = {}) {
     // the further raids of a raid group too (#811): each has its own logs and loot
     const stored = listStoredEvents(guildId, { siblings: true });
     const logs = listLogs()
-        .filter((l) => !l.guildId || l.guildId === guildId)
+        .filter((l) => l.guildId === guildId)
         .map((l) => ({ ...l, postedAt: logPostedAt(l) }));
     const recent = buildRecentEvents(stored, { logs, limit: Infinity, windowDays: Infinity, now: opts.now });
 

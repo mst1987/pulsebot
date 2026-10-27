@@ -80,11 +80,15 @@ function saveSnapshot(snapshot) {
 
 /**
  * The bot's newest logs, as the page lists them to pick from. Newest posted
- * first; a log without a report id (never resolved) is of no use here.
+ * first; a log without a report id (never resolved) is of no use here. Only the
+ * logs of one Discord server (#920) - without a server none, never every server's.
+ * @param {number} [limit]
+ * @param {{ guildId?: string }} [opts] the active server
  */
-function recentLogs(limit = 12) {
+function recentLogs(limit = 12, { guildId = "" } = {}) {
+    if (!guildId) return [];
     return listLogs()
-        .filter((log) => log.reportId)
+        .filter((log) => log.reportId && log.guildId === guildId)
         .map((log) => ({
             reportId: log.reportId,
             title: log.title || "",
@@ -141,14 +145,14 @@ function newClient() {
  * Load a character's gear from a log and keep it.
  *
  * With a report id or link, that report and only that one — "not in this log"
- * is an answer. Without, the bot's newest logs are opened one after another
- * until one has the character; the result says how many were tried, so a
+ * is an answer. Without, the bot's newest logs of the active server (`guildId`,
+ * #920) are opened one after another until one has the character; the result says how many were tried, so a
  * failure can name the number rather than just "not found".
  *
  * @returns {Promise<{snapshot: object, tried: number}>}
  * @throws {LogGearError}
  */
-async function loadLogGear(character, { reportId = "", link = "", wcl = null } = {}) {
+async function loadLogGear(character, { reportId = "", link = "", wcl = null, guildId = "" } = {}) {
     const name = String(character || "").trim();
     if (!name) throw new LogGearError("Kein Charakter angegeben.", 400);
     const client = wcl || newClient();
@@ -166,7 +170,7 @@ async function loadLogGear(character, { reportId = "", link = "", wcl = null } =
         return { snapshot, tried: 1 };
     }
 
-    const logs = recentLogs(MAX_LOGS);
+    const logs = recentLogs(MAX_LOGS, { guildId });
     if (!logs.length) throw new LogGearError("Der Bot kennt noch kein Log — einen Warcraft-Logs-Link angeben.");
     let tried = 0;
     for (const log of logs) {

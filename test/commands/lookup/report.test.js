@@ -1,10 +1,12 @@
 jest.mock("../../../src/stores/reportStore", () => ({ listReports: jest.fn() }));
+jest.mock("../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
 jest.mock("../../../src/services/loot/lootStats", () => ({ itemCatalog: jest.fn() }));
 
 const { MessageFlags } = require("discord.js");
 const report = require("../../../src/commands/lookup/report");
 const council = require("../../../src/commands/lookup/council");
 const { listReports } = require("../../../src/stores/reportStore");
+const { listLogs } = require("../../../src/stores/logStore");
 const { itemCatalog } = require("../../../src/services/loot/lootStats");
 const { EMBED_LIMITS } = require("../../../src/utils/discord/botLookup");
 const { embedSize } = require("../../helpers/embed");
@@ -17,6 +19,7 @@ const buttons = (i) => (i.reply.mock.calls[0][0].components[0] || { components: 
 beforeEach(() => {
     jest.clearAllMocks();
     listReports.mockReturnValue([]);
+    listLogs.mockReturnValue([]);
     itemCatalog.mockReturnValue([]);
 });
 
@@ -28,8 +31,8 @@ describe("/report", () => {
 
     it("lists the newest evaluations with links to their pages", async () => {
         listReports.mockReturnValue([
-            { id: "old", title: "Karazhan", zone: "Karazhan", generatedAt: 1000, raids: null },
-            { id: "new", title: "Hyjal + BT", generatedAt: 5000000, raids: [{ label: "Hyjal", killed: 5, total: 5 }, { label: "BT", killed: 3, total: 9 }] },
+            { id: "old", title: "Karazhan", zone: "Karazhan", generatedAt: 1000, raids: null, guildId: "guild-1" },
+            { id: "new", title: "Hyjal + BT", generatedAt: 5000000, guildId: "guild-1", raids: [{ label: "Hyjal", killed: 5, total: 5 }, { label: "BT", killed: 3, total: 9 }] },
         ]);
         const i = mockInteraction();
         await report.execute(i);
@@ -43,11 +46,42 @@ describe("/report", () => {
     });
 
     it("lists at most five and stays within the embed limits", async () => {
-        listReports.mockReturnValue(Array.from({ length: 30 }, (_, n) => ({ id: `r${n}`, title: "T".repeat(500), zone: "Z".repeat(500), generatedAt: n })));
+        listReports.mockReturnValue(Array.from({ length: 30 }, (_, n) => ({ id: `r${n}`, title: "T".repeat(500), zone: "Z".repeat(500), generatedAt: n, guildId: "guild-1" })));
         const i = mockInteraction();
         await report.execute(i);
         expect((embed(i).description.match(/\/r\/r\d+/g) || [])).toHaveLength(report.MAX_REPORTS);
         expect(embedSize(embed(i))).toBeLessThanOrEqual(EMBED_LIMITS.total);
+    });
+
+    it("lists only the evaluations of the server it runs on (#920)", async () => {
+        listReports.mockReturnValue([
+            { id: "theirs", title: "Fremd", generatedAt: 9000, guildId: "guild-2" },
+            // its log moved to guild-2: it goes along
+            { id: "moved", title: "Umgezogen", generatedAt: 8000, guildId: "guild-1" },
+            { id: "mine", title: "Eigen", generatedAt: 5000, guildId: "guild-1" },
+            // a log on guild-1 decides for a report without a server
+            { id: "bylog", title: "Per Log", generatedAt: 4000 },
+            { id: "nobody", title: "Ohne Server", generatedAt: 3000 },
+        ]);
+        listLogs.mockReturnValue([
+            { id: "l1", reportRefId: "moved", guildId: "guild-2" },
+            { id: "l2", reportRefId: "bylog", guildId: "guild-1" },
+        ]);
+        const i = mockInteraction();
+        await report.execute(i);
+        const d = embed(i).description;
+        expect(d).toContain("**2 Auswertungen**");
+        expect(d).toMatch(/\/r\/mine\)/);
+        expect(d).toMatch(/\/r\/bylog\)/);
+        expect(d).not.toMatch(/\/r\/(theirs|moved|nobody)\)/);
+    });
+
+    it("lists nothing outside a server", async () => {
+        listReports.mockReturnValue([{ id: "x", title: "X", generatedAt: 1, guildId: "guild-1" }]);
+        const i = mockInteraction({ guild: null });
+        i.guild = null;
+        await report.execute(i);
+        expect(embed(i).description).toContain("/logcheck");
     });
 
     it("points to /logcheck when nothing was evaluated yet", async () => {

@@ -120,18 +120,33 @@ describe("services/logcheck/logAutoLink", () => {
     describe("autoLinkAllGuilds", () => {
         it("sums the assignments across every guild", async () => {
             mockListGuilds.mockReturnValue([{ id: "g1" }, { id: "g2" }]);
-            // guildId-less logs count for whichever guild is being processed.
-            mockListLogs.mockImplementation(() => [{ ...log("l1", raidB.startTime * 1000 + HOUR), guildId: "" }]);
+            // each guild links its own log only (#920)
+            mockListLogs.mockImplementation(() => [
+                log("l1", raidB.startTime * 1000 + HOUR),
+                { ...log("l2", raidB.startTime * 1000 + HOUR), guildId: "g2" },
+            ]);
             mockLoadMatchableEvents.mockResolvedValue({ events: [raidA, raidB], error: null });
 
             expect(await autoLinkAllGuilds()).toBe(2);
+            expect(mockLinkEvent.mock.calls.map((c) => c[0])).toEqual(["l1", "l2"]);
+        });
+
+        it("links a log without a server for no guild (#920)", async () => {
+            mockListGuilds.mockReturnValue([{ id: "g1" }, { id: "g2" }]);
+            mockListLogs.mockImplementation(() => [{ ...log("l1", raidB.startTime * 1000 + HOUR), guildId: "" }]);
+            mockLoadMatchableEvents.mockResolvedValue({ events: [raidA, raidB], error: null });
+
+            expect(await autoLinkAllGuilds()).toBe(0);
+            expect(mockLinkEvent).not.toHaveBeenCalled();
         });
 
         it("keeps going when one guild fails", async () => {
             const spy = jest.spyOn(console, "error").mockImplementation(() => {});
             mockListGuilds.mockReturnValue([{ id: "bad" }, { id: "g2" }]);
-            // guildId-less logs count for whichever guild is being processed.
-            mockListLogs.mockImplementation(() => [{ ...log("l1", raidB.startTime * 1000 + HOUR), guildId: "" }]);
+            mockListLogs.mockImplementation(() => [
+                { ...log("l0", raidB.startTime * 1000 + HOUR), guildId: "bad" },
+                { ...log("l1", raidB.startTime * 1000 + HOUR), guildId: "g2" },
+            ]);
             mockLoadMatchableEvents.mockImplementation(async (guildId) =>
                 (guildId === "bad" ? { events: [], error: "API down" } : { events: [raidA, raidB], error: null }));
 

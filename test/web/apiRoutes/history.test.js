@@ -14,6 +14,7 @@ jest.mock("../../../src/stores/reportStore", () => ({
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
+    setReportGuild: jest.fn(() => false),
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
@@ -271,6 +272,8 @@ const dashboardData = require("../../../src/web/dashboard/dashboardData");
 const discord = require("../../../src/services/discord/discord");
 const raidEventGroups = require("../../../src/services/events/raidEventGroups");
 const logStore = require("../../../src/stores/logStore");
+const { reportsOfGuild } = require("../../../src/services/logcheck/reportGuild");
+const reportStore = require("../../../src/stores/reportStore");
 const lootStore = require("../../../src/stores/lootStore");
 const lootAwards = require("../../../src/web/loot/lootAwards");
 const characterInfo = require("../../../src/services/characters/characterInfo");
@@ -317,9 +320,12 @@ describe("web/apiRoutes/history", () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc" });
             logStore.listLogs.mockReturnValue([
-                { id: "tbc-log", eventId: "rh-1", versionId: "tbc" },
-                { id: "forever-log", eventId: "rh-2", versionId: "forever" },
-                { id: "waiting", eventId: "" },
+                { id: "tbc-log", guildId: "guild-1", eventId: "rh-1", versionId: "tbc" },
+                { id: "forever-log", guildId: "guild-1", eventId: "rh-2", versionId: "forever" },
+                { id: "waiting", guildId: "guild-1", eventId: "" },
+                // another server's log, and one without a server: in no version (#920)
+                { id: "foreign", guildId: "guild-2", eventId: "" },
+                { id: "serverless", eventId: "" },
             ]);
             try {
                 const forever = json(await get("/api/history", { version: "forever" })).data;
@@ -384,7 +390,7 @@ describe("web/apiRoutes/history", () => {
             dashboardData.annotateUpcomingExtras.mockReturnValue([{ id: "e1", title: "Kara", lootCount: 2 }]);
             dashboardData.loadRecentEvents.mockResolvedValue({ events: [{ id: "e0", title: "Old Kara" }], error: null });
             lootStore.eventsWithLoot.mockReturnValue([{ eventId: "e1", label: "Kara", count: 2 }]);
-            logStore.listLogs.mockReturnValue([{ id: "l1", title: "Log 1" }]);
+            logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "guild-1", title: "Log 1" }]);
             discord.listCategories.mockReturnValue([{ id: "cat1", name: "Raids" }]);
             settingsStore.getConfig.mockReturnValue({ categoryLootTool: { cat1: "gargul" } });
 
@@ -397,7 +403,7 @@ describe("web/apiRoutes/history", () => {
                 pastRaids: { events: [{ id: "e0", title: "Old Kara" }], error: null },
                 // #563: each bucket names the version of its raid (no own event = TBC)
                 lootEvents: [{ eventId: "e1", label: "Kara", count: 2, versionId: "tbc" }],
-                logs: [{ id: "l1", title: "Log 1", postedAt: 0 }],
+                logs: [{ id: "l1", guildId: "guild-1", title: "Log 1", postedAt: 0 }],
                 categories: [{ id: "cat1", name: "Raids" }],
                 categoryLootTool: { cat1: "gargul" },
                 activeGuildId: "guild-1",
@@ -440,11 +446,11 @@ describe("web/apiRoutes/history", () => {
 
         it("computes each log's posted-date via logPostedAt (falls back through messageId/detectedAt)", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
-            logStore.listLogs.mockReturnValue([{ id: "l1", title: "Log 1", detectedAt: 555 }]);
+            logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "guild-1", title: "Log 1", detectedAt: 555 }]);
             reportList.logPostedAt.mockReturnValueOnce(555);
             const res = await get("/api/history");
-            expect(reportList.logPostedAt).toHaveBeenCalledWith({ id: "l1", title: "Log 1", detectedAt: 555 });
-            expect(json(res).data.logs).toEqual([{ id: "l1", title: "Log 1", detectedAt: 555, postedAt: 555 }]);
+            expect(reportList.logPostedAt).toHaveBeenCalledWith({ id: "l1", guildId: "guild-1", title: "Log 1", detectedAt: 555 });
+            expect(json(res).data.logs).toEqual([{ id: "l1", guildId: "guild-1", title: "Log 1", detectedAt: 555, postedAt: 555 }]);
         });
 
         it("annotates loot characters with their class color and spec icon", async () => {
@@ -478,6 +484,25 @@ describe("web/apiRoutes/history", () => {
             const res = await post("/api/history/log-delete", { logId: "l1" });
             expect(logStore.deleteLog).toHaveBeenCalledWith("l1");
             expect(json(res)).toEqual({ data: { id: "l1" } });
+        });
+
+        // #920: the report keeps the server of its deleted log instead of falling to another one
+        it("writes the log's server onto its report before the log goes", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const report = { id: "abc111" }; // an old report without a server of its own
+            let logs = [{ id: "l1", guildId: "B", reportRefId: "abc111" }];
+            logStore.getLog.mockImplementation((id) => logs.find((l) => l.id === id) || null);
+            logStore.deleteLog.mockImplementation((id) => { logs = logs.filter((l) => l.id !== id); return true; });
+            reportStore.setReportGuild.mockImplementation((id, guildId) => { if (id === report.id) report.guildId = guildId; return true; });
+            await post("/api/history/log-delete", { logId: "l1" });
+            expect(reportStore.setReportGuild).toHaveBeenCalledWith("abc111", "B");
+            expect(logs).toEqual([]);
+            expect(reportsOfGuild([report], "A", logs)).toEqual([]);
+            expect(reportsOfGuild([report], "B", logs)).toEqual([report]);
+            logStore.getLog.mockReset();
+            logStore.deleteLog.mockReset();
+            reportStore.setReportGuild.mockReset();
         });
     });
 
