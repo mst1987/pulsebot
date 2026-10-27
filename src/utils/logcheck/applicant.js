@@ -16,7 +16,7 @@ const { settingsForVersion, versionLinks } = require("../../services/events/vers
  * ready when the version has no realm, region or log site — then there is
  * nothing to ask, and the caller says so instead of guessing.
  * @param {string} [versionId] the application's version; unknown = the main version
- * @param {{ config?: object }} [opts]
+ * @param {{ config?: object, guildId?: string }} [opts]  `guildId`: the server applied on - its own realm/log template win (#923)
  */
 function applicantSource(versionId, opts = {}) {
     const s = settingsForVersion(versionId, opts);
@@ -64,10 +64,10 @@ function lastReport(parses) {
  * @param {object} wcl a WarcraftLogs client
  * @param {string} characterName
  * @param {{ className?: string, spec?: string }} [classSpec]
- * @param {{ versionId?: string, config?: object }} [opts]
+ * @param {{ versionId?: string, config?: object, guildId?: string }} [opts]
  */
-async function analyzeApplicant(wcl, characterName, classSpec = {}, { versionId, config } = {}) {
-    const source = applicantSource(versionId, { config });
+async function analyzeApplicant(wcl, characterName, classSpec = {}, { versionId, config, guildId } = {}) {
+    const source = applicantSource(versionId, { config, guildId });
     if (!source.ready) return null;
     let parses;
     try {

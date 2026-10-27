@@ -61,8 +61,10 @@ function effectiveRoles(profile) {
 /**
  * The API shape of a profile. `forOrga` adds who wished for this raider and
  * which wishes are mutual; without it no other profile's wishes are touched.
+ * `guildId` is the server the page is shown for (#923): its own armory
+ * template wins over the version's standard.
  */
-function profileView(profile, { forOrga = false, index = logIndex(), all = profiles.listProfiles(), seen = seenIndex() } = {}) {
+function profileView(profile, { forOrga = false, index = logIndex(), all = profiles.listProfiles(), seen = seenIndex(), guildId = "" } = {}) {
     const byId = new Map(all.map((p) => [p.userId, p]));
     // another raider is named by their first character of the main game version
     const config = getConfig();
@@ -78,7 +80,7 @@ function profileView(profile, { forOrga = false, index = logIndex(), all = profi
             className: c.className,
             source: c.source,
             armory: c.armory,
-            armoryUrl: armoryUrlFor(c.name, c.versionId),
+            armoryUrl: armoryUrlFor(c.name, c.versionId, guildId),
             // does it exist in game (log, loot, armory, orga)? An unconfirmed one gets no guild bank mail
             evidence: characterEvidence(c, { index: seen }),
             specs: c.specs.map((s) => specView(c, s, index)),
@@ -135,12 +137,13 @@ function realmSlug(realm) {
  * character's version, Einstellungen → Spielversion, #542/#543), plus class,
  * level and guild when the Blizzard API is configured for that version and
  * answers. Any failure means link only — never an error.
+ * `guildId` (#923): the server asking - its own realm and armory template win.
  * @returns {Promise<{ url, fetched, className, level, guild }>}
  */
-async function lookupArmory(name, realm = "", versionId = undefined) {
-    const out = { url: armoryUrlFor(name, versionId), fetched: false, className: "", level: null, guild: "" };
+async function lookupArmory(name, realm = "", versionId = undefined, { guildId = "" } = {}) {
+    const out = { url: armoryUrlFor(name, versionId, guildId), fetched: false, className: "", level: null, guild: "" };
     try {
-        const { client } = blizzardFor(versionId, { config: getConfig() });
+        const { client } = blizzardFor(versionId, { config: getConfig(), guildId });
         if (!client) return out;
         const opts = realm ? { realmSlug: realmSlug(realm) } : {};
         const summary = await client.getCharacterSummary(name, opts);

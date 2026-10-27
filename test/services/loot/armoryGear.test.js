@@ -13,7 +13,7 @@ jest.mock("../../../src/classes/blizzard", () => jest.fn().mockImplementation(()
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: (...a) => mockGetConfig(...a) }));
 
 const {
-    primeArmoryGear, armoryItemInSlot, armorySetFor, clearArmoryCache, toArmoryRows,
+    primeArmoryGear, armoryItemInSlot, armorySetFor, clearArmoryCache, clearArmoryFor, toArmoryRows,
 } = require("../../../src/services/loot/armoryGear");
 
 const equipped = (slot, id, over = {}) => ({
@@ -138,6 +138,50 @@ describe("services/loot/armoryGear", () => {
             await primeArmoryGear(["A", "B", "C", "D"], { full: true });
             expect(peak).toBeGreaterThan(1);
             expect(mockGetEquipment).toHaveBeenCalledTimes(4);
+        });
+    });
+
+    describe("per server (#923)", () => {
+        const G1 = "111111111111111111";
+        const G2 = "222222222222222222";
+        const withOwnRealm = () => mockGetConfig.mockReturnValue({
+            blizzard: { clientId: "id", clientSecret: "secret" },
+            serverSettings: { [G1]: { versionOverrides: { tbc: { blizzardRealmSlug: "spineshatter", blizzardRegion: "us" } } } },
+        });
+
+        it("keeps the answers of two servers on different realms apart", async () => {
+            withOwnRealm();
+            mockGetEquipment.mockResolvedValueOnce([equipped("TRINKET_1", 29370)]);
+            mockGetEquipment.mockResolvedValueOnce([equipped("TRINKET_1", 32483)]);
+            await primeArmoryGear(["Devihra"], { versionId: "tbc", guildId: G1, full: true });
+            await primeArmoryGear(["Devihra"], { versionId: "tbc", guildId: G2, full: true });
+            // the same name on another realm is another character: asked twice
+            expect(mockGetEquipment).toHaveBeenCalledTimes(2);
+            expect(armoryItemInSlot("Devihra", 12, { versionId: "tbc", guildId: G1 }).itemId).toBe("29370");
+            expect(armoryItemInSlot("Devihra", 12, { versionId: "tbc", guildId: G2 }).itemId).toBe("32483");
+            expect(armorySetFor("Devihra", { versionId: "tbc", guildId: G1 }).rows[0].itemId).toBe("29370");
+            // without a server the standard realm reads - the one G2 asked for
+            expect(armoryItemInSlot("Devihra", 12).itemId).toBe("32483");
+        });
+
+        it("serves a server without own realm from the standard realm's answer", async () => {
+            withOwnRealm();
+            mockGetEquipment.mockResolvedValue([equipped("TRINKET_1", 29370)]);
+            await primeArmoryGear(["Devihra"], { versionId: "tbc" });
+            await primeArmoryGear(["Devihra"], { versionId: "tbc", guildId: G2 });
+            expect(mockGetEquipment).toHaveBeenCalledTimes(1);
+            expect(armoryItemInSlot("Devihra", 12, { versionId: "tbc", guildId: G1 })).toBeNull();
+        });
+
+        it("forgets a character on every realm", async () => {
+            withOwnRealm();
+            mockGetEquipment.mockResolvedValue([equipped("TRINKET_1", 29370)]);
+            await primeArmoryGear(["Devihra"], { versionId: "tbc", guildId: G1 });
+            await primeArmoryGear(["Devihra", "Brokk"], { versionId: "tbc", guildId: G2 });
+            clearArmoryFor("devihra-Thunderstrike");
+            expect(armoryItemInSlot("Devihra", 12, { versionId: "tbc", guildId: G1 })).toBeNull();
+            expect(armoryItemInSlot("Devihra", 12, { versionId: "tbc", guildId: G2 })).toBeNull();
+            expect(armoryItemInSlot("Brokk", 12, { versionId: "tbc", guildId: G2 }).itemId).toBe("29370");
         });
     });
 

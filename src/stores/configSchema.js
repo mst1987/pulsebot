@@ -937,6 +937,9 @@ function legacyLogChannelIds(stored) {
 const SERVER_SETTING_DEFAULTS = Object.freeze({
     // #924: applications, raid defaults, bot language and two signup channels.
     ...SERVER_DEFAULTS_924,
+    // #923: own realm/armory/log templates per version, field by field over
+    // config.versionSettings (stores/versionSettingsSchema.js normalizeVersionOverrides)
+    versionOverrides: {},
     // #921: the channels watched for Warcraft Logs links, each with the game
     // version its logs belong to: [{ channelId, versionId }].
     logChannels: Object.freeze([]),

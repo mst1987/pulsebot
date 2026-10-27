@@ -56,6 +56,10 @@
             "label": "Recruitment",
             "crumb": "Module · Bewerbungen"
         },
+        "versionlinks": {
+            "label": "Links & Realm",
+            "crumb": "Spielversion · Armory, Logs und Realm dieses Servers"
+        },
         "dungeons": {
             "label": "Dungeon-Bestzeiten",
             "crumb": "Module · Gildenrekorde aus dem Addon LevelHelper"
@@ -848,6 +852,11 @@
         "unknownTip": "Unbekannte Kategorie",
         "unknownSub": "Diese ID ist konfiguriert, Discord kennt sie gerade aber nicht (Bot offline?). Sieht der Bot alle Server, wird eine gelöschte Kategorie als „in Discord gelöscht“ markiert und kann abgeschlossen werden.",
         "unknown": "unbekannt",
+        "unprovenTip": "Server nicht nachgewiesen",
+        "unprovenSub": "Server nicht nachweisbar (Bot offline oder Server unbekannt): Zu welchem Discord-Server diese Kategorie gehört, ist gerade nicht belegt — oder ihr Server steht nicht in der Server-Liste. Sie wird deshalb hier angezeigt und kann nicht abgeschlossen werden. Server unter Discord-Server eintragen, dann erscheint sie dort.",
+        "unproven": "Server unklar",
+        "notListed": "Server nicht in der Server-Liste",
+        "notListedSub": "Dieser Discord-Server steht nicht unter Discord-Server. Seine Kategorien können deshalb nicht als gelöscht erkannt oder abgeschlossen werden. Server dort eintragen.",
         "roleCount": {
             "one": "{count} Rolle",
             "other": "{count} Rollen"
@@ -1528,5 +1537,16 @@
         "channel": "Kanal für Gildenrekorde",
         "channelSub": "Hier postet der Bot jeden neuen Gildenrekord, in der Bot-Sprache.",
         "noChannel": "Ohne Kanal wird nichts gepostet."
+    },
+    "serverVersionLinks": {
+        "sub": "Eigene Armory- und Warcraft-Logs-Links und ein eigener Realm je Spielversion, nur für diesen Server. Ohne eigenen Wert gilt der Standard aus Alle Server › Spielversion. Wowhead, Softres, Raidsheet und Farbe bleiben für alle Server gleich.",
+        "hint": "Gilt nur für {server} und {version}. Aus = Standard aller Server.",
+        "saved": "Links und Realm für {server} gespeichert.",
+        "empty": "Eigener Wert ist an, aber leer. Wert eintragen oder Schalter ausschalten.",
+        "emptyBlocked": "Speichern geht erst, wenn jeder eingeschaltete Wert gefüllt ist.",
+        "placeHint": {
+            "blizzardRealmSlug": "In den Links wirkt der Realm nur, wenn die Vorlage {realm} enthält. Die Armory-Abfrage nutzt ihn immer.",
+            "blizzardRegion": "In den Links wirkt die Region nur, wenn die Vorlage {region} enthält. Die Armory-Abfrage nutzt sie immer."
+        }
     }
 }

@@ -56,19 +56,22 @@ const { expectedRoleIds } = require("../../services/roster/categoryRoles");
 const { openToAll } = require("../../services/signups/signupAccess");
 const { expectedRosterIds, listExpectedMembers } = require("../../services/roster/expectedRaiders");
 const { eventShown } = require("../../services/signups/eventVisibility");
+const { guildOfEvent } = require("../../services/discord/serverOf");
 
 /**
  * The version of the event on this page and its settings (#542): an own event
  * carries its version, a scanned Raid-Helper one its stored version (#737),
  * one not scanned yet plays its category's. The softres edition and the
  * default raidsheet follow it - a version without a softres edition (Forever
- * until softres.it has it) offers no list at all.
+ * until softres.it has it) offers no list at all. The raid's server picks its
+ * own armory/log templates (#923).
  */
 function eventVersionSettings(found, config) {
     const versionId = versionOfEvent({ id: found.e.id, versionId: found.e.versionId, categoryId: found.g.categoryId }, { config });
     const all = config.versionSettings || {};
+    const guildId = guildOfEvent({ guildId: found.e.guildId, categoryId: found.g.categoryId });
     return {
-        ...settingsForVersion(versionId, { config }),
+        ...settingsForVersion(versionId, { config, guildId }),
         otherSheetIds: Object.entries(all).filter(([id]) => id !== versionId).map(([, s]) => (s && s.raidsheetId) || ""),
     };
 }

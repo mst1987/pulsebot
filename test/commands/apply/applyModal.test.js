@@ -214,8 +214,8 @@ describe("commands/apply/applyModal", () => {
             expect.objectContaining({ name: "Armory (automatisch ermittelt)", value: "https://armory.test/classic/Nera" }),
             expect.objectContaining({ name: "WarcraftLogs (automatisch ermittelt)", value: "https://vanilla.warcraftlogs.com/character/eu/x/Nera" }),
         ]));
-        expect(applicantSource).toHaveBeenCalledWith("classic");
-        expect(analyzeApplicant).toHaveBeenCalledWith(expect.anything(), "Nera", { className: "Mage", spec: "Frost" }, { versionId: "classic" });
+        expect(applicantSource).toHaveBeenCalledWith("classic", { guildId: "" });
+        expect(analyzeApplicant).toHaveBeenCalledWith(expect.anything(), "Nera", { className: "Mage", spec: "Frost" }, { versionId: "classic", guildId: "" });
     });
 
     it("an application without a remembered version is a TBC one", async () => {

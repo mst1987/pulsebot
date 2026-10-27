@@ -117,11 +117,12 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     const focus = itemId > 0 && content.itemTable
         // Against the tier that was actually used, so "BiS für …" names the same
         // lists the roster's BiS column is counted against.
-        ? { item: itemView(itemId, usedBisTier), ...candidateSplit(itemId, rows) }
+        // the council's version and server: their armory answers, as in the roster (#923)
+        ? { item: itemView(itemId, usedBisTier), ...candidateSplit(itemId, rows, null, { versionId, guildId }) }
         : itemId > 0 && manual && manual.info.has(itemId)
             ? { item: manualItemView(manual, itemId), ...manualCandidateSplit(itemId, rows) }
             : null;
-    const gaps = focus ? [] : content.bis ? bisGaps(rows, { contentIds: contentFilter }) : manual ? manualBisGaps(rows) : [];
+    const gaps = focus ? [] : content.bis ? bisGaps(rows, { contentIds: contentFilter, versionId, guildId }) : manual ? manualBisGaps(rows) : [];
 
     ok(res, {
         roster: rows,
@@ -206,7 +207,8 @@ const postLootCouncilSim = withUser({ write: "lootcouncil", csrf: true, body: tr
     if (!id) return apiError(res, 400, "bad_request", "Job-Id fehlt.");
     const scope = new URLSearchParams();
     for (const key of ["roster", "category", "version"]) if (body[key]) scope.set(key, String(body[key]).trim());
-    const { versionId, config } = pageCouncilOpts(scope, { guildId: activeGuildFor(req) });
+    const guildId = activeGuildFor(req);
+    const { versionId, config } = pageCouncilOpts(scope, { guildId });
     const sim = featureState(versionId, "simulation", { config });
     if (!sim.on) {
         return sim.reason === "disabled"
@@ -222,7 +224,7 @@ const postLootCouncilSim = withUser({ write: "lootcouncil", csrf: true, body: tr
     if (!engine.isAvailable()) {
         return apiError(res, 503, "sim_unavailable", "Keine WoWSims-Simulation verfügbar — WOWSIMCLI_PATH ist nicht gesetzt.");
     }
-    const started = startCouncilSim(id, subjects, items);
+    const started = startCouncilSim(id, subjects, items, { versionId, guildId });
     ok(res, { ...started, id });
 });
 
@@ -493,7 +495,7 @@ const postProfileDelete = withUser({ write: "lootcouncil", csrf: true, body: tru
  * than a different one — an export that quietly differs would make the page
  * look wrong when it is not.
  */
-const getExport = withUser({}, async ({ user, res, url }) => {
+const getExport = withUser({}, async ({ user, req, res, url }) => {
     if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
 
     const character = String(url.searchParams.get("character") || "").trim();
@@ -504,7 +506,11 @@ const getExport = withUser({}, async ({ user, res, url }) => {
     // healing gear of whatever raid happens to be the newest.
     const known = characterMap()[charKey(character)] || {};
     const knownSpec = specFor(known.className, known.spec);
-    const gear = gearFor(character, { roleFor: () => (knownSpec ? knownSpec.role : "") });
+    // the council view's version (roster/category/version like the page) and the
+    // active server: its own realm/region decide which armory snapshot counts (#923)
+    const guildId = activeGuildFor(req);
+    const { versionId } = pageCouncilOpts(url.searchParams, { guildId });
+    const gear = gearFor(character, { roleFor: () => (knownSpec ? knownSpec.role : ""), versionId, guildId });
     if (!gear) return apiError(res, 404, "not_found", `Für ${character} ist kein Gear bekannt — der Charakter taucht in keiner der letzten CLA-Auswertungen auf.`);
 
     const specEntry = knownSpec || specFor(gear.className, known.spec);
@@ -613,12 +619,20 @@ const getItemSearch = withUser({}, async ({ user, res, url }) => {
  * would spend somebody else's rate limit on a page nobody is reading. And it is
  * a decision — "nimm den Stand von jetzt" — which belongs to the reader.
  */
-const postArmoryRefresh = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ body, res }) => {
+const postArmoryRefresh = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ body, req, res }) => {
     const characters = Array.isArray(body.characters) ? body.characters : [];
     if (!characters.length) return apiError(res, 400, "bad_request", "Keine Charaktere angegeben.");
 
-    const versionId = mainVersionFor({ categoryId: String(body.category || ""), config: getConfig() });
-    const result = await primeArmoryGear(characters, { full: true, force: true, versionId });
+    // The council view's version (#923): with `roster`/`version` like the page
+    // (pageCouncilOpts), else the category's as before.
+    const guildId = activeGuildFor(req);
+    const scope = new URLSearchParams();
+    for (const key of ["roster", "category", "version"]) if (body[key]) scope.set(key, String(body[key]).trim());
+    const versionId = scope.has("roster") || scope.has("version")
+        ? pageCouncilOpts(scope, { guildId }).versionId
+        : mainVersionFor({ categoryId: String(body.category || ""), config: getConfig() });
+    // the active server's own realm/region asks its characters (#923)
+    const result = await primeArmoryGear(characters, { full: true, force: true, versionId, guildId });
     if (!result.configured) {
         if (result.reason === "feature_off") {
             return apiError(res, 400, "armory_off", "Der Armory-Abruf ist für diese Spielversion ausgeschaltet (Einstellungen → Spielversion).");

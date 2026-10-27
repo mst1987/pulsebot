@@ -184,8 +184,9 @@ describe("the log channels of the active server (#921)", () => {
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
         const body = vi.mocked(api.updateSettings).mock.calls[0][0];
         expect("logChannels" in body).toBe(false);
-        // #924: the raid channel is the active server's own value, so it carries the server the page loaded
-        expect(body).toMatchObject({ raidDefaults: { channelId: "ch1" }, serverSettingsGuildId: "g1" });
+        // #924: the raid channel is the active server's own value; the active categories always go
+        // along (#926) - both with the server the page loaded
+        expect(body).toMatchObject({ raidDefaults: { channelId: "ch1" }, categoryIds: ["cat1"], serverSettingsGuildId: "g1" });
     });
 
     it("says the server was switched when the save is refused for it", async () => {
@@ -222,6 +223,8 @@ describe("the log channels of the active server (#921)", () => {
         await user.click(screen.getByRole("button", { name: "Speichern" }));
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
         expect("logChannels" in vi.mocked(api.updateSettings).mock.calls[0][0]).toBe(false);
+        // the categories go to the first server's part then: an empty id lets the server fall back
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0].serverSettingsGuildId).toBe("");
     });
 });
 
@@ -448,8 +451,9 @@ describe("the save bar", () => {
             discordVisuals: { overviewWeekStrip: false, setupImage: false, eventCover: true },
         });
         // #924: the per-server fields only go out when changed, so another server's values stay untouched
+        // (serverSettingsGuildId always goes along with the categories, #926)
         const body = vi.mocked(api.updateSettings).mock.calls[0][0];
-        for (const field of ["raidDefaults", "botLanguage", "officerRoleId", "applicationChannelId", "serverSettingsGuildId"]) {
+        for (const field of ["raidDefaults", "botLanguage", "officerRoleId", "applicationChannelId"]) {
             expect({ field, sent: field in body }).toEqual({ field, sent: false });
         }
     });
@@ -510,7 +514,8 @@ describe("the save bar", () => {
         await user.click(await screen.findByRole("button", { name: "Montag umschalten" }));
         await user.click(screen.getByRole("button", { name: "Speichern" }));
         expect(await screen.findByText("Serie (Mo 19:30) pausiert – legt keine Events an")).toBeInTheDocument();
-        expect(api.getCategoryDeactivate).toHaveBeenCalledWith(["cat2"]);
+        // the preview names the server the page loaded (#926)
+        expect(api.getCategoryDeactivate).toHaveBeenCalledWith(["cat2"], "g1");
         expect(api.updateSettings).not.toHaveBeenCalled();
 
         await user.click(screen.getByRole("button", { name: "Deaktivieren und speichern" }));

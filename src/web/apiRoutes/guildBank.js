@@ -246,7 +246,7 @@ const checkGuildBankCharacterArmory = withUser({ write: "raids", csrf: true, bod
     const target = characterToCheck(body, req);
     if (target.failure) return sendBankFailure(res, target.failure);
     const { bank, character, userId, characterKey } = target;
-    const answer = await lookupArmory(character.name, character.realm || bank.realm || "", character.versionId);
+    const answer = await lookupArmory(character.name, character.realm || bank.realm || "", character.versionId, { guildId: activeGuildFor(req) });
     const found = !!(answer.fetched && answer.level);
     if (found) profiles.setCharacterArmory(userId, characterKey, { level: answer.level, guild: answer.guild });
     ok(res, { found, choice: linking.choiceFor(userId, characterKey, bank.gameVersion) });

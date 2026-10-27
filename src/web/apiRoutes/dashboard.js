@@ -37,7 +37,7 @@ function seriesFailuresFor(guildId) {
 function kickerFor(guildId) {
     const guild = (discord.listGuilds() || []).find((g) => g.id === guildId);
     const config = getConfig();
-    const bnet = settingsForVersion(mainVersionFor({ config }), { config });
+    const bnet = settingsForVersion(mainVersionFor({ config }), { config, guildId });
     const slug = String(bnet.blizzardRealmSlug || "").replace(/-/g, " ");
     const realm = slug ? `${slug.replace(/\b\w/g, (c) => c.toUpperCase())} ${String(bnet.blizzardRegion || "").toUpperCase()}`.trim() : "";
     return { guild: (guild && guild.name) || "", realm };

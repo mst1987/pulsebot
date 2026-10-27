@@ -91,9 +91,12 @@ describe("purposes are settings", () => {
         expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { logChannels: ["a", "b"], serverSettingsGuildId: "g1" });
         await saveChannelPurpose(purpose({ key: "applicationChannelId" }), [], "g1");
         expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { applicationChannelId: "", serverSettingsGuildId: "g1" });
-        // a global purpose carries no server
+        // the categories too (#926: only the saving server's part changes)
         await saveChannelPurpose(purpose({ key: "categoryIds", multiple: true }), ["k1"], "g1");
-        expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { categoryIds: ["k1"] });
+        expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { categoryIds: ["k1"], serverSettingsGuildId: "g1" });
+        // a purpose that is not per server carries none
+        await saveChannelPurpose(purpose({ key: "signupChannelId" }), ["c1"], "g1");
+        expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { signupChannelId: "c1" });
     });
 
     it("names the server switch in plain words and passes other errors on (#921)", async () => {

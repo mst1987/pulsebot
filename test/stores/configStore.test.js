@@ -426,4 +426,18 @@ describe("stores/configStore serverSettings (#917)", () => {
         configStore.saveConfig({ adminRoleIds: ["1"] });
         expect(stored()).toEqual({ [A]: {}, [B]: {} });
     });
+
+    // #921 + #923 + #927 each own a key of the same server block: a save of one
+    // must not drop the others, neither stored nor read back.
+    it("raidhelper, logChannels and versionOverrides of one server survive each other's saves", () => {
+        const raidhelper = { enabled: true, serverId: "", apiKey: "k", envKey: false, at: 1, byName: "Orga" };
+        const logChannels = [{ channelId: "333333333333333333", versionId: "tbc" }];
+        writeFile({ guildId: A, discordServers: servers, serverSettings: { [A]: { raidhelper, logChannels } } });
+        const versionOverrides = { tbc: { armoryUrlTemplate: "https://own.test/{char}" } };
+        configStore.saveConfig({ serverSettings: { [A]: { versionOverrides } } });
+        configStore.saveConfig({ serverSettings: { [A]: { raidhelper: { ...raidhelper, enabled: false } } } });
+        configStore.saveConfig({ serverSettings: { [A]: { logChannels } } });
+        expect(stored()[A]).toEqual({ raidhelper: { ...raidhelper, enabled: false }, logChannels, versionOverrides });
+        expect(configStore.getConfig().serverSettings[A]).toMatchObject({ raidhelper: { enabled: false }, logChannels, versionOverrides });
+    });
 });

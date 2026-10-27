@@ -580,12 +580,12 @@ describe("stores/settingsStore", () => {
 
         it("hands the old global default template to every raid category", () => {
             fs.__store.set(TEMPLATES_FILE, JSON.stringify({ templates: [{ id: "3", name: "GDKP Kara" }] }));
-            fs.__store.set(CONFIG_FILE, JSON.stringify({ guildId: "111111", categoryIds: ["c1", "c2"], raidDefaults: { templateId: "3", channelId: "ch" } }));
+            fs.__store.set(CONFIG_FILE, JSON.stringify({ guildId: "111111", categoryIds: ["c1", "c2"], raidDefaults: { templateId: "3", channelId: "1800000000000000090" } }));
             migrateSettings({ log: () => {} });
             const cfg = getConfig();
             expect(cfg.categoryRaidTemplate).toEqual({ c1: "rh-3", c2: "rh-3" });
             // the channel moved to the server (#924), the template id stayed behind
-            expect(cfg.serverSettings["111111"].raidDefaults).toEqual({ channelId: "ch" });
+            expect(cfg.serverSettings["111111"].raidDefaults).toEqual({ channelId: "1800000000000000090" });
             // a saved map ends the migration, even an emptied one
             saveConfig({ categoryRaidTemplate: { c1: "rh-3", c2: "" } });
             expect(getConfig().categoryRaidTemplate).toEqual({ c1: "rh-3" });

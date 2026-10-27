@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import {
-    getSettings, updateSettings, getIngestTokens, getAvailabilityPanels, getOrgaHubs, type ApiError, type AvailabilityLink, type AvailabilityPanel, type OrgaHub, type OrgaLink,
+    getSettings, updateSettings, serverCategoriesOf, getIngestTokens, getAvailabilityPanels, getOrgaHubs, type ApiError, type AvailabilityLink, type AvailabilityPanel, type OrgaHub, type OrgaLink,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { usePersistedSearchParam } from "../../lib/ui/persistedState";
@@ -43,6 +43,7 @@ import DiscordVisualsCard from "./DiscordVisualsCard";
 import DungeonRecordsCard from "./DungeonRecordsCard";
 import VersionFeaturesCard from "./VersionFeaturesCard";
 import VersionLaunchCard from "./VersionLaunchCard";
+import ServerVersionLinksSection from "./ServerVersionLinksSection";
 import { withDisabled } from "../../lib/settings/versionFeatures";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { XIcon, SaveIcon } from "../../components/ui/icons";
@@ -193,7 +194,7 @@ export default function SettingsPage() {
 
     // "Kategorie abschließen" is only offered without unsaved changes, so the draft can follow the server.
     const afterClose = (result: CategoryCloseResult) => {
-        setData({ ...data, config: result.config, missingCategories: result.missingCategories });
+        setData({ ...data, ...serverCategoriesOf(result), config: result.config, missingCategories: result.missingCategories });
         setDraft(toDraft(result.config, data.activeGuildId));
         setClosing(null);
         toast(t("settings.categoryClose.done", { name: result.name || t("settings.categoryClose.unknownName") }));
@@ -206,7 +207,7 @@ export default function SettingsPage() {
         const serverDefaults = Object.keys(defaultsChanged).length
             ? { ...defaultsChanged, serverSettingsGuildId: data.activeGuildId || "" } : {};
         try {
-            const { config, switchedCategories = [], deactivatedCategories = [] } = await updateSettings({
+            const answer = await updateSettings({
                 // Access config is full-admin-only; sending it as anyone else
                 // would (rightly) be rejected with a 403.
                 ...(data.canManageAccess ? {
@@ -216,15 +217,17 @@ export default function SettingsPage() {
                     userPermissions: draft.userPermissions,
                     orgaRoleIds: draft.orgaRoleIds,
                 } : {}),
-                // #924: the active server's own values, only the ones changed here, with the server this
-                // page loaded — a tab left on another server is refused (409) instead of writing there.
+                // #924: the active server's own values, only the ones changed here.
                 ...serverDefaults,
+                // #926: the categories (only this server's part changes), #921 the log channels and #924 the
+                // values above belong to the server this page loaded — sent with it, so a tab left on another
+                // server is refused (409) instead of writing there. "" = none was active (the categories then
+                // edit the first server, the bot language its default).
                 categoryIds: draft.categoryIds,
+                serverSettingsGuildId: data.activeGuildId || "",
                 categoryRoles: draft.categoryRoles,
-                // #921: the log channels belong to the server this page loaded — sent only when changed,
-                // with that server, so a tab left on another server is refused (409) instead of writing there.
-                ...(data.activeGuildId && logChannelsChanged(saved, draft)
-                    ? { logChannels: draft.logChannels, serverSettingsGuildId: data.activeGuildId } : {}),
+                // the log channels only when changed (they need an active server)
+                ...(data.activeGuildId && logChannelsChanged(saved, draft) ? { logChannels: draft.logChannels } : {}),
                 categoryLootTool: draft.categoryLootTool,
                 // Merged on the server: "automatisch" is sent as "" and drops the entry.
                 categoryLootSystem: draft.categoryLootSystem,
@@ -273,7 +276,9 @@ export default function SettingsPage() {
                 categoryPlanning: draft.categoryPlanning,
                 topItems: draft.topItems,
             });
-            setData({ ...data, config });
+            const { config, switchedCategories = [], deactivatedCategories = [] } = answer;
+            // #926: the active server's part of the categories, and what is proven gone there
+            setData({ ...data, ...serverCategoriesOf(answer), ...(answer.missingCategories ? { missingCategories: answer.missingCategories } : {}), config });
             setDraft(toDraft(config, data.activeGuildId));
             toast(t("settings.savedToast"));
             // #738: each switched category started a new section.
@@ -383,6 +388,9 @@ export default function SettingsPage() {
                     roles={data.roles}
                     categoryIds={draft.categoryIds}
                     missing={data.missingCategories || []}
+                    unproven={data.unprovenCategoryIds || []}
+                    otherServer={data.otherServerCategoryIds || []}
+                    serverListed={data.serverListed !== false}
                     onCloseCategory={setClosing}
                     closeBlocked={changes.length > 0}
                     categoryRoles={draft.categoryRoles}
@@ -526,6 +534,23 @@ export default function SettingsPage() {
                 </>
             );
 
+            // #923: the server's own armory/log links and realm, field by field over "Spielversion"
+            case "versionlinks": return (
+                <>
+                    {head(activeSection, undefined, sectionLabel(activeSection), t("settings.serverVersionLinks.sub"))}
+                    <ServerVersionLinksSection
+                        key={data.activeGuildId}
+                        versions={data.gameVersions || []}
+                        mainVersion={draft.mainVersion}
+                        standard={data.config.versionSettings || {}}
+                        saved={data.config.serverSettings?.[data.activeGuildId]?.versionOverrides}
+                        serverName={(data.bot && data.bot.guildName) || data.activeGuildId}
+                        guildId={data.activeGuildId}
+                        onSaved={(config) => setData({ ...data, config })}
+                    />
+                </>
+            );
+
             case "raidsheets": return (
                 <>
                     {head(activeSection, undefined, t("settings.page.raidsheetsTip"), t("settings.page.raidsheetsSub"))}
@@ -649,7 +674,7 @@ export default function SettingsPage() {
                     </div>
                 )}
                 {deactivating && (
-                    <CategoryDeactivateDialog next={draft.categoryIds} names={categoryNames} onCancel={() => setDeactivating(false)} onConfirm={() => void save()} />
+                    <CategoryDeactivateDialog next={draft.categoryIds} guildId={data.activeGuildId || ""} names={categoryNames} onCancel={() => setDeactivating(false)} onConfirm={() => void save()} />
                 )}
             </div>
         </RailLayout>
