@@ -5,7 +5,7 @@ import type { DiscordServers, DiscordServerCard } from "./discordServers";
 import type { EventSource, PlanningMode } from "./raidDetail";
 import type { TextChannel } from "./recruitment";
 import type { BotAccessRule } from "./botCommands";
-import type { VersionSettingsBlock } from "../lib/settings/versionLinks";
+import type { VersionOverrides, VersionSettingsBlock } from "../lib/settings/versionLinks";
 import type { CapabilityMatrix } from "../lib/settings/versionFeatures";
 import type { AddonSetting } from "./addons";
 
@@ -86,6 +86,8 @@ export type AdminConfig = {
      * `disabled` (#761): the features switched off for the version, only when there are any.
      */
     versionSettings?: Record<string, VersionSettingsBlock & { disabled?: string[] }>;
+    /** Per Discord server (#923, epic #926): e.g. its own armory/log templates and realm per version. */
+    serverSettings?: Record<string, { versionOverrides?: VersionOverrides }>;
     blizzard: BlizzardConfig;
     // Claude phrases the log recommendations for the raiders. The key itself
     // never comes back from the server — only whether one is stored.
@@ -424,4 +426,13 @@ export function createIngestToken(
 
 export function deleteIngestToken(id: string): Promise<{ id: string }> {
     return send("POST", "/api/settings/ingest-tokens/delete", { id });
+}
+
+/**
+ * Saves the active server's own armory/log templates and realm per version
+ * (#923). The map is sent whole for that server: a version left out falls back
+ * to the standard. A wrong template comes back as 400 invalid_version_settings.
+ */
+export function saveVersionOverrides(guildId: string, versionOverrides: VersionOverrides): Promise<{ config: AdminConfig }> {
+    return send("PATCH", "/api/settings", { serverSettings: { [guildId]: { versionOverrides } } });
 }

@@ -116,8 +116,12 @@ export function applyDefaults(block: VersionSettingsBlock, defaults: VersionSett
     return out;
 }
 
-/** The links of one version's block, as the server builds them. */
-export function versionLinks(block: VersionSettingsBlock) {
+/**
+ * The links of one version's block, as the server builds them; with a
+ * server's own values (#923) those win field by field.
+ */
+export function versionLinks(standard: VersionSettingsBlock, override?: VersionOverride) {
+    const block = override ? effectiveBlock(standard, override) : standard;
     const place = { region: block.blizzardRegion, realm: block.blizzardRealmSlug.trim().toLowerCase().replace(/['’]/g, "").replace(/\s+/g, "-") };
     return {
         armory: (character: string) => fillCharTemplate(block.armoryUrlTemplate, character, place),
@@ -141,3 +145,56 @@ export function WowheadPathProvider({ path, children }: { path: string | undefin
 export function useWowheadPath(): string {
     return useContext(WowheadPathContext);
 }
+
+// --- per-server overrides (#923, epic #926) ---
+// A server may set its own armory/log templates and its own Battle.net realm
+// per version (config.serverSettings[guildId].versionOverrides). They lie
+// field by field over the version's block, which stays the standard of every
+// other server; Wowhead, Softres, raidsheet and colour stay shared.
+
+/** The fields a server may set for itself, as on the server (OVERRIDE_FIELDS). */
+export const VERSION_OVERRIDE_FIELDS = ["armoryUrlTemplate", "wclUrlTemplate", "blizzardRegion", "blizzardRealmSlug"] as const;
+export type VersionOverrideField = (typeof VERSION_OVERRIDE_FIELDS)[number];
+/** One version's own values of a server; a missing field = the standard. */
+export type VersionOverride = Partial<Record<VersionOverrideField, string>>;
+/** versionId -> the server's own values. */
+export type VersionOverrides = Record<string, VersionOverride>;
+
+/** The fields of an override the server would refuse; empty fields are never a problem. */
+export function overrideProblems(override: VersionOverride | undefined): VersionOverrideField[] {
+    const probe = blockOf({ ...emptyBlock(), ...pickOverride(override) });
+    const bad = new Set(blockProblems(probe));
+    return VERSION_OVERRIDE_FIELDS.filter((f) => bad.has(f));
+}
+
+/** Only the four fields, trimmed, the empty ones left out. */
+export function pickOverride(override: VersionOverride | undefined): VersionOverride {
+    const out: VersionOverride = {};
+    for (const f of VERSION_OVERRIDE_FIELDS) {
+        const v = String((override && override[f]) || "").trim();
+        if (v) out[f] = v;
+    }
+    return out;
+}
+
+/**
+ * The block a server really uses: its own valid values over the standard, the
+ * same rule as the server's applyVersionOverrides (an invalid one is ignored).
+ */
+export function effectiveBlock(block: VersionSettingsBlock, override?: VersionOverride): VersionSettingsBlock {
+    const own = pickOverride(override);
+    const bad = new Set(overrideProblems(own));
+    const out = { ...block };
+    for (const f of VERSION_OVERRIDE_FIELDS) {
+        if (own[f] && !bad.has(f)) out[f] = f === "blizzardRealmSlug" ? own[f]!.toLowerCase() : own[f]!;
+    }
+    return out;
+}
+
+/** What to send for one server: every version with at least one own value. */
+export function overridesToSave(overrides: VersionOverrides): VersionOverrides {
+    return Object.fromEntries(Object.entries(overrides)
+        .map(([id, o]) => [id, pickOverride(o)] as const)
+        .filter(([, o]) => Object.keys(o).length));
+}
+// --- end per-server overrides ---

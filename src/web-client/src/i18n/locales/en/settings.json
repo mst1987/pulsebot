@@ -50,6 +50,10 @@
             "label": "Recruitment",
             "crumb": "Modules · applications"
         },
+        "versionlinks": {
+            "label": "Links & realm",
+            "crumb": "Game version · this server's armory, logs and realm"
+        },
         "dungeons": {
             "label": "Dungeon best times",
             "crumb": "Modules · guild records from the LevelHelper addon"
@@ -1488,5 +1492,10 @@
         "channel": "Channel for guild records",
         "channelSub": "The bot posts every new guild record here, in the bot language.",
         "noChannel": "Without a channel nothing is posted."
+    },
+    "serverVersionLinks": {
+        "sub": "Own armory and Warcraft Logs links and an own realm per game version, for this server only. Without an own value the standard from All servers › Game version applies. Wowhead, Softres, raid sheet and colour stay the same for every server.",
+        "hint": "Only for {server} and {version}. Off = the standard of all servers.",
+        "saved": "Links and realm saved for {server}."
     }
 }
