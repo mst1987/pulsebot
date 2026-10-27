@@ -1,11 +1,14 @@
-// Where each event server's raid overview sits and what it showed last (#257, #361).
+// Where each link's raid list sits and what it showed last (#257, #361, #892).
 //
-// `data/settings/talk-overview.json` = { [guildId]: { channelId, messageId,
-// hash, postedAt, editedAt, checkedAt, error } } — one record per event server
-// that has an overview target configured, since several can now post
-// independently. Kept out of the settings config on purpose: it changes on
-// every sync, and a PATCH of the settings page must never race it (or bring
-// an old message id back).
+// `data/settings/talk-overview.json` = { [key]: { channelId, messageId, hash,
+// postedAt, editedAt, checkedAt, error } } — one record per link, keyed
+// `from:to` since #892 (one message per link; a source with two links posts
+// two lists). Before #892 the key was the source guild alone: such a record is
+// moved to the first link of that source on its first read (`legacyKey`), so
+// the message already in the channel keeps being edited instead of reposted.
+// Kept out of the settings config on purpose: it changes on every sync, and a
+// PATCH of the settings page must never race it (or bring an old message id
+// back).
 
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
@@ -30,32 +33,60 @@ function writeFile(data) {
     store.write(data);
 }
 
-// The old shape (before several event servers existed) had these fields at
+// The oldest shape (before several event servers existed) had these fields at
 // the top level instead of nested per guild.
 function isLegacyShape(data) {
     return typeof data.channelId === "string" || typeof data.messageId === "string";
 }
 
-/** The stored state for one event server; every field present, empty when nothing was posted yet. */
-function getOverviewState(guildId) {
+/**
+ * The stored state for one link (`from:to`); every field present, empty when
+ * nothing was posted yet. `legacyKey` (the source guild id, only for the first
+ * link of a source) names the pre-#892 record that becomes this one.
+ */
+function getOverviewState(key, { legacyKey = "" } = {}) {
     const data = readFile();
     if (isLegacyShape(data)) {
         // Migrate once: the whole file was one message, so it becomes this
-        // guild's record (there is only ever one entry to migrate into).
-        const migrated = { [guildId]: { ...EMPTY, ...data } };
+        // link's record (there is only ever one entry to migrate into).
+        const migrated = { [key]: { ...EMPTY, ...data } };
         writeFile(migrated);
-        return migrated[guildId];
+        return migrated[key];
     }
-    return { ...EMPTY, ...(data[guildId] || {}) };
+    if (!data[key] && legacyKey && legacyKey !== key && data[legacyKey]) {
+        const next = { ...data, [key]: { ...EMPTY, ...data[legacyKey] } };
+        delete next[legacyKey];
+        writeFile(next);
+        return next[key];
+    }
+    return { ...EMPTY, ...(data[key] || {}) };
 }
 
-/** Merge `patch` into one event server's stored state and return the result. */
-function setOverviewState(guildId, patch) {
+/**
+ * The store key of every link, in link order: `{ link, key, legacyKey }` —
+ * `legacyKey` is the source guild id on the first link of each source (the
+ * one that inherits a pre-#892 record), "" on every further one.
+ */
+function overviewKeys(links) {
+    const seen = new Set();
+    const out = [];
+    for (const link of Array.isArray(links) ? links : []) {
+        const from = String((link && link.from) || "");
+        const to = String((link && link.to) || "");
+        if (!from || !to) continue;
+        out.push({ link, key: `${from}:${to}`, legacyKey: seen.has(from) ? "" : from });
+        seen.add(from);
+    }
+    return out;
+}
+
+/** Merge `patch` into one link's stored state and return the result. */
+function setOverviewState(key, patch) {
     const data = readFile();
     const base = isLegacyShape(data) ? {} : data;
-    const next = { ...base, [guildId]: { ...EMPTY, ...(base[guildId] || {}), ...(patch || {}) } };
+    const next = { ...base, [key]: { ...EMPTY, ...(base[key] || {}), ...(patch || {}) } };
     writeFile(next);
-    return next[guildId];
+    return next[key];
 }
 
-module.exports = { getOverviewState, setOverviewState, useFile };
+module.exports = { getOverviewState, setOverviewState, overviewKeys, useFile };

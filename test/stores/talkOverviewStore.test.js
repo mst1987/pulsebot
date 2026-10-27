@@ -1,6 +1,6 @@
-// Per-event-server overview state (#361): one record per guild id instead of
-// the single flat record it used to be, plus the one-time migration of an old
-// install's flat file.
+// Per-link overview state (#361, #892): one record per key ("from:to" since
+// #892, the guild id before), the move of a pre-#892 record to the first link
+// of its source, plus the one-time migration of an old install's flat file.
 const fs = require("fs");
 const { tempStoreFile } = require("../helpers/tempStore");
 const store = require("../../src/stores/talkOverviewStore");
@@ -48,6 +48,33 @@ describe("stores/talkOverviewStore", () => {
         store.setOverviewState(EVENT_A, { hash: "h2" });
         expect(store.getOverviewState(EVENT_A)).toMatchObject({ channelId: "1", messageId: "10", hash: "h2" });
         expect(store.getOverviewState(EVENT_B)).toMatchObject({ channelId: "2" });
+    });
+
+    it("names every link by from:to; only the first link of a source inherits the old record (#892)", () => {
+        const links = [
+            { from: EVENT_A, to: EVENT_B, channelId: "1" },
+            { from: EVENT_A, to: EVENT_A, channelId: "2" },
+            { from: EVENT_B, to: EVENT_A, channelId: "3" },
+            { from: "", to: EVENT_A },
+        ];
+        expect(store.overviewKeys(links).map(({ key, legacyKey }) => [key, legacyKey])).toEqual([
+            [`${EVENT_A}:${EVENT_B}`, EVENT_A],
+            [`${EVENT_A}:${EVENT_A}`, ""],
+            [`${EVENT_B}:${EVENT_A}`, EVENT_B],
+        ]);
+        expect(store.overviewKeys(null)).toEqual([]);
+    });
+
+    it("moves a pre-#892 record (keyed by the source) to its link's key on the first read", () => {
+        store.setOverviewState(EVENT_A, { channelId: "1", messageId: "10", hash: "h" });
+        const key = `${EVENT_A}:${EVENT_B}`;
+        expect(store.getOverviewState(key, { legacyKey: EVENT_A })).toMatchObject({ channelId: "1", messageId: "10", hash: "h" });
+        expect(Object.keys(stored())).toEqual([key]);
+        // a second link of the same source starts empty
+        expect(store.getOverviewState(`${EVENT_A}:${EVENT_A}`, { legacyKey: "" }).messageId).toBe("");
+        // an existing record of the link wins over a leftover old one
+        store.setOverviewState(EVENT_A, { messageId: "99" });
+        expect(store.getOverviewState(key, { legacyKey: EVENT_A }).messageId).toBe("10");
     });
 
     it("migrates an old flat-shape file into the first guild that reads it, once", () => {

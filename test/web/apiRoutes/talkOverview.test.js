@@ -46,6 +46,25 @@ describe("apiRoutes/talkOverview", () => {
         expect(body(res).status).toBeNull();
     });
 
+    it("GET with a link key answers with that link's status and preview (#892)", async () => {
+        talkOverview.overviewStatus.mockReturnValueOnce([
+            { key: "111:222", guildId: "111", messageId: "m1" },
+            { key: "111:111", guildId: "111", messageId: "m3" },
+        ]);
+        const res = mockRes();
+        await getTalkOverview({}, res, new URL("http://x/api/settings/talk-overview?key=111:111"));
+        expect(body(res).status).toEqual({ key: "111:111", guildId: "111", messageId: "m3" });
+        expect(talkOverview.currentPayload).toHaveBeenCalledWith({ key: "111:111", guildId: "111" });
+    });
+
+    it("POST syncs the list of one link by its key (#892)", async () => {
+        readJsonBody.mockResolvedValue({ key: "111:222" });
+        const res = mockRes();
+        await postTalkOverview({}, res);
+        expect(talkOverview.syncOverview).toHaveBeenCalledWith({ repost: false, key: "111:222" });
+        expect(status(res)).not.toBe(400);
+    });
+
     it("GET skips the preview with ?preview=0", async () => {
         const res = mockRes();
         await getTalkOverview({}, res, new URL("http://x/api/settings/talk-overview?guildId=111&preview=0"));
