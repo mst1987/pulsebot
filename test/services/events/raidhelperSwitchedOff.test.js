@@ -47,7 +47,7 @@ describe("Raid-Helper switched off (#291)", () => {
         await expect(rh.getSetup("1")).resolves.toBeUndefined();
         await expect(rh.getEvent("1")).resolves.toEqual({});
         await expect(rh.createEvent({})).rejects.toMatchObject({ code: "raidhelper_disabled" });
-        await expect(rh.signUpToRaid("1", [], "u1")).rejects.toThrow(/abgeschaltet/);
+        await expect(rh.signUpToRaid("1", [], "u1")).rejects.toThrow(/nicht eingeschaltet/);
         for (const name of ["fetchEvents", "getAllEvents", "getPastEvents", "getSetup", "getEvent", "getUserSignUps", "signUpToRaid", "createEvent"]) {
             expect(mockReads[name]).not.toHaveBeenCalled();
         }

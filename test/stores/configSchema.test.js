@@ -180,7 +180,24 @@ function after924Migrated(config, stored) {
     return { ...config, serverSettings: next };
 }
 const schemaOnly = frozen.map((g) => ({ ...g, config: after924(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))))))))))) }));
-const golden = schemaOnly.map((g, i) => ({ ...g, config: after924Migrated(afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config), cases[i].config) }));
+// #927: the start hands Raid-Helper to the server it ran for (the stored raidhelperServerId, else the first
+// server) with the old switch and the .env key (`envKey`, the key itself is never copied) - only for a
+// stored file naming that id; every other server keeps no block and so has Raid-Helper off.
+function after927(config, stored) {
+    const legacyId = String((stored && stored.raidhelperServerId) || "").trim();
+    if (!legacyId) return config;
+    const servers = config.discordServers.servers || [];
+    const owner = servers.some((x) => x.guildId === legacyId) ? legacyId : ((servers[0] || {}).guildId || "");
+    if (!owner) return config;
+    const retirement = stored.raidhelperRetirement || {};
+    const raidhelper = {
+        enabled: retirement.disabled !== true, serverId: owner === legacyId ? "" : legacyId, apiKey: "", envKey: true,
+        at: Number(retirement.at) || 0, byName: String(retirement.byName || ""),
+    };
+    // the #924 start ran before and may have given this server a block already
+    return { ...config, serverSettings: { ...config.serverSettings, [owner]: { ...(config.serverSettings || {})[owner], raidhelper } } };
+}
+const golden = schemaOnly.map((g, i) => ({ ...g, config: after927(after924Migrated(afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config), cases[i].config), cases[i].config) }));
 const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)") && !line.includes("(#924)"));
 
 const CONFIG_FILE = settingsPath("config.json");

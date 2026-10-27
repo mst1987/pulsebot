@@ -2,6 +2,8 @@ const { ok, error } = require("../http/apiResponse");
 const { requireFullAdmin } = require("../http/apiMiddleware");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
+const { maskedRaidhelper, raidhelperSettingOf, raidhelperActive } = require("../../utils/raidhelper/servers");
+const { firstServerId } = require("../../services/discord/serverOf");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates, getRaidTemplate,
 } = require("../../stores/settingsStore");
@@ -205,8 +207,12 @@ const GUILD_KEYS = ["discordServers"];
 // which role on the other server.
 const ROLE_SYNC_KEYS = ["roleSync"];
 
+// Raid-Helper per server (#927): its key is a credential like the ones above.
+// `raidhelper` is no config key, only the body's block for the active server.
+const RAIDHELPER_KEYS = ["raidhelper"];
+
 // Everything a non-admin settings user may neither read nor write.
-const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS, ...ADDON_KEYS];
+const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS, ...ADDON_KEYS, ...RAIDHELPER_KEYS];
 
 // #924: the two signup channels of a server ("Vielleicht"/"Absagen" notes, guild bank requests).
 const SERVER_CHANNEL_FIELDS = ["signupNoteChannelId", "guildBankChannelId"];
@@ -336,6 +342,10 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // overlap needs a full member fetch and loads with the section itself.
         servers: user.isAdmin ? serverCards(config) : null,
         activeGuildId: guildId,
+        // Einstellungen → Server → Raid-Helper (#927): the active server's block, masked (never the key).
+        raidhelper: user.isAdmin ? maskedRaidhelper(raidhelperGuildOf(req, config), config) : null,
+        // whether the active server reads Raid-Helper at all - without it a category offers only EventHelper
+        raidhelperActive: raidhelperActive(raidhelperGuildOf(req, config), config),
     });
 });
 
@@ -569,7 +579,55 @@ function publicConfig(config) {
     if (config.github !== undefined) {
         out.github = { hasToken: !!(config.github && config.github.token) };
     }
+    if (config.serverSettings !== undefined) out.serverSettings = publicServerSettings(config.serverSettings);
     return out;
+}
+
+/** The per-server settings without a Raid-Helper key (#927): only whether one is set. */
+function publicServerSettings(serverSettings) {
+    const out = {};
+    for (const [guildId, block] of Object.entries(serverSettings || {})) {
+        if (!block || typeof block !== "object" || !block.raidhelper) {
+            out[guildId] = block;
+            continue;
+        }
+        const { apiKey, ...rest } = block.raidhelper || {};
+        out[guildId] = { ...block, raidhelper: { ...rest, hasKey: !!apiKey } };
+    }
+    return out;
+}
+
+/** The server the Raid-Helper section edits (#927): the active one, else the first. */
+function raidhelperGuildOf(req, config) {
+    return String(activeGuildFor(req) || firstServerId(config) || "");
+}
+
+const RAIDHELPER_KEY_MAX = 200;
+
+/**
+ * The stored Raid-Helper block of a server after a PATCH (#927): `enabled`,
+ * `serverId` (empty = the guild's own id) and `apiKey` (omit = keep, "" =
+ * clear) taken from the body, the rest kept. `{ error }` on a bad value.
+ */
+function raidhelperPatch(body, guildId, config) {
+    if (!guildId) return { error: "Kein Discord-Server bekannt." };
+    const raw = body && typeof body === "object" ? body : {};
+    const current = raidhelperSettingOf(guildId, config);
+    const next = { ...current };
+    if (raw.enabled !== undefined) next.enabled = raw.enabled === true;
+    if (raw.serverId !== undefined) {
+        const serverId = String(raw.serverId || "").trim();
+        if (serverId && !isSnowflake(serverId)) return { error: "Die Raid-Helper-Server-ID ist keine Discord-ID." };
+        next.serverId = serverId;
+    }
+    if (raw.apiKey !== undefined) {
+        const apiKey = String(raw.apiKey || "").trim();
+        if (apiKey.length > RAIDHELPER_KEY_MAX || /\s/.test(apiKey)) return { error: "Der Raid-Helper-Schlüssel ist ungültig." };
+        next.apiKey = apiKey;
+        // a key entered here replaces the .env fallback of the migrated server
+        if (apiKey) next.envKey = false;
+    }
+    return { block: next };
 }
 
 // The blizzard fields taken from a PATCH body besides the secret. The realm
@@ -694,6 +752,16 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         }
         const merged = { ...((partial.serverSettings || {})[guildId] || {}), ...ownServer };
         partial.serverSettings = { ...(partial.serverSettings || {}), [guildId]: merged };
+    }
+    // #927: the active server's Raid-Helper block, merged here (the store replaces a server's key whole)
+    let raidhelperGuild = "";
+    if (body.raidhelper !== undefined) {
+        raidhelperGuild = raidhelperGuildOf(req, getConfig());
+        const patch = raidhelperPatch(body.raidhelper, raidhelperGuild, getConfig());
+        if (patch.error) return error(res, 400, "invalid_raidhelper", patch.error);
+        const servers = { ...(partial.serverSettings || {}) };
+        servers[raidhelperGuild] = { ...(servers[raidhelperGuild] || {}), raidhelper: patch.block };
+        partial.serverSettings = servers;
     }
     if (body.categoryIds !== undefined) partial.categoryIds = asStringArray(body.categoryIds);
     if (body.categoryRoles !== undefined && typeof body.categoryRoles === "object") partial.categoryRoles = body.categoryRoles;
@@ -825,7 +893,12 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     else if (guildBankOf(saved) !== guildBankOf(before)) void availabilityPanel.refreshPanels({ config: saved }).catch(() => {});
     // a switch may have changed the raider roles (#739: they mirror the new roster) - answer what is stored now
     const answer = switchedCategories.length ? getConfig() : saved;
-    ok(res, { config: withServerDefaults(answer, answer, activeGuildFor(req)), switchedCategories, deactivatedCategories: deactivated });
+    ok(res, {
+        config: withServerDefaults(answer, answer, activeGuildFor(req)),
+        switchedCategories,
+        deactivatedCategories: deactivated,
+        ...(raidhelperGuild ? { raidhelper: maskedRaidhelper(raidhelperGuild, saved) } : {}),
+    });
 });
 
 /** The categories a PATCH takes out of the active list, with what pauses (#744) — logged once. */

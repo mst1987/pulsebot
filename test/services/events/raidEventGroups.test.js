@@ -9,7 +9,11 @@ jest.mock("../../../src/stores/eventStore", () => ({
     listEvents: jest.fn(() => []), getEvent: jest.fn(), isOwnEventId: (id) => String(id).startsWith("eh-"),
 }));
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ categorySignupSource: { cat1: "eventhelper" } })) }));
+// g1 has Raid-Helper switched on (#927)
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({
+    categorySignupSource: { cat1: "eventhelper" },
+    serverSettings: { g1: { raidhelper: { enabled: true, apiKey: "fake-key-for-tests" } } },
+})) }));
 
 const eventStore = require("../../../src/stores/eventStore");
 const { listSignups } = require("../../../src/stores/signupStore");
@@ -50,6 +54,14 @@ describe("services/events/raidEventGroups", () => {
     it("uses fetchEvents with the given lower bound when sinceSeconds is given", async () => {
         await loadEventGroups("g1", { sinceSeconds: 12345 });
         expect(mockFetchEvents).toHaveBeenCalledWith(12345);
+        expect(mockGetAllEvents).not.toHaveBeenCalled();
+    });
+
+    // #927: each server reads its own list; a server without Raid-Helper asks nothing
+    it("asks nothing for a server without Raid-Helper", async () => {
+        const { groups, error } = await loadEventGroups("g2");
+        expect(error).toBeNull();
+        expect(groups).toEqual([]);
         expect(mockGetAllEvents).not.toHaveBeenCalled();
     });
 

@@ -124,6 +124,16 @@
 //     so a log linked or unlinked since is set right again; the server list
 //     itself is only read, never written.
 //
+//   - config.json, serverSettings[guildId].raidhelper (#927): Raid-Helper is set
+//     per server. The server it ran for (the one whose id is the old
+//     `raidhelperServerId` / RAIDHELPER_SERVER_ID, else the first server) gets
+//     `enabled` from the old switch (`raidhelperRetirement.disabled`) and the
+//     marker `envKey`, so it keeps using RAIDHELPER_API_KEY from .env - the key
+//     itself is never copied into config.json. Every other server starts off.
+//     Once any server has a block, nothing more happens here. The synced list
+//     (raidhelper-events.json) and the budget (raidhelper-budget.json) of
+//     before #927 go to that server (moveLegacy, idempotent on every start).
+//
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
 const path = require("path");
@@ -141,6 +151,8 @@ const eventStore = require("./eventStore");
 const raidplanStore = require("./raidplanStore");
 const eventSheetStore = require("./eventSheetStore");
 const raidEventStore = require("./raidEventStore");
+const raidhelperEventsStore = require("./raidhelperEventsStore");
+const raidhelperBudgetStore = require("./raidhelperBudgetStore");
 const raidplanCatalogStore = require("./raidplanCatalogStore");
 const raidplanTemplateStore = require("./raidplanTemplateStore");
 const raidplanProfileStore = require("./raidplanProfileStore");
@@ -712,6 +724,46 @@ function migrateLogGuilds() {
     return changed ? [`logs.json: ${changed} Log(s) ihrem Discord-Server fest zugeordnet (#917)`] : [];
 }
 
+/** The server Raid-Helper ran for before #927: the one with the old id, else the first. */
+function legacyRaidhelperOwner(config, legacyId) {
+    const servers = (config.discordServers && Array.isArray(config.discordServers.servers)) ? config.discordServers.servers : [];
+    const match = servers.find((s) => s && String(s.guildId || "") === legacyId);
+    return match ? legacyId : firstServerId(config);
+}
+
+/**
+ * config.json (#927): the server Raid-Helper ran for keeps it as it was (the old
+ * switch, the .env key through `envKey`), every other server starts off. Then
+ * the synced list and the budget of before #927 go to that server.
+ */
+function migrateRaidhelperServers({ env = process.env } = {}) {
+    const lines = [];
+    const config = configStore.getConfig();
+    const stored = configStore.readStored();
+    const blocks = stored.serverSettings && typeof stored.serverSettings === "object" ? stored.serverSettings : {};
+    const migrated = Object.values(blocks).some((b) => b && typeof b === "object" && b.raidhelper);
+    const legacyId = String(stored.raidhelperServerId || env.RAIDHELPER_SERVER_ID || "").trim();
+    const owner = legacyRaidhelperOwner(config, legacyId);
+    if (!owner) return lines;
+    if (!migrated && legacyId && Object.keys(stored).length) {
+        const retirement = stored.raidhelperRetirement && typeof stored.raidhelperRetirement === "object" ? stored.raidhelperRetirement : {};
+        const block = {
+            enabled: retirement.disabled !== true,
+            serverId: owner === legacyId ? "" : legacyId,
+            apiKey: "",
+            envKey: true,
+            at: Number(retirement.at) || 0,
+            byName: String(retirement.byName || ""),
+        };
+        const own = blocks[owner] && typeof blocks[owner] === "object" ? blocks[owner] : {};
+        configStore.writeStored({ ...stored, serverSettings: { ...blocks, [owner]: { ...own, raidhelper: block } } });
+        lines.push(`config.json: Raid-Helper dem Server ${owner} zugeordnet (${block.enabled ? "an" : "aus"}, Schlüssel aus .env) (#927)`);
+    }
+    if (raidhelperEventsStore.moveLegacy(owner)) lines.push(`raidhelper-events.json: abgeglichene Events dem Server ${owner} zugeordnet (#927)`);
+    if (raidhelperBudgetStore.moveLegacy(owner)) lines.push(`raidhelper-budget.json: Tageskontingent dem Server ${owner} zugeordnet (#927)`);
+    return lines;
+}
+
 /**
  * reports (#920): every evaluation from before #920 gets a server of its own, once -
  * the server of its log (logs are stamped just before), or the first server for one
@@ -769,6 +821,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateCouncilProfiles());
         changes.push(...migrateLogGuilds());
         changes.push(...migrateReportGuilds());
+        changes.push(...migrateRaidhelperServers());
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
         return { changes, error };
@@ -780,6 +833,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateReportGuilds, migrateDiscordFederation, migrateServerDefaults, raidplanDefaultsLine,
+    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateReportGuilds, migrateDiscordFederation, migrateServerDefaults, raidplanDefaultsLine, migrateRaidhelperServers,
     migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

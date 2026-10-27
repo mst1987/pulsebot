@@ -121,6 +121,11 @@ export type AdminConfig = {
     signupSourceDefault?: EventSource;
     // Raid-Helper switched off (#291, Verbindungen): no request goes there any more.
     raidhelperRetirement?: { disabled: boolean; at: number; byName: string };
+    /**
+     * Raid-Helper of the active server (#927), write only: omit `apiKey` to keep
+     * the stored key, "" clears it. What the page reads back is `RaidhelperServer`.
+     */
+    raidhelper?: { enabled?: boolean; serverId?: string; apiKey?: string };
     // Setup-DMs per category (#290): only switched-on categories are listed.
     categorySetupDms?: Record<string, boolean>;
     /** The language of a category's posts: "de" / "en"; missing = the server language (botLanguage). */
@@ -240,8 +245,30 @@ export type Raidsheet = {
     keywords: string[];
 };
 
+/**
+ * Raid-Helper of the active server as the page sees it (#927): never the key,
+ * only whether there is one and - for a key entered here - its last 4 characters.
+ */
+export type RaidhelperServer = {
+    enabled: boolean;
+    /** The id Raid-Helper is asked under; "" = the Discord server's own id. */
+    serverId: string;
+    hasKey: boolean;
+    keyLast4: string;
+    /** The key comes from the bot's .env (the server Raid-Helper ran for before #927). */
+    envKey: boolean;
+    /** Switched on and a key at hand: the sync reads this server. */
+    active: boolean;
+    at: number;
+    byName: string;
+};
+
 export type SettingsData = {
     config: AdminConfig;
+    /** Raid-Helper of the active server (#927); null for a limited settings user. */
+    raidhelper?: RaidhelperServer | null;
+    /** Whether the active server reads Raid-Helper at all - without it a category offers only EventHelper. */
+    raidhelperActive?: boolean;
     // False for a non-admin who only holds write access to "Einstellungen":
     // the "Zugang"/"Berechtigungen" tabs stay hidden and the server rejects them.
     canManageAccess: boolean;
@@ -311,7 +338,7 @@ export type SwitchedCategory = {
     roster?: SwitchRosterResult;
 };
 
-export function updateSettings(partial: Partial<AdminConfig>): Promise<{ config: AdminConfig; switchedCategories?: SwitchedCategory[]; deactivatedCategories?: DeactivatedCategory[] }> {
+export function updateSettings(partial: Partial<AdminConfig>): Promise<{ config: AdminConfig; raidhelper?: RaidhelperServer; switchedCategories?: SwitchedCategory[]; deactivatedCategories?: DeactivatedCategory[] }> {
     return send("PATCH", "/api/settings", partial);
 }
 
