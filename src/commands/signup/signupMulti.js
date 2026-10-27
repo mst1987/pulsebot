@@ -11,6 +11,7 @@ const { STATUS_CODES } = require("../../utils/signup/signupDialog");
 const { answerPayload, answerUpdate } = require("../../utils/signup/signupReply");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
+const { joinHintForEvents } = require("../../services/signups/partnerJoinHint");
 
 // Every step of signing up for several raids at once (#293) after the first
 // click — see utils/signup/multiSignup.js for the flow and the customIds:
@@ -58,9 +59,9 @@ async function onOneEvent(interaction, eventId, status) {
 /** A submitted modal page: save, then the results (and "Weiter" while pages are left). */
 async function onSubmit(interaction, token, session, page) {
     const uid = interaction.user.id;
-    // "Für alle" comes straight from the PUBLIC overview message: never edit that one,
-    // answer only the member. The other modes sit under an ephemeral message of their own.
-    const fromMessage = !!interaction.message && session.mode !== "all";
+    // Step 1 is an ephemeral message of its own: redraw it. Without one ("Mehrere
+    // Charaktere …" opens the modal straight from a click) answer with a new ephemeral one.
+    const fromMessage = !!interaction.message;
     if (fromMessage) await interaction.deferUpdate();
     else await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const { entries } = entriesFromModal(interaction, session, page);
@@ -69,7 +70,11 @@ async function onSubmit(interaction, token, session, page) {
     const ids = new Set(results.map((r) => r.eventId));
     session.results = [...session.results.filter((r) => !ids.has(r.eventId)), ...results];
     const last = page + 1 >= pageCount(session);
-    const payload = buildResults(token, session, { nextPage: last ? null : page + 1, profile: profiles.getProfile(uid), lang: langOfInteraction(interaction) });
+    const lang = langOfInteraction(interaction);
+    // Raids of a partner server the member is not on (#904): the note and its invite under the results.
+    const saved = session.results.filter((r) => r.ok && (r.signup || {}).status !== "absence").map((r) => getEvent(r.eventId)).filter(Boolean);
+    const joinHint = await joinHintForEvents(interaction, saved, { lang });
+    const payload = buildResults(token, session, { nextPage: last ? null : page + 1, profile: profiles.getProfile(uid), lang, joinHint });
     if (last) endSession(token);
     return interaction.editReply(payload);
 }

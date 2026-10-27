@@ -1,6 +1,6 @@
 // Signing up for several raids at once, in Discord (#293). Started from the raid
-// overview on the talk server ("Für alle Raids anmelden" / "Mehrere Raids
-// wählen …") or from an event's character select ("Mehrere Charaktere …"):
+// overview of a server link ("Mehrere Raids wählen …") or from an event's
+// character select ("Mehrere Charaktere …"):
 //
 //   Schritt 1  (only "Mehrere Raids"): an ephemeral message with a multi-select
 //              of the coming raids (nothing preselected — the member picks),
@@ -10,8 +10,7 @@
 //              "kann auch mit"; nothing picked skips the raid. At most five raids
 //              per modal (Discord's limit of five fields); with more, the answer
 //              carries "Weiter: Raids 6–10", because a modal cannot open the next
-//              modal by itself. "Für alle Raids" asks once: one character select
-//              for every raid plus the status.
+//              modal by itself.
 //   Ergebnis   one line per raid: saved with its characters, skipped characters
 //              with the reason, refused raids with the service's reason.
 //
@@ -60,9 +59,8 @@ function createSession(userId, { mode, eventIds, status = "signed" }, now = Date
     let token;
     do token = crypto.randomBytes(4).toString("hex"); while (sessions.has(token));
     sessions.set(token, {
-        // "all" (Sign up for all raids) starts with everything picked; "multi"
-        // (Pick several raids …) starts empty — the member chooses, nothing is
-        // assumed on their behalf.
+        // "multi" (Pick several raids …) starts empty — the member chooses,
+        // nothing is assumed on their behalf; "one" is its single raid.
         userId: String(userId), mode, eventIds: [...eventIds], selected: mode === "multi" ? [] : [...eventIds],
         status: STATUS_CODES[status] ? status : "signed", results: [], at: now,
     });
@@ -101,18 +99,34 @@ const shortDate = (value, lang = "de") => serverText(value, "ccc d LLL", lang);
 const plain = (text) => String(text || "").replace(/[*_`~|[\]\\]/g, "").replace(/\s+/g, " ").trim();
 
 /**
- * Every own raid a member could sign up for from the overview, unsliced: coming, not
- * begun, not cancelled or closed, of the event server and - when set - the event
- * categories, without the raids of a hidden game version; soonest first.
+ * The game versions the raid list of server `from` shows on server `here`
+ * (#904): the link's `versions` (#892; empty = all); null = no filter (no
+ * such link, or the list sits on its own server).
  */
-function signableAll({ config, now }) {
-    const guildId = guildRoles.serverIds(config)[0] || "";
+function linkVersions(config, from, here) {
+    if (!from || !here || from === here) return null;
+    const link = guildRoles.links(config).find((l) => String(l.from) === from && String(l.to) === here);
+    const versions = link && Array.isArray(link.versions) ? link.versions.map(String).filter(Boolean) : [];
+    return versions.length ? new Set(versions) : null;
+}
+
+/**
+ * Every own raid a member could sign up for from the overview, unsliced: coming, not
+ * begun, not cancelled or closed, of the list's source server `guildId` (default:
+ * the first server - the buttons before #904 carry no source) and - when set -
+ * the event categories, without the raids of a hidden game version or of one the
+ * link from `guildId` to `here` does not list; soonest first.
+ */
+function signableAll({ config, now, guildId = "", here = "" }) {
+    const from = String(guildId || guildRoles.serverIds(config)[0] || "");
+    const linked = linkVersions(config, from, String(here || ""));
     const cats = Array.isArray(config.categoryIds) ? config.categoryIds.map(String) : [];
-    return eventStore.listEvents(guildId, { sinceSeconds: Math.floor(now / 1000) })
+    return eventStore.listEvents(from, { sinceSeconds: Math.floor(now / 1000) })
         .filter((e) => !signupWindow(e, now).started)
         .filter((e) => e.status !== "cancelled" && e.signupsClosed !== true)
         .filter((e) => !cats.length || cats.includes(String(e.categoryId || "")))
         .filter((e) => isVersionVisible(versionOfEvent(e, { config }), config))
+        .filter((e) => !linked || linked.has(String(versionOfEvent(e, { config }))))
         .sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0));
 }
 
@@ -122,15 +136,15 @@ function signableAll({ config, now }) {
  * server, one signup never mixes them); at most 25. Raider roles and the deadline
  * are not filtered here: the result says per raid why it was refused.
  */
-function signableRaids({ config = getConfig(), now = Date.now(), versionId = "" } = {}) {
-    return signableAll({ config, now })
+function signableRaids({ config = getConfig(), now = Date.now(), versionId = "", guildId = "", here = "" } = {}) {
+    return signableAll({ config, now, guildId, here })
         .filter((e) => !versionId || versionOfEvent(e, { config }) === versionId)
         .slice(0, MAX_RAIDS);
 }
 
 /** The game versions that have a signable raid right now, in rule-set order (#743): two = the bot asks first. */
-function signableVersions({ config = getConfig(), now = Date.now() } = {}) {
-    const present = new Set(signableAll({ config, now }).map((e) => versionOfEvent(e, { config })));
+function signableVersions({ config = getConfig(), now = Date.now(), guildId = "", here = "" } = {}) {
+    const present = new Set(signableAll({ config, now, guildId, here }).map((e) => versionOfEvent(e, { config })));
     return VERSIONS.map((v) => v.id).filter((id) => present.has(id));
 }
 
@@ -197,7 +211,7 @@ function statusSelect(customId, status, emojis, lang = "de") {
 
 /** How many modals a flow needs. */
 function pageCount(session) {
-    return session.mode === "all" ? 1 : Math.max(1, Math.ceil(session.selected.length / PER_MODAL));
+    return Math.max(1, Math.ceil(session.selected.length / PER_MODAL));
 }
 
 /** "Raids 6–10" for page 1. */
@@ -213,9 +227,7 @@ function buildRaidPicker(token, session, events, { emojis = {}, notice = "", lan
     const raids = session.eventIds.map((id) => byId.get(id)).filter(Boolean);
     const lines = [
         tr(lang, "Step 1 of 2 · only visible to you"),
-        session.mode === "multi"
-            ? tr(lang, "Pick the raids you want to join. Next you pick your characters per raid.")
-            : tr(lang, "All coming raids are selected – remove what does not suit you. Next you pick your characters per raid."),
+        tr(lang, "Pick the raids you want to join. Next you pick your characters per raid."),
     ];
     if (session.selected.length > PER_MODAL) {
         lines.push(tr(lang, "{count} raids per window – after submitting, “Next” takes you to the following ones.", { count: PER_MODAL }));
@@ -266,21 +278,21 @@ const labelled = (label, description, component) => ({
 });
 
 /**
- * Step 2: the modal of one page. "all": one character select for every raid
- * plus the status; otherwise one select per raid of the page.
+ * Step 2: the modal of one page: one character select per raid of the page
+ * (mode "one": the single raid of "Mehrere Charaktere …").
  * @returns {object|null} plain modal JSON, null without characters
  */
 function buildCharacterModal(token, session, page, events, profile, { emojis = {}, lang = "de" } = {}) {
     const byEvent = new Map(events.map((e) => [e.id, e]));
     // Only characters of the chosen raids' game version (#543, #741): a TBC
-    // character is never offered for a Forever raid. "all" lists the characters
-    // of the chosen raids' versions (one: raidsForButton asks which first).
+    // character is never offered for a Forever raid. The chosen raids share one
+    // version (raidsForButton asks which first); every select lists only its raid's.
     const chosen = (session.selected || []).map((id) => byEvent.get(id)).filter(Boolean);
     const versions = [...new Set(chosen.map((e) => versionOfEvent(e)))];
     const options = versions.length ? versions.flatMap((v) => characterOptions(profile, v)) : characterOptions(profile);
     if (!options.length) return null;
     // Each raid's category allows its own number of characters (signupCharacters.maxCharactersFor,
-    // default 8); "all" shares one select, so the lowest limit of the chosen raids holds there.
+    // default 8); `max` (the lowest limit of the chosen raids) only holds for a raid not in `events`.
     const config = getConfig();
     const limitOf = (event) => pickLimitFor(event, getSignup(event.id, session.userId), config);
     const max = Math.min(chosen.length ? Math.min(...chosen.map(limitOf)) : pickLimitFor("", null, config), options.length);
@@ -298,19 +310,6 @@ function buildCharacterModal(token, session, page, events, profile, { emojis = {
         session.orders[`${page}:${field}`] = list.map((o) => o.value);
         return list;
     };
-    if (session.mode === "all") {
-        return {
-            custom_id: multiId(token, "m", 0),
-            title: tr(lang, "Sign up for all {count} raids", { count: session.selected.length }).slice(0, 45),
-            components: [
-                labelled(tr(lang, "Characters · specs for all raids"), `${hint}. ${tr(lang, "What does not fit a raid is skipped.")}`, {
-                    type: 3, custom_id: "all", min_values: 1, max_values: max, required: true,
-                    options: select("all", ""),
-                }),
-                labelled(tr(lang, "Status for all"), "", { ...statusSelect("status", session.status, emojis, lang), required: true }),
-            ],
-        };
-    }
     const byId = byEvent;
     const ids = session.selected.slice(page * PER_MODAL, (page + 1) * PER_MODAL);
     const pages = pageCount(session);
@@ -351,12 +350,6 @@ function modalValues(interaction, id) {
  */
 function entriesFromModal(interaction, session, page) {
     const order = (field) => ((session.orders || {})[`${page}:${field}`] || []).map((value) => ({ value }));
-    if (session.mode === "all") {
-        const picked = modalValues(interaction, "status")[0];
-        const status = STATUS_CODES[picked] ? picked : session.status;
-        const characters = orderedPicks(modalValues(interaction, "all"), order("all"));
-        return { status, entries: session.selected.map((eventId) => ({ eventId, characters, status })) };
-    }
     const ids = session.selected.slice(page * PER_MODAL, (page + 1) * PER_MODAL);
     return {
         status: session.status,
@@ -396,9 +389,10 @@ function resultLine(result, profile, lang = "de") {
 
 /**
  * The answer after a modal page: every result so far, and "Weiter" when pages are left.
+ * `joinHint` ({ line, buttons }) is the note of services/signups/partnerJoinHint.js (#904).
  * @returns {{ embeds: object[], components: object[] }}
  */
-function buildResults(token, session, { nextPage = null, profile = null, lang = "de" } = {}) {
+function buildResults(token, session, { nextPage = null, profile = null, lang = "de", joinHint = null } = {}) {
     const results = session.results;
     const saved = results.filter((r) => r.ok).length;
     const lines = results.map((r) => resultLine(r, profile, lang));
@@ -406,6 +400,8 @@ function buildResults(token, session, { nextPage = null, profile = null, lang = 
     const title = nextPage === null
         ? tr(lang, "Signup: {saved} of {total} raids saved", counts)
         : tr(lang, "So far {saved} of {total} raids saved", counts);
+    // not on the raid's server after a signup from a partner list (#904): the note below the lines
+    if (joinHint && joinHint.line) lines.push("", joinHint.line);
     let description = lines.join("\n");
     if (description.length > 4000) description = `${description.slice(0, 3990)}…`;
     const components = [];
@@ -414,6 +410,7 @@ function buildResults(token, session, { nextPage = null, profile = null, lang = 
         buttons.push({ type: 2, style: 1, custom_id: multiId(token, "go", nextPage), label: tr(lang, "Next: {range}", { range: pageRange(session, nextPage, lang) }) });
     }
     if (/^https?:\/\//.test(publicBaseUrl())) buttons.push({ type: 2, style: 5, label: tr(lang, "My signups"), url: `${publicBaseUrl()}/signups` });
+    for (const button of (joinHint && joinHint.buttons) || []) if (buttons.length < 5) buttons.push(button);
     if (buttons.length) components.push({ type: 1, components: buttons });
     return {
         embeds: [{ color: embedAccentColor, title, description: description || tr(lang, "Nothing picked.") }],

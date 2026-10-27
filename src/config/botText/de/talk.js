@@ -18,7 +18,6 @@ module.exports = {
     "1 signup": "1 Anmeldung",
     "{count} signups": "{count} Anmeldungen",
     "{channel} on {server}": "{channel} auf {server}",
-    "Sign up for all raids": "Für alle Raids anmelden",
     "Pick several raids …": "Mehrere Raids wählen …",
     "Pick a single raid …": "Einzelnen Raid wählen …",
     "Web overview": "Web-Übersicht",

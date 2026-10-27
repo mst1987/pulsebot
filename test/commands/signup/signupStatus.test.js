@@ -155,3 +155,103 @@ describe("commands/signup/signupStatus", () => {
         expect(answerOf(i.update.mock.calls[0][0])).toMatchObject({ content: "", title: "", description: "This event no longer exists.", components: [], embedCount: 1 });
     });
 });
+
+describe("<server> beitreten after „Gespeichert“ (#904)", () => {
+    const discord = require("../../../src/services/discord/discord");
+    const RAID_SERVER = "300000000000000001";
+    const PARTNER = "300000000000000002";
+    let members;
+
+    beforeEach(() => {
+        mocks.events.set("eh-kara", mocks.ownEvent({ guildId: RAID_SERVER }));
+        members = { cache: new Map(), fetch: jest.fn(async () => { throw Object.assign(new Error("Unknown Member"), { code: 10007 }); }) };
+        discord.getGuild = jest.fn((id) => (id === RAID_SERVER ? { id, name: "Pulse PuGs", members } : null));
+    });
+    afterEach(() => { delete discord.getGuild; });
+
+    function clickFrom(guildId, status = "s") {
+        const i = mockInteraction({ customId: `signup-status:eh-kara:${status}:nerathil:Mage-Arcane:`, userId: ANNA });
+        i.guildId = guildId;
+        return i;
+    }
+
+    it("answers first, then adds the line for a member not on the raid's server", async () => {
+        const i = clickFrom(PARTNER);
+        await command.execute(i);
+        expect(mocks.signups.get(`eh-kara/${ANNA}`)).toMatchObject({ status: "signed" });
+        expect(i.update.mock.invocationCallOrder[0]).toBeLessThan(members.fetch.mock.invocationCallOrder[0]);
+        const edited = i.editReply.mock.calls[0][0];
+        expect(edited.embeds[0].description).toContain("✅ Saved: **Signed up**");
+        expect(edited.embeds[0].description).toContain("ℹ️ Join the server **Pulse PuGs**, otherwise you will not get pings and info.");
+        // no invite yet (#905): no link button
+        expect(JSON.stringify(edited.components)).not.toContain("Join Pulse PuGs");
+    });
+
+    it("leaves the answer alone for a member, for an unreadable membership, on the raid's own server and after signing off", async () => {
+        members.cache.set(ANNA, {});
+        const member = clickFrom(PARTNER);
+        await command.execute(member);
+        expect(member.editReply).not.toHaveBeenCalled();
+
+        members.cache.clear();
+        members.fetch.mockImplementation(async () => { throw Object.assign(new Error("Missing Access"), { code: 50001 }); });
+        const unreadable = clickFrom(PARTNER, "t");
+        await command.execute(unreadable);
+        expect(unreadable.editReply).not.toHaveBeenCalled();
+
+        members.fetch.mockClear();
+        const home = clickFrom(RAID_SERVER, "l");
+        await command.execute(home);
+        expect(home.editReply).not.toHaveBeenCalled();
+        expect(members.fetch).not.toHaveBeenCalled();
+
+        const off = clickFrom(PARTNER, "a");
+        await command.execute(off);
+        expect(mocks.signups.get(`eh-kara/${ANNA}`)).toMatchObject({ status: "absence" });
+        expect(off.editReply).not.toHaveBeenCalled();
+    });
+
+    it("an older click's hint never redraws over a newer click on the same message", async () => {
+        let release;
+        members.fetch.mockImplementationOnce(() => new Promise((resolve, reject) => {
+            release = () => reject(Object.assign(new Error("Unknown Member"), { code: 10007 }));
+        }));
+        const older = clickFrom(PARTNER, "s");
+        older.message = { id: "dialog-1" };
+        const pending = command.execute(older);
+        await new Promise((r) => setImmediate(r));
+        const newer = clickFrom(PARTNER, "t");
+        newer.message = { id: "dialog-1" };
+        await command.execute(newer);
+        expect(newer.editReply).toHaveBeenCalledTimes(1);
+        release();
+        await pending;
+        expect(older.editReply).not.toHaveBeenCalled();
+    });
+
+    it("a sign-off after „Dabei“ on the same message counts as the newer click too", async () => {
+        let release;
+        members.fetch.mockImplementationOnce(() => new Promise((resolve, reject) => {
+            release = () => reject(Object.assign(new Error("Unknown Member"), { code: 10007 }));
+        }));
+        const signed = clickFrom(PARTNER, "s");
+        signed.message = { id: "dialog-2" };
+        const pending = command.execute(signed);
+        await new Promise((r) => setImmediate(r));
+        const off = clickFrom(PARTNER, "a");
+        off.message = { id: "dialog-2" };
+        await command.execute(off);
+        expect(mocks.signups.get(`eh-kara/${ANNA}`)).toMatchObject({ status: "absence" });
+        release();
+        await pending;
+        expect(signed.editReply).not.toHaveBeenCalled();
+        expect(off.editReply).not.toHaveBeenCalled();
+    });
+
+    it("a failing edit (dialog gone) is only logged", async () => {
+        const i = clickFrom(PARTNER);
+        i.editReply = jest.fn(async () => { throw new Error("Unknown Message"); });
+        await expect(command.execute(i)).resolves.toBeUndefined();
+        expect(i.editReply).toHaveBeenCalledTimes(1);
+    });
+});
