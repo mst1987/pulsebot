@@ -75,7 +75,7 @@ describe("src/api/ replaces api.ts", () => {
         const access = read("lib", "app", "access.ts");
         expect(access).toMatch(/^export function canAccess\(/m);
         expect(access).toMatch(/^export function canAccessAny\(/m);
-        expect(index).toContain("export { canAccess, canAccessAny } from \"../lib/app/access\";");
+        expect(index).toContain("export { canAccess, canAccessAny, canAccessAnywhere } from \"../lib/app/access\";");
         for (const file of apiFiles()) expect(read("api", file)).not.toMatch(/function canAccess/);
     });
 });

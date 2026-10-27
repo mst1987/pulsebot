@@ -276,6 +276,9 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // One card per server (cheap: names, member counts, rights). The member
         // overlap needs a full member fetch and loads with the section itself.
         servers: user.isAdmin ? serverCards(config) : null,
+        // The full admin roles hold on every server (#925): their picker lists
+        // the roles of all servers, named with their server. Full admins only.
+        adminRoles: user.isAdmin ? adminRolesOf(config) : [],
         activeGuildId: guildId,
     });
 });
@@ -301,6 +304,23 @@ function noteChannels(config) {
     } catch (e) {
         console.warn("note channels failed:", e.message);
         return { defaultId: "", channels: [] };
+    }
+}
+
+/**
+ * The roles a full admin role can be picked from (#925): those of every
+ * configured server, each with its server's name. A bot's own role is held by
+ * no member and left out. A failure reads as "none known".
+ */
+function adminRolesOf(config) {
+    try {
+        const names = new Map((typeof discord.listGuilds === "function" ? discord.listGuilds() || [] : []).map((g) => [g.id, g.name]));
+        return guildRoles.configuredGuildIds(config).flatMap((gid) => (discord.listRoles(gid) || [])
+            .filter((r) => !r.managed)
+            .map((r) => ({ id: r.id, name: r.name, color: r.color, guildId: gid, guildName: names.get(gid) || "" })));
+    } catch (e) {
+        console.warn("admin roles failed:", e.message);
+        return [];
     }
 }
 

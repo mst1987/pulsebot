@@ -2,7 +2,7 @@ import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import { JobsProvider } from "./components/shell/Jobs";
 import { ConfirmProvider } from "./components/ui/Modal";
-import { canAccessAny, getAddonName, getSession, type AddonName, type ApiError, type Session, type SessionUser } from "./api";
+import { canAccessAny, canAccessAnywhere, getAddonName, getSession, type AddonName, type ApiError, type Session, type SessionUser } from "./api";
 import { getLang, langReady, setLang, useT } from "./i18n";
 import { entryHref, firstAllowedTab } from "./lib/app/menu";
 import RaidLoader from "./components/ui/RaidLoader";
@@ -63,14 +63,16 @@ const SystemPage = lazyWithReload(() => import("./pages/system/SystemPage"));
  * "history" or for the narrower "loot". Purely cosmetic: the API refuses the
  * underlying calls either way (src/web/apiAccess.js).
  */
-function Guard({ user, areas, level = "read", children }: {
+function Guard({ user, areas, level = "read", scope, children }: {
     user: SessionUser;
     areas: string[];
     level?: "read" | "write";
+    /** "all": a page under "Alle Server" - the rights on any server open it (#925). */
+    scope?: "all";
     children: ReactNode;
 }) {
     const t = useT();
-    if (canAccessAny(user, areas, level)) return <>{children}</>;
+    if (scope === "all" ? canAccessAnywhere(user, areas, level) : canAccessAny(user, areas, level)) return <>{children}</>;
     return (
         <div className="empty">
             {level === "write" ? t("shell.app.noWrite") : t("shell.app.noRead")}
@@ -289,7 +291,7 @@ function MenuApp() {
                                 <Route path="history/event" element={<Guard user={user} areas={["history", "loot"]}><HistoryEventPage /></Guard>} />
                                 <Route path="history/char" element={<Guard user={user} areas={["history", "loot"]}><HistoryCharPage /></Guard>} />
                                 {/* The member self-service page: always the own account (area "signup"). */}
-                                <Route path="profile" element={<Guard user={user} areas={["signup"]}><ProfilePage /></Guard>} />
+                                <Route path="profile" element={<Guard user={user} areas={["signup"]} scope="all"><ProfilePage /></Guard>} />
                                 {/* The member's coming raids and their own signup (area "signup", #256). */}
                                 <Route path="signups" element={<Guard user={user} areas={["signup"]}><SignupsPage /></Guard>} />
                                 {/* Abwesenheiten: a raider's own attendance ("signup"), the orga's overview with "roster" on top. */}
@@ -313,9 +315,9 @@ function MenuApp() {
                                 {/* The Kaderplaner (area "kader"): one Kader at a time, /kader opens the one used last. */}
                                 <Route path="kader/:kaderId?/:sub?" element={<Guard user={user} areas={["kader"]}><KaderPage /></Guard>} />
                                 {/* Addons (#818): the download page of the own addons, for every member ("signup") and the loot importers ("history"). */}
-                                <Route path="addon" element={<Guard user={user} areas={["signup", "history"]}><AddonPage /></Guard>} />
+                                <Route path="addon" element={<Guard user={user} areas={["signup", "history"]} scope="all"><AddonPage /></Guard>} />
                                 {/* One addon with its patch notes, whatever version the menu shows (the Discord centre links here). */}
-                                <Route path="addon/:addonId" element={<Guard user={user} areas={["signup", "history"]}><AddonDetailPage /></Guard>} />
+                                <Route path="addon/:addonId" element={<Guard user={user} areas={["signup", "history"]} scope="all"><AddonDetailPage /></Guard>} />
                                 {/* Systemstatus: full admins only, no area opens it (docs/system-status.md). */}
                                 <Route path="system" element={<AdminGuard user={user}><SystemPage /></AdminGuard>} />
                                 {/* Inside the shell on purpose: a mistyped path should still

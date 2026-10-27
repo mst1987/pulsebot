@@ -371,12 +371,15 @@ tr.perm-group td { background: var(--bg); padding: 12px 12px 6px; }
 .perm-group-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--muted); }
 .perm-group-aside { margin-left: auto; text-transform: none; letter-spacing: 0; }
 .perm-admin-list { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.perm-admin-role, .perm-add-admin { font-size: 12.5px; cursor: pointer; font-family: var(--font-mono); }
-.perm-admin-role svg { width: 11px; height: 11px; opacity: .7; }
-.perm-admin-role:hover { border-color: var(--high); color: var(--high); background: var(--high-bg); }
-.perm-add-admin { border-style: dashed; }
-.perm-add-admin:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
-.perm-add-admin:disabled { opacity: .5; cursor: not-allowed; }
+.perm-admin-role { font-size: 12.5px; font-family: var(--font-mono); color: var(--text); }
+
+/* Alle Server › Voll-Admins (#925): one row per role, named with its server */
+.full-admins { display: flex; flex-direction: column; gap: 10px; max-width: 640px; }
+.full-admins-table { width: 100%; border-collapse: collapse; }
+.full-admins-table th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.full-admins-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.full-admins-name { font-family: var(--font-mono); font-size: 14px; }
+.full-admins-act { width: 1%; text-align: right; }
 td.perm-empty { color: var(--muted); font-size: 13px; }
 tr.perm-unknown .perm-who-label { color: var(--high); }
 

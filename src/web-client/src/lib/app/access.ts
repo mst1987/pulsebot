@@ -10,6 +10,17 @@ export function canAccess(user: SessionUser | null, area: string, level: "read" 
 }
 
 /**
+ * Whether the user may open a page under "Alle Server" (#925): one of the areas
+ * on any server - the client twin of a route with `scope: "all"` in
+ * src/web/http/apiAccess.js. Every other page goes by the active server only.
+ */
+export function canAccessAnywhere(user: SessionUser | null, areas: string[], level: "read" | "write" = "read"): boolean {
+    if (!user) return false;
+    const access = user.allAccess || user.access;
+    return canAccessAny({ ...user, access }, areas, level);
+}
+
+/**
  * Whether the user may read (or write) at least one of the given areas — the
  * client-side twin of userCanAny() in src/config/permissions.js, for a tab that
  * more than one area opens (Historie & Loot: "history" fully, "loot" partly).

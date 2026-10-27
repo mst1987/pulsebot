@@ -1352,6 +1352,36 @@ describe("web/apiRoutes/settings", () => {
                 discord.listGuilds.mockReset().mockReturnValue([]);
             });
 
+            // #925: the full admin roles hold on every server - their picker lists every server's roles
+            it("hands a full admin the roles of every server, named with their server, and nobody else", async () => {
+                settingsStore.getConfig.mockReturnValue({ discordServers: { servers: [{ guildId: "200" }, { guildId: "300" }], links: [] } });
+                discord.listGuilds.mockReturnValue([{ id: "200", name: "Pulse Events" }, { id: "300", name: "Pulse PuGs" }]);
+                discord.listRoles.mockImplementation((id) => [
+                    { id: `${id}1`, name: "Leitung", color: "#123456", managed: false },
+                    { id: `${id}9`, name: "MEE6", color: "", managed: true },
+                ]);
+                requireAdmin.mockReturnValue({ id: "1", isAdmin: true });
+                const res = mockRes();
+                await getSettings({}, res);
+                expect(body(res).adminRoles).toEqual([
+                    { id: "2001", name: "Leitung", color: "#123456", guildId: "200", guildName: "Pulse Events" },
+                    { id: "3001", name: "Leitung", color: "#123456", guildId: "300", guildName: "Pulse PuGs" },
+                ]);
+                requireAdmin.mockReturnValue({ id: "7", isAdmin: false });
+                const limited = mockRes();
+                await getSettings({}, limited);
+                expect(body(limited).adminRoles).toEqual([]);
+                // a failing lookup reads as none known
+                requireAdmin.mockReturnValue({ id: "1", isAdmin: true });
+                discord.listGuilds.mockImplementation(() => { throw new Error("offline"); });
+                const failed = mockRes();
+                await getSettings({}, failed);
+                expect(body(failed).adminRoles).toEqual([]);
+                settingsStore.getConfig.mockReturnValue({});
+                discord.listRoles.mockReset().mockReturnValue([]);
+                discord.listGuilds.mockReset().mockReturnValue([]);
+            });
+
             it("keeps the server name out with a single server and reads an offline bot as no channels", async () => {
                 settingsStore.getConfig.mockReturnValue({ guildId: "200" });
                 discord.listTextChannels.mockImplementation((id) => [{ id: `${id}1`, name: "abmeldungen", category: "Raids" }]);

@@ -54,6 +54,10 @@ describe("viewAs", () => {
         expect(asRaider.isOrga).toBeUndefined();
         const asLead = effectiveUser({ id: "u1", isAdmin: true, access: fullAccess(), viewAs: { roleIds: [LEAD], at: now } }, orgaConfig, [], now);
         expect(asLead).toMatchObject({ isAdmin: false, isOrga: true });
+        // #925: the viewed role has no rights elsewhere - the admin's own union never leaks in
+        const withUnion = effectiveUser({ id: "u1", isAdmin: true, access: fullAccess(), allAccess: fullAccess(), viewAs: { roleIds: [RAIDER], at: now } }, orgaConfig, [], now);
+        expect(withUnion.allAccess).toEqual(withUnion.access);
+        expect(withUnion.allAccess.settings).toEqual({ read: false, write: false });
     });
 
     it("ends after MAX_AGE_MS", () => {

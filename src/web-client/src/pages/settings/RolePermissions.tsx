@@ -11,7 +11,7 @@ import Chip from "../../components/ui/Chip";
 import Segment from "../../components/ui/Segment";
 import PartHead from "../../components/ui/PartHead";
 import WowIcon from "../../components/ui/WowIcon";
-import { EyeIcon, LockIcon, PenIcon, PlusIcon, TrashIcon, XIcon } from "../../components/ui/icons";
+import { EyeIcon, LockIcon, PenIcon, PlusIcon, TrashIcon } from "../../components/ui/icons";
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import { useDismiss } from "../../hooks/useDismiss";
 import { assignableRoles } from "../../lib/settings/assignableRoles";
@@ -129,7 +129,7 @@ function grantSummary(areas: Area[], grants: Grants | undefined): string {
 }
 
 export default function RolePermissionsEditor({
-    areas, roles, adminRoleIds, onAdminRoleIds, value, onChange, baseAccess, onBaseAccessChange,
+    areas, roles, adminRoleIds, value, onChange, baseAccess, onBaseAccessChange,
     userPermissions, onUserPermissionsChange, userNames, userAvatars = {}, icon, crumb, viewSwitch, orgaRoleIds = [], onOrgaRoleIds,
 }: {
     /** The roles that count as orga (the rest are raider roles); missing = no switch (an older caller). */
@@ -139,8 +139,8 @@ export default function RolePermissionsEditor({
     viewSwitch?: ReactNode;
     areas: Area[];
     roles: Role[];
+    /** The full admin roles (all servers, #925): shown here read-only, edited under Alle Server › Voll-Admins. */
     adminRoleIds: string[];
-    onAdminRoleIds: (next: string[]) => void;
     value: RolePermissions;
     onChange: (next: RolePermissions) => void;
     baseAccess: Access;
@@ -154,7 +154,7 @@ export default function RolePermissionsEditor({
     crumb: string;
 }) {
     const t = useT();
-    const [adding, setAdding] = useState<null | "grant" | "admin">(null);
+    const [adding, setAdding] = useState(false);
     const roleById = useMemo(() => new Map(roles.map((r) => [r.id, r])), [roles]);
     const roleName = (id: string) => (roleById.get(id) ? `@${roleById.get(id)!.name}` : t("settings.permissions.unknownRole", { id }));
 
@@ -200,7 +200,7 @@ export default function RolePermissionsEditor({
                 tone="settings"
                 title={t("settings.sections.berechtigungen.label")}
                 crumb={t("settings.crumb", { crumb })}
-                action={<>{viewSwitch}<Button variant="ghost" size="sm" icon={<PlusIcon />} onClick={() => setAdding("grant")}>{t("settings.permissions.addOwner")}</Button></>}
+                action={<>{viewSwitch}<Button variant="ghost" size="sm" icon={<PlusIcon />} onClick={() => setAdding(true)}>{t("settings.permissions.addOwner")}</Button></>}
             />
             <div className="perm-legend">
                 <span className="note">{t("settings.permissions.clickToggles")}</span>
@@ -242,31 +242,15 @@ export default function RolePermissionsEditor({
                             label={t("settings.permissions.admins")}
                             tip={t("settings.permissions.admins")}
                             tipSub={t("settings.permissions.adminsSub")}
-                            aside={<Badge icon={<LockIcon />}>{t("settings.permissions.adminsAside")}</Badge>}
+                            aside={<Badge icon={<LockIcon />}>{t("settings.permissions.adminsAllServers")}</Badge>}
                         />
                         <tr className="perm-admins">
                             <td colSpan={span}>
                                 <div className="perm-admin-list">
-                                    {adminRoleIds.map((id) => (
-                                        <button
-                                            key={id}
-                                            type="button"
-                                            className="badge accent perm-admin-role"
-                                            data-tip={t("settings.permissions.removeTip", { name: roleName(id) })}
-                                            data-tip-sub={t("settings.permissions.roleId", { id })}
-                                            onClick={() => onAdminRoleIds(adminRoleIds.filter((x) => x !== id))}
-                                        >
-                                            {roleName(id)}<XIcon />
-                                        </button>
+                                    {adminRoleIds.filter((id) => roleById.has(id)).map((id) => (
+                                        <span key={id} className="perm-admin-role" data-tip={roleName(id)} data-tip-sub={t("settings.permissions.roleId", { id })}>{roleName(id)}</span>
                                     ))}
-                                    <button type="button" className="badge perm-add-admin" onClick={() => setAdding("admin")} disabled={!roles.length}
-                                        data-tip={roles.length ? t("settings.permissions.addAdmin") : t("settings.permissions.noRoles")} data-tip-sub={roles.length ? undefined : t("settings.permissions.noRolesSub")}>
-                                        <PlusIcon />{t("settings.permissions.adminRole")}
-                                    </button>
-                                    <span className="grow" />
-                                    <span className="note" data-tip={t("settings.permissions.emergencyTip")} data-tip-sub={t("settings.permissions.emergencySub")}>
-                                        {t("settings.permissions.emergency")}
-                                    </span>
+                                    <span className="note">{t("settings.permissions.adminsElsewhere")}</span>
                                 </div>
                             </td>
                         </tr>
@@ -374,19 +358,18 @@ export default function RolePermissionsEditor({
 
             {adding && (
                 <AddOwnerModal
-                    mode={adding}
+                    mode="grant"
                     roles={roles}
-                    taken={adding === "admin" ? adminRoleIds : [...Object.keys(value), ...adminRoleIds]}
+                    taken={[...Object.keys(value), ...adminRoleIds]}
                     takenUsers={userIds}
-                    onClose={() => setAdding(null)}
+                    onClose={() => setAdding(false)}
                     onAddRole={(roleId) => {
-                        if (adding === "admin") onAdminRoleIds([...adminRoleIds, roleId]);
-                        else onChange({ ...value, [roleId]: {} });
-                        setAdding(null);
+                        onChange({ ...value, [roleId]: {} });
+                        setAdding(false);
                     }}
                     onAddUser={(userId) => {
                         onUserPermissionsChange({ ...userPermissions, [userId]: {} });
-                        setAdding(null);
+                        setAdding(false);
                     }}
                 />
             )}
@@ -394,10 +377,13 @@ export default function RolePermissionsEditor({
     );
 }
 
-/** "Rolle oder Konto": pick a role, or enter a Discord id (checked as a snowflake). */
-function AddOwnerModal({ mode, roles, taken, takenUsers, onClose, onAddRole, onAddUser }: {
+/**
+ * "Rolle oder Konto": pick a role, or enter a Discord id (checked as a snowflake).
+ * In mode "admin" (Alle Server › Voll-Admins, #925) a role only, named with its server.
+ */
+export function AddOwnerModal({ mode, roles, taken, takenUsers, onClose, onAddRole, onAddUser }: {
     mode: "grant" | "admin";
-    roles: Role[];
+    roles: (Role & { guildName?: string })[];
     taken: string[];
     takenUsers: string[];
     onClose: () => void;
@@ -449,7 +435,7 @@ function AddOwnerModal({ mode, roles, taken, takenUsers, onClose, onAddRole, onA
                         <FieldLabel htmlFor="perm-add-role" tip={t("settings.permissions.role")} tipSub={mode === "admin" ? t("settings.permissions.roleAdminSub") : t("settings.permissions.roleGrantSub")}>{t("settings.permissions.role")}</FieldLabel>
                         <select id="perm-add-role" value={roleId} onChange={(e) => setRoleId(e.target.value)}>
                             <option value="">{t("settings.permissions.chooseRole")}</option>
-                            {addable.map((r) => <option key={r.id} value={r.id}>@{r.name}</option>)}
+                            {addable.map((r) => <option key={r.id} value={r.id}>@{r.name}{r.guildName ? ` · ${r.guildName}` : ""}</option>)}
                         </select>
                         {!addable.length && <div className="note">{t("settings.permissions.allTaken")}</div>}
                     </div>

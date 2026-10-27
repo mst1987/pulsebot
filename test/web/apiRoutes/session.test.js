@@ -283,7 +283,7 @@ describe("web/apiRoutes/session", () => {
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
             const data = json(res).data;
             // a full admin may look at the menu as a role ("Ansicht als Rolle")
-            expect(data.user).toEqual({ id: "42", name: "Anna", isAdmin: true, isOrga: true, orgaCategories: [], access: fullAccess(), canViewAs: true, audience: expect.any(Object), orgaRoles: [] });
+            expect(data.user).toEqual({ id: "42", name: "Anna", isAdmin: true, isOrga: true, orgaCategories: [], access: fullAccess(), allAccess: fullAccess(), canViewAs: true, audience: expect.any(Object), orgaRoles: [] });
             // a full admin gets who sees every area
             expect(Object.keys(data.user.audience)).toEqual(AREA_IDS);
             expect(data.csrfToken).toBe("csrf-abc");
@@ -353,7 +353,7 @@ describe("web/apiRoutes/session", () => {
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
             const data = json(res).data;
-            expect(data.user).toEqual({ id: "7", name: "Bob", isAdmin: false, isOrga: false, orgaCategories: [], access: emptyAccess(), canViewAs: false, audience: {}, orgaRoles: [] });
+            expect(data.user).toEqual({ id: "7", name: "Bob", isAdmin: false, isOrga: false, orgaCategories: [], access: emptyAccess(), allAccess: emptyAccess(), canViewAs: false, audience: {}, orgaRoles: [] });
             expect(data.guilds).toEqual([]);
             expect(data.activeGuildId).toBe("");
         });
@@ -388,12 +388,20 @@ describe("web/apiRoutes/session", () => {
         it("says per area the caller may open whether everyone sees it, and which roles", async () => {
             auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), raids: { read: true, write: true }, signup: { read: true, write: true } } });
             auth.getRealUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false });
+            // the rights of the active server g1 (#925); the full admin roles stay global
+            activeGuildFor.mockReturnValue("g1");
             settingsStore.getConfig.mockReturnValue({
-                baseAccess: { signup: { read: true, write: true } },
                 adminRoleIds: ["r-admin"],
-                orgaRoleIds: ["r-lead"],
-                rolePermissions: { "r-lead": { raids: { read: true, write: true } }, "r-raider": { raids: { read: true, write: false } }, "r-admin": { raids: { read: true, write: true } } },
-                userPermissions: { 99: { raids: { read: true, write: false } } },
+                serverSettings: {
+                    g1: {
+                        baseAccess: { signup: { read: true, write: true } },
+                        orgaRoleIds: ["r-lead"],
+                        rolePermissions: { "r-lead": { raids: { read: true, write: true } }, "r-raider": { raids: { read: true, write: false } }, "r-admin": { raids: { read: true, write: true } } },
+                        userPermissions: { 99: { raids: { read: true, write: false } } },
+                    },
+                    // another server's orga role is not named here
+                    g2: { orgaRoleIds: ["r-raider"] },
+                },
             });
             discord.listRoles.mockReturnValue([{ id: "r-lead", name: "Raidleitung" }, { id: "r-raider", name: "Mo Raider" }, { id: "r-admin", name: "Officer" }]);
             const res = mockRes();
@@ -409,6 +417,7 @@ describe("web/apiRoutes/session", () => {
             // "Mo Raider" is a raider role that reads the raids: a raider page, the orga role named apart
             expect(audience.raids).toEqual({ everyone: true, roles: ["Raidleitung"], writers: ["Raidleitung"], raiders: ["Mo Raider"], accounts: 1 });
             settingsStore.getConfig.mockReturnValue({});
+            activeGuildFor.mockReturnValue("");
         });
 
         // A limited user still needs the guild switcher to load anything.
@@ -477,8 +486,10 @@ describe("web/apiRoutes/session", () => {
         beforeEach(() => {
             auth.setViewAs.mockClear();
             discord.listRoles.mockReturnValue([{ id: RAIDER, name: "Raider", color: "#aabbcc" }, { id: "999999999999999999", name: "Gast", color: "" }]);
-            settingsStore.getConfig.mockReturnValue({ ...settingsStore.getConfig(), guildId: "g1", adminRoleIds: [], rolePermissions: { [RAIDER]: { signup: { read: true, write: true } } } });
+            activeGuildFor.mockReturnValue("g1");
+            settingsStore.getConfig.mockReturnValue({ ...settingsStore.getConfig(), guildId: "g1", adminRoleIds: [], serverSettings: { g1: { rolePermissions: { [RAIDER]: { signup: { read: true, write: true } } } } } });
         });
+        afterEach(() => activeGuildFor.mockReturnValue(""));
 
         it("lists the roles for a real full admin, marked with what is configured", async () => {
             auth.getUser.mockReturnValue(admin);

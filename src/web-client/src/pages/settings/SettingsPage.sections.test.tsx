@@ -245,7 +245,7 @@ describe("the save bar", () => {
         expect(api.updateSettings).not.toHaveBeenCalled();
     });
 
-    it("sends the access fields as a full admin, and never the connection blocks", async () => {
+    it("sends no untouched access field as a full admin (#925), and never the connection blocks", async () => {
         const user = userEvent.setup();
         renderPage(<SettingsPage />, { route: "/settings?section=raids" });
 
@@ -254,7 +254,11 @@ describe("the save bar", () => {
 
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
         const body = vi.mocked(api.updateSettings).mock.calls[0][0];
-        expect(body).toMatchObject({ adminRoleIds: ["r1"], rolePermissions: {}, baseAccess: {}, userPermissions: {}, raidDefaults: { channelId: "ch1" } });
+        expect(body).toMatchObject({ raidDefaults: { channelId: "ch1" } });
+        // the active server is per session: an old tab must not write its rights onto another server
+        for (const field of ["adminRoleIds", "rolePermissions", "baseAccess", "userPermissions", "orgaRoleIds"]) {
+            expect({ field, sent: field in body }).toEqual({ field, sent: false });
+        }
         for (const block of ["anthropic", "warcraftlogsV2", "blizzard", "guildId", "raidhelperServerId"]) {
             expect({ block, sent: block in body }).toEqual({ block, sent: false });
         }
@@ -316,6 +320,35 @@ describe("the save bar", () => {
         } finally {
             await switchLang("de");
         }
+    });
+
+    it("edits the full admin roles under Alle Server and sends only that field (#925)", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(settings({
+            adminRoles: [{ id: "r1", name: "Offizier", guildId: "g1", guildName: "Pulse" }, { id: "r9", name: "Leitung", guildId: "g2", guildName: "PuGs" }],
+        }));
+        renderPage(<SettingsPage />, { route: "/settings?section=vollAdmins" });
+
+        const table = await screen.findByRole("table");
+        expect(within(table).getByText("@Offizier")).toBeInTheDocument();
+        expect(within(table).getByText("Pulse")).toBeInTheDocument();
+        await user.click(within(table).getByRole("button", { name: "@Offizier entfernen" }));
+        expect(screen.getByText("Noch keine Admin-Rolle eingetragen.")).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        const body = vi.mocked(api.updateSettings).mock.calls[0][0];
+        expect(body.adminRoleIds).toEqual([]);
+        for (const field of ["rolePermissions", "baseAccess", "userPermissions", "orgaRoleIds"]) {
+            expect({ field, sent: field in body }).toEqual({ field, sent: false });
+        }
+    });
+
+    it("hides the full admin section from a limited settings user", async () => {
+        vi.mocked(api.getSettings).mockResolvedValue(limited());
+        renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+        await screen.findByRole("combobox", { name: "Standard-Kanal" });
+        expect(within(nav()).queryByRole("button", { name: /^Voll-Admins/ })).not.toBeInTheDocument();
     });
 
     it("leaves the access fields out for a limited settings user, whom the server would refuse", async () => {

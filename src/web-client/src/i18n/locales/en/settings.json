@@ -22,6 +22,10 @@
             "label": "Discord servers",
             "crumb": "Connections · servers and links"
         },
+        "vollAdmins": {
+            "label": "Full admins",
+            "crumb": "Access · applies on every server"
+        },
         "kategorien": {
             "label": "Categories",
             "crumb": "Raid categories · everything that applies per raid day"
@@ -756,7 +760,7 @@
         "columnCounts": "Read: {read} · Write: {write}",
         "actions": "Actions",
         "admins": "Full admins",
-        "adminsSub": "Members with one of these roles have write access to every area and are the only ones with access to permissions and connection secrets. Changes apply within about 5 minutes without signing in again.",
+        "adminsSub": "Members with one of these roles have write access to every area on every server and are the only ones with access to permissions and connection secrets. Changes apply within about 5 minutes without signing in again.",
         "adminsAside": "everything · write",
         "removeTip": "Remove {name}",
         "roleId": "Role ID {id}",
@@ -792,7 +796,11 @@
         "discordIdSub": "In Discord, right-click the user → \"Copy ID\" (developer mode must be on).",
         "idPlaceholder": "e.g. 123456789012345678",
         "invalidId": "That does not look like a Discord ID (17–20 digits).",
-        "duplicate": "This account is already listed."
+        "duplicate": "This account is already listed.",
+        "adminsAllServers": "all servers · everything",
+        "adminsElsewhere": "apply on every server · change under All servers › Full admins",
+        "noAdminRoles": "No admin role added yet.",
+        "server": "Server"
     },
     "categories": {
         "announceMode": {

@@ -148,9 +148,38 @@ function after897(config) {
 }
 // #917 adds the settings per Discord server (none stored: empty).
 const after917 = (config) => ({ ...config, serverSettings: {} });
-const schemaOnly = frozen.map((g) => ({ ...g, config: after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))))))))) }));
-const golden = schemaOnly.map((g, i) => ({ ...g, config: afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config) }));
-const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)"));
+// #925 moves the rights of roles and accounts into the server blocks: the top level holds only the
+// full admin roles. The schema no longer knows the five keys: a stored global value passes through raw
+// (so a save before the migration cannot lose it). The start-up migration copies it onto every server
+// unchanged (serverAccess.accessSettings normalises on read) and only then drops the global field - with
+// no server configured it keeps the field, so nobody's rights change.
+const ACCESS_925 = ["rolePermissions", "baseAccess", "userPermissions", "orgaRoleIds", "botCommandAccess"];
+function after925(config, stored) {
+    const out = { ...config };
+    for (const key of ACCESS_925) {
+        delete out[key];
+        if (stored && stored[key] !== undefined) out[key] = stored[key];
+    }
+    return out;
+}
+function migrated925(config, stored) {
+    const present = ACCESS_925.filter((key) => stored && stored[key] !== undefined);
+    if (!present.length) return config;
+    const guildIds = [...schema.serverSettingGuildIds(config.discordServers, config.guildId)];
+    if (!guildIds.length) return config;
+    const out = { ...config };
+    for (const key of present) delete out[key];
+    const serverSettings = { ...config.serverSettings };
+    for (const gid of guildIds) {
+        const block = { ...(serverSettings[gid] || {}) };
+        for (const key of present) if (block[key] === undefined) block[key] = stored[key];
+        serverSettings[gid] = block;
+    }
+    return { ...out, serverSettings };
+}
+const schemaOnly = frozen.map((g, i) => ({ ...g, config: after925(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))))))))), cases[i].config) }));
+const golden = schemaOnly.map((g, i) => ({ ...g, config: migrated925(afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config), cases[i].config) }));
+const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)") && !line.includes("(#925)"));
 
 const CONFIG_FILE = settingsPath("config.json");
 const TEMPLATES_FILE = settingsPath("raid-templates.json");

@@ -22,6 +22,10 @@
             "label": "Discord-Server",
             "crumb": "Verbindungen · Server und Verknüpfungen"
         },
+        "vollAdmins": {
+            "label": "Voll-Admins",
+            "crumb": "Zugang · gilt auf allen Servern"
+        },
         "kategorien": {
             "label": "Kategorien",
             "crumb": "Raid-Kategorien · alles, was pro Raidtag gilt"
@@ -756,7 +760,7 @@
         "columnCounts": "Lesen: {read} · Schreiben: {write}",
         "actions": "Aktionen",
         "admins": "Voll-Admins",
-        "adminsSub": "Mitglieder mit einer dieser Rollen haben jeden Bereich mit Schreibrecht und als Einzige Zugriff auf Berechtigungen und Verbindungs-Secrets. Änderungen greifen innerhalb von ca. 5 Minuten ohne erneuten Login.",
+        "adminsSub": "Mitglieder mit einer dieser Rollen haben auf jedem Server jeden Bereich mit Schreibrecht und als Einzige Zugriff auf Berechtigungen und Verbindungs-Secrets. Änderungen greifen innerhalb von ca. 5 Minuten ohne erneuten Login.",
         "adminsAside": "alles · Schreiben",
         "removeTip": "{name} entfernen",
         "roleId": "Rollen-ID {id}",
@@ -792,7 +796,11 @@
         "discordIdSub": "In Discord per Rechtsklick auf den Nutzer → „ID kopieren“ (Entwicklermodus muss an sein).",
         "idPlaceholder": "z. B. 123456789012345678",
         "invalidId": "Das sieht nicht nach einer Discord-ID aus (17–20 Ziffern).",
-        "duplicate": "Dieses Konto ist bereits eingetragen."
+        "duplicate": "Dieses Konto ist bereits eingetragen.",
+        "adminsAllServers": "alle Server · alles",
+        "adminsElsewhere": "gelten auf allen Servern · ändern unter Alle Server › Voll-Admins",
+        "noAdminRoles": "Noch keine Admin-Rolle eingetragen.",
+        "server": "Server"
     },
     "categories": {
         "announceMode": {

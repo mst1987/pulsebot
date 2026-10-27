@@ -3,7 +3,7 @@
 // (src/web/adminChrome.js via src/config/menu.js), so the two can no longer
 // drift apart.
 import MENU_JSON from "../../../../config/menu.json";
-import { canAccessAny, type SessionUser } from "../../api";
+import { canAccessAny, canAccessAnywhere, type SessionUser } from "../../api";
 import { tOr } from "../../i18n";
 
 /**
@@ -66,10 +66,14 @@ export function isNeutralPage(entry: MenuEntry | undefined, pathname: string): b
     return !!(entry && entry.neutral) || NEUTRAL_SUBPAGES.some((re) => re.test(pathname));
 }
 
-/** Whether the account may open an entry: one of its areas, or full admin for an adminOnly entry. */
+/**
+ * Whether the account may open an entry: one of its areas, or full admin for an
+ * adminOnly entry. An entry under "Alle Server" goes by the rights on any server,
+ * every other one by those on the active server (#925).
+ */
 export function mayOpen(user: SessionUser | null, entry: MenuEntry): boolean {
     if (entry.adminOnly) return !!(user && user.isAdmin);
-    return canAccessAny(user, entry.areas);
+    return entry.scope === "all" ? canAccessAnywhere(user, entry.areas) : canAccessAny(user, entry.areas);
 }
 
 /** A menu entry's label in the active language (menu.json holds the German one). */

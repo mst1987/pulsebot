@@ -9,7 +9,7 @@ const areas = [{ id: "raids", label: "Raid-Events", description: "" }];
 function show(userAvatars?: Record<string, string>) {
     return render(
         <RolePermissionsEditor
-            areas={areas} roles={[]} adminRoleIds={[]} onAdminRoleIds={vi.fn()}
+            areas={areas} roles={[]} adminRoleIds={[]}
             value={{}} onChange={vi.fn()} baseAccess={{}} onBaseAccessChange={vi.fn()}
             userPermissions={{ "111": { raids: { read: true, write: false } }, "222": { raids: { read: true, write: false } } }}
             onUserPermissionsChange={vi.fn()} userNames={{ "111": "Devihra", "222": "Taccop" }} userAvatars={userAvatars}
