@@ -575,8 +575,11 @@ export default function SettingsPage() {
     // there — counted from the draft, so they follow an unsaved edit. A pick
     // keeps the page mounted, so the draft and the save bar survive it.
     const navCounts = settingsNavCounts({ data, tokens, canManageAccess: data.canManageAccess, activeCategories: draft.categoryIds.length });
+    // The server block names the server its values belong to (#918).
+    const serverName = (data.bot && data.bot.guildName) || "";
     const navGroups = groupedSections(sections).map((g) => ({
         group: groupLabel(g.group),
+        sub: g.group === "server" && serverName ? serverName : undefined,
         items: g.items.map((s) => ({ id: s.id, label: sectionLabel(s), icon: s.icon, badge: sectionBadge(s.id, navCounts) })),
     }));
 

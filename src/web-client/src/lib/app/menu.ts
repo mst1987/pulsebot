@@ -45,6 +45,11 @@ export type MenuEntry = {
      * `landing` is a sub entry of its own (the first tab of the family).
      */
     landing?: string;
+    /**
+     * "all": a page not about one Discord server (Mein Profil, Addons, Systemstatus).
+     * The menu draws it in the block "Alle Server" below the active server's (#918).
+     */
+    scope?: string;
 };
 
 export const MENU: MenuEntry[] = MENU_JSON;
@@ -106,6 +111,24 @@ export function menuLines(user: SessionUser): MenuLine[] {
         const landing = entry === top && top.landing && allowed.some((e) => e.href === top.landing) ? top.landing : "";
         return [{ top, entry, href: landing || entry.href, hrefs: allowed.map((e) => e.href) }];
     });
+}
+
+/** Whether an entry belongs to the block "Alle Server" rather than to the active server (#918). */
+export function isAllServers(entry: MenuEntry): boolean {
+    return entry.scope === "all";
+}
+
+/**
+ * The main menu in its two blocks (#918, design "Discord-Kopf"): the lines of
+ * the active server on top, the pages without a server ("Alle Server") below.
+ * Within each block the menu order holds.
+ */
+export function menuBlocks(user: SessionUser): { server: MenuLine[]; all: MenuLine[] } {
+    const lines = menuLines(user);
+    return {
+        server: lines.filter((l) => !isAllServers(l.top)),
+        all: lines.filter((l) => isAllServers(l.top)),
+    };
 }
 
 /**

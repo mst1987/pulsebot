@@ -19,6 +19,7 @@ export { default as RichTip } from "./RichTip";
 export { default as Field, FieldLabel, InfoTip } from "./Field";
 export { default as Chip } from "./Chip";
 export { default as Switch } from "./Switch";
+export { default as OwnValue } from "./OwnValue";
 export { default as NumberStepper } from "./NumberStepper";
 export { default as BackButton } from "./BackButton";
 export { default as DataTable, type Column } from "./DataTable";

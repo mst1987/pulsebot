@@ -144,8 +144,9 @@ describe("menu access", () => {
         showApp(raider, "/absences");
         const nav = await screen.findByRole("navigation", {}, SLOW);
         // the start page is the raider's too ("Für dich" comes with their own signup area);
-        // the Roster family's line is Dungeon-Bestzeiten, the one page of it a member may open; the page Addons (#818) is every member's too
-        expect(within(nav).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/", "/signups", "/absences", "/profile", "/roster/dungeons", "/addon"]);
+        // the Roster family's line is Dungeon-Bestzeiten, the one page of it a member may open; the page Addons (#818) is every member's too;
+        // Profil and Addons belong to no server, so they come last under "Alle Server" (#918)
+        expect(within(nav).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/", "/signups", "/absences", "/roster/dungeons", "/profile", "/addon"]);
         expect(await screen.findByText(t("absences.mine.loading"), {}, SLOW)).toBeInTheDocument();
         expect(screen.queryByText(t("shell.app.noRead"))).not.toBeInTheDocument();
     });

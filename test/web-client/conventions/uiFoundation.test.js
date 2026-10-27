@@ -73,7 +73,7 @@ describe("building blocks", () => {
         expect(shell).toContain("<IconButton className=\"menu-toggle\"");
         expect(read("components/shell/ThemeToggle.tsx")).toContain("<IconButton");
         expect(read("components/ui/Pager.tsx")).toMatch(/<IconButton size="sm" icon=\{<ChevronLeftIcon \/>\}/);
-        const guild = read("components/shell/GuildSwitcher.tsx");
+        const guild = read("components/shell/ServerHeader.tsx");
         expect(guild).toContain("const GUILD_ICON = \"inv_misc_tabardpvp_01\";");
         expect(guild).not.toContain("← bitte zuerst einen Server wählen");
         expect(guild).toMatch(/<Badge tone="mid"[^>]*>\s*\{t\("shell.guild.notChosen"\)\}/);

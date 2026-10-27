@@ -6,10 +6,8 @@
     "noName": "(ohne Name)",
     "editKicker": "Verbindung bearbeiten",
     "groups": {
-        "access": "Zugang",
-        "connections": "Verbindungen",
-        "categories": "Raid-Kategorien",
-        "modules": "Module"
+        "server": "Server",
+        "global": "Alle Server"
     },
     "sections": {
         "berechtigungen": {
@@ -64,7 +62,7 @@
     "page": {
         "loadError": "Fehler beim Laden der Einstellungen: {message}",
         "loading": "Einstellungen werden geladen",
-        "kicker": "System · greift ohne Bot-Neustart",
+        "kicker": "System · je Server und für alle Server",
         "infoSub": "Alle Werte werden in der Datenbank gespeichert und greifen ohne Bot-Neustart.\nIDs bekommst du in Discord per Rechtsklick → „ID kopieren“ (Entwicklermodus).",
         "navAria": "Einstellungs-Bereiche",
         "permView": {

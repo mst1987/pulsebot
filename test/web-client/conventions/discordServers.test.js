@@ -14,7 +14,7 @@ const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src"
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
 
 const section = read("pages", "settings", "SettingsDiscordServers.tsx");
-const switcher = read("components", "shell", "GuildSwitcher.tsx");
+const switcher = read("components", "shell", "ServerHeader.tsx");
 const api = read("api", "discordServers.ts");
 // The texts live in the dictionaries since #440; the source names their keys.
 const de = require("../clientSource").dictionary("de");
@@ -111,11 +111,13 @@ describe("Discord-Server section", () => {
     });
 });
 
-describe("server switcher", () => {
-    it("shows the server's own label instead of an event/talk badge and still lists every server (#895)", () => {
-        expect(switcher).toContain("<LabelBadge guild={guilds.find((g) => g.id === activeGuildId)} />");
+describe("server head (switcher)", () => {
+    it("shows the server's own label instead of an event/talk badge and still lists every server (#895, #918)", () => {
+        // the label rides in the head's second line ("PvE · Server wechseln") and in every option
+        expect(switcher).toContain("const sub = [active && active.label, t(\"shell.guild.switch\")]");
+        expect(switcher).toContain("{g.label && <span className=\"srv-head-sub\">{g.label}</span>}");
         expect(switcher).not.toContain("roleEvent");
-        expect(switcher).toContain("{guilds.map((g) => <option key={g.id} value={g.id}>");
+        expect(switcher).toContain("{guilds.map((g) => {");
         expect(switcher).not.toMatch(/guilds\.filter\(/);
     });
 });
