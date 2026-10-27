@@ -17,7 +17,8 @@ vi.mock("../../api", async (orig) => ({
 }));
 
 const S = (guildId: string, name: string, label = "", online = true): api.DiscordServerChoice => ({ guildId, name, label, online, iconUrl: "" });
-const TWO = [S("g1", "Testgilde"), S("g2", "Talkgilde", "Talk")];
+// g2 is the old talk server of the backend (legacyTalk), which an old ?side=talk link means
+const TWO = [S("g1", "Testgilde"), { ...S("g2", "Talkgilde", "Talk"), legacyTalk: true }];
 
 function Probe({ drop }: { drop?: string[] }) {
     const pick = useServerPick();

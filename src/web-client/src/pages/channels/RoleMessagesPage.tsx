@@ -46,6 +46,8 @@ type ServerOptions = {
     servers: DiscordServerChoice[];
     /** keyed by guild id; a server whose call failed has empty options (bot "offline") */
     byGuild: Record<string, RoleMessageOptions>;
+    /** why the server list itself failed ("" = it loaded) — then nothing is "offline", the list is missing */
+    error?: string;
 };
 
 /** The options of a server; "" (or an unknown id) = the first of the list, as the API does. */
@@ -77,7 +79,7 @@ export default function RoleMessagesPage() {
             .then((list) => Object.fromEntries(list.map((o, i) => [servers[i].guildId, { ...o, guildId: servers[i].guildId }]))),
         [serverKey], { enabled: pick.ready },
     );
-    const options: ServerOptions = { servers, byGuild: opts.data || {} };
+    const options: ServerOptions = { servers, byGuild: opts.data || {}, error: pick.error };
     const optionsReady = pick.ready && (!!opts.data || !!opts.error);
     const nameOf = (guildId: string) => {
         const s = servers.find((x) => x.guildId === guildId);
@@ -182,14 +184,17 @@ export default function RoleMessagesPage() {
         return m.title.toLowerCase();
     };
 
-    // Notes over the list: a server the bot is not on, or on which it lacks Manage Roles.
-    const notes = servers.flatMap((s) => {
+    // Notes over the list: the server list failed, a server the bot is not on, or on which it lacks Manage Roles.
+    const listNote = pick.error
+        ? [{ key: "servers-error", side: t("roleMessages.hint.serversSide"), text: t("roleMessages.hint.serversError", { message: pick.error }) }]
+        : [];
+    const notes = [...listNote, ...servers.flatMap((s) => {
         const o = optionsOf(options, s.guildId);
         const name = serverName(s);
         if (!o.online) return [{ key: `${s.guildId}-off`, side: name, text: t("roleMessages.hint.offline") }];
         if (o.manageRoles === false) return [{ key: `${s.guildId}-mr`, side: name, text: t("roleMessages.hint.manageRoles") }];
         return [];
-    });
+    })];
 
     const saveDisabled = !canWrite || state.problems > 0 || state.offline || state.saving;
 
@@ -377,7 +382,11 @@ export function RoleMessageForm({ editing, options, startGuild = "", limits, onS
     return (
         <form id={FORM_ID} className="rm-grid" onSubmit={submit} noValidate>
             <div>
-                {offline && <div className="rm-note"><AlertIcon /><span>{t("roleMessages.hint.offline")}</span></div>}
+                {offline && (
+                    <div className="rm-note" role="alert"><AlertIcon /><span>
+                        {options.error ? t("roleMessages.hint.serversError", { message: options.error }) : t("roleMessages.hint.offline")}
+                    </span></div>
+                )}
                 <div className="rm-pair">
                     {serverOptions.length > 1 && (
                         <Field label={t("roleMessages.form.server")}>

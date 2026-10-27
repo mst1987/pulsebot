@@ -25,6 +25,8 @@ export type ServerPick = {
     guildId: string;
     /** true once the pick is settled — load the page's data only then */
     ready: boolean;
+    /** why the server list failed to load ("" when it loaded) — a page says so instead of "offline" */
+    error: string;
     /** switches the server; `drop` names further URL parameters that belong to the old server (an open drawer) */
     choose: (guildId: string, drop?: string[]) => void;
     /** the URL parameters for a server, for links that should keep it ({} for the first server) */
@@ -46,7 +48,8 @@ export function useServerPick(): ServerPick {
         }, { replace: true });
     }, [servers, setParams]);
     const param = useCallback((id: string) => guildParam(servers, id), [servers]);
-    return { servers, guildId, ready, choose, param };
+    const error = list.error ? list.error.message || "?" : "";
+    return { servers, guildId, ready, error, choose, param };
 }
 
 /** The query string ("" or "?guild=…") that keeps the picked server on a link. */

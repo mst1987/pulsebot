@@ -95,6 +95,8 @@ export type DiscordServerChoice = {
     label: string;
     online: boolean;
     iconUrl: string;
+    /** the old talk server (until #897): an old `?side=talk` link opens it */
+    legacyTalk?: boolean;
 };
 
 /** The query part for one server ("" = the server's default, the first of the list). */

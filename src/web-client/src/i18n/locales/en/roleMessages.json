@@ -29,7 +29,9 @@
     },
     "hint": {
         "offline": "The bot is not connected right now – channels, roles and emojis are missing. Saving works again once it is online.",
-        "manageRoles": "The bot lacks the “Manage Roles” permission on this server – buttons and reactions cannot hand out a role then."
+        "manageRoles": "The bot lacks the “Manage Roles” permission on this server – buttons and reactions cannot hand out a role then.",
+        "serversSide": "Server list",
+        "serversError": "The server list could not be loaded ({message}) – servers, channels and roles are missing. Saving works again after reloading the page."
     },
     "form": {
         "server": "Server",
@@ -89,7 +91,7 @@
     },
     "error": {
         "unknown_guild": "This server is no longer in the server list.",
-        "no_guild": "No server is set for this side.",
+        "no_guild": "No Discord server is set.",
         "unknown_channel": "The channel no longer exists, or the bot may not write there.",
         "missing_title": "A title is missing.",
         "bad_image": "The image must be an https link.",

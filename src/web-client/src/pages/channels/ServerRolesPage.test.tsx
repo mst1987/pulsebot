@@ -25,7 +25,7 @@ vi.mock("../../api", async (orig) => ({
 
 const SERVERS: api.DiscordServerChoice[] = [
     { guildId: "g1", name: "Testgilde", label: "", online: true, iconUrl: "" },
-    { guildId: "g2", name: "Talkgilde", label: "Talk", online: true, iconUrl: "" },
+    { guildId: "g2", name: "Talkgilde", label: "Talk", online: true, iconUrl: "", legacyTalk: true },
 ];
 
 function role(over: Partial<ServerRole>): ServerRole {

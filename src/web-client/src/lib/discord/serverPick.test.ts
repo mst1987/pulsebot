@@ -1,12 +1,12 @@
 // The server pick of System › Discord (#895): the server from ?guild=, the old
-// ?side=talk link onto the second server, the first server as the default
+// ?side=talk link onto the server the API marks as the old talk server, the first server as the default
 // without a URL parameter, and how a server is named in the picker.
 import { describe, expect, it } from "vitest";
 import type { DiscordServerChoice } from "../../api";
 import { guildParam, pickedGuild, serverExtra, serverName, shortName } from "./serverPick";
 
 const S = (guildId: string, name = "", label = ""): DiscordServerChoice => ({ guildId, name, label, online: true, iconUrl: "" });
-const LIST = [S("g1", "Testgilde"), S("g2", "Talkgilde", "Talk"), S("g3", "Dritte")];
+const LIST = [S("g1", "Testgilde"), S("g2", "Talkgilde", "Talk"), { ...S("g3", "Dritte"), legacyTalk: true }];
 
 describe("pickedGuild", () => {
     it("takes a known server from the URL", () => {
@@ -18,11 +18,16 @@ describe("pickedGuild", () => {
         expect(pickedGuild(LIST, null, null)).toBe("g1");
     });
 
-    it("opens the second server from an old talk link, guild wins over side", () => {
-        expect(pickedGuild(LIST, null, "talk")).toBe("g2");
-        expect(pickedGuild(LIST, "g3", "talk")).toBe("g3");
-        expect(pickedGuild([LIST[0]], null, "talk")).toBe("g1");
+    it("opens the marked talk server from an old talk link (as the backend does), guild wins over side", () => {
+        // the old talk server, wherever it stands in the list - not simply the second
+        expect(pickedGuild(LIST, null, "talk")).toBe("g3");
+        expect(pickedGuild(LIST, "g2", "talk")).toBe("g2");
         expect(pickedGuild(LIST, null, "event")).toBe("g1");
+    });
+
+    it("opens the first server from a talk link when no server is marked", () => {
+        expect(pickedGuild([LIST[0], LIST[1]], null, "talk")).toBe("g1");
+        expect(pickedGuild([LIST[0]], null, "talk")).toBe("g1");
     });
 
     it("is empty without a server list", () => {

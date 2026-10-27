@@ -256,8 +256,10 @@ describe("services/discord/guildRoles server pick (#895)", () => {
         discord.getGuild.mockImplementation((id) => (id === E1 ? { id, name: "Gilde", iconURL: () => "https://cdn/i.png" } : null));
         expect(guildRoles.serverChoices(cfg)).toEqual([
             { guildId: E1, name: "Gilde", label: "", online: true, iconUrl: "https://cdn/i.png" },
-            { guildId: T, name: "", label: "Talk", online: false, iconUrl: "" },
+            { guildId: T, name: "", label: "Talk", online: false, iconUrl: "", legacyTalk: true },
         ]);
+        // without a talk server no entry is marked
+        expect(guildRoles.serverChoices({ ...cfg, discordServers: block({ servers: [server(E1), server(T)] }) }).some((s) => s.legacyTalk)).toBe(false);
     });
 
     it("places a role message by its guildId, an old one by its side", () => {

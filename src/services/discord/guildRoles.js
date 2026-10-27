@@ -250,12 +250,16 @@ function resolveServer({ guildId = "", side = "" } = {}, config = getConfig()) {
 /**
  * The servers a page offers to pick from (#895), in the order of the server list:
  * the Discord name is the main text, the label an optional extra title.
- * @returns {Array<{ guildId, name, label, online, iconUrl }>}
+ * `legacyTalk` marks the old talk server (until #897), so an old `?side=talk`
+ * link opens the same server in the client as in resolveServer.
+ * @returns {Array<{ guildId, name, label, online, iconUrl, legacyTalk? }>}
  */
 function serverChoices(config = getConfig()) {
+    const talk = talkGuildId(config);
     return serverIds(config).map((guildId) => {
         const guild = discord.getGuild(guildId);
         return {
+            ...(talk && guildId === talk ? { legacyTalk: true } : {}),
             guildId,
             name: guild ? String(guild.name || "") : "",
             label: serverLabel(guildId, config),
@@ -268,7 +272,8 @@ function serverChoices(config = getConfig()) {
 /**
  * The server a role message belongs to: its `guildId`, or (for an entry saved
  * before #895 with only `guildSide`) the talk server for "talk", else the first
- * server. Read-time migration: the file is rewritten only when the entry is saved.
+ * server. The start writes that server down once (settingsMigration.js,
+ * migrateRoleMessageGuilds); this fallback only covers an entry it could not place.
  */
 function roleMessageGuild(entry, config = getConfig()) {
     const own = String((entry && entry.guildId) || "").trim();

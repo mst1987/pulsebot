@@ -101,6 +101,12 @@
 //     (config.categoryEras, services/events/categoryEras.js). Runs after the
 //     stored versions of #737, which read the same map.
 //
+//   - role-messages.json (#895): a role message saved before #895 names its
+//     server only by its side ("event"/"talk"). Its server of today - the talk
+//     server resp. the first server of the list (guildRoles.roleMessageGuild) -
+//     is written down as `guildId` once, while `talkGuildId` still exists; a
+//     later removal of it (#897) or a new order of the servers moves nothing.
+//
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
 const path = require("path");
@@ -131,6 +137,7 @@ const { categoriesToMigrate, migrationLine } = require("../services/roster/roste
 const councilProfilesStore = require("./councilProfilesStore");
 const councilWeightsStore = require("./councilWeightsStore");
 const councilStore = require("./councilStore");
+const roleMessageStore = require("./roleMessageStore");
 
 /**
  * The event-server list an old single-server block stands for: its
@@ -466,6 +473,15 @@ function migrateCouncilProfiles({ now = Date.now() } = {}) {
  * file; the error is logged and the bot comes up with what it can read.
  * @returns {{ changes: string[], error?: Error }}
  */
+/** role-messages.json (#895): every old entry gets the server its side means today. */
+function migrateRoleMessageGuilds() {
+    // lazy: the Discord helpers are only needed for this one switch
+    const { roleMessageGuild } = require("../services/discord/guildRoles");
+    const config = configStore.getConfig();
+    const moved = roleMessageStore.migrateGuildSides((entry) => roleMessageGuild(entry, config));
+    return moved ? [`role-messages.json: ${moved} Rollen-Nachricht(en) ihrem Server fest zugeordnet (#895)`] : [];
+}
+
 function migrateSettings({ log = console.log, warn = console.error } = {}) {
     const changes = [];
     try {
@@ -488,6 +504,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateStoredVersions());
         changes.push(...migrateCategoryVersions());
         changes.push(...migrateCouncilProfiles());
+        changes.push(...migrateRoleMessageGuilds());
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
         return { changes, error };
@@ -497,6 +514,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, raidplanDefaultsLine,
+    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, raidplanDefaultsLine,
     legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

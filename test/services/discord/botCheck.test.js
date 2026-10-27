@@ -16,8 +16,13 @@ jest.mock("../../../src/services/discord/discord", () => ({
 }));
 jest.mock("../../../src/stores/rosterStore", () => ({ listRosters: () => mockRosters, isClosed: (r) => !!r.closedAt }));
 jest.mock("../../../src/stores/roleMessageStore", () => ({ listMessages: () => mockRoleMessages }));
-const mockCategories = {};
-jest.mock("../../../src/services/discord/categoryNames", () => ({ listKnownCategories: (gid) => mockCategories[gid] || [] }));
+const mockEvents = [];
+jest.mock("../../../src/stores/eventStore", () => ({ listEvents: (gid) => mockEvents.filter((e) => !gid || e.guildId === gid) }));
+// A plain Discord category must never count as a raid one: the check reads no category list.
+jest.mock("../../../src/services/discord/categoryNames", () => ({
+    listKnownCategories: () => { throw new Error("botCheck must not read the category list"); },
+    rememberCategories: () => { throw new Error("botCheck must not write"); },
+}));
 const mockAddon = { channelId: "", roleId: "" };
 jest.mock("../../../src/stores/addonCenterStore", () => ({ getSettings: () => ({ ...mockAddon }) }));
 
@@ -52,7 +57,7 @@ beforeEach(() => {
     mockRoleMessages.length = 0;
     mockAddon.channelId = "";
     mockAddon.roleId = "";
-    for (const k of Object.keys(mockCategories)) delete mockCategories[k];
+    mockEvents.length = 0;
 });
 
 describe("functions", () => {
@@ -77,12 +82,33 @@ describe("functions", () => {
         expect(byKey.reactions.state).toBe("not_needed");
     });
 
-    it("checks what is set up on a server: raid categories, role messages (also an old entry by its side)", () => {
-        mockCategories[TALK] = [{ id: "c1", name: "Raids" }];
+    it("checks what is set up on a server: raid events, role messages (also an old entry by its side)", () => {
+        mockEvents.push({ id: "e1", guildId: TALK, categoryId: "700000000000000001" });
         mockRoleMessages.push({ guildSide: "talk", roles: [] });
         const byKey = Object.fromEntries(botCheck(TALK, SRV).functions.map((f) => [f.key, f.state]));
         expect(byKey).toEqual(expect.objectContaining({ events: "ok", channels: "ok", reactions: "ok" }));
         expect(Object.fromEntries(botCheck(EVENT, SRV).functions.map((f) => [f.key, f.state])).reactions).toBe("not_needed");
+    });
+
+    it("needs no raid functions on a server with only a plain (non-raid) category", () => {
+        // a Discord category on the server, but neither an event nor a setting names it
+        mockGuild = guild({ rights: ALL, channels: { "700000000000000009": { name: "Allgemein", rights: [] } } });
+        mockEvents.push({ id: "e1", guildId: TALK, categoryId: "" }, { id: "e2", guildId: EVENT, categoryId: "700000000000000001" });
+        const byKey = Object.fromEntries(botCheck(TALK, SRV).functions.map((f) => [f.key, f.state]));
+        expect(byKey.events).toBe("not_needed");
+        expect(byKey.channels).toBe("not_needed");
+    });
+
+    it("counts a configured raid category lying on the server (category list or a per-category setting)", () => {
+        mockGuild = guild({ rights: ALL, channels: { "700000000000000002": { name: "Raids", rights: [] } } });
+        expect(botCheck(TALK, { ...SRV, categoryIds: ["700000000000000002"] }).functions.find((f) => f.key === "events").state).toBe("ok");
+        expect(botCheck(TALK, { ...SRV, categoryLanguage: { "700000000000000002": "en" } }).functions.find((f) => f.key === "events").state).toBe("ok");
+        // the same category on another server (client cache) does not count here
+        mockGuild = guild({ rights: ALL });
+        mockClient.channels.cache.set("700000000000000003", { id: "700000000000000003", guildId: EVENT });
+        expect(botCheck(TALK, { ...SRV, categoryIds: ["700000000000000003"] }).functions.find((f) => f.key === "events").state).toBe("not_needed");
+        mockClient.channels.cache.set("700000000000000004", { id: "700000000000000004", guildId: TALK });
+        expect(botCheck(TALK, { ...SRV, categoryRoles: { "700000000000000004": [] } }).functions.find((f) => f.key === "events").state).toBe("ok");
     });
 
     it("needs nothing raid-wise without a server", () => {

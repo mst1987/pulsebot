@@ -119,6 +119,18 @@ describe("Rollen-Nachrichten: list", () => {
         expect(within(dialog).getByRole("button", { name: /Posten/ })).toBeDisabled();
     });
 
+    it("says the server list failed instead of calling the bot offline, and locks saving", async () => {
+        vi.mocked(api.getServerChoices).mockReset().mockRejectedValue({ code: "http_500", message: "Serverfehler" });
+        renderPage(<RoleMessagesPage />, { route: "/channels/roles?edit=new" });
+        const dialog = await screen.findByRole("dialog");
+        const text = "Die Serverliste ließ sich nicht laden (Serverfehler)";
+        // once over the list, once in the editor
+        expect((await screen.findAllByText(new RegExp(text.replace(/[()]/g, "\\$&")))).length).toBe(2);
+        expect(screen.getByText("Serverliste:")).toBeInTheDocument();
+        expect(screen.queryByText(/Der Bot ist gerade nicht verbunden/)).not.toBeInTheDocument();
+        expect(within(dialog).getByRole("button", { name: /Posten/ })).toBeDisabled();
+    });
+
     it("warns when the bot lacks Manage Roles", async () => {
         setup({ event: { ...EVENT, manageRoles: false } });
         renderPage(<RoleMessagesPage />, { route: "/channels/roles" });

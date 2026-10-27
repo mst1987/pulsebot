@@ -85,10 +85,10 @@ describe("GET", () => {
 });
 
 describe("GET /api/discord/servers", () => {
-    it("lists the servers in their order with name and label", async () => {
+    it("lists the servers in their order with name and label, the old talk server marked for ?side=talk links", async () => {
         expect(body(await get("/api/discord/servers"))).toEqual([
             { guildId: GUILDS.event, name: "Gilde", label: "", online: true, iconUrl: "https://cdn/icon.png" },
-            { guildId: GUILDS.talk, name: "", label: "Talk", online: false, iconUrl: "" },
+            { guildId: GUILDS.talk, name: "", label: "Talk", online: false, iconUrl: "", legacyTalk: true },
         ]);
     });
 

@@ -14,7 +14,7 @@ const { roleBelowBot } = require("./memberRoles");
 const rosterStore = require("../../stores/rosterStore");
 const roleMessageStore = require("../../stores/roleMessageStore");
 const addonCenterStore = require("../../stores/addonCenterStore");
-const { listKnownCategories } = require("./categoryNames");
+const eventStore = require("../../stores/eventStore");
 const { serverIds, talkGuildId, roleMessageGuild } = require("./guildRoles");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
@@ -109,13 +109,49 @@ function safeList(read) {
     }
 }
 
-/** What is set up on a server: raids (raid categories, or the first server) and role messages. */
-function setupOf(guildId, config) {
+/**
+ * The raid categories the settings name: the category list plus every key of a
+ * per-category map (`categoryRoles`, `categoryLanguage`, …).
+ */
+function configuredRaidCategories(config) {
+    const ids = new Set();
+    for (const id of Array.isArray(config.categoryIds) ? config.categoryIds : []) if (str(id)) ids.add(str(id));
+    for (const [key, value] of Object.entries(config || {})) {
+        if (key === "categoryIds" || !/^category[A-Z]/.test(key)) continue;
+        if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+        for (const id of Object.keys(value)) if (str(id)) ids.add(str(id));
+    }
+    return ids;
+}
+
+/** Does one of the configured raid categories lie on this server (discord.js cache)? */
+function raidCategoryOn(gid, config, guild) {
+    const client = discord.getClient();
+    const clientCache = client && client.channels && client.channels.cache ? client.channels.cache : null;
+    const guildCache = guild && guild.channels && guild.channels.cache ? guild.channels.cache : null;
+    for (const id of configuredRaidCategories(config)) {
+        if (guildCache && guildCache.has(id)) return true;
+        const channel = clientCache ? clientCache.get(id) : null;
+        if (channel && str(channel.guildId) === gid) return true;
+    }
+    return false;
+}
+
+/**
+ * What is set up on a server: raids and role messages. Raids come only from
+ * real raid sources — the first server, a stored event of this server with a
+ * category, or a configured raid category lying on it. Read only: nothing is
+ * written (a plain Discord category is no raid category).
+ */
+function setupOf(guildId, config, guild) {
     const gid = str(guildId);
+    if (!gid) return { raids: false, roleMessages: false };
     const ids = serverIds(config);
-    const categories = safeList(() => listKnownCategories(gid));
+    const raids = gid === ids[0]
+        || safeList(() => eventStore.listEvents(gid)).some((e) => e && str(e.guildId) === gid && str(e.categoryId))
+        || raidCategoryOn(gid, config, guild);
     const roleMessages = safeList(() => roleMessageStore.listMessages().filter((m) => roleMessageGuild(m, config) === gid));
-    return { raids: !!gid && (gid === ids[0] || categories.length > 0), roleMessages: roleMessages.length > 0 };
+    return { raids, roleMessages: roleMessages.length > 0 };
 }
 
 /** The server-wide table: one row per BOT_FUNCTIONS entry. */
@@ -178,7 +214,7 @@ function rolesInUse(guildId, config) {
         add(roster.trialRoleId, `Roster ${roster.name}`);
     }
     for (const m of roleMessageStore.listMessages()) {
-        if (roleMessageGuild(m, config) !== guildId) continue;
+        if (roleMessageGuild(m, config) !== gid) continue;
         for (const r of m.roles || []) add(r.roleId, "Rollen-Nachricht");
     }
     // A role-sync pair (#896) names its servers: only this server's role of it counts.
@@ -224,7 +260,7 @@ function botCheck(guildId, config) {
     return {
         guildId: gid,
         known: !!(guild && ownMember(guild)),
-        functions: checkFunctions(guild, setupOf(gid, config)),
+        functions: checkFunctions(guild, setupOf(gid, config, guild)),
         channels,
         rolesAboveBot: rolesAboveBot(guild, gid, config),
     };
