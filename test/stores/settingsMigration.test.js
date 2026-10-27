@@ -32,12 +32,14 @@ describe("stores/settingsMigration migrateSettings (#420)", () => {
         fs.__store.set(TEMPLATES_FILE, JSON.stringify(OLD_TEMPLATES));
         const log = jest.fn();
         const { changes } = migrateSettings({ log });
-        // the four upgrades of the old install, plus the planning of its two raid categories (nothing used yet: raid plan)
+        // the four upgrades of the old install, the raid defaults copied onto both servers (#924),
+        // plus the planning of its two raid categories (nothing used yet: raid plan)
         // and their version pinned to the one they play (#738)
-        expect(changes).toHaveLength(6);
-        expect(changes[4]).toBe("config.json: Planung je Raid-Kategorie nach der bisherigen Nutzung festgelegt (Raidplan oder Sheet) - c1 raidplan, c2 raidplan");
-        expect(changes[5]).toBe("config.json: Spielversion je aktiver Kategorie festgeschrieben (#738) - c1 tbc, c2 tbc");
-        expect(log).toHaveBeenCalledTimes(6);
+        expect(changes).toHaveLength(7);
+        expect(changes[3]).toBe("config.json: Bewerbungen, Raid-Standardwerte, Sprache und Kan\u00e4le je Server gespeichert (#924) - raidDefaults -> 2 Server");
+        expect(changes[5]).toBe("config.json: Planung je Raid-Kategorie nach der bisherigen Nutzung festgelegt (Raidplan oder Sheet) - c1 raidplan, c2 raidplan");
+        expect(changes[6]).toBe("config.json: Spielversion je aktiver Kategorie festgeschrieben (#738) - c1 tbc, c2 tbc");
+        expect(log).toHaveBeenCalledTimes(7);
         expect(log.mock.calls.every(([line]) => line.startsWith("[settings] Migration: "))).toBe(true);
 
         expect(stored(TEMPLATES_FILE).templates[0]).toMatchObject({ id: "rh-3", raidhelperTemplateId: "3" });
@@ -47,12 +49,14 @@ describe("stores/settingsMigration migrateSettings (#420)", () => {
         expect(config.discordServers).toEqual({
             servers: [{ guildId: "1100000000000000001", label: "" }, { guildId: "1100000000000000002", label: "" }],
             links: [{ from: "1100000000000000001", to: "1100000000000000002", channelId: "1100000000000000003", lang: "", versions: [] }],
-            signupNoteChannelId: "",
-            guildBankChannelId: "",
         });
         expect(config.categoryRaidTemplate).toEqual({ c1: "rh-3", c2: "rh-3" });
-        // everything else stays as it was
-        expect(config.raidDefaults).toEqual(OLD_CONFIG.raidDefaults);
+        // #924: the preset channel is copied onto both servers, the global field is gone
+        expect(config).not.toHaveProperty("raidDefaults");
+        expect(config.serverSettings).toEqual({
+            "1100000000000000001": { raidDefaults: { channelId: "ch" } },
+            "1100000000000000002": { raidDefaults: { channelId: "ch" } },
+        });
         expect(getConfig().categoryRaidTemplate).toEqual({ c1: "rh-3", c2: "rh-3" });
         expect(getConfig().discordServers).toEqual(config.discordServers);
         expect(listRaidTemplates()[0].id).toBe("rh-3");

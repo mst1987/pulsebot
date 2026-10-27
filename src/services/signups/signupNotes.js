@@ -1,6 +1,8 @@
 // The message with "Vielleicht" / "Absagen": a raider who picks one of the two
 // may leave a short note, and the bot posts it into one channel the orga reads
-// (Einstellungen → Verbindungen → Discord-Server, `discordServers.signupNoteChannelId`).
+// (Einstellungen → Verbindungen → Discord-Server). Since #924 that channel is
+// per server (`serverSettings[guildId].signupNoteChannelId`): a raid's note goes
+// to the channel of the raid's server (guildOfEvent); a server without one posts nothing.
 // A category may name its own channel instead (`config.categorySignupNoteChannel`,
 // #335, Einstellungen → Kategorien); one the bot cannot reach falls back to the
 // default (noteChannelFor).
@@ -24,6 +26,8 @@ const { embedAccentColor } = require("../../config/variables");
 const { isSnowflake } = require("../../utils/ids");
 const { eventLang } = require("../discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
+const serverDefaults = require("../discord/serverDefaults");
+const { guildOfEvent, firstServerId } = require("../discord/serverOf");
 
 const NOTE_MODES = ["required", "optional", "none"];
 const NOTE_STATUSES = ["tentative", "absence"];
@@ -41,21 +45,22 @@ function noteMode(categoryId, config = getConfig()) {
 /** Whether a status asks for a note at all. */
 const isNoteStatus = (status) => NOTE_STATUSES.includes(status);
 
-/** The channel the notes go to, or "". */
-function noteChannelId(config = getConfig()) {
-    return String(((config && config.discordServers) || {}).signupNoteChannelId || "").trim();
+/** The channel the notes of one server go to, or "" (no server, or none set there). */
+function noteChannelId(config = getConfig(), guildId = "") {
+    return serverDefaults.signupNoteChannelId(guildId, { config: config || {} });
 }
 
 
 /**
  * The channel a category's notes go to: its own channel (#335) when it has one
- * the bot can reach, else the default, else "" (nothing is posted). `reachable`
- * is an optional check of a channel id; without it every own channel counts.
+ * the bot can reach, else the default of its server (`guildId`), else "" (nothing
+ * is posted). `reachable` is an optional check of a channel id; without it every
+ * own channel counts.
  */
-function noteChannelFor(categoryId, config = getConfig(), { reachable } = {}) {
+function noteChannelFor(categoryId, config = getConfig(), { reachable, guildId = "" } = {}) {
     const own = String(((config && config.categorySignupNoteChannel) || {})[String(categoryId || "")] || "").trim();
     if (isSnowflake(own) && (typeof reachable !== "function" || reachable(own))) return own;
-    return noteChannelId(config);
+    return noteChannelId(config, guildId);
 }
 
 /**
@@ -128,12 +133,14 @@ async function postSignupNote(event, signup, previous, { config = getConfig(), b
     // The orga changing someone's signup is no message from that raider.
     if (byOrga) return { posted: false, skipped: "by_orga" };
     if (noteMode(event && event.categoryId, config) === "none") return { posted: false, skipped: "off" };
-    const channelId = noteChannelFor(event && event.categoryId, config, { reachable: discord.channelVisible });
+    // A raid without a known server (old events) falls back to the first server.
+    const guildId = guildOfEvent(event) || firstServerId(config);
+    const channelId = noteChannelFor(event && event.categoryId, config, { reachable: discord.channelVisible, guildId });
     if (!channelId) return { posted: false, skipped: "no_channel" };
     const post = buildNotePost(event, signup, { emojis: appEmojiMap(), lang: eventLang(event, config) });
     // A category's own channel that refuses the post (gone, no rights) falls
     // back to the default channel, so the message is not lost silently.
-    const fallback = noteChannelId(config);
+    const fallback = noteChannelId(config, guildId);
     const targets = [...new Set([channelId, fallback].filter(Boolean))];
     let error = "";
     for (const target of targets) {

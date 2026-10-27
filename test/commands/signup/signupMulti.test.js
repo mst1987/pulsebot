@@ -38,7 +38,7 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
-    mocks.access.config = { botLanguage: "en" };
+    mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
     mocks.events.clear();
 });
 
@@ -50,7 +50,7 @@ function characters() {
 /** `n` own raids, one per day from tomorrow; the titles are "Raid 1" … */
 function raids(n, over = () => ({})) {
     for (let i = 1; i <= n; i++) {
-        mocks.events.set(`eh-r${i}`, mocks.ownEvent({ id: `eh-r${i}`, title: `Raid ${i}`, startTime: sec() + i * DAY + 3600, signupDeadline: sec() + i * DAY, ...over(i) }));
+        mocks.events.set(`eh-r${i}`, mocks.ownEvent({ id: `eh-r${i}`, guildId: "g1", title: `Raid ${i}`, startTime: sec() + i * DAY + 3600, signupDeadline: sec() + i * DAY, ...over(i) }));
     }
 }
 
@@ -89,7 +89,7 @@ describe("talk overview buttons (#293)", () => {
         profiles.addCharacter(ANNA, { name: "Zibbomage", className: "Mage", specs: [{ key: "Mage-Frost", gear: "ready" }] });
         profiles.addCharacter(ANNA, { name: "Zibborog", className: "Rogue", specs: [{ key: "Rogue-Combat", gear: "ready" }] });
         raids(2, (n) => ({ categoryId: n === 1 ? "cat-a" : "cat-b" }));
-        mocks.access.config = { botLanguage: "en", categorySignupCharacters: { "cat-a": 2 } };
+        mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } }, categorySignupCharacters: { "cat-a": 2 } };
         const events = [mocks.events.get("eh-r1"), mocks.events.get("eh-r2")];
         const profile = profiles.getProfile(ANNA);
         const token = multi.createSession(ANNA, { mode: "multi", eventIds: ["eh-r1", "eh-r2"] });
@@ -146,6 +146,8 @@ describe("<server> beitreten under the results (#904)", () => {
     beforeEach(() => {
         members = { cache: new Map(), fetch: jest.fn(async () => { throw Object.assign(new Error("Unknown Member"), { code: 10007 }); }) };
         discord.getGuild = jest.fn((id) => (id === RAID_SERVER ? { id, name: "Pulse PuGs", members } : null));
+        // #924: the answer goes in the language of the server clicked on
+        mocks.access.config = { ...mocks.access.config, serverSettings: { g1: { botLanguage: "en" }, [RAID_SERVER]: { botLanguage: "en" }, [PARTNER]: { botLanguage: "en" } } };
     });
     afterEach(() => { delete discord.getGuild; });
 
@@ -290,7 +292,7 @@ describe("Mehrere Charaktere … an einem Event (#293)", () => {
         expect(answerOf(late.reply.mock.calls[0][0]).text).toContain("signup deadline");
 
         mocks.events.set("eh-r2", mocks.ownEvent({ id: "eh-r2", categoryId: "cat" }));
-        mocks.access.config = { botLanguage: "en", guildId: "g", categoryRoles: { cat: ["role"] } };
+        mocks.access.config = { guildId: "g", categoryRoles: { cat: ["role"] }, serverSettings: { "g": { botLanguage: "en" } } };
         mocks.access.roleIds = [];
         const noRole = mockInteraction({ customId: "signup-multi:e:eh-r2:s", userId: ANNA });
         await step.execute(noRole);
@@ -308,9 +310,9 @@ describe("utils/signup/multiSignup", () => {
 
     it("offers only raids that still take signups: not begun, not cancelled, not closed (#288)", () => {
         raids(4, (n) => (n === 2 ? { status: "cancelled" } : n === 3 ? { signupsClosed: true } : {}));
-        mocks.events.set("eh-begun", mocks.ownEvent({ id: "eh-begun", startTime: sec() - 60 }));
+        mocks.events.set("eh-begun", mocks.ownEvent({ id: "eh-begun", guildId: "g1", startTime: sec() - 60 }));
         expect(multi.signableRaids().map((e) => e.id)).toEqual(["eh-r1", "eh-r4"]);
-        mocks.access.config = { botLanguage: "en", categoryIds: ["cat-x"] };
+        mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } }, categoryIds: ["cat-x"] };
         expect(multi.signableRaids()).toEqual([]);
     });
 

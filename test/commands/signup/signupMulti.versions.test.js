@@ -29,13 +29,13 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
-    mocks.access.config = { botLanguage: "en" };
+    mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
     mocks.events.clear();
     profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
 });
 
 function raid(id, versionId, day = 1) {
-    mocks.events.set(id, mocks.ownEvent({ id, title: id, versionId, startTime: sec() + day * DAY + 3600, signupDeadline: sec() + day * DAY }));
+    mocks.events.set(id, mocks.ownEvent({ id, guildId: "g1", title: id, versionId, startTime: sec() + day * DAY + 3600, signupDeadline: sec() + day * DAY }));
 }
 
 describe("signableRaids / signableVersions", () => {
@@ -50,7 +50,7 @@ describe("signableRaids / signableVersions", () => {
     it("leave out a hidden version", () => {
         raid("eh-t1", "tbc");
         raid("eh-f1", "forever", 2);
-        mocks.access.config = { botLanguage: "en", hideOtherVersions: true, mainVersion: "tbc" };
+        mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } }, hideOtherVersions: true, mainVersion: "tbc" };
         expect(multi.signableVersions()).toEqual(["tbc"]);
         expect(multi.signableRaids().map((e) => e.id)).toEqual(["eh-t1"]);
     });
@@ -108,11 +108,12 @@ describe("talk overview buttons with two versions", () => {
         };
         beforeEach(() => {
             mocks.access.config = {
-                botLanguage: "en",
                 discordServers: {
                     servers: [{ guildId: GUILD }, { guildId: PUG }, { guildId: PARTNER }],
                     links: [{ from: PUG, to: PARTNER, channelId: "100000000000000009", versions: [] }],
                 },
+                // #924: the language is per server; the clicks come from every one of them
+                serverSettings: { [GUILD]: { botLanguage: "en" }, [PUG]: { botLanguage: "en" }, [PARTNER]: { botLanguage: "en" } },
             };
             onServer("eh-gilde", GUILD);
             onServer("eh-pug", PUG, "tbc", 2);

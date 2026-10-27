@@ -90,7 +90,7 @@ describe("stores/configStore saveConfig", () => {
     it("merges the nested blocks and normalises the category maps", () => {
         configStore.saveConfig({ blizzard: { clientId: "id" }, versionSettings: { tbc: { blizzardRegion: "us" } }, anthropic: { model: "m" }, warcraftlogsV2: { clientId: "w" }, categoryLootTool: { a: "rclc" } });
         const saved = configStore.saveConfig({
-            raidDefaults: { channelId: "ch" }, blizzard: { clientSecret: "s" }, versionSettings: { tbc: { blizzardRealmSlug: "x" }, forever: { wowheadPath: "forever" } }, categoryLootTool: { b: "gargul" },
+            serverSettings: { "1100000000000000001": { raidDefaults: { channelId: "ch" } } }, blizzard: { clientSecret: "s" }, versionSettings: { tbc: { blizzardRealmSlug: "x" }, forever: { wowheadPath: "forever" } }, categoryLootTool: { b: "gargul" },
             categoryLootSystem: { a: "gdkp" }, raidhelperRetirement: { disabled: true, at: 5, byName: "M" },
             categorySignupSource: { a: "raidhelper" }, categorySetupDms: { a: true }, categoryDiscordEvent: { a: true },
             categoryVoiceChannel: { a: "1300000000000000001" }, categoryMessageLook: { a: { titleSize: "huge" } },
@@ -106,7 +106,7 @@ describe("stores/configStore saveConfig", () => {
         expect(saved.anthropic.model).toBe("m");
         expect(saved.warcraftlogsV2.clientId).toBe("w");
         expect(saved.categoryLootTool).toEqual({ a: "rclc", b: "gargul" });
-        expect(saved.raidDefaults).toEqual({ channelId: "ch" });
+        expect(saved.serverSettings["1100000000000000001"].raidDefaults).toEqual({ channelId: "ch" });
         expect(saved.raidhelperRetirement).toEqual({ disabled: true, at: 5, byName: "M" });
         expect(saved.categoryRaidTemplate).toEqual({ a: "t" });
         expect(saved.guildId).toBe("1100000000000000001");
@@ -381,9 +381,9 @@ describe("stores/configStore addon list (#818): never wiped by accident", () => 
     });
 
     it("ignores a list carried along without the edit mark - an unrelated save cannot wipe it", () => {
-        configStore.saveConfig({ addonDownloads: [], officerRoleId: "o" });
+        configStore.saveConfig({ addonDownloads: [], categoryIds: ["c9"] });
         expect(ids(configStore.getConfig())).toEqual(DEFAULT_IDS);
-        expect(configStore.getConfig().officerRoleId).toBe("o");
+        expect(configStore.getConfig().categoryIds).toEqual(["c9"]);
     });
 
     it("takes an edit (list with the mark), removing single addons and all of them", () => {

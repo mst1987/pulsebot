@@ -131,6 +131,7 @@ const { isSnowflake } = require("../utils/ids");
 const {
     CONFIG_DEFAULTS, normalizeCategoryVersion, normalizeDiscordServers, normalizeRoleSync, roleSyncContext, MAX_SERVERS: MAX_EVENT_GUILDS,
 } = require("./configSchema");
+const { serverSettingGuildIds, normalizeBotLanguage } = require("./configSchema");
 const { versionSettingsOf, versionsWithDefaults, fillDefaults } = require("./versionSettingsSchema");
 const { LEGACY_VERSION } = require("../config/gameVersions");
 const { mainVersionFor } = require("../services/events/mainVersion");
@@ -557,6 +558,118 @@ function migrateRoleMessageGuilds() {
     return moved ? [`role-messages.json: ${moved} Rollen-Nachricht(en) ihrem Server fest zugeordnet (#895)`] : [];
 }
 
+// #924: config.json fields that are per server now. Channel and role values go
+// to the server they live on, the others are copied onto every known server.
+const SERVER_CHANNEL_FIELDS_924 = ["applicationChannelId"];
+const SERVER_ROLE_FIELDS_924 = ["officerRoleId"];
+const SERVER_COPY_FIELDS_924 = ["raidDefaults", "botLanguage"];
+const DISCORD_SERVER_FIELDS_924 = ["signupNoteChannelId", "guildBankChannelId"];
+
+/**
+ * channelId -> guildId and roleId -> guildId from what the stores already know
+ * (no Discord at start): own events and Raid-Helper snapshots, role messages,
+ * link targets, role-sync pairs, category roles over the category snapshot.
+ * The first source that names an id wins.
+ */
+function knownPlaces924(stored, block) {
+    const channels = new Map();
+    const roles = new Map();
+    const put = (map, id, guildId) => {
+        const key = String(id || "").trim();
+        const guild = String(guildId || "").trim();
+        if (isSnowflake(key) && isSnowflake(guild) && !map.has(key)) map.set(key, guild);
+    };
+    const categoryGuilds = categoryGuildIndex(categoryNameSnapshot());
+    for (const e of eventStore.listEvents("", { siblings: true })) put(channels, e.channelId, e.guildId);
+    for (const e of raidEventStore.listRaidEvents("")) put(channels, e.channelId, guildOfEvent(e, { categoryGuilds }));
+    for (const m of roleMessageStore.listMessages()) {
+        put(channels, m.channelId, m.guildId);
+        for (const r of m.roles || []) put(roles, r.roleId, m.guildId);
+    }
+    for (const l of block.links) put(channels, l.channelId, l.to);
+    for (const p of Array.isArray(stored.roleSync) ? stored.roleSync : []) {
+        if (!p || typeof p !== "object") continue;
+        put(roles, p.fromRoleId, p.fromGuildId);
+        put(roles, p.toRoleId, p.toGuildId);
+    }
+    const categoryRoles = stored.categoryRoles && typeof stored.categoryRoles === "object" ? stored.categoryRoles : {};
+    for (const [categoryId, ids] of Object.entries(categoryRoles)) {
+        for (const id of Array.isArray(ids) ? ids : []) put(roles, id, categoryGuilds.get(categoryId));
+    }
+    return { channels, roles };
+}
+
+/**
+ * config.json (#924): applicationChannelId, officerRoleId, raidDefaults,
+ * botLanguage and discordServers.signupNoteChannelId / guildBankChannelId move
+ * into serverSettings. A channel or role goes to the server it lives on (as far
+ * as the stores tell, see knownPlaces924), else to the first server; raid
+ * defaults and the bot language are copied onto every known server. A field a
+ * server block already holds is left alone. The global fields are dropped in
+ * the same write that stores the server blocks. Runs before
+ * migrateDiscordFederation(), whose normalising drops the two channel fields,
+ * and after migrateConfig(), which still reads raidDefaults.templateId.
+ * A fresh install (no file) has nothing to move and gets no file written.
+ * @returns {string[]}
+ */
+function migrateServerDefaults() {
+    const stored = configStore.readStored();
+    if (!Object.keys(stored).length) return [];
+    const { src, block, fallbackGuildId } = storedFederation(stored);
+    const known = [...serverSettingGuildIds(block, (block.servers[0] && block.servers[0].guildId) || fallbackGuildId)];
+    if (!known.length) return [];
+    const firstId = known[0];
+    const blocks = stored.serverSettings && typeof stored.serverSettings === "object" && !Array.isArray(stored.serverSettings)
+        ? stored.serverSettings : {};
+    const has = (key) => Object.values(blocks).some((b) => b && typeof b === "object" && b[key] !== undefined);
+    const legacy = (key) => stored[key];
+    const todo = [...SERVER_CHANNEL_FIELDS_924, ...SERVER_ROLE_FIELDS_924, ...SERVER_COPY_FIELDS_924]
+        .filter((key) => legacy(key) !== undefined && !has(key));
+    const fromServers = DISCORD_SERVER_FIELDS_924.filter((key) => src[key] !== undefined && !has(key));
+    const leftovers = [...SERVER_COPY_FIELDS_924, ...SERVER_CHANNEL_FIELDS_924, ...SERVER_ROLE_FIELDS_924].some((key) => stored[key] !== undefined)
+        || DISCORD_SERVER_FIELDS_924.some((key) => src[key] !== undefined);
+    if (!todo.length && !fromServers.length && !leftovers) return [];
+
+    const next = {};
+    for (const [guildId, b] of Object.entries(blocks)) next[guildId] = { ...(b && typeof b === "object" ? b : {}) };
+    const set = (guildId, key, value) => { next[guildId] = { ...(next[guildId] || {}), [key]: value }; };
+    const places = knownPlaces924(stored, block);
+    const placeOf = (map, id) => {
+        const guildId = map.get(id);
+        return guildId && known.includes(guildId) ? guildId : firstId;
+    };
+    const lines = [];
+    const placeOne = (key, value, map) => {
+        const id = String(value || "").trim();
+        if (!isSnowflake(id)) return;
+        const guildId = placeOf(map, id);
+        set(guildId, key, id);
+        lines.push(`${key} -> ${guildId}${map.get(id) === guildId ? "" : " (erster Server)"}`);
+    };
+    for (const key of todo) {
+        if (SERVER_CHANNEL_FIELDS_924.includes(key)) placeOne(key, legacy(key), places.channels);
+        else if (SERVER_ROLE_FIELDS_924.includes(key)) placeOne(key, legacy(key), places.roles);
+        else {
+            const value = key === "botLanguage"
+                ? normalizeBotLanguage(legacy(key))
+                : { channelId: String((legacy(key) || {}).channelId || "").trim() };
+            for (const guildId of known) set(guildId, key, value);
+            lines.push(`${key} -> ${known.length} Server`);
+        }
+    }
+    for (const key of fromServers) placeOne(key, src[key], places.channels);
+
+    const out = { ...stored, serverSettings: next };
+    for (const key of [...SERVER_CHANNEL_FIELDS_924, ...SERVER_ROLE_FIELDS_924, ...SERVER_COPY_FIELDS_924]) delete out[key];
+    if (stored.discordServers && typeof stored.discordServers === "object" && !Array.isArray(stored.discordServers)) {
+        const servers = { ...stored.discordServers };
+        for (const key of DISCORD_SERVER_FIELDS_924) delete servers[key];
+        out.discordServers = servers;
+    }
+    configStore.writeStored(out);
+    return [`config.json: Bewerbungen, Raid-Standardwerte, Sprache und Kanäle je Server gespeichert (#924)${lines.length ? ` - ${lines.join(", ")}` : " - globale Altfelder entfernt"}`];
+}
+
 /**
  * logs.json (#917): the server of every log by the rule raid -> post -> first
  * server, written down. Reads the server list, never writes it. One line, or none.
@@ -591,8 +704,10 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         if (templates) changes.push(`raid-templates.json: ${templates} alte Raid-Helper-Vorlage(n) umgestellt`);
         // Order matters (#897): the role messages read the old talk server, the federation step drops it.
         changes.push(...migrateRoleMessageGuilds());
-        changes.push(...migrateDiscordFederation());
+        // #924: after migrateConfig (reads raidDefaults.templateId), before the federation step (drops the channel fields).
         changes.push(...migrateConfig());
+        changes.push(...migrateServerDefaults());
+        changes.push(...migrateDiscordFederation());
         const plans = raidplanStore.migrateEventDefaults({ instanceIdsOf: (plan) => (eventStore.getEvent(plan.eventId) || {}).instanceIds || [] });
         if (plans) changes.push(raidplanDefaultsLine(plans));
         changes.push(...migrateRaidplanVersions());
@@ -617,6 +732,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateDiscordFederation, raidplanDefaultsLine,
+    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateDiscordFederation, migrateServerDefaults, raidplanDefaultsLine,
     migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

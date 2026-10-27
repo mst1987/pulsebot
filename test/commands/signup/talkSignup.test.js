@@ -32,7 +32,7 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
-    mocks.access.config = { botLanguage: "en" };
+    mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
     mocks.events.set("eh-kara", mocks.ownEvent());
 });
 
@@ -53,7 +53,7 @@ describe("commands/signup/talkSignup", () => {
 
     it("refuses to open an own event of a category whose raider role the member lacks", async () => {
         mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-kara" }));
-        mocks.access.config = { botLanguage: "en", guildId: "event-guild", categoryRoles: { "cat-kara": ["role-kara"] } };
+        mocks.access.config = { guildId: "event-guild", categoryRoles: { "cat-kara": ["role-kara"] }, serverSettings: { "event-guild": { botLanguage: "en" } } };
         mocks.access.roleIds = [];
         const interaction = mockInteraction({ customId: "talk-signup", values: ["eh-kara"], userId: "200000000000000009" });
         await command.execute(interaction);
@@ -68,7 +68,7 @@ describe("commands/signup/talkSignup", () => {
 
         it("opens an open PuG for a member who is not on the raid's server", async () => {
             mocks.events.set("eh-pug", mocks.ownEvent({ id: "eh-pug", title: "PuG Gruul", categoryId: "cat-pug" }));
-            mocks.access.config = { botLanguage: "en", guildId: "event-guild", categoryRoles: { "cat-kara": ["role-kara"] } };
+            mocks.access.config = { guildId: "event-guild", categoryRoles: { "cat-kara": ["role-kara"] }, serverSettings: { "event-guild": { botLanguage: "en" } } };
             mocks.access.roleIds = [];
             const interaction = mockInteraction({ customId: "talk-signup", values: ["eh-pug"], userId: STRANGER });
             interaction.guildId = PARTNER;
@@ -80,7 +80,8 @@ describe("commands/signup/talkSignup", () => {
 
         it("refuses a raid whose category wants a raider role - read on the raid's server, not the partner's", async () => {
             mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-kara" }));
-            mocks.access.config = { botLanguage: "en", guildId: "event-guild", categoryRoles: { "cat-kara": ["role-kara"] } };
+            // #924: the answer goes in the language of the server clicked on (the partner)
+            mocks.access.config = { guildId: "event-guild", categoryRoles: { "cat-kara": ["role-kara"] }, serverSettings: { "event-guild": { botLanguage: "en" }, [PARTNER]: { botLanguage: "en" } } };
             mocks.access.roleIds = [];
             const interaction = mockInteraction({ customId: "talk-signup", values: ["eh-kara"], userId: STRANGER });
             interaction.guildId = PARTNER;

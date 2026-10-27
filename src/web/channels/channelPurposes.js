@@ -62,16 +62,23 @@ const PURPOSES = [
     },
 ];
 
+// The raid preset channel and the application channel are per server (#924):
+// they are read from the active server's block, never from another server's.
+const PER_SERVER = { "raidDefaults.channelId": true, applicationChannelId: true };
+
 function asIds(value) {
     const list = Array.isArray(value) ? value : [value];
     return [...new Set(list.map((v) => String(v || "").trim()).filter(Boolean))];
 }
 
-/** The ids a purpose currently holds in the config. */
-function idsFor(purpose, config) {
+/** The ids a purpose currently holds in the config (`guildId`: the server of the page, for the per-server purposes). */
+function idsFor(purpose, config, guildId = "") {
     const cfg = config || {};
+    if (PER_SERVER[purpose.key]) {
+        const block = (cfg.serverSettings || {})[String(guildId || "").trim()] || {};
+        return purpose.key === "raidDefaults.channelId" ? asIds((block.raidDefaults || {}).channelId) : asIds(block[purpose.key]);
+    }
     switch (purpose.key) {
-        case "raidDefaults.channelId": return asIds((cfg.raidDefaults || {}).channelId);
         default: return asIds(cfg[purpose.key]);
     }
 }
@@ -103,13 +110,14 @@ function channelStatus(channel, need, connected = true) {
  * @param {Array} channels    discord.listAllChannels() — with botCanView/botCanSend
  * @param {Array} categories  discord.listCategories()
  * @param {boolean} connected whether the channel lists are live (bot connected, guild known)
+ * @param {string} guildId    the page's server: the per-server purposes read its block (#924)
  */
-function resolvePurposes(config, channels = [], categories = [], connected = true) {
+function resolvePurposes(config, channels = [], categories = [], connected = true, guildId = "") {
     const channelById = new Map((channels || []).map((c) => [c.id, c]));
     const categoryById = new Map((categories || []).map((c) => [c.id, c]));
 
     return PURPOSES.map((purpose) => {
-        const ids = idsFor(purpose, config);
+        const ids = idsFor(purpose, config, guildId);
         // `key` goes out with it: the page stores a changed assignment through
         // PATCH /api/settings under exactly that config key.
         const { missing, ...pub } = purpose;

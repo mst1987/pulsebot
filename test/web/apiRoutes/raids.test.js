@@ -455,7 +455,7 @@ describe("web/apiRoutes/raids", () => {
         it("assembles defaults, leaderId, channels, templates and reusable events", async () => {
             auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
             activeGuildFor.mockReturnValue("guild-1");
-            settingsStore.getConfig.mockReturnValue({ raidDefaults: { channelId: "c1" }, categoryRaidTemplate: { cat1: "tpl1", cat2: "tpl2" } });
+            settingsStore.getConfig.mockReturnValue({ serverSettings: { "guild-1": { raidDefaults: { channelId: "c1" } }, "guild-2": { raidDefaults: { channelId: "c2" } } }, categoryRaidTemplate: { cat1: "tpl1", cat2: "tpl2" } });
             settingsStore.listRaidTemplates.mockReturnValue([
                 { id: "tpl1", name: "GDKP Kara", raidhelperTemplateId: "t1" },
                 // a default that links no Raid-Helper template gives the form nothing to send

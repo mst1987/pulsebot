@@ -3,7 +3,6 @@
 // and writing the file is configStore.js, one-off upgrades of old files are
 // settingsMigration.js (run once at start), so this is all a read ever does.
 const {
-    officerRoleId, applicationChannelId,
     categoryIds,
     guildId, raidhelperServerId,
     blizzardClientId, blizzardClientSecret,
@@ -59,11 +58,10 @@ const CONFIG_DEFAULTS = {
     // Discord-Server), the server federation of #893: `servers` lists every
     // server as an equal ({ guildId, label }), `links` are directed
     // ({ from, to, channelId }: the raid list of `from` is posted to channelId
-    // on `to`; from = to is allowed). All empty = no server configured yet. `signupNoteChannelId` is where the messages of
-    // "Vielleicht" / "Absagen" land (src/services/signups/signupNotes.js) — a channel on
-    // any server. `guildBankChannelId` is where the guild bank requests of every
-    // raider organizer land (src/services/signups/guildBank.js); empty = no guild bank.
-    discordServers: { servers: [], links: [], signupNoteChannelId: "", guildBankChannelId: "" },
+    // on `to`; from = to is allowed). All empty = no server configured yet. The channels
+    // of "Vielleicht" / "Absagen" and of the guild bank are per server since #924
+    // (serverSettings: signupNoteChannelId, guildBankChannelId).
+    discordServers: { servers: [], links: [] },
     // Settings per Discord server (#917, epic #926): { [guildId]: { key: value } }.
     // Only servers of discordServers (or pure link targets) keep a block, only the
     // keys of SERVER_SETTING_DEFAULTS survive. Read through
@@ -72,10 +70,6 @@ const CONFIG_DEFAULTS = {
     // Raid-Helper server id (raid-helper.xyz), used for all Raid-Helper API calls.
     // RAIDHELPER_API_KEY stays in .env — it's a real secret, this id isn't.
     raidhelperServerId: raidhelperServerId || "",
-    // Officer role pinged when a new application arrives.
-    officerRoleId: officerRoleId || "",
-    // Channel new applications are posted to.
-    applicationChannelId: applicationChannelId || "",
     // Discord category IDs that contain the event channels.
     categoryIds: Array.isArray(categoryIds) ? categoryIds : [],
     // Per-category expected raider roles: { [categoryId]: [roleId, ...] }. Used to
@@ -83,10 +77,6 @@ const CONFIG_DEFAULTS = {
     categoryRoles: {},
     // Channels the bot watches for Warcraft-Logs links to offer auto-evaluation.
     logChannelIds: [],
-    // Defaults pre-filled into the raid-event form. The default *template* is
-    // per category now (categoryRaidTemplate); an old raidDefaults.templateId
-    // is handed to the categories once at start (settingsMigration.js).
-    raidDefaults: { channelId: "" },
     // Battle.net API credentials for optional live character gear (paperdoll) on
     // the char-history page, one API application for every game version. The
     // realm a lookup asks (region, realm slug, namespace) is per version since
@@ -161,10 +151,10 @@ const CONFIG_DEFAULTS = {
     // A message with "Vielleicht" / "Absagen" per Discord category:
     // { [categoryId]: "required" | "none" }. A category without an entry is
     // "optional" (the modal asks, the raider may leave it empty). The message is
-    // posted to discordServers.signupNoteChannelId — see src/services/signups/signupNotes.js.
+    // posted to the server's signupNoteChannelId (serverSettings, #924) — see src/services/signups/signupNotes.js.
     categorySignupNotes: {},
     // Where a category's messages go instead (#335): { [categoryId]: channelId }.
-    // Missing = discordServers.signupNoteChannelId, the default for every category.
+    // Missing = the signupNoteChannelId of the category's server (#924).
     categorySignupNoteChannel: {},
     // How many own characters one signup may name per raid category (the first
     // counts, the others "kann auch mit"): { [categoryId]: 1..7 }. A category
@@ -209,10 +199,6 @@ const CONFIG_DEFAULTS = {
     // target version: { [versionId]: { [itemId]: { at, byName } } } — item ids
     // of VERSION_LAUNCH_MANUAL only (services/events/versionLaunch.js).
     versionLaunch: {},
-    // The language of the bot's public messages (event and setup message, talk
-    // overview, panels, announcements) and the fallback for every raider who
-    // chose none (userPrefsStore): "de" | "en". Einstellungen -> Discord-Server.
-    botLanguage: "de",
     // Drawn pictures in bot messages (a test, Oct 2026; Einstellungen -> Raid-Standardwerte
     // -> "Bilder in Bot-Nachrichten"): the raid overview's week strip
     // (services/events/raidWeekStrip.js), the setup as a graphic (services/setup/setupImage.js)
@@ -442,7 +428,6 @@ function normalizeCategoryReminders(raw) {
 // talkPingChannelId is gone (#894: pings stay on the raid's server), talkGuildId
 // too (#897: the old talk server is an ordinary server now) — an old value is
 // dropped here; normalizeDiscordServers() still reads talkGuildId as input.
-const DISCORD_SERVER_KEYS = ["signupNoteChannelId", "guildBankChannelId"];
 // A sanity bound, not a real product constraint.
 const MAX_EVENT_GUILDS = 10;
 const EVENT_GUILD_LABEL_MAX = 60;
@@ -584,8 +569,8 @@ function legacyServersAndLinks(eventGuilds) {
 }
 
 /**
- * Normalise the servers block to `{ servers, links, signupNoteChannelId,
- * guildBankChannelId }` (#890). The scalars stay single snowflakes or "". A
+ * Normalise the servers block to `{ servers, links }` (#890; the two channel
+ * scalars it had are per server since #924 and are dropped here). A
  * block with a `servers` array is the current shape; one without it is an old
  * `eventGuilds` block, migrated here (idempotent: the result has `servers`, so
  * a second run takes the first path and changes nothing).
@@ -602,10 +587,6 @@ function legacyServersAndLinks(eventGuilds) {
 function normalizeDiscordServers(raw, { fallbackGuildId = "" } = {}) {
     const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
     const out = {};
-    for (const key of DISCORD_SERVER_KEYS) {
-        const value = String(src[key] === undefined || src[key] === null ? "" : src[key]).trim();
-        out[key] = isSnowflake(value) ? value : "";
-    }
     const talkInput = String(src.talkGuildId === undefined || src.talkGuildId === null ? "" : src.talkGuildId).trim();
     const legacyTalk = isSnowflake(talkInput) ? talkInput : "";
     const current = Array.isArray(src.servers);
@@ -915,10 +896,32 @@ function blizzardCredentials(raw) {
 }
 
 /**
+ * #924: what used to be one global value and is per server now. The officer
+ * role pinged on a new application and the channel it is posted to; the raid
+ * form's preset channel; the language of the bot's public messages (and the
+ * fallback of every raider who chose none); where "Vielleicht" / "Absagen"
+ * messages and guild bank requests land. The two signup channels have no
+ * default on purpose: a server without one posts nothing there.
+ */
+const SERVER_DEFAULTS_924 = Object.freeze({
+    applicationChannelId: "",
+    officerRoleId: "",
+    raidDefaults: Object.freeze({ channelId: "" }),
+    botLanguage: "de",
+    signupNoteChannelId: "",
+    guildBankChannelId: "",
+});
+// The global fields of before #924 (the start migration moves them into the server blocks).
+const GLOBAL_FIELDS_924 = ["applicationChannelId", "officerRoleId", "raidDefaults", "botLanguage"];
+
+/**
  * The keys a server block may hold, with the default each part reads when a
  * server has none (#917). Empty for now: the parts 4-8 of epic #926 add theirs.
  */
-const SERVER_SETTING_DEFAULTS = Object.freeze({});
+const SERVER_SETTING_DEFAULTS = Object.freeze({
+    // #924: applications, raid defaults, bot language and two signup channels.
+    ...SERVER_DEFAULTS_924,
+});
 
 /**
  * The guild ids that may hold a serverSettings block: every server, every pure
@@ -971,16 +974,23 @@ function mergeServerSettings(current, partial) {
     return merged;
 }
 
+/** `stored` without the global fields of before #924 (they are read per server only). */
+function withoutGlobalFields924(stored) {
+    if (!GLOBAL_FIELDS_924.some((key) => key in stored)) return stored;
+    const out = { ...stored };
+    for (const key of GLOBAL_FIELDS_924) delete out[key];
+    return out;
+}
+
 /** A stored config.json merged over the defaults, every field in its final shape. */
 function normalizeConfig(raw) {
-    const stored = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const stored = withoutGlobalFields924(raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {});
     const discordServers = normalizeDiscordServers(stored.discordServers, { fallbackGuildId: String(stored.guildId || "").trim() || CONFIG_DEFAULTS.guildId });
     const homeGuildId = (discordServers.servers[0] && discordServers.servers[0].guildId)
         || String(stored.guildId || "").trim() || CONFIG_DEFAULTS.guildId;
     return {
         ...CONFIG_DEFAULTS,
         ...stored,
-        raidDefaults: { channelId: String((stored.raidDefaults || {}).channelId || CONFIG_DEFAULTS.raidDefaults.channelId) },
         // An empty stored guild id falls back to the default instead of winning
         // over it: the settings form writes this field on every save, so an
         // install that never filled it in would otherwise keep a blank value —
@@ -1031,7 +1041,6 @@ function normalizeConfig(raw) {
         categoryEras: normalizeCategoryEras(stored.categoryEras),
         hideOtherVersions: stored.hideOtherVersions === true,
         versionLaunch: normalizeVersionLaunch(stored.versionLaunch),
-        botLanguage: normalizeBotLanguage(stored.botLanguage),
         discordVisuals: normalizeDiscordVisuals(stored.discordVisuals),
         dungeonRecords: normalizeDungeonRecords(stored.dungeonRecords),
         topItems: normalizeTopItems(stored.topItems),
@@ -1043,7 +1052,7 @@ function normalizeConfig(raw) {
 
 module.exports = {
     CONFIG_DEFAULTS, ROLE_SYNC_DIRECTIONS,
-    normalizeConfig, normalizeDiscordServers, normalizeServerSettings, mergeServerSettings, serverSettingGuildIds, SERVER_SETTING_DEFAULTS, normalizeEventGuilds, normalizeEventGuildEntry,
+    normalizeConfig, normalizeDiscordServers, normalizeServerSettings, mergeServerSettings, serverSettingGuildIds, SERVER_SETTING_DEFAULTS, GLOBAL_FIELDS_924, normalizeEventGuilds, normalizeEventGuildEntry,
     normalizeServers, normalizeLinks, legacyServersAndLinks, MAX_SERVERS: MAX_EVENT_GUILDS, EVENT_GUILD_LABEL_MAX,
     normalizeRoleSync, roleSyncContext, normalizeCategoryRaidTemplate, normalizeCategoryReminders, normalizeTopItems,
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryLanguagePatch,

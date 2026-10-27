@@ -5,8 +5,8 @@ const { pendingApplications } = require("../../utils/recruitment/applicationStat
 const { versionLinks, versionLabel } = require("../../services/events/versionSettings");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 const { VERSION_FIELD, versionFieldValue } = require("../../utils/recruitment/applyVersion");
-// applicationChannelId + officerRoleId come from the admin-editable config (no restart).
-const { getConfig } = require("../../stores/configStore");
+// The application channel + officer role of the server /apply ran on (#924, per server).
+const serverDefaults = require("../../services/discord/serverDefaults");
 const { getClass } = require("../../config/applyClasses");
 const WarcraftLogs = require("../../classes/warcraftlogs");
 const { analyzeApplicant, applicantSource } = require("../../utils/logcheck/applicant");
@@ -137,9 +137,21 @@ module.exports = {
             : "Unbekannt";
         const threadTitle = pending.spec ? `${pending.spec} - ${characterName}` : characterName;
 
+        const guildId = interaction.guildId || (interaction.guild && interaction.guild.id) || "";
+        const applicationChannelId = serverDefaults.applicationChannelId(guildId);
+        const officerRoleId = serverDefaults.officerRoleId(guildId);
+        if (!applicationChannelId) {
+            // this server has no application channel: nothing is posted, the applicant is told so
+            await interaction.editReply(card({
+                kind: "error",
+                title: "Bewerbung nicht möglich",
+                text: "Auf diesem Server ist kein Bewerbungs-Kanal eingerichtet. Bitte wende dich an einen Officer.",
+            }));
+            return;
+        }
+
         let thread = null;
         try {
-            const { applicationChannelId, officerRoleId } = getConfig();
             const channel = await client.channels.fetch(applicationChannelId);
             thread = await channel.threads.create({
                 name: threadTitle,

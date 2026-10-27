@@ -28,7 +28,8 @@ const { cardText, cardControls } = require("../../helpers/cardText");
 
 const ANNA = "200000000000000001";
 const RUBY = 32193;
-const CONFIG = { botLanguage: "de", discordServers: { eventGuilds: [{ guildId: "g1" }], guildBankChannelId: "900000" } };
+// #924: the guild bank channel is per server; g1 is the first server
+const CONFIG = { guildId: "g1", discordServers: { eventGuilds: [{ guildId: "g1" }] }, serverSettings: { g1: { botLanguage: "de", guildBankChannelId: "900000" } } };
 let KEY;
 
 const click = (customId, extra = {}) => Object.assign(mockInteraction({ customId, userId: ANNA, ...extra }), { guildId: "g1" });
@@ -157,7 +158,7 @@ describe("Gildenbank aus dem Bestand", () => {
     });
 
     it("zu viel: über maxPerRequest abgelehnt, über Verfügbar auf die Warteliste — auf Englisch für einen englischen Server", async () => {
-        mocks.access.config = { ...CONFIG, botLanguage: "en" };
+        mocks.access.config = { ...CONFIG, serverSettings: { g1: { ...CONFIG.serverSettings.g1, botLanguage: "en" } } };
         const tooMany = submit(`availability:mbi:cat1:${RUBY}`, { amount: "6" });
         await command.execute(tooMany);
         expect(answerOf(tooMany.editReply.mock.calls[0][0]).description).toBe("⚠️ At most 5 per request.");

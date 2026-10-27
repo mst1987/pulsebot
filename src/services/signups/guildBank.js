@@ -1,9 +1,10 @@
 // Guild bank requests (the "Gildenbank" area of the raider organizer, docs/
 // signups.md): a raider asks for mats, potions or enchants, the bot posts the
-// request as a card into one orga channel for every category
-// (Einstellungen → Verbindungen → Discord-Server, `discordServers.guildBankChannelId`),
-// and the orga handles it there — the raider gets a DM in their own language.
-// No channel set = no guild bank button.
+// request as a card into the orga channel of its server (#924, Einstellungen →
+// Verbindungen → Discord-Server, `serverSettings[guildId].guildBankChannelId`;
+// requestGuildId says which server), and the orga handles it there — the raider
+// gets a DM in their own language. No channel on that server = no guild bank
+// button there, nothing is posted.
 //
 // Two kinds of request:
 //   - from the stock (#633): the server has a guild bank (guildBankStockStore,
@@ -46,6 +47,7 @@ const settingsStore = require("../../stores/settingsStore");
 const profiles = require("../../stores/raiderProfileStore");
 const discord = require("../discord/discord");
 const { eventGuildIds } = require("../discord/guildRoles");
+const { storedCategoryGuilds, firstServerId } = require("../discord/serverOf");
 const { langOf } = require("../discord/botLanguage");
 const { categoryNameFor } = require("./availabilityPanel");
 const { mainVersionFor } = require("../events/mainVersion");
@@ -68,9 +70,27 @@ const LINK_NO_CHARACTER = "Diesen Charakter gibt es im Profil nicht.";
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
-/** The orga channel of the guild bank, "" when none is set (then there is no guild bank). */
-function guildBankChannelId(config = settingsStore.getConfig()) {
-    return post.guildBankChannelId(config);
+/** The guild bank's orga channel of one server, "" when none is set there (then it has no guild bank). */
+function guildBankChannelId(config = settingsStore.getConfig(), guildId = "") {
+    return post.guildBankChannelId(config, guildId);
+}
+
+/**
+ * The server a request belongs to (#924): the bank's server for a request from
+ * the stock, else the given one (the organizer that was clicked), else its
+ * category's server, else the first server.
+ */
+function requestGuildId({ bankGuildId = "", guildId = "", categoryId = "", config } = {}) {
+    const known = str(bankGuildId) || str(guildId);
+    if (known) return known;
+    const category = str(categoryId);
+    return (category && str(storedCategoryGuilds().get(category))) || firstServerId(config);
+}
+
+/** The orga channel a stored request's cards go to: its bank's server, else its category's. */
+function channelOfRequest(request, config) {
+    const bank = request && request.bankKey ? stockStore.getBank(request.bankKey) : null;
+    return guildBankChannelId(config, requestGuildId({ bankGuildId: bank && bank.guildId, categoryId: request && request.categoryId, config }));
 }
 
 /**
@@ -147,12 +167,13 @@ async function storeAndPost(input, { channelId, config, now }) {
  * A raider's free-text request: check it, store it, post it into the orga channel.
  * @param {string} userId
  * @param {{ item: string, amount: string|number, purpose?: string }} input as typed in the modal
- * @param {{ userName?: string, categoryId?: string, config?: object, now?: number }} [o]
+ * @param {{ userName?: string, categoryId?: string, guildId?: string, config?: object, now?: number }} [o]
+ *   `guildId` the server the raider asked on (its orga channel gets the card)
  * @returns {Promise<{ request: object } | { error: string }>}
  */
-async function createRequest(userId, input = {}, { userName = "", categoryId = "", config, now = Date.now() } = {}) {
+async function createRequest(userId, input = {}, { userName = "", categoryId = "", guildId = "", config, now = Date.now() } = {}) {
     const cfg = config || settingsStore.getConfig();
-    const channelId = guildBankChannelId(cfg);
+    const channelId = guildBankChannelId(cfg, requestGuildId({ guildId, categoryId, config: cfg }));
     if (!channelId) return { error: NOT_SET_UP };
     return storeAndPost({ ...input, userId, userName, categoryId }, { channelId, config: cfg, now });
 }
@@ -220,11 +241,12 @@ function stockRequestBase(userId, input, { bank, item }, { userName, categoryId 
  *   `request` the open part, `waiting` the waiting part with its `position` (1 = next),
  *   `portion` the item's share per turn on the waiting list (the raider's answer names it)
  */
-async function createStockRequest(userId, input = {}, { userName = "", categoryId = "", config, now = Date.now() } = {}) {
+async function createStockRequest(userId, input = {}, { userName = "", categoryId = "", guildId = "", config, now = Date.now() } = {}) {
     const cfg = config || settingsStore.getConfig();
-    const channelId = guildBankChannelId(cfg);
-    if (!channelId) return { error: NOT_SET_UP };
     const checked = checkStockRequest(userId, input);
+    // the card goes to the orga of the bank's server (#924)
+    const channelId = guildBankChannelId(cfg, requestGuildId({ bankGuildId: checked.bank && checked.bank.guildId, guildId, categoryId, config: cfg }));
+    if (!channelId) return { error: NOT_SET_UP };
     if (checked.error) return checked;
     const { bank, item, split } = checked;
     const base = stockRequestBase(userId, input, checked, { userName, categoryId });
@@ -563,13 +585,13 @@ function advanceWaitlist({ bankKey = "", itemId = 0, config, now = Date.now() } 
     }
     const run = posting.then(async () => {
         const cfg = config || settingsStore.getConfig();
-        const channelId = guildBankChannelId(cfg);
-        if (!channelId) return { moved, posted: 0 };
         let posted = 0;
         const unposted = store.listRequests({ status: "open" })
             .filter((r) => r.fromWaitlist && !r.messageId && keys.includes(r.bankKey));
         for (const request of unposted) {
-            if (await postMovedUp(request, { channelId, config: cfg })) posted += 1;
+            // each card goes to the orga of its bank's server; a server without a channel posts nothing (#924)
+            const channelId = channelOfRequest(request, cfg);
+            if (channelId && await postMovedUp(request, { channelId, config: cfg })) posted += 1;
         }
         for (const { request, rest, restPosition } of moved) {
             const more = { rest: rest ? rest.amount : 0, position: restPosition || 0 };
@@ -585,7 +607,7 @@ function advanceWaitlist({ bankKey = "", itemId = 0, config, now = Date.now() } 
 }
 
 module.exports = {
-    NOT_SET_UP, NOT_OFFERED, NOT_LINKED, NOT_VERIFIED, guildBankChannelId, postFor, restWaiting, offerFor, charactersFor, createRequest, createStockRequest, splitAmount,
+    NOT_SET_UP, NOT_OFFERED, NOT_LINKED, NOT_VERIFIED, guildBankChannelId, requestGuildId, postFor, restWaiting, offerFor, charactersFor, createRequest, createStockRequest, splitAmount,
     resolveRequest, confirmRequest, checkAndConfirm, checkRequestRecipient, reassignRequest, redrawPendingCards, releaseRequest, handOutRequest, redrawPost, pendingForBank, handedOutForBank,
     linkRequest, advanceWaitlist,
 };

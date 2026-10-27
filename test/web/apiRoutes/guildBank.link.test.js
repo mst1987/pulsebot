@@ -17,7 +17,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
     sendDirectMessage: jest.fn(async () => ({ ok: true })),
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({
-    getConfig: jest.fn(() => ({ guildId: "g1", discordServers: { eventGuilds: [{ guildId: "g1" }], guildBankChannelId: "900000" } })),
+    getConfig: jest.fn(() => ({ guildId: "g1", discordServers: { eventGuilds: [{ guildId: "g1" }] }, serverSettings: { g1: { guildBankChannelId: "900000" } } })),
 }));
 
 const discord = require("../../../src/services/discord/discord");
@@ -221,7 +221,7 @@ describe("apiRoutes/guildBank — linking and the hand-out history", () => {
     it("refuses every write to a bank of a hidden version with 409 version_hidden", async () => {
         const { getConfig } = require("../../../src/stores/settingsStore");
         const entry = imported();
-        getConfig.mockReturnValue({ guildId: "g1", mainVersion: "forever", hideOtherVersions: true, discordServers: { eventGuilds: [{ guildId: "g1" }], guildBankChannelId: "900000" } });
+        getConfig.mockReturnValue({ guildId: "g1", mainVersion: "forever", hideOtherVersions: true, discordServers: { eventGuilds: [{ guildId: "g1" }] }, serverSettings: { g1: { guildBankChannelId: "900000" } } });
         try {
             const writes = [
                 [linkGuildBankRequest, { key: KEY, id: entry.id, userId: "u7", characterKey: "whapap" }],
@@ -239,7 +239,7 @@ describe("apiRoutes/guildBank — linking and the hand-out history", () => {
             expect(body(await call(getGuildBank, { url: "http://x/api/guildbank?version=tbc" }))).toEqual({ banks: [], bank: null, otherVersions: [] });
         } finally {
             getConfig.mockReset();
-            getConfig.mockReturnValue({ guildId: "g1", discordServers: { eventGuilds: [{ guildId: "g1" }], guildBankChannelId: "900000" } });
+            getConfig.mockReturnValue({ guildId: "g1", discordServers: { eventGuilds: [{ guildId: "g1" }] }, serverSettings: { g1: { guildBankChannelId: "900000" } } });
         }
     });
 

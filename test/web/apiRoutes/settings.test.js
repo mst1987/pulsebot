@@ -188,6 +188,8 @@ jest.mock("../../../src/web/http/apiBody", () => {
 const auth = require("../../../src/web/http/auth");
 const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
+// #924: the per-server values every config answer carries - here for no or an unknown active server.
+const NO_SERVER_VALUES = { applicationChannelId: "", officerRoleId: "", raidDefaults: { channelId: "" }, botLanguage: "de" };
 const discord = require("../../../src/services/discord/discord");
 const wowhead = require("../../../src/utils/loot/wowhead");
 const { AREA_IDS, emptyAccess } = require("../../../src/config/permissions");
@@ -307,7 +309,7 @@ describe("web/apiRoutes/settings", () => {
                 await handle("/api/settings", { method: "GET" }, res);
 
                 const data = json(res).data;
-                expect(data.config).toEqual({ guildId: "g1" });
+                expect(data.config).toEqual({ guildId: "g1", ...NO_SERVER_VALUES });
                 expect(data.canManageAccess).toBe(false);
             });
 
@@ -329,7 +331,7 @@ describe("web/apiRoutes/settings", () => {
                 await handle("/api/settings", { method: "GET" }, res);
 
                 const data = json(res).data;
-                expect(data.config).toEqual({ guildId: "g1", blizzard: { clientId: "bz-id", region: "eu", hasClientSecret: true } });
+                expect(data.config).toEqual({ guildId: "g1", blizzard: { clientId: "bz-id", region: "eu", hasClientSecret: true }, ...NO_SERVER_VALUES });
                 expect(JSON.stringify(json(res))).not.toContain("secret");
             });
 
@@ -380,7 +382,7 @@ describe("web/apiRoutes/settings", () => {
             it("returns 403 when the CSRF token is invalid", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(false);
-                const res = await patch("/api/settings", { officerRoleId: "r1" });
+                const res = await patch("/api/settings", { hideOtherVersions: true });
                 expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
@@ -391,14 +393,14 @@ describe("web/apiRoutes/settings", () => {
 
                 await patch("/api/settings", {
                     adminRoleIds: [" r1 ", "r2", ""],
-                    officerRoleId: " off1 ",
+                    hideOtherVersions: true,
                     categoryRoles: { cat1: ["role1"] },
                     blizzard: { clientSecret: "" },
                 });
 
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({
                     adminRoleIds: ["r1", "r2"],
-                    officerRoleId: "off1",
+                    hideOtherVersions: true,
                     categoryRoles: { cat1: ["role1"] },
                     blizzard: { clientSecret: "" },
                 });
@@ -414,7 +416,7 @@ describe("web/apiRoutes/settings", () => {
                 expect(rosterStore.getRoster(roster.id).roleIds).toEqual(["new1", "new2"]);
                 // a save without roles leaves the roster alone
                 settingsStore.saveConfig.mockReturnValueOnce({});
-                await patch("/api/settings", { officerRoleId: "x" });
+                await patch("/api/settings", { hideOtherVersions: true });
                 expect(rosterStore.getRoster(roster.id).roleIds).toEqual(["new1", "new2"]);
                 rosterStore.deleteRoster(roster.id);
             });
@@ -424,8 +426,8 @@ describe("web/apiRoutes/settings", () => {
                 auth.checkCsrf.mockReturnValue(true);
                 await patch("/api/settings", { discordVisuals: { overviewWeekStrip: false, setupImage: "yes", eventCover: true, other: false } });
                 expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ discordVisuals: { overviewWeekStrip: false, eventCover: true } });
-                await patch("/api/settings", { discordVisuals: null, officerRoleId: "x" });
-                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ officerRoleId: "x" });
+                await patch("/api/settings", { discordVisuals: null, hideOtherVersions: true });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ hideOtherVersions: true });
             });
 
             it("forwards the dungeon record setting, its two fields only", async () => {
@@ -680,8 +682,8 @@ describe("web/apiRoutes/settings", () => {
                 await patch("/api/settings", { github: { token: "" } });
                 expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ github: { token: "" } });
                 settingsStore.saveConfig.mockClear();
-                await patch("/api/settings", { github: {}, officerRoleId: "o" });
-                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ officerRoleId: "o" });
+                await patch("/api/settings", { github: {}, hideOtherVersions: true });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ hideOtherVersions: true });
             });
 
             it("saves the addon list whole, normalised, and refuses anything but a list", async () => {
@@ -717,7 +719,7 @@ describe("web/apiRoutes/settings", () => {
                 let res = await patch("/api/settings", { github: { token: "github_pat_NEW" }, addonDownloads: [] });
                 expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
                 expect(json(res).error.code).toBe("invalid_addons");
-                res = await patch("/api/settings", { officerRoleId: "o", addonDownloads: [] });
+                res = await patch("/api/settings", { hideOtherVersions: true, addonDownloads: [] });
                 expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
@@ -849,9 +851,9 @@ describe("web/apiRoutes/settings", () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
 
-                await patch("/api/settings", { officerRoleId: "off1" });
+                await patch("/api/settings", { hideOtherVersions: true });
 
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ officerRoleId: "off1" });
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ hideOtherVersions: true });
             });
 
             it("forwards the Battle.net client secret only when sent (omit = keep, \"\" = clear), never echoing it", async () => {
@@ -1005,7 +1007,7 @@ describe("web/apiRoutes/settings", () => {
                 });
                 auth.checkCsrf.mockReturnValue(true);
 
-                let res = await patch("/api/settings", { officerRoleId: "off1", anthropic: { apiKey: "sk-mine" } });
+                let res = await patch("/api/settings", { hideOtherVersions: true, anthropic: { apiKey: "sk-mine" } });
                 expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
                 res = await patch("/api/settings", { warcraftlogsV2: { clientId: "x", clientSecret: "y" } });
                 expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
@@ -1022,9 +1024,9 @@ describe("web/apiRoutes/settings", () => {
                 });
                 auth.checkCsrf.mockReturnValue(true);
 
-                await patch("/api/settings", { officerRoleId: "off1", blizzard: { clientId: "bz", clientSecret: "s" } });
+                await patch("/api/settings", { hideOtherVersions: true, blizzard: { clientId: "bz", clientSecret: "s" } });
 
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ officerRoleId: "off1", blizzard: { clientId: "bz", clientSecret: "s" } });
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ hideOtherVersions: true, blizzard: { clientId: "bz", clientSecret: "s" } });
             });
         });
 
@@ -1264,6 +1266,84 @@ describe("web/apiRoutes/settings", () => {
             });
         });
 
+        // #924: applications, raid defaults and the bot language belong to the active server.
+        describe("the active server's own values (#924)", () => {
+            const languageChange = require("../../../src/services/discord/languageChange");
+            const MAIN = "1800000000000000001";
+            const PUGS = "1800000000000000002";
+            const twoServers = {
+                guildId: MAIN,
+                discordServers: { servers: [{ guildId: MAIN, label: "" }, { guildId: PUGS, label: "" }], links: [] },
+                serverSettings: {
+                    [MAIN]: { applicationChannelId: "1800000000000000011", officerRoleId: "1800000000000000021", botLanguage: "de" },
+                    [PUGS]: { raidDefaults: { channelId: "1800000000000000014" }, botLanguage: "en" },
+                },
+            };
+            beforeEach(() => {
+                settingsStore.getConfig.mockReturnValue(twoServers);
+                settingsStore.saveConfig.mockImplementation((partial) => ({ ...twoServers, ...partial }));
+            });
+            afterEach(() => {
+                settingsStore.getConfig.mockReturnValue({});
+                settingsStore.saveConfig.mockImplementation((partial) => ({ ...partial }));
+            });
+
+            it("stores the four fields in the active server's block, cleaned", async () => {
+                activeGuildFor.mockReturnValue(PUGS);
+                readJsonBody.mockResolvedValue({
+                    applicationChannelId: " 1800000000000000031 ", officerRoleId: "", raidDefaults: { channelId: " 1800000000000000034 ", templateId: "x" }, botLanguage: "EN",
+                });
+                await updateSettings({ headers: {} }, mockRes());
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { [PUGS]: {
+                    applicationChannelId: "1800000000000000031", officerRoleId: "", raidDefaults: { channelId: "1800000000000000034" }, botLanguage: "en",
+                } } });
+            });
+
+            it("refuses the four fields without an active server or for a server that is not entered", async () => {
+                for (const active of ["", "1800000000000000099"]) {
+                    activeGuildFor.mockReturnValue(active);
+                    readJsonBody.mockResolvedValue({ officerRoleId: "1800000000000000021" });
+                    const res = mockRes();
+                    await updateSettings({ headers: {} }, res);
+                    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    expect(json(res).error).toMatchObject({ code: "unknown_server" });
+                }
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            it("answers GET and PATCH with the active server's values, never another server's", async () => {
+                activeGuildFor.mockReturnValue(MAIN);
+                const res = mockRes();
+                await getSettings({}, res);
+                expect(body(res).config).toMatchObject({
+                    applicationChannelId: "1800000000000000011", officerRoleId: "1800000000000000021", raidDefaults: { channelId: "" }, botLanguage: "de",
+                });
+
+                activeGuildFor.mockReturnValue(PUGS);
+                readJsonBody.mockResolvedValue({ hideOtherVersions: true });
+                const res2 = mockRes();
+                await updateSettings({ headers: {} }, res2);
+                expect(body(res2).config).toMatchObject({
+                    applicationChannelId: "", officerRoleId: "", raidDefaults: { channelId: "1800000000000000014" }, botLanguage: "en",
+                });
+            });
+
+            it("redraws the posts when one server's language changes, not on other saves", async () => {
+                languageChange.afterServerLangChange.mockClear();
+                activeGuildFor.mockReturnValue(MAIN);
+                readJsonBody.mockResolvedValue({ officerRoleId: "1800000000000000022" });
+                settingsStore.saveConfig.mockImplementationOnce(() => ({ ...twoServers, serverSettings: { ...twoServers.serverSettings, [MAIN]: { ...twoServers.serverSettings[MAIN], officerRoleId: "1800000000000000022" } } }));
+                await updateSettings({ headers: {} }, mockRes());
+                expect(languageChange.afterServerLangChange).not.toHaveBeenCalled();
+
+                readJsonBody.mockResolvedValue({ botLanguage: "en" });
+                const switched = { ...twoServers, serverSettings: { ...twoServers.serverSettings, [MAIN]: { ...twoServers.serverSettings[MAIN], botLanguage: "en" } } };
+                settingsStore.saveConfig.mockImplementationOnce(() => switched);
+                await updateSettings({ headers: {} }, mockRes());
+                expect(languageChange.afterServerLangChange).toHaveBeenCalledWith({ config: switched });
+            });
+        });
+
         describe("setup DMs per category (#290)", () => {
             it("stores the switch as booleans, so switching off reaches the store", async () => {
                 readJsonBody.mockResolvedValue({ categorySetupDms: { c1: true, c2: false, c3: "yes" } });
@@ -1333,20 +1413,29 @@ describe("web/apiRoutes/settings", () => {
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categorySignupNoteChannel: { c1: "123456789012345678" } });
             });
 
-            it("lists the text channels of both servers, named with their server, and the default channel", async () => {
-                settingsStore.getConfig.mockReturnValue({ discordServers: { servers: [{ guildId: "200" }, { guildId: "300" }], links: [], talkGuildId: "300", signupNoteChannelId: "2001" } });
-                discord.listGuilds.mockReturnValue([{ id: "200", name: "Pulse Events" }, { id: "300", name: "Pulse Talk" }, { id: "400", name: "Andere" }]);
-                discord.listTextChannels.mockImplementation((id) => [{ id: `${id}1`, name: "abmeldungen", category: id === "200" ? "Raids" : "" }]);
+            it("lists the text channels of both servers, named with their server, and the active server's default channel (#924)", async () => {
+                settingsStore.getConfig.mockReturnValue({
+                    discordServers: { servers: [{ guildId: "20000" }, { guildId: "30000" }], links: [] },
+                    serverSettings: { "20000": { signupNoteChannelId: "200001" }, "30000": { signupNoteChannelId: "300001" } },
+                });
+                activeGuildFor.mockReturnValue("20000");
+                discord.listGuilds.mockReturnValue([{ id: "20000", name: "Pulse Events" }, { id: "30000", name: "Pulse Talk" }, { id: "40000", name: "Andere" }]);
+                discord.listTextChannels.mockImplementation((id) => [{ id: `${id}1`, name: "abmeldungen", category: id === "20000" ? "Raids" : "" }]);
                 requireAdmin.mockReturnValue({ id: "7", isAdmin: false });
                 const res = mockRes();
                 await getSettings({}, res);
                 expect(body(res).noteChannels).toEqual({
-                    defaultId: "2001",
+                    defaultId: "200001",
                     channels: [
-                        { id: "2001", name: "abmeldungen", category: "Pulse Events · Raids" },
-                        { id: "3001", name: "abmeldungen", category: "Pulse Talk" },
+                        { id: "200001", name: "abmeldungen", category: "Pulse Events · Raids" },
+                        { id: "300001", name: "abmeldungen", category: "Pulse Talk" },
                     ],
                 });
+                // a server without its own note channel has no default - never another server's
+                activeGuildFor.mockReturnValue("40000");
+                const res2 = mockRes();
+                await getSettings({}, res2);
+                expect(body(res2).noteChannels.defaultId).toBe("");
                 settingsStore.getConfig.mockReturnValue({});
                 discord.listTextChannels.mockReset().mockReturnValue([]);
                 discord.listGuilds.mockReset().mockReturnValue([]);
@@ -1427,34 +1516,76 @@ describe("web/apiRoutes/settings", () => {
                 expect(FULL_ADMIN_KEYS).toContain("discordServers");
             });
 
-            it("stores only the sent fields of the block", async () => {
-                // #894: talkPingChannelId is gone and dropped like any unknown field
-                readJsonBody.mockResolvedValue({ discordServers: { signupNoteChannelId: " 302 ", talkPingChannelId: "303", bogus: "x" } });
-                await updateSettings({ headers: {} }, mockRes());
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ discordServers: { signupNoteChannelId: "302" } });
-            });
+            // #924: the note and guild bank channel are per server, sent as `channels`.
+            describe("signup channels per server (#924)", () => {
+                const sendChannels = async (channels, config = stored) => {
+                    settingsStore.getConfig.mockReturnValue(config);
+                    readJsonBody.mockResolvedValue({ discordServers: { channels } });
+                    const res = mockRes();
+                    await updateSettings({ headers: {} }, res);
+                    settingsStore.getConfig.mockReturnValue({});
+                    return res;
+                };
 
-            it("stores the guild bank channel and redraws the organizers when it changes", async () => {
-                const availabilityPanel = require("../../../src/services/signups/availabilityPanel");
-                availabilityPanel.refreshPanels.mockClear();
-                auth.checkCsrf.mockReturnValue(true);
-                settingsStore.saveConfig.mockReturnValueOnce({ discordServers: { guildBankChannelId: "4001" } });
-                readJsonBody.mockResolvedValue({ discordServers: { guildBankChannelId: " 4001 " } });
-                await updateSettings({ headers: {} }, mockRes());
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ discordServers: { guildBankChannelId: "4001" } });
-                expect(availabilityPanel.refreshPanels).toHaveBeenCalledWith({ config: { discordServers: { guildBankChannelId: "4001" } } });
-            });
+                it("stores the sent channels of each known server, unknown fields dropped", async () => {
+                    // "" clears a channel (nothing is posted there), a server sending nothing is left out
+                    await sendChannels({ "200": { signupNoteChannelId: " 302000 ", bogus: "x" }, "300": { guildBankChannelId: "" }, " 200 ": null });
+                    expect(settingsStore.saveConfig).toHaveBeenCalledWith({
+                        serverSettings: { "200": { signupNoteChannelId: "302000" }, "300": { guildBankChannelId: "" } },
+                    });
+                });
 
-            it("leaves the organizers alone when the guild bank channel stays the same", async () => {
-                const availabilityPanel = require("../../../src/services/signups/availabilityPanel");
-                availabilityPanel.refreshPanels.mockClear();
-                auth.checkCsrf.mockReturnValue(true);
-                settingsStore.getConfig.mockReturnValue({ discordServers: { guildBankChannelId: "4001" } });
-                settingsStore.saveConfig.mockReturnValueOnce({ discordServers: { guildBankChannelId: "4001", signupNoteChannelId: "302" } });
-                readJsonBody.mockResolvedValue({ discordServers: { guildBankChannelId: "4001", signupNoteChannelId: "302" } });
-                await updateSettings({ headers: {} }, mockRes());
-                expect(availabilityPanel.refreshPanels).not.toHaveBeenCalled();
-                settingsStore.getConfig.mockReturnValue({});
+                it.each([
+                    ["the old flat note channel", { signupNoteChannelId: "302000" }, "Veraltetes Format – bitte die Seite neu laden."],
+                    ["the old flat guild bank channel", { guildBankChannelId: "302000" }, "Veraltetes Format – bitte die Seite neu laden."],
+                    ["a server that is not one of ours", { channels: { "99999": { signupNoteChannelId: "302000" } } }, "Unbekannter Server."],
+                    ["a channel that is no id", { channels: { "200": { guildBankChannelId: "#gildenbank" } } }, "Unbekannter Kanal."],
+                    ["channels that are no object", { channels: ["302000"] }, "Die Kanäle fehlen."],
+                ])("refuses %s with a 400", async (_name, block, message) => {
+                    settingsStore.getConfig.mockReturnValue(stored);
+                    readJsonBody.mockResolvedValue({ discordServers: block });
+                    const res = mockRes();
+                    await updateSettings({ headers: {} }, res);
+                    settingsStore.getConfig.mockReturnValue({});
+                    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    expect(json(res).error).toMatchObject({ code: "invalid_discord_servers", message });
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                it("takes a server added in the same save", async () => {
+                    const oneServer = { guildId: "40000", discordServers: { servers: [{ guildId: "40000", label: "" }], links: [] } };
+                    readJsonBody.mockResolvedValue({ discordServers: {
+                        servers: [{ guildId: "40000", label: "" }, { guildId: "50000", label: "" }],
+                        channels: { "50000": { guildBankChannelId: "500001" } },
+                    } });
+                    settingsStore.getConfig.mockReturnValue(oneServer);
+                    const res = mockRes();
+                    await updateSettings({ headers: {} }, res);
+                    settingsStore.getConfig.mockReturnValue({});
+                    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                    expect(settingsStore.saveConfig).toHaveBeenCalledWith(expect.objectContaining({
+                        serverSettings: { "50000": { guildBankChannelId: "500001" } },
+                    }));
+                });
+
+                it("redraws the organizers when a server's guild bank channel changes", async () => {
+                    const availabilityPanel = require("../../../src/services/signups/availabilityPanel");
+                    availabilityPanel.refreshPanels.mockClear();
+                    const saved = { ...stored, serverSettings: { "300": { guildBankChannelId: "400001" } } };
+                    settingsStore.saveConfig.mockReturnValueOnce(saved);
+                    await sendChannels({ "300": { guildBankChannelId: " 400001 " } });
+                    expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { "300": { guildBankChannelId: "400001" } } });
+                    expect(availabilityPanel.refreshPanels).toHaveBeenCalledWith({ config: saved });
+                });
+
+                it("leaves the organizers alone when every guild bank channel stays the same", async () => {
+                    const availabilityPanel = require("../../../src/services/signups/availabilityPanel");
+                    availabilityPanel.refreshPanels.mockClear();
+                    const same = { ...stored, serverSettings: { "300": { guildBankChannelId: "400001" } } };
+                    settingsStore.saveConfig.mockReturnValueOnce({ ...same, serverSettings: { "300": { guildBankChannelId: "400001", signupNoteChannelId: "300002" } } });
+                    await sendChannels({ "300": { guildBankChannelId: "400001", signupNoteChannelId: "300002" } }, same);
+                    expect(availabilityPanel.refreshPanels).not.toHaveBeenCalled();
+                });
             });
 
             it("refuses the block for a limited settings user", async () => {
@@ -1485,7 +1616,7 @@ describe("web/apiRoutes/settings", () => {
             });
 
             it("serves the page: servers with categories and language, links, bot servers and versions (#891)", async () => {
-                settingsStore.getConfig.mockReturnValue({ ...stored, categoryIds: ["2009"] });
+                settingsStore.getConfig.mockReturnValue({ ...stored, categoryIds: ["2009"], serverSettings: { "300": { guildBankChannelId: "300009" } } });
                 discord.getGuild.mockImplementation((id) => ({
                     ...guild(id, id === "200" ? "Pulse Events" : "Pulse Talk", 10),
                     preferredLocale: id === "300" ? "en-US" : "de",
@@ -1496,12 +1627,11 @@ describe("web/apiRoutes/settings", () => {
                 const res = mockRes();
                 await getDiscordServers({}, res);
                 const data = body(res);
-                // no talk fields on the page (#897), the global channels stay on it
-                expect(data.discordServers).toEqual({
-                    servers: stored.discordServers.servers,
-                    links: stored.discordServers.links,
-                    signupNoteChannelId: "",
-                    guildBankChannelId: "",
+                // no talk fields on the page (#897), the signup channels per server (#924)
+                expect(data.discordServers).toEqual({ servers: stored.discordServers.servers, links: stored.discordServers.links });
+                expect(data.channels).toEqual({
+                    "200": { signupNoteChannelId: "", guildBankChannelId: "" },
+                    "300": { signupNoteChannelId: "", guildBankChannelId: "300009" },
                 });
                 expect(data.servers.map((s) => [s.id, s.name, s.raidCategories, s.lang, s.memberCount])).toEqual([
                     ["200", "Pulse Events", 1, "de", 10], ["300", "Pulse Talk", 0, "en", 10],

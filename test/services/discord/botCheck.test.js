@@ -159,10 +159,11 @@ describe("functions", () => {
 });
 
 describe("channels", () => {
+    // #924: the applications and guild bank channels are per server (serverSettings)
     const config = {
-        applicationChannelId: "",
         logChannelIds: ["300000000000000001"],
-        discordServers: { ...SERVERS, talkPingChannelId: "300000000000000002", guildBankChannelId: "300000000000000003" },
+        discordServers: { ...SERVERS, talkPingChannelId: "300000000000000002" },
+        serverSettings: { [EVENT]: { guildBankChannelId: "300000000000000003" } },
     };
 
     it("checks the configured channels of the server (a channel not found shows on the first server)", () => {
@@ -177,10 +178,15 @@ describe("channels", () => {
     });
 
     // #894: there is no talk ping channel any more - an old value is not checked
-    it("puts a channel by its server and checks no talk ping channel", () => {
-        mockClient.channels.cache.set("300000000000000003", { guildId: TALK });
-        const keys = botCheck(TALK, config).channels.map((c) => c.key);
-        expect(keys).toEqual(["guildBank"]);
+    it("puts a per-server channel on the server it was set for and checks no talk ping channel (#924)", () => {
+        const onTalk = { ...config, serverSettings: { [TALK]: { guildBankChannelId: "300000000000000003", applicationChannelId: "300000000000000006" } } };
+        // where the channel lies does not move it: it is the setting of that server
+        mockClient.channels.cache.set("300000000000000003", { guildId: EVENT });
+        expect(botCheck(TALK, onTalk).channels.map((c) => c.key)).toEqual(["applications", "guildBank"]);
+        const eventKeys = botCheck(EVENT, onTalk).channels.map((c) => c.key);
+        expect(eventKeys).not.toContain("guildBank");
+        // the first server without an applications channel is told so
+        expect(botCheck(EVENT, onTalk).channels.find((c) => c.key === "applications").state).toBe("not_set");
     });
 
     it("puts an overview channel on the target of its link", () => {
@@ -192,7 +198,11 @@ describe("channels", () => {
     it("leaves out a channel on a server outside the list", () => {
         const SECOND = "900000000000000003";
         mockClient.channels.cache.set("300000000000000003", { guildId: SECOND });
-        const withOverview = { ...config, discordServers: { ...config.discordServers, links: [{ from: EVENT, to: SECOND, channelId: "300000000000000004" }] } };
+        const withOverview = {
+            ...config,
+            discordServers: { ...config.discordServers, links: [{ from: EVENT, to: SECOND, channelId: "300000000000000004" }] },
+            serverSettings: { [SECOND]: { guildBankChannelId: "300000000000000003" } },
+        };
         const eventKeys = botCheck(EVENT, withOverview).channels.map((c) => c.key);
         const talkKeys = botCheck(TALK, withOverview).channels.map((c) => c.key);
         expect(eventKeys).not.toContain("guildBank");
@@ -211,7 +221,8 @@ describe("channels", () => {
     });
 
     it("lists only purposes with a channel, plus the required applications channel", () => {
-        expect(channelPurposes({}).map((p) => p.key)).toEqual(["applications"]);
+        expect(channelPurposes(SRV).map((p) => p.key)).toEqual(["applications"]);
+        expect(channelPurposes(SRV)[0]).toEqual(expect.objectContaining({ guildId: EVENT, channelId: "", required: true }));
         mockOnline = false;
         expect(botCheck(EVENT, config).channels.find((c) => c.key === "logs").state).toBe("unknown");
     });
@@ -304,6 +315,6 @@ describe("pugRolesGranting (#930)", () => {
 
     it("still reports while the bot is offline", () => {
         mockOnline = false;
-        expect(botCheck(EVENT, { ...SRV, pugRoles, officerRoleId: VERSION_ROLE }).pugRolesGranting.map((r) => r.id)).toEqual([VERSION_ROLE]);
+        expect(botCheck(EVENT, { ...SRV, pugRoles, serverSettings: { "900000000000000009": { officerRoleId: VERSION_ROLE } } }).pugRolesGranting.map((r) => r.id)).toEqual([VERSION_ROLE]);
     });
 });

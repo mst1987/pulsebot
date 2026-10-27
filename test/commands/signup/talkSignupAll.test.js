@@ -19,7 +19,7 @@ describe("talk-signup-all (gone since #904)", () => {
     });
 
     it.each(["talk-signup-all", "talk-signup-all:v:tbc"])("answers %s ephemerally that the button is gone", async (customId) => {
-        mocks.access.config = { botLanguage: "en" };
+        mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
         const i = mockInteraction({ customId, userId: "200000000000000001" });
         await command.execute(i);
         expect(i.reply).toHaveBeenCalledTimes(1);

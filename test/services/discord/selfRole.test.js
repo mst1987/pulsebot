@@ -35,8 +35,8 @@ describe("selfRole privilegedReason", () => {
         expect(privilegedReason({}, ROLE, role(0n), guild())).toBe("");
         expect(privilegedReason({ rolePermissions: { [ROLE]: { signup: { read: false } } } }, ROLE)).toBe("");
         expect(privilegedReason({ categoryRoles: { cat: [OTHER] }, roleSync: [pair(OTHER, OTHER)] }, ROLE)).toBe("");
-        expect(privilegedReason({ officerRoleId: "" }, ROLE)).toBe("");
-        expect(privilegedReason({ officerRoleId: OTHER }, ROLE)).toBe("");
+        expect(privilegedReason({ serverSettings: { "900000000000000009": { officerRoleId: "" } } }, ROLE)).toBe("");
+        expect(privilegedReason({ serverSettings: { "900000000000000009": { officerRoleId: OTHER } } }, ROLE)).toBe("");
         expect(privilegedReason({}, "")).toBe("");
         expect(privilegedReason(null, ROLE, null)).toBe("");
     });
@@ -45,7 +45,7 @@ describe("selfRole privilegedReason", () => {
         ["a full-admin role of the config", { adminRoleIds: [ROLE] }, ROLE, "full-admin"],
         ["a full-admin role of ADMIN_ROLE_IDS", {}, "900000000000000009", "full-admin"],
         ["an orga role", { orgaRoleIds: [ROLE] }, ROLE, "orga role"],
-        ["the officer role pinged on applications", { officerRoleId: ROLE }, ROLE, "officer role"],
+        ["the officer role pinged on applications", { serverSettings: { "900000000000000009": { officerRoleId: ROLE } } }, ROLE, "officer role"],
         ["a role with area grants", { rolePermissions: { [ROLE]: { signup: { read: true } } } }, ROLE, "Berechtigungen"],
         ["a role a bot command allows", { botCommandAccess: { setup: { mode: "roles", roleIds: [OTHER, ROLE] } } }, ROLE, "botCommandAccess"],
         ["a raider role of a category", { categoryRoles: { "cat-1": [ROLE] } }, ROLE, "raider role"],
@@ -99,7 +99,7 @@ describe("selfRole roleUses", () => {
         const config = {
             adminRoleIds: [ROLE],
             orgaRoleIds: [ROLE],
-            officerRoleId: ROLE,
+            serverSettings: { "900000000000000009": { officerRoleId: ROLE } },
             rolePermissions: { [ROLE]: { signup: { read: true }, loot: { read: true, write: true } } },
             botCommandAccess: { setup: { mode: "roles", roleIds: [ROLE] }, absence: { mode: "roles", roleIds: [OTHER] }, kader: { mode: "roles", roleIds: [ROLE] } },
             categoryRoles: { "cat-1": [ROLE], "cat-2": [OTHER], "cat-3": [ROLE] },

@@ -28,7 +28,7 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
-    mocks.access.config = { botLanguage: "en" };
+    mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
     mocks.events.set("eh-kara", mocks.ownEvent());
     profiles.addCharacter(ANNA, { name: "Nerathil", className: "Mage", specs: ["Mage-Arcane"] });
     profiles.addCharacter(ANNA, { name: "Brokk", className: "Warrior", specs: ["Warrior-Protection", "Warrior-Fury"] });
@@ -116,7 +116,7 @@ describe("commands/signup/signupStatus", () => {
     describe("raider role of the category", () => {
         beforeEach(() => {
             mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-kara" }));
-            mocks.access.config = { botLanguage: "en", categoryRoles: { "cat-kara": ["role-kara"] } };
+            mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } }, categoryRoles: { "cat-kara": ["role-kara"] } };
             mocks.access.roleIds = ["role-other"];
         });
 
@@ -166,6 +166,8 @@ describe("<server> beitreten after „Gespeichert“ (#904)", () => {
         mocks.events.set("eh-kara", mocks.ownEvent({ guildId: RAID_SERVER }));
         members = { cache: new Map(), fetch: jest.fn(async () => { throw Object.assign(new Error("Unknown Member"), { code: 10007 }); }) };
         discord.getGuild = jest.fn((id) => (id === RAID_SERVER ? { id, name: "Pulse PuGs", members } : null));
+        // #924: the answer goes in the language of the server clicked on
+        mocks.access.config = { ...mocks.access.config, serverSettings: { g1: { botLanguage: "en" }, [RAID_SERVER]: { botLanguage: "en" }, [PARTNER]: { botLanguage: "en" } } };
     });
     afterEach(() => { delete discord.getGuild; });
 

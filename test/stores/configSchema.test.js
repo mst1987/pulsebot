@@ -148,9 +148,37 @@ function after897(config) {
 }
 // #917 adds the settings per Discord server (none stored: empty).
 const after917 = (config) => ({ ...config, serverSettings: {} });
-const schemaOnly = frozen.map((g) => ({ ...g, config: after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))))))))) }));
-const golden = schemaOnly.map((g, i) => ({ ...g, config: afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config) }));
-const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)"));
+// #924: the application channel, the officer role, the raid defaults, the bot language and the two signup
+// channels of the server block are per server - on read the global fields are gone.
+const GLOBAL_924 = ["applicationChannelId", "officerRoleId", "raidDefaults", "botLanguage"];
+function after924(config) {
+    const out = { ...config };
+    for (const key of GLOBAL_924) delete out[key];
+    const servers = { ...config.discordServers };
+    delete servers.signupNoteChannelId;
+    delete servers.guildBankChannelId;
+    return { ...out, discordServers: servers };
+}
+// The start moves a stored value into serverSettings: raid defaults and language onto every known server,
+// a channel or role onto its server - the stores of these cases are empty, so onto the first server.
+function after924Migrated(config, stored) {
+    if (!stored || !Object.keys(stored).length) return config;
+    const snowflake = (v) => (/^\d{5,25}$/.test(String(v || "").trim()) ? String(v).trim() : "");
+    const block = config.discordServers;
+    const home = (block.servers[0] && block.servers[0].guildId) || config.guildId;
+    const known = [...new Set([...block.servers.map((x) => x.guildId), ...block.links.map((l) => l.to), home])];
+    const next = {};
+    const set = (guildId, key, value) => { next[guildId] = { ...(next[guildId] || {}), [key]: value }; };
+    if (stored.raidDefaults !== undefined) for (const id of known) set(id, "raidDefaults", { channelId: String((stored.raidDefaults || {}).channelId || "").trim() });
+    if (stored.botLanguage !== undefined) for (const id of known) set(id, "botLanguage", stored.botLanguage === "en" ? "en" : "de");
+    const src = stored.discordServers && typeof stored.discordServers === "object" && !Array.isArray(stored.discordServers) ? stored.discordServers : {};
+    const one = { applicationChannelId: stored.applicationChannelId, officerRoleId: stored.officerRoleId, signupNoteChannelId: src.signupNoteChannelId, guildBankChannelId: src.guildBankChannelId };
+    for (const [key, value] of Object.entries(one)) if (snowflake(value)) set(known[0], key, snowflake(value));
+    return { ...config, serverSettings: next };
+}
+const schemaOnly = frozen.map((g) => ({ ...g, config: after924(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))))))))))) }));
+const golden = schemaOnly.map((g, i) => ({ ...g, config: after924Migrated(afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config), cases[i].config) }));
+const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)") && !line.includes("(#924)"));
 
 const CONFIG_FILE = settingsPath("config.json");
 const TEMPLATES_FILE = settingsPath("raid-templates.json");
@@ -255,12 +283,12 @@ describe("stores/configSchema server federation (#890)", () => {
     const T = "333333333333333333";
     const C1 = "444444444444444444";
     const C2 = "555555555555555555";
-    const blank = { signupNoteChannelId: "", guildBankChannelId: "" };
 
     describe("migrates every old shape on read", () => {
         it("only event servers: they become the servers, labels kept, no links", () => {
             expect(schema.normalizeDiscordServers({ eventGuilds: [{ guildId: A, label: "PvE" }, { guildId: B }] })).toEqual({
-                ...blank, servers: [{ guildId: A, label: "PvE" }, { guildId: B, label: "" }], links: [],
+                // #924: the two signup channels are per server, not in this block
+                servers: [{ guildId: A, label: "PvE" }, { guildId: B, label: "" }], links: [],
             });
         });
 
