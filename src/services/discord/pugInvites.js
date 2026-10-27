@@ -243,12 +243,14 @@ function reconcileInvites() {
 /**
  * Whether config.json itself holds a server list. An unreadable or missing file
  * reads as the defaults (servers fall back to GUILD_ID, no links), which must
- * never look like "every server and link was removed".
+ * never look like "every server and link was removed". A stored empty list
+ * counts: that is the last server removed on purpose (or a save of an install
+ * that never listed one - the same state, GUILD_ID only), and its invites go.
  */
 function configUsable() {
     try {
         const block = readStored().discordServers;
-        return !!(block && typeof block === "object" && Array.isArray(block.servers) && block.servers.length);
+        return !!(block && typeof block === "object" && Array.isArray(block.servers));
     } catch {
         return false;
     }

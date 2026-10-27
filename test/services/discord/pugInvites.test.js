@@ -208,7 +208,6 @@ describe("the check against Discord", () => {
     it.each([
         ["unreadable", {}],
         ["without a server block", { guildId: PUG }],
-        ["with an empty server list", { discordServers: { servers: [], links: [] } }],
         ["with a broken server list", { discordServers: { servers: "x" } }],
     ])("removes nothing while config.json is %s, warning once", async (_name, stored) => {
         const other = makeGuild({ id: PARTNER });
@@ -231,6 +230,30 @@ describe("the check against Discord", () => {
         expect(originStore.listOrigins()).toHaveLength(1);
         const warned = mockLog.warn.mock.calls.filter(([text]) => /no usable server list/.test(text));
         expect(warned).toHaveLength(1);
+    });
+
+    it("deletes the invites of the last server removed, keeping the GUILD_ID fallback", async () => {
+        const other = makeGuild({ id: PARTNER });
+        discord.getGuild.mockImplementation((id) => ({ [PUG]: fake.guild, [PARTNER]: other.guild }[id] || null));
+        await pugInvites.ensureLinkInvite(KEY);
+        await pugInvites.ensureGeneralInvite(PUG);
+        await pugInvites.ensureGeneralInvite(PARTNER);
+        inviteStore.setInviteChannel(PUG, CHANNEL);
+        inviteStore.setInviteChannel(PARTNER, CHANNEL);
+        originStore.recordOrigin({ guildId: PUG, userId: "100000000000000001", inviteCode: "new1", linkKey: KEY });
+        // Saved on purpose: no server left; guildId stays the last first server (saveConfig).
+        configStore.readStored.mockReturnValue({ guildId: PUG, discordServers: { servers: [], links: [] } });
+        guildRoles.links.mockReturnValue([]);
+        guildRoles.serverIds.mockReturnValue([PUG]);
+        await pugInvites.reconcileInvites();
+        expect(fake.guild.invites.delete).toHaveBeenCalledWith("new1", expect.any(String));
+        expect(inviteStore.linkKeys()).toEqual([]);
+        expect(originStore.listOrigins()).toEqual([]);
+        expect(other.guild.invites.delete).toHaveBeenCalledTimes(1);
+        expect(inviteStore.generalGuildIds()).toEqual([PUG]);
+        expect(inviteStore.getInviteChannel(PUG)).toBe(CHANNEL);
+        expect(inviteStore.getInviteChannel(PARTNER)).toBe("");
+        expect(mockLog.warn.mock.calls.filter(([text]) => /no usable server list/.test(text))).toHaveLength(0);
     });
 
     it("cleans up again after a clean read of config.json", async () => {
