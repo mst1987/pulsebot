@@ -23,6 +23,10 @@ jest.mock("../../../src/stores/settingsStore", () => ({
 jest.mock("../../../src/services/discord/discord", () => ({
     listCategories: jest.fn(() => [{ id: "c1", name: "SSC/TK Mittwoch" }]),
 }));
+jest.mock("../../../src/services/discord/serverOf", () => ({
+    ...jest.requireActual("../../../src/services/discord/serverOf"),
+    guildOfCategory: jest.fn(() => "g-cat"),
+}));
 jest.mock("../../../src/web/loot/lootCouncil", () => ({
     ...jest.requireActual("../../../src/web/loot/lootCouncil"),
     councilRoster: jest.fn(),
@@ -130,6 +134,8 @@ describe("GET /api/ingest/council", () => {
     it("passes category and role through to the roster", async () => {
         const res = await authed("/api/ingest/council", { category: "c1", role: "healer", tiers: "t5" });
         expect(councilRoster).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "c1", role: "healer", tierIds: [], bisTier: "" }));
+        // gear and links in the realm of the category's server (#923)
+        expect(councilRoster).toHaveBeenCalledWith(expect.objectContaining({ guildId: "g-cat" }));
         expect(body(res).filter).toMatchObject({ category: "c1", categoryName: "SSC/TK Mittwoch", role: "healer" });
     });
 });

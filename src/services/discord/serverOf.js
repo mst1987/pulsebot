@@ -59,6 +59,18 @@ function guildOfEvent(event, { categoryGuilds } = {}) {
 }
 
 /**
+ * The server of a category (#923): the one its name was seen on, else the first
+ * server - for readers without a session (the sync tool's council endpoint).
+ * @param {{ config?: object, categoryGuilds?: Map<string, string> }} [opts] the config for the
+ *   first server; the index defaults to the stored snapshot
+ */
+function guildOfCategory(categoryId, { config, categoryGuilds } = {}) {
+    const id = str(categoryId);
+    const index = id ? (categoryGuilds || storedCategoryGuilds()) : null;
+    return str(index && index.get(id)) || firstServerId(config);
+}
+
+/**
  * The origin server of a log: the server it was posted in or added on. Before
  * #917 `guildId` was exactly that for every log, with or without a channel;
  * a log that already has a `guildFrom` keeps it in `postGuildId`.
@@ -89,4 +101,4 @@ function logGuild(log, { eventGuildId = "", firstGuildId = "" } = {}) {
     return { guildId: first, guildFrom: first ? "first" : "", postGuildId };
 }
 
-module.exports = { firstServerId, categoryGuildIndex, storedCategoryGuilds, guildOfEvent, postGuildOf, logGuild };
+module.exports = { firstServerId, categoryGuildIndex, storedCategoryGuilds, guildOfEvent, guildOfCategory, postGuildOf, logGuild };

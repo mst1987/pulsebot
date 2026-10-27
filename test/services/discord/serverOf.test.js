@@ -3,7 +3,7 @@ jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 const fs = require("fs");
 const { settingsPath } = require("../../../src/config/paths");
 const {
-    firstServerId, categoryGuildIndex, storedCategoryGuilds, guildOfEvent, postGuildOf, logGuild,
+    firstServerId, categoryGuildIndex, storedCategoryGuilds, guildOfEvent, postGuildOf, logGuild, guildOfCategory,
 } = require("../../../src/services/discord/serverOf");
 
 const A = "111111111111111111";
@@ -56,6 +56,25 @@ describe("services/discord/serverOf (#917)", () => {
         it("uses the stored snapshot when no index is handed in", () => {
             fs.__store.set(settingsPath("category-names.json"), JSON.stringify({ guilds: { [C]: { cat7: "Raids" } } }));
             expect(guildOfEvent({ categoryId: "cat7" })).toBe(C);
+        });
+    });
+
+    describe("guildOfCategory (#923)", () => {
+        const config = { discordServers: { servers: [{ guildId: A }, { guildId: B }] } };
+
+        it("is the server the category lives on", () => {
+            expect(guildOfCategory("cat1", { config, categoryGuilds: new Map([["cat1", B]]) })).toBe(B);
+        });
+
+        it("reads the stored snapshot when no index is handed in", () => {
+            fs.__store.set(settingsPath("category-names.json"), JSON.stringify({ guilds: { [C]: { cat7: "Raids" } } }));
+            expect(guildOfCategory("cat7", { config })).toBe(C);
+        });
+
+        it("falls back to the first server for an unknown or missing category", () => {
+            expect(guildOfCategory("unknown", { config, categoryGuilds: new Map() })).toBe(A);
+            expect(guildOfCategory("", { config })).toBe(A);
+            expect(guildOfCategory(undefined)).toBe("");
         });
     });
 

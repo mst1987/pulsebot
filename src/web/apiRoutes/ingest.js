@@ -29,6 +29,7 @@ const { councilSyncPayload, councilSyncPayloadV2, councilSyncPayloadV3 } = requi
 const { councilCategoryIds, categoryInstances, categoryCouncil } = require("../loot/councilView");
 const { getConfig } = require("../../stores/settingsStore");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
+const { guildOfCategory } = require("../../services/discord/serverOf");
 const { ingestScan } = require("../../services/guildbank/guildBankStock");
 const { queueLookups } = require("../../services/guildbank/itemMeta");
 const { queueItemEmojiSync } = require("../../services/guildbank/itemEmojis");
@@ -316,10 +317,13 @@ async function ingestCouncil(req, res, url) {
         return ok(res, councilSyncPayloadV2(await councilEntries(req)));
     }
     // v1: only the two documented filters count; the tool never narrows by tier or version.
+    // The category's server, else the first one (#923): the token request has no
+    // session, and the server decides which realm the gear is read for.
+    const category = params.get("category") || "";
     const opts = councilOptsFromQuery(new URLSearchParams({
-        category: params.get("category") || "",
+        category,
         role: params.get("role") || "",
-    }));
+    }), { guildId: guildOfCategory(category, { config: getConfig() }) });
     const built = councilRoster(opts);
     ok(res, councilSyncPayload(built, {
         categoryId: opts.categoryId,
