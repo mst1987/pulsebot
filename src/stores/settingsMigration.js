@@ -603,7 +603,8 @@ function knownPlaces924(stored, block) {
  * config.json (#924): applicationChannelId, officerRoleId, raidDefaults,
  * botLanguage and discordServers.signupNoteChannelId / guildBankChannelId move
  * into serverSettings. A channel or role goes to the server it lives on (as far
- * as the stores tell, see knownPlaces924), else to the first server; raid
+ * as the stores tell, see knownPlaces924), else to the first server - the two
+ * signup channels of discordServers onto every known server then; raid
  * defaults and the bot language are copied onto every known server. A field a
  * server block already holds is left alone. The global fields are dropped in
  * the same write that stores the server blocks. Runs before
@@ -657,7 +658,21 @@ function migrateServerDefaults() {
             lines.push(`${key} -> ${known.length} Server`);
         }
     }
-    for (const key of fromServers) placeOne(key, src[key], places.channels);
+    // The two signup channels were one channel for every server: when the stores
+    // cannot tell which server it lives on, every known server keeps it (as it
+    // worked before), so no server loses its channel to a guess.
+    for (const key of fromServers) {
+        const id = String(src[key] || "").trim();
+        if (!isSnowflake(id)) continue;
+        const guildId = places.channels.get(id);
+        if (guildId && known.includes(guildId)) {
+            set(guildId, key, id);
+            lines.push(`${key} -> ${guildId}`);
+        } else {
+            for (const each of known) set(each, key, id);
+            lines.push(`${key} -> ${known.length} Server (Server des Kanals unbekannt)`);
+        }
+    }
 
     const out = { ...stored, serverSettings: next };
     for (const key of [...SERVER_CHANNEL_FIELDS_924, ...SERVER_ROLE_FIELDS_924, ...SERVER_COPY_FIELDS_924]) delete out[key];

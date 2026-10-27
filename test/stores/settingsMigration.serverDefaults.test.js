@@ -2,7 +2,8 @@
 // defaults, the bot language and the two signup channels of the server block
 // move from config.json's global fields into serverSettings. A channel or role
 // goes to the server it lives on (as far as the stores tell), else to the first
-// server; raid defaults and language are copied onto every known server. The
+// server (the two signup channels onto every server: nothing is lost to a
+// guess); raid defaults and language are copied onto every known server. The
 // global fields go in the same write that stores the server blocks.
 jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 
@@ -79,12 +80,17 @@ describe("stores/settingsMigration — Standardwerte je Server (#924)", () => {
         expect(raw).not.toHaveProperty("botLanguage");
     });
 
-    it("moves the note and guild bank channel out of the server block", () => {
+    it("moves the note and guild bank channel out of the server block, an unplaceable one onto every server", () => {
         jest.spyOn(eventStore, "listEvents").mockReturnValue([{ id: "e1", guildId: PUGS, channelId: CH_BANK }]);
         save({ ...TWO_SERVERS, discordServers: { ...TWO_SERVERS.discordServers, signupNoteChannelId: CH_NOTES, guildBankChannelId: CH_BANK } });
-        migrateServerDefaults();
+        const changes = migrateServerDefaults();
+        expect(changes[0]).toContain("signupNoteChannelId -> 2 Server (Server des Kanals unbekannt)");
+        expect(changes[0]).toContain(`guildBankChannelId -> ${PUGS}`);
         const raw = stored();
-        expect(raw.serverSettings).toEqual({ [MAIN]: { signupNoteChannelId: CH_NOTES }, [PUGS]: { guildBankChannelId: CH_BANK } });
+        expect(raw.serverSettings).toEqual({
+            [MAIN]: { signupNoteChannelId: CH_NOTES },
+            [PUGS]: { signupNoteChannelId: CH_NOTES, guildBankChannelId: CH_BANK },
+        });
         expect(raw.discordServers).not.toHaveProperty("signupNoteChannelId");
         expect(raw.discordServers).not.toHaveProperty("guildBankChannelId");
         expect(raw.discordServers.servers).toHaveLength(2);
