@@ -78,12 +78,23 @@ describe("RaidhelperServerSection", () => {
         vi.mocked(api.updateSettings).mockResolvedValue({ raidhelper: value } as never);
         const user = userEvent.setup();
         renderPage(<RaidhelperServerSection value={value} activeGuildId={GUILD} onSaved={vi.fn()} />);
-        await user.click(screen.getByRole("button", { name: t("common.save") }));
-        expect(api.updateSettings).toHaveBeenLastCalledWith({ raidhelper: { enabled: true, serverId: "" } });
+        expect(screen.getByRole("button", { name: t("common.save") })).toBeDisabled();
 
         await user.click(screen.getByRole("button", { name: t("common.delete") }));
         await user.click(screen.getByRole("button", { name: t("common.save") }));
-        expect(api.updateSettings).toHaveBeenLastCalledWith({ raidhelper: { enabled: true, serverId: "", apiKey: "" } });
+        expect(api.updateSettings).toHaveBeenLastCalledWith({ raidhelper: { apiKey: "" } });
+    });
+
+    // epic #926: the active server is per session, so a stale tab must not send
+    // fields it did not change (they would overwrite another server's values)
+    it("sends only the fields changed in this tab", async () => {
+        const value = server({ enabled: true, serverId: "123456789012345678", hasKey: true, keyLast4: "9876", active: true });
+        vi.mocked(api.updateSettings).mockResolvedValue({ raidhelper: { ...value, enabled: false } } as never);
+        const user = userEvent.setup();
+        renderPage(<RaidhelperServerSection value={value} activeGuildId={GUILD} onSaved={vi.fn()} />);
+        await user.click(screen.getByRole("switch", { name: t("settings.raidhelperServer.enabled") }));
+        await user.click(screen.getByRole("button", { name: t("common.save") }));
+        expect(api.updateSettings).toHaveBeenCalledWith({ raidhelper: { enabled: false } });
     });
 
     it("refuses a server id with letters before asking the server", async () => {
@@ -92,6 +103,7 @@ describe("RaidhelperServerSection", () => {
         await user.type(field("rh-server-id"), "abc");
         expect(screen.getByText(t("settings.raidhelperServer.serverIdInvalid"))).toBeInTheDocument();
         await user.click(screen.getByRole("button", { name: t("common.save") }));
+        expect(screen.getByRole("button", { name: t("common.save") })).toBeEnabled();
         expect(api.updateSettings).not.toHaveBeenCalled();
     });
 });

@@ -46,12 +46,22 @@ export default function RaidhelperServerSection({ value, activeGuildId, onSaved 
     const idValid = /^\d*$/.test(serverId.trim());
     const willHaveKey = clearKey ? !!newKey.trim() : current.hasKey || !!newKey.trim();
 
+    // Only the fields changed here go out: the active server is per session, not
+    // per tab, so a stale tab must not overwrite another server's values with
+    // the ones it loaded (epic #926).
+    const apiKey = newKey.trim() ? newKey.trim() : clearKey ? "" : undefined;
+    const patch: { enabled?: boolean; serverId?: string; apiKey?: string } = {};
+    if (enabled !== current.enabled) patch.enabled = enabled;
+    if (serverId.trim() !== current.serverId) patch.serverId = serverId.trim();
+    if (apiKey !== undefined) patch.apiKey = apiKey;
+    const dirty = Object.keys(patch).length > 0;
+
     const save = async () => {
         if (!idValid) { toast(t("settings.raidhelperServer.serverIdInvalid"), "err"); return; }
+        if (!dirty) return;
         setBusy(true);
         try {
-            const apiKey = newKey.trim() ? newKey.trim() : clearKey ? "" : undefined;
-            const res = await updateSettings({ raidhelper: { enabled, serverId: serverId.trim(), ...(apiKey === undefined ? {} : { apiKey }) } });
+            const res = await updateSettings({ raidhelper: patch });
             setNewKey("");
             setClearKey(false);
             if (res.raidhelper) onSaved(res.raidhelper);
@@ -116,7 +126,7 @@ export default function RaidhelperServerSection({ value, activeGuildId, onSaved 
                     {enabled && !willHaveKey && <div className="note is-bad">{t("settings.raidhelperServer.noKeyHint")}</div>}
                 </div>
                 <div className="conn-foot">
-                    <Button variant="go" icon={<SaveIcon />} onClick={save} disabled={busy}>
+                    <Button variant="go" icon={<SaveIcon />} onClick={save} disabled={busy || !dirty}>
                         {busy ? t("settings.saving") : t("common.save")}
                     </Button>
                 </div>
