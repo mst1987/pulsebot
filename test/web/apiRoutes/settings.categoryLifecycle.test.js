@@ -18,8 +18,6 @@ jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(
 jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
 jest.mock("../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []) }));
 jest.mock("../../../src/stores/rosterStore", () => ({ ...jest.requireActual("../../../src/stores/rosterStore"), listRosters: jest.fn(() => []) }));
-// #926: the category-name snapshot (which server a category was seen on) without touching the disk
-jest.mock("../../../src/services/discord/serverOf", () => ({ ...jest.requireActual("../../../src/services/discord/serverOf"), storedCategoryGuilds: jest.fn(() => new Map()) }));
 jest.mock("../../../src/services/discord/categoryNames", () => ({
     listKnownCategories: jest.fn(() => [{ id: "mon", name: "Montag" }, { id: "gone", name: "TBC Montag" }]),
 }));
@@ -78,7 +76,8 @@ beforeEach(() => {
     activeGuildFor.mockReturnValue("g1");
     rosterStore.listRosters.mockReturnValue([]);
     // #926: "gone" was seen on g1 - only then may it read as deleted
-    storedCategoryGuilds.mockReturnValue(new Map([["gone", "g1"]]));
+    // #925: and "mon" on g1, "far" on another server
+    storedCategoryGuilds.mockReturnValue(new Map([["mon", "g1"], ["gone", "g1"], ["far", "g2"]]));
 });
 
 describe("web/apiRoutes/settings: categories per server (#925)", () => {
@@ -93,8 +92,8 @@ describe("web/apiRoutes/settings: categories per server (#925)", () => {
         auth.getUser.mockReturnValue(LIMITED);
         const tries = [
             { categoryPlanning: { far: "sheet" } },
-            { categoryIds: ["mon", "gone"] },
-            { categoryIds: ["mon", "gone", "far", "unknown"], categoryVersion: { ...FOREIGN.categoryVersion, unknown: "tbc" } },
+            { categoryIds: ["mon", "gone"], serverSettingsGuildId: "g1" },
+            { categoryIds: ["mon", "gone", "far", "unknown"], categoryVersion: { ...FOREIGN.categoryVersion, unknown: "tbc" }, serverSettingsGuildId: "g1" },
             { categoryVersion: { mon: "tbc", gone: "tbc" } },
             { categoryReminders: { gone: CONFIG.categoryReminders.gone } },
         ];
@@ -118,10 +117,10 @@ describe("web/apiRoutes/settings: categories per server (#925)", () => {
         expect(configStore.dropCategoryEntries).not.toHaveBeenCalled();
         const sw = await get("/api/settings/category-switch", { categoryId: "far", versionId: "tbc" });
         expect(sw.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
-        const deact = json(await get("/api/settings/category-deactivate", { next: "mon" })).data.categories.map((c) => c.categoryId);
+        const deact = json(await get("/api/settings/category-deactivate", { next: "mon", guild: "g1" })).data.categories.map((c) => c.categoryId);
         expect(deact).not.toContain("far");
         auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
-        expect(json(await get("/api/settings/category-deactivate", { next: "mon" })).data.categories.map((c) => c.categoryId)).toContain("far");
+        expect(json(await get("/api/settings/category-deactivate", { next: "mon", guild: "g1" })).data.categories.map((c) => c.categoryId)).toContain("far");
         expect((await get("/api/settings/category-switch", { categoryId: "far", versionId: "tbc" })).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
     });
 });
