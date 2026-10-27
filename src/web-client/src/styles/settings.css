@@ -238,10 +238,14 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 /* Rollen & Onboarding (#906): wanted next to actual as one table, the preview as plain lists. */
 .pug-state { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; font-size: 15px; }
 .pug-note { color: var(--muted); font-size: 13px; }
+.pug-cats { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; }
+.pug-cats .pug-group-head { flex-basis: 100%; margin-bottom: 0; }
+.pug-cats .switch-row { max-width: 100%; }
+.pug-cats .switch-text { display: inline; min-width: 0; overflow-wrap: anywhere; }
 .pug-table { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 .pug-table table.idx tr:last-child td { border-bottom: 0; }
 .pug-table td { vertical-align: middle; }
-.pug-table .sync-muted { white-space: normal; }
+.pug-table .sync-muted, .pug-cats .sync-muted, .pug-preview .sync-muted { white-space: normal; }
 .pug-role { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; }
 .pug-dot {
     width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%;

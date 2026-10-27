@@ -20,9 +20,10 @@ export function blockers(ov: PugOnboardingOverview | null): PugPrerequisite[] {
 /** Has the server at least one PuG category (an open raid category)? */
 export const hasPug = (ov: PugOnboardingOverview | null): boolean => !!(ov && ov.online && (ov.pugCategories || []).length);
 
-/** May the button run: online, PuG categories, something to change, nothing blocking, onboarding readable. */
+/** May the button run: online, PuG categories (at least one switched on), something to change, nothing blocking, onboarding readable. */
 export function canApply(ov: PugOnboardingOverview | null): boolean {
     if (!ov || !hasPug(ov)) return false;
+    if (!selectedIdsOf(ov).length || !ov.fingerprint) return false;
     if (!ov.changes) return false;
     if (ov.onboardingError) return false;
     return blockers(ov).length === 0;
@@ -62,8 +63,27 @@ export function previewOf(ov: PugOnboardingOverview): PugPreview {
 }
 
 /** How many single changes the apply made (for the toast). */
-export const doneCount = (done: { roles: number; categories: number; onboarding: boolean }): number =>
-    done.roles + done.categories + (done.onboarding ? 1 : 0);
+export const doneCount = (done: { roles: number; categories: number; channels?: number; onboarding: boolean }): number =>
+    done.roles + done.categories + (done.channels || 0) + (done.onboarding ? 1 : 0);
+
+/** The categories switched on (all of them while nothing was chosen yet). */
+export const selectedIdsOf = (ov: PugOnboardingOverview | null): string[] =>
+    ((ov && ov.pugCategories) || []).filter((c) => c.selected !== false).map((c) => c.id);
+
+/** The selection after switching one category on or off, in the order of the list. */
+export function toggleCategory(ov: PugOnboardingOverview, id: string, on: boolean): string[] {
+    const set = new Set(selectedIdsOf(ov));
+    if (on) set.add(id); else set.delete(id);
+    return (ov.pugCategories || []).map((c) => c.id).filter((x) => set.has(x));
+}
+
+/** Channels with their own rights in the switched-on categories: they stay visible to everyone. */
+export const visibleChannelsOf = (ov: PugOnboardingOverview): { category: string; channel: string }[] =>
+    (ov.categories || []).flatMap((c) => (c.unsynced || []).map((ch) => ({ category: c.name, channel: ch.name })));
+
+/** The switched-on categories whose version is only the default (no version set for them). */
+export const fallbackCategoriesOf = (ov: PugOnboardingOverview): string[] =>
+    (ov.pugCategories || []).filter((c) => c.selected !== false && c.fallback).map((c) => c.name);
 
 export type PugSortKey = "what" | "want" | "have" | "status";
 

@@ -18,7 +18,8 @@ jest.mock("../../../src/services/discord/pugOnboarding", () => {
     return {
         PugOnboardingError,
         overview: jest.fn(async (guildId) => ({ guildId, online: true, changes: 0 })),
-        apply: jest.fn(async (guildId) => ({ done: { roles: 2, categories: 1, onboarding: true }, overview: { guildId, changes: 0 } })),
+        firstPugServer: jest.fn(() => ""),
+        apply: jest.fn(async (guildId) => ({ done: { roles: 2, categories: 1, channels: 0, onboarding: true }, overview: { guildId, changes: 0 } })),
     };
 });
 
@@ -59,9 +60,25 @@ describe("access (full admins only)", () => {
 describe("GET /api/discord/pug-onboarding", () => {
     it("passes the server on, the first server by default", async () => {
         expect(body(await get("/api/discord/pug-onboarding", { guildId: PUG }))).toEqual({ guildId: PUG, online: true, changes: 0 });
-        expect(svc.overview).toHaveBeenLastCalledWith(PUG);
+        expect(svc.overview).toHaveBeenLastCalledWith(PUG, undefined, { categoryIds: undefined });
         await get("/api/discord/pug-onboarding");
-        expect(svc.overview).toHaveBeenLastCalledWith(FIRST);
+        expect(svc.overview).toHaveBeenLastCalledWith(FIRST, undefined, { categoryIds: undefined });
+    });
+
+    it("opens with the first server that has a PuG category", async () => {
+        svc.firstPugServer.mockReturnValueOnce(PUG);
+        await get("/api/discord/pug-onboarding");
+        expect(svc.overview).toHaveBeenLastCalledWith(PUG, undefined, { categoryIds: undefined });
+        await get("/api/discord/pug-onboarding", { guildId: FIRST });
+        expect(svc.overview).toHaveBeenLastCalledWith(FIRST, undefined, { categoryIds: undefined });
+        expect(svc.firstPugServer).toHaveBeenCalledTimes(1);
+    });
+
+    it("passes the switched-on categories on, an empty list as none", async () => {
+        await get("/api/discord/pug-onboarding", { guildId: PUG, categories: "800000000000000001, 800000000000000002" });
+        expect(svc.overview).toHaveBeenLastCalledWith(PUG, undefined, { categoryIds: ["800000000000000001", "800000000000000002"] });
+        await get("/api/discord/pug-onboarding", { guildId: PUG, categories: "" });
+        expect(svc.overview).toHaveBeenLastCalledWith(PUG, undefined, { categoryIds: [] });
     });
 
     it("refuses a server outside the list", async () => {
@@ -74,10 +91,22 @@ describe("GET /api/discord/pug-onboarding", () => {
 
 describe("POST /api/discord/pug-onboarding", () => {
     it("takes the server over and names the admin in the audit reason", async () => {
-        const res = await post("/api/discord/pug-onboarding", { guildId: PUG });
+        const res = await post("/api/discord/pug-onboarding", { guildId: PUG, categoryIds: ["800000000000000001", 5, ""], fingerprint: "abc" });
         expect(status(res)).toBe(200);
-        expect(body(res).done).toEqual({ roles: 2, categories: 1, onboarding: true });
-        expect(svc.apply).toHaveBeenCalledWith(PUG, { actor: "Admin" });
+        expect(body(res).done).toEqual({ roles: 2, categories: 1, channels: 0, onboarding: true });
+        expect(svc.apply).toHaveBeenCalledWith(PUG, { actor: "Admin", categoryIds: ["800000000000000001", "5"], fingerprint: "abc" });
+    });
+
+    it("without a list of categories none is switched on, the service decides", async () => {
+        await post("/api/discord/pug-onboarding", { guildId: PUG });
+        expect(svc.apply).toHaveBeenCalledWith(PUG, { actor: "Admin", categoryIds: [], fingerprint: "" });
+    });
+
+    it.each([[409, "busy"], [409, "changed"], [409, "role_privileged"], [400, "fingerprint_required"]])("passes %i %s on", async (code, name) => {
+        svc.apply.mockRejectedValueOnce(new svc.PugOnboardingError(code, name, "x"));
+        const res = await post("/api/discord/pug-onboarding", { guildId: PUG, fingerprint: "abc" });
+        expect(status(res)).toBe(code);
+        expect(json(res).error.code).toBe(name);
     });
 
     it("refuses a server outside the list", async () => {

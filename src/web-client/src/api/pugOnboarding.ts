@@ -21,6 +21,8 @@ export type PugRole = {
     roleId: string;
     current: { name: string; color: string } | null;
     categoryIds: string[];
+    /** a found role that would grant more than its purpose (bot right, permissions, a channel): the apply refuses */
+    privileged: { code: string; detail: string } | null;
 };
 
 export type PugPromptOption = { title: string; roleKey: string; status: PugItemStatus; id: string };
@@ -35,8 +37,10 @@ export type PugPrompt = {
     options: PugPromptOption[];
 };
 
-/** What a category still lacks: hidden for @everyone, visible for the version role and the bot. */
-export type PugCategoryGap = "everyone" | "version" | "bot";
+/** What a category still lacks: hidden for @everyone, visible for the version role, the orga roles and the bot. */
+export type PugCategoryGap = "everyone" | "version" | "orga" | "bot";
+
+export type PugChannel = { id: string; name: string };
 
 export type PugCategory = {
     id: string;
@@ -45,14 +49,22 @@ export type PugCategory = {
     roleKey: string;
     status: "changed" | "same";
     missing: PugCategoryGap[];
+    /** the orga roles that do not see the category yet */
+    orga: PugChannel[];
+    /** channels that follow the category's rights (synced again after the apply) */
+    synced: PugChannel[];
+    /** channels with their own rights that stay visible to everyone */
+    unsynced: PugChannel[];
 };
 
 export type PugPrerequisite = {
-    key: "community" | "manageRoles" | "manageGuild" | "roleOrder";
+    key: "community" | "manageRoles" | "manageGuild" | "roleOrder" | "categoryAccess" | "selfAssign";
     /** null = not knowable */
     ok: boolean | null;
-    /** roleOrder: the roles above the bot */
+    /** roleOrder: the roles above the bot; selfAssign: the roles that grant more than their purpose */
     roles?: string[];
+    /** categoryAccess: the categories where the bot lacks View Channel or Manage Roles */
+    categories?: string[];
 };
 
 export type PugOnboardingOverview = {
@@ -61,7 +73,8 @@ export type PugOnboardingOverview = {
     online: boolean;
     /** the last apply: ISO time and who pressed the button */
     applied: { at: string; by: string } | null;
-    pugCategories?: { id: string; name: string; versionId: string }[];
+    /** `selected` = switched on (the apply covers it), `fallback` = the version is only the default */
+    pugCategories?: { id: string; name: string; versionId: string; fallback: boolean; selected: boolean }[];
     otherCategories?: { id: string; name: string; rule: string }[];
     roles?: PugRole[];
     prompts?: PugPrompt[];
@@ -70,20 +83,22 @@ export type PugOnboardingOverview = {
     onboarding?: { enabled: boolean; mode: number; defaultChannels: number } | null;
     onboardingError?: string;
     prerequisites?: PugPrerequisite[];
+    /** a hash of what the apply would do; the POST sends it back, a mismatch is 409 changed */
+    fingerprint?: string;
 };
 
 export type PugApplyResult = {
-    done: { roles: number; categories: number; onboarding: boolean };
+    done: { roles: number; categories: number; channels: number; onboarding: boolean };
     overview: PugOnboardingOverview;
 };
 
 /** GET /api/discord/pug-onboarding — the wanted state next to what Discord has. */
-export function getPugOnboarding(guildId?: string): Promise<PugOnboardingOverview> {
-    const q = guildQuery(guildId);
-    return get(`/api/discord/pug-onboarding${q ? `?${q}` : ""}`);
+export function getPugOnboarding(guildId?: string, categoryIds?: string[]): Promise<PugOnboardingOverview> {
+    const parts = [guildQuery(guildId), categoryIds ? `categories=${categoryIds.map(encodeURIComponent).join(",")}` : ""].filter(Boolean);
+    return get(`/api/discord/pug-onboarding${parts.length ? `?${parts.join("&")}` : ""}`);
 }
 
 /** POST /api/discord/pug-onboarding — takes roles, category rights and the onboarding questions over. */
-export function applyPugOnboarding(guildId: string): Promise<PugApplyResult> {
-    return send("POST", "/api/discord/pug-onboarding", { guildId });
+export function applyPugOnboarding(guildId: string, categoryIds: string[], fingerprint: string): Promise<PugApplyResult> {
+    return send("POST", "/api/discord/pug-onboarding", { guildId, categoryIds, fingerprint });
 }

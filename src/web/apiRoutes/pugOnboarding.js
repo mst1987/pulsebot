@@ -4,17 +4,21 @@
 // Full admins only (area `settings`, full: true): the button changes roles, category
 // rights and the server's onboarding in Discord.
 //
-// GET  /api/discord/pug-onboarding?guildId=<one of the servers>   (none: the first server)
+// GET  /api/discord/pug-onboarding?guildId=<one of the servers>&categories=<id,id>
+//      (no guildId: the first server with a PuG category, else the first server;
+//       no categories: every PuG category, "" = none)
 //      → { data: Overview }   (offline: { guildId, guildName: "", online: false, applied })
 //        Overview = { guildId, guildName, online, applied, pugCategories, otherCategories,
 //                     roles, prompts, categories, changes, onboarding, onboardingError,
-//                     prerequisites }   (shapes: services/discord/pugOnboarding.js)
+//                     prerequisites, fingerprint }   (shapes: services/discord/pugOnboarding.js)
 //
-// POST /api/discord/pug-onboarding   { guildId }
-//      → { data: { done: { roles, categories, onboarding }, overview: Overview } }
-//      409 offline | no_pug_category | no_community | missing_permissions | role_above_bot
+// POST /api/discord/pug-onboarding   { guildId, categoryIds: string[], fingerprint }
+//      (fingerprint: the one of the preview the orga saw; categoryIds: the switched-on ones)
+//      → { data: { done: { roles, categories, channels, onboarding }, overview: Overview } }
+//      409 offline | busy | changed | no_pug_category | no_community | missing_permissions
+//          | role_above_bot | category_access | role_privileged
 //      502 onboarding_unreadable | discord_failed (the message names the step and what was done)
-//      400 unknown_guild outside the server list
+//      400 unknown_guild outside the server list | fingerprint_required | no_category_selected
 const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { serverFromQuery } = require("../http/serverQuery");
@@ -24,9 +28,11 @@ const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
 /** GET /api/discord/pug-onboarding */
 const getOverview = withUser({ full: true }, async ({ query, res }) => {
-    const guildId = serverFromQuery(query, res);
+    const guildId = str(query.get("guildId")) ? serverFromQuery(query, res) : (pugOnboarding.firstPugServer() || serverFromQuery(query, res));
     if (guildId === null) return undefined;
-    ok(res, await pugOnboarding.overview(guildId));
+    const raw = query.get("categories");
+    const categoryIds = raw === null ? undefined : raw.split(",").map(str).filter(Boolean);
+    ok(res, await pugOnboarding.overview(guildId, undefined, { categoryIds }));
     return undefined;
 });
 
@@ -35,7 +41,11 @@ const postApply = withUser({ full: true, csrf: true, body: true }, async ({ user
     const guildId = serverFromQuery(new URLSearchParams({ guildId: str(body && body.guildId) }), res);
     if (guildId === null) return undefined;
     try {
-        ok(res, await pugOnboarding.apply(guildId, { actor: str(user && (user.name || user.id)) }));
+        const b = body || {};
+        const categoryIds = Array.isArray(b.categoryIds) ? b.categoryIds.map(str).filter(Boolean) : [];
+        ok(res, await pugOnboarding.apply(guildId, {
+            actor: str(user && (user.name || user.id)), categoryIds, fingerprint: str(b.fingerprint),
+        }));
     } catch (e) {
         if (e instanceof pugOnboarding.PugOnboardingError) return apiError(res, e.status, e.code, e.message);
         throw e;
