@@ -469,7 +469,7 @@ function cachedLeaderName(guild) {
  * without a server name.
  */
 async function currentPayload({
-    config = getConfig(), now = Date.now(), guildId = guildRoles.eventGuildId(config), link = null, key = "",
+    config = getConfig(), now = Date.now(), guildId = guildRoles.serverIds(config)[0] || "", link = null, key = "",
 } = {}) {
     const entries = link ? [] : overviewEntries(config);
     // A key names exactly one link: an unknown key means no link (its source

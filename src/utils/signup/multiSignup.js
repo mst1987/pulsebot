@@ -118,7 +118,7 @@ function linkVersions(config, from, here) {
  * link from `guildId` to `here` does not list; soonest first.
  */
 function signableAll({ config, now, guildId = "", here = "" }) {
-    const from = String(guildId || guildRoles.eventGuildId(config) || "");
+    const from = String(guildId || guildRoles.serverIds(config)[0] || "");
     const linked = linkVersions(config, from, String(here || ""));
     const cats = Array.isArray(config.categoryIds) ? config.categoryIds.map(String) : [];
     return eventStore.listEvents(from, { sinceSeconds: Math.floor(now / 1000) })
