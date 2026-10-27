@@ -565,10 +565,16 @@ function serverSettingsWithoutAccess(serverSettings) {
  * sees the rights of the active server as top-level fields (an empty server =
  * empty rights; the old top-level fields of before the migration never show),
  * a limited settings user sees no access key and no credential at all.
+ * serverSettings: a full admin gets every server's block, anybody else only
+ * the active server's - the settings of another server are not theirs (#925).
  */
 function viewConfig(config, { isAdmin, guildId }) {
     const base = { ...config };
-    if (base.serverSettings !== undefined) base.serverSettings = serverSettingsWithoutAccess(base.serverSettings);
+    if (base.serverSettings !== undefined) {
+        const blocks = serverSettingsWithoutAccess(base.serverSettings);
+        const gid = String(guildId || "");
+        base.serverSettings = isAdmin ? blocks : (gid && blocks[gid] ? { [gid]: blocks[gid] } : {});
+    }
     const view = isAdmin ? { ...base, ...accessSettings(guildId, config) } : omit(base, FULL_ADMIN_KEYS);
     return publicConfig(view);
 }

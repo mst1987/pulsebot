@@ -190,6 +190,34 @@ describe("web/apiRoutes/settings: a category's life (#744)", () => {
         expect(JSON.stringify(full.serverSettings)).not.toMatch(/o2|u9/);
     });
 
+    it("shows a limited settings user the settings of the active server only, a full admin those of all (#925)", async () => {
+        const { activeGuildFor } = require("../../../src/web/http/activeGuild");
+        settingsStore.getConfig.mockReturnValue({
+            ...CONFIG,
+            serverSettings: {
+                g1: { logChannels: [{ channelId: "log-a", versionId: "tbc" }], raidhelper: { serverId: "rh-a", apiKey: "k-a" } },
+                g2: { logChannels: [{ channelId: "log-b", versionId: "tbc" }], raidhelper: { serverId: "rh-b", apiKey: "k-b" } },
+            },
+        });
+        // rights on B only, B active: nothing of A
+        activeGuildFor.mockReturnValue("g2");
+        auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, access: { settings: { read: true, write: true } } });
+        const limited = json(await get("/api/settings")).data.config.serverSettings;
+        expect(Object.keys(limited)).toEqual(["g2"]);
+        expect(JSON.stringify(limited)).not.toMatch(/log-a|rh-a|k-a|k-b/);
+        expect(limited.g2.raidhelper).toEqual({ serverId: "rh-b", hasKey: true });
+        // no active server: no server's settings at all
+        activeGuildFor.mockReturnValue("");
+        expect(json(await get("/api/settings")).data.config.serverSettings).toEqual({});
+        // a full admin sees every server, keys still masked
+        activeGuildFor.mockReturnValue("g2");
+        auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+        const full = json(await get("/api/settings")).data.config.serverSettings;
+        expect(Object.keys(full).sort()).toEqual(["g1", "g2"]);
+        expect(JSON.stringify(full)).not.toMatch(/k-a|k-b/);
+        activeGuildFor.mockReturnValue("g1");
+    });
+
     it("needs settings write for closing", async () => {
         auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, access: { settings: { read: true, write: false } } });
         const res = await post("/api/settings/category-close", { categoryId: "gone" });
