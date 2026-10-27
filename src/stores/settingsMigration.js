@@ -141,7 +141,7 @@ const { isSnowflake } = require("../utils/ids");
 const {
     CONFIG_DEFAULTS, normalizeCategoryVersion, normalizeDiscordServers, normalizeRoleSync, roleSyncContext, MAX_SERVERS: MAX_EVENT_GUILDS,
 } = require("./configSchema");
-const { serverSettingGuildIds, normalizeBotLanguage } = require("./configSchema");
+const { serverSettingGuildIds } = require("./configSchema");
 const { versionSettingsOf, versionsWithDefaults, fillDefaults } = require("./versionSettingsSchema");
 const { LEGACY_VERSION } = require("../config/gameVersions");
 const { mainVersionFor } = require("../services/events/mainVersion");
@@ -573,11 +573,13 @@ function migrateRoleMessageGuilds() {
 }
 
 // #924: config.json fields that are per server now. Channel and role values go
-// to the server they live on (else to the first server), the others are copied
-// onto every known server.
+// to the server they live on (else to the first server); raidDefaults is the
+// raid form's preset channel ({ channelId }) and goes like a channel. The bot
+// language is not moved: the global value stays as the default every server
+// without its own inherits.
 const SERVER_CHANNEL_FIELDS_924 = ["applicationChannelId"];
 const SERVER_ROLE_FIELDS_924 = ["officerRoleId"];
-const SERVER_COPY_FIELDS_924 = ["raidDefaults", "botLanguage"];
+const SERVER_RAID_FIELDS_924 = ["raidDefaults"];
 const DISCORD_SERVER_FIELDS_924 = ["signupNoteChannelId", "guildBankChannelId"];
 
 /**
@@ -617,7 +619,7 @@ function knownPlaces924(stored, block) {
 /** The stored config with the server blocks and without the global #924 fields. */
 function withoutGlobals924(stored, serverSettings) {
     const out = { ...stored, serverSettings };
-    for (const key of [...SERVER_CHANNEL_FIELDS_924, ...SERVER_ROLE_FIELDS_924, ...SERVER_COPY_FIELDS_924]) delete out[key];
+    for (const key of [...SERVER_CHANNEL_FIELDS_924, ...SERVER_ROLE_FIELDS_924, ...SERVER_RAID_FIELDS_924]) delete out[key];
     if (stored.discordServers && typeof stored.discordServers === "object" && !Array.isArray(stored.discordServers)) {
         const servers = { ...stored.discordServers };
         for (const key of DISCORD_SERVER_FIELDS_924) delete servers[key];
@@ -627,13 +629,14 @@ function withoutGlobals924(stored, serverSettings) {
 }
 
 /**
- * config.json (#924): applicationChannelId, officerRoleId, raidDefaults,
- * botLanguage and discordServers.signupNoteChannelId / guildBankChannelId move
- * into serverSettings. A channel or role goes to the server it lives on (as far
- * as the stores tell, see knownPlaces924), else to the first server only (the
- * other servers stay empty and show "no channel"); raid
- * defaults and the bot language are copied onto every known server. A field a
- * server block already holds is left alone. The global fields are dropped in
+ * config.json (#924): applicationChannelId, officerRoleId, raidDefaults and
+ * discordServers.signupNoteChannelId / guildBankChannelId move into
+ * serverSettings. A channel or role goes to the server it lives on (as far as
+ * the stores tell, see knownPlaces924), else to the first server only (the
+ * other servers stay empty and show "no channel"); the raid defaults' preset
+ * channel the same way. The bot language stays global: it is the default every
+ * server inherits, no server gets an own value (one a server already holds
+ * stays). A field a server block already holds is left alone. The global fields are dropped in
  * the same write that stores the server blocks. Runs before
  * migrateDiscordFederation(), whose normalising drops the two channel fields,
  * and after migrateConfig(), which still reads raidDefaults.templateId.
@@ -651,10 +654,10 @@ function migrateServerDefaults() {
         ? stored.serverSettings : {};
     const has = (key) => Object.values(blocks).some((b) => b && typeof b === "object" && b[key] !== undefined);
     const legacy = (key) => stored[key];
-    const todo = [...SERVER_CHANNEL_FIELDS_924, ...SERVER_ROLE_FIELDS_924, ...SERVER_COPY_FIELDS_924]
+    const todo = [...SERVER_CHANNEL_FIELDS_924, ...SERVER_ROLE_FIELDS_924, ...SERVER_RAID_FIELDS_924]
         .filter((key) => legacy(key) !== undefined && !has(key));
     const fromServers = DISCORD_SERVER_FIELDS_924.filter((key) => src[key] !== undefined && !has(key));
-    const leftovers = [...SERVER_COPY_FIELDS_924, ...SERVER_CHANNEL_FIELDS_924, ...SERVER_ROLE_FIELDS_924].some((key) => stored[key] !== undefined)
+    const leftovers = [...SERVER_RAID_FIELDS_924, ...SERVER_CHANNEL_FIELDS_924, ...SERVER_ROLE_FIELDS_924].some((key) => stored[key] !== undefined)
         || DISCORD_SERVER_FIELDS_924.some((key) => src[key] !== undefined);
     if (!todo.length && !fromServers.length && !leftovers) return [];
 
@@ -674,30 +677,32 @@ function migrateServerDefaults() {
         set(guildId, key, id);
         lines.push(`${key} -> ${guildId}${map.get(id) === guildId ? "" : " (erster Server)"}`);
     };
+    // the preset channel to its server, as { channelId }; none = nothing to store
+    const placeRaidDefaults = (value) => {
+        const id = String(((value && typeof value === "object") ? value : {}).channelId || "").trim();
+        if (!isSnowflake(id)) return;
+        const guildId = placeOf(places.channels, id);
+        set(guildId, "raidDefaults", { channelId: id });
+        lines.push(`raidDefaults -> ${guildId}${places.channels.get(id) === guildId ? "" : " (erster Server)"}`);
+    };
     for (const key of todo) {
         if (SERVER_CHANNEL_FIELDS_924.includes(key)) placeOne(key, legacy(key), places.channels);
         else if (SERVER_ROLE_FIELDS_924.includes(key)) placeOne(key, legacy(key), places.roles);
-        else {
-            const value = key === "botLanguage"
-                ? normalizeBotLanguage(legacy(key))
-                : { channelId: String((legacy(key) || {}).channelId || "").trim() };
-            for (const guildId of known) set(guildId, key, value);
-            lines.push(`${key} -> ${known.length} Server`);
-        }
+        else placeRaidDefaults(legacy(key));
     }
     for (const key of fromServers) placeOne(key, src[key], places.channels);
     configStore.writeStored(withoutGlobals924(stored, next));
-    return [`config.json: Bewerbungen, Raid-Standardwerte, Sprache und Kanäle je Server gespeichert (#924)${lines.length ? ` - ${lines.join(", ")}` : " - globale Altfelder entfernt"}`];
+    return [`config.json: Bewerbungen, Raid-Standardwerte und Kanäle je Server gespeichert (#924)${lines.length ? ` - ${lines.join(", ")}` : " - globale Altfelder entfernt"}`];
 }
 
 /**
- * The global #924 values as stored (channel and role ids, raid defaults, bot
- * language - no secrets), for the error log when moving them failed.
+ * The global #924 values as stored (channel and role ids, raid defaults - no
+ * secrets), for the error log when moving them failed.
  */
 function legacyValues924(stored) {
     const src = stored.discordServers && typeof stored.discordServers === "object" ? stored.discordServers : {};
     const values = {};
-    for (const key of [...SERVER_CHANNEL_FIELDS_924, ...SERVER_ROLE_FIELDS_924, ...SERVER_COPY_FIELDS_924]) {
+    for (const key of [...SERVER_CHANNEL_FIELDS_924, ...SERVER_ROLE_FIELDS_924, ...SERVER_RAID_FIELDS_924]) {
         if (stored[key] !== undefined) values[key] = stored[key];
     }
     for (const key of DISCORD_SERVER_FIELDS_924) if (src[key] !== undefined) values[`discordServers.${key}`] = src[key];

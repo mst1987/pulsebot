@@ -13,7 +13,7 @@ const {
 } = require("../../stores/configSchema");
 const { serverSetting } = require("../../services/discord/serverSettings");
 const serverDefaults = require("../../services/discord/serverDefaults");
-const { serverLang } = require("../../services/discord/botLanguage");
+const { serverLang, defaultLang } = require("../../services/discord/botLanguage");
 const { isSnowflake } = require("../../utils/ids");
 const { switchPreview, versionSwitches, applySeriesFix, notifyCategoryVersionSwitch } = require("../../services/events/categorySwitch");
 const categoryLifecycle = require("../../services/events/categoryLifecycle");
@@ -231,22 +231,36 @@ const serverLangsOf = (config) => [...settingGuildsOf(config)].sort().map((id) =
  * The values of one server the settings form edits (#924), flat like the
  * global fields of before: the application channel, the officer role, the raid
  * form's preset channel and the bot language. No server = the defaults.
+ * The language also has a global default (config.botLanguage): `botLanguage`
+ * is what the server speaks (its own value, else the default),
+ * `botLanguageOwn` whether it has an own value; without a server the form
+ * edits the default itself.
  */
 function serverDefaultsOf(config, guildId) {
+    const cfg = config || {};
     const id = String(guildId || "").trim();
-    const read = (key) => serverSetting(id, key, { config: config || {} });
+    const read = (key) => serverSetting(id, key, { config: cfg });
+    const fallback = defaultLang(cfg);
+    const own = id ? ((cfg.serverSettings || {})[id] || {}).botLanguage : undefined;
+    const ownLang = own === "en" || own === "de" ? own : "";
     return {
         applicationChannelId: String(read("applicationChannelId") || ""),
         officerRoleId: String(read("officerRoleId") || ""),
         raidDefaults: { channelId: String((read("raidDefaults") || {}).channelId || "") },
-        botLanguage: read("botLanguage") === "en" ? "en" : "de",
+        botLanguage: ownLang || fallback,
+        botLanguageDefault: fallback,
+        botLanguageOwn: !!ownLang,
     };
 }
 
 /** The answer's config: the stored one plus the active server's values (#924). */
 const withServerDefaults = (shown, full, guildId) => publicConfig({ ...shown, ...serverDefaultsOf(full, guildId) });
 
-/** The four per-server fields of a PATCH body (#924), cleaned; {} = none sent. */
+/**
+ * The four per-server fields of a PATCH body (#924), cleaned; {} = none sent.
+ * `botLanguage: null` removes the server's own language ("use the default"):
+ * the key stays with the value undefined, which the store's merge drops.
+ */
 function serverDefaultsPatch(body) {
     const out = {};
     if (body.applicationChannelId !== undefined) out.applicationChannelId = String(body.applicationChannelId || "").trim();
@@ -254,7 +268,8 @@ function serverDefaultsPatch(body) {
     if (body.raidDefaults !== undefined && body.raidDefaults && typeof body.raidDefaults === "object") {
         out.raidDefaults = { channelId: String(body.raidDefaults.channelId || "").trim() };
     }
-    if (body.botLanguage !== undefined) out.botLanguage = String(body.botLanguage || "").trim().toLowerCase() === "en" ? "en" : "de";
+    if (body.botLanguage === null) out.botLanguage = undefined;
+    else if (body.botLanguage !== undefined) out.botLanguage = String(body.botLanguage || "").trim().toLowerCase() === "en" ? "en" : "de";
     return out;
 }
 
@@ -288,6 +303,9 @@ const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper", "applicationChannelId",
 // Server-bound keys that, without an active server, edit the first server
 // (#927 Raid-Helper, as its section shows); every other key then needs one.
 const FIRST_SERVER_FALLBACK_KEYS = ["raidhelper"];
+// Server-bound keys with a global default besides (#924 bot language): without
+// an active server they write that default (full admins only, updateSettings).
+const GLOBAL_DEFAULT_KEYS = ["botLanguage"];
 
 /**
  * The server a PATCH of server-bound settings writes to — guarded against a
@@ -297,7 +315,9 @@ const FIRST_SERVER_FALLBACK_KEYS = ["raidhelper"];
  * (`serverSettingsGuildId`, GET's `activeGuildId`, "" when none was active)
  * with every server-bound key, and a mismatch is refused with 409 instead of
  * overwriting.
- * @returns {{ guildId: string } | { status: number, code: string, message: string } | null}
+ * Without an active server a key of GLOBAL_DEFAULT_KEYS writes the global
+ * default (`global: true`); removing a server's own value (null) needs one.
+ * @returns {{ guildId: string, global: boolean } | { status: number, code: string, message: string } | null}
  *   null when the body holds no server-bound key
  */
 function serverSettingsTarget(req, body, config) {
@@ -307,10 +327,13 @@ function serverSettingsTarget(req, body, config) {
     if (String(body.serverSettingsGuildId || "") !== active) {
         return { status: 409, code: "server_switched", message: "Der Discord-Server wurde gewechselt – bitte die Seite neu laden." };
     }
-    const fallback = keys.every((k) => FIRST_SERVER_FALLBACK_KEYS.includes(k)) ? String(firstServerId(config) || "") : "";
-    const guildId = active || fallback;
-    if (!guildId) return { status: 400, code: "no_active_server", message: "Kein aktiver Discord-Server." };
-    return { guildId };
+    const noServer = { status: 400, code: "no_active_server", message: "Kein aktiver Discord-Server." };
+    if (active) return { guildId: active, global: false };
+    if (GLOBAL_DEFAULT_KEYS.some((k) => body[k] === null)) return noServer;
+    const rest = keys.filter((k) => !GLOBAL_DEFAULT_KEYS.includes(k));
+    if (!rest.length) return { guildId: "", global: true };
+    const fallback = rest.every((k) => FIRST_SERVER_FALLBACK_KEYS.includes(k)) ? String(firstServerId(config) || "") : "";
+    return fallback ? { guildId: fallback, global: true } : noServer;
 }
 
 /** GET /api/settings — config + raidsheets + the active guild's roles/categories. */
@@ -739,7 +762,10 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (touchesGuarded && !requireFullAdmin(req, res)) return;
     // checked before anything else, so a stale tab changes nothing at all
     const server = serverSettingsTarget(req, body, getConfig());
-    if (server && !server.guildId) return error(res, server.status, server.code, server.message);
+    if (server && server.status) return error(res, server.status, server.code, server.message);
+    // #924: without an active server the language is the default of every server - full admins only
+    const writesDefault = !!(server && server.global) && GLOBAL_DEFAULT_KEYS.some((k) => body[k] !== undefined);
+    if (writesDefault && !requireFullAdmin(req, res)) return;
     const partial = {};
     if (body.adminRoleIds !== undefined) partial.adminRoleIds = asStringArray(body.adminRoleIds);
     // which roles count as orga (the rest are raider roles) — guarded like the access keys
@@ -781,7 +807,12 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (body.raidhelperServerId !== undefined) partial.raidhelperServerId = String(body.raidhelperServerId).trim();
     // #924: application channel, officer role, raid defaults and bot language belong to the active
     // server — the one checked by serverSettingsTarget() (no first-server fallback for these).
+    // Without one the language goes to the global default (checked above).
     const ownServer = serverDefaultsPatch(body);
+    if (writesDefault) {
+        partial.botLanguage = ownServer.botLanguage;
+        delete ownServer.botLanguage;
+    }
     if (Object.keys(ownServer).length) {
         const guildId = server ? server.guildId : "";
         if (!guildId || !settingGuildsOf(getConfig()).has(guildId)) {

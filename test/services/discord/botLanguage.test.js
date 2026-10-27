@@ -63,12 +63,24 @@ describe("services/discord/botLanguage — Sprache je Server (#924)", () => {
         expect(botLanguage.serverLang(TWO, PUGS)).toBe("en");
         expect(botLanguage.serverLang(TWO, MAIN)).toBe("de");
         expect(botLanguage.serverLang(TWO)).toBe("de");
-        // a server without its own setting speaks German
+        // a server without its own setting and no global default speaks German
         expect(botLanguage.serverLang(TWO, "100000000000000009")).toBe("de");
     });
 
-    it("ignores the old global field once the language moved to the servers", () => {
-        expect(botLanguage.serverLang({ botLanguage: "en", guildId: MAIN })).toBe("de");
+    it("reads the server's own value, else the global default, else German", () => {
+        const cfg = { ...TWO, botLanguage: "en", serverSettings: { [MAIN]: { botLanguage: "de" } } };
+        // own value wins over the default
+        expect(botLanguage.serverLang(cfg, MAIN)).toBe("de");
+        // a server without its own value (and a new one) inherits the default
+        expect(botLanguage.serverLang(cfg, PUGS)).toBe("en");
+        expect(botLanguage.serverLang(cfg, "100000000000000009")).toBe("en");
+        expect(botLanguage.defaultLang(cfg)).toBe("en");
+        // built-in German when neither is set (or the default is unknown)
+        expect(botLanguage.serverLang({ ...TWO, serverSettings: {} }, PUGS)).toBe("de");
+        expect(botLanguage.defaultLang({ botLanguage: "xx" })).toBe("de");
+        mockConfig = { botLanguage: "en" };
+        expect(botLanguage.defaultLang()).toBe("en");
+        expect(botLanguage.serverLang()).toBe("en");
     });
 
     it("posts an event in the language of its server when its category has none", () => {

@@ -3,6 +3,7 @@
     "saving": "Saving…",
     "savedToast": "Saved.",
     "serverSwitched": "The Discord server was switched in another tab – please reload the page. Nothing was saved.",
+    "noActiveServer": "Please pick a server at the top first. Channels and roles always belong to one server.",
     "account": "Account {id}",
     "noName": "(no name)",
     "editKicker": "Edit connection",
@@ -234,6 +235,7 @@
         "versionFeatures": "Features per version · {value}",
         "planning": "{name} · planning → {value}",
         "botLanguage": "Bot language: {value}",
+        "botLanguageUseDefault": "Bot language: use the default ({value})",
         "discordVisuals": "Pictures in bot messages · {name} {state}",
         "on": "on",
         "off": "off",
@@ -1448,7 +1450,11 @@
         "aria": "Language of the bot messages",
         "de": "Deutsch",
         "en": "English",
-        "text": "Language of the bot's public messages (signup message, setup, overview, panels) and the default for every raider. Everyone can pick their own language with /language or the DE/EN switch at the top."
+        "text": "Language of the bot's public messages (signup message, setup, overview, panels) and the default for every raider. Everyone can pick their own language with /language or the DE/EN switch at the top.",
+        "defaultLabel": "Default for all servers",
+        "defaultText": "No server picked: this is the language of every server without an own value, new servers included.",
+        "defaultOnlyAdmins": "Only full admins change the default.",
+        "useDefault": "Use the default"
     },
     "categoryDeactivate": {
         "kicker": "Deactivate categories",

@@ -148,9 +148,10 @@ function after897(config) {
 }
 // #917 adds the settings per Discord server (none stored: empty).
 const after917 = (config) => ({ ...config, serverSettings: {} });
-// #924: the application channel, the officer role, the raid defaults, the bot language and the two signup
-// channels of the server block are per server - on read the global fields are gone.
-const GLOBAL_924 = ["applicationChannelId", "officerRoleId", "raidDefaults", "botLanguage"];
+// #924: the application channel, the officer role, the raid defaults and the two signup channels of the
+// server block are per server - on read the global fields are gone. The bot language stays global: it is the
+// default every server without its own inherits.
+const GLOBAL_924 = ["applicationChannelId", "officerRoleId", "raidDefaults"];
 function after924(config) {
     const out = { ...config };
     for (const key of GLOBAL_924) delete out[key];
@@ -159,8 +160,9 @@ function after924(config) {
     delete servers.guildBankChannelId;
     return { ...out, discordServers: servers };
 }
-// The start moves a stored value into serverSettings: raid defaults and language onto every known server,
-// a channel or role onto its server - the stores of these cases are empty, so onto the first server.
+// The start moves a stored value into serverSettings: a channel or role (and the raid defaults' preset
+// channel) onto its server - the stores of these cases are empty, so onto the first server. The bot language
+// is not moved.
 function after924Migrated(config, stored) {
     if (!stored || !Object.keys(stored).length) return config;
     const snowflake = (v) => (/^\d{5,25}$/.test(String(v || "").trim()) ? String(v).trim() : "");
@@ -169,8 +171,8 @@ function after924Migrated(config, stored) {
     const known = [...new Set([...block.servers.map((x) => x.guildId), ...block.links.map((l) => l.to), home])];
     const next = {};
     const set = (guildId, key, value) => { next[guildId] = { ...(next[guildId] || {}), [key]: value }; };
-    if (stored.raidDefaults !== undefined) for (const id of known) set(id, "raidDefaults", { channelId: String((stored.raidDefaults || {}).channelId || "").trim() });
-    if (stored.botLanguage !== undefined) for (const id of known) set(id, "botLanguage", stored.botLanguage === "en" ? "en" : "de");
+    const presetChannel = snowflake((stored.raidDefaults || {}).channelId);
+    if (stored.raidDefaults !== undefined && presetChannel) set(known[0], "raidDefaults", { channelId: presetChannel });
     const src = stored.discordServers && typeof stored.discordServers === "object" && !Array.isArray(stored.discordServers) ? stored.discordServers : {};
     // the fixtures prove no channel's server, so every channel and role goes onto the first server only
     const one = {
@@ -282,12 +284,21 @@ describe("stores/configSchema normalisers", () => {
 
     it("hides a global #924 field only once a server block carries it (#924)", () => {
         const S = "1600000000000000001";
-        const before = schema.normalizeConfig({ guildId: S, botLanguage: "en", applicationChannelId: "1600000000000000011" });
-        expect(before.botLanguage).toBe("en");
+        const before = schema.normalizeConfig({ guildId: S, officerRoleId: "1600000000000000012", applicationChannelId: "1600000000000000011" });
+        expect(before.officerRoleId).toBe("1600000000000000012");
         expect(before.applicationChannelId).toBe("1600000000000000011");
-        const after = schema.normalizeConfig({ guildId: S, botLanguage: "en", applicationChannelId: "1600000000000000011", serverSettings: { [S]: { botLanguage: "de" } } });
-        expect(after).not.toHaveProperty("botLanguage");
+        const after = schema.normalizeConfig({ guildId: S, officerRoleId: "1600000000000000012", applicationChannelId: "1600000000000000011", serverSettings: { [S]: { officerRoleId: "1600000000000000013" } } });
+        expect(after).not.toHaveProperty("officerRoleId");
         expect(after.applicationChannelId).toBe("1600000000000000011");
+    });
+
+    it("keeps the global bot language as the default next to own server values (#924)", () => {
+        const S = "1600000000000000001";
+        expect(schema.normalizeConfig({}).botLanguage).toBe("de");
+        expect(schema.normalizeConfig({ botLanguage: "fr" }).botLanguage).toBe("de");
+        const cfg = schema.normalizeConfig({ guildId: S, botLanguage: "en", serverSettings: { [S]: { botLanguage: "de" } } });
+        expect(cfg.botLanguage).toBe("en");
+        expect(cfg.serverSettings[S].botLanguage).toBe("de");
     });
 
     it("normalizeVersionLaunch keeps known versions and the manual items only (#745)", () => {

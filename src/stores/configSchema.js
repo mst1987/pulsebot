@@ -903,6 +903,8 @@ function blizzardCredentials(raw) {
  * fallback of every raider who chose none); where "Vielleicht" / "Absagen"
  * messages and guild bank requests land. The two signup channels have no
  * default on purpose: a server without one posts nothing there.
+ * The bot language alone has a global default as well (config.botLanguage):
+ * a server without its own value speaks it (botLanguage.serverLang).
  */
 const SERVER_DEFAULTS_924 = Object.freeze({
     applicationChannelId: "",
@@ -913,7 +915,8 @@ const SERVER_DEFAULTS_924 = Object.freeze({
     guildBankChannelId: "",
 });
 // The global fields of before #924 (the start migration moves them into the server blocks).
-const GLOBAL_FIELDS_924 = ["applicationChannelId", "officerRoleId", "raidDefaults", "botLanguage"];
+// Not botLanguage: the global value stays as the default every server inherits.
+const GLOBAL_FIELDS_924 = ["applicationChannelId", "officerRoleId", "raidDefaults"];
 
 /**
  * The global log-channel list of before #921, while it waits for the bot to hand
@@ -1069,6 +1072,8 @@ function normalizeConfig(raw) {
         categoryVersion: normalizeCategoryVersion(stored.categoryVersion),
         categoryEras: normalizeCategoryEras(stored.categoryEras),
         hideOtherVersions: stored.hideOtherVersions === true,
+        // #924: the bot language of every server without its own (serverSettings[guildId].botLanguage)
+        botLanguage: normalizeBotLanguage(stored.botLanguage),
         versionLaunch: normalizeVersionLaunch(stored.versionLaunch),
         discordVisuals: normalizeDiscordVisuals(stored.discordVisuals),
         dungeonRecords: normalizeDungeonRecords(stored.dungeonRecords),

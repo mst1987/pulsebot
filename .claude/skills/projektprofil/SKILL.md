@@ -171,6 +171,9 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     nach Server filtern; ohne aktiven Server leer, nie alle Server. Neue Report-Auswahl → Negativ-Test
     mit einem Report eines anderen Servers. Wer ein Log löscht oder umhängt, schreibt den Server auf
     den Report (`deleteLogKeepingReportGuild` / `reportStore.setReportGuild`).
+19. `client.channels.fetch` und `discord.channelVisible` arbeiten über Servergrenzen hinweg. Ein Post
+    in einen Kanal aus den Einstellungen eines Servers geht über `postNotice`/`postPayload` mit
+    `{ guildId }` (`assertChannelGuild`, Code `wrong_guild`) oder prüft `channel.guildId` selbst.
 
 ## Fach-Agenten
 

@@ -32,11 +32,11 @@ describe("stores/settingsMigration migrateSettings (#420)", () => {
         fs.__store.set(TEMPLATES_FILE, JSON.stringify(OLD_TEMPLATES));
         const log = jest.fn();
         const { changes } = migrateSettings({ log });
-        // the four upgrades of the old install, the raid defaults copied onto both servers (#924),
+        // the four upgrades of the old install, the old raid defaults dropped (#924: "ch" is no channel id),
         // plus the planning of its two raid categories (nothing used yet: raid plan)
         // and their version pinned to the one they play (#738)
         expect(changes).toHaveLength(7);
-        expect(changes[3]).toBe("config.json: Bewerbungen, Raid-Standardwerte, Sprache und Kan\u00e4le je Server gespeichert (#924) - raidDefaults -> 2 Server");
+        expect(changes[3]).toBe("config.json: Bewerbungen, Raid-Standardwerte und Kan\u00e4le je Server gespeichert (#924) - globale Altfelder entfernt");
         expect(changes[5]).toBe("config.json: Planung je Raid-Kategorie nach der bisherigen Nutzung festgelegt (Raidplan oder Sheet) - c1 raidplan, c2 raidplan");
         expect(changes[6]).toBe("config.json: Spielversion je aktiver Kategorie festgeschrieben (#738) - c1 tbc, c2 tbc");
         expect(log).toHaveBeenCalledTimes(7);
@@ -51,12 +51,9 @@ describe("stores/settingsMigration migrateSettings (#420)", () => {
             links: [{ from: "1100000000000000001", to: "1100000000000000002", channelId: "1100000000000000003", lang: "", versions: [] }],
         });
         expect(config.categoryRaidTemplate).toEqual({ c1: "rh-3", c2: "rh-3" });
-        // #924: the preset channel is copied onto both servers, the global field is gone
+        // #924: the preset channel goes to its server like any channel - "ch" is none, so it is dropped
         expect(config).not.toHaveProperty("raidDefaults");
-        expect(config.serverSettings).toEqual({
-            "1100000000000000001": { raidDefaults: { channelId: "ch" } },
-            "1100000000000000002": { raidDefaults: { channelId: "ch" } },
-        });
+        expect(config.serverSettings).toEqual({});
         expect(getConfig().categoryRaidTemplate).toEqual({ c1: "rh-3", c2: "rh-3" });
         expect(getConfig().discordServers).toEqual(config.discordServers);
         expect(listRaidTemplates()[0].id).toBe("rh-3");

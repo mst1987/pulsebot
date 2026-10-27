@@ -81,8 +81,15 @@ export type AdminConfig = {
     categorySwitchFixes?: Record<string, { series: string; roster?: RosterSwitchChoice }>;
     /** "Andere Versionen ausblenden" (#563): only the main version everywhere. */
     hideOtherVersions?: boolean;
-    /** Language of the bot's public messages on the active server (#924), default for its raiders; missing = "de". */
+    /**
+     * Language of the bot's public messages on the active server (#924), default for its raiders:
+     * the server's own value, else the global default; without an active server the default itself.
+     */
     botLanguage?: "de" | "en";
+    /** The global default every server without an own value gets (#924, new servers too). */
+    botLanguageDefault?: "de" | "en";
+    /** Whether the active server has its own bot language. */
+    botLanguageOwn?: boolean;
     /** The drawn pictures in bot messages (a test); missing switch = on. */
     discordVisuals?: Partial<DiscordVisuals>;
     /** "Neue Gildenrekorde posten" (Einstellungen → Dungeon-Bestzeiten); missing = off. */

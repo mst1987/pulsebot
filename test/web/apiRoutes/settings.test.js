@@ -189,7 +189,9 @@ const auth = require("../../../src/web/http/auth");
 const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 // #924: the per-server values every config answer carries - here for no or an unknown active server.
-const NO_SERVER_VALUES = { applicationChannelId: "", officerRoleId: "", raidDefaults: { channelId: "" }, botLanguage: "de" };
+const NO_SERVER_VALUES = {
+    applicationChannelId: "", officerRoleId: "", raidDefaults: { channelId: "" }, botLanguage: "de", botLanguageDefault: "de", botLanguageOwn: false,
+};
 const discord = require("../../../src/services/discord/discord");
 const wowhead = require("../../../src/utils/loot/wowhead");
 const { AREA_IDS, emptyAccess } = require("../../../src/config/permissions");
@@ -1432,6 +1434,96 @@ describe("web/apiRoutes/settings", () => {
                 settingsStore.saveConfig.mockImplementationOnce(() => switched);
                 await updateSettings({ headers: {} }, mockRes());
                 expect(languageChange.afterServerLangChange).toHaveBeenCalledWith({ config: switched });
+            });
+
+            // Variant A: the language has a global default; a server may set its own value.
+            describe("the bot language: global default plus an own value per server", () => {
+                const withDefault = (extra) => ({
+                    ...twoServers, botLanguage: "en",
+                    serverSettings: { [MAIN]: { officerRoleId: "1800000000000000021" }, [PUGS]: { botLanguage: "de" }, ...extra },
+                });
+
+                it("shows the server's own value, else the default, and says which one it is", async () => {
+                    settingsStore.getConfig.mockReturnValue(withDefault());
+                    for (const [active, shown] of [
+                        [MAIN, { botLanguage: "en", botLanguageDefault: "en", botLanguageOwn: false }],
+                        [PUGS, { botLanguage: "de", botLanguageDefault: "en", botLanguageOwn: true }],
+                        ["", { botLanguage: "en", botLanguageDefault: "en", botLanguageOwn: false }],
+                    ]) {
+                        activeGuildFor.mockReturnValue(active);
+                        const res = mockRes();
+                        await getSettings({}, res);
+                        expect(body(res).config).toMatchObject(shown);
+                    }
+                });
+
+                it("writes the global default without an active server, for full admins only", async () => {
+                    activeGuildFor.mockReturnValue("");
+                    readJsonBody.mockResolvedValue({ botLanguage: "en", serverSettingsGuildId: "" });
+                    await updateSettings({ headers: {} }, mockRes());
+                    expect(settingsStore.saveConfig).toHaveBeenCalledWith({ botLanguage: "en" });
+
+                    settingsStore.saveConfig.mockClear();
+                    requireAdmin.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true, write: true } } });
+                    requireFullAdmin.mockReset().mockImplementation((_req, res) => {
+                        res.writeHead(403, {}); res.end("{}"); return null;
+                    });
+                    const res = mockRes();
+                    await updateSettings({ headers: {} }, res);
+                    expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                it("writes the own value with an active server, also for a limited settings user", async () => {
+                    activeGuildFor.mockReturnValue(MAIN);
+                    requireAdmin.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true, write: true } } });
+                    requireFullAdmin.mockReturnValue(null);
+                    readJsonBody.mockResolvedValue({ botLanguage: "de", serverSettingsGuildId: MAIN });
+                    await updateSettings({ headers: {} }, mockRes());
+                    expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { [MAIN]: { botLanguage: "de" } } });
+                });
+
+                it("removes the own value with null, so the server follows the default again", async () => {
+                    activeGuildFor.mockReturnValue(PUGS);
+                    readJsonBody.mockResolvedValue({ botLanguage: null, serverSettingsGuildId: PUGS });
+                    await updateSettings({ headers: {} }, mockRes());
+                    const saved = settingsStore.saveConfig.mock.calls[0][0];
+                    expect(Object.keys(saved)).toEqual(["serverSettings"]);
+                    expect(saved.serverSettings[PUGS]).toHaveProperty("botLanguage", undefined);
+                    // what the store makes of it: the key is gone, the server reads the default
+                    const { mergeServerSettings } = jest.requireActual("../../../src/stores/configSchema");
+                    const merged = JSON.parse(JSON.stringify(mergeServerSettings(withDefault().serverSettings, saved.serverSettings)));
+                    expect(merged[PUGS]).toEqual({});
+                });
+
+                it("refuses removing an own value without an active server", async () => {
+                    activeGuildFor.mockReturnValue("");
+                    readJsonBody.mockResolvedValue({ botLanguage: null, serverSettingsGuildId: "" });
+                    const res = mockRes();
+                    await updateSettings({ headers: {} }, res);
+                    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    expect(json(res).error).toMatchObject({ code: "no_active_server" });
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                it("keeps channels and roles strictly per server: with the language but no server it is 400", async () => {
+                    activeGuildFor.mockReturnValue("");
+                    readJsonBody.mockResolvedValue({ botLanguage: "en", applicationChannelId: "1800000000000000031", serverSettingsGuildId: "" });
+                    const res = mockRes();
+                    await updateSettings({ headers: {} }, res);
+                    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    expect(json(res).error).toMatchObject({ code: "no_active_server" });
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                it("still refuses a default write from a tab loaded on a server (409)", async () => {
+                    activeGuildFor.mockReturnValue("");
+                    readJsonBody.mockResolvedValue({ botLanguage: "en", serverSettingsGuildId: MAIN });
+                    const res = mockRes();
+                    await updateSettings({ headers: {} }, res);
+                    expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
             });
         });
 

@@ -1,9 +1,11 @@
 // settingsMigration (#924): the application channel, the officer role, the raid
-// defaults, the bot language and the two signup channels of the server block
-// move from config.json's global fields into serverSettings. A channel or role
-// goes to the server it lives on (as far as the stores tell), else to the first
-// server only (the other servers stay empty and show "no channel"); raid defaults and language are copied onto every known server. The
-// global fields go in the same write that stores the server blocks.
+// defaults and the two signup channels of the server block move from
+// config.json's global fields into serverSettings. A channel or role (and the
+// raid defaults' preset channel) goes to the server it lives on (as far as the
+// stores tell), else to the first server only (the other servers stay empty and
+// show "no channel"). The global fields go in the same write that stores the
+// server blocks. The bot language stays global: it is the default every server
+// without its own inherits.
 jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
@@ -35,7 +37,7 @@ describe("stores/settingsMigration — Standardwerte je Server (#924)", () => {
         jest.spyOn(eventStore, "listEvents").mockReturnValue([{ id: "e1", guildId: PUGS, channelId: CH_APPLY }]);
         save({ ...TWO_SERVERS, applicationChannelId: CH_APPLY });
         const changes = migrateServerDefaults();
-        expect(changes).toEqual([`config.json: Bewerbungen, Raid-Standardwerte, Sprache und Kanäle je Server gespeichert (#924) - applicationChannelId -> ${PUGS}`]);
+        expect(changes).toEqual([`config.json: Bewerbungen, Raid-Standardwerte und Kanäle je Server gespeichert (#924) - applicationChannelId -> ${PUGS}`]);
         const raw = stored();
         expect(raw.serverSettings).toEqual({ [PUGS]: { applicationChannelId: CH_APPLY } });
         expect(raw).not.toHaveProperty("applicationChannelId");
@@ -68,15 +70,28 @@ describe("stores/settingsMigration — Standardwerte je Server (#924)", () => {
         expect(stored()).not.toHaveProperty("officerRoleId");
     });
 
-    it("copies the raid defaults and the bot language onto every server", () => {
+    it("puts the raid defaults' preset channel onto its server and keeps the bot language as the global default", () => {
+        jest.spyOn(eventStore, "listEvents").mockReturnValue([{ id: "e1", guildId: PUGS, channelId: "1600000000000000041" }]);
         save({ ...TWO_SERVERS, raidDefaults: { channelId: " 1600000000000000041 ", templateId: "3" }, botLanguage: "en" });
         const changes = migrateServerDefaults();
-        expect(changes[0]).toContain("raidDefaults -> 2 Server, botLanguage -> 2 Server");
+        expect(changes[0]).toContain(`raidDefaults -> ${PUGS}`);
+        expect(changes[0]).not.toContain("botLanguage");
         const raw = stored();
-        const both = { raidDefaults: { channelId: "1600000000000000041" }, botLanguage: "en" };
-        expect(raw.serverSettings).toEqual({ [MAIN]: both, [PUGS]: both });
+        expect(raw.serverSettings).toEqual({ [PUGS]: { raidDefaults: { channelId: "1600000000000000041" } } });
         expect(raw).not.toHaveProperty("raidDefaults");
-        expect(raw).not.toHaveProperty("botLanguage");
+        // no server gets an own language: every one keeps speaking the old global value
+        expect(raw.botLanguage).toBe("en");
+    });
+
+    it("puts an unknown preset channel onto the first server and drops raid defaults without one", () => {
+        save({ ...TWO_SERVERS, raidDefaults: { channelId: CH_UNKNOWN } });
+        expect(migrateServerDefaults()[0]).toContain(`raidDefaults -> ${MAIN} (erster Server)`);
+        expect(stored().serverSettings).toEqual({ [MAIN]: { raidDefaults: { channelId: CH_UNKNOWN } } });
+
+        save({ ...TWO_SERVERS, raidDefaults: { channelId: "" } });
+        migrateServerDefaults();
+        expect(stored().serverSettings).toEqual({});
+        expect(stored()).not.toHaveProperty("raidDefaults");
     });
 
     it("moves the note and guild bank channel out of the server block, an unplaceable one onto the first server only", () => {
@@ -96,11 +111,19 @@ describe("stores/settingsMigration — Standardwerte je Server (#924)", () => {
     });
 
     it("leaves a value a server block already holds alone and only drops the old field", () => {
-        save({ ...TWO_SERVERS, botLanguage: "en", serverSettings: { [PUGS]: { botLanguage: "de" } } });
-        expect(migrateServerDefaults()).toEqual(["config.json: Bewerbungen, Raid-Standardwerte, Sprache und Kanäle je Server gespeichert (#924) - globale Altfelder entfernt"]);
+        save({ ...TWO_SERVERS, applicationChannelId: CH_APPLY, serverSettings: { [PUGS]: { applicationChannelId: CH_UNKNOWN } } });
+        expect(migrateServerDefaults()).toEqual(["config.json: Bewerbungen, Raid-Standardwerte und Kanäle je Server gespeichert (#924) - globale Altfelder entfernt"]);
         const raw = stored();
+        expect(raw.serverSettings).toEqual({ [PUGS]: { applicationChannelId: CH_UNKNOWN } });
+        expect(raw).not.toHaveProperty("applicationChannelId");
+    });
+
+    it("keeps an own server language and the global default side by side, and moves nothing for them", () => {
+        save({ ...TWO_SERVERS, botLanguage: "en", serverSettings: { [PUGS]: { botLanguage: "de" } } });
+        expect(migrateServerDefaults()).toEqual([]);
+        const raw = stored();
+        expect(raw.botLanguage).toBe("en");
         expect(raw.serverSettings).toEqual({ [PUGS]: { botLanguage: "de" } });
-        expect(raw).not.toHaveProperty("botLanguage");
     });
 
     it("drops an empty or malformed id without putting it anywhere", () => {
@@ -125,9 +148,10 @@ describe("stores/settingsMigration — Standardwerte je Server (#924)", () => {
         save({ ...TWO_SERVERS, applicationChannelId: CH_UNKNOWN, botLanguage: "en" });
         migrateSettings({ log: () => {}, warn: () => {} });
         const cfg = configStore.getConfig();
-        expect(cfg.serverSettings[MAIN]).toMatchObject({ applicationChannelId: CH_UNKNOWN, botLanguage: "en" });
-        expect(cfg.serverSettings[PUGS]).toEqual({ botLanguage: "en" });
-        expect(cfg).not.toHaveProperty("botLanguage");
+        expect(cfg.serverSettings[MAIN]).toMatchObject({ applicationChannelId: CH_UNKNOWN });
+        expect(cfg.serverSettings[MAIN]).not.toHaveProperty("botLanguage");
+        expect(cfg.serverSettings).not.toHaveProperty(PUGS);
+        expect(cfg.botLanguage).toBe("en");
         expect(migrateServerDefaults()).toEqual([]);
     });
 
@@ -136,10 +160,10 @@ describe("stores/settingsMigration — Standardwerte je Server (#924)", () => {
         const res = migrateSettings({ log: () => {}, warn: () => {} });
         expect(res.error).toBeUndefined();
         const raw = stored();
-        expect(raw.serverSettings[MAIN]).toEqual({ applicationChannelId: CH_UNKNOWN, botLanguage: "en" });
-        expect(raw.serverSettings[PUGS]).toMatchObject({ botLanguage: "en", raidhelper: { enabled: true, envKey: true, serverId: "" } });
+        expect(raw.serverSettings[MAIN]).toEqual({ applicationChannelId: CH_UNKNOWN });
+        expect(raw.serverSettings[PUGS]).toMatchObject({ raidhelper: { enabled: true, envKey: true, serverId: "" } });
         expect(raw).not.toHaveProperty("applicationChannelId");
-        expect(raw).not.toHaveProperty("botLanguage");
+        expect(raw.botLanguage).toBe("en");
         expect(res.changes.some((c) => c.includes("(#924)"))).toBe(true);
         expect(res.changes.some((c) => c.includes(`Raid-Helper dem Server ${PUGS}`))).toBe(true);
     });
@@ -156,7 +180,7 @@ describe("stores/settingsMigration — Standardwerte je Server (#924)", () => {
         expect(res.error).toBeInstanceOf(Error);
         const line = warn.mock.calls.map((c) => c[0]).find((l) => l.includes("Migration #924 fehlgeschlagen"));
         expect(line).toContain(`"applicationChannelId":"${CH_APPLY}"`);
-        expect(line).toContain("\"botLanguage\":\"en\"");
+        expect(line).not.toContain("botLanguage");
         expect(line).toContain(`"discordServers.guildBankChannelId":"${CH_BANK}"`);
         // nothing moved, so the global fields stay visible and survive a save
         const cfg = configStore.getConfig();

@@ -2,8 +2,8 @@
 //
 //   serverLang(config, guildId)  the language of one Discord server (#924:
 //                        serverSettings[guildId].botLanguage, Einstellungen ›
-//                        Discord-Server; no guildId = the first server),
-//                        German by default — every PUBLIC message uses it: the
+//                        Discord-Server; no guildId = the first server), else
+//                        the global default (config.botLanguage), else German — every PUBLIC message uses it: the
 //                        event and setup message, the talk overview, panels,
 //                        announcements, the Discord event. A message in a channel
 //                        is one and the same for everybody, so it cannot follow a
@@ -28,11 +28,20 @@ const { normalizeLang } = require("../../utils/i18n/botText");
 const { serverSetting } = require("./serverSettings");
 const { firstServerId, guildOfEvent, storedCategoryGuilds } = require("./serverOf");
 
-/** The language of one server's public messages; no server given = the first one. */
+/** The global default every server without its own language speaks (#924); German when none is set. */
+function defaultLang(config) {
+    const cfg = config || settingsStore.getConfig();
+    return normalizeLang((cfg && cfg.botLanguage) || "de");
+}
+
+/**
+ * The language of one server's public messages (no server given = the first
+ * one): its own value, else the global default, else German.
+ */
 function serverLang(config, guildId) {
     const cfg = config || settingsStore.getConfig();
     const id = String(guildId || "").trim() || firstServerId(cfg);
-    return normalizeLang(serverSetting(id, "botLanguage", { config: cfg }));
+    return normalizeLang(serverSetting(id, "botLanguage", { config: cfg, fallback: defaultLang(cfg) }));
 }
 
 /**
@@ -69,4 +78,4 @@ function langOfInteraction(interaction, opts = {}) {
         || langOf(userId, { ...opts, guildId });
 }
 
-module.exports = { serverLang, categoryLang, eventLang, langOf, langOfInteraction };
+module.exports = { defaultLang, serverLang, categoryLang, eventLang, langOf, langOfInteraction };

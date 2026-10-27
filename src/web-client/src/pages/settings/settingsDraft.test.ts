@@ -39,3 +39,26 @@ describe("serverDefaultsChanges", () => {
         });
     });
 });
+
+describe("serverDefaultsChanges: bot language default and own value (#924)", () => {
+    it("reads own value and default from the config", () => {
+        const d = draft({ botLanguage: "en", botLanguageDefault: "de", botLanguageOwn: true });
+        expect(d).toMatchObject({ botLanguage: "en", botLanguageDefault: "de", botLanguageOwn: true });
+        expect(draft({ botLanguage: "en" })).toMatchObject({ botLanguageDefault: "en", botLanguageOwn: false });
+    });
+
+    it("sends the language when the server gets an own value, even the same as the default", () => {
+        const saved = draft({ botLanguage: "de", botLanguageDefault: "de" });
+        expect(serverDefaultsChanges(saved, { ...saved, botLanguageOwn: true })).toEqual({ botLanguage: "de" });
+    });
+
+    it("sends a changed own value", () => {
+        const saved = draft({ botLanguage: "de", botLanguageDefault: "de", botLanguageOwn: true });
+        expect(serverDefaultsChanges(saved, { ...saved, botLanguage: "en" })).toEqual({ botLanguage: "en" });
+    });
+
+    it("sends null when the own value is dropped", () => {
+        const saved = draft({ botLanguage: "en", botLanguageDefault: "de", botLanguageOwn: true });
+        expect(serverDefaultsChanges(saved, { ...saved, botLanguage: "de", botLanguageOwn: false })).toEqual({ botLanguage: null });
+    });
+});

@@ -299,7 +299,9 @@ export default function SettingsPage() {
         } catch (err) {
             const e = err as ApiError;
             // #921: another tab switched the session's server since this page loaded
-            toast(e.code === "server_switched" ? t("settings.serverSwitched") : e.message, "err");
+            // #924: channels and roles always belong to one server — none is picked
+            const known: Record<string, string> = { server_switched: "settings.serverSwitched", no_active_server: "settings.noActiveServer" };
+            toast(e.code && known[e.code] ? t(known[e.code]) : e.message, "err");
         } finally {
             setSaving(false);
         }
@@ -506,7 +508,14 @@ export default function SettingsPage() {
             case "raids": return (
                 <>
                     {head(activeSection)}
-                    <BotLanguageCard value={draft.botLanguage} onChange={(botLanguage) => patch({ botLanguage })} />
+                    <BotLanguageCard
+                        value={draft.botLanguage}
+                        own={draft.botLanguageOwn}
+                        defaultValue={draft.botLanguageDefault}
+                        server={data.activeGuildId ? (data.bot?.guildName || data.activeGuildId) : ""}
+                        canEditDefault={data.canManageAccess}
+                        onChange={(next) => patch(next)}
+                    />
                     <DiscordVisualsCard value={draft.discordVisuals} onChange={(discordVisuals) => patch({ discordVisuals })} />
                     <ModuleCard>
                         <div className="set-field">
