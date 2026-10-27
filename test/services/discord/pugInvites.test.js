@@ -20,6 +20,8 @@ const PUG = "900000000000000001";
 const PARTNER = "900000000000000002";
 const KEY = `${PUG}:${PARTNER}`;
 const CHANNEL = "300000000000000001";
+// The links after KEY was removed: one other link stays, so the check cleans up.
+const OTHER_LINKS = [{ from: PARTNER, to: PUG }];
 
 /** A fake guild with live invites; `perms` lists the flags the bot has. */
 function makeGuild({ id = PUG, perms = ["CreateInstantInvite", "ManageGuild"], fetchFails = false } = {}) {
@@ -183,17 +185,40 @@ describe("the check against Discord", () => {
 
     it("deletes the invite of a removed link on Discord and drops its record", async () => {
         await pugInvites.ensureLinkInvite(KEY);
-        guildRoles.links.mockReturnValue([]);
+        guildRoles.links.mockReturnValue(OTHER_LINKS);
         await pugInvites.reconcileInvites();
         expect(fake.guild.invites.delete).toHaveBeenCalledWith("new1", expect.any(String));
         expect(inviteStore.linkKeys()).toEqual([]);
         expect(pugInvites.inviteUrlForLink(KEY)).toBe("");
     });
 
+    it("keeps link invites and origins when no link is configured at all, warning once", async () => {
+        await pugInvites.ensureLinkInvite(KEY);
+        originStore.recordOrigin({ guildId: PUG, userId: "100000000000000001", inviteCode: "new1", linkKey: KEY });
+        guildRoles.links.mockReturnValue([]);
+        await pugInvites.reconcileInvites();
+        await pugInvites.reconcileInvites();
+        expect(fake.guild.invites.delete).not.toHaveBeenCalled();
+        expect(inviteStore.linkKeys()).toEqual([KEY]);
+        expect(originStore.listOrigins()).toHaveLength(1);
+        const kept = mockLog.warn.mock.calls.filter(([text]) => /no links configured/.test(text));
+        expect(kept).toEqual([[expect.stringMatching(/1 link invite\(s\) and 1 member origin\(s\) kept/)]]);
+    });
+
+    it("cleans up again once at least one link is configured", async () => {
+        await pugInvites.ensureLinkInvite(KEY);
+        guildRoles.links.mockReturnValue([]);
+        await pugInvites.reconcileInvites();
+        expect(inviteStore.linkKeys()).toEqual([KEY]);
+        guildRoles.links.mockReturnValue(OTHER_LINKS);
+        await pugInvites.reconcileInvites();
+        expect(inviteStore.linkKeys()).toEqual([]);
+    });
+
     it("drops the record of a removed link even when Discord refuses the delete", async () => {
         await pugInvites.ensureLinkInvite(KEY);
         fake.guild.invites.delete.mockRejectedValueOnce(new Error("Missing Permissions"));
-        guildRoles.links.mockReturnValue([]);
+        guildRoles.links.mockReturnValue(OTHER_LINKS);
         await pugInvites.reconcileInvites();
         expect(inviteStore.linkKeys()).toEqual([]);
     });
@@ -201,7 +226,7 @@ describe("the check against Discord", () => {
     it("does not delete again an invite that is already gone", async () => {
         await pugInvites.ensureLinkInvite(KEY);
         inviteStore.setLinkInvite(KEY, { deleted: true });
-        guildRoles.links.mockReturnValue([]);
+        guildRoles.links.mockReturnValue(OTHER_LINKS);
         await pugInvites.reconcileInvites();
         expect(fake.guild.invites.delete).not.toHaveBeenCalled();
         expect(inviteStore.linkKeys()).toEqual([]);
@@ -259,7 +284,7 @@ describe("the check against Discord", () => {
     it("logs when a removed link's invite cannot be deleted because the bot left the server", async () => {
         await pugInvites.ensureLinkInvite(KEY);
         discord.getGuild.mockReturnValue(null);
-        guildRoles.links.mockReturnValue([]);
+        guildRoles.links.mockReturnValue(OTHER_LINKS);
         await pugInvites.reconcileInvites();
         expect(inviteStore.linkKeys()).toEqual([]);
         expect(mockLog.info).toHaveBeenCalledWith(expect.stringMatching(/new1 .*not on that server/));

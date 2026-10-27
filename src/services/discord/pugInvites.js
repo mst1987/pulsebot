@@ -100,6 +100,8 @@ const pendingByGuild = new Map();
 // second click while one runs gets the same promise, not a second invite.
 const inflight = new Map();
 let reconcileRunning = null;
+// Set once the "no links configured" warning was logged; cleared when links are back.
+let warnedNoLinks = false;
 
 /** Queue `step` on the chain of a guild; resolves with its result (never rejects). */
 function onChain(guildId, step) {
@@ -218,7 +220,16 @@ function reconcileInvites() {
     reconcileRunning = (async() => {
         const linkKeys = new Set(guildRoles.links().map((l) => `${l.from}:${l.to}`));
         const servers = new Set(guildRoles.serverIds());
-        for (const key of inviteStore.linkKeys()) {
+        // No links at all while the store still holds link invites or origins: rather a
+        // broken or half-loaded config than the last link removed, so nothing of the
+        // links is dropped for good (warned once, until links show up again).
+        const keepLinks = !linkKeys.size && (inviteStore.linkKeys().length > 0 || originStore.listOrigins().length > 0);
+        if (keepLinks && !warnedNoLinks) {
+            warnedNoLinks = true;
+            log.warn(`no links configured: ${inviteStore.linkKeys().length} link invite(s) and ${originStore.listOrigins().length} member origin(s) kept`);
+        }
+        if (linkKeys.size) warnedNoLinks = false;
+        for (const key of keepLinks ? [] : inviteStore.linkKeys()) {
             if (linkKeys.has(key)) continue;
             const record = inviteStore.getLinkInvite(key);
             if (!record.deleted) await deleteOnDiscord(key.split(":")[0], record.code);
@@ -235,7 +246,7 @@ function reconcileInvites() {
             if (!servers.has(guildId)) inviteStore.setInviteChannel(guildId, "");
         }
         // Origins of a link that is gone: nothing shows them any more (data economy).
-        const dropped = originStore.removeOriginsExcept(linkKeys);
+        const dropped = keepLinks ? 0 : originStore.removeOriginsExcept(linkKeys);
         if (dropped) log.info(`${dropped} member origin(s) of removed links dropped`);
         for (const guildId of [...usesByGuild.keys()]) {
             if (!trackedGuildIds().includes(guildId)) usesByGuild.delete(guildId);
@@ -529,6 +540,7 @@ function resetForTests() {
     pendingByGuild.clear();
     inflight.clear();
     warnedReads.clear();
+    warnedNoLinks = false;
     reconcileRunning = null;
 }
 
