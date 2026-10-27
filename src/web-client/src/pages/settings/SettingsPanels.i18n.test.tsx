@@ -3,7 +3,7 @@
 // own texts in the language the page is switched to. The German behaviour of
 // these panels is guarded by SettingsPage.sections.test.tsx and the convention
 // tests under test/web-client/conventions/.
-import { screen, within } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { BotCommandsData, DiscordServersData } from "../../api";
@@ -104,15 +104,15 @@ describe("the Einstellungen panels in English", () => {
     });
 
     it("words the Discord servers", async () => {
-        const data = {
-            discordServers: { eventGuilds: [], talkGuildId: "", talkPingChannelId: "", signupNoteChannelId: "", guildBankChannelId: "" },
-            events: [], talk: null, overlap: null, guilds: [],
-        } as unknown as DiscordServersData;
+        const data: DiscordServersData = {
+            discordServers: { servers: [], links: [], signupNoteChannelId: "", guildBankChannelId: "" },
+            servers: [], guilds: [], versions: [], talk: null,
+        };
         vi.mocked(api.getDiscordServers).mockResolvedValue(data);
         renderPage(<DiscordServersSection onConfig={noop} icon="inv_letter_15" crumb="Connections" />);
-        expect(await screen.findByText("No event Discord chosen yet.")).toBeInTheDocument();
-        const talk = document.querySelector("[data-server='talk']") as HTMLElement;
-        expect(within(talk).getByText("No second server")).toBeInTheDocument();
+        expect(await screen.findByText("No link yet — without a link the bot posts no raid list.")).toBeInTheDocument();
+        expect(screen.getByText("No server yet — add the Discord your raids run on.")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Add server" })).toBeInTheDocument();
         expect(await screen.findByText("Reminders")).toBeInTheDocument();
     });
 });
