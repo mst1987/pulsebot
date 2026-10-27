@@ -62,14 +62,11 @@ function collect(side, guildId, config) {
     for (const p of availabilityStore.listPanels().filter(onGuild)) out.push(entry("availability", p));
     for (const o of raidOverviewStore.listOverviews().filter(onGuild)) out.push(entry("raidOverview", o));
     const servers = (config && config.discordServers) || {};
-    // One overview per link source (store keyed by `from` until #892): its first link names where it stands.
+    // One raid list per link (#892, store keyed `from:to`): every link posted on this server.
     const labels = new Map((servers.servers || []).map((s) => [str(s && s.guildId), str(s && s.label)]));
-    const seen = new Set();
-    for (const l of servers.links || []) {
-        if (!l || !str(l.from) || seen.has(str(l.from))) continue;
-        seen.add(str(l.from));
+    for (const { link: l, key, legacyKey } of talkOverviewStore.overviewKeys(servers.links || [])) {
         if (str(l.to) !== gid) continue;
-        const state = talkOverviewStore.getOverviewState(str(l.from));
+        const state = talkOverviewStore.getOverviewState(key, { legacyKey });
         if (state.messageId) out.push(entry("talkOverview", state, { guildId: gid, title: labels.get(str(l.from)) || "" }));
     }
     for (const m of roleMessageStore.listMessages()) {
