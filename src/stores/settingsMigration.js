@@ -158,6 +158,7 @@ const councilWeightsStore = require("./councilWeightsStore");
 const councilStore = require("./councilStore");
 const roleMessageStore = require("./roleMessageStore");
 const logStore = require("./logStore");
+const reportStore = require("./reportStore");
 const { firstServerId, guildOfEvent, logGuild, categoryGuildIndex } = require("../services/discord/serverOf");
 
 /**
@@ -575,6 +576,20 @@ function migrateLogGuilds() {
 }
 
 /**
+ * reports (#920): an evaluation without a log (a link evaluated by hand) belongs to
+ * the first server - before #920 nothing said where it was made. A report with a
+ * log follows the log and is left alone, as is one that already has a server.
+ * Opens only the reports it writes; one line, or none.
+ */
+function migrateReportGuilds() {
+    const firstGuildId = firstServerId(configStore.getConfig());
+    if (!firstGuildId) return [];
+    const referenced = new Set(logStore.listLogs().map((l) => String(l.reportRefId || "")).filter(Boolean));
+    const changed = reportStore.assignGuilds((meta) => (!meta.guildId && !referenced.has(String(meta.id)) ? firstGuildId : ""));
+    return changed ? [`reports: ${changed} Auswertung(en) ohne Log dem ersten Discord-Server zugeordnet (#920)`] : [];
+}
+
+/**
  * Run every upgrade once. Never throws - a start must not fail over an old
  * file; the error is logged and the bot comes up with what it can read.
  * @returns {{ changes: string[], error?: Error }}
@@ -606,6 +621,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateCategoryVersions());
         changes.push(...migrateCouncilProfiles());
         changes.push(...migrateLogGuilds());
+        changes.push(...migrateReportGuilds());
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
         return { changes, error };
@@ -617,6 +633,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateDiscordFederation, raidplanDefaultsLine,
+    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateReportGuilds, migrateDiscordFederation, raidplanDefaultsLine,
     migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

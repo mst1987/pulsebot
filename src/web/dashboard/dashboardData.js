@@ -18,6 +18,7 @@ const discord = require("../../services/discord/discord");
 const { getConfig, resolveEventSheetLink } = require("../../stores/settingsStore");
 const { loadEventGroups } = require("../../services/events/raidEventGroups");
 const { listReports, getReport } = require("../../stores/reportStore");
+const { reportsOfGuild } = require("../../services/logcheck/reportGuild");
 const { listPending } = require("../../stores/lootInboxStore");
 const { getChannelConfig, listArchived, archiveHint } = require("../../stores/channelArchiveStore");
 const { buildRoster } = require("../characters/roster");
@@ -221,11 +222,14 @@ async function loadNextRaidDetails(guildId, eventId) {
 /**
  * The newest evaluation as the "Letzte Auswertung" tile and the "Gear-Probleme"
  * task need it. Reads one report file; null when there is none or it cannot be read.
- * @param {{ versionId?: string }} [opts] the newest report of that game version (#741, "" = of any)
+ * @param {{ guildId?: string, versionId?: string }} [opts] the newest report of the active server (#920:
+ *   a report follows its log, else the server it was made on; no server - none) and of that game version
+ *   (#741, "" = of any)
  */
-function loadLatestReport({ versionId = "" } = {}) {
+function loadLatestReport({ guildId = "", versionId = "" } = {}) {
     try {
-        const summary = listReports().find((r) => !versionId || recordVersion(r) === versionId);
+        const summary = reportsOfGuild(listReports(), guildId, listLogs())
+            .find((r) => !versionId || recordVersion(r) === versionId);
         if (!summary) return null;
         return lastReportArea(summary, getReport(summary.id));
     } catch (e) {

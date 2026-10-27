@@ -179,6 +179,8 @@ function metaOf(report) {
         // Which raids the log covered and how far each got ("Hyjal 3/5");
         // null for a report built before the progress was kept on it.
         raids: report.raidProgress ? raidSummary(report.raidProgress) : null,
+        // The Discord server it was evaluated on (#920); "" for a report from before (a linked log decides then).
+        guildId: String(report.guildId || ""),
     };
 }
 
@@ -210,4 +212,27 @@ function resetCache() {
     hintsCache.clear();
 }
 
-module.exports = { saveReport, getReport, getReportRoster, getReportHints, deleteReport, listReports, resetCache, REPORTS_DIR };
+/**
+ * Write a server onto the reports that have none yet (#920). `pick(meta)` answers
+ * with the server for one listed report, or "" to leave it alone; only a report
+ * that is picked AND still has no server of its own is opened and written again,
+ * so a second run writes nothing. No reports folder: nothing to do.
+ * @param {(meta: object) => string} pick
+ * @returns {number} how many reports were written
+ */
+function assignGuilds(pick) {
+    if (!fs.existsSync(REPORTS_DIR)) return 0;
+    let changed = 0;
+    for (const meta of listReports()) {
+        if (meta.guildId) continue;
+        const guildId = String(pick(meta) || "");
+        if (!guildId) continue;
+        const full = getReport(meta.id);
+        if (!full || full.guildId) continue;
+        saveReport({ ...full, guildId }, meta.id);
+        changed += 1;
+    }
+    return changed;
+}
+
+module.exports = { saveReport, getReport, getReportRoster, getReportHints, deleteReport, listReports, assignGuilds, resetCache, REPORTS_DIR };

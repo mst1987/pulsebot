@@ -225,6 +225,21 @@ describe("prepareClaList — the Log-Auswertung's one list", () => {
         expect(page.items.map((r) => r.id)).toEqual(["open", "report:r3"]);
     });
 
+    it("lists only the link reports of the active server, none without one, all without the option (#920)", () => {
+        const linkReports = [
+            { id: "mine", title: "Eigen", generatedAt: 30, guildId: "g1" },
+            { id: "theirs", title: "Fremd", generatedAt: 20, guildId: "g2" },
+            { id: "nobody", title: "Ohne Server", generatedAt: 10 },
+        ];
+        const ids = (opts) => prepareClaList([], linkReports, {}, opts).page.items.map((r) => r.id);
+        expect(ids({ guildId: "g1" })).toEqual(["report:mine"]);
+        expect(ids({ guildId: "g2" })).toEqual(["report:theirs"]);
+        expect(ids({ guildId: "" })).toEqual([]);
+        expect(ids({})).toEqual(["report:mine", "report:theirs", "report:nobody"]);
+        // the row carries the server it was evaluated on
+        expect(prepareClaList([], linkReports, {}, { guildId: "g1" }).page.items[0].guildId).toBe("g1");
+    });
+
     it("sorts by event with the unassigned logs first, and by status", () => {
         expect(prepareClaList(logs, [], { sort: "event", dir: "asc" }).page.items.map((r) => r.id)).toEqual(["open", "half", "legacy"]);
         expect(prepareClaList(logs, [], { sort: "status", dir: "asc" }).page.items[0].id).toBe("open");

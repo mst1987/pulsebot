@@ -131,7 +131,7 @@ const getHistoryData = withUser({}, async ({ user, req, res, url }) => {
         // legacy SSR page and the dashboard's "Latest Events" card show. One
         // game version (#741): a log without a raid in every one, a linked log in its raid's.
         // Only the active server's logs (#920), as on the Log-Auswertung page.
-        logs: listLogs().filter((l) => (!guildId || l.guildId === guildId) && inVersionList(l, versionId)).map((l) => ({ ...l, postedAt: logPostedAt(l) })),
+        logs: listLogs().filter((l) => !!guildId && l.guildId === guildId && inVersionList(l, versionId)).map((l) => ({ ...l, postedAt: logPostedAt(l) })),
         // For labelling the loot rows' category ids, so one that Discord no
         // longer lists keeps its name (categoryNames.js). The import form's
         // validation stays on the live list — see pickedCategory().
