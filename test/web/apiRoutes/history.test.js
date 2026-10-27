@@ -14,6 +14,7 @@ jest.mock("../../../src/stores/reportStore", () => ({
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
+    setReportGuild: jest.fn(() => false),
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
@@ -271,6 +272,8 @@ const dashboardData = require("../../../src/web/dashboard/dashboardData");
 const discord = require("../../../src/services/discord/discord");
 const raidEventGroups = require("../../../src/services/events/raidEventGroups");
 const logStore = require("../../../src/stores/logStore");
+const { reportsOfGuild } = require("../../../src/services/logcheck/reportGuild");
+const reportStore = require("../../../src/stores/reportStore");
 const lootStore = require("../../../src/stores/lootStore");
 const lootAwards = require("../../../src/web/loot/lootAwards");
 const characterInfo = require("../../../src/services/characters/characterInfo");
@@ -481,6 +484,25 @@ describe("web/apiRoutes/history", () => {
             const res = await post("/api/history/log-delete", { logId: "l1" });
             expect(logStore.deleteLog).toHaveBeenCalledWith("l1");
             expect(json(res)).toEqual({ data: { id: "l1" } });
+        });
+
+        // #920: the report keeps the server of its deleted log instead of falling to another one
+        it("writes the log's server onto its report before the log goes", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const report = { id: "abc111" }; // an old report without a server of its own
+            let logs = [{ id: "l1", guildId: "B", reportRefId: "abc111" }];
+            logStore.getLog.mockImplementation((id) => logs.find((l) => l.id === id) || null);
+            logStore.deleteLog.mockImplementation((id) => { logs = logs.filter((l) => l.id !== id); return true; });
+            reportStore.setReportGuild.mockImplementation((id, guildId) => { if (id === report.id) report.guildId = guildId; return true; });
+            await post("/api/history/log-delete", { logId: "l1" });
+            expect(reportStore.setReportGuild).toHaveBeenCalledWith("abc111", "B");
+            expect(logs).toEqual([]);
+            expect(reportsOfGuild([report], "A", logs)).toEqual([]);
+            expect(reportsOfGuild([report], "B", logs)).toEqual([report]);
+            logStore.getLog.mockReset();
+            logStore.deleteLog.mockReset();
+            reportStore.setReportGuild.mockReset();
         });
     });
 

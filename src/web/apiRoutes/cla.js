@@ -11,9 +11,10 @@ const { q } = require("../http/apiParams");
 const { activeGuildFor } = require("../http/activeGuild");
 const { listReports, deleteReport, getReport, saveReport } = require("../../stores/reportStore");
 const { prepareClaList, claRowFromLog, annotateLogCategories } = require("../../services/logcheck/reportList");
+const { deleteLogKeepingReportGuild } = require("../../services/logcheck/reportGuild");
 const { contentsForText } = require("../../config/tbcContent");
 const {
-    listLogs, getLog, getByReportRefId, deleteLog, clearEvaluation, clearSection, evaluatedSections,
+    listLogs, getLog, getByReportRefId, clearEvaluation, clearSection, evaluatedSections,
     linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent,
 } = require("../../stores/logStore");
 const { annotateMatches, autoMatches } = require("../../services/logcheck/logEventMatch");
@@ -313,7 +314,7 @@ const scanLogs = withUser({ csrf: true }, async ({ req, res }) => {
 /** POST /api/cla/log-delete — body: { logId }. Removes a tracked log from the list. */
 const deleteLogHandler = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     const logId = q.str(body, "logId");
-    deleteLog(logId);
+    deleteLogKeepingReportGuild(logId);
     ok(res, { logId });
 });
 

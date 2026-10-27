@@ -159,6 +159,7 @@ const councilStore = require("./councilStore");
 const roleMessageStore = require("./roleMessageStore");
 const logStore = require("./logStore");
 const reportStore = require("./reportStore");
+const migrationMarkStore = require("./migrationMarkStore");
 const { firstServerId, guildOfEvent, logGuild, categoryGuildIndex } = require("../services/discord/serverOf");
 
 /**
@@ -576,17 +577,25 @@ function migrateLogGuilds() {
 }
 
 /**
- * reports (#920): an evaluation without a log (a link evaluated by hand) belongs to
- * the first server - before #920 nothing said where it was made. A report with a
- * log follows the log and is left alone, as is one that already has a server.
- * Opens only the reports it writes; one line, or none.
+ * reports (#920): every evaluation from before #920 gets a server of its own, once -
+ * the server of its log (logs are stamped just before), or the first server for one
+ * without a log (a link evaluated by hand). From then on a deleted log cannot take
+ * the server of its report with it. Listing the reports reads every file, so the run
+ * leaves a mark (migrationMarkStore) and later starts skip it. One line, or none.
  */
 function migrateReportGuilds() {
+    if (migrationMarkStore.isDone("reportGuilds")) return [];
     const firstGuildId = firstServerId(configStore.getConfig());
     if (!firstGuildId) return [];
-    const referenced = new Set(logStore.listLogs().map((l) => String(l.reportRefId || "")).filter(Boolean));
-    const changed = reportStore.assignGuilds((meta) => (!meta.guildId && !referenced.has(String(meta.id)) ? firstGuildId : ""));
-    return changed ? [`reports: ${changed} Auswertung(en) ohne Log dem ersten Discord-Server zugeordnet (#920)`] : [];
+    const logGuildOf = new Map();
+    for (const l of logStore.listLogs()) {
+        if (l && l.reportRefId && l.guildId) logGuildOf.set(String(l.reportRefId), String(l.guildId));
+    }
+    const changed = reportStore.assignGuilds((meta) => logGuildOf.get(String(meta.id)) || firstGuildId);
+    // no reports folder yet (a fresh install): nothing to stamp, and nothing written either
+    if (changed === null) return [];
+    migrationMarkStore.markDone("reportGuilds");
+    return changed ? [`reports: ${changed} Auswertung(en) ihrem Discord-Server fest zugeordnet (#920)`] : [];
 }
 
 /**

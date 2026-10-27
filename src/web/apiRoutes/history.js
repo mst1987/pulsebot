@@ -4,7 +4,8 @@ const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 const { loadRecentEvents, annotateUpcomingExtras } = require("../dashboard/dashboardData");
 const { getConfig, saveConfig } = require("../../stores/settingsStore");
-const { listLogs, deleteLog } = require("../../stores/logStore");
+const { listLogs } = require("../../stores/logStore");
+const { deleteLogKeepingReportGuild } = require("../../services/logcheck/reportGuild");
 const { logPostedAt } = require("../../services/logcheck/reportList");
 const {
     addImport: addLootImport, listByEvent: listLootByEvent, listByCharacter: listLootByCharacter, eventsWithLoot, clearEvent: clearLootEvent,
@@ -196,7 +197,7 @@ const getLootAwards = withUser({}, async ({ res, url }) => {
 
 /** POST /api/history/log-delete — body: { logId }. */
 const deleteHistoryLog = withUser({ csrf: true, body: true }, async ({ body, res }) => {
-    deleteLog(String(body.logId || "").trim());
+    deleteLogKeepingReportGuild(String(body.logId || "").trim());
     ok(res, { id: body.logId });
 });
 

@@ -63,6 +63,7 @@ const {
     listReports,
     resetCache,
     assignGuilds,
+    setReportGuild,
     REPORTS_DIR,
 } = require("../../src/stores/reportStore.js");
 
@@ -386,7 +387,28 @@ describe("stores/reportStore assignGuilds (#920)", () => {
     });
 
     it("does nothing without a reports folder", () => {
-        expect(assignGuilds(() => "A")).toBe(0);
+        expect(assignGuilds(() => "A")).toBeNull();
         expect(fs.readdirSync).not.toHaveBeenCalled();
+    });
+});
+
+describe("stores/reportStore setReportGuild (#920)", () => {
+    it("writes the server onto one report, only when it differs", () => {
+        const id = saveReport({ title: "T" });
+        expect(setReportGuild(id, "B")).toBe(true);
+        expect(getReport(id)).toMatchObject({ title: "T", guildId: "B" });
+        fs.writeFileSync.mockClear();
+        expect(setReportGuild(id, "B")).toBe(false);
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
+        expect(setReportGuild(id, "A")).toBe(true);
+        expect(getReport(id).guildId).toBe("A");
+    });
+
+    it("does nothing for an unknown report or an empty server", () => {
+        const id = saveReport({ title: "T" });
+        expect(setReportGuild(id, "")).toBe(false);
+        expect(setReportGuild("abcdef99", "A")).toBe(false);
+        expect(setReportGuild("", "A")).toBe(false);
+        expect(getReport(id)).not.toHaveProperty("guildId");
     });
 });

@@ -112,8 +112,9 @@ async function buildReport(link, opts = {}) {
     if (!logcheckSupported(versionId)) throw new UnsupportedVersionError(versionId);
     const sections = normalizeSections(opts.sections);
     // A forced build must not join an in-flight one that is about to refuse, and
-    // vice versa — they answer different questions about the same report.
-    const key = `${reportId}:${sections.join("+")}${opts.force ? ":force" : ""}`;
+    // vice versa — they answer different questions about the same report. The same
+    // log built for two servers at once is two evaluations, one per server (#920).
+    const key = `${reportId}:${sections.join("+")}${opts.force ? ":force" : ""}:${opts.guildId || ""}`;
     const running = inFlight.get(key);
     if (running) return running;
     const build = buildReportForId(reportId, sections, opts.mergeIntoId, !!opts.force, { host, versionId, plannedIds: opts.plannedIds, guildId: opts.guildId })

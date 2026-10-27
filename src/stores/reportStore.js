@@ -216,12 +216,12 @@ function resetCache() {
  * Write a server onto the reports that have none yet (#920). `pick(meta)` answers
  * with the server for one listed report, or "" to leave it alone; only a report
  * that is picked AND still has no server of its own is opened and written again,
- * so a second run writes nothing. No reports folder: nothing to do.
+ * so a second run writes nothing. No reports folder (a fresh install): null.
  * @param {(meta: object) => string} pick
- * @returns {number} how many reports were written
+ * @returns {number|null} how many reports were written; null without a reports folder
  */
 function assignGuilds(pick) {
-    if (!fs.existsSync(REPORTS_DIR)) return 0;
+    if (!fs.existsSync(REPORTS_DIR)) return null;
     let changed = 0;
     for (const meta of listReports()) {
         if (meta.guildId) continue;
@@ -235,4 +235,20 @@ function assignGuilds(pick) {
     return changed;
 }
 
-module.exports = { saveReport, getReport, getReportRoster, getReportHints, deleteReport, listReports, assignGuilds, resetCache, REPORTS_DIR };
+/**
+ * Write the server onto one report (#920) - before its log is deleted, so the
+ * report keeps the server the log gave it. Opens only that report; writes only
+ * when the server differs. An unknown report or an empty server: nothing.
+ * @returns {boolean} whether the report was written
+ */
+function setReportGuild(id, guildId) {
+    const guild = String(guildId || "").trim();
+    if (!guild) return false;
+    const reportId = String(id || "");
+    const full = getReport(reportId);
+    if (!full || String(full.guildId || "") === guild) return false;
+    saveReport({ ...full, guildId: guild }, reportId);
+    return true;
+}
+
+module.exports = { saveReport, getReport, getReportRoster, getReportHints, deleteReport, listReports, assignGuilds, setReportGuild, resetCache, REPORTS_DIR };

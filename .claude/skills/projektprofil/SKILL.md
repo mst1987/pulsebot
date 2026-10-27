@@ -169,7 +169,8 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     jede Kachel und jeder Slash-Befehl, der Reports zeigt, muss über die Report-Regel
     (`services/logcheck/reportGuild.js`: Log per `reportRefId` entscheidet, sonst `report.guildId`)
     nach Server filtern; ohne aktiven Server leer, nie alle Server. Neue Report-Auswahl → Negativ-Test
-    mit einem Report eines anderen Servers.
+    mit einem Report eines anderen Servers. Wer ein Log löscht oder umhängt, schreibt den Server auf
+    den Report (`deleteLogKeepingReportGuild` / `reportStore.setReportGuild`).
 
 ## Fach-Agenten
 
