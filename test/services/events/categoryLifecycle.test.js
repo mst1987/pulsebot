@@ -135,15 +135,34 @@ describe("services/events/categoryLifecycle", () => {
             guildRoles.eventGuildIds.mockReturnValue(["g1", "g2"]);
             expect(lifecycle.missingCategories({ config })).toEqual([]); // g2 configured, but the bot has not cached it
             discord.getGuild.mockImplementation((id) => ({ id }));
+            discord.listGuilds.mockReturnValue([{ id: "g1" }, { id: "g2" }]);
+            discord.listCategories.mockImplementation((id) => (id === "g2" ? [{ id: "other" }] : [{ id: "mon" }]));
             expect(lifecycle.missingCategories({ config }).map((c) => c.categoryId)).toEqual(["gone"]);
         });
 
-        it("finds the server of a category in the raids and rosters when the snapshot does not know it", () => {
+        it("never marks a category of an unavailable server (Discord outage) and refuses to close it", () => {
+            // discord.js v14 keeps the server cached with available === false and no channels
+            discord.getGuild.mockImplementation((id) => (id === "g1" ? { id, available: false } : null));
+            discord.listCategories.mockReturnValue([]);
+            expect(lifecycle.missingCategories({ config })).toEqual([]);
+            const out = lifecycle.closeCategory("gone", { config });
+            expect(out.error).toMatchObject({ status: 409, code: "category_server_unknown" });
+            expect(configStore.dropCategoryEntries).not.toHaveBeenCalled();
+        });
+
+        it("never marks a category of a server that lists no category at all", () => {
+            discord.listCategories.mockReturnValue([]);
+            expect(lifecycle.missingCategories({ config })).toEqual([]);
+            expect(lifecycle.closeCategory("gone", { config }).error).toMatchObject({ status: 409, code: "category_server_unknown" });
+        });
+
+        it("places a category by raids and rosters, but never reads it as deleted from them", () => {
             serverOf.storedCategoryGuilds.mockReturnValue(new Map());
             eventStore.listEvents.mockReturnValue([{ id: "e1", guildId: "g1", categoryId: "gone" }]);
             listRaidEvents.mockReturnValue([{ id: "r1", guildId: "g1", categoryId: "old" }]);
             rosterStore.listRosters.mockReturnValue([{ id: "ros1", guildId: "g1", categoryId: "council" }]);
-            expect(lifecycle.missingCategories({ config }).map((c) => c.categoryId).sort()).toEqual(["council", "gone", "old"]);
+            expect(lifecycle.missingCategories({ config })).toEqual([]);
+            expect(lifecycle.closeCategory("council", { config }).error).toMatchObject({ status: 409, code: "category_server_unknown" });
         });
 
         // Prod 2026-10-27: discordServers.servers held only the PuG server B; the

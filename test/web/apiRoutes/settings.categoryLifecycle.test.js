@@ -52,6 +52,7 @@ const seriesStore = require("../../../src/stores/eventSeriesStore");
 const configStore = require("../../../src/stores/configStore");
 const { storedCategoryGuilds } = require("../../../src/services/discord/serverOf");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
+const rosterStore = require("../../../src/stores/rosterStore");
 const { post, patch, get } = routerClient(require("../../../src/web/apiRoutes/settings"));
 
 const CONFIG = {
@@ -70,6 +71,7 @@ beforeEach(() => {
     discord.listCategories.mockImplementation(() => [{ id: "mon", name: "Montag" }]);
     discord.getGuild.mockImplementation((id) => (id === "g1" ? { id } : null));
     activeGuildFor.mockReturnValue("g1");
+    rosterStore.listRosters.mockReturnValue([]);
     // #926: "gone" was seen on g1 - only then may it read as deleted
     storedCategoryGuilds.mockReturnValue(new Map([["gone", "g1"]]));
 });
@@ -174,7 +176,9 @@ describe("web/apiRoutes/settings: raid categories per server (#926)", () => {
         activeGuildFor.mockReturnValue("A");
         const onA = json(await get("/api/settings")).data;
         expect(onA.serverCategoryIds).toEqual(["a1"]);
-        expect(onA.unprovenCategoryIds).toEqual([]);
+        // "gone" is configured only by its series and seen nowhere: shown on the first server, unproven
+        expect(onA.unprovenCategoryIds).toEqual(["gone"]);
+        expect(onA.serverListed).toBe(true);
         expect(onA.missingCategories).toEqual([]);
         expect(onA.otherServerCategoryIds).toEqual(expect.arrayContaining(["b1", "bx"]));
         expect(onA.otherServerCategoryIds).not.toContain("a1");
@@ -217,6 +221,46 @@ describe("web/apiRoutes/settings: raid categories per server (#926)", () => {
         expect(json(fromA).error.code).toBe("category_other_server");
     });
 
+    it("a Discord outage on B (cached, available false, no channels): nothing deleted, closing refused", async () => {
+        discord.getGuild.mockImplementation((id) => (id === "B" ? { id, available: false } : { id }));
+        discord.listCategories.mockImplementation((id) => (id === "A" ? [{ id: "a1" }] : []));
+        activeGuildFor.mockReturnValue("B");
+        const data = json(await get("/api/settings")).data;
+        expect(data.missingCategories).toEqual([]);
+        expect(data.unprovenCategoryIds).toEqual(expect.arrayContaining(["bx"]));
+        const res = await post("/api/settings/category-close", { categoryId: "bx" });
+        expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+        expect(json(res).error.code).toBe("category_server_unknown");
+        expect(configStore.dropCategoryEntries).not.toHaveBeenCalled();
+    });
+
+    it("a server listing no category although the snapshot knows some: closing refused", async () => {
+        discord.listCategories.mockImplementation((id) => (id === "A" ? [{ id: "a1" }] : []));
+        activeGuildFor.mockReturnValue("B");
+        expect(json(await get("/api/settings")).data.missingCategories).toEqual([]);
+        const res = await post("/api/settings/category-close", { categoryId: "bx" });
+        expect(json(res).error.code).toBe("category_server_unknown");
+        expect(configStore.dropCategoryEntries).not.toHaveBeenCalled();
+    });
+
+    it("a roster's guildId shows a category on its server, but never proves it deleted", async () => {
+        storedCategoryGuilds.mockReturnValue(new Map());
+        rosterStore.listRosters.mockReturnValue([{ id: "ros1", guildId: "B", categoryId: "bx" }]);
+        activeGuildFor.mockReturnValue("B");
+        const data = json(await get("/api/settings")).data;
+        expect(data.serverCategoryIds).toEqual(["b1", "bx"]);
+        expect(data.missingCategories).toEqual([]);
+        expect(data.unprovenCategoryIds).toEqual(["bx"]);
+        const res = await post("/api/settings/category-close", { categoryId: "bx" });
+        expect(json(res).error.code).toBe("category_server_unknown");
+        expect(configStore.dropCategoryEntries).not.toHaveBeenCalled();
+    });
+
+    it("says when the active server is not in the server list", async () => {
+        activeGuildFor.mockReturnValue("C");
+        expect(json(await get("/api/settings")).data.serverListed).toBe(false);
+    });
+
     describe("regression: prod 2026-10-27, a server missing from the server list", () => {
         // Only the PuG server P is listed; Pulse Fresh F (with its raid categories f1, f2) is not.
         const PROD = {
@@ -239,7 +283,7 @@ describe("web/apiRoutes/settings: raid categories per server (#926)", () => {
             expect(data.missingCategories).toEqual([]);
             // F's categories show on the first server, marked as without proven server
             expect(data.serverCategoryIds).toEqual(["p1", "f1", "f2"]);
-            expect(data.unprovenCategoryIds).toEqual(["f1", "f2"]);
+            expect(data.unprovenCategoryIds).toEqual(["f1", "f2", "gone"]);
             const live = await post("/api/settings/category-close", { categoryId: "f1" });
             expect(live.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
             expect(json(live).error.code).toBe("category_exists");

@@ -177,6 +177,11 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     etwas als gelöscht zeigen oder abschließen lassen; fehlt der Nachweis → `unknown`, nie löschen.
     `config.categoryIds` gilt für alle Server — Einstellungen zeigen und speichern nur den Teil des
     aktiven Servers (`mergeServerCategoryIds`), nie die globale Liste je Server.
+    Ein Server in `client.guilds.cache` beweist nicht, dass seine Kanäle bekannt sind: bei einem
+    Discord-Ausfall bleibt er mit `available === false` und ohne Kanäle im Cache
+    (`discord.isGuildAvailable()` prüfen). „In Discord gelöscht" gilt nur bei verfügbarem Server, der
+    überhaupt Kategorien liefert, und belastbarem Besitzer (live oder Namens-Snapshot) — nie aus
+    Roster-, Raid- oder Migrations-`guildId`s (die sind oft geraten und dienen nur der Anzeige).
 
 ## Fach-Agenten
 

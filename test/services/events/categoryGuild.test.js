@@ -1,5 +1,5 @@
 // categoryGuild (#926): the server of a raid category and whether it is proven gone.
-jest.mock("../../../src/services/discord/discord", () => ({ isOnline: jest.fn(() => true), getGuild: jest.fn(), listCategories: jest.fn(), listGuilds: jest.fn() }));
+jest.mock("../../../src/services/discord/discord", () => ({ isOnline: jest.fn(() => true), getGuild: jest.fn(), isGuildAvailable: jest.fn(), listCategories: jest.fn(), listGuilds: jest.fn() }));
 jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildIds: jest.fn(() => []) }));
 jest.mock("../../../src/services/discord/serverOf", () => ({ storedCategoryGuilds: jest.fn(() => new Map()), firstServerId: jest.fn(() => "A") }));
 jest.mock("../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []) }));
@@ -18,6 +18,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     discord.isOnline.mockReturnValue(true);
     discord.getGuild.mockImplementation((id) => ({ id }));
+    discord.isGuildAvailable.mockImplementation((id) => id === "A" || id === "B");
     discord.listGuilds.mockReturnValue([{ id: "A" }, { id: "B" }]);
     discord.listCategories.mockImplementation((id) => (id === "A" ? [{ id: "a1" }] : id === "B" ? [{ id: "b1" }] : []));
     guildRoles.eventGuildIds.mockReturnValue(["A", "B"]);
@@ -39,6 +40,9 @@ describe("services/events/categoryGuild", () => {
             expect(ctx.online).toBe(true);
             expect([...ctx.live]).toEqual([["a1", "A"], ["b1", "B"]]);
             expect(Object.fromEntries(ctx.owners)).toEqual({ a1: "A", b1: "B", s1: "A", e1: "A", r1: "B", o1: "A" });
+            // only live and the snapshot are proof; events, raids and rosters only place a category
+            expect(Object.fromEntries(ctx.proofs)).toEqual({ a1: "A", b1: "B", s1: "A" });
+            expect(Object.fromEntries(ctx.liveCounts)).toEqual({ A: 1, B: 1 });
             expect(ctx.servers).toEqual(["A", "B"]);
             expect(ctx.first).toBe("A");
         });
@@ -58,7 +62,7 @@ describe("services/events/categoryGuild", () => {
     describe("categoryState", () => {
         it("tells live, missing and every unknown reason apart", () => {
             serverOf.storedCategoryGuilds.mockReturnValue(new Map([["a2", "A"], ["c2", "C"], ["b2", "B"]]));
-            discord.getGuild.mockImplementation((id) => (id === "B" ? null : { id }));
+            discord.isGuildAvailable.mockImplementation((id) => id === "A"); // B not cached
             const ctx = cg.categoryContext({});
             expect(cg.categoryState("a1", ctx)).toEqual({ state: "live", guildId: "A", reason: "" });
             expect(cg.categoryState("a2", ctx)).toEqual({ state: "missing", guildId: "A", reason: "" });
@@ -68,6 +72,48 @@ describe("services/events/categoryGuild", () => {
             discord.isOnline.mockReturnValue(false);
             expect(cg.categoryState("a2", cg.categoryContext({})).reason).toBe("offline");
         });
+
+        it("never reads a category of an unavailable server (Discord outage) as missing", () => {
+            // discord.js v14: the server stays cached with available === false and no channels
+            discord.isGuildAvailable.mockImplementation((id) => id === "B");
+            discord.listCategories.mockImplementation((id) => (id === "B" ? [{ id: "b1" }] : []));
+            const ctx = cg.categoryContext({});
+            expect(discord.listCategories).not.toHaveBeenCalledWith("A");
+            expect(cg.categoryState("a2", ctx)).toEqual({ state: "unknown", guildId: "A", reason: "server_unreachable" });
+            expect(cg.categoryState("b2", ctx).state).toBe("missing");
+        });
+
+        it("falls back to getGuild().available without isGuildAvailable", () => {
+            const isGuildAvailable = discord.isGuildAvailable;
+            delete discord.isGuildAvailable;
+            try {
+                discord.getGuild.mockImplementation((id) => (id === "A" ? { id, available: false } : id === "B" ? { id } : null));
+                const ctx = cg.categoryContext({});
+                expect(cg.categoryState("a2", ctx).reason).toBe("server_unreachable");
+                expect(cg.categoryState("b2", ctx).state).toBe("missing");
+            } finally {
+                discord.isGuildAvailable = isGuildAvailable;
+            }
+        });
+
+        it("does not trust a configured server that lists no category although the snapshot knows some", () => {
+            discord.listCategories.mockImplementation((id) => (id === "B" ? [{ id: "b1" }] : []));
+            const ctx = cg.categoryContext({});
+            expect(cg.categoryState("a2", ctx)).toEqual({ state: "unknown", guildId: "A", reason: "server_empty" });
+            expect(cg.categoryState("b2", ctx).state).toBe("missing");
+        });
+
+        it("places a category by a roster or raid, but never proves it deleted from them", () => {
+            serverOf.storedCategoryGuilds.mockReturnValue(new Map());
+            rosterStore.listRosters.mockReturnValue([{ guildId: "B", categoryId: "o1" }]);
+            listRaidEvents.mockReturnValue([{ guildId: "B", categoryId: "r1" }]);
+            eventStore.listEvents.mockReturnValue([{ guildId: "B", categoryId: "e1" }]);
+            const ctx = cg.categoryContext({});
+            for (const id of ["o1", "r1", "e1"]) {
+                expect(cg.displayServerOf(id, ctx)).toBe("B");
+                expect(cg.categoryState(id, ctx)).toEqual({ state: "unknown", guildId: "B", reason: "no_server" });
+            }
+        });
     });
 
     describe("servers of a list", () => {
@@ -75,15 +121,15 @@ describe("services/events/categoryGuild", () => {
             serverOf.storedCategoryGuilds.mockReturnValue(new Map([["c2", "C"]]));
             const ctx = cg.categoryContext({});
             expect(cg.displayServerOf("c2", ctx)).toBe("A");
-            expect(cg.hasProvenServer("c2", ctx)).toBe(false);
+            expect(cg.hasKnownServer("c2", ctx)).toBe(false);
         });
 
         it("puts a category without proven server on the first server", () => {
             const ctx = cg.categoryContext({});
             expect(cg.displayServerOf("b1", ctx)).toBe("B");
             expect(cg.displayServerOf("x", ctx)).toBe("A");
-            expect(cg.hasProvenServer("x", ctx)).toBe(false);
-            expect(cg.hasProvenServer("b2", ctx)).toBe(true);
+            expect(cg.hasKnownServer("x", ctx)).toBe(false);
+            expect(cg.hasKnownServer("b2", ctx)).toBe(true);
             expect(cg.idsOnServer(["a1", "b1", "x", "b2", ""], "B", ctx)).toEqual(["b1", "b2"]);
             expect(cg.idsOnServer(["a1", "b1", "x"], "", ctx)).toEqual(["a1", "x"]);
             expect(cg.idsOnServer(null, "A", ctx)).toEqual([]);

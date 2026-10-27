@@ -890,16 +890,22 @@ function serverCategoriesOf(config, guildId) {
         const serverCategoryIds = categoryGuild.idsOnServer(stored, guildId, ctx);
         const configured = [...new Set([...stored, ...categoryLifecycle.configuredCategoryIds(config)])];
         const own = new Set(categoryGuild.idsOnServer(configured, guildId, ctx));
+        const gid = String(guildId || "").trim() || ctx.first;
         return {
             serverCategoryIds,
-            unprovenCategoryIds: serverCategoryIds.filter((id) => !categoryGuild.hasProvenServer(id, ctx)),
+            // every configured category shown here whose server is not a listed one (shown on the
+            // first server) or whose fate is not provable - never closable
+            unprovenCategoryIds: [...own].filter((id) => !categoryGuild.hasKnownServer(id, ctx)
+                || categoryGuild.categoryState(id, ctx).state === "unknown"),
             // configured categories shown on another server: the page leaves their rows out
             otherServerCategoryIds: configured.filter((id) => !own.has(id)),
             missingCategories: missingCategoriesOf(config, guildId, ctx),
+            // a server outside discordServers.servers: a save keeps no activation there (merge drops it)
+            serverListed: !ctx.servers.length || ctx.servers.includes(gid),
         };
     } catch (e) {
         console.warn("server categories failed:", e.message);
-        return { serverCategoryIds: stored, unprovenCategoryIds: stored, otherServerCategoryIds: [], missingCategories: [] };
+        return { serverCategoryIds: stored, unprovenCategoryIds: stored, otherServerCategoryIds: [], missingCategories: [], serverListed: true };
     }
 }
 

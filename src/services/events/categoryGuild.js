@@ -7,17 +7,24 @@
 // discordServers.servers read as "deleted" (it was missing from the configured
 // servers' channel lists) and "Kategorie abschließen" wiped its settings.
 //
-// The owner of a category, first hit wins:
-//   1. live: any server the bot is on (discord.listGuilds(), configured or not)
-//   2. the category-name snapshot (category-names.json, categoryNames.js)
-//   3. own events, Raid-Helper snapshots and rosters with guildId + categoryId
+// Two owners per category:
+//   proof    reliable sources only — live (any usable server the bot is on) and
+//            the category-name snapshot (category-names.json, written from live
+//            Discord data). Only this owner can make a category "missing".
+//   display  the proof owner, else own events, Raid-Helper snapshots and
+//            rosters with guildId + categoryId. Their guildId may be guessed
+//            (a roster takes the active web server, the roster migration falls
+//            back to the first server), so they only decide on which server a
+//            category is shown — never that it is deleted.
 //
 // A category's state:
-//   live     some server the bot is on has it right now
-//   missing  proven gone: the bot is online, its owner is a configured server
-//            the bot has cached, and that server no longer has it
-//   unknown  everything else (bot offline, owner unknown, owner not configured
-//            or not reachable) — never treated as deleted
+//   live     some usable server the bot is on has it right now
+//   missing  proven gone: the bot is online, its proof owner is a configured
+//            server that is cached, available and lists categories, and that
+//            server no longer has it
+//   unknown  everything else (bot offline, no proof owner, owner not configured,
+//            not reachable or unavailable, or listing no category at all) —
+//            never treated as deleted
 //
 // Built once per request (categoryContext) — the stores are read once, never
 // per category.
@@ -29,6 +36,16 @@ const { listRaidEvents } = require("../../stores/raidEventStore");
 const rosterStore = require("../../stores/rosterStore");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
+
+/**
+ * Whether a server is cached AND usable. During a Discord outage discord.js v14
+ * keeps it in the cache with `available === false` and no channels.
+ */
+function guildUsable(guildId) {
+    if (typeof discord.isGuildAvailable === "function") return !!discord.isGuildAvailable(guildId);
+    const guild = discord.getGuild(guildId);
+    return !!guild && guild.available !== false;
+}
 
 /** Add `guildId + categoryId` pairs of stored records to the index (first hit wins). */
 function addRecords(index, read) {
@@ -45,66 +62,85 @@ function addRecords(index, read) {
     }
 }
 
+/** The live categories of every usable bot server, and how many each server lists. */
+function liveCategories() {
+    const live = new Map();
+    const counts = new Map();
+    const guilds = typeof discord.listGuilds === "function" ? discord.listGuilds() || [] : [];
+    for (const g of guilds) {
+        const guildId = str(g && g.id);
+        if (!guildId || !guildUsable(guildId)) continue;
+        const list = discord.listCategories(guildId) || [];
+        counts.set(guildId, list.length);
+        for (const c of list) {
+            const id = str(c && c.id);
+            if (id && !live.has(id)) live.set(id, guildId);
+        }
+    }
+    return { live, counts };
+}
+
 /**
  * Everything a category judgement needs, read once.
- * @returns {{ config: object, online: boolean, live: Map<string, string>, owners: Map<string, string>, servers: string[], first: string }}
+ * @returns {{ config: object, online: boolean, live: Map<string, string>, liveCounts: Map<string, number>,
+ *   proofs: Map<string, string>, owners: Map<string, string>, servers: string[], first: string }}
+ *   proofs: the reliable owner (live, snapshot); owners: proofs plus the display-only sources
  */
 function categoryContext(config) {
     const cfg = config || {};
     const online = typeof discord.isOnline === "function" ? !!discord.isOnline() : true;
-    const live = new Map();
-    if (online) {
-        const guilds = typeof discord.listGuilds === "function" ? discord.listGuilds() || [] : [];
-        for (const g of guilds) {
-            const guildId = str(g && g.id);
-            if (!guildId) continue;
-            for (const c of discord.listCategories(guildId) || []) {
-                const id = str(c && c.id);
-                if (id && !live.has(id)) live.set(id, guildId);
-            }
-        }
-    }
-    const owners = new Map(live);
+    const { live, counts } = online ? liveCategories() : { live: new Map(), counts: new Map() };
+    const proofs = new Map(live);
     let snapshot;
     try {
         snapshot = storedCategoryGuilds();
     } catch {
         snapshot = new Map();
     }
-    for (const [categoryId, guildId] of snapshot) if (str(guildId) && !owners.has(str(categoryId))) owners.set(str(categoryId), str(guildId));
+    for (const [categoryId, guildId] of snapshot) if (str(guildId) && !proofs.has(str(categoryId))) proofs.set(str(categoryId), str(guildId));
+    const owners = new Map(proofs);
     addRecords(owners, () => eventStore.listEvents(""));
     addRecords(owners, () => listRaidEvents(""));
     addRecords(owners, () => rosterStore.listRosters(""));
-    return { config: cfg, online, live, owners, servers: guildRoles.eventGuildIds(cfg).map(str).filter(Boolean), first: firstServerId(cfg) };
+    return {
+        config: cfg, online, live, liveCounts: counts, proofs, owners,
+        servers: guildRoles.eventGuildIds(cfg).map(str).filter(Boolean), first: firstServerId(cfg),
+    };
 }
 
 /**
  * The state of one category.
  * @returns {{ state: "live"|"missing"|"unknown", guildId: string, reason: string }}
- *   reason (unknown only): "offline" | "no_server" | "server_not_configured" | "server_unreachable"
+ *   guildId: the proof owner, else the display owner (unknown only)
+ *   reason (unknown only): "offline" | "no_server" | "server_not_configured" | "server_unreachable" | "server_empty"
  */
 function categoryState(categoryId, ctx) {
     const id = str(categoryId);
-    const guildId = str(ctx.owners.get(id));
+    const proof = str(ctx.proofs.get(id));
+    const guildId = proof || str(ctx.owners.get(id));
     if (!ctx.online) return { state: "unknown", guildId, reason: "offline" };
     if (ctx.live.has(id)) return { state: "live", guildId, reason: "" };
-    if (!guildId) return { state: "unknown", guildId, reason: "no_server" };
-    if (!ctx.servers.includes(guildId)) return { state: "unknown", guildId, reason: "server_not_configured" };
-    if (!discord.getGuild(guildId)) return { state: "unknown", guildId, reason: "server_unreachable" };
+    if (!proof) return { state: "unknown", guildId, reason: "no_server" };
+    if (!ctx.servers.includes(proof)) return { state: "unknown", guildId, reason: "server_not_configured" };
+    if (!guildUsable(proof)) return { state: "unknown", guildId, reason: "server_unreachable" };
+    // a server that lists no category at all although the snapshot knows some of its
+    // categories is not trusted: its channels are probably not loaded
+    if (!ctx.liveCounts.get(proof)) return { state: "unknown", guildId, reason: "server_empty" };
     return { state: "missing", guildId, reason: "" };
 }
 
 /**
- * The server a category is shown and edited on: its proven owner when that is a
- * configured server, else the first server (so a category of an unknown or
- * unlisted server stays visible and editable somewhere, marked as unproven).
+ * The server a category is shown and edited on: its owner (proof or display
+ * source) when that is a configured server, else the first server (so a
+ * category of an unknown or unlisted server stays visible and editable
+ * somewhere, marked as unproven).
  */
 function displayServerOf(categoryId, ctx) {
-    return hasProvenServer(categoryId, ctx) ? str(ctx.owners.get(str(categoryId))) : ctx.first;
+    return hasKnownServer(categoryId, ctx) ? str(ctx.owners.get(str(categoryId))) : ctx.first;
 }
 
-/** Whether a category's server is proven and configured (an owner from one of the sources, in the server list). */
-function hasProvenServer(categoryId, ctx) {
+/** Whether a category's display owner is known and configured (says nothing about deleted). */
+function hasKnownServer(categoryId, ctx) {
     const owner = str(ctx.owners.get(str(categoryId)));
     return !!owner && ctx.servers.includes(owner);
 }
@@ -130,4 +166,4 @@ function mergeServerCategoryIds({ stored, sent, guildId, ctx }) {
     return [...new Set([...kept, ...mine])];
 }
 
-module.exports = { categoryContext, categoryState, displayServerOf, hasProvenServer, idsOnServer, mergeServerCategoryIds };
+module.exports = { categoryContext, categoryState, displayServerOf, hasKnownServer, idsOnServer, mergeServerCategoryIds };
