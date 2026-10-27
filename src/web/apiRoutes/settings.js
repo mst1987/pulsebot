@@ -3,7 +3,8 @@ const { requireFullAdmin } = require("../http/apiMiddleware");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
 const { maskedRaidhelper, raidhelperSettingOf, raidhelperActive } = require("../../utils/raidhelper/servers");
-const { firstServerId } = require("../../services/discord/serverOf");
+const { firstServerId, storedCategoryGuilds } = require("../../services/discord/serverOf");
+const { mayUseServer, guildOfChannel, OTHER_SERVER } = require("../http/serverQuery");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates, getRaidTemplate,
 } = require("../../stores/settingsStore");
@@ -891,6 +892,8 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         partial.categoryReminders = body.categoryReminders && typeof body.categoryReminders === "object" ? body.categoryReminders : {};
     }
     const before = getConfig();
+    // #925: everybody but a full admin changes the categories of the active server only
+    if (foreignCategoryEdits(partial, before, { user, req }).length) return error(res, 403, "other_server", OTHER_SERVER);
     // #744: no active category at all would read as "every category" — refused while raids exist.
     if (emptiesActiveCategories(partial, before)) return error(res, 400, "categories_empty", categoryLifecycle.EMPTY_LIST_MESSAGE);
     // #738: every active category plays an explicit version; a changed one starts a new section.
@@ -927,6 +930,61 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         ...(raidhelperGuild ? { raidhelper: maskedRaidhelper(raidhelperGuild, saved) } : {}),
     });
 });
+
+// ---- rights per server (#925, docs/permissions.md) ----
+// The category maps the store replaces whole: a category left out of them is changed too.
+const WHOLE_CATEGORY_MAPS = new Set(["categoryRaidTemplate", "categoryVersion", "categoryReminders"]);
+// Derived by this route (from categoryVersion, which is checked), not sent by the client.
+const DERIVED_CATEGORY_MAPS = new Set(["categoryEras"]);
+
+/** Key order does not make a value different. */
+function stableJson(value) {
+    return JSON.stringify(value, (_k, v) => (v && typeof v === "object" && !Array.isArray(v)
+        ? Object.fromEntries(Object.keys(v).sort().map((key) => [key, v[key]]))
+        : v));
+}
+
+/** The server of a category: Discord's cache, else the stored name snapshot (a deleted one); "" = unknown. */
+function categoryGuildOf(categoryId) {
+    const id = String(categoryId || "").trim();
+    if (!id) return "";
+    const live = guildOfChannel(id);
+    if (live) return live;
+    try {
+        return String(storedCategoryGuilds().get(id) || "");
+    } catch {
+        return "";
+    }
+}
+
+/** May user change the category's settings: a full admin always, else only one of the active server. */
+const mayEditCategory = (user, req, categoryId) => mayUseServer(user, req, categoryGuildOf(categoryId));
+
+/**
+ * The categories of another server (or an unknown one) a PATCH would change - [] for a full
+ * admin. Compared with the stored values, so a tab that sends a whole map back unchanged passes;
+ * an entry that differs, is new, or (a map replaced whole, the active list) goes, counts.
+ */
+function foreignCategoryEdits(partial, before, { user, req }) {
+    if (user && user.isAdmin) return [];
+    const touched = new Set();
+    if (Array.isArray(partial.categoryIds)) {
+        const was = new Set(asStringArray(before.categoryIds));
+        const now = new Set(partial.categoryIds);
+        for (const id of now) if (!was.has(id)) touched.add(id);
+        for (const id of was) if (!now.has(id)) touched.add(id);
+    }
+    for (const [key, map] of Object.entries(partial)) {
+        if (!/^category[A-Z]/.test(key) || DERIVED_CATEGORY_MAPS.has(key)) continue;
+        if (!map || typeof map !== "object" || Array.isArray(map)) continue;
+        const stored = before[key] && typeof before[key] === "object" ? before[key] : {};
+        for (const [id, value] of Object.entries(map)) {
+            if (stableJson(value) !== stableJson(stored[id])) touched.add(String(id));
+        }
+        if (WHOLE_CATEGORY_MAPS.has(key)) for (const id of Object.keys(stored)) if (!(id in map)) touched.add(String(id));
+    }
+    return [...touched].filter((id) => !mayEditCategory(user, req, id));
+}
 
 /** The categories a PATCH takes out of the active list, with what pauses (#744) — logged once. */
 function deactivationOf(partial, before) {
@@ -984,13 +1042,15 @@ function missingCategoriesOf(config) {
  * categories `next` pauses (#744): per category taken out its series and
  * reminders, and whether the list would be empty although raids exist.
  */
-const getCategoryDeactivate = withUser({}, async ({ res, url }) => {
+const getCategoryDeactivate = withUser({}, async ({ user, req, res, url }) => {
     const next = String(url.searchParams.get("next") || "").split(",").map((s) => s.trim()).filter(Boolean);
     const config = getConfig();
     const preview = categoryLifecycle.deactivationPreview({ config, nextIds: next });
     const names = categoryNamesOf(config);
     ok(res, {
-        categories: preview.categories.map((c) => ({ ...c, name: names.get(c.categoryId) || "" })),
+        // #925: what pauses on another server is not this caller's business (a full admin sees all)
+        categories: preview.categories.filter((c) => mayEditCategory(user, req, c.categoryId))
+            .map((c) => ({ ...c, name: names.get(c.categoryId) || "" })),
         emptyBlocked: !next.length && !!(config.categoryIds || []).length && preview.emptyBlocked,
     });
 });
@@ -1004,6 +1064,8 @@ const getCategoryDeactivate = withUser({}, async ({ res, url }) => {
  */
 const closeCategoryHandler = withUser({ csrf: true, body: true }, async ({ body, req, res, user }) => {
     const categoryId = String((body && body.categoryId) || "").trim();
+    // #925: a category of another server (or an unknown one) is not there for everybody but a full admin
+    if (categoryId && !mayEditCategory(user, req, categoryId)) return error(res, 404, "not_found", "Kategorie nicht gefunden.");
     const config = getConfig();
     const name = categoryNamesOf(config).get(categoryId) || "";
     // #739: its rosters are closed too, by this caller
@@ -1069,10 +1131,12 @@ function afterCategorySwitches(switches, fixes, { user }) {
  * coming raids that keep the old version, the series and default template
  * whose template no longer fits, the templates of the new version.
  */
-const getCategorySwitch = withUser({}, async ({ res, url }) => {
+const getCategorySwitch = withUser({}, async ({ user, req, res, url }) => {
     const categoryId = String(url.searchParams.get("categoryId") || "").trim();
     const versionId = String(url.searchParams.get("versionId") || "").trim();
     if (!categoryId) return error(res, 400, "invalid", "Keine Kategorie angegeben.");
+    // #925: like the PATCH, the active server's categories only (a full admin all)
+    if (!mayEditCategory(user, req, categoryId)) return error(res, 404, "not_found", "Kategorie nicht gefunden.");
     if (!VERSIONS.some((v) => v.id === versionId)) return error(res, 400, "invalid", "Unbekannte Spielversion.");
     const config = getConfig();
     const preview = switchPreview({ categoryId, versionId, config, listTemplates: listRaidTemplates });

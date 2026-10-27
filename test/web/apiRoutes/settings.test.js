@@ -200,6 +200,16 @@ const {
 const realMiddleware = jest.requireActual("../../../src/web/http/apiMiddleware");
 const realBody = jest.requireActual("../../../src/web/http/apiBody");
 
+// #925: a limited settings user changes the categories of the active server only - these ones are there
+function categoriesOnActiveServer(...ids) {
+    activeGuildFor.mockReturnValue("guild-1");
+    discord.getClient.mockReturnValue({ channels: { cache: new Map(ids.map((id) => [id, { id, guildId: "guild-1" }])) } });
+}
+function noActiveServer() {
+    activeGuildFor.mockReturnValue("");
+    discord.getClient.mockReturnValue(null);
+}
+
 describe("web/apiRoutes/settings", () => {
     describe("through the router", () => {
         beforeEach(() => {
@@ -1352,9 +1362,11 @@ describe("web/apiRoutes/settings", () => {
             it("is a setting a limited settings user may change (not full-admin-only)", async () => {
                 requireAdmin.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true, write: true } } });
                 requireFullAdmin.mockReturnValue(null);
+                categoriesOnActiveServer("c1");
                 readJsonBody.mockResolvedValue({ categorySetupDms: { c1: true } });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categorySetupDms: { c1: true } });
+                noActiveServer();
             });
         });
 
@@ -1374,9 +1386,11 @@ describe("web/apiRoutes/settings", () => {
             it("is a setting a limited settings user may change (not full-admin-only)", async () => {
                 requireAdmin.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true, write: true } } });
                 requireFullAdmin.mockReturnValue(null);
+                categoriesOnActiveServer("c1");
                 readJsonBody.mockResolvedValue({ categoryDiscordEvent: { c1: true } });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryDiscordEvent: { c1: true } });
+                noActiveServer();
             });
         });
 
@@ -1390,9 +1404,11 @@ describe("web/apiRoutes/settings", () => {
             it("is a setting a limited settings user may change (not full-admin-only)", async () => {
                 requireAdmin.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true, write: true } } });
                 requireFullAdmin.mockReturnValue(null);
+                categoriesOnActiveServer("c1");
                 readJsonBody.mockResolvedValue({ categoryPlanning: { c1: "sheet" } });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryPlanning: { c1: "sheet" } });
+                noActiveServer();
             });
         });
 
@@ -1406,9 +1422,11 @@ describe("web/apiRoutes/settings", () => {
             it("is a setting a limited settings user may change (not full-admin-only)", async () => {
                 requireAdmin.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true, write: true } } });
                 requireFullAdmin.mockReturnValue(null);
+                categoriesOnActiveServer("c1");
                 readJsonBody.mockResolvedValue({ categorySignupNoteChannel: { c1: "123456789012345678" } });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categorySignupNoteChannel: { c1: "123456789012345678" } });
+                noActiveServer();
             });
 
             it("lists the text channels of both servers, named with their server, and the default channel", async () => {
@@ -2000,9 +2018,11 @@ describe("web/apiRoutes/settings", () => {
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
 
+                categoriesOnActiveServer("123456");
                 readJsonBody.mockResolvedValue({ categoryReminders: { 123456: { missingHours: 24 } } });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryReminders: { 123456: { missingHours: 24 } } });
+                noActiveServer();
             });
 
             it("passes a full admin's mapping on and reads a non-list as empty", async () => {

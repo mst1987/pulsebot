@@ -39,6 +39,11 @@ jest.mock("../../../src/stores/configStore", () => ({
     ...jest.requireActual("../../../src/stores/configStore"),
     dropCategoryEntries: jest.fn(() => ({ config: {}, removed: ["categoryIds", "categoryReminders"] })),
 }));
+// #925: the stored name snapshot - "gone" (deleted in Discord) and "mon" on g1, "far" on another server
+jest.mock("../../../src/services/discord/serverOf", () => ({
+    ...jest.requireActual("../../../src/services/discord/serverOf"),
+    storedCategoryGuilds: jest.fn(() => new Map([["mon", "g1"], ["gone", "g1"], ["far", "g2"]])),
+}));
 jest.mock("../../../src/services/kader/kaderCategories", () => ({ kadersCountingCategory: jest.fn(() => []), dropAttendanceCategory: jest.fn(() => 1) }));
 
 const auth = require("../../../src/web/http/auth");
@@ -61,6 +66,51 @@ beforeEach(() => {
     settingsStore.getConfig.mockReturnValue(CONFIG);
     listRaidEvents.mockReturnValue([{ id: "r1", categoryId: "mon", startTime: 1 }]);
     discord.getClient.mockReturnValue({ isReady: () => true });
+});
+
+describe("web/apiRoutes/settings: categories per server (#925)", () => {
+    const LIMITED = { id: "7", name: "Bob", isAdmin: false, access: { settings: { read: true, write: true } } };
+    const FOREIGN = {
+        ...CONFIG, categoryIds: ["mon", "gone", "far"], categoryVersion: { mon: "tbc", gone: "tbc", far: "tbc" },
+        categoryReminders: { ...CONFIG.categoryReminders, far: { missingHours: 12, signedHours: 0, target: "event" } },
+    };
+
+    it("lets a limited settings user change nothing of a category on another server", async () => {
+        settingsStore.getConfig.mockReturnValue(FOREIGN);
+        auth.getUser.mockReturnValue(LIMITED);
+        const tries = [
+            { categoryPlanning: { far: "sheet" } },
+            { categoryIds: ["mon", "gone"] },
+            { categoryIds: ["mon", "gone", "far", "unknown"], categoryVersion: { ...FOREIGN.categoryVersion, unknown: "tbc" } },
+            { categoryVersion: { mon: "tbc", gone: "tbc" } },
+            { categoryReminders: { gone: CONFIG.categoryReminders.gone } },
+        ];
+        for (const body of tries) {
+            const res = await patch("/api/settings", body);
+            expect([res.writeHead.mock.calls[0][0], json(res).error.code]).toEqual([403, "other_server"]);
+        }
+        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+        // its own server's categories - and the whole maps sent back unchanged - are fine
+        settingsStore.saveConfig.mockReturnValue(FOREIGN);
+        const own = await patch("/api/settings", { categoryPlanning: { mon: "sheet" }, categoryVersion: FOREIGN.categoryVersion, categoryReminders: FOREIGN.categoryReminders });
+        expect(own.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        expect(settingsStore.saveConfig).toHaveBeenCalledTimes(1);
+    });
+
+    it("closes and previews the active server's categories only, a full admin all of them", async () => {
+        settingsStore.getConfig.mockReturnValue(FOREIGN);
+        auth.getUser.mockReturnValue(LIMITED);
+        const close = await post("/api/settings/category-close", { categoryId: "far" });
+        expect([close.writeHead.mock.calls[0][0], json(close).error.code]).toEqual([404, "not_found"]);
+        expect(configStore.dropCategoryEntries).not.toHaveBeenCalled();
+        const sw = await get("/api/settings/category-switch", { categoryId: "far", versionId: "tbc" });
+        expect(sw.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+        const deact = json(await get("/api/settings/category-deactivate", { next: "mon" })).data.categories.map((c) => c.categoryId);
+        expect(deact).not.toContain("far");
+        auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+        expect(json(await get("/api/settings/category-deactivate", { next: "mon" })).data.categories.map((c) => c.categoryId)).toContain("far");
+        expect((await get("/api/settings/category-switch", { categoryId: "far", versionId: "tbc" })).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+    });
 });
 
 describe("web/apiRoutes/settings: a category's life (#744)", () => {
