@@ -292,7 +292,7 @@ describe("GET /api/lootcouncil", () => {
             config: { categoryIds: ["c1", "c2"] }, mainVersion: "tbc", charVersion: "tbc",
         });
         expect(lc.resolveContentFilter).toHaveBeenCalledWith({ tierIds: ["t5", "t6"], contentIds: ["ssc"] });
-        expect(lc.bisGaps).toHaveBeenCalledWith(rows, { contentIds: ["ssc"] });
+        expect(lc.bisGaps).toHaveBeenCalledWith(rows, { contentIds: ["ssc"], versionId: "tbc", guildId: "g1" });
         expect(primeArmoryGear).not.toHaveBeenCalled();
         expect(discord.listCategories).toHaveBeenCalledWith("g1");
         // the logs offered to pick from: the active server's only (#920)
@@ -381,7 +381,7 @@ describe("GET /api/lootcouncil", () => {
         const res = await call(getLootCouncil, "/api/lootcouncil", "?item=30000&bisTier=t6");
         const data = body(res);
         expect(lc.itemView).toHaveBeenCalledWith(30000, "t6");
-        expect(lc.candidateSplit).toHaveBeenCalledWith(30000, rows);
+        expect(lc.candidateSplit).toHaveBeenCalledWith(30000, rows, null, { versionId: "tbc", guildId: "g1" });
         expect(lc.bisGaps).not.toHaveBeenCalled();
         expect(data.gaps).toEqual([]);
         expect(data.focus).toEqual({ item: { id: 30000, tier: "t6", name: "Item" }, candidates: [{ character: "Alpha" }], cannotWear: [] });
@@ -436,7 +436,7 @@ describe("POST /api/lootcouncil/sim", () => {
             items: ["30000", 0, -1, "abc", 31000],
         };
         const res = await call(postLootCouncilSim, "/api/lootcouncil/sim");
-        expect(startCouncilSim).toHaveBeenCalledWith("job1", [{ key: "alpha", specKey: "Mage-Fire" }], [30000, 31000]);
+        expect(startCouncilSim).toHaveBeenCalledWith("job1", [{ key: "alpha", specKey: "Mage-Fire" }], [30000, 31000], { versionId: "tbc", guildId: "g1" });
         expect(status(res)).toBe(200);
         expect(body(res)).toEqual({ started: true, status: "running", id: "job1" });
     });
@@ -605,7 +605,7 @@ describe("GET /api/lootcouncil/export", () => {
 
         const res = await call(getExport, "/api/lootcouncil/export", "?character=Alpha");
         expect(specFor).toHaveBeenCalledWith("Mage", "Fire");
-        expect(gearFor).toHaveBeenCalledWith("Alpha", { roleFor: expect.any(Function) });
+        expect(gearFor).toHaveBeenCalledWith("Alpha", { roleFor: expect.any(Function), versionId: "tbc", guildId: "g1" });
         expect(gearFor.mock.calls[0][1].roleFor()).toBe("caster");
         expect(engine.buildIndividualExport).toHaveBeenCalledWith({ gear: gear(), specEntry: SPEC });
         expect(status(res)).toBe(200);
@@ -623,6 +623,14 @@ describe("GET /api/lootcouncil/export", () => {
             ],
             json: JSON.stringify({ player: 1 }, null, 2),
         });
+    });
+
+    it("reads the gear in the page's version and on the active server (#923)", async () => {
+        getConfig.mockReturnValue({ mainVersion: "forever" });
+        specFor.mockReturnValue(SPEC);
+        gearFor.mockReturnValue(gear({ items: [] }));
+        await call(getExport, "/api/lootcouncil/export", "?character=Alpha&version=forever");
+        expect(gearFor).toHaveBeenCalledWith("Alpha", expect.objectContaining({ versionId: "forever", guildId: "g1" }));
     });
 
     it("falls back to the class from the gear and to the generic sim page", async () => {
@@ -730,6 +738,14 @@ describe("POST /api/lootcouncil/armory", () => {
         const res = await call(postArmoryRefresh, "/api/lootcouncil/armory");
         expect(primeArmoryGear).toHaveBeenCalledWith(["Alpha", "Beta"], { full: true, force: true, versionId: "tbc", guildId: "g1" });
         expect(body(res)).toEqual({ configured: true, answered: true, fetched: 2 });
+    });
+
+    it("reads the armory in the version of the page's roster or menu (#923)", async () => {
+        getConfig.mockReturnValue({ mainVersion: "forever" });
+        mockBody = { characters: ["Alpha"], version: "forever" };
+        primeArmoryGear.mockResolvedValueOnce({ configured: true, answered: true, fetched: 1 });
+        await call(postArmoryRefresh, "/api/lootcouncil/armory");
+        expect(primeArmoryGear).toHaveBeenCalledWith(["Alpha"], { full: true, force: true, versionId: "forever", guildId: "g1" });
     });
 
     it("rejects an empty list and a missing Battle.net configuration", async () => {

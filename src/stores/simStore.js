@@ -130,9 +130,11 @@ function getJob(id) {
  * @param {string} id             job id (the caller's, so it can poll)
  * @param {object[]} subjects     [{ key, specKey }]
  * @param {number[]} itemIds      candidate items ([] = baselines only)
+ * @param {{ versionId?: string, guildId?: string }} [scope] the council's version
+ *   and server, whose armory answers count (#923)
  * @returns {{status: string, alreadyRunning: boolean}}
  */
-function startCouncilSim(id, subjects, itemIds = []) {
+function startCouncilSim(id, subjects, itemIds = [], { versionId, guildId } = {}) {
     prune();
     const jobId = String(id || "");
     const existing = jobs.get(jobId);
@@ -159,7 +161,7 @@ function startCouncilSim(id, subjects, itemIds = []) {
             // meaningless. Each subject already says which spec it is judged
             // as, so the role follows from that.
             const roleByKey = new Map(subjects.map((s) => [s.key, (specByKey(s.specKey) || {}).role || ""]));
-            const gearMap = gearByCharacter({ roleFor: (key) => roleByKey.get(key) || "" });
+            const gearMap = gearByCharacter({ roleFor: (key) => roleByKey.get(key) || "", versionId, guildId });
             const out = {};
             for (const subject of subjects) {
                 const gear = gearMap.get(subject.key) || null;

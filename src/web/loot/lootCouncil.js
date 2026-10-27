@@ -1073,10 +1073,15 @@ function rosterOutsiders(members, fromRoster, excluded, ctx) {
  * Same role gate as the roster itself: a drop must not be weighed against the
  * healing set somebody wore on Thursday. The roster rows already carry the spec
  * each raider is judged as, so this needs no second lookup.
+ *
+ * `scope` is the council's version and server (#923): the armory answers were
+ * fetched for that realm, and without it a Classic council on a TBC-main
+ * server would read TBC's armory (or none at all).
+ * @param {{ versionId?: string, guildId?: string }} [scope]
  */
-function rosterGear(roster) {
+function rosterGear(roster, { versionId, guildId } = {}) {
     const roleByKey = new Map(roster.map((r) => [r.key, (specByKey(r.specKey) || {}).role || ""]));
-    return gearByCharacter({ roleFor: (key) => roleByKey.get(key) || "" });
+    return gearByCharacter({ roleFor: (key) => roleByKey.get(key) || "", versionId, guildId });
 }
 
 /**
@@ -1107,11 +1112,15 @@ function rosterGear(roster) {
  * still ranked them first whenever nothing was simulated. `owned` names them
  * (alreadyHas), so the council sees why they are missing from the list.
  *
+ * `scope` ({ versionId, guildId }, #923) is only read when no `gearMap` is
+ * handed in: the version and server whose armory answers count.
+ *
  * @returns {{candidates: object[], unwearable: object[], owned: object[]}}
  */
-function candidateSplit(itemId, roster, gearMap = rosterGear(roster)) {
+function candidateSplit(itemId, roster, gearMap, scope) {
     const item = wowsims.item(itemId);
     if (!item) return { candidates: [], unwearable: [], owned: [] };
+    const gearOf = gearMap || rosterGear(roster, scope);
     const out = [];
     const unwearable = [];
     const owned = [];
@@ -1131,7 +1140,7 @@ function candidateSplit(itemId, roster, gearMap = rosterGear(roster)) {
             });
             continue;
         }
-        const gear = gearMap.get(row.key) || null;
+        const gear = gearOf.get(row.key) || null;
         const has = alreadyHas(row, gear, itemId, item);
         if (has) {
             owned.push({
@@ -1272,8 +1281,8 @@ function alreadyHas(row, gear, itemId, item) {
 }
 
 /** The candidates alone — everyone on the roster who can wear the item. */
-function candidatesForItem(itemId, roster, gearMap) {
-    return candidateSplit(itemId, roster, gearMap).candidates;
+function candidatesForItem(itemId, roster, gearMap, scope) {
+    return candidateSplit(itemId, roster, gearMap, scope).candidates;
 }
 
 /**
@@ -1287,7 +1296,7 @@ function candidatesForItem(itemId, roster, gearMap) {
  * (both finger slots); `missing` on their entry says how many they still need,
  * so a second drop of that ring has an answer too.
  */
-function bisGaps(roster, { contentIds = null } = {}) {
+function bisGaps(roster, { contentIds = null, versionId, guildId } = {}) {
     const byItem = new Map();
     for (const row of roster) {
         const seen = new Map();
@@ -1317,7 +1326,7 @@ function bisGaps(roster, { contentIds = null } = {}) {
     const items = [...byItem.values()];
     // Once for the whole list, not once per gap: this reads every stored
     // evaluation, and a real guild's overview holds a hundred gaps.
-    const gearMap = rosterGear(roster);
+    const gearMap = rosterGear(roster, { versionId, guildId });
     for (const item of items) {
         item.candidates = candidatesForItem(item.id, roster, gearMap);
         item.best = item.candidates.length ? item.candidates[0] : null;
