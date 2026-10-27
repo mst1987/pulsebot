@@ -192,6 +192,8 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .srv-links th:nth-child(3) { width: 20%; }
 .srv-links th:nth-child(4) { width: 20%; }
 .srv-links th:last-child { width: 170px; }
+/* a long status ("noch nicht gepostet") wraps in its column instead of running under the buttons */
+.srv-links td:nth-child(3) .badge { white-space: normal; max-width: 100%; }
 .srv-servers th:nth-child(2) { width: 22%; }
 .srv-servers th:nth-child(3), .srv-servers th:nth-child(4) { width: 16%; }
 .srv-servers th:last-child { width: 84px; }

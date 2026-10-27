@@ -4,7 +4,7 @@ import {
     type AdminConfig, type ApiError, type DiscordServers, type DiscordServersData,
     type ServerEntry, type ServerLink, type ServerRow, type TalkOverviewStatus, type TextChannel,
 } from "../../api";
-import { linkStatusBadge, linkStatusOf, linkSummary, raidCategoriesText, serverCardState } from "../../lib/settings/settingsLogic";
+import { linkKey, linkStatusBadge, linkStatusOf, linkSummary, raidCategoriesText, serverCardState } from "../../lib/settings/settingsLogic";
 import { useTableSort } from "../../lib/ui/tableSort";
 import { useToast } from "../../components/shell/Jobs";
 import { CheckMark, PenIcon, PlusIcon, SaveIcon, SendIcon, TrashIcon, WarnIcon } from "../../components/ui/icons";
@@ -131,11 +131,11 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
     const now = Date.now();
 
     const repost = async (link: ServerLink) => {
-        const key = `${link.from}:${link.to}:${link.channelId}`;
+        const key = linkKey(link);
         setPosting(key);
         try {
-            const { result, status } = await repostTalkOverview(link.from);
-            if (status) setStatuses((prev) => [...prev.filter((s) => s.guildId !== status.guildId), status]);
+            const { result, status } = await repostTalkOverview(key);
+            if (status) setStatuses((prev) => [...prev.filter((s) => s.key !== status.key), status]);
             if (result.status === "error") toast(result.error || t("settings.talkOverview.postFailed"), "err");
             else toast(t("settings.talkOverview.reposted"));
         } catch (err) {
@@ -213,7 +213,7 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
         {
             id: "actions", actions: true, className: "srv-actions",
             cell: (l) => {
-                const busy = posting === `${l.from}:${l.to}:${l.channelId}`;
+                const busy = posting === linkKey(l);
                 return (
                     <span className="row-actions">
                         <Button size="sm" icon={<SendIcon />} onClick={() => repost(l)} disabled={!!posting} running={busy}>

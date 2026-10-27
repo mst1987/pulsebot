@@ -31,6 +31,8 @@ describe("Discord-Server section", () => {
     it("patches only the fields a change touches, never the old talk fields", () => {
         expect(section).toContain("updateSettings({ discordServers: patch } as Partial<AdminConfig>)");
         expect(section).not.toMatch(/talkGuildId|talkPingChannelId/);
+        // #894 drops the ping channel from the backend; the client no longer knows the field at all
+        expect(api).not.toMatch(/talkPingChannelId/);
         expect(section).toContain("save({ links: [...config.links, link] }");
         // a link needs its source among the servers: removing a server drops its links
         expect(section).toContain("links: config.links.filter((l) => l.from !== row.id)");
@@ -63,13 +65,15 @@ describe("Discord-Server section", () => {
         expect(section).not.toMatch(/perms\.map\(\(p\) => <li/);
     });
 
-    it("fetches the overview statuses once for every link and re-posts per link", () => {
+    it("fetches the overview statuses once for every link and re-posts per link by its key (#892)", () => {
         expect(api).toContain("get<{ statuses: TalkOverviewStatus[] }>(\"/api/settings/talk-overview?preview=0\")");
-        expect(api).toContain("send(\"POST\", \"/api/settings/talk-overview\", { repost: true, guildId });");
+        expect(api).toContain("send(\"POST\", \"/api/settings/talk-overview\", { repost: true, key });");
+        expect(api).not.toMatch(/repost: true, guildId/);
         const { AREA_BY_PATH } = require("../../../src/web/http/apiAccess");
         expect(AREA_BY_PATH["/api/settings/talk-overview"]).toBe("settings");
         expect(section.match(/getTalkOverview\(\)/g)).toHaveLength(1);
-        expect(section).toContain("repostTalkOverview(link.from)");
+        expect(section).toContain("repostTalkOverview(key)");
+        expect(section).not.toContain("repostTalkOverview(link.from)");
         expect(de["settings.talkOverview.repost"]).toBe("Neu posten");
     });
 

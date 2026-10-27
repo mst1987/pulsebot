@@ -349,11 +349,17 @@ describe("Discord-Server cards (#251, #361)", () => {
         expect(logic.linkSummary({ ...link, lang: "de", versions: ["tbc", "forever", "x"] }, versions)).toBe("Deutsch · nur TBC, Forever, x");
     });
 
-    it("finds a link's status by source and channel and words it", () => {
+    it("finds a link's status by its key from:to, a second link of the same source keeping its own, and words it", () => {
         const link = { from: "1", to: "2", channelId: "21", lang: "", versions: [] };
-        const base = { guildId: "1", label: "", configured: true, channelId: "21", messageId: "m", messageUrl: "", postedAt: 1000, editedAt: 0, checkedAt: 0, error: "" };
-        expect(logic.linkStatusOf(link, [{ ...base, channelId: "99" }])).toBeNull();
-        expect(logic.linkStatusOf(link, [base])).toBe(base);
+        const second = { ...link, to: "3", channelId: "31" };
+        const base = { key: "1:2", from: "1", to: "2", guildId: "1", label: "", configured: true, channelId: "21", messageId: "m", messageUrl: "", postedAt: 1000, editedAt: 0, checkedAt: 0, error: "" };
+        const other = { ...base, key: "1:3", to: "3", channelId: "31", messageId: "", error: "x" };
+        expect(logic.linkKey(link)).toBe("1:2");
+        expect(logic.linkStatusOf(link, [other])).toBeNull();
+        expect(logic.linkStatusOf(link, [other, base])).toBe(base);
+        expect(logic.linkStatusOf(second, [base, other])).toBe(other);
+        // No fallback to the source alone: same source and channel but another key is not this link's status.
+        expect(logic.linkStatusOf(link, [{ ...base, key: "1:9" }])).toBeNull();
         expect(logic.linkStatusBadge(null, 2000).label).toBe("noch nicht gepostet");
         expect(logic.linkStatusBadge({ ...base, messageId: "" }, 2000).label).toBe("noch nicht gepostet");
         expect(logic.linkStatusBadge(base, 2000)).toMatchObject({ label: "Aktuell", tone: "ok" });

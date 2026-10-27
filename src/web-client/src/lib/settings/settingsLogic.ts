@@ -603,9 +603,15 @@ export function linkSummary(link: LinkLike, versions: { id: string; short: strin
     return `${lang} · ${which}`;
 }
 
-/** The overview status that belongs to a link: same source, same channel. */
+/** A link's raid-list key, as the talk-overview store and API use it (#892). */
+export function linkKey(link: LinkLike): string {
+    return `${link.from}:${link.to}`;
+}
+
+/** The raid-list status that belongs to a link, matched by its key — no fallback to the source alone. */
 export function linkStatusOf(link: LinkLike, statuses: TalkOverviewStatus[]): TalkOverviewStatus | null {
-    return statuses.find((s) => s.guildId === link.from && s.channelId === link.channelId) || null;
+    const key = linkKey(link);
+    return statuses.find((s) => s.key === key) || null;
 }
 
 /**

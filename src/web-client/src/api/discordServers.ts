@@ -15,9 +15,8 @@ export type DiscordServers = {
     signupNoteChannelId: string;
     /** Where the guild bank requests of every raider organizer land; "" = no guild bank button. */
     guildBankChannelId: string;
-    /** Still stored until #897 removes them; the Discord-Server page neither shows nor sends them. */
+    /** Still stored until #897 removes it; the Discord-Server page neither shows nor sends it. */
     talkGuildId?: string;
-    talkPingChannelId?: string;
 };
 
 export type BotPermission = { key: string; label: string; ok: boolean };
@@ -62,8 +61,11 @@ export function getDiscordServers(): Promise<DiscordServersData> {
     return get<DiscordServersData>("/api/settings/discord-servers");
 }
 
-/** One source server's raid overview (#257, #361, src/services/talk/talkOverview.js). Times are epoch ms, 0 = never. */
+/** One link's raid list (#257, #361, #892, src/services/talk/talkOverview.js). `key` is `${from}:${to}`. Times are epoch ms, 0 = never. */
 export type TalkOverviewStatus = {
+    key: string;
+    from: string;
+    to: string;
     guildId: string;
     label: string;
     configured: boolean;
@@ -81,8 +83,9 @@ export function getTalkOverview(): Promise<{ statuses: TalkOverviewStatus[] }> {
     return get<{ statuses: TalkOverviewStatus[] }>("/api/settings/talk-overview?preview=0");
 }
 
+/** Re-posts one link's raid list; `key` is `${from}:${to}`, an unknown key answers 400 without fallback. */
 export function repostTalkOverview(
-    guildId: string,
-): Promise<{ result: { guildId: string; label: string; status: string; error?: string; messageId?: string }; status: TalkOverviewStatus | null }> {
-    return send("POST", "/api/settings/talk-overview", { repost: true, guildId });
+    key: string,
+): Promise<{ result: { key: string; from: string; to: string; guildId: string; label: string; status: string; error?: string; messageId?: string }; status: TalkOverviewStatus | null }> {
+    return send("POST", "/api/settings/talk-overview", { repost: true, key });
 }

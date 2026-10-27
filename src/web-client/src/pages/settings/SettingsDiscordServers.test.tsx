@@ -88,6 +88,35 @@ describe("Discord-Server: Verknüpfungen", () => {
         expect(sent.discordServers).toEqual({ links: [LINK] });
         // the old talk fields are never sent, so they stay stored until #897
         expect(sent.discordServers).not.toHaveProperty("talkGuildId");
+        expect(sent.discordServers).not.toHaveProperty("talkPingChannelId");
+    });
+
+    it("shows each link of the same source with its own status and reposts it by its key (#892)", async () => {
+        const second: ServerLink = { from: "10001", to: "10001", channelId: "c1", lang: "", versions: [] };
+        const status = (key: string, to: string, channelId: string, extra: Partial<api.TalkOverviewStatus>): api.TalkOverviewStatus => ({
+            key, from: "10001", to, guildId: "10001", label: "", configured: true, channelId,
+            messageId: "m", messageUrl: "", postedAt: Date.now(), editedAt: 0, checkedAt: 0, error: "", ...extra,
+        });
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [LINK, second] }));
+        vi.mocked(api.getTalkOverview).mockResolvedValue({
+            statuses: [status("10001:20002", "20002", "c2", {}), status("10001:10001", "10001", "c1", { error: "Bot darf nicht schreiben" })],
+        });
+        vi.mocked(api.repostTalkOverview).mockResolvedValue({
+            result: { key: "10001:10001", from: "10001", to: "10001", guildId: "10001", label: "", status: "posted" },
+            status: status("10001:10001", "10001", "c1", {}),
+        });
+        render();
+        expect(await screen.findByText("Fehler")).toBeInTheDocument();
+        expect(screen.getAllByText("Aktuell")).toHaveLength(1);
+        const rows = screen.getAllByRole("button", { name: "Neu posten" });
+        expect(rows).toHaveLength(2);
+        // the second row is the link onto the source itself (#orga-gildenbank)
+        const secondRow = screen.getByText("#orga-gildenbank").closest("tr") as HTMLElement;
+        fireEvent.click(within(secondRow).getByRole("button", { name: "Neu posten" }));
+        await waitFor(() => expect(api.repostTalkOverview).toHaveBeenCalledWith("10001:10001"));
+        // only that link's status is replaced; the other keeps its own
+        await waitFor(() => expect(screen.getAllByText("Aktuell")).toHaveLength(2));
+        expect(screen.queryByText("Fehler")).toBeNull();
     });
 
     it("removes a link after the confirm", async () => {
