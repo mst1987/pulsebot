@@ -91,7 +91,6 @@
 .svl-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
 .svl .set-field select { max-width: 100%; }
 .svl-item { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.svl-item > div > .field-label { margin: 0; }
 
 /* ---- Funktionen je Version (#761): features as rows, versions as columns, a switch where possible ---- */
 .vf-card { margin-top: 16px; gap: 12px; }

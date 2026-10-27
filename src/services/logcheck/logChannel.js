@@ -197,6 +197,8 @@ async function evaluateLog(logId, section = SECTION_CLA, opts = {}) {
                 mergeIntoId: log.reportRefId || undefined,
                 force: !!opts.force,
                 plannedIds: plannedInstances(log),
+                // the evaluation belongs to the log's server (#920)
+                guildId: log.guildId || "",
             });
         } catch (e) {
             // The raid is still running: a refusal to answer, not a failure —

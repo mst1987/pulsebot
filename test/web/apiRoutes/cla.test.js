@@ -14,6 +14,7 @@ jest.mock("../../../src/stores/reportStore", () => ({
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
+    setReportGuild: jest.fn(() => false),
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
@@ -191,6 +192,7 @@ const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const discord = require("../../../src/services/discord/discord");
 const logStore = require("../../../src/stores/logStore");
+const { reportsOfGuild } = require("../../../src/services/logcheck/reportGuild");
 const reportList = require("../../../src/services/logcheck/reportList");
 const logEventMatch = require("../../../src/services/logcheck/logEventMatch");
 const logChannel = require("../../../src/services/logcheck/logChannel");
@@ -219,17 +221,22 @@ describe("web/apiRoutes/cla", () => {
             expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
         });
 
-        it("lists the guild's logs and the link reports in one page, with a count per filter", async () => {
+        it("lists only the active server's logs and the link reports in one page, with a count per filter (#920)", async () => {
             activeGuildFor.mockReturnValue("guild-1");
             logStore.listLogs.mockReturnValue([
                 { id: "l1", guildId: "guild-1", eventId: "e1", sections: ["cla"], reportRefId: "r1", postedAt: 3000 },
                 { id: "l2", guildId: "guild-2", reportRefId: "r2", postedAt: 2000 },
-                { id: "l3", guildId: "", postedAt: 1000 },
+                { id: "l3", guildId: "guild-1", postedAt: 1000 },
+                // a log without a server is no longer shown on every server (#920)
+                { id: "l4", guildId: "", postedAt: 900 },
             ]);
             reportStore.listReports.mockReturnValue([
                 { id: "r1", playerCount: 25, issueCount: 3, generatedAt: 5 },
                 { id: "r2" }, // its log lives in another guild — not a link report
-                { id: "r3", title: "Kara per Link", generatedAt: 500 },
+                { id: "r3", title: "Kara per Link", generatedAt: 500, guildId: "guild-1" },
+                // a link report evaluated on another server, and one without any server: neither is listed (#920)
+                { id: "r4", title: "Fremd per Link", generatedAt: 400, guildId: "guild-2" },
+                { id: "r5", title: "Ohne Server", generatedAt: 300 },
             ]);
 
             const res = await get("/api/cla");
@@ -247,12 +254,13 @@ describe("web/apiRoutes/cla", () => {
         it("passes filter/sort/dir/page through to prepareClaList", async () => {
             await get("/api/cla", { filter: "unlinked", sort: "event", dir: "asc", page: "2" });
             expect(reportList.prepareClaList).toHaveBeenCalledWith(
-                [], [], { filter: "unlinked", sort: "event", dir: "asc", page: "2" }, { allLogs: [], inVersion: expect.any(Function) },
+                [], [], { filter: "unlinked", sort: "event", dir: "asc", page: "2" }, { allLogs: [], inVersion: expect.any(Function), guildId: "" },
             );
         });
 
         it("reads title and bosses of the page's logs from WCL, and only of those", async () => {
-            logStore.listLogs.mockReturnValue([{ id: "l1", reportId: "AAA" }]);
+            activeGuildFor.mockReturnValue("guild-1");
+            logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "guild-1", reportId: "AAA" }]);
             logChannel.backfillLogTitles.mockImplementationOnce(async (logs) => {
                 logs[0].title = "Hyjal";
                 logs[0].raids = [{ contentId: "hyjal", label: "Hyjal", killed: 3, total: 5, finalKilled: false, finalBoss: "Archimonde", missing: ["Azgalor", "Archimonde"], bosses: [] }];
@@ -266,7 +274,8 @@ describe("web/apiRoutes/cla", () => {
         });
 
         it("offers candidates for assigned logs too, and counts what auto-assign would link", async () => {
-            logStore.listLogs.mockReturnValue([{ id: "l1", eventId: "e9" }, { id: "l2" }]);
+            activeGuildFor.mockReturnValue("guild-1");
+            logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "guild-1", eventId: "e9" }, { id: "l2", guildId: "guild-1" }]);
             logEventMatch.annotateMatches.mockImplementationOnce((items) => {
                 for (const it of items) {
                     it.candidates = [{ eventId: "e1", title: "Hyjal + BT", startTime: 1, diffMs: 0, sameCategory: true }];
@@ -319,14 +328,15 @@ describe("web/apiRoutes/cla", () => {
 
         it("lists one game version (#741): unlinked logs under every version, linked ones and link reports only under theirs", async () => {
             settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc" });
+            activeGuildFor.mockReturnValue("guild-1");
             logStore.listLogs.mockReturnValue([
-                { id: "tbc-log", eventId: "rh-tbc", versionId: "tbc", postedAt: 4 },
-                { id: "forever-log", eventId: "rh-forever", versionId: "forever", postedAt: 3 },
-                { id: "waiting", postedAt: 2 },
+                { id: "tbc-log", guildId: "guild-1", eventId: "rh-tbc", versionId: "tbc", postedAt: 4 },
+                { id: "forever-log", guildId: "guild-1", eventId: "rh-forever", versionId: "forever", postedAt: 3 },
+                { id: "waiting", guildId: "guild-1", postedAt: 2 },
             ]);
             reportStore.listReports.mockReturnValue([
-                { id: "r-tbc", generatedAt: 1, versionId: "tbc" },
-                { id: "r-forever", generatedAt: 0, versionId: "forever" },
+                { id: "r-tbc", generatedAt: 1, versionId: "tbc", guildId: "guild-1" },
+                { id: "r-forever", generatedAt: 0, versionId: "forever", guildId: "guild-1" },
             ]);
             const forever = json(await get("/api/cla", { version: "forever" })).data;
             expect(forever.page.items.map((r) => r.id)).toEqual(["forever-log", "waiting", "report:r-forever"]);
@@ -416,18 +426,18 @@ describe("web/apiRoutes/cla", () => {
             expect(json(res).data.status).toBe("running");
             expect(json(res).data.jobId).toEqual(expect.any(String));
             await flushJobs();
-            expect(buildReport).toHaveBeenCalledWith("https://classic.warcraftlogs.com/reports/abc123", { force: false });
+            expect(buildReport).toHaveBeenCalledWith("https://classic.warcraftlogs.com/reports/abc123", { force: false, guildId: "guild-1" });
         });
 
         it("passes the halves the form picked on to the build, and ignores unknown ones", async () => {
             buildReport.mockReturnValue(new Promise(() => {}));
             await post("/api/cla", { link: "https://classic.warcraftlogs.com/reports/abc123", sections: ["rpb", "nope"] });
             await flushJobs();
-            expect(buildReport).toHaveBeenCalledWith("https://classic.warcraftlogs.com/reports/abc123", { force: false, sections: ["rpb"] });
+            expect(buildReport).toHaveBeenCalledWith("https://classic.warcraftlogs.com/reports/abc123", { force: false, sections: ["rpb"], guildId: "guild-1" });
             buildReport.mockClear();
             await post("/api/cla", { link: "https://classic.warcraftlogs.com/reports/abc123", sections: ["nope"] });
             await flushJobs();
-            expect(buildReport).toHaveBeenCalledWith("https://classic.warcraftlogs.com/reports/abc123", { force: false });
+            expect(buildReport).toHaveBeenCalledWith("https://classic.warcraftlogs.com/reports/abc123", { force: false, guildId: "guild-1" });
         });
 
         it("rejects an empty link outright instead of queueing a doomed job", async () => {
@@ -841,6 +851,25 @@ describe("web/apiRoutes/cla", () => {
             expect(logStore.deleteLog).toHaveBeenCalledWith("l1");
             expect(json(res)).toEqual({ data: { logId: "l1" } });
         });
+
+        // #920: the report keeps the server of its deleted log instead of falling to another one
+        it("writes the log's server onto its report before the log goes", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const report = { id: "abc111" }; // an old report without a server of its own
+            let logs = [{ id: "l1", guildId: "B", reportRefId: "abc111" }];
+            logStore.getLog.mockImplementation((id) => logs.find((l) => l.id === id) || null);
+            logStore.deleteLog.mockImplementation((id) => { logs = logs.filter((l) => l.id !== id); return true; });
+            reportStore.setReportGuild.mockImplementation((id, guildId) => { if (id === report.id) report.guildId = guildId; return true; });
+            await post("/api/cla/log-delete", { logId: "l1" });
+            expect(reportStore.setReportGuild).toHaveBeenCalledWith("abc111", "B");
+            expect(logs).toEqual([]);
+            expect(reportsOfGuild([report], "A", logs)).toEqual([]);
+            expect(reportsOfGuild([report], "B", logs)).toEqual([report]);
+            logStore.getLog.mockReset();
+            logStore.deleteLog.mockReset();
+            reportStore.setReportGuild.mockReset();
+        });
     });
 
     describe("POST /api/cla/log-link", () => {
@@ -1042,13 +1071,13 @@ describe("web/apiRoutes/cla", () => {
             });
         });
 
-        it("uses the unfiltered log list when no guild is active", async () => {
+        it("links nothing when no guild is active, never another server's logs (#920)", async () => {
             activeGuildFor.mockReturnValue("");
             logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "some-guild" }]);
 
             await post("/api/cla/log-automatch", {});
 
-            expect(logEventMatch.autoMatches).toHaveBeenCalledWith([{ id: "l1", guildId: "some-guild" }], []);
+            expect(logEventMatch.autoMatches).toHaveBeenCalledWith([], []);
         });
     });
 });

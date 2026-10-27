@@ -2,6 +2,8 @@
 // Building one stays /logcheck; this only finds what exists.
 const { SlashCommandBuilder } = require("discord.js");
 const { listReports } = require("../../stores/reportStore");
+const { listLogs } = require("../../stores/logStore");
+const { reportsOfGuild } = require("../../services/logcheck/reportGuild");
 const { prepareReportList } = require("../../services/logcheck/reportList");
 const { recordVersion } = require("../../services/logcheck/logVersion");
 const { addVersionOption, versionOfCommand, versionNote } = require("../../services/events/commandVersion");
@@ -31,7 +33,10 @@ module.exports = {
     async execute(interaction) {
         const { versionId } = versionOfCommand(interaction);
         const footer = { text: versionNote(versionId) };
-        const reports = listReports().filter((r) => recordVersion(r) === versionId);
+        // only the evaluations of the server the command runs on (#920): a report follows its log, else the
+        // server it was made on - never another server's
+        const guildId = interaction.guildId || (interaction.guild && interaction.guild.id) || "";
+        const reports = reportsOfGuild(listReports(), guildId, listLogs()).filter((r) => recordVersion(r) === versionId);
         const { items, total } = prepareReportList(reports, { sort: "date", dir: "desc" }, { pageSize: MAX_REPORTS });
         if (!items.length) {
             return lookupReply(interaction, {

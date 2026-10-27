@@ -260,7 +260,7 @@ function softresPart(found, eventId, { attendanceSource, attendance }, edition =
  */
 async function logsPart(guildId, eventId) {
     const eventLogs = listLogsForEvent(eventId);
-    const unlinkedLogs = listLogs().filter((l) => (!l.guildId || l.guildId === guildId) && !l.eventId);
+    const unlinkedLogs = listLogs().filter((l) => l.guildId === guildId && !l.eventId);
     await backfillLogTitles([...eventLogs, ...unlinkedLogs]);
     for (const l of [...eventLogs, ...unlinkedLogs]) l.sections = evaluatedSections(l);
     return { eventLogs, unlinkedLogs };

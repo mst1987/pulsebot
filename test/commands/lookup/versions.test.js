@@ -5,6 +5,7 @@ jest.mock("../../../src/stores/lootStore", () => ({ listByCharacter: jest.fn(() 
 jest.mock("../../../src/services/loot/lootStats", () => ({ itemCatalog: jest.fn(() => []) }));
 jest.mock("../../../src/services/characters/userCharacters", () => ({ myCharacters: jest.fn(() => []) }));
 jest.mock("../../../src/stores/reportStore", () => ({ listReports: jest.fn(() => []) }));
+jest.mock("../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
 jest.mock("../../../src/services/events/storedVersion", () => ({ storedVersionOf: (id) => (String(id).startsWith("f") ? "forever" : "tbc") }));
 jest.mock("../../../src/stores/configStore", () => ({ getConfig: jest.fn(() => ({ categoryVersion: { catF: "forever" } })) }));
 
@@ -120,9 +121,9 @@ describe("/loot", () => {
 describe("/report", () => {
     it("lists the reports of the version only", async () => {
         listReports.mockReturnValue([
-            { id: "r1", title: "TBC Log", generatedAt: 5, versionId: "tbc" },
-            { id: "r2", title: "Forever Log", generatedAt: 6, versionId: "forever" },
-            { id: "r3", title: "Old Log", generatedAt: 4 },
+            { id: "r1", title: "TBC Log", generatedAt: 5, versionId: "tbc", guildId: "guild-1" },
+            { id: "r2", title: "Forever Log", generatedAt: 6, versionId: "forever", guildId: "guild-1" },
+            { id: "r3", title: "Old Log", generatedAt: 4, guildId: "guild-1" },
         ]);
         const i = mockInteraction({ channel: inForever });
         await report.execute(i);
