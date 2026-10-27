@@ -1405,7 +1405,7 @@ describe("web/apiRoutes/settings", () => {
 
                 requireAdmin.mockReturnValue({ id: "7", isAdmin: false });
                 requireFullAdmin.mockReturnValue(null);
-                readJsonBody.mockResolvedValue({ roleSync: [{ eventRoleId: "111111", talkRoleId: "222222" }] });
+                readJsonBody.mockResolvedValue({ roleSync: [{ fromGuildId: "100000", fromRoleId: "111111", toGuildId: "300000", toRoleId: "222222", direction: "both" }] });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
 
@@ -1424,7 +1424,7 @@ describe("web/apiRoutes/settings", () => {
                 settingsStore.getConfig.mockReturnValue({ roleSync: [] });
                 const res = mockRes();
                 await getRoleSync({}, res);
-                expect(body(res)).toMatchObject({ roleSync: [], drift: [], driftTotal: 0, driftError: null });
+                expect(body(res)).toMatchObject({ roleSync: [], overlaps: [], drift: [], driftTotal: 0, driftError: null });
 
                 requireFullAdmin.mockReturnValue(null);
                 const res2 = mockRes();

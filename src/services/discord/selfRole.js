@@ -66,11 +66,15 @@ function roleUses(cfg, roleId) {
     if (commands.length) out.push({ code: "botCommand", commands });
     const categoryIds = entries(c.categoryRoles).filter(([, list]) => ids(list).includes(id)).map(([catId]) => catId);
     if (categoryIds.length) out.push({ code: "categoryRaider", categoryIds });
+    // A role-sync pair (#896) names two servers; the badge stays "event"/"talk":
+    // the talk server's role reads "talk", a role on any other server "event".
+    const talk = str(c.discordServers && c.discordServers.talkGuildId);
+    const sideOf = (guildId) => (talk && str(guildId) === talk ? "talk" : "event");
     const sides = new Set();
     for (const s of Array.isArray(c.roleSync) ? c.roleSync : []) {
         if (!s) continue;
-        if (str(s.eventRoleId) === id) sides.add("event");
-        if (str(s.talkRoleId) === id) sides.add("talk");
+        if (str(s.fromRoleId) === id) sides.add(sideOf(s.fromGuildId));
+        if (str(s.toRoleId) === id) sides.add(sideOf(s.toGuildId));
     }
     if (sides.size) out.push({ code: "roleSync", sides: ["event", "talk"].filter((x) => sides.has(x)) });
     for (const r of rostersOrEmpty()) {

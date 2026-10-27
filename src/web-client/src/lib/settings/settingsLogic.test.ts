@@ -435,20 +435,36 @@ describe("ping targets, role sync and reminders", () => {
         expect(logic.targetHint("event", "", undefined)).toBeUndefined();
     });
 
-    it("sends only complete role pairs, once per pair", () => {
+    it("sends only complete role pairs between two servers, once per pair", () => {
         expect(logic.roleSyncPatch([
-            { eventRoleId: " 1 ", talkRoleId: "2", direction: "both" },
-            { eventRoleId: "1", talkRoleId: "2", direction: "toEvent" },
-            { eventRoleId: "3", talkRoleId: "", direction: "toTalk" },
-        ])).toEqual({ roleSync: [{ eventRoleId: "1", talkRoleId: "2", direction: "both" }] });
+            { fromGuildId: " g1 ", fromRoleId: " 1 ", toGuildId: "g2", toRoleId: "2", direction: "both" },
+            { fromGuildId: "g1", fromRoleId: "1", toGuildId: "g2", toRoleId: "2", direction: "toSource" },
+            { fromGuildId: "g1", fromRoleId: "3", toGuildId: "g2", toRoleId: "", direction: "toTarget" },
+            { fromGuildId: "g1", fromRoleId: "4", toGuildId: "g1", toRoleId: "5", direction: "toTarget" },
+            { fromGuildId: "", fromRoleId: "6", toGuildId: "g2", toRoleId: "7", direction: "toTarget" },
+        ])).toEqual({ roleSync: [{ fromGuildId: "g1", fromRoleId: "1", toGuildId: "g2", toRoleId: "2", direction: "both" }] });
     });
 
     it("replaces an edited pair in place and appends a new one", () => {
-        const rules = [{ eventRoleId: "1", talkRoleId: "2", direction: "toTalk" }];
-        const changed = { eventRoleId: "1", talkRoleId: "9", direction: "both" };
+        const rules = [{ fromGuildId: "g1", fromRoleId: "1", toGuildId: "g2", toRoleId: "2", direction: "toTarget" as const }];
+        const changed = { fromGuildId: "g1", fromRoleId: "1", toGuildId: "g2", toRoleId: "9", direction: "both" as const };
         expect(logic.withRoleRule(rules, 0, changed)).toEqual([changed]);
         expect(logic.withRoleRule(rules, -1, changed)).toEqual([rules[0], changed]);
-        expect(rules[0].talkRoleId).toBe("2");
+        expect(rules[0].toRoleId).toBe("2");
+    });
+
+    it("knows when a pair is ready, which servers it writes to and its overlap", () => {
+        const rule = { fromGuildId: "g2", fromRoleId: "1", toGuildId: "g1", toRoleId: "2", direction: "toTarget" as const };
+        expect(logic.roleRuleReady(rule)).toBe(true);
+        expect(logic.roleRuleReady({ ...rule, toGuildId: "g2" })).toBe(false);
+        expect(logic.roleRuleReady({ ...rule, fromRoleId: "" })).toBe(false);
+        expect(logic.writtenGuilds(rule)).toEqual(["g1"]);
+        expect(logic.writtenGuilds({ ...rule, direction: "toSource" })).toEqual(["g2"]);
+        expect(logic.writtenGuilds({ ...rule, direction: "both" })).toEqual(["g2", "g1"]);
+        // the server sorts each pair, the lookup does the same
+        const overlap = { fromGuildId: "g1", toGuildId: "g2", both: 3 };
+        expect(logic.overlapOf([overlap], rule)).toBe(overlap);
+        expect(logic.overlapOf([overlap], { ...rule, toGuildId: "g3" })).toBeNull();
     });
 
     it("badges the drift: nothing, a count, or unknown", () => {
@@ -456,6 +472,13 @@ describe("ping targets, role sync and reminders", () => {
         expect(logic.driftBadge(3, null)).toMatchObject({ tone: "mid", label: "3 Abweichungen" });
         expect(logic.driftBadge(1, null).label).toBe("1 Abweichung");
         expect(logic.driftBadge(0, "Intent fehlt")).toMatchObject({ tone: "", tip: "Intent fehlt" });
+    });
+
+    it("keeps the count when only some servers could not be read and names them in the tip", () => {
+        const partial = logic.driftBadge(3, null, ["Der Bot ist nicht auf PuG."]);
+        expect(partial).toMatchObject({ tone: "mid", label: "3 Abweichungen" });
+        expect(partial.tip).toContain("Der Bot ist nicht auf PuG.");
+        expect(logic.driftBadge(0, null, ["Intent fehlt"])).toMatchObject({ tone: "ok", label: "Keine Abweichung" });
     });
 
     it("sums a reminder rule up in one short line", () => {

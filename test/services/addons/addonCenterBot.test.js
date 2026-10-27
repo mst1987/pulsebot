@@ -394,7 +394,7 @@ describe("addonCenterBot subscription", () => {
     it.each([
         ["a raider role of a category", () => ({ categoryRoles: { "cat-1": [ROLE] } }), "raider role"],
         ["a role a bot command allows", () => ({ botCommandAccess: { setup: { mode: "roles", roleIds: [ROLE] } } }), "botCommandAccess"],
-        ["a role of the role sync", () => ({ roleSync: [{ eventRoleId: ROLE, talkRoleId: "200000000000000009", direction: "both" }] }), "role sync"],
+        ["a role of the role sync", () => ({ roleSync: [{ fromGuildId: "100000000000000001", fromRoleId: ROLE, toGuildId: "200000000000000001", toRoleId: "200000000000000009", direction: "both" }] }), "role sync"],
     ])("refuses %s as well", async (_name, cfg, reason) => {
         mockConfig = { ...mockConfig, ...cfg() };
         const { guild, member: m } = server();

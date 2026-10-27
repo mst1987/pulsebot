@@ -16,7 +16,7 @@ const {
     normalizeConfig, normalizeDiscordServers, normalizeRaidhelperRetirement, normalizeVersionLaunch, normalizeCategorySignupSource,
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryAttendance, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupCharacters, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeCategoryPlanning, normalizeTopItems,
-    normalizeRoleSync, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings, normalizeBotLanguage,
+    normalizeRoleSync, roleSyncContext, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings, normalizeBotLanguage,
     normalizeDiscordVisuals, normalizeDungeonRecords,
 } = require("./configSchema");
 const { planningOf } = require("../services/events/planning");
@@ -221,7 +221,11 @@ function saveConfig(partial) {
     // item gets removed again), it is only cleaned up on the way in.
     if (partial.topItems !== undefined) next.topItems = normalizeTopItems(partial.topItems);
     // Both replace the stored value as a whole, like topItems.
-    if (partial.roleSync !== undefined) next.roleSync = normalizeRoleSync(partial.roleSync);
+    // Role-sync pairs are checked against the servers after this save (#896): a
+    // pair whose server was just removed is dropped with it.
+    if (partial.roleSync !== undefined || partial.discordServers) {
+        next.roleSync = normalizeRoleSync(partial.roleSync !== undefined ? partial.roleSync : current.roleSync, roleSyncContext(next.discordServers));
+    }
     if (partial.categoryReminders !== undefined) next.categoryReminders = normalizeCategoryReminders(partial.categoryReminders);
     // Merged per field, the retention per rule and the restore probe's slot per field, then normalised (#691, #694).
     if (partial.backup && typeof partial.backup === "object") {
