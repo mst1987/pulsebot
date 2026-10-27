@@ -23,7 +23,8 @@ const { parseGuildBankScan, GB_FORMAT } = require("../../../src/utils/guildbank/
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { cardText, cardButtons } = require("../../helpers/cardText");
 
-const CONFIG = { botLanguage: "de", discordServers: { eventGuilds: [{ guildId: "g1" }], guildBankChannelId: "900000" } };
+// #924: the guild bank channel is per server; g1 is the first server
+const CONFIG = { guildId: "g1", discordServers: { eventGuilds: [{ guildId: "g1" }] }, serverSettings: { g1: { botLanguage: "de", guildBankChannelId: "900000" } } };
 const SPINAL = 32470;
 let KEY;
 let scanAt = 1791000000;
@@ -85,6 +86,8 @@ describe("services/signups/guildBank — waiting list", () => {
         expect(result.waiting).toMatchObject({ status: "waiting", amount: 2 });
         expect(result.position).toBe(1);
         expect(discord.postPayload).toHaveBeenCalledTimes(1);
+        // only into a channel of the bank's server (#924)
+        expect(discord.postPayload.mock.calls[0][2]).toEqual({ guildId: "g1" });
     });
 
     it("a new request waits in full while somebody waits; the list moves up in turns, a rest goes to the end", async () => {
@@ -106,6 +109,7 @@ describe("services/signups/guildBank — waiting list", () => {
         expect(run.moved).toHaveLength(1);
         expect(run.posted).toBe(1);
         const card = discord.postPayload.mock.calls[0][1];
+        expect(discord.postPayload.mock.calls[0][2]).toEqual({ guildId: "g1" });
         expect(cardText(card)).toContain("## 2× Crimson Spinal");
         expect(cardText(card)).toContain("aus der Warteliste · Rest 1 wartet (Platz 2) · offen");
         expect(cardButtons(card).map((b) => b.label)).toEqual(["Bestätigen", "Charakter ändern …", "Ablehnen …"]);

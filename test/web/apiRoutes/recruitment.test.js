@@ -100,7 +100,12 @@ describe("web/apiRoutes/recruitment", () => {
         });
 
         it("fetches applications only on the applications tab and returns them", async () => {
-            settingsStore.getConfig.mockReturnValue({ applicationChannelId: "chan1" });
+            // the application channel of the active server (#924), not another server's
+            activeGuildFor.mockReturnValue("1800000000000000001");
+            settingsStore.getConfig.mockReturnValue({ serverSettings: {
+                "1800000000000000001": { applicationChannelId: "1800000000000000011" },
+                "1800000000000000002": { applicationChannelId: "1800000000000000012" },
+            } });
             discord.listApplications.mockResolvedValue({
                 applications: [{ threadId: "a1", classSpec: "Druid – Balance", createdAt: Date.now(), archived: false }],
                 error: null,
@@ -108,12 +113,12 @@ describe("web/apiRoutes/recruitment", () => {
 
             const res = await get("/api/recruitment", { view: "applications" });
 
-            expect(discord.listApplications).toHaveBeenCalledWith("chan1");
+            expect(discord.listApplications).toHaveBeenCalledWith("1800000000000000011");
             expect(json(res).data).toMatchObject({
                 view: "applications",
                 applications: [{ threadId: "a1", className: "Druid", spec: "Balance", classIcon: "classicon_druid", status: "neu" }],
                 applicationsError: null,
-                applicationChannelId: "chan1",
+                applicationChannelId: "1800000000000000011",
             });
         });
 

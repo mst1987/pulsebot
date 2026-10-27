@@ -16,7 +16,14 @@ jest.mock("../../../src/services/events/versionSettings.js", () => ({
     },
 }));
 
+// The application channel + officer role per server (#924): guild-1 has both, other servers none.
+jest.mock("../../../src/services/discord/serverDefaults.js", () => ({
+    applicationChannelId: jest.fn((guildId) => (guildId === "guild-1" ? "111111111111111111" : "")),
+    officerRoleId: jest.fn((guildId) => (guildId === "guild-1" ? "222222222222222222" : "")),
+}));
+
 const command = require("../../../src/commands/apply/applyModal.js");
+const serverDefaults = require("../../../src/services/discord/serverDefaults.js");
 const { pendingApplications } = require("../../../src/utils/recruitment/applicationState.js");
 const { analyzeApplicant, applicantSource } = require("../../../src/utils/logcheck/applicant.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
@@ -28,10 +35,9 @@ function makeClient() {
     const threadDelete = jest.fn().mockResolvedValue(undefined);
     const thread = { send: threadSend, delete: threadDelete };
     const threadsCreate = jest.fn().mockResolvedValue(thread);
-    const channel = discordClient.makeChannel({ id: "applications", threads: { create: threadsCreate } });
+    const channel = discordClient.makeChannel({ id: "applications", guildId: "guild-1", threads: { create: threadsCreate } });
     const client = discordClient.makeClient({ channels: [channel] });
-    // The application channel id comes from the settings store, which the
-    // suite does not pin - any id answers the application channel.
+    // Any id answers the application channel (serverDefaults is mocked above).
     client.channels.fetch.mockResolvedValue(channel);
     return { client, threadSend, threadsCreate, threadDelete };
 }
@@ -141,6 +147,44 @@ describe("commands/apply/applyModal", () => {
 
         expect(threadDelete).toHaveBeenCalled();
         expect(repliedText(interaction)).toContain("Fehler beim Einreichen");
+    });
+
+    it("posts to the application channel of the server /apply ran on and pings its officer role (#924)", async () => {
+        analyzeApplicant.mockResolvedValue(null);
+        const { client, threadSend } = makeClient();
+        const interaction = mockInteraction({ userId: "user-g", options: { characterName: "Gil", description: "hi" } });
+
+        await command.execute(interaction, client);
+
+        expect(serverDefaults.applicationChannelId).toHaveBeenCalledWith("guild-1");
+        expect(client.channels.fetch).toHaveBeenCalledWith("111111111111111111");
+        expect(threadSend.mock.calls[0][0].content).toContain("<@&222222222222222222>");
+    });
+
+    it("posts nothing on a server without an application channel and tells the applicant (#924)", async () => {
+        const { client, threadsCreate } = makeClient();
+        const interaction = mockInteraction({
+            userId: "user-h",
+            options: { characterName: "Nobody", description: "x" },
+            guild: { id: "guild-2", emojis: { cache: new Map() } },
+        });
+
+        await command.execute(interaction, client);
+
+        expect(client.channels.fetch).not.toHaveBeenCalled();
+        expect(threadsCreate).not.toHaveBeenCalled();
+        expect(repliedText(interaction)).toContain("kein Bewerbungs-Kanal");
+    });
+
+    it("posts nothing when the set channel lives on another server and tells the applicant like without one (#924)", async () => {
+        const { client, threadsCreate } = makeClient();
+        client.channels.fetch.mockResolvedValueOnce(discordClient.makeChannel({ id: "elsewhere", guildId: "guild-9", threads: { create: threadsCreate } }));
+        const interaction = mockInteraction({ userId: "user-x", options: { characterName: "Wanderer", description: "x" } });
+
+        await command.execute(interaction, client);
+
+        expect(threadsCreate).not.toHaveBeenCalled();
+        expect(repliedText(interaction)).toContain("kein Bewerbungs-Kanal");
     });
 
     it("reports an error to the user when thread creation fails", async () => {

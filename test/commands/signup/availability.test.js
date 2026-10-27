@@ -48,7 +48,7 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
-    mocks.access.config = { botLanguage: "en" };
+    mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
     for (const e of store.listEntries()) store.removeEntry(e.id);
     discord.sendDirectMessage.mockClear();
     for (const [id, days, cat] of [["eh-a", 2, "cat1"], ["eh-b", 3, "cat1"], ["eh-c", 3, "cat2"]]) {
@@ -286,7 +286,8 @@ describe("Raider-Organizer: Mein Raid und Auswertung", () => {
 });
 
 describe("Gildenbank", () => {
-    const BANK = { botLanguage: "en", discordServers: { guildBankChannelId: "900000" } };
+    // #924: the guild bank channel of the server clicked on (mockInteraction's guild-1)
+    const BANK = { guildId: "guild-1", botLanguage: "en", serverSettings: { "guild-1": { botLanguage: "en", guildBankChannelId: "900000" } } };
     beforeEach(() => {
         for (const r of bankStore.listRequests()) bankStore.removeRequest(r.id);
         discord.postPayload.mockClear();
@@ -333,11 +334,11 @@ describe("Gildenbank", () => {
     });
 
     it("auf Deutsch für einen deutschen Raider", async () => {
-        mocks.access.config = { ...BANK, botLanguage: "de" };
+        mocks.access.config = { ...BANK, botLanguage: "de", serverSettings: { "guild-1": { ...BANK.serverSettings["guild-1"], botLanguage: "de" } } };
         const sent = submit("availability:mb:cat1", { item: "Flask", amount: "2" });
         await command.execute(sent);
         expect(answerOf(sent.editReply.mock.calls[0][0]).title).toBe("✅ Anfrage gesendet – die Orga meldet sich per DM.");
-        mocks.access.config = { botLanguage: "de" };
+        mocks.access.config = { guildId: "g1", botLanguage: "de", serverSettings: { g1: { botLanguage: "de" } } };
         const stale = submit("availability:mb:cat1", { item: "Flask", amount: "2" });
         await command.execute(stale);
         expect(answerOf(stale.editReply.mock.calls[0][0]).description).toBe("⚠️ Die Gildenbank ist gerade nicht eingerichtet.");

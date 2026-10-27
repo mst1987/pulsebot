@@ -90,7 +90,13 @@ describe("purposes are settings", () => {
         await saveChannelPurpose(purpose({ key: "logChannels", multiple: true }), ["a", "b", "a", ""], "g1");
         expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { logChannels: ["a", "b"], serverSettingsGuildId: "g1" });
         await saveChannelPurpose(purpose({ key: "applicationChannelId" }), [], "g1");
-        expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { applicationChannelId: "" });
+        expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { applicationChannelId: "", serverSettingsGuildId: "g1" });
+        // the categories too (#926: only the saving server's part changes)
+        await saveChannelPurpose(purpose({ key: "categoryIds", multiple: true }), ["k1"], "g1");
+        expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { categoryIds: ["k1"], serverSettingsGuildId: "g1" });
+        // a purpose that is not per server carries none
+        await saveChannelPurpose(purpose({ key: "signupChannelId" }), ["c1"], "g1");
+        expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { signupChannelId: "c1" });
     });
 
     it("names the server switch in plain words and passes other errors on (#921)", async () => {
@@ -108,8 +114,9 @@ describe("purposes are settings", () => {
     });
 
     it("nests the signup channel under raidDefaults, the key the server names", async () => {
-        await saveChannelPurpose(purpose({ key: "raidDefaults.channelId" }), ["c1"]);
-        expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { raidDefaults: { channelId: "c1" } });
+        await saveChannelPurpose(purpose({ key: "raidDefaults.channelId" }), ["c1"], "g1");
+        // per server since #924: checked on the body key, not the purpose key
+        expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { raidDefaults: { channelId: "c1" }, serverSettingsGuildId: "g1" });
         const { PURPOSES } = requireBackend("web/channels/channelPurposes");
         expect(PURPOSES.map((p: { key: string }) => p.key)).toContain("raidDefaults.channelId");
     });

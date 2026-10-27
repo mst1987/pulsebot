@@ -184,8 +184,9 @@ describe("the log channels of the active server (#921)", () => {
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
         const body = vi.mocked(api.updateSettings).mock.calls[0][0];
         expect("logChannels" in body).toBe(false);
-        // the active categories always go along, with the server the page loaded (#926)
-        expect(body).toMatchObject({ categoryIds: ["cat1"], serverSettingsGuildId: "g1" });
+        // #924: the raid channel is the active server's own value; the active categories always go
+        // along (#926) - both with the server the page loaded
+        expect(body).toMatchObject({ raidDefaults: { channelId: "ch1" }, categoryIds: ["cat1"], serverSettingsGuildId: "g1" });
     });
 
     it("says the server was switched when the save is refused for it", async () => {
@@ -343,10 +344,11 @@ describe("the save bar", () => {
         await waitFor(() => expect(screen.queryByText(/ungespeicherte/)).not.toBeInTheDocument());
     });
 
-    it("shows the saved bot language, marks the draft dirty on a switch and sends it on save", async () => {
+    it("shows the server's own bot language, marks the draft dirty on a switch and sends it on save", async () => {
         const user = userEvent.setup();
-        vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({ botLanguage: "en" }) }));
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({ botLanguage: "en", botLanguageOwn: true, botLanguageDefault: "de" }) }));
         renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+        expect(await screen.findByRole("switch", { name: "Eigener Wert auf Pulse" })).toBeChecked();
 
         const group = await screen.findByRole("radiogroup", { name: "Sprache der Bot-Nachrichten" });
         expect(within(group).getByRole("radio", { name: "English" })).toHaveAttribute("aria-checked", "true");
@@ -358,13 +360,75 @@ describe("the save bar", () => {
 
         await user.click(screen.getByRole("button", { name: "Speichern" }));
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
-        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({ botLanguage: "de" });
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({ botLanguage: "de", serverSettingsGuildId: "g1" });
     });
 
-    it("defaults the bot language to German when the server sends none", async () => {
+    it("shows a server without an own bot language on the default (German when none is sent)", async () => {
         renderPage(<SettingsPage />, { route: "/settings?section=raids" });
-        const group = await screen.findByRole("radiogroup", { name: "Sprache der Bot-Nachrichten" });
-        expect(within(group).getByRole("radio", { name: "Deutsch" })).toHaveAttribute("aria-checked", "true");
+        expect(await screen.findByRole("switch", { name: "Eigener Wert auf Pulse" })).not.toBeChecked();
+        expect(screen.queryByRole("radiogroup", { name: "Sprache der Bot-Nachrichten" })).not.toBeInTheDocument();
+        expect(screen.getByText("Standard (alle Server)").parentElement).toHaveTextContent("Deutsch");
+    });
+
+    it("gives the active server an own bot language through the switch", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({ botLanguage: "en", botLanguageDefault: "en", botLanguageOwn: false }) }));
+        renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+
+        await user.click(await screen.findByRole("switch", { name: "Eigener Wert auf Pulse" }));
+        const group = screen.getByRole("radiogroup", { name: "Sprache der Bot-Nachrichten" });
+        expect(within(group).getByRole("radio", { name: "English" })).toHaveAttribute("aria-checked", "true");
+        await user.click(within(group).getByRole("radio", { name: "Deutsch" }));
+        expect(screen.getByText("Bot-Sprache: Deutsch")).toBeInTheDocument();
+
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({ botLanguage: "de", serverSettingsGuildId: "g1" });
+    });
+
+    it("drops the server's own bot language with \"Standard verwenden\" (sends null)", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({ botLanguage: "en", botLanguageDefault: "de", botLanguageOwn: true }) }));
+        renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+
+        await user.click(await screen.findByRole("button", { name: "Standard verwenden" }));
+        expect(screen.getByRole("switch", { name: "Eigener Wert auf Pulse" })).not.toBeChecked();
+        expect(screen.getByText("Bot-Sprache: Standard verwenden (Deutsch)")).toBeInTheDocument();
+
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({ botLanguage: null, serverSettingsGuildId: "g1" });
+    });
+
+    it("edits the default for all servers without an active server (full admins only)", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ activeGuildId: "", config: config({ botLanguage: "de", botLanguageDefault: "de" }) }));
+        renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+
+        expect(await screen.findByText(/Standard für alle Server/)).toBeInTheDocument();
+        expect(screen.queryByRole("switch", { name: /Eigener Wert/ })).not.toBeInTheDocument();
+        await user.click(within(screen.getByRole("radiogroup", { name: "Sprache der Bot-Nachrichten" })).getByRole("radio", { name: "English" }));
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({ botLanguage: "en", serverSettingsGuildId: "" });
+    });
+
+    it("shows the default read-only to a limited account without an active server", async () => {
+        vi.mocked(api.getSettings).mockResolvedValue({ ...limited(), activeGuildId: "" });
+        renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+        expect(await screen.findByText("Den Standard ändern nur Voll-Admins.")).toBeInTheDocument();
+        expect(screen.queryByRole("radiogroup", { name: "Sprache der Bot-Nachrichten" })).not.toBeInTheDocument();
+    });
+
+    it("tells the user to pick a server first when the save answers no_active_server", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ activeGuildId: "" }));
+        vi.mocked(api.updateSettings).mockRejectedValue(Object.assign(new Error("no_active_server"), { code: "no_active_server" }));
+        renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+
+        await user.selectOptions(await screen.findByRole("combobox", { name: "Standard-Kanal" }), "ch1");
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        expect(await screen.findByText(/Bitte erst oben einen Server wählen/)).toBeInTheDocument();
     });
 
     it("shows the picture switches of the bot messages (on unless saved off) and sends them on save", async () => {
@@ -386,6 +450,12 @@ describe("the save bar", () => {
         expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({
             discordVisuals: { overviewWeekStrip: false, setupImage: false, eventCover: true },
         });
+        // #924: the per-server fields only go out when changed, so another server's values stay untouched
+        // (serverSettingsGuildId always goes along with the categories, #926)
+        const body = vi.mocked(api.updateSettings).mock.calls[0][0];
+        for (const field of ["raidDefaults", "botLanguage", "officerRoleId", "applicationChannelId"]) {
+            expect({ field, sent: field in body }).toEqual({ field, sent: false });
+        }
     });
 
     it("names the picture switches in English", async () => {

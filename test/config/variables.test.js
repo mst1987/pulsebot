@@ -9,8 +9,6 @@ describe("config/variables", () => {
         "googleSheetName",
         "googleSheetGid",
         "defaultTimeout",
-        "applicationChannelId",
-        "officerRoleId",
         "applyArmoryUrlTemplate",
         "applyWclUrlTemplate",
         "blizzardClientId",
@@ -36,8 +34,6 @@ describe("config/variables", () => {
         savedEnv = { ...process.env };
         for (const key of [
             "ADMIN_USER_ID",
-            "APPLICATION_CHANNEL_ID",
-            "OFFICER_ROLE_ID",
             "APPLY_ARMORY_URL",
             "APPLY_WCL_URL",
             "WEB_PORT",

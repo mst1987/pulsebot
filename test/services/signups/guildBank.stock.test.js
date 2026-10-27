@@ -21,7 +21,8 @@ const { parseGuildBankScan, GB_FORMAT } = require("../../../src/utils/guildbank/
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { cardText, cardButtons } = require("../../helpers/cardText");
 
-const CONFIG = { botLanguage: "de", discordServers: { servers: [{ guildId: "g1" }], links: [], guildBankChannelId: "900000" } };
+// #924: the guild bank channel is per server
+const CONFIG = { discordServers: { servers: [{ guildId: "g1" }], links: [] }, serverSettings: { g1: { botLanguage: "de", guildBankChannelId: "900000" } } };
 const RUBY = 32193;
 const FLASK = 22854;
 let KEY;

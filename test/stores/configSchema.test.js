@@ -148,6 +148,40 @@ function after897(config) {
 }
 // #917 adds the settings per Discord server (none stored: empty).
 const after917 = (config) => ({ ...config, serverSettings: {} });
+// #924: the application channel, the officer role, the raid defaults and the two signup channels of the
+// server block are per server - on read the global fields are gone. The bot language stays global: it is the
+// default every server without its own inherits.
+const GLOBAL_924 = ["applicationChannelId", "officerRoleId", "raidDefaults"];
+function after924(config) {
+    const out = { ...config };
+    for (const key of GLOBAL_924) delete out[key];
+    const servers = { ...config.discordServers };
+    delete servers.signupNoteChannelId;
+    delete servers.guildBankChannelId;
+    return { ...out, discordServers: servers };
+}
+// The start moves a stored value into serverSettings: a channel or role (and the raid defaults' preset
+// channel) onto its server - the stores of these cases are empty, so onto the first server. The bot language
+// is not moved.
+function after924Migrated(config, stored) {
+    if (!stored || !Object.keys(stored).length) return config;
+    const snowflake = (v) => (/^\d{5,25}$/.test(String(v || "").trim()) ? String(v).trim() : "");
+    const block = config.discordServers;
+    const home = (block.servers[0] && block.servers[0].guildId) || config.guildId;
+    const known = [...new Set([...block.servers.map((x) => x.guildId), ...block.links.map((l) => l.to), home])];
+    const next = {};
+    const set = (guildId, key, value) => { next[guildId] = { ...(next[guildId] || {}), [key]: value }; };
+    const presetChannel = snowflake((stored.raidDefaults || {}).channelId);
+    if (stored.raidDefaults !== undefined && presetChannel) set(known[0], "raidDefaults", { channelId: presetChannel });
+    const src = stored.discordServers && typeof stored.discordServers === "object" && !Array.isArray(stored.discordServers) ? stored.discordServers : {};
+    // the fixtures prove no channel's server, so every channel and role goes onto the first server only
+    const one = {
+        applicationChannelId: stored.applicationChannelId, officerRoleId: stored.officerRoleId,
+        signupNoteChannelId: src.signupNoteChannelId, guildBankChannelId: src.guildBankChannelId,
+    };
+    for (const [key, value] of Object.entries(one)) if (snowflake(value)) set(known[0], key, snowflake(value));
+    return { ...config, serverSettings: next };
+}
 // #921 moves the log channels into the server settings: the global logChannelIds is no default any more,
 // a file that still holds one reads it (as a clean id list) until the bot hands it to the servers after login.
 function after921(config, stored = {}) {
@@ -156,7 +190,7 @@ function after921(config, stored = {}) {
     delete rest.logChannelIds;
     return rest;
 }
-const schemaOnly = frozen.map((g, i) => ({ ...g, config: after921(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))))))))), cases[i].config) }));
+const schemaOnly = frozen.map((g, i) => ({ ...g, config: after921(after924(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))))))))))), cases[i].config) }));
 // #927: the start hands Raid-Helper to the server it ran for (the stored raidhelperServerId, else the first
 // server) with the old switch and the .env key (`envKey`, the key itself is never copied) - only for a
 // stored file naming that id; every other server keeps no block and so has Raid-Helper off.
@@ -171,10 +205,22 @@ function after927(config, stored) {
         enabled: retirement.disabled !== true, serverId: owner === legacyId ? "" : legacyId, apiKey: "", envKey: true,
         at: Number(retirement.at) || 0, byName: String(retirement.byName || ""),
     };
-    return { ...config, serverSettings: { ...config.serverSettings, [owner]: { raidhelper } } };
+    // the #924 start ran before and may have given this server a block already
+    return { ...config, serverSettings: { ...config.serverSettings, [owner]: { ...(config.serverSettings || {})[owner], raidhelper } } };
 }
-const golden = schemaOnly.map((g, i) => ({ ...g, config: after927(afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config), cases[i].config) }));
-const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)"));
+const golden = schemaOnly.map((g, i) => ({ ...g, config: after927(after924Migrated(afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config), cases[i].config), cases[i].config) }));
+// Read without the start migration: a global #924 field no server block carries yet stays visible (a save
+// in between must not lose it, the next start moves it).
+function unmoved924(config, stored) {
+    const src = stored || {};
+    const blocks = src.serverSettings && typeof src.serverSettings === "object" ? Object.values(src.serverSettings) : [];
+    const out = { ...config };
+    for (const key of GLOBAL_924) {
+        if (src[key] !== undefined && !blocks.some((b) => b && b[key] !== undefined)) out[key] = src[key];
+    }
+    return out;
+}
+const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)") && !line.includes("(#924)"));
 
 const CONFIG_FILE = settingsPath("config.json");
 const TEMPLATES_FILE = settingsPath("raid-templates.json");
@@ -213,7 +259,7 @@ describe("stores/configSchema golden master (#420)", () => {
                 const { changes } = migrateSettings({ log: () => {} });
                 // every stored config predates #542's versionSettings (see after542) and the planning per category (afterPlanning)
                 expect(without542(changes)).toEqual([]);
-                expect(schema.normalizeConfig(c.config || {})).toEqual(readOnly.config);
+                expect(schema.normalizeConfig(c.config || {})).toEqual(unmoved924(readOnly.config, c.config));
             });
         }
 
@@ -234,6 +280,25 @@ describe("stores/configSchema normalisers", () => {
         expect(schema.normalizeConfig(null)).toEqual(empty);
         expect(schema.normalizeConfig([1, 2])).toEqual(empty);
         expect(schema.normalizeConfig("x")).toEqual(empty);
+    });
+
+    it("hides a global #924 field only once a server block carries it (#924)", () => {
+        const S = "1600000000000000001";
+        const before = schema.normalizeConfig({ guildId: S, officerRoleId: "1600000000000000012", applicationChannelId: "1600000000000000011" });
+        expect(before.officerRoleId).toBe("1600000000000000012");
+        expect(before.applicationChannelId).toBe("1600000000000000011");
+        const after = schema.normalizeConfig({ guildId: S, officerRoleId: "1600000000000000012", applicationChannelId: "1600000000000000011", serverSettings: { [S]: { officerRoleId: "1600000000000000013" } } });
+        expect(after).not.toHaveProperty("officerRoleId");
+        expect(after.applicationChannelId).toBe("1600000000000000011");
+    });
+
+    it("keeps the global bot language as the default next to own server values (#924)", () => {
+        const S = "1600000000000000001";
+        expect(schema.normalizeConfig({}).botLanguage).toBe("de");
+        expect(schema.normalizeConfig({ botLanguage: "fr" }).botLanguage).toBe("de");
+        const cfg = schema.normalizeConfig({ guildId: S, botLanguage: "en", serverSettings: { [S]: { botLanguage: "de" } } });
+        expect(cfg.botLanguage).toBe("en");
+        expect(cfg.serverSettings[S].botLanguage).toBe("de");
     });
 
     it("normalizeVersionLaunch keeps known versions and the manual items only (#745)", () => {
@@ -279,12 +344,12 @@ describe("stores/configSchema server federation (#890)", () => {
     const T = "333333333333333333";
     const C1 = "444444444444444444";
     const C2 = "555555555555555555";
-    const blank = { signupNoteChannelId: "", guildBankChannelId: "" };
 
     describe("migrates every old shape on read", () => {
         it("only event servers: they become the servers, labels kept, no links", () => {
             expect(schema.normalizeDiscordServers({ eventGuilds: [{ guildId: A, label: "PvE" }, { guildId: B }] })).toEqual({
-                ...blank, servers: [{ guildId: A, label: "PvE" }, { guildId: B, label: "" }], links: [],
+                // #924: the two signup channels are per server, not in this block
+                servers: [{ guildId: A, label: "PvE" }, { guildId: B, label: "" }], links: [],
             });
         });
 

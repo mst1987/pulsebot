@@ -22,6 +22,7 @@ const settingsStore = require("../../stores/settingsStore");
 const { categoryLang } = require("../discord/botLanguage");
 const { organizerPayload } = require("../../utils/signup/organizerPanel");
 const { guildBankChannelId } = require("../../utils/signup/guildBankPost");
+const { storedCategoryGuilds, firstServerId } = require("../discord/serverOf");
 const { nextRaidSummary } = require("./organizer");
 const { appEmojiMap } = require("../discord/appEmojis");
 const logger = require("../../logger");
@@ -50,6 +51,11 @@ function payloadHash(payload) {
     return crypto.createHash("sha1").update(JSON.stringify({ embeds: payload.embeds, components: payload.components })).digest("hex").slice(0, 16);
 }
 
+/** The server a category's panel belongs to: its category's server, else the first server (#924). */
+function panelGuildId(categoryId, cfg) {
+    return String(storedCategoryGuilds().get(String(categoryId || "")) || "") || firstServerId(cfg);
+}
+
 /** The payload of a category's panel as it should look now. */
 function currentPayload(categoryId, cfg, { now = Date.now() } = {}) {
     return organizerPayload({
@@ -59,8 +65,9 @@ function currentPayload(categoryId, cfg, { now = Date.now() } = {}) {
         nextRaid: nextRaidSummary(categoryId, { now }),
         links: store.getLinks(categoryId),
         emojis: appEmojiMap(),
-        // the guild bank area shows while its orga channel is set (services/signups/guildBank.js)
-        guildBank: !!guildBankChannelId(cfg),
+        // the guild bank area shows while the category's server has its orga channel set
+        // (#924, services/signups/guildBank.js)
+        guildBank: !!guildBankChannelId(cfg, panelGuildId(categoryId, cfg)),
     });
 }
 

@@ -12,7 +12,9 @@ const { knownChannels } = require("../../helpers/linkCheck");
 beforeEach(() => knownChannels("20000", "777777", "888888"));
 
 const EVENT = { id: "eh-1", title: "SSC + TK", categoryId: "cat-1", startTime: 1760000000, guildId: "10000", channelId: "20000", message: { messageId: "30000" } };
-const CHANNEL = { discordServers: { signupNoteChannelId: "777777" } };
+// #924: the default channel is per server - EVENT lives on server "10000"
+const CHANNEL = { serverSettings: { 10000: { signupNoteChannelId: "777777" } } };
+const ON = { guildId: "10000" };
 const signup = (over = {}) => baseSignup({ userId: "123456", character: "zibbo", status: "absence", comment: "Arbeit", ...over });
 const notePayload = (text) => expect.objectContaining({ embeds: [expect.objectContaining({ description: expect.stringContaining(text) })] });
 
@@ -66,14 +68,14 @@ describe("services/signups/signupNotes", () => {
     });
 
     it("posts in the configured server language", async () => {
-        await notes.postSignupNote(EVENT, signup(), null, { config: { ...CHANNEL, botLanguage: "en" } });
+        await notes.postSignupNote(EVENT, signup(), null, { config: { serverSettings: { 10000: { signupNoteChannelId: "777777", botLanguage: "en" } } } });
         expect(discord.postNotice.mock.calls[0][1].embeds[0].title).toBe("Notification received!");
     });
 
     it("posts to the configured channel", async () => {
         await expect(notes.postSignupNote(EVENT, signup(), null, { config: CHANNEL })).resolves.toEqual({ posted: true, channelId: "777777" });
         expect(discord.postNotice).toHaveBeenCalledTimes(1);
-        expect(discord.postNotice).toHaveBeenCalledWith("777777", notePayload("Arbeit"));
+        expect(discord.postNotice).toHaveBeenCalledWith("777777", notePayload("Arbeit"), ON);
     });
 
     it("skips without a note, for the orga, a category without messages or without a channel", async () => {
@@ -93,6 +95,42 @@ describe("services/signups/signupNotes", () => {
     });
 });
 
+describe("services/signups/signupNotes — Kanal je Server (#924)", () => {
+    it("reads the default channel of the given server only", () => {
+        expect(notes.noteChannelId(CHANNEL, "10000")).toBe("777777");
+        expect(notes.noteChannelId(CHANNEL, "10001")).toBe("");
+        expect(notes.noteChannelId(CHANNEL)).toBe("");
+        expect(notes.noteChannelFor("cat-2", CHANNEL, { guildId: "10001" })).toBe("");
+    });
+
+    it("posts nothing and fails nothing for a raid on a server without a channel", async () => {
+        const other = { ...EVENT, guildId: "10001" };
+        await expect(notes.postSignupNote(other, signup(), null, { config: CHANNEL })).resolves.toEqual({ posted: false, skipped: "no_channel" });
+        expect(discord.postNotice).not.toHaveBeenCalled();
+    });
+
+    it("posts into the channel of the raid's server", async () => {
+        const two = { serverSettings: { 10000: { signupNoteChannelId: "777777" }, 10001: { signupNoteChannelId: "888888" } } };
+        await expect(notes.postSignupNote({ ...EVENT, guildId: "10001" }, signup(), null, { config: two })).resolves.toEqual({ posted: true, channelId: "888888" });
+    });
+
+    it("falls back to the first server for a raid without a known server", async () => {
+        const two = { discordServers: { servers: [{ guildId: "10001" }, { guildId: "10000" }] }, serverSettings: { 10000: { signupNoteChannelId: "777777" }, 10001: { signupNoteChannelId: "888888" } } };
+        const noServer = { ...EVENT, guildId: undefined, categoryId: undefined };
+        await expect(notes.postSignupNote(noServer, signup(), null, { config: two })).resolves.toEqual({ posted: true, channelId: "888888" });
+        expect(discord.postNotice).toHaveBeenCalledWith("888888", expect.anything(), { guildId: "10001" });
+    });
+
+    it("posts nothing when the channel lives on another server than the raid", async () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+        // discord.postNotice refuses a channel of another server (code wrong_guild)
+        discord.postNotice.mockRejectedValueOnce(Object.assign(new Error("Kanal liegt auf einem anderen Server."), { code: "wrong_guild" }));
+        await expect(notes.postSignupNote(EVENT, signup(), null, { config: CHANNEL })).resolves.toEqual({ posted: false, error: "Kanal liegt auf einem anderen Server." });
+        expect(discord.postNotice).toHaveBeenCalledWith("777777", expect.anything(), ON);
+        warn.mockRestore();
+    });
+});
+
 describe("services/signups/signupNotes — Kanal je Kategorie (#335)", () => {
     const OWN = { ...CHANNEL, categorySignupNoteChannel: { "cat-1": "888888" } };
 
@@ -100,19 +138,19 @@ describe("services/signups/signupNotes — Kanal je Kategorie (#335)", () => {
 
     it("picks the category's own channel, else the default, else none", () => {
         expect(notes.noteChannelFor("cat-1", OWN)).toBe("888888");
-        expect(notes.noteChannelFor("cat-2", OWN)).toBe("777777");
+        expect(notes.noteChannelFor("cat-2", OWN, ON)).toBe("777777");
         expect(notes.noteChannelFor("cat-1", { categorySignupNoteChannel: { "cat-1": "888888" } })).toBe("888888");
         expect(notes.noteChannelFor("cat-2", { categorySignupNoteChannel: { "cat-1": "888888" } })).toBe("");
         expect(notes.noteChannelFor("", null)).toBe("");
     });
 
     it("ignores an id that is no snowflake", () => {
-        expect(notes.noteChannelFor("cat-1", { ...CHANNEL, categorySignupNoteChannel: { "cat-1": "#abmeldungen" } })).toBe("777777");
-        expect(notes.noteChannelFor("cat-1", { ...CHANNEL, categorySignupNoteChannel: { "cat-1": "" } })).toBe("777777");
+        expect(notes.noteChannelFor("cat-1", { ...CHANNEL, categorySignupNoteChannel: { "cat-1": "#abmeldungen" } }, ON)).toBe("777777");
+        expect(notes.noteChannelFor("cat-1", { ...CHANNEL, categorySignupNoteChannel: { "cat-1": "" } }, ON)).toBe("777777");
     });
 
     it("falls back to the default when the bot cannot reach the own channel", () => {
-        expect(notes.noteChannelFor("cat-1", OWN, { reachable: (id) => id !== "888888" })).toBe("777777");
+        expect(notes.noteChannelFor("cat-1", OWN, { reachable: (id) => id !== "888888", guildId: "10000" })).toBe("777777");
         expect(notes.noteChannelFor("cat-1", OWN, { reachable: () => true })).toBe("888888");
     });
 
@@ -120,14 +158,14 @@ describe("services/signups/signupNotes — Kanal je Kategorie (#335)", () => {
         await expect(notes.postSignupNote(EVENT, signup(), null, { config: OWN })).resolves.toEqual({ posted: true, channelId: "888888" });
         expect(discord.channelVisible).toHaveBeenCalledWith("888888");
         expect(discord.postNotice).toHaveBeenCalledTimes(1);
-        expect(discord.postNotice).toHaveBeenCalledWith("888888", notePayload("Arbeit"));
+        expect(discord.postNotice).toHaveBeenCalledWith("888888", notePayload("Arbeit"), ON);
     });
 
     it("posts into the default channel when the own one is out of reach", async () => {
         discord.channelVisible.mockReturnValue(false);
         await expect(notes.postSignupNote(EVENT, signup(), null, { config: OWN })).resolves.toEqual({ posted: true, channelId: "777777" });
         expect(discord.postNotice).toHaveBeenCalledTimes(1);
-        expect(discord.postNotice).toHaveBeenCalledWith("777777", notePayload("Arbeit"));
+        expect(discord.postNotice).toHaveBeenCalledWith("777777", notePayload("Arbeit"), ON);
     });
 
     it("tries the default channel when the own one refuses the post, and never throws", async () => {

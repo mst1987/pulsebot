@@ -7,6 +7,7 @@ const {
     getConfig,
 } = require("../../stores/settingsStore");
 const discord = require("../../services/discord/discord");
+const serverDefaults = require("../../services/discord/serverDefaults");
 const { SPEC_CATALOG } = require("../../utils/recruitment/recruitmentSpecs");
 const { annotateApplication } = require("../recruitment/recruitmentApplications");
 const { VERSIONS } = require("../../config/gameVersions");
@@ -22,7 +23,8 @@ const getRecruitmentData = withUser({}, async ({ req, res, url }) => {
     const editId = (url.searchParams.get("edit") || "").trim();
     const editPostId = (url.searchParams.get("editpost") || "").trim();
     const view = url.searchParams.get("view") || "";
-    const { applicationChannelId } = getConfig();
+    // The application channel of the active server (#924): "" lists nothing.
+    const applicationChannelId = serverDefaults.applicationChannelId(guildId);
     // One game version (#741): `?version=` narrows the three lists to it (nothing asked = every shown version);
     // an entry an editor is opened on stays, whatever its version.
     const asked = url.searchParams.get("version");

@@ -17,7 +17,8 @@ const { cardText, cardColor, cardButtons } = require("../../helpers/cardText");
 const { KIND_COLORS } = require("../../../src/utils/discord/card");
 const { isCardPayload } = require("../../helpers/card");
 
-const CONFIG = { botLanguage: "de", guildId: "111111", discordServers: { eventGuilds: [{ guildId: "111111" }], guildBankChannelId: "900000" } };
+// #924: the guild bank channel is per server; 111111 is the first server
+const CONFIG = { guildId: "111111", discordServers: { eventGuilds: [{ guildId: "111111" }] }, serverSettings: { 111111: { botLanguage: "de", guildBankChannelId: "900000" } } };
 const INPUT = { item: "Super Mana Potion", amount: "12", purpose: "BT" };
 
 beforeAll(() => store.useFile(tempStoreFile("guild-bank.json")));
@@ -34,8 +35,12 @@ const create = (over = {}) => guildBank.createRequest("u1", { ...INPUT, ...over 
 
 describe("services/signups/guildBank", () => {
     it("knows the guild bank channel only when it is an id", () => {
-        expect(guildBank.guildBankChannelId(CONFIG)).toBe("900000");
-        expect(guildBank.guildBankChannelId({ discordServers: { guildBankChannelId: "kanal" } })).toBe("");
+        expect(guildBank.guildBankChannelId(CONFIG, "111111")).toBe("900000");
+        // per server (#924): another server, no server or the old global field give none
+        expect(guildBank.guildBankChannelId(CONFIG, "222222")).toBe("");
+        expect(guildBank.guildBankChannelId(CONFIG)).toBe("");
+        expect(guildBank.guildBankChannelId({ discordServers: { guildBankChannelId: "900000" } }, "111111")).toBe("");
+        expect(guildBank.guildBankChannelId({ serverSettings: { 111111: { guildBankChannelId: "kanal" } } }, "111111")).toBe("");
         expect(guildBank.guildBankChannelId({})).toBe("");
     });
 
@@ -58,6 +63,15 @@ describe("services/signups/guildBank", () => {
         for (let i = 0; i < 5; i++) await create();
         expect(await create()).toEqual({ error: "Höchstens 5 offene Anfragen – warte, bis die Orga eine erledigt hat." });
         expect(discord.postPayload).toHaveBeenCalledTimes(5);
+    });
+
+    it("posts only into a channel of the request's server and counts one elsewhere as no guild bank (#924)", async () => {
+        await create();
+        expect(discord.postPayload.mock.calls[0][2]).toEqual({ guildId: "111111" });
+        discord.postPayload.mockClear();
+        discord.postPayload.mockRejectedValueOnce(Object.assign(new Error("Kanal liegt auf einem anderen Server."), { code: "wrong_guild" }));
+        expect(await create()).toEqual({ error: "Die Gildenbank ist gerade nicht eingerichtet." });
+        expect(store.listRequests()).toHaveLength(1);
     });
 
     it("takes a request back when the post fails", async () => {

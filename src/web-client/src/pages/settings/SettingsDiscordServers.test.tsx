@@ -26,16 +26,16 @@ function row(id: string, name: string, raidCategories: number): ServerRow {
     } as ServerRow;
 }
 
-function serversData({ links = [], raidCategories = 2, guildBankChannelId = "" }: {
-    links?: ServerLink[]; raidCategories?: number; guildBankChannelId?: string;
+function serversData({ links = [], raidCategories = 2, guildBankChannelId = "", signupNoteChannelId = "" }: {
+    links?: ServerLink[]; raidCategories?: number; guildBankChannelId?: string; signupNoteChannelId?: string;
 } = {}): DiscordServersData {
     return {
         discordServers: {
             servers: [{ guildId: "10001", label: "" }],
             links,
-            signupNoteChannelId: "",
-            guildBankChannelId,
         },
+        // #924: the two signup channels belong to each server
+        channels: { "10001": { signupNoteChannelId, guildBankChannelId } },
         servers: [row("10001", "Pulse", raidCategories)],
         guilds: [
             { id: "10001", name: "Pulse", lang: "de", channels: [{ id: "c1", name: "orga-gildenbank", category: "Orga" }] },
@@ -328,27 +328,45 @@ describe("Discord-Server: Einladungen (#905)", () => {
     });
 });
 
-describe("Discord-Server: Gildenbank-Kanal", () => {
-    it("names the guild bank channel", async () => {
-        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ guildBankChannelId: "c1" }));
+describe("Discord-Server: Kanäle je Server (#924)", () => {
+    const channelRow = async () => {
+        const table = (await screen.findByText("Gildenbank", { selector: "th, th *" })).closest("table") as HTMLElement;
+        return within(table).getByText("Pulse").closest("tr") as HTMLElement;
+    };
+
+    it("names the guild bank channel in the server's row", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ guildBankChannelId: "c1", signupNoteChannelId: "c1" }));
         render();
-        const item = (await screen.findByText("Gildenbank")).closest("li") as HTMLElement;
-        expect(within(item).getByText("#orga-gildenbank")).toBeInTheDocument();
+        const tr = await channelRow();
+        expect(within(tr).getAllByText("#orga-gildenbank")).toHaveLength(2);
+        expect(screen.queryByText(/Ohne Kanal für Vielleicht\/Absage/)).toBeNull();
     });
 
-    it("picks the channel in the dialog and saves only the two channels", async () => {
+    it("points at a server without a signup note channel", async () => {
         vi.mocked(api.getDiscordServers).mockResolvedValue(serversData());
         render();
-        const item = (await screen.findByText("Gildenbank")).closest("li") as HTMLElement;
-        expect(within(item).getByText("—")).toBeInTheDocument();
-        fireEvent.click(screen.getByRole("button", { name: "Kanäle bearbeiten" }));
+        const tr = await channelRow();
+        expect(within(tr).getAllByText("nicht gesetzt")).toHaveLength(2);
+        expect(screen.getByText("Ohne Kanal für Vielleicht/Absage: Pulse. Dort postet der Bot diese Nachrichten nicht.")).toBeInTheDocument();
+    });
+
+    it("picks the channel in the server's dialog and saves only that server's channels", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData());
+        render();
+        const tr = await channelRow();
+        fireEvent.click(within(tr).getByRole("button", { name: "Kanäle bearbeiten" }));
         const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByText(/Pulse/)).toBeInTheDocument();
         const picker = dialog.querySelector("#srv-bank") as HTMLSelectElement;
         expect(dialog.querySelector("[data-tip-sub='Hier landen die Anfragen aus der Raid-Zentrale; leer = kein Gildenbank-Knopf.']")).not.toBeNull();
         expect(within(picker).getByRole("option", { name: "— keine Gildenbank —" })).toBeInTheDocument();
+        // only the server's own channels are offered
+        expect(within(picker).queryByRole("option", { name: /raids/ })).toBeNull();
         fireEvent.change(picker, { target: { value: "c1" } });
         fireEvent.click(within(dialog).getByRole("button", { name: "Speichern" }));
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
-        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toEqual({ discordServers: { guildBankChannelId: "c1", signupNoteChannelId: "" } });
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toEqual({
+            discordServers: { channels: { "10001": { guildBankChannelId: "c1", signupNoteChannelId: "" } } },
+        });
     });
 });
