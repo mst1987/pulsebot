@@ -171,6 +171,14 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     nach Server filtern; ohne aktiven Server leer, nie alle Server. Neue Report-Auswahl → Negativ-Test
     mit einem Report eines anderen Servers. Wer ein Log löscht oder umhängt, schreibt den Server auf
     den Report (`deleteLogKeepingReportGuild` / `reportStore.setReportGuild`).
+19. Realm/Region je Server (#923): Spielwerte eines Raiders laufen über
+    `settingsForVersion(versionId, { guildId })` bzw. `blizzardFor` (`services/events/versionSettings.js`:
+    Standard der Version + `serverSettings[guildId].versionOverrides`). Eine abweichende Region
+    zieht den Blizzard-Namespace mit (`profile-classicann-eu` → `-us`), nie den Standard-Namespace
+    mit fremder Region kombinieren. Caches von Blizzard-/Armory-Antworten brauchen Region, Realm und
+    Namespace im Schlüssel (`region|realm|namespace|name`), sonst liefert ein Server die Ausrüstung
+    eines gleichnamigen Charakters vom anderen Realm. Der Server einer Kategorie kommt aus
+    `guildOfCategory`, der eines Reports aus `reportGuild`.
 
 ## Fach-Agenten
 
