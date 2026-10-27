@@ -20,6 +20,7 @@ const { loadEventGroups } = require("../../services/events/raidEventGroups");
 const { listReports, getReport } = require("../../stores/reportStore");
 const { reportsOfGuild } = require("../../services/logcheck/reportGuild");
 const { listPending } = require("../../stores/lootInboxStore");
+const { serverContext, sessionInGuild } = require("../../services/loot/lootServer");
 const { getChannelConfig, listArchived, archiveHint } = require("../../stores/channelArchiveStore");
 const { buildRoster } = require("../characters/roster");
 const { rosterStats } = require("../characters/rosterStats");
@@ -252,10 +253,14 @@ function loadRosterFigures(guildId, { versionId = "" } = {}) {
     }
 }
 
-/** The pending addon-inbox sessions (only what the task row counts). */
-function loadInbox() {
+/**
+ * The pending addon-inbox sessions (only what the task row counts) - only the
+ * cards the inbox shows on that Discord server (#919, undefined = every one).
+ */
+function loadInbox(guildId) {
     try {
-        return listPending().map((s) => ({ id: s.id, items: s.items || [] }));
+        const ctx = serverContext();
+        return listPending().filter((s) => sessionInGuild(ctx, s, guildId)).map((s) => ({ id: s.id, items: s.items || [] }));
     } catch {
         return [];
     }
@@ -281,10 +286,11 @@ function loadChannelArchive(guildId) {
 
 /**
  * Top-item awards since the newest past raid started — the "Neuer Loot" tile.
- * @param {{ versionId?: string }} [opts] only the loot of that game version's raids (#741, "" = every one)
+ * @param {{ versionId?: string, guildId?: string }} [opts] only the loot of that game version's raids (#741,
+ *   "" = every one) and of that Discord server (#919, undefined = every one, "" = none)
  */
-function loadNewLoot(sinceStartTime, { versionId = "" } = {}) {
-    const { items } = listAwards({ topOnly: true, page: 1, pageSize: 500, versionId });
+function loadNewLoot(sinceStartTime, { versionId = "", guildId } = {}) {
+    const { items } = listAwards({ topOnly: true, page: 1, pageSize: 500, versionId, guildId });
     const sinceMs = (Number(sinceStartTime) || 0) * 1000;
     return { count: newLootSince(items, sinceMs), since: sinceMs };
 }
@@ -368,9 +374,10 @@ function annotateUpcomingExtras(events, guildId) {
  * `configured` is how many top items are defined at all, so the card can tell
  * "nothing configured yet" from "configured, but none dropped yet".
  * @param {string} [versionId] filters by game version (#545, "" = every one)
+ * @param {string} [guildId] only the loot of that Discord server (#919, undefined = every one, "" = none)
  */
-function loadTopLoot(limit = 5, versionId = "") {
-    const { items, topItemCount } = listAwards({ topOnly: true, page: 1, pageSize: limit, versionId });
+function loadTopLoot(limit = 5, versionId = "", guildId) {
+    const { items, topItemCount } = listAwards({ topOnly: true, page: 1, pageSize: limit, versionId, guildId });
     return { items, configured: topItemCount };
 }
 

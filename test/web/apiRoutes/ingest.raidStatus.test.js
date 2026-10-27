@@ -49,6 +49,11 @@ jest.mock("../../../src/services/events/raidEventGroups", () => ({
     EVENT_LOOKBACK_DAYS: 60,
 }));
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
+// No session behind the token: the first server, never the session's (#919).
+jest.mock("../../../src/services/loot/lootServer", () => ({
+    ...jest.requireActual("../../../src/services/loot/lootServer"),
+    serverWithoutSession: jest.fn(() => "gFirst"),
+}));
 jest.mock("../../../src/utils/loot/wowhead", () => ({
     lookupItem: jest.fn(async () => null),
     searchItems: jest.fn(async () => []),
@@ -157,7 +162,7 @@ describe("POST /api/ingest/raids", () => {
     it("passes the local sessions through to the day-match", async () => {
         loadEventGroups.mockResolvedValue({ groups: [] });
         await request({ sessions: [SSC_SESSION] });
-        expect(loadEventGroups).toHaveBeenCalledWith("g1", { sinceSeconds: 0 });
+        expect(loadEventGroups).toHaveBeenCalledWith("gFirst", { sinceSeconds: 0 });
     });
 
     it("defaults to an empty session list", async () => {

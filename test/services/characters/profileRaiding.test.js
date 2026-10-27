@@ -160,3 +160,15 @@ describe("storedCharacterOf", () => {
         expect(storedCharacterOf({ name: "Devi Rew", realm: "" }, stored)).toBeNull();
     });
 });
+
+// Only the loot of the active Discord server (#919).
+describe("profileRaiding per server", () => {
+    it("counts only the loot of the active server's raids", () => {
+        lootStore.addImport("manual-b", [{
+            source: "manual", rawId: "x1", character: "Borka", characterKey: "borka", itemId: 1,
+            itemName: "Fremd", awardedAt: 1000,
+        }], { eventLabel: "Raid B", guildId: "gB" });
+        expect(profileRaiding(ME, "tbc", { guildId: "gA" }).characters.borka.loot.count).toBe(0);
+        expect(profileRaiding(ME, "tbc", { guildId: "gB" }).characters.borka.loot.count).toBe(1);
+    });
+});
