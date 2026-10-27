@@ -92,9 +92,26 @@ describe("AllCharactersTab", () => {
         await waitFor(() => expect(api.saveCharacterOf).toHaveBeenCalledWith("u2", "nera", { specs: [{ key: "Mage-Frost", gear: "ready" }] }));
     });
 
-    it("ohne Schreibrecht: nur lesen, kein Stift", async () => {
+    it("nimmt über den Mülleimer in der Zeile einen vertippten Charakter nach Rückfrage heraus", async () => {
+        const user = userEvent.setup();
+        const twice = { ...ANNA, characters: [...ANNA.characters, char({ key: "gentel", name: "Gentel", className: "Druid" })] };
+        vi.mocked(api.getAllCharacters).mockResolvedValue({ raiders: [twice, BERT] });
+        vi.mocked(api.removeCharacterOf).mockResolvedValue({ raider: ANNA });
+        renderPage(<AllCharactersTab data={DATA} canWrite />);
+        const row = (await screen.findByText("Gentel")).closest("tr") as HTMLElement;
+        await user.click(within(row).getByRole("button", { name: `${t("profile.char.remove")}: Gentel` }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByText(t("profile.all.removeTitle", { name: "Gentel", owner: "Anna" }))).toBeInTheDocument();
+        await user.click(within(dialog).getByRole("button", { name: t("profile.remove.action") }));
+        expect(api.removeCharacterOf).toHaveBeenCalledWith("u1", "gentel");
+        await waitFor(() => expect(screen.queryByText("Gentel")).toBeNull());
+        expect(screen.getByText("Gentle")).toBeInTheDocument();
+    });
+
+    it("ohne Schreibrecht: nur lesen, kein Stift, kein Mülleimer", async () => {
         renderPage(<AllCharactersTab data={DATA} canWrite={false} />);
         await screen.findByText("Gentle");
         expect(screen.queryByRole("button", { name: t("profile.char.edit") })).toBeNull();
+        expect(screen.queryByRole("button", { name: `${t("profile.char.remove")}: Gentle` })).toBeNull();
     });
 });
