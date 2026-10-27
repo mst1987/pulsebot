@@ -35,6 +35,7 @@ const inviteStore = require("../../stores/discordInviteStore");
 const originStore = require("../../stores/memberOriginStore");
 const eventStore = require("../../stores/eventStore");
 const signupStore = require("../../stores/signupStore");
+const { readStored } = require("../../stores/configStore");
 const log = require("../../logger").child("pugInvites");
 
 const INVITE_CHANNEL_TYPES = [ChannelType.GuildText, ChannelType.GuildAnnouncement];
@@ -100,8 +101,8 @@ const pendingByGuild = new Map();
 // second click while one runs gets the same promise, not a second invite.
 const inflight = new Map();
 let reconcileRunning = null;
-// Set once the "no links configured" warning was logged; cleared when links are back.
-let warnedNoLinks = false;
+// Set once the "config unusable" warning was logged; cleared after a clean read.
+let warnedUnusable = false;
 
 /** Queue `step` on the chain of a guild; resolves with its result (never rejects). */
 function onChain(guildId, step) {
@@ -122,7 +123,11 @@ const warnedReads = new Set();
 /** The guild's invites as a discord.js collection, null when they cannot be read. */
 async function fetchInvites(guild) {
     try {
-        return await guild.invites.fetch();
+        const invites = await guild.invites.fetch();
+        // Readable again: a later failure of the same kind is news again.
+        const prefix = `${guild && guild.id}:`;
+        for (const kind of warnedReads) if (kind.startsWith(prefix)) warnedReads.delete(kind);
+        return invites;
     } catch (error) {
         const kind = `${guild && guild.id}:${error.code || error.status || error.message}`;
         const text = `invites of ${guild && guild.id} unreadable: ${error.message}`;
@@ -218,36 +223,13 @@ async function deleteOnDiscord(guildId, code) {
 function reconcileInvites() {
     if (reconcileRunning) return reconcileRunning;
     reconcileRunning = (async() => {
-        const linkKeys = new Set(guildRoles.links().map((l) => `${l.from}:${l.to}`));
-        const servers = new Set(guildRoles.serverIds());
-        // No links at all while the store still holds link invites or origins: rather a
-        // broken or half-loaded config than the last link removed, so nothing of the
-        // links is dropped for good (warned once, until links show up again).
-        const keepLinks = !linkKeys.size && (inviteStore.linkKeys().length > 0 || originStore.listOrigins().length > 0);
-        if (keepLinks && !warnedNoLinks) {
-            warnedNoLinks = true;
-            log.warn(`no links configured: ${inviteStore.linkKeys().length} link invite(s) and ${originStore.listOrigins().length} member origin(s) kept`);
+        if (configUsable()) {
+            warnedUnusable = false;
+            await dropRemoved();
+        } else if (!warnedUnusable) {
+            warnedUnusable = true;
+            log.warn("config.json has no usable server list: no invite, invite channel or member origin removed");
         }
-        if (linkKeys.size) warnedNoLinks = false;
-        for (const key of keepLinks ? [] : inviteStore.linkKeys()) {
-            if (linkKeys.has(key)) continue;
-            const record = inviteStore.getLinkInvite(key);
-            if (!record.deleted) await deleteOnDiscord(key.split(":")[0], record.code);
-            inviteStore.removeLinkInvite(key);
-        }
-        for (const guildId of inviteStore.generalGuildIds()) {
-            if (servers.has(guildId)) continue;
-            const record = inviteStore.getGeneralInvite(guildId);
-            if (!record.deleted) await deleteOnDiscord(guildId, record.code);
-            inviteStore.removeGeneralInvite(guildId);
-        }
-        // The invite channel of a server that left the list, even one that never had an invite.
-        for (const guildId of inviteStore.channelGuildIds()) {
-            if (!servers.has(guildId)) inviteStore.setInviteChannel(guildId, "");
-        }
-        // Origins of a link that is gone: nothing shows them any more (data economy).
-        const dropped = keepLinks ? 0 : originStore.removeOriginsExcept(linkKeys);
-        if (dropped) log.info(`${dropped} member origin(s) of removed links dropped`);
         for (const guildId of [...usesByGuild.keys()]) {
             if (!trackedGuildIds().includes(guildId)) usesByGuild.delete(guildId);
         }
@@ -256,6 +238,45 @@ function reconcileInvites() {
         reconcileRunning = null;
     });
     return reconcileRunning;
+}
+
+/**
+ * Whether config.json itself holds a server list. An unreadable or missing file
+ * reads as the defaults (servers fall back to GUILD_ID, no links), which must
+ * never look like "every server and link was removed".
+ */
+function configUsable() {
+    try {
+        const block = readStored().discordServers;
+        return !!(block && typeof block === "object" && Array.isArray(block.servers) && block.servers.length);
+    } catch {
+        return false;
+    }
+}
+
+/** Deletes the invites, invite channels and origins of links and servers that are gone. */
+async function dropRemoved() {
+    const linkKeys = new Set(guildRoles.links().map((l) => `${l.from}:${l.to}`));
+    const servers = new Set(guildRoles.serverIds());
+    for (const key of inviteStore.linkKeys()) {
+        if (linkKeys.has(key)) continue;
+        const record = inviteStore.getLinkInvite(key);
+        if (!record.deleted) await deleteOnDiscord(key.split(":")[0], record.code);
+        inviteStore.removeLinkInvite(key);
+    }
+    for (const guildId of inviteStore.generalGuildIds()) {
+        if (servers.has(guildId)) continue;
+        const record = inviteStore.getGeneralInvite(guildId);
+        if (!record.deleted) await deleteOnDiscord(guildId, record.code);
+        inviteStore.removeGeneralInvite(guildId);
+    }
+    // The invite channel of a server that left the list, even one that never had an invite.
+    for (const guildId of inviteStore.channelGuildIds()) {
+        if (!servers.has(guildId)) inviteStore.setInviteChannel(guildId, "");
+    }
+    // Origins of a link that is gone: nothing shows them any more (data economy).
+    const dropped = originStore.removeOriginsExcept(linkKeys);
+    if (dropped) log.info(`${dropped} member origin(s) of removed links dropped`);
 }
 
 let checkTimer = null;
@@ -419,7 +440,7 @@ async function settleJoins(guild) {
         if (risen.length === 1 && risen[0][1] === batch.length) {
             const known = inviteStore.knownCodes().find((k) => k.code === risen[0][0] && k.guildId === guild.id);
             // Only a link's invite is stored: the general one is shown nowhere (data economy).
-            if (known && known.linkKey) origin = { inviteCode: known.code, linkKey: known.linkKey };
+            if (known && known.linkKey && linkTarget(known.linkKey)) origin = { inviteCode: known.code, linkKey: known.linkKey };
         }
         // A late join Discord did not count yet would show up in the next
         // comparison as somebody else's: start over from the next read instead.
@@ -540,7 +561,7 @@ function resetForTests() {
     pendingByGuild.clear();
     inflight.clear();
     warnedReads.clear();
-    warnedNoLinks = false;
+    warnedUnusable = false;
     reconcileRunning = null;
 }
 

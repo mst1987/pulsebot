@@ -5,12 +5,14 @@ jest.mock("../../../src/services/discord/discord", () => ({ getGuild: jest.fn() 
 jest.mock("../../../src/services/discord/guildRoles", () => ({ links: jest.fn(), serverIds: jest.fn() }));
 jest.mock("../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []) }));
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
+jest.mock("../../../src/stores/configStore", () => ({ ...jest.requireActual("../../../src/stores/configStore"), readStored: jest.fn() }));
 
 const { ChannelType, PermissionsBitField } = require("discord.js");
 const discord = require("../../../src/services/discord/discord");
 const guildRoles = require("../../../src/services/discord/guildRoles");
 const eventStore = require("../../../src/stores/eventStore");
 const signupStore = require("../../../src/stores/signupStore");
+const configStore = require("../../../src/stores/configStore");
 const inviteStore = require("../../../src/stores/discordInviteStore");
 const originStore = require("../../../src/stores/memberOriginStore");
 const pugInvites = require("../../../src/services/discord/pugInvites");
@@ -71,6 +73,7 @@ beforeEach(() => {
     guildRoles.serverIds.mockReturnValue([PUG, PARTNER]);
     eventStore.listEvents.mockReturnValue([]);
     signupStore.listSignups.mockReturnValue([]);
+    configStore.readStored.mockReturnValue({ discordServers: { servers: [{ guildId: PUG }, { guildId: PARTNER }] } });
 });
 afterAll(() => {
     inviteStore.useFile(null);
@@ -192,25 +195,51 @@ describe("the check against Discord", () => {
         expect(pugInvites.inviteUrlForLink(KEY)).toBe("");
     });
 
-    it("keeps link invites and origins when no link is configured at all, warning once", async () => {
+    it("deletes the invite and origins of the only link when it is removed", async () => {
         await pugInvites.ensureLinkInvite(KEY);
         originStore.recordOrigin({ guildId: PUG, userId: "100000000000000001", inviteCode: "new1", linkKey: KEY });
         guildRoles.links.mockReturnValue([]);
         await pugInvites.reconcileInvites();
-        await pugInvites.reconcileInvites();
-        expect(fake.guild.invites.delete).not.toHaveBeenCalled();
-        expect(inviteStore.linkKeys()).toEqual([KEY]);
-        expect(originStore.listOrigins()).toHaveLength(1);
-        const kept = mockLog.warn.mock.calls.filter(([text]) => /no links configured/.test(text));
-        expect(kept).toEqual([[expect.stringMatching(/1 link invite\(s\) and 1 member origin\(s\) kept/)]]);
+        expect(fake.guild.invites.delete).toHaveBeenCalledWith("new1", expect.any(String));
+        expect(inviteStore.linkKeys()).toEqual([]);
+        expect(originStore.listOrigins()).toEqual([]);
     });
 
-    it("cleans up again once at least one link is configured", async () => {
+    it.each([
+        ["unreadable", {}],
+        ["without a server block", { guildId: PUG }],
+        ["with an empty server list", { discordServers: { servers: [], links: [] } }],
+        ["with a broken server list", { discordServers: { servers: "x" } }],
+    ])("removes nothing while config.json is %s, warning once", async (_name, stored) => {
+        const other = makeGuild({ id: PARTNER });
+        discord.getGuild.mockImplementation((id) => ({ [PUG]: fake.guild, [PARTNER]: other.guild }[id] || null));
         await pugInvites.ensureLinkInvite(KEY);
+        await pugInvites.ensureGeneralInvite(PARTNER);
+        inviteStore.setInviteChannel(PARTNER, CHANNEL);
+        originStore.recordOrigin({ guildId: PUG, userId: "100000000000000001", inviteCode: "new1", linkKey: KEY });
+        // What getConfig() hands over for such a file: defaults, GUILD_ID only, no links.
+        configStore.readStored.mockReturnValue(stored);
+        guildRoles.links.mockReturnValue([]);
+        guildRoles.serverIds.mockReturnValue([PUG]);
+        await pugInvites.reconcileInvites();
+        await pugInvites.reconcileInvites();
+        expect(fake.guild.invites.delete).not.toHaveBeenCalled();
+        expect(other.guild.invites.delete).not.toHaveBeenCalled();
+        expect(inviteStore.linkKeys()).toEqual([KEY]);
+        expect(inviteStore.generalGuildIds()).toEqual([PARTNER]);
+        expect(inviteStore.getInviteChannel(PARTNER)).toBe(CHANNEL);
+        expect(originStore.listOrigins()).toHaveLength(1);
+        const warned = mockLog.warn.mock.calls.filter(([text]) => /no usable server list/.test(text));
+        expect(warned).toHaveLength(1);
+    });
+
+    it("cleans up again after a clean read of config.json", async () => {
+        await pugInvites.ensureLinkInvite(KEY);
+        configStore.readStored.mockImplementation(() => { throw new Error("broken"); });
         guildRoles.links.mockReturnValue([]);
         await pugInvites.reconcileInvites();
         expect(inviteStore.linkKeys()).toEqual([KEY]);
-        guildRoles.links.mockReturnValue(OTHER_LINKS);
+        configStore.readStored.mockReturnValue({ discordServers: { servers: [{ guildId: PUG }] } });
         await pugInvites.reconcileInvites();
         expect(inviteStore.linkKeys()).toEqual([]);
     });
@@ -260,6 +289,18 @@ describe("the check against Discord", () => {
         const unreadable = (fn) => fn.mock.calls.filter(([text]) => /unreadable/.test(text));
         expect(unreadable(mockLog.warn)).toHaveLength(1);
         expect(unreadable(mockLog.debug).length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("warns again when a server's invites fail after a successful read", async () => {
+        await pugInvites.ensureLinkInvite(KEY);
+        fake.guild.fetchFails = true;
+        await pugInvites.reconcileInvites();
+        fake.guild.fetchFails = false;
+        await pugInvites.reconcileInvites();
+        fake.guild.fetchFails = true;
+        await pugInvites.reconcileInvites();
+        const warned = mockLog.warn.mock.calls.filter(([text]) => /unreadable/.test(text));
+        expect(warned).toHaveLength(2);
     });
 
     it("drops the origins of a removed link", async () => {
@@ -326,6 +367,14 @@ describe("the origin of a member", () => {
         const origin = await pugInvites.onMemberAdd(member(fake.guild));
         expect(origin).toEqual(expect.objectContaining({ guildId: PUG, inviteCode: "new1", linkKey: KEY }));
         expect(originStore.originsOfLink(KEY)).toHaveLength(1);
+    });
+
+    it("stores nothing for a join through the invite of a link removed meanwhile", async () => {
+        await warmWith({});
+        guildRoles.links.mockReturnValue(OTHER_LINKS);
+        fake.invites.get("new1").uses = 1;
+        expect(await pugInvites.onMemberAdd(member(fake.guild))).toBeNull();
+        expect(originStore.listOrigins()).toEqual([]);
     });
 
     it("stores nothing for a join through a foreign invite", async () => {
