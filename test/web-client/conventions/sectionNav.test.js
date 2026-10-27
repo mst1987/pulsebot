@@ -48,13 +48,16 @@ describe("the section rail and the main menu", () => {
     it("is a 64px icon column on a wide screen and the chip row with labels where the menu is a drawer", () => {
         expect(shell.outside).toMatch(/\.srail-layout \{[^}]*grid-template-columns: 64px minmax\(0, 1fr\)/);
         expect(shell.outside).toMatch(/\.srail-item \{[^}]*width: 44px; height: 44px;/);
-        expect(shell.outside).toMatch(/\.srail-label, \.srail-text \{ display: none; \}/);
+        // in the column only the block heading stays (small, #918); the labels and the server's name wait for the chip row
+        expect(shell.outside).toMatch(/\.srail-label \{[^}]*max-width: 60px;[^}]*font-size: var\(--fs-label\)/);
+        expect(shell.outside).toMatch(/\.srail-label-sub, \.srail-text \{ display: none; \}/);
         // the same breakpoint at which the shell's sidebar turns into the drawer
         expect(narrow).toMatch(/\.side \{[^}]*position: fixed/);
         expect(narrow).toMatch(/\.srail-layout \{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
         expect(narrow).toMatch(/\.srail-list \{[^}]*flex-direction: row; flex-wrap: wrap;/);
         expect(narrow).toMatch(/\.srail-text \{ display: inline; \}/);
         expect(narrow).toMatch(/\.srail-label \{ display: block;/);
+        expect(narrow).toMatch(/\.srail-label-sub \{ display: inline; \}/);
     });
 
     it("stands outside the page's width budget: it reaches into the content's padding, never into --page-narrow", () => {

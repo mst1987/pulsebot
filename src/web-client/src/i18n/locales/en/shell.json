@@ -47,7 +47,8 @@
         "Raids": "Raids",
         "Loot": "Loot",
         "Gilde": "Guild",
-        "System": "System"
+        "System": "System",
+        "allServers": "All servers"
     },
     "crumb": {
         "menu": "Menu",
@@ -100,7 +101,8 @@
         "noneSub": "The bot is not connected to any Discord server – it is probably not ready yet.",
         "choose": "Choose server",
         "notChosen": "No server chosen",
-        "notChosenSub": "Please choose a server first – the areas only show its data after that."
+        "notChosenSub": "Please choose a server first – the areas only show its data after that.",
+        "switch": "Switch server"
     },
     "viewAs": {
         "button": "View as role",

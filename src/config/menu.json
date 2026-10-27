@@ -2,7 +2,7 @@
     { "id": "home", "label": "Übersicht", "href": "/", "group": "Start", "areas": ["dashboard", "signup"], "wowIcon": "inv_misc_map_01" },
     { "id": "signups", "label": "Anmeldungen", "href": "/signups", "group": "Start", "areas": ["signup"], "wowIcon": "inv_misc_book_09" },
     { "id": "absences", "label": "Abwesenheiten", "href": "/absences", "group": "Start", "areas": ["signup", "roster"], "wowIcon": "spell_nature_timestop" },
-    { "id": "profile", "label": "Mein Profil", "href": "/profile", "group": "Start", "areas": ["signup"], "wowIcon": "achievement_character_human_male" },
+    { "id": "profile", "label": "Mein Profil", "href": "/profile", "group": "Start", "areas": ["signup"], "scope": "all", "wowIcon": "achievement_character_human_male" },
     { "id": "raids", "label": "Raid-Events", "href": "/raids", "group": "Raids", "areas": ["raids"], "wowIcon": "inv_misc_note_02" },
     { "id": "planTemplates", "label": "Raidplan-Vorlagen", "href": "/raids/plan-templates", "group": "Raids", "areas": ["raidplan"], "wowIcon": "inv_misc_map02", "area": "raids", "sub": true },
     { "id": "planCatalog", "label": "Raidplan-Katalog", "href": "/raids/plan-catalog", "group": "Raids", "areas": ["raidplan"], "wowIcon": "inv_misc_book_11", "area": "raids", "sub": true },
@@ -19,7 +19,7 @@
     { "id": "serverRoles", "label": "Rollen", "href": "/channels/server-roles", "group": "System", "areas": ["channels"], "neutral": true, "wowIcon": "achievement_guildperk_everybodysfriend", "area": "channels", "sub": true },
     { "id": "members", "label": "Mitglieder", "href": "/channels/members", "group": "System", "areas": ["channels"], "neutral": true, "wowIcon": "achievement_reputation_01", "area": "channels", "sub": true },
     { "id": "roleMessages", "label": "Rollen-Nachrichten", "href": "/channels/roles", "group": "System", "areas": ["channels"], "neutral": true, "wowIcon": "inv_shirt_guildtabard_01", "area": "channels", "sub": true },
-    { "id": "addon", "label": "Addons", "href": "/addon", "group": "System", "areas": ["signup", "history"], "area": "system", "wowIcon": "inv_gizmo_01" },
+    { "id": "addon", "label": "Addons", "href": "/addon", "group": "System", "areas": ["signup", "history"], "area": "system", "scope": "all", "wowIcon": "inv_gizmo_01" },
     { "id": "settings", "label": "Einstellungen", "href": "/settings", "group": "System", "areas": ["settings"], "neutral": true, "wowIcon": "trade_engineering" },
-    { "id": "system", "label": "Systemstatus", "href": "/system", "group": "System", "areas": [], "adminOnly": true, "neutral": true, "wowIcon": "inv_gizmo_02" }
+    { "id": "system", "label": "Systemstatus", "href": "/system", "group": "System", "areas": [], "adminOnly": true, "neutral": true, "scope": "all", "wowIcon": "inv_gizmo_02" }
 ]

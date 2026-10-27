@@ -1,5 +1,11 @@
 {
     "loading": "Loading…",
+    "ownValue": {
+        "label": "Own value on {server}",
+        "tip": "Off: {server} takes the default of all servers. On: only {server} gets its own value.",
+        "default": "Default (all servers)",
+        "unset": "not set"
+    },
     "cancel": "Cancel",
     "close": "Close",
     "ok": "OK",

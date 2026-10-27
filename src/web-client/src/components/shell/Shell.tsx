@@ -2,7 +2,7 @@ import { Suspense, useCallback, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
 import LangToggle from "./LangToggle";
-import GuildSwitcher from "./GuildSwitcher";
+import ServerHeader from "./ServerHeader";
 import ContentSwitch from "./ContentSwitch";
 import ContentVersionProvider from "./ContentVersionProvider";
 import { ViewAsBanner, ViewAsButton } from "./ViewAs";
@@ -12,7 +12,7 @@ import RaidLoader from "../ui/RaidLoader";
 import ChunkErrorBoundary from "./ChunkErrorBoundary";
 import { IconButton } from "../ui/Button";
 import { TipLayer } from "../ui/Tip";
-import { MENU, firstAllowedTab, isNeutralPage, matchesHref, menuLabel, menuLines } from "../../lib/app/menu";
+import { MENU, firstAllowedTab, isNeutralPage, matchesHref, menuBlocks, menuLabel, type MenuLine } from "../../lib/app/menu";
 import { canAccess, getVersion, type SessionUser, type SessionGuild, type ContentInfo } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { PageCrumbContext } from "../../hooks/usePageCrumb";
@@ -60,15 +60,36 @@ function subCrumb(pathname: string, search: URLSearchParams): string | null {
  * Icon-Leiste"). A page with sub sections carries them in its own icon rail
  * (components/ui/SectionRail.tsx) — Einstellungen its sections, Raid-Events the
  * raid plan's pages — and its line here stays active on every one of them.
+ *
+ * Two blocks (#918, design A "Discord-Kopf"): the active server's pages under
+ * their group headings, then — below a rule — the pages that belong to no
+ * server ("Alle Server": Mein Profil, Addons, Systemstatus).
  */
 function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => void }) {
     const t = useT();
     const { pathname } = useLocation();
-    const lines = menuLines(user);
+    const { server, all } = menuBlocks(user);
     let lastGroup: string | null = null;
+    const line = ({ top, entry, href, hrefs }: MenuLine, label: string | null, labelClass = "menu-label") => {
+        const active = hrefs.some((h) => matchesHref(h, pathname));
+        return (
+            <div key={top.id}>
+                {label && <div className={labelClass}>{label}</div>}
+                <Link
+                    to={href}
+                    onClick={onNavigate}
+                    aria-current={active ? "page" : undefined}
+                    className={`nav-item area-${entry.area || entry.id}${active ? " active" : ""}`}
+                >
+                    <WowIcon name={entry.wowIcon} size={24} />
+                    <span>{menuLabel(entry)}</span>
+                </Link>
+            </div>
+        );
+    };
     // The sidebar is always rendered, so it has to say something when a member's
     // account opens nothing at all — an empty column reads like a broken page.
-    if (!lines.length) {
+    if (!server.length && !all.length) {
         return (
             <nav className="menu">
                 <div className="menu-label">{t("shell.noArea.label")}</div>
@@ -80,25 +101,12 @@ function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => v
     }
     return (
         <nav className="menu">
-            {lines.map(({ top, entry, href, hrefs }) => {
-                const label = top.group !== lastGroup ? top.group : null;
-                lastGroup = top.group;
-                const active = hrefs.some((href) => matchesHref(href, pathname));
-                return (
-                    <div key={top.id}>
-                        {label && <div className="menu-label">{tOr(`shell.group.${label}`, label)}</div>}
-                        <Link
-                            to={href}
-                            onClick={onNavigate}
-                            aria-current={active ? "page" : undefined}
-                            className={`nav-item area-${entry.area || entry.id}${active ? " active" : ""}`}
-                        >
-                            <WowIcon name={entry.wowIcon} size={24} />
-                            <span>{menuLabel(entry)}</span>
-                        </Link>
-                    </div>
-                );
+            {server.map((l) => {
+                const label = l.top.group !== lastGroup ? l.top.group : null;
+                lastGroup = l.top.group;
+                return line(l, label && tOr(`shell.group.${label}`, label));
             })}
+            {all.map((l, i) => line(l, i === 0 ? t("shell.group.allServers") : null, "menu-label menu-all"))}
         </nav>
     );
 }
@@ -168,6 +176,8 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                             <div className="brand-sub">{t("shell.brandSub")}</div>
                         </div>
                     </Link>
+                    {/* Which server the menu below belongs to, and the way to the others (#918). */}
+                    <ServerHeader guilds={guilds} activeGuildId={activeGuildId} />
                     <AdminNav user={user} onNavigate={() => setMenuOpen(false)} />
                     <DeployLine user={user} />
                     <div className="side-foot">
@@ -201,7 +211,6 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                             {/* A page without game content (menu.json `neutral`: Kanäle, Einstellungen,
                                 Systemstatus, an addon's detail page) shows no version state (#741); every other page follows it. */}
                             {!neutral && <ContentSwitch />}
-                            <GuildSwitcher guilds={guilds} activeGuildId={activeGuildId} />
                             <ViewAsButton user={user} />
                             {/* A real link, not a button: it leaves the SPA for the
                                 server-rendered docs page (src/web/docsPage.js). */}

@@ -9,7 +9,7 @@
 // src/web-client/src/index.css. (The report pages stay server-rendered because
 // they are public links posted to Discord; only the chrome around them is
 // duplicated, not a page.)
-const { MENU, wowIconUrl } = require("../../config/menu");
+const { MENU, wowIconUrl, isAllServers } = require("../../config/menu");
 
 // Line icons for the pure UI functions (brand, burger, logout) — everything with
 // a game meaning is a WoW icon.
@@ -24,7 +24,11 @@ const ICONS = {
 // with its icon url resolved. A sub entry (Raidplan-Vorlagen, -Katalog) has no
 // line of its own, as in the React shell: its page is reached through the
 // icon rail of its parent's pages (src/web-client/src/components/SectionRail.tsx).
-const TABS = MENU.filter((entry) => !entry.sub).map((entry) => ({ ...entry, iconUrl: wowIconUrl(entry.wowIcon, 24) }));
+// Two blocks as in the React shell (#918): the active server's pages first, then
+// the pages without a server ("Alle Server", menu.json `scope: "all"`).
+const TOP = MENU.filter((entry) => !entry.sub);
+const TABS = [...TOP.filter((e) => !isAllServers(e)), ...TOP.filter(isAllServers)]
+    .map((entry) => ({ ...entry, iconUrl: wowIconUrl(entry.wowIcon, 24) }));
 
 // One accent per section for the active entry, the --area-* tokens of render.js.
 const AREA_STYLE = [...new Set(MENU.map((e) => e.area || e.id))].map((id) => `  .nav-item.area-${id} { --area:var(--area-${id}); --area-soft:var(--area-${id}-soft); }`).join("\n");
@@ -41,6 +45,7 @@ const CHROME_STYLE = `
   .brand-sub { font-size:10.5px; font-family:var(--font-mono); color:var(--muted); text-transform:uppercase; letter-spacing:1.2px; margin-top:1px; }
   nav.menu { padding:12px 10px; display:flex; flex-direction:column; gap:2px; flex:1; overflow-y:auto; }
   .menu-label { font-size:10.5px; font-family:var(--font-mono); text-transform:uppercase; letter-spacing:1.3px; color:var(--muted); opacity:.7; padding:14px 12px 6px; }
+  .menu-label.menu-all { margin-top:12px; border-top:1px solid var(--line); padding-top:14px; }
   .nav-item { --area:var(--accent); --area-soft:var(--accent-soft); display:flex; align-items:center; gap:12px; padding:7px 12px; border-radius:8px; color:var(--muted); font-weight:600; font-size:14.5px; text-decoration:none; border:1px solid transparent; position:relative; transition:background .12s, color .12s, border-color .12s; }
   .nav-item .wi { width:24px; height:24px; border-radius:6px; border:1px solid var(--line); flex:0 0 auto; object-fit:cover; filter:saturate(.45) brightness(.8); transition:filter .12s, box-shadow .12s, border-color .12s; }
   .nav-item:hover { background:var(--panel2); color:var(--text); }
@@ -89,8 +94,11 @@ const CHROME_SCRIPT = `
 function navHtml(activeTab) {
     let lastGroup = null;
     return TABS.map((tab) => {
-        const label = tab.group !== lastGroup ? `<div class="menu-label">${tab.group}</div>` : "";
-        lastGroup = tab.group;
+        // the block "Alle Server" carries one heading of its own instead of the group's
+        const group = isAllServers(tab) ? "Alle Server" : tab.group;
+        const cls = isAllServers(tab) ? "menu-label menu-all" : "menu-label";
+        const label = group !== lastGroup ? `<div class="${cls}">${group}</div>` : "";
+        lastGroup = group;
         const active = tab.id === activeTab ? " active" : "";
         return `${label}<a class="nav-item area-${tab.area || tab.id}${active}" href="${tab.landing || tab.href}"><img class="wi" src="${tab.iconUrl}" alt=""><span>${tab.label}</span></a>`;
     }).join("");

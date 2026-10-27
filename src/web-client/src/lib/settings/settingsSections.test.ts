@@ -12,14 +12,14 @@ const ids = () => SETTINGS_SECTIONS.map((s) => s.id);
 const byId = (id: string) => SETTINGS_SECTIONS.find((s) => s.id === id);
 
 describe("the sections", () => {
-    it("keeps the sections in four groups, in this order, each with a WoW icon", () => {
+    it("keeps the sections in the menu's two blocks, the server first, each with a WoW icon (#918)", () => {
         expect(ids()).toEqual(expect.arrayContaining([
             "berechtigungen", "verbindungen", "discordserver", "kategorien",
             "raids", "raidsheets", "topitems", "logs", "recruitment",
         ]));
         expect(new Set(ids()).size).toBe(ids().length);
-        expect(groupedSections(SETTINGS_SECTIONS).map((g) => g.group)).toEqual(["access", "connections", "categories", "modules"]);
-        expect(groupedSections(SETTINGS_SECTIONS).map((g) => groupLabel(g.group))).toEqual(["Zugang", "Verbindungen", "Raid-Kategorien", "Module"]);
+        expect(groupedSections(SETTINGS_SECTIONS).map((g) => g.group)).toEqual(["server", "global"]);
+        expect(groupedSections(SETTINGS_SECTIONS).map((g) => groupLabel(g.group))).toEqual(["Server", "Alle Server"]);
         for (const s of SETTINGS_SECTIONS) {
             // a missing text would come back as its key
             const label = sectionLabel(s);
@@ -33,8 +33,14 @@ describe("the sections", () => {
     it("names the sections and groups in English once the page is switched", async () => {
         await inLang("en", () => {
             expect(sectionLabel(SETTINGS_SECTIONS[0])).toBe("Permissions");
-            expect(groupLabel("modules")).toBe("Modules");
+            expect(groupLabel("global")).toBe("All servers");
         });
+    });
+
+    it("puts what belongs to one server in its block and what the bot shares under Alle Server", () => {
+        const of = (group: SettingsGroup) => SETTINGS_SECTIONS.filter((s) => s.group === group).map((s) => s.id);
+        expect(of("server")).toEqual(["berechtigungen", "kategorien", "raids", "logs", "recruitment", "raidsheets"]);
+        expect(of("global")).toEqual(["discordserver", "verbindungen", "spielversion", "topitems", "dungeons", "addons"]);
     });
 
     it("keeps the sections of a group together, so every heading prints once", () => {
@@ -47,8 +53,8 @@ describe("the sections", () => {
 
     it("bundles neighbours only", () => {
         const s = (id: string, group: SettingsGroup) => ({ id, group, icon: "x" });
-        expect(groupedSections([s("a", "access"), s("b", "access"), s("c", "modules"), s("d", "access")]).map((g) => [g.group, g.items.map((i) => i.id)]))
-            .toEqual([["access", ["a", "b"]], ["modules", ["c"]], ["access", ["d"]]]);
+        expect(groupedSections([s("a", "server"), s("b", "server"), s("c", "global"), s("d", "server")]).map((g) => [g.group, g.items.map((i) => i.id)]))
+            .toEqual([["server", ["a", "b"]], ["global", ["c"]], ["server", ["d"]]]);
     });
 });
 
