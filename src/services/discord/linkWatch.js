@@ -18,7 +18,7 @@
 // a restart) would never reach "messageDelete".
 const linkCheck = require("./linkCheck");
 const eventStore = require("../../stores/eventStore");
-const { getOverviewState } = require("../../stores/talkOverviewStore");
+const { getOverviewState, overviewKeys } = require("../../stores/talkOverviewStore");
 const { getConfig } = require("../../stores/settingsStore");
 const logger = require("../../logger").child("linkWatch");
 
@@ -60,9 +60,9 @@ function onChannelDelete(channel, { now = Date.now() } = {}) {
 
 /** Whether a message is one of the raid overview messages. */
 function isOverviewMessage(messageId, config = getConfig()) {
-    // The overview store is keyed by the link's source server (until #892).
-    const sources = new Set(((((config && config.discordServers) || {}).links) || []).map((l) => l && l.from).filter(Boolean));
-    return [...sources].some((guildId) => getOverviewState(guildId).messageId === messageId);
+    // The overview store is keyed per link, "from:to" (#892).
+    const links = (((config && config.discordServers) || {}).links) || [];
+    return overviewKeys(links).some(({ key, legacyKey }) => getOverviewState(key, { legacyKey }).messageId === messageId);
 }
 
 /** A message was deleted in Discord. Returns what was done about it. */
