@@ -215,12 +215,14 @@ export default function SettingsPage() {
                 } : {}),
                 officerRoleId: draft.officerRoleId.trim(),
                 applicationChannelId: draft.applicationChannelId.trim(),
+                // #926: the categories (only this server's part changes) and #921 the log channels belong to
+                // the server this page loaded — sent with it, so a tab left on another server is refused (409)
+                // instead of writing there. "" = none was active (the categories then edit the first server).
                 categoryIds: draft.categoryIds,
+                serverSettingsGuildId: data.activeGuildId || "",
                 categoryRoles: draft.categoryRoles,
-                // #921: the log channels belong to the server this page loaded — sent only when changed,
-                // with that server, so a tab left on another server is refused (409) instead of writing there.
-                ...(data.activeGuildId && logChannelsChanged(saved, draft)
-                    ? { logChannels: draft.logChannels, serverSettingsGuildId: data.activeGuildId } : {}),
+                // the log channels only when changed (they need an active server)
+                ...(data.activeGuildId && logChannelsChanged(saved, draft) ? { logChannels: draft.logChannels } : {}),
                 raidDefaults: { channelId: draft.raidChannelId.trim() },
                 categoryLootTool: draft.categoryLootTool,
                 // Merged on the server: "automatisch" is sent as "" and drops the entry.
@@ -643,7 +645,7 @@ export default function SettingsPage() {
                     </div>
                 )}
                 {deactivating && (
-                    <CategoryDeactivateDialog next={draft.categoryIds} names={categoryNames} onCancel={() => setDeactivating(false)} onConfirm={() => void save()} />
+                    <CategoryDeactivateDialog next={draft.categoryIds} guildId={data.activeGuildId || ""} names={categoryNames} onCancel={() => setDeactivating(false)} onConfirm={() => void save()} />
                 )}
             </div>
         </RailLayout>

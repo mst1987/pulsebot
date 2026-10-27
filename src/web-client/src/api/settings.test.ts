@@ -3,7 +3,7 @@
 // formerly a source scan in test/web-client/pingsRoleSync.test.js).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { requireBackend } from "../test/backend";
-import { closeCategory, forServer, getReminders, getRoleSync, getSettings, serverCategoriesOf, updateSettings, type AdminConfig } from "./settings";
+import { closeCategory, forServer, getCategoryDeactivate, getReminders, getRoleSync, getSettings, serverCategoriesOf, updateSettings, type AdminConfig } from "./settings";
 
 const { AREA_BY_PATH } = requireBackend<{ AREA_BY_PATH: Record<string, string> }>("web/http/apiAccess");
 
@@ -61,5 +61,11 @@ describe("raid categories per server", () => {
         expect((await updateSettings({})).config.categoryIds).toEqual(["a1"]);
         respond({ ...answer, ok: true, name: "x", removed: {}, rosters: [], missingCategories: [] });
         expect((await closeCategory("gone")).config.categoryIds).toEqual(["a1"]);
+    });
+
+    it("asks the deactivation preview for the page's server", async () => {
+        respond({ categories: [], emptyBlocked: false });
+        await getCategoryDeactivate(["a 1", "b"], "g1");
+        expect(vi.mocked(fetch).mock.calls[0][0]).toBe("/api/settings/category-deactivate?next=a%201%2Cb&guild=g1");
     });
 });

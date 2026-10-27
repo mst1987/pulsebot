@@ -184,7 +184,8 @@ describe("the log channels of the active server (#921)", () => {
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
         const body = vi.mocked(api.updateSettings).mock.calls[0][0];
         expect("logChannels" in body).toBe(false);
-        expect("serverSettingsGuildId" in body).toBe(false);
+        // the active categories always go along, with the server the page loaded (#926)
+        expect(body).toMatchObject({ categoryIds: ["cat1"], serverSettingsGuildId: "g1" });
     });
 
     it("says the server was switched when the save is refused for it", async () => {
@@ -221,6 +222,8 @@ describe("the log channels of the active server (#921)", () => {
         await user.click(screen.getByRole("button", { name: "Speichern" }));
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
         expect("logChannels" in vi.mocked(api.updateSettings).mock.calls[0][0]).toBe(false);
+        // the categories go to the first server's part then: an empty id lets the server fall back
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0].serverSettingsGuildId).toBe("");
     });
 });
 
@@ -441,7 +444,8 @@ describe("the save bar", () => {
         await user.click(await screen.findByRole("button", { name: "Montag umschalten" }));
         await user.click(screen.getByRole("button", { name: "Speichern" }));
         expect(await screen.findByText("Serie (Mo 19:30) pausiert – legt keine Events an")).toBeInTheDocument();
-        expect(api.getCategoryDeactivate).toHaveBeenCalledWith(["cat2"]);
+        // the preview names the server the page loaded (#926)
+        expect(api.getCategoryDeactivate).toHaveBeenCalledWith(["cat2"], "g1");
         expect(api.updateSettings).not.toHaveBeenCalled();
 
         await user.click(screen.getByRole("button", { name: "Deaktivieren und speichern" }));

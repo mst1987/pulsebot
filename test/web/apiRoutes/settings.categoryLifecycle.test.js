@@ -78,7 +78,7 @@ beforeEach(() => {
 
 describe("web/apiRoutes/settings: a category's life (#744)", () => {
     it("refuses to take the last active category away while raids exist", async () => {
-        const res = await patch("/api/settings", { categoryIds: [] });
+        const res = await patch("/api/settings", { categoryIds: [], serverSettingsGuildId: "g1" });
         expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
         expect(json(res).error.code).toBe("categories_empty");
         expect(settingsStore.saveConfig).not.toHaveBeenCalled();
@@ -86,14 +86,14 @@ describe("web/apiRoutes/settings: a category's life (#744)", () => {
 
     it("lets an install without raids, or one that never picked a category, keep an empty list", async () => {
         listRaidEvents.mockReturnValue([]);
-        expect((await patch("/api/settings", { categoryIds: [] })).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        expect((await patch("/api/settings", { categoryIds: [], serverSettingsGuildId: "g1" })).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
         listRaidEvents.mockReturnValue([{ id: "r1" }]);
         settingsStore.getConfig.mockReturnValue({ ...CONFIG, categoryIds: [] });
-        expect((await patch("/api/settings", { categoryIds: [] })).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        expect((await patch("/api/settings", { categoryIds: [], serverSettingsGuildId: "g1" })).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
     });
 
     it("answers a save with what deactivating paused, without deleting a setting", async () => {
-        const res = await patch("/api/settings", { categoryIds: ["mon"] });
+        const res = await patch("/api/settings", { categoryIds: ["mon"], serverSettingsGuildId: "g1" });
         expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
         expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ categoryIds: ["mon"] });
         expect(json(res).data.deactivatedCategories).toEqual([
@@ -103,12 +103,12 @@ describe("web/apiRoutes/settings: a category's life (#744)", () => {
     });
 
     it("previews what a save would pause, with names", async () => {
-        const res = await get("/api/settings/category-deactivate", { next: "mon" });
+        const res = await get("/api/settings/category-deactivate", { next: "mon", guild: "g1" });
         expect(json(res).data).toEqual({
             categories: [{ categoryId: "gone", name: "TBC Montag", series: { enabled: true, weekdays: [1], time: "19:30" }, reminders: true, upcoming: 0 }],
             emptyBlocked: false,
         });
-        const empty = await get("/api/settings/category-deactivate", { next: "" });
+        const empty = await get("/api/settings/category-deactivate", { next: "", guild: "g1" });
         expect(json(empty).data.emptyBlocked).toBe(true);
     });
 
@@ -192,21 +192,54 @@ describe("web/apiRoutes/settings: raid categories per server (#926)", () => {
     it("a save on A never removes or adds a category of B", async () => {
         activeGuildFor.mockReturnValue("A");
         // A takes a1 out, adds a2, and a list naming b1 cannot reach B
-        let res = await patch("/api/settings", { categoryIds: ["a2", "b1"] });
+        let res = await patch("/api/settings", { categoryIds: ["a2", "b1"], serverSettingsGuildId: "A" });
         expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
         expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ categoryIds: ["b1", "bx", "a2"] });
         // B empties its list: A's stay
         activeGuildFor.mockReturnValue("B");
-        res = await patch("/api/settings", { categoryIds: [] });
+        res = await patch("/api/settings", { categoryIds: [], serverSettingsGuildId: "B" });
         expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
         expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ categoryIds: ["a1"] });
     });
 
+    it("refuses a tab loaded on A saving after the session switched to B: B's categories stay", async () => {
+        // tab 1 loaded A; tab 2 switched the session to B; tab 1 saves its A list
+        activeGuildFor.mockReturnValue("B");
+        const res = await patch("/api/settings", { categoryIds: ["a1", "a2"], serverSettingsGuildId: "A", officerRoleId: "r9" });
+        expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+        expect(json(res).error.code).toBe("server_switched");
+        // nothing at all is saved, not even the other fields
+        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+        // no server sent at all while one is active: refused as well
+        const none = await patch("/api/settings", { categoryIds: [] });
+        expect(none.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+    });
+
+    it("without an active server, a save edits the first server's part", async () => {
+        activeGuildFor.mockReturnValue("");
+        const res = await patch("/api/settings", { categoryIds: ["a2"], serverSettingsGuildId: "" });
+        expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ categoryIds: ["b1", "bx", "a2"] });
+        // a tab that still names a server while the session has none: refused
+        const stale = await patch("/api/settings", { categoryIds: ["a2"], serverSettingsGuildId: "A" });
+        expect(stale.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+    });
+
     it("previews a deactivation only for the active server's categories", async () => {
         activeGuildFor.mockReturnValue("A");
-        const res = await get("/api/settings/category-deactivate", { next: "" });
+        const res = await get("/api/settings/category-deactivate", { next: "", guild: "A" });
         expect(json(res).data.categories.map((c) => c.categoryId)).toEqual(["a1"]);
         expect(json(res).data.emptyBlocked).toBe(false);
+    });
+
+    it("refuses a deactivation preview for a tab left on another server", async () => {
+        activeGuildFor.mockReturnValue("B");
+        const res = await get("/api/settings/category-deactivate", { next: "", guild: "A" });
+        expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+        expect(json(res).error.code).toBe("server_switched");
+        const missing = await get("/api/settings/category-deactivate", { next: "" });
+        expect(missing.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
     });
 
     it("closes a category deleted on B, and answers with B's list", async () => {

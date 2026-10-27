@@ -432,9 +432,12 @@ export type DeactivatedCategory = {
     categoryId: string; name?: string; series: CategorySeriesInfo | null; reminders: boolean; upcoming: number;
 };
 
-/** GET /api/settings/category-deactivate?next=…: what saving these active categories pauses (#744). */
-export function getCategoryDeactivate(next: string[]): Promise<{ categories: DeactivatedCategory[]; emptyBlocked: boolean }> {
-    return get(`/api/settings/category-deactivate?next=${encodeURIComponent(next.join(","))}`);
+/**
+ * GET /api/settings/category-deactivate?next=…&guild=…: what saving these active categories pauses (#744).
+ * `guildId` is the server the page loaded (#926): 409 `server_switched` when the session switched since.
+ */
+export function getCategoryDeactivate(next: string[], guildId = ""): Promise<{ categories: DeactivatedCategory[]; emptyBlocked: boolean }> {
+    return get(`/api/settings/category-deactivate?next=${encodeURIComponent(next.join(","))}&guild=${encodeURIComponent(guildId)}`);
 }
 
 /** A configured category Discord no longer has (#744), with what "Kategorie abschließen" removes. */

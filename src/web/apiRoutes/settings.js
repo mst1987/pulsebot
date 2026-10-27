@@ -221,10 +221,13 @@ const guildBankOf = (config) => String(((config && config.discordServers) || {})
 // Body keys stored per Discord server (config.serverSettings[guildId]). Each
 // part of the "data per server" epic (#926) that moves a setting there adds
 // its key here, so its PATCH is checked by serverSettingsTarget() below.
-const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper"];
+// categoryIds (#926) is one list over every server, but a save changes only the
+// saving server's part (mergedCategoryIds) - so it is bound to the tab's server too.
+const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper", "categoryIds"];
 // Server-bound keys that, without an active server, edit the first server
-// (#927 Raid-Helper, as its section shows); every other key then needs one.
-const FIRST_SERVER_FALLBACK_KEYS = ["raidhelper"];
+// (#927 Raid-Helper, as its section shows; #926 the categories, shown on the
+// first server then); every other key then needs one.
+const FIRST_SERVER_FALLBACK_KEYS = ["raidhelper", "categoryIds"];
 
 /**
  * The server a PATCH of server-bound settings writes to — guarded against a
@@ -832,7 +835,9 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     }
     const before = getConfig();
     // #926: a save on one server never adds or removes a category of another one.
-    if (partial.categoryIds !== undefined) partial.categoryIds = mergedCategoryIds(partial.categoryIds, before, activeGuildFor(req));
+    // The server is the tab's (checked by serverSettingsTarget()), never the session's alone:
+    // a tab on A saving after another tab switched to B would otherwise empty B's part.
+    if (partial.categoryIds !== undefined) partial.categoryIds = mergedCategoryIds(partial.categoryIds, before, server.guildId);
     // #744: no active category at all would read as "every category" — refused while raids exist.
     if (emptiesActiveCategories(partial, before)) return error(res, 400, "categories_empty", categoryLifecycle.EMPTY_LIST_MESSAGE);
     // #738: every active category plays an explicit version; a changed one starts a new section.
@@ -869,7 +874,7 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         deactivatedCategories: deactivated,
         ...(raidhelperGuild ? { raidhelper: maskedRaidhelper(raidhelperGuild, saved) } : {}),
         // #926: with the active server's part of categoryIds, so the page keeps showing only its own
-        ...serverCategoriesOf(after, activeGuildFor(req)),
+        ...serverCategoriesOf(after, server ? server.guildId : activeGuildFor(req)),
     });
 });
 
@@ -962,7 +967,7 @@ function mergedCategoryIds(sent, before, guildId) {
 }
 
 /**
- * GET /api/settings/category-deactivate?next=a,b — what saving the active
+ * GET /api/settings/category-deactivate?next=a,b&guild=<id> — what saving the active
  * categories `next` pauses (#744): per category taken out its series and
  * reminders, and whether the list would be empty although raids exist.
  */
@@ -970,7 +975,10 @@ const getCategoryDeactivate = withUser({}, async ({ req, res, url }) => {
     const config = getConfig();
     // #926: `next` is the active server's list; the other servers' categories stay as stored
     const sent = String(url.searchParams.get("next") || "").split(",").map((s) => s.trim()).filter(Boolean);
-    const next = mergedCategoryIds(sent, config, activeGuildFor(req));
+    // the server the tab loaded (`guild`, "" = none active): 409 when the session switched since
+    const server = serverSettingsTarget(req, { categoryIds: sent, serverSettingsGuildId: url.searchParams.get("guild") || "" }, config);
+    if (!server.guildId) return error(res, server.status, server.code, server.message);
+    const next = mergedCategoryIds(sent, config, server.guildId);
     const preview = categoryLifecycle.deactivationPreview({ config, nextIds: next });
     const names = categoryNamesOf(config);
     ok(res, {
