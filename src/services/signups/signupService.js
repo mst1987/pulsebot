@@ -334,27 +334,31 @@ async function checkRaiderRole(event, userId, { byOrga = false, previous, roleId
 }
 
 /**
- * The character an entry names: the profile's — or, for the orga changing a
- * signup from the setup editor (`offProfile`, #521), one of the signup's own
- * characters the profile does not have (a raider without a profile), its class
- * read from the spec it was signed up with.
+ * The character an entry names: the profile's — or one of the signup's own
+ * characters the profile does not have (a raider without a profile, or one the
+ * orga entered with "Anderer Charakter …", #521), its class read from the spec
+ * it was signed up with. For the orga (`offProfile`) any spec of that class
+ * fits; for the raider only the spec it already has — the raider keeps the
+ * character (status, comment), choosing anew goes through the profile.
  */
 function characterFor(profile, ref, prev, offProfile, versionId = "") {
     const own = findCharacter(profile, ref, versionId);
-    if (own || !offProfile) return own;
+    if (own) return own;
     const key = profiles.nameKey(ref);
     const had = key ? ((prev && prev.characters) || []).find((c) => profiles.nameKey(c.character) === key) : null;
     const info = had ? profiles.specInfo(had.spec) : null;
-    return info ? { key, name: had.character, className: info.classId, specs: [] } : null;
+    if (!info) return null;
+    return { key, name: had.character, className: info.classId, specs: offProfile ? [] : [{ key: had.spec }] };
 }
 
 /**
  * A character the orga names in the setup editor that is not in the raider's
  * profile — "Anderer Charakter …": a raider offers to come with another one.
  * Only with an explicit class (`entry.className`, one of the event's rule set);
- * the name follows the rule for a typed name (validateCharacterName). The class
- * given wins over the one an earlier signup of that name had (a corrected
- * class). The profile is never changed. null when the entry names no class.
+ * the name follows the rule for a typed name (validateCharacterName). Only for a
+ * name neither the profile nor the signup has — a name the signup already has
+ * keeps the class read from its spec (characterFor). The profile is never
+ * changed. null when the entry names no class.
  * @returns {null | { character: object } | { error: string }}
  */
 function otherCharacter(entry, versionId) {
@@ -380,8 +384,9 @@ function specAllowed(character, specKey, offProfile) {
  * @param {object} event   an eventStore event (source "eventhelper")
  * @param {object} input   { character, spec, status, canAlso?, comment }
  * @param {object} ctx     { profile, previous?, byOrga?, offProfile?, now?, config? } — `offProfile` (the orga in the setup
- *                         editor, #521): a spec of the character's class the profile lacks, and the signup's own
- *                         characters without a profile, are taken
+ *                         editor, #521): a spec of the character's class the profile lacks, and a new name with
+ *                         `className`, are taken; the signup's own characters without a profile are
+ *                         kept for everyone (the raider only with their spec)
  * @returns {{ value?: object, error?: string, code?: string }}
  */
 function validateSignup(event, input = {}, { profile, previous = null, byOrga = false, offProfile = false, now = Date.now(), config } = {}) {

@@ -203,6 +203,15 @@ describe("Anderer Charakter (#521)", () => {
         expect(eventStore.getEvent(event.id).log.filter((l) => l.action === "signupEdit")).toHaveLength(0);
     });
 
+    it("smooths the typed name: no stray spaces in the signup and the log", async () => {
+        event = seed({ title: "Barrow", versionId: "forever", instanceIds: ["forever-barrow"] });
+        signupStore.saveSignup(event.id, NOPROFILE, { character: "Ohneprofil", spec: "Priest-Shadow", status: "signed" });
+        const result = await changeSignupFromSetup(event.id, NOPROFILE, { status: "signed", from: "Ohneprofil", character: "  bruno    stahl ", className: "Warrior", spec: "Warrior-Protection" }, { user: ORGA, now: NOW });
+        expect(result.error).toBeUndefined();
+        expect(signupStore.getSignup(event.id, NOPROFILE)).toMatchObject({ character: "Bruno Stahl", spec: "Warrior-Protection" });
+        expect(eventStore.getEvent(event.id).log.at(-1).detail).toMatch(/Ohneprofil → Bruno Stahl/);
+    });
+
     it("keeps the rule of the version: a character of the raider's other version is no new name (#543)", async () => {
         profiles.addCharacter(SHAMAN, { name: "Donner Res", className: "Shaman", specs: [{ key: "Shaman-Elemental" }], versionId: "forever" });
         const result = await changeSignupFromSetup(event.id, SHAMAN, { status: "signed", from: "Donnerfaust", character: "Donner Res", className: "Shaman", spec: "Shaman-Elemental" }, { user: ORGA, now: NOW });

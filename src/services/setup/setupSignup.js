@@ -166,7 +166,9 @@ async function changeSignupFromSetup(eventId, userId, body = {}, { user = null, 
     let at = entries.findIndex((c) => keyOf(c.character) === fromKey);
     if (at < 0) at = 0;
     const from = entries[at] || { character: before.character || "", spec: before.spec || "" };
-    const to = { character: str(body.character) || from.character, spec: str(body.spec) || from.spec };
+    // a typed name without stray spaces — "  Bruno   Stahl " is "Bruno Stahl" in the signup, the log and the setup
+    const typed = str(body.character).replace(/\s+/g, " ");
+    const to = { character: typed || from.character, spec: str(body.spec) || from.spec };
     const className = str(body.className);
     if (className && status !== "absence") {
         // "Anderer Charakter …": a name outside the profile with a class of the event's rule set
