@@ -15,7 +15,7 @@
 // Offline (the bot not on that server or not connected): `{ online: false }` and empty lists.
 const { PermissionsBitField } = require("discord.js");
 const discord = require("./discord");
-const { eventGuildId, roleMessageGuild } = require("./guildRoles");
+const { serverIds, serverLabel, roleMessageGuild } = require("./guildRoles");
 const { roleUses } = require("./selfRole");
 const { SENSITIVE: SENSITIVE_LIST } = require("./roleHygiene");
 const { roleBelowBot } = require("./memberRoles");
@@ -120,11 +120,19 @@ function categoryNamesFor(guildId) {
     return names;
 }
 
-/** Everything the role means for the bot, with category names filled in. */
+/** A server's name for a role use: its Discord name, else its label from the server list ("" = neither). */
+function serverNameOf(guildId, config) {
+    const guild = discord.getGuild(guildId);
+    return (guild && str(guild.name)) || serverLabel(guildId, config) || "";
+}
+
+/** Everything the role means for the bot, with category and server names filled in. */
 function usesOf(config, roleId, guildId, categoryNames) {
-    const uses = roleUses(config, roleId).map((u) => (u.code === "categoryRaider"
-        ? { ...u, categories: u.categoryIds.map((id) => ({ id, name: categoryNames[id] || "" })) }
-        : u));
+    const uses = roleUses(config, roleId).map((u) => {
+        if (u.code === "categoryRaider") return { ...u, categories: u.categoryIds.map((id) => ({ id, name: categoryNames[id] || "" })) };
+        if (u.code === "roleSync") return { ...u, servers: u.guildIds.map((id) => ({ guildId: id, name: serverNameOf(id, config) })) };
+        return u;
+    });
     return [...uses, ...extraUses(roleId, guildId, config)];
 }
 
@@ -224,8 +232,8 @@ async function contextFor(serverId, config, { waitMs }) {
     }
     return {
         guildId, guild, me, config, members, membersError: error, counts,
-        // Raid categories may sit on any server now: the first server's names, this one's on top.
-        categoryNames: { ...categoryNamesFor(eventGuildId(config) || ""), ...categoryNamesFor(guildId) },
+        // Raid categories may sit on any server: the names of every server of the list, this one's on top.
+        categoryNames: Object.assign({}, ...serverIds(config).map(categoryNamesFor), categoryNamesFor(guildId)),
         common: commonSensitiveOf(guild),
     };
 }

@@ -46,7 +46,7 @@ function guild({ rights = [], channels = {}, roles = [], top = 5 } = {}) {
 
 const ALL = [F.ViewChannel, F.ManageChannels, F.SendMessages, F.EmbedLinks, F.AddReactions, F.ReadMessageHistory, F.ManageRoles, F.ManageEvents, F.CreatePublicThreads, F.SendMessagesInThreads];
 const POST = [F.ViewChannel, F.SendMessages, F.EmbedLinks];
-const SERVERS = { servers: [{ guildId: EVENT }, { guildId: TALK }], talkGuildId: TALK, links: [] };
+const SERVERS = { servers: [{ guildId: EVENT }, { guildId: TALK }], links: [] };
 const SRV = { discordServers: SERVERS };
 
 beforeEach(() => {
@@ -82,9 +82,9 @@ describe("functions", () => {
         expect(byKey.reactions.state).toBe("not_needed");
     });
 
-    it("checks what is set up on a server: raid events, role messages (also an old entry by its side)", () => {
+    it("checks what is set up on a server: raid events, role messages", () => {
         mockEvents.push({ id: "e1", guildId: TALK, categoryId: "700000000000000001" });
-        mockRoleMessages.push({ guildSide: "talk", roles: [] });
+        mockRoleMessages.push({ guildId: TALK, roles: [] });
         const byKey = Object.fromEntries(botCheck(TALK, SRV).functions.map((f) => [f.key, f.state]));
         expect(byKey).toEqual(expect.objectContaining({ events: "ok", channels: "ok", reactions: "ok" }));
         expect(Object.fromEntries(botCheck(EVENT, SRV).functions.map((f) => [f.key, f.state])).reactions).toBe("not_needed");
@@ -194,7 +194,7 @@ describe("rolesAboveBot", () => {
         );
         mockRoleMessages.push(
             { guildSide: "event", roles: [{ roleId: "200000000000000004" }] },
-            { guildSide: "talk", roles: [{ roleId: "200000000000000001" }] },
+            { guildId: TALK, roles: [{ roleId: "200000000000000001" }] },
             { guildId: TALK, roles: [{ roleId: "200000000000000003" }] },
         );
         mockGuild = guild({

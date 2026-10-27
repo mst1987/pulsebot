@@ -187,7 +187,6 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .srv-table table { table-layout: fixed; }
 .srv-table td { vertical-align: middle; }
 .srv-table .row-actions { justify-content: flex-end; flex-wrap: nowrap; }
-.srv-table .srv-remove-off { opacity: 0.45; cursor: not-allowed; }
 .srv-links th:nth-child(2) { width: 18%; }
 .srv-links th:nth-child(3) { width: 20%; }
 .srv-links th:nth-child(4) { width: 20%; }

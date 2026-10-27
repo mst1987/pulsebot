@@ -212,7 +212,7 @@ describe("runReminders", () => {
     it("reports 'no server' when no event server is configured at all", async () => {
         require("../../../src/services/discord/guildRoles").eventGuildIds.mockReturnValue([]);
         const r = await reminders.runReminders({ now: NOW, config });
-        expect(r).toEqual({ sent: 0, failed: 0, skipped: 0, error: "Kein Event-Discord eingestellt." });
+        expect(r).toEqual({ sent: 0, failed: 0, skipped: 0, error: "Kein Server eingestellt." });
         expect(loadEventGroups).not.toHaveBeenCalled();
     });
 

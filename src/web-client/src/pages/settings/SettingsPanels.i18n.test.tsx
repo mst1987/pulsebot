@@ -107,7 +107,7 @@ describe("the Einstellungen panels in English", () => {
     it("words the Discord servers", async () => {
         const data: DiscordServersData = {
             discordServers: { servers: [], links: [], signupNoteChannelId: "", guildBankChannelId: "" },
-            servers: [], guilds: [], versions: [], talk: null,
+            servers: [], guilds: [], versions: [],
         };
         vi.mocked(api.getDiscordServers).mockResolvedValue(data);
         renderPage(<DiscordServersSection onConfig={noop} icon="inv_letter_15" crumb="Connections" />);

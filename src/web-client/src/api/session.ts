@@ -35,8 +35,8 @@ export type SessionUser = {
 /** A raider area (the base access or a raider role opens it), else the orga roles that may read / change in it and how many single accounts may read it. */
 export type AreaAudience = { everyone: boolean; roles: string[]; writers: string[]; raiders?: string[]; accounts: number };
 export type ViewAsRole = { id: string; name: string; color: string; admin: boolean; configured: boolean };
-/** "event" | "talk" = the server's fixed role from Einstellungen → Discord-Server, "" = none. */
-export type GuildRole = "event" | "talk" | "";
+/** "event" = a configured server from Einstellungen → Discord-Server, "" = none (#897: no talk server any more). */
+export type GuildRole = "event" | "";
 /** A server of the server list; `label` is the orga's own short name ("" = none, missing from an older server). */
 export type SessionGuild = { id: string; name: string; role?: GuildRole; label?: string };
 /** A game version the content switch offers (#563). */

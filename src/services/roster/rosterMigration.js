@@ -14,7 +14,7 @@
 //      carry guildId + categoryId),
 //   3. the first configured server (discordServers.servers, else the
 //      old single guildId) - the "primary event server" other per-server code
-//      falls back to as well (guildRoles.eventGuildId).
+//      falls back to as well (guildRoles.serverIds()[0]).
 // None at all leaves "" (listRosters("") still lists it; the roster page can
 // set it later).
 //

@@ -69,8 +69,9 @@ describe("services/guildbank/guildBankStock", () => {
         expect(result.bank).toMatchObject({ guildId: "11111", pending: false });
         expect(stock.onlyEventServer({ guildId: "77777" })).toBe("77777");
         expect(stock.onlyEventServer(CONFIG)).toBe("");
-        // one raid server plus the talk server (#890): still the one raid server
-        expect(stock.onlyEventServer({ discordServers: { servers: [{ guildId: "11111" }, { guildId: "33333" }], links: [], talkGuildId: "33333" } })).toBe("11111");
+        // #897: the old talk server is an ordinary server, two servers leave the bank to the orga
+        expect(stock.onlyEventServer({ discordServers: { servers: [{ guildId: "11111" }, { guildId: "33333" }], links: [] } })).toBe("");
+        expect(stock.onlyEventServer({ discordServers: { servers: [{ guildId: "11111" }], links: [] } })).toBe("11111");
     });
 
     it("leaves a known bank's assignment alone, also one taken back on purpose", () => {
@@ -129,7 +130,7 @@ describe("services/guildbank/guildBankStock", () => {
 
     it("assigns only to an event server, and takes an assignment back", () => {
         const { bank } = stock.ingestScan(body(), { now: NOW, config: CONFIG });
-        expect(stock.assignBank(bank.key, "44444", { config: CONFIG })).toEqual({ code: "invalid", error: "Nur ein Event-Server kann eine Gildenbank bekommen." });
+        expect(stock.assignBank(bank.key, "44444", { config: CONFIG })).toEqual({ code: "invalid", error: "Nur ein Server aus der Serverliste kann eine Gildenbank bekommen." });
         expect(stock.assignBank("nope", "11111", { config: CONFIG })).toEqual({ code: "not_found", error: "Gildenbank nicht gefunden." });
         expect(stock.assignBank(bank.key, " 22222 ", { config: CONFIG }).bank).toMatchObject({ guildId: "22222", pending: false });
         expect(stock.assignBank(bank.key, "", { config: CONFIG }).bank).toMatchObject({ guildId: "", pending: true });

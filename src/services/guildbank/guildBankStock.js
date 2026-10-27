@@ -29,19 +29,14 @@ function serverOfToken(token) {
 }
 
 /**
- * The one event server when exactly one is configured, else "". A bank seen
+ * The one server when exactly one is configured, else "". A bank seen
  * for the first time goes there right away — with several servers nobody can
  * know which guild it belongs to, so it waits for the assignment.
  */
 function onlyEventServer(config = getConfig()) {
     const cfg = config || getConfig();
     const ids = guildRoles.eventGuildIds(cfg);
-    if (ids.length === 1) return ids[0];
-    // Since #890 the talk server is one of the servers too; "one raid server
-    // plus a talk server" still means exactly one candidate, as before.
-    const talk = guildRoles.talkGuildId(cfg);
-    const raidServers = ids.filter((id) => id !== talk);
-    return raidServers.length === 1 ? raidServers[0] : "";
+    return ids.length === 1 ? ids[0] : "";
 }
 
 /**
@@ -98,7 +93,7 @@ function bankServers(config = getConfig()) {
 function assignBank(key, guildId, { config = getConfig() } = {}) {
     const id = String(guildId || "").trim();
     if (id && !guildRoles.eventGuildIds(config).includes(id)) {
-        return { code: "invalid", error: "Nur ein Event-Server kann eine Gildenbank bekommen." };
+        return { code: "invalid", error: "Nur ein Server aus der Serverliste kann eine Gildenbank bekommen." };
     }
     const bank = store.assignBank(key, id);
     if (!bank) return { code: "not_found", error: "Gildenbank nicht gefunden." };

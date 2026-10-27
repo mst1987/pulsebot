@@ -105,10 +105,6 @@
             "commonTip": "Common sensitive permissions",
             "commonTipSub": "When @everyone has a sensitive permission or most roles do, it is normal here. Orange marks only roles with a sensitive permission hardly any other role has."
         },
-        "side": {
-            "event": "Event server",
-            "talk": "Talk server"
-        },
         "col": {
             "pos": "Pos.",
             "posTip": "Position",
@@ -158,7 +154,8 @@
             "botCommand": "Bot commands: {commands}",
             "categoryRaider": "Raider role {names}",
             "categoryRaiderAny": "Raider role of a category",
-            "roleSync": "Role sync ({sides})",
+            "roleSync": "Role sync ({servers})",
+            "roleSyncAny": "Role sync",
             "roster": "Roster {name}: {kinds}",
             "rosterKind": {
                 "member": "member",

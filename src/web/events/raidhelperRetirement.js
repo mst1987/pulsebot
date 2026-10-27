@@ -153,7 +153,7 @@ function discordEventItem({ discordEvents }) {
         ...base,
         status: right ? "ok" : "bad",
         value: right ? `${on.length} ${on.length === 1 ? "Kategorie" : "Kategorien"}` : "Recht fehlt",
-        why: "Zu jedem Event dieser Kategorien legt der Bot ein Discord-Event an. Dafür braucht er auf dem Event-Server das Recht „Events verwalten“.",
+        why: "Zu jedem Event dieser Kategorien legt der Bot ein Discord-Event an. Dafür braucht er auf dem Raid-Server das Recht „Events verwalten“.",
         detail: right ? names : ["fehlt: Events verwalten", ...names],
     };
 }
@@ -240,7 +240,7 @@ function eventCategoryIds(config) {
 
 /** Gather the inputs and build the checklist. Never throws. */
 async function loadChecklist({ config = getConfig() } = {}) {
-    const eventGuildId = guildRoles.eventGuildId(config) || config.guildId || "";
+    const eventGuildId = guildRoles.serverIds(config)[0] || "";
     const disabled = raidhelperDisabled(config);
 
     let names = new Map();

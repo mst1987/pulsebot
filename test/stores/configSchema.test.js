@@ -140,9 +140,15 @@ function after896(config) {
         : [];
     return { ...config, roleSync };
 }
-const schemaOnly = frozen.map((g) => ({ ...g, config: after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))))))) }));
+// #897 removes the talk server: its id is already one of `servers` (after890), the field itself is gone.
+function after897(config) {
+    const servers = { ...config.discordServers };
+    delete servers.talkGuildId;
+    return { ...config, discordServers: servers };
+}
+const schemaOnly = frozen.map((g) => ({ ...g, config: after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))))))))) }));
 const golden = schemaOnly.map((g, i) => ({ ...g, config: afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config) }));
-const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)"));
+const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)"));
 
 const CONFIG_FILE = settingsPath("config.json");
 const TEMPLATES_FILE = settingsPath("raid-templates.json");
@@ -252,14 +258,15 @@ describe("stores/configSchema server federation (#890)", () => {
     describe("migrates every old shape on read", () => {
         it("only event servers: they become the servers, labels kept, no links", () => {
             expect(schema.normalizeDiscordServers({ eventGuilds: [{ guildId: A, label: "PvE" }, { guildId: B }] })).toEqual({
-                ...blank, talkGuildId: "", servers: [{ guildId: A, label: "PvE" }, { guildId: B, label: "" }], links: [],
+                ...blank, servers: [{ guildId: A, label: "PvE" }, { guildId: B, label: "" }], links: [],
             });
         });
 
-        it("with a talk server: it joins the servers at the end", () => {
+        // #897: the talk server is an ordinary server, the field itself is gone
+        it("with a talk server: it joins the servers at the end, without a talk field", () => {
             const out = schema.normalizeDiscordServers({ eventGuilds: [{ guildId: A }], talkGuildId: T, talkPingChannelId: C1 });
             expect(out.servers.map((x) => x.guildId)).toEqual([A, T]);
-            expect(out.talkGuildId).toBe(T);
+            expect(out).not.toHaveProperty("talkGuildId");
             // #894: the talk server's ping channel is gone, an old one is dropped
             expect(out).not.toHaveProperty("talkPingChannelId");
         });
@@ -286,9 +293,9 @@ describe("stores/configSchema server federation (#890)", () => {
             expect(out.links).toEqual([{ from: A, to: A, channelId: C1, lang: "", versions: [] }]);
         });
 
-        it("talk = event server is kept now (no longer cleared): one server with both roles", () => {
+        it("talk = event server: one server, kept once", () => {
             const out = schema.normalizeDiscordServers({ eventGuilds: [{ guildId: A, label: "Alles" }], talkGuildId: A });
-            expect(out.talkGuildId).toBe(A);
+            expect(out).not.toHaveProperty("talkGuildId");
             expect(out.servers).toEqual([{ guildId: A, label: "Alles" }]);
         });
 
@@ -328,6 +335,7 @@ describe("stores/configSchema server federation (#890)", () => {
             expect(out[0]).toEqual({ guildId: A, label: "erst" });
         });
 
+        // the migration warns about this one (settingsMigration.migrateDiscordFederation)
         it("does not append the talk server once 10 servers are set", () => {
             const servers = Array.from({ length: 10 }, (_, i) => ({ guildId: String(600000 + i) }));
             expect(schema.normalizeDiscordServers({ servers, talkGuildId: T }).servers.map((x) => x.guildId)).not.toContain(T);

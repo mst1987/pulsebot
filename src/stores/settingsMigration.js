@@ -6,8 +6,8 @@
 //
 //   - raid-templates.json: a pre-#266 entry (a bare Raid-Helper `{ id, name }`)
 //     becomes a template without size (raidTemplateStore.migrateLegacyTemplates).
-//   - config.json, discordServers: an old single-server block (`eventGuildId` /
-//     `talkOverviewChannelId`, no `eventGuilds` list) becomes one list entry.
+//   - role-messages.json (#895), then config.json, discordServers + roleSync
+//     (#897) - in this order, see the last two entries below.
 //   - config.json, raidDefaults.templateId: the old global default (a Raid-Helper
 //     template id) is handed to every raid category as `categoryRaidTemplate`.
 //
@@ -102,16 +102,27 @@
 //     stored versions of #737, which read the same map.
 //
 //   - role-messages.json (#895): a role message saved before #895 names its
-//     server only by its side ("event"/"talk"). Its server of today - the talk
-//     server resp. the first server of the list (guildRoles.roleMessageGuild) -
-//     is written down as `guildId` once, while `talkGuildId` still exists; a
-//     later removal of it (#897) or a new order of the servers moves nothing.
+//     server only by its side ("event"/"talk"). Its server of today - the old
+//     talk server resp. the first server of the list - is written down as
+//     `guildId` once. Runs first, while the raw config.json still names the
+//     talk server; a new order of the servers later moves nothing.
+//
+//   - config.json, discordServers + roleSync (#897): the talk server is an
+//     ordinary server. A block still carrying `talkGuildId` (or the older
+//     `eventGuilds` / `eventGuildId` / `talkOverviewChannelId` /
+//     `talkPingChannelId`) or role-sync entries of before #896 is written down
+//     once in the federation shape: the talk server in `servers`, the links,
+//     every event/talk pair as a pair between two servers - and `talkGuildId`
+//     is gone. Without it a later saveConfig() (which writes the normalised
+//     config) would lose the talk server's pairs. Runs after the role messages.
 //
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
 const path = require("path");
 const { isSnowflake } = require("../utils/ids");
-const { CONFIG_DEFAULTS, normalizeCategoryVersion, normalizeDiscordServers } = require("./configSchema");
+const {
+    CONFIG_DEFAULTS, normalizeCategoryVersion, normalizeDiscordServers, normalizeRoleSync, roleSyncContext, MAX_SERVERS: MAX_EVENT_GUILDS,
+} = require("./configSchema");
 const { versionSettingsOf, versionsWithDefaults, fillDefaults } = require("./versionSettingsSchema");
 const { LEGACY_VERSION } = require("../config/gameVersions");
 const { mainVersionFor } = require("../services/events/mainVersion");
@@ -156,13 +167,68 @@ function legacyEventGuilds(raw) {
     }];
 }
 
-/** A servers block with its legacy event server as `eventGuilds`, or null when there is nothing to upgrade. */
-function migrateDiscordServers(servers) {
-    if (!servers || typeof servers !== "object" || Array.isArray(servers)) return null;
-    // Already a list (or the federation shape of #890, which configSchema reads).
-    if (Array.isArray(servers.eventGuilds) || Array.isArray(servers.servers)) return null;
-    const eventGuilds = legacyEventGuilds(servers);
-    return eventGuilds.length ? { ...servers, eventGuilds } : null;
+// Fields of a stored discordServers block from before the federation (#890-#897).
+const LEGACY_SERVER_KEYS = ["talkGuildId", "eventGuilds", "eventGuildId", "talkOverviewChannelId", "talkPingChannelId"];
+
+/** A role-sync entry of before #896 (event/talk role ids or an event/talk direction). */
+function isLegacyRoleSyncEntry(entry) {
+    if (!entry || typeof entry !== "object") return false;
+    const oldIds = entry.fromRoleId === undefined && entry.toRoleId === undefined
+        && (entry.eventRoleId !== undefined || entry.talkRoleId !== undefined);
+    return oldIds || entry.direction === "toTalk" || entry.direction === "toEvent";
+}
+
+/**
+ * The stored servers block in the federation shape plus the old talk server
+ * it named (`talkGuildId`, "" when none) - read from the raw file, because
+ * getConfig() no longer hands the talk server out (#897). An old single-server
+ * block (`eventGuildId`, no list) becomes its list first.
+ */
+function storedFederation(stored) {
+    const src = stored.discordServers && typeof stored.discordServers === "object" && !Array.isArray(stored.discordServers)
+        ? stored.discordServers : {};
+    const listed = Array.isArray(src.servers) || Array.isArray(src.eventGuilds);
+    const input = listed ? src : { ...src, eventGuilds: legacyEventGuilds(src) };
+    const fallbackGuildId = String(stored.guildId || "").trim() || CONFIG_DEFAULTS.guildId;
+    const talk = String(src.talkGuildId || "").trim();
+    return {
+        src,
+        block: normalizeDiscordServers(input, { fallbackGuildId }),
+        talkGuildId: isSnowflake(talk) ? talk : "",
+        fallbackGuildId,
+    };
+}
+
+/**
+ * config.json, discordServers + roleSync (#897): the talk server is an ordinary
+ * server. A store still carrying `talkGuildId` (or another field of before the
+ * federation) or role-sync entries of before #896 gets the federation shape
+ * written down once: the talk server in `servers` (at the end, when there is
+ * room), its links, and every old event/talk pair as a pair between two
+ * servers. `talkGuildId` is gone afterwards. Must run after
+ * migrateRoleMessageGuilds(), which still needs the talk server.
+ *
+ * With the full ten servers there is no room for a separate talk server: its
+ * links and the pairs to it are lost (a warning line names how many).
+ * @returns {string[]}
+ */
+function migrateDiscordFederation() {
+    const stored = configStore.readStored();
+    const { src, block, talkGuildId } = storedFederation(stored);
+    const rawSync = Array.isArray(stored.roleSync) ? stored.roleSync : [];
+    const oldBlock = stored.discordServers !== undefined
+        && (!Array.isArray(src.servers) || LEGACY_SERVER_KEYS.some((key) => src[key] !== undefined));
+    const oldSync = rawSync.some(isLegacyRoleSyncEntry);
+    if (!oldBlock && !oldSync) return [];
+    const serverIds = block.servers.map((s) => s.guildId);
+    const roleSync = normalizeRoleSync(rawSync, { serverIds, talkGuildId });
+    configStore.writeStored({ ...stored, discordServers: block, roleSync });
+    const out = [`config.json: Discord-Server ohne Talk-Server-Feld gespeichert (#897) - ${block.servers.length} Server, ${block.links.length} Verknüpfung(en), ${roleSync.length} Rollen-Paar(e)`];
+    if (talkGuildId && !serverIds.includes(talkGuildId)) {
+        const kept = normalizeRoleSync(rawSync, roleSyncContext(block, talkGuildId)).length;
+        out.push(`config.json: WARNUNG - der bisherige Talk-Server ${talkGuildId} passt nicht mehr in die Serverliste (höchstens ${MAX_EVENT_GUILDS}); ${kept - roleSync.length} Rollen-Paar(e) zu ihm und seine Verknüpfungen entfallen (#897)`);
+    }
+    return out;
 }
 
 /**
@@ -233,11 +299,6 @@ function migrateConfig() {
     const stored = configStore.readStored();
     const next = { ...stored };
     const changes = [];
-    const servers = migrateDiscordServers(stored.discordServers);
-    if (servers) {
-        next.discordServers = servers;
-        changes.push("config.json: discordServers.eventGuildId -> eventGuilds");
-    }
     const categoryRaidTemplate = migrateCategoryRaidTemplate(stored, raidTemplateStore.listRaidTemplates());
     if (categoryRaidTemplate) {
         next.categoryRaidTemplate = categoryRaidTemplate;
@@ -470,18 +531,18 @@ function migrateCouncilProfiles({ now = Date.now() } = {}) {
 
 /**
  * role-messages.json (#895): every old entry gets the server its side means
- * today - the talk server for "talk", else the first server of the list. The
- * same rule as guildRoles.roleMessageGuild, computed here from configSchema
- * (guildRoles requires settingsStore, which requires this file: a cycle).
+ * today - the old talk server for "talk" (read from the raw config.json, as
+ * long as it still names one), else the first server of the list; "talk"
+ * without a talk server meant the one server too. The same rule as
+ * guildRoles.roleMessageGuild, computed here from configSchema (guildRoles
+ * requires settingsStore, which requires this file: a cycle). Runs before
+ * migrateDiscordFederation(), which drops `talkGuildId`.
  */
 function migrateRoleMessageGuilds() {
-    const config = configStore.getConfig();
-    const raw = (config && config.discordServers) || {};
-    const block = Array.isArray(raw.servers) ? raw : normalizeDiscordServers(raw, { fallbackGuildId: (config && config.guildId) || "" });
-    const firstId = (Array.isArray(block.servers) ? block.servers : []).map((s) => String((s && s.guildId) || "").trim()).find(Boolean)
-        || String((config && config.guildId) || "").trim();
-    const talkId = String(block.talkGuildId || "").trim();
-    const moved = roleMessageStore.migrateGuildSides((entry) => (entry.guildSide === "talk" ? talkId : firstId));
+    const stored = configStore.readStored();
+    const { block, talkGuildId, fallbackGuildId } = storedFederation(stored);
+    const firstId = (block.servers[0] && block.servers[0].guildId) || fallbackGuildId;
+    const moved = roleMessageStore.migrateGuildSides((entry) => (entry.guildSide === "talk" && talkGuildId ? talkGuildId : firstId));
     return moved ? [`role-messages.json: ${moved} Rollen-Nachricht(en) ihrem Server fest zugeordnet (#895)`] : [];
 }
 
@@ -500,6 +561,9 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         if (overflowEvents) changes.push(`events.json: ${overflowEvents} Event(s) auf "keine Grenze" umgestellt (overflow none, lockAtLimit aus)`);
         const templates = raidTemplateStore.migrateLegacyTemplates();
         if (templates) changes.push(`raid-templates.json: ${templates} alte Raid-Helper-Vorlage(n) umgestellt`);
+        // Order matters (#897): the role messages read the old talk server, the federation step drops it.
+        changes.push(...migrateRoleMessageGuilds());
+        changes.push(...migrateDiscordFederation());
         changes.push(...migrateConfig());
         const plans = raidplanStore.migrateEventDefaults({ instanceIdsOf: (plan) => (eventStore.getEvent(plan.eventId) || {}).instanceIds || [] });
         if (plans) changes.push(raidplanDefaultsLine(plans));
@@ -513,7 +577,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateStoredVersions());
         changes.push(...migrateCategoryVersions());
         changes.push(...migrateCouncilProfiles());
-        changes.push(...migrateRoleMessageGuilds());
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
         return { changes, error };
@@ -523,6 +586,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, raidplanDefaultsLine,
-    legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
+    migrateSettings, migrateRaidplanVersions, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateDiscordFederation, raidplanDefaultsLine,
+    migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

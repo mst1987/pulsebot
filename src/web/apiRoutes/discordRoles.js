@@ -11,7 +11,7 @@
 //       key: a discord.js permission flag name ("ManageRoles"); the page has the labels
 //       Use: { code: "admin"|"orga"|"officer" } | { code: "rolePermissions", areas }
 //            | { code: "botCommand", commands } | { code: "categoryRaider", categoryIds, categories: [{ id, name }] }
-//            | { code: "roleSync", sides } | { code: "roster", rosterId, name, kinds }
+//            | { code: "roleSync", guildIds, servers: [{ guildId, name }] } | { code: "roster", rosterId, name, kinds }
 //            | { code: "roleMessage", messageId, title } | { code: "addonUpdates" }
 //       assign.reason: "" | "everyone" | "managed" | "botRole" | "noManageRoles" | "above"
 //       Hint: "empty" (no members) | "sensitive" (sensitive permissions) | "aboveBot" (the bot
