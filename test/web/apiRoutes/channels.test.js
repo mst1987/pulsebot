@@ -3,6 +3,8 @@
 
 const { mockRes, status, json, routerClient } = require("../../helpers/http");
 
+// #927: Raid-Helper on for every server, as before it was set per server
+jest.mock("../../../src/utils/raidhelper/servers", () => require("../../helpers/raidhelperOn").serversMock());
 jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
@@ -280,7 +282,8 @@ describe("web/apiRoutes/channels", () => {
                     { id: "c2", name: "bewerbungen", type: 0, typeLabel: "Text", category: "", parentId: "", botCanView: true, botCanSend: false },
                 ]);
                 settingsStore.getConfig.mockReturnValue({
-                    logChannelIds: ["c1"], applicationChannelId: "c2", categoryIds: ["cat1"],
+                    serverSettings: { "guild-1": { logChannels: [{ channelId: "c1", versionId: "tbc" }] } },
+                    applicationChannelId: "c2", categoryIds: ["cat1"],
                     raidDefaults: { templateId: "t", channelId: "" },
                 });
                 settingsStore.listRecruitmentPosts.mockReturnValue([

@@ -112,7 +112,9 @@ export default function CategoryMatrix(props: CategorySettings & {
     const activeCount = categoryIds.filter((id) => rows.some((r) => r.id === id)).length;
     // #291: the raid categories whose new events still go to Raid-Helper — one
     // badge in the head, the names in its tooltip, the way out in Verbindungen.
-    const stillRaidhelper = rows.filter((r) => categoryIds.includes(r.id) && (categorySignupSource[r.id] || signupSourceDefault) === "raidhelper");
+    // #927: on a server without Raid-Helper no category still creates there
+    const stillRaidhelper = props.raidhelperActive === false ? []
+        : rows.filter((r) => categoryIds.includes(r.id) && (categorySignupSource[r.id] || signupSourceDefault) === "raidhelper");
 
     const partHead = (
         <PartHead

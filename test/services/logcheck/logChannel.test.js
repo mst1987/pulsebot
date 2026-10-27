@@ -40,7 +40,7 @@ function msg(over = {}) {
 beforeEach(() => {
     jest.clearAllMocks();
     discord.getClient.mockReturnValue(CLIENT);
-    getConfig.mockReturnValue({ logChannelIds: ["logch"] });
+    getConfig.mockReturnValue({ serverSettings: { g1: { logChannels: [{ channelId: "logch", versionId: "forever" }] } } });
     logStore.getByReportId.mockReturnValue(null);
     // the real saveLog dedups by reportId and keeps the existing entry's state,
     // so a refresh of an already-evaluated log carries its sections along
@@ -108,7 +108,7 @@ describe("services/logcheck/logChannel — enrichLogButton", () => {
 describe("services/logcheck/logChannel — handleLogMessage", () => {
     it("registers a fresh log and posts the evaluate buttons", async () => {
         await handleLogMessage(msg({ content: "log https://classic.warcraftlogs.com/reports/RPT1" }));
-        expect(logStore.saveLog).toHaveBeenCalledWith(expect.objectContaining({ reportId: "RPT1", channelId: "logch", source: "listener", postedAt: 111000 }));
+        expect(logStore.saveLog).toHaveBeenCalledWith(expect.objectContaining({ reportId: "RPT1", channelId: "logch", source: "listener", postedAt: 111000, channelVersionId: "forever" }));
         expect(discord.postLogButton).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({ logId: "log1", doneSections: [] }));
         expect(logStore.setButtonMessage).toHaveBeenCalledWith("log1", { channelId: "logch", messageId: "btn1" });
     });
@@ -117,6 +117,17 @@ describe("services/logcheck/logChannel — handleLogMessage", () => {
         await handleLogMessage(msg({ channelId: "other", content: "https://classic.warcraftlogs.com/reports/RPT1" }));
         expect(logStore.saveLog).not.toHaveBeenCalled();
         expect(discord.postLogButton).not.toHaveBeenCalled();
+    });
+
+    it("ignores a log channel of another server (#921)", async () => {
+        await handleLogMessage(msg({ guildId: "g2", content: "https://classic.warcraftlogs.com/reports/RPT1" }));
+        expect(logStore.saveLog).not.toHaveBeenCalled();
+    });
+
+    it("still listens to the old global list until its migration ran, without a channel version", async () => {
+        getConfig.mockReturnValue({ logChannelIds: ["logch"] });
+        await handleLogMessage(msg({ content: "https://classic.warcraftlogs.com/reports/RPT1" }));
+        expect(logStore.saveLog).toHaveBeenCalledWith(expect.objectContaining({ reportId: "RPT1", channelVersionId: "" }));
     });
 
     it("ignores the bot's own messages", async () => {
@@ -262,12 +273,39 @@ describe("services/logcheck/logChannel — scanLogChannels", () => {
 
         const count = await scanLogChannels("g1");
         expect(count).toBe(1);
-        expect(logStore.saveLog).toHaveBeenCalledWith(expect.objectContaining({ reportId: "RPT1", source: "scan", postedAt: 222000 }));
+        expect(logStore.saveLog).toHaveBeenCalledWith(expect.objectContaining({ reportId: "RPT1", source: "scan", postedAt: 222000, channelVersionId: "forever" }));
+    });
+
+    it("visits only the channels of the server it scans (#921)", async () => {
+        const mine = makeChannel({ id: "logch", guildId: "g1", messages: [] });
+        const other = makeChannel({ id: "otherch", guildId: "g2", messages: [] });
+        getConfig.mockReturnValue({ serverSettings: {
+            g1: { logChannels: [{ channelId: "logch", versionId: "tbc" }] },
+            g2: { logChannels: [{ channelId: "otherch", versionId: "classic" }] },
+        } });
+        const client = makeClient({ user: BOT, channels: [mine, other] });
+        discord.getClient.mockReturnValue(client);
+
+        await scanLogChannels("g1");
+        expect(client.channels.fetch).toHaveBeenCalledTimes(1);
+        expect(client.channels.fetch).toHaveBeenCalledWith("logch");
+    });
+
+    it("visits every server's channels and the old global list without a guild", async () => {
+        getConfig.mockReturnValue({
+            serverSettings: { g1: { logChannels: [{ channelId: "logch", versionId: "" }] }, g2: { logChannels: [{ channelId: "otherch", versionId: "" }] } },
+            logChannelIds: ["legacych", "logch"],
+        });
+        const client = makeClient({ user: BOT, channels: [] });
+        discord.getClient.mockReturnValue(client);
+
+        await scanLogChannels();
+        expect(client.channels.fetch.mock.calls.map((c) => c[0])).toEqual(["logch", "otherch", "legacych"]);
     });
 
     it("skips a channel that is gone or holds no messages", async () => {
         const voice = makeChannel({ id: "voice", type: ChannelType.GuildVoice, guildId: "g1" });
-        getConfig.mockReturnValue({ logChannelIds: ["gone", "voice"] });
+        getConfig.mockReturnValue({ serverSettings: { g1: { logChannels: [{ channelId: "gone", versionId: "" }, { channelId: "voice", versionId: "" }] } } });
         const client = makeClient({ user: BOT, channels: [voice] }); // "gone" is unknown
         const { fetch } = client.channels;
         discord.getClient.mockReturnValue(client);

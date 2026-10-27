@@ -2,6 +2,7 @@
     "crumb": "Einstellungen › {crumb}",
     "saving": "Speichert…",
     "savedToast": "Gespeichert.",
+    "serverSwitched": "Der Discord-Server wurde in einem anderen Tab gewechselt – bitte die Seite neu laden. Nichts wurde gespeichert.",
     "account": "Konto {id}",
     "noName": "(ohne Name)",
     "editKicker": "Verbindung bearbeiten",
@@ -37,6 +38,10 @@
         "raidsheets": {
             "label": "Raidsheets",
             "crumb": "Module · Google-Sheets nach Content"
+        },
+        "raidhelper": {
+            "label": "Raid-Helper",
+            "crumb": "Server · Raid-Helper an diesem Server"
         },
         "topitems": {
             "label": "Top-Items",
@@ -82,7 +87,7 @@
         "raidsheetsSub": "Google-Sheets nach Content (Tier 4/5 usw.). Beim Füllen wird anhand der Keywords das passende Sheet vorgeschlagen. Ein festes Sheet für eine ganze Raid-Kategorie wird unter Kategorien zugewiesen.",
         "topItemsSub": "Die richtig großen Drops — Waffen, Legendary-Teile, alles, was die Gilde als besonders wertet. Vergibt ein Raid eines davon, hebt das Dashboard die Vergabe hervor. Welches Loot-Addon eine Kategorie benutzt, steht unter Kategorien.",
         "logChannels": "Log-Kanäle",
-        "logChannelsSub": "Kanäle, in denen automatisch Warcraft-Logs gepostet werden. Der Bot hängt dort die Auswertungs-Knöpfe an.",
+        "logChannelsSub": "Kanäle dieses Servers, in denen Warcraft-Logs gepostet werden. Der Bot hängt dort die Auswertungs-Knöpfe an. Die Spielversion legt fest, wofür ein Log zählt, solange er keinem Raid zugeordnet ist; „Nach Log-Seite“ nimmt die Version der Warcraft-Logs-Seite.",
         "appChannel": "Bewerbungs-Kanal",
         "appChannelSub": "Kanal, in dem neue Bewerbungen als Thread gepostet werden.",
         "officerRole": "Offizier-Rolle",
@@ -406,7 +411,11 @@
         "noTopItem": "Noch kein Top-Item.",
         "unknownChannel": "Unbekannter Kanal",
         "removeChannel": "Kanal entfernen",
-        "addChannel": "+ Kanal hinzufügen"
+        "addChannel": "+ Kanal hinzufügen",
+        "logVersionAuto": "Aus der Kategorie",
+        "logVersionHost": "Nach Log-Seite",
+        "logVersionFor": "Spielversion für {name}",
+        "logNoServer": "Log-Kanäle gelten je Server. Wähle zuerst einen Server aus."
     },
     "raiderChars": {
         "saved": "Zuordnung für {name} gespeichert.",
@@ -675,7 +684,7 @@
         "discordMissing": "Der Bot ist gerade nicht verbunden — Server- und Rollenlisten fehlen, bis er wieder online ist.",
         "raidhelperId": "Raid-Helper Server-ID",
         "raidhelperIdPlaceholder": "Server-ID von raid-helper.xyz",
-        "raidhelperIdSub": "Wird für alle Raid-Helper-API-Aufrufe verwendet (Events, Setups, Anmeldungen). Der API-Key selbst bleibt in der .env.",
+        "raidhelperIdSub": "Alter Wert von vor #927, nur noch für die einmalige Übernahme. Raid-Helper wird jetzt je Server eingestellt: Einstellungen › Server › Raid-Helper.",
         "battlenetMissing": "Ohne Client-ID und Secret zeigt die Char-Historie kein Live-Gear.",
         "battlenetLink": "Client anlegen auf develop.battle.net",
         "battlenetClientPlaceholder": "Client-ID von develop.battle.net",
@@ -709,7 +718,25 @@
         "githubMissing": "Ohne Token zeigt die Seite „Addons“ die privaten Addons als „gerade nicht verfügbar“.",
         "githubLink": "Token anlegen auf github.com",
         "githubTokenTip": "Fine-grained Personal Access Token",
-        "githubTokenSub": "Auf github.com unter Settings → Developer settings → Fine-grained tokens anlegen: Repository access „Only select repositories“ mit den Addon-Repos, Permissions → Repository → Contents: „Read-only“. Sonst nichts."
+        "githubTokenSub": "Auf github.com unter Settings → Developer settings → Fine-grained tokens anlegen: Repository access „Only select repositories“ mit den Addon-Repos, Permissions → Repository → Contents: „Read-only“. Sonst nichts.",
+        "raidhelperPerServer": "je Server (Einstellungen › Server › Raid-Helper)"
+    },
+    "raidhelperServer": {
+        "sectionSub": "Raid-Helper gilt je Discord-Server. Aus heißt: keine Anfragen an Raid-Helper, neue Events nur in EventHelper.",
+        "enabled": "Raid-Helper auf diesem Server",
+        "enabledTip": "Aus: der Bot fragt Raid-Helper für diesen Server nie an, Kategorien legen Events nur in EventHelper an. Alte Raid-Helper-Raids bleiben lesbar.",
+        "serverId": "Raid-Helper-Server-ID",
+        "serverIdSub": "Leer lassen: Raid-Helper wird unter der ID dieses Discord-Servers gefragt. Nur ausfüllen, wenn Raid-Helper unter einer anderen ID läuft (z. B. Testinstanz).",
+        "serverIdNote": "Leer = ID dieses Discord-Servers.",
+        "serverIdInvalid": "Nur Ziffern erlaubt.",
+        "key": "API-Schlüssel",
+        "keySub": "Der Raid-Helper-API-Schlüssel dieses Servers. Er wird nie angezeigt, nur ersetzt oder gelöscht.",
+        "keyStored": "Gespeichert, endet auf …{{last4}}",
+        "keyStoredShort": "Gespeichert",
+        "keyEnv": "Aus der .env (bisheriger Server)",
+        "keyNone": "Kein Schlüssel hinterlegt",
+        "noKeyHint": "Ohne Schlüssel bleibt Raid-Helper hier aus.",
+        "saved": "Raid-Helper gespeichert"
     },
     "tokens": {
         "revokeAsk": "Token „{name}“ zurückziehen?",
@@ -993,7 +1020,8 @@
         "signupCharsAria": "Charaktere je Anmeldung {name}",
         "signupCharsLess": "Ein Charakter weniger",
         "signupCharsMore": "Ein Charakter mehr",
-        "signupCharsUnit": "Charaktere"
+        "signupCharsUnit": "Charaktere",
+        "newEventsNoRh": "Raid-Helper ist auf diesem Server aus, neue Events entstehen in EventHelper."
     },
     "botCommands": {
         "mode": {

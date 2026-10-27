@@ -31,7 +31,7 @@ const { mainVersionFor, isVersionVisible } = require("./mainVersion");
 const { templateVersionProblem } = require("./categoryEras");
 const { emojiStyleOf } = require("../discord/appEmojis");
 const { normalizeOverflow, normalizeLockAtLimit } = require("../../utils/signup/capacity");
-const { createRaidhelperClient } = require("../../utils/raidhelper/client");
+const { createRaidhelperClient, raidhelperDisabled } = require("../../utils/raidhelper/client");
 const { toRaidHelperDate } = require("../../utils/time");
 
 const { TIMEZONE } = require("../../config/timezone");
@@ -520,7 +520,7 @@ async function createEvent({ guildId, user, body = {}, allowHidden = false, guar
     // validation
     const date = toRaidHelperDate(body.date);
     if (!date) return fail(400, "invalid_date", "Ungültiges Datum.");
-    const rh = createRaidhelperClient();
+    const rh = createRaidhelperClient({ guildId });
     const catMap = categoryMap(guildId);
     const request = channelRequest(body);
     const resolved = await resolveChannelSource(rh, guildId, request);
@@ -529,7 +529,9 @@ async function createEvent({ guildId, user, body = {}, allowHidden = false, guar
 
     // normalisation: the category decides the source; the caller may pick the other one for one event
     const { meta, categoryId } = categoryOf(guildId, catMap, request, sourceChannel);
-    const source = SOURCES.includes(body.signupSource) ? body.signupSource : signupSourceFor(categoryId);
+    // a server without Raid-Helper (#927) makes every event in the EventHelper
+    const source = raidhelperDisabled(undefined, guildId) ? "eventhelper"
+        : SOURCES.includes(body.signupSource) ? body.signupSource : signupSourceFor(categoryId, undefined, { guildId });
     const title = String(body.title || "").trim();
     let plan = null;
     let startTime = 0;

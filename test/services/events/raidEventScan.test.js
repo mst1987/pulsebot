@@ -25,6 +25,10 @@ const { scanRaidEvents, scanAllGuilds, _resetProbesForTests } = require("../../.
 const { runInBackground } = require("../../../src/utils/raidhelper/budget");
 const { RECENT_WINDOW_DAYS } = require("../../../src/services/events/recentEvents.js");
 
+// g1 and g2 have Raid-Helper switched on (#927)
+const RH_ON = { raidhelper: { enabled: true, apiKey: "fake-key-for-tests" } };
+const withRaidhelper = (extra = {}) => ({ serverSettings: { g1: RH_ON, g2: RH_ON }, ...extra });
+
 describe("services/events/raidEventScan", () => {
     const NOW = 1_700_000_000_000;
     let nowSpy;
@@ -37,7 +41,7 @@ describe("services/events/raidEventScan", () => {
         mockListGuilds.mockReset().mockReturnValue([]);
         mockSaveRaidEvents.mockReset().mockReturnValue(0);
         mockGetRaidEvent.mockReset().mockReturnValue(null);
-        mockConfig = {};
+        mockConfig = withRaidhelper();
         _resetProbesForTests();
     });
     afterEach(() => nowSpy.mockRestore());
@@ -77,7 +81,7 @@ describe("services/events/raidEventScan", () => {
         // #737: the version the category plays at the scan goes along; the store
         // keeps it only on the first scan (raidEventStore.test.js).
         it("hands in the version the event's category plays right now", async () => {
-            mockConfig = { mainVersion: "tbc", categoryVersion: { cat: "forever" } };
+            mockConfig = withRaidhelper({ mainVersion: "tbc", categoryVersion: { cat: "forever" } });
             mockGetPastEvents.mockResolvedValue([
                 { id: "e1", channelId: "c1", title: "Ony", startTime: 100 },
                 { id: "e2", channelId: "c2", title: "Kara", startTime: 200 },
@@ -212,6 +216,13 @@ describe("services/events/raidEventScan", () => {
             expect(result).toEqual({ scanned: 0, error: "API kaputt" });
             expect(mockSaveRaidEvents).not.toHaveBeenCalled();
         });
+    });
+
+    // #927: a server without Raid-Helper sends no request
+    it("asks nothing for a server without Raid-Helper", async () => {
+        mockConfig = { serverSettings: { g1: RH_ON } };
+        expect(await scanRaidEvents("g2")).toEqual({ scanned: 0, error: null, disabled: true });
+        expect(mockGetPastEvents).not.toHaveBeenCalled();
     });
 
     describe("scanAllGuilds", () => {

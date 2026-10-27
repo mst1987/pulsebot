@@ -1,4 +1,6 @@
 const mockGetPastEvents = jest.fn();
+// #927: Raid-Helper on for every server, as before it was set per server
+jest.mock("../../../src/utils/raidhelper/servers", () => require("../../helpers/raidhelperOn").serversMock());
 jest.mock("../../../src/classes/raidhelper", () =>
     jest.fn().mockImplementation(() => ({ getPastEvents: mockGetPastEvents })));
 jest.mock("../../../src/services/discord/discord", () => ({ getChannelCategoryMap: jest.fn() }));

@@ -15,6 +15,8 @@ const { ALIASES } = require("../../config/classlist");
 const { categoryNameAt } = require("./categoryEras");
 const { visibleRows, versionOfEvent } = require("./mainVersion");
 const { signupEventIdOf, raidIndexOf } = require("../../utils/raidGroup");
+const { raidhelperActive, activeRaidhelperGuilds } = require("../../utils/raidhelper/servers");
+const { firstServerId, storedCategoryGuilds } = require("../discord/serverOf");
 
 const SOURCES = ["raidhelper", "eventhelper"];
 const DEFAULT_SOURCE = "raidhelper";
@@ -75,19 +77,48 @@ function specKeyFromRaidHelper(className, specName) {
     return own || "";
 }
 
-/** The source a category without its own choice gets (config.signupSourceDefault). */
-function defaultSignupSource(config = getConfig()) {
+// Whether Raid-Helper may be offered: for one server, or (no id) for any (#927).
+function raidhelperUsable(config, guildId) {
+    if (guildId) return raidhelperActive(guildId, config);
+    return activeRaidhelperGuilds(config).length > 0;
+}
+
+/**
+ * The source a category without its own choice gets (config.signupSourceDefault).
+ * EventHelper when no server has Raid-Helper switched on (#927); with `guildId`,
+ * when that server has not.
+ */
+function defaultSignupSource(config = getConfig(), { guildId } = {}) {
+    if (!raidhelperUsable(config, guildId)) return "eventhelper";
     const value = config && config.signupSourceDefault;
     return SOURCES.includes(value) ? value : DEFAULT_SOURCE;
+}
+
+/**
+ * The server a category belongs to (the stored category-name snapshot, no
+ * Discord), else the first server.
+ */
+function guildOfCategory(categoryId, config) {
+    try {
+        return storedCategoryGuilds().get(String(categoryId || "")) || firstServerId(config);
+    } catch {
+        return firstServerId(config);
+    }
 }
 
 /**
  * A category's source for NEW events: its own choice, else the default —
  * EventHelper since #291 for a category that is new, while the categories an
  * install already had stay on Raid-Helper until someone switches them
- * (settingsStore.signupSourcesOf pins them).
+ * (settingsStore.signupSourcesOf pins them). A category of a server without
+ * Raid-Helper (#927) is always EventHelper, whatever was stored; `guildId`
+ * names that server when the caller knows it.
  */
-function signupSourceFor(categoryId, config = getConfig()) {
+function signupSourceFor(categoryId, config = getConfig(), { guildId } = {}) {
+    // no server with Raid-Helper: nothing to look up
+    if (!activeRaidhelperGuilds(config).length) return "eventhelper";
+    const server = guildId || guildOfCategory(categoryId, config);
+    if (server && !raidhelperActive(server, config)) return "eventhelper";
     const map = (config && config.categorySignupSource) || {};
     const value = map[String(categoryId || "")];
     return SOURCES.includes(value) ? value : defaultSignupSource(config);

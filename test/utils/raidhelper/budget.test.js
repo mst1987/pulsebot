@@ -11,7 +11,9 @@ const PROD = { NODE_ENV: "production" };
 const DEV = { NODE_ENV: "development" };
 
 const hourOf = (ms) => String(Math.floor(ms / HOUR));
-const fill = (hours) => budgetStore.writeBudget({ hours });
+const fill = (hours) => budgetStore.writeBudget("", { hours });
+const A = "111111111111111111";
+const B = "222222222222222222";
 
 beforeEach(() => budgetStore.useFile(tempStoreFile("raidhelper-budget.json")));
 afterAll(() => budgetStore.useFile(null));
@@ -62,10 +64,10 @@ describe("utils/raidhelper/budget", () => {
             budget.record({ now: NOW });
             budget.record({ now: NOW });
             budget.record({ now: NOW - 23 * HOUR });
-            fill({ ...budgetStore.readBudget().hours, [hourOf(NOW - 25 * HOUR)]: 500 });
+            fill({ ...budgetStore.readBudget("").hours, [hourOf(NOW - 25 * HOUR)]: 500 });
             expect(budget.status({ now: NOW, env: PROD }).used).toBe(3);
             budget.record({ now: NOW });
-            expect(Object.keys(budgetStore.readBudget().hours)).not.toContain(hourOf(NOW - 25 * HOUR));
+            expect(Object.keys(budgetStore.readBudget("").hours)).not.toContain(hourOf(NOW - 25 * HOUR));
         });
 
         it("lets a request through below its cap", () => {
@@ -110,6 +112,36 @@ describe("utils/raidhelper/budget", () => {
             budget.noteRateLimited({ reason: "Try again in 5 hour(s)" }, { now: NOW });
             budget.noteRateLimited({ reason: "Try again in 0 hour(s)" }, { now: NOW });
             expect(budget.status({ now: NOW }).blockedUntil).toBe(NOW + 6 * HOUR);
+        });
+    });
+
+    // #927: every server asks with its own key, so it has its own 1000 a day
+    describe("per server", () => {
+        it("counts each server on its own", () => {
+            const a = budget.forServer(A);
+            const b = budget.forServer(B);
+            a.record({ now: NOW });
+            a.record({ now: NOW });
+            b.record({ now: NOW });
+            expect(a.status({ now: NOW, env: PROD }).used).toBe(2);
+            expect(b.status({ now: NOW, env: PROD }).used).toBe(1);
+            expect(budget.status({ now: NOW, env: PROD }).used).toBe(0);
+            budgetStore.writeBudget(A, { hours: { [hourOf(NOW)]: RAIDHELPER_BUDGET.read } });
+            expect(() => a.check("read", { now: NOW, env: PROD })).toThrow(/Kontingent geschont/);
+            expect(() => b.check("read", { now: NOW, env: PROD })).not.toThrow();
+        });
+
+        it("pauses only the server that got the 429", () => {
+            const a = budget.forServer(A);
+            const b = budget.forServer(B);
+            a.noteRateLimited({ reason: "Try again in 2 hour(s)" }, { now: NOW });
+            expect(() => a.check("write", { now: NOW, env: PROD })).toThrow(/Tageslimit gemeldet/);
+            expect(() => b.check("write", { now: NOW, env: PROD })).not.toThrow();
+            expect(a.status({ now: NOW }).blockedUntil).toBe(NOW + 3 * HOUR);
+            expect(b.status({ now: NOW }).blockedUntil).toBe(0);
+            expect(a.guildId).toBe(A);
+            expect(a.priorityFor("post")).toBe("write");
+            expect(a.isBudgetError({ code: budget.BUDGET_CODE })).toBe(true);
         });
     });
 

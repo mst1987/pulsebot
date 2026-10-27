@@ -71,12 +71,19 @@ function hasSignUp(event, userid) {
 }
 
 class Raidhelper {
-    // opts.serverId lets callers override the raid-helper.xyz server id from the
-    // admin-editable settings store (see utils/raidhelper/client.js); apiKey stays
-    // env-only since it's a real secret.
+    // One Discord server's Raid-Helper (#927, utils/raidhelper/client.js):
+    // opts.serverId, opts.apiKey and opts.budget come from that server's
+    // settings (utils/raidhelper/servers.js); without them the .env values and
+    // the shared budget. The key is non-enumerable so a logged or serialised
+    // client never carries it.
     constructor(opts = {}) {
-        this.apiKey = process.env.RAIDHELPER_API_KEY;
-        this.serverId = opts.serverId || process.env.RAIDHELPER_SERVER_ID;
+        Object.defineProperty(this, "apiKey", {
+            value: "apiKey" in opts ? opts.apiKey : process.env.RAIDHELPER_API_KEY,
+            enumerable: false,
+            writable: true,
+        });
+        this.serverId = "serverId" in opts ? opts.serverId : process.env.RAIDHELPER_SERVER_ID;
+        this.budget = opts.budget || budget;
         this.snapshot = typeof opts.snapshot === "function" ? opts.snapshot : null;
         this.cacheMs = Number(opts.cacheMs) || 0;
         this.onWrite = typeof opts.onWrite === "function" ? opts.onWrite : null;
@@ -88,7 +95,7 @@ class Raidhelper {
         });
         // every attempt that leaves counts against the budget, a retry too
         this.http.interceptors.request.use((config) => {
-            budget.record();
+            this.budget.record();
             return config;
         });
     }
@@ -97,14 +104,14 @@ class Raidhelper {
     // contract above) and throws the ApiError only when no answer came — or
     // the budget's refusal, before anything is sent.
     async send(config) {
-        budget.check(budget.priorityFor(config.method));
+        this.budget.check(budget.priorityFor(config.method));
         try {
             const headers = { Authorization: this.apiKey, ...config.headers };
             const res = await this.http.request({ ...RAW, ...config, headers });
             return { status: res.status, body: res.data };
         } catch (err) {
             if (err && err.kind === "http") {
-                if (err.status === 429) budget.noteRateLimited(err.data);
+                if (err.status === 429) this.budget.noteRateLimited(err.data);
                 return { status: err.status, body: err.data };
             }
             throw err;

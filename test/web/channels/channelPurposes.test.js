@@ -6,7 +6,7 @@ describe("channelPurposes", () => {
     it("lists the four purposes with their WoW icons and config keys", () => {
         expect(PURPOSES.map((p) => [p.id, p.icon, p.key])).toEqual([
             ["raid", "inv_misc_note_02", "raidDefaults.channelId"],
-            ["logs", "inv_misc_pocketwatch_01", "logChannelIds"],
+            ["logs", "inv_misc_pocketwatch_01", "logChannels"],
             ["application", "inv_misc_grouplooking", "applicationChannelId"],
             ["eventCategories", "achievement_boss_illidan", "categoryIds"],
         ]);
@@ -14,9 +14,15 @@ describe("channelPurposes", () => {
     });
 
     it("reads the ids from the config, trimmed and de-duplicated", () => {
-        const cfg = { raidDefaults: { channelId: " 1 " }, logChannelIds: ["2", "2", ""], applicationChannelId: "" };
+        const cfg = {
+            raidDefaults: { channelId: " 1 " },
+            serverSettings: { g1: { logChannels: [" 2 ", "2", ""] }, g2: { logChannels: ["3"] } },
+            applicationChannelId: "",
+        };
         expect(idsFor(PURPOSES[0], cfg)).toEqual(["1"]);
-        expect(idsFor(PURPOSES[1], cfg)).toEqual(["2"]);
+        expect(idsFor(PURPOSES[1], cfg, "g1")).toEqual(["2"]);
+        // log channels belong to one server (#921): none without one
+        expect(idsFor(PURPOSES[1], cfg)).toEqual([]);
         expect(idsFor(PURPOSES[2], cfg)).toEqual([]);
         expect(idsFor(PURPOSES[0], undefined)).toEqual([]);
     });
@@ -44,13 +50,13 @@ describe("channelPurposes", () => {
         const categories = [{ id: "k1", name: "Raid Montag" }, { id: "k2", name: "Raid Donnerstag" }];
         const config = {
             raidDefaults: { templateId: "x", channelId: "an" },
-            logChannelIds: ["mo", "do"],
+            serverSettings: { g1: { logChannels: [{ channelId: "mo", versionId: "tbc" }, { channelId: "do", versionId: "forever" }] } },
             applicationChannelId: "bw",
             categoryIds: ["k1", "k2"],
         };
 
         it("resolves every purpose to its channels and a status", () => {
-            const byId = Object.fromEntries(resolvePurposes(config, channels, categories).map((p) => [p.id, p]));
+            const byId = Object.fromEntries(resolvePurposes(config, channels, categories, true, "g1").map((p) => [p.id, p]));
             expect(byId.raid.status).toMatchObject({ tone: "mid", label: "Bot darf nicht schreiben" });
             expect(byId.logs.items.map((i) => i.name)).toEqual(["mo-logs", "do-logs"]);
             expect(byId.logs.status).toMatchObject({ tone: "ok", label: "Bot liest mit" });
@@ -70,7 +76,7 @@ describe("channelPurposes", () => {
         });
 
         it("does not turn a multi-channel purpose yellow for a channel of another server", () => {
-            const logs = resolvePurposes({ logChannelIds: ["mo", "elsewhere"] }, channels, categories).find((p) => p.id === "logs");
+            const logs = resolvePurposes({ serverSettings: { g1: { logChannels: ["mo", "elsewhere"] } } }, channels, categories, true, "g1").find((p) => p.id === "logs");
             expect(logs.items[1].status.label).toBe("Kanal nicht gefunden");
             expect(logs.status).toMatchObject({ tone: "ok", label: "Bot liest mit" });
         });
@@ -82,7 +88,7 @@ describe("channelPurposes", () => {
         });
 
         it("summarises set, missing and not-working purposes", () => {
-            expect(purposeSummary(resolvePurposes(config, channels, categories))).toEqual({ set: 4, missing: 0, warnings: 1 });
+            expect(purposeSummary(resolvePurposes(config, channels, categories, true, "g1"))).toEqual({ set: 4, missing: 0, warnings: 1 });
             expect(purposeSummary(undefined)).toEqual({ set: 0, missing: 0, warnings: 0 });
         });
     });

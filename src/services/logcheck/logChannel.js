@@ -1,5 +1,5 @@
-// Log-channel watcher: detects Warcraft-Logs links posted into the configured
-// log channels, tracks them, and evaluates them once (via the shared buildReport
+// Log-channel watcher: detects Warcraft-Logs links posted into the log channels
+// of a server (#921: serverSettings[guildId].logChannels, logChannelSettings.js), tracks them, and evaluates them once (via the shared buildReport
 // pipeline). Used by both the live messageCreate listener and the admin menu.
 
 const { getConfig } = require("../../stores/settingsStore");
@@ -12,6 +12,7 @@ const { wclClientFor, recordVersion } = require("./logVersion");
 const { autoLinkLogs } = require("./logAutoLink");
 // Re-exported: the pages ask logChannel for the titles; the code lives in logTitles.js.
 const { backfillLogTitles } = require("./logTitles");
+const { logChannelEntry, logChannelsOf, allLogChannels } = require("./logChannelSettings");
 
 // In-process guard so a double click (or a click racing the web button) cannot
 // start two evaluations of the same log before the first marks it done.
@@ -67,10 +68,35 @@ async function enrichLogButton(log, btn, { client } = {}) {
     }
 }
 
-/** Is this channel one of the configured log channels? */
-function isLogChannel(channelId) {
-    const ids = getConfig().logChannelIds || [];
-    return ids.includes(channelId);
+/**
+ * The log-channel entry of `channelId` on `guildId` ({ channelId, versionId }),
+ * null when that server does not watch it (#921: the channels are per server).
+ * While the old global list still waits for its migration (logChannelMigration.js:
+ * the bot was offline, or Discord did not answer), its channels count too, with no
+ * version of their own.
+ */
+function isLogChannel(channelId, guildId) {
+    const config = getConfig();
+    const entry = logChannelEntry(guildId, channelId, { config });
+    if (entry) return entry;
+    const legacy = Array.isArray(config.logChannelIds) ? config.logChannelIds.map(String) : [];
+    return legacy.includes(String(channelId || "")) ? { channelId: String(channelId), versionId: "" } : null;
+}
+
+/**
+ * The channels a scan visits: those of `guildId`, or of every server without
+ * one, plus the old global list while it waits for its migration.
+ * @returns {{ channelId: string, versionId: string }[]}
+ */
+function scanTargets(guildId) {
+    const config = getConfig();
+    const list = guildId ? logChannelsOf(guildId, { config }) : allLogChannels({ config });
+    const seen = new Set(list.map((c) => c.channelId));
+    for (const id of Array.isArray(config.logChannelIds) ? config.logChannelIds.map(String) : []) {
+        if (!seen.has(id)) list.push({ channelId: id, versionId: "" });
+        seen.add(id);
+    }
+    return list;
 }
 
 /**
@@ -82,7 +108,8 @@ async function handleLogMessage(message) {
     const client = discord.getClient();
     if (!client) return;
     if (message.author && client.user && message.author.id === client.user.id) return;
-    if (!isLogChannel(message.channelId)) return;
+    const logChannel = isLogChannel(message.channelId, message.guildId);
+    if (!logChannel) return;
 
     const links = extractWclLinks(messageText(message));
     let registered = 0;
@@ -101,6 +128,7 @@ async function handleLogMessage(message) {
             link,
             source: "listener",
             postedAt: message.createdTimestamp,
+            channelVersionId: logChannel.versionId,
         });
         registered += 1;
         try {
@@ -236,9 +264,8 @@ async function evaluateLog(logId, section = SECTION_CLA, opts = {}) {
  */
 async function scanLogChannels(guildId, { perChannel = 50 } = {}) {
     if (!discord.isOnline()) return 0;
-    const ids = getConfig().logChannelIds || [];
     let count = 0;
-    for (const channelId of ids) {
+    for (const { channelId, versionId } of scanTargets(guildId)) {
         let channel;
         try {
             channel = await discord.fetchTextChannel(channelId);
@@ -263,6 +290,7 @@ async function scanLogChannels(guildId, { perChannel = 50 } = {}) {
                     link,
                     source: "scan",
                     postedAt: msg.createdTimestamp,
+                    channelVersionId: versionId,
                 });
                 count++;
             }

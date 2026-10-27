@@ -148,8 +148,32 @@ function after897(config) {
 }
 // #917 adds the settings per Discord server (none stored: empty).
 const after917 = (config) => ({ ...config, serverSettings: {} });
-const schemaOnly = frozen.map((g) => ({ ...g, config: after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))))))))) }));
-const golden = schemaOnly.map((g, i) => ({ ...g, config: afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config) }));
+// #921 moves the log channels into the server settings: the global logChannelIds is no default any more,
+// a file that still holds one reads it (as a clean id list) until the bot hands it to the servers after login.
+function after921(config, stored = {}) {
+    if (stored && Object.prototype.hasOwnProperty.call(stored, "logChannelIds")) return config;
+    const rest = { ...config };
+    delete rest.logChannelIds;
+    return rest;
+}
+const schemaOnly = frozen.map((g, i) => ({ ...g, config: after921(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))))))))), cases[i].config) }));
+// #927: the start hands Raid-Helper to the server it ran for (the stored raidhelperServerId, else the first
+// server) with the old switch and the .env key (`envKey`, the key itself is never copied) - only for a
+// stored file naming that id; every other server keeps no block and so has Raid-Helper off.
+function after927(config, stored) {
+    const legacyId = String((stored && stored.raidhelperServerId) || "").trim();
+    if (!legacyId) return config;
+    const servers = config.discordServers.servers || [];
+    const owner = servers.some((x) => x.guildId === legacyId) ? legacyId : ((servers[0] || {}).guildId || "");
+    if (!owner) return config;
+    const retirement = stored.raidhelperRetirement || {};
+    const raidhelper = {
+        enabled: retirement.disabled !== true, serverId: owner === legacyId ? "" : legacyId, apiKey: "", envKey: true,
+        at: Number(retirement.at) || 0, byName: String(retirement.byName || ""),
+    };
+    return { ...config, serverSettings: { ...config.serverSettings, [owner]: { raidhelper } } };
+}
+const golden = schemaOnly.map((g, i) => ({ ...g, config: after927(afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config), cases[i].config) }));
 const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)"));
 
 const CONFIG_FILE = settingsPath("config.json");

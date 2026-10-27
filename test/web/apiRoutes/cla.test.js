@@ -1,5 +1,7 @@
 const { json, jsonRequest, mockRes, routerClient } = require("../../helpers/http");
 
+// #927: Raid-Helper on for every server, as before it was set per server
+jest.mock("../../../src/utils/raidhelper/servers", () => require("../../helpers/raidhelperOn").serversMock());
 jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
@@ -302,10 +304,25 @@ describe("web/apiRoutes/cla", () => {
             expect(json(res).data.logChannelsConfigured).toBe(false);
         });
 
-        it("logChannelsConfigured is true when at least one log channel is configured", async () => {
-            settingsStore.getConfig.mockReturnValue({ logChannelIds: ["c1"] });
+        it("logChannelsConfigured is true when the active server has a log channel (#921)", async () => {
+            activeGuildFor.mockReturnValue("guild-1");
+            settingsStore.getConfig.mockReturnValue({ serverSettings: { "guild-1": { logChannels: [{ channelId: "c1", versionId: "tbc" }] } } });
             const res = await get("/api/cla");
             expect(json(res).data.logChannelsConfigured).toBe(true);
+        });
+
+        it("logChannelsConfigured counts the old global list until it is moved (#921)", async () => {
+            activeGuildFor.mockReturnValue("guild-2");
+            settingsStore.getConfig.mockReturnValue({ logChannelIds: ["c-old"], serverSettings: {} });
+            const res = await get("/api/cla");
+            expect(json(res).data.logChannelsConfigured).toBe(true);
+        });
+
+        it("logChannelsConfigured counts only the active server's channels (#921)", async () => {
+            activeGuildFor.mockReturnValue("guild-2");
+            settingsStore.getConfig.mockReturnValue({ serverSettings: { "guild-1": { logChannels: [{ channelId: "c1", versionId: "tbc" }] } } });
+            const res = await get("/api/cla");
+            expect(json(res).data.logChannelsConfigured).toBe(false);
         });
 
         it("annotates categories and matches against the guild's events", async () => {

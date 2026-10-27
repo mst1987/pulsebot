@@ -57,6 +57,8 @@ export type CategorySettings = {
     onLootSystem?: (categoryId: string, system: string) => void;
     categorySignupSource?: Record<string, EventSource>;
     signupSourceDefault?: EventSource;
+    /** #927: false = the active server has Raid-Helper off, so new events can only go to EventHelper; missing = on. */
+    raidhelperActive?: boolean;
     categorySetupDms?: Record<string, boolean>;
     /** The language of the category's posts: "de" / "en", missing or "" = the server language. */
     categoryLanguage?: Record<string, string>;
@@ -278,8 +280,14 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
     function eventFields(): Field[] {
         const out: Field[] = [];
         const { raidTemplates, onVoiceChannel, onAnnounce, onDiscordEvent } = s;
-        const signupSource: EventSource = (s.categorySignupSource || {})[cat.id] || s.signupSourceDefault || "raidhelper";
-        out.push({ key: "source", node: (
+        // #927: a server without Raid-Helper creates every event in EventHelper, whatever the category says
+        const noRaidhelper = s.raidhelperActive === false;
+        const signupSource: EventSource = noRaidhelper ? "eventhelper" : (s.categorySignupSource || {})[cat.id] || s.signupSourceDefault || "raidhelper";
+        out.push({ key: "source", node: noRaidhelper ? (
+            <CategoryField label={t("settings.categories.newEvents")} sub={t("settings.categories.newEventsNoRh")} more={t("settings.categories.newEventsSub")}>
+                <span className="cat-source-fixed" data-source="eventhelper">EventHelper</span>
+            </CategoryField>
+        ) : (
             <CategoryField label={t("settings.categories.newEvents")} sub={t("settings.categories.newEventsShort")} more={t("settings.categories.newEventsSub")}>
                 <Segment ariaLabel={t("settings.categories.newEventsAria", { name })} value={signupSource} onChange={(v) => s.onSignupSource(cat.id, v as EventSource)} options={SIGNUP_SOURCES} />
             </CategoryField>

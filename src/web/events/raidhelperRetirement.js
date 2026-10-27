@@ -1,6 +1,8 @@
 // The switch-over checklist from Raid-Helper to the EventHelper's own events
-// (#291, Einstellungen → Verbindungen → Raid-Helper). Computed on every read,
-// nothing stored but the switch itself (config.raidhelperRetirement).
+// (#291, Einstellungen → Server → Raid-Helper). Computed on every read,
+// nothing stored but the switch itself. Both are per Discord server (#927): the
+// checklist looks at that server's categories and synced events, the switch is
+// config.serverSettings[guildId].raidhelper.enabled (utils/raidhelper/servers.js).
 //
 // Every item answers three things: its state (a badge), WHY it matters (one line)
 // and WHERE to fix it (a link into the menu, or an action on the card). Two items
@@ -14,14 +16,16 @@
 
 const { getConfig, saveConfig } = require("../../stores/settingsStore");
 const { signupSourceFor } = require("../../services/events/eventSources");
-const { raidhelperDisabled } = require("../../utils/raidhelper/client");
+const { raidhelperDisabled, createRaidhelperClient } = require("../../utils/raidhelper/client");
+const { raidhelperSettingOf } = require("../../utils/raidhelper/servers");
+const { serverSetting } = require("../../services/discord/serverSettings");
+const { firstServerId, storedCategoryGuilds } = require("../../services/discord/serverOf");
 const { TIMEZONE } = require("../../config/timezone");
 const discord = require("../../services/discord/discord");
 const guildRoles = require("../../services/discord/guildRoles");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
 const appEmojis = require("../../services/discord/appEmojis");
 const specHistory = require("../../stores/specHistoryStore");
-const { fetchEventsCached } = require("../../services/events/raidEventGroups");
 
 // Statuses: ok (green), mid (open, yellow), bad (red), unknown (cannot be
 // checked right now), info (nothing to check — a reminder).
@@ -238,10 +242,26 @@ function eventCategoryIds(config) {
     return [...ids].filter(Boolean);
 }
 
-/** Gather the inputs and build the checklist. Never throws. */
-async function loadChecklist({ config = getConfig() } = {}) {
-    const eventGuildId = guildRoles.serverIds(config)[0] || "";
-    const disabled = raidhelperDisabled(config);
+/** The event categories of one server: a category of no known server counts for the first one. */
+function serverCategoryIds(config, guildId) {
+    let index = new Map();
+    try {
+        index = storedCategoryGuilds();
+    } catch {
+        index = new Map();
+    }
+    const first = firstServerId(config);
+    return eventCategoryIds(config).filter((id) => (index.get(id) || first) === guildId);
+}
+
+/**
+ * Gather the inputs and build the checklist of one server (`guildId`, default
+ * the first). Never throws, never asks raid-helper.xyz: the upcoming events
+ * come from that server's synced list.
+ */
+async function loadChecklist({ config = getConfig(), guildId } = {}) {
+    const eventGuildId = String(guildId || firstServerId(config) || guildRoles.serverIds(config)[0] || "");
+    const disabled = raidhelperDisabled(config, eventGuildId);
 
     let names = new Map();
     try {
@@ -249,12 +269,12 @@ async function loadChecklist({ config = getConfig() } = {}) {
     } catch {
         // names are cosmetic
     }
-    const categories = eventCategoryIds(config).map((id) => ({ id, name: names.get(id) || "", source: signupSourceFor(id, config) }));
+    const categories = serverCategoryIds(config, eventGuildId).map((id) => ({ id, name: names.get(id) || "", source: signupSourceFor(id, config, { guildId: eventGuildId }) }));
 
     let upcoming = { events: [], error: null };
     if (!disabled) {
         try {
-            const { events } = await fetchEventsCached(0);
+            const events = await createRaidhelperClient({ guildId: eventGuildId }).getAllEvents();
             let catMap = {};
             try {
                 catMap = discord.getChannelCategoryMap(eventGuildId) || {};
@@ -300,11 +320,11 @@ async function loadChecklist({ config = getConfig() } = {}) {
         canManage,
     };
 
-    const retirement = config.raidhelperRetirement || {};
+    const setting = raidhelperSettingOf(eventGuildId, config);
     return buildChecklist({
         disabled,
-        disabledAt: retirement.at || 0,
-        disabledBy: retirement.byName || "",
+        disabledAt: setting.at || 0,
+        disabledBy: setting.byName || "",
         categories,
         upcoming,
         history: specHistory.importStatus(),
@@ -315,19 +335,24 @@ async function loadChecklist({ config = getConfig() } = {}) {
 }
 
 /**
- * Switch the Raid-Helper queries off or back on. Off only when the required
- * items are green (`not_ready` names them otherwise); on again always.
+ * Switch one server's Raid-Helper off or back on (#927: `enabled` in its
+ * server settings; key and server id stay, old raids stay readable). Off only
+ * when the required items are green (`not_ready` names them otherwise); on
+ * again always (a server without a key stays inactive until one is entered).
  * @returns {Promise<{ checklist } | { error, code, blockers }>}
  */
-async function setRaidhelperDisabled(disabled, { byName = "", now = Date.now() } = {}) {
+async function setRaidhelperDisabled(disabled, { guildId, byName = "", now = Date.now() } = {}) {
+    const id = String(guildId || firstServerId(getConfig()) || "");
+    if (!id) return { error: "Kein Discord-Server bekannt.", code: "no_server", blockers: [] };
     if (disabled) {
-        const checklist = await loadChecklist();
+        const checklist = await loadChecklist({ guildId: id });
         if (!checklist.ready) {
             return { error: "Erst die Pflichtpunkte erledigen: alle Kategorien auf EventHelper und keine kommenden Raid-Helper-Events.", code: "not_ready", blockers: checklist.blockers };
         }
     }
-    const config = saveConfig({ raidhelperRetirement: { disabled: !!disabled, at: now, byName } });
-    return { checklist: await loadChecklist({ config }) };
+    const current = serverSetting(id, "raidhelper") || {};
+    const config = saveConfig({ serverSettings: { [id]: { raidhelper: { ...current, enabled: !disabled, at: now, byName } } } });
+    return { checklist: await loadChecklist({ config, guildId: id }) };
 }
 
-module.exports = { buildChecklist, loadChecklist, setRaidhelperDisabled, eventCategoryIds, REQUIRED };
+module.exports = { buildChecklist, loadChecklist, setRaidhelperDisabled, eventCategoryIds, serverCategoryIds, REQUIRED };

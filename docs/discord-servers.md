@@ -70,7 +70,7 @@ The bot can work with several **servers** at once (#251, #361, server network #8
 
 The groundwork for keeping loot, logs and settings strictly per Discord server.
 
-- **`config.serverSettings = { [guildId]: { key: value } }`**: settings per server. `configSchema.normalizeServerSettings` keeps only the blocks of servers in `discordServers.servers`, of pure link targets (`links[].to`) and of the home server (`config.guildId`, for installs without a server list). Only the keys in `SERVER_SETTING_DEFAULTS` are allowed; the list is still empty, parts 4–8 of the epic add theirs. An empty block stays empty; every other config field is left alone.
+- **`config.serverSettings = { [guildId]: { key: value } }`**: settings per server. `configSchema.normalizeServerSettings` keeps only the blocks of servers in `discordServers.servers`, of pure link targets (`links[].to`) and of the home server (`config.guildId`, for installs without a server list). Only the keys in `SERVER_SETTING_DEFAULTS` are allowed; parts 4–8 of the epic add theirs (#921: `logChannels`, docs/logcheck.md). An empty block stays empty; every other config field is left alone.
 - **Saving**: `configStore.saveConfig` merges `serverSettings` per server and per key (`configSchema.mergeServerSettings`, like `versionSettings`): a save that sends the block of one server leaves the blocks of the other servers untouched, a save without `serverSettings` keeps them all.
 - **Reading** only through `services/discord/serverSettings.serverSetting(guildId, key, { config, fallback })`. Order: the server's value, else `fallback`, else the part's default. There is no global fallback: one server's value never answers for another.
 - **First server** = `discordServers.servers[0]`, else `config.guildId` (`serverOf.firstServerId`).
@@ -85,6 +85,7 @@ The groundwork for keeping loot, logs and settings strictly per Discord server.
 - **Start run** `settingsMigration.migrateLogGuilds`: recomputes every log by the rule on each start and writes only on a change, followed by the line „logs.json: N Log(s) ihrem Discord-Server fest zugeordnet (#917)“. The server list is only read.
 - **Active server of a web request**: still only `web/http/activeGuild.activeGuildFor(req)`.
 - **Armory/log links and realm per server (#923)**: `serverSettings[<guildId>].versionOverrides`, field by field over `versionSettings` (Einstellungen → Server → Links & Realm) — see docs/game-versions.md.
+- **Raid-Helper per server (#927)**: `serverSettings[guildId].raidhelper = { enabled, serverId, apiKey }`, off by default; own key, own synced list and own daily budget per server, a 429 pauses only that server. A server without Raid-Helper sends no request and offers only EventHelper. Details and migration: [raidhelper-retirement.md](raidhelper-retirement.md).
 
 ## Raid-Übersicht je Kategorie (`/createoverview`)
 

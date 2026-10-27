@@ -15,10 +15,14 @@
 // write through a client (create an event, sign up) asks for a sync a few
 // seconds later, so its result shows up without waiting for the next tick.
 //
-// A failed sync keeps the last list and records the reason; Raid-Helper being
-// switched off (#291) skips the job entirely.
+// Per Discord server (#927): only servers with Raid-Helper switched on are
+// asked, each with its own key and budget, into its own list. A failed sync
+// keeps that server's last list and records the reason; with no server
+// switched on the job does nothing.
 
 const { createRaidhelperClient, raidhelperDisabled, setAfterWrite } = require("../../utils/raidhelper/client");
+const { activeRaidhelperGuilds } = require("../../utils/raidhelper/servers");
+const { getConfig } = require("../../stores/settingsStore");
 const { readSnapshot, saveSnapshot, saveSyncError } = require("../../stores/raidhelperEventsStore");
 const budget = require("../../utils/raidhelper/budget");
 const { scanAllGuilds } = require("./raidEventScan");
@@ -34,9 +38,10 @@ const AFTER_WRITE_DELAY_MS = 5 * 1000;
 let running = null;
 
 /**
- * Fetch the event list once and store it, then snapshot the past raids.
- * Concurrent calls share one run. Never throws.
- * @returns {Promise<{ ok: boolean, error?: string, disabled?: boolean }>}
+ * Fetch the event list of every server with Raid-Helper switched on (#927)
+ * once and store it per server, then snapshot the past raids. Concurrent calls
+ * share one run. Never throws.
+ * @returns {Promise<{ ok: boolean, error?: string, disabled?: boolean, servers?: object }>}
  */
 function syncRaidhelperEvents() {
     if (raidhelperDisabled()) return Promise.resolve({ ok: false, disabled: true });
@@ -47,17 +52,30 @@ function syncRaidhelperEvents() {
     return running;
 }
 
-async function runSync() {
-    const since = Math.floor(Date.now() / 1000) - EVENT_LOOKBACK_DAYS * 86400;
+// One server: its own key, its own budget, its own list. A failure (a 429
+// included) stays with that server; the others sync on.
+async function syncServer(guildId, since) {
     try {
-        const events = await createRaidhelperClient({ live: true }).fetchEvents(since);
-        saveSnapshot({ syncedAt: Date.now(), since, events });
+        const events = await createRaidhelperClient({ live: true, guildId }).fetchEvents(since);
+        saveSnapshot(guildId, { syncedAt: Date.now(), since, events });
+        return { ok: true };
     } catch (e) {
         const message = (e && e.message) || "Raid-Helper ist nicht erreichbar.";
-        saveSyncError(message, Date.now());
+        saveSyncError(guildId, message, Date.now());
         // a refusal of the budget is the budget working, not news
-        if (!budget.isBudgetError(e)) logger.warn(`sync failed: ${message}`);
+        if (!budget.isBudgetError(e)) logger.warn(`sync failed for server ${guildId}: ${message}`);
         return { ok: false, error: message };
+    }
+}
+
+async function runSync() {
+    const since = Math.floor(Date.now() / 1000) - EVENT_LOOKBACK_DAYS * 86400;
+    const servers = {};
+    for (const guildId of activeRaidhelperGuilds(getConfig())) servers[guildId] = await syncServer(guildId, since);
+    const results = Object.values(servers);
+    if (!results.some((r) => r.ok)) {
+        const failed = results.find((r) => r.error);
+        return { ok: false, error: failed ? failed.error : "", servers };
     }
     try {
         // the category overviews list Raid-Helper raids from this list (required late: the overview pulls in half the bot)
@@ -70,33 +88,43 @@ async function runSync() {
     } catch (e) {
         logger.warn(`snapshot scan failed: ${e.message}`);
     }
-    return { ok: true };
+    return { ok: true, servers };
 }
 
-/** What the settings page shows: last sync, its events, its error, and the budget. */
-function syncStatus() {
-    const snap = readSnapshot();
+/** What the settings page shows for one server: last sync, its events, its error, and its budget. */
+function syncStatus(guildId) {
+    const snap = readSnapshot(guildId);
     return {
         syncedAt: snap.syncedAt,
         events: snap.events.length,
         error: snap.error,
         errorAt: snap.errorAt,
         intervalMs: SYNC_INTERVAL_MS,
-        disabled: raidhelperDisabled(),
-        budget: budget.status(),
+        disabled: raidhelperDisabled(undefined, guildId),
+        budget: budget.status({ guildId }),
     };
 }
 
 /**
- * "Jetzt aktualisieren": a sync now, unless the last attempt is younger than
- * MANUAL_MIN_GAP_MS (then `throttled` and nothing is sent).
+ * "Jetzt aktualisieren" for one server: a sync of that server now, unless its
+ * last attempt is younger than MANUAL_MIN_GAP_MS (then `throttled` and nothing
+ * is sent).
  */
-async function refreshNow() {
-    const snap = readSnapshot();
+async function refreshNow(guildId) {
+    const snap = readSnapshot(guildId);
     const last = Math.max(snap.syncedAt, snap.errorAt);
-    if (Date.now() - last < MANUAL_MIN_GAP_MS) return { ...syncStatus(), throttled: true };
-    const result = await syncRaidhelperEvents();
-    return { ...syncStatus(), throttled: false, ok: result.ok };
+    if (Date.now() - last < MANUAL_MIN_GAP_MS) return { ...syncStatus(guildId), throttled: true };
+    if (raidhelperDisabled(undefined, guildId)) return { ...syncStatus(guildId), throttled: false, ok: false };
+    const since = Math.floor(Date.now() / 1000) - EVENT_LOOKBACK_DAYS * 86400;
+    const result = await syncServer(guildId, since);
+    if (result.ok) {
+        try {
+            require("./raidOverview").scheduleRefresh();
+        } catch (e) {
+            logger.warn(`overview nudge failed: ${e.message}`);
+        }
+    }
+    return { ...syncStatus(guildId), throttled: false, ok: result.ok };
 }
 
 let writeTimer = null;
