@@ -8,6 +8,7 @@ const { eventStartMs } = require("../../services/logcheck/logEventMatch");
 const { eventLinkFields } = require("../../services/logcheck/matchableEvents");
 const logStore = require("../../stores/logStore");
 const { linkConflict } = require("../../services/logcheck/logVersion");
+const { guildOfEvent } = require("../../services/discord/serverOf");
 
 /**
  * Register (if needed) and link a Warcraft-Logs report to an event, given the
@@ -19,9 +20,13 @@ const { linkConflict } = require("../../services/logcheck/logVersion");
  * refused so a paste cannot silently steal another raid's log — the admin has
  * to unlink it there first.
  *
+ * A new log belongs to the raid's server (#920), also as its origin server, so
+ * it stays there after an unlink; the active server is only the fallback for a
+ * raid whose server is unknown.
+ *
  * @param {string} url     text containing a warcraftlogs.com/reports/<id> link
  * @param {object} event   resolved event ({ id, title, startTime, ... })
- * @param {string} guildId guild the log belongs to (for the CLA list filter)
+ * @param {string} guildId active server, used when the raid's server is unknown
  * @returns {{log: object, created: boolean}|{error: string}}
  */
 function linkLogByUrl(url, event, guildId) {
@@ -36,7 +41,7 @@ function linkLogByUrl(url, event, guildId) {
     const conflict = linkConflict(existing || { link: found.link }, event);
     if (conflict) return { error: conflict };
     const log = existing || logStore.saveLog({
-        guildId: guildId || "",
+        guildId: guildOfEvent(event) || guildId || "",
         reportId: found.reportId,
         link: found.link,
         source: "manual",

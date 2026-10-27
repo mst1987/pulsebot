@@ -308,7 +308,7 @@ async function loadRecentEvents(guildId, limit = 5, { versionId = "", categoryId
     const stored = listStoredEvents(guildId);
     // Only logs from this guild can belong to one of its raids.
     const logs = listLogs()
-        .filter((l) => !l.guildId || l.guildId === guildId)
+        .filter((l) => l.guildId === guildId)
         .map((l) => ({ ...l, postedAt: logPostedAt(l) }));
     // Filtered before buildRecentEvents cuts to `limit` (#545), so "the last 5
     // Forever raids" really is the last five, not five of a shorter list.
@@ -343,7 +343,7 @@ async function loadRecentEvents(guildId, limit = 5, { versionId = "", categoryId
 // raidEventStore — they come straight from the live Raid-Helper event list.
 function annotateUpcomingExtras(events, guildId) {
     const logs = listLogs()
-        .filter((l) => !l.guildId || l.guildId === guildId)
+        .filter((l) => l.guildId === guildId)
         .map((l) => ({ ...l, postedAt: logPostedAt(l) }));
     return (events || []).map((ev) => ({
         ...ev,

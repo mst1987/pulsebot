@@ -59,7 +59,7 @@ const getClaData = withUser({}, async ({ req, res, query }) => {
     const config = getConfig();
     const inVersion = (record) => inVersionList(record, versionId, { config });
     const allLogs = listLogs();
-    const logs = guildId ? allLogs.filter((l) => !l.guildId || l.guildId === guildId) : allLogs;
+    const logs = guildId ? allLogs.filter((l) => l.guildId === guildId) : allLogs;
     // which analyses already ran, normalised for legacy entries
     for (const l of logs) l.sections = evaluatedSections(l);
     annotateLogCategories(logs, discord.getChannelCategoryMap(guildId));
@@ -384,7 +384,7 @@ const autoMatchLogs = withUser({ csrf: true }, async ({ req, res, query }) => {
     // version breaks a tie for a log of unknown version (#746). Only the logs
     // this version's list shows — an SSC log is never matched to a Forever raid.
     const config = getConfig();
-    const logs = annotateLogCategories((guildId ? listLogs().filter((l) => !l.guildId || l.guildId === guildId) : listLogs())
+    const logs = annotateLogCategories((guildId ? listLogs().filter((l) => l.guildId === guildId) : listLogs())
         .filter((l) => !l.eventId).map((l) => ({ ...l })), discord.getChannelCategoryMap(guildId))
         .filter((l) => inVersionList(l, versionId, { config }));
     const matches = autoMatches(logs, events);

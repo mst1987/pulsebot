@@ -219,12 +219,14 @@ describe("web/apiRoutes/cla", () => {
             expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
         });
 
-        it("lists the guild's logs and the link reports in one page, with a count per filter", async () => {
+        it("lists only the active server's logs and the link reports in one page, with a count per filter (#920)", async () => {
             activeGuildFor.mockReturnValue("guild-1");
             logStore.listLogs.mockReturnValue([
                 { id: "l1", guildId: "guild-1", eventId: "e1", sections: ["cla"], reportRefId: "r1", postedAt: 3000 },
                 { id: "l2", guildId: "guild-2", reportRefId: "r2", postedAt: 2000 },
-                { id: "l3", guildId: "", postedAt: 1000 },
+                { id: "l3", guildId: "guild-1", postedAt: 1000 },
+                // a log without a server is no longer shown on every server (#920)
+                { id: "l4", guildId: "", postedAt: 900 },
             ]);
             reportStore.listReports.mockReturnValue([
                 { id: "r1", playerCount: 25, issueCount: 3, generatedAt: 5 },

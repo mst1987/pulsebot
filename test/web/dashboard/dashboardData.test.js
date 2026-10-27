@@ -618,3 +618,26 @@ describe("web/dashboard/dashboardData loadTrialEndings (#658)", () => {
         expect(await loadTrialEndings("g1", { id: "9", isAdmin: true }, { now: NOW })).toEqual([]);
     });
 });
+
+describe("web/dashboard/dashboardData logs of the active server only (#920)", () => {
+    const { listLogs } = require("../../../src/stores/logStore");
+    const { buildRecentEvents, matchLogsForEvent } = require("../../../src/services/events/recentEvents");
+    const { loadRecentEvents, annotateUpcomingExtras } = require("../../../src/web/dashboard/dashboardData");
+    const logs = [
+        { id: "a", guildId: "gA" },
+        { id: "b", guildId: "gB" },
+        { id: "none", guildId: "" },
+    ];
+
+    it("hands the past raids only server A's logs, not B's or a serverless one", async () => {
+        listLogs.mockReturnValue(logs);
+        await loadRecentEvents("gA");
+        expect(buildRecentEvents.mock.calls[0][1].logs.map((l) => l.id)).toEqual(["a"]);
+    });
+
+    it("matches the upcoming raids only against server A's logs", () => {
+        listLogs.mockReturnValue(logs);
+        annotateUpcomingExtras([{ id: "e1" }], "gA");
+        expect(matchLogsForEvent.mock.calls[0][1].map((l) => l.id)).toEqual(["a"]);
+    });
+});
