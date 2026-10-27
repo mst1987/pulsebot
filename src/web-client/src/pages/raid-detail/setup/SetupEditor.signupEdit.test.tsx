@@ -32,6 +32,10 @@ const IGNIS_EDIT: SetupSignupEdit = {
         character: "Ignis", key: "ignis", classId: "Mage", classLabel: "Magier", classColor: "#3fc7eb", classIcon: "", inProfile: true,
         specs: [spec("Mage-Fire", "Feuer", "ranged", true), spec("Mage-Arcane", "Arkan", "ranged", false), spec("Mage-Frost", "Frost", "ranged", false)],
     }],
+    classes: [
+        { id: "Mage", label: "Magier", color: "#3fc7eb", icon: "", specs: [{ key: "Mage-Arcane", label: "Arkan", icon: "", role: "ranged" }, { key: "Mage-Fire", label: "Feuer", icon: "", role: "ranged" }, { key: "Mage-Frost", label: "Frost", icon: "", role: "ranged" }] },
+        { id: "Priest", label: "Priester", color: "#ffffff", icon: "", specs: [{ key: "Priest-Discipline", label: "Disziplin", icon: "", role: "healer" }, { key: "Priest-Holy", label: "Heilig", icon: "", role: "healer" }, { key: "Priest-Shadow", label: "Schatten", icon: "", role: "ranged" }] },
+    ],
 };
 
 let page: SetupEditorData;
@@ -126,8 +130,40 @@ describe("Anmeldung bearbeiten", () => {
         expect(await within(dialog()).findByRole("alert")).toHaveTextContent("Diese Spezialisierung passt nicht.");
     });
 
+    it("puts another character of another class on the place (Anderer Charakter)", async () => {
+        const user = userEvent.setup();
+        await show();
+        await user.click(slot("Ignis"));
+        await user.click(within(screen.getByRole("complementary", { name: t("setup.person.tip.aria") })).getByRole("button", { name: new RegExp(t("setup.signupEdit.short")) }));
+        await user.click(await within(dialog()).findByRole("radio", { name: t("setup.signupEdit.other") }));
+        const save = within(dialog()).getByRole("button", { name: t("common.save") });
+        // the class of the current character is preset, the name is missing
+        expect(within(dialog()).getByRole("radio", { name: "Magier" })).toHaveAttribute("aria-checked", "true");
+        expect(save).toBeDisabled();
+        const name = within(dialog()).getByLabelText(t("setup.signupEdit.otherName"));
+        // a character the dialog already offers is picked above, not typed
+        await user.type(name, "ignis");
+        expect(within(dialog()).getByText(t("setup.signupEdit.otherTaken"))).toBeInTheDocument();
+        expect(save).toBeDisabled();
+        await user.clear(name);
+        await user.type(name, "Lichtblick");
+        await user.click(within(dialog()).getByRole("radio", { name: "Priester" }));
+        expect(within(dialog()).getByText(t("setup.signupEdit.otherHint"))).toBeInTheDocument();
+        await user.click(within(dialog()).getByRole("radio", { name: specLabel("Priest-Holy", "Heilig") }));
+        expect(save).toBeEnabled();
+
+        page = withPool({ [MAGE.userId]: { character: "Lichtblick", spec: "Priest-Holy", specLabel: "Heilig", role: "healer" } });
+        await user.click(save);
+        await waitFor(() => expect(calls("PUT", "/api/raids/setup/signup")).toHaveLength(1));
+        expect(calls("PUT", "/api/raids/setup/signup")[0][2]).toEqual({ event: EVENT_ID, userId: MAGE.userId, status: "signed", from: "Ignis", character: "Lichtblick", spec: "Priest-Holy", className: "Priest" });
+        await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+        const group1 = screen.getByRole("region", { name: t("setup.group.title", { index: 1 }) });
+        expect(within(group1).getByText("Lichtblick").closest("[data-user]")).toHaveTextContent(specLabel("Priest-Holy", "Heilig"));
+    });
+
     it("has English words", async () => {
         expect(await inLang("en", () => t("setup.signupEdit.open"))).toBe("Edit signup …");
         expect(await inLang("en", () => t("setup.signupEdit.notInProfile"))).toBe("not in profile");
+        expect(await inLang("en", () => t("setup.signupEdit.other"))).toBe("Other character …");
     });
 });

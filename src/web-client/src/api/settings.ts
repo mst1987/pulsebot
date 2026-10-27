@@ -44,7 +44,7 @@ export type AdminConfig = {
     // Who may use which bot command (Berechtigungen → Bot-Befehle) — same gate as above.
     botCommandAccess?: Record<string, BotAccessRule>;
     guildId: string;
-    // Event and talk server (#251); full admins only, like the access keys.
+    // The servers and their links (#890); full admins only, like the access keys.
     discordServers?: DiscordServers;
     raidhelperServerId: string;
     officerRoleId: string;
@@ -279,8 +279,8 @@ export type SettingsData = {
     noteChannels?: { defaultId: string; channels: TextChannel[] };
     // Status line of the "Discord & Raid-Helper" connection card.
     bot?: { online: boolean; readySince: number; guildName: string };
-    // The event and talk server cards; null for a limited settings user.
-    servers?: { events: DiscordServerCard[]; talk: DiscordServerCard | null } | null;
+    // The server cards; null for a limited settings user.
+    servers?: { events: DiscordServerCard[] } | null;
     /** #744: configured categories Discord no longer has (only known while the bot sees every event server). */
     missingCategories?: MissingCategory[];
     activeGuildId: string;

@@ -55,6 +55,7 @@ const profiles = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
 const discord = require("../discord/discord");
 const signupNotes = require("./signupNotes");
+const { validateCharacterName } = require("../../utils/signup/characterNames");
 const { SIGNUP_STATUSES } = require("../../utils/attendance");
 const { ROLES } = require("../../config/gameVersions/classes");
 const { spec: specOf, rulesFor } = require("../../config/gameVersions");
@@ -339,18 +340,42 @@ async function checkRaiderRole(event, userId, { byOrga = false, previous, roleId
 }
 
 /**
- * The character an entry names: the profile's — or, for the orga changing a
- * signup from the setup editor (`offProfile`, #521), one of the signup's own
- * characters the profile does not have (a raider without a profile), its class
- * read from the spec it was signed up with.
+ * The character an entry names: the profile's — or one of the signup's own
+ * characters the profile does not have (a raider without a profile, or one the
+ * orga entered with "Anderer Charakter …", #521), its class read from the spec
+ * it was signed up with. For the orga (`offProfile`) any spec of that class
+ * fits; for the raider only the spec it already has — the raider keeps the
+ * character (status, comment), choosing anew goes through the profile.
  */
 function characterFor(profile, ref, prev, offProfile, versionId = "") {
     const own = findCharacter(profile, ref, versionId);
-    if (own || !offProfile) return own;
+    if (own) return own;
     const key = profiles.nameKey(ref);
     const had = key ? ((prev && prev.characters) || []).find((c) => profiles.nameKey(c.character) === key) : null;
     const info = had ? profiles.specInfo(had.spec) : null;
-    return info ? { key, name: had.character, className: info.classId, specs: [] } : null;
+    if (!info) return null;
+    return { key, name: had.character, className: info.classId, specs: offProfile ? [] : [{ key: had.spec }] };
+}
+
+/**
+ * A character the orga names in the setup editor that is not in the raider's
+ * profile — "Anderer Charakter …": a raider offers to come with another one.
+ * Only with an explicit class (`entry.className`, one of the event's rule set);
+ * the name follows the rule for a typed name (validateCharacterName). Only for a
+ * name neither the profile nor the signup has — a name the signup already has
+ * keeps the class read from its spec (characterFor). The profile is never
+ * changed. null when the entry names no class.
+ * @returns {null | { character: object } | { error: string }}
+ */
+function otherCharacter(entry, versionId) {
+    const className = String((entry && entry.className) || "").trim();
+    if (!className) return null;
+    const checked = validateCharacterName(entry.character, { versionId });
+    if (checked.error) return { error: checked.error };
+    const rules = rulesFor(versionId);
+    const cls = rules ? rules.classes.find((c) => c.id === className) : null;
+    if (!cls) return { error: `Die Klasse „${className}“ gibt es in ${versionName(versionId)} nicht.` };
+    return { character: { key: profiles.nameKey(checked.name), name: checked.name, className: cls.id, specs: [] } };
 }
 
 /** A spec the character may sign up with: one of its profile specs — for the orga (`offProfile`) any spec of its class. */
@@ -365,8 +390,9 @@ function specAllowed(character, specKey, offProfile) {
  * @param {object} event   an eventStore event (source "eventhelper")
  * @param {object} input   { character, spec, status, canAlso?, comment }
  * @param {object} ctx     { profile, previous?, byOrga?, offProfile?, now?, config? } — `offProfile` (the orga in the setup
- *                         editor, #521): a spec of the character's class the profile lacks, and the signup's own
- *                         characters without a profile, are taken
+ *                         editor, #521): a spec of the character's class the profile lacks, and a new name with
+ *                         `className`, are taken; the signup's own characters without a profile are
+ *                         kept for everyone (the raider only with their spec)
  * @returns {{ value?: object, error?: string, code?: string }}
  */
 function validateSignup(event, input = {}, { profile, previous = null, byOrga = false, offProfile = false, now = Date.now(), config } = {}) {
@@ -418,18 +444,25 @@ function validateSignup(event, input = {}, { profile, previous = null, byOrga = 
             if (character) seen.add(character.key);
             continue;
         }
-        const character = characterFor(profile, entry.character, prev, offProfile, versionId);
+        let character = characterFor(profile, entry.character, prev, offProfile, versionId);
         if (!character) {
             const otherVersion = otherVersionError(profile, entry.character, versionId);
             if (otherVersion) return fail("character_version", otherVersion);
-            return fail("character", i === 0 || !entry.character
-                ? "Dieser Charakter steht nicht in deinem Profil."
-                : `${entry.character} steht nicht in deinem Profil.`);
+            // "Anderer Charakter …" (orga only): a new name with its class
+            const other = offProfile ? otherCharacter(entry, versionId) : null;
+            if (other && other.error) return fail("character", other.error);
+            if (!other) {
+                return fail("character", i === 0 || !entry.character
+                    ? "Dieser Charakter steht nicht in deinem Profil."
+                    : `${entry.character} steht nicht in deinem Profil.`);
+            }
+            character = other.character;
         }
         if (seen.has(character.key)) continue;
         seen.add(character.key);
         if (!specKey) return fail("spec", "Bitte eine Spezialisierung wählen.");
         if (!specAllowed(character, specKey, offProfile)) {
+            if (offProfile) return fail("spec", `Diese Spezialisierung passt nicht zur Klasse von ${character.name}.`);
             return fail("spec", `Diese Spezialisierung ist für ${character.name} nicht im Profil hinterlegt.`);
         }
         resolved.push({ character, spec: specKey, status: entry.status });
@@ -485,7 +518,12 @@ function requestedCharacters(input, previous) {
     if (Array.isArray(input.characters)) {
         return input.characters
             .filter((c) => c && (c.character || c.spec))
-            .map((c) => ({ character: String(c.character || "").trim(), spec: String(c.spec || "").trim(), status: String(c.status || "").trim() }));
+            .map((c) => {
+                const entry = { character: String(c.character || "").trim(), spec: String(c.spec || "").trim(), status: String(c.status || "").trim() };
+                // "Anderer Charakter …" (#521): the class of a name outside the profile, read only with offProfile
+                if (c.className) entry.className = String(c.className).trim();
+                return entry;
+            });
     }
     const single = { character: String(input.character || "").trim(), spec: String(input.spec || "").trim(), status: "" };
     const key = profiles.nameKey(single.character);
@@ -502,7 +540,8 @@ function requestedCharacters(input, previous) {
  * start for the orga entering somebody, the raider-role rule (checkRaiderRole;
  * `roleIds` / `config` are optional, it reads them otherwise) and the waiting
  * list. `offProfile` (only with `byOrga`, the setup editor #521) also takes a spec
- * of the character's class the profile lacks (validateSignup). The change event
+ * of the character's class the profile lacks, and a new name outside the profile
+ * that comes with its class (`characters[].className`, validateSignup). The change event
  * fires in the store.
  *
  * `waitlisted` says the "Dabei" became a bench seat because the raid is full,

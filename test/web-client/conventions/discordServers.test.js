@@ -5,8 +5,8 @@
 // held here are the lines that break silently: the section talks to the
 // endpoints the server serves, the links table is the main element with its
 // status and "Neu posten" per row (the former SettingsTalkOverview row is gone),
-// each change patches only its own fields so the old talk fields survive until
-// #897, the rights stay in a tooltip, and no talk section is offered any more.
+// each change patches only its own fields, the old talk fields are gone for
+// good (#897), the rights stay in a tooltip, and no talk section is offered any more.
 const fs = require("fs");
 const path = require("path");
 
@@ -32,7 +32,10 @@ describe("Discord-Server section", () => {
         expect(section).toContain("updateSettings({ discordServers: patch } as Partial<AdminConfig>)");
         expect(section).not.toMatch(/talkGuildId|talkPingChannelId/);
         // #894 drops the ping channel from the backend; the client no longer knows the field at all
-        expect(api).not.toMatch(/talkPingChannelId/);
+        expect(api).not.toMatch(/talkPingChannelId|talkGuildId/);
+        // #897: no ping server is locked against removal any more
+        expect(section).not.toContain("removePingServerLocked");
+        expect(de["settings.discordServers.removePingServerLocked"]).toBeUndefined();
         expect(section).toContain("save({ links: [...config.links, link] }");
         // a link needs its source among the servers: removing a server drops its links
         expect(section).toContain("links: config.links.filter((l) => l.from !== row.id)");

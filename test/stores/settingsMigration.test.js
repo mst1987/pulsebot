@@ -3,7 +3,7 @@ jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 const fs = require("fs");
 const { settingsPath } = require("../../src/config/paths");
 const {
-    migrateSettings, legacyEventGuilds, migrateDiscordServers, migrateCategoryRaidTemplate, raidplanDefaultsLine,
+    migrateSettings, migrateCategoryRaidTemplate, raidplanDefaultsLine,
 } = require("../../src/stores/settingsMigration");
 const { getConfig } = require("../../src/stores/configStore");
 const { listRaidTemplates } = require("../../src/stores/raidTemplateStore");
@@ -42,16 +42,19 @@ describe("stores/settingsMigration migrateSettings (#420)", () => {
 
         expect(stored(TEMPLATES_FILE).templates[0]).toMatchObject({ id: "rh-3", raidhelperTemplateId: "3" });
         const config = stored(CONFIG_FILE);
-        expect(config.discordServers.eventGuilds).toEqual([
-            { guildId: "1100000000000000001", label: "", overviewGuildId: "1100000000000000002", overviewChannelId: "1100000000000000003" },
-        ]);
+        // written as the server federation (#897): the event server, the talk server as a server of its own,
+        // the overview target as a link - and no talkGuildId any more
+        expect(config.discordServers).toEqual({
+            servers: [{ guildId: "1100000000000000001", label: "" }, { guildId: "1100000000000000002", label: "" }],
+            links: [{ from: "1100000000000000001", to: "1100000000000000002", channelId: "1100000000000000003", lang: "", versions: [] }],
+            signupNoteChannelId: "",
+            guildBankChannelId: "",
+        });
         expect(config.categoryRaidTemplate).toEqual({ c1: "rh-3", c2: "rh-3" });
         // everything else stays as it was
         expect(config.raidDefaults).toEqual(OLD_CONFIG.raidDefaults);
         expect(getConfig().categoryRaidTemplate).toEqual({ c1: "rh-3", c2: "rh-3" });
-        // read as the server federation (#890): the event server, its overview target as a link
-        expect(getConfig().discordServers.servers.map((s) => s.guildId)).toContain("1100000000000000001");
-        expect(getConfig().discordServers.links).toEqual([{ from: "1100000000000000001", to: "1100000000000000002", channelId: "1100000000000000003", lang: "", versions: [] }]);
+        expect(getConfig().discordServers).toEqual(config.discordServers);
         expect(listRaidTemplates()[0].id).toBe("rh-3");
     });
 
@@ -158,20 +161,6 @@ describe("stores/settingsMigration overflow -> none (#516)", () => {
 });
 
 describe("stores/settingsMigration steps", () => {
-    it("legacyEventGuilds builds one entry from an event server, none without", () => {
-        expect(legacyEventGuilds({ eventGuildId: " 111111 " })).toEqual([{ guildId: "111111", label: "", overviewGuildId: "", overviewChannelId: "" }]);
-        expect(legacyEventGuilds({ talkGuildId: "222222" })).toEqual([]);
-        expect(legacyEventGuilds(undefined)).toEqual([]);
-    });
-
-    it("migrateDiscordServers leaves a list, a missing block and a block without event server alone", () => {
-        expect(migrateDiscordServers({ eventGuilds: [], eventGuildId: "111111" })).toBeNull();
-        expect(migrateDiscordServers(undefined)).toBeNull();
-        expect(migrateDiscordServers(["x"])).toBeNull();
-        expect(migrateDiscordServers({ talkGuildId: "222222" })).toBeNull();
-        expect(migrateDiscordServers({ eventGuildId: "111111", talkPingChannelId: "5" })).toMatchObject({ talkPingChannelId: "5", eventGuilds: [{ guildId: "111111" }] });
-    });
-
     it("migrateCategoryRaidTemplate only upgrades a config without a map whose default a template links", () => {
         const templates = [{ id: "rh-3", raidhelperTemplateId: "3" }];
         expect(migrateCategoryRaidTemplate({ categoryIds: ["a"], raidDefaults: { templateId: "3" } }, templates)).toEqual({ a: "rh-3" });

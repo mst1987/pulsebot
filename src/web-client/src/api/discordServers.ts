@@ -15,15 +15,13 @@ export type DiscordServers = {
     signupNoteChannelId: string;
     /** Where the guild bank requests of every raider organizer land; "" = no guild bank button. */
     guildBankChannelId: string;
-    /** Still stored until #897 removes it; the Discord-Server page neither shows nor sends it. */
-    talkGuildId?: string;
 };
 
 export type BotPermission = { key: string; label: string; ok: boolean };
 
 /** One configured server as a status card (src/web/guildRoles.js). */
 export type DiscordServerCard = {
-    role: "event" | "talk";
+    role: "event";
     id: string;
     name: string;
     connected: boolean;
@@ -53,8 +51,6 @@ export type DiscordServersData = {
     servers: ServerRow[];
     guilds: GuildOption[];
     versions: VersionOption[];
-    /** The talk server's card, only to lock removing the old talk server (until #897 drops it). */
-    talk: DiscordServerCard | null;
 };
 
 export function getDiscordServers(): Promise<DiscordServersData> {

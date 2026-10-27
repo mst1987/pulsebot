@@ -16,8 +16,11 @@ export function roleUseLabel(use: ServerRoleUse): string {
             const names = (use.categories || []).map((c) => c.name).filter(Boolean);
             return names.length ? t("discord.roles.use.categoryRaider", { names: names.join(", ") }) : t("discord.roles.use.categoryRaiderAny");
         }
-        case "roleSync":
-            return t("discord.roles.use.roleSync", { sides: use.sides.map((s) => t(`discord.roles.side.${s}`)).join(", ") });
+        case "roleSync": {
+            // the partner servers of the role's pairs (#897), by name; an unknown one by its id
+            const names = (use.servers || use.guildIds.map((guildId) => ({ guildId, name: "" }))).map((s) => s.name || s.guildId).filter(Boolean);
+            return names.length ? t("discord.roles.use.roleSync", { servers: names.join(", ") }) : t("discord.roles.use.roleSyncAny");
+        }
         case "roster":
             return t("discord.roles.use.roster", { name: use.name, kinds: use.kinds.map((k) => t(`discord.roles.use.rosterKind.${k}`)).join(", ") });
         case "roleMessage":

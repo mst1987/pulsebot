@@ -38,7 +38,7 @@ const EVENT = "900000000000000001";
 const TALK = "900000000000000002";
 const OTHER = "900000000000000009";
 // the server list (#895): role messages belong to one of them
-const SERVERS = { discordServers: { servers: [{ guildId: EVENT }, { guildId: TALK }], talkGuildId: TALK, links: [] } };
+const SERVERS = { discordServers: { servers: [{ guildId: EVENT }, { guildId: TALK }], links: [] } };
 const CH = "300000000000000001";
 const CH2 = "300000000000000002";
 const msg = (n) => `40000000000000000${n}`;
@@ -78,7 +78,7 @@ describe("collect", () => {
         mockData.hubs = [{ categoryId: "c1", guildId: EVENT, channelId: CH, messageId: msg(1) }, { categoryId: "c2", guildId: OTHER, channelId: CH, messageId: msg(2) }];
         mockData.panels = [{ categoryId: "c1", guildId: EVENT, channelId: CH, messageId: msg(3) }];
         mockData.overviews = [{ categoryId: "c1", guildId: EVENT, channelId: CH, messageId: msg(4) }];
-        mockData.roleMessages = [{ guildSide: "event", channelId: CH, messageId: msg(5), title: "Rollen" }, { guildSide: "event", channelId: CH, messageId: "", title: "Entwurf" }, { guildSide: "talk", channelId: CH, messageId: msg(6) }];
+        mockData.roleMessages = [{ guildSide: "event", channelId: CH, messageId: msg(5), title: "Rollen" }, { guildSide: "event", channelId: CH, messageId: "", title: "Entwurf" }, { guildId: TALK, channelId: CH, messageId: msg(6) }];
         mockData.center = { guildId: EVENT, channelId: CH, messageId: msg(7) };
         mockData.recruitment = [{ guildId: EVENT, channelId: CH, messageId: msg(8), title: "", channelName: "bewerbung" }];
         const list = collect(EVENT, SERVERS);
@@ -87,14 +87,15 @@ describe("collect", () => {
         expect(collect("", SERVERS)).toEqual([]);
     });
 
-    it("takes the role messages of this server: by guildId, an old entry by its side", () => {
+    // #897: an old entry without guildId belongs to the first server, its side no longer counts
+    it("takes the role messages of this server: by guildId, an old entry by the first server", () => {
         mockData.roleMessages = [
             { guildSide: "talk", channelId: CH, messageId: msg(6), title: "Alt" },
             { guildId: TALK, channelId: CH, messageId: msg(7), title: "Neu" },
             { guildId: EVENT, channelId: CH, messageId: msg(8), title: "Erster" },
         ];
-        expect(collect(TALK, SERVERS).map((m) => m.title)).toEqual(["Alt", "Neu"]);
-        expect(collect(EVENT, SERVERS).map((m) => m.title)).toEqual(["Erster"]);
+        expect(collect(TALK, SERVERS).map((m) => m.title)).toEqual(["Neu"]);
+        expect(collect(EVENT, SERVERS).map((m) => m.title)).toEqual(["Alt", "Erster"]);
     });
 
     it("finds the talk overview of an event server on the server it is posted to", () => {

@@ -3,7 +3,7 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { DateTime } = require("luxon");
 const { listEvents, statusOf, statusCounts, STATUS_LABELS, STATUS_ICONS } = require("../../services/events/eventLookup");
-const { eventGuildId } = require("../../services/discord/guildRoles");
+const { serverIds } = require("../../services/discord/guildRoles");
 const linkCheck = require("../../services/discord/linkCheck");
 const { webUrl, lookupReply, deferLookup, discordTime, respondChoices, clip } = require("../../utils/discord/botLookup");
 const { addVersionOption, versionOfCommand, eventsOfVersion, versionNote } = require("../../services/events/commandVersion");
@@ -69,8 +69,8 @@ module.exports = {
         ];
         if (event.leaderId) fields.push({ name: "Raidleitung", value: `<@${event.leaderId}>`, inline: true });
 
-        // Events live on the event server, whichever server the command came from.
-        const guildId = eventGuildId() || (interaction.guild && interaction.guild.id) || "";
+        // The raid's own server, whichever server the command came from.
+        const guildId = event.guildId || serverIds()[0] || (interaction.guild && interaction.guild.id) || "";
         const links = [{ label: "Im Web öffnen", url: webUrl(`/raids/detail?event=${encodeURIComponent(event.id)}`) }];
         // only a channel that exists (#537)
         const channelUrl = linkCheck.channelLink(guildId, event.channelId);

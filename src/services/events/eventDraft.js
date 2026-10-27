@@ -35,7 +35,7 @@ const { getConfig, listRaidTemplates, getRaidTemplate } = require("../../stores/
 const { announceSetting } = require("./eventAnnounce");
 const { signupSourceFor } = require("./eventSources");
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
-const { eventGuildId } = require("../discord/guildRoles");
+const { serverIds } = require("../discord/guildRoles");
 const { createEvent } = require("./eventCreate");
 const { templateVersionProblem } = require("./categoryEras");
 const icon = require("./eventIcon");
@@ -203,9 +203,10 @@ function submitNamePattern(userId, state, typed, now = Date.now()) {
 /** The server this flow may create events on, or an error line. */
 function guildFor(interaction) {
     const here = String((interaction.guild && interaction.guild.id) || interaction.guildId || "");
-    if (!here) return { error: "Events legst du auf dem Event-Server an, nicht per Direktnachricht." };
-    const eventGuild = eventGuildId();
-    if (eventGuild && eventGuild !== here) return { error: "Events legst du auf dem Event-Server an." };
+    if (!here) return { error: "Events legst du auf einem Raid-Server an, nicht per Direktnachricht." };
+    // every server of the list may hold raids (#890, #897)
+    const ids = serverIds();
+    if (ids.length && !ids.includes(here)) return { error: "Events legst du auf einem Raid-Server an." };
     return { guildId: here };
 }
 
