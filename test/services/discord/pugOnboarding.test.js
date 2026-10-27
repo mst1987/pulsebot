@@ -359,6 +359,31 @@ describe("privileged roles", () => {
         expect(mockSaved).toHaveLength(0);
     });
 
+    test("a default channel the apply would hide: warned in the preview, the apply refuses with 409 and writes nothing", async () => {
+        mockGuild = guild({ children: [
+            { id: "ch-def", parentId: TBC_CAT, name: "pug-info", synced: true },
+            { id: "ch-own", parentId: FOREVER_CAT, name: "regeln", synced: false },
+        ] });
+        mockGuild.onboarding.defaultChannels = new Collection([["c1", { id: "c1" }], ["ch-def", { id: "ch-def" }], ["ch-own", { id: "ch-own" }]]);
+        const o = await svc.overview(GID);
+        expect(o.prerequisites.find((p) => p.key === "defaultChannels")).toEqual({ key: "defaultChannels", ok: false, channels: ["pug-info"] });
+        await expect(run()).rejects.toMatchObject({ status: 409, code: "default_channel_hidden" });
+        expect(writes()).toBe(0);
+        expect(mockSaved).toHaveLength(0);
+        // the category of that channel switched off: nothing hidden, the apply goes through
+        const off = await svc.overview(GID, mockConfig, { categoryIds: [FOREVER_CAT] });
+        expect(off.prerequisites.find((p) => p.key === "defaultChannels").ok).toBe(true);
+        await expect(run({ categoryIds: [FOREVER_CAT] })).resolves.toBeTruthy();
+    });
+
+    test("a default channel that is a PuG category itself counts too; an unreadable onboarding leaves it unknown", async () => {
+        mockGuild.onboarding.defaultChannels = new Collection([[TBC_CAT, { id: TBC_CAT }]]);
+        const pre = (await svc.overview(GID)).prerequisites.find((p) => p.key === "defaultChannels");
+        expect(pre).toMatchObject({ ok: false, channels: ["TBC PuGs"] });
+        mockGuild.fetchOnboarding = jest.fn(async () => { throw new Error("nope"); });
+        expect((await svc.overview(GID)).prerequisites.find((p) => p.key === "defaultChannels")).toMatchObject({ ok: null, channels: [] });
+    });
+
     test("an orga role found by name is privileged", async () => {
         mockConfig = baseConfig({ orgaRoleIds: ["r-druid"] });
         mockGuild = guild({ roles: [makeRole({ id: "r-druid", name: "Druid" })] });

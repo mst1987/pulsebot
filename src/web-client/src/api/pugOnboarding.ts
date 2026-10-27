@@ -58,13 +58,15 @@ export type PugCategory = {
 };
 
 export type PugPrerequisite = {
-    key: "community" | "manageRoles" | "manageGuild" | "roleOrder" | "categoryAccess" | "selfAssign";
+    key: "community" | "manageRoles" | "manageGuild" | "roleOrder" | "categoryAccess" | "selfAssign" | "defaultChannels";
     /** null = not knowable */
     ok: boolean | null;
     /** roleOrder: the roles above the bot; selfAssign: the roles that grant more than their purpose */
     roles?: string[];
     /** categoryAccess: the categories where the bot lacks View Channel or Manage Roles */
     categories?: string[];
+    /** defaultChannels: the default channels of the onboarding the apply would hide from @everyone */
+    channels?: string[];
 };
 
 export type PugOnboardingOverview = {

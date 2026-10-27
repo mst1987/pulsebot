@@ -19,7 +19,8 @@
         "manageGuild": "Dem Bot fehlt das Recht „Server verwalten“.",
         "roleOrder": "Diese Rollen stehen über der Bot-Rolle: {roles}. Zieh die Bot-Rolle in Discord darüber.",
         "categoryAccess": "In diesen Kategorien darf der Bot die Rechte nicht ändern (Kanal sehen und Rollen verwalten fehlen): {categories}.",
-        "selfAssign": "Diese Rollen geben mehr frei als ihren Zweck und dürfen nicht per Onboarding vergeben werden: {roles}. Benenne sie in Discord um oder nimm ihnen die Rechte."
+        "selfAssign": "Diese Rollen geben mehr frei als ihren Zweck und dürfen nicht per Onboarding vergeben werden: {roles}. Benenne sie in Discord um oder nimm ihnen die Rechte.",
+        "defaultChannels": "Diese Standard-Kanäle des Onboardings wären danach für @everyone unsichtbar, das lehnt Discord ab: {channels}. Nimm sie in Discord aus den Standard-Kanälen oder schalte ihre Kategorie hier ab."
     },
     "categories": "PuG-Kategorien",
     "categoryOn": "Wird übernommen",

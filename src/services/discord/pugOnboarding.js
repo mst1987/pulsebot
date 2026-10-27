@@ -461,7 +461,9 @@ function fingerprintOf(selectedIds, d) {
  * Manage Roles (roles, rights, onboarding), Manage Server (onboarding), every existing
  * role of the set below its own highest role (unknown while Manage Roles is missing), View
  * Channel and Manage Roles in every selected category (`categoryAccess`) and no found role
- * that grants more than its purpose (`selfAssign`). `ok` null = unknown.
+ * that grants more than its purpose (`selfAssign`), no default channel of the onboarding the
+ * apply would hide from @everyone (`defaultChannels`: Discord then refuses the onboarding with
+ * the rights already changed). `ok` null = unknown.
  */
 function prerequisites(guild, actual, categories = []) {
     const me = guild.members && guild.members.me;
@@ -473,6 +475,7 @@ function prerequisites(guild, actual, categories = []) {
     const access = Object.values(actual.categories || {});
     const blocked = categories.filter((c) => actual.categories[c.id] && actual.categories[c.id].botAccess === false).map((c) => c.name);
     const privileged = found.filter((r) => r.privileged).map((r) => r.name);
+    const hiddenDefaults = hiddenDefaultChannels(actual, categories);
     return [
         { key: "community", ok: Array.isArray(guild.features) ? guild.features.includes("COMMUNITY") : null },
         { key: "manageRoles", ok: manageRoles },
@@ -480,7 +483,25 @@ function prerequisites(guild, actual, categories = []) {
         { key: "roleOrder", ok: manageRoles === true ? above.length === 0 : null, roles: above },
         { key: "categoryAccess", ok: blocked.length ? false : (access.some((a) => a.botAccess === null) ? null : true), categories: blocked },
         { key: "selfAssign", ok: privileged.length === 0, roles: privileged },
+        { key: "defaultChannels", ok: actual.onboarding ? hiddenDefaults.length === 0 : null, channels: hiddenDefaults },
     ];
+}
+
+/**
+ * The default channels of the onboarding the apply hides from @everyone: a selected PuG
+ * category itself or a channel in it that follows its rights (synced). Discord wants every
+ * default channel visible to @everyone (DEFAULT_CHANNEL_REQUIRES_EVERYONE_ACCESS).
+ */
+function hiddenDefaultChannels(actual, categories) {
+    const defaults = actual.onboarding ? actual.onboarding.defaultChannelIds : [];
+    const hidden = new Map();
+    for (const c of categories) {
+        const cur = actual.categories[c.id];
+        if (!cur) continue;
+        hidden.set(c.id, c.name);
+        for (const ch of cur.children || []) if (ch.synced === true) hidden.set(ch.id, ch.name);
+    }
+    return defaults.filter((id) => hidden.has(id)).map((id) => hidden.get(id));
 }
 
 /** Reads the server once: the categories, the selection, the desired and the actual state, the diff. */
@@ -574,6 +595,7 @@ function checkBeforeWrite(snap, guild, fingerprint) {
     if (failed("roleOrder")) throw new PugOnboardingError(409, "role_above_bot", `Diese Rollen stehen über der Rolle des Bots: ${of("roleOrder").roles.join(", ")}. Nichts wurde geändert.`);
     if (of("categoryAccess").ok === false) throw new PugOnboardingError(409, "category_access", `In diesen Kategorien darf der Bot die Rechte nicht ändern (Kanal sehen + Rollen verwalten): ${of("categoryAccess").categories.join(", ")}. Nichts wurde geändert.`);
     if (failed("selfAssign")) throw new PugOnboardingError(409, "role_privileged", `Diese Rollen geben mehr frei als ihren Zweck und dürfen nicht per Onboarding vergeben werden: ${of("selfAssign").roles.join(", ")}. Nichts wurde geändert.`);
+    if (of("defaultChannels").ok === false) throw new PugOnboardingError(409, "default_channel_hidden", `Diese Standard-Kanäle des Onboardings würden für @everyone unsichtbar, das lehnt Discord ab: ${of("defaultChannels").channels.join(", ")}. Nimm sie in Discord aus den Standard-Kanälen oder schalte ihre Kategorie ab. Nichts wurde geändert.`);
     if (snap.actual.onboardingError) throw new PugOnboardingError(502, "onboarding_unreadable", `Das Onboarding ließ sich nicht lesen: ${snap.actual.onboardingError}. Nichts wurde geändert.`);
     if (fingerprint !== snap.fingerprint) throw new PugOnboardingError(409, "changed", "Inzwischen geändert – bitte neu laden. Nichts wurde geändert.");
 }

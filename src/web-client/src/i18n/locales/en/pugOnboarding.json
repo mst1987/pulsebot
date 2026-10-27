@@ -19,7 +19,8 @@
         "manageGuild": "The bot lacks the “Manage Server” permission.",
         "roleOrder": "These roles are above the bot role: {roles}. Drag the bot role above them in Discord.",
         "categoryAccess": "The bot may not change the permissions in these categories (View Channel and Manage Roles missing): {categories}.",
-        "selfAssign": "These roles unlock more than their purpose and must not be handed out by the onboarding: {roles}. Rename them in Discord or take their permissions away."
+        "selfAssign": "These roles unlock more than their purpose and must not be handed out by the onboarding: {roles}. Rename them in Discord or take their permissions away.",
+        "defaultChannels": "These default channels of the onboarding would be hidden from @everyone afterwards, which Discord refuses: {channels}. Remove them from the default channels in Discord or switch their category off here."
     },
     "categories": "PuG categories",
     "categoryOn": "Will be applied",

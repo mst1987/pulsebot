@@ -16,7 +16,7 @@
 //      (fingerprint: the one of the preview the orga saw; categoryIds: the switched-on ones)
 //      → { data: { done: { roles, categories, channels, onboarding }, overview: Overview } }
 //      409 offline | busy | changed | no_pug_category | no_community | missing_permissions
-//          | role_above_bot | category_access | role_privileged
+//          | role_above_bot | category_access | role_privileged | default_channel_hidden
 //      502 onboarding_unreadable | discord_failed (the message names the step and what was done)
 //      400 unknown_guild outside the server list | fingerprint_required | no_category_selected
 const { ok, error: apiError } = require("../http/apiResponse");

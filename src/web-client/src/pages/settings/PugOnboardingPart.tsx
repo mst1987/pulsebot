@@ -217,7 +217,7 @@ function Blocker({ prereq }: { prereq: PugPrerequisite }) {
     return (
         <div className="conn-status mid">
             <Badge tone="mid" icon={<WarnIcon />}>{t("pugOnboarding.blocked")}</Badge>
-            <span>{t(`pugOnboarding.prereq.${prereq.key}`, { roles: (prereq.roles || []).join(", "), categories: (prereq.categories || []).join(", ") })}</span>
+            <span>{t(`pugOnboarding.prereq.${prereq.key}`, { roles: (prereq.roles || []).join(", "), categories: (prereq.categories || []).join(", "), channels: (prereq.channels || []).join(", ") })}</span>
         </div>
     );
 }

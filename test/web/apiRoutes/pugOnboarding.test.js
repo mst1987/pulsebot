@@ -102,7 +102,7 @@ describe("POST /api/discord/pug-onboarding", () => {
         expect(svc.apply).toHaveBeenCalledWith(PUG, { actor: "Admin", categoryIds: [], fingerprint: "" });
     });
 
-    it.each([[409, "busy"], [409, "changed"], [409, "role_privileged"], [400, "fingerprint_required"]])("passes %i %s on", async (code, name) => {
+    it.each([[409, "busy"], [409, "changed"], [409, "role_privileged"], [409, "default_channel_hidden"], [400, "fingerprint_required"]])("passes %i %s on", async (code, name) => {
         svc.apply.mockRejectedValueOnce(new svc.PugOnboardingError(code, name, "x"));
         const res = await post("/api/discord/pug-onboarding", { guildId: PUG, fingerprint: "abc" });
         expect(status(res)).toBe(code);
