@@ -27,7 +27,7 @@ reagiert, holt sich die Rolle selbst. Die Orga legt die Nachricht im Web an: *Sy
   keine Einzel-Entfernungen).
 - Knopf und Reaktion sind unabhängig: Wer per Knopf umschaltet, behält oder verliert seine Reaktion nicht.
 - **Recht:** Knopf und Reaktion folgen derselben Bot-Befehle-Regel, dem Befehl `rolemsg` unter „Kanäle“
-  (Standard: alle dürfen; gezählt werden die Rollen auf dem Event-Server). Wer nicht darf, bekommt beim Knopf
+  (Standard: alle dürfen; gezählt werden die Rollen auf dem ersten Server der Liste). Wer nicht darf, bekommt beim Knopf
   die übliche Absage, bei der Reaktion nichts (nur `log.info`).
 - **Abklingzeit:** je Mitglied und Rolle eine Änderung pro 2 Sekunden, Knopf und Reaktion zusammen (im
   Speicher). Ein zweiter Klick antwortet „Einen Moment bitte …“, eine zweite Reaktion wird nur geloggt. Folge:

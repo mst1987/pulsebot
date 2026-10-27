@@ -75,7 +75,7 @@ Endnutzer-Sicht: [guide-discord.md](guide-discord.md) (Zentrale, Download, Patch
 | `src/services/addons/addonCenter.js` | Posten, Entfernen, Neuzeichnen, Versionsprüfung, Job `addonCenter` (`web/http/jobs.js`), `saveSettings()` (Kanalwechsel = Umzug; andere Spielversion oder Rolle = sofort neu zeichnen), der Update-Ping (`postUpdatePing`, `expirePing`, `PING_TTL_MS`). |
 | `src/services/discord/selfRole.js` | `privilegedReason()`: ob eine Rolle Bot-Rechte oder Discord-Berechtigungen trägt und darum nie per Knopf vergeben wird. |
 | `src/services/addons/addonCenterBot.js` | Die Knöpfe: Download (Rechte, Limit, Größe, GitHub) und das Abo (`subscription`, `roleProblem`): `addonhub:sub` schaltet die Update-Rolle um, `addonhub:unsub` („Abo beenden“ unter der Bestätigung) nimmt sie nur weg. Ein unbekannter Knopf bekommt „Gerade nicht verfügbar“. |
-| `src/commands/lookup/addonCenterButton.js` | `componentRoute` für `addonhub:` (Zugriff wie `/addons`, ohne Event-Server-Prüfung, die Zentrale darf auf dem Talk-Server stehen). |
+| `src/commands/lookup/addonCenterButton.js` | `componentRoute` für `addonhub:` (Zugriff wie `/addons`, ohne Raid-Server-Prüfung, die Zentrale darf auf jedem Server stehen). |
 | `src/stores/addonCenterStore.js` | `settings/addon-center.json`: Einstellungen, gepostete Nachricht, bekannte Versionen ([data-storage.md](data-storage.md)). |
 | `src/web/apiRoutes/addonCenter.js` | `GET/PUT/POST/DELETE /api/addon-center`, nur Voll-Admins (`adminOnly` + `full`). |
 | `src/web-client/src/pages/settings/AddonCenterCard.tsx` | Der Block „Downloadzentrale im Discord“ unter der Addon-Liste (`api/addonCenter.ts`). |

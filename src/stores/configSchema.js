@@ -921,7 +921,7 @@ function normalizeConfig(raw) {
         // over it: the settings form writes this field on every save, so an
         // install that never filled it in would otherwise keep a blank value —
         // no admin-role check, no preselected server in the menu.
-        // The first event server, once picked, *is* the home guild; the old key
+        // The first server, once picked, *is* the home guild; the old key
         // stays the fallback for installs that never configured one.
         guildId: (discordServers.servers[0] && discordServers.servers[0].guildId)
             || String(stored.guildId || "").trim() || CONFIG_DEFAULTS.guildId,

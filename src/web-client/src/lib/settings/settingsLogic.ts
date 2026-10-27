@@ -774,7 +774,7 @@ export function remindersPatch(current: Record<string, ReminderRule>, categoryId
     return { categoryReminders: next };
 }
 
-// ---- raid overview on the talk server (#257) ----
+// ---- raid list of a link (#257, #892) ----
 
 /** "gerade eben", "vor 5 Min.", "vor 3 Std.", "vor 2 T"; "" for never. */
 export function agoText(ms: number, now: number): string {

@@ -27,7 +27,7 @@ import { WarnIcon } from "../../components/ui/icons";
 // 17 are not), so the inactive ones fold away under one line; the part head's
 // segment shows them all. A configured id Discord no longer knows stays visible
 // with a `bad` badge — dropping it would delete its settings on the next save.
-// When the bot sees every event server and the id is really gone (#744,
+// When the bot sees every server and the id is really gone (#744,
 // `missing`), the badge says "in Discord gelöscht" and the row offers
 // "Kategorie abschließen" (CategoryCloseDialog.tsx).
 

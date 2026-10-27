@@ -54,13 +54,13 @@ const JOBS = [
     { name: "logAutoLink", start: () => logAutoLink.startLogAutoLink(), stop: () => logAutoLink.stopLogAutoLink() },
     // Keep the bot's event messages of EventHelper events current as signups change.
     { name: "eventMessageSync", start: () => eventMessage.startEventMessageSync(), stop: () => eventMessage.stopEventMessageSync() },
-    // Automatic reminders per raid category and the role sync between the event
-    // and the talk server (#264). Both do nothing until configured.
+    // Automatic reminders per raid category and the role sync between paired
+    // servers (#264, #896). Both do nothing until configured.
     { name: "reminders", start: () => reminders.startReminders(), stop: () => reminders.stopReminders() },
     { name: "roleSync", start: () => roleSync.startRoleSync(), stop: () => roleSync.stopRoleSync() },
     // Rosters and their Discord roles (#656): the reconcile at start and every 10 minutes; nothing without a roster with roles.
     { name: "rosterRoleSync", start: () => rosterRoleSync.startRosterRoleSync(), stop: () => rosterRoleSync.stopRosterRoleSync() },
-    // The raid overview on the talk server (#257); does nothing until configured.
+    // The raid list of every link (#257, #892); does nothing until configured.
     { name: "talkOverview", start: () => talkOverview.startTalkOverview(), stop: () => talkOverview.stopTalkOverview() },
     // Recurring events per category (#289): creates each date's event in time; nothing until a series exists.
     { name: "eventSeries", start: () => eventSeries.startEventSeries(), stop: () => eventSeries.stopEventSeries() },

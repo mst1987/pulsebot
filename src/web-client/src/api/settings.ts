@@ -281,7 +281,7 @@ export type SettingsData = {
     bot?: { online: boolean; readySince: number; guildName: string };
     // The server cards; null for a limited settings user.
     servers?: { events: DiscordServerCard[] } | null;
-    /** #744: configured categories Discord no longer has (only known while the bot sees every event server). */
+    /** #744: configured categories Discord no longer has (only known while the bot sees every server). */
     missingCategories?: MissingCategory[];
     activeGuildId: string;
 };

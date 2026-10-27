@@ -19,7 +19,7 @@
 //     provisional or leaves the Kader loses the roster and its roles
 //     (kaderRoster.takeoverDrops computes it on every planner write of the orga,
 //     `dropPlayers` carries it out). The roster is written first, so the role
-//     event Discord sends back finds no member any more - no loop.
+//     update Discord sends back finds no member any more - no loop.
 //   - Discord → Kader: a member who lost every role of the roster in Discord is
 //     removed by rosterRoleSync (gateway event or the 10-minute reconcile),
 //     which calls `onRoleLost`: the player goes back to provisional in the

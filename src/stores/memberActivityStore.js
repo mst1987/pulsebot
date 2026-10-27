@@ -1,4 +1,4 @@
-// Who joined or left a configured Discord server (event or talk server), for the
+// Who joined or left a configured Discord server, for the
 // Discord overview of the web admin (docs/discord-servers.md "Discord-Übersicht").
 // The bot records it from guildMemberAdd / guildMemberRemove (services/discord/memberActivity.js).
 //

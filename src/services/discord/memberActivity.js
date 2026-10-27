@@ -1,4 +1,4 @@
-// Joins and leaves of the configured Discord servers (event and talk server),
+// Joins and leaves of the configured Discord servers,
 // for the Discord overview of the web admin (docs/discord-servers.md
 // "Discord-Übersicht"). The bot calls onMemberAdd / onMemberRemove from its
 // guildMemberAdd / guildMemberRemove listeners; the overview reads

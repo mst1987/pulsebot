@@ -1,6 +1,6 @@
 // The guild bank stock: the page "Gildenbank" (#632) and the assignment of a
 // bank to a Discord server (Einstellungen). A bank scanned for the first time
-// goes to the one event server, or waits for an assignment when there are
+// goes to the one server, or waits for an assignment when there are
 // several; until then nobody can request from it.
 //
 //   GET  /api/guildbank                     the active server's banks of the content switch's
@@ -39,7 +39,7 @@
 //   POST /api/guildbank/waitlist/remove     { key, id }
 //   POST /api/guildbank/waitlist/preview    { key, text } — the import's rows (nothing stored)
 //   POST /api/guildbank/waitlist/import     { key, text } — pasted lines "Name<Tab>Item<Tab>Anzahl" (also ; or ,)
-//   GET  /api/settings/guild-banks          every bank (summary) + the event servers to pick from
+//   GET  /api/settings/guild-banks          every bank (summary) + the servers to pick from
 //   POST /api/settings/guild-banks/assign   { key, guildId } — "" takes the assignment back
 //   POST /api/settings/guild-banks/delete   { key } — forget a bank with its settings
 //

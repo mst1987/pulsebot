@@ -104,7 +104,7 @@ function postFor(request, { config } = {}) {
 
 /**
  * What a raider may ask for from an organizer: the first of the servers
- * (`guildIds`, the organizer's own first, then the event servers) that has a
+ * (`guildIds`, the organizer's own first, then the other servers) that has a
  * guild bank — its bank of the category's game version, else its first — with
  * the offerable items in groups. `{ bank: null, groups: [] }` without one:
  * then the free-text form stays.

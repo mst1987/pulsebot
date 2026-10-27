@@ -209,7 +209,7 @@ The activity log gets `takeover`, `role_given`, `role_removed_kader`, `role_remo
 - **Kader → Discord:** a player who falls below provisional or is removed from the Kader loses the roster and its
   roles. `kaderRoster.takeoverDrops` finds them on every planner write (`kader.js store()`), the lines go into the
   activity, and `rosterTakeover.dropPlayers` removes them from the roster in the background — the roster is written
-  first, so the role event Discord sends back finds no member any more.
+  first, so the role update Discord sends back finds no member any more.
 - **Discord → Kader:** a member who lost every role of the roster in Discord is removed by `rosterRoleSync` (gateway
   event or the reconcile) and `rosterTakeover.onRoleLost` puts the player back to provisional — provisional is still a
   takeover state, so that write drops nobody. `rosterTakeover` registers that handler with

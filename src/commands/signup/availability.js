@@ -129,7 +129,7 @@ async function onGuildBankModal(interaction, categoryId, config, lang) {
     return interaction.editReply(answerPayload(`✅ ${tr(lang, "Request sent – the orga will get back to you by DM.")}\n${requestSummary(result.request, lang)}`, { lang }));
 }
 
-/** The guild bank offer for an organizer click: the clicked server's bank first, then the event servers'. */
+/** The guild bank offer for an organizer click: the clicked server's bank first, then the other servers'. */
 const offerOf = (interaction, categoryId, config) => guildBank.offerFor({ guildIds: [interaction.guildId], categoryId, config });
 
 /** "Make a request": the pick card when the bank offers something, else the free-text modal as before. */

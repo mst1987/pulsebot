@@ -8,7 +8,7 @@
 // `hash` fingerprints what the message shows (without the time), `lastChange` is
 // when it was last redrawn (unix seconds, shown in its footer). Several
 // overviews per category are fine - one per channel. `scannedGuilds` are the
-// event servers whose channels were searched once for overviews posted before
+// servers whose channels were searched once for overviews posted before
 // the bot remembered them. Kept apart from the settings config: it changes on
 // every redraw, and a save of the settings page must never race it.
 const { settingsPath } = require("../config/paths");
@@ -83,12 +83,12 @@ function removeOverview(messageId) {
     return { ...hit };
 }
 
-/** Whether the old overviews of this event server were searched already. */
+/** Whether the old overviews of this server were searched already. */
 function isScanned(guildId) {
     return store.read().scannedGuilds.includes(str(guildId));
 }
 
-/** Remember that an event server's channels were searched. */
+/** Remember that a server's channels were searched. */
 function markScanned(guildId) {
     const id = str(guildId);
     if (!id) return;

@@ -334,7 +334,7 @@ describe("Discord-Server cards (#251, #361)", () => {
         expect(logic.serverCardState(card(), false)).toEqual({ tone: "ok", label: "Verbunden", missing: false });
     });
 
-    it("counts the cards that need attention for the sidebar badge, an empty event-server list scoring 0", () => {
+    it("counts the cards that need attention for the sidebar badge, an empty server list scoring 0", () => {
         expect(logic.serverIssues(null)).toBe(0);
         expect(logic.serverIssues({ events: [] })).toBe(0);
         expect(logic.serverIssues({ events: [card()] })).toBe(0);
@@ -478,7 +478,7 @@ describe("ping targets, role sync and reminders", () => {
     });
 });
 
-describe("raid overview on the talk server (#257)", () => {
+describe("raid list of a link (#257, #892)", () => {
     const NOW = 10_000_000;
     const base = { configured: true, channelId: "ov", messageId: "m1", messageUrl: "u", postedAt: 0, editedAt: 0, checkedAt: 0, error: "" };
 

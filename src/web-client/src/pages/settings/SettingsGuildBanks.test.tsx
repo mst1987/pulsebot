@@ -23,7 +23,7 @@ function settings(): GuildBankSettings {
             { ...row, key: "tbc:spineshatter:beta", guild: "Beta", guildId: "", pending: true, serverName: "" },
             { ...row, key: "tbc:spineshatter:alpha", guild: "Alpha", guildId: "g1", pending: false, serverName: "PvE" },
         ],
-        servers: [{ guildId: "g1", name: "Event-Server", label: "PvE" }, { guildId: "g2", name: "PvP", label: "" }],
+        servers: [{ guildId: "g1", name: "Pulse", label: "PvE" }, { guildId: "g2", name: "PvP", label: "" }],
         pending: 1,
     };
 }

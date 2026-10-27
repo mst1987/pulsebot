@@ -13,8 +13,8 @@ import { tParts, useT } from "../../i18n";
 
 // Einstellungen → Verbindungen → "Gildenbanken" (#632): every guild bank the
 // sync tool uploaded, the ones waiting for a server first. A bank belongs to
-// an event server — that is where its stock page and the requests are; with a
-// single event server a new bank lands there by itself (#631's ingest), with
+// a server — that is where its stock page and the requests are; with a
+// single server a new bank lands there by itself (#631's ingest), with
 // several it waits here. "Keinem Server" takes an assignment back.
 
 const nameOf = (bank: GuildBankAdminRow) => `${bank.guild} · ${bank.realm}`;

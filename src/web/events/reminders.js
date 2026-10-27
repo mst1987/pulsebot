@@ -128,7 +128,7 @@ let running = false;
 let lastRun = null;
 
 /**
- * One sweep over every configured event server's upcoming events (#361) — one
+ * One sweep over every configured server's upcoming events (#361) — one
  * server's events failing to load never stops the sweep on the others.
  * @returns {Promise<{ sent: number, failed: number, skipped: number, error: string|null }>}
  */

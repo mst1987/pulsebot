@@ -157,8 +157,8 @@ describe("Discord-Übersicht", () => {
         expect(api.getDiscordOverview).not.toHaveBeenCalledWith("g1", false);
     });
 
-    // #897: there is no talk server any more, an old link opens the first server
-    it("opens the first server from an old talk-server link", async () => {
+    // #897: an old ?side=talk link opens the first server
+    it("opens the first server from an old ?side=talk link", async () => {
         renderPage(<DiscordOverviewPage />, { route: "/channels/overview?side=talk" });
         expect(await screen.findByRole("radio", { name: "Testgilde" })).toBeChecked();
         expect(api.getDiscordOverview).not.toHaveBeenCalledWith("g2", false);

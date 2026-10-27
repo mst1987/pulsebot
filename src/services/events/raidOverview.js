@@ -23,7 +23,7 @@
 //
 // Overviews posted before the bot remembered them (the old `/createoverview`
 // text with its buttons, or the card `update-events` made of it) are found once
-// per event server (adoptExisting): the recent messages of every text channel
+// per server (adoptExisting): the recent messages of every text channel
 // under a category are searched for a message of the bot that came from
 // `/createoverview` or still carries the "update-events" button. The scan
 // pauses between channels, tolerates any failure and notes the server as done
@@ -61,7 +61,7 @@ const isUnknownMessage = (e) => !!(e && (e.code === 10008 || /unknown message/i.
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * The groups of an event server, loaded once per run: `cache` maps guild id to the load.
+ * The groups of a server, loaded once per run: `cache` maps guild id to the load.
  * @returns {Promise<{ groups: object[], error: string|null }>}
  */
 async function groupsOf(guildId, cache) {
@@ -235,7 +235,7 @@ function isOverviewMessage(message, botId) {
 const TEXT_CHANNEL_TYPES = [0, 5];
 
 /**
- * Search the text channels of the event servers once for overviews the store does not know yet and register them;
+ * Search the text channels of the servers once for overviews the store does not know yet and register them;
  * the next sweep redraws them. Rate-limit friendly (a pause between channels) and failure tolerant (a channel it cannot read is skipped).
  * A server counts as searched only when every one of its channels was read.
  * @returns {Promise<{ adopted: number, guilds: number, failed: number }>}

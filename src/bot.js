@@ -116,9 +116,9 @@ client.on("messageCreate", async(message) => {
     }
 });
 
-// Role sync between the event and the talk server (#264): a member whose roles
-// changed, or who just joined one of the two, gets the mapped roles on the
-// other one. Only adds — see src/services/discord/roleSync.js.
+// Role sync between paired servers (#264, #896): a member whose roles
+// changed, or who just joined one of them, gets the mapped roles on the
+// other server of the pair. Only adds — see src/services/discord/roleSync.js.
 // Rosters (#656): gaining a roster role takes the member into that roster,
 // losing its last role drops them out — see src/services/roster/rosterRoleSync.js.
 client.on("guildMemberUpdate", (oldMember, newMember) => {

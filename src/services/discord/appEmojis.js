@@ -1,7 +1,7 @@
 // The bot's application emojis (#287): spec, class, role and status icons that
 // the event message and its selects draw instead of text. They belong to the
-// bot's Discord application, not to a server, so they work on the event and
-// the talk server alike — in embeds and in select options.
+// bot's Discord application, not to a server, so they work on every
+// server alike — in embeds and in select options.
 //
 // Uploaded by the bot on start (`appEmojiSync.ensureAppEmojis`; by hand with
 // `node scripts/sync-app-emojis.js` — the catalogue below is what both upload);

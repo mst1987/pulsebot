@@ -3,7 +3,7 @@
 // it inherits and the handler. Lives directly in src/commands/, not in a
 // subfolder, so the loaders do not take it for a command.
 //
-// With `guild` (the default) the interaction must come from the event server
+// With `guild` (the default) the interaction must come from a configured server
 // (services/events/eventDraft.js `guildFor`); the handler then gets `(interaction, guildId)`,
 // otherwise the error is answered — as an ephemeral reply, or with
 // `onGuildError: "update"` by replacing the message the component sits on.

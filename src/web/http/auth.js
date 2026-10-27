@@ -9,7 +9,7 @@ const {
 } = require("../../config/variables");
 const { getConfig } = require("../../stores/settingsStore");
 const { fullAccess, emptyAccess } = require("../../config/permissions");
-// What an account may do (its roles on the event servers, the base access) is
+// What an account may do (its roles on the configured servers, the base access) is
 // the bot's question too — the guild bank's orga buttons check the same rights
 // as the menu — so it lives in services/, which commands/ may require.
 const { computeAccess, resolveAccess } = require("../../services/discord/userAccess");

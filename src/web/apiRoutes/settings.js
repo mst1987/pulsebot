@@ -264,7 +264,7 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         noteChannels: noteChannels(config),
         bot: botStatus(guildId),
         // #744: configured categories Discord no longer has (only when the bot sees
-        // every event server), each with what "Kategorie abschließen" would remove.
+        // every server), each with what "Kategorie abschließen" would remove.
         missingCategories: missingCategoriesOf(config),
         // One card per server (cheap: names, member counts, rights). The member
         // overlap needs a full member fetch and loads with the section itself.
@@ -433,13 +433,13 @@ const getRoleSync = withUser({ full: true }, async ({ res }) => {
 
 /**
  * GET /api/settings/reminders — the reminder block: the stored rules, every
- * configured event server's raid categories with names and the last sweep.
+ * configured server's raid categories with names and the last sweep.
  */
 const getReminders = withUser({}, async ({ res }) => {
     const config = getConfig();
     // Names from the live list backed by earlier snapshots, so a category the
     // bot cannot see right now still reads as a name rather than an id — and a
-    // category that only exists on a secondary event server still gets one.
+    // category that only exists on a secondary server still gets one.
     const names = new Map();
     for (const guildId of guildRoles.eventGuildIds(config)) {
         for (const c of listKnownCategories(guildId) || []) if (!names.has(c.id)) names.set(c.id, c.name);
@@ -805,7 +805,7 @@ const closeCategoryHandler = withUser({ csrf: true, body: true }, async ({ body,
     ok(res, { ...result, name, config: publicConfig(getConfig()), missingCategories: missingCategoriesOf(getConfig()) });
 });
 
-/** Category id → name over every event server (live list backed by the snapshot); "" when unknown. */
+/** Category id → name over every server (live list backed by the snapshot); "" when unknown. */
 function categoryNamesOf(config) {
     const names = new Map();
     try {

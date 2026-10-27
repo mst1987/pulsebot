@@ -16,7 +16,7 @@
 //                 resumes all of it. deactivationPreview() is the save dialog's
 //                 list of what pauses.
 //   deleted       configured, but Discord no longer has it (only judged when
-//                 the bot sees every event server: discordCategoryIds()).
+//                 the bot sees every server: discordCategoryIds()).
 //                 Einstellungen → Kategorien marks it "in Discord gelöscht"
 //                 and offers "Kategorie abschließen".
 //   closed        closeCategory(): its series is deleted, its settings and
@@ -133,7 +133,7 @@ function deactivationPreview({ config, nextIds = [], now = Date.now() } = {}) {
 }
 
 /**
- * The category ids Discord has on every event server, or null when that is not
+ * The category ids Discord has on every server, or null when that is not
  * known (bot offline, a server not cached) — "deleted" is never guessed.
  * @returns {Set<string> | null}
  */

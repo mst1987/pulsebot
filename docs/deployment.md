@@ -163,7 +163,7 @@ Health-Check: **etwa eine Minute**, ohne nennenswerten Speicherbedarf.
    `node scripts/register-commands.js --print-hash` liefert einen sha256 über
    die `data` aller Befehle (genau so gesammelt wie beim Registrieren, Schlüssel
    sortiert, `scripts/lib/commandsHash.js`), die `CLIENT_ID` und die
-   Ziel-Server. Ein neuer Talk-Server in den Einstellungen zählt also auch als
+   Ziel-Server. Ein neuer Server in den Einstellungen zählt also auch als
    Änderung. Schlägt das Registrieren fehl, wird der Hash nicht gemerkt und der
    nächste Deploy versucht es wieder.
 8. **Daten-Schnappschuss** (#695) mit Grund `deploy`, altem und neuem Commit —

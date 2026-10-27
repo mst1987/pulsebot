@@ -12,14 +12,14 @@ const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
 const { asEphemeral } = require("../../utils/discord/card");
 
-// The select "Raid wählen, um dich anzumelden" under the raid overview on the
-// talk server (customId `talk-signup`, services/talk/talkOverview.js). An own event opens
+// The select "Raid wählen, um dich anzumelden" under a link's raid list on the
+// linked server (customId `talk-signup`, services/talk/talkOverview.js). An own event opens
 // the signup dialog (utils/signup/signupDialog.js) right here, only for the member; a
 // Raid-Helper event keeps its signup at Raid-Helper, so the answer links into
-// its event channel on the event server. Every answer is in the member's language.
+// its event channel on the raid server. Every answer is in the member's language.
 module.exports = {
     name: SELECT_ID,
-    description: "Raid-Auswahl unter der Raid-Übersicht im Kommunikations-Discord",
+    description: "Raid-Auswahl unter der Raid-Liste einer Verknüpfung",
     // Signing up is for every raider; the dialog's steps inherit this access.
     group: "signup",
     defaultAccess: "everyone",

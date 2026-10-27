@@ -2,7 +2,7 @@
 // docs/raidplan/sharing.md) as one message in the event's channel — like
 // "Sheet posten", posting again edits the message it wrote before.
 //
-// The route (POST /api/raids/post-raidplan) resolves the event server-side and
+// The route (POST /api/raids/post-raidplan) resolves the event on the server and
 // hands it in; this module decides whether there is anything to post, publishes
 // the plan when it is not yet (the link would lead nowhere), posts or edits the
 // message and records where it went (raidplanPostStore.js). The raid detail's

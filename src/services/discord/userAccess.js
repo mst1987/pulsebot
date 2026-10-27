@@ -6,7 +6,7 @@
 // in web/ because commands/ and utils/ never require from web/
 // (test/docs/layering.test.js).
 //
-//   computeAccess(userId)   the roles on every configured event server; throws
+//   computeAccess(userId)   the roles on every configured server; throws
 //                           when not one of them could be reached
 //   resolveAccess(userId)   the same, the base access when the lookup fails
 //   userMayAny(userId, areas, level)   resolveAccess + permissions.userCanAny
@@ -59,14 +59,14 @@ function memberRoleIds(member) {
 /**
  * What the given Discord user id may currently do: `{ isAdmin, access, isOrga? }`.
  * `isOrga: true` when a non-admin holds one of the orga roles (config.orgaRoleIds) on an
- * event server — full admins are orga anyway (permissions.userIsOrga).
+ * configured server — full admins are orga anyway (permissions.userIsOrga).
  * Full admin if the id is in the static admin list, or a member of ANY
- * configured event server (#361 — several can exist now) holding one of the
+ * configured server (#361 — several can exist now) holding one of the
  * admin roles there — full admins get every area at write level. Otherwise
  * the union of the role permissions of the roles they hold across every
- * configured event server they belong to (see config/permissions.js). Not
- * being a member of a given event server is not fatal — the next one is
- * tried. Throws only when not a single configured event server could be
+ * configured server they belong to (see config/permissions.js). Not
+ * being a member of a given server is not fatal — the next one is
+ * tried. Throws only when not a single configured server could be
  * reached at all (bot not logged in, Discord unreachable), so callers can
  * distinguish "no access" from "unknown".
  */
@@ -84,7 +84,7 @@ async function computeAccess(userId) {
     const base = BASE_ACCESS(userId).access;
     // Nothing role-based is configured at all — no need to hit Discord.
     if (!adminRoleIds.length && !Object.keys(rolePermissions).length && !orgaRoleIds.length) return { isAdmin: false, access: base };
-    // The event servers are admin-editable (data/settings/config.json); an
+    // The servers are admin-editable (data/settings/config.json); an
     // install that never configured one falls back to guildId, .env-only in turn.
     const guildIds = guildRoles.eventGuildIds(config);
     const botClient = discord.getClient();
@@ -98,7 +98,7 @@ async function computeAccess(userId) {
         try {
             guild = botClient.guilds.cache.get(guildId) || await botClient.guilds.fetch(guildId);
         } catch (e) {
-            lastGuildError = e; // bot not on this event server — try the next one
+            lastGuildError = e; // bot not on this server — try the next one
             continue;
         }
         reachedAnyGuild = true;
@@ -106,7 +106,7 @@ async function computeAccess(userId) {
         try {
             member = await guild.members.fetch(userId);
         } catch (e) {
-            // Not a member of this event server — they still keep what they have so far; try the next.
+            // Not a member of this server — they still keep what they have so far; try the next.
             if (e && (e.code === UNKNOWN_MEMBER || e.code === UNKNOWN_USER)) continue;
             throw e;
         }
@@ -115,7 +115,7 @@ async function computeAccess(userId) {
         access = mergeAccess(access, accessForRoles(rolePermissions, roleIds));
         if (roleIds.some((rid) => orgaRoleIds.includes(String(rid)))) isOrga = true;
     }
-    if (!reachedAnyGuild) throw lastGuildError || new Error("no configured event server reachable");
+    if (!reachedAnyGuild) throw lastGuildError || new Error("no configured server reachable");
     return { isAdmin: false, access, ...(isOrga ? { isOrga: true } : {}) };
 }
 
