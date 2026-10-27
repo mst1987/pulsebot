@@ -76,7 +76,7 @@ async function pingMissingRaiders({ guildId, eventId, text }) {
         console.log(
             `ping-missing: ${missing.length} Raider — events ${timings.events}ms, members ${timings.members}ms, post ${Date.now() - timings.at}ms`,
         );
-        return { message: `${missing.length} fehlende Raider gepingt${dmSummary(delivery.dm)}.`, count: missing.length, delivery };
+        return { message: `${missing.length} fehlende Raider gepingt${dmSummary(delivery)}.`, count: missing.length, delivery };
     } catch (e) {
         console.error("ping-missing failed:", e.message);
         return fail(500, "post_failed", e.message || "Posten fehlgeschlagen.");

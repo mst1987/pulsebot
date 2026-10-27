@@ -29,6 +29,7 @@ const { card } = require("../../utils/discord/card");
 const { findMissingRaiders, pingMissingRaiders } = require("./missingPing");
 const { MISSING_PREFIX } = require("./eventMessage");
 const { eventVersionTag } = require("./versionTag");
+const { dmSummary } = require("../discord/pingDelivery");
 
 const EVENT_ID = /^eh-[a-z0-9]{1,40}$/;
 /** Names shown in the preview; the rest is "+N weitere". */
@@ -131,9 +132,11 @@ async function confirmPing(interaction, guildId, event, now = Date.now()) {
         if (!result.count) return interaction.editReply(asEdit(allThereCard(event)));
         const actor = actorOf(interaction);
         eventStore.appendEventLog(event.id, { action: "ping", ...actor, detail: `${result.count} Raider · Anmelde-Nachricht` });
+        // the DMs and the fallback without a member list (#894), as the web shows them
+        const tail = dmSummary(result.delivery).replace(/^ · /, "");
         return interaction.editReply(asEdit(answer({
             kind: "ok", kicker: kickerOf(event), title: `${result.count} Raider gepingt`,
-            text: event.channelId ? `Im Event-Kanal <#${event.channelId}>.` : "",
+            text: [event.channelId ? `Im Event-Kanal <#${event.channelId}>.` : "", tail].filter(Boolean).join("\n"),
         })));
     } finally {
         inFlight.delete(event.id);

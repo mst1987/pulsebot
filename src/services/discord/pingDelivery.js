@@ -5,12 +5,13 @@
 // on the server the message is posted on, and a role mention only works on the
 // server the role belongs to. So a ping
 //
-//   1. reads the raid server's member list first (`fetchGuildMembersCached`) —
-//      when that fails nothing is posted, so a failure never leaves a
-//      half-delivered ping behind;
+//   1. reads the raid server's member list first (`fetchGuildMembersCached`,
+//      at most MEMBER_FETCH_MS) — when it cannot be read in time, everyone is
+//      mentioned in the raid channel as before #894 and nobody gets a DM
+//      (`membersUnreadable` in the result, a warning in the log);
 //   2. mentions the raiders who are on the raid server in the raid channel;
-//   3. sends everyone else a DM (`dmCard`) with a link to the signup message
-//      and to the raid's web page.
+//   3. sends everyone else a DM (`dmCard`) with a link to the raid's web page —
+//      they are not on the raid server, so a link into it would lead nowhere.
 //
 // A sign-up call mentions roles, and only on the raid server: whoever holds the
 // role is on that server, so there is nobody to DM.
@@ -21,11 +22,11 @@
 // drawn once per language; a plain string (the orga's own words) goes out as it is.
 //
 // A DM is a card (utils/discord/card.js, kind "warn", `dmCard`): the raid as
-// its heading, the text, the start short (`<t:…:d> <t:…:t>`) and buttons to the
-// signup message and the web page. The channel pings themselves are
-// discord.postMissingPing's.
+// its heading, the text, the start short (`<t:…:d> <t:…:t>`) and a button to the
+// web page. The channel pings themselves are discord.postMissingPing's.
 const { ButtonBuilder, ButtonStyle } = require("discord.js");
 const discord = require("./discord");
+const logger = require("../../logger").child("pingDelivery");
 const { card } = require("../../utils/discord/card");
 const linkCheck = require("./linkCheck");
 const { getConfig } = require("../../stores/settingsStore");
@@ -47,15 +48,32 @@ function raidGuildId(event, guildId) {
     return String(guildId || (event && event.guildId) || "").trim();
 }
 
-/** The ids of the raid server's members; throws with a German message when they cannot be read. */
-async function raidMemberIds(guildId) {
+/** How long a ping waits for the raid server's member list (a first fetch can hang up to 120 s). */
+const MEMBER_FETCH_MS = 10 * 1000;
+
+/**
+ * The ids of the raid server's members, or null when they cannot be read in
+ * time (missing GuildMembers intent, timeout) — the caller then mentions
+ * everyone in the channel. Throws when the bot is not on the server at all:
+ * then the channel cannot be posted to either.
+ */
+async function raidMemberIds(guildId, timeoutMs = MEMBER_FETCH_MS) {
     const guild = guildId ? discord.getGuild(guildId) : null;
     if (!guild) throw new Error("Der Bot ist nicht auf dem Server des Raids.");
+    let timer;
     try {
-        const members = await discord.fetchGuildMembersCached(guildId, guild);
+        const timeout = new Promise((resolve) => { timer = setTimeout(() => resolve(null), timeoutMs); });
+        const members = await Promise.race([discord.fetchGuildMembersCached(guildId, guild), timeout]);
+        if (!Array.isArray(members)) {
+            logger.warn(`member list of ${guildId} not read within ${timeoutMs} ms, mentioning everyone in the channel`);
+            return null;
+        }
         return new Set(members.map((m) => String(m.id)));
     } catch (e) {
-        throw new Error(`Mitglieder des Raid-Servers nicht lesbar: ${(e && e.message) || "GuildMembers-Intent aktiv?"}`, { cause: e });
+        logger.warn(`member list of ${guildId} unreadable, mentioning everyone in the channel:`, (e && e.message) || e);
+        return null;
+    } finally {
+        clearTimeout(timer);
     }
 }
 
@@ -72,16 +90,14 @@ function linkButton(label, url) {
 
 /**
  * The DM as a card (kind "warn", nothing in it pings): the raid as its heading —
- * a DM has no channel to say which one —, the ping, the start and buttons to
- * the signup message and to the raid's web page, labelled in the reader's language.
+ * a DM has no channel to say which one —, the ping, the start and a button to
+ * the raid's web page, labelled in the reader's language. No link to the signup
+ * message: a DM goes only to whoever is not on the raid server (#894), and a
+ * link into that server leads them nowhere.
  */
-function dmCard(text, event, guildId, lang = "de") {
+function dmCard(text, event, lang = "de") {
     const when = shortStart(event && event.startTime);
-    const buttons = event ? [
-        // only links that work (#537): the signup message, else the channel
-        linkButton(tr(lang, "To the signup"), linkCheck.eventLink(event, guildId)),
-        linkButton(tr(lang, "Open on the web"), linkCheck.webTarget("signup", event.id)),
-    ].filter(Boolean) : [];
+    const buttons = event ? [linkButton(tr(lang, "Open on the web"), linkCheck.webTarget("signup", event.id))].filter(Boolean) : [];
     return card({
         kind: "warn",
         title: event && event.title,
@@ -123,19 +139,21 @@ async function sendDms(userIds, payload, { config } = {}) {
  * @param {string[]} p.userIds
  * @param {string|function} p.text the message, or `(lang) => message`; empty = missingPingText()
  * @param {string} p.guildId  the raid's server (default: event.guildId)
- * @returns {Promise<{ event: object|null, mentioned: number, dm: { sent: string[], failed: string[] } | null }>}
+ * @param {number} [p.memberTimeoutMs] how long to wait for the member list (tests)
+ * @returns {Promise<{ event: object|null, mentioned: number, dm: { sent: string[], failed: string[] } | null, membersUnreadable: boolean }>}
+ *   `membersUnreadable`: the member list could not be read, so everyone was mentioned in the channel and nobody got a DM
  */
-async function deliverUserPing({ event, userIds, text = "", guildId = "", config = getConfig() }) {
+async function deliverUserPing({ event, userIds, text = "", guildId = "", config = getConfig(), memberTimeoutMs = MEMBER_FETCH_MS }) {
     if (!event || !event.channelId) throw new Error("Das Event hat keinen Kanal.");
     const users = [...new Set((userIds || []).map(String).filter(Boolean))];
     const raidGuild = raidGuildId(event, guildId);
-    // Read the members before posting anything, so a failure there never
-    // leaves a half-delivered ping behind.
-    const onServer = await raidMemberIds(raidGuild);
-    const present = users.filter((id) => onServer.has(id));
-    const absent = users.filter((id) => !onServer.has(id));
+    // Read the members before posting anything; without a list everyone is
+    // mentioned in the channel (the behaviour before #894) rather than nobody.
+    const onServer = await raidMemberIds(raidGuild, memberTimeoutMs);
+    const present = onServer ? users.filter((id) => onServer.has(id)) : users;
+    const absent = onServer ? users.filter((id) => !onServer.has(id)) : [];
 
-    const result = { event: null, mentioned: 0, dm: null };
+    const result = { event: null, mentioned: 0, dm: null, membersUnreadable: !onServer };
     // in the channel: the event's language (its category's)
     const lang = eventLang(event, config);
     if (present.length) {
@@ -144,7 +162,7 @@ async function deliverUserPing({ event, userIds, text = "", guildId = "", config
     }
     if (absent.length) {
         // a DM: each raider's own language
-        const dm = (dmLang) => dmCard(textIn(text, dmLang) || tr(dmLang, "Please sign up or sign off for the raid."), event, raidGuild, dmLang);
+        const dm = (dmLang) => dmCard(textIn(text, dmLang) || tr(dmLang, "Please sign up or sign off for the raid."), event, dmLang);
         result.dm = await sendDms(absent, dm, { config });
     }
     return result;
@@ -168,15 +186,24 @@ async function deliverAnnouncement({ channelId, template, roleIds }) {
     return { event: posted, mentioned: 0, dm: null };
 }
 
-/** " · 3 per DM" / " · 2 DMs fehlgeschlagen" — the tail of the success message. */
-function dmSummary(dm) {
-    if (!dm) return "";
+/** The orga's note when the member list could not be read (orga text, German). */
+const MEMBERS_UNREADABLE_NOTE = "Mitgliederliste nicht lesbar, alle im Kanal erwähnt";
+
+/**
+ * " · 3 per DM" / " · 2 DMs fehlgeschlagen" / " · Mitgliederliste nicht lesbar, …" —
+ * the tail of the success message, from deliverUserPing's result.
+ */
+function dmSummary(delivery) {
+    if (!delivery) return "";
+    const dm = delivery.dm;
     const parts = [];
-    if (dm.sent.length) parts.push(`${dm.sent.length} per DM`);
-    if (dm.failed.length) parts.push(`${dm.failed.length} ${dm.failed.length === 1 ? "DM" : "DMs"} fehlgeschlagen`);
+    if (delivery.membersUnreadable) parts.push(MEMBERS_UNREADABLE_NOTE);
+    if (dm && dm.sent.length) parts.push(`${dm.sent.length} per DM`);
+    if (dm && dm.failed.length) parts.push(`${dm.failed.length} ${dm.failed.length === 1 ? "DM" : "DMs"} fehlgeschlagen`);
     return parts.length ? ` · ${parts.join(" · ")}` : "";
 }
 
 module.exports = {
     deliverUserPing, deliverAnnouncement, dmSummary, dmCard, shortStart, sendDms, missingPingText,
+    MEMBER_FETCH_MS, MEMBERS_UNREADABLE_NOTE,
 };

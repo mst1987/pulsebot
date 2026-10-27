@@ -50,9 +50,9 @@ const BOT_FUNCTIONS = [
 const POST = ["ViewChannel", "SendMessages", "EmbedLinks"];
 
 /**
- * The channels the settings name, by purpose. `side` pins a purpose to one
- * server; without it the channel counts for the server it lies on (a channel
- * that cannot be found then shows on the event side). `required` purposes show
+ * The channels the settings name, by purpose. A channel counts for the server
+ * it lies on (a link's overview for the link's target server; a channel that
+ * cannot be found shows on the event side). `required` purposes show
  * "not_set" when no channel is configured.
  */
 function channelPurposes(config) {
@@ -108,12 +108,11 @@ function checkFunctions(guild, side) {
 }
 
 /**
- * Which side a configured channel shows on: its pinned side, its server, or
- * event when its server is unknown. "other" = it lies on a server that is
+ * Which side a configured channel shows on: its server (a link's own, else the
+ * channel's), or event when its server is unknown. "other" = it lies on a server that is
  * neither side (a second event server) — left out, it is not "missing" here.
  */
 function sideOfChannel(purpose, guildIds) {
-    if (purpose.side) return purpose.side;
     const client = discord.getClient();
     const channel = client && client.channels && client.channels.cache ? client.channels.cache.get(purpose.channelId) : null;
     const gid = purpose.guildId || (channel && str(channel.guildId));

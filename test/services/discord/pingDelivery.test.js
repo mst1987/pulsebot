@@ -87,12 +87,9 @@ describe("deliverUserPing", () => {
         expect(text).toContain("Bitte melden");
         expect(text).toContain("<t:1900000000:d> <t:1900000000:t> · <t:1900000000:R>");
         expect(text).not.toMatch(/:[fF]>/);
-        // buttons to the signup (here: the channel, there is no message yet) and to the web
-        expect(cardLinks(payload).map((b) => b.url)).toEqual([
-            "https://discord.com/channels/100000/110000",
-            "https://eh.example/signups?event=e1",
-        ]);
-        expect(r).toMatchObject({ mentioned: 2, dm: { sent: ["3"], failed: [] } });
+        // only a button to the web: a link into the raid server leads someone not on it nowhere
+        expect(cardLinks(payload).map((b) => b.url)).toEqual(["https://eh.example/signups?event=e1"]);
+        expect(r).toMatchObject({ mentioned: 2, dm: { sent: ["3"], failed: [] }, membersUnreadable: false });
         expect(r).not.toHaveProperty("target");
     });
 
@@ -126,7 +123,7 @@ describe("deliverUserPing", () => {
         expect(dms["4"]).toContain("Erinnerung auf Deutsch");
         // the buttons in the reader's language, too
         const labels = Object.fromEntries(discord.sendDirectMessage.mock.calls.map(([id, payload]) => [id, cardLinks(payload).map((b) => b.label)]));
-        expect(labels).toEqual({ 3: ["To the signup", "Open on the web"], 4: ["Zur Anmeldung", "Im Web öffnen"] });
+        expect(labels).toEqual({ 3: ["Open on the web"], 4: ["Im Web öffnen"] });
     });
 
     it("falls back to the default DM text in each raider's language", async () => {
@@ -142,7 +139,7 @@ describe("deliverUserPing", () => {
         const r = await ping.deliverUserPing({ event, userIds: ["3"], config: config() });
         expect(discord.postMissingPing).not.toHaveBeenCalled();
         expect(r.dm).toEqual({ sent: [], failed: ["3"] });
-        expect(ping.dmSummary(r.dm)).toBe(" · 1 DM fehlgeschlagen");
+        expect(ping.dmSummary(r)).toBe(" · 1 DM fehlgeschlagen");
     });
 
     it("refuses when the bot is not on the raid server, before posting anything", async () => {
@@ -152,12 +149,35 @@ describe("deliverUserPing", () => {
         expect(discord.sendDirectMessage).not.toHaveBeenCalled();
     });
 
-    it("posts nothing when the raid server's members cannot be read", async () => {
+    it("mentions everyone in the channel and DMs nobody when the members cannot be read", async () => {
         discord.fetchGuildMembersCached.mockRejectedValue(new Error("intent"));
-        await expect(ping.deliverUserPing({ event, userIds: ["1", "3"], config: config() }))
-            .rejects.toThrow("Mitglieder des Raid-Servers nicht lesbar: intent");
-        expect(discord.postMissingPing).not.toHaveBeenCalled();
+        const r = await ping.deliverUserPing({ event, userIds: ["1", "3"], config: config() });
+        expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["1", "3"], expect.any(String));
         expect(discord.sendDirectMessage).not.toHaveBeenCalled();
+        expect(r).toMatchObject({ mentioned: 2, dm: null, membersUnreadable: true });
+        expect(ping.dmSummary(r)).toBe(` · ${ping.MEMBERS_UNREADABLE_NOTE}`);
+        expect(ping.MEMBERS_UNREADABLE_NOTE).toBe("Mitgliederliste nicht lesbar, alle im Kanal erwähnt");
+    });
+
+    it("falls back the same way when the member list does not come in time", async () => {
+        discord.fetchGuildMembersCached.mockReturnValue(new Promise(() => {}));
+        const r = await ping.deliverUserPing({ event, userIds: ["1", "3"], config: config(), memberTimeoutMs: 5 });
+        expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["1", "3"], expect.any(String));
+        expect(discord.sendDirectMessage).not.toHaveBeenCalled();
+        expect(r.membersUnreadable).toBe(true);
+        expect(ping.MEMBER_FETCH_MS).toBe(10000);
+    });
+
+    it("treats a member list that is no list as unreadable", async () => {
+        discord.fetchGuildMembersCached.mockResolvedValue(null);
+        const r = await ping.deliverUserPing({ event, userIds: ["3"], config: config() });
+        expect(r).toMatchObject({ mentioned: 1, dm: null, membersUnreadable: true });
+    });
+
+    it("sums up DMs sent and failed, and nothing without a delivery", () => {
+        expect(ping.dmSummary(null)).toBe("");
+        expect(ping.dmSummary({ dm: null, membersUnreadable: false })).toBe("");
+        expect(ping.dmSummary({ dm: { sent: ["3", "4"], failed: ["5", "6"] } })).toBe(" · 2 per DM · 2 DMs fehlgeschlagen");
     });
 
     it("refuses an event without a channel", async () => {
@@ -186,17 +206,17 @@ describe("deliverAnnouncement", () => {
 
 describe("dmCard", () => {
     it("leaves the date and the buttons out when the event has neither start nor channel nor id", () => {
-        const payload = ping.dmCard("Hallo", { title: "Gruul" }, RAID_GUILD);
+        const payload = ping.dmCard("Hallo", { title: "Gruul" });
         expect(cardText(payload)).toBe("## Gruul\nHallo");
         expect(cardLinks(payload)).toEqual([]);
         expect(ping.shortStart(0)).toBe("");
         expect(ping.shortStart(1900000000)).toBe("<t:1900000000:d> <t:1900000000:t> · <t:1900000000:R>");
     });
 
-    it("links the signup message when the event has one", () => {
+    it("never links into the raid server, not even to the signup message", () => {
         knownChannels("110000");
         const withMessage = { ...event, message: { channelId: "110000", messageId: "130000" } };
-        const links = cardLinks(ping.dmCard("Hallo", withMessage, RAID_GUILD));
-        expect(links[0].url).toBe("https://discord.com/channels/100000/110000/130000");
+        const links = cardLinks(ping.dmCard("Hallo", withMessage, "en"));
+        expect(links.map((b) => [b.label, b.url])).toEqual([["Open on the web", "https://eh.example/signups?event=e1"]]);
     });
 });

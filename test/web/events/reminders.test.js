@@ -4,7 +4,11 @@ const fs = require("fs");
 const path = require("path");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
-jest.mock("../../../src/services/discord/discord", () => ({ listMembersWithRoles: jest.fn(), listHumanMembers: jest.fn() }));
+jest.mock("../../../src/services/discord/discord", () => ({
+    listMembersWithRoles: jest.fn(), listHumanMembers: jest.fn(),
+    // what the real pingDelivery calls (the fallback test below, #894)
+    getGuild: jest.fn(), fetchGuildMembersCached: jest.fn(), postMissingPing: jest.fn(), sendDirectMessage: jest.fn(),
+}));
 jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn() }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
 jest.mock("../../../src/services/discord/pingDelivery", () => ({ deliverUserPing: jest.fn() }));
@@ -168,6 +172,23 @@ describe("runReminders", () => {
         expect(again.sent).toBe(1);
         expect(deliverUserPing).toHaveBeenCalledTimes(2);
         spy.mockRestore();
+    });
+
+    it("marks the reminder done when the raid server's member list fails and everyone was mentioned (#894)", async () => {
+        const { deliverUserPing: realDelivery } = jest.requireActual("../../../src/services/discord/pingDelivery");
+        deliverUserPing.mockImplementation(realDelivery);
+        discord.getGuild.mockReturnValue({ id: "100000" });
+        discord.fetchGuildMembersCached.mockRejectedValue(new Error("intent"));
+        discord.postMissingPing.mockResolvedValue({ channelId: "110000", messageId: "m" });
+        loadEventGroups.mockResolvedValue(groups([{ ...soon, startTime: sec(NOW + 10 * HOUR) }]));
+        const r = await reminders.runReminders({ now: NOW, config });
+        expect(r).toMatchObject({ sent: 1, failed: 0 });
+        expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["3"], expect.any(String));
+        expect(discord.sendDirectMessage).not.toHaveBeenCalled();
+        expect(reminderStore.getSent("e1")).toEqual({ missing: NOW });
+        // done for good: the next sweep sends nothing again
+        await reminders.runReminders({ now: NOW + 5 * 60 * 1000, config });
+        expect(discord.postMissingPing).toHaveBeenCalledTimes(1);
     });
 
     it("waits when the members cannot be read instead of marking the reminder done", async () => {

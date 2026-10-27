@@ -96,6 +96,21 @@ describe("pingMissingRaiders", () => {
         expect(discord.postMissingPing).not.toHaveBeenCalled();
     });
 
+    it("mentions everyone and says so when the raid server's member list is unreadable (#894)", async () => {
+        discord.fetchGuildMembersCached.mockRejectedValue(new Error("Intent fehlt"));
+        const r = await pingMissingRaiders({ guildId: "100000", eventId: "eh-1" });
+        expect(discord.postMissingPing).toHaveBeenCalledWith("110000", ["2"], expect.any(String));
+        expect(discord.sendDirectMessage).not.toHaveBeenCalled();
+        expect(r.message).toBe("1 fehlende Raider gepingt · Mitgliederliste nicht lesbar, alle im Kanal erwähnt.");
+    });
+
+    it("answers with a default message when the post fails without one", async () => {
+        jest.spyOn(console, "error").mockImplementation(() => {});
+        discord.postMissingPing.mockRejectedValue(new Error(""));
+        const r = await pingMissingRaiders({ guildId: "100000", eventId: "eh-1" });
+        expect(r.error).toMatchObject({ status: 500, code: "post_failed", message: "Posten fehlgeschlagen." });
+    });
+
     it("pings nobody when everybody reacted", async () => {
         discord.listMembersWithRoles.mockResolvedValue({ members: [{ id: "1", displayName: "A" }], error: null });
         const r = await pingMissingRaiders({ guildId: "100000", eventId: "eh-1" });

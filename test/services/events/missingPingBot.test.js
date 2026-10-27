@@ -158,6 +158,25 @@ describe("Jetzt pingen", () => {
         expect(inFlight.size).toBe(0);
     });
 
+    it("says when the member list was unreadable and everyone was mentioned, and how many got a DM (#894)", async () => {
+        pingMissingRaiders.mockResolvedValue({
+            message: "", count: 2, delivery: { mentioned: 2, dm: null, membersUnreadable: true },
+        });
+        const i = click("event-missing:eh-abc:go");
+        await bot.handleMissingComponent(i, "100000");
+        expect(texts(i.editReply.mock.calls[0][0])[0]).toContain("Im Event-Kanal <#110000>.\nMitgliederliste nicht lesbar, alle im Kanal erwähnt");
+
+        pingMissingRaiders.mockResolvedValue({
+            message: "", count: 2, delivery: { mentioned: 1, dm: { sent: ["3"], failed: [] }, membersUnreadable: false },
+        });
+        eventStore.getEvent.mockReturnValue(baseEvent({ channelId: "" }));
+        const j = click("event-missing:eh-abc:go");
+        await bot.handleMissingComponent(j, "100000");
+        const text = texts(j.editReply.mock.calls[0][0])[0];
+        expect(text).toContain("1 per DM");
+        expect(text).not.toContain("Event-Kanal");
+    });
+
     it("refuses a second ping while the first one runs", async () => {
         let release;
         pingMissingRaiders.mockImplementation(() => new Promise((resolve) => { release = resolve; }));

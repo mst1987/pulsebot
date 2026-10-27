@@ -115,6 +115,15 @@ describe("channels", () => {
         expect(talkKeys).not.toContain("overview");
     });
 
+    it("shows a link's overview channel on the link's target server only", () => {
+        const withLink = { ...config, discordServers: { links: [{ from: EVENT, to: TALK, channelId: "300000000000000005" }, { to: TALK }] } };
+        expect(channelPurposes(withLink).filter((p) => p.key === "overview")).toEqual([
+            expect.objectContaining({ channelId: "300000000000000005", guildId: TALK }),
+        ]);
+        expect(botCheck("talk", TALK, withLink, GUILDS).channels.map((c) => c.key)).toContain("overview");
+        expect(botCheck("event", EVENT, withLink, GUILDS).channels.map((c) => c.key)).not.toContain("overview");
+    });
+
     it("lists only purposes with a channel, plus the required applications channel", () => {
         expect(channelPurposes({}).map((p) => p.key)).toEqual(["applications"]);
         mockOnline = false;
