@@ -843,6 +843,8 @@
         "unprovenTip": "Server nicht nachgewiesen",
         "unprovenSub": "Zu welchem Discord-Server diese Kategorie gehört, ist nicht belegt — oder ihr Server steht nicht in der Server-Liste. Sie wird deshalb hier angezeigt und kann nicht abgeschlossen werden. Server unter Discord-Server eintragen, dann erscheint sie dort.",
         "unproven": "Server unklar",
+        "notListed": "Server nicht in der Server-Liste",
+        "notListedSub": "Dieser Discord-Server steht nicht unter Discord-Server. Seine Kategorien können deshalb nicht als gelöscht erkannt oder abgeschlossen werden. Server dort eintragen.",
         "roleCount": {
             "one": "{count} Rolle",
             "other": "{count} Rollen"

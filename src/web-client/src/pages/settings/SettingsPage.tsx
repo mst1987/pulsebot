@@ -383,6 +383,7 @@ export default function SettingsPage() {
                     missing={data.missingCategories || []}
                     unproven={data.unprovenCategoryIds || []}
                     otherServer={data.otherServerCategoryIds || []}
+                    serverListed={data.serverListed !== false}
                     onCloseCategory={setClosing}
                     closeBlocked={changes.length > 0}
                     categoryRoles={draft.categoryRoles}

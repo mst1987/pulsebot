@@ -49,6 +49,11 @@ describe("raid categories per server", () => {
         expect(serverCategoriesOf(answer)).toEqual({ serverCategoryIds: ["a1"], unprovenCategoryIds: [], otherServerCategoryIds: ["b1"] });
     });
 
+    it("copies serverListed only when the server sent it", () => {
+        expect(serverCategoriesOf({ ...answer, serverListed: false }).serverListed).toBe(false);
+        expect("serverListed" in serverCategoriesOf(answer)).toBe(false);
+    });
+
     it("applies it to load, save and close", async () => {
         respond(answer);
         expect((await getSettings()).config.categoryIds).toEqual(["a1"]);

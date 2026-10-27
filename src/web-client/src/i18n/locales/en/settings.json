@@ -843,6 +843,8 @@
         "unprovenTip": "Server not proven",
         "unprovenSub": "Which Discord server this category belongs to is not proven — or its server is not in the server list. That is why it shows here and cannot be closed. Add the server under Discord servers and it moves there.",
         "unproven": "server unclear",
+        "notListed": "Server not in the server list",
+        "notListedSub": "This Discord server is not listed under Discord servers, so its categories can neither be detected as deleted nor closed. Add the server there.",
         "roleCount": {
             "one": "{count} role",
             "other": "{count} roles"

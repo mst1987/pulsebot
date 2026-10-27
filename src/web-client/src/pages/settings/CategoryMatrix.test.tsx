@@ -5,7 +5,7 @@
 // Planung switch decides whether the fixed sheet is offered at all (raid plan OR
 // sheet, never both).
 import { useState } from "react";
-import { screen, within } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
@@ -23,13 +23,14 @@ vi.mock("../../api", async (orig) => ({
 
 const noop = () => undefined;
 
-function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage, attendance, onAttendance, missing, onCloseCategory, closeBlocked, roles, categoryRoles, hubs, signupChars, onSignupCharacters, raidhelperActive, categoryIds, unproven, otherServer }: {
+function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage, attendance, onAttendance, missing, onCloseCategory, closeBlocked, roles, categoryRoles, hubs, signupChars, onSignupCharacters, raidhelperActive, categoryIds, unproven, otherServer, serverListed }: {
     /** #927: false = Raid-Helper is off on the active server. */
     raidhelperActive?: boolean;
     /** #926: the active server's categories, those without a proven server, and other servers' ones. */
     categoryIds?: string[];
     unproven?: string[];
     otherServer?: string[];
+    serverListed?: boolean;
     /** Characters per signup per category; with onSignupCharacters the card is offered. */
     signupChars?: Record<string, number>;
     onSignupCharacters?: (id: string, count: number) => void;
@@ -57,6 +58,7 @@ function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, langu
             categoryIds={categoryIds || ["c1"]}
             unproven={unproven}
             otherServer={otherServer}
+            serverListed={serverListed}
             categoryRoles={categoryRoles || { c1: ["r1"] }}
             missing={missing}
             onCloseCategory={onCloseCategory}
@@ -384,6 +386,19 @@ describe("CategoryMatrix: a category's life (#744)", () => {
         expect(within(row).queryByText("unbekannt")).toBeNull();
         expect(within(row).queryByText("in Discord gelöscht")).toBeNull();
         expect(within(row).queryByRole("button", { name: "Kategorie abschließen" })).toBeNull();
+    });
+
+    it("says once when the active server is not in the server list, also without categories", () => {
+        renderPage(<Harness serverListed={false} />);
+        expect(screen.getByRole("status")).toHaveTextContent("Server nicht in der Server-Liste");
+        cleanup();
+        renderPage(<Harness serverListed={false} categoryIds={[]} categoryRoles={{}} />);
+        expect(screen.getByText("Server nicht in der Server-Liste")).toBeInTheDocument();
+    });
+
+    it("shows no such note on a listed server", () => {
+        renderPage(<Harness />);
+        expect(screen.queryByText("Server nicht in der Server-Liste")).toBeNull();
     });
 
     it("leaves another server's categories off the page", () => {

@@ -330,6 +330,8 @@ export type ServerCategories = {
     unprovenCategoryIds?: string[];
     /** Configured categories (any category setting) shown on another server — their rows stay off this page. */
     otherServerCategoryIds?: string[];
+    /** False when the active server is not in the server list (no category of it can be closed). */
+    serverListed?: boolean;
 };
 
 /** Only the per-server category fields of an answer (to copy onto the page's data). */
@@ -338,6 +340,7 @@ export function serverCategoriesOf(answer: ServerCategories): ServerCategories {
     if (answer.serverCategoryIds) out.serverCategoryIds = answer.serverCategoryIds;
     if (answer.unprovenCategoryIds) out.unprovenCategoryIds = answer.unprovenCategoryIds;
     if (answer.otherServerCategoryIds) out.otherServerCategoryIds = answer.otherServerCategoryIds;
+    if (typeof answer.serverListed === "boolean") out.serverListed = answer.serverListed;
     return out;
 }
 

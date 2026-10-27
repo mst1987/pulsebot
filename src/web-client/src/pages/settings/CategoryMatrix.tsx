@@ -50,6 +50,8 @@ export default function CategoryMatrix(props: CategorySettings & {
     /** #926: active categories without a proven server (marked, never closable) and categories of other servers (left out). */
     unproven?: string[];
     otherServer?: string[];
+    /** #926: false when the active server is not in the server list -- nothing here can be proven gone then. */
+    serverListed?: boolean;
     icon: string;
     crumb: string;
 }) {
@@ -58,7 +60,7 @@ export default function CategoryMatrix(props: CategorySettings & {
         categorySetupDms = {}, categoryLanguage = {}, categoryAttendance = {}, categoryAnnounce = {}, categorySheets, categoryPlanning = {}, savedCategoryRoles,
         categoryDiscordEvent = {}, categoryVoiceChannel = {}, categoryLootSystem = {}, categorySignupNotes = {}, categorySignupNoteChannel = {},
         categorySignupCharacters = {}, missing = [], onCloseCategory, closeBlocked = false,
-        unproven = [], otherServer = [],
+        unproven = [], otherServer = [], serverListed = true,
         onToggleCategory, icon, crumb,
     } = props;
     const missingById = new Map(missing.map((m) => [m.categoryId, m]));
@@ -160,10 +162,16 @@ export default function CategoryMatrix(props: CategorySettings & {
         />
     );
 
+    // #926: a server missing from the server list proves nothing gone -- said once, above the list.
+    const notListed = serverListed ? null : (
+        <div className="note is-bad" role="status"><strong>{t("settings.categories.notListed")}</strong> {t("settings.categories.notListedSub")}</div>
+    );
+
     if (!rows.length) {
         return (
             <>
                 {partHead}
+                {notListed}
                 <div className="empty">{t("settings.categories.empty")}</div>
             </>
         );
@@ -251,6 +259,7 @@ export default function CategoryMatrix(props: CategorySettings & {
     return (
         <>
             {partHead}
+            {notListed}
             <div className="cat-list table-scroll">
                 <div className="cat-inner">
                     <div className="cat-row cat-head" aria-hidden="true">
