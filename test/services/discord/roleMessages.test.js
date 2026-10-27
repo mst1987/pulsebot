@@ -9,10 +9,18 @@ let mockConfig = {};
 jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
 let mockLang = "de";
 jest.mock("../../../src/services/discord/botLanguage", () => ({ langOfInteraction: () => mockLang }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({
-    eventGuildId: () => "900000000000000001",
-    talkGuildId: () => "900000000000000002",
-}));
+// The real server helpers over a fixed server list: the first server and the talk server (#895).
+jest.mock("../../../src/services/discord/guildRoles", () => {
+    const actual = jest.requireActual("../../../src/services/discord/guildRoles");
+    const cfg = { discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], talkGuildId: "900000000000000002", links: [] } };
+    return {
+        ...actual,
+        eventGuildId: () => "900000000000000001",
+        talkGuildId: () => "900000000000000002",
+        resolveServer: (wanted) => actual.resolveServer(wanted, cfg),
+        roleMessageGuild: (entry) => actual.roleMessageGuild(entry, cfg),
+    };
+});
 // the loaded commands as bot.js has them: the rule of `rolemsg` is its button's
 const mockClient = { user: { id: "999999999999999999" }, commands: new Map([["rolemsg", { name: "rolemsg", defaultAccess: "everyone" }]]) };
 const mockDiscord = {
@@ -37,6 +45,7 @@ const { mockInteraction } = require("../../helpers/mockInteraction");
 const { cardText, cardButtons } = require("../../helpers/cardText");
 
 const EVENT_GUILD = "900000000000000001";
+const TALK_GUILD = "900000000000000002";
 const CHANNEL = "100000000000000001";
 const ROLE = "200000000000000002";
 const ROLE2 = "200000000000000003";
@@ -86,7 +95,7 @@ function makeMessage(id, reactions = []) {
 }
 
 const INPUT = {
-    guildSide: "event",
+    guildId: EVENT_GUILD,
     channelId: CHANNEL,
     title: "WoW Forever Role",
     body: "Reagiere auf diese Nachricht um über WoW Forever Infos gepingt zu werden",
@@ -154,8 +163,18 @@ describe("validate", () => {
         expect(await codeOf(svc.validate({ ...INPUT, roles: [{ roleId: ROLE, emoji: "ab" }] }))).toBe("bad_emoji");
         expect(await codeOf(svc.validate({ ...INPUT, roles: [{ roleId: ROLE, emoji: "<:other:700000000000000099>" }] }))).toBe("unknown_emoji");
         expect(await codeOf(svc.validate({ ...INPUT, imageUrl: "http://x/y.png" }))).toBe("bad_image");
-        expect(await codeOf(svc.validate({ ...INPUT, guildSide: "nope" }))).toBe("bad_side");
-        expect(await codeOf(svc.validate({ ...INPUT, guildSide: "talk" }))).toBe("bot_offline");
+        expect(await codeOf(svc.validate({ ...INPUT, guildId: "900000000000000099" }))).toBe("unknown_guild");
+        expect(await codeOf(svc.validate({ ...INPUT, guildId: TALK_GUILD }))).toBe("bot_offline");
+    });
+
+    it("takes the server by guildId, an old guildSide input still works (#895)", async () => {
+        const { entry } = await svc.validate(INPUT);
+        expect(entry.guildId).toBe(EVENT_GUILD);
+        expect(entry.guildSide).toBeUndefined();
+        const legacy = { ...INPUT, guildSide: "event" };
+        delete legacy.guildId;
+        expect((await svc.validate(legacy)).entry.guildId).toBe(EVENT_GUILD);
+        expect(await codeOf(svc.validate({ ...legacy, guildSide: "talk" }))).toBe("bot_offline");
     });
 
     it("allows a role without emoji (a button only)", async () => {
@@ -230,6 +249,26 @@ describe("create, update, delete", () => {
         expect(res).toMatchObject({ reposted: true, entry: { messageId: "300000000000000005" } });
     });
 
+    it("migrates an entry from before #895 on save: guildId instead of guildSide, no repost", async () => {
+        const { entry } = await svc.createRoleMessage(INPUT);
+        const legacy = { ...store.getMessage(entry.id), guildSide: "event" };
+        delete legacy.guildId;
+        store.saveMessage(legacy);
+        expect(store.getMessage(entry.id).guildSide).toBe("event");
+        expect(svc.guildIdOf(store.getMessage(entry.id))).toBe(EVENT_GUILD);
+        mockDiscord.editPayload.mockResolvedValue({ url: "u" });
+        const res = await svc.updateRoleMessage(entry.id, INPUT);
+        expect(res.reposted).toBe(false);
+        expect(store.getMessage(entry.id)).toMatchObject({ guildId: EVENT_GUILD });
+        expect(store.getMessage(entry.id).guildSide).toBeUndefined();
+    });
+
+    it("reads an old talk entry as the talk server", () => {
+        expect(svc.guildIdOf({ guildSide: "talk" })).toBe(TALK_GUILD);
+        expect(svc.guildIdOf({ guildSide: "event" })).toBe(EVENT_GUILD);
+        expect(svc.guildIdOf({ guildId: TALK_GUILD, guildSide: "event" })).toBe(TALK_GUILD);
+    });
+
     it("answers 404 for an unknown entry", async () => {
         const err = await svc.updateRoleMessage("nope", INPUT).catch((e) => e);
         expect(err).toMatchObject({ code: "not_found", status: 404 });
@@ -247,8 +286,9 @@ describe("create, update, delete", () => {
 describe("roleMessageOptions", () => {
     it("lists roles with why they are privileged and whether the bot can hand them out, channels, emojis, Manage Roles", () => {
         mockDiscord.listRoles.mockReturnValue([{ id: ROLE, name: "WoW Forever", color: 0, managed: false }, { id: ADMIN_ROLE, name: "Mod", color: 0, managed: false }]);
-        const o = svc.roleMessageOptions("event");
-        expect(o).toMatchObject({ guildSide: "event", guildId: EVENT_GUILD, online: true, manageRoles: true });
+        const o = svc.roleMessageOptions(EVENT_GUILD);
+        expect(o).toMatchObject({ guildId: EVENT_GUILD, online: true, manageRoles: true });
+        expect(o.guildSide).toBeUndefined();
         expect(o.roles[0]).toMatchObject({ id: ROLE, privileged: "", editable: true });
         expect(o.roles[1].privileged).toBe("the role carries Discord permissions beyond @everyone");
         expect(o.channels[0]).toMatchObject({ id: CHANNEL, canReact: true });
@@ -256,7 +296,8 @@ describe("roleMessageOptions", () => {
     });
 
     it("says offline when the bot is not on the server", () => {
-        expect(svc.roleMessageOptions("talk")).toMatchObject({ guildSide: "talk", online: false, roles: [], channels: [], emojis: [] });
+        expect(svc.roleMessageOptions(TALK_GUILD)).toMatchObject({ guildId: TALK_GUILD, online: false, roles: [], channels: [], emojis: [] });
+        expect(svc.roleMessageOptions("")).toMatchObject({ guildId: "", online: false });
     });
 });
 

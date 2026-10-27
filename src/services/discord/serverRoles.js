@@ -1,12 +1,12 @@
 // The roles of a Discord server as the web shows them (System › Discord › Rollen,
 // web/apiRoutes/discordRoles.js): read-only, nothing here changes a role.
 //
-// - listServerRoles(side)        every role of the event or the talk server, highest first, with
+// - listServerRoles(guildId)     every role of one server of the list (#895), highest first, with
 //                                its members (counted), its Discord permissions (the sensitive ones
 //                                apart), what it means for the bot (selfRole.roleUses + the roles of
 //                                the role messages + the addon update role), whether the bot can
 //                                hand it out, and hints (empty, sensitive, needed but above the bot)
-// - serverRoleDetail(side, id)   one role plus the channels with an overwrite for it (allow/deny)
+// - serverRoleDetail(guildId, id) one role plus the channels with an overwrite for it (allow/deny)
 //                                and its members (name, avatar; @everyone cut at 200)
 //
 // The member list comes from discord.fetchGuildMembersCached — the GuildMembers intent, and a
@@ -15,7 +15,7 @@
 // Offline (the bot not on that server or not connected): `{ online: false }` and empty lists.
 const { PermissionsBitField } = require("discord.js");
 const discord = require("./discord");
-const { eventGuildId, talkGuildId } = require("./guildRoles");
+const { eventGuildId, roleMessageGuild } = require("./guildRoles");
 const { roleUses } = require("./selfRole");
 const { SENSITIVE: SENSITIVE_LIST } = require("./roleHygiene");
 const { roleBelowBot } = require("./memberRoles");
@@ -44,10 +44,6 @@ const EVERYONE_MEMBERS_MAX = 200;
 
 // Old names discord.js keeps for the same bit: the newer name is the one shown.
 const ALIASES = new Set(["ManageEmojisAndStickers"]);
-
-function guildIdOf(side, config) {
-    return side === "talk" ? talkGuildId(config) : eventGuildId(config);
-}
 
 const bitsOf = (perms) => {
     const b = perms ? perms.bitfield : undefined;
@@ -92,11 +88,11 @@ async function membersOf(guildId, guild, waitMs) {
     }
 }
 
-/** Uses of the role beyond selfRole's: the role messages of this side and the addon update role. */
-function extraUses(roleId, side) {
+/** Uses of the role beyond selfRole's: the role messages of this server and the addon update role. */
+function extraUses(roleId, guildId, config) {
     const out = [];
     for (const m of orFallback(() => roleMessageStore.listMessages() || [], [])) {
-        if ((m.guildSide === "talk" ? "talk" : "event") !== side) continue;
+        if (roleMessageGuild(m, config) !== guildId) continue;
         if ((m.roles || []).some((r) => str(r && r.roleId) === roleId)) out.push({ code: "roleMessage", messageId: str(m.id), title: str(m.title) });
     }
     const updateRole = orFallback(() => str(addonCenterStore.getSettings().roleId), "");
@@ -125,11 +121,11 @@ function categoryNamesFor(guildId) {
 }
 
 /** Everything the role means for the bot, with category names filled in. */
-function usesOf(config, roleId, side, categoryNames) {
+function usesOf(config, roleId, guildId, categoryNames) {
     const uses = roleUses(config, roleId).map((u) => (u.code === "categoryRaider"
         ? { ...u, categories: u.categoryIds.map((id) => ({ id, name: categoryNames[id] || "" })) }
         : u));
-    return [...uses, ...extraUses(roleId, side)];
+    return [...uses, ...extraUses(roleId, guildId, config)];
 }
 
 /**
@@ -175,7 +171,7 @@ function commonSensitiveOf(guild) {
 
 /** One role as the page reads it. */
 function roleView(role, ctx) {
-    const { guild, me, config, side, counts, categoryNames, common } = ctx;
+    const { guild, me, config, guildId, counts, categoryNames, common } = ctx;
     const everyone = role.id === guild.id;
     const isBotRole = isBotRoleOf(role, me);
     const permissions = permissionKeys(bitsOf(role.permissions));
@@ -183,7 +179,7 @@ function roleView(role, ctx) {
     // the outliers: sensitive permissions most roles do not have, the only ones in orange
     const usual = new Set((common || []).map((c) => c.key));
     const unusual = everyone ? [] : sensitive.filter((k) => !usual.has(k));
-    const uses = everyone ? [] : usesOf(config, role.id, side, categoryNames);
+    const uses = everyone ? [] : usesOf(config, role.id, guildId, categoryNames);
     const assign = assignOf(role, guild, me);
     const memberCount = counts ? (everyone ? counts.total : counts.byRole.get(role.id) || 0) : null;
     const hints = [];
@@ -209,12 +205,11 @@ function roleView(role, ctx) {
     };
 }
 
-/** The server of a side, its bot member and the shared context, or null offline. */
-async function contextFor(side, config, { waitMs }) {
-    const guildSide = side === "talk" ? "talk" : "event";
-    const guildId = guildIdOf(guildSide, config) || "";
+/** One server of the list (a guildId), its bot member and the shared context; guild null offline. */
+async function contextFor(serverId, config, { waitMs }) {
+    const guildId = str(serverId);
     const guild = guildId ? discord.getGuild(guildId) : null;
-    if (!guild) return { guildSide, guildId, guild: null };
+    if (!guild) return { guildId, guild: null };
     const me = guild.members ? guild.members.me : null;
     const { members, error } = await membersOf(guildId, guild, waitMs);
     let counts = null;
@@ -228,8 +223,9 @@ async function contextFor(side, config, { waitMs }) {
         counts = { total: members.length, byRole };
     }
     return {
-        guildSide, guildId, guild, me, config, side: guildSide, members, membersError: error, counts,
-        categoryNames: categoryNamesFor(eventGuildId(config) || ""),
+        guildId, guild, me, config, members, membersError: error, counts,
+        // Raid categories may sit on any server now: the first server's names, this one's on top.
+        categoryNames: { ...categoryNamesFor(eventGuildId(config) || ""), ...categoryNamesFor(guildId) },
         common: commonSensitiveOf(guild),
     };
 }
@@ -246,7 +242,6 @@ function botRoleOf(me) {
 function head(ctx) {
     const me = ctx.me;
     return {
-        side: ctx.guildSide,
         guildId: ctx.guildId,
         guildName: ctx.guild ? str(ctx.guild.name) : "",
         online: !!ctx.guild,
@@ -257,12 +252,12 @@ function head(ctx) {
 }
 
 /**
- * Every role of the side's server, highest first, @everyone last.
- * @param {"event"|"talk"} side
+ * Every role of one server, highest first, @everyone last.
+ * @param {string} guildId  one of the server list (the route checks it)
  * @param {{ config?: object, waitMs?: number }} [opts]
  */
-async function listServerRoles(side, { config = getConfig(), waitMs = discord.NAME_FETCH_MS } = {}) {
-    const ctx = await contextFor(side, config, { waitMs });
+async function listServerRoles(guildId, { config = getConfig(), waitMs = discord.NAME_FETCH_MS } = {}) {
+    const ctx = await contextFor(guildId, config, { waitMs });
     if (!ctx.guild) return { ...head(ctx), total: 0, roles: [], commonSensitive: [] };
     const roles = [...ctx.guild.roles.cache.values()].sort(byPosition).map((r) => roleView(r, ctx));
     return { ...head(ctx), total: roles.length, roles, commonSensitive: ctx.common };
@@ -307,9 +302,9 @@ function overwritesFor(guild, roleId) {
  * One role with its channel overwrites and its members.
  * @returns {Promise<object|null>} null when the server is online but has no such role
  */
-async function serverRoleDetail(side, roleId, { config = getConfig(), waitMs = discord.NAME_FETCH_MS } = {}) {
+async function serverRoleDetail(guildId, roleId, { config = getConfig(), waitMs = discord.NAME_FETCH_MS } = {}) {
     const id = str(roleId);
-    const ctx = await contextFor(side, config, { waitMs });
+    const ctx = await contextFor(guildId, config, { waitMs });
     if (!ctx.guild) return { ...head(ctx), total: 0, role: null, channels: [], members: [], membersTotal: 0 };
     const role = id ? ctx.guild.roles.cache.get(id) : null;
     if (!role) return null;
@@ -336,9 +331,8 @@ async function serverRoleDetail(side, roleId, { config = getConfig(), waitMs = d
     };
 }
 
-/** How many roles the side's server has (without @everyone), null offline: the tab's count. */
-function roleCount(side = "event", config = getConfig()) {
-    const guildId = guildIdOf(side === "talk" ? "talk" : "event", config);
+/** How many roles the server has (without @everyone), null offline: the tab's count. */
+function roleCount(guildId) {
     const guild = guildId ? discord.getGuild(guildId) : null;
     if (!guild || !guild.roles || !guild.roles.cache) return null;
     return Math.max(0, guild.roles.cache.size - (guild.roles.cache.has(guild.id) ? 1 : 0));
@@ -347,5 +341,5 @@ function roleCount(side = "event", config = getConfig()) {
 module.exports = {
     listServerRoles, serverRoleDetail, roleCount, permissionKeys, SENSITIVE_PERMISSIONS, EVERYONE_MEMBERS_MAX,
     // shared with serverMembers.js (the member page reads the same server context)
-    contextFor, head, channelKind, guildIdOf,
+    contextFor, head, channelKind,
 };
