@@ -468,10 +468,13 @@ function normalizeServers(list) {
 }
 
 /**
- * The directed links (#890): a link counts only when `from` and `to` are both
- * in `serverIds` and `channelId` (the raid list's channel on `to`) is a
- * snowflake — anything else is dropped. `from` = `to` is allowed; a second
- * link for the same `from:to` pair is dropped (first wins).
+ * The directed links (#890): a link counts only when `from` is in `serverIds`,
+ * `to` is a snowflake and `channelId` (the raid list's channel on `to`) is a
+ * snowflake — anything else is dropped. `to` need not be one of `servers`: a
+ * server that only shows a raid list holds no raids (no access, reminders or
+ * category checks there), and removing it from `servers` must not bring it
+ * back. `from` = `to` is allowed; a second link for the same `from:to` pair is
+ * dropped (first wins).
  *
  * `lang` is the language of the list on `to` (heading, buttons, day lines):
  * "de" | "en", or "" = the target server's language (serverLang). `versions`
@@ -504,7 +507,7 @@ function normalizeLinks(list, serverIds) {
         const from = String(raw.from || "").trim();
         const to = String(raw.to || "").trim();
         const channelId = String(raw.channelId || "").trim();
-        if (!known.has(from) || !known.has(to) || !isSnowflake(channelId)) continue;
+        if (!known.has(from) || !isSnowflake(to) || !isSnowflake(channelId)) continue;
         const key = `${from}:${to}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -517,8 +520,8 @@ function normalizeLinks(list, serverIds) {
  * The servers and links an old `eventGuilds` list stands for (#890): every
  * event server keeps its label; its overview target becomes the link
  * `{ from: guildId, to: overviewGuildId, channelId: overviewChannelId }`. A
- * target server that is no event server joins `servers` too (label ""), or
- * the link would be dropped.
+ * target that is no event server stays outside `servers` (only the event
+ * servers and the talk server become servers): it never held raids.
  */
 function legacyServersAndLinks(eventGuilds) {
     const entries = normalizeEventGuilds(eventGuilds);
@@ -526,7 +529,6 @@ function legacyServersAndLinks(eventGuilds) {
     const links = [];
     for (const e of entries) {
         if (!e.overviewGuildId || !e.overviewChannelId) continue;
-        if (!servers.some((s) => s.guildId === e.overviewGuildId)) servers.push({ guildId: e.overviewGuildId, label: "" });
         links.push({ from: e.guildId, to: e.overviewGuildId, channelId: e.overviewChannelId, lang: "", versions: [] });
     }
     return { servers, links };

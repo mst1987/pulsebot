@@ -236,11 +236,11 @@ describe("stores/configSchema server federation (#890)", () => {
             expect(out.talkPingChannelId).toBe(C1);
         });
 
-        it("an overview target on another server becomes a link, the target joins the servers", () => {
+        it("an overview target on another server becomes a link, the target does not become a server", () => {
             const out = schema.normalizeDiscordServers({
                 eventGuilds: [{ guildId: A, overviewGuildId: B, overviewChannelId: C1 }],
             });
-            expect(out.servers.map((x) => x.guildId)).toEqual([A, B]);
+            expect(out.servers.map((x) => x.guildId)).toEqual([A]);
             expect(out.links).toEqual([{ from: A, to: B, channelId: C1, lang: "", versions: [] }]);
         });
 
@@ -309,9 +309,12 @@ describe("stores/configSchema server federation (#890)", () => {
     describe("links", () => {
         const servers = [{ guildId: A }, { guildId: B }];
 
-        it("drops a link to or from an unknown server", () => {
-            const out = schema.normalizeDiscordServers({ servers, links: [{ from: A, to: T, channelId: C1 }, { from: T, to: A, channelId: C1 }] });
-            expect(out.links).toEqual([]);
+        it("drops a link from an unknown server, keeps one to a target outside the servers", () => {
+            const out = schema.normalizeDiscordServers({ servers, links: [
+                { from: A, to: T, channelId: C1 }, { from: T, to: A, channelId: C1 }, { from: A, to: "nope", channelId: C1 },
+            ] });
+            expect(out.links).toEqual([{ from: A, to: T, channelId: C1, lang: "", versions: [] }]);
+            expect(out.servers.map((x) => x.guildId)).toEqual([A, B]);
         });
 
         const link = (from, to, channelId, extra = {}) => ({ from, to, channelId, lang: "", versions: [], ...extra });
