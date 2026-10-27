@@ -9,6 +9,7 @@ const { withUser } = require("../http/apiHandler");
 const { AppError } = require("../http/apiResult");
 const { q } = require("../http/apiParams");
 const { activeGuildFor } = require("../http/activeGuild");
+const { mayUseServer } = require("../http/serverQuery");
 const { listReports, deleteReport, getReport, saveReport } = require("../../stores/reportStore");
 const { prepareClaList, claRowFromLog, annotateLogCategories } = require("../../services/logcheck/reportList");
 const { deleteLogKeepingReportGuild, reportGuild } = require("../../services/logcheck/reportGuild");
@@ -42,9 +43,7 @@ const discord = require("../../services/discord/discord");
  * @param {string} recordGuildId the server of the log / report
  */
 function onActiveServer(user, req, recordGuildId) {
-    if (user && user.isAdmin) return true;
-    const guildId = activeGuildFor(req);
-    return !!guildId && String(recordGuildId || "") === String(guildId);
+    return mayUseServer(user, req, recordGuildId);
 }
 
 /** The server a report belongs to (the log it came from decides, reportGuild.js). */

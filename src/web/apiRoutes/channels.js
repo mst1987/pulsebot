@@ -2,6 +2,7 @@ const { DateTime } = require("luxon");
 const { ok, error } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
+const { mayUseChannel, OTHER_SERVER } = require("../http/serverQuery");
 const discord = require("../../services/discord/discord");
 const discordChannels = require("../../services/discord/discordChannels");
 const archiveStore = require("../../stores/channelArchiveStore");
@@ -155,9 +156,11 @@ const createChannel = withUser({ csrf: true, body: true }, async ({ body, req, r
 });
 
 /** POST /api/channels/duplicate — clone a channel. Body: { channelId, name }. */
-const duplicateChannel = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const duplicateChannel = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const channelId = String(body.channelId || "").trim();
     if (!channelId) return error(res, 400, "no_channel", "Kein Kanal gewählt.");
+    // a channel of another server is out of reach (#925): only a full admin copies on every server
+    if (!mayUseChannel(user, req, channelId)) return error(res, 403, "other_server", OTHER_SERVER);
     try {
         const created = await discord.duplicateChannel(channelId, String(body.name || "").trim());
         ok(res, created, 201);
@@ -365,6 +368,15 @@ const batchCreate = withUser({ csrf: true, body: true }, async ({ user, body, re
     const raid = String(body.raid || "").trim();
     const channels = discord.listAllChannels(guildId);
     const existingNames = channels.map((c) => c.name);
+    // the category and the template channel belong to the active server (#925): only a full admin
+    // may name ones the server list of this page does not show
+    if (!user.isAdmin) {
+        if (categoryId && !(discord.listCategories(guildId) || []).some((c) => c.id === categoryId)) {
+            return error(res, 403, "other_server", OTHER_SERVER);
+        }
+        const askedTemplate = String(body.templateChannelId || "").trim();
+        if (askedTemplate && !channels.some((c) => c.id === askedTemplate)) return error(res, 403, "other_server", OTHER_SERVER);
+    }
     // In a category, new channels look like its previous event channel (#285):
     // an empty schema names them after it, and they are copies of it unless a
     // template channel is chosen.

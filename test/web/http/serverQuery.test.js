@@ -8,7 +8,10 @@ jest.mock("../../../src/stores/configStore", () => ({
 let mockActive = "900000000000000002";
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => mockActive) }));
 
-const { serverFromQuery, mayUseServer } = require("../../../src/web/http/serverQuery");
+let mockClient = null;
+jest.mock("../../../src/services/discord/discord", () => ({ getClient: () => mockClient }));
+
+const { serverFromQuery, mayUseServer, mayUseChannel, guildOfChannel } = require("../../../src/web/http/serverQuery");
 const { mockRes, status, json } = require("../../helpers/http");
 
 const admin = { id: "1", isAdmin: true };
@@ -20,7 +23,10 @@ const ask = (params, user = admin) => {
     return { res, out: serverFromQuery(new URLSearchParams(params), res, { user, req }) };
 };
 
-beforeEach(() => { mockActive = "900000000000000002"; });
+beforeEach(() => {
+    mockActive = "900000000000000002";
+    mockClient = null;
+});
 
 describe("web/http/serverQuery - a full admin", () => {
     it("takes the server of the list or the first one", () => {
@@ -82,5 +88,31 @@ describe("mayUseServer", () => {
         mockActive = "";
         expect(mayUseServer(orga, req, "")).toBe(false);
         expect(mayUseServer(null, req, "900000000000000002")).toBe(false);
+    });
+});
+
+describe("mayUseChannel / guildOfChannel (#925)", () => {
+    const cache = new Map([
+        ["c1", { id: "c1", guildId: "900000000000000001" }],
+        ["c2", { id: "c2", guild: { id: "900000000000000002" } }],
+    ]);
+
+    it("reads the server of a channel from the bot's cache", () => {
+        mockClient = { channels: { cache } };
+        expect(guildOfChannel("c1")).toBe("900000000000000001");
+        expect(guildOfChannel("c2")).toBe("900000000000000002");
+        expect(guildOfChannel("c9")).toBe("");
+        expect(guildOfChannel("")).toBe("");
+    });
+
+    it("lets everybody but a full admin use channels of the active server only (fail closed)", () => {
+        mockClient = { channels: { cache } };
+        expect(mayUseChannel(orga, req, "c2")).toBe(true);
+        expect(mayUseChannel(orga, req, "c1")).toBe(false);
+        expect(mayUseChannel(orga, req, "c9")).toBe(false);
+        expect(mayUseChannel(admin, req, "c1")).toBe(true);
+        mockClient = null; // bot offline: the server of no channel is known
+        expect(mayUseChannel(orga, req, "c2")).toBe(false);
+        expect(mayUseChannel(admin, req, "c9")).toBe(true);
     });
 });

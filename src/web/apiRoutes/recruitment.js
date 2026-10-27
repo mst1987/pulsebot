@@ -1,6 +1,7 @@
 const { ok, error } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
+const { mayUseServer, mayUseChannel, OTHER_SERVER } = require("../http/serverQuery");
 const {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
     listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
@@ -73,10 +74,12 @@ const deleteRecruitmentTemplate = withUser({ csrf: true, body: true }, async ({ 
 });
 
 /** POST /api/recruitment/post — post a template into a channel and track the message. Body: { templateId, channelId }. */
-const postRecruitmentTemplate = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const postRecruitmentTemplate = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const template = getRecruitment(String(body.templateId || "").trim());
     const channelId = String(body.channelId || "").trim();
     if (!template || !channelId) return error(res, 400, "invalid", "Vorlage oder Channel fehlt.");
+    // a channel of another server is out of reach (#925): only a full admin posts on every server
+    if (!mayUseChannel(user, req, channelId)) return error(res, 403, "other_server", OTHER_SERVER);
     try {
         const posted = await discord.postRecruitment(channelId, template);
         const channel = await discord.fetchTextChannel(channelId).catch(() => null);
@@ -100,9 +103,18 @@ const postRecruitmentTemplate = withUser({ csrf: true, body: true }, async ({ bo
     }
 });
 
+/**
+ * A tracked post the caller may reach (#925: a full admin every server, everybody else
+ * the active one), else null - a post of another server does not exist here.
+ */
+function ownPost(id, user, req) {
+    const post = id ? getRecruitmentPost(id) : null;
+    return post && mayUseServer(user, req, post.guildId) ? post : null;
+}
+
 /** POST /api/recruitment/post-update — edit an already-posted message. Body: { id, content, buttonLabel }. */
-const updateRecruitmentPost = withUser({ csrf: true, body: true }, async ({ body, res }) => {
-    const post = getRecruitmentPost(String(body.id || "").trim());
+const updateRecruitmentPost = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
+    const post = ownPost(String(body.id || "").trim(), user, req);
     if (!post) return error(res, 404, "not_found", "Nachricht nicht gefunden.");
     // The button keeps the version of the post (#553) — an edit changes the text, not whose applications it collects.
     const template = { content: body.content || "", title: "", body: "", buttonLabel: body.buttonLabel || "", versionId: post.versionId };
@@ -116,9 +128,9 @@ const updateRecruitmentPost = withUser({ csrf: true, body: true }, async ({ body
 });
 
 /** POST /api/recruitment/post-delete — stop tracking a post (the Discord message stays). Body: { id }. */
-const deleteRecruitmentPostHandler = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+const deleteRecruitmentPostHandler = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const id = String(body.id || "").trim();
-    if (!id || !deleteRecruitmentPost(id)) return error(res, 404, "not_found", "Nachricht nicht gefunden.");
+    if (!ownPost(id, user, req) || !deleteRecruitmentPost(id)) return error(res, 404, "not_found", "Nachricht nicht gefunden.");
     ok(res, { id });
 });
 

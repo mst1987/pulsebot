@@ -27,6 +27,31 @@ function mayUseServer(user, req, guildId) {
 }
 
 /**
+ * The server a channel (or thread) of the bot belongs to, from the bot's cache: "" for a
+ * channel the bot does not see or while it is offline - a caller then reaches it only as a
+ * full admin (fail closed).
+ */
+function guildOfChannel(channelId) {
+    const id = str(channelId);
+    if (!id) return "";
+    // required here, not at the top: discord.js pulls in much of the bot
+    const client = require("../../services/discord/discord").getClient();
+    const cache = client && client.channels && client.channels.cache;
+    const channel = cache && typeof cache.get === "function" ? cache.get(id) : null;
+    if (!channel) return "";
+    return str(channel.guildId || (channel.guild && channel.guild.id));
+}
+
+/**
+ * Whether `user` may act on a Discord channel from this request (#925): a full admin on
+ * every channel, everybody else on channels of the active server only.
+ */
+function mayUseChannel(user, req, channelId) {
+    if (user && user.isAdmin) return true;
+    return mayUseServer(user, req, guildOfChannel(channelId));
+}
+
+/**
  * The guildId the request means, "" when no server is configured, or null after
  * the 400 unknown_guild or the 403 other_server has been sent (the handler then returns).
  * @param {URLSearchParams} query
@@ -51,4 +76,4 @@ function serverFromQuery(query, res, { user, req, config = getConfig() } = {}) {
     return guildId;
 }
 
-module.exports = { serverFromQuery, mayUseServer, OTHER_SERVER };
+module.exports = { serverFromQuery, mayUseServer, mayUseChannel, guildOfChannel, OTHER_SERVER };
